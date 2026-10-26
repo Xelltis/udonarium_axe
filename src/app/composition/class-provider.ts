@@ -1,5 +1,6 @@
 import { Provider } from '@angular/core';
 import { VideoEncoderGateway } from '@axe/core/media/video-encoder';
+import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { AudioSharingSystem } from '@axe/core/storage/audio-sharing-system';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
@@ -27,6 +28,7 @@ export const CLASS_SINGLETON_PROVIDERS: Provider[] = [
   { provide: ObjectSynchronizer, useFactory: () => ObjectSynchronizer.instance },
 
   { provide: FileArchiver, useFactory: () => FileArchiver.instance },
+  { provide: AssetHttpStore, useFactory: () => AssetHttpStore.instance },
   { provide: VideoEncoderGateway, useFactory: () => VideoEncoderGateway.instance },
   { provide: ImageStorage, useFactory: () => ImageStorage.instance },
   { provide: ImageSharingSystem, useFactory: () => ImageSharingSystem.instance },

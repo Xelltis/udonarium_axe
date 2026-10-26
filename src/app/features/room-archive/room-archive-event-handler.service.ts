@@ -16,6 +16,7 @@ export class RoomArchiveEventHandlerService {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly roomSnapshot = inject(RoomSnapshotService);
   private readonly pointerDevice = inject(PointerDeviceService);
+  private readonly objectStore = inject(ObjectStore);
 
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private maxTimer: ReturnType<typeof setTimeout> | null = null;
@@ -27,7 +28,7 @@ export class RoomArchiveEventHandlerService {
    */
   constructor() {
     this.objectChange.objectChanged$.subscribe((event) => {
-      if (ObjectStore.instance.get(event.identifier)) this.markDirty();
+      if (this.objectStore.get(event.identifier)) this.markDirty();
     }, this.destroyRef);
     this.objectChange.objectAdded$.subscribe(() => this.markDirty(), this.destroyRef);
     this.objectChange.objectRemoved$.subscribe(() => this.markDirty(), this.destroyRef);

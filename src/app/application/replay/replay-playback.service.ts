@@ -77,6 +77,8 @@ export class ReplayPlaybackService {
   private readonly staging = inject(ReplayStagingService);
   private readonly motion = inject(MotionService);
   private readonly beforeBoardMode = inject(BEFORE_BOARD_MODE, { optional: true });
+  private readonly imageStorage = inject(ImageStorage);
+  private readonly audioStorage = inject(AudioStorage);
 
   private readonly _recordingId = signal<number | null>(null);
   private readonly _manifest = signal<ReplayManifest | null>(null);
@@ -366,8 +368,8 @@ export class ReplayPlaybackService {
     await Promise.resolve();
     setNetworkIsolated(false);
     this.objectSynchronizer.requestFullSync();
-    ImageStorage.instance.synchronize();
-    AudioStorage.instance.synchronize();
+    this.imageStorage.synchronize();
+    this.audioStorage.synchronize();
   }
 
   /**

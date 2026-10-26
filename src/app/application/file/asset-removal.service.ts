@@ -54,6 +54,9 @@ export class AssetRemovalService {
   private readonly confirm = inject(ConfirmService);
   private readonly snackbar = inject(SnackbarService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly imageStorage = inject(ImageStorage);
+  private readonly audioStorage = inject(AudioStorage);
+  private readonly assetHttpStore = inject(AssetHttpStore);
   private readonly storeRetries = new AssetRetries();
 
   /**
@@ -190,8 +193,8 @@ export class AssetRemovalService {
   private putUpIfPutBack(identifier: string): void {
     const record = AssetRemoval.get(identifier);
     if (!record || record.isRemoved) return;
-    if (record.kind === 'audio') AudioStorage.instance.putUpAgain(identifier);
-    else ImageStorage.instance.putUpAgain(identifier);
+    if (record.kind === 'audio') this.audioStorage.putUpAgain(identifier);
+    else this.imageStorage.putUpAgain(identifier);
   }
 
   private stopPlaying(identifiers: readonly string[]): void {
@@ -213,12 +216,12 @@ export class AssetRemovalService {
    * removal or reading of the room's list asks afresh.
    */
   private takeOutOfStore(identifier: string, roomKey: string | null): void {
-    if (Network.transport !== 'server' || !AssetHttpStore.instance.isEnabled) return;
+    if (Network.transport !== 'server' || !this.assetHttpStore.isEnabled) return;
     if (Network.roomKey !== roomKey || !AssetRemoval.get(identifier)?.isRemoved) {
       this.storeRetries.forget(identifier);
       return;
     }
-    void AssetHttpStore.instance.remove(identifier).then((result) => {
+    void this.assetHttpStore.remove(identifier).then((result) => {
       if (result !== 'failed') {
         this.storeRetries.forget(identifier);
         if (result === 'removed') this.putUpIfPutBack(identifier);

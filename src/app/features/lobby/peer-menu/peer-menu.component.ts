@@ -150,6 +150,7 @@ export class PeerMenuComponent {
   protected readonly isServerTransport = signal(Network.transport === 'server');
   /** Whether this seat may report the room to the room server's operator, as anyone in it may. */
   protected readonly canReport = inject(ReportService).canReport;
+  private readonly objectSynchronizer = inject(ObjectSynchronizer);
   protected readonly roleShortLabelKey = roleShortLabelKey;
   protected readonly roleBadgeClass = roleBadgeClass;
 
@@ -452,7 +453,7 @@ export class PeerMenuComponent {
    * asked; on a room server, which alone holds the room, that it was asked.
    */
   requestFullSync() {
-    const peerCount = ObjectSynchronizer.instance.requestFullSync();
+    const peerCount = this.objectSynchronizer.requestFullSync();
     const notice =
       this.networkService.authorityPeerId !== null
         ? encodeI18nMessage('feature.lobby.peerMenu.fullSyncRequestedFromServer')

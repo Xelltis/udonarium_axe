@@ -85,6 +85,7 @@ export class SaveDataService {
   private readonly chatReactions = inject(ChatReactionService);
   private readonly stampPacks = inject(StampPackService);
   private readonly chatPreferences = inject(ChatPreferencesService);
+  private readonly objectStore = inject(ObjectStore);
 
   // The exporter would write a raw `@i18n:key:{params}` message, as system notices are,
   // so the translated text is substituted before it gets there.
@@ -223,7 +224,7 @@ export class SaveDataService {
 
     const named: ImageFile[] = this.withCarried(
       [...this.searchImageFiles(roomXml), ...this.searchImageFiles(chatXml)],
-      ObjectStore.instance.getObjects(WhiteBoard)
+      this.objectStore.getObjects(WhiteBoard)
     );
     const images = everything ? this.withEveryHeld(named) : named;
     for (const image of images) {

@@ -76,6 +76,7 @@ export class StampComponent {
   private readonly language = inject(LanguageService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly packs = inject(StampPackService);
+  private readonly imageStorage = inject(ImageStorage);
 
   /** The stamp, by the identifier it is kept under. */
   readonly stampId = input.required<string>();
@@ -101,7 +102,7 @@ export class StampComponent {
     if (!ref) return null;
     if (ref.kind === 'image') {
       this.objectChange.fileVersion();
-      const image = ImageStorage.instance.get(ref.imageIdentifier);
+      const image = this.imageStorage.get(ref.imageIdentifier);
       if (!image?.url) {
         this.language.currentLang();
         const name = this.packs.nameOf(ref.imageIdentifier) || this.t('ui.stamp.picture');

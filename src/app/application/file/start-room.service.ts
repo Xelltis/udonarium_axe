@@ -68,6 +68,8 @@ export class StartRoomService {
   private readonly saveDataService = inject(SaveDataService);
   private readonly fileArchiver = inject(FileArchiver);
   private readonly objectStore = inject(ObjectStore);
+  private readonly imageStorage = inject(ImageStorage);
+  private readonly audioStorage = inject(AudioStorage);
   private readonly snackbar = inject(SnackbarService);
   private readonly confirm = inject(ConfirmService);
   private readonly t = inject(TRANSLATE_FN);
@@ -311,8 +313,8 @@ export class StartRoomService {
   private tableNow(): TableBefore {
     return {
       store: snapshotStore(),
-      images: new Set(ImageStorage.instance.images.map((image) => image.identifier)),
-      audios: new Set(AudioStorage.instance.audios.map((audio) => audio.identifier)),
+      images: new Set(this.imageStorage.images.map((image) => image.identifier)),
+      audios: new Set(this.audioStorage.audios.map((audio) => audio.identifier)),
     };
   }
 
@@ -405,10 +407,10 @@ export class StartRoomService {
     jukebox?.setNewVolume();
     jukebox?.refreshMix();
     for (const identifier of this.brought.images) {
-      if (!before.images.has(identifier) && !shown.has(identifier)) ImageStorage.instance.delete(identifier);
+      if (!before.images.has(identifier) && !shown.has(identifier)) this.imageStorage.delete(identifier);
     }
     for (const identifier of this.brought.audios) {
-      if (!before.audios.has(identifier) && !shown.has(identifier)) AudioStorage.instance.delete(identifier);
+      if (!before.audios.has(identifier) && !shown.has(identifier)) this.audioStorage.delete(identifier);
     }
   }
 

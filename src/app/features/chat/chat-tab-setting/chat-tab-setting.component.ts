@@ -484,7 +484,7 @@ export class ChatTabSettingComponent {
     if (!this.canEditTabs) return;
     if (this.selectedTab() && this.selectedTabXml) {
       this.deletedOnServer = null;
-      ObjectStore.instance.announceComingBack(identifiersInXml(this.selectedTabXml));
+      this.objectStore.announceComingBack(identifiersInXml(this.selectedTabXml));
       const restoreTable = this.objectSerializer.parseXml(this.selectedTabXml)! as ChatTab;
       this.chatTabList.addChatTab(restoreTable);
       this.selectedTabXml = '';

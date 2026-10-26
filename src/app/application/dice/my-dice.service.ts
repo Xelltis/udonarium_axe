@@ -37,6 +37,7 @@ export const DICE_PICTURE_PREPARER = new InjectionToken<(picture: Blob) => Promi
 export class MyDiceService {
   private readonly prepare = inject(DICE_PICTURE_PREPARER);
   private readonly permission = inject(RolePermissionService);
+  private readonly imageStorage = inject(ImageStorage);
   private readonly pictures = DiceImageStore.instance;
   private readonly current = signal<DiceLook>(storedLook());
   private restoring: Promise<void> | null = null;
@@ -73,8 +74,8 @@ export class MyDiceService {
       return 'unstored';
     }
     const before = this.look().picture;
-    ImageStorage.instance.add(image, { putBack: this.permission.canEditShared });
-    if (ImageStorage.instance.isRemoved(image.identifier)) {
+    this.imageStorage.add(image, { putBack: this.permission.canEditShared });
+    if (this.imageStorage.isRemoved(image.identifier)) {
       image.destroy();
       if (before !== image.identifier) void this.pictures.remove(image.identifier);
       return 'removed';
@@ -105,10 +106,10 @@ export class MyDiceService {
    */
   ensureShared(): Promise<void> {
     const picture = this.look().picture;
-    if (!picture || !this.permission.canEditTabletop || ImageStorage.instance.isRemoved(picture)) {
+    if (!picture || !this.permission.canEditTabletop || this.imageStorage.isRemoved(picture)) {
       return Promise.resolve();
     }
-    const held = ImageStorage.instance.get(picture);
+    const held = this.imageStorage.get(picture);
     if (held && ImageState.COMPLETE <= held.state) return Promise.resolve();
     this.restoring ??= this.restore(picture).finally(() => (this.restoring = null));
     return this.restoring;
@@ -118,7 +119,7 @@ export class MyDiceService {
     const bytes = await this.pictures.get(picture);
     if (!bytes) return;
     const named = new File([bytes], `${picture}.${extensionOf(bytes.type)}`, { type: bytes.type });
-    await ImageStorage.instance.addAsync(named);
+    await this.imageStorage.addAsync(named);
   }
 }
 

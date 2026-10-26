@@ -83,6 +83,25 @@ const FEATURE_DEPENDENCIES: Record<string, readonly string[]> = {
   widgets: [],
 };
 
+/* Angular builds the services, components, directives and pipes, so they take the app's singletons
+   through inject() (bridged in composition/class-provider.ts) rather than reading them off the class.
+   The synced singletons (Config, ChatTabList, DataSummarySetting, TurnState) are left out on purpose:
+   their `instance` answers for whichever object stands in the room at the time, which an injected
+   copy would not follow. */
+const PROCESS_SINGLETONS = [
+  'AssetHttpStore',
+  'AudioSharingSystem',
+  'AudioStorage',
+  'FileArchiver',
+  'ImageSharingSystem',
+  'ImageStorage',
+  'ObjectFactory',
+  'ObjectSerializer',
+  'ObjectStore',
+  'ObjectSynchronizer',
+  'VideoEncoderGateway',
+];
+
 const FEATURE_RULES = Object.entries(FEATURE_DEPENDENCIES).map(([feature, allowed]) => ({
   files: [`src/app/features/${feature}/**/*.ts`],
   ignores: [`src/app/features/${feature}/**/*.spec.ts`],
@@ -171,6 +190,20 @@ export default defineConfig([
     },
   },
   ...FEATURE_RULES,
+  {
+    files: ['src/app/{application,ui,features}/**/*.{service,component,directive,pipe}.ts'],
+    ignores: ['src/app/**/*.spec.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: `MemberExpression[object.name=/^(${PROCESS_SINGLETONS.join('|')})$/][property.name='instance']`,
+          message:
+            'Angularが作るクラスでは`.instance`を読まず`inject()`で受け取る（composition/class-provider.tsで橋渡し済み）',
+        },
+      ],
+    },
+  },
   /* composition root: may depend on every layer (features included).
    *  Spelling it out declares that this is left outside the layer constraints on purpose. */
   {

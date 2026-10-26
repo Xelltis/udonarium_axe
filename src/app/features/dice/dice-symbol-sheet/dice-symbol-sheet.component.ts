@@ -82,7 +82,7 @@ export class DiceSymbolSheetComponent {
     return dice.faces.map((faceName) => {
       const el = dice.imageDataElement?.getFirstElementByName(faceName) as DataElement | null;
       const imageId = el ? (el.value as string) : '';
-      const imgFile = imageId ? ImageStorage.instance.get(imageId) : null;
+      const imgFile = imageId ? this.imageStorage.get(imageId) : null;
       return {
         faceName,
         imageUrl: this.imageService.getEmptyOr(imgFile).url,
