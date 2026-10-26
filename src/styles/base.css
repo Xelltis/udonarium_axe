@@ -1,0 +1,351 @@
+/* Button defaults go in @layer base, so Tailwind utilities (@layer utilities) take precedence and can override them */
+@layer base {
+  button {
+    background: var(--ui-elevated);
+    color: var(--ui-text);
+    border: 1px solid var(--ui-panel-border);
+    padding: 0.3em 0.75em;
+    margin: 0 2px;
+    border-radius: var(--ui-radius-sm);
+    cursor: pointer;
+    font-size: 0.875em;
+    font-family: inherit;
+    transition:
+      background var(--ui-transition),
+      border-color var(--ui-transition),
+      color var(--ui-transition),
+      box-shadow var(--ui-transition),
+      transform var(--ui-transition);
+    user-select: none;
+    line-height: 1.4;
+  }
+  button:hover {
+    background: var(--ui-hover);
+    border-color: var(--ui-accent);
+    color: var(--ui-accent);
+    box-shadow: 0 0 0 3px var(--ui-accent-glow);
+  }
+  button:active {
+    transform: scale(0.97);
+  }
+  button:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+  button.danger {
+    background: var(--ui-danger-bg);
+    color: var(--ui-danger);
+    border-color: var(--ui-danger);
+  }
+  button.danger:hover {
+    background: var(--ui-danger);
+    color: #fff;
+    border-color: var(--ui-danger);
+    box-shadow: 0 0 0 3px var(--ui-danger-glow);
+  }
+  button.danger:disabled {
+    background: var(--ui-danger-bg);
+    color: var(--ui-danger);
+    opacity: 0.38;
+  }
+
+  /* Tailwind v4's preflight applies background-color: transparent and border: 0 solid to
+     input/textarea/select, so the browser defaults are put back explicitly */
+  input:not([type='range']):not([type='checkbox']):not([type='radio']):not([type='color']) {
+    border: 1px solid var(--ui-input-border);
+    padding: 2px 6px;
+    background-color: var(--ui-input-bg);
+    color: var(--ui-text);
+    border-radius: var(--ui-radius-sm);
+    outline: none;
+    transition:
+      border-color var(--ui-transition),
+      box-shadow var(--ui-transition);
+  }
+  input:not([type='range']):not([type='checkbox']):not([type='radio']):not([type='color']):focus {
+    border-color: var(--ui-accent);
+    box-shadow: 0 0 0 3px var(--ui-accent-glow);
+  }
+  textarea {
+    border: 1px solid var(--ui-input-border);
+    padding: 4px 6px;
+    background-color: var(--ui-input-bg);
+    color: var(--ui-text);
+    border-radius: var(--ui-radius-sm);
+    outline: none;
+    transition:
+      border-color var(--ui-transition),
+      box-shadow var(--ui-transition);
+  }
+  textarea:focus {
+    border-color: var(--ui-accent);
+    box-shadow: 0 0 0 3px var(--ui-accent-glow);
+  }
+  select {
+    border: 1px solid var(--ui-input-border);
+    background-color: var(--ui-input-bg);
+    color: var(--ui-text);
+    border-radius: var(--ui-radius-sm);
+    padding: 1px 4px;
+    outline: none;
+    transition: border-color var(--ui-transition);
+  }
+  select:focus {
+    border-color: var(--ui-accent);
+    box-shadow: 0 0 0 3px var(--ui-accent-glow);
+  }
+
+  /* Scrollbars, kept thin and sleek */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--ui-text-dim);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--ui-text-muted);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--ui-text-dim) transparent;
+  }
+
+  /* The default style of hr elements */
+  hr {
+    border: none;
+    border-top: 1px solid var(--ui-panel-border);
+    margin: 0.5em 0;
+  }
+}
+
+/* A standalone item of the rotating menu also lays the hover colour over its backing, as the ordinary menu does. */
+button.rotating-menu-item:hover:not(:disabled) {
+  background: var(--ui-menu-bg);
+  box-shadow:
+    inset 0 0 0 9999px var(--ui-menu-hover),
+    var(--ui-shadow-lg);
+  color: var(--ui-accent);
+}
+
+/* A parent item of the rotating menu takes the same doughnut sector for its drawn shape and its click area. */
+button.radial-menu-sector {
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+/* Keyboard focus on a button, or on a control acting as one. Many turn the browser's own outline off with
+   outline-none, which is right for a pointer and left a keyboard user no sign of where they were. Standing
+   outside any layer it is not turned off with them, and :where keeps it below the focus rules a component
+   writes for its own buttons, as the rotating menu's below. Drawn inside, so a box that clips does not
+   hide it. */
+:where(button, [role='button'], summary, a[href]):focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: -2px;
+}
+
+button.radial-menu-sector:hover:not(:disabled),
+button.radial-menu-sector:focus-visible:not(:disabled),
+button.radial-menu-sector.radial-menu-sector-active:not(:disabled) {
+  background: var(--ui-menu-bg);
+  box-shadow: inset 0 0 0 9999px var(--ui-menu-hover);
+  color: var(--ui-accent);
+}
+
+button.radial-menu-sector:focus-visible {
+  outline: none;
+}
+
+button.radial-child-menu-item-detached {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.38);
+}
+
+button.radial-child-menu-item-detached:hover:not(:disabled),
+button.radial-child-menu-item-detached:focus-visible:not(:disabled),
+button.radial-child-menu-item-detached.radial-child-menu-item-active:not(:disabled) {
+  background: var(--ui-menu-bg);
+  box-shadow:
+    inset 0 0 0 9999px var(--ui-menu-hover),
+    0 1px 3px rgba(0, 0, 0, 0.38);
+  color: var(--ui-accent);
+}
+
+button.radial-child-menu-item:focus-visible {
+  outline: none;
+}
+
+/* Child and grandchild menus opened from the rotating menu give each item a black backing, not the outer box. */
+.context-menu-detached-title {
+  margin-bottom: 2px;
+  border: 1px solid var(--ui-menu-border);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-menu-bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.38);
+}
+
+.context-menu-detached-item {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.38);
+}
+
+.context-menu-detached-item:hover {
+  background: var(--ui-menu-bg);
+  box-shadow:
+    inset 0 0 0 9999px var(--ui-menu-hover),
+    0 1px 3px rgba(0, 0, 0, 0.38);
+  color: var(--ui-accent);
+}
+
+/* The altitude slider is not an ordinary item row, so only when shown detached does it sit on an opaque
+   panel of its own. */
+.context-menu-detached-altitude-slider-panel {
+  display: flex;
+  align-self: stretch;
+  margin-right: 2px;
+  border: 1px solid var(--ui-menu-border);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-menu-bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.38);
+}
+
+.context-menu-detached-altitude-title {
+  margin-bottom: 2px;
+  border: 1px solid var(--ui-menu-border);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-menu-bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.38);
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: var(--ui-bg);
+  touch-action: manipulation;
+  color-scheme: dark light;
+}
+
+/* The screen laid over a stream. The background is taken out, and the loading display is kept off the
+   stream as well. While the root element keeps a background, the canvas is painted in that colour even with
+   body alone made transparent. */
+html[data-overlay],
+html[data-overlay] body,
+html:has(body.overlay-mode),
+body.overlay-mode {
+  background-color: transparent;
+}
+
+html[data-overlay] .sk-cube-grid {
+  display: none;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Verdana, Meiryo, 'M+ 1p', 'Apple SD Gothic Neo',
+    'Malgun Gothic', 'Noto Sans KR', sans-serif;
+  position: relative;
+  color: var(--ui-text);
+  line-break: strict;
+  word-break: auto-phrase;
+}
+
+.sk-cube-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  width: 100px;
+  height: 100px;
+  margin: auto;
+}
+
+.sk-cube-grid .sk-cube {
+  width: 33%;
+  height: 33%;
+  background-color: #666;
+  float: left;
+  animation: sk-cubeGridScaleDelay 1.3s infinite ease-in-out;
+}
+
+.sk-cube-grid .sk-title {
+  width: 100%;
+  text-align: center;
+  float: left;
+}
+
+.sk-cube-grid .sk-cube1 {
+  animation-delay: 0.2s;
+}
+
+.sk-cube-grid .sk-cube2 {
+  animation-delay: 0.3s;
+}
+
+.sk-cube-grid .sk-cube3 {
+  animation-delay: 0.4s;
+}
+
+.sk-cube-grid .sk-cube4 {
+  animation-delay: 0.1s;
+}
+
+.sk-cube-grid .sk-cube5 {
+  animation-delay: 0.2s;
+}
+
+.sk-cube-grid .sk-cube6 {
+  animation-delay: 0.3s;
+}
+
+.sk-cube-grid .sk-cube7 {
+  animation-delay: 0s;
+}
+
+.sk-cube-grid .sk-cube8 {
+  animation-delay: 0.1s;
+}
+
+.sk-cube-grid .sk-cube9 {
+  animation-delay: 0.2s;
+}
+
+@keyframes anime1 {
+  0% {
+    transform: rotateZ(0deg);
+  }
+
+  100% {
+    transform: rotateZ(180deg);
+  }
+}
+
+@keyframes sk-cubeGridScaleDelay {
+  0%,
+  70%,
+  100% {
+    transform: scale(1, 1);
+  }
+
+  35% {
+    transform: scale(0, 0);
+  }
+}
+
+/*
+ * A definition that improves rendering in desktop Chrome 102-103 on Windows.
+ * Giving this CSS class to an image shown in 3D keeps its resolution sharp when seen up close.
+ * Consider removing it once a later Chrome update improves the rendering speed.
+ */
+.chrome-smooth-image-trick {
+  transform-style: inherit;
+}

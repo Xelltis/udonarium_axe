@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 
+import { readGlobalStyles } from '@axe/testing/global-styles';
+
 /** The templates whose small buttons stay on screen on a phone. */
 const SMALL_BUTTON_TEMPLATES = [
   'src/app/features/hotbar/hotbar-bar/hotbar-bar.component.html',
@@ -95,7 +97,7 @@ function reachOf(declarations: string | null, property: string): number | null {
 }
 
 describe('small buttons that stay on screen on a phone', () => {
-  const css = readFileSync('src/styles.css', 'utf8');
+  const css = readGlobalStyles();
 
   it('are given a larger place to be pressed on a touch screen', () => {
     const bare: string[] = [];

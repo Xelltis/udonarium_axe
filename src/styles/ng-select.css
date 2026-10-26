@@ -1,0 +1,115 @@
+/* The type picker of a data element. ng-select copies the host's class onto the dropdown too, so the
+   width is given here rather than through a class. Narrowing it with a class makes the option list just as
+   narrow, and four-character names such as 「テキスト」 and 「射程図形」 get cut short with an ellipsis. */
+.ng-select.ud-select.gde-select {
+  width: var(--gde-select-width);
+  min-width: var(--gde-select-width);
+}
+
+.ng-dropdown-panel.ud-select.gde-select {
+  width: max-content !important;
+  min-width: var(--gde-select-width) !important;
+}
+
+/* A variant for the selects dice-table-setting wants at full width.
+   Moved over from dice-table-setting.component.css, and kept global so that it
+   survives the scoped CSS going away with the move to Tailwind. */
+.ng-select.ud-select.sys-select {
+  display: block !important;
+  width: 100% !important;
+}
+
+.ng-select.ud-select.sys-select .ng-select-container {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 28px !important;
+  background: var(--ui-input-bg) !important;
+  border-color: var(--ui-panel-border) !important;
+  color: var(--ui-text) !important;
+  font-size: 13px !important;
+}
+
+/* The flex settings of chat-input's speaker / recipient / dice bot selects.
+   Moved over from chat-input.component.css, and kept global so that they
+   survive the scoped CSS going away with the move to Tailwind. */
+.ng-select.ud-select.chat-select {
+  flex: 1 1 9rem;
+  width: auto !important;
+  min-width: 7rem;
+  max-width: 100%;
+}
+
+.ng-select.ud-select.chat-select.chat-select--to {
+  flex-basis: 7rem;
+}
+
+.ng-select.ud-select.chat-select.chat-select--game-type {
+  flex-basis: 11rem;
+}
+
+/* At chat-input's @container (max-width: 420px) and (max-width: 320px),
+   the speaker select's flex-basis changes. The chat-input-controls class
+   serves as the container. */
+@container (max-width: 420px) {
+  .ng-select.ud-select.chat-select {
+    flex-basis: calc(50% - 16px);
+    min-width: 0;
+  }
+  .ng-select.ud-select.chat-select.chat-select--game-type {
+    flex-basis: 100%;
+  }
+  /* A packed input keeps the help and settings buttons beside the dice bot, giving that row to the list below. */
+  .ng-select.ud-select.chat-select.chat-select--game-type.chat-select--shares-row {
+    flex-basis: 6rem;
+  }
+}
+
+@container (max-width: 320px) {
+  .ng-select.ud-select.chat-select {
+    flex-basis: 100%;
+  }
+}
+
+/* The novel mode toolbar is packed tight across, so the speaker select keeps its width down and shrinks. */
+.ng-select.ud-select.vn-select {
+  flex: 0 1 9rem;
+  width: auto !important;
+  min-width: 7rem;
+  max-width: 12rem;
+  font-size: 0.75rem;
+}
+
+/* The novel bar stands its selects beside buttons a shade taller, and one row of one height reads as one row. */
+.ng-select.ud-select.vn-select,
+.ng-select.ud-select.vn-select .ng-select-container {
+  height: 2rem;
+  min-height: 2rem;
+}
+
+.ng-dropdown-panel.ud-select {
+  background: var(--ui-menu-bg);
+  border: 1px solid var(--ui-menu-border);
+  border-radius: var(--ui-radius-sm);
+  width: auto !important;
+  max-width: 550px;
+  z-index: 2000000;
+  box-shadow: var(--ui-shadow-md);
+}
+
+.ng-dropdown-panel.ud-select .ng-dropdown-panel-items .ng-option {
+  background: var(--ui-menu-bg);
+  color: var(--ui-text);
+  font-size: 12px;
+  padding: 5px 10px;
+  transition: background var(--ui-transition);
+}
+
+.ng-dropdown-panel.ud-select .ng-dropdown-panel-items .ng-option.ng-option-marked {
+  background: var(--ui-menu-hover);
+  color: var(--ui-text);
+}
+
+.ng-dropdown-panel.ud-select .ng-dropdown-panel-items .ng-option.ng-option-selected {
+  background: var(--ui-accent-bg);
+  color: var(--ui-accent);
+}

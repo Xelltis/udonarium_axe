@@ -1,10 +1,9 @@
-import { readFileSync } from 'node:fs';
-
 import { scopedTokens, TOKEN_ALIASES } from '@axe/domain/ui/skin-alias';
+import { readGlobalStyles } from '@axe/testing/global-styles';
 
 describe('the names a scoped preview also has to set', () => {
   it('lists every alias the stylesheet declares, and nothing it does not', () => {
-    const css = readFileSync('src/styles.css', 'utf-8');
+    const css = readGlobalStyles();
     const declared = new Map<string, string>();
     for (const match of css.matchAll(/(--color-ui-[a-z-]+):\s*var\((--ui-[a-z-]+)\)\s*;/g)) {
       declared.set(match[2], match[1]);

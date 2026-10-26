@@ -1,0 +1,452 @@
+/* Taking their leave: held for a beat so the parting line can be read, then gone. */
+@keyframes vnLeave {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes vnFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes vnSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes vnBounceIn {
+  0% {
+    opacity: 0;
+    transform: translateY(32px) scale(0.96);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-6px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes vnShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes vnPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  70% {
+    transform: scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes vnPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes vnJump {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-24px);
+  }
+  50% {
+    transform: translateY(0);
+  }
+  65% {
+    transform: translateY(-10px);
+  }
+  80% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes vnTremble {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  20% {
+    transform: translateX(-4px) rotate(-0.6deg);
+  }
+  40% {
+    transform: translateX(4px) rotate(0.6deg);
+  }
+  60% {
+    transform: translateX(-4px) rotate(-0.4deg);
+  }
+  80% {
+    transform: translateX(4px) rotate(0.4deg);
+  }
+}
+
+@keyframes vnZoom {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+/* The shapes of visual-novel speech bubbles. They use pseudo-elements and clip-path, so they are defined
+   globally. They match the background colour of .vn-bubble-base (rgba(255,255,255,0.92)). */
+.vn-bubble-normal::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: solid transparent;
+  border-width: 12px 10px 0;
+  border-top-color: rgba(255, 255, 255, 0.92);
+}
+
+.vn-bubble-thought {
+  border-radius: 2.5rem;
+}
+
+.vn-bubble-thought::before {
+  content: '';
+  position: absolute;
+  bottom: -14px;
+  left: 32%;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.vn-bubble-thought::after {
+  content: '';
+  position: absolute;
+  bottom: -26px;
+  left: 27%;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.vn-bubble-shout-bg {
+  clip-path: polygon(
+    2% 38%,
+    12% 28%,
+    6% 12%,
+    22% 16%,
+    30% 2%,
+    38% 14%,
+    52% 0%,
+    58% 14%,
+    72% 4%,
+    76% 18%,
+    92% 10%,
+    88% 28%,
+    99% 36%,
+    90% 48%,
+    100% 64%,
+    86% 68%,
+    92% 86%,
+    76% 80%,
+    70% 97%,
+    58% 84%,
+    46% 99%,
+    40% 84%,
+    26% 95%,
+    26% 80%,
+    10% 86%,
+    16% 70%,
+    1% 62%,
+    12% 50%
+  );
+}
+
+@keyframes vnFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes vnNod {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  35% {
+    transform: translateY(8px) rotate(2deg);
+  }
+  55% {
+    transform: translateY(8px) rotate(2deg);
+  }
+}
+
+@keyframes vnSway {
+  0%,
+  100% {
+    transform: rotate(-2deg);
+  }
+  50% {
+    transform: rotate(2deg);
+  }
+}
+
+@keyframes vnDroop {
+  0%,
+  100% {
+    transform: translateY(14px) rotate(-2.5deg);
+  }
+  50% {
+    transform: translateY(18px) rotate(-2.5deg);
+  }
+}
+
+@keyframes vnMarkIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.2) translateY(12px);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.35) translateY(-6px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.vn-bubble-whisper {
+  border-radius: 1.5rem;
+  border: 2px dashed rgba(71, 85, 105, 0.65);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+/* The game-style effects on visual-novel speech bubbles and portraits. They combine several animations,
+   so they are defined as global classes rather than through Tailwind's animate-*. */
+.vn-enter-normal {
+  animation: vnBubbleIn 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.vn-enter-shout {
+  animation: vnShoutIn 400ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.vn-enter-thought {
+  animation:
+    vnThoughtIn 480ms ease-out,
+    vnFloat 3200ms ease-in-out 480ms infinite;
+}
+
+.vn-enter-whisper {
+  animation: vnFadeIn 380ms ease-out;
+}
+
+.vn-enter-system {
+  animation: vnSystemIn 650ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes vnBubbleIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.85);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.04);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes vnShoutIn {
+  0% {
+    opacity: 0;
+    transform: scale(2) rotate(-4deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(0.92) rotate(2deg);
+  }
+  75% {
+    transform: scale(1.05) rotate(-1deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes vnThoughtIn {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes vnSystemIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-48px) scale(0.9);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(6px) scale(1.02);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes vnSpeak {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-12px);
+  }
+  60% {
+    transform: translateY(0);
+  }
+  80% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes vnSpeakB {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-12px);
+  }
+  60% {
+    transform: translateY(0);
+  }
+  80% {
+    transform: translateY(-4px);
+  }
+}
+
+.vn-enter-narration {
+  animation: vnNarrationIn 600ms ease-out;
+}
+
+.vn-enter-location {
+  animation: vnLocationIn 1600ms ease-out;
+}
+
+@keyframes vnNarrationIn {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes vnLocationIn {
+  0% {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+  35% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.vn-enter-scene {
+  animation: vnSceneIn 1100ms ease-out;
+}
+
+.vn-bg-fade {
+  animation: vnBgFade 700ms ease-out;
+}
+
+@keyframes vnBgFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.vn-bg-wipe {
+  animation: vnBgWipe 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes vnBgWipe {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes vnSceneIn {
+  0% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}

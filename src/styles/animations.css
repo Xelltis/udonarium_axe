@@ -1,0 +1,715 @@
+/* ── Global CSS Animations ──────────────────────────────────── */
+
+/* panel/modal enter animations */
+@keyframes flyIn {
+  from {
+    transform: scale(0.8, 0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1, 1);
+    opacity: 1;
+  }
+}
+
+@keyframes bgFadeIn {
+  from {
+    background-color: rgba(30, 30, 30, 0);
+  }
+  to {
+    background-color: rgba(30, 30, 30, 0.4);
+  }
+}
+
+.fly-in {
+  animation: flyIn 100ms ease-out;
+}
+
+.bg-fade-in {
+  animation: bgFadeIn 200ms ease-out forwards;
+}
+
+/* object show/hide animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/*
+ * The lighter way of drawing (RenderLiteService): nothing blurs what lies behind it. A frosted
+ * panel over a table that moves is blurred afresh every frame, which Firefox and small machines
+ * cannot keep up with.
+ */
+:root.render-lite *,
+:root.render-lite *::before,
+:root.render-lite *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/*
+ * Nor does every object on the table ask for a compositing layer of its own. The host element
+ * only moves when its stacking order does; the element inside that follows the pointer is
+ * promoted while it is dragged (MovableDirective), and that inline style still applies.
+ * Firefox gives up on will-change past an area budget, and small machines pay for every layer.
+ */
+:root.render-lite
+  :is(
+    text-note,
+    card-stack,
+    card,
+    game-character,
+    coin,
+    dice-symbol,
+    terrain,
+    game-table-mask,
+    game-table-scratch-mask,
+    table-ambience,
+    peer-cursor,
+    range,
+    white-board,
+    light-source
+  ).will-change-transform {
+  will-change: auto;
+}
+
+:root.motion-reduced
+  :is(
+    .animate-bounce-in,
+    .animate-stamp-pop,
+    .animate-stamp-shiver,
+    .animate-stamp-slam,
+    .animate-stamp-beat,
+    .animate-stamp-press,
+    .animate-sheet-up,
+    .animate-fade-in,
+    .animate-buff-swap,
+    .animate-fly-in,
+    .animate-vn-fade-in,
+    .animate-vn-leave,
+    .animate-vn-slide-in,
+    .animate-vn-bounce-in,
+    .animate-vn-shake,
+    .animate-vn-pop,
+    .animate-vn-pulse,
+    .animate-vn-float,
+    .animate-vn-jump,
+    .animate-vn-tremble,
+    .animate-vn-zoom,
+    .animate-vn-nod,
+    .animate-vn-sway,
+    .animate-vn-droop,
+    .animate-vn-mark-in,
+    .animate-vn-speak-a,
+    .animate-vn-speak-b,
+    .vn-enter-normal,
+    .vn-enter-shout,
+    .vn-enter-thought,
+    .vn-enter-whisper,
+    .vn-enter-system,
+    .vn-enter-narration,
+    .vn-enter-location,
+    .vn-enter-scene,
+    .vn-bg-fade,
+    .vn-bg-wipe
+  ) {
+  animation: none;
+}
+
+/*
+ * The rest of the animations end at once with motion stopped rather than being taken away. Some
+ * are waited out: the coin shows the face it landed on, and the die, the card stack and the badge
+ * come to rest, once theirs has ended. Some leave what they end on, as a defeated piece stays
+ * defeated. Inline durations and delays set on a piece are overridden too.
+ *
+ * Left running are the ones that tell of something going on rather than decorate it: a spinner
+ * while something loads, the pulse of a recording, the dots of someone writing.
+ */
+:root.motion-reduced
+  :is(
+    .animate-bounce,
+    .animate-blinking,
+    .animate-bg-fade-in,
+    .animate-chat-slide-in,
+    .animate-chat-fade-in,
+    .animate-coin-flip,
+    .animate-coin-flip-turn,
+    .animate-cursor-ping,
+    .animate-defeat-bisect,
+    .animate-defeat-dissolve,
+    .animate-defeat-flinch,
+    .animate-dice-pop,
+    .animate-dice-tumble-a,
+    .animate-dice-tumble-b,
+    .animate-dice-tumble-c,
+    .animate-disc-spin,
+    .animate-effect-flash,
+    .animate-effect-shake-hard,
+    .animate-effect-shake-soft,
+    .animate-float-change,
+    .animate-focused,
+    .animate-heal-glow,
+    .animate-heal-rise,
+    .animate-hit-flash,
+    .animate-hit-shake,
+    .animate-multi-angle-name-orbit,
+    .animate-multi-angle-piece-spin,
+    .animate-radial-orbit,
+    .animate-speech-pop,
+    .animate-target-bob,
+    .animate-target-ring,
+    .animate-title-scroll,
+    .bg-fade-in,
+    .blinking-animation,
+    .bounce-in,
+    .bouncing,
+    .chat-fade-in,
+    .chat-slide-in,
+    .dice-rolling,
+    .fade-in,
+    .fly-in,
+    .rotate-state,
+    .shuffling,
+    .vibration-amine
+  ) {
+  animation-duration: 1ms !important;
+  animation-delay: 0s !important;
+  animation-iteration-count: 1 !important;
+}
+
+@keyframes sheetUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rotateOut {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(-90deg);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 100ms ease-out;
+}
+
+.rotate-state {
+  animation: rotateOut 132ms ease-in-out;
+}
+
+/* terrain blink */
+@keyframes blink {
+  0% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0.5;
+  }
+}
+
+.blinking-animation {
+  animation: blink 1s linear infinite alternate;
+}
+
+/* bounce / card / dice roll */
+@keyframes bounceIn {
+  0% {
+    transform: scale3d(0, 0, 0);
+  }
+  50% {
+    transform: scale3d(1.5, 1.5, 1.5);
+  }
+  75% {
+    transform: scale3d(0.75, 0.75, 0.75);
+  }
+  87.5% {
+    transform: scale3d(1.125, 1.125, 1.125);
+  }
+  100% {
+    transform: scale3d(1, 1, 1);
+  }
+}
+
+@keyframes shuffle {
+  0% {
+    transform: scale3d(0, 0, 0) rotateZ(0deg);
+  }
+  50% {
+    transform: scale3d(1.2, 1.2, 1.2) rotateZ(360deg);
+  }
+  75% {
+    transform: scale3d(0.75, 0.75, 0.75) rotateZ(520deg);
+  }
+  87.5% {
+    transform: scale3d(1.125, 1.125, 1.125) rotateZ(630deg);
+  }
+  100% {
+    transform: scale3d(1, 1, 1) rotateZ(720deg);
+  }
+}
+
+@keyframes coinFlip {
+  0% {
+    transform: translateZ(0) rotateY(0deg) scale3d(1, 1, 1);
+  }
+  35% {
+    transform: translateZ(90px) rotateY(720deg) scale3d(1.18, 1.18, 1.18);
+  }
+  70% {
+    transform: translateZ(60px) rotateY(1440deg) scale3d(1.1, 1.1, 1.1);
+  }
+  100% {
+    transform: translateZ(0) rotateY(1800deg) scale3d(1, 1, 1);
+  }
+}
+
+@keyframes speechPop {
+  from {
+    opacity: 0;
+    transform: translateY(0.4em) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes floatChange {
+  0% {
+    opacity: 0;
+    transform: translateY(0.6em) scale(0.85);
+  }
+  18% {
+    opacity: 1;
+    transform: translateY(0) scale(1.12);
+  }
+  32% {
+    transform: translateY(-0.15em) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-1.9em) scale(1);
+  }
+}
+
+@keyframes buffSwap {
+  from {
+    opacity: 0;
+    transform: translateY(0.25em) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes hitFlash {
+  0% {
+    opacity: 0;
+  }
+  22% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes hitShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  12% {
+    transform: translateX(-5px);
+  }
+  28% {
+    transform: translateX(4.5px);
+  }
+  44% {
+    transform: translateX(-3.5px);
+  }
+  60% {
+    transform: translateX(2.5px);
+  }
+  78% {
+    transform: translateX(-1.5px);
+  }
+}
+
+@keyframes healRise {
+  0% {
+    opacity: 0;
+    transform: translateZ(0) scale(0.5);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateZ(52px) scale(1.1);
+  }
+}
+
+@keyframes healGlow {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  25% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes coinFlipTurn {
+  0% {
+    transform: translateZ(0) rotateY(0deg) scale3d(1, 1, 1);
+  }
+  35% {
+    transform: translateZ(90px) rotateY(792deg) scale3d(1.18, 1.18, 1.18);
+  }
+  70% {
+    transform: translateZ(60px) rotateY(1584deg) scale3d(1.1, 1.1, 1.1);
+  }
+  100% {
+    transform: translateZ(0) rotateY(1980deg) scale3d(1, 1, 1);
+  }
+}
+
+@keyframes diceRoll {
+  0% {
+    transform: scale3d(0.8, 0.8, 0.8) rotateZ(0deg);
+  }
+  50% {
+    transform: scale3d(1.2, 1.2, 1.2) rotateZ(360deg);
+  }
+  75% {
+    transform: scale3d(0.75, 0.75, 0.75) rotateZ(520deg);
+  }
+  87.5% {
+    transform: scale3d(1.125, 1.125, 1.125) rotateZ(630deg);
+  }
+  100% {
+    transform: scale3d(1, 1, 1) rotateZ(720deg);
+  }
+}
+
+/*
+ * A die thrown on the table rolls before it settles: it travels, turns over and comes to
+ * rest where it started. Three paths, so a handful thrown together does not move as one.
+ */
+@keyframes diceTumbleA {
+  0% {
+    transform: translate3d(0, 0, 0) scale3d(0.85, 0.85, 0.85) rotateZ(0deg);
+  }
+  35% {
+    transform: translate3d(20px, -16px, 0) scale3d(1.18, 1.18, 1.18) rotateZ(240deg);
+  }
+  70% {
+    transform: translate3d(-12px, 9px, 0) scale3d(1.02, 1.02, 1.02) rotateZ(470deg);
+  }
+  88% {
+    transform: translate3d(4px, -3px, 0) scale3d(1.08, 1.08, 1.08) rotateZ(640deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1) rotateZ(720deg);
+  }
+}
+
+@keyframes diceTumbleB {
+  0% {
+    transform: translate3d(0, 0, 0) scale3d(0.85, 0.85, 0.85) rotateZ(0deg);
+  }
+  35% {
+    transform: translate3d(-22px, -10px, 0) scale3d(1.2, 1.2, 1.2) rotateZ(-260deg);
+  }
+  70% {
+    transform: translate3d(11px, 12px, 0) scale3d(1.03, 1.03, 1.03) rotateZ(-500deg);
+  }
+  88% {
+    transform: translate3d(-5px, -4px, 0) scale3d(1.09, 1.09, 1.09) rotateZ(-660deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1) rotateZ(-720deg);
+  }
+}
+
+@keyframes diceTumbleC {
+  0% {
+    transform: translate3d(0, 0, 0) scale3d(0.85, 0.85, 0.85) rotateZ(0deg);
+  }
+  35% {
+    transform: translate3d(6px, -24px, 0) scale3d(1.16, 1.16, 1.16) rotateZ(200deg);
+  }
+  70% {
+    transform: translate3d(-8px, 14px, 0) scale3d(1.04, 1.04, 1.04) rotateZ(440deg);
+  }
+  88% {
+    transform: translate3d(3px, -5px, 0) scale3d(1.1, 1.1, 1.1) rotateZ(600deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1) rotateZ(720deg);
+  }
+}
+
+/* The face it came to rest on, called out over the die and gone again. */
+@keyframes dicePop {
+  0% {
+    opacity: 0;
+    transform: translateY(0.5em) scale(0.6);
+  }
+  18% {
+    opacity: 1;
+    transform: translateY(-0.1em) scale(1.3);
+  }
+  32% {
+    transform: translateY(-0.2em) scale(1);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-0.9em) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-1.7em) scale(0.95);
+  }
+}
+
+.bounce-in {
+  animation: bounceIn 600ms ease;
+}
+
+.shuffling {
+  animation: shuffle 800ms ease;
+}
+
+.dice-rolling {
+  animation: diceRoll 800ms ease;
+}
+
+/* chat message animations */
+@keyframes chatSlideIn {
+  from {
+    transform: translateX(100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* A stamp put on a line, or arriving as one: each family moves in its own way, once. */
+@keyframes stampPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+  75% {
+    transform: scale(0.92) rotate(-4deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes stampShiver {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  25%,
+  45%,
+  65%,
+  85% {
+    transform: translateX(-3px);
+  }
+  35%,
+  55%,
+  75% {
+    transform: translateX(3px);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes stampSlam {
+  0% {
+    opacity: 0;
+    transform: translateY(-60%) scale(1.4);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(0) scale(0.9);
+  }
+  68% {
+    transform: scale(1.08, 0.92);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes stampBeat {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  45% {
+    transform: scale(0.95);
+  }
+  62% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes stampPress {
+  0% {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.9);
+  }
+  78% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes chatFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.chat-slide-in {
+  animation: chatSlideIn 200ms ease-out;
+}
+
+.chat-fade-in {
+  animation: chatFadeIn 200ms ease-out;
+}
+
+/* game-character focus/arrow animations */
+@keyframes focused {
+  0% {
+    box-shadow: none;
+  }
+  50% {
+    box-shadow:
+      0px 0px 10px 5px #ff0,
+      inset 0px 0px 10px 5px #ff0;
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+@keyframes targetBob {
+  0%,
+  100% {
+    top: -0.25em;
+  }
+  50% {
+    top: 0.3em;
+  }
+}
+
+@keyframes targetRing {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* CSS's positive direction is clockwise on screen. With the bottom as 0deg, the name orbits the piece. */
+@keyframes multiAngleNameOrbit {
+  from {
+    transform: rotateZ(0deg);
+  }
+  to {
+    transform: rotateZ(360deg);
+  }
+}
+
+@property --multi-angle-piece-angle {
+  syntax: '<angle>';
+  inherits: true;
+  initial-value: 0deg;
+}
+
+@keyframes multiAnglePieceSpin {
+  from {
+    --multi-angle-piece-angle: 0deg;
+  }
+  to {
+    --multi-angle-piece-angle: 360deg;
+  }
+}
+
+/* app-level vibration */
+@keyframes vibration {
+  0% {
+    transform: scale(1, 1) translate(0%, 0%);
+  }
+  50% {
+    transform: scale(1.02, 0.95) translate(0%, 5%);
+  }
+  100% {
+    transform: scale(1, 1) translate(0%, 0%);
+  }
+}
+
+.vibration-amine {
+  animation: vibration 0.2s infinite;
+}
+
+.yt-click-guard {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: all;
+}
