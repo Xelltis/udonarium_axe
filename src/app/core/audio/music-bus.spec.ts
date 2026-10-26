@@ -1,5 +1,6 @@
 import { filterSetting, MusicBus } from '@axe/core/audio/music-bus';
-import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { AudioOutput, VolumeType } from '@axe/core/storage/audio-output';
+import { forgetAudioOutput } from '@axe/testing/web-audio-mock';
 
 type ParamMock = {
   value: number;
@@ -58,8 +59,6 @@ function contextMock(options: { analysers?: boolean } = {}) {
   };
 }
 
-type PlayerStatics = { _audioContext: unknown; channels: Map<VolumeType, unknown> };
-
 describe('filterSetting()', () => {
   it('opens both filters wide in the middle', () => {
     expect(filterSetting(0)).toEqual({ lowpassHz: 20000, highpassHz: 10, q: 0.707 });
@@ -88,9 +87,7 @@ describe('MusicBus', () => {
     }
     vi.stubGlobal('AudioContext', AudioContextCtor);
     vi.stubGlobal('webkitAudioContext', AudioContextCtor);
-    const statics = AudioPlayer as unknown as PlayerStatics;
-    statics._audioContext = undefined;
-    statics.channels.clear();
+    forgetAudioOutput();
   }
 
   beforeEach(() => {
@@ -101,9 +98,7 @@ describe('MusicBus', () => {
 
   afterEach(() => {
     MusicBus.forget();
-    const statics = AudioPlayer as unknown as PlayerStatics;
-    statics._audioContext = undefined;
-    statics.channels.clear();
+    forgetAudioOutput();
     vi.unstubAllGlobals();
     vi.useRealTimers();
   });
@@ -116,29 +111,29 @@ describe('MusicBus', () => {
   it('stops waiting for the audio context once forgotten', () => {
     MusicBus.forget();
 
-    void AudioPlayer.audioContext;
+    void AudioOutput.context;
 
     expect(MusicBus.current).toBeNull();
     expect(context.createGain).not.toHaveBeenCalled();
   });
 
   it('sets itself into the music channel as soon as the page makes its audio context', () => {
-    void AudioPlayer.audioContext;
+    void AudioOutput.context;
 
     const bus = MusicBus.current!;
     expect(bus).not.toBeNull();
-    expect(AudioPlayer.channelInput(VolumeType.MASTER)).toBe(bus.input);
+    expect(AudioOutput.channelInput(VolumeType.MASTER)).toBe(bus.input);
     expect((bus.output as unknown as NodeMock).connect).toHaveBeenCalledWith(
-      AudioPlayer.channelNode(VolumeType.MASTER)
+      AudioOutput.channelNode(VolumeType.MASTER)
     );
-    expect(AudioPlayer.channelInput(VolumeType.SE)).toBe(AudioPlayer.channelNode(VolumeType.SE));
+    expect(AudioOutput.channelInput(VolumeType.SE)).toBe(AudioOutput.channelNode(VolumeType.SE));
   });
 
   it('listens to what the effects and cut-ins sound like for the listener, after their own volumes', () => {
-    void AudioPlayer.audioContext;
+    void AudioOutput.context;
 
     for (const type of [VolumeType.SE, VolumeType.CUT_IN]) {
-      const channel = AudioPlayer.channelNode(type) as unknown as NodeMock;
+      const channel = AudioOutput.channelNode(type) as unknown as NodeMock;
       expect(channel.connect).toHaveBeenCalledWith(expect.objectContaining({ fftSize: 512 }));
     }
   });
@@ -146,8 +141,8 @@ describe('MusicBus', () => {
   it('ducks under effects only when asked, keeping the ask for a bus not built yet', () => {
     vi.useFakeTimers();
     MusicBus.setDucking(true);
-    void AudioPlayer.audioContext;
-    const effectsTap = (AudioPlayer.channelNode(VolumeType.SE) as unknown as NodeMock).connect.mock.calls
+    void AudioOutput.context;
+    const effectsTap = (AudioOutput.channelNode(VolumeType.SE) as unknown as NodeMock).connect.mock.calls
       .map(([to]) => to as NodeMock)
       .find((to) => to.fftSize === 512)!;
     effectsTap.getFloatTimeDomainData.mockImplementation((array: Float32Array) => array.fill(0.5));
@@ -161,7 +156,7 @@ describe('MusicBus', () => {
   });
 
   it('eases the music to a ducked level once, however often asked', () => {
-    void AudioPlayer.audioContext;
+    void AudioOutput.context;
     const bus = MusicBus.current!;
     const duck = (bus as unknown as { duck: NodeMock }).duck;
 
@@ -177,10 +172,10 @@ describe('MusicBus', () => {
     useContext(contextMock({ analysers: false }));
     MusicBus.installWhenReady();
 
-    void AudioPlayer.audioContext;
+    void AudioOutput.context;
 
     expect(MusicBus.current).toBeNull();
-    expect(AudioPlayer.channelInput(VolumeType.MASTER)).toBe(AudioPlayer.channelNode(VolumeType.MASTER));
+    expect(AudioOutput.channelInput(VolumeType.MASTER)).toBe(AudioOutput.channelNode(VolumeType.MASTER));
   });
 
   describe('effects', () => {
@@ -191,7 +186,7 @@ describe('MusicBus', () => {
     }
 
     it('lets the music through untouched until turned', () => {
-      void AudioPlayer.audioContext;
+      void AudioOutput.context;
 
       expect(inside().lowpass.frequency.setTargetAtTime).toHaveBeenLastCalledWith(20000, 0, expect.any(Number));
       expect(inside().highpass.frequency.setTargetAtTime).toHaveBeenLastCalledWith(10, 0, expect.any(Number));
@@ -201,7 +196,7 @@ describe('MusicBus', () => {
 
     it('keeps effects asked for before the bus is built, and puts them on once it is', () => {
       MusicBus.setEffects({ filter: -1, echo: 0, echoDelayS: 0.4, reverb: 0 });
-      void AudioPlayer.audioContext;
+      void AudioOutput.context;
 
       expect(inside().lowpass.frequency.setTargetAtTime).toHaveBeenLastCalledWith(
         expect.closeTo(150, 6),
@@ -212,7 +207,7 @@ describe('MusicBus', () => {
 
     it('puts the echo and the reverb on only while turned up, and takes them off once they have died away', () => {
       vi.useFakeTimers();
-      void AudioPlayer.audioContext;
+      void AudioOutput.context;
 
       MusicBus.setEffects({ filter: 0, echo: 0.5, echoDelayS: 0.36, reverb: 0.4 });
       expect(inside().lowpass.connect).toHaveBeenCalledWith(inside().echoSend);

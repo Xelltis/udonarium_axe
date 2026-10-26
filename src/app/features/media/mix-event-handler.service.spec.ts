@@ -5,7 +5,7 @@ import { JukeboxEngineService } from '@axe/application/media/jukebox-engine.serv
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MusicBus } from '@axe/core/audio/music-bus';
-import { AudioPlayer } from '@axe/core/storage/audio-player';
+import { AudioOutput } from '@axe/core/storage/audio-output';
 import { DEFAULT_DJ_SETTINGS } from '@axe/domain/media/dj-settings';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { Config } from '@axe/domain/peer/config';
@@ -34,7 +34,7 @@ describe('MixEventHandlerService', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     setDucking = vi.spyOn(MusicBus, 'setDucking').mockImplementation(() => {});
-    vi.spyOn(AudioPlayer, 'setChannelVolume').mockImplementation(() => {});
+    vi.spyOn(AudioOutput, 'setChannelVolume').mockImplementation(() => {});
     jukebox = new Jukebox('Jukebox');
     jukebox.initialize();
     const config = new Config('Config');

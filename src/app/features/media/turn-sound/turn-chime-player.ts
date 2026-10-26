@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import type { ChimePreset } from '@axe/core/audio/turn-chime';
 import { playChime } from '@axe/core/audio/turn-chime';
-import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { AudioOutput, VolumeType } from '@axe/core/storage/audio-output';
 
 /**
  * Plays a turn's chime on this screen alone, through the channel notices play through, so that the
@@ -11,6 +11,6 @@ import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 @Injectable({ providedIn: 'root' })
 export class TurnChimePlayer {
   play(preset: ChimePreset): void {
-    playChime(AudioPlayer.audioContext, preset, AudioPlayer.channelInput(VolumeType.NOTIFICATION));
+    playChime(AudioOutput.context, preset, AudioOutput.channelInput(VolumeType.NOTIFICATION));
   }
 }

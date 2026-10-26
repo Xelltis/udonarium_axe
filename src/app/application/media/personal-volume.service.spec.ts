@@ -7,7 +7,7 @@ import {
   parsePersonalVolumes,
   PERSONAL_VOLUME_KINDS,
 } from '@axe/application/media/personal-volumes';
-import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { AudioOutput, VolumeType } from '@axe/core/storage/audio-output';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Config } from '@axe/domain/peer/config';
@@ -22,7 +22,7 @@ function reopened(): PersonalVolumeService {
 
 /** Stands in for the channels, answering the last volume each was set to. */
 function channels(): (type: VolumeType) => number | undefined {
-  const set = vi.spyOn(AudioPlayer, 'setChannelVolume').mockImplementation(() => {});
+  const set = vi.spyOn(AudioOutput, 'setChannelVolume').mockImplementation(() => {});
   return (type) => set.mock.calls.filter(([called]) => called === type).at(-1)?.[1];
 }
 

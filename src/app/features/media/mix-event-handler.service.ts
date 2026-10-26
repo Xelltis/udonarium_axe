@@ -4,7 +4,7 @@ import { JukeboxEngineService } from '@axe/application/media/jukebox-engine.serv
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MusicBus } from '@axe/core/audio/music-bus';
-import { VOLUME_TYPES } from '@axe/core/storage/audio-player';
+import { VOLUME_TYPES } from '@axe/core/storage/audio-output';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { roomMix } from '@axe/domain/media/mix-level';

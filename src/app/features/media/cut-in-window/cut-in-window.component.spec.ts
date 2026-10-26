@@ -3,7 +3,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { AudioFile } from '@axe/core/storage/audio-file';
-import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { AudioOutput, VolumeType } from '@axe/core/storage/audio-output';
+import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { CutIn } from '@axe/domain/media/cut-in';
@@ -119,7 +120,7 @@ describe('CutInWindowComponent', () => {
     });
 
     it('follows the listener’s own cut-in volume, counting from the half it starts at', () => {
-      vi.spyOn(AudioPlayer, 'setChannelVolume').mockImplementation(() => {});
+      vi.spyOn(AudioOutput, 'setChannelVolume').mockImplementation(() => {});
       const volumes = TestBed.inject(PersonalVolumeService);
       const cutIn = new CutIn('personal-volume-test');
       cutIn.initialize();

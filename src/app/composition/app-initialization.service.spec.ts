@@ -4,7 +4,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { AppConfigService } from '@axe/composition/app-config.service';
 import { AppInitializationService } from '@axe/composition/app-initialization.service';
 import { localDispatch } from '@axe/core/network/network-messaging';
-import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { AudioOutput, VolumeType } from '@axe/core/storage/audio-output';
 import { AudioSharingSystem } from '@axe/core/storage/audio-sharing-system';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { LoopPlayer } from '@axe/core/storage/loop-player';
@@ -57,7 +57,7 @@ describe('AppInitializationService', () => {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     vi.spyOn(TestBed.inject(AppConfigService), 'initialize').mockImplementation(() => {});
-    const set = vi.spyOn(AudioPlayer, 'setChannelVolume').mockImplementation(() => {});
+    const set = vi.spyOn(AudioOutput, 'setChannelVolume').mockImplementation(() => {});
     const heard = (type: VolumeType) => set.mock.calls.filter(([called]) => called === type).at(-1)?.[1];
 
     TestBed.inject(AppInitializationService).initialize();

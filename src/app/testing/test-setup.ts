@@ -89,7 +89,7 @@ if (!navigator.mediaDevices) {
 }
 
 // happy-dom has no WebAudio API. The document gesture listeners registered by
-// AudioPlayer.resumeAudioContext() can survive into another spec, so the moment something like
+// AudioOutput.resumeOnGesture() can survive into another spec, so the moment something like
 // user-interaction-unlock.spec dispatches an event, the listener tries to construct an AudioContext
 // and dies with "is not a constructor". A minimal stub goes on globalThis and window.
 if (typeof globalThis.AudioContext === 'undefined') {

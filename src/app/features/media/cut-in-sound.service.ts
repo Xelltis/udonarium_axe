@@ -1,5 +1,6 @@
 import { DestroyRef, inject, Injectable } from '@angular/core';
-import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { VolumeType } from '@axe/core/storage/audio-output';
+import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import type { CutInScene } from '@axe/domain/media/cut-in-scene';
 import type { CutInSound } from '@axe/domain/media/cut-in-sound';

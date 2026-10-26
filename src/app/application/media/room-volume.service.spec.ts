@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { RoomVolumeService } from '@axe/application/media/room-volume.service';
-import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { AudioOutput, VolumeType } from '@axe/core/storage/audio-output';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { DEFAULT_ROOM_VOLUMES } from '@axe/domain/media/room-volumes';
@@ -24,7 +24,7 @@ describe('RoomVolumeService', () => {
   const config = () => ObjectStore.instance.get<Config>('Config')!;
 
   beforeEach(() => {
-    const set = vi.spyOn(AudioPlayer, 'setChannelVolume').mockImplementation(() => {});
+    const set = vi.spyOn(AudioOutput, 'setChannelVolume').mockImplementation(() => {});
     heard = (type) => set.mock.calls.filter(([called]) => called === type).at(-1)?.[1];
   });
 

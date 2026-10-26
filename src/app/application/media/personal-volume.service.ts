@@ -6,7 +6,7 @@ import {
   PersonalSound,
   PersonalVolumeKind,
 } from '@axe/application/media/personal-volumes';
-import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { AudioOutput, VolumeType } from '@axe/core/storage/audio-output';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -72,7 +72,7 @@ export class PersonalVolumeService {
     const config = this.objectStore.get<Config>('Config');
     for (const kind of PERSONAL_VOLUME_KINDS) {
       const channel = PERSONAL_VOLUME_CHANNELS[kind];
-      AudioPlayer.setChannelVolume(channel, this.levelOf(kind) * (config?.roomScaleFor(channel) ?? 1));
+      AudioOutput.setChannelVolume(channel, this.levelOf(kind) * (config?.roomScaleFor(channel) ?? 1));
     }
   }
 

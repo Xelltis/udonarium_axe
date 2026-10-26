@@ -1,58 +1,11 @@
-import { USER_GESTURE_EVENTS } from '@axe/core/input/user-interaction-unlock';
 import { Logger } from '@axe/core/logging/logger';
 import { AudioFile, AudioState } from '@axe/core/storage/audio-file';
 import { loopPointsFitInMemory, loopRegionOf, readAudioLoopPoints } from '@axe/core/storage/audio-loop-points';
+import { AudioOutput, VolumeType } from '@axe/core/storage/audio-output';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
 import { LoopPointTrack } from '@axe/core/storage/loop-point-track';
 import { PERF_SE_DECODE, perfCounters } from '@axe/core/util/perf-counters';
 
-/**
- * The channels sound plays through, each with a volume of its own that the listener sets.
- *
- * Music, previews, sound effects and background sounds came first. Cut-ins, notifications, the
- * sounds of handling things on the table, and the sounds of effects were split off from the sound
- * effects so that each can be turned down or off on its own.
- */
-export enum VolumeType {
-  MASTER,
-  AUDITION,
-  SE,
-  BACKGROUND,
-  CUT_IN,
-  NOTIFICATION,
-  HANDLING,
-  EFFECT,
-}
-
-/** Every channel, in the order of `VolumeType`. */
-export const VOLUME_TYPES: readonly VolumeType[] = [
-  VolumeType.MASTER,
-  VolumeType.AUDITION,
-  VolumeType.SE,
-  VolumeType.BACKGROUND,
-  VolumeType.CUT_IN,
-  VolumeType.NOTIFICATION,
-  VolumeType.HANDLING,
-  VolumeType.EFFECT,
-];
-
-declare global {
-  interface Window {
-    AudioContext: typeof AudioContext;
-    webkitAudioContext: typeof AudioContext;
-  }
-}
-
-/**
- * Something set between one channel's players and the channel's volume, such as the music's
- * effects: where the players' sound goes in and where it comes out.
- */
-export interface ChannelInsert {
-  readonly input: AudioNode;
-  readonly output: AudioNode;
-}
-
-type Channel = { volume: number; node?: GainNode; insert: ChannelInsert | null };
 type AudioCache = { url: string; blob: Blob };
 type DecodedEntry = { decoding: Promise<AudioBuffer | null>; bytes?: number };
 type DecodedLoopTrack = { buffer: AudioBuffer; region: { start: number; end: number } };
@@ -64,143 +17,6 @@ type PendingStart = {
 };
 
 export class AudioPlayer {
-  private static _audioContext: AudioContext;
-  /**
-   * The one Web Audio context every player and sound effect on the page goes
-   * through, created on first use.
-   *
-   * Browsers keep it suspended until the user interacts with the page; see `resumeAudioContext`.
-   */
-  static get audioContext(): AudioContext {
-    if (!AudioPlayer._audioContext) {
-      AudioPlayer._audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      for (const listener of AudioPlayer.contextListeners) listener(AudioPlayer._audioContext);
-    }
-    return AudioPlayer._audioContext;
-  }
-
-  private static readonly contextListeners: ((context: AudioContext) => void)[] = [];
-
-  /**
-   * Runs something each time the page's audio context is made, and at once if it already is, so
-   * what hangs off it can be built without making a context before anything plays: a browser warns
-   * of a context made before the user has touched the page.
-   *
-   * Answers with a function that stops running it for contexts made later.
-   */
-  static whenContextReady(listener: (context: AudioContext) => void): () => void {
-    AudioPlayer.contextListeners.push(listener);
-    if (AudioPlayer._audioContext) listener(AudioPlayer._audioContext);
-    return () => {
-      const at = AudioPlayer.contextListeners.indexOf(listener);
-      if (at >= 0) AudioPlayer.contextListeners.splice(at, 1);
-    };
-  }
-
-  private static readonly channels = new Map<VolumeType, Channel>();
-
-  private static channel(type: VolumeType): Channel {
-    let channel = AudioPlayer.channels.get(type);
-    if (!channel) {
-      channel = { volume: 0.5, insert: null };
-      AudioPlayer.channels.set(type, channel);
-    }
-    return channel;
-  }
-
-  /** The volume of one channel, from 0 to 1, which is half until it is set. */
-  static channelVolume(type: VolumeType): number {
-    return AudioPlayer.channel(type).volume;
-  }
-
-  /**
-   * Sets the volume of one channel, from 0 to 1, for everything playing through it and all that plays
-   * through it later.
-   *
-   * The channel glides to the new level over a few milliseconds rather than jumping.
-   */
-  static setChannelVolume(type: VolumeType, volume: number): void {
-    AudioPlayer.channel(type).volume = volume;
-    AudioPlayer.channelNode(type).gain.setTargetAtTime(volume, AudioPlayer.audioContext.currentTime, 0.01);
-  }
-
-  /**
-   * The gain node of one channel, its volume. Each channel runs straight to the speakers, so one
-   * channel's volume never touches another's.
-   */
-  static channelNode(type: VolumeType): GainNode {
-    const channel = AudioPlayer.channel(type);
-    if (!channel.node) {
-      const context = AudioPlayer.audioContext;
-      const gain = context.createGain();
-      gain.gain.setValueAtTime(channel.volume, context.currentTime);
-      gain.connect(context.destination);
-      channel.node = gain;
-    }
-    return channel.node;
-  }
-
-  /**
-   * Where the players and sounds of one channel connect: whatever is set between them and the
-   * channel's volume, or the volume itself while nothing is.
-   */
-  static channelInput(type: VolumeType): AudioNode {
-    return AudioPlayer.channel(type).insert?.input ?? AudioPlayer.channelNode(type);
-  }
-
-  /**
-   * Sets something between one channel's players and its volume, its output running into the
-   * volume. It is meant to be set once, before anything plays through the channel: what started
-   * playing before it keeps going straight to the volume until it plays again.
-   */
-  static setChannelInsert(type: VolumeType, insert: ChannelInsert): void {
-    const channel = AudioPlayer.channel(type);
-    if (channel.insert === insert) return;
-    insert.output.connect(AudioPlayer.channelNode(type));
-    channel.insert = insert;
-  }
-
-  /** The volume of the master channel, from 0 to 1, which players use unless given another volume type. */
-  static get volume(): number {
-    return AudioPlayer.channelVolume(VolumeType.MASTER);
-  }
-  static set volume(volume: number) {
-    AudioPlayer.setChannelVolume(VolumeType.MASTER, volume);
-  }
-
-  /**
-   * The volume of the audition channel, from 0 to 1, which the preview players of the jukebox and
-   * of the cut-in music picker play through, on this device alone.
-   */
-  static get auditionVolume(): number {
-    return AudioPlayer.channelVolume(VolumeType.AUDITION);
-  }
-  static set auditionVolume(auditionVolume: number) {
-    AudioPlayer.setChannelVolume(VolumeType.AUDITION, auditionVolume);
-  }
-
-  /**
-   * The volume of the sound-effect channel, from 0 to 1, which one-shot effects play through unless
-   * given another kind, along with `playSE` and players set to the SE volume type.
-   */
-  static get seVolume(): number {
-    return AudioPlayer.channelVolume(VolumeType.SE);
-  }
-  static set seVolume(seVolume: number) {
-    AudioPlayer.setChannelVolume(VolumeType.SE, seVolume);
-  }
-
-  /**
-   * The volume of the background channel, from 0 to 1, which the room's looping background sounds,
-   * such as rain or a crowd, play through underneath the music.
-   */
-  static get backgroundVolume(): number {
-    return AudioPlayer.channelVolume(VolumeType.BACKGROUND);
-  }
-  static set backgroundVolume(backgroundVolume: number) {
-    AudioPlayer.setChannelVolume(VolumeType.BACKGROUND, backgroundVolume);
-  }
-
   private _audioElm: HTMLAudioElement | undefined;
   private get audioElm(): HTMLAudioElement {
     if (!this._audioElm) {
@@ -221,7 +37,7 @@ export class AudioPlayer {
   private _mediaElementSource: MediaElementAudioSourceNode | undefined;
   private get mediaElementSource(): MediaElementAudioSourceNode {
     if (!this._mediaElementSource)
-      this._mediaElementSource = AudioPlayer.audioContext.createMediaElementSource(this.audioElm);
+      this._mediaElementSource = AudioOutput.context.createMediaElementSource(this.audioElm);
     return this._mediaElementSource;
   }
 
@@ -276,7 +92,7 @@ export class AudioPlayer {
     this._trim = trim;
     const node = this.trimNode;
     if (!node) return;
-    const now = AudioPlayer.audioContext.currentTime;
+    const now = AudioOutput.context.currentTime;
     node.gain.cancelScheduledValues(now);
     node.gain.setValueAtTime(trim, now);
   }
@@ -286,7 +102,7 @@ export class AudioPlayer {
     this._trim = trim;
     const node = this.trimNode;
     if (!node) return;
-    const now = AudioPlayer.audioContext.currentTime;
+    const now = AudioOutput.context.currentTime;
     node.gain.cancelScheduledValues(now);
     node.gain.setValueAtTime(node.gain.value, now);
     node.gain.linearRampToValueAtTime(trim, now + Math.max(0.01, seconds));
@@ -458,7 +274,7 @@ export class AudioPlayer {
       if (pending.paused) this.pause();
     } else {
       const track = new LoopPointTrack(
-        AudioPlayer.audioContext,
+        AudioOutput.context,
         looped.buffer,
         looped.region,
         this.getConnectingAudioNode(),
@@ -569,7 +385,7 @@ export class AudioPlayer {
     this._fader = level;
     const node = this.faderNode;
     if (!node) return;
-    const now = AudioPlayer.audioContext.currentTime;
+    const now = AudioOutput.context.currentTime;
     node.gain.cancelScheduledValues(now);
     node.gain.setValueAtTime(level, now);
   }
@@ -592,7 +408,7 @@ export class AudioPlayer {
     }
     this.endFade();
     this._fader = target;
-    const now = AudioPlayer.audioContext.currentTime;
+    const now = AudioOutput.context.currentTime;
     node.gain.cancelScheduledValues(now);
     node.gain.setValueAtTime(node.gain.value, now);
     node.gain.linearRampToValueAtTime(target, now + durationMs / 1000);
@@ -640,7 +456,7 @@ export class AudioPlayer {
    * run into the channel of its volume type.
    */
   private getConnectingAudioNode(): AudioNode {
-    const context = AudioPlayer.audioContext;
+    const context = AudioOutput.context;
     if (!this.trimNode) {
       this.trimNode = context.createGain();
       this.trimNode.gain.setValueAtTime(this._trim, context.currentTime);
@@ -652,7 +468,7 @@ export class AudioPlayer {
     }
     if (this.trimRoutedTo !== this.volumeType) {
       if (this.trimRoutedTo !== null) this.trimNode.disconnect();
-      this.trimNode.connect(AudioPlayer.channelInput(this.volumeType));
+      this.trimNode.connect(AudioOutput.channelInput(this.volumeType));
       this.trimRoutedTo = this.volumeType;
     }
     return this.faderNode;
@@ -662,10 +478,10 @@ export class AudioPlayer {
     const source = await AudioPlayer.createBufferSourceAsync(audio);
     if (!source) return;
 
-    const gain = AudioPlayer.audioContext.createGain();
-    gain.gain.setValueAtTime(volume, AudioPlayer.audioContext.currentTime);
+    const gain = AudioOutput.context.createGain();
+    gain.gain.setValueAtTime(volume, AudioOutput.context.currentTime);
 
-    gain.connect(AudioPlayer.channelInput(type));
+    gain.connect(AudioOutput.channelInput(type));
     source.connect(gain);
 
     source.onended = () => {
@@ -738,9 +554,9 @@ export class AudioPlayer {
     else AudioPlayer.sePending.delete(identifier);
     if (!source) return;
 
-    const gain = AudioPlayer.audioContext.createGain();
-    gain.gain.setValueAtTime(level, AudioPlayer.audioContext.currentTime);
-    gain.connect(AudioPlayer.channelInput(VolumeType.SE));
+    const gain = AudioOutput.context.createGain();
+    gain.gain.setValueAtTime(level, AudioOutput.context.currentTime);
+    gain.connect(AudioOutput.channelInput(VolumeType.SE));
     source.connect(gain);
 
     let entries = AudioPlayer.seSources.get(identifier);
@@ -789,7 +605,7 @@ export class AudioPlayer {
         return null;
       }
       AudioPlayer.keepDecodedWithinBudget(audio.identifier, entry, decodedData);
-      const source = AudioPlayer.audioContext.createBufferSource();
+      const source = AudioOutput.context.createBufferSource();
       source.buffer = decodedData;
       return source;
     } catch (reason) {
@@ -847,7 +663,7 @@ export class AudioPlayer {
     perfCounters.bump(PERF_SE_DECODE);
     const arrayBuffer = await FileReaderUtil.readAsArrayBufferAsync(blob);
     return new Promise<AudioBuffer>((resolve, reject) => {
-      AudioPlayer.audioContext.decodeAudioData(
+      AudioOutput.context.decodeAudioData(
         arrayBuffer,
         (decodedData) => resolve(decodedData),
         (error) => reject(error)
@@ -905,9 +721,9 @@ export class AudioPlayer {
       if (blob) {
         const data = await FileReaderUtil.readAsArrayBufferAsync(blob);
         const points = readAudioLoopPoints(new Uint8Array(data));
-        if (points && loopPointsFitInMemory(points, AudioPlayer.audioContext.sampleRate, blob.size)) {
+        if (points && loopPointsFitInMemory(points, AudioOutput.context.sampleRate, blob.size)) {
           const buffer = await new Promise<AudioBuffer>((resolve, reject) =>
-            AudioPlayer.audioContext.decodeAudioData(data, resolve, reject)
+            AudioOutput.context.decodeAudioData(data, resolve, reject)
           );
           const region = loopRegionOf(points, buffer.duration);
           if (region) looped = { buffer, region };
@@ -949,38 +765,5 @@ export class AudioPlayer {
     AudioPlayer.cacheMap.set(audio.identifier, finalCache);
     AudioPlayer.evictCacheIfNeeded();
     return finalCache;
-  }
-
-  /**
-   * Starts the audio context on a gesture the browser counts, and again whenever it stops.
-   *
-   * iOS lets a context start from a finger lifting, a press or a key, but not from a touch that
-   * has only begun. It stops the context again when the page is put away or a call comes in, so
-   * the listeners stay until the context is running and come back whenever it is not.
-   */
-  static resumeAudioContext() {
-    let watching = false;
-    const listen = () => {
-      for (const type of USER_GESTURE_EVENTS) document.addEventListener(type, resume, true);
-    };
-    const stopListening = () => {
-      for (const type of USER_GESTURE_EVENTS) document.removeEventListener(type, resume, true);
-    };
-    const resume = () => {
-      const context = AudioPlayer.audioContext;
-      if (!watching) {
-        watching = true;
-        context.addEventListener?.('statechange', () => {
-          if (context.state !== 'running') listen();
-        });
-      }
-      void Promise.resolve(context.resume()).then(
-        () => {
-          if (context.state === 'running') stopListening();
-        },
-        () => undefined
-      );
-    };
-    listen();
   }
 }

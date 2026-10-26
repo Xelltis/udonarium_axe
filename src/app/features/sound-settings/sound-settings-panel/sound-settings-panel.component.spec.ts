@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
-import { AudioPlayer } from '@axe/core/storage/audio-player';
+import { AudioOutput } from '@axe/core/storage/audio-output';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { Config } from '@axe/domain/peer/config';
@@ -26,7 +26,7 @@ describe('SoundSettingsPanelComponent', () => {
   }
 
   beforeEach(() => {
-    vi.spyOn(AudioPlayer, 'setChannelVolume').mockImplementation(() => {});
+    vi.spyOn(AudioOutput, 'setChannelVolume').mockImplementation(() => {});
   });
 
   afterEach(() => {

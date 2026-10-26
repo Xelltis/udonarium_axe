@@ -7,7 +7,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { KeyboardInsetService } from '@axe/application/ui/keyboard-inset.service';
 import { AppConfigService } from '@axe/composition/app-config.service';
 import { initializeNetworkMessaging } from '@axe/core/network/network-messaging';
-import { AudioPlayer } from '@axe/core/storage/audio-player';
+import { AudioOutput } from '@axe/core/storage/audio-output';
 import { AudioSharingSystem } from '@axe/core/storage/audio-sharing-system';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
@@ -171,7 +171,7 @@ export class AppInitializationService {
   }
 
   private initializeAudioPresets(): void {
-    AudioPlayer.resumeAudioContext();
+    AudioOutput.resumeOnGesture();
 
     const addHidden = (path: string): string => {
       const file = this.audioStorage.add(path);

@@ -1,4 +1,4 @@
-import { VolumeType } from '@axe/core/storage/audio-player';
+import { VolumeType } from '@axe/core/storage/audio-output';
 import {
   DEFAULT_ROOM_VOLUMES,
   readRoomVolumes,
