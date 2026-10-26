@@ -13,7 +13,7 @@ import {
   UnstoppableBand,
   unstoppableBandOf,
 } from '@axe/application/tabletop/move-plan-common';
-import { MoveRangeService, ReachTerms } from '@axe/application/tabletop/move-range.service';
+import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
@@ -37,6 +37,7 @@ import {
   pieceWidthPx,
   standsAt,
 } from '@axe/domain/tabletop/move/piece-on-grid';
+import { ReachTerms } from '@axe/domain/tabletop/move/reach-build';
 import { reachableCells } from '@axe/domain/tabletop/move/reachable-cells';
 import { walkedPath } from '@axe/domain/tabletop/move/walked-path';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
