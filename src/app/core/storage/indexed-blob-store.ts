@@ -34,10 +34,13 @@ export class IndexedBlobStore {
     return blobFromStored(found);
   }
 
-  /** Whether anything is stored under a key, answered without reading it; false where storage is unavailable. */
-  async has(key: string): Promise<boolean> {
+  /**
+   * Whether anything is stored under a key, answered without reading it; null where the browser
+   * could not be asked, which is not the same as nothing being there.
+   */
+  async has(key: string): Promise<boolean | null> {
     const count = await this.request<number>('readonly', (store) => store.count(key));
-    return (count ?? 0) > 0;
+    return count === null ? null : count > 0;
   }
 
   /** Stores or replaces the picture under a key, resolving false when it could not be written. */
@@ -67,36 +70,53 @@ export class IndexedBlobStore {
     this.dbPromise = null;
   }
 
-  private async open(): Promise<IDBDatabase | null> {
-    if (!this.isAvailable()) return null;
-    this.dbPromise ??= new Promise<IDBDatabase | null>((resolve) => {
-      const timer = setTimeout(() => {
-        Logger.warn(`${this.purpose} storage did not open`);
-        this.dbPromise = null;
-        resolve(null);
-      }, OPEN_TIMEOUT_MS);
-      const settle = (db: IDBDatabase | null) => {
-        clearTimeout(timer);
-        if (!db) this.dbPromise = null;
-        resolve(db);
-      };
-      // A browser that keeps nothing for the site refuses the open outright rather than failing it.
-      try {
-        const request = indexedDB.open(this.dbName, DB_VERSION);
-        request.onupgradeneeded = () => {
-          if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME);
-        };
-        request.onsuccess = () => settle(this.letGoWhenAsked(request.result));
-        request.onerror = () => {
-          Logger.warn(`${this.purpose} storage is unavailable`, request.error);
-          settle(null);
-        };
-      } catch (error) {
-        Logger.warn(`${this.purpose} storage is unavailable`, error);
-        settle(null);
+  /**
+   * The open handle, opening the database on first use. An open refused outright, failed or left
+   * unanswered too long gives null and is tried afresh on the next use; one that answers after it
+   * was given up on is closed, and leaves the open made since alone.
+   */
+  private open(): Promise<IDBDatabase | null> {
+    if (!this.isAvailable()) return Promise.resolve(null);
+    if (this.dbPromise) return this.dbPromise;
+    let answer!: (db: IDBDatabase | null) => void;
+    const opening = new Promise<IDBDatabase | null>((resolve) => (answer = resolve));
+    this.dbPromise = opening;
+    let settled = false;
+    const settle = (db: IDBDatabase | null) => {
+      if (settled) {
+        db?.close();
+        return;
       }
-    });
-    return this.dbPromise;
+      settled = true;
+      clearTimeout(timer);
+      if (!db) this.letGo(opening);
+      answer(db);
+    };
+    const timer = setTimeout(() => {
+      Logger.warn(`${this.purpose} storage did not open`);
+      settle(null);
+    }, OPEN_TIMEOUT_MS);
+    // A browser that keeps nothing for the site refuses the open outright rather than failing it.
+    try {
+      const request = indexedDB.open(this.dbName, DB_VERSION);
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME);
+      };
+      request.onsuccess = () => settle(this.letGoWhenAsked(request.result, opening));
+      request.onerror = () => {
+        Logger.warn(`${this.purpose} storage is unavailable`, request.error);
+        settle(null);
+      };
+    } catch (error) {
+      Logger.warn(`${this.purpose} storage is unavailable`, error);
+      settle(null);
+    }
+    return opening;
+  }
+
+  /** Forgets an open handle, unless an open made since has taken its place. */
+  private letGo(opening: Promise<IDBDatabase | null>): void {
+    if (this.dbPromise === opening) this.dbPromise = null;
   }
 
   /**
@@ -104,14 +124,12 @@ export class IndexedBlobStore {
    * wait for as long as this page keeps it open, and lets go of one the browser closes, as when the
    * site's data is cleared; the next use opens it again.
    */
-  private letGoWhenAsked(db: IDBDatabase): IDBDatabase {
+  private letGoWhenAsked(db: IDBDatabase, opening: Promise<IDBDatabase | null>): IDBDatabase {
     db.onversionchange = () => {
       db.close();
-      this.dbPromise = null;
+      this.letGo(opening);
     };
-    db.onclose = () => {
-      this.dbPromise = null;
-    };
+    db.onclose = () => this.letGo(opening);
     return db;
   }
 
