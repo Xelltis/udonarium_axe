@@ -68,12 +68,12 @@
               <i class="material-icons" aria-hidden="true">play_arrow</i>
             </button>
           }
-          @if (foldersApply() && canEdit()) {
+          @if (folders.foldersApply() && canEdit()) {
             <button
               class="border-ui-border-panel text-ui-muted hover:bg-ui-accent-bg hover:text-ui-accent hover:border-ui-accent rounded-ui-sm inline-flex size-7 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-[background,color,border-color] [&_.material-icons]:text-base!"
               type="button"
               [title]="'feature.inventory.panel.newFolder' | transloco"
-              (click)="createFolder()"
+              (click)="folders.createFolder()"
             >
               <i class="material-icons">create_new_folder</i>
             </button>
@@ -206,7 +206,7 @@
                 {{ loc.labelKey | transloco }}
               </button>
             }
-            @if (foldersApply()) {
+            @if (folders.foldersApply()) {
               <button
                 class="bg-ui-input border-ui-border-panel text-ui-text hover:bg-ui-hover hover:border-ui-accent hover:text-ui-accent rounded-ui-sm inline-flex h-6.5 cursor-pointer items-center gap-0.75 border border-solid px-2 text-[11px] transition-[background,color,border-color] disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[14px]!"
                 type="button"
@@ -376,7 +376,7 @@
     } @else {
       <div class="flex flex-1 flex-col gap-0.5 overflow-y-auto px-1.5 py-1">
         @let nothingListed = filteredRows().length < 1;
-        @if (nothingListed && (hasQuery() || !showTree())) {
+        @if (nothingListed && (hasQuery() || !folders.showTree())) {
           <div
             class="text-ui-dim flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center [&_.material-icons]:text-[36px]! [&_.material-icons]:opacity-40"
           >
@@ -389,11 +389,11 @@
               }
             </p>
           </div>
-        } @else if (showTree()) {
-          @for (node of folderTree().roots; track node.path) {
+        } @else if (folders.showTree()) {
+          @for (node of folders.folderTree().roots; track node.path) {
             <ng-container *ngTemplateOutlet="folderNode; context: { $implicit: node }"></ng-container>
           }
-          @if (folderTree().loose.length > 0) {
+          @if (folders.folderTree().loose.length > 0) {
             <div
               class="mt-1 flex flex-col gap-0.5 rounded-[5px] first:mt-0"
               data-folder-area
@@ -404,12 +404,12 @@
               <ng-container
                 *ngTemplateOutlet="
                   folderHeading;
-                  context: { $implicit: { path: '', name: '', totalCount: folderTree().loose.length } }
+                  context: { $implicit: { path: '', name: '', totalCount: folders.folderTree().loose.length } }
                 "
               ></ng-container>
-              @if (!isFolderCollapsed('')) {
+              @if (!folders.isFolderCollapsed('')) {
                 <div class="border-ui-border-panel ml-2.5 flex flex-col gap-0.5 border-l border-solid pl-1.5">
-                  @for (row of folderTree().loose; track row.identifier) {
+                  @for (row of folders.folderTree().loose; track row.identifier) {
                     <ng-container *ngTemplateOutlet="itemRow; context: { $implicit: row.object }"></ng-container>
                   }
                 </div>
@@ -1140,39 +1140,39 @@
     role="button"
     data-folder-dropzone
     [attr.data-folder-path]="node.path"
-    [attr.aria-expanded]="!isFolderCollapsed(node.path)"
+    [attr.aria-expanded]="!folders.isFolderCollapsed(node.path)"
     [class.text-ui-muted!]="!node.path"
     [class.bg-ui-accent-bg!]="drag.isDropFolder(node.path)"
     [class.border-ui-accent!]="drag.isDropFolder(node.path)"
-    (click)="toggleFolder(node.path)"
+    (click)="folders.toggleFolder(node.path)"
     (contextmenu)="onFolderContextMenu($event, node.path)"
   >
     <i
       class="material-icons text-ui-muted shrink-0 text-[18px]! transition-transform"
-      [class.-rotate-90]="isFolderCollapsed(node.path)"
+      [class.-rotate-90]="folders.isFolderCollapsed(node.path)"
       >expand_more</i
     >
-    @if (isEditingFolder(node.path)) {
+    @if (folders.isEditingFolder(node.path)) {
       <input
         appAutoFocus
         class="border-ui-accent text-ui-text box-border min-w-0 flex-1 rounded-none border-0 border-b border-solid bg-transparent px-0.5 font-[inherit] text-[12px] font-semibold outline-none"
         name="folder-name"
         [value]="node.name"
         (click)="$event.stopPropagation()"
-        (keydown.escape)="cancelFolderRename()"
-        (keydown.enter)="commitFolderRename(node.path, $any($event.target).value)"
-        (blur)="commitFolderRename(node.path, $any($event.target).value, true)"
+        (keydown.escape)="folders.cancelFolderRename()"
+        (keydown.enter)="folders.commitFolderRename(node.path, $any($event.target).value)"
+        (blur)="folders.commitFolderRename(node.path, $any($event.target).value, true)"
       />
     } @else {
       <span class="truncate">{{ node.path ? node.name : ('feature.inventory.panel.unfiled' | transloco) }}</span>
     }
     <span class="text-ui-dim ml-auto shrink-0 text-[11px] font-normal tabular-nums">{{ node.totalCount }}</span>
-    @if (node.path && canEdit() && !isEditingFolder(node.path)) {
+    @if (node.path && canEdit() && !folders.isEditingFolder(node.path)) {
       <button
         class="text-ui-dim hover:bg-ui-hover hover:text-ui-accent inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 transition-[background,color] [&_.material-icons]:text-[14px]!"
         type="button"
         [title]="'feature.inventory.contextMenu.renameFolder' | transloco"
-        (click)="$event.stopPropagation(); startFolderRename(node.path)"
+        (click)="$event.stopPropagation(); folders.startFolderRename(node.path)"
       >
         <i class="material-icons">edit</i>
       </button>
@@ -1180,7 +1180,7 @@
         class="text-ui-dim hover:bg-ui-danger-bg hover:text-ui-danger inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 transition-[background,color] [&_.material-icons]:text-[14px]!"
         type="button"
         [title]="'feature.inventory.contextMenu.deleteFolder' | transloco"
-        (click)="$event.stopPropagation(); deleteFolder(node.path)"
+        (click)="$event.stopPropagation(); folders.deleteFolder(node.path)"
       >
         <i class="material-icons">delete</i>
       </button>
@@ -1197,7 +1197,7 @@
     [class.outline-ui-accent]="drag.isDropFolder(node.path)"
   >
     <ng-container *ngTemplateOutlet="folderHeading; context: { $implicit: node }"></ng-container>
-    @if (!isFolderCollapsed(node.path)) {
+    @if (!folders.isFolderCollapsed(node.path)) {
       <div class="border-ui-border-panel ml-2.5 flex flex-col gap-0.5 border-l border-solid pl-1.5">
         @for (child of node.children; track child.path) {
           <ng-container *ngTemplateOutlet="folderNode; context: { $implicit: child }"></ng-container>

@@ -2,6 +2,12 @@ import { matchesSearchText, normalizeSearchText } from '@axe/core/util/text-sear
 import { normalizeFolderPath } from '@axe/domain/character/character-folder';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
+/**
+ * The tab of this seat's own inventory. Its pieces stand at this connection's peer id, which a
+ * reconnection changes, so the tab is named for what it is and the id is read whenever it is used.
+ */
+export const PERSONAL_INVENTORY_TAB = 'personal';
+
 export interface InventoryRow {
   readonly object: TabletopObject;
   readonly identifier: string;
