@@ -1,6 +1,5 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
-import { pieceOf, targetNameOf } from '@axe/application/replay/replay-piece';
 import { ReplayPreferenceService } from '@axe/application/replay/replay-preference.service';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
@@ -39,6 +38,7 @@ import {
   shouldDiffObjectChange,
 } from '@axe/domain/replay/replay-interpreter';
 import { encodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
+import { pieceOf, targetNameOf } from '@axe/domain/replay/replay-piece';
 import {
   visibilityOfChatLine,
   visibilityOfDisclosure,
