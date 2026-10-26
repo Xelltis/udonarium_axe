@@ -556,7 +556,7 @@ export class RemoteControllerComponent {
    */
   readonly controllerResources = computed<ControllerResourcePick>(() => {
     this.objectChange.versionOf('Config')();
-    return (this.objectStore.get<Config>('Config') ?? Config.instance).controllerResources;
+    return Config.instance.controllerResources;
   });
 
   private resourceTargets(): GameCharacter[] {

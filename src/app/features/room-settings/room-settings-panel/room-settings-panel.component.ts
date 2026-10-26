@@ -514,7 +514,7 @@ export class RoomSettingsPanelComponent {
   }
 
   private get config(): Config {
-    return this.objectStore.get<Config>('Config') ?? Config.instance;
+    return Config.instance;
   }
 
   private get isEditable(): boolean {

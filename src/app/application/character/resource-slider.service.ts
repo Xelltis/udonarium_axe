@@ -27,7 +27,7 @@ export class ResourceSliderService {
 
   /** Shows a slider on every number resource that says nothing of its own, or on none, for the whole room. */
   setRoomDefault(shown: boolean): void {
-    const config = this.objectStore.get<Config>('Config') ?? Config.instance;
+    const config = Config.instance;
     config.resourceSliderByDefault = shown;
     this.objectChange.notifyChanged(config.identifier);
   }

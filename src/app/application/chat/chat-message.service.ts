@@ -222,7 +222,7 @@ export class ChatMessageService {
   noticeTabOf(kind: SystemNoticeKind): ChatTab | null {
     const chatTabList = this.objectStore.get<ChatTabList>('ChatTabList');
     if (!chatTabList) return null;
-    const config = this.objectStore.get<Config>('Config') ?? Config.instance;
+    const config = Config.instance;
     const route = noticeRouteOf(config.systemNotices, kind);
     if (route === NOTICE_OFF) return null;
     const chosen = route ? chatTabList.chatTabs.find((tab) => tab.identifier === route) : undefined;

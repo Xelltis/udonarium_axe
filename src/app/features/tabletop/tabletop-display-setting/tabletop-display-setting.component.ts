@@ -165,7 +165,7 @@ export class TabletopDisplaySettingComponent {
   }
   set facingMark(value: TableFacingMark) {
     if (!this.isEditable()) return;
-    const config = this.objectStore.get<Config>('Config') ?? Config.instance;
+    const config = Config.instance;
     config.facingMark = asTableFacingMark(value);
   }
 

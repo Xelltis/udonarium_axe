@@ -71,11 +71,11 @@ export class TurnOrderService {
   }
 
   private get turnState(): TurnState {
-    return this.objectStore.get<TurnState>('TurnState') ?? TurnState.instance;
+    return TurnState.instance;
   }
 
   private get config(): Config {
-    return this.objectStore.get<Config>('Config') ?? Config.instance;
+    return Config.instance;
   }
 
   /** Whether the room takes turns piece by piece or side by side. */
