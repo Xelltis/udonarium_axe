@@ -15,9 +15,6 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
-import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { FunctionalPaintService } from '@axe/application/tabletop/functional-paint.service';
-import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -26,7 +23,6 @@ import { transientSignal } from '@axe/application/ui/transient-signal';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { downloadBlob } from '@axe/core/util/download-blob';
 import { PERF_MAP_EDITOR_DRAW, perfCounters } from '@axe/core/util/perf-counters';
 import { curveAnchorAt, fitImageSize, imageCorners, imageHandleAt } from '@axe/domain/map-editor/editor-hit-test';
 import { cellCenter, pointToCell } from '@axe/domain/map-editor/grid-cells';
@@ -43,12 +39,9 @@ import {
 } from '@axe/domain/map-editor/scene';
 import { guessLineWidth, useTextMeasurer } from '@axe/domain/map-editor/scene-geometry';
 import { removeText, updateText } from '@axe/domain/map-editor/scene-ops';
-import { deserializeScene } from '@axe/domain/map-editor/serialize';
 import { generateShapePoints, regularPolygonPoints, starPoints } from '@axe/domain/map-editor/shape-points';
-import { STAMPS } from '@axe/domain/map-editor/stamps';
-import { planFunctionPaint, sceneSpeaksFor } from '@axe/domain/map-editor/table-apply';
-import { sceneFromTable } from '@axe/domain/map-editor/table-import';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { FunctionApplyResult, MapEditorFilesService } from '@axe/features/map-editor/editor/map-editor-files.service';
 import { MapEditorFunctionPaintComponent } from '@axe/features/map-editor/editor/map-editor-function-paint.component';
 import { GestureKind, MapEditorGesture } from '@axe/features/map-editor/editor/map-editor-gesture';
 import { MapEditorImageCache } from '@axe/features/map-editor/editor/map-editor-image-cache';
@@ -63,7 +56,6 @@ import {
   ShapeGeneratorKind,
 } from '@axe/features/map-editor/editor/map-editor-state';
 import { MapEditorTexturePickerComponent } from '@axe/features/map-editor/editor/map-editor-texture-picker.component';
-import { exportSceneToBlob } from '@axe/infrastructure/map-editor/export-image';
 import { loadRasterImage } from '@axe/infrastructure/map-editor/raster-image';
 import {
   type EditorOverlay,
@@ -72,8 +64,6 @@ import {
   renderOverlay,
 } from '@axe/infrastructure/map-editor/render-overlay';
 import { renderScene } from '@axe/infrastructure/map-editor/render-scene';
-import { isZipArchive } from '@axe/infrastructure/map-editor/scene-archive';
-import { packSceneWithImages, unpackSceneWithImages } from '@axe/infrastructure/map-editor/scene-archive-images';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -138,7 +128,7 @@ interface ToolDef {
     '(keydown)': 'onKeyDown($event)',
     '(keyup)': 'onKeyUp($event)',
   },
-  providers: [MapEditorState],
+  providers: [MapEditorState, MapEditorFilesService],
   imports: [
     FormsModule,
     NgClass,
@@ -152,6 +142,7 @@ interface ToolDef {
 })
 export class MapEditorPanelComponent {
   protected readonly state = inject(MapEditorState);
+  private readonly files = inject(MapEditorFilesService);
   protected readonly isCompact = inject(ViewportService).isCompact;
   protected readonly mobileDrawer = signal<'none' | 'props' | 'layers'>('none');
 
@@ -161,15 +152,11 @@ export class MapEditorPanelComponent {
   private readonly panelService = inject(PanelService);
   private readonly imageStorage = inject(ImageStorage);
   private readonly rolePermission = inject(RolePermissionService);
-  private readonly tabletopService = inject(TabletopService);
-  private readonly objectChange = inject(ObjectChangeService);
   private readonly modalService = inject(ModalService);
   private readonly sanitizer = inject(DomSanitizer);
   protected readonly t = inject(TRANSLATE_FN);
   private readonly confirm = inject(ConfirmService);
-  private readonly functionalPaint = inject(FunctionalPaintService);
 
-  private readonly exportFn = exportSceneToBlob;
   private readonly loadImageFn = loadRasterImage;
 
   private readonly board = viewChild<ElementRef<HTMLCanvasElement>>('board');
@@ -1300,9 +1287,7 @@ export class MapEditorPanelComponent {
   }
 
   protected async save(): Promise<void> {
-    const archive = await packSceneWithImages(this.state.current, this.imageStorage);
-    const blob = new Blob([archive.slice()], { type: 'application/zip' });
-    downloadBlob(blob, 'map.zip');
+    await this.files.download();
   }
 
   protected triggerLoad(): void {
@@ -1314,35 +1299,14 @@ export class MapEditorPanelComponent {
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
-    const buffer = new Uint8Array(await file.arrayBuffer());
-    if (isZipArchive(buffer)) {
-      const scene = await unpackSceneWithImages(buffer, this.imageStorage, () =>
-        this.objectChange.notifyCollectionChanged('image-tag')
-      );
-      if (scene) this.state.loadScene(scene);
-      else this.errorNotice.show(this.t('feature.mapEditor.actions.loadError'));
-      return;
-    }
-    const scene = deserializeScene(new TextDecoder().decode(buffer));
-    if (!scene) {
-      this.errorNotice.show(this.t('feature.mapEditor.actions.loadError'));
-      return;
-    }
-    this.state.loadScene(scene);
+    if (!(await this.files.open(file))) this.errorNotice.show(this.t('feature.mapEditor.actions.loadError'));
   }
 
   protected async saveImage(): Promise<void> {
     if (this.busy()) return;
     this.busy.set(true);
     try {
-      const blob = await this.exportFn(this.state.current, STAMPS, {
-        scale: this.exportScale(),
-        drawGrid: false,
-        resolveImageUrl: (id) => this.imageStorage.get(id)?.url ?? null,
-      });
-      if (!(await this.imageStorage.addAsync(blob, { putBack: true }))) {
-        throw new Error('the room removed the exported picture');
-      }
+      await this.files.bake(this.exportScale());
       this.notice.show(this.t('feature.mapEditor.actions.savedImage'));
     } catch {
       this.errorNotice.show(this.t('feature.mapEditor.actions.exportError'));
@@ -1351,76 +1315,38 @@ export class MapEditorPanelComponent {
     }
   }
 
-  /**
-   * Brings the table that is out into the editor.
-   *
-   * The floor arrives as a picture, since it was baked into one the moment it was laid down.
-   * Everything else arrives as cells and comes under the editor from then on.
-   */
+  /** Brings the table that is out into the editor, once the user agrees to lose what is drawn. */
   protected async importTable(): Promise<void> {
     if (this.busy()) return;
-    const snapshot = this.functionalPaint.snapshot();
-    if (!snapshot) {
-      this.errorNotice.show(this.t('feature.mapEditor.actions.importTableNoTable'));
-      return;
-    }
-    if (!(await this.confirm.ask(this.t('feature.mapEditor.actions.importTableConfirm')))) return;
-
-    this.state.loadScene(sceneFromTable(snapshot));
-    this.notice.show(this.t('feature.mapEditor.actions.importTableDone'));
+    const result = await this.files.bringInTable(() =>
+      this.confirm.ask(this.t('feature.mapEditor.actions.importTableConfirm'))
+    );
+    if (result === 'noTable') this.errorNotice.show(this.t('feature.mapEditor.actions.importTableNoTable'));
+    if (result === 'done') this.notice.show(this.t('feature.mapEditor.actions.importTableDone'));
   }
 
-  /**
-   * Lays what was painted on the table, and leaves the floor as it is.
-   *
-   * Baking the picture again to add a closed cell would cost the floor its quality and its
-   * identity both, and neither has anything to do with what was painted.
-   */
-  protected applyFunctions(): boolean {
-    const snapshot = this.functionalPaint.snapshot();
-    if (!snapshot) {
-      this.errorNotice.show(this.t('feature.mapEditor.actions.importTableNoTable'));
-      return false;
-    }
-    const plan = planFunctionPaint(this.state.current, snapshot);
-    if (!plan) {
+  /** Says what kept what was painted off the table, if anything did; true where it was laid. */
+  private reportFunctionApply(result: FunctionApplyResult): boolean {
+    if (result === 'noTable') this.errorNotice.show(this.t('feature.mapEditor.actions.importTableNoTable'));
+    if (result === 'gridMismatch') {
       this.errorNotice.show(this.t('feature.mapEditor.actions.applyFunctionsGridMismatch'));
-      return false;
     }
-    if (!this.functionalPaint.apply(plan)) {
-      this.errorNotice.show(this.t('feature.mapEditor.actions.importTableNoTable'));
-      return false;
-    }
-    return true;
+    return result === 'done';
   }
 
   protected applyFunctionsOnly(): void {
     if (this.busy()) return;
-    if (this.applyFunctions()) this.notice.show(this.t('feature.mapEditor.actions.applyFunctionsDone'));
+    if (this.reportFunctionApply(this.files.applyFunctions())) {
+      this.notice.show(this.t('feature.mapEditor.actions.applyFunctionsDone'));
+    }
   }
 
   protected async setAsTable(): Promise<void> {
     if (this.busy()) return;
     this.busy.set(true);
     try {
-      const blob = await this.exportFn(this.state.current, STAMPS, {
-        scale: this.exportScale(),
-        drawGrid: false,
-        resolveImageUrl: (id) => this.imageStorage.get(id)?.url ?? null,
-      });
-      const file = await this.imageStorage.addAsync(blob, { putBack: true });
-      if (!file) throw new Error('the room removed the exported picture');
-      const table = this.tabletopService.currentTable;
-      const scene = this.state.current;
-      table.imageIdentifier = file.identifier;
-      table.width = scene.cols;
-      table.height = scene.rows;
-      table.gridSize = scene.cellPx;
-      table.gridType = scene.gridType;
-      // Only where the scene has something to say about the cells. A scene drawn from scratch
-      // says nothing, and a plan built from nothing is a plan to take away every wall, mask and
-      // no-entry cell the table already had.
-      if (sceneSpeaksFor(scene)) this.applyFunctions();
+      const applied = await this.files.layOnTable(this.exportScale());
+      if (applied) this.reportFunctionApply(applied);
       this.notice.show(this.t('feature.mapEditor.actions.setTableDone'));
     } catch {
       this.errorNotice.show(this.t('feature.mapEditor.actions.exportError'));

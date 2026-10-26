@@ -11,6 +11,7 @@ import { serializeScene } from '@axe/domain/map-editor/serialize';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { MapEditorFilesService } from '@axe/features/map-editor/editor/map-editor-files.service';
 import { MapEditorGesture } from '@axe/features/map-editor/editor/map-editor-gesture';
 import {
   buildShapeKindPoints,
@@ -52,6 +53,11 @@ describe('MapEditorPanelComponent', () => {
     fixture = TestBed.createComponent(MapEditorPanelComponent);
     component = fixture.componentInstance;
   });
+
+  /** The panel's own file service, which the export is swapped out on. */
+  function files(): MapEditorFilesService {
+    return fixture.debugElement.injector.get(MapEditorFilesService);
+  }
 
   afterEach(() => {
     ImageStorage.instance.images.forEach((image) => ImageStorage.instance.delete(image.identifier));
@@ -133,7 +139,7 @@ describe('MapEditorPanelComponent', () => {
   it('sets the exported image as the table background', async () => {
     const blob = new Blob([new Uint8Array([1])], { type: 'image/webp' });
     const exportStub = vi.fn().mockResolvedValue(blob);
-    (component as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = exportStub;
+    (files() as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = exportStub;
     imageStorage.addAsync.mockResolvedValue({ identifier: 'img-1' });
 
     await (component as unknown as { setAsTable: () => Promise<void> }).setAsTable();
@@ -149,7 +155,7 @@ describe('MapEditorPanelComponent', () => {
   it('saves the exported image', async () => {
     const blob = new Blob([new Uint8Array([1])], { type: 'image/webp' });
     const exportStub = vi.fn().mockResolvedValue(blob);
-    (component as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = exportStub;
+    (files() as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = exportStub;
     imageStorage.addAsync.mockResolvedValue({ identifier: 'img-2' });
 
     await (component as unknown as { saveImage: () => Promise<void> }).saveImage();
@@ -186,7 +192,7 @@ describe('MapEditorPanelComponent', () => {
 
   it('writes the grid type onto the table', async () => {
     const blob = new Blob([new Uint8Array([1])], { type: 'image/webp' });
-    (component as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = vi.fn().mockResolvedValue(blob);
+    (files() as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = vi.fn().mockResolvedValue(blob);
     imageStorage.addAsync.mockResolvedValue({ identifier: 'img-3' });
     component['state'].setGridType(GridType.HEX_VERTICAL);
 
@@ -323,7 +329,7 @@ describe('MapEditorPanelComponent', () => {
   it('always exports without the grid', async () => {
     const blob = new Blob([new Uint8Array([1])], { type: 'image/webp' });
     const exportStub = vi.fn().mockResolvedValue(blob);
-    (component as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = exportStub;
+    (files() as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = exportStub;
     imageStorage.addAsync.mockResolvedValue({ identifier: 'img-grid' });
 
     await (component as unknown as { saveImage: () => Promise<void> }).saveImage();
