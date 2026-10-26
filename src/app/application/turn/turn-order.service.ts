@@ -1,4 +1,4 @@
-import { DestroyRef, inject, Injectable } from '@angular/core';
+import { computed, DestroyRef, inject, Injectable } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
@@ -40,6 +40,24 @@ import { readTurnHolding, TurnHolding, TurnPhase, TurnState, writeTurnHolding } 
 
 /** How many of the pieces still waiting are named before the rest are counted. */
 const UNACTED_NAMES_SHOWN = 8;
+
+/** Where the round stands, read in one go for drawing it. */
+export interface TurnProgress {
+  /** The round being played, which is 0 before the first has begun. */
+  readonly round: number;
+  /** Where in the round the table is. */
+  readonly phase: TurnPhase;
+  /** The piece whose turn it is, or empty when nobody is up. */
+  readonly currentIdentifier: string;
+  /** Who has had their turn this round. */
+  readonly acted: ReadonlySet<string>;
+  /** The pieces waiting to step in this round. */
+  readonly held: ReadonlySet<string>;
+  /** Whether the round can be put back a step. */
+  readonly canUndo: boolean;
+  /** Whether buffs count down as turns and rounds pass. */
+  readonly buffDecay: boolean;
+}
 
 /**
  * The round as the room plays it: who is up, who has had their turn, and the presses that move it on.
@@ -201,6 +219,24 @@ export class TurnOrderService {
   isHeld(identifier: string): boolean {
     return this.holding.held.includes(identifier);
   }
+
+  /**
+   * Where the round stands, worked out again only as the round is written, for a screen to draw it
+   * from without watching the room's round itself.
+   */
+  readonly progress = computed<TurnProgress>(() => {
+    this.objectChange.versionOf('TurnState')();
+    const turnState = this.turnState;
+    return {
+      round: turnState.round,
+      phase: turnState.phase,
+      currentIdentifier: turnState.currentIdentifier,
+      acted: new Set(turnState.actedIdentifiers),
+      held: new Set(this.holding.held),
+      canUndo: this.canUndo,
+      buffDecay: turnState.buffDecay,
+    };
+  });
 
   /**
    * Whether the piece may wait to step in later: a round is under way, the round reaches it, and it

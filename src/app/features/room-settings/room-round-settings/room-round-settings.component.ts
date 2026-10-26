@@ -78,10 +78,7 @@ export class RoomRoundSettingsComponent {
 
   /** Whether buffs count down as the round goes; set through the round itself. */
   readonly buffDecay = this.access.field(
-    () => {
-      this.objectChange.versionOf('TurnState')();
-      return this.turnOrder.buffDecay;
-    },
+    () => this.turnOrder.progress().buffDecay,
     (decays) => {
       if (!this.isReadOnly()) this.turnOrder.setBuffDecay(decays);
     }

@@ -71,10 +71,7 @@ export class BuffManagerPanelComponent {
   readonly timingChoices = BUFF_TIMINGS;
   readonly operatorChoices = BUILDER_OPERATORS;
 
-  readonly round = computed(() => {
-    this.objectChange.versionOf('TurnState')();
-    return Math.max(1, this.turnOrder.round);
-  });
+  readonly round = computed(() => Math.max(1, this.turnOrder.progress().round));
 
   readonly rows = computed<BuffTimelineRow[]>(() => {
     this.objectChange.collectionOf('character')();
