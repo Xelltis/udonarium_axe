@@ -32,7 +32,6 @@ import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.s
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { BackdropPlacement } from '@axe/application/ui/backdrop-frame.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
@@ -50,12 +49,6 @@ import { ImageFile, imageFileEqual } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
-import { BackdropCamera, backdropOffset } from '@axe/domain/tabletop/backdrop-offset';
-import {
-  backgroundScrollAnimation,
-  backgroundScrollMargin,
-  backgroundTileSize,
-} from '@axe/domain/tabletop/background-scroll';
 import { FilterType, GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { squareSpanOf } from '@axe/domain/tabletop/move/move-grid';
@@ -81,6 +74,13 @@ import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { ReplayRouteOverlayComponent } from '@axe/features/replay/replay-route-overlay/replay-route-overlay.component';
 import { CreateObjectMenuService } from '@axe/features/tabletop/create-menu/create-object-menu.service';
 import { TableFogAirOverlayComponent } from '@axe/features/tabletop/fog-of-war/table-fog-air-overlay.component';
+import {
+  BackdropLayerView,
+  backdropLayerViews,
+  BackgroundLayerView,
+  backgroundLayerViews,
+  LayerDrawing,
+} from '@axe/features/tabletop/game-table/background-layer-views';
 import { beamTopGridGeometry, beamWallFaceGrid } from '@axe/features/tabletop/game-table/beam-top-grid';
 import { glideTransform } from '@axe/features/tabletop/game-table/game-table-camera';
 import { buildGameTableContextMenu, GameTableMenu } from '@axe/features/tabletop/game-table/game-table-context-menu';
@@ -142,45 +142,7 @@ import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { translateZCss, Z_OFFSET_BACKGROUND_LAYERS_PX, Z_OFFSET_FOREGROUND_LAYERS_PX } from '@axe/ui/tabletop/z-offset';
 import { TranslocoModule } from '@jsverse/transloco';
 
-/** Whether something is being typed into a field, so the board does not steal the key. */
-/** One picture drifting under the board, ready to be drawn. */
-interface BackgroundLayerView {
-  readonly identifier: string;
-  readonly imageIdentifier: string;
-  readonly imageUrl: string;
-  readonly style: Record<string, string>;
-  readonly drifts: boolean;
-}
-
-/** One backdrop as the screen behind the table draws it. */
-interface BackdropLayerView {
-  readonly identifier: string;
-  readonly imageIdentifier: string;
-  readonly imageUrl: string;
-  /** Where the picture stands on the screen and how tall it is drawn. */
-  readonly frameStyle: Record<string, string>;
-  /** How wide the part that follows the camera is, the screen and two pictures to spare, and how its edges fade. */
-  readonly followStyle: Record<string, string>;
-  readonly style: Record<string, string>;
-  readonly drifts: boolean;
-  /** Where the part that follows the camera is moved for the way the camera stands. */
-  readonly place: BackdropPlacement;
-}
-
-/**
- * The largest a backdrop's picture is drawn, either way. A backdrop is not held to the board, and
- * the spare it needs for following the camera and drifting is a picture wide each, so a picture
- * blown up past this would ask for a sheet of no use to anyone.
- */
-const MAX_BACKDROP_TILE_PX = { width: 4096, height: 4096 };
-
-/**
- * How a backdrop's picture fades out at its top and its foot, so a picture that is not clear at
- * its edges does not end in a hard line across the screen. It is laid on the part that follows the
- * camera, so the fade goes up and down with the picture as the view tilts.
- */
-const BACKDROP_EDGE_FADE = 'linear-gradient(to bottom, transparent 0%, #000 15%, #000 85%, transparent 100%)';
-
+/** A wall standing round the table, with the pools of light and the shadows cast on it. */
 interface WallView {
   readonly wall: ActiveWall;
   readonly pools: readonly { readonly style: Record<string, string> }[];
@@ -700,124 +662,27 @@ export class GameTableComponent {
   );
   readonly backdropLayers = computed(() => this.laidLayers().filter((layer) => layer.placedBackdrop));
 
-  /**
-   * What the backdrops behind the table are drawn as, back to front.
-   *
-   * A backdrop is laid across the screen rather than on the board, and only across: a range of
-   * hills is one long picture, and laid upward as well it would stand on its own head. It drifts
-   * across as an under layer does, and the part around the drift is moved for the camera.
-   */
-  readonly backdropLayerViews = computed<readonly BackdropLayerView[]>(() => {
-    this.objectChangeService.fileVersion();
-    const sizes = this.layerNaturalSizes();
-    const moving = this.motion.enabled();
-    return this.backdropLayers().map((layer) => {
-      const tile = backgroundTileSize(sizes.get(layer.imageIdentifier) ?? null, layer.scale, MAX_BACKDROP_TILE_PX);
-      const x = moving ? backgroundScrollAnimation(layer.speedX, tile?.width ?? 0) : null;
-      const scrollsX = !!x && x.durationSeconds > 0;
-      const image = this.imageService.getEmptyOr(layer.imageIdentifier);
-      const width = tile?.width ?? 0;
-      const follow = layer.follow;
-      return {
-        identifier: layer.identifier,
-        imageIdentifier: layer.imageIdentifier,
-        imageUrl: image.url,
-        frameStyle: {
-          bottom: `${+(layer.height * 100).toFixed(2)}%`,
-          ...(tile ? { height: `${tile.height}px` } : { height: '0px' }),
-          ...(layer.opacity < 1 ? { opacity: `${layer.opacity}` } : {}),
-        },
-        followStyle: {
-          width: `calc(100% + ${width * 2}px)`,
-          'mask-image': BACKDROP_EDGE_FADE,
-          '-webkit-mask-image': BACKDROP_EDGE_FADE,
-        },
-        style: {
-          'background-image': `url(${image.url})`,
-          'background-repeat': 'repeat-x',
-          'background-position': 'left bottom',
-          ...(tile ? { 'background-size': `${tile.width}px ${tile.height}px` } : {}),
-          ...(x && scrollsX
-            ? {
-                '--bg-layer-x-name': 'bgLayerScrollX',
-                '--bg-layer-x-duration': `${x.durationSeconds}s`,
-                '--bg-layer-x-direction': x.reversed ? 'reverse' : 'normal',
-                '--bg-layer-tile-w': `${width}px`,
-              }
-            : {}),
-        },
-        drifts: scrollsX,
-        place: (camera: BackdropCamera) => {
-          const offset = backdropOffset(camera, follow, width);
-          return `translate3d(${offset.x}px, ${offset.y}px, 0px)`;
-        },
-      };
-    });
-  });
+  /** What the backdrops behind the table are drawn as, back to front, as `backdropLayerViews` lays them out. */
+  readonly backdropLayerViews = computed<readonly BackdropLayerView[]>(() =>
+    backdropLayerViews(this.backdropLayers(), this.layerDrawing())
+  );
   readonly overLayers = computed(() => this.laidLayers().filter((layer) => layer.placedOver));
 
-  readonly underLayerViews = computed<readonly BackgroundLayerView[]>(() => this.layerViews(this.underLayers()));
-  readonly overLayerViews = computed<readonly BackgroundLayerView[]>(() => this.layerViews(this.overLayers()));
+  readonly underLayerViews = computed<readonly BackgroundLayerView[]>(() =>
+    backgroundLayerViews(this.underLayers(), this.layerDrawing(), this.boardPixelSize())
+  );
+  readonly overLayerViews = computed<readonly BackgroundLayerView[]>(() =>
+    backgroundLayerViews(this.overLayers(), this.layerDrawing(), this.boardPixelSize())
+  );
 
-  /**
-   * What one run of layers is drawn as.
-   *
-   * Nothing here says how deep a layer sits. The wrapper hides what overflows it, which flattens
-   * everything inside into one plane, so within a run it is document order that decides — and
-   * that is already back to front. The run as a whole carries the depth.
-   *
-   * One box a layer, whichever way it drifts. Across runs on `transform` and down runs on
-   * `translate`, so the two never write over each other and a layer going both ways still asks
-   * the machine for the one surface to composite.
-   */
-  private layerViews(layers: readonly TableBackgroundLayer[]): readonly BackgroundLayerView[] {
+  /** What drawing the layers reads: the pictures, what each measures, and whether things may move. */
+  private layerDrawing(): LayerDrawing {
     this.objectChangeService.fileVersion();
-    const sizes = this.layerNaturalSizes();
-    const moving = this.motion.enabled();
-    const board = this.boardPixelSize();
-
-    return layers.map((layer) => {
-      const tile = backgroundTileSize(sizes.get(layer.imageIdentifier) ?? null, layer.scale, board);
-      const x = moving ? backgroundScrollAnimation(layer.speedX, tile?.width ?? 0) : null;
-      const y = moving ? backgroundScrollAnimation(layer.speedY, tile?.height ?? 0) : null;
-      const scrollsX = !!x && x.durationSeconds > 0;
-      const scrollsY = !!y && y.durationSeconds > 0;
-      // Spare cloth for the drift to pull in, on the side it is heading for and nowhere else.
-      const margin = backgroundScrollMargin(tile, scrollsX, scrollsY);
-      const image = this.imageService.getEmptyOr(layer.imageIdentifier);
-
-      return {
-        identifier: layer.identifier,
-        imageIdentifier: layer.imageIdentifier,
-        imageUrl: image.url,
-        style: {
-          inset: `0px ${-margin.x}px ${-margin.y}px 0px`,
-          'background-image': `url(${image.url})`,
-          'background-repeat': 'repeat',
-          ...(tile ? { 'background-size': `${tile.width}px ${tile.height}px` } : {}),
-          // Anything short of whole makes a group of its own to composite, so say it only when
-          // the layer actually asked to be seen through.
-          ...(layer.opacity < 1 ? { opacity: `${layer.opacity}` } : {}),
-          ...(x && scrollsX
-            ? {
-                '--bg-layer-x-name': 'bgLayerScrollX',
-                '--bg-layer-x-duration': `${x.durationSeconds}s`,
-                '--bg-layer-x-direction': x.reversed ? 'reverse' : 'normal',
-                '--bg-layer-tile-w': `${tile?.width ?? 0}px`,
-              }
-            : {}),
-          ...(y && scrollsY
-            ? {
-                '--bg-layer-y-name': 'bgLayerScrollY',
-                '--bg-layer-y-duration': `${y.durationSeconds}s`,
-                '--bg-layer-y-direction': y.reversed ? 'reverse' : 'normal',
-                '--bg-layer-tile-h': `${tile?.height ?? 0}px`,
-              }
-            : {}),
-        },
-        drifts: scrollsX || scrollsY,
-      };
-    });
+    return {
+      imageUrlOf: (imageIdentifier) => this.imageService.getEmptyOr(imageIdentifier).url,
+      naturalSizes: this.layerNaturalSizes(),
+      moving: this.motion.enabled(),
+    };
   }
 
   /**
