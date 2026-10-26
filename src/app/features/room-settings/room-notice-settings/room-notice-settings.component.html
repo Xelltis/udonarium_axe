@@ -1,0 +1,45 @@
+<div class="contents" [attr.inert]="isSharedReadOnly() ? '' : null">
+  <div
+    class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3"
+    data-testid="room-settings-notices"
+  >
+    <div class="min-w-0">
+      <span class="text-ui-muted text-[11px] font-semibold tracking-[0.06em] uppercase">{{
+        'feature.roomSettings.sectionNotices' | transloco
+      }}</span>
+      <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.sharedHint' | transloco }}</p>
+    </div>
+    <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+      {{ 'feature.roomSettings.notices.hint' | transloco }}
+    </p>
+    <div class="grid grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)] items-center gap-x-3 gap-y-2.5">
+      @for (kind of noticeKinds; track kind) {
+        <div class="min-w-0">
+          <label class="text-ui-text block text-[12px]" [attr.for]="'room-settings-notice-' + kind">{{
+            'feature.roomSettings.notices.kind_' + kind | transloco
+          }}</label>
+          <p class="text-ui-dim m-0 text-[11px] leading-snug">
+            {{ 'feature.roomSettings.notices.kindHint_' + kind | transloco }}
+          </p>
+        </div>
+        <select
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full cursor-pointer border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          [id]="'room-settings-notice-' + kind"
+          [name]="'noticeRoute_' + kind"
+          [ngModel]="noticeRoutes()[kind]"
+          (ngModelChange)="setNoticeRoute(kind, $event)"
+          [disabled]="isSharedReadOnly()"
+          [attr.data-testid]="'room-settings-notice-' + kind"
+        >
+          <option [ngValue]="''">
+            {{ 'feature.roomSettings.notices.default_' + defaultNoticePlace[kind] | transloco }}
+          </option>
+          @for (chatTab of noticeTabs(); track chatTab.identifier) {
+            <option [ngValue]="chatTab.identifier">{{ chatTab.name }}</option>
+          }
+          <option [ngValue]="noticeOff">{{ 'feature.roomSettings.notices.off' | transloco }}</option>
+        </select>
+      }
+    </div>
+  </div>
+</div>

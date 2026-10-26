@@ -1,0 +1,242 @@
+<div
+  class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3"
+  data-testid="room-settings-zone"
+>
+  <div class="min-w-0">
+    <span class="text-ui-muted text-[11px] font-semibold tracking-[0.06em] uppercase">{{
+      'feature.zone.settings.section' | transloco
+    }}</span>
+  </div>
+  <label
+    class="text-ui-text hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-1 text-[13px] transition-colors select-none"
+  >
+    <input
+      type="checkbox"
+      class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+      [(ngModel)]="zoneEnabled.value"
+      name="zoneEnabled"
+    />
+    {{ 'feature.zone.settings.enabled' | transloco }}
+  </label>
+  <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+    {{ 'feature.zone.settings.enabledHint' | transloco }}
+  </p>
+  @if (zoneEnabled.value) {
+    <div class="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+      <label class="text-ui-muted text-[11px]">{{ 'feature.zone.settings.sizes' | transloco }}</label>
+      <input
+        type="text"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        [placeholder]="zoneSizesPlaceholder"
+        [(ngModel)]="zoneSizes.value"
+        name="zoneSizes"
+      />
+      <label class="text-ui-muted text-[11px]">{{ 'feature.zone.settings.countField' | transloco }}</label>
+      <input
+        type="text"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        [placeholder]="'feature.zone.settings.countFieldPlaceholder' | transloco"
+        [(ngModel)]="zoneCountField.value"
+        name="zoneCountField"
+      />
+      <label class="text-ui-muted text-[11px]">{{ 'feature.zone.settings.samePoint' | transloco }}</label>
+      <input
+        type="number"
+        min="0"
+        step="0.1"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-right text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        [(ngModel)]="zoneSamePointM.value"
+        name="zoneSamePointM"
+      />
+      <label class="text-ui-muted text-[11px]">{{ 'feature.zone.settings.outnumber' | transloco }}</label>
+      <input
+        type="number"
+        min="1"
+        step="0.5"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-right text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        [(ngModel)]="zoneOutnumber.value"
+        name="zoneOutnumber"
+      />
+      <label class="text-ui-muted text-[11px]">{{ 'feature.zone.settings.leaveKind' | transloco }}</label>
+      <select
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full cursor-pointer border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        [(ngModel)]="zoneLeaveKind.value"
+        name="zoneLeaveKind"
+      >
+        <option value="">{{ 'feature.zone.settings.leaveKindAny' | transloco }}</option>
+        @for (kind of moveKindNames; track kind) {
+          <option [value]="kind">{{ kind }}</option>
+        }
+      </select>
+    </div>
+    <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+      {{ 'feature.zone.settings.sizesHint' | transloco }}
+      {{ 'feature.zone.settings.countFieldHint' | transloco }}
+      {{ 'feature.zone.settings.samePointHint' | transloco }}
+    </p>
+    <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+      {{ 'feature.zone.settings.outnumberHint' | transloco }}
+      {{ 'feature.zone.settings.leaveKindHint' | transloco }}
+    </p>
+    <label
+      class="text-ui-text hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-1 text-[13px] transition-colors select-none"
+    >
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="interruptEnabled.value"
+        name="interruptEnabled"
+      />
+      {{ 'feature.zone.settings.interrupt' | transloco }}
+    </label>
+    @if (interruptEnabled.value) {
+      <div class="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+        <label class="text-ui-muted text-[11px]">{{ 'feature.zone.settings.interruptKind' | transloco }}</label>
+        <select
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full cursor-pointer border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          [(ngModel)]="interruptKind.value"
+          name="interruptKind"
+        >
+          <option value="">{{ 'feature.zone.settings.interruptKindFirst' | transloco }}</option>
+          @for (kind of moveKindNames; track kind) {
+            <option [value]="kind">{{ kind }}</option>
+          }
+        </select>
+      </div>
+    }
+    <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+      {{ 'feature.zone.settings.interruptHint' | transloco }}
+    </p>
+    <label
+      class="text-ui-text hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-1 text-[13px] transition-colors select-none"
+    >
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="zoneStealthUnseen.value"
+        name="zoneStealthUnseen"
+      />
+      {{ 'feature.zone.settings.stealthUnseen' | transloco }}
+    </label>
+    <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+      {{ 'feature.zone.settings.stealthUnseenHint' | transloco }}
+    </p>
+    <div class="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+      <label class="text-ui-muted text-[11px]">{{ 'feature.zone.settings.blockRadius' | transloco }}</label>
+      <input
+        type="number"
+        min="0"
+        step="0.1"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-right text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        [(ngModel)]="zoneBlockRadiusM.value"
+        name="zoneBlockRadiusM"
+      />
+      <label class="text-ui-muted text-[11px]">{{ 'feature.zone.settings.clearName' | transloco }}</label>
+      <input
+        type="text"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        [(ngModel)]="zoneClearName.value"
+        name="zoneClearName"
+      />
+    </div>
+    <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+      {{ 'feature.zone.settings.fireHint' | transloco }}
+    </p>
+    <div class="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+      <label class="text-ui-muted text-[11px]">{{ 'feature.zone.settings.placementDistances' | transloco }}</label>
+      <input
+        type="text"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        [(ngModel)]="placementDistances.value"
+        name="placementDistances"
+      />
+      <label class="text-ui-muted text-[11px]">{{ 'feature.zone.settings.distanceModifiers' | transloco }}</label>
+      <input
+        type="text"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        [(ngModel)]="distanceModifiers.value"
+        name="distanceModifiers"
+      />
+    </div>
+    <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+      {{ 'feature.zone.settings.placementDistancesHint' | transloco }}
+      {{ 'feature.zone.settings.distanceModifiersHint' | transloco }}
+    </p>
+    @if (zoneMeetsEngagement) {
+      <p class="text-ui-danger m-0 text-[11px] leading-relaxed" data-testid="zone-engagement-warning">
+        {{ 'feature.zone.settings.engagementWarning' | transloco }}
+      </p>
+    }
+  }
+</div>
+
+<div
+  class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3"
+  data-testid="room-settings-ride"
+>
+  <div class="min-w-0">
+    <span class="text-ui-muted text-[11px] font-semibold tracking-[0.06em] uppercase">{{
+      'feature.ride.settings.section' | transloco
+    }}</span>
+  </div>
+  <div class="grid grid-cols-[8rem_1fr] items-center gap-x-3 gap-y-2.5">
+    <label class="text-ui-muted text-[11px]" for="ride-skill-field">{{
+      'feature.ride.settings.skillField' | transloco
+    }}</label>
+    <input
+      id="ride-skill-field"
+      type="text"
+      class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+      [placeholder]="'feature.ride.settings.skillFieldPlaceholder' | transloco"
+      [(ngModel)]="rideSkillField.value"
+      name="rideSkillField"
+    />
+    <label class="text-ui-muted text-[11px]" for="ride-require-field">{{
+      'feature.ride.settings.requireField' | transloco
+    }}</label>
+    <input
+      id="ride-require-field"
+      type="text"
+      class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+      [(ngModel)]="rideRequireField.value"
+      name="rideRequireField"
+    />
+    <label class="text-ui-muted text-[11px]" for="ride-fall-min">{{
+      'feature.ride.settings.fallMin' | transloco
+    }}</label>
+    <input
+      id="ride-fall-min"
+      type="number"
+      min="0"
+      step="0.5"
+      class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full border border-solid px-2 py-1.25 text-right text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+      [(ngModel)]="fallMinM.value"
+      name="fallMinM"
+    />
+    <label class="text-ui-muted text-[11px]" for="ride-fall-damage">{{
+      'feature.ride.settings.fallDamage' | transloco
+    }}</label>
+    <input
+      id="ride-fall-damage"
+      type="text"
+      class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+      [placeholder]="'feature.ride.settings.fallDamagePlaceholder' | transloco"
+      [(ngModel)]="fallDamage.value"
+      name="fallDamage"
+    />
+    <label class="text-ui-muted text-[11px]" for="ride-two-up-buff">{{
+      'feature.ride.settings.twoUpBuff' | transloco
+    }}</label>
+    <input
+      id="ride-two-up-buff"
+      type="text"
+      class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+      [placeholder]="'feature.ride.settings.twoUpBuffPlaceholder' | transloco"
+      [(ngModel)]="twoUpBuff.value"
+      name="twoUpBuff"
+    />
+  </div>
+  <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+    {{ 'feature.ride.settings.hint' | transloco }}
+  </p>
+</div>
