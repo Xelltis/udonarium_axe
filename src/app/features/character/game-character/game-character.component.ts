@@ -91,15 +91,7 @@ import { asTableFacingMark, TableFacingMark } from '@axe/domain/tabletop/table-f
 import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
-import {
-  feetShowingOf,
-  submergedClip,
-  submergedFade,
-  submergedTintOpacity,
-  submersionOf,
-  waterlineMask,
-  waterTintFilter,
-} from '@axe/domain/tabletop/water/submersion';
+import { PieceWaterLook, pieceWaterLook } from '@axe/domain/tabletop/water/submersion';
 import {
   GameCharacterMenuHost,
   GameCharacterMenuService,
@@ -206,16 +198,8 @@ const ROLL_HANDLE_MAX_PX = 56;
 const ROLL_HANDLE_SIZE_RATIO = 0.56;
 const ROLL_HANDLE_GAP_RATIO = 0.25;
 const ROLL_HANDLE_ICON_RATIO = 24 / 28;
-/** How a piece standing in water is drawn. */
-interface PieceInWater {
-  /** The mask that lets the part of the picture under the surface show through. */
-  readonly mask: string;
-  /** The cut that keeps only that part, for the copy of the picture tinted by the water. */
-  readonly clip: string;
-  /** The mask that fades the copy towards the feet in murky water, or null where nothing fades. */
-  readonly fade: string | null;
-  readonly tint: string;
-  readonly tintOpacity: number;
+/** How a piece standing in water is drawn on the table. */
+interface PieceInWater extends PieceWaterLook {
   /** Where the ring on the surface stands over the piece's own ground, or null for a piece sunk over its head. */
   readonly ripple: string | null;
 }
@@ -645,18 +629,10 @@ export class GameCharacterComponent {
     const water = this.water.waterAt(char.location.x + middle, char.location.y + middle);
     if (!water) return null;
     const pictureHeight = this.imageView.fitsInCell() ? this.size() * grid : this.pieceImageHeightEstimate();
-    const submersion = submersionOf(char.posZ + this.altitude() * grid, pictureHeight, water.surfacePx);
-    if (!submersion) return null;
+    const look = pieceWaterLook(water, char.posZ + this.altitude() * grid, pictureHeight, grid);
+    if (!look) return null;
     const rise = water.surfacePx - char.posZ - Z_OFFSET_TALL_OBJECT_PX + WATER_RIPPLE_LIFT_PX;
-    const feet = feetShowingOf(submersion.depthPx, grid, water.turbidity);
-    return {
-      mask: waterlineMask(submersion.share, feet, water.turbidity),
-      clip: submergedClip(submersion.share),
-      fade: submergedFade(submersion.share, feet, water.turbidity),
-      tint: waterTintFilter(water.color),
-      tintOpacity: submergedTintOpacity(water.turbidity),
-      ripple: submersion.share < 1 ? `translateZ(${Math.round(rise * 100) / 100}px)` : null,
-    };
+    return { ...look, ripple: look.share < 1 ? `translateZ(${Math.round(rise * 100) / 100}px)` : null };
   });
 
   /** Sets the piece's height above the table in grid cells; does nothing while no character is bound. */

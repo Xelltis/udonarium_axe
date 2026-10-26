@@ -1,5 +1,6 @@
 import {
   feetShowingOf,
+  pieceWaterLook,
   submergedClip,
   submergedFade,
   submergedTintOpacity,
@@ -78,5 +79,26 @@ describe('waterTintFilter()', () => {
   it('takes the hue of clear water from a colour it cannot read', () => {
     expect(waterTintFilter('teal')).toContain('hue-rotate(156.4deg)');
     expect(waterTintFilter('#808080')).toContain('hue-rotate(156.4deg)');
+  });
+});
+
+describe('pieceWaterLook()', () => {
+  const water = { surfacePx: 25, color: '#3a7bd5', turbidity: 0 };
+
+  it('draws a wading piece with the waterline where the surface crosses its picture', () => {
+    const look = pieceWaterLook(water, 0, 100, 50);
+
+    expect(look).toEqual({
+      share: 0.25,
+      mask: waterlineMask(0.25, feetShowingOf(25, 50, 0), 0),
+      clip: submergedClip(0.25),
+      fade: submergedFade(0.25, feetShowingOf(25, 50, 0), 0),
+      tint: waterTintFilter('#3a7bd5'),
+      tintOpacity: submergedTintOpacity(0),
+    });
+  });
+
+  it('draws a piece standing out of the water as it is', () => {
+    expect(pieceWaterLook(water, 30, 100, 50)).toBeNull();
   });
 });

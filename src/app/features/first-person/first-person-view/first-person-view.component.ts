@@ -63,15 +63,7 @@ import { GridType } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { boardSurfaceOf, surfaceOf } from '@axe/domain/tabletop/tabletop-object';
-import {
-  feetShowingOf,
-  submergedClip,
-  submergedFade,
-  submergedTintOpacity,
-  submersionOf,
-  waterlineMask,
-  waterTintFilter,
-} from '@axe/domain/tabletop/water/submersion';
+import { PieceWaterLook, pieceWaterLook } from '@axe/domain/tabletop/water/submersion';
 import { murkShade } from '@axe/domain/tabletop/water/water-depth';
 import { currentSeenFrom, flowCellsPerSecond } from '@axe/domain/tabletop/water/water-flow';
 import { deepWaterColor, rgbTripletOf, underwaterDeepColor } from '@axe/domain/tabletop/water/water-look';
@@ -166,15 +158,6 @@ interface UnderWater {
   readonly weather: WeatherAmbience | null;
 }
 
-/** How a piece standing in water is drawn: what shows through, and the tinted copy of the part under the surface. */
-interface PieceWater {
-  readonly mask: string;
-  readonly clip: string;
-  readonly fade: string | null;
-  readonly tint: string;
-  readonly tintOpacity: number;
-}
-
 interface QuadView {
   id: string;
   cell: number;
@@ -228,7 +211,7 @@ interface PieceView {
   chromeBottom: number;
   imageFilter: string | null;
   /** How the piece stands in water, or null where it is dry. */
-  water: PieceWater | null;
+  water: PieceWaterLook | null;
 }
 
 interface SkyView {
@@ -671,18 +654,9 @@ export class FirstPersonViewComponent {
    * How a piece standing in water is drawn, read against its own feet rather than where a near
    * piece is lifted to, so lifting it into the view does not draw it out of the water.
    */
-  private waterOn(centre: CellPoint, basePx: number, heightPx: number): PieceWater | null {
+  private waterOn(centre: CellPoint, basePx: number, heightPx: number): PieceWaterLook | null {
     const water = this.water.waterAt(centre.x, centre.y);
-    const submersion = water ? submersionOf(basePx, heightPx, water.surfacePx) : null;
-    if (!water || !submersion) return null;
-    const feet = feetShowingOf(submersion.depthPx, this.gridSize(), water.turbidity);
-    return {
-      mask: waterlineMask(submersion.share, feet, water.turbidity),
-      clip: submergedClip(submersion.share),
-      fade: submergedFade(submersion.share, feet, water.turbidity),
-      tint: waterTintFilter(water.color),
-      tintOpacity: submergedTintOpacity(water.turbidity),
-    };
+    return water ? pieceWaterLook(water, basePx, heightPx, this.gridSize()) : null;
   }
 
   private gaugesOf(piece: GameCharacter): GaugeView[] {

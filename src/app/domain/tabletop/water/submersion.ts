@@ -100,6 +100,51 @@ export function waterTintFilter(color: string): string {
   return `sepia(1) hue-rotate(${turn}deg) saturate(1.6) brightness(0.82)`;
 }
 
+/** The water a piece stands in, as far as its look under the surface goes. */
+export interface WaterUnderPiece {
+  readonly surfacePx: number;
+  readonly color: string;
+  readonly turbidity: number;
+}
+
+/** How a piece standing in water is drawn: what shows through, and the tinted copy of the part under the surface. */
+export interface PieceWaterLook {
+  /** How much of its picture, up from its feet, is under the surface, from just over 0 to 1. */
+  readonly share: number;
+  /** The mask that lets the part of the picture under the surface show through. */
+  readonly mask: string;
+  /** The cut that keeps only that part, for the copy of the picture tinted by the water. */
+  readonly clip: string;
+  /** The mask that fades the copy towards the feet in murky water, or null where nothing fades. */
+  readonly fade: string | null;
+  readonly tint: string;
+  readonly tintOpacity: number;
+}
+
+/**
+ * How a piece whose picture stands `pictureHeightPx` up from `basePx` is drawn in the water under
+ * it, or null where the water does not reach its feet. The table and the eye of a piece draw it
+ * the same way.
+ */
+export function pieceWaterLook(
+  water: WaterUnderPiece,
+  basePx: number,
+  pictureHeightPx: number,
+  gridSize: number
+): PieceWaterLook | null {
+  const submersion = submersionOf(basePx, pictureHeightPx, water.surfacePx);
+  if (!submersion) return null;
+  const feet = feetShowingOf(submersion.depthPx, gridSize, water.turbidity);
+  return {
+    share: submersion.share,
+    mask: waterlineMask(submersion.share, feet, water.turbidity),
+    clip: submergedClip(submersion.share),
+    fade: submergedFade(submersion.share, feet, water.turbidity),
+    tint: waterTintFilter(water.color),
+    tintOpacity: submergedTintOpacity(water.turbidity),
+  };
+}
+
 function hueOf(color: string): number | null {
   const digits = color.trim().replace(/^#/, '');
   const expanded =
