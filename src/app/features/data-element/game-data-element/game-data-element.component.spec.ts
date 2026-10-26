@@ -1035,6 +1035,25 @@ describe('GameDataElementComponent', () => {
       expect(component.value).toBe(50);
     });
 
+    it('takes up a name and a value changed elsewhere while nothing typed here waits to be written', async () => {
+      const element = DataElement.create('HP', 10, {
+        currentValue: 10,
+        fieldType: DataElementFieldType.RESOURCE,
+        type: DataElementType.NUMBER_RESOURCE,
+      });
+      fixture.componentRef.setInput('isEdit', true);
+      fixture.componentRef.setInput('gameDataElement', element);
+      fixture.detectChanges();
+      expect([component.name, component.currentValue]).toEqual(['HP', 10]);
+
+      element.name = '体力';
+      element.currentValue = 4;
+      TestBed.inject(ObjectChangeService).notifyChanged(element.identifier);
+      fixture.detectChanges();
+
+      expect([component.name, component.currentValue]).toEqual(['体力', 4]);
+    });
+
     it('clamps a value outside the bounds when the field loses focus', () => {
       const element = DataElement.create('Strength', 5, {
         fieldType: DataElementFieldType.NUMBER,

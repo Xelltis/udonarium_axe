@@ -1,0 +1,53 @@
+<button
+  type="button"
+  class="text-ui-accent bg-ui-input border-ui-border-panel hover:bg-ui-hover flex size-6.5 cursor-pointer items-center justify-center rounded-xs border p-0 [&_.material-icons]:text-[15px]"
+  (click)="open.update((v) => !v)"
+  [title]="'feature.dataElement.iconPick' | transloco"
+>
+  @if (icon()) {
+    <i class="material-icons">{{ icon() }}</i>
+  } @else {
+    <i class="material-icons opacity-35">category</i>
+  }
+</button>
+@if (open()) {
+  <div class="fixed inset-0 z-100" (click)="open.set(false)"></div>
+  <div
+    class="bg-ui-elevated border-ui-border-panel absolute top-[calc(100%+4px)] left-0 z-101 max-h-80 w-54 overflow-y-auto rounded-sm border p-2 shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
+  >
+    <div
+      class="text-ui-muted border-ui-border-panel mb-1.5 flex items-center justify-between border-b pb-1 text-[0.72em]"
+    >
+      <span>{{ 'feature.dataElement.iconSelectTitle' | transloco }}</span>
+      @if (icon()) {
+        <button
+          type="button"
+          class="text-ui-muted border-ui-border-panel hover:bg-ui-hover hover:text-ui-text cursor-pointer rounded-xs border bg-transparent px-1.5 py-px text-[0.72em]"
+          (click)="select('')"
+        >
+          {{ 'feature.dataElement.iconClear' | transloco }}
+        </button>
+      }
+    </div>
+    @for (group of iconGroups; track group.label) {
+      <div class="text-ui-muted mt-1.25 mb-0.5 ml-px text-[0.65em] tracking-[0.06em] uppercase">
+        {{ group.label }}
+      </div>
+      <div class="mb-0.5 flex flex-wrap gap-0.5">
+        @for (iconName of group.icons; track iconName) {
+          <button
+            type="button"
+            class="text-ui-text hover:bg-ui-hover hover:border-ui-border-panel flex size-7 cursor-pointer items-center justify-center rounded-xs border border-transparent bg-transparent p-0 [&_.material-icons]:text-[16px]"
+            [class.bg-ui-accent-bg]="icon() === iconName"
+            [class.border-ui-accent!]="icon() === iconName"
+            [class.text-ui-accent]="icon() === iconName"
+            (click)="select(iconName)"
+            [title]="iconName"
+          >
+            <i class="material-icons">{{ iconName }}</i>
+          </button>
+        }
+      </div>
+    }
+  </div>
+}

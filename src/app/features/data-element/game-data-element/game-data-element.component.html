@@ -524,61 +524,7 @@
                   </button>
                 </div>
               }
-              <div class="elm-icon-picker relative shrink-0">
-                <button
-                  type="button"
-                  class="text-ui-accent bg-ui-input border-ui-border-panel hover:bg-ui-hover flex size-6.5 cursor-pointer items-center justify-center rounded-xs border p-0 [&_.material-icons]:text-[15px]"
-                  (click)="iconPickerOpen.update((v) => !v)"
-                  [title]="'feature.dataElement.iconPick' | transloco"
-                >
-                  @if (icon) {
-                    <i class="material-icons">{{ icon }}</i>
-                  } @else {
-                    <i class="material-icons opacity-35">category</i>
-                  }
-                </button>
-                @if (iconPickerOpen()) {
-                  <div class="fixed inset-0 z-100" (click)="iconPickerOpen.set(false)"></div>
-                  <div
-                    class="bg-ui-elevated border-ui-border-panel absolute top-[calc(100%+4px)] left-0 z-101 max-h-80 w-54 overflow-y-auto rounded-sm border p-2 shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
-                  >
-                    <div
-                      class="text-ui-muted border-ui-border-panel mb-1.5 flex items-center justify-between border-b pb-1 text-[0.72em]"
-                    >
-                      <span>{{ 'feature.dataElement.iconSelectTitle' | transloco }}</span>
-                      @if (icon) {
-                        <button
-                          type="button"
-                          class="text-ui-muted border-ui-border-panel hover:bg-ui-hover hover:text-ui-text cursor-pointer rounded-xs border bg-transparent px-1.5 py-px text-[0.72em]"
-                          (click)="clearIcon()"
-                        >
-                          {{ 'feature.dataElement.iconClear' | transloco }}
-                        </button>
-                      }
-                    </div>
-                    @for (group of iconGroups; track group.label) {
-                      <div class="text-ui-muted mt-1.25 mb-0.5 ml-px text-[0.65em] tracking-[0.06em] uppercase">
-                        {{ group.label }}
-                      </div>
-                      <div class="mb-0.5 flex flex-wrap gap-0.5">
-                        @for (iconName of group.icons; track iconName) {
-                          <button
-                            type="button"
-                            class="text-ui-text hover:bg-ui-hover hover:border-ui-border-panel flex size-7 cursor-pointer items-center justify-center rounded-xs border border-transparent bg-transparent p-0 [&_.material-icons]:text-[16px]"
-                            [class.bg-ui-accent-bg]="icon === iconName"
-                            [class.border-ui-accent!]="icon === iconName"
-                            [class.text-ui-accent]="icon === iconName"
-                            (click)="selectIcon(iconName)"
-                            [title]="iconName"
-                          >
-                            <i class="material-icons">{{ iconName }}</i>
-                          </button>
-                        }
-                      </div>
-                    }
-                  </div>
-                }
-              </div>
+              <heading-icon-picker [icon]="icon" [(open)]="iconPickerOpen" (picked)="selectIcon($event)" />
               <input
                 class="elm-name-input text-ui-text border-b-ui-border-panel hover:bg-ui-hover focus:bg-ui-input focus:border-ui-accent w-full min-w-2.5 rounded-(--gde-radius-control) border border-transparent bg-transparent px-0.75 py-0.5 text-[0.88em] transition-[background,border-color,box-shadow] outline-none focus:shadow-[0_0_0_2px_var(--ui-accent-glow)]"
                 [class.border-ui-danger!]="isDuplicateName()"
@@ -620,33 +566,12 @@
                       >
                         <i class="material-icons">{{ action.icon }}</i>
                       </button>
-                      @if (templateMenuOpen()) {
-                        <div class="fixed inset-0 z-100" (click)="templateMenuOpen.set(false)"></div>
-                        <div
-                          class="elm-template-menu bg-ui-elevated border-ui-border-panel absolute top-[calc(100%+4px)] right-0 z-101 max-h-80 w-48 overflow-y-auto rounded-sm border p-1 shadow-[0_4px_16px_rgba(0,0,0,0.4)]"
-                        >
-                          @for (template of elementTemplates(); track template.identifier) {
-                            <div class="flex items-center gap-0.5">
-                              <button
-                                class="text-ui-text hover:bg-ui-hover min-w-0 flex-1 cursor-pointer truncate rounded-xs border-none bg-transparent px-1.5 py-1 text-left text-[0.85em]"
-                                type="button"
-                                (click)="insertTemplate(template)"
-                                [appTextTooltip]="template.name"
-                              >
-                                {{ template.name }}
-                              </button>
-                              <button
-                                class="text-ui-muted hover:bg-ui-danger-bg hover:text-ui-danger inline-flex h-5.5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-xs border-none bg-transparent p-0 [&_.material-icons]:text-[14px]"
-                                type="button"
-                                (click)="deleteTemplate(template, $event)"
-                                [title]="'feature.dataElement.action.deleteTemplate' | transloco"
-                              >
-                                <i class="material-icons">close</i>
-                              </button>
-                            </div>
-                          }
-                        </div>
-                      }
+                      <element-template-menu
+                        [templates]="elementTemplates()"
+                        [(open)]="templateMenuOpen"
+                        (insert)="insertTemplate($event)"
+                        (remove)="deleteTemplate($event)"
+                      />
                     </div>
                   } @else if (action.inline) {
                     <button
