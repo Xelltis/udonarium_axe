@@ -1,4 +1,5 @@
 import { canvasToBlobPreferWebP } from '@axe/core/storage/canvas-blob';
+import { loadImage } from '@axe/core/util/load-image';
 export interface DownscaleOptions {
   /**
    * Crops to a square before resampling.
@@ -49,7 +50,7 @@ export async function downscaleImageBlob(
   let objectUrl: string | null = null;
   try {
     objectUrl = URL.createObjectURL(blob);
-    const img = await loadImage(objectUrl, options.loadTimeoutMs);
+    const img = await loadImage(objectUrl, { timeoutMs: options.loadTimeoutMs ?? LOAD_TIMEOUT_MS });
     const naturalW = img.naturalWidth || img.width;
     const naturalH = img.naturalHeight || img.height;
     if (naturalW <= 0 || naturalH <= 0) return blob;
@@ -102,25 +103,6 @@ export async function downscaleImageBlob(
 // Nothing within three seconds leaves it to the caller to fall back.
 const LOAD_TIMEOUT_MS = 3000;
 
-function loadImage(src: string, timeoutMs: number = LOAD_TIMEOUT_MS): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const timer = setTimeout(() => {
-      img.onload = img.onerror = null;
-      reject(new Error('image load timeout'));
-    }, timeoutMs);
-    img.onload = () => {
-      clearTimeout(timer);
-      resolve(img);
-    };
-    img.onerror = (event) => {
-      clearTimeout(timer);
-      reject(event);
-    };
-    img.src = src;
-  });
-}
-
 const SKIP_WEBP_CONVERT = new Set(['image/gif', 'image/apng', 'image/webp', 'image/svg+xml']);
 
 /**
@@ -148,7 +130,7 @@ export async function convertBlobToWebP(blob: Blob, loadTimeoutMs?: number): Pro
   let objectUrl: string | null = null;
   try {
     objectUrl = URL.createObjectURL(blob);
-    const img = await loadImage(objectUrl, loadTimeoutMs);
+    const img = await loadImage(objectUrl, { timeoutMs: loadTimeoutMs ?? LOAD_TIMEOUT_MS });
     const w = img.naturalWidth || img.width;
     const h = img.naturalHeight || img.height;
     if (w <= 0 || h <= 0) return blob;

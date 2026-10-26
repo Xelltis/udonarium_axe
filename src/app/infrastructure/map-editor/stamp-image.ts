@@ -1,14 +1,9 @@
+import { canMakeImages, ImageCache } from '@axe/core/util/load-image';
 import { StampDef } from '@axe/domain/map-editor/stamp-types';
 
 const DEFAULT_COLOR = '#1a1a1a';
 
-interface CacheEntry {
-  image: HTMLImageElement;
-  decoded: boolean;
-  promise: Promise<HTMLImageElement>;
-}
-
-const cache = new Map<string, CacheEntry>();
+const cache = new ImageCache('stamp image');
 
 function cacheKey(id: string, size: number, color: string | null): string {
   return `${id}|${size}|${color ?? ''}`;
@@ -23,38 +18,6 @@ function toDataUri(svg: string): string {
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
-function canUseImage(): boolean {
-  return typeof Image !== 'undefined';
-}
-
-function startDecode(def: StampDef, size: number, color: string | null): CacheEntry | null {
-  if (!canUseImage()) return null;
-  const image = new Image();
-  if (size > 0) {
-    image.width = size;
-    image.height = size;
-  }
-  const entry: CacheEntry = {
-    image,
-    decoded: false,
-    promise: new Promise<HTMLImageElement>((resolve, reject) => {
-      image.onload = () => {
-        entry.decoded = true;
-        resolve(image);
-      };
-      image.onerror = (event) => {
-        reject(event instanceof Error ? event : new Error('stamp image decode failed'));
-      };
-    }),
-  };
-  try {
-    image.src = toDataUri(recolorSvg(def.svg, color));
-  } catch (error) {
-    entry.promise = Promise.reject(error instanceof Error ? error : new Error('stamp image src failed'));
-  }
-  return entry;
-}
-
 /**
  * A stamp's picture at a size and colour once it has loaded, or null until then.
  *
@@ -62,15 +25,7 @@ function startDecode(def: StampDef, size: number, color: string | null): CacheEn
  * every frame. Each size and colour is kept apart; a stamp with no colour is drawn in near-black.
  */
 export function getStampImage(def: StampDef, size: number, color: string | null): HTMLImageElement | null {
-  const key = cacheKey(def.id, size, color);
-  let entry = cache.get(key);
-  if (!entry) {
-    const created = startDecode(def, size, color);
-    if (!created) return null;
-    entry = created;
-    cache.set(key, entry);
-  }
-  return entry.decoded ? entry.image : null;
+  return cache.get(cacheKey(def.id, size, color), () => toDataUri(recolorSvg(def.svg, color)), size);
 }
 
 /**
@@ -78,15 +33,7 @@ export function getStampImage(def: StampDef, size: number, color: string | null)
  * with `getStampImage`. Rejects when it cannot be loaded.
  */
 export function loadStampImage(def: StampDef, size: number, color: string | null): Promise<HTMLImageElement> {
-  const key = cacheKey(def.id, size, color);
-  let entry = cache.get(key);
-  if (!entry) {
-    const created = startDecode(def, size, color);
-    if (!created) return Promise.reject(new Error('Image API unavailable'));
-    entry = created;
-    cache.set(key, entry);
-  }
-  return entry.promise;
+  return cache.load(cacheKey(def.id, size, color), () => toDataUri(recolorSvg(def.svg, color)), size);
 }
 
 /**
@@ -97,7 +44,7 @@ export async function warmStampImages(
   items: { stampId: string; size?: number; color: string | null }[],
   defs: StampDef[]
 ): Promise<void> {
-  if (!canUseImage()) return;
+  if (!canMakeImages()) return;
   const defById = new Map(defs.map((def) => [def.id, def]));
   const seen = new Set<string>();
   const pending: Promise<unknown>[] = [];

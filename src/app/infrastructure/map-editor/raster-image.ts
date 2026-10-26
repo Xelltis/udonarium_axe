@@ -1,38 +1,6 @@
-interface CacheEntry {
-  image: HTMLImageElement;
-  decoded: boolean;
-  promise: Promise<HTMLImageElement>;
-}
+import { canMakeImages, ImageCache } from '@axe/core/util/load-image';
 
-const cache = new Map<string, CacheEntry>();
-
-function canUseImage(): boolean {
-  return typeof Image !== 'undefined';
-}
-
-function startDecode(url: string): CacheEntry | null {
-  if (!canUseImage()) return null;
-  const image = new Image();
-  const entry: CacheEntry = {
-    image,
-    decoded: false,
-    promise: new Promise<HTMLImageElement>((resolve, reject) => {
-      image.onload = () => {
-        entry.decoded = true;
-        resolve(image);
-      };
-      image.onerror = (event) => {
-        reject(event instanceof Error ? event : new Error('raster image decode failed'));
-      };
-    }),
-  };
-  try {
-    image.src = url;
-  } catch (error) {
-    entry.promise = Promise.reject(error instanceof Error ? error : new Error('raster image src failed'));
-  }
-  return entry;
-}
+const cache = new ImageCache('raster image');
 
 /**
  * The picture at the address once it has loaded, or null until then.
@@ -41,14 +9,7 @@ function startDecode(url: string): CacheEntry | null {
  * every frame. Null too where it failed to load or the browser has no images to make.
  */
 export function getRasterImage(url: string): HTMLImageElement | null {
-  let entry = cache.get(url);
-  if (!entry) {
-    const created = startDecode(url);
-    if (!created) return null;
-    entry = created;
-    cache.set(url, entry);
-  }
-  return entry.decoded ? entry.image : null;
+  return cache.get(url, () => url);
 }
 
 /**
@@ -56,14 +17,7 @@ export function getRasterImage(url: string): HTMLImageElement | null {
  * `getRasterImage`. Rejects when it cannot be loaded.
  */
 export function loadRasterImage(url: string): Promise<HTMLImageElement> {
-  let entry = cache.get(url);
-  if (!entry) {
-    const created = startDecode(url);
-    if (!created) return Promise.reject(new Error('Image API unavailable'));
-    entry = created;
-    cache.set(url, entry);
-  }
-  return entry.promise;
+  return cache.load(url, () => url);
 }
 
 /**
@@ -71,7 +25,7 @@ export function loadRasterImage(url: string): Promise<HTMLImageElement> {
  * is passed over rather than failing the rest.
  */
 export async function warmRasterImages(urls: string[]): Promise<void> {
-  if (!canUseImage()) return;
+  if (!canMakeImages()) return;
   const seen = new Set<string>();
   const pending: Promise<unknown>[] = [];
   for (const url of urls) {
