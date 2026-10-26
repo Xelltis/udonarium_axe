@@ -20,7 +20,7 @@ import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BoardSwitchService } from '@axe/application/tabletop/board-switch.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { TerrainFogCover, VisionService } from '@axe/application/tabletop/vision.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { imageFileEqual } from '@axe/core/storage/image-file';
@@ -34,6 +34,7 @@ import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { DoorStyle, Terrain, TerrainFace } from '@axe/domain/tabletop/terrain';
+import { TerrainFogCover } from '@axe/domain/tabletop/terrain-cover';
 import {
   faceShadeOf,
   sideCellIndexes,

@@ -1,3 +1,8 @@
+import { GameCharacter } from '@axe/domain/character/game-character';
+import { GameTable } from '@axe/domain/tabletop/game-table';
+import { segmentBlocks } from '@axe/domain/tabletop/los/segments';
+import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
+import { Terrain } from '@axe/domain/tabletop/terrain';
 import {
   characterSceneKey,
   collectBrightAreas,
@@ -6,12 +11,7 @@ import {
   collectShadowCasters,
   collectVisionSources,
   toSceneLight,
-} from '@axe/application/tabletop/vision-scene-assembly';
-import { GameCharacter } from '@axe/domain/character/game-character';
-import { GameTable } from '@axe/domain/tabletop/game-table';
-import { segmentBlocks } from '@axe/domain/tabletop/los/segments';
-import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
-import { Terrain } from '@axe/domain/tabletop/terrain';
+} from '@axe/domain/tabletop/vision-scene-assembly';
 import { LightSpec } from '@axe/domain/tabletop/vision-types';
 
 function makeTable(): GameTable {

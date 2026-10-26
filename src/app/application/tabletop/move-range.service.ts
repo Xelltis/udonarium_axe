@@ -2,7 +2,6 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { characterSceneKey } from '@axe/application/tabletop/vision-scene-assembly';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_MOVE_REACH_BUILD, perfCounters } from '@axe/core/util/perf-counters';
@@ -49,6 +48,7 @@ import { moveCostsOn, TableMoveCost } from '@axe/domain/tabletop/table-move-cost
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { characterSceneKey } from '@axe/domain/tabletop/vision-scene-assembly';
 import { metresPerCell } from '@axe/domain/tabletop/zone/zone-queries';
 
 /** What the table does with the ground a piece of this standing stands on. */
