@@ -231,8 +231,7 @@ export class LightSourceComponent {
       height: 420,
     };
     this.panelService.openLazy(
-      () =>
-        import('@axe/features/tabletop/light-settings/light-settings.component').then((m) => m.LightSettingsComponent),
+      () => import('@axe/features/light-settings/light-settings.component').then((m) => m.LightSettingsComponent),
       { ...option, stillWanted: () => isInStore(light) },
       (component) => {
         component.target = light;

@@ -26,7 +26,7 @@ import {
   OBJECT_LIST_TYPES,
   ObjectRow,
 } from '@axe/features/gm-object-list/game-object-list-row';
-import { LightSettingsComponent } from '@axe/features/tabletop/light-settings/light-settings.component';
+import { LightSettingsComponent } from '@axe/features/light-settings/light-settings.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 

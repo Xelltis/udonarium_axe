@@ -58,8 +58,7 @@ export class GameDataElementRangeShapeComponent {
       title: this.t('feature.range.custom.editorTitle'),
       ...sheetPanelBox(coordinate, 640, 540),
     };
-    const { RangeShapeEditorComponent } =
-      await import('@axe/features/tabletop/range-shape-editor/range-shape-editor.component');
+    const { RangeShapeEditorComponent } = await import('@axe/features/range-shape-editor/range-shape-editor.component');
     const editor = this.panelService.open(RangeShapeEditorComponent, option);
     editor.initialize({
       name: initial.name || this.element().name,

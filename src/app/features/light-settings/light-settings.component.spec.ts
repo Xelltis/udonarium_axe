@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { LightSettingsComponent } from '@axe/features/tabletop/light-settings/light-settings.component';
+import { LightSettingsComponent } from '@axe/features/light-settings/light-settings.component';
 import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 

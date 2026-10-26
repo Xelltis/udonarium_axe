@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { RangeShapeEditorComponent } from '@axe/features/tabletop/range-shape-editor/range-shape-editor.component';
+import { RangeShapeEditorComponent } from '@axe/features/range-shape-editor/range-shape-editor.component';
 import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 

@@ -372,8 +372,7 @@ export class RangeComponent {
       title: this.translateFn('feature.range.custom.editorTitle'),
       ...sheetPanelBox(coordinate, 640, 540),
     };
-    const { RangeShapeEditorComponent } =
-      await import('@axe/features/tabletop/range-shape-editor/range-shape-editor.component');
+    const { RangeShapeEditorComponent } = await import('@axe/features/range-shape-editor/range-shape-editor.component');
     const editor = this.panelService.open(RangeShapeEditorComponent, option);
     editor.initialize({
       name: range.name,

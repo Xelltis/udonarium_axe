@@ -11,7 +11,7 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { VisionType } from '@axe/domain/tabletop/vision-types';
 import { GameObjectListPanelComponent } from '@axe/features/gm-object-list/game-object-list-panel.component';
 import { ObjectRow } from '@axe/features/gm-object-list/game-object-list-row';
-import { LightSettingsComponent } from '@axe/features/tabletop/light-settings/light-settings.component';
+import { LightSettingsComponent } from '@axe/features/light-settings/light-settings.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 /** What the panel sets on the settings it opens, which is all this needs to stand in for. */

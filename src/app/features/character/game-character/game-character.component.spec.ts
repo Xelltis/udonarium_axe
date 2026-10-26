@@ -116,7 +116,7 @@ describe('GameCharacterComponent', () => {
 
     it('shows the light settings of the piece with its vision', async () => {
       const character = GameCharacter.create('灯りのコマ', 1, '');
-      const { LightSettingsComponent } = await import('@axe/features/tabletop/light-settings/light-settings.component');
+      const { LightSettingsComponent } = await import('@axe/features/light-settings/light-settings.component');
 
       const { panel, option, setup } = await opened('showLightSettings', character);
       const settings: Record<string, unknown> = {};
