@@ -16,6 +16,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { observeTap, TapGestureHandle } from '@axe/core/input/tap-gesture';
+import { debounce } from '@axe/core/util/debounce';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { asHoverDetailPlacement } from '@axe/domain/tabletop/hover-detail-placement';
 import { multiAngleDegreesFromPoint } from '@axe/domain/tabletop/multi-angle';
@@ -299,14 +300,7 @@ export class TooltipDirective {
       if (this.tabletopObject() && this.tabletopObject().identifier === e.identifier) this.closeAll();
     });
 
-    let followTimer: ReturnType<typeof setTimeout> | null = null;
-    const followViewport = () => {
-      if (followTimer) clearTimeout(followTimer);
-      followTimer = setTimeout(() => {
-        followTimer = null;
-        this.onViewportChanged(session);
-      }, VIEWPORT_FOLLOW_DELAY_MS);
-    };
+    const followViewport = debounce(() => this.onViewportChanged(session), VIEWPORT_FOLLOW_DELAY_MS);
     const host = this.viewContainerRef.element.nativeElement as Element;
     if (seats) {
       window.addEventListener('resize', followViewport, false);
@@ -321,8 +315,7 @@ export class TooltipDirective {
         window.removeEventListener('orientationchange', followViewport, false);
         host.removeEventListener('mousemove', this.callbackOnMouseMove, false);
       }
-      if (followTimer) clearTimeout(followTimer);
-      followTimer = null;
+      followViewport.cancel();
     };
 
     TooltipDirective.activeOwner = this;

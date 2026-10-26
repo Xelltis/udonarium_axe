@@ -9,6 +9,7 @@ import { TurnHooksService } from '@axe/application/turn/turn-hooks.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { debounce } from '@axe/core/util/debounce';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
 import { Party } from '@axe/domain/party/party';
@@ -130,7 +131,6 @@ export class EngagementZoneService {
   private readonly vision = inject(VisionService);
   private readonly links = inject(PieceLinksService);
   private readonly t = inject(TRANSLATE_FN);
-  private tidyTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** The rules the room plays zones by. */
   readonly rules = computed<ZoneRules>(() => {
@@ -219,10 +219,10 @@ export class EngagementZoneService {
     effect(() => {
       const writes = this.state().writes;
       if (!hasZoneWrites(writes)) return;
-      untracked(() => this.scheduleTidy());
+      untracked(() => this.tidySoon());
     });
     inject(DestroyRef).onDestroy(() => {
-      if (this.tidyTimer !== null) clearTimeout(this.tidyTimer);
+      this.tidySoon.cancel();
       stopTurnEnd();
       stopTurnStart();
     });
@@ -873,18 +873,14 @@ export class EngagementZoneService {
     this.gather(settled, [...gatherIds, ...moved]);
   }
 
-  private scheduleTidy(): void {
-    if (this.tidyTimer !== null) clearTimeout(this.tidyTimer);
-    this.tidyTimer = setTimeout(() => {
-      this.tidyTimer = null;
-      if (!this.keepsOrder()) return;
-      const state = this.stateNow();
-      if (!hasZoneWrites(state.writes)) return;
-      const moved = state.writes.updateZones.map((update) => update.id);
-      this.write(state.writes);
-      this.gather(this.stateNow(), moved);
-    }, TIDY_DELAY_MS);
-  }
+  private readonly tidySoon = debounce(() => {
+    if (!this.keepsOrder()) return;
+    const state = this.stateNow();
+    if (!hasZoneWrites(state.writes)) return;
+    const moved = state.writes.updateZones.map((update) => update.id);
+    this.write(state.writes);
+    this.gather(this.stateNow(), moved);
+  }, TIDY_DELAY_MS);
 
   /**
    * Whether this peer is the one that writes what followed from changes nobody made through a zone.

@@ -18,6 +18,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ModalService } from '@axe/application/ui/modal.service';
 import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
 import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
+import { coalesce } from '@axe/core/util/debounce';
 import { EditHistory } from '@axe/core/util/edit-history';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { KEY_TOLERANCE_MS } from '@axe/domain/media/cut-in-keyframe';
@@ -203,7 +204,7 @@ export class CutInSceneEditorComponent {
   private historyOf = '';
   protected readonly historyVersion = signal(0);
   private pending: { layer: CutInLayer; box: LayerBox | null; rotation: number | null } | null = null;
-  private flushTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly flushSoon = coalesce(() => this.flushDrag(), DRAG_FLUSH_MS);
 
   readonly scene = computed<CutInScene | null>(() => {
     const cutIn = this.cutIn();
@@ -883,28 +884,16 @@ export class CutInSceneEditorComponent {
 
   private queueTurn(layer: CutInLayer, rotation: number): void {
     this.pending = { layer, box: null, rotation };
-    this.startFlushTimer();
+    this.flushSoon();
   }
 
   private queueFlush(layer: CutInLayer, box: LayerBox): void {
     this.pending = { layer, box, rotation: null };
-    this.startFlushTimer();
-  }
-
-  private startFlushTimer(): void {
-    if (this.flushTimer !== null) return;
-
-    this.flushTimer = setTimeout(() => {
-      this.flushTimer = null;
-      this.flushDrag();
-    }, DRAG_FLUSH_MS);
+    this.flushSoon();
   }
 
   private flushDrag(): void {
-    if (this.flushTimer !== null) {
-      clearTimeout(this.flushTimer);
-      this.flushTimer = null;
-    }
+    this.flushSoon.cancel();
 
     const pending = this.pending;
     this.pending = null;

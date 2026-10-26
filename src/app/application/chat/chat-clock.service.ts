@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Network } from '@axe/core/index';
 import { Logger } from '@axe/core/logging/logger';
+import { debounce } from '@axe/core/util/debounce';
 
 const HOURS = 60 * 60 * 1000;
 
@@ -12,7 +13,7 @@ const HOURS = 60 * 60 * 1000;
  */
 @Injectable({ providedIn: 'root' })
 export class ChatClockService {
-  private calibrationTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly recalibrate = debounce(() => this.calibrate(), 6 * HOURS);
   private timeOffset: number = Date.now();
   private performanceOffset: number = performance.now();
 
@@ -32,7 +33,7 @@ export class ChatClockService {
       this.performanceOffset = performance.now();
       return;
     }
-    if (this.calibrationTimer != null) {
+    if (this.recalibrate.pending()) {
       return;
     }
     const index = Math.floor(Math.random() * this.ntpApiUrls.length);
@@ -52,21 +53,13 @@ export class ChatClockService {
         this.timeOffset = fixedTime;
         this.performanceOffset = endTime;
         Logger.info(`[TimeSync] 時刻同期完了 (過延: ${latency.toFixed(0)}ms, offset: ${fixedTime.toFixed(0)})`);
-        this.scheduleCalibration();
+        this.recalibrate();
       })
       .catch((error) => {
         Logger.warn('[TimeSync] 時刻同期失敗', error.message);
-        this.scheduleCalibration();
+        this.recalibrate();
       });
-    this.scheduleCalibration();
-  }
-
-  private scheduleCalibration() {
-    if (this.calibrationTimer != null) clearTimeout(this.calibrationTimer);
-    this.calibrationTimer = setTimeout(() => {
-      this.calibrationTimer = null;
-      this.calibrate();
-    }, 6 * HOURS);
+    this.recalibrate();
   }
 
   /** The current time in milliseconds by the calibrated clock, which is what lines are stamped with. */

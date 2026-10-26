@@ -35,6 +35,7 @@ import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
+import { transientSignal } from '@axe/application/ui/transient-signal';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { Network } from '@axe/core/network/network';
@@ -1048,11 +1049,9 @@ export class ChatMessageComponent {
   private readonly stampPicker = inject(StampPickerService);
   private readonly stampRules = inject(StampRulesService);
   private readonly destroyRef = inject(DestroyRef);
-  readonly isHighlighted = signal(false);
-  private highlightTimer: ReturnType<typeof setTimeout> | null = null;
+  readonly isHighlighted = transientSignal(false, LINE_FLASH_MS);
 
   private readonly _registerDestroy = this.destroyRef.onDestroy(() => {
-    if (this.highlightTimer) clearTimeout(this.highlightTimer);
     this.stopFollowingSelection?.();
   });
 
@@ -1067,12 +1066,7 @@ export class ChatMessageComponent {
    * lit for the whole moment from then.
    */
   flash(): void {
-    this.isHighlighted.set(true);
-    if (this.highlightTimer) clearTimeout(this.highlightTimer);
-    this.highlightTimer = setTimeout(() => {
-      this.isHighlighted.set(false);
-      this.highlightTimer = null;
-    }, LINE_FLASH_MS);
+    this.isHighlighted.show(true);
   }
 
   /** The speaker's name as shown, translated for a system line and redrawn when the language changes. */

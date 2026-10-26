@@ -9,6 +9,7 @@ import { keepStoragePersistent } from '@axe/core/storage/persistent-storage';
 import { ReplayLogStore, type ReplayRecordingMeta, selectExpiredRecordings } from '@axe/core/storage/replay-log-store';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { compressAsync } from '@axe/core/util/compress';
+import { coalesce } from '@axe/core/util/debounce';
 import { encodeReplayEvents, encodeReplayManifest } from '@axe/domain/replay/replay-codec';
 import {
   REPLAY_FORMAT_VERSION,
@@ -80,10 +81,13 @@ export class ReplayRecorderService {
   private recent: ReplayEvent[] = [];
   private recentDirty = false;
   private lastPublishAt = 0;
-  private chunkTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly chunkFlush = coalesce(() => {
+    this.flushPending();
+    void this.flushBuffer();
+  }, REPLAY_CHUNK_INTERVAL_MS);
   private keyframeTimer: ReturnType<typeof setInterval> | null = null;
   private publishTimer: ReturnType<typeof setTimeout> | null = null;
-  private keyframeRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly keyframeRetry = coalesce(() => void this.captureKeyframe(), REPLAY_KEYFRAME_BUSY_RETRY_MS);
 
   constructor() {
     networkMessage$.subscribe((message) => {
@@ -246,7 +250,7 @@ export class ReplayRecorderService {
     if (step.settled) this.settle(step.settled);
     this.trackRecent(step.event, false);
     if (this.buffer.length + 1 >= REPLAY_CHUNK_EVENT_LIMIT) this.flushPending();
-    this.scheduleChunkFlush();
+    this.chunkFlush();
   }
 
   private flushPending(): void {
@@ -259,15 +263,6 @@ export class ReplayRecorderService {
     this._eventCount.update((count) => count + 1);
     this.publishRecent();
     if (this.buffer.length >= REPLAY_CHUNK_EVENT_LIMIT) void this.flushBuffer();
-  }
-
-  private scheduleChunkFlush(): void {
-    if (this.chunkTimer !== null) return;
-    this.chunkTimer = setTimeout(() => {
-      this.chunkTimer = null;
-      this.flushPending();
-      void this.flushBuffer();
-    }, REPLAY_CHUNK_INTERVAL_MS);
   }
 
   private async flushBuffer(force = false): Promise<void> {
@@ -320,7 +315,7 @@ export class ReplayRecorderService {
       await this.whenIdle();
       if (this.recordingId !== id || isNetworkIsolated()) return;
       if (this.pointerDevice.isDragging) {
-        this.retryKeyframeLater();
+        this.keyframeRetry();
         return;
       }
     }
@@ -358,14 +353,6 @@ export class ReplayRecorderService {
       Logger.warn('[ReplayRecorder] 盤面を圧縮できませんでした', reason);
       return bytes;
     }
-  }
-
-  private retryKeyframeLater(): void {
-    if (this.keyframeRetryTimer !== null) return;
-    this.keyframeRetryTimer = setTimeout(() => {
-      this.keyframeRetryTimer = null;
-      void this.captureKeyframe();
-    }, REPLAY_KEYFRAME_BUSY_RETRY_MS);
   }
 
   private whenIdle(): Promise<void> {
@@ -429,14 +416,12 @@ export class ReplayRecorderService {
   }
 
   private clearTimers(): void {
-    if (this.chunkTimer !== null) clearTimeout(this.chunkTimer);
+    this.chunkFlush.cancel();
     if (this.keyframeTimer !== null) clearInterval(this.keyframeTimer);
     if (this.publishTimer !== null) clearTimeout(this.publishTimer);
-    if (this.keyframeRetryTimer !== null) clearTimeout(this.keyframeRetryTimer);
-    this.chunkTimer = null;
+    this.keyframeRetry.cancel();
     this.keyframeTimer = null;
     this.publishTimer = null;
-    this.keyframeRetryTimer = null;
   }
 }
 

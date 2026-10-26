@@ -1,5 +1,6 @@
 import type { AudioAnalysisResponse, AudioAnalysisResult } from '@axe/core/audio/audio-analysis';
 import { Logger } from '@axe/core/logging/logger';
+import { debounce } from '@axe/core/util/debounce';
 
 /** The rate sounds are decoded at to be read, which keeps what loudness and beats are heard by at half the memory of CD rate. */
 export const ANALYSIS_SAMPLE_RATE = 22050;
@@ -12,7 +13,6 @@ const IDLE_TERMINATE_MS = 30_000;
 let worker: Worker | null = null;
 let isWorkerBroken = false;
 let nextRequestId = 1;
-let idleTimer: ReturnType<typeof setTimeout> | null = null;
 const pending = new Map<number, (result: AudioAnalysisResult | null | undefined) => void>();
 
 type OfflineContextConstructor = new (channels: number, length: number, sampleRate: number) => OfflineAudioContext;
@@ -48,18 +48,14 @@ async function decodeForAnalysisAsync(blob: Blob): Promise<{ channels: Float32Ar
 }
 
 function disposeWorker(): void {
-  if (idleTimer !== null) clearTimeout(idleTimer);
-  idleTimer = null;
+  idleTerminate.cancel();
   worker?.terminate();
   worker = null;
 }
 
-function scheduleIdleTerminate(): void {
-  if (idleTimer !== null) clearTimeout(idleTimer);
-  idleTimer = setTimeout(() => {
-    if (pending.size < 1) disposeWorker();
-  }, IDLE_TERMINATE_MS);
-}
+const idleTerminate = debounce(() => {
+  if (pending.size < 1) disposeWorker();
+}, IDLE_TERMINATE_MS);
 
 function ensureWorker(): Worker | null {
   if (isWorkerBroken || typeof Worker === 'undefined') return null;
@@ -76,7 +72,7 @@ function ensureWorker(): Worker | null {
     if (!resolve) return;
     pending.delete(event.data.id);
     resolve(event.data.result);
-    scheduleIdleTerminate();
+    idleTerminate();
   });
   worker.addEventListener('error', (event) => {
     isWorkerBroken = true;

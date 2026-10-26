@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, Signal } from '@angular/core';
+import { transientSignal } from '@axe/application/ui/transient-signal';
 
 /** How long a word about a press that came to nothing stays on the screen. */
 export const SWITCH_NOTICE_MS = 1800;
@@ -19,17 +20,11 @@ export interface SwitchNotice {
  */
 @Injectable({ providedIn: 'root' })
 export class SwitchNoticeService {
-  private readonly held = signal<SwitchNotice | null>(null);
-  private timer: ReturnType<typeof setTimeout> | null = null;
+  private readonly held = transientSignal<SwitchNotice | null>(null, SWITCH_NOTICE_MS);
 
-  readonly notice = this.held.asReadonly();
+  readonly notice: Signal<SwitchNotice | null> = this.held;
 
   show(text: string, x: number, y: number): void {
-    if (this.timer !== null) clearTimeout(this.timer);
-    this.held.set({ text, x, y });
-    this.timer = setTimeout(() => {
-      this.timer = null;
-      this.held.set(null);
-    }, SWITCH_NOTICE_MS);
+    this.held.show({ text, x, y });
   }
 }

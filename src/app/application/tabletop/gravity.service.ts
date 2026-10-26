@@ -7,6 +7,7 @@ import {
   TabletopOverlapRegistryEntry,
   TabletopOverlapService,
 } from '@axe/application/ui/tabletop-overlap.service';
+import { debounce } from '@axe/core/util/debounce';
 import { perfCounters, perfTimed } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { GridType } from '@axe/domain/tabletop/game-table';
@@ -58,30 +59,25 @@ export class GravityService {
   private readonly tabletopService = inject(TabletopService);
   private readonly destroyRef = inject(DestroyRef);
 
-  private timer: ReturnType<typeof setTimeout> | null = null;
+  private readonly settle = debounce(() => {
+    if (this.pointerDeviceService.isDragging) {
+      this.settle();
+      return;
+    }
+    this.apply();
+  }, DEBOUNCE_MS);
   private applying = false;
 
   constructor() {
     for (const alias of GRAVITY_ALIASES) {
       this.objectChange.onObjectChangedForSingleAlias(alias, () => this.schedule(), this.destroyRef);
     }
-    this.destroyRef.onDestroy(() => {
-      if (this.timer != null) clearTimeout(this.timer);
-      this.timer = null;
-    });
+    this.destroyRef.onDestroy(() => this.settle.cancel());
   }
 
   private schedule(): void {
     if (this.applying) return;
-    if (this.timer != null) clearTimeout(this.timer);
-    this.timer = setTimeout(() => {
-      this.timer = null;
-      if (this.pointerDeviceService.isDragging) {
-        this.schedule();
-        return;
-      }
-      this.apply();
-    }, DEBOUNCE_MS);
+    this.settle();
   }
 
   private apply(): void {

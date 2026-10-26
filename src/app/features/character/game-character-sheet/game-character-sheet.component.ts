@@ -32,6 +32,7 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { debounce } from '@axe/core/util/debounce';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -374,7 +375,7 @@ export class GameCharacterSheetComponent {
     if (!Number.isFinite(value)) return;
     c.size = Math.max(1, Math.min(20, Math.round(value)));
   }
-  private cardFaceTextUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly writeFaceTextSoon = debounce(() => this.flushCardOwnFaceText(), 66);
   private pendingCardFaceText: { card: Card; value: string } | null = null;
 
   /**
@@ -403,17 +404,15 @@ export class GameCharacterSheetComponent {
    */
   setCardOwnFaceText(c: Card, event: Event): void {
     if (!this.canReadCardFace(c)) return;
-    if (this.cardFaceTextUpdateTimer) clearTimeout(this.cardFaceTextUpdateTimer);
     this.pendingCardFaceText = { card: c, value: (event.target as HTMLTextAreaElement).value };
-    this.cardFaceTextUpdateTimer = setTimeout(() => this.flushCardOwnFaceText(), 66);
+    this.writeFaceTextSoon();
   }
   /**
    * Writes face text still waiting on its pause to the card at once, when the field loses focus,
    * the piece changes or the panel closes.
    */
   flushCardOwnFaceText(): void {
-    if (this.cardFaceTextUpdateTimer) clearTimeout(this.cardFaceTextUpdateTimer);
-    this.cardFaceTextUpdateTimer = null;
+    this.writeFaceTextSoon.cancel();
     const pending = this.pendingCardFaceText;
     this.pendingCardFaceText = null;
     if (pending && this.canReadCardFace(pending.card)) pending.card.faceText = pending.value;

@@ -22,6 +22,7 @@ import { BoardSwitchService } from '@axe/application/tabletop/board-switch.servi
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
+import { transientSignal } from '@axe/application/ui/transient-signal';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { imageFileEqual } from '@axe/core/storage/image-file';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -165,9 +166,6 @@ export class TerrainComponent {
   protected readonly guide = inject(ButtonGuideService);
 
   constructor() {
-    this.destroyRef.onDestroy(() => {
-      if (this.noticeTimer !== null) clearTimeout(this.noticeTimer);
-    });
     effect(() => {
       this.uiSignalService.terrainGridShowVersion();
       this.setGridCanvasOpacity(this.gridOpacity(true));
@@ -472,7 +470,7 @@ export class TerrainComponent {
   });
 
   /** Why the last press on the block came to nothing, shown over it for a moment. */
-  protected readonly switchNotice = signal('');
+  protected readonly switchNotice = transientSignal('', SWITCH_NOTICE_MS);
 
   /** Stands the label up over the middle of the block, turned to the camera, or lays it flat from above. */
   protected readonly switchLabelTransform = computed(() => {
@@ -482,7 +480,6 @@ export class TerrainComponent {
   });
 
   private pressedFrom: { x: number; y: number } | null = null;
-  private noticeTimer: ReturnType<typeof setTimeout> | null = null;
 
   protected notePress(event: PointerEvent): void {
     this.pressedFrom = { x: event.clientX, y: event.clientY };
@@ -510,12 +507,7 @@ export class TerrainComponent {
     if (!held) return;
     const outcome = await this.switchPresses.press(held);
     if (outcome === 'pressed' || outcome === 'busy') return;
-    this.switchNotice.set(this.t(`feature.boardSwitch.refused.${outcome}`));
-    if (this.noticeTimer !== null) clearTimeout(this.noticeTimer);
-    this.noticeTimer = setTimeout(() => {
-      this.noticeTimer = null;
-      this.switchNotice.set('');
-    }, SWITCH_NOTICE_MS);
+    this.switchNotice.show(this.t(`feature.boardSwitch.refused.${outcome}`));
   }
 
   /** Whether this seat may open and shut a door, which a guest may not. */

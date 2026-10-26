@@ -1,4 +1,5 @@
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { debounce } from '@axe/core/util/debounce';
 import { MapScene } from '@axe/domain/map-editor/scene';
 import { serializeScene } from '@axe/domain/map-editor/serialize';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
@@ -14,7 +15,7 @@ export interface BoardKeeperHost {
 }
 
 export class BoardKeeper {
-  private timer: ReturnType<typeof setTimeout> | null = null;
+  private readonly saveSoon = debounce(() => void this.save(), SAVE_DELAY);
 
   constructor(
     private readonly host: BoardKeeperHost,
@@ -27,11 +28,7 @@ export class BoardKeeper {
    * Each call starts the wait over, so a run of edits is saved once, after the last of them.
    */
   keepPicture(): void {
-    if (this.timer !== null) clearTimeout(this.timer);
-    this.timer = setTimeout(() => {
-      this.timer = null;
-      void this.save();
-    }, SAVE_DELAY);
+    this.saveSoon();
   }
 
   /**
@@ -41,9 +38,8 @@ export class BoardKeeper {
    * save is waiting.
    */
   putDown(): void {
-    if (this.timer === null) return;
-    clearTimeout(this.timer);
-    this.timer = null;
+    if (!this.saveSoon.pending()) return;
+    this.saveSoon.cancel();
     this.writeScene();
   }
 

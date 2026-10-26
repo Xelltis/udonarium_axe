@@ -24,6 +24,7 @@ import { sheetPanelBox, sheetPanelTitle } from '@axe/application/ui/sheet-panel'
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ImageFile, imageFileEqual } from '@axe/core/storage/image-file';
 import { isInStore } from '@axe/core/sync/object-store';
+import { debounce } from '@axe/core/util/debounce';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GridType } from '@axe/domain/tabletop/game-table';
@@ -103,9 +104,7 @@ export class GameTableMaskComponent {
         return geo ? { x: geo.offsetX, y: geo.offsetY } : undefined;
       },
     });
-    this.destroyRef.onDestroy(() => {
-      clearTimeout(this._scratchingTimerId);
-    });
+    this.destroyRef.onDestroy(() => this.settleScratching.cancel());
   }
 
   private readonly inputRef = setupInputHandler({
@@ -602,7 +601,13 @@ export class GameTableMaskComponent {
    */
   private _currentScratchingSet: Set<string> | null = null;
   private readonly scratchingTick = signal(0);
-  private _scratchingTimerId: ReturnType<typeof setTimeout> | undefined;
+  private readonly settleScratching = debounce(() => {
+    if (this._currentScratchingSet) {
+      this.scratchingGrids = this.buildScratchingGrids(this._currentScratchingSet);
+    }
+    this._currentScratchingSet = null;
+    this.touchScratching();
+  }, 250);
 
   private touchScratching(): void {
     this.scratchingTick.update((tick) => tick + 1);
@@ -680,14 +685,7 @@ export class GameTableMaskComponent {
       this._currentScratchingSet.add(tempScratching);
     }
     this.touchScratching();
-    clearTimeout(this._scratchingTimerId);
-    this._scratchingTimerId = setTimeout(() => {
-      if (this._currentScratchingSet) {
-        this.scratchingGrids = this.buildScratchingGrids(this._currentScratchingSet);
-      }
-      this._currentScratchingSet = null;
-      this.touchScratching();
-    }, 250);
+    this.settleScratching();
   }
 
   /**
@@ -703,7 +701,7 @@ export class GameTableMaskComponent {
 
     const currentScratchedAry: string[] = this.scratchedGrids ? this.scratchedGrids.split(/,/g) : [];
     if (this._currentScratchingSet) {
-      clearTimeout(this._scratchingTimerId);
+      this.settleScratching.cancel();
       this.scratchingGrids = this.buildScratchingGrids(this._currentScratchingSet);
       this._currentScratchingSet = null;
       this.touchScratching();
@@ -748,7 +746,7 @@ export class GameTableMaskComponent {
       onStartScratch: () => {
         if (mask.owner != '') {
           this.isPreview = false;
-          clearTimeout(this._scratchingTimerId);
+          this.settleScratching.cancel();
           this._currentScratchingSet = null;
           this.touchScratching();
         }

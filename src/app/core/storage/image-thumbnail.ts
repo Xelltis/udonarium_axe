@@ -1,12 +1,12 @@
 import { Logger } from '@axe/core/logging/logger';
 import type { ThumbnailWorkerResponse } from '@axe/core/storage/image-thumbnail-message';
+import { debounce } from '@axe/core/util/debounce';
 
 const IDLE_TERMINATE_MS = 30_000;
 
 let worker: Worker | null = null;
 let isWorkerBroken = false;
 let nextRequestId = 1;
-let idleTimer: ReturnType<typeof setTimeout> | null = null;
 const pending = new Map<number, (response: ThumbnailWorkerResponse | null) => void>();
 
 function isWorkerSupported(): boolean {
@@ -21,18 +21,14 @@ function rejectAllPending(): void {
 }
 
 function disposeWorker(): void {
-  if (idleTimer !== null) clearTimeout(idleTimer);
-  idleTimer = null;
+  idleTerminate.cancel();
   worker?.terminate();
   worker = null;
 }
 
-function scheduleIdleTerminate(): void {
-  if (idleTimer !== null) clearTimeout(idleTimer);
-  idleTimer = setTimeout(() => {
-    if (pending.size < 1) disposeWorker();
-  }, IDLE_TERMINATE_MS);
-}
+const idleTerminate = debounce(() => {
+  if (pending.size < 1) disposeWorker();
+}, IDLE_TERMINATE_MS);
 
 function ensureWorker(): Worker | null {
   if (!isWorkerSupported()) return null;
@@ -49,7 +45,7 @@ function ensureWorker(): Worker | null {
     if (!resolve) return;
     pending.delete(event.data.id);
     resolve(event.data);
-    scheduleIdleTerminate();
+    idleTerminate();
   });
   worker.addEventListener('error', (event) => {
     isWorkerBroken = true;

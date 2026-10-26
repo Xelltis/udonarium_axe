@@ -2,6 +2,7 @@ import { Logger } from '@axe/core/logging/logger';
 import * as MimeType from '@axe/core/storage/mime-type';
 import type { ZipEntry, ZipWorkerRequest, ZipWorkerResponse } from '@axe/core/storage/zip-archive-message';
 import { zipCompressionLevel } from '@axe/core/storage/zip-compression';
+import { debounce } from '@axe/core/util/debounce';
 import type { AsyncZippable, Unzipped } from 'fflate';
 
 const ZIP_MIME_TYPE = 'application/zip';
@@ -95,23 +96,18 @@ export async function readZipEntriesOnMainThread(blob: Blob): Promise<ZipEntry[]
 const IDLE_TERMINATE_MS = 30_000;
 
 let worker: Worker | null = null;
-let idleTimer: ReturnType<typeof setTimeout> | null = null;
 let nextRequestId = 1;
 const pending = new Map<number, (response: ZipWorkerResponse | null) => void>();
 
 function disposeWorker(): void {
-  if (idleTimer !== null) clearTimeout(idleTimer);
-  idleTimer = null;
+  idleTerminate.cancel();
   worker?.terminate();
   worker = null;
 }
 
-function scheduleIdleTerminate(): void {
-  if (idleTimer !== null) clearTimeout(idleTimer);
-  idleTimer = setTimeout(() => {
-    if (pending.size < 1) disposeWorker();
-  }, IDLE_TERMINATE_MS);
-}
+const idleTerminate = debounce(() => {
+  if (pending.size < 1) disposeWorker();
+}, IDLE_TERMINATE_MS);
 
 function settleAll(response: ZipWorkerResponse | null): void {
   const waiting = [...pending.values()];
@@ -168,7 +164,7 @@ function ensureWorker(): Worker | null {
       Logger.warn('[ZipArchive] ワーカーでの処理に失敗しました', event.data.message);
       resolve(null);
     }
-    scheduleIdleTerminate();
+    idleTerminate();
   });
   worker.addEventListener('error', (event) => {
     isWorkerBroken = true;

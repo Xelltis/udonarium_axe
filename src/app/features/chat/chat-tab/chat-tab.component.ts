@@ -22,6 +22,7 @@ import { Network } from '@axe/core/network/network';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { isAppleTouchDevice } from '@axe/core/util/apple-touch';
+import { coalesce } from '@axe/core/util/debounce';
 import { ResettableTimeout } from '@axe/core/util/resettable-timeout';
 import { setZeroTimeout } from '@axe/core/util/zero-timeout';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -154,8 +155,7 @@ export class ChatTabComponent {
       if (this.scrollEventShortTimer) this.scrollEventShortTimer.clear();
       if (this.scrollEventLongTimer) this.scrollEventLongTimer.clear();
       this.renderedRangeTrimTimer?.clear();
-      if (this.addMessageEventTimer) clearTimeout(this.addMessageEventTimer);
-      this.addMessageEventTimer = null;
+      this.announceMessages.cancel();
       for (const timeout of this.writingSpeakerTimeouts.values()) timeout.stop();
       this.writingSpeakerTimeouts.clear();
       this.writingSpeakerIdentifiers.clear();
@@ -248,7 +248,7 @@ export class ChatTabComponent {
   private scrollEventShortTimer: ResettableTimeout | null = null;
   private scrollEventLongTimer: ResettableTimeout | null = null;
   private renderedRangeTrimTimer: ResettableTimeout | null = null;
-  private addMessageEventTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly announceMessages = coalesce(() => this.addMessage.emit(), 0);
   private callbackOnScroll: () => void = () => this.onScroll();
   private readonly writingSpeakerTimeouts = new Map<string, ResettableTimeout>();
   private readonly writingSpeakerIdentifiers = new Map<string, string | undefined>();
@@ -281,11 +281,7 @@ export class ChatTabComponent {
    * window follows new messages to the bottom on it.
    */
   onMessageInit() {
-    if (this.addMessageEventTimer != null) return;
-    this.addMessageEventTimer = setTimeout(() => {
-      this.addMessageEventTimer = null;
-      this.addMessage.emit();
-    }, 0);
+    this.announceMessages();
   }
 
   /**

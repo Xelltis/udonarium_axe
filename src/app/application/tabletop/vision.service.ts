@@ -1,6 +1,7 @@
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { coalesce } from '@axe/core/util/debounce';
 import {
   PERF_TERRAIN_COVER_MISS,
   PERF_VISION_CELLS_MISS,
@@ -216,22 +217,8 @@ export class VisionService {
   }
 
   constructor() {
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    let standingTimer: ReturnType<typeof setTimeout> | null = null;
-    const bump = () => {
-      if (timer !== null) return;
-      timer = setTimeout(() => {
-        timer = null;
-        this.geometryEpoch.update((v) => v + 1);
-      }, GEOMETRY_THROTTLE_MS);
-    };
-    const bumpStanding = () => {
-      if (standingTimer !== null) return;
-      standingTimer = setTimeout(() => {
-        standingTimer = null;
-        this.standingEpoch.update((v) => v + 1);
-      }, GEOMETRY_THROTTLE_MS);
-    };
+    const bump = coalesce(() => this.geometryEpoch.update((v) => v + 1), GEOMETRY_THROTTLE_MS);
+    const bumpStanding = coalesce(() => this.standingEpoch.update((v) => v + 1), GEOMETRY_THROTTLE_MS);
     const changed = (aliasName: string) => {
       if (!RELEVANT_ALIASES.has(aliasName)) return;
       perfCounters.bump(`dirty:${aliasName}`);
@@ -249,8 +236,8 @@ export class VisionService {
     this.objectChange.objectAdded$.subscribe((event) => changed(event.aliasName), this.destroyRef);
     this.objectChange.objectRemoved$.subscribe((event) => changed(event.aliasName), this.destroyRef);
     this.destroyRef.onDestroy(() => {
-      if (timer !== null) clearTimeout(timer);
-      if (standingTimer !== null) clearTimeout(standingTimer);
+      bump.cancel();
+      bumpStanding.cancel();
     });
   }
 
