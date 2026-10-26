@@ -62,7 +62,9 @@
       >
         @if (piece.url) {
           <img
-            class="size-full object-contain object-bottom"
+            class="size-full object-bottom"
+            [class.object-contain]="!piece.stretched"
+            [class.object-fill]="piece.stretched"
             [style.filter]="piece.imageFilter"
             [style.mask-image]="piece.water?.mask ?? null"
             [src]="piece.url"
@@ -72,7 +74,9 @@
           />
           @if (piece.water; as water) {
             <img
-              class="pointer-events-none absolute inset-0 size-full object-contain object-bottom"
+              class="pointer-events-none absolute inset-0 size-full object-bottom"
+              [class.object-contain]="!piece.stretched"
+              [class.object-fill]="piece.stretched"
               data-water-copy
               [style.clip-path]="water.clip"
               [style.filter]="water.tint"

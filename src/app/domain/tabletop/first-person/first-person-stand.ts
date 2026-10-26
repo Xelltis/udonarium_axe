@@ -14,12 +14,14 @@ export interface PieceStandInput {
   readonly aspect?: number;
   /** A height the picture was set to apart from its ground, in pixels, where one was. */
   readonly specifiedHeightPx?: number;
+  /** A width the picture was set to apart from that height, in pixels, where one was. */
+  readonly specifiedWidthPx?: number;
 }
 
 /**
  * How large a piece's picture stands, as the table draws it: as wide as the ground under it and as
  * tall as the picture's own proportions make it. A picture given a height of its own stands that
- * tall, and as wide as that makes it. Until the picture's proportions are known, it stands as tall
+ * tall, and as wide as that makes it or as the width it was given with the height. Until the picture's proportions are known, it stands as tall
  * as it is wide, or as wide as its ground under a height of its own.
  */
 export function pieceStandPx(input: PieceStandInput): PieceStand {
@@ -27,6 +29,7 @@ export function pieceStandPx(input: PieceStandInput): PieceStand {
   const aspect = input.aspect !== undefined && input.aspect > 0 ? input.aspect : undefined;
   if (input.specifiedHeightPx !== undefined) {
     const heightPx = Math.max(0, input.specifiedHeightPx);
+    if (input.specifiedWidthPx !== undefined) return { widthPx: Math.max(0, input.specifiedWidthPx), heightPx };
     return { widthPx: aspect ? heightPx * aspect : ground, heightPx };
   }
   return { widthPx: ground, heightPx: aspect ? ground / aspect : ground };

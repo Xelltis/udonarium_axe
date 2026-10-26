@@ -135,6 +135,11 @@ export class GameCharacter extends OwnedTabletopObject {
 
   @SyncVar() specifyKomaImageFlag: boolean = false;
   @SyncVar('komaImageHeignt') komaImageHeight: number = 100;
+  /**
+   * The width the picture is drawn at apart from its height, in pixels, while its height is set; 0,
+   * or anything but a positive number, keeps the picture's own proportions.
+   */
+  @SyncVar() komaImageWidth: number = 0;
 
   @SyncVar() chatColorCode: string[] = [...DEFAULT_CHAT_COLOR_CODES];
   /** The bubble each colour is shown on, per theme. An empty entry is worked out instead. */

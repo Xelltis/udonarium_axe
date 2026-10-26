@@ -148,6 +148,7 @@
             </div>
           }
           @if (isDropShadow && 0 < imageFile().url.length && specifyKomaImageFlag() && !imageView.fitsInCell()) {
+            @let shadowWidth = komaImageWidthApart();
             <img
               class="chrome-smooth-image-trick pointer-events-none filter-[brightness(0)_opacity(0.7)_blur(1px)]"
               [ngStyle]="{
@@ -155,7 +156,7 @@
                 bottom: '0',
                 left: '50%',
                 height: komaImageHeightSignal() + 'px',
-                width: 'auto',
+                width: shadowWidth === null ? 'auto' : shadowWidth + 'px',
                 maxWidth: 'none',
                 transform:
                   'translateX(-50%) ' +
@@ -509,6 +510,7 @@
                   </div>
                 }
                 @if (!isPoster() && 0 < imageFile().url.length && specifyKomaImageFlag() && !imageView.fitsInCell()) {
+                  @let pictureWidth = komaImageWidthApart();
                   <img
                     appSeeThrough
                     class="image chrome-smooth-image-trick pointer-events-auto inset-x-0 bottom-0 m-auto h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
@@ -516,7 +518,7 @@
                     [appBillboard]="imageView.komaFacing()"
                     [ngStyle]="{
                       height: komaImageHeightSignal() * imageView.supersample() + 'px',
-                      width: 'auto',
+                      width: pictureWidth === null ? 'auto' : pictureWidth * imageView.supersample() + 'px',
                       maxWidth: 'none',
                       display: 'inline-block',
                       left: 'auto',
@@ -533,7 +535,7 @@
                       [appBillboard]="imageView.komaFacing()"
                       [ngStyle]="{
                         height: komaImageHeightSignal() * imageView.supersample() + 'px',
-                        width: 'auto',
+                        width: pictureWidth === null ? 'auto' : pictureWidth * imageView.supersample() + 'px',
                         maxWidth: 'none',
                         display: 'inline-block',
                       }"

@@ -67,6 +67,7 @@ import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/charac
 import { BUFF_VIEW_LABEL_KEYS, type BuffViewMode, nextBuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { gaugeNumbersOf, isGaugeInverted, PieceGauge, selectPieceGauges } from '@axe/domain/character/piece-gauge';
+import { pieceImageWidthApart } from '@axe/domain/character/piece-image-size';
 import { isResourceElement } from '@axe/domain/character/resource-catalog';
 import {
   diffResourceSnapshots,
@@ -766,6 +767,13 @@ export class GameCharacterComponent {
     this.objectChange.versionOf(char.identifier)();
     return char.specifyKomaImageFlag;
   });
+  /** The width the picture was given apart from its height, or null where it keeps its own proportions. */
+  readonly komaImageWidthApart = computed(() => {
+    const char = this.gameCharacter();
+    if (!char) return null;
+    this.objectChange.versionOf(char.identifier)();
+    return char.specifyKomaImageFlag ? pieceImageWidthApart(char.komaImageWidth) : null;
+  });
   /** Whether the piece casts a drop shadow under its picture. */
   get isDropShadow(): boolean {
     const char = this.gameCharacter();
@@ -878,6 +886,7 @@ export class GameCharacterComponent {
     specifiedHeightPx: computed(() =>
       this.specifyKomaImageFlag() && !this.fitsImageInCell() ? this.komaImageHeightSignal() : null
     ),
+    specifiedWidthPx: computed(() => (this.fitsImageInCell() ? null : this.komaImageWidthApart())),
     billboardEnabled: this.imageBillboardEnabled,
     billboardFacing: this.pieceImageFacing,
     squarePoster: true,
@@ -897,10 +906,15 @@ export class GameCharacterComponent {
 
   private readonly rollHandleGapPx = computed(() => Math.round(this.rollHandleSizePx() * ROLL_HANDLE_GAP_RATIO));
 
-  /** How wide the picture stands: as wide as the ground, unless its height was set apart from it. */
+  /**
+   * How wide the picture stands: as wide as the ground, unless its height was set apart from it, when
+   * it is as wide as that height makes it or as the width given with it.
+   */
   private readonly pictureWidthPx = computed(() => {
     const ground = this.size() * this.gridSize;
     if (!this.specifyKomaImageFlag() || this.imageView.fitsInCell()) return ground;
+    const apart = this.komaImageWidthApart();
+    if (apart !== null) return apart;
     const natural = this.imageView.naturalSize();
     return natural ? (this.komaImageHeightSignal() * natural.width) / natural.height : ground;
   });

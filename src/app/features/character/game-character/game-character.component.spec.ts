@@ -2247,6 +2247,32 @@ describe('GameCharacterComponent', () => {
     }
   });
 
+  it('draws a picture given a width apart from its height at that width, and in proportion without one', () => {
+    ImageStorage.instance.add('piece-width-url');
+    const char = GameCharacter.create('width-layout-test', 1, 'piece-width-url');
+    char.specifyKomaImageFlag = true;
+    char.komaImageHeight = 240;
+    char.komaImageWidth = 400;
+    fixture.componentRef.setInput('gameCharacter', char);
+
+    try {
+      fixture.detectChanges();
+      const stretched = fixture.nativeElement.querySelector('img.image.chrome-smooth-image-trick') as HTMLImageElement;
+      expect(stretched.style.width).toBe('400px');
+      expect(stretched.style.height).toBe('240px');
+
+      char.komaImageWidth = 0;
+      TestBed.inject(ObjectChangeService).notifyChanged(char.identifier);
+      fixture.detectChanges();
+      const kept = fixture.nativeElement.querySelector('img.image.chrome-smooth-image-trick') as HTMLImageElement;
+      expect(kept.style.width).toBe('auto');
+      expect(kept.style.height).toBe('240px');
+    } finally {
+      char.destroy();
+      ImageStorage.instance.delete('piece-width-url');
+    }
+  });
+
   it('holds a tall picture to the ground its piece stands on when this screen asks for it', () => {
     ImageStorage.instance.add('in-cell-url');
     const char = GameCharacter.create('in-cell-test', 1, 'in-cell-url');

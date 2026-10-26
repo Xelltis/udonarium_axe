@@ -56,32 +56,104 @@
         type="checkbox"
         [ngModel]="character().specifyKomaImageFlag"
         (ngModelChange)="setSpecifyKomaImageFlag($event)"
-      />{{ 'feature.inventory.settingsTab.specifyKomaHeight' | transloco }}
+      />{{ 'feature.inventory.settingsTab.specifyKomaSize' | transloco }}
     </label>
+    @if (komaImageUrl()) {
+      <img class="hidden" alt="" [src]="komaImageUrl() | safe: 'resourceUrl'" (load)="onKomaImageLoad($event)" />
+    }
+    @let koma = komaSize();
     <div
-      class="flex items-center gap-1.5 text-[0.82em] [&_input[type=range]]:min-w-0 [&_input[type=range]]:flex-[1_1_0]"
+      class="flex items-stretch gap-1"
       [class.opacity-40]="!character().specifyKomaImageFlag"
       [class.pointer-events-none]="!character().specifyKomaImageFlag"
     >
-      <input
-        type="range"
-        min="50"
-        max="750"
-        [(ngModel)]="character().komaImageHeight"
+      <div class="flex min-w-0 flex-[1_1_0] flex-col gap-1.5">
+        <div
+          class="flex items-center gap-1.5 text-[0.82em] [&_input[type=range]]:min-w-0 [&_input[type=range]]:flex-[1_1_0]"
+        >
+          <span class="text-ui-muted w-[2.5em] shrink-0 text-[0.85em] whitespace-nowrap">{{
+            'feature.inventory.settingsTab.komaWidth' | transloco
+          }}</span>
+          <input
+            type="range"
+            name="komaWidthRange"
+            [min]="komaWidthMin"
+            [max]="komaWidthMax"
+            [ngModel]="koma.width"
+            [disabled]="!character().specifyKomaImageFlag || koma.width === null"
+            (input)="onChkKomaWidth($event)"
+            (change)="onChkKomaWidth($event)"
+          />
+          <input
+            class="bg-ui-input border-ui-border-input text-ui-text rounded-ui-sm w-[4.5em] border border-solid px-1.25 py-0.5 text-right text-[0.82em]"
+            type="number"
+            name="komaWidth"
+            [min]="komaWidthMin"
+            [max]="komaWidthMax"
+            [ngModel]="koma.width"
+            [disabled]="!character().specifyKomaImageFlag || koma.width === null"
+            (change)="onChkKomaWidth($event)"
+            data-testid="koma-width"
+          />
+          <span class="text-ui-muted shrink-0 text-[0.78em] whitespace-nowrap">px</span>
+        </div>
+        <div
+          class="flex items-center gap-1.5 text-[0.82em] [&_input[type=range]]:min-w-0 [&_input[type=range]]:flex-[1_1_0]"
+        >
+          <span class="text-ui-muted w-[2.5em] shrink-0 text-[0.85em] whitespace-nowrap">{{
+            'feature.inventory.settingsTab.komaHeight' | transloco
+          }}</span>
+          <input
+            type="range"
+            name="komaHeightRange"
+            [min]="komaHeightMin"
+            [max]="komaHeightMax"
+            [ngModel]="koma.height"
+            [disabled]="!character().specifyKomaImageFlag"
+            (input)="onChkKomaSize($event)"
+            (change)="onChkKomaSize($event)"
+          />
+          <input
+            class="bg-ui-input border-ui-border-input text-ui-text rounded-ui-sm w-[4.5em] border border-solid px-1.25 py-0.5 text-right text-[0.82em]"
+            type="number"
+            name="komaHeight"
+            [min]="komaHeightMin"
+            [max]="komaHeightMax"
+            [ngModel]="koma.height"
+            [disabled]="!character().specifyKomaImageFlag"
+            (change)="onChkKomaSize($event)"
+            data-testid="koma-height"
+          />
+          <span class="text-ui-muted shrink-0 text-[0.78em] whitespace-nowrap">px</span>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="rounded-ui-sm hover:bg-ui-hover flex w-6 shrink-0 cursor-pointer flex-col items-center py-1"
+        [class.text-ui-accent]="koma.linked"
+        [class.text-ui-muted]="!koma.linked"
+        [attr.aria-pressed]="koma.linked"
+        [attr.aria-label]="'feature.inventory.settingsTab.komaKeepAspect' | transloco"
+        [title]="
+          (koma.linked
+            ? 'feature.inventory.settingsTab.komaAspectLinked'
+            : 'feature.inventory.settingsTab.komaAspectUnlinked'
+          ) | transloco
+        "
         [disabled]="!character().specifyKomaImageFlag"
-        (input)="onChkKomaSize($event)"
-        (change)="onChkKomaSize($event)"
-      />
-      <input
-        class="bg-ui-input border-ui-border-input text-ui-text rounded-ui-sm w-[4.5em] border border-solid px-1.25 py-0.5 text-right text-[0.82em]"
-        type="number"
-        min="50"
-        max="750"
-        [(ngModel)]="character().komaImageHeight"
-        [disabled]="!character().specifyKomaImageFlag"
-        (change)="onChkKomaSize($event)"
-      />
-      <span class="text-ui-muted shrink-0 text-[0.78em] whitespace-nowrap">px</span>
+        (click)="toggleKomaAspectLink()"
+        data-testid="koma-aspect-link"
+      >
+        <span
+          class="w-1.5 flex-1 -translate-x-1 border-t border-r border-solid border-current"
+          [class.opacity-30]="!koma.linked"
+        ></span>
+        <span class="material-icons text-[16px] leading-none">{{ koma.linked ? 'link' : 'link_off' }}</span>
+        <span
+          class="w-1.5 flex-1 -translate-x-1 border-r border-b border-solid border-current"
+          [class.opacity-30]="!koma.linked"
+        ></span>
+      </button>
     </div>
     <div class="flex items-center gap-1.5 text-[0.82em]">
       <span class="text-ui-muted min-w-[6em] shrink-0 text-[0.85em] whitespace-nowrap">{{

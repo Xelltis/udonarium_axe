@@ -8,6 +8,17 @@ import { getMyPeerId } from '@axe/core/network/peer-context-source';
 import { normalizeFolderPath } from '@axe/domain/character/character-folder';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import {
+  clampPieceImageHeight,
+  clampPieceImageWidth,
+  heightInProportion,
+  PIECE_IMAGE_HEIGHT_MAX_PX,
+  PIECE_IMAGE_HEIGHT_MIN_PX,
+  PIECE_IMAGE_WIDTH_MAX_PX,
+  PIECE_IMAGE_WIDTH_MIN_PX,
+  pieceImageWidthApart,
+  widthInProportion,
+} from '@axe/domain/character/piece-image-size';
+import {
   convertLegacyCheckTableElements,
   countConvertibleCheckTableElements,
 } from '@axe/domain/data/check-table-converter';
@@ -27,13 +38,14 @@ import {
 } from '@axe/domain/tabletop/ride/ride-rules';
 import { clampInRange, floatOr, roundOr } from '@axe/features/character/game-character-sheet/numeric-input-helpers';
 import { GameDataElementComponent } from '@axe/features/data-element/game-data-element/game-data-element.component';
+import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
   selector: 'game-character-settings-tab',
   templateUrl: './game-character-settings-tab.component.html',
   host: { class: 'block', '[attr.inert]': "isReadOnly() ? '' : null" },
-  imports: [FormsModule, GameDataElementComponent, TranslocoModule],
+  imports: [FormsModule, GameDataElementComponent, SafePipe, TranslocoModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GameCharacterSettingsTabComponent {
@@ -111,7 +123,52 @@ export class GameCharacterSettingsTabComponent {
     if (readSeatHeight(char.mountSeatHeight)) this.ride.convertSeatHeight(char, unit);
   }
 
-  /** Turns the fixed piece image height on or off, from the settings tab's checkbox. */
+  protected readonly komaHeightMin = PIECE_IMAGE_HEIGHT_MIN_PX;
+  protected readonly komaHeightMax = PIECE_IMAGE_HEIGHT_MAX_PX;
+  protected readonly komaWidthMin = PIECE_IMAGE_WIDTH_MIN_PX;
+  protected readonly komaWidthMax = PIECE_IMAGE_WIDTH_MAX_PX;
+
+  /** The piece's picture, as the address the hidden image below the size fields reads it from. */
+  readonly komaImageUrl = computed(() => {
+    this.objectChange.fileVersion();
+    const char = this.character();
+    this.objectChange.versionOf(char.identifier)();
+    return char.imageFile?.url ?? '';
+  });
+
+  private readonly loadedAspect = signal<{ readonly url: string; readonly aspect: number } | null>(null);
+
+  /** The picture's width over its height, once the image has loaded; null until then. */
+  private readonly komaImageAspect = computed(() => {
+    const loaded = this.loadedAspect();
+    return loaded && loaded.url === this.komaImageUrl() ? loaded.aspect : null;
+  });
+
+  /**
+   * The picture's size as the fields show it: its height, its width, and whether the width keeps the
+   * picture's own proportions. A width kept in proportion is worked out from the height, and is null
+   * until the picture has loaded.
+   */
+  readonly komaSize = computed(() => {
+    const char = this.character();
+    this.objectChange.versionOf(char.identifier)();
+    const height = Number(char.komaImageHeight);
+    const apart = pieceImageWidthApart(char.komaImageWidth);
+    return {
+      height,
+      width: apart ?? widthInProportion(height, this.komaImageAspect()),
+      linked: apart === null,
+    };
+  });
+
+  /** Learns the picture's proportions from the hidden image once it has loaded. */
+  onKomaImageLoad(event: Event): void {
+    const image = event.target as HTMLImageElement;
+    if (!(image.naturalWidth > 0 && image.naturalHeight > 0)) return;
+    this.loadedAspect.set({ url: this.komaImageUrl(), aspect: image.naturalWidth / image.naturalHeight });
+  }
+
+  /** Turns the fixed piece image size on or off, from the settings tab's checkbox. */
   setSpecifyKomaImageFlag(value: boolean): void {
     const character = this.character();
     character.specifyKomaImageFlag = value;
@@ -126,7 +183,7 @@ export class GameCharacterSettingsTabComponent {
    */
   chkKomaSize(height: number): void {
     const character = this.character();
-    character.komaImageHeight = clampInRange(Number(height), 50, 750, character.komaImageHeight);
+    character.komaImageHeight = clampPieceImageHeight(Number(height), character.komaImageHeight);
     this.objectChange.notifyChanged(character.identifier);
     this.pointerDeviceService.isDragging = false;
   }
@@ -134,6 +191,36 @@ export class GameCharacterSettingsTabComponent {
   /** Applies the piece image height as the slider or number field changes. */
   onChkKomaSize(event: Event): void {
     this.chkKomaSize((event.target as HTMLInputElement).valueAsNumber);
+  }
+
+  /**
+   * Applies the piece image width as the slider or number field changes. While the width keeps the
+   * picture's proportions, the height follows it, held within its own bounds; otherwise the width is
+   * set alone, clamped to 10 to 2000 pixels. A value that is not a number changes nothing.
+   */
+  onChkKomaWidth(event: Event): void {
+    const width = (event.target as HTMLInputElement).valueAsNumber;
+    const character = this.character();
+    if (this.komaSize().linked) {
+      character.komaImageHeight = heightInProportion(width, this.komaImageAspect(), character.komaImageHeight);
+    } else {
+      character.komaImageWidth = clampPieceImageWidth(width, character.komaImageWidth);
+    }
+    this.objectChange.notifyChanged(character.identifier);
+    this.pointerDeviceService.isDragging = false;
+  }
+
+  /**
+   * Links or unlinks the picture's width to its height. Unlinked, the width starts from where the
+   * picture's proportions put it, or as wide as the picture is tall before it has loaded; linked
+   * again, the picture goes back to its own proportions at the height it has.
+   */
+  toggleKomaAspectLink(): void {
+    const character = this.character();
+    const size = this.komaSize();
+    const start = size.width ?? size.height;
+    character.komaImageWidth = size.linked ? clampPieceImageWidth(start, start) : 0;
+    this.objectChange.notifyChanged(character.identifier);
   }
 
   /**

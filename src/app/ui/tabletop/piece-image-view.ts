@@ -7,6 +7,8 @@ export interface PieceImageViewInputs {
   isPoster: Signal<boolean>;
   sizePx: Signal<number>;
   specifiedHeightPx: Signal<number | null>;
+  /** The width the picture is drawn at apart from its height, or null where it keeps its proportions. */
+  specifiedWidthPx?: Signal<number | null>;
   billboardEnabled: Signal<boolean>;
   billboardFacing: Signal<BillboardFacing>;
   squarePoster?: boolean;
@@ -56,8 +58,10 @@ export function pieceImageView(inputs: PieceImageViewInputs): PieceImageView {
     if (!size) return 1;
     if (squarePoster() || fitsInCell()) return supersampleFactor(Math.min(size.width, size.height), inputs.sizePx());
     const specified = inputs.specifiedHeightPx();
-    if (specified !== null) return supersampleFactor(size.height, specified);
-    return supersampleFactor(size.width, inputs.sizePx());
+    if (specified === null) return supersampleFactor(size.width, inputs.sizePx());
+    const byHeight = supersampleFactor(size.height, specified);
+    const width = inputs.specifiedWidthPx?.() ?? null;
+    return width === null ? byHeight : Math.min(byHeight, supersampleFactor(size.width, width));
   });
 
   const boxHeightPx = computed(() => {
