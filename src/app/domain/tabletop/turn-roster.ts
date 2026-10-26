@@ -87,22 +87,20 @@ export function isTurnUnderWay(phase: TurnPhase): boolean {
  * neither had its turn, begun to wait already, nor had its turn stepped into, which it takes up again
  * in its own time.
  */
-export function mayHoldTurn(standing: TurnStanding, order: readonly TurnPiece[], identifier: string): boolean {
+export function mayHoldTurn(standing: TurnStanding, order: readonly string[], identifier: string): boolean {
   if (!isTurnUnderWay(standing.phase)) return false;
   if (standing.acted.includes(identifier) || standing.holding.held.includes(identifier)) return false;
   if (standing.holding.interrupted.includes(identifier)) return false;
-  return order.some((piece) => piece.identifier === identifier);
+  return order.includes(identifier);
 }
 
 /**
  * Whether a piece may step in now, which a piece still waiting may while the round is under way and
  * still reaches it.
  */
-export function mayInterruptTurn(standing: TurnStanding, order: readonly TurnPiece[], identifier: string): boolean {
+export function mayInterruptTurn(standing: TurnStanding, order: readonly string[], identifier: string): boolean {
   if (!isTurnUnderWay(standing.phase)) return false;
   return (
-    standing.holding.held.includes(identifier) &&
-    !standing.acted.includes(identifier) &&
-    order.some((piece) => piece.identifier === identifier)
+    standing.holding.held.includes(identifier) && !standing.acted.includes(identifier) && order.includes(identifier)
   );
 }

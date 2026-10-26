@@ -81,7 +81,7 @@ describe('the turn roster', () => {
 });
 
 describe('waiting to step in', () => {
-  const order = [piece('a'), piece('b')];
+  const order = ['a', 'b'];
   const acting = (more: Partial<TurnStanding> = {}): TurnStanding => ({
     phase: 'acting',
     acted: [],
