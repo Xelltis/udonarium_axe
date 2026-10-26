@@ -9,6 +9,7 @@ import {
   ElementRef,
   inject,
   Injector,
+  linkedSignal,
   signal,
   viewChild,
 } from '@angular/core';
@@ -31,7 +32,7 @@ import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelHeaderControl, PanelService } from '@axe/application/ui/panel.service';
 import { PieceDragGhostService } from '@axe/application/ui/piece-drag-ghost.service';
-import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { SelectionSignalService, TabletopObjectSelection } from '@axe/application/ui/selection-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { Network } from '@axe/core/index';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -274,12 +275,6 @@ export class GameObjectInventoryComponent {
     effect(() => {
       if (this.viewPreference.foldsOnOpen()) this.folders.foldOnOpen();
     });
-    effect(() => {
-      const selection = this.selectionSignalService.selectedObject();
-      if (selection && this.objectStore.get(selection.identifier) instanceof TabletopObject) {
-        this.selectedIdentifier.set(selection.identifier);
-      }
-    });
     queueMicrotask(() => (this.panelService.title = this.t('common.panel.inventory')));
     effect(() => {
       this.panelService.headerControls.set(this.viewControls());
@@ -299,7 +294,14 @@ export class GameObjectInventoryComponent {
   }
 
   readonly selectTab = signal('table');
-  readonly selectedIdentifier = signal('');
+  /** The piece last selected anywhere, kept while the selection moves to something that is not a piece. */
+  readonly selectedIdentifier = linkedSignal<TabletopObjectSelection | null, string>({
+    source: this.selectionSignalService.selectedObject,
+    computation: (selection, previous) =>
+      selection && this.objectStore.get(selection.identifier) instanceof TabletopObject
+        ? selection.identifier
+        : (previous?.value ?? ''),
+  });
   readonly multiMoveTargets = signal(new Set<string>());
 
   readonly isEdit = this.filter.isPanelOpen;

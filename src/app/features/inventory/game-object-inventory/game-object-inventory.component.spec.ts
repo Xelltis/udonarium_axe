@@ -11,6 +11,7 @@ import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { Network } from '@axe/core/index';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -2175,6 +2176,21 @@ describe('GameObjectInventoryComponent', () => {
       expect(focusOn).toHaveBeenCalledWith(piece);
     });
   });
+  describe('the row picked out as selected', () => {
+    it('follows the piece selected anywhere, and stays on it while the selection moves to something that is not a piece', () => {
+      const piece = GameCharacter.create('選ばれた', 1, '');
+      const selection = TestBed.inject(SelectionSignalService);
+
+      selection.selectObject(piece.identifier, piece.aliasName);
+      expect(component.selectedIdentifier()).toBe(piece.identifier);
+
+      selection.selectObject('not-a-piece', 'chat-tab');
+      expect(component.selectedIdentifier()).toBe(piece.identifier);
+
+      piece.destroy();
+    });
+  });
+
   describe('the personal tab, after a reconnection gives this seat another peer id', () => {
     let peerId: string;
     const made: GameCharacter[] = [];
