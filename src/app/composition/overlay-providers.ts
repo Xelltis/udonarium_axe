@@ -1,4 +1,4 @@
-import { inject, Provider } from '@angular/core';
+import { inject, Injector, Provider } from '@angular/core';
 import { DICE_CREATE_DIALOG_LOADER } from '@axe/application/tabletop/tabletop-action.service';
 import {
   BOTTOM_SHEET_FRAME_COMPONENT,
@@ -26,7 +26,9 @@ import { TOOLTIP_PANEL_LOADER } from '@axe/ui/directives/tooltip.directive';
  * because the layers those services live in may not import them.
  *
  * What is seldom wanted is fetched the first time it is asked for, and a fetch that fails after a
- * release asks the reader to reload.
+ * release asks the reader to reload. The reload notice is looked up only when a fetch fails: what it
+ * runs before a reload reaches back to the start room, which uses these loaders too, so taking the
+ * notice up front would make each wait for the other.
  */
 export const OVERLAY_PROVIDERS: Provider[] = [
   { provide: PANEL_FRAME_COMPONENT, useValue: UIPanelComponent },
@@ -52,16 +54,23 @@ export const OVERLAY_PROVIDERS: Provider[] = [
   },
   {
     provide: TOOLTIP_PANEL_LOADER,
-    useFactory: () =>
-      inject(ReloadNoticeService).noticingFailure(() =>
-        import('@axe/features/inventory/overview-panel/overview-panel.component').then((m) => m.OverviewPanelComponent)
-      ),
+    useFactory: () => {
+      const injector = inject(Injector);
+      return () =>
+        injector
+          .get(ReloadNoticeService)
+          .noticingFailure(() =>
+            import('@axe/features/inventory/overview-panel/overview-panel.component').then(
+              (m) => m.OverviewPanelComponent
+            )
+          )();
+    },
   },
   {
     provide: LOAD_FAILURE_NOTICE,
     useFactory: () => {
-      const notice = inject(ReloadNoticeService);
-      return () => notice.tellReloadNeeded();
+      const injector = inject(Injector);
+      return () => injector.get(ReloadNoticeService).tellReloadNeeded();
     },
   },
 ];
