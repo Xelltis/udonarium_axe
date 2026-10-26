@@ -5,6 +5,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { capturePointer } from '@axe/core/input/pointer-capture';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { isShownReplayEvent } from '@axe/domain/replay/replay-event-category';
 import {
@@ -101,7 +102,7 @@ export class ReplayStageComponent {
 
   protected async scrubStart(event: PointerEvent): Promise<void> {
     const track = event.currentTarget as HTMLElement;
-    track.setPointerCapture(event.pointerId);
+    capturePointer(track, event.pointerId);
     await this.scrubTo(event);
   }
 

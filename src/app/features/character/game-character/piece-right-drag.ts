@@ -1,4 +1,5 @@
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
+import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
 
 const RIGHT_DRAG_THRESHOLD_PX = 3;
 
@@ -47,7 +48,7 @@ export class PieceRightDrag {
       startY: event.clientY,
       dragged: false,
     };
-    (event.currentTarget as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
+    capturePointer(event.currentTarget, event.pointerId);
   }
 
   /** Moves the mark with the pointer, once it has gone far enough to count as a drag. */
@@ -118,8 +119,7 @@ export class PieceRightDrag {
   }
 
   private release(event: PointerEvent): void {
-    const element = event.currentTarget as HTMLElement | null;
-    if (element?.hasPointerCapture?.(event.pointerId)) element.releasePointerCapture(event.pointerId);
+    releasePointer(event.currentTarget, event.pointerId);
   }
 
   private suppressNextNativeContextMenu(): void {

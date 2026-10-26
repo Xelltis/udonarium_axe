@@ -18,6 +18,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { capturePointer } from '@axe/core/input/pointer-capture';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { downloadBlob } from '@axe/core/util/download-blob';
 import { ShapeGeneratorKind } from '@axe/domain/map-editor/editor-tool';
@@ -966,7 +967,7 @@ export class WhiteBoardEditorComponent {
       this.commitText();
       return;
     }
-    (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
+    capturePointer(event.target, event.pointerId);
     const at = this.pointOf(event);
 
     this.gesture.begin(at, event.shiftKey);
@@ -1408,7 +1409,7 @@ export class WhiteBoardEditorComponent {
     const guide = newGuide(axis, axis === 'x' ? at.x : at.y);
     this.scene.guides = [...this.guides, guide];
     this.gesture.dragGuide(guide);
-    (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
+    capturePointer(event.target, event.pointerId);
     void this.redraw();
   }
 

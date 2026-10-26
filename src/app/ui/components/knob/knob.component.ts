@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { capturePointer } from '@axe/core/input/pointer-capture';
 
 const SWEEP_DEGREES = 270;
 const START_DEGREES = -135;
@@ -100,7 +101,7 @@ export class UiKnobComponent {
     if (this.disabled() || event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
-    (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
+    capturePointer(event.currentTarget, event.pointerId);
     this.dragFrom = { y: event.clientY, value: this.value(), turnedTo: this.value() };
   }
 

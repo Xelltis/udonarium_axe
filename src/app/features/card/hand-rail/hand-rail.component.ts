@@ -23,6 +23,7 @@ import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { isHandCardOf } from '@axe/domain/card/hand-cards';
@@ -260,7 +261,7 @@ export class HandRailComponent {
     event.preventDefault();
     this.activePointerId = event.pointerId;
     this.dragPending = { card, startX: event.clientX, startY: event.clientY, dragging: false };
-    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+    capturePointer(event.currentTarget, event.pointerId);
   }
 
   protected onCardPointerMove(event: PointerEvent): void {
@@ -356,8 +357,7 @@ export class HandRailComponent {
   }
 
   private releaseCapture(event: PointerEvent): void {
-    const element = event.currentTarget as HTMLElement;
-    if (element.hasPointerCapture?.(event.pointerId)) element.releasePointerCapture(event.pointerId);
+    releasePointer(event.currentTarget, event.pointerId);
   }
 
   private reorderTo(card: Card, insertAt: number): void {

@@ -1,4 +1,5 @@
 import { signal } from '@angular/core';
+import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
 import { GameObject } from '@axe/core/sync/game-object';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import {
@@ -136,7 +137,7 @@ export class InventoryObjectDrag {
       withTabs: this.host.canMove(),
       withGhost: inMainWindow,
     };
-    if (!field) row.setPointerCapture?.(event.pointerId);
+    if (!field) capturePointer(row, event.pointerId);
   }
 
   /**
@@ -159,7 +160,7 @@ export class InventoryObjectDrag {
       if (Math.hypot(event.clientX - pending.startX, event.clientY - pending.startY) < DRAG_SLACK_PX) return;
       if (pending.field) {
         if (isOver(pending.field, event)) return;
-        pending.row.setPointerCapture?.(event.pointerId);
+        capturePointer(pending.row, event.pointerId);
         pending.field.blur();
         pending.field.ownerDocument.getSelection()?.removeAllRanges();
       }
@@ -219,7 +220,7 @@ export class InventoryObjectDrag {
     this.dropFolderPath.set(null);
     this.dropTab.set(null);
     if (!pending) return;
-    (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
+    releasePointer(event.currentTarget, event.pointerId);
     if (!pending.dragging) return;
     this.suppressClick = true;
     if (pending.withGhost) this.host.ghostEnd();

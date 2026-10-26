@@ -12,6 +12,7 @@ import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceDragGhostService } from '@axe/application/ui/piece-drag-ghost.service';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
 import { buildCopyAction, buildLockToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
+import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -238,7 +239,7 @@ export class GameObjectListPanelComponent {
     if (row.typeKey !== 'character' || event.button !== 0) return;
     if ((event.target as HTMLElement).closest('button')) return;
     this.dragPending = { row, startX: event.clientX, startY: event.clientY, dragging: false };
-    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+    capturePointer(event.currentTarget, event.pointerId);
   }
 
   protected onRowPointerMove(event: PointerEvent): void {
@@ -260,7 +261,7 @@ export class GameObjectListPanelComponent {
     const pending = this.dragPending;
     this.dragPending = null;
     if (!pending) return;
-    (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
+    releasePointer(event.currentTarget, event.pointerId);
     if (!pending.dragging) return;
     this.suppressNextClick = true;
     this.pieceGhost.hide();

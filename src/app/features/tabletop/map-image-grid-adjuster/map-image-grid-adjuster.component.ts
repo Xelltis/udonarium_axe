@@ -12,6 +12,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { clamp } from '@axe/core/util/clamp';
 import { GridType } from '@axe/domain/tabletop/game-table';
@@ -460,7 +461,7 @@ export class MapImageGridAdjusterComponent {
       cols: this.cols(),
       rows: this.rows(),
     };
-    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+    capturePointer(event.currentTarget, event.pointerId);
     (event.currentTarget as HTMLElement).focus();
   }
 
@@ -487,7 +488,7 @@ export class MapImageGridAdjusterComponent {
   onPointerUp(event: PointerEvent) {
     this.dragMode = null;
     this.dragStart = null;
-    (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
+    releasePointer(event.currentTarget, event.pointerId);
   }
 
   private resizeImage(handle: ImageHandle, dx: number, dy: number) {

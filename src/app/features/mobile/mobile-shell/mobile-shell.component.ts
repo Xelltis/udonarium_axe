@@ -17,6 +17,7 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
+import { capturePointer } from '@axe/core/input/pointer-capture';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { isOwnedByUser } from '@axe/domain/character/owned-characters';
@@ -190,7 +191,7 @@ export class MobileShellComponent {
   protected startResize(event: PointerEvent): void {
     if (this.isResizing) return;
     this.isResizing = true;
-    (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
+    capturePointer(event.target, event.pointerId);
     event.preventDefault();
 
     const onMove = (moveEvent: PointerEvent) => {

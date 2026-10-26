@@ -17,6 +17,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
+import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
 import { EditHistory } from '@axe/core/util/edit-history';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { KEY_TOLERANCE_MS } from '@axe/domain/media/cut-in-keyframe';
@@ -443,7 +444,7 @@ export class CutInSceneEditorComponent {
     }
 
     this.selectedIdentifier.set(layer.identifier);
-    (event.target as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
+    capturePointer(event.target, event.pointerId);
 
     const box = this.boxOf(layer);
     const transform = this.transformOf(layer);
@@ -500,7 +501,7 @@ export class CutInSceneEditorComponent {
 
   protected onPointerUp(event: PointerEvent): void {
     if (!this.drag) return;
-    (event.target as HTMLElement | null)?.releasePointerCapture?.(event.pointerId);
+    releasePointer(event.target, event.pointerId);
 
     if (event.type === 'pointerup') this.applyMove(event);
     this.finishDrag();

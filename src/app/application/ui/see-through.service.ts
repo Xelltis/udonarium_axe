@@ -1,5 +1,6 @@
 import { DOCUMENT } from '@angular/common';
 import { DestroyRef, inject, Injectable } from '@angular/core';
+import { releasePointer } from '@axe/core/input/pointer-capture';
 import { AlphaMask, picturePointOf, seesThroughAt } from '@axe/domain/ui/see-through';
 import { readAlphaMask } from '@axe/infrastructure/image/alpha-mask-reader';
 
@@ -298,7 +299,7 @@ function retargeted(touch: Touch, target: Element): Touch {
 /** Lets go of a pointer an element holds, as a touch is held by what it first lands on. */
 function letGoOf(element: Element, pointerId: number): void {
   try {
-    element.releasePointerCapture?.(pointerId);
+    releasePointer(element, pointerId);
   } catch {
     return;
   }

@@ -21,6 +21,7 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
 import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { PERF_MAP_EDITOR_DRAW, perfCounters } from '@axe/core/util/perf-counters';
@@ -562,7 +563,7 @@ export class MapEditorPanelComponent {
     const canvas = this.board()!.nativeElement;
     if (event.button === 1 || (event.button === 0 && this.spacePan())) {
       event.preventDefault();
-      canvas.setPointerCapture(event.pointerId);
+      capturePointer(canvas, event.pointerId);
       this.panning.set(true);
       this.gesture.panLast = { x: event.clientX, y: event.clientY };
       return;
@@ -572,7 +573,7 @@ export class MapEditorPanelComponent {
       this.commitTextEdit();
       return;
     }
-    canvas.setPointerCapture(event.pointerId);
+    capturePointer(canvas, event.pointerId);
 
     const pos = this.toScene(event);
     this.gesture.lastPointerScene = pos;
@@ -645,7 +646,7 @@ export class MapEditorPanelComponent {
   }
 
   protected onPointerUp(event: PointerEvent): void {
-    this.board()!.nativeElement.releasePointerCapture?.(event.pointerId);
+    releasePointer(this.board()?.nativeElement ?? null, event.pointerId);
     if (this.panning()) {
       this.panning.set(false);
       this.gesture.panLast = null;

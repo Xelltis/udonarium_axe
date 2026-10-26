@@ -23,6 +23,7 @@ import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.se
 import { WidgetLayoutService } from '@axe/application/ui/widget-layout.service';
 import { WIDGET_HOTBAR } from '@axe/application/ui/widget-place';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
+import { capturePointer } from '@axe/core/input/pointer-capture';
 import { Network } from '@axe/core/network/network';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
@@ -174,7 +175,7 @@ export class HotbarBarComponent {
     // An empty slot carries nothing, but the press still forgets whatever the last drag left.
     this.drag.press(cell.slot ? cell.slotIndex : null, { x: event.clientX, y: event.clientY });
     this.carrying.set(null);
-    if (cell.slot) (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
+    if (cell.slot) capturePointer(event.target, event.pointerId);
   }
 
   /** The browser took the gesture away, so nothing is carried and nothing was dropped. */

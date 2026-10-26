@@ -14,6 +14,7 @@ import {
 import { BOTTOM_SHEET_FRAME_OPTIONS, BottomSheetRef } from '@axe/application/ui/bottom-sheet.service';
 import { KeyboardInsetService } from '@axe/application/ui/keyboard-inset.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { capturePointer } from '@axe/core/input/pointer-capture';
 import { sheetDragOffset, shouldDismissSheet } from '@axe/ui/bottom-sheet-gesture';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -115,7 +116,7 @@ export class BottomSheetComponent {
     if ((event.target as Element | null)?.closest('button')) return;
     this.drag = { pointerId: event.pointerId, startY: event.clientY, startedAt: event.timeStamp };
     this.isDragging.set(true);
-    (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
+    capturePointer(event.currentTarget, event.pointerId);
   }
 
   /** Moves the sheet with the finger. */

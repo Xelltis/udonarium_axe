@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
+import { capturePointer } from '@axe/core/input/pointer-capture';
 import {
   CellCoord,
   cellPatternBoundingBox,
@@ -82,7 +83,7 @@ export class RangeShapeEditorComponent {
 
   protected onCellPointerDown(cell: EditorCellGeometry, event: PointerEvent): void {
     event.preventDefault();
-    (event.target as Element).setPointerCapture?.(event.pointerId);
+    capturePointer(event.target, event.pointerId);
     this.isPointerDown = true;
     this.touchedCellsThisDrag.clear();
     const filled = this.cellSet().has(cell.key);
