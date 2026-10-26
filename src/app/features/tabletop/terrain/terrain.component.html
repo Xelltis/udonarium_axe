@@ -189,152 +189,46 @@
           }
         }
         @if (!isHex()) {
-          @let northCut = northWallCut();
-          @if (northCut.shown) {
-            @if (isVisibleWallTopBottom() && 0 < northFaceImage().url.length) {
-              <div
-                [class.blinking-animation]="!isLocked()"
-                [style.clip-path]="northCut.clipPath"
-                class="absolute top-0 left-0 size-full origin-[50%_100%] transform-[translateY(-100%)_rotateX(90deg)_rotateZ(180deg)_scaleX(-1)] backface-hidden transform-3d"
-                [style.width.px]="width() * gridSize"
-                [style.height.px]="height() * gridSize"
-                [ngStyle]="northFog() ?? {}"
-              >
+          @for (wall of wallSides; track wall.side) {
+            @let cut = wall.cut();
+            @if (cut.shown) {
+              @if (
+                (wall.alongWidth ? isVisibleWallTopBottom() : isVisibleWallLeftRight()) && 0 < wall.image().url.length
+              ) {
                 <div
-                  class="chrome-smooth-image-trick absolute inset-0 bg-size-[100%_100%] bg-no-repeat backface-hidden"
-                  [ngStyle]="northShade().style"
-                  [style.background-image]="northShade().image | safe: 'style'"
-                ></div>
-                @if (visionService.active()) {
-                  <div class="pointer-events-none absolute inset-0 overflow-hidden backface-hidden">
-                    @for (pool of northLights(); track $index) {
-                      <div
-                        class="pointer-events-none absolute backface-hidden"
-                        [style.background-image]="'url(' + wallImage().url + ')' | safe: 'style'"
-                        [ngStyle]="wallLightStyle(pool, 'north')"
-                      ></div>
-                    }
-                    @for (sil of northSilhouettes(); track $index) {
-                      <div
-                        class="pointer-events-none absolute backface-hidden"
-                        [style.background-image]="silhouetteBackground(sil) | safe: 'style'"
-                        [ngStyle]="silhouetteStyle(sil, 'north')"
-                      ></div>
-                    }
-                  </div>
-                }
-              </div>
-            }
-          }
-          @let southCut = southWallCut();
-          @if (southCut.shown) {
-            @if (isVisibleWallTopBottom() && 0 < southFaceImage().url.length) {
-              <div
-                [class.blinking-animation]="!isLocked()"
-                [style.clip-path]="southCut.clipPath"
-                class="absolute bottom-0 left-0 size-full origin-[50%_100%] transform-[rotateX(-90deg)] backface-hidden transform-3d"
-                [style.width.px]="width() * gridSize"
-                [style.height.px]="height() * gridSize"
-                [ngStyle]="southFog() ?? {}"
-              >
-                <div
-                  class="chrome-smooth-image-trick absolute inset-0 bg-size-[100%_100%] bg-no-repeat backface-hidden"
-                  [ngStyle]="southShade().style"
-                  [style.background-image]="southShade().image | safe: 'style'"
-                ></div>
-                @if (visionService.active()) {
-                  <div class="pointer-events-none absolute inset-0 overflow-hidden backface-hidden">
-                    @for (pool of southLights(); track $index) {
-                      <div
-                        class="pointer-events-none absolute backface-hidden"
-                        [style.background-image]="'url(' + wallImage().url + ')' | safe: 'style'"
-                        [ngStyle]="wallLightStyle(pool, 'south')"
-                      ></div>
-                    }
-                    @for (sil of southSilhouettes(); track $index) {
-                      <div
-                        class="pointer-events-none absolute backface-hidden"
-                        [style.background-image]="silhouetteBackground(sil) | safe: 'style'"
-                        [ngStyle]="silhouetteStyle(sil, 'south')"
-                      ></div>
-                    }
-                  </div>
-                }
-              </div>
-            }
-          }
-          @let westCut = westWallCut();
-          @if (westCut.shown) {
-            @if (isVisibleWallLeftRight() && 0 < westFaceImage().url.length) {
-              <div
-                [class.blinking-animation]="!isLocked()"
-                [style.clip-path]="westCut.clipPath"
-                class="absolute top-0 left-0 size-full origin-[0%_0%] transform-[rotateZ(90deg)_rotateX(-90deg)_scaleX(-1)_translateX(-100%)_translateY(-100%)] backface-hidden transform-3d"
-                [style.width.px]="depth() * gridSize"
-                [style.height.px]="height() * gridSize"
-                [ngStyle]="westFog() ?? {}"
-              >
-                <div
-                  class="chrome-smooth-image-trick absolute inset-0 bg-size-[100%_100%] bg-no-repeat backface-hidden"
-                  [ngStyle]="westShade().style"
-                  [style.background-image]="westShade().image | safe: 'style'"
-                ></div>
-                @if (visionService.active()) {
-                  <div class="pointer-events-none absolute inset-0 overflow-hidden backface-hidden">
-                    @for (pool of westLights(); track $index) {
-                      <div
-                        class="pointer-events-none absolute backface-hidden"
-                        [style.background-image]="'url(' + wallImage().url + ')' | safe: 'style'"
-                        [ngStyle]="wallLightStyle(pool, 'west')"
-                      ></div>
-                    }
-                    @for (sil of westSilhouettes(); track $index) {
-                      <div
-                        class="pointer-events-none absolute backface-hidden"
-                        [style.background-image]="silhouetteBackground(sil) | safe: 'style'"
-                        [ngStyle]="silhouetteStyle(sil, 'west')"
-                      ></div>
-                    }
-                  </div>
-                }
-              </div>
-            }
-          }
-          @let eastCut = eastWallCut();
-          @if (eastCut.shown) {
-            @if (isVisibleWallLeftRight() && 0 < eastFaceImage().url.length) {
-              <div
-                [class.blinking-animation]="!isLocked()"
-                [style.clip-path]="eastCut.clipPath"
-                class="absolute top-0 right-0 size-full origin-[100%_0%] transform-[rotateZ(-90deg)_rotateX(-90deg)_translateY(-100%)] backface-hidden transform-3d"
-                [style.width.px]="depth() * gridSize"
-                [style.height.px]="height() * gridSize"
-                [ngStyle]="eastFog() ?? {}"
-              >
-                <div
-                  class="chrome-smooth-image-trick absolute inset-0 bg-size-[100%_100%] bg-no-repeat backface-hidden"
-                  [ngStyle]="eastShade().style"
-                  [style.background-image]="eastShade().image | safe: 'style'"
-                ></div>
-                @if (visionService.active()) {
-                  <div class="pointer-events-none absolute inset-0 overflow-hidden backface-hidden">
-                    @for (pool of eastLights(); track $index) {
-                      <div
-                        class="pointer-events-none absolute backface-hidden"
-                        [style.background-image]="'url(' + wallImage().url + ')' | safe: 'style'"
-                        [ngStyle]="wallLightStyle(pool, 'east')"
-                      ></div>
-                    }
-                    @for (sil of eastSilhouettes(); track $index) {
-                      <div
-                        class="pointer-events-none absolute backface-hidden"
-                        [style.background-image]="silhouetteBackground(sil) | safe: 'style'"
-                        [ngStyle]="silhouetteStyle(sil, 'east')"
-                      ></div>
-                    }
-                  </div>
-                }
-              </div>
+                  [class.blinking-animation]="!isLocked()"
+                  [style.clip-path]="cut.clipPath"
+                  class="absolute size-full backface-hidden transform-3d"
+                  [class]="wall.frameClass"
+                  [style.width.px]="(wall.alongWidth ? width() : depth()) * gridSize"
+                  [style.height.px]="height() * gridSize"
+                  [ngStyle]="wall.fog() ?? {}"
+                >
+                  <div
+                    class="chrome-smooth-image-trick absolute inset-0 bg-size-[100%_100%] bg-no-repeat backface-hidden"
+                    [ngStyle]="wall.shade().style"
+                    [style.background-image]="wall.shade().image | safe: 'style'"
+                  ></div>
+                  @if (visionService.active()) {
+                    <div class="pointer-events-none absolute inset-0 overflow-hidden backface-hidden">
+                      @for (pool of wall.lights(); track $index) {
+                        <div
+                          class="pointer-events-none absolute backface-hidden"
+                          [style.background-image]="'url(' + wallImage().url + ')' | safe: 'style'"
+                          [ngStyle]="wallLightStyle(pool, wall.side)"
+                        ></div>
+                      }
+                      @for (sil of wall.silhouettes(); track $index) {
+                        <div
+                          class="pointer-events-none absolute backface-hidden"
+                          [style.background-image]="silhouetteBackground(sil) | safe: 'style'"
+                          [ngStyle]="silhouetteStyle(sil, wall.side)"
+                        ></div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
             }
           }
         }
