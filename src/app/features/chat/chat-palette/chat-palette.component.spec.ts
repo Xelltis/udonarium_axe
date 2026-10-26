@@ -371,6 +371,14 @@ describe('ChatPaletteComponent', () => {
       expect(component.chatTabidentifier()).toBe(tabs[0].identifier);
     });
 
+    it('moves to the first tab left where the one chosen goes', async () => {
+      component.chatTabidentifier.set(tabs[1].identifier);
+      tabs[1].destroy();
+      await fixture.whenStable();
+
+      expect(component.chatTabidentifier()).toBe(tabs[0].identifier);
+    });
+
     it('moves on to the next tab as the wheel turns over them, as the chat window does', () => {
       const strip = (fixture.nativeElement as HTMLElement)
         .querySelector('.chat-tab-pill')!

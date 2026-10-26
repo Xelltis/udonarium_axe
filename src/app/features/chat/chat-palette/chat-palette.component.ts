@@ -173,7 +173,14 @@ export class ChatPaletteComponent {
     this.onSelectedCharacter(sendFrom);
   }
 
-  readonly chatTabidentifier = signal('');
+  /** The tab the palette speaks into, moved to the first tab in view where the one chosen is no longer. */
+  readonly chatTabidentifier = linkedSignal<ChatTab[], string>({
+    source: () => this.visibleChatTabs(),
+    computation: (visible, previous) =>
+      previous && visible.some((tab) => tab.identifier === previous.value)
+        ? previous.value
+        : (visible[0]?.identifier ?? ''),
+  });
   readonly text = signal<string>('');
   sendTo: string = '';
 
@@ -252,11 +259,6 @@ export class ChatPaletteComponent {
         this.panelService.close();
       }
     }, this.destroyRef);
-    effect(() => {
-      const visible = this.visibleChatTabs();
-      const current = this.chatTabidentifier();
-      if (!visible.some((tab) => tab.identifier === current)) this.chatTabidentifier.set(visible[0]?.identifier ?? '');
-    });
     // A seat that may no longer rewrite the palette leaves an edit it had open, writing nothing.
     effect(() => {
       if (!this.mayEdit() && untracked(this.isEdit)) untracked(() => this.toggleEditMode());

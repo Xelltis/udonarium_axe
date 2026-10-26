@@ -48,6 +48,20 @@ describe('MiniJukeboxComponent', () => {
     vi.restoreAllMocks();
   });
 
+  it('keeps the last sound played picked out once the jukebox stops', async () => {
+    const jukebox = ObjectStore.instance.get<Jukebox>('Jukebox')!;
+    const lastPlayed = () =>
+      (fixture.componentInstance as unknown as { lastAudioIdentifier(): string }).lastAudioIdentifier();
+
+    jukebox.audioIdentifier = 'bgm-1';
+    await Promise.resolve();
+    expect(lastPlayed()).toBe('bgm-1');
+
+    jukebox.audioIdentifier = '';
+    await Promise.resolve();
+    expect(lastPlayed()).toBe('bgm-1');
+  });
+
   describe('what each role may touch', () => {
     const control = (testId: string) =>
       (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(`[data-testid="${testId}"]`)!;

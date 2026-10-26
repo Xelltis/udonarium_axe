@@ -5,6 +5,7 @@ import {
   DestroyRef,
   effect,
   inject,
+  linkedSignal,
   signal,
   untracked,
 } from '@angular/core';
@@ -61,9 +62,13 @@ export class ReplayWorkspaceComponent {
   protected readonly isSaving = this.editor.isSaving;
   protected readonly canUndo = this.editor.canUndo;
   protected readonly isStaging = this.staging.isStaging;
-  protected readonly isDigestOpen = signal(false);
+  /**
+   * Whether the left column shows the summary of the recording. Closing a recording goes back to
+   * the playback view, the preview with it, so the next one does not open on the summary.
+   */
+  protected readonly isDigestOpen = linkedSignal({ source: this.isOpen, computation: () => false });
   /** Whether the left column shows the video as it will be written, rather than the playback controls. */
-  protected readonly isPreviewOpen = signal(false);
+  protected readonly isPreviewOpen = linkedSignal({ source: this.isOpen, computation: () => false });
   /** Whether the list of recordings is open over the workspace, for choosing another. */
   protected readonly isChooserOpen = signal(false);
 
@@ -80,12 +85,6 @@ export class ReplayWorkspaceComponent {
     this.destroyRef.onDestroy(() => {
       this.editor.cancel();
       void this.playback.close();
-    });
-    // Closing a recording returns to the playback view, so the next one does not open on the summary.
-    effect(() => {
-      if (this.isOpen()) return;
-      this.isDigestOpen.set(false);
-      this.isPreviewOpen.set(false);
     });
     // Choosing a recording from the list is what closes it.
     effect(() => {
