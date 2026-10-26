@@ -5,14 +5,19 @@ import {
   parseCellPattern,
   rotateCellPattern,
 } from '@axe/domain/tabletop/cell-pattern';
-import { GridType } from '@axe/domain/tabletop/game-table';
-import { hexCellCenter, hexCircumradius, hexSpacing, pixelToHexCell } from '@axe/domain/tabletop/hex-geometry';
+import {
+  hexCellCenter,
+  hexCircumradius,
+  hexSpacing,
+  isFlatTopGrid,
+  isHexGrid,
+  pixelToHexCell,
+} from '@axe/domain/tabletop/hex-geometry';
 import { RangeRenderSetting } from '@axe/infrastructure/tabletop/range/range-render-types';
 import {
   calcGridOffsets,
   fillGridCells,
   fillHexCellsWhere,
-  isHexGrid,
   makeBrush,
 } from '@axe/infrastructure/tabletop/range/range-render-util';
 
@@ -35,7 +40,7 @@ function quadrantsFromDegrees(degrees: number): number {
 
 function computeBaseCellOffset(setting: RangeRenderSetting, gridSize: number): { dx: number; dy: number } {
   if (isHexGrid(setting.gridType)) {
-    const isFlatTop = setting.gridType === GridType.HEX_VERTICAL;
+    const isFlatTop = isFlatTopGrid(setting.gridType);
     const { colSpacing, rowSpacing } = hexSpacing(gridSize, isFlatTop);
     const { col: baseCol, row: baseRow } = pixelToHexCell(setting.centerX, setting.centerY, gridSize, isFlatTop);
     const { x: baseX, y: baseY } = hexCellCenter(baseCol, baseRow, colSpacing, rowSpacing, isFlatTop);
@@ -116,7 +121,7 @@ export function makeCustomHitTest(
   const gridSize = setting.gridSize;
   const cellKeys = cellPatternToSet(cells);
   if (isHexGrid(setting.gridType)) {
-    const isFlatTop = setting.gridType === GridType.HEX_VERTICAL;
+    const isFlatTop = isFlatTopGrid(setting.gridType);
     const { col: baseCol, row: baseRow } = pixelToHexCell(setting.centerX, setting.centerY, gridSize, isFlatTop);
     return (gcx, gcy) => {
       const worldX = setting.centerX + gcx;
@@ -148,7 +153,7 @@ function fillHexPatternCells(
   setting: RangeRenderSetting,
   cells: readonly CellCoord[]
 ): void {
-  const isFlatTop = setting.gridType === GridType.HEX_VERTICAL;
+  const isFlatTop = isFlatTopGrid(setting.gridType);
   const { col: baseCol, row: baseRow } = pixelToHexCell(setting.centerX, setting.centerY, setting.gridSize, isFlatTop);
   const covered = new Set<string>();
   for (const cell of cells) {
@@ -210,7 +215,7 @@ export function renderCustom(
   let halfWidthPx = gridSize / 2;
   let halfHeightPx = gridSize / 2;
   if (isHexGrid(setting.gridType)) {
-    const isFlatTop = setting.gridType === GridType.HEX_VERTICAL;
+    const isFlatTop = isFlatTopGrid(setting.gridType);
     const { colSpacing, rowSpacing } = hexSpacing(gridSize, isFlatTop);
     const s = hexCircumradius(gridSize);
     const { col: baseCol, row: baseRow } = pixelToHexCell(setting.centerX, setting.centerY, gridSize, isFlatTop);

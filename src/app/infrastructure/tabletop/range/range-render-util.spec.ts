@@ -1,4 +1,5 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import {
   ClipAreaCorn,
   ClipAreaSquare,
@@ -12,7 +13,6 @@ import {
   clipCircleCss,
   fillSquare,
   generateCalcGridPositionFunc,
-  isHexGrid,
   makeBrush,
 } from '@axe/infrastructure/tabletop/range/range-render-util';
 

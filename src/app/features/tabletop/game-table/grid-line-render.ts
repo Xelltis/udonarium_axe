@@ -4,6 +4,7 @@ import {
   hexCircumradius,
   hexSpacing,
   hexStartAngle,
+  isFlatTopGrid,
   strokeHexPath,
 } from '@axe/domain/tabletop/hex-geometry';
 
@@ -235,7 +236,7 @@ export class GridLineRender {
     const canvasW = width * gridSize;
     const canvasH = height * gridSize;
 
-    const isFlatTop = gridType === GridType.HEX_VERTICAL;
+    const isFlatTop = isFlatTopGrid(gridType);
     const { colSpacing, rowSpacing } = hexSpacing(gridSize, isFlatTop);
     const startAngle = hexStartAngle(isFlatTop);
 
@@ -308,7 +309,7 @@ export class GridLineRender {
     labelMatrix: readonly [number, number, number, number] | null = null
   ) {
     const s = hexCircumradius(gridSize);
-    const isFlatTop = gridType === GridType.HEX_VERTICAL;
+    const isFlatTop = isFlatTopGrid(gridType);
     const { colSpacing, rowSpacing } = hexSpacing(gridSize, isFlatTop);
     const startAngle = hexStartAngle(isFlatTop);
 

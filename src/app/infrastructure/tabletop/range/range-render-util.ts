@@ -5,7 +5,8 @@ import {
   hexCircumradius,
   hexSpacing,
   hexStartAngle,
-  isHexGrid as isHexGridType,
+  isFlatTopGrid,
+  isHexGrid,
 } from '@axe/domain/tabletop/hex-geometry';
 import {
   ClipAreaCorn,
@@ -177,11 +178,6 @@ export function fillSquare(context: CanvasRenderingContext2D, gx: number, gy: nu
   context.fillRect(gx, gy, gridSize, gridSize);
 }
 
-/** Whether the table's grid is made of hexagons, either way up. */
-export function isHexGrid(gridType: GridType): boolean {
-  return isHexGridType(gridType);
-}
-
 /**
  * Fills the hexes of a range's canvas that the caller keeps, cell by cell across the table's grid.
  *
@@ -195,7 +191,7 @@ export function fillHexCellsWhere(
 ): void {
   const gridSize = setting.gridSize;
   const s = hexCircumradius(gridSize);
-  const isFlatTop = setting.gridType === GridType.HEX_VERTICAL;
+  const isFlatTop = isFlatTopGrid(setting.gridType);
 
   const { colSpacing, rowSpacing } = hexSpacing(gridSize, isFlatTop);
 

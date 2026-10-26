@@ -1,5 +1,5 @@
 import { GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
-import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
+import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import {
   hexCellCenter,
   hexCornerOffsets,
@@ -34,7 +34,7 @@ export function calcHexSnapPosition(
   halfWidth: number = gridSize / 2,
   halfHeight: number = gridSize / 2
 ): { x: number; y: number } {
-  const isFlatTop = gridType === GridType.HEX_VERTICAL;
+  const isFlatTop = isFlatTopGrid(gridType);
   const { colSpacing, rowSpacing } = hexLayoutOf(gridSize, isFlatTop);
   const { col, row } = pixelToHexCell(posX, posY, gridSize, isFlatTop);
   const { x, y } = hexCellCenter(col, row, colSpacing, rowSpacing, isFlatTop);
@@ -51,7 +51,7 @@ export function calcHexVertexSnapPosition(
   halfWidth: number = gridSize / 2,
   halfHeight: number = gridSize / 2
 ): { x: number; y: number } {
-  const isFlatTop = gridType === GridType.HEX_VERTICAL;
+  const isFlatTop = isFlatTopGrid(gridType);
   const { circumradius, colSpacing, rowSpacing } = hexLayoutOf(gridSize, isFlatTop);
   const corners = hexCornerOffsets(circumradius, isFlatTop);
 
@@ -116,7 +116,7 @@ export function calcHexEdgeMidpointSnapPosition(
   halfWidth: number = gridSize / 2,
   halfHeight: number = gridSize / 2
 ): { x: number; y: number } {
-  const isFlatTop = gridType === GridType.HEX_VERTICAL;
+  const isFlatTop = isFlatTopGrid(gridType);
   const startAngle = hexStartAngle(isFlatTop);
   const { colSpacing, rowSpacing } = hexSpacing(gridSize, isFlatTop);
   // inradius = gridSize / 2
