@@ -75,12 +75,7 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GridSnapStyle } from '@axe/domain/tabletop/game-table';
-import {
-  buildHexHoleInCircleClipPath,
-  buildHexRingClipPath,
-  calcHexFlowerParams,
-  HexFlowerParams,
-} from '@axe/domain/tabletop/hex-flower-geometry';
+import { calcHexFlowerParams, HexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { landingLeanAt } from '@axe/domain/tabletop/move/landing-height';
 import { pieceCentreOffsetPx, pieceCornerOnSquare } from '@axe/domain/tabletop/move/piece-on-grid';
@@ -123,6 +118,7 @@ import { SeeThroughDirective } from '@axe/ui/directives/see-through.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { makeBillboardTransform, makeScreenLiftTransform } from '@axe/ui/tabletop/billboard-transform';
+import { hexPedestalGrabStyle, hexPedestalRingStyle } from '@axe/ui/tabletop/hex-pedestal-style';
 import { makeMultiAngleCurvedName } from '@axe/ui/tabletop/multi-angle-curved-name';
 import {
   makeMultiAngleBuffOrbit,
@@ -1363,26 +1359,9 @@ export class GameCharacterComponent {
     return calcHexFlowerParams(size, this.gridSize, isFlatTopGrid(gridType));
   });
 
-  private readonly pedestalRing = computed<Record<string, string> | null>(() => {
-    const params = this.pedestalHexParams();
-    if (!params) return null;
-    const { outline, bbox, L } = params;
-    const W = bbox.maxX - bbox.minX;
-    const H = bbox.maxY - bbox.minY;
-    return {
-      clipPath: buildHexRingClipPath(outline, bbox, 6),
-      border: 'none',
-      borderRadius: '0',
-      width: `${W}px`,
-      height: `${H}px`,
-      left: `${bbox.minX + L / 2}px`,
-      top: `${bbox.minY + L / 2}px`,
-    };
-  });
-
   private pedestalStyleOf(borderColor: string): Record<string, string> {
-    const ring = this.pedestalRing();
-    return ring ? { background: borderColor, ...ring } : { border: `solid 6px ${borderColor}` };
+    const params = this.pedestalHexParams();
+    return params ? hexPedestalRingStyle(params, 6, borderColor) : { border: `solid 6px ${borderColor}` };
   }
 
   protected readonly pedestalStyleShown = computed(() => this.pedestalStyleOf('#FFCC80'));
@@ -1395,20 +1374,7 @@ export class GameCharacterComponent {
   // allocations and as many clip paths a pass with three hundred characters on the table.
   protected readonly pedestalOuterStyle = computed<Record<string, string>>(() => {
     const params = this.pedestalHexParams();
-    if (!params) return {} as Record<string, string>;
-    const { outline, bbox, L } = params;
-    const W = bbox.maxX - bbox.minX;
-    const H = bbox.maxY - bbox.minY;
-    return {
-      background: '#212121',
-      clipPath: buildHexRingClipPath(outline, bbox, 2),
-      border: 'none',
-      borderRadius: '0',
-      width: `${W}px`,
-      height: `${H}px`,
-      left: `${bbox.minX + L / 2}px`,
-      top: `${bbox.minY + L / 2}px`,
-    };
+    return params ? hexPedestalRingStyle(params, 2, '#212121') : {};
   });
 
   /**
@@ -1418,20 +1384,7 @@ export class GameCharacterComponent {
    */
   protected readonly pedestalGrabStyle = computed<Record<string, string>>(() => {
     const params = this.pedestalHexParams();
-    if (!params) return {} as Record<string, string>;
-    const { bbox, L } = params;
-    const halfW = (bbox.maxX - bbox.minX) / 2;
-    const halfH = (bbox.maxY - bbox.minY) / 2;
-    const radius = Math.sqrt(halfW * halfW + halfH * halfH) + 12;
-    const diameter = radius * 2;
-    return {
-      width: `${diameter}px`,
-      height: `${diameter}px`,
-      left: `${L / 2 - radius}px`,
-      top: `${L / 2 - radius}px`,
-      borderRadius: '50%',
-      clipPath: buildHexHoleInCircleClipPath(params.outline, radius),
-    };
+    return params ? hexPedestalGrabStyle(params, { reachPx: 12, pedestalCutOut: true }) : {};
   });
 
   protected readonly pedestalGrabBorderStyle = computed<Record<string, string>>(() => {

@@ -29,7 +29,7 @@ import { PERF_TERRAIN_GRID_RASTER, perfCounters } from '@axe/core/util/perf-coun
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { BoardSwitch } from '@axe/domain/tabletop/board-switch/board-switch';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
-import { buildHexRingClipPath, calcHexFlowerParams, HexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
+import { calcHexFlowerParams, HexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
@@ -74,6 +74,7 @@ import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { hexPedestalGrabStyle, hexPedestalRingStyle } from '@axe/ui/tabletop/hex-pedestal-style';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import {
   ShadedBackground,
@@ -653,37 +654,12 @@ export class TerrainComponent {
   // Computed, so neither the record nor the clip path is rebuilt on every change-detection pass.
   readonly pedestalStyle = computed<Record<string, string>>(() => {
     const params = this.pedestalHexParams();
-    if (!params) return {} as Record<string, string>;
-    const { outline, bbox, L } = params;
-    const W = bbox.maxX - bbox.minX;
-    const H = bbox.maxY - bbox.minY;
-    return {
-      background: '#ccc',
-      clipPath: buildHexRingClipPath(outline, bbox, 7),
-      border: 'none',
-      borderRadius: '0',
-      width: `${W}px`,
-      height: `${H}px`,
-      left: `${bbox.minX + L / 2}px`,
-      top: `${bbox.minY + L / 2}px`,
-    };
+    return params ? hexPedestalRingStyle(params, 7, '#ccc') : {};
   });
 
   readonly pedestalGrabStyle = computed<Record<string, string>>(() => {
     const params = this.pedestalHexParams();
-    if (!params) return {} as Record<string, string>;
-    const { bbox, L } = params;
-    const halfW = (bbox.maxX - bbox.minX) / 2;
-    const halfH = (bbox.maxY - bbox.minY) / 2;
-    const radius = Math.sqrt(halfW * halfW + halfH * halfH) + 14;
-    const diameter = radius * 2;
-    return {
-      width: `${diameter}px`,
-      height: `${diameter}px`,
-      left: `${L / 2 - radius}px`,
-      top: `${L / 2 - radius}px`,
-      borderRadius: '50%',
-    };
+    return params ? hexPedestalGrabStyle(params, { reachPx: 14 }) : {};
   });
 
   readonly hexFloorClipPath = computed<string | null>(() => {
