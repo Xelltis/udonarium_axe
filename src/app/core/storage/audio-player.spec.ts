@@ -1,4 +1,5 @@
 import { Logger, LogLevel } from '@axe/core/logging/logger';
+import { AudioCache } from '@axe/core/storage/audio-cache';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioOutput, type ChannelInsert, VolumeType } from '@axe/core/storage/audio-output';
 import { AudioPlayer } from '@axe/core/storage/audio-player';
@@ -14,19 +15,16 @@ import {
   reachedPastTrim,
 } from '@axe/testing/web-audio-mock';
 
-type AudioPlayerPrivateStatic = {
+type AudioCachePrivateStatic = {
   cacheMap: Map<string, { url: string; blob: Blob }>;
-  MAX_CACHE_SIZE: number;
   MAX_DECODED_BYTES: number;
-  evictCacheIfNeeded: () => void;
-  createCacheAsync: (audio: AudioFile) => Promise<{ url: string; blob: Blob } | null>;
 };
 
 type AudioPlayerPrivateInstance = {
   _audioElm?: unknown;
 };
 
-const audioPlayerPrivate = AudioPlayer as unknown as AudioPlayerPrivateStatic;
+const audioCachePrivate = AudioCache as unknown as AudioCachePrivateStatic;
 const asAudioPlayerPrivate = (player: AudioPlayer): AudioPlayerPrivateInstance =>
   player as unknown as AudioPlayerPrivateInstance;
 
@@ -39,9 +37,8 @@ describe('AudioPlayer', () => {
   beforeEach(() => {
     Logger.setLevel(LogLevel.DEBUG);
     ({ context: audioCtxMock, element: audioElmMock } = installWebAudioMock());
-    audioPlayerPrivate.cacheMap.clear();
-    (AudioPlayer as unknown as { decodedBuffers: Map<string, unknown> }).decodedBuffers.clear();
-    AudioPlayer.clearAllCache();
+    audioCachePrivate.cacheMap.clear();
+    AudioCache.forgetAll();
   });
 
   afterEach(() => {
@@ -49,19 +46,7 @@ describe('AudioPlayer', () => {
     vi.restoreAllMocks();
   });
 
-  describe('decoding a sound effect', () => {
-    it('decodes it once however often it plays, overlapping plays included', async () => {
-      const audio = audioFileWith({ identifier: 'se-once', blob: new Blob(['x']) });
-
-      AudioPlayer.playSE(audio);
-      AudioPlayer.playSE(audio);
-      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(2));
-      AudioPlayer.playSE(audio);
-      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(3));
-
-      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(1);
-    });
-
+  describe('a sound effect', () => {
     it('plays it at the level asked, through the sound-effect channel', async () => {
       const audio = audioFileWith({ identifier: 'se-level', blob: new Blob(['x']) });
 
@@ -72,70 +57,6 @@ describe('AudioPlayer', () => {
       const gain = source.connect.mock.calls[0][0] as GainNodeMock;
       expect(gain.gain.setValueAtTime).toHaveBeenCalledWith(1.8, 0);
       expect(gain.connect).toHaveBeenCalledWith(AudioOutput.channelNode(VolumeType.SE));
-    });
-
-    it('decodes it again once the cache is cleared', async () => {
-      const audio = audioFileWith({ identifier: 'se-cleared', blob: new Blob(['x']) });
-
-      AudioPlayer.playSE(audio);
-      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(1));
-      AudioPlayer.clearAllCache();
-      AudioPlayer.playSE(audio);
-      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(2));
-
-      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(2);
-    });
-
-    const STEREO = 2;
-    const BYTES_PER_STEREO_FRAME = STEREO * 4;
-
-    function decodesInTurn(...frameCounts: number[]) {
-      const queue = [...frameCounts];
-      audioCtxMock.decodeAudioData.mockImplementation(
-        (_buf: ArrayBuffer, resolve: (b: AudioBuffer) => void, _reject: (e: DOMException) => void) => {
-          const length = queue.length > 1 ? queue.shift()! : queue[0];
-          resolve({ duration: length / 48000, length, numberOfChannels: STEREO } as AudioBuffer);
-        }
-      );
-    }
-
-    async function playThrough(audio: AudioFile): Promise<void> {
-      const started = audioCtxMock.createBufferSource.mock.calls.length;
-      AudioPlayer.play(audio);
-      await vi.waitFor(() => expect(audioCtxMock.createBufferSource).toHaveBeenCalledTimes(started + 1));
-    }
-
-    it('keeps decoded effects within a byte budget, letting the least recently played go first', async () => {
-      decodesInTurn(Math.floor((audioPlayerPrivate.MAX_DECODED_BYTES * 0.4) / BYTES_PER_STEREO_FRAME));
-      const a = audioFileWith({ identifier: 'se-budget-a', blob: new Blob(['a']) });
-      const b = audioFileWith({ identifier: 'se-budget-b', blob: new Blob(['b']) });
-      const c = audioFileWith({ identifier: 'se-budget-c', blob: new Blob(['c']) });
-
-      await playThrough(a);
-      await playThrough(b);
-      await playThrough(a);
-      await playThrough(c);
-      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(3);
-
-      await playThrough(a);
-      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(3);
-      await playThrough(b);
-      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(4);
-    });
-
-    it('plays a clip larger than the whole budget without keeping it or pushing out the rest', async () => {
-      const tooLarge = Math.floor(audioPlayerPrivate.MAX_DECODED_BYTES / BYTES_PER_STEREO_FRAME) + 1;
-      decodesInTurn(48000, tooLarge);
-      const short = audioFileWith({ identifier: 'se-short', blob: new Blob(['s']) });
-      const long = audioFileWith({ identifier: 'se-long', blob: new Blob(['l']) });
-
-      await playThrough(short);
-      await playThrough(long);
-      await playThrough(long);
-      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(3);
-
-      await playThrough(short);
-      expect(audioCtxMock.decodeAudioData).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -300,7 +221,7 @@ describe('AudioPlayer', () => {
     it('uses the cached url when there is one', () => {
       const player = new AudioPlayer();
       const af = audioFileWith({ url: 'http://example.com/a.mp3', identifier: 'cached' });
-      audioPlayerPrivate.cacheMap.set('cached', { url: 'blob:cached-url', blob: new Blob() });
+      audioCachePrivate.cacheMap.set('cached', { url: 'blob:cached-url', blob: new Blob() });
       player.play(af);
       expect(audioElmMock.src).toBe('blob:cached-url');
     });
@@ -309,7 +230,7 @@ describe('AudioPlayer', () => {
       const player = new AudioPlayer();
       const af = audioFileWith({ url: 'http://example.com/b.mp3', identifier: 'nc' });
       type WithCreateCacheAsync = { createCacheAsync: (audio: AudioFile) => Promise<null> };
-      const spy = vi.spyOn(AudioPlayer as unknown as WithCreateCacheAsync, 'createCacheAsync').mockResolvedValue(null);
+      const spy = vi.spyOn(AudioCache as unknown as WithCreateCacheAsync, 'createCacheAsync').mockResolvedValue(null);
       player.play(af);
       expect(spy).toHaveBeenCalledWith(af);
     });
@@ -317,12 +238,12 @@ describe('AudioPlayer', () => {
     it('falls back to the original url past a broken cache entry', () => {
       const player = new AudioPlayer();
       const af = audioFileWith({ url: 'http://example.com/broken.mp3', identifier: 'broken-cache' });
-      const brokenCacheMap = audioPlayerPrivate.cacheMap as unknown as Map<
+      const brokenCacheMap = audioCachePrivate.cacheMap as unknown as Map<
         string,
         { url: string; blob: Blob } | undefined
       >;
       type WithCreateCacheAsync = { createCacheAsync: (audio: AudioFile) => Promise<null> };
-      vi.spyOn(AudioPlayer as unknown as WithCreateCacheAsync, 'createCacheAsync').mockResolvedValue(null);
+      vi.spyOn(AudioCache as unknown as WithCreateCacheAsync, 'createCacheAsync').mockResolvedValue(null);
       brokenCacheMap.set('broken-cache', undefined);
 
       expect(() => player.play(af)).not.toThrow();
@@ -665,7 +586,7 @@ describe('AudioPlayer', () => {
     it('fetches nothing when the cache has it', async () => {
       const blob = new Blob(['cached']);
       const af = audioFileWith({ url: 'http://example.com/c.mp3', identifier: 'sp4' });
-      audioPlayerPrivate.cacheMap.set('sp4', { url: 'blob:cached', blob });
+      audioCachePrivate.cacheMap.set('sp4', { url: 'blob:cached', blob });
 
       AudioPlayer.play(af);
       await vi.waitFor(() => {
@@ -689,7 +610,7 @@ describe('AudioPlayer', () => {
     it('starts nothing when the cache cannot be built', async () => {
       const af = audioFileWith({ url: 'http://example.com/e.mp3', identifier: 'sp7' });
       type WithCreateCacheAsync = { createCacheAsync: (audio: AudioFile) => Promise<null> };
-      vi.spyOn(AudioPlayer as unknown as WithCreateCacheAsync, 'createCacheAsync').mockResolvedValue(null);
+      vi.spyOn(AudioCache as unknown as WithCreateCacheAsync, 'createCacheAsync').mockResolvedValue(null);
 
       AudioPlayer.play(af);
       await new Promise((r) => setTimeout(r, 10));
@@ -773,108 +694,6 @@ describe('AudioPlayer', () => {
 
       expect(AudioPlayer.isSePlaying('seA')).toBe(false);
       expect(AudioPlayer.isSePlaying('seB')).toBe(true);
-    });
-  });
-
-  // --- fetching the bytes, through the cache builder ---
-
-  describe('getBlobAsync (via createCacheAsync)', () => {
-    it('logs and returns nothing on a bad response', async () => {
-      const af = audioFileWith({ url: 'http://example.com/fail.mp3', identifier: 'gb1' });
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, statusText: 'Not Found' }));
-      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-      const result = await audioPlayerPrivate.createCacheAsync(af);
-      expect(result).toBeNull();
-      expect(errorSpy).toHaveBeenCalled();
-    });
-
-    it('throws with neither a url nor bytes', async () => {
-      const af = audioFileWith({ identifier: 'gb2' }); // url='', blob=null
-      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-      const result = await audioPlayerPrivate.createCacheAsync(af);
-      expect(result).toBeNull();
-      expect(errorSpy).toHaveBeenCalled();
-    });
-
-    it('returns the bytes it already has without fetching', async () => {
-      const blob = new Blob(['data']);
-      const af = audioFileWith({ blob, identifier: 'gb3' });
-
-      const result = await audioPlayerPrivate.createCacheAsync(af);
-      expect(result).not.toBeNull();
-      expect(result?.blob).toBe(blob);
-      expect(global.fetch).not.toHaveBeenCalled();
-    });
-
-    it('returns the existing cache for the same identifier', async () => {
-      const blob = new Blob(['data']);
-      const af = audioFileWith({ blob, identifier: 'gb4' });
-      const existingCache = { url: 'blob:existing', blob: new Blob(['existing']) };
-      audioPlayerPrivate.cacheMap.set('gb4', existingCache);
-
-      const result = await audioPlayerPrivate.createCacheAsync(af);
-      expect(result).toBe(existingCache);
-    });
-
-    it('registers the cache on success', async () => {
-      const blob = new Blob(['data']);
-      const af = audioFileWith({ blob, identifier: 'gb5' });
-
-      await audioPlayerPrivate.createCacheAsync(af);
-      expect(audioPlayerPrivate.cacheMap.has('gb5')).toBe(true);
-    });
-  });
-
-  describe('removeCache()', () => {
-    it('drops a cache and releases its url', () => {
-      const cache = { url: 'blob:test-url', blob: new Blob(['data']) };
-      audioPlayerPrivate.cacheMap.set('remove-test', cache);
-
-      AudioPlayer.removeCache('remove-test');
-
-      expect(audioPlayerPrivate.cacheMap.has('remove-test')).toBe(false);
-      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test-url');
-    });
-
-    it('survives dropping a cache that is not there', () => {
-      expect(() => AudioPlayer.removeCache('nonexistent')).not.toThrow();
-    });
-  });
-
-  describe('clearAllCache()', () => {
-    it('drops every cache and releases their urls', () => {
-      const cache1 = { url: 'blob:url-1', blob: new Blob(['data1']) };
-      const cache2 = { url: 'blob:url-2', blob: new Blob(['data2']) };
-      audioPlayerPrivate.cacheMap.set('clear-1', cache1);
-      audioPlayerPrivate.cacheMap.set('clear-2', cache2);
-
-      AudioPlayer.clearAllCache();
-
-      expect(audioPlayerPrivate.cacheMap.size).toBe(0);
-      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:url-1');
-      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:url-2');
-    });
-  });
-
-  describe('cache eviction', () => {
-    it('drops the oldest entries once the cache is full', async () => {
-      const maxSize = audioPlayerPrivate.MAX_CACHE_SIZE;
-
-      // Fill cache to max
-      for (let i = 0; i < maxSize + 5; i++) {
-        const cache = { url: `blob:url-${i}`, blob: new Blob([`data-${i}`]) };
-        audioPlayerPrivate.cacheMap.set(`evict-${i}`, cache);
-      }
-
-      audioPlayerPrivate.evictCacheIfNeeded();
-
-      expect(audioPlayerPrivate.cacheMap.size).toBe(maxSize);
-      // Oldest entries should be removed
-      expect(audioPlayerPrivate.cacheMap.has('evict-0')).toBe(false);
-      // Newest entries should remain
-      expect(audioPlayerPrivate.cacheMap.has(`evict-${maxSize + 4}`)).toBe(true);
     });
   });
 
