@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { centreOf, EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
+import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -12,6 +12,7 @@ import { cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { gatherSpotsAround } from '@axe/domain/tabletop/move/gather-cells';
 import { moveGridOf } from '@axe/domain/tabletop/move/move-grid';
 import { occupiedCells } from '@axe/domain/tabletop/move/occupied-cells';
+import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import {
@@ -117,7 +118,7 @@ export class BattlePlacementService {
     const sideA = this.zones.sideOf(leader);
     const sideB = this.zones.sideOf(other);
     if (!table || !pxPerMetre || sideA === null || sideB === null || sideA === sideB) return false;
-    const from = centreOf(leader, table.gridSize);
+    const from = pieceCentreOf(leader, table.gridSize);
     const to = pointAtBearing(from, bearingDeg, Math.max(0, distanceM) * pxPerMetre);
     const grid = moveGridOf(table);
     const startA = cellIndexAt(grid, from.x, from.y);

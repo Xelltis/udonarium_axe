@@ -98,7 +98,7 @@ import {
 } from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { landingLeanAt } from '@axe/domain/tabletop/move/landing-height';
-import { pieceCornerOnSquare } from '@axe/domain/tabletop/move/piece-on-grid';
+import { pieceCentreOffsetPx, pieceCornerOnSquare } from '@axe/domain/tabletop/move/piece-on-grid';
 import {
   DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS,
   multiAngleNameMotionMode,
@@ -668,7 +668,7 @@ export class GameCharacterComponent {
     this.objectChange.collectionOf(Terrain.aliasName)();
     const table = this.tabletopService.currentTable;
     const grid = table.gridSize;
-    const middle = (char.size * grid) / 2;
+    const middle = pieceCentreOffsetPx(char, grid);
     const x = char.location.x + middle;
     const y = char.location.y + middle;
     const standingOn = table.terrains.filter((terrain) => {
@@ -692,7 +692,7 @@ export class GameCharacterComponent {
     if (!char || this.isPoster()) return null;
     this.objectChange.versionOf(char.identifier)();
     const grid = this.gridSize;
-    const middle = (char.size * grid) / 2;
+    const middle = pieceCentreOffsetPx(char, grid);
     const water = this.water.waterAt(char.location.x + middle, char.location.y + middle);
     if (!water) return null;
     const pictureHeight = this.imageView.fitsInCell() ? this.size() * grid : this.pieceImageHeightEstimate();

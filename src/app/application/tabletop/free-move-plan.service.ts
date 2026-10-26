@@ -2,7 +2,6 @@ import { computed, effect, inject, Injectable, signal, untracked } from '@angula
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import {
-  centreOf,
   EngagementZoneService,
   metresPerCell,
   ZoneMoveLimits,
@@ -31,6 +30,7 @@ import { clipToLength, LegLimits, stepsAlong, terrainMoveBlocks, walkLeg } from 
 import { exactMoveCellsOf } from '@axe/domain/tabletop/move/move-cells';
 import { lengthByKind, moveKindNamed } from '@axe/domain/tabletop/move/move-kind';
 import { movingPointsAsRead, writeMovingPoints } from '@axe/domain/tabletop/move/moving-points';
+import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { resolveRoomRules, RoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
@@ -360,7 +360,7 @@ export class FreeMovePlanService {
     if (zones?.noReach) return null;
     return {
       budgetPx,
-      start: zones?.startPoint ?? centreOf(character, table.gridSize),
+      start: zones?.startPoint ?? pieceCentreOf(character, table.gridSize),
       blocks: terrainMoveBlocks(table.terrains, table.gridSize, character.size),
       zones,
     };

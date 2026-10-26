@@ -3,7 +3,7 @@ import { CharacterMacroService } from '@axe/application/chat/character-macro.ser
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
-import { centreOf, EngagementZoneService, metresPerCell } from '@axe/application/tabletop/engagement-zone.service';
+import { EngagementZoneService, metresPerCell } from '@axe/application/tabletop/engagement-zone.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -13,6 +13,7 @@ import { applyBuffEdit } from '@axe/domain/data/resource-edit-helpers';
 import { Config } from '@axe/domain/peer/config';
 import { sheetNumberOf } from '@axe/domain/tabletop/move/move-cells';
 import { squarePxOf } from '@axe/domain/tabletop/move/move-grid';
+import { pieceCentreOf, pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import {
   buffNameOf,
   cargoRoomOf,
@@ -358,9 +359,9 @@ export class RideService {
     const there = this.zones.pointOf(mount);
     if (Math.hypot(there.x - here.x, there.y - here.y) <= this.samePointPx() + 1e-6) return true;
     const gridSize = this.tableSelecter.viewTable?.gridSize ?? 50;
-    const middle = centreOf(piece, gridSize);
-    const base = centreOf(mount, gridSize);
-    const half = (Math.max(0, mount.size) * gridSize) / 2;
+    const middle = pieceCentreOf(piece, gridSize);
+    const base = pieceCentreOf(mount, gridSize);
+    const half = pieceCentreOffsetPx(mount, gridSize);
     return Math.abs(middle.x - base.x) <= half + 1e-6 && Math.abs(middle.y - base.y) <= half + 1e-6;
   }
 

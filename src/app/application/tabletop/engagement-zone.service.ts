@@ -20,6 +20,7 @@ import { moveGridOf, squarePxOf } from '@axe/domain/tabletop/move/move-grid';
 import { MoveKind, moveKindNamed, parseMoveKinds } from '@axe/domain/tabletop/move/move-kind';
 import { convertMoveLength, parseMoveUnit } from '@axe/domain/tabletop/move/move-units';
 import { BondedPiece, bondGroupOf, boundBelow, boundTo } from '@axe/domain/tabletop/move/piece-bonds';
+import { pieceCentreOf, pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import { frontRidersOf } from '@axe/domain/tabletop/ride/ride-rules';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -338,7 +339,7 @@ export class EngagementZoneService {
       if (!zone) {
         zone = new EngagementZone();
         zone.initialize();
-        zone.centre = world.snap(state.pointOf(target.identifier) ?? centreOf(target, world.table.gridSize));
+        zone.centre = world.snap(state.pointOf(target.identifier) ?? pieceCentreOf(target, world.table.gridSize));
         world.table.appendChild(zone);
       }
       for (const piece of this.withPartners([attacker, target])) this.putInZone(piece, zone.identifier);
@@ -413,7 +414,7 @@ export class EngagementZoneService {
     if (!zone || !world || !centre || pieces.length < 1) return;
     GameObject.batch(() => {
       for (const piece of this.withPartners(pieces)) {
-        const half = (Math.max(0, piece.size) * world.table.gridSize) / 2;
+        const half = pieceCentreOffsetPx(piece, world.table.gridSize);
         piece.engagementZone = zoneId;
         piece.zoneLeaveRound = '';
         piece.location.x = centre.x - half;
@@ -540,7 +541,7 @@ export class EngagementZoneService {
   /** Puts a piece's middle on another's, whatever the two sizes. */
   private standAt(piece: GameCharacter, at: GameCharacter): void {
     const gridSize = this.tableSelecter.viewTable?.gridSize ?? 50;
-    const offset = ((Math.max(0, at.size) - Math.max(0, piece.size)) * gridSize) / 2;
+    const offset = pieceCentreOffsetPx(at, gridSize) - pieceCentreOffsetPx(piece, gridSize);
     piece.location.x = at.location.x + offset;
     piece.location.y = at.location.y + offset;
   }
@@ -955,7 +956,7 @@ export class EngagementZoneService {
     const gridSize = this.tableSelecter.viewTable?.gridSize ?? 50;
     const sides = new Map(snapshot?.pieces.map((one) => [one.id, one.side]) ?? []);
     return {
-      pointOf: (piece) => snapshot?.state.pointOf(piece.identifier) ?? centreOf(piece, gridSize),
+      pointOf: (piece) => snapshot?.state.pointOf(piece.identifier) ?? pieceCentreOf(piece, gridSize),
       sideOf: (piece) => sides.get(piece.identifier) ?? null,
     };
   }
@@ -1066,7 +1067,7 @@ export class EngagementZoneService {
     const { state, pieces, world } = snapshot;
     const mover = pieces.find((one) => one.id === piece.identifier);
     if (!mover || mover.side === null) return;
-    const point = centreOf(piece, world.table.gridSize);
+    const point = pieceCentreOf(piece, world.table.gridSize);
     if (start.zone.length > 0) {
       const left = state.zones.find((zone) => zone.id === start.zone);
       if (!left || !zoneCovers(left.shape, point)) {
@@ -1107,7 +1108,7 @@ export class EngagementZoneService {
     // straight back out again for standing more than a metre outside.
     GameObject.batch(() => {
       for (const one of this.withPartners([piece])) {
-        const half = (Math.max(0, one.size) * world.table.gridSize) / 2;
+        const half = pieceCentreOffsetPx(one, world.table.gridSize);
         one.engagementZone = stopped.id;
         one.zoneLeaveRound = '';
         one.location.x = stopped.shape.centre.x - half;
@@ -1187,7 +1188,7 @@ export class EngagementZoneService {
     const mounts = new Map(onFloor.map((piece) => [piece.identifier, this.mountOf(piece)?.identifier ?? '']));
     const pieces: ZonePieceInput[] = onFloor.map((piece) => ({
       id: piece.identifier,
-      point: centreOf(piece, gridSize),
+      point: pieceCentreOf(piece, gridSize),
       zone: piece.engagementZone,
       offField: piece.offField === '1',
       count: this.countOf(piece, world.rules),
@@ -1321,7 +1322,7 @@ export class EngagementZoneService {
     const ring = Math.min(view.shape.reach * 0.5, gridSize * Math.max(0.6, anchors.length * 0.25));
     const spots = gatheredAbout(view.shape.centre, anchors.length, ring);
     anchors.forEach((piece, index) => {
-      const half = (piece.size * gridSize) / 2;
+      const half = pieceCentreOffsetPx(piece, gridSize);
       piece.location.x = spots[index].x - half;
       piece.location.y = spots[index].y - half;
       piece.update();
@@ -1350,12 +1351,6 @@ export class EngagementZoneService {
   private config(): Config | null {
     return this.objectStore.get<Config>('Config');
   }
-}
-
-/** The middle of a piece's token, in table pixels. */
-export function centreOf(piece: GameCharacter, gridSize: number): ZonePoint {
-  const half = (Math.max(0, piece.size) * gridSize) / 2;
-  return { x: piece.location.x + half, y: piece.location.y + half };
 }
 
 /**
