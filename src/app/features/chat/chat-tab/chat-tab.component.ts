@@ -623,6 +623,24 @@ export class ChatTabComponent {
 
   private readonly drawnLines = viewChildren(ChatMessageComponent);
 
+  /**
+   * Brings a line asked for into view and lights it up, where the line is drawn here, as a jump to
+   * the line a reply or quote came from asks.
+   *
+   * The request is taken away as soon as it is answered, on a microtask after the read that found
+   * the line: left there, every line drawn afterwards would be asked again.
+   */
+  private readonly jumpToLine = effect(() => {
+    const request = this.uiSignalService.chatJumpRequest();
+    if (!request) return;
+    const line = this.drawnLines().find((drawn) => drawn.chatMessage?.identifier === request.messageIdentifier);
+    if (!line) return;
+    queueMicrotask(() => {
+      this.uiSignalService.clearChatJump();
+      line.bringIntoView();
+    });
+  });
+
   /** Lights up one of the tab's lines for a moment, where it is drawn. */
   flash(message: ChatMessage): void {
     this.drawnLines()

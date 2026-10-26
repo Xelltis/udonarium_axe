@@ -191,6 +191,28 @@ export class TabletopActionService {
   }
 
   /**
+   * Lays a chat line on the table as a text note titled with the speaker's name, or the default
+   * note name for a line with none; null, and no note, for a line with no words.
+   *
+   * The note is sized from the length and number of lines of the text, stood upright unless the
+   * table is in 2D, and dropped near the table's centre.
+   */
+  layChatLineAsNote(speaker: string, words: string): TextNote | null {
+    const text = words.trim();
+    if (!text) return null;
+    const title = speaker.trim() || this.t('feature.tabletop.action.defaultNoteName');
+    const lines = text.split('\n');
+    const longest = Math.max(...lines.map((line) => line.length));
+    const width = Math.max(3, Math.min(8, Math.ceil(longest / 12)));
+    const height = Math.max(2, Math.min(8, Math.ceil(lines.length / 3)));
+    const note = TextNote.create(title, text, 14, width, height);
+    note.isUpright = !this.tabletopService.mode2d();
+    note.location.x = Math.floor(Math.random() * 200 - 100);
+    note.location.y = Math.floor(Math.random() * 200 - 100);
+    return note;
+  }
+
+  /**
    * Makes one die of a kind with its bundled face images, at the placement given or centred on the
    * point.
    *

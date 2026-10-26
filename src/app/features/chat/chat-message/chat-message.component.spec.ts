@@ -1962,48 +1962,23 @@ describe('ChatMessageComponent', () => {
     });
   });
 
-  describe('consuming a jump to the original message', () => {
-    /**
-     * A jump is always cleared once it is consumed.
-     * Left there, every message component mounted afterwards would read the same request on
-     * its first pass and scroll again.
-     */
-    function setupMessage(identifier: string) {
-      const message = new ChatMessage(identifier);
-      message.initialize();
-      message.from = 'tester';
-      message.text = 'hello';
-      fixture.componentRef.setInput('chatMessage', message);
-      fixture.detectChanges();
-      // Scrolling into view need do nothing here, but without a stub happy-dom throws.
-      const host = fixture.nativeElement as HTMLElement;
-      host.scrollIntoView = vi.fn();
-      return host;
-    }
+  it('scrolls into the middle of the log and lights up when it is brought into view', () => {
+    const message = new ChatMessage('jump-target-msg');
+    message.initialize();
+    message.from = 'tester';
+    message.text = 'hello';
+    fixture.componentRef.setInput('chatMessage', message);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    host.scrollIntoView = vi.fn();
 
-    it('clears the request as soon as it consumes one meant for it', async () => {
-      setupMessage('jump-target-msg');
-      const ui = TestBed.inject(UiSignalService);
+    component.bringIntoView();
 
-      ui.requestChatJump('jump-target-msg');
-      fixture.detectChanges();
-      // the clearing and the scrolling both happen on a microtask
-      await Promise.resolve();
-
-      expect(ui.chatJumpRequest()).toBeNull();
-    });
-
-    it('leaves a request meant for another alone, for that one to consume', () => {
-      setupMessage('msg-A');
-      const ui = TestBed.inject(UiSignalService);
-
-      ui.requestChatJump('msg-B');
-      fixture.detectChanges();
-
-      const req = ui.chatJumpRequest();
-      expect(req?.messageIdentifier).toBe('msg-B');
-    });
+    expect(host.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+    expect(component.isHighlighted()).toBe(true);
+    message.destroy();
   });
+
   describe('the novel-mode staging', () => {
     const spoken = (text: string, vnEmote = '') => {
       const message = new ChatMessage();

@@ -55,32 +55,7 @@
               <span class="tip"> | </span>
               <span class="tip msg-timestamp">{{ chatMessage.timestamp | date: 'y/M/d H:mm' }}</span>
             </span>
-            @if (bookmarks().shared; as mark) {
-              <i
-                data-testid="chat-message-bookmark-mark"
-                data-kind="shared"
-                class="material-icons text-ui-accent ml-1 align-middle text-[14px]!"
-                [title]="
-                  mark.name
-                    ? ('feature.chat.message.bookmarks.shared.markedAs' | transloco: { name: mark.name })
-                    : ('feature.chat.message.bookmarks.shared.marked' | transloco)
-                "
-                >bookmark</i
-              >
-            }
-            @if (bookmarks().personal; as mark) {
-              <i
-                data-testid="chat-message-bookmark-mark"
-                data-kind="personal"
-                class="material-icons text-ui-accent ml-1 align-middle text-[14px]!"
-                [title]="
-                  mark.name
-                    ? ('feature.chat.message.bookmarks.personal.markedAs' | transloco: { name: mark.name })
-                    : ('feature.chat.message.bookmarks.personal.marked' | transloco)
-                "
-                >bookmark_border</i
-              >
-            }
+            <ng-container [ngTemplateOutlet]="bookmarkMarks" />
           </div>
           @if (replyPreview(); as preview) {
             <button
@@ -118,55 +93,13 @@
           >
             @if (isEditing()) {
               <div class="flex flex-col gap-1.5 py-1">
-                <textarea
-                  #editingTextArea
-                  class="border-ui-accent bg-ui-input text-ui-text rounded-ui-sm focus:border-ui-accent block max-h-60 w-full resize-none border border-solid px-2 py-1 text-(length:--chat-font-size) leading-normal outline-none"
-                  [ngModel]="editDraft()"
-                  (ngModelChange)="onEditInput($event)"
-                  (keydown)="onEditKeydown($event)"
-                  rows="1"
-                ></textarea>
+                <ng-container [ngTemplateOutlet]="editBox" />
                 <div class="text-ui-dim flex items-center justify-end gap-2 text-[11px]">
-                  <span class="mr-auto">{{ 'feature.chat.messageFix.shortcutHint' | transloco }}</span>
-                  <button
-                    type="button"
-                    class="bg-ui-elevated border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.5 text-[11px] leading-tight transition-[background,color]"
-                    (click)="cancelEdit()"
-                  >
-                    {{ 'feature.chat.messageFix.cancel' | transloco }}
-                  </button>
-                  <button
-                    type="button"
-                    class="bg-ui-accent-bg border-ui-accent text-ui-accent hover:bg-ui-accent-glow rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.5 text-[11px] leading-tight font-medium transition-[background,color]"
-                    (click)="saveEdit()"
-                  >
-                    {{ 'feature.chat.messageFix.change' | transloco }}
-                  </button>
+                  <ng-container [ngTemplateOutlet]="editButtons" />
                 </div>
               </div>
             } @else if (!isSecret() || chatMessage.isSendFromSelf || canRevealSecret) {
-              @if (sentStamp(); as stampId) {
-                @if (chatMessage.saidWithStamp; as said) {
-                  <span
-                    #messageBody
-                    data-chat-search-text
-                    data-testid="chat-message-said-with-stamp"
-                    [innerHTML]="escapeHtmlAndRuby(said) | linkify | safe"
-                  ></span>
-                }
-              } @else {
-                <span
-                  #messageBody
-                  data-chat-search-text
-                  [innerHTML]="escapeHtmlAndRuby(chatMessage.text) | linkify | safe"
-                ></span>
-              }
-              @for (badge of emoteBadges(); track $index) {
-                <span
-                  class="rounded-ui bg-ui-accent-bg text-ui-accent ml-1 px-1 align-middle text-[10px] whitespace-nowrap"
-                  >{{ badge }}</span
-                >
-              }
+              <ng-container [ngTemplateOutlet]="lineWords" />
               @if (sentStamp(); as stampId) {
                 <div class="py-0.5" data-testid="chat-message-stamp">
                   <ui-stamp
@@ -253,32 +186,7 @@
             @if (simpleDispFlagUserId() || simpleDispFlagTime()) {
               <span class="tip">　</span>
             }
-            @if (bookmarks().shared; as mark) {
-              <i
-                data-testid="chat-message-bookmark-mark"
-                data-kind="shared"
-                class="material-icons text-ui-accent ml-1 align-middle text-[14px]!"
-                [title]="
-                  mark.name
-                    ? ('feature.chat.message.bookmarks.shared.markedAs' | transloco: { name: mark.name })
-                    : ('feature.chat.message.bookmarks.shared.marked' | transloco)
-                "
-                >bookmark</i
-              >
-            }
-            @if (bookmarks().personal; as mark) {
-              <i
-                data-testid="chat-message-bookmark-mark"
-                data-kind="personal"
-                class="material-icons text-ui-accent ml-1 align-middle text-[14px]!"
-                [title]="
-                  mark.name
-                    ? ('feature.chat.message.bookmarks.personal.markedAs' | transloco: { name: mark.name })
-                    : ('feature.chat.message.bookmarks.personal.marked' | transloco)
-                "
-                >bookmark_border</i
-              >
-            }
+            <ng-container [ngTemplateOutlet]="bookmarkMarks" />
             @if (replyPreview(); as preview) {
               <button
                 type="button"
@@ -309,55 +217,13 @@
             >
               @if (isEditing()) {
                 <span class="ml-1.5 inline-flex w-full max-w-md flex-col gap-1 align-top">
-                  <textarea
-                    #editingTextArea
-                    class="border-ui-accent bg-ui-input text-ui-text rounded-ui-sm focus:border-ui-accent block max-h-60 w-full resize-none border border-solid px-2 py-1 text-(length:--chat-font-size) leading-normal outline-none"
-                    [ngModel]="editDraft()"
-                    (ngModelChange)="onEditInput($event)"
-                    (keydown)="onEditKeydown($event)"
-                    rows="1"
-                  ></textarea>
+                  <ng-container [ngTemplateOutlet]="editBox" />
                   <span class="text-ui-dim flex items-center justify-end gap-2 text-[11px]">
-                    <span class="mr-auto">{{ 'feature.chat.messageFix.shortcutHint' | transloco }}</span>
-                    <button
-                      type="button"
-                      class="bg-ui-elevated border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.5 text-[11px] leading-tight transition-[background,color]"
-                      (click)="cancelEdit()"
-                    >
-                      {{ 'feature.chat.messageFix.cancel' | transloco }}
-                    </button>
-                    <button
-                      type="button"
-                      class="bg-ui-accent-bg border-ui-accent text-ui-accent hover:bg-ui-accent-glow rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.5 text-[11px] leading-tight font-medium transition-[background,color]"
-                      (click)="saveEdit()"
-                    >
-                      {{ 'feature.chat.messageFix.change' | transloco }}
-                    </button>
+                    <ng-container [ngTemplateOutlet]="editButtons" />
                   </span>
                 </span>
               } @else if (!isSecret() || chatMessage.isSendFromSelf || canRevealSecret) {
-                @if (sentStamp(); as stampId) {
-                  @if (chatMessage.saidWithStamp; as said) {
-                    <span
-                      #messageBody
-                      data-chat-search-text
-                      data-testid="chat-message-said-with-stamp"
-                      [innerHTML]="escapeHtmlAndRuby(said) | linkify | safe"
-                    ></span>
-                  }
-                } @else {
-                  <span
-                    #messageBody
-                    data-chat-search-text
-                    [innerHTML]="escapeHtmlAndRuby(chatMessage.text) | linkify | safe"
-                  ></span>
-                }
-                @for (badge of emoteBadges(); track $index) {
-                  <span
-                    class="rounded-ui bg-ui-accent-bg text-ui-accent ml-1 px-1 align-middle text-[10px] whitespace-nowrap"
-                    >{{ badge }}</span
-                  >
-                }
+                <ng-container [ngTemplateOutlet]="lineWords" />
                 @if (sentStamp(); as stampId) {
                   <span class="inline-block align-middle" data-testid="chat-message-stamp">
                     <ui-stamp
@@ -590,4 +456,86 @@
       </button>
     </div>
   }
+</ng-template>
+
+<!-- The marks the line carries, the room's and the reader's own, beside the speaker's name. -->
+<ng-template #bookmarkMarks>
+  @if (bookmarks().shared; as mark) {
+    <i
+      data-testid="chat-message-bookmark-mark"
+      data-kind="shared"
+      class="material-icons text-ui-accent ml-1 align-middle text-[14px]!"
+      [title]="
+        mark.name
+          ? ('feature.chat.message.bookmarks.shared.markedAs' | transloco: { name: mark.name })
+          : ('feature.chat.message.bookmarks.shared.marked' | transloco)
+      "
+      >bookmark</i
+    >
+  }
+  @if (bookmarks().personal; as mark) {
+    <i
+      data-testid="chat-message-bookmark-mark"
+      data-kind="personal"
+      class="material-icons text-ui-accent ml-1 align-middle text-[14px]!"
+      [title]="
+        mark.name
+          ? ('feature.chat.message.bookmarks.personal.markedAs' | transloco: { name: mark.name })
+          : ('feature.chat.message.bookmarks.personal.marked' | transloco)
+      "
+      >bookmark_border</i
+    >
+  }
+</ng-template>
+
+<!-- What the line says, with the words for how novel mode stages it. -->
+<ng-template #lineWords>
+  @if (sentStamp(); as stampId) {
+    @if (chatMessage.saidWithStamp; as said) {
+      <span
+        #messageBody
+        data-chat-search-text
+        data-testid="chat-message-said-with-stamp"
+        [innerHTML]="escapeHtmlAndRuby(said) | linkify | safe"
+      ></span>
+    }
+  } @else {
+    <span #messageBody data-chat-search-text [innerHTML]="escapeHtmlAndRuby(chatMessage.text) | linkify | safe"></span>
+  }
+  @for (badge of emoteBadges(); track $index) {
+    <span class="rounded-ui bg-ui-accent-bg text-ui-accent ml-1 px-1 align-middle text-[10px] whitespace-nowrap">{{
+      badge
+    }}</span>
+  }
+</ng-template>
+
+<!-- The box the line is edited in. -->
+<ng-template #editBox>
+  <textarea
+    #editingTextArea
+    class="border-ui-accent bg-ui-input text-ui-text rounded-ui-sm focus:border-ui-accent block max-h-60 w-full resize-none border border-solid px-2 py-1 text-(length:--chat-font-size) leading-normal outline-none"
+    [ngModel]="editDraft()"
+    (ngModelChange)="onEditInput($event)"
+    (keydown)="onEditKeydown($event)"
+    rows="1"
+  ></textarea>
+</ng-template>
+
+<!-- The hint and the buttons under the edit box. -->
+<ng-template #editButtons>
+  <span class="mr-auto">{{ 'feature.chat.messageFix.shortcutHint' | transloco }}</span>
+  <button
+    type="button"
+    class="bg-ui-elevated border-ui-border-panel text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.5 text-[11px] leading-tight transition-[background,color]"
+    (click)="cancelEdit()"
+  >
+    {{ 'feature.chat.messageFix.cancel' | transloco }}
+  </button>
+  <button
+    type="button"
+    class="bg-ui-accent-bg border-ui-accent text-ui-accent hover:bg-ui-accent-glow rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2 py-0.5 text-[11px] leading-tight font-medium transition-[background,color]"
+    (click)="saveEdit()"
+  >
+    {{ 'feature.chat.messageFix.change' | transloco }}
+  </button>
 </ng-template>
