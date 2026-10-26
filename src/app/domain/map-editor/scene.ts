@@ -1,3 +1,4 @@
+import { generateUuid } from '@axe/core/util/uuid';
 import {
   DEFAULT_FUNCTION_ROLE,
   DEFAULT_FUNCTION_SPEC,
@@ -208,7 +209,7 @@ export function rememberPaintedRoles(scene: MapScene): void {
 
 /** A fresh random identifier for a layer or for an item on one. */
 export function newId(): string {
-  return crypto.randomUUID();
+  return generateUuid();
 }
 
 /** The key a cell is stored under in a layer's cell record, written `col,row`. */

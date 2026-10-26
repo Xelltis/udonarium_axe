@@ -1,5 +1,6 @@
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
+import { generateUuid } from '@axe/core/util/uuid';
 /** What a key this browser makes for itself starts with, apart from a tab's own id and an account's. */
 const OWNER_KEY_PREFIX = 'owner_';
 
@@ -15,7 +16,7 @@ export function loadOrCreateOwnerKey(): string | null {
   try {
     const held = readLocal(STORAGE_KEYS.ownerKey);
     if (held) return held;
-    const made = `${OWNER_KEY_PREFIX}${crypto.randomUUID()}`;
+    const made = `${OWNER_KEY_PREFIX}${generateUuid()}`;
     return writeLocal(STORAGE_KEYS.ownerKey, made) ? made : null;
   } catch {
     return null;
