@@ -15,6 +15,7 @@ import { AudioOutput, VolumeType } from '@axe/core/storage/audio-output';
 import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { LoopPlayer } from '@axe/core/storage/loop-player';
+import { SoundEffects } from '@axe/core/storage/sound-effects';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { AssetOwner } from '@axe/domain/media/asset-owner';
 import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
@@ -711,7 +712,7 @@ describe('JukeboxComponent', () => {
 
     it('reports whether an effect is playing', () => {
       const audio = makeReadyAudio('se-playing-01');
-      vi.spyOn(AudioPlayer, 'isSePlaying').mockReturnValue(true);
+      vi.spyOn(SoundEffects, 'isPlaying').mockReturnValue(true);
 
       expect(component.isSePlaying(audio)).toBe(true);
     });

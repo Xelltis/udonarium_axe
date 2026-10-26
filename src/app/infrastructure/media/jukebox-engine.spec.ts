@@ -6,6 +6,7 @@ import { VolumeType } from '@axe/core/storage/audio-output';
 import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { LoopPlayer } from '@axe/core/storage/loop-player';
+import { SoundEffects } from '@axe/core/storage/sound-effects';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { AUDIO_ANALYSIS_VERSION, type AudioAnalysis } from '@axe/domain/media/audio-analysis';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
@@ -169,7 +170,7 @@ describe('Jukebox', () => {
     it('lays a sound effect over the music rather than stopping it', () => {
       stubAudioPlayerPlay();
       stubAudioPlayerStop();
-      const seSpy = vi.spyOn(AudioPlayer, 'playSE').mockImplementation(() => {});
+      const seSpy = vi.spyOn(SoundEffects, 'play').mockImplementation(() => {});
       const jukebox = heard(new Jukebox());
       jukebox.initialize();
 
@@ -199,7 +200,7 @@ describe('Jukebox', () => {
     });
 
     it('stops an effect and syncs the stop', () => {
-      const stopSpy = vi.spyOn(AudioPlayer, 'stopSE').mockImplementation(() => {});
+      const stopSpy = vi.spyOn(SoundEffects, 'stop').mockImplementation(() => {});
       const jukebox = heard(new Jukebox());
       jukebox.initialize();
 
@@ -213,7 +214,7 @@ describe('Jukebox', () => {
     it('stops an effect at this end when that trigger changes', () => {
       stubAudioPlayerPlay();
       stubAudioPlayerStop();
-      const stopSpy = vi.spyOn(AudioPlayer, 'stopSE').mockImplementation(() => {});
+      const stopSpy = vi.spyOn(SoundEffects, 'stop').mockImplementation(() => {});
       const jukebox = heard(new Jukebox());
       jukebox.initialize();
       (jukebox as unknown as { isInitialSync: boolean }).isInitialSync = false;
@@ -1055,7 +1056,7 @@ describe('Jukebox', () => {
 
     it('plays an effect at the loudness of effects', () => {
       roomMixing();
-      const seSpy = vi.spyOn(AudioPlayer, 'playSE').mockImplementation(() => {});
+      const seSpy = vi.spyOn(SoundEffects, 'play').mockImplementation(() => {});
       const se = makeReadyAudio('se-loud');
       AudioStorage.instance.add(se);
       AudioTag.create('se-loud').tag = 'SE';

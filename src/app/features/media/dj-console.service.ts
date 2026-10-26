@@ -4,8 +4,8 @@ import { JukeboxEngineService } from '@axe/application/media/jukebox-engine.serv
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AudioFile } from '@axe/core/storage/audio-file';
-import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { SoundEffects } from '@axe/core/storage/sound-effects';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { type AudioAnalysis, autoLevelGainDb } from '@axe/domain/media/audio-analysis';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
@@ -372,7 +372,7 @@ export class DjConsoleService {
   /** Whether a pad's sound is sounding on this peer, read afresh on every call. */
   isPadSounding(pad: PadView): boolean {
     if (!pad.identifier) return false;
-    if (pad.kind === 'effect') return AudioPlayer.isSePlaying(pad.identifier);
+    if (pad.kind === 'effect') return SoundEffects.isPlaying(pad.identifier);
     if (pad.kind === 'background') return BackgroundSound.of(pad.identifier)?.isOn === true;
     const jukebox = this.jukebox;
     return jukebox?.isPlaying === true && jukebox.audioIdentifier === pad.identifier;

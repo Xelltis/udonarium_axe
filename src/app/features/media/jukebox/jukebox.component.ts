@@ -22,6 +22,7 @@ import { VolumeType } from '@axe/core/storage/audio-output';
 import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
+import { SoundEffects } from '@axe/core/storage/sound-effects';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
@@ -562,7 +563,7 @@ export class JukeboxComponent {
 
   /** Whether a sound effect is sounding on this player's side, which swaps its play button for stop. */
   isSePlaying(audio: AudioFile): boolean {
-    return AudioPlayer.isSePlaying(audio.identifier);
+    return SoundEffects.isPlaying(audio.identifier);
   }
 
   /**

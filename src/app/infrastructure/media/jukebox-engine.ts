@@ -4,6 +4,7 @@ import { onFirstUserInteraction } from '@axe/core/input/user-interaction-unlock'
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { VolumeType } from '@axe/core/storage/audio-output';
 import { AudioPlayer } from '@axe/core/storage/audio-player';
+import { SoundEffects } from '@axe/core/storage/sound-effects';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { BackgroundSound } from '@axe/domain/media/background-sound';
@@ -165,11 +166,11 @@ export class JukeboxEngine implements JukeboxPlayback {
   }
 
   playSE(audio: AudioFile): void {
-    AudioPlayer.playSE(audio, mixLevelOf(audio.identifier, 'effect'));
+    SoundEffects.play(audio, mixLevelOf(audio.identifier, 'effect'));
   }
 
   stopSE(identifier: string): void {
-    AudioPlayer.stopSE(identifier);
+    SoundEffects.stop(identifier);
   }
 
   /**

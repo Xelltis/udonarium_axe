@@ -4,8 +4,8 @@ import { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { VolumeType } from '@axe/core/storage/audio-output';
-import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { SoundEffects } from '@axe/core/storage/sound-effects';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -190,7 +190,7 @@ describe('which channel a sound plays through', () => {
   });
 
   it('plays a sound that arrives from the room through the channel of its kind', () => {
-    const play = vi.spyOn(AudioPlayer, 'play').mockImplementation(() => {});
+    const play = vi.spyOn(SoundEffects, 'playOnce').mockImplementation(() => {});
     const dice = addAudio('dice-roll');
     const uploaded = addAudio('uploaded');
     new SoundEffect('SoundEffect').initialize();
@@ -203,7 +203,7 @@ describe('which channel a sound plays through', () => {
   });
 
   it('plays a sound on this peer alone through the kind given, or else the kind it is', () => {
-    const play = vi.spyOn(AudioPlayer, 'play').mockImplementation(() => {});
+    const play = vi.spyOn(SoundEffects, 'playOnce').mockImplementation(() => {});
     const uploaded = addAudio('uploaded');
     const fire = addAudio('fire-small');
 

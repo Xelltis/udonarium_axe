@@ -10,6 +10,10 @@ type PendingStart = {
   paused: boolean;
 };
 
+/**
+ * One track at a time played through a channel of the page's audio output, streamed through an
+ * `<audio>` element or, while it follows loop points, played from memory between them.
+ */
 export class AudioPlayer {
   private _audioElm: HTMLAudioElement | undefined;
   private get audioElm(): HTMLAudioElement {
@@ -158,17 +162,6 @@ export class AudioPlayer {
 
   constructor(audio?: AudioFile) {
     this.audio = audio;
-  }
-
-  /**
-   * Plays the audio once at the given volume, which may be above 1, through the channel of its kind,
-   * and forgets about it.
-   *
-   * It goes through the sound-effect channel unless given another kind. Nothing is kept to stop it
-   * with or to report it as playing; use `playSE` for an effect that may need stopping.
-   */
-  static play(audio: AudioFile, volume: number = 1.0, type: VolumeType = VolumeType.SE) {
-    this.playBufferAsync(audio, volume, type);
   }
 
   /**
@@ -419,111 +412,5 @@ export class AudioPlayer {
       this.trimRoutedTo = this.volumeType;
     }
     return this.faderNode;
-  }
-
-  private static async playBufferAsync(audio: AudioFile, volume: number, type: VolumeType) {
-    const source = await AudioCache.bufferSource(audio);
-    if (!source) return;
-
-    const gain = AudioOutput.context.createGain();
-    gain.gain.setValueAtTime(volume, AudioOutput.context.currentTime);
-
-    gain.connect(AudioOutput.channelInput(type));
-    source.connect(gain);
-
-    source.onended = () => {
-      source.stop();
-      source.disconnect();
-      gain.disconnect();
-      source.buffer = null;
-    };
-
-    source.start();
-  }
-
-  private static readonly seSources = new Map<string, Set<{ source: AudioBufferSourceNode; gain: GainNode }>>();
-  private static readonly sePending = new Map<string, number>();
-
-  /**
-   * Plays the audio as a sound effect that `stopSE` can cut off and `isSePlaying` reports
-   * from the moment it is asked for, turned up or down by a factor that may be above 1.
-   *
-   * The effect is decoded once and kept, so repeated and overlapping plays of it are cheap.
-   */
-  static playSE(audio: AudioFile, level: number = 1): void {
-    const identifier = audio.identifier;
-    AudioPlayer.sePending.set(identifier, (AudioPlayer.sePending.get(identifier) ?? 0) + 1);
-    AudioPlayer.playSeBufferAsync(audio, identifier, level);
-  }
-
-  /**
-   * Stops every play of this sound effect that has started sounding.
-   *
-   * A play still being decoded stops being reported by `isSePlaying`, but it will
-   * still sound once decoding finishes.
-   */
-  static stopSE(identifier: string): void {
-    const entries = AudioPlayer.seSources.get(identifier);
-    if (entries) {
-      for (const { source, gain } of entries) {
-        source.onended = null;
-        source.stop();
-        source.disconnect();
-        gain.disconnect();
-        source.buffer = null;
-      }
-      AudioPlayer.seSources.delete(identifier);
-    }
-    AudioPlayer.sePending.delete(identifier);
-  }
-
-  /**
-   * Stops every sound effect started with `playSE`, with the same caveat as `stopSE`
-   * for plays still being decoded.
-   */
-  static stopAllSE(): void {
-    for (const identifier of [...AudioPlayer.seSources.keys()]) AudioPlayer.stopSE(identifier);
-    AudioPlayer.sePending.clear();
-  }
-
-  /**
-   * Whether a sound effect from `playSE` is sounding, or still being decoded, for this audio, which
-   * the jukebox and sound board show as playing.
-   */
-  static isSePlaying(identifier: string): boolean {
-    return (AudioPlayer.seSources.get(identifier)?.size ?? 0) > 0 || (AudioPlayer.sePending.get(identifier) ?? 0) > 0;
-  }
-
-  private static async playSeBufferAsync(audio: AudioFile, identifier: string, level: number): Promise<void> {
-    const source = await AudioCache.bufferSource(audio);
-    const remaining = (AudioPlayer.sePending.get(identifier) ?? 1) - 1;
-    if (remaining > 0) AudioPlayer.sePending.set(identifier, remaining);
-    else AudioPlayer.sePending.delete(identifier);
-    if (!source) return;
-
-    const gain = AudioOutput.context.createGain();
-    gain.gain.setValueAtTime(level, AudioOutput.context.currentTime);
-    gain.connect(AudioOutput.channelInput(VolumeType.SE));
-    source.connect(gain);
-
-    let entries = AudioPlayer.seSources.get(identifier);
-    if (!entries) {
-      entries = new Set();
-      AudioPlayer.seSources.set(identifier, entries);
-    }
-    const set = entries;
-    const entry = { source, gain };
-    set.add(entry);
-
-    source.onended = () => {
-      source.stop();
-      source.disconnect();
-      gain.disconnect();
-      source.buffer = null;
-      set.delete(entry);
-      if (set.size === 0) AudioPlayer.seSources.delete(identifier);
-    };
-
-    source.start();
   }
 }

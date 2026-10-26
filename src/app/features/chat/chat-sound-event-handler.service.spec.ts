@@ -3,8 +3,8 @@ import { IPeerContext } from '@axe/core/network/peer-context';
 import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { VolumeType } from '@axe/core/storage/audio-output';
-import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { SoundEffects } from '@axe/core/storage/sound-effects';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
@@ -44,7 +44,7 @@ describe('ChatSoundEventHandlerService', () => {
     vi.spyOn(AudioStorage.prototype, 'get').mockImplementation(
       (identifier: string) => ({ identifier }) as unknown as AudioFile
     );
-    vi.spyOn(AudioPlayer, 'play').mockImplementation((audio: AudioFile, volume = 1) => {
+    vi.spyOn(SoundEffects, 'playOnce').mockImplementation((audio: AudioFile, volume = 1) => {
       played.push({ identifier: audio.identifier, volume });
     });
     PresetSound.chatBubble = 'bubble';
@@ -172,7 +172,7 @@ describe('ChatSoundEventHandlerService', () => {
 
     speak(makeTab('メイン'), 'こんばんは');
 
-    expect(AudioPlayer.play).toHaveBeenCalledWith(
+    expect(SoundEffects.playOnce).toHaveBeenCalledWith(
       expect.objectContaining({ identifier: 'notify1' }),
       0.4,
       VolumeType.NOTIFICATION

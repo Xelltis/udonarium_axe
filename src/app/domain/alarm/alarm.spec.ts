@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import * as domainEvents from '@axe/core/event/domain-events';
 import { VolumeType } from '@axe/core/storage/audio-output';
-import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { SoundEffects } from '@axe/core/storage/sound-effects';
 import { Alarm } from '@axe/domain/alarm/alarm';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 
@@ -168,7 +168,7 @@ describe('Alarm', () => {
 
       const timeUpEvents: domainEvents.AlarmTimeUpEvent[] = [];
       const sub = domainEvents.alarmTimeUp$.subscribe((e) => timeUpEvents.push(e));
-      vi.spyOn(AudioPlayer, 'play').mockImplementation(() => {});
+      vi.spyOn(SoundEffects, 'playOnce').mockImplementation(() => {});
       vi.spyOn(AudioStorage, 'instance', 'get').mockReturnValue({ get: () => null } as unknown as AudioStorage);
 
       alarm.startAlarm();
@@ -185,7 +185,7 @@ describe('Alarm', () => {
       alarm.isSound = true;
       alarm.isPopUp = false;
       const bell = { identifier: 'bell' };
-      const play = vi.spyOn(AudioPlayer, 'play').mockImplementation(() => {});
+      const play = vi.spyOn(SoundEffects, 'playOnce').mockImplementation(() => {});
       vi.spyOn(AudioStorage, 'instance', 'get').mockReturnValue({ get: () => bell } as unknown as AudioStorage);
 
       alarm.startAlarm();
