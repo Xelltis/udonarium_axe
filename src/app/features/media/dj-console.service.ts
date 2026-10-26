@@ -1,5 +1,6 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { AudioAnalysisService } from '@axe/application/media/audio-analysis.service';
+import { JukeboxEngineService } from '@axe/application/media/jukebox-engine.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AudioFile } from '@axe/core/storage/audio-file';
@@ -80,6 +81,7 @@ export class DjConsoleService {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly jukeboxEngine = inject(JukeboxEngineService);
   private readonly analysis = inject(AudioAnalysisService);
   private readonly audioStorage = inject(AudioStorage);
   private readonly playback = inject(JukeboxPlaybackService);
@@ -237,7 +239,7 @@ export class DjConsoleService {
     const config = this.objectStore.get<Config>('Config');
     if (!config) return;
     config.djSettings = { ...config.djSettings, ...change };
-    this.jukebox?.refreshMix();
+    this.jukeboxEngine.refreshMix();
   }
 
   /**
@@ -295,7 +297,7 @@ export class DjConsoleService {
     if (!jukebox) return;
     const next = { ...this.effects(), [kind]: value };
     this._localEffects.set(next);
-    jukebox.applyEffects(next);
+    this.jukeboxEngine.previewEffects(next);
     if (settled) this.shareEffects();
     else this.effectsTimer ??= setTimeout(() => this.shareEffects(), EFFECTS_SHARE_MS);
   }

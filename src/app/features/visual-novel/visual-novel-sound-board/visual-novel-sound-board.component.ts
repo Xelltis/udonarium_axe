@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { AudioTag } from '@axe/domain/media/audio-tag';
@@ -160,7 +161,7 @@ export class VisualNovelSoundBoardComponent {
    */
   isSoundEffectPlaying(identifier: string): boolean {
     this.seTick();
-    return this.jukebox?.isSePlaying(identifier) ?? false;
+    return AudioPlayer.isSePlaying(identifier);
   }
 
   /** The board is asked again about what is playing whenever it is opened. */

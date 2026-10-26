@@ -1,5 +1,6 @@
 import { computed, DestroyRef, effect, inject, Injectable, untracked } from '@angular/core';
 import { AudioAnalysisService } from '@axe/application/media/audio-analysis.service';
+import { JukeboxEngineService } from '@axe/application/media/jukebox-engine.service';
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MusicBus } from '@axe/core/audio/music-bus';
@@ -26,6 +27,7 @@ export class MixEventHandlerService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly analysis = inject(AudioAnalysisService);
   private readonly personalVolumes = inject(PersonalVolumeService);
+  private readonly jukeboxEngine = inject(JukeboxEngineService);
   private automixTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
@@ -42,7 +44,7 @@ export class MixEventHandlerService {
     effect(() => {
       this.analysis.version();
       this.mixSettings();
-      untracked(() => this.jukebox?.refreshMix());
+      untracked(() => this.jukeboxEngine.refreshMix());
     });
     effect(() => {
       this.objectChange.versionOf('Jukebox')();
@@ -71,7 +73,7 @@ export class MixEventHandlerService {
 
   private followPlaying(playing: boolean): void {
     if (playing && this.automixTimer === null) {
-      this.automixTimer = setInterval(() => this.jukebox?.tickAutomix(), AUTOMIX_TICK_MS);
+      this.automixTimer = setInterval(() => this.jukeboxEngine.tickAutomix(), AUTOMIX_TICK_MS);
     } else if (!playing && this.automixTimer !== null) {
       clearInterval(this.automixTimer);
       this.automixTimer = null;

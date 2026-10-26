@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AudioFile } from '@axe/core/storage/audio-file';
+import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { AudioTag } from '@axe/domain/media/audio-tag';
@@ -118,9 +119,9 @@ describe('VisualNovelSoundBoardComponent', () => {
     }
   });
 
-  it('reports what the jukebox is playing', () => {
-    const jukebox = ensureJukebox();
-    vi.spyOn(jukebox, 'isSePlaying').mockReturnValue(true);
+  it('reports which sound effects are playing', () => {
+    ensureJukebox();
+    vi.spyOn(AudioPlayer, 'isSePlaying').mockReturnValue(true);
     create();
 
     expect(board.isSoundEffectPlaying('se-1')).toBe(true);

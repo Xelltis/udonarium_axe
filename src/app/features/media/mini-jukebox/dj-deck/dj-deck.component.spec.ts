@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { AudioAnalysisService } from '@axe/application/media/audio-analysis.service';
+import { JukeboxEngineService } from '@axe/application/media/jukebox-engine.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
@@ -116,7 +117,7 @@ describe('DjDeckComponent', () => {
 
   it('lets the game master turn the room’s levelling and ducking off', async () => {
     PeerCursor.myCursor.role = PeerRole.GameMaster;
-    vi.spyOn(Jukebox.prototype, 'refreshMix').mockImplementation(() => {});
+    vi.spyOn(JukeboxEngineService.prototype, 'refreshMix').mockImplementation(() => {});
     await fixture.whenStable();
     await showTab('mix');
 
@@ -136,7 +137,7 @@ describe('DjDeckComponent', () => {
     it('lets a player turn the filter for the room, heard here at once and shared when it settles', async () => {
       PeerCursor.myCursor.role = PeerRole.Player;
       const jukebox = ObjectStore.instance.get<Jukebox>('Jukebox')!;
-      const heard = vi.spyOn(jukebox, 'applyEffects').mockImplementation(() => {});
+      const heard = vi.spyOn(JukeboxEngineService.prototype, 'previewEffects').mockImplementation(() => {});
       await fixture.whenStable();
 
       knob('filter').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
@@ -150,7 +151,7 @@ describe('DjDeckComponent', () => {
     it('turns every effect off at once', async () => {
       PeerCursor.myCursor.role = PeerRole.Player;
       const jukebox = ObjectStore.instance.get<Jukebox>('Jukebox')!;
-      vi.spyOn(jukebox, 'applyEffects').mockImplementation(() => {});
+      vi.spyOn(JukeboxEngineService.prototype, 'previewEffects').mockImplementation(() => {});
       jukebox.fx = '{"echo":0.4,"reverb":0.2}';
       await fixture.whenStable();
 
@@ -259,7 +260,7 @@ describe('DjDeckComponent', () => {
 
   it('lets the game master turn the beat light on for the room, and anyone keep it off on their own screen', async () => {
     PeerCursor.myCursor.role = PeerRole.GameMaster;
-    vi.spyOn(Jukebox.prototype, 'refreshMix').mockImplementation(() => {});
+    vi.spyOn(JukeboxEngineService.prototype, 'refreshMix').mockImplementation(() => {});
     await showTab('mix');
 
     element('dj-deck-beat-light').click();
@@ -272,7 +273,7 @@ describe('DjDeckComponent', () => {
 
   it('lets the game master choose how long a pause fades, and nobody else', async () => {
     PeerCursor.myCursor.role = PeerRole.GameMaster;
-    vi.spyOn(Jukebox.prototype, 'refreshMix').mockImplementation(() => {});
+    vi.spyOn(JukeboxEngineService.prototype, 'refreshMix').mockImplementation(() => {});
     await showTab('mix');
     const select = (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>(
       '[data-testid="dj-deck-pause-fade"]'

@@ -710,7 +710,7 @@ describe('JukeboxComponent', () => {
 
     it('reports whether an effect is playing', () => {
       const audio = makeReadyAudio('se-playing-01');
-      vi.spyOn(component.jukebox, 'isSePlaying').mockReturnValue(true);
+      vi.spyOn(AudioPlayer, 'isSePlaying').mockReturnValue(true);
 
       expect(component.isSePlaying(audio)).toBe(true);
     });

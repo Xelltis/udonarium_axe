@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { AudioAnalysisService } from '@axe/application/media/audio-analysis.service';
+import { JukeboxEngineService } from '@axe/application/media/jukebox-engine.service';
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MusicBus } from '@axe/core/audio/music-bus';
@@ -73,7 +74,7 @@ describe('MixEventHandlerService', () => {
   });
 
   it('eases the tracks to a change of the room’s mix once, and to nothing else the room changes', () => {
-    const refreshMix = vi.spyOn(jukebox, 'refreshMix').mockImplementation(() => {});
+    const refreshMix = vi.spyOn(JukeboxEngineService.prototype, 'refreshMix').mockImplementation(() => {});
     start();
     refreshMix.mockClear();
 
@@ -87,7 +88,7 @@ describe('MixEventHandlerService', () => {
   });
 
   it('remixes whenever a reading arrives or changes', () => {
-    const refreshMix = vi.spyOn(jukebox, 'refreshMix').mockImplementation(() => {});
+    const refreshMix = vi.spyOn(JukeboxEngineService.prototype, 'refreshMix').mockImplementation(() => {});
     start();
     refreshMix.mockClear();
 
@@ -98,7 +99,7 @@ describe('MixEventHandlerService', () => {
   });
 
   it('looks for the point to move on only while the room plays', () => {
-    const tick = vi.spyOn(jukebox, 'tickAutomix').mockImplementation(() => {});
+    const tick = vi.spyOn(JukeboxEngineService.prototype, 'tickAutomix').mockImplementation(() => {});
     start();
 
     vi.advanceTimersByTime(AUTOMIX_TICK_MS * 4);

@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { AudioAnalysisService } from '@axe/application/media/audio-analysis.service';
+import { JukeboxEngineService } from '@axe/application/media/jukebox-engine.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
 import { AUDIO_ANALYSIS_VERSION, type AudioAnalysis } from '@axe/domain/media/audio-analysis';
@@ -52,7 +53,7 @@ describe('DjConsoleService', () => {
     now = 10_000;
     vi.spyOn(Jukebox.prototype, 'position', 'get').mockImplementation(() => position);
     vi.spyOn(performance, 'now').mockImplementation(() => now);
-    vi.spyOn(Jukebox.prototype, 'refreshMix').mockImplementation(() => {});
+    vi.spyOn(JukeboxEngineService.prototype, 'refreshMix').mockImplementation(() => {});
     dj = TestBed.inject(DjConsoleService);
   });
 
@@ -157,7 +158,7 @@ describe('DjConsoleService', () => {
     PeerCursor.myCursor.role = PeerRole.GameMaster;
     dj.setSettings({ ducking: false });
     expect(Config.instance.djSettings.ducking).toBe(false);
-    expect(jukebox.refreshMix).toHaveBeenCalled();
+    expect(JukeboxEngineService.prototype.refreshMix).toHaveBeenCalled();
   });
 
   it('turns no level while the room does not level', () => {
@@ -171,7 +172,7 @@ describe('DjConsoleService', () => {
     it('lets the room hear a knob as it turns, shares it at most every tenth of a second, and at once when it settles', () => {
       vi.useFakeTimers();
       try {
-        const heard = vi.spyOn(jukebox, 'applyEffects').mockImplementation(() => {});
+        const heard = vi.spyOn(JukeboxEngineService.prototype, 'previewEffects').mockImplementation(() => {});
         const shared = vi.spyOn(jukebox, 'setEffects');
 
         dj.setEffect('filter', -0.2);
@@ -193,7 +194,7 @@ describe('DjConsoleService', () => {
     });
 
     it('turns every effect off at once', () => {
-      vi.spyOn(jukebox, 'applyEffects').mockImplementation(() => {});
+      vi.spyOn(JukeboxEngineService.prototype, 'previewEffects').mockImplementation(() => {});
       jukebox.fx = '{"reverb":0.3}';
 
       dj.resetEffects();

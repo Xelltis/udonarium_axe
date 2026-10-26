@@ -561,7 +561,7 @@ export class JukeboxComponent {
 
   /** Whether a sound effect is sounding on this player's side, which swaps its play button for stop. */
   isSePlaying(audio: AudioFile): boolean {
-    return this.jukebox.isSePlaying(audio.identifier);
+    return AudioPlayer.isSePlaying(audio.identifier);
   }
 
   /**

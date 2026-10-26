@@ -1,5 +1,6 @@
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { JukeboxEngineService } from '@axe/application/media/jukebox-engine.service';
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -61,6 +62,8 @@ export class AppInitializationService {
   private readonly statusAilmentCatalog = inject(StatusAilmentCatalog);
   private readonly keyboardInset = inject(KeyboardInsetService);
   private readonly personalVolumes = inject(PersonalVolumeService);
+  /** Made before the room's jukebox, so the jukebox is heard on this peer from the moment it is. */
+  private readonly jukeboxEngine = inject(JukeboxEngineService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
 
