@@ -606,11 +606,6 @@ const AUDIO_EXTENSION_OF_TYPE: Readonly<Record<string, string>> = {
   'audio/x-flac': 'flac',
 };
 
-/**
- * A sound as a file of its own, under the name it was added with and an extension that is read
- * back as a sound, numbered where the name is `taken` already. Null when its bytes are not held
- * here or its kind has no such extension.
- */
 /** Archive files for the sounds held here as files, named apart from each other and from the files alongside. */
 function audioArchiveFiles(audios: readonly AudioFile[], alongside: readonly File[]): File[] {
   const taken = new Set(alongside.map((file) => file.name.toLowerCase()));
@@ -622,6 +617,11 @@ function audioArchiveFiles(audios: readonly AudioFile[], alongside: readonly Fil
   return files;
 }
 
+/**
+ * A sound as a file of its own, under the name it was added with and an extension that is read
+ * back as a sound, numbered where the name is `taken` already. Null when its bytes are not held
+ * here or its kind has no such extension.
+ */
 function createAudioArchiveFile(audio: AudioFile, taken: Set<string>): File | null {
   const blob = audio.blob;
   if (!blob) return null;
