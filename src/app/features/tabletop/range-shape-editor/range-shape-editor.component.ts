@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, EventEmitter, Output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import {
@@ -42,8 +42,8 @@ export class RangeShapeEditorComponent {
   private isPointerDown = false;
   private touchedCellsThisDrag = new Set<string>();
 
-  @Output() readonly saved = new EventEmitter<RangeShapeEditorResult>();
-  @Output() readonly cancelled = new EventEmitter<void>();
+  readonly saved = output<RangeShapeEditorResult>();
+  readonly cancelled = output<void>();
 
   constructor() {
     closeWhenOffTheTable();

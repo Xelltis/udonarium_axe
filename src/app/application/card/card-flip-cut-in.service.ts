@@ -35,6 +35,11 @@ export class CardFlipCutInService {
     return false;
   }
 
+  /**
+   * Looks for the card's cut-in again at every change in the room until one is found or the wait runs
+   * out. The face may come with the card, with its data or with the cut-ins, whichever reaches this end
+   * first, so no narrower watch would be sure to hear it.
+   */
   private playOnceFaceComes(card: Card): void {
     const timer = setTimeout(() => stop(), FACE_WAIT_MS);
     const stop = this.objectChange.objectChanged$.subscribe(() => {

@@ -44,10 +44,16 @@ export class ChatBookmarkService {
     this.objectChange.objectRemoved$.subscribe((event) => {
       if (event.aliasName === ChatMessage.aliasName) this.notice(event.identifier);
     }, destroyRef);
-    this.objectChange.objectChanged$.subscribe((event) => {
-      if (event.aliasName === ChatMessage.aliasName) this.notice(event.identifier);
-      else if (event.aliasName === ChatTab.aliasName) this.revision.update((v) => v + 1);
-    }, destroyRef);
+    this.objectChange.onObjectChangedForSingleAlias(
+      ChatMessage.aliasName,
+      (event) => this.notice(event.identifier),
+      destroyRef
+    );
+    this.objectChange.onObjectChangedForSingleAlias(
+      ChatTab.aliasName,
+      () => this.revision.update((v) => v + 1),
+      destroyRef
+    );
   }
 
   /**

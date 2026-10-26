@@ -1,6 +1,6 @@
 import { NgClass } from '@angular/common';
 import {
-  AfterViewInit,
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -225,7 +225,7 @@ interface ToolDef {
     SwitchDefinitionFieldsComponent,
   ],
 })
-export class MapEditorPanelComponent implements AfterViewInit {
+export class MapEditorPanelComponent {
   protected readonly state = inject(MapEditorState);
   protected readonly isCompact = inject(ViewportService).isCompact;
   protected readonly mobileDrawer = signal<'none' | 'props' | 'layers'>('none');
@@ -727,6 +727,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
 
   constructor() {
     inject(ShortcutScopeService).hold('mapEditor', inject(DestroyRef));
+    afterNextRender(() => this.draw());
     const stopMeasuring = useTextMeasurer((text, fontSize, bold, italic) => {
       const ctx = this.board()?.nativeElement.getContext('2d');
       if (!ctx) return guessLineWidth(text, fontSize);
@@ -750,10 +751,6 @@ export class MapEditorPanelComponent implements AfterViewInit {
       this.pendingTextFocus = false;
       this.focusTextEditor(el);
     });
-  }
-
-  ngAfterViewInit(): void {
-    this.draw();
   }
 
   private readonly draftSignal = signal(0);

@@ -24,7 +24,8 @@ export class RoomArchiveEventHandlerService {
 
   /**
    * Watches the room for changes. A change to something not in the room, as what a save is written
-   * with, is none: counted, each snapshot would ask for the next.
+   * with, is none: counted, each snapshot would ask for the next. Any kind of object in the room counts,
+   * so every change is heard and asked whether its object is in the room.
    */
   constructor() {
     this.objectChange.objectChanged$.subscribe((event) => {

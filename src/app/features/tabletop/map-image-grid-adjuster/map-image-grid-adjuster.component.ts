@@ -5,7 +5,6 @@ import {
   effect,
   ElementRef,
   inject,
-  OnDestroy,
   signal,
   untracked,
   viewChild,
@@ -64,7 +63,7 @@ type DragMode = { kind: 'move' } | { kind: 'image'; handle: ImageHandle } | { ki
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, TranslocoModule],
 })
-export class MapImageGridAdjusterComponent implements OnDestroy {
+export class MapImageGridAdjusterComponent {
   private readonly modalService = inject(ModalService);
   private readonly imageStorage = inject(ImageStorage);
   private readonly t = inject(TRANSLATE_FN);
@@ -96,7 +95,6 @@ export class MapImageGridAdjusterComponent implements OnDestroy {
   readonly viewCell = signal(VIEW_CELL_BASE);
 
   private loadedImage: HTMLImageElement | null = null;
-  private resizeObserver: ResizeObserver | null = null;
   private readonly cropFn = cropImageRegion;
 
   private dragMode: DragMode | null = null;
@@ -175,11 +173,7 @@ export class MapImageGridAdjusterComponent implements OnDestroy {
       if (typeof ResizeObserver === 'undefined') return;
       const observer = new ResizeObserver(() => this.measureStage(stage));
       observer.observe(stage);
-      this.resizeObserver = observer;
-      onCleanup(() => {
-        observer.disconnect();
-        this.resizeObserver = null;
-      });
+      onCleanup(() => observer.disconnect());
     });
     effect(() => {
       const f = this.frame();
@@ -207,11 +201,6 @@ export class MapImageGridAdjusterComponent implements OnDestroy {
   }
 
   private readonly prevFrameOf = () => this.prevFrame;
-
-  ngOnDestroy() {
-    this.resizeObserver?.disconnect();
-    this.resizeObserver = null;
-  }
 
   private renderHexOverlay() {
     const type = this.gridType();
