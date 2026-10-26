@@ -16,13 +16,18 @@ import { BuffTiming, BuffTurnActor } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
-import { turnCarrierOf } from '@axe/domain/tabletop/ride/ride-rules';
 import { TriggerMoment } from '@axe/domain/tabletop/trigger-event';
 import { changedBuffs, parseTurnHistory, stringifyTurnHistory, TurnStep } from '@axe/domain/tabletop/turn-history';
 import { FactionPhaseMode, TurnOrderMode } from '@axe/domain/tabletop/turn-order-mode';
 import {
+  buildTurnRoster,
+  mayHoldTurn,
+  mayInterruptTurn,
+  TurnRoster,
+  TurnStanding,
+} from '@axe/domain/tabletop/turn-roster';
+import {
   describeSide,
-  groupBySide,
   nextSide,
   normalizeFactionOrder,
   resolveCurrentSide,
@@ -110,9 +115,8 @@ export class TurnOrderService {
   }
 
   /** The sides the round goes round, each with the pieces on it. Empty unless it is taken side by side. */
-  orderedSides(includeHidden = false): SideGroup<GameCharacter>[] {
-    if (this.turnOrderMode !== 'faction') return [];
-    return groupBySide(this.turnPieces(includeHidden), this.sideOrder());
+  orderedSides(includeHidden = false): readonly SideGroup<GameCharacter>[] {
+    return this.roster(includeHidden).sides;
   }
 
   /** What a side is called and the colour it is shown in. */
@@ -216,10 +220,7 @@ export class TurnOrderService {
    * up again in its own time.
    */
   mayHold(identifier: string): boolean {
-    if (!this.canTakeTurns || !this.isUnderWay()) return false;
-    if (this.isActed(identifier) || this.isHeld(identifier)) return false;
-    if (this.holding.interrupted.includes(identifier)) return false;
-    return this.isInOrder(identifier);
+    return this.canTakeTurns && mayHoldTurn(this.standing(), this.orderedCharacters(), identifier);
   }
 
   /**
@@ -253,12 +254,11 @@ export class TurnOrderService {
    * and still reaches it.
    */
   mayInterrupt(identifier: string): boolean {
-    if (!this.canTakeTurns || !this.isUnderWay()) return false;
-    return this.isHeld(identifier) && !this.isActed(identifier) && this.isInOrder(identifier);
+    return this.canTakeTurns && mayInterruptTurn(this.standing(), this.orderedCharacters(), identifier);
   }
 
-  private isInOrder(identifier: string): boolean {
-    return this.orderedCharacters().some((piece) => piece.identifier === identifier);
+  private standing(): TurnStanding {
+    return { phase: this.turnState.phase, acted: this.turnState.actedIdentifiers, holding: this.holding };
   }
 
   /**
@@ -280,65 +280,33 @@ export class TurnOrderService {
     });
   }
 
-  private isUnderWay(): boolean {
-    const phase = this.turnState.phase;
-    return phase === 'acting' || phase === 'roundStart';
-  }
-
   /**
    * The pieces the turn goes round, in the order the inventory lists them.
    *
    * Taken side by side, the same pieces come back gathered under their sides and in the
    * order the sides are taken, so walking the list walks the round.
    */
-  orderedCharacters(includeHidden = false): GameCharacter[] {
-    const pieces = this.turnPieces(includeHidden);
-    if (this.turnOrderMode !== 'faction') return pieces;
-    return groupBySide(pieces, this.sideOrder()).flatMap((group) => group.members);
-  }
-
-  private turnPieces(includeHidden: boolean): GameCharacter[] {
-    const carried = this.carriedTurns();
-    return this.allCharacters().filter(
-      (character) =>
-        !character.noTurn && !carried.has(character.identifier) && (includeHidden || !character.hideInventory)
-    );
-  }
-
-  /**
-   * The pieces that take their turn in another's, each with the one whose turn it is: a mount ridden
-   * in front, and whoever sits behind on it, act in the turn of the one riding in front.
-   */
-  private carriedTurns(): Map<string, string> {
-    const pieces = this.allCharacters().map((character) => ({
-      id: character.identifier,
-      ridingOn: character.ridingOn,
-      rideSeat: character.rideSeat,
-      mountable: character.mountable === '1',
-      takesTurns: !character.noTurn && !character.hideInventory,
-    }));
-    const carried = new Map<string, string>();
-    for (const piece of pieces) {
-      const carrier = turnCarrierOf(piece.id, pieces);
-      if (carrier !== '') carried.set(piece.id, carrier);
-    }
-    return carried;
+  orderedCharacters(includeHidden = false): readonly GameCharacter[] {
+    return this.roster(includeHidden).order;
   }
 
   /** The pieces that take their turn in this one's, as a mount and a second rider do in their front rider's. */
-  companionsOf(identifier: string): GameCharacter[] {
-    return this.companionsByCarrier().get(identifier) ?? [];
+  companionsOf(identifier: string): readonly GameCharacter[] {
+    return this.roster().companions.get(identifier) ?? [];
   }
 
   /** Every piece that takes its turn in another's, under the one whose turn it is. */
-  companionsByCarrier(): Map<string, GameCharacter[]> {
-    const carried = this.carriedTurns();
-    const companions = new Map<string, GameCharacter[]>();
-    for (const character of this.allCharacters()) {
-      const carrier = carried.get(character.identifier);
-      if (carrier) companions.set(carrier, [...(companions.get(carrier) ?? []), character]);
-    }
-    return companions;
+  companionsByCarrier(): ReadonlyMap<string, readonly GameCharacter[]> {
+    return this.roster().companions;
+  }
+
+  private roster(includeHidden = false): TurnRoster<GameCharacter> {
+    const mode = this.turnOrderMode;
+    return buildTurnRoster(this.allCharacters(), {
+      mode,
+      sideOrder: mode === 'faction' ? this.sideOrder() : [],
+      includeHidden,
+    });
   }
 
   /** Everyone on the table, whether or not they take a turn. */

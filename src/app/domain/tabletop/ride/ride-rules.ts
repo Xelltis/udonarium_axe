@@ -202,19 +202,35 @@ export interface RideTurnPiece {
  * whoever sits behind where the one in front takes no turns.
  */
 export function turnCarrierOf(id: string, pieces: readonly RideTurnPiece[]): string {
+  return turnCarriers(pieces).get(id) ?? '';
+}
+
+/**
+ * Every piece that takes its turn in another's, each with the piece whose turn it is, as
+ * `turnCarrierOf` answers for one; worked out for the whole table in one pass.
+ */
+export function turnCarriers(pieces: readonly RideTurnPiece[]): Map<string, string> {
   const byId = new Map(pieces.map((piece) => [piece.id, piece]));
+  const fronts = new Map<string, RideTurnPiece>();
+  for (const one of pieces) {
+    if (one.ridingOn === '' || one.ridingOn === one.id || seatOf(one.rideSeat) !== 'rider') continue;
+    if (!fronts.has(one.ridingOn)) fronts.set(one.ridingOn, one);
+  }
   const frontOf = (mountId: string): string => {
     if (!byId.get(mountId)?.mountable) return '';
-    const front = pieces.find(
-      (one) => one.id !== mountId && one.ridingOn === mountId && seatOf(one.rideSeat) === 'rider'
-    );
+    const front = fronts.get(mountId);
     return front && front.takesTurns !== false ? front.id : '';
   };
-  const piece = byId.get(id);
-  if (!piece) return '';
-  if (piece.mountable) return frontOf(piece.id);
-  if (piece.ridingOn !== '' && seatOf(piece.rideSeat) === 'passenger') return frontOf(piece.ridingOn);
-  return '';
+  const carriers = new Map<string, string>();
+  for (const piece of byId.values()) {
+    const carrier = piece.mountable
+      ? frontOf(piece.id)
+      : piece.ridingOn !== '' && seatOf(piece.rideSeat) === 'passenger'
+        ? frontOf(piece.ridingOn)
+        : '';
+    if (carrier !== '') carriers.set(piece.id, carrier);
+  }
+  return carriers;
 }
 
 /**
