@@ -1,11 +1,7 @@
-import { Injector, runInInjectionContext, Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { DICE_CREATE_DIALOG_LOADER, TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
+import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { getDiceMenuItems, TRUMP_BACK_IMAGE_PATH } from '@axe/application/tabletop/tabletop-action-helpers';
-import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
-import { ModalService } from '@axe/application/ui/modal.service';
-import { LOAD_FAILURE_NOTICE } from '@axe/application/ui/overlay-components';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -20,15 +16,9 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { pieceCellOf } from '@axe/domain/tabletop/move/piece-on-grid';
-import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { MAX_BOARD_PITCH } from '@axe/domain/tabletop/white-board';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
-
-/** An entry of a menu by its name, at its top or one group down. */
-function entryIn(menu: readonly ContextMenuAction[], name: string): ContextMenuAction | undefined {
-  return menu.flatMap((entry) => [entry, ...(entry.subActions ?? [])]).find((entry) => entry.name === name);
-}
 
 describe('TabletopActionService', () => {
   let service: TabletopActionService;
@@ -94,95 +84,6 @@ describe('TabletopActionService', () => {
       expect(card.frontImage?.url).toContain('blank_card.webp');
       expect(card.backImage?.url).toBe(TRUMP_BACK_IMAGE_PATH);
       expect(card.imageFile.url).toContain('blank_card.webp');
-    });
-
-    it('adds a blank-card action to the context menu, among the cards', () => {
-      const action = entryIn(service.makeDefaultContextMenuActions({ x: 0, y: 0, z: 0 }), 'ブランクカードを作成');
-
-      expect(action).toBeDefined();
-      expect(action?.action).toBeInstanceOf(Function);
-    });
-  });
-
-  it('lists the create menu flat, in the order the table has always offered it', () => {
-    const menu = service.makeDefaultContextMenuActions({ x: 0, y: 0, z: 0 });
-
-    expect(menu.map((entry) => entry.name)).toEqual([
-      'キャラクターを作成',
-      'マップマスクを作成',
-      '地形を作成',
-      '共有メモを作成',
-      'ブランクカードを作成',
-      'トランプの山札を作成',
-      'ダイスを作成',
-      'コインを作成',
-      '射程範囲を作成',
-      '光源を作成',
-      'ホワイトボードを作成',
-      '環境エフェクトを置く',
-    ]);
-  });
-
-  describe('making several dice at once', () => {
-    /** The service as the app makes it, with the dialogue's loader and the reload notice handed in. */
-    function serviceWith(loader: (() => Promise<Type<unknown>>) | null, notice: () => void = () => {}) {
-      const injector = Injector.create({
-        providers: [
-          { provide: DICE_CREATE_DIALOG_LOADER, useValue: loader },
-          { provide: LOAD_FAILURE_NOTICE, useValue: notice },
-        ],
-        parent: TestBed.inject(Injector),
-      });
-      return runInInjectionContext(injector, () => new TabletopActionService());
-    }
-
-    const manyEntry = (made: TabletopActionService) =>
-      entryIn(made.makeDefaultContextMenuActions({ x: 0, y: 0, z: 0 }), 'ダイスを作成')?.subActions?.find(
-        (entry) => entry.name === '個数を指定して作成…'
-      );
-
-    it('fetches the dialogue when asked for, and asks with it', async () => {
-      class Dialog {}
-      const made = serviceWith(() => Promise.resolve(Dialog));
-      const open = vi.spyOn(TestBed.inject(ModalService), 'open').mockResolvedValue(null);
-
-      manyEntry(made)!.action!();
-
-      await vi.waitFor(() => expect(open).toHaveBeenCalledWith(Dialog, expect.anything()));
-    });
-
-    it('says the page wants reloading when the dialogue cannot be fetched, and asks nothing', async () => {
-      const told = vi.fn();
-      const made = serviceWith(() => Promise.reject(new Error('chunk gone')), told);
-      const open = vi.spyOn(TestBed.inject(ModalService), 'open');
-
-      manyEntry(made)!.action!();
-
-      await vi.waitFor(() => expect(told).toHaveBeenCalledOnce());
-      expect(open).not.toHaveBeenCalled();
-    });
-
-    it('is not offered when no dialogue was handed over', () => {
-      expect(manyEntry(serviceWith(null))).toBeUndefined();
-    });
-  });
-
-  describe('the range create menu', () => {
-    it('makes the square as a diamond or square to the grid, from under the square', () => {
-      const menu = entryIn(service.makeDefaultContextMenuActions({ x: 0, y: 0, z: 0 }), '射程範囲を作成');
-      const square = menu?.subActions?.find((entry) => entry.name === '四角形・ダイヤ');
-
-      expect(square?.action).toBeUndefined();
-      expect(square?.subActions?.map((entry) => entry.name)).toEqual(['ダイヤとして出力', '四角形として出力']);
-
-      const before = new Set(ObjectStore.instance.getObjects(RangeArea));
-      square!.subActions![0].action!();
-      const made = ObjectStore.instance.getObjects(RangeArea).filter((range) => !before.has(range));
-      try {
-        expect(made.map((range) => range.type)).toEqual(['RHOMBUS']);
-      } finally {
-        for (const range of made) range.destroy();
-      }
     });
   });
 
@@ -329,51 +230,6 @@ describe('TabletopActionService', () => {
     const grid = () => cellGridOf(table.width, table.height, table.gridSize, table.gridType);
     const cellOf = (character: GameCharacter): number => pieceCellOf(grid(), character, table.gridSize);
     const askedCell = () => cellIndexAt(grid(), position.x, position.y);
-    const entries = () => service.getGatherPartyMenu(position)[0]?.subActions ?? [];
-
-    it('offers nothing to anybody but the master', () => {
-      makeMember(makeParty('パーティA'), '花子');
-      PeerCursor.myCursor = { userId: 'pl', role: PeerRole.Player, isGameMaster: false } as PeerCursor;
-
-      expect(service.getGatherPartyMenu(position)).toEqual([]);
-    });
-
-    it('offers nothing in a room that keeps no parties', () => {
-      expect(service.getGatherPartyMenu(position)).toEqual([]);
-    });
-
-    it('names every party the room keeps', () => {
-      makeMember(makeParty('パーティA'), '花子');
-      makeMember(makeParty('パーティB'), '太郎');
-
-      expect(entries().map((entry) => entry.name)).toEqual(['パーティA', 'パーティB']);
-    });
-
-    it('offers a party nobody belongs to without letting it be picked', () => {
-      makeParty('空のパーティ');
-
-      expect(entries()[0].enabled).toBe(false);
-      expect(entries()[0].action).toBeUndefined();
-    });
-
-    it('offers a party with members put away as two entries, counted', () => {
-      // Read before it is picked rather than asked about afterwards: one entry moves what is
-      // already on the table, the other brings the rest in as well.
-      const party = makeParty('パーティB');
-      makeMember(party, '花子');
-      makeMember(party, '太郎');
-      makeMember(party, '次郎', false);
-
-      expect(entries().map((entry) => entry.name)).toEqual(['パーティB（卓上の2体）', 'パーティB（卓外の1体も出す）']);
-    });
-
-    it('offers only the one entry once every member is on the table', () => {
-      const party = makeParty('パーティA');
-      makeMember(party, '花子');
-      makeMember(party, '太郎');
-
-      expect(entries().map((entry) => entry.name)).toEqual(['パーティA']);
-    });
 
     it('stands the party around the spot it was asked for', () => {
       const party = makeParty('パーティA');

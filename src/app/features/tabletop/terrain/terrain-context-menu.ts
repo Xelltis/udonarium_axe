@@ -1,7 +1,6 @@
 import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
-import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import {
   ContextMenuAction,
   ContextMenuRadialGroup,
@@ -16,6 +15,7 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { DOOR_STYLES, DoorStyle, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { drawnSlopeSides, SlopeSide, SQUARE_SLOPE_SIDES } from '@axe/domain/tabletop/terrain-slope';
 import { applyLightPreset, LightPreset } from '@axe/domain/tabletop/vision-types';
+import { CreateObjectMenu } from '@axe/features/tabletop/create-menu/create-object-context-menu';
 
 export interface TerrainContextMenuModel {
   actions: ContextMenuAction[];
@@ -28,7 +28,7 @@ export function buildTerrainContextMenu(
   gridSize: number,
   objectPosition: PointerCoordinate,
   inventoryService: GameObjectInventoryService,
-  tabletopActionService: TabletopActionService,
+  createMenu: CreateObjectMenu,
   onEdit: (t: Terrain) => void,
   t: TranslateFn,
   overlapEntries: ContextMenuAction[] = []
@@ -38,7 +38,7 @@ export function buildTerrainContextMenu(
     gridSize,
     objectPosition,
     inventoryService,
-    tabletopActionService,
+    createMenu,
     onEdit,
     t,
     overlapEntries
@@ -59,7 +59,7 @@ export function buildTerrainContextMenuModel(
   gridSize: number,
   objectPosition: PointerCoordinate,
   inventoryService: GameObjectInventoryService,
-  tabletopActionService: TabletopActionService,
+  createMenu: CreateObjectMenu,
   onEdit: (t: Terrain) => void,
   t: TranslateFn,
   overlapEntries: ContextMenuAction[] = [],
@@ -296,7 +296,7 @@ export function buildTerrainContextMenuModel(
   const createAction: ContextMenuAction = {
     name: t('feature.tabletop.contextMenu.createObject'),
     action: undefined,
-    subActions: tabletopActionService.makeDefaultContextMenuActions(objectPosition),
+    subActions: createMenu.menuAt(objectPosition),
   };
 
   const shapeActions = [altitudeAction, slopeAction, wallAction, climbAction, ...doorToggleActions, doorStyleAction];

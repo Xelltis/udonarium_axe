@@ -19,7 +19,6 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
@@ -40,6 +39,7 @@ import { RangeArea } from '@axe/domain/tabletop/range';
 import { rangeCovers } from '@axe/domain/tabletop/range-coverage';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
+import { CreateObjectMenuService } from '@axe/features/tabletop/create-menu/create-object-menu.service';
 import { buildRangeContextMenuModel } from '@axe/features/tabletop/range/range-context-menu';
 import {
   initialRangeClip,
@@ -68,7 +68,7 @@ import { translateZCss, Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
   },
 })
 export class RangeComponent {
-  private readonly tabletopActionService = inject(TabletopActionService);
+  private readonly createMenu = inject(CreateObjectMenuService);
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -286,7 +286,7 @@ export class RangeComponent {
       objectPosition,
       this.objectStore,
       this.inventoryService,
-      this.tabletopActionService,
+      this.createMenu,
       () => this.dockingWindowOpen(),
       (r) => this.showDetail(r),
       this.translateFn,

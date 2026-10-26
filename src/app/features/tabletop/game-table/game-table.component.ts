@@ -86,6 +86,7 @@ import { PeerCursorComponent } from '@axe/features/lobby/peer-cursor/peer-cursor
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { ReplayRouteOverlayComponent } from '@axe/features/replay/replay-route-overlay/replay-route-overlay.component';
 import { buildPressedGroundMenu } from '@axe/features/tabletop/board-switch/board-switch-context-menu';
+import { CreateObjectMenuService } from '@axe/features/tabletop/create-menu/create-object-menu.service';
 import { TableFogAirOverlayComponent } from '@axe/features/tabletop/fog-of-war/table-fog-air-overlay.component';
 import { beamTopGridGeometry, beamWallFaceGrid } from '@axe/features/tabletop/game-table/beam-top-grid';
 import { glideTransform } from '@axe/features/tabletop/game-table/game-table-camera';
@@ -288,6 +289,7 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
 })
 export class GameTableComponent {
   private readonly contextMenuService = inject(ContextMenuService);
+  private readonly createMenu = inject(CreateObjectMenuService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly coordinateService = inject(CoordinateService);
   private readonly imageService = inject(ImageService);
@@ -1061,8 +1063,7 @@ export class GameTableComponent {
     actions: ContextMenuAction[];
     rotatingGroups: ContextMenuRadialGroup[];
   } {
-    const [primaryCreateActions, secondaryCreateActions] =
-      this.tabletopActionService.makeDefaultContextMenuActionGroups(objectPosition);
+    const [primaryCreateActions, secondaryCreateActions] = this.createMenu.menuGroupsAt(objectPosition);
     secondaryCreateActions.push({
       name: this.t('feature.tabletop.action.createDeck'),
       action: () => {
@@ -1085,7 +1086,7 @@ export class GameTableComponent {
     };
     const tableSettingActions = [tableSettingAction, ...this.buildViewLockActions()];
     // Empty for anybody but the master, and for a room with no parties in it.
-    const partyActions = this.tabletopActionService.getGatherPartyMenu(objectPosition);
+    const partyActions = this.createMenu.gatherPartyMenuAt(objectPosition);
     // The entry goes in whole, the way the ambience entry does: the rotating menu opens what
     // has sub-entries rather than being handed them, and a group holding the same entries the
     // flat menu does is what keeps the two menus answering alike.

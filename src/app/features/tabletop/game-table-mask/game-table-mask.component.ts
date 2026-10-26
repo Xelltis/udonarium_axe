@@ -15,7 +15,6 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
@@ -32,6 +31,7 @@ import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { hexCircumradius, isFlatTopGrid, isHexGrid, pixelToHexCell } from '@axe/domain/tabletop/hex-geometry';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { CreateObjectMenuService } from '@axe/features/tabletop/create-menu/create-object-menu.service';
 import { buildGameTableMaskContextMenu } from '@axe/features/tabletop/game-table-mask/game-table-mask-context-menu';
 import {
   buildHexOuterBorderSvg,
@@ -76,7 +76,7 @@ const MASK_WRITING_OUTLINE =
 })
 export class GameTableMaskComponent {
   private static readonly GRID_PATTERN = /^\d+:\d+$/;
-  private readonly tabletopActionService = inject(TabletopActionService);
+  private readonly createMenu = inject(CreateObjectMenuService);
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -744,7 +744,7 @@ export class GameTableMaskComponent {
       gridSize: this.gridSize,
       objectPosition,
       inventoryService: this.inventoryService,
-      tabletopActionService: this.tabletopActionService,
+      createMenu: this.createMenu,
       onStartScratch: () => {
         if (mask.owner != '') {
           this.isPreview = false;

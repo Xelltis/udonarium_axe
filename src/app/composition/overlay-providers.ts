@@ -1,5 +1,4 @@
 import { inject, Injector, Provider } from '@angular/core';
-import { DICE_CREATE_DIALOG_LOADER } from '@axe/application/tabletop/tabletop-action.service';
 import {
   BOTTOM_SHEET_FRAME_COMPONENT,
   CARD_STACK_LIST_COMPONENT,
@@ -45,13 +44,7 @@ export const OVERLAY_PROVIDERS: Provider[] = [
         (m) => m.FourWayRadialMenuComponent
       ),
   },
-  {
-    provide: DICE_CREATE_DIALOG_LOADER,
-    useValue: () =>
-      import('@axe/features/dice/dice-symbol-create-dialog/dice-symbol-create-dialog.component').then(
-        (m) => m.DiceSymbolCreateDialogComponent
-      ),
-  },
+
   {
     provide: TOOLTIP_PANEL_LOADER,
     useFactory: () => {
