@@ -10,8 +10,8 @@ import tseslint from 'typescript-eslint';
 /* Layer boundary rules
  * Dependency direction (strict): features → ui → application → infrastructure → domain → core
  *                                                ↘──────────────────────────────↗ (application reads domain directly)
- * `composition` (directly under src/app/*.ts: app.component / *-event-handler.service and the like)
- *  may depend on every layer (the composition root).
+ * The composition root (src/app/composition/, src/app/app.component.ts and src/main.ts) may depend on
+ *  every layer. Each feature keeps its own *-event-handler.service, which the root only injects.
  */
 const NO_RELATIVE_IMPORT = {
   regex: '^\\.',

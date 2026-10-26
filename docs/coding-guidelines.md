@@ -22,18 +22,21 @@
 
 - Signals + `versionOf()` / `collectionOf()`で配線する
 - `markForCheck()`禁止
-- `detectChanges()`はDOM計測用途のみ
-  （プロダクションコードでは使わず、テストヘルパー
-  [../src/app/testing/panel-drag-recovery.ts](../src/app/testing/panel-drag-recovery.ts)と各specでのみ使用）
+- `detectChanges()`は、作った直後のコンポーネントをその場で描いて中身を使う3か所だけ
+  （`panel-window.service`、`stamp-picker.service`、`bottom-sheet.service`）。
+  ほかはテストヘルパー[../src/app/testing/panel-drag-recovery.ts](../src/app/testing/panel-drag-recovery.ts)と各specでのみ使用
 - `@SyncObject`由来の値をtemplateでリアクティブに使うときは必ず
   `versionOf(identifier)()` / `collectionOf(aliasName)()`を読んで依存配線する
 - `input.required<T>()`の値をテンプレート以外で読むときは`_initialized`フラグ等で
   ガードしてNG0950を避ける
+- effectで別のsignalに書き込まない。導ける値は`computed`、利用者が書き換えられる値は`linkedSignal`にする
+- 描画待ちは`setTimeout`でなく`afterNextRender`。`ngAfterViewInit` / `ngOnDestroy` / `@Output`は使わず、
+  `afterNextRender` / `DestroyRef` / `output()`で書く
 
 ### イベント購読
 
 - `ObjectChangeService.onObjectChangedFor()` / `onObjectChangedForAlias()`を使う
-- 生の`objectChanged$.subscribe()` + 個別identifierフィルタは段階的に置き換え
+- 生の`objectChanged$.subscribe()`は書かない。すべての変更を聞く必要がある3か所だけが理由をJSDocに書いて残している
 - 詳細な使用例は[architecture.md#イベント購読パターン](architecture.md#イベント購読パターン)を参照
 
 ### feature副作用
@@ -56,10 +59,17 @@
 
 ### DI / ドメインモデル
 
-- ドメインモデル（`@SyncObject`クラス）からDIサービスを呼ぶ箇所を**新規で増やさない**
-- サービス側からモデルを操作する向きを保つ
-- やむを得ない場合は`ServiceLocator.get<T>(token)`
-  （[../src/app/core/di/service-locator.ts](../src/app/core/di/service-locator.ts)）を使うが、現状1箇所のみ
+- ドメインモデル（`@SyncObject`クラス）からDIサービスを呼ばない
+- サービス側からモデルを操作する向きを保つ。DIの外の純関数が要る値は、呼び出し側が引数で渡す
+- Angularが作るクラスは、プロセスに1つの部品（`ObjectStore`、`ImageStorage`等）を`.instance`で読まず`inject()`で受け取る（ESLintで検査）。
+  同期される`Config` / `ChatTabList` / `DataSummarySetting` / `TurnState`は`.instance`のまま読む
+- オーバーレイの部品（パネルの枠・モーダル・右クリックメニュー等）は`application/ui/overlay-components.ts`のトークンで受け取る
+
+### 横断の部品
+
+- localStorageは`readLocal` / `writeLocal`で読み書きし、キーは`STORAGE_KEYS`に足す。キーの文字列は変えない
+- タイマーでまとめる処理は`debounce` / `coalesce`、待つ処理は`delay`を使う
+- ほかの部品は[architecture.md#横断の部品](architecture.md#横断の部品)にある。同じ処理の写しを作らない
 
 ## コメント・テスト名の言語
 
@@ -91,7 +101,7 @@
 - **相対パスimport禁止**: `no-restricted-imports`で`^\.`を拒否。
   必ずパスエイリアス(`@axe/*` / `@env/*`)を使う
 - **層境界の自動検査**: `no-restricted-imports`で各レイヤーの逆流importをerror化
-- **feature間のimportは台帳制**: `eslint.config.ts`の`FEATURE_DEPENDENCIES`に載っている辺と`panels`だけ許す（台帳にない`mobile`と`button-guide`からのimportは制限しない）。新しい辺を足すときは台帳に書く（減らす方向で）
+- **feature間のimportは台帳制**: `eslint.config.ts`の`FEATURE_DEPENDENCIES`に載っている辺と`panels`だけ許す。`import()`による遅延importも同じ台帳で検査する（`panels`からの遅延importは除く）。新しい辺を足すときは台帳に書く（減らす方向で）。台帳が循環すると設定の読み込みで失敗する
   - 詳細: [architecture.md#@axe/core/\*](architecture.md#axecore)以降の各層 / [../eslint.config.ts](../eslint.config.ts)
 - **Tailwind class整列**: `eslint-plugin-better-tailwindcss`でcanonical変換 / 並び替え / 改行整形
 
