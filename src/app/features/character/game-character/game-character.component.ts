@@ -122,11 +122,7 @@ import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SeeThroughDirective } from '@axe/ui/directives/see-through.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
-import {
-  makeBillboardTransform,
-  makeLabelOrbitTransform,
-  makeScreenLiftTransform,
-} from '@axe/ui/tabletop/billboard-transform';
+import { makeBillboardTransform, makeScreenLiftTransform } from '@axe/ui/tabletop/billboard-transform';
 import { makeMultiAngleCurvedName } from '@axe/ui/tabletop/multi-angle-curved-name';
 import {
   makeMultiAngleBuffOrbit,
@@ -134,6 +130,7 @@ import {
   MAX_MULTI_ANGLE_RESOURCE_GAUGES,
 } from '@axe/ui/tabletop/multi-angle-orbit-decoration';
 import { pieceImageView } from '@axe/ui/tabletop/piece-image-view';
+import { pieceLabelFacings } from '@axe/ui/tabletop/piece-label-facings';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { translateZCss, Z_OFFSET_TALL_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -565,11 +562,11 @@ export class GameCharacterComponent {
     () => this.ridingCard().length > 0 && !this.multiAngleNameOrbitEnabled()
   );
 
-  readonly ridingOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.ridingOrbit()));
+  readonly ridingOrbitFacing = computed<BillboardFacing>(() => this.labels.stand(this.ridingOrbit()));
 
   private ridingOrbit(): BillboardFacing {
     if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize - 17)}px)`);
-    return this.labelOrbitFacing(RIDING_CARD_LIFT_PX + this.ridingCardRise(), RIDING_CARD_LIFT_2D_PX);
+    return this.labels.orbit(RIDING_CARD_LIFT_PX + this.ridingCardRise(), RIDING_CARD_LIFT_2D_PX);
   }
 
   readonly ridingStackFacing = computed<BillboardFacing>(() =>
@@ -906,6 +903,11 @@ export class GameCharacterComponent {
     return this.tabletopService.mode2d();
   });
 
+  private readonly labels = pieceLabelFacings({
+    mode2d: () => this.mode2dEnabled(),
+    widthPx: () => this.size() * this.gridSize,
+  });
+
   /** What the room asks of a piece that has to show which way it faces. */
   readonly facingMark = computed<TableFacingMark>(() => {
     const table = this.tabletopService.currentTable;
@@ -948,22 +950,6 @@ export class GameCharacterComponent {
     const gauge = this.multiAngleResourceGaugeLayout();
     return gauge.segments.length > 0 ? baseOffset + gauge.strokeWidth : baseOffset;
   });
-
-  private labelOrbitFacing(distance3d: number, distance2d: number): BillboardFacing {
-    const mode2d = this.mode2dEnabled();
-    return (rotation) => makeLabelOrbitTransform({ rotation, distance3d, distance2d, mode2d });
-  }
-
-  /**
-   * Where a label hangs from, counted from the middle of the piece's ground.
-   *
-   * The part that moves the label out from the piece is bound to the element itself rather than
-   * added in the template, so the whole of its transform is written by the frame.
-   */
-  private labelStandFacing(orbit: BillboardFacing): BillboardFacing {
-    const stand = `translateX(-50%) translateX(${(this.size() * this.gridSize) / 2}px) `;
-    return (rotation) => stand + orbit(rotation);
-  }
 
   /** What a stack of labels above a piece is turned by, the billboard and the scale it is drawn at. */
   private labelStackFacing(billboard: BillboardFacing): BillboardFacing {
@@ -1086,11 +1072,11 @@ export class GameCharacterComponent {
     this.labelStackFacing(this.isPoster() ? NOT_TURNED : this.billboardFacing(56))
   );
 
-  readonly floatOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.floatOrbit()));
+  readonly floatOrbitFacing = computed<BillboardFacing>(() => this.labels.stand(this.floatOrbit()));
 
   private floatOrbit(): BillboardFacing {
     if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 20)}px)`);
-    return this.labelOrbitFacing(56, 96);
+    return this.labels.orbit(56, 96);
   }
 
   private readonly gaugePanelHeightEstimate = computed(() =>
@@ -1101,22 +1087,22 @@ export class GameCharacterComponent {
     this.isPoster() ? NOT_TURNED : this.billboardFacing(GAUGE_STACK_GAP_PX + this.gaugePanelHeightEstimate() / 2)
   );
 
-  readonly gaugeOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.gaugeOrbit()));
+  readonly gaugeOrbitFacing = computed<BillboardFacing>(() => this.labels.stand(this.gaugeOrbit()));
 
   private gaugeOrbit(): BillboardFacing {
     if (this.isPoster())
       return facesAlways(`translateY(${-(this.size() * this.gridSize + 8 + this.gaugePanelHeightEstimate())}px)`);
-    return this.labelOrbitFacing(
+    return this.labels.orbit(
       GAUGE_STACK_GAP_PX + this.gaugePanelHeightEstimate(),
       64 + this.gaugePanelHeightEstimate()
     );
   }
 
-  readonly nameOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.nameOrbit()));
+  readonly nameOrbitFacing = computed<BillboardFacing>(() => this.labels.stand(this.nameOrbit()));
 
   private nameOrbit(): BillboardFacing {
     if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 5)}px)`);
-    return this.labelOrbitFacing(30, 60);
+    return this.labels.orbit(30, 60);
   }
 
   readonly multiAngleNameOrbitEnabled = computed(() => {
@@ -1227,15 +1213,12 @@ export class GameCharacterComponent {
     () => -this.multiAnglePiecePhase() * this.multiAnglePieceRotationAnimation().durationSeconds
   );
 
-  readonly buffOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.buffOrbit()));
+  readonly buffOrbitFacing = computed<BillboardFacing>(() => this.labels.stand(this.buffOrbit()));
 
   private buffOrbit(): BillboardFacing {
     if (this.isPoster())
       return facesAlways(`translateY(${-(this.size() * this.gridSize + 12 + this.gaugePanelHeightEstimate())}px)`);
-    return this.labelOrbitFacing(
-      BUFF_STACK_GAP_PX + this.gaugePanelHeightEstimate(),
-      68 + this.gaugePanelHeightEstimate()
-    );
+    return this.labels.orbit(BUFF_STACK_GAP_PX + this.gaugePanelHeightEstimate(), 68 + this.gaugePanelHeightEstimate());
   }
 
   /** The columns the buff icons are laid out in, the same count the panel's height is reckoned by. */
@@ -1306,13 +1289,13 @@ export class GameCharacterComponent {
       (this.isTargeted() ? TARGET_MARK_HEIGHT_PX : 0)
   );
 
-  readonly speechOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.speechOrbit()));
+  readonly speechOrbitFacing = computed<BillboardFacing>(() => this.labels.stand(this.speechOrbit()));
 
   private speechOrbit(): BillboardFacing {
     const lift = this.speechLift();
     if (this.isPoster())
       return facesAlways(`translateY(${-(this.size() * this.gridSize + 12 + lift - BUFF_STACK_GAP_PX)}px)`);
-    return this.labelOrbitFacing(lift, 28 + lift);
+    return this.labels.orbit(lift, 28 + lift);
   }
 
   readonly speechStackFacing = computed<BillboardFacing>(() =>
