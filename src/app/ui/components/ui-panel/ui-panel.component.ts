@@ -27,8 +27,6 @@ import { PanelDropZone, pointerOf, tearOffBox } from '@axe/application/ui/panel-
 import { PanelTransparencyService } from '@axe/application/ui/panel-transparency.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
-import { ObjectStore } from '@axe/core/sync/object-store';
-import { CutIn } from '@axe/domain/media/cut-in';
 import { holdLiveState } from '@axe/ui/components/ui-panel/live-state';
 import { PanelTabSlotComponent } from '@axe/ui/components/ui-panel/panel-tab-slot.component';
 import { PanelTabStripComponent } from '@axe/ui/components/ui-panel/panel-tab-strip.component';
@@ -81,7 +79,6 @@ interface PanelTab extends PanelTabHandle {
 export class UIPanelComponent implements PanelFrame, PanelDropFrame {
   panelService = inject(PanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
-  private readonly objectStore = inject(ObjectStore);
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly viewport = inject(ViewportService);
@@ -457,9 +454,9 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
         const ground = this.scrollablePanel();
         if (ground) this.panelService.setDefaultScrollablePanel(ground.nativeElement);
         this.clampPanelToViewport(this.draggablePanel().nativeElement);
-        if (this.panelService.cutInIdentifier) {
+        if (this.panelService.leastSize) {
           this.timerCheckWindowSize = setInterval(() => {
-            this.chkeWindowMinSize();
+            this.keepLeastSize();
           }, 500);
         }
       },
@@ -636,27 +633,24 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
   }
 
   /**
-   * Keeps a cut-in panel playing a video at least as large as the video needs, and pulls it
-   * back inside the window.
+   * Keeps the panel at least as large as its content needs, and pulls it back inside the window.
    *
-   * Polled every half second for cut-in panels; does nothing for a cut-in without a video.
+   * Polled every half second for a panel whose content names a least size; does nothing while it
+   * needs none.
    */
-  chkeWindowMinSize() {
-    const id = this.panelService.cutInIdentifier;
-    if (!id) return;
-    const cutIn = this.objectStore.get<CutIn>(id);
-    if (!cutIn) return;
-    if (!cutIn.videoId) return;
+  private keepLeastSize() {
+    const least = this.panelService.leastSize?.();
+    if (!least) return;
 
     const panel = this.draggablePanel().nativeElement;
 
     const nowW = parseInt(panel.style.width);
     const nowH = parseInt(panel.style.height);
-    if (nowW < cutIn.minSizeWidth(true)) {
-      panel.style.width = cutIn.minSizeWidth(true) + 'px';
+    if (nowW < least.width) {
+      panel.style.width = least.width + 'px';
     }
-    if (nowH < cutIn.minSizeHeight(true)) {
-      panel.style.height = cutIn.minSizeHeight(true) + 'px';
+    if (nowH < least.height) {
+      panel.style.height = least.height + 'px';
     }
     const winW = window.innerWidth;
     const winH = window.innerHeight;
@@ -664,13 +658,13 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
     const offsetL: number = panel.offsetLeft;
     const offsetT: number = panel.offsetTop;
 
-    const overR = offsetL + cutIn.minSizeWidth(true) - winW;
+    const overR = offsetL + least.width - winW;
     if (overR >= 0) {
       const newOffL = offsetL - overR <= 0 ? 0 : offsetL - overR;
       panel.style.left = newOffL + 'px';
     }
 
-    const overB = offsetT + cutIn.minSizeHeight(true) - winH;
+    const overB = offsetT + least.height - winH;
     if (overB >= 0) {
       const newOffT = offsetT - overB <= 0 ? 0 : offsetT - overB;
       panel.style.top = newOffT + 'px';
@@ -706,17 +700,11 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
    *
    * It folds to its bar, as every panel does. A panel shrunk to its content is let out again
    * instead, and one that asked for it shrinks to its content rather than folding. Does nothing
-   * in full screen or for a cut-in playing a video.
+   * in full screen or while the content needs a least size.
    */
   toggleMinimize() {
     if (this.isFullScreen()) return;
-    const id = this.panelService.cutInIdentifier;
-    if (id) {
-      const cutIn = this.objectStore.get<CutIn>(id);
-      if (cutIn?.videoId) {
-        return;
-      }
-    }
+    if (this.panelService.leastSize?.()) return;
 
     if (this.isShrunk()) {
       this.setShrunk(false);
@@ -922,11 +910,5 @@ export class UIPanelComponent implements PanelFrame, PanelDropFrame {
     }
     if (this.tabs().length > 0) this.self?.destroy();
     else this.panelService.close();
-  }
-
-  /** Inline CSS for a chat log background: plain white, or the default parchment gradient. */
-  backGroundSetting(isWhiteLog: boolean): string {
-    if (isWhiteLog) return 'background: linear-gradient(-30deg, rgba(255,255,255, 1.0), rgba(255, 255, 255, 1.0)); ';
-    else return 'background: linear-gradient(-30deg, rgba(240,218,189, 0.9), rgba(255, 244, 232, 0.9));';
   }
 }

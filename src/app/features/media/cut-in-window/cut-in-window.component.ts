@@ -74,7 +74,6 @@ export class CutInWindowComponent {
   /** This window's own scene sounds, so closing it says nothing about anyone else's. */
   private sceneSound: CutInSoundHandle | null = null;
   private cutInTimeOut: ReturnType<typeof setTimeout> | null = null;
-  timerCheckWindowSize: ReturnType<typeof setTimeout> | null = null;
   private resolveFirstRender: (() => void) | null = null;
   private readonly firstRender = new Promise<void>((resolve) => {
     this.resolveFirstRender = resolve;
@@ -148,10 +147,6 @@ export class CutInWindowComponent {
       if (this.cutInTimeOut) {
         clearTimeout(this.cutInTimeOut);
         this.cutInTimeOut = null;
-      }
-      if (this.timerCheckWindowSize) {
-        clearTimeout(this.timerCheckWindowSize);
-        this.timerCheckWindowSize = null;
       }
       if (this._timeoutIdVideo) {
         clearTimeout(this._timeoutIdVideo);
@@ -333,20 +328,6 @@ export class CutInWindowComponent {
     this.panelService.height = this.height;
     this.panelService.left = this.left;
     this.panelService.top = this.top;
-  }
-
-  /**
-   * Grows the panel to the minimum size a video cut-in needs; does nothing for a cut-in without a
-   * video.
-   */
-  chkeWindowMinSize() {
-    if (!this.cutIn || !this.videoId) return;
-    if (this.panelService.width < this.cutIn.minSizeWidth(true)) {
-      this.panelService.width = this.cutIn.minSizeWidth(true);
-    }
-    if (this.panelService.height < this.cutIn.minSizeHeight(true)) {
-      this.panelService.height = this.cutIn.minSizeHeight(true);
-    }
   }
 
   /** The YouTube video the cut-in plays, or empty when it plays none. */

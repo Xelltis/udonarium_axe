@@ -48,6 +48,12 @@ export interface PanelFrameControl {
   shown?: () => boolean;
 }
 
+/** A panel's size in pixels. */
+export interface PanelSize {
+  readonly width: number;
+  readonly height: number;
+}
+
 export interface PanelOption {
   title?: string;
   left?: number;
@@ -63,6 +69,12 @@ export interface PanelOption {
   invisible?: boolean;
   minimizeToContent?: boolean;
   frameless?: boolean;
+  /**
+   * The least size the panel's content needs as it stands, which the frame keeps the panel at and
+   * inside the window and which keeps it from being folded; null while it needs none. Asked again
+   * every half second, since what the content shows may change.
+   */
+  leastSize?: () => PanelSize | null;
 
   /**
    * Whether this panel is being drawn in a window of its own rather than on the table.
@@ -148,7 +160,8 @@ type PanelServiceAssignableKey =
   | 'cutInIdentifier'
   | 'invisible'
   | 'minimizeToContent'
-  | 'frameless';
+  | 'frameless'
+  | 'leastSize';
 
 @Injectable()
 export class PanelService {
@@ -204,6 +217,8 @@ export class PanelService {
    */
   minimizeToContent: boolean = false;
   frameless: boolean = false;
+  /** The least size the panel's content needs, as {@link PanelOption.leastSize} gives it; null for none. */
+  leastSize: (() => PanelSize | null) | null = null;
   /** Whether the panel is folded to its title bar. */
   readonly isMinimized = signal(false);
   /** Whether the panel is shrunk to its content, which the content asks for with `shrinkRequest$`. */
@@ -496,7 +511,15 @@ export class PanelService {
       panelComponentRef.setInput(key, value);
     }
 
-    const serviceOnly = ['isCutIn', 'cutInIdentifier', 'invisible', 'minimizeToContent', 'frameless', 'layer'] as const;
+    const serviceOnly = [
+      'isCutIn',
+      'cutInIdentifier',
+      'invisible',
+      'minimizeToContent',
+      'frameless',
+      'layer',
+      'leastSize',
+    ] as const;
     for (const key of serviceOnly) {
       const value = adjusted[key];
       if (value === undefined) continue;

@@ -76,6 +76,23 @@ describe('CutInEventHandlerService', () => {
     expect(componentMock.startCutIn).toHaveBeenCalled();
   });
 
+  it('keeps the panel at the least size a video needs while the cut-in in the room plays one', () => {
+    const cutIn = new CutIn('cut-video');
+    cutIn.initialize();
+    cutIn.isVideoCutIn = true;
+    cutIn.videoUrl = 'https://youtu.be/youtube123';
+
+    emitStartCutIn({ cutIn });
+    const leastSize = panelStub.open.mock.calls[0][1].leastSize as () => unknown;
+
+    expect(leastSize()).toEqual({ width: cutIn.minSizeWidth(true), height: cutIn.minSizeHeight(true) });
+    cutIn.isVideoCutIn = false;
+    expect(leastSize()).toBeNull();
+    cutIn.isVideoCutIn = true;
+    cutIn.destroy();
+    expect(leastSize()).toBeNull();
+  });
+
   it('leaves room above a framed cut-in for the title bar', () => {
     emitStartCutIn({ cutIn: makeCutIn() });
 

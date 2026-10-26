@@ -353,16 +353,6 @@ describe('CutInWindowComponent', () => {
       expect(priv.cutInTimeOut).toBeNull();
     });
 
-    it('clears the window size timer on teardown', () => {
-      const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
-      component.timerCheckWindowSize = setTimeout(() => {}, 999_999);
-
-      fixture.destroy();
-
-      expect(clearTimeoutSpy).toHaveBeenCalled();
-      expect(component.timerCheckWindowSize).toBeNull();
-    });
-
     it('clears the video timer on teardown', () => {
       const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
       const priv = component as unknown as { _timeoutIdVideo: ReturnType<typeof setTimeout> | null };

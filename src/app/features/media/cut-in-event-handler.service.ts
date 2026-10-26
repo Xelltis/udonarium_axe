@@ -3,10 +3,11 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { LOAD_FAILURE_NOTICE } from '@axe/application/ui/overlay-components';
-import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
+import { PanelOption, PanelService, PanelSize } from '@axe/application/ui/panel.service';
 import { Logger } from '@axe/core/logging/logger';
 import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { CutIn, cutInPanelChrome } from '@axe/domain/media/cut-in';
 import type { CutInSpeaker } from '@axe/domain/media/cut-in-speaker';
 import { mixLevelOf } from '@axe/domain/media/mix-level';
@@ -33,6 +34,7 @@ export class CutInEventHandlerService {
   private readonly tabletopService = inject(TabletopService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly loadWindow = inject(CUT_IN_WINDOW_LOADER);
+  private readonly objectStore = inject(ObjectStore);
 
   private readonly soundOnlyPlayer = new AudioPlayer();
 
@@ -168,6 +170,7 @@ export class CutInEventHandlerService {
         rotationDegrees: face.rotationDegrees,
         isCutIn: true,
         cutInIdentifier: cutIn.identifier,
+        leastSize: () => this.videoLeastSize(cutIn.identifier),
         frameless: cutIn.frameless,
       };
 
@@ -227,6 +230,7 @@ export class CutInEventHandlerService {
       top: (marginH * cutIn.y_pos) / 100,
       isCutIn: true,
       cutInIdentifier: cutIn.identifier,
+      leastSize: () => this.videoLeastSize(cutIn.identifier),
       invisible,
       frameless: cutIn.frameless,
     };
@@ -236,5 +240,15 @@ export class CutInEventHandlerService {
     component.speaker = speaker;
     component.forceNoLoop = invisible;
     component.startCutIn();
+  }
+
+  /**
+   * The least size a cut-in's panel needs while the cut-in plays a video, for the frame to keep it
+   * at; null for a cut-in that plays none, or one no longer in the room.
+   */
+  private videoLeastSize(identifier: string): PanelSize | null {
+    const cutIn = this.objectStore.get<CutIn>(identifier);
+    if (!cutIn?.videoId) return null;
+    return { width: cutIn.minSizeWidth(true), height: cutIn.minSizeHeight(true) };
   }
 }
