@@ -33,6 +33,7 @@ import { EngagementZoneService, ZoneMenuModel } from '@axe/application/tabletop/
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
 import { RideMenuModel, RideService } from '@axe/application/tabletop/ride.service';
@@ -324,6 +325,7 @@ export class GameCharacterComponent {
   private readonly effectPlayback = inject(EffectPlaybackService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly engagementZones = inject(EngagementZoneService);
+  private readonly links = inject(PieceLinksService);
   private readonly ride = inject(RideService);
   private readonly stealth = inject(StealthService);
   private readonly resourceSliders = inject(ResourceSliderService);
@@ -2086,7 +2088,7 @@ export class GameCharacterComponent {
   private settlePutDown() {
     const character = this.gameCharacter();
     if (!character) return;
-    this.engagementZones.carryBound(character);
+    this.links.carryBound(character);
     this.ride.afterPutDown(character);
     this.triggerFire.putDown(character);
     this.engagementZones.offerFight(character);

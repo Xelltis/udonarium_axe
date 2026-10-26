@@ -3,7 +3,8 @@ import { CharacterMacroService } from '@axe/application/chat/character-macro.ser
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
-import { EngagementZoneService, metresPerCell } from '@axe/application/tabletop/engagement-zone.service';
+import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -42,6 +43,7 @@ import {
 } from '@axe/domain/tabletop/ride/ride-rules';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { metresPerCell } from '@axe/domain/tabletop/zone/zone-queries';
 import { resolveZoneRules } from '@axe/domain/tabletop/zone/zone-rules';
 
 /** Why a piece lying where it fell may not get up just now: it fell in its own turn, which is not over. */
@@ -117,6 +119,7 @@ export class RideService {
   private readonly objectStore = inject(ObjectStore);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly zones = inject(EngagementZoneService);
+  private readonly links = inject(PieceLinksService);
   private readonly chat = inject(ChatMessageService);
   private readonly macro = inject(CharacterMacroService);
   private readonly rolePermission = inject(RolePermissionService);
@@ -126,7 +129,7 @@ export class RideService {
 
   /** The mount a piece rides, where it is on the table and still a mount; null otherwise. */
   mountOf(piece: GameCharacter): GameCharacter | null {
-    return this.zones.mountOf(piece);
+    return this.links.mountOf(piece);
   }
 
   /** Where a piece rides its mount, or null where it rides none. */
@@ -261,7 +264,7 @@ export class RideService {
       piece.rideLeftFrom = '';
       piece.rideLeftSeat = '';
     });
-    this.zones.carryBound(mount);
+    this.links.carryBound(mount);
     this.chat.sendSystemNotice(
       'movement',
       this.t(`feature.ride.chat.on_${seat}`, {
@@ -308,17 +311,17 @@ export class RideService {
     const mount = this.mountOf(piece);
     if (!mount) {
       if (piece.mountable === '1') {
-        this.zones.carryBound(piece);
+        this.links.carryBound(piece);
         this.dropLeftBehind(piece);
       }
       return;
     }
     if (this.isOn(piece, mount)) {
-      this.zones.carryBound(mount);
+      this.links.carryBound(mount);
       return;
     }
     if (this.dismount(piece)) return;
-    this.zones.carryBound(mount);
+    this.links.carryBound(mount);
     this.snackbar.show(this.t('feature.ride.stayedOn', { name: piece.name, mount: mount.name }));
   }
 

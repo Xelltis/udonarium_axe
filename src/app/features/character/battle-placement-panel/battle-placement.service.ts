@@ -3,6 +3,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -40,6 +41,7 @@ export class BattlePlacementService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly zones = inject(EngagementZoneService);
+  private readonly links = inject(PieceLinksService);
   private readonly chat = inject(ChatMessageService);
   private readonly t = inject(TRANSLATE_FN);
 
@@ -127,7 +129,7 @@ export class BattlePlacementService {
 
     const everyone = this.pieces();
     const sides = new Map(everyone.map((entry) => [entry.piece.identifier, entry.side]));
-    const anchorOf = new Map(everyone.map((entry) => [entry.piece.identifier, this.zones.anchorOf(entry.piece)]));
+    const anchorOf = new Map(everyone.map((entry) => [entry.piece.identifier, this.links.anchorOf(entry.piece)]));
     const groupOf = (side: string, first: GameCharacter) => {
       const group = [anchorOf.get(first.identifier) ?? first];
       for (const entry of everyone) {
@@ -167,7 +169,7 @@ export class BattlePlacementService {
         piece.zoneLeaveRound = '';
       }
     });
-    for (const spot of spots) this.zones.carryBound(spot.character);
+    for (const spot of spots) this.links.carryBound(spot.character);
     for (const spot of spots) this.objectChange.notifyChanged(spot.character.identifier);
     if (spots.length > 0) SoundEffect.play(PresetSound.piecePut);
     return spots.length > 0;

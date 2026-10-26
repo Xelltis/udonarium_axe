@@ -1,12 +1,7 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import {
-  EngagementZoneService,
-  metresPerCell,
-  ZoneMoveLimits,
-  ZoneMoveStart,
-} from '@axe/application/tabletop/engagement-zone.service';
+import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { InterruptOutcome, MoveInterruptService } from '@axe/application/tabletop/move-interrupt.service';
 import {
   kindToChangeTo,
@@ -18,6 +13,7 @@ import {
   UnstoppableBand,
   unstoppableBandOf,
 } from '@axe/application/tabletop/move-plan-common';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -34,6 +30,7 @@ import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { resolveRoomRules, RoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
+import { metresPerCell, ZoneMoveLimits, ZoneMoveStart } from '@axe/domain/tabletop/zone/zone-queries';
 
 /**
  * How far short of a face a leg stops, in pixels, so a piece put down on whole pixels does not land
@@ -85,6 +82,7 @@ export class FreeMovePlanService {
   private readonly objectStore = inject(ObjectStore);
   private readonly pieceStep = inject(PieceStepService);
   private readonly zones = inject(EngagementZoneService);
+  private readonly links = inject(PieceLinksService);
   private readonly interrupts = inject(MoveInterruptService);
   private readonly ride = inject(RideService);
   private readonly objectChange = inject(ObjectChangeService);
@@ -301,7 +299,7 @@ export class FreeMovePlanService {
     SoundEffect.play(PresetSound.piecePut);
     const start = this.zoneStart;
     this.close();
-    this.zones.carryBound(character);
+    this.links.carryBound(character);
     this.ride.dropLeftBehind(character);
     if (start) this.zones.afterMove(character, start);
     if (stopped) {

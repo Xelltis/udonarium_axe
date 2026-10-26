@@ -2,11 +2,7 @@ import { computed, effect, inject, Injectable, signal, untracked } from '@angula
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import {
-  EngagementZoneService,
-  metresPerCell,
-  ZoneInterrupters,
-} from '@axe/application/tabletop/engagement-zone.service';
+import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { generateUuid } from '@axe/core/util/uuid';
@@ -37,6 +33,7 @@ import {
   spansWithin,
 } from '@axe/domain/tabletop/zone/interrupt';
 import { zoneCovers } from '@axe/domain/tabletop/zone/zone-geometry';
+import { metresPerCell, ZoneInterrupters } from '@axe/domain/tabletop/zone/zone-queries';
 
 /** How long a declared move waits for the room's answers before it goes on with those it has. */
 export const INTERRUPT_WAIT_MS = 15000;

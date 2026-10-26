@@ -1,7 +1,7 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { EngagementZoneService, metresPerCell, ZoneMoveStart } from '@axe/application/tabletop/engagement-zone.service';
+import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { InterruptOutcome, MoveInterruptService } from '@axe/application/tabletop/move-interrupt.service';
 import {
   kindToChangeTo,
@@ -14,6 +14,7 @@ import {
   unstoppableBandOf,
 } from '@axe/application/tabletop/move-plan-common';
 import { MoveRangeService, ReachTerms } from '@axe/application/tabletop/move-range.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -41,6 +42,7 @@ import { walkedPath } from '@axe/domain/tabletop/move/walked-path';
 import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { indexAtLength } from '@axe/domain/tabletop/zone/interrupt';
+import { metresPerCell, ZoneMoveStart } from '@axe/domain/tabletop/zone/zone-queries';
 
 /** Where in a square a piece is put down, rather than in the middle of it. */
 export interface MoveLanding {
@@ -137,6 +139,7 @@ export class MovePlanService {
   private readonly tableSelecter = inject(TableSelecter);
   private readonly objectStore = inject(ObjectStore);
   private readonly zones = inject(EngagementZoneService);
+  private readonly links = inject(PieceLinksService);
   private readonly interrupts = inject(MoveInterruptService);
   private readonly ride = inject(RideService);
   private readonly objectChange = inject(ObjectChangeService);
@@ -690,7 +693,7 @@ export class MovePlanService {
     SoundEffect.play(PresetSound.piecePut);
     const start = this.zoneStart;
     this.close();
-    this.zones.carryBound(character);
+    this.links.carryBound(character);
     this.ride.dropLeftBehind(character);
     // A shift within the square a piece stands on goes nowhere the move counts, so it neither
     // leaves a zone nor enters one, and offers nothing where it stands.
