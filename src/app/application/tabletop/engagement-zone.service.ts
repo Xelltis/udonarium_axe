@@ -3,6 +3,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
+import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnHooksService } from '@axe/application/turn/turn-hooks.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
@@ -20,7 +21,6 @@ import { MoveKind, moveKindNamed, parseMoveKinds } from '@axe/domain/tabletop/mo
 import { boundBelow, boundTo } from '@axe/domain/tabletop/move/piece-bonds';
 import { pieceCentreOf, pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import { frontRidersOf } from '@axe/domain/tabletop/ride/ride-rules';
-import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { TurnState } from '@axe/domain/tabletop/turn-state';
@@ -42,7 +42,7 @@ import {
   ZoneSnapshot,
   ZoneTable,
 } from '@axe/domain/tabletop/zone/zone-queries';
-import { DEFAULT_ZONE_RULES, resolveZoneRules, ZoneRules } from '@axe/domain/tabletop/zone/zone-rules';
+import { DEFAULT_ZONE_RULES, ZoneRules } from '@axe/domain/tabletop/zone/zone-rules';
 import { sideOfPiece } from '@axe/domain/tabletop/zone/zone-sides';
 import {
   hasZoneWrites,
@@ -122,6 +122,7 @@ export interface ZoneReading {
 @Injectable({ providedIn: 'root' })
 export class EngagementZoneService {
   private readonly objectStore = inject(ObjectStore);
+  private readonly roomRules = inject(RoomRulesService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly chat = inject(ChatMessageService);
@@ -134,7 +135,7 @@ export class EngagementZoneService {
   /** The rules the room plays zones by. */
   readonly rules = computed<ZoneRules>(() => {
     this.objectChange.versionOf('Config')();
-    return resolveZoneRules(this.config()?.zoneRuleAnswers ?? null);
+    return this.roomRules.zoneRules();
   });
 
   /** The zones on the table in view, worked out from who is in them. */
@@ -791,7 +792,7 @@ export class EngagementZoneService {
     const parties = this.objectStore
       .getObjects<Party>(Party)
       .map((party) => ({ identifier: party.identifier, alliedWith: party.alliedWith }));
-    const roomRules = resolveRoomRules(this.config()?.roomRuleAnswers ?? null, world.table);
+    const roomRules = this.roomRules.rulesFor(world.table);
     const sideOf = sideOfPiece(roomRules.hostilityBy, parties);
     const gridSize = world.table.gridSize;
     const onFloor = this.objectStore
@@ -961,11 +962,11 @@ export class EngagementZoneService {
   }
 
   private tableNow(): ZoneTable | null {
-    const rules = resolveZoneRules(this.config()?.zoneRuleAnswers ?? null);
+    const rules = this.roomRules.zoneRules();
     if (!rules.enabled) return null;
     const table = this.tableSelecter.viewTable;
     if (!table) return null;
-    const roomRules = resolveRoomRules(this.config()?.roomRuleAnswers ?? null, table);
+    const roomRules = this.roomRules.rulesFor(table);
     return { table, rules, pxPerMetre: squarePxOf(table) / metresPerCell(roomRules), snap: snapOn(table) };
   }
 

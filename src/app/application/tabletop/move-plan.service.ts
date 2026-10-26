@@ -17,10 +17,10 @@ import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
+import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
-import { Config } from '@axe/domain/peer/config';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCenterOf, CellGrid, cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -40,7 +40,6 @@ import {
 import { ReachTerms } from '@axe/domain/tabletop/move/reach-build';
 import { reachableCells } from '@axe/domain/tabletop/move/reachable-cells';
 import { walkedPath } from '@axe/domain/tabletop/move/walked-path';
-import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { indexAtLength } from '@axe/domain/tabletop/zone/interrupt';
 import { metresPerCell, ZoneMoveStart } from '@axe/domain/tabletop/zone/zone-queries';
@@ -136,6 +135,7 @@ export interface MovePlan {
 @Injectable({ providedIn: 'root' })
 export class MovePlanService {
   private readonly moveRange = inject(MoveRangeService);
+  private readonly roomRules = inject(RoomRulesService);
   private readonly pieceStep = inject(PieceStepService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly objectStore = inject(ObjectStore);
@@ -185,10 +185,7 @@ export class MovePlanService {
     const plan = this.held();
     if (!plan) return null;
     return moveKindBandOf(this.zones, pieceOfPlan(this.objectStore, plan), plan, () => {
-      const rules = resolveRoomRules(
-        this.objectStore.get<Config>('Config')?.roomRuleAnswers ?? null,
-        this.tableSelecter.viewTable
-      );
+      const rules = this.roomRules.rulesFor(this.tableSelecter.viewTable);
       return cellsFrom(Math.max(0, plan.budget - plan.spent)) * metresPerCell(rules);
     });
   });
@@ -527,10 +524,7 @@ export class MovePlanService {
    */
   private legRoom(left: number, jumping: boolean): number {
     if (!jumping) return left;
-    const rules = resolveRoomRules(
-      this.objectStore.get<Config>('Config')?.roomRuleAnswers ?? null,
-      this.tableSelecter.viewTable
-    );
+    const rules = this.roomRules.rulesFor(this.tableSelecter.viewTable);
     const leap = Math.max(0, Math.floor(rules.jumpCells));
     return leap > 0 ? Math.min(left, stepsFor(leap)) : left;
   }

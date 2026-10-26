@@ -7,6 +7,7 @@ import { RoomSnapshotService } from '@axe/application/file/room-snapshot.service
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
@@ -63,7 +64,7 @@ import {
 } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { cellWidthInches, clampCellMm } from '@axe/domain/tabletop/physical-scale';
 import { DEFAULT_FALL_MIN_M } from '@axe/domain/tabletop/ride/ride-rules';
-import { isGroupAnswered, resolveRoomRules, RoomRuleGroup, RoomRules } from '@axe/domain/tabletop/room-rules';
+import { isGroupAnswered, RoomRuleGroup, RoomRules } from '@axe/domain/tabletop/room-rules';
 import { asTableFacingMark, TABLE_FACING_MARKS, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import {
@@ -81,7 +82,7 @@ import {
   TurnOrderMode,
 } from '@axe/domain/tabletop/turn-order-mode';
 import { describeSide, encodeFactionOrder, normalizeFactionOrder } from '@axe/domain/tabletop/turn-side';
-import { DEFAULT_ZONE_SIZES, resolveZoneRules } from '@axe/domain/tabletop/zone/zone-rules';
+import { DEFAULT_ZONE_SIZES } from '@axe/domain/tabletop/zone/zone-rules';
 import {
   ROOM_SETTINGS_TABS,
   ROOM_SETTINGS_UI_TABS,
@@ -128,6 +129,7 @@ type PiecePassageSide = 'samePartyPassage' | 'otherPartyPassage' | 'noPartyPassa
 })
 export class RoomSettingsPanelComponent {
   private readonly objectStore = inject(ObjectStore);
+  private readonly roomRules = inject(RoomRulesService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly rolePermission = inject(RolePermissionService);
@@ -527,7 +529,7 @@ export class RoomSettingsPanelComponent {
     this.objectChange.versionOf(this.tableSelecter.identifier)();
     const table = this.tableSelecter.viewTable;
     if (table) this.objectChange.versionOf(table.identifier)();
-    return resolveRoomRules(this.config.roomRuleAnswers, table);
+    return this.roomRules.rulesFor(table);
   }
 
   /** Whether the room has taken the group over from the table. */
@@ -1051,7 +1053,7 @@ export class RoomSettingsPanelComponent {
   /** How close two pieces stand, in metres, to be at the same point. */
   get zoneSamePointM(): number {
     this.objectChange.versionOf('Config')();
-    return resolveZoneRules(this.config.zoneRuleAnswers).samePointM;
+    return this.roomRules.zoneRules().samePointM;
   }
   set zoneSamePointM(value: number) {
     if (!this.isEditable) return;
@@ -1061,7 +1063,7 @@ export class RoomSettingsPanelComponent {
   /** How many times the other side's number one side has to be to walk past a zone, or out of it, unheld. */
   get zoneOutnumber(): number {
     this.objectChange.versionOf('Config')();
-    return resolveZoneRules(this.config.zoneRuleAnswers).outnumber;
+    return this.roomRules.zoneRules().outnumber;
   }
   set zoneOutnumber(value: number) {
     if (!this.isEditable) return;
@@ -1098,7 +1100,7 @@ export class RoomSettingsPanelComponent {
   /** How close to a line of fire, in metres, a piece out of every zone stands to be in its way. */
   get zoneBlockRadiusM(): number {
     this.objectChange.versionOf('Config')();
-    return resolveZoneRules(this.config.zoneRuleAnswers).blockRadiusM;
+    return this.roomRules.zoneRules().blockRadiusM;
   }
   set zoneBlockRadiusM(value: number) {
     if (!this.isEditable) return;

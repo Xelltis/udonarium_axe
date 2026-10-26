@@ -16,18 +16,18 @@ import {
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
+import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
-import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { GridType } from '@axe/domain/tabletop/game-table';
 import { MoveBlock, MovePoint } from '@axe/domain/tabletop/move/blocked-path';
 import { clipToLength, LegLimits, stepsAlong, terrainMoveBlocks, walkLeg } from '@axe/domain/tabletop/move/free-path';
 import { exactMoveCellsOf } from '@axe/domain/tabletop/move/move-cells';
 import { lengthByKind, moveKindNamed } from '@axe/domain/tabletop/move/move-kind';
 import { movingPointsAsRead, writeMovingPoints } from '@axe/domain/tabletop/move/moving-points';
 import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
-import { resolveRoomRules, RoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { metresPerCell, ZoneMoveLimits, ZoneMoveStart } from '@axe/domain/tabletop/zone/zone-queries';
@@ -79,6 +79,7 @@ interface FreeTerms {
 @Injectable({ providedIn: 'root' })
 export class FreeMovePlanService {
   private readonly tableSelecter = inject(TableSelecter);
+  private readonly roomRules = inject(RoomRulesService);
   private readonly objectStore = inject(ObjectStore);
   private readonly pieceStep = inject(PieceStepService);
   private readonly zones = inject(EngagementZoneService);
@@ -347,7 +348,7 @@ export class FreeMovePlanService {
   private termsOf(character: GameCharacter, kindName: string): FreeTerms | null {
     const table = this.tableSelecter.viewTable;
     if (!table || table.gridSize <= 0 || surfaceOf(character) !== 'floor') return null;
-    const rules = this.rulesOf(table);
+    const rules = this.roomRules.rulesFor(table);
     if (!rules.moveRangeEnabled) return null;
     const walk = exactMoveCellsOf(character, rules.moveRangeElementNames, rules.cellDistance, rules.cellDistanceUnit);
     if (walk === null || walk <= 0) return null;
@@ -367,11 +368,7 @@ export class FreeMovePlanService {
   private pxPerMetre(): number {
     const table = this.tableSelecter.viewTable;
     if (!table) return 0;
-    return table.gridSize / metresPerCell(this.rulesOf(table));
-  }
-
-  private rulesOf(table: GameTable): RoomRules {
-    return resolveRoomRules(this.config()?.roomRuleAnswers ?? null, table);
+    return table.gridSize / metresPerCell(this.roomRules.rulesFor(table));
   }
 
   private config(): Config | null {

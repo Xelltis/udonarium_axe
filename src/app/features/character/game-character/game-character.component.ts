@@ -37,6 +37,7 @@ import { PieceLinksService } from '@axe/application/tabletop/piece-links.service
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
 import { RideMenuModel, RideService } from '@axe/application/tabletop/ride.service';
+import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -109,7 +110,6 @@ import {
 } from '@axe/domain/tabletop/multi-angle';
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { RideSeat, seatOf } from '@axe/domain/tabletop/ride/ride-rules';
-import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { asTableFacingMark, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -292,6 +292,7 @@ const WATER_RIPPLE_LIFT_PX = 0.5;
 })
 export class GameCharacterComponent {
   private readonly contextMenuService = inject(ContextMenuService);
+  private readonly roomRules = inject(RoomRulesService);
   private readonly boardSwitches = inject(BoardSwitchService);
   private readonly concealment = inject(ConcealmentService);
   private readonly pieceContextMenu = inject(PieceContextMenuService);
@@ -877,8 +878,7 @@ export class GameCharacterComponent {
     const table = this.tabletopService.currentTable;
     this.objectChange.versionOf(table.identifier)();
     this.objectChange.versionOf('Config')();
-    const config = this.objectStore.get<Config>('Config') ?? null;
-    return resolveRoomRules(config?.roomRuleAnswers ?? null, table).pieceImageInCell;
+    return this.roomRules.rulesFor(table).pieceImageInCell;
   });
 
   readonly imageView = pieceImageView({
@@ -959,8 +959,7 @@ export class GameCharacterComponent {
     this.objectChange.versionOf(table.identifier)();
     this.objectChange.versionOf(this.tabletopService.tableSelecter.identifier)();
     this.objectChange.versionOf('Config')();
-    const config = this.objectStore.get<Config>('Config') ?? null;
-    const mark = asTableFacingMark(resolveRoomRules(config?.roomRuleAnswers ?? null, table).facingMark);
+    const mark = asTableFacingMark(this.roomRules.rulesFor(table).facingMark);
     // A piece that turns to face every side of a flat screen has no one facing to mark.
     const multiAngle = this.tabletopService.mode2d() && this.tabletopService.display().multiAngleEnabled;
     return mark === 'turn' && multiAngle ? 'none' : mark;

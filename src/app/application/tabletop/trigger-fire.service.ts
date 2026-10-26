@@ -5,17 +5,16 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { NamedCueService } from '@axe/application/media/named-cue.service';
 import { TableBgmService } from '@axe/application/media/table-bgm.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
+import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { newStatusAilment } from '@axe/domain/character/status-ailment';
 import { DataElement } from '@axe/domain/data/data-element';
-import { Config } from '@axe/domain/peer/config';
 import { cellCount, CellGrid } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { cheapestPath } from '@axe/domain/tabletop/move/cheapest-path';
 import { cellHolding, isSquareGrid, moveGridOf, tableCellsOf } from '@axe/domain/tabletop/move/move-grid';
 import { pieceCellOf, pieceCornerInSquare, pieceCornerOn, standsAt } from '@axe/domain/tabletop/move/piece-on-grid';
-import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableTrigger, triggersOn } from '@axe/domain/tabletop/table-trigger';
 import { rollTriggerAmount, triggerCatches, TriggerMoment, triggerPassTake } from '@axe/domain/tabletop/trigger-event';
@@ -44,6 +43,7 @@ export interface TriggerFiring {
 @Injectable({ providedIn: 'root' })
 export class TriggerFireService {
   private readonly tableSelecter = inject(TableSelecter);
+  private readonly roomRules = inject(RoomRulesService);
   private readonly chat = inject(ChatMessageService);
   private readonly ailments = inject(StatusAilmentService);
   private readonly moveRange = inject(MoveRangeService);
@@ -91,10 +91,7 @@ export class TriggerFireService {
    * have made. The two ends alone where the room has not asked, or where no such walk exists.
    */
   private carriedWay(piece: GameCharacter, grid: CellGrid, from: number, to: number): number[] {
-    const rules = resolveRoomRules(
-      this.objectStore.get<Config>('Config')?.roomRuleAnswers ?? null,
-      this.tableSelecter.viewTable
-    );
+    const rules = this.roomRules.rulesFor(this.tableSelecter.viewTable);
     if (!rules.handTracesWay) return [from, to];
     const terms = this.moveRange.termsOf(piece);
     if (!terms) return [from, to];

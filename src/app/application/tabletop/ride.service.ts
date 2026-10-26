@@ -5,6 +5,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
+import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -41,10 +42,8 @@ import {
   writeSeatHeight,
   writtenSeat,
 } from '@axe/domain/tabletop/ride/ride-rules';
-import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { metresPerCell } from '@axe/domain/tabletop/zone/zone-queries';
-import { resolveZoneRules } from '@axe/domain/tabletop/zone/zone-rules';
 
 /** Why a piece lying where it fell may not get up just now: it fell in its own turn, which is not over. */
 export type ProneRefusal = 'fellThisTurn';
@@ -117,6 +116,7 @@ export interface RideMenuModel {
 @Injectable({ providedIn: 'root' })
 export class RideService {
   private readonly objectStore = inject(ObjectStore);
+  private readonly roomRules = inject(RoomRulesService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly zones = inject(EngagementZoneService);
   private readonly links = inject(PieceLinksService);
@@ -238,7 +238,7 @@ export class RideService {
     if (mover.mountable !== '1' || !table || table.gridSize <= 0) return;
     let px = 0;
     for (let i = 1; i < way.length; i++) px += Math.hypot(way[i].x - way[i - 1].x, way[i].y - way[i - 1].y);
-    const rules = resolveRoomRules(this.config()?.roomRuleAnswers ?? null, table);
+    const rules = this.roomRules.rulesFor(table);
     const turn = this.turnMark();
     const before = turn !== '' && mover.rideMoveTurn === turn ? Number(mover.rideMoveM) || 0 : 0;
     const metres = before + (px / squarePxOf(table)) * metresPerCell(rules);
@@ -646,8 +646,8 @@ export class RideService {
   private samePointPx(): number {
     const table = this.tableSelecter.viewTable;
     if (!table) return 0;
-    const roomRules = resolveRoomRules(this.config()?.roomRuleAnswers ?? null, table);
-    const zoneRules = resolveZoneRules(this.config()?.zoneRuleAnswers ?? null);
+    const roomRules = this.roomRules.rulesFor(table);
+    const zoneRules = this.roomRules.zoneRules();
     return (zoneRules.samePointM * squarePxOf(table)) / metresPerCell(roomRules);
   }
 

@@ -1,6 +1,7 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
+import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -8,7 +9,6 @@ import { PERF_MOVE_REACH_BUILD, perfCounters } from '@axe/core/util/perf-counter
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Party } from '@axe/domain/party/party';
 import { allianceOf, PartyAlliance } from '@axe/domain/party/party-alliance';
-import { Config } from '@axe/domain/peer/config';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCount, CellGrid, cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -34,7 +34,7 @@ import {
 } from '@axe/domain/tabletop/move/reach-build';
 import { reachableCells } from '@axe/domain/tabletop/move/reachable-cells';
 import { inTheWayOf } from '@axe/domain/tabletop/ride/ride-rules';
-import { resolveRoomRules, RoomRules } from '@axe/domain/tabletop/room-rules';
+import { RoomRules } from '@axe/domain/tabletop/room-rules';
 import { moveCostsOn, TableMoveCost } from '@axe/domain/tabletop/table-move-cost';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
@@ -71,6 +71,7 @@ function gridKeyOf(grid: CellGrid): string {
 @Injectable({ providedIn: 'root' })
 export class MoveRangeService {
   private readonly tableSelecter = inject(TableSelecter);
+  private readonly roomRules = inject(RoomRulesService);
   private readonly objectStore = inject(ObjectStore);
   private readonly vision = inject(VisionService);
   private readonly selection = inject(SelectionSignalService);
@@ -107,7 +108,7 @@ export class MoveRangeService {
     this.standingPieces();
 
     if (!table) return null;
-    const rules = this.rulesOf(table);
+    const rules = this.roomRules.rulesFor(table);
     const wantsReach = rules.moveRangeAlways;
     const wantsHeld = rules.zocAlways;
     if (!wantsReach && !wantsHeld) return null;
@@ -208,7 +209,7 @@ export class MoveRangeService {
     let heights: Float64Array | null = null;
     const start = pieceCellOf(grid, character, table.gridSize);
     const painted = moveBlockMapOn(table)?.read(grid) ?? null;
-    const rules = this.rulesOf(table);
+    const rules = this.roomRules.rulesFor(table);
     const standing = this.objectStore
       .getObjects<GameCharacter>(GameCharacter)
       .filter((piece) => piece.identifier === character.identifier || this.vision.isTokenVisible(piece));
@@ -252,11 +253,6 @@ export class MoveRangeService {
    */
   private alliance(): PartyAlliance {
     return allianceOf(this.objectStore.getObjects<Party>(Party));
-  }
-
-  /** What the table is played by, which the room answers for wherever it has been asked. */
-  private rulesOf(table: GameTable | null): RoomRules {
-    return resolveRoomRules(this.objectStore.get<Config>('Config')?.roomRuleAnswers ?? null, table);
   }
 
   /** Whether a piece has a reach to be had at all, told without working one out. */
@@ -485,7 +481,7 @@ export class MoveRangeService {
   private opening(character: GameCharacter): { table: GameTable; rules: RoomRules; walk: number } | null {
     const table = this.tableSelecter.viewTable;
     if (!table) return null;
-    const rules = this.rulesOf(table);
+    const rules = this.roomRules.rulesFor(table);
     if (!rules.moveRangeEnabled) return null;
     if (table.gridSize <= 0 || table.width <= 0 || table.height <= 0) return null;
     if (surfaceOf(character) !== 'floor') return null;

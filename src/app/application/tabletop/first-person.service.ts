@@ -5,13 +5,13 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
+import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { FirstPersonPreferenceService } from '@axe/application/ui/first-person-preference.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { isControllableByUser } from '@axe/domain/character/character-control';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
-import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
   directionOf,
@@ -47,7 +47,6 @@ import { moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
 import { moveNeighbourToward } from '@axe/domain/tabletop/move/move-neighbours';
 import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { pieceCellOf } from '@axe/domain/tabletop/move/piece-on-grid';
-import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -76,6 +75,7 @@ type Action = () => Promise<boolean>;
 @Injectable({ providedIn: 'root' })
 export class FirstPersonService {
   private readonly objectStore = inject(ObjectStore);
+  private readonly roomRules = inject(RoomRulesService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tableSelecter = inject(TableSelecter);
@@ -491,7 +491,7 @@ export class FirstPersonService {
    * refusal would tell of a piece nobody could see.
    */
   private othersOf(piece: GameCharacter, table: GameTable): CellPoint[] {
-    const rules = resolveRoomRules(this.objectStore.get<Config>('Config')?.roomRuleAnswers ?? null, table);
+    const rules = this.roomRules.rulesFor(table);
     if (rules.piecesShareCells) return [];
     const others: CellPoint[] = [];
     for (const other of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
