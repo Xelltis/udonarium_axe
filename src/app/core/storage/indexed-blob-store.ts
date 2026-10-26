@@ -2,6 +2,8 @@ import { Logger } from '@axe/core/logging/logger';
 import { blobFromStored, storedBytesOf } from '@axe/core/storage/stored-bytes';
 
 const DB_VERSION = 1;
+/** How long an open may go unanswered before it is given up on, and tried afresh on the next use. */
+const OPEN_TIMEOUT_MS = 5000;
 const STORE_NAME = 'images';
 
 /**
@@ -68,20 +70,30 @@ export class IndexedBlobStore {
   private async open(): Promise<IDBDatabase | null> {
     if (!this.isAvailable()) return null;
     this.dbPromise ??= new Promise<IDBDatabase | null>((resolve) => {
+      const timer = setTimeout(() => {
+        Logger.warn(`${this.purpose} storage did not open`);
+        this.dbPromise = null;
+        resolve(null);
+      }, OPEN_TIMEOUT_MS);
+      const settle = (db: IDBDatabase | null) => {
+        clearTimeout(timer);
+        if (!db) this.dbPromise = null;
+        resolve(db);
+      };
       // A browser that keeps nothing for the site refuses the open outright rather than failing it.
       try {
         const request = indexedDB.open(this.dbName, DB_VERSION);
         request.onupgradeneeded = () => {
           if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME);
         };
-        request.onsuccess = () => resolve(this.letGoWhenAsked(request.result));
+        request.onsuccess = () => settle(this.letGoWhenAsked(request.result));
         request.onerror = () => {
           Logger.warn(`${this.purpose} storage is unavailable`, request.error);
-          resolve(null);
+          settle(null);
         };
       } catch (error) {
         Logger.warn(`${this.purpose} storage is unavailable`, error);
-        resolve(null);
+        settle(null);
       }
     });
     return this.dbPromise;
@@ -89,11 +101,15 @@ export class IndexedBlobStore {
 
   /**
    * Closes the handle when another tab deletes or upgrades the database, which would otherwise
-   * wait for as long as this page keeps it open; the next use opens it again.
+   * wait for as long as this page keeps it open, and lets go of one the browser closes, as when the
+   * site's data is cleared; the next use opens it again.
    */
   private letGoWhenAsked(db: IDBDatabase): IDBDatabase {
     db.onversionchange = () => {
       db.close();
+      this.dbPromise = null;
+    };
+    db.onclose = () => {
       this.dbPromise = null;
     };
     return db;
