@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
-import { SaveDataService } from '@axe/application/file/save-data.service';
+import { RoomFilesService } from '@axe/application/file/room-files.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -14,12 +14,9 @@ import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
-import { Network } from '@axe/core/network/network';
-import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { isAudienceOffered } from '@axe/domain/ui/menu-command';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
 import { nextViewMode, viewModeIcon, viewModeLabelKey } from '@axe/domain/ui/view-mode';
@@ -47,7 +44,6 @@ import { TranslocoModule } from '@jsverse/transloco';
 export class MobileShellComponent {
   private readonly panelService = inject(PanelService);
   private readonly roomPanels = inject(RoomPanelService);
-  private readonly saveDataService = inject(SaveDataService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly visualNovel = inject(VisualNovelModeService);
   private readonly handRail = inject(HandRailService);
@@ -56,7 +52,7 @@ export class MobileShellComponent {
   private readonly activeCharacter = inject(ActiveCharacterService);
   private readonly objectPanels = inject(ObjectPanelService);
   private readonly objectStore = inject(ObjectStore);
-  private readonly fileArchiver = inject(FileArchiver);
+  private readonly roomFiles = inject(RoomFilesService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly theme = inject(ThemeService);
@@ -138,7 +134,7 @@ export class MobileShellComponent {
   protected runMenuAction(action: MobileMenuAction): void {
     this.isMenuOpen.set(false);
     if (action === 'save') {
-      void this.saveRoom();
+      void this.roomFiles.save();
       return;
     }
     if (action === 'visualNovel') {
@@ -170,17 +166,8 @@ export class MobileShellComponent {
   }
 
   protected loadRoomFiles(event: Event): void {
-    const input = event.target as HTMLInputElement;
     this.isMenuOpen.set(false);
-    if (!this.rolePermission.canEditTabletop()) {
-      input.value = '';
-      return;
-    }
-    const files = input.files;
-    const reloadCheck = this.objectStore.get<ReloadCheck>('ReloadCheck');
-    reloadCheck?.reloadCheckStart(Network.peerContext.roomName !== '');
-    if (files && files.length) this.fileArchiver.load(files);
-    input.value = '';
+    this.roomFiles.loadChosen(event.target as HTMLInputElement);
   }
 
   protected clearSelection(): void {
@@ -238,14 +225,6 @@ export class MobileShellComponent {
       return;
     }
     this.openCharacterList();
-  }
-
-  private async saveRoom(): Promise<void> {
-    const roomName =
-      Network.peerContext && Network.peerContext.roomName.length > 0
-        ? Network.peerContext.roomName
-        : this.t('app.roomDataDefault');
-    await this.saveDataService.saveRoomAsync(roomName);
   }
 
   private resolvePanel(action: MobileMenuAction): RoomPanelName | null {
