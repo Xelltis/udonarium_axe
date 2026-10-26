@@ -68,15 +68,21 @@ export class IndexedBlobStore {
   private async open(): Promise<IDBDatabase | null> {
     if (!this.isAvailable()) return null;
     this.dbPromise ??= new Promise<IDBDatabase | null>((resolve) => {
-      const request = indexedDB.open(this.dbName, DB_VERSION);
-      request.onupgradeneeded = () => {
-        if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME);
-      };
-      request.onsuccess = () => resolve(this.letGoWhenAsked(request.result));
-      request.onerror = () => {
-        Logger.warn(`${this.purpose} storage is unavailable`, request.error);
+      // A browser that keeps nothing for the site refuses the open outright rather than failing it.
+      try {
+        const request = indexedDB.open(this.dbName, DB_VERSION);
+        request.onupgradeneeded = () => {
+          if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME);
+        };
+        request.onsuccess = () => resolve(this.letGoWhenAsked(request.result));
+        request.onerror = () => {
+          Logger.warn(`${this.purpose} storage is unavailable`, request.error);
+          resolve(null);
+        };
+      } catch (error) {
+        Logger.warn(`${this.purpose} storage is unavailable`, error);
         resolve(null);
-      };
+      }
     });
     return this.dbPromise;
   }
