@@ -71,13 +71,13 @@ import { FieldPlan, planField } from '@axe/domain/tabletop/field/field-generator
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { MAP_HEAVY_TERRAINS, MAP_MAX_TERRAINS, syncObjectCount } from '@axe/domain/tabletop/map-blocks';
-import { exportSceneToBlob } from '@axe/features/map-editor/render/export-image';
 import { DungeonMaterialPickerComponent } from '@axe/features/tabletop/dungeon-generator/dungeon-material-picker.component';
 import { describeDungeon } from '@axe/features/tabletop/dungeon-generator/dungeon-notes';
 import { withFieldMaterials } from '@axe/features/tabletop/dungeon-generator/field-materials';
 import { describeField } from '@axe/features/tabletop/dungeon-generator/field-notes';
 import { buildGroundScene } from '@axe/features/tabletop/dungeon-generator/ground-scene';
 import { buildMapPreview, previewColors } from '@axe/features/tabletop/dungeon-generator/map-preview';
+import { exportSceneToBlob } from '@axe/infrastructure/map-editor/export-image';
 import { TranslocoModule } from '@jsverse/transloco';
 
 const SEED_LIMIT = 2 ** 31;

@@ -1,7 +1,7 @@
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { createScene } from '@axe/domain/map-editor/scene';
+import { serializeScene } from '@axe/domain/map-editor/serialize';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
-import { createScene } from '@axe/features/map-editor/model/scene';
-import { serializeScene } from '@axe/features/map-editor/model/serialize';
 import { BoardKeeper, BoardKeeperHost, SAVE_DELAY } from '@axe/features/tabletop/white-board/white-board-keeper';
 
 describe('BoardKeeper', () => {

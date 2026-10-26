@@ -1,4 +1,4 @@
-import { ShapeItem } from '@axe/features/map-editor/model/scene';
+import { ShapeItem } from '@axe/domain/map-editor/scene';
 import {
   BoardPoint,
   handleAt,

@@ -79,7 +79,7 @@ const FEATURE_DEPENDENCIES: Record<string, readonly string[]> = {
   'sound-settings': [],
   'status-ailment': [],
   'streaming-overlay': [],
-  tabletop: ['card', 'character', 'coin', 'dice', 'disclosure', 'effect', 'lobby', 'map-editor', 'replay'],
+  tabletop: ['card', 'character', 'coin', 'dice', 'disclosure', 'effect', 'lobby', 'replay'],
   'visual-novel': ['character', 'chat'],
   vote: [],
   widgets: [],
@@ -103,6 +103,25 @@ const PROCESS_SINGLETONS = [
   'ObjectSynchronizer',
   'VideoEncoderGateway',
 ];
+
+/* The ledger may not run in a circle: two features that each import the other are one feature in two
+   folders, and what they share belongs a layer down. Loading this config fails while one does. */
+function assertNoCycle(dependencies: Record<string, readonly string[]>): void {
+  const visiting = new Set<string>();
+  const done = new Set<string>();
+  const visit = (feature: string, path: readonly string[]): void => {
+    if (done.has(feature)) return;
+    if (visiting.has(feature)) {
+      throw new Error(`FEATURE_DEPENDENCIES runs in a circle: ${[...path, feature].join(' -> ')}`);
+    }
+    visiting.add(feature);
+    for (const next of dependencies[feature] ?? []) visit(next, [...path, feature]);
+    visiting.delete(feature);
+    done.add(feature);
+  };
+  for (const feature of Object.keys(dependencies)) visit(feature, []);
+}
+assertNoCycle(FEATURE_DEPENDENCIES);
 
 const FEATURE_RULES = Object.entries(FEATURE_DEPENDENCIES).map(([feature, allowed]) => ({
   files: [`src/app/features/${feature}/**/*.ts`],

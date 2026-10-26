@@ -1,4 +1,4 @@
-import { createLayer, FreehandLayer, ImageItem, ImageLayer, MapScene } from '@axe/features/map-editor/model/scene';
+import { createLayer, FreehandLayer, ImageItem, ImageLayer, MapScene } from '@axe/domain/map-editor/scene';
 import { hangablePictureIds, livePicturesOf } from '@axe/features/tabletop/white-board/white-board-live-pictures';
 import { createBoardScene } from '@axe/features/tabletop/white-board/white-board-scene';
 

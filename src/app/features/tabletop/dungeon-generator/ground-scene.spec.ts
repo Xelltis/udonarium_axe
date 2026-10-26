@@ -1,8 +1,8 @@
+import { cellKey, CellLayer } from '@axe/domain/map-editor/scene';
+import { IMAGE_TEXTURE_PREFIX } from '@axe/domain/map-editor/textures';
 import { DungeonAtmosphereId } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
 import { planDungeon } from '@axe/domain/tabletop/dungeon/dungeon-generator';
 import { GridType } from '@axe/domain/tabletop/game-table';
-import { cellKey, CellLayer } from '@axe/features/map-editor/model/scene';
-import { IMAGE_TEXTURE_PREFIX } from '@axe/features/map-editor/model/textures';
 import { buildGroundScene } from '@axe/features/tabletop/dungeon-generator/ground-scene';
 
 const stone = { kind: 'texture' as const, id: 'stone_paving_big' };

@@ -7,7 +7,7 @@ import {
   StrokeDash,
   TextAlign,
   TextItem,
-} from '@axe/features/map-editor/model/scene';
+} from '@axe/domain/map-editor/scene';
 import {
   BoardPoint,
   boxAround,

@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { createLayer, MapLayer } from '@axe/features/map-editor/model/scene';
+import { createLayer, MapLayer } from '@axe/domain/map-editor/scene';
 import {
   LayerDrawerAction,
   WhiteBoardLayerDrawerComponent,

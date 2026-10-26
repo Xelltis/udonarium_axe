@@ -1,4 +1,4 @@
-import { ShapeGeneratorKind } from '@axe/features/map-editor/model/editor-tool';
+import { ShapeGeneratorKind } from '@axe/domain/map-editor/editor-tool';
 import {
   FreehandLayer,
   ImageItem,
@@ -9,9 +9,9 @@ import {
   StrokeDash,
   TextItem,
   TextOutline,
-} from '@axe/features/map-editor/model/scene';
-import { eraseStrokeAtPoint } from '@axe/features/map-editor/model/scene-ops';
-import { generateShapePoints } from '@axe/features/map-editor/model/shape-points';
+} from '@axe/domain/map-editor/scene';
+import { eraseStrokeAtPoint } from '@axe/domain/map-editor/scene-ops';
+import { generateShapePoints } from '@axe/domain/map-editor/shape-points';
 import { BoardPoint, MarkRef } from '@axe/features/tabletop/white-board/white-board-geometry';
 
 export interface MarkStyle {

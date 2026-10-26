@@ -1,4 +1,4 @@
-import { MapScene } from '@axe/features/map-editor/model/scene';
+import { MapScene } from '@axe/domain/map-editor/scene';
 import {
   BoardPoint,
   imageBox,
@@ -7,9 +7,9 @@ import {
   strokeBox,
   textBox,
   within,
-} from '@axe/features/map-editor/model/scene-geometry';
+} from '@axe/domain/map-editor/scene-geometry';
 
-export type { BoardPoint, MarkBox } from '@axe/features/map-editor/model/scene-geometry';
+export type { BoardPoint, MarkBox } from '@axe/domain/map-editor/scene-geometry';
 export {
   guessLineWidth,
   imageBox,
@@ -19,7 +19,7 @@ export {
   textBox,
   useTextMeasurer,
   within,
-} from '@axe/features/map-editor/model/scene-geometry';
+} from '@axe/domain/map-editor/scene-geometry';
 
 /** Everything on the board that can be taken hold of, whatever sort of mark it is. */
 export type MarkKind = 'image' | 'text' | 'shape' | 'stroke';

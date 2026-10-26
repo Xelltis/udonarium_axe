@@ -15,6 +15,7 @@ import { PERF_DESERIALIZE_SCENE, perfCounters } from '@axe/core/util/perf-counte
 import { Card } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
+import { deserializeScene } from '@axe/domain/map-editor/serialize';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { boardSurfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -24,7 +25,6 @@ import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { CardComponent } from '@axe/features/card/card/card.component';
 import { GameCharacterComponent } from '@axe/features/character/game-character/game-character.component';
 import { DiceSymbolComponent } from '@axe/features/dice/dice-symbol/dice-symbol.component';
-import { deserializeScene } from '@axe/features/map-editor/model/serialize';
 import { GameTableMaskComponent } from '@axe/features/tabletop/game-table-mask/game-table-mask.component';
 import { TerrainComponent } from '@axe/features/tabletop/terrain/terrain.component';
 import { TextNoteComponent } from '@axe/features/tabletop/text-note/text-note.component';

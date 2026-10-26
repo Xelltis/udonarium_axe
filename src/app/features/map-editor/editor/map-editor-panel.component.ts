@@ -38,6 +38,29 @@ import { PERF_MAP_EDITOR_DRAW, perfCounters } from '@axe/core/util/perf-counters
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { resourceNamesOf } from '@axe/domain/character/resource-catalog';
 import { ambiencePalette } from '@axe/domain/effect/ambience/ambience-kind';
+import { curveAnchorAt, fitImageSize, imageCorners, imageHandleAt } from '@axe/domain/map-editor/editor-hit-test';
+import { cellCenter, pointToCell } from '@axe/domain/map-editor/grid-cells';
+import { imageStampIdentifier, isImageStampId } from '@axe/domain/map-editor/image-stamp';
+import {
+  cellKey,
+  ImageItem,
+  MapLayer,
+  MapScene,
+  newId,
+  sceneHeightPx,
+  sceneWidthPx,
+  ShapeItem,
+  StrokeDash,
+} from '@axe/domain/map-editor/scene';
+import { guessLineWidth, useTextMeasurer } from '@axe/domain/map-editor/scene-geometry';
+import { removeText, updateText } from '@axe/domain/map-editor/scene-ops';
+import { deserializeScene } from '@axe/domain/map-editor/serialize';
+import { generateShapePoints, regularPolygonPoints, starPoints } from '@axe/domain/map-editor/shape-points';
+import { StampDef } from '@axe/domain/map-editor/stamp-types';
+import { getStampById, STAMPS } from '@axe/domain/map-editor/stamps';
+import { planFunctionPaint, sceneSpeaksFor } from '@axe/domain/map-editor/table-apply';
+import { sceneFromTable } from '@axe/domain/map-editor/table-import';
+import { imageTextureIdentifier, isImageTextureId, normalizeTextureId } from '@axe/domain/map-editor/textures';
 import { isBuiltinMaterial } from '@axe/domain/media/builtin-materials';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { ImageTag } from '@axe/domain/media/image-tag';
@@ -88,9 +111,6 @@ import {
   waterPresetOf,
 } from '@axe/domain/tabletop/water/water-presets';
 import { MAX_SURFACE_CELLS } from '@axe/domain/tabletop/water/water-surface';
-import { imageStampIdentifier, isImageStampId } from '@axe/features/map-editor/assets/image-stamp';
-import { StampDef } from '@axe/features/map-editor/assets/stamp-types';
-import { getStampById, STAMPS } from '@axe/features/map-editor/assets/stamps';
 import { GestureKind, MapEditorGesture } from '@axe/features/map-editor/editor/map-editor-gesture';
 import { MapEditorLayerDrawerComponent } from '@axe/features/map-editor/editor/map-editor-layer-drawer.component';
 import { mapEditorKeyDown, mapEditorKeyUp } from '@axe/features/map-editor/editor/map-editor-shortcut';
@@ -103,45 +123,20 @@ import {
 } from '@axe/features/map-editor/editor/map-editor-state';
 import { MapEditorTexturePickerComponent } from '@axe/features/map-editor/editor/map-editor-texture-picker.component';
 import { TextureIntakeService } from '@axe/features/map-editor/editor/texture-intake.service';
-import {
-  curveAnchorAt,
-  fitImageSize,
-  imageCorners,
-  imageHandleAt,
-} from '@axe/features/map-editor/model/editor-hit-test';
-import { cellCenter, pointToCell } from '@axe/features/map-editor/model/grid-cells';
-import {
-  cellKey,
-  ImageItem,
-  MapLayer,
-  MapScene,
-  newId,
-  sceneHeightPx,
-  sceneWidthPx,
-  ShapeItem,
-  StrokeDash,
-} from '@axe/features/map-editor/model/scene';
-import { isZipArchive } from '@axe/features/map-editor/model/scene-archive';
-import { packSceneWithImages, unpackSceneWithImages } from '@axe/features/map-editor/model/scene-archive-images';
-import { guessLineWidth, useTextMeasurer } from '@axe/features/map-editor/model/scene-geometry';
-import { removeText, updateText } from '@axe/features/map-editor/model/scene-ops';
-import { deserializeScene } from '@axe/features/map-editor/model/serialize';
-import { generateShapePoints, regularPolygonPoints, starPoints } from '@axe/features/map-editor/model/shape-points';
-import { planFunctionPaint, sceneSpeaksFor } from '@axe/features/map-editor/model/table-apply';
-import { sceneFromTable } from '@axe/features/map-editor/model/table-import';
-import { imageTextureIdentifier, isImageTextureId, normalizeTextureId } from '@axe/features/map-editor/model/textures';
-import { exportSceneToBlob } from '@axe/features/map-editor/render/export-image';
-import { getRasterImage, loadRasterImage } from '@axe/features/map-editor/render/raster-image';
+import { SwitchDefinitionFieldsComponent } from '@axe/features/tabletop/board-switch/switch-definition-fields.component';
+import { exportSceneToBlob } from '@axe/infrastructure/map-editor/export-image';
+import { getRasterImage, loadRasterImage } from '@axe/infrastructure/map-editor/raster-image';
 import {
   type EditorOverlay,
   type OverlayImage,
   type OverlayStamp,
   renderOverlay,
-} from '@axe/features/map-editor/render/render-overlay';
-import { RenderHelpers, renderScene } from '@axe/features/map-editor/render/render-scene';
-import { getStampImage, loadStampImage } from '@axe/features/map-editor/render/stamp-image';
-import { createImageTexturePattern } from '@axe/features/map-editor/render/texture-pattern';
-import { SwitchDefinitionFieldsComponent } from '@axe/features/tabletop/board-switch/switch-definition-fields.component';
+} from '@axe/infrastructure/map-editor/render-overlay';
+import { RenderHelpers, renderScene } from '@axe/infrastructure/map-editor/render-scene';
+import { isZipArchive } from '@axe/infrastructure/map-editor/scene-archive';
+import { packSceneWithImages, unpackSceneWithImages } from '@axe/infrastructure/map-editor/scene-archive-images';
+import { getStampImage, loadStampImage } from '@axe/infrastructure/map-editor/stamp-image';
+import { createImageTexturePattern } from '@axe/infrastructure/map-editor/texture-pattern';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { TranslocoModule } from '@jsverse/transloco';
 

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { MapLayer } from '@axe/domain/map-editor/scene';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
-import { MapLayer } from '@axe/features/map-editor/model/scene';
 import { LayerGroup } from '@axe/features/tabletop/white-board/white-board-scene';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';

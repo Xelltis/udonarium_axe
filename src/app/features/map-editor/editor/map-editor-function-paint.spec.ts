@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
+import { FunctionLayer } from '@axe/domain/map-editor/scene';
+import { removeLayer } from '@axe/domain/map-editor/scene-ops';
+import { sceneSpeaksFor } from '@axe/domain/map-editor/table-apply';
 import { DEFAULT_FUNCTION_SPEC } from '@axe/domain/tabletop/function-paint';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
-import { FunctionLayer } from '@axe/features/map-editor/model/scene';
-import { removeLayer } from '@axe/features/map-editor/model/scene-ops';
-import { sceneSpeaksFor } from '@axe/features/map-editor/model/table-apply';
 
 describe('painting what a cell does', () => {
   let state: MapEditorState;

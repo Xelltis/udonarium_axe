@@ -1,7 +1,7 @@
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { MapScene } from '@axe/domain/map-editor/scene';
+import { serializeScene } from '@axe/domain/map-editor/serialize';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
-import { MapScene } from '@axe/features/map-editor/model/scene';
-import { serializeScene } from '@axe/features/map-editor/model/serialize';
 
 export const SAVE_DELAY = 600;
 

@@ -1,18 +1,9 @@
-export type { EditorTool, LineKind, ShapeGeneratorKind } from '@axe/features/map-editor/model/editor-tool';
+export type { EditorTool, LineKind, ShapeGeneratorKind } from '@axe/domain/map-editor/editor-tool';
 import { Injectable, signal } from '@angular/core';
-import {
-  DEFAULT_FUNCTION_ROLE,
-  DEFAULT_FUNCTION_SPEC,
-  FunctionSpec,
-  lookKey,
-  MapFunctionRole,
-} from '@axe/domain/tabletop/function-paint';
-import { GridType } from '@axe/domain/tabletop/game-table';
-import { StampCategory } from '@axe/features/map-editor/assets/stamp-types';
-import { sampleCurvePoints } from '@axe/features/map-editor/model/curve-geometry';
-import type { EditorTool, LineKind, ShapeGeneratorKind } from '@axe/features/map-editor/model/editor-tool';
-import { cellCenter, pointToCell } from '@axe/features/map-editor/model/grid-cells';
-import { SceneHistory } from '@axe/features/map-editor/model/history';
+import { sampleCurvePoints } from '@axe/domain/map-editor/curve-geometry';
+import type { EditorTool, LineKind, ShapeGeneratorKind } from '@axe/domain/map-editor/editor-tool';
+import { cellCenter, pointToCell } from '@axe/domain/map-editor/grid-cells';
+import { SceneHistory } from '@axe/domain/map-editor/history';
 import {
   CellLayer,
   createLayer,
@@ -39,7 +30,7 @@ import {
   TextAlign,
   TextItem,
   TextLayer,
-} from '@axe/features/map-editor/model/scene';
+} from '@axe/domain/map-editor/scene';
 import {
   imageBox,
   pointToPolylineDistance,
@@ -48,7 +39,7 @@ import {
   strokeSlack,
   textBox,
   within,
-} from '@axe/features/map-editor/model/scene-geometry';
+} from '@axe/domain/map-editor/scene-geometry';
 import {
   addImage,
   addLayer,
@@ -72,7 +63,16 @@ import {
   updateStamp,
   updateStroke,
   updateText,
-} from '@axe/features/map-editor/model/scene-ops';
+} from '@axe/domain/map-editor/scene-ops';
+import { StampCategory } from '@axe/domain/map-editor/stamp-types';
+import {
+  DEFAULT_FUNCTION_ROLE,
+  DEFAULT_FUNCTION_SPEC,
+  FunctionSpec,
+  lookKey,
+  MapFunctionRole,
+} from '@axe/domain/tabletop/function-paint';
+import { GridType } from '@axe/domain/tabletop/game-table';
 
 export interface Selection {
   layerId: string;

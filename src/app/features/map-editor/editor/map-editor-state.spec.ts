@@ -1,7 +1,5 @@
-import { GridType } from '@axe/domain/tabletop/game-table';
-import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
-import { sampleCurvePoints } from '@axe/features/map-editor/model/curve-geometry';
-import { DEFAULT_FUNCTION_SPEC } from '@axe/features/map-editor/model/function-layer';
+import { sampleCurvePoints } from '@axe/domain/map-editor/curve-geometry';
+import { DEFAULT_FUNCTION_SPEC } from '@axe/domain/map-editor/function-layer';
 import {
   CellLayer,
   DEFAULT_SCENE_BACKGROUND,
@@ -13,7 +11,9 @@ import {
   ShapeLayer,
   StampLayer,
   TextLayer,
-} from '@axe/features/map-editor/model/scene';
+} from '@axe/domain/map-editor/scene';
+import { GridType } from '@axe/domain/tabletop/game-table';
+import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 
 describe('MapEditorState', () => {
   let state: MapEditorState;

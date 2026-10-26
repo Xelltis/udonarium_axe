@@ -1,15 +1,8 @@
 import { DungeonMaterial } from '@axe/application/tabletop/dungeon-build.service';
+import { cellKey, CellLayer, createLayer, createScene, FillStyle, MapScene } from '@axe/domain/map-editor/scene';
+import { IMAGE_TEXTURE_PREFIX } from '@axe/domain/map-editor/textures';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { MapPaint, MapSize } from '@axe/domain/tabletop/map-blocks';
-import {
-  cellKey,
-  CellLayer,
-  createLayer,
-  createScene,
-  FillStyle,
-  MapScene,
-} from '@axe/features/map-editor/model/scene';
-import { IMAGE_TEXTURE_PREFIX } from '@axe/features/map-editor/model/textures';
 
 export interface GroundMaterials {
   floor: DungeonMaterial;

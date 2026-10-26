@@ -5,6 +5,9 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { pointToCell } from '@axe/domain/map-editor/grid-cells';
+import { cellKey, createScene, ImageLayer, ShapeLayer, StampLayer, TextLayer } from '@axe/domain/map-editor/scene';
+import { serializeScene } from '@axe/domain/map-editor/serialize';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GridType } from '@axe/domain/tabletop/game-table';
@@ -15,17 +18,7 @@ import {
 } from '@axe/features/map-editor/editor/map-editor-panel.component';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 import { TextureIntakeService } from '@axe/features/map-editor/editor/texture-intake.service';
-import { pointToCell } from '@axe/features/map-editor/model/grid-cells';
-import {
-  cellKey,
-  createScene,
-  ImageLayer,
-  ShapeLayer,
-  StampLayer,
-  TextLayer,
-} from '@axe/features/map-editor/model/scene';
-import { serializeScene } from '@axe/features/map-editor/model/serialize';
-import { exportSceneToBlob } from '@axe/features/map-editor/render/export-image';
+import { exportSceneToBlob } from '@axe/infrastructure/map-editor/export-image';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 /** The gesture is private; the tests borrow its name to reach it. */

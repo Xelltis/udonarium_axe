@@ -1,11 +1,4 @@
-import {
-  MapLayer,
-  MapScene,
-  newId,
-  SceneGuideLine,
-  sceneHeightPx,
-  sceneWidthPx,
-} from '@axe/features/map-editor/model/scene';
+import { MapLayer, MapScene, newId, SceneGuideLine, sceneHeightPx, sceneWidthPx } from '@axe/domain/map-editor/scene';
 import { BoardPoint, boxOf, MarkBox, MarkRef } from '@axe/features/tabletop/white-board/white-board-geometry';
 
 /** Rounded onto the ruling, so what is drawn to a plan lines up with the rest of it. */

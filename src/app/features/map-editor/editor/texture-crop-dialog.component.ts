@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ModalService } from '@axe/application/ui/modal.service';
-import { loadRasterImage } from '@axe/features/map-editor/render/raster-image';
 import { cropImageRegion } from '@axe/features/tabletop/map-image-grid-adjuster/map-image-grid-region';
+import { loadRasterImage } from '@axe/infrastructure/map-editor/raster-image';
 import { TranslocoModule } from '@jsverse/transloco';
 
 export interface TextureCropDialogOption {
