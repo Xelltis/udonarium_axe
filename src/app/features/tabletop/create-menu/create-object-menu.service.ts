@@ -61,7 +61,7 @@ export class CreateObjectMenuService implements CreateObjectMenu {
   }
 
   /** The create menu at a point, in the two halves the table's rotating menu spreads over two spokes. */
-  menuGroupsAt(position: PointerCoordinate): ContextMenuAction[][] {
+  menuGroupsAt(position: PointerCoordinate): [ContextMenuAction[], ContextMenuAction[]] {
     return buildCreateObjectMenuGroups(position, this.hands);
   }
 

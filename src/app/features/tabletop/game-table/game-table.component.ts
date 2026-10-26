@@ -33,12 +33,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { BackdropPlacement } from '@axe/application/ui/backdrop-frame.service';
-import {
-  ContextMenuAction,
-  ContextMenuRadialGroup,
-  ContextMenuSeparator,
-  ContextMenuService,
-} from '@axe/application/ui/context-menu.service';
+import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -47,7 +42,6 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
-import { buildToggleAction } from '@axe/application/ui/tabletop-context-menu-actions';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewLockService } from '@axe/application/ui/view-lock.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
@@ -79,17 +73,17 @@ import type { DeckBuilderResult } from '@axe/features/card/deck-builder-dialog/d
 import { GameCharacterComponent } from '@axe/features/character/game-character/game-character.component';
 import { CoinComponent } from '@axe/features/coin/coin/coin.component';
 import { DiceSymbolComponent } from '@axe/features/dice/dice-symbol/dice-symbol.component';
-import { buildRevealMenu, listedThingLabel } from '@axe/features/disclosure/concealment-context-menu';
+import { listedThingLabel } from '@axe/features/disclosure/concealment-context-menu';
 import { EffectTargetOverlayComponent } from '@axe/features/effect/effect-target-overlay/effect-target-overlay.component';
 import { TableEffectOverlayComponent } from '@axe/features/effect/table-effect-overlay/table-effect-overlay.component';
 import { PeerCursorComponent } from '@axe/features/lobby/peer-cursor/peer-cursor.component';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { ReplayRouteOverlayComponent } from '@axe/features/replay/replay-route-overlay/replay-route-overlay.component';
-import { buildPressedGroundMenu } from '@axe/features/tabletop/board-switch/board-switch-context-menu';
 import { CreateObjectMenuService } from '@axe/features/tabletop/create-menu/create-object-menu.service';
 import { TableFogAirOverlayComponent } from '@axe/features/tabletop/fog-of-war/table-fog-air-overlay.component';
 import { beamTopGridGeometry, beamWallFaceGrid } from '@axe/features/tabletop/game-table/beam-top-grid';
 import { glideTransform } from '@axe/features/tabletop/game-table/game-table-camera';
+import { buildGameTableContextMenu, GameTableMenu } from '@axe/features/tabletop/game-table/game-table-context-menu';
 import { GameTableGestureService } from '@axe/features/tabletop/game-table/game-table-gesture.service';
 import {
   WALL_SIDES,
@@ -1053,143 +1047,52 @@ export class GameTableComponent {
   }
 
   /**
-   * Builds the table's right-click menu for a point on the table, both as a plain list and as the
-   * groups of the rotating menu.
-   *
-   * It offers making objects there, making a deck, gathering a party for the game master, the
-   * table's settings and, in 2D, holding the view still.
+   * The table's right-click menu for a point on the table, both as a plain list and as the groups of
+   * the rotating menu, as `buildGameTableContextMenu` builds it from the table and the reader now.
    */
-  buildContextMenuModel(objectPosition: PointerCoordinate): {
-    actions: ContextMenuAction[];
-    rotatingGroups: ContextMenuRadialGroup[];
-  } {
-    const [primaryCreateActions, secondaryCreateActions] = this.createMenu.menuGroupsAt(objectPosition);
-    secondaryCreateActions.push({
-      name: this.t('feature.tabletop.action.createDeck'),
-      action: () => {
-        void this.openDeckBuilder(objectPosition);
-      },
-    });
-    if (this.mobileLayout.isActive()) {
-      secondaryCreateActions.push({
-        name: this.t('feature.tabletop.contextMenu.createWithOptions'),
-        action: () => {
-          this.roomPanels.open('characterGenerator', { width: 460, height: 420 });
-        },
-      });
-    }
-    const tableSettingAction: ContextMenuAction = {
-      name: this.t('feature.tabletop.tableSetting.title'),
-      action: () => {
-        void this.openTableSetting();
-      },
-    };
-    const tableSettingActions = [tableSettingAction, ...this.buildViewLockActions()];
-    // Empty for anybody but the master, and for a room with no parties in it.
-    const partyActions = this.createMenu.gatherPartyMenuAt(objectPosition);
-    // The entry goes in whole, the way the ambience entry does: the rotating menu opens what
-    // has sub-entries rather than being handed them, and a group holding the same entries the
-    // flat menu does is what keeps the two menus answering alike.
-    const revealActions = buildRevealMenu(
-      this.boardSwitches.canEdit(),
-      this.concealment.concealed().map((object) => ({
-        label: listedThingLabel(object.name, this.t(`feature.boardSwitch.thing.${object.aliasName}`), this.t),
-        reveal: () => this.concealment.reveal(object),
-      })),
-      this.t
-    );
-    const pressedActions = buildPressedGroundMenu(
-      this.boardSwitches.canEdit(),
-      this.boardSwitches.pressedGround().map((ground) => ({
-        label: listedThingLabel(
-          ground.pressSwitch?.def.label.trim() || ground.name,
-          this.t(
-            ground.pressSwitch?.retired ? 'feature.boardSwitch.groundRetired' : 'feature.boardSwitch.groundPressed'
+  buildContextMenuModel(objectPosition: PointerCoordinate): GameTableMenu {
+    const canEditSwitches = this.boardSwitches.canEdit();
+    return buildGameTableContextMenu(
+      {
+        create: this.createMenu.menuGroupsAt(objectPosition),
+        party: this.createMenu.gatherPartyMenuAt(objectPosition),
+        canEditSwitches,
+        concealed: this.concealment.concealed().map((object) => ({
+          label: listedThingLabel(object.name, this.t(`feature.boardSwitch.thing.${object.aliasName}`), this.t),
+          reveal: () => this.concealment.reveal(object),
+        })),
+        pressedGround: this.boardSwitches.pressedGround().map((ground) => ({
+          label: listedThingLabel(
+            ground.pressSwitch?.def.label.trim() || ground.name,
+            this.t(
+              ground.pressSwitch?.retired ? 'feature.boardSwitch.groundRetired' : 'feature.boardSwitch.groundPressed'
+            ),
+            this.t
           ),
-          this.t
-        ),
-        reset: () => this.boardSwitches.reset(ground),
-      })),
-      this.t
-    );
-    const partyGroups =
-      partyActions.length > 0
-        ? [{ name: this.t('feature.gmTools.party.title'), icon: 'group', actions: partyActions }]
-        : [];
-    return {
-      actions: [
-        ...primaryCreateActions,
-        ContextMenuSeparator,
-        ...secondaryCreateActions,
-        ContextMenuSeparator,
-        ...(partyActions.length > 0 ? [...partyActions, ContextMenuSeparator] : []),
-        ...(revealActions.length > 0 ? [...revealActions, ContextMenuSeparator] : []),
-        ...(pressedActions.length > 0 ? [...pressedActions, ContextMenuSeparator] : []),
-        ...tableSettingActions,
-      ],
-      rotatingGroups: [
-        {
-          name: this.t('feature.tabletop.contextMenu.createObject1'),
-          icon: 'add_circle',
-          actions: primaryCreateActions,
-        },
-        {
-          name: this.t('feature.tabletop.contextMenu.createObject2'),
-          icon: 'add_box',
-          actions: secondaryCreateActions,
-        },
-        ...partyGroups,
-        ...(revealActions.length > 0
-          ? [{ name: this.t('feature.boardSwitch.menu.concealed'), icon: 'visibility', actions: revealActions }]
-          : []),
-        ...(pressedActions.length > 0
-          ? [{ name: this.t('feature.boardSwitch.menu.reset'), icon: 'restart_alt', actions: pressedActions }]
-          : []),
-        {
-          name: this.t('feature.tabletop.tableSetting.title'),
-          icon: 'tune',
-          actions: tableSettingActions,
-        },
-      ],
-    };
-  }
-
-  /**
-   * Holding the view still, and putting it back on real size.
-   *
-   * Only in 2D, where a screen is laid flat and the miniatures sit on it. The entries go into
-   * both menus because the flat one is what the four-way hamburger opens when the rotating
-   * menu is off, and a table using that would otherwise have no way to reach them.
-   */
-  private buildViewLockActions(): ContextMenuAction[] {
-    if (!this.tabletopService.mode2d()) return [];
-    const actions: ContextMenuAction[] = [
-      buildToggleAction(
-        this.viewLock.locked(),
-        (next) => {
-          this.viewLock.set(next);
+          reset: () => this.boardSwitches.reset(ground),
+        })),
+        mobile: this.mobileLayout.isActive(),
+        mode2d: this.tabletopService.mode2d(),
+        viewLocked: this.viewLock.locked(),
+        canSnapToRealSize: this.displayCalibration.isCalibrated() && this.tabletopService.orthographicProjection(),
+      },
+      {
+        openDeckBuilder: () => void this.openDeckBuilder(objectPosition),
+        openCharacterGenerator: () => this.roomPanels.open('characterGenerator', { width: 460, height: 420 }),
+        openTableSetting: () => void this.openTableSetting(),
+        setViewLocked: (locked) => {
+          this.viewLock.set(locked);
           this.syncViewLock();
         },
-        {
-          on: this.t('feature.tabletop.contextMenu.viewLockOn'),
-          off: this.t('feature.tabletop.contextMenu.viewLockOff'),
-        }
-      ),
-    ];
-    // Offered only where it would do something: under perspective there is no one scale to set,
-    // and an entry that quietly does nothing is worse than one that is not there.
-    if (this.displayCalibration.isCalibrated() && this.tabletopService.orthographicProjection()) {
-      actions.push({
-        name: this.t('feature.tabletop.contextMenu.snapToRealSize'),
-        action: () => {
+        snapToRealSize: () => {
           // Real size brings the lock with it; the service settles that for every way in.
           this.displayCalibration.setRealSizeEnabled(true);
           this.snapToRealSize();
           this.syncViewLock();
         },
-      });
-    }
-    return actions;
+      },
+      this.t
+    );
   }
 
   /**

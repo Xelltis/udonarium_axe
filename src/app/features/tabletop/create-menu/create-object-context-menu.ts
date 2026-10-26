@@ -35,7 +35,7 @@ export interface CreateMenuHands {
 export function buildCreateObjectMenuGroups(
   position: PointerCoordinate,
   hands: CreateMenuHands
-): ContextMenuAction[][] {
+): [ContextMenuAction[], ContextMenuAction[]] {
   const { actions, t, select } = hands;
   const made = (name: string, sound: string, make: () => unknown): ContextMenuAction => ({
     name: t(name),
