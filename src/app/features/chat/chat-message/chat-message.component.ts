@@ -662,14 +662,17 @@ export class ChatMessageComponent {
   startEdit() {
     if (!this.lineEdit.canEditMessage(this.chatMessage)) return;
     this.editDraft.set(vnBodyOf(this.chatMessage.vnEmote, this.chatMessage.text ?? ''));
-    setTimeout(() => {
-      const el = this.editingTextArea()?.nativeElement;
-      if (el) {
-        this.autoFitHeight(el);
-        el.focus();
-        el.setSelectionRange(el.value.length, el.value.length);
-      }
-    });
+    afterNextRender(
+      () => {
+        const el = this.editingTextArea()?.nativeElement;
+        if (el) {
+          this.autoFitHeight(el);
+          el.focus();
+          el.setSelectionRange(el.value.length, el.value.length);
+        }
+      },
+      { injector: this.injector }
+    );
   }
 
   /**

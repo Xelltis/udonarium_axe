@@ -1,5 +1,6 @@
 import { NgStyle } from '@angular/common';
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -7,6 +8,7 @@ import {
   effect,
   ElementRef,
   inject,
+  Injector,
   input,
   signal,
   untracked,
@@ -91,6 +93,7 @@ export class TextNoteComponent {
   private readonly visionService = inject(VisionService);
   protected readonly tabletopService = inject(TabletopService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
   private readonly translateFn = inject(TRANSLATE_FN);
 
   readonly isHiddenByFog = computed(() => {
@@ -180,13 +183,16 @@ export class TextNoteComponent {
     if (this.textNote().isLock) return;
     if (this.isEditing()) return;
     this.isEditing.set(true);
-    setTimeout(() => {
-      const el = this.textAreaElementRef()?.nativeElement;
-      if (!el) return;
-      el.focus();
-      el.setSelectionRange(el.value.length, el.value.length);
-      this.calcFitHeight();
-    });
+    afterNextRender(
+      () => {
+        const el = this.textAreaElementRef()?.nativeElement;
+        if (!el) return;
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+        this.calcFitHeight();
+      },
+      { injector: this.injector }
+    );
   }
 
   /** Leaves editing when the text area loses focus. */

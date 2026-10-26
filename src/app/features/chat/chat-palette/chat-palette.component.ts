@@ -1,4 +1,5 @@
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -6,6 +7,7 @@ import {
   effect,
   ElementRef,
   inject,
+  Injector,
   linkedSignal,
   signal,
   untracked,
@@ -82,6 +84,7 @@ export class ChatPaletteComponent {
   private readonly uiSignalService = inject(UiSignalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
   private readonly chatPaletteRegistry = inject(ChatPaletteRegistryService);
   private readonly t = inject(TRANSLATE_FN);
 
@@ -582,12 +585,15 @@ export class ChatPaletteComponent {
       this.editPalette.set(this.palette.value + '');
       const listTop = listEl?.scrollTop ?? 0;
       const listHeight = listEl?.scrollHeight ?? 1;
-      setTimeout(() => {
-        const textEl = this.editTextRef()?.nativeElement;
-        if (textEl) {
-          textEl.scrollTop = (listTop * textEl.scrollHeight) / listHeight;
-        }
-      }, 10);
+      afterNextRender(
+        () => {
+          const textEl = this.editTextRef()?.nativeElement;
+          if (textEl) {
+            textEl.scrollTop = (listTop * textEl.scrollHeight) / listHeight;
+          }
+        },
+        { injector: this.injector }
+      );
     } else if (this.mayEdit()) {
       this.palette.setPalette(this.editPalette());
     }
