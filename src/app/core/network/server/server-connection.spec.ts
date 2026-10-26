@@ -1,22 +1,19 @@
 import { IPeerContext } from '@axe/core/network/peer-context';
+import { IDLE_WARNING_MS } from '@axe/core/network/server/idle-watch';
+import { PING_INTERVAL_MS, PONG_TIMEOUT_MS, WELCOME_TIMEOUT_MS } from '@axe/core/network/server/link-heartbeat';
+import { MAX_HELD_BROADCASTS } from '@axe/core/network/server/outbound-events';
 import { pageActivity } from '@axe/core/network/server/page-activity';
 import {
-  ASSET_TOKEN_MARGIN_MS,
-  ASSET_TOKEN_WAIT_MS,
-  IDLE_WARNING_MS,
-  INVITE_TIMEOUT_MS,
-  MAX_HELD_BROADCASTS,
-  MISSING_MEMBER_GRACE_MS,
   PACE_WINDOW_MS,
-  PING_INTERVAL_MS,
-  PONG_TIMEOUT_MS,
   SEND_BUDGET_EVENTS,
   SEND_BUDGET_FRAMES,
-  SEND_GATHER_MS,
   SEND_WINDOW_MS,
+} from '@axe/core/network/server/send-pacer';
+import {
+  INVITE_TIMEOUT_MS,
+  MISSING_MEMBER_GRACE_MS,
+  SEND_GATHER_MS,
   ServerConnection,
-  TOKEN_CHECK_MS,
-  WELCOME_TIMEOUT_MS,
 } from '@axe/core/network/server/server-connection';
 import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
 import { decodeFrame, MAX_FRAME_BYTES } from '@axe/core/network/server/server-frames';
@@ -30,6 +27,7 @@ import {
   ServerMessage,
 } from '@axe/core/network/server/server-protocol';
 import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
+import { ASSET_TOKEN_MARGIN_MS, ASSET_TOKEN_WAIT_MS, TOKEN_CHECK_MS } from '@axe/core/network/server/token-renewal';
 import { isCompressed } from '@axe/core/util/compress';
 import * as MessagePack from '@axe/core/util/message-pack';
 

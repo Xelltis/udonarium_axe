@@ -9,12 +9,25 @@ import {
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { PeerReconnectScheduler } from '@axe/core/network/peer-reconnect-scheduler';
 import { IRoomInfo } from '@axe/core/network/room-info';
+import { IdleWatch } from '@axe/core/network/server/idle-watch';
+import { LinkHeartbeat, SOCKET_OPEN } from '@axe/core/network/server/link-heartbeat';
+import {
+  CHANGE,
+  COMING_BACK,
+  DELETION,
+  identifierOf,
+  keptWhileAway,
+  latestChanges,
+  MAX_HELD_BROADCASTS,
+  MAX_HELD_EVENTS,
+  Outbound,
+} from '@axe/core/network/server/outbound-events';
 import { pageActivity } from '@axe/core/network/server/page-activity';
+import { SendPacer } from '@axe/core/network/server/send-pacer';
 import { NO_BACKEND, SERVER_UNREACHABLE } from '@axe/core/network/server/server-errors';
 import { decodeFrame, encodeFrame, encodeSendFrames } from '@axe/core/network/server/server-frames';
 import {
   ACCOUNT_USER_ID_PREFIX,
-  ACTIVE_REPORT_SECONDS,
   activeMessage,
   assetTokenRequest,
   AssetUploadPolicy,
@@ -28,12 +41,10 @@ import {
   DataMessage,
   EventContext,
   helloMessage,
-  IDLE_SECONDS,
   InviteMessage,
   inviteRequest,
   isRetryableError,
   Member,
-  PING,
   readAssetUploadPolicy,
   readServerMessage,
   ServerMessage,
@@ -51,17 +62,9 @@ import {
   roomSocketUrl,
   ServerRoomApiError,
 } from '@axe/core/network/server/server-room-api';
+import { AccessTokenRenewal, AssetTokenRenewal } from '@axe/core/network/server/token-renewal';
+import { WrittenDeletions } from '@axe/core/network/server/written-deletions';
 
-/** How long a connection waits between asking whether the server is still there. */
-export const PING_INTERVAL_MS = 25_000;
-/** How long it waits for any answer to that before it takes the connection as lost. */
-export const PONG_TIMEOUT_MS = 10_000;
-/**
- * How long a connection waits to be let into the room after it says hello before it takes the
- * connection as lost: longer than a room server spread over instances looks for the one holding
- * the room (twice its 15-second lease), so that a holder gone silent does not keep it waiting.
- */
-export const WELCOME_TIMEOUT_MS = 45_000;
 /**
  * How long a member missing from the welcome on getting back in is kept for, before it is taken to
  * have left: a room server spread over instances that changed hands lets everybody back in one by
@@ -74,64 +77,10 @@ export const MISSING_MEMBER_GRACE_MS = 15_000;
  * second at most, well inside the server's limit of 2000 frames in ten seconds.
  */
 export const SEND_GATHER_MS = 16;
-/** The window the server counts a connection's sends in, the protocol's RATE_WINDOW_SECONDS. */
-export const SEND_WINDOW_MS = 10_000;
-/**
- * The window a seat paces its sends over: a second longer than the server's, which starts as the
- * first frame is taken in, so that a frame held up on the way does not bring two steps into one.
- */
-export const PACE_WINDOW_MS = SEND_WINDOW_MS + 1000;
-/**
- * How many events a seat writes in PACE_WINDOW_MS at most, under half of the 20,000 past which the
- * server cuts the connection off, so that two steps taken into one of its windows, the first held up
- * on the way, still keep inside it. A tab of many lines deleted, or a big room loaded again, goes out
- * over a few windows rather than losing the seat and what was over. The events stay in the order they
- * were sent, whoever they go to; only the connection's own messages are not held back.
- */
-export const SEND_BUDGET_EVENTS = 9_000;
-/** How many frames a seat writes in PACE_WINDOW_MS at most, under half of the server's 2,000. */
-export const SEND_BUDGET_FRAMES = 900;
 /** How many events go out in one batch at most, so that the budget fills in steps. */
 const SEND_CHUNK_EVENTS = 1_500;
 /** How long an invite request waits for the server's answer. */
 export const INVITE_TIMEOUT_MS = 10_000;
-/**
- * How often a seat that logged in checks for a fresh access token to hand the server. The server
- * closes the seat a minute after its token runs out, and the login refreshes a token a minute
- * before it does, so a check every half minute hands the new one over in time.
- */
-export const TOKEN_CHECK_MS = 30_000;
-/** How long before the asset token runs out a fresh one is asked for, a few checks ahead of the end. */
-export const ASSET_TOKEN_MARGIN_MS = 2 * 60_000;
-/** How long a refresh of the asset token waits for the server before giving up. */
-export const ASSET_TOKEN_WAIT_MS = 10_000;
-/** How many requests to the server a seat keeps while it gets back into the room. */
-export const MAX_HELD_EVENTS = 64;
-/**
- * How many deletions a seat keeps while it gets back into the room, apart from the requests: a tab
- * deleted goes as one deletion for each of its lines. The words on what comes back are kept past it,
- * and so are the changes, of which only the last of each object between deletions is kept.
- */
-export const MAX_HELD_BROADCASTS = 20_000;
-/** How long before a seat would be let out for the page left alone its reader is told so. */
-export const IDLE_WARNING_MS = 5 * 60_000;
-/**
- * Requests to the server that would be lost while reconnecting, and that the catalogs traded on
- * getting back in do not mend: a role change asked for in the meantime. A roll is not among them:
- * the dice bot asks again for every roll unanswered, those lost on the way included.
- */
-const HELD_EVENT_NAMES: ReadonlySet<string> = new Set([AuthorityEvent.ROLE_REQUEST]);
-/**
- * What goes to everybody that the catalogs do not mend either, the server keeping deletions
- * itself: a deletion, and the word that what was deleted is coming back. The changes go with them,
- * in the order they were made, though the catalogs would mend those: a deck split while getting
- * back in moves its cards into the new one before the old one is deleted, and its deletion going
- * first would take the cards with it.
- */
-const COMING_BACK = 'FORGET_DELETED_OBJECTS';
-const CHANGE = 'UPDATE_GAME_OBJECT';
-const DELETION = 'DELETE_GAME_OBJECT';
-const HELD_BROADCAST_EVENT_NAMES: ReadonlySet<string> = new Set([DELETION, COMING_BACK, CHANGE]);
 /** The refusal for a hello whose login is gone or belongs to somebody else. */
 const UNAUTHORIZED = 'unauthorized';
 /** The refusal for a seat whose page was left alone, which comes back only when its reader asks. */
@@ -139,47 +88,7 @@ const IDLE = 'idle';
 /** The refusal for a seat whose sender or account the room server's operator banned. */
 const BANNED = 'banned';
 
-const SOCKET_OPEN = 1;
 const SOCKET_KEY = 'room-server';
-
-interface Outbound {
-  to: string | undefined;
-  events: EventContext[];
-}
-
-/** The identifier an event names, if it names one. */
-function identifierOf(event: EventContext): string | undefined {
-  const identifier = (event.data as { identifier?: unknown } | null)?.identifier;
-  return typeof identifier === 'string' ? identifier : undefined;
-}
-
-/** The parent an object's context names, when it names one. */
-function parentOf(event: EventContext): string | undefined {
-  const parent = (event.data as { syncData?: { parentIdentifier?: unknown } } | null)?.syncData?.parentIdentifier;
-  return typeof parent === 'string' && parent !== '' ? parent : undefined;
-}
-
-/**
- * The batches with only the last change of each object kept between deletions and words on what
- * comes back, at its place: one dragged while getting back into the room goes once, as it stands
- * now, while a change made before a deletion stays before it, as a card moved out of a deck before
- * the deck is deleted has to.
- */
-function latestChanges(batches: Outbound[]): Outbound[] {
-  const seen = new Set<string>();
-  const kept = [...batches].reverse().map((batch) => ({
-    to: batch.to,
-    events: [...batch.events].reverse().filter((event) => {
-      if (event.eventName === DELETION || event.eventName === COMING_BACK) seen.clear();
-      const identifier = identifierOf(event);
-      if (event.eventName !== CHANGE || identifier === undefined) return true;
-      if (seen.has(identifier)) return false;
-      seen.add(identifier);
-      return true;
-    }),
-  }));
-  return kept.reverse().map((batch) => ({ to: batch.to, events: batch.events.reverse() }));
-}
 
 interface InviteWaiter {
   role: ServerRole;
@@ -254,22 +163,13 @@ export class ServerConnection implements Connection {
    */
   private accountSeat = false;
   private invite = '';
-  /** The token for the room's pictures and sounds, and when it runs out. */
-  private assetToken: { token: string; expiresAt: number } | null = null;
   /** How the room server takes pictures and sounds, from the welcome; none for a single PUT. */
   private assetUpload: AssetUploadPolicy | null = null;
-  /** Whether a fresh asset token has been asked for and has not come yet. */
-  private assetTokenAsked = false;
-  private assetTokenTimer: ReturnType<typeof setInterval> | null = null;
-  /** Those waiting for the fresh asset token asked for, given the access once it comes. */
-  private assetTokenWaiters: (() => void)[] = [];
   /**
    * How far the server's clock is ahead of this one, in milliseconds, from the welcome. The asset
    * token runs out by the server's clock, so a clock running behind would renew it too late.
    */
   private clockOffset = 0;
-  /** The access token the last hello carried, which the server may turn down. */
-  private helloToken: string | null = null;
   private retriedUnauthorized = false;
   private inviteWaiters: InviteWaiter[] = [];
 
@@ -286,15 +186,10 @@ export class ServerConnection implements Connection {
   private stopped = false;
   private refusal: string | null = null;
   private readonly reconnectScheduler = new PeerReconnectScheduler();
-  /** When the room server last heard the page was in use: by the hello that got in, or by active. */
-  private reportedAt = 0;
   /** The last use the hello on its way says, which the server takes up once it lets the seat in. */
   private helloInputAt = 0;
-  private idleTimer: ReturnType<typeof setTimeout> | null = null;
-  private idleWarned = false;
   /** Let out of the room for the page left alone; the seat comes back only when its reader asks. */
   private leftAlone = false;
-  private stopHearingInput: (() => void) | null = null;
 
   private outbound: Outbound[] = [];
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -302,22 +197,38 @@ export class ServerConnection implements Connection {
   /** The writing of the connection's own messages, such as the hello or an invitation asked for, which is not paced. */
   private posting: Promise<void> = Promise.resolve();
   private inbound: Promise<void> = Promise.resolve();
-  private pingTimer: ReturnType<typeof setInterval> | null = null;
-  private pongTimer: ReturnType<typeof setTimeout> | null = null;
-  private welcomeTimer: ReturnType<typeof setTimeout> | null = null;
   /** The members missing from the welcome on getting back in, each until taken to have left. */
   private readonly missing = new Map<string, ReturnType<typeof setTimeout>>();
-  private tokenTimer: ReturnType<typeof setInterval> | null = null;
   /** Requests to the server sent while getting back into the room, to send once back in. */
   private held: Outbound[] = [];
   /** Batches handed on to be written to the link and not written yet, oldest first. */
   private unwritten: Outbound[] = [];
-  /** What this link has carried deletions of, and when, for telling a deletion the server turned down. */
-  private deletionsWritten = new Map<string, number>();
-  /** What was written to the link within the last PACE_WINDOW_MS, oldest first. */
-  private sentLately: { at: number; events: number; frames: number }[] = [];
-  /** Ends a wait for room in the window early, as when the link goes. */
-  private wakePacing: (() => void) | null = null;
+  private readonly pacer = new SendPacer();
+  private readonly deletionsWritten = new WrittenDeletions();
+  private readonly heartbeat = new LinkHeartbeat({
+    isCurrent: (socket) => socket === this.socket,
+    welcomed: () => this.welcomed,
+    lost: (socket, code, reason) => {
+      socket.close(code, reason);
+      if (socket === this.socket) this.socketClosed();
+    },
+  });
+  private readonly idleWatch = new IdleWatch({
+    inRoom: () => this.welcomed,
+    reportActive: () => this.post(activeMessage()),
+    tell: (state) => this.callback.onIdle?.(state),
+  });
+  private readonly accessTokenRenewal = new AccessTokenRenewal({
+    userId: () => this.me.userId,
+    inRoom: () => this.welcomed,
+    credentials: () => this.credentialSource?.credentials(),
+    hand: (accessToken) => this.post(authMessage(accessToken)),
+  });
+  private readonly assetTokenRenewal = new AssetTokenRenewal({
+    inRoom: () => this.welcomed,
+    clockOffset: () => this.clockOffset,
+    ask: () => this.post(assetTokenRequest()),
+  });
 
   /** Takes the room server's address from the app config's backend url. */
   configure(config: Record<string, unknown>): void {
@@ -493,9 +404,7 @@ export class ServerConnection implements Connection {
 
   /** What among events for one peer, or for everybody, is kept while getting back into the room. */
   private keptOf(events: EventContext[], sendTo: string | undefined): EventContext[] {
-    const names =
-      sendTo === undefined ? HELD_BROADCAST_EVENT_NAMES : sendTo === this.authority?.peerId ? HELD_EVENT_NAMES : null;
-    return names ? events.filter((event) => names.has(event.eventName)) : [];
+    return keptWhileAway(events, sendTo, this.authority?.peerId);
   }
 
   async listAllPeers(): Promise<string[]> {
@@ -584,11 +493,11 @@ export class ServerConnection implements Connection {
     socket.onopen = () => {
       if (socket !== this.socket) return;
       void this.sayHello(socket);
-      this.startPing(socket);
+      this.heartbeat.start(socket);
     };
     socket.onmessage = (event: MessageEvent) => {
       if (socket !== this.socket) return;
-      this.heardFrom();
+      this.heartbeat.heard();
       if (typeof event.data !== 'string') this.receive(new Uint8Array(event.data as ArrayBuffer));
     };
     socket.onclose = (event: CloseEvent) => {
@@ -627,7 +536,7 @@ export class ServerConnection implements Connection {
       }
       accessToken = credentials.accessToken;
     }
-    this.helloToken = accessToken || null;
+    this.accessTokenRenewal.carried = accessToken || null;
     this.helloInputAt = pageActivity.lastInputAt;
     this.post(
       helloMessage(this.me.peerId, userId, {
@@ -677,7 +586,7 @@ export class ServerConnection implements Connection {
         this.answerInvite(message);
         return;
       case 'asset-token':
-        this.takeAssetToken(message.assetToken, message.expiresAt);
+        this.assetTokenRenewal.take(message.assetToken, message.expiresAt);
         this.takeRole(message.role);
         return;
       case 'error':
@@ -697,14 +606,13 @@ export class ServerConnection implements Connection {
     this.assetUpload = readAssetUploadPolicy(message.assetUpload);
     // Taken before anybody hears the seat is in, so that what they do then may reach the room's
     // pictures and sounds already.
-    this.takeAssetToken(message.assetToken, message.assetTokenExpiresAt);
-    this.startAssetTokenChecks();
+    this.assetTokenRenewal.take(message.assetToken, message.assetTokenExpiresAt);
+    this.assetTokenRenewal.start();
     // A guest's invitation waits for a login; only an account's first visit takes it.
     if (message.role !== 'guest') this.invite = '';
     this.retriedUnauthorized = false;
     this.reconnectScheduler.reset(SOCKET_KEY);
-    this.reportedAt = this.helloInputAt;
-    this.watchIdle();
+    this.idleWatch.start(this.helloInputAt);
     const authority = PeerContext.parse(message.authorityPeerId);
     authority.isOpen = true;
     this.authority = authority;
@@ -729,7 +637,7 @@ export class ServerConnection implements Connection {
     const held = latestChanges(this.held);
     this.held = [];
     for (const batch of held) this.send(batch.events, batch.to);
-    if (this.accountSeat) this.startTokenChecks();
+    if (this.accountSeat) this.accessTokenRenewal.start();
   }
 
   /** Takes on a role the server says the seat has now, and tells of it when it changed. */
@@ -741,23 +649,12 @@ export class ServerConnection implements Connection {
 
   /** The room's pictures and sounds as this seat may reach them: the room and the token, while in it. */
   get assetAccess(): AssetAccess | null {
-    if (!this.welcomed || !this.room || !this.assetToken) return null;
-    const access: AssetAccess = { roomKey: this.room.roomKey, token: this.assetToken.token };
+    const token = this.assetTokenRenewal.token;
+    if (!this.welcomed || !this.room || !token) return null;
+    const access: AssetAccess = { roomKey: this.room.roomKey, token };
     if (this.assetUpload) access.upload = this.assetUpload;
     access.clockOffset = this.clockOffset;
     return access;
-  }
-
-  /**
-   * Holds the asset token the server handed over. A Worker with its login taken away hands an empty
-   * one, and takes no token at all, so the room's pictures and sounds then travel between peers.
-   */
-  private takeAssetToken(token: string, expiresAt: number): void {
-    this.assetToken = token ? { token, expiresAt } : null;
-    this.assetTokenAsked = false;
-    const waiters = this.assetTokenWaiters;
-    this.assetTokenWaiters = [];
-    for (const waiter of waiters) waiter();
   }
 
   /**
@@ -766,63 +663,7 @@ export class ServerConnection implements Connection {
    */
   refreshAssetAccess(): Promise<AssetAccess | null> {
     if (!this.welcomed) return Promise.resolve(null);
-    return new Promise((resolve) => {
-      const timer = setTimeout(() => resolve(null), ASSET_TOKEN_WAIT_MS);
-      this.assetTokenWaiters.push(() => {
-        clearTimeout(timer);
-        resolve(this.assetAccess);
-      });
-      if (!this.assetTokenAsked) {
-        this.assetTokenAsked = true;
-        this.post(assetTokenRequest());
-      }
-    });
-  }
-
-  /** Asks the server for a fresh asset token a while before the one held runs out, once each time. */
-  private startAssetTokenChecks(): void {
-    this.stopAssetTokenChecks();
-    this.assetTokenTimer = setInterval(() => this.renewAssetToken(), TOKEN_CHECK_MS);
-  }
-
-  private renewAssetToken(): void {
-    if (!this.welcomed || !this.assetToken || this.assetTokenAsked) return;
-    if (this.assetToken.expiresAt - (Date.now() + this.clockOffset) > ASSET_TOKEN_MARGIN_MS) return;
-    this.assetTokenAsked = true;
-    this.post(assetTokenRequest());
-  }
-
-  private stopAssetTokenChecks(): void {
-    if (this.assetTokenTimer != null) clearInterval(this.assetTokenTimer);
-    this.assetTokenTimer = null;
-  }
-
-  /**
-   * Hands the server each fresh access token while in the room, so that the seat stays; a seat whose
-   * token runs out without a new one is closed by the server.
-   */
-  private startTokenChecks(): void {
-    this.stopTokenChecks();
-    this.tokenTimer = setInterval(() => void this.renewToken(), TOKEN_CHECK_MS);
-  }
-
-  private async renewToken(): Promise<void> {
-    const userId = this.me.userId;
-    let credentials;
-    try {
-      credentials = await this.credentialSource?.credentials();
-    } catch {
-      return;
-    }
-    if (!this.welcomed || credentials?.userId !== userId) return;
-    if (credentials.accessToken === this.helloToken) return;
-    this.helloToken = credentials.accessToken;
-    this.post(authMessage(credentials.accessToken));
-  }
-
-  private stopTokenChecks(): void {
-    if (this.tokenTimer != null) clearInterval(this.tokenTimer);
-    this.tokenTimer = null;
+    return this.assetTokenRenewal.whenFresh(() => this.assetAccess);
   }
 
   private addMember(member: Member): void {
@@ -893,22 +734,7 @@ export class ServerConnection implements Connection {
    * emptied.
    */
   private keepWhatTheServerHandsBack(events: EventContext[]): void {
-    const authority = this.authority?.peerId;
-    const parents = new Map<string, string | undefined>();
-    for (const event of events) {
-      const identifier = identifierOf(event);
-      if (event.eventName !== AuthorityEvent.AUTHORITATIVE || event.sendFrom !== authority || !identifier) continue;
-      parents.set(identifier, parentOf(event));
-    }
-    const underDeletion = (identifier: string) => {
-      let at: string | undefined = identifier;
-      for (let step = 0; at !== undefined && step <= parents.size; step++) {
-        if (this.deletionsWritten.has(at)) return true;
-        at = parents.get(at);
-      }
-      return false;
-    };
-    const kept = new Set([...parents.keys()].filter(underDeletion));
+    const kept = this.deletionsWritten.takenBack(events, this.authority?.peerId);
     if (kept.size === 0) return;
     const unless = (event: EventContext) => event.eventName !== DELETION || !kept.has(identifierOf(event) ?? '');
     for (const batch of [...this.held, ...this.unwritten, ...this.outbound]) {
@@ -938,10 +764,10 @@ export class ServerConnection implements Connection {
     this.askedBack = false;
     this.socket = null;
     this.welcomed = false;
-    this.stopPing();
-    this.stopTokenChecks();
-    this.stopAssetTokenChecks();
-    this.stopIdleWatch();
+    this.heartbeat.stop();
+    this.accessTokenRenewal.stop();
+    this.assetTokenRenewal.stop();
+    this.idleWatch.stop();
     // What was still gathering to go out goes with the link, but for the requests kept for later,
     // those already on their way out ahead of the rest.
     this.keepRequests(this.unwritten);
@@ -1003,7 +829,7 @@ export class ServerConnection implements Connection {
    * a token that ran out. A second refusal, or a login that is gone, ends the session.
    */
   private async retryUnauthorized(): Promise<void> {
-    const rejected = this.helloToken;
+    const rejected = this.accessTokenRenewal.carried;
     if (this.retriedUnauthorized || !rejected || !this.credentialSource) {
       this.fail(UNAUTHORIZED, 'the room server refused the login');
       return;
@@ -1051,15 +877,14 @@ export class ServerConnection implements Connection {
 
   private teardown(): void {
     this.reconnectScheduler.cancelAll();
-    this.stopIdleWatch();
+    this.idleWatch.end();
     this.leftAlone = false;
-    this.idleWarned = false;
     for (const peerId of [...this.missing.keys()]) this.stopMissing(peerId);
     this.askedBack = false;
     this.comingBack = false;
-    this.stopPing();
-    this.stopTokenChecks();
-    this.stopAssetTokenChecks();
+    this.heartbeat.stop();
+    this.accessTokenRenewal.stop();
+    this.assetTokenRenewal.stop();
     this.held = [];
     this.unwritten = [];
     this.stopPacing();
@@ -1068,9 +893,7 @@ export class ServerConnection implements Connection {
     this.socket = null;
     this.welcomed = false;
     // Out of the room, there is no fresh token to wait for.
-    const waiters = this.assetTokenWaiters;
-    this.assetTokenWaiters = [];
-    for (const waiter of waiters) waiter();
+    this.assetTokenRenewal.release();
     if (socket && socket.readyState <= SOCKET_OPEN) socket.close(1000);
   }
 
@@ -1115,72 +938,21 @@ export class ServerConnection implements Connection {
       if (!this.unwritten.includes(batch)) return;
       const encoded = batch.events;
       let frames = await encodeSendFrames(encoded, batch.to);
-      await this.roomInWindow(batch, frames.length);
+      await this.pacer.roomFor(batch, frames.length, () => this.unwritten.includes(batch));
       if (!this.unwritten.includes(batch)) return;
       if (batch.events !== encoded) frames = await encodeSendFrames(batch.events, batch.to);
       if (socket == null || socket !== this.socket || socket.readyState !== SOCKET_OPEN) return;
       for (const frame of frames) socket.send(frame);
-      this.sentLately.push({ at: Date.now(), events: batch.events.length, frames: frames.length });
-      this.rememberDeletions(batch.events);
+      this.pacer.wrote(batch.events.length, frames.length);
+      this.deletionsWritten.note(batch.events);
       this.unwritten = this.unwritten.filter((waiting) => waiting !== batch);
-    }
-  }
-
-  /**
-   * Waits until a batch fits in what the window has left of the budget, or it is no longer to be
-   * written. A batch over the budget on its own goes once the window is empty.
-   */
-  private async roomInWindow(batch: Outbound, frames: number): Promise<void> {
-    while (this.unwritten.includes(batch)) {
-      const now = Date.now();
-      this.sentLately = this.sentLately.filter((sent) => now - sent.at < PACE_WINDOW_MS);
-      const events = this.sentLately.reduce((count, sent) => count + sent.events, batch.events.length);
-      const written = this.sentLately.reduce((count, sent) => count + sent.frames, frames);
-      if (this.sentLately.length === 0 || (events <= SEND_BUDGET_EVENTS && written <= SEND_BUDGET_FRAMES)) return;
-      await new Promise<void>((resolve) => {
-        const timer = setTimeout(wake, this.sentLately[0].at + PACE_WINDOW_MS - now);
-        function wake(): void {
-          clearTimeout(timer);
-          resolve();
-        }
-        this.wakePacing = wake;
-      });
-      this.wakePacing = null;
-    }
-  }
-
-  /**
-   * Notes the deletions written, for a while long enough for the server to turn them down: the
-   * notes older than a minute go once there are many. A word that something comes back, or a change
-   * of it, written after its deletion takes the note away, as the deletion went through.
-   */
-  private rememberDeletions(events: EventContext[]): void {
-    const now = Date.now();
-    for (const event of events) {
-      const identifier = identifierOf(event);
-      if (event.eventName === COMING_BACK) {
-        const { identifiers } = event.data as { identifiers?: unknown };
-        if (Array.isArray(identifiers)) for (const id of identifiers) this.deletionsWritten.delete(String(id));
-      } else if (identifier === undefined) {
-        continue;
-      } else if (event.eventName === DELETION) {
-        this.deletionsWritten.set(identifier, now);
-      } else if (event.eventName === CHANGE) {
-        this.deletionsWritten.delete(identifier);
-      }
-    }
-    if (this.deletionsWritten.size <= MAX_HELD_BROADCASTS) return;
-    for (const [identifier, at] of this.deletionsWritten) {
-      if (now - at > 60_000) this.deletionsWritten.delete(identifier);
     }
   }
 
   /** Forgets what the link had written, a new one being counted afresh, and ends any wait for it. */
   private stopPacing(): void {
-    this.sentLately = [];
+    this.pacer.reset();
     this.deletionsWritten.clear();
-    this.wakePacing?.();
-    this.wakePacing = null;
   }
 
   /**
@@ -1214,86 +986,8 @@ export class ServerConnection implements Connection {
    */
   private leaveForIdle(): void {
     this.leftAlone = true;
-    this.idleWarned = false;
+    this.idleWatch.end();
     this.reconnectScheduler.cancelAll();
     this.callback.onIdle?.('left');
-  }
-
-  /**
-   * Hears the page's use while the seat is in, saying active to the server when it was used at least
-   * ACTIVE_REPORT_SECONDS after the server last heard so, and warns IDLE_WARNING_MS before the seat
-   * would be let out.
-   */
-  private watchIdle(): void {
-    this.stopHearingInput ??= pageActivity.onInput((at) => this.usedAt(at));
-    this.armIdleWarning();
-  }
-
-  private usedAt(at: number): void {
-    if (!this.welcomed || at - this.reportedAt < ACTIVE_REPORT_SECONDS * 1000) return;
-    this.reportedAt = at;
-    this.post(activeMessage());
-    this.armIdleWarning();
-    if (!this.idleWarned) return;
-    this.idleWarned = false;
-    this.callback.onIdle?.('back');
-  }
-
-  private armIdleWarning(): void {
-    if (this.idleTimer != null) clearTimeout(this.idleTimer);
-    const warnAt = this.reportedAt + IDLE_SECONDS * 1000 - IDLE_WARNING_MS;
-    this.idleTimer = setTimeout(
-      () => {
-        this.idleTimer = null;
-        if (!this.welcomed || this.idleWarned) return;
-        this.idleWarned = true;
-        this.callback.onIdle?.('soon');
-      },
-      Math.max(0, warnAt - Date.now())
-    );
-  }
-
-  private stopIdleWatch(): void {
-    if (this.idleTimer != null) clearTimeout(this.idleTimer);
-    this.idleTimer = null;
-    this.stopHearingInput?.();
-    this.stopHearingInput = null;
-  }
-
-  private startPing(socket: WebSocket): void {
-    this.stopPing();
-    this.welcomeTimer = setTimeout(() => {
-      this.welcomeTimer = null;
-      if (socket !== this.socket || this.welcomed) return;
-      socket.close(4002, 'no welcome');
-      if (socket === this.socket) this.socketClosed();
-    }, WELCOME_TIMEOUT_MS);
-    this.pingTimer = setInterval(() => {
-      if (socket !== this.socket || socket.readyState !== SOCKET_OPEN) return;
-      socket.send(PING);
-      if (this.pongTimer == null) {
-        this.pongTimer = setTimeout(() => {
-          this.pongTimer = null;
-          if (socket !== this.socket) return;
-          // A dead link may take a minute to report the close; take it as lost now.
-          socket.close(4001, 'no answer to ping');
-          if (socket === this.socket) this.socketClosed();
-        }, PONG_TIMEOUT_MS);
-      }
-    }, PING_INTERVAL_MS);
-  }
-
-  /** Anything from the server shows it is there, a pong or otherwise. */
-  private heardFrom(): void {
-    if (this.pongTimer != null) clearTimeout(this.pongTimer);
-    this.pongTimer = null;
-  }
-
-  private stopPing(): void {
-    if (this.pingTimer != null) clearInterval(this.pingTimer);
-    this.pingTimer = null;
-    if (this.welcomeTimer != null) clearTimeout(this.welcomeTimer);
-    this.welcomeTimer = null;
-    this.heardFrom();
   }
 }
