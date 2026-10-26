@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
 import { ObjectChangeService, type WritingMessageEvent } from '@axe/application/sync/object-change.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { emitMessageAdded } from '@axe/core/event/domain-events';
@@ -176,7 +176,7 @@ describe('ChatTabComponent', () => {
       beMyself('me');
       const secret = chatTab.addMessage({ from: 'me', name: 'ダイス', text: '→ 6', timestamp: 1000, tag: 'secret' });
       const said = chatTab.addMessage({ from: 'me', name: 'アリス', text: 'そのあと', timestamp: 2000 });
-      TestBed.inject(ChatMessageService).discloseMessage(secret);
+      TestBed.inject(ChatLineEditService).discloseMessage(secret);
       await flush();
 
       // settling the window over both, with the opened line last
@@ -204,7 +204,7 @@ describe('ChatTabComponent', () => {
       // settling the window over both, which bounds it by the times they were said at
       const settled = component.chatMessages;
 
-      TestBed.inject(ChatMessageService).discloseMessage(secret);
+      TestBed.inject(ChatLineEditService).discloseMessage(secret);
       await flush();
 
       expect(chatTab.chatMessages[chatTab.chatMessages.length - 1]).toBe(secret);

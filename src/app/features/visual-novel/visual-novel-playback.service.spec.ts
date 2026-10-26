@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { setPeerContextProvider } from '@axe/core/network/peer-context-source';
@@ -129,7 +129,7 @@ describe('VisualNovelPlaybackService', () => {
       say('その間の発言', character.identifier);
 
       beMe('roller');
-      TestBed.inject(ChatMessageService).discloseMessage(secret);
+      TestBed.inject(ChatLineEditService).discloseMessage(secret);
       beMe('reader');
       TestBed.inject(ObjectChangeService).notifyChanged(tab.identifier);
 

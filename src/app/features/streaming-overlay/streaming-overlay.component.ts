@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -38,6 +39,7 @@ const TICK_MS = 10_000;
 })
 export class StreamingOverlayComponent {
   private readonly chat = inject(ChatMessageService);
+  private readonly clock = inject(ChatClockService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly overlayMode = inject(OverlayModeService);
   private readonly t = inject(TRANSLATE_FN);
@@ -60,7 +62,7 @@ export class StreamingOverlayComponent {
       for (const message of recentOf(tab)) sources.push(this.sourceOf(message));
     }
     sources.sort((a, b) => a.order - b.order);
-    return buildOverlayFeed(sources, this.chat.getTime());
+    return buildOverlayFeed(sources, this.clock.now());
   });
 
   constructor() {

@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPaletteRegistryService } from '@axe/application/chat/chat-palette-registry.service';
 import { NO_SYSTEM_AVATAR, SystemAvatarService } from '@axe/application/chat/system-avatar.service';
@@ -1402,7 +1403,7 @@ describe('VisualNovelOverlayComponent', () => {
         sendFrom: characterFor('モンスターA').identifier,
       });
       // and the roll from before the clearing is opened, which brings it to the end of the tab
-      TestBed.inject(ChatMessageService).discloseMessage(secret);
+      TestBed.inject(ChatLineEditService).discloseMessage(secret);
       TestBed.inject(ObjectChangeService).notifyChanged(tab.identifier);
       fixture.detectChanges();
 

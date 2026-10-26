@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -58,8 +59,8 @@ describe('NetworkEventHandlerService', () => {
   let chatStub: {
     sendSystemMessage: ReturnType<typeof vi.fn>;
     sendSystemNotice: ReturnType<typeof vi.fn>;
-    calibrateTimeOffset: ReturnType<typeof vi.fn>;
   };
+  let clockStub: { calibrate: ReturnType<typeof vi.fn> };
   let stubChange: StubObjectChange;
   let account: ReturnType<typeof signal<Account | null>>;
 
@@ -68,11 +69,12 @@ describe('NetworkEventHandlerService', () => {
     chatStub = {
       sendSystemMessage: vi.fn(),
       sendSystemNotice: vi.fn(),
-      calibrateTimeOffset: vi.fn(),
     };
+    clockStub = { calibrate: vi.fn() };
     stubChange = new StubObjectChange();
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     TestBed.overrideProvider(ChatMessageService, { useValue: chatStub });
+    TestBed.overrideProvider(ChatClockService, { useValue: clockStub });
     TestBed.overrideProvider(ObjectChangeService, { useValue: stubChange });
     TestBed.overrideProvider(ServerAuthService, { useValue: { account } });
     TestBed.inject(NetworkEventHandlerService);
@@ -209,7 +211,7 @@ describe('NetworkEventHandlerService', () => {
   it('calibrates the clock as a peer connects', () => {
     stubChange.peerConnect$.emit({ peerId: 'p1' });
 
-    expect(chatStub.calibrateTimeOffset).toHaveBeenCalledTimes(1);
+    expect(clockStub.calibrate).toHaveBeenCalledTimes(1);
   });
 
   it('does not open a network connection in local mode', () => {

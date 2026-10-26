@@ -1,4 +1,5 @@
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -71,7 +72,8 @@ describe('StreamingOverlayComponent', () => {
       imports: [StreamingOverlayComponent],
       providers: [...TEST_PROVIDERS, { provide: TurnOrderService, useValue: turn }],
     });
-    TestBed.overrideProvider(ChatMessageService, { useValue: { chatTabs, getTime: () => 2000 } });
+    TestBed.overrideProvider(ChatMessageService, { useValue: { chatTabs } });
+    TestBed.overrideProvider(ChatClockService, { useValue: { now: () => 2000 } });
     await TestBed.compileComponents();
 
     objectChange = TestBed.inject(ObjectChangeService);

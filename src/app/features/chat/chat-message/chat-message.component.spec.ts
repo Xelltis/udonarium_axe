@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatReactionService } from '@axe/application/chat/chat-reaction.service';
 import {
@@ -2096,7 +2096,7 @@ describe('ChatMessageComponent', () => {
       fixture.componentRef.setInput('chatMessage', message);
       component.startEdit();
       component.editDraft.set('こんにちは');
-      vi.spyOn(TestBed.inject(ChatMessageService), 'canEditMessage').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(ChatLineEditService), 'canEditMessage').mockReturnValue(false);
 
       component.saveEdit();
 

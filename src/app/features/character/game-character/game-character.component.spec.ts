@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { SPEECH_BUBBLE_WAIT_MS, SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -2037,7 +2037,7 @@ describe('GameCharacterComponent', () => {
       tab = new ChatTab();
       tab.initialize();
       ChatTabList.instance.appendChild(tab);
-      vi.spyOn(TestBed.inject(ChatMessageService), 'getTime').mockImplementation(() => Date.now());
+      vi.spyOn(TestBed.inject(ChatClockService), 'now').mockImplementation(() => Date.now());
     });
 
     afterEach(() => {

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.service';
+import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { DiceRollService } from '@axe/application/dice/dice-roll.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -150,7 +151,7 @@ describe('DiceRollService', () => {
       const second = myOwnDie('隠しダイスB');
       service.roll([first, second]);
 
-      TestBed.inject(ChatMessageService).discloseDieRolls(first.identifier);
+      TestBed.inject(ChatLineEditService).discloseDieRolls(first.identifier);
 
       const stillSecret = tab.chatMessages.filter((message) => message.isSecret);
       expect(stillSecret.map((message) => message.text)).toEqual([

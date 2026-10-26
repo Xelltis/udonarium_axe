@@ -1,4 +1,5 @@
 import { DestroyRef, effect, inject, Injectable, untracked } from '@angular/core';
+import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
@@ -59,6 +60,7 @@ export class NetworkEventHandlerService {
   private readonly assetRemoval = inject(AssetRemovalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly chatMessageService = inject(ChatMessageService);
+  private readonly chatClock = inject(ChatClockService);
   private readonly reach = inject(NetworkReachService);
   private readonly auth = inject(ServerAuthService);
   private readonly snackbar = inject(SnackbarService);
@@ -174,7 +176,7 @@ export class NetworkEventHandlerService {
       if (Network.transport === 'server' && !peer.isRoom) PeerCursor.myCursor.role = DEFAULT_PEER_ROLE;
       this.rememberIdentity(peer);
       // A room server's clock sets the chat's as the seat comes in, though nobody else may be there.
-      if (peer.isRoom && Network.serverClockOffset !== null) this.chatMessageService.calibrateTimeOffset();
+      if (peer.isRoom && Network.serverClockOffset !== null) this.chatClock.calibrate();
       const account = Network.transport === 'server' ? this.auth.account() : null;
       if (account) this.lendAccountLook(account.name, account.avatarUrl);
     }, this.destroyRef);
@@ -231,7 +233,7 @@ export class NetworkEventHandlerService {
       Network.openStandby(this.standbyUserId());
     }, this.destroyRef);
     this.objectChange.peerConnect$.subscribe(() => {
-      this.chatMessageService.calibrateTimeOffset();
+      this.chatClock.calibrate();
     }, this.destroyRef);
     // Somebody who left may still be putting up what it added, and can name it to nobody once it is
     // there; the room's list is read again a little later for it.

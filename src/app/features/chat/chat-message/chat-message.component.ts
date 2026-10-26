@@ -15,6 +15,8 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ChatClockService } from '@axe/application/chat/chat-clock.service';
+import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatReactionService, ReactionTally } from '@axe/application/chat/chat-reaction.service';
@@ -102,6 +104,8 @@ export class ChatMessageComponent {
   protected readonly skins = inject(SkinService);
 
   private readonly chatMessageService = inject(ChatMessageService);
+  private readonly lineEdit = inject(ChatLineEditService);
+  private readonly clock = inject(ChatClockService);
   private readonly chatBookmarks = inject(ChatBookmarkService);
   private readonly chatTickerSelection = inject(ChatTickerSelectionService);
   private readonly objectStore = inject(ObjectStore);
@@ -143,7 +147,7 @@ export class ChatMessageComponent {
     return (
       !this.readOnly() &&
       !!this.chatMessage &&
-      this.chatMessageService.canEditMessage(this.chatMessage) &&
+      this.lineEdit.canEditMessage(this.chatMessage) &&
       !this.chatMessage.sentStamp
     );
   }
@@ -608,7 +612,7 @@ export class ChatMessageComponent {
   constructor() {
     effect(() => {
       const chatMessage = this.chatMessageInput();
-      const time = this.chatMessageService.getTime();
+      const time = this.clock.now();
       if (time - 10 * 1000 < chatMessage.timestamp) this.animeState.set('active');
     });
   }
@@ -620,12 +624,12 @@ export class ChatMessageComponent {
 
   /** Whether the button to show a kept-back roll is this reader's to press. */
   canDisclose(): boolean {
-    return this.chatMessageService.canDiscloseMessage(this.chatMessage);
+    return this.lineEdit.canDiscloseMessage(this.chatMessage);
   }
 
   /** Reveals a kept-back roll to the room, from the button shown on the hidden line. */
   discloseMessage() {
-    this.chatMessageService.discloseMessage(this.chatMessage);
+    this.lineEdit.discloseMessage(this.chatMessage);
   }
 
   readonly editDraft = signal<string | null>(null);
@@ -639,7 +643,7 @@ export class ChatMessageComponent {
    * focused with the caret at the end once it is drawn. Does nothing for a line that may not change.
    */
   startEdit() {
-    if (!this.chatMessageService.canEditMessage(this.chatMessage)) return;
+    if (!this.lineEdit.canEditMessage(this.chatMessage)) return;
     this.editDraft.set(vnBodyOf(this.chatMessage.vnEmote, this.chatMessage.text ?? ''));
     setTimeout(() => {
       const el = this.editingTextArea()?.nativeElement;
@@ -663,14 +667,14 @@ export class ChatMessageComponent {
     const draft = this.editDraft();
     if (draft === null) return;
     const next = draft.trimEnd();
-    if (next.length === 0 || !this.chatMessageService.canEditMessage(this.chatMessage)) {
+    if (next.length === 0 || !this.lineEdit.canEditMessage(this.chatMessage)) {
       this.cancelEdit();
       return;
     }
     // A line said before the staging was kept apart still carries it at the end. Editing the
     // body would take it away with the rest of the suffix, so it moves beside the line first.
     const staging = encodeVnEmote(vnEmoteOf(this.chatMessage.vnEmote, this.chatMessage.text ?? ''));
-    this.chatMessage.edit(next, staging, this.chatMessageService.getTime());
+    this.chatMessage.edit(next, staging, this.clock.now());
     this.editDraft.set(null);
   }
 
@@ -910,14 +914,14 @@ export class ChatMessageComponent {
   get canMakeAfterWhisper(): boolean {
     if (this.readOnly()) return false;
     const message = this.chatMessage;
-    return !!message && this.chatMessageService.canMakeAfterWhisper(message);
+    return !!message && this.lineEdit.canMakeAfterWhisper(message);
   }
 
   /** Whether this reader may put the line, which they made an after-the-fact whisper, back for everyone. */
   get canUndoAfterWhisper(): boolean {
     if (this.readOnly()) return false;
     const message = this.chatMessage;
-    return !!message && this.chatMessageService.canUndoAfterWhisper(message);
+    return !!message && this.lineEdit.canUndoAfterWhisper(message);
   }
 
   /**
@@ -926,26 +930,26 @@ export class ChatMessageComponent {
    */
   whisperTargets(): PeerCursor[] {
     this.objectChange.collectionOf(PeerCursor.aliasName)();
-    return this.chatMessageService.afterWhisperCandidates(this.chatMessage);
+    return this.lineEdit.afterWhisperCandidates(this.chatMessage);
   }
 
   /** Makes the line an after-the-fact whisper to the seat chosen, from the list or the line's menu. */
   whisperTo(peer: PeerCursor): void {
     if (!this.canMakeAfterWhisper) return;
-    this.chatMessageService.makeAfterWhisper(this.chatMessage, peer);
+    this.lineEdit.makeAfterWhisper(this.chatMessage, peer);
   }
 
   /** Puts an after-the-fact whisper back for everyone, from the list or the line's menu. */
   undoAfterWhisper(): void {
     if (!this.canUndoAfterWhisper) return;
-    this.chatMessageService.undoAfterWhisper(this.chatMessage);
+    this.lineEdit.undoAfterWhisper(this.chatMessage);
   }
 
   /** Whether this reader may delete the line, which they may of a line they said. */
   get canPseudoDelete(): boolean {
     if (this.readOnly()) return false;
     const message = this.chatMessage;
-    return !!message && this.chatMessageService.canPseudoDelete(message);
+    return !!message && this.lineEdit.canPseudoDelete(message);
   }
 
   /**
@@ -960,7 +964,7 @@ export class ChatMessageComponent {
       okLabel: this.t('feature.chat.message.deleteLine'),
       danger: true,
     });
-    if (sure) this.chatMessageService.pseudoDelete(message);
+    if (sure) this.lineEdit.pseudoDelete(message);
   }
 
   /** Puts this line in the ticker running round the table, where that ticker is shown at all. */

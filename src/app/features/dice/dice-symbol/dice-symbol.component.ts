@@ -9,6 +9,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { CharacterDiceService } from '@axe/application/dice/character-dice.service';
 import { DiceRollService } from '@axe/application/dice/dice-roll.service';
@@ -76,6 +77,7 @@ export class DiceSymbolComponent {
   private readonly diceRollService = inject(DiceRollService);
   private readonly characterDice = inject(CharacterDiceService);
   private readonly chat = inject(ChatMessageService);
+  private readonly lineEdit = inject(ChatLineEditService);
   private readonly objectStore = inject(ObjectStore);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly imageService = inject(ImageService);
@@ -388,7 +390,7 @@ export class DiceSymbolComponent {
   }
 
   private onDiceRevealed(face: string): void {
-    const opened = this.chat.discloseDieRolls(this.diceSymbol().identifier);
+    const opened = this.lineEdit.discloseDieRolls(this.diceSymbol().identifier);
     if (opened < 1) this.announceRevealedFace(face);
   }
 
