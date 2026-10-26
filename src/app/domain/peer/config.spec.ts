@@ -8,6 +8,8 @@ import { DEFAULT_DJ_SETTINGS } from '@axe/domain/media/dj-settings';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { DEFAULT_ROOM_VOLUMES } from '@axe/domain/media/room-volumes';
 import { Config } from '@axe/domain/peer/config';
+import { CONFIG_RULE_ANSWERS } from '@axe/domain/peer/config-rule-answers';
+import { ROOM_RULE_DEFAULTS } from '@axe/domain/tabletop/room-rules';
 
 describe('Config', () => {
   beforeEach(() => {
@@ -723,6 +725,117 @@ describe('Config', () => {
       Config.instance.isSpeakerAvatarVisible = true;
 
       expect(Config.instance.isSpeakerAvatarVisible).toBe(true);
+    });
+
+    describe('kept in the attributes saved rooms and older peers know', () => {
+      type Rule = keyof typeof CONFIG_RULE_ANSWERS;
+      const rules = Object.keys(CONFIG_RULE_ANSWERS) as Rule[];
+      const sampleOf = (rule: Rule) =>
+        ({ flag: false, number: 0, text: 'stop' })[CONFIG_RULE_ANSWERS[rule].kind] as never;
+
+      it('are kept under the names they have always been saved by', () => {
+        expect(rules.map((rule) => CONFIG_RULE_ANSWERS[rule].attribute)).toEqual([
+          '_moveRangeEnabled',
+          '_moveRangeElementNames',
+          '_piecesShareCells',
+          '_samePartyPassage',
+          '_otherPartyPassage',
+          '_noPartyPassage',
+          '_piecePassageCost',
+          '_sizeSlipsPast',
+          '_squeezes',
+          '_jumpCells',
+          '_handTracesWay',
+          '_moveRangeAlways',
+          '_zocAlways',
+          '_cellDistance',
+          '_cellDistanceUnit',
+          '_zocMode',
+          '_hostilityBy',
+          '_zocRange',
+          '_zocExtraCost',
+          '_zocEngages',
+          '_breakOutMode',
+          '_breakOutCost',
+          '_engagementCountsSize',
+          '_facingMark',
+          '_pieceImageInCell',
+          '_zoneEnabled',
+          '_zoneSizes',
+          '_zoneCountField',
+          '_zoneSamePoint',
+          '_zoneOutnumber',
+          '_zoneLeaveKind',
+          '_zoneBlockRadius',
+          '_zoneClearName',
+          '_zoneStealthUnseen',
+          '_moveKinds',
+          '_interruptKind',
+          '_placementDistances',
+          '_distanceModifiers',
+          '_rideSkillField',
+          '_rideRequireField',
+          '_fallMinM',
+          '_fallDamage',
+          '_twoUpBuff',
+        ]);
+      });
+
+      it('are each written into the attribute the room saves, as an older build writes it', () => {
+        const config = Config.instance;
+        const written = { flag: '0', number: 0, text: 'stop' };
+
+        for (const rule of rules) {
+          config[rule] = sampleOf(rule);
+          const { attribute, kind } = CONFIG_RULE_ANSWERS[rule];
+          expect(config.getAttribute(attribute), rule).toBe(written[kind]);
+        }
+      });
+
+      it('answer nothing, not nought, from an attribute left empty', () => {
+        const config = Config.instance;
+
+        for (const rule of rules) {
+          config.setAttribute(CONFIG_RULE_ANSWERS[rule].attribute, '');
+          expect(config[rule], rule).toBeNull();
+        }
+      });
+
+      it('read the answers as an older build writes them', () => {
+        const config = Config.instance;
+        config.setAttribute('_zoneEnabled', '1');
+        config.setAttribute('_zocEngages', '0');
+        config.setAttribute('_zocRange', '2');
+        config.setAttribute('_cellDistance', '0');
+        config.setAttribute('_zocMode', 'block');
+
+        expect(config.zoneEnabled).toBe(true);
+        expect(config.zocEngages).toBe(false);
+        expect(config.zocRange).toBe(2);
+        expect(config.cellDistance).toBe(0);
+        expect(config.zocMode).toBe('block');
+      });
+
+      it('read back every answer they are given, and nothing once it is taken away', () => {
+        const config = Config.instance;
+
+        for (const rule of rules) {
+          config[rule] = sampleOf(rule);
+          expect(config[rule], rule).toBe(sampleOf(rule));
+          config[rule] = null;
+          expect(config[rule], rule).toBeNull();
+        }
+      });
+
+      it('lists every rule of play among the room’s answers, and the zone rules among the zone answers', () => {
+        const config = Config.instance;
+        config.zocRange = 3;
+        config.zoneSamePointM = 1.5;
+
+        expect(config.roomRuleAnswers.zocRange).toBe(3);
+        expect(Object.keys(config.roomRuleAnswers).sort()).toEqual(Object.keys(ROOM_RULE_DEFAULTS).sort());
+        expect(config.zoneRuleAnswers.samePointM).toBe(1.5);
+      });
     });
 
     it('reads the flag back the way a loaded room writes it', () => {

@@ -20,6 +20,7 @@ import { Hotbar } from '@axe/domain/hotbar/hotbar';
 import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
 import { HotbarSlot } from '@axe/domain/hotbar/hotbar-slot';
 import { Config } from '@axe/domain/peer/config';
+import { CONFIG_RULE_ANSWERS } from '@axe/domain/peer/config-rule-answers';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { Room } from '@axe/domain/peer/room';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
@@ -95,6 +96,21 @@ describe('save and load round trip', () => {
       expect(Config.instance.cellDistance).toBe(5);
       expect(Config.instance.cellDistanceUnit).toBe('foot');
       expect(Config.instance.zocMode).toBe('stop');
+    });
+
+    it('carries every rule of the answer table through a save and a load', () => {
+      const config = Config.instance;
+      const samples = { flag: true, number: 2, text: 'stop' };
+      const rules = Object.keys(CONFIG_RULE_ANSWERS) as (keyof typeof CONFIG_RULE_ANSWERS)[];
+      for (const rule of rules) config[rule] = samples[CONFIG_RULE_ANSWERS[rule].kind] as never;
+
+      const xml = serializer.toXml(config);
+      for (const rule of rules) config[rule] = null;
+      serializer.parseXml(xml);
+
+      for (const rule of rules) {
+        expect(Config.instance[rule], rule).toBe(samples[CONFIG_RULE_ANSWERS[rule].kind]);
+      }
     });
 
     it('carries how the round is taken through a save and a load', () => {
