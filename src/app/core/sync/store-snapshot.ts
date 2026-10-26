@@ -50,7 +50,7 @@ export function restoreStore(snapshot: StoreSnapshot, keep: (object: GameObject)
     const object = store.get(identifier);
     if (object === null) {
       const made = ObjectFactory.instance.create(context.aliasName, identifier);
-      if (made) store.add(made, false, () => applyAsData(made, context));
+      if (made && !keep(made)) store.add(made, false, () => applyAsData(made, context));
       continue;
     }
     if (kept(object)) continue;

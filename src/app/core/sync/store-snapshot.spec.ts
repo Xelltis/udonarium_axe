@@ -104,4 +104,14 @@ describe('putting the store back as a snapshot found it', () => {
     expect(probe.heard).toBe(0);
     store.delete(probe, false);
   });
+
+  it('does not make again what is to be kept, though it was taken out since', () => {
+    const slot = element('slot', '1', 'kept-gone');
+    const snapshot = snapshotStore();
+    slot.destroy();
+
+    restoreStore(snapshot, (object) => object.identifier === 'kept-gone');
+
+    expect(store.get('kept-gone')).toBeNull();
+  });
 });

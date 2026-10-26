@@ -372,25 +372,44 @@ describe('StartRoomService', () => {
       expect(sample).toHaveBeenCalledTimes(1);
     });
 
-    it('puts the start room back as it stood, pictures and sounds and all, when the join comes to nothing', async () => {
-      const readBack = vi
-        .spyOn(ImageFile, 'contextFromBytesAsync')
-        .mockImplementation(async (identifier) => ({ identifier }) as never);
-      const pictureBack = vi.spyOn(ImageStorage.instance, 'add').mockReturnValue({} as ImageFile);
-      const soundBack = vi.spyOn(AudioStorage.instance, 'addAsync').mockResolvedValue({} as AudioFile);
+    it('sets the kept start room out again when the join comes to nothing, and says so', async () => {
       await setOut();
       const joined = service.putAwayForJoin();
+      expect(ObjectStore.instance.get('brought-piece')).toBeNull();
 
       joined(false);
-      await vi.waitFor(() => expect(soundBack).toHaveBeenCalled());
+      expect(service.isSettling).toBe(true);
+      await service.whenSettled();
 
+      expect(load).toHaveBeenCalledTimes(2);
       expect(ObjectStore.instance.get('brought-piece')).not.toBeNull();
-      expect(readBack).toHaveBeenCalledWith('brought-picture', expect.any(Blob));
-      expect(pictureBack).toHaveBeenCalledWith({ identifier: 'brought-picture' });
-      expect((soundBack.mock.calls[0][0] as File).name).toBe('theme.mp3');
-
+      expect(shown).toHaveBeenCalledWith(
+        '部屋に入れなかったので、開始時の部屋を読み込み直しました。保存していない変更は戻っていません。'
+      );
       service.putAwayForJoin();
       expect(sample).toHaveBeenCalledTimes(2);
+    });
+
+    it('leaves a seat that went into a room meanwhile as it is, and lets the start room go', async () => {
+      await setOut();
+      const joined = service.putAwayForJoin();
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: true } as never);
+
+      joined(false);
+      await service.whenSettled();
+
+      expect(load).toHaveBeenCalledTimes(1);
+      service.putAwayForJoin();
+      expect(sample).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps nothing as the start room while a join is under way, with the sample out in its place', async () => {
+      await setOut();
+      service.putAwayForJoin();
+
+      expect(await service.keepCurrent()).toBe(false);
+
+      expect(shown).toHaveBeenCalledWith('部屋に入る途中は、開始時の部屋にできません。');
     });
 
     it("leaves the pictures the seat's own things show", async () => {
@@ -418,6 +437,23 @@ describe('StartRoomService', () => {
       service.putAwayForJoin();
 
       expect(stop).toHaveBeenCalledTimes(1);
+    });
+
+    it("hands the room's volumes as the page set them back to the jukebox", async () => {
+      const jukebox = new Jukebox('Jukebox');
+      jukebox.initialize();
+      const volume = vi.spyOn(jukebox, 'setNewVolume').mockImplementation(() => {});
+      const mix = vi.spyOn(jukebox, 'refreshMix').mockImplementation(() => {});
+      try {
+        await setOut();
+
+        service.putAwayForJoin();
+
+        expect(volume).toHaveBeenCalled();
+        expect(mix).toHaveBeenCalled();
+      } finally {
+        ObjectStore.instance.delete(jukebox, false);
+      }
     });
 
     it('puts nothing away once the seat has been in a room of its own making', async () => {

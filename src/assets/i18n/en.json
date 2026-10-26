@@ -4524,7 +4524,9 @@
         "forgotten": "The next start sets out the sample room.",
         "loadFailed": "The room to start on could not be read, so the sample room was set out instead.",
         "forgetFailed": "The room to start on could not be removed.",
-        "withheld": "A table holding things a room server withheld from you cannot be the room you start on."
+        "withheld": "A table holding things a room server withheld from you cannot be the room you start on.",
+        "backAfterJoin": "The room could not be joined, so the room to start on was set out again. Changes not kept are not back.",
+        "whileJoining": "The room cannot be kept to start on while a room is being joined."
       },
       "restoreUnreadable": "The room in this snapshot could not be read."
     },
