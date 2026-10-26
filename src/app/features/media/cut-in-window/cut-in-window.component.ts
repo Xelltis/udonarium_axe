@@ -21,6 +21,7 @@ import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { observeSize } from '@axe/core/util/observe-size';
 import { CutIn, cutInPanelChrome } from '@axe/domain/media/cut-in';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
@@ -131,13 +132,8 @@ export class CutInWindowComponent {
     });
     effect((onCleanup) => {
       const area = this.cutInArea()?.nativeElement;
-      if (!area || typeof ResizeObserver !== 'function') return;
-      const observer = new ResizeObserver((entries) => {
-        const rect = entries[0]?.contentRect;
-        if (rect) this.areaSize.set({ width: Math.round(rect.width), height: Math.round(rect.height) });
-      });
-      observer.observe(area);
-      onCleanup(() => observer.disconnect());
+      if (!area) return;
+      onCleanup(observeSize(area, (size) => this.areaSize.set(size)));
     });
     this.destroyRef.onDestroy(() => {
       this.destroyed = true;

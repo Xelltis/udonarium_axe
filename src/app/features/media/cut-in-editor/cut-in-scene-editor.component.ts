@@ -20,6 +20,7 @@ import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service
 import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
 import { coalesce } from '@axe/core/util/debounce';
 import { EditHistory } from '@axe/core/util/edit-history';
+import { observeSize } from '@axe/core/util/observe-size';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { KEY_TOLERANCE_MS } from '@axe/domain/media/cut-in-keyframe';
 import { CutInLayer, type CutInLayerKind } from '@axe/domain/media/cut-in-layer';
@@ -918,14 +919,7 @@ export class CutInSceneEditorComponent {
     if (!element) return;
 
     this.timelineRoomPx.set(Math.round(element.getBoundingClientRect().width));
-    if (typeof ResizeObserver !== 'function') return;
-
-    const observer = new ResizeObserver((entries) => {
-      const rect = entries[0]?.contentRect;
-      if (rect) this.timelineRoomPx.set(Math.round(rect.width));
-    });
-    observer.observe(element);
-    this.destroyRef.onDestroy(() => observer.disconnect());
+    this.destroyRef.onDestroy(observeSize(element, (size) => this.timelineRoomPx.set(size.width)));
   }
 
   /**
@@ -984,16 +978,7 @@ export class CutInSceneEditorComponent {
   }
 
   private watchStageSize(): void {
-    if (typeof ResizeObserver !== 'function') return;
-
-    const observer = new ResizeObserver((entries) => {
-      const rect = entries[0]?.contentRect;
-      if (!rect) return;
-      this.stageSize.set({ width: Math.round(rect.width), height: Math.round(rect.height) });
-    });
-
     const element = this.stageArea()?.nativeElement;
-    if (element) observer.observe(element);
-    this.destroyRef.onDestroy(() => observer.disconnect());
+    if (element) this.destroyRef.onDestroy(observeSize(element, (size) => this.stageSize.set(size)));
   }
 }

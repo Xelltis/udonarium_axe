@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { observeSize } from '@axe/core/util/observe-size';
 import { Card } from '@axe/domain/card/card';
 import { CardFaceTextComponent } from '@axe/ui/components/card-face-text/card-face-text.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -69,14 +70,6 @@ export class CardFacePreviewComponent {
   }
 
   private watchHostSize(): void {
-    if (typeof ResizeObserver !== 'function') return;
-
-    const observer = new ResizeObserver((entries) => {
-      const rect = entries[0]?.contentRect;
-      if (!rect) return;
-      this.hostSize.set({ width: Math.round(rect.width), height: Math.round(rect.height) });
-    });
-    observer.observe(this.elementRef.nativeElement);
-    this.destroyRef.onDestroy(() => observer.disconnect());
+    this.destroyRef.onDestroy(observeSize(this.elementRef.nativeElement, (size) => this.hostSize.set(size)));
   }
 }

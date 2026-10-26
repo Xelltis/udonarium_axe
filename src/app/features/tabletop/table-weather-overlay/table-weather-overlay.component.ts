@@ -14,6 +14,7 @@ import { AmbienceService, type WeatherAmbience } from '@axe/application/tabletop
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { withAlpha } from '@axe/core/util/hex-color';
+import { observeSize } from '@axe/core/util/observe-size';
 import { skyAmbienceFlash, skyAmbienceLayer, skyAmbienceWash } from '@axe/domain/effect/ambience/ambience-sky';
 import { CurrentCarry } from '@axe/domain/effect/ambience/current-carry';
 import { EffectParticleLayer } from '@axe/domain/effect/effect-particles';
@@ -190,14 +191,6 @@ export class TableWeatherOverlayComponent {
   });
 
   constructor() {
-    if (typeof ResizeObserver !== 'function') return;
-
-    const observer = new ResizeObserver((entries) => {
-      const rect = entries[0]?.contentRect;
-      if (!rect) return;
-      this.size.set({ width: Math.round(rect.width), height: Math.round(rect.height) });
-    });
-    observer.observe(this.elementRef.nativeElement);
-    this.destroyRef.onDestroy(() => observer.disconnect());
+    this.destroyRef.onDestroy(observeSize(this.elementRef.nativeElement, (size) => this.size.set(size)));
   }
 }
