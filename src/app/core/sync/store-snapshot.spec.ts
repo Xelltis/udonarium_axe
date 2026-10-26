@@ -1,6 +1,19 @@
+import { SyncObject } from '@axe/core/sync/decorator';
+import { GameObject, ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { restoreStore, snapshotStore } from '@axe/core/sync/store-snapshot';
 import { DataElement } from '@axe/domain/data/data-element';
+
+/** Counts the changes it takes in from peers, which a store put back must not count as one. */
+@SyncObject('store-snapshot-probe')
+class HearsPeers extends GameObject {
+  heard = 0;
+
+  override apply(context: ObjectContext) {
+    this.heard++;
+    super.apply(context);
+  }
+}
 
 describe('putting the store back as a snapshot found it', () => {
   const store = ObjectStore.instance;
@@ -65,5 +78,30 @@ describe('putting the store back as a snapshot found it', () => {
 
     expect(store.get(seat.identifier)).toBe(seat);
     expect(store.get(slot.identifier)).toBe(slot);
+  });
+
+  it('lets what is made again under a name taken out here come back at its own version', () => {
+    const snapshot = snapshotStore();
+    const added = element('HP', '10', 'made-again');
+    added.value = '11';
+    added.value = '12';
+    const reached = added.majorVersion;
+
+    restoreStore(snapshot, () => false);
+    const again = element('HP', '1', 'made-again');
+
+    expect(again.majorVersion).toBeLessThan(reached);
+  });
+
+  it('puts an object back as data, without doing what it does on hearing a peer', () => {
+    const probe = new HearsPeers('store-snapshot-probe-1');
+    probe.initialize();
+    const snapshot = snapshotStore();
+    probe.update();
+
+    restoreStore(snapshot, () => false);
+
+    expect(probe.heard).toBe(0);
+    store.delete(probe, false);
   });
 });

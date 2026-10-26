@@ -44,12 +44,22 @@ describe('RoomJoinService', () => {
   let connectedPeers: IPeerContext[];
   let originalMyCursor: PeerCursor;
   let livePeerId: string;
-  let startRoom: { settling: ReturnType<typeof vi.fn>; putAway: ReturnType<typeof vi.fn> };
+  let startRoom: {
+    isSettling: boolean;
+    whenSettled: ReturnType<typeof vi.fn>;
+    putAwayForJoin: ReturnType<typeof vi.fn>;
+  };
+  let joinOver: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     stubChange = new StubObjectChangeService();
     connectedPeers = [];
-    startRoom = { settling: vi.fn(() => null), putAway: vi.fn() };
+    joinOver = vi.fn();
+    startRoom = {
+      isSettling: false,
+      whenSettled: vi.fn(() => Promise.resolve()),
+      putAwayForJoin: vi.fn(() => joinOver),
+    };
     TestBed.configureTestingModule({
       providers: [
         ...TEST_PROVIDERS,
@@ -128,12 +138,23 @@ describe('RoomJoinService', () => {
     });
 
     it('puts the start room away before it opens a room on a room server', () => {
-      startRoom.putAway.mockImplementation(() => expect(Network.open).not.toHaveBeenCalled());
+      startRoom.putAwayForJoin.mockImplementation(() => {
+        expect(Network.open).not.toHaveBeenCalled();
+        return joinOver;
+      });
 
       void service.joinServerRoom(serverRoom(), '');
 
-      expect(startRoom.putAway).toHaveBeenCalledTimes(1);
+      expect(startRoom.putAwayForJoin).toHaveBeenCalledTimes(1);
       expect(Network.open).toHaveBeenCalled();
+    });
+
+    it('tells the start room the join came to nothing when the server refuses, so it is put back', async () => {
+      const joined = service.joinServerRoom(serverRoom(), 'wrong');
+      stubChange.networkError$.emit({ peerId: '', errorType: 'room-full' } as never);
+
+      expect(await joined).toBe(false);
+      expect(joinOver).toHaveBeenCalledWith(false);
     });
 
     it('gives up when the server refuses, leaving the wait to the handling of the error', async () => {
@@ -244,28 +265,41 @@ describe('RoomJoinService', () => {
     });
 
     it("puts the start room away before the room opens, so nothing of it goes into somebody else's room", () => {
-      startRoom.putAway.mockImplementation(() => expect(Network.open).not.toHaveBeenCalled());
+      startRoom.putAwayForJoin.mockImplementation(() => {
+        expect(Network.open).not.toHaveBeenCalled();
+        return joinOver;
+      });
 
       void service.join([peerContext('peer-1', 'abc', 'room')], '');
 
-      expect(startRoom.putAway).toHaveBeenCalledTimes(1);
+      expect(startRoom.putAwayForJoin).toHaveBeenCalledTimes(1);
       expect(Network.open).toHaveBeenCalled();
     });
 
-    it('waits for a start room still being set out before it puts it away and opens the room', async () => {
-      let finish!: () => void;
-      startRoom.settling.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
+    it('tells the start room the join came to something once the room opens with nobody else to wait for', async () => {
+      const joined = service.join([peerContext(MY_PEER, 'abc', 'room')], '');
+      roomOpens();
 
-      void service.join([peerContext('peer-1', 'abc', 'room')], '');
+      expect(await joined).toBe(true);
+      expect(joinOver).toHaveBeenCalledWith(true);
+    });
+
+    it('waits for a start room still being set out, and makes only the join asked for last', async () => {
+      let finish!: () => void;
+      startRoom.isSettling = true;
+      startRoom.whenSettled.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
+
+      const first = service.join([peerContext('peer-1', 'abc', 'room')], '');
+      void service.join([peerContext('peer-2', 'xyz', 'other')], '');
       expect(Network.open).not.toHaveBeenCalled();
 
-      startRoom.settling.mockReturnValue(null);
+      startRoom.isSettling = false;
       finish();
-      await Promise.resolve();
-      await Promise.resolve();
 
-      expect(startRoom.putAway).toHaveBeenCalledTimes(1);
-      expect(Network.open).toHaveBeenCalled();
+      expect(await first).toBe(false);
+      await vi.waitFor(() => expect(Network.open).toHaveBeenCalledTimes(1));
+      expect(Network.open).toHaveBeenCalledWith('user', 'xyz', 'other', '');
+      expect(startRoom.putAwayForJoin).toHaveBeenCalledTimes(1);
     });
 
     it('comes into the room as a player when this seat was left as game master, before anyone sees it', () => {

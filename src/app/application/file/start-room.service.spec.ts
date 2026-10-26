@@ -7,12 +7,16 @@ import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
+import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
+import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { StartRoomStore } from '@axe/core/storage/start-room-store';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { DataElement } from '@axe/domain/data/data-element';
+import { Jukebox } from '@axe/domain/media/jukebox';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('StartRoomService', () => {
@@ -93,6 +97,14 @@ describe('StartRoomService', () => {
       answer(true);
       await vi.advanceTimersByTimeAsync(0);
       expect(service.isKept()).toBe(true);
+      expect(service.hasPending).toBe(false);
+    });
+
+    it('starts as if none were kept where the browser refuses to be asked, rather than not starting', async () => {
+      vi.spyOn(store, 'has').mockRejectedValue(new DOMException('refused', 'SecurityError'));
+
+      await expect(service.prepare('')).resolves.toBeUndefined();
+
       expect(service.hasPending).toBe(false);
     });
 
@@ -205,6 +217,7 @@ describe('StartRoomService', () => {
     it('asks before it replaces one kept already, and leaves it be on a no', async () => {
       kept = new Blob(['older']);
       await service.prepare('');
+      await service.loadPending();
       ask.mockResolvedValue(false);
 
       expect(await service.keepCurrent()).toBe(false);
@@ -233,6 +246,21 @@ describe('StartRoomService', () => {
       expect(shown).toHaveBeenCalledWith(
         '部屋のサーバーで伏せた形のまま受け取った物がある卓は、開始時の部屋にできません。'
       );
+    });
+
+    it('lets a start room still being set out finish before it keeps the table', async () => {
+      kept = new Blob(['older']);
+      await service.prepare('');
+      const archive = vi.spyOn(TestBed.inject(SaveDataService), 'createWholeRoomArchiveAsync');
+
+      const keeping = service.keepCurrent();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(archive).not.toHaveBeenCalled();
+
+      await service.loadPending();
+      await keeping;
+      expect(archive).toHaveBeenCalledTimes(1);
     });
 
     it('keeps nothing while a replay board stands in place of the table', async () => {
@@ -281,25 +309,44 @@ describe('StartRoomService', () => {
     let sample: ReturnType<typeof vi.spyOn>;
     let droppedPictures: ReturnType<typeof vi.spyOn>;
     let droppedSounds: ReturnType<typeof vi.spyOn>;
+    let mediaHeld: boolean;
 
     beforeEach(() => {
+      mediaHeld = true;
       sample = vi
         .spyOn(TestBed.inject(TabletopActionService), 'makeDefaultTabletopObjects')
         .mockImplementation(() => {});
-      droppedPictures = vi.spyOn(ImageStorage.instance, 'delete').mockReturnValue(true);
+      droppedPictures = vi.spyOn(ImageStorage.instance, 'delete').mockImplementation(() => {
+        mediaHeld = false;
+        return true;
+      });
       droppedSounds = vi.spyOn(AudioStorage.instance, 'delete').mockReturnValue(true);
+      const getPicture = ImageStorage.instance.get.bind(ImageStorage.instance);
+      vi.spyOn(ImageStorage.instance, 'get').mockImplementation((identifier) =>
+        identifier === 'brought-picture'
+          ? mediaHeld
+            ? ({ blob: new Blob(['picture'], { type: 'image/webp' }) } as ImageFile)
+            : null
+          : getPicture(identifier)
+      );
+      vi.spyOn(AudioStorage.instance, 'get').mockImplementation((identifier) =>
+        identifier === 'brought-sound' && mediaHeld
+          ? ({ name: 'theme.mp3', blob: new Blob(['sound'], { type: 'audio/mpeg' }) } as AudioFile)
+          : null
+      );
     });
 
     afterEach(() => {
-      ObjectStore.instance.get('brought-piece')?.destroy();
+      for (const identifier of ['brought-piece', 'seat-cursor']) ObjectStore.instance.get(identifier)?.destroy();
       ObjectStore.instance.clearDeleteHistory();
     });
 
-    async function setOut(dataRead = true): Promise<void> {
+    async function setOut(dataRead = true, alsoBring: () => void = () => undefined): Promise<void> {
       kept = new Blob(['room']);
       await service.prepare('');
       load.mockImplementation(async () => {
         DataElement.create('HP', 10, {}, 'brought-piece');
+        alsoBring();
         return { dataRead, images: ['brought-picture'], audios: ['brought-sound'] };
       });
       await service.loadPending();
@@ -308,7 +355,7 @@ describe('StartRoomService', () => {
     it('takes the table back to how the page set it out, drops what the start room brought, and sets out the sample', async () => {
       await setOut();
 
-      service.putAway();
+      service.putAwayForJoin();
 
       expect(ObjectStore.instance.get('brought-piece')).toBeNull();
       expect(droppedPictures).toHaveBeenCalledWith('brought-picture');
@@ -316,13 +363,61 @@ describe('StartRoomService', () => {
       expect(sample).toHaveBeenCalledTimes(1);
     });
 
-    it('puts it away once only', async () => {
+    it('lets the start room go once the join comes to something, and puts nothing away again', async () => {
       await setOut();
 
-      service.putAway();
-      service.putAway();
+      service.putAwayForJoin()(true);
+      service.putAwayForJoin();
 
       expect(sample).toHaveBeenCalledTimes(1);
+    });
+
+    it('puts the start room back as it stood, pictures and sounds and all, when the join comes to nothing', async () => {
+      const readBack = vi
+        .spyOn(ImageFile, 'contextFromBytesAsync')
+        .mockImplementation(async (identifier) => ({ identifier }) as never);
+      const pictureBack = vi.spyOn(ImageStorage.instance, 'add').mockReturnValue({} as ImageFile);
+      const soundBack = vi.spyOn(AudioStorage.instance, 'addAsync').mockResolvedValue({} as AudioFile);
+      await setOut();
+      const joined = service.putAwayForJoin();
+
+      joined(false);
+      await vi.waitFor(() => expect(soundBack).toHaveBeenCalled());
+
+      expect(ObjectStore.instance.get('brought-piece')).not.toBeNull();
+      expect(readBack).toHaveBeenCalledWith('brought-picture', expect.any(Blob));
+      expect(pictureBack).toHaveBeenCalledWith({ identifier: 'brought-picture' });
+      expect((soundBack.mock.calls[0][0] as File).name).toBe('theme.mp3');
+
+      service.putAwayForJoin();
+      expect(sample).toHaveBeenCalledTimes(2);
+    });
+
+    it("leaves the pictures the seat's own things show", async () => {
+      await setOut(true, () => {
+        const cursor = new PeerCursor('seat-cursor');
+        cursor.imageIdentifier = 'brought-picture';
+        cursor.initialize();
+      });
+
+      service.putAwayForJoin();
+
+      expect(droppedPictures).not.toHaveBeenCalled();
+      expect(ObjectStore.instance.get('seat-cursor')).not.toBeNull();
+    });
+
+    it('stops the track playing before it puts the start room away', async () => {
+      const stop = vi.fn();
+      await setOut(true, () => {
+        const jukebox = new Jukebox('Jukebox');
+        jukebox.initialize();
+        vi.spyOn(jukebox, 'isPlaying', 'get').mockReturnValue(true);
+        jukebox.stop = stop;
+      });
+
+      service.putAwayForJoin();
+
+      expect(stop).toHaveBeenCalledTimes(1);
     });
 
     it('puts nothing away once the seat has been in a room of its own making', async () => {
@@ -332,28 +427,42 @@ describe('StartRoomService', () => {
         TestBed.inject(ObjectChangeService) as unknown as { _networkOpen$: { emit(event: { peerId: string }): void } }
       )._networkOpen$.emit({ peerId: 'own-room-peer' });
 
-      service.putAway();
+      service.putAwayForJoin();
 
       expect(ObjectStore.instance.get('brought-piece')).not.toBeNull();
       expect(sample).not.toHaveBeenCalled();
     });
 
-    it('puts nothing away where the start room could not be read, as the sample is out already', async () => {
-      await setOut(false);
+    it('puts nothing away for a start room set out into a room the seat had made meanwhile', async () => {
+      kept = new Blob(['room']);
+      await service.prepare('');
+      load.mockImplementation(async () => {
+        vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: true } as never);
+        return { dataRead: true, images: [], audios: [] };
+      });
+      await service.loadPending();
 
-      service.putAway();
+      service.putAwayForJoin();
 
       expect(sample).not.toHaveBeenCalled();
-      expect(droppedPictures).not.toHaveBeenCalled();
+    });
+
+    it('puts away what came in of a start room whose data could not be read, leaving the sample to the table', async () => {
+      await setOut(false);
+
+      expect(ObjectStore.instance.get('brought-piece')).toBeNull();
+      expect(droppedPictures).toHaveBeenCalledWith('brought-picture');
+      service.putAwayForJoin();
+      expect(sample).not.toHaveBeenCalled();
     });
 
     it('lets a join wait while the start room is still being set out', async () => {
       kept = new Blob(['room']);
       await service.prepare('');
 
-      expect(service.settling()).not.toBeNull();
+      expect(service.isSettling).toBe(true);
       await service.loadPending();
-      expect(service.settling()).toBeNull();
+      expect(service.isSettling).toBe(false);
     });
   });
 });

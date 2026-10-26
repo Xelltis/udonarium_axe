@@ -96,9 +96,8 @@ export class RoomJoinService {
   joinServerRoom(room: IRoomInfo, password: string): Promise<boolean> {
     const roomKey = room.roomKey;
     if (!roomKey) return Promise.resolve(false);
-    const settling = this.startRoom.settling();
-    if (settling) return settling.then(() => this.joinServerRoom(room, password));
-    this.startRoom.putAway();
+    if (this.startRoom.isSettling) return this.afterStartRoom(() => this.joinServerRoom(room, password));
+    const putBackUnlessJoined = this.startRoom.putAwayForJoin();
 
     const userId = Network.peerContext ? Network.peerContext.userId : PeerContext.generateUserId();
     Network.open(userId, room.id, room.name, password, roomKey);
@@ -115,6 +114,7 @@ export class RoomJoinService {
         offOpen();
         offError();
         if (!isJoined && !byError) this.resetNetwork(room.id, userId, true);
+        putBackUnlessJoined(isJoined);
         resolve(isJoined);
       };
       const offOpen = this.objectChange.networkOpen$.subscribe((event) => {
@@ -134,6 +134,20 @@ export class RoomJoinService {
       const timer = setTimeout(() => settle(false), ROOM_SERVER_OPEN_TIMEOUT_MS);
       this.destroyRef.onDestroy(() => clearTimeout(timer));
     });
+  }
+
+  private joinAsked = 0;
+
+  /**
+   * Makes the join asked for once the room to start on found at launch is set out, as the start
+   * room is put away before a join and cannot be put away halfway in. Only the join asked for last
+   * goes ahead, and none does where the seat has gone into a room meanwhile.
+   */
+  private afterStartRoom(join: () => Promise<boolean>): Promise<boolean> {
+    const asked = ++this.joinAsked;
+    return this.startRoom
+      .whenSettled()
+      .then(() => (asked !== this.joinAsked || Network.peerContext?.isRoom ? false : join()));
   }
 
   /** Looks a room up by its id in the lobby listing, or null when no open room has that id. */
@@ -173,9 +187,8 @@ export class RoomJoinService {
   join(peerContexts: readonly IPeerContext[], password: string): Promise<boolean> {
     const context = peerContexts[0];
     if (!context) return Promise.resolve(false);
-    const settling = this.startRoom.settling();
-    if (settling) return settling.then(() => this.join(peerContexts, password));
-    this.startRoom.putAway();
+    if (this.startRoom.isSettling) return this.afterStartRoom(() => this.join(peerContexts, password));
+    const putBackUnlessJoined = this.startRoom.putAwayForJoin();
 
     const identityBefore = loadIdentity();
     const roleBefore = PeerCursor.myCursor.role;
@@ -211,6 +224,7 @@ export class RoomJoinService {
           this.resetNetwork(context.roomId, userId);
           if (!isInAnotherRoom(context.roomId)) this.takeBackTry(identityBefore, roleBefore);
         }
+        putBackUnlessJoined(joined);
         resolve(joined);
       };
 
