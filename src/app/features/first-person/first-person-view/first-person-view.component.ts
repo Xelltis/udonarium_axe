@@ -39,38 +39,26 @@ import { DataElement } from '@axe/domain/data/data-element';
 import { collectDataElements } from '@axe/domain/data/data-element-tree';
 import {
   clipBillboardToEye,
-  clipPolygonToEye,
   depthOf,
-  EyeFrame,
   eyeFrameOf,
   FirstPersonCamera,
   lateralOf,
-  viewDepthOf,
 } from '@axe/domain/tabletop/first-person/first-person-clip';
 import {
   FirstPersonMove,
   FirstPersonPose,
-  headingVector,
   signedTurnDeg,
 } from '@axe/domain/tabletop/first-person/first-person-lattice';
 import { cameraOf } from '@axe/domain/tabletop/first-person/first-person-look';
 import { roofRaisedFor, sameRoof } from '@axe/domain/tabletop/first-person/first-person-roof';
 import {
   FIRST_PERSON_FOV_DEG,
-  FirstPersonPlaneQuad,
   FirstPersonQuad,
   firstPersonScene,
 } from '@axe/domain/tabletop/first-person/first-person-scene';
 import { pieceStandPx } from '@axe/domain/tabletop/first-person/first-person-stand';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import {
-  cellCenterOf,
-  CellGrid,
-  cellIndexAt,
-  CellPoint,
-  cellPolygonOf,
-  forEachCellInBox,
-} from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, CellGrid, cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
@@ -84,18 +72,9 @@ import {
   waterlineMask,
   waterTintFilter,
 } from '@axe/domain/tabletop/water/submersion';
-import { depthShadeAlpha, murkShade } from '@axe/domain/tabletop/water/water-depth';
+import { murkShade } from '@axe/domain/tabletop/water/water-depth';
 import { currentSeenFrom, flowCellsPerSecond } from '@axe/domain/tabletop/water/water-flow';
-import {
-  deepWaterColor,
-  dirtyWaterColor,
-  rgbTripletOf,
-  scumColorOf,
-  scumOpacity,
-  underwaterDeepColor,
-  waterMurkLayer,
-  waterSurfaceWash,
-} from '@axe/domain/tabletop/water/water-look';
+import { deepWaterColor, rgbTripletOf, underwaterDeepColor } from '@axe/domain/tabletop/water/water-look';
 import { EffectTargetOverlayComponent } from '@axe/features/effect/effect-target-overlay/effect-target-overlay.component';
 import {
   EffectEye,
@@ -105,14 +84,7 @@ import { FirstPersonFogAirComponent } from '@axe/features/first-person/first-per
 import { facingNameOf, isHexLattice, padRows } from '@axe/features/first-person/first-person-hud';
 import { FirstPersonCommand, firstPersonKeyDown } from '@axe/features/first-person/first-person-keys';
 import { FirstPersonLookService } from '@axe/features/first-person/first-person-look.service';
-import {
-  glowStyle,
-  lyingSamples,
-  propClip,
-  PropShape,
-  propStyle,
-} from '@axe/features/first-person/first-person-prop-style';
-import { FirstPersonProp, FirstPersonPropsService } from '@axe/features/first-person/first-person-props.service';
+import { FirstPersonPropsService } from '@axe/features/first-person/first-person-props.service';
 import { FirstPersonRangeComponent } from '@axe/features/first-person/first-person-range/first-person-range.component';
 import {
   billboardHudTransform,
@@ -140,16 +112,28 @@ import {
   waterSkyAt,
   withBillboardCut,
 } from '@axe/features/first-person/first-person-style';
+import {
+  BeamView,
+  beamViewsOf,
+  FirstPersonSight,
+  FogAirView,
+  fogAirViewsOf,
+  GlowView,
+  glowViewsOf,
+  NEAR_CELLS,
+  pieceInSight,
+  PropView,
+  propViewsOf,
+  RangeView,
+  rangeViewOf,
+  WaterQuadView,
+  waterQuadViews,
+} from '@axe/features/first-person/first-person-view/first-person-view-scene';
 import { TableWeatherOverlayComponent } from '@axe/features/tabletop/table-weather-overlay/table-weather-overlay.component';
 import { paintMinimap } from '@axe/infrastructure/first-person/minimap-painter';
-import { FogAirLayer, fogAirLayers } from '@axe/infrastructure/tabletop/fog/fog-air-layers';
-import { FOG_AIR_SHEET_MARGIN } from '@axe/infrastructure/tabletop/fog/fog-air-sheet';
-import { rangeQuadrantCells } from '@axe/infrastructure/tabletop/range/range-paint';
-import { lotusTileUrl } from '@axe/infrastructure/tabletop/water/lotus-texture';
 import { MAX_MULTI_ANGLE_RESOURCE_GAUGES } from '@axe/ui/tabletop/multi-angle-orbit-decoration';
 import { TranslocoModule } from '@jsverse/transloco';
 
-const NEAR_CELLS = 0.05;
 /** How far over the top of a great piece the roof of its room is raised, in cells. */
 const ROOF_CLEARANCE_CELLS = 0.5;
 /** How wide what is told about a piece runs, against the picture of a piece one cell wide. */
@@ -161,19 +145,12 @@ const SNAP_CELLS = 3;
 const SNAP_TURN_DEG = 135;
 const COMPASS_TICKS: readonly number[] = Array.from({ length: 24 }, (_, index) => index * 15);
 const TARGET_CONE_DEG = 20;
-const BOARD_STEP_CELLS = 0.25;
 const EFFECT_LIFT_CELLS = 0.15;
 const EFFECT_RISE_CELLS = 0.3;
-/** How much of the scum on dirty water shows as a film over it, seen across the water from the eye. */
-const SCUM_TINT = 0.35;
-/** How many cells one repeat of the floating leaves spans, as on the table. */
-const LEAF_CELLS = 3.6;
 /** What keeps the effects moving while the eye is under a pond. */
 const UNDER_A_POND = 'first-person-under-water';
 /** How far below the top of the view what is told about a near piece keeps, clear of the toolbars. */
 const CHROME_TOP_MARGIN_PX = 64;
-/** How far over the floor a range area is laid, clear of the floor and of anything lying on it. */
-const RANGE_LIFT_PX = 0.75;
 /** The width the view is laid out for before it has been measured. */
 const DEFAULT_VIEW_WIDTH_PX = 1280;
 
@@ -197,17 +174,6 @@ interface PieceWater {
   readonly tint: string;
   readonly tintOpacity: number;
 }
-
-/** One cell of a water surface in sight, ready to draw. */
-interface WaterQuadView {
-  readonly id: string;
-  readonly style: QuadStyle;
-}
-
-/** How far a surface standing no higher than its floor is drawn over it, clear of the floor's own face. */
-const WET_FLOOR_LIFT_PX = 0.5;
-/** How much of a water surface still shows at the far end of the view. */
-const FAR_WATER_OPACITY = 0.4;
 
 interface QuadView {
   id: string;
@@ -263,37 +229,6 @@ interface PieceView {
   imageFilter: string | null;
   /** How the piece stands in water, or null where it is dry. */
   water: PieceWater | null;
-}
-
-interface PropView extends FirstPersonProp {
-  fill: boolean;
-  style: QuadStyle;
-}
-
-interface GlowView {
-  id: string;
-  style: QuadStyle;
-}
-
-interface RangeView {
-  id: string;
-  range: RangeArea;
-  style: QuadStyle;
-}
-
-interface BeamView {
-  id: string;
-  width: number;
-  height: number;
-  clip: string;
-  background: string;
-  fins: string[];
-}
-
-interface FogAirView {
-  id: number;
-  layer: FogAirLayer;
-  style: QuadStyle;
 }
 
 interface SkyView {
@@ -372,6 +307,16 @@ export class FirstPersonViewComponent {
    * turning or stepping there would otherwise show the ground it is leaving as nothing at all.
    */
   private readonly drawnSeen = computed<CellBits | null>(() => unionOf(this.firstPerson.seen(), this.carried()));
+
+  /** What the view can show now: the board's cells, the ground drawn, how large a cell is and how far it reaches. */
+  private sight(): FirstPersonSight {
+    return {
+      grid: this.firstPerson.grid(),
+      seen: this.drawnSeen(),
+      gridSize: this.gridSize(),
+      reachPx: this.firstPerson.depthPx(),
+    };
+  }
 
   constructor() {
     effect(() => {
@@ -577,62 +522,18 @@ export class FirstPersonViewComponent {
    */
   protected readonly waterViews = computed<WaterQuadView[]>(() => {
     const camera = this.viewCamera();
-    const grid = this.firstPerson.grid();
-    const gridSize = this.gridSize();
+    const sight = this.sight();
     const cells = this.water.cells();
-    if (!camera || !grid || gridSize <= 0 || cells.size < 1) return [];
-    const eye = eyeFrameOf(camera);
-    const seen = this.drawnSeen();
-    const reach = this.firstPerson.depthPx();
-    const scale = this.scale();
-    const nearPx = gridSize * NEAR_CELLS;
-    const murk = this.murk();
-    const views: WaterQuadView[] = [];
-    for (const cell of cells.values()) {
-      if (seen && !seen.get(cell.index)) continue;
-      const depth = depthOf(eye, { x: cell.cx, y: cell.cy });
-      if (depth > reach + gridSize) continue;
-      const zPx = cell.surfacePx > cell.floorPx ? cell.surfacePx : cell.floorPx + WET_FLOOR_LIFT_PX;
-      const polygon = clipPolygonToEye(eye, cellPolygonOf(grid, cell.index), nearPx, zPx);
-      if (polygon.length < 3) continue;
-      const quad = waterQuadOf(cell.index, polygon, zPx, camera.z >= zPx ? 'up' : 'down', depth);
-      const far = 1 - (1 - FAR_WATER_OPACITY) * Math.min(Math.max(depth / Math.max(reach, 1), 0), 1);
-      const fade = murk === null ? far : Math.min(far, 1 - murkShade(depth / gridSize, murk));
-      const tone = dirtyWaterColor(cell.color, cell.dirt);
-      const deepRgb = rgbTripletOf(deepWaterColor(tone)) ?? BLACK_VEIL;
-      const deepAlpha = depthShadeAlpha((cell.surfacePx - cell.floorPx) / gridSize, cell.turbidity);
-      const scumRgb = rgbTripletOf(scumColorOf(cell.color)) ?? BLACK_VEIL;
-      const scumAlpha = Math.round(scumOpacity(cell.dirt) * SCUM_TINT * 1000) / 1000;
-      // Scum is a patch here and there on the table; seen across the water from the eye it runs together into a film.
-      const layers = [
-        scumAlpha > 0 ? `linear-gradient(rgba(${scumRgb}, ${scumAlpha}), rgba(${scumRgb}, ${scumAlpha}))` : '',
-        waterSurfaceWash(tone, cell.density),
-        waterMurkLayer(tone, cell.turbidity),
-        `linear-gradient(rgba(${deepRgb}, ${deepAlpha}), rgba(${deepRgb}, ${deepAlpha}))`,
-      ].filter((layer) => layer.length > 0);
-      const sizes = layers.map(() => '100% 100%');
-      const positions = layers.map(() => '0 0');
-      // The leaves lie on top of the water, so they show only from above it; from below the surface hides them.
-      const leaves = quad.facing === 'up' ? lotusTileUrl(cell.leaves) : '';
-      if (leaves) {
-        const tile = gridSize * LEAF_CELLS;
-        const along = (offset: number) => -((((offset % tile) + tile) % tile) * scale);
-        layers.unshift(`url(${leaves})`);
-        sizes.unshift(`${tile * scale}px ${tile * scale}px`);
-        positions.unshift(`${along(quad.minX)}px ${along(quad.minY)}px`);
+    if (!camera || !sight.grid || sight.gridSize <= 0 || cells.size < 1) return [];
+    return waterQuadViews(
+      cells.values(),
+      camera,
+      { ...sight, grid: sight.grid },
+      {
+        scale: this.scale(),
+        murk: this.murk(),
       }
-      views.push({
-        id: `water:${cell.index}`,
-        style: {
-          ...planeQuadStyle(quad, scale, '', 0),
-          backgroundImage: layers.join(', '),
-          backgroundSize: sizes.join(', '),
-          backgroundPosition: positions.join(', '),
-          opacity: `${Math.round(fade * 1000) / 1000}`,
-        },
-      });
-    }
-    return views;
+    );
   });
 
   /** Width over height of each piece's picture, learned as it loads, so the piece stands as tall as its picture. */
@@ -705,12 +606,13 @@ export class FirstPersonViewComponent {
     const viewHeight = this.height();
     const clear = this.firstPerson.clearPx();
     const reach = this.firstPerson.depthPx();
-    const sight = this.firstPerson.sight();
-    const grid = this.firstPerson.grid();
+    const inLine = this.firstPerson.sight();
+    const sight = this.sight();
+    const grid = sight.grid;
     const under = this.murk() !== null;
     const views: PieceView[] = [];
     for (const { piece, size, centre, stand, stretched, basePx: base } of this.standing()) {
-      if (!this.pieceInSight(eye, piece.location, size, centre)) continue;
+      if (!pieceInSight(sight, eye, piece.location, size, centre)) continue;
       const badges = this.badgesOf(piece);
       const depth = depthOf(eye, centre);
       const lifted = base + billboardLiftPx(base, camera.z, depth, perspective, viewHeight, pitch);
@@ -729,7 +631,7 @@ export class FirstPersonViewComponent {
         targeted: piece.targeted,
         pick,
         bearing: Math.abs((Math.atan2(lateralOf(eye, centre), depth) * 180) / Math.PI),
-        inLine: !sight || !grid || sight.get(cellIndexAt(grid, centre.x, centre.y)),
+        inLine: !inLine || !grid || inLine.get(cellIndexAt(grid, centre.x, centre.y)),
         gauges,
         badges: badges.slice(0, BUFF_BADGES_PER_ROW),
         moreBadges: Math.max(0, badges.length - BUFF_BADGES_PER_ROW),
@@ -818,26 +720,9 @@ export class FirstPersonViewComponent {
 
   protected readonly propViews = computed<PropView[]>(() => {
     const pose = this.viewCamera();
-    const gridSize = this.gridSize();
-    if (!pose || gridSize <= 0) return [];
-    const eye = eyeFrameOf(pose);
-    const scale = this.scale();
-    const clear = this.firstPerson.clearPx();
-    const reach = this.firstPerson.depthPx();
-    const views: PropView[] = [];
-    for (const prop of this.props()) {
-      const clip = propClip(prop, eye, gridSize * NEAR_CELLS, scale);
-      if (clip === null || !this.propInSight(eye, prop)) continue;
-      const placed = propStyle(prop, pose.yaw, scale);
-      const blur = blurFilter(farBlurPx(depthOf(eye, prop), clear, reach));
-      const style = blur ? { ...placed, filter: blur } : placed;
-      views.push({
-        ...prop,
-        fill: prop.what === 'mask' || prop.what === 'board' || prop.what === 'trigger',
-        style: clip ? { ...style, clipPath: clip } : style,
-      });
-    }
-    return views;
+    const sight = this.sight();
+    if (!pose || sight.gridSize <= 0) return [];
+    return propViewsOf(this.props(), pose, sight, { scale: this.scale(), clearPx: this.firstPerson.clearPx() });
   });
 
   protected readonly gridType = computed(() => this.firstPerson.table()?.gridType ?? GridType.SQUARE);
@@ -848,90 +733,40 @@ export class FirstPersonViewComponent {
    */
   protected readonly rangeViews = computed<RangeView[]>(() => {
     const pose = this.viewCamera();
-    const gridSize = this.gridSize();
-    if (!pose || gridSize <= 0) return [];
+    const sight = this.sight();
+    if (!pose || sight.gridSize <= 0) return [];
     this.objectChange.collectionOf(RangeArea.aliasName)();
-    const eye = eyeFrameOf(pose);
     const scale = this.scale();
     const views: RangeView[] = [];
     for (const range of this.objectStore.getObjects<RangeArea>(RangeArea)) {
       this.objectChange.versionOf(range.identifier)();
       if (!range.isVisibleOnTable) continue;
-      const side = rangeQuadrantCells(range) * gridSize * 2;
-      const footprint: PropShape = {
-        kind: 'lie',
-        x: range.location.x,
-        y: range.location.y,
-        z: range.posZ + range.altitude * gridSize + RANGE_LIFT_PX,
-        width: side,
-        height: side,
-        rotate: 0,
-      };
-      const clip = propClip(footprint, eye, gridSize * NEAR_CELLS, scale);
-      if (clip === null || !this.propInSight(eye, footprint)) continue;
-      const style = propStyle(footprint, pose.yaw, scale);
-      views.push({ id: range.identifier, range, style: clip ? { ...style, clipPath: clip } : style });
+      const view = rangeViewOf(range, pose, sight, scale);
+      if (view) views.push(view);
     }
     return views;
   });
 
-  /**
-   * The beams the table's cone lights throw, as the table stands them, for the lights hanging in
-   * front of the eye and no further off than the view reaches. One hung over the eye itself would
-   * stand through it, which a flat sheet cannot be drawn doing, so it is left out.
-   */
+  /** The beams the table's cone lights throw, as `beamViewsOf` stands them in the view. */
   protected readonly beamViews = computed<BeamView[]>(() => {
     const pose = this.viewCamera();
     const gridSize = this.gridSize();
     if (!pose || gridSize <= 0) return [];
-    const eye = eyeFrameOf(pose);
-    const reach = this.firstPerson.depthPx();
-    return this.vision.lightBeams().flatMap((beam, index) => {
-      const depth = depthOf(eye, beam.origin);
-      const hung = viewDepthOf(eye, beam.origin, beam.origin.z);
-      const foot = viewDepthOf(eye, beam.origin, beam.origin.z - beam.height);
-      if (depth < gridSize || hung < gridSize || foot < gridSize || depth > reach + beam.height) return [];
-      return [
-        {
-          id: `${index}:${beam.origin.x}:${beam.origin.y}`,
-          width: beam.width,
-          height: beam.height,
-          clip: beam.clip,
-          background: `linear-gradient(to bottom, ${beam.color} 0%, transparent 88%)`,
-          fins: beam.fins,
-        },
-      ];
-    });
+    return beamViewsOf(this.vision.lightBeams(), pose, gridSize, this.firstPerson.depthPx());
   });
 
-  /**
-   * The sheets of fog hanging over ground nobody has walked to, each laid across the board at its
-   * height as the table hangs it, cut at the eye where it runs over the viewer. None without fog.
-   */
+  /** The sheets of fog hanging over ground nobody has walked to, none without fog. */
   protected readonly fogAirViews = computed<FogAirView[]>(() => {
     const pose = this.viewCamera();
     const table = this.firstPerson.table();
     const gridSize = this.gridSize();
     if (!pose || !table || gridSize <= 0 || !this.vision.overlayVision()?.fogEnabled) return [];
-    const width = table.width * gridSize;
-    const height = table.height * gridSize;
-    const eye = eyeFrameOf(pose);
-    const scale = this.scale();
-    return fogAirLayers(gridSize).flatMap((layer, index) => {
-      const footprint: PropShape = {
-        kind: 'lie',
-        x: width / 2,
-        y: height / 2,
-        z: layer.heightPx,
-        width: width * (1 + FOG_AIR_SHEET_MARGIN * 2),
-        height: height * (1 + FOG_AIR_SHEET_MARGIN * 2),
-        rotate: 0,
-      };
-      const clip = propClip(footprint, eye, gridSize * NEAR_CELLS, scale);
-      if (clip === null) return [];
-      const style = propStyle(footprint, pose.yaw, scale);
-      return [{ id: index, layer, style: clip ? { ...style, clipPath: clip } : style }];
-    });
+    return fogAirViewsOf(
+      { widthPx: table.width * gridSize, heightPx: table.height * gridSize },
+      pose,
+      gridSize,
+      this.scale()
+    );
   });
 
   /**
@@ -990,16 +825,7 @@ export class FirstPersonViewComponent {
   protected readonly glowViews = computed<GlowView[]>(() => {
     const pose = this.viewCamera();
     if (!pose) return [];
-    const scale = this.scale();
-    const eye = eyeFrameOf(pose);
-    const nearPx = this.gridSize() * NEAR_CELLS;
-    return this.glows()
-      .filter((glow) => {
-        if (!this.inSight(eye, glow, glow.z)) return false;
-        const kept = clipBillboardToEye(eye, glow, glow.z - glow.radius, glow.z + glow.radius, nearPx);
-        return kept !== null && kept.highPx - kept.lowPx >= glow.radius * 2 - 1e-6;
-      })
-      .map((glow) => ({ id: glow.id, style: glowStyle(glow, pose.yaw, scale) }));
+    return glowViewsOf(this.glows(), pose, this.sight(), this.scale());
   });
 
   /**
@@ -1159,60 +985,11 @@ export class FirstPersonViewComponent {
     if (ahead) this.aim(ahead.id);
   }
 
-  /**
-   * Whether a point stands where the view can show it: over ground in sight, clear of the camera's
-   * near plane at the height given (or at the eye's), and no further off than the view reaches.
-   */
-  private inSight(eye: EyeFrame, centre: CellPoint, zPx?: number): boolean {
-    const grid = this.firstPerson.grid();
-    const seen = this.drawnSeen();
-    if (!grid) return false;
-    const cell = cellIndexAt(grid, centre.x, centre.y);
-    if (seen && (cell < 0 || !seen.get(cell))) return false;
-    const depth = depthOf(eye, centre);
-    const ahead = zPx === undefined ? depth : viewDepthOf(eye, centre, zPx);
-    return ahead > this.gridSize() * NEAR_CELLS * 4 && depth <= this.firstPerson.depthPx();
-  }
-
-  /**
-   * Whether a piece stands where the view can show it: the cell under its middle is in sight, or any
-   * cell whose middle its footing covers, so a great piece half behind a pillar still shows; and the
-   * face it stands up on lies ahead of the eye, its near side no further off than the view reaches.
-   */
-  private pieceInSight(eye: EyeFrame, at: CellPoint, groundPx: number, centre: CellPoint): boolean {
-    const grid = this.firstPerson.grid();
-    if (!grid) return false;
-    const depth = depthOf(eye, centre);
-    if (depth <= this.gridSize() * NEAR_CELLS * 4 || depth - groundPx / 2 > this.firstPerson.depthPx()) return false;
-    const seen = this.drawnSeen();
-    if (!seen) return true;
-    const middle = cellIndexAt(grid, centre.x, centre.y);
-    if (middle >= 0 && seen.get(middle)) return true;
-    const edge = Math.min(1, groundPx / 4);
-    let shown = false;
-    forEachCellInBox(grid, at.x + edge, at.y + edge, at.x + groundPx - edge, at.y + groundPx - edge, (cell) => {
-      if (!shown && seen.get(cell)) shown = true;
-    });
-    return shown;
-  }
-
   /** How brightly the table's lights fall on a face, read at the middle of the cell it is drawn for. */
   private lightOn(grid: CellGrid, quad: FirstPersonQuad): number {
     const centre = cellCenterOf(grid, quad.cell);
     const standing = quad.kind === 'wall' ? quad.basePx : quad.zPx;
     return this.vision.objectBrightness(centre.x, centre.y, 0, false, standing);
-  }
-
-  private propInSight(eye: EyeFrame, prop: PropShape): boolean {
-    if (prop.kind === 'lie') {
-      return lyingSamples(prop, this.gridSize()).some((point) => this.inSight(eye, point, prop.z));
-    }
-    if (prop.kind === 'board') {
-      const heading = headingVector(prop.rotate);
-      const step = this.gridSize() * BOARD_STEP_CELLS;
-      return this.inSight(eye, { x: prop.x - heading.x * step, y: prop.y - heading.y * step });
-    }
-    return this.inSight(eye, prop);
   }
 
   private urlOf(identifier: string): string {
@@ -1296,37 +1073,6 @@ function unionOf(seen: CellBits | null, more: CellBits | null): CellBits | null 
   const both = seen.copy();
   both.or(more);
   return both;
-}
-
-/** One cell of a water surface as a level face the view can draw, lying at a height and facing up or down. */
-function waterQuadOf(
-  index: number,
-  polygon: CellPoint[],
-  zPx: number,
-  facing: 'up' | 'down',
-  depth: number
-): FirstPersonPlaneQuad {
-  const xs = polygon.map((point) => point.x);
-  const ys = polygon.map((point) => point.y);
-  const minX = Math.min(...xs);
-  const minY = Math.min(...ys);
-  return {
-    kind: 'cap',
-    id: `water:${index}`,
-    terrain: '',
-    zPx,
-    facing,
-    minX,
-    minY,
-    width: Math.max(...xs) - minX,
-    height: Math.max(...ys) - minY,
-    polygon,
-    image: '',
-    frame: null,
-    glass: false,
-    depth,
-    cell: index,
-  };
 }
 
 /**
