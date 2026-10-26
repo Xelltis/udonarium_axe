@@ -1,6 +1,5 @@
 import { ChangeDetectorRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { CutInSoundService } from '@axe/application/media/cut-in-sound.service';
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { AudioFile } from '@axe/core/storage/audio-file';
@@ -10,6 +9,7 @@ import { AudioTag } from '@axe/domain/media/audio-tag';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
+import { CutInSoundService } from '@axe/features/media/cut-in-sound.service';
 import { CutInWindowComponent } from '@axe/features/media/cut-in-window/cut-in-window.component';
 import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';

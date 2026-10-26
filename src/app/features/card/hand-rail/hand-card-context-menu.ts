@@ -1,6 +1,6 @@
-import type { CardSeat } from '@axe/application/card/card-game.service';
 import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
+import type { CardSeat } from '@axe/features/card/card-game.service';
 
 /**
  * The participants cards can go to, as a card given from your hand or a hand handed over, one entry

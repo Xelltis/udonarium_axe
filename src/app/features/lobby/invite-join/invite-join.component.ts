@@ -9,7 +9,6 @@ import {
   untracked,
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { isInAnotherRoom, RoomJoinService, wasLastIn } from '@axe/application/lobby/room-join.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -29,6 +28,7 @@ import {
   PasswordCheckComponent,
   type PasswordCheckOptions,
 } from '@axe/features/lobby/password-check/password-check.component';
+import { isInAnotherRoom, RoomJoinService, wasLastIn } from '@axe/features/lobby/room-join.service';
 import { WithheldEntryService } from '@axe/features/lobby/withheld-entry';
 import { RoomRestoreOfferService } from '@axe/features/room-archive/room-restore-banner/room-restore-offer.service';
 import { TranslocoModule } from '@jsverse/transloco';

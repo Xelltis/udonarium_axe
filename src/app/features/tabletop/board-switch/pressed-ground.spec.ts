@@ -2,7 +2,6 @@ import { TestBed } from '@angular/core/testing';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { BoardSwitchService } from '@axe/application/tabletop/board-switch.service';
 import { FunctionalPaintService } from '@axe/application/tabletop/functional-paint.service';
-import { SwitchPressService } from '@axe/application/tabletop/switch-press.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -20,6 +19,7 @@ import {
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableTrigger, triggersOn } from '@axe/domain/tabletop/table-trigger';
+import { SwitchPressService } from '@axe/features/tabletop/board-switch/switch-press.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const GRID = 50;

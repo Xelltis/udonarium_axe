@@ -5,7 +5,6 @@ import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
 import { NamedCueService } from '@axe/application/media/named-cue.service';
 import { TableBgmService } from '@axe/application/media/table-bgm.service';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
-import { SWITCH_COOLDOWN_MS, SwitchPressService } from '@axe/application/tabletop/switch-press.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
@@ -29,6 +28,7 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableTrigger, triggersOn } from '@axe/domain/tabletop/table-trigger';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { SWITCH_COOLDOWN_MS, SwitchPressService } from '@axe/features/tabletop/board-switch/switch-press.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const GRID = 50;

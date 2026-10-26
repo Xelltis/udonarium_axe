@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
+import { ReplayEditorService } from '@axe/features/replay/replay-editor.service';
 import { ReplayFocusService } from '@axe/features/replay/replay-focus.service';
 
 describe('ReplayFocusService', () => {

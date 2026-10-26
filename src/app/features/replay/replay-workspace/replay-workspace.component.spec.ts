@@ -1,6 +1,5 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ReplayRecorderService } from '@axe/application/replay/replay-recorder.service';
 import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
@@ -17,6 +16,7 @@ import {
   ReplayEventKind,
   type ReplayManifest,
 } from '@axe/domain/replay/replay-event';
+import { ReplayEditorService } from '@axe/features/replay/replay-editor.service';
 import { ReplayWorkspaceComponent } from '@axe/features/replay/replay-workspace/replay-workspace.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 

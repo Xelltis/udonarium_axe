@@ -1,5 +1,4 @@
 import { TestBed } from '@angular/core/testing';
-import { FirstPersonPropsService } from '@axe/application/tabletop/first-person-props.service';
 import { Card } from '@axe/domain/card/card';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
@@ -10,6 +9,7 @@ import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { FirstPersonPropsService } from '@axe/features/first-person/first-person-props.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const GRID = 50;

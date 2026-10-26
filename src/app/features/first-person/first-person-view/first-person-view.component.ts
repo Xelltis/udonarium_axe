@@ -19,7 +19,6 @@ import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AmbienceService, type WeatherAmbience } from '@axe/application/tabletop/ambience.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
-import { FirstPersonProp, FirstPersonPropsService } from '@axe/application/tabletop/first-person-props.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -113,6 +112,7 @@ import {
   PropShape,
   propStyle,
 } from '@axe/features/first-person/first-person-prop-style';
+import { FirstPersonProp, FirstPersonPropsService } from '@axe/features/first-person/first-person-props.service';
 import { FirstPersonRangeComponent } from '@axe/features/first-person/first-person-range/first-person-range.component';
 import {
   billboardHudTransform,

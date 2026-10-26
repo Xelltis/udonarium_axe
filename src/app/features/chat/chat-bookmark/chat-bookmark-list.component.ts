@@ -11,12 +11,12 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { ChatBookmarkService } from '@axe/application/chat/chat-bookmark.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ChatBookmarkKind } from '@axe/domain/chat/chat-bookmark';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { ChatBookmarkService } from '@axe/features/chat/chat-bookmark.service';
 import {
   isChatTextHidden,
   readableChatName,

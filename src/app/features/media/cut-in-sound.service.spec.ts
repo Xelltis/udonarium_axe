@@ -1,11 +1,11 @@
 import { TestBed } from '@angular/core/testing';
-import { type CutInSoundHandle, CutInSoundService } from '@axe/application/media/cut-in-sound.service';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
 import { encodeCutInSounds } from '@axe/domain/media/cut-in-sound';
+import { type CutInSoundHandle, CutInSoundService } from '@axe/features/media/cut-in-sound.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('CutInSoundService', () => {

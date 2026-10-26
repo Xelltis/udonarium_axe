@@ -10,7 +10,6 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { CardGameService, CardSeat } from '@axe/application/card/card-game.service';
 import { HandRailService } from '@axe/application/card/hand-rail.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
@@ -30,6 +29,7 @@ import { isHandCardOf } from '@axe/domain/card/hand-cards';
 import { findTrumpPairs } from '@axe/domain/card/trump-card';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { CardGameService, CardSeat } from '@axe/features/card/card-game.service';
 import { elementsAt } from '@axe/features/card/hand-rail/elements-at';
 import { buildCardReceiverMenu, buildPlayDroppedCardMenu } from '@axe/features/card/hand-rail/hand-card-context-menu';
 import { reorderHandCards, selectHandCards } from '@axe/features/card/hand-rail/hand-cards';

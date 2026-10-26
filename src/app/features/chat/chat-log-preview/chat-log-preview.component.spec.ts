@@ -1,8 +1,4 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import {
-  CHAT_LOG_OMIT_DELETED_STORAGE_KEY,
-  CHAT_LOG_STYLE_STORAGE_KEY,
-} from '@axe/application/chat/chat-log-style-preference.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -11,6 +7,10 @@ import {
   CHAT_LOG_PREVIEW_LIMIT,
   ChatLogPreviewComponent,
 } from '@axe/features/chat/chat-log-preview/chat-log-preview.component';
+import {
+  CHAT_LOG_OMIT_DELETED_STORAGE_KEY,
+  CHAT_LOG_STYLE_STORAGE_KEY,
+} from '@axe/features/chat/chat-log-style-preference.service';
 import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 

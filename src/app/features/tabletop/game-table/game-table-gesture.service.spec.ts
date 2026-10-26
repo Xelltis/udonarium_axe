@@ -1,12 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
-import { SwitchPressService } from '@axe/application/tabletop/switch-press.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
-import { SwitchNoticeService } from '@axe/application/ui/switch-notice.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { SwitchNoticeService } from '@axe/features/tabletop/board-switch/switch-notice.service';
+import { SwitchPressService } from '@axe/features/tabletop/board-switch/switch-press.service';
 import {
   GameTableGestureService,
   MOUSE_ZOOM_MAX_Z,

@@ -12,7 +12,6 @@ import {
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { AnimatedImageService } from '@axe/application/media/animated-image.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -53,6 +52,7 @@ import {
   setBoardHeightKeepingFoot,
   WhiteBoard,
 } from '@axe/domain/tabletop/white-board';
+import { AnimatedImageService } from '@axe/features/tabletop/white-board/animated-image.service';
 import { detachFromBoard, standingOn } from '@axe/features/tabletop/white-board/white-board-contents';
 import { BoardGesture } from '@axe/features/tabletop/white-board/white-board-gesture';
 import { BoardKeeper } from '@axe/features/tabletop/white-board/white-board-keeper';

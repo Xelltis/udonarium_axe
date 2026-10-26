@@ -19,11 +19,9 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BoardSwitchService } from '@axe/application/tabletop/board-switch.service';
-import { SwitchPressService } from '@axe/application/tabletop/switch-press.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TerrainFogCover, VisionService } from '@axe/application/tabletop/vision.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
-import { SWITCH_NOTICE_MS } from '@axe/application/ui/switch-notice.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { imageFileEqual } from '@axe/core/storage/image-file';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -47,6 +45,8 @@ import { drawnSlopeSides, gridSlopeKind, gridSlopeSides, SlopeSide } from '@axe/
 import { buildSlopeRoof, SlopePoint, slopeProfileAlong, SlopeRoof } from '@axe/domain/tabletop/terrain-slope-roof';
 import { terrainWallFace, type WallSide } from '@axe/domain/tabletop/terrain-wall-face';
 import { WallFace, WallLight, WallSilhouette } from '@axe/domain/tabletop/vision-scene';
+import { SWITCH_NOTICE_MS } from '@axe/features/tabletop/board-switch/switch-notice.service';
+import { SwitchPressService } from '@axe/features/tabletop/board-switch/switch-press.service';
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
 import { fogMaskOf, terrainTextureLayout } from '@axe/features/tabletop/terrain/terrain-face-look';
 import {

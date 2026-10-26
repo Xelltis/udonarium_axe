@@ -3,7 +3,7 @@ import {
   CHAT_LOG_OMIT_DELETED_STORAGE_KEY,
   CHAT_LOG_STYLE_STORAGE_KEY,
   ChatLogStylePreferenceService,
-} from '@axe/application/chat/chat-log-style-preference.service';
+} from '@axe/features/chat/chat-log-style-preference.service';
 
 describe('ChatLogStylePreferenceService', () => {
   beforeEach(() => {

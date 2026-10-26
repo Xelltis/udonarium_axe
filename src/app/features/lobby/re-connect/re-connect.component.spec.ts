@@ -1,6 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { RoomJoinService } from '@axe/application/lobby/room-join.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { Network } from '@axe/core/index';
@@ -16,6 +15,7 @@ import {
   ReConnectComponent,
   resolveReconnectUserId,
 } from '@axe/features/lobby/re-connect/re-connect.component';
+import { RoomJoinService } from '@axe/features/lobby/room-join.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('ReConnectComponent', () => {

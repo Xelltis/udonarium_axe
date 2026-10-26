@@ -1,11 +1,11 @@
 import { inject, Injectable } from '@angular/core';
 import { SystemAvatarKind, SystemAvatarService } from '@axe/application/chat/system-avatar.service';
-import { buildSystemAvatarContextMenu } from '@axe/application/chat/system-avatar-context-menu';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { buildSystemAvatarContextMenu } from '@axe/features/chat/system-avatar-context-menu';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 
 @Injectable({ providedIn: 'root' })

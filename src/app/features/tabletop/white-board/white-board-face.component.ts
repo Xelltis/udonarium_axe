@@ -8,11 +8,11 @@ import {
   input,
   signal,
 } from '@angular/core';
-import { AnimatedImageService } from '@axe/application/media/animated-image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { deserializeScene } from '@axe/domain/map-editor/serialize';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
+import { AnimatedImageService } from '@axe/features/tabletop/white-board/animated-image.service';
 import { livePicturesOf } from '@axe/features/tabletop/white-board/white-board-live-pictures';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { containedImageRect } from '@axe/ui/tabletop/contained-image-rect';

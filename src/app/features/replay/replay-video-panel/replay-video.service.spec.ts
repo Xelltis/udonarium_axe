@@ -1,7 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ReplayLibraryService } from '@axe/application/replay/replay-library.service';
 import { ReplaySoundMixer } from '@axe/application/replay/replay-sound-mixer';
-import { type ReplayVideoJob, ReplayVideoService } from '@axe/application/replay/replay-video.service';
 import { ReplayVideoAudience } from '@axe/application/replay/replay-video-studio.service';
 import { useReplayVideoWorkerFactory } from '@axe/application/replay/replay-video-worker-client';
 import type { ReplayVideoWorkerRequest } from '@axe/application/replay/replay-video-worker-message';
@@ -22,6 +21,7 @@ import { encodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/rep
 import { DEFAULT_REPLAY_SOUND_CHOICE, type ReplaySoundtrack } from '@axe/domain/replay/replay-soundtrack';
 import { REPLAY_PAGE_MIN_MS } from '@axe/domain/replay/video/replay-text-layout';
 import { ReplayVideoPacing, ReplayVideoStyle } from '@axe/domain/replay/video/replay-video-timeline';
+import { type ReplayVideoJob, ReplayVideoService } from '@axe/features/replay/replay-video-panel/replay-video.service';
 import { recorder } from '@axe/testing/canvas-recorder';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 

@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
-import { BattlePlacementService } from '@axe/application/tabletop/battle-placement.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Config } from '@axe/domain/peer/config';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { BattlePlacementService } from '@axe/features/character/battle-placement-panel/battle-placement.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const GRID = 50;

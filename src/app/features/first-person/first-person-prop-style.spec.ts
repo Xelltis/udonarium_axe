@@ -1,4 +1,3 @@
-import { FirstPersonProp } from '@axe/application/tabletop/first-person-props.service';
 import { eyeFrameOf } from '@axe/domain/tabletop/first-person/first-person-clip';
 import {
   glowStyle,
@@ -7,6 +6,7 @@ import {
   propClip,
   propStyle,
 } from '@axe/features/first-person/first-person-prop-style';
+import { FirstPersonProp } from '@axe/features/first-person/first-person-props.service';
 import { describe, expect, it } from 'vitest';
 
 function prop(overrides: Partial<FirstPersonProp>): FirstPersonProp {

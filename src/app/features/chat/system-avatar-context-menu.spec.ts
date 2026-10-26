@@ -1,9 +1,9 @@
+import { ContextMenuAction, ContextMenuType } from '@axe/application/ui/context-menu.service';
 import {
   buildSystemAvatarContextMenu,
   type SystemAvatarMenuHandlers,
   type SystemAvatarMenuState,
-} from '@axe/application/chat/system-avatar-context-menu';
-import { ContextMenuAction, ContextMenuType } from '@axe/application/ui/context-menu.service';
+} from '@axe/features/chat/system-avatar-context-menu';
 
 const t = (key: string, params?: Record<string, unknown>) =>
   params && 'kind' in params ? `${key}:${params['kind']}` : key;

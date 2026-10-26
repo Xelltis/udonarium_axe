@@ -1,4 +1,3 @@
-import { buildInventoryTable } from '@axe/application/inventory/inventory-table';
 import { newStatusAilment, parseStatusAilments } from '@axe/domain/character/status-ailment';
 import {
   DataElement,
@@ -7,6 +6,7 @@ import {
   DataElementType,
 } from '@axe/domain/data/data-element';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { buildInventoryTable } from '@axe/features/inventory/game-object-inventory/inventory-table';
 
 describe('buildInventoryTable()', () => {
   const created: DataElement[] = [];

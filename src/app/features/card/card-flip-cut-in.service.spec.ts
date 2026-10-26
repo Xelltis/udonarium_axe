@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
-import { CardFlipCutInService, FACE_WAIT_MS } from '@axe/application/card/card-flip-cut-in.service';
 import { CutInService } from '@axe/application/media/cut-in.service';
 import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { CutIn } from '@axe/domain/media/cut-in';
+import { CardFlipCutInService, FACE_WAIT_MS } from '@axe/features/card/card-flip-cut-in.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('CardFlipCutInService', () => {

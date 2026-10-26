@@ -1,4 +1,4 @@
-import { CcfoliaRoomImportSummary } from '@axe/application/tabletop/ccfolia-room-import.service';
+import { CcfoliaRoomImportSummary } from '@axe/features/tabletop/ccfolia-room-import/ccfolia-room-import.service';
 import { buildRoomImportMessages } from '@axe/features/tabletop/ccfolia-room-import/ccfolia-room-import-message';
 
 function summaryOf(overrides: Partial<CcfoliaRoomImportSummary> = {}): CcfoliaRoomImportSummary {

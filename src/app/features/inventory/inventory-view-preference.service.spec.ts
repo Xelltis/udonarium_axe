@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { InventoryViewPreferenceService } from '@axe/application/ui/inventory-view-preference.service';
+import { InventoryViewPreferenceService } from '@axe/features/inventory/inventory-view-preference.service';
 
 const STORAGE_KEY = 'ui-inventory-view';
 

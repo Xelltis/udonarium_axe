@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ObjectChangeService as ObjectChangeServiceForSpec } from '@axe/application/sync/object-change.service';
-import { SwitchPressService } from '@axe/application/tabletop/switch-press.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
@@ -22,6 +21,7 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { DoorStyle, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { SlopeDirection } from '@axe/domain/tabletop/terrain-slope';
+import { SwitchPressService } from '@axe/features/tabletop/board-switch/switch-press.service';
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
 import { TerrainComponent } from '@axe/features/tabletop/terrain/terrain.component';
 import { TerrainMenuService } from '@axe/features/tabletop/terrain/terrain-menu.service';

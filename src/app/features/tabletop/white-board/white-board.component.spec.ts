@@ -1,6 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { AnimatedImageService } from '@axe/application/media/animated-image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -13,6 +12,7 @@ import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
+import { AnimatedImageService } from '@axe/features/tabletop/white-board/animated-image.service';
 import { WhiteBoardComponent } from '@axe/features/tabletop/white-board/white-board.component';
 import { createBoardScene } from '@axe/features/tabletop/white-board/white-board-scene';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';

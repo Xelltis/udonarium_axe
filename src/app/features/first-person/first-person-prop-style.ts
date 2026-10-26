@@ -1,4 +1,3 @@
-import { FirstPersonGlow, FirstPersonProp } from '@axe/application/tabletop/first-person-props.service';
 import {
   clipBillboardToEye,
   clipPolygonToEye,
@@ -7,6 +6,7 @@ import {
   viewDepthOf,
 } from '@axe/domain/tabletop/first-person/first-person-clip';
 import { CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
+import { FirstPersonGlow, FirstPersonProp } from '@axe/features/first-person/first-person-props.service';
 import { billboardCutPath, billboardStyle, QuadStyle } from '@axe/features/first-person/first-person-style';
 
 const GLOW_FALLBACK = '#ffd68c';

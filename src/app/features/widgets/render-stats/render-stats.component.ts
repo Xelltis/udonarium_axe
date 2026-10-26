@@ -1,9 +1,9 @@
 import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
-import { RenderStatsService } from '@axe/application/ui/render-stats.service';
 import { WIDGET_RENDER_STATS } from '@axe/application/ui/widget-place';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { PERF_TERRAIN_GRID_RASTER, PERF_VISION_MEMO_MISS, PERF_VISION_SCENE } from '@axe/core/util/perf-counters';
+import { RenderStatsService } from '@axe/features/widgets/render-stats/render-stats.service';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
 

@@ -1,5 +1,4 @@
 import { TestBed } from '@angular/core/testing';
-import { CardGameService } from '@axe/application/card/card-game.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -9,6 +8,7 @@ import { handLocationOf } from '@axe/domain/card/hand-location';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { CardGameService } from '@axe/features/card/card-game.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('CardGameService', () => {

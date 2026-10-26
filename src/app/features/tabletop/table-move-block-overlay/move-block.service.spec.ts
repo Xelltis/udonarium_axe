@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
-import { MoveBlockService } from '@axe/application/tabletop/move-block.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCount, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { ensureMoveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
+import { MoveBlockService } from '@axe/features/tabletop/table-move-block-overlay/move-block.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('MoveBlockService', () => {

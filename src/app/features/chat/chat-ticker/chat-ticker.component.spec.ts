@@ -1,13 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import {
-  CHAT_TICKER_SELECTION_EVENT_NAME,
-  ChatTickerSelectionService,
-} from '@axe/application/chat/chat-ticker-selection.service';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { ChatTickerComponent } from '@axe/features/chat/chat-ticker/chat-ticker.component';
+import {
+  CHAT_TICKER_SELECTION_EVENT_NAME,
+  ChatTickerSelectionService,
+} from '@axe/features/chat/chat-ticker-selection.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('ChatTickerComponent', () => {

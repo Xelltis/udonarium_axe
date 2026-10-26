@@ -1,5 +1,4 @@
 import { TestBed } from '@angular/core/testing';
-import { CcfoliaRoomImportService } from '@axe/application/tabletop/ccfolia-room-import.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ArchiveEntries } from '@axe/core/storage/room-archive';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -7,6 +6,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { CcfoliaRoomImportService } from '@axe/features/tabletop/ccfolia-room-import/ccfolia-room-import.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 function entriesOf(data: unknown, images: string[] = []): ArchiveEntries {

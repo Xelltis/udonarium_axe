@@ -1,5 +1,4 @@
 import { TestBed } from '@angular/core/testing';
-import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { readKeyframeBytes } from '@axe/application/replay/replay-keyframe-bytes';
 import {
   type ReplayChunkInput,
@@ -23,6 +22,7 @@ import {
   type ReplayManifest,
 } from '@axe/domain/replay/replay-event';
 import { decodeReplayKeyframe, type ReplayObjectSnapshot } from '@axe/domain/replay/replay-keyframe';
+import { ReplayEditorService } from '@axe/features/replay/replay-editor.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 class FakeStore extends ReplayLogStore {

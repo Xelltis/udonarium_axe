@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
-import { ChatBookmarkService } from '@axe/application/chat/chat-bookmark.service';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { ChatBookmarkService } from '@axe/features/chat/chat-bookmark.service';
 import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 

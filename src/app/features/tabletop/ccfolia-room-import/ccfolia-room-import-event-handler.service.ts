@@ -30,7 +30,7 @@ export class CcfoliaRoomImportEventHandlerService {
     }
 
     // The import is fetched with the first room dropped, being seldom wanted.
-    const roomImport = await import('@axe/application/tabletop/ccfolia-room-import.service').then(
+    const roomImport = await import('@axe/features/tabletop/ccfolia-room-import/ccfolia-room-import.service').then(
       (m) => this.injector.get(m.CcfoliaRoomImportService),
       () => null
     );

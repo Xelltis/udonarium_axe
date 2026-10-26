@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BoardSwitchService } from '@axe/application/tabletop/board-switch.service';
-import { SwitchPressService } from '@axe/application/tabletop/switch-press.service';
 import { BoardSwitch } from '@axe/domain/tabletop/board-switch/board-switch';
 import { defaultSwitchDefinition, SwitchDefinition } from '@axe/domain/tabletop/board-switch/switch-definition';
 import { SwitchDefinitionFieldsComponent } from '@axe/features/tabletop/board-switch/switch-definition-fields.component';
+import { SwitchPressService } from '@axe/features/tabletop/board-switch/switch-press.service';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /**

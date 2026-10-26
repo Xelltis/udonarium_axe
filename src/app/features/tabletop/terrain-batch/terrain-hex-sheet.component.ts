@@ -2,11 +2,11 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { TerrainBatchService } from '@axe/application/tabletop/terrain-batch.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { calcHexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid } from '@axe/domain/tabletop/hex-geometry';
 import { HexCapSheet } from '@axe/domain/tabletop/terrain-batch/hex-caps';
+import { TerrainBatchService } from '@axe/features/tabletop/terrain-batch/terrain-batch.service';
 import { shadeRgbOf } from '@axe/ui/tabletop/shaded-background';
 
 /** The blocks on a sheet darkened by one amount, gathered into one path, with their joins with other sheets. */

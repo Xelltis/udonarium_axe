@@ -3,7 +3,6 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
-import { AnimatedImageService } from '@axe/application/media/animated-image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -28,6 +27,7 @@ import { DiceSymbolComponent } from '@axe/features/dice/dice-symbol/dice-symbol.
 import { GameTableMaskComponent } from '@axe/features/tabletop/game-table-mask/game-table-mask.component';
 import { TerrainComponent } from '@axe/features/tabletop/terrain/terrain.component';
 import { TextNoteComponent } from '@axe/features/tabletop/text-note/text-note.component';
+import { AnimatedImageService } from '@axe/features/tabletop/white-board/animated-image.service';
 import { detachAllFrom } from '@axe/features/tabletop/white-board/white-board-contents';
 import { buildWhiteBoardContextMenu } from '@axe/features/tabletop/white-board/white-board-context-menu';
 import { LivePicture, livePicturesOf } from '@axe/features/tabletop/white-board/white-board-live-pictures';

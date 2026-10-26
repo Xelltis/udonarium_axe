@@ -1,7 +1,5 @@
 import { signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
-import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
-import { ReplayPhotoService } from '@axe/application/replay/replay-photo.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { encodeDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -13,6 +11,8 @@ import {
   ReplayEventKind,
 } from '@axe/domain/replay/replay-event';
 import { ReplayDigestPanelComponent } from '@axe/features/replay/replay-digest-panel/replay-digest-panel.component';
+import { ReplayPhotoService } from '@axe/features/replay/replay-digest-panel/replay-photo.service';
+import { ReplayEditorService } from '@axe/features/replay/replay-editor.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const MANIFEST = {

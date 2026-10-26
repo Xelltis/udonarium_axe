@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { SheetViewPreferenceService } from '@axe/application/ui/sheet-view-preference.service';
+import { SheetViewPreferenceService } from '@axe/features/character/game-character-sheet/sheet-view-preference.service';
 
 const STORAGE_KEY = 'ui-sheet-folded';
 

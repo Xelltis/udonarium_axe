@@ -1,5 +1,5 @@
-import { marqueeApply, normalizeRect, selectByRect } from '@axe/application/ui/rect-hit-test';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { marqueeApply, normalizeRect, selectByRect } from '@axe/features/tabletop/game-table/rect-hit-test';
 import { makeFakeTabletopObject } from '@axe/testing/factories/tabletop-object.factory';
 
 function makeObject(opts: {

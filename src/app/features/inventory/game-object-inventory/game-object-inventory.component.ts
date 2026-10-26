@@ -20,12 +20,6 @@ import { StealthService } from '@axe/application/character/stealth.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
-import {
-  buildInventoryTable,
-  InventoryTable,
-  InventoryTableColumn,
-  InventoryTableRow,
-} from '@axe/application/inventory/inventory-table';
 import { tableItemNames } from '@axe/application/inventory/summary-items';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -36,7 +30,6 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
-import { InventoryViewPreferenceService } from '@axe/application/ui/inventory-view-preference.service';
 import { PanelHeaderControl, PanelService } from '@axe/application/ui/panel.service';
 import { PieceDragGhostService } from '@axe/application/ui/piece-drag-ghost.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
@@ -95,11 +88,18 @@ import {
   type SideBand,
 } from '@axe/features/inventory/game-object-inventory/inventory-list';
 import { InventoryObjectDrag } from '@axe/features/inventory/game-object-inventory/inventory-object-drag';
+import {
+  buildInventoryTable,
+  InventoryTable,
+  InventoryTableColumn,
+  InventoryTableRow,
+} from '@axe/features/inventory/game-object-inventory/inventory-table';
 import { InventoryFilterService } from '@axe/features/inventory/inventory-filter.service';
 import {
   INVENTORY_FILTER_PANEL,
   InventoryFilterPanelComponent,
 } from '@axe/features/inventory/inventory-filter-panel/inventory-filter-panel.component';
+import { InventoryViewPreferenceService } from '@axe/features/inventory/inventory-view-preference.service';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { AutoFocusDirective } from '@axe/ui/directives/auto-focus.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';

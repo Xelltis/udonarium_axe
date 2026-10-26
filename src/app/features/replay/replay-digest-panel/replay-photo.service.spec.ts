@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
-import { ReplayPhotoService } from '@axe/application/replay/replay-photo.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import type { ReplayCastMember } from '@axe/domain/replay/replay-cast';
+import { ReplayPhotoService } from '@axe/features/replay/replay-digest-panel/replay-photo.service';
 
 function member(name: string, imageIdentifier = 'img'): ReplayCastMember {
   return { identifier: name, name, imageIdentifier, chatColor: '', onTable: true };

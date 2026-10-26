@@ -1,11 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
-import { InventoryViewPreferenceService } from '@axe/application/ui/inventory-view-preference.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { SortOrder } from '@axe/domain/data/data-summary-setting';
 import { InventoryFilterService } from '@axe/features/inventory/inventory-filter.service';
 import { InventoryFilterPanelComponent } from '@axe/features/inventory/inventory-filter-panel/inventory-filter-panel.component';
+import { InventoryViewPreferenceService } from '@axe/features/inventory/inventory-view-preference.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('InventoryFilterPanelComponent', () => {

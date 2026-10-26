@@ -1,12 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { StartRoomService } from '@axe/application/file/start-room.service';
 import {
-  ROOM_CONNECT_TIMEOUT_MS,
-  ROOM_OPEN_TIMEOUT_MS,
-  ROOM_SERVER_OPEN_TIMEOUT_MS,
-  RoomJoinService,
-} from '@axe/application/lobby/room-join.service';
-import {
   type NetworkErrorEvent,
   type NetworkPeerEvent,
   ObjectChangeService,
@@ -19,6 +13,12 @@ import { sameNameMemberWait$ } from '@axe/core/network/skyway/same-name-member';
 import { clearIdentity, loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import {
+  ROOM_CONNECT_TIMEOUT_MS,
+  ROOM_OPEN_TIMEOUT_MS,
+  ROOM_SERVER_OPEN_TIMEOUT_MS,
+  RoomJoinService,
+} from '@axe/features/lobby/room-join.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 class StubObjectChangeService {

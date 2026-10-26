@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { AnimatedImageService } from '@axe/application/media/animated-image.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { AnimatedImageService } from '@axe/features/tabletop/white-board/animated-image.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('AnimatedImageService', () => {

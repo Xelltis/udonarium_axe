@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { RenderStatsService } from '@axe/application/ui/render-stats.service';
 import { perfCounters } from '@axe/core/util/perf-counters';
+import { RenderStatsService } from '@axe/features/widgets/render-stats/render-stats.service';
 
 describe('RenderStatsService', () => {
   let service: RenderStatsService;
