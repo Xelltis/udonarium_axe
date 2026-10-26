@@ -1,3 +1,4 @@
+import type { GameObject } from '@axe/core/sync/game-object';
 import { decode, encode } from '@axe/core/util/message-pack';
 import { isSupportedReplayFormat } from '@axe/domain/replay/replay-codec';
 import { REPLAY_FORMAT_VERSION } from '@axe/domain/replay/replay-event';
@@ -6,6 +7,18 @@ export interface ReplayObjectSnapshot {
   identifier: string;
   aliasName: string;
   syncData: Record<string, unknown>;
+}
+
+/** What a board holds of each object in the room: its identifier, its alias and its synced data. */
+export function replayObjectSnapshotsOf(objects: readonly GameObject[]): ReplayObjectSnapshot[] {
+  return objects.map((object) => {
+    const context = object.toContext();
+    return {
+      identifier: context.identifier,
+      aliasName: context.aliasName,
+      syncData: context.syncData as Record<string, unknown>,
+    };
+  });
 }
 
 interface KeyframeEnvelope {

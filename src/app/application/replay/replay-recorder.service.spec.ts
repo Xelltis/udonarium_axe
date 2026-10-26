@@ -3,7 +3,6 @@ import { TestBed } from '@angular/core/testing';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { readKeyframeBytes } from '@axe/application/replay/replay-keyframe-bytes';
 import {
-  REPLAY_BASELINE_GRACE_MS,
   REPLAY_CHUNK_INTERVAL_MS,
   REPLAY_KEYFRAME_BUSY_RETRY_MS,
   REPLAY_KEYFRAME_INTERVAL_MS,
@@ -36,6 +35,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { decodeReplayEvents, decodeReplayManifest } from '@axe/domain/replay/replay-codec';
 import { GM_ONLY_VISIBILITY, ReplayDetailLevel, ReplayEventKind } from '@axe/domain/replay/replay-event';
+import { REPLAY_BASELINE_GRACE_MS } from '@axe/domain/replay/replay-event-builder';
 import { ReplayEventCategory, replayEventCategory } from '@axe/domain/replay/replay-event-category';
 import { decodeReplayKeyframe } from '@axe/domain/replay/replay-keyframe';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
