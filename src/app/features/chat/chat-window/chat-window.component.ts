@@ -26,6 +26,7 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { delay } from '@axe/core/util/delay';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
@@ -234,7 +235,7 @@ export class ChatWindowComponent {
     if (this.chatTabidentifier !== tab.identifier) {
       this.chatTabidentifier = tab.identifier;
       // Turning to a tab sends the log to its foot a task later; the line is sought after that.
-      await new Promise<void>((resolve) => setTimeout(resolve));
+      await delay();
       await new Promise<void>((resolve) => afterNextRender(() => resolve(), { injector: this.injector }));
     }
     const line = await this.revealLine(message);

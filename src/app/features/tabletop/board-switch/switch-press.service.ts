@@ -15,6 +15,7 @@ import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { delay } from '@axe/core/util/delay';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { evaluateCharacterReferences } from '@axe/domain/chat/chat-palette';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -187,7 +188,7 @@ export class SwitchPressService {
     };
     try {
       for (const [order, action] of definition.actions.entries()) {
-        if (order > 0 && action.delayMs > 0) await wait(action.delayMs);
+        if (order > 0 && action.delayMs > 0) await delay(action.delayMs);
         try {
           await this.run(action, context);
         } catch {
@@ -425,10 +426,6 @@ export class SwitchPressService {
     const held = this.objectStore.get<TurnState>('TurnState');
     return held instanceof TurnState ? held.round : -1;
   }
-}
-
-function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /** Whether a switch puts music on or stops it itself, which a table it shows then leaves to it. */

@@ -1,4 +1,5 @@
 import { Logger } from '@axe/core/logging/logger';
+import { delay } from '@axe/core/util/delay';
 
 /** How many attempts in all, first and retries, to cover a serverless backend starting cold. */
 const TOKEN_FETCH_ATTEMPTS = 3;
@@ -28,10 +29,6 @@ export class SkyWayBackend {
 function resolveApi(base: string, path: string): URL {
   const normalized = base.endsWith('/') ? base : base + '/';
   return new URL(path, normalized);
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**

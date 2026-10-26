@@ -13,6 +13,7 @@ import {
 import { ASSET_PAUSE_RETRY_MS } from '@axe/core/storage/asset-retries';
 import { putWithProgress } from '@axe/core/storage/put-with-progress';
 import { sha256Hex } from '@axe/core/util/crypto-util';
+import { delay } from '@axe/core/util/delay';
 
 /**
  * What became of an upload. `failed`, as on a line gone quiet, may pass on a later try. `paused`
@@ -181,7 +182,7 @@ export class AssetHttpStore {
   private readonly smallUploads = new TaskQueue(UPLOAD_CONCURRENCY);
   private readonly downloads = new TaskQueue(DOWNLOAD_CONCURRENCY);
   /** Waits between retries; replaced in tests so they need not sit through the backoff. */
-  delay: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  delay: (ms: number) => Promise<void> = delay;
   /**
    * Sends an upload's bytes, given up on once a minute passes with nothing getting through, however
    * long it takes in all, or at the `deadline` given, in this page's milliseconds; replaced in tests

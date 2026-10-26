@@ -1,5 +1,6 @@
 import { Logger } from '@axe/core/logging/logger';
 import type { EncodedVideo, VideoEncodeRequest, VideoSoundSource } from '@axe/core/media/video-encoder';
+import { delay } from '@axe/core/util/delay';
 
 /**
  * Exporting for a browser without WebCodecs.
@@ -197,7 +198,7 @@ export async function recordVideo(request: VideoEncodeRequest): Promise<EncodedV
         await request.paint(ctx as unknown as OffscreenCanvasRenderingContext2D, index);
         request.onProgress?.(index + 1, request.frameCount);
       }
-      await new Promise((resolve) => setTimeout(resolve, Math.max(0, msPerFrame / 2)));
+      await delay(Math.max(0, msPerFrame / 2));
     }
 
     request.onProgress?.(request.frameCount, request.frameCount);
