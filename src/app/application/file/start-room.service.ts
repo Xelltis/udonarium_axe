@@ -86,11 +86,13 @@ export class StartRoomService {
   private original: TableBefore | null = null;
   /** Whether the start room is on the table just now, rather than put away for a join. */
   private startRoomOut = false;
+  /** Whether the start room was put away for joins that came to nothing, and waits to be set out again. */
+  private putAway = false;
   private brought: { images: readonly string[]; audios: readonly string[] } = { images: [], audios: [] };
   /** How many joins are under way, whether or not they put a start room away. */
   private joinsUnderWay = 0;
-  /** How many times a start room has been put away, to tell whether one was while the room was being kept. */
-  private putAways = 0;
+  /** How many joins have begun, to tell whether one did while the room was being kept. */
+  private joinsBegun = 0;
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -98,7 +100,9 @@ export class StartRoomService {
     window.addEventListener('focus', refresh);
     destroyRef.onDestroy(() => window.removeEventListener('focus', refresh));
     inject(ObjectChangeService).networkOpen$.subscribe(() => {
-      if (Network.peerContext?.isRoom && this.joinsUnderWay === 0) this.original = null;
+      if (this.joinsUnderWay > 0) return;
+      if (Network.peerContext?.isRoom) this.letGo();
+      else this.comeBackIfOutside();
     }, destroyRef);
   }
 
@@ -129,30 +133,29 @@ export class StartRoomService {
    * pictures and sounds the start room brought go, and the sample is set out, so the room joined
    * finds this seat as it finds a browser that never kept a room. The seat's own cursor and bar
    * stay, and so do the pictures they show, though not the start room's speaker the cursor last
-   * spoke as. Told the join came to something, or that the seat is in or going into a room all the
-   * same, it lets the start room go; told it came to nothing, it sets the kept start room out
-   * again, as at launch.
+   * spoke as. Told the join came to something, it lets the start room go; told it came to nothing,
+   * it sets the kept start room out again, as at launch, once no join is under way and the seat
+   * waits outside any room. See {@link comeBackIfOutside}.
    */
   putAwayForJoin(): (joined: boolean) => void {
     this.joinsUnderWay++;
+    this.joinsBegun++;
     const original = this.original;
-    const putsAway = original !== null && this.startRoomOut && !this.loading;
-    if (putsAway) {
-      this.putAways++;
+    if (original !== null && this.startRoomOut && !this.loading) {
       const jukebox = this.objectStore.get<Jukebox>('Jukebox');
       if (jukebox?.isPlaying) jukebox.stop();
       this.takeAway(original);
       this.tabletopAction.makeDefaultTabletopObjects();
       this.startRoomOut = false;
+      this.putAway = true;
     }
     let over = false;
     return (joined) => {
       if (over) return;
       over = true;
       this.joinsUnderWay--;
-      if (!putsAway) return;
-      if (joined || isInOrGoingIntoRoom()) this.original = null;
-      else void this.setOutAgain();
+      if (joined) this.letGo();
+      else this.comeBackIfOutside();
     };
   }
 
@@ -252,8 +255,8 @@ export class StartRoomService {
       this.snackbar.show(this.t('feature.roomArchive.startRoom.withheld'));
       return false;
     }
-    const putAwaysBefore = this.putAways;
-    const joinedMeanwhile = () => this.joinsUnderWay > 0 || this.putAways !== putAwaysBefore;
+    const joinsBefore = this.joinsBegun;
+    const joinedMeanwhile = () => this.joinsUnderWay > 0 || this.joinsBegun !== joinsBefore;
     if (
       (await this.refreshKept()) !== false &&
       !(await this.confirm.ask({
@@ -329,6 +332,30 @@ export class StartRoomService {
       Logger.warn('[StartRoom] could not set out the start room', reason);
       return null;
     }
+  }
+
+  /** Forgets the table the page first set out, and any start room put away, once the seat is in a room. */
+  private letGo(): void {
+    this.original = null;
+    this.putAway = false;
+  }
+
+  /**
+   * Sets a start room put away for joins that came to nothing out again, once none is under way
+   * and the seat waits outside any room, and lets it go where the seat is open in a room. A seat
+   * still asked into a room, as one whose failed join leaves it trying again after a while, or
+   * given up on, is left to the next time the network opens: into a room, or outside any.
+   */
+  private comeBackIfOutside(): void {
+    if (!this.putAway || this.joinsUnderWay > 0) return;
+    const self = Network.peerContext;
+    if (self?.isRoom && self.isOpen) {
+      this.letGo();
+      return;
+    }
+    if (Network.requestedRoomId !== '') return;
+    this.putAway = false;
+    void this.setOutAgain();
   }
 
   /**

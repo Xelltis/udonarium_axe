@@ -278,6 +278,18 @@ describe('StartRoomService', () => {
       expect(shown).toHaveBeenCalledWith('部屋に入る途中は、開始時の部屋にできません。');
     });
 
+    it('stops keeping the room where a join began and ended while it was being kept, with no start room out', async () => {
+      kept = new Blob(['older']);
+      ask.mockImplementation(async () => {
+        service.putAwayForJoin()(false);
+        return true;
+      });
+
+      expect(await service.keepCurrent()).toBe(false);
+
+      expect(await kept?.text()).toBe('older');
+    });
+
     it('keeps nothing while any join is under way, a start room out or not', async () => {
       service.putAwayForJoin();
 
@@ -455,6 +467,63 @@ describe('StartRoomService', () => {
       expect(load).toHaveBeenCalledTimes(1);
     });
 
+    function networkOpens(): void {
+      (
+        TestBed.inject(ObjectChangeService) as unknown as { _networkOpen$: { emit(event: { peerId: string }): void } }
+      )._networkOpen$.emit({ peerId: 'next-peer' });
+    }
+
+    it('waits on a failed join that leaves the seat asked into its room, and sets the start room out again once the seat is back outside', async () => {
+      await setOut();
+      const joined = service.putAwayForJoin();
+      const requested = vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('failed-room');
+      const self = vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: true, isOpen: false } as never);
+
+      joined(false);
+      await service.whenSettled();
+      expect(load).toHaveBeenCalledTimes(1);
+
+      requested.mockReturnValue('');
+      self.mockReturnValue({ isRoom: false, isOpen: true } as never);
+      networkOpens();
+      await service.whenSettled();
+
+      expect(load).toHaveBeenCalledTimes(2);
+      expect(shown).toHaveBeenCalledWith(
+        '部屋に入れなかったので、開始時の部屋を読み込み直しました。保存していない変更は戻っていません。'
+      );
+    });
+
+    it('lets the start room go where the network next opens into a room after a failed join', async () => {
+      await setOut();
+      const joined = service.putAwayForJoin();
+      vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('failed-room');
+      const self = vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: true, isOpen: false } as never);
+      joined(false);
+
+      self.mockReturnValue({ isRoom: true, isOpen: true } as never);
+      networkOpens();
+      await service.whenSettled();
+
+      expect(load).toHaveBeenCalledTimes(1);
+      service.putAwayForJoin();
+      expect(sample).toHaveBeenCalledTimes(1);
+    });
+
+    it('sets the start room out again once the last of joins made one over another comes to nothing', async () => {
+      await setOut();
+      const first = service.putAwayForJoin();
+      const second = service.putAwayForJoin();
+
+      first(false);
+      await service.whenSettled();
+      expect(load).toHaveBeenCalledTimes(1);
+
+      second(false);
+      await service.whenSettled();
+      expect(load).toHaveBeenCalledTimes(2);
+    });
+
     it("clears the start room's speaker the cursor last spoke as, and lets go of that speaker's picture", async () => {
       const cursorBefore = PeerCursor.myCursor;
       const cursor = new PeerCursor('seat-cursor');
@@ -494,7 +563,7 @@ describe('StartRoomService', () => {
     it('leaves a seat that went into a room meanwhile as it is, and lets the start room go', async () => {
       await setOut();
       const joined = service.putAwayForJoin();
-      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: true } as never);
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: true, isOpen: true } as never);
 
       joined(false);
       await service.whenSettled();
