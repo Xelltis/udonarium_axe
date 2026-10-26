@@ -5,9 +5,9 @@ import { downscaleImageBlob } from '@axe/core/storage/image-downscale';
 import { ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { looksLikeImage } from '@axe/core/storage/image-sniff';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { asDiceLook, DiceLook, DicePictureFit, PLAIN_DICE_LOOK } from '@axe/domain/dice/dice-3d/dice-look';
-
-const STORAGE_KEY = 'my-dice';
 
 /** The largest a dice picture may be once resampled, on its longer side: a die is never drawn larger. */
 export const DICE_PICTURE_MAX_SIDE = 512;
@@ -48,11 +48,7 @@ export class MyDiceService {
   set(look: DiceLook): void {
     const tidy = asDiceLook(look);
     this.current.set(tidy);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(tidy));
-    } catch {
-      // Private browsing refuses the write; the look still holds for this session.
-    }
+    writeLocal(STORAGE_KEYS.myDice, JSON.stringify(tidy));
   }
 
   /**
@@ -125,7 +121,7 @@ export class MyDiceService {
 
 function storedLook(): DiceLook {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = readLocal(STORAGE_KEYS.myDice);
     return raw ? asDiceLook(JSON.parse(raw)) : PLAIN_DICE_LOOK;
   } catch {
     return PLAIN_DICE_LOOK;

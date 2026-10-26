@@ -7,16 +7,13 @@ import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import {
-  CHAT_LOG_OMIT_DELETED_STORAGE_KEY,
-  CHAT_LOG_STYLE_STORAGE_KEY,
-} from '@axe/features/chat/chat-log-style-preference.service';
 import { ChatTabSettingComponent } from '@axe/features/chat/chat-tab-setting/chat-tab-setting.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -229,14 +226,14 @@ describe('ChatTabSettingComponent', () => {
     let saveData: SaveDataService;
 
     beforeEach(() => {
-      localStorage.removeItem(CHAT_LOG_STYLE_STORAGE_KEY);
-      localStorage.removeItem(CHAT_LOG_OMIT_DELETED_STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEYS.chatLogStyle);
+      localStorage.removeItem(STORAGE_KEYS.chatLogOmitDeleted);
       saveData = TestBed.inject(SaveDataService);
     });
 
     afterEach(() => {
-      localStorage.removeItem(CHAT_LOG_STYLE_STORAGE_KEY);
-      localStorage.removeItem(CHAT_LOG_OMIT_DELETED_STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEYS.chatLogStyle);
+      localStorage.removeItem(STORAGE_KEYS.chatLogOmitDeleted);
       vi.restoreAllMocks();
     });
 

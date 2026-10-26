@@ -1,11 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ART_STAMP_FAMILIES, stampsOfFamily } from '@axe/domain/chat/stamp-catalog';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
-import {
-  RECENT_STAMPS_STORAGE_KEY,
-  StampPickerComponent,
-} from '@axe/ui/components/stamp-picker/stamp-picker.component';
+import { StampPickerComponent } from '@axe/ui/components/stamp-picker/stamp-picker.component';
 
 describe('StampPickerComponent', () => {
   let fixture: ComponentFixture<StampPickerComponent>;
@@ -23,8 +21,8 @@ describe('StampPickerComponent', () => {
     );
   }
 
-  beforeEach(() => localStorage.removeItem(RECENT_STAMPS_STORAGE_KEY));
-  afterEach(() => localStorage.removeItem(RECENT_STAMPS_STORAGE_KEY));
+  beforeEach(() => localStorage.removeItem(STORAGE_KEYS.recentStamps));
+  afterEach(() => localStorage.removeItem(STORAGE_KEYS.recentStamps));
 
   it('opens on the sound effects for somebody who has picked nothing yet, with a tab for each family', () => {
     const root = open();
@@ -78,7 +76,7 @@ describe('StampPickerComponent', () => {
   });
 
   it('leaves out the stamps it may not offer, and a tab with none left, opening on the first offered', () => {
-    localStorage.setItem(RECENT_STAMPS_STORAGE_KEY, JSON.stringify(['sfx:laugh']));
+    localStorage.setItem(STORAGE_KEYS.recentStamps, JSON.stringify(['sfx:laugh']));
     TestBed.configureTestingModule({ imports: [StampPickerComponent], providers: [...TEST_PROVIDERS] });
     fixture = TestBed.createComponent(StampPickerComponent);
     fixture.componentRef.setInput('allows', (id: string) => id.startsWith('seal:') && id !== 'seal:ok');
@@ -111,7 +109,7 @@ describe('StampPickerComponent', () => {
   });
 
   it('leaves out of the recent ones a picture from a set this room does not have', () => {
-    localStorage.setItem(RECENT_STAMPS_STORAGE_KEY, JSON.stringify(['image:elsewhere', 'seal:ok', 'image:here']));
+    localStorage.setItem(STORAGE_KEYS.recentStamps, JSON.stringify(['image:elsewhere', 'seal:ok', 'image:here']));
     const root = open();
     fixture.componentRef.setInput('packs', [
       { identifier: 'pack-1', name: 'ここ', stamps: [{ stampId: 'image:here' }] },
@@ -122,7 +120,7 @@ describe('StampPickerComponent', () => {
   });
 
   it('leaves out of the recent ones a stamp this version does not know', () => {
-    localStorage.setItem(RECENT_STAMPS_STORAGE_KEY, JSON.stringify(['sfx:from-a-newer-version', 'seal:ok', 3]));
+    localStorage.setItem(STORAGE_KEYS.recentStamps, JSON.stringify(['sfx:from-a-newer-version', 'seal:ok', 3]));
 
     expect(choices(open())).toEqual(['seal:ok']);
   });

@@ -7,11 +7,11 @@ import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { RoomSnapshotMeta, RoomSnapshotStore, selectExpiredSnapshots } from '@axe/core/storage/room-snapshot-store';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
-
-const STOPPED_KEY = 'room-snapshot-stopped';
 
 @Injectable({ providedIn: 'root' })
 export class RoomSnapshotService {
@@ -46,11 +46,7 @@ export class RoomSnapshotService {
   /** Turns the keeping of room snapshots on or off for this browser, and remembers the choice. */
   setKeeping(keeping: boolean): void {
     this.isKeeping.set(keeping);
-    try {
-      localStorage.setItem(STOPPED_KEY, keeping ? '' : '1');
-    } catch {
-      // Private browsing refuses the write; the choice still holds for this session.
-    }
+    writeLocal(STORAGE_KEYS.roomSnapshotStopped, keeping ? '' : '1');
   }
 
   /** Whether this browser's snapshot store can be used. Every other member does nothing where it cannot. */
@@ -187,9 +183,5 @@ export class RoomSnapshotService {
 }
 
 function storedStopped(): boolean {
-  try {
-    return localStorage.getItem(STOPPED_KEY) === '1';
-  } catch {
-    return false;
-  }
+  return readLocal(STORAGE_KEYS.roomSnapshotStopped) === '1';
 }

@@ -3,12 +3,12 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
-import { FIRST_PERSON_PIECE_STORAGE_KEY } from '@axe/application/ui/first-person-preference.service';
 import { MenuLayoutService } from '@axe/application/ui/menu-layout.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { ToolbarFoldService } from '@axe/application/ui/toolbar-fold.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -312,7 +312,7 @@ describe('PlToolbarComponent', () => {
     let table: GameTable;
 
     beforeEach(() => {
-      localStorage.removeItem(FIRST_PERSON_PIECE_STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEYS.firstPersonPiece);
       table = new GameTable();
       table.width = 12;
       table.height = 12;
@@ -321,7 +321,7 @@ describe('PlToolbarComponent', () => {
       setRole(PeerRole.Player);
     });
 
-    afterEach(() => localStorage.removeItem(FIRST_PERSON_PIECE_STORAGE_KEY));
+    afterEach(() => localStorage.removeItem(STORAGE_KEYS.firstPersonPiece));
 
     function pieceNamed(name: string): GameCharacter {
       const character = GameCharacter.create(name, 1, '');

@@ -8,12 +8,12 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { isArtStampFamily, STAMP_FAMILIES, StampFamily, stampOf, stampsOfFamily } from '@axe/domain/chat/stamp-catalog';
 import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
-/** Where the stamps this viewer picked last are kept, newest first. */
-export const RECENT_STAMPS_STORAGE_KEY = 'ui-stamp-recent';
 const RECENT_LIMIT = 16;
 
 type StampTab = 'recent' | StampFamily | `pack:${string}`;
@@ -32,7 +32,7 @@ function isPictureTab(tab: StampTab): boolean {
 
 function readRecent(): string[] {
   try {
-    const kept = JSON.parse(localStorage.getItem(RECENT_STAMPS_STORAGE_KEY) ?? '[]');
+    const kept = JSON.parse(readLocal(STORAGE_KEYS.recentStamps) ?? '[]');
     return Array.isArray(kept) ? kept.filter((id): id is string => typeof id === 'string' && stampOf(id) !== null) : [];
   } catch {
     return [];
@@ -40,11 +40,7 @@ function readRecent(): string[] {
 }
 
 function writeRecent(ids: readonly string[]): void {
-  try {
-    localStorage.setItem(RECENT_STAMPS_STORAGE_KEY, JSON.stringify(ids));
-  } catch {
-    // A browser that keeps nothing still lets the stamp be picked.
-  }
+  writeLocal(STORAGE_KEYS.recentStamps, JSON.stringify(ids));
 }
 
 /**

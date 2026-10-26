@@ -1,5 +1,4 @@
 import { TestBed } from '@angular/core/testing';
-import { PERSONAL_VOLUME_STORAGE_KEY } from '@axe/application/media/personal-volumes';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AppConfigService } from '@axe/composition/app-config.service';
@@ -8,6 +7,7 @@ import { localDispatch } from '@axe/core/network/network-messaging';
 import { AudioSharingSystem } from '@axe/core/storage/audio-sharing-system';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { LoopPlayer } from '@axe/core/storage/loop-player';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { Alarm } from '@axe/domain/alarm/alarm';
@@ -52,7 +52,7 @@ describe('AppInitializationService', () => {
   });
 
   it('hands the volumes this browser remembers to the jukebox as it starts', () => {
-    localStorage.setItem(PERSONAL_VOLUME_STORAGE_KEY, JSON.stringify({ bgm: 0.2, background: 0.3 }));
+    localStorage.setItem(STORAGE_KEYS.personalVolumes, JSON.stringify({ bgm: 0.2, background: 0.3 }));
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     vi.spyOn(TestBed.inject(AppConfigService), 'initialize').mockImplementation(() => {});

@@ -1,9 +1,6 @@
 import { Injectable, signal } from '@angular/core';
-
-/** Where this seat's own choice is kept in the browser. */
-export const PIECE_OVERLAY_STORAGE_KEY = 'ui-piece-overlay';
-
-const STORAGE_KEY = PIECE_OVERLAY_STORAGE_KEY;
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 
 /** What this seat draws over the pieces on the table. */
 interface PieceOverlay {
@@ -54,17 +51,13 @@ export class PieceOverlayPreferenceService {
 
   private write(next: PieceOverlay): void {
     this.held.set(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      // Private browsing refuses the write; the switch still holds for this session.
-    }
+    writeLocal(STORAGE_KEYS.pieceOverlay, JSON.stringify(next));
   }
 }
 
 function storedOverlay(): PieceOverlay {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = readLocal(STORAGE_KEYS.pieceOverlay);
     if (!stored) return SHOW_ALL;
     const parsed: unknown = JSON.parse(stored);
     if (!parsed || typeof parsed !== 'object') return SHOW_ALL;

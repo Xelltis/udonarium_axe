@@ -1,5 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import { computed, DestroyRef, effect, inject, Injectable, signal } from '@angular/core';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import {
   ChatSoundSetting,
   clampChatSoundVolume,
@@ -9,9 +11,6 @@ import {
 } from '@axe/domain/chat/chat-sound';
 import { readRubyDisplay, RubyDisplay } from '@axe/domain/chat/ruby-display';
 import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
-
-const AUTO_FOLLOW_KEY = 'chat-auto-follow-scroll';
-const STORAGE_KEY = 'chat-preferences';
 
 export const CHAT_FONT_SIZE_DEFAULT = 13;
 export const CHAT_FONT_SIZE_MIN = 10;
@@ -136,11 +135,11 @@ export class ChatPreferencesService {
   constructor() {
     effect(() => {
       const v = this.autoFollowScroll();
-      write(AUTO_FOLLOW_KEY, v ? '1' : '0');
+      writeLocal(STORAGE_KEYS.chatAutoFollow, v ? '1' : '0');
     });
 
     effect(() => {
-      write(STORAGE_KEY, JSON.stringify(this.stored()));
+      writeLocal(STORAGE_KEYS.chatPreferences, JSON.stringify(this.stored()));
     });
 
     effect(() => {
@@ -267,26 +266,14 @@ function clampFontSize(v: number): number {
   return Math.min(CHAT_FONT_SIZE_MAX, Math.max(CHAT_FONT_SIZE_MIN, Math.round(v)));
 }
 
-function write(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    /* localStorage unavailable (private mode, SSR etc) — silently ignore */
-  }
-}
-
 function readAutoFollow(): boolean {
-  try {
-    const v = localStorage.getItem(AUTO_FOLLOW_KEY);
-    return v == null ? true : v === '1';
-  } catch {
-    return true;
-  }
+  const v = readLocal(STORAGE_KEYS.chatAutoFollow);
+  return v == null ? true : v === '1';
 }
 
 function readStored(): StoredChatPreferences {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = readLocal(STORAGE_KEYS.chatPreferences);
     if (!raw) return {};
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return {};

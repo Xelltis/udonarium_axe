@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { type BuffViewMode, isBuffViewMode, nextBuffViewMode } from '@axe/domain/character/buff-view-mode';
-
-const STORAGE_KEY = 'ui-buff-view';
 
 @Injectable({ providedIn: 'root' })
 export class BuffViewPreferenceService {
@@ -18,19 +18,11 @@ export class BuffViewPreferenceService {
    */
   set(mode: BuffViewMode): void {
     this.mode.set(mode);
-    try {
-      localStorage.setItem(STORAGE_KEY, mode);
-    } catch {
-      // Private browsing refuses the write; the setting still holds for this session.
-    }
+    writeLocal(STORAGE_KEYS.buffView, mode);
   }
 }
 
 function storedMode(): BuffViewMode {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return isBuffViewMode(stored) ? stored : 'icon';
-  } catch {
-    return 'icon';
-  }
+  const stored = readLocal(STORAGE_KEYS.buffView);
+  return isBuffViewMode(stored) ? stored : 'icon';
 }

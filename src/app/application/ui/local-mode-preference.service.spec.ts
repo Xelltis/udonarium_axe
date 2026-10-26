@@ -1,13 +1,14 @@
 import { TestBed } from '@angular/core/testing';
-import { LOCAL_MODE_STORAGE_KEY, LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
+import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 
 describe('LocalModePreferenceService', () => {
   beforeEach(() => {
-    localStorage.removeItem(LOCAL_MODE_STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEYS.localMode);
     TestBed.configureTestingModule({});
   });
 
-  afterEach(() => localStorage.removeItem(LOCAL_MODE_STORAGE_KEY));
+  afterEach(() => localStorage.removeItem(STORAGE_KEYS.localMode));
 
   it('goes online until this browser says otherwise', () => {
     expect(TestBed.inject(LocalModePreferenceService).enabled()).toBe(false);
@@ -28,6 +29,6 @@ describe('LocalModePreferenceService', () => {
     service.set(false);
 
     expect(service.enabled()).toBe(false);
-    expect(localStorage.getItem(LOCAL_MODE_STORAGE_KEY)).toBeNull();
+    expect(localStorage.getItem(STORAGE_KEYS.localMode)).toBeNull();
   });
 });

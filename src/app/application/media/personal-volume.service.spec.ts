@@ -6,9 +6,9 @@ import {
   parsePersonalSound,
   parsePersonalVolumes,
   PERSONAL_VOLUME_KINDS,
-  PERSONAL_VOLUME_STORAGE_KEY,
 } from '@axe/application/media/personal-volumes';
 import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { Config } from '@axe/domain/peer/config';
@@ -124,7 +124,7 @@ describe('PersonalVolumeService', () => {
 
   it('hands the remembered volumes to the jukebox and the players as the app starts', () => {
     localStorage.setItem(
-      PERSONAL_VOLUME_STORAGE_KEY,
+      STORAGE_KEYS.personalVolumes,
       JSON.stringify({ audition: 0.1, bgm: 0.2, se: 0.3, background: 0.4, cutIn: 0.6, muted: ['effect'] })
     );
     const heard = channels();

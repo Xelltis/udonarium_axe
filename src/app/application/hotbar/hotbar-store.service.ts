@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { generateUuid } from '@axe/core/util/uuid';
 import { Hotbar } from '@axe/domain/hotbar/hotbar';
-
-const OWNER_KEY = 'ui-hotbar-owner';
 
 /**
  * Whose bar is on screen, and how to reach it.
@@ -31,15 +31,10 @@ export class HotbarStoreService {
 }
 
 function readOwnerId(): string {
-  try {
-    const held = localStorage.getItem(OWNER_KEY);
-    if (held && held.length > 0) return held;
+  const held = readLocal(STORAGE_KEYS.hotbarOwner);
+  if (held && held.length > 0) return held;
 
-    const made = generateUuid();
-    localStorage.setItem(OWNER_KEY, made);
-    return made;
-  } catch {
-    /* storage unavailable — the bar still works for as long as the page is open */
-    return generateUuid();
-  }
+  const made = generateUuid();
+  writeLocal(STORAGE_KEYS.hotbarOwner, made);
+  return made;
 }

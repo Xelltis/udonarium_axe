@@ -3,10 +3,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { StampPackPanelComponent } from '@axe/features/chat/stamp-pack-panel/stamp-pack-panel.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
-import { RECENT_STAMPS_STORAGE_KEY } from '@axe/ui/components/stamp-picker/stamp-picker.component';
 
 @Component({ selector: 'test-overlay-layer', template: '<ng-container #layer></ng-container>' })
 class OverlayLayerHostComponent {
@@ -37,7 +37,7 @@ describe('StampPickerService', () => {
     anchor = document.createElement('button');
     document.body.appendChild(anchor);
     picked = [];
-    localStorage.removeItem(RECENT_STAMPS_STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEYS.recentStamps);
   });
 
   afterEach(() => {
@@ -45,7 +45,7 @@ describe('StampPickerService', () => {
     anchor.remove();
     (host.nativeElement as HTMLElement).remove();
     host.destroy();
-    localStorage.removeItem(RECENT_STAMPS_STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEYS.recentStamps);
   });
 
   it('opens under the button, and hands on the stamp picked as it closes', () => {

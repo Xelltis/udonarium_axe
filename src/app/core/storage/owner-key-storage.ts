@@ -1,5 +1,5 @@
-const STORAGE_KEY = 'udonarium-axe.owner-key';
-
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 /** What a key this browser makes for itself starts with, apart from a tab's own id and an account's. */
 const OWNER_KEY_PREFIX = 'owner_';
 
@@ -13,11 +13,10 @@ const OWNER_KEY_PREFIX = 'owner_';
  */
 export function loadOrCreateOwnerKey(): string | null {
   try {
-    const held = localStorage.getItem(STORAGE_KEY);
+    const held = readLocal(STORAGE_KEYS.ownerKey);
     if (held) return held;
     const made = `${OWNER_KEY_PREFIX}${crypto.randomUUID()}`;
-    localStorage.setItem(STORAGE_KEY, made);
-    return made;
+    return writeLocal(STORAGE_KEYS.ownerKey, made) ? made : null;
   } catch {
     return null;
   }

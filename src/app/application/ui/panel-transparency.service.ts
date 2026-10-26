@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
-
-const STORAGE_KEY = 'ui-panel-transparency';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 
 @Injectable({ providedIn: 'root' })
 export class PanelTransparencyService {
@@ -21,17 +21,13 @@ export class PanelTransparencyService {
     if (!Number.isFinite(value)) return;
     const held = Math.min(100, Math.max(0, Math.round(value)));
     this.byKind.update((byKind) => ({ ...byKind, [kind]: held }));
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.byKind()));
-    } catch {
-      // Private browsing refuses the write; the setting still holds for this session.
-    }
+    writeLocal(STORAGE_KEYS.panelTransparency, JSON.stringify(this.byKind()));
   }
 }
 
 function storedByKind(): Record<string, number> {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = readLocal(STORAGE_KEYS.panelTransparency);
     if (!stored) return {};
     const parsed: unknown = JSON.parse(stored);
     if (parsed === null || typeof parsed !== 'object') return {};

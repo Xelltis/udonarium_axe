@@ -1,14 +1,14 @@
 import { inject, Injectable, signal } from '@angular/core';
 import {
-  DEFAULT_PERSONAL_SOUND,
   formatPersonalSound,
   parsePersonalSound,
   PERSONAL_VOLUME_KINDS,
-  PERSONAL_VOLUME_STORAGE_KEY,
   PersonalSound,
   PersonalVolumeKind,
 } from '@axe/application/media/personal-volumes';
 import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { Config } from '@axe/domain/peer/config';
@@ -73,11 +73,7 @@ export class PersonalVolumeService {
   private save(next: PersonalSound): void {
     this.sound.set(next);
     this.apply();
-    try {
-      localStorage.setItem(PERSONAL_VOLUME_STORAGE_KEY, formatPersonalSound(next));
-    } catch {
-      // Private browsing refuses the write; the volume still holds for this session.
-    }
+    writeLocal(STORAGE_KEYS.personalVolumes, formatPersonalSound(next));
   }
 
   /**
@@ -98,9 +94,5 @@ export class PersonalVolumeService {
 }
 
 function storedSound(): PersonalSound {
-  try {
-    return parsePersonalSound(localStorage.getItem(PERSONAL_VOLUME_STORAGE_KEY));
-  } catch {
-    return DEFAULT_PERSONAL_SOUND;
-  }
+  return parsePersonalSound(readLocal(STORAGE_KEYS.personalVolumes));
 }

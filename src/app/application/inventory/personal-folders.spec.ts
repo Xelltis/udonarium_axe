@@ -1,8 +1,4 @@
-import {
-  personalFolderStorage,
-  readPersonalFolders,
-  writePersonalFolders,
-} from '@axe/application/inventory/personal-folders';
+import { readPersonalFolders, writePersonalFolders } from '@axe/application/inventory/personal-folders';
 
 function fakeStorage(initial: Record<string, string> = {}): Storage {
   const entries = new Map(Object.entries(initial));
@@ -64,15 +60,5 @@ describe('writePersonalFolders()', () => {
     } as unknown as Storage;
 
     expect(() => writePersonalFolders(storage, 'room', ['第1話'])).not.toThrow();
-  });
-});
-
-describe('personalFolderStorage()', () => {
-  it('answers with nothing rather than throwing where reading it is refused', () => {
-    vi.stubGlobal('localStorage', undefined);
-
-    expect(personalFolderStorage()).toBeNull();
-
-    vi.unstubAllGlobals();
   });
 });

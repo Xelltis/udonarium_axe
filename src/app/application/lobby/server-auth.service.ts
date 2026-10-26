@@ -4,11 +4,11 @@ import { Network } from '@axe/core/network/network';
 import {
   fetchLoginProviders,
   LOGIN_CHANNEL,
-  LOGIN_STORAGE_KEY,
   ServerLogin,
   ServerLoginError,
 } from '@axe/core/network/server/server-login';
 import { Account } from '@axe/core/network/server/server-protocol';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 
 /** The landing page the login popup comes back to, next to the app. */
 export const LOGIN_CALLBACK_PATH = 'assets/login-callback.html';
@@ -204,7 +204,7 @@ export class ServerAuthService implements ServerCredentialSource {
   private listenToOtherTabs(): void {
     if (this.channel) return;
     const onStorage = (event: StorageEvent) => {
-      if (event.key === LOGIN_STORAGE_KEY || event.key === null) this.takeAccount(this.login?.account ?? null);
+      if (event.key === STORAGE_KEYS.serverLogin || event.key === null) this.takeAccount(this.login?.account ?? null);
     };
     const onPageShow = (event: PageTransitionEvent) => {
       if (event.persisted) this.takeAccount(this.login?.account ?? null);

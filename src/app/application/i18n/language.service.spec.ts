@@ -1,7 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import { TestBed } from '@angular/core/testing';
 import { LanguageService } from '@axe/application/i18n/language.service';
-import { TRANSLOCO_LANG_STORAGE_KEY } from '@axe/application/i18n/transloco.config';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 describe('LanguageService', () => {
@@ -10,14 +10,14 @@ describe('LanguageService', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
-    localStorage.removeItem(TRANSLOCO_LANG_STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEYS.language);
     html = TestBed.inject(DOCUMENT).documentElement;
     html.removeAttribute('lang');
     service = TestBed.inject(LanguageService);
   });
 
   it('marks the document with the language it starts in', async () => {
-    localStorage.setItem(TRANSLOCO_LANG_STORAGE_KEY, 'en');
+    localStorage.setItem(STORAGE_KEYS.language, 'en');
 
     await service.initialize();
 
@@ -26,7 +26,7 @@ describe('LanguageService', () => {
   });
 
   it('follows the language the user switches to', async () => {
-    localStorage.setItem(TRANSLOCO_LANG_STORAGE_KEY, 'ja');
+    localStorage.setItem(STORAGE_KEYS.language, 'ja');
     await service.initialize();
 
     await service.setLang('en');
@@ -37,7 +37,7 @@ describe('LanguageService', () => {
   });
 
   it('follows a toggle', async () => {
-    localStorage.setItem(TRANSLOCO_LANG_STORAGE_KEY, 'ja');
+    localStorage.setItem(STORAGE_KEYS.language, 'ja');
     await service.initialize();
 
     await service.toggle();
@@ -47,7 +47,7 @@ describe('LanguageService', () => {
   });
 
   it('comes back round to the first language it offers', async () => {
-    localStorage.setItem(TRANSLOCO_LANG_STORAGE_KEY, 'ja');
+    localStorage.setItem(STORAGE_KEYS.language, 'ja');
     await service.initialize();
 
     const seen: string[] = [];

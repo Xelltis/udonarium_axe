@@ -4,7 +4,7 @@ import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
-import { LOCAL_MODE_STORAGE_KEY, LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
+import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { Network } from '@axe/core/network/network';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
@@ -12,6 +12,7 @@ import { localDispatch } from '@axe/core/network/network-messaging';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -701,7 +702,7 @@ describe('PeerMenuComponent', () => {
       await component.chooseConnectionMode('offline');
 
       expect(TestBed.inject(LocalModePreferenceService).enabled()).toBe(true);
-      expect(localStorage.getItem(LOCAL_MODE_STORAGE_KEY)).toBe('1');
+      expect(localStorage.getItem(STORAGE_KEYS.localMode)).toBe('1');
       expect(letGo).toHaveBeenCalledTimes(1);
       expect(reload).toHaveBeenCalledTimes(1);
     });

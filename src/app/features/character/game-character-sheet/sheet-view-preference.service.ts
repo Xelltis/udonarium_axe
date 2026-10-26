@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { formatFoldedSections, parseFoldedSections } from '@axe/domain/character/sheet-fold';
-
-const FOLDED_STORAGE_KEY = 'ui-sheet-folded';
 
 /**
  * Which sections of a character sheet this reader keeps folded.
@@ -34,18 +34,10 @@ export class SheetViewPreferenceService {
 
   private save(names: readonly string[]): void {
     this.folded.set(names);
-    try {
-      localStorage.setItem(FOLDED_STORAGE_KEY, formatFoldedSections(names));
-    } catch {
-      // Private browsing refuses the write; the folds still hold for this session.
-    }
+    writeLocal(STORAGE_KEYS.sheetFolded, formatFoldedSections(names));
   }
 }
 
 function storedFolded(): string[] {
-  try {
-    return parseFoldedSections(localStorage.getItem(FOLDED_STORAGE_KEY));
-  } catch {
-    return [];
-  }
+  return parseFoldedSections(readLocal(STORAGE_KEYS.sheetFolded));
 }

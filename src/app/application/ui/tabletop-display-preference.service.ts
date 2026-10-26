@@ -1,12 +1,12 @@
 import { Injectable, signal } from '@angular/core';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import {
   normalizeTabletopDisplayOwn,
   TabletopDisplayKey,
   TabletopDisplayOwn,
   TabletopDisplaySettings,
 } from '@axe/domain/tabletop/tabletop-display';
-
-export const TABLETOP_DISPLAY_STORAGE_KEY = 'ui-tabletop-display';
 
 /**
  * How the screen in front of this reader draws a table laid flat.
@@ -50,17 +50,13 @@ export class TabletopDisplayPreferenceService {
   private write(next: TabletopDisplayOwn): void {
     const normalized = normalizeTabletopDisplayOwn(next);
     this.state.set(normalized);
-    try {
-      localStorage.setItem(TABLETOP_DISPLAY_STORAGE_KEY, JSON.stringify(normalized));
-    } catch {
-      // Storage can be unavailable in private mode; the signal still serves this session.
-    }
+    writeLocal(STORAGE_KEYS.tabletopDisplay, JSON.stringify(normalized));
   }
 }
 
 function stored(): TabletopDisplayOwn {
   try {
-    const raw = localStorage.getItem(TABLETOP_DISPLAY_STORAGE_KEY);
+    const raw = readLocal(STORAGE_KEYS.tabletopDisplay);
     return normalizeTabletopDisplayOwn(raw ? JSON.parse(raw) : null);
   } catch {
     return {};

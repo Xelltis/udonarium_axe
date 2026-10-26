@@ -1,8 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import {
-  FIRST_PERSON_PIECE_STORAGE_KEY,
-  FirstPersonPreferenceService,
-} from '@axe/application/ui/first-person-preference.service';
+import { FirstPersonPreferenceService } from '@axe/application/ui/first-person-preference.service';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { vi } from 'vitest';
 
 describe('FirstPersonPreferenceService', () => {
@@ -39,12 +37,12 @@ describe('FirstPersonPreferenceService', () => {
     preference.forget();
 
     expect(preference.piece()).toBe('');
-    expect(localStorage.getItem(FIRST_PERSON_PIECE_STORAGE_KEY)).toBeNull();
+    expect(localStorage.getItem(STORAGE_KEYS.firstPersonPiece)).toBeNull();
     expect(reopen().piece()).toBe('');
   });
 
   it('reads a blank that was written down as no piece', () => {
-    localStorage.setItem(FIRST_PERSON_PIECE_STORAGE_KEY, '   ');
+    localStorage.setItem(STORAGE_KEYS.firstPersonPiece, '   ');
 
     expect(TestBed.inject(FirstPersonPreferenceService).piece()).toBe('');
   });

@@ -4,6 +4,8 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
+import { readLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import {
   ambienceColorOf,
   ambienceDensityOf,
@@ -25,7 +27,6 @@ export interface WeatherAmbience {
 }
 
 const PERSISTENT_SOURCE = 'ambience';
-const FRAME_STEP_STORAGE_KEY = 'ui-ambience-frame-step';
 /**
  * The step the ambience moves by while the table is drawn the lighter way: about every other
  * frame of a 60Hz screen, which halves the drawing of weather and ground effects.
@@ -40,12 +41,8 @@ const LIGHT_RENDERING_FRAME_STEP_MS = 32;
  * 0 the effects move every frame unless the table is being drawn the lighter way.
  */
 export function storedAmbienceFrameStepMs(): number {
-  try {
-    const stored = Number(localStorage.getItem(FRAME_STEP_STORAGE_KEY));
-    return Number.isFinite(stored) && stored > 0 ? stored : 0;
-  } catch {
-    return 0;
-  }
+  const stored = Number(readLocal(STORAGE_KEYS.ambienceFrameStep));
+  return Number.isFinite(stored) && stored > 0 ? stored : 0;
 }
 
 /**

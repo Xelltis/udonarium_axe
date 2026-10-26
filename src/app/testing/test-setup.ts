@@ -17,19 +17,7 @@ import { basename, join, resolve } from 'path';
 
 Logger.setLevel(LogLevel.NONE);
 
-import { CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY } from '@axe/application/chat/chat-personal-bookmark.store';
-import { AUDIO_ANALYSIS_CACHE_KEY } from '@axe/application/media/audio-analysis-cache';
-import { PERSONAL_VOLUME_STORAGE_KEY } from '@axe/application/media/personal-volumes';
-import { COMPASS_FACE_STORAGE_KEY } from '@axe/application/ui/compass-face.service';
-import { FIRST_PERSON_PIECE_STORAGE_KEY } from '@axe/application/ui/first-person-preference.service';
-import { LOCAL_MODE_STORAGE_KEY } from '@axe/application/ui/local-mode-preference.service';
-import { PIECE_OVERLAY_STORAGE_KEY } from '@axe/application/ui/piece-overlay-preference.service';
-import { TABLETOP_DISPLAY_STORAGE_KEY } from '@axe/application/ui/tabletop-display-preference.service';
-import { TOOLBAR_FOLD_STORAGE_KEY } from '@axe/application/ui/toolbar-fold.service';
-import { VIEW_MODE_STORAGE_KEY } from '@axe/application/ui/view-mode-preference.service';
-import { WIDGET_VISIBILITY_STORAGE_KEY } from '@axe/application/ui/widget-visibility.service';
-import { BEAT_LIGHT_OFF_STORAGE_KEY } from '@axe/features/media/beat-light/beat-light-preference.service';
-import { DJ_DECK_OPEN_STORAGE_KEY } from '@axe/features/media/mini-jukebox/dj-deck-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 
 const srcAppDir = resolve(process.cwd(), 'src/app');
 const fileMap = new Map<string, string>();
@@ -395,19 +383,19 @@ function forgetMyCursor(): void {
 // from whatever is left there. A reader's own bookmarks on chat lines are kept there too, as are the
 // readings of sounds this device has made.
 function forgetSeatPreferences(): void {
-  localStorage.removeItem(TABLETOP_DISPLAY_STORAGE_KEY);
-  localStorage.removeItem(VIEW_MODE_STORAGE_KEY);
-  localStorage.removeItem(LOCAL_MODE_STORAGE_KEY);
-  localStorage.removeItem(FIRST_PERSON_PIECE_STORAGE_KEY);
-  localStorage.removeItem(WIDGET_VISIBILITY_STORAGE_KEY);
-  localStorage.removeItem(TOOLBAR_FOLD_STORAGE_KEY);
-  localStorage.removeItem(PIECE_OVERLAY_STORAGE_KEY);
-  localStorage.removeItem(COMPASS_FACE_STORAGE_KEY);
-  localStorage.removeItem(PERSONAL_VOLUME_STORAGE_KEY);
-  localStorage.removeItem(CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY);
-  localStorage.removeItem(AUDIO_ANALYSIS_CACHE_KEY);
-  localStorage.removeItem(DJ_DECK_OPEN_STORAGE_KEY);
-  localStorage.removeItem(BEAT_LIGHT_OFF_STORAGE_KEY);
+  localStorage.removeItem(STORAGE_KEYS.tabletopDisplay);
+  localStorage.removeItem(STORAGE_KEYS.viewMode);
+  localStorage.removeItem(STORAGE_KEYS.localMode);
+  localStorage.removeItem(STORAGE_KEYS.firstPersonPiece);
+  localStorage.removeItem(STORAGE_KEYS.widgets);
+  localStorage.removeItem(STORAGE_KEYS.toolbars);
+  localStorage.removeItem(STORAGE_KEYS.pieceOverlay);
+  localStorage.removeItem(STORAGE_KEYS.compassFace);
+  localStorage.removeItem(STORAGE_KEYS.personalVolumes);
+  localStorage.removeItem(STORAGE_KEYS.chatPersonalBookmarks);
+  localStorage.removeItem(STORAGE_KEYS.audioAnalyses);
+  localStorage.removeItem(STORAGE_KEYS.djDeckOpen);
+  localStorage.removeItem(STORAGE_KEYS.beatLightOff);
 }
 
 /**

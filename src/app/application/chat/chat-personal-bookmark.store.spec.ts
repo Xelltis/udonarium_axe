@@ -1,8 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import {
-  CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY,
-  ChatPersonalBookmarkStore,
-} from '@axe/application/chat/chat-personal-bookmark.store';
+import { ChatPersonalBookmarkStore } from '@axe/application/chat/chat-personal-bookmark.store';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 
 describe('ChatPersonalBookmarkStore', () => {
   const fresh = (): ChatPersonalBookmarkStore => {
@@ -11,8 +9,8 @@ describe('ChatPersonalBookmarkStore', () => {
     return TestBed.inject(ChatPersonalBookmarkStore);
   };
 
-  beforeEach(() => localStorage.removeItem(CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY));
-  afterEach(() => localStorage.removeItem(CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY));
+  beforeEach(() => localStorage.removeItem(STORAGE_KEYS.chatPersonalBookmarks));
+  afterEach(() => localStorage.removeItem(STORAGE_KEYS.chatPersonalBookmarks));
 
   it('keeps the marks for the next window', () => {
     const store = fresh();
@@ -80,16 +78,16 @@ describe('ChatPersonalBookmarkStore', () => {
 
     it('takes up a change the other window made as soon as the browser reports it', () => {
       const store = fresh();
-      localStorage.setItem(CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY, JSON.stringify([{ id: 'line-x', at: 1000 }]));
+      localStorage.setItem(STORAGE_KEYS.chatPersonalBookmarks, JSON.stringify([{ id: 'line-x', at: 1000 }]));
 
-      window.dispatchEvent(new StorageEvent('storage', { key: CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY }));
+      window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEYS.chatPersonalBookmarks }));
 
       expect(store.has('line-x')).toBe(true);
     });
 
     it('takes no notice of the browser reporting some other thing it keeps', () => {
       const store = fresh();
-      localStorage.setItem(CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY, JSON.stringify([{ id: 'line-x', at: 1000 }]));
+      localStorage.setItem(STORAGE_KEYS.chatPersonalBookmarks, JSON.stringify([{ id: 'line-x', at: 1000 }]));
 
       window.dispatchEvent(new StorageEvent('storage', { key: 'something-else' }));
 

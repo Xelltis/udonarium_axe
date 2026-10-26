@@ -1,9 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import {
-  CHAT_LOG_OMIT_DELETED_STORAGE_KEY,
-  CHAT_LOG_STYLE_STORAGE_KEY,
-  ChatLogStylePreferenceService,
-} from '@axe/features/chat/chat-log-style-preference.service';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
+import { ChatLogStylePreferenceService } from '@axe/features/chat/chat-log-style-preference.service';
 
 describe('ChatLogStylePreferenceService', () => {
   beforeEach(() => {
@@ -27,7 +24,7 @@ describe('ChatLogStylePreferenceService', () => {
   });
 
   it('reads a style it does not know as the standard one', () => {
-    localStorage.setItem(CHAT_LOG_STYLE_STORAGE_KEY, 'vaporwave');
+    localStorage.setItem(STORAGE_KEYS.chatLogStyle, 'vaporwave');
 
     expect(TestBed.inject(ChatLogStylePreferenceService).style()).toBe('standard');
   });
@@ -39,7 +36,7 @@ describe('ChatLogStylePreferenceService', () => {
 
     it('remembers the choice for the next window, as text', () => {
       TestBed.inject(ChatLogStylePreferenceService).setOmitDeleted(true);
-      expect(localStorage.getItem(CHAT_LOG_OMIT_DELETED_STORAGE_KEY)).toBe('true');
+      expect(localStorage.getItem(STORAGE_KEYS.chatLogOmitDeleted)).toBe('true');
 
       TestBed.resetTestingModule();
       TestBed.configureTestingModule({ providers: [ChatLogStylePreferenceService] });
@@ -48,7 +45,7 @@ describe('ChatLogStylePreferenceService', () => {
     });
 
     it('reads anything but true as keeping them in', () => {
-      localStorage.setItem(CHAT_LOG_OMIT_DELETED_STORAGE_KEY, '1');
+      localStorage.setItem(STORAGE_KEYS.chatLogOmitDeleted, '1');
 
       expect(TestBed.inject(ChatLogStylePreferenceService).omitDeleted()).toBe(false);
     });

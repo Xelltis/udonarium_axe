@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
-
-export const FIRST_PERSON_PIECE_STORAGE_KEY = 'ui-first-person-piece';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 
 @Injectable({ providedIn: 'root' })
 export class FirstPersonPreferenceService {
@@ -9,12 +9,7 @@ export class FirstPersonPreferenceService {
   choose(piece: string): void {
     const chosen = typeof piece === 'string' ? piece.trim() : '';
     this.piece.set(chosen);
-    try {
-      if (chosen) localStorage.setItem(FIRST_PERSON_PIECE_STORAGE_KEY, chosen);
-      else localStorage.removeItem(FIRST_PERSON_PIECE_STORAGE_KEY);
-    } catch {
-      // Private browsing refuses the write; the choice still holds for this session.
-    }
+    writeLocal(STORAGE_KEYS.firstPersonPiece, chosen || null);
   }
 
   forget(): void {
@@ -23,10 +18,6 @@ export class FirstPersonPreferenceService {
 }
 
 function stored(): string {
-  try {
-    const held = localStorage.getItem(FIRST_PERSON_PIECE_STORAGE_KEY);
-    return typeof held === 'string' ? held.trim() : '';
-  } catch {
-    return '';
-  }
+  const held = readLocal(STORAGE_KEYS.firstPersonPiece);
+  return typeof held === 'string' ? held.trim() : '';
 }

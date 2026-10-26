@@ -1,12 +1,9 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { ObjectInventory } from '@axe/application/inventory/object-inventory';
-import {
-  personalFolderStorage,
-  readPersonalFolders,
-  writePersonalFolders,
-} from '@axe/application/inventory/personal-folders';
+import { readPersonalFolders, writePersonalFolders } from '@axe/application/inventory/personal-folders';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { Network } from '@axe/core/index';
+import { browserLocalStorage } from '@axe/core/storage/local-preference';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { isHandLocation } from '@axe/domain/card/hand-location';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -119,7 +116,7 @@ export class GameObjectInventoryService {
    * The personal tab's folders belong to this device rather than the room, but every inventory
    * panel has to see the same ones, so they are held here rather than in a component.
    */
-  private readonly personalStorage = personalFolderStorage();
+  private readonly personalStorage = browserLocalStorage();
   private personalRoomId = '';
   private readonly _personalFolderPaths = signal<string[]>([]);
   readonly personalFolderPaths = this._personalFolderPaths.asReadonly();

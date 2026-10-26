@@ -1,4 +1,6 @@
 import { Injectable, signal } from '@angular/core';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 
 export type VnTypewriterSpeed = 'off' | 'slow' | 'normal' | 'fast';
 export type VnPortraitAnimation = 'none' | 'fade' | 'slide' | 'bounce';
@@ -25,8 +27,6 @@ export const VN_TYPEWRITER_INTERVAL_MS: Record<VnTypewriterSpeed, number> = {
   normal: 30,
   fast: 12,
 };
-
-const STORAGE_KEY = 'vn-settings';
 
 interface VnSettingsSnapshot {
   typewriterSpeed?: unknown;
@@ -154,7 +154,7 @@ export class VisualNovelSettingsService {
   private load(): void {
     let snapshot: VnSettingsSnapshot | null = null;
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = readLocal(STORAGE_KEYS.visualNovelSettings);
       if (raw) snapshot = JSON.parse(raw) as VnSettingsSnapshot;
     } catch {
       snapshot = null;
@@ -172,23 +172,19 @@ export class VisualNovelSettingsService {
   }
 
   private save(): void {
-    try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          typewriterSpeed: this._typewriterSpeed(),
-          portraitAnimation: this._portraitAnimation(),
-          textSize: this._textSize(),
-          autoPlaySpeed: this._autoPlaySpeed(),
-          reduceMotion: this._reduceMotion(),
-          chatTabIdentifier: this._chatTabIdentifier(),
-          readability: this._readability(),
-          layout: this._layout(),
-          readPlayerAsides: this._readPlayerAsides(),
-        })
-      );
-    } catch {
-      return;
-    }
+    writeLocal(
+      STORAGE_KEYS.visualNovelSettings,
+      JSON.stringify({
+        typewriterSpeed: this._typewriterSpeed(),
+        portraitAnimation: this._portraitAnimation(),
+        textSize: this._textSize(),
+        autoPlaySpeed: this._autoPlaySpeed(),
+        reduceMotion: this._reduceMotion(),
+        chatTabIdentifier: this._chatTabIdentifier(),
+        readability: this._readability(),
+        layout: this._layout(),
+        readPlayerAsides: this._readPlayerAsides(),
+      })
+    );
   }
 }

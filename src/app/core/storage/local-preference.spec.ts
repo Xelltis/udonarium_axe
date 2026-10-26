@@ -37,4 +37,12 @@ describe('what this browser keeps', () => {
     expect(readLocal(KEY)).toBeNull();
     expect(writeLocal(KEY, 'kept')).toBe(false);
   });
+
+  it('hands over no storage where the browser has none', () => {
+    vi.stubGlobal('localStorage', undefined);
+
+    expect(browserLocalStorage()).toBeNull();
+
+    vi.unstubAllGlobals();
+  });
 });

@@ -5,7 +5,9 @@ import { Logger } from '@axe/core/logging/logger';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { downscaleImageBlob } from '@axe/core/storage/image-downscale';
 import { looksLikeImage } from '@axe/core/storage/image-sniff';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { SKIN_IMAGE_MAX_BYTES, SKIN_IMAGE_MAX_SIDE, SkinImageStore } from '@axe/core/storage/skin-image-store';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
 import type { ZipEntry } from '@axe/core/storage/zip-archive-message';
 import { downloadBlob } from '@axe/core/util/download-blob';
@@ -31,10 +33,10 @@ export interface SkinSnapshot {
   dark: { id: string; recipe: SkinRecipe; stack: SkinLayer[]; mat: DiceMat };
 }
 
-const SKIN_KEY: Record<SkinMode, string> = { light: 'ui-skin-light', dark: 'ui-skin-dark' };
-const RECIPE_KEY: Record<SkinMode, string> = { light: 'ui-skin-recipe-light', dark: 'ui-skin-recipe-dark' };
-const LAYERS_KEY: Record<SkinMode, string> = { light: 'ui-skin-layers-light', dark: 'ui-skin-layers-dark' };
-const MAT_KEY: Record<SkinMode, string> = { light: 'ui-skin-mat-light', dark: 'ui-skin-mat-dark' };
+const SKIN_KEY: Record<SkinMode, string> = { light: STORAGE_KEYS.skinLight, dark: STORAGE_KEYS.skinDark };
+const RECIPE_KEY: Record<SkinMode, string> = { light: STORAGE_KEYS.skinRecipeLight, dark: STORAGE_KEYS.skinRecipeDark };
+const LAYERS_KEY: Record<SkinMode, string> = { light: STORAGE_KEYS.skinLayersLight, dark: STORAGE_KEYS.skinLayersDark };
+const MAT_KEY: Record<SkinMode, string> = { light: STORAGE_KEYS.skinMatLight, dark: STORAGE_KEYS.skinMatDark };
 
 /** The mat the dice land on, ready to be laid under a frame: its colour, and its picture if it has one. */
 export interface PaintedMat {
@@ -50,22 +52,6 @@ export interface PaintedLayer {
   backgroundPosition: string;
   backgroundRepeat: string;
   opacity: number;
-}
-
-function read(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function write(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // a browser that refuses to remember still shows the skin for this sitting
-  }
 }
 
 /**
@@ -92,13 +78,13 @@ export class SkinService {
   private readonly archiver = inject(FileArchiver);
 
   private readonly chosen: Record<SkinMode, ReturnType<typeof signal<string>>> = {
-    light: signal(asSkinId(read(SKIN_KEY.light), 'light')),
-    dark: signal(asSkinId(read(SKIN_KEY.dark), 'dark')),
+    light: signal(asSkinId(readLocal(SKIN_KEY.light), 'light')),
+    dark: signal(asSkinId(readLocal(SKIN_KEY.dark), 'dark')),
   };
 
   private readonly recipes: Record<SkinMode, ReturnType<typeof signal<SkinRecipe>>> = {
-    light: signal(parseRecipe(read(RECIPE_KEY.light), 'light')),
-    dark: signal(parseRecipe(read(RECIPE_KEY.dark), 'dark')),
+    light: signal(parseRecipe(readLocal(RECIPE_KEY.light), 'light')),
+    dark: signal(parseRecipe(readLocal(RECIPE_KEY.dark), 'dark')),
   };
 
   /**
@@ -108,8 +94,8 @@ export class SkinService {
    * skins on. The bytes live in their own database; only the arrangement is held here.
    */
   private readonly stacks: Record<SkinMode, ReturnType<typeof signal<SkinLayer[]>>> = {
-    light: signal(parseLayers(read(LAYERS_KEY.light))),
-    dark: signal(parseLayers(read(LAYERS_KEY.dark))),
+    light: signal(parseLayers(readLocal(LAYERS_KEY.light))),
+    dark: signal(parseLayers(readLocal(LAYERS_KEY.dark))),
   };
 
   /**
@@ -117,8 +103,8 @@ export class SkinService {
    * ladder, and its picture's bytes live with the stack's.
    */
   private readonly mats: Record<SkinMode, ReturnType<typeof signal<DiceMat>>> = {
-    light: signal(parseMat(read(MAT_KEY.light))),
-    dark: signal(parseMat(read(MAT_KEY.dark))),
+    light: signal(parseMat(readLocal(MAT_KEY.light))),
+    dark: signal(parseMat(readLocal(MAT_KEY.dark))),
   };
 
   /** Where each layer's bytes are reachable, once they have been fetched out of the store. */
@@ -299,7 +285,7 @@ export class SkinService {
 
   private keepMat(mode: SkinMode, mat: DiceMat): void {
     this.mats[mode].set(mat);
-    write(MAT_KEY[mode], JSON.stringify(mat));
+    writeLocal(MAT_KEY[mode], JSON.stringify(mat));
     this.releaseUnused();
   }
 
@@ -336,7 +322,7 @@ export class SkinService {
 
   private keepStack(mode: SkinMode, layers: SkinLayer[]): void {
     this.stacks[mode].set(layers);
-    write(LAYERS_KEY[mode], JSON.stringify(layers));
+    writeLocal(LAYERS_KEY[mode], JSON.stringify(layers));
     this.releaseUnused();
   }
 
@@ -474,13 +460,13 @@ export class SkinService {
   restore(worn: SkinSnapshot): void {
     for (const mode of ['light', 'dark'] as const) {
       this.recipes[mode].set(worn[mode].recipe);
-      write(RECIPE_KEY[mode], JSON.stringify(worn[mode].recipe));
+      writeLocal(RECIPE_KEY[mode], JSON.stringify(worn[mode].recipe));
       this.chosen[mode].set(worn[mode].id);
-      write(SKIN_KEY[mode], worn[mode].id);
+      writeLocal(SKIN_KEY[mode], worn[mode].id);
       this.stacks[mode].set([...worn[mode].stack]);
-      write(LAYERS_KEY[mode], JSON.stringify(worn[mode].stack));
+      writeLocal(LAYERS_KEY[mode], JSON.stringify(worn[mode].stack));
       this.mats[mode].set(worn[mode].mat);
-      write(MAT_KEY[mode], JSON.stringify(worn[mode].mat));
+      writeLocal(MAT_KEY[mode], JSON.stringify(worn[mode].mat));
     }
     this.hovered.set(null);
     // Both ladders are back before anything is let go of, and a layer taken out while the
@@ -497,14 +483,14 @@ export class SkinService {
     this.hovered.set(null);
     const settled = asSkinId(id, mode);
     this.chosen[mode].set(settled);
-    write(SKIN_KEY[mode], settled);
+    writeLocal(SKIN_KEY[mode], settled);
   }
 
   /** Hands the sliders' numbers to the skin a person is building, and switches to it. */
   build(recipe: SkinRecipe, mode: SkinMode = this.editing()): void {
     const settled = asRecipe(recipe, mode);
     this.recipes[mode].set(settled);
-    write(RECIPE_KEY[mode], JSON.stringify(settled));
+    writeLocal(RECIPE_KEY[mode], JSON.stringify(settled));
     this.choose(CUSTOM_SKIN, mode);
   }
 
@@ -606,9 +592,9 @@ export class SkinService {
     }
 
     this.stacks[mode].set(brought);
-    write(LAYERS_KEY[mode], JSON.stringify(brought));
+    writeLocal(LAYERS_KEY[mode], JSON.stringify(brought));
     this.mats[mode].set(mat);
-    write(MAT_KEY[mode], JSON.stringify(mat));
+    writeLocal(MAT_KEY[mode], JSON.stringify(mat));
     this.releaseUnused();
     this.build(skin.recipe, mode);
     this.editLadder(mode);

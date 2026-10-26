@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { HOTBAR_PAGES } from '@axe/domain/hotbar/hotbar-size';
-
-const STORAGE_KEY = 'ui-hotbar';
 
 interface HotbarPreference {
   page: number;
@@ -78,17 +78,13 @@ export class HotbarPreferenceService {
   private write(patch: Partial<HotbarPreference>): void {
     const next = { ...this.held(), ...patch };
     this.held.set(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      // Private browsing refuses the write; the setting still holds for this session.
-    }
+    writeLocal(STORAGE_KEYS.hotbar, JSON.stringify(next));
   }
 }
 
 function storedPreference(): HotbarPreference {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = readLocal(STORAGE_KEYS.hotbar);
     if (!stored) return { ...DEFAULT_PREFERENCE };
     const parsed: unknown = JSON.parse(stored);
     if (!parsed || typeof parsed !== 'object') return { ...DEFAULT_PREFERENCE };
