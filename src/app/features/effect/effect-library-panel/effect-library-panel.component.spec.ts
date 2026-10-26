@@ -1,11 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
+import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { EffectLibraryPanelComponent } from '@axe/features/effect/effect-library-panel/effect-library-panel.component';
-import { HotbarFillService } from '@axe/features/hotbar/hotbar-fill.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('EffectLibraryPanelComponent', () => {

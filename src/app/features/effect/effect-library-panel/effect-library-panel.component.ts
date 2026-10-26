@@ -7,6 +7,7 @@ import { EffectFieldService } from '@axe/application/effect/effect-field.service
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -35,7 +36,6 @@ import {
 } from '@axe/features/effect/effect-library-panel/effect-library-list';
 import { pushRecentEffect, readRecentEffects } from '@axe/features/effect/effect-library-panel/recent-effects';
 import { EffectPresetEditorComponent } from '@axe/features/effect/effect-preset-editor/effect-preset-editor.component';
-import { HotbarFillService } from '@axe/features/hotbar/hotbar-fill.service';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 

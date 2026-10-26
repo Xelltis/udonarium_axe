@@ -16,6 +16,7 @@ import { CharacterMacroService } from '@axe/application/chat/character-macro.ser
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
+import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -43,7 +44,6 @@ import { ChatPaletteRegistryService } from '@axe/features/chat/chat-palette/chat
 import { PaletteSearchResult, searchPaletteRows } from '@axe/features/chat/chat-palette/chat-palette-search';
 import { ChatTabStripComponent } from '@axe/features/chat/chat-tab-strip/chat-tab-strip.component';
 import { GameDataElementComponent } from '@axe/features/data-element/game-data-element/game-data-element.component';
-import { HotbarFillService } from '@axe/features/hotbar/hotbar-fill.service';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 

@@ -16,6 +16,7 @@ import { Title } from '@angular/platform-browser';
 import { SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
 import { DiceThrowService } from '@axe/application/dice/dice-throw.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -69,7 +70,6 @@ import { FilesTooLargeEventHandlerService } from '@axe/features/file/files-too-l
 import { FirstPersonViewComponent } from '@axe/features/first-person/first-person-view/first-person-view.component';
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
 import { HotbarBarComponent } from '@axe/features/hotbar/hotbar-bar/hotbar-bar.component';
-import { HotbarFillService } from '@axe/features/hotbar/hotbar-fill.service';
 import { ShortcutSheetComponent } from '@axe/features/keyboard/shortcut-sheet.component';
 import { TabletopShortcutEventHandlerService } from '@axe/features/keyboard/tabletop-shortcut-event-handler.service';
 import { InviteJoinComponent } from '@axe/features/lobby/invite-join/invite-join.component';

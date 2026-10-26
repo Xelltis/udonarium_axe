@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AppComponent } from '@axe/app.component';
+import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
@@ -10,7 +11,6 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { MENU_SURFACES, menuCommandOf } from '@axe/domain/ui/menu-command';
 import { parseMenuLayout } from '@axe/domain/ui/menu-layout';
-import { HotbarFillService } from '@axe/features/hotbar/hotbar-fill.service';
 import { MenuCommandService } from '@axe/features/menu/menu-command.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
