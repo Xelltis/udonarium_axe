@@ -141,13 +141,15 @@ export class RoomJoinService {
   /**
    * Makes the join asked for once the room to start on found at launch is set out, as the start
    * room is put away before a join and cannot be put away halfway in. Only the join asked for last
-   * goes ahead, and none does where the seat has gone into a room meanwhile.
+   * goes ahead, and none does where the seat is in or going into a room by then.
    */
   private afterStartRoom(join: () => Promise<boolean>): Promise<boolean> {
     const asked = ++this.joinAsked;
     return this.startRoom
       .whenSettled()
-      .then(() => (asked !== this.joinAsked || Network.peerContext?.isRoom ? false : join()));
+      .then(() =>
+        asked !== this.joinAsked || Network.requestedRoomId !== '' || Network.peerContext?.isRoom ? false : join()
+      );
   }
 
   /** Looks a room up by its id in the lobby listing, or null when no open room has that id. */

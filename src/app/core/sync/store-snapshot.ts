@@ -10,6 +10,14 @@ export interface StoreSnapshot {
   readonly deleted: DeleteHistory;
 }
 
+/** Whether the test holds for an object, or for anything it sits under. */
+export function isOrSitsUnder(object: GameObject, test: (object: GameObject) => boolean): boolean {
+  for (let at: GameObject | null = object; at; at = at instanceof ObjectNode ? at.parent : null) {
+    if (test(at)) return true;
+  }
+  return false;
+}
+
 /** Takes down what the store holds now, to put it back as it was with {@link restoreStore}. */
 export function snapshotStore(): StoreSnapshot {
   const contexts = new Map<string, ObjectContext>();
@@ -32,12 +40,7 @@ export function snapshotStore(): StoreSnapshot {
  */
 export function restoreStore(snapshot: StoreSnapshot, keep: (object: GameObject) => boolean): void {
   const store = ObjectStore.instance;
-  const kept = (object: GameObject): boolean => {
-    for (let at: GameObject | null = object; at; at = at instanceof ObjectNode ? at.parent : null) {
-      if (keep(at)) return true;
-    }
-    return false;
-  };
+  const kept = (object: GameObject): boolean => isOrSitsUnder(object, keep);
 
   for (const object of store.getObjects<GameObject>()) {
     if (!snapshot.contexts.has(object.identifier) && store.get(object.identifier) === object && !kept(object)) {

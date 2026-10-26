@@ -263,6 +263,37 @@ describe('StartRoomService', () => {
       expect(archive).toHaveBeenCalledTimes(1);
     });
 
+    it('stops keeping the room once a join begins while it is being kept', async () => {
+      kept = new Blob(['older']);
+      await service.prepare('');
+      await service.loadPending();
+      ask.mockImplementation(async () => {
+        service.putAwayForJoin();
+        return true;
+      });
+
+      expect(await service.keepCurrent()).toBe(false);
+
+      expect(await kept?.text()).toBe('older');
+      expect(shown).toHaveBeenCalledWith('部屋に入る途中は、開始時の部屋にできません。');
+    });
+
+    it('keeps nothing while any join is under way, a start room out or not', async () => {
+      service.putAwayForJoin();
+
+      expect(await service.keepCurrent()).toBe(false);
+
+      expect(kept).toBeNull();
+    });
+
+    it('asks before keeping where the browser cannot say whether a room is kept already', async () => {
+      vi.spyOn(store, 'has').mockResolvedValue(null);
+
+      await service.keepCurrent();
+
+      expect(ask).toHaveBeenCalledTimes(1);
+    });
+
     it('keeps nothing while a replay board stands in place of the table', async () => {
       setNetworkIsolated(true);
 
@@ -388,6 +419,76 @@ describe('StartRoomService', () => {
       );
       service.putAwayForJoin();
       expect(sample).toHaveBeenCalledTimes(2);
+    });
+
+    it('says so, and leaves the sample, where the kept start room cannot be set out again', async () => {
+      await setOut();
+      const joined = service.putAwayForJoin();
+      load.mockResolvedValue({ dataRead: false, images: [], audios: [] });
+
+      joined(false);
+      await service.whenSettled();
+
+      expect(shown).toHaveBeenCalledWith('開始時の部屋を読み込めなかったので、サンプルの部屋で始めました。');
+    });
+
+    it('says so where the kept start room is gone by the time the join comes to nothing', async () => {
+      await setOut();
+      const joined = service.putAwayForJoin();
+      kept = null;
+
+      joined(false);
+      await service.whenSettled();
+
+      expect(load).toHaveBeenCalledTimes(1);
+      expect(shown).toHaveBeenCalledWith('開始時の部屋を読み込めなかったので、サンプルの部屋で始めました。');
+    });
+
+    it('leaves a seat going into another room, not yet open, as it is', async () => {
+      await setOut();
+      const joined = service.putAwayForJoin();
+      vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('another-room');
+
+      joined(false);
+      await service.whenSettled();
+
+      expect(load).toHaveBeenCalledTimes(1);
+    });
+
+    it("clears the start room's speaker the cursor last spoke as, and lets go of that speaker's picture", async () => {
+      const cursorBefore = PeerCursor.myCursor;
+      const cursor = new PeerCursor('seat-cursor');
+      cursor.initialize();
+      PeerCursor.myCursor = cursor;
+      try {
+        await setOut(true, () => {
+          cursor.lastControlImageIdentifier = 'brought-picture';
+          cursor.lastControlCharacterName = 'ゴブリン';
+        });
+
+        service.putAwayForJoin();
+
+        expect(cursor.lastControlImageIdentifier).toBe('');
+        expect(cursor.lastControlCharacterName).toBe('');
+        expect(droppedPictures).toHaveBeenCalledWith('brought-picture');
+      } finally {
+        PeerCursor.myCursor = cursorBefore;
+      }
+    });
+
+    it('keeps what came in of an unreadable start room where the seat made a room of its own meanwhile', async () => {
+      kept = new Blob(['room']);
+      await service.prepare('');
+      load.mockImplementation(async () => {
+        DataElement.create('HP', 10, {}, 'brought-piece');
+        vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('own-room');
+        return { dataRead: false, images: ['brought-picture'], audios: [] };
+      });
+
+      expect(await service.loadPending()).toBe(true);
+
+      expect(ObjectStore.instance.get('brought-piece')).not.toBeNull();
+      expect(shown).not.toHaveBeenCalled();
     });
 
     it('leaves a seat that went into a room meanwhile as it is, and lets the start room go', async () => {

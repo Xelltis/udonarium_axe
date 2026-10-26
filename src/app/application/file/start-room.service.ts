@@ -9,14 +9,14 @@ import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
-import { FileArchiver } from '@axe/core/storage/file-archiver';
+import { FileArchiver, LoadResult } from '@axe/core/storage/file-archiver';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { StartRoomStore } from '@axe/core/storage/start-room-store';
 import { GameObject } from '@axe/core/sync/game-object';
-import { ObjectNode } from '@axe/core/sync/object-node';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { restoreStore, snapshotStore, StoreSnapshot } from '@axe/core/sync/store-snapshot';
+import { isOrSitsUnder, restoreStore, snapshotStore, StoreSnapshot } from '@axe/core/sync/store-snapshot';
 import { Jukebox } from '@axe/domain/media/jukebox';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 
 /** How long the start waits on the browser to say whether it keeps a room to start on, at most. */
@@ -28,19 +28,29 @@ const SEAT_OWN = new Set(['PeerCursor', 'hotbar', 'hotbar-slot']);
 /** Whether an object is of a kind that travels with the seat. */
 const isSeatOwnKind = (object: GameObject): boolean => SEAT_OWN.has(object.aliasName);
 
-/** Whether an object travels with the seat, itself or through what it sits under. */
-function isSeatOwn(object: GameObject): boolean {
-  for (let at: GameObject | null = object; at; at = at instanceof ObjectNode ? at.parent : null) {
-    if (isSeatOwnKind(at)) return true;
-  }
-  return false;
-}
-
 /** The table as the page first set it out, before the start room went in. */
 interface TableBefore {
   readonly store: StoreSnapshot;
   readonly images: ReadonlySet<string>;
   readonly audios: ReadonlySet<string>;
+}
+
+/** Every text value somewhere in a piece of sync data, to tell what a picture or a sound is still shown by. */
+function textsIn(value: unknown, into: Set<string>): Set<string> {
+  if (typeof value === 'string') into.add(value);
+  else if (Array.isArray(value)) for (const item of value) textsIn(item, into);
+  else if (value && typeof value === 'object') for (const item of Object.values(value)) textsIn(item, into);
+  return into;
+}
+
+/** Whether this seat is in a room, or is going into one that has yet to open. */
+function isInOrGoingIntoRoom(): boolean {
+  return Network.requestedRoomId !== '' || !!Network.peerContext?.isRoom;
+}
+
+/** Whether this seat has the table to itself, with nobody else connected. */
+function hasTableToItself(): boolean {
+  return Network.peerContexts.length < 1;
 }
 
 /**
@@ -77,7 +87,10 @@ export class StartRoomService {
   /** Whether the start room is on the table just now, rather than put away for a join. */
   private startRoomOut = false;
   private brought: { images: readonly string[]; audios: readonly string[] } = { images: [], audios: [] };
+  /** How many joins are under way, whether or not they put a start room away. */
   private joinsUnderWay = 0;
+  /** How many times a start room has been put away, to tell whether one was while the room was being kept. */
+  private putAways = 0;
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -110,29 +123,36 @@ export class StartRoomService {
 
   /**
    * Puts the start room away before this seat goes into somebody else's room, and answers what to
-   * call once the join is over.
+   * call once the join is over. Every join calls it, whether or not a start room is out.
    *
    * The track playing stops, the table goes back to how the page set it out, versions and all, the
    * pictures and sounds the start room brought go, and the sample is set out, so the room joined
    * finds this seat as it finds a browser that never kept a room. The seat's own cursor and bar
-   * stay, and so do the pictures they show. Told the join came to something, or that the seat is in
-   * a room all the same, it lets the start room go; told it came to nothing, it sets the kept start
-   * room out again, as at launch. Does nothing once the seat has been in a room, or while no start
-   * room is out.
+   * stay, and so do the pictures they show, though not the start room's speaker the cursor last
+   * spoke as. Told the join came to something, or that the seat is in or going into a room all the
+   * same, it lets the start room go; told it came to nothing, it sets the kept start room out
+   * again, as at launch.
    */
   putAwayForJoin(): (joined: boolean) => void {
-    const original = this.original;
-    if (!original || !this.startRoomOut || this.loading) return () => undefined;
     this.joinsUnderWay++;
-    const jukebox = this.objectStore.get<Jukebox>('Jukebox');
-    if (jukebox?.isPlaying) jukebox.stop();
-    this.takeAway(original);
-    this.tabletopAction.makeDefaultTabletopObjects();
-    this.startRoomOut = false;
+    const original = this.original;
+    const putsAway = original !== null && this.startRoomOut && !this.loading;
+    if (putsAway) {
+      this.putAways++;
+      const jukebox = this.objectStore.get<Jukebox>('Jukebox');
+      if (jukebox?.isPlaying) jukebox.stop();
+      this.takeAway(original);
+      this.tabletopAction.makeDefaultTabletopObjects();
+      this.startRoomOut = false;
+    }
+    let over = false;
     return (joined) => {
+      if (over) return;
+      over = true;
       this.joinsUnderWay--;
-      if (joined || Network.peerContext?.isRoom) this.original = null;
-      else void this.setOutAgain(original);
+      if (!putsAway) return;
+      if (joined || isInOrGoingIntoRoom()) this.original = null;
+      else void this.setOutAgain();
     };
   }
 
@@ -148,7 +168,7 @@ export class StartRoomService {
   async prepare(hash: string = window.location.hash): Promise<void> {
     try {
       if (!this.store.isAvailable()) return;
-      const asked = this.store.has(StartRoomStore.KEY).catch(() => false);
+      const asked = this.store.has(StartRoomStore.KEY).catch(() => null);
       const timedOut = Symbol('timed out');
       let timer: ReturnType<typeof setTimeout> | undefined;
       const kept = await Promise.race([
@@ -157,10 +177,12 @@ export class StartRoomService {
       ]);
       clearTimeout(timer);
       if (kept === timedOut) {
-        void asked.then((late) => this._isKept.set(late));
+        void asked.then((late) => {
+          if (late !== null) this._isKept.set(late);
+        });
         return;
       }
-      this._isKept.set(kept);
+      if (kept !== null) this._isKept.set(kept);
       if (!kept || (hash !== '' && hash !== '#')) return;
       this.pending = this.store.get(StartRoomStore.KEY);
       this.loading = new Promise<void>((resolve) => (this.finishLoading = resolve));
@@ -174,43 +196,27 @@ export class StartRoomService {
    *
    * Once this seat is joined by others, or joins them, what remains of the start room is left: it is
    * this browser's, not theirs. Where its data cannot be read, whatever of it came in is put away
-   * again, the reader is told, and false leaves the table to the sample.
+   * again, the reader is told, and false leaves the table to the sample; a seat that made a room of
+   * its own meanwhile keeps what came in, as its room has it already.
    */
   async loadPending(): Promise<boolean> {
     const reading = this.pending;
     this.pending = null;
     if (!reading) return false;
     try {
-      const alone = () => Network.peerContexts.length < 1;
-      if (!alone()) return true;
-      let dataRead = false;
-      let before: TableBefore | null = null;
-      try {
-        const blob = await reading;
-        if (blob) {
-          this.objectStore.get<ReloadCheck>('ReloadCheck')?.reloadCheckStart(false);
-          before = {
-            store: snapshotStore(),
-            images: new Set(ImageStorage.instance.images.map((image) => image.identifier)),
-            audios: new Set(AudioStorage.instance.audios.map((audio) => audio.identifier)),
-          };
-          const file = new File([blob], 'start-room.zip', { type: 'application/zip' });
-          const result = await this.fileArchiver.load([file], undefined, { stillWanted: alone });
-          dataRead = result.dataRead;
-          this.brought = { images: result.images, audios: result.audios };
-        }
-      } catch (reason) {
-        Logger.warn('[StartRoom] could not set out the start room', reason);
-      }
-      if (!alone()) return true;
-      if (dataRead) {
-        if (!Network.peerContext?.isRoom && before) {
+      if (!hasTableToItself()) return true;
+      const before = this.tableNow();
+      const result = await this.setOutKept(await reading);
+      if (!hasTableToItself()) return true;
+      if (result?.dataRead) {
+        if (!isInOrGoingIntoRoom()) {
           this.original = before;
           this.startRoomOut = true;
         }
         return true;
       }
-      if (before) this.takeAway(before);
+      if (isInOrGoingIntoRoom()) return true;
+      this.takeAway(before);
       this.snackbar.show(this.t('feature.roomArchive.startRoom.loadFailed'));
       return false;
     } finally {
@@ -221,8 +227,10 @@ export class StartRoomService {
 
   /**
    * Keeps the room as it stands as the one this browser starts on, with every picture and sound
-   * this browser holds, asking first before it replaces one kept already, in this tab or another.
-   * A start room still being set out is let finish first. A table holding some of it only in the
+   * this browser holds, asking first before it replaces one kept already, in this tab or another,
+   * or where the browser cannot say. A start room still being set out is let finish first, and the
+   * room is not kept while a join is under way, as the table is then not this seat's own: one that
+   * starts while the room is being kept stops the keeping. A table holding some of it only in the
    * shape a room server withholds is not kept, as it would ask about that at every start. Answers
    * whether it was kept.
    */
@@ -244,8 +252,10 @@ export class StartRoomService {
       this.snackbar.show(this.t('feature.roomArchive.startRoom.withheld'));
       return false;
     }
+    const putAwaysBefore = this.putAways;
+    const joinedMeanwhile = () => this.joinsUnderWay > 0 || this.putAways !== putAwaysBefore;
     if (
-      (await this.refreshKept()) &&
+      (await this.refreshKept()) !== false &&
       !(await this.confirm.ask({
         title: this.t('feature.roomArchive.startRoom.replaceTitle'),
         message: this.t('feature.roomArchive.startRoom.replaceMessage'),
@@ -255,12 +265,18 @@ export class StartRoomService {
       return false;
     }
     try {
+      if (joinedMeanwhile()) throw new JoinedMeanwhile();
       const blob = await this.saveDataService.createWholeRoomArchiveAsync();
+      if (joinedMeanwhile()) throw new JoinedMeanwhile();
       if (!(await this.store.put(StartRoomStore.KEY, blob))) throw new Error('the start room could not be written');
       this._isKept.set(true);
       this.snackbar.show(this.t('feature.roomArchive.startRoom.kept'));
       return true;
     } catch (reason) {
+      if (reason instanceof JoinedMeanwhile) {
+        this.snackbar.show(this.t('feature.roomArchive.startRoom.whileJoining'));
+        return false;
+      }
       Logger.warn('[StartRoom] could not keep the start room', reason);
       this.snackbar.show(this.t('feature.roomArchive.startRoom.keepFailed'));
       return false;
@@ -272,7 +288,7 @@ export class StartRoomService {
    * again. Answers whether it was forgotten.
    */
   async forget(): Promise<boolean> {
-    if (!(await this.refreshKept())) return false;
+    if ((await this.refreshKept()) === false) return false;
     const agreed = await this.confirm.ask({
       title: this.t('feature.roomArchive.startRoom.forgetTitle'),
       message: this.t('feature.roomArchive.startRoom.forgetMessage'),
@@ -288,71 +304,102 @@ export class StartRoomService {
     return true;
   }
 
+  /** The table as it stands, with the pictures and sounds held, to put a start room set out on it away by. */
+  private tableNow(): TableBefore {
+    return {
+      store: snapshotStore(),
+      images: new Set(ImageStorage.instance.images.map((image) => image.identifier)),
+      audios: new Set(AudioStorage.instance.audios.map((audio) => audio.identifier)),
+    };
+  }
+
   /**
-   * Takes the table back to how the page set it out, with the room's volumes as they were then, and
-   * lets go of the pictures and sounds the start room brought, but those the seat's own things
-   * still show.
+   * Sets the kept archive out on the table, as a room file dropped on it would be, stopping once the
+   * table is shared, and notes what it brought; null where there was none to set out or it threw.
    */
-  private takeAway(before: TableBefore): void {
-    const seatOwn = JSON.stringify(
-      this.objectStore
-        .getObjects<GameObject>()
-        .filter(isSeatOwn)
-        .map((object) => object.toContext().syncData)
-    );
-    restoreStore(before.store, isSeatOwnKind);
-    const jukebox = this.objectStore.get<Jukebox>('Jukebox');
-    jukebox?.setNewVolume();
-    jukebox?.refreshMix();
-    for (const identifier of this.brought.images) {
-      if (!before.images.has(identifier) && !seatOwn.includes(identifier)) ImageStorage.instance.delete(identifier);
-    }
-    for (const identifier of this.brought.audios) {
-      if (!before.audios.has(identifier) && !seatOwn.includes(identifier)) AudioStorage.instance.delete(identifier);
+  private async setOutKept(blob: Blob | null): Promise<LoadResult | null> {
+    if (!blob) return null;
+    try {
+      this.objectStore.get<ReloadCheck>('ReloadCheck')?.reloadCheckStart(false);
+      const file = new File([blob], 'start-room.zip', { type: 'application/zip' });
+      const result = await this.fileArchiver.load([file], undefined, { stillWanted: hasTableToItself });
+      this.brought = { images: result.images, audios: result.audios };
+      return result;
+    } catch (reason) {
+      Logger.warn('[StartRoom] could not set out the start room', reason);
+      return null;
     }
   }
 
   /**
    * Sets the kept start room out again after a join that came to nothing, as at launch: what was
-   * changed on it since it was kept is not put back. A join asked for meanwhile waits for it, and
-   * a seat that has gone into a room or been joined by others meanwhile is left as it is.
+   * changed on it since it was kept is not put back, while what the failed join said in the chat
+   * stays. A join asked for meanwhile waits for it, and a seat that is in or going into a room, or
+   * shares the table, meanwhile is left as it is. Where it cannot be set out, the sample stays and
+   * the reader is told.
    */
-  private async setOutAgain(original: TableBefore): Promise<void> {
+  private async setOutAgain(): Promise<void> {
     this.loading = new Promise<void>((resolve) => (this.finishLoading = resolve));
     try {
-      const blob = await this.store.get(StartRoomStore.KEY).catch(() => null);
-      const alone = () => Network.peerContexts.length < 1 && !Network.peerContext?.isRoom;
-      if (!blob || !alone()) return;
-      restoreStore(original.store, isSeatOwnKind);
-      this.objectStore.get<ReloadCheck>('ReloadCheck')?.reloadCheckStart(false);
-      const file = new File([blob], 'start-room.zip', { type: 'application/zip' });
-      const result = await this.fileArchiver.load([file], undefined, { stillWanted: alone });
-      this.brought = { images: result.images, audios: result.audios };
-      if (result.dataRead) {
+      const blob = await this.store.get(StartRoomStore.KEY);
+      if (!hasTableToItself() || isInOrGoingIntoRoom()) return;
+      const result = await this.setOutKept(blob);
+      if (result?.dataRead) {
         this.startRoomOut = true;
         this.snackbar.show(this.t('feature.roomArchive.startRoom.backAfterJoin'));
-      } else if (alone()) {
-        this.takeAway(original);
-        this.tabletopAction.makeDefaultTabletopObjects();
+      } else if (hasTableToItself() && !isInOrGoingIntoRoom()) {
         this.snackbar.show(this.t('feature.roomArchive.startRoom.loadFailed'));
       }
-    } catch (reason) {
-      Logger.warn('[StartRoom] could not set the start room out again', reason);
     } finally {
       this.finishLoading();
       this.loading = null;
     }
   }
 
-  /** Asks the browser again whether a room is kept, as another tab may have kept or forgotten one. */
-  private async refreshKept(): Promise<boolean> {
+  /**
+   * Takes the table back to how it stood before the start room went in, with the room's volumes as
+   * they were then, and lets go of the pictures and sounds the start room brought, but those the
+   * seat's own things still show. The cursor's note of the speaker it last spoke as is cleared
+   * first, as that speaker is the start room's.
+   */
+  private takeAway(before: TableBefore): void {
+    const cursor = PeerCursor.myCursor;
+    if (cursor) {
+      cursor.lastControlImageIdentifier = '';
+      cursor.lastControlCharacterName = '';
+      cursor.lastControlSendFrom = '';
+    }
+    const shown = new Set<string>();
+    for (const object of this.objectStore.getObjects<GameObject>()) {
+      if (isOrSitsUnder(object, isSeatOwnKind)) textsIn(object.toContext().syncData, shown);
+    }
+    restoreStore(before.store, isSeatOwnKind);
+    const jukebox = this.objectStore.get<Jukebox>('Jukebox');
+    jukebox?.setNewVolume();
+    jukebox?.refreshMix();
+    for (const identifier of this.brought.images) {
+      if (!before.images.has(identifier) && !shown.has(identifier)) ImageStorage.instance.delete(identifier);
+    }
+    for (const identifier of this.brought.audios) {
+      if (!before.audios.has(identifier) && !shown.has(identifier)) AudioStorage.instance.delete(identifier);
+    }
+  }
+
+  /**
+   * Asks the browser again whether a room is kept, as another tab may have kept or forgotten one.
+   * Null where the browser could not be asked, which leaves what was known as it was.
+   */
+  private async refreshKept(): Promise<boolean | null> {
     if (!this.store.isAvailable()) return false;
     try {
       const kept = await this.store.has(StartRoomStore.KEY);
-      this._isKept.set(kept);
+      if (kept !== null) this._isKept.set(kept);
       return kept;
     } catch {
-      return false;
+      return null;
     }
   }
 }
+
+/** A join began while the room was being kept as the start room, so what was taken down is not the seat's own. */
+class JoinedMeanwhile extends Error {}
