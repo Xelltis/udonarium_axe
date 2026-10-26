@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { StartRoomService } from '@axe/application/file/start-room.service';
+import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
@@ -609,10 +610,10 @@ describe('StartRoomService', () => {
       expect(stop).toHaveBeenCalledTimes(1);
     });
 
-    it("hands the room's volumes as the page set them back to the jukebox", async () => {
+    it("puts the room's volumes as the page set them back on the players, and the mix on the jukebox", async () => {
       const jukebox = new Jukebox('Jukebox');
       jukebox.initialize();
-      const volume = vi.spyOn(jukebox, 'setNewVolume').mockImplementation(() => {});
+      const volume = vi.spyOn(TestBed.inject(PersonalVolumeService), 'applyToChannels').mockImplementation(() => {});
       const mix = vi.spyOn(jukebox, 'refreshMix').mockImplementation(() => {});
       try {
         await setOut();

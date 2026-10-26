@@ -1,6 +1,7 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
@@ -74,6 +75,7 @@ export class StartRoomService {
   private readonly confirm = inject(ConfirmService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly tabletopAction = inject(TabletopActionService);
+  private readonly personalVolumes = inject(PersonalVolumeService);
 
   private readonly _isKept = signal(false);
   /** Whether this browser keeps a room to start on. */
@@ -403,9 +405,8 @@ export class StartRoomService {
       if (isOrSitsUnder(object, isSeatOwnKind)) textsIn(object.toContext().syncData, shown);
     }
     restoreStore(before.store, isSeatOwnKind);
-    const jukebox = this.objectStore.get<Jukebox>('Jukebox');
-    jukebox?.setNewVolume();
-    jukebox?.refreshMix();
+    this.personalVolumes.applyToChannels();
+    this.objectStore.get<Jukebox>('Jukebox')?.refreshMix();
     for (const identifier of this.brought.images) {
       if (!before.images.has(identifier) && !shown.has(identifier)) this.imageStorage.delete(identifier);
     }

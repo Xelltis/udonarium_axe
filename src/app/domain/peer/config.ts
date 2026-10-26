@@ -1,6 +1,5 @@
 import { VolumeType } from '@axe/core/storage/audio-player';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
-import { ObjectContext } from '@axe/core/sync/game-object';
 import { InnerXml } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import {
@@ -13,7 +12,6 @@ import { readSystemNotices, SystemNoticeRoutes, writeSystemNotices } from '@axe/
 import { asDiceStage, DiceStage } from '@axe/domain/dice/dice-3d/dice-stage';
 import { type DjPads, readDjPads, writeDjPads } from '@axe/domain/media/dj-pads';
 import { type DjSettings, readDjSettings, writeDjSettings } from '@axe/domain/media/dj-settings';
-import { Jukebox } from '@axe/domain/media/jukebox';
 import {
   readRoomVolumes,
   RoomVolumeKind,
@@ -446,13 +444,6 @@ export class Config extends withRuleAnswers() implements InnerXml {
     return answers as RoomRuleAnswers;
   }
 
-  // The jukebox keeps the settings of the person listening.
-  // The master volume lives here because the shared settings are saved together.
-  /** The room's jukebox, which the master volume is applied to. */
-  get jukebox(): Jukebox {
-    return ObjectStore.instance.get<Jukebox>('Jukebox')!;
-  }
-
   private static _instance: Config;
   /**
    * The room's one config, shared by every peer under a fixed identifier.
@@ -481,18 +472,5 @@ export class Config extends withRuleAnswers() implements InnerXml {
 
     super.parseInnerXml.apply(Config.instance, [element]);
     this.destroy();
-  }
-
-  /** Takes in synced settings, and passes a changed room volume or mix on to the jukebox straight away. */
-  override apply(context: ObjectContext) {
-    const _roomVolume = this._roomVolume;
-    const _roomKindVolumes = this._roomKindVolumes;
-    const _djSettings = this._djSettings;
-    const _defaultDiceBot = this._defaultDiceBot;
-    super.apply(context);
-    if (_roomVolume !== this._roomVolume || _roomKindVolumes !== this._roomKindVolumes) {
-      this.jukebox.setNewVolume();
-    }
-    if (_djSettings !== this._djSettings) ObjectStore.instance.get<Jukebox>('Jukebox')?.refreshMix();
   }
 }

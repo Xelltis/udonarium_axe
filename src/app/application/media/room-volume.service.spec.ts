@@ -38,7 +38,6 @@ describe('RoomVolumeService', () => {
 
   it('lets the game master set a kind for everyone, heard here at once', () => {
     const room = open(PeerRole.GameMaster);
-    ObjectStore.instance.get<Jukebox>('Jukebox')!.setLevel(VolumeType.BACKGROUND, 0.5);
 
     room.setKind('background', 0.4);
 

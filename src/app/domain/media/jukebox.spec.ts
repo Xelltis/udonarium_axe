@@ -74,51 +74,6 @@ describe('Jukebox', () => {
     });
   });
 
-  describe('volume', () => {
-    it('starts at half', () => {
-      const jukebox = new Jukebox();
-      jukebox.initialize();
-      expect(jukebox.volume).toBe(0.5);
-    });
-
-    it('takes a value', () => {
-      const jukebox = new Jukebox();
-      jukebox.initialize();
-      jukebox.volume = 0.8;
-      expect(jukebox.volume).toBe(0.8);
-    });
-  });
-
-  describe('auditionVolume', () => {
-    it('starts at half', () => {
-      const jukebox = new Jukebox();
-      jukebox.initialize();
-      expect(jukebox.auditionVolume).toBe(0.5);
-    });
-
-    it('takes a value', () => {
-      const jukebox = new Jukebox();
-      jukebox.initialize();
-      jukebox.auditionVolume = 0.3;
-      expect(jukebox.auditionVolume).toBe(0.3);
-    });
-  });
-
-  describe('seVolume', () => {
-    it('starts at half', () => {
-      const jukebox = new Jukebox();
-      jukebox.initialize();
-      expect(jukebox.seVolume).toBe(0.5);
-    });
-
-    it('takes a value', () => {
-      const jukebox = new Jukebox();
-      jukebox.initialize();
-      jukebox.seVolume = 0.7;
-      expect(jukebox.seVolume).toBe(0.7);
-    });
-  });
-
   describe('stop', () => {
     it('clears the track and stops on a stop', () => {
       const jukebox = new Jukebox();
@@ -417,86 +372,11 @@ describe('Jukebox', () => {
     });
   });
 
-  describe('setNewVolume()', () => {
-    function channelVolumes() {
-      // The channel setter reaches for an audio context, so it is stubbed.
-      const set = vi.spyOn(AudioPlayer, 'setChannelVolume').mockImplementation(() => {});
-      return (type: VolumeType) => set.mock.calls.filter(([called]) => called === type).at(-1)?.[1];
-    }
-
-    function makeJukeboxInRoomAt(roomVolume: number): Jukebox {
-      const jukebox = new Jukebox('Jukebox');
-      jukebox.initialize();
-      const config = new Config('Config');
-      config.initialize();
-      config.roomVolume = roomVolume;
-      return jukebox;
-    }
-
-    it('multiplies the room volume into this peer’s level for each channel', () => {
-      const heard = channelVolumes();
-      const jukebox = makeJukeboxInRoomAt(0.8);
-      jukebox.volume = 0.5;
-      jukebox.auditionVolume = 0.6;
-      jukebox.seVolume = 0.7;
-      jukebox.backgroundVolume = 0.25;
-
-      jukebox.setNewVolume();
-
-      expect(heard(VolumeType.MASTER)).toBeCloseTo(0.4);
-      expect(heard(VolumeType.AUDITION)).toBeCloseTo(0.48);
-      expect(heard(VolumeType.SE)).toBeCloseTo(0.56);
-      expect(heard(VolumeType.BACKGROUND)).toBeCloseTo(0.2);
-    });
-
-    it('carries the channels split off from the sound effects too, at half until set', () => {
-      const heard = channelVolumes();
-      const jukebox = makeJukeboxInRoomAt(0.5);
-      jukebox.setLevel(VolumeType.HANDLING, 0);
-
-      jukebox.setNewVolume();
-
-      expect(heard(VolumeType.HANDLING)).toBe(0);
-      expect(heard(VolumeType.CUT_IN)).toBeCloseTo(0.25);
-      expect(heard(VolumeType.NOTIFICATION)).toBeCloseTo(0.25);
-      expect(heard(VolumeType.EFFECT)).toBeCloseTo(0.25);
-    });
-
-    it('multiplies in the room’s volume for each kind on top of its overall volume, but not into previews', () => {
-      const heard = channelVolumes();
-      const jukebox = makeJukeboxInRoomAt(0.5);
-      const config = jukebox.config;
-      config.setRoomVolumeOf('bgm', 1.6);
-      config.setRoomVolumeOf('background', 0.5);
-      config.setRoomVolumeOf('handling', 0);
-      jukebox.volume = 0.5;
-      jukebox.auditionVolume = 0.5;
-      jukebox.backgroundVolume = 0.8;
-
-      jukebox.setNewVolume();
-
-      expect(heard(VolumeType.MASTER)).toBeCloseTo(0.4);
-      expect(heard(VolumeType.BACKGROUND)).toBeCloseTo(0.2);
-      expect(heard(VolumeType.HANDLING)).toBe(0);
-      expect(heard(VolumeType.SE)).toBeCloseTo(0.25);
-      expect(heard(VolumeType.AUDITION)).toBeCloseTo(0.25);
-    });
-  });
-
   describe('background sounds', () => {
     beforeEach(() => {
       stubAudioPlayerPlay();
       stubAudioPlayerStop();
       vi.spyOn(LoopPlayer.prototype, 'start').mockImplementation(() => {});
-    });
-
-    it('keeps this peer’s background volume, starting at half', () => {
-      const jukebox = new Jukebox();
-      jukebox.initialize();
-      expect(jukebox.backgroundVolume).toBe(0.5);
-
-      jukebox.backgroundVolume = 0.3;
-      expect(jukebox.backgroundVolume).toBe(0.3);
     });
 
     it('starts a sound tagged as a background sound looping, and leaves the track alone', () => {

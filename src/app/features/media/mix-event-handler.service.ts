@@ -1,10 +1,13 @@
-import { DestroyRef, effect, inject, Injectable, untracked } from '@angular/core';
+import { computed, DestroyRef, effect, inject, Injectable, untracked } from '@angular/core';
 import { AudioAnalysisService } from '@axe/application/media/audio-analysis.service';
+import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MusicBus } from '@axe/core/audio/music-bus';
+import { VOLUME_TYPES } from '@axe/core/storage/audio-player';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { roomMix } from '@axe/domain/media/mix-level';
+import { Config } from '@axe/domain/peer/config';
 
 /** How often the room's track is looked at for the point to move on to the next, in milliseconds. */
 export const AUTOMIX_TICK_MS = 250;
@@ -22,6 +25,7 @@ export class MixEventHandlerService {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly analysis = inject(AudioAnalysisService);
+  private readonly personalVolumes = inject(PersonalVolumeService);
   private automixTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
@@ -32,7 +36,12 @@ export class MixEventHandlerService {
       MusicBus.setDucking(roomMix().ducking && this.jukebox?.isPlaying === true);
     });
     effect(() => {
+      this.roomScales();
+      untracked(() => this.personalVolumes.applyToChannels());
+    });
+    effect(() => {
       this.analysis.version();
+      this.mixSettings();
       untracked(() => this.jukebox?.refreshMix());
     });
     effect(() => {
@@ -42,6 +51,19 @@ export class MixEventHandlerService {
     });
     inject(DestroyRef).onDestroy(() => this.followPlaying(false));
   }
+
+  /** The room's volume for each channel, as text, so a change made here or by another peer is put on the channels once. */
+  private readonly roomScales = computed(() => {
+    this.objectChange.versionOf('Config')();
+    const config = this.objectStore.get<Config>('Config');
+    return VOLUME_TYPES.map((type) => config?.roomScaleFor(type) ?? 1).join(',');
+  });
+
+  /** How the room mixes its music, as text, so a change made here or by another peer eases the tracks to it once. */
+  private readonly mixSettings = computed(() => {
+    this.objectChange.versionOf('Config')();
+    return JSON.stringify(roomMix());
+  });
 
   private get jukebox(): Jukebox | null {
     return this.objectStore.get<Jukebox>('Jukebox') ?? null;

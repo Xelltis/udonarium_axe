@@ -10,7 +10,6 @@ import {
 import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { Jukebox } from '@axe/domain/media/jukebox';
 import { Config } from '@axe/domain/peer/config';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -51,21 +50,17 @@ describe('PersonalVolumeService', () => {
     expect(volumes.get('bgm')).toBe(0.5);
   });
 
-  it('makes a volume heard at once on its own channel, scaled by the room volume, and puts it on the jukebox', () => {
+  it('makes a volume heard at once on its own channel, scaled by the room volume', () => {
     const heard = channels();
     const volumes = reopened();
     new Config('Config').initialize();
     ObjectStore.instance.get<Config>('Config')!.roomVolume = 0.5;
-    new Jukebox('Jukebox').initialize();
 
     volumes.set('bgm', 0.8);
     volumes.set('notification', 0.6);
 
     expect(heard(VolumeType.MASTER)).toBeCloseTo(0.4);
     expect(heard(VolumeType.NOTIFICATION)).toBeCloseTo(0.3);
-    const jukebox = ObjectStore.instance.get<Jukebox>('Jukebox')!;
-    expect(jukebox.volume).toBe(0.8);
-    expect(jukebox.levelOf(VolumeType.NOTIFICATION)).toBe(0.6);
   });
 
   it('scales a volume by the room’s volume for its kind as well', () => {
@@ -111,32 +106,28 @@ describe('PersonalVolumeService', () => {
     const heard = channels();
     const volumes = reopened();
     new Config('Config').initialize();
-    const jukebox = new Jukebox('Jukebox');
-    jukebox.initialize();
     volumes.setMuted('cutIn', true);
 
     ObjectStore.instance.get<Config>('Config')!.roomVolume = 1.5;
-    jukebox.setNewVolume();
+    volumes.applyToChannels();
 
     expect(heard(VolumeType.CUT_IN)).toBe(0);
     expect(heard(VolumeType.SE)).toBeCloseTo(0.75);
   });
 
-  it('hands the remembered volumes to the jukebox and the players as the app starts', () => {
+  it('puts the remembered volumes on the players as the app starts', () => {
     localStorage.setItem(
       STORAGE_KEYS.personalVolumes,
       JSON.stringify({ audition: 0.1, bgm: 0.2, se: 0.3, background: 0.4, cutIn: 0.6, muted: ['effect'] })
     );
     const heard = channels();
     const volumes = reopened();
-    const jukebox = new Jukebox('Jukebox');
-    jukebox.initialize();
 
-    volumes.restore();
+    volumes.applyToChannels();
 
-    expect([jukebox.auditionVolume, jukebox.volume, jukebox.seVolume, jukebox.backgroundVolume]).toEqual([
-      0.1, 0.2, 0.3, 0.4,
-    ]);
+    expect(heard(VolumeType.MASTER)).toBe(0.2);
+    expect(heard(VolumeType.SE)).toBe(0.3);
+    expect(heard(VolumeType.BACKGROUND)).toBe(0.4);
     expect(heard(VolumeType.AUDITION)).toBe(0.1);
     expect(heard(VolumeType.CUT_IN)).toBe(0.6);
     expect(heard(VolumeType.EFFECT)).toBe(0);

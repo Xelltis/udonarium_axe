@@ -650,7 +650,6 @@ describe('JukeboxComponent', () => {
 
       component.backgroundVolume = 0.8;
 
-      expect(component.jukebox.backgroundVolume).toBe(0.8);
       expect(channel).toHaveBeenCalledWith(VolumeType.BACKGROUND, expect.closeTo(0.4));
     });
 

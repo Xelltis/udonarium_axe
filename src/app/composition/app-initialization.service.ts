@@ -124,7 +124,7 @@ export class AppInitializationService {
 
     const jukebox = new Jukebox('Jukebox');
     jukebox.initialize();
-    this.personalVolumes.restore();
+    this.personalVolumes.applyToChannels();
     AudioSharingSystem.instance.preferredIdentifiers = () => [
       ...(jukebox.audioIdentifier.length > 0 ? [jukebox.audioIdentifier] : []),
       ...BackgroundSound.playing().map((sound) => sound.audioIdentifier),

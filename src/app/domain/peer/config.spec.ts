@@ -5,7 +5,6 @@ import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
 import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
 import { DEFAULT_SYSTEM_NOTICES, withNoticeRoute } from '@axe/domain/chat/system-notices';
 import { DEFAULT_DJ_SETTINGS } from '@axe/domain/media/dj-settings';
-import { Jukebox } from '@axe/domain/media/jukebox';
 import { DEFAULT_ROOM_VOLUMES } from '@axe/domain/media/room-volumes';
 import { Config } from '@axe/domain/peer/config';
 import { CONFIG_RULE_ANSWERS } from '@axe/domain/peer/config-rule-answers';
@@ -180,16 +179,9 @@ describe('Config', () => {
   });
 
   describe('the room’s volume for each kind of sound', () => {
-    const setNewVolume = vi.fn();
-
     function attributesOf(context: ObjectContext): Record<string, unknown> {
       return context.syncData['attributes'] as Record<string, unknown>;
     }
-
-    beforeEach(() => {
-      setNewVolume.mockClear();
-      vi.spyOn(Config.instance, 'jukebox', 'get').mockReturnValue({ setNewVolume } as unknown as Jukebox);
-    });
 
     afterEach(() => vi.restoreAllMocks());
 
@@ -237,17 +229,6 @@ describe('Config', () => {
 
       expect(Config.instance.roomVolume).toBe(0.8);
       expect(Config.instance.roomVolumes.background).toBe(0.3);
-    });
-
-    it('puts a change from another peer on the jukebox straight away', () => {
-      const changed = Config.instance.toContext();
-      attributesOf(changed)['_roomKindVolumes'] = '{"bgm":0.2}';
-      changed.majorVersion += 1;
-
-      Config.instance.apply(changed);
-
-      expect(setNewVolume).toHaveBeenCalled();
-      expect(Config.instance.roomVolumes.bgm).toBe(0.2);
     });
   });
 
@@ -308,20 +289,6 @@ describe('Config', () => {
       Config.instance.apply(older);
 
       expect(Config.instance.djPads.every((pad) => pad === '')).toBe(true);
-    });
-
-    it('remixes on the jukebox straight away when another peer changes the mix', () => {
-      const jukebox = new Jukebox('Jukebox');
-      jukebox.initialize();
-      const refreshMix = vi.spyOn(jukebox, 'refreshMix').mockImplementation(() => {});
-      const changed = Config.instance.toContext();
-      attributesOf(changed)['_djSettings'] = '{"ducking":false}';
-      changed.majorVersion += 1;
-
-      Config.instance.apply(changed);
-
-      expect(refreshMix).toHaveBeenCalledOnce();
-      expect(Config.instance.djSettings.ducking).toBe(false);
     });
   });
 

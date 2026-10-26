@@ -10,7 +10,6 @@ import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { Jukebox } from '@axe/domain/media/jukebox';
 import { Config } from '@axe/domain/peer/config';
 
 /** The channel each kind of sound plays through. */
@@ -65,31 +64,22 @@ export class PersonalVolumeService {
     this.save({ ...this.sound(), muted: muted ? [...rest, kind] : rest });
   }
 
-  /** Hands the remembered volumes to the room's jukebox and the players, as the app starts. */
-  restore(): void {
-    this.apply();
+  /**
+   * Puts the listener's volumes on the players, each scaled by the room's volume for its kind: as
+   * the app starts, and whenever the room's volumes change.
+   */
+  applyToChannels(): void {
+    const config = this.objectStore.get<Config>('Config');
+    for (const kind of PERSONAL_VOLUME_KINDS) {
+      const channel = PERSONAL_VOLUME_CHANNELS[kind];
+      AudioPlayer.setChannelVolume(channel, this.levelOf(kind) * (config?.roomScaleFor(channel) ?? 1));
+    }
   }
 
   private save(next: PersonalSound): void {
     this.sound.set(next);
-    this.apply();
+    this.applyToChannels();
     writeLocal(STORAGE_KEYS.personalVolumes, formatPersonalSound(next));
-  }
-
-  /**
-   * Puts each kind's level on its channel, scaled by the room's master volume and its volume for
-   * that kind. The jukebox is handed the levels as well, since it puts them back on the channels
-   * whenever the room volume changes.
-   */
-  private apply(): void {
-    const jukebox = this.objectStore.get<Jukebox>('Jukebox');
-    const config = this.objectStore.get<Config>('Config');
-    for (const kind of PERSONAL_VOLUME_KINDS) {
-      const channel = PERSONAL_VOLUME_CHANNELS[kind];
-      const level = this.levelOf(kind);
-      jukebox?.setLevel(channel, level);
-      AudioPlayer.setChannelVolume(channel, level * (config?.roomScaleFor(channel) ?? 1));
-    }
   }
 }
 
