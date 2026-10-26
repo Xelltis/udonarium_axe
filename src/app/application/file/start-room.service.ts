@@ -1,26 +1,42 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
+import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { StartRoomStore } from '@axe/core/storage/start-room-store';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { restoreStore, snapshotStore, StoreSnapshot } from '@axe/core/sync/store-snapshot';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 
 /** How long the start waits on the browser to say whether it keeps a room to start on, at most. */
 const PREPARE_TIMEOUT_MS = 1500;
+
+/** What travels with the seat rather than the table, and so is left as it is when the start room is put away. */
+const SEAT_OWN = new Set(['PeerCursor', 'hotbar', 'hotbar-slot']);
+
+/** The table as the page first set it out, before the start room went in, and what the start room brought. */
+interface BeforeStartRoom {
+  readonly store: StoreSnapshot;
+  readonly images: ReadonlySet<string>;
+  readonly audios: ReadonlySet<string>;
+}
 
 /**
  * The room this browser starts on in place of the sample: kept from the room as it stands, read
  * before the table is first set out, and forgotten again on request or with the rest of the
  * browser's data.
  *
- * It belongs to this browser alone, and is set out only while this seat has nobody else to share
- * the table with.
+ * It belongs to this browser alone. It is set out only while this seat has nobody else to share
+ * the table with, and put away again, sample and all, before the seat goes into somebody else's
+ * room, so that nothing of it goes there.
  */
 @Injectable({ providedIn: 'root' })
 export class StartRoomService {
@@ -31,6 +47,7 @@ export class StartRoomService {
   private readonly snackbar = inject(SnackbarService);
   private readonly confirm = inject(ConfirmService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly tabletopAction = inject(TabletopActionService);
 
   private readonly _isKept = signal(false);
   /** Whether this browser keeps a room to start on. */
@@ -41,10 +58,19 @@ export class StartRoomService {
   private loading: Promise<void> | null = null;
   private finishLoading: () => void = () => undefined;
 
+  /** Set while the start room is on the table as the page left it, and so may still be put away. */
+  private before: BeforeStartRoom | null = null;
+  private brought: { images: readonly string[]; audios: readonly string[] } = { images: [], audios: [] };
+
   constructor() {
+    const destroyRef = inject(DestroyRef);
     const refresh = () => void this.refreshKept();
     window.addEventListener('focus', refresh);
-    inject(DestroyRef).onDestroy(() => window.removeEventListener('focus', refresh));
+    destroyRef.onDestroy(() => window.removeEventListener('focus', refresh));
+    // Once the seat is in a room, of its own making, what is on the table is that room's.
+    inject(ObjectChangeService).networkOpen$.subscribe(() => {
+      if (Network.peerContext?.isRoom) this.before = null;
+    }, destroyRef);
   }
 
   /** Whether a room to start on was found at launch and waits to be set out in place of the sample pieces. */
@@ -59,6 +85,33 @@ export class StartRoomService {
    */
   whenSettled(): Promise<void> {
     return this.loading ?? Promise.resolve();
+  }
+
+  /** The start room being set out just now, to wait on, or null where none is. */
+  settling(): Promise<void> | null {
+    return this.loading;
+  }
+
+  /**
+   * Puts the start room away before this seat goes into somebody else's room: the table goes back
+   * to how the page set it out, versions and all, the pictures and sounds the start room brought go,
+   * and the sample is set out, so the room joined finds this seat as it finds a browser that never
+   * kept a room. The seat's own cursor and bar stay. Does nothing once the seat has been in a room,
+   * or where no start room was set out.
+   */
+  putAway(): void {
+    const before = this.before;
+    if (!before || this.loading) return;
+    this.before = null;
+    restoreStore(before.store, (object) => SEAT_OWN.has(object.aliasName));
+    for (const identifier of this.brought.images) {
+      if (!before.images.has(identifier)) ImageStorage.instance.delete(identifier);
+    }
+    for (const identifier of this.brought.audios) {
+      if (!before.audios.has(identifier)) AudioStorage.instance.delete(identifier);
+    }
+    this.brought = { images: [], audios: [] };
+    this.tabletopAction.makeDefaultTabletopObjects();
   }
 
   /**
@@ -108,12 +161,20 @@ export class StartRoomService {
         const blob = await reading;
         if (blob) {
           this.objectStore.get<ReloadCheck>('ReloadCheck')?.reloadCheckStart(false);
+          this.before = {
+            store: snapshotStore(),
+            images: new Set(ImageStorage.instance.images.map((image) => image.identifier)),
+            audios: new Set(AudioStorage.instance.audios.map((audio) => audio.identifier)),
+          };
           const file = new File([blob], 'start-room.zip', { type: 'application/zip' });
-          dataRead = (await this.fileArchiver.load([file], undefined, { stillWanted: alone })).dataRead;
+          const result = await this.fileArchiver.load([file], undefined, { stillWanted: alone });
+          dataRead = result.dataRead;
+          this.brought = { images: result.images, audios: result.audios };
         }
       } catch (reason) {
         Logger.warn('[StartRoom] could not set out the start room', reason);
       }
+      if (!dataRead || !alone()) this.before = null;
       if (dataRead || !alone()) return true;
       this.snackbar.show(this.t('feature.roomArchive.startRoom.loadFailed'));
       return false;

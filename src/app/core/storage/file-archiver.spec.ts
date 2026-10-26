@@ -193,8 +193,8 @@ describe('FileArchiver', () => {
       });
       const broken = new File([new Uint8Array([0, 1, 2, 3])], 'broken.zip', { type: 'application/zip' });
       try {
-        expect(await FileArchiver.instance.load([saved])).toEqual({ dataRead: true });
-        expect(await FileArchiver.instance.load([broken])).toEqual({ dataRead: false });
+        expect(await FileArchiver.instance.load([saved])).toMatchObject({ dataRead: true });
+        expect(await FileArchiver.instance.load([broken])).toMatchObject({ dataRead: false });
       } finally {
         off();
       }
@@ -208,10 +208,23 @@ describe('FileArchiver', () => {
         type: 'application/zip',
       });
       try {
-        expect(await FileArchiver.instance.load([saved])).toEqual({ dataRead: true });
+        expect(await FileArchiver.instance.load([saved])).toMatchObject({ dataRead: true });
       } finally {
         off();
       }
+    });
+
+    it('names the pictures and sounds it took in', async () => {
+      vi.spyOn(ImageStorage.instance, 'addAsync').mockResolvedValue({ identifier: 'taken-picture' } as ImageFile);
+      vi.spyOn(AudioStorage.instance, 'addAsync').mockResolvedValue({ identifier: 'taken-sound' } as AudioFile);
+
+      const result = await FileArchiver.instance.load([
+        new File([new Uint8Array([137, 80, 78, 71])], 'face.png', { type: 'image/png' }),
+        new File([new Uint8Array([1, 2, 3])], 'theme.mp3', { type: 'audio/mpeg' }),
+      ]);
+
+      expect(result.images).toEqual(['taken-picture']);
+      expect(result.audios).toEqual(['taken-sound']);
     });
 
     it('leaves the rest of an archive once it is no longer wanted', async () => {
@@ -226,7 +239,7 @@ describe('FileArchiver', () => {
       try {
         const result = await FileArchiver.instance.load([saved], undefined, { stillWanted: () => false });
 
-        expect(result).toEqual({ dataRead: false });
+        expect(result).toMatchObject({ dataRead: false });
         expect(read).toEqual([]);
       } finally {
         off();
@@ -679,7 +692,7 @@ describe('FileArchiver', () => {
 
     it('skips a broken archive without throwing', async () => {
       const badFile = new File([new Uint8Array([0, 1, 2, 3])], 'broken.zip', { type: 'application/zip' });
-      await expect(FileArchiver.instance.load([badFile])).resolves.toEqual({ dataRead: false });
+      await expect(FileArchiver.instance.load([badFile])).resolves.toMatchObject({ dataRead: false });
     });
 
     it('takes a picture inside it by its bytes where its name does not say what it is', async () => {

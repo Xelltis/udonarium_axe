@@ -66,7 +66,7 @@ describe('RoomSnapshotService', () => {
 
   beforeEach(() => {
     store = new FakeRoomSnapshotStore();
-    load = vi.fn().mockResolvedValue({ dataRead: true });
+    load = vi.fn().mockResolvedValue({ dataRead: true, images: [], audios: [] });
 
     TestBed.configureTestingModule({
       providers: [
@@ -148,7 +148,7 @@ describe('RoomSnapshotService', () => {
 
   it('reports failure restoring a snapshot whose room cannot be read', async () => {
     const meta = await service.capture();
-    load.mockResolvedValue({ dataRead: false });
+    load.mockResolvedValue({ dataRead: false, images: [], audios: [] });
 
     await expect(service.restore(meta!.id)).resolves.toBe(false);
   });

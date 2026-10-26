@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { StartRoomService } from '@axe/application/file/start-room.service';
 import {
   ROOM_CONNECT_TIMEOUT_MS,
   ROOM_OPEN_TIMEOUT_MS,
@@ -43,12 +44,18 @@ describe('RoomJoinService', () => {
   let connectedPeers: IPeerContext[];
   let originalMyCursor: PeerCursor;
   let livePeerId: string;
+  let startRoom: { settling: ReturnType<typeof vi.fn>; putAway: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     stubChange = new StubObjectChangeService();
     connectedPeers = [];
+    startRoom = { settling: vi.fn(() => null), putAway: vi.fn() };
     TestBed.configureTestingModule({
-      providers: [...TEST_PROVIDERS, { provide: ObjectChangeService, useValue: stubChange }],
+      providers: [
+        ...TEST_PROVIDERS,
+        { provide: ObjectChangeService, useValue: stubChange },
+        { provide: StartRoomService, useValue: startRoom },
+      ],
     });
     service = TestBed.inject(RoomJoinService);
 
@@ -118,6 +125,15 @@ describe('RoomJoinService', () => {
       expect(await joined).toBe(true);
       expect(Network.open).toHaveBeenCalledWith('user', 'abc', 'roomname', 'secret', KEY);
       expect(Network.connect).not.toHaveBeenCalled();
+    });
+
+    it('puts the start room away before it opens a room on a room server', () => {
+      startRoom.putAway.mockImplementation(() => expect(Network.open).not.toHaveBeenCalled());
+
+      void service.joinServerRoom(serverRoom(), '');
+
+      expect(startRoom.putAway).toHaveBeenCalledTimes(1);
+      expect(Network.open).toHaveBeenCalled();
     });
 
     it('gives up when the server refuses, leaving the wait to the handling of the error', async () => {
@@ -225,6 +241,31 @@ describe('RoomJoinService', () => {
 
       roomOpens();
       expect(Network.connect).toHaveBeenCalledTimes(2);
+    });
+
+    it("puts the start room away before the room opens, so nothing of it goes into somebody else's room", () => {
+      startRoom.putAway.mockImplementation(() => expect(Network.open).not.toHaveBeenCalled());
+
+      void service.join([peerContext('peer-1', 'abc', 'room')], '');
+
+      expect(startRoom.putAway).toHaveBeenCalledTimes(1);
+      expect(Network.open).toHaveBeenCalled();
+    });
+
+    it('waits for a start room still being set out before it puts it away and opens the room', async () => {
+      let finish!: () => void;
+      startRoom.settling.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
+
+      void service.join([peerContext('peer-1', 'abc', 'room')], '');
+      expect(Network.open).not.toHaveBeenCalled();
+
+      startRoom.settling.mockReturnValue(null);
+      finish();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(startRoom.putAway).toHaveBeenCalledTimes(1);
+      expect(Network.open).toHaveBeenCalled();
     });
 
     it('comes into the room as a player when this seat was left as game master, before anyone sees it', () => {

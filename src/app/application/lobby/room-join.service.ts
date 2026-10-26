@@ -1,4 +1,5 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
+import { StartRoomService } from '@axe/application/file/start-room.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { Network } from '@axe/core/index';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
@@ -52,6 +53,7 @@ export class RoomJoinService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly startRoom = inject(StartRoomService);
 
   /**
    * Whether joining is waiting for this seat's previous connection to the room to drop, as it is
@@ -94,6 +96,9 @@ export class RoomJoinService {
   joinServerRoom(room: IRoomInfo, password: string): Promise<boolean> {
     const roomKey = room.roomKey;
     if (!roomKey) return Promise.resolve(false);
+    const settling = this.startRoom.settling();
+    if (settling) return settling.then(() => this.joinServerRoom(room, password));
+    this.startRoom.putAway();
 
     const userId = Network.peerContext ? Network.peerContext.userId : PeerContext.generateUserId();
     Network.open(userId, room.id, room.name, password, roomKey);
@@ -168,6 +173,9 @@ export class RoomJoinService {
   join(peerContexts: readonly IPeerContext[], password: string): Promise<boolean> {
     const context = peerContexts[0];
     if (!context) return Promise.resolve(false);
+    const settling = this.startRoom.settling();
+    if (settling) return settling.then(() => this.join(peerContexts, password));
+    this.startRoom.putAway();
 
     const identityBefore = loadIdentity();
     const roleBefore = PeerCursor.myCursor.role;

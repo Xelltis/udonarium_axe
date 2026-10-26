@@ -288,7 +288,7 @@ describe('ReplayLibraryService', () => {
   it('reads an exported bundle back into the same recording', async () => {
     const meta = await seedRecording();
     const zipSpy = vi.spyOn(archiver, 'createZipBlobAsync').mockResolvedValue(new Blob(['zip']));
-    vi.spyOn(archiver, 'load').mockResolvedValue({ dataRead: true });
+    vi.spyOn(archiver, 'load').mockResolvedValue({ dataRead: true, images: [], audios: [] });
 
     expect(await service.export(meta, false)).toBe(true);
     const files = zipSpy.mock.calls[0][0] as File[];
@@ -332,7 +332,7 @@ describe('ReplayLibraryService', () => {
       { name: 'x/assets/data.xml', type: 'text/xml', blob: new Blob(['<room/>']) },
     ];
     vi.spyOn(archiver, 'readZipEntriesAsync').mockResolvedValue(entries);
-    const load = vi.spyOn(archiver, 'load').mockResolvedValue({ dataRead: true });
+    const load = vi.spyOn(archiver, 'load').mockResolvedValue({ dataRead: true, images: [], audios: [] });
     const addImage = vi.spyOn(TestBed.inject(ImageStorage), 'addAsync');
 
     expect(await service.import(new File(['zip'], 'replay.zip'))).not.toBeNull();

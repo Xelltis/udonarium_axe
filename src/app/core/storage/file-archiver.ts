@@ -53,6 +53,10 @@ export interface LoadResult {
    * true even where taking it in then failed partway, as the table is no longer as it was.
    */
   readonly dataRead: boolean;
+  /** The identifiers of the pictures the load took in. */
+  readonly images: readonly string[];
+  /** The identifiers of the sounds the load took in. */
+  readonly audios: readonly string[];
 }
 
 /** What one load carries along from file to file. */
@@ -61,6 +65,8 @@ interface LoadRun {
   /** Asked before each file inside a zip; once it answers false, the rest of the load is left. */
   readonly stillWanted: () => boolean;
   dataRead: boolean;
+  readonly images: string[];
+  readonly audios: string[];
 }
 
 /** What {@link FileArchiver.loadImages} took in and what it had to leave out. */
@@ -209,10 +215,16 @@ export class FileArchiver {
     dropPoint?: { x: number; y: number },
     options: { stillWanted?: () => boolean } = {}
   ): Promise<LoadResult> {
-    const run: LoadRun = { tooLarge: [], stillWanted: options.stillWanted ?? (() => true), dataRead: false };
+    const run: LoadRun = {
+      tooLarge: [],
+      stillWanted: options.stillWanted ?? (() => true),
+      dataRead: false,
+      images: [],
+      audios: [],
+    };
     await this.loadFiles(files, dropPoint, true, run);
     if (run.tooLarge.length > 0) emitFilesTooLarge({ files: run.tooLarge });
-    return { dataRead: run.dataRead };
+    return { dataRead: run.dataRead, images: run.images, audios: run.audios };
   }
 
   private async loadFiles(
@@ -227,9 +239,9 @@ export class FileArchiver {
     let droppedImageCount = 0;
     for (const file of loadFiles) {
       const imageDropPoint = placesDroppedImages ? this.offsetDropPoint(dropPoint, droppedImageCount) : undefined;
-      const isImageDropped = await this.handleImage(file, imageDropPoint, run.tooLarge, placesDroppedImages);
+      const isImageDropped = await this.handleImage(file, imageDropPoint, run, placesDroppedImages);
       if (isImageDropped) droppedImageCount++;
-      await this.handleAudio(file, run.tooLarge);
+      await this.handleAudio(file, run);
       await this.handleText(file, dropPoint, run);
       await this.handleZip(file, dropPoint, run);
       emitFileLoaded();
@@ -267,7 +279,7 @@ export class FileArchiver {
   private async handleImage(
     file: File,
     dropPoint: { x: number; y: number } | undefined,
-    tooLarge: FileTooLarge[],
+    run: LoadRun,
     handsBackTooLarge: boolean
   ): Promise<boolean> {
     if (!file.type.startsWith('image/')) return false;
@@ -275,7 +287,7 @@ export class FileArchiver {
     if (!(this.reloadCheck?.isLoadOk() ?? true)) return false;
     const image = await this.storeImage(file);
     if (image === 'oversized') {
-      tooLarge.push({
+      run.tooLarge.push({
         name: file.name,
         kind: 'image',
         limitBytes: MAX_LOADED_IMAGE_BYTES,
@@ -284,6 +296,7 @@ export class FileArchiver {
       return false;
     }
     if (!image) return false;
+    run.images.push(image.identifier);
     if (dropPoint) emitImageDropped({ identifier: image.identifier, fileName: file.name, dropPoint });
     return dropPoint != null;
   }
@@ -297,14 +310,15 @@ export class FileArchiver {
     return ImageStorage.instance.addAsync(file, { putBack: true });
   }
 
-  private async handleAudio(file: File, tooLarge: FileTooLarge[]) {
+  private async handleAudio(file: File, run: LoadRun) {
     if (!file.type.startsWith('audio/')) return;
     if (file.size > MAX_LOADED_AUDIO_BYTES) {
       Logger.warn(`[FileArchiver] ファイルサイズ制限超過: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
-      tooLarge.push({ name: file.name, kind: 'audio', limitBytes: MAX_LOADED_AUDIO_BYTES });
+      run.tooLarge.push({ name: file.name, kind: 'audio', limitBytes: MAX_LOADED_AUDIO_BYTES });
       return;
     }
-    await AudioStorage.instance.addAsync(file, { putBack: true });
+    const audio = await AudioStorage.instance.addAsync(file, { putBack: true });
+    if (audio) run.audios.push(audio.identifier);
   }
 
   private async handleText(file: File, dropPoint: { x: number; y: number } | undefined, run: LoadRun): Promise<void> {
@@ -372,7 +386,7 @@ export class FileArchiver {
         const saved = type.startsWith('image/') && SAVED_IMAGE_NAME.test(name);
         const file = new File([entry.blob], name, { type });
         if (type.startsWith('image/') && !saved) {
-          await this.loadArchivedImage(file, renamed, run.tooLarge);
+          await this.loadArchivedImage(file, renamed, run);
         } else {
           rest.push(file);
         }
@@ -418,14 +432,15 @@ export class FileArchiver {
    * differ, the one is noted against the other in `renamed`, for that data to be read under the id
    * the picture is kept under.
    */
-  private async loadArchivedImage(file: File, renamed: Map<string, string>, tooLarge: FileTooLarge[]): Promise<void> {
+  private async loadArchivedImage(file: File, renamed: Map<string, string>, run: LoadRun): Promise<void> {
     if (!(this.reloadCheck?.isLoadOk() ?? true)) return;
     const original = await FileReaderUtil.calcSHA256Async(file);
     const image = await this.storeImage(file);
     if (image === 'oversized') {
-      tooLarge.push({ name: file.name, kind: 'image', limitBytes: MAX_LOADED_IMAGE_BYTES });
-    } else if (image && image.identifier !== original) {
-      renamed.set(original, image.identifier);
+      run.tooLarge.push({ name: file.name, kind: 'image', limitBytes: MAX_LOADED_IMAGE_BYTES });
+    } else if (image) {
+      run.images.push(image.identifier);
+      if (image.identifier !== original) renamed.set(original, image.identifier);
     }
     emitFileLoaded();
   }

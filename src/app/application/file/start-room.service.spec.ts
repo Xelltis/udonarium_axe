@@ -1,12 +1,18 @@
 import { TestBed } from '@angular/core/testing';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { StartRoomService } from '@axe/application/file/start-room.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
+import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { StartRoomStore } from '@axe/core/storage/start-room-store';
+import { ObjectStore } from '@axe/core/sync/object-store';
+import { DataElement } from '@axe/domain/data/data-element';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('StartRoomService', () => {
@@ -31,7 +37,7 @@ describe('StartRoomService', () => {
       kept = null;
       return true;
     });
-    load = vi.spyOn(TestBed.inject(FileArchiver), 'load').mockResolvedValue({ dataRead: true });
+    load = vi.spyOn(TestBed.inject(FileArchiver), 'load').mockResolvedValue({ dataRead: true, images: [], audios: [] });
     ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
     shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => undefined as never);
     vi.spyOn(TestBed.inject(SaveDataService), 'createWholeRoomArchiveAsync').mockResolvedValue(new Blob(['room']));
@@ -129,7 +135,7 @@ describe('StartRoomService', () => {
         expect(options.stillWanted()).toBe(true);
         others.mockReturnValue([{}] as never);
         expect(options.stillWanted()).toBe(false);
-        return { dataRead: false };
+        return { dataRead: false, images: [], audios: [] };
       });
 
       expect(await service.loadPending()).toBe(true);
@@ -171,7 +177,7 @@ describe('StartRoomService', () => {
     it('says so and answers false where the data of the room kept cannot be read, which leaves the table to the sample', async () => {
       kept = new Blob(['room']);
       await service.prepare('');
-      load.mockResolvedValue({ dataRead: false });
+      load.mockResolvedValue({ dataRead: false, images: [], audios: [] });
 
       expect(await service.loadPending()).toBe(false);
 
@@ -268,6 +274,86 @@ describe('StartRoomService', () => {
       expect(await service.forget()).toBe(false);
 
       expect(kept).not.toBeNull();
+    });
+  });
+
+  describe("putting the start room away before going into somebody else's room", () => {
+    let sample: ReturnType<typeof vi.spyOn>;
+    let droppedPictures: ReturnType<typeof vi.spyOn>;
+    let droppedSounds: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      sample = vi
+        .spyOn(TestBed.inject(TabletopActionService), 'makeDefaultTabletopObjects')
+        .mockImplementation(() => {});
+      droppedPictures = vi.spyOn(ImageStorage.instance, 'delete').mockReturnValue(true);
+      droppedSounds = vi.spyOn(AudioStorage.instance, 'delete').mockReturnValue(true);
+    });
+
+    afterEach(() => {
+      ObjectStore.instance.get('brought-piece')?.destroy();
+      ObjectStore.instance.clearDeleteHistory();
+    });
+
+    async function setOut(dataRead = true): Promise<void> {
+      kept = new Blob(['room']);
+      await service.prepare('');
+      load.mockImplementation(async () => {
+        DataElement.create('HP', 10, {}, 'brought-piece');
+        return { dataRead, images: ['brought-picture'], audios: ['brought-sound'] };
+      });
+      await service.loadPending();
+    }
+
+    it('takes the table back to how the page set it out, drops what the start room brought, and sets out the sample', async () => {
+      await setOut();
+
+      service.putAway();
+
+      expect(ObjectStore.instance.get('brought-piece')).toBeNull();
+      expect(droppedPictures).toHaveBeenCalledWith('brought-picture');
+      expect(droppedSounds).toHaveBeenCalledWith('brought-sound');
+      expect(sample).toHaveBeenCalledTimes(1);
+    });
+
+    it('puts it away once only', async () => {
+      await setOut();
+
+      service.putAway();
+      service.putAway();
+
+      expect(sample).toHaveBeenCalledTimes(1);
+    });
+
+    it('puts nothing away once the seat has been in a room of its own making', async () => {
+      await setOut();
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: true } as never);
+      (
+        TestBed.inject(ObjectChangeService) as unknown as { _networkOpen$: { emit(event: { peerId: string }): void } }
+      )._networkOpen$.emit({ peerId: 'own-room-peer' });
+
+      service.putAway();
+
+      expect(ObjectStore.instance.get('brought-piece')).not.toBeNull();
+      expect(sample).not.toHaveBeenCalled();
+    });
+
+    it('puts nothing away where the start room could not be read, as the sample is out already', async () => {
+      await setOut(false);
+
+      service.putAway();
+
+      expect(sample).not.toHaveBeenCalled();
+      expect(droppedPictures).not.toHaveBeenCalled();
+    });
+
+    it('lets a join wait while the start room is still being set out', async () => {
+      kept = new Blob(['room']);
+      await service.prepare('');
+
+      expect(service.settling()).not.toBeNull();
+      await service.loadPending();
+      expect(service.settling()).toBeNull();
     });
   });
 });
