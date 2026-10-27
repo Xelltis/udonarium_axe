@@ -27,6 +27,7 @@ export const SWITCH_ACTION_KINDS = [
   'showTable',
   'carry',
   'tableSetting',
+  'battle',
 ] as const;
 
 export type SwitchActionKind = (typeof SWITCH_ACTION_KINDS)[number];
@@ -165,6 +166,14 @@ export interface SwitchRemoveSelf extends SwitchActionBase {
 }
 
 /**
+ * The battle stage played for the room, with the pieces the master put on its two sides: whose turn
+ * it is strikes if they stand in the lineup, then the presser's piece, then the first on the left.
+ */
+export interface SwitchBattle extends SwitchActionBase {
+  kind: 'battle';
+}
+
+/**
  * Something a newer version knows how to do and this one does not.
  *
  * Kept whole rather than read as something this version does know: a switch that makes monsters
@@ -188,6 +197,7 @@ export type SwitchAction =
   | SwitchShowTable
   | SwitchCarry
   | SwitchTableSetting
+  | SwitchBattle
   | SwitchUnknownAction;
 
 /** What a switch is called and what it does when it is pressed. */
@@ -345,7 +355,7 @@ function readAction(raw: unknown): SwitchAction | null {
   if (kind === 'reveal' || kind === 'conceal') {
     return { kind, target: readTarget(raw['target']), delayMs, extra: leftOver(raw, TARGET_KEYS) };
   }
-  if (kind === 'removeSelf') return { kind, delayMs, extra: leftOver(raw, BARE_KEYS) };
+  if (kind === 'removeSelf' || kind === 'battle') return { kind, delayMs, extra: leftOver(raw, BARE_KEYS) };
   if (kind === 'showTable')
     return { kind, table: readTarget(raw['table']), delayMs, extra: leftOver(raw, SHOW_TABLE_KEYS) };
   if (kind === 'carry') {
@@ -434,6 +444,7 @@ function writeAction(action: SwitchAction): Record<string, unknown> {
     case 'conceal':
       return { ...action.extra, kind: action.kind, delayMs: action.delayMs, target: { ...action.target } };
     case 'removeSelf':
+    case 'battle':
       return { ...action.extra, kind: action.kind, delayMs: action.delayMs };
     case 'showTable':
       return { ...action.extra, kind: action.kind, delayMs: action.delayMs, table: { ...action.table } };
@@ -493,6 +504,7 @@ export function newSwitchAction(kind: 'say'): SwitchSay;
 export function newSwitchAction(kind: 'secret'): SwitchSecret;
 export function newSwitchAction(kind: SwitchShowHide['kind']): SwitchShowHide;
 export function newSwitchAction(kind: 'removeSelf'): SwitchRemoveSelf;
+export function newSwitchAction(kind: 'battle'): SwitchBattle;
 export function newSwitchAction(kind: 'spawn'): SwitchSpawn;
 export function newSwitchAction(kind: 'showTable'): SwitchShowTable;
 export function newSwitchAction(kind: 'carry'): SwitchCarry;
@@ -504,7 +516,7 @@ export function newSwitchAction(kind: SwitchActionKind): SwitchAction {
   if (kind === 'secret') return { kind, text: '', to: 'presser', delayMs: 0, extra: {} };
   if (kind === 'reveal' || kind === 'conceal')
     return { kind, target: { identifier: '', name: '' }, delayMs: 0, extra: {} };
-  if (kind === 'removeSelf') return { kind, delayMs: 0, extra: {} };
+  if (kind === 'removeSelf' || kind === 'battle') return { kind, delayMs: 0, extra: {} };
   if (kind === 'spawn') {
     return { kind, target: { identifier: '', name: '' }, count: 1, place: 'host', delayMs: 0, extra: {} };
   }
@@ -534,7 +546,7 @@ export function switchDoesAnything(definition: SwitchDefinition): boolean {
   return definition.actions.some((action) => {
     if (action.kind === 'say' || action.kind === 'secret') return action.text.trim().length > 0;
     if (action.kind === 'reveal' || action.kind === 'conceal' || action.kind === 'spawn') return names(action.target);
-    if (action.kind === 'removeSelf' || action.kind === 'carry') return true;
+    if (action.kind === 'removeSelf' || action.kind === 'carry' || action.kind === 'battle') return true;
     if (action.kind === 'showTable') return names(action.table);
     if (action.kind === 'tableSetting') {
       return (

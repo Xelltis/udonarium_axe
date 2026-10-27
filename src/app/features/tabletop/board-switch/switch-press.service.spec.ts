@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { BattleLaunchService } from '@axe/application/battle/battle-launch.service';
+import { BattleLaunchLoaderService } from '@axe/application/battle/battle-launch-loader.service';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
@@ -197,6 +199,18 @@ describe('SwitchPressService', () => {
 
     expect(effect).toHaveBeenNthCalledWith(1, 'sparkle', []);
     expect(effect).toHaveBeenNthCalledWith(2, 'sparkle', [hero]);
+  });
+
+  it('plays the battle stage for the lineup, asking the piece the presser speaks as to strike', async () => {
+    const playLineup = vi.fn();
+    vi.spyOn(TestBed.inject(BattleLaunchLoaderService), 'load').mockResolvedValue({
+      playLineup,
+    } as unknown as BattleLaunchService);
+    const hero = speakAs(0, 0);
+
+    await presses.press(switchWith({ actions: [{ kind: 'battle', delayMs: 0, extra: {} }] }));
+
+    expect(playLineup).toHaveBeenCalledWith(hero, 'everywhere');
   });
 
   it('goes on with the rest where one thing goes wrong', async () => {

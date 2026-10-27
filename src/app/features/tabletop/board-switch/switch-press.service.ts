@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import { BattleLaunchLoaderService } from '@axe/application/battle/battle-launch-loader.service';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
@@ -105,6 +106,7 @@ export class SwitchPressService {
   private readonly images = inject(ImageStorage);
   private readonly audios = inject(AudioStorage);
   private readonly tableBgm = inject(TableBgmService);
+  private readonly battle = inject(BattleLaunchLoaderService);
 
   private readonly running = new Set<string>();
   private readonly pressedAt = new Map<string, number>();
@@ -270,6 +272,9 @@ export class SwitchPressService {
       }
       case 'tableSetting':
         this.changeTable(action);
+        return;
+      case 'battle':
+        (await this.battle.load())?.playLineup(context.character, 'everywhere');
         return;
       case 'unknown':
         return;
