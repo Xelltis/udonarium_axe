@@ -35,7 +35,7 @@
     "entities": "^8.1.0",
     "eventemitter3": "^5.0.4",
     "fflate": "^0.8.3",
-    "linkify-html": "^4.3.2",
+    "linkify-html": "^4.4.0",
     "linkifyjs": "^4.3.2",
     "mp4-muxer": "^5.2.2",
     "rxjs": "^7.5.5",
