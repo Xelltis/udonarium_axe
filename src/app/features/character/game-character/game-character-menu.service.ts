@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import { BattleLaunchLoaderService } from '@axe/application/battle/battle-launch-loader.service';
 import { ResourceSliderService } from '@axe/application/character/resource-slider.service';
 import { StealthService } from '@axe/application/character/stealth.service';
 import { CharacterDiceService } from '@axe/application/dice/character-dice.service';
@@ -43,6 +44,12 @@ import {
 import { GameCharacterBuffViewComponent } from '@axe/features/character/game-character-buff-view/game-character-buff-view.component';
 import { buildConcealMenu } from '@axe/features/disclosure/concealment-context-menu';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
+import { RoomPanelService } from '@axe/features/panels/room-panel.service';
+
+/** What the battle stage's panel is asked, once it is open, without loading it to know its type. */
+interface BattleCutInPanelHandle {
+  focusOn(identifier: string): void;
+}
 
 /** What a character's menu reads of the piece as it is drawn on the table. */
 export interface GameCharacterMenuHost {
@@ -99,6 +106,8 @@ export class GameCharacterMenuService {
   private readonly stealth = inject(StealthService);
   private readonly resourceSliders = inject(ResourceSliderService);
   private readonly disclosureService = inject(DisclosureService);
+  private readonly battle = inject(BattleLaunchLoaderService);
+  private readonly roomPanels = inject(RoomPanelService);
 
   /**
    * Opens a character's menu at a position, if the reader may view the piece.
@@ -145,6 +154,10 @@ export class GameCharacterMenuService {
         onInvokeRangeShape: (value) => this.rangeShapeInvoke.spawnForCharacter(char, value),
         onInvokeEffect: (name) => this.invokeEffect(char, name),
         onDeployDice: () => this.characterDice.deploy(char),
+        onShowBattle: () =>
+          this.roomPanels.open<BattleCutInPanelHandle>('battleCutIn', {}, (panel) => panel.focusOn(char.identifier)),
+        onPlayBattle: () => void this.playBattle(char),
+        onSetBattleSide: this.rolePermission.isGameMaster() ? (side) => (char.battleSide = side ?? '') : undefined,
         onSetResourceSliders: this.resourceSliders.maySetAll(char)
           ? (shown) => this.resourceSliders.setAll(char, shown)
           : undefined,
@@ -314,6 +327,17 @@ export class GameCharacterMenuService {
   }
 
   /** Fires an effect from a character sheet. It is looked up by name, so the same row works in any room. */
+  /**
+   * Plays the battle stage with the piece striking: at the pieces aimed at, or, with none, at the
+   * other side of the master's lineup.
+   */
+  private async playBattle(char: GameCharacter): Promise<void> {
+    const targets = this.effectCast.candidateTargets().filter((target) => target !== char);
+    const battle = await this.battle.load();
+    if (targets.length > 0) battle?.play({ attacker: char, defenders: targets }, 'everywhere');
+    else battle?.playLineupAs(char, 'everywhere');
+  }
+
   private invokeEffect(char: GameCharacter, name: string): void {
     const preset = this.effectLibrary.findByName(name);
     if (preset) this.effectCast.fireFromCharacter(preset, char);

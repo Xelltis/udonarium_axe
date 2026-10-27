@@ -13,6 +13,7 @@ import {
   buildToggleAction,
 } from '@axe/application/ui/tabletop-context-menu-actions';
 import { Network } from '@axe/core/index';
+import type { BattleSide } from '@axe/domain/battle/battle-lineup';
 import { BUFF_VIEW_MODES } from '@axe/domain/character/buff-view-mode';
 import { heldDiceOf } from '@axe/domain/character/character-dice';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -39,6 +40,12 @@ export interface GameCharacterContextMenuCallbacks {
   onInvokeRangeShape?: (value: RangeShapeFieldValue) => void;
   onInvokeEffect?: (name: string) => void;
   onDeployDice?: () => void;
+  /** Opens the battle stage's panel on the piece, to choose what it strikes with. */
+  onShowBattle?: () => void;
+  /** Plays the battle stage with the piece striking. Left out for a seat that may not play it. */
+  onPlayBattle?: () => void;
+  /** Puts the piece on a side of the battle stage's lineup, or takes it off. Left out but for the master. */
+  onSetBattleSide?: (side: BattleSide | null) => void;
   /**
    * Gives every resource of the piece a slider, or takes them all away. Left out for a seat that may
    * not, or a piece with no resource.
@@ -112,6 +119,36 @@ export function collectRegisteredEffects(char: GameCharacter): string[] {
   };
   for (const child of sheetElementsOf(char)) walk(child);
   return names;
+}
+
+/**
+ * The battle stage, from the piece: play it with the piece striking, choose what it strikes with,
+ * and, for the master, the side of the lineup it stands on.
+ */
+function buildBattleAction(
+  char: GameCharacter,
+  callbacks: GameCharacterContextMenuCallbacks,
+  t: TranslateFn
+): ContextMenuAction {
+  const sides: (BattleSide | null)[] = ['left', 'right', null];
+  return {
+    name: t('feature.character.contextMenu.battle'),
+    action: undefined,
+    subActions: [
+      ...(callbacks.onPlayBattle
+        ? [{ name: t('feature.character.contextMenu.battlePlay'), action: () => callbacks.onPlayBattle?.() }]
+        : []),
+      { name: t('feature.character.contextMenu.battleEffect'), action: () => callbacks.onShowBattle?.() },
+      ...(callbacks.onSetBattleSide
+        ? sides.map((side) => ({
+            name:
+              (char.battleSide === (side ?? '') ? '✔ ' : '') +
+              t(`feature.character.contextMenu.battleSide_${side ?? 'none'}`),
+            action: () => callbacks.onSetBattleSide?.(side),
+          }))
+        : []),
+    ],
+  };
 }
 
 function capitalize(value: string): string {
@@ -249,6 +286,7 @@ export function buildGameCharacterContextMenuModel(
           } as ContextMenuAction,
         ]
       : []),
+    ...(callbacks.onShowBattle ? [buildBattleAction(char, callbacks, t)] : []),
     ...(registeredEffects.length > 0 && callbacks.onInvokeEffect
       ? [
           {

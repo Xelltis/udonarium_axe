@@ -131,6 +131,57 @@ describe('buildGameCharacterContextMenu()', () => {
     });
   });
 
+  describe('the battle stage', () => {
+    type Entry = { name?: unknown; action?: () => void; subActions?: readonly unknown[] };
+    function battleEntries(char: MutableChar & { battleSide?: string }, extra: object): Entry[] {
+      const menu = buildGameCharacterContextMenu(
+        char as unknown as GameCharacter,
+        50,
+        makeService(),
+        { ...callbacks(), ...extra },
+        t
+      );
+      const buff = groupOf(menu, 'バフ・演出') as unknown as Entry[];
+      return (buff.find((entry) => entry.name === '戦闘カットイン')?.subActions ?? []) as Entry[];
+    }
+
+    it('plays the stage with the piece striking and opens the panel on it', () => {
+      const onPlayBattle = vi.fn();
+      const onShowBattle = vi.fn();
+      const entries = battleEntries(makeChar(), { onPlayBattle, onShowBattle });
+
+      entries.find((entry) => entry.name === 'このコマで攻撃')!.action!();
+      entries.find((entry) => entry.name === '攻撃演出を選ぶ…')!.action!();
+
+      expect(onPlayBattle).toHaveBeenCalled();
+      expect(onShowBattle).toHaveBeenCalled();
+    });
+
+    it('lets only the master put the piece on a side, marking the side it stands on', () => {
+      const onSetBattleSide = vi.fn();
+      const asMaster = battleEntries(
+        { ...makeChar(), battleSide: 'right' },
+        { onShowBattle: vi.fn(), onSetBattleSide }
+      );
+
+      expect(asMaster.map((entry) => entry.name)).toEqual([
+        '攻撃演出を選ぶ…',
+        '左の組に入れる',
+        '✔ 右の組に入れる',
+        '組に入れない',
+      ]);
+      asMaster.find((entry) => entry.name === '組に入れない')!.action!();
+      expect(onSetBattleSide).toHaveBeenCalledWith(null);
+
+      const asPlayer = battleEntries(makeChar(), { onShowBattle: vi.fn() });
+      expect(asPlayer.map((entry) => entry.name)).toEqual(['攻撃演出を選ぶ…']);
+    });
+
+    it('is left out where nothing about the stage is handed in', () => {
+      expect(battleEntries(makeChar(), {})).toEqual([]);
+    });
+  });
+
   it('puts working a move out above everything else the piece is asked', () => {
     const menu = buildGameCharacterContextMenu(
       makeChar() as unknown as GameCharacter,
