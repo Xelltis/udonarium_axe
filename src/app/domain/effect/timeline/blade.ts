@@ -24,6 +24,8 @@ import {
  */
 
 const BISECT_PIECE_SCALE = 0.62;
+/** How tall the picture that is cleaved is drawn, against the size the effect is drawn at. */
+export const BISECT_PICTURE_HEIGHT = BISECT_PIECE_SCALE * 2;
 const BISECT_GUSH_COUNT = 7;
 /** The two halves the cut makes, each keeping one side of the picture. */
 const BISECT_HALVES = [

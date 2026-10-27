@@ -95,6 +95,15 @@ export function isEffectFinished(preset: EffectPreset, cast: EffectCast, elapsed
  */
 export function impactSoundTimes(preset: EffectPreset): number[] {
   if (preset.impactSoundIdentifier.length < 1) return [];
+  return effectLandingTimes(preset);
+}
+
+/**
+ * When each blow of an effect lands, in milliseconds from its start, whether or not anything
+ * sounds there: once per shot of a burst and once per stage of a run that lands, thinned as the
+ * landing sounds are.
+ */
+export function effectLandingTimes(preset: EffectPreset): number[] {
   // A run lands once per stage that lands, which is where the ear expects it.
   if (preset.isStaged) {
     const times = stageSoundTimes(preset, ['impact', 'spawn'], IMPACT_SOUND_MIN_GAP_MS);
