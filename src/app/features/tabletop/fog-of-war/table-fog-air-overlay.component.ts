@@ -2,12 +2,12 @@ import { NgStyle } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, viewChildren } from '@angular/core';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { FogAirLayer, fogAirLayers } from '@axe/features/tabletop/fog-of-war/fog-air-layers';
+import { FogAirLayer, fogAirLayers } from '@axe/infrastructure/tabletop/fog/fog-air-layers';
 import {
   FOG_AIR_SHEET_MARGIN,
   fogAirDriftStyle,
   paintFogAirSheet,
-} from '@axe/features/tabletop/fog-of-war/fog-air-sheet';
+} from '@axe/infrastructure/tabletop/fog/fog-air-sheet';
 
 interface Sheet {
   layer: FogAirLayer;

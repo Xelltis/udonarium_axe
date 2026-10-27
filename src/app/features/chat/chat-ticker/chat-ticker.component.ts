@@ -11,7 +11,6 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -29,6 +28,7 @@ import {
   makeChatTickerRepeatOffsets,
   pointAtChatTickerDistance,
 } from '@axe/features/chat/chat-ticker/chat-ticker-layout';
+import { ChatTickerSelectionService } from '@axe/features/chat/chat-ticker-selection.service';
 
 const TICKER_FONT_SIZE_PX = 18;
 const TICKER_OUTLINE_WIDTH_PX = 4;

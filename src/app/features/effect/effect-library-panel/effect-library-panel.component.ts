@@ -7,6 +7,7 @@ import { EffectFieldService } from '@axe/application/effect/effect-field.service
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -16,6 +17,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { browserLocalStorage } from '@axe/core/storage/local-preference';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { buildEffectChatToken } from '@axe/domain/effect/effect-chat-token';
@@ -24,7 +26,6 @@ import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { EffectPresetSet } from '@axe/domain/effect/effect-preset-set';
 import { kindGlyphSvg } from '@axe/domain/effect/effect-shapes';
 import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { buildEffectLibraryContextMenu } from '@axe/features/effect/effect-library-panel/effect-library-context-menu';
 import {
   collectTags,
@@ -36,7 +37,6 @@ import {
 } from '@axe/features/effect/effect-library-panel/effect-library-list';
 import { pushRecentEffect, readRecentEffects } from '@axe/features/effect/effect-library-panel/recent-effects';
 import { EffectPresetEditorComponent } from '@axe/features/effect/effect-preset-editor/effect-preset-editor.component';
-import { HotbarFillService } from '@axe/features/hotbar/hotbar-fill.service';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -76,10 +76,7 @@ export class EffectLibraryPanelComponent {
 
   readonly tags = computed<string[]>(() => collectTags(this.library.presets()));
 
-  readonly isGameMaster = computed<boolean>(() => {
-    this.objectChange.trackMyCursor();
-    return PeerCursor.isMyselfGameMaster;
-  });
+  readonly isGameMaster = computed<boolean>(() => this.rolePermission.isGameMaster());
 
   readonly groups = computed<EffectLibraryGroup[]>(() =>
     groupPresets(
@@ -143,7 +140,7 @@ export class EffectLibraryPanelComponent {
     return character instanceof GameCharacter ? character.name : '';
   }
 
-  private readonly storage = typeof localStorage === 'undefined' ? null : localStorage;
+  private readonly storage = browserLocalStorage();
   private readonly recentIdentifiers = signal<string[]>(readRecentEffects(this.storage));
 
   /** What was used last, kept at the front whatever the list is narrowed to. */
@@ -229,7 +226,7 @@ export class EffectLibraryPanelComponent {
    */
   protected fire(preset: EffectPreset): void {
     this.notice.set('');
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     if (this.targeting.preset()?.identifier === preset.identifier) {
       this.targeting.cancel();
       return;
@@ -256,7 +253,7 @@ export class EffectLibraryPanelComponent {
   }
 
   protected confirmTargets(): void {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     const preset = this.targeting.preset();
     const names = this.pickedNames();
     if (!preset || !this.targeting.confirm()) return;

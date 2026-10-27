@@ -57,7 +57,7 @@ describe('the interrupt band and overlay', () => {
         {
           provide: RolePermissionService,
           useValue: {
-            get isGameMaster() {
+            isGameMaster() {
               return isGameMaster;
             },
           },

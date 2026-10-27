@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, ElementRef, input, output, signal, viewChild } from '@angular/core';
 import { tabInsertIndex } from '@axe/application/ui/panel-drag-helpers';
+import { DRAG_THRESHOLD_PX } from '@axe/core/input/drag-threshold';
+import { capturePointer } from '@axe/core/input/pointer-capture';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** How far a name is carried before it counts as being dragged rather than pressed. */
-const DRAG_THRESHOLD_PX = 6;
 
 /**
  * The row of names along the top of a frame holding more than one panel.
@@ -50,7 +51,7 @@ export class PanelTabStripComponent {
     this.chose.emit(index);
     this.held = { index, x: event.clientX, y: event.clientY };
     this.carrying = false;
-    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+    capturePointer(event.currentTarget, event.pointerId);
   }
 
   protected onPillPointerMove(event: PointerEvent): void {

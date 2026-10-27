@@ -488,6 +488,25 @@ describe('TurnOrderService', () => {
     expect(service.orderedCharacters()).toEqual([acting]);
   });
 
+  describe('where the round stands, read in one go', () => {
+    it('follows the round as it is written, once the change has been told', async () => {
+      expect(service.progress()).toMatchObject({ round: 0, currentIdentifier: '', canUndo: false, buffDecay: true });
+
+      service.next();
+      service.next();
+      service.next();
+      service.hold(chars[1].identifier);
+      await Promise.resolve();
+
+      const progress = service.progress();
+      expect(progress.round).toBe(1);
+      expect(progress.currentIdentifier).toBe(chars[2].identifier);
+      expect([...progress.acted]).toEqual([chars[0].identifier]);
+      expect([...progress.held]).toEqual([chars[1].identifier]);
+      expect(progress.canUndo).toBe(true);
+    });
+  });
+
   describe('saying whose turn it is', () => {
     it('names the piece the players can see, and leaves one they cannot unnamed', () => {
       const seen = vi
@@ -562,6 +581,20 @@ describe('TurnOrderService', () => {
       service.next();
 
       expect(sprang.mock.calls.map((call: unknown[]) => call[1])).toEqual(['turnEnd', 'turnStart']);
+    });
+
+    it('keeps a turn the ground closes in passing as a piece leaves its own, and passes that piece over', () => {
+      service.next();
+      service.next();
+      sprang.mockImplementation((piece: GameCharacter, moment: string) => {
+        if (piece === chars[0] && moment === 'turnEnd') service.closeTurnsInPassing([chars[1].identifier]);
+        return [];
+      });
+
+      service.next();
+
+      expect(turnState.actedIdentifiers).toEqual([chars[1].identifier, chars[0].identifier]);
+      expect(turnState.currentIdentifier).toBe(chars[2].identifier);
     });
 
     it('keeps turning where the ground will not go off', () => {

@@ -1,5 +1,5 @@
-import { MapScene, SceneGuideLine } from '@axe/features/map-editor/model/scene';
-import { addShape } from '@axe/features/map-editor/model/scene-ops';
+import { MapScene, SceneGuideLine } from '@axe/domain/map-editor/scene';
+import { addShape } from '@axe/domain/map-editor/scene-ops';
 import { BoardGesture, GestureHost } from '@axe/features/tabletop/white-board/white-board-gesture';
 import {
   BoardPoint,

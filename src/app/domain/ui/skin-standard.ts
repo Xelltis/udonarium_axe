@@ -7,7 +7,7 @@ import { SkinMode, SkinTokens } from '@axe/domain/ui/skin-palette';
  * They are written out here so the picker can show the standard skin for the ladder that
  * is not on screen — previewing the dark standard in daylight has to come from somewhere,
  * and reading it off the document would give whichever ladder is showing. The spec beside
- * this file reads `styles.css` and holds the two in step.
+ * this file reads the global stylesheet and holds the two in step.
  */
 export const STANDARD_TOKENS: Readonly<Record<SkinMode, SkinTokens>> = {
   light: {

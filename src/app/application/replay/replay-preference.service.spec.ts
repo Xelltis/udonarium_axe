@@ -5,6 +5,7 @@ import {
   ReplayPreferenceService,
 } from '@axe/application/replay/replay-preference.service';
 import { ReplayDetailLevel } from '@axe/domain/replay/replay-event';
+import { refuseLocalStorage } from '@axe/testing/refused-storage';
 
 const STORAGE_KEY = 'axe-replay-preference';
 
@@ -48,6 +49,7 @@ describe('ReplayPreferenceService', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     localStorage.removeItem(STORAGE_KEY);
   });
 
@@ -60,5 +62,14 @@ describe('ReplayPreferenceService', () => {
 
     TestBed.resetTestingModule();
     expect(TestBed.inject(ReplayPreferenceService).detailLevel()).toBe(ReplayDetailLevel.Full);
+  });
+
+  it('still takes a choice where the browser refuses to keep it', () => {
+    TestBed.resetTestingModule();
+    refuseLocalStorage();
+    const service = TestBed.inject(ReplayPreferenceService);
+
+    service.setDetailLevel(ReplayDetailLevel.Full);
+    expect(service.detailLevel()).toBe(ReplayDetailLevel.Full);
   });
 });

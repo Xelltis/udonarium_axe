@@ -1,5 +1,5 @@
-import { ComponentRef, Injectable, InjectionToken, Injector, Type, ViewContainerRef } from '@angular/core';
-import { ModalService } from '@axe/application/ui/modal.service';
+import { ComponentRef, inject, Injectable, InjectionToken, Injector, Type, ViewContainerRef } from '@angular/core';
+import { BOTTOM_SHEET_FRAME_COMPONENT, ContentFrame } from '@axe/application/ui/overlay-components';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 
 /** How a sheet opens: what it is called, how tall it is, and what opened it. */
@@ -93,20 +93,20 @@ export class BottomSheetRef<R = unknown> {
  */
 @Injectable({ providedIn: 'root' })
 export class BottomSheetService {
-  /** The frame the content is drawn in, registered by the app so this layer does not import it. */
-  static frameComponentClass: Type<{ content: () => ViewContainerRef }> | null = null;
+  private readonly overlays = inject(OverlayLayers);
 
   private readonly open$: BottomSheetRef[] = [];
 
   /** Opens a component in a sheet, and returns the open sheet. */
   open<R = unknown>(component: Type<unknown>, options: BottomSheetOptions): BottomSheetRef<R> {
     const ref = new BottomSheetRef<R>();
-    const frameClass = BottomSheetService.frameComponentClass;
     const layer =
       options.layer ??
-      OverlayLayers.layerFor(options.host?.ownerDocument) ??
-      OverlayLayers.current() ??
-      ModalService.defaultParentViewContainerRef;
+      this.overlays.layerFor(options.host?.ownerDocument) ??
+      this.overlays.current() ??
+      this.overlays.main;
+    // The frame is handed in by the app, so this layer does not import it.
+    const frameClass = layer?.injector.get(BOTTOM_SHEET_FRAME_COMPONENT);
     if (!frameClass || !layer) {
       ref.close(null);
       return ref;
@@ -125,7 +125,7 @@ export class BottomSheetService {
       parent: options.injector ?? layer.injector,
     });
 
-    const frame: ComponentRef<{ content: () => ViewContainerRef }> = layer.createComponent(frameClass, {
+    const frame: ComponentRef<ContentFrame> = layer.createComponent(frameClass, {
       index: layer.length,
       injector,
     });

@@ -5,6 +5,7 @@ import {
   AIMED_EFFECT_KINDS,
   BALLISTIC_DIVE_END,
   CENTERED_EFFECT_KINDS,
+  effectLandingTimes,
   effectSprites,
   impactSoundTimes,
   isEffectFinished,
@@ -694,6 +695,26 @@ describe('effectSprites()', () => {
     const large = effectSprites(makePreset('burst', { scale: 2 }), makeCast(), 300, options);
 
     expect(large[0].width).toBeCloseTo(normal[0].width * 2);
+  });
+});
+
+describe('effectLandingTimes()', () => {
+  it('finds where the blow lands for an effect that sounds nothing there', () => {
+    const preset = new EffectPreset('preset');
+    preset.kind = 'projectile';
+    preset.durationMs = 1000;
+    preset.impactSoundIdentifier = '';
+
+    expect(impactSoundTimes(preset)).toEqual([]);
+    expect(effectLandingTimes(preset)).toEqual([340]);
+  });
+
+  it('lands an effect about the target partway through it', () => {
+    const preset = new EffectPreset('preset');
+    preset.kind = 'slash';
+    preset.durationMs = 1000;
+
+    expect(effectLandingTimes(preset)).toEqual([500]);
   });
 });
 

@@ -1,4 +1,13 @@
-import { ComponentRef, Injectable, Injector, signal, ViewContainerRef } from '@angular/core';
+import {
+  ComponentRef,
+  inject,
+  Injectable,
+  Injector,
+  runInInjectionContext,
+  signal,
+  ViewContainerRef,
+} from '@angular/core';
+import { MODAL_FRAME_COMPONENT } from '@axe/application/ui/overlay-components';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import type { PanelRotationDegrees } from '@axe/application/ui/panel.service';
 
@@ -18,7 +27,7 @@ class ModalContext {
   }
 }
 
-@Injectable()
+@Injectable({ providedIn: 'root' })
 export class ModalService {
   private modalContext: ModalContext | null = null;
   private count = 0;
@@ -44,8 +53,7 @@ export class ModalService {
     this._titleTooltip.set(value);
   }
 
-  static defaultParentViewContainerRef: ViewContainerRef;
-  static ModalComponentClass: { new (...args: unknown[]): unknown } = null!;
+  private readonly overlays = inject(OverlayLayers);
   /**
    * What the opener passed to `open`, for the dialog content to read its inputs from. Undefined
    * once the dialog has answered.
@@ -72,8 +80,12 @@ export class ModalService {
     option?: unknown,
     parentViewContainerRef?: ViewContainerRef
   ): Promise<T> {
-    if (!parentViewContainerRef) {
-      parentViewContainerRef = OverlayLayers.current() ?? ModalService.defaultParentViewContainerRef;
+    const parent = parentViewContainerRef ?? this.overlays.current() ?? this.overlays.main;
+    const frameComponent = parent?.injector.get(MODAL_FRAME_COMPONENT);
+    if (!parent || !frameComponent) {
+      return Promise.reject(
+        new Error('[ModalService] nowhere to open a modal before the app has handed in its layer and frame')
+      );
     }
     let panelComponentRef: ComponentRef<unknown>;
     return new Promise<T>((resolve, reject) => {
@@ -95,7 +107,7 @@ export class ModalService {
         }
       };
 
-      const childModalService: ModalService = new ModalService();
+      const childModalService = runInInjectionContext(parent.injector, () => new ModalService());
       childModalService.modalContext = new ModalContext(_resolve as (val: unknown) => void, _reject, option);
       const rotationDegrees = this.optionRotationDegrees(option) ?? this.actionRotationDegrees;
       childModalService.rotationDegrees.set(rotationDegrees);
@@ -104,14 +116,11 @@ export class ModalService {
         childModalService.title = ((option as Record<string, unknown>).title as string) ?? '';
       }
 
-      const parentInjector = parentViewContainerRef.injector;
-      const injector = Injector.create([{ provide: ModalService, useValue: childModalService }], parentInjector);
+      const injector = Injector.create([{ provide: ModalService, useValue: childModalService }], parent.injector);
 
-      panelComponentRef = parentViewContainerRef.createComponent(ModalService.ModalComponentClass, {
-        index: parentViewContainerRef.length,
-        injector,
-      });
-      (panelComponentRef.instance as { content: () => ViewContainerRef }).content().createComponent(childComponent);
+      const frameRef = parent.createComponent(frameComponent, { index: parent.length, injector });
+      panelComponentRef = frameRef;
+      frameRef.instance.content().createComponent(childComponent);
 
       panelComponentRef.onDestroy(() => {
         this.count--;

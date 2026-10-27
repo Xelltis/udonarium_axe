@@ -5,25 +5,26 @@ import {
   DestroyRef,
   effect,
   inject,
+  linkedSignal,
   signal,
   untracked,
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
-import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayLibraryService } from '@axe/application/replay/replay-library.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ReplayRecorderService } from '@axe/application/replay/replay-recorder.service';
 import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
+import { formatSnapshotSavedAt } from '@axe/core/util/snapshot-format';
 import { earliestReplaySeq } from '@axe/domain/replay/replay-edit';
 import { ReplayDigestPanelComponent } from '@axe/features/replay/replay-digest-panel/replay-digest-panel.component';
+import { ReplayEditorService } from '@axe/features/replay/replay-editor.service';
 import { ReplayScriptPanelComponent } from '@axe/features/replay/replay-script-panel/replay-script-panel.component';
 import { ReplayVideoPanelComponent } from '@axe/features/replay/replay-video-panel/replay-video-panel.component';
 import { ReplayVideoPreviewComponent } from '@axe/features/replay/replay-video-preview/replay-video-preview.component';
 import { ReplayEntryListComponent } from '@axe/features/replay/replay-workspace/replay-entry-list.component';
 import { ReplayRecordingListComponent } from '@axe/features/replay/replay-workspace/replay-recording-list.component';
 import { ReplayStageComponent } from '@axe/features/replay/replay-workspace/replay-stage.component';
-import { formatSnapshotSavedAt } from '@axe/features/room-archive/snapshot-format';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -61,9 +62,13 @@ export class ReplayWorkspaceComponent {
   protected readonly isSaving = this.editor.isSaving;
   protected readonly canUndo = this.editor.canUndo;
   protected readonly isStaging = this.staging.isStaging;
-  protected readonly isDigestOpen = signal(false);
+  /**
+   * Whether the left column shows the summary of the recording. Closing a recording goes back to
+   * the playback view, the preview with it, so the next one does not open on the summary.
+   */
+  protected readonly isDigestOpen = linkedSignal({ source: this.isOpen, computation: () => false });
   /** Whether the left column shows the video as it will be written, rather than the playback controls. */
-  protected readonly isPreviewOpen = signal(false);
+  protected readonly isPreviewOpen = linkedSignal({ source: this.isOpen, computation: () => false });
   /** Whether the list of recordings is open over the workspace, for choosing another. */
   protected readonly isChooserOpen = signal(false);
 
@@ -80,12 +85,6 @@ export class ReplayWorkspaceComponent {
     this.destroyRef.onDestroy(() => {
       this.editor.cancel();
       void this.playback.close();
-    });
-    // Closing a recording returns to the playback view, so the next one does not open on the summary.
-    effect(() => {
-      if (this.isOpen()) return;
-      this.isDigestOpen.set(false);
-      this.isPreviewOpen.set(false);
     });
     // Choosing a recording from the list is what closes it.
     effect(() => {
@@ -113,7 +112,7 @@ export class ReplayWorkspaceComponent {
   }
 
   protected get canEdit(): boolean {
-    return this.rolePermission.canEditTabletop;
+    return this.rolePermission.canEditTabletop();
   }
 
   protected beginEditing(): void {

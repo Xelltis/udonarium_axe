@@ -48,7 +48,7 @@ describe('TextNoteComponent', () => {
   it('brings the note to the top on a press, for a seat that may change the table alone', () => {
     const note = TextNote.create('メモ', '本文');
     fixture.componentRef.setInput('textNote', note);
-    const canEdit = vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+    const canEdit = vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
     const topmost = vi.spyOn(note, 'toTopmost');
 
     component.onMouseDown(new MouseEvent('mousedown', { button: 2 }));

@@ -19,6 +19,7 @@ import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/conte
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { debounce } from '@axe/core/util/debounce';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -116,7 +117,7 @@ export class ContextMenuComponent {
   readonly subMenuAnchorTop = signal<number | null>(null);
 
   private showSubMenuTimer: ReturnType<typeof setTimeout> | undefined;
-  private hideSubMenuTimer: ReturnType<typeof setTimeout> | undefined;
+  private readonly hideSubMenuLater = debounce(() => this.subMenu.set(undefined), 1200);
 
   private callbackOnOutsideClick = (e: Event) => this.onOutsideClick(e);
 
@@ -138,7 +139,7 @@ export class ContextMenuComponent {
     });
     this.destroyRef.onDestroy(() => {
       clearTimeout(this.showSubMenuTimer);
-      clearTimeout(this.hideSubMenuTimer);
+      this.hideSubMenuLater.cancel();
       document.removeEventListener('touchstart', this.callbackOnOutsideClick, true);
       document.removeEventListener('mousedown', this.callbackOnOutsideClick, true);
     });
@@ -326,7 +327,7 @@ export class ContextMenuComponent {
       this.parentMenu.set(action);
       this.subMenuAnchorTop.set(row ? row.offsetTop - (this.listScrollTop(row) ?? 0) : null);
       this.subMenu.set(action.subActions ?? []);
-      clearTimeout(this.hideSubMenuTimer);
+      this.hideSubMenuLater.cancel();
     };
     if (immediately) {
       open();
@@ -337,10 +338,7 @@ export class ContextMenuComponent {
 
   /** Closes the open submenu after a grace period, so the pointer can cross over to it. */
   hideSubMenu() {
-    clearTimeout(this.hideSubMenuTimer);
-    this.hideSubMenuTimer = setTimeout(() => {
-      this.subMenu.set(undefined);
-    }, 1200);
+    this.hideSubMenuLater();
   }
 
   /** Closes the whole context menu, submenus and all. */

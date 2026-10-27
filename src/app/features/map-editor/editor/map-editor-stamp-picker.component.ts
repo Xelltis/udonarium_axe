@@ -5,10 +5,10 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { isImageStampId, MAP_STAMP_TAG, toImageStampId } from '@axe/domain/map-editor/image-stamp';
+import { STAMP_CATEGORIES, StampCategory, StampDef } from '@axe/domain/map-editor/stamp-types';
+import { getStampsByCategory } from '@axe/domain/map-editor/stamps';
 import { ImageTag } from '@axe/domain/media/image-tag';
-import { isImageStampId, MAP_STAMP_TAG, toImageStampId } from '@axe/features/map-editor/assets/image-stamp';
-import { STAMP_CATEGORIES, StampCategory, StampDef } from '@axe/features/map-editor/assets/stamp-types';
-import { getStampsByCategory } from '@axe/features/map-editor/assets/stamps';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -44,7 +44,7 @@ export class MapEditorStampPickerComponent {
     this.objectChange.fileVersion();
     this.objectChange.collectionOf('image-tag')();
     this.tagLock.track();
-    return ImageTag.searchImages([MAP_STAMP_TAG], this.rolePermission.canSeeHidden, this.tagLock.hides);
+    return ImageTag.searchImages([MAP_STAMP_TAG], this.rolePermission.canSeeHidden(), this.tagLock.hides);
   });
 
   protected stampDataUri(def: StampDef, color: string | null): string {

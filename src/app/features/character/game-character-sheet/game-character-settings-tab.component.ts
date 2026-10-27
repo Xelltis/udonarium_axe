@@ -54,10 +54,7 @@ export class GameCharacterSettingsTabComponent {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly ride = inject(RideService);
 
-  readonly isReadOnly = computed(() => {
-    this.objectChange.trackMyCursor();
-    return !this.rolePermission.canEditTabletop;
-  });
+  readonly isReadOnly = computed(() => !this.rolePermission.canEditTabletop());
 
   readonly character = input.required<GameCharacter>();
 
@@ -304,7 +301,7 @@ export class GameCharacterSettingsTabComponent {
    * nothing, and an unchanged path is not written.
    */
   onSetFolder(event: Event): void {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     const character = this.character();
     const input = event.target as HTMLInputElement;
     const folderName = normalizeFolderPath(input.value);

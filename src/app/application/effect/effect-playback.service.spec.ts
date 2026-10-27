@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
-import { VolumeType } from '@axe/core/storage/audio-player';
+import { VolumeType } from '@axe/core/storage/audio-output';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { SoundEffect } from '@axe/domain/media/sound-effect';

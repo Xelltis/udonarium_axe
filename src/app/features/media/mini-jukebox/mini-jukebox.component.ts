@@ -5,9 +5,9 @@ import {
   Component,
   computed,
   DestroyRef,
-  effect,
   ElementRef,
   inject,
+  linkedSignal,
   signal,
   viewChild,
 } from '@angular/core';
@@ -61,7 +61,14 @@ export class MiniJukeboxComponent {
 
   private readonly _tick = signal(0);
 
-  readonly lastAudioIdentifier = signal<string>('');
+  /** The sound the jukebox last played, kept while it is stopped so it can be played again. */
+  readonly lastAudioIdentifier = linkedSignal<string, string>({
+    source: () => {
+      this.objectChange.versionOf('Jukebox')();
+      return this.jukebox?.audioIdentifier ?? '';
+    },
+    computation: (playing, previous) => playing || previous?.value || '',
+  });
 
   private initialLeft = '';
   private initialTop = '';
@@ -97,11 +104,6 @@ export class MiniJukeboxComponent {
     });
     const timer = setInterval(() => this._tick.update((v) => v + 1), 250);
     this.destroyRef.onDestroy(() => clearInterval(timer));
-    effect(() => {
-      this.objectChange.versionOf('Jukebox')();
-      const id = this.jukebox?.audioIdentifier;
-      if (id) this.lastAudioIdentifier.set(id);
-    });
   }
 
   private get jukebox(): Jukebox | null {

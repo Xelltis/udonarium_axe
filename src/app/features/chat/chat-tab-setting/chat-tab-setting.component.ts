@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ChatLogStylePreferenceService } from '@axe/application/chat/chat-log-style-preference.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
@@ -24,6 +23,7 @@ import { canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { ChatLogPreviewComponent } from '@axe/features/chat/chat-log-preview/chat-log-preview.component';
+import { ChatLogStylePreferenceService } from '@axe/features/chat/chat-log-style-preference.service';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -484,7 +484,7 @@ export class ChatTabSettingComponent {
     if (!this.canEditTabs) return;
     if (this.selectedTab() && this.selectedTabXml) {
       this.deletedOnServer = null;
-      ObjectStore.instance.announceComingBack(identifiersInXml(this.selectedTabXml));
+      this.objectStore.announceComingBack(identifiersInXml(this.selectedTabXml));
       const restoreTable = this.objectSerializer.parseXml(this.selectedTabXml)! as ChatTab;
       this.chatTabList.addChatTab(restoreTable);
       this.selectedTabXml = '';

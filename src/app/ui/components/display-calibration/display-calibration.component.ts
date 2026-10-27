@@ -14,6 +14,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
 import {
   cardRunWidthMm,
   cellWidthInches,
@@ -112,7 +113,7 @@ export class DisplayCalibrationComponent {
   onHandleDown(event: PointerEvent): void {
     this.dragFromPx = this.framePx();
     this.dragFromClientX = event.clientX;
-    (event.target as Element).setPointerCapture(event.pointerId);
+    capturePointer(event.target, event.pointerId);
     event.preventDefault();
   }
 
@@ -130,7 +131,7 @@ export class DisplayCalibrationComponent {
   /** Called when the corner handle is let go or the pointer is lost; ends the drag. */
   onHandleUp(event: PointerEvent): void {
     const handle = event.target as Element;
-    if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+    releasePointer(handle, event.pointerId);
   }
 
   /**

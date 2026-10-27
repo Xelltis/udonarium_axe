@@ -1,20 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { TabletopDisplayPreferenceService } from '@axe/application/ui/tabletop-display-preference.service';
-import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { GameCharacter } from '@axe/domain/character/game-character';
-import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
-import { DEFAULT_SYSTEM_NOTICES, NOTICE_OFF } from '@axe/domain/chat/system-notices';
-import { DataElement, DataElementAttribute, DataElementRole, DataElementType } from '@axe/domain/data/data-element';
-import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
-import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { RoomPanelService } from '@axe/features/panels/room-panel.service';
-import { BrowserDataWipeService } from '@axe/features/room-settings/browser-data-wipe.service';
+import { GameTable } from '@axe/domain/tabletop/game-table';
 import { RoomSettingsPanelComponent } from '@axe/features/room-settings/room-settings-panel/room-settings-panel.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -22,7 +12,6 @@ import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 describe('RoomSettingsPanelComponent', () => {
   let fixture: ComponentFixture<RoomSettingsPanelComponent>;
   let component: RoomSettingsPanelComponent;
-  let table: GameTable;
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
@@ -34,7 +23,7 @@ describe('RoomSettingsPanelComponent', () => {
   beforeEach(() => {
     PeerCursor.createMyCursor();
     PeerCursor.myCursor.role = PeerRole.GameMaster;
-    table = new GameTable();
+    const table = new GameTable();
     table.width = 10;
     table.height = 10;
     table.gridSize = 50;
@@ -48,6 +37,18 @@ describe('RoomSettingsPanelComponent', () => {
     (Config as unknown as { _instance: Config | undefined })._instance = undefined;
   });
 
+  async function open(tab: ReturnType<RoomSettingsPanelComponent['tab']>): Promise<HTMLElement> {
+    component.tab.set(tab);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  async function openUi(part: 'shared' | 'skin' | 'tabletop'): Promise<HTMLElement> {
+    component.uiTab.set(part);
+    return open('ui');
+  }
+
   it('should be created', () => {
     expect(component).toBeTruthy();
   });
@@ -60,987 +61,114 @@ describe('RoomSettingsPanelComponent', () => {
     await expectPanelDragRecovery(RoomSettingsPanelComponent);
   });
 
-  it('shows what the table rules while the room has been asked nothing', () => {
-    table.zocMode = 'stop';
-    table.zocRange = 3;
-
-    expect(component.answersFor('zoc')).toBe(false);
-    expect(component.zocMode).toBe('stop');
-    expect(component.zocRange).toBe(3);
-  });
-
-  it('hands a rule to the room the moment it is set here', () => {
-    table.zocMode = 'stop';
-
-    component.zocMode = 'block';
-
-    expect(Config.instance.zocMode).toBe('block');
-    expect(component.answersFor('zoc')).toBe(true);
-    expect(component.answersFor('moveRange')).toBe(false);
-  });
-
-  it('leaves the shared settings to the master, though a player may set the rules of play', () => {
-    PeerCursor.myCursor.role = PeerRole.Player;
-
-    component.zocMode = 'block';
-    component.facingMark = 'arrow';
-    component.imageBillboard = true;
-    component.defaultDiceBot = 'Cthulhu7th';
-
-    expect(component.isReadOnly()).toBe(false);
-    expect(component.isSharedReadOnly()).toBe(true);
-    expect(Config.instance.zocMode).toBe('block');
-    expect(component.facingMark).not.toBe('arrow');
-    expect(table.imageBillboard).toBe(false);
-    expect(component.defaultDiceBot).not.toBe('Cthulhu7th');
-  });
-
-  it('lets the master choose where the room has its rolls tumble, and shows a player only what was chosen', async () => {
-    fixture.detectChanges();
-    await fixture.whenStable();
-    const select: HTMLSelectElement = fixture.nativeElement.querySelector('[data-testid="dice-stage"]');
-    expect(select.value).toBe('off');
-    expect([...select.options].map((option) => option.value)).toEqual(['off', 'frame', 'table', 'both']);
-    expect(select.disabled).toBe(false);
-
-    select.value = 'frame';
-    select.dispatchEvent(new Event('change'));
-    expect(Config.instance.diceStage).toBe('frame');
-
-    PeerCursor.myCursor.role = PeerRole.Player;
-    fixture.detectChanges();
-    await fixture.whenStable();
-    component.diceStage = 'off';
-    // A model-bound control takes its disabled state a turn after the binding changes.
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(Config.instance.diceStage).toBe('frame');
-    expect(select.disabled).toBe(true);
-  });
-
-  it('lets the master turn off the bubbles over the pieces, and shows a player only that they are off', async () => {
-    fixture.detectChanges();
-    await fixture.whenStable();
-    const box: HTMLInputElement = fixture.nativeElement.querySelector(
-      '[data-testid="room-settings-speech-bubbles"] input[type="checkbox"]'
-    );
-    expect(box.checked).toBe(true);
-    expect(box.disabled).toBe(false);
-
-    box.click();
-    expect(Config.instance.speechBubblesEnabled).toBe(false);
-
-    PeerCursor.myCursor.role = PeerRole.Player;
-    fixture.detectChanges();
-    await fixture.whenStable();
-    component.speechBubbles = true;
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(Config.instance.speechBubblesEnabled).toBe(false);
-    expect(box.disabled).toBe(true);
-    Config.instance.speechBubblesEnabled = true;
-  });
-  it('writes nothing for a reader who may not edit the table', () => {
-    PeerCursor.myCursor.role = PeerRole.Guest;
-    table.zocMode = 'stop';
-
-    component.zocMode = 'block';
-
-    expect(component.isReadOnly()).toBe(true);
-    expect(Config.instance.zocMode).toBeNull();
-  });
-
-  it('rounds a count of cells to something a walk can be measured in', () => {
-    component.zocRange = 2.7;
-    component.zocExtraCost = -4;
-
-    expect(component.zocRange).toBe(2);
-    expect(component.zocExtraCost).toBe(0);
-  });
-
-  it('lets only the master turn the sounds of a turn beginning on or off', async () => {
-    component.tab.set('battle');
-    fixture.detectChanges();
-    await fixture.whenStable();
-    const box = (testId: string): HTMLInputElement => fixture.nativeElement.querySelector(`[data-testid="${testId}"]`);
-    expect([box('room-settings-turn-signal').checked, box('room-settings-turn-tick').checked]).toEqual([true, false]);
-
-    box('room-settings-turn-tick').click();
-    box('room-settings-turn-signal').click();
-    expect([Config.instance.turnSignalEnabled, Config.instance.turnTickEnabled]).toEqual([false, true]);
-
-    PeerCursor.myCursor.role = PeerRole.Player;
-    fixture.detectChanges();
-    await fixture.whenStable();
-    component.turnTick = false;
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(Config.instance.turnTickEnabled).toBe(true);
-    expect(box('room-settings-turn-tick').disabled).toBe(true);
-    expect(box('room-settings-turn-signal').disabled).toBe(true);
-    Config.instance.turnSignalEnabled = true;
-    Config.instance.turnTickEnabled = false;
-  });
-
-  describe('where the system’s notices go', () => {
-    let battle: ChatTab;
-
-    const choice = (kind: string): HTMLSelectElement =>
-      fixture.nativeElement.querySelector(`[data-testid="room-settings-notice-${kind}"]`);
-    const optionsOf = (select: HTMLSelectElement) => [...select.options].map((option) => option.textContent!.trim());
-    const pick = (select: HTMLSelectElement, label: string) => {
-      select.selectedIndex = optionsOf(select).indexOf(label);
-      select.dispatchEvent(new Event('change'));
-    };
-
-    beforeEach(async () => {
-      ChatTabList.instance.addChatTab('メイン');
-      battle = ChatTabList.instance.addChatTab('戦闘');
-      component.tab.set('notice');
-      fixture.detectChanges();
-      await fixture.whenStable();
-    });
-
-    afterEach(() => {
-      Config.instance.systemNotices = DEFAULT_SYSTEM_NOTICES;
-    });
-
-    it('offers each kind where it always went, every tab of the room, and nowhere', () => {
-      const round = choice('round');
-      const card = choice('card');
-
-      expect(optionsOf(round)[0]).toBe('既定（一番左のタブ）');
-      expect(optionsOf(card)[0]).toBe('既定（システムタブ）');
-      expect(optionsOf(round)).toContain('戦闘');
-      expect(optionsOf(round).at(-1)).toBe('送らない');
-      expect(round.selectedIndex).toBe(0);
-    });
-
-    it('sends a kind to the tab the master picks, nowhere, or back where it always went', async () => {
-      pick(choice('round'), '戦闘');
-      expect(Config.instance.systemNotices).toEqual({ round: battle.identifier });
-
-      pick(choice('bgm'), '送らない');
-      pick(choice('round'), '既定（一番左のタブ）');
-
-      expect(Config.instance.systemNotices).toEqual({ bgm: NOTICE_OFF });
-    });
-
-    it('shows a kind sent to a tab since deleted as where it always went', async () => {
-      Config.instance.systemNotices = { round: 'a-tab-since-deleted' };
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      expect(choice('round').selectedIndex).toBe(0);
-    });
-
-    it('lets only the master change them', async () => {
-      PeerCursor.myCursor.role = PeerRole.Player;
-      fixture.detectChanges();
-      await fixture.whenStable();
-      component.setNoticeRoute('round', battle.identifier);
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      expect(Config.instance.systemNotices).toEqual(DEFAULT_SYSTEM_NOTICES);
-      expect(choice('round').disabled).toBe(true);
-    });
-
-    it('is reached from the round section of the battle tab', async () => {
-      component.tab.set('battle');
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      (fixture.nativeElement.querySelector('[data-testid="room-settings-open-notices"]') as HTMLButtonElement).click();
-
-      expect(component.tab()).toBe('notice');
-    });
-  });
-
-  describe('how the round is taken', () => {
-    let heroes: Party;
-    let monsters: Party;
-
-    beforeEach(() => {
-      heroes = new Party();
-      heroes.name = '味方';
-      heroes.initialize();
-      monsters = new Party();
-      monsters.name = '敵';
-      monsters.initialize();
-    });
-
-    it('takes the round one piece at a time until it is asked otherwise', () => {
-      expect(component.turnOrderMode).toBe('initiative');
-      expect(component.takesRoundBySides).toBe(false);
-    });
-
-    it('puts the parties in the order the round would take them', () => {
-      component.turnOrderMode = 'faction';
-
-      expect(component.factionOrder.map((entry) => entry.name)).toEqual(['味方', '敵', '無所属']);
-    });
-
-    it('moves a side up the order and writes it down', () => {
-      component.turnOrderMode = 'faction';
-
-      component.moveSide(monsters.identifier, -1);
-
-      expect(component.factionOrder.map((entry) => entry.side)).toEqual([
-        monsters.identifier,
-        heroes.identifier,
-        '@none',
-      ]);
-      expect(Config.instance.factionOrder).toContain(monsters.identifier);
-    });
-
-    it('will not move the first side any higher', () => {
-      component.turnOrderMode = 'faction';
-      const before = component.factionOrder.map((entry) => entry.side);
-
-      component.moveSide(heroes.identifier, -1);
-
-      expect(component.factionOrder.map((entry) => entry.side)).toEqual(before);
-    });
-
-    it('leaves the pieces on no party out of the order when asked to', () => {
-      component.turnOrderMode = 'faction';
-
-      component.factionSkipUnassigned = true;
-
-      expect(component.factionOrder.map((entry) => entry.side)).toEqual([heroes.identifier, monsters.identifier]);
-    });
-
-    it('writes nothing for a reader who may not edit the table', () => {
-      // The role has to be settled before the component is first asked anything: whether it
-      // is read-only is a computed, and it holds the first answer it works out.
-      Config.instance.turnOrderMode = 'faction';
-      PeerCursor.myCursor.role = PeerRole.Guest;
-
-      component.moveSide(monsters.identifier, -1);
-      component.factionSkipUnassigned = true;
-
-      expect(Config.instance.factionSkipUnassigned).toBe(false);
-      expect(component.factionOrder.map((entry) => entry.side)[0]).toBe(heroes.identifier);
-    });
-  });
-
-  describe('how a piece shows which way it faces', () => {
-    it('shows what the table asks for while the room has been asked nothing', () => {
-      table.facingMark = 'arrow';
-
-      expect(component.answersFor('facing')).toBe(false);
-      expect(component.facingMark).toBe('arrow');
-    });
-
-    it('takes the choice over from the table', () => {
-      table.facingMark = 'arrow';
-
-      component.facingMark = 'turn';
-
-      expect(component.facingMark).toBe('turn');
-      expect(component.answersFor('facing')).toBe(true);
-      expect(table.facingMark).toBe('arrow');
-    });
-
-    it('reads something it does not know as showing nothing', () => {
-      table.facingMark = 'compass' as never;
-
-      expect(component.facingMark).toBe('none');
-    });
-  });
-
-  describe('the questions it puts', () => {
-    it('puts the question of corners only to a square board', () => {
-      table.gridType = GridType.SQUARE;
-      expect(component.showsDiagonalOption).toBe(true);
-
-      table.gridType = GridType.HEX_VERTICAL;
-      expect(component.showsDiagonalOption).toBe(false);
-    });
-
-    it('asks nothing more where an enemy holds no ground', () => {
-      component.zocMode = 'none';
-
-      expect(component.showsZocOptions).toBe(false);
-      expect(component.showsZocExtraCost).toBe(false);
-    });
-
-    it('asks how far the ground reaches, and what it costs only where it is charged for', () => {
-      component.zocMode = 'stop';
-      expect(component.showsZocOptions).toBe(true);
-      expect(component.showsZocExtraCost).toBe(false);
-
-      component.zocMode = 'block';
-      expect(component.showsZocExtraCost).toBe(false);
-
-      component.zocMode = 'cost';
-      expect(component.showsZocOptions).toBe(true);
-      expect(component.showsZocExtraCost).toBe(true);
-    });
-
-    it('follows the older answer about sharing cells until a side is set', () => {
-      table.piecesShareCells = false;
-
-      for (const side of component.piecePassageSides) expect(component.piecePassage(side)).toBe('block');
-    });
-
-    it('takes over one side at a time, leaving the others where they were', () => {
-      component.setPiecePassage('samePartyPassage', 'pass');
-
-      expect(Config.instance.samePartyPassage).toBe('pass');
-      expect(component.piecePassage('samePartyPassage')).toBe('pass');
-      expect(component.piecePassage('otherPartyPassage')).toBe('share');
-    });
-
-    it('asks what crossing costs only where a side is charged for it', () => {
-      expect(component.showsPiecePassageCost).toBe(false);
-
-      component.setPiecePassage('samePartyPassage', 'pass');
-      expect(component.showsPiecePassageCost).toBe(false);
-
-      component.setPiecePassage('samePartyPassage', 'cost');
-      expect(component.showsPiecePassageCost).toBe(true);
-    });
-
-    it('takes a crossing price that is not a whole count as none at all', () => {
-      component.piecePassageCost = Number.NaN;
-
-      expect(component.piecePassageCost).toBe(0);
-    });
-
-    it('reads a table carrying something it does not know as holding no ground', () => {
-      table.zocMode = 'engagement';
-
-      expect(component.zocMode).toBe('none');
-    });
-
-    it('takes a reach that is not a whole count as none at all', () => {
-      component.zocRange = Number.NaN;
-      component.zocExtraCost = -2;
-
-      expect(component.zocRange).toBe(0);
-      expect(component.zocExtraCost).toBe(0);
-    });
-
-    it('takes a distance that is not a number as no conversion at all', () => {
-      component.cellDistance = Number.NaN;
-
-      expect(component.cellDistance).toBe(0);
-    });
-
-    it('starts a table turned over to cells again at one cell a cell', () => {
-      component.cellDistanceUnit = 'foot';
-      component.cellDistance = 1.5;
-
-      component.cellDistanceUnit = 'cell';
-
-      expect(component.cellDistance).toBe(1);
-    });
-
-    it('keeps what a cell stands for on a table that was counted in cells already', () => {
-      component.cellDistanceUnit = 'cell';
-      component.cellDistance = 0.5;
-
-      component.cellDistanceUnit = 'cell';
-      component.cellDistanceUnit = 'metre';
-
-      expect(component.cellDistance).toBe(0.5);
-    });
-
-    it('opens on the general part and shows only that part', async () => {
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      expect(component.tab()).toBe('general');
-      expect(fixture.nativeElement.querySelector('[name="turnOrderMode"]')).toBeNull();
-      expect(fixture.nativeElement.querySelector('[name="zocMode"]')).toBeNull();
-    });
-
-    it('shows the round only under the part it belongs to', async () => {
-      component.tab.set('battle');
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      expect(fixture.nativeElement.querySelector('[name="turnOrderMode"]')).not.toBeNull();
-    });
-
-    it('leaves a reader who may not edit free to look through the parts', async () => {
-      PeerCursor.myCursor.role = PeerRole.Guest;
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      expect(component.isReadOnly()).toBe(true);
-      expect(fixture.nativeElement.hasAttribute('inert')).toBe(false);
-      const strip = fixture.nativeElement.querySelector('[data-testid="room-settings-tab-move"]');
-      expect(strip.closest('[inert]')).toBeNull();
-    });
-
-    it('reaches the character import from the utility part', async () => {
-      const opened: string[] = [];
-      vi.spyOn(TestBed.inject(RoomPanelService), 'open').mockImplementation(((name: string) => {
-        opened.push(name);
-      }) as never);
-      component.tab.set('utility');
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      fixture.nativeElement.querySelector('[data-testid="room-settings-character-import"]').click();
-
-      expect(opened).toEqual(['characterImport']);
-    });
-
-    it('opens the replay from the utility part, for someone watching as well', async () => {
-      const opened: string[] = [];
-      vi.spyOn(TestBed.inject(RoomPanelService), 'open').mockImplementation(((name: string) => {
-        opened.push(name);
-      }) as never);
-      PeerCursor.myCursor.role = PeerRole.Guest;
-      component.tab.set('utility');
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      const button = fixture.nativeElement.querySelector('[data-testid="room-settings-replay"]') as HTMLButtonElement;
-      expect(button.closest('[inert]')).toBeNull();
-      button.click();
-
-      expect(opened).toEqual(['replay']);
-    });
-
-    it('offers anyone, someone watching as well, to wipe this browser’s data from the utility part', async () => {
-      const wipe = vi.spyOn(TestBed.inject(BrowserDataWipeService), 'wipe').mockResolvedValue(false);
-      PeerCursor.myCursor.role = PeerRole.Guest;
-      component.tab.set('utility');
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      const button = fixture.nativeElement.querySelector(
-        '[data-testid="room-settings-wipe-browser-data"]'
-      ) as HTMLButtonElement;
-      expect(button.closest('[inert]')).toBeNull();
-      button.click();
-
-      expect(wipe).toHaveBeenCalledOnce();
-    });
-
-    it('shows the boxes only once an enemy holds ground', async () => {
-      function boxes(): string[] {
-        return [...fixture.nativeElement.querySelectorAll('input[type="number"]')].map(
-          (node: Element) => node.getAttribute('name') ?? ''
-        );
-      }
-
-      component.tab.set('move');
-      component.zocMode = 'none';
-      fixture.detectChanges();
-      await fixture.whenStable();
-      expect(boxes()).not.toContain('zocRange');
-
-      component.zocMode = 'stop';
-      fixture.detectChanges();
-      await fixture.whenStable();
-      expect(boxes()).toContain('zocRange');
-      expect(boxes()).not.toContain('zocExtraCost');
-
-      component.zocMode = 'cost';
-      fixture.detectChanges();
-      await fixture.whenStable();
-      expect(boxes()).toContain('zocExtraCost');
-    });
-  });
-
-  describe('engagement zones', () => {
-    function zoneSection(): HTMLElement | null {
-      return (fixture.nativeElement as HTMLElement).querySelector('[data-testid="room-settings-zone"]');
-    }
-
-    it('writes whether the room plays zones, and asks the rest only once it does', async () => {
-      component.tab.set('move');
-      fixture.detectChanges();
-      await fixture.whenStable();
-      expect(zoneSection()?.querySelector('input[name="zoneSizes"]')).toBeNull();
-
-      component.zoneEnabled = true;
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      expect(Config.instance.zoneRuleAnswers.enabled).toBe(true);
-      expect(zoneSection()?.querySelector('input[name="zoneSizes"]')).not.toBeNull();
-    });
-
-    it('writes the size table, the counted field and the same-point distance, and forgets what is left empty', () => {
-      component.zoneEnabled = true;
-      component.zoneSizes = ' 4:2:3,8:3:5 ';
-      component.zoneCountField = '体数';
-      component.zoneSamePointM = 1.5;
-
-      expect(Config.instance.zoneRuleAnswers).toEqual({
-        enabled: true,
-        sizes: '4:2:3,8:3:5',
-        countField: '体数',
-        samePointM: 1.5,
-        outnumber: null,
-        leaveKind: null,
-        blockRadiusM: null,
-        clearName: null,
-        stealthUnseen: null,
-      });
-
-      component.zoneSizes = '';
-      component.zoneEnabled = false;
-      expect(Config.instance.zoneRuleAnswers.sizes).toBeNull();
-      expect(Config.instance.zoneRuleAnswers.enabled).toBeNull();
-    });
-
-    it('writes whether a piece in stealth counts as unseen, and forgets it when unticked', () => {
-      component.zoneEnabled = true;
-
-      component.zoneStealthUnseen = true;
-      expect(Config.instance.zoneRuleAnswers.stealthUnseen).toBe(true);
-      expect(component.zoneStealthUnseen).toBe(true);
-
-      component.zoneStealthUnseen = false;
-      expect(Config.instance.zoneRuleAnswers.stealthUnseen).toBeNull();
-    });
-
-    it('writes the outnumbering factor and the kind that leaves an overflowing zone, out of the kinds written', async () => {
-      component.tab.set('move');
-      component.zoneEnabled = true;
-      component.moveKinds = ' 全力:3:,通常:1: ';
-      component.zoneOutnumber = 3;
-      component.zoneLeaveKind = '全力';
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      expect(Config.instance.moveKinds).toBe('全力:3:,通常:1:');
-      expect(Config.instance.zoneRuleAnswers.outnumber).toBe(3);
-      expect(Config.instance.zoneRuleAnswers.leaveKind).toBe('全力');
-      const choices = [...zoneSection()!.querySelectorAll('select[name="zoneLeaveKind"] option')].map(
-        (option) => (option as HTMLOptionElement).value
-      );
-      expect(choices).toEqual(['', '全力', '通常']);
-
-      component.zoneOutnumber = 0;
-      component.zoneLeaveKind = '';
-      component.moveKinds = '';
-      expect(Config.instance.zoneRuleAnswers.outnumber).toBeNull();
-      expect(Config.instance.zoneRuleAnswers.leaveKind).toBeNull();
-      expect(Config.instance.moveKinds).toBeNull();
-    });
-
-    it('warns while the move range holds fights of its own beside the zones', async () => {
-      component.tab.set('move');
-      component.zoneEnabled = true;
-      component.zocMode = 'stop';
-      Config.instance.zocEngages = true;
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      expect(zoneSection()?.querySelector('[data-testid="zone-engagement-warning"]')).not.toBeNull();
-    });
-
-    it('writes whether moves may be stepped into, and by which kind, out of the kinds written', async () => {
-      component.tab.set('move');
-      component.zoneEnabled = true;
-      component.moveKinds = '全力:3:,通常:1:';
-      component.interruptEnabled = true;
-      component.interruptKind = '通常';
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      expect(Config.instance.interruptEnabled).toBe(true);
-      expect(Config.instance.interruptKind).toBe('通常');
-      const choices = [...zoneSection()!.querySelectorAll('select[name="interruptKind"] option')].map(
-        (option) => (option as HTMLOptionElement).value
-      );
-      expect(choices).toEqual(['', '全力', '通常']);
-
-      component.interruptKind = '';
-      expect(Config.instance.interruptKind).toBeNull();
-    });
-
-    it('writes the starting distances and what a distance does, and forgets them left empty', () => {
-      component.placementDistances = ' 近い:10 ';
-      component.distanceModifiers = '10:修正なし';
-      expect(Config.instance.placementDistances).toBe('近い:10');
-      expect(Config.instance.distanceModifiers).toBe('10:修正なし');
-
-      component.placementDistances = '';
-      component.distanceModifiers = '';
-      expect(Config.instance.placementDistances).toBeNull();
-      expect(Config.instance.distanceModifiers).toBeNull();
-    });
-
-    it('writes how far a piece blocks a line of fire, and the name that fires past it', () => {
-      component.zoneBlockRadiusM = 1.5;
-      component.zoneClearName = ' 精密 ';
-
-      expect(Config.instance.zoneRuleAnswers.blockRadiusM).toBe(1.5);
-      expect(Config.instance.zoneRuleAnswers.clearName).toBe('精密');
-
-      component.zoneBlockRadiusM = -1;
-      component.zoneClearName = '';
-      expect(Config.instance.zoneRuleAnswers.blockRadiusM).toBeNull();
-      expect(Config.instance.zoneRuleAnswers.clearName).toBeNull();
-    });
-
-    it('writes whether a move on a table with no grid is drawn as straight legs', () => {
-      component.pathMove = true;
-      expect(Config.instance.pathMove).toBe(true);
-
-      component.pathMove = false;
-      expect(Config.instance.pathMove).toBe(false);
-    });
-
-    it('leaves the room as it was for somebody watching', () => {
-      PeerCursor.myCursor.role = PeerRole.Guest;
-
-      component.zoneEnabled = true;
-
-      expect(Config.instance.zoneRuleAnswers.enabled).toBeNull();
-    });
-  });
-
-  describe('pieces riding mounts', () => {
-    it('writes the fields for steering and what a mount asks, and forgets them left empty', () => {
-      component.rideSkillField = ' 騎乗 ';
-      component.rideRequireField = '要求';
-      expect(Config.instance.rideSkillField).toBe('騎乗');
-      expect(Config.instance.rideRequireField).toBe('要求');
-
-      component.rideSkillField = '';
-      component.rideRequireField = ' ';
-      expect(Config.instance.rideSkillField).toBeNull();
-      expect(Config.instance.rideRequireField).toBeNull();
-    });
-
-    it('writes the shortest fall and the line rolled for one, showing the default fall where none is written', () => {
-      expect(component.fallMinM).toBe(2);
-
-      component.fallMinM = 3;
-      component.fallDamage = ' {m}d6 ';
-      expect(Config.instance.fallMinM).toBe(3);
-      expect(Config.instance.fallDamage).toBe('{m}d6');
-
-      component.fallMinM = Number.NaN;
-      component.fallDamage = '';
-      expect(Config.instance.fallMinM).toBeNull();
-      expect(component.fallMinM).toBe(2);
-      expect(Config.instance.fallDamage).toBeNull();
-    });
-
-    it('writes the buff for riding two up, and forgets it left empty', () => {
-      component.twoUpBuff = ' &ふたり乗り/判定-1/99 ';
-      expect(Config.instance.twoUpBuff).toBe('&ふたり乗り/判定-1/99');
-
-      component.twoUpBuff = '';
-      expect(Config.instance.twoUpBuff).toBeNull();
-    });
-
-    it('draws the fall and two-up settings with the rest of the riding ones', async () => {
-      component.tab.set('move');
-      fixture.detectChanges();
-      await fixture.whenStable();
-      const section = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="room-settings-ride"]');
-
-      expect(section?.querySelector('input[name="fallMinM"]')).not.toBeNull();
-      expect(section?.querySelector('input[name="fallDamage"]')).not.toBeNull();
-      expect(section?.querySelector('input[name="twoUpBuff"]')).not.toBeNull();
-    });
-  });
-
-  describe('the way a table lying flat is drawn', () => {
-    it('writes each feature to this screen alone, so nobody else is told', () => {
-      component.orthographicProjection = true;
-      component.multiAngleEnabled = true;
-      component.multiAngleFontScale = 'large';
-      component.tabletopMenuStyle = 'radial';
-      component.radialMenuRotationSpeed = 9;
-      component.hoverDetailPlacement = 'screen-edges';
-      component.cellMm = 30;
-
-      const own = TestBed.inject(TabletopDisplayPreferenceService).own();
-      expect(own).toEqual({
-        orthographicProjection: true,
-        multiAngleEnabled: true,
-        multiAngleFontScale: 'large',
-        tabletopMenuStyle: 'radial',
-        radialMenuRotationSpeed: 9,
-        hoverDetailPlacement: 'screen-edges',
-        cellMm: 30,
-      });
-      expect(Config.instance.getAttribute('_displayMultiAngleEnabled')).toBe('');
-    });
-
-    it('shows what the table has until this screen is told otherwise', () => {
-      table.multiAngleEnabled = true;
-      TableSelecter.instance.viewTableIdentifier = table.identifier;
-
-      expect(component.multiAngleEnabled).toBe(true);
-
-      component.multiAngleEnabled = false;
-
-      expect(component.multiAngleEnabled).toBe(false);
-      expect(table.multiAngleEnabled).toBe(true);
-    });
-
-    it('hands everything back to the table when the screen is emptied', () => {
-      table.multiAngleEnabled = true;
-      TableSelecter.instance.viewTableIdentifier = table.identifier;
-      component.multiAngleEnabled = false;
-
-      component.forgetOwnDisplay();
-
-      expect(component.multiAngleEnabled).toBe(true);
-      expect(TestBed.inject(TabletopDisplayPreferenceService).own()).toEqual({});
-    });
-
-    it('asks for the turn button on windows, which the panels read from this screen', () => {
-      component.panelRotationEnabled = true;
-
-      expect(TestBed.inject(TabletopDisplayPreferenceService).own().panelRotationEnabled).toBe(true);
-      expect(component.panelRotationEnabled).toBe(true);
-    });
-
-    it('starts a piece turning by the second the moment it is asked to turn in quarters', () => {
-      component.multiAngleMotionMode = 'quarter-turn';
-
-      expect(component.multiAngleMotionMode).toBe('quarter-turn');
-      expect(component.multiAnglePieceRevolutionSeconds).toBe(5);
-    });
-
-    it('lets a reader who may not edit the room set their own screen anyway', () => {
-      // Whether it is read-only is a computed, so the role has to be settled before it is asked.
-      PeerCursor.myCursor.role = PeerRole.Guest;
-
-      component.multiAngleEnabled = true;
-
-      expect(component.isReadOnly()).toBe(true);
-      expect(component.multiAngleEnabled).toBe(true);
-    });
-
-    it('keeps the shared settings out of a reader who may not edit the room', () => {
-      PeerCursor.myCursor.role = PeerRole.Guest;
-      TableSelecter.instance.viewTableIdentifier = table.identifier;
-
-      component.imageBillboard = true;
-
-      expect(table.imageBillboard).toBe(false);
-    });
-
-    async function openUi(part: 'shared' | 'skin' | 'tabletop'): Promise<HTMLElement> {
-      component.tab.set('ui');
-      component.uiTab.set(part);
-      fixture.detectChanges();
-      await fixture.whenStable();
-      return fixture.nativeElement as HTMLElement;
-    }
-
-    it('opens the UI settings on what the room shows everyone', () => {
-      expect(component.uiTab()).toBe('shared');
-    });
-
-    it('keeps a piece inside its cell for the whole room, from the shared part', async () => {
-      const root = await openUi('shared');
-      const block = root.querySelector('[data-testid="room-settings-flat-pieces"]');
-
-      expect(block).toBeTruthy();
-      expect(block!.querySelector('[data-testid="piece-image-in-cell"]')).toBeTruthy();
-
-      component.pieceImageInCell = true;
-
-      expect(component.pieceImageInCell).toBe(true);
-      expect(Config.instance.pieceImageInCell).toBe(true);
-    });
-
-    it('leaves a piece in its cell to the master', () => {
-      PeerCursor.myCursor.role = PeerRole.Player;
-
-      component.pieceImageInCell = true;
-
-      expect(component.pieceImageInCell).toBe(false);
-      expect(Config.instance.pieceImageInCell).toBeNull();
-    });
-
-    it('gives every number resource a slider for the whole room, from the shared part', async () => {
-      const root = await openUi('shared');
-      const box = root.querySelector('[data-testid="resource-slider-default"]') as HTMLInputElement;
-      expect(box).toBeTruthy();
-      expect(box.checked).toBe(false);
-
-      box.click();
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      expect(component.resourceSliderByDefault).toBe(true);
-      expect(Config.instance.resourceSliderByDefault).toBe(true);
-      Config.instance.resourceSliderByDefault = false;
-    });
-
-    it('leaves the sliders of the room to the master', () => {
-      PeerCursor.myCursor.role = PeerRole.Player;
-
-      component.resourceSliderByDefault = true;
-
-      expect(Config.instance.resourceSliderByDefault).toBe(false);
-    });
-
-    it('keeps what the room shows everyone under its own part', async () => {
-      const root = await openUi('shared');
-      const shared = root.querySelector('[data-testid="room-settings-shared"]');
-
-      expect(shared).toBeTruthy();
-      expect(shared!.querySelector('[data-testid="facing-mark"]')).toBeTruthy();
-      expect(shared!.querySelector('[data-testid="image-billboard"]')).toBeTruthy();
-      expect(root.querySelector('[data-testid="room-settings-own"]')).toBeNull();
-      expect(root.querySelector('[data-testid="room-settings-skin"]')).toBeNull();
-    });
-
-    it('keeps the colours this screen is dressed in under their own part', async () => {
-      const root = await openUi('skin');
-
-      expect(root.querySelector('[data-testid="room-settings-skin"]')).toBeTruthy();
-      expect(root.querySelector('[data-testid="room-settings-shared"]')).toBeNull();
-      expect(root.querySelector('[data-testid="room-settings-own"]')).toBeNull();
-    });
-
-    it('puts in what a tabletop display wants, and takes it back out again', () => {
-      expect(component.tabletopRecommended).toBe(false);
-
-      component.tabletopRecommended = true;
-
-      expect(component.tabletopRecommended).toBe(true);
-      expect(TestBed.inject(ViewModePreferenceService).mode()).toBe('flat');
-      expect(component.tabletopMenuStyle).toBe('radial');
-      expect(component.multiAngleEnabled).toBe(true);
-      expect(component.panelRotationEnabled).toBe(true);
-
-      component.tabletopRecommended = false;
-
-      expect(component.tabletopRecommended).toBe(false);
-      expect(component.tabletopMenuStyle).toBe('standard');
-      expect(component.multiAngleEnabled).toBe(false);
-      expect(component.panelRotationEnabled).toBe(false);
-    });
-
-    it('leaves the real size alone, which is measured rather than recommended', () => {
-      component.cellMm = 30;
-
-      component.tabletopRecommended = true;
-
-      expect(component.cellMm).toBe(30);
-    });
-
-    it('keeps what a screen laid on a table wants under its own part', async () => {
-      const root = await openUi('tabletop');
-      const own = root.querySelector('[data-testid="room-settings-own"]');
-
-      expect(own).toBeTruthy();
-      for (const control of [
-        'tabletop-recommended',
-        'tabletop-menu-style',
-        'orthographic-projection',
-        'multi-angle-enabled',
-        'ticker-enabled',
-        'cell-mm',
-        'real-size-enabled',
-        'panel-rotation-enabled',
-        'forget-own-display',
-      ]) {
-        expect(own!.querySelector(`[data-testid="${control}"]`)).toBeTruthy();
-      }
-      expect(root.querySelector('[data-testid="reset-calibration"]')).toBeNull();
-      expect(root.querySelector('[data-testid="room-settings-shared"]')).toBeNull();
-    });
-
-    it('keeps the measuring tool under the utility part', async () => {
-      component.tab.set('utility');
-      fixture.detectChanges();
-      await fixture.whenStable();
-      const root = fixture.nativeElement as HTMLElement;
-
-      expect(root.querySelector('[data-testid="reset-calibration"]')).not.toBeNull();
-      expect(root.querySelector('[data-testid="real-size-enabled"]')).toBeNull();
-    });
-  });
-
-  describe('the items the remotes show', () => {
-    function pieceCarrying(...items: string[]): GameCharacter {
-      const character = new GameCharacter();
-      character.initialize();
-      character.createDataElements();
-      for (const item of items) {
-        character.detailDataElement!.appendChild(
-          DataElement.create(item, 5, {
-            [DataElementAttribute.ROLE]: DataElementRole.FIELD,
-            type: DataElementType.NUMBER_RESOURCE,
-            currentValue: 5,
-          })
-        );
-      }
-      return character;
-    }
-
-    function chips(): HTMLInputElement[] {
-      const section = (fixture.nativeElement as HTMLElement).querySelector(
-        '[data-testid="room-settings-controller-resources"]'
-      );
-      return [...(section?.querySelectorAll<HTMLInputElement>('input[type="checkbox"]') ?? [])];
-    }
-
-    beforeEach(() => {
-      pieceCarrying('HP', 'MP');
-      pieceCarrying('HP', '信仰');
-    });
-
-    it('lists what every piece carries, each item once, all shown while nothing is picked', async () => {
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      expect(chips().map((chip) => chip.dataset['resource'])).toEqual(['HP', 'MP', '信仰']);
-      expect(chips().every((chip) => chip.checked)).toBe(true);
-      expect(Config.instance.controllerResources).toBeNull();
-    });
-
-    it('takes one item off the remotes and leaves the rest on', async () => {
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      const mp = chips().find((chip) => chip.dataset['resource'] === 'MP')!;
-      mp.checked = false;
-      mp.dispatchEvent(new Event('change'));
-      fixture.detectChanges();
-
-      expect(Config.instance.controllerResources).toEqual(['HP', '信仰']);
-      expect(chips().find((chip) => chip.dataset['resource'] === 'MP')!.checked).toBe(false);
-    });
-
-    it('puts an item back, and shows every item again when asked', () => {
-      component.hideEveryControllerResource();
-      expect(Config.instance.controllerResources).toEqual([]);
-
-      component.setControllerResourceShown('信仰', true);
-      expect(Config.instance.controllerResources).toEqual(['信仰']);
-
-      component.showEveryControllerResource();
-      expect(Config.instance.controllerResources).toBeNull();
-    });
-
-    it('leaves the pick to the master', () => {
-      PeerCursor.myCursor.role = PeerRole.Player;
-
-      component.setControllerResourceShown('MP', false);
-      component.hideEveryControllerResource();
-
-      expect(component.isSharedReadOnly()).toBe(true);
-      expect(Config.instance.controllerResources).toBeNull();
-    });
-  });
-
   it('does not throw when it is drawn', () => {
     expect(() => fixture.detectChanges()).not.toThrow();
+  });
+
+  it('opens on the general part and shows only that part', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.tab()).toBe('general');
+    expect(fixture.nativeElement.querySelector('[data-testid="room-settings-dice"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[name="turnOrderMode"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[name="zocMode"]')).toBeNull();
+  });
+
+  it('shows the round only under the part it belongs to', async () => {
+    const root = await open('battle');
+
+    expect(root.querySelector('[name="turnOrderMode"]')).not.toBeNull();
+  });
+
+  it('draws the move range, the ground enemies hold, zones and riding under the move part', async () => {
+    const root = await open('move');
+
+    expect(root.querySelector('[name="moveRangeEnabled"]')).not.toBeNull();
+    expect(root.querySelector('[name="zocMode"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="room-settings-zone"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="room-settings-ride"]')).not.toBeNull();
+  });
+
+  it('holds the move part still for a reader who may not edit the table', async () => {
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    const root = await open('move');
+
+    expect(root.querySelector('[name="zocMode"]')!.closest('[inert]')).not.toBeNull();
+  });
+
+  it('leaves a reader who may not edit free to look through the parts', async () => {
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.isReadOnly()).toBe(true);
+    expect(fixture.nativeElement.hasAttribute('inert')).toBe(false);
+    const strip = fixture.nativeElement.querySelector('[data-testid="room-settings-tab-move"]');
+    expect(strip.closest('[inert]')).toBeNull();
+  });
+
+  it('reaches where the notices go from the round section of the battle part', async () => {
+    ChatTabList.instance.addChatTab('メイン');
+    const root = await open('battle');
+
+    (root.querySelector('[data-testid="room-settings-open-notices"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.tab()).toBe('notice');
+    expect(root.querySelector('[data-testid="room-settings-notices"]')).not.toBeNull();
+  });
+
+  it('opens the UI settings on what the room shows everyone', () => {
+    expect(component.uiTab()).toBe('shared');
+  });
+
+  it('keeps what the room shows everyone under its own part', async () => {
+    const root = await openUi('shared');
+    const shared = root.querySelector('[data-testid="room-settings-shared"]');
+
+    expect(shared).toBeTruthy();
+    expect(shared!.querySelector('[data-testid="facing-mark"]')).toBeTruthy();
+    expect(shared!.querySelector('[data-testid="image-billboard"]')).toBeTruthy();
+    expect(root.querySelector('[data-testid="room-settings-own"]')).toBeNull();
+    expect(root.querySelector('[data-testid="room-settings-skin"]')).toBeNull();
+  });
+
+  it('keeps the colours this screen is dressed in under their own part', async () => {
+    const root = await openUi('skin');
+
+    expect(root.querySelector('[data-testid="room-settings-skin"]')).toBeTruthy();
+    expect(root.querySelector('[data-testid="room-settings-shared"]')).toBeNull();
+    expect(root.querySelector('[data-testid="room-settings-own"]')).toBeNull();
+  });
+
+  it('keeps what a screen laid on a table wants under its own part', async () => {
+    const root = await openUi('tabletop');
+    const own = root.querySelector('[data-testid="room-settings-own"]');
+
+    expect(own).toBeTruthy();
+    for (const control of [
+      'tabletop-recommended',
+      'tabletop-menu-style',
+      'orthographic-projection',
+      'multi-angle-enabled',
+      'ticker-enabled',
+      'cell-mm',
+      'real-size-enabled',
+      'panel-rotation-enabled',
+      'forget-own-display',
+    ]) {
+      expect(own!.querySelector(`[data-testid="${control}"]`)).toBeTruthy();
+    }
+    expect(root.querySelector('[data-testid="reset-calibration"]')).toBeNull();
+    expect(root.querySelector('[data-testid="room-settings-shared"]')).toBeNull();
+  });
+
+  it('keeps the measuring tool under the utility part', async () => {
+    const root = await open('utility');
+
+    expect(root.querySelector('[data-testid="reset-calibration"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="real-size-enabled"]')).toBeNull();
   });
 });

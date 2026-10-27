@@ -343,7 +343,7 @@ describe('DiceSymbolComponent', () => {
 
     it('is shown to the game master', () => {
       beMe('me');
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(true);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(true);
 
       show('somebody-else');
 

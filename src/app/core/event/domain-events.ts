@@ -139,13 +139,25 @@ export interface EffectCastEvent {
   cast: unknown;
 }
 
+export interface BattleCutInEvent {
+  /** The exchange to play, as it came over the network and before it is read. */
+  scene: unknown;
+}
+
 export const sendMessage$ = new EventChannel<SendMessageEvent>();
 export const diceTableMessage$ = new EventChannel<DiceTableMessageEvent>();
 export const resourceEditMessage$ = new EventChannel<ResourceEditMessageEvent>();
 export const domainPeerDisconnect$ = new EventChannel<DomainPeerDisconnectEvent>();
 export const soundEffect$ = new EventChannel<string>();
+/**
+ * Asks for a font a chat line is drawn in, by the name the chat's decorations give it, so that
+ * whatever loads the fonts loads it before the line is seen. Asking again for one already loaded
+ * costs nothing.
+ */
+export const chatFontWanted$ = new EventChannel<string>();
 
 export const effectCast$ = new EventChannel<EffectCastEvent>();
+export const battleCutIn$ = new EventChannel<BattleCutInEvent>();
 export const diceRolled$ = new EventChannel<DiceRolledEvent>();
 export const diceThrow$ = new EventChannel<DiceThrowEvent>();
 export const diceBotCatalog$ = new EventChannel<void>();
@@ -320,6 +332,17 @@ export function callEffectCast(cast: unknown) {
 }
 
 /**
+ * Plays an exchange on the battle stage of every device, this one included, or of this device
+ * alone to see how it looks.
+ *
+ * Nothing about it is kept: a room loaded later never plays it again.
+ */
+export function callBattleCutIn(scene: unknown, here: 'everywhere' | 'here') {
+  if (here === 'here') localDispatch('BATTLE_CUT_IN', scene);
+  else networkSend('BATTLE_CUT_IN', scene);
+}
+
+/**
  * Tells everyone that a resource moved.
  *
  * Watching for differences locally would count values replaced by a room load or a sync
@@ -381,6 +404,9 @@ networkMessage$.subscribe((msg) => {
       break;
     case 'EFFECT_CAST':
       effectCast$.emit({ cast: msg.data });
+      break;
+    case 'BATTLE_CUT_IN':
+      battleCutIn$.emit({ scene: msg.data });
       break;
     case 'RESOURCE_CHANGE':
       resourceChange$.emit(msg.data as ResourceChangeEvent);

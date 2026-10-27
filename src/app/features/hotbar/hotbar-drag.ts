@@ -1,10 +1,9 @@
+import { DRAG_THRESHOLD_PX } from '@axe/core/input/drag-threshold';
+
 export interface DragPoint {
   x: number;
   y: number;
 }
-
-/** How far a press must travel before it is a drag rather than a press that wandered. */
-export const DRAG_THRESHOLD_PX = 6;
 
 /**
  * A press on a slot on its way to becoming a drag.

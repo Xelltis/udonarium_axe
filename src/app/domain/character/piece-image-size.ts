@@ -1,4 +1,4 @@
-import { clamp } from '@axe/core/util/clamp';
+import { clampOr } from '@axe/core/util/clamp';
 
 /** The least and most height a piece's picture can be given, in pixels. */
 export const PIECE_IMAGE_HEIGHT_MIN_PX = 50;
@@ -43,8 +43,4 @@ export function widthInProportion(heightPx: number, aspect: number | null): numb
 export function heightInProportion(widthPx: number, aspect: number | null, fallback: number): number {
   if (aspect === null || !(aspect > 0) || !Number.isFinite(widthPx)) return fallback;
   return clampPieceImageHeight(Math.round(widthPx / aspect), fallback);
-}
-
-function clampOr(value: number, min: number, max: number, fallback: number): number {
-  return Number.isFinite(value) ? clamp(value, min, max) : fallback;
 }

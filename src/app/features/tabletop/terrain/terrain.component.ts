@@ -19,11 +19,10 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BoardSwitchService } from '@axe/application/tabletop/board-switch.service';
-import { SwitchPressService } from '@axe/application/tabletop/switch-press.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { TerrainFogCover, VisionService } from '@axe/application/tabletop/vision.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
-import { SWITCH_NOTICE_MS } from '@axe/application/ui/switch-notice.service';
+import { transientSignal } from '@axe/application/ui/transient-signal';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { imageFileEqual } from '@axe/core/storage/image-file';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -31,11 +30,12 @@ import { PERF_TERRAIN_GRID_RASTER, perfCounters } from '@axe/core/util/perf-coun
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { BoardSwitch } from '@axe/domain/tabletop/board-switch/board-switch';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
-import { buildHexRingClipPath, calcHexFlowerParams, HexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
+import { calcHexFlowerParams, HexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { DoorStyle, Terrain, TerrainFace } from '@axe/domain/tabletop/terrain';
+import { TerrainFogCover } from '@axe/domain/tabletop/terrain-cover';
 import {
   faceShadeOf,
   sideCellIndexes,
@@ -47,8 +47,16 @@ import { drawnSlopeSides, gridSlopeKind, gridSlopeSides, SlopeSide } from '@axe/
 import { buildSlopeRoof, SlopePoint, slopeProfileAlong, SlopeRoof } from '@axe/domain/tabletop/terrain-slope-roof';
 import { terrainWallFace, type WallSide } from '@axe/domain/tabletop/terrain-wall-face';
 import { WallFace, WallLight, WallSilhouette } from '@axe/domain/tabletop/vision-scene';
+import { SWITCH_NOTICE_MS } from '@axe/features/tabletop/board-switch/switch-notice.service';
+import { SwitchPressService } from '@axe/features/tabletop/board-switch/switch-press.service';
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
 import { fogMaskOf, terrainTextureLayout } from '@axe/features/tabletop/terrain/terrain-face-look';
+import {
+  floorBoundsOf,
+  gridSlideOf,
+  gridViewportOf,
+  TerrainGridBounds,
+} from '@axe/features/tabletop/terrain/terrain-grid';
 import {
   hexFloorClipPathOf,
   hexWallsOf,
@@ -67,6 +75,7 @@ import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { hexPedestalGrabStyle, hexPedestalRingStyle } from '@axe/ui/tabletop/hex-pedestal-style';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import {
   ShadedBackground,
@@ -77,21 +86,44 @@ import {
 } from '@axe/ui/tabletop/shaded-background';
 import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
 
-interface TerrainGridBounds {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
+/** What one side of a square block is drawn with. */
+interface WallSideParts {
+  /** What a slope over the block leaves of the wall. */
+  readonly cut: Signal<TerrainWallCut>;
+  readonly image: Signal<ImageFile>;
+  readonly shade: Signal<ShadedBackground>;
+  /** What the fog leaves of the face, as a mask over it, or null for none. */
+  readonly fog: Signal<Record<string, string> | null>;
+  /** The pools of light lamps cast on the face. */
+  readonly lights: Signal<WallLight[]>;
+  /** The shadows pieces cast on the face. */
+  readonly silhouettes: Signal<WallSilhouette[]>;
 }
 
-interface TerrainGridViewport extends TerrainGridBounds {
-  canvasLeft: number;
-  canvasTop: number;
-  canvasWidth: number;
-  canvasHeight: number;
-  offsetLeft: number;
-  offsetTop: number;
-}
+/**
+ * The sides of a square block in the order they are drawn: whether each runs along the block's
+ * width or its depth, and where its face stands and which way it is turned.
+ */
+const WALL_SIDE_FRAMES: readonly { side: WallSide; alongWidth: boolean; frameClass: string }[] = [
+  {
+    side: 'north',
+    alongWidth: true,
+    frameClass:
+      'top-0 left-0 origin-[50%_100%] transform-[translateY(-100%)_rotateX(90deg)_rotateZ(180deg)_scaleX(-1)]',
+  },
+  { side: 'south', alongWidth: true, frameClass: 'bottom-0 left-0 origin-[50%_100%] transform-[rotateX(-90deg)]' },
+  {
+    side: 'west',
+    alongWidth: false,
+    frameClass:
+      'top-0 left-0 origin-[0%_0%] transform-[rotateZ(90deg)_rotateX(-90deg)_scaleX(-1)_translateX(-100%)_translateY(-100%)]',
+  },
+  {
+    side: 'east',
+    alongWidth: false,
+    frameClass: 'top-0 right-0 origin-[100%_0%] transform-[rotateZ(-90deg)_rotateX(-90deg)_translateY(-100%)]',
+  },
+];
 
 /** How far a pointer may wander between pressing a switch and letting go, and still press it. */
 const PRESS_SLOP_PX = 6;
@@ -134,26 +166,13 @@ export class TerrainComponent {
   protected readonly guide = inject(ButtonGuideService);
 
   constructor() {
-    this.destroyRef.onDestroy(() => {
-      if (this.noticeTimer !== null) clearTimeout(this.noticeTimer);
-    });
     effect(() => {
       this.uiSignalService.terrainGridShowVersion();
-      let opacity: number = 0.0;
-      if (this.terrain().isGrid && !this.onWall()) {
-        opacity = 1.0;
-      }
-      this.setGridCanvasOpacity(opacity);
+      this.setGridCanvasOpacity(this.gridOpacity(true));
     });
     effect(() => {
       this.uiSignalService.terrainGridEndVersion();
-      let opacity: number = 0.0;
-      if (this.terrain().isGrid && !this.onWall()) {
-        if (this.tableSelecter.viewTable?.gridShow) {
-          opacity = 1.0;
-        }
-      }
-      this.setGridCanvasOpacity(opacity);
+      this.setGridCanvasOpacity(this.gridOpacity(false));
     });
     effect(() => {
       const gridCanvases = this.gridCanvases();
@@ -171,43 +190,11 @@ export class TerrainComponent {
     });
   }
 
-  /**
-   * Where the grid is cut from, and how far the canvas is slid so the cut lands true.
-   *
-   * A terrain dragged across the floor moves the grid under it a pixel at a time, and cutting
-   * the lines again for every pixel is most of what a drag costs. The lines only look
-   * different once the terrain crosses into another cell, so the cut is taken from the corner
-   * of the cell it stands in, one cell wider than it needs, and the canvas is slid back by
-   * the part of a cell it has travelled. Slid a whole number of pixels the cut draws the same
-   * picture; slid a fraction it would not, so a terrain standing off the pixel grid, which a
-   * hex table or a turned terrain can be, is cut afresh as before.
-   */
+  /** Where the grid is cut from, and how far the canvas is slid so the cut lands true, as `gridSlideOf` has it. */
   private readonly gridSlide = computed(() => {
     this.terrainVersion();
-    const viewport = this.getGridViewport(this.getFloorBounds());
-    const grid = this.gridSize;
-    const restX = viewport.offsetLeft - Math.floor(viewport.offsetLeft / grid) * grid;
-    const restY = viewport.offsetTop - Math.floor(viewport.offsetTop / grid) * grid;
-    // A turned terrain rotates its canvas about the canvas centre, and growing the canvas
-    // moves that centre, so a turned one is cut afresh however whole the remainder looks.
-    if (grid <= 0 || this.terrainRotate() !== 0 || !Number.isInteger(restX) || !Number.isInteger(restY)) {
-      return {
-        viewport,
-        offsetLeft: viewport.offsetLeft,
-        offsetTop: viewport.offsetTop,
-        slideX: 0,
-        slideY: 0,
-        grow: 0,
-      };
-    }
-    return {
-      viewport,
-      offsetLeft: viewport.offsetLeft - restX,
-      offsetTop: viewport.offsetTop - restY,
-      slideX: -restX,
-      slideY: -restY,
-      grow: grid,
-    };
+    const viewport = gridViewportOf(this.getFloorBounds(), this.terrainRotate(), this.terrain().location);
+    return gridSlideOf(viewport, this.gridSize, this.terrainRotate());
   });
 
   /**
@@ -315,7 +302,7 @@ export class TerrainComponent {
 
   readonly showsBlankOutline = computed(() => {
     this.objectChange.trackMyCursor();
-    return this.isBlank() && this.rolePermission.canSeeHidden;
+    return this.isBlank() && this.rolePermission.canSeeHidden();
   });
 
   /**
@@ -379,10 +366,6 @@ export class TerrainComponent {
   }
   readonly topFaceImage = computed(() => this.faceImageOf('top'), { equal: imageFileEqual() });
   readonly bottomFaceImage = computed(() => this.faceImageOf('bottom'), { equal: imageFileEqual() });
-  readonly northFaceImage = computed(() => this.faceImageOf('north'), { equal: imageFileEqual() });
-  readonly southFaceImage = computed(() => this.faceImageOf('south'), { equal: imageFileEqual() });
-  readonly eastFaceImage = computed(() => this.faceImageOf('east'), { equal: imageFileEqual() });
-  readonly westFaceImage = computed(() => this.faceImageOf('west'), { equal: imageFileEqual() });
 
   readonly height = computed(() => {
     this.terrainVersion();
@@ -487,7 +470,7 @@ export class TerrainComponent {
   });
 
   /** Why the last press on the block came to nothing, shown over it for a moment. */
-  protected readonly switchNotice = signal('');
+  protected readonly switchNotice = transientSignal('', SWITCH_NOTICE_MS);
 
   /** Stands the label up over the middle of the block, turned to the camera, or lays it flat from above. */
   protected readonly switchLabelTransform = computed(() => {
@@ -497,7 +480,6 @@ export class TerrainComponent {
   });
 
   private pressedFrom: { x: number; y: number } | null = null;
-  private noticeTimer: ReturnType<typeof setTimeout> | null = null;
 
   protected notePress(event: PointerEvent): void {
     this.pressedFrom = { x: event.clientX, y: event.clientY };
@@ -525,19 +507,11 @@ export class TerrainComponent {
     if (!held) return;
     const outcome = await this.switchPresses.press(held);
     if (outcome === 'pressed' || outcome === 'busy') return;
-    this.switchNotice.set(this.t(`feature.boardSwitch.refused.${outcome}`));
-    if (this.noticeTimer !== null) clearTimeout(this.noticeTimer);
-    this.noticeTimer = setTimeout(() => {
-      this.noticeTimer = null;
-      this.switchNotice.set('');
-    }, SWITCH_NOTICE_MS);
+    this.switchNotice.show(this.t(`feature.boardSwitch.refused.${outcome}`));
   }
 
   /** Whether this seat may open and shut a door, which a guest may not. */
-  protected readonly mayOpenDoor = computed(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditTabletop;
-  });
+  protected readonly mayOpenDoor = computed(() => this.rolePermission.canEditTabletop());
 
   protected onDoorClick(): void {
     if (!this.isDoor() || !this.mayOpenDoor() || this.pointerDeviceService.isDragging) return;
@@ -672,37 +646,12 @@ export class TerrainComponent {
   // Computed, so neither the record nor the clip path is rebuilt on every change-detection pass.
   readonly pedestalStyle = computed<Record<string, string>>(() => {
     const params = this.pedestalHexParams();
-    if (!params) return {} as Record<string, string>;
-    const { outline, bbox, L } = params;
-    const W = bbox.maxX - bbox.minX;
-    const H = bbox.maxY - bbox.minY;
-    return {
-      background: '#ccc',
-      clipPath: buildHexRingClipPath(outline, bbox, 7),
-      border: 'none',
-      borderRadius: '0',
-      width: `${W}px`,
-      height: `${H}px`,
-      left: `${bbox.minX + L / 2}px`,
-      top: `${bbox.minY + L / 2}px`,
-    };
+    return params ? hexPedestalRingStyle(params, 7, '#ccc') : {};
   });
 
   readonly pedestalGrabStyle = computed<Record<string, string>>(() => {
     const params = this.pedestalHexParams();
-    if (!params) return {} as Record<string, string>;
-    const { bbox, L } = params;
-    const halfW = (bbox.maxX - bbox.minX) / 2;
-    const halfH = (bbox.maxY - bbox.minY) / 2;
-    const radius = Math.sqrt(halfW * halfW + halfH * halfH) + 14;
-    const diameter = radius * 2;
-    return {
-      width: `${diameter}px`,
-      height: `${diameter}px`,
-      left: `${L / 2 - radius}px`,
-      top: `${L / 2 - radius}px`,
-      borderRadius: '50%',
-    };
+    return params ? hexPedestalGrabStyle(params, { reachPx: 14 }) : {};
   });
 
   readonly hexFloorClipPath = computed<string | null>(() => {
@@ -827,11 +776,6 @@ export class TerrainComponent {
     }
   }
 
-  readonly northWallCut = computed<TerrainWallCut>(() => this.wallCut('north'));
-  readonly southWallCut = computed<TerrainWallCut>(() => this.wallCut('south'));
-  readonly westWallCut = computed<TerrainWallCut>(() => this.wallCut('west'));
-  readonly eastWallCut = computed<TerrainWallCut>(() => this.wallCut('east'));
-
   /** The same for one side of a hex block, which is drawn from the far end of its edge. */
   readonly hexWallCuts = computed<TerrainWallCut[]>(() => {
     const outline = this.topOutline();
@@ -889,10 +833,6 @@ export class TerrainComponent {
    * times a second, and every terrain on the board would be rebuilding all of it each time.
    */
   protected readonly topShade = computed(() => this.shadedTop(this.topFaceImage().url));
-  protected readonly northShade = computed(() => this.shadedSide(this.northFaceImage().url, 'north'));
-  protected readonly southShade = computed(() => this.shadedSide(this.southFaceImage().url, 'south'));
-  protected readonly westShade = computed(() => this.shadedSide(this.westFaceImage().url, 'west'));
-  protected readonly eastShade = computed(() => this.shadedSide(this.eastFaceImage().url, 'east'));
 
   /**
    * The underside of a block, which is only ever looked at on one hung off the ground.
@@ -915,10 +855,6 @@ export class TerrainComponent {
   protected readonly showsBottom = computed(() => this.hasFloor());
 
   protected readonly topFog = computed(() => this.topFogStyle());
-  protected readonly northFog = computed(() => this.faceFogStyle('north'));
-  protected readonly southFog = computed(() => this.faceFogStyle('south'));
-  protected readonly westFog = computed(() => this.faceFogStyle('west'));
-  protected readonly eastFog = computed(() => this.faceFogStyle('east'));
 
   /** The top of a block, shaded a cell at a time where it can be. */
   private shadedTop(url: string): ShadedBackground {
@@ -1041,15 +977,32 @@ export class TerrainComponent {
     );
   }
 
-  protected readonly northLights = this.lightsOf('north');
-  protected readonly southLights = this.lightsOf('south');
-  protected readonly eastLights = this.lightsOf('east');
-  protected readonly westLights = this.lightsOf('west');
+  /**
+   * What one side of a square block is drawn with, each part worked out on its own, so a lamp that
+   * flickers redraws the light on a wall and not its shading.
+   */
+  private wallSideOf(side: WallSide): WallSideParts {
+    const image = computed(() => this.faceImageOf(side), { equal: imageFileEqual() });
+    return {
+      cut: computed(() => this.wallCut(side)),
+      image,
+      shade: computed(() => this.shadedSide(image().url, side)),
+      fog: computed(() => this.faceFogStyle(side)),
+      lights: this.lightsOf(side),
+      silhouettes: this.silhouettesOf(side),
+    };
+  }
 
-  protected readonly northSilhouettes = this.silhouettesOf('north');
-  protected readonly southSilhouettes = this.silhouettesOf('south');
-  protected readonly eastSilhouettes = this.silhouettesOf('east');
-  protected readonly westSilhouettes = this.silhouettesOf('west');
+  /** The parts of each side of a square block. */
+  readonly sides: Readonly<Record<WallSide, WallSideParts>> = {
+    north: this.wallSideOf('north'),
+    south: this.wallSideOf('south'),
+    west: this.wallSideOf('west'),
+    east: this.wallSideOf('east'),
+  };
+
+  /** The sides of a square block as they are drawn, each with where its face stands and its parts. */
+  protected readonly wallSides = WALL_SIDE_FRAMES.map((frame) => ({ ...frame, ...this.sides[frame.side] }));
 
   private readonly ambientBrightness = computed(() => {
     this.terrainVersion();
@@ -1078,45 +1031,13 @@ export class TerrainComponent {
     return wallSilhouetteStyle(silhouette, this.faceIsMirrored(side), this.depth() * this.gridSize);
   }
 
-  private getFloorBounds(width: number = this.width(), depth: number = this.depth()): TerrainGridBounds {
-    const params = this.pedestalHexParams();
-    if (!params) {
-      return {
-        left: 0,
-        top: 0,
-        width: width * this.gridSize,
-        height: depth * this.gridSize,
-      };
-    }
-    const { bbox } = params;
-    const containerW = width * this.gridSize;
-    const containerH = depth * this.gridSize;
-    return {
-      left: containerW / 2 + bbox.minX,
-      top: containerH / 2 + bbox.minY,
-      width: bbox.maxX - bbox.minX,
-      height: bbox.maxY - bbox.minY,
-    };
-  }
-
-  private getGridViewport(bounds: TerrainGridBounds): TerrainGridViewport {
-    const radians = (this.terrainRotate() * Math.PI) / 180;
-    const cos = Math.abs(Math.cos(radians));
-    const sin = Math.abs(Math.sin(radians));
-    const canvasWidth = Math.max(1, bounds.width * cos + bounds.height * sin);
-    const canvasHeight = Math.max(1, bounds.width * sin + bounds.height * cos);
-    const canvasLeft = (bounds.width - canvasWidth) / 2;
-    const canvasTop = (bounds.height - canvasHeight) / 2;
-
-    return {
-      ...bounds,
-      canvasLeft,
-      canvasTop,
-      canvasWidth,
-      canvasHeight,
-      offsetLeft: this.terrain().location.x + bounds.left + canvasLeft,
-      offsetTop: this.terrain().location.y + bounds.top + canvasTop,
-    };
+  /** Where the block's floor lies within it, which the grid and a hex floor are laid over. */
+  private getFloorBounds(): TerrainGridBounds {
+    return floorBoundsOf(
+      this.width() * this.gridSize,
+      this.depth() * this.gridSize,
+      this.pedestalHexParams()?.bbox ?? null
+    );
   }
 
   private setGameTableGrid(
@@ -1152,15 +1073,16 @@ export class TerrainComponent {
       );
       drawn = canvas;
     }
-    let opacity: number = 0.0;
-    setTimeout(() => {
-      if (this.terrain().isGrid && !this.onWall()) {
-        if (this.tableSelecter.viewTable?.gridShow) {
-          opacity = 1.0;
-        }
-      }
-      this.setGridCanvasOpacity(opacity);
-    }, 0);
+    setTimeout(() => this.setGridCanvasOpacity(this.gridOpacity(false)), 0);
+  }
+
+  /**
+   * How visible the grid drawn on the block is: shown on a block that asks for one, off a wall,
+   * while something is being dragged on the table, and otherwise as the table shows its own.
+   */
+  private gridOpacity(dragging: boolean): number {
+    if (!this.terrain().isGrid || this.onWall()) return 0;
+    return dragging || this.tableSelecter.viewTable?.gridShow ? 1 : 0;
   }
 
   private setGridCanvasOpacity(opacity: number) {

@@ -37,7 +37,7 @@ export class FilesTooLargeEventHandlerService {
   }
 
   private async deal(event: FilesTooLargeEvent): Promise<void> {
-    const editable = this.rolePermission.canEditTabletop ? event.files.filter((entry) => entry.file) : [];
+    const editable = this.rolePermission.canEditTabletop() ? event.files.filter((entry) => entry.file) : [];
     this.tell(event.files.filter((entry) => !editable.includes(entry)));
     if (editable.length === 0) return;
     const placed: ImageDroppedEvent[] = [];

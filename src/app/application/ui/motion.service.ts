@@ -1,9 +1,10 @@
 import { DOCUMENT } from '@angular/common';
 import { computed, DestroyRef, effect, inject, Injectable, signal } from '@angular/core';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 
 export type MotionSetting = 'auto' | 'on' | 'off';
 
-const STORAGE_KEY = 'ui-motion';
 const MOTION_ORDER: MotionSetting[] = ['auto', 'on', 'off'];
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
@@ -50,11 +51,7 @@ export class MotionService {
   /** Only a choice is written down. The system setting turning over is not one. */
   set(setting: MotionSetting): void {
     this.setting.set(setting);
-    try {
-      localStorage.setItem(STORAGE_KEY, setting);
-    } catch {
-      // Private browsing refuses the write; the setting still holds for this session.
-    }
+    writeLocal(STORAGE_KEYS.motion, setting);
   }
 
   private markDocument(): void {
@@ -67,10 +64,6 @@ function mediaQuery(): MediaQueryList | null {
 }
 
 function storedSetting(): MotionSetting {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return MOTION_ORDER.includes(stored as MotionSetting) ? (stored as MotionSetting) : 'auto';
-  } catch {
-    return 'auto';
-  }
+  const stored = readLocal(STORAGE_KEYS.motion);
+  return MOTION_ORDER.includes(stored as MotionSetting) ? (stored as MotionSetting) : 'auto';
 }

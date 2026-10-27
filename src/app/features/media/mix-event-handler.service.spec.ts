@@ -1,8 +1,11 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { AudioAnalysisService } from '@axe/application/media/audio-analysis.service';
+import { JukeboxEngineService } from '@axe/application/media/jukebox-engine.service';
+import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MusicBus } from '@axe/core/audio/music-bus';
+import { AudioOutput } from '@axe/core/storage/audio-output';
 import { DEFAULT_DJ_SETTINGS } from '@axe/domain/media/dj-settings';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { Config } from '@axe/domain/peer/config';
@@ -31,6 +34,7 @@ describe('MixEventHandlerService', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     setDucking = vi.spyOn(MusicBus, 'setDucking').mockImplementation(() => {});
+    vi.spyOn(AudioOutput, 'setChannelVolume').mockImplementation(() => {});
     jukebox = new Jukebox('Jukebox');
     jukebox.initialize();
     const config = new Config('Config');
@@ -56,8 +60,35 @@ describe('MixEventHandlerService', () => {
     expect(setDucking).toHaveBeenLastCalledWith(false);
   });
 
+  it('puts a change of the room’s volumes on the channels once, made here or by another peer', () => {
+    start();
+    const applied = vi.spyOn(TestBed.inject(PersonalVolumeService), 'applyToChannels');
+
+    Config.instance.roomVolume = 0.3;
+    changed('Config');
+    expect(applied).toHaveBeenCalledTimes(1);
+
+    Config.instance.djSettings = { ...DEFAULT_DJ_SETTINGS, ducking: false };
+    changed('Config');
+    expect(applied).toHaveBeenCalledTimes(1);
+  });
+
+  it('eases the tracks to a change of the room’s mix once, and to nothing else the room changes', () => {
+    const refreshMix = vi.spyOn(JukeboxEngineService.prototype, 'refreshMix').mockImplementation(() => {});
+    start();
+    refreshMix.mockClear();
+
+    Config.instance.djSettings = { ...DEFAULT_DJ_SETTINGS, ducking: false };
+    changed('Config');
+    expect(refreshMix).toHaveBeenCalledTimes(1);
+
+    Config.instance.roomVolume = 0.3;
+    changed('Config');
+    expect(refreshMix).toHaveBeenCalledTimes(1);
+  });
+
   it('remixes whenever a reading arrives or changes', () => {
-    const refreshMix = vi.spyOn(jukebox, 'refreshMix').mockImplementation(() => {});
+    const refreshMix = vi.spyOn(JukeboxEngineService.prototype, 'refreshMix').mockImplementation(() => {});
     start();
     refreshMix.mockClear();
 
@@ -68,7 +99,7 @@ describe('MixEventHandlerService', () => {
   });
 
   it('looks for the point to move on only while the room plays', () => {
-    const tick = vi.spyOn(jukebox, 'tickAutomix').mockImplementation(() => {});
+    const tick = vi.spyOn(JukeboxEngineService.prototype, 'tickAutomix').mockImplementation(() => {});
     start();
 
     vi.advanceTimersByTime(AUTOMIX_TICK_MS * 4);

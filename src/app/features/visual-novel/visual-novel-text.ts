@@ -19,9 +19,10 @@ export function graphemeEnds(text: string): number[] {
 }
 
 /**
- * A line as it is typed out: the runs the ruby notation cuts it into, and its letters.
+ * A line as it is typed out: the runs the chat's decorations and the ruby notation cut it into, and
+ * its letters.
  *
- * Only the letters a reader sees are typed. The notation itself never shows, and a reading is
+ * Only the letters a reader sees are typed. The marks themselves never show, and a reading is
  * written over its word from the word's first letter on.
  */
 export interface TypedLine {
@@ -68,6 +69,6 @@ export function typedPartsOf(line: TypedLine, typed: number): readonly RubyPart[
   const index = line.partOfLetter[typed - 1];
   const part = line.parts[index];
   const shown = line.parts.slice(0, index);
-  shown.push({ text: part.text.slice(0, line.ends[typed - 1] - line.partStarts[index]), reading: part.reading });
+  shown.push({ ...part, text: part.text.slice(0, line.ends[typed - 1] - line.partStarts[index]) });
   return shown;
 }

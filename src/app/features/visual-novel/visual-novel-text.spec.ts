@@ -17,16 +17,26 @@ describe('typedLineOf', () => {
   it('shows the word with a reading a letter at a time, the reading over it from the first', () => {
     const line = typedLineOf('あ|漢字《かんじ》い');
     expect(typedPartsOf(line, 0)).toEqual([]);
-    expect(typedPartsOf(line, 1)).toEqual([{ text: 'あ', reading: '' }]);
+    expect(typedPartsOf(line, 1)).toEqual([{ text: 'あ', reading: '', decoration: null }]);
     expect(typedPartsOf(line, 2)).toEqual([
-      { text: 'あ', reading: '' },
-      { text: '漢', reading: 'かんじ' },
+      { text: 'あ', reading: '', decoration: null },
+      { text: '漢', reading: 'かんじ', decoration: null },
     ]);
     expect(typedPartsOf(line, 3)).toEqual([
-      { text: 'あ', reading: '' },
-      { text: '漢字', reading: 'かんじ' },
+      { text: 'あ', reading: '', decoration: null },
+      { text: '漢字', reading: 'かんじ', decoration: null },
     ]);
     expect(typedPartsOf(line, 4)).toBe(line.parts);
+  });
+
+  it('types a decorated word without its marks, the part typed so far drawn as the whole will be', () => {
+    const line = typedLineOf('あ**強い**');
+    expect(line.text).toBe('あ強い');
+    expect(typedPartsOf(line, 2)).toEqual([
+      { text: 'あ', reading: '', decoration: null },
+      { text: '強', reading: '', decoration: line.parts[1].decoration },
+    ]);
+    expect(line.parts[1].decoration?.bold).toBe(true);
   });
 
   it('keeps the text and the runs at the same place in the line', () => {

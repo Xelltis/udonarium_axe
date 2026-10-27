@@ -1,12 +1,12 @@
 import { inject, Injectable } from '@angular/core';
 import { ConfirmDialogOption } from '@axe/application/ui/confirm-option';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { CONFIRM_DIALOG_COMPONENT } from '@axe/application/ui/overlay-components';
 
 @Injectable({ providedIn: 'root' })
 export class ConfirmService {
-  static dialogComponentClass: { new (...args: unknown[]): unknown } = null!;
-
   private readonly modalService = inject(ModalService);
+  private readonly dialogComponent = inject(CONFIRM_DIALOG_COMPONENT);
 
   /**
    * Asks the reader a yes-or-no question, resolving true only on an explicit yes.
@@ -17,9 +17,9 @@ export class ConfirmService {
    */
   ask(option: ConfirmDialogOption | string): Promise<boolean> {
     const asked = typeof option === 'string' ? { message: option } : option;
-    if (!ConfirmService.dialogComponentClass) return Promise.resolve(window.confirm(asked.message));
+    if (!this.dialogComponent) return Promise.resolve(window.confirm(asked.message));
     return this.modalService
-      .open<unknown>(ConfirmService.dialogComponentClass, asked)
+      .open<unknown>(this.dialogComponent, asked)
       .then((answer) => answer === true)
       .catch(() => false);
   }

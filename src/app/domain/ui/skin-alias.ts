@@ -1,7 +1,7 @@
 /**
  * The names Tailwind's utilities actually read, and the theme token each one stands for.
  *
- * `styles.css` defines `--color-ui-*: var(--ui-*)` on the root, and a custom property is
+ * The global stylesheet defines `--color-ui-*: var(--ui-*)` on the root, and a custom property is
  * inherited as the value it resolved to there. Overriding `--ui-elevated` deeper in the tree
  * therefore changes nothing a `bg-ui-elevated` reads: a preview scoped to one element has to
  * set both names. The spec beside this file reads the stylesheet and holds the list in step.

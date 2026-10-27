@@ -4,6 +4,7 @@ import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { SoundEffects } from '@axe/core/storage/sound-effects';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { CutIn } from '@axe/domain/media/cut-in';
@@ -160,7 +161,7 @@ export class VisualNovelSoundBoardComponent {
    */
   isSoundEffectPlaying(identifier: string): boolean {
     this.seTick();
-    return this.jukebox?.isSePlaying(identifier) ?? false;
+    return SoundEffects.isPlaying(identifier);
   }
 
   /** The board is asked again about what is playing whenever it is opened. */

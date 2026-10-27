@@ -57,10 +57,7 @@ export class ChatMessageSettingComponent {
     },
   ]);
 
-  readonly canEditRoom = computed<boolean>(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditTabletop;
-  });
+  readonly canEditRoom = computed<boolean>(() => this.rolePermission.canEditTabletop());
 
   /**
    * Shows or hides System-chan, the avatar beside system messages and dice rolls, for everyone in

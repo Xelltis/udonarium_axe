@@ -1,7 +1,6 @@
 import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
-import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import {
   ContextMenuAction,
   ContextMenuRadialGroup,
@@ -12,6 +11,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { COVERED_RANGE_TYPES } from '@axe/domain/tabletop/range-coverage';
+import { CreateObjectMenu } from '@axe/features/tabletop/create-menu/create-object-context-menu';
 
 export interface RangeContextMenuModel {
   actions: ContextMenuAction[];
@@ -25,7 +25,7 @@ export function buildRangeContextMenu(
   objectPosition: PointerCoordinate,
   objectStore: ObjectStore,
   inventoryService: GameObjectInventoryService,
-  tabletopActionService: TabletopActionService,
+  createMenu: CreateObjectMenu,
   onDockingWindowOpen: () => void,
   onEdit: (r: RangeArea) => void,
   t: TranslateFn,
@@ -38,7 +38,7 @@ export function buildRangeContextMenu(
     objectPosition,
     objectStore,
     inventoryService,
-    tabletopActionService,
+    createMenu,
     onDockingWindowOpen,
     onEdit,
     t,
@@ -60,7 +60,7 @@ export function buildRangeContextMenuModel(
   objectPosition: PointerCoordinate,
   objectStore: ObjectStore,
   inventoryService: GameObjectInventoryService,
-  tabletopActionService: TabletopActionService,
+  createMenu: CreateObjectMenu,
   onDockingWindowOpen: () => void,
   onEdit: (r: RangeArea) => void,
   t: TranslateFn,
@@ -104,7 +104,7 @@ export function buildRangeContextMenuModel(
   const createAction: ContextMenuAction = {
     name: t('feature.tabletop.contextMenu.createObject'),
     action: undefined,
-    subActions: tabletopActionService.makeDefaultContextMenuActions(objectPosition),
+    subActions: createMenu.menuAt(objectPosition),
   };
 
   const positionActions = [altitudeAction, lockAction, ...(followAction ? [followAction] : [])];

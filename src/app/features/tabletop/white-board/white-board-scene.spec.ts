@@ -8,9 +8,9 @@ import {
   sceneWidthPx,
   ShapeItem,
   TextLayer,
-} from '@axe/features/map-editor/model/scene';
-import { addImage, addShape, addStroke, addText } from '@axe/features/map-editor/model/scene-ops';
-import { generateShapePoints } from '@axe/features/map-editor/model/shape-points';
+} from '@axe/domain/map-editor/scene';
+import { addImage, addShape, addStroke, addText } from '@axe/domain/map-editor/scene-ops';
+import { generateShapePoints } from '@axe/domain/map-editor/shape-points';
 import {
   addJoint,
   alignMarks,

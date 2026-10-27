@@ -1,8 +1,8 @@
-import { readFileSync } from 'node:fs';
+import { readGlobalStyles } from '@axe/testing/global-styles';
 
 /** The stylesheet with its comments taken out, so braces and at-signs in prose are not read as rules. */
 function stylesheet(): string {
-  return readFileSync('src/styles.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  return readGlobalStyles().replace(/\/\*[\s\S]*?\*\//g, '');
 }
 
 /** The end of the block whose opening brace is at `open`, just past its closing brace. */

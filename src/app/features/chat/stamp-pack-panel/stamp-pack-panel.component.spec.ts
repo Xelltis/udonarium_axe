@@ -47,7 +47,7 @@ describe('StampPackPanelComponent', () => {
     for (const pack of packs()) pack.destroy();
     TestBed.configureTestingModule({ imports: [StampPackPanelComponent], providers: [...TEST_PROVIDERS] });
     canEdit = true;
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockImplementation(() => canEdit);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockImplementation(() => canEdit);
     fixture = TestBed.createComponent(StampPackPanelComponent);
     fixture.detectChanges();
   });

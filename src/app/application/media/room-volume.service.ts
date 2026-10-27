@@ -1,8 +1,8 @@
 import { computed, inject, Injectable } from '@angular/core';
+import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { Jukebox } from '@axe/domain/media/jukebox';
 import { DEFAULT_ROOM_VOLUMES, MAX_ROOM_VOLUME, RoomVolumeKind, RoomVolumes } from '@axe/domain/media/room-volumes';
 import { Config } from '@axe/domain/peer/config';
 
@@ -16,6 +16,7 @@ export class RoomVolumeService {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly personalVolumes = inject(PersonalVolumeService);
 
   /** The room's overall volume, from 0 to 2; 1 before the room's settings exist. */
   readonly volume = computed(() => {
@@ -30,17 +31,14 @@ export class RoomVolumeService {
   });
 
   /** Whether this reader may change the room's volumes, which only the game master may. */
-  readonly canChange = computed(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditShared;
-  });
+  readonly canChange = computed(() => this.rolePermission.canEditShared());
 
   /** Sets the room's overall volume for everyone and makes it heard here at once. Anyone but the game master is refused. */
   set(volume: number): void {
-    if (!this.rolePermission.canEditShared) return;
+    if (!this.rolePermission.canEditShared()) return;
     const config = this.objectStore.get<Config>('Config');
     if (config) config.roomVolume = volume;
-    this.objectStore.get<Jukebox>('Jukebox')?.setNewVolume();
+    this.personalVolumes.applyToChannels();
   }
 
   /**
@@ -48,9 +46,9 @@ export class RoomVolumeService {
    * Anyone but the game master is refused.
    */
   setKind(kind: RoomVolumeKind, volume: number): void {
-    if (!this.rolePermission.canEditShared) return;
+    if (!this.rolePermission.canEditShared()) return;
     const config = this.objectStore.get<Config>('Config');
     if (config) config.setRoomVolumeOf(kind, Math.min(MAX_ROOM_VOLUME, Math.max(0, volume)));
-    this.objectStore.get<Jukebox>('Jukebox')?.setNewVolume();
+    this.personalVolumes.applyToChannels();
   }
 }

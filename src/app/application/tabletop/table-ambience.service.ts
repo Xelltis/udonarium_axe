@@ -34,7 +34,7 @@ export class TableAmbienceService {
   shown(): TableAmbience[] {
     this.objectChange.trackMyCursor();
     const looks = this.all();
-    if (this.rolePermission.canSeeHidden) return looks;
+    if (this.rolePermission.canSeeHidden()) return looks;
     if (looks.every((look) => look.shows === 'room')) return looks;
     const seen = this.vision.overlayVision()?.visible ?? null;
     const table = this.tableSelecter.viewTable;

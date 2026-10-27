@@ -152,6 +152,13 @@ export class GameCharacter extends OwnedTabletopObject {
    * `cut-in-portrait-fit.ts` writes it. Empty leaves every portrait to the cut-in's own framing.
    */
   @SyncVar() cutInPortraitFits: string = '';
+  /**
+   * The side of the battle stage the master has put the piece on, `left` or `right`. Empty leaves
+   * it out of the lineup the stage plays when nobody says who strikes whom.
+   */
+  @SyncVar() battleSide: string = '';
+  /** The effect the piece strikes with on the battle stage, by name. Empty strikes with the stage's own. */
+  @SyncVar() battleEffect: string = '';
 
   /**
    * How the piece is getting about, as one of MOVE_MODES. Empty walks.

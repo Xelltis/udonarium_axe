@@ -1,6 +1,7 @@
 import { emitAlarmPop, emitAlarmTimeUp } from '@axe/core/event/domain-events';
-import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { VolumeType } from '@axe/core/storage/audio-output';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { SoundEffects } from '@axe/core/storage/sound-effects';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { GameObject, ObjectContext } from '@axe/core/sync/game-object';
 import { PresetSound } from '@axe/domain/media/sound-effect';
@@ -74,7 +75,7 @@ export class Alarm extends GameObject {
           const text_ = `アラーム(${this.alarmTime}秒)経過${this.targetText}${this.alarmTitle}`;
           emitAlarmTimeUp({ text: text_ });
           const audio = AudioStorage.instance.get(PresetSound.alarm);
-          if (audio) AudioPlayer.play(audio, 0.5, VolumeType.NOTIFICATION);
+          if (audio) SoundEffects.playOnce(audio, 0.5, VolumeType.NOTIFICATION);
         }
         if (this.isPopUp) {
           emitAlarmPop({ title: this.alarmTitle, time: this.alarmTime });

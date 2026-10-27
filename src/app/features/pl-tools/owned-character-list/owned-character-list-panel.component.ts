@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActiveCharacterService } from '@axe/application/character/active-character.service';
+import { ChatPaletteRegistryService } from '@axe/application/chat/chat-palette-registry.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PartyService } from '@axe/application/party/party.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
@@ -10,18 +12,12 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { matchesSearchText, normalizeSearchText, splitSearchTerms } from '@axe/core/util/text-search';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { isOnTable, selectClaimableCharacters, selectOwnedCharacters } from '@axe/domain/character/owned-characters';
 import { DataElement } from '@axe/domain/data/data-element';
 import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { ChatPaletteRegistryService } from '@axe/features/chat/chat-palette/chat-palette-registry.service';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
-import { ActiveCharacterService } from '@axe/features/pl-tools/active-character.service';
 import { resourceElementsOf, resourceMax } from '@axe/features/pl-tools/owned-character-list/character-resources';
-import {
-  isOnTable,
-  selectClaimableCharacters,
-  selectOwnedCharacters,
-} from '@axe/features/pl-tools/owned-character-list/owned-characters';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';

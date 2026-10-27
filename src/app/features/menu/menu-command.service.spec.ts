@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { RoomFilesService } from '@axe/application/file/room-files.service';
 import { StartRoomService } from '@axe/application/file/start-room.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
@@ -85,19 +86,38 @@ describe('MenuCommandService', () => {
       expect(commands.run(commandOf('persona'))).toBe('drawsItself');
     });
 
-    it('says so rather than saving when no screen has offered to', () => {
+    it('saves the room, whatever screen it is pressed on', () => {
       seatAs(PeerRole.Player);
-
-      expect(commands.run(commandOf('save'))).toBe('noHost');
-    });
-
-    it('saves through the screen once one has offered to', () => {
-      seatAs(PeerRole.Player);
-      const save = vi.fn();
-      commands.registerHost({ save, chooseFilesToLoad: () => {}, isSaving: () => false });
+      const save = vi.spyOn(TestBed.inject(RoomFilesService), 'save').mockResolvedValue();
 
       expect(commands.run(commandOf('save'))).toBe('done');
-      expect(save).toHaveBeenCalled();
+      expect(save).toHaveBeenCalledOnce();
+    });
+
+    it('cannot be pressed to save again while a save runs', () => {
+      seatAs(PeerRole.Player);
+      vi.spyOn(TestBed.inject(RoomFilesService), 'isSaving').mockReturnValue(true);
+
+      expect(commands.disabledOf(commandOf('save'))).toBe(true);
+    });
+
+    it('says so rather than asking for files when no screen has a picker to offer', () => {
+      seatAs(PeerRole.Player);
+
+      expect(commands.run(commandOf('zipLoad'))).toBe('noHost');
+    });
+
+    it("asks for files through the screen's picker once it offers one, and not after it takes it back", () => {
+      seatAs(PeerRole.Player);
+      const open = vi.fn();
+      commands.registerFilePicker(open);
+
+      expect(commands.run(commandOf('zipLoad'))).toBe('done');
+      expect(open).toHaveBeenCalledOnce();
+
+      commands.registerFilePicker(null);
+
+      expect(commands.run(commandOf('zipLoad'))).toBe('noHost');
     });
 
     it('brings out the guide to the buttons for anybody, watchers among them', () => {

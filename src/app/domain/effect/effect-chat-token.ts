@@ -24,7 +24,21 @@ export interface EffectChatToken {
   text: string;
 }
 
-/** Takes the first effect token out of a line. Null when there is none. */
+/**
+ * The token that plays a line as an exchange on the battle stage rather than naming an effect.
+ * Read in either width and either case.
+ */
+export const BATTLE_CHAT_TOKEN = '《vs》';
+
+/** Whether a token's name is the battle stage's own rather than an effect's. */
+export function isBattleChatTokenName(name: string): boolean {
+  return name.normalize('NFKC').trim().toLowerCase() === 'vs';
+}
+
+/**
+ * Takes the first effect token out of a line. Null when there is none. The battle stage's token
+ * names no effect, so it is passed over.
+ */
 export function parseEffectChatToken(text: string): EffectChatToken | null {
   for (const matched of text.matchAll(RUBY_OR_TOKEN)) {
     const token = matched[3];
@@ -32,10 +46,20 @@ export function parseEffectChatToken(text: string): EffectChatToken | null {
 
     const name = token.trim();
     if (name.length < 1) return null;
+    if (isBattleChatTokenName(name)) continue;
 
     return { name, text: stripEffectChatTokens(text) };
   }
   return null;
+}
+
+/** Whether a line asks to be played on the battle stage, by the battle stage's token anywhere in it. */
+export function hasBattleChatToken(text: string): boolean {
+  for (const matched of text.matchAll(RUBY_OR_TOKEN)) {
+    const token = matched[3];
+    if (token !== undefined && isBattleChatTokenName(token)) return true;
+  }
+  return false;
 }
 
 /** Takes every effect token out of a line, leaving its rubies as they are. */

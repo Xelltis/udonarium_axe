@@ -1,11 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { SwitchPressService } from '@axe/application/tabletop/switch-press.service';
 import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { BoardSwitch } from '@axe/domain/tabletop/board-switch/board-switch';
 import { BoardSwitchEditorComponent } from '@axe/features/tabletop/board-switch/board-switch-editor.component';
+import { SwitchPressService } from '@axe/features/tabletop/board-switch/switch-press.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('BoardSwitchEditorComponent', () => {

@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
-
-export const LOCAL_MODE_STORAGE_KEY = 'ui-local-mode';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 
 /**
  * Whether this browser runs the room on its own, without SkyWay or a backend.
@@ -16,19 +16,10 @@ export class LocalModePreferenceService {
   /** Turns local mode on or off in this browser. It takes effect on the next load, not now. */
   set(enabled: boolean): void {
     this.enabled.set(enabled);
-    try {
-      if (enabled) localStorage.setItem(LOCAL_MODE_STORAGE_KEY, '1');
-      else localStorage.removeItem(LOCAL_MODE_STORAGE_KEY);
-    } catch {
-      // Private browsing refuses the write; the choice still holds for this session.
-    }
+    writeLocal(STORAGE_KEYS.localMode, enabled ? '1' : null);
   }
 }
 
 function stored(): boolean {
-  try {
-    return localStorage.getItem(LOCAL_MODE_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
+  return readLocal(STORAGE_KEYS.localMode) === '1';
 }

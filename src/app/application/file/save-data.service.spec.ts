@@ -13,6 +13,7 @@ import * as MimeType from '@axe/core/storage/mime-type';
 import { ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { DEFAULT_BATTLE_SETTINGS } from '@axe/domain/battle/battle-settings';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { exportChatLog } from '@axe/domain/chat/chat-log-export';
 import { ChatReaction } from '@axe/domain/chat/chat-reaction';
@@ -21,6 +22,7 @@ import { AssetOwner } from '@axe/domain/media/asset-owner';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { markLoadedWithheld, markSeatWithheld } from '@axe/domain/peer/withheld-table';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -121,6 +123,32 @@ describe('SaveDataService', () => {
       expect(whole).toEqual(expect.arrayContaining([`${held}.webp`, 'theme.mp3']));
       expect(saved).not.toContain(`${held}.webp`);
       expect(saved).not.toContain('theme.mp3');
+    });
+  });
+
+  describe('the pictures the room keeps to fight on', () => {
+    const kept = 'e'.repeat(64);
+
+    afterEach(() => {
+      TestBed.inject(Config).battleSettings = { ...DEFAULT_BATTLE_SETTINGS };
+      ImageStorage.instance.delete(kept);
+    });
+
+    it('saves a picture the battle stage keeps, which only the packed settings name', () => {
+      ImageStorage.instance.add({
+        identifier: kept,
+        name: 'arena.webp',
+        type: 'image/webp',
+        blob: new Blob(['picture'], { type: 'image/webp' }),
+        url: 'blob:arena',
+        thumbnail: { type: '', blob: null, url: '' },
+      });
+      TestBed.inject(Config).battleSettings = { ...DEFAULT_BATTLE_SETTINGS, pictures: [kept] };
+      const privateApi = TestBed.inject(SaveDataService) as unknown as {
+        buildRoomFiles: (pretty: boolean, everything?: boolean) => File[];
+      };
+
+      expect(privateApi.buildRoomFiles(false).map((file) => file.name)).toContain(`${kept}.webp`);
     });
   });
 

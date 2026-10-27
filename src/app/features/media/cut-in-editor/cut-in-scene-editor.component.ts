@@ -14,11 +14,13 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { type CutInSoundHandle, CutInSoundService } from '@axe/application/media/cut-in-sound.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
+import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
+import { coalesce } from '@axe/core/util/debounce';
 import { EditHistory } from '@axe/core/util/edit-history';
+import { observeSize } from '@axe/core/util/observe-size';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { KEY_TOLERANCE_MS } from '@axe/domain/media/cut-in-keyframe';
 import { CutInLayer, type CutInLayerKind } from '@axe/domain/media/cut-in-layer';
@@ -103,6 +105,7 @@ import {
   trackWidthFor,
   xToMs,
 } from '@axe/features/media/cut-in-editor/cut-in-timeline-geometry';
+import { type CutInSoundHandle, CutInSoundService } from '@axe/features/media/cut-in-sound.service';
 import { CutInStageComponent } from '@axe/features/media/cut-in-stage/cut-in-stage.component';
 import type { DropSide } from '@axe/ui/dragging/row-reorder';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -202,7 +205,7 @@ export class CutInSceneEditorComponent {
   private historyOf = '';
   protected readonly historyVersion = signal(0);
   private pending: { layer: CutInLayer; box: LayerBox | null; rotation: number | null } | null = null;
-  private flushTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly flushSoon = coalesce(() => this.flushDrag(), DRAG_FLUSH_MS);
 
   readonly scene = computed<CutInScene | null>(() => {
     const cutIn = this.cutIn();
@@ -443,7 +446,7 @@ export class CutInSceneEditorComponent {
     }
 
     this.selectedIdentifier.set(layer.identifier);
-    (event.target as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
+    capturePointer(event.target, event.pointerId);
 
     const box = this.boxOf(layer);
     const transform = this.transformOf(layer);
@@ -500,7 +503,7 @@ export class CutInSceneEditorComponent {
 
   protected onPointerUp(event: PointerEvent): void {
     if (!this.drag) return;
-    (event.target as HTMLElement | null)?.releasePointerCapture?.(event.pointerId);
+    releasePointer(event.target, event.pointerId);
 
     if (event.type === 'pointerup') this.applyMove(event);
     this.finishDrag();
@@ -882,28 +885,16 @@ export class CutInSceneEditorComponent {
 
   private queueTurn(layer: CutInLayer, rotation: number): void {
     this.pending = { layer, box: null, rotation };
-    this.startFlushTimer();
+    this.flushSoon();
   }
 
   private queueFlush(layer: CutInLayer, box: LayerBox): void {
     this.pending = { layer, box, rotation: null };
-    this.startFlushTimer();
-  }
-
-  private startFlushTimer(): void {
-    if (this.flushTimer !== null) return;
-
-    this.flushTimer = setTimeout(() => {
-      this.flushTimer = null;
-      this.flushDrag();
-    }, DRAG_FLUSH_MS);
+    this.flushSoon();
   }
 
   private flushDrag(): void {
-    if (this.flushTimer !== null) {
-      clearTimeout(this.flushTimer);
-      this.flushTimer = null;
-    }
+    this.flushSoon.cancel();
 
     const pending = this.pending;
     this.pending = null;
@@ -928,14 +919,7 @@ export class CutInSceneEditorComponent {
     if (!element) return;
 
     this.timelineRoomPx.set(Math.round(element.getBoundingClientRect().width));
-    if (typeof ResizeObserver !== 'function') return;
-
-    const observer = new ResizeObserver((entries) => {
-      const rect = entries[0]?.contentRect;
-      if (rect) this.timelineRoomPx.set(Math.round(rect.width));
-    });
-    observer.observe(element);
-    this.destroyRef.onDestroy(() => observer.disconnect());
+    this.destroyRef.onDestroy(observeSize(element, (size) => this.timelineRoomPx.set(size.width)));
   }
 
   /**
@@ -994,16 +978,7 @@ export class CutInSceneEditorComponent {
   }
 
   private watchStageSize(): void {
-    if (typeof ResizeObserver !== 'function') return;
-
-    const observer = new ResizeObserver((entries) => {
-      const rect = entries[0]?.contentRect;
-      if (!rect) return;
-      this.stageSize.set({ width: Math.round(rect.width), height: Math.round(rect.height) });
-    });
-
     const element = this.stageArea()?.nativeElement;
-    if (element) observer.observe(element);
-    this.destroyRef.onDestroy(() => observer.disconnect());
+    if (element) this.destroyRef.onDestroy(observeSize(element, (size) => this.stageSize.set(size)));
   }
 }

@@ -1,6 +1,6 @@
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
-import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
+import { CreateObjectMenu } from '@axe/features/tabletop/create-menu/create-object-context-menu';
 import { buildGameTableMaskContextMenu } from '@axe/features/tabletop/game-table-mask/game-table-mask-context-menu';
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
 
@@ -35,8 +35,8 @@ function makeService(): GameObjectInventoryService {
   return { notifyInventoryUpdate: vi.fn() } as unknown as GameObjectInventoryService;
 }
 
-function makeActionService(): TabletopActionService {
-  return { makeDefaultContextMenuActions: vi.fn(() => []) } as unknown as TabletopActionService;
+function makeActionService(): CreateObjectMenu {
+  return { menuAt: vi.fn(() => []) } as CreateObjectMenu;
 }
 
 function defaultParams(mask: MutableMask) {
@@ -45,7 +45,7 @@ function defaultParams(mask: MutableMask) {
     gridSize: 50,
     objectPosition: { x: 0, y: 0, z: 0 },
     inventoryService: makeService(),
-    tabletopActionService: makeActionService(),
+    createMenu: makeActionService(),
     onStartScratch: vi.fn(),
     onFinishScratch: vi.fn(),
     onCancelScratch: vi.fn(),
@@ -115,9 +115,7 @@ describe('buildGameTableMaskContextMenu()', () => {
 
   it('ends with the usual object-making items in a submenu', () => {
     const params = defaultParams(makeMask());
-    (params.tabletopActionService.makeDefaultContextMenuActions as ReturnType<typeof vi.fn>).mockReturnValue([
-      { name: 'カード作成', action: vi.fn() },
-    ]);
+    (params.createMenu.menuAt as ReturnType<typeof vi.fn>).mockReturnValue([{ name: 'カード作成', action: vi.fn() }]);
     const menu = buildGameTableMaskContextMenu(params);
     const create = menu.find((m) => m.name === 'オブジェクト作成');
     expect(create?.subActions?.length).toBe(1);

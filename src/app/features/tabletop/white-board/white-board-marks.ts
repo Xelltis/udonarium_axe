@@ -1,4 +1,5 @@
-import { ShapeGeneratorKind } from '@axe/features/map-editor/model/editor-tool';
+import { withAlpha } from '@axe/core/util/hex-color';
+import { ShapeGeneratorKind } from '@axe/domain/map-editor/editor-tool';
 import {
   FreehandLayer,
   ImageItem,
@@ -9,9 +10,9 @@ import {
   StrokeDash,
   TextItem,
   TextOutline,
-} from '@axe/features/map-editor/model/scene';
-import { eraseStrokeAtPoint } from '@axe/features/map-editor/model/scene-ops';
-import { generateShapePoints } from '@axe/features/map-editor/model/shape-points';
+} from '@axe/domain/map-editor/scene';
+import { eraseStrokeAtPoint } from '@axe/domain/map-editor/scene-ops';
+import { generateShapePoints } from '@axe/domain/map-editor/shape-points';
 import { BoardPoint, MarkRef } from '@axe/features/tabletop/white-board/white-board-geometry';
 
 export interface MarkStyle {
@@ -199,16 +200,6 @@ export function noteAt(at: BoardPoint, text: string, style: MarkStyle, card: str
 /** Ink that lets what is under it show through, for marking up rather than drawing. */
 export function highlighterStyle(style: MarkStyle): MarkStyle {
   return { ...style, color: withAlpha(style.color, 0.38), width: Math.max(style.width * 3, 14) };
-}
-
-/** A `#rrggbb` colour as `rgba()` at an alpha; any other colour string comes back unchanged. */
-export function withAlpha(color: string, alpha: number): string {
-  const hex = /^#([0-9a-f]{6})$/i.exec(color);
-  if (!hex) return color;
-  const r = parseInt(hex[1].slice(0, 2), 16);
-  const g = parseInt(hex[1].slice(2, 4), 16);
-  const b = parseInt(hex[1].slice(4, 6), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 /**

@@ -106,7 +106,7 @@ export class AudioAnalysisService {
   }
 
   private get canShare(): boolean {
-    return this.rolePermission.canEditTabletop;
+    return this.rolePermission.canEditTabletop();
   }
 
   private startDelay(): number {

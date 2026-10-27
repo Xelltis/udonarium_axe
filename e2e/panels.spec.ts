@@ -56,7 +56,7 @@ test.describe('opening panels from the left menu', () => {
     await expect(page.locator('dice-table-setting')).toBeVisible({ timeout: 10000 });
   });
 
-  test('gathers images, the jukebox, cut-ins and effects in the media small menu, which closes once one is chosen', async ({
+  test('gathers images, the jukebox, cut-ins, effects and the battle stage in the media small menu, which closes once one is chosen', async ({
     page,
   }) => {
     await openFabMenu(page);
@@ -64,7 +64,8 @@ test.describe('opening panels from the left menu', () => {
 
     await page.locator('[data-testid="fab-entry-media"]').click();
     const media = page.locator('[data-testid="fab-submenu-media"]');
-    await expect(media.locator('[data-label]')).toHaveCount(4);
+    await expect(media.locator('[data-label]')).toHaveCount(5);
+    await expect(media.getByTestId('fab-entry-battleCutIn')).toBeVisible();
     await expect(page.locator('[data-testid="fab-entry-media"]')).toHaveAttribute('aria-expanded', 'true');
 
     await media.getByTestId('fab-entry-jukebox').click();

@@ -3,6 +3,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { LoopPlayer } from '@axe/core/storage/loop-player';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
@@ -11,7 +12,7 @@ import { BackgroundSound } from '@axe/domain/media/background-sound';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { DJ_DECK_OPEN_STORAGE_KEY, readDeckOpen } from '@axe/features/media/mini-jukebox/dj-deck-preference';
+import { readDeckOpen } from '@axe/features/media/mini-jukebox/dj-deck-preference';
 import { MiniJukeboxComponent } from '@axe/features/media/mini-jukebox/mini-jukebox.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -45,6 +46,20 @@ describe('MiniJukeboxComponent', () => {
   afterEach(() => {
     AudioStorage.instance.audios.forEach((audio) => AudioStorage.instance.delete(audio.identifier));
     vi.restoreAllMocks();
+  });
+
+  it('keeps the last sound played picked out once the jukebox stops', async () => {
+    const jukebox = ObjectStore.instance.get<Jukebox>('Jukebox')!;
+    const lastPlayed = () =>
+      (fixture.componentInstance as unknown as { lastAudioIdentifier(): string }).lastAudioIdentifier();
+
+    jukebox.audioIdentifier = 'bgm-1';
+    await Promise.resolve();
+    expect(lastPlayed()).toBe('bgm-1');
+
+    jukebox.audioIdentifier = '';
+    await Promise.resolve();
+    expect(lastPlayed()).toBe('bgm-1');
   });
 
   describe('what each role may touch', () => {
@@ -141,7 +156,7 @@ describe('MiniJukeboxComponent', () => {
       await fixture.whenStable();
 
       expect(deck()).not.toBeNull();
-      expect(localStorage.getItem(DJ_DECK_OPEN_STORAGE_KEY)).toBe('1');
+      expect(localStorage.getItem(STORAGE_KEYS.djDeckOpen)).toBe('1');
       expect(readDeckOpen()).toBe(true);
 
       toggle().click();

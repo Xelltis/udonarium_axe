@@ -83,8 +83,7 @@ export class CutInListComponent {
    * away is a change to what everybody has. A seat that is only watching makes neither.
    */
   get canEditCutIns(): boolean {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditTabletop;
+    return this.rolePermission.canEditTabletop();
   }
 
   /**

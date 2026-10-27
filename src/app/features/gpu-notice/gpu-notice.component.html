@@ -1,0 +1,29 @@
+@if (visible()) {
+  <div
+    class="border-ui-border-panel bg-ui-panel rounded-ui-lg shadow-ui-md text-ui-text fixed top-1/2 left-1/2 z-200 flex w-[min(26rem,calc(100vw-2rem))] -translate-1/2 flex-col gap-2.5 border border-solid p-4"
+    role="alertdialog"
+    aria-labelledby="gpu-notice-title"
+    aria-describedby="gpu-notice-body"
+    data-testid="gpu-notice"
+  >
+    <div class="flex items-center gap-2">
+      <i class="material-icons text-ui-warning text-[22px]" aria-hidden="true">warning</i>
+      <h2 class="m-0 text-[0.95rem] font-bold" id="gpu-notice-title">{{ 'feature.gpuNotice.title' | transloco }}</h2>
+    </div>
+    <p class="m-0 text-[0.82rem] leading-relaxed" id="gpu-notice-body">{{ 'feature.gpuNotice.body' | transloco }}</p>
+    <p class="bg-ui-elevated rounded-ui-sm m-0 px-3 py-2 text-[0.8rem] leading-relaxed" data-testid="gpu-notice-steps">
+      {{ 'feature.gpuNotice.steps.' + browser | transloco }}
+    </p>
+    <p class="text-ui-muted m-0 text-[0.75rem]">{{ 'feature.gpuNotice.restart' | transloco }}</p>
+    <div class="flex justify-end">
+      <button
+        class="rounded-ui-sm border-ui-accent bg-ui-accent-solid hover:border-ui-accent-hover hover:bg-ui-accent-hover cursor-pointer border border-solid px-[1.1em] py-[0.4em] text-[0.8rem] whitespace-nowrap text-white"
+        type="button"
+        data-testid="gpu-notice-close"
+        (click)="close()"
+      >
+        {{ 'feature.gpuNotice.close' | transloco }}
+      </button>
+    </div>
+  </div>
+}

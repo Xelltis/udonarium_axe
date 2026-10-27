@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -30,8 +31,6 @@ import { BUFF_TIMINGS, BuffTiming } from '@axe/domain/character/buff-timing';
 import { buffTriggerOptions, selectedTriggerValue } from '@axe/domain/character/buff-trigger-options';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { PeerRole } from '@axe/domain/peer/peer-role';
 import { STATUS_AILMENT_PANEL } from '@axe/domain/ui/room-panel';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
@@ -53,6 +52,7 @@ const CHART_LABEL_WIDTH_PX = 176;
 })
 export class BuffManagerPanelComponent {
   private readonly objectStore = inject(ObjectStore);
+  private readonly rolePermission = inject(RolePermissionService);
   private readonly vision = inject(VisionService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly inventory = inject(GameObjectInventoryService);
@@ -71,10 +71,7 @@ export class BuffManagerPanelComponent {
   readonly timingChoices = BUFF_TIMINGS;
   readonly operatorChoices = BUILDER_OPERATORS;
 
-  readonly round = computed(() => {
-    this.objectChange.versionOf('TurnState')();
-    return Math.max(1, this.turnOrder.round);
-  });
+  readonly round = computed(() => Math.max(1, this.turnOrder.progress().round));
 
   readonly rows = computed<BuffTimelineRow[]>(() => {
     this.objectChange.collectionOf('character')();
@@ -285,10 +282,7 @@ export class BuffManagerPanelComponent {
   }
 
   /** Whether this seat runs the game, the only one allowed to sweep buffs off the whole table. */
-  readonly isGameMaster = computed(() => {
-    this.objectChange.trackMyCursor();
-    return PeerCursor.myRole === PeerRole.GameMaster;
-  });
+  readonly isGameMaster = computed(() => this.rolePermission.isGameMaster());
 
   /** Which buffs the sweep takes: those held until cleared, those with so many rounds left, or one name. */
   readonly sweepKind = signal<BuffRemovalRule['kind']>('held');

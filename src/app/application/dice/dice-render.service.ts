@@ -37,19 +37,22 @@ export const DICE_PICTURE_LOADER = new InjectionToken<(identifier: string) => Pr
   'DICE_PICTURE_LOADER',
   {
     providedIn: 'root',
-    factory: () => async (identifier) => {
-      const image = ImageStorage.instance.get(identifier);
-      if (!image || image.state < ImageState.COMPLETE || !image.blob) return null;
-      const whole = await createImageBitmap(image.blob);
-      const scale = DICE_PICTURE_MAX_SIDE / Math.max(whole.width, whole.height);
-      if (scale >= 1) return whole;
-      const small = await createImageBitmap(whole, {
-        resizeWidth: Math.max(1, Math.round(whole.width * scale)),
-        resizeHeight: Math.max(1, Math.round(whole.height * scale)),
-        resizeQuality: 'high',
-      });
-      whole.close();
-      return small;
+    factory: () => {
+      const images = inject(ImageStorage);
+      return async (identifier) => {
+        const image = images.get(identifier);
+        if (!image || image.state < ImageState.COMPLETE || !image.blob) return null;
+        const whole = await createImageBitmap(image.blob);
+        const scale = DICE_PICTURE_MAX_SIDE / Math.max(whole.width, whole.height);
+        if (scale >= 1) return whole;
+        const small = await createImageBitmap(whole, {
+          resizeWidth: Math.max(1, Math.round(whole.width * scale)),
+          resizeHeight: Math.max(1, Math.round(whole.height * scale)),
+          resizeQuality: 'high',
+        });
+        whole.close();
+        return small;
+      };
     },
   }
 );

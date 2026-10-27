@@ -4,11 +4,11 @@ import {
   AUDIO_ANALYZER,
   AudioAnalysisService,
 } from '@axe/application/media/audio-analysis.service';
-import { AUDIO_ANALYSIS_CACHE_KEY } from '@axe/application/media/audio-analysis-cache';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import type { AudioAnalysisResult } from '@axe/core/audio/audio-analysis';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { AUDIO_ANALYSIS_VERSION, writeAudioAnalysis } from '@axe/domain/media/audio-analysis';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { AudioTag } from '@axe/domain/media/audio-tag';
@@ -51,7 +51,7 @@ describe('AudioAnalysisService', () => {
         {
           provide: RolePermissionService,
           useValue: {
-            get canEditTabletop() {
+            canEditTabletop() {
               return canEditTabletop;
             },
           },
@@ -95,7 +95,7 @@ describe('AudioAnalysisService', () => {
     addSound('track-c');
     start();
 
-    await vi.waitFor(() => expect(localStorage.getItem(AUDIO_ANALYSIS_CACHE_KEY) ?? '').toContain('track-c'));
+    await vi.waitFor(() => expect(localStorage.getItem(STORAGE_KEYS.audioAnalyses) ?? '').toContain('track-c'));
   });
 
   it('reads nothing the room already has a reading for', async () => {
@@ -121,7 +121,7 @@ describe('AudioAnalysisService', () => {
 
   function keptInBrowser(identifier: string, lufs: number): void {
     localStorage.setItem(
-      AUDIO_ANALYSIS_CACHE_KEY,
+      STORAGE_KEYS.audioAnalyses,
       JSON.stringify({
         [identifier]: writeAudioAnalysis({
           version: AUDIO_ANALYSIS_VERSION,
@@ -178,8 +178,8 @@ describe('AudioAnalysisService', () => {
     const write = vi.spyOn(localStorage, 'setItem');
     start();
 
-    await vi.waitFor(() => expect(localStorage.getItem(AUDIO_ANALYSIS_CACHE_KEY) ?? '').toContain('track-n'));
-    expect(write.mock.calls.filter(([key]) => key === AUDIO_ANALYSIS_CACHE_KEY)).toHaveLength(1);
+    await vi.waitFor(() => expect(localStorage.getItem(STORAGE_KEYS.audioAnalyses) ?? '').toContain('track-n'));
+    expect(write.mock.calls.filter(([key]) => key === STORAGE_KEYS.audioAnalyses)).toHaveLength(1);
   });
 
   it('does not look through the library again as the room turns its effects', async () => {

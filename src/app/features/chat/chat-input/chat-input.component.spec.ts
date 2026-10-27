@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
@@ -583,6 +584,25 @@ describe('ChatInputComponent', () => {
         }),
       ]);
       expect(emitted[0].stamp!.words.length).toBeGreaterThan(0);
+    });
+
+    it('wraps the words picked out in the box in the decoration chosen from its button, and keeps them picked out', () => {
+      fixture.componentRef.setInput('canSpeak', true);
+      fixture.detectChanges();
+      component.text = '今日は晴れ';
+      const box = component.textAreaElementRef()!.nativeElement;
+      box.value = '今日は晴れ';
+      box.setSelectionRange(3, 5);
+      const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+
+      (fixture.nativeElement as HTMLElement)
+        .querySelector<HTMLButtonElement>('[data-testid="chat-input-decoration"]')!
+        .click();
+      open.mock.calls[0][1][0].action!();
+
+      expect(component.text).toBe('今日は**晴れ**');
+      expect(box.value).toBe('今日は**晴れ**');
+      expect([box.selectionStart, box.selectionEnd]).toEqual([5, 7]);
     });
 
     it('sends the one picked under the words in the box, as the send button sends them, and clears the box', async () => {

@@ -241,7 +241,7 @@ function inkHue(recipe: SkinRecipe): { hue: number; chroma: number } {
 /**
  * Every custom property a skin sets, worked out from its recipe.
  *
- * The names are the ones `styles.css` already reads, so a skin is applied by writing these
+ * The names are the ones the global stylesheet already reads, so a skin is applied by writing these
  * onto the document element and cleared by removing them: the stylesheet's own light and
  * dark blocks are what shows through when nothing is written.
  */

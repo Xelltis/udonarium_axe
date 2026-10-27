@@ -29,6 +29,11 @@
                 "input": "src/assets",
                 "output": "assets",
                 "ignore": ["config.json.example"]
+              },
+              {
+                "glob": "{shippori-mincho,zen-maru-gothic,yomogi,mochiy-pop-one,dotgothic16}/{400.css,LICENSE,files/*-400-normal.woff2}",
+                "input": "node_modules/@fontsource",
+                "output": "assets/fonts/chat"
               }
             ],
             "styles": ["src/styles.css"],
@@ -52,6 +57,11 @@
                   "input": "src/assets",
                   "output": "assets",
                   "ignore": ["config.json", "config.json.example"]
+                },
+                {
+                  "glob": "{shippori-mincho,zen-maru-gothic,yomogi,mochiy-pop-one,dotgothic16}/{400.css,LICENSE,files/*-400-normal.woff2}",
+                  "input": "node_modules/@fontsource",
+                  "output": "assets/fonts/chat"
                 }
               ],
               "optimization": true,

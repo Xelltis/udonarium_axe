@@ -1,4 +1,5 @@
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -6,6 +7,7 @@ import {
   effect,
   ElementRef,
   inject,
+  Injector,
   linkedSignal,
   signal,
   untracked,
@@ -14,8 +16,9 @@ import {
 import { FormsModule } from '@angular/forms';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
-import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
+import { ChatPaletteRegistryService } from '@axe/application/chat/chat-palette-registry.service';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
+import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -39,11 +42,10 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
 import { editsTextInPlace } from '@axe/features/chat/chat-input/chat-input-helpers';
-import { ChatPaletteRegistryService } from '@axe/features/chat/chat-palette/chat-palette-registry.service';
 import { PaletteSearchResult, searchPaletteRows } from '@axe/features/chat/chat-palette/chat-palette-search';
 import { ChatTabStripComponent } from '@axe/features/chat/chat-tab-strip/chat-tab-strip.component';
+import { ChatTickerSelectionService } from '@axe/features/chat/chat-ticker-selection.service';
 import { GameDataElementComponent } from '@axe/features/data-element/game-data-element/game-data-element.component';
-import { HotbarFillService } from '@axe/features/hotbar/hotbar-fill.service';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -82,6 +84,7 @@ export class ChatPaletteComponent {
   private readonly uiSignalService = inject(UiSignalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
   private readonly chatPaletteRegistry = inject(ChatPaletteRegistryService);
   private readonly t = inject(TRANSLATE_FN);
 
@@ -137,10 +140,7 @@ export class ChatPaletteComponent {
   }
 
   /** Whether this seat may rewrite the palette and its dice bot, which every role but a guest may. */
-  readonly mayEdit = computed(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditTabletop;
-  });
+  readonly mayEdit = computed(() => this.rolePermission.canEditTabletop());
 
   private readonly _gameType = linkedSignal(() => this.character()?.chatPalette?.dicebot ?? '');
   private _paletteIndex: PaletteIndex[] = [];
@@ -173,7 +173,14 @@ export class ChatPaletteComponent {
     this.onSelectedCharacter(sendFrom);
   }
 
-  readonly chatTabidentifier = signal('');
+  /** The tab the palette speaks into, moved to the first tab in view where the one chosen is no longer. */
+  readonly chatTabidentifier = linkedSignal<ChatTab[], string>({
+    source: () => this.visibleChatTabs(),
+    computation: (visible, previous) =>
+      previous && visible.some((tab) => tab.identifier === previous.value)
+        ? previous.value
+        : (visible[0]?.identifier ?? ''),
+  });
   readonly text = signal<string>('');
   sendTo: string = '';
 
@@ -252,11 +259,6 @@ export class ChatPaletteComponent {
         this.panelService.close();
       }
     }, this.destroyRef);
-    effect(() => {
-      const visible = this.visibleChatTabs();
-      const current = this.chatTabidentifier();
-      if (!visible.some((tab) => tab.identifier === current)) this.chatTabidentifier.set(visible[0]?.identifier ?? '');
-    });
     // A seat that may no longer rewrite the palette leaves an edit it had open, writing nothing.
     effect(() => {
       if (!this.mayEdit() && untracked(this.isEdit)) untracked(() => this.toggleEditMode());
@@ -524,7 +526,7 @@ export class ChatPaletteComponent {
    */
   onPaletteRowMenu(row: PaletteRow, event: MouseEvent): void {
     if (row.kind !== 'command') return;
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     event.preventDefault();
     event.stopPropagation();
 
@@ -585,12 +587,15 @@ export class ChatPaletteComponent {
       this.editPalette.set(this.palette.value + '');
       const listTop = listEl?.scrollTop ?? 0;
       const listHeight = listEl?.scrollHeight ?? 1;
-      setTimeout(() => {
-        const textEl = this.editTextRef()?.nativeElement;
-        if (textEl) {
-          textEl.scrollTop = (listTop * textEl.scrollHeight) / listHeight;
-        }
-      }, 10);
+      afterNextRender(
+        () => {
+          const textEl = this.editTextRef()?.nativeElement;
+          if (textEl) {
+            textEl.scrollTop = (listTop * textEl.scrollHeight) / listHeight;
+          }
+        },
+        { injector: this.injector }
+      );
     } else if (this.mayEdit()) {
       this.palette.setPalette(this.editPalette());
     }

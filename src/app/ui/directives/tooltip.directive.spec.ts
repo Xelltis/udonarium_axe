@@ -2,14 +2,14 @@ import { ChangeDetectionStrategy, Component, DestroyRef, inject, viewChild, View
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService, ObjectDeleteEvent } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
-import { TooltipDirective, TooltipPanelInstance } from '@axe/ui/directives/tooltip.directive';
+import { TooltipDirective, TooltipPanelInstance, TooltipPanelSource } from '@axe/ui/directives/tooltip.directive';
 import { EdgeDetailSeat } from '@axe/ui/tabletop/edge-detail-layout';
 
 @Component({
@@ -117,14 +117,14 @@ describe('TooltipDirective', () => {
       providers: [...TEST_PROVIDERS],
     }).compileComponents();
 
-    TooltipDirective.TooltipPanelComponentClass = StubTooltipPanelComponent;
+    TestBed.inject(TooltipPanelSource).panel = StubTooltipPanelComponent;
     fixture = TestBed.createComponent(TooltipHostComponent);
     host = fixture.componentInstance;
     host.first = makeCharacter('先手');
     host.second = makeCharacter('後手');
     fixture.detectChanges();
     await fixture.whenStable();
-    ContextMenuService.defaultParentViewContainerRef = host.panelHost();
+    TestBed.inject(OverlayLayers).main = host.panelHost();
 
     table = TestBed.inject(TabletopService).currentTable;
     table.mode2d = true;
@@ -142,7 +142,6 @@ describe('TooltipDirective', () => {
     table.mode2d = false;
     table.hoverDetailPlacement = 'piece';
     table.multiAngleEnabled = false;
-    TooltipDirective.loadTooltipPanelComponent = null;
   });
 
   it('shows one detail per edge seat while the table asks for screen edges', async () => {
@@ -153,9 +152,9 @@ describe('TooltipDirective', () => {
   });
 
   it('fetches the detail the first time a piece asks for it, and shows it once it arrives', async () => {
-    TooltipDirective.TooltipPanelComponentClass = null;
+    TestBed.inject(TooltipPanelSource).panel = null;
     let deliver!: (panel: typeof StubTooltipPanelComponent) => void;
-    TooltipDirective.loadTooltipPanelComponent = () => new Promise((resolve) => (deliver = resolve));
+    TestBed.inject(TooltipPanelSource).load = () => new Promise((resolve) => (deliver = resolve));
 
     await hover('first-piece');
     expect(panels()).toHaveLength(0);
@@ -168,9 +167,9 @@ describe('TooltipDirective', () => {
   });
 
   it('does not show a detail that arrives after the pointer has left the piece', async () => {
-    TooltipDirective.TooltipPanelComponentClass = null;
+    TestBed.inject(TooltipPanelSource).panel = null;
     let deliver!: (panel: typeof StubTooltipPanelComponent) => void;
-    TooltipDirective.loadTooltipPanelComponent = () => new Promise((resolve) => (deliver = resolve));
+    TestBed.inject(TooltipPanelSource).load = () => new Promise((resolve) => (deliver = resolve));
 
     await hover('first-piece');
     await unhover('first-piece');
@@ -202,9 +201,9 @@ describe('TooltipDirective', () => {
     }
 
     async function waitForDetail(): Promise<(panel: typeof StubTooltipPanelComponent) => void> {
-      TooltipDirective.TooltipPanelComponentClass = null;
+      TestBed.inject(TooltipPanelSource).panel = null;
       let deliver!: (panel: typeof StubTooltipPanelComponent) => void;
-      TooltipDirective.loadTooltipPanelComponent = () => new Promise((resolve) => (deliver = resolve));
+      TestBed.inject(TooltipPanelSource).load = () => new Promise((resolve) => (deliver = resolve));
       vi.spyOn(TestBed.inject(ViewportService), 'isTouch').mockReturnValue(true);
       await tap('first-piece');
       return (panel) => deliver(panel);

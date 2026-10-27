@@ -1,7 +1,7 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { EngagementZoneService, metresPerCell, ZoneMoveStart } from '@axe/application/tabletop/engagement-zone.service';
+import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { InterruptOutcome, MoveInterruptService } from '@axe/application/tabletop/move-interrupt.service';
 import {
   kindToChangeTo,
@@ -13,13 +13,14 @@ import {
   UnstoppableBand,
   unstoppableBandOf,
 } from '@axe/application/tabletop/move-plan-common';
-import { MoveRangeService, ReachTerms } from '@axe/application/tabletop/move-range.service';
+import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
+import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
-import { Config } from '@axe/domain/peer/config';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCenterOf, CellGrid, cellIndexAt, CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -36,11 +37,12 @@ import {
   pieceWidthPx,
   standsAt,
 } from '@axe/domain/tabletop/move/piece-on-grid';
+import { ReachTerms } from '@axe/domain/tabletop/move/reach-build';
 import { reachableCells } from '@axe/domain/tabletop/move/reachable-cells';
 import { walkedPath } from '@axe/domain/tabletop/move/walked-path';
-import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { indexAtLength } from '@axe/domain/tabletop/zone/interrupt';
+import { metresPerCell, ZoneMoveStart } from '@axe/domain/tabletop/zone/zone-queries';
 
 /** Where in a square a piece is put down, rather than in the middle of it. */
 export interface MoveLanding {
@@ -133,10 +135,12 @@ export interface MovePlan {
 @Injectable({ providedIn: 'root' })
 export class MovePlanService {
   private readonly moveRange = inject(MoveRangeService);
+  private readonly roomRules = inject(RoomRulesService);
   private readonly pieceStep = inject(PieceStepService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly objectStore = inject(ObjectStore);
   private readonly zones = inject(EngagementZoneService);
+  private readonly links = inject(PieceLinksService);
   private readonly interrupts = inject(MoveInterruptService);
   private readonly ride = inject(RideService);
   private readonly objectChange = inject(ObjectChangeService);
@@ -181,10 +185,7 @@ export class MovePlanService {
     const plan = this.held();
     if (!plan) return null;
     return moveKindBandOf(this.zones, pieceOfPlan(this.objectStore, plan), plan, () => {
-      const rules = resolveRoomRules(
-        this.objectStore.get<Config>('Config')?.roomRuleAnswers ?? null,
-        this.tableSelecter.viewTable
-      );
+      const rules = this.roomRules.rulesFor(this.tableSelecter.viewTable);
       return cellsFrom(Math.max(0, plan.budget - plan.spent)) * metresPerCell(rules);
     });
   });
@@ -202,7 +203,8 @@ export class MovePlanService {
     // A seat made a guest while it worked a move out drops it, moving nothing.
     effect(() => {
       this.objectChange.trackMyCursor();
-      if (!this.rolePermission.canEditTabletop && untracked(this.held) && !this.walking) untracked(() => this.close());
+      if (!this.rolePermission.canEditTabletop() && untracked(this.held) && !this.walking)
+        untracked(() => this.close());
     });
   }
 
@@ -522,10 +524,7 @@ export class MovePlanService {
    */
   private legRoom(left: number, jumping: boolean): number {
     if (!jumping) return left;
-    const rules = resolveRoomRules(
-      this.objectStore.get<Config>('Config')?.roomRuleAnswers ?? null,
-      this.tableSelecter.viewTable
-    );
+    const rules = this.roomRules.rulesFor(this.tableSelecter.viewTable);
     const leap = Math.max(0, Math.floor(rules.jumpCells));
     return leap > 0 ? Math.min(left, stepsFor(leap)) : left;
   }
@@ -631,7 +630,7 @@ export class MovePlanService {
    */
   async run(): Promise<boolean> {
     const plan = this.held();
-    if (!plan || this.walking || !this.rolePermission.canEditTabletop) return false;
+    if (!plan || this.walking || !this.rolePermission.canEditTabletop()) return false;
     const way = this.wholeWay();
     const inPlace = way.length < 2;
     if (inPlace && !this.movesWithinSquare()) return false;
@@ -660,7 +659,7 @@ export class MovePlanService {
       const landing = outcome ? null : chosen;
       const steps = way.slice(1, end + 1);
       let standingZ = character.posZ;
-      if (inPlace && landing && this.rolePermission.canEditTabletop) {
+      if (inPlace && landing && this.rolePermission.canEditTabletop()) {
         standingZ = await this.pieceStep.stepOnto(character, table, plan.grid, -1, landing, true, standingZ);
       }
       const leaping = this.leaps(plan, character);
@@ -669,7 +668,7 @@ export class MovePlanService {
         ? (tableCell: number, px: number) => standable(tableCell, leaping ? null : px)
         : undefined;
       for (const [index, cell] of steps.entries()) {
-        if (!this.rolePermission.canEditTabletop) break;
+        if (!this.rolePermission.canEditTabletop()) break;
         const ending = index === steps.length - 1;
         // The cell chosen is asked once more from the height the walk has actually come to, which
         // the step before it may have reached by a cell other than the one it was reckoned from.
@@ -682,14 +681,14 @@ export class MovePlanService {
     } finally {
       this.walking = false;
     }
-    if (!this.rolePermission.canEditTabletop) {
+    if (!this.rolePermission.canEditTabletop()) {
       this.close();
       return false;
     }
     SoundEffect.play(PresetSound.piecePut);
     const start = this.zoneStart;
     this.close();
-    this.zones.carryBound(character);
+    this.links.carryBound(character);
     this.ride.dropLeftBehind(character);
     // A shift within the square a piece stands on goes nowhere the move counts, so it neither
     // leaves a zone nor enters one, and offers nothing where it stands.

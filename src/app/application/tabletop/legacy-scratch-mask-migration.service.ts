@@ -4,6 +4,7 @@ import { ObjectChangeEvent, ObjectChangeService } from '@axe/application/sync/ob
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { coalesce } from '@axe/core/util/debounce';
 import { DataElement } from '@axe/domain/data/data-element';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -39,7 +40,7 @@ export class LegacyScratchMaskMigrationService {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly destroyRef = inject(DestroyRef);
 
-  private timer: ReturnType<typeof setTimeout> | null = null;
+  private readonly migrateSoon = coalesce(() => this.migrate(), PASS_DELAY_MS);
   private couldConvert = this.canConvert();
   private readonly waitingMasks = new Set<string>();
   private readonly awaitedTables = new Set<string>();
@@ -53,10 +54,9 @@ export class LegacyScratchMaskMigrationService {
     );
     this.objectChange.onObjectChangedForSingleAlias(PeerCursor.aliasName, () => this.mayConvertNow(), this.destroyRef);
     this.destroyRef.onDestroy(() => {
-      if (this.timer !== null) clearTimeout(this.timer);
-      this.timer = null;
+      this.migrateSoon.cancel();
     });
-    this.schedule();
+    this.migrateSoon();
   }
 
   /**
@@ -78,20 +78,20 @@ export class LegacyScratchMaskMigrationService {
   }
 
   private canConvert(): boolean {
-    return !isNetworkIsolated() && this.rolePermission.canEditTabletop;
+    return !isNetworkIsolated() && this.rolePermission.canEditTabletop();
   }
 
   /** Whether this seat may convert now, scheduling a pass when it may again after it could not. */
   private mayConvertNow(): boolean {
     const can = this.canConvert();
-    if (can && !this.couldConvert) this.schedule();
+    if (can && !this.couldConvert) this.migrateSoon();
     this.couldConvert = can;
     return can;
   }
 
   private onRelatedObjectChanged(event: ObjectChangeEvent): void {
     if (!this.mayConvertNow()) return;
-    if (event.aliasName === GameTableScratchMask.aliasName || this.mayCompleteWaitingMask(event)) this.schedule();
+    if (event.aliasName === GameTableScratchMask.aliasName || this.mayCompleteWaitingMask(event)) this.migrateSoon();
   }
 
   private mayCompleteWaitingMask(event: ObjectChangeEvent): boolean {
@@ -114,13 +114,5 @@ export class LegacyScratchMaskMigrationService {
       else if (legacy.parentIsUnknown && !legacy.parentIsDestroyed) this.awaitedTables.add(legacy.parentId);
     }
     this.awaitsAnyTable = anyUnplaced && this.objectStore.getObjects(GameTable).length < 1;
-  }
-
-  private schedule(): void {
-    if (this.timer !== null) return;
-    this.timer = setTimeout(() => {
-      this.timer = null;
-      this.migrate();
-    }, PASS_DELAY_MS);
   }
 }

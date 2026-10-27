@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
+import { readGlobalStyles } from '@axe/testing/global-styles';
+
 function templatesIn(directory: string): string[] {
   return readdirSync(directory).flatMap((entry) => {
     const path = join(directory, entry);
@@ -43,7 +45,7 @@ function escapeClass(name: string): string {
 }
 
 describe('what only shows under a mouse', () => {
-  const css = readFileSync('src/styles.css', 'utf8');
+  const css = readGlobalStyles();
 
   it('shows on a touch screen too, or is reached there another way', () => {
     const unreached = new Set<string>();

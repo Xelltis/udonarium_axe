@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
-
-const EDIT_FIRST_STORAGE_KEY = 'ui-image-edit-first';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 
 /**
  * Whether pictures chosen to upload open in the image editor before they are added.
@@ -19,18 +19,10 @@ export class ImageUploadPreferenceService {
   /** Sets whether every picture chosen opens in the editor first, and writes it down. */
   setEditFirst(editFirst: boolean): void {
     this.stored.set(editFirst);
-    try {
-      localStorage.setItem(EDIT_FIRST_STORAGE_KEY, editFirst ? 'true' : 'false');
-    } catch {
-      // Private browsing refuses the write; the choice still holds for this session.
-    }
+    writeLocal(STORAGE_KEYS.imageEditFirst, editFirst ? 'true' : 'false');
   }
 }
 
 function storedEditFirst(): boolean {
-  try {
-    return localStorage.getItem(EDIT_FIRST_STORAGE_KEY) === 'true';
-  } catch {
-    return false;
-  }
+  return readLocal(STORAGE_KEYS.imageEditFirst) === 'true';
 }

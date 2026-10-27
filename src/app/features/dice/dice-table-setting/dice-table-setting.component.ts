@@ -180,8 +180,7 @@ export class DiceTableSettingComponent {
    * only watching reads them and changes none.
    */
   get canEditTables(): boolean {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditTabletop;
+    return this.rolePermission.canEditTabletop();
   }
 
   /**

@@ -1,11 +1,11 @@
 import { inject, Injectable } from '@angular/core';
 import { SystemAvatarKind, SystemAvatarService } from '@axe/application/chat/system-avatar.service';
-import { buildSystemAvatarContextMenu } from '@axe/application/chat/system-avatar-context-menu';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { buildSystemAvatarContextMenu } from '@axe/features/chat/system-avatar-context-menu';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 
 @Injectable({ providedIn: 'root' })
@@ -25,7 +25,7 @@ export class SystemAvatarMenuService {
    * the browser's own menu is suppressed only when this one opens.
    */
   openContextMenu(event: Event, kind: SystemAvatarKind): void {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
     event.stopPropagation();
     event.preventDefault();
@@ -36,7 +36,7 @@ export class SystemAvatarMenuService {
         isVisible: this.systemAvatar.isVisible(),
         isSpeakerVisible: this.systemAvatar.isSpeakerVisible(),
         hasOwnImage: this.systemAvatar.hasOwnImageOfKind(kind)(),
-        canEdit: this.rolePermission.canEditTabletop,
+        canEdit: this.rolePermission.canEditTabletop(),
       },
       {
         changeImage: (target) => this.changeImage(target),
@@ -61,7 +61,7 @@ export class SystemAvatarMenuService {
    * may not edit the table.
    */
   changeImage(kind: SystemAvatarKind): void {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((identifier) => {
       if (identifier == null) return;
       this.systemAvatar.setImage(kind, identifier);

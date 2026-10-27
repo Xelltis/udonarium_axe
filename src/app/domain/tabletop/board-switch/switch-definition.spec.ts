@@ -36,6 +36,7 @@ describe('switch definitions', () => {
         { kind: 'reveal' as const, target: { identifier: 'door-1', name: '隠し扉' }, delayMs: 0, extra: {} },
         { kind: 'conceal' as const, target: { identifier: 'wall-1', name: '壁' }, delayMs: 0, extra: {} },
         { kind: 'removeSelf' as const, delayMs: 0, extra: {} },
+        { kind: 'battle' as const, delayMs: 300, extra: {} },
         { kind: 'showTable' as const, table: { identifier: 'cellar', name: '地下室' }, delayMs: 0, extra: {} },
         { kind: 'carry' as const, col: 3, row: 4, table: { identifier: '', name: '' }, delayMs: 0, extra: {} },
         {
@@ -113,6 +114,16 @@ describe('switch definitions', () => {
     expect(again.actions[1]).toEqual({ kind: 'weather', sky: { name: 'storm' }, strength: 3, delayMs: 200 });
   });
 
+  it('keeps a battle stage a version without one cannot play, and plays it once it can', () => {
+    // A version before the stage reads it as something it does not know, which it keeps and hands back.
+    const older = JSON.stringify({ actions: [{ kind: 'battle', delayMs: 0, cue: 'kept' }] });
+
+    const read = parseSwitchDefinition(older);
+
+    expect(read.actions).toEqual([{ kind: 'battle', delayMs: 0, extra: { cue: 'kept' } }]);
+    expect(JSON.parse(encodeSwitchDefinition(read)).actions[0]).toEqual({ kind: 'battle', delayMs: 0, cue: 'kept' });
+  });
+
   it('drops an action with no kind at all rather than taking the rest with it', () => {
     const read = parseSwitchDefinition(
       JSON.stringify({ actions: [42, { text: 'no kind' }, { kind: 'say', text: 'kept' }] })
@@ -141,6 +152,7 @@ describe('switch definitions', () => {
       switchDoesAnything({ ...blank, actions: [{ kind: 'unknown', raw: { kind: 'weather' }, delayMs: 0, extra: {} }] })
     ).toBe(false);
     expect(switchDoesAnything({ ...blank, actions: [{ ...newSwitchAction('say'), text: 'hello' }] })).toBe(true);
+    expect(switchDoesAnything({ ...blank, actions: [newSwitchAction('battle')] })).toBe(true);
     expect(switchDoesAnything({ ...blank, actions: [{ kind: 'sound', name: 'bell', delayMs: 0, extra: {} }] })).toBe(
       true
     );

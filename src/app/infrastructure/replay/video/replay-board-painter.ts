@@ -1,3 +1,4 @@
+import { withAlpha } from '@axe/core/util/hex-color';
 import {
   footprintOf,
   type ReplayBoardPiece,
@@ -812,14 +813,6 @@ function paintLight(
   ctx.beginPath();
   ctx.arc(0, 0, size * 0.18, 0, Math.PI * 2);
   ctx.fill();
-}
-
-/** A colour written as `#rrggbb` with an opacity; anything else is returned as it was. */
-function withAlpha(color: string, alpha: number): string {
-  const match = /^#([0-9a-f]{6})/i.exec(color.trim());
-  if (!match) return color;
-  const value = parseInt(match[1], 16);
-  return `rgba(${(value >> 16) & 0xff}, ${(value >> 8) & 0xff}, ${value & 0xff}, ${alpha})`;
 }
 
 /**

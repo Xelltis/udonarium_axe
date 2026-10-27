@@ -2,11 +2,8 @@ import { computed, effect, inject, Injectable, signal, untracked } from '@angula
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import {
-  EngagementZoneService,
-  metresPerCell,
-  ZoneInterrupters,
-} from '@axe/application/tabletop/engagement-zone.service';
+import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
+import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { generateUuid } from '@axe/core/util/uuid';
@@ -22,7 +19,6 @@ import { moveGridOf } from '@axe/domain/tabletop/move/move-grid';
 import { squarePxOf } from '@axe/domain/tabletop/move/move-grid';
 import { lengthByKind, moveKindNamed, parseMoveKinds } from '@axe/domain/tabletop/move/move-kind';
 import { readMovingPoints } from '@axe/domain/tabletop/move/moving-points';
-import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import {
   commonSpans,
@@ -37,6 +33,7 @@ import {
   spansWithin,
 } from '@axe/domain/tabletop/zone/interrupt';
 import { zoneCovers } from '@axe/domain/tabletop/zone/zone-geometry';
+import { metresPerCell, ZoneInterrupters } from '@axe/domain/tabletop/zone/zone-queries';
 
 /** How long a declared move waits for the room's answers before it goes on with those it has. */
 export const INTERRUPT_WAIT_MS = 15000;
@@ -129,6 +126,7 @@ interface ZoneClaim extends InterruptClaim {
 @Injectable({ providedIn: 'root' })
 export class MoveInterruptService {
   private readonly objectStore = inject(ObjectStore);
+  private readonly roomRules = inject(RoomRulesService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly zones = inject(EngagementZoneService);
@@ -590,7 +588,7 @@ export class MoveInterruptService {
 
   /** How far a piece goes stepping into a move, in table pixels: by the kind of move the room names for it. */
   private reachOf(piece: GameCharacter, table: GameTable): number {
-    const rules = resolveRoomRules(this.config()?.roomRuleAnswers ?? null, table);
+    const rules = this.roomRules.rulesFor(table);
     const walk = exactMoveCellsOf(piece, rules.moveRangeElementNames, rules.cellDistance, rules.cellDistanceUnit);
     if (walk === null || walk <= 0) return 0;
     const kind = moveKindNamed(parseMoveKinds(this.config()?.moveKinds ?? ''), this.config()?.interruptKind ?? '');

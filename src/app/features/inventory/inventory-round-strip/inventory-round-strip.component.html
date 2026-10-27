@@ -1,0 +1,77 @@
+<div
+  class="bg-ui-panel border-ui-border-panel flex shrink-0 items-center gap-1.5 border-b border-solid px-2.5 py-1.5"
+  [class.bg-transparent!]="ghost()"
+>
+  @if (turns.progress().round > 0) {
+    <span class="text-ui-muted shrink-0 text-[11px] font-semibold">{{
+      'feature.turnOrder.round' | transloco: { n: turns.progress().round }
+    }}</span>
+  }
+  @if (canEdit()) {
+    <button
+      type="button"
+      class="rounded-ui-sm text-ui-text border-ui-border-panel hover:border-ui-accent hover:bg-ui-hover ml-auto flex max-w-40 flex-1 cursor-pointer items-center justify-center gap-0.5 border border-solid bg-transparent px-2 py-1 text-[12px] font-semibold transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+      [disabled]="!turns.progress().canUndo"
+      [title]="'feature.turnOrder.undo' | transloco"
+      (click)="turns.prev()"
+    >
+      <i class="material-icons">chevron_left</i>{{ 'feature.turnOrder.prev' | transloco }}
+    </button>
+    <button
+      type="button"
+      class="rounded-ui-sm bg-ui-accent-solid flex max-w-40 flex-1 cursor-pointer items-center justify-center gap-0.5 border-none px-2 py-1 text-[12px] font-semibold text-white transition-opacity hover:border-transparent hover:text-white hover:opacity-85 hover:shadow-none [&_.material-icons]:text-[15px]!"
+      (click)="turns.next()"
+    >
+      {{ 'feature.turnOrder.next' | transloco }}<i class="material-icons">chevron_right</i>
+    </button>
+    <button
+      type="button"
+      class="rounded-ui-sm text-ui-muted border-ui-border-panel hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+      data-testid="turn-hold"
+      [disabled]="!turns.mayHoldCurrent()"
+      [attr.aria-label]="'feature.turnOrder.holdCurrent' | transloco"
+      [title]="'feature.turnOrder.holdCurrent' | transloco"
+      (click)="turns.holdCurrent()"
+    >
+      <i class="material-icons" aria-hidden="true">pause</i>
+    </button>
+    <button
+      type="button"
+      class="rounded-ui-sm text-ui-muted border-ui-border-panel hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+      [disabled]="!turns.progress().canUndo"
+      [title]="'feature.turnOrder.retreatRound' | transloco"
+      (click)="turns.retreatRound()"
+    >
+      <i class="material-icons">fast_rewind</i>
+    </button>
+    <button
+      type="button"
+      class="rounded-ui-sm text-ui-muted border-ui-border-panel hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent flex size-7 shrink-0 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[15px]!"
+      [title]="'feature.turnOrder.advanceRound' | transloco"
+      (click)="turns.advanceRound()"
+    >
+      <i class="material-icons">fast_forward</i>
+    </button>
+    <button
+      type="button"
+      class="hover:bg-ui-hover flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 transition-[background,color] hover:shadow-none [&_.material-icons]:text-[15px]!"
+      [class.text-ui-accent]="turns.progress().buffDecay"
+      [class.text-ui-dim]="!turns.progress().buffDecay"
+      [title]="
+        (turns.progress().buffDecay ? 'feature.turnOrder.buffDecayOn' : 'feature.turnOrder.buffDecayOff') | transloco
+      "
+      (click)="turns.toggleBuffDecay()"
+    >
+      <i class="material-icons">hourglass_bottom</i>
+    </button>
+    <button
+      type="button"
+      class="text-ui-muted hover:bg-ui-hover hover:text-ui-text flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent p-0 transition-[background,color] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[15px]!"
+      [disabled]="turns.progress().round === 0"
+      [title]="'feature.turnOrder.reset' | transloco"
+      (click)="turns.reset()"
+    >
+      <i class="material-icons">restart_alt</i>
+    </button>
+  }
+</div>

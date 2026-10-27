@@ -1,9 +1,8 @@
-import { VolumeType } from '@axe/core/storage/audio-player';
+import { VolumeType } from '@axe/core/storage/audio-output';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
-import { ObjectContext } from '@axe/core/sync/game-object';
-import { ObjectNode } from '@axe/core/sync/object-node';
 import { InnerXml } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { BattleSettings, readBattleSettings, writeBattleSettings } from '@axe/domain/battle/battle-settings';
 import {
   ControllerResourcePick,
   readControllerResourcePick,
@@ -14,7 +13,6 @@ import { readSystemNotices, SystemNoticeRoutes, writeSystemNotices } from '@axe/
 import { asDiceStage, DiceStage } from '@axe/domain/dice/dice-3d/dice-stage';
 import { type DjPads, readDjPads, writeDjPads } from '@axe/domain/media/dj-pads';
 import { type DjSettings, readDjSettings, writeDjSettings } from '@axe/domain/media/dj-settings';
-import { Jukebox } from '@axe/domain/media/jukebox';
 import {
   readRoomVolumes,
   RoomVolumeKind,
@@ -22,14 +20,14 @@ import {
   RoomVolumes,
   writeRoomVolumes,
 } from '@axe/domain/media/room-volumes';
+import { CONFIG_RULE_ANSWERS, withRuleAnswers, zoneRuleAnswersOf } from '@axe/domain/peer/config-rule-answers';
 import { allowsDiagonal, asDiagonalMove, DiagonalMove } from '@axe/domain/tabletop/move/diagonal-move';
 import {
   readRuleFlag,
-  readRuleNumber,
   readRuleText,
+  ROOM_RULE_DEFAULTS,
   RoomRuleAnswers,
   writeRuleFlag,
-  writeRuleNumber,
   writeRuleText,
 } from '@axe/domain/tabletop/room-rules';
 import {
@@ -40,8 +38,16 @@ import {
 } from '@axe/domain/tabletop/turn-order-mode';
 import { ZoneRuleAnswers } from '@axe/domain/tabletop/zone/zone-rules';
 
+/**
+ * The room's shared settings and the rules of play it answers for itself, synced to every peer and
+ * saved with the room as `config.xml`.
+ *
+ * The rules answered in the uniform way (yes or no, a number, a word, each null until answered) get
+ * their properties from {@link CONFIG_RULE_ANSWERS}; the attributes that hold them are declared here
+ * with the rest, under the names saved rooms and older peers know them by.
+ */
 @SyncObject('config')
-export class Config extends ObjectNode implements InnerXml {
+export class Config extends withRuleAnswers() implements InnerXml {
   @SyncVar('_defaultDiceBot') private _defaultDiceBot: string = 'DiceBot';
   @SyncVar('_roomVolume') private _roomVolume: number = 1.0;
   @SyncVar('_roomKindVolumes') private _roomKindVolumes: string = '';
@@ -55,6 +61,7 @@ export class Config extends ObjectNode implements InnerXml {
   @SyncVar('_stampRules') private _stampRules: string = '';
   @SyncVar('_systemNotices') private _systemNotices: string = '';
   @SyncVar('_speechBubbles') private _speechBubbles: string = '';
+  @SyncVar('_battleCutIn') private _battleCutIn: string = '';
   @SyncVar('_turnSignal') private _turnSignal: string = '';
   @SyncVar('_turnTick') private _turnTick: string = '';
   @SyncVar('_resourceSliderDefault') private _resourceSliderDefault: string = '';
@@ -69,58 +76,59 @@ export class Config extends ObjectNode implements InnerXml {
 
   // The rules of play the room answers for itself. Each one is left unanswered until the
   // room settings are asked, and whatever is unanswered stays with the table that is out.
-  @SyncVar('_moveRangeEnabled') private _moveRangeEnabled: string = '';
-  @SyncVar('_moveRangeElementNames') private _moveRangeElementNames: string = '';
+  // Those not private are read and written through the properties CONFIG_RULE_ANSWERS gives.
+  @SyncVar('_moveRangeEnabled') protected _moveRangeEnabled: string = '';
+  @SyncVar('_moveRangeElementNames') protected _moveRangeElementNames: string = '';
   @SyncVar('_moveDiagonally') private _moveDiagonally: string = '';
   @SyncVar('_diagonalMove') private _diagonalMove: string = '';
-  @SyncVar('_piecesShareCells') private _piecesShareCells: string = '';
-  @SyncVar('_samePartyPassage') private _samePartyPassage: string = '';
-  @SyncVar('_otherPartyPassage') private _otherPartyPassage: string = '';
-  @SyncVar('_noPartyPassage') private _noPartyPassage: string = '';
-  @SyncVar('_piecePassageCost') private _piecePassageCost: number = -1;
-  @SyncVar('_sizeSlipsPast') private _sizeSlipsPast: string = '';
-  @SyncVar('_squeezes') private _squeezes: string = '';
-  @SyncVar('_jumpCells') private _jumpCells: number = -1;
-  @SyncVar('_handTracesWay') private _handTracesWay: string = '';
-  @SyncVar('_moveRangeAlways') private _moveRangeAlways: string = '';
-  @SyncVar('_zocAlways') private _zocAlways: string = '';
-  @SyncVar('_cellDistance') private _cellDistance: number = -1;
-  @SyncVar('_cellDistanceUnit') private _cellDistanceUnit: string = '';
-  @SyncVar('_zocMode') private _zocMode: string = '';
-  @SyncVar('_hostilityBy') private _hostilityBy: string = '';
-  @SyncVar('_zocRange') private _zocRange: number = -1;
-  @SyncVar('_zocExtraCost') private _zocExtraCost: number = -1;
-  @SyncVar('_zocEngages') private _zocEngages: string = '';
-  @SyncVar('_breakOutMode') private _breakOutMode: string = '';
-  @SyncVar('_breakOutCost') private _breakOutCost: number = -1;
-  @SyncVar('_engagementCountsSize') private _engagementCountsSize: string = '';
-  @SyncVar('_facingMark') private _facingMark: string = '';
-  @SyncVar('_pieceImageInCell') private _pieceImageInCell: string = '';
+  @SyncVar('_piecesShareCells') protected _piecesShareCells: string = '';
+  @SyncVar('_samePartyPassage') protected _samePartyPassage: string = '';
+  @SyncVar('_otherPartyPassage') protected _otherPartyPassage: string = '';
+  @SyncVar('_noPartyPassage') protected _noPartyPassage: string = '';
+  @SyncVar('_piecePassageCost') protected _piecePassageCost: number = -1;
+  @SyncVar('_sizeSlipsPast') protected _sizeSlipsPast: string = '';
+  @SyncVar('_squeezes') protected _squeezes: string = '';
+  @SyncVar('_jumpCells') protected _jumpCells: number = -1;
+  @SyncVar('_handTracesWay') protected _handTracesWay: string = '';
+  @SyncVar('_moveRangeAlways') protected _moveRangeAlways: string = '';
+  @SyncVar('_zocAlways') protected _zocAlways: string = '';
+  @SyncVar('_cellDistance') protected _cellDistance: number = -1;
+  @SyncVar('_cellDistanceUnit') protected _cellDistanceUnit: string = '';
+  @SyncVar('_zocMode') protected _zocMode: string = '';
+  @SyncVar('_hostilityBy') protected _hostilityBy: string = '';
+  @SyncVar('_zocRange') protected _zocRange: number = -1;
+  @SyncVar('_zocExtraCost') protected _zocExtraCost: number = -1;
+  @SyncVar('_zocEngages') protected _zocEngages: string = '';
+  @SyncVar('_breakOutMode') protected _breakOutMode: string = '';
+  @SyncVar('_breakOutCost') protected _breakOutCost: number = -1;
+  @SyncVar('_engagementCountsSize') protected _engagementCountsSize: string = '';
+  @SyncVar('_facingMark') protected _facingMark: string = '';
+  @SyncVar('_pieceImageInCell') protected _pieceImageInCell: string = '';
   @SyncVar('_diceStage') private _diceStage: string = '';
 
   // How the room plays engagement zones, which is the room's own decision rather than a table's.
-  @SyncVar('_zoneEnabled') private _zoneEnabled: string = '';
-  @SyncVar('_zoneSizes') private _zoneSizes: string = '';
-  @SyncVar('_zoneCountField') private _zoneCountField: string = '';
-  @SyncVar('_zoneSamePoint') private _zoneSamePoint: number = -1;
-  @SyncVar('_zoneOutnumber') private _zoneOutnumber: number = -1;
-  @SyncVar('_zoneLeaveKind') private _zoneLeaveKind: string = '';
-  @SyncVar('_moveKinds') private _moveKinds: string = '';
+  @SyncVar('_zoneEnabled') protected _zoneEnabled: string = '';
+  @SyncVar('_zoneSizes') protected _zoneSizes: string = '';
+  @SyncVar('_zoneCountField') protected _zoneCountField: string = '';
+  @SyncVar('_zoneSamePoint') protected _zoneSamePoint: number = -1;
+  @SyncVar('_zoneOutnumber') protected _zoneOutnumber: number = -1;
+  @SyncVar('_zoneLeaveKind') protected _zoneLeaveKind: string = '';
+  @SyncVar('_moveKinds') protected _moveKinds: string = '';
   @SyncVar('_pathMove') private _pathMove: string = '';
   @SyncVar('_interruptEnabled') private _interruptEnabled: string = '';
-  @SyncVar('_interruptKind') private _interruptKind: string = '';
-  @SyncVar('_zoneBlockRadius') private _zoneBlockRadius: number = -1;
-  @SyncVar('_zoneClearName') private _zoneClearName: string = '';
-  @SyncVar('_zoneStealthUnseen') private _zoneStealthUnseen: string = '';
-  @SyncVar('_placementDistances') private _placementDistances: string = '';
-  @SyncVar('_distanceModifiers') private _distanceModifiers: string = '';
+  @SyncVar('_interruptKind') protected _interruptKind: string = '';
+  @SyncVar('_zoneBlockRadius') protected _zoneBlockRadius: number = -1;
+  @SyncVar('_zoneClearName') protected _zoneClearName: string = '';
+  @SyncVar('_zoneStealthUnseen') protected _zoneStealthUnseen: string = '';
+  @SyncVar('_placementDistances') protected _placementDistances: string = '';
+  @SyncVar('_distanceModifiers') protected _distanceModifiers: string = '';
 
   // How the room plays pieces riding mounts.
-  @SyncVar('_rideSkillField') private _rideSkillField: string = '';
-  @SyncVar('_rideRequireField') private _rideRequireField: string = '';
-  @SyncVar('_fallMinM') private _fallMinM: number = -1;
-  @SyncVar('_fallDamage') private _fallDamage: string = '';
-  @SyncVar('_twoUpBuff') private _twoUpBuff: string = '';
+  @SyncVar('_rideSkillField') protected _rideSkillField: string = '';
+  @SyncVar('_rideRequireField') protected _rideRequireField: string = '';
+  @SyncVar('_fallMinM') protected _fallMinM: number = -1;
+  @SyncVar('_fallDamage') protected _fallDamage: string = '';
+  @SyncVar('_twoUpBuff') protected _twoUpBuff: string = '';
 
   /**
    * Where the room shows the dice of a chat roll tumbling: in the frame of the line that gives the
@@ -183,6 +191,30 @@ export class Config extends ObjectNode implements InnerXml {
   }
   set systemNotices(routes: SystemNoticeRoutes) {
     this._systemNotices = writeSystemNotices(routes);
+  }
+
+  /**
+   * What the room says about its battle stage: the picture behind it and how a fighter goes down,
+   * each at its default until the room chooses otherwise.
+   *
+   * @see BattleSettings
+   */
+  get battleSettings(): BattleSettings {
+    return readBattleSettings(this._battleCutIn);
+  }
+  set battleSettings(settings: BattleSettings) {
+    this._battleCutIn = writeBattleSettings(settings);
+  }
+
+  /**
+   * The pictures the room keeps to fight on, which have to travel with it when it is saved.
+   *
+   * They are named inside the packed battle settings rather than by an attribute of their own, so
+   * nothing walking the settings' XML would find them, and a room saved without them would come
+   * back with a stage that has lost its picture.
+   */
+  get carriedImageIdentifiers(): readonly string[] {
+    return this.battleSettings.pictures;
   }
 
   /** The room's master volume, shared by every peer; a change applied to the config updates the jukebox at once. */
@@ -393,145 +425,9 @@ export class Config extends ObjectNode implements InnerXml {
     this._interruptEnabled = allowed ? '1' : '';
   }
 
-  /** The kind of move a piece steps into a move by, which sets how far it reaches; null for the room's first. */
-  get interruptKind(): string | null {
-    return readRuleText(this._interruptKind);
-  }
-  set interruptKind(answer: string | null) {
-    this._interruptKind = writeRuleText(answer);
-  }
-
   /** Every engagement-zone rule the room has been asked about, null where it has not answered. */
   get zoneRuleAnswers(): ZoneRuleAnswers {
-    return {
-      enabled: readRuleFlag(this._zoneEnabled),
-      sizes: readRuleText(this._zoneSizes),
-      countField: readRuleText(this._zoneCountField),
-      samePointM: readRuleNumber(this._zoneSamePoint),
-      outnumber: readRuleNumber(this._zoneOutnumber),
-      leaveKind: readRuleText(this._zoneLeaveKind),
-      blockRadiusM: readRuleNumber(this._zoneBlockRadius),
-      clearName: readRuleText(this._zoneClearName),
-      stealthUnseen: readRuleFlag(this._zoneStealthUnseen),
-    };
-  }
-
-  /** The kinds of move the room plays, as `name:factor:cap` rows, or null for the plain kind alone. */
-  get moveKinds(): string | null {
-    return readRuleText(this._moveKinds);
-  }
-  set moveKinds(answer: string | null) {
-    this._moveKinds = writeRuleText(answer);
-  }
-
-  /** How many times the other side one side has to be to pass a zone unheld, or null for the default. */
-  set zoneOutnumber(answer: number | null) {
-    this._zoneOutnumber = writeRuleNumber(answer);
-  }
-
-  /** How far apart two sides start, as `name:metres` rows, or null where the room has written none. */
-  get placementDistances(): string | null {
-    return readRuleText(this._placementDistances);
-  }
-  set placementDistances(answer: string | null) {
-    this._placementDistances = writeRuleText(answer);
-  }
-
-  /**
-   * The sheet field holding the skill of steering a mount, or null where the room names none, in
-   * which case everybody riding in front steers.
-   */
-  get rideSkillField(): string | null {
-    return readRuleText(this._rideSkillField);
-  }
-  set rideSkillField(answer: string | null) {
-    this._rideSkillField = writeRuleText(answer);
-  }
-
-  /** The field on a mount's sheet saying what it asks of that skill, or null where the room names none. */
-  get rideRequireField(): string | null {
-    return readRuleText(this._rideRequireField);
-  }
-  set rideRequireField(answer: string | null) {
-    this._rideRequireField = writeRuleText(answer);
-  }
-
-  /** The shortest fall from a mount, in metres, or null for the default. */
-  get fallMinM(): number | null {
-    return readRuleNumber(this._fallMinM);
-  }
-  set fallMinM(answer: number | null) {
-    this._fallMinM = writeRuleNumber(answer);
-  }
-
-  /**
-   * What a fall from a mount does, as a line rolled for the piece that fell with `{m}` standing for
-   * how far it fell, or null where the room has written none and a fall only says how far.
-   */
-  get fallDamage(): string | null {
-    return readRuleText(this._fallDamage);
-  }
-  set fallDamage(answer: string | null) {
-    this._fallDamage = writeRuleText(answer);
-  }
-
-  /**
-   * The buff given the one riding a mount in front and the one behind while both are on it, written
-   * as a chat buff command, or null where the room gives none.
-   */
-  get twoUpBuff(): string | null {
-    return readRuleText(this._twoUpBuff);
-  }
-  set twoUpBuff(answer: string | null) {
-    this._twoUpBuff = writeRuleText(answer);
-  }
-
-  /** What a distance between the sides does, as `metres:note` rows, or null where the room has written none. */
-  get distanceModifiers(): string | null {
-    return readRuleText(this._distanceModifiers);
-  }
-  set distanceModifiers(answer: string | null) {
-    this._distanceModifiers = writeRuleText(answer);
-  }
-
-  /** How close to a line of fire, in metres, a piece stands to be in its way, or null for the default. */
-  set zoneBlockRadiusM(answer: number | null) {
-    this._zoneBlockRadius = writeRuleNumber(answer);
-  }
-
-  /** The sheet field or buff by which a shooter fires past what stands in the way, or null for none. */
-  set zoneClearName(answer: string | null) {
-    this._zoneClearName = writeRuleText(answer);
-  }
-
-  /** Whether a piece in stealth counts as one nobody can see, or null for the default, which it does not. */
-  set zoneStealthUnseen(answer: boolean | null) {
-    this._zoneStealthUnseen = writeRuleFlag(answer);
-  }
-
-  /** The kind of move a piece may leave an overflowing zone by at once, or null for any kind. */
-  set zoneLeaveKind(answer: string | null) {
-    this._zoneLeaveKind = writeRuleText(answer);
-  }
-
-  /** Whether the room plays engagement zones, or null where it has not said. */
-  set zoneEnabled(answer: boolean | null) {
-    this._zoneEnabled = writeRuleFlag(answer);
-  }
-
-  /** The size table zones grow by, as `count:radius:side` rows, or null for the default. */
-  set zoneSizes(answer: string | null) {
-    this._zoneSizes = writeRuleText(answer);
-  }
-
-  /** The sheet field a piece gives its count in, or null to count each piece once. */
-  set zoneCountField(answer: string | null) {
-    this._zoneCountField = writeRuleText(answer);
-  }
-
-  /** How close two pieces stand, in metres, to be at the same point, or null for the default. */
-  set zoneSamePointM(answer: number | null) {
-    this._zoneSamePoint = writeRuleNumber(answer);
+    return zoneRuleAnswersOf(this);
   }
 
   /** Whether a round taken side by side skips the phase of pieces that belong to no side. */
@@ -540,26 +436,6 @@ export class Config extends ObjectNode implements InnerXml {
   }
   set factionSkipUnassigned(skips: boolean) {
     this._factionSkipUnassigned = skips ? '1' : '';
-  }
-
-  /**
-   * Whether pieces show how far they can move, or null where the room leaves it to the table in play.
-   *
-   * The same null applies to every rule of play below: an unanswered rule is taken from the table.
-   */
-  get moveRangeEnabled(): boolean | null {
-    return readRuleFlag(this._moveRangeEnabled);
-  }
-  set moveRangeEnabled(answer: boolean | null) {
-    this._moveRangeEnabled = writeRuleFlag(answer);
-  }
-
-  /** The comma-separated names of the sheet fields read as a piece's movement, or null to leave it to the table. */
-  get moveRangeElementNames(): string | null {
-    return readRuleText(this._moveRangeElementNames);
-  }
-  set moveRangeElementNames(answer: string | null) {
-    this._moveRangeElementNames = writeRuleText(answer);
   }
 
   /**
@@ -587,228 +463,11 @@ export class Config extends ObjectNode implements InnerXml {
     this._moveDiagonally = writeRuleFlag(answer);
   }
 
-  /** Whether a piece may end its move on a cell another piece stands on, or null to leave it to the table. */
-  get piecesShareCells(): boolean | null {
-    return readRuleFlag(this._piecesShareCells);
-  }
-  set piecesShareCells(answer: boolean | null) {
-    this._piecesShareCells = writeRuleFlag(answer);
-  }
-
-  /** What a piece does with the ground its own party holds, or null to leave it to the table. */
-  get samePartyPassage(): string | null {
-    return readRuleText(this._samePartyPassage);
-  }
-  set samePartyPassage(answer: string | null) {
-    this._samePartyPassage = writeRuleText(answer);
-  }
-
-  /** The same, for the ground some other party holds. */
-  get otherPartyPassage(): string | null {
-    return readRuleText(this._otherPartyPassage);
-  }
-  set otherPartyPassage(answer: string | null) {
-    this._otherPartyPassage = writeRuleText(answer);
-  }
-
-  /** The same, for the ground a piece in no party holds. */
-  get noPartyPassage(): string | null {
-    return readRuleText(this._noPartyPassage);
-  }
-  set noPartyPassage(answer: string | null) {
-    this._noPartyPassage = writeRuleText(answer);
-  }
-
-  /** What crossing somebody costs where the table charges for it, or null to leave it to the table. */
-  get piecePassageCost(): number | null {
-    return readRuleNumber(this._piecePassageCost);
-  }
-  set piecePassageCost(answer: number | null) {
-    this._piecePassageCost = writeRuleNumber(answer);
-  }
-
-  /** Whether a piece squeezes past somebody far enough from it in size, or null to leave it to the table. */
-  get sizeSlipsPast(): boolean | null {
-    return readRuleFlag(this._sizeSlipsPast);
-  }
-  set sizeSlipsPast(answer: boolean | null) {
-    this._sizeSlipsPast = writeRuleFlag(answer);
-  }
-
-  /** Whether a piece folds itself through a gap too small for it, or null for the table. */
-  get squeezes(): boolean | null {
-    return readRuleFlag(this._squeezes);
-  }
-  set squeezes(answer: boolean | null) {
-    this._squeezes = writeRuleFlag(answer);
-  }
-
-  /** How far one leap carries in cells, or null for the table. */
-  get jumpCells(): number | null {
-    return readRuleNumber(this._jumpCells);
-  }
-  set jumpCells(answer: number | null) {
-    this._jumpCells = writeRuleNumber(answer);
-  }
-
-  /** Whether ground between a piece's two ends goes off when a hand moves it, or null for the table. */
-  get handTracesWay(): boolean | null {
-    return readRuleFlag(this._handTracesWay);
-  }
-  set handTracesWay(answer: boolean | null) {
-    this._handTracesWay = writeRuleFlag(answer);
-  }
-
-  /** Whether the selected piece's reach stays shown without picking it up, or null to leave it to the table. */
-  get moveRangeAlways(): boolean | null {
-    return readRuleFlag(this._moveRangeAlways);
-  }
-  set moveRangeAlways(answer: boolean | null) {
-    this._moveRangeAlways = writeRuleFlag(answer);
-  }
-
-  /** Whether the ground enemies hold stays shown for the selected piece, or null to leave it to the table. */
-  get zocAlways(): boolean | null {
-    return readRuleFlag(this._zocAlways);
-  }
-  set zocAlways(answer: boolean | null) {
-    this._zocAlways = writeRuleFlag(answer);
-  }
-
-  /** How much distance one cell stands for, in {@link cellDistanceUnit}, or null to leave it to the table. */
-  get cellDistance(): number | null {
-    return readRuleNumber(this._cellDistance);
-  }
-  set cellDistance(answer: number | null) {
-    this._cellDistance = writeRuleNumber(answer);
-  }
-
-  /** The unit {@link cellDistance} is measured in, cells or a length, or null to leave it to the table. */
-  get cellDistanceUnit(): string | null {
-    return readRuleText(this._cellDistanceUnit);
-  }
-  set cellDistanceUnit(answer: string | null) {
-    this._cellDistanceUnit = writeRuleText(answer);
-  }
-
-  /** What the ground around an enemy does to a piece walking into it (none, stop, block or cost), or null. */
-  get zocMode(): string | null {
-    return readRuleText(this._zocMode);
-  }
-  set zocMode(answer: string | null) {
-    this._zocMode = writeRuleText(answer);
-  }
-
-  /** How the room tells its two sides apart, or null to leave it to the table. */
-  get hostilityBy(): string | null {
-    return readRuleText(this._hostilityBy);
-  }
-  set hostilityBy(answer: string | null) {
-    this._hostilityBy = writeRuleText(answer);
-  }
-
-  /** How many steps out from an enemy its held ground reaches, or null to leave it to the table. */
-  get zocRange(): number | null {
-    return readRuleNumber(this._zocRange);
-  }
-  set zocRange(answer: number | null) {
-    this._zocRange = writeRuleNumber(answer);
-  }
-
-  /** The extra steps charged for entering held ground when the mode is cost, or null to leave it to the table. */
-  get zocExtraCost(): number | null {
-    return readRuleNumber(this._zocExtraCost);
-  }
-  set zocExtraCost(answer: number | null) {
-    this._zocExtraCost = writeRuleNumber(answer);
-  }
-
-  /** Whether pieces standing against one another form one fight rather than pairs, or null to leave it to the table. */
-  get zocEngages(): boolean | null {
-    return readRuleFlag(this._zocEngages);
-  }
-  set zocEngages(answer: boolean | null) {
-    this._zocEngages = writeRuleFlag(answer);
-  }
-
-  /** What a piece must do to walk out of a fight (weighed, cost, block or free), or null to leave it to the table. */
-  get breakOutMode(): string | null {
-    return readRuleText(this._breakOutMode);
-  }
-  set breakOutMode(answer: string | null) {
-    this._breakOutMode = writeRuleText(answer);
-  }
-
-  /** The steps leaving a fight costs when every leaving costs the same, or null to leave it to the table. */
-  get breakOutCost(): number | null {
-    return readRuleNumber(this._breakOutCost);
-  }
-  set breakOutCost(answer: number | null) {
-    this._breakOutCost = writeRuleNumber(answer);
-  }
-
-  /** Whether a piece weighs as much as the cells it covers when sides are weighed, or null to leave it to the table. */
-  get engagementCountsSize(): boolean | null {
-    return readRuleFlag(this._engagementCountsSize);
-  }
-  set engagementCountsSize(answer: boolean | null) {
-    this._engagementCountsSize = writeRuleFlag(answer);
-  }
-
-  /** How a piece shows which way it faces (none, turn or arrow), or null to leave it to the table. */
-  get facingMark(): string | null {
-    return readRuleText(this._facingMark);
-  }
-  set facingMark(answer: string | null) {
-    this._facingMark = writeRuleText(answer);
-  }
-
-  /** Whether a piece is drawn no taller than the cell it stands on, or null to leave it to the table. */
-  get pieceImageInCell(): boolean | null {
-    return readRuleFlag(this._pieceImageInCell);
-  }
-  set pieceImageInCell(answer: boolean | null) {
-    this._pieceImageInCell = writeRuleFlag(answer);
-  }
-
   /** Every rule of play the room has been asked about, answered or not. */
   get roomRuleAnswers(): RoomRuleAnswers {
-    return {
-      moveRangeEnabled: this.moveRangeEnabled,
-      moveRangeElementNames: this.moveRangeElementNames,
-      moveDiagonally: this.moveDiagonally,
-      diagonalMove: this.diagonalMove,
-      piecesShareCells: this.piecesShareCells,
-      samePartyPassage: this.samePartyPassage,
-      otherPartyPassage: this.otherPartyPassage,
-      noPartyPassage: this.noPartyPassage,
-      piecePassageCost: this.piecePassageCost,
-      sizeSlipsPast: this.sizeSlipsPast,
-      squeezes: this.squeezes,
-      jumpCells: this.jumpCells,
-      handTracesWay: this.handTracesWay,
-      moveRangeAlways: this.moveRangeAlways,
-      zocAlways: this.zocAlways,
-      cellDistance: this.cellDistance,
-      cellDistanceUnit: this.cellDistanceUnit,
-      zocMode: this.zocMode,
-      hostilityBy: this.hostilityBy,
-      zocRange: this.zocRange,
-      zocExtraCost: this.zocExtraCost,
-      zocEngages: this.zocEngages,
-      breakOutMode: this.breakOutMode,
-      breakOutCost: this.breakOutCost,
-      engagementCountsSize: this.engagementCountsSize,
-      facingMark: this.facingMark,
-      pieceImageInCell: this.pieceImageInCell,
-    };
-  }
-
-  // The jukebox keeps the settings of the person listening.
-  // The master volume lives here because the shared settings are saved together.
-  /** The room's jukebox, which the master volume is applied to. */
-  get jukebox(): Jukebox {
-    return ObjectStore.instance.get<Jukebox>('Jukebox')!;
+    const answers: Partial<Record<keyof RoomRuleAnswers, unknown>> = {};
+    for (const rule of Object.keys(ROOM_RULE_DEFAULTS) as (keyof RoomRuleAnswers)[]) answers[rule] = this[rule];
+    return answers as RoomRuleAnswers;
   }
 
   private static _instance: Config;
@@ -839,18 +498,5 @@ export class Config extends ObjectNode implements InnerXml {
 
     super.parseInnerXml.apply(Config.instance, [element]);
     this.destroy();
-  }
-
-  /** Takes in synced settings, and passes a changed room volume or mix on to the jukebox straight away. */
-  override apply(context: ObjectContext) {
-    const _roomVolume = this._roomVolume;
-    const _roomKindVolumes = this._roomKindVolumes;
-    const _djSettings = this._djSettings;
-    const _defaultDiceBot = this._defaultDiceBot;
-    super.apply(context);
-    if (_roomVolume !== this._roomVolume || _roomKindVolumes !== this._roomKindVolumes) {
-      this.jukebox.setNewVolume();
-    }
-    if (_djSettings !== this._djSettings) ObjectStore.instance.get<Jukebox>('Jukebox')?.refreshMix();
   }
 }

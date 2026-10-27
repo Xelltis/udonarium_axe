@@ -27,6 +27,22 @@ export function stepValue(value: number | string, delta: number, bounds: StepBou
   return next;
 }
 
+/**
+ * A value held within its bounds as its box is left: a number, typed or held, comes back as a number
+ * between them, and an empty value or text that is not a number comes back as it was.
+ */
+export function clampToBounds(value: number | string, bounds: StepBounds): number | string {
+  if (value === '' || value == null) return value;
+  const num = Number(value);
+  if (Number.isNaN(num)) return value;
+  let result = num;
+  const min = bound(bounds.min);
+  const max = bound(bounds.max);
+  if (min !== null) result = Math.max(min, result);
+  if (max !== null) result = Math.min(max, result);
+  return result;
+}
+
 /** Whether a step would change the value at all, so a ± against its bound can be greyed out. */
 export function canStep(value: number | string, delta: number, bounds: StepBounds): boolean {
   const next = stepValue(value, delta, bounds);

@@ -1,10 +1,10 @@
 import { signal, type WritableSignal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
-import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import type { ReplayVideoProduction } from '@axe/application/replay/replay-video-production';
 import { ReplayVideoStudioService } from '@axe/application/replay/replay-video-studio.service';
 import { PUBLIC_VISIBILITY, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
+import { ReplayEditorService } from '@axe/features/replay/replay-editor.service';
 import { ReplayFocusService } from '@axe/features/replay/replay-focus.service';
 import { ReplayVideoPreviewComponent } from '@axe/features/replay/replay-video-preview/replay-video-preview.component';
 import { ReplayVideoSettingsService } from '@axe/features/replay/replay-video-settings.service';

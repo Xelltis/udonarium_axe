@@ -40,8 +40,7 @@ export class StampPackService {
 
   /** Whether the reader may make, change and take away the sets. */
   get canManage(): boolean {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditTabletop;
+    return this.rolePermission.canEditTabletop();
   }
 
   /** The name a picture goes by as a stamp, from the first set that holds it; empty where none does. */

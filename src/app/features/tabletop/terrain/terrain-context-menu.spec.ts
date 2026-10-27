@@ -1,5 +1,4 @@
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
-import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { DOOR_STYLES, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import {
   encodeSlopeSides,
@@ -9,6 +8,7 @@ import {
   SlopeDirection,
   SlopeSide,
 } from '@axe/domain/tabletop/terrain-slope';
+import { CreateObjectMenu } from '@axe/features/tabletop/create-menu/create-object-context-menu';
 import {
   buildTerrainContextMenu,
   buildTerrainContextMenuModel,
@@ -86,8 +86,8 @@ function makeService(): GameObjectInventoryService {
   return { notifyInventoryUpdate: vi.fn() } as unknown as GameObjectInventoryService;
 }
 
-function makeActionService(): TabletopActionService {
-  return { makeDefaultContextMenuActions: vi.fn(() => []) } as unknown as TabletopActionService;
+function makeActionService(): CreateObjectMenu {
+  return { menuAt: vi.fn(() => []) } as CreateObjectMenu;
 }
 
 const names = (a: { name: string }[]) => a.map((x) => x.name);

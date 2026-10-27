@@ -16,8 +16,17 @@ import {
 import { perfCounters, perfTimed } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ALTITUDE_STEP_CELLS, steppedAltitude } from '@axe/domain/tabletop/altitude-step';
+import {
+  beamRestPosition,
+  ContactFootprint,
+  contactRestLevels,
+  ContactRider,
+  findContactSupport,
+  findContactSupportZ,
+  nextContactLevel,
+} from '@axe/domain/tabletop/contact-support';
 import { GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
-import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
+import { gridSnapPosition } from '@axe/domain/tabletop/grid-snap';
 import { clearRunAlong, MoveBlock, turnedMoveBlock } from '@axe/domain/tabletop/move/blocked-path';
 import { SurfaceDims, surfaceWorldBox, WorldBox } from '@axe/domain/tabletop/surface-space';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -33,21 +42,9 @@ import { terrainSlopeRoofOf, terrainTopPxAt } from '@axe/domain/tabletop/terrain
 import { InputHandler } from '@axe/ui/directives/input-handler';
 import {
   applyPointerEvents,
-  beamRestPosition,
-  calcHexAllSnapPosition,
-  calcHexBothSnapPosition,
-  calcHexSnapPosition,
-  calcHexVertexSnapPosition,
-  calcSnapNum,
   collectCollidableElements,
-  ContactFootprint,
-  contactRestLevels,
-  ContactRider,
   dropTargetSurface,
-  findContactSupport,
-  findContactSupportZ,
   MovableLayerItem,
-  nextContactLevel,
   registerLayer,
   setLayerCollidable,
   shouldTransitionTo,
@@ -507,7 +504,7 @@ export class MovableDirective implements MovableInteractionContext {
    * terrain is being built rather than moved. The master is building either way.
    */
   private walksTheTable(): boolean {
-    return this.tabletopObject instanceof GameCharacter && !this.rolePermission.isGameMaster;
+    return this.tabletopObject instanceof GameCharacter && !this.rolePermission.isGameMaster();
   }
 
   /**
@@ -643,7 +640,7 @@ export class MovableDirective implements MovableInteractionContext {
 
   /** Whether the local user's role may not edit the tabletop, which locks the piece in place. */
   isReadOnly(): boolean {
-    return !this.rolePermission.canEditTabletop;
+    return !this.rolePermission.canEditTabletop();
   }
 
   /**
@@ -948,100 +945,18 @@ export class MovableDirective implements MovableInteractionContext {
       return;
     }
     const table = this.tableSelecter.viewTable;
-    const effectiveGridSize = table?.gridSize ?? gridSize;
-    const gridType = table?.gridType ?? GridType.SQUARE;
-    const snapStyle = this.snapStyle ?? table?.gridSnapStyle ?? GridSnapStyle.CENTER;
-
-    if (isHexGrid(gridType)) {
-      const originX = this.snapOrigin?.x ?? this.width / 2;
-      const originY = this.snapOrigin?.y ?? this.height / 2;
-      const anchor = { x: this.posX + originX, y: this.posY + originY };
-      const hexSnap =
-        snapStyle === GridSnapStyle.VERTEX
-          ? calcHexVertexSnapPosition
-          : snapStyle === GridSnapStyle.BOTH
-            ? calcHexBothSnapPosition
-            : snapStyle === GridSnapStyle.ALL
-              ? calcHexAllSnapPosition
-              : calcHexSnapPosition;
-      const snapped = hexSnap(anchor.x, anchor.y, effectiveGridSize, gridType, originX, originY);
-      this.posX = snapped.x;
-      this.posY = snapped.y;
-    } else {
-      if (snapStyle === GridSnapStyle.ALL) {
-        const centerX = this.posX + this.width / 2;
-        const centerY = this.posY + this.height / 2;
-        const half = effectiveGridSize / 2;
-        // Cell: top-left snapped to grid
-        const cellX = calcSnapNum(this.posX, effectiveGridSize);
-        const cellY = calcSnapNum(this.posY, effectiveGridSize);
-        // Vertex: center snapped to grid intersection
-        const vCX = calcSnapNum(centerX, effectiveGridSize);
-        const vCY = calcSnapNum(centerY, effectiveGridSize);
-        const vertexX = vCX - this.width / 2;
-        const vertexY = vCY - this.height / 2;
-        // Edge H: center-x snapped to half-grid, center-y to grid intersection
-        const eHCX = calcSnapNum(centerX - half, effectiveGridSize) + half;
-        const eHCY = calcSnapNum(centerY, effectiveGridSize);
-        const edgeHX = eHCX - this.width / 2;
-        const edgeHY = eHCY - this.height / 2;
-        // Edge V: center-x to grid intersection, center-y snapped to half-grid
-        const eVCX = calcSnapNum(centerX, effectiveGridSize);
-        const eVCY = calcSnapNum(centerY - half, effectiveGridSize) + half;
-        const edgeVX = eVCX - this.width / 2;
-        const edgeVY = eVCY - this.height / 2;
-
-        const candidates = [
-          { x: cellX, y: cellY },
-          { x: vertexX, y: vertexY },
-          { x: edgeHX, y: edgeHY },
-          { x: edgeVX, y: edgeVY },
-        ];
-        let bestX = cellX;
-        let bestY = cellY;
-        let bestDist = Infinity;
-        for (const c of candidates) {
-          const dx = this.posX - c.x;
-          const dy = this.posY - c.y;
-          const dist = dx * dx + dy * dy;
-          if (dist < bestDist) {
-            bestDist = dist;
-            bestX = c.x;
-            bestY = c.y;
-          }
-        }
-        this.posX = bestX;
-        this.posY = bestY;
-      } else if (snapStyle === GridSnapStyle.VERTEX || snapStyle === GridSnapStyle.BOTH) {
-        const centerX = this.posX + this.width / 2;
-        const centerY = this.posY + this.height / 2;
-        const snappedX = calcSnapNum(centerX, effectiveGridSize);
-        const snappedY = calcSnapNum(centerY, effectiveGridSize);
-        if (snapStyle === GridSnapStyle.BOTH) {
-          const cellX = calcSnapNum(this.posX, effectiveGridSize);
-          const cellY = calcSnapNum(this.posY, effectiveGridSize);
-          const dcx = this.posX - cellX;
-          const dcy = this.posY - cellY;
-          const dvx = this.posX - (snappedX - this.width / 2);
-          const dvy = this.posY - (snappedY - this.height / 2);
-          if (dcx * dcx + dcy * dcy <= dvx * dvx + dvy * dvy) {
-            this.posX = cellX;
-            this.posY = cellY;
-          } else {
-            this.posX = snappedX - this.width / 2;
-            this.posY = snappedY - this.height / 2;
-          }
-        } else {
-          this.posX = snappedX - this.width / 2;
-          this.posY = snappedY - this.height / 2;
-        }
-      } else {
-        const originX = this.snapOrigin?.x ?? 0;
-        const originY = this.snapOrigin?.y ?? 0;
-        this.posX = calcSnapNum(this.posX + originX, effectiveGridSize) - originX;
-        this.posY = calcSnapNum(this.posY + originY, effectiveGridSize) - originY;
-      }
-    }
+    const snapped = gridSnapPosition({
+      x: this.posX,
+      y: this.posY,
+      width: this.width,
+      height: this.height,
+      gridSize: table?.gridSize ?? gridSize,
+      gridType: table?.gridType ?? GridType.SQUARE,
+      snapStyle: this.snapStyle ?? table?.gridSnapStyle ?? GridSnapStyle.CENTER,
+      origin: this.snapOrigin,
+    });
+    this.posX = snapped.x;
+    this.posY = snapped.y;
   }
 
   private isOnWallSurface(): boolean {

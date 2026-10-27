@@ -1,4 +1,4 @@
-import { ImageItem } from '@axe/features/map-editor/model/scene';
+import { ImageItem } from '@axe/domain/map-editor/scene';
 
 /**
  * The gesture under way.

@@ -1,12 +1,7 @@
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import {
-  assembleScene,
-  characterSceneKey,
-  collectLights,
-  collectSegments,
-} from '@axe/application/tabletop/vision-scene-assembly';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { coalesce } from '@axe/core/util/debounce';
 import {
   PERF_TERRAIN_COVER_MISS,
   PERF_VISION_CELLS_MISS,
@@ -20,13 +15,11 @@ import { partyIdsOwnedBy } from '@axe/domain/party/party-membership';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import {
-  cellCenterOf,
   cellCount,
   CellGrid,
   cellGridOf,
   cellIndexAt,
   forEachCellInBox,
-  forEachNeighbourCell,
   sameCellGrid,
 } from '@axe/domain/tabletop/fog/cell-grid';
 import { fogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
@@ -43,18 +36,20 @@ import { computeVisibleCellsFor, VisibleCellsOptions } from '@axe/domain/tableto
 import { visibleCellsLightKey, VisibleCellsMemo, visionSourceKey } from '@axe/domain/tabletop/fog/visible-cells-memo';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { SegmentIndexes } from '@axe/domain/tabletop/los/segment-index';
+import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
+import { brightestCleared, CoverLighting, terrainCoverOf, TerrainFogCover } from '@axe/domain/tabletop/terrain-cover';
 import { terrainBasePx, terrainTopPx } from '@axe/domain/tabletop/terrain-height';
+import { seenByParty, tokenVisibleTo } from '@axe/domain/tabletop/token-sight';
 import {
   computeLightBeam,
   computeLightGlow,
   computeWallLights,
   computeWallSilhouettes,
   darknessAlphaFor,
-  eyeHeightPx,
   isPointVisible,
   type LightBeam,
   type LightGlow,
@@ -70,6 +65,12 @@ import {
   type WallLight,
   type WallSilhouette,
 } from '@axe/domain/tabletop/vision-scene';
+import {
+  assembleScene,
+  characterSceneKey,
+  collectLights,
+  collectSegments,
+} from '@axe/domain/tabletop/vision-scene-assembly';
 import { VisionType } from '@axe/domain/tabletop/vision-types';
 
 const GEOMETRY_THROTTLE_MS = 40;
@@ -129,18 +130,6 @@ const MEMO_LIMIT = 8192;
 const EMPTY_SILHOUETTES: WallSilhouette[] = [];
 const EMPTY_WALL_LIGHTS: WallLight[] = [];
 const EMPTY_FOUND: ReadonlySet<string> = new Set();
-/** How far towards an open neighbour a wall's face is read, as a share of the way to it. */
-const FACE_READ_STEP = 0.6;
-
-/** The cells a terrain covers, told apart into the ones the party has walked to and the rest. */
-export interface TerrainFogCover {
-  cols: number;
-  rows: number;
-  cleared: boolean[];
-  /** How brightly each cell is lit, read at its open sides. */
-  brightness: number[];
-}
-
 function faceKey(face: WallFace): string {
   return `${face.ax}:${face.ay}:${face.bx}:${face.by}:${face.nx}:${face.ny}:${face.heightPx}`;
 }
@@ -228,22 +217,8 @@ export class VisionService {
   }
 
   constructor() {
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    let standingTimer: ReturnType<typeof setTimeout> | null = null;
-    const bump = () => {
-      if (timer !== null) return;
-      timer = setTimeout(() => {
-        timer = null;
-        this.geometryEpoch.update((v) => v + 1);
-      }, GEOMETRY_THROTTLE_MS);
-    };
-    const bumpStanding = () => {
-      if (standingTimer !== null) return;
-      standingTimer = setTimeout(() => {
-        standingTimer = null;
-        this.standingEpoch.update((v) => v + 1);
-      }, GEOMETRY_THROTTLE_MS);
-    };
+    const bump = coalesce(() => this.geometryEpoch.update((v) => v + 1), GEOMETRY_THROTTLE_MS);
+    const bumpStanding = coalesce(() => this.standingEpoch.update((v) => v + 1), GEOMETRY_THROTTLE_MS);
     const changed = (aliasName: string) => {
       if (!RELEVANT_ALIASES.has(aliasName)) return;
       perfCounters.bump(`dirty:${aliasName}`);
@@ -261,8 +236,8 @@ export class VisionService {
     this.objectChange.objectAdded$.subscribe((event) => changed(event.aliasName), this.destroyRef);
     this.objectChange.objectRemoved$.subscribe((event) => changed(event.aliasName), this.destroyRef);
     this.destroyRef.onDestroy(() => {
-      if (timer !== null) clearTimeout(timer);
-      if (standingTimer !== null) clearTimeout(standingTimer);
+      bump.cancel();
+      bumpStanding.cancel();
     });
   }
 
@@ -580,8 +555,8 @@ export class VisionService {
     for (const character of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
       if (!character.isVisibleOnTable || surfaceOf(character) !== 'floor') continue;
       this.objectChange.versionOf(character.identifier)();
-      const half = (scene.gridSize * (character.size || 1)) / 2;
-      const cell = cellIndexAt(cells.grid, character.location.x + half, character.location.y + half);
+      const centre = pieceCentreOf(character, scene.gridSize);
+      const cell = cellIndexAt(cells.grid, centre.x, centre.y);
       if (cell >= 0 && cells.shared.get(cell)) found.add(character.identifier);
     }
     return found;
@@ -710,117 +685,21 @@ export class VisionService {
     rows: number,
     planeZ = 0
   ): TerrainFogCover {
-    const size = grid.sizePx;
-    const centreX = terrain.location.x + (cols * size) / 2;
-    const centreY = terrain.location.y + (rows * size) / 2;
-    const turn = (terrain.rotate * Math.PI) / 180;
-    const cos = Math.cos(turn);
-    const sin = Math.sin(turn);
-
-    const scene = this.scene();
     const viewer = this.viewer();
-    const blocking = this.blockingCells()?.cells ?? null;
-    // The game master sees every cell; a reader sees what the fog says they see.
-    // Nothing to ask where the table keeps no fog: an empty set answers "nowhere is in sight",
-    // which held every face of every block at the bare darkness however well a lamp lit it.
-    const visible = viewer.isGameMaster ? null : (this.overlayVision()?.visible ?? null);
-    const dark = scene ? 1 - darknessAlphaFor(scene, viewer) : 1;
-
-    const cleared: boolean[] = [];
-    const brightness: number[] = [];
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const localX = (col + 0.5 - cols / 2) * size;
-        const localY = (row + 0.5 - rows / 2) * size;
-        const x = centreX + localX * cos - localY * sin;
-        const y = centreY + localX * sin + localY * cos;
-        const cell = cellIndexAt(grid, x, y);
-        // The fog is the table's record of its own ground and has nothing to say about what
-        // lies over the edge of it. Held as unwalked, the part of a block that overhangs the
-        // table would wear the fog's colour across itself and take its texture with it.
-        const offTable = cell < 0;
-        const shown = offTable || (explored?.get(cell) ?? true);
-        cleared.push(shown);
-        brightness.push(
-          shown && scene && !offTable
-            ? this.cellBrightness(scene, viewer, grid, blocking, visible, cell, x, y, planeZ)
-            : dark
-        );
-      }
-    }
-    return { cols, rows, cleared, brightness };
-  }
-
-  /**
-   * How brightly one cell of a terrain is lit.
-   *
-   * A wall's cell is read at its open sides, never at its middle: the middle of a wall is
-   * inside the wall, where its own edge stops the look and the light alike.
-   */
-  private cellBrightness(
-    scene: VisionScene,
-    viewer: SceneViewer,
-    grid: CellGrid,
-    blocking: CellBits | null,
-    visible: CellBits | null,
-    cell: number,
-    x: number,
-    y: number,
-    planeZ = 0
-  ): number {
-    const dark = 1 - darknessAlphaFor(scene, viewer);
-    // Ground the party has taken is held at full light, which is what the easy fog promises:
-    // cleared once, and bright from then on however the lamps stand.
-    if (this.clearedIsLit(cell)) return 1;
-    // Bright exactly where the fog counts the cell as in sight right now. The fog's own
-    // answer already holds the whole rule - lamplit and in a line of sight, read at a wall's
-    // open sides - and it falls back to the party's shared sight for a reader with no piece
-    // of their own. Asking the sight lines again here would answer that reader with 'anything
-    // a lamp touches', lighting the walls of rooms nobody can see into.
-    // The fog is worked out along the floor and has nothing to say about a roof above it: the
-    // building itself stops the look, so its own roof is never among the cells in sight. A lamp
-    // standing up there lights the roof it stands on, and reading that roof against cells lying
-    // in the building's own shadow would leave it dark under the lamp's feet. Ground nobody has
-    // reached is still held back, by the cleared list this fills in beside the brightness.
-    if (planeZ <= 0 && visible && !visible.get(cell)) return dark;
-    // A roof is ground, walked on at the height it stands at, so it is read where it lies. The
-    // detour below is for a wall met from the floor, whose middle is inside the wall itself;
-    // taken on a roof it would read the middle of a wide one from the open ground beyond its
-    // edges, leaving the middle of a crate a torch stands on as dark as the yard outside.
-    //
-    // Only by the lamps this reader can see. The fog cannot answer for a roof — the building
-    // itself stops the look, so its own top is never among the cells in sight — and dropping
-    // the question altogether would light the roof of every lamplit room on the map for
-    // somebody standing outside all of them.
-    if (planeZ > 0) {
-      return objectBrightnessFor(this.seenScene() ?? scene, viewer, x, y, grid.sizePx / 2, true, planeZ);
-    }
-    if (!blocking?.get(cell)) {
-      return objectBrightnessFor(scene, viewer, x, y, grid.sizePx / 2, true, planeZ);
-    }
-    let best = dark;
-    forEachNeighbourCell(grid, cell, (neighbour) => {
-      if (blocking.get(neighbour)) return;
-      const open = cellCenterOf(grid, neighbour);
-      const brightness = objectBrightnessFor(
-        scene,
-        viewer,
-        x + (open.x - x) * FACE_READ_STEP,
-        y + (open.y - y) * FACE_READ_STEP,
-        0,
-        true,
-        planeZ
-      );
-      if (brightness > best) best = brightness;
-    });
-    return best;
-  }
-
-  /** Whether this cell is ground the party took on a table that keeps what it has taken. */
-  private clearedIsLit(cell: number): boolean {
-    if (cell < 0) return false;
     const fog = this.overlayVision();
-    return !!fog?.clearedStaysLit && fog.explored.get(cell);
+    const lighting: CoverLighting = {
+      scene: this.scene(),
+      seenScene: () => this.seenScene(),
+      viewer,
+      blocking: this.blockingCells()?.cells ?? null,
+      // The game master sees every cell; a reader sees what the fog says they see.
+      // Nothing to ask where the table keeps no fog: an empty set answers "nowhere is in sight",
+      // which held every face of every block at the bare darkness however well a lamp lit it.
+      visible: viewer.isGameMaster ? null : (fog?.visible ?? null),
+      litExplored: fog?.clearedStaysLit ? fog.explored : null,
+    };
+    const footprint = { x: terrain.location.x, y: terrain.location.y, rotate: terrain.rotate, cols, rows };
+    return terrainCoverOf(lighting, grid, explored, footprint, planeZ);
   }
 
   /**
@@ -856,7 +735,7 @@ export class VisionService {
     if (top <= 0) return this.terrainBrightness(terrain, centreX, centreY, radiusPx);
     const cover = this.terrainFogCover(terrain, top);
     if (!cover) return this.objectBrightness(centreX, centreY, radiusPx, true, top);
-    return this.brightestCleared(cover);
+    return brightestCleared(cover);
   }
 
   /** How high the top of a block stands, in pixels above the floor. */
@@ -889,22 +768,7 @@ export class VisionService {
     const top = terrainTopPx(terrain, scene.gridSize);
     if (!cover) return this.objectBrightness(centreX, centreY, radiusPx, true, top);
 
-    return this.brightestCleared(cover);
-  }
-
-  /**
-   * The brightest of the cells a terrain has been reached at.
-   *
-   * A wall's cell is read at its open sides, never at its middle: the middle of a wall is
-   * inside the wall, where its own edge stops the look and the light alike, and reading it
-   * there would leave the one cell beside a torch as black as the ten behind it.
-   */
-  private brightestCleared(cover: TerrainFogCover): number {
-    let best = 0;
-    for (let i = 0; i < cover.cleared.length; i++) {
-      if (cover.cleared[i] && cover.brightness[i] > best) best = cover.brightness[i];
-    }
-    return best;
+    return brightestCleared(cover);
   }
 
   /**
@@ -1056,32 +920,18 @@ export class VisionService {
    * only by the game master, its owner and its party, whatever the light.
    */
   isTokenVisible(character: GameCharacter): boolean {
-    if (character.stealth === '1' && !this.seesThroughStealth(character)) return false;
     const scene = this.scene();
-    if (!scene || !(scene.darknessEnabled || scene.fogEnabled)) return true;
-    if (surfaceOf(character) !== 'floor') return true;
     const viewer = this.viewer();
-    if (viewer.isGameMaster) return true;
-    if (viewerShares(viewer, character.owner, character.partyIdentifier)) return true;
-    const half = (scene.gridSize * (character.size || 1)) / 2;
-    const x = character.location.x + half;
-    const y = character.location.y + half;
-    // Under fog the piece answers to the same cells the fog is drawn from. Asking the sight
-    // lines again would answer for eyes the reader may not have: somebody with no piece of
-    // their own has none, and a table with the dark switched off has nothing to stop a look,
-    // so every piece on the board would stand in plain view under the fog covering it.
-    // A piece the party has met is followed wherever it goes, on a table that says so: what
-    // is being read is the map the party keeps, and a monster they have seen is on it.
-    if (this.foundPieces().has(character.identifier)) return true;
-    const fog = scene.fogEnabled ? this.overlayVision() : undefined;
-    if (fog) {
-      const cell = cellIndexAt(fog.grid, x, y);
-      // Ground the party has cleared keeps showing what stands on it, so a monster once
-      // found stays found. It goes again the moment it steps somewhere nobody has been.
-      if (cell >= 0) return fog.visible.get(cell) || (fog.rememberSeen && fog.explored.get(cell));
-    }
-    const z = eyeHeightPx(character.altitude, character.posZ, scene.gridSize);
-    return this.recall(`tok:${x}:${y}:${z}`, () => isPointVisible(scene, x, y, viewer, z));
+    return tokenVisibleTo(
+      {
+        scene,
+        viewer,
+        found: () => this.foundPieces(),
+        fog: () => this.overlayVision(),
+        pointVisible: (x, y, z) => this.recall(`tok:${x}:${y}:${z}`, () => isPointVisible(scene!, x, y, viewer, z)),
+      },
+      character
+    );
   }
 
   /**
@@ -1107,15 +957,6 @@ export class VisionService {
   }
 
   /**
-   * Whether this reader sees a piece in stealth: the game master does, and so do its owner and its
-   * party. A game master looking at the table as a player sees it as that player would.
-   */
-  private seesThroughStealth(character: GameCharacter): boolean {
-    const viewer = this.viewer();
-    return viewer.isGameMaster || viewerShares(viewer, character.owner, character.partyIdentifier);
-  }
-
-  /**
    * Whether a character may be named in a list this reader reads: the inventory, the round, the
    * speakers in the chat.
    *
@@ -1137,20 +978,18 @@ export class VisionService {
    * the game master's own is not.
    */
   isSeenByParty(character: GameCharacter): boolean {
-    if (character.stealth === '1' && character.location.name === 'table' && !this.isPlayersSide(character)) {
-      return false;
-    }
-    const scene = this.scene();
-    if (!scene || !(scene.darknessEnabled || scene.fogEnabled)) return true;
-    if (character.location.name !== 'table' || surfaceOf(character) !== 'floor') return true;
-    if (this.foundPieces().has(character.identifier)) return true;
-    const cells = this.visionCells();
-    if (!cells) return true;
-    const half = (scene.gridSize * (character.size || 1)) / 2;
-    const cell = cellIndexAt(cells.grid, character.location.x + half, character.location.y + half);
-    if (cell < 0 || cells.shared.get(cell)) return true;
-    const table = this.currentTable();
-    if (!table?.fogEnabled || !fogRules(table.fogMode).remembersGround) return false;
-    return this.exploredCells()?.get(cell) ?? false;
+    return seenByParty(
+      {
+        scene: this.scene(),
+        found: () => this.foundPieces(),
+        cells: () => this.visionCells(),
+        explored: () => {
+          const table = this.currentTable();
+          return table?.fogEnabled && fogRules(table.fogMode).remembersGround ? this.exploredCells() : null;
+        },
+        playersSide: (piece) => this.isPlayersSide(piece),
+      },
+      character
+    );
   }
 }

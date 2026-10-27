@@ -1,0 +1,64 @@
+/* The chat's decorations (`**bold**`, `[明朝]…[/]`), as chat, shared notes, cards and the novel mode draw
+   them: <span class="chat-deco …">. A chat message builds its elements through innerHTML, like the ruby,
+   so the rules live here. A font's sheet is put in only once a line is drawn in it (ChatFontService);
+   until it arrives, and for the letters it lacks, Korean among them, the app's own stack stands in. */
+:root {
+  --chat-font-own:
+    -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Verdana, Meiryo, 'M+ 1p', 'Apple SD Gothic Neo',
+    'Malgun Gothic', 'Noto Sans KR', sans-serif;
+}
+
+.chat-deco-bold {
+  font-weight: 700;
+}
+
+/* Leant by a skew rather than by font-style: Meiryo, the Japanese font Windows draws with, has an italic
+   face whose kana and kanji stand upright, so italic would lean only the Latin letters there. A skew is
+   only drawn on a box, and a box does not break across lines, so a leaning run comes cut into the pieces
+   it may break between (leaningPiecesOf), each a box of its own. */
+.chat-deco-italic {
+  display: inline-block;
+  transform: skewX(-12deg);
+}
+
+.chat-deco-strike {
+  text-decoration: line-through;
+}
+
+.chat-size-small {
+  font-size: 0.8em;
+}
+
+.chat-size-large {
+  font-size: 1.3em;
+}
+
+.chat-size-huge {
+  font-size: 1.7em;
+  line-height: 1.25;
+}
+
+.chat-font-mincho {
+  font-family:
+    'Shippori Mincho', 'Yu Mincho', YuMincho, 'Hiragino Mincho ProN', 'Noto Serif JP', 'Noto Serif KR', serif;
+}
+
+.chat-font-rounded {
+  font-family: 'Zen Maru Gothic', var(--chat-font-own);
+}
+
+.chat-font-hand {
+  font-family: 'Yomogi', var(--chat-font-own);
+}
+
+.chat-font-pop {
+  font-family: 'Mochiy Pop One', var(--chat-font-own);
+}
+
+.chat-font-pixel {
+  font-family: 'DotGothic16', var(--chat-font-own);
+}
+
+.chat-font-gothic {
+  font-family: var(--chat-font-own);
+}

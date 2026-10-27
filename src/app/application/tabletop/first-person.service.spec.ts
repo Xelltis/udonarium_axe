@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { FIRST_PERSON_PIECE_STORAGE_KEY } from '@axe/application/ui/first-person-preference.service';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -31,7 +31,7 @@ describe('FirstPersonService', () => {
   let table: GameTable;
 
   beforeEach(() => {
-    localStorage.removeItem(FIRST_PERSON_PIECE_STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEYS.firstPersonPiece);
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     table = new GameTable();
     table.width = 12;
@@ -43,7 +43,7 @@ describe('FirstPersonService', () => {
     PeerCursor.myCursor.userId = 'me';
   });
 
-  afterEach(() => localStorage.removeItem(FIRST_PERSON_PIECE_STORAGE_KEY));
+  afterEach(() => localStorage.removeItem(STORAGE_KEYS.firstPersonPiece));
 
   function service(): FirstPersonService {
     return TestBed.inject(FirstPersonService);
@@ -185,6 +185,23 @@ describe('FirstPersonService', () => {
       service().enterSeat(piece.identifier);
 
       expect(service().showing()).toBe(true);
+    });
+
+    it('looks out of a piece of no size from where it is drawn on a table without cells, its corner', () => {
+      table.gridType = GridType.NONE;
+      touch(table.identifier);
+      const whole = pieceAt(5, 5);
+      service().enterSeat(whole.identifier);
+      const fromWhole = service().pose()!;
+      const point = pieceAt(5, 5);
+      point.size = 0;
+      touch(point.identifier);
+
+      service().enterSeat(point.identifier);
+      const fromPoint = service().pose()!;
+
+      expect(fromWhole.x - fromPoint.x).toBeCloseTo(25);
+      expect(fromWhole.y - fromPoint.y).toBeCloseTo(25);
     });
 
     it('says whether the piece the table names can still be shown', () => {

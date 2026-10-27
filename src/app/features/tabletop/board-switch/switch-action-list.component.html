@@ -279,6 +279,8 @@
         </label>
       } @else if (action.kind === 'removeSelf') {
         <p class="text-ui-muted m-0 text-[11px] leading-snug">{{ 'feature.boardSwitch.removeSelfHint' | transloco }}</p>
+      } @else if (action.kind === 'battle') {
+        <p class="text-ui-muted m-0 text-[11px] leading-snug">{{ 'feature.boardSwitch.battleHint' | transloco }}</p>
       }
     </div>
   } @empty {

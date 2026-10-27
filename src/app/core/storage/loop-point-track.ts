@@ -1,3 +1,5 @@
+import { delay } from '@axe/core/util/delay';
+
 /**
  * One track played from memory, which goes round between the points its file names while it is set
  * to loop, and plays on to its end when it is not.
@@ -117,7 +119,7 @@ export class LoopPointTrack {
     rate.cancelScheduledValues(now);
     rate.setValueAtTime(rate.value, now);
     rate.linearRampToValueAtTime(0.01, now + Math.max(durationMs, 1) / 1000);
-    return new Promise((resolve) => setTimeout(resolve, Math.max(durationMs, 0)));
+    return delay(Math.max(durationMs, 0));
   }
 
   /** Stops the track for good and takes it off the channel. */

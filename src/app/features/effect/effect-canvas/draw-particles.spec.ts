@@ -1,21 +1,6 @@
 import { EffectParticle, EffectParticleLayer } from '@axe/domain/effect/effect-particles';
 import { drawParticleLayer } from '@axe/features/effect/effect-canvas/draw-particles';
 import { pixelRatioFor } from '@axe/features/effect/effect-canvas/effect-canvas.component';
-import { withAlpha } from '@axe/features/effect/effect-canvas/particle-texture';
-
-describe('withAlpha()', () => {
-  it('turns a six-digit colour into one with an alpha', () => {
-    expect(withAlpha('#ff5a33', 0.5)).toBe('rgba(255, 90, 51, 0.5)');
-  });
-
-  it('expands a three-digit colour', () => {
-    expect(withAlpha('#fff', 1)).toBe('rgba(255, 255, 255, 1)');
-  });
-
-  it('leaves anything that is not one alone', () => {
-    expect(withAlpha('rgb(1, 2, 3)', 0.4)).toBe('rgb(1, 2, 3)');
-  });
-});
 
 describe('drawParticleLayer()', () => {
   interface Call {

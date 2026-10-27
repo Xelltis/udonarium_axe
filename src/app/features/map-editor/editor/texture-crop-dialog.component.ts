@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ModalService } from '@axe/application/ui/modal.service';
-import { loadRasterImage } from '@axe/features/map-editor/render/raster-image';
+import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
 import { cropImageRegion } from '@axe/features/tabletop/map-image-grid-adjuster/map-image-grid-region';
+import { loadRasterImage } from '@axe/infrastructure/map-editor/raster-image';
 import { TranslocoModule } from '@jsverse/transloco';
 
 export interface TextureCropDialogOption {
@@ -92,7 +93,7 @@ export class TextureCropDialogComponent {
   }
 
   protected onPointerDown(event: PointerEvent): void {
-    (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
+    capturePointer(event.target, event.pointerId);
     this.dragging = true;
     this.dragLastX = event.clientX;
     this.dragLastY = event.clientY;
@@ -110,7 +111,7 @@ export class TextureCropDialogComponent {
   }
 
   protected onPointerUp(event: PointerEvent): void {
-    (event.target as HTMLElement).releasePointerCapture?.(event.pointerId);
+    releasePointer(event.target, event.pointerId);
     this.dragging = false;
   }
 

@@ -393,6 +393,47 @@ describe('HotbarSlotEditorComponent', () => {
       expect(options()[0].getAttribute('aria-selected')).toBe('false');
     });
 
+    it('plays the effect chosen under the list, and none before one is chosen', () => {
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null as never);
+      const presets = ['爆炎', '氷結'].map((name) => {
+        const preset = new EffectPreset();
+        preset.name = name;
+        ObjectStore.instance.add(preset, false);
+        return preset;
+      });
+      onTestFinished(() => presets.forEach((preset) => ObjectStore.instance.remove(preset)));
+      component.setFrom({ page: 1, slotIndex: 3 }, emptyHotbarSlotDraft('effect'));
+      fixture.detectChanges();
+      const preview = () => root().querySelector('[data-testid="hotbar-editor-effect-preview"]');
+
+      expect(preview()).toBeNull();
+
+      click('hotbar-editor-effect-' + '氷結');
+
+      expect(preview()).not.toBeNull();
+      expect(preview()!.querySelector('[data-testid="effect-preview-stage"]')).not.toBeNull();
+      expect(component['chosenEffect']()).toBe(presets[1]);
+
+      click('hotbar-editor-effect-' + '爆炎');
+
+      expect(component['chosenEffect']()).toBe(presets[0]);
+    });
+
+    it('shows no effect playing for a slot of another kind', () => {
+      const preset = new EffectPreset();
+      preset.name = '爆炎';
+      ObjectStore.instance.add(preset, false);
+      onTestFinished(() => {
+        ObjectStore.instance.remove(preset);
+      });
+      const draft = emptyHotbarSlotDraft('chat');
+      draft.value = '爆炎';
+      component.setFrom({ page: 1, slotIndex: 3 }, draft);
+      fixture.detectChanges();
+
+      expect(root().querySelector('[data-testid="hotbar-editor-effect-preview"]')).toBeNull();
+    });
+
     it('asks nothing of a mode that has no targets to ignore', () => {
       const draft = emptyHotbarSlotDraft('effect');
       draft.payload = { kind: 'effect', mode: 'field', onSelf: false };

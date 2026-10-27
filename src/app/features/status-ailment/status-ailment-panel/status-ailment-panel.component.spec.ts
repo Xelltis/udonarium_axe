@@ -130,7 +130,7 @@ describe('StatusAilmentPanelComponent', () => {
 
   it('lets nobody who cannot edit the table change the list', () => {
     service.add('毒');
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
     fixture.detectChanges();
 
     component.newName.set('麻痺');

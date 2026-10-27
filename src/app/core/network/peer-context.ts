@@ -1,6 +1,7 @@
 import { Logger } from '@axe/core/logging/logger';
 import { MutablePeerSessionState, PeerSessionGrade, PeerSessionState } from '@axe/core/network/peer-session-state';
 import { sha256 } from '@axe/core/util/crypto-util';
+import { generateUuid } from '@axe/core/util/uuid';
 import base from 'base-x';
 
 const Base62 = base('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ');
@@ -161,7 +162,7 @@ export class PeerContext implements IPeerContext {
 
   /** A new random user id (a UUID) for a device that does not have one yet. */
   static generateUserId(): string {
-    return crypto.randomUUID();
+    return generateUuid();
   }
 }
 

@@ -56,7 +56,7 @@ export class GameCharacterGeneratorComponent {
 
   /** Whether this player's role may put pieces on the table, which the create buttons are disabled on. */
   get canEdit(): boolean {
-    return this.rolePermission.canEditTabletop;
+    return this.rolePermission.canEditTabletop();
   }
 
   /**

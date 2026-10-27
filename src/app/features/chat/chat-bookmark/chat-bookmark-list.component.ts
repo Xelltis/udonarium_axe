@@ -11,12 +11,12 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { ChatBookmarkService } from '@axe/application/chat/chat-bookmark.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ChatBookmarkKind } from '@axe/domain/chat/chat-bookmark';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { ChatBookmarkService } from '@axe/features/chat/chat-bookmark.service';
 import {
   isChatTextHidden,
   readableChatName,
@@ -86,7 +86,7 @@ export class ChatBookmarkListComponent {
   /** The marks this reader may see, in the order their lines were said. */
   readonly allItems = computed<readonly ChatBookmarkItem[]>(() => {
     this.language.currentLang();
-    const canSeeHidden = this.rolePermission.canSeeHidden;
+    const canSeeHidden = this.rolePermission.canSeeHidden();
     return this.bookmarks.entries().map(({ message, tab, kind, name }) => {
       const hidden = isChatTextHidden(message, canSeeHidden);
       const words = hidden

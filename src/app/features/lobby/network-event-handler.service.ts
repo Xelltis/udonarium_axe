@@ -1,4 +1,5 @@
 import { DestroyRef, effect, inject, Injectable, untracked } from '@angular/core';
+import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
@@ -59,12 +60,18 @@ export class NetworkEventHandlerService {
   private readonly assetRemoval = inject(AssetRemovalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly chatMessageService = inject(ChatMessageService);
+  private readonly chatClock = inject(ChatClockService);
   private readonly reach = inject(NetworkReachService);
   private readonly auth = inject(ServerAuthService);
   private readonly snackbar = inject(SnackbarService);
   private readonly overlayMode = inject(OverlayModeService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly idleSeat = inject(IdleSeatService);
+  private readonly imageStorage = inject(ImageStorage);
+  private readonly audioStorage = inject(AudioStorage);
+  private readonly assetHttpStore = inject(AssetHttpStore);
+  private readonly imageSharingSystem = inject(ImageSharingSystem);
+  private readonly audioSharingSystem = inject(AudioSharingSystem);
 
   /**
    * How often and how slowly it reconnects after a server error, meaning the token backend is out of reach.
@@ -106,23 +113,23 @@ export class NetworkEventHandlerService {
     this.destroyRef.onDestroy(() => {
       this.roomAssetListRetries.clear();
       if (this.roomAssetRelistTimer) clearTimeout(this.roomAssetRelistTimer);
-      ImageStorage.instance.receivedUploadTurn = () => 0;
-      AudioStorage.instance.receivedUploadTurn = () => 0;
-      AssetHttpStore.instance.onUploadsPaused = () => {};
-      AssetHttpStore.instance.onUploadBlocked = () => {};
-      AssetHttpStore.instance.onRoomStorageFull = () => {};
+      this.imageStorage.receivedUploadTurn = () => 0;
+      this.audioStorage.receivedUploadTurn = () => 0;
+      this.assetHttpStore.onUploadsPaused = () => {};
+      this.assetHttpStore.onUploadBlocked = () => {};
+      this.assetHttpStore.onRoomStorageFull = () => {};
     });
-    ImageStorage.instance.receivedUploadTurn = () => this.turnToPutUpReceived();
-    AudioStorage.instance.receivedUploadTurn = () => this.turnToPutUpReceived();
-    AssetHttpStore.instance.onUploadsPaused = (paused) => {
+    this.imageStorage.receivedUploadTurn = () => this.turnToPutUpReceived();
+    this.audioStorage.receivedUploadTurn = () => this.turnToPutUpReceived();
+    this.assetHttpStore.onUploadsPaused = (paused) => {
       if (!paused) {
-        ImageStorage.instance.resumePaused();
-        AudioStorage.instance.resumePaused();
+        this.imageStorage.resumePaused();
+        this.audioStorage.resumePaused();
       }
       this.tellUploadsPaused(paused);
     };
-    AssetHttpStore.instance.onUploadBlocked = () => this.tellUploadBlocked();
-    AssetHttpStore.instance.onRoomStorageFull = () => this.tellRoomStorageFull();
+    this.assetHttpStore.onUploadBlocked = () => this.tellUploadBlocked();
+    this.assetHttpStore.onRoomStorageFull = () => this.tellRoomStorageFull();
     networkMessage$.subscribe((message) => {
       if (message.eventName !== AuthorityEvent.ROLE_REJECTED || message.sendFrom !== Network.authorityPeerId) return;
       this.tellRoleRejected(message.data as { peerId?: unknown; reason?: unknown } | null);
@@ -169,7 +176,7 @@ export class NetworkEventHandlerService {
       if (Network.transport === 'server' && !peer.isRoom) PeerCursor.myCursor.role = DEFAULT_PEER_ROLE;
       this.rememberIdentity(peer);
       // A room server's clock sets the chat's as the seat comes in, though nobody else may be there.
-      if (peer.isRoom && Network.serverClockOffset !== null) this.chatMessageService.calibrateTimeOffset();
+      if (peer.isRoom && Network.serverClockOffset !== null) this.chatClock.calibrate();
       const account = Network.transport === 'server' ? this.auth.account() : null;
       if (account) this.lendAccountLook(account.name, account.avatarUrl);
     }, this.destroyRef);
@@ -226,7 +233,7 @@ export class NetworkEventHandlerService {
       Network.openStandby(this.standbyUserId());
     }, this.destroyRef);
     this.objectChange.peerConnect$.subscribe(() => {
-      this.chatMessageService.calibrateTimeOffset();
+      this.chatClock.calibrate();
     }, this.destroyRef);
     // Somebody who left may still be putting up what it added, and can name it to nobody once it is
     // there; the room's list is read again a little later for it.
@@ -375,15 +382,15 @@ export class NetworkEventHandlerService {
     if (!Network.peerContext.isRoom) return;
     if (role !== 'gm' && role !== 'pl') {
       if (role === 'guest') {
-        ImageStorage.instance.synchronize();
-        AudioStorage.instance.synchronize();
+        this.imageStorage.synchronize();
+        this.audioStorage.synchronize();
       }
       return;
     }
-    ImageStorage.instance.uploadAllToAssetStore();
-    AudioStorage.instance.uploadAllToAssetStore();
+    this.imageStorage.uploadAllToAssetStore();
+    this.audioStorage.uploadAllToAssetStore();
     // What the room is playing goes up ahead of the rest, for everyone to hear it soonest.
-    AudioSharingSystem.instance.preferWaiting();
+    this.audioSharingSystem.preferWaiting();
   }
 
   /**
@@ -397,8 +404,8 @@ export class NetworkEventHandlerService {
     if (Network.transport !== 'server' || !Network.peerContext.isRoom) return;
     const role = Network.serverRole;
     if (role === 'gm' || role === 'pl') {
-      ImageStorage.instance.uploadMissedToAssetStore();
-      AudioStorage.instance.uploadMissedToAssetStore();
+      this.imageStorage.uploadMissedToAssetStore();
+      this.audioStorage.uploadMissedToAssetStore();
     }
     this.fetchRoomAssetList(Network.peerId);
   }
@@ -413,13 +420,13 @@ export class NetworkEventHandlerService {
   private fetchRoomAssets(): void {
     this.roomAssetListRetries.clear();
     if (Network.transport !== 'server' || !Network.peerContext.isRoom) return;
-    ImageSharingSystem.instance.forgetMisses();
-    AudioSharingSystem.instance.forgetMisses();
+    this.imageSharingSystem.forgetMisses();
+    this.audioSharingSystem.forgetMisses();
     this.fetchRoomAssetList(Network.peerId);
   }
 
   private fetchRoomAssetList(peerId: string): void {
-    void AssetHttpStore.instance.listRoomAssets().then((assets) => {
+    void this.assetHttpStore.listRoomAssets().then((assets) => {
       if (Network.peerId !== peerId || !Network.peerContext.isRoom) return;
       if (!assets) {
         this.roomAssetListRetries.schedule('list', () => this.fetchRoomAssetList(peerId));
@@ -428,11 +435,11 @@ export class NetworkEventHandlerService {
       this.roomAssetListRetries.forget('list');
       const pictures = assets.filter((asset) => asset.type.startsWith('image/'));
       const sounds = assets.filter((asset) => asset.type.startsWith('audio/'));
-      ImageStorage.instance.forgetUploaded(pictures.map((asset) => asset.id));
-      AudioStorage.instance.forgetUploaded(sounds.map((asset) => asset.id));
+      this.imageStorage.forgetUploaded(pictures.map((asset) => asset.id));
+      this.audioStorage.forgetUploaded(sounds.map((asset) => asset.id));
       this.assetRemoval.takeOut(assets.map((asset) => asset.id));
-      ImageSharingSystem.instance.fetchListed(pictures);
-      AudioSharingSystem.instance.fetchListed(sounds);
+      this.imageSharingSystem.fetchListed(pictures);
+      this.audioSharingSystem.fetchListed(sounds);
     });
   }
 
@@ -455,7 +462,7 @@ export class NetworkEventHandlerService {
       this.snackbar.show(this.t('feature.lobby.uploads.resumed'));
       return;
     }
-    const contact = AssetHttpStore.instance.operatorContact;
+    const contact = this.assetHttpStore.operatorContact;
     const action = contact
       ? { label: this.t('feature.lobby.operatorContact.open'), run: () => openApart(contact) }
       : undefined;
@@ -577,7 +584,7 @@ export class NetworkEventHandlerService {
       this.lentLook.name = name;
     }
     if (cursor.imageIdentifier === DEFAULT_CURSOR_IMAGE_IDENTIFIER && avatarUrl) {
-      cursor.imageIdentifier = ImageStorage.instance.add(avatarUrl).identifier;
+      cursor.imageIdentifier = this.imageStorage.add(avatarUrl).identifier;
       this.lentLook.imageIdentifier = cursor.imageIdentifier;
     }
   }

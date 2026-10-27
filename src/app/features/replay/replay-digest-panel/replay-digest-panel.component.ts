@@ -1,7 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
-import { ReplayPhotoService } from '@axe/application/replay/replay-photo.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { downloadBlob } from '@axe/core/util/download-blob';
@@ -15,6 +13,8 @@ import {
   type ReplayDigestLabels,
 } from '@axe/domain/replay/replay-digest';
 import { replayScriptElapsed } from '@axe/domain/replay/replay-script';
+import { ReplayPhotoService } from '@axe/features/replay/replay-digest-panel/replay-photo.service';
+import { ReplayEditorService } from '@axe/features/replay/replay-editor.service';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /**

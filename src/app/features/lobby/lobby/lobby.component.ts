@@ -9,8 +9,6 @@ import {
   untracked,
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { roomDeletionMessageKey, RoomDeletionService } from '@axe/application/lobby/room-deletion.service';
-import { RoomJoinService } from '@axe/application/lobby/room-join.service';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -28,6 +26,8 @@ import {
   PasswordCheckComponent,
   type PasswordCheckOptions,
 } from '@axe/features/lobby/password-check/password-check.component';
+import { roomDeletionMessageKey, RoomDeletionService } from '@axe/features/lobby/room-deletion.service';
+import { RoomJoinService } from '@axe/features/lobby/room-join.service';
 import { RoomSettingComponent } from '@axe/features/lobby/room-setting/room-setting.component';
 import { ServerAccountComponent } from '@axe/features/lobby/server-account/server-account.component';
 import { WithheldEntryService } from '@axe/features/lobby/withheld-entry';

@@ -1,7 +1,6 @@
-import { readFileSync } from 'node:fs';
-
 import { TOKEN_ALIASES } from '@axe/domain/ui/skin-alias';
 import { STANDARD_TOKENS } from '@axe/domain/ui/skin-standard';
+import { readGlobalStyles } from '@axe/testing/global-styles';
 
 type Rgb = [number, number, number];
 
@@ -32,7 +31,7 @@ function tokensDeclaredIn(block: string): Set<string> {
 }
 
 describe('the standard skin, which is what a room wears until it is given another', () => {
-  const css = readFileSync('src/styles.css', 'utf-8');
+  const css = readGlobalStyles();
 
   /**
    * A colour a utility class can reach for has to be set wherever a room may be standing.

@@ -2,11 +2,11 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { RoomSnapshotService } from '@axe/application/file/room-snapshot.service';
-import { LOCAL_MODE_STORAGE_KEY } from '@axe/application/ui/local-mode-preference.service';
 import { WidgetLayoutService } from '@axe/application/ui/widget-layout.service';
 import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { RoomSnapshotMeta } from '@axe/core/storage/room-snapshot-store';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { RoomRestoreBannerComponent } from '@axe/features/room-archive/room-restore-banner/room-restore-banner.component';
@@ -82,11 +82,11 @@ describe('RoomRestoreBannerComponent', () => {
       expect(banner()).toBeNull();
       TestBed.resetTestingModule();
 
-      localStorage.setItem(LOCAL_MODE_STORAGE_KEY, '1');
+      localStorage.setItem(STORAGE_KEYS.localMode, '1');
       await setup();
       expect(banner()).not.toBeNull();
     } finally {
-      localStorage.removeItem(LOCAL_MODE_STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEYS.localMode);
       history.replaceState(null, '', '/');
     }
   });

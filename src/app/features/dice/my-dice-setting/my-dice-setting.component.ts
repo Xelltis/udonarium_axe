@@ -55,6 +55,7 @@ export class MyDiceSettingComponent {
   private readonly throws = inject(DiceThrowService);
   private readonly renderLite = inject(RenderLiteService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly imageStorage = inject(ImageStorage);
 
   protected readonly materials = DICE_MATERIALS;
   protected readonly fits = DICE_PICTURE_FITS;
@@ -79,7 +80,7 @@ export class MyDiceSettingComponent {
   protected readonly pictureUrl = computed(() => {
     this.objectChange.fileVersion();
     const picture = this.look().picture;
-    return picture ? ImageStorage.instance.get(picture)?.url || null : null;
+    return picture ? this.imageStorage.get(picture)?.url || null : null;
   });
 
   /** Whether glass is chosen on a device that draws it as resin, which this seat should be told. */

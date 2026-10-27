@@ -1,10 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { COMPASS_FACE_STORAGE_KEY, CompassFaceService } from '@axe/application/ui/compass-face.service';
+import { CompassFaceService } from '@axe/application/ui/compass-face.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { COMPASS_FACES } from '@axe/domain/ui/compass-face';
 import { CompassComponent } from '@axe/features/widgets/compass/compass.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -209,7 +210,7 @@ describe('CompassComponent and the face it is drawn with', () => {
   }
 
   beforeEach(async () => {
-    localStorage.removeItem(COMPASS_FACE_STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEYS.compassFace);
     await TestBed.configureTestingModule({
       imports: [CompassComponent],
       providers: [...TEST_PROVIDERS],
@@ -222,7 +223,7 @@ describe('CompassComponent and the face it is drawn with', () => {
 
   afterEach(() => {
     localStorage.removeItem('ui-widgets');
-    localStorage.removeItem(COMPASS_FACE_STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEYS.compassFace);
   });
 
   it('is drawn plainly until somebody asks for something else', () => {
@@ -265,6 +266,6 @@ describe('CompassComponent and the face it is drawn with', () => {
   it('remembers the face for the next time this screen opens', () => {
     faces.choose('fantasy');
 
-    expect(localStorage.getItem(COMPASS_FACE_STORAGE_KEY)).toBe('fantasy');
+    expect(localStorage.getItem(STORAGE_KEYS.compassFace)).toBe('fantasy');
   });
 });

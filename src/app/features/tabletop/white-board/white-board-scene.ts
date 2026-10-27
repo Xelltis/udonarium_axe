@@ -4,7 +4,7 @@ export * from '@axe/features/tabletop/white-board/white-board-guides';
 export * from '@axe/features/tabletop/white-board/white-board-marks';
 export * from '@axe/features/tabletop/white-board/white-board-sheets';
 
-import { ShapeGeneratorKind } from '@axe/features/map-editor/model/editor-tool';
+import { ShapeGeneratorKind } from '@axe/domain/map-editor/editor-tool';
 
 /**
  * What a board can be marked with.

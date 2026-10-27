@@ -1,5 +1,4 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ChatBookmarkService } from '@axe/application/chat/chat-bookmark.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -7,6 +6,7 @@ import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { ChatBookmarkService } from '@axe/features/chat/chat-bookmark.service';
 import { ChatBookmarkListComponent } from '@axe/features/chat/chat-bookmark/chat-bookmark-list.component';
 import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -72,7 +72,7 @@ describe('ChatBookmarkListComponent', () => {
   });
 
   it('keeps the words of a secret roll from a reader who may not see them', () => {
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
     marked('1D100 → 3', 1000, { tag: 'system secret', from: 'System-BCDice', originFrom: 'someone' } as never);
     fixture.detectChanges();
 

@@ -2,7 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { emitSoundOnlyCutIn, emitStartCutIn, emitStopCutIn, emitStopCutInByBgm } from '@axe/core/event/domain-events';
-import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { VolumeType } from '@axe/core/storage/audio-output';
+import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { AudioTag } from '@axe/domain/media/audio-tag';
 import { CutIn } from '@axe/domain/media/cut-in';
@@ -74,6 +75,23 @@ describe('CutInEventHandlerService', () => {
     expect(componentMock.cutIn).toBe(cutIn);
     expect(componentMock.forceNoLoop).toBe(false);
     expect(componentMock.startCutIn).toHaveBeenCalled();
+  });
+
+  it('keeps the panel at the least size a video needs while the cut-in in the room plays one', () => {
+    const cutIn = new CutIn('cut-video');
+    cutIn.initialize();
+    cutIn.isVideoCutIn = true;
+    cutIn.videoUrl = 'https://youtu.be/youtube123';
+
+    emitStartCutIn({ cutIn });
+    const leastSize = panelStub.open.mock.calls[0][1].leastSize as () => unknown;
+
+    expect(leastSize()).toEqual({ width: cutIn.minSizeWidth(true), height: cutIn.minSizeHeight(true) });
+    cutIn.isVideoCutIn = false;
+    expect(leastSize()).toBeNull();
+    cutIn.isVideoCutIn = true;
+    cutIn.destroy();
+    expect(leastSize()).toBeNull();
   });
 
   it('leaves room above a framed cut-in for the title bar', () => {

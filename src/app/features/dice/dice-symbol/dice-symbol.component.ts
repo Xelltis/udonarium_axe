@@ -9,6 +9,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { CharacterDiceService } from '@axe/application/dice/character-dice.service';
 import { DiceRollService } from '@axe/application/dice/dice-roll.service';
@@ -45,10 +46,11 @@ import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
-import { makeBillboardTransform, makeLabelOrbitTransform } from '@axe/ui/tabletop/billboard-transform';
+import { makeBillboardTransform } from '@axe/ui/tabletop/billboard-transform';
 import { DoubleTap } from '@axe/ui/tabletop/double-tap';
 import { hideIconWhileTouched } from '@axe/ui/tabletop/icon-hiding';
 import { pieceImageView } from '@axe/ui/tabletop/piece-image-view';
+import { pieceLabelFacings } from '@axe/ui/tabletop/piece-label-facings';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { translateZCss, Z_OFFSET_TALL_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
 
@@ -76,6 +78,7 @@ export class DiceSymbolComponent {
   private readonly diceRollService = inject(DiceRollService);
   private readonly characterDice = inject(CharacterDiceService);
   private readonly chat = inject(ChatMessageService);
+  private readonly lineEdit = inject(ChatLineEditService);
   private readonly objectStore = inject(ObjectStore);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly imageService = inject(ImageService);
@@ -137,7 +140,7 @@ export class DiceSymbolComponent {
     this.objectChange.versionOf(diceSymbol.identifier)();
     this.objectChange.networkVersion();
     this.objectChange.trackMyCursor();
-    return (diceSymbol.hideName || !diceSymbol.isVisible) && !this.rolePermission.canSeeHidden;
+    return (diceSymbol.hideName || !diceSymbol.isVisible) && !this.rolePermission.canSeeHidden();
   });
   readonly size = computed(() => {
     this.objectChange.versionOf(this.diceSymbol().identifier)();
@@ -213,7 +216,7 @@ export class DiceSymbolComponent {
    * told, so it asks directly.
    */
   private readsFace(): boolean {
-    return this.diceSymbol().isVisible || this.rolePermission.canSeeHidden;
+    return this.diceSymbol().isVisible || this.rolePermission.canSeeHidden();
   }
 
   /** Whether the die is marked as spent, which only dims it: it rolls and moves as it always did. */
@@ -281,29 +284,23 @@ export class DiceSymbolComponent {
     return this.tabletopService.mode2d();
   });
 
-  private labelOrbitFacing(distance3d: number, distance2d: number): BillboardFacing {
-    const mode2d = this.mode2dEnabled();
-    return (rotation) => makeLabelOrbitTransform({ rotation, distance3d, distance2d, mode2d });
-  }
+  private readonly labels = pieceLabelFacings({
+    mode2d: () => this.mode2dEnabled(),
+    widthPx: () => this.size() * this.gridSize,
+  });
 
-  /** Where a label hangs from, counted from the middle of the die's ground. */
-  private labelStandFacing(orbit: BillboardFacing): BillboardFacing {
-    const stand = `translateX(-50%) translateX(${(this.size() * this.gridSize) / 2}px) `;
-    return (rotation) => stand + orbit(rotation);
-  }
-
-  readonly nameOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.nameOrbit()));
+  readonly nameOrbitFacing = computed<BillboardFacing>(() => this.labels.stand(this.nameOrbit()));
 
   private nameOrbit(): BillboardFacing {
     if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 5)}px)`);
-    return this.labelOrbitFacing(30, 60);
+    return this.labels.orbit(30, 60);
   }
 
-  readonly ownerOrbitFacing = computed<BillboardFacing>(() => this.labelStandFacing(this.ownerOrbit()));
+  readonly ownerOrbitFacing = computed<BillboardFacing>(() => this.labels.stand(this.ownerOrbit()));
 
   private ownerOrbit(): BillboardFacing {
     if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 8)}px)`);
-    return this.labelOrbitFacing(55, 90);
+    return this.labels.orbit(55, 90);
   }
 
   private billboardFacing(verticalOffset3D: number): BillboardFacing {
@@ -388,7 +385,7 @@ export class DiceSymbolComponent {
   }
 
   private onDiceRevealed(face: string): void {
-    const opened = this.chat.discloseDieRolls(this.diceSymbol().identifier);
+    const opened = this.lineEdit.discloseDieRolls(this.diceSymbol().identifier);
     if (opened < 1) this.announceRevealedFace(face);
   }
 
@@ -432,7 +429,7 @@ export class DiceSymbolComponent {
    */
   onDoubleClick() {
     this.doubleTap.cancel();
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     if (!this.doubleTap.isInPlace()) return;
     if (this.readsFace()) this.diceRoll();
   }
@@ -463,7 +460,7 @@ export class DiceSymbolComponent {
         })),
         onStoreToOwner: (ownerIdentifier) => this.storeToOwner(ownerIdentifier),
         onRevealed: (face) => this.onDiceRevealed(face),
-        canRevealHidden: this.rolePermission.canSeeHidden,
+        canRevealHidden: this.rolePermission.canSeeHidden(),
       },
       this.translateFn
     );

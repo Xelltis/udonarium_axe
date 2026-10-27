@@ -2,11 +2,11 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { FormsModule } from '@angular/forms';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
 import { AUTHORITY_PEER_ID } from '@axe/core/network/server/server-protocol';
 import { findActorAt, findTargetAt, type ReplayManifest } from '@axe/domain/replay/replay-event';
+import { ReplayEditorService } from '@axe/features/replay/replay-editor.service';
 import { replayLineParams, type ReplayLogLine, toReplayLogLine } from '@axe/features/replay/replay-log-line';
 import { TranslocoModule } from '@jsverse/transloco';
 

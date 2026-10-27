@@ -16,6 +16,7 @@ export class RoomArchiveEventHandlerService {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly roomSnapshot = inject(RoomSnapshotService);
   private readonly pointerDevice = inject(PointerDeviceService);
+  private readonly objectStore = inject(ObjectStore);
 
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private maxTimer: ReturnType<typeof setTimeout> | null = null;
@@ -23,11 +24,12 @@ export class RoomArchiveEventHandlerService {
 
   /**
    * Watches the room for changes. A change to something not in the room, as what a save is written
-   * with, is none: counted, each snapshot would ask for the next.
+   * with, is none: counted, each snapshot would ask for the next. Any kind of object in the room counts,
+   * so every change is heard and asked whether its object is in the room.
    */
   constructor() {
     this.objectChange.objectChanged$.subscribe((event) => {
-      if (ObjectStore.instance.get(event.identifier)) this.markDirty();
+      if (this.objectStore.get(event.identifier)) this.markDirty();
     }, this.destroyRef);
     this.objectChange.objectAdded$.subscribe(() => this.markDirty(), this.destroyRef);
     this.objectChange.objectRemoved$.subscribe(() => this.markDirty(), this.destroyRef);
@@ -54,7 +56,7 @@ export class RoomArchiveEventHandlerService {
     await this.roomSnapshot.whenCaptured();
     if (!this.isDirty) return;
     if (!this.roomSnapshot.isKeeping()) return;
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     if (this.roomSnapshot.isRestoring() || this.isBusy()) {
       this.retryLater();
       return;

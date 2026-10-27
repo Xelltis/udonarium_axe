@@ -1,16 +1,27 @@
 import { Component, ComponentRef, computed, ViewContainerRef } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { LOAD_FAILURE_NOTICE } from '@axe/application/ui/overlay-components';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { PanelFrame, PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { Logger } from '@axe/core/logging/logger';
 
 class DummyBodyComponent {}
 
+/** A service made where it can inject what it needs, as the app makes them. */
+function newPanelService(): PanelService {
+  return TestBed.runInInjectionContext(() => new PanelService());
+}
+
+function layers(): OverlayLayers {
+  return TestBed.inject(OverlayLayers);
+}
+
 @Component({ selector: 'dummy-panel-body', template: '' })
 class DummyPanelBodyComponent {}
 
 function setupOpenMocks(initialChildState?: Partial<PanelService>) {
-  const service = new PanelService();
-  const childPanelService = new PanelService();
+  const service = newPanelService();
+  const childPanelService = newPanelService();
   Object.assign(childPanelService, initialChildState);
 
   const bodyInstance = new DummyBodyComponent();
@@ -43,7 +54,7 @@ function setupOpenMocks(initialChildState?: Partial<PanelService>) {
   } as unknown as ComponentRef<{ openTab: () => ComponentRef<DummyBodyComponent> }>;
 
   const parentViewContainerRef = {
-    injector: {},
+    injector: { get: () => DummyBodyComponent },
     length: 0,
     createComponent: () => panelComponentRef,
   } as unknown as ViewContainerRef;
@@ -184,7 +195,7 @@ describe('PanelService', () => {
   it('falls back to the default container when none is given', () => {
     const { service, childPanelService, setInput, bodyInstance, parentViewContainerRef } = setupOpenMocks();
 
-    PanelService.defaultParentViewContainerRef = parentViewContainerRef;
+    layers().main = parentViewContainerRef;
 
     const opened = service.open(DummyBodyComponent, { width: 320, height: 240 });
 
@@ -202,13 +213,11 @@ describe('PanelService', () => {
       service.attachTo({ frameDocument: () => paper } as unknown as PanelFrame);
     }
 
-    afterEach(() => OverlayLayers.reset());
-
     it('opens in that window, and knows it is in one', () => {
       const { service, childPanelService, parentViewContainerRef } = setupOpenMocks();
       const paper = document.implementation.createHTMLDocument('window');
-      OverlayLayers.attach(paper, parentViewContainerRef);
-      PanelService.defaultParentViewContainerRef = table;
+      layers().attach(paper, parentViewContainerRef);
+      layers().main = table;
       standingIn(service, paper);
 
       service.open(DummyBodyComponent, { title: 'chat settings' });
@@ -219,8 +228,8 @@ describe('PanelService', () => {
     it('opens in that window once a lazy panel has loaded', async () => {
       const { service, childPanelService, parentViewContainerRef } = setupOpenMocks();
       const paper = document.implementation.createHTMLDocument('window');
-      OverlayLayers.attach(paper, parentViewContainerRef);
-      PanelService.defaultParentViewContainerRef = table;
+      layers().attach(paper, parentViewContainerRef);
+      layers().main = table;
       standingIn(service, paper);
 
       service.openLazy(() => Promise.resolve(DummyBodyComponent));
@@ -230,8 +239,8 @@ describe('PanelService', () => {
 
     it('opens on the table from a panel standing on the table', () => {
       const { service, childPanelService, parentViewContainerRef } = setupOpenMocks();
-      OverlayLayers.attach(document.implementation.createHTMLDocument('window'), table);
-      PanelService.defaultParentViewContainerRef = parentViewContainerRef;
+      layers().attach(document.implementation.createHTMLDocument('window'), table);
+      layers().main = parentViewContainerRef;
       standingIn(service, document);
 
       service.open(DummyBodyComponent);
@@ -297,7 +306,7 @@ describe('PanelService', () => {
     });
 
     it('leaves a position inside the viewport alone', () => {
-      const fallback = new PanelService();
+      const fallback = newPanelService();
       const adjusted = PanelService.clampPanelOptionToViewport(
         { left: 100, top: 50, width: 400, height: 300 },
         fallback
@@ -307,7 +316,7 @@ describe('PanelService', () => {
     });
 
     it('clamps a panel above the viewport to the top edge', () => {
-      const fallback = new PanelService();
+      const fallback = newPanelService();
       const adjusted = PanelService.clampPanelOptionToViewport(
         { left: 200, top: -100, width: 400, height: 300 },
         fallback
@@ -316,7 +325,7 @@ describe('PanelService', () => {
     });
 
     it('clamps a panel below the viewport to the bottom edge', () => {
-      const fallback = new PanelService();
+      const fallback = newPanelService();
       const adjusted = PanelService.clampPanelOptionToViewport(
         { left: 200, top: 600, width: 400, height: 300 },
         fallback
@@ -326,7 +335,7 @@ describe('PanelService', () => {
     });
 
     it('clamps a panel past the right edge back inside', () => {
-      const fallback = new PanelService();
+      const fallback = newPanelService();
       const adjusted = PanelService.clampPanelOptionToViewport(
         { left: 1100, top: 100, width: 400, height: 300 },
         fallback
@@ -336,7 +345,7 @@ describe('PanelService', () => {
     });
 
     it('pins a panel larger than the viewport to the top left', () => {
-      const fallback = new PanelService();
+      const fallback = newPanelService();
       const adjusted = PanelService.clampPanelOptionToViewport(
         { left: 100, top: 100, width: 2000, height: 1500 },
         fallback
@@ -346,14 +355,14 @@ describe('PanelService', () => {
     });
 
     it('does nothing without a position', () => {
-      const fallback = new PanelService();
+      const fallback = newPanelService();
       const adjusted = PanelService.clampPanelOptionToViewport({ width: 400, height: 300 }, fallback);
       expect(adjusted.left).toBeUndefined();
       expect(adjusted.top).toBeUndefined();
     });
 
     it('clamps a sideways panel by its rotated outer bounds', () => {
-      const fallback = new PanelService();
+      const fallback = newPanelService();
       const adjusted = PanelService.clampPanelOptionToViewport(
         { left: -100, top: 250, width: 400, height: 200, rotationDegrees: 90 },
         fallback
@@ -364,7 +373,7 @@ describe('PanelService', () => {
     });
 
     it('moves a sideways panel only when its rotated bounds leave the viewport', () => {
-      const fallback = new PanelService();
+      const fallback = newPanelService();
       const adjusted = PanelService.clampPanelOptionToViewport(
         { left: -250, top: 650, width: 400, height: 200, rotationDegrees: 270 },
         fallback
@@ -377,7 +386,7 @@ describe('PanelService', () => {
 
   describe('a panel still on its way', () => {
     it('never opens when it was told to close before it arrived', async () => {
-      const service = new PanelService();
+      const service = newPanelService();
       const opened = vi.spyOn(service, 'open').mockReturnValue({} as never);
       let arrive: () => void = () => undefined;
       const waiting = new Promise<typeof DummyPanelBodyComponent>((resolve) => {
@@ -394,7 +403,7 @@ describe('PanelService', () => {
     });
 
     it('opens as asked when nobody took the name back', async () => {
-      const service = new PanelService();
+      const service = newPanelService();
       const opened = vi.spyOn(service, 'open').mockReturnValue({} as never);
 
       service.openLazy(() => Promise.resolve(DummyPanelBodyComponent), { single: 'another-panel' });
@@ -405,7 +414,7 @@ describe('PanelService', () => {
     });
 
     it('lets the name go when it never arrives, so the next ask can open', async () => {
-      const service = new PanelService();
+      const service = newPanelService();
       const opened = vi.spyOn(service, 'open').mockReturnValue({} as never);
       vi.spyOn(Logger, 'error').mockImplementation(() => undefined);
 
@@ -424,7 +433,7 @@ describe('PanelService', () => {
     });
 
     it('opens the latest ask for a name asked for again meanwhile, and only that', async () => {
-      const service = new PanelService();
+      const service = newPanelService();
       const opened = vi.spyOn(service, 'open').mockReturnValue({} as never);
       const setUp: string[] = [];
       let arrive: () => void = () => undefined;
@@ -451,7 +460,7 @@ describe('PanelService', () => {
     });
 
     it('opens nothing for what is no longer wanted once it arrives', async () => {
-      const service = new PanelService();
+      const service = newPanelService();
       const opened = vi.spyOn(service, 'open').mockReturnValue({} as never);
       let wanted = true;
 
@@ -464,7 +473,7 @@ describe('PanelService', () => {
     });
 
     it('lets the name go of what is no longer wanted once it arrives, so the next ask can open', async () => {
-      const service = new PanelService();
+      const service = newPanelService();
       const opened = vi.spyOn(service, 'open').mockReturnValue({} as never);
       let wanted = true;
 
@@ -492,29 +501,29 @@ describe('PanelService', () => {
   });
 
   describe('a panel whose code cannot be fetched', () => {
-    afterEach(() => {
-      PanelService.loadFailureNotice = null;
-    });
+    function told(): () => void {
+      const notice = vi.fn();
+      TestBed.configureTestingModule({ providers: [{ provide: LOAD_FAILURE_NOTICE, useValue: notice }] });
+      return notice;
+    }
 
     it('tells the reader a reload is needed', async () => {
-      const service = new PanelService();
+      const notice = told();
+      const service = newPanelService();
       vi.spyOn(service, 'open').mockReturnValue({} as never);
       vi.spyOn(Logger, 'error').mockImplementation(() => undefined);
-      const notice = vi.fn();
-      PanelService.loadFailureNotice = notice;
 
       service.openLazy(() => Promise.reject(new TypeError('Failed to fetch dynamically imported module')));
       await vi.waitFor(() => expect(notice).toHaveBeenCalledTimes(1));
     });
 
     it('says nothing of a reload for a panel that arrived but could not open', async () => {
-      const service = new PanelService();
+      const notice = told();
+      const service = newPanelService();
       vi.spyOn(service, 'open').mockImplementation(() => {
         throw new Error('broken panel');
       });
       const logged = vi.spyOn(Logger, 'error').mockImplementation(() => undefined);
-      const notice = vi.fn();
-      PanelService.loadFailureNotice = notice;
 
       service.openLazy(() => Promise.resolve(DummyPanelBodyComponent));
       await vi.waitFor(() => expect(logged).toHaveBeenCalled());
@@ -525,7 +534,7 @@ describe('PanelService', () => {
 
   describe('following a panel that is standing', () => {
     it('lets a button hear the name being spoken for and let go of', async () => {
-      const service = new PanelService();
+      const service = newPanelService();
       vi.spyOn(service, 'open').mockReturnValue({} as never);
       const isOpen = computed(() => service.hasSingle('followed-panel'));
       expect(isOpen()).toBe(false);
@@ -545,14 +554,14 @@ describe('PanelService', () => {
     const elementOf = (name: string) => ({ name }) as unknown as HTMLDivElement;
 
     it('takes the default panel body when nobody claimed it', () => {
-      const service = new PanelService();
+      const service = newPanelService();
       const body = elementOf('body');
       service.setDefaultScrollablePanel(body);
       expect(service.scrollablePanel).toBe(body);
     });
 
     it('keeps a claimed element even when the panel body arrives later', () => {
-      const service = new PanelService();
+      const service = newPanelService();
       const log = elementOf('log');
       service.claimScrollablePanel(log);
       service.setDefaultScrollablePanel(elementOf('body'));
@@ -560,7 +569,7 @@ describe('PanelService', () => {
     });
 
     it('lets a claim replace the panel body', () => {
-      const service = new PanelService();
+      const service = newPanelService();
       const log = elementOf('log');
       service.setDefaultScrollablePanel(elementOf('body'));
       service.claimScrollablePanel(log);

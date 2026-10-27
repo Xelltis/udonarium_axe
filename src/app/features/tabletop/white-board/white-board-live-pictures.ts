@@ -1,4 +1,4 @@
-import { ImageLayer, MapLayer, MapScene, sceneHeightPx, sceneWidthPx } from '@axe/features/map-editor/model/scene';
+import { ImageLayer, MapLayer, MapScene, sceneHeightPx, sceneWidthPx } from '@axe/domain/map-editor/scene';
 import { imageBox } from '@axe/features/tabletop/white-board/white-board-scene';
 
 export interface LivePicture {

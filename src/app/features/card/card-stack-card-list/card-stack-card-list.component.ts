@@ -15,6 +15,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { callShuffleCardStack } from '@axe/core/event/domain-events';
+import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -172,7 +173,7 @@ export class CardStackCardListComponent {
     event.preventDefault();
     this.activePointerId = event.pointerId;
     this.cardDrag.begin(card.identifier);
-    (event.currentTarget as Element).setPointerCapture(event.pointerId);
+    capturePointer(event.currentTarget, event.pointerId);
   }
 
   /** Follows the dragged row over the list, marking which half of which row it would drop on. */
@@ -199,7 +200,7 @@ export class CardStackCardListComponent {
     const drop = this.cardDrag.release();
     this.activePointerId = null;
     try {
-      (event.currentTarget as Element).releasePointerCapture(event.pointerId);
+      releasePointer(event.currentTarget, event.pointerId);
     } catch {
       // pointer capture may have been released already
     }

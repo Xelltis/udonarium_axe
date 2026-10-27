@@ -1,0 +1,160 @@
+/* ── Tailwind design tokens (for generating utilities) ───────────── */
+@theme {
+  --color-surface: hsl(220 14% 18%);
+  --color-panel: hsl(220 14% 22%);
+  --color-border: hsl(220 14% 32%);
+  --color-primary: hsl(210 100% 68%);
+  --color-primary-hover: hsl(210 100% 56%);
+  --color-danger: hsl(0 90% 62%);
+  --color-danger-hover: hsl(0 90% 74%);
+  --color-text-muted: hsl(220 10% 60%);
+  --font-family-sans:
+    -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Verdana, Meiryo, 'M+ 1p', 'Apple SD Gothic Neo',
+    'Malgun Gothic', 'Noto Sans KR', sans-serif;
+
+  /* ── --ui-* bridge: makes var(--ui-*) usable through Tailwind utilities ──
+     e.g. bg-ui-panel, text-ui-muted, border-ui-border-panel, shadow-ui-md, rounded-ui-lg, animate-fade-in
+     Light and dark are switched on the --ui-* side, so this only wires the references through. */
+
+  /* Backgrounds → bg-ui-* */
+  --color-ui-bg: var(--ui-bg);
+  --color-ui-surface: var(--ui-surface);
+  --color-ui-elevated: var(--ui-elevated);
+  --color-ui-panel: var(--ui-panel-bg);
+  --color-ui-titlebar: var(--ui-titlebar-bg);
+  --color-ui-titlebar-text: var(--ui-titlebar-text);
+  --color-ui-titlebar-muted: var(--ui-titlebar-muted);
+  --color-ui-hover: var(--ui-hover);
+  --color-ui-selected: var(--ui-selected);
+  --color-ui-menu: var(--ui-menu-bg);
+  --color-ui-menu-hover: var(--ui-menu-hover);
+  --color-ui-input: var(--ui-input-bg);
+  --color-ui-ghost: var(--ui-ghost-bg);
+  --color-ui-ghost-header: var(--ui-ghost-header-bg);
+
+  /* Text → text-ui-* */
+  --color-ui-text: var(--ui-text);
+  --color-ui-muted: var(--ui-text-muted);
+  --color-ui-dim: var(--ui-text-dim);
+
+  /* Accent / status */
+  --color-ui-accent: var(--ui-accent);
+  --color-ui-accent-hover: var(--ui-accent-hover);
+  --color-ui-accent-glow: var(--ui-accent-glow);
+  --color-ui-accent-bg: var(--ui-accent-bg);
+  --color-ui-danger: var(--ui-danger);
+  --color-ui-danger-hover: var(--ui-danger-hover);
+  --color-ui-danger-glow: var(--ui-danger-glow);
+  --color-ui-danger-bg: var(--ui-danger-bg);
+  --color-ui-success: var(--ui-success);
+  --color-ui-warning: var(--ui-warning);
+
+  /* The black playing-card suits (♣♠): blue in dark mode so they stand out, black as is traditional in light mode */
+  --color-ui-suit-black: var(--ui-suit-black);
+
+  /* Borders → border-ui-* */
+  --color-ui-border-panel: var(--ui-panel-border);
+  --color-ui-border-menu: var(--ui-menu-border);
+  --color-ui-border-titlebar: var(--ui-titlebar-border);
+  --color-ui-border-input: var(--ui-input-border);
+  --color-ui-border-separator: var(--ui-menu-separator);
+  --color-ui-border-bubble-caret: var(--ui-bubble-caret-border);
+
+  /* Ratios color-mix uses often (only those reused in three or more places are registered)
+     A one-off ratio is handled in the component's own style/CSS */
+  --color-ui-accent-soft: color-mix(in srgb, var(--ui-accent) 20%, transparent);
+  /* A button filled with the accent and lettered in white: the accent darkened on a dark theme, where it is
+     light enough to read as text on the panels and too light to carry white text. */
+  --color-ui-accent-solid: color-mix(in srgb, var(--ui-accent) 72%, black);
+  --color-ui-accent-bold: color-mix(in srgb, var(--ui-accent) 72%, var(--ui-elevated));
+  --color-ui-danger-soft: color-mix(in srgb, var(--ui-danger) 20%, transparent);
+  --color-ui-danger-ring: color-mix(in srgb, var(--ui-danger) 40%, transparent);
+
+  /* Shadows → shadow-ui-{sm,md,lg} */
+  --shadow-ui-sm: var(--ui-shadow-sm);
+  --shadow-ui-md: var(--ui-shadow-md);
+  --shadow-ui-lg: var(--ui-shadow-lg);
+
+  /* Corner radii → rounded-ui-{sm,DEFAULT,lg,xl} */
+  --radius-ui-sm: var(--ui-radius-sm);
+  --radius-ui: var(--ui-radius);
+  --radius-ui-lg: var(--ui-radius-lg);
+  --radius-ui-xl: var(--ui-radius-xl);
+
+  /* Global @keyframes → animate-* utilities
+     The existing helper classes such as .fly-in / .fade-in stay in styles.css for backward compatibility.
+     New code uses animate-* instead. */
+  --animate-bounce-badge: bounce 600ms ease;
+  --animate-fly-in: flyIn 100ms ease-out;
+  --animate-bg-fade-in: bgFadeIn 200ms ease-out forwards;
+  --animate-fade-in: fadeIn 100ms ease-out;
+  --animate-sheet-up: sheetUp 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-rotate-state: rotateOut 132ms ease-in-out;
+  --animate-blinking: blink 1s linear infinite alternate;
+  --animate-bounce-in: bounceIn 600ms ease;
+  --animate-shuffling: shuffle 800ms ease;
+  --animate-dice-rolling: diceRoll 800ms ease;
+  --animate-dice-tumble-a: diceTumbleA 800ms cubic-bezier(0.22, 0.9, 0.3, 1);
+  --animate-dice-tumble-b: diceTumbleB 800ms cubic-bezier(0.22, 0.9, 0.3, 1);
+  --animate-dice-tumble-c: diceTumbleC 800ms cubic-bezier(0.22, 0.9, 0.3, 1);
+  --animate-dice-pop: dicePop 1300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-coin-flip: coinFlip 900ms cubic-bezier(0.33, 0, 0.35, 1);
+  --animate-float-change: floatChange 1300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-speech-pop: speechPop 220ms cubic-bezier(0.2, 1.3, 0.4, 1) both;
+  --animate-buff-swap: buffSwap 160ms ease-out;
+  --animate-hit-flash: hitFlash 420ms ease-out;
+  --animate-fog-drift: fogDrift 90s ease-in-out infinite alternate;
+  --animate-hit-shake: hitShake 420ms ease-in-out;
+  --animate-heal-rise: healRise 760ms ease-out;
+  --animate-heal-glow: healGlow 760ms ease-out;
+  --animate-coin-flip-turn: coinFlipTurn 900ms cubic-bezier(0.33, 0, 0.35, 1);
+  --animate-chat-slide-in: chatSlideIn 200ms ease-out;
+  --animate-chat-fade-in: chatFadeIn 200ms ease-out;
+  --animate-stamp-pop: stampPop 520ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  --animate-stamp-shiver: stampShiver 640ms ease-out both;
+  --animate-stamp-slam: stampSlam 480ms cubic-bezier(0.3, 1.5, 0.5, 1) both;
+  --animate-stamp-beat: stampBeat 720ms ease-out both;
+  --animate-stamp-press: stampPress 560ms cubic-bezier(0.2, 1.2, 0.4, 1) both;
+  --animate-radial-orbit: spin 72s linear infinite;
+  --animate-vn-fade-in: vnFadeIn 280ms ease-out;
+  --animate-vn-leave: vnLeave 1600ms ease-in 500ms forwards;
+  --animate-vn-slide-in: vnSlideIn 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-vn-bounce-in: vnBounceIn 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  --animate-vn-shake: vnShake 320ms ease-in-out infinite;
+  --animate-vn-pop: vnPop 360ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  --animate-vn-pulse: vnPulse 900ms ease-in-out infinite;
+  --animate-vn-float: vnFloat 2200ms ease-in-out infinite;
+  --animate-vn-jump: vnJump 1100ms ease-in-out infinite;
+  --animate-vn-tremble: vnTremble 420ms linear infinite;
+  --animate-vn-zoom: vnZoom 1400ms ease-in-out infinite;
+  --animate-vn-nod: vnNod 1600ms ease-in-out infinite;
+  --animate-vn-sway: vnSway 2400ms ease-in-out infinite;
+  --animate-vn-droop: vnDroop 2600ms ease-in-out infinite;
+  --animate-vn-mark-in: vnMarkIn 600ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  --animate-vn-speak-a: vnSpeak 420ms ease-out;
+  --animate-vn-speak-b: vnSpeakB 420ms ease-out;
+  --animate-vibration: vibration 0.2s infinite;
+  --animate-cursor-ping: cursor-ping 2s ease-out infinite;
+  --animate-writing-dot: writing-dot 1.2s infinite ease-in-out;
+  --animate-disc-spin: spin 4s linear infinite;
+  /* A 1s spin, the same as Tailwind's own. Shows loading, as on the save button's sync icon. */
+  --animate-spin: spin 1s linear infinite;
+  /* The animations of game-character (the focus highlight after a tap) and the target marker
+     (targetBob). Their @keyframes are defined further down in styles.css. */
+  --animate-focused: focused 1s ease;
+  --animate-target-bob: targetBob 1.1s ease-in-out infinite;
+  --animate-target-ring: targetRing 1.1s ease-in-out infinite;
+  --animate-multi-angle-name-orbit: multiAngleNameOrbit 12s linear infinite;
+  --animate-multi-angle-piece-spin: multiAnglePieceSpin 60s linear infinite;
+  /* The sideways scroll of the mini-jukebox's track name. MiniJukeboxComponent sets --scroll-dist
+     directly on the element with setProperty. */
+  --animate-title-scroll: title-scroll 7s ease-in-out infinite;
+  /* The screen shake of the map effects, with separate keyframes for each strength. */
+  /* How a fallen piece itself crumbles, put on the piece's own body while the effect is on it. */
+  --animate-defeat-dissolve: effectDefeatDissolve 1.9s cubic-bezier(0.4, 0, 0.6, 1) both;
+  --animate-defeat-bisect: effectDefeatBisect 1.6s cubic-bezier(0.3, 0, 0.2, 1) both;
+  --animate-defeat-flinch: effectDefeatFlinch 900ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  --animate-effect-shake-soft: effectShakeSoft 340ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  --animate-effect-shake-hard: effectShakeHard 340ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  --animate-effect-flash: effectFlash 340ms ease-out both;
+}

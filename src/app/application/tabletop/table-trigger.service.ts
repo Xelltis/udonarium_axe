@@ -41,7 +41,7 @@ export class TableTriggerService {
   shown(): TableTrigger[] {
     this.objectChange.trackMyCursor();
     const all = this.all();
-    if (this.rolePermission.canSeeHidden) return all;
+    if (this.rolePermission.canSeeHidden()) return all;
     const triggers = all.filter((trigger) => !trigger.pressSwitch?.retired);
     if (!triggers.some((trigger) => trigger.shows === 'sight')) {
       return triggers.filter((trigger) => trigger.isShown);

@@ -80,6 +80,16 @@ describe('renderRichChatLog', () => {
     expect(html).toContain('一行目<br>二行目');
   });
 
+  it('draws the chat’s decorations in what was said, and leaves their marks out of a roll', () => {
+    const html = renderRichChatLog('washi', 'tab', [
+      tab('メイン', [line({ text: '[赤]<燃える>[/]' }), roll('**(2D6)** → 7', '')]),
+    ]);
+
+    expect(html).toContain('.chat-deco-bold{');
+    expect(html).toContain('<span class="chat-deco" style="color: #e5484d">&lt;燃える&gt;</span>');
+    expect(html).not.toContain('**');
+  });
+
   it('names the room and the tab in the heading and the title', () => {
     const html = renderRichChatLog('eerie', 'tab', [tab('探索', [line()])], { roomName: '霧の館' });
 

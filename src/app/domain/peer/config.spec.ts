@@ -1,13 +1,15 @@
 import { TestBed } from '@angular/core/testing';
-import { VolumeType } from '@axe/core/storage/audio-player';
+import { VolumeType } from '@axe/core/storage/audio-output';
 import { ObjectContext } from '@axe/core/sync/game-object';
 import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
+import { DEFAULT_BATTLE_SETTINGS } from '@axe/domain/battle/battle-settings';
 import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
 import { DEFAULT_SYSTEM_NOTICES, withNoticeRoute } from '@axe/domain/chat/system-notices';
 import { DEFAULT_DJ_SETTINGS } from '@axe/domain/media/dj-settings';
-import { Jukebox } from '@axe/domain/media/jukebox';
 import { DEFAULT_ROOM_VOLUMES } from '@axe/domain/media/room-volumes';
 import { Config } from '@axe/domain/peer/config';
+import { CONFIG_RULE_ANSWERS } from '@axe/domain/peer/config-rule-answers';
+import { ROOM_RULE_DEFAULTS } from '@axe/domain/tabletop/room-rules';
 
 describe('Config', () => {
   beforeEach(() => {
@@ -178,16 +180,9 @@ describe('Config', () => {
   });
 
   describe('the room’s volume for each kind of sound', () => {
-    const setNewVolume = vi.fn();
-
     function attributesOf(context: ObjectContext): Record<string, unknown> {
       return context.syncData['attributes'] as Record<string, unknown>;
     }
-
-    beforeEach(() => {
-      setNewVolume.mockClear();
-      vi.spyOn(Config.instance, 'jukebox', 'get').mockReturnValue({ setNewVolume } as unknown as Jukebox);
-    });
 
     afterEach(() => vi.restoreAllMocks());
 
@@ -235,17 +230,6 @@ describe('Config', () => {
 
       expect(Config.instance.roomVolume).toBe(0.8);
       expect(Config.instance.roomVolumes.background).toBe(0.3);
-    });
-
-    it('puts a change from another peer on the jukebox straight away', () => {
-      const changed = Config.instance.toContext();
-      attributesOf(changed)['_roomKindVolumes'] = '{"bgm":0.2}';
-      changed.majorVersion += 1;
-
-      Config.instance.apply(changed);
-
-      expect(setNewVolume).toHaveBeenCalled();
-      expect(Config.instance.roomVolumes.bgm).toBe(0.2);
     });
   });
 
@@ -307,20 +291,6 @@ describe('Config', () => {
 
       expect(Config.instance.djPads.every((pad) => pad === '')).toBe(true);
     });
-
-    it('remixes on the jukebox straight away when another peer changes the mix', () => {
-      const jukebox = new Jukebox('Jukebox');
-      jukebox.initialize();
-      const refreshMix = vi.spyOn(jukebox, 'refreshMix').mockImplementation(() => {});
-      const changed = Config.instance.toContext();
-      attributesOf(changed)['_djSettings'] = '{"ducking":false}';
-      changed.majorVersion += 1;
-
-      Config.instance.apply(changed);
-
-      expect(refreshMix).toHaveBeenCalledOnce();
-      expect(Config.instance.djSettings.ducking).toBe(false);
-    });
   });
 
   describe('what the room lets its stamps be used for', () => {
@@ -374,6 +344,37 @@ describe('Config', () => {
       Config.instance.systemNotices = withNoticeRoute(DEFAULT_SYSTEM_NOTICES, 'bgm', 'off');
 
       expect(attributesOf(Config.instance.toContext())['_systemNotices']).toBe('{"bgm":"off"}');
+    });
+  });
+
+  describe('what the room says about its battle stage', () => {
+    function attributesOf(context: ObjectContext): Record<string, unknown> {
+      return context.syncData['attributes'] as Record<string, unknown>;
+    }
+
+    afterEach(() => {
+      Config.instance.battleSettings = DEFAULT_BATTLE_SETTINGS;
+    });
+
+    it('reads a room saved before the stage, or a bag that came in empty, as the defaults', () => {
+      Config.instance.battleSettings = { ...DEFAULT_BATTLE_SETTINGS, defeat: false };
+      const older = Config.instance.toContext();
+      delete attributesOf(older)['_battleCutIn'];
+      older.majorVersion += 1;
+
+      Config.instance.apply(older);
+
+      expect(Config.instance.battleSettings).toEqual(DEFAULT_BATTLE_SETTINGS);
+    });
+
+    it('passes on only what the room changed, with the rest of the config', () => {
+      Config.instance.battleSettings = { ...DEFAULT_BATTLE_SETTINGS, defeatResource: '生命力' };
+
+      expect(attributesOf(Config.instance.toContext())['_battleCutIn']).toBe('{"defeatResource":"生命力"}');
+    });
+
+    it('holds nothing at all for a room that left the stage alone', () => {
+      expect(attributesOf(Config.instance.toContext())['_battleCutIn']).toBe('');
     });
   });
 
@@ -723,6 +724,117 @@ describe('Config', () => {
       Config.instance.isSpeakerAvatarVisible = true;
 
       expect(Config.instance.isSpeakerAvatarVisible).toBe(true);
+    });
+
+    describe('kept in the attributes saved rooms and older peers know', () => {
+      type Rule = keyof typeof CONFIG_RULE_ANSWERS;
+      const rules = Object.keys(CONFIG_RULE_ANSWERS) as Rule[];
+      const sampleOf = (rule: Rule) =>
+        ({ flag: false, number: 0, text: 'stop' })[CONFIG_RULE_ANSWERS[rule].kind] as never;
+
+      it('are kept under the names they have always been saved by', () => {
+        expect(rules.map((rule) => CONFIG_RULE_ANSWERS[rule].attribute)).toEqual([
+          '_moveRangeEnabled',
+          '_moveRangeElementNames',
+          '_piecesShareCells',
+          '_samePartyPassage',
+          '_otherPartyPassage',
+          '_noPartyPassage',
+          '_piecePassageCost',
+          '_sizeSlipsPast',
+          '_squeezes',
+          '_jumpCells',
+          '_handTracesWay',
+          '_moveRangeAlways',
+          '_zocAlways',
+          '_cellDistance',
+          '_cellDistanceUnit',
+          '_zocMode',
+          '_hostilityBy',
+          '_zocRange',
+          '_zocExtraCost',
+          '_zocEngages',
+          '_breakOutMode',
+          '_breakOutCost',
+          '_engagementCountsSize',
+          '_facingMark',
+          '_pieceImageInCell',
+          '_zoneEnabled',
+          '_zoneSizes',
+          '_zoneCountField',
+          '_zoneSamePoint',
+          '_zoneOutnumber',
+          '_zoneLeaveKind',
+          '_zoneBlockRadius',
+          '_zoneClearName',
+          '_zoneStealthUnseen',
+          '_moveKinds',
+          '_interruptKind',
+          '_placementDistances',
+          '_distanceModifiers',
+          '_rideSkillField',
+          '_rideRequireField',
+          '_fallMinM',
+          '_fallDamage',
+          '_twoUpBuff',
+        ]);
+      });
+
+      it('are each written into the attribute the room saves, as an older build writes it', () => {
+        const config = Config.instance;
+        const written = { flag: '0', number: 0, text: 'stop' };
+
+        for (const rule of rules) {
+          config[rule] = sampleOf(rule);
+          const { attribute, kind } = CONFIG_RULE_ANSWERS[rule];
+          expect(config.getAttribute(attribute), rule).toBe(written[kind]);
+        }
+      });
+
+      it('answer nothing, not nought, from an attribute left empty', () => {
+        const config = Config.instance;
+
+        for (const rule of rules) {
+          config.setAttribute(CONFIG_RULE_ANSWERS[rule].attribute, '');
+          expect(config[rule], rule).toBeNull();
+        }
+      });
+
+      it('read the answers as an older build writes them', () => {
+        const config = Config.instance;
+        config.setAttribute('_zoneEnabled', '1');
+        config.setAttribute('_zocEngages', '0');
+        config.setAttribute('_zocRange', '2');
+        config.setAttribute('_cellDistance', '0');
+        config.setAttribute('_zocMode', 'block');
+
+        expect(config.zoneEnabled).toBe(true);
+        expect(config.zocEngages).toBe(false);
+        expect(config.zocRange).toBe(2);
+        expect(config.cellDistance).toBe(0);
+        expect(config.zocMode).toBe('block');
+      });
+
+      it('read back every answer they are given, and nothing once it is taken away', () => {
+        const config = Config.instance;
+
+        for (const rule of rules) {
+          config[rule] = sampleOf(rule);
+          expect(config[rule], rule).toBe(sampleOf(rule));
+          config[rule] = null;
+          expect(config[rule], rule).toBeNull();
+        }
+      });
+
+      it('lists every rule of play among the room’s answers, and the zone rules among the zone answers', () => {
+        const config = Config.instance;
+        config.zocRange = 3;
+        config.zoneSamePointM = 1.5;
+
+        expect(config.roomRuleAnswers.zocRange).toBe(3);
+        expect(Object.keys(config.roomRuleAnswers).sort()).toEqual(Object.keys(ROOM_RULE_DEFAULTS).sort());
+        expect(config.zoneRuleAnswers.samePointM).toBe(1.5);
+      });
     });
 
     it('reads the flag back the way a loaded room writes it', () => {

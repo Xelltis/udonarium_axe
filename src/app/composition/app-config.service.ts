@@ -17,7 +17,7 @@ export interface AppConfig {
   localMode: boolean;
 }
 
-@Injectable()
+@Injectable({ providedIn: 'root' })
 export class AppConfigService {
   private readonly logger = inject(LoggerService);
   private readonly localMode = inject(LocalModePreferenceService);

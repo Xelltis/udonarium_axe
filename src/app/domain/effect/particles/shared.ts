@@ -52,26 +52,3 @@ export function easeOutQuad(value: number): number {
   const clamped = clamp01(value);
   return 1 - (1 - clamped) * (1 - clamped);
 }
-
-/** Turns a hexadecimal colour into one with an alpha. Anything already written as a function is left alone. */
-export function withAlpha(color: string, alpha: number): string {
-  const hex = color.trim();
-  if (!hex.startsWith('#')) return hex;
-
-  const digits = hex.slice(1);
-  const expanded =
-    digits.length === 3
-      ? digits
-          .split('')
-          .map((digit) => digit + digit)
-          .join('')
-      : digits;
-  if (expanded.length < 6) return hex;
-
-  const red = parseInt(expanded.slice(0, 2), 16);
-  const green = parseInt(expanded.slice(2, 4), 16);
-  const blue = parseInt(expanded.slice(4, 6), 16);
-  if (Number.isNaN(red) || Number.isNaN(green) || Number.isNaN(blue)) return hex;
-
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-}

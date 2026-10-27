@@ -1,10 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import {
-  CHAT_LOG_OMIT_DELETED_STORAGE_KEY,
-  CHAT_LOG_STYLE_STORAGE_KEY,
-} from '@axe/application/chat/chat-log-style-preference.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import {
@@ -41,8 +38,8 @@ describe('ChatLogPreviewComponent', () => {
   }
 
   beforeEach(() => {
-    localStorage.removeItem(CHAT_LOG_STYLE_STORAGE_KEY);
-    localStorage.removeItem(CHAT_LOG_OMIT_DELETED_STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEYS.chatLogStyle);
+    localStorage.removeItem(STORAGE_KEYS.chatLogOmitDeleted);
     TestBed.configureTestingModule({ imports: [ChatLogPreviewComponent], providers: [...TEST_PROVIDERS] });
     saveData = TestBed.inject(SaveDataService);
     vi.spyOn(saveData, 'prepareChatLogImages').mockResolvedValue({ resolver: () => '', registryScript: '' });
@@ -52,8 +49,8 @@ describe('ChatLogPreviewComponent', () => {
 
   afterEach(() => {
     for (const tab of tabs.splice(0)) tab.destroy();
-    localStorage.removeItem(CHAT_LOG_STYLE_STORAGE_KEY);
-    localStorage.removeItem(CHAT_LOG_OMIT_DELETED_STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEYS.chatLogStyle);
+    localStorage.removeItem(STORAGE_KEYS.chatLogOmitDeleted);
     vi.restoreAllMocks();
   });
 
@@ -66,7 +63,7 @@ describe('ChatLogPreviewComponent', () => {
     expect(html).toContain('data-style="neon"');
     expect(html).toContain('line-002');
     expect(component.style()).toBe('neon');
-    expect(localStorage.getItem(CHAT_LOG_STYLE_STORAGE_KEY)).toBe('neon');
+    expect(localStorage.getItem(STORAGE_KEYS.chatLogStyle)).toBe('neon');
   });
 
   it('follows another pick without loading the tab again', async () => {

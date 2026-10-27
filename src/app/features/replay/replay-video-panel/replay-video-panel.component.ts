@@ -1,9 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { SUPPORTED_LANGS, type SupportedLang } from '@axe/application/i18n/transloco.config';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
-import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
-import { ReplayVideoService } from '@axe/application/replay/replay-video.service';
 import {
   ReplayVideoAudience,
   type ReplayVideoRecording,
@@ -14,7 +12,9 @@ import { askVideoFile, isVideoFileSinkSupported, VIDEO_FILE_DECLINED } from '@ax
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { replayArchiveName } from '@axe/domain/replay/replay-archive';
 import { ReplayVideoPacing, ReplayVideoStyle } from '@axe/domain/replay/video/replay-video-timeline';
+import { ReplayEditorService } from '@axe/features/replay/replay-editor.service';
 import { formatReplayElapsed } from '@axe/features/replay/replay-log-line';
+import { ReplayVideoService } from '@axe/features/replay/replay-video-panel/replay-video.service';
 import {
   REPLAY_VIDEO_SIZES,
   ReplayVideoSettingsService,
@@ -110,7 +110,7 @@ export class ReplayVideoPanelComponent {
   });
 
   protected get canEdit(): boolean {
-    return this.rolePermission.canEditTabletop;
+    return this.rolePermission.canEditTabletop();
   }
 
   protected toggle(): void {

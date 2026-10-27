@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { downloadBlob } from '@axe/core/util/download-blob';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -13,6 +12,7 @@ import {
   ReplayScriptFormat,
 } from '@axe/domain/replay/replay-script';
 import { buildReplayStoryboard, ReplayShotPacing, ReplayShotScope } from '@axe/domain/replay/replay-storyboard';
+import { ReplayEditorService } from '@axe/features/replay/replay-editor.service';
 import { renderReplayLogLine, toReplayLogLine } from '@axe/features/replay/replay-log-line';
 import { EMPTY_REPLAY_DICTIONARY, replayNamesAt } from '@axe/features/replay/replay-names';
 import { TranslocoModule } from '@jsverse/transloco';

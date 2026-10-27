@@ -93,6 +93,29 @@ export function pieceWidthPx(character: GameCharacter, cellPx: number): number {
   return (size > 0 ? size : 1) * cellPx;
 }
 
+/** A piece as its middle is worked out from: the corner it is placed by, and how many cells across it is. */
+export interface PlacedPiece {
+  readonly location: { readonly x: number; readonly y: number };
+  readonly size: number;
+}
+
+/**
+ * How far a piece's middle is from the corner it is placed by, in px, on cells `cellPx` across.
+ *
+ * Unlike {@link pieceWidthPx}, which counts a piece of no size as a cell for what it takes up, a piece
+ * of no size is a point here: its middle is its corner, where it is drawn.
+ */
+export function pieceCentreOffsetPx(piece: PlacedPiece, cellPx: number): number {
+  const size = Number(piece.size);
+  return ((size > 0 ? size : 0) * cellPx) / 2;
+}
+
+/** The middle of a piece, in table px, which is where it looks out from, is lit from and stands. */
+export function pieceCentreOf(piece: PlacedPiece, cellPx: number): { x: number; y: number } {
+  const offset = pieceCentreOffsetPx(piece, cellPx);
+  return { x: piece.location.x + offset, y: piece.location.y + offset };
+}
+
 /**
  * Where a piece's corner goes for it to stand on a given cell.
  *

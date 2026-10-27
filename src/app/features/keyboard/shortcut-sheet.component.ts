@@ -5,9 +5,9 @@ import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
+import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { shortcutSheetSections } from '@axe/domain/ui/keyboard-shortcuts';
-import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 import { UiShortcutSheetComponent } from '@axe/ui/components/shortcut-sheet/shortcut-sheet.component';
 
 /**

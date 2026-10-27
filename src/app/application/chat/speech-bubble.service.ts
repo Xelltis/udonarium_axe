@@ -1,5 +1,5 @@
 import { computed, DestroyRef, inject, Injectable, type Signal, signal, type WritableSignal } from '@angular/core';
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { networkMessage$ } from '@axe/core/network/network-messaging';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -58,7 +58,7 @@ interface Shown {
 export class SpeechBubbleService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
-  private readonly chatMessageService = inject(ChatMessageService);
+  private readonly clock = inject(ChatClockService);
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly bubbles = new Map<string, WritableSignal<SpeechBubble | null>>();
@@ -175,7 +175,7 @@ export class SpeechBubbleService {
     const speaker = this.speakerOf(message);
     const content = speaker ? speechBubbleContentOf(message) : null;
     if (!speaker || !content) return;
-    const left = speechBubbleDurationMs(content) - (this.chatMessageService.getTime() - message.timestamp);
+    const left = speechBubbleDurationMs(content) - (this.clock.now() - message.timestamp);
     if (left <= 0) return;
 
     const pieceIdentifier = speaker.identifier;

@@ -1,7 +1,7 @@
 import { WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
-import { MoveRangeService, MoveRangeView } from '@axe/application/tabletop/move-range.service';
+import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -9,6 +9,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
+import { MoveRangeView } from '@axe/domain/tabletop/move/reach-build';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import {

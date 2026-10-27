@@ -31,10 +31,7 @@ export class GameDataElementBuffComponent {
   private readonly modalService = inject(ModalService);
   private readonly t = inject(TRANSLATE_FN);
 
-  readonly isReadOnly = computed(() => {
-    this.objectChange.trackMyCursor();
-    return !this.rolePermission.canEditTabletop;
-  });
+  readonly isReadOnly = computed(() => !this.rolePermission.canEditTabletop());
 
   readonly gameDataElement = input.required<DataElement>();
   readonly isEdit = input(false);

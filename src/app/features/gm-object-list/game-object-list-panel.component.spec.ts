@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { NpcDragService } from '@axe/application/tabletop/npc-drag.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { PieceDragGhostService } from '@axe/application/ui/piece-drag-ghost.service';
@@ -10,8 +11,7 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { VisionType } from '@axe/domain/tabletop/vision-types';
 import { GameObjectListPanelComponent } from '@axe/features/gm-object-list/game-object-list-panel.component';
 import { ObjectRow } from '@axe/features/gm-object-list/game-object-list-row';
-import { NpcDragService } from '@axe/features/gm-tools/npc-bar/npc-drag.service';
-import { LightSettingsComponent } from '@axe/features/tabletop/light-settings/light-settings.component';
+import { LightSettingsComponent } from '@axe/features/light-settings/light-settings.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 /** What the panel sets on the settings it opens, which is all this needs to stand in for. */

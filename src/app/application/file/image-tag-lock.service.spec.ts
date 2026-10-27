@@ -22,13 +22,13 @@ describe('ImageTagLockService', () => {
         {
           provide: RolePermissionService,
           useValue: {
-            get canSeeHidden() {
+            canSeeHidden() {
               return isGameMaster;
             },
-            get canEditShared() {
+            canEditShared() {
               return isGameMaster;
             },
-            get canEditTabletop() {
+            canEditTabletop() {
               return isPlaying;
             },
           },

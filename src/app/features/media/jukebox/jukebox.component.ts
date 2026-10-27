@@ -18,9 +18,11 @@ import { buildReorderContextMenu } from '@axe/application/ui/reorder-context-men
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { AudioFile } from '@axe/core/storage/audio-file';
-import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { VolumeType } from '@axe/core/storage/audio-output';
+import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
+import { SoundEffects } from '@axe/core/storage/sound-effects';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
@@ -86,10 +88,7 @@ export class JukeboxComponent {
   readonly canReport = inject(ReportService).canReport;
 
   /** Whether this seat may remove any sound from the room, as the game master may. */
-  readonly canRemove = computed(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditShared;
-  });
+  readonly canRemove = computed(() => this.rolePermission.canEditShared());
 
   /** Whether this seat may remove a sound: the game master any, a player one they added. */
   mayRemove(audio: AudioFile): boolean {
@@ -564,7 +563,7 @@ export class JukeboxComponent {
 
   /** Whether a sound effect is sounding on this player's side, which swaps its play button for stop. */
   isSePlaying(audio: AudioFile): boolean {
-    return this.jukebox.isSePlaying(audio.identifier);
+    return SoundEffects.isPlaying(audio.identifier);
   }
 
   /**
@@ -575,7 +574,7 @@ export class JukeboxComponent {
    */
   handleFileSelect(event: Event) {
     const input = event.target as HTMLInputElement;
-    if (!this.rolePermission.canEditTabletop) {
+    if (!this.rolePermission.canEditTabletop()) {
       input.value = '';
       return;
     }

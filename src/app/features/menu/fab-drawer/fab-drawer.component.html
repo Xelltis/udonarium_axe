@@ -1,0 +1,122 @@
+<div
+  #fabMenu
+  class="group fixed top-0 left-0 z-200 flex w-14 cursor-grab justify-center active:cursor-grabbing"
+  data-testid="fab-menu"
+  [class.open]="fabOpen() || guide.shown()"
+  appDraggable
+  [appWidgetPlace]="fabWidget"
+  [widgetFallback]="fabFallback"
+  [draggable.unhandle]="'input,textarea,select,option,span,.panel-no-drag'"
+  (draggable.end)="measureFabSides()"
+  (draggable.settled)="measureFabSides()"
+>
+  <nav
+    class="panel-no-drag border-ui-border-panel bg-ui-panel rounded-ui-lg shadow-ui-md pointer-events-none absolute z-8 w-14 cursor-default border border-solid opacity-0 [backdrop-filter:blur(24px)_saturate(1.5)] transition-[transform,opacity] duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)] group-[.open]:pointer-events-auto group-[.open]:translate-y-0 group-[.open]:opacity-100 [@media(max-height:760px)]:w-28"
+    [ngClass]="[fabDrawerPlace(), fabLabelSide(), guide.shown() ? fabGuideDrawer : '']"
+    [attr.data-button-guide-keep]="guide.shown() ? '' : null"
+    [attr.data-shortcut-sheet-avoid]="guide.shown() ? '' : null"
+  >
+    <ul class="m-0 list-none p-1.5" [ngClass]="guide.shown() ? '' : fabColumns">
+      @for (node of fabNodes(); track node.id) {
+        <li
+          class="text-ui-dim hover:text-ui-accent hover:bg-ui-accent-bg rounded-ui after:bg-ui-panel after:border-ui-border-panel after:text-ui-text after:rounded-ui after:shadow-ui-sm relative flex size-11 cursor-pointer items-center justify-center transition-[color,background] after:pointer-events-none after:absolute after:top-1/2 after:left-[calc(100%+10px)] after:z-10000 after:-translate-y-1/2 after:border after:border-solid after:px-2.5 after:py-1 after:text-[11px] after:whitespace-nowrap after:opacity-0 after:[backdrop-filter:blur(24px)_saturate(1.5)] after:transition-opacity after:content-[attr(data-label)] after:[-webkit-backdrop-filter:blur(24px)_saturate(1.5)] hover:after:opacity-100 focus-visible:after:opacity-100 [&_i]:text-[22px]"
+          role="button"
+          [attr.tabindex]="fabOpen() || guide.shown() ? 0 : -1"
+          [class.text-ui-accent]="fabSubmenu() === node.id || (!isGroup(node) && $any(node).lit)"
+          [class.after:hidden]="(isGroup(node) && fabSubmenu() !== null) || guide.shown()"
+          [ngClass]="guide.shown() ? fabGuideRow : ''"
+          [attr.data-label]="fabNodeLabel(node)"
+          [attr.aria-label]="fabNodeLabel(node)"
+          [attr.data-testid]="node.testId"
+          [attr.data-fab-submenu-toggle]="isGroup(node) ? '' : null"
+          [attr.aria-expanded]="isGroup(node) ? fabSubmenu() === node.id : null"
+          (click)="clickFab(node, $event)"
+          (keydown.enter)="pressFabFromKey(node, $event)"
+          (keydown.space)="pressFabFromKey(node, $event)"
+          (contextmenu)="isGroup(node) || onFabEntryContextMenu($event, $any(node))"
+        >
+          <i class="material-icons" [class.vibration-amine]="node.id === 'saveLoad' && roomFiles.isSaving()">{{
+            node.icon
+          }}</i>
+          @if (guide.shown()) {
+            <span
+              class="text-ui-text absolute top-1/2 z-10 flex -translate-y-1/2 items-center gap-1 whitespace-nowrap"
+              [ngClass]="fabSubmenuSide()"
+              data-shortcut-sheet-avoid
+            >
+              <span
+                class="bg-ui-elevated border-ui-accent rounded-ui shadow-ui-sm border border-solid px-2.5 py-0.5 text-[11px]/4"
+                data-testid="button-guide-label"
+                >{{ fabNodeLabel(node) }}</span
+              >
+              @for (entry of entriesOf(node); track entry.id) {
+                <button
+                  type="button"
+                  class="bg-ui-elevated border-ui-border-panel text-ui-text hover:border-ui-accent hover:text-ui-accent rounded-ui shadow-ui-sm flex cursor-pointer items-center gap-1 border border-solid px-2 py-0.5 text-[11px]/4 transition-colors disabled:cursor-default disabled:opacity-45 [&_i]:text-[15px]!"
+                  data-testid="button-guide-entry"
+                  [disabled]="entry.disabled"
+                  (click)="$event.stopPropagation(); chooseFromFabSubmenu(entry)"
+                >
+                  @if (entry.text) {
+                    <span class="font-semibold">{{ entry.text }}</span>
+                  } @else {
+                    <i class="material-icons" aria-hidden="true">{{ entry.icon }}</i>
+                  }
+                  {{ fabNodeLabel(entry) }}
+                </button>
+              }
+            </span>
+          }
+        </li>
+      }
+    </ul>
+    <input
+      #zipInput
+      type="file"
+      class="hidden"
+      data-testid="fab-zip-input"
+      (change)="roomFiles.loadChosen(zipInput)"
+      multiple
+      accept="application/xml,text/xml,application/zip"
+    />
+    @if (openGroup(); as group) {
+      <div
+        class="absolute z-20"
+        [ngClass]="fabSubmenuSide()"
+        [style.top.px]="fabSubmenuPlace().top"
+        [style.bottom.px]="fabSubmenuPlace().bottom"
+      >
+        <ui-fab-submenu
+          class="block"
+          [label]="group.label ?? (group.labelKey | transloco)"
+          [testId]="group.menuTestId"
+          (closed)="closeFabSubmenu()"
+        >
+          @for (entry of group.entries; track entry.id) {
+            <ui-fab-submenu-button
+              [icon]="entry.icon"
+              [text]="entry.text"
+              [label]="fabNodeLabel(entry)"
+              [lit]="entry.lit"
+              [disabled]="entry.disabled"
+              [testId]="entry.testId"
+              (press)="chooseFromFabSubmenu(entry)"
+              (contextMenuRequest)="onFabEntryContextMenu($event, entry)"
+            />
+          }
+        </ui-fab-submenu>
+      </div>
+    }
+  </nav>
+  <button
+    class="border-ui-border-panel bg-ui-panel shadow-ui-md text-ui-muted hover:text-ui-accent group-[.open]:bg-ui-elevated group-[.open]:text-ui-accent relative z-10 flex size-12 cursor-pointer items-center justify-center rounded-full border border-solid [backdrop-filter:blur(24px)_saturate(1.5)] transition-[color,background,box-shadow,transform] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)] group-[.open]:shadow-[0_0_0_2px_var(--ui-accent-glow),var(--ui-shadow-md)] hover:shadow-[0_0_0_2px_var(--ui-accent-glow),var(--ui-shadow-md)] [&_i]:text-[24px] [&_i]:leading-none [&_i]:transition-transform [&_i]:duration-220 [&_i]:ease-in-out group-[.open]:[&_i]:rotate-90"
+    (click)="toggleFab()"
+    (contextmenu)="onFabContextMenu($event)"
+    [attr.aria-label]="fabOpen() ? ('app.fab.menuClose' | transloco) : ('app.fab.menuOpen' | transloco)"
+    [attr.aria-expanded]="fabOpen()"
+    [title]="'app.fab.menuHint' | transloco"
+    data-testid="fab-toggle"
+  >
+    <i class="material-icons">{{ fabOpen() ? 'close' : 'menu' }}</i>
+  </button>
+</div>

@@ -1,8 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { AudioFile } from '@axe/core/storage/audio-file';
-import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { VolumeType } from '@axe/core/storage/audio-output';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { SoundEffects } from '@axe/core/storage/sound-effects';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { SYSTEM_CHAT_TAB_IDENTIFIER } from '@axe/domain/chat/constants';
@@ -228,7 +229,7 @@ describe('ChatMessageSettingComponent', () => {
       vi.spyOn(AudioStorage.instance, 'get').mockImplementation(
         (identifier: string) => ({ identifier }) as unknown as AudioFile
       );
-      const play = vi.spyOn(AudioPlayer, 'play').mockImplementation(() => {});
+      const play = vi.spyOn(SoundEffects, 'playOnce').mockImplementation(() => {});
 
       root().querySelector<HTMLButtonElement>('button[name="chatSoundPreview-all"]')!.click();
 

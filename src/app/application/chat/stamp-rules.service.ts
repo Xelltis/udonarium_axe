@@ -34,10 +34,7 @@ export class StampRulesService {
   }
 
   /** Whether this reader may change the rules, which only the game master may. */
-  readonly canChange = computed(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditShared;
-  });
+  readonly canChange = computed(() => this.rolePermission.canEditShared());
 
   /** Whether a use is on at all. */
   isOn(use: StampUse): boolean {
@@ -62,7 +59,7 @@ export class StampRulesService {
   }
 
   private editableConfig(): Config | null {
-    if (!this.rolePermission.canEditShared) return null;
+    if (!this.rolePermission.canEditShared()) return null;
     return this.objectStore.get<Config>('Config') ?? null;
   }
 }

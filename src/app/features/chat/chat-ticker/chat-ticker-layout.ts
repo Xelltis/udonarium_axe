@@ -1,3 +1,5 @@
+import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
+
 export interface ChatTickerPathSegment {
   readonly x: number;
   readonly y: number;
@@ -90,14 +92,17 @@ export function makeChatTickerRepeatOffsets(
 }
 
 /**
- * The text a chat line runs as in the ticker: `name：text` on one line, followed by a separator mark.
+ * The text a chat line runs as in the ticker: `name：text` on one line, followed by a separator mark,
+ * the chat's decorations left out.
  *
  * Whispers, secret rolls, system lines, pseudo-deleted lines and lines with no words give null,
  * meaning they are never shown in the ticker.
  */
 export function formatChatTickerMessage(message: ChatTickerMessageLike): string | null {
   if (message.isDirect || message.isSecret || message.isSystem || message.isPseudoDeleted) return null;
-  const text = (message.text ?? '').replace(/\s+/g, ' ').trim();
+  const text = withoutChatDecoration(message.text ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (!text) return null;
   const name = (message.name ?? '').replace(/\s+/g, ' ').trim();
   return `${name ? `${name}：` : ''}${text}　◆`;

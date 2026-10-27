@@ -1,5 +1,6 @@
 import { ComponentRef, inject, Injectable, ViewContainerRef } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { CONTEXT_MENU_COMPONENT, FOUR_WAY_RADIAL_MENU_LOADER } from '@axe/application/ui/overlay-components';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { PanelRotationDegrees } from '@axe/application/ui/panel.service';
 import { DEFAULT_RADIAL_MENU_ROTATION_SPEED } from '@axe/domain/tabletop/radial-menu';
@@ -48,13 +49,12 @@ export interface ContextMenuOpenOptions {
 
 type ContextMenuComponentClass = { new (...args: unknown[]): unknown };
 
-@Injectable()
+@Injectable({ providedIn: 'root' })
 export class ContextMenuService {
-  static defaultParentViewContainerRef: ViewContainerRef;
-  static ContextMenuComponentClass: ContextMenuComponentClass = null!;
-  static FourWayRadialMenuComponentClass: ContextMenuComponentClass | null = null;
+  private readonly overlays = inject(OverlayLayers);
   /** The four-way menu is only ever wanted on a table seen from above, so it is fetched the first time. */
-  static loadFourWayRadialMenuComponent: (() => Promise<ContextMenuComponentClass>) | null = null;
+  private readonly loadFourWayMenu = inject(FOUR_WAY_RADIAL_MENU_LOADER);
+  private fourWayMenu: ContextMenuComponentClass | null = null;
   private readonly rolePermission = inject(RolePermissionService);
   private panelComponentRef: ComponentRef<unknown> | null = null;
 
@@ -92,7 +92,7 @@ export class ContextMenuService {
    */
   open(position: ContextMenuPoint, actions: ContextMenuAction[], title?: string, options?: ContextMenuOpenOptions) {
     this.openComponent(
-      ContextMenuService.ContextMenuComponentClass,
+      null,
       position,
       actions,
       [],
@@ -125,7 +125,7 @@ export class ContextMenuService {
     layer = 0
   ) {
     this.openComponent(
-      ContextMenuService.ContextMenuComponentClass,
+      null,
       position,
       actions,
       [],
@@ -167,7 +167,7 @@ export class ContextMenuService {
     parentViewContainerRef?: ViewContainerRef,
     layer = 0
   ) {
-    const open = (componentClass: ContextMenuComponentClass) =>
+    const open = (componentClass: ContextMenuComponentClass | null) =>
       this.openComponent(
         componentClass,
         position,
@@ -184,23 +184,23 @@ export class ContextMenuService {
         parentViewContainerRef,
         layer
       );
-    const loaded = ContextMenuService.FourWayRadialMenuComponentClass;
+    const loaded = this.fourWayMenu;
     if (loaded) {
       open(loaded);
       return;
     }
     // A menu that fails to arrive falls back to the one that is already here. Left to reject,
     // a single missing chunk takes every right-click on the table with it for the whole session.
-    void ContextMenuService.loadFourWayRadialMenuComponent?.()
+    void this.loadFourWayMenu?.()
       .then((componentClass) => {
-        ContextMenuService.FourWayRadialMenuComponentClass = componentClass;
+        this.fourWayMenu = componentClass;
         open(componentClass);
       })
-      .catch(() => open(ContextMenuService.ContextMenuComponentClass));
+      .catch(() => open(null));
   }
 
   private openComponent(
-    componentClass: ContextMenuComponentClass,
+    componentClass: ContextMenuComponentClass | null,
     position: ContextMenuPoint,
     actions: ContextMenuAction[],
     radialGroups: ContextMenuRadialGroup[],
@@ -217,13 +217,15 @@ export class ContextMenuService {
     forGuests = false
   ) {
     this.close();
-    if (!forGuests && !this.rolePermission.canEditTabletop) return;
+    if (!forGuests && !this.rolePermission.canEditTabletop()) return;
 
-    const parent =
-      parentViewContainerRef ?? OverlayLayers.current() ?? ContextMenuService.defaultParentViewContainerRef;
+    const parent = parentViewContainerRef ?? this.overlays.front();
+    // Null asks for the plain menu, as the layer it opens in names it.
+    const menu = componentClass ?? parent.injector.get(CONTEXT_MENU_COMPONENT);
+    if (!menu) throw new Error('[ContextMenuService] no context menu has been handed in');
     const injector = parent.injector;
 
-    const panelComponentRef = parent.createComponent(componentClass, {
+    const panelComponentRef = parent.createComponent(menu, {
       index: parent.length,
       injector,
     });

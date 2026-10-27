@@ -1,10 +1,11 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { AudioAnalysisService } from '@axe/application/media/audio-analysis.service';
+import { JukeboxEngineService } from '@axe/application/media/jukebox-engine.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AudioFile } from '@axe/core/storage/audio-file';
-import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { SoundEffects } from '@axe/core/storage/sound-effects';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { type AudioAnalysis, autoLevelGainDb } from '@axe/domain/media/audio-analysis';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
@@ -80,6 +81,7 @@ export class DjConsoleService {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly jukeboxEngine = inject(JukeboxEngineService);
   private readonly analysis = inject(AudioAnalysisService);
   private readonly audioStorage = inject(AudioStorage);
   private readonly playback = inject(JukeboxPlaybackService);
@@ -87,16 +89,10 @@ export class DjConsoleService {
   private readonly tapTempo = new TapTempo();
 
   /** Whether this reader may set the beats and work the deck, which every role but a guest may. */
-  readonly canOperate = computed(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditTabletop;
-  });
+  readonly canOperate = computed(() => this.rolePermission.canEditTabletop());
 
   /** Whether this reader may change how the room mixes, which only the game master may. */
-  readonly canChangeSettings = computed(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditShared;
-  });
+  readonly canChangeSettings = computed(() => this.rolePermission.canEditShared());
 
   /** How the room mixes its music. */
   readonly settings = computed<DjSettings>(() => {
@@ -239,11 +235,11 @@ export class DjConsoleService {
 
   /** Changes how the room mixes, for everyone. Anyone but the game master is refused. */
   setSettings(change: Partial<DjSettings>): void {
-    if (!this.rolePermission.canEditShared) return;
+    if (!this.rolePermission.canEditShared()) return;
     const config = this.objectStore.get<Config>('Config');
     if (!config) return;
     config.djSettings = { ...config.djSettings, ...change };
-    this.jukebox?.refreshMix();
+    this.jukeboxEngine.refreshMix();
   }
 
   /**
@@ -253,7 +249,7 @@ export class DjConsoleService {
    */
   tap(): void {
     const identifier = this.playingTrack;
-    if (!identifier || !this.rolePermission.canEditTabletop) return;
+    if (!identifier || !this.rolePermission.canEditTabletop()) return;
     const bpm = this.tapTempo.tap({ atMs: performance.now(), position: this.position() });
     this._tappedBpm.set(bpm);
     const last = this.tapTempo.last;
@@ -285,7 +281,7 @@ export class DjConsoleService {
   /** Lets the room's track go back to the beats its reading found. */
   resetGrid(): void {
     const identifier = this.playingTrack;
-    if (!identifier || !this.rolePermission.canEditTabletop) return;
+    if (!identifier || !this.rolePermission.canEditTabletop()) return;
     this.tapTempo.reset();
     this._tappedBpm.set(null);
     AudioProfile.setGrid(identifier, null);
@@ -296,26 +292,26 @@ export class DjConsoleService {
    * `EFFECTS_SHARE_MS` while a knob turns, and at once when it settles.
    */
   setEffect(kind: keyof DjEffects, value: number, settled: boolean = false): void {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     const jukebox = this.jukebox;
     if (!jukebox) return;
     const next = { ...this.effects(), [kind]: value };
     this._localEffects.set(next);
-    jukebox.applyEffects(next);
+    this.jukeboxEngine.previewEffects(next);
     if (settled) this.shareEffects();
     else this.effectsTimer ??= setTimeout(() => this.shareEffects(), EFFECTS_SHARE_MS);
   }
 
   /** Turns every effect off for the room. */
   resetEffects(): void {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     this._localEffects.set(NO_DJ_EFFECTS);
     this.shareEffects();
   }
 
   /** Brakes the room's track to a stop, as a record stops when its turntable is switched off. */
   brakeStop(): void {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     this.jukebox?.brakeStop();
   }
 
@@ -325,7 +321,7 @@ export class DjConsoleService {
    */
   pressCue(slot: number): void {
     const identifier = this.playingTrack;
-    if (!identifier || !this.rolePermission.canEditTabletop) return;
+    if (!identifier || !this.rolePermission.canEditTabletop()) return;
     const cues = AudioProfile.cuesOf(identifier);
     const at = cues[slot];
     if (typeof at === 'number') {
@@ -338,7 +334,7 @@ export class DjConsoleService {
   /** Empties one of the track's cue slots. */
   clearCue(slot: number): void {
     const identifier = this.playingTrack;
-    if (!identifier || !this.rolePermission.canEditTabletop) return;
+    if (!identifier || !this.rolePermission.canEditTabletop()) return;
     AudioProfile.setCues(identifier, withCuePoint(AudioProfile.cuesOf(identifier), slot, null));
   }
 
@@ -356,14 +352,14 @@ export class DjConsoleService {
   firePad(slot: number): void {
     const identifier = this.objectStore.get<Config>('Config')?.djPads[slot] ?? '';
     const audio = identifier ? this.audioStorage.get(identifier) : null;
-    if (!audio?.isReady || !this.rolePermission.canEditTabletop) return;
+    if (!audio?.isReady || !this.rolePermission.canEditTabletop()) return;
     if (padKindOf(identifier) === 'background') this.backgroundSounds.toggle(audio);
     else this.playback.play(audio);
   }
 
   /** Gives a pad a sound for the room. Anyone but the game master is refused. */
   assignPad(slot: number, identifier: string): void {
-    if (!this.rolePermission.canEditShared) return;
+    if (!this.rolePermission.canEditShared()) return;
     const config = this.objectStore.get<Config>('Config');
     if (config) config.djPads = withPad(config.djPads, slot, identifier);
   }
@@ -376,7 +372,7 @@ export class DjConsoleService {
   /** Whether a pad's sound is sounding on this peer, read afresh on every call. */
   isPadSounding(pad: PadView): boolean {
     if (!pad.identifier) return false;
-    if (pad.kind === 'effect') return AudioPlayer.isSePlaying(pad.identifier);
+    if (pad.kind === 'effect') return SoundEffects.isPlaying(pad.identifier);
     if (pad.kind === 'background') return BackgroundSound.of(pad.identifier)?.isOn === true;
     const jukebox = this.jukebox;
     return jukebox?.isPlaying === true && jukebox.audioIdentifier === pad.identifier;
@@ -393,7 +389,7 @@ export class DjConsoleService {
   private changeGrid(change: (grid: BeatGrid) => BeatGrid): void {
     const identifier = this.playingTrack;
     const grid = identifier ? AudioProfile.gridOf(identifier) : null;
-    if (!identifier || !grid || !this.rolePermission.canEditTabletop) return;
+    if (!identifier || !grid || !this.rolePermission.canEditTabletop()) return;
     this.setGrid(identifier, change(grid));
   }
 

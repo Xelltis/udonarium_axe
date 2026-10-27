@@ -2,9 +2,9 @@ import { Signal, WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { MapScene, sceneHeightPx, sceneWidthPx, ShapeItem } from '@axe/domain/map-editor/scene';
+import { serializeScene } from '@axe/domain/map-editor/serialize';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
-import { MapScene, sceneHeightPx, sceneWidthPx, ShapeItem } from '@axe/features/map-editor/model/scene';
-import { serializeScene } from '@axe/features/map-editor/model/serialize';
 import { WhiteBoardEditorComponent } from '@axe/features/tabletop/white-board/white-board-editor.component';
 import {
   BoardPoint,

@@ -1,0 +1,321 @@
+<div
+  class="text-ui-text bg-ui-elevated flex h-full min-h-0 flex-col gap-2.5 overflow-y-auto p-3 text-[13px]"
+  data-testid="battle-cut-in-panel"
+>
+  <label class="flex cursor-pointer items-center gap-2 text-[12px] [accent-color:var(--ui-accent)]">
+    <input
+      type="checkbox"
+      data-testid="battle-cut-in-shown"
+      [checked]="preference.shown()"
+      (change)="preference.setShown($any($event.target).checked)"
+    />
+    <span>{{ 'feature.battleCutIn.shownHere' | transloco }}</span>
+  </label>
+  <p class="text-ui-dim m-0 -mt-1.5 text-[11px]">{{ 'feature.battleCutIn.shownHereHint' | transloco }}</p>
+
+  <section class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-1.5 border border-solid p-3">
+    <div class="border-ui-accent border-l-2 border-solid pl-2">
+      <span class="text-[12px] font-semibold">{{ 'feature.battleCutIn.playHeading' | transloco }}</span>
+    </div>
+    @let next = bout();
+    @if (next) {
+      <p class="m-0 text-[12px]" data-testid="battle-cut-in-bout">
+        {{
+          (next.byTurn ? 'feature.battleCutIn.boutByTurn' : 'feature.battleCutIn.bout')
+            | transloco: { attacker: next.attacker, defenders: next.defenders }
+        }}
+      </p>
+    } @else {
+      <p class="text-ui-dim m-0 text-[12px]">{{ 'feature.battleCutIn.noLineup' | transloco }}</p>
+    }
+    <div class="flex flex-wrap gap-1.5">
+      <button
+        type="button"
+        class="bg-ui-accent-bg border-ui-accent text-ui-accent hover:bg-ui-accent-solid rounded-ui-sm inline-flex cursor-pointer items-center gap-1 border border-solid px-2.5 py-1 text-[12px] font-semibold hover:text-white disabled:cursor-default disabled:opacity-45 [&_.material-icons]:text-[15px]!"
+        data-testid="battle-cut-in-play-room"
+        [disabled]="!next || !canEditTable()"
+        (click)="playForRoom()"
+      >
+        <i class="material-icons">sports_martial_arts</i>{{ 'feature.battleCutIn.playForRoom' | transloco }}
+      </button>
+      <button
+        type="button"
+        class="bg-ui-input border-ui-border-panel text-ui-text hover:bg-ui-hover rounded-ui-sm inline-flex cursor-pointer items-center gap-1 border border-solid px-2.5 py-1 text-[12px] disabled:cursor-default disabled:opacity-45 [&_.material-icons]:text-[15px]!"
+        data-testid="battle-cut-in-play-here"
+        [disabled]="!next"
+        (click)="playHere()"
+      >
+        <i class="material-icons">visibility</i>{{ 'feature.battleCutIn.playHere' | transloco }}
+      </button>
+    </div>
+    @if (noBout()) {
+      <p class="text-ui-danger m-0 text-[11px]">{{ 'feature.battleCutIn.noLineup' | transloco }}</p>
+    }
+    @if (!canEditTable()) {
+      <p class="text-ui-dim m-0 text-[11px]" data-testid="battle-cut-in-watcher-hint">
+        {{ 'feature.battleCutIn.watcherPlaysHere' | transloco }}
+      </p>
+    }
+    <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.battleCutIn.otherWays' | transloco }}</p>
+  </section>
+
+  <section class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-1.5 border border-solid p-3">
+    <div class="border-ui-accent border-l-2 border-solid pl-2">
+      <span class="text-[12px] font-semibold">{{ 'feature.battleCutIn.lineupHeading' | transloco }}</span>
+    </div>
+    <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.battleCutIn.lineupHint' | transloco }}</p>
+    <div class="grid grid-cols-2 gap-2">
+      @for (column of [left(), right()]; track $index; let isLeft = $first) {
+        <div
+          class="rounded-ui-sm flex min-h-12 flex-col gap-1 border border-dashed p-1.5"
+          [style.border-color]="isLeft ? sideColors.left : sideColors.right"
+          [attr.data-testid]="isLeft ? 'battle-lineup-left' : 'battle-lineup-right'"
+        >
+          <span class="text-ui-muted text-[11px] font-semibold">{{
+            (isLeft ? 'feature.battleCutIn.left' : 'feature.battleCutIn.right') | transloco
+          }}</span>
+          @for (row of column; track row.identifier) {
+            <div class="flex items-center gap-1.5">
+              <ng-container *ngTemplateOutlet="pieceTemplate; context: { $implicit: row }" />
+              @if (isGameMaster()) {
+                <button
+                  type="button"
+                  class="text-ui-dim hover:text-ui-danger flex size-5 cursor-pointer items-center justify-center border-none bg-transparent [&_i]:text-[15px]!"
+                  [title]="'feature.battleCutIn.removeFromLineup' | transloco"
+                  [attr.aria-label]="'feature.battleCutIn.removeFromLineup' | transloco"
+                  (click)="setSide(row.identifier, null)"
+                >
+                  <i class="material-icons">close</i>
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+    @if (isGameMaster() && others().length > 0) {
+      <span class="text-ui-muted mt-1 text-[11px] font-semibold">{{ 'feature.battleCutIn.onTable' | transloco }}</span>
+      <div class="flex max-h-48 flex-col gap-1 overflow-y-auto">
+        @for (row of others(); track row.identifier) {
+          <div class="flex items-center gap-1.5" data-testid="battle-lineup-other">
+            <ng-container *ngTemplateOutlet="pieceTemplate; context: { $implicit: row }" />
+            <button
+              type="button"
+              class="border-ui-border-panel bg-ui-input rounded-ui-sm hover:border-ui-accent cursor-pointer border border-solid px-1.5 py-0.5 text-[11px]"
+              [attr.data-testid]="'battle-to-left-' + row.name"
+              (click)="setSide(row.identifier, 'left')"
+            >
+              {{ 'feature.battleCutIn.toLeft' | transloco }}
+            </button>
+            <button
+              type="button"
+              class="border-ui-border-panel bg-ui-input rounded-ui-sm hover:border-ui-accent cursor-pointer border border-solid px-1.5 py-0.5 text-[11px]"
+              [attr.data-testid]="'battle-to-right-' + row.name"
+              (click)="setSide(row.identifier, 'right')"
+            >
+              {{ 'feature.battleCutIn.toRight' | transloco }}
+            </button>
+          </div>
+        }
+      </div>
+    }
+  </section>
+
+  <section class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-1.5 border border-solid p-3">
+    <div class="border-ui-accent border-l-2 border-solid pl-2">
+      <span class="text-[12px] font-semibold">{{ 'feature.battleCutIn.effectHeading' | transloco }}</span>
+    </div>
+    <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.battleCutIn.effectHint' | transloco }}</p>
+    @if (rows().length > 0) {
+      <label class="flex items-center gap-2 text-[12px]">
+        <span class="text-ui-muted w-16 shrink-0">{{ 'feature.battleCutIn.piece' | transloco }}</span>
+        <select
+          class="border-ui-border-panel bg-ui-input text-ui-text min-w-0 flex-1 rounded-[3px] border border-solid px-1.5 py-0.5 text-[12px]"
+          data-testid="battle-effect-piece"
+          [ngModel]="focus()"
+          (ngModelChange)="focusOn($event)"
+        >
+          @for (row of rows(); track row.identifier) {
+            <option [ngValue]="row.identifier">{{ row.name }}</option>
+          }
+        </select>
+      </label>
+      <label class="flex items-center gap-2 text-[12px]">
+        <span class="text-ui-muted w-16 shrink-0">{{ 'feature.battleCutIn.effect' | transloco }}</span>
+        <select
+          class="border-ui-border-panel bg-ui-input text-ui-text min-w-0 flex-1 rounded-[3px] border border-solid px-1.5 py-0.5 text-[12px] disabled:opacity-60"
+          data-testid="battle-effect-name"
+          [disabled]="!canEditFocused()"
+          [ngModel]="focused()?.effect ?? ''"
+          (ngModelChange)="setEffect($event)"
+        >
+          <option [ngValue]="''">{{ 'feature.battleCutIn.stageEffect' | transloco }}</option>
+          @for (group of effectGroups(); track group.tag) {
+            <optgroup [label]="group.tag">
+              @for (name of group.names; track name) {
+                <option [ngValue]="name">{{ name }}</option>
+              }
+            </optgroup>
+          }
+        </select>
+      </label>
+      @if (focusedPreset(); as preset) {
+        <effect-preview [preset]="preset" />
+      }
+    } @else {
+      <p class="text-ui-dim m-0 text-[12px]">{{ 'feature.battleCutIn.noPieces' | transloco }}</p>
+    }
+  </section>
+
+  <section class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-1.5 border border-solid p-3">
+    <div class="border-ui-accent border-l-2 border-solid pl-2">
+      <span class="text-[12px] font-semibold">{{ 'feature.battleCutIn.roomHeading' | transloco }}</span>
+    </div>
+    @if (!isGameMaster()) {
+      <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.battleCutIn.roomMasterOnly' | transloco }}</p>
+    }
+    @let chosen = settings();
+    <div
+      class="flex flex-col gap-1 text-[12px]"
+      role="radiogroup"
+      [attr.aria-label]="'feature.battleCutIn.stage' | transloco"
+    >
+      <span class="text-ui-muted">{{ 'feature.battleCutIn.stage' | transloco }}</span>
+      @for (row of themeRows; track row.time) {
+        @let timeLabel = 'feature.battleCutIn.time.' + row.time | transloco;
+        <span class="text-ui-dim text-[11px]">{{ timeLabel }}</span>
+        <div class="grid grid-cols-5 gap-1.5">
+          @for (choice of row.choices; track choice.theme) {
+            @let genreLabel = 'feature.battleCutIn.genre.' + choice.genre | transloco;
+            @let checked = !chosen.background && chosen.theme === choice.theme;
+            <button
+              type="button"
+              role="radio"
+              class="rounded-ui-sm flex w-full min-w-0 cursor-pointer flex-col items-stretch gap-0.5 border border-solid bg-transparent p-0.5 text-[11px] disabled:cursor-default"
+              [class]="checked ? 'border-ui-accent text-ui-accent' : 'border-ui-border-panel'"
+              [attr.aria-checked]="checked"
+              [attr.aria-label]="'feature.battleCutIn.themeLabel' | transloco: { genre: genreLabel, time: timeLabel }"
+              [title]="'feature.battleCutIn.themeLabel' | transloco: { genre: genreLabel, time: timeLabel }"
+              [attr.data-testid]="'battle-theme-' + choice.theme"
+              [disabled]="!isGameMaster()"
+              (click)="setTheme(choice.theme)"
+            >
+              <img class="block h-11 w-full rounded-xs object-cover" [src]="choice.thumbnail" alt="" loading="lazy" />
+              <span class="truncate">{{ genreLabel }}</span>
+            </button>
+          }
+        </div>
+      }
+      <span class="text-ui-dim text-[11px]">{{ 'feature.battleCutIn.pictures' | transloco }}</span>
+      <div class="grid grid-cols-5 gap-1.5">
+        @for (picture of pictures(); track picture.identifier) {
+          @let checked = chosen.background === picture.identifier;
+          <div class="relative min-w-0">
+            <button
+              type="button"
+              role="radio"
+              class="rounded-ui-sm flex w-full min-w-0 cursor-pointer flex-col items-stretch gap-0.5 border border-solid bg-transparent p-0.5 text-[11px] disabled:cursor-default"
+              [class]="checked ? 'border-ui-accent text-ui-accent' : 'border-ui-border-panel'"
+              [attr.aria-checked]="checked"
+              [attr.aria-label]="picture.name"
+              [title]="picture.name"
+              [attr.data-testid]="'battle-picture-' + picture.identifier"
+              [disabled]="!isGameMaster()"
+              (click)="setPicture(picture.identifier)"
+            >
+              @if (picture.url) {
+                <img class="block h-11 w-full rounded-xs object-cover" [src]="picture.url" alt="" loading="lazy" />
+              } @else {
+                <span class="bg-ui-input text-ui-dim flex h-11 items-center justify-center rounded-xs">
+                  <i class="material-icons text-[18px]!">image</i>
+                </span>
+              }
+              <span class="truncate">{{ picture.name }}</span>
+            </button>
+            @if (isGameMaster()) {
+              <button
+                type="button"
+                class="border-ui-border-panel bg-ui-elevated text-ui-muted hover:text-ui-danger absolute -top-1.5 -right-1.5 flex size-5 cursor-pointer items-center justify-center rounded-full border border-solid p-0"
+                [attr.data-testid]="'battle-picture-remove-' + picture.identifier"
+                [attr.aria-label]="'feature.battleCutIn.removePicture' | transloco: { name: picture.name }"
+                [title]="'feature.battleCutIn.removePicture' | transloco: { name: picture.name }"
+                (click)="removePicture(picture.identifier)"
+              >
+                <i class="material-icons text-[13px]!">close</i>
+              </button>
+            }
+          </div>
+        }
+        <button
+          type="button"
+          class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:bg-ui-hover flex min-h-15 w-full min-w-0 cursor-pointer flex-col items-center justify-center gap-0.5 border border-dashed bg-transparent p-0.5 text-[11px] disabled:cursor-default disabled:opacity-45"
+          data-testid="battle-picture-add"
+          [disabled]="!isGameMaster() || picturesFull()"
+          (click)="addPicture()"
+        >
+          <i class="material-icons text-[20px]!">add_photo_alternate</i>
+          <span>{{ 'feature.battleCutIn.addPicture' | transloco }}</span>
+        </button>
+      </div>
+      <p class="text-ui-dim m-0 text-[11px]">
+        {{ 'feature.battleCutIn.picturesHint' | transloco: { limit: pictureLimit } }}
+      </p>
+    </div>
+    <label class="flex cursor-pointer items-center gap-2 text-[12px] [accent-color:var(--ui-accent)]">
+      <input
+        type="checkbox"
+        data-testid="battle-defeat"
+        [disabled]="!isGameMaster()"
+        [checked]="settings().defeat"
+        (change)="setDefeat($any($event.target).checked)"
+      />
+      <span>{{ 'feature.battleCutIn.defeatOn' | transloco }}</span>
+    </label>
+    @if (settings().defeat) {
+      <label class="flex items-center gap-2 text-[12px]">
+        <span class="text-ui-muted w-16 shrink-0">{{ 'feature.battleCutIn.defeatResource' | transloco }}</span>
+        <input
+          type="text"
+          class="border-ui-border-panel bg-ui-input text-ui-text w-24 rounded-[3px] border border-solid px-1.5 py-0.5 text-[12px] disabled:opacity-60"
+          data-testid="battle-defeat-resource"
+          [disabled]="!isGameMaster()"
+          [value]="settings().defeatResource"
+          (change)="setDefeatResource($any($event.target).value)"
+        />
+        <span class="text-ui-dim text-[11px]">{{ 'feature.battleCutIn.defeatResourceHint' | transloco }}</span>
+      </label>
+      <label class="flex items-center gap-2 text-[12px]">
+        <span class="text-ui-muted w-16 shrink-0">{{ 'feature.battleCutIn.defeatEffect' | transloco }}</span>
+        <select
+          class="border-ui-border-panel bg-ui-input text-ui-text min-w-0 flex-1 rounded-[3px] border border-solid px-1.5 py-0.5 text-[12px] disabled:opacity-60"
+          data-testid="battle-defeat-effect"
+          [disabled]="!isGameMaster()"
+          [ngModel]="settings().defeatEffect"
+          (ngModelChange)="setDefeatEffect($event)"
+        >
+          <option [ngValue]="''">{{ 'feature.battleCutIn.defaultDefeatEffect' | transloco }}</option>
+          @for (group of effectGroups(); track group.tag) {
+            <optgroup [label]="group.tag">
+              @for (name of group.names; track name) {
+                <option [ngValue]="name">{{ name }}</option>
+              }
+            </optgroup>
+          }
+        </select>
+      </label>
+    }
+  </section>
+</div>
+
+<ng-template #pieceTemplate let-row>
+  <div class="flex min-w-0 flex-1 items-center gap-1.5">
+    <span class="bg-ui-input flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-[3px]">
+      @if (row.imageUrl) {
+        <img class="size-full object-contain" [src]="row.imageUrl" alt="" />
+      } @else {
+        <i class="material-icons text-ui-dim text-[16px]!">person</i>
+      }
+    </span>
+    <span class="min-w-0 flex-1 truncate text-[12px]">{{ row.name }}</span>
+  </div>
+</ng-template>

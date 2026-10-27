@@ -189,7 +189,7 @@ export class RotableDirective {
   }
 
   private get isReadOnly(): boolean {
-    return !this.rolePermission.canEditTabletop;
+    return !this.rolePermission.canEditTabletop();
   }
 
   /**

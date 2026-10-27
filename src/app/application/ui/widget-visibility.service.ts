@@ -1,9 +1,6 @@
 import { effect, Injectable, signal } from '@angular/core';
-
-/** Where this seat's own choice is kept in the browser. */
-export const WIDGET_VISIBILITY_STORAGE_KEY = 'ui-widgets';
-
-const STORAGE_KEY = WIDGET_VISIBILITY_STORAGE_KEY;
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 
 export interface WidgetVisibility {
   readonly clock: boolean;
@@ -56,7 +53,7 @@ export function parseWidgetVisibility(raw: string | null): WidgetVisibility {
 
 @Injectable({ providedIn: 'root' })
 export class WidgetVisibilityService {
-  private readonly restored = parseWidgetVisibility(localStorage.getItem(STORAGE_KEY));
+  private readonly restored = parseWidgetVisibility(readLocal(STORAGE_KEYS.widgets));
 
   readonly clock = signal(this.restored.clock);
   readonly compass = signal(this.restored.compass);
@@ -81,7 +78,7 @@ export class WidgetVisibilityService {
         plToolbar: this.plToolbar(),
         gmToolbar: this.gmToolbar(),
       };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      writeLocal(STORAGE_KEYS.widgets, JSON.stringify(state));
     });
   }
 

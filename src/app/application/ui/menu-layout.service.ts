@@ -1,23 +1,18 @@
 import { computed, Injectable, Signal, signal } from '@angular/core';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEY_PREFIXES, storageKeyFor } from '@axe/core/storage/storage-keys';
 import { defaultMenuLayout } from '@axe/domain/ui/builtin-menu-layouts';
 import { MENU_SURFACES, MenuSurface } from '@axe/domain/ui/menu-command';
 import { encodeMenuLayout, MenuLayout, parseMenuLayout } from '@axe/domain/ui/menu-layout';
 import { MenuLayoutFile } from '@axe/domain/ui/menu-layout-file';
 
-const STORAGE_PREFIX = 'axe.menu';
-
 function storageKey(surface: MenuSurface): string {
-  return `${STORAGE_PREFIX}.${surface}`;
+  return storageKeyFor(STORAGE_KEY_PREFIXES.menuLayout, surface);
 }
 
 function stored(surface: MenuSurface): MenuLayout | null {
-  try {
-    const held = localStorage.getItem(storageKey(surface));
-    return held === null ? null : parseMenuLayout(held);
-  } catch {
-    // A browser set to block site data still has to run, and it draws the menus as they came.
-    return null;
-  }
+  const held = readLocal(storageKey(surface));
+  return held === null ? null : parseMenuLayout(held);
 }
 
 /**
@@ -51,11 +46,7 @@ export class MenuLayoutService {
   /** Writes the menu down as it now stands. */
   save(surface: MenuSurface, layout: MenuLayout): void {
     this.slot(surface).set(layout);
-    try {
-      localStorage.setItem(storageKey(surface), encodeMenuLayout(layout));
-    } catch {
-      // The arrangement holds for this session even where it cannot be kept for the next.
-    }
+    writeLocal(storageKey(surface), encodeMenuLayout(layout));
   }
 
   /**
@@ -67,11 +58,7 @@ export class MenuLayoutService {
    */
   reset(surface: MenuSurface): void {
     this.slot(surface).set(null);
-    try {
-      localStorage.removeItem(storageKey(surface));
-    } catch {
-      // Nothing more to do: the menu is already back the way it came for this session.
-    }
+    writeLocal(storageKey(surface), null);
   }
 
   /** The arrangements this screen has made, for writing out. A menu left as it came is left out. */

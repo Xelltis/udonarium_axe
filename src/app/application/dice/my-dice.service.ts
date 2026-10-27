@@ -5,9 +5,9 @@ import { downscaleImageBlob } from '@axe/core/storage/image-downscale';
 import { ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { looksLikeImage } from '@axe/core/storage/image-sniff';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { asDiceLook, DiceLook, DicePictureFit, PLAIN_DICE_LOOK } from '@axe/domain/dice/dice-3d/dice-look';
-
-const STORAGE_KEY = 'my-dice';
 
 /** The largest a dice picture may be once resampled, on its longer side: a die is never drawn larger. */
 export const DICE_PICTURE_MAX_SIDE = 512;
@@ -37,6 +37,7 @@ export const DICE_PICTURE_PREPARER = new InjectionToken<(picture: Blob) => Promi
 export class MyDiceService {
   private readonly prepare = inject(DICE_PICTURE_PREPARER);
   private readonly permission = inject(RolePermissionService);
+  private readonly imageStorage = inject(ImageStorage);
   private readonly pictures = DiceImageStore.instance;
   private readonly current = signal<DiceLook>(storedLook());
   private restoring: Promise<void> | null = null;
@@ -47,11 +48,7 @@ export class MyDiceService {
   set(look: DiceLook): void {
     const tidy = asDiceLook(look);
     this.current.set(tidy);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(tidy));
-    } catch {
-      // Private browsing refuses the write; the look still holds for this session.
-    }
+    writeLocal(STORAGE_KEYS.myDice, JSON.stringify(tidy));
   }
 
   /**
@@ -63,7 +60,7 @@ export class MyDiceService {
    * was taken; the trouble said is the only word of it.
    */
   async setPicture(file: Blob): Promise<DicePictureTrouble | null> {
-    if (!this.permission.canEditTabletop) return 'notAllowed';
+    if (!this.permission.canEditTabletop()) return 'notAllowed';
     if (file.size > DICE_PICTURE_MAX_BYTES) return 'tooLarge';
     if (!(await looksLikeImage(file))) return 'notPicture';
     const image = await ImageFile.createAsync(await this.prepare(file));
@@ -73,8 +70,8 @@ export class MyDiceService {
       return 'unstored';
     }
     const before = this.look().picture;
-    ImageStorage.instance.add(image, { putBack: this.permission.canEditShared });
-    if (ImageStorage.instance.isRemoved(image.identifier)) {
+    this.imageStorage.add(image, { putBack: this.permission.canEditShared() });
+    if (this.imageStorage.isRemoved(image.identifier)) {
       image.destroy();
       if (before !== image.identifier) void this.pictures.remove(image.identifier);
       return 'removed';
@@ -105,10 +102,10 @@ export class MyDiceService {
    */
   ensureShared(): Promise<void> {
     const picture = this.look().picture;
-    if (!picture || !this.permission.canEditTabletop || ImageStorage.instance.isRemoved(picture)) {
+    if (!picture || !this.permission.canEditTabletop() || this.imageStorage.isRemoved(picture)) {
       return Promise.resolve();
     }
-    const held = ImageStorage.instance.get(picture);
+    const held = this.imageStorage.get(picture);
     if (held && ImageState.COMPLETE <= held.state) return Promise.resolve();
     this.restoring ??= this.restore(picture).finally(() => (this.restoring = null));
     return this.restoring;
@@ -118,13 +115,13 @@ export class MyDiceService {
     const bytes = await this.pictures.get(picture);
     if (!bytes) return;
     const named = new File([bytes], `${picture}.${extensionOf(bytes.type)}`, { type: bytes.type });
-    await ImageStorage.instance.addAsync(named);
+    await this.imageStorage.addAsync(named);
   }
 }
 
 function storedLook(): DiceLook {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = readLocal(STORAGE_KEYS.myDice);
     return raw ? asDiceLook(JSON.parse(raw)) : PLAIN_DICE_LOOK;
   } catch {
     return PLAIN_DICE_LOOK;

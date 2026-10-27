@@ -2,9 +2,9 @@ import { computed, Directive, inject, input } from '@angular/core';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { TerrainBatchService } from '@axe/application/tabletop/terrain-batch.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SquareCap } from '@axe/domain/tabletop/terrain-batch/square-caps';
+import { TerrainBatchService } from '@axe/features/tabletop/terrain-batch/terrain-batch.service';
 import { BatchBackground, capBackground } from '@axe/features/tabletop/terrain-batch/terrain-batch-look';
 import { shadeRgbOf } from '@axe/ui/tabletop/shaded-background';
 

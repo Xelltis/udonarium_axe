@@ -19,7 +19,7 @@ describe('FilesTooLargeEventHandlerService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     canEdit = true;
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockImplementation(() => canEdit);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockImplementation(() => canEdit);
     editAll = vi
       .spyOn(TestBed.inject(ImageEditQueue), 'editAll')
       .mockImplementation(async (files: readonly File[], added?: ImageAdded) => {

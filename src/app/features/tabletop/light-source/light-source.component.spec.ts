@@ -6,7 +6,7 @@ import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { LightSource } from '@axe/domain/tabletop/light-source';
-import { LightSettingsComponent } from '@axe/features/tabletop/light-settings/light-settings.component';
+import { LightSettingsComponent } from '@axe/features/light-settings/light-settings.component';
 import { LightSourceComponent } from '@axe/features/tabletop/light-source/light-source.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 

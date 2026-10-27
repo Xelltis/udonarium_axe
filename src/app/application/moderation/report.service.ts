@@ -20,11 +20,12 @@ export interface ReportSubject {
 @Injectable({ providedIn: 'root' })
 export class ReportService {
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly assetHttpStore = inject(AssetHttpStore);
 
   /** Whether this seat may report: in a room on a room server, where the room's store is in reach. */
   readonly canReport = computed(() => {
     this.objectChange.networkVersion();
-    return Network.transport === 'server' && Network.peerContext.isRoom && AssetHttpStore.instance.isEnabled;
+    return Network.transport === 'server' && Network.peerContext.isRoom && this.assetHttpStore.isEnabled;
   });
 
   /** Whether a picture or sound may be reported: one a person added, named by its hash. */
@@ -39,8 +40,8 @@ export class ReportService {
   send(subject: ReportSubject, reason: string): Promise<ReportResult> {
     const trimmed = reason.trim();
     if (trimmed.length === 0 || MAX_REPORT_REASON_LENGTH < trimmed.length) return Promise.resolve('refused');
-    if (subject.target === 'room') return AssetHttpStore.instance.report({ target: 'room', reason: trimmed });
+    if (subject.target === 'room') return this.assetHttpStore.report({ target: 'room', reason: trimmed });
     if (!subject.assetId || !this.isReportable(subject.assetId)) return Promise.resolve('refused');
-    return AssetHttpStore.instance.report({ target: 'asset', assetId: subject.assetId, reason: trimmed });
+    return this.assetHttpStore.report({ target: 'asset', assetId: subject.assetId, reason: trimmed });
   }
 }

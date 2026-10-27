@@ -27,6 +27,8 @@ Comment: 本プロジェクトで作成した素材です。作り方は次の�
  images/trump/*.webpは数札・エース・裏面・白紙が作図、絵札とジョーカーの人物画は
  ローカルのComfyUIによる生成で、指標を重ねたもの。
  images/stamps/*/*.webpはAdobe Fireflyによる生成で、背景を抜いて白い縁を付けたもの。
+ images/battle/*.webpはAdobe Fireflyによる生成で、WebPにしたもの。
+ images/battle/thumb/*.webpはその縮小版。
 
 Files: images/dice/*
  sounds/alarm/*
@@ -132,6 +134,19 @@ Copyright: Google LLC
 License: Apache-2.0
 Comment: Material Icons v145のwoff2をGoogle Fontsから取り込んだもの。
  https://fonts.google.com/icons
+
+Files: fonts/chat/*
+Copyright: 2021 The Shippori Mincho Project Authors (https://github.com/fontdasu/ShipporiMincho)
+ 2021 The Zen Maru Gothic Authors (https://github.com/googlefonts/zen-marugothic)
+ 2020 The Yomogi Project Authors (https://github.com/satsuyako/YomogiFont)
+ 2020 The MochiyPop Project Authors (https://github.com/fontdasu/Mochiypop)
+ 2020 The DotGothic16 Project Authors (https://github.com/fontworks-fonts/DotGothic16/)
+License: OFL-1.1
+Comment: チャットの装飾で選べる書体です。Shippori Mincho（明朝）、Zen Maru Gothic（丸ゴシック）、
+ Yomogi（手書き）、Mochiy Pop One（ポップ）、DotGothic16（ドット）の太さ400を、
+ npmの@fontsourceの各パッケージからビルド時に写したものです。フォルダごとに、
+ 文字の範囲で分けたwoff2と、それを読み込むCSS（400.css）と、ライセンス全文（LICENSE）が入っています。
+ 配布元: https://fontsource.org/
 
 Files: fonts/replay/*
 Copyright: © 2014-2021 Adobe (http://www.adobe.com/).

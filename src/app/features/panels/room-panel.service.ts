@@ -250,6 +250,14 @@ export class RoomPanelService {
             ),
           option: { width: 360, height: 480 },
         };
+      case 'battleCutIn':
+        return {
+          load: () =>
+            import('@axe/features/battle-cut-in/battle-cut-in-panel/battle-cut-in-panel.component').then(
+              (m) => m.BattleCutInPanelComponent
+            ),
+          option: { width: 420, height: 620, minWidth: 340, minHeight: 360, single: 'battle-cut-in' },
+        };
       case 'mapEditor':
         return {
           load: () =>
@@ -259,7 +267,7 @@ export class RoomPanelService {
       case 'dungeonGenerator':
         return {
           load: () =>
-            import('@axe/features/tabletop/dungeon-generator/dungeon-generator.component').then(
+            import('@axe/features/dungeon-generator/dungeon-generator.component').then(
               (m) => m.DungeonGeneratorComponent
             ),
           option: { width: 460, height: 660, minWidth: 400, minHeight: 520 },

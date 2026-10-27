@@ -1,3 +1,5 @@
+import { contrastRatio, parseHexColor, relativeLuminance } from '@axe/core/util/tonal-color';
+
 export const REPLAY_MIN_CONTRAST = 4.5;
 
 /**
@@ -8,49 +10,20 @@ export const REPLAY_MIN_CONTRAST = 4.5;
  * colour or no lightness reaches the contrast.
  */
 export function readableOn(color: string, background: [number, number, number], fallback: string): string {
-  const rgb = parseHex(color);
+  const rgb = parseHexColor(color.trim());
   if (!rgb) return fallback;
 
-  const backdrop = luminanceOf(background);
-  if (contrastOf(luminanceOf(rgb), backdrop) >= REPLAY_MIN_CONTRAST) return toHex(rgb);
+  const backdrop = relativeLuminance(background);
+  if (contrastRatio(relativeLuminance(rgb), backdrop) >= REPLAY_MIN_CONTRAST) return toHex(rgb);
 
   const [hue, saturation] = rgbToHsl(rgb);
   const wantsLighter = backdrop < 0.5;
   for (let step = 1; step <= 20; step += 1) {
     const lightness = wantsLighter ? 0.5 + step * 0.025 : 0.5 - step * 0.025;
     const lifted = hslToRgb(hue, saturation, Math.max(0, Math.min(1, lightness)));
-    if (contrastOf(luminanceOf(lifted), backdrop) >= REPLAY_MIN_CONTRAST) return toHex(lifted);
+    if (contrastRatio(relativeLuminance(lifted), backdrop) >= REPLAY_MIN_CONTRAST) return toHex(lifted);
   }
   return fallback;
-}
-
-function contrastOf(a: number, b: number): number {
-  const lighter = Math.max(a, b);
-  const darker = Math.min(a, b);
-  return (lighter + 0.05) / (darker + 0.05);
-}
-
-function luminanceOf([r, g, b]: [number, number, number]): number {
-  const lin = (c: number): number => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
-  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-}
-
-function parseHex(hex: string): [number, number, number] | null {
-  const clean = hex.trim().replace(/^#/, '');
-  if (clean.length !== 6 && clean.length !== 3) return null;
-  const full =
-    clean.length === 3
-      ? clean
-          .split('')
-          .map((one) => one + one)
-          .join('')
-      : clean;
-  if (!/^[0-9a-fA-F]{6}$/.test(full)) return null;
-  return [
-    parseInt(full.slice(0, 2), 16) / 255,
-    parseInt(full.slice(2, 4), 16) / 255,
-    parseInt(full.slice(4, 6), 16) / 255,
-  ];
 }
 
 function toHex([r, g, b]: [number, number, number]): string {

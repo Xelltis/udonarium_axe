@@ -84,7 +84,7 @@ describe('FileStorageComponent', () => {
     });
 
     it('leaves the tags alone for a guest', () => {
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
       TestBed.inject(ImageStorage).add('a-drawing');
       component.imgBlockClick('a-drawing');
       component.newTagName.set('地図');
@@ -323,7 +323,7 @@ describe('FileStorageComponent', () => {
 
     beforeEach(() => {
       canEdit = true;
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockImplementation(() => canEdit);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockImplementation(() => canEdit);
       opened = [];
       vi.spyOn(TestBed.inject(ImageEditQueue), 'edit').mockImplementation(async (request) => {
         opened.push({
@@ -477,7 +477,7 @@ describe('FileStorageComponent', () => {
     let canEdit: boolean;
 
     beforeEach(() => {
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockImplementation(() => canEdit);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockImplementation(() => canEdit);
       TestBed.inject(ImageStorage).add('a-drawing');
     });
 

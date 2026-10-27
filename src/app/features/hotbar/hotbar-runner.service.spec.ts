@@ -10,10 +10,10 @@ import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-i
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
-import { FIRST_PERSON_PIECE_STORAGE_KEY } from '@axe/application/ui/first-person-preference.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -330,7 +330,7 @@ describe('HotbarRunnerService', () => {
       let firstPerson: FirstPersonService;
 
       beforeEach(() => {
-        localStorage.removeItem(FIRST_PERSON_PIECE_STORAGE_KEY);
+        localStorage.removeItem(STORAGE_KEYS.firstPersonPiece);
         table = new GameTable();
         table.width = 12;
         table.height = 12;
@@ -341,7 +341,7 @@ describe('HotbarRunnerService', () => {
         firstPerson = TestBed.inject(FirstPersonService);
       });
 
-      afterEach(() => localStorage.removeItem(FIRST_PERSON_PIECE_STORAGE_KEY));
+      afterEach(() => localStorage.removeItem(STORAGE_KEYS.firstPersonPiece));
 
       it('goes in, and the same slot comes back out again', () => {
         expect(run(slotOf('firstPerson', ''), character)).toEqual({ ok: true });

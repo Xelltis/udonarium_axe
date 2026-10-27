@@ -1,8 +1,8 @@
 import { DOCUMENT } from '@angular/common';
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { ViewportService } from '@axe/application/ui/viewport.service';
-
-const STORAGE_KEY = 'ui-mobile-layout';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 
 export const MIN_TABLE_RATIO = 0.2;
 export const MAX_TABLE_RATIO = 0.85;
@@ -47,7 +47,7 @@ export function parseMobileLayoutState(raw: string | null): MobileLayoutState {
 export class MobileLayoutService {
   private readonly document = inject(DOCUMENT);
   private readonly viewport = inject(ViewportService);
-  private readonly restored = parseMobileLayoutState(localStorage.getItem(STORAGE_KEY));
+  private readonly restored = parseMobileLayoutState(readLocal(STORAGE_KEYS.mobileLayout));
 
   readonly prefersDesktop = signal(this.restored.prefersDesktop);
   readonly tableRatio = signal(this.restored.tableRatio);
@@ -68,11 +68,7 @@ export class MobileLayoutService {
         prefersDesktop: this.prefersDesktop(),
         tableRatio: this.tableRatio(),
       };
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      } catch {
-        /* storage unavailable (private mode etc) — the layout just resets next time */
-      }
+      writeLocal(STORAGE_KEYS.mobileLayout, JSON.stringify(state));
     });
   }
 

@@ -1,5 +1,6 @@
 import { NgStyle } from '@angular/common';
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -7,6 +8,7 @@ import {
   effect,
   ElementRef,
   inject,
+  Injector,
   input,
   signal,
   untracked,
@@ -25,7 +27,9 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
+import { transientSignal } from '@axe/application/ui/transient-signal';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { debounce } from '@axe/core/util/debounce';
 import { DataElement } from '@axe/domain/data/data-element';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
@@ -89,6 +93,7 @@ export class TextNoteComponent {
   private readonly visionService = inject(VisionService);
   protected readonly tabletopService = inject(TabletopService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
   private readonly translateFn = inject(TRANSLATE_FN);
 
   readonly isHiddenByFog = computed(() => {
@@ -112,9 +117,7 @@ export class TextNoteComponent {
       transformCssOffset: translateZCss(Z_OFFSET_TABLETOP_OBJECT_PX),
     });
     this.destroyRef.onDestroy(() => {
-      if (this._transitionTimeout) clearTimeout(this._transitionTimeout);
-      if (this._fallTimeout) clearTimeout(this._fallTimeout);
-      if (this.textUpdateTimer) clearTimeout(this.textUpdateTimer);
+      this.writeTextSoon.cancel();
     });
     effect(() => {
       const note = this.textNote();
@@ -133,10 +136,9 @@ export class TextNoteComponent {
     // A seat made a guest while it wrote leaves the note as the room has it, the draft unwritten.
     effect(() => {
       this.objectChange.trackMyCursor();
-      if (this.rolePermission.canEditTabletop || !untracked(this.isEditing)) return;
+      if (this.rolePermission.canEditTabletop() || !untracked(this.isEditing)) return;
       untracked(() => {
-        if (this.textUpdateTimer) clearTimeout(this.textUpdateTimer);
-        this.textUpdateTimer = null;
+        this.writeTextSoon.cancel();
         this._text.set(this.textNote().text);
         this.isEditing.set(false);
       });
@@ -176,18 +178,21 @@ export class TextNoteComponent {
    * it hides and write back whatever was typed over it.
    */
   enterEdit() {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     if (!this.canView()) return;
     if (this.textNote().isLock) return;
     if (this.isEditing()) return;
     this.isEditing.set(true);
-    setTimeout(() => {
-      const el = this.textAreaElementRef()?.nativeElement;
-      if (!el) return;
-      el.focus();
-      el.setSelectionRange(el.value.length, el.value.length);
-      this.calcFitHeight();
-    });
+    afterNextRender(
+      () => {
+        const el = this.textAreaElementRef()?.nativeElement;
+        if (!el) return;
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+        this.calcFitHeight();
+      },
+      { injector: this.injector }
+    );
   }
 
   /** Leaves editing when the text area loses focus. */
@@ -231,7 +236,11 @@ export class TextNoteComponent {
 
   private readonly _text = signal('');
   private readonly _fontSize = signal(9);
-  private textUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly writeTextSoon = debounce(() => {
+    const note = this.textNote();
+    if (note.text !== this._text()) note.text = this._text();
+    this.calcFitHeightIfNeeded();
+  }, 66);
 
   /**
    * The note's text as held by the text area.
@@ -244,21 +253,11 @@ export class TextNoteComponent {
   }
   set text(text: string) {
     this._text.set(text);
-    this.setTextUpdateTimer();
+    this.writeTextSoon();
   }
   /** The note's font size setting; the text is drawn at this many pixels plus 9. */
   get fontSize(): number {
     return this._fontSize();
-  }
-
-  private setTextUpdateTimer() {
-    if (this.textUpdateTimer) clearTimeout(this.textUpdateTimer);
-    this.textUpdateTimer = setTimeout(() => {
-      const note = this.textNote();
-      if (note.text !== this._text()) note.text = this._text();
-      this.textUpdateTimer = null;
-      this.calcFitHeightIfNeeded();
-    }, 66);
   }
 
   readonly imageFile = computed(() => {
@@ -343,8 +342,7 @@ export class TextNoteComponent {
   }
   math = Math;
 
-  private _transitionTimeout: ReturnType<typeof setTimeout> | null = null;
-  private readonly _transition = signal(false);
+  private readonly _transition = transientSignal(false, 132);
   /**
    * Whether the note animates as it stands up or lies down.
    *
@@ -354,19 +352,10 @@ export class TextNoteComponent {
     return this._transition();
   }
   set transition(transition: boolean) {
-    if (this._transitionTimeout) clearTimeout(this._transitionTimeout);
-    if (transition) {
-      this._transition.set(true);
-      this._transitionTimeout = setTimeout(() => {
-        this._transition.set(false);
-      }, 132);
-    } else {
-      this._transition.set(false);
-      this._transitionTimeout = null;
-    }
+    if (transition) this._transition.show(true);
+    else this._transition.clear();
   }
-  private _fallTimeout: ReturnType<typeof setTimeout> | null = null;
-  private readonly _fall = signal(false);
+  private readonly _fall = transientSignal(false, 132);
   /**
    * Whether the note animates a drop with a slight bounce.
    *
@@ -376,16 +365,8 @@ export class TextNoteComponent {
     return this._fall();
   }
   set fall(fall: boolean) {
-    if (this._fallTimeout) clearTimeout(this._fallTimeout);
-    if (fall) {
-      this._fall.set(true);
-      this._fallTimeout = setTimeout(() => {
-        this._fall.set(false);
-      }, 132);
-    } else {
-      this._fall.set(false);
-      this._fallTimeout = null;
-    }
+    if (fall) this._fall.show(true);
+    else this._fall.clear();
   }
 
   private calcFitHeightTimer: ReturnType<typeof setTimeout> | null = null;
@@ -418,7 +399,7 @@ export class TextNoteComponent {
   onMouseDown(e: MouseEvent) {
     if (this.isSelected) return;
     e.preventDefault();
-    if (this.rolePermission.canEditTabletop) this.textNote().toTopmost();
+    if (this.rolePermission.canEditTabletop()) this.textNote().toTopmost();
 
     if (e.button === 2) return;
     this.addMouseEventListeners();

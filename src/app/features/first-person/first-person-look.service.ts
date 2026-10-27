@@ -1,6 +1,7 @@
 import { computed, DestroyRef, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { MotionService } from '@axe/application/ui/motion.service';
+import { capturePointer } from '@axe/core/input/pointer-capture';
 import { FirstPersonPose } from '@axe/domain/tabletop/first-person/first-person-lattice';
 import {
   FirstPersonLook,
@@ -199,7 +200,7 @@ export class FirstPersonLookService {
  */
 function holdOn(element: Element | null, pointerId: number): void {
   try {
-    element?.setPointerCapture?.(pointerId);
+    capturePointer(element, pointerId);
   } catch {
     return;
   }

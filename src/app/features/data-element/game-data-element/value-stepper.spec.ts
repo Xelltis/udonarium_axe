@@ -1,4 +1,9 @@
-import { canStep, numericInputMode, stepValue } from '@axe/features/data-element/game-data-element/value-stepper';
+import {
+  canStep,
+  clampToBounds,
+  numericInputMode,
+  stepValue,
+} from '@axe/features/data-element/game-data-element/value-stepper';
 
 const open = { min: '', max: '' };
 
@@ -50,5 +55,23 @@ describe('numericInputMode', () => {
   it('keeps the ordinary keyboard where the value may be negative', () => {
     expect(numericInputMode('')).toBeNull();
     expect(numericInputMode('-10')).toBeNull();
+  });
+});
+
+describe('clampToBounds', () => {
+  it('holds a number between its bounds', () => {
+    expect(clampToBounds(12, { min: '0', max: '10' })).toBe(10);
+    expect(clampToBounds(-3, { min: '0', max: '10' })).toBe(0);
+    expect(clampToBounds(5, { min: '', max: '' })).toBe(5);
+  });
+
+  it('reads a number typed as text, and hands it back as a number', () => {
+    expect(clampToBounds('7', { min: '0', max: '5' })).toBe(5);
+    expect(clampToBounds('3', { min: '0', max: '5' })).toBe(3);
+  });
+
+  it('leaves an empty value and text that is not a number as they were', () => {
+    expect(clampToBounds('', { min: '0', max: '5' })).toBe('');
+    expect(clampToBounds('たくさん', { min: '0', max: '5' })).toBe('たくさん');
   });
 });

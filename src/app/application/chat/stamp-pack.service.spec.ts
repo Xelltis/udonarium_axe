@@ -13,7 +13,7 @@ describe('StampPackService', () => {
     for (const pack of ObjectStore.instance.getObjects<StampPack>(StampPack)) pack.destroy();
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     canEdit = true;
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockImplementation(() => canEdit);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockImplementation(() => canEdit);
     service = TestBed.inject(StampPackService);
   });
 

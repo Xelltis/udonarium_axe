@@ -1,3 +1,4 @@
+import { clamp } from '@axe/core/util/clamp';
 import { PieceGauge } from '@axe/domain/character/piece-gauge';
 
 export const MAX_MULTI_ANGLE_RESOURCE_GAUGES = 4;
@@ -38,10 +39,6 @@ export interface MultiAngleBuffOrbitLayout {
   readonly radius: number;
   readonly iconSize: number;
   readonly angles: readonly number[];
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
 }
 
 function rounded(value: number): number {

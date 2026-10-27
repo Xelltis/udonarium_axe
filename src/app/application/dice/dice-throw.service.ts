@@ -433,7 +433,7 @@ export class DiceThrowService {
   }
 
   private get config(): Config {
-    return this.objectStore.get<Config>('Config') ?? Config.instance;
+    return Config.instance;
   }
 
   /** The line, at once if it is here, or when it arrives within a few seconds. */

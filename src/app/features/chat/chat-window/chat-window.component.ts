@@ -15,11 +15,9 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.service';
-import { ChatBookmarkService } from '@axe/application/chat/chat-bookmark.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
-import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -28,6 +26,7 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { delay } from '@axe/core/util/delay';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
@@ -37,6 +36,7 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { ChatBookmarkService } from '@axe/features/chat/chat-bookmark.service';
 import { ChatBookmarkListComponent } from '@axe/features/chat/chat-bookmark/chat-bookmark-list.component';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
@@ -49,6 +49,7 @@ import { ChatStreamPanelService } from '@axe/features/chat/chat-stream/chat-stre
 import { ChatTabComponent } from '@axe/features/chat/chat-tab/chat-tab.component';
 import { ChatTabSettingComponent } from '@axe/features/chat/chat-tab-setting/chat-tab-setting.component';
 import { ChatTabStripComponent } from '@axe/features/chat/chat-tab-strip/chat-tab-strip.component';
+import { ChatTickerSelectionService } from '@axe/features/chat/chat-ticker-selection.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -234,7 +235,7 @@ export class ChatWindowComponent {
     if (this.chatTabidentifier !== tab.identifier) {
       this.chatTabidentifier = tab.identifier;
       // Turning to a tab sends the log to its foot a task later; the line is sought after that.
-      await new Promise<void>((resolve) => setTimeout(resolve));
+      await delay();
       await new Promise<void>((resolve) => afterNextRender(() => resolve(), { injector: this.injector }));
     }
     const line = await this.revealLine(message);

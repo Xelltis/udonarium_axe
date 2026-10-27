@@ -1,13 +1,7 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import {
-  centreOf,
-  EngagementZoneService,
-  metresPerCell,
-  ZoneMoveLimits,
-  ZoneMoveStart,
-} from '@axe/application/tabletop/engagement-zone.service';
+import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { InterruptOutcome, MoveInterruptService } from '@axe/application/tabletop/move-interrupt.service';
 import {
   kindToChangeTo,
@@ -19,21 +13,24 @@ import {
   UnstoppableBand,
   unstoppableBandOf,
 } from '@axe/application/tabletop/move-plan-common';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
+import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
-import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { GridType } from '@axe/domain/tabletop/game-table';
 import { MoveBlock, MovePoint } from '@axe/domain/tabletop/move/blocked-path';
 import { clipToLength, LegLimits, stepsAlong, terrainMoveBlocks, walkLeg } from '@axe/domain/tabletop/move/free-path';
 import { exactMoveCellsOf } from '@axe/domain/tabletop/move/move-cells';
 import { lengthByKind, moveKindNamed } from '@axe/domain/tabletop/move/move-kind';
 import { movingPointsAsRead, writeMovingPoints } from '@axe/domain/tabletop/move/moving-points';
-import { resolveRoomRules, RoomRules } from '@axe/domain/tabletop/room-rules';
+import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
+import { metresPerCell, ZoneMoveLimits, ZoneMoveStart } from '@axe/domain/tabletop/zone/zone-queries';
 
 /**
  * How far short of a face a leg stops, in pixels, so a piece put down on whole pixels does not land
@@ -82,9 +79,11 @@ interface FreeTerms {
 @Injectable({ providedIn: 'root' })
 export class FreeMovePlanService {
   private readonly tableSelecter = inject(TableSelecter);
+  private readonly roomRules = inject(RoomRulesService);
   private readonly objectStore = inject(ObjectStore);
   private readonly pieceStep = inject(PieceStepService);
   private readonly zones = inject(EngagementZoneService);
+  private readonly links = inject(PieceLinksService);
   private readonly interrupts = inject(MoveInterruptService);
   private readonly ride = inject(RideService);
   private readonly objectChange = inject(ObjectChangeService);
@@ -122,7 +121,8 @@ export class FreeMovePlanService {
     // A seat made a guest while it worked a move out drops it, moving nothing.
     effect(() => {
       this.objectChange.trackMyCursor();
-      if (!this.rolePermission.canEditTabletop && untracked(this.held) && !this.walking) untracked(() => this.close());
+      if (!this.rolePermission.canEditTabletop() && untracked(this.held) && !this.walking)
+        untracked(() => this.close());
     });
   }
 
@@ -268,7 +268,7 @@ export class FreeMovePlanService {
    */
   async run(): Promise<boolean> {
     const plan = this.held();
-    if (!plan || this.walking || !this.rolePermission.canEditTabletop) return false;
+    if (!plan || this.walking || !this.rolePermission.canEditTabletop()) return false;
     const character = this.objectStore.get<GameCharacter>(plan.characterIdentifier);
     const table = this.tableSelecter.viewTable;
     const way = this.wholeWay();
@@ -287,20 +287,20 @@ export class FreeMovePlanService {
       const steps = stepsAlong(walked, table.gridSize / 2);
       let standingZ = character.posZ;
       for (const [index, point] of steps.entries()) {
-        if (!this.rolePermission.canEditTabletop) break;
+        if (!this.rolePermission.canEditTabletop()) break;
         standingZ = await this.pieceStep.stepToPoint(character, table, point, index === steps.length - 1, standingZ);
       }
     } finally {
       this.walking = false;
     }
-    if (!this.rolePermission.canEditTabletop) {
+    if (!this.rolePermission.canEditTabletop()) {
       this.close();
       return false;
     }
     SoundEffect.play(PresetSound.piecePut);
     const start = this.zoneStart;
     this.close();
-    this.zones.carryBound(character);
+    this.links.carryBound(character);
     this.ride.dropLeftBehind(character);
     if (start) this.zones.afterMove(character, start);
     if (stopped) {
@@ -348,7 +348,7 @@ export class FreeMovePlanService {
   private termsOf(character: GameCharacter, kindName: string): FreeTerms | null {
     const table = this.tableSelecter.viewTable;
     if (!table || table.gridSize <= 0 || surfaceOf(character) !== 'floor') return null;
-    const rules = this.rulesOf(table);
+    const rules = this.roomRules.rulesFor(table);
     if (!rules.moveRangeEnabled) return null;
     const walk = exactMoveCellsOf(character, rules.moveRangeElementNames, rules.cellDistance, rules.cellDistanceUnit);
     if (walk === null || walk <= 0) return null;
@@ -359,7 +359,7 @@ export class FreeMovePlanService {
     if (zones?.noReach) return null;
     return {
       budgetPx,
-      start: zones?.startPoint ?? centreOf(character, table.gridSize),
+      start: zones?.startPoint ?? pieceCentreOf(character, table.gridSize),
       blocks: terrainMoveBlocks(table.terrains, table.gridSize, character.size),
       zones,
     };
@@ -368,11 +368,7 @@ export class FreeMovePlanService {
   private pxPerMetre(): number {
     const table = this.tableSelecter.viewTable;
     if (!table) return 0;
-    return table.gridSize / metresPerCell(this.rulesOf(table));
-  }
-
-  private rulesOf(table: GameTable): RoomRules {
-    return resolveRoomRules(this.config()?.roomRuleAnswers ?? null, table);
+    return table.gridSize / metresPerCell(this.roomRules.rulesFor(table));
   }
 
   private config(): Config | null {

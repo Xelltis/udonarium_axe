@@ -1,9 +1,6 @@
 import { Injectable, signal } from '@angular/core';
-
-/** Where this seat's own choice is kept in the browser. */
-export const TOOLBAR_FOLD_STORAGE_KEY = 'ui-toolbars';
-
-const STORAGE_KEY = TOOLBAR_FOLD_STORAGE_KEY;
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 
 /** The toolbars a seat can fold away: the player's and the game master's. */
 export type FoldableToolbar = 'pl' | 'gm';
@@ -31,17 +28,13 @@ export class ToolbarFoldService {
   toggle(toolbar: FoldableToolbar): void {
     const next = { ...this.folds(), [toolbar]: !this.folds()[toolbar] };
     this.folds.set(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      // Private browsing refuses the write; the fold still holds for this session.
-    }
+    writeLocal(STORAGE_KEYS.toolbars, JSON.stringify(next));
   }
 }
 
 function storedFolds(): ToolbarFolds {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = readLocal(STORAGE_KEYS.toolbars);
     if (!stored) return ALL_OPEN;
     const parsed: unknown = JSON.parse(stored);
     if (!parsed || typeof parsed !== 'object') return ALL_OPEN;

@@ -21,7 +21,7 @@ export class DiceThrowEventHandlerService {
     diceRolled$.subscribe((event) => {
       const answer = this.objectStore.get<ChatMessage>(event.resultMessageIdentifier);
       if (!(answer instanceof ChatMessage) || !answer.isSendFromSelf) return;
-      const config = this.objectStore.get<Config>('Config') ?? Config.instance;
+      const config = Config.instance;
       if (config.diceStage === 'off') return;
       if (throwPlanOf(answer.rollDetail).dice.length < 1) return;
       // The answer does not say which piece spoke; the line it answers does.

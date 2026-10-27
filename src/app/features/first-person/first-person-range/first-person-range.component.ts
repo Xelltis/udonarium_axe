@@ -19,7 +19,7 @@ import {
   RangeClip,
   rangeClipPathCss,
   rangeQuadrantCells,
-} from '@axe/features/tabletop/range/range-paint';
+} from '@axe/infrastructure/tabletop/range/range-paint';
 
 /**
  * A range area as the table paints it, laid out in table pixels around its origin, for the

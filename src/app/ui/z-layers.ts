@@ -78,3 +78,10 @@ export const Z_PANEL_OVER_MODAL = Z_HOTBAR_PINNED + 20;
 export const Z_VISUAL_NOVEL_OVERLAY = 160;
 export const Z_VISUAL_NOVEL_PANEL = Z_VISUAL_NOVEL_OVERLAY + 10;
 export const Z_VISUAL_NOVEL_PANEL_ABOVE = Z_VISUAL_NOVEL_PANEL + 1;
+
+/**
+ * The battle stage, which the room plays over whatever each screen has up: over the panels, the
+ * toolbars, novel mode and the menu, for the few seconds it plays. Under the bottom sheets at 1000
+ * and anything above them, which the reader opened and is in the middle of using.
+ */
+export const Z_BATTLE_CUT_IN = 900;

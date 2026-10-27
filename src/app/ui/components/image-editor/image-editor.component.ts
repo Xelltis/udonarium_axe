@@ -11,6 +11,7 @@ import {
 import { ImageRelinkService } from '@axe/application/file/image-relink.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { capturePointer } from '@axe/core/input/pointer-capture';
 import { canvasToBlob } from '@axe/core/storage/canvas-blob';
 import { FileArchiver, MAX_LOADED_IMAGE_BYTES } from '@axe/core/storage/file-archiver';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -389,7 +390,7 @@ export class ImageEditorComponent {
       this.redraw();
       return;
     }
-    (event.currentTarget as Element | null)?.setPointerCapture?.(event.pointerId);
+    capturePointer(event.currentTarget, event.pointerId);
     const rect = this.crop();
     const corner = rect ? this.cornerNear(rect, event) : null;
     if (rect && corner) {
@@ -532,7 +533,7 @@ export class ImageEditorComponent {
    */
   async add(asCopy = false): Promise<void> {
     const request = this.request();
-    if (!this.rolePermission.canEditTabletop || !request) return;
+    if (!this.rolePermission.canEditTabletop() || !request) return;
     if (this.state() !== 'ready') return;
     const edit = this.editKey();
     this.state.set('saving');

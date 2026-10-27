@@ -34,6 +34,16 @@ describe('translation keys', () => {
     }
   });
 
+  it('leave nothing empty, which the screens would show as the key itself', () => {
+    const empty = Object.entries(dictionaries).flatMap(([language, dictionary]) =>
+      Object.entries(dictionary)
+        .filter(([, text]) => text === '')
+        .map(([key]) => `${language}: ${key}`)
+    );
+
+    expect(empty).toEqual([]);
+  });
+
   it('cover every key the screens ask for', () => {
     const missing: string[] = [];
     for (const template of templatesIn('src/app')) {

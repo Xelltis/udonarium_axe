@@ -83,6 +83,17 @@ export class EffectCastService {
     return cast;
   }
 
+  /**
+   * Plays an effect on the table on this screen alone, from a shooter at its targets, for
+   * something every screen plays for itself. Nothing is broadcast.
+   */
+  playHere(preset: EffectPreset, targets: readonly GameCharacter[], caster: GameCharacter | null): EffectCast | null {
+    if (targets.length < 1) return null;
+    const cast = this.buildCast(preset, targets, this.casterOutsideTargets(caster, targets));
+    this.playbackService.play(cast);
+    return cast;
+  }
+
   private buildCast(preset: EffectPreset, targets: readonly GameCharacter[], caster: GameCharacter | null): EffectCast {
     const gridSize = this.tabletopService.gridSize();
     const casterCenter = caster ? this.centerOf(caster, gridSize) : null;

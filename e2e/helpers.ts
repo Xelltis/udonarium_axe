@@ -107,7 +107,7 @@ export async function openPanel(page: Page, dataLabel: string) {
 const SUBMENU_LABELS: Readonly<Record<string, readonly string[]>> = {
   table: ['テーブル設定', 'マップエディター', 'マップ生成', '卓上ディスプレイ', 'ノベルモード'],
   gameResources: ['インベントリ', 'バフマネージャー', '状態異常', 'ダイス表設定', '手札'],
-  media: ['画像', 'ジュークボックス', 'カットイン', 'エフェクト'],
+  media: ['画像', 'ジュークボックス', 'カットイン', 'エフェクト', '戦闘カットイン'],
 };
 
 /**
@@ -197,6 +197,7 @@ export const MENU_GROUP_OF: Readonly<Record<string, string>> = {
   バフの表示: 'バフ・演出',
   登録済み射程を出す: 'バフ・演出',
   演出を発動: 'バフ・演出',
+  戦闘カットイン: 'バフ・演出',
   ダイスを展開する: 'バフ・演出',
   '視界・光源設定…': '視界と視点',
   視界範囲を表示: '視界と視点',

@@ -1,0 +1,207 @@
+/* ── UI design tokens ─────────────────────────────────────────
+   Dark theme (the default, and when the system setting is dark)
+   A modern 2026 design based on GitHub Dark Dimmed
+── */
+:root {
+  /* The chat's font size (the chat settings override it) */
+  --chat-font-size: 13px;
+
+  /* Base backgrounds */
+  --ui-bg: #0d1117;
+  --ui-surface: #161b22;
+  --ui-elevated: #21262d;
+
+  /* Panels (glassmorphism) */
+  --ui-panel-bg: rgba(22, 27, 34, 0.9);
+  --ui-panel-border: rgba(48, 54, 61, 0.8);
+  --ui-bubble-caret-border: #2d333a;
+  --ui-panel-glow: rgba(56, 189, 248, 0.04);
+  --ui-titlebar-bg: #1c2128;
+  --ui-titlebar-text: #e6edf3;
+  --ui-titlebar-muted: #8b949e;
+  --ui-titlebar-border: rgba(48, 54, 61, 0.6);
+  --ui-hover: rgba(255, 255, 255, 0.07);
+  --ui-selected: rgba(56, 189, 248, 0.15);
+  --ui-ghost-bg: rgba(0, 0, 0, 0.6);
+  --ui-ghost-header-bg: rgba(0, 0, 0, 0.7);
+
+  /* Context menu */
+  --ui-menu-bg: rgba(13, 17, 23, 0.96);
+  --ui-menu-border: rgba(58, 65, 74, 0.8);
+  --ui-menu-hover: rgba(56, 189, 248, 0.12);
+  --ui-menu-separator: rgba(48, 54, 61, 0.8);
+
+  /* Text */
+  --ui-text: #e6edf3;
+  --ui-text-muted: #8b949e;
+  --ui-text-dim: #677079;
+
+  /* Accent (electric blue) */
+  --ui-accent: #58a6ff;
+  --ui-accent-hover: #79c0ff;
+  --ui-accent-glow: rgba(88, 166, 255, 0.3);
+  --ui-accent-bg: rgba(88, 166, 255, 0.1);
+
+  --ui-quote-bg: #1c222d;
+  --ui-quote-hover-bg: #242c39;
+  --ui-quote-border: #58a6ff;
+  --ui-quote-text: #d8dee9;
+  --ui-quote-name: #9cc7ff;
+
+  /* Danger / error */
+  --ui-danger: #f85149;
+  --ui-danger-hover: #ff7b72;
+  --ui-danger-glow: rgba(248, 81, 73, 0.3);
+  --ui-danger-bg: rgba(248, 81, 73, 0.1);
+
+  /* Success */
+  --ui-success: #3fb950;
+
+  /* Warning */
+  --ui-warning: #d29922;
+
+  /* The colour of the black playing-card suits (♣♠), a blue so they stand out on the dark background */
+  --ui-suit-black: #58a6ff;
+
+  /* Input fields */
+  --ui-input-bg: rgba(13, 17, 23, 0.8);
+  --ui-input-border: rgba(48, 54, 61, 0.8);
+
+  /* Shadows */
+  --ui-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --ui-shadow-md: 0 4px 20px rgba(0, 0, 0, 0.65), 0 1px 4px rgba(0, 0, 0, 0.4);
+  --ui-shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.75), 0 2px 8px rgba(0, 0, 0, 0.5);
+
+  /* Corner radii */
+  --ui-radius-sm: 4px;
+  /* The width of the type picker. Its dropdown appears directly under body, so this lives on :root. */
+  --gde-select-width: 86px;
+  --ui-radius: 8px;
+  --ui-radius-lg: 12px;
+  --ui-radius-xl: 16px;
+
+  /* Transitions */
+  --ui-transition: 150ms ease;
+}
+
+/* light theme — ThemeService adds .theme-light to <html> for the resolved theme
+   (handles both auto-with-system-light and user-forced-light from a single rule). */
+:root.theme-light {
+  --ui-bg: #d4c8e2;
+  --ui-surface: #ded3e8;
+  --ui-elevated: #e8dded;
+
+  --ui-panel-bg: rgba(232, 221, 237, 0.95);
+  --ui-panel-border: rgba(91, 64, 116, 0.42);
+  --ui-bubble-caret-border: #ad9bba;
+  --ui-panel-glow: rgba(135, 87, 239, 0.1);
+  --ui-titlebar-bg: #c4b6d3;
+  --ui-titlebar-text: #4c4564;
+  --ui-titlebar-muted: #564f6e;
+  --ui-titlebar-border: rgba(91, 64, 116, 0.32);
+  --ui-hover: rgba(91, 64, 116, 0.08);
+  --ui-selected: rgba(234, 118, 203, 0.18);
+  --ui-ghost-bg: rgba(232, 221, 237, 0.72);
+  --ui-ghost-header-bg: rgba(196, 182, 211, 0.92);
+
+  --ui-menu-bg: rgba(235, 226, 241, 0.98);
+  --ui-menu-border: rgba(91, 64, 116, 0.42);
+  --ui-menu-hover: rgba(135, 87, 239, 0.14);
+  --ui-menu-separator: rgba(91, 64, 116, 0.28);
+
+  --ui-text: #4c4564;
+  --ui-text-muted: #6e6486;
+  --ui-text-dim: #7f7494;
+  --color-ui-accent-solid: var(--color-ui-accent);
+
+  --ui-accent: #1e66f5;
+  --ui-accent-hover: #0a4dd9;
+  --ui-accent-glow: rgba(30, 102, 245, 0.3);
+  --ui-accent-bg: rgba(30, 102, 245, 0.14);
+
+  --ui-quote-bg: #eaedf4;
+  --ui-quote-hover-bg: #dfe3ee;
+  --ui-quote-border: #1e66f5;
+  --ui-quote-text: #2a2740;
+  --ui-quote-name: #1e3a8a;
+
+  --ui-danger: #d20f39;
+  --ui-danger-hover: #b00b30;
+  --ui-danger-glow: rgba(210, 15, 57, 0.28);
+  --ui-danger-bg: rgba(210, 15, 57, 0.1);
+
+  --ui-success: #40a02b;
+  --ui-warning: #8c5a00;
+
+  /* Light mode: the black suits (♣♠) are black, as is traditional */
+  --ui-suit-black: #000000;
+
+  --ui-input-bg: #ebe2f1;
+  --ui-input-border: rgba(91, 64, 116, 0.28);
+
+  --ui-shadow-sm: 0 2px 8px rgba(91, 64, 116, 0.14);
+  --ui-shadow-md: 0 4px 20px rgba(91, 64, 116, 0.18), 0 1px 4px rgba(91, 64, 116, 0.1);
+  --ui-shadow-lg: 0 8px 40px rgba(91, 64, 116, 0.22), 0 2px 8px rgba(91, 64, 116, 0.14);
+}
+
+/* Right-dragged piece menus use this translucent crosshair both while dragging and
+   while the menu is open. It is deliberately larger than a mouse pointer. */
+.piece-right-drag-center {
+  position: fixed;
+  z-index: 10001;
+  width: 40px;
+  height: 40px;
+  box-sizing: border-box;
+  border: 2px solid color-mix(in srgb, var(--ui-accent) 78%, transparent);
+  border-radius: 50%;
+  background:
+    linear-gradient(
+        color-mix(in srgb, var(--ui-accent) 72%, transparent),
+        color-mix(in srgb, var(--ui-accent) 72%, transparent)
+      )
+      center / 24px 2px no-repeat,
+    linear-gradient(
+        color-mix(in srgb, var(--ui-accent) 72%, transparent),
+        color-mix(in srgb, var(--ui-accent) 72%, transparent)
+      )
+      center / 2px 24px no-repeat,
+    color-mix(in srgb, var(--ui-menu-bg) 32%, transparent);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--ui-accent) 14%, transparent),
+    0 2px 8px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  opacity: 0.86;
+  transform: translate(-50%, -50%);
+}
+
+/* Multi-select highlight applied by SelectableDirective on tabletop object roots.
+   Uses an inset glow so it tracks any non-rectangular pedestal/border without
+   adding a wrapper element. */
+.app-selected {
+  outline: 2px solid color-mix(in srgb, var(--ui-accent) 90%, transparent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ui-accent) 24%, transparent);
+}
+
+/* badge bounce animation (moved from component CSS) */
+@keyframes bounce {
+  0% {
+    transform: scale3d(0.5, 0.5, 0.5);
+  }
+  50% {
+    transform: scale3d(2, 2, 2);
+  }
+  75% {
+    transform: scale3d(0.75, 0.75, 0.75);
+  }
+  87.5% {
+    transform: scale3d(1.125, 1.125, 1.125);
+  }
+  100% {
+    transform: scale3d(1, 1, 1);
+  }
+}
+
+.bouncing {
+  animation: bounce 600ms ease;
+}

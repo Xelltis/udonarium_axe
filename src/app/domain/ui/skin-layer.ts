@@ -1,3 +1,5 @@
+import { clampOr } from '@axe/core/util/clamp';
+
 /** How a picture is fitted into the panel it papers. */
 export const LAYER_FITS = ['cover', 'contain', 'tile', 'stretch'] as const;
 export type LayerFit = (typeof LAYER_FITS)[number];
@@ -48,10 +50,6 @@ export function newLayerId(): string {
   return `layer-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function clamp(value: unknown, low: number, high: number, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value) ? Math.max(low, Math.min(high, value)) : fallback;
-}
-
 /** One layer read back out of what a browser or a file kept, with everything pulled into range. */
 export function asLayer(value: unknown): SkinLayer | null {
   if (!value || typeof value !== 'object') return null;
@@ -64,7 +62,7 @@ export function asLayer(value: unknown): SkinLayer | null {
   return {
     id,
     name: typeof raw['name'] === 'string' ? raw['name'].slice(0, 60) : '',
-    opacity: Math.round(clamp(raw['opacity'], 0, 100, 100)),
+    opacity: Math.round(clampOr(raw['opacity'], 0, 100, 100)),
     fit: (LAYER_FITS as readonly unknown[]).includes(fit) ? (fit as LayerFit) : 'cover',
     anchor: (LAYER_ANCHORS as readonly unknown[]).includes(anchor) ? (anchor as LayerAnchor) : 'center',
   };

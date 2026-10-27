@@ -1,4 +1,4 @@
-import { VolumeType } from '@axe/core/storage/audio-player';
+import { VolumeType } from '@axe/core/storage/audio-output';
 
 /**
  * The kinds of sound the room sets a volume of its own for, on top of its overall volume.

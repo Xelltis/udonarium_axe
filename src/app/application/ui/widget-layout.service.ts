@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-
-const STORAGE_KEY = 'ui-widget-layout';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 
 export interface WidgetSpot {
   left: number;
@@ -36,7 +36,7 @@ export function parseWidgetLayout(raw: string | null): WidgetLayout {
 
 @Injectable({ providedIn: 'root' })
 export class WidgetLayoutService {
-  private layout: Record<string, WidgetSpot> = { ...parseWidgetLayout(localStorage.getItem(STORAGE_KEY)) };
+  private layout: Record<string, WidgetSpot> = { ...parseWidgetLayout(readLocal(STORAGE_KEYS.widgetLayout)) };
 
   /** Where a widget was last left, or null if it has never been moved. */
   spotOf(name: string): WidgetSpot | null {
@@ -50,14 +50,14 @@ export class WidgetLayoutService {
   remember(name: string, spot: WidgetSpot): void {
     if (!Number.isFinite(spot.left) || !Number.isFinite(spot.top)) return;
     this.layout = { ...this.layout, [name]: { left: Math.round(spot.left), top: Math.round(spot.top) } };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.layout));
+    writeLocal(STORAGE_KEYS.widgetLayout, JSON.stringify(this.layout));
   }
 
   /** Forgets where a widget was left, so it goes back to its default place. */
   forget(name: string): void {
     const { [name]: _removed, ...rest } = this.layout;
     this.layout = rest;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.layout));
+    writeLocal(STORAGE_KEYS.widgetLayout, JSON.stringify(this.layout));
   }
 
   /**

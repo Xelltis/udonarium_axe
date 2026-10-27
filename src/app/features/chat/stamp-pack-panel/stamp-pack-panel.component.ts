@@ -32,6 +32,7 @@ export class StampPackPanelComponent {
   private readonly fileArchiver = inject(FileArchiver);
   private readonly confirm = inject(ConfirmService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly imageStorage = inject(ImageStorage);
 
   protected readonly packs = this.packService.packs;
   protected readonly canManage = computed(() => this.packService.canManage);
@@ -80,7 +81,7 @@ export class StampPackPanelComponent {
     if (!pack) return;
     const identifier = await this.modalService.open<string>(FileSelecterComponent);
     if (!identifier) return;
-    const image = ImageStorage.instance.get(identifier);
+    const image = this.imageStorage.get(identifier);
     if (!image) return;
     this.report(this.packService.addImages(pack, [{ identifier: image.identifier, name: image.name }]), []);
   }

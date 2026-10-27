@@ -85,7 +85,7 @@ describe('ImageEditorComponent', () => {
     close = vi.spyOn(TestBed.inject(PanelService), 'close').mockImplementation(() => undefined);
     replace = vi.spyOn(TestBed.inject(ImageRelinkService), 'replace').mockReturnValue(1);
     canEdit = true;
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockImplementation(() => canEdit);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockImplementation(() => canEdit);
     fixture = TestBed.createComponent(ImageEditorComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();

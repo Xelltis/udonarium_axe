@@ -6,7 +6,6 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { BoardSwitchService } from '@axe/application/tabletop/board-switch.service';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { buildOverlapContextMenu } from '@axe/application/ui/overlap-context-menu';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
@@ -17,10 +16,11 @@ import { switchWasPressed } from '@axe/domain/tabletop/board-switch/board-switch
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { gridSlopeSides } from '@axe/domain/tabletop/terrain-slope';
+import { buildConcealMenu } from '@axe/features/disclosure/concealment-context-menu';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { buildBoardSwitchMenu } from '@axe/features/tabletop/board-switch/board-switch-context-menu';
 import { BoardSwitchPanelService } from '@axe/features/tabletop/board-switch/board-switch-panel.service';
-import { buildConcealMenu } from '@axe/features/tabletop/board-switch/concealment-context-menu';
+import { CreateObjectMenuService } from '@axe/features/tabletop/create-menu/create-object-menu.service';
 import { buildTerrainContextMenuModel } from '@axe/features/tabletop/terrain/terrain-context-menu';
 
 /**
@@ -32,13 +32,13 @@ import { buildTerrainContextMenuModel } from '@axe/features/tabletop/terrain/ter
 @Injectable({ providedIn: 'root' })
 export class TerrainMenuService {
   private readonly contextMenuService = inject(ContextMenuService);
+  private readonly createMenu = inject(CreateObjectMenuService);
   private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly objectPanels = inject(ObjectPanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly coordinateService = inject(CoordinateService);
   private readonly tabletopService = inject(TabletopService);
   private readonly inventoryService = inject(GameObjectInventoryService);
-  private readonly tabletopActionService = inject(TabletopActionService);
   private readonly tabletopOverlap = inject(TabletopOverlapService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly switches = inject(BoardSwitchService);
@@ -89,7 +89,7 @@ export class TerrainMenuService {
       gridSize,
       objectPosition,
       this.inventoryService,
-      this.tabletopActionService,
+      this.createMenu,
       (target) => this.showDetail(target),
       this.t,
       overlapEntries,

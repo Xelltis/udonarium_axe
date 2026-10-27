@@ -40,6 +40,7 @@ function wall(overrides: Partial<FirstPersonWallQuad> = {}): FirstPersonWallQuad
     basePx: 0,
     heightPx: 50,
     image: 'stone',
+    tilePx: 0,
     uStart: 20,
     fullLength: 50,
     glass: false,
@@ -70,6 +71,7 @@ function plane(overrides: Partial<FirstPersonPlaneQuad> = {}): FirstPersonPlaneQ
     ],
     image: 'floor',
     frame: { x: 0, y: 0, width: 500, height: 400, image: 'floor' },
+    tilePx: 0,
     glass: false,
     depth: 10,
     cell: 0,
@@ -163,6 +165,24 @@ describe('placing a wall', () => {
   it('cuts nothing off a level wall', () => {
     expect(wallQuadStyle(wall(), 2, 'stone.png', 0.2)['clipPath']).toBeUndefined();
   });
+
+  it('lays a cell of the picture to a tile, from the start of the wall and its top, for a block that tiles it', () => {
+    const style = wallQuadStyle(wall({ tilePx: 25 }), 2, 'stone.png', 0.2);
+
+    expect(style['backgroundSize']).toBe('100% 100%, 50px 50px');
+    expect(style['backgroundPosition']).toBe('0 0, -40px 0');
+    expect(style['backgroundRepeat']).toBe('no-repeat, repeat');
+    expect(wallQuadStyle(wall(), 2, 'stone.png', 0.2)['backgroundRepeat']).toBeUndefined();
+  });
+
+  it('keeps the tiles where they were on the whole wall when a tipped camera cuts it', () => {
+    const cut = wall({ tilePx: 25, cut: { basePx: 10, topPx: 40, outline: null } });
+
+    const style = wallQuadStyle(cut, 2, 'stone.png', 0.2);
+
+    expect(style['backgroundSize']).toBe('100% 100%, 50px 50px');
+    expect(style['backgroundPosition']).toBe('0 0, -40px -20px');
+  });
 });
 
 describe('placing a floor, a ceiling or a lid', () => {
@@ -184,6 +204,42 @@ describe('placing a floor, a ceiling or a lid', () => {
     );
     expect(style['backgroundSize']).toBe('100% 100%, 100% 100%, 1000px 800px');
     expect(style['backgroundPosition']).toBe('0 0, 0 0, -200px -100px');
+  });
+
+  it('lays the picture of a block over its whole top, however little of it is in sight', () => {
+    const style = planeQuadStyle(
+      plane({ kind: 'cap', frame: { x: 80, y: 30, width: 100, height: 100, image: 'slab' } }),
+      2,
+      'slab.png',
+      0
+    );
+
+    expect(style['backgroundSize']).toBe('100% 100%, 200px 200px');
+    expect(style['backgroundPosition']).toBe('0 0, -40px -40px');
+  });
+
+  it('lays a cell of the picture to a tile from the corner of the block, for a block that tiles it', () => {
+    const style = planeQuadStyle(
+      plane({ kind: 'cap', tilePx: 25, frame: { x: 80, y: 30, width: 100, height: 100, image: 'slab' } }),
+      2,
+      'slab.png',
+      0
+    );
+
+    expect(style['backgroundSize']).toBe('100% 100%, 50px 50px');
+    expect(style['backgroundPosition']).toBe('0 0, -40px -40px');
+    expect(style['backgroundRepeat']).toBe('no-repeat, repeat');
+  });
+
+  it('lays the picture of an underside from the far side of the block, as it is seen from below', () => {
+    const style = planeQuadStyle(
+      plane({ kind: 'cap', facing: 'down', zPx: 50, frame: { x: 80, y: 30, width: 100, height: 100, image: 'slab' } }),
+      2,
+      'slab.png',
+      0
+    );
+
+    expect(style['backgroundPosition']).toBe('0 0, -40px -80px');
   });
 
   it('turns a ceiling over, so it faces down onto the eye', () => {

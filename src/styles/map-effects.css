@@ -1,0 +1,287 @@
+/**************** map effects ****************/
+
+/*
+ * Collapse. Squashed from below, it lifts, fades and is gone.
+ * Effects drawn around a piece do not make it fall on their own, so the piece's body is broken here.
+ */
+@keyframes effectDefeatDissolve {
+  0% {
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+    opacity: 1;
+  }
+  10% {
+    transform: translate3d(0, 2px, 0) scale3d(1.05, 0.93, 1);
+    opacity: 1;
+  }
+  /* From here on the fragments take over. A body left standing would show twice. */
+  22% {
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+    opacity: 0;
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+    opacity: 0;
+  }
+}
+
+/* Cut in two. The halves slip along the cut, slide down and are gone. */
+@keyframes effectDefeatBisect {
+  0%,
+  16% {
+    opacity: 1;
+  }
+  /* Gone the moment the blade passes through, swapped for the two halves slipping apart. */
+  22%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Blood spray. The piece reels back from the blow and rights itself. */
+@keyframes effectDefeatFlinch {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  10% {
+    transform: translate3d(-9px, -3px, 0) rotate(-5deg);
+  }
+  26% {
+    transform: translate3d(6px, 2px, 0) rotate(3deg);
+  }
+  46% {
+    transform: translate3d(-4px, 1px, 0) rotate(-2deg);
+  }
+  70% {
+    transform: translate3d(2px, 0, 0) rotate(1deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+}
+
+/*
+ * Shakes the screen on impact. Without damping, nobody can tell whether the shaking has stopped.
+ *
+ * The amplitude is not a variable but kept as separate keyframes for each strength.
+ * Custom properties are inherited, so setting one on the board invalidates the style of everything
+ * under it, and the 6000px-square layer is rebuilt and shows dark and undrawn for a few frames.
+ */
+@keyframes effectShakeSoft {
+  0% {
+    translate: 0 0;
+  }
+  15% {
+    translate: -5px 3px;
+  }
+  32% {
+    translate: 4px -2.5px;
+  }
+  52% {
+    translate: -2.75px -1.5px;
+  }
+  72% {
+    translate: 1.6px 1px;
+  }
+  100% {
+    translate: 0 0;
+  }
+}
+
+@keyframes effectShakeHard {
+  0% {
+    translate: 0 0;
+  }
+  15% {
+    translate: -11px 6.6px;
+  }
+  32% {
+    translate: 8.8px -5.5px;
+  }
+  52% {
+    translate: -6px -3.3px;
+  }
+  72% {
+    translate: 3.5px 2.2px;
+  }
+  100% {
+    translate: 0 0;
+  }
+}
+
+/* Flash. It burns in, then falls away quickly. */
+@keyframes effectFlash {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Lightning flicker. The discharge runs a few times before it goes. */
+@keyframes effectBoltStrike {
+  0% {
+    opacity: 1;
+  }
+  9% {
+    opacity: 0.2;
+  }
+  16% {
+    opacity: 1;
+  }
+  32% {
+    opacity: 0.35;
+  }
+  40% {
+    opacity: 1;
+  }
+  62% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* A tongue of flame. It rises pivoting on its root, thins and goes out. */
+@keyframes effectFlameTongue {
+  0% {
+    transform: translateY(8%) scale(0.78, 0.72);
+    opacity: 0;
+  }
+  16% {
+    opacity: 1;
+  }
+  52% {
+    transform: translateY(-32%) scale(1.06, 1.16);
+    opacity: 0.95;
+  }
+  100% {
+    transform: translateY(-96%) scale(0.42, 0.58);
+    opacity: 0;
+  }
+}
+
+/* The flame's core. It rises faster and shorter than the tongue. */
+@keyframes effectFlameCore {
+  0% {
+    transform: translateY(6%) scale(0.7, 0.66);
+    opacity: 0;
+  }
+  22% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-62%) scale(0.36, 0.5);
+    opacity: 0;
+  }
+}
+
+/* Sparks. They flutter upward, wavering. */
+@keyframes effectEmberRise {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0;
+  }
+  14% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(28%, -140%) scale(0.86);
+  }
+  100% {
+    transform: translate(-24%, -300%) scale(0.45);
+    opacity: 0;
+  }
+}
+
+/* The blade of a slash. It sweeps out from the base of the blade to its tip and is gone at once. */
+@keyframes effectSlashSweep {
+  0% {
+    transform: scaleX(0.05) scaleY(0.4);
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  40% {
+    transform: scaleX(1) scaleY(1);
+  }
+  100% {
+    transform: scaleX(1.12) scaleY(0.5);
+    opacity: 0;
+  }
+}
+
+/* A ring spreads and is gone. Used for shock waves and the ripples of magic circles. */
+@keyframes effectRingBurst {
+  0% {
+    transform: scale(0.18);
+    opacity: 0;
+  }
+  14% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+/* Turns slowly. For magic circles and crystals. */
+@keyframes effectSpinSlow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Turns the other way. Put on the inner ring when two circles are stacked. */
+@keyframes effectSpinReverse {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+/* A vortex. It spins fast while pulsing slightly. */
+@keyframes effectSwirl {
+  0% {
+    transform: rotate(0deg) scale(0.94);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.04);
+  }
+  100% {
+    transform: rotate(360deg) scale(0.94);
+  }
+}
+
+/* A soft pulse. For mist or an aura that lingers. */
+@keyframes effectPulseSoft {
+  0%,
+  100% {
+    transform: scale(0.94);
+    opacity: 0.72;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+/* Smoke. It drifts as it swells. */
+@keyframes effectSmokeRise {
+  0% {
+    transform: translate(0, 0) scale(0.5);
+    opacity: 0;
+  }
+  26% {
+    opacity: 0.28;
+  }
+  100% {
+    transform: translate(22%, -220%) scale(1.8);
+    opacity: 0;
+  }
+}

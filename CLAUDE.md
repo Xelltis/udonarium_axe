@@ -63,7 +63,7 @@ composition → features → ui → application → infrastructure → domain �
 - **E2E** — Playwright (`npm run e2e` / `npm run e2e:ui`)
 - **P2P / シリアライズ** — `@skyway-sdk/core` v2 + `@msgpack/msgpack` v3
 - **ダイス** — `bcdice` v4 / **UIセレクト** — `@ng-select/ng-select`
-- **i18n** — `@jsverse/transloco`（言語切替UIは`features/seat-display`）
+- **i18n** — `@jsverse/transloco`（言語切替は`features/menu`のメニューコマンド）
 
 ## 開発コマンド
 

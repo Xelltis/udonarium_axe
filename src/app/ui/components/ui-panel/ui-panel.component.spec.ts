@@ -664,7 +664,7 @@ describe('UIPanelComponent', () => {
   });
 
   describe('timerCheckWindowSize cleanup', () => {
-    it('watches the window size only for a cut-in panel', async () => {
+    it('does not watch the window size for a panel that needs no least size', async () => {
       const priv = component as unknown as { timerCheckWindowSize: ReturnType<typeof setInterval> | null };
       fixture.detectChanges();
       await fixture.whenStable();
@@ -672,9 +672,9 @@ describe('UIPanelComponent', () => {
       expect(priv.timerCheckWindowSize).toBeNull();
     });
 
-    it('watches the window size for a cut-in panel', async () => {
+    it('watches the window size for a panel whose content needs a least size', async () => {
       const priv = component as unknown as { timerCheckWindowSize: ReturnType<typeof setInterval> | null };
-      component.panelService.cutInIdentifier = 'cut-in';
+      component.panelService.leastSize = () => ({ width: 320, height: 180 });
       fixture.detectChanges();
       await fixture.whenStable();
 

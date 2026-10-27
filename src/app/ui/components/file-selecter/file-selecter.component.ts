@@ -47,7 +47,7 @@ export class FileSelecterComponent {
    */
   private mayShow(imageFile: ImageFile): boolean {
     const tag = ImageTag.get(imageFile.context.identifier) ?? null;
-    return canBrowseImage(tag, this.rolePermission.canSeeHidden, true, this.tagLock.hides);
+    return canBrowseImage(tag, this.rolePermission.canSeeHidden(), true, this.tagLock.hides);
   }
 
   /**
@@ -151,7 +151,7 @@ export class FileSelecterComponent {
 
   /** Only a seat that may edit the table may bring in new pictures, as in the media library. */
   get canUpload(): boolean {
-    return this.rolePermission.canEditTabletop;
+    return this.rolePermission.canEditTabletop();
   }
 
   /** True while the pictures just chosen are being edited and read into storage. */

@@ -1,7 +1,7 @@
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
-import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import { CreateObjectMenu } from '@axe/features/tabletop/create-menu/create-object-context-menu';
 import { buildRangeContextMenu, buildRangeContextMenuModel } from '@axe/features/tabletop/range/range-context-menu';
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
 
@@ -18,7 +18,7 @@ describe('buildRangeContextMenu', () => {
         { x: 0, y: 0, z: 0 },
         ObjectStore.instance,
         { notifyInventoryUpdate: vi.fn() } as unknown as GameObjectInventoryService,
-        { makeDefaultContextMenuActions: vi.fn(() => []) } as unknown as TabletopActionService,
+        { menuAt: vi.fn(() => []) } as CreateObjectMenu,
         vi.fn(),
         vi.fn(),
         t
@@ -45,7 +45,7 @@ describe('buildRangeContextMenu', () => {
       { x: 0, y: 0, z: 0 },
       ObjectStore.instance,
       { notifyInventoryUpdate: vi.fn() } as unknown as GameObjectInventoryService,
-      { makeDefaultContextMenuActions: vi.fn(() => []) } as unknown as TabletopActionService,
+      { menuAt: vi.fn(() => []) } as CreateObjectMenu,
       vi.fn(),
       vi.fn(),
       t
@@ -83,7 +83,7 @@ describe('buildRangeContextMenu', () => {
         { x: 0, y: 0, z: 0 },
         ObjectStore.instance,
         { notifyInventoryUpdate: vi.fn() } as unknown as GameObjectInventoryService,
-        { makeDefaultContextMenuActions: vi.fn(() => []) } as unknown as TabletopActionService,
+        { menuAt: vi.fn(() => []) } as CreateObjectMenu,
         vi.fn(),
         vi.fn(),
         t
@@ -105,7 +105,7 @@ describe('buildRangeContextMenu', () => {
         { x: 0, y: 0, z: 0 },
         ObjectStore.instance,
         { notifyInventoryUpdate: vi.fn() } as unknown as GameObjectInventoryService,
-        { makeDefaultContextMenuActions: vi.fn(() => []) } as unknown as TabletopActionService,
+        { menuAt: vi.fn(() => []) } as CreateObjectMenu,
         vi.fn(),
         vi.fn(),
         t,

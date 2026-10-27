@@ -1,3 +1,4 @@
+import { readGlobalStyles } from '@axe/testing/global-styles';
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, resolve } from 'path';
 
@@ -6,7 +7,7 @@ const KEPT_RUNNING = ['animate-spin', 'animate-pulse', 'animate-writing-dot', 'a
 
 /** Every class the rules for stopped motion name. */
 function stoppedClasses(): Set<string> {
-  const css = readFileSync(resolve(process.cwd(), 'src/styles.css'), 'utf-8');
+  const css = readGlobalStyles();
   const stopped = new Set<string>();
   for (const rule of css.matchAll(/:root\.motion-reduced\s*:is\(([^)]*)\)/g)) {
     for (const name of rule[1].matchAll(/\.([a-z0-9-]+)/g)) stopped.add(name[1]);

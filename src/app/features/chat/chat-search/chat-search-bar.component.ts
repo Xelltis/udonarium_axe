@@ -68,7 +68,7 @@ export class ChatSearchBarComponent {
     this.objectChange.collectionOf(ChatMessage.aliasName)();
     this.objectChange.trackMyCursor();
     this.linesEdited();
-    const canSeeHidden = this.rolePermission.canSeeHidden;
+    const canSeeHidden = this.rolePermission.canSeeHidden();
     return findChatSearchHits(tab.chatMessages, query, (message) => chatSearchText(message, canSeeHidden, this.t));
   });
 

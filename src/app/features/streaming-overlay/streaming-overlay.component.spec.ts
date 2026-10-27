@@ -1,4 +1,5 @@
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -71,7 +72,8 @@ describe('StreamingOverlayComponent', () => {
       imports: [StreamingOverlayComponent],
       providers: [...TEST_PROVIDERS, { provide: TurnOrderService, useValue: turn }],
     });
-    TestBed.overrideProvider(ChatMessageService, { useValue: { chatTabs, getTime: () => 2000 } });
+    TestBed.overrideProvider(ChatMessageService, { useValue: { chatTabs } });
+    TestBed.overrideProvider(ChatClockService, { useValue: { now: () => 2000 } });
     await TestBed.compileComponents();
 
     objectChange = TestBed.inject(ObjectChangeService);
@@ -95,6 +97,16 @@ describe('StreamingOverlayComponent', () => {
     expect(lines()).toHaveLength(1);
     expect(lines()[0]).toContain('やあ');
     expect(lines()[0]).toContain('アリス');
+  });
+
+  it('draws a line with its ruby and the chat’s decorations, not their marks', async () => {
+    chatTabs = [tab('メイン', [message({ identifier: 'a', text: '**大成功**だ|竜《ドラゴン》' })])];
+    await setup();
+
+    const line = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="overlay-line"]')!;
+    expect(line.querySelector('.chat-deco-bold')?.textContent).toBe('大成功');
+    expect(line.querySelector('ruby rt')?.textContent).toBe('ドラゴン');
+    expect(lines()[0]).not.toContain('**');
   });
 
   it('leaves out a tab a spectator cannot see', async () => {

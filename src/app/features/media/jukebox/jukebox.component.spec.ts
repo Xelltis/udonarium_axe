@@ -11,9 +11,11 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { Network } from '@axe/core/network/network';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { AudioFile } from '@axe/core/storage/audio-file';
-import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { AudioOutput, VolumeType } from '@axe/core/storage/audio-output';
+import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { LoopPlayer } from '@axe/core/storage/loop-player';
+import { SoundEffects } from '@axe/core/storage/sound-effects';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { AssetOwner } from '@axe/domain/media/asset-owner';
 import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
@@ -101,7 +103,7 @@ describe('JukeboxComponent', () => {
     });
 
     it('turns the music off for this player alone from its row, and back on', async () => {
-      vi.spyOn(AudioPlayer, 'setChannelVolume').mockImplementation(() => {});
+      vi.spyOn(AudioOutput, 'setChannelVolume').mockImplementation(() => {});
       const volumes = TestBed.inject(PersonalVolumeService);
       await fixture.whenStable();
       const mute = () =>
@@ -153,7 +155,7 @@ describe('JukeboxComponent', () => {
     beforeEach(() => {
       PeerCursor.createMyCursor();
       config().roomVolume = 1;
-      vi.spyOn(AudioPlayer, 'setChannelVolume').mockImplementation(() => {});
+      vi.spyOn(AudioOutput, 'setChannelVolume').mockImplementation(() => {});
     });
 
     it('is left alone for a player, who cannot move it', async () => {
@@ -646,11 +648,10 @@ describe('JukeboxComponent', () => {
     it('sets this player’s own background volume, scaled by the room volume', () => {
       if (!ObjectStore.instance.get<Config>('Config')) new Config('Config').initialize();
       ObjectStore.instance.get<Config>('Config')!.roomVolume = 0.5;
-      const channel = vi.spyOn(AudioPlayer, 'setChannelVolume').mockImplementation(() => {});
+      const channel = vi.spyOn(AudioOutput, 'setChannelVolume').mockImplementation(() => {});
 
       component.backgroundVolume = 0.8;
 
-      expect(component.jukebox.backgroundVolume).toBe(0.8);
       expect(channel).toHaveBeenCalledWith(VolumeType.BACKGROUND, expect.closeTo(0.4));
     });
 
@@ -711,7 +712,7 @@ describe('JukeboxComponent', () => {
 
     it('reports whether an effect is playing', () => {
       const audio = makeReadyAudio('se-playing-01');
-      vi.spyOn(component.jukebox, 'isSePlaying').mockReturnValue(true);
+      vi.spyOn(SoundEffects, 'isPlaying').mockReturnValue(true);
 
       expect(component.isSePlaying(audio)).toBe(true);
     });

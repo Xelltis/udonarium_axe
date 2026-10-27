@@ -5,27 +5,20 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { pointToCell } from '@axe/domain/map-editor/grid-cells';
+import { cellKey, createScene, ImageLayer, ShapeLayer, StampLayer, TextLayer } from '@axe/domain/map-editor/scene';
+import { serializeScene } from '@axe/domain/map-editor/serialize';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { MapEditorFilesService } from '@axe/features/map-editor/editor/map-editor-files.service';
 import { MapEditorGesture } from '@axe/features/map-editor/editor/map-editor-gesture';
 import {
   buildShapeKindPoints,
   MapEditorPanelComponent,
 } from '@axe/features/map-editor/editor/map-editor-panel.component';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
-import { TextureIntakeService } from '@axe/features/map-editor/editor/texture-intake.service';
-import { pointToCell } from '@axe/features/map-editor/model/grid-cells';
-import {
-  cellKey,
-  createScene,
-  ImageLayer,
-  ShapeLayer,
-  StampLayer,
-  TextLayer,
-} from '@axe/features/map-editor/model/scene';
-import { serializeScene } from '@axe/features/map-editor/model/serialize';
-import { exportSceneToBlob } from '@axe/features/map-editor/render/export-image';
+import { exportSceneToBlob } from '@axe/infrastructure/map-editor/export-image';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 /** The gesture is private; the tests borrow its name to reach it. */
@@ -60,6 +53,11 @@ describe('MapEditorPanelComponent', () => {
     fixture = TestBed.createComponent(MapEditorPanelComponent);
     component = fixture.componentInstance;
   });
+
+  /** The panel's own file service, which the export is swapped out on. */
+  function files(): MapEditorFilesService {
+    return fixture.debugElement.injector.get(MapEditorFilesService);
+  }
 
   afterEach(() => {
     ImageStorage.instance.images.forEach((image) => ImageStorage.instance.delete(image.identifier));
@@ -138,77 +136,10 @@ describe('MapEditorPanelComponent', () => {
     });
   });
 
-  describe('dressing a wall in a picture that ships with the room', () => {
-    interface Dresser {
-      chooseFaceTexture: (face: 'wall', url: string) => void;
-      state: MapEditorState;
-    }
-
-    function dresser(): Dresser {
-      return component as unknown as Dresser;
-    }
-
-    it('wears the texture as an image the terrain can hold', () => {
-      imageStorage.get.mockReturnValue(undefined);
-      const add = vi.fn().mockReturnValue({ identifier: 'wall-asset' });
-      (imageStorage as unknown as { add: unknown }).add = add;
-
-      dresser().chooseFaceTexture('wall', 'assets/images/walls/wall_brick.webp');
-
-      expect(add).toHaveBeenCalledWith('assets/images/walls/wall_brick.webp');
-      expect(dresser().state.functionSpec().terrain.images.wall).toBe('wall-asset');
-    });
-
-    it('wears a texture that was added by hand', async () => {
-      const dressed = component as unknown as {
-        addFaceTexture: (face: 'wall') => void;
-        onFaceTextureFileSelected: (event: Event) => Promise<void>;
-        state: MapEditorState;
-      };
-      const intake = TestBed.inject(TextureIntakeService);
-      vi.spyOn(intake, 'takeIn').mockResolvedValue({ identifier: 'added-texture' } as never);
-      dressed.addFaceTexture('wall');
-
-      await dressed.onFaceTextureFileSelected({
-        target: { files: [new File([new Uint8Array([1])], 'x.png')], value: 'x' },
-      } as unknown as Event);
-
-      expect(dressed.state.functionSpec().terrain.images.wall).toBe('added-texture');
-    });
-
-    it('wears nothing where the crop was left unfinished', async () => {
-      const dressed = component as unknown as {
-        addFaceTexture: (face: 'wall') => void;
-        onFaceTextureFileSelected: (event: Event) => Promise<void>;
-        state: MapEditorState;
-      };
-      const intake = TestBed.inject(TextureIntakeService);
-      vi.spyOn(intake, 'takeIn').mockResolvedValue(null);
-      dressed.addFaceTexture('wall');
-
-      await dressed.onFaceTextureFileSelected({
-        target: { files: [new File([new Uint8Array([1])], 'x.png')], value: 'x' },
-      } as unknown as Event);
-
-      expect(dressed.state.functionSpec().terrain.images.wall).toBe('');
-    });
-
-    it('takes up a picture already kept rather than keeping it twice', () => {
-      imageStorage.get.mockReturnValue({ identifier: 'already-kept' });
-      const add = vi.fn();
-      (imageStorage as unknown as { add: unknown }).add = add;
-
-      dresser().chooseFaceTexture('wall', 'assets/images/walls/wall_brick.webp');
-
-      expect(add).not.toHaveBeenCalled();
-      expect(dresser().state.functionSpec().terrain.images.wall).toBe('already-kept');
-    });
-  });
-
   it('sets the exported image as the table background', async () => {
     const blob = new Blob([new Uint8Array([1])], { type: 'image/webp' });
     const exportStub = vi.fn().mockResolvedValue(blob);
-    (component as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = exportStub;
+    (files() as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = exportStub;
     imageStorage.addAsync.mockResolvedValue({ identifier: 'img-1' });
 
     await (component as unknown as { setAsTable: () => Promise<void> }).setAsTable();
@@ -224,7 +155,7 @@ describe('MapEditorPanelComponent', () => {
   it('saves the exported image', async () => {
     const blob = new Blob([new Uint8Array([1])], { type: 'image/webp' });
     const exportStub = vi.fn().mockResolvedValue(blob);
-    (component as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = exportStub;
+    (files() as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = exportStub;
     imageStorage.addAsync.mockResolvedValue({ identifier: 'img-2' });
 
     await (component as unknown as { saveImage: () => Promise<void> }).saveImage();
@@ -261,7 +192,7 @@ describe('MapEditorPanelComponent', () => {
 
   it('writes the grid type onto the table', async () => {
     const blob = new Blob([new Uint8Array([1])], { type: 'image/webp' });
-    (component as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = vi.fn().mockResolvedValue(blob);
+    (files() as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = vi.fn().mockResolvedValue(blob);
     imageStorage.addAsync.mockResolvedValue({ identifier: 'img-3' });
     component['state'].setGridType(GridType.HEX_VERTICAL);
 
@@ -398,7 +329,7 @@ describe('MapEditorPanelComponent', () => {
   it('always exports without the grid', async () => {
     const blob = new Blob([new Uint8Array([1])], { type: 'image/webp' });
     const exportStub = vi.fn().mockResolvedValue(blob);
-    (component as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = exportStub;
+    (files() as unknown as { exportFn: typeof exportSceneToBlob }).exportFn = exportStub;
     imageStorage.addAsync.mockResolvedValue({ identifier: 'img-grid' });
 
     await (component as unknown as { saveImage: () => Promise<void> }).saveImage();

@@ -1,4 +1,3 @@
-import { GridType } from '@axe/domain/tabletop/game-table';
 import {
   createLayer,
   createScene,
@@ -8,7 +7,8 @@ import {
   MapScene,
   ShapeLayer,
   TextLayer,
-} from '@axe/features/map-editor/model/scene';
+} from '@axe/domain/map-editor/scene';
+import { GridType } from '@axe/domain/tabletop/game-table';
 import { MarkRef } from '@axe/features/tabletop/white-board/white-board-geometry';
 
 /**

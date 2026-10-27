@@ -11,7 +11,6 @@ import {
   viewChild,
 } from '@angular/core';
 import { SUPPORTED_LANGS, type SupportedLang } from '@axe/application/i18n/transloco.config';
-import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import type { ReplayVideoProduction } from '@axe/application/replay/replay-video-production';
 import {
@@ -22,6 +21,7 @@ import {
 import { Logger } from '@axe/core/logging/logger';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ReplayVideoStyle } from '@axe/domain/replay/video/replay-video-timeline';
+import { ReplayEditorService } from '@axe/features/replay/replay-editor.service';
 import { ReplayFocusService } from '@axe/features/replay/replay-focus.service';
 import { formatReplayElapsed } from '@axe/features/replay/replay-log-line';
 import { REPLAY_PREVIEW_SIZE, ReplayVideoSettingsService } from '@axe/features/replay/replay-video-settings.service';

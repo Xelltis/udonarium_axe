@@ -1,9 +1,5 @@
 import { ChangeDetectorRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import {
-  CHAT_LOG_OMIT_DELETED_STORAGE_KEY,
-  CHAT_LOG_STYLE_STORAGE_KEY,
-} from '@axe/application/chat/chat-log-style-preference.service';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -11,6 +7,7 @@ import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -229,14 +226,14 @@ describe('ChatTabSettingComponent', () => {
     let saveData: SaveDataService;
 
     beforeEach(() => {
-      localStorage.removeItem(CHAT_LOG_STYLE_STORAGE_KEY);
-      localStorage.removeItem(CHAT_LOG_OMIT_DELETED_STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEYS.chatLogStyle);
+      localStorage.removeItem(STORAGE_KEYS.chatLogOmitDeleted);
       saveData = TestBed.inject(SaveDataService);
     });
 
     afterEach(() => {
-      localStorage.removeItem(CHAT_LOG_STYLE_STORAGE_KEY);
-      localStorage.removeItem(CHAT_LOG_OMIT_DELETED_STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEYS.chatLogStyle);
+      localStorage.removeItem(STORAGE_KEYS.chatLogOmitDeleted);
       vi.restoreAllMocks();
     });
 

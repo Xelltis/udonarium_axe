@@ -33,7 +33,7 @@ describe('CoinComponent', () => {
   });
 
   it('brings the coin to the top on a press, for a seat that may change the table alone', () => {
-    const canEdit = vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+    const canEdit = vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
     const topmost = vi.spyOn(coin, 'toTopmost');
 
     component.onInputStart(new MouseEvent('mousedown'));

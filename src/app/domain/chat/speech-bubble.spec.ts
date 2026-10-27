@@ -32,6 +32,10 @@ describe('the bubble over a speaking piece', () => {
       expect(speechTextOf('|炎《ほのお》の剣')).toBe('炎の剣');
     });
 
+    it('leaves out the marks of the chat’s decorations, though they wrap the quote', () => {
+      expect(speechTextOf('[大]「**待て**」[/]')).toBe('待て');
+    });
+
     it('cuts the words short past the letters or the lines it holds', () => {
       const long = 'あ'.repeat(SPEECH_BUBBLE_MAX_LETTERS + 5);
       expect(speechTextOf(long)).toBe(`${'あ'.repeat(SPEECH_BUBBLE_MAX_LETTERS)}…`);

@@ -43,6 +43,7 @@ import {
   objectRemoved$,
   type ObjectStoreEvent,
 } from '@axe/core/sync/object-event-extension';
+import { debounce } from '@axe/core/util/debounce';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 
 export type {
@@ -394,22 +395,13 @@ export class ObjectChangeService {
     });
 
     // Debounced over 100ms: peer events are gathered into one bump.
-    let netTimer: ReturnType<typeof setTimeout> | null = null;
-    const bumpNetworkVersion = () => {
-      if (netTimer !== null) clearTimeout(netTimer);
-      netTimer = setTimeout(() => {
-        netTimer = null;
-        this.networkVersion.update((v) => v + 1);
-      }, 100);
-    };
+    const bumpNetworkVersion = debounce(() => this.networkVersion.update((v) => v + 1), 100);
     this._networkOpen$.subscribe(bumpNetworkVersion, this.destroyRef);
     this._peerConnect$.subscribe(bumpNetworkVersion, this.destroyRef);
     this._peerDisconnect$.subscribe(bumpNetworkVersion, this.destroyRef);
     this._peerReconnect$.subscribe(bumpNetworkVersion, this.destroyRef);
     this._networkError$.subscribe(bumpNetworkVersion, this.destroyRef);
     peerStatsUpdated$.subscribe(() => this.peerStatsVersion.update((v) => v + 1), this.destroyRef);
-    this.destroyRef.onDestroy(() => {
-      if (netTimer !== null) clearTimeout(netTimer);
-    });
+    this.destroyRef.onDestroy(() => bumpNetworkVersion.cancel());
   }
 }

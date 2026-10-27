@@ -158,6 +158,18 @@
     }
   },
   "feature": {
+    "gpuNotice": {
+      "title": "Graphics acceleration is turned off",
+      "body": "This browser is drawing the page without the GPU, which makes Udonarium Axe very slow. We strongly recommend turning graphics acceleration on in the browser’s settings.",
+      "steps": {
+        "chrome": "In Chrome, turn on “Use graphics acceleration when available” under System in Settings.",
+        "edge": "In Edge, turn on “Use graphics acceleration when available” under System and performance in Settings.",
+        "firefox": "In Firefox, go to Performance under General in Settings, uncheck “Use recommended performance settings” and check “Use hardware acceleration when available”.",
+        "other": "Look for “hardware acceleration” or “graphics acceleration” in the browser’s settings and turn it on."
+      },
+      "restart": "Restart the browser once the setting is changed.",
+      "close": "Close"
+    },
     "zone": {
       "menu": {
         "title": "Engagement zone",
@@ -449,6 +461,7 @@
         "stepsNone": "Fill another slot and it can be chosen here.",
         "stepDelay": "Gap",
         "effectOnSelf": "Ignore targets, play on self",
+        "effectPreview": "Preview",
         "stepsOrder": "Order and waits",
         "stepAtOnce": "at once",
         "stepUp": "Move up",
@@ -2081,7 +2094,13 @@
         "stealth": "Stealth (only the GM, the owner and their party see it)",
         "resourceSliders": "Resource sliders",
         "resourceSlidersShowAll": "Show them all",
-        "resourceSlidersHideAll": "Hide them all"
+        "resourceSlidersHideAll": "Hide them all",
+        "battle": "Battle cut-in",
+        "battlePlay": "Attack with this piece",
+        "battleEffect": "Choose attack effect…",
+        "battleSide_left": "Put on the left",
+        "battleSide_right": "Put on the right",
+        "battleSide_none": "Leave out of the lineup"
       },
       "panel": {
         "sheet": "Character sheet",
@@ -3401,7 +3420,7 @@
         "pw": "PW",
         "participants": "Members",
         "connect": "Join",
-        "peopleSuffix": "",
+        "peopleCount": "{{count}}",
         "alreadyConnected": "Disconnect from other peers before joining another room.",
         "alreadyConnectedHint": "(Use \"Leave the room\" below to disconnect.)",
         "alreadyInRoomServer": "You cannot enter another room while you are in one.",
@@ -3664,6 +3683,36 @@
         "tools": "Input settings",
         "myDice": "My Dice",
         "stamp": "Send a stamp (with what you have typed, if anything)"
+      },
+      "decoration": {
+        "title": "Text decoration",
+        "button": "Style",
+        "bold": "Bold",
+        "italic": "Italic",
+        "strike": "Strikethrough",
+        "size": "Size",
+        "small": "Small",
+        "large": "Large",
+        "huge": "Huge",
+        "font": "Font",
+        "mincho": "Mincho",
+        "rounded": "Rounded",
+        "hand": "Handwriting",
+        "pop": "Pop",
+        "pixel": "Pixel",
+        "gothic": "Gothic (the usual font)",
+        "color": "Color",
+        "red": "Red",
+        "orange": "Orange",
+        "yellow": "Yellow",
+        "green": "Green",
+        "cyan": "Cyan",
+        "blue": "Blue",
+        "purple": "Purple",
+        "pink": "Pink",
+        "gray": "Gray",
+        "white": "White",
+        "black": "Black"
       },
       "tab": {
         "unnamedCharacter": "Unnamed character",
@@ -5253,7 +5302,8 @@
         "spawn": "Call up pieces",
         "showTable": "Switch the table",
         "carry": "Carry the presser's piece",
-        "tableSetting": "Change table settings"
+        "tableSetting": "Change table settings",
+        "battle": "Battle cut-in"
       },
       "delay": "Wait (s)",
       "moveUp": "Move up",
@@ -5344,7 +5394,8 @@
         "keep": "Leave as is",
         "on": "On",
         "off": "Off"
-      }
+      },
+      "battleHint": "Plays a battle cut-in for everyone with the pieces the GM put on the left and right. The attacker is, of the pieces in the lineup, the one whose turn it is, then the presser's piece, then the first on the left."
     },
     "soundSettings": {
       "ownHeading": "Your volume",
@@ -5465,6 +5516,59 @@
       "offerActionUp_rider": "Get up and ride",
       "offerActionUp_passenger": "Get up and ride behind",
       "offerActionUp_cargo": "Get up and be loaded"
+    },
+    "battleCutIn": {
+      "title": "Battle cut-in",
+      "defeated": "Defeated",
+      "close": "Close",
+      "shownHere": "Show battle cut-ins on this screen",
+      "shownHereHint": "This applies to your screen only. When it is off, you see the attack and defeat effects on the table instead.",
+      "playHeading": "Play",
+      "bout": "Attacker: {{attacker}} → {{defenders}}",
+      "boutByTurn": "Attacker: {{attacker}} (their turn) → {{defenders}}",
+      "noLineup": "Put pieces on both the left and the right to play.",
+      "playForRoom": "Play for everyone",
+      "playHere": "Preview on my screen",
+      "otherWays": "You can also play it with 《vs》 in the chat, the remote controller, a switch, or a piece's context menu.",
+      "watcherPlaysHere": "While watching, you can play it on your own screen only.",
+      "lineupHeading": "Lineup",
+      "lineupHint": "The GM splits the pieces on the table into left and right. When the lineup is played, the piece whose turn it is attacks if it stands in the lineup, and the pieces on the other side (up to 4) take the blow.",
+      "left": "Left",
+      "right": "Right",
+      "removeFromLineup": "Remove from the lineup",
+      "onTable": "Pieces on the table",
+      "toLeft": "To left",
+      "toRight": "To right",
+      "effectHeading": "Attack effect of a piece",
+      "effectHint": "An attack that names no effect plays the effect set on the piece. Without one, an effect that suits the amount of damage or healing plays.",
+      "piece": "Piece",
+      "effect": "Effect",
+      "stageEffect": "(None)",
+      "noPieces": "There are no pieces on the table.",
+      "roomHeading": "Room settings",
+      "roomMasterOnly": "Only the GM can change these.",
+      "defeatOn": "Play a defeat effect when the resource reaches 0",
+      "defeatResource": "Resource",
+      "defeatResourceHint": "e.g. HP",
+      "defeatEffect": "Defeat effect",
+      "defaultDefeatEffect": "Default (崩壊)",
+      "stage": "Stage",
+      "genre": {
+        "fantasy": "Fantasy",
+        "modern": "Modern",
+        "horror": "Horror",
+        "cyberpunk": "Cyberpunk",
+        "mecha": "Mecha"
+      },
+      "time": {
+        "night": "Night",
+        "day": "Day"
+      },
+      "themeLabel": "{{genre}} ({{time}})",
+      "pictures": "Room pictures",
+      "addPicture": "Add picture",
+      "removePicture": "Remove “{{name}}”",
+      "picturesHint": "Pictures added here can be chosen as the stage, up to {{limit}}."
     }
   },
   "app": {
@@ -5578,7 +5682,7 @@
       "maxLimit": "Max limit",
       "minLimit": "0 lower limit",
       "slotSectionTitle": "Slot",
-      "slotNameSeparator": " ",
+      "slotName": "{{name}} {{slot}}",
       "slotNow": "current",
       "slotMax": "maximum",
       "slotMaxBase": "max base",
@@ -5606,7 +5710,11 @@
       "mobileResourceTab": "Resources",
       "mobileTargetSummary": "{{count}} target(s): {{names}}",
       "mobileNoTarget": "No target selected. Pick one under \"Targets\".",
-      "mobileAppliesTo": "Applies to the {{count}} selected"
+      "mobileAppliesTo": "Applies to the {{count}} selected",
+      "battleOnChange": "Also show on the battle cut-in",
+      "battlePlay": "Battle cut-in",
+      "battlePlayHint": "Plays a battle cut-in for everyone, with this remote's character attacking the targets. Without targets, it attacks the pieces on the other side of the lineup.",
+      "battleNoBout": "The battle cut-in cannot be played. Choose targets, or ask the GM to set up the lineup."
     }
   },
   "feature.alarm": {
@@ -5658,7 +5766,7 @@
     "rollCallFinish": "Roll call finished ({{voted}}/{{total}})",
     "voteFinish": "Vote finished ({{title}})",
     "tallyEntry": "{{choice}}: {{count}}",
-    "peopleSuffix": "",
+    "peopleCount": "{{count}}",
     "minimize": "Minimize",
     "expand": "Open",
     "absentAction": "Mark absent",

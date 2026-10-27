@@ -1,16 +1,17 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
+import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { FirstPersonPreferenceService } from '@axe/application/ui/first-person-preference.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { isControllableByUser } from '@axe/domain/character/character-control';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
-import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
   directionOf,
@@ -44,8 +45,8 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { blockedByTerrain } from '@axe/domain/tabletop/move/blocked-cells';
 import { moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
 import { moveNeighbourToward } from '@axe/domain/tabletop/move/move-neighbours';
+import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { pieceCellOf } from '@axe/domain/tabletop/move/piece-on-grid';
-import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -74,6 +75,8 @@ type Action = () => Promise<boolean>;
 @Injectable({ providedIn: 'root' })
 export class FirstPersonService {
   private readonly objectStore = inject(ObjectStore);
+  private readonly roomRules = inject(RoomRulesService);
+  private readonly rolePermission = inject(RolePermissionService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly preference = inject(FirstPersonPreferenceService);
@@ -106,10 +109,7 @@ export class FirstPersonService {
     { equal: () => false }
   );
 
-  readonly isGameMaster = computed(() => {
-    this.objectChange.trackMyCursor();
-    return PeerCursor.isMyselfGameMaster;
-  });
+  readonly isGameMaster = computed(() => this.rolePermission.isGameMaster());
 
   readonly gmPresent = computed(() => {
     this.objectChange.collectionOf('PeerCursor')();
@@ -462,8 +462,7 @@ export class FirstPersonService {
 
   private standingPoint(piece: GameCharacter, table: GameTable, grid: CellGrid): CellPoint | null {
     if (table.gridType === GridType.NONE) {
-      const half = (Math.max(1, piece.size) * table.gridSize) / 2;
-      return { x: piece.location.x + half, y: piece.location.y + half };
+      return pieceCentreOf(piece, table.gridSize);
     }
     const cell = pieceCellOf(grid, piece, table.gridSize);
     return cell >= 0 ? cellCenterOf(grid, cell) : null;
@@ -492,14 +491,13 @@ export class FirstPersonService {
    * refusal would tell of a piece nobody could see.
    */
   private othersOf(piece: GameCharacter, table: GameTable): CellPoint[] {
-    const rules = resolveRoomRules(this.objectStore.get<Config>('Config')?.roomRuleAnswers ?? null, table);
+    const rules = this.roomRules.rulesFor(table);
     if (rules.piecesShareCells) return [];
     const others: CellPoint[] = [];
     for (const other of this.objectStore.getObjects<GameCharacter>(GameCharacter)) {
       if (other.identifier === piece.identifier || !other.isVisibleOnTable || surfaceOf(other) !== 'floor') continue;
       if (!this.vision.isTokenVisible(other)) continue;
-      const half = (Math.max(1, other.size) * table.gridSize) / 2;
-      others.push({ x: other.location.x + half, y: other.location.y + half });
+      others.push(pieceCentreOf(other, table.gridSize));
     }
     return others;
   }

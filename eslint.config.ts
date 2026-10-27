@@ -10,8 +10,8 @@ import tseslint from 'typescript-eslint';
 /* Layer boundary rules
  * Dependency direction (strict): features → ui → application → infrastructure → domain → core
  *                                                ↘──────────────────────────────↗ (application reads domain directly)
- * `composition` (directly under src/app/*.ts: app.component / *-event-handler.service and the like)
- *  may depend on every layer (the composition root).
+ * The composition root (src/app/composition/, src/app/app.component.ts and src/main.ts) may depend on
+ *  every layer. Each feature keeps its own *-event-handler.service, which the root only injects.
  */
 const NO_RELATIVE_IMPORT = {
   regex: '^\\.',
@@ -43,64 +43,152 @@ const FORBID_FOR_UI = {
 };
 
 /* Imports between features are allowed only along the edges that exist now. A new edge is added here
-   on purpose (the aim is not to add more). */
+   on purpose (the aim is not to add more). A lazy import() is an edge as much as a static one. */
 const FEATURE_DEPENDENCIES: Record<string, readonly string[]> = {
   alarm: [],
+  'battle-cut-in': ['effect'],
   buff: [],
+  'button-guide': [],
   card: [],
-  character: ['card', 'data-element', 'disclosure', 'tabletop'],
-  chat: ['data-element', 'hotbar', 'visual-novel'],
+  'ccfolia-room-import': [],
+  character: ['card', 'data-element', 'disclosure', 'light-settings'],
+  chat: ['alarm', 'data-element', 'vote'],
   coin: [],
-  controller: [],
-  'data-element': ['tabletop'],
+  controller: ['character', 'chat'],
+  'data-element': ['range-shape-editor'],
   dice: [],
   disclosure: [],
-  effect: ['hotbar'],
+  'dungeon-generator': [],
+  effect: [],
   file: ['moderation'],
-  'first-person': ['effect', 'tabletop', 'visual-novel'],
-  'gm-object-list': ['disclosure', 'gm-tools', 'tabletop'],
-  'gm-tools': ['card', 'chat', 'menu'],
-  hotbar: ['menu', 'pl-tools', 'visual-novel'],
-  inventory: ['gm-tools', 'tabletop'],
-  keyboard: ['visual-novel'],
-  'language-selector': [],
+  'first-person': ['effect', 'tabletop'],
+  'gpu-notice': [],
+  'gm-object-list': ['character', 'disclosure', 'light-settings'],
+  'gm-tools': ['chat', 'menu'],
+  hotbar: ['effect', 'menu'],
+  inventory: ['tabletop'],
+  keyboard: [],
+  'light-settings': [],
   lobby: ['moderation', 'room-archive'],
   'map-editor': ['tabletop'],
-  menu: ['card', 'visual-novel'],
+  mobile: ['chat'],
+  panels: [],
+  menu: [],
   media: ['moderation'],
   moderation: [],
-  'pl-tools': ['card', 'chat', 'menu'],
-  replay: ['room-archive'],
+  'pl-tools': ['menu'],
+  'range-shape-editor': [],
+  replay: [],
   'room-archive': [],
   'room-settings': ['room-archive', 'skin'],
   skin: [],
   'sound-settings': [],
   'status-ailment': [],
   'streaming-overlay': [],
-  tabletop: ['card', 'character', 'coin', 'dice', 'disclosure', 'effect', 'lobby', 'map-editor', 'replay'],
+  tabletop: [
+    'card',
+    'character',
+    'coin',
+    'dice',
+    'disclosure',
+    'effect',
+    'light-settings',
+    'lobby',
+    'range-shape-editor',
+    'replay',
+  ],
   'visual-novel': ['character', 'chat'],
   vote: [],
   widgets: [],
 };
 
-const FEATURE_RULES = Object.entries(FEATURE_DEPENDENCIES).map(([feature, allowed]) => ({
-  files: [`src/app/features/${feature}/**/*.ts`],
-  ignores: [`src/app/features/${feature}/**/*.spec.ts`],
-  rules: {
-    'no-restricted-imports': [
-      'error',
-      {
-        patterns: [
-          NO_RELATIVE_IMPORT,
+/* Angular builds the services, components, directives and pipes, so they take the app's singletons
+   through inject() (bridged in composition/class-provider.ts) rather than reading them off the class.
+   The synced singletons (Config, ChatTabList, DataSummarySetting, TurnState) are left out on purpose:
+   their `instance` answers for whichever object stands in the room at the time, which an injected
+   copy would not follow. */
+const PROCESS_SINGLETONS = [
+  'AssetHttpStore',
+  'AudioSharingSystem',
+  'AudioStorage',
+  'FileArchiver',
+  'ImageSharingSystem',
+  'ImageStorage',
+  'ObjectFactory',
+  'ObjectSerializer',
+  'ObjectStore',
+  'ObjectSynchronizer',
+  'VideoEncoderGateway',
+];
+
+/* The ledger may not run in a circle: two features that each import the other are one feature in two
+   folders, and what they share belongs a layer down. Loading this config fails while one does. */
+function assertNoCycle(dependencies: Record<string, readonly string[]>): void {
+  const visiting = new Set<string>();
+  const done = new Set<string>();
+  const visit = (feature: string, path: readonly string[]): void => {
+    if (done.has(feature)) return;
+    if (visiting.has(feature)) {
+      throw new Error(`FEATURE_DEPENDENCIES runs in a circle: ${[...path, feature].join(' -> ')}`);
+    }
+    visiting.add(feature);
+    for (const next of dependencies[feature] ?? []) visit(next, [...path, feature]);
+    visiting.delete(feature);
+    done.add(feature);
+  };
+  for (const feature of Object.keys(dependencies)) visit(feature, []);
+}
+assertNoCycle(FEATURE_DEPENDENCIES);
+
+const NO_SINGLETON_INSTANCE = {
+  selector: `MemberExpression[object.name=/^(${PROCESS_SINGLETONS.join('|')})$/][property.name='instance']`,
+  message:
+    'Angularが作るクラスでは`.instance`を読まず`inject()`で受け取る（composition/class-provider.tsで橋渡し済み）',
+};
+const ANGULAR_CLASS_FILES = '*.{service,component,directive,pipe}.ts';
+
+/* no-restricted-imports does not look at import(), so a lazy import outside the ledger is caught by
+   its source instead (`\x2F` is a slash, which an esquery regex may not hold). panels opens every
+   feature's panel lazily by design, and is left out of this. A later block overrides the same rule,
+   so the Angular-built classes of a feature get both selectors in one block. */
+const FEATURE_RULES = Object.entries(FEATURE_DEPENDENCIES).flatMap(([feature, allowed]) => {
+  const reachable = [feature, 'panels', ...allowed].join('|');
+  const lazyImports =
+    feature === 'panels'
+      ? []
+      : [
           {
-            regex: `^@axe/features/(?!(?:${[feature, 'panels', ...allowed].join('|')})/)`,
-            message: `features/${feature}は他のfeatureを直接importしない（panelsかFEATURE_DEPENDENCIESに挙げたfeatureのみ）`,
+            selector: `ImportExpression[source.value=/^@axe\\x2Ffeatures\\x2F(?!(?:${reachable})\\x2F)/]`,
+            message: `features/${feature}は他のfeatureを遅延importでも直接importしない（panelsかFEATURE_DEPENDENCIESに挙げたfeatureのみ）`,
+          },
+        ];
+  return [
+    {
+      files: [`src/app/features/${feature}/**/*.ts`],
+      ignores: [`src/app/features/${feature}/**/*.spec.ts`],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            patterns: [
+              NO_RELATIVE_IMPORT,
+              {
+                regex: `^@axe/features/(?!(?:${reachable})/)`,
+                message: `features/${feature}は他のfeatureを直接importしない（panelsかFEATURE_DEPENDENCIESに挙げたfeatureのみ）`,
+              },
+            ],
           },
         ],
+        'no-restricted-syntax': ['error', ...lazyImports],
       },
-    ],
-  },
-}));
+    },
+    {
+      files: [`src/app/features/${feature}/**/${ANGULAR_CLASS_FILES}`],
+      ignores: [`src/app/features/${feature}/**/*.spec.ts`],
+      rules: { 'no-restricted-syntax': ['error', ...lazyImports, NO_SINGLETON_INSTANCE] },
+    },
+  ];
+});
 
 export default defineConfig([
   {
@@ -169,6 +257,11 @@ export default defineConfig([
     rules: {
       'no-restricted-imports': ['error', { patterns: [NO_RELATIVE_IMPORT, FORBID_FOR_UI] }],
     },
+  },
+  {
+    files: [`src/app/{application,ui}/**/${ANGULAR_CLASS_FILES}`],
+    ignores: ['src/app/**/*.spec.ts'],
+    rules: { 'no-restricted-syntax': ['error', NO_SINGLETON_INSTANCE] },
   },
   ...FEATURE_RULES,
   /* composition root: may depend on every layer (features included).

@@ -158,6 +158,18 @@
     }
   },
   "feature": {
+    "gpuNotice": {
+      "title": "그래픽 가속이 꺼져 있습니다",
+      "body": "이 브라우저는 GPU를 쓰지 않고 화면을 그리고 있어 Udonarium Axe가 매우 무거워집니다. 브라우저 설정에서 그래픽 가속을 켜는 것을 강력히 권장합니다.",
+      "steps": {
+        "chrome": "Chrome에서는 설정의 '시스템'에 있는 '가능한 경우 그래픽 가속 사용'을 켭니다.",
+        "edge": "Edge에서는 설정의 '시스템 및 성능'에 있는 '사용 가능한 경우 그래픽 가속 사용'을 켭니다.",
+        "firefox": "Firefox에서는 설정의 '일반'에 있는 '성능'에서 '권장 성능 설정을 사용'의 체크를 해제하고 '하드웨어 가속이 가능하면 사용'에 체크합니다.",
+        "other": "브라우저 설정에서 '하드웨어 가속' 또는 '그래픽 가속' 항목을 찾아 켭니다."
+      },
+      "restart": "설정을 바꾼 뒤 브라우저를 다시 시작해 주세요.",
+      "close": "닫기"
+    },
     "zone": {
       "menu": {
         "title": "교전 구역",
@@ -449,6 +461,7 @@
         "stepsNone": "다른 칸을 채우면 여기서 고를 수 있습니다.",
         "stepDelay": "간격",
         "effectOnSelf": "타겟을 무시하고 자신에게",
+        "effectPreview": "미리보기",
         "stepsOrder": "실행 순서와 간격",
         "stepAtOnce": "즉시",
         "stepUp": "위로",
@@ -2081,7 +2094,13 @@
         "stealth": "스텔스 (GM과 소유자·같은 파티에게만 보임)",
         "resourceSliders": "리소스 슬라이더",
         "resourceSlidersShowAll": "모두 표시",
-        "resourceSlidersHideAll": "모두 숨기기"
+        "resourceSlidersHideAll": "모두 숨기기",
+        "battle": "전투 컷인",
+        "battlePlay": "이 말로 공격",
+        "battleEffect": "공격 연출 선택…",
+        "battleSide_left": "왼쪽 편성에 넣기",
+        "battleSide_right": "오른쪽 편성에 넣기",
+        "battleSide_none": "편성에 넣지 않기"
       },
       "panel": {
         "sheet": "캐릭터 시트",
@@ -3401,7 +3420,7 @@
         "pw": "PW",
         "participants": "참가자",
         "connect": "접속",
-        "peopleSuffix": "명",
+        "peopleCount": "{{count}}명",
         "alreadyConnected": "다른 룸에 접속하려면 다른 참가자와의 연결을 끊어 주세요.",
         "alreadyConnectedHint": "(※ 아래의 \"방에서 나가기\"로 끊을 수 있습니다.)",
         "alreadyInRoomServer": "방에 들어가 있는 동안에는 다른 방에 들어갈 수 없습니다.",
@@ -3664,6 +3683,36 @@
         "tools": "입력 설정",
         "myDice": "마이 주사위",
         "stamp": "스탬프 보내기 (입력 중인 글이 있으면 함께)"
+      },
+      "decoration": {
+        "title": "글자 꾸미기",
+        "button": "꾸미기",
+        "bold": "굵게",
+        "italic": "기울임",
+        "strike": "취소선",
+        "size": "크기",
+        "small": "작게",
+        "large": "크게",
+        "huge": "아주 크게",
+        "font": "글꼴",
+        "mincho": "명조",
+        "rounded": "둥근 고딕",
+        "hand": "손글씨",
+        "pop": "팝",
+        "pixel": "도트",
+        "gothic": "고딕(기본 글꼴)",
+        "color": "글자색",
+        "red": "빨강",
+        "orange": "주황",
+        "yellow": "노랑",
+        "green": "초록",
+        "cyan": "하늘색",
+        "blue": "파랑",
+        "purple": "보라",
+        "pink": "분홍",
+        "gray": "회색",
+        "white": "흰색",
+        "black": "검정"
       },
       "tab": {
         "unnamedCharacter": "이름 없는 캐릭터",
@@ -5024,7 +5073,7 @@
         "maxLimit": "최대값 제한",
         "minLimit": "0 하한 제한",
         "slotSectionTitle": "슬롯",
-        "slotNameSeparator": " ",
+        "slotName": "{{name}} {{slot}}",
         "slotNow": "현재값",
         "slotMax": "최대값",
         "slotMaxBase": "최대값 기준",
@@ -5052,7 +5101,11 @@
         "mobileResourceTab": "리소스",
         "mobileTargetSummary": "대상 {{count}}체: {{names}}",
         "mobileNoTarget": "대상이 선택되지 않았습니다. \"대상\"에서 골라 주세요",
-        "mobileAppliesTo": "선택 중인 {{count}}체에 실행합니다"
+        "mobileAppliesTo": "선택 중인 {{count}}체에 실행합니다",
+        "battleOnChange": "전투 컷인으로도 보여주기",
+        "battlePlay": "전투 컷인",
+        "battlePlayHint": "이 리모컨의 캐릭터가 타깃을 공격하는 전투 컷인을 모두에게 표시합니다. 타깃이 없으면 좌우 편성에서 반대쪽 말을 공격합니다.",
+        "battleNoBout": "전투 컷인을 표시할 수 없습니다. 타깃을 고르거나 GM이 좌우 편성을 만들어 주세요."
       }
     },
     "alarm": {
@@ -5104,7 +5157,7 @@
       "rollCallFinish": "점호 종료({{voted}}/{{total}})",
       "voteFinish": "투표 종료({{title}})",
       "tallyEntry": "{{choice}}: {{count}}",
-      "peopleSuffix": "명",
+      "peopleCount": "{{count}}명",
       "minimize": "접기",
       "expand": "펼치기",
       "absentAction": "결석하기",
@@ -5537,7 +5590,8 @@
         "spawn": "말 불러내기",
         "showTable": "테이블 전환",
         "carry": "누른 사람의 말 옮기기",
-        "tableSetting": "테이블 설정 바꾸기"
+        "tableSetting": "테이블 설정 바꾸기",
+        "battle": "전투 컷인"
       },
       "delay": "대기 (초)",
       "moveUp": "위로",
@@ -5628,7 +5682,8 @@
         "keep": "그대로",
         "on": "켜기",
         "off": "끄기"
-      }
+      },
+      "battleHint": "GM이 좌우로 나눈 말로 전투 컷인을 모두에게 표시합니다. 공격하는 말은 편성에 있는 말 중 차례인 말, 누른 사람의 말, 왼쪽 첫 번째 말 순입니다."
     },
     "soundSettings": {
       "ownHeading": "내 음량",
@@ -5749,6 +5804,59 @@
       "offerActionUp_rider": "일어나서 타기",
       "offerActionUp_passenger": "일어나서 동승하기",
       "offerActionUp_cargo": "일어나서 실리기"
+    },
+    "battleCutIn": {
+      "title": "전투 컷인",
+      "defeated": "격파",
+      "close": "닫기",
+      "shownHere": "이 화면에 전투 컷인 표시",
+      "shownHereHint": "이 화면에만 적용됩니다. 끄면 공격과 격파 연출을 테이블 위에서 봅니다.",
+      "playHeading": "재생",
+      "bout": "공격: {{attacker}} → {{defenders}}",
+      "boutByTurn": "공격: {{attacker}}(차례) → {{defenders}}",
+      "noLineup": "왼쪽과 오른쪽 모두에 말을 두면 재생할 수 있습니다.",
+      "playForRoom": "모두에게 재생",
+      "playHere": "내 화면에서만 보기",
+      "otherWays": "채팅의 《vs》, 리모컨, 스위치, 말의 우클릭 메뉴에서도 재생할 수 있습니다.",
+      "watcherPlaysHere": "견학 중에는 자신의 화면에서만 재생할 수 있습니다.",
+      "lineupHeading": "좌우 편성",
+      "lineupHint": "GM이 테이블의 말을 왼쪽과 오른쪽으로 나눕니다. 편성으로 재생하면 차례인 말이 편성에 있을 때 그 말이 공격하고, 반대쪽 말(4개까지)이 공격을 받습니다.",
+      "left": "왼쪽",
+      "right": "오른쪽",
+      "removeFromLineup": "편성에서 빼기",
+      "onTable": "테이블의 말",
+      "toLeft": "왼쪽으로",
+      "toRight": "오른쪽으로",
+      "effectHeading": "말의 공격 연출",
+      "effectHint": "연출을 지정하지 않은 공격에서는 말에 설정한 연출이 나옵니다. 설정이 없으면 피해나 회복량에 맞는 연출이 나옵니다.",
+      "piece": "말",
+      "effect": "연출",
+      "stageEffect": "(설정 안 함)",
+      "noPieces": "테이블에 말이 없습니다.",
+      "roomHeading": "방 설정",
+      "roomMasterOnly": "GM만 변경할 수 있습니다.",
+      "defeatOn": "리소스가 0이 되면 격파 연출 표시",
+      "defeatResource": "리소스",
+      "defeatResourceHint": "예: HP",
+      "defeatEffect": "격파 연출",
+      "defaultDefeatEffect": "기본(崩壊)",
+      "stage": "무대",
+      "genre": {
+        "fantasy": "판타지",
+        "modern": "현대",
+        "horror": "호러",
+        "cyberpunk": "사이버펑크",
+        "mecha": "로봇 SF"
+      },
+      "time": {
+        "night": "밤",
+        "day": "낮"
+      },
+      "themeLabel": "{{genre}} ({{time}})",
+      "pictures": "등록한 이미지",
+      "addPicture": "이미지 등록",
+      "removePicture": "「{{name}}」 등록 해제",
+      "picturesHint": "등록한 이미지는 무대로 고를 수 있습니다. {{limit}}장까지 등록할 수 있습니다."
     }
   },
   "app": {

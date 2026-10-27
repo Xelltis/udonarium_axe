@@ -2,17 +2,13 @@ import { ViewContainerRef } from '@angular/core';
 import { inject, TestBed } from '@angular/core/testing';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { FOUR_WAY_RADIAL_MENU_LOADER } from '@axe/application/ui/overlay-components';
 
 describe('ContextMenuService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [ContextMenuService],
     });
-  });
-
-  afterEach(() => {
-    ContextMenuService.FourWayRadialMenuComponentClass = null;
-    ContextMenuService.loadFourWayRadialMenuComponent = null;
   });
 
   it('should ...', inject([ContextMenuService], (service: ContextMenuService) => {
@@ -26,11 +22,12 @@ describe('ContextMenuService', () => {
         createComponent: vi.fn(() => {
           throw new Error('menu asked for');
         }),
-      };
+        injector: { get: () => class PlainMenuStub {} },
+      } as { createComponent: ReturnType<typeof vi.fn> };
     }
 
     beforeEach(() => {
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
     });
 
     afterEach(() => vi.restoreAllMocks());
@@ -68,10 +65,10 @@ describe('ContextMenuService', () => {
     }
 
     it('is fetched the first time it is asked for, and kept for the next', async () => {
+      const load = vi.fn(() => Promise.resolve(FourWayMenuStub));
+      TestBed.overrideProvider(FOUR_WAY_RADIAL_MENU_LOADER, { useValue: load });
       const service = TestBed.inject(ContextMenuService);
       const opened = openingWith(service);
-      const load = vi.fn(() => Promise.resolve(FourWayMenuStub));
-      ContextMenuService.loadFourWayRadialMenuComponent = load;
 
       service.openRadial({ x: 10, y: 20 }, [], []);
       expect(opened).not.toHaveBeenCalled();
@@ -88,14 +85,15 @@ describe('ContextMenuService', () => {
       expect(opened).toHaveBeenCalledTimes(2);
     });
 
-    it('opens at once where the menu is already here', () => {
+    it('opens nothing where no way to fetch it was handed in', async () => {
       const service = TestBed.inject(ContextMenuService);
       const opened = openingWith(service);
-      ContextMenuService.FourWayRadialMenuComponentClass = FourWayMenuStub;
 
       service.openRadial({ x: 10, y: 20 }, [], []);
+      await Promise.resolve();
+      await Promise.resolve();
 
-      expect(opened).toHaveBeenCalledTimes(1);
+      expect(opened).not.toHaveBeenCalled();
     });
   });
 });

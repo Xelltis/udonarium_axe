@@ -84,7 +84,7 @@ export class EffectLibraryService {
   restoreDefaults(): { added: number; updated: number } {
     let added = 0;
     let updated = 0;
-    ObjectStore.instance.announceComingBack(
+    this.objectStore.announceComingBack(
       DEFAULT_EFFECT_PRESET_SEEDS.map((seed) => seed.identifier).filter((identifier) => !this.get(identifier))
     );
 

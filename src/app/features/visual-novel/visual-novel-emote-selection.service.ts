@@ -1,6 +1,5 @@
 import { computed, inject, Injectable, linkedSignal, signal } from '@angular/core';
-import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import {
   hasVnEmote,
   VN_EMOTE_DEFAULT,
@@ -22,7 +21,7 @@ import {
  */
 @Injectable({ providedIn: 'root' })
 export class VisualNovelEmoteSelectionService {
-  private readonly objectChange = inject(ObjectChangeService);
+  private readonly rolePermission = inject(RolePermissionService);
 
   /**
    * The kind of the next line. A kind this seat may no longer choose, as a scene change once it is
@@ -51,10 +50,7 @@ export class VisualNovelEmoteSelectionService {
 
   readonly hasSelection = computed(() => hasVnEmote(this.emote()));
 
-  readonly isGameMaster = computed(() => {
-    this.objectChange.trackMyCursor();
-    return PeerCursor.isMyselfGameMaster;
-  });
+  readonly isGameMaster = computed(() => this.rolePermission.isGameMaster());
 
   /** A scene change sweeps the stage for everybody, so only the game master may send one. */
   readonly messageKindOptions = computed(() =>

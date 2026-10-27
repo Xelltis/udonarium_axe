@@ -1,6 +1,5 @@
 import { effect, inject, untracked } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
-import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BottomSheetRef } from '@axe/application/ui/bottom-sheet.service';
 
 /**
@@ -11,10 +10,8 @@ import { BottomSheetRef } from '@axe/application/ui/bottom-sheet.service';
 export function closeSheetWhenOffTheTable(): void {
   const ref = inject(BottomSheetRef, { optional: true });
   if (!ref) return;
-  const objectChange = inject(ObjectChangeService);
   const rolePermission = inject(RolePermissionService);
   effect(() => {
-    objectChange.trackMyCursor();
-    if (!rolePermission.canEditTabletop) untracked(() => ref.close());
+    if (!rolePermission.canEditTabletop()) untracked(() => ref.close());
   });
 }

@@ -2,11 +2,11 @@ import { inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { BoardSwitchService } from '@axe/application/tabletop/board-switch.service';
-import { SwitchPressOutcome, SwitchPressService } from '@axe/application/tabletop/switch-press.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { isInStore } from '@axe/core/sync/object-store';
 import { switchOf } from '@axe/domain/tabletop/board-switch/board-switch';
+import { SwitchPressOutcome, SwitchPressService } from '@axe/features/tabletop/board-switch/switch-press.service';
 
 /** Something on the table a switch can hang under, with the name it speaks under. */
 export interface SwitchHostNode extends ObjectNode {

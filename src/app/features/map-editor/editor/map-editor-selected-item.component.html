@@ -1,0 +1,146 @@
+@if (state.selectedItem(); as sel) {
+  <div class="flex flex-col gap-2">
+    <div class="font-semibold">{{ 'feature.mapEditor.tools.select' | transloco }}</div>
+    @if (sel.layer.kind === 'stamp') {
+      <label class="flex items-center justify-between gap-2">
+        <span class="text-ui-muted">{{ 'feature.mapEditor.props.stampSize' | transloco }}</span>
+        <input
+          type="range"
+          min="16"
+          max="256"
+          step="8"
+          [ngModel]="$any(sel.item).size"
+          (ngModelChange)="state.updateSelectedStamp({ size: $event })"
+        />
+      </label>
+      <label class="flex items-center justify-between gap-2">
+        <span class="text-ui-muted">{{ 'feature.mapEditor.props.stampRotation' | transloco }}</span>
+        <input
+          type="range"
+          min="0"
+          max="360"
+          step="15"
+          [ngModel]="$any(sel.item).rotation"
+          (ngModelChange)="state.updateSelectedStamp({ rotation: $event })"
+        />
+      </label>
+      <div class="flex items-center gap-3">
+        <label class="flex items-center gap-1">
+          <input
+            type="checkbox"
+            [ngModel]="$any(sel.item).flipX"
+            (ngModelChange)="state.updateSelectedStamp({ flipX: $event })"
+          />
+          <span class="text-ui-muted">{{ 'feature.mapEditor.props.stampFlip' | transloco }} X</span>
+        </label>
+        <label class="flex items-center gap-1">
+          <input
+            type="checkbox"
+            [ngModel]="$any(sel.item).flipY"
+            (ngModelChange)="state.updateSelectedStamp({ flipY: $event })"
+          />
+          <span class="text-ui-muted">{{ 'feature.mapEditor.props.stampFlip' | transloco }} Y</span>
+        </label>
+      </div>
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-ui-muted">{{ 'feature.mapEditor.props.color' | transloco }}</span>
+        <div class="flex items-center gap-2">
+          <label class="flex items-center gap-1">
+            <input
+              type="checkbox"
+              [ngModel]="$any(sel.item).color === null"
+              (ngModelChange)="state.updateSelectedStamp({ color: $event ? null : '#1a1a1a' })"
+            />
+            <span class="text-ui-muted text-[10px]">{{ 'feature.mapEditor.props.stampColorAuto' | transloco }}</span>
+          </label>
+          <input
+            type="color"
+            [ngModel]="$any(sel.item).color ?? '#1a1a1a'"
+            [disabled]="$any(sel.item).color === null"
+            (ngModelChange)="state.updateSelectedStamp({ color: $event })"
+          />
+        </div>
+      </div>
+    }
+    @if (sel.layer.kind === 'image') {
+      <label class="flex items-center justify-between gap-2">
+        <span class="text-ui-muted">{{ 'feature.mapEditor.props.imageWidth' | transloco }}</span>
+        <input
+          class="bg-ui-input rounded-ui-sm w-16 px-1 py-0.5"
+          type="number"
+          min="1"
+          [ngModel]="$any(sel.item).w"
+          (ngModelChange)="state.updateSelectedImage({ w: $event })"
+        />
+      </label>
+      <label class="flex items-center justify-between gap-2">
+        <span class="text-ui-muted">{{ 'feature.mapEditor.props.imageHeight' | transloco }}</span>
+        <input
+          class="bg-ui-input rounded-ui-sm w-16 px-1 py-0.5"
+          type="number"
+          min="1"
+          [ngModel]="$any(sel.item).h"
+          (ngModelChange)="state.updateSelectedImage({ h: $event })"
+        />
+      </label>
+      <label class="flex items-center justify-between gap-2">
+        <span class="text-ui-muted">{{ 'feature.mapEditor.props.imageRotation' | transloco }}</span>
+        <input
+          type="range"
+          min="-180"
+          max="180"
+          step="5"
+          [ngModel]="$any(sel.item).rotation"
+          (ngModelChange)="state.updateSelectedImage({ rotation: $event })"
+        />
+      </label>
+      <label class="flex items-center justify-between gap-2">
+        <span class="text-ui-muted">{{ 'feature.mapEditor.props.imageOpacity' | transloco }}</span>
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          [ngModel]="$any(sel.item).opacity"
+          (ngModelChange)="state.updateSelectedImage({ opacity: $event })"
+        />
+      </label>
+      <label class="flex items-center gap-2">
+        <input
+          type="checkbox"
+          [ngModel]="$any(sel.item).clipToCells"
+          (ngModelChange)="state.updateSelectedImage({ clipToCells: $event })"
+        />
+        <span class="text-ui-muted">{{ 'feature.mapEditor.props.imageClipCells' | transloco }}</span>
+      </label>
+    }
+    @if (sel.layer.kind === 'freehand') {
+      <label class="flex items-center justify-between gap-2">
+        <span class="text-ui-muted">{{ 'feature.mapEditor.props.color' | transloco }}</span>
+        <input
+          type="color"
+          [ngModel]="$any(sel.item).color"
+          (ngModelChange)="state.updateSelectedFreehand({ color: $event })"
+        />
+      </label>
+      <label class="flex items-center justify-between gap-2">
+        <span class="text-ui-muted">{{ 'feature.mapEditor.props.strokeWidth' | transloco }}</span>
+        <input
+          type="range"
+          min="1"
+          max="30"
+          step="1"
+          [ngModel]="$any(sel.item).width"
+          (ngModelChange)="state.updateSelectedFreehand({ width: $event })"
+        />
+      </label>
+    }
+    <button
+      class="rounded-ui-sm bg-ui-input hover:bg-ui-hover flex items-center justify-center gap-1 px-2 py-1"
+      (click)="state.deleteSelection()"
+    >
+      <i class="material-icons text-[16px]!">delete</i>
+      {{ 'feature.mapEditor.layers.delete' | transloco }}
+    </button>
+  </div>
+}

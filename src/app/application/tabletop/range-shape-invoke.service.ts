@@ -5,6 +5,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { RangeShapeFieldValue } from '@axe/domain/data/range-shape-field';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { RangeArea } from '@axe/domain/tabletop/range';
 
 @Injectable({ providedIn: 'root' })
@@ -35,11 +36,7 @@ export class RangeShapeInvokeService {
   /** Puts a custom range from a range-shape field onto the current table, centred on a piece. */
   spawnForCharacter(character: GameCharacter, field: RangeShapeFieldValue): RangeArea {
     const cellPx = this.tabletopService.gridSize();
-    const center: PointerCoordinate = {
-      x: character.location.x + (character.size * cellPx) / 2,
-      y: character.location.y + (character.size * cellPx) / 2,
-      z: character.posZ,
-    };
+    const center: PointerCoordinate = { ...pieceCentreOf(character, cellPx), z: character.posZ };
     return this.spawnAt(center, field);
   }
 }

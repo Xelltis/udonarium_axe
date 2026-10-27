@@ -236,6 +236,23 @@ describe('firstPersonScene on squares', () => {
     expect(floor.frame).toEqual({ x: 0, y: 0, width: 10 * GRID, height: 10 * GRID, image: 'floor-picture' });
   });
 
+  it('lays the picture of a lid over the whole block, and tiles a block that tiles its picture a cell to a tile', () => {
+    const tiled = block(4, 3, 2, 3, 0.3);
+    tiled.isTiledTexture = true;
+    const stretched = block(1, 4, 1, 1, 0.3);
+
+    const quads = sceneOf(GridType.SQUARE, [tiled, stretched], eye).quads;
+    const lidOf = (terrain: Terrain) => planes(quads, 'cap').find((cap) => cap.id === `${terrain.identifier}:top`)!;
+
+    expect(lidOf(tiled).frame).toEqual({ x: 4 * GRID, y: 3 * GRID, width: 2 * GRID, height: 3 * GRID, image: 'slab' });
+    expect(lidOf(tiled).tilePx).toBe(GRID);
+    expect(lidOf(stretched).tilePx).toBe(0);
+    const sides = walls(quads);
+    expect(sides.filter((side) => side.terrain === tiled.identifier).every((side) => side.tilePx === GRID)).toBe(true);
+    expect(sides.filter((side) => side.terrain === stretched.identifier).every((side) => side.tilePx === 0)).toBe(true);
+    expect(sides.some((side) => side.terrain === tiled.identifier)).toBe(true);
+  });
+
   it('names what it draws the same way each time', () => {
     const { left, right } = corridor();
 

@@ -208,6 +208,7 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
   panel('jukebox', 'queue_music', 'jukebox', 'app.fab.jukebox'),
   panel('cutIn', 'slideshow', 'cutInList', 'app.fab.cutIn'),
   panel('effectLibrary', 'auto_awesome', 'effectLibrary', 'feature.effect.title', { audience: 'playing' }),
+  panel('battleCutIn', 'sports_martial_arts', 'battleCutIn', 'feature.battleCutIn.title'),
   panel('skin', 'palette', 'skin', 'app.fab.skin', { testId: 'seat-skin' }),
   panel('soundSettings', 'volume_up', 'soundSettings', 'app.fab.soundSettings', { testId: 'seat-sound-settings' }),
   panel('objectList', 'category', 'objectList', 'app.fab.objectList', { audience: 'gameMaster' }),

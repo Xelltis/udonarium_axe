@@ -15,11 +15,11 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
-import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 
 const PORTRAIT_COUNT = 12;

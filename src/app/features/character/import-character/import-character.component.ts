@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { CharacterImportService } from '@axe/application/character/character-import.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -13,6 +12,7 @@ import {
   SUPPORT_LEVEL_LABEL_KEYS,
   SUPPORT_LEVEL_SYMBOLS,
 } from '@axe/domain/character/import/import-capability';
+import { CharacterImportService } from '@axe/features/character/import-character/character-import.service';
 import { TranslocoModule } from '@jsverse/transloco';
 
 type ImportFeedback = { kind: 'success' | 'warning' | 'error'; text: string } | null;
@@ -61,7 +61,7 @@ export class ImportCharacterComponent {
    * character piece there.
    */
   get canEdit(): boolean {
-    return this.rolePermission.canEditTabletop;
+    return this.rolePermission.canEditTabletop();
   }
 
   /**

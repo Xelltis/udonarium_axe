@@ -1,3 +1,4 @@
+import { clampOr } from '@axe/core/util/clamp';
 import { MAX_LIFT, MAX_SPREAD, MIN_SPREAD, SkinMode, SkinRecipe } from '@axe/domain/ui/skin-palette';
 
 /**
@@ -409,28 +410,24 @@ export function asSkinId(value: unknown, mode: SkinMode): string {
   return skinById(value, mode) ? value : STANDARD_SKIN;
 }
 
-function clamp(value: unknown, low: number, high: number, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value) ? Math.max(low, Math.min(high, value)) : fallback;
-}
-
 /** A recipe read back out of the text a browser kept, with every number pulled into range. */
 export function asRecipe(value: unknown, mode: SkinMode): SkinRecipe {
   const seed = CUSTOM_SEED[mode];
   if (!value || typeof value !== 'object') return seed;
   const raw = value as Record<string, unknown>;
   const recipe: SkinRecipe = {
-    hue: clamp(raw['hue'], 0, 360, seed.hue) % 360,
-    chroma: clamp(raw['chroma'], 0, 40, seed.chroma),
-    accentHue: clamp(raw['accentHue'], 0, 360, seed.accentHue) % 360,
-    accentChroma: clamp(raw['accentChroma'], 0, 80, seed.accentChroma),
-    lift: clamp(raw['lift'], -MAX_LIFT, MAX_LIFT, 0),
-    spread: clamp(raw['spread'], MIN_SPREAD, MAX_SPREAD, 0),
+    hue: clampOr(raw['hue'], 0, 360, seed.hue) % 360,
+    chroma: clampOr(raw['chroma'], 0, 40, seed.chroma),
+    accentHue: clampOr(raw['accentHue'], 0, 360, seed.accentHue) % 360,
+    accentChroma: clampOr(raw['accentChroma'], 0, 80, seed.accentChroma),
+    lift: clampOr(raw['lift'], -MAX_LIFT, MAX_LIFT, 0),
+    spread: clampOr(raw['spread'], MIN_SPREAD, MAX_SPREAD, 0),
     contrast: raw['contrast'] === 'high' ? 'high' : 'normal',
   };
-  if (typeof raw['textHue'] === 'number') recipe.textHue = clamp(raw['textHue'], 0, 360, 0) % 360;
-  if (typeof raw['textChroma'] === 'number') recipe.textChroma = clamp(raw['textChroma'], 0, 60, 0);
-  if (typeof raw['titlebarHue'] === 'number') recipe.titlebarHue = clamp(raw['titlebarHue'], 0, 360, 0) % 360;
-  if (typeof raw['titlebarChroma'] === 'number') recipe.titlebarChroma = clamp(raw['titlebarChroma'], 0, 60, 0);
+  if (typeof raw['textHue'] === 'number') recipe.textHue = clampOr(raw['textHue'], 0, 360, 0) % 360;
+  if (typeof raw['textChroma'] === 'number') recipe.textChroma = clampOr(raw['textChroma'], 0, 60, 0);
+  if (typeof raw['titlebarHue'] === 'number') recipe.titlebarHue = clampOr(raw['titlebarHue'], 0, 360, 0) % 360;
+  if (typeof raw['titlebarChroma'] === 'number') recipe.titlebarChroma = clampOr(raw['titlebarChroma'], 0, 60, 0);
   return recipe;
 }
 

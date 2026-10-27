@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { CONFIRM_DIALOG_COMPONENT } from '@axe/application/ui/overlay-components';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 class Dialog {}
@@ -9,21 +10,24 @@ describe('ConfirmService', () => {
   let service: ConfirmService;
   let open: ReturnType<typeof vi.fn>;
 
+  function serviceWith(dialog: typeof Dialog | null): ConfirmService {
+    TestBed.overrideProvider(CONFIRM_DIALOG_COMPONENT, { useValue: dialog });
+    return TestBed.inject(ConfirmService);
+  }
+
   beforeEach(() => {
     open = vi.fn();
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     TestBed.overrideProvider(ModalService, { useValue: { open } });
-    service = TestBed.inject(ConfirmService);
-    ConfirmService.dialogComponentClass = Dialog;
   });
 
   afterEach(() => {
-    ConfirmService.dialogComponentClass = null!;
     vi.unstubAllGlobals();
     TestBed.resetTestingModule();
   });
 
   it('opens the dialog with the option, or with a bare message wrapped', async () => {
+    service = serviceWith(Dialog);
     open.mockResolvedValue(true);
     await service.ask({ message: 'Delete?', danger: true });
     await service.ask('Sure?');
@@ -32,6 +36,7 @@ describe('ConfirmService', () => {
   });
 
   it('is yes only on a plain yes', async () => {
+    service = serviceWith(Dialog);
     open.mockResolvedValueOnce(true);
     await expect(service.ask('?')).resolves.toBe(true);
     open.mockResolvedValueOnce(null);
@@ -41,7 +46,7 @@ describe('ConfirmService', () => {
   });
 
   it('falls back to the browser when no dialog is registered', async () => {
-    ConfirmService.dialogComponentClass = null!;
+    service = serviceWith(null);
     vi.stubGlobal(
       'confirm',
       vi.fn(() => true)

@@ -1,11 +1,11 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import {
   parsePersonalChatBookmarks,
   PersonalChatBookmark,
   serializePersonalChatBookmarks,
 } from '@axe/domain/chat/chat-bookmark';
-
-export const CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY = 'chat-personal-bookmarks';
 
 /**
  * This reader's own bookmarks on chat lines, kept in this browser by the identifier of the line.
@@ -27,7 +27,7 @@ export class ChatPersonalBookmarkStore {
 
   constructor() {
     const onStorage = (event: StorageEvent) => {
-      if (event.key !== null && event.key !== CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY) return;
+      if (event.key !== null && event.key !== STORAGE_KEYS.chatPersonalBookmarks) return;
       this.marks.set(stored() ?? new Map());
     };
     window.addEventListener('storage', onStorage);
@@ -77,20 +77,11 @@ export class ChatPersonalBookmarkStore {
     const changed = change(next);
     this.marks.set(next);
     if (!changed) return;
-    try {
-      localStorage.setItem(CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY, serializePersonalChatBookmarks(next));
-      this.writeRefused = false;
-    } catch {
-      this.writeRefused = true;
-    }
+    this.writeRefused = !writeLocal(STORAGE_KEYS.chatPersonalBookmarks, serializePersonalChatBookmarks(next));
   }
 }
 
 /** The marks the browser holds now, or null where it refuses to be read. */
 function stored(): Map<string, PersonalChatBookmark> | null {
-  try {
-    return parsePersonalChatBookmarks(localStorage.getItem(CHAT_PERSONAL_BOOKMARKS_STORAGE_KEY));
-  } catch {
-    return null;
-  }
+  return parsePersonalChatBookmarks(readLocal(STORAGE_KEYS.chatPersonalBookmarks));
 }

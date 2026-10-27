@@ -1,7 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
 import { ObjectChangeService, type WritingMessageEvent } from '@axe/application/sync/object-change.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { emitMessageAdded } from '@axe/core/event/domain-events';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -176,7 +177,7 @@ describe('ChatTabComponent', () => {
       beMyself('me');
       const secret = chatTab.addMessage({ from: 'me', name: 'ダイス', text: '→ 6', timestamp: 1000, tag: 'secret' });
       const said = chatTab.addMessage({ from: 'me', name: 'アリス', text: 'そのあと', timestamp: 2000 });
-      TestBed.inject(ChatMessageService).discloseMessage(secret);
+      TestBed.inject(ChatLineEditService).discloseMessage(secret);
       await flush();
 
       // settling the window over both, with the opened line last
@@ -204,7 +205,7 @@ describe('ChatTabComponent', () => {
       // settling the window over both, which bounds it by the times they were said at
       const settled = component.chatMessages;
 
-      TestBed.inject(ChatMessageService).discloseMessage(secret);
+      TestBed.inject(ChatLineEditService).discloseMessage(secret);
       await flush();
 
       expect(chatTab.chatMessages[chatTab.chatMessages.length - 1]).toBe(secret);
@@ -438,6 +439,38 @@ describe('ChatTabComponent', () => {
       fixture.detectChanges();
 
       expect(line().classList).toContain('chat-message-highlight');
+    });
+
+    describe('a jump to the line a reply or quote came from', () => {
+      const lineOf = (message: ChatMessage) =>
+        (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+          `chat-message[data-message-id="${message.identifier}"]`
+        )!;
+
+      it('brings the line into view, lights it up, and takes the request away', async () => {
+        const target = chatTab.chatMessages[119];
+        const ui = TestBed.inject(UiSignalService);
+        lineOf(target).scrollIntoView = vi.fn();
+
+        ui.requestChatJump(target.identifier);
+        fixture.detectChanges();
+        await Promise.resolve();
+        fixture.detectChanges();
+
+        expect(ui.chatJumpRequest()).toBeNull();
+        expect(lineOf(target).scrollIntoView).toHaveBeenCalled();
+        expect(lineOf(target).classList).toContain('chat-message-highlight');
+      });
+
+      it('leaves a request for a line not drawn here alone, for whoever draws it', async () => {
+        const ui = TestBed.inject(UiSignalService);
+
+        ui.requestChatJump('a-line-elsewhere');
+        fixture.detectChanges();
+        await Promise.resolve();
+
+        expect(ui.chatJumpRequest()?.messageIdentifier).toBe('a-line-elsewhere');
+      });
     });
 
     it('stops drawing a line once it is deleted, and hands back nothing for it', async () => {

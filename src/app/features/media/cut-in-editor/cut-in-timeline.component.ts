@@ -9,6 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import type { CutInSound } from '@axe/domain/media/cut-in-sound';
 import { layerKeyTimes } from '@axe/features/media/cut-in-editor/cut-in-keyframe-edit';
@@ -143,7 +144,7 @@ export class CutInTimelineComponent {
   }
 
   protected onRulerDown(event: PointerEvent): void {
-    (event.target as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
+    capturePointer(event.target, event.pointerId);
     this.scrubbing = true;
     this.seek.emit(this.momentAt(event));
   }
@@ -156,7 +157,7 @@ export class CutInTimelineComponent {
     if (this.isEditable() && !row.layer.locked) {
       const edge = bandEdgeAt({ left: row.left, width: row.width }, this.offsetOf(event));
       if (edge) {
-        (event.target as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
+        capturePointer(event.target, event.pointerId);
         this.bandDrag = { layer: row.layer, edge };
         return;
       }
@@ -176,7 +177,7 @@ export class CutInTimelineComponent {
       return;
     }
 
-    (event.target as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
+    capturePointer(event.target, event.pointerId);
     this.keyDrag = { layer: row.layer, fromMs: grabbed, toMs: grabbed };
   }
 
@@ -193,7 +194,7 @@ export class CutInTimelineComponent {
       return;
     }
 
-    (event.target as HTMLElement | null)?.setPointerCapture?.(event.pointerId);
+    capturePointer(event.target, event.pointerId);
     this.soundDrag = { fromMs: grabbed, toMs: grabbed };
   }
 
@@ -236,7 +237,7 @@ export class CutInTimelineComponent {
    * to be had on a touch screen.
    */
   protected onPointerUp(event: PointerEvent): void {
-    (event.target as HTMLElement | null)?.releasePointerCapture?.(event.pointerId);
+    releasePointer(event.target, event.pointerId);
     this.scrubbing = false;
 
     if (this.bandDrag) {

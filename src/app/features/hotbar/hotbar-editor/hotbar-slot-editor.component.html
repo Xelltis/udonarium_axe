@@ -41,6 +41,12 @@
         }
       </div>
     </div>
+    @if (chosenEffect(); as preset) {
+      <div class="flex items-start gap-2">
+        <span class="text-ui-muted w-20 shrink-0 pt-1">{{ 'feature.hotbar.editor.effectPreview' | transloco }}</span>
+        <effect-preview class="min-w-0 flex-1" data-testid="hotbar-editor-effect-preview" [preset]="preset" />
+      </div>
+    }
   } @else if (picksFromList()) {
     <label class="flex items-center gap-2">
       <span class="text-ui-muted w-20 shrink-0">{{ 'feature.hotbar.editor.argument' | transloco }}</span>

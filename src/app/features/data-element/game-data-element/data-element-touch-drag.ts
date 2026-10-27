@@ -1,3 +1,5 @@
+import { DRAG_THRESHOLD_PX } from '@axe/core/input/drag-threshold';
+import { capturePointer } from '@axe/core/input/pointer-capture';
 import { edgeScrollStep } from '@axe/ui/dragging/edge-scroll';
 import { type DropSide } from '@axe/ui/dragging/row-reorder';
 
@@ -7,9 +9,6 @@ export interface DropRow {
   top: number;
   height: number;
 }
-
-/** How far a finger has to travel before a press on the handle becomes a drag. */
-export const TOUCH_DRAG_SLOP_PX = 6;
 
 /**
  * The row a drag held at `y` lands beside, and on which side: below a row past its middle, above
@@ -76,7 +75,7 @@ export class DataElementTouchDrag {
     const startY = start.clientY;
     const pointerId = start.pointerId;
     try {
-      handle.setPointerCapture?.(pointerId);
+      capturePointer(handle, pointerId);
     } catch {
       // A pointer the browser no longer knows, such as one already lifted, cannot be captured;
       // the handle still hears it while the finger stays over it.
@@ -88,7 +87,7 @@ export class DataElementTouchDrag {
         if (event.pointerId !== pointerId) return;
         this.lastY = event.clientY;
         if (!this.started) {
-          if (Math.hypot(event.clientX - startX, event.clientY - startY) < TOUCH_DRAG_SLOP_PX) return;
+          if (Math.hypot(event.clientX - startX, event.clientY - startY) < DRAG_THRESHOLD_PX) return;
           this.begin();
         }
         event.preventDefault();

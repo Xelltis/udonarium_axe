@@ -1,6 +1,7 @@
 import { AudioFile } from '@axe/core/storage/audio-file';
-import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { VolumeType } from '@axe/core/storage/audio-output';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { SoundEffects } from '@axe/core/storage/sound-effects';
 import {
   CHAT_SOUND_TYPES,
   chatSoundOf,
@@ -67,7 +68,7 @@ describe('playChatSound()', () => {
   });
 
   it('plays the note through the notification channel at the volume asked', () => {
-    const play = vi.spyOn(AudioPlayer, 'play').mockImplementation(() => {});
+    const play = vi.spyOn(SoundEffects, 'playOnce').mockImplementation(() => {});
 
     playChatSound('bubble', '', 0.4);
 
@@ -75,7 +76,7 @@ describe('playChatSound()', () => {
   });
 
   it('plays nothing at no volume', () => {
-    const play = vi.spyOn(AudioPlayer, 'play').mockImplementation(() => {});
+    const play = vi.spyOn(SoundEffects, 'playOnce').mockImplementation(() => {});
 
     playChatSound('bubble', '', 0);
 

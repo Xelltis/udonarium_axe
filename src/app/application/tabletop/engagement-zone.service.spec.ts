@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
-import { EngagementZoneService, metresPerCell } from '@axe/application/tabletop/engagement-zone.service';
+import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnHooksService } from '@axe/application/turn/turn-hooks.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
@@ -14,6 +15,7 @@ import { cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { EngagementZone, zonesOn } from '@axe/domain/tabletop/zone/engagement-zone';
+import { metresPerCell } from '@axe/domain/tabletop/zone/zone-queries';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 const GRID = 50;
@@ -577,7 +579,7 @@ describe('EngagementZoneService', () => {
         service.setHeld(fast, true);
 
         holder.location = { name: 'table', x: 15 * GRID, y: 12 * GRID };
-        service.carryBound(holder);
+        TestBed.inject(PieceLinksService).carryBound(holder);
 
         expect(captive.location.x).toBe(15 * GRID);
         expect(fast.location.x).toBe(12 * GRID);

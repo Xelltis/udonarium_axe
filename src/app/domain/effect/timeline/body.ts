@@ -23,6 +23,8 @@ const DISSOLVE_COLUMNS = 4;
 const DISSOLVE_ROWS = 6;
 /** The size of one fragment. The picture of a piece fits one cell. */
 const DISSOLVE_PIECE_SCALE = 0.34;
+/** How tall the picture that crumbles is drawn, against the size the effect is drawn at. */
+export const DISSOLVE_PICTURE_HEIGHT = DISSOLVE_PIECE_SCALE * DISSOLVE_ROWS;
 const GORE_DROP_COUNT = 14;
 const GORE_DRIP_COUNT = 5;
 const GORE_STAIN_COUNT = 9;

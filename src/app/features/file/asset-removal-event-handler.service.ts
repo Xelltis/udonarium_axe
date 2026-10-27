@@ -32,6 +32,9 @@ export class AssetRemovalEventHandlerService {
   private readonly ownership = inject(AssetOwnershipService);
   private readonly snackbar = inject(SnackbarService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly imageStorage = inject(ImageStorage);
+  private readonly audioStorage = inject(AudioStorage);
+  private readonly objectStore = inject(ObjectStore);
   /** The asset each record keeps removed here now, by the record's identifier. */
   private readonly marked = new Map<string, string>();
 
@@ -44,8 +47,8 @@ export class AssetRemovalEventHandlerService {
     this.objectChange.objectRemoved$.subscribe(follow, destroyRef);
     this.objectChange.onObjectChangedForSingleAlias(ALIAS, follow, destroyRef);
     for (const [storage, refused, kind] of [
-      [ImageStorage.instance, 'feature.file.removal.imageRefused', 'image'],
-      [AudioStorage.instance, 'feature.file.removal.audioRefused', 'audio'],
+      [this.imageStorage, 'feature.file.removal.imageRefused', 'image'],
+      [this.audioStorage, 'feature.file.removal.audioRefused', 'audio'],
     ] as const) {
       storage.putBack = (identifier) => this.assetRemoval.putBack(identifier);
       storage.onRefused = () => this.snackbar.show(this.t(refused));
@@ -53,7 +56,7 @@ export class AssetRemovalEventHandlerService {
       storage.onAddedLocally = (identifier) => this.ownership.claim(identifier, kind);
     }
     destroyRef.onDestroy(() => {
-      for (const storage of [ImageStorage.instance, AudioStorage.instance]) {
+      for (const storage of [this.imageStorage, this.audioStorage]) {
         storage.putBack = () => false;
         storage.onRefused = () => {};
         storage.onUploadedWhileRemoved = () => {};
@@ -65,18 +68,18 @@ export class AssetRemovalEventHandlerService {
 
   /** Brings this seat in step with one record, as it stands or gone from the room. */
   private follow(recordIdentifier: string): void {
-    const found = ObjectStore.instance.get(recordIdentifier);
+    const found = this.objectStore.get(recordIdentifier);
     const removing = found instanceof AssetRemoval && found.isRemoved ? found : null;
     const was = this.marked.get(recordIdentifier);
     if (was === removing?.assetIdentifier) return;
     if (was !== undefined) {
-      ImageStorage.instance.unmarkRemoved(was);
-      AudioStorage.instance.unmarkRemoved(was);
+      this.imageStorage.unmarkRemoved(was);
+      this.audioStorage.unmarkRemoved(was);
       this.marked.delete(recordIdentifier);
     }
     if (!removing) return;
-    if (removing.kind === 'audio') AudioStorage.instance.markRemoved(removing.assetIdentifier);
-    else ImageStorage.instance.markRemoved(removing.assetIdentifier);
+    if (removing.kind === 'audio') this.audioStorage.markRemoved(removing.assetIdentifier);
+    else this.imageStorage.markRemoved(removing.assetIdentifier);
     this.marked.set(recordIdentifier, removing.assetIdentifier);
   }
 }

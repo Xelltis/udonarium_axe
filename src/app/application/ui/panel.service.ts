@@ -1,4 +1,5 @@
-import { ComponentRef, Injectable, reflectComponentType, signal, ViewContainerRef } from '@angular/core';
+import { ComponentRef, inject, Injectable, reflectComponentType, signal, ViewContainerRef } from '@angular/core';
+import { LOAD_FAILURE_NOTICE, PANEL_FRAME_COMPONENT } from '@axe/application/ui/overlay-components';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { isTabbablePanel } from '@axe/application/ui/panel-drag-helpers';
 import { EventChannel } from '@axe/core/event/event-channel';
@@ -47,6 +48,12 @@ export interface PanelFrameControl {
   shown?: () => boolean;
 }
 
+/** A panel's size in pixels. */
+export interface PanelSize {
+  readonly width: number;
+  readonly height: number;
+}
+
 export interface PanelOption {
   title?: string;
   left?: number;
@@ -62,6 +69,12 @@ export interface PanelOption {
   invisible?: boolean;
   minimizeToContent?: boolean;
   frameless?: boolean;
+  /**
+   * The least size the panel's content needs as it stands, which the frame keeps the panel at and
+   * inside the window and which keeps it from being folded; null while it needs none. Asked again
+   * every half second, since what the content shows may change.
+   */
+  leastSize?: () => PanelSize | null;
 
   /**
    * Whether this panel is being drawn in a window of its own rather than on the table.
@@ -147,19 +160,14 @@ type PanelServiceAssignableKey =
   | 'cutInIdentifier'
   | 'invisible'
   | 'minimizeToContent'
-  | 'frameless';
+  | 'frameless'
+  | 'leastSize';
 
 @Injectable()
 export class PanelService {
-  static defaultParentViewContainerRef: ViewContainerRef;
-  static UIPanelComponentClass: { new (...args: unknown[]): PanelFrame } = null!;
-  static chatPortraitComponentClass: Type<unknown> | null = null;
-  static cardStackListComponentClass: Type<unknown> | null = null;
-  /**
-   * Told when the code of a panel opened by `openLazy` cannot be fetched, which after a release
-   * means the page wants reloading. The app sets it; nothing is told while it is unset.
-   */
-  static loadFailureNotice: (() => void) | null = null;
+  private readonly overlays = inject(OverlayLayers);
+  /** Told when the code of a panel opened by `openLazy` cannot be fetched. */
+  private readonly loadFailureNotice = inject(LOAD_FAILURE_NOTICE);
   private frame: PanelFrame | null = null;
   private actionRotationDegrees: PanelRotationDegrees = 0;
   private static readonly singles = new Map<string, PanelService>();
@@ -209,6 +217,8 @@ export class PanelService {
    */
   minimizeToContent: boolean = false;
   frameless: boolean = false;
+  /** The least size the panel's content needs, as {@link PanelOption.leastSize} gives it; null for none. */
+  leastSize: (() => PanelSize | null) | null = null;
   /** Whether the panel is folded to its title bar. */
   readonly isMinimized = signal(false);
   /** Whether the panel is shrunk to its content, which the content asks for with `shrinkRequest$`. */
@@ -335,7 +345,14 @@ export class PanelService {
    * across to be put away.
    */
   private windowLayer(): ViewContainerRef | null {
-    return OverlayLayers.layerFor(this.frame?.frameDocument());
+    return this.overlays.layerFor(this.frame?.frameDocument());
+  }
+
+  /** The frame a panel stands in, as the layer it is put in names it. */
+  private panelFrame(layer: ViewContainerRef): Type<PanelFrame> {
+    const frame = layer.injector.get(PANEL_FRAME_COMPONENT);
+    if (!frame) throw new Error('[PanelService] no panel frame has been handed in');
+    return frame;
   }
 
   /**
@@ -350,13 +367,13 @@ export class PanelService {
     const windowLayer = parentViewContainerRef ? null : this.windowLayer();
     if (windowLayer) option = { ...option, windowed: true };
     if (!parentViewContainerRef) {
-      parentViewContainerRef = windowLayer ?? PanelService.defaultParentViewContainerRef;
+      parentViewContainerRef = windowLayer ?? this.overlays.mainLayer();
     }
     const injector = parentViewContainerRef.injector;
 
     if (option?.single) PanelService.singles.get(option.single)?.close();
 
-    const panelComponentRef = parentViewContainerRef.createComponent(PanelService.UIPanelComponentClass, {
+    const panelComponentRef = parentViewContainerRef.createComponent(this.panelFrame(parentViewContainerRef), {
       index: parentViewContainerRef.length,
       injector,
     });
@@ -396,8 +413,8 @@ export class PanelService {
    * only wants somewhere to be.
    */
   openFrame(option?: PanelOption, parentViewContainerRef?: ViewContainerRef): PanelFrame {
-    const parent = parentViewContainerRef ?? PanelService.defaultParentViewContainerRef;
-    const panelComponentRef = parent.createComponent(PanelService.UIPanelComponentClass, {
+    const parent = parentViewContainerRef ?? this.overlays.mainLayer();
+    const panelComponentRef = parent.createComponent(this.panelFrame(parent), {
       index: parent.length,
       injector: parent.injector,
     });
@@ -452,7 +469,7 @@ export class PanelService {
           // The name is let go of as well, or nothing under it could ever be opened again.
           if (single && isLatest()) PanelService.opening.delete(single);
           Logger.error('[PanelService] パネルを読み込めませんでした', reason);
-          PanelService.loadFailureNotice?.();
+          this.loadFailureNotice();
         }
       )
       .catch((reason) => {
@@ -494,7 +511,15 @@ export class PanelService {
       panelComponentRef.setInput(key, value);
     }
 
-    const serviceOnly = ['isCutIn', 'cutInIdentifier', 'invisible', 'minimizeToContent', 'frameless', 'layer'] as const;
+    const serviceOnly = [
+      'isCutIn',
+      'cutInIdentifier',
+      'invisible',
+      'minimizeToContent',
+      'frameless',
+      'layer',
+      'leastSize',
+    ] as const;
     for (const key of serviceOnly) {
       const value = adjusted[key];
       if (value === undefined) continue;

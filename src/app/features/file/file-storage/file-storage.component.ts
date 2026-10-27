@@ -65,17 +65,14 @@ export class FileStorageComponent {
 
   /** Only the master may keep a picture back, or see one that is being kept. */
   get canKeepSecret(): boolean {
-    return this.rolePermission.canSeeHidden;
+    return this.rolePermission.canSeeHidden();
   }
 
   /**
    * Whether this seat may bring pictures in, edit them and file them under tags, which a guest may
    * not. It follows this seat's cursor, so the panel redraws when the role changes.
    */
-  protected readonly canEdit = computed(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditTabletop;
-  });
+  protected readonly canEdit = computed(() => this.rolePermission.canEditTabletop());
 
   /**
    * Whether this seat may remove pictures from the room here: the master always, and a player while
@@ -85,7 +82,7 @@ export class FileStorageComponent {
   protected readonly canRemove = computed(() => {
     this.objectChange.trackMyCursor();
     this.ownership.track();
-    if (this.rolePermission.canEditShared) return true;
+    if (this.rolePermission.canEditShared()) return true;
     return this.images().some((image) => this.assetRemoval.mayRemove(image.context.identifier));
   });
 
@@ -203,7 +200,7 @@ export class FileStorageComponent {
    * the tool's own pictures are refused. Tag records are shared, so the change reaches every peer.
    */
   changeTag() {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     const candidate = this.newTagName();
     if (candidate === ALL_TAG) return;
     if (candidate === SYSTEM_RESERVED_TAG) return;
@@ -296,7 +293,7 @@ export class FileStorageComponent {
     const input = event.target as HTMLInputElement;
     const files = Array.from(input.files ?? []);
     input.value = '';
-    if (!this.rolePermission.canEditTabletop || files.length === 0) return;
+    if (!this.rolePermission.canEditTabletop() || files.length === 0) return;
     this.notice.set('');
     const { oversized } = await this.editQueue.upload(files);
     if (oversized.length > 0) {
@@ -314,7 +311,7 @@ export class FileStorageComponent {
    * and how to paste with the keys instead.
    */
   async pasteFromClipboard(): Promise<void> {
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     this.notice.set('');
     try {
       for (const item of await navigator.clipboard.read()) {
@@ -335,7 +332,7 @@ export class FileStorageComponent {
    */
   onPaste(event: ClipboardEvent): void {
     const image = Array.from(event.clipboardData?.files ?? []).find((file) => file.type.startsWith('image/'));
-    if (!image || !this.rolePermission.canEditTabletop) return;
+    if (!image || !this.rolePermission.canEditTabletop()) return;
     event.preventDefault();
     this.notice.set('');
     void this.editQueue.edit({ blob: image, name: pastedImageName(image.type) });
@@ -356,7 +353,7 @@ export class FileStorageComponent {
    */
   async editChecked(): Promise<void> {
     const image = this.checkedImage();
-    if (!image || !this.rolePermission.canEditTabletop) return;
+    if (!image || !this.rolePermission.canEditTabletop()) return;
     this.notice.set('');
     let blob: Blob;
     try {

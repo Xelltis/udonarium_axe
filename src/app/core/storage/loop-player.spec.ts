@@ -1,12 +1,13 @@
 import { Logger, LogLevel } from '@axe/core/logging/logger';
 import { AudioFile } from '@axe/core/storage/audio-file';
-import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { AudioOutput, VolumeType } from '@axe/core/storage/audio-output';
 import {
   LOOP_FROM_MEMORY_MAX_DECODED_BYTES,
   LOOP_FROM_MEMORY_MAX_FILE_BYTES,
   LoopPlayer,
 } from '@axe/core/storage/loop-player';
 import { loopTaggedWavBlob } from '@axe/testing/loop-tagged-audio';
+import { forgetAudioOutput } from '@axe/testing/web-audio-mock';
 
 type ParamMock = {
   value: number;
@@ -74,8 +75,6 @@ function makeAudio(opts: { identifier?: string; blob?: Blob | null; url?: string
   return audio;
 }
 
-type AudioPlayerStatics = { _audioContext: unknown; channels: Map<unknown, unknown> };
-
 describe('LoopPlayer', () => {
   let context: ReturnType<typeof makeContext>;
   let elements: ElementMock[];
@@ -89,16 +88,14 @@ describe('LoopPlayer', () => {
     }
     vi.stubGlobal('AudioContext', AudioContextCtor);
     vi.stubGlobal('webkitAudioContext', AudioContextCtor);
-    const statics = AudioPlayer as unknown as AudioPlayerStatics;
-    statics._audioContext = undefined;
-    statics.channels.clear();
+    forgetAudioOutput();
   };
 
   /** The gain node the player made for itself, which comes after the background channel's own. */
   const playerGain = (): GainMock => {
     const gains = context.createGain.mock.results.map((result) => result.value as GainMock);
     return gains.find((gain) =>
-      gain.connect.mock.calls.some(([to]) => to === AudioPlayer.channelNode(VolumeType.BACKGROUND))
+      gain.connect.mock.calls.some(([to]) => to === AudioOutput.channelNode(VolumeType.BACKGROUND))
     )!;
   };
   const sources = (): SourceMock[] => context.createBufferSource.mock.results.map((r) => r.value as SourceMock);
@@ -126,9 +123,7 @@ describe('LoopPlayer', () => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
-    const statics = AudioPlayer as unknown as AudioPlayerStatics;
-    statics._audioContext = undefined;
-    statics.channels.clear();
+    forgetAudioOutput();
   });
 
   describe('a small file', () => {

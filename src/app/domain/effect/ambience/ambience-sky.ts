@@ -1,3 +1,4 @@
+import { withAlpha } from '@axe/core/util/hex-color';
 import { PERF_AMBIENCE_LAYER, perfCounters } from '@axe/core/util/perf-counters';
 import {
   ambienceColorOf,
@@ -10,7 +11,6 @@ import {
   type EffectParticle,
   type EffectParticleLayer,
   seededRandom,
-  withAlpha,
 } from '@axe/domain/effect/particles/shared';
 
 /**

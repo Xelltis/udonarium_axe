@@ -285,6 +285,7 @@ export default defineConfig({
             { text: '音の設定', link: '/manual/sound-settings' },
             { text: 'カットイン', link: '/manual/cut-in' },
             { text: 'マップ演出（エフェクト）', link: '/manual/map-effects' },
+            { text: '戦闘カットイン', link: '/manual/battle-cut-in' },
             { text: 'ビジュアルノベルモード', link: '/manual/visual-novel' },
           ],
         },
@@ -336,6 +337,7 @@ export default defineConfig({
           text: 'リリースノート',
           items: [
             { text: '一覧', link: '/release-notes/' },
+            { text: 'v1.72.0', link: '/release-notes/v1.72.0' },
             { text: 'v1.71.1', link: '/release-notes/v1.71.1' },
             { text: 'v1.71.0', link: '/release-notes/v1.71.0' },
             { text: 'v1.70.1', link: '/release-notes/v1.70.1' },

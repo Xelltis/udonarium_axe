@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { parseWidgetLayout, WidgetLayoutService } from '@axe/application/ui/widget-layout.service';
+import { refuseLocalStorage } from '@axe/testing/refused-storage';
 
 const STORAGE_KEY = 'ui-widget-layout';
 
@@ -31,6 +32,7 @@ describe('WidgetLayoutService', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     localStorage.removeItem(STORAGE_KEY);
   });
 
@@ -82,5 +84,16 @@ describe('WidgetLayoutService', () => {
       left: 40,
       top: 60,
     });
+  });
+
+  it('still moves a widget where the browser refuses to keep where it was left', () => {
+    TestBed.resetTestingModule();
+    refuseLocalStorage();
+    const service = TestBed.inject(WidgetLayoutService);
+
+    service.remember('clock', { left: 10, top: 20 });
+    expect(service.spotOf('clock')).toEqual({ left: 10, top: 20 });
+    service.forget('clock');
+    expect(service.spotOf('clock')).toBeNull();
   });
 });

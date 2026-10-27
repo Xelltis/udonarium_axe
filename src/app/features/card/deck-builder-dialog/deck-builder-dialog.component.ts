@@ -33,7 +33,7 @@ export class DeckBuilderDialogComponent {
     const tags = new Set<string>();
     for (const image of this.imageStorage.images) {
       const imageTag = ImageTag.get(image.identifier) ?? null;
-      if (!canBrowseImage(imageTag, this.rolePermission.canSeeHidden, true, this.tagLock.hides)) continue;
+      if (!canBrowseImage(imageTag, this.rolePermission.canSeeHidden(), true, this.tagLock.hides)) continue;
       const tag = imageTag?.tag ?? '';
       if (tag.length > 0 && tag !== SYSTEM_RESERVED_TAG) tags.add(tag);
     }
@@ -53,7 +53,7 @@ export class DeckBuilderDialogComponent {
         (ImageTag.get(image.identifier)?.tag ?? '') === tag &&
         canBrowseImage(
           ImageTag.get(image.identifier) ?? null,
-          this.rolePermission.canSeeHidden,
+          this.rolePermission.canSeeHidden(),
           true,
           this.tagLock.hides
         )

@@ -1,0 +1,186 @@
+/*
+ * The net of light under water. Each net moves by one repeat of its tile and starts over, so it
+ * never jumps; two nets of different sizes move different ways, and where they cross the light
+ * shifts the way it does under real water. Only the transform moves, which the compositor does alone.
+ */
+.water-net {
+  background-repeat: repeat;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+.water-net-a {
+  animation-name: water-net-forward;
+  animation-duration: 26s;
+}
+
+.water-net-b {
+  animation-name: water-net-across;
+  animation-duration: 39s;
+}
+
+.water-net-glint {
+  animation-name: water-net-across;
+  animation-duration: 57s;
+  animation-direction: reverse;
+}
+
+/*
+ * What flowing water carries along: turned to run the way the water flows (set inline), then slid
+ * along that way by one repeat of its picture, over and over.
+ */
+.water-flow {
+  transform: rotate(var(--flow-angle, 0deg));
+  animation: water-flow var(--flow-seconds, 0s) linear infinite;
+  will-change: transform;
+}
+
+@keyframes water-flow {
+  from {
+    transform: rotate(var(--flow-angle, 0deg)) translateX(calc(var(--water-tile, 0px) * -0.5));
+  }
+  to {
+    transform: rotate(var(--flow-angle, 0deg)) translateX(calc(var(--water-tile, 0px) * 0.5));
+  }
+}
+
+:root.motion-reduced .water-flow {
+  animation: none;
+}
+
+/* The clouds of silt in murky water and the scum on dirty water drift far slower than the light. */
+.water-silt {
+  animation-name: water-net-forward;
+  animation-duration: 150s;
+  animation-direction: reverse;
+}
+
+.water-scum {
+  animation-name: water-net-across;
+  animation-duration: 120s;
+}
+
+@keyframes water-net-forward {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(var(--water-tile, 0px), var(--water-tile, 0px), 0);
+  }
+}
+
+@keyframes water-net-across {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(calc(var(--water-tile, 0px) * -1), var(--water-tile, 0px), 0);
+  }
+}
+
+:root.motion-reduced .water-net {
+  animation: none;
+}
+
+/*
+ * The waves breaking where land rises out of the water. A strip lies on the surface along the
+ * shore with the sea below it; each wave comes in from the sea, brightest at its front, and
+ * spends itself on the shore at the top. The foam left along the shore stays put.
+ */
+.water-foam {
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0.5) 0%, rgb(255 255 255 / 0.12) 14%, transparent 30%);
+}
+
+.water-wave {
+  opacity: 0;
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0.8) 0%, rgb(255 255 255 / 0.25) 35%, transparent 100%);
+  animation: water-wave 3.6s ease-in infinite;
+}
+
+.water-wave-late {
+  animation-delay: -1.8s;
+}
+
+@keyframes water-wave {
+  0% {
+    transform: translateY(190%);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.9;
+  }
+  85% {
+    transform: translateY(0);
+    opacity: 0.55;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+}
+
+:root.motion-reduced .water-wave {
+  animation: none;
+}
+
+/* The ring a piece standing in water makes on the surface: two rings, half a beat apart. */
+.water-ripple {
+  opacity: 0;
+  animation: water-ripple 2.6s ease-out infinite;
+}
+
+.water-ripple-late {
+  animation-delay: -1.3s;
+}
+
+@keyframes water-ripple {
+  from {
+    transform: scale(0.55);
+    opacity: 0.85;
+  }
+  to {
+    transform: scale(1.15);
+    opacity: 0;
+  }
+}
+
+:root.motion-reduced .water-ripple {
+  animation: none;
+  opacity: 0.55;
+  transform: scale(0.9);
+}
+
+:root.motion-reduced .water-ripple-late {
+  display: none;
+}
+
+/* The fog of war drifting in the air. Each layer shifts its duration and negative delay to scatter the phases. */
+@keyframes fogDrift {
+  from {
+    transform: translate3d(-2.5%, -1.5%, 0);
+  }
+  to {
+    transform: translate3d(2.5%, 1.5%, 0);
+  }
+}
+
+@keyframes bgLayerScrollX {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(var(--bg-layer-tile-w, 0px) * -1));
+  }
+}
+
+/* Only the vertical axis uses the translate property, so that it can move alongside the horizontal transform
+   on the same element. */
+@keyframes bgLayerScrollY {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: 0 calc(var(--bg-layer-tile-h, 0px) * -1);
+  }
+}

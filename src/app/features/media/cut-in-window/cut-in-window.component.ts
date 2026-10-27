@@ -11,17 +11,18 @@ import {
   viewChild,
 } from '@angular/core';
 import { YouTubePlayer } from '@angular/youtube-player';
-import { type CutInSoundHandle, CutInSoundService } from '@axe/application/media/cut-in-sound.service';
 import { PersonalVolumeService } from '@axe/application/media/personal-volume.service';
 import { DEFAULT_PERSONAL_VOLUMES } from '@axe/application/media/personal-volumes';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
-import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { VolumeType } from '@axe/core/storage/audio-output';
+import { AudioPlayer } from '@axe/core/storage/audio-player';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { observeSize } from '@axe/core/util/observe-size';
 import { CutIn, cutInPanelChrome } from '@axe/domain/media/cut-in';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
@@ -30,6 +31,7 @@ import { CutInScene } from '@axe/domain/media/cut-in-scene';
 import type { CutInSpeaker } from '@axe/domain/media/cut-in-speaker';
 import { mixLevelOf } from '@axe/domain/media/mix-level';
 import { Config } from '@axe/domain/peer/config';
+import { type CutInSoundHandle, CutInSoundService } from '@axe/features/media/cut-in-sound.service';
 import { CutInStageComponent } from '@axe/features/media/cut-in-stage/cut-in-stage.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 
@@ -74,7 +76,6 @@ export class CutInWindowComponent {
   /** This window's own scene sounds, so closing it says nothing about anyone else's. */
   private sceneSound: CutInSoundHandle | null = null;
   private cutInTimeOut: ReturnType<typeof setTimeout> | null = null;
-  timerCheckWindowSize: ReturnType<typeof setTimeout> | null = null;
   private resolveFirstRender: (() => void) | null = null;
   private readonly firstRender = new Promise<void>((resolve) => {
     this.resolveFirstRender = resolve;
@@ -132,13 +133,8 @@ export class CutInWindowComponent {
     });
     effect((onCleanup) => {
       const area = this.cutInArea()?.nativeElement;
-      if (!area || typeof ResizeObserver !== 'function') return;
-      const observer = new ResizeObserver((entries) => {
-        const rect = entries[0]?.contentRect;
-        if (rect) this.areaSize.set({ width: Math.round(rect.width), height: Math.round(rect.height) });
-      });
-      observer.observe(area);
-      onCleanup(() => observer.disconnect());
+      if (!area) return;
+      onCleanup(observeSize(area, (size) => this.areaSize.set(size)));
     });
     this.destroyRef.onDestroy(() => {
       this.destroyed = true;
@@ -148,10 +144,6 @@ export class CutInWindowComponent {
       if (this.cutInTimeOut) {
         clearTimeout(this.cutInTimeOut);
         this.cutInTimeOut = null;
-      }
-      if (this.timerCheckWindowSize) {
-        clearTimeout(this.timerCheckWindowSize);
-        this.timerCheckWindowSize = null;
       }
       if (this._timeoutIdVideo) {
         clearTimeout(this._timeoutIdVideo);
@@ -333,20 +325,6 @@ export class CutInWindowComponent {
     this.panelService.height = this.height;
     this.panelService.left = this.left;
     this.panelService.top = this.top;
-  }
-
-  /**
-   * Grows the panel to the minimum size a video cut-in needs; does nothing for a cut-in without a
-   * video.
-   */
-  chkeWindowMinSize() {
-    if (!this.cutIn || !this.videoId) return;
-    if (this.panelService.width < this.cutIn.minSizeWidth(true)) {
-      this.panelService.width = this.cutIn.minSizeWidth(true);
-    }
-    if (this.panelService.height < this.cutIn.minSizeHeight(true)) {
-      this.panelService.height = this.cutIn.minSizeHeight(true);
-    }
   }
 
   /** The YouTube video the cut-in plays, or empty when it plays none. */

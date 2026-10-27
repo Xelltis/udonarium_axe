@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -15,6 +16,8 @@ import {
   DEFAULT_OVERLAY_FEED_OPTIONS,
   type OverlaySource,
 } from '@axe/features/streaming-overlay/streaming-overlay-feed';
+import { RubyTextComponent } from '@axe/ui/components/ruby-text/ruby-text.component';
+import { splitRubyNotation } from '@axe/ui/text-decoration/decorate-chat-text';
 import { turnIndicatorSignal } from '@axe/ui/turn/turn-indicator.signal';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -34,10 +37,11 @@ const TICK_MS = 10_000;
   selector: 'streaming-overlay',
   templateUrl: './streaming-overlay.component.html',
   host: { class: 'pointer-events-none fixed inset-0 z-160 block' },
-  imports: [TranslocoModule],
+  imports: [RubyTextComponent, TranslocoModule],
 })
 export class StreamingOverlayComponent {
   private readonly chat = inject(ChatMessageService);
+  private readonly clock = inject(ChatClockService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly overlayMode = inject(OverlayModeService);
   private readonly t = inject(TRANSLATE_FN);
@@ -60,7 +64,10 @@ export class StreamingOverlayComponent {
       for (const message of recentOf(tab)) sources.push(this.sourceOf(message));
     }
     sources.sort((a, b) => a.order - b.order);
-    return buildOverlayFeed(sources, this.chat.getTime());
+    return buildOverlayFeed(sources, this.clock.now()).map((line) => ({
+      ...line,
+      parts: splitRubyNotation(line.text),
+    }));
   });
 
   constructor() {

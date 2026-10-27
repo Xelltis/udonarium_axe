@@ -5,7 +5,6 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { InventoryViewPreferenceService } from '@axe/application/ui/inventory-view-preference.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { type SortKey, SortOrder } from '@axe/domain/data/data-summary-setting';
@@ -22,6 +21,7 @@ import {
   type InventoryHiddenFilter,
 } from '@axe/features/inventory/game-object-inventory/inventory-list';
 import { InventoryFilterService } from '@axe/features/inventory/inventory-filter.service';
+import { InventoryViewPreferenceService } from '@axe/features/inventory/inventory-view-preference.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -98,15 +98,9 @@ export class InventoryFilterPanelComponent {
     labelKey: this.hiddenFilterLabelKeys[value],
   }));
 
-  readonly canSeeHidden = computed<boolean>(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canSeeHidden;
-  });
+  readonly canSeeHidden = computed<boolean>(() => this.rolePermission.canSeeHidden());
 
-  readonly canEdit = computed<boolean>(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditTabletop;
-  });
+  readonly canEdit = computed<boolean>(() => this.rolePermission.canEditTabletop());
 
   /**
    * The name of the data the inventory is sorted by first, in the summary setting every inventory

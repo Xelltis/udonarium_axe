@@ -1,0 +1,638 @@
+/* The component selector is `game-data-element, [game-data-element]`, so every
+   rule below must match both the element form and the attribute form. */
+game-data-element,
+[game-data-element] {
+  --gde-depth: 0;
+  --gde-radius-control: 2px;
+  --gde-radius-line: 0;
+  --gde-row-min: 30px;
+  --gde-accent-border: color-mix(in srgb, var(--ui-accent) 82%, var(--ui-panel-border));
+  --gde-action-bg: color-mix(in srgb, var(--ui-elevated) 86%, var(--ui-surface));
+  --gde-label-bg: color-mix(in srgb, var(--ui-elevated) 86%, var(--ui-surface));
+  --gde-nested-line: color-mix(in srgb, var(--ui-accent) 70%, var(--ui-panel-border));
+  --gde-row-border: color-mix(in srgb, var(--ui-panel-border) 82%, var(--ui-text-dim));
+  --gde-section-bg: color-mix(in srgb, var(--ui-elevated) 72%, var(--ui-surface));
+  --gde-section-bg-editing: color-mix(in srgb, var(--ui-accent) 10%, var(--ui-elevated));
+  --gde-section-shadow: inset 0 1px 0 color-mix(in srgb, var(--ui-text) 9%, transparent);
+  --gde-structure-bg: color-mix(in srgb, var(--ui-accent-bg) 34%, var(--ui-elevated));
+  --gde-structure-width: 30px;
+  --gde-actions-width: 198px;
+  --gde-value-bg: color-mix(in srgb, var(--ui-input-bg) 88%, var(--ui-surface));
+
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(4.25rem, 34%) minmax(0, 1fr);
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  color: var(--ui-text);
+}
+
+game-data-element.elm-editing,
+[game-data-element].elm-editing {
+  grid-template-columns: var(--gde-structure-width) minmax(6.5rem, 30%) minmax(0, 1fr);
+}
+
+game-data-element + game-data-element,
+[game-data-element] + [game-data-element],
+game-data-element + [game-data-element],
+[game-data-element] + game-data-element {
+  margin-top: 2px;
+}
+
+game-data-element .elm-name-cell--hidden + .elm-value-cell,
+[game-data-element] .elm-name-cell--hidden + .elm-value-cell {
+  grid-column: 1 / -1;
+  border-left: 2px solid var(--gde-accent-border);
+  border-radius: var(--gde-radius-line);
+}
+
+game-data-element input,
+game-data-element button,
+game-data-element textarea,
+game-data-element select,
+[game-data-element] input,
+[game-data-element] button,
+[game-data-element] textarea,
+[game-data-element] select {
+  box-sizing: border-box;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--ui-text);
+  font-family: inherit;
+  font-size: 1em;
+  outline: none;
+}
+
+game-data-element input,
+game-data-element textarea,
+game-data-element select,
+[game-data-element] input,
+[game-data-element] textarea,
+[game-data-element] select {
+  padding: 2px 4px;
+}
+
+game-data-element button,
+[game-data-element] button {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 2px 4px;
+  color: var(--ui-text-muted);
+  cursor: pointer;
+  transition:
+    background var(--ui-transition),
+    color var(--ui-transition);
+}
+
+game-data-element button:hover,
+[game-data-element] button:hover {
+  background: var(--ui-hover);
+  color: var(--ui-text);
+}
+
+game-data-element button .material-icons,
+[game-data-element] button .material-icons {
+  font-size: 16px;
+}
+
+game-data-element button i,
+[game-data-element] button i {
+  font-size: 1rem;
+}
+
+game-data-element input:hover,
+game-data-element textarea:hover,
+game-data-element select:hover,
+[game-data-element] input:hover,
+[game-data-element] textarea:hover,
+[game-data-element] select:hover {
+  background: var(--ui-hover);
+}
+
+game-data-element input:focus,
+game-data-element textarea:focus,
+game-data-element select:focus,
+[game-data-element] input:focus,
+[game-data-element] textarea:focus,
+[game-data-element] select:focus {
+  background: var(--ui-input-bg);
+  box-shadow: 0 0 0 1px var(--ui-accent);
+}
+
+game-data-element .portrait-button,
+[game-data-element] .portrait-button {
+  width: auto;
+  margin: 5px 0;
+  padding: 4px 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--ui-panel-border);
+  border-radius: 2px;
+  background-color: var(--ui-elevated);
+  color: var(--ui-text-muted);
+  font-size: 0.82em;
+  cursor: pointer;
+}
+
+game-data-element .portrait-button:hover,
+[game-data-element] .portrait-button:hover {
+  background-color: var(--ui-hover);
+  color: var(--ui-text);
+}
+
+game-data-element .sub-image,
+[game-data-element] .sub-image {
+  display: inline-block;
+  height: 120px;
+  max-height: 120px;
+  text-align: center;
+  vertical-align: top;
+}
+
+game-data-element .sub-image-box,
+[game-data-element] .sub-image-box {
+  width: 120px;
+  height: 120px;
+}
+
+game-data-element .sub-table,
+[game-data-element] .sub-table {
+  width: calc(100% - 120px);
+}
+
+game-data-element .table-cell-2,
+[game-data-element] .table-cell-2 {
+  display: table-cell;
+}
+
+game-data-element .table-2,
+[game-data-element] .table-2 {
+  display: table;
+  width: 100%;
+}
+
+game-data-element .hidden-spacer,
+[game-data-element] .hidden-spacer {
+  visibility: hidden;
+  height: 0;
+  max-width: 20em;
+  overflow: hidden;
+  padding: 0 3px;
+  box-sizing: border-box;
+}
+
+game-data-element .textarea-url,
+game-data-element .textarea-markdown,
+[game-data-element] .textarea-url,
+[game-data-element] .textarea-markdown {
+  padding: 2px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+game-data-element .elm-markdown-view,
+[game-data-element] .elm-markdown-view {
+  max-width: min(560px, calc(60vw));
+  overflow-x: auto;
+}
+
+/*
+ * A table's row headings stay where they are while the table is scrolled sideways, so it stays plain
+ * which row a cell is on. The headings are tinted over a solid ground, since the cells pass under
+ * them.
+ */
+.elm-view-table :is(thead tr > th:first-child, tbody th) {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  /* A collapsed border is not carried along with a sticky cell, so its edge is painted over too. */
+  box-shadow:
+    -4px 0 0 0 var(--ui-elevated),
+    4px 0 6px -4px rgb(0 0 0 / 0.45);
+}
+
+.elm-view-table tbody th {
+  background-color: var(--ui-elevated);
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--ui-accent-bg) 26%, transparent),
+    color-mix(in srgb, var(--ui-accent-bg) 26%, transparent)
+  );
+}
+
+/*
+ * The ± buttons a number has on a sheet, shown on a narrow sheet and on a touch screen, where a
+ * value is far quicker moved by a step than typed. A press is only a tap, so a quick run of them
+ * is never taken for a double tap that zooms the page.
+ */
+/*
+ * On a narrow sheet a row being edited keeps only its name and its value, with a "⋯" that opens
+ * its editor; the name and the "⋯" stay out of sight everywhere else.
+ */
+/*
+ * A row carried by its handle with a finger: the handle keeps the finger from scrolling the page,
+ * the row dims while it is carried, and a line marks where it would land.
+ */
+:is(game-data-element, [game-data-element]) .elm-drag-handle {
+  touch-action: none;
+}
+
+:is(game-data-element, [game-data-element]).elm-touch-dragging {
+  opacity: 0.5;
+}
+
+:is(game-data-element, [game-data-element]):is(.elm-touch-drop-before, .elm-touch-drop-after)::after {
+  content: '';
+  position: absolute;
+  z-index: 10;
+  right: 0;
+  left: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--ui-accent);
+  pointer-events: none;
+}
+
+:is(game-data-element, [game-data-element]).elm-touch-drop-before::after {
+  top: -2px;
+}
+
+:is(game-data-element, [game-data-element]).elm-touch-drop-after::after {
+  bottom: -2px;
+}
+
+:is(game-data-element, [game-data-element]) :is(.elm-name-button, .elm-more, .elm-add) {
+  display: none;
+}
+
+:is(game-data-element, [game-data-element]) .elm-step {
+  display: none;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 38px;
+  padding: 0;
+  border-radius: 8px;
+  background: var(--ui-elevated);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-panel-border) 80%, transparent);
+  color: var(--ui-text);
+  touch-action: manipulation;
+}
+
+:is(game-data-element, [game-data-element]) .elm-step:active:not(:disabled) {
+  background: var(--ui-accent-bg);
+  color: var(--ui-accent);
+}
+
+:is(game-data-element, [game-data-element]) .elm-step:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+:is(game-data-element, [game-data-element]) .elm-step .material-icons {
+  font-size: 20px;
+}
+
+/* A resource's ± go either side of what is left and what it can reach: − 12 / 20 +. */
+:is(game-data-element, [game-data-element]) .elm-resource-view .elm-step {
+  width: 36px;
+}
+
+@media (pointer: coarse) {
+  :is(game-data-element, [game-data-element]) .elm-step {
+    display: inline-flex;
+  }
+
+  :is(game-data-element, [game-data-element]) .elm-resource-view:has(> .elm-step) {
+    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  }
+}
+
+/*
+ * A character sheet narrower than 36rem, such as one on a phone, lays its rows out for a finger.
+ *
+ * A row is as tall as a fingertip, its label reads at 13px beside its value, and a value that can
+ * be written in is drawn as a box, since nothing hovers on a phone to show that it can. Groups
+ * stop stepping in from the left at every level, which cost a fifth of a phone's width four levels
+ * down; a group heading is a divider with its name instead, and a group inside a group is told
+ * apart by its heading alone.
+ *
+ * The sheet marks itself data-narrow below 36rem, and on a phone whichever way it is held. Its rows
+ * are styled by the unlayered rules above, which Tailwind's utilities cannot outweigh, so the
+ * narrow layout is written here beside them rather than in the templates.
+ */
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) {
+  --gde-row-min: 44px;
+  grid-template-columns: minmax(4.5rem, 32%) minmax(0, 1fr);
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]):has(> .elm-value-cell) {
+  border-bottom: 1px solid color-mix(in srgb, var(--gde-row-border) 40%, transparent);
+}
+
+[data-narrow]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  + :is(game-data-element, [game-data-element]) {
+  margin-top: 0;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-name-cell {
+  min-height: 44px;
+  padding: 4px 8px 4px 2px;
+  font-size: 13px;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-name-cell > div {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-value-cell {
+  min-height: 44px;
+  padding: 3px 0;
+  font-size: 16px;
+}
+
+[data-narrow]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  .elm-value-content
+  :is(input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']), select, textarea) {
+  min-height: 38px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--ui-input-bg) 72%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-panel-border) 70%, transparent);
+  font-size: 16px;
+}
+
+[data-narrow]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  .elm-value-content
+  :is(input, textarea)[readonly] {
+  background: transparent;
+  box-shadow: none;
+}
+
+[data-narrow]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  .elm-value-content
+  :is(input, select, textarea):focus {
+  background: var(--ui-input-bg);
+  box-shadow: 0 0 0 2px var(--ui-accent);
+}
+
+[data-narrow]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  .elm-value-content
+  input[type='checkbox'] {
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  accent-color: var(--ui-accent);
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-value-content textarea {
+  height: auto;
+  min-height: calc(3lh + 12px);
+  max-height: calc(14lh + 12px);
+  field-sizing: content;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-step {
+  display: inline-flex;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-resource-view:has(> .elm-step) {
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-resource-view {
+  gap: 4px;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-resource-view input {
+  padding-inline: 6px;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-resource-view .elm-step {
+  width: 34px;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-children {
+  padding-top: 0;
+  padding-left: 0;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-children::before {
+  display: none;
+}
+
+[data-narrow] [data-own-mobile-layout] .table-row > .elm-children {
+  border-width: 0;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-child-list > :last-child {
+  border-bottom: 0;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-child-list {
+  gap: 0;
+  padding-left: 0;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-group-heading {
+  margin: 10px 0 0;
+  padding: 8px 2px 4px;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--gde-row-border) 70%, transparent);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--ui-accent);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+[data-narrow]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  .elm-group-heading
+  :is(span, .material-icons) {
+  color: inherit;
+  font-size: inherit;
+}
+
+[data-narrow] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-group-heading[data-depth='2'] {
+  margin-top: 12px;
+  border-top: 0;
+  color: var(--ui-text);
+  font-size: 14px;
+}
+
+[data-narrow]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  .elm-child-list
+  > :first-child
+  > .elm-children
+  > .elm-group-heading {
+  margin-top: 0;
+  border-top: 0;
+}
+
+/*
+ * A character sheet being edited where its rows have no room, or no mouse, for the buttons beside
+ * them: a narrow sheet, or one on a touch screen at any width. The sheet marks itself data-compact
+ * then. A row keeps its handle, its name, its value and a "⋯" that opens its editor,
+ * a heading keeps its name and a "⋯", and each group ends with a button to add a field.
+ */
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]).elm-editing {
+  grid-template-columns: 2.75rem minmax(5rem, 32%) minmax(0, 1fr);
+}
+
+[data-compact]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  :is(.elm-name-cell .elm-name-input, .elm-row-actions) {
+  display: none;
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-name-button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  color: var(--ui-text);
+  font-size: 14px;
+  text-align: left;
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-name-button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-more {
+  display: inline-flex;
+  grid-row: 1;
+  grid-column: 2;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 9999px;
+  color: var(--ui-text-muted);
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-more .material-icons {
+  font-size: 22px;
+}
+
+[data-compact]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  .elm-group-heading
+  :is(.elm-icon-picker, .elm-name-input, .elm-heading-actions) {
+  display: none;
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-group-heading[data-depth='0'] {
+  display: none;
+}
+
+[data-compact]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  .elm-group-heading
+  .elm-name-button {
+  gap: 6px;
+  padding-left: 0;
+  color: inherit;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+[data-compact]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  .elm-group-heading
+  .elm-name-button
+  .material-icons {
+  font-size: 18px;
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-group-heading .elm-more {
+  flex: none;
+  margin: -6px -4px -6px 0;
+  color: var(--ui-text-muted);
+}
+
+[data-compact]
+  [data-own-mobile-layout]
+  :is(game-data-element, [game-data-element])
+  .elm-group-heading
+  .elm-more
+  .material-icons {
+  font-size: 22px;
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-drag-handle {
+  width: 40px;
+  height: 40px;
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-drag-handle .material-icons {
+  font-size: 20px;
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 44px;
+  margin: 6px 0 4px;
+  border: 1px dashed color-mix(in srgb, var(--ui-accent) 55%, transparent);
+  border-radius: 10px;
+  background: var(--ui-accent-bg);
+  color: var(--ui-accent);
+  font-size: 14px;
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-add--secondary {
+  border-color: color-mix(in srgb, var(--ui-panel-border) 90%, transparent);
+  background: transparent;
+  color: var(--ui-text-muted);
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-add .material-icons {
+  font-size: 20px;
+}
+
+[data-compact] [data-own-mobile-layout] :is(game-data-element, [game-data-element]) .elm-value-content.gde-editing {
+  max-height: none;
+  overflow: visible;
+}

@@ -10,10 +10,11 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { CardGameService, CardSeat } from '@axe/application/card/card-game.service';
+import { HandRailService } from '@axe/application/card/hand-rail.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import type { PointerCoordinate } from '@axe/application/input/pointer-device.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -22,13 +23,14 @@ import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { isHandCardOf } from '@axe/domain/card/hand-cards';
 import { findTrumpPairs } from '@axe/domain/card/trump-card';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { canRoleEdit } from '@axe/domain/peer/peer-role';
+import { CardGameService, CardSeat } from '@axe/features/card/card-game.service';
 import { elementsAt } from '@axe/features/card/hand-rail/elements-at';
 import { buildCardReceiverMenu, buildPlayDroppedCardMenu } from '@axe/features/card/hand-rail/hand-card-context-menu';
 import { reorderHandCards, selectHandCards } from '@axe/features/card/hand-rail/hand-cards';
@@ -44,7 +46,6 @@ import {
   handFanWidthPx,
   layoutHandFan,
 } from '@axe/features/card/hand-rail/hand-fan';
-import { HandRailService } from '@axe/features/card/hand-rail/hand-rail.service';
 import { CardFacePreviewComponent } from '@axe/ui/components/card-face-preview/card-face-preview.component';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -57,6 +58,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 })
 export class HandRailComponent {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly rolePermission = inject(RolePermissionService);
   private readonly viewport = inject(ViewportService);
   private readonly mobileLayout = inject(MobileLayoutService);
   protected readonly isCompact = this.viewport.isCompact;
@@ -127,10 +129,7 @@ export class HandRailComponent {
     });
   }
 
-  readonly canHoldCards = computed(() => {
-    this.objectChange.trackMyCursor();
-    return canRoleEdit(PeerCursor.myRole);
-  });
+  readonly canHoldCards = computed(() => this.rolePermission.canEditTabletop());
 
   readonly cards = computed<Card[]>(() => {
     this.objectChange.collectionOf(Card.aliasName)();
@@ -262,7 +261,7 @@ export class HandRailComponent {
     event.preventDefault();
     this.activePointerId = event.pointerId;
     this.dragPending = { card, startX: event.clientX, startY: event.clientY, dragging: false };
-    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+    capturePointer(event.currentTarget, event.pointerId);
   }
 
   protected onCardPointerMove(event: PointerEvent): void {
@@ -358,8 +357,7 @@ export class HandRailComponent {
   }
 
   private releaseCapture(event: PointerEvent): void {
-    const element = event.currentTarget as HTMLElement;
-    if (element.hasPointerCapture?.(event.pointerId)) element.releasePointerCapture(event.pointerId);
+    releasePointer(event.currentTarget, event.pointerId);
   }
 
   private reorderTo(card: Card, insertAt: number): void {

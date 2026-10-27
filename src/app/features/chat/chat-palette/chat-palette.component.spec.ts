@@ -1,6 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
-import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -14,6 +13,7 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ChatPaletteComponent } from '@axe/features/chat/chat-palette/chat-palette.component';
+import { ChatTickerSelectionService } from '@axe/features/chat/chat-ticker-selection.service';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import GameSystemClass from 'bcdice/lib/game_system';
@@ -231,7 +231,7 @@ describe('ChatPaletteComponent', () => {
     });
 
     it('leaves the browser its own menu for a guest, who is offered nothing', () => {
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
       const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
 
       const event = press('command');
@@ -368,6 +368,14 @@ describe('ChatPaletteComponent', () => {
     });
 
     it('starts on the first tab', () => {
+      expect(component.chatTabidentifier()).toBe(tabs[0].identifier);
+    });
+
+    it('moves to the first tab left where the one chosen goes', async () => {
+      component.chatTabidentifier.set(tabs[1].identifier);
+      tabs[1].destroy();
+      await fixture.whenStable();
+
       expect(component.chatTabidentifier()).toBe(tabs[0].identifier);
     });
 

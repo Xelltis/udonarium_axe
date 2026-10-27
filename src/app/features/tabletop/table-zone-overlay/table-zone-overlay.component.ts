@@ -38,7 +38,7 @@ export class TableZoneOverlayComponent {
   protected readonly ringPx = computed(() => this.tabletopService.currentTableVersion().gridSize * 0.55);
 
   protected readonly model = computed(() =>
-    zoneOverlayModelOf(this.zones.state(), this.rolePermission.canSeeHidden, (id) => {
+    zoneOverlayModelOf(this.zones.state(), this.rolePermission.canSeeHidden(), (id) => {
       const piece = this.objectStore.get<GameCharacter>(id);
       return piece instanceof GameCharacter && this.vision.isTokenVisible(piece);
     })

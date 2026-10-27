@@ -15,11 +15,11 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ChatBookmarkService } from '@axe/application/chat/chat-bookmark.service';
+import { ChatClockService } from '@axe/application/chat/chat-clock.service';
+import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatReactionService, ReactionTally } from '@axe/application/chat/chat-reaction.service';
-import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
 import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { SystemAvatarKind, SystemAvatarService } from '@axe/application/chat/system-avatar.service';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
@@ -29,11 +29,13 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { SkinService } from '@axe/application/ui/skin.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
+import { transientSignal } from '@axe/application/ui/transient-signal';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { Network } from '@axe/core/network/network';
@@ -48,18 +50,24 @@ import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
 import { isPictureStamp, stampOf } from '@axe/domain/chat/stamp-catalog';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { TextNote } from '@axe/domain/tabletop/text-note';
 import { encodeVnEmote, vnBodyOf, vnEmoteOf } from '@axe/domain/visual-novel/vn-emote';
+import { vnEmoteLabels } from '@axe/domain/visual-novel/vn-emote-label';
+import { ChatBookmarkService } from '@axe/features/chat/chat-bookmark.service';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
+import {
+  ChatLineAbilities,
+  chatLineAbilities,
+  ChatLinePermissions,
+} from '@axe/features/chat/chat-message/chat-line-abilities';
 import {
   buildChatBookmarkMenu,
   buildChatMessageContextMenu,
 } from '@axe/features/chat/chat-message/chat-message-context-menu';
 import { isChatTextHidden, readableChatText } from '@axe/features/chat/chat-message/chat-readable-text';
 import { formatChatTickerMessage } from '@axe/features/chat/chat-ticker/chat-ticker-layout';
+import { ChatTickerSelectionService } from '@axe/features/chat/chat-ticker-selection.service';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { SystemAvatarMenuService } from '@axe/features/chat/system-avatar-menu.service';
-import { vnEmoteLabels } from '@axe/features/visual-novel/visual-novel-emote-label';
 import { DiceRollStageComponent } from '@axe/ui/components/dice-roll-stage/dice-roll-stage.component';
 import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
 import { ChatColorStylePipe } from '@axe/ui/pipes/chat-color-style.pipe';
@@ -102,6 +110,8 @@ export class ChatMessageComponent {
   protected readonly skins = inject(SkinService);
 
   private readonly chatMessageService = inject(ChatMessageService);
+  private readonly lineEdit = inject(ChatLineEditService);
+  private readonly clock = inject(ChatClockService);
   private readonly chatBookmarks = inject(ChatBookmarkService);
   private readonly chatTickerSelection = inject(ChatTickerSelectionService);
   private readonly objectStore = inject(ObjectStore);
@@ -114,6 +124,7 @@ export class ChatMessageComponent {
   private readonly compose = inject(ChatComposeService, { optional: true });
   private readonly rolePermission = inject(RolePermissionService);
   private readonly tabletopService = inject(TabletopService);
+  private readonly tabletopActions = inject(TabletopActionService);
   private readonly tabletopDisplay = inject(TabletopDisplayService);
   protected readonly theme = inject(ThemeService);
   private readonly systemAvatar = inject(SystemAvatarService);
@@ -125,7 +136,7 @@ export class ChatMessageComponent {
   private readonly viewport = inject(ViewportService);
 
   protected get canRevealSecret(): boolean {
-    return this.rolePermission.canSeeHidden;
+    return this.rolePermission.canSeeHidden();
   }
 
   protected readonly chatMessageInput = input<ChatMessage>(null!, { alias: 'chatMessage' });
@@ -138,14 +149,24 @@ export class ChatMessageComponent {
    */
   readonly readOnly = input(false);
 
+  /** What the reader may ask of the room about this line, asked only as each answer is needed. */
+  private readonly may: ChatLinePermissions = {
+    edit: () => this.lineEdit.canEditMessage(this.chatMessage),
+    makeAfterWhisper: () => this.lineEdit.canMakeAfterWhisper(this.chatMessage),
+    undoAfterWhisper: () => this.lineEdit.canUndoAfterWhisper(this.chatMessage),
+    pseudoDelete: () => this.lineEdit.canPseudoDelete(this.chatMessage),
+    react: () => this.reactions.mayReact && this.stampRules.isOn('reaction'),
+    editTable: () => this.rolePermission.canEditTabletop(),
+  };
+
+  /** What the reader may do with the line, as {@link chatLineAbilities} works it out. */
+  private get abilities(): ChatLineAbilities {
+    return chatLineAbilities({ message: this.chatMessage ?? null, readOnly: this.readOnly() }, this.may);
+  }
+
   /** Whether the pencil is offered on this line. */
   get canChange(): boolean {
-    return (
-      !this.readOnly() &&
-      !!this.chatMessage &&
-      this.chatMessageService.canEditMessage(this.chatMessage) &&
-      !this.chatMessage.sentStamp
-    );
+    return this.abilities.change;
   }
 
   /**
@@ -608,7 +629,7 @@ export class ChatMessageComponent {
   constructor() {
     effect(() => {
       const chatMessage = this.chatMessageInput();
-      const time = this.chatMessageService.getTime();
+      const time = this.clock.now();
       if (time - 10 * 1000 < chatMessage.timestamp) this.animeState.set('active');
     });
   }
@@ -620,12 +641,12 @@ export class ChatMessageComponent {
 
   /** Whether the button to show a kept-back roll is this reader's to press. */
   canDisclose(): boolean {
-    return this.chatMessageService.canDiscloseMessage(this.chatMessage);
+    return this.lineEdit.canDiscloseMessage(this.chatMessage);
   }
 
   /** Reveals a kept-back roll to the room, from the button shown on the hidden line. */
   discloseMessage() {
-    this.chatMessageService.discloseMessage(this.chatMessage);
+    this.lineEdit.discloseMessage(this.chatMessage);
   }
 
   readonly editDraft = signal<string | null>(null);
@@ -639,16 +660,19 @@ export class ChatMessageComponent {
    * focused with the caret at the end once it is drawn. Does nothing for a line that may not change.
    */
   startEdit() {
-    if (!this.chatMessageService.canEditMessage(this.chatMessage)) return;
+    if (!this.lineEdit.canEditMessage(this.chatMessage)) return;
     this.editDraft.set(vnBodyOf(this.chatMessage.vnEmote, this.chatMessage.text ?? ''));
-    setTimeout(() => {
-      const el = this.editingTextArea()?.nativeElement;
-      if (el) {
-        this.autoFitHeight(el);
-        el.focus();
-        el.setSelectionRange(el.value.length, el.value.length);
-      }
-    });
+    afterNextRender(
+      () => {
+        const el = this.editingTextArea()?.nativeElement;
+        if (el) {
+          this.autoFitHeight(el);
+          el.focus();
+          el.setSelectionRange(el.value.length, el.value.length);
+        }
+      },
+      { injector: this.injector }
+    );
   }
 
   /**
@@ -663,14 +687,14 @@ export class ChatMessageComponent {
     const draft = this.editDraft();
     if (draft === null) return;
     const next = draft.trimEnd();
-    if (next.length === 0 || !this.chatMessageService.canEditMessage(this.chatMessage)) {
+    if (next.length === 0 || !this.lineEdit.canEditMessage(this.chatMessage)) {
       this.cancelEdit();
       return;
     }
     // A line said before the staging was kept apart still carries it at the end. Editing the
     // body would take it away with the rest of the suffix, so it moves beside the line first.
     const staging = encodeVnEmote(vnEmoteOf(this.chatMessage.vnEmote, this.chatMessage.text ?? ''));
-    this.chatMessage.edit(next, staging, this.chatMessageService.getTime());
+    this.chatMessage.edit(next, staging, this.clock.now());
     this.editDraft.set(null);
   }
 
@@ -761,28 +785,17 @@ export class ChatMessageComponent {
     return isChatTextHidden(message, this.canRevealSecret);
   }
 
-  /**
-   * Whether a message can be replied to, quoted or made into a note.
-   *
-   * Nothing in a read-only view can, nor can system messages or notices addressed to a player. A
-   * dice bot's answer (`isDicebot`) can: it carries the system tag, but it answers a player's roll.
-   */
+  /** Whether the line can be replied to, quoted or made into a note. */
   get canInteract(): boolean {
-    if (this.readOnly()) return false;
-    const msg = this.chatMessage;
-    if (!msg) return false;
-    if (this.isSystemMessage) return false;
-    if (msg.isSystemToPL) return false;
-    return true;
+    return this.abilities.interact;
   }
 
   /**
-   * Whether the reader may answer the line with stamps at all: any line that may be answered and that
-   * the reader is shown, a dice bot's answer to a roll among them, by a guest as much as a player,
-   * since it changes nothing on the table.
+   * Whether the reader may answer the line with stamps at all, by a guest as much as a player, since
+   * it changes nothing on the table.
    */
   private get canAnswerWithStamps(): boolean {
-    return this.canInteract && this.chatMessage.isShownInChat;
+    return this.abilities.answerWithStamps;
   }
 
   /**
@@ -790,7 +803,7 @@ export class ChatMessageComponent {
    * a room server may not.
    */
   get canReact(): boolean {
-    return this.canAnswerWithStamps && this.reactions.mayReact && this.stampRules.isOn('reaction');
+    return this.abilities.react;
   }
 
   /**
@@ -858,7 +871,7 @@ export class ChatMessageComponent {
     if (this.readOnly()) return false;
     // The band runs round everybody's table, which a guest is there to watch, not to change.
     this.objectChange.trackMyCursor();
-    if (!this.rolePermission.canEditTabletop) return false;
+    if (!this.rolePermission.canEditTabletop()) return false;
 
     // Only where the band is actually drawn, which is a table looked straight down on.
     if (!this.tabletopService.mode2d()) return false;
@@ -908,16 +921,12 @@ export class ChatMessageComponent {
 
   /** Whether this reader may make the line an after-the-fact whisper, which they may of a line they said. */
   get canMakeAfterWhisper(): boolean {
-    if (this.readOnly()) return false;
-    const message = this.chatMessage;
-    return !!message && this.chatMessageService.canMakeAfterWhisper(message);
+    return this.abilities.makeAfterWhisper;
   }
 
   /** Whether this reader may put the line, which they made an after-the-fact whisper, back for everyone. */
   get canUndoAfterWhisper(): boolean {
-    if (this.readOnly()) return false;
-    const message = this.chatMessage;
-    return !!message && this.chatMessageService.canUndoAfterWhisper(message);
+    return this.abilities.undoAfterWhisper;
   }
 
   /**
@@ -926,26 +935,24 @@ export class ChatMessageComponent {
    */
   whisperTargets(): PeerCursor[] {
     this.objectChange.collectionOf(PeerCursor.aliasName)();
-    return this.chatMessageService.afterWhisperCandidates(this.chatMessage);
+    return this.lineEdit.afterWhisperCandidates(this.chatMessage);
   }
 
   /** Makes the line an after-the-fact whisper to the seat chosen, from the list or the line's menu. */
   whisperTo(peer: PeerCursor): void {
     if (!this.canMakeAfterWhisper) return;
-    this.chatMessageService.makeAfterWhisper(this.chatMessage, peer);
+    this.lineEdit.makeAfterWhisper(this.chatMessage, peer);
   }
 
   /** Puts an after-the-fact whisper back for everyone, from the list or the line's menu. */
   undoAfterWhisper(): void {
     if (!this.canUndoAfterWhisper) return;
-    this.chatMessageService.undoAfterWhisper(this.chatMessage);
+    this.lineEdit.undoAfterWhisper(this.chatMessage);
   }
 
   /** Whether this reader may delete the line, which they may of a line they said. */
   get canPseudoDelete(): boolean {
-    if (this.readOnly()) return false;
-    const message = this.chatMessage;
-    return !!message && this.chatMessageService.canPseudoDelete(message);
+    return this.abilities.pseudoDelete;
   }
 
   /**
@@ -960,7 +967,7 @@ export class ChatMessageComponent {
       okLabel: this.t('feature.chat.message.deleteLine'),
       danger: true,
     });
-    if (sure) this.chatMessageService.pseudoDelete(message);
+    if (sure) this.lineEdit.pseudoDelete(message);
   }
 
   /** Puts this line in the ticker running round the table, where that ticker is shown at all. */
@@ -988,7 +995,7 @@ export class ChatMessageComponent {
    * A guest is at the table to watch, not to put notes on it.
    */
   get canShareAsMemo(): boolean {
-    return this.canInteract && this.rolePermission.canEditTabletop;
+    return this.abilities.shareAsMemo;
   }
 
   /**
@@ -1032,28 +1039,12 @@ export class ChatMessageComponent {
     SoundEffect.play(PresetSound.cardPut);
   }
 
-  /**
-   * Lays the line on the table as a text note titled with the speaker's name.
-   *
-   * The note is sized from the length and number of lines of the text, stood upright unless the table
-   * is in 2D, and dropped near the table's centre. An empty line makes no note.
-   */
+  /** Lays the line on the table as a text note titled with the speaker's name; an empty line makes no note. */
   clickShareAsMemo() {
     if (!this.canShareAsMemo) return;
     const msg = this.chatMessage;
     if (!msg) return;
-    const text = (msg.text ?? '').trim();
-    if (!text) return;
-    const title = msg.name?.trim() || this.t('feature.tabletop.action.defaultNoteName');
-    const lines = text.split('\n');
-    const longest = Math.max(...lines.map((l) => l.length));
-    const width = Math.max(3, Math.min(8, Math.ceil(longest / 12)));
-    const height = Math.max(2, Math.min(8, Math.ceil(lines.length / 3)));
-    const note = TextNote.create(title, text, 14, width, height);
-    note.isUpright = !this.tabletopService.mode2d();
-    note.location.x = Math.floor(Math.random() * 200 - 100);
-    note.location.y = Math.floor(Math.random() * 200 - 100);
-    SoundEffect.play(PresetSound.cardPut);
+    if (this.tabletopActions.layChatLineAsNote(msg.name ?? '', msg.text ?? '')) SoundEffect.play(PresetSound.cardPut);
   }
 
   private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -1061,41 +1052,24 @@ export class ChatMessageComponent {
   private readonly stampPicker = inject(StampPickerService);
   private readonly stampRules = inject(StampRulesService);
   private readonly destroyRef = inject(DestroyRef);
-  readonly isHighlighted = signal(false);
-  private highlightTimer: ReturnType<typeof setTimeout> | null = null;
+  readonly isHighlighted = transientSignal(false, LINE_FLASH_MS);
 
   private readonly _registerDestroy = this.destroyRef.onDestroy(() => {
-    if (this.highlightTimer) clearTimeout(this.highlightTimer);
     this.stopFollowingSelection?.();
   });
 
-  private readonly jumpEffect = effect(() => {
-    const req = this.uiSignalService.chatJumpRequest();
-    if (!req) return;
-    const me = this.chatMessageInput()?.identifier;
-    if (!me || me !== req.messageIdentifier) return;
-    queueMicrotask(() => {
-      // Consume the request first so any concurrent / subsequent reads (newly mounted
-      // chat-message components, input updates after a new post, etc.) see null and skip
-      // the scroll. Deferred to the microtask so we don't write to a signal we just read
-      // synchronously inside the same effect cycle.
-      this.uiSignalService.clearChatJump();
-      this.hostElement.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      this.flash();
-    });
-  });
+  /** Scrolls the line into the middle of the log and lights it up, as a jump to it does. */
+  bringIntoView(): void {
+    this.hostElement.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    this.flash();
+  }
 
   /**
    * Lights the line up for a moment, as a jump to it does. Lit again before it has faded, it stays
    * lit for the whole moment from then.
    */
   flash(): void {
-    this.isHighlighted.set(true);
-    if (this.highlightTimer) clearTimeout(this.highlightTimer);
-    this.highlightTimer = setTimeout(() => {
-      this.isHighlighted.set(false);
-      this.highlightTimer = null;
-    }, LINE_FLASH_MS);
+    this.isHighlighted.show(true);
   }
 
   /** The speaker's name as shown, translated for a system line and redrawn when the language changes. */

@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { SPEECH_BUBBLE_WAIT_MS, SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { IPeerContext } from '@axe/core/network/peer-context';
@@ -60,7 +60,7 @@ describe('SpeechBubbleService', () => {
     tab = new ChatTab();
     tab.initialize();
     ChatTabList.instance.appendChild(tab);
-    vi.spyOn(TestBed.inject(ChatMessageService), 'getTime').mockImplementation(() => Date.now());
+    vi.spyOn(TestBed.inject(ChatClockService), 'now').mockImplementation(() => Date.now());
     service = TestBed.inject(SpeechBubbleService);
     hero = character('ヒロ');
   });

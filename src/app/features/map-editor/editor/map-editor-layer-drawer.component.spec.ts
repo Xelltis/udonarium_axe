@@ -1,9 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { MapLayer } from '@axe/domain/map-editor/scene';
+import { addLayer } from '@axe/domain/map-editor/scene-ops';
 import { MapEditorLayerDrawerComponent } from '@axe/features/map-editor/editor/map-editor-layer-drawer.component';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
-import { MapLayer } from '@axe/features/map-editor/model/scene';
-import { addLayer } from '@axe/features/map-editor/model/scene-ops';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 interface Drawer {

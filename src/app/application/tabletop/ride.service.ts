@@ -3,7 +3,9 @@ import { CharacterMacroService } from '@axe/application/chat/character-macro.ser
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
-import { centreOf, EngagementZoneService, metresPerCell } from '@axe/application/tabletop/engagement-zone.service';
+import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
+import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
+import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -13,6 +15,7 @@ import { applyBuffEdit } from '@axe/domain/data/resource-edit-helpers';
 import { Config } from '@axe/domain/peer/config';
 import { sheetNumberOf } from '@axe/domain/tabletop/move/move-cells';
 import { squarePxOf } from '@axe/domain/tabletop/move/move-grid';
+import { pieceCentreOf, pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import {
   buffNameOf,
   cargoRoomOf,
@@ -39,9 +42,8 @@ import {
   writeSeatHeight,
   writtenSeat,
 } from '@axe/domain/tabletop/ride/ride-rules';
-import { resolveRoomRules } from '@axe/domain/tabletop/room-rules';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { resolveZoneRules } from '@axe/domain/tabletop/zone/zone-rules';
+import { metresPerCell } from '@axe/domain/tabletop/zone/zone-queries';
 
 /** Why a piece lying where it fell may not get up just now: it fell in its own turn, which is not over. */
 export type ProneRefusal = 'fellThisTurn';
@@ -114,8 +116,10 @@ export interface RideMenuModel {
 @Injectable({ providedIn: 'root' })
 export class RideService {
   private readonly objectStore = inject(ObjectStore);
+  private readonly roomRules = inject(RoomRulesService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly zones = inject(EngagementZoneService);
+  private readonly links = inject(PieceLinksService);
   private readonly chat = inject(ChatMessageService);
   private readonly macro = inject(CharacterMacroService);
   private readonly rolePermission = inject(RolePermissionService);
@@ -125,7 +129,7 @@ export class RideService {
 
   /** The mount a piece rides, where it is on the table and still a mount; null otherwise. */
   mountOf(piece: GameCharacter): GameCharacter | null {
-    return this.zones.mountOf(piece);
+    return this.links.mountOf(piece);
   }
 
   /** Where a piece rides its mount, or null where it rides none. */
@@ -159,7 +163,7 @@ export class RideService {
   moverFor(piece: GameCharacter): GameCharacter | null {
     const mount = this.mountOf(piece);
     if (mount) return seatOf(piece.rideSeat) === 'rider' ? mount : null;
-    if (piece.mountable === '1' && !this.riderOf(piece) && !this.rolePermission.isGameMaster) return null;
+    if (piece.mountable === '1' && !this.riderOf(piece) && !this.rolePermission.isGameMaster()) return null;
     return piece;
   }
 
@@ -234,7 +238,7 @@ export class RideService {
     if (mover.mountable !== '1' || !table || table.gridSize <= 0) return;
     let px = 0;
     for (let i = 1; i < way.length; i++) px += Math.hypot(way[i].x - way[i - 1].x, way[i].y - way[i - 1].y);
-    const rules = resolveRoomRules(this.config()?.roomRuleAnswers ?? null, table);
+    const rules = this.roomRules.rulesFor(table);
     const turn = this.turnMark();
     const before = turn !== '' && mover.rideMoveTurn === turn ? Number(mover.rideMoveM) || 0 : 0;
     const metres = before + (px / squarePxOf(table)) * metresPerCell(rules);
@@ -260,7 +264,7 @@ export class RideService {
       piece.rideLeftFrom = '';
       piece.rideLeftSeat = '';
     });
-    this.zones.carryBound(mount);
+    this.links.carryBound(mount);
     this.chat.sendSystemNotice(
       'movement',
       this.t(`feature.ride.chat.on_${seat}`, {
@@ -307,17 +311,17 @@ export class RideService {
     const mount = this.mountOf(piece);
     if (!mount) {
       if (piece.mountable === '1') {
-        this.zones.carryBound(piece);
+        this.links.carryBound(piece);
         this.dropLeftBehind(piece);
       }
       return;
     }
     if (this.isOn(piece, mount)) {
-      this.zones.carryBound(mount);
+      this.links.carryBound(mount);
       return;
     }
     if (this.dismount(piece)) return;
-    this.zones.carryBound(mount);
+    this.links.carryBound(mount);
     this.snackbar.show(this.t('feature.ride.stayedOn', { name: piece.name, mount: mount.name }));
   }
 
@@ -326,7 +330,7 @@ export class RideService {
    * may take there; or says why it may take none. Nothing for a piece on no mount, or one riding.
    */
   offerRide(piece: GameCharacter): void {
-    if (!this.rolePermission.canEditTabletop || this.mountOf(piece)) return;
+    if (!this.rolePermission.canEditTabletop() || this.mountOf(piece)) return;
     const offers = this.offersFor(piece);
     if (offers.length < 1) return;
     const refusal = this.changeRefusal(piece);
@@ -358,9 +362,9 @@ export class RideService {
     const there = this.zones.pointOf(mount);
     if (Math.hypot(there.x - here.x, there.y - here.y) <= this.samePointPx() + 1e-6) return true;
     const gridSize = this.tableSelecter.viewTable?.gridSize ?? 50;
-    const middle = centreOf(piece, gridSize);
-    const base = centreOf(mount, gridSize);
-    const half = (Math.max(0, mount.size) * gridSize) / 2;
+    const middle = pieceCentreOf(piece, gridSize);
+    const base = pieceCentreOf(mount, gridSize);
+    const half = pieceCentreOffsetPx(mount, gridSize);
     return Math.abs(middle.x - base.x) <= half + 1e-6 && Math.abs(middle.y - base.y) <= half + 1e-6;
   }
 
@@ -642,8 +646,8 @@ export class RideService {
   private samePointPx(): number {
     const table = this.tableSelecter.viewTable;
     if (!table) return 0;
-    const roomRules = resolveRoomRules(this.config()?.roomRuleAnswers ?? null, table);
-    const zoneRules = resolveZoneRules(this.config()?.zoneRuleAnswers ?? null);
+    const roomRules = this.roomRules.rulesFor(table);
+    const zoneRules = this.roomRules.zoneRules();
     return (zoneRules.samePointM * squarePxOf(table)) / metresPerCell(roomRules);
   }
 

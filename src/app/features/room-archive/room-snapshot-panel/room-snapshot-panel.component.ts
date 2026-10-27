@@ -4,7 +4,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { RoomSnapshotMeta } from '@axe/core/storage/room-snapshot-store';
-import { formatSnapshotByteSize, formatSnapshotSavedAt } from '@axe/features/room-archive/snapshot-format';
+import { formatSnapshotByteSize, formatSnapshotSavedAt } from '@axe/core/util/snapshot-format';
 import { TranslocoModule } from '@jsverse/transloco';
 
 @Component({
@@ -33,7 +33,7 @@ export class RoomSnapshotPanelComponent {
   }
 
   protected get canEdit(): boolean {
-    return this.rolePermission.canEditTabletop;
+    return this.rolePermission.canEditTabletop();
   }
 
   protected savedAtLabel(meta: RoomSnapshotMeta): string {

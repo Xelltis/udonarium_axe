@@ -35,7 +35,7 @@ export class RoomRestoreOfferService {
     if (this.latest() === null) return false;
     if (!this.localModePreference.enabled() && parseInviteLink(location.hash) !== null) return false;
     if (Network.peerContext?.roomName) return false;
-    return this.rolePermission.canEditTabletop;
+    return this.rolePermission.canEditTabletop();
   });
 
   /** Takes the offer down, as when it is turned down or the table is restored. */

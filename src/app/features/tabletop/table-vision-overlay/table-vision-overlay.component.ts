@@ -17,7 +17,7 @@ import {
   type OverlayBake,
   overlayScale,
   overlayScratch,
-} from '@axe/features/tabletop/table-vision-overlay/vision-overlay-render';
+} from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
 import { translateZCss, Z_OFFSET_DARKNESS_PX } from '@axe/ui/tabletop/z-offset';
 
 const SPILL_MARGIN_CAP_PX = 800;

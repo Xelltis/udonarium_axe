@@ -5,8 +5,9 @@ import {
   isSupportedLang,
   SUPPORTED_LANGS,
   SupportedLang,
-  TRANSLOCO_LANG_STORAGE_KEY,
 } from '@axe/application/i18n/transloco.config';
+import { writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { TranslocoService } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 
@@ -38,11 +39,7 @@ export class LanguageService {
   async setLang(lang: SupportedLang): Promise<void> {
     await firstValueFrom(this.transloco.load(lang));
     this.transloco.setActiveLang(lang);
-    try {
-      localStorage.setItem(TRANSLOCO_LANG_STORAGE_KEY, lang);
-    } catch {
-      /* localStorage unavailable (private mode, SSR etc) — silently ignore */
-    }
+    writeLocal(STORAGE_KEYS.language, lang);
   }
 
   /** Moves to the next supported language, wrapping round after the last. */

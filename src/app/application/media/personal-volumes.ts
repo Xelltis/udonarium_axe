@@ -1,6 +1,3 @@
-/** Where this browser keeps the listener's own volumes. */
-export const PERSONAL_VOLUME_STORAGE_KEY = 'audio-personal-volumes';
-
 /** The listener's own volumes, each from 0 to 1, before the room volume scales them. */
 export interface PersonalVolumes {
   readonly audition: number;

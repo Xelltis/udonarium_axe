@@ -50,10 +50,10 @@ describe('AssetRemovalService', () => {
         {
           provide: RolePermissionService,
           useValue: {
-            get canEditShared() {
+            canEditShared() {
               return isGameMaster;
             },
-            get canEditTabletop() {
+            canEditTabletop() {
               return isPlaying;
             },
           },

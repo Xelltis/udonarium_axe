@@ -1,0 +1,231 @@
+<div class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-2.5 border border-solid p-3">
+  <div class="min-w-0">
+    <span class="text-ui-muted text-[11px] font-semibold tracking-[0.06em] uppercase">{{
+      'feature.roomSettings.sectionMoveRange' | transloco
+    }}</span>
+  </div>
+  <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+    {{
+      (answersFor('moveRange') ? 'feature.roomSettings.ruledByRoom' : 'feature.roomSettings.ruledByTable') | transloco
+    }}
+  </p>
+  <div class="flex flex-col gap-2.5">
+    <label
+      class="text-ui-text hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-1 text-[13px] transition-colors select-none"
+    >
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="moveRangeEnabled.value"
+        name="moveRangeEnabled"
+      />
+      {{ 'feature.roomSettings.moveRangeEnabled' | transloco }}
+    </label>
+
+    <label
+      class="text-ui-text hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-1 text-[13px] transition-colors select-none"
+    >
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="moveRangeAlways.value"
+        name="moveRangeAlways"
+      />
+      {{ 'feature.roomSettings.moveRangeAlways' | transloco }}
+    </label>
+
+    @if (showsDiagonalOption) {
+      <label class="text-ui-text flex flex-col gap-1 text-[13px] select-none">
+        <span>{{ 'feature.roomSettings.diagonalMove' | transloco }}</span>
+        <select
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full cursor-pointer border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          [(ngModel)]="diagonalMove.value"
+          name="diagonalMove"
+          data-testid="room-settings-diagonal-move"
+        >
+          @for (move of diagonalMoves; track move) {
+            <option [value]="move">{{ 'feature.roomSettings.diagonalMove_' + move | transloco }}</option>
+          }
+        </select>
+      </label>
+      <span class="text-ui-dim text-[11px]">{{ 'feature.roomSettings.diagonalMoveHint' | transloco }}</span>
+    }
+
+    <label
+      class="text-ui-text hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-1 text-[13px] transition-colors select-none"
+    >
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="piecesShareCells.value"
+        name="piecesShareCells"
+      />
+      {{ 'feature.roomSettings.piecesShareCells' | transloco }}
+    </label>
+
+    <div class="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+      @for (side of piecePassageSides; track side) {
+        <label class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.' + side | transloco }}</label>
+        <select
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full cursor-pointer border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          [ngModel]="piecePassage(side)"
+          (ngModelChange)="setPiecePassage(side, $event)"
+          [name]="side"
+        >
+          @for (mode of piecePassageModes; track mode) {
+            <option [value]="mode">
+              {{ 'feature.roomSettings.piecePassage_' + mode | transloco }}
+            </option>
+          }
+        </select>
+      }
+
+      @if (showsPiecePassageCost) {
+        <label class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.piecePassageCost' | transloco }}</label>
+        <input
+          type="number"
+          min="0"
+          max="9"
+          step="1"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-right text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          [(ngModel)]="piecePassageCost.value"
+          name="piecePassageCost"
+        />
+      }
+    </div>
+
+    <label
+      class="text-ui-text hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-1 text-[13px] transition-colors select-none"
+    >
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="sizeSlipsPast.value"
+        name="sizeSlipsPast"
+      />
+      {{ 'feature.roomSettings.sizeSlipsPast' | transloco }}
+    </label>
+
+    <label
+      class="text-ui-text hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-1 text-[13px] transition-colors select-none"
+    >
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="squeezes.value"
+        name="squeezes"
+      />
+      {{ 'feature.roomSettings.squeezes' | transloco }}
+    </label>
+
+    <div class="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1.5">
+      <label class="text-ui-muted text-[11px] whitespace-nowrap">{{
+        'feature.roomSettings.jumpCells' | transloco
+      }}</label>
+      <input
+        type="number"
+        min="0"
+        max="9"
+        step="1"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full border border-solid px-2 py-1.25 text-right text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        [(ngModel)]="jumpCells.value"
+        name="jumpCells"
+      />
+    </div>
+
+    <label
+      class="text-ui-text hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-1 text-[13px] transition-colors select-none"
+    >
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="handTracesWay.value"
+        name="handTracesWay"
+      />
+      {{ 'feature.roomSettings.handTracesWay' | transloco }}
+    </label>
+
+    <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+      {{ 'feature.roomSettings.piecePassageHint' | transloco }}
+    </p>
+
+    <label
+      class="text-ui-text hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-1 text-[13px] transition-colors select-none"
+    >
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="moveStrict.value"
+        name="moveStrict"
+      />
+      {{ 'feature.roomSettings.moveStrict' | transloco }}
+    </label>
+
+    <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+      {{ 'feature.roomSettings.moveStrictHint' | transloco }}
+    </p>
+
+    <label
+      class="text-ui-text hover:bg-ui-hover rounded-ui-sm -mx-1.5 flex cursor-pointer items-center gap-2 px-1.5 py-1 text-[13px] transition-colors select-none"
+    >
+      <input
+        type="checkbox"
+        class="size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+        [(ngModel)]="pathMove.value"
+        name="pathMove"
+      />
+      {{ 'feature.roomSettings.pathMove' | transloco }}
+    </label>
+
+    <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+      {{ 'feature.roomSettings.pathMoveHint' | transloco }}
+    </p>
+
+    <div class="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-x-3 gap-y-2.5">
+      <label class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.moveRangeElementNames' | transloco }}</label>
+      <input
+        type="text"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        [(ngModel)]="moveRangeElementNames.value"
+        name="moveRangeElementNames"
+      />
+
+      <label class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.cellDistanceUnit' | transloco }}</label>
+      <select
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full cursor-pointer border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        [(ngModel)]="cellDistanceUnit.value"
+        name="cellDistanceUnit"
+      >
+        @for (unit of moveUnits; track unit) {
+          <option [value]="unit">{{ 'feature.roomSettings.cellUnit.' + unit | transloco }}</option>
+        }
+      </select>
+
+      <label class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.cellDistance' | transloco }}</label>
+      <input
+        type="number"
+        min="0"
+        step="0.5"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-right text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        [(ngModel)]="cellDistance.value"
+        name="cellDistance"
+      />
+
+      <label class="text-ui-muted text-[11px]">{{ 'feature.roomSettings.moveKinds' | transloco }}</label>
+      <input
+        type="text"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent col-span-2 box-border w-full border border-solid px-2 py-1.25 text-[13px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        [placeholder]="'feature.roomSettings.moveKindsPlaceholder' | transloco"
+        [(ngModel)]="moveKinds.value"
+        name="moveKinds"
+        data-testid="room-settings-move-kinds"
+      />
+    </div>
+    <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+      {{ 'feature.roomSettings.moveRangeHint' | transloco }}
+    </p>
+    <p class="text-ui-muted m-0 text-[11px] leading-relaxed">
+      {{ 'feature.roomSettings.moveKindsHint' | transloco }}
+    </p>
+  </div>
+</div>

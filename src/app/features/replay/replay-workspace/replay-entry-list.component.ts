@@ -17,7 +17,6 @@ import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
-import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -31,6 +30,7 @@ import {
   textOf,
 } from '@axe/domain/replay/replay-edit';
 import { canViewReplayEvent, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
+import { ReplayEditorService } from '@axe/features/replay/replay-editor.service';
 import { ReplayFocusService } from '@axe/features/replay/replay-focus.service';
 import {
   collectReplayActorIds,
@@ -292,7 +292,7 @@ export class ReplayEntryListComponent {
   }
 
   protected get canEdit(): boolean {
-    return this.rolePermission.canEditTabletop;
+    return this.rolePermission.canEditTabletop();
   }
 
   protected actorLabel(userId: string): string {

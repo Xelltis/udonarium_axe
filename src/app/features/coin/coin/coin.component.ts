@@ -10,7 +10,6 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { CoinFlipService } from '@axe/application/coin/coin-flip.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -31,6 +30,7 @@ import { Coin, CoinFace } from '@axe/domain/coin/coin';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { buildCoinContextMenu } from '@axe/features/coin/coin/coin-context-menu';
 import { laurelLeaves, starPoints } from '@axe/features/coin/coin/coin-emblem';
+import { CoinFlipService } from '@axe/features/coin/coin-flip.service';
 import { MovableDirective, MovableOption } from '@axe/ui/directives/movable.directive';
 import { RotableDirective, RotableOption } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
@@ -216,7 +216,7 @@ export class CoinComponent {
    */
   onInputStart(e: MouseEvent | TouchEvent) {
     this.startDoubleClickTimer(e);
-    if (this.rolePermission.canEditTabletop) this.coin().toTopmost();
+    if (this.rolePermission.canEditTabletop()) this.coin().toTopmost();
   }
 
   /** Counts a press towards a double tap, which flips the coin when the second one lands. */
@@ -227,7 +227,7 @@ export class CoinComponent {
   /** Flips the coin on a double tap, if this player may edit the table and the pointer has not moved. */
   onDoubleClick() {
     this.doubleTap.cancel();
-    if (!this.rolePermission.canEditTabletop) return;
+    if (!this.rolePermission.canEditTabletop()) return;
     if (this.doubleTap.isInPlace()) this.flip();
   }
 

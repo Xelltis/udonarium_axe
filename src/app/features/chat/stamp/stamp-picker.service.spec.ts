@@ -1,12 +1,12 @@
 import { Component, viewChild, ViewContainerRef } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { StampPackPanelComponent } from '@axe/features/chat/stamp-pack-panel/stamp-pack-panel.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
-import { RECENT_STAMPS_STORAGE_KEY } from '@axe/ui/components/stamp-picker/stamp-picker.component';
 
 @Component({ selector: 'test-overlay-layer', template: '<ng-container #layer></ng-container>' })
 class OverlayLayerHostComponent {
@@ -18,7 +18,6 @@ describe('StampPickerService', () => {
   let anchor: HTMLButtonElement;
   let picked: string[];
   let host: ComponentFixture<OverlayLayerHostComponent>;
-  const ownLayer = ContextMenuService.defaultParentViewContainerRef;
 
   function picker(): HTMLElement | null {
     return document.querySelector('[data-testid="stamp-picker"]');
@@ -33,12 +32,12 @@ describe('StampPickerService', () => {
     host = TestBed.createComponent(OverlayLayerHostComponent);
     host.detectChanges();
     document.body.appendChild(host.nativeElement);
-    ContextMenuService.defaultParentViewContainerRef = host.componentInstance.layer();
+    TestBed.inject(OverlayLayers).main = host.componentInstance.layer();
     service = TestBed.inject(StampPickerService);
     anchor = document.createElement('button');
     document.body.appendChild(anchor);
     picked = [];
-    localStorage.removeItem(RECENT_STAMPS_STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEYS.recentStamps);
   });
 
   afterEach(() => {
@@ -46,8 +45,7 @@ describe('StampPickerService', () => {
     anchor.remove();
     (host.nativeElement as HTMLElement).remove();
     host.destroy();
-    ContextMenuService.defaultParentViewContainerRef = ownLayer;
-    localStorage.removeItem(RECENT_STAMPS_STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEYS.recentStamps);
   });
 
   it('opens under the button, and hands on the stamp picked as it closes', () => {
@@ -91,7 +89,7 @@ describe('StampPickerService', () => {
   });
 
   it('closes and opens the panel for the room\u2019s sets when asked to manage them', () => {
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(true);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(true);
     const opened = vi.spyOn(TestBed.inject(PanelService), 'open').mockReturnValue(null as never);
 
     service.open(anchor, 'line', (id) => picked.push(id));

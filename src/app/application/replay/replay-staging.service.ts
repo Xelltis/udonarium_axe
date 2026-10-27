@@ -1,5 +1,4 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
-import { pieceOf, targetNameOf } from '@axe/application/replay/replay-piece';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { networkMessage$ } from '@axe/core/network/network-messaging';
 import type { GameObject, ObjectContext } from '@axe/core/sync/game-object';
@@ -22,6 +21,7 @@ import {
   isIgnoredReplayEvent,
   type ReplayDraft,
 } from '@axe/domain/replay/replay-interpreter';
+import { pieceOf, targetNameOf } from '@axe/domain/replay/replay-piece';
 import {
   visibilityOfChatLine,
   visibilityOfDisclosure,

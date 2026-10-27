@@ -1,9 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ChatBookmarkService } from '@axe/application/chat/chat-bookmark.service';
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatReactionService } from '@axe/application/chat/chat-reaction.service';
-import { ChatTickerSelectionService } from '@axe/application/chat/chat-ticker-selection.service';
 import {
   DEFAULT_SYSTEM_AVATAR_URL,
   DEFAULT_SYSTEM_DICE_AVATAR_URL,
@@ -36,7 +34,9 @@ import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TextNote } from '@axe/domain/tabletop/text-note';
+import { ChatBookmarkService } from '@axe/features/chat/chat-bookmark.service';
 import { ChatMessageComponent } from '@axe/features/chat/chat-message/chat-message.component';
+import { ChatTickerSelectionService } from '@axe/features/chat/chat-ticker-selection.service';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -178,7 +178,7 @@ describe('ChatMessageComponent', () => {
     });
 
     it('shows a reader kept from the roll what stands in for it when replied to', () => {
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
       answering('replyTo', secretRoll());
 
       expect(component.replyPreview()?.text).toBe(TestBed.inject(TRANSLATE_FN)('feature.chat.message.secretDice'));
@@ -186,7 +186,7 @@ describe('ChatMessageComponent', () => {
     });
 
     it('shows a reader kept from the roll what stands in for it when quoted', () => {
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
       answering('quoteOf', secretRoll());
 
       expect(component.quotePreview()?.text).toBe(TestBed.inject(TRANSLATE_FN)('feature.chat.message.secretDice'));
@@ -194,7 +194,7 @@ describe('ChatMessageComponent', () => {
     });
 
     it('shows the roll to a reader who may see what is hidden', () => {
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(true);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(true);
       answering('replyTo', secretRoll());
 
       expect(component.replyPreview()?.text).toBe('DiceBot : (1d100) → 3');
@@ -202,7 +202,7 @@ describe('ChatMessageComponent', () => {
   });
 
   it('keeps a secret line sent with a stamp covered, stamp and all, from all but whoever may see it', () => {
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
     const message = new ChatMessage();
     message.initialize();
     message.from = 'someone-else';
@@ -232,7 +232,7 @@ describe('ChatMessageComponent', () => {
     // The reveal changes only the tag. Nothing else drawn while the line is hidden depends on
     // that message, so without a version to watch the cover would stay on until something
     // else draws.
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
 
     const message = new ChatMessage();
     message.initialize();
@@ -713,7 +713,7 @@ describe('ChatMessageComponent', () => {
       message.name = '勇者';
       message.text = '世界を救うのだ';
       fixture.componentRef.setInput('chatMessage', message);
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
       fixture.detectChanges();
 
       const before = ObjectStore.instance.getObjects(TextNote).length;
@@ -1902,7 +1902,7 @@ describe('ChatMessageComponent', () => {
     });
 
     it('keeps every wording of a secret line from a reader kept from its words', async () => {
-      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden', 'get').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
       const message = shown('someone', 'S1d100 黒幕を疑う');
       message.tag = 'secret';
       message.edit('S1d100 犯人を疑う', '', 2000);
@@ -1962,48 +1962,23 @@ describe('ChatMessageComponent', () => {
     });
   });
 
-  describe('consuming a jump to the original message', () => {
-    /**
-     * A jump is always cleared once it is consumed.
-     * Left there, every message component mounted afterwards would read the same request on
-     * its first pass and scroll again.
-     */
-    function setupMessage(identifier: string) {
-      const message = new ChatMessage(identifier);
-      message.initialize();
-      message.from = 'tester';
-      message.text = 'hello';
-      fixture.componentRef.setInput('chatMessage', message);
-      fixture.detectChanges();
-      // Scrolling into view need do nothing here, but without a stub happy-dom throws.
-      const host = fixture.nativeElement as HTMLElement;
-      host.scrollIntoView = vi.fn();
-      return host;
-    }
+  it('scrolls into the middle of the log and lights up when it is brought into view', () => {
+    const message = new ChatMessage('jump-target-msg');
+    message.initialize();
+    message.from = 'tester';
+    message.text = 'hello';
+    fixture.componentRef.setInput('chatMessage', message);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    host.scrollIntoView = vi.fn();
 
-    it('clears the request as soon as it consumes one meant for it', async () => {
-      setupMessage('jump-target-msg');
-      const ui = TestBed.inject(UiSignalService);
+    component.bringIntoView();
 
-      ui.requestChatJump('jump-target-msg');
-      fixture.detectChanges();
-      // the clearing and the scrolling both happen on a microtask
-      await Promise.resolve();
-
-      expect(ui.chatJumpRequest()).toBeNull();
-    });
-
-    it('leaves a request meant for another alone, for that one to consume', () => {
-      setupMessage('msg-A');
-      const ui = TestBed.inject(UiSignalService);
-
-      ui.requestChatJump('msg-B');
-      fixture.detectChanges();
-
-      const req = ui.chatJumpRequest();
-      expect(req?.messageIdentifier).toBe('msg-B');
-    });
+    expect(host.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+    expect(component.isHighlighted()).toBe(true);
+    message.destroy();
   });
+
   describe('the novel-mode staging', () => {
     const spoken = (text: string, vnEmote = '') => {
       const message = new ChatMessage();
@@ -2096,7 +2071,7 @@ describe('ChatMessageComponent', () => {
       fixture.componentRef.setInput('chatMessage', message);
       component.startEdit();
       component.editDraft.set('こんにちは');
-      vi.spyOn(TestBed.inject(ChatMessageService), 'canEditMessage').mockReturnValue(false);
+      vi.spyOn(TestBed.inject(ChatLineEditService), 'canEditMessage').mockReturnValue(false);
 
       component.saveEdit();
 

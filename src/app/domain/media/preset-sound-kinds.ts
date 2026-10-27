@@ -1,4 +1,4 @@
-import { VolumeType } from '@axe/core/storage/audio-player';
+import { VolumeType } from '@axe/core/storage/audio-output';
 
 /** The built-in sounds of handling things on the table: dice, coins, cards, pieces and blocks, locks and sweeping. */
 const HANDLING_KEYS: ReadonlySet<string> = new Set([

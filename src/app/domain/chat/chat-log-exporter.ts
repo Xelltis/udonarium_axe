@@ -1,4 +1,10 @@
 import type { ImageFile } from '@axe/core/storage/image-file';
+import {
+  CHAT_DECORATION_LOG_CSS,
+  chatDecorationMarkup,
+  decoratedRunsOf,
+  withoutChatDecoration,
+} from '@axe/domain/chat/chat-decoration';
 import type { ChatMessage } from '@axe/domain/chat/chat-message';
 import { rubyMarkupOfLine } from '@axe/domain/chat/chat-ruby-notation';
 import { vnBodyOf } from '@axe/domain/visual-novel/vn-emote';
@@ -87,6 +93,7 @@ export class ChatLogExporter {
     '.bn{font-weight:bold;margin-right:4px}' +
     '.ai{max-width:180px;max-height:120px;width:auto;height:auto;object-fit:contain;border:1px solid #ccc;border-radius:4px;background:#fff;vertical-align:top;margin:2px 4px 2px 0}' +
     '.aw{display:block;margin-top:6px;white-space:normal}' +
+    CHAT_DECORATION_LOG_CSS +
     '</style>\n';
   /**
    * Escapes a value for html and turns ruby markup, `|base《reading》`, into `<ruby>` tags.
@@ -103,13 +110,13 @@ export class ChatLogExporter {
   }
 
   /**
-   * Escapes the text of a message as `escapeHtml` does, one line at a time, and joins the lines
-   * with `<br>` so the breaks a person typed survive the escaping.
+   * Escapes the text of a message as `escapeHtml` does, one line at a time, with the chat's
+   * decorations drawn round it, and joins the lines with `<br>` so the breaks a person typed survive
+   * the escaping.
    */
   static escapeHtmlLines(value: string): string {
-    return value
-      .split(/\r?\n/)
-      .map((line) => ChatLogExporter.escapeHtml(line))
+    return chatDecorationMarkup(decoratedRunsOf(value.replace(/\r\n/g, '\n')), ChatLogExporter.escapeHtml)
+      .split('\n')
       .join('<br>');
   }
 
@@ -518,10 +525,11 @@ export class ChatLogExporter {
 
   /**
    * The text of a quoted or replied-to line folded onto one line and cut to `maxTextLength`
-   * characters with an ellipsis, without the staging an older novel-mode line carries.
+   * characters with an ellipsis, without the staging an older novel-mode line carries or the marks
+   * of the chat's decorations.
    */
   static referenceExcerpt(target: ChatLogLine, maxTextLength: number, textDecoder?: ChatLogTextDecoder): string {
-    const rawText = vnBodyOf(target.vnEmote, ChatLogExporter.decode(target.text, textDecoder))
+    const rawText = withoutChatDecoration(vnBodyOf(target.vnEmote, ChatLogExporter.decode(target.text, textDecoder)))
       .replace(/\s+/g, ' ')
       .trim();
     return rawText.length > maxTextLength ? rawText.slice(0, maxTextLength) + '…' : rawText;

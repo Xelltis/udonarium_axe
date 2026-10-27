@@ -1,10 +1,11 @@
 import { DOCUMENT } from '@angular/common';
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { isAppleTouchDevice } from '@axe/core/util/apple-touch';
 
 export type RenderLiteSetting = 'auto' | 'on' | 'off';
 
-const STORAGE_KEY = 'ui-render-lite';
 const SETTING_ORDER: RenderLiteSetting[] = ['auto', 'on', 'off'];
 
 /** What a browser tells about itself that bears on how much drawing it can take. */
@@ -64,11 +65,7 @@ export class RenderLiteService {
   /** Only a choice is written down; what auto settles on is worked out afresh each visit. */
   set(setting: RenderLiteSetting): void {
     this.setting.set(setting);
-    try {
-      localStorage.setItem(STORAGE_KEY, setting);
-    } catch {
-      // Private browsing refuses the write; the setting still holds for this session.
-    }
+    writeLocal(STORAGE_KEYS.renderLite, setting);
   }
 
   private markDocument(): void {
@@ -88,10 +85,6 @@ function currentCapability(): RenderCapability {
 }
 
 function storedSetting(): RenderLiteSetting {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return SETTING_ORDER.includes(stored as RenderLiteSetting) ? (stored as RenderLiteSetting) : 'auto';
-  } catch {
-    return 'auto';
-  }
+  const stored = readLocal(STORAGE_KEYS.renderLite);
+  return SETTING_ORDER.includes(stored as RenderLiteSetting) ? (stored as RenderLiteSetting) : 'auto';
 }

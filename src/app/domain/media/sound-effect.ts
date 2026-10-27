@@ -1,7 +1,8 @@
 import { callSoundEffect, sendMessage$, soundEffect$ } from '@axe/core/event/domain-events';
 import { AudioFile } from '@axe/core/storage/audio-file';
-import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { VolumeType } from '@axe/core/storage/audio-output';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { SoundEffects } from '@axe/core/storage/sound-effects';
 import { SyncObject } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -130,7 +131,7 @@ export class SoundEffect extends GameObject {
     this.cleanups.push(
       soundEffect$.subscribe((identifier) => {
         const audio = AudioStorage.instance.get(identifier);
-        if (audio) AudioPlayer.play(audio, 0.5, SoundEffect.kindOf(identifier));
+        if (audio) SoundEffects.playOnce(audio, 0.5, SoundEffect.kindOf(identifier));
       })
     );
     this.cleanups.push(
@@ -178,7 +179,7 @@ export class SoundEffect extends GameObject {
     const identifier = typeof arg === 'string' ? arg : arg.identifier;
     if (identifier.length < 1) return;
     const audio = AudioStorage.instance.get(identifier);
-    if (audio) AudioPlayer.play(audio, 0.5, kind ?? SoundEffect.kindOf(identifier));
+    if (audio) SoundEffects.playOnce(audio, 0.5, kind ?? SoundEffect.kindOf(identifier));
   }
 
   /**

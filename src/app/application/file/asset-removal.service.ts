@@ -54,6 +54,9 @@ export class AssetRemovalService {
   private readonly confirm = inject(ConfirmService);
   private readonly snackbar = inject(SnackbarService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly imageStorage = inject(ImageStorage);
+  private readonly audioStorage = inject(AudioStorage);
+  private readonly assetHttpStore = inject(AssetHttpStore);
   private readonly storeRetries = new AssetRetries();
 
   /**
@@ -67,8 +70,8 @@ export class AssetRemovalService {
 
   /** Whether this seat may remove the asset: the GM any, a player one they added, and one watching none. */
   mayRemove(identifier: string): boolean {
-    if (this.rolePermission.canEditShared) return true;
-    return this.rolePermission.canEditTabletop && this.ownership.isMine(identifier);
+    if (this.rolePermission.canEditShared()) return true;
+    return this.rolePermission.canEditTabletop() && this.ownership.isMine(identifier);
   }
 
   /** Which of these anyone at all may remove, the GM if nobody else: whatever the room did not bring itself. */
@@ -118,7 +121,7 @@ export class AssetRemovalService {
    * the GM made is not undone by anyone else adding the same file.
    */
   putBack(identifier: string): boolean {
-    if (!this.rolePermission.canEditShared) return false;
+    if (!this.rolePermission.canEditShared()) return false;
     AssetRemoval.restore(identifier);
     return true;
   }
@@ -140,7 +143,7 @@ export class AssetRemovalService {
    * Chosen ones none of which this seat may remove are said to be so.
    */
   async removeAfterAsking(kind: AssetRemovalKind, identifiers: readonly string[]): Promise<number> {
-    if (!this.rolePermission.canEditTabletop) return 0;
+    if (!this.rolePermission.canEditTabletop()) return 0;
     const anyones = this.removableByAnyone(kind, identifiers);
     const targets = anyones.filter((identifier) => this.mayRemove(identifier));
     if (targets.length === 0) {
@@ -190,8 +193,8 @@ export class AssetRemovalService {
   private putUpIfPutBack(identifier: string): void {
     const record = AssetRemoval.get(identifier);
     if (!record || record.isRemoved) return;
-    if (record.kind === 'audio') AudioStorage.instance.putUpAgain(identifier);
-    else ImageStorage.instance.putUpAgain(identifier);
+    if (record.kind === 'audio') this.audioStorage.putUpAgain(identifier);
+    else this.imageStorage.putUpAgain(identifier);
   }
 
   private stopPlaying(identifiers: readonly string[]): void {
@@ -213,12 +216,12 @@ export class AssetRemovalService {
    * removal or reading of the room's list asks afresh.
    */
   private takeOutOfStore(identifier: string, roomKey: string | null): void {
-    if (Network.transport !== 'server' || !AssetHttpStore.instance.isEnabled) return;
+    if (Network.transport !== 'server' || !this.assetHttpStore.isEnabled) return;
     if (Network.roomKey !== roomKey || !AssetRemoval.get(identifier)?.isRemoved) {
       this.storeRetries.forget(identifier);
       return;
     }
-    void AssetHttpStore.instance.remove(identifier).then((result) => {
+    void this.assetHttpStore.remove(identifier).then((result) => {
       if (result !== 'failed') {
         this.storeRetries.forget(identifier);
         if (result === 'removed') this.putUpIfPutBack(identifier);

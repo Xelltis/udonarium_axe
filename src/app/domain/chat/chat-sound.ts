@@ -1,5 +1,6 @@
-import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { VolumeType } from '@axe/core/storage/audio-output';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { SoundEffects } from '@axe/core/storage/sound-effects';
 import { PresetSound } from '@axe/domain/media/sound-effect';
 
 export const CHAT_SOUND_TYPES = ['pageTurn', 'bubble', 'cyber', 'notify1', 'notify2'] as const;
@@ -61,5 +62,5 @@ export function playChatSound(type: ChatSoundType, text: string, volume: number)
   const identifier = chatSoundOf(type, text);
   if (identifier.length < 1 || volume <= 0) return;
   const audio = AudioStorage.instance.get(identifier);
-  if (audio) AudioPlayer.play(audio, volume, VolumeType.NOTIFICATION);
+  if (audio) SoundEffects.playOnce(audio, volume, VolumeType.NOTIFICATION);
 }

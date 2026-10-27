@@ -2,7 +2,6 @@ import { ComponentRef, inject, Injectable } from '@angular/core';
 import { StampPackService } from '@axe/application/chat/stamp-pack.service';
 import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { StampUse } from '@axe/domain/chat/stamp-rules';
@@ -36,6 +35,7 @@ export class StampPickerService {
   private readonly panelService = inject(PanelService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly rules = inject(StampRulesService);
+  private readonly overlays = inject(OverlayLayers);
   private opened: OpenPicker | null = null;
 
   /**
@@ -53,10 +53,7 @@ export class StampPickerService {
   /** Opens the stamps the room lets be used `use`'s way under `anchor`, closing any already open. */
   open(anchor: Element, use: StampUse, pick: (stampId: string) => void): void {
     this.close();
-    const parent =
-      OverlayLayers.layerFor(anchor.ownerDocument) ??
-      OverlayLayers.current() ??
-      ContextMenuService.defaultParentViewContainerRef;
+    const parent = this.overlays.layerFor(anchor.ownerDocument) ?? this.overlays.current() ?? this.overlays.main;
     if (!parent) return;
 
     const ref = parent.createComponent(StampPickerComponent, { index: parent.length, injector: parent.injector });

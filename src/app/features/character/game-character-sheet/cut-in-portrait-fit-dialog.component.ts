@@ -3,6 +3,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { portraitPicturesOf } from '@axe/domain/character/character-portrait';
@@ -155,7 +156,7 @@ export class CutInPortraitFitDialogComponent {
   }
 
   protected onPointerDown(event: PointerEvent): void {
-    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+    capturePointer(event.currentTarget, event.pointerId);
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
   }
 
@@ -181,7 +182,7 @@ export class CutInPortraitFitDialogComponent {
   }
 
   protected onPointerUp(event: PointerEvent): void {
-    (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
+    releasePointer(event.currentTarget, event.pointerId);
     this.pointers.delete(event.pointerId);
   }
 
@@ -223,7 +224,7 @@ export class CutInPortraitFitDialogComponent {
   apply(): void {
     const character = this.character();
     const drafts = this.drafts();
-    if (character && drafts.size > 0 && this.rolePermission.canEditTabletop) {
+    if (character && drafts.size > 0 && this.rolePermission.canEditTabletop()) {
       const next = withPortraitFits(character.cutInPortraitFits, drafts, portraitPicturesOf(character));
       if (next !== character.cutInPortraitFits) character.cutInPortraitFits = next;
     }

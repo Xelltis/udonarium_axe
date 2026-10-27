@@ -4,66 +4,90 @@ import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 describe('OverlayLayers', () => {
   const main = {} as ViewContainerRef;
   const other = {} as ViewContainerRef;
+  let layers: OverlayLayers;
 
   function paper(focused: boolean): Document {
     return { hasFocus: () => focused } as unknown as Document;
   }
 
-  afterEach(() => OverlayLayers.reset());
+  beforeEach(() => {
+    layers = new OverlayLayers();
+  });
 
   it('names no layer while nothing has left the main window', () => {
-    expect(OverlayLayers.current()).toBeNull();
+    expect(layers.current()).toBeNull();
   });
 
   it('names the layer of the window being worked in', () => {
-    OverlayLayers.attach(paper(false), main);
-    OverlayLayers.attach(paper(true), other);
+    layers.attach(paper(false), main);
+    layers.attach(paper(true), other);
 
-    expect(OverlayLayers.current()).toBe(other);
+    expect(layers.current()).toBe(other);
   });
 
   it('falls back to the main window when the reader is in it', () => {
-    OverlayLayers.attach(paper(false), other);
+    layers.attach(paper(false), other);
 
-    expect(OverlayLayers.current()).toBeNull();
+    expect(layers.current()).toBeNull();
   });
 
   it('forgets a window that has gone', () => {
     const gone = paper(true);
-    OverlayLayers.attach(gone, other);
-    OverlayLayers.detach(gone);
+    layers.attach(gone, other);
+    layers.detach(gone);
 
-    expect(OverlayLayers.current()).toBeNull();
+    expect(layers.current()).toBeNull();
   });
 
   it('answers for a document that cannot say whether it is focused', () => {
-    OverlayLayers.attach({} as Document, other);
+    layers.attach({} as Document, other);
 
-    expect(OverlayLayers.current()).toBeNull();
+    expect(layers.current()).toBeNull();
   });
 
   describe('layerFor', () => {
     it('names the layer of the window a document belongs to, whichever has the focus', () => {
       const window = paper(false);
-      OverlayLayers.attach(paper(true), main);
-      OverlayLayers.attach(window, other);
+      layers.attach(paper(true), main);
+      layers.attach(window, other);
 
-      expect(OverlayLayers.layerFor(window)).toBe(other);
+      expect(layers.layerFor(window)).toBe(other);
     });
 
     it('names nothing for the main window, or for no document at all', () => {
-      OverlayLayers.attach(paper(true), other);
+      layers.attach(paper(true), other);
 
-      expect(OverlayLayers.layerFor(document)).toBeNull();
-      expect(OverlayLayers.layerFor(null)).toBeNull();
+      expect(layers.layerFor(document)).toBeNull();
+      expect(layers.layerFor(null)).toBeNull();
     });
 
     it('forgets a window that has gone', () => {
       const gone = paper(false);
-      OverlayLayers.attach(gone, other);
-      OverlayLayers.detach(gone);
+      layers.attach(gone, other);
+      layers.detach(gone);
 
-      expect(OverlayLayers.layerFor(gone)).toBeNull();
+      expect(layers.layerFor(gone)).toBeNull();
+    });
+  });
+
+  describe('front', () => {
+    it('names the window being worked in over the main one', () => {
+      layers.main = main;
+      layers.attach(paper(true), other);
+
+      expect(layers.front()).toBe(other);
+    });
+
+    it('names the main layer while the reader is in the main window', () => {
+      layers.main = main;
+      layers.attach(paper(false), other);
+
+      expect(layers.front()).toBe(main);
+    });
+
+    it('throws before the app has handed over its main layer', () => {
+      expect(() => layers.front()).toThrow(/main layer/);
+      expect(() => layers.mainLayer()).toThrow(/main layer/);
     });
   });
 });

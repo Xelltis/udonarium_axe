@@ -1,3 +1,5 @@
+import { clamp } from '@axe/core/util/clamp';
+
 /**
  * How a character's portrait sits in a cut-in's portrait slot, set once on the sheet for each of
  * its portraits and used by every cut-in played for that character.
@@ -32,10 +34,6 @@ export const PORTRAIT_FIT_FRAME = { width: 340, height: 400 } as const;
 interface PortraitFitsRecord {
   readonly v: 1;
   readonly fits: Readonly<Record<string, readonly [number, number, number]>>;
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
 }
 
 function rounded(value: number): number {

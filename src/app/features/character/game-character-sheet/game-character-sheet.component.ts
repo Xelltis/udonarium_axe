@@ -26,13 +26,13 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { buildReorderContextMenu } from '@axe/application/ui/reorder-context-menu';
-import { SheetViewPreferenceService } from '@axe/application/ui/sheet-view-preference.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { debounce } from '@axe/core/util/debounce';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -61,6 +61,7 @@ import {
 } from '@axe/features/character/game-character-sheet/detail-element-reorder-helpers';
 import { GameCharacterSettingsTabComponent } from '@axe/features/character/game-character-sheet/game-character-settings-tab.component';
 import { clampInRange, roundOr } from '@axe/features/character/game-character-sheet/numeric-input-helpers';
+import { SheetViewPreferenceService } from '@axe/features/character/game-character-sheet/sheet-view-preference.service';
 import { openDataElementEditor } from '@axe/features/data-element/data-element-editor/open-data-element-editor';
 import { DataElementDeletionService } from '@axe/features/data-element/game-data-element/data-element-deletion.service';
 import { IN_DATA_ELEMENT_SHEET } from '@axe/features/data-element/game-data-element/data-element-sheet-host';
@@ -145,10 +146,7 @@ export class GameCharacterSheetComponent {
   /** The section the reader is at, which the narrow sheet's row of sections lights up. */
   readonly activeSectionId = signal<string | null>(null);
 
-  readonly isReadOnly = computed(() => {
-    this.objectChange.trackMyCursor();
-    return !this.rolePermission.canEditTabletop;
-  });
+  readonly isReadOnly = computed(() => !this.rolePermission.canEditTabletop());
 
   /**
    * Whether the sheet is closed to a reader who may not change the table, as the panels that write
@@ -377,7 +375,7 @@ export class GameCharacterSheetComponent {
     if (!Number.isFinite(value)) return;
     c.size = Math.max(1, Math.min(20, Math.round(value)));
   }
-  private cardFaceTextUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly writeFaceTextSoon = debounce(() => this.flushCardOwnFaceText(), 66);
   private pendingCardFaceText: { card: Card; value: string } | null = null;
 
   /**
@@ -390,7 +388,7 @@ export class GameCharacterSheetComponent {
     this.objectChange.versionOf(c.identifier)();
     if (PeerCursor.myCursor) this.objectChange.versionOf(PeerCursor.myCursor.identifier)();
     const isOwnedByAnotherUser = c.hasOwner && !c.isMine;
-    return this.rolePermission.canSeeHidden || (!isOwnedByAnotherUser && c.isVisible);
+    return this.rolePermission.canSeeHidden() || (!isOwnedByAnotherUser && c.isVisible);
   }
 
   /** The text on the card's face, or an empty string for a user who may not read it. */
@@ -406,17 +404,15 @@ export class GameCharacterSheetComponent {
    */
   setCardOwnFaceText(c: Card, event: Event): void {
     if (!this.canReadCardFace(c)) return;
-    if (this.cardFaceTextUpdateTimer) clearTimeout(this.cardFaceTextUpdateTimer);
     this.pendingCardFaceText = { card: c, value: (event.target as HTMLTextAreaElement).value };
-    this.cardFaceTextUpdateTimer = setTimeout(() => this.flushCardOwnFaceText(), 66);
+    this.writeFaceTextSoon();
   }
   /**
    * Writes face text still waiting on its pause to the card at once, when the field loses focus,
    * the piece changes or the panel closes.
    */
   flushCardOwnFaceText(): void {
-    if (this.cardFaceTextUpdateTimer) clearTimeout(this.cardFaceTextUpdateTimer);
-    this.cardFaceTextUpdateTimer = null;
+    this.writeFaceTextSoon.cancel();
     const pending = this.pendingCardFaceText;
     this.pendingCardFaceText = null;
     if (pending && this.canReadCardFace(pending.card)) pending.card.faceText = pending.value;
@@ -894,7 +890,7 @@ export class GameCharacterSheetComponent {
    * of from this user.
    */
   clone() {
-    if (!this.rolePermission.canEditTabletop || !this.tabletopObject) return;
+    if (!this.rolePermission.canEditTabletop() || !this.tabletopObject) return;
     if (isWithheldHere(this.tabletopObject)) {
       this.snackbar.show(this.translateFn('feature.inventory.sheet.copyWithheld'));
       return;

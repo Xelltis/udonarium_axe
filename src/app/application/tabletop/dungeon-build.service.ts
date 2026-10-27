@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { delay } from '@axe/core/util/delay';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { AmbienceKind } from '@axe/domain/effect/ambience/ambience-kind';
 import { ImageTag } from '@axe/domain/media/image-tag';
@@ -217,7 +218,7 @@ export class DungeonBuildService {
       done++;
       if (done % CHUNK_SIZE === 0) {
         onProgress?.(done, blocks.blocks.length);
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        await delay();
       }
     }
     onProgress?.(blocks.blocks.length, blocks.blocks.length);

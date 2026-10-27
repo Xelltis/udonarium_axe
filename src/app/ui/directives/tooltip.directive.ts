@@ -4,6 +4,8 @@ import {
   DestroyRef,
   Directive,
   inject,
+  Injectable,
+  InjectionToken,
   input,
   Type,
   ViewContainerRef,
@@ -11,10 +13,10 @@ import {
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { observeTap, TapGestureHandle } from '@axe/core/input/tap-gesture';
+import { debounce } from '@axe/core/util/debounce';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { asHoverDetailPlacement } from '@axe/domain/tabletop/hover-detail-placement';
 import { multiAngleDegreesFromPoint } from '@axe/domain/tabletop/multi-angle';
@@ -31,6 +33,20 @@ export interface TooltipPanelInstance {
   applyEdgePlacement(): void;
   coversPoint(x: number, y: number): boolean;
   setPointerHidden(hidden: boolean): void;
+}
+
+/** Fetches the detail panel a piece's tooltip opens. The app hands it in; with none, no detail is shown. */
+export const TOOLTIP_PANEL_LOADER = new InjectionToken<(() => Promise<Type<TooltipPanelInstance>>) | null>(
+  'TOOLTIP_PANEL_LOADER',
+  { providedIn: 'root', factory: () => null }
+);
+
+/** The detail panel is fetched the first time a piece asks for it, and kept for every piece from then on. */
+@Injectable({ providedIn: 'root' })
+export class TooltipPanelSource {
+  load = inject(TOOLTIP_PANEL_LOADER);
+  /** The panel, once it has arrived. */
+  panel: Type<TooltipPanelInstance> | null = null;
 }
 
 /**
@@ -60,10 +76,8 @@ export class TooltipDirective {
   private readonly tabletopService = inject(TabletopService);
   private readonly viewport = inject(ViewportService);
   private readonly destroyRef = inject(DestroyRef);
-
-  static TooltipPanelComponentClass: Type<TooltipPanelInstance> | null = null;
-  /** The detail panel is fetched the first time a piece asks for it, and kept from then on. */
-  static loadTooltipPanelComponent: (() => Promise<Type<TooltipPanelInstance>>) | null = null;
+  private readonly overlays = inject(OverlayLayers);
+  private readonly panels = inject(TooltipPanelSource);
 
   /** The one showing on screen, whichever piece raised it. */
   private static activeOwner: TooltipDirective | null = null;
@@ -208,14 +222,14 @@ export class TooltipDirective {
    * on, so it is not shown then, the same as a showing would close.
    */
   private fetchPanelThenOpen() {
-    const load = TooltipDirective.loadTooltipPanelComponent;
+    const load = this.panels.load;
     if (!load) return;
     this.waitingForPanel = true;
     document.body.addEventListener('touchstart', this.callbackOnPressWhileWaiting, true);
     document.body.addEventListener('pointerdown', this.callbackOnPressWhileWaiting, true);
     void load()
       .then((panelClass) => {
-        TooltipDirective.TooltipPanelComponentClass = panelClass;
+        this.panels.panel = panelClass;
         if (this.waitingForPanel) this.open();
       })
       .catch(() => {
@@ -238,14 +252,14 @@ export class TooltipDirective {
   private open() {
     this.closeAll();
     if (this.pointerDeviceService.isDragging) return;
-    const panelClass = TooltipDirective.TooltipPanelComponentClass;
+    const panelClass = this.panels.panel;
     if (!panelClass) {
       this.fetchPanelThenOpen();
       return;
     }
     this.stopWaitingForPanel();
 
-    const parentViewContainerRef = OverlayLayers.current() ?? ContextMenuService.defaultParentViewContainerRef;
+    const parentViewContainerRef = this.overlays.front();
     const injector = parentViewContainerRef.injector;
     const seats = this.edgeSeats();
     const refs: ComponentRef<TooltipPanelInstance>[] = [];
@@ -286,14 +300,7 @@ export class TooltipDirective {
       if (this.tabletopObject() && this.tabletopObject().identifier === e.identifier) this.closeAll();
     });
 
-    let followTimer: ReturnType<typeof setTimeout> | null = null;
-    const followViewport = () => {
-      if (followTimer) clearTimeout(followTimer);
-      followTimer = setTimeout(() => {
-        followTimer = null;
-        this.onViewportChanged(session);
-      }, VIEWPORT_FOLLOW_DELAY_MS);
-    };
+    const followViewport = debounce(() => this.onViewportChanged(session), VIEWPORT_FOLLOW_DELAY_MS);
     const host = this.viewContainerRef.element.nativeElement as Element;
     if (seats) {
       window.addEventListener('resize', followViewport, false);
@@ -308,8 +315,7 @@ export class TooltipDirective {
         window.removeEventListener('orientationchange', followViewport, false);
         host.removeEventListener('mousemove', this.callbackOnMouseMove, false);
       }
-      if (followTimer) clearTimeout(followTimer);
-      followTimer = null;
+      followViewport.cancel();
     };
 
     TooltipDirective.activeOwner = this;

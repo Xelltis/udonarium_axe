@@ -1,13 +1,13 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { loudestChangeRatio, ResourceChange, resourceChangeSeverity } from '@axe/domain/character/resource-change';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { autoEffectIdentifier } from '@axe/domain/effect/resource-effect-map';
-
-const STORAGE_KEY = 'axe.effect.autoPlay';
 
 /**
  * Plays an effect for a change in hit points or the like.
@@ -21,15 +21,13 @@ export class EffectAutoPlayService {
   private readonly objectStore = inject(ObjectStore);
   private readonly playbackService = inject(EffectPlaybackService);
   private readonly tabletopService = inject(TabletopService);
-  private readonly storage = typeof localStorage === 'undefined' ? null : localStorage;
-
-  private readonly _enabled = signal(this.storage?.getItem(STORAGE_KEY) === 'on');
+  private readonly _enabled = signal(readLocal(STORAGE_KEYS.effectAutoPlay) === 'on');
   readonly enabled = this._enabled.asReadonly();
 
   /** Turns automatic effects for resource changes on or off on this screen, and remembers it in this browser. */
   setEnabled(enabled: boolean): void {
     this._enabled.set(enabled);
-    this.storage?.setItem(STORAGE_KEY, enabled ? 'on' : 'off');
+    writeLocal(STORAGE_KEYS.effectAutoPlay, enabled ? 'on' : 'off');
   }
 
   /** Flips automatic effects for resource changes on this screen, and remembers it. */

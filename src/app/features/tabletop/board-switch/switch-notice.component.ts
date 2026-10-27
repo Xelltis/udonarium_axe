@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { SwitchNoticeService } from '@axe/application/ui/switch-notice.service';
+import { SwitchNoticeService } from '@axe/features/tabletop/board-switch/switch-notice.service';
 
 /** The word beside the pointer about a press on painted ground that came to nothing. */
 @Component({

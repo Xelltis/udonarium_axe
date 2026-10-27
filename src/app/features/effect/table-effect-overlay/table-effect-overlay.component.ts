@@ -10,26 +10,22 @@ import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_EFFECT_RENDERABLES, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { EffectParticleLayer, effectParticles } from '@axe/domain/effect/effect-particles';
-import { stagedEffectParticles } from '@axe/domain/effect/effect-stage-timeline';
-import {
-  EffectSprite,
-  effectSprites,
-  effectTargetCenter,
-  effectTargetProgress,
-} from '@axe/domain/effect/effect-timeline';
+import { effectParticlePlacements } from '@axe/domain/effect/effect-particle-placements';
+import { EffectSprite, effectSprites } from '@axe/domain/effect/effect-timeline';
 import { ViewRotation } from '@axe/domain/effect/effect-view';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
+import {
+  EFFECT_CAMERA_LIFT_PX,
+  effectBillboardTransform,
+  EffectCanvasPlacement,
+  effectCanvasStyle,
+  effectPaintStyle,
+  effectSpriteStyle,
+  EffectViewpoint,
+  hasEffectPaintLayer,
+} from '@axe/features/effect/effect-sprite-style';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
-
-export interface EffectCanvasPlacement {
-  key: string;
-  layer: EffectParticleLayer;
-  transform: string;
-  width: number;
-  height: number;
-}
 
 export interface EffectEye {
   rotation: ViewRotation;
@@ -38,13 +34,6 @@ export interface EffectEye {
 }
 
 const EYE_FLAT_RISE_PX = 1;
-
-/**
- * How far towards the camera the effect sits, in pixels.
- * A billboard sits at the same depth as the pieces and their names, so without a nudge
- * forwards it disappears behind a label and the effect looks broken.
- */
-const CAMERA_LIFT_PX = 40;
 
 const MAX_SPRITES = 400;
 const NOTHING_HIDDEN: ReadonlySet<string> = new Set<string>();
@@ -71,11 +60,18 @@ export class TableEffectOverlayComponent {
 
   private readonly rotation = computed(() => this.eye()?.rotation ?? this.uiSignalService.tableViewRotation());
 
-  private readonly liftPx = computed(() => this.eye()?.liftPx ?? CAMERA_LIFT_PX);
+  private readonly liftPx = computed(() => this.eye()?.liftPx ?? EFFECT_CAMERA_LIFT_PX);
 
   private readonly risePx = computed(() => this.eye()?.risePx ?? 0);
 
   private readonly flatRisePx = computed(() => (this.eye() ? EYE_FLAT_RISE_PX : 0));
+
+  private readonly viewpoint = computed<EffectViewpoint>(() => ({
+    rotation: this.rotation(),
+    liftPx: this.liftPx(),
+    risePx: this.risePx(),
+    flatRisePx: this.flatRisePx(),
+  }));
 
   /**
    * Gathers the effects playing and the fields left standing into one thing to draw.
@@ -141,153 +137,51 @@ export class TableEffectOverlayComponent {
   /** The glowing particles go onto one canvas per target, where the additive blending stays and does not flatten the depth. */
   readonly canvases = computed<EffectCanvasPlacement[]>(() => {
     const gridSize = this.tabletopService.gridSize();
+    const viewpoint = this.viewpoint();
     const placements: EffectCanvasPlacement[] = [];
 
     for (const active of this.renderables()) {
       if (placements.length >= MAX_CANVASES) break;
-
-      const hiddenIdentifiers = active.hidden;
-      const base = gridSize * active.preset.sizeScale;
-
-      // A run glows once per stage that is up, each where that stage is happening.
-      if (active.preset.isStaged) {
-        for (const placement of stagedEffectParticles(
-          active.preset,
-          active.preset.stageList,
-          active.cast,
-          active.elapsed,
-          base,
-          {
-            baseSize: gridSize,
-            hiddenIdentifiers,
-            resolvePosition: (identifier) => this.centerOf(identifier, gridSize),
-          },
-          effectParticles,
-          MAX_CANVASES - placements.length
-        )) {
-          placements.push({
-            key: `${active.key}-${placement.key}`,
-            layer: placement.layer,
-            width: placement.layer.width,
-            height: placement.layer.height,
-            transform: this.billboardTransform(placement.center, placement.layer),
-          });
-        }
-        // The next effect still has its own canvases; this one merely has no targets to walk.
-        continue;
-      }
-
-      active.cast.targets.forEach((target, index) => {
-        if (hiddenIdentifiers.has(target.identifier)) return;
-        if (placements.length >= MAX_CANVASES) return;
-        const progress = effectTargetProgress(active.preset, active.elapsed, index);
-        if (progress < 0 || progress > 1) return;
-
-        const layer = effectParticles(active.preset, active.cast.seed + index * 7919, progress, base);
-        if (layer.particles.length < 1) return;
-
-        const center = effectTargetCenter(target, active.preset, {
+      const placed = effectParticlePlacements(
+        active.preset,
+        active.cast,
+        active.elapsed,
+        {
           baseSize: gridSize,
+          hiddenIdentifiers: active.hidden,
           resolvePosition: (identifier) => this.centerOf(identifier, gridSize),
-        });
+        },
+        MAX_CANVASES - placements.length
+      );
+      for (const placement of placed) {
         placements.push({
-          key: `${active.key}-${index}`,
-          layer,
-          width: layer.width,
-          height: layer.height,
-          transform: this.billboardTransform(center, layer),
+          key: `${active.key}-${placement.key}`,
+          layer: placement.layer,
+          width: placement.layer.width,
+          height: placement.layer.height,
+          transform: effectBillboardTransform(placement.center, placement.layer, viewpoint),
         });
-      });
+      }
     }
     return placements.length > MAX_CANVASES ? placements.slice(0, MAX_CANVASES) : placements;
   });
 
   protected canvasStyle(placement: EffectCanvasPlacement): Record<string, string> {
-    return {
-      position: 'absolute',
-      left: '0px',
-      top: '0px',
-      width: placement.width + 'px',
-      height: placement.height + 'px',
-      'transform-origin': '0 0',
-      transform: placement.transform,
-      'pointer-events': 'none',
-    };
+    return effectCanvasStyle(placement);
   }
 
   protected hasPaintLayer(sprite: EffectSprite): boolean {
-    return sprite.animation.length > 0 || sprite.svg.length > 0;
+    return hasEffectPaintLayer(sprite);
   }
 
   /** The outer layer, which only places it in space and fades it out. */
   protected spriteStyle(sprite: EffectSprite): Record<string, string> {
-    const style: Record<string, string> = {
-      position: 'absolute',
-      left: '0px',
-      top: '0px',
-      width: sprite.width + 'px',
-      height: sprite.height + 'px',
-      opacity: sprite.opacity.toFixed(3),
-      'transform-origin': '0 0',
-      transform: this.transform(sprite),
-      'pointer-events': 'none',
-    };
-    if (!this.hasPaintLayer(sprite)) Object.assign(style, this.paint(sprite));
-    return style;
+    return effectSpriteStyle(sprite, this.viewpoint());
   }
 
   /** The inner layer, which carries the look and the animation. */
   protected paintStyle(sprite: EffectSprite): Record<string, string> {
-    const style = this.paint(sprite);
-    if (sprite.animation.length > 0) style['animation'] = sprite.animation;
-    style['transform-origin'] = sprite.origin.length > 0 ? sprite.origin : '50% 50%';
-    return style;
-  }
-
-  private paint(sprite: EffectSprite): Record<string, string> {
-    const style: Record<string, string> = {};
-    if (sprite.background.length > 0) style['background'] = sprite.background;
-    if (sprite.borderRadius.length > 0) style['border-radius'] = sprite.borderRadius;
-    if (sprite.clipPath.length > 0) style['clip-path'] = sprite.clipPath;
-    if (sprite.shadow.length > 0) {
-      // A drawing does not always fill its element, so a box shadow lights the box rather than
-      // the picture and shows a square edge. A drop shadow follows the outline instead.
-      if (sprite.svg.length > 0) style['filter'] = dropShadowOf(sprite.shadow);
-      else style['box-shadow'] = sprite.shadow;
-    }
-    return style;
-  }
-
-  private billboardTransform(center: { x: number; y: number; z: number }, layer: EffectParticleLayer): string {
-    const rotation = this.rotation();
-    return (
-      `translate3d(${center.x}px, ${center.y}px, ${center.z + this.risePx()}px)` +
-      ` rotateZ(${-(rotation?.z ?? 10)}deg) rotateX(${-(rotation?.x ?? 50)}deg) rotateY(${-(rotation?.y ?? 0)}deg)` +
-      ` translateZ(${this.liftPx()}px) translate(${-layer.originX}px, ${-layer.originY}px)`
-    );
-  }
-
-  private transform(sprite: EffectSprite): string {
-    const rise = sprite.flat ? this.flatRisePx() : this.risePx();
-    const parts = [`translate3d(${sprite.x}px, ${sprite.y}px, ${sprite.z + rise}px)`];
-
-    if (!sprite.flat) {
-      const rotation = this.rotation();
-      parts.push(
-        `rotateZ(${-(rotation?.z ?? 10)}deg)`,
-        `rotateX(${-(rotation?.x ?? 50)}deg)`,
-        `rotateY(${-(rotation?.y ?? 0)}deg)`,
-        `translateZ(${this.liftPx()}px)`
-      );
-    }
-    // The offset is applied inside the billboard, so the arrangement holds as the camera turns.
-    if (sprite.offsetX !== 0 || sprite.offsetY !== 0) {
-      parts.push(`translate(${sprite.offsetX.toFixed(2)}px, ${sprite.offsetY.toFixed(2)}px)`);
-    }
-    if (sprite.rotate !== 0) parts.push(`rotateZ(${sprite.rotate.toFixed(2)}deg)`);
-    parts.push('translate(-50%, -50%)');
-
-    return parts.join(' ');
+    return effectPaintStyle(sprite);
   }
 
   /** Collapsing and cleaving cut the picture of the piece itself and move the parts. */
@@ -316,12 +210,4 @@ export class TableEffectOverlayComponent {
     const raised = this.eye() ? object.altitude * gridSize : 0;
     return { x: object.location.x + half, y: object.location.y + half, z: object.posZ + raised };
   }
-}
-
-/** Reads a box shadow as a drop shadow of the same spread. */
-function dropShadowOf(shadow: string): string {
-  return shadow
-    .split(', ')
-    .map((layer) => `drop-shadow(${layer})`)
-    .join(' ');
 }

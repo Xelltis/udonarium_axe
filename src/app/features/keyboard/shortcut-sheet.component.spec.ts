@@ -3,12 +3,12 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
 import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
+import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { latticeOf } from '@axe/domain/tabletop/first-person/first-person-lattice';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { ShortcutSheetComponent } from '@axe/features/keyboard/shortcut-sheet.component';
-import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('ShortcutSheetComponent', () => {

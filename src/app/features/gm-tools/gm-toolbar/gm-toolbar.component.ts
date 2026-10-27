@@ -9,8 +9,10 @@ import {
   viewChild,
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { NpcDragService } from '@axe/application/tabletop/npc-drag.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { GUEST_PERSONA, VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -31,7 +33,6 @@ import {
   firstPersonShareChoices,
 } from '@axe/features/gm-tools/gm-toolbar/first-person-share-choices';
 import { NpcBarComponent } from '@axe/features/gm-tools/npc-bar/npc-bar.component';
-import { NpcDragService } from '@axe/features/gm-tools/npc-bar/npc-drag.service';
 import { MenuCommandService, MenuEntryView } from '@axe/features/menu/menu-command.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { UiButtonGuideComponent } from '@axe/ui/components/button-guide/button-guide.component';
@@ -48,6 +49,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 })
 export class GmToolbarComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;
+  private readonly rolePermission = inject(RolePermissionService);
   protected readonly npcBar = inject(NpcBarService);
   protected readonly drag = inject(NpcDragService);
   private readonly panelService = inject(PanelService);
@@ -85,10 +87,7 @@ export class GmToolbarComponent {
     this.folds.toggle('gm');
   }
 
-  readonly isGameMaster = computed(() => {
-    this.objectChange.trackMyCursor();
-    return PeerCursor.isMyselfGameMaster;
-  });
+  readonly isGameMaster = computed(() => this.rolePermission.isGameMaster());
 
   private readonly widgets = inject(WidgetVisibilityService);
 

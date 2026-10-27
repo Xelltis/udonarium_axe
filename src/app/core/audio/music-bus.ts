@@ -1,6 +1,6 @@
 import { SidechainDucker } from '@axe/core/audio/sidechain-ducker';
 import { Logger } from '@axe/core/logging/logger';
-import { AudioPlayer, type ChannelInsert, VolumeType } from '@axe/core/storage/audio-player';
+import { AudioOutput, type ChannelInsert, VolumeType } from '@axe/core/storage/audio-output';
 
 /** The effects the music goes through. */
 export interface MusicEffects {
@@ -143,7 +143,7 @@ export class MusicBus implements ChannelInsert {
     const taps = [VolumeType.SE, VolumeType.CUT_IN].map((type) => {
       const tap = context.createAnalyser();
       tap.fftSize = 512;
-      AudioPlayer.channelNode(type).connect(tap);
+      AudioOutput.channelNode(type).connect(tap);
       return tap;
     });
     this.ducker = new SidechainDucker(taps, this);
@@ -159,7 +159,7 @@ export class MusicBus implements ChannelInsert {
    * without making one before then. Asking again does nothing more.
    */
   static installWhenReady(): void {
-    MusicBus.stopWatching ??= AudioPlayer.whenContextReady((context) => MusicBus.install(context));
+    MusicBus.stopWatching ??= AudioOutput.whenContextReady((context) => MusicBus.install(context));
   }
 
   /**
@@ -195,7 +195,7 @@ export class MusicBus implements ChannelInsert {
     MusicBus._instance?.ducker.setEnabled(false);
     try {
       const bus = new MusicBus(context);
-      AudioPlayer.setChannelInsert(VolumeType.MASTER, bus);
+      AudioOutput.setChannelInsert(VolumeType.MASTER, bus);
       MusicBus._instance = bus;
       bus.ducker.setEnabled(MusicBus.duckingWanted);
       bus.applyEffects(MusicBus.effectsWanted, 0);

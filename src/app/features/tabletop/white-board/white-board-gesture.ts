@@ -1,6 +1,6 @@
-import { ShapeGeneratorKind } from '@axe/features/map-editor/model/editor-tool';
-import { MapScene, SceneGuideLine, ShapeItem } from '@axe/features/map-editor/model/scene';
-import { addShape, addStroke, removeImage, removeText } from '@axe/features/map-editor/model/scene-ops';
+import { ShapeGeneratorKind } from '@axe/domain/map-editor/editor-tool';
+import { MapScene, SceneGuideLine, ShapeItem } from '@axe/domain/map-editor/scene';
+import { addShape, addStroke, removeImage, removeText } from '@axe/domain/map-editor/scene-ops';
 import {
   anchorFor,
   angleFrom,

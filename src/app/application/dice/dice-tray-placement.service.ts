@@ -8,6 +8,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { dieRadiusOf } from '@axe/domain/dice/dice-3d/polyhedra';
 import { Tray } from '@axe/domain/dice/dice-3d/throw-validation';
 import { trayFor } from '@axe/domain/dice/dice-3d/tray-size';
+import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 
 /** Where on the table a throw lands, and how its tray lies there. */
 export interface TablePlacement {
@@ -121,8 +122,8 @@ export class DiceTrayPlacementService {
 
   /** The middle of a piece's footprint, on the floor it stands on. */
   private footOf(piece: GameCharacter, grid: number): [number, number, number] {
-    const half = ((piece.size || 1) * grid) / 2;
-    return [piece.location.x + half, piece.location.y + half, piece.posZ];
+    const centre = pieceCentreOf(piece, grid);
+    return [centre.x, centre.y, piece.posZ];
   }
 
   /** The point of the table under the middle of the screen. */

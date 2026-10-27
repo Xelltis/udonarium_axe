@@ -2,9 +2,9 @@ import { DestroyRef, effect, inject, Injectable, untracked } from '@angular/core
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
+import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
 import { buttonGuideKeyDown } from '@axe/features/button-guide/button-guide-shortcut';
-import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 
 /** Marks what a press may land on without putting the guide away, since it answers the press itself. */
 export const BUTTON_GUIDE_KEEP_ATTRIBUTE = 'data-button-guide-keep';

@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
@@ -65,6 +66,7 @@ import { TranslocoModule } from '@jsverse/transloco';
 })
 export class TabletopDisplaySettingComponent {
   private readonly objectStore = inject(ObjectStore);
+  private readonly roomRules = inject(RoomRulesService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly rolePermission = inject(RolePermissionService);
@@ -96,10 +98,7 @@ export class TabletopDisplaySettingComponent {
    * These few settings reach every screen, and the chips beside them say so. A player may set
    * the rules of play, but not what everyone sees.
    */
-  protected readonly isEditable = computed(() => {
-    this.objectChange.trackMyCursor();
-    return this.rolePermission.canEditShared;
-  });
+  protected readonly isEditable = computed(() => this.rolePermission.canEditShared());
 
   /** What this seat asked for: the table's own recommendation, or a view of its own. */
   readonly seatViewMode = this.tabletop.seatViewMode;
@@ -160,12 +159,11 @@ export class TabletopDisplaySettingComponent {
     this.objectChange.versionOf(this.tableSelecter.identifier)();
     const table = this.tableSelecter.viewTable;
     if (table) this.objectChange.versionOf(table.identifier)();
-    const config = this.objectStore.get<Config>('Config');
-    return asTableFacingMark(resolveRoomRules(config?.roomRuleAnswers ?? null, table).facingMark);
+    return asTableFacingMark(this.roomRules.rulesFor(table).facingMark);
   }
   set facingMark(value: TableFacingMark) {
     if (!this.isEditable()) return;
-    const config = this.objectStore.get<Config>('Config') ?? Config.instance;
+    const config = Config.instance;
     config.facingMark = asTableFacingMark(value);
   }
 

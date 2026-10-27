@@ -9,12 +9,13 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { CellGrid } from '@axe/domain/tabletop/fog/cell-grid';
 import { effectiveSightRadiusPx } from '@axe/domain/tabletop/fog/sight-radius';
+import { pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { EYE_HEIGHT_CELLS, eyeHeightPx } from '@axe/domain/tabletop/vision-scene';
 import { visionLobesOf } from '@axe/domain/tabletop/vision-shape';
 import { VisionType } from '@axe/domain/tabletop/vision-types';
-import { fillCells, overlayScale } from '@axe/features/tabletop/table-vision-overlay/vision-overlay-render';
 import { visionVolumeShape, VolumeRib, VolumeRing } from '@axe/features/tabletop/vision-volume/vision-volume-geometry';
+import { fillCells, overlayScale } from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
 import { translateZCss, Z_OFFSET_VISION_VOLUME_PX } from '@axe/ui/tabletop/z-offset';
 
 /** Bright on purpose: the shape is a measuring aid, not scenery. */
@@ -88,7 +89,7 @@ export class TableVisionVolumeOverlayComponent {
           : 0,
       });
       if (radiusPx < 1) continue;
-      const centre = (gridSize * (character.size || 1)) / 2;
+      const centre = pieceCentreOffsetPx(character, gridSize);
       const shape = visionVolumeShape({
         x: character.location.x + centre,
         y: character.location.y + centre,

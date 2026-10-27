@@ -1,18 +1,18 @@
 import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
-import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { ContextMenuAction, ContextMenuSeparator } from '@axe/application/ui/context-menu.service';
 import { buildAltitudeAction } from '@axe/application/ui/tabletop-context-menu-actions';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
+import { CreateObjectMenu } from '@axe/features/tabletop/create-menu/create-object-context-menu';
 
 export interface MaskMenuParams {
   mask: GameTableMask;
   gridSize: number;
   objectPosition: PointerCoordinate;
   inventoryService: GameObjectInventoryService;
-  tabletopActionService: TabletopActionService;
+  createMenu: CreateObjectMenu;
   onStartScratch(): void;
   onFinishScratch(): void;
   onCancelScratch(): void;
@@ -33,7 +33,7 @@ export function buildGameTableMaskContextMenu(params: MaskMenuParams): ContextMe
     gridSize,
     objectPosition,
     inventoryService,
-    tabletopActionService,
+    createMenu,
     onStartScratch,
     onFinishScratch,
     onCancelScratch,
@@ -139,7 +139,7 @@ export function buildGameTableMaskContextMenu(params: MaskMenuParams): ContextMe
   menuArray.push({
     name: t('feature.tabletop.contextMenu.createObject'),
     action: undefined,
-    subActions: tabletopActionService.makeDefaultContextMenuActions(objectPosition),
+    subActions: createMenu.menuAt(objectPosition),
   });
   return menuArray;
 }

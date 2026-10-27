@@ -43,7 +43,7 @@ const TABLE_CHILD_ALIASES = [
 type ObjectIdentifier = string;
 type LocationName = string;
 
-@Injectable()
+@Injectable({ providedIn: 'root' })
 export class TabletopService {
   private readonly coordinateService = inject(CoordinateService);
   private readonly objectStore = inject(ObjectStore);
@@ -225,6 +225,11 @@ export class TabletopService {
     this.initialize();
   }
 
+  /**
+   * Keeps the caches of what stands on the table in step. Every change is heard, not only the table's
+   * own kinds: a change to an object that is not on the table, or not there any more, refreshes its kind
+   * as well.
+   */
   private initialize() {
     this.refreshCacheAll();
     this.objectChange.objectAdded$.subscribe((e) => {

@@ -1,3 +1,5 @@
+import { clamp } from '@axe/core/util/clamp';
+
 export interface MultiAngleCurvedNameLayout {
   readonly svgSize: number;
   readonly offset: number;
@@ -12,10 +14,6 @@ export interface MultiAngleCurvedNameLayout {
   readonly repeatCount: number;
   readonly startOffsets: readonly string[];
   readonly separatorOffsets: readonly string[];
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
 }
 
 function glyphWidthEm(character: string): number {

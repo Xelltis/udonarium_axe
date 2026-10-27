@@ -103,6 +103,17 @@ describe('renderPlainChatLog', () => {
     ).toContain('アリア：漢字を読む');
   });
 
+  it('writes a decorated line as its words alone, in a quoted line too', () => {
+    const said = line({ name: 'GM', text: '[赤]**扉**が開く[/]' });
+    const log = renderPlainChatLog('tab', [
+      tab('メイン', [said, line({ text: 'なるほど', quoteOf: 'q', quoteOfMessage: said as never })]),
+    ]);
+
+    expect(log).toContain('GM：扉が開く');
+    expect(log).not.toContain('**');
+    expect(log).not.toContain('[赤]');
+  });
+
   it('writes the line replied to under the reply, and a secret one by what stands in for it', () => {
     const said = line({ name: 'GM', text: '扉の向こうから物音がする' });
     const secret = line({ name: '<BCDice：GM>', text: '(1D100) → 3', isSecret: true });

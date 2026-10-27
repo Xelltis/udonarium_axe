@@ -1,7 +1,7 @@
 import { Logger } from '@axe/core/logging/logger';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { loopPointsFitInMemory, loopRegionOf, readAudioLoopPoints } from '@axe/core/storage/audio-loop-points';
-import { AudioPlayer, VolumeType } from '@axe/core/storage/audio-player';
+import { AudioOutput, VolumeType } from '@axe/core/storage/audio-output';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
 
 /** Files up to this size are decoded and looped from memory, which joins the end to the start without a gap. */
@@ -52,10 +52,10 @@ export class LoopPlayer {
 
   private get gain(): GainNode {
     if (!this._gain) {
-      const context = AudioPlayer.audioContext;
+      const context = AudioOutput.context;
       const gain = context.createGain();
       gain.gain.setValueAtTime(0, context.currentTime);
-      gain.connect(AudioPlayer.channelInput(VolumeType.BACKGROUND));
+      gain.connect(AudioOutput.channelInput(VolumeType.BACKGROUND));
       this._gain = gain;
     }
     return this._gain;
@@ -138,7 +138,7 @@ export class LoopPlayer {
   private async startAsync(audio: AudioFile, fadeInMs: number, attempt: number): Promise<void> {
     const decoded = await LoopPlayer.decodeForLoopAsync(audio);
     if (attempt !== this.attempt) return;
-    const context = AudioPlayer.audioContext;
+    const context = AudioOutput.context;
     if (decoded) {
       const source = context.createBufferSource();
       source.buffer = decoded.buffer;
@@ -172,7 +172,7 @@ export class LoopPlayer {
 
   private fadeIn(fadeInMs: number): void {
     const param = this.gain.gain;
-    const now = AudioPlayer.audioContext.currentTime;
+    const now = AudioOutput.context.currentTime;
     param.cancelScheduledValues(now);
     param.setValueAtTime(0, now);
     param.linearRampToValueAtTime(this.level, now + Math.max(fadeInMs, 1) / 1000);
@@ -180,7 +180,7 @@ export class LoopPlayer {
 
   private rampTo(target: number, seconds: number): void {
     const param = this.gain.gain;
-    const now = AudioPlayer.audioContext.currentTime;
+    const now = AudioOutput.context.currentTime;
     param.cancelScheduledValues(now);
     param.setValueAtTime(param.value, now);
     param.linearRampToValueAtTime(target, now + Math.max(seconds, 0.001));
@@ -221,11 +221,10 @@ export class LoopPlayer {
     try {
       const data = await FileReaderUtil.readAsArrayBufferAsync(blob);
       const points = readAudioLoopPoints(new Uint8Array(data));
-      const followsPoints =
-        points !== null && loopPointsFitInMemory(points, AudioPlayer.audioContext.sampleRate, blob.size);
+      const followsPoints = points !== null && loopPointsFitInMemory(points, AudioOutput.context.sampleRate, blob.size);
       if (!followsPoints && blob.size > LOOP_FROM_MEMORY_MAX_FILE_BYTES) return null;
       const buffer = await new Promise<AudioBuffer>((resolve, reject) =>
-        AudioPlayer.audioContext.decodeAudioData(data, resolve, reject)
+        AudioOutput.context.decodeAudioData(data, resolve, reject)
       );
       if (followsPoints) return { buffer, region: loopRegionOf(points, buffer.duration) };
       return buffer.length * buffer.numberOfChannels * 4 > LOOP_FROM_MEMORY_MAX_DECODED_BYTES

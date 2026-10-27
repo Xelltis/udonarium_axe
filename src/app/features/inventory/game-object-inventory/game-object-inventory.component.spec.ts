@@ -10,8 +10,8 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
-import { InventoryViewPreferenceService } from '@axe/application/ui/inventory-view-preference.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { Network } from '@axe/core/index';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -25,11 +25,11 @@ import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TurnState } from '@axe/domain/tabletop/turn-state';
-import {
-  GameObjectInventoryComponent,
-  PERSONAL_INVENTORY_TAB,
-} from '@axe/features/inventory/game-object-inventory/game-object-inventory.component';
+import { GameObjectInventoryComponent } from '@axe/features/inventory/game-object-inventory/game-object-inventory.component';
+import { PERSONAL_INVENTORY_TAB } from '@axe/features/inventory/game-object-inventory/inventory-list';
 import { InventoryObjectDrag } from '@axe/features/inventory/game-object-inventory/inventory-object-drag';
+import { InventoryRoundService } from '@axe/features/inventory/inventory-round.service';
+import { InventoryViewPreferenceService } from '@axe/features/inventory/inventory-view-preference.service';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { installPanelLayer } from '@axe/testing/panel-layer';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -210,8 +210,8 @@ describe('GameObjectInventoryComponent', () => {
     it('shows no sides while the round is taken one piece at a time', () => {
       putOnTable('だれか');
 
-      expect(component.turnSides()).toEqual([]);
-      expect(component.currentTurnSide()).toBe('');
+      expect(TestBed.inject(InventoryRoundService).sides()).toEqual([]);
+      expect(TestBed.inject(InventoryRoundService).currentSide()).toBe('');
     });
 
     it('names on the round only the pieces this reader can see, and no side made only of the unseen', () => {
@@ -228,8 +228,16 @@ describe('GameObjectInventoryComponent', () => {
         (character) => character.name !== '闇の魔物'
       );
 
-      expect(component.turnSides().map((group) => group.name)).toEqual(['味方']);
-      expect(component.turnOrderList().map((piece) => piece.name)).toEqual(['勇者']);
+      expect(
+        TestBed.inject(InventoryRoundService)
+          .sides()
+          .map((group) => group.name)
+      ).toEqual(['味方']);
+      expect(
+        TestBed.inject(InventoryRoundService)
+          .order()
+          .map((piece) => piece.name)
+      ).toEqual(['勇者']);
     });
 
     it('gathers the pieces under the party each is on', () => {
@@ -240,7 +248,7 @@ describe('GameObjectInventoryComponent', () => {
       putOnTable('通りすがり');
       Config.instance.turnOrderMode = 'faction';
 
-      const sides = component.turnSides();
+      const sides = TestBed.inject(InventoryRoundService).sides();
 
       expect(sides.map((group) => group.name)).toEqual(['味方', '無所属']);
       expect(sides[0].members.map((piece) => piece.name)).toEqual(['勇者']);
@@ -329,7 +337,7 @@ describe('GameObjectInventoryComponent', () => {
       putOnTable('勇者', heroes.identifier);
       Config.instance.turnOrderMode = 'faction';
 
-      expect(component.turnSides()[0].color).toBe('#7dd3fc');
+      expect(TestBed.inject(InventoryRoundService).sides()[0].color).toBe('#7dd3fc');
     });
   });
 
@@ -391,29 +399,29 @@ describe('GameObjectInventoryComponent', () => {
       goblin.folderName = '第1話';
 
       expect(component.selectTab()).toBe('table');
-      expect(component.foldersApply()).toBe(false);
-      expect(component.hasFolders()).toBe(true);
-      expect(component.showTree()).toBe(false);
+      expect(component.folders.foldersApply()).toBe(false);
+      expect(component.folders.hasFolders()).toBe(true);
+      expect(component.folders.showTree()).toBe(false);
     });
 
     it('leaves the graveyard flat too, since it is what has already left the table', () => {
       component.selectTab.set('graveyard');
 
-      expect(component.foldersApply()).toBe(false);
+      expect(component.folders.foldersApply()).toBe(false);
     });
 
     it('files what is shared apart from what is personal', () => {
       const shared = putInShared('ゴブリン');
       shared.folderName = '第1話';
       component.selectTab.set('common');
-      component.createFolder();
+      component.folders.createFolder();
 
       component.selectTab.set('graveyard');
-      expect(component.declaredFolderPaths()).toEqual([]);
+      expect(component.folders.declaredFolderPaths()).toEqual([]);
 
       component.selectTab.set('common');
-      expect(component.declaredFolderPaths()).toEqual(['フォルダ1']);
-      expect(component.knownFolderPaths()).toEqual(['フォルダ1', '第1話']);
+      expect(component.folders.declaredFolderPaths()).toEqual(['フォルダ1']);
+      expect(component.folders.knownFolderPaths()).toEqual(['フォルダ1', '第1話']);
     });
 
     it('gathers the rows into the folders they name', () => {
@@ -422,10 +430,10 @@ describe('GameObjectInventoryComponent', () => {
       putInShared('村長');
       component.selectTab.set('common');
 
-      expect(component.showTree()).toBe(true);
-      expect(component.folderTree().roots.map((node) => node.path)).toEqual(['第1話']);
-      expect(component.folderTree().roots[0].totalCount).toBe(1);
-      expect(component.folderTree().loose.map((row) => row.object.name)).toEqual(['村長']);
+      expect(component.folders.showTree()).toBe(true);
+      expect(component.folders.folderTree().roots.map((node) => node.path)).toEqual(['第1話']);
+      expect(component.folders.folderTree().roots[0].totalCount).toBe(1);
+      expect(component.folders.folderTree().loose.map((row) => row.object.name)).toEqual(['村長']);
     });
 
     it('leaves the list flat while nothing is in a folder', () => {
@@ -433,19 +441,19 @@ describe('GameObjectInventoryComponent', () => {
       putInShared('村長');
       component.selectTab.set('common');
 
-      expect(component.hasFolders()).toBe(false);
-      expect(component.showTree()).toBe(false);
+      expect(component.folders.hasFolders()).toBe(false);
+      expect(component.folders.showTree()).toBe(false);
     });
 
     it('folds a folder away and opens it again', () => {
       const goblin = putOnTable('ゴブリン');
       goblin.folderName = '第1話';
 
-      component.toggleFolder('第1話');
-      expect(component.isFolderCollapsed('第1話')).toBe(true);
+      component.folders.toggleFolder('第1話');
+      expect(component.folders.isFolderCollapsed('第1話')).toBe(true);
 
-      component.toggleFolder('第1話');
-      expect(component.isFolderCollapsed('第1話')).toBe(false);
+      component.folders.toggleFolder('第1話');
+      expect(component.folders.isFolderCollapsed('第1話')).toBe(false);
     });
 
     describe('opening with the folders folded up, where this reader asked for that', () => {
@@ -465,7 +473,7 @@ describe('GameObjectInventoryComponent', () => {
         panel.selectTab.set('common');
         TestBed.tick();
 
-        expect(panel.isFolderCollapsed('第1話')).toBe(true);
+        expect(panel.folders.isFolderCollapsed('第1話')).toBe(true);
       });
 
       it('leaves the pieces in no folder where they were', () => {
@@ -478,7 +486,7 @@ describe('GameObjectInventoryComponent', () => {
         panel.selectTab.set('common');
         TestBed.tick();
 
-        expect(panel.isFolderCollapsed('')).toBe(false);
+        expect(panel.folders.isFolderCollapsed('')).toBe(false);
       });
 
       it('opens them as it always has where nobody asked', () => {
@@ -489,7 +497,7 @@ describe('GameObjectInventoryComponent', () => {
         panel.selectTab.set('common');
         TestBed.tick();
 
-        expect(panel.isFolderCollapsed('第1話')).toBe(false);
+        expect(panel.folders.isFolderCollapsed('第1話')).toBe(false);
       });
 
       it('folds the shared folders when the panel opens on the table and is moved over to them', () => {
@@ -504,7 +512,7 @@ describe('GameObjectInventoryComponent', () => {
         panel.selectTab.set('common');
         TestBed.tick();
 
-        expect(panel.isFolderCollapsed('村')).toBe(true);
+        expect(panel.folders.isFolderCollapsed('村')).toBe(true);
       });
 
       it('folds the shared folders after the reader has been through their own', () => {
@@ -521,10 +529,10 @@ describe('GameObjectInventoryComponent', () => {
         panel.selectTab.set('common');
         TestBed.tick();
 
-        expect(panel.isFolderCollapsed('村')).toBe(true);
+        expect(panel.folders.isFolderCollapsed('村')).toBe(true);
         panel.selectTab.set(PERSONAL_INVENTORY_TAB);
         TestBed.tick();
-        expect(panel.isFolderCollapsed('手持ち')).toBe(true);
+        expect(panel.folders.isFolderCollapsed('手持ち')).toBe(true);
       });
 
       it('waits for a search to be cleared before folding a tab first looked at during it', () => {
@@ -541,8 +549,8 @@ describe('GameObjectInventoryComponent', () => {
         panel.clearSearch();
         TestBed.tick();
 
-        expect(panel.isFolderCollapsed('第1話')).toBe(true);
-        expect(panel.isFolderCollapsed('村')).toBe(true);
+        expect(panel.folders.isFolderCollapsed('第1話')).toBe(true);
+        expect(panel.folders.isFolderCollapsed('村')).toBe(true);
       });
 
       it('leaves a folder opened on one tab open when another tab with one of that name is first looked at', () => {
@@ -555,15 +563,15 @@ describe('GameObjectInventoryComponent', () => {
         const panel = opened();
         panel.selectTab.set('common');
         TestBed.tick();
-        panel.toggleFolder('村');
+        panel.folders.toggleFolder('村');
 
         panel.selectTab.set(PERSONAL_INVENTORY_TAB);
         TestBed.tick();
-        expect(panel.isFolderCollapsed('村')).toBe(true);
+        expect(panel.folders.isFolderCollapsed('村')).toBe(true);
         panel.selectTab.set('common');
         TestBed.tick();
 
-        expect(panel.isFolderCollapsed('村')).toBe(false);
+        expect(panel.folders.isFolderCollapsed('村')).toBe(false);
       });
 
       it('leaves the first folder made on a tab that had none open, with what was filed into it', () => {
@@ -573,11 +581,11 @@ describe('GameObjectInventoryComponent', () => {
         panel.selectTab.set('common');
         TestBed.tick();
 
-        panel.createFolderFor(villager);
+        panel.folders.createFolderFor(villager);
         TestBed.tick();
 
         expect(villager.folderName).not.toBe('');
-        expect(panel.isFolderCollapsed(villager.folderName)).toBe(false);
+        expect(panel.folders.isFolderCollapsed(villager.folderName)).toBe(false);
       });
 
       it('folds the folders of a room arriving with its loose pieces before its filed ones', () => {
@@ -592,7 +600,7 @@ describe('GameObjectInventoryComponent', () => {
         TestBed.inject(GameObjectInventoryService).notifyInventoryUpdate();
         TestBed.tick();
 
-        expect(panel.isFolderCollapsed('第1話')).toBe(true);
+        expect(panel.folders.isFolderCollapsed('第1話')).toBe(true);
       });
 
       it('leaves a folder the reader opens afterwards open', () => {
@@ -603,30 +611,30 @@ describe('GameObjectInventoryComponent', () => {
         panel.selectTab.set('common');
         TestBed.tick();
 
-        panel.toggleFolder('第1話');
+        panel.folders.toggleFolder('第1話');
         TestBed.tick();
 
-        expect(panel.isFolderCollapsed('第1話')).toBe(false);
+        expect(panel.folders.isFolderCollapsed('第1話')).toBe(false);
       });
     });
 
     it('opens every folder while a search is on, without forgetting what was folded', () => {
       const goblin = putOnTable('ゴブリン');
       goblin.folderName = '第1話';
-      component.toggleFolder('第1話');
+      component.folders.toggleFolder('第1話');
 
       component.searchQuery.set('ゴブリン');
-      expect(component.isFolderCollapsed('第1話')).toBe(false);
+      expect(component.folders.isFolderCollapsed('第1話')).toBe(false);
 
       component.clearSearch();
-      expect(component.isFolderCollapsed('第1話')).toBe(true);
+      expect(component.folders.isFolderCollapsed('第1話')).toBe(true);
     });
 
     it('normalizes a rough folder before putting a character in it', () => {
       const goblin = putInShared('ゴブリン');
       component.selectTab.set('common');
 
-      component.setFolder(goblin, ' 第1話 // 洞窟 ');
+      component.folders.setFolder(goblin, ' 第1話 // 洞窟 ');
 
       expect(goblin.folderName).toBe('第1話/洞窟');
     });
@@ -638,7 +646,7 @@ describe('GameObjectInventoryComponent', () => {
       shallow.folderName = '第1話';
       component.selectTab.set('common');
 
-      component.renameFolder('第1話', '序章');
+      component.folders.renameFolder('第1話', '序章');
 
       expect(shallow.folderName).toBe('序章');
       expect(deep.folderName).toBe('序章/洞窟');
@@ -649,7 +657,7 @@ describe('GameObjectInventoryComponent', () => {
       lookalike.folderName = '第1話大全';
       component.selectTab.set('common');
 
-      component.renameFolder('第1話', '序章');
+      component.folders.renameFolder('第1話', '序章');
 
       expect(lookalike.folderName).toBe('第1話大全');
     });
@@ -658,10 +666,10 @@ describe('GameObjectInventoryComponent', () => {
       const goblin = putInShared('ゴブリン');
       component.selectTab.set('common');
 
-      component.createFolderFor(goblin);
+      component.folders.createFolderFor(goblin);
 
       expect(goblin.folderName).toBe('フォルダ1');
-      expect(component.isEditingFolder('フォルダ1')).toBe(true);
+      expect(component.folders.isEditingFolder('フォルダ1')).toBe(true);
     });
 
     it('does not hand out a folder name that is already taken', () => {
@@ -670,7 +678,7 @@ describe('GameObjectInventoryComponent', () => {
       const goblin = putInShared('ゴブリン');
       component.selectTab.set('common');
 
-      component.createFolderFor(goblin);
+      component.folders.createFolderFor(goblin);
 
       expect(goblin.folderName).toBe('フォルダ2');
     });
@@ -680,55 +688,55 @@ describe('GameObjectInventoryComponent', () => {
       goblin.folderName = '第1話';
       component.selectTab.set('common');
 
-      component.startFolderRename('第1話');
-      component.cancelFolderRename();
-      component.commitFolderRename('第1話', '序章');
+      component.folders.startFolderRename('第1話');
+      component.folders.cancelFolderRename();
+      component.folders.commitFolderRename('第1話', '序章');
       expect(goblin.folderName).toBe('第1話');
 
-      component.startFolderRename('第1話');
-      component.commitFolderRename('第1話', '序章');
+      component.folders.startFolderRename('第1話');
+      component.folders.commitFolderRename('第1話', '序章');
       expect(goblin.folderName).toBe('序章');
     });
 
     it('makes a folder with nothing in it yet', () => {
       component.selectTab.set('common');
-      component.createFolder();
+      component.folders.createFolder();
 
-      expect(component.declaredFolderPaths()).toEqual(['フォルダ1']);
-      expect(component.hasFolders()).toBe(true);
-      expect(component.folderTree().roots.map((node) => node.path)).toEqual(['フォルダ1']);
-      expect(component.folderTree().roots[0].totalCount).toBe(0);
+      expect(component.folders.declaredFolderPaths()).toEqual(['フォルダ1']);
+      expect(component.folders.hasFolders()).toBe(true);
+      expect(component.folders.folderTree().roots.map((node) => node.path)).toEqual(['フォルダ1']);
+      expect(component.folders.folderTree().roots[0].totalCount).toBe(0);
     });
 
     it('makes a folder inside the one it was asked from', () => {
       component.selectTab.set('common');
-      component.createFolder();
+      component.folders.createFolder();
 
-      component.createFolder('フォルダ1');
+      component.folders.createFolder('フォルダ1');
 
-      expect(component.declaredFolderPaths()).toEqual(['フォルダ1', 'フォルダ1/フォルダ2']);
-      expect(component.folderTree().roots[0].children.map((node) => node.name)).toEqual(['フォルダ2']);
+      expect(component.folders.declaredFolderPaths()).toEqual(['フォルダ1', 'フォルダ1/フォルダ2']);
+      expect(component.folders.folderTree().roots[0].children.map((node) => node.name)).toEqual(['フォルダ2']);
     });
 
     it('keeps an empty folder standing after the last character leaves it', () => {
       const goblin = putInShared('ゴブリン');
       component.selectTab.set('common');
-      component.createFolderFor(goblin);
+      component.folders.createFolderFor(goblin);
 
-      component.setFolder(goblin, '');
+      component.folders.setFolder(goblin, '');
 
-      expect(component.folderTree().roots.map((node) => node.path)).toEqual(['フォルダ1']);
-      expect(component.folderTree().loose.map((row) => row.object.name)).toEqual(['ゴブリン']);
+      expect(component.folders.folderTree().roots.map((node) => node.path)).toEqual(['フォルダ1']);
+      expect(component.folders.folderTree().loose.map((row) => row.object.name)).toEqual(['ゴブリン']);
     });
 
     it('deletes an empty folder without asking', () => {
       component.selectTab.set('common');
-      component.createFolder();
+      component.folders.createFolder();
 
-      component.deleteFolder('フォルダ1');
+      component.folders.deleteFolder('フォルダ1');
 
-      expect(component.declaredFolderPaths()).toEqual([]);
-      expect(component.hasFolders()).toBe(false);
+      expect(component.folders.declaredFolderPaths()).toEqual([]);
+      expect(component.folders.hasFolders()).toBe(false);
     });
 
     it('takes what is inside back to unfiled when a folder is deleted', async () => {
@@ -737,7 +745,7 @@ describe('GameObjectInventoryComponent', () => {
       component.selectTab.set('common');
       vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
 
-      await component.deleteFolder('第1話');
+      await component.folders.deleteFolder('第1話');
 
       expect(goblin.folderName).toBe('');
     });
@@ -748,7 +756,7 @@ describe('GameObjectInventoryComponent', () => {
       component.selectTab.set('common');
       vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(false);
 
-      await component.deleteFolder('第1話');
+      await component.folders.deleteFolder('第1話');
 
       expect(goblin.folderName).toBe('第1話');
     });
@@ -759,7 +767,7 @@ describe('GameObjectInventoryComponent', () => {
       orphan.folderName = '第1話';
       component.selectTab.set('common');
 
-      component.renameFolder('第1話', '序章');
+      component.folders.renameFolder('第1話', '序章');
 
       expect(orphan.folderName).toBe('序章');
     });
@@ -769,7 +777,7 @@ describe('GameObjectInventoryComponent', () => {
       deep.folderName = '第1話/洞窟/最奥/宝物庫';
       component.selectTab.set('common');
 
-      expect(component.renameFolder('第1話', '序章/導入')).toBe(false);
+      expect(component.folders.renameFolder('第1話', '序章/導入')).toBe(false);
       expect(deep.folderName).toBe('第1話/洞窟/最奥/宝物庫');
     });
 
@@ -777,11 +785,11 @@ describe('GameObjectInventoryComponent', () => {
       const goblin = putInShared('ゴブリン');
       goblin.folderName = '第1話';
       component.selectTab.set('common');
-      component.startFolderRename('第1話');
+      component.folders.startFolderRename('第1話');
 
-      component.commitFolderRename('第1話', '   ');
+      component.folders.commitFolderRename('第1話', '   ');
 
-      expect(component.isEditingFolder('第1話')).toBe(true);
+      expect(component.folders.isEditingFolder('第1話')).toBe(true);
     });
 
     it('offers no folder inside one already at the depth limit', () => {
@@ -789,10 +797,10 @@ describe('GameObjectInventoryComponent', () => {
       deep.folderName = '第1話/洞窟/最奥/宝物庫';
       component.selectTab.set('common');
 
-      expect(component.canNestInside('第1話/洞窟/最奥/宝物庫')).toBe(false);
-      component.createFolder('第1話/洞窟/最奥/宝物庫');
+      expect(component.folders.canNestInside('第1話/洞窟/最奥/宝物庫')).toBe(false);
+      component.folders.createFolder('第1話/洞窟/最奥/宝物庫');
 
-      expect(component.declaredFolderPaths()).toEqual([]);
+      expect(component.folders.declaredFolderPaths()).toEqual([]);
       expect(deep.folderName).toBe('第1話/洞窟/最奥/宝物庫');
     });
 
@@ -802,21 +810,21 @@ describe('GameObjectInventoryComponent', () => {
       component.selectTab.set('common');
       component.searchQuery.set('ゴブリン');
 
-      component.toggleFolder('第1話');
+      component.folders.toggleFolder('第1話');
       component.clearSearch();
 
-      expect(component.isFolderCollapsed('第1話')).toBe(false);
+      expect(component.folders.isFolderCollapsed('第1話')).toBe(false);
     });
 
     it('keeps personal folders off the room and out of the shared tab', () => {
       component.selectTab.set(component.inventoryTypes()[2]);
-      component.createFolder();
+      component.folders.createFolder();
 
-      expect(component.declaredFolderPaths()).toEqual(['フォルダ1']);
+      expect(component.folders.declaredFolderPaths()).toEqual(['フォルダ1']);
       expect(TestBed.inject(GameObjectInventoryService).folderPaths).toEqual([]);
 
       component.selectTab.set('common');
-      expect(component.declaredFolderPaths()).toEqual([]);
+      expect(component.folders.declaredFolderPaths()).toEqual([]);
     });
 
     it('renames a character who has stepped out onto the table along with the folder', () => {
@@ -825,7 +833,7 @@ describe('GameObjectInventoryComponent', () => {
       away.setLocation('table');
       component.selectTab.set('common');
 
-      component.renameFolder('第1話', '序章');
+      component.folders.renameFolder('第1話', '序章');
 
       expect(away.folderName).toBe('序章');
     });
@@ -834,11 +842,11 @@ describe('GameObjectInventoryComponent', () => {
       const goblin = putInShared('ゴブリン');
       goblin.folderName = '第1話';
       component.selectTab.set('common');
-      component.startFolderRename('第1話');
+      component.folders.startFolderRename('第1話');
 
-      component.commitFolderRename('第1話', '   ', true);
+      component.folders.commitFolderRename('第1話', '   ', true);
 
-      expect(component.isEditingFolder('第1話')).toBe(false);
+      expect(component.folders.isEditingFolder('第1話')).toBe(false);
       expect(goblin.folderName).toBe('第1話');
     });
 
@@ -877,7 +885,7 @@ describe('GameObjectInventoryComponent', () => {
       mine.folderName = '第1話';
 
       component.selectTab.set(PERSONAL_INVENTORY_TAB);
-      component.renameFolder('第1話', '序章');
+      component.folders.renameFolder('第1話', '序章');
 
       expect(mine.folderName).toBe('序章');
       expect(shared.folderName).toBe('第1話');
@@ -892,7 +900,7 @@ describe('GameObjectInventoryComponent', () => {
       vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
 
       component.selectTab.set(PERSONAL_INVENTORY_TAB);
-      await component.deleteFolder('第1話');
+      await component.folders.deleteFolder('第1話');
 
       expect(mine.folderName).toBe('');
       expect(shared.folderName).toBe('第1話');
@@ -900,33 +908,33 @@ describe('GameObjectInventoryComponent', () => {
 
     it('holds still on collapse-all while a search is open', () => {
       component.selectTab.set('common');
-      component.createFolder();
-      component.createFolder();
+      component.folders.createFolder();
+      component.folders.createFolder();
       component.searchQuery.set('フォルダ1');
 
-      component.collapseAllFolders();
+      component.folders.collapseAllFolders();
 
-      expect(component.collapsedFolders().size).toBe(0);
+      expect(component.folders.collapsedFolders().size).toBe(0);
     });
 
     it('merges rather than doubles up when a folder is renamed onto another', () => {
       component.selectTab.set('common');
-      component.createFolder();
-      component.createFolder();
+      component.folders.createFolder();
+      component.folders.createFolder();
 
-      component.renameFolder('フォルダ2', 'フォルダ1');
+      component.folders.renameFolder('フォルダ2', 'フォルダ1');
 
-      expect(component.declaredFolderPaths()).toEqual(['フォルダ1']);
+      expect(component.folders.declaredFolderPaths()).toEqual(['フォルダ1']);
     });
 
     it('carries a rename through the folders it has been told about', () => {
       component.selectTab.set('common');
-      component.createFolder();
-      component.createFolder('フォルダ1');
+      component.folders.createFolder();
+      component.folders.createFolder('フォルダ1');
 
-      component.renameFolder('フォルダ1', '第1話');
+      component.folders.renameFolder('フォルダ1', '第1話');
 
-      expect(component.declaredFolderPaths()).toEqual(['第1話', '第1話/フォルダ2']);
+      expect(component.folders.declaredFolderPaths()).toEqual(['第1話', '第1話/フォルダ2']);
     });
 
     function folderHeading(path: string): HTMLElement {
@@ -1566,6 +1574,7 @@ describe('GameObjectInventoryComponent', () => {
 
         afterEach(() => {
           localStorage.removeItem('ui-inventory-round-in-play');
+          TestBed.inject(TurnState).round = 0;
           vi.restoreAllMocks();
         });
 
@@ -1586,8 +1595,9 @@ describe('GameObjectInventoryComponent', () => {
           expect(next).toHaveBeenCalled();
         });
 
-        it('comes back once a round has begun', () => {
-          vi.spyOn(TestBed.inject(TurnOrderService), 'round', 'get').mockReturnValue(2);
+        it('comes back once a round has begun', async () => {
+          TestBed.inject(TurnState).round = 2;
+          await Promise.resolve();
           viewPreference().setRoundInPlay(true);
           fixture.detectChanges();
 
@@ -2177,6 +2187,21 @@ describe('GameObjectInventoryComponent', () => {
       expect(focusOn).toHaveBeenCalledWith(piece);
     });
   });
+  describe('the row picked out as selected', () => {
+    it('follows the piece selected anywhere, and stays on it while the selection moves to something that is not a piece', () => {
+      const piece = GameCharacter.create('選ばれた', 1, '');
+      const selection = TestBed.inject(SelectionSignalService);
+
+      selection.selectObject(piece.identifier, piece.aliasName);
+      expect(component.selectedIdentifier()).toBe(piece.identifier);
+
+      selection.selectObject('not-a-piece', 'chat-tab');
+      expect(component.selectedIdentifier()).toBe(piece.identifier);
+
+      piece.destroy();
+    });
+  });
+
   describe('the personal tab, after a reconnection gives this seat another peer id', () => {
     let peerId: string;
     const made: GameCharacter[] = [];

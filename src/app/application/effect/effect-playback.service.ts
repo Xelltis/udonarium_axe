@@ -1,8 +1,9 @@
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { effectCast$ } from '@axe/core/event/domain-events';
-import { VolumeType } from '@axe/core/storage/audio-player';
+import { VolumeType } from '@axe/core/storage/audio-output';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { debounce } from '@axe/core/util/debounce';
 import { PERF_EFFECT_FRAME, perfCounters } from '@axe/core/util/perf-counters';
 import { EffectCast, normalizeEffectCast } from '@axe/domain/effect/effect-cast';
 import { DefeatReaction, defeatReactionOf } from '@axe/domain/effect/effect-defeat';
@@ -58,7 +59,10 @@ export class EffectPlaybackService {
    * Fields and ambience come and go separately, so a single flag would let the later one cancel the earlier.
    */
   private readonly _persistentSources = signal<ReadonlySet<string>>(new Set());
-  private shakeTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly settleShake = debounce(() => {
+    this._shake.set('');
+    this._flash.set('');
+  }, SHAKE_MS);
 
   /**
    * Keeps the effect draw loop running on behalf of a named source, or lets that source go.
@@ -85,7 +89,7 @@ export class EffectPlaybackService {
     effectCast$.subscribe((event) => this.play(event.cast), this.destroyRef);
     this.destroyRef.onDestroy(() => {
       this.stopLoop();
-      if (this.shakeTimer != null) clearTimeout(this.shakeTimer);
+      this.settleShake.cancel();
       for (const timer of this.impactTimers) clearTimeout(timer);
       this.impactTimers.clear();
     });
@@ -144,12 +148,7 @@ export class EffectPlaybackService {
     this._shake.update((current) => (current === 'hard' || shake === 'hard' ? 'hard' : shake || current));
     if (flash.length > 0) this._flash.set(flash);
 
-    if (this.shakeTimer != null) clearTimeout(this.shakeTimer);
-    this.shakeTimer = setTimeout(() => {
-      this.shakeTimer = null;
-      this._shake.set('');
-      this._flash.set('');
-    }, SHAKE_MS);
+    this.settleShake();
   }
 
   /** Every shot sounds. One sound for a burst would hide how many there were. */

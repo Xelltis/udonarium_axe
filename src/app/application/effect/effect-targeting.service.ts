@@ -128,7 +128,7 @@ export class EffectTargetingService {
     // A seat made a guest while it aimed casts nothing; the aiming is called off.
     effect(() => {
       this.objectChange.trackMyCursor();
-      if (!this.rolePermission.canEditTabletop && untracked(this.isPicking)) untracked(() => this.cancel());
+      if (!this.rolePermission.canEditTabletop() && untracked(this.isPicking)) untracked(() => this.cancel());
     });
   }
 
@@ -185,7 +185,7 @@ export class EffectTargetingService {
   confirm(): EffectCast | null {
     const preset = this._preset();
     if (!preset) return null;
-    if (!this.rolePermission.canEditTabletop) {
+    if (!this.rolePermission.canEditTabletop()) {
       this.cancel();
       return null;
     }

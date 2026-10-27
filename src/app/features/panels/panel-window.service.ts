@@ -101,6 +101,7 @@ export class PanelWindowService {
   private readonly environmentInjector = inject(EnvironmentInjector);
   private readonly rendererFactory = inject(RendererFactory2);
   private readonly viewport = inject(ViewportService);
+  private readonly overlays = inject(OverlayLayers);
 
   private readonly windows = new Map<string, OpenWindow>();
 
@@ -171,7 +172,7 @@ export class PanelWindowService {
     });
     this.appRef.attachView(layer.hostView);
     layer.changeDetectorRef.detectChanges();
-    OverlayLayers.attach(target, layer.instance.overlay());
+    this.overlays.attach(target, layer.instance.overlay());
     request.open(layer.instance.layer());
 
     const watchdog = setInterval(() => this.look(request.key), 500);
@@ -269,7 +270,7 @@ export class PanelWindowService {
 
     if (comingHome && held.request.leaving) held.request.leaving();
     AttachedDocuments.detach(held.document);
-    OverlayLayers.detach(held.document);
+    this.overlays.detach(held.document);
     held.layer.destroy();
     this.appRef.detachView(held.layer.hostView);
     held.injector.destroy();

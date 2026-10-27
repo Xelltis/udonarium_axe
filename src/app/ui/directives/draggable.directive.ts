@@ -1,6 +1,7 @@
 import { afterNextRender, DestroyRef, Directive, ElementRef, inject, input, output } from '@angular/core';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { CSSNumber } from '@axe/core/transform/css-number';
+import { debounce } from '@axe/core/util/debounce';
 import { InputHandler } from '@axe/ui/directives/input-handler';
 
 const ORIENTATION_SETTLE_MS = 250;
@@ -53,7 +54,8 @@ export class DraggableDirective {
       this.adjustPosition();
       this.settleLater();
     }, ORIENTATION_SETTLE_MS);
-  private settleTimer: ReturnType<typeof setTimeout> | null = null;
+  /** A window being dragged by its edge fires by the dozen, so only the last one counts. */
+  private readonly settleLater = debounce(() => this.onsettle.emit(), RESIZE_SETTLE_MS);
 
   private input: InputHandler | null = null;
   private startPosition: PointerCoordinate = { x: 0, y: 0, z: 0 };
@@ -93,8 +95,7 @@ export class DraggableDirective {
    * A pending settle is dropped, so `draggable.settled` is not emitted after this.
    */
   destroy() {
-    if (this.settleTimer) clearTimeout(this.settleTimer);
-    this.settleTimer = null;
+    this.settleLater.cancel();
     window.removeEventListener('resize', this.callbackOnResize, false);
     window.removeEventListener('orientationchange', this.callbackOnOrientationChange, false);
     if (this.input) this.input.destroy();
@@ -172,15 +173,6 @@ export class DraggableDirective {
     }
     e.stopPropagation();
     this.onend.emit(e);
-  }
-
-  /** A window being dragged by its edge fires by the dozen, so only the last one counts. */
-  private settleLater(): void {
-    if (this.settleTimer) clearTimeout(this.settleTimer);
-    this.settleTimer = setTimeout(() => {
-      this.settleTimer = null;
-      this.onsettle.emit();
-    }, RESIZE_SETTLE_MS);
   }
 
   private onContextMenu(e: MouseEvent | TouchEvent) {

@@ -1,16 +1,7 @@
-const STORAGE_PREFIX = 'axe.inventory.personal-folders';
-
-/** Reading the property throws where the browser is set to block site data, not only where it is absent. */
-export function personalFolderStorage(): Storage | null {
-  try {
-    return typeof localStorage === 'undefined' ? null : localStorage;
-  } catch {
-    return null;
-  }
-}
+import { STORAGE_KEY_PREFIXES, storageKeyFor } from '@axe/core/storage/storage-keys';
 
 function storageKey(roomId: string): string {
-  return roomId.length > 0 ? `${STORAGE_PREFIX}.${roomId}` : STORAGE_PREFIX;
+  return storageKeyFor(STORAGE_KEY_PREFIXES.personalFolders, roomId);
 }
 
 /**

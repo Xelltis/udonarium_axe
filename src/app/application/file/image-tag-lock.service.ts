@@ -21,7 +21,7 @@ export class ImageTagLockService {
 
   /** Whether the tag's pictures are kept from this seat: locked by someone else, and this seat no GM. */
   readonly hides: TagHidden = (tag: string) => {
-    if (!tag || this.rolePermission.canSeeHidden) return false;
+    if (!tag || this.rolePermission.canSeeHidden()) return false;
     const lock = ImageTagLock.get(tag);
     return !!lock?.isLocked && !lock.isHeldBy(this.ownership.myOwnerKey());
   };
@@ -41,8 +41,8 @@ export class ImageTagLockService {
    * plays, while nobody else holds it; a held one by its holder and the GM.
    */
   mayToggle(tag: string): boolean {
-    if (!tag || tag === SYSTEM_RESERVED_TAG || !this.rolePermission.canEditTabletop) return false;
-    return !this.isLocked(tag) || this.isMine(tag) || this.rolePermission.canEditShared;
+    if (!tag || tag === SYSTEM_RESERVED_TAG || !this.rolePermission.canEditTabletop()) return false;
+    return !this.isLocked(tag) || this.isMine(tag) || this.rolePermission.canEditShared();
   }
 
   /** Keeps the tag to this seat, or lets everyone come across its pictures again, as this seat may. */

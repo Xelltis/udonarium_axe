@@ -1,6 +1,6 @@
 import { computed, inject, Injectable, signal, untracked } from '@angular/core';
-import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
+import { ReplayEditorService } from '@axe/features/replay/replay-editor.service';
 
 /**
  * The event last chosen in the replay list, which the video preview goes to.

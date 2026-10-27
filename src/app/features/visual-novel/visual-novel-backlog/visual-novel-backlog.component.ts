@@ -10,7 +10,8 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { ChatClockService } from '@axe/application/chat/chat-clock.service';
+import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -34,11 +35,11 @@ import {
   VnMessageKind,
   VnPortraitEmote,
 } from '@axe/domain/visual-novel/vn-emote';
+import { vnEmoteLabel } from '@axe/domain/visual-novel/vn-emote-label';
 import { isVnPortraitPosSet, VN_PORTRAIT_POS_UNSET } from '@axe/domain/visual-novel/vn-portrait-position';
 import { VN_STAGE_SLOT_COUNT } from '@axe/domain/visual-novel/vn-stage-cast';
 import { buildBacklogEntryContextMenu } from '@axe/features/visual-novel/visual-novel-backlog/visual-novel-backlog-context-menu';
 import { VisualNovelDirectorService } from '@axe/features/visual-novel/visual-novel-director.service';
-import { vnEmoteLabel } from '@axe/features/visual-novel/visual-novel-emote-label';
 import { VisualNovelEmoteSelectionService } from '@axe/features/visual-novel/visual-novel-emote-selection.service';
 import { readableMessageName, readableMessageText } from '@axe/features/visual-novel/visual-novel-message';
 import { VisualNovelPlaybackService } from '@axe/features/visual-novel/visual-novel-playback.service';
@@ -71,7 +72,8 @@ export interface VnBacklogEntry {
 })
 export class VisualNovelBacklogComponent {
   private readonly objectChange = inject(ObjectChangeService);
-  private readonly chatMessageService = inject(ChatMessageService);
+  private readonly lineEdit = inject(ChatLineEditService);
+  private readonly clock = inject(ChatClockService);
   private readonly imageService = inject(ImageService);
   private readonly translate = inject(TRANSLATE_FN);
   private readonly language = inject(LanguageService);
@@ -262,7 +264,7 @@ export class VisualNovelBacklogComponent {
 
   /** Whether this reader may edit the line: one they said, where they may still write to it. */
   protected canEdit(message: ChatMessage): boolean {
-    return this.chatMessageService.canEditMessage(message);
+    return this.lineEdit.canEditMessage(message);
   }
 
   /**
@@ -316,7 +318,7 @@ export class VisualNovelBacklogComponent {
       exited: this.editExited(),
     });
     if (message.text !== text || message.vnEmote !== emote) {
-      message.edit(text, emote, this.chatMessageService.getTime());
+      message.edit(text, emote, this.clock.now());
     }
     if (message.vnPortraitPos !== this.editSlot()) {
       message.vnPortraitPos = this.editSlot();

@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, viewChild } from '@angular/core';
-import { MoveBlockService } from '@axe/application/tabletop/move-block.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { CellGrid, cellGridOf, gridExtentPx } from '@axe/domain/tabletop/fog/cell-grid';
+import { MoveBlockService } from '@axe/features/tabletop/table-move-block-overlay/move-block.service';
 import { moveRangePolygons } from '@axe/features/tabletop/table-move-range-overlay/move-range-render';
-import { overlayScale } from '@axe/features/tabletop/table-vision-overlay/vision-overlay-render';
+import { overlayScale } from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
 import { translateZCss, Z_OFFSET_MASK_PX } from '@axe/ui/tabletop/z-offset';
 
 export const MOVE_BLOCK_RESTING_FILL = 'rgba(220, 60, 60, 0.16)';

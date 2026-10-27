@@ -11,10 +11,12 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { ChatPaletteHandle, ChatPaletteRegistryService } from '@axe/application/chat/chat-palette-registry.service';
 import { SystemAvatarKind, SystemAvatarService } from '@axe/application/chat/system-avatar.service';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -22,6 +24,7 @@ import { KeyboardInsetService } from '@axe/application/ui/keyboard-inset.service
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
@@ -37,6 +40,7 @@ import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { keyboardShortcutsOf, shortcutKeysText } from '@axe/domain/ui/keyboard-shortcuts';
 import { isAudienceOffered } from '@axe/domain/ui/menu-command';
 import { encodeVnEmote, VN_EMOTION_MARK_CHARS, vnEmoteOf, VnEmotionMark } from '@axe/domain/visual-novel/vn-emote';
+import { vnEmoteLabel } from '@axe/domain/visual-novel/vn-emote-label';
 import {
   isVnPortraitPosSet,
   toPortraitSlot,
@@ -57,21 +61,15 @@ import {
 } from '@axe/domain/visual-novel/vn-stage-cast';
 import { GameCharacterSheetComponent } from '@axe/features/character/game-character-sheet/game-character-sheet.component';
 import { allowsChat } from '@axe/features/chat/chat-input/chat-input-helpers';
-import {
-  ChatPaletteHandle,
-  ChatPaletteRegistryService,
-} from '@axe/features/chat/chat-palette/chat-palette-registry.service';
 import { ChatStreamPanelService } from '@axe/features/chat/chat-stream/chat-stream-panel.service';
 import { SystemAvatarMenuService } from '@axe/features/chat/system-avatar-menu.service';
 import { VisualNovelBacklogComponent } from '@axe/features/visual-novel/visual-novel-backlog/visual-novel-backlog.component';
 import { VisualNovelDirectionPanelComponent } from '@axe/features/visual-novel/visual-novel-direction-panel/visual-novel-direction-panel.component';
 import { VisualNovelDirectorService } from '@axe/features/visual-novel/visual-novel-director.service';
 import { VisualNovelDisplayPanelComponent } from '@axe/features/visual-novel/visual-novel-display-panel/visual-novel-display-panel.component';
-import { vnEmoteLabel } from '@axe/features/visual-novel/visual-novel-emote-label';
 import { VisualNovelEmotePanelComponent } from '@axe/features/visual-novel/visual-novel-emote-panel/visual-novel-emote-panel.component';
 import { VisualNovelEmoteSelectionService } from '@axe/features/visual-novel/visual-novel-emote-selection.service';
 import { readableMessageName, readableMessageText } from '@axe/features/visual-novel/visual-novel-message';
-import { VisualNovelModeService } from '@axe/features/visual-novel/visual-novel-mode.service';
 import {
   closeVisualNovelPanels,
   VISUAL_NOVEL_PANELS,
@@ -141,6 +139,7 @@ type VisualNovelPopover = 'soundBoard' | 'slotGuide' | 'palette' | 'shortcutHelp
 })
 export class VisualNovelOverlayComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;
+  private readonly rolePermission = inject(RolePermissionService);
   protected readonly keyboardInset = inject(KeyboardInsetService).inset;
   protected readonly isControlsOpen = signal(false);
 
@@ -757,10 +756,7 @@ export class VisualNovelOverlayComponent {
    * Whether this reader may change the table: play sounds and cut-ins for the room from the board,
    * as on the jukebox, and move or turn the portrait of the piece they speak as. A guest may not.
    */
-  readonly mayEditTable = computed(() => {
-    this.objectChange.trackMyCursor();
-    return canRoleEdit(PeerCursor.myRole);
-  });
+  readonly mayEditTable = computed(() => this.rolePermission.canEditTabletop());
 
   /**
    * Attaches a sound from the sound board to the next line, played when the line is sent, and

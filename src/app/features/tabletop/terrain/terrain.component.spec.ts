@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ObjectChangeService as ObjectChangeServiceForSpec } from '@axe/application/sync/object-change.service';
-import { SwitchPressService } from '@axe/application/tabletop/switch-press.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
@@ -22,6 +21,7 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { DoorStyle, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { SlopeDirection } from '@axe/domain/tabletop/terrain-slope';
+import { SwitchPressService } from '@axe/features/tabletop/board-switch/switch-press.service';
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
 import { TerrainComponent } from '@axe/features/tabletop/terrain/terrain.component';
 import { TerrainMenuService } from '@axe/features/tabletop/terrain/terrain-menu.service';
@@ -381,7 +381,7 @@ describe('TerrainComponent', () => {
       await fixture.whenStable();
 
       expect(component.isBlank()).toBe(true);
-      expect(component.northFaceImage().url).toBe('');
+      expect(component.sides.north.image().url).toBe('');
       expect(component.topFaceImage().url).toBe('');
 
       terrain.destroy();
@@ -596,7 +596,7 @@ describe('TerrainComponent', () => {
     it('draws nothing of a slope while the block is flat', () => {
       expect(component.slopeFaces()).toEqual([]);
       expect(component.slopeRoof()).toBeNull();
-      expect(component.northWallCut()).toEqual({ shown: true, clipPath: null });
+      expect(component.sides.north.cut()).toEqual({ shown: true, clipPath: null });
     });
 
     it('draws one leaning piece for a block sloping to one side', () => {
@@ -625,9 +625,9 @@ describe('TerrainComponent', () => {
       terrain.slopeSides = ['s'];
       fixture.detectChanges();
 
-      expect(component.southWallCut().shown).toBe(false);
-      expect(component.northWallCut()).toEqual({ shown: true, clipPath: expect.stringContaining('polygon(') });
-      expect(component.westWallCut().clipPath).toContain('0.00%');
+      expect(component.sides.south.cut().shown).toBe(false);
+      expect(component.sides.north.cut()).toEqual({ shown: true, clipPath: expect.stringContaining('polygon(') });
+      expect(component.sides.west.cut().clipPath).toContain('0.00%');
     });
 
     it('leaves no wall at all on a pyramid', () => {
@@ -635,10 +635,10 @@ describe('TerrainComponent', () => {
       fixture.detectChanges();
 
       for (const cut of [
-        component.northWallCut(),
-        component.southWallCut(),
-        component.westWallCut(),
-        component.eastWallCut(),
+        component.sides.north.cut(),
+        component.sides.south.cut(),
+        component.sides.west.cut(),
+        component.sides.east.cut(),
       ]) {
         expect(cut.shown).toBe(false);
       }
@@ -943,11 +943,6 @@ describe('TerrainComponent', () => {
   });
 
   describe('the lights it shows on its walls', () => {
-    interface WallLighting {
-      northLights: () => unknown[];
-      northSilhouettes: () => unknown[];
-    }
-
     it('hands back the same lights however far a piece walks', async () => {
       const table = new GameTable();
       table.width = 20;
@@ -959,16 +954,16 @@ describe('TerrainComponent', () => {
       const terrain = Terrain.create('wall', 1, 1, 2, 'wall', 'floor');
       fixture.componentRef.setInput('terrain', terrain);
       await fixture.whenStable();
-      const walls = component as unknown as WallLighting;
-      const lights = walls.northLights();
-      const silhouettes = walls.northSilhouettes();
+      const north = component.sides.north;
+      const lights = north.lights();
+      const silhouettes = north.silhouettes();
 
       objectChanged$.emit({ aliasName: 'character', identifier: 'somebody', isSendFromSelf: true });
       await new Promise((resolve) => setTimeout(resolve, 60));
       await fixture.whenStable();
 
-      expect(walls.northLights()).toBe(lights);
-      expect(walls.northSilhouettes()).toBe(silhouettes);
+      expect(north.lights()).toBe(lights);
+      expect(north.silhouettes()).toBe(silhouettes);
 
       terrain.destroy();
       ObjectStore.instance.delete(table, false);

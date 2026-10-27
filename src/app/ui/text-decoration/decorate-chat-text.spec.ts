@@ -1,3 +1,5 @@
+import { chatFontWanted$ } from '@axe/core/event/domain-events';
+import { CHAT_COLORS } from '@axe/domain/chat/chat-decoration';
 import {
   applyRubyMarkup,
   decorateChatStyleText,
@@ -45,31 +47,31 @@ describe('decorate-chat-text', () => {
     });
 
     it('keeps a line with no notation as one plain run', () => {
-      expect(splitRubyNotation('こんにちは')).toEqual([{ text: 'こんにちは', reading: '' }]);
+      expect(splitRubyNotation('こんにちは')).toEqual([{ text: 'こんにちは', reading: '', decoration: null }]);
     });
 
     it('cuts the words with a reading out of the text around them', () => {
       expect(splitRubyNotation('今日の|天気《てんき》は｜晴《は》れ')).toEqual([
-        { text: '今日の', reading: '' },
-        { text: '天気', reading: 'てんき' },
-        { text: 'は', reading: '' },
-        { text: '晴', reading: 'は' },
-        { text: 'れ', reading: '' },
+        { text: '今日の', reading: '', decoration: null },
+        { text: '天気', reading: 'てんき', decoration: null },
+        { text: 'は', reading: '', decoration: null },
+        { text: '晴', reading: 'は', decoration: null },
+        { text: 'れ', reading: '', decoration: null },
       ]);
     });
 
     it('cuts a reading split over its letters into a run for each letter', () => {
       expect(splitRubyNotation('|漢字《かん|じ》だ')).toEqual([
-        { text: '漢', reading: 'かん' },
-        { text: '字', reading: 'じ' },
-        { text: 'だ', reading: '' },
+        { text: '漢', reading: 'かん', decoration: null },
+        { text: '字', reading: 'じ', decoration: null },
+        { text: 'だ', reading: '', decoration: null },
       ]);
     });
 
     it('leaves the text as it is written rather than escaping it', () => {
       expect(splitRubyNotation('<b>|&《アンド》')).toEqual([
-        { text: '<b>', reading: '' },
-        { text: '&', reading: 'アンド' },
+        { text: '<b>', reading: '', decoration: null },
+        { text: '&', reading: 'アンド', decoration: null },
       ]);
     });
 
@@ -90,6 +92,22 @@ describe('decorate-chat-text', () => {
           .join('');
         expect(html).toBe(applyRubyMarkup(line));
       }
+    });
+
+    it('carries the chat’s decorations onto each run, a reading included, and asks for the fonts', () => {
+      const asked: string[] = [];
+      const stop = chatFontWanted$.subscribe((font) => asked.push(font));
+
+      const parts = splitRubyNotation('[明朝]春の|曙《あけぼの》[/]だ');
+
+      stop();
+      const mincho = { bold: false, italic: false, strike: false, size: null, font: 'mincho', color: null };
+      expect(parts).toEqual([
+        { text: '春の', reading: '', decoration: mincho },
+        { text: '曙', reading: 'あけぼの', decoration: mincho },
+        { text: 'だ', reading: '', decoration: null },
+      ]);
+      expect(asked).toEqual(['mincho']);
     });
   });
 
@@ -121,6 +139,41 @@ describe('decorate-chat-text', () => {
     it('escapes html-looking input inside a quote before decorating it', () => {
       const result = decorateChatStyleText('> <b>not bold</b>');
       expect(result).toBe('<span class="chat-quote">&lt;b&gt;not bold&lt;/b&gt;</span>');
+    });
+
+    it('draws the chat’s decorations round escaped and rubied text, inside a quote as well', () => {
+      expect(decorateChatStyleText('> **<i>|強《つよ》く**')).toBe(
+        '<span class="chat-quote"><span class="chat-deco chat-deco-bold">&lt;i&gt;' +
+          '<ruby class="chat-ruby"><rb>強</rb><rt>つよ</rt></ruby>く</span></span>'
+      );
+      expect(decorateChatStyleText('[赤]"x"[/]')).toBe(
+        `<span class="chat-deco" style="color: ${CHAT_COLORS.red}">&quot;x&quot;</span>`
+      );
+    });
+
+    it('cuts a leaning run into pieces it may break between, keeping a word and its reading whole', () => {
+      expect(decorateChatStyleText('[斜体]|明日《あした》は晴\\sれ[/]')).toBe(
+        '<span class="chat-deco chat-deco-italic"><ruby class="chat-ruby"><rb>明日</rb><rt>あした</rt></ruby></span>' +
+          '<span class="chat-deco chat-deco-italic">は</span>' +
+          '<span class="chat-deco chat-deco-italic">晴</span>' +
+          '<span class="chat-deco chat-deco-italic"> </span>' +
+          '<span class="chat-deco chat-deco-italic">れ</span>'
+      );
+      expect(splitRubyNotation('[斜体]ab cd[/]').map((part) => [part.text, part.decoration?.italic])).toEqual([
+        ['ab', true],
+        [' ', false],
+        ['cd', true],
+      ]);
+    });
+
+    it('asks for the fonts a line is drawn in', () => {
+      const asked: string[] = [];
+      const stop = chatFontWanted$.subscribe((font) => asked.push(font));
+
+      decorateChatStyleText('[手書き]a[/] [ドット]b[/]');
+
+      stop();
+      expect(asked).toEqual(['hand', 'pixel']);
     });
   });
 });

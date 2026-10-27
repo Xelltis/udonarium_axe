@@ -1,11 +1,14 @@
 import { signal, type WritableSignal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
-import { ReplayEditorService } from '@axe/application/replay/replay-editor.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
-import { type ReplayVideoFailure, ReplayVideoService } from '@axe/application/replay/replay-video.service';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { PUBLIC_VISIBILITY, type ReplayEvent, ReplayEventKind } from '@axe/domain/replay/replay-event';
+import { ReplayEditorService } from '@axe/features/replay/replay-editor.service';
+import {
+  type ReplayVideoFailure,
+  ReplayVideoService,
+} from '@axe/features/replay/replay-video-panel/replay-video.service';
 import { ReplayVideoPanelComponent } from '@axe/features/replay/replay-video-panel/replay-video-panel.component';
 import { ReplayVideoSettingsService } from '@axe/features/replay/replay-video-settings.service';
 import { BorrowedGlobals } from '@axe/testing/borrowed-globals';

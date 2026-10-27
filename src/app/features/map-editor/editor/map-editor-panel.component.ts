@@ -1,6 +1,6 @@
 import { NgClass } from '@angular/common';
 import {
-  AfterViewInit,
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -13,104 +13,20 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { StatusAilmentService } from '@axe/application/character/status-ailment.service';
-import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
-import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
-import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { DungeonBuildService } from '@axe/application/tabletop/dungeon-build.service';
-import { FunctionalPaintService } from '@axe/application/tabletop/functional-paint.service';
-import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
 import { ViewportService } from '@axe/application/ui/viewport.service';
+import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
 import { isTypingTarget } from '@axe/core/input/typing-target';
-import { AudioStorage } from '@axe/core/storage/audio-storage';
-import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { ObjectStore } from '@axe/core/sync/object-store';
-import { downloadBlob } from '@axe/core/util/download-blob';
 import { PERF_MAP_EDITOR_DRAW, perfCounters } from '@axe/core/util/perf-counters';
-import { GameCharacter } from '@axe/domain/character/game-character';
-import { resourceNamesOf } from '@axe/domain/character/resource-catalog';
-import { ambiencePalette } from '@axe/domain/effect/ambience/ambience-kind';
-import { isBuiltinMaterial } from '@axe/domain/media/builtin-materials';
-import { CutIn } from '@axe/domain/media/cut-in';
-import { ImageTag } from '@axe/domain/media/image-tag';
-import {
-  isTextureId,
-  TEXTURE_ASSET_URLS,
-  TEXTURE_BASE_COLOR,
-  TEXTURE_IDS,
-  TEXTURE_IMAGE_TAG,
-  WALL_TEXTURE_ASSET_URLS,
-  WALL_TEXTURE_BASE_COLOR,
-  WALL_TEXTURE_IDS,
-} from '@axe/domain/media/texture-catalog';
-import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import {
-  encodeSwitchDefinition,
-  parseSwitchDefinition,
-  SwitchDefinition,
-} from '@axe/domain/tabletop/board-switch/switch-definition';
-import {
-  HazardPaintSpec,
-  MAP_FUNCTION_ROLES,
-  MaskPaintSpec,
-  MoveCostPaintSpec,
-  TERRAIN_FACE_KEYS,
-  TerrainFaceImages,
-  TerrainPaintSpec,
-  TriggerPaintSpec,
-  waterDepthOf,
-  waterDirtOf,
-  waterFlowDirectionOf,
-  waterFlowSpeedOf,
-  waterLeavesOf,
-  waterTurbidityOf,
-} from '@axe/domain/tabletop/function-paint';
-import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
-import { HAZARD_KINDS, hazardPresetOf } from '@axe/domain/tabletop/hazard-presets';
-import { asShownTo, SHOWN_TO, ShownTo } from '@axe/domain/tabletop/shown-to';
-import { DEFAULT_MOVE_COST_ROAD_COLOR, MOST_MOVE_COST_EXTRA } from '@axe/domain/tabletop/table-move-cost';
-import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { TerrainViewState } from '@axe/domain/tabletop/terrain';
-import { asTriggerRepeat, TRIGGER_REPEATS, TriggerRepeat } from '@axe/domain/tabletop/trigger-event';
-import { TRIGGER_MOMENTS, TRIGGER_TARGETS } from '@axe/domain/tabletop/trigger-event';
-import { FLOW_DIRECTIONS } from '@axe/domain/tabletop/water/water-flow';
-import {
-  WATER_PRESET_IDS,
-  type WaterPresetId,
-  waterPresetNamed,
-  waterPresetOf,
-} from '@axe/domain/tabletop/water/water-presets';
-import { MAX_SURFACE_CELLS } from '@axe/domain/tabletop/water/water-surface';
-import { imageStampIdentifier, isImageStampId } from '@axe/features/map-editor/assets/image-stamp';
-import { StampDef } from '@axe/features/map-editor/assets/stamp-types';
-import { getStampById, STAMPS } from '@axe/features/map-editor/assets/stamps';
-import { GestureKind, MapEditorGesture } from '@axe/features/map-editor/editor/map-editor-gesture';
-import { MapEditorLayerDrawerComponent } from '@axe/features/map-editor/editor/map-editor-layer-drawer.component';
-import { mapEditorKeyDown, mapEditorKeyUp } from '@axe/features/map-editor/editor/map-editor-shortcut';
-import { MapEditorStampPickerComponent } from '@axe/features/map-editor/editor/map-editor-stamp-picker.component';
-import {
-  EditorTool,
-  LineKind,
-  MapEditorState,
-  ShapeGeneratorKind,
-} from '@axe/features/map-editor/editor/map-editor-state';
-import { MapEditorTexturePickerComponent } from '@axe/features/map-editor/editor/map-editor-texture-picker.component';
-import { TextureIntakeService } from '@axe/features/map-editor/editor/texture-intake.service';
-import {
-  curveAnchorAt,
-  fitImageSize,
-  imageCorners,
-  imageHandleAt,
-} from '@axe/features/map-editor/model/editor-hit-test';
-import { cellCenter, pointToCell } from '@axe/features/map-editor/model/grid-cells';
+import { curveAnchorAt, fitImageSize, imageCorners, imageHandleAt } from '@axe/domain/map-editor/editor-hit-test';
+import { cellCenter, pointToCell } from '@axe/domain/map-editor/grid-cells';
 import {
   cellKey,
   ImageItem,
@@ -121,28 +37,34 @@ import {
   sceneWidthPx,
   ShapeItem,
   StrokeDash,
-} from '@axe/features/map-editor/model/scene';
-import { isZipArchive } from '@axe/features/map-editor/model/scene-archive';
-import { packSceneWithImages, unpackSceneWithImages } from '@axe/features/map-editor/model/scene-archive-images';
-import { guessLineWidth, useTextMeasurer } from '@axe/features/map-editor/model/scene-geometry';
-import { removeText, updateText } from '@axe/features/map-editor/model/scene-ops';
-import { deserializeScene } from '@axe/features/map-editor/model/serialize';
-import { generateShapePoints, regularPolygonPoints, starPoints } from '@axe/features/map-editor/model/shape-points';
-import { planFunctionPaint, sceneSpeaksFor } from '@axe/features/map-editor/model/table-apply';
-import { sceneFromTable } from '@axe/features/map-editor/model/table-import';
-import { imageTextureIdentifier, isImageTextureId, normalizeTextureId } from '@axe/features/map-editor/model/textures';
-import { exportSceneToBlob } from '@axe/features/map-editor/render/export-image';
-import { getRasterImage, loadRasterImage } from '@axe/features/map-editor/render/raster-image';
+} from '@axe/domain/map-editor/scene';
+import { guessLineWidth, useTextMeasurer } from '@axe/domain/map-editor/scene-geometry';
+import { removeText, updateText } from '@axe/domain/map-editor/scene-ops';
+import { generateShapePoints, regularPolygonPoints, starPoints } from '@axe/domain/map-editor/shape-points';
+import { GridType } from '@axe/domain/tabletop/game-table';
+import { FunctionApplyResult, MapEditorFilesService } from '@axe/features/map-editor/editor/map-editor-files.service';
+import { MapEditorFunctionPaintComponent } from '@axe/features/map-editor/editor/map-editor-function-paint.component';
+import { GestureKind, MapEditorGesture } from '@axe/features/map-editor/editor/map-editor-gesture';
+import { MapEditorImageCache } from '@axe/features/map-editor/editor/map-editor-image-cache';
+import { MapEditorLayerDrawerComponent } from '@axe/features/map-editor/editor/map-editor-layer-drawer.component';
+import { MapEditorSelectedItemComponent } from '@axe/features/map-editor/editor/map-editor-selected-item.component';
+import { mapEditorKeyDown, mapEditorKeyUp } from '@axe/features/map-editor/editor/map-editor-shortcut';
+import { MapEditorStampPickerComponent } from '@axe/features/map-editor/editor/map-editor-stamp-picker.component';
+import {
+  EditorTool,
+  LineKind,
+  MapEditorState,
+  ShapeGeneratorKind,
+} from '@axe/features/map-editor/editor/map-editor-state';
+import { MapEditorTexturePickerComponent } from '@axe/features/map-editor/editor/map-editor-texture-picker.component';
+import { loadRasterImage } from '@axe/infrastructure/map-editor/raster-image';
 import {
   type EditorOverlay,
   type OverlayImage,
   type OverlayStamp,
   renderOverlay,
-} from '@axe/features/map-editor/render/render-overlay';
-import { RenderHelpers, renderScene } from '@axe/features/map-editor/render/render-scene';
-import { getStampImage, loadStampImage } from '@axe/features/map-editor/render/stamp-image';
-import { createImageTexturePattern } from '@axe/features/map-editor/render/texture-pattern';
-import { SwitchDefinitionFieldsComponent } from '@axe/features/tabletop/board-switch/switch-definition-fields.component';
+} from '@axe/infrastructure/map-editor/render-overlay';
+import { renderScene } from '@axe/infrastructure/map-editor/render-scene';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -167,14 +89,6 @@ export function buildShapeKindPoints(kind: ShapeGeneratorKind): string {
   }
   return pairs.join(' ');
 }
-
-/**
- * What the one movement picker holds for a road.
- *
- * The picker runs from ground nobody may enter, through nought and up to nine steps over; a
- * road is easier than plain ground, so it sits at the other end, below the lot.
- */
-const MOVE_COST_ROAD = -1;
 
 const ERASER_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
@@ -215,7 +129,7 @@ interface ToolDef {
     '(keydown)': 'onKeyDown($event)',
     '(keyup)': 'onKeyUp($event)',
   },
-  providers: [MapEditorState],
+  providers: [MapEditorState, MapEditorFilesService],
   imports: [
     FormsModule,
     NgClass,
@@ -223,11 +137,13 @@ interface ToolDef {
     MapEditorLayerDrawerComponent,
     MapEditorStampPickerComponent,
     MapEditorTexturePickerComponent,
-    SwitchDefinitionFieldsComponent,
+    MapEditorFunctionPaintComponent,
+    MapEditorSelectedItemComponent,
   ],
 })
-export class MapEditorPanelComponent implements AfterViewInit {
+export class MapEditorPanelComponent {
   protected readonly state = inject(MapEditorState);
+  private readonly files = inject(MapEditorFilesService);
   protected readonly isCompact = inject(ViewportService).isCompact;
   protected readonly mobileDrawer = signal<'none' | 'props' | 'layers'>('none');
 
@@ -236,356 +152,18 @@ export class MapEditorPanelComponent implements AfterViewInit {
   }
   private readonly panelService = inject(PanelService);
   private readonly imageStorage = inject(ImageStorage);
-  private readonly dungeonBuild = inject(DungeonBuildService);
-  private readonly textureIntake = inject(TextureIntakeService);
   private readonly rolePermission = inject(RolePermissionService);
-  private readonly tagLock = inject(ImageTagLockService);
-  private readonly tabletopService = inject(TabletopService);
-  private readonly objectChange = inject(ObjectChangeService);
-  private readonly tableSelecter = inject(TableSelecter);
-  private readonly objectStore = inject(ObjectStore);
-  private readonly effectLibrary = inject(EffectLibraryService);
   private readonly modalService = inject(ModalService);
   private readonly sanitizer = inject(DomSanitizer);
   protected readonly t = inject(TRANSLATE_FN);
   private readonly confirm = inject(ConfirmService);
-  private readonly functionalPaint = inject(FunctionalPaintService);
 
-  private readonly exportFn = exportSceneToBlob;
   private readonly loadImageFn = loadRasterImage;
 
   private readonly board = viewChild<ElementRef<HTMLCanvasElement>>('board');
   private readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
-  private readonly faceTextureInput = viewChild<ElementRef<HTMLInputElement>>('faceTextureInput');
   protected readonly textEditor = viewChild<ElementRef<HTMLElement>>('textEditor');
   private readonly stage = viewChild<ElementRef<HTMLDivElement>>('stage');
-
-  protected readonly functionRoles = MAP_FUNCTION_ROLES;
-
-  protected setTerrainPaint(patch: Partial<TerrainPaintSpec>): void {
-    const spec = this.state.functionSpec();
-    this.state.setFunctionSpec({ ...spec, terrain: { ...spec.terrain, ...patch } });
-  }
-
-  protected readonly triggerRepeats = TRIGGER_REPEATS;
-
-  /** How often the brush's ground has a go, reading a brush that only ever said whether it had one. */
-  protected triggerRepeat(): TriggerRepeat {
-    const spec = this.state.functionSpec().trigger;
-    if (spec.repeat.length > 0) return asTriggerRepeat(spec.repeat);
-    return spec.once ? 'once' : 'always';
-  }
-
-  /**
-   * Writes the newer answer and the older one together.
-   *
-   * A peer that has never heard of the finer answer reads the plain yes or no beside it, so a
-   * stretch with one go in it is still spent for them.
-   */
-  protected setTriggerRepeat(repeat: TriggerRepeat): void {
-    this.setTriggerPaint({ repeat, once: repeat === 'once' });
-  }
-
-  protected readonly hazardKinds = HAZARD_KINDS;
-
-  /** The highest the water brush may stand the surface over the floor, in cells. */
-  protected readonly maxWaterDepth = MAX_SURFACE_CELLS;
-
-  /** What crossing the painted ground costs where the brush leaves it to the kind. */
-  protected readonly hazardKindExtraCost = computed(
-    () => hazardPresetOf(this.state.functionSpec().hazard.kind).extraCost
-  );
-
-  /** Sets how deep the water brush paints, held to tenths of a cell as the table reads it back. */
-  protected setWaterDepth(value: unknown): void {
-    this.setHazardPaint({ depth: waterDepthOf(value) });
-  }
-
-  /** How murky the water brush paints, as a percentage. */
-  protected readonly waterTurbidityPercent = computed(() =>
-    Math.round(this.state.functionSpec().hazard.turbidity * 100)
-  );
-
-  /** Sets how murky the water brush paints, from a percentage. */
-  protected setWaterTurbidity(percent: unknown): void {
-    this.setHazardPaint({ turbidity: waterTurbidityOf(Number(percent) / 100) });
-  }
-
-  /** How dirty the water brush paints, as a percentage. */
-  protected readonly waterDirtPercent = computed(() => Math.round(this.state.functionSpec().hazard.dirt * 100));
-
-  /** Sets how dirty the water brush paints, from a percentage. */
-  protected setWaterDirt(percent: unknown): void {
-    this.setHazardPaint({ dirt: waterDirtOf(Number(percent) / 100) });
-  }
-
-  /** How much of the water the brush lays floating leaves over, as a percentage. */
-  protected readonly waterLeavesPercent = computed(() => Math.round(this.state.functionSpec().hazard.leaves * 100));
-
-  /** Sets how much of the water the brush lays floating leaves over, from a percentage. */
-  protected setWaterLeaves(percent: unknown): void {
-    this.setHazardPaint({ leaves: waterLeavesOf(Number(percent) / 100) });
-  }
-
-  /** How fast the water brush paints the water flowing, as a percentage. */
-  protected readonly waterFlowSpeedPercent = computed(() =>
-    Math.round(this.state.functionSpec().hazard.flowSpeed * 100)
-  );
-
-  /** Sets how fast the water brush paints the water flowing, from a percentage. */
-  protected setWaterFlowSpeed(percent: unknown): void {
-    this.setHazardPaint({ flowSpeed: waterFlowSpeedOf(Number(percent) / 100) });
-  }
-
-  /** The ways the water brush can paint the water flowing. */
-  protected readonly flowDirections = FLOW_DIRECTIONS;
-
-  /** Sets which way the water brush paints the water flowing, in degrees clockwise from the top. */
-  protected setWaterFlowDirection(direction: unknown): void {
-    this.setHazardPaint({ flowDirection: waterFlowDirectionOf(direction) });
-  }
-
-  protected readonly waterPresets = WATER_PRESET_IDS;
-
-  /** Which look the water brush paints, or null where its settings match none of them. */
-  protected readonly waterPreset = computed(() => {
-    const hazard = this.state.functionSpec().hazard;
-    return waterPresetOf(hazard.color, hazard.turbidity, hazard.dirt, hazard.leaves);
-  });
-
-  /** Sets the water brush to one look: its colour, murkiness and dirt at once. */
-  protected setWaterPreset(id: WaterPresetId | null): void {
-    const preset = waterPresetNamed(id);
-    if (preset) {
-      this.setHazardPaint({
-        color: preset.color,
-        turbidity: preset.turbidity,
-        dirt: preset.dirt,
-        leaves: preset.leaves,
-      });
-    }
-  }
-
-  /** The colour the water brush paints in, shown as the colour of water itself where none is set. */
-  protected readonly waterColor = computed(
-    () => this.state.functionSpec().hazard.color || ambiencePalette('water').primary
-  );
-
-  protected setHazardPaint(patch: Partial<HazardPaintSpec>): void {
-    const spec = this.state.functionSpec();
-    this.state.setFunctionSpec({ ...spec, hazard: { ...spec.hazard, ...patch } });
-  }
-
-  protected setMoveCostPaint(patch: Partial<MoveCostPaintSpec>): void {
-    const spec = this.state.functionSpec();
-    this.state.setFunctionSpec({ ...spec, moveCost: { ...spec.moveCost, ...patch } });
-  }
-
-  /** The steps a brush may charge, which the reader picks between along with shutting the cell. */
-  protected readonly moveCostSteps = Array.from({ length: MOST_MOVE_COST_EXTRA }, (_, step) => step + 1);
-
-  /** What the picker holds for a road, which is the one value below the one that shuts a cell. */
-  protected readonly roadCharge = MOVE_COST_ROAD;
-
-  /**
-   * What the brush costs as one number: nought is ground nobody may enter, and below nought is
-   * a road, which is the one painting that makes the going easier rather than harder.
-   */
-  protected moveCostCharge(): number {
-    const spec = this.state.functionSpec().moveCost;
-    if (spec.blocks) return 0;
-    return spec.halves ? MOVE_COST_ROAD : spec.extraCost;
-  }
-
-  protected setMoveCostCharge(charge: number): void {
-    if (charge === 0) {
-      this.setMoveCostPaint({ blocks: true, halves: false });
-      return;
-    }
-    if (charge < 0) {
-      this.setMoveCostPaint({ blocks: false, halves: true, color: DEFAULT_MOVE_COST_ROAD_COLOR });
-      return;
-    }
-    this.setMoveCostPaint({ blocks: false, halves: false, extraCost: charge });
-  }
-
-  protected setMaskPaint(patch: Partial<MaskPaintSpec>): void {
-    const spec = this.state.functionSpec();
-    this.state.setFunctionSpec({ ...spec, mask: { ...spec.mask, ...patch } });
-  }
-
-  protected readonly shownTo = SHOWN_TO;
-
-  /** Who the brush shows its ground to, reading a brush painted before there was a middle answer. */
-  protected triggerShownTo(): ShownTo {
-    const spec = this.state.functionSpec().trigger;
-    return asShownTo(spec.shownTo, spec.open ? 'room' : 'master');
-  }
-
-  /** Written to both answers, so that a peer that knows only the older one still reads it right. */
-  protected setTriggerShownTo(shown: ShownTo): void {
-    this.setTriggerPaint({ shownTo: shown, open: shown === 'room' });
-  }
-
-  protected setTriggerPaint(patch: Partial<TriggerPaintSpec>): void {
-    const spec = this.state.functionSpec();
-    this.state.setFunctionSpec({ ...spec, trigger: { ...spec.trigger, ...patch } });
-  }
-
-  protected readonly triggerMoments = TRIGGER_MOMENTS;
-  protected readonly triggerTargets = TRIGGER_TARGETS;
-
-  /** What pressing the brush's ground does, where it paints ground that is pressed. */
-  protected readonly pressDefinition = computed<SwitchDefinition>(() =>
-    parseSwitchDefinition(this.state.functionSpec().trigger.press)
-  );
-
-  /** Writes a change to what pressing the brush's ground does onto what the brush says now. */
-  protected setPressDefinition(change: Partial<SwitchDefinition>): void {
-    const held = parseSwitchDefinition(this.state.functionSpec().trigger.press);
-    this.setTriggerPaint({ press: encodeSwitchDefinition({ ...held, ...change }) });
-  }
-
-  /** The effects the room has to play, offered by name the way chat and the sheets name one. */
-  protected readonly effectNames = computed<string[]>(() =>
-    this.effectLibrary
-      .presets()
-      .map((preset) => preset.name.trim())
-      .filter((name) => name.length > 0)
-      .sort()
-  );
-
-  /**
-   * The resources the room's pieces are carrying, offered rather than left to be remembered.
-   *
-   * A trap takes from a resource by name, and a name nobody carries takes nothing at all. The
-   * names on the table are the ones worth offering, so the field says what there is to hit.
-   */
-  private readonly statusAilments = inject(StatusAilmentService);
-  private readonly audioStorage = inject(AudioStorage);
-
-  protected readonly resourceNames = computed<string[]>(() => {
-    this.objectChange.collectionOf(GameCharacter.aliasName)();
-    return resourceNamesOf(this.objectStore.getObjects<GameCharacter>(GameCharacter));
-  });
-
-  /**
-   * The states the room keeps, offered to the brush that leaves a piece in one.
-   *
-   * A name the room has never heard of still works, so this is a list of what there is rather
-   * than a list of what is allowed.
-   */
-  protected readonly ailmentNames = computed<string[]>(() => this.statusAilments.ailments().map((held) => held.name));
-
-  /**
-   * The sounds and cut-ins the room has, offered by name to the ground that plays one.
-   *
-   * Only a name that matches one and no other is any use, so a name two things answer to is
-   * left off: the ground would have no way of telling which was meant.
-   */
-  protected readonly soundNames = computed<string[]>(() => {
-    this.objectChange.fileVersion();
-    return onlyOnce(this.audioStorage.audios.map((held) => held.name.trim()));
-  });
-
-  protected readonly cutInNames = computed<string[]>(() => {
-    this.objectChange.collectionOf(CutIn.aliasName)();
-    return onlyOnce(this.objectStore.getObjects<CutIn>(CutIn).map((held) => held.name.trim()));
-  });
-
-  /**
-   * The other tables of the room, offered to the pitfall that opens onto one.
-   *
-   * The table being edited is left off the list: ground that carried the room to the table it
-   * is already looking at would be a hole into the room it is already in.
-   */
-  protected readonly otherTables = computed<GameTable[]>(() => {
-    this.objectChange.collectionOf(GameTable.aliasName)();
-    const here = this.tableSelecter.viewTableIdentifier;
-    return this.objectStore.getObjects<GameTable>(GameTable).filter((table) => table.identifier !== here);
-  });
-
-  protected readonly terrainFaces = TERRAIN_FACE_KEYS;
-
-  protected readonly terrainModes = [
-    { mode: TerrainViewState.ALL, key: 'both' },
-    { mode: TerrainViewState.WALL, key: 'wall' },
-    { mode: TerrainViewState.FLOOR, key: 'floor' },
-  ];
-
-  protected faceImageUrl(face: keyof TerrainFaceImages): string | null {
-    const id = this.state.functionSpec().terrain.images[face];
-    return id ? (this.imageStorage.get(id)?.url ?? null) : null;
-  }
-
-  /** Picks the picture one face of a painted wall wears from the whole image library. */
-  protected async chooseFaceImage(face: keyof TerrainFaceImages): Promise<void> {
-    const id = await this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).catch(() => null);
-    if (id === null) return;
-    this.wearFaceImage(face, id);
-  }
-
-  protected clearFaceImage(face: keyof TerrainFaceImages): void {
-    this.setTerrainPaint({ images: { ...this.state.functionSpec().terrain.images, [face]: '' } });
-  }
-
-  protected readonly wallTextureIds = WALL_TEXTURE_IDS;
-  protected readonly wallTextureAssetUrls = WALL_TEXTURE_ASSET_URLS;
-  protected readonly wallTextureBaseColor = WALL_TEXTURE_BASE_COLOR;
-  protected readonly groundTextureIds = TEXTURE_IDS;
-  protected readonly textureAssetUrls = TEXTURE_ASSET_URLS;
-  protected readonly textureBaseColor = TEXTURE_BASE_COLOR;
-
-  protected readonly faceTexturesOpen = signal<string>('');
-  private faceTextureAwaiting: keyof TerrainFaceImages | null = null;
-
-  protected toggleFaceTextures(face: keyof TerrainFaceImages): void {
-    this.faceTexturesOpen.update((held) => (held === face ? '' : face));
-  }
-
-  /** Dresses one face in a picture that ships with the room, the way the dungeons are built. */
-  protected chooseFaceTexture(face: keyof TerrainFaceImages, url: string): void {
-    const identifier = this.dungeonBuild.registerAsset(url);
-    if (identifier.length < 1) return;
-    this.wearFaceImage(face, identifier);
-  }
-
-  protected readonly faceTextures = computed<ImageFile[]>(() => {
-    this.objectChange.fileVersion();
-    this.objectChange.collectionOf('image-tag')();
-    this.tagLock.track();
-    // What the tool is built with is shown by its own swatches here, and it is in the library
-    // as well, so it is left out of this list rather than offered twice over.
-    return ImageTag.searchImages([TEXTURE_IMAGE_TAG], this.rolePermission.canSeeHidden, this.tagLock.hides).filter(
-      (file) => !isBuiltinMaterial(file.identifier)
-    );
-  });
-
-  protected chooseFaceImageTexture(face: keyof TerrainFaceImages, file: ImageFile): void {
-    this.wearFaceImage(face, file.identifier);
-  }
-
-  protected addFaceTexture(face: keyof TerrainFaceImages): void {
-    this.faceTextureAwaiting = face;
-    this.faceTextureInput()?.nativeElement.click();
-  }
-
-  protected async onFaceTextureFileSelected(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    const face = this.faceTextureAwaiting;
-    this.faceTextureAwaiting = null;
-    if (!file || !face) return;
-    const imageFile = await this.textureIntake.takeIn(file);
-    if (!imageFile) return;
-    this.wearFaceImage(face, imageFile.identifier);
-  }
-
-  private wearFaceImage(face: keyof TerrainFaceImages, identifier: string): void {
-    this.setTerrainPaint({ images: { ...this.state.functionSpec().terrain.images, [face]: identifier } });
-    this.faceTexturesOpen.set('');
-  }
 
   protected readonly settingsTool: ToolDef = { tool: 'settings', icon: 'settings', key: '' };
 
@@ -614,8 +192,6 @@ export class MapEditorPanelComponent implements AfterViewInit {
       covers: ['functionErase'],
     },
   ];
-
-  protected readonly functionTools: EditorTool[] = ['functionPaint', 'functionErase'];
 
   protected toolLabelKey(def: ToolDef): string {
     return def.label ?? 'feature.mapEditor.tools.' + def.tool;
@@ -651,9 +227,10 @@ export class MapEditorPanelComponent implements AfterViewInit {
   private readonly shortcutToTool = new Map<string, EditorTool>(this.tools.map((d) => [d.key, d.tool]));
   private readonly toolKeys = new Set(this.shortcutToTool.keys());
 
-  private readonly renderTick = signal(0);
-  private readonly pendingStamps = new Set<string>();
-  private readonly pendingImages = new Set<string>();
+  private readonly images = new MapEditorImageCache(
+    (identifier) => this.imageStorage.get(identifier)?.url,
+    (url) => this.loadImageFn(url)
+  );
 
   /** The gesture under way, holding values only between press and release. */
   private readonly gesture = new MapEditorGesture();
@@ -685,10 +262,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
   private pendingTextFocus = false;
   private pendingTextInitial = '';
 
-  protected readonly isGameMaster = computed(() => {
-    this.objectChange.trackMyCursor();
-    return PeerCursor.isMyselfGameMaster;
-  });
+  protected readonly isGameMaster = computed(() => this.rolePermission.isGameMaster());
 
   protected readonly widthPx = computed(() => {
     this.state.sceneTick();
@@ -708,7 +282,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
 
   protected readonly layerThumbnails = computed<Map<string, string>>(() => {
     this.state.sceneTick();
-    this.renderTick();
+    this.images.tick();
     const map = new Map<string, string>();
     for (const layer of this.state.layersTopFirst()) {
       const url = this.renderLayerThumb(layer);
@@ -731,6 +305,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
 
   constructor() {
     inject(ShortcutScopeService).hold('mapEditor', inject(DestroyRef));
+    afterNextRender(() => this.draw());
     const stopMeasuring = useTextMeasurer((text, fontSize, bold, italic) => {
       const ctx = this.board()?.nativeElement.getContext('2d');
       if (!ctx) return guessLineWidth(text, fontSize);
@@ -744,7 +319,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
     queueMicrotask(() => (this.panelService.title = this.t('feature.mapEditor.title')));
     effect(() => {
       this.state.sceneTick();
-      this.renderTick();
+      this.images.tick();
       this.draftTick();
       this.draw();
     });
@@ -754,10 +329,6 @@ export class MapEditorPanelComponent implements AfterViewInit {
       this.pendingTextFocus = false;
       this.focusTextEditor(el);
     });
-  }
-
-  ngAfterViewInit(): void {
-    this.draw();
   }
 
   private readonly draftSignal = signal(0);
@@ -803,92 +374,6 @@ export class MapEditorPanelComponent implements AfterViewInit {
     );
   }
 
-  private buildHelpers(ctx: CanvasRenderingContext2D): RenderHelpers {
-    const defById = new Map(STAMPS.map((d) => [d.id, d]));
-    return {
-      texturePattern: (fill, cellPx) => {
-        if (isImageTextureId(fill.textureId)) {
-          const url = this.imageStorage.get(imageTextureIdentifier(fill.textureId))?.url;
-          if (!url) return null;
-          const image = getRasterImage(url);
-          if (!image) {
-            this.schedulePendingImage(url);
-            return null;
-          }
-          return createImageTexturePattern(ctx, image, cellPx, fill.scale, fill.rotation);
-        }
-        const id = normalizeTextureId(fill.textureId);
-        if (!isTextureId(id)) return null;
-        const url = TEXTURE_ASSET_URLS[id];
-        const image = getRasterImage(url);
-        if (!image) {
-          this.schedulePendingImage(url);
-          return null;
-        }
-        return createImageTexturePattern(ctx, image, cellPx, fill.scale, fill.rotation);
-      },
-      stampImage: (item) => {
-        if (isImageStampId(item.stampId)) {
-          const url = this.imageStorage.get(imageStampIdentifier(item.stampId))?.url;
-          if (!url) return null;
-          const image = getRasterImage(url);
-          if (!image) this.schedulePendingImage(url);
-          return image;
-        }
-        const def = defById.get(item.stampId);
-        if (!def) return null;
-        const image = getStampImage(def, item.size, item.color);
-        if (!image) this.schedulePending(def, item.size, item.color);
-        return image;
-      },
-      rasterImage: (item) => {
-        const url = this.imageStorage.get(item.imageIdentifier)?.url;
-        if (!url) return null;
-        const image = getRasterImage(url);
-        if (!image) this.schedulePendingImage(url);
-        return image;
-      },
-    };
-  }
-
-  private schedulePending(def: StampDef, size: number, color: string | null): void {
-    const key = def.id + '|' + size + '|' + (color ?? '');
-    if (this.pendingStamps.has(key)) return;
-    this.pendingStamps.add(key);
-    loadStampImage(def, size, color)
-      .then(() => {
-        this.pendingStamps.delete(key);
-        this.renderTick.update((v) => v + 1);
-      })
-      .catch(() => this.pendingStamps.delete(key));
-  }
-
-  private previewStampImage(stampId: string, size: number): HTMLImageElement | null {
-    if (isImageStampId(stampId)) {
-      const url = this.imageStorage.get(imageStampIdentifier(stampId))?.url;
-      if (!url) return null;
-      const image = getRasterImage(url);
-      if (!image) this.schedulePendingImage(url);
-      return image;
-    }
-    const def = getStampById(stampId);
-    if (!def) return null;
-    const image = getStampImage(def, size, this.state.stampColor());
-    if (!image) this.schedulePending(def, size, this.state.stampColor());
-    return image;
-  }
-
-  private schedulePendingImage(url: string): void {
-    if (this.pendingImages.has(url)) return;
-    this.pendingImages.add(url);
-    this.loadImageFn(url)
-      .then(() => {
-        this.pendingImages.delete(url);
-        this.renderTick.update((v) => v + 1);
-      })
-      .catch(() => this.pendingImages.delete(url));
-  }
-
   private draw(): void {
     const canvas = this.board()?.nativeElement;
     if (!canvas) return;
@@ -900,7 +385,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     perfCounters.bump(PERF_MAP_EDITOR_DRAW);
-    const helpers = this.buildHelpers(ctx);
+    const helpers = this.images.helpersFor(ctx);
     renderScene(ctx, scene, helpers, { hideTextId: this.editingText()?.itemId ?? undefined, drawFunctionLayers: true });
     this.drawOverlay(ctx);
   }
@@ -953,7 +438,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
     const stampId = this.state.stampId();
     if (!stampId) return null;
     const size = this.state.stampSize();
-    const image = this.previewStampImage(stampId, size);
+    const image = this.images.stamp(stampId, size, this.state.stampColor());
     if (!image) return null;
     return {
       image,
@@ -969,13 +454,8 @@ export class MapEditorPanelComponent implements AfterViewInit {
     if (this.state.tool() !== 'image' || !this.gesture.lastMove) return null;
     const pendingId = this.state.pendingImageId();
     if (!pendingId) return null;
-    const url = this.imageStorage.get(pendingId)?.url;
-    if (!url) return null;
-    const image = getRasterImage(url);
-    if (!image) {
-      this.schedulePendingImage(url);
-      return null;
-    }
+    const image = this.images.image(pendingId);
+    if (!image) return null;
     const size = fitImageSize(
       image.naturalWidth || image.width,
       image.naturalHeight || image.height,
@@ -1083,7 +563,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
     const canvas = this.board()!.nativeElement;
     if (event.button === 1 || (event.button === 0 && this.spacePan())) {
       event.preventDefault();
-      canvas.setPointerCapture(event.pointerId);
+      capturePointer(canvas, event.pointerId);
       this.panning.set(true);
       this.gesture.panLast = { x: event.clientX, y: event.clientY };
       return;
@@ -1093,7 +573,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
       this.commitTextEdit();
       return;
     }
-    canvas.setPointerCapture(event.pointerId);
+    capturePointer(canvas, event.pointerId);
 
     const pos = this.toScene(event);
     this.gesture.lastPointerScene = pos;
@@ -1166,7 +646,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
   }
 
   protected onPointerUp(event: PointerEvent): void {
-    this.board()!.nativeElement.releasePointerCapture?.(event.pointerId);
+    releasePointer(this.board()?.nativeElement ?? null, event.pointerId);
     if (this.panning()) {
       this.panning.set(false);
       this.gesture.panLast = null;
@@ -1794,7 +1274,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
     if (!ctx) return '';
     const single: MapScene = { ...scene, gridVisible: false, background: 'transparent', layers: [layer] };
     ctx.scale(scale, scale);
-    renderScene(ctx, single, this.buildHelpers(ctx), { drawGrid: false, drawFunctionLayers: true });
+    renderScene(ctx, single, this.images.helpersFor(ctx), { drawGrid: false, drawFunctionLayers: true });
     try {
       return canvas.toDataURL();
     } catch {
@@ -1808,9 +1288,7 @@ export class MapEditorPanelComponent implements AfterViewInit {
   }
 
   protected async save(): Promise<void> {
-    const archive = await packSceneWithImages(this.state.current, this.imageStorage);
-    const blob = new Blob([archive.slice()], { type: 'application/zip' });
-    downloadBlob(blob, 'map.zip');
+    await this.files.download();
   }
 
   protected triggerLoad(): void {
@@ -1822,35 +1300,14 @@ export class MapEditorPanelComponent implements AfterViewInit {
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
-    const buffer = new Uint8Array(await file.arrayBuffer());
-    if (isZipArchive(buffer)) {
-      const scene = await unpackSceneWithImages(buffer, this.imageStorage, () =>
-        this.objectChange.notifyCollectionChanged('image-tag')
-      );
-      if (scene) this.state.loadScene(scene);
-      else this.errorNotice.show(this.t('feature.mapEditor.actions.loadError'));
-      return;
-    }
-    const scene = deserializeScene(new TextDecoder().decode(buffer));
-    if (!scene) {
-      this.errorNotice.show(this.t('feature.mapEditor.actions.loadError'));
-      return;
-    }
-    this.state.loadScene(scene);
+    if (!(await this.files.open(file))) this.errorNotice.show(this.t('feature.mapEditor.actions.loadError'));
   }
 
   protected async saveImage(): Promise<void> {
     if (this.busy()) return;
     this.busy.set(true);
     try {
-      const blob = await this.exportFn(this.state.current, STAMPS, {
-        scale: this.exportScale(),
-        drawGrid: false,
-        resolveImageUrl: (id) => this.imageStorage.get(id)?.url ?? null,
-      });
-      if (!(await this.imageStorage.addAsync(blob, { putBack: true }))) {
-        throw new Error('the room removed the exported picture');
-      }
+      await this.files.bake(this.exportScale());
       this.notice.show(this.t('feature.mapEditor.actions.savedImage'));
     } catch {
       this.errorNotice.show(this.t('feature.mapEditor.actions.exportError'));
@@ -1859,76 +1316,38 @@ export class MapEditorPanelComponent implements AfterViewInit {
     }
   }
 
-  /**
-   * Brings the table that is out into the editor.
-   *
-   * The floor arrives as a picture, since it was baked into one the moment it was laid down.
-   * Everything else arrives as cells and comes under the editor from then on.
-   */
+  /** Brings the table that is out into the editor, once the user agrees to lose what is drawn. */
   protected async importTable(): Promise<void> {
     if (this.busy()) return;
-    const snapshot = this.functionalPaint.snapshot();
-    if (!snapshot) {
-      this.errorNotice.show(this.t('feature.mapEditor.actions.importTableNoTable'));
-      return;
-    }
-    if (!(await this.confirm.ask(this.t('feature.mapEditor.actions.importTableConfirm')))) return;
-
-    this.state.loadScene(sceneFromTable(snapshot));
-    this.notice.show(this.t('feature.mapEditor.actions.importTableDone'));
+    const result = await this.files.bringInTable(() =>
+      this.confirm.ask(this.t('feature.mapEditor.actions.importTableConfirm'))
+    );
+    if (result === 'noTable') this.errorNotice.show(this.t('feature.mapEditor.actions.importTableNoTable'));
+    if (result === 'done') this.notice.show(this.t('feature.mapEditor.actions.importTableDone'));
   }
 
-  /**
-   * Lays what was painted on the table, and leaves the floor as it is.
-   *
-   * Baking the picture again to add a closed cell would cost the floor its quality and its
-   * identity both, and neither has anything to do with what was painted.
-   */
-  protected applyFunctions(): boolean {
-    const snapshot = this.functionalPaint.snapshot();
-    if (!snapshot) {
-      this.errorNotice.show(this.t('feature.mapEditor.actions.importTableNoTable'));
-      return false;
-    }
-    const plan = planFunctionPaint(this.state.current, snapshot);
-    if (!plan) {
+  /** Says what kept what was painted off the table, if anything did; true where it was laid. */
+  private reportFunctionApply(result: FunctionApplyResult): boolean {
+    if (result === 'noTable') this.errorNotice.show(this.t('feature.mapEditor.actions.importTableNoTable'));
+    if (result === 'gridMismatch') {
       this.errorNotice.show(this.t('feature.mapEditor.actions.applyFunctionsGridMismatch'));
-      return false;
     }
-    if (!this.functionalPaint.apply(plan)) {
-      this.errorNotice.show(this.t('feature.mapEditor.actions.importTableNoTable'));
-      return false;
-    }
-    return true;
+    return result === 'done';
   }
 
   protected applyFunctionsOnly(): void {
     if (this.busy()) return;
-    if (this.applyFunctions()) this.notice.show(this.t('feature.mapEditor.actions.applyFunctionsDone'));
+    if (this.reportFunctionApply(this.files.applyFunctions())) {
+      this.notice.show(this.t('feature.mapEditor.actions.applyFunctionsDone'));
+    }
   }
 
   protected async setAsTable(): Promise<void> {
     if (this.busy()) return;
     this.busy.set(true);
     try {
-      const blob = await this.exportFn(this.state.current, STAMPS, {
-        scale: this.exportScale(),
-        drawGrid: false,
-        resolveImageUrl: (id) => this.imageStorage.get(id)?.url ?? null,
-      });
-      const file = await this.imageStorage.addAsync(blob, { putBack: true });
-      if (!file) throw new Error('the room removed the exported picture');
-      const table = this.tabletopService.currentTable;
-      const scene = this.state.current;
-      table.imageIdentifier = file.identifier;
-      table.width = scene.cols;
-      table.height = scene.rows;
-      table.gridSize = scene.cellPx;
-      table.gridType = scene.gridType;
-      // Only where the scene has something to say about the cells. A scene drawn from scratch
-      // says nothing, and a plan built from nothing is a plan to take away every wall, mask and
-      // no-entry cell the table already had.
-      if (sceneSpeaksFor(scene)) this.applyFunctions();
+      const applied = await this.files.layOnTable(this.exportScale());
+      if (applied) this.reportFunctionApply(applied);
       this.notice.show(this.t('feature.mapEditor.actions.setTableDone'));
     } catch {
       this.errorNotice.show(this.t('feature.mapEditor.actions.exportError'));
@@ -1940,11 +1359,4 @@ export class MapEditorPanelComponent implements AfterViewInit {
   protected zoomPercent(): number {
     return Math.round(this.state.zoom() * 100);
   }
-}
-
-/** The names that answer for one thing only, since a name two things share names neither. */
-function onlyOnce(names: readonly string[]): string[] {
-  const seen = new Map<string, number>();
-  for (const name of names) seen.set(name, (seen.get(name) ?? 0) + 1);
-  return [...seen.entries()].filter(([name, count]) => name.length > 0 && count === 1).map(([name]) => name);
 }

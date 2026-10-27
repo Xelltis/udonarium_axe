@@ -62,7 +62,7 @@ describe('GameCharacterSheetComponent', () => {
 
   it('copies nothing of a card whose face a room server keeps from this seat, and says so', () => {
     vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(true);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(true);
     const card = Card.create('伏せ札', 'front.png', 'back.png');
     card.imageDataElement!.removeChild(card.imageDataElement!.getFirstElementByName('front')!);
     const cloned = vi.spyOn(card, 'clone');

@@ -1,3 +1,4 @@
+import { loadImage } from '@axe/core/util/load-image';
 import type { ReplayFrameImage } from '@axe/infrastructure/replay/replay-canvas';
 
 export type DrawableImage = ReplayFrameImage & { close?(): void };
@@ -13,13 +14,10 @@ export async function toDrawableImage(blob: Blob | null, url: string): Promise<D
     return (await createImageBitmap(blob)) as DrawableImage;
   }
   if (url.length < 1) return null;
-  return await new Promise((resolve, reject) => {
-    const element = new Image();
-    element.crossOrigin = 'anonymous';
-    element.onload = () => resolve(element as unknown as ReplayFrameImage);
-    element.onerror = () => reject(new Error(`読めない絵です: ${url}`));
-    element.src = url;
+  const element = await loadImage(url, { crossOrigin: 'anonymous' }).catch(() => {
+    throw new Error(`読めない絵です: ${url}`);
   });
+  return element as unknown as ReplayFrameImage;
 }
 
 export interface DrawableImageSource {

@@ -1,0 +1,108 @@
+<div
+  class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-3 border border-solid p-3"
+  data-testid="room-settings-shared"
+  [attr.inert]="isSharedReadOnly() ? '' : null"
+>
+  <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.sharedHint' | transloco }}</p>
+
+  <div class="flex flex-col gap-2">
+    <div class="border-ui-accent border-l-2 border-solid pl-2">
+      <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+        'feature.roomSettings.sectionFacing' | transloco
+      }}</span>
+    </div>
+    <label class="text-ui-text flex items-center gap-1.5 text-[13px] select-none">
+      <span class="flex-1">{{ 'feature.roomSettings.facingMark' | transloco }}</span>
+      <select
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text border border-solid px-1 py-0.5 text-[13px] disabled:cursor-not-allowed disabled:opacity-50"
+        [(ngModel)]="facingMark.value"
+        name="facingMark"
+        data-testid="facing-mark"
+        [disabled]="isSharedReadOnly()"
+      >
+        @for (mark of facingMarks; track mark) {
+          <option [value]="mark">{{ 'feature.roomSettings.facingMark_' + mark | transloco }}</option>
+        }
+      </select>
+    </label>
+    <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.roomSettings.facingMarkHint' | transloco }}</p>
+  </div>
+
+  <div class="flex flex-col gap-2" data-testid="room-settings-flat-pieces">
+    <div class="border-ui-accent border-l-2 border-solid pl-2">
+      <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+        'feature.roomSettings.sectionView2d' | transloco
+      }}</span>
+    </div>
+    <label
+      class="text-ui-text flex items-center gap-1.5 text-[13px] select-none"
+      [class.cursor-pointer]="!isSharedReadOnly()"
+      [class.opacity-50]="isSharedReadOnly()"
+    >
+      <input
+        type="checkbox"
+        class="size-3.5 [accent-color:var(--ui-accent)] disabled:cursor-not-allowed"
+        [class.cursor-pointer]="!isSharedReadOnly()"
+        [(ngModel)]="pieceImageInCell.value"
+        name="pieceImageInCell"
+        data-testid="piece-image-in-cell"
+        [disabled]="isSharedReadOnly()"
+      />
+      {{ 'feature.tabletop.displaySetting.pieceImageInCell' | transloco }}
+    </label>
+    <p class="text-ui-dim m-0 text-[11px]">
+      {{ 'feature.tabletop.displaySetting.pieceImageInCellHint' | transloco }}
+    </p>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <div class="border-ui-accent border-l-2 border-solid pl-2">
+      <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+        'feature.roomSettings.sectionView3d' | transloco
+      }}</span>
+    </div>
+    <label
+      class="text-ui-text flex items-center gap-1.5 text-[13px] select-none"
+      [class.cursor-pointer]="!isSharedReadOnly()"
+      [class.opacity-50]="isSharedReadOnly()"
+    >
+      <input
+        type="checkbox"
+        class="size-3.5 [accent-color:var(--ui-accent)] disabled:cursor-not-allowed"
+        [class.cursor-pointer]="!isSharedReadOnly()"
+        [(ngModel)]="imageBillboard.value"
+        name="imageBillboard"
+        data-testid="image-billboard"
+        [disabled]="isSharedReadOnly()"
+      />
+      {{ 'feature.roomSettings.imageBillboard' | transloco }}
+    </label>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <div class="border-ui-accent border-l-2 border-solid pl-2">
+      <span class="text-ui-text text-[12px] font-semibold tracking-wide">{{
+        'feature.roomSettings.sectionSheet' | transloco
+      }}</span>
+    </div>
+    <label
+      class="text-ui-text flex items-center gap-1.5 text-[13px] select-none"
+      [class.cursor-pointer]="!isSharedReadOnly()"
+      [class.opacity-50]="isSharedReadOnly()"
+    >
+      <input
+        type="checkbox"
+        class="size-3.5 [accent-color:var(--ui-accent)] disabled:cursor-not-allowed"
+        [class.cursor-pointer]="!isSharedReadOnly()"
+        [(ngModel)]="resourceSliderByDefault.value"
+        name="resourceSliderByDefault"
+        data-testid="resource-slider-default"
+        [disabled]="isSharedReadOnly()"
+      />
+      {{ 'feature.roomSettings.resourceSliderByDefault' | transloco }}
+    </label>
+    <p class="text-ui-dim m-0 text-[11px]">
+      {{ 'feature.roomSettings.resourceSliderByDefaultHint' | transloco }}
+    </p>
+  </div>
+</div>

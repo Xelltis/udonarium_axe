@@ -1,0 +1,262 @@
+import { GameCharacter } from '@axe/domain/character/game-character';
+import { GameTable } from '@axe/domain/tabletop/game-table';
+import { segmentBlocks } from '@axe/domain/tabletop/los/segments';
+import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
+import { Terrain } from '@axe/domain/tabletop/terrain';
+import {
+  characterSceneKey,
+  collectBrightAreas,
+  collectLights,
+  collectSegments,
+  collectShadowCasters,
+  collectVisionSources,
+  toSceneLight,
+} from '@axe/domain/tabletop/vision-scene-assembly';
+import { LightSpec } from '@axe/domain/tabletop/vision-types';
+
+function makeTable(): GameTable {
+  const table = new GameTable();
+  table.width = 10;
+  table.height = 8;
+  table.gridSize = 50;
+  table.wallHeight = 4;
+  table.initialize();
+  return table;
+}
+
+function standing(name: string, x: number, y: number): GameCharacter {
+  const character = GameCharacter.create(name, 1, '');
+  character.location.x = x;
+  character.location.y = y;
+  return character;
+}
+
+describe('vision scene assembly', () => {
+  describe('what a piece gives the scene', () => {
+    it('stays as it was for a change the scene is not made of', () => {
+      const character = standing('c', 100, 100);
+      const before = characterSceneKey(character);
+
+      character.name = 'renamed';
+
+      expect(characterSceneKey(character)).toBe(before);
+    });
+
+    it.each<[string, (character: GameCharacter) => void]>([
+      ['moving it', (character) => (character.location.x = 150)],
+      ['raising it', (character) => (character.altitude = 1)],
+      ['lighting it', (character) => (character.lightEnabled = true)],
+      ['widening its sight', (character) => (character.visionRange = 12)],
+      ['turning it', (character) => (character.rotate = 90)],
+      ['handing it to somebody', (character) => (character.owner = 'p2')],
+      ['showing its sight', (character) => (character.showVisionRange = true)],
+      ['letting it cast a shadow or not', (character) => (character.castsShadow = !character.castsShadow)],
+      ['putting it into stealth', (character) => (character.stealth = '1')],
+    ])('changes for %s', (_, change) => {
+      const character = standing('c', 100, 100);
+      const before = characterSceneKey(character);
+
+      change(character);
+
+      expect(characterSceneKey(character)).not.toBe(before);
+    });
+  });
+
+  it('walls the table with the perimeter and only the walls that are shown', () => {
+    const table = makeTable();
+    table.showNorthWall = true;
+    table.showEastWall = true;
+    const segments = collectSegments(table, 50, 500, 400);
+
+    expect(segments.sight).toHaveLength(4);
+    expect(segments.light).toEqual([
+      { x1: 0, y1: 0, x2: 500, y2: 0, heightPx: 200 },
+      { x1: 500, y1: 0, x2: 500, y2: 400, heightPx: 200 },
+    ]);
+  });
+
+  it('adds the edges of a walled terrain at the height of its top', () => {
+    const table = makeTable();
+    const terrain = Terrain.create('壁', 2, 1, 1, '', '');
+    terrain.location.x = 100;
+    terrain.location.y = 100;
+    terrain.altitude = 1;
+    table.appendChild(terrain);
+
+    const segments = collectSegments(table, 50, 500, 400);
+    expect(segments.sight).toHaveLength(8);
+    expect(segments.sight[4].heightPx).toBe(100);
+  });
+
+  describe('a bank of something hanging in the air', () => {
+    function bank(blocksSight: boolean): GameTable {
+      const table = makeTable();
+      const fog = TableAmbience.create('霧', 'fog', 3, 2);
+      fog.location = { name: 'table', x: 100, y: 100 };
+      fog.blocksSight = blocksSight;
+      table.appendChild(fog);
+      return table;
+    }
+
+    it('stands in the way of sight where nobody sees through it', () => {
+      const segments = collectSegments(bank(true), 50, 500, 400);
+
+      expect(segments.sight).toHaveLength(8);
+      expect(segments.sight[4].heightPx).toBe(100);
+      expect(segments.sight[4].basePx).toBe(0);
+    });
+
+    it('stands in the way of nothing where it is only a look', () => {
+      const segments = collectSegments(bank(false), 50, 500, 400);
+
+      expect(segments.sight).toHaveLength(4);
+    });
+
+    it('is no patch of brightness until it is told to be one', () => {
+      expect(collectBrightAreas(bank(false), 50)).toEqual([]);
+    });
+
+    it('holds the ground under it at the brightness it was given', () => {
+      const table = makeTable();
+      const shaft = TableAmbience.create('光', 'fog', 3, 2);
+      shaft.location = { name: 'table', x: 100, y: 100 };
+      shaft.brightness = 'bright';
+      table.appendChild(shaft);
+
+      expect(collectBrightAreas(table, 50)).toEqual([
+        { x: 100, y: 100, widthPx: 150, heightPx: 100, level: 1, snuffs: false },
+      ]);
+    });
+
+    it('puts the light out under it where it is a pool of darkness', () => {
+      const table = makeTable();
+      const pool = TableAmbience.create('闇', 'fog', 2, 2);
+      pool.location = { name: 'table', x: 0, y: 0 };
+      pool.brightness = 'dark';
+      table.appendChild(pool);
+
+      expect(collectBrightAreas(table, 50)[0]).toMatchObject({ level: 0, snuffs: true });
+    });
+
+    it('stops no light, being thick air rather than stone', () => {
+      const segments = collectSegments(bank(true), 50, 500, 400);
+
+      expect(segments.light).toEqual([]);
+    });
+  });
+
+  it('gives the edges a bottom as well, so an arch can be seen under', () => {
+    const table = makeTable();
+    const arch = Terrain.create('アーチ', 2, 1, 1, '', '');
+    arch.location.x = 100;
+    arch.location.y = 100;
+    arch.altitude = 3;
+    table.appendChild(arch);
+
+    const segments = collectSegments(table, 50, 500, 400);
+
+    const wall = segments.sight.slice(4).find((seg) => seg.x1 === 100 && seg.x2 === 100)!;
+    expect(wall.basePx).toBe(150);
+    expect(wall.heightPx).toBe(200);
+    expect(segmentBlocks(50, 125, 25, 400, 125, 25, wall)).toBe(false);
+    expect(segmentBlocks(50, 125, 175, 400, 125, 175, wall)).toBe(true);
+  });
+
+  it('holds a wall standing on a pedestal down to the floor, since the pedestal is under it', () => {
+    const table = makeTable();
+    const wall = Terrain.create('壁', 2, 1, 1, '', '');
+    wall.location.x = 100;
+    wall.location.y = 100;
+    // Gravity settled it onto a cell-high pedestal that stops nothing itself.
+    wall.posZ = 50;
+    table.appendChild(wall);
+
+    const segments = collectSegments(table, 50, 500, 400);
+    const stood = segments.sight.slice(4).find((seg) => seg.x1 === 100 && seg.x2 === 100)!;
+
+    expect(stood.basePx).toBe(0);
+    expect(stood.heightPx).toBe(100);
+    expect(segmentBlocks(50, 125, 25, 400, 125, 25, stood)).toBe(true);
+  });
+
+  it('reads a block resting on something at the height it really stands', () => {
+    const table = makeTable();
+    const terrain = Terrain.create('棚', 2, 1, 1, '', '');
+    terrain.location.x = 100;
+    terrain.location.y = 100;
+    terrain.altitude = 1;
+    terrain.posZ = 25;
+    table.appendChild(terrain);
+
+    const segments = collectSegments(table, 50, 500, 400);
+
+    expect(segments.sight[4].heightPx).toBe(125);
+  });
+
+  it('turns a light spec into pixels, keeping the direction it was given', () => {
+    const spec = {
+      brightRadius: 2,
+      dimRadius: 4,
+      color: '#fff',
+      angle: 360,
+      direction: 45,
+      pitch: 0,
+      revealToAll: false,
+      castShadows: true,
+      ignoreOcclusion: false,
+      animation: 'none',
+    } as unknown as LightSpec;
+    const light = toSceneLight(spec, 10, 20, 30, 50, 'l1', 90, 'north-wall');
+    expect(light).toEqual(expect.objectContaining({ brightPx: 100, dimPx: 200, direction: 90, surface: 'north-wall' }));
+    expect(toSceneLight(spec, 0, 0, 0, 50, 'l2').direction).toBe(45);
+  });
+
+  it('hangs a character light at eye height in the middle of the piece', () => {
+    const table = makeTable();
+    const torch = standing('Torch', 200, 200);
+    torch.altitude = 2;
+    torch.lightEnabled = true;
+    torch.lightDimRadius = 4;
+    const dark = standing('Dark', 0, 0);
+
+    const lights = collectLights(table, [torch, dark], 50, () => null);
+    expect(lights).toHaveLength(1);
+    expect(lights[0]).toEqual(expect.objectContaining({ x: 225, y: 225, sourceId: torch.identifier }));
+    expect(lights[0].z).toBeCloseTo((2 + 0.5) * 50);
+  });
+
+  it('casts shadows only from visible floor pieces that ask to', () => {
+    const caster = standing('Caster', 100, 100);
+    caster.castsShadow = true;
+    const onWall = standing('Wall', 200, 100);
+    onWall.location.surface = 'north-wall';
+    onWall.castsShadow = true;
+    const quiet = standing('Quiet', 300, 100);
+    quiet.castsShadow = false;
+
+    const casters = collectShadowCasters([caster, onWall, quiet], 50);
+    expect(casters.map((c) => c.ownerId)).toEqual([caster.identifier]);
+    expect(casters[0]).toEqual(expect.objectContaining({ x: 125, y: 125, radiusPx: 25 }));
+  });
+
+  it('gives every visible floor character eyes at its centre', () => {
+    const seer = standing('Seer', 100, 100);
+    seer.visionRange = 4;
+    seer.owner = 'p1';
+    const sources = collectVisionSources([seer], 50);
+    expect(sources).toHaveLength(1);
+    expect(sources[0]).toEqual(
+      expect.objectContaining({ x: 125, y: 125, rangePx: 200, owner: 'p1', sourceId: seer.identifier })
+    );
+  });
+
+  it('looks out from and lights from where a piece of no size is drawn, its corner', () => {
+    const point = standing('Point', 100, 100);
+    point.size = 0;
+    point.lightEnabled = true;
+    point.lightDimRadius = 4;
+
+    expect(collectVisionSources([point], 50)[0]).toEqual(expect.objectContaining({ x: 100, y: 100 }));
+    expect(collectLights(makeTable(), [point], 50, () => null)[0]).toEqual(expect.objectContaining({ x: 100, y: 100 }));
+  });
+});

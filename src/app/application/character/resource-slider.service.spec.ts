@@ -14,7 +14,7 @@ describe('ResourceSliderService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     sliders = TestBed.inject(ResourceSliderService);
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(true);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(true);
   });
 
   afterEach(() => sliders.setRoomDefault(false));
@@ -72,7 +72,7 @@ describe('ResourceSliderService', () => {
     expect(sliders.maySetAll(piece)).toBe(true);
     expect(sliders.maySetAll(bare)).toBe(false);
 
-    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop', 'get').mockReturnValue(false);
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
     sliders.setAll(piece, true);
 
     expect(sliders.maySetAll(piece)).toBe(false);

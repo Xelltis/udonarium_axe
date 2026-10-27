@@ -1,5 +1,6 @@
 import { Logger } from '@axe/core/logging/logger';
 import { isMediaRecordingSupported, recordVideo } from '@axe/core/media/media-recorder-encoder';
+import { delay } from '@axe/core/util/delay';
 import { downloadBlob } from '@axe/core/util/download-blob';
 
 export type VideoPaintTarget = OffscreenCanvasRenderingContext2D;
@@ -323,7 +324,7 @@ async function configureVideo(encoder: VideoEncoder, request: VideoEncodeRequest
 
 async function drain(encoder: VideoEncoder): Promise<void> {
   while (encoder.encodeQueueSize > VIDEO_ENCODE_QUEUE_LIMIT / 2) {
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await delay();
   }
 }
 
@@ -419,6 +420,6 @@ function soundPump(
 
 async function drainAudio(encoder: AudioEncoder): Promise<void> {
   while (encoder.encodeQueueSize > VIDEO_ENCODE_QUEUE_LIMIT / 2) {
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await delay();
   }
 }

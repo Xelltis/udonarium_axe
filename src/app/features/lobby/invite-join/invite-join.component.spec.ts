@@ -1,9 +1,7 @@
 import { signal, type WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { RoomJoinService } from '@axe/application/lobby/room-join.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
-import { LOCAL_MODE_STORAGE_KEY } from '@axe/application/ui/local-mode-preference.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { Network } from '@axe/core/index';
@@ -11,12 +9,14 @@ import { PeerContext } from '@axe/core/network/peer-context';
 import { IRoomInfo, RoomInfo } from '@axe/core/network/room-info';
 import { ServerRoomApiError } from '@axe/core/network/server/server-room-api';
 import { clearIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { buildInviteLink } from '@axe/domain/peer/invite-link';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { markLoadedWithheld, markSeatWithheld } from '@axe/domain/peer/withheld-table';
 import { InviteJoinComponent } from '@axe/features/lobby/invite-join/invite-join.component';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
+import { RoomJoinService } from '@axe/features/lobby/room-join.service';
 import { RoomRestoreOfferService } from '@axe/features/room-archive/room-restore-banner/room-restore-offer.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -277,7 +277,7 @@ describe('InviteJoinComponent', () => {
   });
 
   it('says a browser set to play offline cannot join, and lets the banner be closed', async () => {
-    localStorage.setItem(LOCAL_MODE_STORAGE_KEY, '1');
+    localStorage.setItem(STORAGE_KEYS.localMode, '1');
     try {
       await setup('#join?r=a1b&n=room');
       await flush();
@@ -290,12 +290,12 @@ describe('InviteJoinComponent', () => {
       expect(notice.classList).toContain('top-24');
       expect(notice.classList.contains('top-3')).toBe(false);
     } finally {
-      localStorage.removeItem(LOCAL_MODE_STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEYS.localMode);
     }
   });
 
   it('holds the offline notice back on a narrow screen until the offer to restore is answered', async () => {
-    localStorage.setItem(LOCAL_MODE_STORAGE_KEY, '1');
+    localStorage.setItem(STORAGE_KEYS.localMode, '1');
     isCompact.set(true);
     restoreOffered.set(true);
     try {
@@ -307,12 +307,12 @@ describe('InviteJoinComponent', () => {
       fixture.detectChanges();
       expect(bannerText()).toContain('オフラインのため');
     } finally {
-      localStorage.removeItem(LOCAL_MODE_STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEYS.localMode);
     }
   });
 
   it('shows the offline notice beside the offer to restore on a wide screen, below it', async () => {
-    localStorage.setItem(LOCAL_MODE_STORAGE_KEY, '1');
+    localStorage.setItem(STORAGE_KEYS.localMode, '1');
     restoreOffered.set(true);
     try {
       await setup('#join?r=a1b&n=room');
@@ -320,7 +320,7 @@ describe('InviteJoinComponent', () => {
 
       expect(bannerText()).toContain('オフラインのため');
     } finally {
-      localStorage.removeItem(LOCAL_MODE_STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEYS.localMode);
     }
   });
 
