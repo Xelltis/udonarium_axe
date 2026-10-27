@@ -312,6 +312,27 @@ describe('GameCharacter', () => {
       expect(restored.battleEffect).toBe('');
     });
 
+    it('stands out of the lineup and strikes with the stage’s own effect once a peer that predates them sends it', () => {
+      character.battleSide = 'left';
+      character.battleEffect = '爆炎';
+      const sent = character.toContext();
+      const {
+        battleSide: _side,
+        battleEffect: _effect,
+        ...older
+      } = sent.syncData['attributes'] as Record<string, unknown>;
+
+      character.apply({
+        ...sent,
+        majorVersion: sent.majorVersion + 1,
+        syncData: { ...sent.syncData, attributes: older },
+      });
+
+      expect(character.battleSide).toBe('');
+      expect(character.battleEffect).toBe('');
+      expect(character.battleEffect.trim()).toBe('');
+    });
+
     it('writes its side and its effect into saved data', () => {
       character.battleSide = 'right';
       character.battleEffect = '爆炎';
