@@ -7,9 +7,10 @@ import {
   signal,
   ViewContainerRef,
 } from '@angular/core';
-import { MODAL_FRAME_COMPONENT } from '@axe/application/ui/overlay-components';
+import { LOAD_FAILURE_NOTICE, MODAL_FRAME_COMPONENT } from '@axe/application/ui/overlay-components';
 import { OverlayLayers } from '@axe/application/ui/overlay-layers';
 import type { PanelRotationDegrees } from '@axe/application/ui/panel.service';
+import { Logger } from '@axe/core/logging/logger';
 
 class ModalContext {
   constructor(
@@ -54,6 +55,7 @@ export class ModalService {
   }
 
   private readonly overlays = inject(OverlayLayers);
+  private readonly loadFailureNotice = inject(LOAD_FAILURE_NOTICE);
   /**
    * What the opener passed to `open`, for the dialog content to read its inputs from. Undefined
    * once the dialog has answered.
@@ -65,6 +67,30 @@ export class ModalService {
   /** Whether any modal opened through this service is still up. */
   get isShow(): boolean {
     return this.count > 0;
+  }
+
+  /**
+   * Fetches a dialog the first time it is asked for, and opens it as `open` does, for a dialog most
+   * readers never see. A failed fetch is logged, opens nothing, goes to the load-failure notice and
+   * resolves with null.
+   */
+  async openLazy<T>(
+    load: () => Promise<{ new (...args: unknown[]): unknown }>,
+    option?: unknown,
+    parentViewContainerRef?: ViewContainerRef
+  ): Promise<T | null> {
+    // Where and which way round it opens is taken as it is asked for, not once it has arrived.
+    const rotationDegrees = this.actionRotationDegrees;
+    const parent = parentViewContainerRef ?? this.overlays.current() ?? undefined;
+    let childComponent: { new (...args: unknown[]): unknown };
+    try {
+      childComponent = await load();
+    } catch (reason) {
+      Logger.error('[ModalService] ダイアログを読み込めませんでした', reason);
+      this.loadFailureNotice();
+      return null;
+    }
+    return this.runWithInitialRotation(rotationDegrees, () => this.open<T>(childComponent, option, parent));
   }
 
   /**

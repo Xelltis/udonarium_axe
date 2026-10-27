@@ -12,7 +12,7 @@ import { BUFF_TIMINGS, BuffTiming, buffTimingOf, buffTriggerOf } from '@axe/doma
 import { buffTriggerOptions, selectedTriggerValue } from '@axe/domain/character/buff-trigger-options';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
-import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
+import { loadFileSelecter } from '@axe/ui/components/file-selecter/file-selecter-loader';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -182,14 +182,13 @@ export class GameDataElementBuffComponent {
   }
 
   /** Puts a picture from the room's images in place of the mark. */
-  chooseIconImage(): void {
-    this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((identifier) => {
-      if (identifier == null) return;
-      const element = this.gameDataElement();
-      if (identifier.length > 0) element.setAttribute(DataElementAttribute.BUFF_ICON, identifier);
-      else element.removeAttribute(DataElementAttribute.BUFF_ICON);
-      this.objectChange.notifyChanged(element.identifier);
-    });
+  async chooseIconImage(): Promise<void> {
+    const identifier = await this.modalService.openLazy<string>(loadFileSelecter, { isAllowedEmpty: true });
+    if (identifier == null) return;
+    const element = this.gameDataElement();
+    if (identifier.length > 0) element.setAttribute(DataElementAttribute.BUFF_ICON, identifier);
+    else element.removeAttribute(DataElementAttribute.BUFF_ICON);
+    this.objectChange.notifyChanged(element.identifier);
   }
 
   /** Gives the buff a badge colour; an empty colour, or the one it already has, goes back to the default. */

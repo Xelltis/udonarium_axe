@@ -21,7 +21,6 @@ import { InviteLinkParams, parseInviteLink } from '@axe/domain/peer/invite-link'
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { dropInvitationFromAddress } from '@axe/features/lobby/leave-room';
-import { LobbyComponent } from '@axe/features/lobby/lobby/lobby.component';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 import { OperatorContactComponent } from '@axe/features/lobby/operator-contact/operator-contact.component';
 import {
@@ -124,15 +123,16 @@ export class InviteJoinComponent {
     }, this.destroyRef);
   }
 
+  /**
+   * Opens the lobby, to find the room another way. It is fetched only now, as a link that works
+   * never needs it.
+   */
   protected showLobby(): void {
     this.state.set('done');
-    this.modalService.open(LobbyComponent, {
-      title: this.t('feature.lobby.lobby.title'),
-      width: 700,
-      height: 400,
-      left: 0,
-      top: 400,
-    });
+    void this.modalService.openLazy(
+      () => import('@axe/features/lobby/lobby/lobby.component').then((loaded) => loaded.LobbyComponent),
+      { title: this.t('feature.lobby.lobby.title'), width: 700, height: 400, left: 0, top: 400 }
+    );
   }
 
   protected dismiss(): void {

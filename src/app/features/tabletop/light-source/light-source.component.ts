@@ -18,7 +18,7 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { buildLightSourceContextMenuModel } from '@axe/features/tabletop/light-source/light-source-context-menu';
-import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
+import { loadFileSelecter } from '@axe/ui/components/file-selecter/file-selecter-loader';
 import { MovableDirective, MovableOption } from '@axe/ui/directives/movable.directive';
 import { RotableDirective, RotableOption } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
@@ -111,11 +111,15 @@ export class LightSourceComponent {
     return light.imageFile.url;
   });
 
+  /** Lets the reader pick the light's picture from the room's. */
+  private async chooseSkinPicture(light: LightSource): Promise<void> {
+    const identifier = await this.modalService.openLazy<string>(loadFileSelecter, { isAllowedEmpty: true });
+    if (identifier) this.setSkin(light, identifier);
+  }
+
   private applySkin(light: LightSource, skin: LightSkinId | 'library' | 'none'): void {
     if (skin === 'library') {
-      this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((identifier) => {
-        if (identifier) this.setSkin(light, identifier);
-      });
+      void this.chooseSkinPicture(light);
       return;
     }
     if (skin === 'none') {
