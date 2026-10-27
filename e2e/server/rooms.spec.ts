@@ -76,7 +76,13 @@ test.describe('rooms and roles on the room server', () => {
     await expect(gm.page.getByTestId('peer-menu-invite-expires')).toBeVisible({ timeout: 10_000 });
     const playerLink = await link.inputValue();
     await gm.page.getByTestId('peer-menu-invite-role-gm').click();
-    await expect.poll(() => link.inputValue(), { timeout: 10_000 }).not.toBe(playerLink);
+    // Until the server signs the GM's invitation, the link carries none at all, which lets anybody in
+    // as a player; so the link is waited for with an invitation in it, and not the player's.
+    const signedForGm = async () => {
+      const value = await link.inputValue();
+      return value !== playerLink && /[?&]i=/.test(value);
+    };
+    await expect.poll(signedForGm, { timeout: 10_000 }).toBe(true);
     const invitation = (await link.inputValue()).replace(/^https?:\/\/[^/]+\//, `${roomServer.appUrl}/`);
 
     const coGm = await openSeat(browser, roomServer, '副GMさん', loginFor(roomServer, '副GMさん'), invitation);
