@@ -6,7 +6,9 @@
  * Only a `**` paired with another on the same line makes bold, and only a tag closed later in the message takes
  * effect: a lone `**`, a tag never closed, a closing tag with nothing to close, or a name the chat
  * does not know stays the text it was. A message written before there were decorations is drawn as
- * it always was, unless it happened to close a tag it opened. `\*` and `\[` write the character itself.
+ * it always was, unless it happened to close a tag it opened. A backslash before a mark that would
+ * take effect, `\**` or `\[赤]`, writes the mark as it stands; anywhere else a backslash is only a
+ * backslash, so a line written before keeps the ones it had.
  *
  * An older version of the tool, or another tool, shows the marks as they were typed; nothing is kept
  * anywhere but in the text.
@@ -155,7 +157,7 @@ function tokensOf(text: string): Token[] {
   for (let at = 0; at < text.length; at++) {
     const char = text[at];
     const next = text[at + 1];
-    if (char === '\\' && (next === '*' || (next !== undefined && OPEN_BRACKETS.includes(next)))) {
+    if (char === '\\' && (next === '*' ? text[at + 2] === '*' : tagAt(text, at + 1) !== null)) {
       plain += next;
       at++;
       continue;
@@ -166,35 +168,34 @@ function tokensOf(text: string): Token[] {
       at++;
       continue;
     }
-    if (OPEN_BRACKETS.includes(char)) {
-      const end = indexOfAny(text, CLOSE_BRACKETS, at + 1, at + 1 + TAG_REACH);
-      const inside = end < 0 ? null : text.slice(at + 1, end);
-      if (inside !== null && inside.length > 0 && !/[[\]［］\n]/.test(inside)) {
-        const raw = text.slice(at, end + 1);
-        if (SLASHES.includes(inside[0])) {
-          const name = inside.slice(1);
-          const effect = name.trim().length > 0 ? effectOfName(name) : null;
-          if (name.trim().length === 0 || effect) {
-            flush();
-            tokens.push({ type: 'close', raw, effect, pair: -1 });
-            at = end;
-            continue;
-          }
-        } else {
-          const effect = effectOfName(inside);
-          if (effect) {
-            flush();
-            tokens.push({ type: 'open', raw, effect, pair: -1 });
-            at = end;
-            continue;
-          }
-        }
-      }
+    const tag = tagAt(text, at);
+    if (tag) {
+      flush();
+      tokens.push(tag.token);
+      at = tag.end;
+      continue;
     }
     plain += char;
   }
   flush();
   return tokens;
+}
+
+/** The tag a bracket opens, with where it ends, or null where the bracket opens no tag the chat knows. */
+function tagAt(text: string, at: number): { token: Token; end: number } | null {
+  const bracket = text[at];
+  if (bracket === undefined || !OPEN_BRACKETS.includes(bracket)) return null;
+  const end = indexOfAny(text, CLOSE_BRACKETS, at + 1, at + 1 + TAG_REACH);
+  const inside = end < 0 ? null : text.slice(at + 1, end);
+  if (inside === null || inside.length < 1 || /[[\]［］\n]/.test(inside)) return null;
+  const raw = text.slice(at, end + 1);
+  if (SLASHES.includes(inside[0])) {
+    const name = inside.slice(1);
+    const effect = name.trim().length > 0 ? effectOfName(name) : null;
+    return name.trim().length === 0 || effect ? { token: { type: 'close', raw, effect, pair: -1 }, end } : null;
+  }
+  const effect = effectOfName(inside);
+  return effect ? { token: { type: 'open', raw, effect, pair: -1 }, end } : null;
 }
 
 function indexOfAny(text: string, chars: string, from: number, until: number): number {

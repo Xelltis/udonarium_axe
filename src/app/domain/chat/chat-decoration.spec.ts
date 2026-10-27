@@ -93,6 +93,14 @@ describe('decoratedRunsOf', () => {
     expect(withoutChatDecoration('\\[赤]x[/]')).toBe('[赤]x[/]');
   });
 
+  it('keeps a backslash before anything that would not take effect, as lines written before have them', () => {
+    expect(withoutChatDecoration('パスは C:\\[共有]\\memo')).toBe('パスは C:\\[共有]\\memo');
+    expect(withoutChatDecoration('\\*o*/')).toBe('\\*o*/');
+    expect(withoutChatDecoration('a\\*b')).toBe('a\\*b');
+    expect(withoutChatDecoration('末尾\\')).toBe('末尾\\');
+    expect(withoutChatDecoration('\\[/赤] と \\[]')).toBe('[/赤] と \\[]');
+  });
+
   it('keeps the ruby notation inside a decorated run as it was written', () => {
     expect(decoratedRunsOf('[明朝]|明日《あした》[/]')).toEqual([
       { text: '|明日《あした》', decoration: decorated({ font: 'mincho' }) },
