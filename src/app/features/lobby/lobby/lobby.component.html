@@ -91,7 +91,7 @@
               </td>
             }
             <td class="border-ui-border-panel border-b border-solid px-2.5 py-1.75 text-center whitespace-nowrap">
-              {{ room.info.memberCount }}{{ 'feature.lobby.lobby.peopleSuffix' | transloco }}
+              {{ 'feature.lobby.lobby.peopleCount' | transloco: { count: room.info.memberCount } }}
             </td>
             <td class="border-ui-border-panel border-b border-solid px-2.5 py-1.75 text-center whitespace-nowrap">
               @if (0 < room.alias.length) {

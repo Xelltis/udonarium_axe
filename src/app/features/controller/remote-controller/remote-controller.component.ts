@@ -450,7 +450,7 @@ export class RemoteControllerComponent {
   /** How the operation reads in the chat line: the item, and which part of it was moved. */
   private displayNameOf(choice: ResourceCatalogEntry, slot: ResourceSlot): string {
     if (!choice.isResource) return choice.name;
-    return `${choice.name}${this.t('feature.controller.remote.slotNameSeparator')}${this.slotLabel(slot)}`;
+    return this.t('feature.controller.remote.slotName', { name: choice.name, slot: this.slotLabel(slot) });
   }
 
   /**

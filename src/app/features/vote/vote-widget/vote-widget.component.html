@@ -49,9 +49,9 @@
             >
               <span class="font-semibold">{{ choice }}</span>
               @if (answersShown()) {
-                <span class="text-[11px] opacity-80" data-testid="vote-widget-choice-count"
-                  >{{ activeVote.votedNumByChoice(choice) }}{{ 'feature.vote.peopleSuffix' | transloco }}</span
-                >
+                <span class="text-[11px] opacity-80" data-testid="vote-widget-choice-count">{{
+                  'feature.vote.peopleCount' | transloco: { count: activeVote.votedNumByChoice(choice) }
+                }}</span>
               }
             </button>
           }

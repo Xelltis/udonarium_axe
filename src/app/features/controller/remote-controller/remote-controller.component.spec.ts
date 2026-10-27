@@ -332,7 +332,8 @@ describe('RemoteControllerComponent', () => {
       component.chooseSlot('maxBase');
 
       expect(component.remoteControllerSelect().nowOrMax).toBe('maxBase');
-      expect(component.remoteControllerSelect().dispName).toContain('HP');
+      // Japanese runs the item and the part together, with nothing between to read as a missing word.
+      expect(component.remoteControllerSelect().dispName).toBe('HP最大値ベース');
       expect(component.isChosenSlot('maxBase')).toBe(true);
     });
 
