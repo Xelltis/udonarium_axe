@@ -1,11 +1,29 @@
 /**
+ * The stages the tool draws for itself, each a scene of its own behind the fighters: a castle
+ * under the moon, a city at night, a graveyard under a red moon, a neon city in the rain and a
+ * hangar opening onto space.
+ */
+export const BATTLE_THEMES = ['fantasy', 'modern', 'horror', 'cyberpunk', 'mecha'] as const;
+
+export type BattleTheme = (typeof BATTLE_THEMES)[number];
+
+/** Reads a stage as it is held or sent; anything else is the castle under the moon. */
+export function asBattleTheme(value: unknown): BattleTheme {
+  return typeof value === 'string' && (BATTLE_THEMES as readonly string[]).includes(value)
+    ? (value as BattleTheme)
+    : 'fantasy';
+}
+
+/**
  * What the room says about its battle stage, held in one attribute of its settings.
  *
  * Only what differs from the defaults is written, so a room that never touched the stage holds
  * nothing, and a room written before the stage existed reads exactly as one that never touched it.
  */
 export interface BattleSettings {
-  /** The picture behind the stage, by image identifier. Empty is the stage's own. */
+  /** Which of the tool's own stages is drawn. A picture of the room's own takes its place. */
+  theme: BattleTheme;
+  /** The picture behind the stage, by image identifier. Empty draws the stage chosen. */
   background: string;
   /** Whether a fighter brought down goes down on the stage. */
   defeat: boolean;
@@ -16,6 +34,7 @@ export interface BattleSettings {
 }
 
 export const DEFAULT_BATTLE_SETTINGS: Readonly<BattleSettings> = {
+  theme: 'fantasy',
   background: '',
   defeat: true,
   defeatResource: 'HP',
@@ -34,6 +53,7 @@ export function readBattleSettings(raw: string): BattleSettings {
   const held = parse(raw);
   const resource = typeof held['defeatResource'] === 'string' ? held['defeatResource'].trim() : '';
   return {
+    theme: asBattleTheme(held['theme']),
     background: typeof held['background'] === 'string' ? held['background'] : DEFAULT_BATTLE_SETTINGS.background,
     defeat: typeof held['defeat'] === 'boolean' ? held['defeat'] : DEFAULT_BATTLE_SETTINGS.defeat,
     defeatResource: resource.length > 0 ? resource : DEFAULT_BATTLE_SETTINGS.defeatResource,

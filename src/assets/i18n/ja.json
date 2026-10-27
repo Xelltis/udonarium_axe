@@ -5546,14 +5546,23 @@
       "noPieces": "卓にコマがありません。",
       "roomHeading": "部屋の設定",
       "roomMasterOnly": "GM だけが変更できます。",
-      "background": "背景",
+      "background": "背景画像",
       "chooseBackground": "画像を選ぶ",
-      "defaultBackground": "既定に戻す",
+      "defaultBackground": "画像を外す",
       "defeatOn": "リソースが 0 になったら撃破の演出を出す",
       "defeatResource": "リソース",
       "defeatResourceHint": "例: HP",
       "defeatEffect": "撃破の演出",
-      "defaultDefeatEffect": "既定（崩壊）"
+      "defaultDefeatEffect": "既定（崩壊）",
+      "stage": "舞台",
+      "backgroundHint": "画像を選ぶと、舞台の代わりにその画像を出します。",
+      "theme": {
+        "fantasy": "ファンタジー",
+        "modern": "現代",
+        "horror": "ホラー",
+        "cyberpunk": "サイバーパンク",
+        "mecha": "ロボットSF"
+      }
     }
   },
   "app": {

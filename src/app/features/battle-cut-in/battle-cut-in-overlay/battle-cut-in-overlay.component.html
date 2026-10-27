@@ -15,32 +15,26 @@
     [style.height.px]="bandHeight()"
     [style.transform]="'translateY(-50%) scaleY(' + openness() + ')'"
   >
-    @if (backgroundUrl()) {
-      <img
-        class="absolute inset-0 size-full object-cover"
-        data-testid="battle-cut-in-background"
-        [src]="backgroundUrl()"
-        alt=""
-        draggable="false"
-      />
-      <div class="absolute inset-0" [style.background]="looks.vignette"></div>
-    } @else {
-      <div class="absolute inset-0" [style.background]="looks.sky"></div>
-      <div class="absolute inset-x-0" [ngStyle]="looks.glow"></div>
-    }
+    <img
+      class="absolute inset-0 size-full object-cover"
+      data-testid="battle-cut-in-background"
+      [attr.data-theme]="backgroundUrl() ? null : theme()"
+      [src]="pictureUrl()"
+      [style.object-position]="pictureFocus()"
+      alt=""
+      draggable="false"
+    />
+    <div class="absolute inset-0" [style.background]="looks.vignette"></div>
 
     <div
       class="pointer-events-none absolute inset-y-0 w-1/3 -skew-x-12"
-      [style.background]="looks.sweep"
+      [style.background]="themeLook().sweep"
       [style.left.%]="sweep() * 140 - 40"
       [style.opacity]="1 - sweep()"
     ></div>
 
     <div class="absolute inset-0 perspective-distant">
-      <div class="absolute top-[64%] left-1/2 size-0 transform-3d" [style.transform]="boardTransform()">
-        @if (!backgroundUrl()) {
-          <div class="absolute" [ngStyle]="looks.floor"></div>
-        }
+      <div class="absolute top-[72%] left-1/2 size-0 transform-3d" [style.transform]="boardTransform()">
         @for (figure of figures(); track figure.key) {
           <div
             class="absolute top-0 left-0 origin-top-left rounded-[50%]"
@@ -114,8 +108,8 @@
       </div>
     </div>
 
-    <div class="absolute inset-x-0 top-0 h-0.75" [style.background]="looks.edge"></div>
-    <div class="absolute inset-x-0 bottom-0 h-0.75" [style.background]="looks.edge"></div>
+    <div class="absolute inset-x-0 top-0 h-0.75" [style.background]="themeLook().edge"></div>
+    <div class="absolute inset-x-0 bottom-0 h-0.75" [style.background]="themeLook().edge"></div>
 
     <div
       class="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 px-3 pb-3 sm:px-8"
@@ -141,7 +135,9 @@
         [style.opacity]="bannerIn()"
         [style.transform]="'translateY(-50%) scale(' + (1.6 - 0.6 * bannerIn()) + ')'"
       >
-        <span class="font-black italic" [ngStyle]="looks.banner">{{ 'feature.battleCutIn.defeated' | transloco }}</span>
+        <span class="font-black italic" [ngStyle]="bannerStyle()">{{
+          'feature.battleCutIn.defeated' | transloco
+        }}</span>
         <span class="mt-1 text-sm font-bold text-white/90" [style.text-shadow]="looks.nameShadow">{{
           fallenNames().join('・')
         }}</span>
@@ -165,7 +161,7 @@
   <div
     class="max-w-68 min-w-40 rounded-md border border-solid border-white/15 bg-black/65 px-3 py-2 text-white"
     data-testid="battle-plate"
-    [ngStyle]="side === 'left' ? looks.leftPlate : looks.rightPlate"
+    [ngStyle]="side === 'left' ? plateStyles().left : plateStyles().right"
     [class.opacity-60]="plate.defeated"
   >
     <div class="flex items-center gap-1 text-[15px] font-bold">

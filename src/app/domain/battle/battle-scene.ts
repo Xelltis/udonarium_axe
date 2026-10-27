@@ -1,4 +1,5 @@
 import { asBattleSide, BattleSide } from '@axe/domain/battle/battle-lineup';
+import { asBattleTheme, BattleTheme } from '@axe/domain/battle/battle-settings';
 
 /**
  * A resource of one fighter as it stood before the exchange and after it.
@@ -41,8 +42,10 @@ export interface BattleScene {
   effect: string;
   /** The effect a fighter brought down goes with, by preset identifier. Empty only fades it. */
   defeatEffect: string;
-  /** The picture behind the stage, by image identifier. Empty is the stage's own. */
+  /** The picture behind the stage, by image identifier. Empty draws the stage named. */
   background: string;
+  /** Which of the tool's own stages is drawn where there is no picture. */
+  theme: BattleTheme;
   /** Whether the numbers are kept back, as they are for a line said in secret. */
   secret: boolean;
   seed: number;
@@ -120,6 +123,7 @@ export function normalizeBattleScene(raw: unknown): BattleScene | null {
     effect: text(source['effect']),
     defeatEffect: text(source['defeatEffect']),
     background: text(source['background']),
+    theme: asBattleTheme(source['theme']),
     secret: source['secret'] === true,
     seed: number(source['seed']),
   };

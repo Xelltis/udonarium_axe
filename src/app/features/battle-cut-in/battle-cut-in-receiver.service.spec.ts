@@ -33,6 +33,7 @@ describe('BattleCutInReceiverService', () => {
       effect: 'EffectPreset_slash_1',
       defeatEffect: 'EffectPreset_defeat_dissolve',
       background: '',
+      theme: 'fantasy',
       secret: false,
       seed: 3,
     };

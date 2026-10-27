@@ -36,9 +36,9 @@ describe('the battle stage layout', () => {
   });
 
   it('keeps the band within reason on any screen', () => {
-    expect(bandHeight(300)).toBe(240);
-    expect(bandHeight(860)).toBe(533);
-    expect(bandHeight(2000)).toBe(640);
+    expect(bandHeight(200)).toBe(240);
+    expect(bandHeight(860)).toBe(722);
+    expect(bandHeight(1200)).toBe(1008);
   });
 
   it('brings each side in from off the stage and steps the one striking towards the middle', () => {

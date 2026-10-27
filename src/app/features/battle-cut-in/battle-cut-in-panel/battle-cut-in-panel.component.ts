@@ -11,11 +11,12 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { asBattleSide, BattleSide } from '@axe/domain/battle/battle-lineup';
-import { BattleSettings } from '@axe/domain/battle/battle-settings';
+import { BATTLE_THEMES, BattleSettings, BattleTheme } from '@axe/domain/battle/battle-settings';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { Config } from '@axe/domain/peer/config';
 import { TurnState } from '@axe/domain/tabletop/turn-state';
+import { battleThemeLook } from '@axe/features/battle-cut-in/battle-themes';
 import { EffectPreviewComponent } from '@axe/features/effect/effect-preview/effect-preview.component';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -62,8 +63,8 @@ export class BattleCutInPanelComponent {
 
   /** The colours the two sides are marked in, as the stage marks the fighters' plates. */
   protected readonly sideColors = { left: 'rgb(56 189 248 / 0.6)', right: 'rgb(251 113 133 / 0.6)' };
-  /** The stage's own backdrop, shown small where the room has no picture of its own. */
-  protected readonly stageThumbnail = 'linear-gradient(to bottom, #2b2466, #e0875a 50%, #22160f 51%)';
+  /** The tool's own stages, each with a small copy of its picture to choose by. */
+  protected readonly themes = BATTLE_THEMES.map((theme) => ({ theme, thumbnail: battleThemeLook(theme).thumbnail }));
 
   /** Whether the reader runs the game, and so sets the lineup and the room's stage up. */
   readonly isGameMaster = computed(() => this.permission.isGameMaster());
@@ -198,6 +199,10 @@ export class BattleCutInPanelComponent {
 
   clearBackground(): void {
     this.updateSettings({ background: '' });
+  }
+
+  setTheme(theme: BattleTheme): void {
+    this.updateSettings({ theme });
   }
 
   setDefeat(defeat: boolean): void {

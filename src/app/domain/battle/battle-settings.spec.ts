@@ -18,6 +18,12 @@ describe('readBattleSettings()', () => {
     );
   });
 
+  it('reads a stage it does not draw as the castle under the moon', () => {
+    expect(readBattleSettings('{"theme":"cyberpunk"}').theme).toBe('cyberpunk');
+    expect(readBattleSettings('{"theme":"underwater"}').theme).toBe('fantasy');
+    expect(readBattleSettings('{"theme":3}').theme).toBe('fantasy');
+  });
+
   it('reads what the room chose and keeps the rest at the defaults', () => {
     expect(readBattleSettings('{"defeat":false,"defeatResource":" 生命力 "}')).toEqual({
       ...DEFAULT_BATTLE_SETTINGS,
@@ -35,12 +41,13 @@ describe('writeBattleSettings()', () => {
   it('writes only what differs, and reads back as it was written', () => {
     const chosen: BattleSettings = {
       ...DEFAULT_BATTLE_SETTINGS,
+      theme: 'horror',
       background: 'image-1',
       defeatEffect: '両断',
     };
     const written = writeBattleSettings(chosen);
 
-    expect(JSON.parse(written)).toEqual({ background: 'image-1', defeatEffect: '両断' });
+    expect(JSON.parse(written)).toEqual({ theme: 'horror', background: 'image-1', defeatEffect: '両断' });
     expect(readBattleSettings(written)).toEqual(chosen);
   });
 });

@@ -135,6 +135,19 @@ describe('BattleCutInPanelComponent', () => {
     expect(TestBed.inject(BattleCutInPreferenceService).shown()).toBe(false);
   });
 
+  it('lets the master alone choose the stage', () => {
+    const asPlayer = open(PeerRole.Player);
+    expect(asPlayer.querySelector<HTMLButtonElement>('[data-testid="battle-theme-cyberpunk"]')!.disabled).toBe(true);
+    component.setTheme('cyberpunk');
+    expect(Config.instance.battleSettings.theme).toBe('fantasy');
+    fixture.destroy();
+
+    const asMaster = open(PeerRole.GameMaster);
+    asMaster.querySelector<HTMLButtonElement>('[data-testid="battle-theme-cyberpunk"]')!.click();
+
+    expect(Config.instance.battleSettings.theme).toBe('cyberpunk');
+  });
+
   it('lets the master alone set how a fighter goes down', () => {
     const asPlayer = open(PeerRole.Player);
     expect(asPlayer.querySelector<HTMLInputElement>('[data-testid="battle-defeat"]')!.disabled).toBe(true);

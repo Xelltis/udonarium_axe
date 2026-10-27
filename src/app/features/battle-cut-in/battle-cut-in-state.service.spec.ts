@@ -12,6 +12,7 @@ function scene(key: string): BattleScene {
     effect: '',
     defeatEffect: '',
     background: '',
+    theme: 'fantasy',
     secret: false,
     seed: 1,
   };

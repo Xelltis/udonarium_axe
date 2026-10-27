@@ -58,20 +58,23 @@ export function defenderPoints(attackerSide: BattleSide, count: number, spread =
 }
 
 /**
- * How large the stage is drawn in a band of this size: the fighters about two fifths of its
- * height, and both sides inside its width however many are struck, which spreads them wider.
+ * How large the stage is drawn in a band of this size: the fighters about a third of its height,
+ * and both sides inside its width however many are struck, which spreads them wider.
  */
 export function stageScale(width: number, height: number, defenders: number): number {
   if (width <= 0 || height <= 0) return 1;
   const used = DEFENDER_OFFSETS.slice(0, Math.max(1, defenders));
   const farthest = Math.max(...used.map(([across]) => across));
   const span = 2 * (stageSpread(width, height) + farthest + PICTURE_ROOM_CELLS) * BATTLE_CELL_PX;
-  return Math.max(0.3, Math.min((height * 0.42) / BATTLE_FIGURE_PX, (width * 0.94) / span));
+  return Math.max(0.3, Math.min((height * 0.36) / BATTLE_FIGURE_PX, (width * 0.94) / span));
 }
 
-/** How high the band stands on a screen of this height: most of it, within reason. */
+/**
+ * How high the band stands on a screen of this height: most of it, so that a stage's picture,
+ * painted wider than it is high, keeps its sky as well as the ground the fighters stand on.
+ */
 export function bandHeight(viewportHeight: number): number {
-  return Math.round(Math.min(640, Math.max(240, viewportHeight * 0.62)));
+  return Math.round(Math.max(240, viewportHeight * 0.84));
 }
 
 /**

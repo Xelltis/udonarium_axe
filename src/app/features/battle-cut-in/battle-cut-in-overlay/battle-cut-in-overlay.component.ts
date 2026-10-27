@@ -66,6 +66,7 @@ import {
   stageSpread,
   standingTransform,
 } from '@axe/features/battle-cut-in/battle-stage-layout';
+import { battleThemeLook } from '@axe/features/battle-cut-in/battle-themes';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import {
   EFFECT_CAMERA_LIFT_PX,
@@ -123,29 +124,8 @@ export interface CanvasFrame {
  * downloads to open the room.
  */
 const LOOKS = {
-  sky:
-    'linear-gradient(to bottom, #0b1026 0%, #2b2466 26%, #7a3f6c 42%, #e0875a 50%, #4a2e1c 50.4%,' +
-    ' #22160f 72%, #0d0907 100%)',
-  glow: {
-    top: '30%',
-    height: '40%',
-    background: 'radial-gradient(ellipse at center, rgb(255 190 120 / 0.45), transparent 65%)',
-  },
   vignette: 'linear-gradient(to bottom, rgb(0 0 0 / 0.2), transparent 35%, transparent 60%, rgb(0 0 0 / 0.6))',
-  sweep: 'linear-gradient(to right, transparent, rgb(255 255 255 / 0.35), transparent)',
-  floor: {
-    top: '-200px',
-    left: '-400px',
-    width: '800px',
-    height: '400px',
-    background:
-      'linear-gradient(to right, rgb(255 220 180 / 0.14) 1px, transparent 1px),' +
-      ' linear-gradient(to bottom, rgb(255 220 180 / 0.14) 1px, transparent 1px)',
-    'background-size': `${BATTLE_CELL_PX}px ${BATTLE_CELL_PX}px`,
-    'mask-image': 'radial-gradient(closest-side, black, transparent)',
-  },
   shadow: 'radial-gradient(closest-side, rgb(0 0 0 / 0.6), transparent)',
-  edge: 'linear-gradient(to right, transparent, #f5c66a, #fff3d6, #f5c66a, transparent)',
   figureShadow: 'drop-shadow(0 6px 6px rgb(0 0 0 / 0.6))',
   silhouette: {
     'border-radius': '35px 35px 0 0',
@@ -156,15 +136,9 @@ const LOOKS = {
   popShadow: '0 2px 0 rgb(0 0 0 / 0.9), 0 0 8px rgb(0 0 0 / 0.85)',
   hurt: '#ff5a4a',
   healed: '#6dffa0',
-  banner: {
-    color: '#ffe7a8',
-    'font-size': 'clamp(28px, 7vw, 64px)',
-    'letter-spacing': '0.2em',
-    'text-shadow': '0 0 18px rgb(255 80 40 / 0.9), 0 3px 0 rgb(80 10 0 / 0.9)',
-  },
+  banner: { 'font-size': 'clamp(28px, 7vw, 64px)', 'letter-spacing': '0.2em' },
   nameShadow: '0 1px 3px black',
-  leftPlate: { 'border-left': '4px solid #38bdf8', 'box-shadow': '0 4px 16px rgb(0 0 0 / 0.5)' },
-  rightPlate: { 'border-right': '4px solid #fb7185', 'box-shadow': '0 4px 16px rgb(0 0 0 / 0.5)' },
+  plateShadow: '0 4px 16px rgb(0 0 0 / 0.5)',
 } as const;
 
 /** One fighter on the stage: who it is, where it stands, and what it looks like. */
@@ -305,10 +279,27 @@ export class BattleCutInOverlayComponent {
     return `scale3d(${scale}, ${scale}, ${scale}) rotateX(${BATTLE_VIEW.x}deg)`;
   });
 
+  /** Which of the tool's own stages is drawn, and how the band and the plates look on it. */
+  readonly theme = computed(() => this.scene()?.theme ?? 'fantasy');
+  readonly themeLook = computed(() => battleThemeLook(this.theme()));
+  readonly bannerStyle = computed(() => ({ ...LOOKS.banner, ...this.themeLook().banner }));
+  readonly plateStyles = computed(() => {
+    const look = this.themeLook();
+    return {
+      left: { 'border-left': `4px solid ${look.left}`, 'box-shadow': LOOKS.plateShadow },
+      right: { 'border-right': `4px solid ${look.right}`, 'box-shadow': LOOKS.plateShadow },
+    };
+  });
+
   readonly backgroundUrl = computed(() => {
     const identifier = this.scene()?.background ?? '';
     return identifier.length > 0 ? (this.images.get(identifier)?.url ?? '') : '';
   });
+
+  /** The picture behind the stage: the room's own, else the stage's. */
+  readonly pictureUrl = computed(() => this.backgroundUrl() || this.themeLook().image);
+  /** The part of the stage's picture kept where the band cuts it; the room's own is kept to its middle. */
+  readonly pictureFocus = computed(() => (this.backgroundUrl() ? null : this.themeLook().focus));
 
   readonly figures = computed<FigureFrame[]>(() => {
     const timeline = this.timeline();

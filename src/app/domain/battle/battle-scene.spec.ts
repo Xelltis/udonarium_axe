@@ -20,6 +20,7 @@ describe('normalizeBattleScene()', () => {
       effect: 'EffectPreset_slash_1',
       defeatEffect: 'EffectPreset_defeat_dissolve',
       background: 'image-1',
+      theme: 'cyberpunk',
       secret: true,
       seed: 42,
     });
@@ -38,6 +39,7 @@ describe('normalizeBattleScene()', () => {
       effect: 'EffectPreset_slash_1',
       defeatEffect: 'EffectPreset_defeat_dissolve',
       background: 'image-1',
+      theme: 'cyberpunk',
       secret: true,
       seed: 42,
     });
@@ -65,6 +67,7 @@ describe('normalizeBattleScene()', () => {
     });
 
     expect(scene?.attackerSide).toBe('left');
+    expect(scene?.theme).toBe('fantasy');
     expect(scene?.attacker.gauges).toEqual([{ name: 'HP', before: 0, after: 0, max: 0, inverted: false }]);
     expect(scene?.defenders).toHaveLength(1);
     expect(scene?.effect).toBe('');

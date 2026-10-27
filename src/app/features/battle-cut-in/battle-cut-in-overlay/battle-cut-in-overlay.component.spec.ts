@@ -37,6 +37,7 @@ describe('BattleCutInOverlayComponent', () => {
       effect: 'EffectPreset_slash_1',
       defeatEffect: 'EffectPreset_defeat_dissolve',
       background: '',
+      theme: 'fantasy',
       secret: false,
       seed: 5,
       ...overrides,
@@ -84,6 +85,14 @@ describe('BattleCutInOverlayComponent', () => {
     expect(textsOf(root, '[data-testid="battle-pop"]')).toEqual(['MP -3', '-12']);
     expect(textsOf(root, '[data-testid="battle-defeat-banner"]')[0]).toContain('撃破');
     expect(textsOf(root, '[data-testid="battle-defeat-banner"]')[0]).toContain('ゴブリン');
+  });
+
+  it('lays the picture of the stage the scene names behind it', () => {
+    const root = play(scene({ theme: 'horror' }));
+
+    const picture = root.querySelector<HTMLImageElement>('[data-testid="battle-cut-in-background"]')!;
+    expect(picture.getAttribute('src')).toContain('battle/horror.webp');
+    expect(picture.dataset['theme']).toBe('horror');
   });
 
   it('stands the one striking on the right where the scene says so', () => {

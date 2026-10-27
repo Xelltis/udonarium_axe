@@ -169,16 +169,33 @@
     @if (!isGameMaster()) {
       <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.battleCutIn.roomMasterOnly' | transloco }}</p>
     }
-    <div class="flex items-center gap-2 text-[12px]">
-      <span class="text-ui-muted w-16 shrink-0">{{ 'feature.battleCutIn.background' | transloco }}</span>
-      <div
-        class="border-ui-border-panel h-10 w-18 shrink-0 overflow-hidden rounded-[3px] border border-solid"
-        [style.background]="stageThumbnail"
-      >
-        @if (backgroundUrl()) {
-          <img class="size-full object-cover" [src]="backgroundUrl()" alt="" />
+    <div class="flex items-start gap-2 text-[12px]">
+      <span class="text-ui-muted w-16 shrink-0 pt-1">{{ 'feature.battleCutIn.stage' | transloco }}</span>
+      <div class="flex flex-wrap gap-1.5" role="radiogroup" [attr.aria-label]="'feature.battleCutIn.stage' | transloco">
+        @for (choice of themes; track choice.theme) {
+          <button
+            type="button"
+            role="radio"
+            class="rounded-ui-sm flex w-20 cursor-pointer flex-col items-stretch gap-0.5 border border-solid bg-transparent p-0.5 text-[11px] disabled:cursor-default"
+            [class]="settings().theme === choice.theme ? 'border-ui-accent text-ui-accent' : 'border-ui-border-panel'"
+            [attr.aria-checked]="settings().theme === choice.theme"
+            [attr.data-testid]="'battle-theme-' + choice.theme"
+            [disabled]="!isGameMaster()"
+            (click)="setTheme(choice.theme)"
+          >
+            <img class="block h-11 w-full rounded-xs object-cover" [src]="choice.thumbnail" alt="" loading="lazy" />
+            <span class="truncate">{{ 'feature.battleCutIn.theme.' + choice.theme | transloco }}</span>
+          </button>
         }
       </div>
+    </div>
+    <div class="flex items-center gap-2 text-[12px]">
+      <span class="text-ui-muted w-16 shrink-0">{{ 'feature.battleCutIn.background' | transloco }}</span>
+      @if (backgroundUrl()) {
+        <div class="border-ui-border-panel h-10 w-18 shrink-0 overflow-hidden rounded-[3px] border border-solid">
+          <img class="size-full object-cover" [src]="backgroundUrl()" alt="" />
+        </div>
+      }
       <button
         type="button"
         class="border-ui-border-panel bg-ui-input hover:bg-ui-hover rounded-ui-sm cursor-pointer border border-solid px-2 py-0.5 text-[12px] disabled:cursor-default disabled:opacity-45"
@@ -199,6 +216,7 @@
         </button>
       }
     </div>
+    <p class="text-ui-dim m-0 -mt-1 text-[11px]">{{ 'feature.battleCutIn.backgroundHint' | transloco }}</p>
     <label class="flex cursor-pointer items-center gap-2 text-[12px] [accent-color:var(--ui-accent)]">
       <input
         type="checkbox"

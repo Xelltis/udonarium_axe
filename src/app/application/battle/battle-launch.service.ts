@@ -165,6 +165,7 @@ export class BattleLaunchService {
       effect: this.blowEffectOf(request) ?? this.presetOf(defaultBlowEffectIdentifier(defenders)),
       defeatEffect: settings.defeat ? this.defeatEffectOf(settings.defeatEffect) : '',
       background: settings.background,
+      theme: settings.theme,
       secret: request.secret === true,
       seed: Math.floor(Math.random() * 0xffffffff),
     };
