@@ -20,6 +20,7 @@ import { StampPackService } from '@axe/application/chat/stamp-pack.service';
 import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { stampWords } from '@axe/application/chat/stamp-words';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
+import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -27,6 +28,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { BatchService } from '@axe/application/ui/batch.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
@@ -38,6 +40,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatBubbleColors, chatBubbleOf, chatColorOf, DEFAULT_CHAT_COLOR } from '@axe/domain/chat/chat-color';
+import { withoutChatDecoration, wrapChatSelection } from '@axe/domain/chat/chat-decoration';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { composeChatOutgoing, composeStampOutgoing, OutgoingStamp } from '@axe/domain/chat/chat-outgoing';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
@@ -50,6 +53,10 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { ChatColorSettingComponent } from '@axe/features/chat/chat-color-setting/chat-color-setting.component';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
+import {
+  buildChatDecorationMenu,
+  ChatDecorationMarks,
+} from '@axe/features/chat/chat-input/chat-decoration-context-menu';
 import { ChatInputDiceBotHelper } from '@axe/features/chat/chat-input/chat-input-dicebot';
 import { allowsChat } from '@axe/features/chat/chat-input/chat-input-helpers';
 import { ChatInputHistory } from '@axe/features/chat/chat-input/chat-input-history';
@@ -137,7 +144,33 @@ export class ChatInputComponent {
   toggleTickerSend(): void {
     this.sendsToTicker.update((sends) => !sends);
   }
+
+  /** Opens the decorations under their button, to wrap what is selected in the box in the one picked. */
+  protected openDecorations(event: MouseEvent): void {
+    const button = event.currentTarget instanceof Element ? event.currentTarget : null;
+    const box = button?.getBoundingClientRect();
+    const at = box ? { x: box.left, y: box.bottom + 2 } : this.pointerDeviceService.pointers[0];
+    const menu = buildChatDecorationMenu(this.language.currentLang(), (marks) => this.decorate(marks), this.t);
+    this.contextMenu.open(at, menu, this.t('feature.chat.decoration.title'), { forGuests: true });
+  }
+
+  /**
+   * Wraps what is selected in the box in the marks, or puts them at the caret with nothing selected,
+   * and goes back to writing with the same words selected, or the caret between the marks.
+   */
+  decorate(marks: ChatDecorationMarks): void {
+    const box = this.textAreaElementRef()?.nativeElement;
+    if (!box) return;
+    const wrapped = wrapChatSelection(this.text, box.selectionStart, box.selectionEnd, marks);
+    this.text = wrapped.text;
+    box.value = wrapped.text;
+    box.focus();
+    box.setSelectionRange(wrapped.selectionStart, wrapped.selectionEnd);
+    this.kickCalcFitHeight();
+  }
   private readonly batchService = inject(BatchService);
+  private readonly contextMenu = inject(ContextMenuService);
+  private readonly language = inject(LanguageService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly stampPicker = inject(StampPickerService);
   private readonly stampPacks = inject(StampPackService);
@@ -256,7 +289,9 @@ export class ChatInputComponent {
   readonly replyToText = computed(() => {
     const target = this.replyTarget();
     if (!target) return '';
-    const text = (target.text ?? '').replace(/\s+/g, ' ').trim();
+    const text = withoutChatDecoration(target.text ?? '')
+      .replace(/\s+/g, ' ')
+      .trim();
     return text.length > 80 ? text.slice(0, 80) + '…' : text;
   });
 
@@ -272,7 +307,9 @@ export class ChatInputComponent {
   readonly quoteToText = computed(() => {
     const target = this.quoteTarget();
     if (!target) return '';
-    const text = (target.text ?? '').replace(/\s+/g, ' ').trim();
+    const text = withoutChatDecoration(target.text ?? '')
+      .replace(/\s+/g, ' ')
+      .trim();
     return text.length > 80 ? text.slice(0, 80) + '…' : text;
   });
 
