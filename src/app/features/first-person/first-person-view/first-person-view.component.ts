@@ -476,6 +476,11 @@ export class FirstPersonViewComponent {
     { equal: sameRoof }
   );
 
+  /**
+   * The faces in sight, each with its picture, shade and blur. A wall of the board itself with no
+   * picture to wear is left out, as the table leaves it out: shown, it would shut the eye into a
+   * grey box the table never draws.
+   */
   protected readonly quadViews = computed<QuadView[]>(() => {
     this.objectChange.fileVersion();
     const scale = this.scale();
@@ -483,8 +488,9 @@ export class FirstPersonViewComponent {
     const clear = this.firstPerson.clearPx();
     const grid = this.firstPerson.grid();
     const veil = this.veil();
-    return this.quads().map((quad) => {
+    return this.quads().flatMap((quad) => {
       const url = this.urlOf(quad.image);
+      if (quad.kind === 'wall' && quad.terrain === '' && !url) return [];
       const remembered = this.firstPerson.tierOfCell(quad.cell) === 'dim';
       const away = this.shadeAt(quad.depth, depth);
       const shade = remembered || !grid || quad.cell < 0 ? away : litShade(away, this.lightOn(grid, quad));
@@ -494,7 +500,7 @@ export class FirstPersonViewComponent {
           : planeQuadStyle(quad, scale, url, shade, remembered, veil);
       const blur = url ? blurFilter(farBlurPx(quad.depth, clear, depth)) : null;
       const style = blur ? { ...drawn, filter: blur } : drawn;
-      return { id: quad.id, cell: quad.cell, kind: quad.kind, tone: toneOf(quad), remembered, style };
+      return [{ id: quad.id, cell: quad.cell, kind: quad.kind, tone: toneOf(quad), remembered, style }];
     });
   });
 

@@ -92,6 +92,33 @@ describe('FirstPersonViewComponent', () => {
     expect(view.querySelectorAll('[data-quad="floor"]').length).toBeGreaterThan(0);
   });
 
+  it('puts up a wall of the board only where it has a picture to wear, as the table does', async () => {
+    table.wallHeight = 2;
+    table.showNorthWall = true;
+    lookOutOf(pieceAt(4, 7));
+
+    expect(element(mount()).querySelectorAll('[data-quad="wall"]')).toHaveLength(0);
+
+    ImageStorage.instance.add({
+      identifier: 'brick',
+      name: 'brick.png',
+      type: 'image/png',
+      blob: null,
+      url: 'blob:brick',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    try {
+      table.northWallImageIdentifier = 'brick';
+      await Promise.resolve();
+      const walls = Array.from(element(mount()).querySelectorAll<HTMLElement>('[data-quad="wall"]'));
+
+      expect(walls.length).toBeGreaterThan(0);
+      expect(walls.every((wall) => wall.style.backgroundImage.includes('blob:brick'))).toBe(true);
+    } finally {
+      ImageStorage.instance.delete('brick');
+    }
+  });
+
   it('draws what stands past the clear distance blurred, and what stands near sharp', () => {
     ImageStorage.instance.add({
       identifier: 'stone',
