@@ -13,7 +13,9 @@
 }
 
 /* Leant by a skew rather than by font-style: Meiryo, the Japanese font Windows draws with, has an italic
-   face whose kana and kanji stand upright, so italic would lean only the Latin letters there. */
+   face whose kana and kanji stand upright, so italic would lean only the Latin letters there. A skew is
+   only drawn on a box, and a box does not break across lines, so a leaning run comes cut into the pieces
+   it may break between (leaningPiecesOf), each a box of its own. */
 .chat-deco-italic {
   display: inline-block;
   transform: skewX(-12deg);

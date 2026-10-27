@@ -7,6 +7,7 @@ import {
   chatDecorationMarkup,
   chatFontsIn,
   decoratedRunsOf,
+  leaningPiecesOf,
   withoutChatDecoration,
   wrapChatSelection,
 } from '@axe/domain/chat/chat-decoration';
@@ -109,6 +110,23 @@ describe('decoratedRunsOf', () => {
   });
 });
 
+describe('leaningPiecesOf', () => {
+  it('keeps a word whole, a mark that opens with what follows and one that closes with what goes before', () => {
+    expect(leaningPiecesOf('Hello, world!')).toEqual(['Hello,', ' ', 'world!']);
+    expect(leaningPiecesOf('「はい」と言った。')).toEqual(['「は', 'い」', 'と', '言っ', 'た。']);
+    expect(leaningPiecesOf('don’t 42%')).toEqual(['don’t', ' ', '42', '%']);
+  });
+
+  it('keeps a letter drawn of several characters whole', () => {
+    expect(leaningPiecesOf('👨‍👩‍👧が')).toEqual(['👨‍👩‍👧', 'が']);
+  });
+
+  it('gives back what it was given, piece by piece', () => {
+    const line = '  (a) 「b」 c。  ';
+    expect(leaningPiecesOf(line).join('')).toBe(line);
+  });
+});
+
 describe('chatFontsIn', () => {
   it('names each font a line is drawn in once', () => {
     expect(chatFontsIn(decoratedRunsOf('[明朝]a[/][手書き]b[/][明朝]c[/]'))).toEqual(['mincho', 'hand']);
@@ -129,6 +147,16 @@ describe('chatDecorationMarkup', () => {
   it('gives each line of a run its own span, so no span runs over a break', () => {
     expect(chatDecorationMarkup(decoratedRunsOf('[大]a\nb[/]'), escape)).toBe(
       '<span class="chat-deco chat-size-large">a</span>\n<span class="chat-deco chat-size-large">b</span>'
+    );
+  });
+
+  it('cuts a leaning run into the pieces it may break between, the spaces drawn upright', () => {
+    expect(chatDecorationMarkup(decoratedRunsOf('[斜体]go home。あい[/]'), escape)).toBe(
+      '<span class="chat-deco chat-deco-italic">go</span>' +
+        '<span class="chat-deco"> </span>' +
+        '<span class="chat-deco chat-deco-italic">home。</span>' +
+        '<span class="chat-deco chat-deco-italic">あ</span>' +
+        '<span class="chat-deco chat-deco-italic">い</span>'
     );
   });
 

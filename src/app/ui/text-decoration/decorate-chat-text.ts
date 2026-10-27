@@ -10,6 +10,7 @@ import {
   chatFontsIn,
   DecoratedRun,
   decoratedRunsOf,
+  leaningPiecesOf,
 } from '@axe/domain/chat/chat-decoration';
 import { RUBY_NOTATION, rubyRunsOf } from '@axe/domain/chat/chat-ruby-notation';
 
@@ -86,7 +87,16 @@ export function splitRubyNotation(text: string): RubyPart[] {
 function rubyPartsOf(text: string, decoration: ChatDecoration | null): RubyPart[] {
   const parts: RubyPart[] = [];
   const plain = (from: number, to: number) => {
-    if (to > from) parts.push({ text: text.slice(from, to).replace(ESCAPED_SPACE, ' '), reading: '', decoration });
+    if (to <= from) return;
+    const piece = text.slice(from, to).replace(ESCAPED_SPACE, ' ');
+    if (!decoration?.italic) {
+      parts.push({ text: piece, reading: '', decoration });
+      return;
+    }
+    for (const leaning of leaningPiecesOf(piece)) {
+      const upright = /^\s+$/u.test(leaning);
+      parts.push({ text: leaning, reading: '', decoration: upright ? { ...decoration, italic: false } : decoration });
+    }
   };
   let at = 0;
   for (const match of text.matchAll(RUBY_NOTATION)) {
@@ -145,5 +155,21 @@ export function decorateQuoteLines(html: string): string {
 export function decorateChatStyleText(text: string): string {
   const runs = decoratedRunsOf(text);
   askForFonts(runs);
-  return decorateQuoteLines(chatDecorationMarkup(runs, (piece) => applyRubyMarkup(escapeHtml(piece))));
+  return decorateQuoteLines(
+    chatDecorationMarkup(runs, (piece) => applyRubyMarkup(escapeHtml(piece)), leaningPiecesKeepingNotation)
+  );
+}
+
+const KEPT_WHOLE = new RegExp(`${RUBY_NOTATION.source}|\\\\s`, 'g');
+
+/** The pieces a leaning run breaks between, with a word and its reading, and a `\s`, each kept whole. */
+function leaningPiecesKeepingNotation(text: string): string[] {
+  const pieces: string[] = [];
+  let at = 0;
+  for (const match of text.matchAll(KEPT_WHOLE)) {
+    pieces.push(...leaningPiecesOf(text.slice(at, match.index)), match[0]);
+    at = match.index + match[0].length;
+  }
+  pieces.push(...leaningPiecesOf(text.slice(at)));
+  return pieces;
 }

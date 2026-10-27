@@ -365,15 +365,64 @@ export function chatColorHalo(color: string | null): string | null {
   return null;
 }
 
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+/** What opens a phrase and so stays with what follows it. */
+const OPENING = /^[「『（(［[【〈《“‘]$/u;
+/** What closes a phrase or may not start a line, and so stays with what goes before it. */
+const CLOSING = /^[、。，．,.・：:；;？?！!ー…‥」』）)］\]】〉》”’ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ々〻]$/u;
+const WORD = /^[\p{Script=Latin}\p{Nd}'’]$/u;
+
+/**
+ * Cuts the text of a leaning run into the pieces it may break between: a word of Latin letters or
+ * figures whole, every other letter on its own, a mark that opens kept with what follows and one that
+ * closes with what goes before, and the spaces between apart. A leaning run is drawn piece by piece,
+ * as a lean is only drawn on a box, and a box does not break across lines.
+ */
+export function leaningPiecesOf(text: string): string[] {
+  const pieces: string[] = [];
+  let opening = '';
+  for (const { segment } of GRAPHEMES.segment(text)) {
+    const last = pieces.length - 1;
+    const lastPiece = pieces[last] ?? '';
+    if (/^\s+$/u.test(segment)) {
+      if (opening) pieces.push(opening);
+      opening = '';
+      if (last >= 0 && /^\s+$/u.test(pieces[pieces.length - 1])) pieces[pieces.length - 1] += segment;
+      else pieces.push(segment);
+      continue;
+    }
+    if (OPENING.test(segment)) {
+      opening += segment;
+      continue;
+    }
+    const joins =
+      opening.length < 1 &&
+      last >= 0 &&
+      !/^\s+$/u.test(lastPiece) &&
+      (CLOSING.test(segment) || (WORD.test(segment) && WORD.test(lastPiece.at(-1) ?? '')));
+    if (joins) pieces[last] += segment;
+    else pieces.push(opening + segment);
+    opening = '';
+  }
+  if (opening) pieces.push(opening);
+  return pieces;
+}
+
 /**
  * The runs of a line as html, each decorated run in a span of its classes and colour and everything through
  * `escape`, which makes the html of a plain piece of text (escaping it, with whatever else it reads).
  *
  * A span never runs over a line break: each line of a run gets its own, so that what reads a line
  * at a time, as quoted lines are, finds its lines whole. A quote mark that starts a line is left out
- * of the span, for the same reason. The colour is only ever a `#rrggbb` the parser made.
+ * of the span, for the same reason. The colour is only ever a `#rrggbb` the parser made. A leaning
+ * run is cut by `lean` into the pieces it may break between, each in a span of its own, the spaces
+ * between drawn upright.
  */
-export function chatDecorationMarkup(runs: readonly DecoratedRun[], escape: (text: string) => string): string {
+export function chatDecorationMarkup(
+  runs: readonly DecoratedRun[],
+  escape: (text: string) => string,
+  lean: (text: string) => string[] = leaningPiecesOf
+): string {
   let html = '';
   let lineStart = true;
   for (const run of runs) {
@@ -398,7 +447,16 @@ export function chatDecorationMarkup(runs: readonly DecoratedRun[], escape: (tex
       }
       lineStart = false;
       if (rest.length < 1) return;
-      html += `<span class="${chatDecorationClasses(run.decoration)}"${colorStyle(run.decoration)}>${escape(rest)}</span>`;
+      const decoration = run.decoration;
+      const span = (inner: string, upright = false) => {
+        const drawn = upright ? { ...decoration, italic: false } : decoration;
+        return `<span class="${chatDecorationClasses(drawn)}"${colorStyle(drawn)}>${escape(inner)}</span>`;
+      };
+      html += decoration.italic
+        ? lean(rest)
+            .map((leaning) => span(leaning, /^\s+$/u.test(leaning)))
+            .join('')
+        : span(rest);
     });
   }
   return html;

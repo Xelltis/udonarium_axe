@@ -151,6 +151,21 @@ describe('decorate-chat-text', () => {
       );
     });
 
+    it('cuts a leaning run into pieces it may break between, keeping a word and its reading whole', () => {
+      expect(decorateChatStyleText('[斜体]|明日《あした》は晴\\sれ[/]')).toBe(
+        '<span class="chat-deco chat-deco-italic"><ruby class="chat-ruby"><rb>明日</rb><rt>あした</rt></ruby></span>' +
+          '<span class="chat-deco chat-deco-italic">は</span>' +
+          '<span class="chat-deco chat-deco-italic">晴</span>' +
+          '<span class="chat-deco chat-deco-italic"> </span>' +
+          '<span class="chat-deco chat-deco-italic">れ</span>'
+      );
+      expect(splitRubyNotation('[斜体]ab cd[/]').map((part) => [part.text, part.decoration?.italic])).toEqual([
+        ['ab', true],
+        [' ', false],
+        ['cd', true],
+      ]);
+    });
+
     it('asks for the fonts a line is drawn in', () => {
       const asked: string[] = [];
       const stop = chatFontWanted$.subscribe((font) => asked.push(font));
