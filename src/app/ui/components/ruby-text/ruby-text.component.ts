@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { chatDecorationClasses } from '@axe/domain/chat/chat-decoration';
+import { chatColorHalo, chatDecorationClasses } from '@axe/domain/chat/chat-decoration';
 import { RubyPart } from '@axe/ui/text-decoration/decorate-chat-text';
 
 /**
@@ -20,5 +20,10 @@ export class RubyTextComponent {
   /** The classes a run is drawn with: none for a plain run. */
   protected classesOf(part: RubyPart): string {
     return part.decoration ? chatDecorationClasses(part.decoration) : '';
+  }
+
+  /** The thin edge a run's colour is drawn with, where it is as light as white or as dark as black. */
+  protected haloOf(part: RubyPart): string | null {
+    return chatColorHalo(part.decoration?.color ?? null);
   }
 }

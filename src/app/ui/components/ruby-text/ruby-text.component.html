@@ -1,10 +1,16 @@
 @for (part of parts(); track $index) {
   @if (part.reading.length > 0) {
-    <ruby class="chat-ruby" [class]="classesOf(part)" [style.color]="part.decoration?.color"
+    <ruby
+      class="chat-ruby"
+      [class]="classesOf(part)"
+      [style.color]="part.decoration?.color"
+      [style.text-shadow]="haloOf(part)"
       ><rb>{{ part.text }}</rb
       ><rt>{{ part.reading }}</rt></ruby
     >
   } @else {
-    <span [class]="classesOf(part)" [style.color]="part.decoration?.color">{{ part.text }}</span>
+    <span [class]="classesOf(part)" [style.color]="part.decoration?.color" [style.text-shadow]="haloOf(part)">{{
+      part.text
+    }}</span>
   }
 }

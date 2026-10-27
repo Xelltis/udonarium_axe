@@ -22,7 +22,10 @@ export type ChatFontKey = (typeof CHAT_FONT_KEYS)[number];
 export const CHAT_SIZE_KEYS = ['small', 'large', 'huge'] as const;
 export type ChatSizeKey = (typeof CHAT_SIZE_KEYS)[number];
 
-/** The colours a line may be named in, each mid-toned so that it reads on a light or a dark chat. */
+/**
+ * The colours a line may be named in, each mid-toned so that it reads on a light or a dark chat, but
+ * for white and black, which are drawn with a thin edge of the other (see {@link chatColorHalo}).
+ */
 export const CHAT_COLORS = {
   red: '#e5484d',
   orange: '#f76b15',
@@ -341,6 +344,27 @@ export function chatDecorationClasses(decoration: ChatDecoration): string {
   return classes.join(' ');
 }
 
+const LIGHT_HALO = '0 0 1px rgb(255 255 255 / 0.9), 0 0 2px rgb(255 255 255 / 0.6)';
+const DARK_HALO = '0 0 1px rgb(0 0 0 / 0.9), 0 0 2px rgb(0 0 0 / 0.6)';
+
+/**
+ * The thin edge a colour is drawn with so that it reads on a light chat and on a dark one alike: a
+ * dark edge round a colour as light as white, a light one round a colour as dark as black, and none
+ * round the mid-toned ones. Null where it needs none, or for anything but a `#rrggbb`.
+ */
+export function chatColorHalo(color: string | null): string | null {
+  if (!color || !HEX_COLOR.test(color)) return null;
+  const hex = fullHex(color);
+  const [red, green, blue] = [1, 3, 5].map((at) => {
+    const channel = parseInt(hex.slice(at, at + 2), 16) / 255;
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+  if (luminance > 0.6) return DARK_HALO;
+  if (luminance < 0.04) return LIGHT_HALO;
+  return null;
+}
+
 /**
  * The runs of a line as html, each decorated run in a span of its classes and colour and everything through
  * `escape`, which makes the html of a plain piece of text (escaping it, with whatever else it reads).
@@ -374,11 +398,16 @@ export function chatDecorationMarkup(runs: readonly DecoratedRun[], escape: (tex
       }
       lineStart = false;
       if (rest.length < 1) return;
-      const color = run.decoration.color ? ` style="color: ${run.decoration.color}"` : '';
-      html += `<span class="${chatDecorationClasses(run.decoration)}"${color}>${escape(rest)}</span>`;
+      html += `<span class="${chatDecorationClasses(run.decoration)}"${colorStyle(run.decoration)}>${escape(rest)}</span>`;
     });
   }
   return html;
+}
+
+function colorStyle(decoration: ChatDecoration): string {
+  if (!decoration.color) return '';
+  const halo = chatColorHalo(decoration.color);
+  return ` style="color: ${decoration.color}${halo ? `; text-shadow: ${halo}` : ''}"`;
 }
 
 /**

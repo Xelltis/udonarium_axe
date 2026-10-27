@@ -1,6 +1,7 @@
 import {
   CHAT_COLORS,
   CHAT_TAG_NAMES,
+  chatColorHalo,
   ChatDecoration,
   chatDecorationMarks,
   chatDecorationMarkup,
@@ -129,6 +130,21 @@ describe('chatDecorationMarkup', () => {
     expect(chatDecorationMarkup(decoratedRunsOf('[大]a\nb[/]'), escape)).toBe(
       '<span class="chat-deco chat-size-large">a</span>\n<span class="chat-deco chat-size-large">b</span>'
     );
+  });
+
+  it('draws white and black, and any colour as light or as dark, with a thin edge of the other', () => {
+    const white = chatDecorationMarkup(decoratedRunsOf('[白]a[/]'), escape);
+    const black = chatDecorationMarkup(decoratedRunsOf('[黒]a[/]'), escape);
+
+    expect(white).toContain(`color: ${CHAT_COLORS.white}; text-shadow: ${chatColorHalo(CHAT_COLORS.white)}`);
+    expect(black).toContain(`color: ${CHAT_COLORS.black}; text-shadow: ${chatColorHalo(CHAT_COLORS.black)}`);
+    expect(chatColorHalo(CHAT_COLORS.white)).toContain('rgb(0 0 0');
+    expect(chatColorHalo(CHAT_COLORS.black)).toContain('rgb(255 255 255');
+    expect(chatColorHalo('#ffe')).toContain('rgb(0 0 0');
+    for (const color of [CHAT_COLORS.red, CHAT_COLORS.yellow, CHAT_COLORS.blue, CHAT_COLORS.gray]) {
+      expect(chatColorHalo(color), color).toBeNull();
+    }
+    expect(chatColorHalo('white')).toBeNull();
   });
 
   it('leaves a quote mark that starts a line outside the span', () => {
