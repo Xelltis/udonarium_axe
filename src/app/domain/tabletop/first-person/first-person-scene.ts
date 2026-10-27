@@ -34,6 +34,8 @@ export interface FirstPersonWallQuad {
   basePx: number;
   heightPx: number;
   image: string;
+  /** The side of one tile of the picture, in pixels, laid from the start of the wall and its top; 0 where it is stretched. */
+  tilePx: number;
   uStart: number;
   fullLength: number;
   glass: boolean;
@@ -60,7 +62,13 @@ export interface FirstPersonPlaneQuad {
   height: number;
   polygon: CellPoint[];
   image: string;
+  /**
+   * Where the picture is laid: the whole floor, or the whole top or underside of a block, however
+   * little of it is kept in sight. Null where it is laid over what is kept.
+   */
   frame: FirstPersonFloor | null;
+  /** The side of one tile of the picture, in pixels, laid from the corner of the frame; 0 where it is stretched over it. */
+  tilePx: number;
   glass: boolean;
   depth: number;
   cell: number;
@@ -116,7 +124,9 @@ export function firstPersonScene(input: FirstPersonSceneInput): FirstPersonQuad[
     const polygon = clipPolygonToEye(scene.eye, outline, input.nearPx, 0);
     if (keepsPlane(polygon, 0, scene)) {
       const floor = input.world.floor;
-      quads.push(planeQuadOf('floor', `floor:${index}`, index, '', polygon, 0, 'up', floor.image, floor, false, scene));
+      quads.push(
+        planeQuadOf('floor', `floor:${index}`, index, '', polygon, 0, 'up', floor.image, floor, 0, false, scene)
+      );
     }
     const roof = input.roof;
     const height = roof ? roofHeightAt(roof, index) : 0;
@@ -124,7 +134,7 @@ export function firstPersonScene(input: FirstPersonSceneInput): FirstPersonQuad[
       const overhead = clipPolygonToEye(scene.eye, outline, input.nearPx, height);
       if (keepsPlane(overhead, height, scene)) {
         quads.push(
-          planeQuadOf('ceiling', `ceiling:${index}`, index, '', overhead, height, 'down', '', null, false, scene)
+          planeQuadOf('ceiling', `ceiling:${index}`, index, '', overhead, height, 'down', '', null, 0, false, scene)
         );
       }
     }
@@ -164,6 +174,7 @@ function wallQuadOf(wall: FirstPersonWall, scene: SceneFrame): FirstPersonWallQu
     basePx: wall.basePx,
     heightPx: wall.topPx - wall.basePx,
     image: wall.image,
+    tilePx: wall.tilePx,
     uStart: span.t0 * fullLength,
     fullLength,
     glass: wall.glass,
@@ -205,7 +216,30 @@ function capQuadOf(cap: FirstPersonCap, scene: SceneFrame): FirstPersonPlaneQuad
   const centre = centreOf(polygon);
   const cell = cellIndexAt(input.grid, centre.x, centre.y);
   if (input.seen && (cell < 0 || !input.seen.get(cell))) return null;
-  return planeQuadOf('cap', cap.id, cell, cap.terrain, polygon, cap.zPx, cap.facing, cap.image, null, cap.glass, scene);
+  const frame = frameOf(cap);
+  return planeQuadOf(
+    'cap',
+    cap.id,
+    cell,
+    cap.terrain,
+    polygon,
+    cap.zPx,
+    cap.facing,
+    cap.image,
+    frame,
+    cap.tilePx,
+    cap.glass,
+    scene
+  );
+}
+
+/** The box round the whole top or underside of a block, which its picture is laid over. */
+function frameOf(cap: FirstPersonCap): FirstPersonFloor {
+  const xs = cap.outline.map((point) => point.x);
+  const ys = cap.outline.map((point) => point.y);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y, image: cap.image };
 }
 
 function keepsPlane(polygon: readonly CellPoint[], zPx: number, scene: SceneFrame): boolean {
@@ -225,6 +259,7 @@ function planeQuadOf(
   facing: 'up' | 'down',
   image: string,
   frame: FirstPersonFloor | null,
+  tilePx: number,
   glass: boolean,
   scene: SceneFrame
 ): FirstPersonPlaneQuad {
@@ -245,6 +280,7 @@ function planeQuadOf(
     polygon,
     image,
     frame,
+    tilePx,
     glass,
     depth: depthOf(scene.eye, centreOf(polygon)),
     cell,

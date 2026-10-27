@@ -374,6 +374,7 @@ function waterQuadOf(
     polygon,
     image: '',
     frame: null,
+    tilePx: 0,
     glass: false,
     depth,
     cell: index,

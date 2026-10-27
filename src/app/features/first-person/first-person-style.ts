@@ -146,7 +146,8 @@ export function pieceImageFilter(brightness: number, targeted: boolean, blurPx =
 /**
  * Where a wall face is drawn and how its picture lies on it. A face a tipped camera cuts across is
  * drawn only as tall as what is kept, its outline cut to the slant, with its picture still laid over
- * the whole height of the wall so it keeps its place.
+ * the whole height of the wall so it keeps its place. A block that tiles its picture lays a cell of
+ * it to a tile, from the start of the wall and its top, as the table does.
  */
 export function wallQuadStyle(
   quad: FirstPersonWallQuad,
@@ -168,10 +169,15 @@ export function wallQuadStyle(
     ...backgroundOf(
       imageUrl,
       shade,
-      cut ? `${px(quad.fullLength * scale)} ${px(quad.heightPx * scale)}` : `${px(quad.fullLength * scale)} 100%`,
+      quad.tilePx > 0
+        ? `${px(quad.tilePx * scale)} ${px(quad.tilePx * scale)}`
+        : cut
+          ? `${px(quad.fullLength * scale)} ${px(quad.heightPx * scale)}`
+          : `${px(quad.fullLength * scale)} 100%`,
       cut ? `${px(-quad.uStart * scale)} ${px(-(wallTop - top) * scale)}` : `${px(-quad.uStart * scale)} 0`,
       remembered,
-      veil
+      veil,
+      quad.tilePx > 0
     ),
   };
   if (cut?.outline) {
@@ -181,6 +187,12 @@ export function wallQuadStyle(
   return style;
 }
 
+/**
+ * Where a floor, a ceiling or the top or underside of a block is drawn and how its picture lies on
+ * it: over the whole of its frame however little of it is kept, or a cell of it to a tile from the
+ * frame's corner where the block tiles its picture. An underside is seen from below, the far side of
+ * its frame nearest the top of the view.
+ */
 export function planeQuadStyle(
   quad: FirstPersonPlaneQuad,
   scale: number,
@@ -196,15 +208,17 @@ export function planeQuadStyle(
     y: (up ? point.y - quad.minY : quad.minY + quad.height - point.y) * scale,
   }));
   const frame = quad.frame;
-  const size = frame ? `${px(frame.width * scale)} ${px(frame.height * scale)}` : '100% 100%';
-  const position = frame ? `${px((frame.x - quad.minX) * scale)} ${px((frame.y - quad.minY) * scale)}` : '0 0';
+  const tile = quad.tilePx > 0 ? `${px(quad.tilePx * scale)} ${px(quad.tilePx * scale)}` : null;
+  const size = tile ?? (frame ? `${px(frame.width * scale)} ${px(frame.height * scale)}` : '100% 100%');
+  const frameTop = frame ? (up ? frame.y - quad.minY : quad.minY + quad.height - frame.y - frame.height) : 0;
+  const position = frame ? `${px((frame.x - quad.minX) * scale)} ${px(frameTop * scale)}` : '0 0';
   return {
     width: px(quad.width * scale),
     height: px(quad.height * scale),
     transformOrigin: '0 0',
     transform: `translate3d(${px(quad.minX * scale)}, ${px(originY * scale)}, ${px(quad.zPx * scale)})${up ? '' : ' rotateX(180deg)'}`,
     clipPath: `polygon(${local.map((point) => `${px(point.x)} ${px(point.y)}`).join(', ')})`,
-    ...backgroundOf(imageUrl, shade, size, position, remembered, veil),
+    ...backgroundOf(imageUrl, shade, size, position, remembered, veil, tile !== null),
   };
 }
 
@@ -344,13 +358,18 @@ export function billboardHudTransform(textScale: number): string | null {
   return textScale >= 1 ? null : `scale(${round(textScale)})`;
 }
 
+/**
+ * The veils over a face and the picture under them, laid at the size and position given. A tiled
+ * picture repeats where the face is drawn without repeating anything else.
+ */
 function backgroundOf(
   imageUrl: string,
   shade: number,
   size: string,
   position: string,
   remembered: boolean,
-  veil: string
+  veil: string,
+  tiled = false
 ): QuadStyle {
   const veils = [`linear-gradient(rgba(${veil}, ${shade}), rgba(${veil}, ${shade}))`];
   if (remembered) veils.unshift(REMEMBERED_VEIL);
@@ -363,11 +382,13 @@ function backgroundOf(
       backgroundPosition: veilPositions.join(', '),
     };
   }
-  return {
+  const style: QuadStyle = {
     backgroundImage: `${veils.join(', ')}, url("${imageUrl.replace(/"/g, '%22')}")`,
     backgroundSize: `${veilSizes.join(', ')}, ${size}`,
     backgroundPosition: `${veilPositions.join(', ')}, ${position}`,
   };
+  if (tiled) style['backgroundRepeat'] = `${veils.map(() => 'no-repeat').join(', ')}, repeat`;
+  return style;
 }
 
 function round(value: number): number {

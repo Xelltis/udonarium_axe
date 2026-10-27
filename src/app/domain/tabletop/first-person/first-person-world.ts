@@ -20,6 +20,8 @@ export interface FirstPersonWall {
   basePx: number;
   topPx: number;
   image: string;
+  /** The side of one tile of the picture, in pixels: a cell where the block tiles its picture, 0 where it stretches it over the face. */
+  tilePx: number;
   glass: boolean;
   seeThrough: boolean;
   door: boolean;
@@ -32,6 +34,8 @@ export interface FirstPersonCap {
   zPx: number;
   facing: 'up' | 'down';
   image: string;
+  /** The side of one tile of the picture, in pixels: a cell where the block tiles its picture, 0 where it stretches it over the face. */
+  tilePx: number;
   glass: boolean;
 }
 
@@ -78,12 +82,14 @@ export function firstPersonWorldOf(table: FirstPersonTableShape, terrains: reado
     const topPx = terrainTopPx(terrain, gridSize);
     const basePx = topPx - terrain.height * gridSize;
     const glass = !terrain.hasFaceImage;
+    const tilePx = terrain.isTiledTexture ? gridSize : 0;
     const outline = hexOutlineOf(terrain, table) ?? boxCorners(terrain, gridSize);
     if (terrain.hasWall && topPx > basePx) {
       const shared = {
         terrain: terrain.identifier,
         basePx,
         topPx,
+        tilePx,
         glass,
         seeThrough: !terrain.blocksSightNow,
         door: terrain.isDoor,
@@ -134,6 +140,7 @@ export function firstPersonWorldOf(table: FirstPersonTableShape, terrains: reado
         zPx: topPx,
         facing: 'up',
         image: terrain.faceImageIdentifier('top') || terrain.faceImageIdentifier('floor'),
+        tilePx,
         glass,
       });
       if (basePx > 0) {
@@ -144,6 +151,7 @@ export function firstPersonWorldOf(table: FirstPersonTableShape, terrains: reado
           zPx: basePx,
           facing: 'down',
           image: terrain.faceImageIdentifier('bottom') || terrain.faceImageIdentifier('floor'),
+          tilePx,
           glass,
         });
       }
@@ -197,6 +205,7 @@ function perimeterWallsOf(table: FirstPersonTableShape): FirstPersonWall[] {
         basePx: 0,
         topPx: heightPx,
         image: entry.image ?? '',
+        tilePx: 0,
         glass: false,
         seeThrough: false,
         door: false,
