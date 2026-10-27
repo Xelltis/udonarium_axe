@@ -28,7 +28,7 @@
       data-testid="overlay-line"
     >
       <span class="mr-2 text-[0.85rem] font-semibold" [style.color]="line.color || '#ffd479'">{{ line.name }}</span>
-      <span class="text-[1.05rem] leading-normal whitespace-pre-wrap">{{ line.text }}</span>
+      <span class="text-[1.05rem] leading-normal whitespace-pre-wrap"><ruby-text [parts]="line.parts" /></span>
     </li>
   }
 </ul>

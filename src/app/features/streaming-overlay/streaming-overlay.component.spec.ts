@@ -99,6 +99,16 @@ describe('StreamingOverlayComponent', () => {
     expect(lines()[0]).toContain('アリス');
   });
 
+  it('draws a line with its ruby and the chat’s decorations, not their marks', async () => {
+    chatTabs = [tab('メイン', [message({ identifier: 'a', text: '**大成功**だ|竜《ドラゴン》' })])];
+    await setup();
+
+    const line = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="overlay-line"]')!;
+    expect(line.querySelector('.chat-deco-bold')?.textContent).toBe('大成功');
+    expect(line.querySelector('ruby rt')?.textContent).toBe('ドラゴン');
+    expect(lines()[0]).not.toContain('**');
+  });
+
   it('leaves out a tab a spectator cannot see', async () => {
     chatTabs = [
       tab('メイン', [message({ identifier: 'a', text: '見える' })]),

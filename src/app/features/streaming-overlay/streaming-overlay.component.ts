@@ -16,6 +16,8 @@ import {
   DEFAULT_OVERLAY_FEED_OPTIONS,
   type OverlaySource,
 } from '@axe/features/streaming-overlay/streaming-overlay-feed';
+import { RubyTextComponent } from '@axe/ui/components/ruby-text/ruby-text.component';
+import { splitRubyNotation } from '@axe/ui/text-decoration/decorate-chat-text';
 import { turnIndicatorSignal } from '@axe/ui/turn/turn-indicator.signal';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -35,7 +37,7 @@ const TICK_MS = 10_000;
   selector: 'streaming-overlay',
   templateUrl: './streaming-overlay.component.html',
   host: { class: 'pointer-events-none fixed inset-0 z-160 block' },
-  imports: [TranslocoModule],
+  imports: [RubyTextComponent, TranslocoModule],
 })
 export class StreamingOverlayComponent {
   private readonly chat = inject(ChatMessageService);
@@ -62,7 +64,10 @@ export class StreamingOverlayComponent {
       for (const message of recentOf(tab)) sources.push(this.sourceOf(message));
     }
     sources.sort((a, b) => a.order - b.order);
-    return buildOverlayFeed(sources, this.clock.now());
+    return buildOverlayFeed(sources, this.clock.now()).map((line) => ({
+      ...line,
+      parts: splitRubyNotation(line.text),
+    }));
   });
 
   constructor() {
