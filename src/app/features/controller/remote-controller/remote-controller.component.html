@@ -402,9 +402,10 @@
               />{{ 'feature.controller.remote.battleOnChange' | transloco }}
             </label>
             <button
-              class="bg-ui-input border-ui-border-panel text-ui-text hover:bg-ui-hover hover:border-ui-muted rounded-ui-sm ml-auto inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2.5 py-1 text-[12px] whitespace-nowrap transition-[background,border-color] select-none [&_.material-icons]:text-[14px]!"
+              class="bg-ui-input border-ui-border-panel text-ui-text hover:bg-ui-hover hover:border-ui-muted rounded-ui-sm ml-auto inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2.5 py-1 text-[12px] whitespace-nowrap transition-[background,border-color] select-none disabled:cursor-default disabled:opacity-45 [&_.material-icons]:text-[14px]!"
               type="button"
               data-testid="remote-battle-play"
+              [disabled]="!rolePermission.canEditTabletop()"
               [title]="'feature.controller.remote.battlePlayHint' | transloco"
               (click)="playBattle()"
             >

@@ -119,6 +119,20 @@ describe('BattleCutInPanelComponent', () => {
     ]);
   });
 
+  it('lets one who only watches play the lineup on their own screen alone', async () => {
+    const playLineup = vi.spyOn(TestBed.inject(BattleLaunchService), 'playLineup').mockReturnValue(null);
+    hero.battleSide = 'left';
+    goblin.battleSide = 'right';
+    const root = open(PeerRole.Guest);
+
+    expect(root.querySelector<HTMLButtonElement>('[data-testid="battle-cut-in-play-room"]')!.disabled).toBe(true);
+    expect(root.querySelector('[data-testid="battle-cut-in-watcher-hint"]')).not.toBeNull();
+    component.playForRoom();
+    root.querySelector<HTMLElement>('[data-testid="battle-cut-in-play-here"]')!.click();
+
+    expect(playLineup.mock.calls).toEqual([[null, 'here']]);
+  });
+
   it('chooses what a piece strikes with', async () => {
     open(PeerRole.Player);
 

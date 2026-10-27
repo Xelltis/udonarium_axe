@@ -156,7 +156,7 @@ export class GameCharacterMenuService {
         onDeployDice: () => this.characterDice.deploy(char),
         onShowBattle: () =>
           this.roomPanels.open<BattleCutInPanelHandle>('battleCutIn', {}, (panel) => panel.focusOn(char.identifier)),
-        onPlayBattle: () => void this.playBattle(char),
+        onPlayBattle: this.rolePermission.canEditTabletop() ? () => void this.playBattle(char) : undefined,
         onSetBattleSide: this.rolePermission.isGameMaster() ? (side) => (char.battleSide = side ?? '') : undefined,
         onSetResourceSliders: this.resourceSliders.maySetAll(char)
           ? (shown) => this.resourceSliders.setAll(char, shown)

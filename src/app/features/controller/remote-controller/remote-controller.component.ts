@@ -20,6 +20,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { closeWhenOffTheTable } from '@axe/application/ui/close-when-off-the-table';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
@@ -109,6 +110,7 @@ export class RemoteControllerComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = inject(TRANSLATE_FN);
   private readonly battle = inject(BattleLaunchService);
+  protected readonly rolePermission = inject(RolePermissionService);
 
   /**
    * Whether a change made from here is played on the battle stage too, the character the panel
@@ -127,6 +129,7 @@ export class RemoteControllerComponent {
    * strikes the targets, or, with none ticked, the other side of the master's lineup.
    */
   playBattle(): void {
+    if (!this.rolePermission.canEditTabletop()) return;
     const attacker = this.character();
     const defenders = this.getTargetCharacters(true).filter((target) => target !== attacker);
     const scene = !attacker
@@ -769,7 +772,7 @@ export class RemoteControllerComponent {
    */
   private takeBattle(targets: readonly GameCharacter[]): BattleTake | null {
     const attacker = this.character();
-    if (!this.battleOnChange() || !attacker) return null;
+    if (!this.battleOnChange() || !attacker || !this.rolePermission.canEditTabletop()) return null;
     const defenders = targets.filter((target) => target !== attacker);
     return defenders.length > 0 ? this.battle.take({ attacker, defenders }) : null;
   }

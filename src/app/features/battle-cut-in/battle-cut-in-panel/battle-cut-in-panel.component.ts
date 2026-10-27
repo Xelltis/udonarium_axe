@@ -90,7 +90,8 @@ export class BattleCutInPanelComponent {
 
   /** Whether the reader runs the game, and so sets the lineup and the room's stage up. */
   readonly isGameMaster = computed(() => this.permission.isGameMaster());
-  private readonly canEditTable = computed(() => this.permission.canEditTabletop());
+  /** Whether the reader may play the stage for the whole room, as one who only watches may not. */
+  readonly canEditTable = computed(() => this.permission.canEditTabletop());
 
   /** Whether the last press of a play button found no bout to play. */
   readonly noBout = signal(false);
@@ -210,6 +211,7 @@ export class BattleCutInPanelComponent {
 
   /** Plays the lineup for the whole room. */
   playForRoom(): void {
+    if (!this.canEditTable()) return;
     this.noBout.set(this.launch.playLineup(null, 'everywhere') === null);
   }
 

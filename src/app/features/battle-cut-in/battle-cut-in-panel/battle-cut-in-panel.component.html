@@ -33,7 +33,7 @@
         type="button"
         class="bg-ui-accent-bg border-ui-accent text-ui-accent hover:bg-ui-accent-solid rounded-ui-sm inline-flex cursor-pointer items-center gap-1 border border-solid px-2.5 py-1 text-[12px] font-semibold hover:text-white disabled:cursor-default disabled:opacity-45 [&_.material-icons]:text-[15px]!"
         data-testid="battle-cut-in-play-room"
-        [disabled]="!next"
+        [disabled]="!next || !canEditTable()"
         (click)="playForRoom()"
       >
         <i class="material-icons">sports_martial_arts</i>{{ 'feature.battleCutIn.playForRoom' | transloco }}
@@ -50,6 +50,11 @@
     </div>
     @if (noBout()) {
       <p class="text-ui-danger m-0 text-[11px]">{{ 'feature.battleCutIn.noLineup' | transloco }}</p>
+    }
+    @if (!canEditTable()) {
+      <p class="text-ui-dim m-0 text-[11px]" data-testid="battle-cut-in-watcher-hint">
+        {{ 'feature.battleCutIn.watcherPlaysHere' | transloco }}
+      </p>
     }
     <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.battleCutIn.otherWays' | transloco }}</p>
   </section>

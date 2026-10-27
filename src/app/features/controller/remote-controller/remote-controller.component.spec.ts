@@ -10,6 +10,7 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataElement, DataElementAttribute, DataElementRole, DataElementType } from '@axe/domain/data/data-element';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { RemoteControllerComponent } from '@axe/features/controller/remote-controller/remote-controller.component';
 import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
@@ -413,6 +414,22 @@ describe('RemoteControllerComponent', () => {
       component.playBattle();
 
       expect(battle.playLineupAs).toHaveBeenCalledWith(hero, 'everywhere');
+    });
+
+    it('plays nothing for the room for one who only watches', () => {
+      const role = PeerCursor.myCursor.role;
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      try {
+        component.character.set(createChar('勇者'));
+        vi.spyOn(component, 'getTargetCharacters').mockReturnValue([createChar('ゴブリン')]);
+
+        component.playBattle();
+
+        expect(battle.play).not.toHaveBeenCalled();
+        expect(battle.playLineupAs).not.toHaveBeenCalled();
+      } finally {
+        PeerCursor.myCursor.role = role;
+      }
     });
 
     it('says so when there is no bout to play', () => {

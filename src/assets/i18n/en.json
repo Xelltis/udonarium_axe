@@ -5530,6 +5530,7 @@
       "playForRoom": "Play for everyone",
       "playHere": "Preview on my screen",
       "otherWays": "You can also play it with 《vs》 in the chat, the remote controller, a switch, or a piece's context menu.",
+      "watcherPlaysHere": "While watching, you can play it on your own screen only.",
       "lineupHeading": "Lineup",
       "lineupHint": "The GM splits the pieces on the table into left and right. When the lineup is played, the piece whose turn it is attacks if it stands in the lineup, and the pieces on the other side (up to 4) take the blow.",
       "left": "Left",

@@ -969,6 +969,37 @@ describe('GameCharacterComponent', () => {
       }
     });
 
+    it('offers to play the battle stage from the piece to a player, not to one who only watches', () => {
+      const menus = TestBed.inject(ContextMenuService);
+      const open = vi.spyOn(menus, 'open').mockImplementation(() => undefined);
+      const names = (actions: readonly unknown[]): string[] =>
+        actions.flatMap((action) => {
+          const entry = action as { name?: unknown; subActions?: readonly unknown[] } | null;
+          return [String(entry?.name ?? ''), ...names(entry?.subActions ?? [])];
+        });
+      const offersPlay = (call: number) =>
+        names(open.mock.calls[call][1] as readonly unknown[]).some((name) => /battlePlay|このコマで攻撃/.test(name));
+      const before = PeerCursor.myCursor;
+      const cursor = before ?? PeerCursor.createMyCursor();
+      const role = cursor.role;
+
+      try {
+        cursor.role = PeerRole.Player;
+        openMenu(false, 'standard').destroy();
+        cursor.role = PeerRole.Guest;
+        openMenu(false, 'standard').destroy();
+
+        expect(offersPlay(0)).toBe(true);
+        expect(offersPlay(1)).toBe(false);
+      } finally {
+        cursor.role = role;
+        if (!before) {
+          cursor.destroy();
+          PeerCursor.myCursor = before;
+        }
+      }
+    });
+
     it.each(['radial', 'four-way'] as const)('opens the four-way menu when the style is %s', (style) => {
       const menus = TestBed.inject(ContextMenuService);
       const openRadial = vi.spyOn(menus, 'openRadial').mockImplementation(() => undefined);
