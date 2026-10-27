@@ -427,7 +427,8 @@ SEは効果音ラボ・On-Jinの素材を取り込み、`PresetSound`経由で�
 - **舞台は卓の描画を流用** — 床を`rotateX(64deg)`で寝かせた3Dの板に、コマを立て、`effectSprites` / `effectParticlePlacements`をそのまま描く（ホットバーのプレビューと同じ部品）。効果は体の高さまで上げ（`BATTLE_EFFECT_RISE_PX`）、撃破の演出は上げずに、コマの絵を描く高さ（`defeatPictureHeight`）から基準の大きさを決めて絵に合わせる。コマ本体は卓のコマと同じ`animate-defeat-*`のキーフレームで消えるので、崩れた破片と二重に見えない
 - **時間割は純関数** — 開く → 踏み込み → 着弾（`effectLandingTimes`の最初）→ バーが減る → 撃破 → 閉じる、を`domain/battle/battle-timeline`が経過時間から出す。攻撃側のリソース（MPなど）は撃った瞬間に減らす。アニメーションを停止にしている画面は、閉じる直前の様子を静止画で2.6秒出す
 - **組と攻撃演出はコマの属性** — `GameCharacter.battleSide`（`left` / `right` / 空）と`battleEffect`（エフェクト名）。識別子は保存で振り直されるので、組を部屋の設定に識別子で持たない。組での再生は、手番 → 押した人のコマ → 左の先頭、の順に組にいるコマが攻撃する（`lineupBout`）。リモコンと右クリックの「このコマで攻撃」は`playLineupAs`で、手番に関係なくそのコマが攻撃する。コマの攻撃演出は名前で引き、GM専用のエフェクトでも見つける（設定したのはコマを扱える人なので）。チャットの`《名前》`はふだんどおり`findByName`で引く
-- **部屋の設定** — `Config._battleCutIn`に既定と違う項目だけを JSONで持つ（`domain/battle/battle-settings`。背景・撃破の有無・撃破のリソース名・撃破の演出）。空・読めない値は既定（撃破あり・HP・崩壊）。撃破は「0より大きかった値が0以下になった」ときだけで、増えるほど悪いリソースは最大値に達したとき
+- **部屋の設定** — `Config._battleCutIn`に既定と違う項目だけをJSONで持つ（`domain/battle/battle-settings`。舞台・背景画像・撃破の有無・撃破のリソース名・撃破の演出）。空・読めない値は既定（撃破あり・HP・崩壊）。撃破は「0より大きかった値が0以下になった」ときだけで、増えるほど悪いリソースは最大値に達したとき
+- **舞台の絵** — 舞台は5つ（`BATTLE_THEMES`。`fantasy` / `modern` / `horror` / `cyberpunk` / `mecha`、既定は`fantasy`）。場面に`theme`として載せて送るので全員が同じ絵を見る。知らない値は`fantasy`と読む。絵は`assets/images/battle/`のWebP（Adobe Fireflyで生成した16:9）で、舞台を再生したときに初めて読む。パネルの選択肢は`thumb/`の縮小版を使う。帯の縦横比は画面ごとに違うので、絵ごとの`object-position`（`battle-themes`の`focus`）で地平線と見どころを残す。帯は画面の高さの84%、コマの足元は帯の72%の高さに置く。部屋の背景画像を選ぶと舞台の絵の代わりにそれを敷く。縁取り・名前欄の色・「撃破」の色は舞台ごとに決めてある
 - **個人設定** — 出すかどうかは`BattleCutInPreferenceService`（localStorage、既定は出す）。出さない画面では、受け取った場面から攻撃のエフェクトを卓のコマに`EffectCastService.playHere()`で出し、撃破があれば着弾とバーの減りのあとに撃破の演出も出す
 - **入口** — チャットの`《vs》`（`domain/effect/effect-chat-token`の`hasBattleChatToken`。同じ行の`《名前》`は卓に撃たずカットインで使う）、パネル、リモコン（ボタンと「戦闘カットインでも見せる」）、コマの右クリック、スイッチの動作`battle`（旧版は`unknown`として保ったまま何もしない）
 
