@@ -399,9 +399,11 @@ export const CHAT_DECORATION_LOG_CSS =
   ".chat-font-pixel{font-family:'DotGothic16',sans-serif}" +
   '.chat-font-gothic{font-family:sans-serif}';
 
+const BOLD_STARS = '**';
+
 /** The marks a button writes round what is selected, in the language the reader reads the tool in. */
 export function chatDecorationMarks(key: ChatTagKey, language: ChatTagLanguage): { open: string; close: string } {
-  if (key === 'bold') return { open: '**', close: '**' };
+  if (key === 'bold') return { open: BOLD_STARS, close: BOLD_STARS };
   const name = CHAT_TAG_NAMES[key][language][0];
   return { open: `[${name}]`, close: `[/${name}]` };
 }
@@ -409,6 +411,9 @@ export function chatDecorationMarks(key: ChatTagKey, language: ChatTagLanguage):
 /**
  * Puts marks round the part of a text that is selected, or at the caret with nothing selected, and
  * says what to select afterwards: the part that was selected, or the caret between the marks.
+ *
+ * Stars only pair within a line, so a selection over several lines has each of its lines starred
+ * on its own, the empty ones left as they are.
  */
 export function wrapChatSelection(
   text: string,
@@ -418,6 +423,18 @@ export function wrapChatSelection(
 ): { text: string; selectionStart: number; selectionEnd: number } {
   const from = Math.max(0, Math.min(start, end, text.length));
   const to = Math.min(text.length, Math.max(start, end));
-  const wrapped = text.slice(0, from) + marks.open + text.slice(from, to) + marks.close + text.slice(to);
+  const selected = text.slice(from, to);
+  if (marks.open === BOLD_STARS && selected.includes('\n')) {
+    const lines = selected.split('\n');
+    const starred = lines.map((line) => (line.trim().length > 0 ? marks.open + line + marks.close : line)).join('\n');
+    const opens = lines[0].trim().length > 0 ? marks.open.length : 0;
+    const closes = (lines.at(-1) ?? '').trim().length > 0 ? marks.close.length : 0;
+    return {
+      text: text.slice(0, from) + starred + text.slice(to),
+      selectionStart: from + opens,
+      selectionEnd: from + starred.length - closes,
+    };
+  }
+  const wrapped = text.slice(0, from) + marks.open + selected + marks.close + text.slice(to);
   return { text: wrapped, selectionStart: from + marks.open.length, selectionEnd: to + marks.open.length };
 }

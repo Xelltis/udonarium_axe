@@ -173,4 +173,12 @@ describe('the marks a button writes', () => {
       selectionEnd: 4,
     });
   });
+
+  it('stars each line of a selection over several, as stars only pair within a line', () => {
+    const wrapped = wrapChatSelection('>a\nb\n\nc<', 1, 7, { open: '**', close: '**' });
+
+    expect(wrapped).toEqual({ text: '>**a**\n**b**\n\n**c**<', selectionStart: 3, selectionEnd: 17 });
+    expect(withoutChatDecoration(wrapped.text)).toBe('>a\nb\n\nc<');
+    expect(wrapChatSelection('a\nb', 0, 3, { open: '[赤]', close: '[/赤]' }).text).toBe('[赤]a\nb[/赤]');
+  });
 });
