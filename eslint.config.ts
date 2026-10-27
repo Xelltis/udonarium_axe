@@ -63,7 +63,7 @@ const FEATURE_DEPENDENCIES: Record<string, readonly string[]> = {
   'first-person': ['effect', 'tabletop'],
   'gm-object-list': ['character', 'disclosure', 'light-settings'],
   'gm-tools': ['chat', 'menu'],
-  hotbar: ['menu'],
+  hotbar: ['effect', 'menu'],
   inventory: ['tabletop'],
   keyboard: [],
   'light-settings': [],

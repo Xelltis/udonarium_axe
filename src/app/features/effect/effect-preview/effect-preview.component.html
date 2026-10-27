@@ -1,0 +1,31 @@
+<div
+  class="relative h-28 overflow-hidden rounded-[3px] bg-black/80 perspective-distant"
+  data-testid="effect-preview-stage"
+  aria-hidden="true"
+>
+  <div class="absolute top-[64%] left-1/2 size-0 transform-3d" [style.transform]="boardTransform()">
+    <div
+      class="absolute bg-[linear-gradient(to_right,rgb(255_255_255/0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgb(255_255_255/0.08)_1px,transparent_1px)]"
+      [ngStyle]="boardStyle"
+    ></div>
+    <div
+      class="absolute rounded-full border-2 border-solid border-white/45 bg-white/10"
+      data-testid="effect-preview-target"
+      [ngStyle]="targetStyle"
+    ></div>
+    @for (sprite of sprites(); track sprite.key) {
+      <div class="backface-visible" [ngStyle]="spriteStyle(sprite)">
+        @if (hasPaintLayer(sprite)) {
+          <div class="size-full" [ngStyle]="paintStyle(sprite)" [innerHTML]="sprite.svg | safe: 'html'"></div>
+        }
+      </div>
+    }
+    @for (placement of canvases(); track placement.key) {
+      <effect-canvas
+        class="backface-visible"
+        [ngStyle]="canvasStyle(placement)"
+        [layer]="placement.layer"
+      ></effect-canvas>
+    }
+  </div>
+</div>

@@ -449,6 +449,7 @@
         "stepsNone": "Fill another slot and it can be chosen here.",
         "stepDelay": "Gap",
         "effectOnSelf": "Ignore targets, play on self",
+        "effectPreview": "Preview",
         "stepsOrder": "Order and waits",
         "stepAtOnce": "at once",
         "stepUp": "Move up",

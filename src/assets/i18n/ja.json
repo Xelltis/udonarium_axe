@@ -449,6 +449,7 @@
         "stepsNone": "他の枠に何か登録すると、ここから選べます。",
         "stepDelay": "間隔",
         "effectOnSelf": "ターゲットを無視して自分に",
+        "effectPreview": "プレビュー",
         "stepsOrder": "実行順と間隔",
         "stepAtOnce": "すぐ",
         "stepUp": "上へ",
