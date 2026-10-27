@@ -1,3 +1,4 @@
+import { CHAT_DECORATION_LOG_CSS, withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import {
   ChatLogEntry,
   ChatLogExporter,
@@ -139,7 +140,7 @@ export function renderRichChatLog(
     '<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
     '<meta name="generator" content="Udonarium Axe">\n' +
     `<title>${esc(documentTitle)}</title>\n` +
-    `<style>${CHAT_LOG_BASE_CSS}${CHAT_LOG_THEME_CSS[style]}</style>\n` +
+    `<style>${CHAT_LOG_BASE_CSS}${CHAT_LOG_THEME_CSS[style]}${CHAT_DECORATION_LOG_CSS}</style>\n` +
     '</head>\n' +
     '<body>\n' +
     '<div class="log">\n' +
@@ -394,14 +395,11 @@ function renderAttachments(message: ChatLogLine, context: RenderContext): string
 }
 
 function textHtml(text: string): string {
-  return text
-    .split('\n')
-    .map((line) => esc(line))
-    .join('<br>');
+  return ChatLogExporter.escapeHtmlLines(text);
 }
 
 function rollTextHtml(text: string): string {
-  const lines = text.split('\n');
+  const lines = withoutChatDecoration(text).split('\n');
   return lines
     .map((line, index) => {
       const next = lines[index + 1];

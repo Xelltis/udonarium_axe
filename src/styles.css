@@ -11,6 +11,7 @@
 @import './styles/icons.css';
 @import './styles/theme.css';
 @import './styles/components.css';
+@import './styles/chat-decoration.css';
 @import './styles/ui-tokens.css';
 @import './styles/markdown.css';
 @import './styles/ng-select.css';

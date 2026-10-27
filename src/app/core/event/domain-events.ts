@@ -144,6 +144,12 @@ export const diceTableMessage$ = new EventChannel<DiceTableMessageEvent>();
 export const resourceEditMessage$ = new EventChannel<ResourceEditMessageEvent>();
 export const domainPeerDisconnect$ = new EventChannel<DomainPeerDisconnectEvent>();
 export const soundEffect$ = new EventChannel<string>();
+/**
+ * Asks for a font a chat line is drawn in, by the name the chat's decorations give it, so that
+ * whatever loads the fonts loads it before the line is seen. Asking again for one already loaded
+ * costs nothing.
+ */
+export const chatFontWanted$ = new EventChannel<string>();
 
 export const effectCast$ = new EventChannel<EffectCastEvent>();
 export const diceRolled$ = new EventChannel<DiceRolledEvent>();

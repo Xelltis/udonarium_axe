@@ -1,0 +1,422 @@
+/**
+ * The decorations a line of chat can carry, written in its text: `**bold**`, and a name in square
+ * brackets closed by `[/]` or by the name again, `[明朝]…[/明朝]`, for a font, a size, a colour,
+ * italics or a line through.
+ *
+ * Only a `**` paired with another on the same line makes bold, and only a tag closed later in the message takes
+ * effect: a lone `**`, a tag never closed, a closing tag with nothing to close, or a name the chat
+ * does not know stays the text it was. A message written before there were decorations is drawn as
+ * it always was, unless it happened to close a tag it opened. `\*` and `\[` write the character itself.
+ *
+ * An older version of the tool, or another tool, shows the marks as they were typed; nothing is kept
+ * anywhere but in the text.
+ */
+
+/** The fonts a line may be drawn in: the five that come with the tool, and the tool's own. */
+export const CHAT_FONT_KEYS = ['mincho', 'rounded', 'hand', 'pop', 'pixel', 'gothic'] as const;
+export type ChatFontKey = (typeof CHAT_FONT_KEYS)[number];
+
+/** The sizes a line may be drawn at, beside its own. */
+export const CHAT_SIZE_KEYS = ['small', 'large', 'huge'] as const;
+export type ChatSizeKey = (typeof CHAT_SIZE_KEYS)[number];
+
+/** The colours a line may be named in, each mid-toned so that it reads on a light or a dark chat. */
+export const CHAT_COLORS = {
+  red: '#e5484d',
+  orange: '#f76b15',
+  yellow: '#d6a400',
+  green: '#30a46c',
+  cyan: '#0797b9',
+  blue: '#3e63dd',
+  purple: '#8e4ec6',
+  pink: '#e93d82',
+  gray: '#8b8d98',
+  white: '#ffffff',
+  black: '#1c2024',
+} as const;
+export type ChatColorKey = keyof typeof CHAT_COLORS;
+
+/** What a run of a line is drawn with. A run drawn plainly has none. */
+export interface ChatDecoration {
+  readonly bold: boolean;
+  readonly italic: boolean;
+  readonly strike: boolean;
+  readonly size: ChatSizeKey | null;
+  readonly font: ChatFontKey | null;
+  /** A colour as `#rrggbb`, or null for the line's own. */
+  readonly color: string | null;
+}
+
+/** A run of a line and what it is drawn with, null for a plain one. */
+export interface DecoratedRun {
+  readonly text: string;
+  readonly decoration: ChatDecoration | null;
+}
+
+/** One kind of tag and what it sets: a font, a size, a colour, or one of the three marks. */
+type TagEffect =
+  | { kind: 'bold' | 'italic' | 'strike' }
+  | { kind: 'size'; value: ChatSizeKey }
+  | { kind: 'font'; value: ChatFontKey }
+  | { kind: 'color'; value: string };
+
+/** Every thing a tag can set, by the one name each is written with, the first in each language. */
+export type ChatTagKey = 'bold' | 'italic' | 'strike' | ChatSizeKey | `font:${ChatFontKey}` | `color:${ChatColorKey}`;
+
+/**
+ * The names a tag is written with, in Japanese, English and Korean, the first of each language being
+ * the one a button writes. English is read without regard to case.
+ */
+export const CHAT_TAG_NAMES: Readonly<
+  Record<ChatTagKey, { ja: readonly string[]; en: readonly string[]; ko: readonly string[] }>
+> = {
+  bold: { ja: ['太字'], en: ['bold'], ko: ['굵게'] },
+  italic: { ja: ['斜体'], en: ['italic'], ko: ['기울임'] },
+  strike: { ja: ['取消線'], en: ['strike'], ko: ['취소선'] },
+  small: { ja: ['小'], en: ['small'], ko: ['작게'] },
+  large: { ja: ['大'], en: ['large'], ko: ['크게'] },
+  huge: { ja: ['特大'], en: ['huge'], ko: ['아주크게'] },
+  'font:mincho': { ja: ['明朝'], en: ['mincho', 'serif'], ko: ['명조'] },
+  'font:rounded': { ja: ['丸ゴシック'], en: ['rounded'], ko: ['둥근고딕'] },
+  'font:hand': { ja: ['手書き'], en: ['handwriting'], ko: ['손글씨'] },
+  'font:pop': { ja: ['ポップ'], en: ['pop'], ko: ['팝'] },
+  'font:pixel': { ja: ['ドット'], en: ['pixel'], ko: ['도트'] },
+  'font:gothic': { ja: ['ゴシック'], en: ['gothic'], ko: ['고딕'] },
+  'color:red': { ja: ['赤'], en: ['red'], ko: ['빨강'] },
+  'color:orange': { ja: ['橙', 'オレンジ'], en: ['orange'], ko: ['주황'] },
+  'color:yellow': { ja: ['黄'], en: ['yellow'], ko: ['노랑'] },
+  'color:green': { ja: ['緑'], en: ['green'], ko: ['초록'] },
+  'color:cyan': { ja: ['水色'], en: ['cyan'], ko: ['하늘'] },
+  'color:blue': { ja: ['青'], en: ['blue'], ko: ['파랑'] },
+  'color:purple': { ja: ['紫'], en: ['purple'], ko: ['보라'] },
+  'color:pink': { ja: ['桃', 'ピンク'], en: ['pink'], ko: ['분홍'] },
+  'color:gray': { ja: ['灰', 'グレー'], en: ['gray', 'grey'], ko: ['회색'] },
+  'color:white': { ja: ['白'], en: ['white'], ko: ['흰색'] },
+  'color:black': { ja: ['黒'], en: ['black'], ko: ['검정'] },
+};
+
+/** The languages a tag's name is written in. */
+export type ChatTagLanguage = 'ja' | 'en' | 'ko';
+
+const TAG_BY_NAME: ReadonlyMap<string, ChatTagKey> = new Map(
+  (Object.entries(CHAT_TAG_NAMES) as [ChatTagKey, (typeof CHAT_TAG_NAMES)[ChatTagKey]][]).flatMap(([key, names]) =>
+    [...names.ja, ...names.en.map((name) => name.toLowerCase()), ...names.ko].map((name) => [name, key] as const)
+  )
+);
+
+const HEX_COLOR = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+/** What a tag's name sets, or null for a name the chat does not know. */
+function effectOfName(name: string): TagEffect | null {
+  const trimmed = name.trim();
+  if (HEX_COLOR.test(trimmed)) return { kind: 'color', value: fullHex(trimmed) };
+  const key = TAG_BY_NAME.get(trimmed) ?? TAG_BY_NAME.get(trimmed.toLowerCase());
+  return key ? effectOfKey(key) : null;
+}
+
+function effectOfKey(key: ChatTagKey): TagEffect {
+  if (key === 'bold' || key === 'italic' || key === 'strike') return { kind: key };
+  if (key === 'small' || key === 'large' || key === 'huge') return { kind: 'size', value: key };
+  const [kind, value] = key.split(':') as ['font' | 'color', string];
+  if (kind === 'font') return { kind, value: value as ChatFontKey };
+  return { kind, value: CHAT_COLORS[value as ChatColorKey] };
+}
+
+function fullHex(hex: string): string {
+  const digits = hex.slice(1).toLowerCase();
+  return `#${digits.length === 3 ? [...digits].map((digit) => digit + digit).join('') : digits}`;
+}
+
+/** Two effects that one closes the other: the same kind setting the same thing. */
+function sameEffect(a: TagEffect, b: TagEffect): boolean {
+  return a.kind === b.kind && ('value' in a ? a.value : '') === ('value' in b ? b.value : '');
+}
+
+type Token =
+  | { type: 'text'; text: string }
+  | { type: 'stars'; raw: string; pair: number }
+  | { type: 'open'; raw: string; effect: TagEffect; pair: number }
+  | { type: 'close'; raw: string; effect: TagEffect | null; pair: number };
+
+const OPEN_BRACKETS = '[［';
+const CLOSE_BRACKETS = ']］';
+const SLASHES = '/／';
+/** How far past a bracket its closing bracket is looked for: further than any tag's name runs. */
+const TAG_REACH = 24;
+
+/** Cuts a line into its text and the marks that might decorate it, before any is paired. */
+function tokensOf(text: string): Token[] {
+  const tokens: Token[] = [];
+  let plain = '';
+  const flush = () => {
+    if (plain.length > 0) tokens.push({ type: 'text', text: plain });
+    plain = '';
+  };
+  for (let at = 0; at < text.length; at++) {
+    const char = text[at];
+    const next = text[at + 1];
+    if (char === '\\' && (next === '*' || (next !== undefined && OPEN_BRACKETS.includes(next)))) {
+      plain += next;
+      at++;
+      continue;
+    }
+    if (char === '*' && next === '*') {
+      flush();
+      tokens.push({ type: 'stars', raw: '**', pair: -1 });
+      at++;
+      continue;
+    }
+    if (OPEN_BRACKETS.includes(char)) {
+      const end = indexOfAny(text, CLOSE_BRACKETS, at + 1, at + 1 + TAG_REACH);
+      const inside = end < 0 ? null : text.slice(at + 1, end);
+      if (inside !== null && inside.length > 0 && !/[[\]［］\n]/.test(inside)) {
+        const raw = text.slice(at, end + 1);
+        if (SLASHES.includes(inside[0])) {
+          const name = inside.slice(1);
+          const effect = name.trim().length > 0 ? effectOfName(name) : null;
+          if (name.trim().length === 0 || effect) {
+            flush();
+            tokens.push({ type: 'close', raw, effect, pair: -1 });
+            at = end;
+            continue;
+          }
+        } else {
+          const effect = effectOfName(inside);
+          if (effect) {
+            flush();
+            tokens.push({ type: 'open', raw, effect, pair: -1 });
+            at = end;
+            continue;
+          }
+        }
+      }
+    }
+    plain += char;
+  }
+  flush();
+  return tokens;
+}
+
+function indexOfAny(text: string, chars: string, from: number, until: number): number {
+  for (let at = from; at < Math.min(until, text.length); at++) if (chars.includes(text[at])) return at;
+  return -1;
+}
+
+/**
+ * Pairs the stars in the order they come within a line, and each closing tag with the latest open
+ * tag it closes: `[/]` the latest of all, a named one the latest of its own kind, so that tags may
+ * overlap. What is left unpaired stays text.
+ */
+function pair(tokens: Token[]): void {
+  let waiting = -1;
+  tokens.forEach((token, index) => {
+    if (token.type === 'text' && token.text.includes('\n')) waiting = -1;
+    if (token.type !== 'stars') return;
+    if (waiting < 0) {
+      waiting = index;
+      return;
+    }
+    token.pair = waiting;
+    (tokens[waiting] as { pair: number }).pair = index;
+    waiting = -1;
+  });
+  const open: number[] = [];
+  tokens.forEach((token, index) => {
+    if (token.type === 'open') {
+      open.push(index);
+      return;
+    }
+    if (token.type !== 'close') return;
+    const effect = token.effect;
+    let match = open.length - 1;
+    if (effect) {
+      while (match >= 0 && !sameEffect((tokens[open[match]] as { effect: TagEffect }).effect, effect)) match--;
+    }
+    if (match < 0) return;
+    const [opened] = open.splice(match, 1);
+    token.pair = opened;
+    (tokens[opened] as { pair: number }).pair = index;
+  });
+}
+
+const PLAIN: ChatDecoration = { bold: false, italic: false, strike: false, size: null, font: null, color: null };
+
+/** What the open effects come to: the marks if any is open, and the size, font and colour opened last. */
+function decorationOf(open: readonly TagEffect[], boldStars: boolean): ChatDecoration | null {
+  if (open.length < 1 && !boldStars) return null;
+  let decoration: ChatDecoration = { ...PLAIN, bold: boldStars };
+  for (const effect of open) {
+    switch (effect.kind) {
+      case 'bold':
+      case 'italic':
+      case 'strike':
+        decoration = { ...decoration, [effect.kind]: true };
+        break;
+      case 'size':
+        decoration = { ...decoration, size: effect.value };
+        break;
+      case 'font':
+        decoration = { ...decoration, font: effect.value };
+        break;
+      case 'color':
+        decoration = { ...decoration, color: effect.value };
+        break;
+    }
+  }
+  return decoration;
+}
+
+function sameDecoration(a: ChatDecoration | null, b: ChatDecoration | null): boolean {
+  if (a === null || b === null) return a === b;
+  return (
+    a.bold === b.bold &&
+    a.italic === b.italic &&
+    a.strike === b.strike &&
+    a.size === b.size &&
+    a.font === b.font &&
+    a.color === b.color
+  );
+}
+
+/** A line cut into runs, each with what it is drawn with, the marks taken out and the unpaired ones left as text. */
+export function decoratedRunsOf(text: string): DecoratedRun[] {
+  const tokens = tokensOf(text);
+  pair(tokens);
+  const runs: DecoratedRun[] = [];
+  const open: { index: number; effect: TagEffect }[] = [];
+  let bold = false;
+  const push = (piece: string) => {
+    if (piece.length < 1) return;
+    const decoration = decorationOf(
+      open.map((entry) => entry.effect),
+      bold
+    );
+    const last = runs.at(-1);
+    if (last && sameDecoration(last.decoration, decoration)) {
+      runs[runs.length - 1] = { text: last.text + piece, decoration };
+    } else {
+      runs.push({ text: piece, decoration });
+    }
+  };
+  tokens.forEach((token, index) => {
+    if (token.type === 'text') return push(token.text);
+    if (token.pair < 0) return push(token.raw);
+    if (token.type === 'stars') {
+      bold = token.pair > index;
+      return;
+    }
+    if (token.type === 'open') {
+      open.push({ index, effect: token.effect });
+      return;
+    }
+    const at = open.findIndex((entry) => entry.index === token.pair);
+    if (at >= 0) open.splice(at, 1);
+  });
+  return runs;
+}
+
+/** What a line says with its decorations taken out, as it is read aloud, searched or written plainly. */
+export function withoutChatDecoration(text: string): string {
+  return decoratedRunsOf(text)
+    .map((run) => run.text)
+    .join('');
+}
+
+/** The fonts the runs of a line are drawn in, each once, for whatever has to load them. */
+export function chatFontsIn(runs: readonly DecoratedRun[]): ChatFontKey[] {
+  const fonts = new Set<ChatFontKey>();
+  for (const run of runs) if (run.decoration?.font) fonts.add(run.decoration.font);
+  return [...fonts];
+}
+
+/** The classes a decorated run is drawn with: `chat-deco` and one for each thing it sets. */
+export function chatDecorationClasses(decoration: ChatDecoration): string {
+  const classes = ['chat-deco'];
+  if (decoration.bold) classes.push('chat-deco-bold');
+  if (decoration.italic) classes.push('chat-deco-italic');
+  if (decoration.strike) classes.push('chat-deco-strike');
+  if (decoration.size) classes.push(`chat-size-${decoration.size}`);
+  if (decoration.font) classes.push(`chat-font-${decoration.font}`);
+  return classes.join(' ');
+}
+
+/**
+ * The runs of a line as html, each decorated run in a span of its classes and colour and everything through
+ * `escape`, which makes the html of a plain piece of text (escaping it, with whatever else it reads).
+ *
+ * A span never runs over a line break: each line of a run gets its own, so that what reads a line
+ * at a time, as quoted lines are, finds its lines whole. A quote mark that starts a line is left out
+ * of the span, for the same reason. The colour is only ever a `#rrggbb` the parser made.
+ */
+export function chatDecorationMarkup(runs: readonly DecoratedRun[], escape: (text: string) => string): string {
+  let html = '';
+  let lineStart = true;
+  for (const run of runs) {
+    run.text.split('\n').forEach((piece, index) => {
+      if (index > 0) {
+        html += '\n';
+        lineStart = true;
+      }
+      if (piece.length < 1) return;
+      if (!run.decoration) {
+        html += escape(piece);
+        lineStart = false;
+        return;
+      }
+      let rest = piece;
+      if (lineStart) {
+        const quote = /^>\s?/.exec(rest);
+        if (quote) {
+          html += escape(quote[0]);
+          rest = rest.slice(quote[0].length);
+        }
+      }
+      lineStart = false;
+      if (rest.length < 1) return;
+      const color = run.decoration.color ? ` style="color: ${run.decoration.color}"` : '';
+      html += `<span class="${chatDecorationClasses(run.decoration)}"${color}>${escape(rest)}</span>`;
+    });
+  }
+  return html;
+}
+
+/**
+ * The rules a saved log draws the decorations by. A saved page carries no fonts, so each font is named
+ * for a reader who has it installed, and falls back to the family it is like.
+ */
+export const CHAT_DECORATION_LOG_CSS =
+  '.chat-deco-bold{font-weight:700}' +
+  '.chat-deco-italic{display:inline-block;transform:skewX(-12deg)}' +
+  '.chat-deco-strike{text-decoration:line-through}' +
+  '.chat-size-small{font-size:.8em}' +
+  '.chat-size-large{font-size:1.3em}' +
+  '.chat-size-huge{font-size:1.7em;line-height:1.25}' +
+  ".chat-font-mincho{font-family:'Shippori Mincho','Yu Mincho',YuMincho,'Hiragino Mincho ProN','Noto Serif JP',serif}" +
+  ".chat-font-rounded{font-family:'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif}" +
+  ".chat-font-hand{font-family:'Yomogi',sans-serif}" +
+  ".chat-font-pop{font-family:'Mochiy Pop One',sans-serif}" +
+  ".chat-font-pixel{font-family:'DotGothic16',sans-serif}" +
+  '.chat-font-gothic{font-family:sans-serif}';
+
+/** The marks a button writes round what is selected, in the language the reader reads the tool in. */
+export function chatDecorationMarks(key: ChatTagKey, language: ChatTagLanguage): { open: string; close: string } {
+  if (key === 'bold') return { open: '**', close: '**' };
+  const name = CHAT_TAG_NAMES[key][language][0];
+  return { open: `[${name}]`, close: `[/${name}]` };
+}
+
+/**
+ * Puts marks round the part of a text that is selected, or at the caret with nothing selected, and
+ * says what to select afterwards: the part that was selected, or the caret between the marks.
+ */
+export function wrapChatSelection(
+  text: string,
+  start: number,
+  end: number,
+  marks: { open: string; close: string }
+): { text: string; selectionStart: number; selectionEnd: number } {
+  const from = Math.max(0, Math.min(start, end, text.length));
+  const to = Math.min(text.length, Math.max(start, end));
+  const wrapped = text.slice(0, from) + marks.open + text.slice(from, to) + marks.close + text.slice(to);
+  return { text: wrapped, selectionStart: from + marks.open.length, selectionEnd: to + marks.open.length };
+}

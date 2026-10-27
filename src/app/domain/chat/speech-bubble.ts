@@ -7,6 +7,7 @@
  * not speech, and get none.
  */
 import { toGraphemes } from '@axe/core/util/graphemes';
+import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import type { ChatMessage } from '@axe/domain/chat/chat-message';
 import { RUBY_NOTATION } from '@axe/domain/chat/chat-ruby-notation';
 
@@ -60,11 +61,11 @@ function cutShort(text: string): string {
 
 /**
  * The words of a line as a bubble shows them: what is inside 「」 where the line quotes anything,
- * the whole line otherwise, with ruby read as the words it sits on and cut short past
- * {@link SPEECH_BUBBLE_MAX_LETTERS} letters or {@link SPEECH_BUBBLE_MAX_LINES} lines.
+ * the whole line otherwise, with ruby read as the words it sits on, the chat's decorations left out,
+ * and cut short past {@link SPEECH_BUBBLE_MAX_LETTERS} letters or {@link SPEECH_BUBBLE_MAX_LINES} lines.
  */
 export function speechTextOf(text: string): string {
-  const plain = `${text ?? ''}`.replace(/\r\n?/g, '\n').replace(RUBY_NOTATION, '$1');
+  const plain = withoutChatDecoration(`${text ?? ''}`.replace(/\r\n?/g, '\n')).replace(RUBY_NOTATION, '$1');
   const quoted = [...plain.matchAll(QUOTED)].map((match) => match[1].trim()).filter((said) => said.length > 0);
   return cutShort(quoted.length > 0 ? quoted.join('\n') : plain);
 }

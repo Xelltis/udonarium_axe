@@ -1,3 +1,4 @@
+import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import { ChatLogEntry, ChatLogExporter, ChatLogLine, ChatLogTab } from '@axe/domain/chat/chat-log-exporter';
 import {
   ChatLogLabels,
@@ -21,7 +22,7 @@ const REPLY_LENGTH = 120;
  * they were placed, each under its time and name and, for every tab at once, its tab; a day line
  * where the date changes; the quoted or replied-to line below the one answering it; and the marks
  * for a secret roll, an edit and a deletion. A ruby is written as the words with their reading after
- * them in brackets, and an attached picture by its name.
+ * them in brackets, the chat's decorations as the words alone, and an attached picture by its name.
  */
 export function renderPlainChatLog(
   scope: ChatLogScope,
@@ -90,7 +91,7 @@ function entryLines(
 
 function bodyLines(message: ChatLogLine, options: ChatLogRenderOptions): string[] {
   const text = withRubyInBrackets(
-    vnBodyOf(message.vnEmote, ChatLogExporter.decode(message.text, options.textDecoder)),
+    withoutChatDecoration(vnBodyOf(message.vnEmote, ChatLogExporter.decode(message.text, options.textDecoder))),
     options
   );
   const lines = text.split(/\r?\n/);

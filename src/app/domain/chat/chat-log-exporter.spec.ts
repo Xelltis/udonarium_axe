@@ -38,6 +38,11 @@ describe('ChatLogExporter', () => {
       }
     });
 
+    it('carries the rules the chat’s decorations are drawn by', () => {
+      expect(ChatLogExporter.STYLE_BLOCK).toContain('.chat-deco-bold{');
+      expect(ChatLogExporter.STYLE_BLOCK).toContain('.chat-font-mincho{');
+    });
+
     it('holds a tall portrait by its top edge, so the head is not cut off', () => {
       expect(ChatLogExporter.STYLE_BLOCK).toContain('object-position:50% 0');
     });
@@ -113,6 +118,16 @@ describe('ChatLogExporter', () => {
       const result = ChatLogExporter.formatMessageStandard(false, '', msg);
 
       expect(result).toContain('一行目<br>二行目<br>三行目');
+    });
+
+    it('draws the chat’s decorations, a span on each line of them, the text inside escaped', () => {
+      const msg = createMockMessage({ text: '**<強>**\n[明朝]一\n二[/]' });
+      const result = ChatLogExporter.formatMessageStandard(false, '', msg);
+
+      expect(result).toContain(
+        '<span class="chat-deco chat-deco-bold">&lt;強&gt;</span><br>' +
+          '<span class="chat-deco chat-font-mincho">一</span><br><span class="chat-deco chat-font-mincho">二</span>'
+      );
     });
 
     it('puts the name of the tab in front where there is one', () => {

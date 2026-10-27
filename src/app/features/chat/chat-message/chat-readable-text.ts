@@ -1,5 +1,6 @@
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TranslateFn } from '@axe/application/i18n/translate.token';
+import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { readingOf, RUBY_NOTATION } from '@axe/domain/chat/chat-ruby-notation';
 import { vnBodyOf } from '@axe/domain/visual-novel/vn-emote';
@@ -21,12 +22,12 @@ const ESCAPED_SPACE = /\\s/g;
  *
  * A notice from the room is read in the reader's language. Ruby comes out as the words with their
  * reading after them in brackets, since plain text cannot set a reading over its words, and the
- * log saved from chat keeps the reading as well.
+ * log saved from chat keeps the reading as well. The chat's decorations are left out.
  */
 export function readableChatText(message: ChatMessage, hidden: boolean, translate: TranslateFn): string {
   if (hidden) return '';
   const text = message.isSystemMessage ? decodeI18nMessage(message.text, translate) : (message.text ?? '');
-  return vnBodyOf(message.vnEmote, text)
+  return withoutChatDecoration(vnBodyOf(message.vnEmote, text))
     .replace(RUBY_NOTATION, (_, base: string, reading: string) => `${base}（${readingOf(reading)}）`)
     .replace(ESCAPED_SPACE, ' ')
     .trim();

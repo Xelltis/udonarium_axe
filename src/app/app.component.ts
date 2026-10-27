@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { HandRailService } from '@axe/application/card/hand-rail.service';
+import { ChatFontService } from '@axe/application/chat/chat-font.service';
 import { SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
 import { DiceThrowService } from '@axe/application/dice/dice-throw.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
@@ -204,6 +205,7 @@ export class AppComponent {
     inject(CutInService);
     inject(AudioAnalysisService);
     inject(SpeechBubbleService);
+    inject(ChatFontService);
     inject(GravityService);
     inject(LegacyScratchMaskMigrationService);
     inject(TurnOrderService);

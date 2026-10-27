@@ -54,6 +54,7 @@ describe('chat ticker layout', () => {
     expect(formatChatTickerMessage({ name: '案内役', text: '扉が開く\n音がした' })).toBe(
       '案内役：扉が開く 音がした　◆'
     );
+    expect(formatChatTickerMessage({ name: '案内役', text: '[赤]**扉**[/]が開く' })).toBe('案内役：扉が開く　◆');
     expect(formatChatTickerMessage({ text: '秘密', isDirect: true })).toBeNull();
     expect(formatChatTickerMessage({ text: '秘匿', isSecret: true })).toBeNull();
     expect(formatChatTickerMessage({ text: 'システム', isSystem: true })).toBeNull();
