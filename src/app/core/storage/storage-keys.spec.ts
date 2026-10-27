@@ -5,6 +5,8 @@ describe('the keys the app keeps settings under in the browser', () => {
     expect(STORAGE_KEYS).toEqual({
       ambienceFrameStep: 'ui-ambience-frame-step',
       audioAnalyses: 'audio-analyses',
+      battleCutIn: 'axe.battle.cutIn',
+      battleCutInRemote: 'axe.battle.remote',
       beatLightOff: 'beat-light-off',
       buffView: 'ui-buff-view',
       chatAutoFollow: 'chat-auto-follow-scroll',

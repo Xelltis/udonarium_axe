@@ -304,6 +304,33 @@ describe('GameCharacter', () => {
     });
   });
 
+  describe('the battle stage', () => {
+    it('stands out of the lineup and strikes with the stage’s own effect from older saved data', () => {
+      const restored = ObjectSerializer.instance.parseXml('<character></character>') as GameCharacter;
+
+      expect(restored.battleSide).toBe('');
+      expect(restored.battleEffect).toBe('');
+    });
+
+    it('writes its side and its effect into saved data', () => {
+      character.battleSide = 'right';
+      character.battleEffect = '爆炎';
+      const xml = ObjectSerializer.instance.toXml(character);
+
+      expect(xml).toContain('battleSide="right"');
+      expect(xml).toContain('battleEffect="爆炎"');
+    });
+
+    it('reads its side and its effect back out of saved data', () => {
+      const restored = ObjectSerializer.instance.parseXml(
+        '<character battleSide="right" battleEffect="爆炎"></character>'
+      ) as GameCharacter;
+
+      expect(restored.battleSide).toBe('right');
+      expect(restored.battleEffect).toBe('爆炎');
+    });
+  });
+
   // ----------------------------------------------------------------
   // folderName
   // ----------------------------------------------------------------

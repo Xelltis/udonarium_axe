@@ -250,6 +250,14 @@ export class RoomPanelService {
             ),
           option: { width: 360, height: 480 },
         };
+      case 'battleCutIn':
+        return {
+          load: () =>
+            import('@axe/features/battle-cut-in/battle-cut-in-panel/battle-cut-in-panel.component').then(
+              (m) => m.BattleCutInPanelComponent
+            ),
+          option: { width: 420, height: 620, minWidth: 340, minHeight: 360, single: 'battle-cut-in' },
+        };
       case 'mapEditor':
         return {
           load: () =>

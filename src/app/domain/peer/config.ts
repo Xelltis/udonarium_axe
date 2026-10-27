@@ -2,6 +2,7 @@ import { VolumeType } from '@axe/core/storage/audio-output';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { InnerXml } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { BattleSettings, readBattleSettings, writeBattleSettings } from '@axe/domain/battle/battle-settings';
 import {
   ControllerResourcePick,
   readControllerResourcePick,
@@ -60,6 +61,7 @@ export class Config extends withRuleAnswers() implements InnerXml {
   @SyncVar('_stampRules') private _stampRules: string = '';
   @SyncVar('_systemNotices') private _systemNotices: string = '';
   @SyncVar('_speechBubbles') private _speechBubbles: string = '';
+  @SyncVar('_battleCutIn') private _battleCutIn: string = '';
   @SyncVar('_turnSignal') private _turnSignal: string = '';
   @SyncVar('_turnTick') private _turnTick: string = '';
   @SyncVar('_resourceSliderDefault') private _resourceSliderDefault: string = '';
@@ -189,6 +191,19 @@ export class Config extends withRuleAnswers() implements InnerXml {
   }
   set systemNotices(routes: SystemNoticeRoutes) {
     this._systemNotices = writeSystemNotices(routes);
+  }
+
+  /**
+   * What the room says about its battle stage: the picture behind it and how a fighter goes down,
+   * each at its default until the room chooses otherwise.
+   *
+   * @see BattleSettings
+   */
+  get battleSettings(): BattleSettings {
+    return readBattleSettings(this._battleCutIn);
+  }
+  set battleSettings(settings: BattleSettings) {
+    this._battleCutIn = writeBattleSettings(settings);
   }
 
   /** The room's master volume, shared by every peer; a change applied to the config updates the jukebox at once. */

@@ -38,6 +38,10 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
 import type { Vote } from '@axe/domain/vote/vote';
 import { AlarmEventHandlerService } from '@axe/features/alarm/alarm-event-handler.service';
+import { BattleChatEventHandlerService } from '@axe/features/battle-cut-in/battle-chat-event-handler.service';
+import { BattleCutInEventHandlerService } from '@axe/features/battle-cut-in/battle-cut-in-event-handler.service';
+import { BattleCutInOverlayComponent } from '@axe/features/battle-cut-in/battle-cut-in-overlay/battle-cut-in-overlay.component';
+import { BattleCutInStateService } from '@axe/features/battle-cut-in/battle-cut-in-state.service';
 import { ButtonGuideEventHandlerService } from '@axe/features/button-guide/button-guide-event-handler.service';
 import { CardEventHandlerService } from '@axe/features/card/card-event-handler.service';
 import { HandDragGhostComponent } from '@axe/features/card/hand-rail/hand-drag-ghost.component';
@@ -133,6 +137,7 @@ import { version as APP_VERSION } from '@pkg';
     ChatTickerComponent,
     FabDrawerComponent,
     VisualNovelOverlayComponent,
+    BattleCutInOverlayComponent,
     ReloadNoticeDirective,
   ],
 })
@@ -144,6 +149,7 @@ export class AppComponent {
   private readonly renderLite = inject(RenderLiteService);
   private readonly language = inject(LanguageService);
   readonly visualNovel = inject(VisualNovelModeService);
+  protected readonly battleCutIn = inject(BattleCutInStateService);
   private readonly handRail = inject(HandRailService);
   readonly widgets = inject(WidgetVisibilityService);
   readonly viewport = inject(ViewportService);
@@ -188,6 +194,8 @@ export class AppComponent {
     inject(ChatSoundEventHandlerService);
     inject(TurnSoundEventHandlerService);
     inject(EffectChatEventHandlerService);
+    inject(BattleCutInEventHandlerService);
+    inject(BattleChatEventHandlerService);
     inject(VoteEventHandlerService);
     inject(CardEventHandlerService);
     inject(VisualNovelEventHandlerService);

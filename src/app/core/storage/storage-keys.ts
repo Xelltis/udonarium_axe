@@ -8,6 +8,8 @@
 export const STORAGE_KEYS = {
   ambienceFrameStep: 'ui-ambience-frame-step',
   audioAnalyses: 'audio-analyses',
+  battleCutIn: 'axe.battle.cutIn',
+  battleCutInRemote: 'axe.battle.remote',
   beatLightOff: 'beat-light-off',
   buffView: 'ui-buff-view',
   chatAutoFollow: 'chat-auto-follow-scroll',

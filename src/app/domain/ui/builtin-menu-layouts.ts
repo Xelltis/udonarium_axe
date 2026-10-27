@@ -43,7 +43,7 @@ const FAB: MenuLayout = {
       'diceTableSetting',
       'handRail',
     ]),
-    group('media', 'movie', 'app.fab.media', ['images', 'jukebox', 'cutIn', 'effectLibrary']),
+    group('media', 'movie', 'app.fab.media', ['images', 'jukebox', 'cutIn', 'effectLibrary', 'battleCutIn']),
     group(
       'saveLoad',
       'sd_storage',

@@ -2094,7 +2094,13 @@
         "stealth": "스텔스 (GM과 소유자·같은 파티에게만 보임)",
         "resourceSliders": "리소스 슬라이더",
         "resourceSlidersShowAll": "모두 표시",
-        "resourceSlidersHideAll": "모두 숨기기"
+        "resourceSlidersHideAll": "모두 숨기기",
+        "battle": "전투 컷인",
+        "battlePlay": "이 말로 공격",
+        "battleEffect": "공격 연출 선택…",
+        "battleSide_left": "왼쪽 편성에 넣기",
+        "battleSide_right": "오른쪽 편성에 넣기",
+        "battleSide_none": "편성에 넣지 않기"
       },
       "panel": {
         "sheet": "캐릭터 시트",
@@ -5095,7 +5101,11 @@
         "mobileResourceTab": "리소스",
         "mobileTargetSummary": "대상 {{count}}체: {{names}}",
         "mobileNoTarget": "대상이 선택되지 않았습니다. \"대상\"에서 골라 주세요",
-        "mobileAppliesTo": "선택 중인 {{count}}체에 실행합니다"
+        "mobileAppliesTo": "선택 중인 {{count}}체에 실행합니다",
+        "battleOnChange": "전투 컷인으로도 보여주기",
+        "battlePlay": "전투 컷인",
+        "battlePlayHint": "이 리모컨의 캐릭터가 타깃을 공격하는 전투 컷인을 모두에게 표시합니다. 타깃이 없으면 좌우 편성에서 반대쪽 말을 공격합니다.",
+        "battleNoBout": "전투 컷인을 표시할 수 없습니다. 타깃을 고르거나 GM이 좌우 편성을 만들어 주세요."
       }
     },
     "alarm": {
@@ -5580,7 +5590,8 @@
         "spawn": "말 불러내기",
         "showTable": "테이블 전환",
         "carry": "누른 사람의 말 옮기기",
-        "tableSetting": "테이블 설정 바꾸기"
+        "tableSetting": "테이블 설정 바꾸기",
+        "battle": "전투 컷인"
       },
       "delay": "대기 (초)",
       "moveUp": "위로",
@@ -5671,7 +5682,8 @@
         "keep": "그대로",
         "on": "켜기",
         "off": "끄기"
-      }
+      },
+      "battleHint": "GM이 좌우로 나눈 말로 전투 컷인을 모두에게 표시합니다. 공격하는 말은 편성에 있는 말 중 차례인 말, 누른 사람의 말, 왼쪽 첫 번째 말 순입니다."
     },
     "soundSettings": {
       "ownHeading": "내 음량",
@@ -5792,6 +5804,44 @@
       "offerActionUp_rider": "일어나서 타기",
       "offerActionUp_passenger": "일어나서 동승하기",
       "offerActionUp_cargo": "일어나서 실리기"
+    },
+    "battleCutIn": {
+      "title": "전투 컷인",
+      "defeated": "격파",
+      "close": "닫기",
+      "shownHere": "이 화면에 전투 컷인 표시",
+      "shownHereHint": "이 화면에만 적용됩니다. 끄면 공격과 격파 연출을 테이블 위에서 봅니다.",
+      "playHeading": "재생",
+      "bout": "공격: {{attacker}} → {{defenders}}",
+      "boutByTurn": "공격: {{attacker}}(차례) → {{defenders}}",
+      "noLineup": "왼쪽과 오른쪽 모두에 말을 두면 재생할 수 있습니다.",
+      "playForRoom": "모두에게 재생",
+      "playHere": "내 화면에서만 보기",
+      "otherWays": "채팅의 《vs》, 리모컨, 스위치, 말의 우클릭 메뉴에서도 재생할 수 있습니다.",
+      "lineupHeading": "좌우 편성",
+      "lineupHint": "GM이 테이블의 말을 왼쪽과 오른쪽으로 나눕니다. 편성으로 재생하면 차례인 말이 편성에 있을 때 그 말이 공격하고, 반대쪽 말(4개까지)이 공격을 받습니다.",
+      "left": "왼쪽",
+      "right": "오른쪽",
+      "removeFromLineup": "편성에서 빼기",
+      "onTable": "테이블의 말",
+      "toLeft": "왼쪽으로",
+      "toRight": "오른쪽으로",
+      "effectHeading": "말의 공격 연출",
+      "effectHint": "연출을 지정하지 않은 공격에서는 말에 설정한 연출이 나옵니다. 설정이 없으면 피해나 회복량에 맞는 연출이 나옵니다.",
+      "piece": "말",
+      "effect": "연출",
+      "stageEffect": "(설정 안 함)",
+      "noPieces": "테이블에 말이 없습니다.",
+      "roomHeading": "방 설정",
+      "roomMasterOnly": "GM만 변경할 수 있습니다.",
+      "background": "배경",
+      "chooseBackground": "이미지 선택",
+      "defaultBackground": "기본으로 되돌리기",
+      "defeatOn": "리소스가 0이 되면 격파 연출 표시",
+      "defeatResource": "리소스",
+      "defeatResourceHint": "예: HP",
+      "defeatEffect": "격파 연출",
+      "defaultDefeatEffect": "기본(崩壊)"
     }
   },
   "app": {

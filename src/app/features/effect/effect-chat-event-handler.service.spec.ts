@@ -91,6 +91,14 @@ describe('EffectChatEventHandlerService', () => {
     expect(firedCaster).toBe(caster);
   });
 
+  it('leaves the effect of a line played on the battle stage to the stage', () => {
+    const message = addMessage('t:HP-10 《爆炎》《vs》', caster.identifier);
+
+    emitResourceEditMessage({ messageIdentifier: message.identifier, messageTargetContext: null });
+
+    expect(castStub.fire).not.toHaveBeenCalled();
+  });
+
   it('takes the target of the resource change first', () => {
     const message = addMessage('《爆炎》', caster.identifier);
 

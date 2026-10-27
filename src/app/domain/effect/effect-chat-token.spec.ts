@@ -1,5 +1,7 @@
 import {
+  BATTLE_CHAT_TOKEN,
   buildEffectChatToken,
+  hasBattleChatToken,
   parseEffectChatToken,
   stripEffectChatTokens,
 } from '@axe/domain/effect/effect-chat-token';
@@ -31,6 +33,11 @@ describe('parseEffectChatToken()', () => {
     expect(parseEffectChatToken('｜炎《ほのお》を放つ')).toBeNull();
   });
 
+  it('passes over the battle stage token, which names no effect', () => {
+    expect(parseEffectChatToken('t:HP-10 《vs》')).toBeNull();
+    expect(parseEffectChatToken('t:HP-10 《VS》《爆炎》')).toEqual({ name: '爆炎', text: 't:HP-10' });
+  });
+
   it('finds the one that comes after a ruby, keeping the ruby in the line', () => {
     expect(parseEffectChatToken('|火球《ファイアボール》を撃つ《爆炎》')).toEqual({
       name: '爆炎',
@@ -51,6 +58,24 @@ describe('stripEffectChatTokens()', () => {
   it('leaves the dice and the resource changes alone', () => {
     // It reads the double brackets alone, so it collides with no existing notation.
     expect(stripEffectChatTokens('2d6+3 t:HP-10 s:MP-2')).toBe('2d6+3 t:HP-10 s:MP-2');
+  });
+});
+
+describe('hasBattleChatToken()', () => {
+  it('finds the token in either width and either case', () => {
+    expect(hasBattleChatToken(`t:HP-10 ${BATTLE_CHAT_TOKEN}`)).toBe(true);
+    expect(hasBattleChatToken('t:HP-10 《VS》')).toBe(true);
+    expect(hasBattleChatToken('t:HP-10 《ｖｓ》')).toBe(true);
+    expect(hasBattleChatToken('《 vs 》で斬る')).toBe(true);
+  });
+
+  it('finds nothing in a line without it', () => {
+    expect(hasBattleChatToken('t:HP-10 《爆炎》')).toBe(false);
+    expect(hasBattleChatToken('勇者 vs 魔王')).toBe(false);
+  });
+
+  it('never reads the reading of a ruby as the token', () => {
+    expect(hasBattleChatToken('|対決《vs》')).toBe(false);
   });
 });
 

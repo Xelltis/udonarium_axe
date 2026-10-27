@@ -1,0 +1,151 @@
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { BattleCutInPreferenceService } from '@axe/application/battle/battle-cut-in-preference.service';
+import { BattleLaunchService } from '@axe/application/battle/battle-launch.service';
+import { ObjectStore } from '@axe/core/sync/object-store';
+import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
+import { DEFAULT_BATTLE_SETTINGS } from '@axe/domain/battle/battle-settings';
+import { GameCharacter } from '@axe/domain/character/game-character';
+import { createEffectPreset, DEFAULT_EFFECT_PRESET_SEEDS } from '@axe/domain/effect/builtin-effect-presets';
+import { Config } from '@axe/domain/peer/config';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
+import { TurnState } from '@axe/domain/tabletop/turn-state';
+import { BattleCutInPanelComponent } from '@axe/features/battle-cut-in/battle-cut-in-panel/battle-cut-in-panel.component';
+import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+
+describe('BattleCutInPanelComponent', () => {
+  let fixture: ComponentFixture<BattleCutInPanelComponent>;
+  let component: BattleCutInPanelComponent;
+  let hero: GameCharacter;
+  let goblin: GameCharacter;
+  let mage: GameCharacter;
+
+  function open(role: PeerRole): HTMLElement {
+    PeerCursor.myCursor.role = role;
+    fixture = TestBed.createComponent(BattleCutInPanelComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  /** Lets the change notices the room batches up reach the panel, and draws it again. */
+  async function settle(): Promise<void> {
+    await waitZeroTimeout();
+    fixture.detectChanges();
+  }
+
+  const texts = (root: HTMLElement, selector: string) =>
+    [...root.querySelectorAll(selector)].map((element) => element.textContent?.replace(/\s+/g, ' ').trim() ?? '');
+
+  beforeEach(() => {
+    localStorage.clear();
+    PeerCursor.createMyCursor();
+    TestBed.configureTestingModule({ imports: [BattleCutInPanelComponent], providers: [...TEST_PROVIDERS] });
+    for (const seed of DEFAULT_EFFECT_PRESET_SEEDS) createEffectPreset(seed, seed.identifier);
+    hero = GameCharacter.create('勇者', 1, '');
+    goblin = GameCharacter.create('ゴブリン', 1, '');
+    mage = GameCharacter.create('魔法使い', 1, '');
+  });
+
+  afterEach(async () => {
+    fixture?.destroy();
+    Config.instance.battleSettings = DEFAULT_BATTLE_SETTINGS;
+    TurnState.instance.currentIdentifier = '';
+    await waitZeroTimeout();
+    for (const object of ObjectStore.instance.getObjects()) ObjectStore.instance.delete(object, false);
+    ObjectStore.instance.clearDeleteHistory();
+  });
+
+  it('lists the pieces by the side the master put them on', () => {
+    hero.battleSide = 'left';
+    goblin.battleSide = 'right';
+    const root = open(PeerRole.GameMaster);
+
+    expect(texts(root, '[data-testid="battle-lineup-left"]')[0]).toContain('勇者');
+    expect(texts(root, '[data-testid="battle-lineup-right"]')[0]).toContain('ゴブリン');
+    expect(texts(root, '[data-testid="battle-lineup-other"]')).toEqual([expect.stringContaining('魔法使い')]);
+  });
+
+  it('lets the master put a piece on a side, and follows the change', async () => {
+    const root = open(PeerRole.GameMaster);
+
+    root.querySelector<HTMLElement>('[data-testid="battle-to-right-魔法使い"]')!.click();
+    await settle();
+
+    expect(mage.battleSide).toBe('right');
+    expect(texts(root, '[data-testid="battle-lineup-right"]')[0]).toContain('魔法使い');
+  });
+
+  it('shows a player the lineup without the means to change it', () => {
+    hero.battleSide = 'left';
+    const root = open(PeerRole.Player);
+
+    expect(root.querySelector('[data-testid="battle-lineup-other"]')).toBeNull();
+    component.setSide(goblin.identifier, 'right');
+    expect(goblin.battleSide).toBe('');
+  });
+
+  it('says who would strike whom, whose turn it is first', async () => {
+    hero.battleSide = 'left';
+    goblin.battleSide = 'right';
+    mage.battleSide = 'right';
+    const root = open(PeerRole.Player);
+    expect(texts(root, '[data-testid="battle-cut-in-bout"]')[0]).toContain('勇者 → ゴブリン、魔法使い');
+
+    TurnState.instance.currentIdentifier = mage.identifier;
+    await settle();
+
+    expect(texts(root, '[data-testid="battle-cut-in-bout"]')[0]).toContain('魔法使い（手番） → 勇者');
+  });
+
+  it('plays the lineup for the room or only here, and only where there is a bout', async () => {
+    const launch = TestBed.inject(BattleLaunchService);
+    const playLineup = vi.spyOn(launch, 'playLineup').mockReturnValue(null);
+    const root = open(PeerRole.Player);
+    expect(root.querySelector<HTMLButtonElement>('[data-testid="battle-cut-in-play-room"]')!.disabled).toBe(true);
+
+    hero.battleSide = 'left';
+    goblin.battleSide = 'right';
+    await settle();
+    root.querySelector<HTMLElement>('[data-testid="battle-cut-in-play-room"]')!.click();
+    root.querySelector<HTMLElement>('[data-testid="battle-cut-in-play-here"]')!.click();
+
+    expect(playLineup.mock.calls).toEqual([
+      [null, 'everywhere'],
+      [null, 'here'],
+    ]);
+  });
+
+  it('chooses what a piece strikes with', async () => {
+    open(PeerRole.Player);
+
+    component.focusOn(goblin.identifier);
+    component.setEffect('斬撃');
+    await settle();
+
+    expect(goblin.battleEffect).toBe('斬撃');
+    expect(component.focusedPreset()?.name).toBe('斬撃');
+  });
+
+  it('turns the stage off for this screen alone', () => {
+    const root = open(PeerRole.Player);
+
+    root.querySelector<HTMLInputElement>('[data-testid="battle-cut-in-shown"]')!.click();
+
+    expect(TestBed.inject(BattleCutInPreferenceService).shown()).toBe(false);
+  });
+
+  it('lets the master alone set how a fighter goes down', () => {
+    const asPlayer = open(PeerRole.Player);
+    expect(asPlayer.querySelector<HTMLInputElement>('[data-testid="battle-defeat"]')!.disabled).toBe(true);
+    component.setDefeatResource('生命力');
+    expect(Config.instance.battleSettings.defeatResource).toBe('HP');
+    fixture.destroy();
+
+    const asMaster = open(PeerRole.GameMaster);
+    component.setDefeatResource('生命力');
+    asMaster.querySelector<HTMLInputElement>('[data-testid="battle-defeat"]')!.click();
+
+    expect(Config.instance.battleSettings).toMatchObject({ defeatResource: '生命力', defeat: false });
+  });
+});

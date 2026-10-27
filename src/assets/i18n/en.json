@@ -2094,7 +2094,13 @@
         "stealth": "Stealth (only the GM, the owner and their party see it)",
         "resourceSliders": "Resource sliders",
         "resourceSlidersShowAll": "Show them all",
-        "resourceSlidersHideAll": "Hide them all"
+        "resourceSlidersHideAll": "Hide them all",
+        "battle": "Battle cut-in",
+        "battlePlay": "Attack with this piece",
+        "battleEffect": "Choose attack effect…",
+        "battleSide_left": "Put on the left",
+        "battleSide_right": "Put on the right",
+        "battleSide_none": "Leave out of the lineup"
       },
       "panel": {
         "sheet": "Character sheet",
@@ -5296,7 +5302,8 @@
         "spawn": "Call up pieces",
         "showTable": "Switch the table",
         "carry": "Carry the presser's piece",
-        "tableSetting": "Change table settings"
+        "tableSetting": "Change table settings",
+        "battle": "Battle cut-in"
       },
       "delay": "Wait (s)",
       "moveUp": "Move up",
@@ -5387,7 +5394,8 @@
         "keep": "Leave as is",
         "on": "On",
         "off": "Off"
-      }
+      },
+      "battleHint": "Plays a battle cut-in for everyone with the pieces the GM put on the left and right. The attacker is, of the pieces in the lineup, the one whose turn it is, then the presser's piece, then the first on the left."
     },
     "soundSettings": {
       "ownHeading": "Your volume",
@@ -5508,6 +5516,44 @@
       "offerActionUp_rider": "Get up and ride",
       "offerActionUp_passenger": "Get up and ride behind",
       "offerActionUp_cargo": "Get up and be loaded"
+    },
+    "battleCutIn": {
+      "title": "Battle cut-in",
+      "defeated": "Defeated",
+      "close": "Close",
+      "shownHere": "Show battle cut-ins on this screen",
+      "shownHereHint": "This applies to your screen only. When it is off, you see the attack and defeat effects on the table instead.",
+      "playHeading": "Play",
+      "bout": "Attacker: {{attacker}} → {{defenders}}",
+      "boutByTurn": "Attacker: {{attacker}} (their turn) → {{defenders}}",
+      "noLineup": "Put pieces on both the left and the right to play.",
+      "playForRoom": "Play for everyone",
+      "playHere": "Preview on my screen",
+      "otherWays": "You can also play it with 《vs》 in the chat, the remote controller, a switch, or a piece's context menu.",
+      "lineupHeading": "Lineup",
+      "lineupHint": "The GM splits the pieces on the table into left and right. When the lineup is played, the piece whose turn it is attacks if it stands in the lineup, and the pieces on the other side (up to 4) take the blow.",
+      "left": "Left",
+      "right": "Right",
+      "removeFromLineup": "Remove from the lineup",
+      "onTable": "Pieces on the table",
+      "toLeft": "To left",
+      "toRight": "To right",
+      "effectHeading": "Attack effect of a piece",
+      "effectHint": "An attack that names no effect plays the effect set on the piece. Without one, an effect that suits the amount of damage or healing plays.",
+      "piece": "Piece",
+      "effect": "Effect",
+      "stageEffect": "(None)",
+      "noPieces": "There are no pieces on the table.",
+      "roomHeading": "Room settings",
+      "roomMasterOnly": "Only the GM can change these.",
+      "background": "Background",
+      "chooseBackground": "Choose image",
+      "defaultBackground": "Use default",
+      "defeatOn": "Play a defeat effect when the resource reaches 0",
+      "defeatResource": "Resource",
+      "defeatResourceHint": "e.g. HP",
+      "defeatEffect": "Defeat effect",
+      "defaultDefeatEffect": "Default (崩壊)"
     }
   },
   "app": {
@@ -5649,7 +5695,11 @@
       "mobileResourceTab": "Resources",
       "mobileTargetSummary": "{{count}} target(s): {{names}}",
       "mobileNoTarget": "No target selected. Pick one under \"Targets\".",
-      "mobileAppliesTo": "Applies to the {{count}} selected"
+      "mobileAppliesTo": "Applies to the {{count}} selected",
+      "battleOnChange": "Also show on the battle cut-in",
+      "battlePlay": "Battle cut-in",
+      "battlePlayHint": "Plays a battle cut-in for everyone, with this remote's character attacking the targets. Without targets, it attacks the pieces on the other side of the lineup.",
+      "battleNoBout": "The battle cut-in cannot be played. Choose targets, or ask the GM to set up the lineup."
     }
   },
   "feature.alarm": {

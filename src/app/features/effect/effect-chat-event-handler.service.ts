@@ -5,7 +5,7 @@ import { resourceEditMessage$ } from '@axe/core/event/domain-events';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
-import { parseEffectChatToken } from '@axe/domain/effect/effect-chat-token';
+import { hasBattleChatToken, parseEffectChatToken } from '@axe/domain/effect/effect-chat-token';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 
 /**
@@ -15,6 +15,7 @@ import { EffectPreset } from '@axe/domain/effect/effect-preset';
  * receiving end as well would play it once per player.
  *
  * It aims at whatever the resource change aims at, so one line covers the roll, the damage and the effect.
+ * A line that also carries the battle stage's token plays its effect on the stage instead.
  */
 @Injectable({ providedIn: 'root' })
 export class EffectChatEventHandlerService {
@@ -28,6 +29,8 @@ export class EffectChatEventHandlerService {
       const message = this.objectStore.get<ChatMessage>(event.messageIdentifier);
       if (!(message instanceof ChatMessage) || !message.isSendFromSelf || message.isSystem) return;
 
+      // A line played on the battle stage carries its effect there instead.
+      if (hasBattleChatToken(message.text)) return;
       const token = parseEffectChatToken(message.text);
       if (!token) return;
 

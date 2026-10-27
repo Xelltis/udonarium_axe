@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { VolumeType } from '@axe/core/storage/audio-output';
 import { ObjectContext } from '@axe/core/sync/game-object';
 import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
+import { DEFAULT_BATTLE_SETTINGS } from '@axe/domain/battle/battle-settings';
 import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
 import { DEFAULT_SYSTEM_NOTICES, withNoticeRoute } from '@axe/domain/chat/system-notices';
 import { DEFAULT_DJ_SETTINGS } from '@axe/domain/media/dj-settings';
@@ -343,6 +344,37 @@ describe('Config', () => {
       Config.instance.systemNotices = withNoticeRoute(DEFAULT_SYSTEM_NOTICES, 'bgm', 'off');
 
       expect(attributesOf(Config.instance.toContext())['_systemNotices']).toBe('{"bgm":"off"}');
+    });
+  });
+
+  describe('what the room says about its battle stage', () => {
+    function attributesOf(context: ObjectContext): Record<string, unknown> {
+      return context.syncData['attributes'] as Record<string, unknown>;
+    }
+
+    afterEach(() => {
+      Config.instance.battleSettings = DEFAULT_BATTLE_SETTINGS;
+    });
+
+    it('reads a room saved before the stage, or a bag that came in empty, as the defaults', () => {
+      Config.instance.battleSettings = { ...DEFAULT_BATTLE_SETTINGS, defeat: false };
+      const older = Config.instance.toContext();
+      delete attributesOf(older)['_battleCutIn'];
+      older.majorVersion += 1;
+
+      Config.instance.apply(older);
+
+      expect(Config.instance.battleSettings).toEqual(DEFAULT_BATTLE_SETTINGS);
+    });
+
+    it('passes on only what the room changed, with the rest of the config', () => {
+      Config.instance.battleSettings = { ...DEFAULT_BATTLE_SETTINGS, defeatResource: '生命力' };
+
+      expect(attributesOf(Config.instance.toContext())['_battleCutIn']).toBe('{"defeatResource":"生命力"}');
+    });
+
+    it('holds nothing at all for a room that left the stage alone', () => {
+      expect(attributesOf(Config.instance.toContext())['_battleCutIn']).toBe('');
     });
   });
 

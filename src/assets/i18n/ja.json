@@ -2094,7 +2094,13 @@
         "stealth": "ステルス（GMと持ち主・仲間にだけ見える）",
         "resourceSliders": "リソースのスライダー",
         "resourceSlidersShowAll": "すべて出す",
-        "resourceSlidersHideAll": "すべて隠す"
+        "resourceSlidersHideAll": "すべて隠す",
+        "battle": "戦闘カットイン",
+        "battlePlay": "このコマで攻撃",
+        "battleEffect": "攻撃演出を選ぶ…",
+        "battleSide_left": "左の組に入れる",
+        "battleSide_right": "右の組に入れる",
+        "battleSide_none": "組に入れない"
       },
       "panel": {
         "sheet": "キャラクターシート",
@@ -5296,7 +5302,8 @@
         "spawn": "コマを呼び出す",
         "showTable": "テーブルを切り替える",
         "carry": "押した人のコマを運ぶ",
-        "tableSetting": "テーブル設定を変える"
+        "tableSetting": "テーブル設定を変える",
+        "battle": "戦闘カットイン"
       },
       "delay": "待ち（秒）",
       "moveUp": "上へ",
@@ -5387,7 +5394,8 @@
         "keep": "そのまま",
         "on": "オン",
         "off": "オフ"
-      }
+      },
+      "battleHint": "GM が左右に分けたコマで、戦闘カットインを全員に出します。攻撃するのは、組にいるコマのうち手番のコマ、押した人のコマ、左の先頭の順です。"
     },
     "soundSettings": {
       "ownHeading": "自分の音量",
@@ -5508,6 +5516,44 @@
       "offerActionUp_rider": "起き上がって乗る",
       "offerActionUp_passenger": "起き上がって同乗する",
       "offerActionUp_cargo": "起き上がって積まれる"
+    },
+    "battleCutIn": {
+      "title": "戦闘カットイン",
+      "defeated": "撃破",
+      "close": "閉じる",
+      "shownHere": "この画面で戦闘カットインを出す",
+      "shownHereHint": "この画面だけの設定です。出さないときは、攻撃と撃破の演出を卓の上で見ます。",
+      "playHeading": "再生",
+      "bout": "攻撃: {{attacker}} → {{defenders}}",
+      "boutByTurn": "攻撃: {{attacker}}（手番） → {{defenders}}",
+      "noLineup": "左と右の両方にコマを置くと再生できます。",
+      "playForRoom": "全員に再生",
+      "playHere": "自分だけで見る",
+      "otherWays": "チャットの《vs》、リモコン、スイッチ、コマの右クリックからも出せます。",
+      "lineupHeading": "左右の組",
+      "lineupHint": "GM が卓のコマを左右に分けます。組で再生すると、手番のコマが組にいればそのコマが攻撃し、反対側のコマ（4体まで）が攻撃を受けます。",
+      "left": "左",
+      "right": "右",
+      "removeFromLineup": "組から外す",
+      "onTable": "卓のコマ",
+      "toLeft": "左へ",
+      "toRight": "右へ",
+      "effectHeading": "コマの攻撃演出",
+      "effectHint": "演出を指定しない攻撃では、コマに設定した演出が出ます。設定がなければ、ダメージや回復の量に合った演出が出ます。",
+      "piece": "コマ",
+      "effect": "演出",
+      "stageEffect": "（設定しない）",
+      "noPieces": "卓にコマがありません。",
+      "roomHeading": "部屋の設定",
+      "roomMasterOnly": "GM だけが変更できます。",
+      "background": "背景",
+      "chooseBackground": "画像を選ぶ",
+      "defaultBackground": "既定に戻す",
+      "defeatOn": "リソースが 0 になったら撃破の演出を出す",
+      "defeatResource": "リソース",
+      "defeatResourceHint": "例: HP",
+      "defeatEffect": "撃破の演出",
+      "defaultDefeatEffect": "既定（崩壊）"
     }
   },
   "app": {
@@ -5649,7 +5695,11 @@
       "mobileResourceTab": "リソース",
       "mobileTargetSummary": "対象 {{count}} 体：{{names}}",
       "mobileNoTarget": "対象が未選択です。「対象」で選んでください",
-      "mobileAppliesTo": "選択中の {{count}} 体に実行します"
+      "mobileAppliesTo": "選択中の {{count}} 体に実行します",
+      "battleOnChange": "戦闘カットインでも見せる",
+      "battlePlay": "戦闘カットイン",
+      "battlePlayHint": "このリモコンのキャラクターがターゲットを攻撃する戦闘カットインを全員に出します。ターゲットがいなければ、左右の組で反対側のコマを攻撃します。",
+      "battleNoBout": "戦闘カットインを出せません。ターゲットを選ぶか、GM が左右の組を作ってください。"
     }
   },
   "feature.alarm": {
