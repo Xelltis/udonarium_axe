@@ -158,6 +158,18 @@
     }
   },
   "feature": {
+    "gpuNotice": {
+      "title": "Graphics acceleration is turned off",
+      "body": "This browser is drawing the page without the GPU, which makes Udonarium Axe very slow. We strongly recommend turning graphics acceleration on in the browser’s settings.",
+      "steps": {
+        "chrome": "In Chrome, turn on “Use graphics acceleration when available” under System in Settings.",
+        "edge": "In Edge, turn on “Use graphics acceleration when available” under System and performance in Settings.",
+        "firefox": "In Firefox, go to Performance under General in Settings, uncheck “Use recommended performance settings” and check “Use hardware acceleration when available”.",
+        "other": "Look for “hardware acceleration” or “graphics acceleration” in the browser’s settings and turn it on."
+      },
+      "restart": "Restart the browser once the setting is changed.",
+      "close": "Close"
+    },
     "zone": {
       "menu": {
         "title": "Engagement zone",

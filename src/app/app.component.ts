@@ -52,6 +52,7 @@ import { AssetRemovalEventHandlerService } from '@axe/features/file/asset-remova
 import { FilesTooLargeEventHandlerService } from '@axe/features/file/files-too-large/files-too-large-event-handler.service';
 import { FirstPersonViewComponent } from '@axe/features/first-person/first-person-view/first-person-view.component';
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
+import { GpuNoticeComponent } from '@axe/features/gpu-notice/gpu-notice.component';
 import { HotbarBarComponent } from '@axe/features/hotbar/hotbar-bar/hotbar-bar.component';
 import { ShortcutSheetComponent } from '@axe/features/keyboard/shortcut-sheet.component';
 import { TabletopShortcutEventHandlerService } from '@axe/features/keyboard/tabletop-shortcut-event-handler.service';
@@ -118,6 +119,7 @@ import { version as APP_VERSION } from '@pkg';
     MobileShellComponent,
     ShortcutSheetComponent,
     RoomRestoreBannerComponent,
+    GpuNoticeComponent,
     ReplayStagingBannerComponent,
     ReplayIndicatorComponent,
     ReplayBoardBannerComponent,

@@ -61,6 +61,7 @@ const FEATURE_DEPENDENCIES: Record<string, readonly string[]> = {
   effect: [],
   file: ['moderation'],
   'first-person': ['effect', 'tabletop'],
+  'gpu-notice': [],
   'gm-object-list': ['character', 'disclosure', 'light-settings'],
   'gm-tools': ['chat', 'menu'],
   hotbar: ['effect', 'menu'],
