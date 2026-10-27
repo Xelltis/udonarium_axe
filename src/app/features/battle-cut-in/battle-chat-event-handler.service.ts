@@ -3,11 +3,10 @@ import { BattleLaunchLoaderService } from '@axe/application/battle/battle-launch
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { resourceEditMessage$ } from '@axe/core/event/domain-events';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { lineChangesResources, lineIsSecret } from '@axe/domain/battle/battle-chat-line';
+import { chatLineBout, lineChangesResources, lineIsSecret } from '@axe/domain/battle/battle-chat-line';
 import { takeBattle } from '@axe/domain/battle/battle-take';
-import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
-import { hasBattleChatToken, parseEffectChatToken } from '@axe/domain/effect/effect-chat-token';
+import { parseEffectChatToken } from '@axe/domain/effect/effect-chat-token';
 
 /**
  * Plays a chat line carrying the battle stage's token, `《vs》`, as an exchange on the stage.
@@ -28,17 +27,18 @@ export class BattleChatEventHandlerService {
     resourceEditMessage$.subscribe((event) => {
       const message = this.objectStore.get<ChatMessage>(event.messageIdentifier);
       if (!(message instanceof ChatMessage) || !message.isSendFromSelf || message.isSystem) return;
-      if (!hasBattleChatToken(message.text)) return;
 
-      const attacker = this.objectStore.get<GameCharacter>(message.sendFrom);
-      if (!(attacker instanceof GameCharacter)) return;
-      const defenders = this.targetsOf(event.messageTargetContext, attacker);
-      if (defenders.length < 1) return;
+      const bout = chatLineBout(
+        message.text,
+        this.objectStore.get(message.sendFrom),
+        (event.messageTargetContext ?? []).map((entry) => (entry as ChatMessageTargetContext).object),
+        () => this.castService.candidateTargets()
+      );
+      if (!bout) return;
 
       // Read before anything moves: the dice bot works the numbers out after this has heard the line.
       const take = takeBattle({
-        attacker,
-        defenders,
+        ...bout,
         effectName: parseEffectChatToken(message.text)?.name,
         secret: lineIsSecret(message.text),
       });
@@ -48,14 +48,5 @@ export class BattleChatEventHandlerService {
         else launch?.finish(take);
       });
     }, this.destroyRef);
-  }
-
-  /** Those the line aims at, else those picked out on the table, never the one speaking. */
-  private targetsOf(context: unknown[] | null, attacker: GameCharacter): GameCharacter[] {
-    const targeted = (context ?? [])
-      .map((entry) => (entry as ChatMessageTargetContext).object)
-      .filter((object): object is GameCharacter => object instanceof GameCharacter);
-    const targets = targeted.length > 0 ? targeted : this.castService.candidateTargets();
-    return targets.filter((target) => target.identifier !== attacker.identifier);
   }
 }
