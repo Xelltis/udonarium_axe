@@ -255,9 +255,11 @@ export class BattleCutInOverlayComponent {
     return this.still() ? timeline.outroStart - 1 : this.clock();
   });
 
+  /** The fighters as they stand, each picture taking the silhouette's place as soon as it arrives. */
   readonly views = computed<FighterView[]>(() => {
     const scene = this.scene();
     if (!scene) return [];
+    this.objectChange.fileVersion();
     const across = oppositeBattleSide(scene.attackerSide);
     const spread = stageSpread(this.viewport().width, this.bandHeight());
     const points = defenderPoints(scene.attackerSide, scene.defenders.length, spread);

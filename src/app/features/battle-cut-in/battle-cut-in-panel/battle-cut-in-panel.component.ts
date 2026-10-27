@@ -108,15 +108,16 @@ export class BattleCutInPanelComponent {
     });
   });
 
-  readonly rows = computed<BattlePieceRow[]>(() =>
-    this.pieces().map((character) => ({
+  readonly rows = computed<BattlePieceRow[]>(() => {
+    this.objectChange.fileVersion();
+    return this.pieces().map((character) => ({
       identifier: character.identifier,
       name: character.name,
       imageUrl: character.imageFile.url,
       side: asBattleSide(character.battleSide),
       effect: character.battleEffect,
-    }))
-  );
+    }));
+  });
 
   readonly left = computed(() => this.rows().filter((row) => row.side === 'left'));
   readonly right = computed(() => this.rows().filter((row) => row.side === 'right'));

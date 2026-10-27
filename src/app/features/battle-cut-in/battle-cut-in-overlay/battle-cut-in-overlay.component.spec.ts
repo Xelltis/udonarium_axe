@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -115,6 +116,29 @@ describe('BattleCutInOverlayComponent', () => {
       expect(plate.style.borderLeft).toMatch(/#4aa3ff|rgb\(74, 163, 255\)/);
     } finally {
       ImageStorage.instance.delete('arena');
+    }
+  });
+
+  it('puts in a fighter’s picture that arrives while the scene plays', () => {
+    const played = scene();
+    const root = play({ ...played, attacker: { ...played.attacker, image: 'late-hero' } });
+    expect(root.querySelector('img[alt="勇者"]')).toBeNull();
+
+    ImageStorage.instance.add({
+      identifier: 'late-hero',
+      name: 'hero.webp',
+      type: 'image/webp',
+      blob: new Blob(['picture'], { type: 'image/webp' }),
+      url: 'blob:late-hero',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    try {
+      TestBed.inject(ObjectChangeService).fileVersion.update((version) => version + 1);
+      fixture.detectChanges();
+
+      expect(root.querySelector('img[alt="勇者"]')?.getAttribute('src')).toBe('blob:late-hero');
+    } finally {
+      ImageStorage.instance.delete('late-hero');
     }
   });
 
