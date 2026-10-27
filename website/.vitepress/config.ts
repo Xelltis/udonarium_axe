@@ -285,6 +285,7 @@ export default defineConfig({
             { text: '音の設定', link: '/manual/sound-settings' },
             { text: 'カットイン', link: '/manual/cut-in' },
             { text: 'マップ演出（エフェクト）', link: '/manual/map-effects' },
+            { text: '戦闘カットイン', link: '/manual/battle-cut-in' },
             { text: 'ビジュアルノベルモード', link: '/manual/visual-novel' },
           ],
         },

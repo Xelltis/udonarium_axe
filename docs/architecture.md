@@ -43,7 +43,7 @@ composition → features → ui → application → infrastructure → domain �
 
 純粋ドメインモデル層。Angular / DOM非依存。
 
-- **配下**: `alarm`, `card`, `character`, `chat`, `coin`, `data`, `dice`, `disclosure`, `effect`, `hotbar`, `inventory`, `map-editor`, `media`, `party`, `peer`, `replay`, `tabletop`, `ui`, `visual-novel`, `vote`
+- **配下**: `alarm`, `battle`, `card`, `character`, `chat`, `coin`, `data`, `dice`, `disclosure`, `effect`, `hotbar`, `inventory`, `map-editor`, `media`, `party`, `peer`, `replay`, `tabletop`, `ui`, `visual-novel`, `vote`
 - **依存可能**: `core`
 - **入れる**: `@SyncObject`クラス、純粋計算（hex-geometry, table-layout, skill-judgement, 交戦エリアの`tabletop/zone/zone-queries`, 視界の`tabletop/vision/`, 移動範囲の`tabletop/move/reach-build`, 手番の`tabletop/turn-machine`等）
 - **入れない**: DOM API直接呼び出し（`document.*` / `window.confirm` / `addEventListener`）、Angularの`@Injectable` / `inject`、`infrastructure`以上のレイヤー
@@ -67,7 +67,7 @@ domain ↔ DOM/Webを橋渡しするアダプタ層。
 
 Angular DIで`domain` / `infrastructure`をラップしたユースケース / 状態サービス層。
 
-- **配下**: `card`, `character`, `chat`, `coin`, `dice`, `effect`, `file`, `hotbar`, `i18n`, `input`, `inventory`, `lobby`, `logging`, `media`, `moderation`, `party`, `permission`, `replay`, `storage`, `sync`（`ObjectChangeService`）, `tabletop`, `turn`, `ui`（`PanelService` / `ModalService` / `ContextMenuService` / `ThemeService`等）
+- **配下**: `battle`, `card`, `character`, `chat`, `coin`, `dice`, `effect`, `file`, `hotbar`, `i18n`, `input`, `inventory`, `lobby`, `logging`, `media`, `moderation`, `party`, `permission`, `replay`, `storage`, `sync`（`ObjectChangeService`）, `tabletop`, `turn`, `ui`（`PanelService` / `ModalService` / `ContextMenuService` / `ThemeService`等）
 - **依存可能**: `core`, `domain`, `infrastructure`
 - **入れる**: `@Injectable`サービス。複数featureが共有する状態管理（PanelService, ContextMenuService, ObjectChangeService等）。core/domainのAngular DI化レイヤー
 - **入れない**: `ui`パーツや`features`の参照、特定feature専用UI開閉ロジック、1つのfeatureだけが使うサービス（そのfeatureの中に置く）

@@ -133,7 +133,7 @@ Udonarium Axeが**追加**または**大きく拡張・再設計**した機能�
 ## スイッチ
 
 - **押すと起きること** — `BoardSwitch`（`domain/tabletop/board-switch/board-switch`、`@SyncObject('board-switch')`）を、地形か、「押したとき（スイッチ）」（`TRIGGER_MOMENTS`の`press`）で塗った地面の子ObjectNodeとして下げる。属性にしないのは、旧版のピアが地形を動かしたり固定したりするとき、知らない属性ごと設定を書き戻して消してしまうため（子なら触られない。旧版は読み込み時に知らないタグを読み飛ばす）。中身は`definition`という1本のJSON（`v: 1`）で、知らない欄や知らない動作（`kind: 'unknown'`）も保持して書き戻す。押下状態は`spent` / `spentBy`（罠と同じ`writeSpentBy`形式）/ `spentRound`（既定-1。空文字も未押下と読む）/ `retired`で持つ
-- **動作と押し方** — 動作は、発言・秘密の結果・効果音・エフェクト・カットイン・伏せた物を見せる・伏せる・押した物を消す・コマを呼び出す・テーブルを切り替える・押した人のコマを運ぶ・テーブル設定を変える、の12種。1つのスイッチに最大20個まで入れられ、2つ目以降は各最大10秒の待ちを置ける。実行するのは押した端末だけで（5人の部屋で同じ発言が5回出ないように）、上から順に1つずつ`try/catch`で包んで進める（`application/tabletop/switch-press.service`）。地形は固定してあるときだけクリックで押せる。塗りは空の卓をクリックして押し、重なっていれば最後に塗ったものが反応する（`pressGroundAt`）。実行中と押した後1.5秒（`SWITCH_COOLDOWN_MS`）は、押しても`busy`として無視する
+- **動作と押し方** — 動作は、発言・秘密の結果・効果音・エフェクト・カットイン・伏せた物を見せる・伏せる・押した物を消す・コマを呼び出す・テーブルを切り替える・押した人のコマを運ぶ・テーブル設定を変える・戦闘カットイン、の13種。1つのスイッチに最大20個まで入れられ、2つ目以降は各最大10秒の待ちを置ける。実行するのは押した端末だけで（5人の部屋で同じ発言が5回出ないように）、上から順に1つずつ`try/catch`で包んで進める（`application/tabletop/switch-press.service`）。地形は固定してあるときだけクリックで押せる。塗りは空の卓をクリックして押し、重なっていれば最後に塗ったものが反応する（`pressGroundAt`）。実行中と押した後1.5秒（`SWITCH_COOLDOWN_MS`）は、押しても`busy`として無視する
 - **押せる条件** — 回数は`always` / `once` / `oncePerPiece` / `oncePerRound`から選び、数える単位は選んでいるキャラ（いなければユーザー）。動作より先に記録するので、別の端末が直後に押しても使い切り扱いになる。押せない理由は`pressRefusal`（`switch-press-rules`）の8種で、押した場所に一瞬表示する。距離は`stepsToReach`がマス数で数え、壁は無視する。距離と視界の条件はGMには課さないが、回数はGMにも課す（試し押しは数えない）
 - **編集はGMだけ** — 権限は`BoardSwitchService.canEdit`（`PeerRole.GameMaster`）で判定する。押した端末が中身を読む必要があるため、同期データは全員に届く。中身を隠すのはデータではなく画面の側。右クリックの「スイッチを設定…」「スイッチを試しに押す」「押された記録を消す」「スイッチを外す」もGMにだけ出し、扉には付けない。塗りには右クリックメニューが無いので、卓のメニューの「押された記録を消す」から元に戻す。「押した物を消す」は地形なら削除し、塗りなら`retired`にしてGMにだけ見える形で残す（試し押しでは消えない）。「伏せる（スイッチで見せる）」は、地形・マスクをテーブル子の`BoardStash`（`board-stash`）へ、コマ・メモ・ダイス・コイン・山札を`location.name`＝`concealed`へ移し、見せるときは元の場所に戻す
 - **機能塗りとの互換** — 塗りの`trigger` specは`press`欄にスイッチの定義を持ち、反映時に`BoardSwitch`を子として作る。押す地面には`guardPressedGround`が`once` / `spent`を立てておく（`press`を知らない旧版は、それを歩き終えたときの罠と読んで踏むたびに発動させてしまうため）。スイッチ付きの地形は、まとめ描画（`isBatchable`）の対象から外す
@@ -416,6 +416,20 @@ SEは効果音ラボ・On-Jinの素材を取り込み、`PresetSound`経由で�
 一覧は検索・等級／対象数／系統での絞り込み・系統の折りたたみ・最近使った履歴を持ち、印には演出の形から起こしたSVGグリフを当てる。一覧からは追加・複製（`duplicatedEffectName`で連番）・削除（右クリックメニュー、`effect-library-context-menu`）ができ、`gmOnly`のプリセットはPLの一覧に名前ごと出さない。
 
 エフェクト集の持ち出しは`EffectPresetSet`（`InnerXml`の入れ物。`ObjectStore`には残さない）。`EffectPresetSet.of([preset])`で**1つだけ**書き出せ（タイル右クリックと編集パネルの「書き出す」）、形式は集合と同じなのでドロップの読み込み経路も共通。`EffectPreset`は`toAttributes` / `parseAttributes`でidentifierをXMLに残す（`ChatMessage`と同じ手。既定では`ObjectSerializer.parseXml`が読むたびに新しいidentifierを振る）ので、**併合の第一の鍵はidentifier**（`domain/effect/effect-preset-merge`の`takeIntoLibrary`）。同じidentifierがあればそこへ、無ければ同名へ`toContext()` / `apply()`で中身を丸ごと移す（フィールドを列挙しないので段リストのような後付けも自動で乗る）。どちらも無ければ追加。identifierで重ねた結果その名前が別のエフェクトと衝突するときは、戻ってきた側を`duplicatedEffectName`で連番にする（名前はチャット記法やシートの演出欄から呼ばれるため、先にその名前を使っていた方を動かさない）。プリセットは部屋データとしても保存され、「既定を反映」で既定プリセットを最新のseedへ再適用・欠けたものを再作成する（自作プリセットには触れない）。
+
+## 戦闘カットイン
+
+攻撃する側と受ける側のコマを左右に並べた帯を全員の画面に出し、エフェクト・数字・バーの減り・撃破を見せる（`features/battle-cut-in`）。
+
+- **送るのは場面の写し** — 送る側の端末が、変化の前後でコマを読み、名前・絵の識別子・リソースの前後の値・撃破したか・演出の識別子をまとめて`BATTLE_CUT_IN`で送る（`domain/battle/battle-scene`、`application/battle/battle-launch.service`）。受け手は描くだけなので、変化が遅れて届く画面でも同じバーの減り方になる。同期オブジェクトは作らず、部屋に残らない。旧版のピアはイベントを知らないので何も出ない
+- **前を読むのは同期で** — チャットの`《vs》`は、`resourceEditMessage$`を聞いたその場で`takeBattle()`を呼ぶ。ダイスボットは`loadGameSystemAsync`を待ってから値を書くので、これより前に読める。変化を待つのは`finishAfterChange()`で、見ているリソースの変更通知のあと200ms待ち、前の読みと比べて数字が本当に動いたときだけ送る。触っただけの通知（起動直後の書き戻しなど）で先に送ってしまうのを防ぐため。5秒待っても動かなければ、そのときの数字で送る。数字を動かさない行（`lineChangesResources`が偽）は待たない
+- **最初の通信に入れない** — 場面を組み立てる`BattleLaunchService`は`BattleLaunchLoaderService`が初回に読み込み、受け取って再生する側は`BattleCutInReceiverService`を`BattleCutInEventHandlerService`が初回に読み込む。オーバーレイは`@defer (when …)`。`prefetch on idle`は付けない（アプリで唯一の利用になり、idleトリガーの実行時コードがinitialに入る）。舞台にしか使わないグラデーションや影は、Tailwindのクラスにせずコンポーネントの定数から`[style]`で渡す（クラスにすると全員が読み込むスタイルシートに入る）
+- **舞台は卓の描画を流用** — 床を`rotateX(64deg)`で寝かせた3Dの板に、コマを立て、`effectSprites` / `effectParticlePlacements`をそのまま描く（ホットバーのプレビューと同じ部品）。効果は体の高さまで上げ（`BATTLE_EFFECT_RISE_PX`）、撃破の演出は上げずに、コマの絵を描く高さ（`defeatPictureHeight`）から基準の大きさを決めて絵に合わせる。コマ本体は卓のコマと同じ`animate-defeat-*`のキーフレームで消えるので、崩れた破片と二重に見えない
+- **時間割は純関数** — 開く → 踏み込み → 着弾（`effectLandingTimes`の最初）→ バーが減る → 撃破 → 閉じる、を`domain/battle/battle-timeline`が経過時間から出す。攻撃側のリソース（MPなど）は撃った瞬間に減らす。アニメーションを停止にしている画面は、閉じる直前の様子を静止画で2.6秒出す
+- **組と攻撃演出はコマの属性** — `GameCharacter.battleSide`（`left` / `right` / 空）と`battleEffect`（エフェクト名）。識別子は保存で振り直されるので、組を部屋の設定に識別子で持たない。組での再生は、手番 → 押した人のコマ → 左の先頭、の順に組にいるコマが攻撃する（`lineupBout`）。リモコンと右クリックの「このコマで攻撃」は`playLineupAs`で、手番に関係なくそのコマが攻撃する。コマの攻撃演出は名前で引き、GM専用のエフェクトでも見つける（設定したのはコマを扱える人なので）。チャットの`《名前》`はふだんどおり`findByName`で引く
+- **部屋の設定** — `Config._battleCutIn`に既定と違う項目だけを JSONで持つ（`domain/battle/battle-settings`。背景・撃破の有無・撃破のリソース名・撃破の演出）。空・読めない値は既定（撃破あり・HP・崩壊）。撃破は「0より大きかった値が0以下になった」ときだけで、増えるほど悪いリソースは最大値に達したとき
+- **個人設定** — 出すかどうかは`BattleCutInPreferenceService`（localStorage、既定は出す）。出さない画面では、受け取った場面から攻撃のエフェクトを卓のコマに`EffectCastService.playHere()`で出し、撃破があれば着弾とバーの減りのあとに撃破の演出も出す
+- **入口** — チャットの`《vs》`（`domain/effect/effect-chat-token`の`hasBattleChatToken`。同じ行の`《名前》`は卓に撃たずカットインで使う）、パネル、リモコン（ボタンと「戦闘カットインでも見せる」）、コマの右クリック、スイッチの動作`battle`（旧版は`unknown`として保ったまま何もしない）
 
 ## PLツール / 手札
 
