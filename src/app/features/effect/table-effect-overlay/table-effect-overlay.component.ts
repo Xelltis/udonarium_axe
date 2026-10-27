@@ -16,8 +16,8 @@ import { ViewRotation } from '@axe/domain/effect/effect-view';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import {
-  effectBillboardTransform,
   EFFECT_CAMERA_LIFT_PX,
+  effectBillboardTransform,
   EffectCanvasPlacement,
   effectCanvasStyle,
   effectPaintStyle,
