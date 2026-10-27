@@ -365,6 +365,7 @@
             </button>
             <button
               class="bg-ui-accent-bg border-ui-accent text-ui-accent hover:bg-ui-accent-solid rounded-ui-sm inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2.5 py-1 text-[12px] font-semibold whitespace-nowrap transition-[background,border-color] select-none hover:text-white [&_.material-icons]:text-[14px]!"
+              data-testid="remote-change-execute"
               (click)="remoteChangeValue()"
             >
               {{ 'feature.controller.remote.execute' | transloco }}
@@ -386,6 +387,29 @@
                 'feature.controller.remote.minLimit' | transloco
               }}
             </label>
+          </div>
+
+          <div class="flex items-center gap-2 px-2 py-1">
+            <label
+              class="text-ui-muted inline-flex cursor-pointer items-center gap-1 text-[12px] [accent-color:var(--ui-accent)]"
+            >
+              <input
+                name="battle_on_change_chk"
+                type="checkbox"
+                data-testid="remote-battle-on-change"
+                [checked]="battleOnChange()"
+                (change)="setBattleOnChange($any($event.target).checked)"
+              />{{ 'feature.controller.remote.battleOnChange' | transloco }}
+            </label>
+            <button
+              class="bg-ui-input border-ui-border-panel text-ui-text hover:bg-ui-hover hover:border-ui-muted rounded-ui-sm ml-auto inline-flex cursor-pointer items-center gap-0.75 border border-solid px-2.5 py-1 text-[12px] whitespace-nowrap transition-[background,border-color] select-none [&_.material-icons]:text-[14px]!"
+              type="button"
+              data-testid="remote-battle-play"
+              [title]="'feature.controller.remote.battlePlayHint' | transloco"
+              (click)="playBattle()"
+            >
+              <i class="material-icons">sports_martial_arts</i>{{ 'feature.controller.remote.battlePlay' | transloco }}
+            </button>
           </div>
         </div>
       }
@@ -437,6 +461,7 @@
     <ng-template #gameObjectCard let-gameObject="gameObject">
       <div
         class="bg-ui-input border-ui-border-panel rounded-ui-sm [&_.material-icons]:text-ui-dim relative flex size-10.5 shrink-0 cursor-pointer items-center justify-center overflow-hidden border border-solid [&_.material-icons]:text-[24px]!"
+        [attr.data-testid]="'remote-target-' + gameObject.name"
         (click)="targetBlockClick(gameObject)"
       >
         @if (gameObject.imageFile.url) {

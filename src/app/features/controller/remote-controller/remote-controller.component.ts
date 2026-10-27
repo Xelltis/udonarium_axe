@@ -12,6 +12,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { BattleLaunchService } from '@axe/application/battle/battle-launch.service';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
@@ -26,7 +27,10 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { getMyPeerId } from '@axe/core/network/peer-context-source';
+import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
+import { BattleTake } from '@axe/domain/battle/battle-take';
 import { BUFF_COLORS, resolveBuffColor } from '@axe/domain/character/buff-appearance';
 import { ControllerResourcePick, controllerShowsResource } from '@axe/domain/character/controller-resource-pick';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -104,6 +108,34 @@ export class RemoteControllerComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly battle = inject(BattleLaunchService);
+
+  /**
+   * Whether a change made from here is played on the battle stage too, the character the panel
+   * works for striking the targets. Remembered in this browser.
+   */
+  readonly battleOnChange = signal(readLocal(STORAGE_KEYS.battleCutInRemote) === 'on');
+
+  /** Turns playing changes on the battle stage on or off, and remembers it in this browser. */
+  setBattleOnChange(on: boolean): void {
+    this.battleOnChange.set(on);
+    writeLocal(STORAGE_KEYS.battleCutInRemote, on ? 'on' : 'off');
+  }
+
+  /**
+   * Plays the battle stage for the room with nothing changing: the character the panel works for
+   * strikes the targets, or, with none ticked, the other side of the master's lineup.
+   */
+  playBattle(): void {
+    const attacker = this.character();
+    const defenders = this.getTargetCharacters(true).filter((target) => target !== attacker);
+    const scene = !attacker
+      ? null
+      : defenders.length > 0
+        ? this.battle.play({ attacker, defenders }, 'everywhere')
+        : this.battle.playLineupAs(attacker, 'everywhere');
+    this.errorMessageController = scene ? '' : this.t('feature.controller.remote.battleNoBout');
+  }
 
   /**
    * The translated name of a part of a resource, such as its current or maximum value, for the slot
@@ -701,6 +733,7 @@ export class RemoteControllerComponent {
       this.errorMessageController = this.t('feature.controller.remote.noChangeTarget');
       return;
     }
+    const take = this.takeBattle(gameCharacters);
     const parts: string[] = [];
     const name = chosen.name;
     const nowOrMax = chosen.nowOrMax;
@@ -723,10 +756,22 @@ export class RemoteControllerComponent {
         portraitIndex: this.controllerInputComponent().portraitIndex(),
         color: this.controllerInputComponent().selectChatColor,
       });
+      if (take) this.battle.finish(take);
       this.errorMessageController = '';
     } else {
       this.errorMessageController = this.t('feature.controller.remote.noTargetCharacter');
     }
+  }
+
+  /**
+   * The targets read before a change is made to them, for the battle stage, while changes are
+   * played there and there is a character to strike them. Null otherwise.
+   */
+  private takeBattle(targets: readonly GameCharacter[]): BattleTake | null {
+    const attacker = this.character();
+    if (!this.battleOnChange() || !attacker) return null;
+    const defenders = targets.filter((target) => target !== attacker);
+    return defenders.length > 0 ? this.battle.take({ attacker, defenders }) : null;
   }
 
   /** Opens a character's buff panel at the pointer, from the buff edit button on its row. */

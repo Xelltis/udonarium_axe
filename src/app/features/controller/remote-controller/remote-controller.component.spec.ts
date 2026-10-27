@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { BattleLaunchService } from '@axe/application/battle/battle-launch.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -379,6 +380,83 @@ describe('RemoteControllerComponent', () => {
       component.allBoxCheck({ check: false });
       expect(char1.targeted).toBe(false);
       expect(char2.targeted).toBe(false);
+    });
+  });
+  describe('the battle stage', () => {
+    let battle: { play: ReturnType<typeof vi.fn>; playLineupAs: ReturnType<typeof vi.fn> };
+
+    beforeEach(() => {
+      localStorage.clear();
+      battle = TestBed.inject(BattleLaunchService) as unknown as typeof battle;
+      vi.spyOn(battle, 'play').mockReturnValue({} as never);
+      vi.spyOn(battle, 'playLineupAs').mockReturnValue({} as never);
+    });
+
+    it('has the character it works for strike the ticked targets', () => {
+      const hero = createChar('勇者');
+      const goblin = createChar('ゴブリン');
+      component.character.set(hero);
+      vi.spyOn(component, 'getTargetCharacters').mockReturnValue([goblin, hero]);
+
+      component.playBattle();
+
+      expect(battle.play).toHaveBeenCalledWith({ attacker: hero, defenders: [goblin] }, 'everywhere');
+      expect(battle.playLineupAs).not.toHaveBeenCalled();
+    });
+
+    it('has the character it works for strike the other side of the lineup, with no target ticked', () => {
+      const hero = createChar('勇者');
+      component.character.set(hero);
+      vi.spyOn(component, 'getTargetCharacters').mockReturnValue([]);
+
+      component.playBattle();
+
+      expect(battle.playLineupAs).toHaveBeenCalledWith(hero, 'everywhere');
+    });
+
+    it('says so when there is no bout to play', () => {
+      component.character.set(createChar('勇者'));
+      vi.spyOn(component, 'getTargetCharacters').mockReturnValue([]);
+      battle.playLineupAs.mockReturnValue(null);
+
+      component.playBattle();
+
+      expect(component.errorMessageController).not.toBe('');
+    });
+
+    it('plays a change made from here on the stage, reading the targets before it is made', () => {
+      const hero = createChar('勇者');
+      const goblin = createChar('ゴブリン');
+      const hpBefore = Number(goblin.detailDataElement?.getFirstElementByName('HP')?.currentValue);
+      component.character.set(hero);
+      fixture.detectChanges();
+      vi.spyOn(component, 'getTargetCharacters').mockReturnValue([goblin]);
+      vi.spyOn(component as unknown as { announce: () => void }, 'announce').mockImplementation(() => undefined);
+      const finish = vi.spyOn(battle as unknown as BattleLaunchService, 'finish').mockReturnValue(null);
+      component.remoteControllerSelect.set({ name: 'HP', nowOrMax: 'now', dispName: 'HP' });
+      component.remoteNumber = -3;
+
+      component.remoteChangeValue();
+      expect(finish).not.toHaveBeenCalled();
+
+      component.setBattleOnChange(true);
+      component.remoteChangeValue();
+
+      expect(finish).toHaveBeenCalledTimes(1);
+      const [take] = finish.mock.calls[0];
+      expect(take.request.attacker).toBe(hero);
+      expect(take.request.defenders).toEqual([goblin]);
+      const reading = [...(take.before.get(goblin.identifier)?.resources.values() ?? [])].find(
+        (resource) => resource.name === 'HP'
+      );
+      expect(reading?.current).toBe(hpBefore - 3);
+    });
+
+    it('remembers whether changes are played on the stage', () => {
+      component.setBattleOnChange(true);
+
+      expect(component.battleOnChange()).toBe(true);
+      expect(TestBed.createComponent(RemoteControllerComponent).componentInstance.battleOnChange()).toBe(true);
     });
   });
 });
