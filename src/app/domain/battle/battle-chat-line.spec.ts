@@ -1,9 +1,17 @@
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { chatLineBout, lineChangesResources, lineIsSecret } from '@axe/domain/battle/battle-chat-line';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { DataElement, DataElementType } from '@axe/domain/data/data-element';
 
-function pieceWith(name: string): GameCharacter {
-  return GameCharacter.create(name, 1, '');
+function pieceWith(name: string, ...resources: string[]): GameCharacter {
+  const piece = GameCharacter.create(name, 1, '');
+  for (const resource of resources) {
+    piece.detailDataElement?.appendChild(
+      DataElement.create(resource, 20, { type: DataElementType.NUMBER_RESOURCE, currentValue: 20 })
+    );
+  }
+  piece.detailDataElement?.appendChild(DataElement.create('メモ', '', {}));
+  return piece;
 }
 
 afterEach(() => {
@@ -36,16 +44,25 @@ describe('chatLineBout()', () => {
 });
 
 describe('lineChangesResources()', () => {
-  it('finds the resource commands in either width and secret', () => {
-    expect(lineChangesResources('2d6 t:HP-10 《vs》')).toBe(true);
-    expect(lineChangesResources(':MP-2 《vs》')).toBe(true);
-    expect(lineChangesResources('st:HP-3 《vs》')).toBe(true);
-    expect(lineChangesResources('ｔ：HP-3 《vs》')).toBe(true);
+  it('finds a resource command that names a resource of the piece it aims at, in either width and secret', () => {
+    const bout = { attacker: pieceWith('勇者', '気力'), defenders: [pieceWith('ゴブリン', '生命')] };
+
+    expect(lineChangesResources('2d6 t:生命-10 《vs》', bout)).toBe(true);
+    expect(lineChangesResources(':気力-2 《vs》', bout)).toBe(true);
+    expect(lineChangesResources('st:生命-3 《vs》', bout)).toBe(true);
+    expect(lineChangesResources('ｔ：生命－3 《vs》', bout)).toBe(true);
   });
 
-  it('finds none in a line without one', () => {
-    expect(lineChangesResources('斬りかかる《vs》')).toBe(false);
-    expect(lineChangesResources('時刻は 12:30')).toBe(false);
+  it('finds none in a colon in passing, a smiley, a time or a command the pieces cannot take', () => {
+    const bout = { attacker: pieceWith('勇者', '気力'), defenders: [pieceWith('ゴブリン', '生命')] };
+
+    expect(lineChangesResources('斬りかかる《vs》', bout)).toBe(false);
+    expect(lineChangesResources('《vs》 いくぞ :)', bout)).toBe(false);
+    expect(lineChangesResources('《vs》 開始 :30', bout)).toBe(false);
+    expect(lineChangesResources('時刻は 12:30 《vs》', bout)).toBe(false);
+    expect(lineChangesResources(':生命-3 《vs》', bout)).toBe(false);
+    expect(lineChangesResources('t:気力-3 《vs》', bout)).toBe(false);
+    expect(lineChangesResources('t:メモ>倒れた 《vs》', bout)).toBe(false);
   });
 });
 

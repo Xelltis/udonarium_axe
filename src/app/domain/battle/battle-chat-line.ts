@@ -1,4 +1,5 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { convertCommandToResourceEdit, createDefaultResourceEdit } from '@axe/domain/data/resource-edit-helpers';
 import { hasBattleChatToken } from '@axe/domain/effect/effect-chat-token';
 
 /** Who strikes whom on the stage for a chat line. */
@@ -29,11 +30,39 @@ export function chatLineBout(
 }
 
 /**
- * Whether a chat line carries a resource command, `:HP-5` or `t:HP-5` and their secret forms, in
- * either width, so that playing it waits for the numbers to move.
+ * Whether a chat line moves a number on the bout's pieces, so that playing it waits for the number
+ * to move: a resource command, `:HP-5` or `t:HP-5` and their secret forms, in either width, that
+ * names a resource the piece it is aimed at holds. A colon in passing, a smiley or a time, and a
+ * command that only writes text, are not.
  */
-export function lineChangesResources(text: string): boolean {
-  return /(^|\s)[sｓ]?[tｔ]?[:：][^\s:：&＆]/i.test(text);
+export function lineChangesResources(text: string, bout: ChatLineBout): boolean {
+  return resourceCommandsOf(text).some(({ command, aimed }) =>
+    (aimed ? bout.defenders : [bout.attacker]).some((piece) => {
+      const edit = createDefaultResourceEdit();
+      return convertCommandToResourceEdit(edit, command, piece, aimed) && edit.operator !== '>';
+    })
+  );
+}
+
+/**
+ * The resource commands of a line, read word by word as the chat reads them: each with its `t` taken
+ * off, and whether it had one.
+ */
+function resourceCommandsOf(text: string): { command: string; aimed: boolean }[] {
+  const commands: { command: string; aimed: boolean }[] = [];
+  for (const word of text.split(/\s/)) {
+    const plain = word
+      .replace(/^[sSｓＳ](?=[tTｔＴ]?[:：&＆])/, '')
+      .replace(/[tTｔＴ](?=[:：])/g, 't')
+      .replace(/：/g, ':')
+      .replace(/＆/g, '&');
+    if (!/^(t?[:&][^:&])+/i.test(plain)) continue;
+    for (const found of plain.match(/t?:[^:&]+/gi) ?? []) {
+      const aimed = /^t/i.test(found);
+      commands.push({ command: aimed ? found.slice(1) : found, aimed });
+    }
+  }
+  return commands;
 }
 
 /**

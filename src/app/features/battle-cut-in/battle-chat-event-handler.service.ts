@@ -42,7 +42,7 @@ export class BattleChatEventHandlerService {
         effectName: parseEffectChatToken(message.text)?.name,
         secret: lineIsSecret(message.text),
       });
-      const waits = lineChangesResources(message.text);
+      const waits = lineChangesResources(message.text, bout);
       void this.launcher.load().then((launch) => {
         if (waits) void launch?.finishAfterChange(take);
         else launch?.finish(take);
