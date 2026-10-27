@@ -26,6 +26,7 @@ Udonarium Axeが**追加**または**大きく拡張・再設計**した機能�
 - **奥の保存互換** — `placement`は文字列で、未知の値は「背面」として読む。新規の`cameraFollow`と`backdropHeight`（「高さ」、画面下端からの割合、既定0）は、欄の無いデータでも空値を0ではなく既定値として読む（0は「動かない」「下端」という意味を持つため）。レイヤーの上限6枚には奥も含まれる。テーブル設定では奥を先頭に並べ、並べ替えは奥どうしの間だけで行う
 - **方位磁石** — FABの「ウィジェット」から出すウィジェット（`features/widgets/compass`）。文字盤を卓の水平回転（`UiSignalService.tableViewRotationZ`）に合わせて回し、画面の上が向く方位を度数と8方位で出す。描く角度は`nearestTurnTo`（`domain/ui/compass`）で前回の角度に最も近い値へ書き直す（0〜360°に収めると、北を跨ぐたびに針が逆回りに一周するため）。表示の有無はlocalStorage（`ui-widgets`）に残り、位置はドラッグで動かせる。文字盤の絵柄は右クリック / 長押しで「現代風」「ファンタジー風」「SF 風」から選び、好みの問題なので部屋へは配らず、localStorage（`axe.compass.face`）に置く（`application/ui/compass-face.service`）
 - **磁場異常** — テーブル設定の「磁場異常（方位磁石が狂う）」（`GameTable.magneticAnomaly`、SyncVar、既定`false`）。部屋の決めごとではなくテーブル単位にしたのは、磁鉄鉱の洞窟のような1室だけに掛け、そこを出れば方位が戻るようにするため。有効な卓では`swingNeedle`が向きではなく回転速度を揺らすので、針は行き過ぎては戻る。度数表示は「磁場異常」に替わる。ウィジェットを隠しているときと、演出をオフにしているとき（`MotionService`）は揺らさない
+- **GPUを使わないブラウザへの案内** — ブラウザがGPUを使わずに描いているとき（WebGLは作れるが`failIfMajorPerformanceCaveat`付きでは作れない、または描画装置の名前がソフトウェアのラスタライザ）は、起動のたびにグラフィックアクセラレーションを有効にするよう強く勧める小窓を出す（`features/gpu-notice`、判定は`core/util/graphics-acceleration`）。案内に出す設定の場所は Chrome・Edge・Firefoxを見分けて変える。見た目は何も変えない。GPUなしのChromeでは、暗闇の卓の松明の揺らぎだけで止まっていても1fps前後になる（GPUありは60fps）。自動操作のブラウザ（`navigator.webdriver`）には出さない（E2Eのブラウザはソフトウェアで描くため）
 
 ## ヘクスグリッド対応
 
