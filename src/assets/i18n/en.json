@@ -5546,23 +5546,28 @@
       "noPieces": "There are no pieces on the table.",
       "roomHeading": "Room settings",
       "roomMasterOnly": "Only the GM can change these.",
-      "background": "Picture",
-      "chooseBackground": "Choose image",
-      "defaultBackground": "Remove picture",
       "defeatOn": "Play a defeat effect when the resource reaches 0",
       "defeatResource": "Resource",
       "defeatResourceHint": "e.g. HP",
       "defeatEffect": "Defeat effect",
       "defaultDefeatEffect": "Default (崩壊)",
       "stage": "Stage",
-      "backgroundHint": "A picture chosen here is shown instead of the stage.",
-      "theme": {
+      "genre": {
         "fantasy": "Fantasy",
         "modern": "Modern",
         "horror": "Horror",
         "cyberpunk": "Cyberpunk",
         "mecha": "Mecha"
-      }
+      },
+      "time": {
+        "night": "Night",
+        "day": "Day"
+      },
+      "themeLabel": "{{genre}} ({{time}})",
+      "pictures": "Room pictures",
+      "addPicture": "Add picture",
+      "removePicture": "Remove “{{name}}”",
+      "picturesHint": "Pictures added here can be chosen as the stage, up to {{limit}}."
     }
   },
   "app": {

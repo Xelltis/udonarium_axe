@@ -21,6 +21,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { observeSize } from '@axe/core/util/observe-size';
 import { BattleSide, oppositeBattleSide } from '@axe/domain/battle/battle-lineup';
 import { battleChangeLabel, BattleFighter, battleGaugeChanges } from '@axe/domain/battle/battle-scene';
+import { DEFAULT_BATTLE_THEME } from '@axe/domain/battle/battle-settings';
 import {
   attackerStep,
   BATTLE_STILL_MS,
@@ -66,7 +67,7 @@ import {
   stageSpread,
   standingTransform,
 } from '@axe/features/battle-cut-in/battle-stage-layout';
-import { battleThemeLook } from '@axe/features/battle-cut-in/battle-themes';
+import { BATTLE_PICTURE_LOOK, BattleBandLook, battleThemeLook } from '@axe/features/battle-cut-in/battle-themes';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import {
   EFFECT_CAMERA_LIFT_PX,
@@ -279,21 +280,25 @@ export class BattleCutInOverlayComponent {
     return `scale3d(${scale}, ${scale}, ${scale}) rotateX(${BATTLE_VIEW.x}deg)`;
   });
 
-  /** Which of the tool's own stages is drawn, and how the band and the plates look on it. */
-  readonly theme = computed(() => this.scene()?.theme ?? 'fantasy');
+  /** Which of the tool's own stages is drawn where the room's own picture is not. */
+  readonly theme = computed(() => this.scene()?.theme ?? DEFAULT_BATTLE_THEME);
   readonly themeLook = computed(() => battleThemeLook(this.theme()));
-  readonly bannerStyle = computed(() => ({ ...LOOKS.banner, ...this.themeLook().banner }));
+
+  readonly backgroundUrl = computed(() => {
+    this.objectChange.fileVersion();
+    const identifier = this.scene()?.background ?? '';
+    return identifier.length > 0 ? (this.images.get(identifier)?.url ?? '') : '';
+  });
+
+  /** How the band and the plates look: plain on the room's own picture, else as the stage has them. */
+  readonly bandLook = computed<BattleBandLook>(() => (this.backgroundUrl() ? BATTLE_PICTURE_LOOK : this.themeLook()));
+  readonly bannerStyle = computed(() => ({ ...LOOKS.banner, ...this.bandLook().banner }));
   readonly plateStyles = computed(() => {
-    const look = this.themeLook();
+    const look = this.bandLook();
     return {
       left: { 'border-left': `4px solid ${look.left}`, 'box-shadow': LOOKS.plateShadow },
       right: { 'border-right': `4px solid ${look.right}`, 'box-shadow': LOOKS.plateShadow },
     };
-  });
-
-  readonly backgroundUrl = computed(() => {
-    const identifier = this.scene()?.background ?? '';
-    return identifier.length > 0 ? (this.images.get(identifier)?.url ?? '') : '';
   });
 
   /** The picture behind the stage: the room's own, else the stage's. */

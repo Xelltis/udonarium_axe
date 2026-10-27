@@ -11,7 +11,14 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { asBattleSide, BattleSide } from '@axe/domain/battle/battle-lineup';
-import { BATTLE_THEMES, BattleSettings, BattleTheme } from '@axe/domain/battle/battle-settings';
+import {
+  BATTLE_GENRES,
+  BATTLE_PICTURE_LIMIT,
+  BATTLE_TIMES,
+  BattleSettings,
+  BattleTheme,
+  battleThemeOf,
+} from '@axe/domain/battle/battle-settings';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { Config } from '@axe/domain/peer/config';
@@ -29,6 +36,14 @@ export interface BattlePieceRow {
   side: BattleSide | null;
   /** The effect it strikes with, by name. Empty strikes with the stage's own. */
   effect: string;
+}
+
+/** A picture the room keeps to fight on, as the panel offers it. */
+export interface BattlePictureChoice {
+  identifier: string;
+  name: string;
+  /** Empty while the picture has not arrived on this screen. */
+  url: string;
 }
 
 /** The effects of one family, as the selects list them. */
@@ -63,8 +78,15 @@ export class BattleCutInPanelComponent {
 
   /** The colours the two sides are marked in, as the stage marks the fighters' plates. */
   protected readonly sideColors = { left: 'rgb(56 189 248 / 0.6)', right: 'rgb(251 113 133 / 0.6)' };
-  /** The tool's own stages, each with a small copy of its picture to choose by. */
-  protected readonly themes = BATTLE_THEMES.map((theme) => ({ theme, thumbnail: battleThemeLook(theme).thumbnail }));
+  /** The tool's own stages, the nights and then the days, each with a small copy of its picture to choose by. */
+  protected readonly themeRows = BATTLE_TIMES.map((time) => ({
+    time,
+    choices: BATTLE_GENRES.map((genre) => {
+      const theme = battleThemeOf(genre, time);
+      return { theme, genre, thumbnail: battleThemeLook(theme).thumbnail };
+    }),
+  }));
+  protected readonly pictureLimit = BATTLE_PICTURE_LIMIT;
 
   /** Whether the reader runs the game, and so sets the lineup and the room's stage up. */
   readonly isGameMaster = computed(() => this.permission.isGameMaster());
@@ -158,10 +180,16 @@ export class BattleCutInPanelComponent {
     return Config.instance.battleSettings;
   });
 
-  readonly backgroundUrl = computed(() => {
-    const identifier = this.settings().background;
-    return identifier.length > 0 ? (this.images.get(identifier)?.url ?? '') : '';
+  /** The pictures the room keeps to fight on, each as far as it has arrived on this screen. */
+  readonly pictures = computed<BattlePictureChoice[]>(() => {
+    this.objectChange.fileVersion();
+    return this.settings().pictures.map((identifier) => {
+      const image = this.images.get(identifier);
+      return { identifier, name: image?.name ?? '', url: image?.url ?? '' };
+    });
   });
+
+  readonly picturesFull = computed(() => this.settings().pictures.length >= BATTLE_PICTURE_LIMIT);
 
   /** Opens the panel on a piece, to choose what it strikes with. */
   focusOn(identifier: string): void {
@@ -190,19 +218,34 @@ export class BattleCutInPanelComponent {
     this.noBout.set(this.launch.playLineup(null, 'here') === null);
   }
 
-  chooseBackground(): void {
-    if (!this.isGameMaster()) return;
-    this.modal.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((identifier) => {
-      if (identifier) this.updateSettings({ background: identifier });
+  setTheme(theme: BattleTheme): void {
+    this.updateSettings({ theme, background: '' });
+  }
+
+  /** Adds a picture for the room to fight on, and fights on it. */
+  addPicture(): void {
+    if (!this.isGameMaster() || this.picturesFull()) return;
+    this.modal.open<string>(FileSelecterComponent).then((identifier) => {
+      if (!identifier) return;
+      const pictures = Config.instance.battleSettings.pictures;
+      this.updateSettings({
+        pictures: pictures.includes(identifier) ? pictures : [...pictures, identifier],
+        background: identifier,
+      });
     });
   }
 
-  clearBackground(): void {
-    this.updateSettings({ background: '' });
+  setPicture(identifier: string): void {
+    this.updateSettings({ background: identifier });
   }
 
-  setTheme(theme: BattleTheme): void {
-    this.updateSettings({ theme });
+  /** Lets a picture go; where the stage was drawn on it, the stage chosen comes back. */
+  removePicture(identifier: string): void {
+    const { pictures, background } = Config.instance.battleSettings;
+    this.updateSettings({
+      pictures: pictures.filter((picture) => picture !== identifier),
+      background: background === identifier ? '' : background,
+    });
   }
 
   setDefeat(defeat: boolean): void {

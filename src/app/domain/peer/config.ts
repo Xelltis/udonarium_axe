@@ -206,6 +206,17 @@ export class Config extends withRuleAnswers() implements InnerXml {
     this._battleCutIn = writeBattleSettings(settings);
   }
 
+  /**
+   * The pictures the room keeps to fight on, which have to travel with it when it is saved.
+   *
+   * They are named inside the packed battle settings rather than by an attribute of their own, so
+   * nothing walking the settings' XML would find them, and a room saved without them would come
+   * back with a stage that has lost its picture.
+   */
+  get carriedImageIdentifiers(): readonly string[] {
+    return this.battleSettings.pictures;
+  }
+
   /** The room's master volume, shared by every peer; a change applied to the config updates the jukebox at once. */
   get roomVolume(): number {
     return this._roomVolume;

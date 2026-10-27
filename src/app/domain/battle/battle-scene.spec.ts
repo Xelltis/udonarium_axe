@@ -67,7 +67,7 @@ describe('normalizeBattleScene()', () => {
     });
 
     expect(scene?.attackerSide).toBe('left');
-    expect(scene?.theme).toBe('fantasy');
+    expect(scene?.theme).toBe('fantasy-day');
     expect(scene?.attacker.gauges).toEqual([{ name: 'HP', before: 0, after: 0, max: 0, inverted: false }]);
     expect(scene?.defenders).toHaveLength(1);
     expect(scene?.effect).toBe('');

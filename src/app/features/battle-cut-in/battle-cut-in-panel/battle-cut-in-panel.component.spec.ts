@@ -1,9 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BattleCutInPreferenceService } from '@axe/application/battle/battle-cut-in-preference.service';
 import { BattleLaunchService } from '@axe/application/battle/battle-launch.service';
+import { ModalService } from '@axe/application/ui/modal.service';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
-import { DEFAULT_BATTLE_SETTINGS } from '@axe/domain/battle/battle-settings';
+import { BATTLE_PICTURE_LIMIT, DEFAULT_BATTLE_SETTINGS } from '@axe/domain/battle/battle-settings';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { createEffectPreset, DEFAULT_EFFECT_PRESET_SEEDS } from '@axe/domain/effect/builtin-effect-presets';
 import { Config } from '@axe/domain/peer/config';
@@ -48,6 +50,7 @@ describe('BattleCutInPanelComponent', () => {
   });
 
   afterEach(async () => {
+    vi.restoreAllMocks();
     fixture?.destroy();
     Config.instance.battleSettings = DEFAULT_BATTLE_SETTINGS;
     TurnState.instance.currentIdentifier = '';
@@ -139,13 +142,97 @@ describe('BattleCutInPanelComponent', () => {
     const asPlayer = open(PeerRole.Player);
     expect(asPlayer.querySelector<HTMLButtonElement>('[data-testid="battle-theme-cyberpunk"]')!.disabled).toBe(true);
     component.setTheme('cyberpunk');
-    expect(Config.instance.battleSettings.theme).toBe('fantasy');
+    expect(Config.instance.battleSettings.theme).toBe('fantasy-day');
     fixture.destroy();
 
     const asMaster = open(PeerRole.GameMaster);
     asMaster.querySelector<HTMLButtonElement>('[data-testid="battle-theme-cyberpunk"]')!.click();
 
     expect(Config.instance.battleSettings.theme).toBe('cyberpunk');
+  });
+
+  it('offers every stage by night and by day', () => {
+    const root = open(PeerRole.GameMaster);
+
+    const offered = [...root.querySelectorAll<HTMLElement>('[data-testid^="battle-theme-"]')].map(
+      (button) => button.dataset['testid']
+    );
+    expect(offered).toEqual([
+      ...['fantasy', 'modern', 'horror', 'cyberpunk', 'mecha'].map((genre) => `battle-theme-${genre}`),
+      ...['fantasy', 'modern', 'horror', 'cyberpunk', 'mecha'].map((genre) => `battle-theme-${genre}-day`),
+    ]);
+  });
+
+  describe('the pictures the room keeps to fight on', () => {
+    beforeEach(() => {
+      ImageStorage.instance.add({
+        identifier: 'arena',
+        name: 'arena.webp',
+        type: 'image/webp',
+        blob: new Blob(['picture'], { type: 'image/webp' }),
+        url: 'blob:arena',
+        thumbnail: { type: '', blob: null, url: '' },
+      });
+    });
+
+    afterEach(() => ImageStorage.instance.delete('arena'));
+
+    it('keeps a picture the master adds and fights on it', async () => {
+      vi.spyOn(TestBed.inject(ModalService), 'open').mockResolvedValue('arena');
+      const root = open(PeerRole.GameMaster);
+
+      root.querySelector<HTMLButtonElement>('[data-testid="battle-picture-add"]')!.click();
+      await settle();
+
+      expect(Config.instance.battleSettings).toMatchObject({ pictures: ['arena'], background: 'arena' });
+      const tile = root.querySelector<HTMLButtonElement>('[data-testid="battle-picture-arena"]')!;
+      expect(tile.getAttribute('aria-checked')).toBe('true');
+      expect(tile.querySelector('img')!.getAttribute('src')).toBe('blob:arena');
+      expect(root.querySelector('[data-testid="battle-theme-fantasy-day"]')!.getAttribute('aria-checked')).toBe(
+        'false'
+      );
+    });
+
+    it('goes back to the stage chosen when the master picks one of the tool’s own or lets the picture go', () => {
+      Config.instance.battleSettings = {
+        ...DEFAULT_BATTLE_SETTINGS,
+        theme: 'horror',
+        pictures: ['arena'],
+        background: 'arena',
+      };
+      const root = open(PeerRole.GameMaster);
+
+      root.querySelector<HTMLButtonElement>('[data-testid="battle-theme-mecha-day"]')!.click();
+      expect(Config.instance.battleSettings).toMatchObject({ theme: 'mecha-day', background: '', pictures: ['arena'] });
+
+      component.setPicture('arena');
+      root.querySelector<HTMLButtonElement>('[data-testid="battle-picture-remove-arena"]')!.click();
+      expect(Config.instance.battleSettings).toMatchObject({ theme: 'mecha-day', background: '', pictures: [] });
+    });
+
+    it('lets nobody but the master add, choose or let go a picture', () => {
+      Config.instance.battleSettings = { ...DEFAULT_BATTLE_SETTINGS, pictures: ['arena'] };
+      const modal = vi.spyOn(TestBed.inject(ModalService), 'open');
+      const root = open(PeerRole.Player);
+
+      expect(root.querySelector<HTMLButtonElement>('[data-testid="battle-picture-add"]')!.disabled).toBe(true);
+      expect(root.querySelector<HTMLButtonElement>('[data-testid="battle-picture-arena"]')!.disabled).toBe(true);
+      expect(root.querySelector('[data-testid="battle-picture-remove-arena"]')).toBeNull();
+      component.addPicture();
+      component.setPicture('arena');
+      component.removePicture('arena');
+
+      expect(modal).not.toHaveBeenCalled();
+      expect(Config.instance.battleSettings).toMatchObject({ pictures: ['arena'], background: '' });
+    });
+
+    it('adds no more once the room keeps as many as it may', () => {
+      const many = Array.from({ length: BATTLE_PICTURE_LIMIT }, (_, index) => `picture-${index}`);
+      Config.instance.battleSettings = { ...DEFAULT_BATTLE_SETTINGS, pictures: many };
+      const root = open(PeerRole.GameMaster);
+
+      expect(root.querySelector<HTMLButtonElement>('[data-testid="battle-picture-add"]')!.disabled).toBe(true);
+    });
   });
 
   it('lets the master alone set how a fighter goes down', () => {

@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MotionService } from '@axe/application/ui/motion.service';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { BattleScene } from '@axe/domain/battle/battle-scene';
 import { BATTLE_STILL_MS } from '@axe/domain/battle/battle-timeline';
@@ -93,6 +94,35 @@ describe('BattleCutInOverlayComponent', () => {
     const picture = root.querySelector<HTMLImageElement>('[data-testid="battle-cut-in-background"]')!;
     expect(picture.getAttribute('src')).toContain('battle/horror.webp');
     expect(picture.dataset['theme']).toBe('horror');
+  });
+
+  it('lays the room’s own picture the scene names behind it, with the band in plain colours', () => {
+    ImageStorage.instance.add({
+      identifier: 'arena',
+      name: 'arena.webp',
+      type: 'image/webp',
+      blob: new Blob(['picture'], { type: 'image/webp' }),
+      url: 'blob:arena',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    try {
+      const root = play(scene({ theme: 'horror', background: 'arena' }));
+
+      const picture = root.querySelector<HTMLImageElement>('[data-testid="battle-cut-in-background"]')!;
+      expect(picture.getAttribute('src')).toBe('blob:arena');
+      expect(picture.dataset['theme']).toBeUndefined();
+      const plate = root.querySelector<HTMLElement>('[data-testid="battle-plate"]')!;
+      expect(plate.style.borderLeft).toMatch(/#4aa3ff|rgb\(74, 163, 255\)/);
+    } finally {
+      ImageStorage.instance.delete('arena');
+    }
+  });
+
+  it('lays the stage’s own picture where the room’s picture has not arrived', () => {
+    const root = play(scene({ theme: 'mecha-day', background: 'not-here-yet' }));
+
+    const picture = root.querySelector<HTMLImageElement>('[data-testid="battle-cut-in-background"]')!;
+    expect(picture.getAttribute('src')).toContain('battle/mecha-day.webp');
   });
 
   it('stands the one striking on the right where the scene says so', () => {

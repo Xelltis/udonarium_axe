@@ -224,7 +224,7 @@ export class SaveDataService {
 
     const named: ImageFile[] = this.withCarried(
       [...this.searchImageFiles(roomXml), ...this.searchImageFiles(chatXml)],
-      this.objectStore.getObjects(WhiteBoard)
+      [...this.objectStore.getObjects(WhiteBoard), this.appConfig]
     );
     const images = everything ? this.withEveryHeld(named) : named;
     for (const image of images) {
