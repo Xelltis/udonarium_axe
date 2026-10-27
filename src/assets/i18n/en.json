@@ -3405,6 +3405,8 @@
         "confirmOnline": "Go online? The page reloads and connects.",
         "offlineNote": "Saving and loading a room still works. Switch to Online to play with others.",
         "roleDecidedByServer": "The room server decides the roles. Only the room's GM can change them.",
+        "watchHint": "Switch to watching. Your role in the room is kept, so you can come back at any time",
+        "comeBackHint": "Come back from watching to your role in the room",
         "inviteWithoutRole": "Those who join with this link play as PL when logged in, and watch as guests otherwise. The GM can make invitations with a role.",
         "inviteFailed": "The room server gave no invitation. Please open this again later.",
         "inviteExpires": "This invitation works until {{date}}. It sets the role of someone logged in on their first visit.",
@@ -3582,7 +3584,8 @@
         "unknownPeer": "{{name}} is not in the room, so their role was not changed.",
         "notLoggedIn": "{{name}} is not logged in and stays a guest.",
         "lastGameMaster": "The room would have no GM left, so {{name}}'s role was not changed.",
-        "other": "The role could not be changed ({{reason}})."
+        "other": "The role could not be changed ({{reason}}).",
+        "own": "Your role could not be switched."
       },
       "leaveRoom": {
         "title": "Leave the room?",

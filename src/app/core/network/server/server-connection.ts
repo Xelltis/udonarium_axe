@@ -149,6 +149,9 @@ export class ServerConnection implements Connection {
   get serverRole(): ServerRole | undefined {
     return this.role ?? undefined;
   }
+  get keptRole(): ServerRole | undefined {
+    return this.keptServerRole ?? undefined;
+  }
 
   private baseUrl = '';
   private me: PeerContext = PeerContext.parse('???');
@@ -156,6 +159,8 @@ export class ServerConnection implements Connection {
   private readonly members: Map<string, PeerContext> = new Map();
   private room: { roomKey: string; password: string } | null = null;
   private role: ServerRole | null = null;
+  /** The role the room keeps for this seat logged in, as the server last told it. */
+  private keptServerRole: ServerRole | null = null;
   private credentialSource: ServerCredentialSource | null = null;
   /**
    * Whether the seat was opened for the login's account, and so says hello with the login's token.
@@ -587,7 +592,7 @@ export class ServerConnection implements Connection {
         return;
       case 'asset-token':
         this.assetTokenRenewal.take(message.assetToken, message.expiresAt);
-        this.takeRole(message.role);
+        this.takeRole(message.role, message.keptRole);
         return;
       case 'error':
         this.refusal = message.code;
@@ -602,14 +607,16 @@ export class ServerConnection implements Connection {
     // A role changed while the link was down is told as any change is, once the seat is back.
     const roleBefore = this.everWelcomed ? this.role : message.role;
     this.role = message.role;
+    this.keptServerRole = message.keptRole ?? null;
     this.clockOffset = message.serverTime - Date.now();
     this.assetUpload = readAssetUploadPolicy(message.assetUpload);
     // Taken before anybody hears the seat is in, so that what they do then may reach the room's
     // pictures and sounds already.
     this.assetTokenRenewal.take(message.assetToken, message.assetTokenExpiresAt);
     this.assetTokenRenewal.start();
-    // A guest's invitation waits for a login; only an account's first visit takes it.
-    if (message.role !== 'guest') this.invite = '';
+    // A guest's invitation waits for a login; only an account's first visit takes it. A seat
+    // watching is welcomed as a guest, but the role the room keeps for it tells it is an account.
+    if (message.role !== 'guest' || message.keptRole) this.invite = '';
     this.retriedUnauthorized = false;
     this.reconnectScheduler.reset(SOCKET_KEY);
     this.idleWatch.start(this.helloInputAt);
@@ -640,10 +647,17 @@ export class ServerConnection implements Connection {
     if (this.accountSeat) this.accessTokenRenewal.start();
   }
 
-  /** Takes on a role the server says the seat has now, and tells of it when it changed. */
-  private takeRole(role: ServerRole | undefined): void {
-    if (!role || role === this.role || !this.welcomed) return;
+  /**
+   * Takes on a role the server says the seat has now, and the role the room keeps for it where the
+   * server says, and tells of it when either changed: a GM making a seat that watches a guest leaves
+   * its role as it was, but takes away the one it would come back to.
+   */
+  private takeRole(role: ServerRole | undefined, keptRole?: ServerRole): void {
+    if (!role || !this.welcomed) return;
+    const kept = keptRole ?? this.keptServerRole;
+    if (role === this.role && kept === this.keptServerRole) return;
     this.role = role;
+    this.keptServerRole = kept;
     this.callback.onRoleChange?.(role);
   }
 

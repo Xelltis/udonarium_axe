@@ -96,6 +96,19 @@ describe('the room server protocol, held to the server’s fixtures', () => {
     expect(readReportResponse(null)).toBeNull();
   });
 
+  it('reads the role the room keeps, and a welcome or asset token without it, as for a seat not logged in', () => {
+    const { keptRole: _kept, ...withoutKept } = messages.server.welcome;
+    const { keptRole: _tokenKept, ...tokenWithoutKept } = messages.server.assetToken;
+
+    expect(readServerMessage(messages.server.welcome)).toMatchObject({ keptRole: 'pl' });
+    expect(readServerMessage(messages.server.assetToken)).toMatchObject({ keptRole: 'pl' });
+    expect(readServerMessage(messages.server.assetTokenWatching)).toMatchObject({ role: 'guest', keptRole: 'pl' });
+    expect(readServerMessage(withoutKept)).toEqual(withoutKept);
+    expect(readServerMessage(tokenWithoutKept)).toEqual(tokenWithoutKept);
+    expect(readServerMessage({ ...messages.server.welcome, keptRole: 'king' })).toBeNull();
+    expect(readServerMessage({ ...messages.server.assetToken, keptRole: 'king' })).toBeNull();
+  });
+
   it('reads how a server with a limit on its requests takes big pictures and sounds, and the ticket for one', () => {
     const { upload } = http.uploadTicket;
 

@@ -19,6 +19,7 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { IdleSeatService } from '@axe/features/lobby/idle-seat.service';
 import { PeerMenuComponent } from '@axe/features/lobby/peer-menu/peer-menu.component';
 import { RoomDeletionService } from '@axe/features/lobby/room-deletion.service';
+import { ServerWatchService } from '@axe/features/lobby/server-watch.service';
 import { ReportDialogComponent } from '@axe/features/moderation/report-dialog/report-dialog.component';
 import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-archive-event-handler.service';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
@@ -316,11 +317,33 @@ describe('PeerMenuComponent', () => {
       );
     });
 
-    it('shows your own role as the server gave it, with nothing to press', () => {
+    it('shows your own role as the server gave it, with nothing to press, to a seat not logged in', () => {
       fixture.detectChanges();
       const root = fixture.nativeElement as HTMLElement;
 
       expect(root.querySelector('[data-testid="peer-menu-server-role"]')?.textContent).toContain('GM');
+      expect(root.querySelector('[data-testid="peer-menu-watch"]')).toBeNull();
+    });
+
+    it('lets a seat logged in step out to watch and come back to the role the room gives it', () => {
+      const watching = TestBed.inject(ServerWatchService);
+      vi.spyOn(watching, 'roleToChoose').mockReturnValue('gm');
+      const watch = vi.spyOn(watching, 'watch').mockImplementation(() => undefined);
+      const comeBack = vi.spyOn(watching, 'comeBack').mockImplementation(() => undefined);
+      fixture.detectChanges();
+      const root = fixture.nativeElement as HTMLElement;
+      const back = root.querySelector<HTMLButtonElement>('[data-testid="peer-menu-kept-role"]')!;
+      const watchButton = root.querySelector<HTMLButtonElement>('[data-testid="peer-menu-watch"]')!;
+
+      expect(root.querySelector('[data-testid="peer-menu-server-role"]')).toBeNull();
+      expect(back.textContent).toContain('GM');
+      expect(back.getAttribute('aria-pressed')).toBe('true');
+      expect(watchButton.getAttribute('aria-pressed')).toBe('false');
+      watchButton.click();
+      back.click();
+
+      expect(watch).toHaveBeenCalled();
+      expect(comeBack).toHaveBeenCalled();
     });
 
     it('asks the server for an invitation in the role chosen, and puts it in the link', async () => {

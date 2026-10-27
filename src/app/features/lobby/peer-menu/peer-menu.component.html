@@ -39,13 +39,30 @@
       <div class="flex items-center gap-1.5">
         <span>{{ 'feature.lobby.peerMenu.roleLabel' | transloco }}</span>
         @if (isServerTransport()) {
-          <span
-            class="rounded-sm px-1.5 py-0.5 text-[0.7rem] font-bold"
-            [class]="roleBadgeClass(myPeer.role)"
-            [title]="'feature.lobby.peerMenu.roleDecidedByServer' | transloco"
-            data-testid="peer-menu-server-role"
-            >{{ roleShortLabelKey(myPeer.role) | transloco }}</span
-          >
+          @for (choice of ownRoleChoices(); track choice.role) {
+            <button
+              class="rounded-sm px-1.5 py-0.5 text-[0.7rem]"
+              [class]="
+                myPeer.role === choice.role
+                  ? roleBadgeClass(choice.role)
+                  : 'border border-(--ui-panel-border) text-(--ui-text-muted)'
+              "
+              [attr.aria-pressed]="myPeer.role === choice.role"
+              [title]="choice.hintKey | transloco"
+              [attr.data-testid]="choice.testId"
+              (click)="chooseOwnRole(choice.role)"
+            >
+              {{ roleShortLabelKey(choice.role) | transloco }}
+            </button>
+          } @empty {
+            <span
+              class="rounded-sm px-1.5 py-0.5 text-[0.7rem] font-bold"
+              [class]="roleBadgeClass(myPeer.role)"
+              [title]="'feature.lobby.peerMenu.roleDecidedByServer' | transloco"
+              data-testid="peer-menu-server-role"
+              >{{ roleShortLabelKey(myPeer.role) | transloco }}</span
+            >
+          }
         } @else {
           @for (role of assignableRoles; track role) {
             <button

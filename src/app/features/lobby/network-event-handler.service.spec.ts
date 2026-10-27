@@ -34,6 +34,7 @@ import { isTableWithheld, markLoadedWithheld, markSeatWithheld } from '@axe/doma
 import { IdleSeatService } from '@axe/features/lobby/idle-seat.service';
 import { NetworkEventHandlerService } from '@axe/features/lobby/network-event-handler.service';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
+import { ServerWatchService } from '@axe/features/lobby/server-watch.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 /**
@@ -1063,6 +1064,20 @@ describe('NetworkEventHandlerService', () => {
       expect(PeerCursor.myCursor.role).toBe('pl');
     });
 
+    it('lets the choice of watching follow each role the server tells of, only the seat’s own', () => {
+      vi.spyOn(ImageStorage.instance, 'synchronize').mockImplementation(() => {});
+      vi.spyOn(AudioStorage.instance, 'synchronize').mockImplementation(() => {});
+      vi.spyOn(Network, 'serverRole', 'get').mockReturnValue('guest');
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ peerId: 'p', userId: 'u', isRoom: true } as never);
+      const noted = vi.spyOn(TestBed.inject(ServerWatchService), 'noteRoleTold');
+
+      localDispatch('SERVER_ROLE_CHANGED', { role: 'guest' }, 'someone-else');
+      expect(noted).not.toHaveBeenCalled();
+      localDispatch('SERVER_ROLE_CHANGED', { role: 'guest' });
+
+      expect(noted).toHaveBeenCalledTimes(1);
+    });
+
     it('holds the table as withheld while a role other than the GM, and whole once the GM', () => {
       vi.spyOn(ImageStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});
       vi.spyOn(AudioStorage.instance, 'uploadAllToAssetStore').mockImplementation(() => {});
@@ -1120,6 +1135,16 @@ describe('NetworkEventHandlerService', () => {
 
       expect(sent()).toHaveLength(1);
       expect(sent()[0]).toContain('feature.lobby.roleRejected.notLoggedIn');
+    });
+
+    it('says the seat could not switch its own role, without the code the server gives as why', () => {
+      vi.spyOn(Network, 'peerId', 'get').mockReturnValue('me');
+
+      localDispatch('ROLE_REJECTED', { peerId: 'me', role: 'guest', reason: 'not-game-master' }, '@authority');
+
+      expect(sent()).toHaveLength(1);
+      expect(sent()[0]).toContain('feature.lobby.roleRejected.own');
+      expect(sent()[0]).not.toContain('not-game-master');
     });
   });
 });
