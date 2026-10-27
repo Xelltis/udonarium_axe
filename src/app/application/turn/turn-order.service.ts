@@ -29,6 +29,7 @@ import {
   roundSide,
   TurnAnnouncement,
   TurnEffect,
+  TurnLive,
   TurnOutcome,
   TurnSnapshot,
   TurnTable,
@@ -256,7 +257,7 @@ export class TurnOrderService {
    */
   hold(identifier: string): void {
     if (!this.canTakeTurns) return;
-    this.press((state, table) => roundHold(state, table, identifier));
+    this.press((state, table, live) => roundHold(state, table, identifier, live));
   }
 
   /**
@@ -274,7 +275,7 @@ export class TurnOrderService {
    */
   interrupt(identifier: string): void {
     if (!this.canTakeTurns) return;
-    this.press((state, table) => roundInterrupt(state, table, identifier));
+    this.press((state, table, live) => roundInterrupt(state, table, identifier, live));
   }
 
   /**
@@ -365,7 +366,7 @@ export class TurnOrderService {
    */
   setCurrent(identifier: string): void {
     if (!this.canTakeTurns) return;
-    this.press((state, table) => roundGiveTurn(state, table, identifier));
+    this.press((state, table, live) => roundGiveTurn(state, table, identifier, live));
   }
 
   /**
@@ -386,7 +387,7 @@ export class TurnOrderService {
    * while no turn is being taken, or for a piece that has had its turn already.
    */
   closeTurnsInPassing(identifiers: readonly string[]): void {
-    this.perform(roundCloseInPassing(this.snapshot(), this.turnTable(), identifiers).effects);
+    roundCloseInPassing(this.snapshot(), this.turnTable(), identifiers, this.live);
   }
 
   /**
@@ -478,10 +479,19 @@ export class TurnOrderService {
     this.press(roundReset);
   }
 
-  /** Works a press of the round out from where it stands, and makes it as one step of the record. */
-  private press(work: (state: TurnSnapshot, table: TurnTable) => TurnOutcome | null): void {
-    const outcome = work(this.snapshot(), this.turnTable());
-    if (outcome) this.step(() => this.perform(outcome.effects));
+  /**
+   * The round as a press carries itself out on: each thing done at once, and the round read back
+   * after whatever else may move it, so that a turn closed by the ground going off under a piece
+   * stays closed.
+   */
+  private readonly live: TurnLive = {
+    perform: (effect) => this.perform([effect]),
+    read: () => this.snapshot(),
+  };
+
+  /** Carries a press of the round out from where it stands, as one step of the record. */
+  private press(work: (state: TurnSnapshot, table: TurnTable, live: TurnLive) => TurnOutcome | null): void {
+    this.step(() => work(this.snapshot(), this.turnTable(), this.live) !== null);
   }
 
   /**
@@ -490,7 +500,7 @@ export class TurnOrderService {
    * The buffs are read on either side of it and only the pieces whose own changed are kept,
    * so a press costs the record one line rather than the whole table.
    */
-  private step(work: () => void): void {
+  private step(work: () => boolean): void {
     const turnState = this.turnState;
     const before: TurnStep = {
       round: turnState.round,
@@ -503,7 +513,7 @@ export class TurnOrderService {
     };
     const buffsBefore = this.captureBuffs();
 
-    work();
+    if (!work()) return;
 
     before.buffs = changedBuffs(buffsBefore, this.captureBuffs());
     const steps = parseTurnHistory(this.turnState.history);

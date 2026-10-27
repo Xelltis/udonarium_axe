@@ -241,3 +241,52 @@ describe('closing turns in passing', () => {
     expect(roundCloseInPassing(IDLE, table(), ['b']).effects).toEqual([]);
   });
 });
+
+describe('a press carried out as it is worked out', () => {
+  /** The round as a room holds it, with the ground able to move it while a press is under way. */
+  function room(start: TurnSnapshot, onGround: (effect: TurnEffect, round: TurnSnapshot) => TurnSnapshot) {
+    let round = start;
+    const performed: TurnEffect[] = [];
+    return {
+      performed,
+      round: () => round,
+      live: {
+        perform: (effect: TurnEffect) => {
+          performed.push(effect);
+          if (effect.kind === 'write') round = { ...round, ...effect.fields };
+          if (effect.kind === 'ground') round = onGround(effect, round);
+        },
+        read: () => round,
+      },
+    };
+  }
+
+  it('does each thing as it goes, and works on from where the round really stands', () => {
+    const on = table({ order: ['a', 'm', 'b'], companionsOf: (id) => (id === 'a' ? ['m'] : []) });
+    const up = press(IDLE, 2, on);
+    const held = room(up, (effect, round) =>
+      effect.kind === 'ground' && effect.identifier === 'a' && effect.moment === 'turnEnd'
+        ? { ...round, acted: [...round.acted, 'm'] }
+        : round
+    );
+
+    const outcome = roundNext(up, on, held.live);
+
+    expect(held.round().acted).toEqual(['m', 'a']);
+    expect(held.round().currentIdentifier).toBe('b');
+    expect(done(outcome)).not.toContain('ground:turnEnd:m');
+    const besidesWrites = (effects: readonly TurnEffect[]) => effects.filter((effect) => effect.kind !== 'write');
+    expect(besidesWrites(held.performed)).toEqual(besidesWrites(outcome.effects));
+  });
+
+  it('closes a piece’s companions with it where nothing closed them on the way', () => {
+    const on = table({ order: ['a', 'm', 'b'], companionsOf: (id) => (id === 'a' ? ['m'] : []) });
+    const up = press(IDLE, 2, on);
+    const held = room(up, (_, round) => round);
+
+    const outcome = roundNext(up, on, held.live);
+
+    expect(held.round().acted).toEqual(['a', 'm']);
+    expect(done(outcome)).toContain('ground:turnEnd:m');
+  });
+});

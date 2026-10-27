@@ -583,6 +583,20 @@ describe('TurnOrderService', () => {
       expect(sprang.mock.calls.map((call: unknown[]) => call[1])).toEqual(['turnEnd', 'turnStart']);
     });
 
+    it('keeps a turn the ground closes in passing as a piece leaves its own, and passes that piece over', () => {
+      service.next();
+      service.next();
+      sprang.mockImplementation((piece: GameCharacter, moment: string) => {
+        if (piece === chars[0] && moment === 'turnEnd') service.closeTurnsInPassing([chars[1].identifier]);
+        return [];
+      });
+
+      service.next();
+
+      expect(turnState.actedIdentifiers).toEqual([chars[1].identifier, chars[0].identifier]);
+      expect(turnState.currentIdentifier).toBe(chars[2].identifier);
+    });
+
     it('keeps turning where the ground will not go off', () => {
       sprang.mockImplementation(() => {
         throw new Error('no table out');

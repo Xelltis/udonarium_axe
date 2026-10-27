@@ -65,6 +65,17 @@ export interface TurnOutcome {
 }
 
 /**
+ * The round itself, for a press carried out as it is worked out rather than after: each thing the
+ * press does is done at once, and the round is read back after anything that may move it on its
+ * own, as the ground going off under a piece or whatever waits on a turn does. What comes after is
+ * then worked out from where the round really stands, rather than written over it.
+ */
+export interface TurnLive {
+  perform(effect: TurnEffect): void;
+  read(): TurnSnapshot;
+}
+
+/**
  * The side the round stands on, worked out afresh rather than taken as written: the one it is held
  * on while that side is still there. Empty unless it is taken side by side.
  *
@@ -92,8 +103,8 @@ export function roundSide(
  * side and only leaves it once nobody on it is waiting, whichever way the side moves through its
  * phase.
  */
-export function roundNext(state: TurnSnapshot, table: TurnTable): TurnOutcome {
-  return new TurnRun(state, table).next();
+export function roundNext(state: TurnSnapshot, table: TurnTable, live?: TurnLive): TurnOutcome {
+  return new TurnRun(state, table, live).next();
 }
 
 /**
@@ -103,9 +114,14 @@ export function roundNext(state: TurnSnapshot, table: TurnTable): TurnOutcome {
  * it steps in before. A piece whose turn it is passes the turn on without it counting as had, and
  * the turn's opening does not run again when it comes back.
  */
-export function roundHold(state: TurnSnapshot, table: TurnTable, identifier: string): TurnOutcome | null {
+export function roundHold(
+  state: TurnSnapshot,
+  table: TurnTable,
+  identifier: string,
+  live?: TurnLive
+): TurnOutcome | null {
   if (!mayHoldTurn(state, table.order, identifier)) return null;
-  return new TurnRun(state, table).hold(identifier);
+  return new TurnRun(state, table, live).hold(identifier);
 }
 
 /**
@@ -114,9 +130,14 @@ export function roundHold(state: TurnSnapshot, table: TurnTable, identifier: str
  * Taken side by side, the phase stays the side's it was: the piece steps into it rather than opening
  * its own.
  */
-export function roundInterrupt(state: TurnSnapshot, table: TurnTable, identifier: string): TurnOutcome | null {
+export function roundInterrupt(
+  state: TurnSnapshot,
+  table: TurnTable,
+  identifier: string,
+  live?: TurnLive
+): TurnOutcome | null {
   if (!mayInterruptTurn(state, table.order, identifier)) return null;
-  return new TurnRun(state, table).interrupt(identifier);
+  return new TurnRun(state, table, live).interrupt(identifier);
 }
 
 /**
@@ -126,19 +147,24 @@ export function roundInterrupt(state: TurnSnapshot, table: TurnTable, identifier
  * whoever was up is closed off first and the piece named is opened, so every piece gets its start
  * and its end exactly once however freely the side moves.
  */
-export function roundGiveTurn(state: TurnSnapshot, table: TurnTable, identifier: string): TurnOutcome | null {
+export function roundGiveTurn(
+  state: TurnSnapshot,
+  table: TurnTable,
+  identifier: string,
+  live?: TurnLive
+): TurnOutcome | null {
   if (table.mode === 'faction' && state.currentIdentifier === identifier) return null;
-  return new TurnRun(state, table).giveTurn(identifier);
+  return new TurnRun(state, table, live).giveTurn(identifier);
 }
 
 /** Closes the round, where one is under way, and begins the next, whoever is still to move. */
-export function roundAdvance(state: TurnSnapshot, table: TurnTable): TurnOutcome {
-  return new TurnRun(state, table).advance();
+export function roundAdvance(state: TurnSnapshot, table: TurnTable, live?: TurnLive): TurnOutcome {
+  return new TurnRun(state, table, live).advance();
 }
 
 /** Takes the round back to before the first. */
-export function roundReset(state: TurnSnapshot, table: TurnTable): TurnOutcome {
-  return new TurnRun(state, table).reset();
+export function roundReset(state: TurnSnapshot, table: TurnTable, live?: TurnLive): TurnOutcome {
+  return new TurnRun(state, table, live).reset();
 }
 
 /**
@@ -149,9 +175,10 @@ export function roundReset(state: TurnSnapshot, table: TurnTable): TurnOutcome {
 export function roundCloseInPassing(
   state: TurnSnapshot,
   table: TurnTable,
-  identifiers: readonly string[]
+  identifiers: readonly string[],
+  live?: TurnLive
 ): TurnOutcome {
-  return new TurnRun(state, table).closeInPassing(identifiers);
+  return new TurnRun(state, table, live).closeInPassing(identifiers);
 }
 
 /** One press of the round being worked out, with where it stands so far and what it has done. */
@@ -160,7 +187,8 @@ class TurnRun {
 
   constructor(
     private state: TurnSnapshot,
-    private readonly table: TurnTable
+    private readonly table: TurnTable,
+    private readonly live: TurnLive | null = null
   ) {}
 
   next(): TurnOutcome {
@@ -256,14 +284,19 @@ class TurnRun {
   /** Writes fields of the round, folded into the write just before where nothing came between. */
   private write(fields: Partial<TurnSnapshot>): void {
     this.state = { ...this.state, ...fields };
+    this.live?.perform({ kind: 'write', fields });
     const last = this.effects[this.effects.length - 1];
     if (last?.kind === 'write')
       this.effects[this.effects.length - 1] = { kind: 'write', fields: { ...last.fields, ...fields } };
     else this.effects.push({ kind: 'write', fields });
   }
 
+  /** Does something besides writing the round, and reads the round back where it is done at once. */
   private do(effect: TurnEffect): void {
     this.effects.push(effect);
+    if (!this.live) return;
+    this.live.perform(effect);
+    this.state = this.live.read();
   }
 
   private announce(identifier: string, announcement: TurnAnnouncement): void {
@@ -358,9 +391,13 @@ class TurnRun {
     this.do({ kind: 'turnEnded' });
   }
 
-  /** Ends a piece's turn, and the turns of those that took theirs in it. */
+  /**
+   * Ends a piece's turn, and the turns of those that took theirs in it, unless one of those has been
+   * closed already on the way, as a mount is when the ground under its rider throws the rider off.
+   */
   private endTurnOf(identifier: string): void {
-    for (const id of [identifier, ...this.table.companionsOf(identifier)]) this.closeTurnOf(id);
+    this.closeTurnOf(identifier);
+    for (const id of this.table.companionsOf(identifier)) if (!this.isActed(id)) this.closeTurnOf(id);
   }
 
   private closeTurnOf(identifier: string): void {
