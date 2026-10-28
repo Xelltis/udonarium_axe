@@ -530,6 +530,12 @@ describe('DiceBot', () => {
     it('lists the systems it knows', () => {
       expect(Array.isArray(DiceBot.diceBotInfos)).toBe(true);
     });
+
+    it('strips the commands for the speaker from a copy of a line for another target, secret ones too', () => {
+      expect(DiceBot.deleteMyselfResourceBuff('攻撃 s:HP-1 st:HP-2 s&加護/3 :MP-1 t&呪い/2')).toBe(
+        '攻撃  st:HP-2   t&呪い/2'
+      );
+    });
   });
 
   describe('a system whose chunk cannot be fetched', () => {

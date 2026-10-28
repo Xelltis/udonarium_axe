@@ -414,7 +414,7 @@ export class DiceBot extends GameObject {
    *
    * A line sent to several targets is repeated for each, and only the first copy should change the
    * speaker's own sheet. A `:` or `&` command runs to the next space and is removed unless it
-   * follows a `t`.
+   * follows a `t`; one after an `s` alone, a secret one for the speaker, is removed with its `s`.
    */
   static deleteMyselfResourceBuff(str: string): string {
     let beforeIsSpace = true;
@@ -424,6 +424,14 @@ export class DiceBot extends GameObject {
     const chars: string[] = [];
     for (let i = 0; i < str.length; i++) {
       const chktext: string = str[i];
+
+      if (beforeIsSpace && /[sSｓＳ]/.test(chktext) && /[:：&＆]/.test(str[i + 1] ?? '')) {
+        beforeIsSpace = false;
+        beforeIsT = false;
+        deleteCommand = true;
+        tCommand = false;
+        continue;
+      }
 
       if (beforeIsSpace && chktext.match(/[tTｔＴ]/)) {
         beforeIsSpace = false;
