@@ -1,6 +1,7 @@
 import type { ChatLintSession } from '@axe/application/chat/chat-lint.service';
 import type { TranslateFn } from '@axe/application/i18n/translate.token';
 import { type ChatSyntaxMode, scanChatSyntax } from '@axe/domain/chat-syntax/chat-syntax';
+import { chatCompletionSource, type ChatCompletionWords } from '@axe/features/chat/chat-editor/chat-editor-complete';
 import { type ChatEditorKeys, chatEditorKeys } from '@axe/features/chat/chat-editor/chat-editor-keys';
 import { toEditorDiagnostic } from '@axe/features/chat/chat-editor/chat-editor-lint';
 import { chatEditorTheme } from '@axe/features/chat/chat-editor/chat-editor-theme';
@@ -11,9 +12,10 @@ import {
   type ChatFieldSelection,
   type ChatTextField,
 } from '@axe/features/chat/chat-input/chat-text-field';
+import { acceptCompletion, autocompletion, closeCompletion, moveCompletionSelection } from '@codemirror/autocomplete';
 import { forceLinting, linter } from '@codemirror/lint';
-import { Annotation, Compartment, EditorSelection, EditorState } from '@codemirror/state';
-import { EditorView, placeholder, tooltips } from '@codemirror/view';
+import { Annotation, Compartment, EditorSelection, EditorState, Prec } from '@codemirror/state';
+import { EditorView, keymap, placeholder, tooltips } from '@codemirror/view';
 
 /** What the editor asks of what holds it, beside its keys. */
 export interface ChatEditorHost extends ChatEditorKeys {
@@ -25,6 +27,8 @@ export interface ChatEditorHost extends ChatEditorKeys {
   changed(text: string): void;
   /** What the text is checked as, for its colours, the values beside it and what will not work. */
   session(): ChatLintSession | null;
+  /** The names offered as the line is written. */
+  completionWords(): ChatCompletionWords;
   readonly translate: TranslateFn;
 }
 
@@ -37,6 +41,21 @@ export interface ChatEditorStart {
 
 /** A change made through the field rather than by the reader, which the holder knows of already. */
 const fromHolder = Annotation.define<boolean>();
+
+/**
+ * The keys of the names offered: Tab takes the one picked, Up and Down move through them and
+ * Escape puts them away, each only while they are offered. Enter is left to send the line, so a
+ * line typed out in full goes out on Enter whatever is offered beside it, and the keys need not
+ * wait, as the completion's own do, for fear of an Enter taking a name nobody meant to pick.
+ */
+const completionKeys = Prec.highest(
+  keymap.of([
+    { key: 'Tab', run: acceptCompletion },
+    { key: 'ArrowDown', run: moveCompletionSelection(true) },
+    { key: 'ArrowUp', run: moveCompletionSelection(false) },
+    { key: 'Escape', run: closeCompletion },
+  ])
+);
 
 /** How long after the last key the text is checked. */
 const LINT_DELAY_MS = 300;
@@ -74,6 +93,13 @@ export class ChatEditorField implements ChatTextField {
           this.placeholderSlot.of(placeholder(host.placeholder())),
           this.tooltipSlot.of(tooltips({ parent: bodyOf(root) })),
           chatEditorTheme,
+          autocompletion({
+            override: [chatCompletionSource(() => host.completionWords())],
+            icons: false,
+            defaultKeymap: false,
+            interactionDelay: 0,
+          }),
+          completionKeys,
           livePreview({
             scan: (text) => {
               const scan = host.session()?.scan();

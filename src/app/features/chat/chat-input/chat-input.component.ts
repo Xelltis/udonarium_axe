@@ -359,6 +359,18 @@ export class ChatInputComponent {
       this.onInput();
     },
     session: () => untracked(() => this.activeSession()),
+    completionWords: () => {
+      const source = this.syntaxMenuSource();
+      const found = this.objectStore.get(this.sendFrom);
+      return {
+        statuses: source.statuses.map((status) => status.name),
+        variables: source.variables,
+        portraits: source.portraits,
+        effects: source.effects,
+        buffs: found instanceof GameCharacter ? found.buffs.list().map((buff) => buff.name) : [],
+        diceExamples: source.diceExamples,
+      };
+    },
     translate: (key, params) => this.t(key, params),
   };
 

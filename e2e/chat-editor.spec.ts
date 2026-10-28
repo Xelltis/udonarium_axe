@@ -87,6 +87,18 @@ test.describe('the chat editor', () => {
     await expectChatText(input, '攻撃 2D6 ');
   });
 
+  test('offers the names a syntax takes, picked with Tab', async ({ page }) => {
+    const input = chatInput(page);
+    await input.click();
+    await page.keyboard.type('《');
+    const offered = page.locator('.cm-tooltip-autocomplete li').first();
+    await expect(offered).toBeVisible({ timeout: 5000 });
+    const name = (await offered.textContent())!.trim();
+    await page.keyboard.press('Tab');
+    await expectChatText(input, `《${name}》`);
+    await expect(input).toBeFocused();
+  });
+
   test('marks what will not work, and lists it from the button beside the box', async ({ page }) => {
     const input = chatInput(page);
     await input.fill(':HP-1');

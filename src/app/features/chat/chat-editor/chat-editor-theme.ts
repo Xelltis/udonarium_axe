@@ -50,5 +50,13 @@ export const chatEditorTheme = EditorView.theme({
     color: 'var(--ui-text-muted)',
     backgroundColor: 'var(--ui-hover)',
   },
-  '.cm-tooltip': { fontSize: '12px', maxWidth: '22rem' },
+  '.cm-tooltip': {
+    fontSize: '12px',
+    maxWidth: '22rem',
+    color: 'var(--ui-text)',
+    backgroundColor: 'var(--ui-input-bg)',
+    border: '1px solid var(--ui-input-border)',
+    borderRadius: 'var(--ui-radius-sm)',
+  },
+  '.cm-tooltip-autocomplete > ul > li[aria-selected]': { color: '#fff', backgroundColor: 'var(--ui-accent)' },
 });
