@@ -72,6 +72,26 @@ test.describe('the chat editor', () => {
     await expectChatText(input, 'とても**強く**言う');
   });
 
+  test('takes the bold back to the stars typed, and a chip back to its syntax, with Backspace right after', async ({
+    page,
+  }) => {
+    const input = chatInput(page);
+    await input.click();
+    await page.keyboard.type('**強く**');
+    await expect(input.locator('.chat-deco-bold')).toHaveText('強く');
+    await page.keyboard.press('Backspace');
+    await expect(input).toHaveText('**強く**');
+    await expect(input.locator('.chat-deco-bold')).toHaveCount(0);
+
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('Delete');
+    await page.keyboard.type('《vs》');
+    await expect(input.locator('[data-chip="effect"]')).toHaveCount(1);
+    await page.keyboard.press('Backspace');
+    await expect(input.locator('[data-chip="effect"]')).toHaveCount(0);
+    await expectChatText(input, '《vs');
+  });
+
   test('pastes syntax as the decorations and chips it writes, the letters as they are on Ctrl+Shift+V, and copies back as syntax', async ({
     page,
     context,
