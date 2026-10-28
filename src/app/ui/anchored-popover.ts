@@ -14,6 +14,11 @@ export interface PopoverFit {
   minHeight: number;
   /** Whether it lines up with the left edge of the anchor or sits centred on it. */
   align?: 'start' | 'center';
+  /**
+   * Whether it opens upward wherever it fits there, as what hangs off something at the foot of the
+   * screen does; otherwise it opens to whichever side has the more room.
+   */
+  prefer?: 'up';
 }
 
 /** The window a popover has to fit inside, which the tests hand over rather than read. */
@@ -43,7 +48,7 @@ export function fitPopover(anchor: DOMRect, fit: PopoverFit, view: PopoverViewpo
   const width = Math.min(fit.width, view.width - VIEWPORT_MARGIN * 2);
   const roomAbove = anchor.top - VIEWPORT_MARGIN - ANCHOR_GAP;
   const roomBelow = view.height - anchor.bottom - VIEWPORT_MARGIN - ANCHOR_GAP;
-  const opensUpward = roomBelow < roomAbove;
+  const opensUpward = fit.prefer === 'up' ? roomAbove >= height || roomBelow < roomAbove : roomBelow < roomAbove;
   const left = fit.align === 'start' ? anchor.left : anchor.left + anchor.width / 2 - width / 2;
   const top = opensUpward ? anchor.top - ANCHOR_GAP - height : anchor.bottom + ANCHOR_GAP;
   return {
@@ -62,6 +67,7 @@ export function fitPopover(anchor: DOMRect, fit: PopoverFit, view: PopoverViewpo
  * the width it is given.
  */
 export function placePopover(popover: HTMLElement, anchor: DOMRect, fit: PopoverFit): void {
+  const window = popover.ownerDocument.defaultView ?? globalThis.window;
   const view = { width: window.innerWidth, height: window.innerHeight };
   popover.style.width = `${Math.min(fit.width, view.width - VIEWPORT_MARGIN * 2)}px`;
   popover.style.left = '0px';
@@ -83,7 +89,8 @@ function clamp(value: number, lowest: number, highest: number): number {
  * A popover that hangs off something on the page, and knows when to let go.
  *
  * It opens where it fits, closes on a press outside it, on Escape and on nothing else, and stops
- * listening once whatever owns it goes away. A browser without the popover API opens nothing and
+ * listening once whatever owns it goes away. It listens on the page its anchor stands in, so it
+ * works in a panel moved into a window of its own. A browser without the popover API opens nothing and
  * says so, which leaves the caller's own markup shut rather than half drawn.
  */
 export class AnchoredPopover {
@@ -91,6 +98,9 @@ export class AnchoredPopover {
 
   /** Whether it stands open, for the button that opens it to show as lit. */
   readonly isOpen = this.opened.asReadonly();
+
+  /** The page it listens on while open: the one its anchor stands in, which may be another window's. */
+  private watched: Document | null = null;
 
   constructor(
     private readonly anchor: () => HTMLElement,
@@ -115,9 +125,10 @@ export class AnchoredPopover {
     popover.style.display = 'flex';
     this.opened.set(true);
     this.place();
-    document.addEventListener('pointerdown', this.onPointerDown, true);
-    document.addEventListener('keydown', this.onKeyDown, true);
-    window.addEventListener('resize', this.onResize);
+    this.watched = this.anchor().ownerDocument;
+    this.watched.addEventListener('pointerdown', this.onPointerDown, true);
+    this.watched.addEventListener('keydown', this.onKeyDown, true);
+    this.watched.defaultView?.addEventListener('resize', this.onResize);
     return true;
   }
 
@@ -144,7 +155,8 @@ export class AnchoredPopover {
   }
 
   private readonly onPointerDown = (event: Event): void => {
-    if (this.anchor().contains(event.target as Node)) return;
+    const target = event.target as Node;
+    if (this.anchor().contains(target) || this.popover()?.contains(target)) return;
     this.close();
   };
 
@@ -157,8 +169,11 @@ export class AnchoredPopover {
   private readonly onResize = (): void => this.place();
 
   private stopWatching(): void {
-    document.removeEventListener('pointerdown', this.onPointerDown, true);
-    document.removeEventListener('keydown', this.onKeyDown, true);
-    window.removeEventListener('resize', this.onResize);
+    const watched = this.watched;
+    this.watched = null;
+    if (!watched) return;
+    watched.removeEventListener('pointerdown', this.onPointerDown, true);
+    watched.removeEventListener('keydown', this.onKeyDown, true);
+    watched.defaultView?.removeEventListener('resize', this.onResize);
   }
 }
