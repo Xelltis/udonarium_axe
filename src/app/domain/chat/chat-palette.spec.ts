@@ -163,6 +163,17 @@ describe('ChatPalette', () => {
       expect(result).toBe('2d6+');
     });
 
+    it('adds a buff appended to a roll where the sheet wears it, and leaves it out where it does not', () => {
+      const palette = new ChatPalette();
+      palette.initialize();
+      palette.setPalette('2d+10{加護}');
+      const sheet = DataElement.create('character', '');
+      sheet.appendChild(DataElement.create('加護', 3, { type: 'numberResource', currentValue: '+10' }));
+
+      expect(palette.evaluate('2d+10{加護}', sheet)).toBe('2d+10+10');
+      expect(palette.evaluate('2d+10{加護}', DataElement.create('character', ''))).toBe('2d+10');
+    });
+
     it('works from a row as well', () => {
       const palette = new ChatPalette();
       palette.initialize();
@@ -275,6 +286,32 @@ describe('ChatPalette', () => {
       const character = makeCharacter(false);
 
       expect(evaluateCharacterReferences('やった{歓喜}', character).text).toBe('やった{歓喜}');
+    });
+
+    it('adds a buff appended to a roll, carrying its own sign, where the piece wears it', () => {
+      const character = makeCharacter(false);
+      character.rootDataElement
+        ?.getFirstElementByName('detail')
+        ?.appendChild(DataElement.create('加護', 3, { type: 'numberResource', currentValue: '+10' }));
+
+      expect(evaluateCharacterReferences('2d+10{加護}', character).text).toBe('2d+10+10');
+    });
+
+    it('leaves out a buff appended to a roll where the piece does not wear it, so the roll still goes', () => {
+      const character = makeCharacter(false);
+
+      expect(evaluateCharacterReferences('2d+10{加護}', character).text).toBe('2d+10');
+      expect(evaluateCharacterReferences('2d+10{加護}{祝福} 攻撃', character).text).toBe('2d+10 攻撃');
+      expect(evaluateCharacterReferences('CC<=(50){加護}', character).text).toBe('CC<=(50)');
+    });
+
+    it('still leaves what it cannot fill in where a roll waits on it, a letter runs into it, or words hold it', () => {
+      const character = makeCharacter(false);
+
+      expect(evaluateCharacterReferences('2d6+{攻撃力}', character).text).toBe('2d6+{攻撃力}');
+      expect(evaluateCharacterReferences('2D{面数}', character).text).toBe('2D{面数}');
+      expect(evaluateCharacterReferences('2d6 やった10{歓喜}', character).text).toBe('2d6 やった10{歓喜}');
+      expect(evaluateCharacterReferences('やった10{歓喜}', character).text).toBe('やった10{歓喜}');
     });
 
     it('leaves a calculating field alone where the formula cannot be worked out', () => {
