@@ -11,6 +11,7 @@ export const STORAGE_KEYS = {
   battleCutIn: 'axe.battle.cutIn',
   battleCutInRemote: 'axe.battle.remote',
   beatLightOff: 'beat-light-off',
+  buffIconScale: 'ui-buff-icon-scale',
   buffView: 'ui-buff-view',
   chatAutoFollow: 'chat-auto-follow-scroll',
   chatLogOmitDeleted: 'chat-log-omit-deleted',

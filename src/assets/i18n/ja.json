@@ -533,6 +533,7 @@
     },
     "plTools": {
       "buffView": "バフ表示（全体）",
+      "buffIconSize": "バフアイコンの大きさ",
       "active": {
         "title": "操作対象キャラクター",
         "openChatPalette": "{{name}} のチャットパレットを開く"
@@ -2139,6 +2140,11 @@
         "viewIcon": "アイコン",
         "viewDetail": "詳細",
         "viewCount": "個数",
+        "iconSize75": "小（75%）",
+        "iconSize100": "標準（100%）",
+        "iconSize125": "やや大（125%）",
+        "iconSize150": "大（150%）",
+        "iconSize200": "特大（200%）",
         "timing": "消失タイミング",
         "timing_roundEnd": "ラウンド終了時",
         "timing_turnStart": "トリガーの手番開始時",

@@ -533,6 +533,7 @@
     },
     "plTools": {
       "buffView": "버프 표시(전체)",
+      "buffIconSize": "버프 아이콘 크기",
       "active": {
         "title": "조작 대상 캐릭터",
         "openChatPalette": "{{name}}의 채팅 팔레트 열기"
@@ -2139,6 +2140,11 @@
         "viewIcon": "아이콘",
         "viewDetail": "자세히",
         "viewCount": "개수",
+        "iconSize75": "작게(75%)",
+        "iconSize100": "보통(100%)",
+        "iconSize125": "조금 크게(125%)",
+        "iconSize150": "크게(150%)",
+        "iconSize200": "아주 크게(200%)",
         "timing": "소멸 시점",
         "timing_roundEnd": "라운드 종료 시",
         "timing_turnStart": "트리거의 차례 시작 시",

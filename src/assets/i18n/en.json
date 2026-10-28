@@ -533,6 +533,7 @@
     },
     "plTools": {
       "buffView": "Buff display (all)",
+      "buffIconSize": "Buff icon size",
       "active": {
         "title": "Character being moved",
         "openChatPalette": "Open the chat palette for {{name}}"
@@ -2139,6 +2140,11 @@
         "viewIcon": "Icons",
         "viewDetail": "Details",
         "viewCount": "Count",
+        "iconSize75": "Small (75%)",
+        "iconSize100": "Standard (100%)",
+        "iconSize125": "Slightly large (125%)",
+        "iconSize150": "Large (150%)",
+        "iconSize200": "Extra large (200%)",
         "timing": "Expires",
         "timing_roundEnd": "End of round",
         "timing_turnStart": "Start of trigger's turn",

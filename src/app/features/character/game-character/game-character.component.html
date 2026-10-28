@@ -301,7 +301,9 @@
                               @default {
                                 <div
                                   class="animate-buff-swap grid w-max items-end gap-[0.8em]"
+                                  data-testid="buff-badge-grid"
                                   [style.grid-template-columns]="buffBadgeColumns"
+                                  [style.font-size.em]="buffIconScale()"
                                 >
                                   @for (badge of buffBadges(); track badge.identifier) {
                                     <ng-container
@@ -433,6 +435,7 @@
                             <div
                               class="grid w-max items-end gap-[0.8em]"
                               [style.grid-template-columns]="buffBadgeColumns"
+                              [style.font-size.em]="buffIconScale()"
                             >
                               @for (badge of label.badges; track badge.identifier) {
                                 <ng-container

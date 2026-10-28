@@ -1659,6 +1659,23 @@ describe('GameCharacterComponent', () => {
       const root = () => fixture.nativeElement as HTMLElement;
       const switchButton = () => root().querySelector('[data-testid="buff-view-switch"]') as HTMLButtonElement;
 
+      it('draws the icons at the size this reader chose', () => {
+        const preference = TestBed.inject(BuffViewPreferenceService);
+        const character = bearBuff();
+        const grid = () => root().querySelector('[data-testid="buff-badge-grid"]') as HTMLElement;
+
+        try {
+          expect(grid().style.fontSize).toBe('1em');
+
+          preference.setIconScale(150);
+          fixture.detectChanges();
+          expect(grid().style.fontSize).toBe('1.5em');
+        } finally {
+          preference.setIconScale(100);
+          character.destroy();
+        }
+      });
+
       it('carries the display on to the next type at every press', () => {
         const character = bearBuff();
 
