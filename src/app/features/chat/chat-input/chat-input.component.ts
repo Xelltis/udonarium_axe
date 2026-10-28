@@ -25,7 +25,6 @@ import { StampPackService } from '@axe/application/chat/stamp-pack.service';
 import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { stampWords } from '@axe/application/chat/stamp-words';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
-import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -45,7 +44,6 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { resourceCatalogOf } from '@axe/domain/character/resource-catalog';
 import { ChatBubbleColors, chatBubbleOf, chatColorOf, DEFAULT_CHAT_COLOR } from '@axe/domain/chat/chat-color';
 import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -54,8 +52,6 @@ import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
 import type { ChatDiagnostic } from '@axe/domain/chat-syntax/chat-lint';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
-import { diceCommandExamples } from '@axe/domain/dice/dice-roll-line';
-import { CutIn } from '@axe/domain/media/cut-in';
 import { mayBeChosen } from '@axe/domain/peer/chosen-seat';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -74,6 +70,7 @@ import {
   type ChatSyntaxMenuSource,
   type ChatSyntaxWriter,
 } from '@axe/features/chat/chat-input/chat-syntax-context-menu';
+import { ChatSyntaxSourceService } from '@axe/features/chat/chat-input/chat-syntax-source.service';
 import {
   type ChatTextField,
   TextareaChatField,
@@ -177,31 +174,11 @@ export class ChatInputComponent {
     this.contextMenu.open(at, menu, this.t('feature.chat.syntax.title'), { forGuests: true });
   }
 
-  private readonly effectLibrary = inject(EffectLibraryService);
+  private readonly syntaxSource = inject(ChatSyntaxSourceService);
 
   /** What the speaker and the room offer to be written. */
   private syntaxMenuSource(): ChatSyntaxMenuSource {
-    const found = this.objectStore.get(this.sendFrom);
-    const speaker = found instanceof GameCharacter ? found : null;
-    const system = DiceBot.loadedGameSystem(this.gameType);
-    if (!system) void DiceBot.loadGameSystemAsync(this.gameType);
-    return {
-      language: this.language.currentLang(),
-      statuses: speaker ? resourceCatalogOf([speaker]) : [],
-      variables: speaker?.chatPalette?.paletteVariables.map((variable) => variable.name) ?? [],
-      portraits: this.portraitChoices().map((choice) => choice.name),
-      effects: this.effectLibrary
-        .presets()
-        .filter((preset) => !preset.gmOnly || PeerCursor.isMyselfGameMaster)
-        .map((preset) => preset.name.trim())
-        .filter((name) => name.length > 0),
-      cutIns: this.objectStore
-        .getObjects<CutIn>(CutIn)
-        .filter((cutIn) => cutIn.chatActivate)
-        .map((cutIn) => cutIn.name),
-      diceExamples: system && !DiceBot.isUnreachable(system) ? diceCommandExamples(system) : [],
-      isGameMaster: PeerCursor.isMyselfGameMaster,
-    };
+    return this.syntaxSource.sourceFor(this.sendFrom, this.gameType);
   }
 
   /** Writes what the syntax menu picks into the box, and goes back to writing. */
@@ -359,18 +336,7 @@ export class ChatInputComponent {
       this.onInput();
     },
     session: () => untracked(() => this.activeSession()),
-    completionWords: () => {
-      const source = this.syntaxMenuSource();
-      const found = this.objectStore.get(this.sendFrom);
-      return {
-        statuses: source.statuses.map((status) => status.name),
-        variables: source.variables,
-        portraits: source.portraits,
-        effects: source.effects,
-        buffs: found instanceof GameCharacter ? found.buffs.list().map((buff) => buff.name) : [],
-        diceExamples: source.diceExamples,
-      };
-    },
+    completionWords: () => this.syntaxSource.completionWordsFor(this.sendFrom, this.gameType),
     translate: (key, params) => this.t(key, params),
   };
 
