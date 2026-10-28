@@ -168,6 +168,28 @@ test.describe('the chat editor', () => {
     await expect(input.locator('[data-chip="effect"]')).toHaveCount(1);
   });
 
+  test('offers the names a syntax takes over the caret, Enter taking one, and sends on Enter with none offered', async ({
+    page,
+  }) => {
+    const input = chatInput(page);
+    await input.click();
+    await page.keyboard.type('《');
+    const list = page.locator('[data-testid="chat-suggestions"]');
+    await expect(list).toBeVisible();
+    const offered = (await list.boundingBox())!;
+    const field = (await input.boundingBox())!;
+    expect(offered.y + offered.height).toBeLessThanOrEqual(field.y + 2);
+    const name = (await list.getByRole('option').first().textContent())!.trim();
+
+    await page.keyboard.press('Enter');
+    await expectChatText(input, `《${name}》`);
+    await expect(input.locator('[data-chip="effect"]')).toHaveCount(1);
+    await expect(list).toHaveCount(0);
+
+    await page.keyboard.press('Enter');
+    await expectChatText(input, '');
+  });
+
   test('marks what will not work, and lists it from the button beside the box', async ({ page }) => {
     const input = chatInput(page);
     await input.fill(':HP-1');
@@ -212,7 +234,8 @@ test.describe('the palette written in the editor', () => {
     await page.keyboard.press('Delete');
     await editor.fill('//強さ=3\n2d6+{強さ} 殴る\n:気力-1');
     await expectChatText(editor, '//強さ=3\n2d6+{強さ} 殴る\n:気力-1');
-    await expect(editor.locator('.chat-lint-error')).toHaveCount(1, { timeout: 5000 });
+    await expect(editor.locator('.chat-lint-error').first()).toHaveAttribute('data-tip', /気力/, { timeout: 5000 });
+    await expect(editor.locator('.chat-lint-error').filter({ hasText: '強さ' })).toHaveCount(0);
     await expect(editor.locator('.chat-rich-reference')).toHaveCount(1);
     await expect(editor.locator('.chat-rich-quiet')).toHaveCount(1);
   });

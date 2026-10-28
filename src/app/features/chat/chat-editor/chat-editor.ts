@@ -10,6 +10,7 @@ import { isBattleChatTokenName } from '@axe/domain/effect/effect-chat-token';
 import { buildChatBubble, type ChatBubble } from '@axe/features/chat/chat-editor/chat-editor-bubble';
 import type { ChatCompletionWords } from '@axe/features/chat/chat-editor/chat-editor-complete';
 import { ensureChatEditorStyle } from '@axe/features/chat/chat-editor/chat-editor-style';
+import { chatSuggestExtension } from '@axe/features/chat/chat-editor/chat-editor-suggest';
 import {
   type ChatDocText,
   chipOfNode,
@@ -156,6 +157,7 @@ export class ChatEditorField implements ChatTextField {
         this.keys(),
         this.rules(),
         this.syntax(),
+        chatSuggestExtension({ completionWords: () => host.completionWords() }),
         BubbleMenu.configure({
           element: this.bubble.element,
           appendTo: () => this.parent.ownerDocument.body,

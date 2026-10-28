@@ -1,0 +1,179 @@
+import type { ChatRichChip } from '@axe/domain/chat/chat-rich-text';
+import { isBattleChatTokenName } from '@axe/domain/effect/effect-chat-token';
+import {
+  type ChatCompletionWords,
+  chatTriggerOptions,
+  findChatTrigger,
+} from '@axe/features/chat/chat-editor/chat-editor-complete';
+import { nodeOfChip } from '@axe/features/chat/chat-editor/chat-rich-convert';
+import { CHIP_LETTER } from '@axe/features/chat/chat-editor/chat-rich-schema';
+import { computePosition, flip, offset, shift } from '@floating-ui/dom';
+import { Extension } from '@tiptap/core';
+import { PluginKey } from '@tiptap/pm/state';
+import { Suggestion, type SuggestionProps } from '@tiptap/suggestion';
+
+/** How many names are offered at once. */
+const MOST_OFFERED = 30;
+
+/** What the list of names asks of the editor. */
+export interface ChatSuggestHost {
+  completionWords(): ChatCompletionWords;
+}
+
+/** The chip a name picked after an at mark becomes: a portrait, or a cut-in's sound where the speaker has no such portrait. */
+function tailChip(name: string, words: ChatCompletionWords): ChatRichChip {
+  const raw = `@${name}`;
+  if (words.cutIns.includes(name) && !words.portraits.includes(name)) {
+    return { kind: 'cutIn', raw, name, soundOnly: true };
+  }
+  return { kind: 'portrait', raw, command: { type: 'name', name } };
+}
+
+/**
+ * The list of names offered where the syntax being written takes one: statuses and variables after
+ * `{`, effects after `《`, portraits and cut-ins after an at mark, statuses after a colon and buffs
+ * after an ampersand that start a word. A reference, an effect, a portrait and a cut-in become chips;
+ * a status and a buff are written as text after their mark. It opens over the caret, as the chat
+ * sits at the foot of the screen. Up and Down move through it, Enter or Tab take the name, and
+ * Escape puts it away; while it is open, Enter does not send.
+ */
+export function chatSuggestExtension(host: ChatSuggestHost): Extension {
+  return Extension.create({
+    name: 'chatSuggest',
+    priority: 1100,
+    addProseMirrorPlugins() {
+      const editor = this.editor;
+      return [
+        Suggestion<string, string>({
+          editor,
+          pluginKey: new PluginKey('chatSuggest'),
+          char: '{',
+          findSuggestionMatch: ({ $position }) => {
+            const before = $position.parent.textBetween(0, $position.parentOffset, undefined, CHIP_LETTER);
+            const trigger = findChatTrigger(before);
+            if (!trigger) return null;
+            const start = $position.start() + trigger.from;
+            return {
+              range: { from: start, to: $position.pos },
+              query: trigger.query,
+              text: before.slice(trigger.from),
+            };
+          },
+          items: ({ query, editor: current }) => {
+            const $position = current.state.selection.$from;
+            const before = $position.parent.textBetween(0, $position.parentOffset, undefined, CHIP_LETTER);
+            const trigger = findChatTrigger(before);
+            if (!trigger) return [];
+            return chatTriggerOptions({ ...trigger, query }, host.completionWords()).slice(0, MOST_OFFERED);
+          },
+          command: ({ editor: current, range, props: name }) => {
+            const written = current.state.doc.textBetween(range.from, range.to, undefined, CHIP_LETTER);
+            const trigger = findChatTrigger(written);
+            if (!trigger) return;
+            const marks = current.state.storedMarks ?? current.state.selection.$from.marks();
+            const schema = current.schema;
+            const tr = current.state.tr;
+            if (trigger.kind === 'status' || trigger.kind === 'buff') {
+              const mark = written.slice(0, written.length - trigger.query.length);
+              tr.replaceWith(range.from, range.to, schema.text(mark + name, marks));
+            } else {
+              const chip: ChatRichChip =
+                trigger.kind === 'reference'
+                  ? {
+                      kind: 'reference',
+                      raw: `${/^[tTｔＴ]/.test(written) ? 't' : ''}{${name}}`,
+                      name,
+                      targeted: /^[tTｔＴ]/.test(written),
+                      useMax: false,
+                    }
+                  : trigger.kind === 'effect'
+                    ? { kind: 'effect', raw: `《${name}》`, name, battle: isBattleChatTokenName(name) }
+                    : tailChip(name, host.completionWords());
+              tr.replaceWith(range.from, range.to, nodeOfChip(schema, chip, marks));
+            }
+            current.view.dispatch(tr.scrollIntoView());
+            current.view.focus();
+          },
+          render: () => suggestionList(),
+        }),
+      ];
+    },
+  });
+}
+
+/** The list the names are shown in, drawn over the caret and moved through by the keys. */
+function suggestionList() {
+  let element: HTMLElement | null = null;
+  let props: SuggestionProps<string, string> | null = null;
+  let picked = 0;
+
+  const draw = () => {
+    if (!element || !props) return;
+    element.replaceChildren();
+    element.hidden = props.items.length < 1;
+    props.items.forEach((name, index) => {
+      const button = element!.ownerDocument.createElement('button');
+      button.type = 'button';
+      button.setAttribute('role', 'option');
+      button.setAttribute('aria-selected', String(index === picked));
+      button.textContent = name;
+      button.addEventListener('mousedown', (event) => event.preventDefault());
+      button.addEventListener('click', () => props?.command(name));
+      element!.append(button);
+    });
+    const rect = props.clientRect?.();
+    if (!rect || element.hidden) return;
+    const reference = { getBoundingClientRect: () => rect };
+    void computePosition(reference, element, {
+      strategy: 'fixed',
+      placement: 'top-start',
+      middleware: [offset(6), flip({ fallbackPlacements: ['bottom-start'] }), shift({ padding: 8 })],
+    }).then(({ x, y }) => {
+      if (!element) return;
+      element.style.left = `${x}px`;
+      element.style.top = `${y}px`;
+    });
+  };
+
+  return {
+    onStart(start: SuggestionProps<string, string>) {
+      props = start;
+      picked = 0;
+      element = start.editor.view.dom.ownerDocument.createElement('div');
+      element.className = 'chat-rich-menu';
+      element.setAttribute('role', 'listbox');
+      element.setAttribute('data-testid', 'chat-suggestions');
+      start.editor.view.dom.ownerDocument.body.append(element);
+      draw();
+    },
+    onUpdate(update: SuggestionProps<string, string>) {
+      props = update;
+      picked = Math.min(picked, Math.max(0, update.items.length - 1));
+      draw();
+    },
+    onKeyDown({ event }: { event: KeyboardEvent }) {
+      if (!props || props.items.length < 1 || event.isComposing) return false;
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        const step = event.key === 'ArrowDown' ? 1 : -1;
+        picked = (picked + step + props.items.length) % props.items.length;
+        draw();
+        return true;
+      }
+      if (event.key === 'Enter' || event.key === 'Tab') {
+        props.command(props.items[picked]);
+        return true;
+      }
+      if (event.key === 'Escape') {
+        element?.remove();
+        element = null;
+        return true;
+      }
+      return false;
+    },
+    onExit() {
+      element?.remove();
+      element = null;
+      props = null;
+    },
+  };
+}
