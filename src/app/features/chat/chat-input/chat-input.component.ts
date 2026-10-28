@@ -594,11 +594,15 @@ export class ChatInputComponent {
       this.placeholderText();
       untracked(() => this.richField()?.reconfigure());
     });
+    let refreshedText: string | null = null;
     effect(() => {
       const session = this.activeSession();
-      session?.annotations();
-      session?.diagnostics();
-      untracked(() => this.richField()?.refresh());
+      if (!session) return;
+      const text = session.scan().text;
+      session.annotations();
+      session.diagnostics();
+      untracked(() => this.richField()?.refresh(text !== refreshedText));
+      refreshedText = text;
     });
     afterEveryRender(() => this.richField()?.followRoot());
     this.destroyRef.onDestroy(() => this.richField()?.destroy());

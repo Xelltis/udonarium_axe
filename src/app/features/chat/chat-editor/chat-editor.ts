@@ -183,10 +183,14 @@ export class ChatEditorField implements ChatTextField {
     return { text: this.text(), selection: this.selection(), focused: this.hasFocus() };
   }
 
-  /** Draws the text again and checks it again, for something that changed outside it. */
-  refresh(): void {
+  /**
+   * Draws the text again, for what is shown beside it, and checks it again at once where the text
+   * itself is unchanged, as when the room changed under it; a changed text is checked after the
+   * reader pauses, as ever.
+   */
+  refresh(textChanged: boolean): void {
     this.view.dispatch({ effects: refreshPreview.of(null) });
-    forceLinting(this.view);
+    if (!textChanged) forceLinting(this.view);
   }
 
   /** Says what the empty editor says again, as when the language changes. */

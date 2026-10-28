@@ -359,10 +359,17 @@ export class ChatPaletteComponent {
       untracked(() => void this.editorLoader().then((module) => this.editorModule.set(module)));
     });
     effect(() => this.followPaletteEditor());
+    let refreshedText: string | null = null;
     effect(() => {
+      if (!this.editsInEditor()) {
+        refreshedText = null;
+        return;
+      }
+      const text = this.paletteLint.scan().text;
       this.paletteLint.annotations();
       this.paletteLint.diagnostics();
-      untracked(() => this.paletteEditor?.refresh());
+      untracked(() => this.paletteEditor?.refresh(text !== refreshedText));
+      refreshedText = text;
     });
     afterEveryRender(() => this.paletteEditor?.followRoot());
   }
