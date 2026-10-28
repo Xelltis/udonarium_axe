@@ -17,6 +17,7 @@ import {
   getTableColumns as getTableColumnsShared,
   isCheckCellChecked,
   isGapColumn,
+  isSelectValueChosen,
   isSelectValueListed,
   isTableControlRow as isTableControlRowShared,
   nextCheckCellValue,
@@ -320,6 +321,12 @@ export class GameDataElementTableViewComponent {
   isTableSelectValueListed(cell: DataElement): boolean {
     this.objectChange.versionOf(cell.identifier)();
     return isSelectValueListed(cell);
+  }
+
+  /** Whether a choice is the one a select cell holds. */
+  isTableSelectChosen(cell: DataElement, option: string): boolean {
+    this.objectChange.versionOf(cell.identifier)();
+    return isSelectValueChosen(cell, option);
   }
 
   /**

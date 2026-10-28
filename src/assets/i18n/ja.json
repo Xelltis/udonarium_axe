@@ -533,6 +533,7 @@
     },
     "plTools": {
       "buffView": "バフ表示（全体）",
+      "buffIconSize": "バフアイコンの大きさ",
       "active": {
         "title": "操作対象キャラクター",
         "openChatPalette": "{{name}} のチャットパレットを開く"
@@ -1579,6 +1580,8 @@
       "interrupt": "割り込む",
       "holdAnnounce": "{{name}} は待機します。",
       "holdAnnounceUnseen": "見えない相手が待機します。",
+      "buffsGivenBack": "{{name}} の手番開始で減ったバフを戻しました。",
+      "buffsGivenBackUnseen": "見えない相手の手番開始で減ったバフを戻しました。",
       "interruptAnnounce": "{{name}} が割り込んで行動します。",
       "interruptAnnounceUnseen": "見えない相手が割り込んで行動します。",
       "resumeAnnounce": "{{name}} の行動に戻ります。",
@@ -1654,7 +1657,9 @@
         "diceHidden": "???",
         "imageUnset": "画像未設定",
         "urlEdit": "URL編集:",
-        "enlarge": "拡大して見る"
+        "enlarge": "拡大して見る",
+        "showMemo": "メモ",
+        "showStatus": "ステータス"
       },
       "sheet": {
         "toggleEdit": "編集切り替え",
@@ -2045,6 +2050,7 @@
     "character": {
       "contextMenu": {
         "showDetail": "詳細を表示",
+        "memo": "メモ",
         "showChatPalette": "チャットパレットを表示",
         "showRemoteController": "リモコンを表示",
         "editBuff": "バフ編集",
@@ -2139,6 +2145,11 @@
         "viewIcon": "アイコン",
         "viewDetail": "詳細",
         "viewCount": "個数",
+        "iconSize75": "小（75%）",
+        "iconSize100": "標準（100%）",
+        "iconSize125": "やや大（125%）",
+        "iconSize150": "大（150%）",
+        "iconSize200": "特大（200%）",
         "timing": "消失タイミング",
         "timing_roundEnd": "ラウンド終了時",
         "timing_turnStart": "トリガーの手番開始時",
@@ -2221,6 +2232,11 @@
       "moveMode_fly": "飛ぶ",
       "stealth": {
         "mark": "ステルス中（GMと持ち主・仲間にだけ見えます）"
+      },
+      "memo": {
+        "title": "{{name}} のメモ",
+        "placeholder": "持ち物やフラグなど、このコマについて書いておくこと",
+        "hint": "コマにポインタを乗せたときのカードでも、ステータスと切り替えて読めます。"
       }
     },
     "light": {
@@ -3405,6 +3421,8 @@
         "confirmOnline": "オンラインに切り替えます。再読み込みして通信を始めます。よろしいですか？",
         "offlineNote": "部屋の保存と読み込みはこのままできます。他の人と遊ぶときは「オンライン」に切り替えてください。",
         "roleDecidedByServer": "役割は部屋のサーバーが決めます。変えられるのは部屋のGMだけです",
+        "watchHint": "見学に切り替えます。部屋での役割は残るので、いつでも戻れます",
+        "comeBackHint": "見学から、部屋での役割に戻ります",
         "inviteWithoutRole": "このリンクで入る人の役割は、ログインしていればPL、していなければ見学です。役割つきの招待はGMが作れます",
         "inviteFailed": "部屋のサーバーから招待をもらえませんでした。しばらくしてから開き直してください",
         "inviteExpires": "この招待は{{date}}まで使えます。決まるのは、ログインした人が初めて入るときの役割です",
@@ -3582,7 +3600,8 @@
         "unknownPeer": "{{name}}は部屋にいないため、役割を変えられませんでした",
         "notLoggedIn": "{{name}}はログインしていないため、見学のままです",
         "lastGameMaster": "部屋のGMがいなくなるため、{{name}}の役割は変えられませんでした",
-        "other": "役割を変えられませんでした（{{reason}}）"
+        "other": "役割を変えられませんでした（{{reason}}）",
+        "own": "役割を切り替えられませんでした"
       },
       "leaveRoom": {
         "title": "部屋を出ますか？",
@@ -3815,7 +3834,9 @@
         "searchResults": "検索結果",
         "searchCount": "{{count}} 件",
         "searchNoMatch": "一致する行がありません",
-        "searchClear": "検索をクリア"
+        "searchClear": "検索をクリア",
+        "untitledTab": "メイン",
+        "tabsLabel": "パレットのタブ"
       },
       "messageSetting": {
         "sectionText": "文字",
@@ -5002,6 +5023,10 @@
       "effect": "効果",
       "status": "ステータス",
       "operator": "操作",
+      "step": "数えるたびに",
+      "stepHint": "残ラウンドが減るたびに、ステータスをさらに動かす量（-1 で1ずつ戻る）",
+      "addStatus": "ステータスを足す",
+      "removeStatus": "このステータスを外す",
       "modifierNote": "{{target}} を自動補正中",
       "builderTitle": "自動計算バフの記法を作る",
       "builderStacks": "重ねがけ",
@@ -5523,6 +5548,14 @@
       "close": "閉じる",
       "shownHere": "この画面で戦闘カットインを出す",
       "shownHereHint": "この画面だけの設定です。出さないときは、攻撃と撃破の演出を卓の上で見ます。",
+      "size": "表示の大きさ",
+      "sizeFull": "全画面",
+      "sizeLarge": "大きな窓",
+      "sizeMedium": "中くらいの窓",
+      "sizeSmall": "小さな窓",
+      "sizeHint": "窓で見るときは、再生中も卓を操作できます。窓は上の縁をつかんで動かせます。この画面だけの設定です。",
+      "changeSize": "表示の大きさを変える（いま: {{size}}）",
+      "moveWindow": "つかんで動かす",
       "playHeading": "再生",
       "bout": "攻撃: {{attacker}} → {{defenders}}",
       "boutByTurn": "攻撃: {{attacker}}（手番） → {{defenders}}",

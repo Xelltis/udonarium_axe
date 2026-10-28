@@ -49,6 +49,7 @@ describe('TurnOrderService', () => {
     turnState.actedIdentifiers = [];
     turnState.history = '[]';
     turnState.holding = '';
+    turnState.turnOpening = '';
 
     chars = [new GameCharacter(), new GameCharacter(), new GameCharacter()];
     chars.forEach((c) => c.initialize());
@@ -380,6 +381,89 @@ describe('TurnOrderService', () => {
 
       expect(buffsOf(target).map((buff: DataElement) => buff.name)).not.toContain('練技');
       expect(buffsOf(target).map((buff: DataElement) => buff.name)).toContain('猛攻撃');
+    });
+
+    describe('a piece that waits once its turn has begun', () => {
+      const namesOf = (character: GameCharacter) => buffsOf(character).map((buff: DataElement) => buff.name);
+      const roundsOf = (character: GameCharacter, name: string) =>
+        buffsOf(character).find((buff: DataElement) => buff.name === name)?.value;
+
+      it('has its opening countdown given back, and counted down again as its turn comes back', () => {
+        const [first] = buffed;
+        first.buffs.addRound('加護', '', 2, { timing: 'turnStart' });
+
+        service.next(); // round 1 begins
+        service.next(); // the first piece's turn opens
+        expect(roundsOf(first, '加護')).toBe(1);
+
+        sendSpy.mockClear();
+        service.hold(first.identifier);
+        expect(roundsOf(first, '加護')).toBe(2);
+        const said = sendSpy.mock.calls.map((call: unknown[]) => String(call[1]));
+        expect(said.some((text: string) => text.includes('feature.turnOrder.buffsGivenBack'))).toBe(true);
+
+        service.next(); // the second piece is done, and the first comes back
+        expect(turnState.currentIdentifier).toBe(first.identifier);
+        expect(roundsOf(first, '加護')).toBe(1);
+      });
+
+      it('has a buff that ran out at the opening brought back, with what it moved on the sheet', () => {
+        const [first] = buffed;
+        first.detailDataElement!.appendChild(DataElement.create('命中', 5, {}));
+        first.buffs.addRound('集中', '命中+2', 1, { timing: 'turnStart' });
+        first.buffs.applyModifier(first.buffs.find('集中')!, {
+          target: '命中',
+          slot: 'now',
+          operator: 'add',
+          amount: 2,
+        });
+        const hit = () => first.detailDataElement!.getFirstElementByName('命中')!.value;
+        expect(hit()).toBe(7);
+
+        service.next(); // round 1 begins
+        service.next(); // the first piece's turn opens, and 集中 runs out
+        expect(namesOf(first)).not.toContain('集中');
+        expect(hit()).toBe(5);
+
+        service.hold(first.identifier);
+        expect(namesOf(first)).toContain('集中');
+        expect(roundsOf(first, '集中')).toBe(1);
+        expect(hit()).toBe(7);
+      });
+
+      it('leaves the countdown be while a seat at the table runs a version that would not count it again', () => {
+        const [first] = buffed;
+        first.buffs.addRound('加護', '', 2, { timing: 'turnStart' });
+        const older = new PeerCursor('older-cursor');
+        older.initialize();
+        older.peerId = 'older-peer';
+        older.role = 'pl';
+
+        try {
+          service.next(); // round 1 begins
+          service.next(); // the first piece's turn opens
+          service.hold(first.identifier);
+
+          expect(roundsOf(first, '加護')).toBe(1);
+          service.next(); // the first comes back, and its opening is not counted a second time
+          expect(roundsOf(first, '加護')).toBe(1);
+        } finally {
+          older.destroy();
+        }
+      });
+
+      it('goes back to before it waited in one step back', () => {
+        const [first] = buffed;
+        first.buffs.addRound('加護', '', 2, { timing: 'turnStart' });
+
+        service.next(); // round 1 begins
+        service.next(); // the first piece's turn opens
+        service.hold(first.identifier);
+        service.prev();
+
+        expect(turnState.currentIdentifier).toBe(first.identifier);
+        expect(roundsOf(first, '加護')).toBe(1);
+      });
     });
 
     it('waits for the bearer where the buff names no trigger', () => {

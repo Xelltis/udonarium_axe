@@ -6,8 +6,9 @@ import { generateUuid } from '@axe/core/util/uuid';
 import { BuffManager } from '@axe/domain/character/buff-manager';
 import { CharacterTemplateFactory } from '@axe/domain/character/character-template-factory';
 import { StatusAccessor } from '@axe/domain/character/status-accessor';
-import { BuffPalette, ChatPalette } from '@axe/domain/chat/chat-palette';
+import { BuffPalette, ChatPalette, SubPalette } from '@axe/domain/chat/chat-palette';
 import { DEFAULT_CHAT_BUBBLE_CODES, DEFAULT_CHAT_COLOR_CODES } from '@axe/domain/chat/constants';
+import { paletteRowsOf } from '@axe/domain/chat/palette-rows';
 import { convertLegacyCheckTableElements } from '@axe/domain/data/check-table-converter';
 import {
   DataElement,
@@ -38,6 +39,9 @@ import {
   VN_PORTRAIT_POS_UNSET,
   VN_PORTRAIT_SLOT_COUNT,
 } from '@axe/domain/visual-novel/vn-portrait-position';
+
+/** The name the memo kept with a piece goes by, as another fork names it. */
+const INNER_NOTE_NAME = 'inner-note';
 
 @SyncObject('character')
 export class GameCharacter extends OwnedTabletopObject {
@@ -335,6 +339,33 @@ export class GameCharacter extends OwnedTabletopObject {
   }
 
   /**
+   * The memo kept with the piece, beside its sheet rather than in it, under the name another fork
+   * keeps it by so that a room saved there brings it along; null until something is written.
+   */
+  get innerNote(): DataElement | null {
+    for (const child of this.children) {
+      if (child instanceof DataElement && child.getAttribute('name') === INNER_NOTE_NAME) return child;
+    }
+    return null;
+  }
+
+  /** What the memo kept with the piece says, empty while nothing is written. */
+  get note(): string {
+    return `${this.innerNote?.value ?? ''}`;
+  }
+
+  /** Writes the memo kept with the piece, making its element on the first write that says anything. */
+  set note(text: string) {
+    const held = this.innerNote;
+    if (held) {
+      held.value = text;
+      return;
+    }
+    if (text.length < 1) return;
+    this.appendChild(DataElement.create(INNER_NOTE_NAME, text, { type: 'note' }, `innernote_${this.identifier}`));
+  }
+
+  /**
    * The palette of buff commands the remote controller offers for this piece, or null until
    * `addExtendData` has given it one.
    */
@@ -423,6 +454,38 @@ export class GameCharacter extends OwnedTabletopObject {
     this.normalizeDetailDataElementHierarchy();
     this.convertLegacyCheckTableData();
     this.migrateOverviewDataTagsToElementAttributes();
+    this.foldSubPalettesIntoTabs();
+  }
+
+  /**
+   * Folds the palettes another fork kept beside this one's, a tab apiece, into this piece's palette:
+   * each goes after what is there as a `◆◆name` tab named by its first line, as that fork names it,
+   * and the palettes kept beside are let go.
+   */
+  private foldSubPalettesIntoTabs(): void {
+    const kept = this.children.filter((child): child is SubPalette => child instanceof SubPalette);
+    if (kept.length < 1) return;
+    const tabs: string[] = [];
+    for (const sub of kept) {
+      for (const child of sub.children) {
+        if (!(child instanceof ChatPalette)) continue;
+        const text = `${child.value ?? ''}`;
+        tabs.push(`◆◆${subPaletteName(text)}\n${text}`);
+      }
+    }
+    if (tabs.length > 0) {
+      const palette = this.chatPalette ?? this.appendChatPalette();
+      palette.setPalette([`${palette.value ?? ''}`, ...tabs].join('\n'));
+    }
+    for (const sub of kept) sub.destroy();
+  }
+
+  /** Gives the piece a palette of its own, for one that came without any. */
+  private appendChatPalette(): ChatPalette {
+    const palette = new ChatPalette(`ChatPalette_${this.identifier}`);
+    palette.initialize();
+    this.appendChild(palette);
+    return palette;
   }
 
   /**
@@ -669,4 +732,18 @@ export class GameCharacter extends OwnedTabletopObject {
 
     return cloneObject;
   }
+}
+
+/**
+ * The name a palette kept beside a piece's own goes by as a tab: its first line, as the fork that
+ * keeps it names it, without the diamonds a heading or a tab is written with, so that it opens a tab
+ * of its own rather than reading as a heading.
+ */
+function subPaletteName(text: string): string {
+  const first = paletteRowsOf(text.split('\n')).find(
+    (row) => row.kind === 'command' || row.kind === 'heading' || row.kind === 'tab'
+  );
+  if (!first) return '';
+  const name = first.kind === 'heading' ? first.headingName : first.kind === 'tab' ? first.tabName : first.text;
+  return (name ?? '').replace(/^◆+/, '').trim();
 }

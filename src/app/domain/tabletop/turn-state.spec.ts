@@ -28,9 +28,17 @@ describe('the mark of a turn beginning', () => {
 
 describe('what the round holds back', () => {
   it('reads back who was waiting and whose turn was stepped into', () => {
-    const holding = { held: ['a', 'b'], begun: ['a'], interrupted: ['c'] };
+    const holding = { held: ['a', 'b'], begun: ['a'], interrupted: ['c'], givenBack: [] };
 
     expect(readTurnHolding(writeTurnHolding(holding))).toEqual(holding);
+  });
+
+  it('reads back whose countdown was given back as they began to wait, and writes none where there is none', () => {
+    const holding = { held: ['a'], begun: ['a'], interrupted: [], givenBack: ['a'] };
+
+    expect(readTurnHolding(writeTurnHolding(holding))).toEqual(holding);
+    expect(writeTurnHolding({ ...holding, givenBack: [] })).toBe('{"held":["a"],"begun":["a"],"interrupted":[]}');
+    expect(readTurnHolding('{"held":["a"],"begun":["a"],"interrupted":[]}').givenBack).toEqual([]);
   });
 
   it('writes nothing while it holds nobody back, so a room that never waited saves as it did', () => {
@@ -49,6 +57,7 @@ describe('what the round holds back', () => {
       held: ['a'],
       begun: [],
       interrupted: [],
+      givenBack: [],
     });
   });
 });

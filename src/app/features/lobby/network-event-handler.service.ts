@@ -31,6 +31,7 @@ import { canRoleEdit, DEFAULT_PEER_ROLE } from '@axe/domain/peer/peer-role';
 import { markSeatWithheld } from '@axe/domain/peer/withheld-table';
 import { IdleSeatService } from '@axe/features/lobby/idle-seat.service';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
+import { ServerWatchService } from '@axe/features/lobby/server-watch.service';
 
 /** What to say for each reason the room server gives for keeping a role as it was. */
 const ROLE_REJECTED_KEYS: Readonly<Record<string, string>> = {
@@ -67,6 +68,7 @@ export class NetworkEventHandlerService {
   private readonly overlayMode = inject(OverlayModeService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly idleSeat = inject(IdleSeatService);
+  private readonly serverWatch = inject(ServerWatchService);
   private readonly imageStorage = inject(ImageStorage);
   private readonly audioStorage = inject(AudioStorage);
   private readonly assetHttpStore = inject(AssetHttpStore);
@@ -141,6 +143,7 @@ export class NetworkEventHandlerService {
     // The room server gave this seat another role: a guest made a player brings its pictures up.
     networkMessage$.subscribe((message) => {
       if (message.eventName !== 'SERVER_ROLE_CHANGED' || !message.isSendFromSelf) return;
+      this.serverWatch.noteRoleTold();
       this.takeServerRole();
       this.bringAssetsIntoRoom();
     }, this.destroyRef);
@@ -443,8 +446,15 @@ export class NetworkEventHandlerService {
     });
   }
 
-  /** Says why the room server would not change somebody's role. */
+  /**
+   * Says why the room server would not change somebody's role. A request of the seat's own, to watch
+   * or to come back, is told apart, as the reasons are written for changing somebody else's.
+   */
   private tellRoleRejected(data: { peerId?: unknown; reason?: unknown } | null): void {
+    if (data?.peerId === Network.peerId) {
+      this.chatMessageService.sendSystemNotice('room', encodeI18nMessage('feature.lobby.roleRejected.own'));
+      return;
+    }
     const reason = typeof data?.reason === 'string' ? data.reason : '';
     const key = ROLE_REJECTED_KEYS[reason] ?? 'feature.lobby.roleRejected.other';
     const name = typeof data?.peerId === 'string' ? this.resolvePeerName(data.peerId) : '';

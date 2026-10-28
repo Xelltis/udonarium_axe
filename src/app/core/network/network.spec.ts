@@ -306,9 +306,19 @@ describe('Network', () => {
       Object.assign(connection, { role: 'pl', room: { roomKey: ROOM, password: '' } });
       connection.callback.onOpen(connection.peer);
       await opened(ROOM, 4);
+      expect(useInvite).toHaveBeenCalledTimes(2);
+
+      // so does one let in watching, as the room keeps a role for it
+      Network.setServerInvite('the-invite', ROOM);
+      await opened(ROOM, 5);
+      const watching = (Network.instance as unknown as { connection: InstanceType<typeof ServerConnection> })
+        .connection;
+      Object.assign(watching, { role: 'guest', keptServerRole: 'pl', room: { roomKey: ROOM, password: '' } });
+      watching.callback.onOpen(watching.peer);
+      await opened(ROOM, 6);
 
       expect(useCredentials.mock.calls.every(([given]) => given === source)).toBe(true);
-      expect(useInvite).toHaveBeenCalledTimes(2);
+      expect(useInvite).toHaveBeenCalledTimes(3);
       (Network.instance as unknown as { close(): void }).close();
     });
   });

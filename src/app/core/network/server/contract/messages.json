@@ -3,13 +3,13 @@
   "client": {
     "hello": {
       "type": "hello",
-      "protocolVersion": 3,
+      "protocolVersion": 4,
       "peerId": "v35gKhXyZq9W8e7r6-",
       "userId": "8c5b7f0e-2c1d-4e3f-9a8b-7c6d5e4f3a2b"
     },
     "helloWithPassword": {
       "type": "hello",
-      "protocolVersion": 3,
+      "protocolVersion": 4,
       "peerId": "v35gKhXy7q9W8e7r6-Pa55w0r",
       "userId": "8c5b7f0e-2c1d-4e3f-9a8b-7c6d5e4f3a2b",
       "password": "secret"
@@ -73,7 +73,7 @@
     },
     "helloLoggedIn": {
       "type": "hello",
-      "protocolVersion": 3,
+      "protocolVersion": 4,
       "peerId": "QkSSnrXyZq9W8e7r6-",
       "userId": "acct_8c5b7f0e-2c1d-4e3f-9a8b-7c6d5e4f3a2b",
       "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…",
@@ -109,7 +109,7 @@
     },
     "helloLeftAlone": {
       "type": "hello",
-      "protocolVersion": 3,
+      "protocolVersion": 4,
       "peerId": "v35gKhXyZq9W8e7r6-",
       "userId": "8c5b7f0e-2c1d-4e3f-9a8b-7c6d5e4f3a2b",
       "idleMs": 1200000
@@ -147,7 +147,7 @@
     },
     {
       "type": "hello",
-      "protocolVersion": 3,
+      "protocolVersion": 4,
       "peerId": "a",
       "userId": "u",
       "accessToken": 1
@@ -157,7 +157,7 @@
     },
     {
       "type": "hello",
-      "protocolVersion": 3,
+      "protocolVersion": 4,
       "peerId": "a",
       "userId": "u",
       "idleMs": -1
@@ -166,10 +166,11 @@
   "server": {
     "welcome": {
       "type": "welcome",
-      "protocolVersion": 3,
+      "protocolVersion": 4,
       "peerId": "v35gKhXyZq9W8e7r6-",
       "authorityPeerId": "@authority",
       "role": "pl",
+      "keptRole": "pl",
       "members": [
         {
           "peerId": "wB0fSVXyZq9W8e7r6-",
@@ -183,10 +184,11 @@
     },
     "welcomeWithUpload": {
       "type": "welcome",
-      "protocolVersion": 3,
+      "protocolVersion": 4,
       "peerId": "v35gKhXyZq9W8e7r6-",
       "authorityPeerId": "@authority",
       "role": "pl",
+      "keptRole": "pl",
       "members": [
         {
           "peerId": "wB0fSVXyZq9W8e7r6-",
@@ -232,7 +234,7 @@
     "error": {
       "type": "error",
       "code": "protocol-mismatch",
-      "protocolVersion": 3
+      "protocolVersion": 4
     },
     "invite": {
       "type": "invite",
@@ -250,7 +252,15 @@
       "type": "asset-token",
       "assetToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…",
       "expiresAt": 1792000900000,
-      "role": "pl"
+      "role": "pl",
+      "keptRole": "pl"
+    },
+    "assetTokenWatching": {
+      "type": "asset-token",
+      "assetToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.…",
+      "expiresAt": 1792000900000,
+      "role": "guest",
+      "keptRole": "pl"
     },
     "authoritative": {
       "type": "data",

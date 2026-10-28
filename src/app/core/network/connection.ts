@@ -81,6 +81,8 @@ export interface Connection {
   readonly roomKey?: string;
   /** The role a room server gave this seat on letting it in; SkyWay leaves roles to the peers. */
   readonly serverRole?: ServerRole;
+  /** The role a room server keeps for this seat logged in, to come back to from watching; none otherwise. */
+  readonly keptRole?: ServerRole;
   /** Whether a room server connection is holding sends back for seconds, to keep inside the server's limits. */
   readonly sendsPending?: boolean;
 

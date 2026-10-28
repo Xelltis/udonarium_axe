@@ -35,7 +35,7 @@ import { ChatPalette, PaletteIndex } from '@axe/domain/chat/chat-palette';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
-import { PaletteRow, paletteRowsOf } from '@axe/domain/chat/palette-rows';
+import { PaletteRow, paletteRowsOf, paletteTabsOf } from '@axe/domain/chat/palette-rows';
 import { DataElement } from '@axe/domain/data/data-element';
 import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -43,6 +43,7 @@ import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
 import { editsTextInPlace } from '@axe/features/chat/chat-input/chat-input-helpers';
 import { PaletteSearchResult, searchPaletteRows } from '@axe/features/chat/chat-palette/chat-palette-search';
+import { ChatPaletteTabService } from '@axe/features/chat/chat-palette/chat-palette-tab.service';
 import { ChatTabStripComponent } from '@axe/features/chat/chat-tab-strip/chat-tab-strip.component';
 import { ChatTickerSelectionService } from '@axe/features/chat/chat-ticker-selection.service';
 import { GameDataElementComponent } from '@axe/features/data-element/game-data-element/game-data-element.component';
@@ -87,6 +88,7 @@ export class ChatPaletteComponent {
   private readonly injector = inject(Injector);
   private readonly chatPaletteRegistry = inject(ChatPaletteRegistryService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly tabMemory = inject(ChatPaletteTabService);
 
   readonly rootElementRef = viewChild.required<ElementRef<HTMLElement>>('root');
   readonly chatInputComponent = viewChild.required<ChatInputComponent>('chatInput');
@@ -112,7 +114,28 @@ export class ChatPaletteComponent {
    * followed in the window the app started in, so over there it lands somewhere the reader
    * cannot see. A plain list needs nowhere to be put.
    */
-  readonly paletteHeadings = computed((): PaletteRow[] => this.paletteRows().filter((row) => row.kind === 'heading'));
+  readonly paletteHeadings = computed((): PaletteRow[] => this.shownRows().filter((row) => row.kind === 'heading'));
+
+  /** The tabs the palette is parted into by its `◆◆name` lines; none for a palette with no such line. */
+  readonly paletteTabs = computed(() => paletteTabsOf(this.paletteRows()));
+
+  /** The tab open, kept for each character while the page is; -1 for a palette with no tabs. */
+  readonly activeTab = computed(() => {
+    const tabs = this.paletteTabs();
+    if (tabs.length < 1) return -1;
+    return Math.min(this.tabMemory.tabOf(this.character()?.identifier ?? ''), tabs.length - 1);
+  });
+
+  /** The rows drawn: those of the tab open, or the whole palette where it has no tabs. */
+  readonly shownRows = computed((): PaletteRow[] => {
+    const at = this.activeTab();
+    return at < 0 ? this.paletteRows() : this.paletteTabs()[at].rows;
+  });
+
+  /** Opens a tab of the palette, and keeps it open for this character while the page is. */
+  chooseTab(index: number): void {
+    this.tabMemory.choose(this.character()?.identifier ?? '', index);
+  }
 
   readonly searchResultsRef = viewChild<ElementRef<HTMLElement>>('searchResultsList');
 
@@ -613,10 +636,21 @@ export class ChatPaletteComponent {
 
   /**
    * Highlights a palette line and scrolls it into view; a heading picked from the headings menu or
-   * list lands here.
+   * list lands here, and so does a search result, which may stand in a tab other than the one open:
+   * that tab is opened first, and the line scrolled to once it is drawn.
    */
   japmIndex(lineNo: number) {
     this.selectedLine.set(lineNo);
+    const tab = this.paletteTabs().findIndex((candidate) => candidate.rows.some((row) => row.lineIndex === lineNo));
+    if (tab >= 0 && tab !== this.activeTab()) {
+      this.chooseTab(tab);
+      afterNextRender(() => this.scrollToLine(lineNo), { injector: this.injector });
+      return;
+    }
+    this.scrollToLine(lineNo);
+  }
+
+  private scrollToLine(lineNo: number): void {
     const el = this.paletteListRef()?.nativeElement;
     if (!el) return;
     const row = el.querySelector<HTMLElement>(`[data-line="${lineNo}"]`);
@@ -653,7 +687,7 @@ export class ChatPaletteComponent {
     position.x = panelBox.left - 8;
     position.y = panelBox.top - 8;
 
-    this._paletteIndex = this.palette.paletteIndex;
+    this._paletteIndex = this.paletteHeadings().map((row) => ({ name: row.headingName ?? '', line: row.lineIndex }));
 
     const index = [];
     for (const list of this._paletteIndex) {

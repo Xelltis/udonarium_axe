@@ -477,7 +477,7 @@ describe('OverviewPanelComponent', () => {
           [DataElementAttribute.COLUMN_GROUP]: '肉体技能',
         })
       );
-      const rankCell = DataElement.create('肉体技能習熟度', '初級', {
+      const rankCell = DataElement.create('肉体技能習熟度', '中級', {
         [DataElementAttribute.ROLE]: DataElementRole.FIELD,
         [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.SELECT,
         [DataElementAttribute.CHOICES]: '初級,中級,上級',
@@ -502,7 +502,7 @@ describe('OverviewPanelComponent', () => {
         expect(groupHeader?.getAttribute('colspan')).toBe('2');
         expect(rowHeader?.textContent?.trim()).toBe('技能');
         expect(fixture.nativeElement.textContent).toContain('肉体攻撃');
-        expect(select?.value).toBe('初級');
+        expect(select?.options[select.selectedIndex]?.textContent?.trim()).toBe('中級');
 
         select!.value = '上級';
         select!.dispatchEvent(new Event('change'));
@@ -792,6 +792,142 @@ describe('OverviewPanelComponent', () => {
       } finally {
         element.destroy();
       }
+    });
+  });
+
+  describe('a character with a memo', () => {
+    let character: GameCharacter;
+    let tagsSpy: { mockRestore(): void };
+
+    beforeEach(() => {
+      localStorage.removeItem('ui-overview-memo');
+      character = GameCharacter.create('メモ持ち', 1, '');
+      const popup = { [DataElementAttribute.ROLE]: DataElementRole.FIELD, [DataElementAttribute.POPUP]: 'true' };
+      character.detailDataElement!.appendChild(DataElement.create('職業', '剣士', popup));
+      component.tabletopObject = character;
+      tagsSpy = vi
+        .spyOn(component as unknown as { getInventoryTags: () => [] }, 'getInventoryTags')
+        .mockReturnValue([]);
+    });
+
+    afterEach(() => {
+      tagsSpy.mockRestore();
+      character.destroy();
+      localStorage.removeItem('ui-overview-memo');
+    });
+
+    const root = () => fixture.nativeElement as HTMLElement;
+    const toggle = () => root().querySelector<HTMLButtonElement>('[data-testid="overview-memo-toggle"]');
+    const memo = () => root().querySelector<HTMLTextAreaElement>('[data-testid="overview-memo"]');
+
+    it('offers no switch to a character with no memo', () => {
+      fixture.detectChanges();
+
+      expect(toggle()).toBeNull();
+      expect(root().textContent).toContain('剣士');
+    });
+
+    it('switches between the status and the memo, and keeps the choice for the next card', async () => {
+      character.note = 'ロープ';
+      fixture.detectChanges();
+      expect(memo()).toBeNull();
+
+      toggle()!.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(memo()!.value).toBe('ロープ');
+      expect(root().textContent).not.toContain('剣士');
+      expect(localStorage.getItem('ui-overview-memo')).toBe('memo');
+    });
+
+    it('keeps the memo on show while it is written, emptied to be written again', async () => {
+      character.note = 'ロープ';
+      fixture.detectChanges();
+      toggle()!.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      memo()!.dispatchEvent(new Event('focus'));
+      memo()!.value = '';
+      memo()!.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+
+      expect(character.note).toBe('');
+      expect(memo()).not.toBeNull();
+      expect(toggle()).not.toBeNull();
+
+      memo()!.dispatchEvent(new Event('blur'));
+      fixture.detectChanges();
+      expect(memo()).toBeNull();
+    });
+
+    it('lets a guest read the memo but not write in it', () => {
+      character.note = 'ロープ';
+      PeerCursor.myCursor = { role: PeerRole.Guest, identifier: 'guest-cursor' } as PeerCursor;
+      fixture.detectChanges();
+      toggle()!.click();
+      fixture.detectChanges();
+
+      expect(memo()!.readOnly).toBe(true);
+      memo()!.value = '書き換え';
+      memo()!.dispatchEvent(new Event('input'));
+      expect(character.note).toBe('ロープ');
+    });
+  });
+
+  describe('a seat that may not edit the table', () => {
+    let character: GameCharacter;
+    let tagsSpy: { mockRestore(): void };
+
+    beforeEach(() => {
+      character = GameCharacter.create('popup-guest-test', 1, '');
+      const popup = { [DataElementAttribute.ROLE]: DataElementRole.FIELD, [DataElementAttribute.POPUP]: 'true' };
+      const note = DataElement.create('所持品', 'ロープ', { ...popup, type: DataElementType.NOTE });
+      const text = DataElement.create('職業', '剣士', popup);
+      const resource = DataElement.create('HP', 20, { ...popup, type: DataElementType.NUMBER_RESOURCE });
+      resource.currentValue = 12;
+      const check = DataElement.create('転倒', 0, { ...popup, type: DataElementType.CHECK });
+      for (const element of [note, text, resource, check]) character.detailDataElement!.appendChild(element);
+      component.tabletopObject = character;
+      tagsSpy = vi
+        .spyOn(component as unknown as { getInventoryTags: () => [] }, 'getInventoryTags')
+        .mockReturnValue([]);
+    });
+
+    afterEach(() => {
+      tagsSpy.mockRestore();
+      character.destroy();
+    });
+
+    const fields = () => {
+      const root = fixture.nativeElement as HTMLElement;
+      return {
+        typed: Array.from(
+          root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('textarea, input:not([type="checkbox"])')
+        ),
+        checks: Array.from(root.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')),
+      };
+    };
+
+    it('lets a guest read the fields, but neither type into them nor tick them', () => {
+      PeerCursor.myCursor = { role: PeerRole.Guest, identifier: 'guest-cursor' } as PeerCursor;
+      fixture.detectChanges();
+      const { typed, checks } = fields();
+
+      expect(typed.length).toBeGreaterThanOrEqual(3);
+      expect(typed.every((field) => field.readOnly)).toBe(true);
+      expect(checks.length).toBeGreaterThan(0);
+      expect(checks.every((check) => check.disabled)).toBe(true);
+    });
+
+    it('lets a player write in them', () => {
+      PeerCursor.myCursor = { role: PeerRole.Player, identifier: 'player-cursor' } as PeerCursor;
+      fixture.detectChanges();
+      const { typed, checks } = fields();
+
+      expect(typed.some((field) => field.readOnly)).toBe(false);
+      expect(checks.some((check) => check.disabled)).toBe(false);
     });
   });
 

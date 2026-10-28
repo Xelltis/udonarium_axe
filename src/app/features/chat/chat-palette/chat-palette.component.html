@@ -203,12 +203,39 @@
     </div>
   }
 
+  @if (!isEdit() && viewMode() === 'palette' && paletteTabs().length > 0) {
+    <div
+      class="bg-ui-panel border-ui-border-panel flex shrink-0 gap-0.5 overflow-x-auto border-b border-solid px-1 pt-1"
+      role="tablist"
+      data-testid="palette-tabs"
+      [attr.aria-label]="'feature.chat.palette.tabsLabel' | transloco"
+    >
+      @for (tab of paletteTabs(); track $index) {
+        <button
+          type="button"
+          role="tab"
+          class="rounded-t-ui-sm cursor-pointer border border-b-0 border-solid px-2 py-0.5 text-[0.78em] whitespace-nowrap"
+          [class]="
+            activeTab() === $index
+              ? 'border-ui-border-panel bg-ui-elevated text-ui-text font-bold'
+              : 'text-ui-muted hover:text-ui-text border-transparent bg-transparent'
+          "
+          [attr.aria-selected]="activeTab() === $index"
+          data-testid="palette-tab"
+          (click)="chooseTab($index)"
+        >
+          {{ tab.name || ('feature.chat.palette.untitledTab' | transloco) }}
+        </button>
+      }
+    </div>
+  }
+
   <div
     [hidden]="isEdit() || viewMode() !== 'palette'"
     class="box-border h-0 min-h-25 w-full grow overflow-y-auto font-sans"
     #paletteList
   >
-    @for (row of paletteRows(); track row.lineIndex) {
+    @for (row of shownRows(); track row.lineIndex) {
       @if (row.kind === 'heading') {
         <div
           class="text-ui-accent bg-ui-elevated border-ui-border-panel box-border cursor-default border-t border-solid px-2 pt-1.25 pb-0.5 text-[0.8em] leading-[1.65] font-bold whitespace-pre select-none first:border-t-0"

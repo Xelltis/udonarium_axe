@@ -119,24 +119,28 @@
               <i class="material-icons text-ui-dim text-[13px]! leading-none" aria-hidden="true">schedule</i>
               <select
                 class="text-ui-muted hover:bg-ui-hover focus:bg-ui-input rounded-ui-sm cursor-pointer border-none bg-transparent p-0.5 text-[11px] outline-none"
-                [value]="timing()"
-                (change)="onSelectTiming($event)"
+                name="buffTiming"
+                data-testid="buff-row-timing"
+                [ngModel]="timing()"
+                (ngModelChange)="selectTiming($event)"
                 [title]="'feature.character.buff.timing' | transloco"
               >
                 @for (choice of timingChoices; track choice) {
-                  <option [value]="choice">{{ 'feature.character.buff.timing_' + choice | transloco }}</option>
+                  <option [ngValue]="choice">{{ 'feature.character.buff.timing_' + choice | transloco }}</option>
                 }
               </select>
               @if (timing() !== 'roundEnd') {
                 <select
                   class="text-ui-muted hover:bg-ui-hover focus:bg-ui-input rounded-ui-sm min-w-0 flex-1 cursor-pointer border-none bg-transparent p-0.5 text-[11px] outline-none"
-                  [value]="triggerValue()"
-                  (change)="onSetTrigger($event)"
+                  name="buffTrigger"
+                  data-testid="buff-row-trigger"
+                  [ngModel]="triggerValue()"
+                  (ngModelChange)="setTrigger($event)"
                   [title]="'feature.character.buff.trigger' | transloco"
                 >
-                  <option value="">{{ 'feature.character.buff.triggerPlaceholder' | transloco }}</option>
+                  <option [ngValue]="''">{{ 'feature.character.buff.triggerPlaceholder' | transloco }}</option>
                   @for (option of triggerOptions(); track option.value) {
-                    <option [value]="option.value">{{ option.label }}</option>
+                    <option [ngValue]="option.value">{{ option.label }}</option>
                   }
                 </select>
               }
@@ -184,9 +188,19 @@
       @case ('numberResource') {
         <span
           class="text-ui-text block font-[-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[1.2em] whitespace-nowrap [-webkit-font-smoothing:antialiased]"
-          ><span class="mr-[0.2em]">{{ icon() }}</span
-          >{{ name }} / {{ currentValue }} / {{ value }}R</span
         >
+          @if (iconUrl()) {
+            <img
+              class="mr-[0.2em] inline-block size-[1em] object-contain align-[-0.125em]"
+              [src]="iconUrl() | safe: 'resourceUrl'"
+              alt=""
+              data-testid="buff-row-icon-picture"
+            />
+          } @else {
+            <span class="mr-[0.2em]">{{ icon() }}</span>
+          }
+          <span>{{ name }} / {{ currentValue }} / {{ value }}R</span>
+        </span>
       }
     }
   }

@@ -15,6 +15,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { markLoadedWithheld, markSeatWithheld } from '@axe/domain/peer/withheld-table';
 import { InviteJoinComponent } from '@axe/features/lobby/invite-join/invite-join.component';
+import { LobbyComponent } from '@axe/features/lobby/lobby/lobby.component';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 import { RoomJoinService } from '@axe/features/lobby/room-join.service';
 import { RoomRestoreOfferService } from '@axe/features/room-archive/room-restore-banner/room-restore-offer.service';
@@ -55,7 +56,13 @@ describe('InviteJoinComponent', () => {
         { provide: RoomRestoreOfferService, useValue: { visible: restoreOffered } },
       ],
     }).compileComponents();
-    TestBed.overrideProvider(ModalService, { useValue: { open: modalOpen } });
+    TestBed.overrideProvider(ModalService, {
+      useValue: {
+        open: modalOpen,
+        openLazy: async (load: () => Promise<unknown>, option?: unknown) =>
+          (modalOpen as (...args: unknown[]) => unknown)(await load(), option),
+      },
+    });
     fixture = TestBed.createComponent(InviteJoinComponent);
     fixture.detectChanges();
   }
@@ -167,6 +174,21 @@ describe('InviteJoinComponent', () => {
     expect(join).not.toHaveBeenCalled();
     expect(bannerText().trim()).toBe('');
     expect(location.hash).toBe('');
+  });
+
+  it('fetches the lobby and opens it once asked, after the banner said it could not join', async () => {
+    findRoom.mockResolvedValue(null);
+    await setup('#join?r=a1b&n=room');
+    await eventually(() => expect(bannerText()).toContain('見つかりませんでした'));
+    const openLobby = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('ロビー')
+    )!;
+
+    openLobby.click();
+
+    await eventually(() => expect(modalOpen).toHaveBeenCalledOnce());
+    expect(modalOpen.mock.calls[0][0]).toBe(LobbyComponent);
+    expect(modalOpen.mock.calls[0][1]).toMatchObject({ width: 700, height: 400 });
   });
 
   it('takes the invitation off the address once another room opens, after the banner said it could not join', async () => {

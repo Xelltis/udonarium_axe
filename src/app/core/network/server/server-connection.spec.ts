@@ -1390,6 +1390,75 @@ describe('ServerConnection', () => {
     expect(roles).toEqual(['gm']);
   });
 
+  it('knows the role the room keeps for it, from the welcome and from each asset token that says', async () => {
+    const socket = await openRoom();
+    socket.accept();
+    socket.deliver({
+      type: 'welcome',
+      protocolVersion: PROTOCOL_VERSION,
+      peerId: connection.peerId,
+      authorityPeerId: AUTHORITY_PEER_ID,
+      role: 'guest',
+      keptRole: 'pl',
+      members: [],
+      serverTime: Date.now(),
+      assetToken: 'asset-1',
+      assetTokenExpiresAt: Date.now() + 15 * 60_000,
+    });
+    await vi.waitFor(() => expect(connection.keptRole).toBe('pl'));
+    let keptWhenTold: string | undefined;
+    connection.callback.onRoleChange = () => (keptWhenTold = connection.keptRole);
+
+    socket.deliver({
+      type: 'asset-token',
+      assetToken: 'asset-2',
+      expiresAt: Date.now() + 60_000,
+      role: 'gm',
+      keptRole: 'gm',
+    });
+    await vi.waitFor(() => expect(connection.serverRole).toBe('gm'));
+    socket.deliver({ type: 'asset-token', assetToken: 'asset-3', expiresAt: Date.now() + 60_000 });
+
+    expect(keptWhenTold).toBe('gm');
+    await vi.waitFor(() => expect(connection.keptRole).toBe('gm'));
+  });
+
+  it('tells of the kept role changed though the role stays, as a GM makes a seat that watches a guest', async () => {
+    const socket = await openRoom();
+    socket.accept();
+    socket.deliver({
+      type: 'welcome',
+      protocolVersion: PROTOCOL_VERSION,
+      peerId: connection.peerId,
+      authorityPeerId: AUTHORITY_PEER_ID,
+      role: 'guest',
+      keptRole: 'pl',
+      members: [],
+      serverTime: Date.now(),
+      assetToken: 'asset-1',
+      assetTokenExpiresAt: Date.now() + 15 * 60_000,
+    });
+    await vi.waitFor(() => expect(connection.keptRole).toBe('pl'));
+    const told: (string | undefined)[] = [];
+    connection.callback.onRoleChange = (role) => told.push(`${role}/${connection.keptRole}`);
+
+    socket.deliver({
+      type: 'asset-token',
+      assetToken: 'asset-2',
+      expiresAt: Date.now() + 60_000,
+      role: 'guest',
+      keptRole: 'guest',
+    });
+
+    await vi.waitFor(() => expect(told).toEqual(['guest/guest']));
+  });
+
+  it('knows of no kept role where the server tells of none, as for a seat not logged in', async () => {
+    await enterRoom();
+
+    expect(connection.keptRole).toBeUndefined();
+  });
+
   it('asks for a fresh asset token when one is turned down, and gives the access once it comes', async () => {
     const socket = await enterRoom();
 
@@ -1609,6 +1678,34 @@ describe('ServerConnection', () => {
       again.accept();
 
       expect((await hello(again))['invite']).toBe('the-invite');
+    });
+
+    it('leaves the invitation out once in watching, as an account the room keeps a role for', async () => {
+      connection.useInvite('the-invite');
+      const socket = await openRoom();
+      socket.accept();
+      socket.deliver({
+        type: 'welcome',
+        protocolVersion: PROTOCOL_VERSION,
+        peerId: connection.peerId,
+        authorityPeerId: AUTHORITY_PEER_ID,
+        role: 'guest',
+        keptRole: 'pl',
+        members: [],
+        serverTime: Date.now(),
+        assetToken: 'asset-1',
+        assetTokenExpiresAt: Date.now() + 15 * 60_000,
+      });
+      await vi.waitFor(() => expect(calls).toContain('open'));
+
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+      socket.close(1006);
+      vi.advanceTimersByTime(1000);
+      vi.useRealTimers();
+      const again = latest();
+      again.accept();
+
+      expect(await hello(again)).not.toHaveProperty('invite');
     });
 
     it('hands the server each fresh access token while in the room', async () => {

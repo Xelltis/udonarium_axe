@@ -82,4 +82,12 @@ describe('multi-angle orbit decoration', () => {
     expect(crowded.angles).toHaveLength(24);
     expect(crowded.radius).toBeGreaterThan(compact.radius);
   });
+
+  it('draws the icons at the size the reader chose, pushing the orbit out to make room', () => {
+    const usual = makeMultiAngleBuffOrbit(4, 50, 42);
+    const doubled = makeMultiAngleBuffOrbit(4, 50, 42, 2);
+
+    expect(doubled.iconSize).toBe(usual.iconSize * 2);
+    expect(doubled.radius).toBeGreaterThan(usual.radius);
+  });
 });

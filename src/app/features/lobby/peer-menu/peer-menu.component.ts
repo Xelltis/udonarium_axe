@@ -45,6 +45,7 @@ import { dropInvitationFromAddress } from '@axe/features/lobby/leave-room';
 import { LobbyComponent } from '@axe/features/lobby/lobby/lobby.component';
 import { ReConnectComponent } from '@axe/features/lobby/re-connect/re-connect.component';
 import { roomDeletionMessageKey, RoomDeletionService } from '@axe/features/lobby/room-deletion.service';
+import { ServerWatchService } from '@axe/features/lobby/server-watch.service';
 import { ReportDialogComponent } from '@axe/features/moderation/report-dialog/report-dialog.component';
 import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-archive-event-handler.service';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
@@ -134,6 +135,7 @@ export class PeerMenuComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly watching = inject(ServerWatchService);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly destroyRef = inject(DestroyRef);
   networkService = Network;
@@ -183,6 +185,20 @@ export class PeerMenuComponent {
     this.objectChange.networkVersion();
     this.objectChange.versionOf(PeerCursor.myCursor?.identifier ?? '')();
     return PeerCursor.isMyselfGameMaster;
+  });
+  /**
+   * On a room server, the roles the reader may switch between: the one the room keeps for them,
+   * which they come back to, and watching. Empty where they have no choice of their own.
+   */
+  protected readonly ownRoleChoices = computed(() => {
+    this.objectChange.networkVersion();
+    this.objectChange.versionOf(PeerCursor.myCursor?.identifier ?? '')();
+    const kept = this.watching.roleToChoose();
+    if (!kept) return [];
+    return [
+      { role: kept, hintKey: 'feature.lobby.peerMenu.comeBackHint', testId: 'peer-menu-kept-role' },
+      { role: PeerRole.Guest, hintKey: 'feature.lobby.peerMenu.watchHint', testId: 'peer-menu-watch' },
+    ];
   });
   /** The invitation in the link, on a room server, while the reader is the game master. */
   private readonly serverInvite = computed(() => {
@@ -352,6 +368,15 @@ export class PeerMenuComponent {
 
   protected selectInviteLink(event: Event): void {
     (event.target as HTMLInputElement | null)?.select();
+  }
+
+  /**
+   * Switches the reader to one of the roles the room server lets them choose: watching, as a guest,
+   * or the role it keeps for them, which they come back to.
+   */
+  protected chooseOwnRole(role: PeerRole): void {
+    if (role === PeerRole.Guest) this.watching.watch();
+    else this.watching.comeBack();
   }
 
   /**

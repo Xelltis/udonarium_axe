@@ -99,7 +99,7 @@ describe('CreateObjectMenuService', () => {
 
       manyEntry(made)!.action!();
 
-      await vi.waitFor(() => expect(open).toHaveBeenCalledWith(Dialog, expect.anything()));
+      await vi.waitFor(() => expect(open).toHaveBeenCalledWith(Dialog, expect.anything(), undefined));
     });
 
     it('says the page wants reloading when the dialogue cannot be fetched, and asks nothing', async () => {

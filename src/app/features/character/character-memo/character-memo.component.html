@@ -1,0 +1,13 @@
+<div class="flex h-full flex-col gap-1.5 p-2 text-[13px]" data-testid="character-memo">
+  <textarea
+    class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text box-border min-h-0 w-full flex-1 resize-none border border-solid p-1.5 font-[inherit] leading-normal outline-none"
+    name="characterMemo"
+    data-testid="character-memo-text"
+    spellcheck="false"
+    [placeholder]="'feature.character.memo.placeholder' | transloco"
+    [readonly]="!canEdit()"
+    [ngModel]="memo()"
+    (ngModelChange)="write($event)"
+  ></textarea>
+  <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.character.memo.hint' | transloco }}</p>
+</div>

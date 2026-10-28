@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { BattleCutInPreferenceService } from '@axe/application/battle/battle-cut-in-preference.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -198,5 +199,67 @@ describe('BattleCutInOverlayComponent', () => {
     vi.advanceTimersByTime(BATTLE_STILL_MS + 10);
 
     expect(state.active()).toBe(false);
+  });
+
+  it('steps down into a window from the full screen at its size button', () => {
+    const root = play(scene());
+
+    root.querySelector<HTMLElement>('[data-testid="battle-cut-in-size"]')!.click();
+    fixture.detectChanges();
+
+    expect(state.active()).toBe(true);
+    expect(TestBed.inject(BattleCutInPreferenceService).stageWindow().size).toBe('large');
+    expect(root.querySelector('[data-testid="battle-cut-in"]')!.getAttribute('data-stage-size')).toBe('large');
+  });
+
+  describe('drawn in a window', () => {
+    let preference: BattleCutInPreferenceService;
+
+    beforeEach(() => {
+      preference = TestBed.inject(BattleCutInPreferenceService);
+      preference.setStageSize('small');
+    });
+
+    afterEach(() => localStorage.removeItem('axe.battle.window'));
+
+    const windowOf = (root: HTMLElement) => root.querySelector<HTMLElement>('[data-testid="battle-cut-in"]')!;
+
+    it('plays the stage drawn at its full size and shrunk whole into a window of its own', () => {
+      const root = play(scene());
+      const stage = root.querySelector<HTMLElement>('[data-testid="battle-cut-in-stage"]')!;
+
+      expect(windowOf(root).style.width).toBe('384px');
+      expect(windowOf(root).style.height).toBe('216px');
+      expect(stage.style.width).toBe('1280px');
+      expect(stage.style.transform).toBe('scale(0.3)');
+      expect(textsOf(root, '[data-testid="battle-plate"]')).toHaveLength(2);
+    });
+
+    it('plays on when the stage or Escape is pressed, and closes from its button', () => {
+      const root = play(scene());
+
+      windowOf(root).click();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      expect(state.active()).toBe(true);
+
+      root.querySelector<HTMLElement>('[data-testid="battle-cut-in-close"]')!.click();
+      expect(state.active()).toBe(false);
+    });
+
+    it('keeps the window where its top edge is dragged to', () => {
+      preference.placeStageWindow(1, 0);
+      const root = play(scene());
+      const handle = root.querySelector<HTMLElement>('[data-testid="battle-cut-in-handle"]')!;
+      const left = parseFloat(windowOf(root).style.left);
+
+      handle.dispatchEvent(new PointerEvent('pointerdown', { button: 0, clientX: 600, clientY: 20, pointerId: 1 }));
+      handle.dispatchEvent(new PointerEvent('pointermove', { clientX: 300, clientY: 220, pointerId: 1 }));
+      fixture.detectChanges();
+      expect(parseFloat(windowOf(root).style.left)).toBeCloseTo(left - 300);
+      handle.dispatchEvent(new PointerEvent('pointerup', { clientX: 300, clientY: 220, pointerId: 1 }));
+
+      expect(preference.stageWindow().x).toBeLessThan(1);
+      expect(preference.stageWindow().y).toBeGreaterThan(0);
+    });
   });
 });

@@ -1,7 +1,8 @@
 import { Injector, ViewContainerRef } from '@angular/core';
 import { inject, TestBed } from '@angular/core/testing';
 import { ModalService } from '@axe/application/ui/modal.service';
-import { MODAL_FRAME_COMPONENT } from '@axe/application/ui/overlay-components';
+import { LOAD_FAILURE_NOTICE, MODAL_FRAME_COMPONENT } from '@axe/application/ui/overlay-components';
+import { Logger } from '@axe/core/logging/logger';
 
 /** Stands for the frame; the specs hand the service a layer that makes their own. */
 class FrameStub {}
@@ -16,6 +17,51 @@ describe('ModalService', () => {
   it('should ...', inject([ModalService], (service: ModalService) => {
     expect(service).toBeTruthy();
   }));
+
+  describe('a dialog fetched on first use', () => {
+    class Dialog {}
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('opens the dialog the way round it was asked for in, though it arrives later', async () => {
+      const service = TestBed.inject(ModalService);
+      const rotations: unknown[] = [];
+      vi.spyOn(service, 'open').mockImplementation(async () => {
+        rotations.push((service as unknown as { actionRotationDegrees: number }).actionRotationDegrees);
+        return null;
+      });
+
+      await service.runWithInitialRotation(90, () => service.openLazy(() => Promise.resolve(Dialog)));
+
+      expect(rotations).toEqual([90]);
+    });
+
+    it('opens the dialog once it arrives, answering as it answers', async () => {
+      const service = TestBed.inject(ModalService);
+      const open = vi.spyOn(service, 'open').mockResolvedValue('answer');
+
+      const answer = await service.openLazy<string>(() => Promise.resolve(Dialog), { width: 3 });
+
+      expect(open).toHaveBeenCalledWith(Dialog, { width: 3 }, undefined);
+      expect(answer).toBe('answer');
+    });
+
+    it('says the page wants reloading where the dialog cannot be fetched, and opens nothing', async () => {
+      const told = vi.fn();
+      TestBed.overrideProvider(LOAD_FAILURE_NOTICE, { useValue: told });
+      const service = TestBed.inject(ModalService);
+      const open = vi.spyOn(service, 'open');
+      vi.spyOn(Logger, 'error').mockImplementation(() => undefined);
+
+      const answer = await service.openLazy(() => Promise.reject(new Error('chunk gone')));
+
+      expect(answer).toBeNull();
+      expect(told).toHaveBeenCalledOnce();
+      expect(open).not.toHaveBeenCalled();
+    });
+  });
 
   describe('title signal', () => {
     it('starts empty', inject([ModalService], (service: ModalService) => {

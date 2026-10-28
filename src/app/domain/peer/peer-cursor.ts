@@ -73,6 +73,11 @@ export class PeerCursor extends GameObject {
    * what follows from them. Empty on a cursor from a version that knows nothing of zones.
    */
   @SyncVar() zoneProtocol = '';
+  /**
+   * `1` once this peer's version counts a turn down again when it comes back to a piece that had the
+   * countdown of its opening given back as it waited. Empty on a cursor from a version before that.
+   */
+  @SyncVar() turnProtocol = '';
 
   @SyncVar() voteAnswer = -1; // the index of the option chosen in the vote; -2 for an abstention
   @SyncVar() voteId = -1; // the ID of the vote answered

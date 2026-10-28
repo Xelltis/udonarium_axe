@@ -92,7 +92,13 @@
       >
         <option value="">{{ 'feature.hotbar.editor.fromPaletteHint' | transloco }}</option>
         @for (group of palettePicks(); track $index) {
-          <optgroup [label]="group.heading || ('feature.hotbar.editor.paletteLoose' | transloco)">
+          <optgroup
+            [label]="
+              group.tab && group.heading
+                ? group.tab + ' / ' + group.heading
+                : group.tab || group.heading || ('feature.hotbar.editor.paletteLoose' | transloco)
+            "
+          >
             @for (line of group.lines; track $index) {
               <option [value]="line" [selected]="line === draft().value">{{ line }}</option>
             }

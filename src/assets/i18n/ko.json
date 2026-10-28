@@ -533,6 +533,7 @@
     },
     "plTools": {
       "buffView": "버프 표시(전체)",
+      "buffIconSize": "버프 아이콘 크기",
       "active": {
         "title": "조작 대상 캐릭터",
         "openChatPalette": "{{name}}의 채팅 팔레트 열기"
@@ -1579,6 +1580,8 @@
       "interrupt": "끼어들기",
       "holdAnnounce": "{{name}}이(가) 대기합니다.",
       "holdAnnounceUnseen": "보이지 않는 상대가 대기합니다.",
+      "buffsGivenBack": "{{name}}의 차례 시작에 줄어든 버프를 되돌렸습니다.",
+      "buffsGivenBackUnseen": "보이지 않는 상대의 차례 시작에 줄어든 버프를 되돌렸습니다.",
       "interruptAnnounce": "{{name}}이(가) 끼어들어 행동합니다.",
       "interruptAnnounceUnseen": "보이지 않는 상대가 끼어들어 행동합니다.",
       "resumeAnnounce": "{{name}}의 차례로 돌아갑니다.",
@@ -1654,7 +1657,9 @@
         "diceHidden": "???",
         "imageUnset": "이미지 미설정",
         "urlEdit": "URL 편집:",
-        "enlarge": "크게 보기"
+        "enlarge": "크게 보기",
+        "showMemo": "메모",
+        "showStatus": "스테이터스"
       },
       "sheet": {
         "toggleEdit": "편집 전환",
@@ -2045,6 +2050,7 @@
     "character": {
       "contextMenu": {
         "showDetail": "자세히 보기",
+        "memo": "메모",
         "showChatPalette": "채팅 팔레트 표시",
         "showRemoteController": "리모컨 표시",
         "editBuff": "버프 편집",
@@ -2139,6 +2145,11 @@
         "viewIcon": "아이콘",
         "viewDetail": "자세히",
         "viewCount": "개수",
+        "iconSize75": "작게(75%)",
+        "iconSize100": "보통(100%)",
+        "iconSize125": "조금 크게(125%)",
+        "iconSize150": "크게(150%)",
+        "iconSize200": "아주 크게(200%)",
         "timing": "소멸 시점",
         "timing_roundEnd": "라운드 종료 시",
         "timing_turnStart": "트리거의 차례 시작 시",
@@ -2221,6 +2232,11 @@
       "moveMode_fly": "날기",
       "stealth": {
         "mark": "스텔스 중 (GM과 소유자·같은 파티에게만 보입니다)"
+      },
+      "memo": {
+        "title": "{{name}}의 메모",
+        "placeholder": "소지품이나 플래그 등 이 말에 대해 적어 둘 것",
+        "hint": "말에 포인터를 올렸을 때 나오는 카드에서도 스테이터스와 바꿔 가며 읽을 수 있습니다."
       }
     },
     "light": {
@@ -3405,6 +3421,8 @@
         "confirmOnline": "온라인으로 전환합니다. 새로고침하여 통신을 시작합니다. 계속할까요?",
         "offlineNote": "방의 저장과 불러오기는 그대로 가능합니다. 다른 사람과 놀 때는 \"온라인\"으로 전환해 주세요.",
         "roleDecidedByServer": "역할은 방 서버가 정합니다. 방의 GM만 바꿀 수 있습니다.",
+        "watchHint": "관전으로 전환합니다. 방에서의 역할은 남아 있으므로 언제든지 돌아올 수 있습니다",
+        "comeBackHint": "관전에서 방에서의 역할로 돌아갑니다",
         "inviteWithoutRole": "이 링크로 들어오는 사람의 역할은 로그인했으면 PL, 하지 않았으면 관전입니다. 역할이 정해진 초대는 GM이 만들 수 있습니다.",
         "inviteFailed": "방 서버에서 초대를 받지 못했습니다. 잠시 후 다시 열어 주세요.",
         "inviteExpires": "이 초대는 {{date}}까지 쓸 수 있습니다. 로그인한 사람이 처음 들어올 때의 역할을 정합니다.",
@@ -3582,7 +3600,8 @@
         "unknownPeer": "{{name}} 님이 방에 없어 역할을 바꾸지 못했습니다.",
         "notLoggedIn": "{{name}} 님은 로그인하지 않아 관전 상태로 남습니다.",
         "lastGameMaster": "방에 GM이 남지 않게 되므로 {{name}} 님의 역할을 바꾸지 못했습니다.",
-        "other": "역할을 바꾸지 못했습니다({{reason}})."
+        "other": "역할을 바꾸지 못했습니다({{reason}}).",
+        "own": "역할을 전환하지 못했습니다."
       },
       "leaveRoom": {
         "title": "방에서 나갈까요?",
@@ -3815,7 +3834,9 @@
         "searchResults": "검색 결과",
         "searchCount": "{{count}}개",
         "searchNoMatch": "일치하는 줄이 없습니다",
-        "searchClear": "검색 지우기"
+        "searchClear": "검색 지우기",
+        "untitledTab": "메인",
+        "tabsLabel": "팔레트 탭"
       },
       "messageSetting": {
         "sectionText": "글자",
@@ -5004,6 +5025,10 @@
       "effect": "효과",
       "status": "스테이터스",
       "operator": "연산자",
+      "step": "셀 때마다",
+      "stepHint": "남은 라운드가 줄어들 때마다 스테이터스를 더 움직이는 양(-1이면 1씩 되돌아감)",
+      "addStatus": "스테이터스 추가",
+      "removeStatus": "이 스테이터스 빼기",
       "modifierNote": "{{target}}을(를) 자동 보정 중",
       "builderTitle": "자동 계산 버프 표기 만들기",
       "builderStacks": "겹쳐 걸기",
@@ -5811,6 +5836,14 @@
       "close": "닫기",
       "shownHere": "이 화면에 전투 컷인 표시",
       "shownHereHint": "이 화면에만 적용됩니다. 끄면 공격과 격파 연출을 테이블 위에서 봅니다.",
+      "size": "표시 크기",
+      "sizeFull": "전체 화면",
+      "sizeLarge": "큰 창",
+      "sizeMedium": "중간 창",
+      "sizeSmall": "작은 창",
+      "sizeHint": "창으로 볼 때는 재생 중에도 테이블을 조작할 수 있습니다. 창은 위쪽 가장자리를 잡아 옮길 수 있습니다. 이 화면에만 적용되는 설정입니다.",
+      "changeSize": "표시 크기 바꾸기(지금: {{size}})",
+      "moveWindow": "잡아서 옮기기",
       "playHeading": "재생",
       "bout": "공격: {{attacker}} → {{defenders}}",
       "boutByTurn": "공격: {{attacker}}(차례) → {{defenders}}",

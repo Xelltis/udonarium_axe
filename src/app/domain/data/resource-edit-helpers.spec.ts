@@ -1,4 +1,5 @@
 import { resolveBuffColor } from '@axe/domain/character/buff-appearance';
+import { toBuffBadges } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
 import {
@@ -281,6 +282,100 @@ describe('resource-edit-helpers', () => {
 
       expect(character.status.getValue('HP', 'now')).toBe(before + 4);
       expect(character.buffs.find('猛攻撃')!.value).toBe(5);
+    });
+
+    it('grants a buff that builds up at every count, written with a doubled operator as a player writes it', () => {
+      character.status.changeValue('HP', 'now', -100);
+      const before = character.status.getValue('HP', 'now')!;
+
+      const text = applyBuffEdit({ command: '&+!猛攻撃/HP/++/1/3', object: character, targeted: false }, character);
+      character.buffs.expireOneRound();
+
+      expect(text).toBe('猛攻撃を付与 HP+1~+1/3R    ');
+      expect(character.status.getValue('HP', 'now')).toBe(before + 2);
+    });
+
+    describe('a buff that moves several statuses', () => {
+      const edit = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
+      const value = (name: string) => character.status.getValue(name, 'now');
+      const rows = () => character.buffs.list().map((row) => [row.name, row.getAttribute('cs-buff-group')]);
+
+      beforeEach(() => {
+        for (const [name, amount] of [
+          ['追D', 0],
+          ['回避', 10],
+          ['技量', 12],
+        ] as const) {
+          character.detailDataElement!.appendChild(DataElement.create(name, amount, {}));
+        }
+      });
+
+      it('moves each status a row apiece, and shows them as the one buff', () => {
+        const text = edit('&!全力攻撃/追D+4,回避-2/1/turnStart');
+
+        expect(text).toBe('全力攻撃を付与 追D+4,回避-2/1R    ');
+        expect(value('追D')).toBe(4);
+        expect(value('回避')).toBe(8);
+        expect(rows()).toEqual([
+          ['全力攻撃', '全力攻撃'],
+          ['全力攻撃（回避）', '全力攻撃'],
+        ]);
+        const badges = toBuffBadges(character.buffDataElement ?? null);
+        expect(badges.map((badge) => [badge.name, badge.effect])).toEqual([['全力攻撃', '追D+4,回避-2']]);
+      });
+
+      it('takes every row off by the buff name, putting back what each moved', () => {
+        edit('&!全力攻撃/追D+4,回避-2/1');
+
+        expect(edit('&全力攻撃-')).toBe('全力攻撃を消去    ');
+
+        expect(character.buffs.list()).toHaveLength(0);
+        expect([value('追D'), value('回避')]).toEqual([0, 10]);
+      });
+
+      it('lays the buff anew with only the statuses it moves now', () => {
+        edit('&!全力攻撃/追D+4,回避-2/1');
+
+        edit('&!全力攻撃/追D/+/2/1');
+
+        expect(rows()).toEqual([['全力攻撃', '']]);
+        expect([value('追D'), value('回避')]).toEqual([2, 10]);
+      });
+
+      it('stacks every row on a second helping', () => {
+        edit('&!全力攻撃/追D+4,回避-2/1');
+
+        expect(edit('&+!全力攻撃/追D+1,回避-1/1')).toBe('全力攻撃を加算 追D+5,回避-3/1R    ');
+
+        expect([value('追D'), value('回避')]).toEqual([5, 7]);
+      });
+
+      it('keeps the buff as one of several when a single status is stacked on it', () => {
+        edit('&!全力攻撃/追D+4,回避-2/1');
+
+        edit('&+!全力攻撃/追D/+/1/1');
+
+        expect(rows()).toEqual([
+          ['全力攻撃', '全力攻撃'],
+          ['全力攻撃（回避）', '全力攻撃'],
+        ]);
+        const badges = toBuffBadges(character.buffDataElement ?? null);
+        expect(badges.map((badge) => badge.effect)).toEqual(['追D+5,回避-2']);
+        expect([value('追D'), value('回避')]).toEqual([5, 8]);
+      });
+
+      it('moves a status at every count in a row of its own, as a single buff does', () => {
+        edit('&!変身/技量+5~-1,回避-2/3');
+        character.buffs.expireOneRound();
+
+        expect(value('技量')).toBe(16);
+        expect(value('回避')).toBe(8);
+      });
+
+      it('reads a single status written in the newer way as the older one', () => {
+        expect(edit('&!猛攻撃/追D+2/3')).toBe('猛攻撃を付与 追D+2/3R    ');
+        expect(rows()).toEqual([['猛攻撃', '']]);
+      });
     });
 
     it('works out a calculated buff whose amount is written as a sum', () => {

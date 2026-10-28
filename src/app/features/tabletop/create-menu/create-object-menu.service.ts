@@ -12,7 +12,6 @@ import {
 } from '@axe/application/tabletop/tabletop-action-helpers';
 import { ContextMenuAction } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
-import { LOAD_FAILURE_NOTICE } from '@axe/application/ui/overlay-components';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import {
@@ -46,7 +45,6 @@ export class CreateObjectMenuService implements CreateObjectMenu {
   private readonly partyService = inject(PartyService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly loadDiceCreateDialog = inject(DICE_CREATE_DIALOG_LOADER);
-  private readonly loadFailureNotice = inject(LOAD_FAILURE_NOTICE);
 
   private readonly hands: CreateMenuHands = {
     actions: this.actions,
@@ -78,12 +76,6 @@ export class CreateObjectMenuService implements CreateObjectMenu {
 
   /** Asks which die and how many, then makes them. Nothing is made where the asking is dropped. */
   private async openDiceCreateDialog(position: PointerCoordinate): Promise<void> {
-    const dialogClass = await this.loadDiceCreateDialog().catch(() => null);
-    if (!dialogClass) {
-      this.loadFailureNotice();
-      return;
-    }
-
     const option: DiceCreateDialogOption = {
       defaultCount: 2,
       // The same pieces the menu of a die already offers to give it to.
@@ -93,7 +85,7 @@ export class CreateObjectMenuService implements CreateObjectMenu {
       })),
     };
     const request = await this.modalService
-      .open<DiceCreateRequest | null>(dialogClass, {
+      .openLazy<DiceCreateRequest | null>(this.loadDiceCreateDialog, {
         ...option,
         title: this.t('feature.dice.createDialog.title'),
         // A few fields in a frame half the screen wide read as a mistake. It takes the width

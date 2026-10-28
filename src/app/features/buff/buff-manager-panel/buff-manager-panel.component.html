@@ -414,6 +414,20 @@
           name="builderRounds"
         />
 
+        <label class="text-ui-muted text-[11px]" [title]="'feature.buffManager.stepHint' | transloco">{{
+          'feature.buffManager.step' | transloco
+        }}</label>
+        <input
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text w-16 border border-solid px-1 py-0.5 text-right text-[11px] outline-none disabled:opacity-40"
+          placeholder="0"
+          data-testid="buff-builder-step"
+          [title]="'feature.buffManager.stepHint' | transloco"
+          [disabled]="!builderCanStep()"
+          [ngModel]="builderStep()"
+          (ngModelChange)="builderStep.set($event)"
+          name="builderStep"
+        />
+
         <label class="text-ui-muted text-[11px]">{{ 'feature.character.buff.timing' | transloco }}</label>
         <select
           class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text cursor-pointer border border-solid px-1 py-0.5 text-[11px]"
@@ -465,6 +479,60 @@
           </label>
         }
       </div>
+
+      @for (row of builderMore(); track $index; let index = $index) {
+        <div class="mt-1.5 flex items-center gap-1" data-testid="buff-builder-more">
+          <input
+            class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text min-w-0 flex-1 border border-solid px-1 py-0.5 text-[11px] outline-none"
+            [placeholder]="'feature.buffManager.status' | transloco"
+            [ngModel]="row.status"
+            (ngModelChange)="updateBuilderStatus(index, { status: $event })"
+            [name]="'builderMoreStatus' + index"
+          />
+          <select
+            class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text cursor-pointer border border-solid px-1 py-0.5 text-[11px]"
+            [ngModel]="row.operator"
+            (ngModelChange)="updateBuilderStatus(index, { operator: $event })"
+            [name]="'builderMoreOperator' + index"
+          >
+            @for (choice of operatorChoices; track choice) {
+              <option [ngValue]="choice">{{ choice }}</option>
+            }
+          </select>
+          <input
+            class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text w-12 border border-solid px-1 py-0.5 text-right text-[11px] outline-none"
+            [ngModel]="row.amount"
+            (ngModelChange)="updateBuilderStatus(index, { amount: $event })"
+            [name]="'builderMoreAmount' + index"
+          />
+          <input
+            class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text w-10 border border-solid px-1 py-0.5 text-right text-[11px] outline-none disabled:opacity-40"
+            placeholder="0"
+            [title]="'feature.buffManager.stepHint' | transloco"
+            [disabled]="row.operator === '='"
+            [ngModel]="row.step"
+            (ngModelChange)="updateBuilderStatus(index, { step: $event })"
+            [name]="'builderMoreStep' + index"
+          />
+          <button
+            type="button"
+            class="text-ui-muted hover:text-ui-text cursor-pointer border-0 bg-transparent p-0 leading-none"
+            [title]="'feature.buffManager.removeStatus' | transloco"
+            [attr.aria-label]="'feature.buffManager.removeStatus' | transloco"
+            (click)="removeBuilderStatus(index)"
+          >
+            <i class="material-icons text-[14px]!">close</i>
+          </button>
+        </div>
+      }
+      <button
+        type="button"
+        class="text-ui-muted hover:text-ui-text mt-1.5 flex cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 text-[11px]"
+        data-testid="buff-builder-add-status"
+        (click)="addBuilderStatus()"
+      >
+        <i class="material-icons text-[14px]!">add</i>{{ 'feature.buffManager.addStatus' | transloco }}
+      </button>
 
       <div class="mt-2 flex items-center gap-2">
         <code

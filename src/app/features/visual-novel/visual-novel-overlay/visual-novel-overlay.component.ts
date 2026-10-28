@@ -32,6 +32,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { chatColorOf } from '@axe/domain/chat/chat-color';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
+import { isPaletteTabLine } from '@axe/domain/chat/palette-rows';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { Jukebox } from '@axe/domain/media/jukebox';
@@ -664,7 +665,7 @@ export class VisualNovelOverlayComponent {
     const object = this.objectStore.get(this._sendFrom());
     if (!(object instanceof GameCharacter)) return [] as string[];
     this.objectChange.versionOf(object.identifier)();
-    return object.chatPalette?.getPalette() ?? [];
+    return (object.chatPalette?.getPalette() ?? []).filter((line) => !isPaletteTabLine(line));
   });
 
   readonly canSpeak = computed(() => {

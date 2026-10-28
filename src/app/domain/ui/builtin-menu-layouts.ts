@@ -124,6 +124,7 @@ const PL_TOOLBAR: MenuLayout = {
     item('buffs'),
     item('speechBubbles'),
     item('buffView'),
+    item('buffIconSize'),
     item('turnIndicator'),
     item('activeCharacter'),
   ],

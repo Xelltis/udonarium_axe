@@ -110,15 +110,19 @@ export function makeMultiAngleResourceGauge(
   };
 }
 
-/** Places every buff evenly outside the name and resource rings, expanding when needed. */
+/**
+ * Places every buff evenly outside the name and resource rings, expanding when needed, with the icons
+ * drawn at `iconScale` times their usual size.
+ */
 export function makeMultiAngleBuffOrbit(
   buffCount: number,
   pieceDiameter: number,
-  innerExtent: number
+  innerExtent: number,
+  iconScale = 1
 ): MultiAngleBuffOrbitLayout {
   const count = Math.max(0, Math.floor(buffCount));
   const diameter = Math.max(1, pieceDiameter);
-  const iconSize = clamp(diameter * 0.28, 14, 20);
+  const iconSize = clamp(diameter * 0.28, 14, 20) * iconScale;
   const baseRadius = innerExtent + iconSize / 2 + 5;
   const nonOverlappingRadius = count > 1 ? (count * (iconSize + 3)) / (2 * Math.PI) : 0;
   const radius = Math.max(baseRadius, nonOverlappingRadius);

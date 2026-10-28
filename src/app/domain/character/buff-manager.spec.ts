@@ -1,5 +1,5 @@
 import { BuffManager } from '@axe/domain/character/buff-manager';
-import { parseBuffModifierRequest } from '@axe/domain/character/buff-modifier';
+import { parseBuffModifierRequest, readBuffModifier } from '@axe/domain/character/buff-modifier';
 import { StatusAccessor } from '@axe/domain/character/status-accessor';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 
@@ -129,6 +129,82 @@ describe('BuffManager', () => {
       withStatus.restore(taken);
 
       expect(status.changeValue).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('giving back what a turn counted down', () => {
+    const owner = { identifier: 'hero', name: '勇者' };
+
+    beforeEach(() => {
+      manager = new BuffManager(buffDataElement, () => owner);
+    });
+
+    it('takes down only the buffs due at the moment, as they stood', () => {
+      manager.addRound('加護', '', 2, { timing: 'turnStart' });
+      manager.addRound('加速', '', 3);
+
+      const due = manager.dueAt('turnStart', owner);
+
+      expect(due.map((entry) => [entry.name, entry.value])).toEqual([['加護', 2]]);
+    });
+
+    it('puts those buffs back, one that ran out included, and leaves a buff laid since alone', () => {
+      manager.addRound('加護', '', 2, { timing: 'turnStart' });
+      manager.addRound('集中', '', 1, { timing: 'turnStart' });
+      const due = manager.dueAt('turnStart', owner);
+      expect(manager.expireAt('turnStart', owner)).toEqual(['集中']);
+      manager.addRound('祝福', '', 3);
+
+      manager.putBack(due);
+
+      expect(manager.list().map((data) => [data.name, data.value])).toEqual([
+        ['加護', 2],
+        ['祝福', 3],
+        ['集中', 1],
+      ]);
+    });
+  });
+
+  describe('a buff that moves several statuses a row apiece', () => {
+    beforeEach(() => {
+      manager.addRound('全力攻撃', '追D+4', 1, { group: '全力攻撃' });
+      manager.addRound('全力攻撃（回避）', '回避-2', 1, { group: '全力攻撃' });
+    });
+
+    it('says it ran out once, by its name', () => {
+      expect(manager.expireOneRound()).toEqual(['全力攻撃']);
+      expect(manager.list()).toHaveLength(0);
+    });
+
+    it('goes whole when it is taken off by its name', () => {
+      manager.addRound('加速', '', 2);
+
+      expect(manager.delete('全力攻撃')).toBe(true);
+
+      expect(manager.list().map((data) => data.name)).toEqual(['加速']);
+    });
+
+    it('goes whole when its first row is taken off, and only the row when a further one is', () => {
+      manager.addRound('加速', '', 2);
+
+      manager.removeWhole(manager.find('全力攻撃（回避）')!);
+      expect(manager.list().map((data) => data.name)).toEqual(['全力攻撃', '加速']);
+
+      manager.addRound('全力攻撃（回避）', '回避-2', 1, { group: '全力攻撃' });
+      manager.removeWhole(manager.find('全力攻撃')!);
+      expect(manager.list().map((data) => data.name)).toEqual(['加速']);
+    });
+
+    it('comes back marked as the one buff when a step of the round is put back', () => {
+      const before = manager.snapshot();
+      manager.expireOneRound();
+
+      manager.restore(before);
+
+      expect(manager.list().map((data) => [data.name, data.getAttribute('cs-buff-group')])).toEqual([
+        ['全力攻撃', '全力攻撃'],
+        ['全力攻撃（回避）', '全力攻撃'],
+      ]);
     });
   });
 
@@ -475,6 +551,55 @@ describe('BuffManager', () => {
       grant('猛攻撃', '命中', '+', '2');
 
       expect(status.getValue('命中', 'now')).toBe(12);
+    });
+
+    it('moves the status again at every count the buff stays, and puts all of it back as it runs out', () => {
+      grant('猛攻撃', '命中', '++', '1', 3);
+      expect(status.getValue('命中', 'now')).toBe(11);
+
+      sheeted.expireOneRound();
+      expect(status.getValue('命中', 'now')).toBe(12);
+      expect(sheeted.find('猛攻撃')!.currentValue).toBe('命中+2~+1');
+      sheeted.expireOneRound();
+      expect(status.getValue('命中', 'now')).toBe(13);
+
+      expect(sheeted.expireOneRound()).toEqual(['猛攻撃']);
+      expect(status.getValue('命中', 'now')).toBe(10);
+    });
+
+    it('takes back a step with the count it gave back, as a piece waits', () => {
+      grant('猛攻撃', '命中', '++', '1', 3);
+      const owner = { identifier: 'owner', name: 'テストキャラ' };
+      const due = sheeted.dueAt('roundEnd', owner);
+      sheeted.expireAt('roundEnd', owner);
+      expect(status.getValue('命中', 'now')).toBe(12);
+
+      sheeted.putBack(due);
+
+      expect(status.getValue('命中', 'now')).toBe(11);
+      expect(sheeted.find('猛攻撃')!.value).toBe(3);
+      expect(sheeted.find('猛攻撃')!.currentValue).toBe('');
+    });
+
+    it('moves the status at every count made by hand as well, where the buff stays', () => {
+      grant('猛攻撃', '命中', '++', '1', 2);
+
+      sheeted.decreaseRound();
+      expect(status.getValue('命中', 'now')).toBe(12);
+      sheeted.decreaseRound();
+
+      expect(status.getValue('命中', 'now')).toBe(12);
+      expect(sheeted.find('猛攻撃')!.value).toBe(0);
+    });
+
+    it('lets a buff wear off by a step at every count', () => {
+      grant('変身', '命中', '+', '5~-1', 3);
+      expect(status.getValue('命中', 'now')).toBe(15);
+
+      sheeted.expireOneRound();
+
+      expect(status.getValue('命中', 'now')).toBe(14);
+      expect(readBuffModifier(sheeted.find('変身')!)).toMatchObject({ applied: 4, step: -1 });
     });
 
     it('puts the status back as the buff runs out', () => {

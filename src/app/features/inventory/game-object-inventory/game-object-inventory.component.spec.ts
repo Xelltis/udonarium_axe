@@ -1431,6 +1431,27 @@ describe('GameObjectInventoryComponent', () => {
         expect(fixture.nativeElement.textContent).toContain('表示項目');
       });
 
+      it('lets a guest read the cells, but neither type into them nor tick them', () => {
+        const goblin = putOnTable('ゴブリン');
+        goblin.detailDataElement!.appendChild(DataElement.create('転倒', 0, { type: DataElementType.CHECK }));
+        goblin.detailDataElement!.appendChild(DataElement.create('職業', '剣士', {}));
+        const ailments = TestBed.inject(StatusAilmentService);
+        ailments.save([]);
+        ailments.add('毒');
+        TestBed.inject(GameObjectInventoryService).tableDataTag = 'HP 転倒 職業 毒';
+        PeerCursor.myCursor = { role: PeerRole.Guest, identifier: 'guest-cursor' } as PeerCursor;
+        component.setViewMode('table');
+        fixture.detectChanges();
+        const row = tableRows()[0];
+        const typed = Array.from(row.querySelectorAll<HTMLInputElement>('input:not([type="checkbox"])'));
+        const ticks = Array.from(row.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'));
+
+        expect(typed.map((input) => input.name)).toEqual(['table-current-value', 'table-value']);
+        expect(typed.every((input) => input.readOnly)).toBe(true);
+        expect(ticks).toHaveLength(2);
+        expect(ticks.every((tick) => tick.disabled)).toBe(true);
+      });
+
       it('puts a registered state on a piece when its box is ticked', () => {
         const goblin = putOnTable('ゴブリン');
         const ailments = TestBed.inject(StatusAilmentService);

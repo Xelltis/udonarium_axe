@@ -3,14 +3,21 @@ import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-prefere
 
 describe('BuffViewPreferenceService', () => {
   const STORAGE_KEY = 'ui-buff-view';
+  const SCALE_KEY = 'ui-buff-icon-scale';
 
   function service(): BuffViewPreferenceService {
     TestBed.resetTestingModule();
     return TestBed.inject(BuffViewPreferenceService);
   }
 
-  beforeEach(() => localStorage.removeItem(STORAGE_KEY));
-  afterEach(() => localStorage.removeItem(STORAGE_KEY));
+  beforeEach(() => {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(SCALE_KEY);
+  });
+  afterEach(() => {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(SCALE_KEY);
+  });
 
   it('starts on the icons', () => {
     expect(service().mode()).toBe('icon');
@@ -35,5 +42,20 @@ describe('BuffViewPreferenceService', () => {
     localStorage.setItem(STORAGE_KEY, 'nonsense');
 
     expect(service().mode()).toBe('icon');
+  });
+
+  it('draws the icons at their usual size until told otherwise', () => {
+    expect(service().iconScale()).toBe(100);
+  });
+
+  it('steps the icons up a size at a time, writes each one down, and takes it up again next time', () => {
+    const preference = service();
+
+    preference.cycleIconScale();
+    preference.cycleIconScale();
+
+    expect(preference.iconScale()).toBe(150);
+    expect(localStorage.getItem(SCALE_KEY)).toBe('150');
+    expect(service().iconScale()).toBe(150);
   });
 });

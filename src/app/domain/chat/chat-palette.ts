@@ -3,6 +3,7 @@ import { ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { toHalfWidth } from '@axe/core/util/string-util';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { isPaletteTabLine } from '@axe/domain/chat/palette-rows';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { createCalcPass, evaluateCalcElement } from '@axe/domain/data/data-element-calc-env';
 
@@ -56,6 +57,8 @@ export class ChatPalette extends ObjectNode {
       name: '',
       line: 0,
     };
+
+    if (isPaletteTabLine(line)) return null;
 
     // takes the heading out of the form the piece-building sites write
     const matchRes1 = line.match(/^\/\/--[-]+(.*)$/);
@@ -234,6 +237,14 @@ export class BuffPalette extends ChatPalette {}
 export class DiceTablePalette extends ChatPalette {}
 
 /**
+ * The palettes another fork keeps beside a character's own, a tab apiece, each named by its first
+ * line. Read only so that a room saved there can be loaded: the character folds them into its own
+ * palette as tabs, and none is kept.
+ */
+@SyncObject('sub-palette')
+export class SubPalette extends ObjectNode {}
+
+/**
  * Fills in the references in a line of text.
  *
  * `{name}` reads from the speaker, `t{name}` from the target it is aimed at, and a reference
@@ -248,7 +259,8 @@ export function evaluateReferences(
   /**
    * What to do with a reference nothing answers. A palette line is written to be filled in, so an
    * empty one is emptied out; a line typed into chat is not, and its braces are left as they were
-   * rather than eating the words around them.
+   * rather than eating the words around them, except where one is added to a roll as a term of its
+   * own (see {@link dropsUnanswered}).
    */
   keepUnfilled = false
 ): PaletteEvaluationResult {
@@ -307,7 +319,8 @@ export function evaluateReferences(
   while (isContinue) {
     loop++;
     isContinue = false;
-    evaluate = evaluate.replace(/[tTｔＴ]?[{｛]\s*([^{}｛｝]+)\s*[}｝]/g, (match, name) => {
+    const line = evaluate;
+    evaluate = evaluate.replace(/[tTｔＴ]?[{｛]\s*([^{}｛｝]+)\s*[}｝]/g, (match, name, offset: number) => {
       name = toHalfWidth(name);
       let useMax = false;
       const namematch = name.match(/(.+)([\^＾]$)/);
@@ -316,7 +329,7 @@ export function evaluateReferences(
         useMax = true;
       }
       const filled = fillReference(match, name, useMax);
-      if (filled == null) return keepUnfilled ? match : '';
+      if (filled == null) return keepUnfilled && !dropsUnanswered(line, offset) ? match : '';
       // Only a reference that was answered can bring more of them in, so only that keeps the pass going.
       isContinue = true;
       return filled;
@@ -324,6 +337,33 @@ export function evaluateReferences(
     if (limit < loop) isContinue = false;
   }
   return { text: evaluate, attachmentImageIdentifiers };
+}
+
+/**
+ * Whether a reference nobody answers is emptied out of a line typed into chat rather than left as it
+ * was: one added to the roll the line starts with as a term of its own, right after a number or a
+ * closing bracket, like `2d+10{加護}` where 加護 carries its own sign. Left out, it adds nothing, as
+ * the buff it names is not there. One an operator waits on (`2d6+{攻撃力}`), one a letter runs into
+ * (`2D{面数}`, which would read as another roll), and one in words (`やった{歓喜}`) are left, for the
+ * reader to see what went unanswered.
+ */
+function dropsUnanswered(line: string, offset: number): boolean {
+  const end = leadingWordEnd(line);
+  if (offset >= end || !/[0-9)\]}｝）］]/.test(line[offset - 1] ?? '')) return false;
+  const bare = line.slice(0, end).replace(/[tTｔＴ]?[{｛][^{}｛｝]*[}｝]/g, '');
+  return /^[\x21-\x7E]+$/.test(bare) && /^(?:[0-9([]|[A-Za-z]{1,8}[0-9<>=([+\-*/@#$])/.test(bare);
+}
+
+/** Where the first word of a line ends, counting a space inside a reference's braces as part of it. */
+function leadingWordEnd(line: string): number {
+  let depth = 0;
+  for (let index = 0; index < line.length; index++) {
+    const character = line[index];
+    if (character === '{' || character === '｛') depth++;
+    else if ((character === '}' || character === '｝') && depth > 0) depth--;
+    else if (depth === 0 && /\s/.test(character)) return index;
+  }
+  return line.length;
 }
 
 /** The references a piece can fill in, whether or not it keeps a palette of its own to draw variables from. */

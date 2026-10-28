@@ -1,5 +1,6 @@
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { DEFAULT_BUFF_COLOR } from '@axe/domain/character/buff-appearance';
+import { buffGroupOf, isBuffGroupMember } from '@axe/domain/character/buff-group';
 import { buffExpires } from '@axe/domain/character/buff-timing';
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
 
@@ -63,36 +64,47 @@ export function buffIconUrlOf(icon: string): string {
 /** What a picture's name is made of, which no emoji is. */
 const IDENTIFIER_LIKE = /^[A-Za-z0-9_.:-]+$/;
 
-/** Folds one buff into a badge of its icon, its strength and the rounds left. */
+/**
+ * Folds each buff into a badge of its icon, its strength and the rounds left. A buff that moves
+ * several statuses a row apiece is one badge, its first row's, saying what every row moves.
+ */
 export function toBuffBadges(buffRoot: DataElement | null): BuffBadge[] {
   if (!buffRoot) return [];
 
-  const badges: BuffBadge[] = [];
+  const rows: DataElement[] = [];
   const walk = (element: DataElement) => {
     for (const child of element.children) {
       const data = child as DataElement;
-      if (data.children.length > 0) {
-        walk(data);
-        continue;
-      }
-      if (!data.isNumberResource) continue;
-
-      const rounds = Number(data.value);
-      const effect = `${data.currentValue ?? ''}`;
-      const icon = buffIconOf(data);
-      badges.push({
-        identifier: data.identifier,
-        icon,
-        iconUrl: buffIconUrlOf(icon),
-        name: data.name,
-        effect,
-        strength: parseBuffStrength(effect),
-        rounds: Number.isFinite(rounds) ? rounds : 0,
-        expires: buffExpires(data),
-        color: buffColorOf(data),
-      });
+      if (data.children.length > 0) walk(data);
+      else if (data.isNumberResource) rows.push(data);
     }
   };
   walk(buffRoot);
+
+  const badges: BuffBadge[] = [];
+  for (const data of rows) {
+    if (isBuffGroupMember(data)) continue;
+    const group = buffGroupOf(data);
+    const rounds = Number(data.value);
+    const effect =
+      group.length > 0
+        ? rows
+            .filter((row) => buffGroupOf(row) === group)
+            .map((row) => `${row.currentValue ?? ''}`)
+            .join(',')
+        : `${data.currentValue ?? ''}`;
+    const icon = buffIconOf(data);
+    badges.push({
+      identifier: data.identifier,
+      icon,
+      iconUrl: buffIconUrlOf(icon),
+      name: data.name,
+      effect,
+      strength: parseBuffStrength(effect),
+      rounds: Number.isFinite(rounds) ? rounds : 0,
+      expires: buffExpires(data),
+      color: buffColorOf(data),
+    });
+  }
   return badges;
 }

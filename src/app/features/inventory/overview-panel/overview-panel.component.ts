@@ -18,6 +18,7 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { OverviewMemoPreferenceService } from '@axe/application/ui/overview-memo-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { turnCache } from '@axe/core/util/turn-cache';
@@ -44,6 +45,7 @@ import {
   getTableColumns,
   isCheckCellChecked,
   isGapColumn,
+  isSelectValueChosen,
   isSelectValueListed,
   nextCheckCellValue,
   type TableColumn as OverviewTableColumn,
@@ -91,6 +93,7 @@ export class OverviewPanelComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly memoPreference = inject(OverviewMemoPreferenceService);
   private readonly resourceSliders = inject(ResourceSliderService);
   private readonly disclosureService = inject(DisclosureService);
   private readonly destroyRef = inject(DestroyRef);
@@ -216,8 +219,39 @@ export class OverviewPanelComponent {
       trackChildren(this.tabletopObject.commonDataElement.children as DataElement[]);
     if (this.tabletopObject.detailDataElement)
       trackChildren(this.tabletopObject.detailDataElement.children as DataElement[]);
+    const memo = this.tabletopObject instanceof GameCharacter ? this.tabletopObject.innerNote : null;
+    if (memo) version += this.objectChange.versionOf(memo.identifier)();
     return version;
   });
+
+  /** The character whose memo is being written on the card, kept on show while it is, however short. */
+  protected readonly memoInHand = signal<string | null>(null);
+
+  /** What the memo kept with a character says, empty while nothing is written. */
+  protected memoOf(character: GameCharacter): string {
+    return character.note;
+  }
+
+  /** Whether a character has a memo for the card to switch to, or one being written on it. */
+  protected hasMemo(character: GameCharacter): boolean {
+    return character.note.length > 0 || this.memoInHand() === character.identifier;
+  }
+
+  /** Whether the card shows a character's memo rather than its status: chosen so, and there is one. */
+  protected showingMemo(character: GameCharacter): boolean {
+    return this.memoPreference.showsMemo() && this.hasMemo(character);
+  }
+
+  /** Switches every card this reader opens between the status and the memo. */
+  protected toggleMemo(): void {
+    this.memoPreference.toggle();
+  }
+
+  /** Writes a character's memo from the card; nothing for a reader who may not edit the table. */
+  protected writeMemo(character: GameCharacter, text: string): void {
+    if (!this.canEdit) return;
+    character.note = text;
+  }
 
   /**
    * The data fields the panel lists for the object.
@@ -440,6 +474,11 @@ export class OverviewPanelComponent {
   /** Whether a select cell's current value is one of its choices. */
   isTableSelectValueListed(cell: DataElement): boolean {
     return isSelectValueListed(cell);
+  }
+
+  /** Whether a choice is the one a select cell holds. */
+  isTableSelectChosen(cell: DataElement, option: string): boolean {
+    return isSelectValueChosen(cell, option);
   }
 
   /** Writes a select cell's value; ignored for a reader who may not edit the table. */

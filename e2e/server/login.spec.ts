@@ -9,6 +9,7 @@ import {
   leaveAll,
   loginFor,
   openSeat,
+  roleShown,
   RoomServer,
   say,
   serverRole,
@@ -88,7 +89,7 @@ test.describe('when the login runs out while in a room', () => {
     await expect(pl.page.getByTestId('snackbar')).toContainText('見学として部屋に入り直しました', {
       timeout: PAST_GRACE_MS,
     });
-    await expect(pl.page.getByTestId('peer-menu-server-role')).toHaveText('見学', { timeout: 10_000 });
+    await expect(roleShown(pl.page)).toHaveText('見学', { timeout: 10_000 });
     await say(gm.page, '期限の確認');
     await expect.poll(() => chatTabText(pl.page, 'メイン'), { timeout: 15_000 }).toContain('期限の確認');
     await leaveAll(gm, pl);

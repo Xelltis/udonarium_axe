@@ -48,7 +48,15 @@ export const MENU_TOGGLES = [
 export type MenuToggleName = (typeof MENU_TOGGLES)[number];
 
 /** The settings that move on to their next choice when pressed, rather than having an off. */
-export const MENU_CYCLES = ['viewMode', 'theme', 'motion', 'renderLite', 'language', 'buffView'] as const;
+export const MENU_CYCLES = [
+  'viewMode',
+  'theme',
+  'motion',
+  'renderLite',
+  'language',
+  'buffView',
+  'buffIconSize',
+] as const;
 
 export type MenuCycleName = (typeof MENU_CYCLES)[number];
 
@@ -257,6 +265,10 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
   cycle('buffView', 'auto_fix_high', 'feature.plTools.buffView', {
     audience: 'playing',
     testId: 'buff-view-cycle',
+  }),
+  cycle('buffIconSize', 'photo_size_select_large', 'feature.plTools.buffIconSize', {
+    audience: 'playing',
+    testId: 'buff-icon-size-cycle',
   }),
 
   act('save', 'save', 'app.fab.save', { testId: 'save-load-save' }),

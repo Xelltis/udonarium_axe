@@ -1,4 +1,5 @@
 import { computed, inject, Injectable } from '@angular/core';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { parseBuffModifierRequest } from '@axe/domain/character/buff-modifier';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -16,6 +17,7 @@ import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catal
 export class StatusAilmentService {
   private readonly catalog = inject(StatusAilmentCatalog);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly rolePermission = inject(RolePermissionService);
 
   readonly ailments = computed<StatusAilment[]>(() => {
     this.objectChange.versionOf(this.catalog.identifier)();
@@ -100,8 +102,9 @@ export class StatusAilmentService {
     this.objectChange.notifyChanged(character.identifier);
   }
 
-  /** Puts a state on a character or takes it off, as `on` says. */
+  /** Puts a state on a character or takes it off, as `on` says; nothing for a seat that may not edit the table. */
   toggle(character: GameCharacter, ailment: StatusAilment, on: boolean): void {
+    if (!this.rolePermission.canEditTabletop()) return;
     if (on) this.plant(character, ailment);
     else this.pull(character, ailment.name);
   }

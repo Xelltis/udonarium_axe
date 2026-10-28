@@ -94,6 +94,8 @@ export const DataElementAttribute = {
   BUFF_MOD_SLOT: 'cs-buff-mod-slot',
   BUFF_MOD_OPERATOR: 'cs-buff-mod-operator',
   BUFF_MOD_APPLIED: 'cs-buff-mod-applied',
+  BUFF_MOD_STEP: 'cs-buff-mod-step',
+  BUFF_GROUP: 'cs-buff-group',
   GAP_DISTANCE: 'cs-gap-distance',
   LOOP_HORIZONTAL: 'cs-loop-horizontal',
   LOOP_VERTICAL: 'cs-loop-vertical',

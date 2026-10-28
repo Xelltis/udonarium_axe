@@ -8,7 +8,7 @@
       "message": {
         "type": "error",
         "code": "protocol-mismatch",
-        "protocolVersion": 3
+        "protocolVersion": 4
       }
     },
     {
@@ -18,7 +18,7 @@
       "message": {
         "type": "error",
         "code": "room-not-found",
-        "protocolVersion": 3
+        "protocolVersion": 4
       }
     },
     {
@@ -28,7 +28,7 @@
       "message": {
         "type": "error",
         "code": "room-full",
-        "protocolVersion": 3
+        "protocolVersion": 4
       }
     },
     {
@@ -38,7 +38,7 @@
       "message": {
         "type": "error",
         "code": "wrong-password",
-        "protocolVersion": 3
+        "protocolVersion": 4
       }
     },
     {
@@ -48,7 +48,7 @@
       "message": {
         "type": "error",
         "code": "hello-required",
-        "protocolVersion": 3
+        "protocolVersion": 4
       }
     },
     {
@@ -58,7 +58,7 @@
       "message": {
         "type": "error",
         "code": "bad-message",
-        "protocolVersion": 3
+        "protocolVersion": 4
       }
     },
     {
@@ -68,7 +68,7 @@
       "message": {
         "type": "error",
         "code": "too-many-messages",
-        "protocolVersion": 3
+        "protocolVersion": 4
       }
     },
     {
@@ -78,7 +78,7 @@
       "message": {
         "type": "error",
         "code": "replaced",
-        "protocolVersion": 3
+        "protocolVersion": 4
       }
     },
     {
@@ -88,7 +88,7 @@
       "message": {
         "type": "error",
         "code": "unauthorized",
-        "protocolVersion": 3
+        "protocolVersion": 4
       }
     },
     {
@@ -98,7 +98,7 @@
       "message": {
         "type": "error",
         "code": "banned",
-        "protocolVersion": 3
+        "protocolVersion": 4
       }
     },
     {
@@ -108,7 +108,7 @@
       "message": {
         "type": "error",
         "code": "room-deleted",
-        "protocolVersion": 3
+        "protocolVersion": 4
       }
     },
     {
@@ -118,7 +118,7 @@
       "message": {
         "type": "error",
         "code": "idle",
-        "protocolVersion": 3
+        "protocolVersion": 4
       }
     }
   ]

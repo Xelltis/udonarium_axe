@@ -11,7 +11,7 @@
  */
 
 /** Raised whenever an envelope changes; a hello at another version is refused with protocol-mismatch. */
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 
 /** The room server's own peer id, a shape no client id can take. */
 export const AUTHORITY_PEER_ID = '@authority';
@@ -76,6 +76,11 @@ export type ServerRole = (typeof SERVER_ROLES)[number];
 /** Whether a value is one of the server's roles. */
 export function isServerRole(value: unknown): value is ServerRole {
   return (SERVER_ROLES as readonly unknown[]).includes(value);
+}
+
+/** Whether a value is a role or nothing, as a field the server may leave out. */
+function isOptionalServerRole(value: unknown): boolean {
+  return value === undefined || value === null || isServerRole(value);
 }
 
 /**
@@ -165,6 +170,11 @@ export interface WelcomeMessage {
   authorityPeerId: string;
   /** The role the server gives this client, which its own PeerCursor takes on. */
   role: ServerRole;
+  /**
+   * The role the room keeps for a seat logged in, which `role` differs from while it watches as a
+   * guest: the one it comes back to. Missing for a seat not logged in, which has none to choose.
+   */
+  keptRole?: ServerRole;
   /** Who else is in the room: never this client, never the server. */
   members: Member[];
   /** The server's clock, in Unix milliseconds. */
@@ -233,6 +243,8 @@ export interface AssetTokenMessage {
   expiresAt: number;
   /** The seat's role now, which a role change makes a new one; missing from an older server. */
   role?: ServerRole;
+  /** The role the room keeps for a seat logged in, as the welcome tells it. */
+  keptRole?: ServerRole;
 }
 
 /**
@@ -299,7 +311,8 @@ export type ServerMessage =
  *   into view
  * - WITHDRAW (from the server): `{ identifier }` to take away without marking it deleted, for a
  *   thing that went out of view or that the sender may not make
- * - ROLE_REQUEST (to the server): `{ peerId, role }`, a GM changing somebody's role
+ * - ROLE_REQUEST (to the server): `{ peerId, role }`, a GM changing somebody's role, or somebody logged in
+ *   asking for themselves to watch as a guest or to come back to the role the room keeps for them
  * - ROLE_REJECTED (from the server): `{ peerId, role, reason }`, a ROLE_REQUEST turned down
  * - ROLL_REQUEST (to the server): a RollRequest, rolled with BCDice and said to everybody
  * - ROLL_REJECTED (from the server): `{ identifier, reason }`, a ROLL_REQUEST not rolled, named by
@@ -579,6 +592,7 @@ export function readServerMessage(value: unknown): ServerMessage | null {
         typeof value['peerId'] === 'string' &&
         typeof value['authorityPeerId'] === 'string' &&
         isServerRole(value['role']) &&
+        isOptionalServerRole(value['keptRole']) &&
         Array.isArray(value['members']) &&
         value['members'].every(isMember) &&
         typeof value['serverTime'] === 'number' &&
@@ -603,7 +617,8 @@ export function readServerMessage(value: unknown): ServerMessage | null {
     case 'asset-token':
       return typeof value['assetToken'] === 'string' &&
         typeof value['expiresAt'] === 'number' &&
-        (value['role'] === undefined || value['role'] === null || isServerRole(value['role']))
+        isOptionalServerRole(value['role']) &&
+        isOptionalServerRole(value['keptRole'])
         ? (value as unknown as AssetTokenMessage)
         : null;
     case 'error':

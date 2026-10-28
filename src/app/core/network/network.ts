@@ -88,6 +88,13 @@ export class Network {
     return Network.instance.serverRole;
   }
   /**
+   * The role a room server keeps for this seat logged in, which differs from serverRole while it
+   * watches as a guest; null with SkyWay or without a login.
+   */
+  static get keptRole(): ServerRole | null {
+    return Network.instance.keptRole;
+  }
+  /**
    * Lets the page be left without the browser asking whether to, for a reload or a leave the reader
    * has already chosen and been told of.
    */
@@ -189,6 +196,9 @@ export class Network {
   }
   get serverRole(): ServerRole | null {
     return this.connection?.serverRole ?? null;
+  }
+  get keptRole(): ServerRole | null {
+    return this.connection?.keptRole ?? null;
   }
 
   private config: Record<string, unknown> = {};
@@ -480,12 +490,10 @@ export class Network {
     connection.useCredentials?.(this.credentialSource);
 
     connection.callback.onOpen = (peer) => {
-      // A logged-in seat got into the invited room, and the invitation has done its work.
-      if (
-        connection.serverRole &&
-        connection.serverRole !== 'guest' &&
-        connection.roomKey === this.pendingInvite?.roomKey
-      ) {
+      // A logged-in seat got into the invited room, and the invitation has done its work. A seat
+      // watching comes in as a guest, but the role the room keeps for it tells it is logged in.
+      const loggedIn = (connection.serverRole && connection.serverRole !== 'guest') || connection.keptRole;
+      if (loggedIn && connection.roomKey === this.pendingInvite?.roomKey) {
         this.pendingInvite = null;
       }
       if (this.callback.onOpen) this.callback.onOpen(peer);
