@@ -3,6 +3,7 @@ import {
   decodeVnEmote,
   encodeVnEmote,
   hasVnEmote,
+  legacyVnSuffixSite,
   parseLegacyVnEmoteSuffix,
   splitLegacyVnEmoteSuffix,
   VN_EMOTE_DEFAULT,
@@ -291,5 +292,34 @@ describe('vnBodyOf()', () => {
 
   it('leaves a bracket it cannot read alone', () => {
     expect(vnBodyOf('', 'メモ 〔重要〕')).toBe('メモ 〔重要〕');
+  });
+});
+
+describe('legacyVnSuffixSite', () => {
+  it('places a bracket read as staging, and each word in it', () => {
+    const text = 'やめろ 〔叫び・ ゆれ 〕';
+    const site = legacyVnSuffixSite(text)!;
+    expect(text.slice(site.from, site.to)).toBe('〔叫び・ ゆれ 〕');
+    expect(site.read).toBe(true);
+    expect(site.words.map((word) => [text.slice(word.from, word.to), word.known])).toEqual([
+      ['叫び', true],
+      ['ゆれ', true],
+    ]);
+  });
+
+  it('marks the word that gives the whole bracket up', () => {
+    const site = legacyVnSuffixSite('メモ 〔叫び・重要〕')!;
+    expect(site.read).toBe(false);
+    expect(site.words.map((word) => word.known)).toEqual([true, false]);
+  });
+
+  it('reads a bracket with a kind twice as no staging, though every word is known', () => {
+    const site = legacyVnSuffixSite('〔叫び・もやもや〕')!;
+    expect(site.read).toBe(false);
+    expect(site.words.every((word) => word.known)).toBe(true);
+  });
+
+  it('finds nothing where no bracket ends the line', () => {
+    expect(legacyVnSuffixSite('〔叫び〕 です')).toBeNull();
   });
 });
