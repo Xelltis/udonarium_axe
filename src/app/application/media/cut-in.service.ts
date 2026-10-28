@@ -5,6 +5,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { CutIn } from '@axe/domain/media/cut-in';
+import { readCutInChatTail } from '@axe/domain/media/cut-in-chat-tail';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { portraitFitFor } from '@axe/domain/media/cut-in-portrait-fit';
 import type { CutInSpeaker } from '@axe/domain/media/cut-in-speaker';
@@ -12,8 +13,6 @@ import { Jukebox } from '@axe/domain/media/jukebox';
 import { parseCutInIdentifiers, pickCutInIdentifier, rollCutIn } from '@axe/domain/media/table-cut-in';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
-
-const CHAT_TAIL_PATTERN = /\s(@?)(\S+)$/i;
 
 /**
  * How lately a line has to have been said for its cut-in to still be meant.
@@ -71,19 +70,16 @@ export class CutInService {
    * plays it as well. The cut-in is played for `speaker` where given.
    */
   activateFromChatText(text: string, sendTo: string, speaker: CutInSpeaker | null = null): void {
-    const matches = ` ${text}`.match(CHAT_TAIL_PATTERN);
-    if (!matches) return;
-
-    const isSoundOnly = matches[1] === '@';
-    const activateName = matches[2];
+    const tail = readCutInChatTail(text);
+    if (!tail) return;
 
     const launcher = this.objectStore.get<CutInLauncher>('CutInLauncher');
     if (!launcher) return;
 
-    const target = this.objectStore.getObjects(CutIn).find((c) => c.chatActivate && c.name === activateName);
+    const target = this.objectStore.getObjects(CutIn).find((c) => c.chatActivate && c.name === tail.name);
     if (!target) return;
 
-    if (isSoundOnly) {
+    if (tail.soundOnly) {
       this.launchSoundOnly(target, sendTo);
     } else {
       this.launch(target, sendTo, speaker);

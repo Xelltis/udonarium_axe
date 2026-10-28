@@ -1,0 +1,23 @@
+/** The last word of a chat line, read as the cut-in it may start, and where that word stands. */
+export interface CutInChatTail {
+  name: string;
+  soundOnly: boolean;
+  from: number;
+  to: number;
+}
+
+const CHAT_TAIL_PATTERN = /\s(@?)(\S+)$/i;
+
+/**
+ * Reads the last word of a line, which starts the cut-in of that name, and an `@` before it, which
+ * plays only the cut-in's sound.
+ *
+ * The word must follow a space and end the line, so a line of one word, or one with a space after
+ * its last word, names no cut-in.
+ */
+export function readCutInChatTail(text: string): CutInChatTail | null {
+  const match = CHAT_TAIL_PATTERN.exec(` ${text}`);
+  if (!match) return null;
+  const from = match.index;
+  return { name: match[2], soundOnly: match[1] === '@', from, to: from + match[1].length + match[2].length };
+}
