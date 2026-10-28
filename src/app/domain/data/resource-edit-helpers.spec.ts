@@ -283,6 +283,17 @@ describe('resource-edit-helpers', () => {
       expect(character.buffs.find('猛攻撃')!.value).toBe(5);
     });
 
+    it('grants a buff that builds up at every count, written with a doubled operator as a player writes it', () => {
+      character.status.changeValue('HP', 'now', -100);
+      const before = character.status.getValue('HP', 'now')!;
+
+      const text = applyBuffEdit({ command: '&+!猛攻撃/HP/++/1/3', object: character, targeted: false }, character);
+      character.buffs.expireOneRound();
+
+      expect(text).toBe('猛攻撃を付与 HP+1~+1/3R    ');
+      expect(character.status.getValue('HP', 'now')).toBe(before + 2);
+    });
+
     it('works out a calculated buff whose amount is written as a sum', () => {
       character.status.changeValue('HP', 'now', -100);
       const before = character.status.getValue('HP', 'now')!;

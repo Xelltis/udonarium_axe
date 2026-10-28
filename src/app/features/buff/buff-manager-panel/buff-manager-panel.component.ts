@@ -396,6 +396,7 @@ export class BuffManagerPanelComponent {
   readonly builderStatus = signal('命中');
   readonly builderOperator = signal<string>('+');
   readonly builderAmount = signal('2');
+  readonly builderStep = signal('');
   readonly builderRounds = signal('3');
   readonly builderTiming = signal<BuffTiming>('roundEnd');
   readonly builderTrigger = signal('');
@@ -404,6 +405,13 @@ export class BuffManagerPanelComponent {
 
   /** Whether a second helping would mean anything: holding a status at a value twice still holds it there. */
   readonly builderCanStack = computed(() => this.builderOperator() !== '=');
+
+  /** The amount as the command writes it, with how far it moves again at every count where that is asked for. */
+  private readonly builderAmountText = computed(() => {
+    const step = this.builderStep().trim();
+    const amount = this.builderAmount().trim();
+    return step.length > 0 && this.builderCanStack() ? `${amount}~${step}` : amount;
+  });
 
   /**
    * The `&!` command the builder's fields make up. A slash typed in the amount divides there, but
@@ -414,7 +422,7 @@ export class BuffManagerPanelComponent {
       this.builderName().trim() || 'バフ',
       this.builderStatus().trim(),
       this.builderOperator(),
-      this.builderAmount().trim().replace(/\//g, '÷'),
+      this.builderAmountText().replace(/\//g, '÷'),
       this.builderRounds().trim(),
     ];
     const timing = this.builderTiming();
@@ -427,7 +435,7 @@ export class BuffManagerPanelComponent {
   });
 
   readonly builderPreview = computed(() => {
-    const request = parseBuffModifierRequest(this.builderStatus(), this.builderOperator(), this.builderAmount());
+    const request = parseBuffModifierRequest(this.builderStatus(), this.builderOperator(), this.builderAmountText());
     return request ? describeBuffModifier(request) : '';
   });
 

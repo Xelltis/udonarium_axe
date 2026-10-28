@@ -3,6 +3,7 @@ import { BuffAppearance } from '@axe/domain/character/buff-appearance';
 import {
   BuffModifier,
   clearBuffModifier,
+  describeStandingModifier,
   ParsedBuffModifierRequest,
   readBuffModifier,
   writeBuffModifier,
@@ -122,7 +123,7 @@ export class BuffManager {
 
     const moved = this.moveStatus(request);
     if (moved == null) return null;
-    return this.writeModifier(data, request, standing.applied + moved);
+    return this.writeModifier(data, { ...request, step: request.step ?? standing.step }, standing.applied + moved);
   }
 
   /** Moves the status by what the request asks for and answers how far it actually went. */
@@ -144,9 +145,29 @@ export class BuffManager {
       slot: request.slot,
       operator: request.operator,
       applied,
+      ...(request.step ? { step: request.step } : {}),
     };
     writeBuffModifier(data, modifier);
     return modifier;
+  }
+
+  /**
+   * Moves the status again by what the buff moves it at every count, as it is counted down and
+   * stays, and writes down the distance it now stands moved, both on the record and on the badge.
+   */
+  private stepModifier(data: DataElement): void {
+    const modifier = readBuffModifier(data);
+    if (!modifier?.step || modifier.operator !== 'add') return;
+    const moved = this.moveStatus({
+      target: modifier.target,
+      slot: modifier.slot,
+      operator: 'add',
+      amount: modifier.step,
+    });
+    if (moved == null) return;
+    const standing = { ...modifier, applied: modifier.applied + moved };
+    writeBuffModifier(data, standing);
+    data.currentValue = describeStandingModifier(standing);
   }
 
   private revertModifier(data: DataElement): void {
@@ -228,6 +249,8 @@ export class BuffManager {
       if (round <= 0) {
         expired.push(data.name);
         this.remove(data);
+      } else {
+        this.stepModifier(data);
       }
     }
     return expired;

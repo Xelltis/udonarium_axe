@@ -287,6 +287,21 @@ describe('BuffManagerPanelComponent', () => {
       expect(component.builderPreview()).toBe('');
     });
 
+    it('writes how far the status moves again at every count, where it is asked for', () => {
+      component.builderName.set('変身');
+      component.builderStatus.set('器用度');
+      component.builderOperator.set('+');
+      component.builderAmount.set('5');
+      component.builderStep.set('-1');
+      component.builderRounds.set('5');
+
+      expect(component.builderCommand()).toBe('&!変身/器用度/+/5~-1/5');
+      expect(component.builderPreview()).toBe('器用度+5~-1');
+
+      component.builderOperator.set('=');
+      expect(component.builderCommand()).toBe('&!変身/器用度/=/5/5');
+    });
+
     it('marks the command for a second helping when one is asked for', () => {
       component.builderName.set('猛攻撃');
       component.builderStatus.set('命中');

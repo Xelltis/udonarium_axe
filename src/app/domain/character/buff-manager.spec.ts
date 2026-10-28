@@ -1,5 +1,5 @@
 import { BuffManager } from '@axe/domain/character/buff-manager';
-import { parseBuffModifierRequest } from '@axe/domain/character/buff-modifier';
+import { parseBuffModifierRequest, readBuffModifier } from '@axe/domain/character/buff-modifier';
 import { StatusAccessor } from '@axe/domain/character/status-accessor';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 
@@ -508,6 +508,44 @@ describe('BuffManager', () => {
       grant('猛攻撃', '命中', '+', '2');
 
       expect(status.getValue('命中', 'now')).toBe(12);
+    });
+
+    it('moves the status again at every count the buff stays, and puts all of it back as it runs out', () => {
+      grant('猛攻撃', '命中', '++', '1', 3);
+      expect(status.getValue('命中', 'now')).toBe(11);
+
+      sheeted.expireOneRound();
+      expect(status.getValue('命中', 'now')).toBe(12);
+      expect(sheeted.find('猛攻撃')!.currentValue).toBe('命中+2~+1');
+      sheeted.expireOneRound();
+      expect(status.getValue('命中', 'now')).toBe(13);
+
+      expect(sheeted.expireOneRound()).toEqual(['猛攻撃']);
+      expect(status.getValue('命中', 'now')).toBe(10);
+    });
+
+    it('takes back a step with the count it gave back, as a piece waits', () => {
+      grant('猛攻撃', '命中', '++', '1', 3);
+      const owner = { identifier: 'owner', name: 'テストキャラ' };
+      const due = sheeted.dueAt('roundEnd', owner);
+      sheeted.expireAt('roundEnd', owner);
+      expect(status.getValue('命中', 'now')).toBe(12);
+
+      sheeted.putBack(due);
+
+      expect(status.getValue('命中', 'now')).toBe(11);
+      expect(sheeted.find('猛攻撃')!.value).toBe(3);
+      expect(sheeted.find('猛攻撃')!.currentValue).toBe('');
+    });
+
+    it('lets a buff wear off by a step at every count', () => {
+      grant('変身', '命中', '+', '5~-1', 3);
+      expect(status.getValue('命中', 'now')).toBe(15);
+
+      sheeted.expireOneRound();
+
+      expect(status.getValue('命中', 'now')).toBe(14);
+      expect(readBuffModifier(sheeted.find('変身')!)).toMatchObject({ applied: 4, step: -1 });
     });
 
     it('puts the status back as the buff runs out', () => {
