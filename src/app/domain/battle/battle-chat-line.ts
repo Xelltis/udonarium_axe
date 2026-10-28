@@ -1,4 +1,5 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { hasSecretEditMark, resourceCommandSites } from '@axe/domain/data/resource-command-words';
 import { convertCommandToResourceEdit, createDefaultResourceEdit } from '@axe/domain/data/resource-edit-helpers';
 import { hasBattleChatToken } from '@axe/domain/effect/effect-chat-token';
 
@@ -44,25 +45,12 @@ export function lineChangesResources(text: string, bout: ChatLineBout): boolean 
   );
 }
 
-/**
- * The resource commands of a line, read word by word as the chat reads them: each with its `t` taken
- * off, and whether it had one.
- */
+/** The resource commands of a line as the chat carries them out: each with its `t` taken off, and whether it had one. */
 function resourceCommandsOf(text: string): { command: string; aimed: boolean }[] {
-  const commands: { command: string; aimed: boolean }[] = [];
-  for (const word of text.split(/\s/)) {
-    const plain = word
-      .replace(/^[sSｓＳ](?=[tTｔＴ]?[:：&＆])/, '')
-      .replace(/[tTｔＴ](?=[:：])/g, 't')
-      .replace(/：/g, ':')
-      .replace(/＆/g, '&');
-    if (!/^(t?[:&][^:&])+/i.test(plain)) continue;
-    for (const found of plain.match(/t?:[^:&]+/gi) ?? []) {
-      const aimed = /^t/i.test(found);
-      commands.push({ command: aimed ? found.slice(1) : found, aimed });
-    }
-  }
-  return commands;
+  return resourceCommandSites(text).resources.map(({ command }) => {
+    const aimed = command.startsWith('t');
+    return { command: aimed ? command.slice(1) : command, aimed };
+  });
 }
 
 /**
@@ -70,5 +58,5 @@ function resourceCommandsOf(text: string): { command: string; aimed: boolean }[]
  * numbers it moves are kept back on the stage as they are in the chat.
  */
 export function lineIsSecret(text: string): boolean {
-  return /(^|\s)[sｓ][tｔ]?[:：&＆]/i.test(text);
+  return hasSecretEditMark(text);
 }
