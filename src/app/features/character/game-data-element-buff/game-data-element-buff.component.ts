@@ -94,8 +94,11 @@ export class GameDataElementBuffComponent {
     return buffIconOf(element);
   });
 
-  /** Where the picture is, for a buff whose mark is one that was brought in. */
-  readonly iconUrl = computed(() => buffIconUrlOf(this.icon()));
+  /** Where the picture is, for a buff whose mark is one that was brought in, once it has arrived. */
+  readonly iconUrl = computed(() => {
+    this.objectChange.fileVersion();
+    return buffIconUrlOf(this.icon());
+  });
 
   readonly colorChoices = BUFF_COLORS;
   readonly defaultColor = DEFAULT_BUFF_COLOR;

@@ -2844,6 +2844,31 @@ describe('GameCharacterComponent', () => {
       }
     });
 
+    it('draws a picture chosen as the mark of a buff in the orbit, rather than writing out its name', () => {
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.mode2d = true;
+      table.multiAngleEnabled = true;
+      table.multiAngleResourceBuffEnabled = true;
+      vi.spyOn(ImageStorage.instance, 'get').mockImplementation(
+        (identifier) => (identifier === '452c31a22f' ? { url: 'blob:blessing' } : null) as never
+      );
+      const character = GameCharacter.create('絵の印', 1, '');
+      const buff = DataElement.create('加護', 2, { type: DataElementType.NUMBER_RESOURCE });
+      buff.setAttribute(DataElementAttribute.BUFF_ICON, '452c31a22f');
+      character.buffDataElement!.appendChild(buff);
+      fixture.componentRef.setInput('gameCharacter', character);
+
+      try {
+        fixture.detectChanges();
+        const icon = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="multi-angle-buff-icon"]')!;
+
+        expect(icon.querySelector('img')?.getAttribute('src')).toBe('blob:blessing');
+        expect(icon.textContent).not.toContain('452c31a22f');
+      } finally {
+        character.destroy();
+      }
+    });
+
     it('shows at most four configured resources in ninety-degree segments', () => {
       const table = TestBed.inject(TabletopService).currentTable;
       table.mode2d = true;

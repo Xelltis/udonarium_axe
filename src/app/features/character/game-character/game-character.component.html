@@ -799,7 +799,15 @@
                         [style.background]="badge.color"
                         [title]="badge.name"
                       >
-                        {{ badge.icon }}
+                        @if (badge.iconUrl) {
+                          <img
+                            class="pointer-events-none size-[0.9em] object-contain"
+                            [src]="badge.iconUrl | safe: 'resourceUrl'"
+                            alt=""
+                          />
+                        } @else {
+                          {{ badge.icon }}
+                        }
                       </span>
                     </div>
                   }

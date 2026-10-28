@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
 import { GameDataElementBuffComponent } from '@axe/features/character/game-data-element-buff/game-data-element-buff.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -31,6 +32,36 @@ describe('GameDataElementBuffComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('draws a picture chosen as the mark on the piece, rather than writing out its name', () => {
+    const row = DataElement.create('毒', '-2', { type: 'numberResource', currentValue: '-2' });
+    row.value = 3;
+    row.setAttribute(DataElementAttribute.BUFF_ICON, '452c31a22f');
+    vi.spyOn(ImageStorage.instance, 'get').mockImplementation(
+      (identifier) => (identifier === '452c31a22f' ? { url: 'blob:poison' } : null) as never
+    );
+    fixture.componentRef.setInput('gameDataElement', row);
+    fixture.componentRef.setInput('isPieceMode', true);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+
+    expect(root.querySelector('[data-testid="buff-row-icon-picture"]')?.getAttribute('src')).toBe('blob:poison');
+    expect(root.textContent).not.toContain('452c31a22f');
+    row.destroy();
+  });
+
+  it('writes a mark that names no picture as it is on the piece', () => {
+    const row = DataElement.create('毒', '-2', { type: 'numberResource', currentValue: '-2' });
+    row.setAttribute(DataElementAttribute.BUFF_ICON, '☠️');
+    fixture.componentRef.setInput('gameDataElement', row);
+    fixture.componentRef.setInput('isPieceMode', true);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+
+    expect(root.querySelector('[data-testid="buff-row-icon-picture"]')).toBeNull();
+    expect(root.textContent).toContain('☠️');
+    row.destroy();
   });
 
   it('fetches the picture selector and puts the picture chosen in place of the mark', async () => {

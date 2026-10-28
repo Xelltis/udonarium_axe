@@ -988,6 +988,7 @@ export class GameCharacterComponent {
     () => {
       const buffEl = this.gameCharacter()?.buffDataElement ?? null;
       if (this.followedTree(buffEl) === null || !buffEl) return [];
+      this.objectChange.fileVersion();
       return toBuffBadges(buffEl);
     },
     { equal: sameEntries }

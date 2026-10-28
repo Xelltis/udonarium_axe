@@ -184,9 +184,19 @@
       @case ('numberResource') {
         <span
           class="text-ui-text block font-[-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[1.2em] whitespace-nowrap [-webkit-font-smoothing:antialiased]"
-          ><span class="mr-[0.2em]">{{ icon() }}</span
-          >{{ name }} / {{ currentValue }} / {{ value }}R</span
         >
+          @if (iconUrl()) {
+            <img
+              class="mr-[0.2em] inline-block size-[1em] object-contain align-[-0.125em]"
+              [src]="iconUrl() | safe: 'resourceUrl'"
+              alt=""
+              data-testid="buff-row-icon-picture"
+            />
+          } @else {
+            <span class="mr-[0.2em]">{{ icon() }}</span>
+          }
+          <span>{{ name }} / {{ currentValue }} / {{ value }}R</span>
+        </span>
       }
     }
   }
