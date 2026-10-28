@@ -85,6 +85,7 @@ test.describe('the chat editor', () => {
     const bold = page.locator('chat-window [data-testid="chat-toolbar-bold"]');
     await input.click();
     await page.keyboard.type('強く言う');
+    await expectChatText(input, '強く言う');
     await page.keyboard.press('ControlOrMeta+a');
     await bold.click();
     await expectChatText(input, '**強く言う**');
@@ -108,6 +109,7 @@ test.describe('the chat editor', () => {
     const input = chatInput(page);
     await input.click();
     await page.keyboard.type('選んだ言葉');
+    await expectChatText(input, '選んだ言葉');
     await page.keyboard.press('Shift+Home');
     const bubble = page.locator('[data-testid="chat-bubble"]');
     await expect(bubble).toBeVisible();
@@ -123,6 +125,7 @@ test.describe('the chat editor', () => {
     const input = chatInput(page);
     await input.click();
     await page.keyboard.type('赤く');
+    await expectChatText(input, '赤く');
     await page.keyboard.press('ControlOrMeta+a');
     const button = page.locator('chat-window [data-testid="chat-toolbar-color"]');
     await button.click();
@@ -143,6 +146,7 @@ test.describe('the chat editor', () => {
     const input = chatInput(page);
     await input.click();
     await page.keyboard.type('漢字');
+    await expectChatText(input, '漢字');
     await page.keyboard.press('ControlOrMeta+a');
     await page.locator('chat-window [data-testid="chat-toolbar-ruby"]').click();
     await page.locator('[data-testid="chat-toolbar-ruby-reading"]').fill('かんじ');
