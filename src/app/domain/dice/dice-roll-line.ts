@@ -1,3 +1,6 @@
+import { toHalfWidth } from '@axe/core/util/string-util';
+import { isDicelessArithmetic } from '@axe/domain/data/embedded-roll';
+
 /**
  * A chat line read the way the dice bot reads it before rolling: a leading count of repeats, and the
  * rest of the first line, which is what the game system is asked to roll.
@@ -43,4 +46,114 @@ export function looksLikeDiceCommand(text: string): boolean {
  */
 export function looksLikeRollWord(word: string): boolean {
   return /^[\x21-\x7E]+$/.test(word) && /^(?:[0-9([]|[A-Za-z]{1,8}[0-9<>=([+\-*/@#$])/.test(word);
+}
+
+/** How many dice one roll may throw in all before it is not tried while being typed: the dice library gives up past this. */
+const MOST_DICE_TRIED = 10_000;
+/** The most dice one term may throw, past which the dice library rolls nothing and answers 0. */
+const MOST_DICE_IN_A_TERM = 200;
+/** The most sides a die may have, past which the dice library rolls nothing and answers 0. */
+const MOST_SIDES = 10_000;
+/** The most times a roll may be repeated. */
+const MOST_REPEATS = 100;
+
+/** What a game system makes of a line, so far as the chat input can tell before it is sent. */
+export type RollCheck =
+  /** It is a roll, and this is what one came out as. */
+  | { kind: 'rolled'; result: string }
+  /** It is no roll and was not meant as one: it goes out as chat. */
+  | { kind: 'notRoll' }
+  /** It is shaped like a roll, but this system takes no such command, so it goes out as chat. */
+  | { kind: 'plainText' }
+  /** The system takes it for a command, but cannot roll it, so it goes out unanswered. */
+  | { kind: 'unrollable' }
+  /** The system broke off rolling it, so it goes out unanswered. */
+  | { kind: 'failed' }
+  /** It throws more dice than the system rolls, so it goes out unanswered; it is not tried. */
+  | { kind: 'tooMany' }
+  /** A count of nothing leads it, so it is not rolled. */
+  | { kind: 'noRepeat' }
+  /** The system's code could not be fetched, so there is no telling. */
+  | { kind: 'cannotCheck' };
+
+/** What of a game system a line is checked against. */
+export interface RollCheckSystem {
+  readonly COMMAND_PATTERN: RegExp | null;
+  eval(command: string): { text: string } | null;
+}
+
+/** A term past what the dice library rolls: too many dice, too many sides, or too many repeats. */
+export interface RollLimitBreach {
+  limit: 'dice' | 'sides' | 'repeats';
+  from: number;
+  to: number;
+}
+
+/** The first word of a command, which is all the dice library reads; the rest is a comment. */
+export function firstWordOf(text: string): string {
+  return /^\S*/.exec(text)?.[0] ?? '';
+}
+
+/** How many dice a command throws, as near as its terms tell, before any repeat. */
+function diceThrownBy(command: string): number {
+  let total = 0;
+  for (const term of command.matchAll(/(\d*)[dDbBrRuU](\d+)/g)) total += term[1] ? Number(term[1]) : 1;
+  return total;
+}
+
+/**
+ * Checks a line as the dice bot would roll it when sent: in half-width, with its repeat count taken
+ * off, tested against the system's command pattern, and then rolled. A roll that would throw more
+ * dice than the system can is not tried, as the system would only give up on it. Words shaped like
+ * a roll that the system turns down or cannot roll are told apart from chat, which digits alone,
+ * plain sums and words past ASCII are taken for.
+ */
+export function checkRollLine(system: RollCheckSystem, unreachable: boolean, text: string): RollCheck {
+  const line = readRollLine(toHalfWidth(text));
+  const rollText = line.rollText;
+  if (unreachable) return looksLikeDiceCommand(rollText) ? { kind: 'cannotCheck' } : { kind: 'notRoll' };
+  const word = firstWordOf(rollText);
+  const meantAsRoll = looksLikeRollWord(word) && !/^\d+$/.test(word) && !isDicelessArithmetic(word);
+  if (system.COMMAND_PATTERN && !system.COMMAND_PATTERN.test(rollText)) {
+    return meantAsRoll ? { kind: 'plainText' } : { kind: 'notRoll' };
+  }
+  if (!rollText) return { kind: 'notRoll' };
+  if (line.repeat < 1) return { kind: 'noRepeat' };
+  const repeatWord = /^(?:repeat|rep|x)(\d+)$/i.exec(word);
+  const thrown = repeatWord
+    ? diceThrownBy(firstWordOf(rollText.slice(word.length).trimStart())) * Number(repeatWord[1])
+    : diceThrownBy(word);
+  if (thrown * line.repeat > MOST_DICE_TRIED) return { kind: 'tooMany' };
+  try {
+    const result = system.eval(line.repeat > 1 ? `x${line.repeat} ${rollText}` : rollText);
+    if (result?.text) return { kind: 'rolled', result: result.text };
+  } catch {
+    return { kind: 'failed' };
+  }
+  return meantAsRoll ? { kind: 'unrollable' } : { kind: 'notRoll' };
+}
+
+/**
+ * The terms of a roll's first word that ask for more than the dice library rolls, and a repeat
+ * count past what it repeats: each answers 0, or the roll is turned down, rather than rolled.
+ */
+export function rollLimitBreaches(text: string): RollLimitBreach[] {
+  const half = toHalfWidth(text);
+  const line = readRollLine(half);
+  const breaches: RollLimitBreach[] = [];
+  if (line.rollFrom > 0 && line.repeat > MOST_REPEATS) {
+    breaches.push({ limit: 'repeats', from: 0, to: half.search(/\s/) });
+  }
+  const word = firstWordOf(line.rollText);
+  const repeat = /^(?:repeat|rep|x)(\d+)$/i.exec(word);
+  if (repeat && Number(repeat[1]) > MOST_REPEATS) {
+    breaches.push({ limit: 'repeats', from: line.rollFrom, to: line.rollFrom + word.length });
+  }
+  for (const term of word.matchAll(/(\d*)[dD](\d+)/g)) {
+    const from = line.rollFrom + term.index;
+    const to = from + term[0].length;
+    if (term[1] && Number(term[1]) > MOST_DICE_IN_A_TERM) breaches.push({ limit: 'dice', from, to });
+    else if (Number(term[2]) > MOST_SIDES) breaches.push({ limit: 'sides', from, to });
+  }
+  return breaches;
 }
