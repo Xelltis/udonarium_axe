@@ -81,8 +81,8 @@ describe('ChatPreferencesService', () => {
   });
 
   describe('whether lines are typed into the editor', () => {
-    it('starts at the default for a reader who has not chosen', () => {
-      expect(make().richInput()).toBe(false);
+    it('starts with the editor for a reader who has not chosen', () => {
+      expect(make().richInput()).toBe(true);
     });
 
     it('keeps the choice either way for the next visit', () => {
@@ -96,10 +96,10 @@ describe('ChatPreferencesService', () => {
     });
 
     it('goes back to the default when what was kept cannot be read', () => {
-      localStorage.setItem(STORAGE_KEYS.chatPreferences, '{"richInput": "yes"');
-      expect(make().richInput()).toBe(false);
-      localStorage.setItem(STORAGE_KEYS.chatPreferences, '{"richInput": "yes"}');
-      expect(make().richInput()).toBe(false);
+      localStorage.setItem(STORAGE_KEYS.chatPreferences, '{"richInput": false');
+      expect(make().richInput()).toBe(true);
+      localStorage.setItem(STORAGE_KEYS.chatPreferences, '{"richInput": "no"}');
+      expect(make().richInput()).toBe(true);
     });
   });
 

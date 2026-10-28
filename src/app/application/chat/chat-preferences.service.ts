@@ -58,7 +58,7 @@ export interface ChatScopedSoundSetting {
 const DEFAULT_SOUND: ChatScopedSoundSetting = { scope: 'all', all: DEFAULT_CHAT_SOUND, tabs: {} };
 
 /** Whether lines are typed into the editor for a reader who has not chosen. */
-const RICH_INPUT_BY_DEFAULT = false;
+const RICH_INPUT_BY_DEFAULT = true;
 
 interface StoredChatPreferences {
   fontSize?: number;
