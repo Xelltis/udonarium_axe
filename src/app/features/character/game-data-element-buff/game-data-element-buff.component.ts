@@ -153,11 +153,6 @@ export class GameDataElementBuffComponent {
     this.objectChange.notifyChanged(element.identifier);
   }
 
-  /** Applies the timing picked in the row's timing dropdown. */
-  onSelectTiming(event: Event): void {
-    this.selectTiming((event.target as HTMLSelectElement).value as BuffTiming);
-  }
-
   /**
    * Names the character whose turn start or end the buff counts down on.
    *
@@ -169,11 +164,6 @@ export class GameDataElementBuffComponent {
     if (trimmed.length > 0) element.setAttribute(DataElementAttribute.BUFF_TRIGGER, trimmed);
     else element.removeAttribute(DataElementAttribute.BUFF_TRIGGER);
     this.objectChange.notifyChanged(element.identifier);
-  }
-
-  /** Applies the character picked in the row's trigger dropdown. */
-  onSetTrigger(event: Event): void {
-    this.setTrigger((event.target as HTMLSelectElement).value);
   }
 
   /** Gives the buff one of the offered marks; picking the mark it already has goes back to the default. */

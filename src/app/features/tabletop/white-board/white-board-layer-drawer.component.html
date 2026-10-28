@@ -122,13 +122,12 @@
             />
             <select
               class="bg-ui-input rounded-ui-sm min-w-0 flex-1 px-0.5 text-[10px]"
-              [value]="layer.group ?? ''"
               [title]="'feature.whiteBoard.editor.addGroup' | transloco"
               (change)="emit({ kind: 'fileLayer', layer, group: $any($event.target).value })"
             >
-              <option value="">{{ 'feature.whiteBoard.editor.noGroup' | transloco }}</option>
+              <option value="" [selected]="!layer.group">{{ 'feature.whiteBoard.editor.noGroup' | transloco }}</option>
               @for (name of groupNames(); track name) {
-                <option [value]="name">{{ name }}</option>
+                <option [value]="name" [selected]="name === layer.group">{{ name }}</option>
               }
             </select>
             <button

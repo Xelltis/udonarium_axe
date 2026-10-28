@@ -64,6 +64,23 @@ describe('GameDataElementBuffComponent', () => {
     row.destroy();
   });
 
+  it('shows the timing and the trigger the buff holds in their dropdowns', async () => {
+    const row = DataElement.create('猛攻撃', 3, { type: 'numberResource', currentValue: '筋力+2' });
+    row.setAttribute(DataElementAttribute.BUFF_TIMING, 'turnStart');
+    fixture.componentRef.setInput('gameDataElement', row);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const root = fixture.nativeElement as HTMLElement;
+    const shown = (testId: string) => {
+      const select = root.querySelector<HTMLSelectElement>(`[data-testid="${testId}"]`)!;
+      return select.options[select.selectedIndex]?.textContent?.trim();
+    };
+
+    expect(shown('buff-row-timing')).toBe('トリガーの手番開始時');
+    expect(shown('buff-row-trigger')).toBe('未指定なら本人');
+    row.destroy();
+  });
+
   it('fetches the picture selector and puts the picture chosen in place of the mark', async () => {
     const open = vi.spyOn(TestBed.inject(ModalService), 'open').mockResolvedValue('poison-picture');
 

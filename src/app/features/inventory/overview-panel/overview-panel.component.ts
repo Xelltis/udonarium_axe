@@ -44,6 +44,7 @@ import {
   getTableColumns,
   isCheckCellChecked,
   isGapColumn,
+  isSelectValueChosen,
   isSelectValueListed,
   nextCheckCellValue,
   type TableColumn as OverviewTableColumn,
@@ -440,6 +441,11 @@ export class OverviewPanelComponent {
   /** Whether a select cell's current value is one of its choices. */
   isTableSelectValueListed(cell: DataElement): boolean {
     return isSelectValueListed(cell);
+  }
+
+  /** Whether a choice is the one a select cell holds. */
+  isTableSelectChosen(cell: DataElement, option: string): boolean {
+    return isSelectValueChosen(cell, option);
   }
 
   /** Writes a select cell's value; ignored for a reader who may not edit the table. */

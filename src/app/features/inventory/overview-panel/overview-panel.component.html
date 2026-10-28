@@ -413,14 +413,15 @@
                         } @else if (cell.fieldType === 'select') {
                           <select
                             class="overview-table-select text-ui-text hover:bg-ui-input focus:bg-ui-input w-full min-w-14 rounded-xs border-none bg-transparent font-[inherit] outline-none"
-                            [value]="cell.value"
                             (change)="setTableSelectCellValueFromEvent(cell, $event)"
                           >
                             @if (!isTableSelectValueListed(cell)) {
-                              <option [value]="cell.value">{{ cell.value }}</option>
+                              <option [value]="cell.value" [selected]="true">{{ cell.value }}</option>
                             }
                             @for (option of getTableSelectOptions(cell); track option) {
-                              <option [value]="option">{{ option }}</option>
+                              <option [value]="option" [selected]="isTableSelectChosen(cell, option)">
+                                {{ option }}
+                              </option>
                             }
                           </select>
                         } @else {

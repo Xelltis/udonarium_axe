@@ -36,6 +36,24 @@ describe('WhiteBoardLayerDrawerComponent', () => {
     return found;
   }
 
+  it('shows the sheet worked on in the group it is filed in, and in none where it is filed in none', async () => {
+    const shownGroup = async (activeLayerId: string) => {
+      fixture.componentRef.setInput('activeLayerId', activeLayerId);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const select = fixture.nativeElement.querySelector('select') as HTMLSelectElement;
+      return select.options[select.selectedIndex]?.value;
+    };
+    fixture.componentRef.setInput('groups', [
+      { name: '', layers: [sheet] },
+      { name: 'Maps', layers: [{ ...named, group: 'Maps' }] },
+    ]);
+    fixture.componentRef.setInput('groupNames', ['Battle', 'Maps']);
+
+    expect(await shownGroup(named.id)).toBe('Maps');
+    expect(await shownGroup(sheet.id)).toBe('');
+  });
+
   it('asks for a new sheet and a new group from the header', () => {
     buttonWithIcon('add').click();
     buttonWithIcon('create_new_folder').click();

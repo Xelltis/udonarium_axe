@@ -164,15 +164,14 @@
                   @case ('select') {
                     <select
                       class="elm-view-table-select text-ui-text hover:bg-ui-input focus:bg-ui-input font-inherit w-full min-w-[3.8rem] rounded-xs border-none bg-transparent outline-none"
-                      [value]="cell.value"
                       [disabled]="isValueLocked()"
                       (change)="setTableSelectCellValueFromEvent(cell, $event)"
                     >
                       @if (!isTableSelectValueListed(cell)) {
-                        <option [value]="cell.value">{{ cell.value }}</option>
+                        <option [value]="cell.value" [selected]="true">{{ cell.value }}</option>
                       }
                       @for (option of getTableSelectOptions(cell); track option) {
-                        <option [value]="option">{{ option }}</option>
+                        <option [value]="option" [selected]="isTableSelectChosen(cell, option)">{{ option }}</option>
                       }
                     </select>
                   }

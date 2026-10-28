@@ -144,6 +144,14 @@ export function isSelectValueListed(cell: DataElement): boolean {
   return getSelectOptions(cell).includes(String(cell.value ?? ''));
 }
 
+/**
+ * Whether a choice is the one a select cell holds, for each option to mark itself chosen: a value
+ * bound on the select itself is set before options drawn in a loop exist, and finds none to choose.
+ */
+export function isSelectValueChosen(cell: DataElement, option: string): boolean {
+  return String(cell.value ?? '') === option;
+}
+
 /** The first gap cell in a gap column, which holds that gap's settings; null for any other column. */
 export function findGapCellInColumn(element: DataElement, column: TableColumn): DataElement | null {
   if (!isGapColumn(column)) return null;

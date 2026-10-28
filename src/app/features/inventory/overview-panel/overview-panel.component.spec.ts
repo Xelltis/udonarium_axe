@@ -477,7 +477,7 @@ describe('OverviewPanelComponent', () => {
           [DataElementAttribute.COLUMN_GROUP]: '肉体技能',
         })
       );
-      const rankCell = DataElement.create('肉体技能習熟度', '初級', {
+      const rankCell = DataElement.create('肉体技能習熟度', '中級', {
         [DataElementAttribute.ROLE]: DataElementRole.FIELD,
         [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.SELECT,
         [DataElementAttribute.CHOICES]: '初級,中級,上級',
@@ -502,7 +502,7 @@ describe('OverviewPanelComponent', () => {
         expect(groupHeader?.getAttribute('colspan')).toBe('2');
         expect(rowHeader?.textContent?.trim()).toBe('技能');
         expect(fixture.nativeElement.textContent).toContain('肉体攻撃');
-        expect(select?.value).toBe('初級');
+        expect(select?.options[select.selectedIndex]?.textContent?.trim()).toBe('中級');
 
         select!.value = '上級';
         select!.dispatchEvent(new Event('change'));
