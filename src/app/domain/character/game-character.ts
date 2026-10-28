@@ -40,6 +40,9 @@ import {
   VN_PORTRAIT_SLOT_COUNT,
 } from '@axe/domain/visual-novel/vn-portrait-position';
 
+/** The name the memo kept with a piece goes by, as another fork names it. */
+const INNER_NOTE_NAME = 'inner-note';
+
 @SyncObject('character')
 export class GameCharacter extends OwnedTabletopObject {
   @SyncVar() owner: string = '';
@@ -333,6 +336,33 @@ export class GameCharacter extends OwnedTabletopObject {
       if (child instanceof ChatPalette) return child;
     }
     return null;
+  }
+
+  /**
+   * The memo kept with the piece, beside its sheet rather than in it, under the name another fork
+   * keeps it by so that a room saved there brings it along; null until something is written.
+   */
+  get innerNote(): DataElement | null {
+    for (const child of this.children) {
+      if (child instanceof DataElement && child.getAttribute('name') === INNER_NOTE_NAME) return child;
+    }
+    return null;
+  }
+
+  /** What the memo kept with the piece says, empty while nothing is written. */
+  get note(): string {
+    return `${this.innerNote?.value ?? ''}`;
+  }
+
+  /** Writes the memo kept with the piece, making its element on the first write that says anything. */
+  set note(text: string) {
+    const held = this.innerNote;
+    if (held) {
+      held.value = text;
+      return;
+    }
+    if (text.length < 1) return;
+    this.appendChild(DataElement.create(INNER_NOTE_NAME, text, { type: 'note' }, `innernote_${this.identifier}`));
   }
 
   /**

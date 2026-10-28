@@ -1657,7 +1657,9 @@
         "diceHidden": "???",
         "imageUnset": "No image",
         "urlEdit": "Edit URL:",
-        "enlarge": "View larger"
+        "enlarge": "View larger",
+        "showMemo": "Memo",
+        "showStatus": "Status"
       },
       "sheet": {
         "toggleEdit": "Toggle edit",
@@ -2048,6 +2050,7 @@
     "character": {
       "contextMenu": {
         "showDetail": "Show details",
+        "memo": "Memo",
         "showChatPalette": "Show chat palette",
         "showRemoteController": "Show remote controller",
         "editBuff": "Edit buffs",
@@ -2229,6 +2232,11 @@
       "moveMode_fly": "Flying",
       "stealth": {
         "mark": "In stealth (only the GM, its owner and their party can see it)"
+      },
+      "memo": {
+        "title": "Memo: {{name}}",
+        "placeholder": "What to keep with this piece: belongings, flags and the like",
+        "hint": "It can also be read on the card that opens on the piece, switched with the status."
       }
     },
     "light": {

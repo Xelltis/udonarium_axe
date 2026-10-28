@@ -200,8 +200,10 @@ body.touch-input button {
   pointer-events: none !important;
 }
 
-/* A resource's slider is there to be moved with a finger, so it alone takes the touch. */
-.tooltip-passthrough input[type='range']:not(:disabled) {
+/* A resource's slider is there to be moved with a finger, and the card's own switches pressed with
+   one, so they alone take the touch. */
+.tooltip-passthrough input[type='range']:not(:disabled),
+.tooltip-passthrough [data-tooltip-control] {
   pointer-events: auto !important;
 }
 

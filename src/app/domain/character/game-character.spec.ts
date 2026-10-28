@@ -35,6 +35,38 @@ describe('GameCharacter', () => {
   // ----------------------------------------------------------------
   // chatBubbleAltitude
   // ----------------------------------------------------------------
+  describe('the memo kept with it', () => {
+    it('keeps nothing until something is written, and writes the memo beside the sheet after', () => {
+      const character = GameCharacter.create('メモ持ち', 1, '');
+
+      character.note = '';
+      expect(character.innerNote).toBeNull();
+      expect(character.note).toBe('');
+
+      character.note = 'ロープ';
+      expect(character.note).toBe('ロープ');
+      expect(character.innerNote?.parent).toBe(character);
+      expect(character.innerNote?.type).toBe('note');
+      expect(character.innerNote?.identifier).toBe(`innernote_${character.identifier}`);
+
+      character.note = 'ロープ\n通行証';
+      expect(character.children.filter((child) => child.getAttribute('name') === 'inner-note')).toHaveLength(1);
+      expect(character.note).toBe('ロープ\n通行証');
+      character.destroy();
+    });
+
+    it('saves the memo as a plain note beside the sheet, the shape the room reads it back in', () => {
+      const character = GameCharacter.create('メモ持ち', 1, '');
+      character.note = 'ロープ';
+
+      const xml = ObjectSerializer.instance.toXml(character);
+
+      expect(xml).toMatch(/<data[^>]*name="inner-note"[^>]*>ロープ<\/data>/);
+      expect(xml).toMatch(/<data[^>]*type="note"[^>]*name="inner-note"/);
+      character.destroy();
+    });
+  });
+
   describe('chatBubbleAltitude', () => {
     it('starts at nothing', () => {
       expect(character.chatBubbleAltitude).toBe(0);
@@ -207,6 +239,23 @@ describe('GameCharacter', () => {
       expect(restoredSection.fieldRole).toBe(DataElementRole.SECTION);
       expect(restoredSection.children.map((child) => child.name)).toEqual(['基本']);
       expect(restoredSection.children[0].children.map((child) => child.name)).toEqual(['A']);
+    });
+
+    it('reads the memo another fork keeps beside the sheet', () => {
+      const xml = `<character>
+    <data name="character">
+    <data name="image"><data name="imageIdentifier" type="image"></data></data>
+    <data name="common"></data>
+    <data name="detail"></data>
+    </data>
+    <data name="inner-note" type="note">ロープ
+王都の通行証</data>
+    </character>`;
+
+      const restored = ObjectSerializer.instance.parseXml(xml) as GameCharacter;
+
+      expect(restored.note).toBe('ロープ\n王都の通行証');
+      expect(restored.rootDataElement?.name).toBe('character');
     });
 
     it('folds the palettes another fork keeps beside its own into this palette as tabs', () => {

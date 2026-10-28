@@ -32,6 +32,8 @@ export interface RegisteredRangeShape {
 
 export interface GameCharacterContextMenuCallbacks {
   onShowDetail: () => void;
+  /** Opens the memo kept with the piece. */
+  onShowMemo: () => void;
   onShowChatPalette: () => void;
   onShowRemoteController: () => void;
   onShowBuffEdit: () => void;
@@ -235,6 +237,10 @@ export function buildGameCharacterContextMenuModel(
     {
       name: t('feature.character.contextMenu.showDetail'),
       action: () => callbacks.onShowDetail(),
+    },
+    {
+      name: t('feature.character.contextMenu.memo'),
+      action: () => callbacks.onShowMemo(),
     },
   ];
   const chatActions: ContextMenuAction[] = [

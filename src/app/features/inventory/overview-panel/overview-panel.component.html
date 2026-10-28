@@ -203,15 +203,51 @@
         <img class="w-full p-0 align-bottom" [src]="imageUrl() | safe: 'resourceUrl'" />
       </div>
     }
-    <div class="text-ui-text h-8 truncate px-[1em] text-[1em]/8 [grid-area:3/2/4/3]" [ngClass]="pointerEventsStyle">
-      {{ character.name }}
+    <div
+      class="text-ui-text flex h-8 items-center gap-1 px-[1em] text-[1em]/8 [grid-area:3/2/4/3]"
+      [ngClass]="pointerEventsStyle"
+    >
+      <span class="min-w-0 flex-1 truncate">{{ character.name }}</span>
+      @if (memoOf(character)) {
+        <button
+          type="button"
+          class="border-ui-border-panel text-ui-muted hover:text-ui-text shrink-0 cursor-pointer rounded-full border border-solid bg-transparent px-1.5 text-[0.85em] leading-normal"
+          data-tooltip-control
+          data-testid="overview-memo-toggle"
+          [attr.aria-pressed]="showingMemo(character)"
+          (click)="toggleMemo()"
+        >
+          {{
+            (showingMemo(character) ? 'feature.inventory.overview.showStatus' : 'feature.inventory.overview.showMemo')
+              | transloco
+          }}
+        </button>
+      }
     </div>
     <div class="pointer-events-none [grid-area:1/2/3/3]"></div>
     <div
       class="bg-ui-panel border-ui-border-panel border-b border-solid [grid-area:4/1/5/3]"
       [ngClass]="pointerEventsStyle"
     >
-      @if (hasDataElms) {
+      @if (showingMemo(character)) {
+        <div
+          class="border-ui-border-panel box-border overflow-x-hidden overflow-y-auto border-x border-solid px-[1.2em] py-[0.5em]"
+          [ngStyle]="{ width: overViewCharacterWidth + 'px', 'max-height': overViewCharacterMaxHeight + 'px' }"
+        >
+          <div class="relative leading-[1.8]">
+            <textarea
+              class="text-ui-text hover:bg-ui-hover focus:bg-ui-input absolute inset-0 box-border size-full resize-none overflow-hidden rounded-xs border-none bg-transparent p-0 font-[inherit] leading-[inherit] wrap-anywhere whitespace-pre-wrap outline-none"
+              name="character-memo"
+              data-testid="overview-memo"
+              spellcheck="false"
+              [readonly]="!canEdit"
+              [ngModel]="memoOf(character)"
+              (ngModelChange)="writeMemo(character, $event)"
+            ></textarea>
+            <div class="invisible min-h-6 wrap-anywhere whitespace-pre-wrap">{{ memoOf(character) }}</div>
+          </div>
+        </div>
+      } @else if (hasDataElms) {
         <div
           class="border-ui-border-panel box-border max-h-62.5 overflow-x-hidden overflow-y-auto border-x border-solid px-[1.2em] py-[0.5em]"
           [ngStyle]="{ width: overViewCharacterWidth + 'px', 'max-height': overViewCharacterMaxHeight + 'px' }"

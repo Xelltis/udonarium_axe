@@ -146,6 +146,7 @@ export class GameCharacterMenuService {
       this.inventoryService,
       {
         onShowDetail: () => this.showDetail(char),
+        onShowMemo: () => this.showMemo(char),
         onShowChatPalette: () => this.showChatPalette(char),
         onShowRemoteController: () => this.showRemoteController(char),
         onShowBuffEdit: () => this.showBuffEdit(char),
@@ -347,6 +348,28 @@ export class GameCharacterMenuService {
     if (!this.disclosureService.canView(gameObject)) return;
     const title = sheetPanelTitle(this.translateFn('feature.character.panel.sheet'), gameObject.name);
     this.objectPanels.openSheet(gameObject, title, { width: 800, height: 600 });
+  }
+
+  /** Opens the memo kept with a piece, fetched the first time it is asked for. */
+  private showMemo(gameObject: GameCharacter) {
+    if (!this.disclosureService.canView(gameObject)) return;
+    const at = this.pointerDeviceService.pointers[0];
+    this.panelService.openLazy(
+      () =>
+        import('@axe/features/character/character-memo/character-memo.component').then(
+          (loaded) => loaded.CharacterMemoComponent
+        ),
+      {
+        title: this.translateFn('feature.character.memo.title', { name: gameObject.name }),
+        left: at.x - 160,
+        top: at.y - 120,
+        width: 320,
+        height: 260,
+        single: `character-memo:${gameObject.identifier}`,
+        stillWanted: () => isInStore(gameObject),
+      },
+      (memo) => memo.target.set(gameObject)
+    );
   }
 
   /** Opens a piece's sheet on its settings, where how high a mount's riders stand is typed in. */

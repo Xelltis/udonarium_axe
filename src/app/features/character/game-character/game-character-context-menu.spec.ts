@@ -67,6 +67,7 @@ const groupOf = (menu: { name: string; subActions?: { name: string }[] }[], name
   menu.find((m) => m.name === name)!.subActions! as ReturnType<typeof buildGameCharacterContextMenu>;
 const callbacks = () => ({
   onShowDetail: vi.fn(),
+  onShowMemo: vi.fn(),
   onShowChatPalette: vi.fn(),
   onShowRemoteController: vi.fn(),
   onShowBuffEdit: vi.fn(),
@@ -316,7 +317,7 @@ describe('buildGameCharacterContextMenu()', () => {
 
     expect(sections).toEqual([
       ['移動', '移動の仕方', '馬 から降りる'],
-      ['詳細を表示', 'チャットパレットを表示', 'リモコンを表示', 'バフ・演出', '視界と視点', '交戦エリア'],
+      ['詳細を表示', 'メモ', 'チャットパレットを表示', 'リモコンを表示', 'バフ・演出', '視界と視点', '交戦エリア'],
       ['表示と扱い', '駒の状態', '乗り物'],
       ['しまう'],
       ['固定する', 'コピーを作る'],
@@ -339,6 +340,7 @@ describe('buildGameCharacterContextMenu()', () => {
 
     expect(names(menu.filter((m) => m.type !== ContextMenuType.SEPARATOR))).toEqual([
       '詳細を表示',
+      'メモ',
       'チャットパレットを表示',
       'リモコンを表示',
       'バフ・演出',
@@ -411,14 +413,16 @@ describe('buildGameCharacterContextMenu()', () => {
     expect(names(groupOf(menu, '表示と扱い'))).not.toContain('リソースのスライダー');
   });
 
-  it('opens the sheet, the palette, the remote and the buffs', () => {
+  it('opens the sheet, the memo, the palette, the remote and the buffs', () => {
     const cb = callbacks();
     const menu = buildGameCharacterContextMenu(makeChar() as unknown as GameCharacter, 50, makeService(), cb, t);
     menu.find((m) => m.name === '詳細を表示')!.action!();
+    menu.find((m) => m.name === 'メモ')!.action!();
     menu.find((m) => m.name === 'チャットパレットを表示')!.action!();
     menu.find((m) => m.name === 'リモコンを表示')!.action!();
     groupOf(menu, 'バフ・演出').find((m) => m.name === 'バフ編集')!.action!();
     expect(cb.onShowDetail).toHaveBeenCalled();
+    expect(cb.onShowMemo).toHaveBeenCalled();
     expect(cb.onShowChatPalette).toHaveBeenCalled();
     expect(cb.onShowRemoteController).toHaveBeenCalled();
     expect(cb.onShowBuffEdit).toHaveBeenCalled();

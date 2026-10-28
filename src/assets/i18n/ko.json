@@ -1657,7 +1657,9 @@
         "diceHidden": "???",
         "imageUnset": "이미지 미설정",
         "urlEdit": "URL 편집:",
-        "enlarge": "크게 보기"
+        "enlarge": "크게 보기",
+        "showMemo": "메모",
+        "showStatus": "스테이터스"
       },
       "sheet": {
         "toggleEdit": "편집 전환",
@@ -2048,6 +2050,7 @@
     "character": {
       "contextMenu": {
         "showDetail": "자세히 보기",
+        "memo": "메모",
         "showChatPalette": "채팅 팔레트 표시",
         "showRemoteController": "리모컨 표시",
         "editBuff": "버프 편집",
@@ -2229,6 +2232,11 @@
       "moveMode_fly": "날기",
       "stealth": {
         "mark": "스텔스 중 (GM과 소유자·같은 파티에게만 보입니다)"
+      },
+      "memo": {
+        "title": "{{name}}의 메모",
+        "placeholder": "소지품이나 플래그 등 이 말에 대해 적어 둘 것",
+        "hint": "말에 포인터를 올렸을 때 나오는 카드에서도 스테이터스와 바꿔 가며 읽을 수 있습니다."
       }
     },
     "light": {

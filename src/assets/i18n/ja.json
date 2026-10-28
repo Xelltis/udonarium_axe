@@ -1657,7 +1657,9 @@
         "diceHidden": "???",
         "imageUnset": "画像未設定",
         "urlEdit": "URL編集:",
-        "enlarge": "拡大して見る"
+        "enlarge": "拡大して見る",
+        "showMemo": "メモ",
+        "showStatus": "ステータス"
       },
       "sheet": {
         "toggleEdit": "編集切り替え",
@@ -2048,6 +2050,7 @@
     "character": {
       "contextMenu": {
         "showDetail": "詳細を表示",
+        "memo": "メモ",
         "showChatPalette": "チャットパレットを表示",
         "showRemoteController": "リモコンを表示",
         "editBuff": "バフ編集",
@@ -2229,6 +2232,11 @@
       "moveMode_fly": "飛ぶ",
       "stealth": {
         "mark": "ステルス中（GMと持ち主・仲間にだけ見えます）"
+      },
+      "memo": {
+        "title": "{{name}} のメモ",
+        "placeholder": "持ち物やフラグなど、このコマについて書いておくこと",
+        "hint": "コマにポインタを乗せたときのカードでも、ステータスと切り替えて読めます。"
       }
     },
     "light": {

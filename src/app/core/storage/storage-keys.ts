@@ -37,6 +37,7 @@ export const STORAGE_KEYS = {
   mobileLayout: 'ui-mobile-layout',
   motion: 'ui-motion',
   myDice: 'my-dice',
+  overviewMemo: 'ui-overview-memo',
   ownerKey: 'udonarium-axe.owner-key',
   panelTransparency: 'ui-panel-transparency',
   personalVolumes: 'audio-personal-volumes',

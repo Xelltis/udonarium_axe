@@ -795,6 +795,66 @@ describe('OverviewPanelComponent', () => {
     });
   });
 
+  describe('a character with a memo', () => {
+    let character: GameCharacter;
+    let tagsSpy: { mockRestore(): void };
+
+    beforeEach(() => {
+      localStorage.removeItem('ui-overview-memo');
+      character = GameCharacter.create('メモ持ち', 1, '');
+      const popup = { [DataElementAttribute.ROLE]: DataElementRole.FIELD, [DataElementAttribute.POPUP]: 'true' };
+      character.detailDataElement!.appendChild(DataElement.create('職業', '剣士', popup));
+      component.tabletopObject = character;
+      tagsSpy = vi
+        .spyOn(component as unknown as { getInventoryTags: () => [] }, 'getInventoryTags')
+        .mockReturnValue([]);
+    });
+
+    afterEach(() => {
+      tagsSpy.mockRestore();
+      character.destroy();
+      localStorage.removeItem('ui-overview-memo');
+    });
+
+    const root = () => fixture.nativeElement as HTMLElement;
+    const toggle = () => root().querySelector<HTMLButtonElement>('[data-testid="overview-memo-toggle"]');
+    const memo = () => root().querySelector<HTMLTextAreaElement>('[data-testid="overview-memo"]');
+
+    it('offers no switch to a character with no memo', () => {
+      fixture.detectChanges();
+
+      expect(toggle()).toBeNull();
+      expect(root().textContent).toContain('剣士');
+    });
+
+    it('switches between the status and the memo, and keeps the choice for the next card', async () => {
+      character.note = 'ロープ';
+      fixture.detectChanges();
+      expect(memo()).toBeNull();
+
+      toggle()!.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(memo()!.value).toBe('ロープ');
+      expect(root().textContent).not.toContain('剣士');
+      expect(localStorage.getItem('ui-overview-memo')).toBe('memo');
+    });
+
+    it('lets a guest read the memo but not write in it', () => {
+      character.note = 'ロープ';
+      PeerCursor.myCursor = { role: PeerRole.Guest, identifier: 'guest-cursor' } as PeerCursor;
+      fixture.detectChanges();
+      toggle()!.click();
+      fixture.detectChanges();
+
+      expect(memo()!.readOnly).toBe(true);
+      memo()!.value = '書き換え';
+      memo()!.dispatchEvent(new Event('input'));
+      expect(character.note).toBe('ロープ');
+    });
+  });
+
   describe('a seat that may not edit the table', () => {
     let character: GameCharacter;
     let tagsSpy: { mockRestore(): void };
