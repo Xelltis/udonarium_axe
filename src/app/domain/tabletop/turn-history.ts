@@ -26,6 +26,29 @@ export interface TurnStep {
   buffs: CharacterBuffSnapshot[];
 }
 
+/** What the opening of a piece's turn counted down: every buff it counted, as it stood before. */
+export interface TurnOpening {
+  identifier: string;
+  buffs: CharacterBuffSnapshot[];
+}
+
+/** Reads what a turn's opening counted down; null for nothing written, or anything unreadable. */
+export function readTurnOpening(raw: unknown): TurnOpening | null {
+  if (typeof raw !== 'string' || raw === '') return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<TurnOpening> | null;
+    if (!parsed || typeof parsed.identifier !== 'string' || !Array.isArray(parsed.buffs)) return null;
+    return { identifier: parsed.identifier, buffs: parsed.buffs };
+  } catch {
+    return null;
+  }
+}
+
+/** Writes what a turn's opening counted down as the text `readTurnOpening` reads; empty for none. */
+export function writeTurnOpening(opening: TurnOpening | null): string {
+  return opening ? JSON.stringify(opening) : '';
+}
+
 /**
  * Reads the round's step history from its stored JSON. Anything unreadable gives an empty history.
  */

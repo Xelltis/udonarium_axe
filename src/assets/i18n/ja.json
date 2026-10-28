@@ -1580,6 +1580,8 @@
       "interrupt": "割り込む",
       "holdAnnounce": "{{name}} は待機します。",
       "holdAnnounceUnseen": "見えない相手が待機します。",
+      "buffsGivenBack": "{{name}} の手番開始で減ったバフを戻しました。",
+      "buffsGivenBackUnseen": "見えない相手の手番開始で減ったバフを戻しました。",
       "interruptAnnounce": "{{name}} が割り込んで行動します。",
       "interruptAnnounceUnseen": "見えない相手が割り込んで行動します。",
       "resumeAnnounce": "{{name}} の行動に戻ります。",

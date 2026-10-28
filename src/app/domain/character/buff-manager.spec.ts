@@ -132,6 +132,39 @@ describe('BuffManager', () => {
     });
   });
 
+  describe('giving back what a turn counted down', () => {
+    const owner = { identifier: 'hero', name: '勇者' };
+
+    beforeEach(() => {
+      manager = new BuffManager(buffDataElement, () => owner);
+    });
+
+    it('takes down only the buffs due at the moment, as they stood', () => {
+      manager.addRound('加護', '', 2, { timing: 'turnStart' });
+      manager.addRound('加速', '', 3);
+
+      const due = manager.dueAt('turnStart', owner);
+
+      expect(due.map((entry) => [entry.name, entry.value])).toEqual([['加護', 2]]);
+    });
+
+    it('puts those buffs back, one that ran out included, and leaves a buff laid since alone', () => {
+      manager.addRound('加護', '', 2, { timing: 'turnStart' });
+      manager.addRound('集中', '', 1, { timing: 'turnStart' });
+      const due = manager.dueAt('turnStart', owner);
+      expect(manager.expireAt('turnStart', owner)).toEqual(['集中']);
+      manager.addRound('祝福', '', 3);
+
+      manager.putBack(due);
+
+      expect(manager.list().map((data) => [data.name, data.value])).toEqual([
+        ['加護', 2],
+        ['祝福', 3],
+        ['集中', 1],
+      ]);
+    });
+  });
+
   describe('addRound', () => {
     it('adds a buff', () => {
       manager.addRound('マッスルベアー', '筋力+2', 3);

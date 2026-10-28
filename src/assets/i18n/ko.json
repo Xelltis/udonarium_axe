@@ -1580,6 +1580,8 @@
       "interrupt": "끼어들기",
       "holdAnnounce": "{{name}}이(가) 대기합니다.",
       "holdAnnounceUnseen": "보이지 않는 상대가 대기합니다.",
+      "buffsGivenBack": "{{name}}의 차례 시작에 줄어든 버프를 되돌렸습니다.",
+      "buffsGivenBackUnseen": "보이지 않는 상대의 차례 시작에 줄어든 버프를 되돌렸습니다.",
       "interruptAnnounce": "{{name}}이(가) 끼어들어 행동합니다.",
       "interruptAnnounceUnseen": "보이지 않는 상대가 끼어들어 행동합니다.",
       "resumeAnnounce": "{{name}}의 차례로 돌아갑니다.",

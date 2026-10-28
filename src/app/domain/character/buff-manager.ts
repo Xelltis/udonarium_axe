@@ -234,13 +234,43 @@ export class BuffManager {
   }
 
   /**
+   * The buffs whose moment this is, as they stand before they are counted down, for a turn's opening
+   * to give them back should the piece wait.
+   */
+  dueAt(timing: BuffTiming, acting: BuffTurnActor): BuffSnapshotEntry[] {
+    const owner = this.owner();
+    return this.snapshotOf(this.list().filter((data) => isBuffDueAt(data, timing, owner, acting)));
+  }
+
+  /**
+   * Puts these buffs back as they stood, one by one, leaving every other buff as it is: one counted
+   * down gets its rounds back, one that ran out comes back, and what each moves on the sheet is moved
+   * again by the difference alone.
+   */
+  putBack(entries: readonly BuffSnapshotEntry[]): void {
+    this.gather();
+    for (const entry of entries) {
+      const data = this.find(entry.name) ?? this.append(entry.name, entry.value, entry.info);
+      if (!data) continue;
+      data.value = entry.value;
+      data.currentValue = entry.info;
+      applyAppearance(data, entry.appearance);
+      this.restoreModifier(data, entry.modifier);
+    }
+  }
+
+  /**
    * Every buff as it stands, in the order they are held.
    *
    * The names alone would not put a buff back: what it moved on the sheet has to go back
    * with it, and a buff that only reads as a note has no number to find it by.
    */
   snapshot(): BuffSnapshotEntry[] {
-    return this.list().map((data) => ({
+    return this.snapshotOf(this.list());
+  }
+
+  private snapshotOf(rows: readonly DataElement[]): BuffSnapshotEntry[] {
+    return rows.map((data) => ({
       name: data.name,
       value: data.value,
       info: `${data.currentValue ?? ''}`,

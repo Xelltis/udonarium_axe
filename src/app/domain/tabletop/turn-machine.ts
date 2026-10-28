@@ -35,6 +35,12 @@ export interface TurnTable {
   sideOf(identifier: string): string | null;
   /** The time now, in milliseconds since the epoch, which a turn handed over is marked with. */
   readonly now: number;
+  /**
+   * Whether a piece that waits once its turn has begun has what the turn's opening counted down given
+   * back, to be counted down again when its turn comes back. Only where every seat that may take turns
+   * runs a version that counts it down again: one that does not would leave it a round longer.
+   */
+  readonly givesBackOnHold?: boolean;
 }
 
 /** One thing a press of the round does, in the order it is to be done. */
@@ -51,6 +57,10 @@ export type TurnEffect =
   | { readonly kind: 'reset' }
   /** Counts down the buffs whose moment it is: a piece's turn starting or ending, or, for none, the round's end. */
   | { readonly kind: 'buffs'; readonly timing: BuffTiming; readonly identifier: string }
+  /** Opens a piece's turn, whose countdown is written down from here on for a wait to give it back. */
+  | { readonly kind: 'opening'; readonly identifier: string }
+  /** Gives back what the opening of a piece's turn counted down, as the piece begins to wait. */
+  | { readonly kind: 'giveBack'; readonly identifier: string }
   /** Sets off whatever a piece stands on as its turn starts or ends. */
   | { readonly kind: 'ground'; readonly identifier: string; readonly moment: 'turnStart' | 'turnEnd' }
   /** Says to whatever waits on it that a piece's turn has begun. */
@@ -212,16 +222,20 @@ class TurnRun {
 
   hold(identifier: string): TurnOutcome {
     const isUp = this.state.phase === 'acting' && this.state.currentIdentifier === identifier;
+    const givesBack = isUp && this.table.givesBackOnHold === true;
     const holding = this.state.holding;
+    const givenBack = holding.givenBack ?? [];
     this.write({
       holding: {
         ...holding,
         held: [...holding.held, identifier],
         begun: isUp ? [...holding.begun, identifier] : holding.begun,
+        givenBack: givesBack ? [...givenBack, identifier] : givenBack,
       },
     });
     this.announce(identifier, 'holdAnnounce');
     if (isUp) {
+      if (givesBack) this.do({ kind: 'giveBack', identifier });
       this.do({ kind: 'turnEnded' });
       if (this.table.mode === 'faction') this.passOnInSide();
       else this.handOnward(this.table.order);
@@ -446,18 +460,23 @@ class TurnRun {
     return this.firstWaiting(order) ?? this.firstHeld(order);
   }
 
-  /** Takes a piece out of waiting, and says whether its turn had begun before it began to wait. */
-  private release(identifier: string): boolean {
+  /**
+   * Takes a piece out of waiting, and says whether its turn had begun before it began to wait, and
+   * whether what that opening counted down was given back.
+   */
+  private release(identifier: string): { begun: boolean; givenBack: boolean } {
     const holding = this.state.holding;
-    if (!holding.held.includes(identifier)) return false;
+    if (!holding.held.includes(identifier)) return { begun: false, givenBack: false };
+    const givenBack = holding.givenBack ?? [];
     this.write({
       holding: {
         ...holding,
         held: holding.held.filter((id) => id !== identifier),
         begun: holding.begun.filter((id) => id !== identifier),
+        givenBack: givenBack.filter((id) => id !== identifier),
       },
     });
-    return holding.begun.includes(identifier);
+    return { begun: holding.begun.includes(identifier), givenBack: givenBack.includes(identifier) };
   }
 
   private handOver(identifier: string | null): void {
@@ -485,14 +504,17 @@ class TurnRun {
 
   /**
    * Hands the turn over, and lets whatever waits on its opening run out, unless it opened already
-   * before the piece began to wait.
+   * before the piece began to wait. A turn that had its countdown given back as it waited is counted
+   * down again, and nothing else of its opening runs a second time.
    */
   private takeTurn(identifier: string, announcement: TurnAnnouncement = 'announce'): void {
-    const begun = this.release(identifier);
+    const { begun, givenBack } = this.release(identifier);
     this.enterActing(identifier, announcement);
-    if (begun) return;
+    if (begun && !givenBack) return;
+    if (this.table.givesBackOnHold === true) this.do({ kind: 'opening', identifier });
     for (const id of [identifier, ...this.table.companionsOf(identifier)]) {
       this.do({ kind: 'buffs', timing: 'turnStart', identifier: id });
+      if (begun) continue;
       this.do({ kind: 'turnStarted', identifier: id });
       this.do({ kind: 'ground', identifier: id, moment: 'turnStart' });
     }

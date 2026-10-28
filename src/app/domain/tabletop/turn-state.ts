@@ -37,6 +37,11 @@ export class TurnState extends GameObject {
   @SyncVar() turnStart: string = '';
   /** The pieces waiting to step in this round and the turns stepped into, as {@link writeTurnHolding} writes them. */
   @SyncVar() holding: string = '';
+  /**
+   * What the opening of the latest turn counted down, as `writeTurnOpening` writes it, for the piece
+   * to have it given back should it wait. Not kept in a save, like the rest of the round's record.
+   */
+  @SyncVar() turnOpening: string = '';
 }
 
 /** The pieces waiting to step in this round, and the turns stepped into to be taken up again. */
@@ -47,9 +52,14 @@ export interface TurnHolding {
   readonly begun: readonly string[];
   /** The turns stepped into, the latest last, each taken up again once the one that stepped in is done. */
   readonly interrupted: readonly string[];
+  /**
+   * Of those whose turn had begun, the ones that had what its opening counted down given back as they
+   * began to wait, which is counted down again when their turn comes back.
+   */
+  readonly givenBack: readonly string[];
 }
 
-export const NO_HOLDING: TurnHolding = { held: [], begun: [], interrupted: [] };
+export const NO_HOLDING: TurnHolding = { held: [], begun: [], interrupted: [], givenBack: [] };
 
 /**
  * Reads what the round holds back, as it was sent or saved.
@@ -64,16 +74,30 @@ export function readTurnHolding(raw: unknown): TurnHolding {
     if (!parsed || typeof parsed !== 'object') return NO_HOLDING;
     const names = (value: unknown): string[] =>
       Array.isArray(value) ? value.filter((name): name is string => typeof name === 'string' && name !== '') : [];
-    return { held: names(parsed.held), begun: names(parsed.begun), interrupted: names(parsed.interrupted) };
+    return {
+      held: names(parsed.held),
+      begun: names(parsed.begun),
+      interrupted: names(parsed.interrupted),
+      givenBack: names(parsed.givenBack),
+    };
   } catch {
     return NO_HOLDING;
   }
 }
 
-/** Writes what the round holds back as the text `readTurnHolding` reads. Empty while it holds nothing. */
+/**
+ * Writes what the round holds back as the text `readTurnHolding` reads. Empty while it holds nothing,
+ * and without the turns given back while there are none, as a version before them wrote it.
+ */
 export function writeTurnHolding(holding: TurnHolding): string {
-  if (holding.held.length + holding.begun.length + holding.interrupted.length < 1) return '';
-  return JSON.stringify({ held: holding.held, begun: holding.begun, interrupted: holding.interrupted });
+  const givenBack = holding.givenBack ?? [];
+  if (holding.held.length + holding.begun.length + holding.interrupted.length + givenBack.length < 1) return '';
+  return JSON.stringify({
+    held: holding.held,
+    begun: holding.begun,
+    interrupted: holding.interrupted,
+    ...(givenBack.length > 0 ? { givenBack } : {}),
+  });
 }
 
 /** The mark of a piece's turn beginning at a time, in ms since the epoch. */
