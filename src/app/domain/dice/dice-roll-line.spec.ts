@@ -1,6 +1,7 @@
 import BCDiceLoader from '@axe/domain/dice/bcdice/bcdice-loader';
 import {
   checkRollLine,
+  diceCommandExamples,
   looksLikeDiceCommand,
   looksLikeRollWord,
   readRollLine,
@@ -146,6 +147,20 @@ describe('dice-roll-line', () => {
 
     it('finds nothing in a roll within the limits', () => {
       expect(rollLimitBreaches('100 200d6+1d10000')).toEqual([]);
+    });
+  });
+
+  describe('diceCommandExamples', () => {
+    it('picks the commands a system rolls out of its help', async () => {
+      const cthulhu = await new BCDiceLoader().dynamicLoad('Cthulhu7th');
+      const examples = diceCommandExamples(cthulhu);
+      expect(examples).toContain('CC<=30');
+      expect(examples.length).toBeLessThanOrEqual(12);
+      for (const example of examples) expect(cthulhu.eval(example), example).toBeTruthy();
+    });
+
+    it('offers nothing from a help with no commands in it', () => {
+      expect(diceCommandExamples({ HELP_MESSAGE: '', COMMAND_PATTERN: null, eval: () => null })).toEqual([]);
     });
   });
 });

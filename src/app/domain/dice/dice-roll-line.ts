@@ -157,3 +157,25 @@ export function rollLimitBreaches(text: string): RollLimitBreach[] {
   }
   return breaches;
 }
+
+/** How many examples of a system's commands are offered. */
+const MOST_EXAMPLES = 12;
+
+/**
+ * Commands a game system's help is written with that the system rolls as they stand, in the order
+ * the help gives them: words of ASCII the command pattern takes and a roll answers. They stand as
+ * examples to pick from without reading the help.
+ */
+export function diceCommandExamples(system: RollCheckSystem & { readonly HELP_MESSAGE: string }): string[] {
+  const examples: string[] = [];
+  for (const word of new Set(system.HELP_MESSAGE.split(/[\s、。：:（）()「」『』・,]+/))) {
+    if (examples.length >= MOST_EXAMPLES) break;
+    if (!/^[\x21-\x7E]{2,24}$/.test(word) || !system.COMMAND_PATTERN?.test(word)) continue;
+    try {
+      if (system.eval(word)) examples.push(word);
+    } catch {
+      continue;
+    }
+  }
+  return examples;
+}
