@@ -208,7 +208,7 @@
       [ngClass]="pointerEventsStyle"
     >
       <span class="min-w-0 flex-1 truncate">{{ character.name }}</span>
-      @if (memoOf(character)) {
+      @if (hasMemo(character)) {
         <button
           type="button"
           class="border-ui-border-panel text-ui-muted hover:text-ui-text shrink-0 cursor-pointer rounded-full border border-solid bg-transparent px-1.5 text-[0.85em] leading-normal"
@@ -243,6 +243,8 @@
               [readonly]="!canEdit"
               [ngModel]="memoOf(character)"
               (ngModelChange)="writeMemo(character, $event)"
+              (focus)="memoInHand.set(character.identifier)"
+              (blur)="memoInHand.set(null)"
             ></textarea>
             <div class="invisible min-h-6 wrap-anywhere whitespace-pre-wrap">{{ memoOf(character) }}</div>
           </div>

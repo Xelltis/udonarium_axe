@@ -841,6 +841,27 @@ describe('OverviewPanelComponent', () => {
       expect(localStorage.getItem('ui-overview-memo')).toBe('memo');
     });
 
+    it('keeps the memo on show while it is written, emptied to be written again', async () => {
+      character.note = 'ロープ';
+      fixture.detectChanges();
+      toggle()!.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      memo()!.dispatchEvent(new Event('focus'));
+      memo()!.value = '';
+      memo()!.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+
+      expect(character.note).toBe('');
+      expect(memo()).not.toBeNull();
+      expect(toggle()).not.toBeNull();
+
+      memo()!.dispatchEvent(new Event('blur'));
+      fixture.detectChanges();
+      expect(memo()).toBeNull();
+    });
+
     it('lets a guest read the memo but not write in it', () => {
       character.note = 'ロープ';
       PeerCursor.myCursor = { role: PeerRole.Guest, identifier: 'guest-cursor' } as PeerCursor;

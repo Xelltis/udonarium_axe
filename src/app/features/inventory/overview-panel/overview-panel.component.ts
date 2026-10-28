@@ -224,14 +224,22 @@ export class OverviewPanelComponent {
     return version;
   });
 
+  /** The character whose memo is being written on the card, kept on show while it is, however short. */
+  protected readonly memoInHand = signal<string | null>(null);
+
   /** What the memo kept with a character says, empty while nothing is written. */
   protected memoOf(character: GameCharacter): string {
     return character.note;
   }
 
+  /** Whether a character has a memo for the card to switch to, or one being written on it. */
+  protected hasMemo(character: GameCharacter): boolean {
+    return character.note.length > 0 || this.memoInHand() === character.identifier;
+  }
+
   /** Whether the card shows a character's memo rather than its status: chosen so, and there is one. */
   protected showingMemo(character: GameCharacter): boolean {
-    return this.memoPreference.showsMemo() && character.note.length > 0;
+    return this.memoPreference.showsMemo() && this.hasMemo(character);
   }
 
   /** Switches every card this reader opens between the status and the memo. */
