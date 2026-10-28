@@ -175,6 +175,7 @@ describe('lintChatSyntax', () => {
 
     it('names the words that give a staging bracket up', () => {
       expect(lint('メモ 〔叫び・重要〕')[0]).toMatchObject({ code: 'vn.dropped', params: { words: '重要' } });
+      expect(codes('〔叫び・もやもや〕')).toEqual(['vn.duplicate']);
     });
   });
 

@@ -221,28 +221,52 @@
 
     @if (canSpeak()) {
       <form name="chat-input" class="m-0 flex min-w-0 items-center gap-2">
-        <textarea
-          name="chat-input-text"
-          data-chat-input
-          data-chat-input-box
-          [attr.rows]="dense() ? 1 : null"
-          class="chat-input border-ui-input-border rounded-ui-sm bg-ui-input text-ui-text focus:border-ui-accent box-border max-h-60 min-h-10 w-full min-w-0 flex-1 resize-y border border-solid px-2 py-1.5 align-bottom font-[inherit] text-[13px] leading-[1.4] transition-colors focus:shadow-[0_0_0_2px_var(--ui-accent-glow)] focus:outline-none"
-          [placeholder]="
-            placeholder() ||
-            ((isCompact() ? 'feature.chat.input.textareaPlaceholderShort' : 'feature.chat.input.textareaPlaceholder')
-              | transloco)
-          "
-          [(ngModel)]="text"
-          [ngModelOptions]="{ standalone: true }"
-          (input)="onInput()"
-          (pointerdown)="onTextAreaPointerDown($event)"
-          (keydown.enter)="sendChat($event)"
-          (keydown.control.arrowup)="moveHistory($event, -1)"
-          (keydown.control.arrowdown)="moveHistory($event, 1)"
-          (keydown.arrowup)="selectAutoComplete($event, -1)"
-          (keydown.arrowdown)="selectAutoComplete($event, 1)"
-          #textArea
-        ></textarea>
+        @if (inputMode() === 'rich') {
+          <div
+            #editorHost
+            data-chat-input-box
+            data-chat-input-mode="rich"
+            class="flex max-h-60 min-h-10 w-full min-w-0 flex-1 resize-y flex-col overflow-hidden"
+          ></div>
+        } @else {
+          <textarea
+            name="chat-input-text"
+            data-chat-input
+            data-chat-input-box
+            [attr.data-chat-input-mode]="inputMode()"
+            [attr.rows]="dense() ? 1 : null"
+            class="chat-input border-ui-input-border rounded-ui-sm bg-ui-input text-ui-text focus:border-ui-accent box-border max-h-60 min-h-10 w-full min-w-0 flex-1 resize-y border border-solid px-2 py-1.5 align-bottom font-[inherit] text-[13px] leading-[1.4] transition-colors focus:shadow-[0_0_0_2px_var(--ui-accent-glow)] focus:outline-none"
+            [placeholder]="
+              placeholder() ||
+              ((isCompact() ? 'feature.chat.input.textareaPlaceholderShort' : 'feature.chat.input.textareaPlaceholder')
+                | transloco)
+            "
+            [(ngModel)]="text"
+            [ngModelOptions]="{ standalone: true }"
+            (input)="onInput()"
+            (pointerdown)="onTextAreaPointerDown($event)"
+            (focus)="requestEditor(true)"
+            (keydown.enter)="sendChat($event)"
+            (keydown.control.arrowup)="moveHistory($event, -1)"
+            (keydown.control.arrowdown)="moveHistory($event, 1)"
+            (keydown.arrowup)="selectAutoComplete($event, -1)"
+            (keydown.arrowdown)="selectAutoComplete($event, 1)"
+            #textArea
+          ></textarea>
+        }
+        @if (findings().length > 0) {
+          <button
+            type="button"
+            data-testid="chat-input-findings"
+            class="border-ui-border-panel text-ui-muted hover:border-ui-accent hover:text-ui-accent m-0 flex h-9 shrink-0 cursor-pointer items-center gap-0.5 rounded-full border border-solid bg-transparent px-2 text-[12px] transition-colors hover:shadow-none [&_i]:text-[16px] [&_i]:leading-none"
+            [attr.aria-expanded]="findingsOpen()"
+            [title]="'feature.chat.lint.list' | transloco"
+            [attr.aria-label]="'feature.chat.lint.list' | transloco"
+            (click)="findingsOpen.set(!findingsOpen())"
+          >
+            <i class="material-icons">rule</i>{{ findings().length }}
+          </button>
+        }
         @if (stampLinesOn()) {
           <button
             type="button"
@@ -265,6 +289,27 @@
           <i class="material-icons">send</i>
         </button>
       </form>
+      @if (findingsOpen() && findings().length > 0) {
+        <ul
+          data-testid="chat-input-finding-list"
+          class="border-ui-border-panel bg-ui-input rounded-ui-sm m-0 mt-1 flex max-h-32 list-none flex-col gap-0.5 overflow-y-auto border border-solid p-1 text-[12px]"
+        >
+          @for (found of findings(); track $index) {
+            <li>
+              <button
+                type="button"
+                class="text-ui-text hover:bg-ui-hover rounded-ui-sm m-0 flex w-full cursor-pointer items-start gap-1 border-none bg-transparent px-1 py-0.5 text-left [&_i]:text-[14px]!"
+                (click)="goToFinding(found)"
+              >
+                <i class="material-icons" [attr.data-severity]="found.severity">{{
+                  found.severity === 'error' ? 'error' : found.severity === 'warning' ? 'warning' : 'info'
+                }}</i>
+                <span>{{ findingText(found) }}</span>
+              </button>
+            </li>
+          }
+        </ul>
+      }
     } @else {
       <div
         class="text-ui-dim border-ui-input-border rounded-ui-sm bg-ui-input m-0 flex min-h-10 w-full items-center gap-1.5 border border-solid px-2 py-1.5 text-[12px] [&_.material-icons]:text-[16px]!"

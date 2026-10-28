@@ -22,45 +22,50 @@ import { type RollCheck, rollLimitBreaches } from '@axe/domain/dice/dice-roll-li
 /** How much a finding matters: it will not work, it may not work as meant, or it is worth knowing. */
 export type ChatDiagnosticSeverity = 'error' | 'warning' | 'info';
 
-/** What a finding is about; its message is the translation under `feature.chat.lint.` and this. */
-export type ChatLintCode =
-  | 'dice.plainText'
-  | 'dice.unrollable'
-  | 'dice.failed'
-  | 'dice.tooMany'
-  | 'dice.noRepeat'
-  | 'dice.cannotCheck'
-  | 'dice.tooManyDice'
-  | 'dice.tooManySides'
-  | 'dice.tooManyRepeats'
-  | 'target.none'
-  | 'ref.unknownKept'
-  | 'ref.unknownEmptied'
-  | 'ref.noSpeaker'
-  | 'edit.noSpeaker'
-  | 'edit.keptOffTable'
-  | 'res.noOperator'
-  | 'res.noAmount'
-  | 'res.unknownStatus'
-  | 'res.badOption'
-  | 'buff.noName'
-  | 'buff.unreadable'
-  | 'buff.missingStatus'
-  | 'buff.notFound'
-  | 'buff.roundsDefault'
-  | 'sweep.gmOnly'
-  | 'portrait.unknown'
-  | 'portrait.lostByTarget'
-  | 'cutIn.secret'
-  | 'cutIn.lostByTarget'
-  | 'effect.blank'
-  | 'effect.unknown'
-  | 'effect.extra'
-  | 'battle.noSpeaker'
-  | 'diceToken.unknown'
-  | 'diceToken.keptOffTable'
-  | 'deco.unpaired'
-  | 'vn.dropped';
+/** Every kind of finding; its message is the translation under `feature.chat.lint.` and its code. */
+export const CHAT_LINT_CODES = [
+  'dice.plainText',
+  'dice.unrollable',
+  'dice.failed',
+  'dice.tooMany',
+  'dice.noRepeat',
+  'dice.cannotCheck',
+  'dice.tooManyDice',
+  'dice.tooManySides',
+  'dice.tooManyRepeats',
+  'target.none',
+  'ref.unknownKept',
+  'ref.unknownEmptied',
+  'ref.noSpeaker',
+  'edit.noSpeaker',
+  'edit.keptOffTable',
+  'res.noOperator',
+  'res.noAmount',
+  'res.unknownStatus',
+  'res.badOption',
+  'buff.noName',
+  'buff.unreadable',
+  'buff.missingStatus',
+  'buff.notFound',
+  'buff.roundsDefault',
+  'sweep.gmOnly',
+  'portrait.unknown',
+  'portrait.lostByTarget',
+  'cutIn.secret',
+  'cutIn.lostByTarget',
+  'effect.blank',
+  'effect.unknown',
+  'effect.extra',
+  'battle.noSpeaker',
+  'diceToken.unknown',
+  'diceToken.keptOffTable',
+  'deco.unpaired',
+  'vn.dropped',
+  'vn.duplicate',
+] as const;
+
+/** What a finding is about. */
+export type ChatLintCode = (typeof CHAT_LINT_CODES)[number];
 
 /** A change to the text that puts a finding right. */
 export interface ChatQuickFix extends TextRange {
@@ -183,11 +188,13 @@ function lintMessage(
       case 'vnSuffix':
         if (!span.site.read) {
           const unknown = span.site.words.filter((word) => !word.known);
-          add(span, 'warning', 'vn.dropped', {
-            params: {
-              words: unknown.map((word) => text.slice(word.from - message.from, word.to - message.from)).join('・'),
-            },
-          });
+          if (unknown.length < 1) add(span, 'warning', 'vn.duplicate');
+          else {
+            const words = unknown
+              .map((word) => text.slice(word.from - message.from, word.to - message.from))
+              .join('・');
+            add(span, 'warning', 'vn.dropped', { params: { words } });
+          }
         }
         break;
     }

@@ -5,6 +5,7 @@ import {
   CHAT_FONT_SIZE_MIN,
   ChatPreferencesService,
 } from '@axe/application/chat/chat-preferences.service';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { DEFAULT_RUBY_DISPLAY } from '@axe/domain/chat/ruby-display';
 import { AttachedDocuments } from '@axe/domain/ui/attached-documents';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -77,6 +78,29 @@ describe('ChatPreferencesService', () => {
     TestBed.tick();
 
     expect(make().showMessageCount()).toBe(true);
+  });
+
+  describe('whether lines are typed into the editor', () => {
+    it('starts at the default for a reader who has not chosen', () => {
+      expect(make().richInput()).toBe(false);
+    });
+
+    it('keeps the choice either way for the next visit', () => {
+      make().setRichInput(true);
+      TestBed.tick();
+      expect(make().richInput()).toBe(true);
+
+      make().setRichInput(false);
+      TestBed.tick();
+      expect(make().richInput()).toBe(false);
+    });
+
+    it('goes back to the default when what was kept cannot be read', () => {
+      localStorage.setItem(STORAGE_KEYS.chatPreferences, '{"richInput": "yes"');
+      expect(make().richInput()).toBe(false);
+      localStorage.setItem(STORAGE_KEYS.chatPreferences, '{"richInput": "yes"}');
+      expect(make().richInput()).toBe(false);
+    });
   });
 
   it('keeps the size it was given for the next visit', () => {

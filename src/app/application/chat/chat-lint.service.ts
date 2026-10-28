@@ -23,6 +23,9 @@ import { CutIn } from '@axe/domain/media/cut-in';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import type GameSystemClass from 'bcdice/lib/game_system';
 
+/** How a text is sent: typed into chat, or from a palette. */
+export type ChatLintPath = ChatLintContext['path'];
+
 /** What a text being written is checked as. */
 export interface ChatLintSource {
   readonly text: Signal<string>;
@@ -31,7 +34,7 @@ export interface ChatLintSource {
   /** The game system rolls in it are made with. */
   readonly gameType: Signal<string>;
   /** Whether it is typed into chat or sent from a palette, which fill references in differently. */
-  readonly path: 'chatWindow' | 'palette';
+  readonly path: ChatLintPath | (() => ChatLintPath);
   /** Whether it is one message, or a palette of lines. */
   readonly mode?: ChatSyntaxMode;
 }
@@ -102,14 +105,15 @@ export class ChatLintService {
     const cutIns = this.objectStore.getObjects<CutIn>(CutIn);
     const variables = source.mode === 'palette' ? this.variablesWritten(scan) : null;
     const gameType = source.gameType();
+    const path = typeof source.path === 'function' ? source.path() : source.path;
 
     const fill = (text: string, target?: GameCharacter): string => {
-      if (source.path === 'chatWindow' && !speaker && !target) return text;
-      return this.filled(text, speaker, target, variables, source.path === 'chatWindow');
+      if (path === 'chatWindow' && !speaker && !target) return text;
+      return this.filled(text, speaker, target, variables, path === 'chatWindow');
     };
 
     return {
-      path: source.path,
+      path,
       speaker,
       targets,
       isGameMaster: PeerCursor.isMyselfGameMaster,
@@ -117,7 +121,7 @@ export class ChatLintService {
       referenceValue: (site: ReferenceSite) => {
         const typed = scan.text.slice(site.from, site.to);
         if (site.targeted && targets.length < 1) return null;
-        if (!site.targeted && !speaker && source.path === 'chatWindow') return null;
+        if (!site.targeted && !speaker && path === 'chatWindow') return null;
         const value = this.filled(typed, speaker, targets[0], variables, true);
         return value === typed ? null : value;
       },

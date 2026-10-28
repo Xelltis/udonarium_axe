@@ -96,6 +96,7 @@ export class ChatMessageSettingComponent {
   readonly autoFollowScroll = this.chatPrefs.autoFollowScroll;
   readonly showVnEmoteBadge = this.chatPrefs.showVnEmoteBadge;
   readonly showMessageCount = this.chatPrefs.showMessageCount;
+  readonly richInput = this.chatPrefs.richInput;
   readonly fontSize = this.chatPrefs.fontSize;
 
   /** How this reader has ruby drawn, and the choices for each part of it. */
@@ -132,6 +133,11 @@ export class ChatMessageSettingComponent {
   /** Says whether a chat window's title carries the number of lines in the tab it is showing. */
   setShowMessageCount(v: boolean): void {
     this.chatPrefs.setShowMessageCount(v);
+  }
+
+  /** Has lines typed into the editor that draws them as they will look, or into a plain box. */
+  setRichInput(v: boolean): void {
+    this.chatPrefs.setRichInput(v);
   }
 
   /**

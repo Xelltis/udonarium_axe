@@ -3886,7 +3886,9 @@
         "ruby_size_half": "Half the text",
         "ruby_size_normal": "Standard",
         "ruby_size_large": "Large",
-        "rubyHint": "Applies to ruby in the chat, novel mode, shared notes and saved logs. This setting is for this device only"
+        "rubyHint": "Applies to ruby in the chat, novel mode, shared notes and saved logs. This setting is for this device only",
+        "richInput": "Colour the syntax in the chat input",
+        "richInputTooltip": "Colours each syntax in the chat input, draws bold and ruby as they will look, and marks what will not work. This screen only"
       },
       "systemAvatar": {
         "title": "System-chan",
@@ -4095,6 +4097,76 @@
         "noPacks": "The room has no stamp sets yet",
         "tooLarge": "Over 2MB and not added: {{names}}",
         "alreadyIn": "That picture is in this set already"
+      },
+      "lint": {
+        "fix": "Fix",
+        "list": "Syntax notes",
+        "dice": {
+          "plainText": "Not a command of this dice bot, so it is sent as chat",
+          "unrollable": "The dice bot cannot roll this, so no result comes",
+          "failed": "The dice bot breaks off rolling this, so no result comes",
+          "tooMany": "Too many dice to roll, so the dice bot does not roll it",
+          "noRepeat": "Repeated 0 times, it is not rolled",
+          "cannotCheck": "The dice bot could not be loaded, so this cannot be checked",
+          "tooManyDice": "A term rolls up to 200 dice; more comes out as 0",
+          "tooManySides": "A die has up to 10000 sides; more comes out as 0",
+          "tooManyRepeats": "A roll repeats up to 100 times"
+        },
+        "target": {
+          "none": "No target is picked out, so \"No target selected\" is sent in place of this line"
+        },
+        "ref": {
+          "unknownKept": "\"{{name}}\" is on neither the sheet nor the palette, so it is sent as typed",
+          "unknownEmptied": "\"{{name}}\" is on neither the sheet nor the palette, so it comes out empty",
+          "noSpeaker": "The speaker is no piece, so references are not filled in"
+        },
+        "edit": {
+          "noSpeaker": "The speaker is no piece, so this does nothing",
+          "keptOffTable": "This does nothing while you are watching"
+        },
+        "res": {
+          "noOperator": "No + - = or > after the name, so this does nothing",
+          "noAmount": "No amount, so this does nothing",
+          "unknownStatus": "{{piece}} has no \"{{name}}\", so this does nothing",
+          "badOption": "Letters after the amount cannot be read, so this does nothing"
+        },
+        "buff": {
+          "noName": "The buff has no name, so this does nothing",
+          "unreadable": "The status, operation or amount cannot be read, so no buff is laid",
+          "missingStatus": "There is no \"{{name}}\", so that status does not move",
+          "notFound": "{{piece}} has no buff \"{{name}}\"",
+          "roundsDefault": "The rounds are no number, so it lasts 3 rounds"
+        },
+        "sweep": {
+          "gmOnly": "Only the GM can sweep buffs off"
+        },
+        "portrait": {
+          "unknown": "No such portrait, so this is sent as typed",
+          "lostByTarget": "A line aimed at targets does not change the portrait"
+        },
+        "cutIn": {
+          "secret": "A secret line does not start the cut-in \"{{name}}\"",
+          "lostByTarget": "A line aimed at targets does not start the cut-in \"{{name}}\""
+        },
+        "effect": {
+          "blank": "Effects after an empty 《》 are not read",
+          "unknown": "The effect \"{{name}}\" is not in the library",
+          "extra": "One effect plays per line; the rest are not read"
+        },
+        "battle": {
+          "noSpeaker": "The speaker is no piece, so no battle cut-in plays"
+        },
+        "diceToken": {
+          "unknown": "There is no piece named \"{{name}}\"",
+          "keptOffTable": "Dice do not move while you are watching"
+        },
+        "deco": {
+          "unpaired": "An unclosed decoration shows as typed"
+        },
+        "vn": {
+          "dropped": "Unknown words ({{words}}) leave the 〔〕 as text",
+          "duplicate": "Two words of one kind leave the 〔〕 as text"
+        }
       }
     },
     "visualNovel": {

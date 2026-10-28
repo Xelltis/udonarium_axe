@@ -1,5 +1,7 @@
 import { NgClass, NgStyle } from '@angular/common';
 import {
+  afterEveryRender,
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -7,6 +9,7 @@ import {
   effect,
   ElementRef,
   inject,
+  Injector,
   input,
   linkedSignal,
   output,
@@ -15,7 +18,9 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ChatLintService } from '@axe/application/chat/chat-lint.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { StampPackService } from '@axe/application/chat/stamp-pack.service';
 import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { stampWords } from '@axe/application/chat/stamp-words';
@@ -44,6 +49,7 @@ import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { composeChatOutgoing, composeStampOutgoing, OutgoingStamp } from '@axe/domain/chat/chat-outgoing';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
+import type { ChatDiagnostic } from '@axe/domain/chat-syntax/chat-lint';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { mayBeChosen } from '@axe/domain/peer/chosen-seat';
@@ -53,6 +59,8 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { ChatColorSettingComponent } from '@axe/features/chat/chat-color-setting/chat-color-setting.component';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
+import type { ChatEditorField, ChatEditorHost, ChatEditorStart } from '@axe/features/chat/chat-editor/chat-editor';
+import { CHAT_EDITOR_LOADER, type ChatEditorModule } from '@axe/features/chat/chat-editor/chat-editor-loader';
 import {
   buildChatDecorationMenu,
   ChatDecorationMarks,
@@ -207,8 +215,155 @@ export class ChatInputComponent {
     return box ? new TextareaChatField(box) : null;
   });
 
+  private readonly injector = inject(Injector);
+  private readonly chatPreferences = inject(ChatPreferencesService);
+  private readonly editorLoader = inject(CHAT_EDITOR_LOADER);
+  private readonly editorHost = viewChild<ElementRef<HTMLElement>>('editorHost');
+  private readonly editorModule = signal<ChatEditorModule | null>(null);
+  private readonly editorUnreachable = signal(false);
+  private readonly richField = signal<ChatEditorField | null>(null);
+  private editorRequested = false;
+  /** Where the box stood when one kind gave way to the other, for the other to start from. */
+  private handover: ChatEditorStart | null = null;
+
+  /**
+   * Which box lines are typed into: the editor that draws them as they will look, the plain box
+   * while it is on its way, or the plain box for a reader who has not asked for the editor or
+   * whose browser could not fetch it.
+   */
+  protected readonly inputMode = computed<'rich' | 'loading' | 'plain'>(() => {
+    if (!this.chatPreferences.richInput() || this.editorUnreachable()) return 'plain';
+    return this.editorModule() ? 'rich' : 'loading';
+  });
+
   /** What lines are typed into, while the reader may speak in the tab. */
-  readonly textField = computed<ChatTextField | null>(() => this.plainField());
+  readonly textField = computed<ChatTextField | null>(() => this.richField() ?? this.plainField());
+
+  /** Whether lines are checked as they are sent: through a palette, which empties a reference nothing answers, or as chat. */
+  readonly lintPath = input<'chatWindow' | 'palette'>('chatWindow');
+
+  private readonly lintSession = inject(ChatLintService).watch({
+    text: computed(() => this._text()),
+    sendFrom: computed(() => this._sendFrom()),
+    gameType: computed(() => this.gameType),
+    path: () => this.lintPath(),
+  });
+
+  /** The text checked as it will be sent from here, while it is typed into the editor. */
+  private readonly activeSession = computed(() => (this.inputMode() === 'rich' ? this.lintSession : null));
+
+  /** What was found in the line, while it is typed into the editor. */
+  protected readonly findings = computed<ChatDiagnostic[]>(() => this.activeSession()?.diagnostics() ?? []);
+  protected readonly findingsOpen = signal(false);
+
+  /** What a finding says, in the reader's language. */
+  protected findingText(found: ChatDiagnostic): string {
+    this.language.currentLang();
+    return this.t(`feature.chat.lint.${found.code}`, found.params ? { ...found.params } : undefined);
+  }
+
+  /** Puts the caret on what a finding is about. */
+  protected goToFinding(found: ChatDiagnostic): void {
+    this.richField()?.select({ from: found.from, to: found.to });
+  }
+
+  /** What the empty box says in place of its keys. */
+  private readonly placeholderText = computed(() => {
+    this.language.currentLang();
+    const own = this.placeholder();
+    if (own) return own;
+    return this.t(
+      this.isCompact() ? 'feature.chat.input.textareaPlaceholderShort' : 'feature.chat.input.textareaPlaceholder'
+    );
+  });
+
+  private readonly editorHostApi: ChatEditorHost = {
+    mode: 'chat',
+    placeholder: () => this.placeholderText(),
+    submit: () => this.sendChat(null),
+    historyStep: (direction) => this.moveHistory(null, direction),
+    suggestionStep: (direction) => {
+      this.autoCompleteSwitch.emit(direction);
+      return this.autoCompleteListLen() > 1;
+    },
+    changed: (text) => {
+      this.text = text;
+      this.onInput();
+    },
+    session: () => untracked(() => this.activeSession()),
+    translate: (key, params) => this.t(key, params),
+  };
+
+  /**
+   * Fetches the editor once the page has drawn and has time to spare, or at once on the first touch
+   * of the box, for a reader who has it on.
+   */
+  protected requestEditor(soon = false): void {
+    if (this.editorRequested || !this.chatPreferences.richInput()) return;
+    this.editorRequested = true;
+    const fetch = () => {
+      void this.editorLoader().then((module) => {
+        if (!module) {
+          this.editorUnreachable.set(true);
+          return;
+        }
+        const box = this.plainField()?.element;
+        if (box) {
+          this.handover = {
+            text: this.text,
+            selection: { from: box.selectionStart, to: box.selectionEnd },
+            focused: box.ownerDocument.activeElement === box,
+          };
+        }
+        this.editorModule.set(module);
+      });
+    };
+    if (soon) return fetch();
+    const view = this.hostElement.nativeElement.ownerDocument.defaultView;
+    if (view?.requestIdleCallback) view.requestIdleCallback(fetch, { timeout: 2000 });
+    else setTimeout(fetch, 200);
+  }
+
+  private readonly hostElement = inject(ElementRef<HTMLElement>);
+
+  /** Puts the editor into its place when it is drawn, and takes it down when the place goes. */
+  private followEditorHost(): void {
+    const host = this.editorHost()?.nativeElement ?? null;
+    const module = this.editorModule();
+    untracked(() => {
+      const field = this.richField();
+      if (field && field.parent !== host) {
+        this.handover = field.snapshot();
+        field.destroy();
+        this.richField.set(null);
+      }
+      if (host && module && !this.richField()) {
+        const start = this.handover ?? {
+          text: this.text,
+          selection: { from: this.text.length, to: this.text.length },
+          focused: false,
+        };
+        this.handover = null;
+        this.richField.set(module.mountChatEditor(host, { ...start, text: this.text }, this.editorHostApi));
+      }
+      if (!host && this.handover) this.restorePlainBox();
+    });
+  }
+
+  /** Puts the caret back where it stood, in the plain box that took the editor's place. */
+  private restorePlainBox(): void {
+    afterNextRender(
+      () => {
+        const field = this.plainField();
+        const start = this.handover;
+        if (!field || !start) return;
+        this.handover = null;
+        if (start.focused) field.focus();
+        field.element.setSelectionRange(start.selection.from, start.selection.to);
+      },
+      { injector: this.injector }
+    );
+  }
 
   /** Puts the caret in the box lines are typed into, where there is one. */
   focusInput(): void {
@@ -380,6 +535,27 @@ export class ChatInputComponent {
         this.calcFitHeightInterval = null;
       }
     });
+    effect(() => {
+      if (this.canSpeak() && this.chatPreferences.richInput()) untracked(() => this.requestEditor());
+    });
+    effect(() => this.followEditorHost());
+    effect(() => {
+      const text = this._text();
+      const field = this.richField();
+      if (field && field.text() !== text) untracked(() => field.setText(text));
+    });
+    effect(() => {
+      this.placeholderText();
+      untracked(() => this.richField()?.reconfigure());
+    });
+    effect(() => {
+      const session = this.activeSession();
+      session?.annotations();
+      session?.diagnostics();
+      untracked(() => this.richField()?.refresh());
+    });
+    afterEveryRender(() => this.richField()?.followRoot());
+    this.destroyRef.onDestroy(() => this.richField()?.destroy());
     effect(() => {
       const req = this.uiSignalService.chatInputTextRequest();
       if (!req) return;
@@ -653,7 +829,7 @@ export class ChatInputComponent {
    * Replaces the draft with an earlier or later line from this input's history, on Ctrl+Up and
    * Ctrl+Down.
    */
-  moveHistory(event: Event, direction: number) {
+  moveHistory(event: Event | null, direction: number) {
     if (event) event.preventDefault();
     this.text = this.chatHistory.navigate(direction);
     this.previousWritingLength = this.text.length;
