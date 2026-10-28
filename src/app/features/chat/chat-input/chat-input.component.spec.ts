@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -8,6 +9,7 @@ import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
+import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -560,7 +562,7 @@ describe('ChatInputComponent', () => {
       expect(component.colorSelectNo()).toBe(0);
     });
 
-    it('opens the stamps beside the send button, and sends the one picked on its own from an empty box', () => {
+    it('opens the stamps beside the send button, and puts the one picked under the words, to go out alone with Enter from an empty box', () => {
       fixture.componentRef.setInput('canSpeak', true);
       fixture.detectChanges();
       component.text = '';
@@ -574,6 +576,10 @@ describe('ChatInputComponent', () => {
       button.click();
       expect(toggle).toHaveBeenCalledWith(button, 'line', expect.any(Function));
       toggle.mock.calls[0][2]('seal:ok');
+      expect(emitted).toEqual([]);
+
+      component.sendChat(new KeyboardEvent('keydown', { key: 'Enter' }));
+      component.sendChat(new KeyboardEvent('keydown', { key: 'Enter' }));
 
       expect(emitted).toEqual([
         expect.objectContaining({
@@ -585,6 +591,31 @@ describe('ChatInputComponent', () => {
         }),
       ]);
       expect(emitted[0].stamp!.words.length).toBeGreaterThan(0);
+    });
+
+    it('sends the stamp picked at once from the plain box', () => {
+      const stored = localStorage.getItem(STORAGE_KEYS.chatPreferences);
+      TestBed.inject(ChatPreferencesService).setRichInput(false);
+      try {
+        fixture.componentRef.setInput('canSpeak', true);
+        fixture.detectChanges();
+        component.text = '';
+        const toggle = vi.spyOn(TestBed.inject(StampPickerService), 'toggle').mockImplementation(() => undefined);
+        const emitted: Outgoing[] = [];
+        component.chat.subscribe((value) => emitted.push(value));
+
+        (fixture.nativeElement as HTMLElement)
+          .querySelector<HTMLButtonElement>('[data-testid="chat-input-stamp"]')!
+          .click();
+        toggle.mock.calls[0][2]('seal:ok');
+
+        expect(emitted).toEqual([
+          expect.objectContaining({ text: '', stamp: { id: 'seal:ok', words: expect.any(String) } }),
+        ]);
+      } finally {
+        if (stored === null) localStorage.removeItem(STORAGE_KEYS.chatPreferences);
+        else localStorage.setItem(STORAGE_KEYS.chatPreferences, stored);
+      }
     });
 
     it('wraps the words picked out in the plain box in the decoration chosen on the toolbar, and keeps them picked out', async () => {

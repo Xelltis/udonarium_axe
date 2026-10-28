@@ -76,6 +76,7 @@ import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.servic
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { PortraitChoice, PortraitPickerComponent } from '@axe/ui/components/portrait-picker/portrait-picker.component';
 import { PortraitSliderComponent } from '@axe/ui/components/portrait-slider/portrait-slider.component';
+import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -102,6 +103,7 @@ const COLOR_SETTING_PANEL = 'chat-color-setting';
     SafePipe,
     TranslocoModule,
     ChatToolbarComponent,
+    StampComponent,
   ],
 })
 export class ChatInputComponent {
@@ -888,7 +890,8 @@ export class ChatInputComponent {
     if (event) event.preventDefault();
 
     if (!this.canSpeak()) return;
-    if (!this.text.length) return;
+    const stamp = this.attachedStamp();
+    if (!this.text.length && !stamp) return;
     if (event && (event as KeyboardEvent).key !== 'Enter') return;
     if (event && (event as KeyboardEvent).isComposing) return;
 
@@ -897,6 +900,11 @@ export class ChatInputComponent {
       return;
     }
 
+    if (stamp) {
+      this.pendingStamp.set(null);
+      this.sendStamp(stamp);
+      return;
+    }
     this.sendDraft();
   }
 
@@ -932,10 +940,38 @@ export class ChatInputComponent {
     this.cancelQuote();
   }
 
-  /** Opens the stamps under the button beside the send button, to send the one picked. */
+  /**
+   * Opens the stamps over the button beside the send button. The one picked goes under the words in
+   * the editor, to be sent with them; from the plain box it is sent at once.
+   */
   protected openStamps(anchor: EventTarget | null): void {
     if (!(anchor instanceof Element)) return;
-    this.stampPicker.toggle(anchor, 'line', (stampId) => this.sendStamp(stampId));
+    const pick =
+      this.inputMode() !== 'plain'
+        ? (stampId: string) => this.attachStamp(stampId)
+        : (stampId: string) => this.sendStamp(stampId);
+    this.stampPicker.toggle(anchor, 'line', pick);
+  }
+
+  /**
+   * The stamp the line in the editor goes out with, shown under its words as it will be drawn: one
+   * to a line, a second one picked taking its place.
+   */
+  protected readonly pendingStamp = signal<string | null>(null);
+
+  /**
+   * The stamp sent with the words, shown under them once the editor has arrived: none once the plain
+   * box takes over or the room stops stamp lines.
+   */
+  protected readonly attachedStamp = computed(() =>
+    this.inputMode() !== 'plain' && this.stampLinesOn() ? this.pendingStamp() : null
+  );
+
+  /** Puts a stamp under the words being written, to go out with them, where the room lets it be sent. */
+  private attachStamp(stampId: string): void {
+    if (!this.canSpeak() || !this.stampRules.allows('line', stampId)) return;
+    this.pendingStamp.set(stampId);
+    this.focusInput();
   }
 
   /**

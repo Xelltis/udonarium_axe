@@ -214,11 +214,26 @@
       <form name="chat-input" class="m-0 flex min-w-0 items-center gap-2">
         @if (inputMode() === 'rich') {
           <div
-            #editorHost
             data-chat-input-box
             data-chat-input-mode="rich"
-            class="border-ui-input-border rounded-ui-sm bg-ui-input text-ui-text focus-within:border-ui-accent box-border max-h-60 min-h-10 w-full min-w-0 flex-1 resize-y overflow-y-auto border border-solid transition-colors focus-within:shadow-[0_0_0_2px_var(--ui-accent-glow)]"
-          ></div>
+            class="border-ui-input-border rounded-ui-sm bg-ui-input text-ui-text focus-within:border-ui-accent box-border flex max-h-60 min-h-10 w-full min-w-0 flex-1 resize-y flex-col overflow-y-auto border border-solid transition-colors focus-within:shadow-[0_0_0_2px_var(--ui-accent-glow)]"
+          >
+            <div #editorHost class="min-w-0 flex-1"></div>
+            @if (attachedStamp(); as stampId) {
+              <div class="flex items-end gap-1 px-2 pb-1" data-testid="chat-input-pending-stamp">
+                <ui-stamp [stampId]="stampId" [size]="40" />
+                <button
+                  type="button"
+                  class="text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm m-0 flex size-5 cursor-pointer items-center justify-center border-none bg-transparent p-0 [&_.material-icons]:text-[14px]!"
+                  [title]="'feature.chat.input.dropStamp' | transloco"
+                  [attr.aria-label]="'feature.chat.input.dropStamp' | transloco"
+                  (click)="pendingStamp.set(null)"
+                >
+                  <i class="material-icons">close</i>
+                </button>
+              </div>
+            }
+          </div>
         } @else {
           <textarea
             name="chat-input-text"
@@ -264,8 +279,12 @@
             class="border-ui-border-panel text-ui-muted hover:border-ui-accent hover:text-ui-accent m-0 flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid bg-transparent p-0 transition-colors hover:shadow-none [&_i]:text-[19px] [&_i]:leading-none"
             data-testid="chat-input-stamp"
             aria-haspopup="listbox"
-            [title]="'feature.chat.input.stamp' | transloco"
-            [attr.aria-label]="'feature.chat.input.stamp' | transloco"
+            [title]="
+              (inputMode() === 'plain' ? 'feature.chat.input.stamp' : 'feature.chat.input.attachStamp') | transloco
+            "
+            [attr.aria-label]="
+              (inputMode() === 'plain' ? 'feature.chat.input.stamp' : 'feature.chat.input.attachStamp') | transloco
+            "
             (click)="openStamps($event.currentTarget)"
           >
             <i class="material-icons">emoji_emotions</i>

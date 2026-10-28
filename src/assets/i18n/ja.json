@@ -3701,7 +3701,9 @@
         "sendToTickerHint": "この発言を画面の外周にも流します",
         "tools": "入力の設定",
         "myDice": "マイダイス",
-        "stamp": "スタンプを送る（入力中の文があれば一緒に）"
+        "stamp": "スタンプを送る（入力中の文があれば一緒に）",
+        "attachStamp": "スタンプを添える（Enterで文と一緒に送る）",
+        "dropStamp": "スタンプを外す"
       },
       "decoration": {
         "bold": "太字",

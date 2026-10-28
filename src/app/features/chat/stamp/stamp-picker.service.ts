@@ -75,6 +75,7 @@ export class StampPickerService {
       width: PICKER_WIDTH,
       minHeight: PICKER_MIN_HEIGHT,
       align: 'center',
+      prefer: 'up',
     });
 
     const page = element.ownerDocument;
