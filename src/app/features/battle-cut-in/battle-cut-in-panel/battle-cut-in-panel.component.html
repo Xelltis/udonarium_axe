@@ -12,6 +12,21 @@
     <span>{{ 'feature.battleCutIn.shownHere' | transloco }}</span>
   </label>
   <p class="text-ui-dim m-0 -mt-1.5 text-[11px]">{{ 'feature.battleCutIn.shownHereHint' | transloco }}</p>
+  <label class="flex items-center gap-2 text-[12px]">
+    <span>{{ 'feature.battleCutIn.size' | transloco }}</span>
+    <select
+      class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text cursor-pointer border border-solid px-1 py-0.5 text-[12px]"
+      name="battleStageSize"
+      data-testid="battle-cut-in-size-choice"
+      [ngModel]="preference.stageWindow().size"
+      (ngModelChange)="preference.setStageSize($event)"
+    >
+      @for (size of stageSizes; track size) {
+        <option [ngValue]="size">{{ stageSizeLabelKeys[size] | transloco }}</option>
+      }
+    </select>
+  </label>
+  <p class="text-ui-dim m-0 -mt-1.5 text-[11px]">{{ 'feature.battleCutIn.sizeHint' | transloco }}</p>
 
   <section class="border-ui-border-panel bg-ui-surface rounded-ui flex flex-col gap-1.5 border border-solid p-3">
     <div class="border-ui-accent border-l-2 border-solid pl-2">

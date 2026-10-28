@@ -1,161 +1,217 @@
+@let box = windowBox();
 <div
-  #root
-  class="fixed inset-0 cursor-pointer overflow-hidden select-none"
+  class="fixed overflow-hidden select-none"
+  [class]="
+    box
+      ? 'rounded-lg border border-solid border-white/25 shadow-[0_6px_24px_rgba(0,0,0,0.55)]'
+      : 'inset-0 cursor-pointer'
+  "
+  [style.left.px]="box?.left ?? null"
+  [style.top.px]="box?.top ?? null"
+  [style.width.px]="box?.width ?? null"
+  [style.height.px]="box?.height ?? null"
   [style.z-index]="zIndex"
   data-testid="battle-cut-in"
+  [attr.data-stage-size]="stageSize()"
   role="dialog"
   [attr.aria-label]="'feature.battleCutIn.title' | transloco"
-  (click)="skip()"
+  (click)="pressStage()"
 >
-  <div class="absolute inset-0 bg-black" [style.opacity]="0.55 * openness()"></div>
-
   <div
-    class="absolute inset-x-0 top-1/2 overflow-hidden"
-    data-testid="battle-cut-in-band"
-    [style.height.px]="bandHeight()"
-    [style.transform]="'translateY(-50%) scaleY(' + openness() + ')'"
+    #root
+    class="absolute top-0 left-0 origin-top-left overflow-hidden"
+    [class.size-full]="!box"
+    [style.width.px]="box ? canvas.width : null"
+    [style.height.px]="box ? canvas.height : null"
+    [style.transform]="box ? 'scale(' + box.scale + ')' : null"
+    data-testid="battle-cut-in-stage"
   >
-    <img
-      class="absolute inset-0 size-full object-cover"
-      data-testid="battle-cut-in-background"
-      [attr.data-theme]="backgroundUrl() ? null : theme()"
-      [src]="pictureUrl()"
-      [style.object-position]="pictureFocus()"
-      alt=""
-      draggable="false"
-    />
-    <div class="absolute inset-0" [style.background]="looks.vignette"></div>
+    <div class="absolute inset-0 bg-black" [style.opacity]="(box ? 1 : 0.55) * openness()"></div>
 
     <div
-      class="pointer-events-none absolute inset-y-0 w-1/3 -skew-x-12"
-      [style.background]="bandLook().sweep"
-      [style.left.%]="sweep() * 140 - 40"
-      [style.opacity]="1 - sweep()"
-    ></div>
+      class="absolute inset-x-0 top-1/2 overflow-hidden"
+      data-testid="battle-cut-in-band"
+      [style.height.px]="bandHeight()"
+      [style.transform]="'translateY(-50%) scaleY(' + openness() + ')'"
+    >
+      <img
+        class="absolute inset-0 size-full object-cover"
+        data-testid="battle-cut-in-background"
+        [attr.data-theme]="backgroundUrl() ? null : theme()"
+        [src]="pictureUrl()"
+        [style.object-position]="pictureFocus()"
+        alt=""
+        draggable="false"
+      />
+      <div class="absolute inset-0" [style.background]="looks.vignette"></div>
 
-    <div class="absolute inset-0 perspective-distant">
-      <div class="absolute top-[72%] left-1/2 size-0 transform-3d" [style.transform]="boardTransform()">
-        @for (figure of figures(); track figure.key) {
-          <div
-            class="absolute top-0 left-0 origin-top-left rounded-[50%]"
-            [style.background]="looks.shadow"
-            [style.width.px]="shadowWidth"
-            [style.height.px]="shadowWidth * 0.5"
-            [style.transform]="figure.shadowTransform"
-            [style.opacity]="figure.opacity"
-          ></div>
-          <div
-            class="absolute top-0 left-0 origin-top-left"
-            [attr.data-testid]="'battle-figure-' + figure.key"
-            [style.transform]="figure.transform"
-            [style.opacity]="figure.opacity"
-            [style.filter]="figure.filter || null"
-          >
+      <div
+        class="pointer-events-none absolute inset-y-0 w-1/3 -skew-x-12"
+        [style.background]="bandLook().sweep"
+        [style.left.%]="sweep() * 140 - 40"
+        [style.opacity]="1 - sweep()"
+      ></div>
+
+      <div class="absolute inset-0 perspective-distant">
+        <div class="absolute top-[72%] left-1/2 size-0 transform-3d" [style.transform]="boardTransform()">
+          @for (figure of figures(); track figure.key) {
             <div
-              [class.animate-defeat-dissolve]="figure.reaction === 'dissolve'"
-              [class.animate-defeat-bisect]="figure.reaction === 'bisect'"
-              [class.animate-defeat-flinch]="figure.reaction === 'flinch'"
+              class="absolute top-0 left-0 origin-top-left rounded-[50%]"
+              [style.background]="looks.shadow"
+              [style.width.px]="shadowWidth"
+              [style.height.px]="shadowWidth * 0.5"
+              [style.transform]="figure.shadowTransform"
+              [style.opacity]="figure.opacity"
+            ></div>
+            <div
+              class="absolute top-0 left-0 origin-top-left"
+              [attr.data-testid]="'battle-figure-' + figure.key"
+              [style.transform]="figure.transform"
+              [style.opacity]="figure.opacity"
+              [style.filter]="figure.filter || null"
             >
-              @if (figure.imageUrl) {
-                <img
-                  class="block w-auto max-w-40 object-contain"
-                  [style.filter]="looks.figureShadow"
-                  [style.height.px]="figureHeight"
-                  [src]="figure.imageUrl"
-                  [alt]="figure.name"
-                  draggable="false"
-                />
-              } @else {
-                <div
-                  class="flex w-17.5 items-end justify-center"
-                  [ngStyle]="looks.silhouette"
-                  [style.height.px]="figureHeight"
-                >
-                  <i class="material-icons mb-2 text-[40px]! opacity-40">person</i>
-                </div>
+              <div
+                [class.animate-defeat-dissolve]="figure.reaction === 'dissolve'"
+                [class.animate-defeat-bisect]="figure.reaction === 'bisect'"
+                [class.animate-defeat-flinch]="figure.reaction === 'flinch'"
+              >
+                @if (figure.imageUrl) {
+                  <img
+                    class="block w-auto max-w-40 object-contain"
+                    [style.filter]="looks.figureShadow"
+                    [style.height.px]="figureHeight"
+                    [src]="figure.imageUrl"
+                    [alt]="figure.name"
+                    draggable="false"
+                  />
+                } @else {
+                  <div
+                    class="flex w-17.5 items-end justify-center"
+                    [ngStyle]="looks.silhouette"
+                    [style.height.px]="figureHeight"
+                  >
+                    <i class="material-icons mb-2 text-[40px]! opacity-40">person</i>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+          @for (sprite of sprites(); track sprite.key) {
+            <div class="backface-visible" [ngStyle]="sprite.style">
+              @if (sprite.paint) {
+                <div class="size-full" [ngStyle]="sprite.paint" [innerHTML]="sprite.svg | safe: 'html'"></div>
               }
             </div>
-          </div>
-        }
-        @for (sprite of sprites(); track sprite.key) {
-          <div class="backface-visible" [ngStyle]="sprite.style">
-            @if (sprite.paint) {
-              <div class="size-full" [ngStyle]="sprite.paint" [innerHTML]="sprite.svg | safe: 'html'"></div>
-            }
-          </div>
-        }
-        @for (canvas of canvases(); track canvas.key) {
-          <effect-canvas class="backface-visible" [ngStyle]="canvas.style" [layer]="canvas.layer"></effect-canvas>
-        }
-        @for (pop of pops(); track pop.key) {
-          <div
-            class="absolute top-0 left-0 flex origin-top-left flex-col items-center whitespace-nowrap"
-            data-testid="battle-pop"
-            [style.transform]="pop.transform"
-            [style.opacity]="pop.opacity"
-          >
-            @for (line of pop.lines; track $index) {
-              <span
-                class="leading-none font-black italic"
-                [style.text-shadow]="looks.popShadow"
-                [style.font-size.px]="pop.small ? 15 : $first ? 34 : 16"
-                [style.color]="line.hurt ? looks.hurt : looks.healed"
-                >{{ line.text }}</span
-              >
-            }
-          </div>
-        }
+          }
+          @for (canvas of canvases(); track canvas.key) {
+            <effect-canvas class="backface-visible" [ngStyle]="canvas.style" [layer]="canvas.layer"></effect-canvas>
+          }
+          @for (pop of pops(); track pop.key) {
+            <div
+              class="absolute top-0 left-0 flex origin-top-left flex-col items-center whitespace-nowrap"
+              data-testid="battle-pop"
+              [style.transform]="pop.transform"
+              [style.opacity]="pop.opacity"
+            >
+              @for (line of pop.lines; track $index) {
+                <span
+                  class="leading-none font-black italic"
+                  [style.text-shadow]="looks.popShadow"
+                  [style.font-size.px]="pop.small ? 15 : $first ? 34 : 16"
+                  [style.color]="line.hurt ? looks.hurt : looks.healed"
+                  >{{ line.text }}</span
+                >
+              }
+            </div>
+          }
+        </div>
       </div>
-    </div>
 
-    <div class="absolute inset-x-0 top-0 h-0.75" [style.background]="bandLook().edge"></div>
-    <div class="absolute inset-x-0 bottom-0 h-0.75" [style.background]="bandLook().edge"></div>
+      <div class="absolute inset-x-0 top-0 h-0.75" [style.background]="bandLook().edge"></div>
+      <div class="absolute inset-x-0 bottom-0 h-0.75" [style.background]="bandLook().edge"></div>
 
-    <div
-      class="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 px-3 pb-3 sm:px-8"
-      [style.opacity]="openness()"
-    >
-      <div class="flex flex-wrap items-end gap-2">
-        @for (plate of plates().left; track plate.key) {
-          <ng-container *ngTemplateOutlet="plateTemplate; context: { $implicit: plate, side: 'left' }" />
-        }
-      </div>
-      <div class="flex flex-wrap items-end justify-end gap-2">
-        @for (plate of plates().right; track plate.key) {
-          <ng-container *ngTemplateOutlet="plateTemplate; context: { $implicit: plate, side: 'right' }" />
-        }
-      </div>
-    </div>
-
-    @if (fallenNames().length > 0) {
       <div
-        class="pointer-events-none absolute inset-x-0 flex flex-col items-center"
-        [style.top.%]="28"
-        data-testid="battle-defeat-banner"
-        [style.opacity]="bannerIn()"
-        [style.transform]="'translateY(-50%) scale(' + (1.6 - 0.6 * bannerIn()) + ')'"
+        class="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 px-3 pb-3 sm:px-8"
+        [style.opacity]="openness()"
       >
-        <span class="font-black italic" [ngStyle]="bannerStyle()">{{
-          'feature.battleCutIn.defeated' | transloco
-        }}</span>
-        <span class="mt-1 text-sm font-bold text-white/90" [style.text-shadow]="looks.nameShadow">{{
-          fallenNames().join('・')
-        }}</span>
+        <div class="flex flex-wrap items-end gap-2">
+          @for (plate of plates().left; track plate.key) {
+            <ng-container *ngTemplateOutlet="plateTemplate; context: { $implicit: plate, side: 'left' }" />
+          }
+        </div>
+        <div class="flex flex-wrap items-end justify-end gap-2">
+          @for (plate of plates().right; track plate.key) {
+            <ng-container *ngTemplateOutlet="plateTemplate; context: { $implicit: plate, side: 'right' }" />
+          }
+        </div>
       </div>
-    }
+
+      @if (fallenNames().length > 0) {
+        <div
+          class="pointer-events-none absolute inset-x-0 flex flex-col items-center"
+          [style.top.%]="28"
+          data-testid="battle-defeat-banner"
+          [style.opacity]="bannerIn()"
+          [style.transform]="'translateY(-50%) scale(' + (1.6 - 0.6 * bannerIn()) + ')'"
+        >
+          <span class="font-black italic" [ngStyle]="bannerStyle()">{{
+            'feature.battleCutIn.defeated' | transloco
+          }}</span>
+          <span class="mt-1 text-sm font-bold text-white/90" [style.text-shadow]="looks.nameShadow">{{
+            fallenNames().join('・')
+          }}</span>
+        </div>
+      }
+    </div>
   </div>
 
+  @if (box) {
+    <div
+      class="absolute inset-x-0 top-0 flex h-7 touch-none items-center justify-end gap-1 bg-linear-to-b from-black/70 to-transparent px-1"
+      [class.cursor-move]="!narrow()"
+      data-testid="battle-cut-in-handle"
+      [title]="narrow() ? '' : ('feature.battleCutIn.moveWindow' | transloco)"
+      (click)="$event.stopPropagation()"
+      (pointerdown)="startDrag($event)"
+      (pointermove)="moveDrag($event)"
+      (pointerup)="endDrag()"
+      (pointercancel)="endDrag()"
+    >
+      <ng-container *ngTemplateOutlet="stageButtons; context: { $implicit: true }" />
+    </div>
+  } @else {
+    <div class="absolute top-3 right-3 flex gap-2">
+      <ng-container *ngTemplateOutlet="stageButtons; context: { $implicit: false }" />
+    </div>
+  }
+</div>
+
+<ng-template #stageButtons let-small>
   <button
-    class="absolute top-3 right-3 flex size-9 cursor-pointer items-center justify-center rounded-full border border-solid border-white/30 bg-black/50 text-white/80 hover:text-white"
+    class="flex cursor-pointer items-center justify-center rounded-full border border-solid border-white/30 bg-black/50 text-white/80 hover:text-white"
+    [class]="small ? 'size-6' : 'size-9'"
+    type="button"
+    data-testid="battle-cut-in-size"
+    [attr.aria-label]="'feature.battleCutIn.changeSize' | transloco: { size: (sizeLabelKey() | transloco) }"
+    [title]="'feature.battleCutIn.changeSize' | transloco: { size: (sizeLabelKey() | transloco) }"
+    (pointerdown)="$event.stopPropagation()"
+    (click)="$event.stopPropagation(); cycleSize()"
+  >
+    <i class="material-icons" [class]="small ? 'text-[15px]!' : 'text-[20px]!'">picture_in_picture_alt</i>
+  </button>
+  <button
+    class="flex cursor-pointer items-center justify-center rounded-full border border-solid border-white/30 bg-black/50 text-white/80 hover:text-white"
+    [class]="small ? 'size-6' : 'size-9'"
     type="button"
     data-testid="battle-cut-in-close"
     [attr.aria-label]="'feature.battleCutIn.close' | transloco"
     [title]="'feature.battleCutIn.close' | transloco"
+    (pointerdown)="$event.stopPropagation()"
     (click)="$event.stopPropagation(); skip()"
   >
-    <i class="material-icons text-[20px]!">close</i>
+    <i class="material-icons" [class]="small ? 'text-[15px]!' : 'text-[20px]!'">close</i>
   </button>
-</div>
+</ng-template>
 
 <ng-template #plateTemplate let-plate let-side="side">
   <div

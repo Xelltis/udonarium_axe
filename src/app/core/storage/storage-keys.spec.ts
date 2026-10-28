@@ -7,6 +7,7 @@ describe('the keys the app keeps settings under in the browser', () => {
       audioAnalyses: 'audio-analyses',
       battleCutIn: 'axe.battle.cutIn',
       battleCutInRemote: 'axe.battle.remote',
+      battleCutInWindow: 'axe.battle.window',
       beatLightOff: 'beat-light-off',
       buffIconScale: 'ui-buff-icon-scale',
       buffView: 'ui-buff-view',

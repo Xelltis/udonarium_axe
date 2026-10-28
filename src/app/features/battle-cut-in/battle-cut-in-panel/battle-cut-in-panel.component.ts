@@ -19,6 +19,7 @@ import {
   BattleTheme,
   battleThemeOf,
 } from '@axe/domain/battle/battle-settings';
+import { BATTLE_STAGE_SIZE_LABEL_KEYS, BATTLE_STAGE_SIZES } from '@axe/domain/battle/battle-stage-window';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { Config } from '@axe/domain/peer/config';
@@ -67,6 +68,8 @@ export interface EffectGroup {
 })
 export class BattleCutInPanelComponent {
   protected readonly preference = inject(BattleCutInPreferenceService);
+  protected readonly stageSizes = BATTLE_STAGE_SIZES;
+  protected readonly stageSizeLabelKeys = BATTLE_STAGE_SIZE_LABEL_KEYS;
   private readonly launch = inject(BattleLaunchService);
   private readonly library = inject(EffectLibraryService);
   private readonly permission = inject(RolePermissionService);

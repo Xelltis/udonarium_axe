@@ -10,6 +10,7 @@ export const STORAGE_KEYS = {
   audioAnalyses: 'audio-analyses',
   battleCutIn: 'axe.battle.cutIn',
   battleCutInRemote: 'axe.battle.remote',
+  battleCutInWindow: 'axe.battle.window',
   beatLightOff: 'beat-light-off',
   buffIconScale: 'ui-buff-icon-scale',
   buffView: 'ui-buff-view',
