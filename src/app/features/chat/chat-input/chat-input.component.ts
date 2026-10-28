@@ -61,21 +61,17 @@ import { ChatColorSettingComponent } from '@axe/features/chat/chat-color-setting
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import type { ChatEditorField, ChatEditorHost, ChatEditorStart } from '@axe/features/chat/chat-editor/chat-editor';
 import { CHAT_EDITOR_LOADER, type ChatEditorModule } from '@axe/features/chat/chat-editor/chat-editor-loader';
-import { ChatDecorationMarks } from '@axe/features/chat/chat-input/chat-decoration-context-menu';
 import { ChatInputDiceBotHelper } from '@axe/features/chat/chat-input/chat-input-dicebot';
 import { allowsChat } from '@axe/features/chat/chat-input/chat-input-helpers';
 import { ChatInputHistory } from '@axe/features/chat/chat-input/chat-input-history';
 import {
-  buildChatSyntaxMenu,
-  type ChatSyntaxMenuSource,
+  type ChatSyntaxGroup,
+  chatSyntaxGroups,
   type ChatSyntaxWriter,
-} from '@axe/features/chat/chat-input/chat-syntax-context-menu';
+} from '@axe/features/chat/chat-input/chat-syntax-items';
 import { ChatSyntaxSourceService } from '@axe/features/chat/chat-input/chat-syntax-source.service';
-import {
-  type ChatTextField,
-  TextareaChatField,
-  wrapFieldSelection,
-} from '@axe/features/chat/chat-input/chat-text-field';
+import { type ChatTextField, TextareaChatField } from '@axe/features/chat/chat-input/chat-text-field';
+import { ChatToolbarComponent } from '@axe/features/chat/chat-toolbar/chat-toolbar.component';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { PortraitChoice, PortraitPickerComponent } from '@axe/ui/components/portrait-picker/portrait-picker.component';
@@ -105,6 +101,7 @@ const COLOR_SETTING_PANEL = 'chat-color-setting';
     PortraitSliderComponent,
     SafePipe,
     TranslocoModule,
+    ChatToolbarComponent,
   ],
 })
 export class ChatInputComponent {
@@ -161,39 +158,23 @@ export class ChatInputComponent {
     this.sendsToTicker.update((sends) => !sends);
   }
 
-  /**
-   * Opens the syntax under its button, a group to each kind, to write the one picked into the box:
-   * a decoration round what is selected, or a command at the caret, at the start or at the end of
-   * the line, wherever it is read.
-   */
-  protected openSyntax(event: MouseEvent): void {
-    const button = event.currentTarget instanceof Element ? event.currentTarget : null;
-    const box = button?.getBoundingClientRect();
-    const at = box ? { x: box.left, y: box.bottom + 2 } : this.pointerDeviceService.pointers[0];
-    const menu = buildChatSyntaxMenu(this.syntaxMenuSource(), this.syntaxWriter, this.t);
-    this.contextMenu.open(at, menu, this.t('feature.chat.syntax.title'), { forGuests: true });
-  }
-
   private readonly syntaxSource = inject(ChatSyntaxSourceService);
 
-  /** What the speaker and the room offer to be written. */
-  private syntaxMenuSource(): ChatSyntaxMenuSource {
-    return this.syntaxSource.sourceFor(this.sendFrom, this.gameType);
-  }
+  /** Whether the toolbar over the box is fetched yet: once the page has first drawn. */
+  protected readonly toolbarWanted = signal(false);
+  private readonly toolbar = viewChild(ChatToolbarComponent);
 
-  /** Writes what the syntax menu picks into the box, and goes back to writing. */
+  /** The syntax the toolbar's insert button offers, for the speaker and the room as they are when it opens. */
+  protected readonly syntaxGroups = (): ChatSyntaxGroup[] =>
+    chatSyntaxGroups(this.syntaxSource.sourceFor(this.sendFrom, this.gameType), this.syntaxWriter, this.t);
+
+  /** Writes what the toolbar's insert button picks into the box, and goes back to writing. */
   private readonly syntaxWriter: ChatSyntaxWriter = {
-    wrap: (marks) => this.decorate(marks),
     insert: (text, select) =>
       this.writeIntoField((field) => {
         const { from, to } = field.selection();
         const picked = select ? { from: from + select.from, to: from + select.to } : undefined;
         field.replaceRange(from, to, text, picked);
-      }),
-    append: (text) =>
-      this.writeIntoField((field) => {
-        const current = field.text();
-        field.setText(current + (current.length > 0 && !/\s$/.test(current) ? ' ' : '') + text);
       }),
     prefix: (text) =>
       this.writeIntoField((field) => {
@@ -201,6 +182,7 @@ export class ChatInputComponent {
         const lineStart = field.text().lastIndexOf('\n', from - 1) + 1;
         field.replaceRange(lineStart, lineStart, text, { from: from + text.length, to: to + text.length });
       }),
+    chip: (chip, place) => this.writeIntoField((field) => field.insertChip(chip, place)),
   };
 
   private writeIntoField(write: (field: ChatTextField) => void): void {
@@ -208,18 +190,6 @@ export class ChatInputComponent {
     if (!field) return;
     write(field);
     this.text = field.text();
-    field.focus();
-    this.kickCalcFitHeight();
-  }
-
-  /**
-   * Wraps what is selected in the box in the marks, or puts them at the caret with nothing selected,
-   * and goes back to writing with the same words selected, or the caret between the marks.
-   */
-  decorate(marks: ChatDecorationMarks): void {
-    const field = this.textField();
-    if (!field) return;
-    this.text = wrapFieldSelection(field, marks);
     field.focus();
     this.kickCalcFitHeight();
   }
@@ -257,7 +227,7 @@ export class ChatInputComponent {
 
   private readonly plainField = computed(() => {
     const box = this.textAreaElementRef()?.nativeElement;
-    return box ? new TextareaChatField(box) : null;
+    return box ? new TextareaChatField(box, () => this.syntaxSource.tagLanguage()) : null;
   });
 
   private readonly injector = inject(Injector);
@@ -340,6 +310,8 @@ export class ChatInputComponent {
     language: () => this.syntaxSource.tagLanguage(),
     cutInNames: () => this.syntaxSource.chatCutInNames(),
     portraitImage: (raw) => this.syntaxSource.portraitImage(this.sendFrom, raw),
+    openRuby: () => this.toolbar()?.openRuby(),
+    toolbarElement: () => this.hostElement.nativeElement.querySelector('[data-testid="chat-toolbar"]'),
     translate: (key, params) => this.t(key, params),
   };
 
@@ -544,6 +516,7 @@ export class ChatInputComponent {
   readonly autoCompleteDo = output<number>();
 
   constructor() {
+    afterNextRender(() => this.toolbarWanted.set(true));
     this.objectChange.onObjectChangedForAlias(
       [GameCharacter.aliasName],
       (event) => {

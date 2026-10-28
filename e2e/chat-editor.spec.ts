@@ -80,14 +80,92 @@ test.describe('the chat editor', () => {
     await expectChatText(input, 'a\\**b\\** c');
   });
 
-  test('writes the syntax picked from its button where the caret is', async ({ page }) => {
+  test('switches bold on and off from the toolbar, its button lit where the selection is bold', async ({ page }) => {
     const input = chatInput(page);
-    await input.fill('攻撃 ');
-    await page.locator('chat-window [data-testid="chat-input-syntax"]').click();
-    const menu = page.locator('context-menu');
-    await menu.getByText('ダイス', { exact: true }).hover();
-    await menu.getByText('2D6', { exact: true }).click();
+    const bold = page.locator('chat-window [data-testid="chat-toolbar-bold"]');
+    await input.click();
+    await page.keyboard.type('強く言う');
+    await page.keyboard.press('ControlOrMeta+a');
+    await bold.click();
+    await expectChatText(input, '**強く言う**');
+    await expect(bold).toHaveAttribute('aria-pressed', 'true');
+
+    await bold.click();
+    await expectChatText(input, '強く言う');
+    await expect(bold).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('carries bold on into what is typed after Ctrl+B', async ({ page }) => {
+    const input = chatInput(page);
+    await input.click();
+    await page.keyboard.type('普通');
+    await page.keyboard.press('Control+b');
+    await page.keyboard.type('太く');
+    await expectChatText(input, '普通**太く**');
+  });
+
+  test('opens a bar over the words selected, standing clear of the toolbar', async ({ page }) => {
+    const input = chatInput(page);
+    await input.click();
+    await page.keyboard.type('選んだ言葉');
+    await page.keyboard.press('Shift+Home');
+    const bubble = page.locator('[data-testid="chat-bubble"]');
+    await expect(bubble).toBeVisible();
+    const bar = (await bubble.boundingBox())!;
+    const toolbar = (await page.locator('chat-window [data-testid="chat-toolbar"]').boundingBox())!;
+    expect(bar.y + bar.height).toBeLessThanOrEqual(toolbar.y + 1);
+
+    await bubble.locator('[data-mark="italic"]').click();
+    await expectChatText(input, '[斜体]選んだ言葉[/斜体]');
+  });
+
+  test('opens its popovers upward from the foot of the screen, and keeps them on it', async ({ page }) => {
+    const input = chatInput(page);
+    await input.click();
+    await page.keyboard.type('赤く');
+    await page.keyboard.press('ControlOrMeta+a');
+    const button = page.locator('chat-window [data-testid="chat-toolbar-color"]');
+    await button.click();
+    const panel = page.locator('[data-testid="chat-toolbar-panel"]');
+    await expect(panel).toBeVisible();
+    const opened = (await panel.boundingBox())!;
+    const anchor = (await button.boundingBox())!;
+    const view = page.viewportSize()!;
+    expect(opened.y + opened.height).toBeLessThanOrEqual(anchor.y + 1);
+    expect(opened.y).toBeGreaterThanOrEqual(0);
+    expect(opened.x + opened.width).toBeLessThanOrEqual(view.width);
+
+    await panel.getByRole('button', { name: '赤' }).click();
+    await expectChatText(input, '[赤]赤く[/赤]');
+  });
+
+  test('puts a reading over the words selected, as a ruby', async ({ page }) => {
+    const input = chatInput(page);
+    await input.click();
+    await page.keyboard.type('漢字');
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.locator('chat-window [data-testid="chat-toolbar-ruby"]').click();
+    await page.locator('[data-testid="chat-toolbar-ruby-reading"]').fill('かんじ');
+    await page.locator('[data-testid="chat-toolbar-ruby-apply"]').click();
+    await expectChatText(input, '|漢字《かんじ》');
+    await expect(input.locator('ruby')).toHaveCount(1);
+  });
+
+  test('writes the syntax picked from the insert button where it is read', async ({ page }) => {
+    const input = chatInput(page);
+    await input.click();
+    await page.keyboard.type('攻撃 ');
+    await page.locator('chat-window [data-testid="chat-toolbar-insert"]').click();
+    const panel = page.locator('[data-testid="chat-toolbar-panel"]');
+    await panel.locator('[data-group="dice"]').click();
+    await panel.getByRole('listitem').filter({ hasText: '2D6' }).first().click();
     await expectChatText(input, '攻撃 2D6 ');
+
+    await page.locator('chat-window [data-testid="chat-toolbar-insert"]').click();
+    await panel.locator('[data-group="effect"]').click();
+    await panel.getByRole('listitem').filter({ hasText: '《vs》' }).click();
+    await expectChatText(input, '攻撃 2D6 《vs》');
+    await expect(input.locator('[data-chip="effect"]')).toHaveCount(1);
   });
 
   test('marks what will not work, and lists it from the button beside the box', async ({ page }) => {
@@ -147,5 +225,15 @@ test.describe('the plain box', () => {
     const input = chatInput(page);
     await expect(input).toHaveJSProperty('tagName', 'TEXTAREA');
     await expect(page.locator('chat-window [data-chat-input-mode="plain"]')).toBeVisible();
+  });
+
+  test('takes the toolbar too, writing the marks round the selection', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('chat-preferences', JSON.stringify({ richInput: false })));
+    await waitAppReady(page);
+    const input = chatInput(page);
+    await input.fill('強く');
+    await input.selectText();
+    await page.locator('chat-window [data-testid="chat-toolbar-bold"]').click();
+    await expectChatText(input, '**強く**');
   });
 });

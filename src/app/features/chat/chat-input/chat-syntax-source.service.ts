@@ -14,7 +14,7 @@ import { diceCommandExamples } from '@axe/domain/dice/dice-roll-line';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import type { ChatCompletionWords } from '@axe/features/chat/chat-editor/chat-editor-complete';
-import type { ChatSyntaxMenuSource } from '@axe/features/chat/chat-input/chat-syntax-context-menu';
+import type { ChatSyntaxMenuSource } from '@axe/features/chat/chat-input/chat-syntax-items';
 
 /**
  * What a speaker and the room offer to be written in chat, gathered for the syntax button and for

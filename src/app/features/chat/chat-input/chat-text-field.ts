@@ -62,6 +62,8 @@ export interface ChatTextField {
   insertChip(chip: ChatRichChip, place?: ChatChipPlace): void;
   /** What is selected, as it is shown. */
   selectedText(): string;
+  /** The chip selected as a whole, as a ruby is to have its reading changed; null where none is, and always in a plain box. */
+  selectedChip(): ChatRichChip | null;
 }
 
 /** The marks a decoration is written with in a plain box, in the reader's language; null where there are none to write. */
@@ -119,6 +121,10 @@ export class TextareaChatField implements ChatTextField {
   selectedText(): string {
     const { from, to } = this.selection();
     return this.text().slice(from, to);
+  }
+
+  selectedChip(): ChatRichChip | null {
+    return null;
   }
 
   text(): string {

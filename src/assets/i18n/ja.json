@@ -4200,6 +4200,14 @@
         "cutIn": "カットイン",
         "quote": "引用",
         "quoteLine": "引用する"
+      },
+      "toolbar": {
+        "label": "書式",
+        "style": "大きさ・書体・色",
+        "normal": "標準",
+        "clearColor": "色を外す",
+        "applyRuby": "振る",
+        "removeRuby": "ルビを外す"
       }
     },
     "visualNovel": {

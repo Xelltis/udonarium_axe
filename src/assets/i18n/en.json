@@ -4200,6 +4200,14 @@
         "cutIn": "Cut-in",
         "quote": "Quote",
         "quoteLine": "Quote"
+      },
+      "toolbar": {
+        "label": "Formatting",
+        "style": "Size, font and colour",
+        "normal": "Normal",
+        "clearColor": "No colour",
+        "applyRuby": "Add",
+        "removeRuby": "Remove the ruby"
       }
     },
     "visualNovel": {

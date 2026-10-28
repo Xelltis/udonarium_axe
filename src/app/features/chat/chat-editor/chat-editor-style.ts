@@ -41,6 +41,14 @@ const CHAT_EDITOR_CSS = `
 .chat-rich .chat-chip.chat-lint-error{border-color:${CHAT_COLORS.red};text-decoration:none}
 .chat-rich .chat-chip.chat-lint-warning{border-color:${CHAT_COLORS.yellow};text-decoration:none}
 .chat-rich-tip{position:fixed;z-index:10000;max-width:22rem;box-sizing:border-box;padding:4px 8px;border:1px solid var(--ui-input-border);border-radius:var(--ui-radius-sm);background:var(--ui-input-bg);color:var(--ui-text);font-size:12px;line-height:1.4;box-shadow:0 2px 8px rgb(0 0 0 / .25);pointer-events:none}
+.chat-rich-bubble{z-index:10000;display:flex;flex-wrap:wrap;align-items:center;gap:1px;max-width:15rem;padding:2px;border:1px solid var(--ui-input-border);border-radius:var(--ui-radius-sm);background:var(--ui-input-bg);color:var(--ui-text);box-shadow:0 2px 10px rgb(0 0 0 / .3)}
+.chat-rich-bubble>button{display:flex;align-items:center;justify-content:center;min-width:26px;height:26px;margin:0;padding:0 4px;border:none;border-radius:var(--ui-radius-sm);background:transparent;color:var(--ui-text-muted);font-size:11px;font-weight:600;cursor:pointer}
+.chat-rich-bubble>button:hover,.chat-rich-bubble>button[aria-pressed="true"]{background:var(--ui-hover);color:var(--ui-text)}
+.chat-rich-bubble .material-icons{font-size:17px}
+.chat-rich-bubble-swatches{display:flex;flex-wrap:wrap;gap:3px;width:100%;padding:3px}
+.chat-rich-bubble-swatches[hidden]{display:none}
+.chat-rich-bubble-swatch{width:18px;height:18px;margin:0;padding:0;border:1px solid var(--ui-input-border);border-radius:50%;cursor:pointer}
+.chat-rich-bubble-clear{background:linear-gradient(135deg,transparent 45%,${CHAT_COLORS.red} 45% 55%,transparent 55%)}
 .chat-rich-menu{position:fixed;z-index:10000;display:flex;flex-direction:column;min-width:10rem;max-width:20rem;max-height:14rem;overflow-y:auto;box-sizing:border-box;padding:3px;border:1px solid var(--ui-input-border);border-radius:var(--ui-radius-sm);background:var(--ui-input-bg);color:var(--ui-text);font-size:12px;box-shadow:0 2px 10px rgb(0 0 0 / .3)}
 .chat-rich-menu button{display:flex;gap:6px;align-items:center;margin:0;padding:3px 6px;border:none;border-radius:var(--ui-radius-sm);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
 .chat-rich-menu button[aria-selected="true"],.chat-rich-menu button:hover{background:var(--ui-hover)}

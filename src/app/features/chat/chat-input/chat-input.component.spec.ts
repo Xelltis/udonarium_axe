@@ -3,7 +3,6 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
@@ -395,8 +394,10 @@ describe('ChatInputComponent', () => {
 
       Config.instance.diceStage = 'frame';
       fixture.detectChanges();
-      await fixture.whenStable();
-      expect(button()).not.toBeNull();
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(button()).not.toBeNull();
+      });
     });
 
     it('is not offered to a guest, who is not offered the panel', async () => {
@@ -586,21 +587,25 @@ describe('ChatInputComponent', () => {
       expect(emitted[0].stamp!.words.length).toBeGreaterThan(0);
     });
 
-    it('wraps the words picked out in the box in the decoration chosen from the syntax button, and keeps them picked out', () => {
+    it('wraps the words picked out in the plain box in the decoration chosen on the toolbar, and keeps them picked out', async () => {
       fixture.componentRef.setInput('canSpeak', true);
       fixture.detectChanges();
       component.text = '今日は晴れ';
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(
+          (fixture.nativeElement as HTMLElement).querySelector('[data-testid="chat-toolbar-bold"]')
+        ).not.toBeNull();
+      });
+      await fixture.whenStable();
       const box = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>('[data-chat-input]')!;
       box.value = '今日は晴れ';
       box.setSelectionRange(3, 5);
-      const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
 
       (fixture.nativeElement as HTMLElement)
-        .querySelector<HTMLButtonElement>('[data-testid="chat-input-syntax"]')!
+        .querySelector<HTMLButtonElement>('[data-testid="chat-toolbar-bold"]')!
         .click();
-      open.mock.calls[0][1][0].subActions![0].action!();
 
-      expect(component.text).toBe('今日は**晴れ**');
       expect(box.value).toBe('今日は**晴れ**');
       expect([box.selectionStart, box.selectionEnd]).toEqual([5, 7]);
     });

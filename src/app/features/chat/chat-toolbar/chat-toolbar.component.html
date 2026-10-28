@@ -1,0 +1,286 @@
+<div
+  class="flex min-w-0 flex-wrap items-center gap-0.5"
+  role="toolbar"
+  data-testid="chat-toolbar"
+  [attr.aria-label]="'feature.chat.toolbar.label' | transloco"
+  (mousedown)="keepSelection($event)"
+>
+  <button
+    type="button"
+    [class]="buttonClass"
+    data-testid="chat-toolbar-bold"
+    [attr.aria-pressed]="isOn('bold')"
+    [title]="('feature.chat.decoration.bold' | transloco) + ' (Ctrl+B)'"
+    [attr.aria-label]="'feature.chat.decoration.bold' | transloco"
+    (click)="apply({ kind: 'bold' })"
+  >
+    <i class="material-icons">format_bold</i>
+  </button>
+  <button
+    type="button"
+    [class]="buttonClass"
+    data-testid="chat-toolbar-italic"
+    [attr.aria-pressed]="isOn('italic')"
+    [title]="('feature.chat.decoration.italic' | transloco) + ' (Ctrl+I)'"
+    [attr.aria-label]="'feature.chat.decoration.italic' | transloco"
+    (click)="apply({ kind: 'italic' })"
+  >
+    <i class="material-icons">format_italic</i>
+  </button>
+  @if (!compact()) {
+    <button
+      type="button"
+      [class]="buttonClass"
+      data-testid="chat-toolbar-strike"
+      [attr.aria-pressed]="isOn('strike')"
+      [title]="('feature.chat.decoration.strike' | transloco) + ' (Ctrl+Shift+S)'"
+      [attr.aria-label]="'feature.chat.decoration.strike' | transloco"
+      (click)="apply({ kind: 'strike' })"
+    >
+      <i class="material-icons">format_strikethrough</i>
+    </button>
+    <span class="bg-ui-border-panel mx-0.5 h-4 w-px" aria-hidden="true"></span>
+    <button
+      #sizeButton
+      type="button"
+      [class]="buttonClass"
+      data-testid="chat-toolbar-size"
+      aria-haspopup="menu"
+      [attr.aria-expanded]="openOne() === 'size'"
+      [attr.aria-pressed]="!!active()?.size"
+      [title]="'feature.chat.decoration.size' | transloco"
+      [attr.aria-label]="'feature.chat.decoration.size' | transloco"
+      (click)="toggle('size')"
+    >
+      <i class="material-icons">format_size</i>
+    </button>
+    <button
+      #fontButton
+      type="button"
+      [class]="buttonClass"
+      data-testid="chat-toolbar-font"
+      aria-haspopup="menu"
+      [attr.aria-expanded]="openOne() === 'font'"
+      [attr.aria-pressed]="!!active()?.font"
+      [title]="'feature.chat.decoration.font' | transloco"
+      [attr.aria-label]="'feature.chat.decoration.font' | transloco"
+      (click)="toggle('font')"
+    >
+      <i class="material-icons">font_download</i>
+    </button>
+    <button
+      #colorButton
+      type="button"
+      [class]="buttonClass"
+      data-testid="chat-toolbar-color"
+      aria-haspopup="menu"
+      [attr.aria-expanded]="openOne() === 'color'"
+      [attr.aria-pressed]="!!active()?.color"
+      [title]="'feature.chat.decoration.color' | transloco"
+      [attr.aria-label]="'feature.chat.decoration.color' | transloco"
+      (click)="toggle('color')"
+    >
+      <i class="material-icons" [style.color]="active()?.color ?? null">format_color_text</i>
+    </button>
+  } @else {
+    <button
+      #styleButton
+      type="button"
+      [class]="buttonClass"
+      data-testid="chat-toolbar-style"
+      aria-haspopup="menu"
+      [attr.aria-expanded]="openOne() === 'style'"
+      [title]="'feature.chat.toolbar.style' | transloco"
+      [attr.aria-label]="'feature.chat.toolbar.style' | transloco"
+      (click)="toggle('style')"
+    >
+      <i class="material-icons">text_format</i>
+    </button>
+  }
+  <button
+    #rubyButton
+    type="button"
+    [class]="wordButtonClass"
+    data-testid="chat-toolbar-ruby"
+    aria-haspopup="dialog"
+    [attr.aria-expanded]="openOne() === 'ruby'"
+    [title]="'feature.chat.syntax.rubyWrap' | transloco"
+    (click)="toggle('ruby')"
+  >
+    {{ 'feature.chat.syntax.ruby' | transloco }}
+  </button>
+  <span class="bg-ui-border-panel mx-0.5 h-4 w-px" aria-hidden="true"></span>
+  <button
+    #insertButton
+    type="button"
+    [class]="buttonClass"
+    data-testid="chat-toolbar-insert"
+    aria-haspopup="menu"
+    [attr.aria-expanded]="openOne() === 'insert'"
+    [title]="'feature.chat.syntax.title' | transloco"
+    [attr.aria-label]="'feature.chat.syntax.title' | transloco"
+    (click)="toggle('insert')"
+  >
+    <i class="material-icons">add_circle</i>
+  </button>
+</div>
+
+<div
+  #panel
+  popover="manual"
+  data-testid="chat-toolbar-panel"
+  class="rounded-ui-lg border-ui-border-menu bg-ui-menu text-ui-text shadow-ui-lg fixed inset-auto m-0 flex-col gap-1 overflow-y-auto border border-solid p-1.5 text-[12px]"
+  (mousedown)="keepSelection($event)"
+>
+  @switch (openOne()) {
+    @case ('size') {
+      @for (size of sizes; track size) {
+        <button type="button" [class]="rowClass" (click)="setSize(size)">
+          <span [class]="sizeClasses[size]">{{ sizeLabel(size) }}</span>
+        </button>
+      }
+      <button type="button" [class]="rowClass" (click)="setSize(null)">
+        {{ 'feature.chat.toolbar.normal' | transloco }}
+      </button>
+    }
+    @case ('font') {
+      @for (font of fonts; track font) {
+        <button type="button" [class]="rowClass" (click)="setFont(font)">
+          <span [class]="fontClasses[font]">{{ fontLabel(font) }}</span>
+        </button>
+      }
+      <button type="button" [class]="rowClass" (click)="setFont(null)">
+        {{ 'feature.chat.toolbar.normal' | transloco }}
+      </button>
+    }
+    @case ('color') {
+      <div class="grid grid-cols-6 gap-1">
+        @for (color of colors; track color.key) {
+          <button
+            type="button"
+            class="border-ui-border-panel size-6 cursor-pointer rounded-full border border-solid p-0"
+            [style.background-color]="color.value"
+            [title]="colorLabel(color.key)"
+            [attr.aria-label]="colorLabel(color.key)"
+            (click)="setColor(color.value)"
+          ></button>
+        }
+      </div>
+      <button type="button" [class]="rowClass" (click)="setColor(null)">
+        {{ 'feature.chat.toolbar.clearColor' | transloco }}
+      </button>
+    }
+    @case ('style') {
+      <div class="text-ui-muted text-[11px]">{{ 'feature.chat.decoration.size' | transloco }}</div>
+      <div class="flex flex-wrap gap-1">
+        @for (size of sizes; track size) {
+          <button type="button" [class]="chipClass" (click)="setSize(size)">{{ sizeLabel(size) }}</button>
+        }
+        <button type="button" [class]="chipClass" (click)="setSize(null)">
+          {{ 'feature.chat.toolbar.normal' | transloco }}
+        </button>
+      </div>
+      <div class="text-ui-muted text-[11px]">{{ 'feature.chat.decoration.font' | transloco }}</div>
+      <div class="flex flex-wrap gap-1">
+        @for (font of fonts; track font) {
+          <button type="button" [class]="chipClass" (click)="setFont(font)">
+            <span [class]="fontClasses[font]">{{ fontLabel(font) }}</span>
+          </button>
+        }
+        <button type="button" [class]="chipClass" (click)="setFont(null)">
+          {{ 'feature.chat.toolbar.normal' | transloco }}
+        </button>
+      </div>
+      <div class="text-ui-muted text-[11px]">{{ 'feature.chat.decoration.color' | transloco }}</div>
+      <div class="grid grid-cols-6 gap-1">
+        @for (color of colors; track color.key) {
+          <button
+            type="button"
+            class="border-ui-border-panel size-6 cursor-pointer rounded-full border border-solid p-0"
+            [style.background-color]="color.value"
+            [title]="colorLabel(color.key)"
+            [attr.aria-label]="colorLabel(color.key)"
+            (click)="setColor(color.value)"
+          ></button>
+        }
+      </div>
+      <button type="button" [class]="rowClass" (click)="setColor(null)">
+        {{ 'feature.chat.toolbar.clearColor' | transloco }}
+      </button>
+    }
+    @case ('ruby') {
+      <label class="flex flex-col gap-0.5">
+        <span class="text-ui-muted text-[11px]">{{ 'feature.chat.syntax.base' | transloco }}</span>
+        <input
+          type="text"
+          [class]="inputClass"
+          data-testid="chat-toolbar-ruby-base"
+          [value]="rubyBase()"
+          (input)="rubyBase.set(inputValue($event))"
+          (keydown)="onRubyKey($event)"
+        />
+      </label>
+      <label class="flex flex-col gap-0.5">
+        <span class="text-ui-muted text-[11px]">{{ 'feature.chat.syntax.reading' | transloco }}</span>
+        <input
+          #rubyInput
+          type="text"
+          [class]="inputClass"
+          data-testid="chat-toolbar-ruby-reading"
+          [value]="rubyReading()"
+          (input)="rubyReading.set(inputValue($event))"
+          (keydown)="onRubyKey($event)"
+        />
+      </label>
+      <div class="flex justify-end gap-1">
+        @if (rubyEditing()) {
+          <button type="button" [class]="chipClass" (click)="removeRuby()">
+            {{ 'feature.chat.toolbar.removeRuby' | transloco }}
+          </button>
+        }
+        <button type="button" [class]="chipClass" data-testid="chat-toolbar-ruby-apply" (click)="applyRuby()">
+          {{ 'feature.chat.toolbar.applyRuby' | transloco }}
+        </button>
+      </div>
+    }
+    @case ('insert') {
+      <div class="flex flex-wrap gap-1" role="tablist">
+        @for (group of shownGroups(); track group.key; let index = $index) {
+          <button
+            type="button"
+            role="tab"
+            [class]="chipClass"
+            [attr.aria-selected]="groupIndex() === index"
+            [attr.data-group]="group.key"
+            (click)="selectGroup(index)"
+          >
+            {{ group.label }}
+          </button>
+        }
+      </div>
+      @if (shownGroups()[groupIndex()]; as group) {
+        <div class="flex flex-col" role="list">
+          @for (row of group.rows; track $index) {
+            @if (row.items.length === 1) {
+              <button type="button" [class]="rowClass" role="listitem" (click)="write(row.items[0])">
+                <span>{{ row.label }}</span>
+                @if (row.items[0].written !== row.label) {
+                  <span class="text-ui-dim ml-auto font-mono text-[11px]">{{ row.items[0].written }}</span>
+                }
+              </button>
+            } @else {
+              <div class="flex items-center gap-1 px-1 py-0.5" role="listitem">
+                <span class="min-w-0 flex-1 truncate">{{ row.label }}</span>
+                @for (item of row.items; track item.label) {
+                  <button type="button" [class]="monoChipClass" [title]="item.written" (click)="write(item)">
+                    {{ item.label }}
+                  </button>
+                }
+              </div>
+            }
+          }
+        </div>
+      }
+    }
+  }
+</div>

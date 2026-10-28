@@ -4200,6 +4200,14 @@
         "cutIn": "컷인",
         "quote": "인용",
         "quoteLine": "인용하기"
+      },
+      "toolbar": {
+        "label": "서식",
+        "style": "크기・글꼴・색",
+        "normal": "기본",
+        "clearColor": "색 빼기",
+        "applyRuby": "달기",
+        "removeRuby": "루비 빼기"
       }
     },
     "visualNovel": {

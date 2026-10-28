@@ -7,6 +7,7 @@ import { referenceSites } from '@axe/domain/chat/chat-reference';
 import { type ChatRichChip, type ChatRichMode, parseChatRichText } from '@axe/domain/chat/chat-rich-text';
 import type { ChatSyntaxScan, SyntaxKind } from '@axe/domain/chat-syntax/chat-syntax';
 import { isBattleChatTokenName } from '@axe/domain/effect/effect-chat-token';
+import { buildChatBubble, type ChatBubble } from '@axe/features/chat/chat-editor/chat-editor-bubble';
 import type { ChatCompletionWords } from '@axe/features/chat/chat-editor/chat-editor-complete';
 import { ensureChatEditorStyle } from '@axe/features/chat/chat-editor/chat-editor-style';
 import {
@@ -28,9 +29,10 @@ import {
 } from '@axe/features/chat/chat-input/chat-text-field';
 import { computePosition, flip, offset, shift } from '@floating-ui/dom';
 import { Editor, Extension, InputRule } from '@tiptap/core';
+import { BubbleMenu } from '@tiptap/extension-bubble-menu';
 import { Placeholder, UndoRedo } from '@tiptap/extensions';
 import { type Mark, type Node as ProseMirrorNode, Slice } from '@tiptap/pm/model';
-import { Plugin, PluginKey, TextSelection, type Transaction } from '@tiptap/pm/state';
+import { NodeSelection, Plugin, PluginKey, TextSelection, type Transaction } from '@tiptap/pm/state';
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
 
 /** What the editor asks of what holds it. */
@@ -57,6 +59,10 @@ export interface ChatEditorHost {
   completionWords(): ChatCompletionWords;
   /** The picture a portrait command shows, for its chip; null where there is none. */
   portraitImage(raw: string): string | null;
+  /** Opens where a reading is put over the words selected, as the bar over a selection asks. */
+  openRuby?(): void;
+  /** What the bar over a selection must not cover: the toolbar over the box. */
+  toolbarElement?(): HTMLElement | null;
   readonly translate: TranslateFn;
 }
 
@@ -119,6 +125,7 @@ export class ChatEditorField implements ChatTextField {
   private refreshAfterComposition = false;
   private pendingText: { text: string; select?: ChatFieldSelection } | null = null;
   private readonly tip: HTMLElement;
+  private readonly bubble: ChatBubble;
 
   constructor(
     readonly parent: HTMLElement,
@@ -133,6 +140,12 @@ export class ChatEditorField implements ChatTextField {
     this.tip.hidden = true;
     this.tip.setAttribute('role', 'tooltip');
     document.body.append(this.tip);
+    this.bubble = buildChatBubble(document, {
+      apply: (change) => this.applyMark(change),
+      active: () => this.activeMarks(),
+      openRuby: host.openRuby ? () => host.openRuby?.() : undefined,
+      translate: host.translate,
+    });
 
     this.editor = new Editor({
       element: parent,
@@ -143,6 +156,18 @@ export class ChatEditorField implements ChatTextField {
         this.keys(),
         this.rules(),
         this.syntax(),
+        BubbleMenu.configure({
+          element: this.bubble.element,
+          appendTo: () => this.parent.ownerDocument.body,
+          shouldShow: ({ state, from, to }) => from !== to && !(state.selection instanceof NodeSelection),
+          options: {
+            strategy: 'fixed',
+            placement: 'top',
+            offset: ({ rects }) => this.bubbleGap(rects.reference.y, rects.floating.height),
+            flip: { fallbackPlacements: ['bottom'] },
+            shift: { padding: 8 },
+          },
+        }),
       ],
       enableCoreExtensions: { clipboardTextSerializer: false },
       editorProps: {
@@ -290,6 +315,11 @@ export class ChatEditorField implements ChatTextField {
     return this.editor.state.doc.textBetween(from, to, '\n', (leaf) => chipOfNode(leaf)?.raw ?? '');
   }
 
+  selectedChip(): ChatRichChip | null {
+    const selection = this.editor.state.selection;
+    return selection instanceof NodeSelection ? chipOfNode(selection.node) : null;
+  }
+
   /** Where it stands, to start the plain box from when the reader goes back to it. */
   snapshot(): ChatEditorStart {
     return { text: this.text(), selection: this.selection(), focused: this.hasFocus() };
@@ -337,10 +367,25 @@ export class ChatEditorField implements ChatTextField {
     if (this.lintTimer) clearTimeout(this.lintTimer);
     this.tip.remove();
     this.editor.destroy();
+    this.bubble.element.remove();
+  }
+
+  /**
+   * How far over the selection its bar stands: just over it, or over the toolbar where it would
+   * otherwise cover the toolbar's buttons.
+   */
+  private bubbleGap(selectionTop: number, height: number): number {
+    const gap = 8;
+    const toolbar = this.host.toolbarElement?.()?.getBoundingClientRect();
+    if (!toolbar || toolbar.height < 1) return gap;
+    const bottom = selectionTop - gap;
+    const covers = bottom > toolbar.top && bottom - height < toolbar.bottom;
+    return covers ? selectionTop - toolbar.top + 4 : gap;
   }
 
   private afterTransaction(transaction: Transaction): void {
     this.updateActiveMarks();
+    this.bubble.refresh();
     if (!transaction.docChanged) return;
     for (const font of this.fontsIn(this.editor.state.doc)) chatFontWanted$.emit(font);
     if (!transaction.getMeta(FROM_HOLDER)) this.host.changed(this.text());
