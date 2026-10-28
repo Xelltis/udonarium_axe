@@ -253,7 +253,7 @@ describe('ResourceEditProcessor', () => {
     let tab: ChatTab;
     let character: GameCharacter;
 
-    function speak(text: string): ChatMessage {
+    function speak(text: string, sendFrom?: string): ChatMessage {
       return tab.addMessage({
         identifier: '',
         tabIdentifier: tab.identifier,
@@ -263,6 +263,7 @@ describe('ResourceEditProcessor', () => {
         tag: '',
         name: 'プレイヤー',
         text,
+        sendFrom,
       });
     }
 
@@ -336,6 +337,44 @@ describe('ResourceEditProcessor', () => {
         await processor.checkResourceEditCommand(speak('&&9R-'), [{ text: '&&9R-', object: character }]);
 
         expect(systemText()).toContain('卓全体に残り9Rのバフはありません');
+      });
+    });
+
+    describe('a secret prefix', () => {
+      beforeEach(() => {
+        character.addExtendData();
+        mockDiceRollAsync.mockImplementation(async (command: string) => {
+          const total = Function(`return ${command.replace(/\(1d1-1\)/, '0')}`)() as number;
+          return { id: 'DiceBot', result: `DiceBot : (${command}) ＞ ${total}`, isSecret: false };
+        });
+      });
+
+      afterEach(() => {
+        character.destroy();
+      });
+
+      function systemTags(): string[] {
+        return tab.chatMessages.filter((message) => message.tag.startsWith('system')).map((message) => message.tag);
+      }
+
+      it('puts on a buff written after s, and keeps the report secret', async () => {
+        const message = speak('s&加護/3', character.identifier);
+
+        await processor.checkResourceEditCommand(message, [{ text: 's&加護/3', object: character }]);
+
+        expect(character.buffs.find('加護')).not.toBeNull();
+        expect(systemTags()).toEqual(['system secret']);
+      });
+
+      it('carries out every secret command in a line, not only the first', async () => {
+        const hp = character.status.getValue('HP', 'now')!;
+        const mp = character.status.getValue('MP', 'now')!;
+        const message = speak('s:HP-1 s:MP-2', character.identifier);
+
+        await processor.checkResourceEditCommand(message, [{ text: 's:HP-1 s:MP-2', object: character }]);
+
+        expect(character.status.getValue('HP', 'now')).toBe(hp - 1);
+        expect(character.status.getValue('MP', 'now')).toBe(mp - 2);
       });
     });
 

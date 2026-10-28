@@ -1,13 +1,15 @@
 import { parseBuffRemovalCommand } from '@axe/domain/character/buff-bulk-removal';
 import { resourceCommandParts, resourceCommandSites } from '@axe/domain/data/resource-command-words';
 
-/** The way commands were picked out of a line before they kept their place, to hold the new reading to. */
+/**
+ * The way commands were picked out of a line before they kept their place, to hold the new reading
+ * to, but for the secret prefix, which it took off only the first `s:` and `st:` and never off `s&`.
+ */
 function pickedTheOldWay(source: string) {
   const text = ` ${source}`;
   const secret = !!text.match(/(\s[sSｓＳ][tTｔＴ]?[:：&＆])/i);
   const text7 = text
-    .replace(/(\s[sSｓＳ][tTｔＴ][:：])/i, ' t:')
-    .replace(/(\s[sSｓＳ][:：])/i, ' :')
+    .replace(/(\s)[sSｓＳ](?=[tTｔＴ]?[:：&＆])/g, '$1')
     .replace(/([tTｔＴ][:：])/gi, 't:')
     .replace(/([tTｔＴ][&＆])/gi, 't&')
     .replace(/([:：])/gi, ':')
@@ -68,6 +70,18 @@ describe('resourceCommandSites', () => {
     expect(line.slice(first.from, first.to)).toBe('ｔ：ＨＰ－１');
     expect(second.command).toBe(':ＭＰ－１');
     expect(line.slice(second.from, second.to)).toBe('：ＭＰ－１');
+  });
+
+  it('takes the s off every secret command, buffs among them', () => {
+    const words = resourceCommandSites('s:HP-1 s:MP-1 s&加護/3 st&呪い- ST:SAN-1');
+    expect(words.secret).toBe(true);
+    expect(words.resources.map((site) => site.command)).toEqual([':HP-1', ':MP-1', 't:SAN-1']);
+    expect(words.buffs.map((site) => site.command)).toEqual(['&加護/3', 't&呪い-']);
+  });
+
+  it('leaves an s that begins a word of chat', () => {
+    const words = resourceCommandSites('sushi:美味しい 寿司s:HP-1');
+    expect(words.resources).toEqual([]);
   });
 
   it('spans a sweep as a whole word', () => {

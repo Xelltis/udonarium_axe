@@ -17,28 +17,23 @@ export interface ResourceCommandWords {
 }
 
 const SECRET_MARK = /(\s[sSｓＳ][tTｔＴ]?[:：&＆])/i;
-const SECRET_TARGETED_EDIT = /(\s[sSｓＳ][tTｔＴ][:：])/i;
-const SECRET_EDIT = /(\s[sSｓＳ][:：])/i;
+const SECRET_PREFIX = /(\s)[sSｓＳ](?=[tTｔＴ]?[:：&＆])/g;
 
 /**
  * Picks the resource, buff and sweep commands out of a chat line, with where each stands in it.
  *
- * Full-width marks are read as half-width ones, and an `s` in front of the first `:` or `t:` is
- * taken off, the rest of the word then read as any other. Each word is a sweep, or else, when it
- * starts with `:`, `&`, `t:` or `t&`, splits into the commands each mark begins. A word that starts
- * any other way, an `s&` among them, holds no command.
+ * Full-width marks are read as half-width ones, and the `s` in front of a word's first `:`, `t:`,
+ * `&` or `t&` is taken off, the rest of the word then read as any other. Each word is a sweep, or
+ * else, when it starts with `:`, `&`, `t:` or `t&`, splits into the commands each mark begins. A
+ * word that starts any other way holds no command.
  */
 export function resourceCommandSites(text: string): ResourceCommandWords {
   const padded = ` ${text}`;
-  const rawAt = Array.from({ length: padded.length }, (_, index) => index - 1);
-
-  const targetedAt = padded.search(SECRET_TARGETED_EDIT);
-  const text2 = padded.replace(SECRET_TARGETED_EDIT, ' t:');
-  if (targetedAt >= 0) rawAt.splice(targetedAt + 1, 1);
-  const plainAt = text2.search(SECRET_EDIT);
-  const text3 = text2.replace(SECRET_EDIT, ' :');
-  if (plainAt >= 0) rawAt.splice(plainAt + 1, 1);
-  const normalized = text3
+  const rawAt: number[] = [];
+  for (let index = 0; index < padded.length; index++) rawAt.push(index - 1);
+  for (const prefix of [...padded.matchAll(SECRET_PREFIX)].reverse()) rawAt.splice(prefix.index + 1, 1);
+  const normalized = padded
+    .replace(SECRET_PREFIX, '$1')
     .replace(/([tTｔＴ][:：])/gi, 't:')
     .replace(/([tTｔＴ][&＆])/gi, 't&')
     .replace(/([:：])/gi, ':')
