@@ -581,6 +581,17 @@ describe('BuffManager', () => {
       expect(sheeted.find('猛攻撃')!.currentValue).toBe('');
     });
 
+    it('moves the status at every count made by hand as well, where the buff stays', () => {
+      grant('猛攻撃', '命中', '++', '1', 2);
+
+      sheeted.decreaseRound();
+      expect(status.getValue('命中', 'now')).toBe(12);
+      sheeted.decreaseRound();
+
+      expect(status.getValue('命中', 'now')).toBe(12);
+      expect(sheeted.find('猛攻撃')!.value).toBe(0);
+    });
+
     it('lets a buff wear off by a step at every count', () => {
       grant('変身', '命中', '+', '5~-1', 3);
       expect(status.getValue('命中', 'now')).toBe(15);

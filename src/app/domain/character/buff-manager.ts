@@ -199,7 +199,8 @@ export class BuffManager {
   }
 
   /**
-   * Counts every buff that expires down by one round, by hand and whatever its timing.
+   * Counts every buff that expires down by one round, by hand and whatever its timing, moving the
+   * status of one that moves at every count as the round's own countdown does where it stays.
    *
    * Nothing is removed here, even at zero; `deleteZeroRound` does that. A buff held until cleared
    * is left alone.
@@ -212,6 +213,7 @@ export class BuffManager {
       if (!buffExpires(data)) continue;
       const sum = parseInt(String(data.value)) - 1;
       data.value = sum;
+      if (sum > 0) this.stepModifier(data);
     }
   }
 
