@@ -13,6 +13,7 @@ import { resolveBuffTiming } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
 import { findEmbeddedRolls, replaceEmbeddedRolls } from '@axe/domain/data/embedded-roll';
+import { resourceCommandParts } from '@axe/domain/data/resource-command-words';
 import { readNamedResourceSlot, type ResourceSlot, resourceSlotLabel } from '@axe/domain/data/resource-slot';
 
 export interface ResourceEditOption {
@@ -155,18 +156,16 @@ export function convertCommandToResourceEdit(
   oneResourceEdit.object = object;
   oneResourceEdit.targeted = targeted;
 
-  const replaceText = ` ${text.replace('：', ':').replace('＋', '+').replace('－', '-').replace('＝', '=').replace('＞', '>')}`;
-  const resourceEditRegExp = /[:]([^-+=>]+)([-+=>])(.*)/;
-  const resourceEditResult = replaceText.match(resourceEditRegExp);
-  if (!resourceEditResult) return false;
-  if (resourceEditResult[2] !== '>' && resourceEditResult[3] === '') return false;
+  const parts = resourceCommandParts(text);
+  if (!parts) return false;
+  if (parts.operator !== '>' && parts.amount === '') return false;
 
-  const named = readNamedResourceSlot(resourceEditResult[1]);
+  const named = readNamedResourceSlot(parts.name);
   const reg1 = named.name;
   const reg1HalfWidth = toHalfWidth(reg1);
   oneResourceEdit.nowOrMax = named.slot;
 
-  oneResourceEdit.operator = resourceEditResult[2];
+  oneResourceEdit.operator = parts.operator;
 
   if (object.status.canChangeName(reg1)) {
     oneResourceEdit.target = reg1;
@@ -177,17 +176,17 @@ export function convertCommandToResourceEdit(
   }
 
   if (oneResourceEdit.operator === '>') {
-    oneResourceEdit.replace = resourceEditResult[3];
+    oneResourceEdit.replace = parts.amount;
     return true;
   }
 
-  const reg3 = splitOptionLetters(toHalfWidth(resourceEditResult[3])).amount;
+  const reg3 = splitOptionLetters(toHalfWidth(parts.amount)).amount;
   const commandPrefix = oneResourceEdit.operator === '-' ? '-' : '';
   oneResourceEdit.amount = reg3;
   const leading = commandPrefix === '-' ? wrapLeadingDivision(oneResourceEdit.amount) : oneResourceEdit.amount;
   oneResourceEdit.command = `${commandPrefix}${leading}+(1d1-1)`;
 
-  const optionCommand = parseResourceEditOption(resourceEditResult[3]);
+  const optionCommand = parseResourceEditOption(parts.amount);
   if (optionCommand.isErr) {
     return false;
   }

@@ -19,6 +19,7 @@ import {
   unwrapEmbeddedRolls,
   unwrapParentheses,
 } from '@axe/domain/data/embedded-roll';
+import { resourceCommandSites } from '@axe/domain/data/resource-command-words';
 import {
   applyBuffEdit,
   applyResourceEdit,
@@ -57,7 +58,7 @@ interface BuffByCharacter {
  * How working out an amount ended: with a number, with nothing that could be read, or with a roll
  * that fell short of any total at all - an outright failure the system reports in words.
  */
-type AmountOutcome = 'worked' | 'unreadable' | 'noTotal';
+export type AmountOutcome = 'worked' | 'unreadable' | 'noTotal';
 
 interface RolledOnce {
   result: string;
@@ -96,51 +97,14 @@ export class ResourceEditProcessor {
     let isSecret = false;
 
     for (const oneMessageTargetContext of messageTargetContext) {
-      const text = ` ${oneMessageTargetContext.text}`;
-      const isMatch = !!text.match(/(\s[sSｓＳ][tTｔＴ]?[:：&＆])/i);
-      if (isMatch) {
-        isSecret = true;
+      const words = resourceCommandSites(oneMessageTargetContext.text);
+      if (words.secret) isSecret = true;
+      for (const sweep of words.sweeps) buffSweeps.push(sweep.command);
+      for (const res of words.resources) {
+        resourceByCharacter.push({ resourceCommand: res.command, object: oneMessageTargetContext.object! });
       }
-
-      const text2 = text.replace(/(\s[sSｓＳ][tTｔＴ][:：])/i, ' t:');
-      const text3 = text2.replace(/(\s[sSｓＳ][:：])/i, ' :');
-      const text4 = text3.replace(/([tTｔＴ][:：])/gi, 't:');
-      const text5 = text4.replace(/([tTｔＴ][&＆])/gi, 't&');
-      const text6 = text5.replace(/([:：])/gi, ':');
-      const text7 = text6.replace(/([&＆])/gi, '&');
-
-      const splitText = text7.split(/\s/);
-
-      for (const chktxt of splitText) {
-        if (parseBuffRemovalCommand(chktxt)) {
-          buffSweeps.push(chktxt);
-          continue;
-        }
-        if (chktxt.match(/^(t?[:&][^:：&＆])+/gi)) {
-          //nothing to do
-        } else {
-          continue;
-        }
-
-        const resultRes = chktxt.match(/t?:[^:：&＆]+/gi);
-        const resultBuff = chktxt.match(/t?&[^:：&＆]+/gi);
-
-        if (resultRes) {
-          for (const res of resultRes) {
-            resourceByCharacter.push({
-              resourceCommand: res,
-              object: oneMessageTargetContext.object!,
-            });
-          }
-        }
-        if (resultBuff) {
-          for (const buff of resultBuff) {
-            buffByCharacter.push({
-              buffCommand: buff,
-              object: oneMessageTargetContext.object!,
-            });
-          }
-        }
+      for (const buff of words.buffs) {
+        buffByCharacter.push({ buffCommand: buff.command, object: oneMessageTargetContext.object! });
       }
     }
     return this.resourceEditProcess(
@@ -209,7 +173,7 @@ export class ResourceEditProcessor {
           leftAmountsAlone = true;
           continue;
         }
-        const outcome = await this.rollResourceEdit(oneResourceEdit, gameSystem);
+        const outcome = await this.workOutAmount(oneResourceEdit, gameSystem);
         const named = `${targeted ? `[${object.name}] ` : ''}${oneText}`;
         if (outcome === 'unreadable') {
           unreadableCommands.push(`${named}を計算できません    `);
@@ -264,7 +228,7 @@ export class ResourceEditProcessor {
   }
 
   /**
-   * Works out an edit's amount.
+   * Works out an edit's amount, filling in its result, and says how that ended.
    *
    * Plain arithmetic, a division's rounding included, is rolled as it stands, its bracketed commands
    * first; a bracketed command with no dice in it is worked out as a calculation, which the system
@@ -274,7 +238,7 @@ export class ResourceEditProcessor {
    * plain arithmetic that ends it, which is added on. A roll that ends in an outright failure with
    * no total leaves the whole amount at nought: whatever was to be added to it does not come into it.
    */
-  private async rollResourceEdit(edit: ResourceEdit, gameSystem: GameSystemClass): Promise<AmountOutcome> {
+  async workOutAmount(edit: ResourceEdit, gameSystem: GameSystemClass): Promise<AmountOutcome> {
     if (!isPlainArithmetic(edit.amount)) return this.rollWholeAmount(edit, gameSystem);
 
     const embedded = await this.resolveEmbeddedRolls(edit, gameSystem);
