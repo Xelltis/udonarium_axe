@@ -1,12 +1,12 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openChatSettingsMenuItem, waitAppReady } from './helpers';
+import { chatInput, expectChatText, openChatSettingsMenuItem, waitAppReady } from './helpers';
 
 async function say(page: Page, line: string) {
-  const textarea = page.locator('textarea.chat-input');
+  const textarea = chatInput(page);
   await textarea.fill(line);
   await textarea.press('Enter');
-  await expect(textarea).toHaveValue('');
+  await expectChatText(textarea, '');
 }
 
 async function chooseRuby(page: Page, part: string, value: string) {

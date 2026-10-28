@@ -1,14 +1,14 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { openPanel, waitAppReady } from './helpers';
+import { chatInput, expectChatText, openPanel, waitAppReady } from './helpers';
 
 /** Says a line from the chat input, pressing it first so the chat window comes over the panels it overlaps. */
 async function say(page: Page, text: string) {
-  const textarea = page.locator('textarea.chat-input');
+  const textarea = chatInput(page);
   await textarea.click();
   await textarea.fill(text);
   await textarea.press('Enter');
-  await expect(textarea).toHaveValue('');
+  await expectChatText(textarea, '');
 }
 
 function lineSaying(page: Page, text: string): Locator {
@@ -73,12 +73,12 @@ test.describe('chat stamps and reactions', () => {
   });
 
   test('makes a stamp picked with text in the input one line together with that text', async ({ page }) => {
-    const textarea = page.locator('textarea.chat-input');
+    const textarea = chatInput(page);
     await textarea.fill('今のは見逃せない');
     await page.getByTestId('chat-input-stamp').click();
     await pickStamp(page, 'sfx:shock');
 
-    await expect(textarea).toHaveValue('');
+    await expectChatText(textarea, '');
     const line = lineSaying(page, '今のは見逃せない');
     await expect(line).toHaveCount(1);
     await expect(line.getByTestId('chat-message-said-with-stamp')).toHaveText('今のは見逃せない');

@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { openPanel, openSeatDisplay, waitAppReady } from './helpers';
+import { chatInput, openPanel, openSeatDisplay, waitAppReady } from './helpers';
 
 // The dice are drawn with WebGL, which headless Chromium gives through SwiftShader. The switches
 // are Chromium's own; WebKit refuses to start with them, and Firefox draws WebGL without.
@@ -34,7 +34,7 @@ test.describe('rolling chat dice in 3D', () => {
   async function roll(page: Page, command: string): Promise<{ answer: Locator; total: number }> {
     const answers = page.locator('chat-tab .dicebot-message');
     const before = await answers.count();
-    await page.locator('textarea.chat-input').fill(command);
+    await chatInput(page).fill(command);
     await page.locator('chat-input').getByRole('button', { name: '送信' }).click();
     await expect(answers).toHaveCount(before + 1, { timeout: 15000 });
     const answer = answers.last();

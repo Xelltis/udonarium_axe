@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openPanel, waitAppReady } from './helpers';
+import { chatInput, openPanel, waitAppReady } from './helpers';
 
 /** The game master can clear buffs off the whole table at once, from the buff manager or from chat. */
 test.describe('clearing a buff off the whole table', () => {
@@ -13,7 +13,7 @@ test.describe('clearing a buff off the whole table', () => {
   }
 
   async function send(page: Page, text: string) {
-    await page.locator('textarea.chat-input').fill(text);
+    await chatInput(page).fill(text);
     await page.locator('chat-input').getByRole('button', { name: '送信' }).click();
   }
 

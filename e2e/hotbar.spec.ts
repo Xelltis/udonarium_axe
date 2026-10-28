@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { waitAppReady } from './helpers';
+import { chatInput, expectChatText, waitAppReady } from './helpers';
 
 /** Whether a widget shows comes from localStorage, so it is set before the page loads to have the bar out. */
 async function showHotbar(page: Page) {
@@ -51,7 +51,7 @@ test.describe('the hotbar', () => {
     await page.locator('body').click({ position: { x: 900, y: 250 } });
     await page.keyboard.press('Digit3');
 
-    await expect(page.locator('textarea.chat-input')).toHaveValue('走って逃げる');
+    await expectChatText(chatInput(page), '走って逃げる');
   });
 
   test('opens the panel of the menu entry put in a slot when the slot is pressed', async ({ page }) => {

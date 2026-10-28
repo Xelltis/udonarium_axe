@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { waitAppReady } from './helpers';
+import { chatInput, waitAppReady } from './helpers';
 
 test.describe('the change-icon modal (file-selector)', () => {
   test('opens the file-selector modal from "change icon"', async ({ page }) => {
@@ -44,7 +44,7 @@ test.describe('editing chat messages', () => {
    */
   async function sendMessage(page: Page, text: string) {
     const rows = page.locator('chat-message');
-    await page.locator('textarea.chat-input').fill(text);
+    await chatInput(page).fill(text);
     await page.locator('chat-input').getByRole('button', { name: '送信' }).click();
     await expect(rows.filter({ hasText: text })).toHaveCount(1, { timeout: 5000 });
     return rows.last();

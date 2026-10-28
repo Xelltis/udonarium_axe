@@ -1,13 +1,13 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openChatSettingsMenuItem } from '../helpers';
+import { chatInput, expectChatText, openChatSettingsMenuItem } from '../helpers';
 import { prepare } from './fixtures';
 
 async function say(page: Page, line: string) {
-  const textarea = page.locator('textarea.chat-input');
+  const textarea = chatInput(page);
   await textarea.fill(line);
   await textarea.press('Enter');
-  await expect(textarea).toHaveValue('');
+  await expectChatText(textarea, '');
 }
 
 test('ruby laid out 1:2:1, together in the middle and from the first letter', async ({ page }) => {

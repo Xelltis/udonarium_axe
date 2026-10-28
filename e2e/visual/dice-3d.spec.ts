@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { openPanel } from '../helpers';
+import { chatInput, openPanel } from '../helpers';
 import { becomeGm, closePanels, prepare, reseedRandom } from './fixtures';
 
 // The dice are drawn with WebGL, which headless Chromium gives through SwiftShader.
@@ -26,7 +26,7 @@ async function chooseStage(page: Page, stage: 'frame' | 'table') {
 }
 
 async function roll(page: Page, command: string) {
-  await page.locator('textarea.chat-input').fill(command);
+  await chatInput(page).fill(command);
   await page.locator('chat-input').getByRole('button', { name: '送信' }).click();
 }
 

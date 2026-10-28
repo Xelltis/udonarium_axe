@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { chatTabPill, openChatSettingsMenuItem, waitAppReady } from './helpers';
+import { chatInput, chatTabPill, expectChatText, openChatSettingsMenuItem, waitAppReady } from './helpers';
 
 test.describe('the chat window', () => {
   test.beforeEach(async ({ page }) => {
@@ -21,7 +21,7 @@ test.describe('the chat window', () => {
   });
 
   test('opens a separate window of the lines alone from a right click on a tab', async ({ page }) => {
-    const input = page.locator('chat-input textarea').first();
+    const input = chatInput(page).first();
     await input.fill('流れを見たい発言');
     await input.press('Enter');
     await expect(page.locator('chat-message').last()).toContainText('流れを見たい発言', { timeout: 15000 });
@@ -52,16 +52,16 @@ test.describe('the chat window', () => {
   });
 
   test('takes a chat message in the input', async ({ page }) => {
-    const textarea = page.locator('textarea.chat-input');
+    const textarea = chatInput(page);
     await textarea.fill('テストメッセージ');
-    await expect(textarea).toHaveValue('テストメッセージ');
+    await expectChatText(textarea, 'テストメッセージ');
   });
 
   test('shows a sent chat message in the log', async ({ page }) => {
-    const textarea = page.locator('textarea.chat-input');
+    const textarea = chatInput(page);
     await textarea.fill('E2Eテスト送信');
     await page.locator('chat-input').getByRole('button', { name: '送信' }).click();
-    await expect(textarea).toHaveValue('');
+    await expectChatText(textarea, '');
     await expect(page.locator('chat-tab').getByText('E2Eテスト送信')).toBeVisible({ timeout: 10000 });
   });
 
@@ -101,10 +101,10 @@ test.describe('rolling dice in the chat', () => {
   });
 
   test('shows the dice result in the log when a dice command (2d6) is sent', async ({ page }) => {
-    const textarea = page.locator('textarea.chat-input');
+    const textarea = chatInput(page);
     await textarea.fill('2d6');
     await page.locator('chat-input').getByRole('button', { name: '送信' }).click();
-    await expect(textarea).toHaveValue('');
+    await expectChatText(textarea, '');
     // The log also keeps the echo of the "2d6" sent, so the DiceBot result message is what picks
     // out one line.
     await expect(page.locator('chat-tab').getByText(/DiceBot.*\(2D6\)/)).toBeVisible({ timeout: 10000 });
@@ -214,7 +214,7 @@ test.describe('the scroll frame of the chat log', () => {
   });
 
   test('gives the log a scroll frame of its own, so the panel itself does not grow', async ({ page }) => {
-    const textarea = page.locator('textarea.chat-input');
+    const textarea = chatInput(page);
     const send = page.locator('chat-input').getByRole('button', { name: '送信' });
     for (let i = 0; i < 30; i++) {
       await textarea.fill(`スクロール検証 ${i}`);
@@ -245,7 +245,7 @@ test.describe('the scroll frame of the chat log', () => {
     // Sixty lines are sent one at a time, about a third of a second each in WebKit, which with
     // the page's own start can run past the default thirty seconds.
     test.setTimeout(90_000);
-    const textarea = page.locator('textarea.chat-input');
+    const textarea = chatInput(page);
     const send = page.locator('chat-input').getByRole('button', { name: '送信' });
     for (let i = 0; i < 60; i++) {
       await textarea.fill(`ジャンプ検証 ${i}`);

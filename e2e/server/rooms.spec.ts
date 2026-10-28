@@ -1,5 +1,6 @@
 import { Page } from '@playwright/test';
 
+import { chatInput } from '../helpers';
 import {
   chatTabText,
   createRoom,
@@ -84,7 +85,7 @@ test.describe('rooms and roles on the room server', () => {
     await expect(rolePickerFor(gm.page, 'PLさん')).toHaveValue(/guest/, { timeout: 10_000 });
 
     await pl.page.reload();
-    await expect(pl.page.locator('textarea.chat-input')).toBeVisible({ timeout: 30_000 });
+    await expect(chatInput(pl.page)).toBeVisible({ timeout: 30_000 });
     await joinRoom(pl.page, room);
     await expect(roleShown(pl.page)).toHaveText('見学', { timeout: 20_000 });
 
@@ -173,7 +174,7 @@ test.describe('deleting a room', () => {
     await createRoom(gm.page, room);
     // Back to waiting, outside the room, where the list is shown.
     await gm.page.reload();
-    await expect(gm.page.locator('textarea.chat-input')).toBeVisible({ timeout: 30_000 });
+    await expect(chatInput(gm.page)).toBeVisible({ timeout: 30_000 });
 
     await reloadLobby(gm.page);
     await reloadLobby(pl.page);

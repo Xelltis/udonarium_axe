@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { waitAppReady } from './helpers';
+import { chatInput, expectChatText, waitAppReady } from './helpers';
 
 test.describe('the edit history of a line', () => {
   test.beforeEach(async ({ page }) => {
@@ -10,10 +10,10 @@ test.describe('the edit history of a line', () => {
   test('keeps the earlier wording when a line is edited, and opens how it changed from the edited mark', async ({
     page,
   }) => {
-    const textarea = page.locator('textarea.chat-input');
+    const textarea = chatInput(page);
     await textarea.fill('こんばんわ');
     await textarea.press('Enter');
-    await expect(textarea).toHaveValue('');
+    await expectChatText(textarea, '');
 
     // Editing changes the text, so the line is held as the last one rather than by its text.
     const line = page.locator('chat-tab chat-message').last();
