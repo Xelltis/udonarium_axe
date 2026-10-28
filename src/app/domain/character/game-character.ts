@@ -465,18 +465,27 @@ export class GameCharacter extends OwnedTabletopObject {
   private foldSubPalettesIntoTabs(): void {
     const kept = this.children.filter((child): child is SubPalette => child instanceof SubPalette);
     if (kept.length < 1) return;
-    const palette = this.chatPalette;
     const tabs: string[] = [];
     for (const sub of kept) {
       for (const child of sub.children) {
         if (!(child instanceof ChatPalette)) continue;
         const text = `${child.value ?? ''}`;
-        const name = paletteRowsOf(text.split('\n')).find((row) => row.kind === 'command' || row.kind === 'heading');
-        tabs.push(`◆◆${(name?.text ?? '').trim()}\n${text}`);
+        tabs.push(`◆◆${subPaletteName(text)}\n${text}`);
       }
     }
-    if (palette && tabs.length > 0) palette.setPalette([`${palette.value ?? ''}`, ...tabs].join('\n'));
+    if (tabs.length > 0) {
+      const palette = this.chatPalette ?? this.appendChatPalette();
+      palette.setPalette([`${palette.value ?? ''}`, ...tabs].join('\n'));
+    }
     for (const sub of kept) sub.destroy();
+  }
+
+  /** Gives the piece a palette of its own, for one that came without any. */
+  private appendChatPalette(): ChatPalette {
+    const palette = new ChatPalette(`ChatPalette_${this.identifier}`);
+    palette.initialize();
+    this.appendChild(palette);
+    return palette;
   }
 
   /**
@@ -723,4 +732,18 @@ export class GameCharacter extends OwnedTabletopObject {
 
     return cloneObject;
   }
+}
+
+/**
+ * The name a palette kept beside a piece's own goes by as a tab: its first line, as the fork that
+ * keeps it names it, without the diamonds a heading or a tab is written with, so that it opens a tab
+ * of its own rather than reading as a heading.
+ */
+function subPaletteName(text: string): string {
+  const first = paletteRowsOf(text.split('\n')).find(
+    (row) => row.kind === 'command' || row.kind === 'heading' || row.kind === 'tab'
+  );
+  if (!first) return '';
+  const name = first.kind === 'heading' ? first.headingName : first.kind === 'tab' ? first.tabName : first.text;
+  return (name ?? '').replace(/^◆+/, '').trim();
 }

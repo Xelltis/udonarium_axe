@@ -1,6 +1,7 @@
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { paletteRowsOf, paletteTabsOf } from '@axe/domain/chat/palette-rows';
 import {
   DataElement,
   DataElementAttribute,
@@ -285,6 +286,24 @@ CC&lt;=50</chat-palette><chat-palette dicebot="">回復
         ':HP+5',
       ]);
       expect(restored.children.some((child) => child.aliasName === 'sub-palette')).toBe(false);
+    });
+
+    it('names a tab by the heading a kept palette opens with, and gives a piece with no palette one', () => {
+      const xml = `<character>
+    <data name="character">
+    <data name="image"><data name="imageIdentifier" type="image"></data></data>
+    <data name="common"></data>
+    <data name="detail"></data>
+    </data>
+    <sub-palette><chat-palette dicebot="">◆戦闘
+2d6 攻撃</chat-palette><chat-palette dicebot="">//---探索---
+CC&lt;=50</chat-palette></sub-palette>
+    </character>`;
+
+      const restored = ObjectSerializer.instance.parseXml(xml) as GameCharacter;
+      const rows = paletteRowsOf(restored.chatPalette!.getPalette());
+
+      expect(paletteTabsOf(rows).map((tab) => tab.name)).toEqual(['戦闘', '探索']);
     });
 
     it('reads the older check fields into proper tables', () => {
