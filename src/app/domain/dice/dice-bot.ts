@@ -31,6 +31,7 @@ import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { DiceRollResult, ResourceEditProcessor } from '@axe/domain/data/resource-edit-processor';
 import { diceRollDetailOf, encodeDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
+import { looksLikeDiceCommand, readRollLine } from '@axe/domain/dice/dice-roll-line';
 import { DiceTable } from '@axe/domain/dice/dice-table';
 import { ServerRollRequests } from '@axe/domain/dice/server-roll-requests';
 import { GameSystemInfo } from 'bcdice/lib/bcdice/game_system_list.json';
@@ -254,6 +255,16 @@ export class DiceBot extends GameObject {
     }
   }
 
+  /**
+   * The game system for an id when its code is already here, without waiting or fetching: null
+   * while the catalog or the system has yet to load. An id not in the catalog answers the plain dice
+   * bot, as a roll would be made with.
+   */
+  static loadedGameSystem(gameType: string): GameSystemClass | null {
+    if (DiceBot.diceBotInfos.length < 1) return null;
+    return this.loadCustomGameSystem(gameType) ?? DiceBot.loadedSystem(DiceBot.catalogIdOf(gameType));
+  }
+
   private static catalogIdOf(gameType: string): string {
     return DiceBot.diceBotInfos.some((info) => info.id === gameType) ? gameType : PLAIN_DICE_BOT;
   }
@@ -355,20 +366,12 @@ export class DiceBot extends GameObject {
     } as unknown as GameSystemClass;
   }
 
-  private static isUnreachable(gameSystem: GameSystemClass): boolean {
-    return DiceBot.unreachableSystems.has(gameSystem);
-  }
-
   /**
-   * Whether text under the stand-in may be a dice command: its first word holds a digit or one of
-   * `<>=[(`, and is not a resource or buff change, which begins with `:` or `&` after an optional
-   * `s` or `t`. With no command pattern to go by, this keeps ordinary chat, and changes worked out
-   * apart from any roll, from being taken for a roll.
+   * Whether the system is the stand-in for one whose code could not be fetched, which recognises no
+   * command and rolls nothing.
    */
-  private static looksLikeCommand(text: string): boolean {
-    const firstWord = /^\S*/.exec(text)?.[0] ?? '';
-    if (/^[sｓＳ]?[tｔＴ]?[:：&＆]/i.test(firstWord)) return false;
-    return /[\d<>=[(]/.test(firstWord);
+  static isUnreachable(gameSystem: GameSystemClass): boolean {
+    return DiceBot.unreachableSystems.has(gameSystem);
   }
 
   private static get loadingQueue(): PromiseQueue {
@@ -494,7 +497,7 @@ export class DiceBot extends GameObject {
       return !!(regArray && gameSystem.COMMAND_PATTERN.test(regArray[1]));
     }
     if (DiceBot.isUnreachable(gameSystem)) {
-      return !!regArray && DiceBot.looksLikeCommand(regArray[1] ?? '');
+      return !!regArray && looksLikeDiceCommand(regArray[1] ?? '');
     }
     return false;
   }
@@ -580,12 +583,12 @@ export class DiceBot extends GameObject {
     const gameType: string = chatMessage.tags ? chatMessage.tags[0] : '';
 
     try {
-      const regArray = /^((\d+)?\s+)?(.*)?/gi.exec(text);
-      const repeat: number = regArray![2] != null ? Number(regArray![2]) : 1;
-      let rollText: string = regArray![3] != null ? regArray![3] : text;
+      const line = readRollLine(text);
+      const repeat = line.repeat;
+      let rollText = line.rollText;
       const gameSystem = await DiceBot.loadGameSystemAsync(gameType);
       if (DiceBot.isUnreachable(gameSystem)) {
-        if (DiceBot.looksLikeCommand(rollText)) {
+        if (looksLikeDiceCommand(rollText)) {
           emitDiceBotUnreachable({ messageIdentifier: chatMessage.identifier, gameType: gameSystem.ID });
         }
         return;

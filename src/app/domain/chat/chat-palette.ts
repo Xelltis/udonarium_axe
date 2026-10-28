@@ -6,6 +6,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { isPaletteTabLine } from '@axe/domain/chat/palette-rows';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { createCalcPass, evaluateCalcElement } from '@axe/domain/data/data-element-calc-env';
+import { looksLikeRollWord } from '@axe/domain/dice/dice-roll-line';
 
 export interface PaletteLine {
   palette: string;
@@ -350,8 +351,7 @@ export function evaluateReferences(
 function dropsUnanswered(line: string, offset: number): boolean {
   const end = leadingWordEnd(line);
   if (offset >= end || !/[0-9)\]}｝）］]/.test(line[offset - 1] ?? '')) return false;
-  const bare = line.slice(0, end).replace(/[tTｔＴ]?[{｛][^{}｛｝]*[}｝]/g, '');
-  return /^[\x21-\x7E]+$/.test(bare) && /^(?:[0-9([]|[A-Za-z]{1,8}[0-9<>=([+\-*/@#$])/.test(bare);
+  return looksLikeRollWord(line.slice(0, end).replace(/[tTｔＴ]?[{｛][^{}｛｝]*[}｝]/g, ''));
 }
 
 /** Where the first word of a line ends, counting a space inside a reference's braces as part of it. */
