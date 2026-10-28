@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ChatLintService, type ChatLintSource } from '@axe/application/chat/chat-lint.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('ChatLintService', () => {
@@ -55,10 +56,15 @@ describe('ChatLintService', () => {
   });
 
   it('checks a roll once the game system has arrived', async () => {
-    const { session } = watch('CC<=abc', { gameType: signal('Cthulhu7th') });
-    expect(codesOf(session)).toEqual([]);
+    const notHereYet = vi.spyOn(DiceBot, 'loadedGameSystem').mockReturnValue(null);
+    try {
+      const { session } = watch('CC<=abc', { gameType: signal('Cthulhu7th') });
+      expect(codesOf(session)).toEqual([]);
 
-    await vi.waitFor(() => expect(codesOf(session)).toEqual(['dice.unrollable']), { timeout: 5000 });
+      await vi.waitFor(() => expect(codesOf(session)).toEqual(['dice.unrollable']), { timeout: 5000 });
+    } finally {
+      notHereYet.mockRestore();
+    }
   });
 
   it('reads the variables written into a palette being edited', () => {
