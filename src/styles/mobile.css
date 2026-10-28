@@ -71,7 +71,7 @@ body.mobile-layout app-hand-rail .hand-rail {
   max-width: 100vw;
 }
 
-body.mobile-layout app-mobile-shell .chat-input {
+body.mobile-layout app-mobile-shell [data-chat-input-box] {
   height: auto !important;
   max-height: 22dvh;
 }
@@ -286,7 +286,7 @@ game-table {
   }
 }
 
-body.mobile-layout app-mobile-chat-pane .chat-input,
+body.mobile-layout app-mobile-chat-pane [data-chat-input],
 body.mobile-layout ui-panel input,
 body.mobile-layout ui-panel textarea {
   -webkit-user-select: text;

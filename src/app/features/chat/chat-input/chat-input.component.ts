@@ -40,7 +40,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatBubbleColors, chatBubbleOf, chatColorOf, DEFAULT_CHAT_COLOR } from '@axe/domain/chat/chat-color';
-import { withoutChatDecoration, wrapChatSelection } from '@axe/domain/chat/chat-decoration';
+import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { composeChatOutgoing, composeStampOutgoing, OutgoingStamp } from '@axe/domain/chat/chat-outgoing';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
@@ -60,6 +60,11 @@ import {
 import { ChatInputDiceBotHelper } from '@axe/features/chat/chat-input/chat-input-dicebot';
 import { allowsChat } from '@axe/features/chat/chat-input/chat-input-helpers';
 import { ChatInputHistory } from '@axe/features/chat/chat-input/chat-input-history';
+import {
+  type ChatTextField,
+  TextareaChatField,
+  wrapFieldSelection,
+} from '@axe/features/chat/chat-input/chat-text-field';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { PortraitChoice, PortraitPickerComponent } from '@axe/ui/components/portrait-picker/portrait-picker.component';
@@ -159,13 +164,10 @@ export class ChatInputComponent {
    * and goes back to writing with the same words selected, or the caret between the marks.
    */
   decorate(marks: ChatDecorationMarks): void {
-    const box = this.textAreaElementRef()?.nativeElement;
-    if (!box) return;
-    const wrapped = wrapChatSelection(this.text, box.selectionStart, box.selectionEnd, marks);
-    this.text = wrapped.text;
-    box.value = wrapped.text;
-    box.focus();
-    box.setSelectionRange(wrapped.selectionStart, wrapped.selectionEnd);
+    const field = this.textField();
+    if (!field) return;
+    this.text = wrapFieldSelection(field, marks);
+    field.focus();
     this.kickCalcFitHeight();
   }
   private readonly batchService = inject(BatchService);
@@ -198,7 +200,20 @@ export class ChatInputComponent {
   private dicebotHelper = new ChatInputDiceBotHelper();
 
   /** The box lines are written in, which a reader who may not speak in the tab is not given. */
-  readonly textAreaElementRef = viewChild<ElementRef<HTMLTextAreaElement>>('textArea');
+  private readonly textAreaElementRef = viewChild<ElementRef<HTMLTextAreaElement>>('textArea');
+
+  private readonly plainField = computed(() => {
+    const box = this.textAreaElementRef()?.nativeElement;
+    return box ? new TextareaChatField(box) : null;
+  });
+
+  /** What lines are typed into, while the reader may speak in the tab. */
+  readonly textField = computed<ChatTextField | null>(() => this.plainField());
+
+  /** Puts the caret in the box lines are typed into, where there is one. */
+  focusInput(): void {
+    this.textField()?.focus();
+  }
 
   readonly onlyCharacters = input(false);
   readonly disableQuote = input(false);
@@ -381,9 +396,7 @@ export class ChatInputComponent {
       untracked(() => {
         const target = this.objectStore.get<ChatMessage>(req.messageIdentifier);
         this.replyTarget.set(target instanceof ChatMessage ? target : null);
-        if (target instanceof ChatMessage) {
-          this.textAreaElementRef()?.nativeElement.focus();
-        }
+        if (target instanceof ChatMessage) this.focusInput();
       });
     });
     effect(() => {
@@ -399,9 +412,7 @@ export class ChatInputComponent {
       untracked(() => {
         const target = this.objectStore.get<ChatMessage>(req.messageIdentifier);
         this.quoteTarget.set(target instanceof ChatMessage ? target : null);
-        if (target instanceof ChatMessage) {
-          this.textAreaElementRef()?.nativeElement.focus();
-        }
+        if (target instanceof ChatMessage) this.focusInput();
       });
     });
   }
@@ -712,8 +723,7 @@ export class ChatInputComponent {
       this.chat.emit(composeChatOutgoing({ ...draft, gameSystem }));
     });
     this.text = '';
-    const box = this.textAreaElementRef()?.nativeElement;
-    if (box) box.value = '';
+    this.textField()?.setText('');
     this.previousWritingLength = this.text.length;
     this.kickCalcFitHeight();
     this.cancelReply();
@@ -756,8 +766,8 @@ export class ChatInputComponent {
   }
 
   /**
-   * Refits the text area on the next task, after the new text has reached the DOM; repeated calls
-   * before then run it once.
+   * Refits the box on the next task, after the new text has reached the DOM; repeated calls before
+   * then run it once.
    */
   kickCalcFitHeight() {
     if (this.calcFitHeightInterval == null) {
@@ -768,28 +778,16 @@ export class ChatInputComponent {
     }
   }
 
-  /** Grows or shrinks the text area to its content, unless the user has resized it by hand. */
+  /** Grows or shrinks the box to its content, unless the user has resized it by hand. */
   calcFitHeight() {
-    const textArea = this.textAreaElementRef()?.nativeElement;
-    if (!textArea || this.userResized) return;
-    textArea.style.height = '';
-    if (textArea.scrollHeight >= textArea.offsetHeight) {
-      textArea.style.height = textArea.scrollHeight + 'px';
-    }
+    this.textField()?.refit();
   }
 
-  private userResized = false;
   /**
-   * Notes when the user grabs the text area's resize corner, so its height is left to them from
-   * then on.
+   * Notes when the user grabs the box's resize corner, so its height is left to them from then on.
    */
   onTextAreaPointerDown(event: PointerEvent) {
-    const textArea = event.currentTarget as HTMLTextAreaElement;
-    const rect = textArea.getBoundingClientRect();
-    // resize handle is the bottom-right ~16px corner
-    if (event.offsetX > rect.width - 16 && event.offsetY > rect.height - 16) {
-      this.userResized = true;
-    }
+    this.plainField()?.notePointerDown(event);
   }
 
   /** The dice bot help text last fetched for the help panel. */

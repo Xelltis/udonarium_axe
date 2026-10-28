@@ -223,6 +223,8 @@
       <form name="chat-input" class="m-0 flex min-w-0 items-center gap-2">
         <textarea
           name="chat-input-text"
+          data-chat-input
+          data-chat-input-box
           [attr.rows]="dense() ? 1 : null"
           class="chat-input border-ui-input-border rounded-ui-sm bg-ui-input text-ui-text focus:border-ui-accent box-border max-h-60 min-h-10 w-full min-w-0 flex-1 resize-y border border-solid px-2 py-1.5 align-bottom font-[inherit] text-[13px] leading-[1.4] transition-colors focus:shadow-[0_0_0_2px_var(--ui-accent-glow)] focus:outline-none"
           [placeholder]="

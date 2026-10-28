@@ -526,7 +526,7 @@ export class ChatPaletteComponent {
       event.preventDefault();
       this.selectPalette(result.row.text);
       this.japmIndex(result.row.lineIndex);
-      this.chatInputComponent().textAreaElementRef()?.nativeElement.focus();
+      this.chatInputComponent().focusInput();
     } else if (event.key === 'Escape') {
       if (this.searchQuery() === '') return;
       event.preventDefault();

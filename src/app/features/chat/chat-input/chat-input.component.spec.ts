@@ -464,7 +464,7 @@ describe('ChatInputComponent', () => {
     it('empties the box when Enter comes before the typing has been drawn', async () => {
       fixture.componentRef.setInput('canSpeak', true);
       await fixture.whenStable();
-      const box = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>('textarea.chat-input')!;
+      const box = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>('[data-chat-input]')!;
       const outgoing = sent();
 
       box.value = '雑談1';
@@ -590,7 +590,7 @@ describe('ChatInputComponent', () => {
       fixture.componentRef.setInput('canSpeak', true);
       fixture.detectChanges();
       component.text = '今日は晴れ';
-      const box = component.textAreaElementRef()!.nativeElement;
+      const box = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>('[data-chat-input]')!;
       box.value = '今日は晴れ';
       box.setSelectionRange(3, 5);
       const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
