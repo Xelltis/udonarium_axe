@@ -3704,8 +3704,6 @@
         "stamp": "Send a stamp (with what you have typed, if anything)"
       },
       "decoration": {
-        "title": "Text decoration",
-        "button": "Style",
         "bold": "Bold",
         "italic": "Italic",
         "strike": "Strikethrough",
@@ -4167,6 +4165,40 @@
           "dropped": "Unknown words ({{words}}) leave the 〔〕 as text",
           "duplicate": "Two words of one kind leave the 〔〕 as text"
         }
+      },
+      "syntax": {
+        "button": "Syntax",
+        "title": "Write syntax",
+        "decoration": "Decoration",
+        "ruby": "Ruby",
+        "rubyWrap": "Ruby over the selected word",
+        "base": "word",
+        "reading": "reading",
+        "dice": "Dice",
+        "secretRoll": "Roll in secret",
+        "repeat": "Roll repeatedly",
+        "reference": "Reference",
+        "targetReference": "A value of the target",
+        "name": "name",
+        "resource": "Resource change",
+        "text": "text",
+        "toTarget": "On the target",
+        "secret": "In secret",
+        "buff": "Buff",
+        "buffPlain": "Lay",
+        "buffEffect": "effect",
+        "buffCalculated": "Move a status",
+        "buffRemove": "Take off",
+        "buffRoundsDown": "Count rounds down",
+        "buffClear": "Clear those at 0 rounds",
+        "buffSweep": "Take off the whole table",
+        "portrait": "Portrait",
+        "portraitHide": "No portrait",
+        "effect": "Effects and cut-ins",
+        "battle": "Battle cut-in",
+        "cutIn": "Cut-in",
+        "quote": "Quote",
+        "quoteLine": "Quote"
       }
     },
     "visualNovel": {

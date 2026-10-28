@@ -107,16 +107,15 @@
               >{{ 'feature.chat.input.colorSetting' | transloco }}
             </button>
             <button
-              data-testid="chat-input-decoration"
+              data-testid="chat-input-syntax"
               class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:bg-ui-hover hover:text-ui-accent m-0 shrink-0 cursor-pointer border border-solid bg-transparent px-1.5 py-0.5 text-[11px] whitespace-nowrap transition-colors hover:shadow-none @max-[320px]:h-6 @max-[320px]:w-6.5 @max-[320px]:p-0 @max-[320px]:text-[0px]"
               type="button"
               aria-haspopup="menu"
-              [title]="'feature.chat.decoration.title' | transloco"
-              (click)="openDecorations($event)"
+              [title]="'feature.chat.syntax.title' | transloco"
+              (click)="openSyntax($event)"
             >
-              <i class="material-icons align-middle text-[13px]! @max-[320px]:m-0 @max-[320px]:text-[14px]!"
-                >text_format</i
-              >{{ 'feature.chat.decoration.button' | transloco }}
+              <i class="material-icons align-middle text-[13px]! @max-[320px]:m-0 @max-[320px]:text-[14px]!">code</i
+              >{{ 'feature.chat.syntax.button' | transloco }}
             </button>
             @if (showsMyDice()) {
               <button

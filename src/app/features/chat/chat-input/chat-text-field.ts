@@ -88,13 +88,3 @@ export function wrapFieldSelection(field: ChatTextField, marks: ChatDecorationMa
   field.setText(wrapped.text, { from: wrapped.selectionStart, to: wrapped.selectionEnd });
   return wrapped.text;
 }
-
-/**
- * Writes text over what is selected, or at the caret, with the caret `caret` letters into it, or
- * after it. Answers the text it leaves.
- */
-export function insertAtCaret(field: ChatTextField, insert: string, caret = insert.length): string {
-  const { from, to } = field.selection();
-  field.replaceRange(from, to, insert, { from: from + caret, to: from + caret });
-  return field.text();
-}

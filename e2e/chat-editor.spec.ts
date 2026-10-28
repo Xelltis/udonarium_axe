@@ -77,6 +77,16 @@ test.describe('the chat editor', () => {
     await expectChatText(input, 'とても**強く**言う');
   });
 
+  test('writes the syntax picked from its button where the caret is', async ({ page }) => {
+    const input = chatInput(page);
+    await input.fill('攻撃 ');
+    await page.locator('chat-window [data-testid="chat-input-syntax"]').click();
+    const menu = page.locator('context-menu');
+    await menu.getByText('ダイス', { exact: true }).hover();
+    await menu.getByText('2D6', { exact: true }).click();
+    await expectChatText(input, '攻撃 2D6 ');
+  });
+
   test('marks what will not work, and lists it from the button beside the box', async ({ page }) => {
     const input = chatInput(page);
     await input.fill(':HP-1');

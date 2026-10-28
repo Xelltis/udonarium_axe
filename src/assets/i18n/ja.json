@@ -3704,8 +3704,6 @@
         "stamp": "スタンプを送る（入力中の文があれば一緒に）"
       },
       "decoration": {
-        "title": "文字の装飾",
-        "button": "装飾",
         "bold": "太字",
         "italic": "斜体",
         "strike": "取り消し線",
@@ -4167,6 +4165,40 @@
           "dropped": "知らない語（{{words}}）があるため、〔〕は文字のまま出ます",
           "duplicate": "同じ種類の語が2つあるため、〔〕は文字のまま出ます"
         }
+      },
+      "syntax": {
+        "button": "記法",
+        "title": "記法を入れる",
+        "decoration": "装飾",
+        "ruby": "ルビ",
+        "rubyWrap": "選んだ語にルビを振る",
+        "base": "漢字",
+        "reading": "よみ",
+        "dice": "ダイス",
+        "secretRoll": "シークレットで振る",
+        "repeat": "繰り返して振る",
+        "reference": "参照",
+        "targetReference": "ターゲットの値",
+        "name": "名前",
+        "resource": "リソース操作",
+        "text": "文字",
+        "toTarget": "ターゲットに",
+        "secret": "シークレットで",
+        "buff": "バフ",
+        "buffPlain": "付ける",
+        "buffEffect": "効果",
+        "buffCalculated": "ステータスを動かす",
+        "buffRemove": "外す",
+        "buffRoundsDown": "残ラウンドを減らす",
+        "buffClear": "0ラウンド以下を消す",
+        "buffSweep": "卓全体から外す",
+        "portrait": "立ち絵",
+        "portraitHide": "立ち絵を出さない",
+        "effect": "演出・カットイン",
+        "battle": "戦闘カットイン",
+        "cutIn": "カットイン",
+        "quote": "引用",
+        "quoteLine": "引用する"
       }
     },
     "visualNovel": {

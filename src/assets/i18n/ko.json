@@ -3704,8 +3704,6 @@
         "stamp": "스탬프 보내기 (입력 중인 글이 있으면 함께)"
       },
       "decoration": {
-        "title": "글자 꾸미기",
-        "button": "꾸미기",
         "bold": "굵게",
         "italic": "기울임",
         "strike": "취소선",
@@ -4167,6 +4165,40 @@
           "dropped": "모르는 단어({{words}})가 있어 〔〕는 문자 그대로 나옵니다",
           "duplicate": "같은 종류의 단어가 2개 있어 〔〕는 문자 그대로 나옵니다"
         }
+      },
+      "syntax": {
+        "button": "표기",
+        "title": "표기 넣기",
+        "decoration": "장식",
+        "ruby": "루비",
+        "rubyWrap": "선택한 단어에 루비 달기",
+        "base": "한자",
+        "reading": "읽기",
+        "dice": "다이스",
+        "secretRoll": "시크릿으로 굴리기",
+        "repeat": "반복해서 굴리기",
+        "reference": "참조",
+        "targetReference": "타깃의 값",
+        "name": "이름",
+        "resource": "리소스 조작",
+        "text": "문자",
+        "toTarget": "타깃에게",
+        "secret": "시크릿으로",
+        "buff": "버프",
+        "buffPlain": "붙이기",
+        "buffEffect": "효과",
+        "buffCalculated": "스테이터스 움직이기",
+        "buffRemove": "떼기",
+        "buffRoundsDown": "남은 라운드 줄이기",
+        "buffClear": "0라운드 이하 지우기",
+        "buffSweep": "탁자 전체에서 떼기",
+        "portrait": "스탠딩",
+        "portraitHide": "스탠딩 숨기기",
+        "effect": "연출・컷인",
+        "battle": "전투 컷인",
+        "cutIn": "컷인",
+        "quote": "인용",
+        "quoteLine": "인용하기"
       }
     },
     "visualNovel": {

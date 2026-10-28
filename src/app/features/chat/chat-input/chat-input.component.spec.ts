@@ -586,7 +586,7 @@ describe('ChatInputComponent', () => {
       expect(emitted[0].stamp!.words.length).toBeGreaterThan(0);
     });
 
-    it('wraps the words picked out in the box in the decoration chosen from its button, and keeps them picked out', () => {
+    it('wraps the words picked out in the box in the decoration chosen from the syntax button, and keeps them picked out', () => {
       fixture.componentRef.setInput('canSpeak', true);
       fixture.detectChanges();
       component.text = '今日は晴れ';
@@ -596,9 +596,9 @@ describe('ChatInputComponent', () => {
       const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
 
       (fixture.nativeElement as HTMLElement)
-        .querySelector<HTMLButtonElement>('[data-testid="chat-input-decoration"]')!
+        .querySelector<HTMLButtonElement>('[data-testid="chat-input-syntax"]')!
         .click();
-      open.mock.calls[0][1][0].action!();
+      open.mock.calls[0][1][0].subActions![0].action!();
 
       expect(component.text).toBe('今日は**晴れ**');
       expect(box.value).toBe('今日は**晴れ**');
