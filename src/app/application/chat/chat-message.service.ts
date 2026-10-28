@@ -3,15 +3,10 @@ import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import {
   calcChatTimestamp,
   emitChatMessageEvents,
-  findImageIdentifierByName,
-  type ImageIdentifierResult,
-  type ImageNameEntry,
-  parsePortraitCommand,
   resolveChatMessageTag,
   resolveImagePos,
   resolveMessageColor,
   resolvePortraitIndex,
-  stripPortraitCommand,
 } from '@axe/application/chat/chat-message-helpers';
 import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { MyDiceService } from '@axe/application/dice/my-dice.service';
@@ -27,6 +22,13 @@ import { liftImageReferences } from '@axe/domain/chat/chat-image-references';
 import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { copiedMessageContext } from '@axe/domain/chat/chat-message-copy';
 import { ChatOutgoing, OutgoingStamp } from '@axe/domain/chat/chat-outgoing';
+import {
+  findImageIdentifierByName,
+  type ImageIdentifierResult,
+  type ImageNameEntry,
+  parsePortraitCommand,
+  stripPortraitCommand,
+} from '@axe/domain/chat/chat-portrait-command';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
