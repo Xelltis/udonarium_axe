@@ -3887,8 +3887,8 @@
         "ruby_size_normal": "Standard",
         "ruby_size_large": "Large",
         "rubyHint": "Applies to ruby in the chat, novel mode, shared notes and saved logs. This setting is for this device only",
-        "richInput": "Colour the syntax in the chat input",
-        "richInputTooltip": "Colours each syntax in the chat input, draws bold and ruby as they will look, and marks what will not work. This screen only"
+        "richInput": "Use the formatted chat input",
+        "richInputTooltip": "Write bold, colours and ruby in the chat input as they will look, with each syntax coloured and what will not work marked. Off, the input takes the syntax as typed. This screen only"
       },
       "systemAvatar": {
         "title": "System-chan",
