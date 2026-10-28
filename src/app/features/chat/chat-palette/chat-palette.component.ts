@@ -636,10 +636,21 @@ export class ChatPaletteComponent {
 
   /**
    * Highlights a palette line and scrolls it into view; a heading picked from the headings menu or
-   * list lands here.
+   * list lands here, and so does a search result, which may stand in a tab other than the one open:
+   * that tab is opened first, and the line scrolled to once it is drawn.
    */
   japmIndex(lineNo: number) {
     this.selectedLine.set(lineNo);
+    const tab = this.paletteTabs().findIndex((candidate) => candidate.rows.some((row) => row.lineIndex === lineNo));
+    if (tab >= 0 && tab !== this.activeTab()) {
+      this.chooseTab(tab);
+      afterNextRender(() => this.scrollToLine(lineNo), { injector: this.injector });
+      return;
+    }
+    this.scrollToLine(lineNo);
+  }
+
+  private scrollToLine(lineNo: number): void {
     const el = this.paletteListRef()?.nativeElement;
     if (!el) return;
     const row = el.querySelector<HTMLElement>(`[data-line="${lineNo}"]`);

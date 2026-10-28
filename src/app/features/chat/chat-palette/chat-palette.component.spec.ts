@@ -349,6 +349,19 @@ describe('ChatPaletteComponent', () => {
       ]);
     });
 
+    it('opens the tab a search result stands in when it is picked', () => {
+      speakerWithTabs();
+      fixture.detectChanges();
+      component.searchQuery.set('50');
+
+      component.pickSearchResult(component.searchResults()[0]);
+      fixture.detectChanges();
+
+      expect(tabs()[2].getAttribute('aria-selected')).toBe('true');
+      expect(drawnLines()).toEqual(['CC<=50']);
+      expect(component.selectedLine()).toBe(5);
+    });
+
     it('shows no tabs on a palette without any', () => {
       const speaker = createChar('術者');
       speaker.chatPalette!.setPalette('◆戦闘\n2d6');
