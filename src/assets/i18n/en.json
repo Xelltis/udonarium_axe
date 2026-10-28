@@ -4099,7 +4099,6 @@
         "alreadyIn": "That picture is in this set already"
       },
       "lint": {
-        "fix": "Fix",
         "list": "Syntax notes",
         "dice": {
           "plainText": "Not a command of this dice bot, so it is sent as chat",
