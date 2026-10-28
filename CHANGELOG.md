@@ -1,3 +1,50 @@
+## [1.73.0](https://github.com/Xelltis/udonarium_axe/compare/v1.72.0...v1.73.0) (2026-10-28)
+
+### ✨ Features
+
+* **battle:** let each reader watch the battle cut-in in a window beside the table ([6ed9113](https://github.com/Xelltis/udonarium_axe/commit/6ed9113bbd57610f151aa32e5b79a1bad9d8fd1b))
+* **buff:** let a buff move its status again each time it is counted down ([d47d235](https://github.com/Xelltis/udonarium_axe/commit/d47d23525b91b6ad57e709ccdff60b624e7c5c46))
+* **buff:** let one &! buff move several statuses ([ed08ae1](https://github.com/Xelltis/udonarium_axe/commit/ed08ae102ada9a815c37b0a710d786dc13f790eb))
+* **character:** keep a memo with a piece, shown on its card in place of the status ([8d456ab](https://github.com/Xelltis/udonarium_axe/commit/8d456ab0ba6ee3819466d1c5c09245e361ea9416))
+* **character:** let each reader choose how large the buff icons over a piece are drawn ([baf754f](https://github.com/Xelltis/udonarium_axe/commit/baf754f919ece61eab904aaf8f3e639202037c19))
+* **chat:** leave out a buff appended to a roll in chat where the piece does not wear it ([46db334](https://github.com/Xelltis/udonarium_axe/commit/46db334b15446a0d4fec92c0cd9580a07c3630d6))
+* **chat:** part a chat palette into tabs with ◆◆ lines ([c81d90d](https://github.com/Xelltis/udonarium_axe/commit/c81d90db21a7f583c7030ae777d15fb204d7fe81))
+* **lobby:** let a logged-in seat on a room server step out to watch and come back ([cc5a2e0](https://github.com/Xelltis/udonarium_axe/commit/cc5a2e00162b77b93886886069c0411c5ef8de76))
+* **turn:** give back the round a turn's opening counted down when the piece waits ([95d3a6d](https://github.com/Xelltis/udonarium_axe/commit/95d3a6deb3aec5eff99624de0dbb02fe98c709e4))
+
+### 🐛 Bug Fixes
+
+* **buff:** keep a buff of several statuses whole on deleting its first row or stacking one ([2ba8e71](https://github.com/Xelltis/udonarium_axe/commit/2ba8e711d5840e99e8eb875f83c6fc8d45d0efdb))
+* **buff:** keep a comma inside brackets with the amount of a status ([13aadb3](https://github.com/Xelltis/udonarium_axe/commit/13aadb38801aa600e72edd27f0e82d61cbf5112b))
+* **buff:** move a stepping buff's status when the rounds are counted down by hand ([b29b9d4](https://github.com/Xelltis/udonarium_axe/commit/b29b9d499d935138575951beb00aa252f244a890))
+* **character:** draw a picture chosen as a buff's mark on the piece ([cd53b83](https://github.com/Xelltis/udonarium_axe/commit/cd53b830b01c750e3552164f8c87733e0a7fec47))
+* **chat:** name a folded-in palette's tab without the diamonds of its heading ([cf8fd18](https://github.com/Xelltis/udonarium_axe/commit/cf8fd180a76a3cabde4e87d88855c4a835a26355))
+* **chat:** open the tab a palette search result stands in when it is picked ([0551266](https://github.com/Xelltis/udonarium_axe/commit/0551266b9e61e94cee63821fb3260b257382a3e5))
+* **inventory:** keep a guest from writing through the hover card and the inventory table ([21f97e0](https://github.com/Xelltis/udonarium_axe/commit/21f97e0cf386bf9deacda4482108192fd3060820))
+* **inventory:** keep the memo on the card while it is being written ([b2dbb77](https://github.com/Xelltis/udonarium_axe/commit/b2dbb776fb45defc9f5d3157bd76d23dbdebde45))
+* **turn:** give a wait back only the countdown of the turn it is waiting in ([19ae064](https://github.com/Xelltis/udonarium_axe/commit/19ae0643f99671285590268623929fa43f6158d0))
+* **ui:** show the choice a dropdown holds when its options are drawn in a loop ([a196053](https://github.com/Xelltis/udonarium_axe/commit/a19605325e394861fb333a9a0d187b15f9534146))
+
+### 📝 Documentation
+
+* describe stepping out to watch on a room server ([3c01323](https://github.com/Xelltis/udonarium_axe/commit/3c013237bc0a3de7e499ed2fc1b41196618756ff))
+* **website:** add the requests and fixes of today to the v1.73.0 release notes ([66d8dca](https://github.com/Xelltis/udonarium_axe/commit/66d8dcab4e786d45793c5bd245fa02ed0e5bfb17))
+* **website:** add the v1.73.0 release notes ([53e3860](https://github.com/Xelltis/udonarium_axe/commit/53e3860073df01b57984934c0b1c3d20a5a89650))
+* **website:** describe a buff appended to a roll that the piece does not wear ([d44b510](https://github.com/Xelltis/udonarium_axe/commit/d44b5109a7874c4e3f03f57f59ff0dd016184fb5))
+* **website:** describe a buff that moves its status at every count ([add495b](https://github.com/Xelltis/udonarium_axe/commit/add495b2ae0a73a64fc67247bf616485c192bbb9))
+* **website:** describe a buff that moves several statuses ([84b5d85](https://github.com/Xelltis/udonarium_axe/commit/84b5d8522ca3be416dc7b104ddec27529a460785))
+* **website:** describe choosing the size of the buff icons ([f96f5f3](https://github.com/Xelltis/udonarium_axe/commit/f96f5f3a0ebb6e4db3f416ab2e51ad5030863442))
+* **website:** describe filling a range area along its outline ([90e57f4](https://github.com/Xelltis/udonarium_axe/commit/90e57f45f17350f21b4546cc52c70d81a06a8cb4))
+* **website:** describe parting a chat palette into tabs ([4390d0b](https://github.com/Xelltis/udonarium_axe/commit/4390d0bb9a8e7dcc4be211716194d460a11a7183))
+* **website:** describe the memo kept with a piece ([42bdcf1](https://github.com/Xelltis/udonarium_axe/commit/42bdcf1a8a51dc7fed3b9c17a71a206e895f3bba))
+* **website:** describe the round given back when a piece waits ([fa81d2d](https://github.com/Xelltis/udonarium_axe/commit/fa81d2dd109caf817ec830f32049d96ae6ef6290))
+* **website:** describe watching the battle cut-in in a window ([747d4f4](https://github.com/Xelltis/udonarium_axe/commit/747d4f45a8270659d49e07fc06f2ae173fb4ac41))
+* **website:** say a stepping buff moves when rounds are counted down by hand ([d4e4770](https://github.com/Xelltis/udonarium_axe/commit/d4e4770e0786331edf6daa352916004be26c774b))
+
+### ♻️ Refactor
+
+* **ui:** fetch the lobby, picture selector and dice dialog when first opened ([8a7b49d](https://github.com/Xelltis/udonarium_axe/commit/8a7b49d1b5077d5aa3009786f4a5d3a6ef8a092e))
+
 ## [1.72.0](https://github.com/Xelltis/udonarium_axe/compare/v1.71.1...v1.72.0) (2026-10-27)
 
 ### ✨ Features
