@@ -9,6 +9,11 @@ export interface BuffAppearance {
   icon?: string;
   timing?: BuffTiming;
   trigger?: string;
+  /**
+   * The buff a row is one of, by the name of its first row, where one buff moves several statuses a
+   * row apiece; empty to take a row out of one.
+   */
+  group?: string;
 }
 
 export const DEFAULT_BUFF_COLOR = 'rgba(0,0,0,0.7)';

@@ -5015,6 +5015,8 @@
       "operator": "Operator",
       "step": "At every count",
       "stepHint": "How far to move the status again each time the rounds are counted down (-1 takes one back each time)",
+      "addStatus": "Add a status",
+      "removeStatus": "Remove this status",
       "modifierNote": "Holding {{target}}",
       "builderTitle": "Build a calculated buff command",
       "builderStacks": "Stack",

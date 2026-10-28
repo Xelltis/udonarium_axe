@@ -5015,6 +5015,8 @@
       "operator": "操作",
       "step": "数えるたびに",
       "stepHint": "残ラウンドが減るたびに、ステータスをさらに動かす量（-1 で1ずつ戻る）",
+      "addStatus": "ステータスを足す",
+      "removeStatus": "このステータスを外す",
       "modifierNote": "{{target}} を自動補正中",
       "builderTitle": "自動計算バフの記法を作る",
       "builderStacks": "重ねがけ",

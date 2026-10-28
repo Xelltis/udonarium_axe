@@ -38,6 +38,14 @@ import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
 const BUILDER_OPERATORS = ['+', '-', '='] as const;
+
+/** One more status the built buff moves, beside the first. */
+interface BuilderStatusRow {
+  readonly status: string;
+  readonly operator: string;
+  readonly amount: string;
+  readonly step: string;
+}
 const COLUMN_WIDTH_MIN_PX = 16;
 const COLUMN_WIDTH_MAX_PX = 112;
 const COLUMN_WIDTH_STEP_PX = 12;
@@ -403,28 +411,58 @@ export class BuffManagerPanelComponent {
   readonly builderStacks = signal(false);
   readonly builderExtends = signal(false);
 
-  /** Whether a second helping would mean anything: holding a status at a value twice still holds it there. */
-  readonly builderCanStack = computed(() => this.builderOperator() !== '=');
+  /** The statuses the built buff moves beyond the first, a row apiece. */
+  readonly builderMore = signal<readonly BuilderStatusRow[]>([]);
 
-  /** The amount as the command writes it, with how far it moves again at every count where that is asked for. */
-  private readonly builderAmountText = computed(() => {
-    const step = this.builderStep().trim();
-    const amount = this.builderAmount().trim();
-    return step.length > 0 && this.builderCanStack() ? `${amount}~${step}` : amount;
-  });
+  /** Adds a status for the built buff to move as well. */
+  addBuilderStatus(): void {
+    this.builderMore.update((rows) => [...rows, { status: '', operator: '+', amount: '1', step: '' }]);
+  }
+
+  /** Changes one of the further statuses the built buff moves. */
+  updateBuilderStatus(index: number, change: Partial<BuilderStatusRow>): void {
+    this.builderMore.update((rows) => rows.map((row, at) => (at === index ? { ...row, ...change } : row)));
+  }
+
+  /** Takes one of the further statuses off the built buff. */
+  removeBuilderStatus(index: number): void {
+    this.builderMore.update((rows) => rows.filter((_, at) => at !== index));
+  }
+
+  /** Whether the first status can move again at every count: one held at a value never does. */
+  readonly builderCanStep = computed(() => this.builderOperator() !== '=');
 
   /**
-   * The `&!` command the builder's fields make up. A slash typed in the amount divides there, but
-   * the command is cut into its fields at every slash, so it is written as ÷, which reads the same.
+   * Whether a second helping would mean anything: holding a status at a value twice still holds it
+   * there, so a buff holding any of its statuses so is laid anew.
+   */
+  readonly builderCanStack = computed(
+    () => this.builderOperator() !== '=' && this.builderMore().every((row) => row.operator !== '=')
+  );
+
+  /** Every status the built buff moves, the first among them, as the command writes each. */
+  private readonly builderRows = computed<BuilderStatusRow[]>(() => [
+    {
+      status: this.builderStatus(),
+      operator: this.builderOperator(),
+      amount: this.builderAmount(),
+      step: this.builderStep(),
+    },
+    ...this.builderMore(),
+  ]);
+
+  /**
+   * The `&!` command the builder's fields make up: the older layout for one status, and the statuses
+   * written together for several. A slash typed in an amount divides there, but the command is cut
+   * into its fields at every slash, so it is written as ÷, which reads the same.
    */
   readonly builderCommand = computed(() => {
-    const parts = [
-      this.builderName().trim() || 'バフ',
-      this.builderStatus().trim(),
-      this.builderOperator(),
-      this.builderAmountText().replace(/\//g, '÷'),
-      this.builderRounds().trim(),
-    ];
+    const rows = this.builderRows();
+    const statusParts =
+      rows.length > 1
+        ? [rows.map((row) => `${row.status.trim()}${row.operator}${builderAmountText(row)}`).join(',')]
+        : [rows[0].status.trim(), rows[0].operator, builderAmountText(rows[0])];
+    const parts = [this.builderName().trim() || 'バフ', ...statusParts, this.builderRounds().trim()];
     const timing = this.builderTiming();
     const trigger = this.builderTrigger().trim();
     if (timing !== 'roundEnd' || trigger.length > 0) parts.push(timing);
@@ -435,8 +473,12 @@ export class BuffManagerPanelComponent {
   });
 
   readonly builderPreview = computed(() => {
-    const request = parseBuffModifierRequest(this.builderStatus(), this.builderOperator(), this.builderAmountText());
-    return request ? describeBuffModifier(request) : '';
+    const requests = this.builderRows().map((row) =>
+      parseBuffModifierRequest(row.status, row.operator, builderAmountText(row).replace(/÷/g, '/'))
+    );
+    return requests.every((request) => request)
+      ? requests.map((request) => describeBuffModifier(request!)).join(',')
+      : '';
   });
 
   readonly copied = transientSignal(false, 1200);
@@ -462,4 +504,15 @@ export class BuffManagerPanelComponent {
       /* clipboard unavailable (permission, insecure context) — the text is on screen to copy by hand */
     }
   }
+}
+
+/**
+ * The amount of one status as the command writes it, with how far it moves again at every count
+ * where that is asked for, and any slash written as ÷, as the command is cut at every slash.
+ */
+function builderAmountText(row: BuilderStatusRow): string {
+  const step = row.step.trim();
+  const amount = row.amount.trim();
+  const written = step.length > 0 && row.operator !== '=' ? `${amount}~${step}` : amount;
+  return written.replace(/\//g, '÷');
 }

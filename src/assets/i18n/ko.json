@@ -5017,6 +5017,8 @@
       "operator": "연산자",
       "step": "셀 때마다",
       "stepHint": "남은 라운드가 줄어들 때마다 스테이터스를 더 움직이는 양(-1이면 1씩 되돌아감)",
+      "addStatus": "스테이터스 추가",
+      "removeStatus": "이 스테이터스 빼기",
       "modifierNote": "{{target}}을(를) 자동 보정 중",
       "builderTitle": "자동 계산 버프 표기 만들기",
       "builderStacks": "겹쳐 걸기",

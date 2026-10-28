@@ -1,6 +1,13 @@
 import { toHalfWidth } from '@axe/core/util/string-util';
 import { parseBuffAppearance } from '@axe/domain/character/buff-appearance';
-import { describeBuffModifier, parseBuffModifierRequest } from '@axe/domain/character/buff-modifier';
+import {
+  describeBuffModifier,
+  describeBuffModifierTarget,
+  isBuffModifierOperator,
+  parseBuffModifierItems,
+  parseBuffModifierRequest,
+  ParsedBuffModifierRequest,
+} from '@axe/domain/character/buff-modifier';
 import { BuffPileOn } from '@axe/domain/character/buff-stack';
 import { resolveBuffTiming } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -288,6 +295,12 @@ export function applyResourceEdit(edit: ResourceEdit, character: GameCharacter):
  * `&!name/status/op/amount/R/timing/trigger` - a buff that moves a status as it goes on and
  * moves it back as it runs out, so the table stops doing the arithmetic by hand.
  *
+ * `&!name/status+amount,status-amount/R/timing/trigger` moves several at once, written together in
+ * the second field; it is told from the first by its third field, which is no operator. Each status
+ * gets a row of its own, the first under the buff's name and the rest under the name and their
+ * status, all of them marked as the one buff, so that a version that knows no such buff shows them
+ * as buffs of their own that each put back what they moved.
+ *
  * `&+!` stacks: a second helping moves the status again and the buff remembers both, rather than
  * putting the first one back, and `&++!` lengthens the buff by the rounds asked for as well.
  * Holding a status at a value (`=`) is the one thing that cannot stack, since holding it there
@@ -298,31 +311,63 @@ function applyCalculatedBuff(command: string, character: GameCharacter, piles: B
   const name = (parts[0] ?? '').trim();
   if (name.length < 1) return '';
 
-  const request = parseBuffModifierRequest(parts[1] ?? '', parts[2] ?? '', parts[3] ?? '');
-  if (!request) return `バフの書式が読めません ${name}    `;
+  const single = isBuffModifierOperator(parts[2] ?? '');
+  const requests = single
+    ? [parseBuffModifierRequest(parts[1] ?? '', parts[2] ?? '', parts[3] ?? '')]
+    : parseBuffModifierItems(parts[1] ?? '');
+  if (!requests || requests.some((request) => !request)) return `バフの書式が読めません ${name}    `;
+  return grantCalculatedBuff(
+    character,
+    name,
+    requests as ParsedBuffModifierRequest[],
+    parts.slice(single ? 4 : 2),
+    piles
+  );
+}
 
-  const roundText = (parts[4] ?? '').trim();
+/** Lays a buff of one row a status, or stacks it, and says in the chat what it did. */
+function grantCalculatedBuff(
+  character: GameCharacter,
+  name: string,
+  requests: readonly ParsedBuffModifierRequest[],
+  rest: readonly string[],
+  piles: BuffPileOn
+): string {
+  const roundText = (rest[0] ?? '').trim();
   const round = roundText.length > 0 && Number.isFinite(Number(roundText)) ? Number(roundText) : 3;
-  const timing = resolveBuffTiming(parts[5] ?? '') ?? undefined;
-  const trigger = (parts[6] ?? '').trim();
+  const timing = resolveBuffTiming(rest[1] ?? '') ?? undefined;
+  const trigger = (rest[2] ?? '').trim();
+  const grouped = requests.length > 1;
+  const appearance = { timing, trigger: trigger.length > 0 ? trigger : undefined, group: grouped ? name : '' };
 
-  const stacking = piles !== 'none' && request.operator === 'add' && character.buffs.find(name) != null;
-  const effect = describeBuffModifier(request);
-  const appearance = { timing, trigger: trigger.length > 0 ? trigger : undefined };
-  if (!stacking) character.buffs.addRound(name, effect, round, appearance);
-  else if (piles === 'extend') character.buffs.extendRound(name, effect, round, appearance);
-  else character.buffs.stackRound(name, effect, round, appearance);
+  const stacking =
+    piles !== 'none' && requests.every((request) => request.operator === 'add') && character.buffs.find(name) != null;
+  if (!stacking) character.buffs.removeGroupMembers(name);
+
+  const missing: string[] = [];
+  const effects: string[] = [];
+  requests.forEach((request, index) => {
+    const rowName = index === 0 ? name : `${name}（${describeBuffModifierTarget(request)}）`;
+    const effect = describeBuffModifier(request);
+    const rowStacking = stacking && character.buffs.find(rowName) != null;
+    if (!rowStacking) character.buffs.addRound(rowName, effect, round, appearance);
+    else if (piles === 'extend') character.buffs.extendRound(rowName, effect, round, appearance);
+    else character.buffs.stackRound(rowName, effect, round, appearance);
+
+    const data = character.buffs.find(rowName);
+    if (!data) return;
+    const applied = rowStacking
+      ? character.buffs.stackModifier(data, request)
+      : character.buffs.applyModifier(data, request);
+    if (!applied) missing.push(request.target);
+    effects.push(rowStacking ? `${data.currentValue ?? effect}` : effect);
+  });
 
   const data = character.buffs.find(name);
   if (!data) return '';
-  const applied = stacking
-    ? character.buffs.stackModifier(data, request)
-    : character.buffs.applyModifier(data, request);
   const verb = stacking ? '加算' : '付与';
-  const standing = stacking ? `${data.currentValue ?? effect}` : effect;
-  if (!applied) return `${name}を${verb} ${standing}/${data.value}R (${request.target}が見つかりません)    `;
-
-  return `${name}を${verb} ${standing}/${data.value}R    `;
+  const lack = missing.length > 0 ? ` (${missing.join('・')}が見つかりません)` : '';
+  return `${name}を${verb} ${effects.join(',')}/${data.value}R${lack}    `;
 }
 
 /**

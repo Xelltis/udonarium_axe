@@ -77,6 +77,15 @@ describe('sweeping buffs off the table', () => {
       expect(buffNames(archer)).toEqual(['祝福']);
     });
 
+    it('takes a buff that moves several statuses whole by its name, and counts it once', () => {
+      knight.buffs.addRound('全力攻撃', '追D+4', 1, { group: '全力攻撃' });
+      knight.buffs.addRound('全力攻撃（回避）', '回避-2', 1, { group: '全力攻撃' });
+
+      expect(countBuffRemoval([knight], { kind: 'name', name: '全力攻撃' })).toEqual({ characters: 1, buffs: 1 });
+      expect(removeBuffsAcross([knight], { kind: 'name', name: '全力攻撃' })).toEqual({ characters: 1, buffs: 1 });
+      expect(buffNames(knight)).toEqual(['毒', '加速', '猛攻撃']);
+    });
+
     it('counts what a sweep would take without taking it', () => {
       expect(countBuffRemoval([knight, archer], { kind: 'name', name: '毒' })).toEqual({ characters: 2, buffs: 2 });
       expect(buffNames(knight)).toEqual(['毒', '加速', '猛攻撃']);

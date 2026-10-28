@@ -302,6 +302,31 @@ describe('BuffManagerPanelComponent', () => {
       expect(component.builderCommand()).toBe('&!変身/器用度/=/5/5');
     });
 
+    it('writes several statuses together once more than one is asked for', () => {
+      component.builderName.set('全力攻撃');
+      component.builderStatus.set('追D');
+      component.builderOperator.set('+');
+      component.builderAmount.set('4');
+      component.builderRounds.set('1');
+      component.addBuilderStatus();
+      component.updateBuilderStatus(0, { status: '回避', operator: '-', amount: '2' });
+
+      expect(component.builderCommand()).toBe('&!全力攻撃/追D+4,回避-2/1');
+      expect(component.builderPreview()).toBe('追D+4,回避-2');
+
+      component.removeBuilderStatus(0);
+      expect(component.builderCommand()).toBe('&!全力攻撃/追D/+/4/1');
+    });
+
+    it('lays a buff holding any of its statuses at a value anew, rather than stacking it', () => {
+      component.builderStacks.set(true);
+      component.addBuilderStatus();
+      component.updateBuilderStatus(0, { status: '防護点', operator: '=', amount: '10', step: '1' });
+
+      expect(component.builderCanStack()).toBe(false);
+      expect(component.builderCommand()).toMatch(/^&!.*防護点=10\//);
+    });
+
     it('marks the command for a second helping when one is asked for', () => {
       component.builderName.set('猛攻撃');
       component.builderStatus.set('命中');

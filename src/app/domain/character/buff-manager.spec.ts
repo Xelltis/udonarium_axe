@@ -165,6 +165,38 @@ describe('BuffManager', () => {
     });
   });
 
+  describe('a buff that moves several statuses a row apiece', () => {
+    beforeEach(() => {
+      manager.addRound('全力攻撃', '追D+4', 1, { group: '全力攻撃' });
+      manager.addRound('全力攻撃（回避）', '回避-2', 1, { group: '全力攻撃' });
+    });
+
+    it('says it ran out once, by its name', () => {
+      expect(manager.expireOneRound()).toEqual(['全力攻撃']);
+      expect(manager.list()).toHaveLength(0);
+    });
+
+    it('goes whole when it is taken off by its name', () => {
+      manager.addRound('加速', '', 2);
+
+      expect(manager.delete('全力攻撃')).toBe(true);
+
+      expect(manager.list().map((data) => data.name)).toEqual(['加速']);
+    });
+
+    it('comes back marked as the one buff when a step of the round is put back', () => {
+      const before = manager.snapshot();
+      manager.expireOneRound();
+
+      manager.restore(before);
+
+      expect(manager.list().map((data) => [data.name, data.getAttribute('cs-buff-group')])).toEqual([
+        ['全力攻撃', '全力攻撃'],
+        ['全力攻撃（回避）', '全力攻撃'],
+      ]);
+    });
+  });
+
   describe('addRound', () => {
     it('adds a buff', () => {
       manager.addRound('マッスルベアー', '筋力+2', 3);

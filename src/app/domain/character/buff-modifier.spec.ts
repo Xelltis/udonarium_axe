@@ -1,7 +1,9 @@
 import {
   clearBuffModifier,
   describeBuffModifier,
+  describeBuffModifierTarget,
   describeStandingModifier,
+  parseBuffModifierItems,
   parseBuffModifierRequest,
   readBuffAmount,
   readBuffModifier,
@@ -139,6 +141,35 @@ describe('buff-modifier', () => {
       buff.setAttribute('cs-buff-mod-step', '');
 
       expect(readBuffModifier(buff)).not.toHaveProperty('step');
+    });
+  });
+
+  describe('several statuses written together', () => {
+    it('reads each with its own operator and amount, parted by commas of either width', () => {
+      const requests = parseBuffModifierItems('追D+4,回避-2、器用度+5~-1，HP^-20,命中++1')!;
+
+      expect(requests.map((request) => [request.target, request.slot, request.amount, request.step ?? 0])).toEqual([
+        ['追D', 'now', 4, 0],
+        ['回避', 'now', -2, 0],
+        ['器用度', 'now', 5, -1],
+        ['HP', 'max', -20, 0],
+        ['命中', 'now', 1, 1],
+      ]);
+    });
+
+    it('reads one written that way as well', () => {
+      expect(parseBuffModifierItems('筋力+2')).toEqual([parseBuffModifierRequest('筋力', '+', '2')]);
+    });
+
+    it('reads none where any cannot be read, or nothing is written', () => {
+      expect(parseBuffModifierItems('追D+4,回避')).toBeNull();
+      expect(parseBuffModifierItems('追D+たくさん')).toBeNull();
+      expect(parseBuffModifierItems('')).toBeNull();
+    });
+
+    it('names the status a badge would', () => {
+      expect(describeBuffModifierTarget(parseBuffModifierRequest('HP^', '-', '20')!)).toBe('最大HP');
+      expect(describeBuffModifierTarget(parseBuffModifierRequest('回避', '-', '2')!)).toBe('回避');
     });
   });
 

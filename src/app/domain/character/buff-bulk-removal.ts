@@ -1,3 +1,4 @@
+import { buffGroupOf, isBuffGroupMember } from '@axe/domain/character/buff-group';
 import { buffExpires, resolveBuffTiming } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -17,7 +18,10 @@ export interface BuffRemovalCount {
   readonly buffs: number;
 }
 
-/** Whether a buff is one the rule takes away. A buff held until cleared has no rounds left to match. */
+/**
+ * Whether a buff is one the rule takes away. A buff held until cleared has no rounds left to match.
+ * The further rows of a buff that moves several statuses go with it by its name.
+ */
 export function matchesBuffRemoval(data: DataElement, rule: BuffRemovalRule): boolean {
   switch (rule.kind) {
     case 'held':
@@ -25,7 +29,7 @@ export function matchesBuffRemoval(data: DataElement, rule: BuffRemovalRule): bo
     case 'rounds':
       return buffExpires(data) && parseInt(String(data.value), 10) === rule.rounds;
     case 'name':
-      return data.name === rule.name;
+      return data.name === rule.name || (isBuffGroupMember(data) && buffGroupOf(data) === rule.name);
   }
 }
 
@@ -34,7 +38,9 @@ export function countBuffRemoval(characters: readonly GameCharacter[], rule: Buf
   let reached = 0;
   let buffs = 0;
   for (const character of characters) {
-    const matching = character.buffs.list().filter((data) => matchesBuffRemoval(data, rule)).length;
+    const matching = character.buffs
+      .list()
+      .filter((data) => matchesBuffRemoval(data, rule) && !isBuffGroupMember(data)).length;
     if (matching < 1) continue;
     reached += 1;
     buffs += matching;
@@ -50,10 +56,13 @@ export function removeBuffsAcross(characters: readonly GameCharacter[], rule: Bu
   let reached = 0;
   let buffs = 0;
   for (const character of characters) {
+    const counted = character.buffs
+      .list()
+      .filter((data) => matchesBuffRemoval(data, rule) && !isBuffGroupMember(data)).length;
     const removed = character.buffs.removeWhere((data) => matchesBuffRemoval(data, rule));
     if (removed.length < 1) continue;
     reached += 1;
-    buffs += removed.length;
+    buffs += counted;
   }
   return { characters: reached, buffs };
 }

@@ -111,6 +111,32 @@ export function parseBuffModifierRequest(
   };
 }
 
+/**
+ * Reads the statuses a `&!` buff moves where they are written together in its second field, each
+ * with its operator and amount, parted by commas: `追D+4,回避-2`, `器用度+5~-1,HP^-20`. Null where
+ * any of them cannot be read, or none is written.
+ */
+export function parseBuffModifierItems(text: string): ParsedBuffModifierRequest[] | null {
+  const items = (text ?? '')
+    .split(/[,，、]/)
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+  if (items.length < 1) return null;
+  const requests: ParsedBuffModifierRequest[] = [];
+  for (const item of items) {
+    const parts = /^(.+?)(＋＋|−−|－－|\+\+|--|[+\-=＋−－＝])(.*)$/.exec(item);
+    const request = parts ? parseBuffModifierRequest(parts[1], parts[2], parts[3]) : null;
+    if (!request) return null;
+    requests.push(request);
+  }
+  return requests;
+}
+
+/** The status a request moves, as a badge names it: `最大HP` for the far side of HP. */
+export function describeBuffModifierTarget(request: Pick<ParsedBuffModifierRequest, 'target' | 'slot'>): string {
+  return `${resourceSlotBadgePrefix(request.slot)}${request.target}`;
+}
+
 /** How the buff reads on the badge and in the chat line that granted it. */
 export function describeBuffModifier(request: ParsedBuffModifierRequest): string {
   const slot = resourceSlotBadgePrefix(request.slot);

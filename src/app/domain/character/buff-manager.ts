@@ -1,5 +1,6 @@
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { BuffAppearance } from '@axe/domain/character/buff-appearance';
+import { buffGroupOf, isBuffGroupMember } from '@axe/domain/character/buff-group';
 import {
   BuffModifier,
   clearBuffModifier,
@@ -62,15 +63,25 @@ export class BuffManager {
   }
 
   /**
-   * Takes away the first buff of that name, putting back whatever it moved on the sheet. False when
-   * there is no such buff or the piece has no buff container yet.
+   * Takes away the first buff of that name, putting back whatever it moved on the sheet, with the
+   * further rows of a buff that moves several statuses. False when there is no such buff or the piece
+   * has no buff container yet.
    */
   delete(name: string): boolean {
     this.gather();
     const data = this.find(name);
     if (!data) return false;
     this.remove(data);
+    this.removeGroupMembers(name);
     return true;
+  }
+
+  /**
+   * Takes away the further rows of a buff that moves several statuses, leaving its first row, so the
+   * buff can be laid again with however many it moves now.
+   */
+  removeGroupMembers(name: string): void {
+    this.removeWhere((data) => isBuffGroupMember(data) && buffGroupOf(data) === name);
   }
 
   /**
@@ -247,7 +258,7 @@ export class BuffManager {
       const round = parseInt(String(data.value)) - 1;
       data.value = round;
       if (round <= 0) {
-        expired.push(data.name);
+        if (!isBuffGroupMember(data)) expired.push(data.name);
         this.remove(data);
       } else {
         this.stepModifier(data);
@@ -468,11 +479,13 @@ function isBuffRow(node: ObjectNode): boolean {
 }
 
 function readAppearance(data: DataElement): BuffAppearance {
+  const group = buffGroupOf(data);
   return {
     timing: buffTimingOf(data),
     trigger: data.getAttribute(DataElementAttribute.BUFF_TRIGGER) ?? '',
     color: data.getAttribute(DataElementAttribute.BUFF_COLOR) ?? '',
     icon: data.getAttribute(DataElementAttribute.BUFF_ICON) ?? '',
+    ...(group.length > 0 ? { group } : {}),
   };
 }
 
@@ -491,5 +504,9 @@ function applyAppearance(data: DataElement, appearance: BuffAppearance): void {
   if (appearance.icon !== undefined) {
     if (appearance.icon.length > 0) data.setAttribute(DataElementAttribute.BUFF_ICON, appearance.icon);
     else data.removeAttribute(DataElementAttribute.BUFF_ICON);
+  }
+  if (appearance.group !== undefined) {
+    if (appearance.group.length > 0) data.setAttribute(DataElementAttribute.BUFF_GROUP, appearance.group);
+    else data.removeAttribute(DataElementAttribute.BUFF_GROUP);
   }
 }
