@@ -370,6 +370,7 @@ export class TurnOrderService {
       acted: turnState.actedIdentifiers,
       holding: this.holding,
       turnStart: turnState.turnStart,
+      opening: readTurnOpening(turnState.turnOpening)?.identifier ?? '',
     };
   }
 
@@ -582,10 +583,6 @@ export class TurnOrderService {
         case 'buffs':
           this.expireBuffs(effect.timing, this.actorOf(effect.identifier));
           break;
-        case 'opening':
-          this.opening = { identifier: effect.identifier, buffs: [] };
-          this.turnState.turnOpening = writeTurnOpening(this.opening);
-          break;
         case 'giveBack':
           this.giveBack(effect.identifier);
           break;
@@ -611,6 +608,17 @@ export class TurnOrderService {
     if (fields.acted !== undefined) turnState.actedIdentifiers = [...fields.acted];
     if (fields.holding !== undefined) turnState.holding = writeTurnHolding(fields.holding);
     if (fields.turnStart !== undefined) turnState.turnStart = fields.turnStart;
+    if (fields.opening !== undefined) this.writeOpening(fields.opening);
+  }
+
+  /**
+   * Starts writing down what the opening of a piece's turn counts down, or, for none, lets go of what
+   * was written; only the countdown of the press that opened the turn is written into it.
+   */
+  private writeOpening(identifier: string): void {
+    this.opening = identifier.length > 0 ? { identifier, buffs: [] } : null;
+    const written = writeTurnOpening(this.opening);
+    if (this.turnState.turnOpening !== written) this.turnState.turnOpening = written;
   }
 
   private captureBuffs(): Map<string, BuffSnapshotEntry[]> {

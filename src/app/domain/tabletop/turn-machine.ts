@@ -19,6 +19,11 @@ export interface TurnSnapshot {
   readonly holding: TurnHolding;
   /** Whose turn last began and when, as `turnStartMark` writes it. */
   readonly turnStart: string;
+  /**
+   * The piece whose turn is up with what its opening counted down written down, for a wait to give
+   * back; empty while none is, as when a turn was handed over or taken up again without its opening.
+   */
+  readonly opening?: string;
 }
 
 /** Who the round goes round and how, as it stands for one press of it. */
@@ -57,8 +62,6 @@ export type TurnEffect =
   | { readonly kind: 'reset' }
   /** Counts down the buffs whose moment it is: a piece's turn starting or ending, or, for none, the round's end. */
   | { readonly kind: 'buffs'; readonly timing: BuffTiming; readonly identifier: string }
-  /** Opens a piece's turn, whose countdown is written down from here on for a wait to give it back. */
-  | { readonly kind: 'opening'; readonly identifier: string }
   /** Gives back what the opening of a piece's turn counted down, as the piece begins to wait. */
   | { readonly kind: 'giveBack'; readonly identifier: string }
   /** Sets off whatever a piece stands on as its turn starts or ends. */
@@ -222,7 +225,7 @@ class TurnRun {
 
   hold(identifier: string): TurnOutcome {
     const isUp = this.state.phase === 'acting' && this.state.currentIdentifier === identifier;
-    const givesBack = isUp && this.table.givesBackOnHold === true;
+    const givesBack = isUp && this.table.givesBackOnHold === true && this.state.opening === identifier;
     const holding = this.state.holding;
     const givenBack = holding.givenBack ?? [];
     this.write({
@@ -235,7 +238,10 @@ class TurnRun {
     });
     this.announce(identifier, 'holdAnnounce');
     if (isUp) {
-      if (givesBack) this.do({ kind: 'giveBack', identifier });
+      if (givesBack) {
+        this.do({ kind: 'giveBack', identifier });
+        this.write({ opening: '' });
+      }
       this.do({ kind: 'turnEnded' });
       if (this.table.mode === 'faction') this.passOnInSide();
       else this.handOnward(this.table.order);
@@ -262,13 +268,15 @@ class TurnRun {
       this.takeTurn(identifier);
       return this.outcome();
     }
-    this.release(identifier);
+    const { givenBack } = this.release(identifier);
     this.write({
       phase: 'acting',
       currentIdentifier: identifier,
       turnStart: turnStartMark(identifier, this.table.now),
+      opening: '',
     });
     this.announce(identifier, 'announce');
+    if (givenBack) this.countOpeningAgain(identifier);
     return this.outcome();
   }
 
@@ -279,7 +287,15 @@ class TurnRun {
   }
 
   reset(): TurnOutcome {
-    this.write({ round: 0, phase: 'idle', currentIdentifier: '', currentSide: '', acted: [], holding: NO_HOLDING });
+    this.write({
+      round: 0,
+      phase: 'idle',
+      currentIdentifier: '',
+      currentSide: '',
+      acted: [],
+      holding: NO_HOLDING,
+      opening: '',
+    });
     this.do({ kind: 'reset' });
     return this.outcome();
   }
@@ -341,6 +357,7 @@ class TurnRun {
       this.write({ holding: { ...holding, interrupted: stack } });
       this.release(identifier);
       this.enterActing(identifier, 'resumeAnnounce');
+      this.write({ opening: '' });
       return true;
     }
     if (holding.interrupted.length > 0) this.write({ holding: { ...holding, interrupted: [] } });
@@ -416,9 +433,21 @@ class TurnRun {
 
   private closeTurnOf(identifier: string): void {
     this.do({ kind: 'ground', identifier, moment: 'turnEnd' });
-    this.release(identifier);
+    const { givenBack } = this.release(identifier);
+    if (givenBack) this.do({ kind: 'buffs', timing: 'turnStart', identifier });
     this.markActed(identifier);
     this.do({ kind: 'buffs', timing: 'turnEnd', identifier });
+  }
+
+  /**
+   * Counts down again what the opening of a piece's turn counted down and its wait gave back, as the
+   * turn is taken up again some other way than coming round to it; nothing else of its opening runs.
+   */
+  private countOpeningAgain(identifier: string): void {
+    if (this.table.givesBackOnHold === true) this.write({ opening: identifier });
+    for (const id of [identifier, ...this.table.companionsOf(identifier)]) {
+      this.do({ kind: 'buffs', timing: 'turnStart', identifier: id });
+    }
   }
 
   /** Opens a side's phase, or closes the round where there is no side left to open. */
@@ -498,6 +527,7 @@ class TurnRun {
       currentSide: '',
       acted: [],
       holding: NO_HOLDING,
+      opening: '',
     });
     this.do({ kind: 'roundStart', round: next });
   }
@@ -510,8 +540,8 @@ class TurnRun {
   private takeTurn(identifier: string, announcement: TurnAnnouncement = 'announce'): void {
     const { begun, givenBack } = this.release(identifier);
     this.enterActing(identifier, announcement);
+    this.write({ opening: this.table.givesBackOnHold === true && (!begun || givenBack) ? identifier : '' });
     if (begun && !givenBack) return;
-    if (this.table.givesBackOnHold === true) this.do({ kind: 'opening', identifier });
     for (const id of [identifier, ...this.table.companionsOf(identifier)]) {
       this.do({ kind: 'buffs', timing: 'turnStart', identifier: id });
       if (begun) continue;
@@ -532,7 +562,14 @@ class TurnRun {
   /** Closes the round, counting down what waits on its end. */
   private finishRound(): void {
     const round = Math.max(1, this.state.round);
-    this.write({ round, phase: 'roundEnd', currentIdentifier: '', currentSide: '', holding: NO_HOLDING });
+    this.write({
+      round,
+      phase: 'roundEnd',
+      currentIdentifier: '',
+      currentSide: '',
+      holding: NO_HOLDING,
+      opening: '',
+    });
     this.do({ kind: 'roundEnd', round });
     this.do({ kind: 'buffs', timing: 'roundEnd', identifier: '' });
     this.do({ kind: 'turnEnded' });

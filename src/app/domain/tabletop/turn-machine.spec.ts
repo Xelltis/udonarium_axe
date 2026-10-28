@@ -58,7 +58,6 @@ function done(outcome: TurnOutcome | null): string[] {
           return `ground:${effect.moment}:${effect.identifier}`;
         case 'turnStarted':
           return `started:${effect.identifier}`;
-        case 'opening':
         case 'giveBack':
           return `${effect.kind}:${effect.identifier}`;
         default:
@@ -170,7 +169,8 @@ describe('waiting to step in', () => {
   it('gives back what the opening counted down, where every seat counts it down again, and counts it again on coming back', () => {
     const giving = table({ givesBackOnHold: true });
     const opened = roundNext(press(IDLE, 1, giving), giving);
-    expect(done(opened)).toEqual(['announce:a', 'opening:a', 'buffs:turnStart:a', 'started:a', 'ground:turnStart:a']);
+    expect(done(opened)).toEqual(['announce:a', 'buffs:turnStart:a', 'started:a', 'ground:turnStart:a']);
+    expect(opened.state.opening).toBe('a');
 
     const held = roundHold(opened.state, giving, 'a')!;
     expect(held.state.holding).toEqual({ held: ['a'], begun: ['a'], interrupted: [], givenBack: ['a'] });
@@ -179,11 +179,54 @@ describe('waiting to step in', () => {
     const back = roundNext(held.state, giving);
     expect(back.state.currentIdentifier).toBe('a');
     expect(back.state.holding.givenBack).toEqual([]);
+    expect(back.state.opening).toBe('a');
     const reopened = done(back);
-    expect(reopened).toContain('opening:a');
     expect(reopened).toContain('buffs:turnStart:a');
     expect(reopened).not.toContain('started:a');
     expect(reopened).not.toContain('ground:turnStart:a');
+  });
+
+  it('gives nothing back for a turn taken up again after one stepped into it, whose opening is not on record', () => {
+    const giving = table({ givesBackOnHold: true, order: ['a', 'b', 'c'] });
+    const opened = roundNext(press(IDLE, 1, giving), giving);
+    const waiting = roundHold(opened.state, giving, 'c')!;
+    expect(waiting.state.opening).toBe('a');
+    const steppedIn = roundInterrupt(waiting.state, giving, 'c')!;
+    expect(steppedIn.state.opening).toBe('c');
+    const resumed = roundNext(steppedIn.state, giving);
+    expect(resumed.state.currentIdentifier).toBe('a');
+    expect(resumed.state.opening).toBe('');
+
+    const held = roundHold(resumed.state, giving, 'a')!;
+
+    expect(done(held)).not.toContain('giveBack:a');
+    expect(held.state.holding.givenBack).toEqual([]);
+  });
+
+  it('forgets whose opening is on record once the round turns over, or a turn is handed over without one', () => {
+    const giving = table({ givesBackOnHold: true });
+    const opened = roundNext(press(IDLE, 1, giving), giving);
+    expect(opened.state.opening).toBe('a');
+
+    expect(roundNext(roundNext(opened.state, giving).state, giving).state.opening).toBe('');
+    const handed = roundGiveTurn(opened.state, giving, 'b')!;
+    expect(handed.state.opening).toBe('');
+    expect(done(roundHold(handed.state, giving, 'b'))).not.toContain('giveBack:b');
+  });
+
+  it('counts a given back opening down again when the turn is handed back, or closed in passing', () => {
+    const giving = table({ givesBackOnHold: true });
+    const held = roundHold(roundNext(press(IDLE, 1, giving), giving).state, giving, 'a')!;
+    expect(held.state.holding.givenBack).toEqual(['a']);
+
+    const handedBack = roundGiveTurn(held.state, giving, 'a')!;
+    expect(done(handedBack)).toContain('buffs:turnStart:a');
+    expect(done(handedBack)).not.toContain('started:a');
+    expect(handedBack.state.holding.givenBack).toEqual([]);
+
+    const closed = roundCloseInPassing(held.state, giving, ['a']);
+    expect(done(closed)).toEqual(expect.arrayContaining(['buffs:turnStart:a']));
+    expect(closed.state.holding.givenBack).toEqual([]);
   });
 
   it('gives nothing back for a piece that waits before its turn comes, nor where a seat would not count it again', () => {
