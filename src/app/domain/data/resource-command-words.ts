@@ -19,6 +19,11 @@ export interface ResourceCommandWords {
 const SECRET_MARK = /(\s[sSｓＳ][tTｔＴ]?[:：&＆])/i;
 const SECRET_PREFIX = /(\s)[sSｓＳ](?=[tTｔＴ]?[:：&＆])/g;
 
+/** Whether a line holds a secret resource or buff command: an `s:`, `st:`, `s&` or `st&` that starts a word. */
+export function hasSecretEditMark(text: string): boolean {
+  return SECRET_MARK.test(` ${text}`);
+}
+
 /**
  * Picks the resource, buff and sweep commands out of a chat line, with where each stands in it.
  *
@@ -39,7 +44,7 @@ export function resourceCommandSites(text: string): ResourceCommandWords {
     .replace(/([:：])/gi, ':')
     .replace(/([&＆])/gi, '&');
 
-  const words: ResourceCommandWords = { secret: SECRET_MARK.test(padded), sweeps: [], resources: [], buffs: [] };
+  const words: ResourceCommandWords = { secret: hasSecretEditMark(text), sweeps: [], resources: [], buffs: [] };
   const siteOf = (command: string, at: number): ResourceCommandSite => ({
     command,
     from: rawAt[at],

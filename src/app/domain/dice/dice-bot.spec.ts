@@ -501,6 +501,16 @@ describe('DiceBot', () => {
       bot.initialize();
       expect(bot.aliasName).toBe('dice-bot');
     });
+
+    it('takes a line with a secret resource or buff command for a secret one', () => {
+      const bot = new DiceBot();
+      for (const line of ['s:HP-1', '攻撃 ST:HP-2', 'ｓ＆加護/3', 'あ st&呪い-']) {
+        expect(bot.checkSecretEditCommand(line), line).toBe(true);
+      }
+      for (const line of [':HP-1', 'sushi:おいしい', 'ts:HP-1']) {
+        expect(bot.checkSecretEditCommand(line), line).toBe(false);
+      }
+    });
   });
 
   describe('its static members', () => {

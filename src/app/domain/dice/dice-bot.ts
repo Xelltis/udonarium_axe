@@ -29,6 +29,7 @@ import { toHalfWidth } from '@axe/core/util/string-util';
 import { answerColorsOf } from '@axe/domain/chat/chat-color';
 import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { hasSecretEditMark } from '@axe/domain/data/resource-command-words';
 import { DiceRollResult, ResourceEditProcessor } from '@axe/domain/data/resource-edit-processor';
 import { diceRollDetailOf, encodeDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
 import { looksLikeDiceCommand, readRollLine } from '@axe/domain/dice/dice-roll-line';
@@ -471,15 +472,11 @@ export class DiceBot extends GameObject {
   }
 
   /**
-   * Whether the line holds a secret resource command, an `s:` or `st:` at the start or after a
-   * space.
+   * Whether the line holds a secret resource or buff command, an `s:`, `st:`, `s&` or `st&` at the
+   * start or after a space.
    */
   checkSecretEditCommand(chatText: string): boolean {
-    const text: string = ` ${toHalfWidth(chatText).toLowerCase()}`;
-    const replaceText = text.replace('：', ':');
-    const m = replaceText.match(/\sST?:/i);
-    if (m) return true;
-    return false;
+    return hasSecretEditMark(chatText);
   }
 
   /**
