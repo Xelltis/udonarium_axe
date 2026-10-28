@@ -3826,7 +3826,9 @@
         "searchResults": "Search results",
         "searchCount": "{{count}} found",
         "searchNoMatch": "No matching lines",
-        "searchClear": "Clear search"
+        "searchClear": "Clear search",
+        "untitledTab": "Main",
+        "tabsLabel": "Palette tabs"
       },
       "messageSetting": {
         "sectionText": "Text",

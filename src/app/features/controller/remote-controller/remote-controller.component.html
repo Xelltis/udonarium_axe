@@ -141,12 +141,12 @@
           } @else {
             <div class="box-border w-full font-sans" #paletteList>
               @for (row of paletteRows(); track row.lineIndex) {
-                @if (row.kind === 'heading') {
+                @if (row.kind === 'heading' || row.kind === 'tab') {
                   <div
                     class="text-ui-accent border-ui-border-panel box-border cursor-default overflow-hidden border-t bg-[color-mix(in_srgb,var(--ui-accent)_6%,transparent)] px-2.5 pt-1.5 pb-0.75 text-[11px] leading-[1.65] font-bold tracking-[0.04em] wrap-break-word whitespace-pre-wrap uppercase select-none first:border-t-0"
                     [attr.data-line]="row.lineIndex"
                   >
-                    <span class="mr-1 opacity-50">◆</span>{{ row.headingName }}
+                    <span class="mr-1 opacity-50">◆</span>{{ row.kind === 'tab' ? row.tabName : row.headingName }}
                   </div>
                 } @else if (row.kind === 'variable') {
                   <div

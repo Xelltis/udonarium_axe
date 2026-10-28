@@ -3826,7 +3826,9 @@
         "searchResults": "検索結果",
         "searchCount": "{{count}} 件",
         "searchNoMatch": "一致する行がありません",
-        "searchClear": "検索をクリア"
+        "searchClear": "検索をクリア",
+        "untitledTab": "メイン",
+        "tabsLabel": "パレットのタブ"
       },
       "messageSetting": {
         "sectionText": "文字",

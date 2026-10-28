@@ -3826,7 +3826,9 @@
         "searchResults": "검색 결과",
         "searchCount": "{{count}}개",
         "searchNoMatch": "일치하는 줄이 없습니다",
-        "searchClear": "검색 지우기"
+        "searchClear": "검색 지우기",
+        "untitledTab": "메인",
+        "tabsLabel": "팔레트 탭"
       },
       "messageSetting": {
         "sectionText": "글자",

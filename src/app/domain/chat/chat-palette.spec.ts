@@ -146,6 +146,14 @@ describe('ChatPalette', () => {
     });
   });
 
+  it('lists the headings, but not the lines that open a tab', () => {
+    const palette = new ChatPalette();
+    palette.initialize();
+    palette.setPalette('◆◆戦闘\n◆攻撃\n2d6\n◆◆◆飾り');
+
+    expect(palette.paletteIndex.map((index) => index.name)).toEqual(['攻撃', '◆◆飾り']);
+  });
+
   describe('evaluate()', () => {
     it('expands the variables', () => {
       const palette = new ChatPalette();

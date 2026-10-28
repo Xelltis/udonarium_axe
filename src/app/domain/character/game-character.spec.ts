@@ -209,6 +209,35 @@ describe('GameCharacter', () => {
       expect(restoredSection.children[0].children.map((child) => child.name)).toEqual(['A']);
     });
 
+    it('folds the palettes another fork keeps beside its own into this palette as tabs', () => {
+      const xml = `<character>
+    <data name="character">
+    <data name="image"><data name="imageIdentifier" type="image"></data></data>
+    <data name="common"></data>
+    <data name="detail"></data>
+    </data>
+    <chat-palette dicebot="">2d6 攻撃</chat-palette>
+    <sub-palette><chat-palette dicebot="">//威力=7
+探索
+CC&lt;=50</chat-palette><chat-palette dicebot="">回復
+:HP+5</chat-palette></sub-palette>
+    </character>`;
+
+      const restored = ObjectSerializer.instance.parseXml(xml) as GameCharacter;
+
+      expect(restored.chatPalette!.getPalette()).toEqual([
+        '2d6 攻撃',
+        '◆◆探索',
+        '//威力=7',
+        '探索',
+        'CC<=50',
+        '◆◆回復',
+        '回復',
+        ':HP+5',
+      ]);
+      expect(restored.children.some((child) => child.aliasName === 'sub-palette')).toBe(false);
+    });
+
     it('reads the older check fields into proper tables', () => {
       const xml = `<character>
     <data name="character">

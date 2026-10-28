@@ -3,6 +3,7 @@ import { ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { toHalfWidth } from '@axe/core/util/string-util';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { isPaletteTabLine } from '@axe/domain/chat/palette-rows';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { createCalcPass, evaluateCalcElement } from '@axe/domain/data/data-element-calc-env';
 
@@ -56,6 +57,8 @@ export class ChatPalette extends ObjectNode {
       name: '',
       line: 0,
     };
+
+    if (isPaletteTabLine(line)) return null;
 
     // takes the heading out of the form the piece-building sites write
     const matchRes1 = line.match(/^\/\/--[-]+(.*)$/);
@@ -232,6 +235,14 @@ export class BuffPalette extends ChatPalette {}
 
 @SyncObject('dice-table-palette')
 export class DiceTablePalette extends ChatPalette {}
+
+/**
+ * The palettes another fork keeps beside a character's own, a tab apiece, each named by its first
+ * line. Read only so that a room saved there can be loaded: the character folds them into its own
+ * palette as tabs, and none is kept.
+ */
+@SyncObject('sub-palette')
+export class SubPalette extends ObjectNode {}
 
 /**
  * Fills in the references in a line of text.

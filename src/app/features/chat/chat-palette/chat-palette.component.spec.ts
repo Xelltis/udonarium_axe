@@ -297,6 +297,68 @@ describe('ChatPaletteComponent', () => {
     });
   });
 
+  describe('a palette parted into tabs', () => {
+    function speakerWithTabs(name = '術者'): GameCharacter {
+      const speaker = createChar(name);
+      speaker.chatPalette!.setPalette('1d100 目星\n◆◆戦闘\n◆攻撃\n2d6+3 攻撃\n◆◆探索\nCC<=50');
+      component.character.set(speaker);
+      return speaker;
+    }
+
+    const root = () => fixture.nativeElement as HTMLElement;
+    const tabs = () => [...root().querySelectorAll<HTMLElement>('[data-testid="palette-tab"]')];
+    const drawnLines = () =>
+      [...root().querySelectorAll<HTMLElement>('[data-line]')].map((line) => line.textContent?.trim() ?? '');
+
+    it('shows the tabs, the lines before the first under their own, and only the open tab’s lines', () => {
+      speakerWithTabs();
+      fixture.detectChanges();
+
+      expect(tabs().map((tab) => tab.textContent?.trim())).toEqual(['メイン', '戦闘', '探索']);
+      expect(tabs()[0].getAttribute('aria-selected')).toBe('true');
+      expect(drawnLines()).toEqual(['1d100 目星']);
+
+      tabs()[1].click();
+      fixture.detectChanges();
+
+      expect(tabs()[1].getAttribute('aria-selected')).toBe('true');
+      expect(drawnLines().join('|')).toContain('2d6+3 攻撃');
+      expect(drawnLines().join('|')).not.toContain('CC<=50');
+      expect(component.paletteHeadings().map((row) => row.headingName)).toEqual(['攻撃']);
+    });
+
+    it('opens the tab it was left on when the character comes back to the panel', () => {
+      const speaker = speakerWithTabs();
+      fixture.detectChanges();
+      tabs()[2].click();
+
+      component.character.set(createChar('別人'));
+      fixture.detectChanges();
+      component.character.set(speaker);
+      fixture.detectChanges();
+
+      expect(drawnLines()).toEqual(['CC<=50']);
+    });
+
+    it('finds lines in every tab when searched', () => {
+      speakerWithTabs();
+      component.searchQuery.set('50');
+
+      expect(component.searchResults().map((result) => [result.heading, result.row.text])).toEqual([
+        ['探索', 'CC<=50'],
+      ]);
+    });
+
+    it('shows no tabs on a palette without any', () => {
+      const speaker = createChar('術者');
+      speaker.chatPalette!.setPalette('◆戦闘\n2d6');
+      component.character.set(speaker);
+      fixture.detectChanges();
+
+      expect(tabs()).toHaveLength(0);
+    });
+  });
+
   describe('reaching the headings', () => {
     function speakerWithHeadings(): void {
       const speaker = createChar('術者');

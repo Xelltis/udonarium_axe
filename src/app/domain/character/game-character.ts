@@ -6,8 +6,9 @@ import { generateUuid } from '@axe/core/util/uuid';
 import { BuffManager } from '@axe/domain/character/buff-manager';
 import { CharacterTemplateFactory } from '@axe/domain/character/character-template-factory';
 import { StatusAccessor } from '@axe/domain/character/status-accessor';
-import { BuffPalette, ChatPalette } from '@axe/domain/chat/chat-palette';
+import { BuffPalette, ChatPalette, SubPalette } from '@axe/domain/chat/chat-palette';
 import { DEFAULT_CHAT_BUBBLE_CODES, DEFAULT_CHAT_COLOR_CODES } from '@axe/domain/chat/constants';
+import { paletteRowsOf } from '@axe/domain/chat/palette-rows';
 import { convertLegacyCheckTableElements } from '@axe/domain/data/check-table-converter';
 import {
   DataElement,
@@ -423,6 +424,29 @@ export class GameCharacter extends OwnedTabletopObject {
     this.normalizeDetailDataElementHierarchy();
     this.convertLegacyCheckTableData();
     this.migrateOverviewDataTagsToElementAttributes();
+    this.foldSubPalettesIntoTabs();
+  }
+
+  /**
+   * Folds the palettes another fork kept beside this one's, a tab apiece, into this piece's palette:
+   * each goes after what is there as a `◆◆name` tab named by its first line, as that fork names it,
+   * and the palettes kept beside are let go.
+   */
+  private foldSubPalettesIntoTabs(): void {
+    const kept = this.children.filter((child): child is SubPalette => child instanceof SubPalette);
+    if (kept.length < 1) return;
+    const palette = this.chatPalette;
+    const tabs: string[] = [];
+    for (const sub of kept) {
+      for (const child of sub.children) {
+        if (!(child instanceof ChatPalette)) continue;
+        const text = `${child.value ?? ''}`;
+        const name = paletteRowsOf(text.split('\n')).find((row) => row.kind === 'command' || row.kind === 'heading');
+        tabs.push(`◆◆${(name?.text ?? '').trim()}\n${text}`);
+      }
+    }
+    if (palette && tabs.length > 0) palette.setPalette([`${palette.value ?? ''}`, ...tabs].join('\n'));
+    for (const sub of kept) sub.destroy();
   }
 
   /**
