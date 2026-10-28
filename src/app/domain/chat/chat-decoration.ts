@@ -356,6 +356,8 @@ export interface ChatDecorationMark {
   readonly to: number;
   /** Whether the mark takes effect; one left unpaired is drawn as the text it is. */
   readonly paired: boolean;
+  /** The index among the marks of the one it is paired with, or -1. */
+  readonly partner: number;
 }
 
 /** A stretch of a line drawn with one decoration, by where it stands in the line as typed. */
@@ -384,14 +386,20 @@ export function chatDecorationLayout(text: string): {
       runs.push({ from, to, decoration });
     }
   });
+  const markAt = new Map<number, number>();
+  tokens.forEach((token, index) => {
+    if (token.type !== 'text') markAt.set(index, markAt.size);
+  });
   const marks: ChatDecorationMark[] = [];
   for (const token of tokens) {
     if (token.type === 'text') continue;
+    const pair = token.type === 'escape' ? -1 : token.pair;
     marks.push({
       kind: token.type,
       from: token.from,
       to: token.to,
-      paired: token.type === 'escape' || token.pair >= 0,
+      paired: token.type === 'escape' || pair >= 0,
+      partner: pair >= 0 ? (markAt.get(pair) ?? -1) : -1,
     });
   }
   return { marks, runs };

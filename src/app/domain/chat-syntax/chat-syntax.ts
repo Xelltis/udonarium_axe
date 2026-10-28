@@ -68,7 +68,8 @@ export type SyntaxSpan = TextRange & { readonly parts: readonly SyntaxPart[] } &
     | { readonly kind: 'effect'; readonly name: string; readonly battle: boolean; readonly order: number }
     | { readonly kind: 'diceToken'; readonly name: string }
     | { readonly kind: 'ruby' }
-    | { readonly kind: 'decoration'; readonly mark: ChatDecorationMark }
+    /** A decoration mark; `pairedWith` is where the mark it is paired with stands, if it is. */
+    | { readonly kind: 'decoration'; readonly mark: ChatDecorationMark; readonly pairedWith: TextRange | null }
     | { readonly kind: 'quote' }
     | { readonly kind: 'vnSuffix'; readonly site: LegacyVnSuffixSite }
     | { readonly kind: 'paletteVariable'; readonly name: string }
@@ -301,9 +302,11 @@ function scanMessage(message: string, offset: number, spans: SyntaxSpan[], decor
   const layout = chatDecorationLayout(message);
   for (const mark of layout.marks) {
     const placed = { ...mark, from: at(mark.from), to: at(mark.to) };
+    const partner = layout.marks[mark.partner];
     spans.push({
       kind: 'decoration',
       mark: placed,
+      pairedWith: partner ? { from: at(partner.from), to: at(partner.to) } : null,
       from: placed.from,
       to: placed.to,
       parts: mark.paired ? [{ role: 'marker', from: placed.from, to: placed.to }] : [],

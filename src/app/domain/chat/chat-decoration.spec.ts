@@ -249,6 +249,11 @@ describe('chatDecorationLayout', () => {
     );
   });
 
+  it('says which mark each is paired with', () => {
+    expect(chatDecorationLayout('**a** [赤]b[/]').marks.map((mark) => mark.partner)).toEqual([1, 0, 3, 2]);
+    expect(chatDecorationLayout('**a').marks.map((mark) => mark.partner)).toEqual([-1]);
+  });
+
   it('marks what is left unpaired, which is drawn as typed', () => {
     expect(marksOf('**a [赤]b')).toEqual([
       ['stars', '**', false],
