@@ -4170,9 +4170,7 @@
         "chipNotAtEnd": "文末に置いたときだけ効きます"
       },
       "syntax": {
-        "button": "記法",
         "title": "記法を入れる",
-        "decoration": "装飾",
         "ruby": "ルビ",
         "rubyWrap": "選んだ語にルビを振る",
         "base": "漢字",
@@ -4199,7 +4197,6 @@
         "portraitHide": "立ち絵を出さない",
         "effect": "演出・カットイン",
         "battle": "戦闘カットイン",
-        "cutIn": "カットイン",
         "quote": "引用",
         "quoteLine": "引用する"
       },

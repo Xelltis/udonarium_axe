@@ -4170,9 +4170,7 @@
         "chipNotAtEnd": "문장 끝에 둘 때만 효과가 있습니다"
       },
       "syntax": {
-        "button": "표기",
         "title": "표기 넣기",
-        "decoration": "장식",
         "ruby": "루비",
         "rubyWrap": "선택한 단어에 루비 달기",
         "base": "한자",
@@ -4199,7 +4197,6 @@
         "portraitHide": "스탠딩 숨기기",
         "effect": "연출・컷인",
         "battle": "전투 컷인",
-        "cutIn": "컷인",
         "quote": "인용",
         "quoteLine": "인용하기"
       },

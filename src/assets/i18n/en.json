@@ -4170,9 +4170,7 @@
         "chipNotAtEnd": "Works only at the end of the line"
       },
       "syntax": {
-        "button": "Syntax",
         "title": "Write syntax",
-        "decoration": "Decoration",
         "ruby": "Ruby",
         "rubyWrap": "Ruby over the selected word",
         "base": "word",
@@ -4199,7 +4197,6 @@
         "portraitHide": "No portrait",
         "effect": "Effects and cut-ins",
         "battle": "Battle cut-in",
-        "cutIn": "Cut-in",
         "quote": "Quote",
         "quoteLine": "Quote"
       },
