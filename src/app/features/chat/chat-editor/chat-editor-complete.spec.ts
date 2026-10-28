@@ -1,56 +1,46 @@
-import { chatCompletionSource, type ChatCompletionWords } from '@axe/features/chat/chat-editor/chat-editor-complete';
-import { CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
-import { EditorState } from '@codemirror/state';
+import {
+  type ChatCompletionWords,
+  chatTriggerOptions,
+  findChatTrigger,
+} from '@axe/features/chat/chat-editor/chat-editor-complete';
 
-describe('chatCompletionSource', () => {
+describe('chat-editor-complete', () => {
   const words: ChatCompletionWords = {
     statuses: ['HP', 'MP'],
     variables: ['攻撃'],
     portraits: ['笑顔'],
     effects: ['爆炎'],
     buffs: ['加護', 'tough'],
-    diceExamples: ['CC<=50', 'CBR(50,60)'],
+    cutIns: ['登場'],
+    diceExamples: ['CC<=50'],
   };
-  const source = chatCompletionSource(() => words);
 
-  function complete(text: string): { typed: string; labels: string[]; applied: string[] } | null {
-    const state = EditorState.create({ doc: text, selection: { anchor: text.length } });
-    const result = source(new CompletionContext(state, text.length, false)) as CompletionResult | null;
-    if (!result) return null;
-    return {
-      typed: text.slice(result.from),
-      labels: result.options.map((option) => option.label),
-      applied: result.options.map((option) => String(option.apply)),
-    };
-  }
-
-  it('offers the statuses and variables inside a reference, closing it', () => {
-    expect(complete('2d6+{')).toEqual({ typed: '', labels: ['HP', 'MP', '攻撃'], applied: ['HP}', 'MP}', '攻撃}'] });
-    expect(complete('t{H')?.typed).toBe('H');
+  it('finds a reference being written, with what is typed after its brace', () => {
+    expect(findChatTrigger('2d6+{H')).toEqual({ kind: 'reference', from: 4, query: 'H' });
+    expect(findChatTrigger('t{')).toEqual({ kind: 'reference', from: 0, query: '' });
   });
 
-  it('offers the statuses after a colon that starts a word, secret or aimed', () => {
-    expect(complete('攻撃 st:H')).toMatchObject({ typed: 'H', labels: ['HP', 'MP'] });
-    expect(complete('12:3')).toBeNull();
+  it('finds a status or a buff only after a mark that starts a word', () => {
+    expect(findChatTrigger('攻撃 st:H')).toEqual({ kind: 'status', from: 3, query: 'H' });
+    expect(findChatTrigger('12:3')).toBeNull();
+    expect(findChatTrigger('&+!加')).toEqual({ kind: 'buff', from: 0, query: '加' });
   });
 
-  it('offers the buffs the speaker has after an ampersand, past its marks', () => {
-    expect(complete('&+!加')).toMatchObject({ typed: '加', labels: ['加護', 'tough'] });
-    expect(complete('t&to')).toMatchObject({ typed: 'to' });
+  it('finds an effect, and a portrait or cut-in after an at mark that starts a word', () => {
+    expect(findChatTrigger('《')).toEqual({ kind: 'effect', from: 0, query: '' });
+    expect(findChatTrigger('やあ @笑')).toEqual({ kind: 'tail', from: 3, query: '笑' });
+    expect(findChatTrigger('mail@example')).toBeNull();
   });
 
-  it('offers the portraits after an at mark, and the effects inside the brackets', () => {
-    expect(complete('やあ @')?.labels).toEqual(['笑顔', 'hide']);
-    expect(complete('《')).toEqual({ typed: '', labels: ['爆炎'], applied: ['爆炎》'] });
+  it('finds nothing in words of chat', () => {
+    expect(findChatTrigger('こんにちは')).toBeNull();
+    expect(findChatTrigger('{HP} ')).toBeNull();
   });
 
-  it('offers the commands of the game system for the first word of a line', () => {
-    expect(complete('C')).toMatchObject({ typed: 'C', labels: ['CC<=50', 'CBR(50,60)'] });
-    expect(complete('攻撃 C')).toBeNull();
-  });
-
-  it('offers nothing in words of chat', () => {
-    expect(complete('こんにちは')).toBeNull();
-    expect(complete('mail@example')).toBeNull();
+  it('offers the names for what is being written, those starting with what is typed first', () => {
+    expect(chatTriggerOptions({ kind: 'reference', from: 0, query: '' }, words)).toEqual(['HP', 'MP', '攻撃']);
+    expect(chatTriggerOptions({ kind: 'tail', from: 0, query: '' }, words)).toEqual(['笑顔', '登場']);
+    expect(chatTriggerOptions({ kind: 'effect', from: 0, query: 'v' }, words)).toEqual(['vs']);
+    expect(chatTriggerOptions({ kind: 'buff', from: 0, query: 'ou' }, words)).toEqual(['tough']);
   });
 });

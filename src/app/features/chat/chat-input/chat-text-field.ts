@@ -1,4 +1,16 @@
-import { wrapChatSelection } from '@axe/domain/chat/chat-decoration';
+import { type Signal, signal } from '@angular/core';
+import {
+  CHAT_COLORS,
+  type ChatColorKey,
+  type ChatDecoration,
+  chatDecorationMarks,
+  type ChatFontKey,
+  type ChatSizeKey,
+  type ChatTagKey,
+  type ChatTagLanguage,
+  wrapChatSelection,
+} from '@axe/domain/chat/chat-decoration';
+import type { ChatRichChip } from '@axe/domain/chat/chat-rich-text';
 import type { ChatDecorationMarks } from '@axe/features/chat/chat-input/chat-decoration-context-menu';
 
 /** The attribute on whatever a chat line is typed into, the element that takes the keys. */
@@ -9,6 +21,19 @@ export interface ChatFieldSelection {
   from: number;
   to: number;
 }
+
+/**
+ * A decoration to put on what is selected, or on what is typed next: bold, italic and a line
+ * through switch on and off; a size, a font and a colour are set, or taken off with null.
+ */
+export type ChatMarkChange =
+  | { kind: 'bold' | 'italic' | 'strike' }
+  | { kind: 'size'; value: ChatSizeKey | null }
+  | { kind: 'font'; value: ChatFontKey | null }
+  | { kind: 'color'; value: string | null };
+
+/** Where a chip goes: at the caret, or at the end of the message, where a portrait or a cut-in is read. */
+export type ChatChipPlace = 'caret' | 'end';
 
 /**
  * What a chat line is typed into, a plain box or the editor that draws the line as it will look,
@@ -27,13 +52,74 @@ export interface ChatTextField {
   hasFocus(): boolean;
   /** Fits the field to what it holds, unless the reader has sized it by hand. */
   refit(): void;
+  /** Whether it draws decorations as they look, and so can tell what is decorated and take it off. */
+  readonly rich: boolean;
+  /** The decoration where the caret or the selection is; null where there is none, and always in a plain box. */
+  readonly activeMarks: Signal<ChatDecoration | null>;
+  /** Puts a decoration on what is selected, or on what is typed next, or takes it off. */
+  applyMark(change: ChatMarkChange): void;
+  /** Puts in a piece of syntax shown whole: over what is selected at the caret, or at the end of the message. */
+  insertChip(chip: ChatRichChip, place?: ChatChipPlace): void;
+  /** What is selected, as it is shown. */
+  selectedText(): string;
+}
+
+/** The marks a decoration is written with in a plain box, in the reader's language; null where there are none to write. */
+export function marksOfChange(change: ChatMarkChange, language: ChatTagLanguage): ChatDecorationMarks | null {
+  switch (change.kind) {
+    case 'bold':
+    case 'italic':
+    case 'strike':
+      return chatDecorationMarks(change.kind, language);
+    case 'size':
+      return change.value ? chatDecorationMarks(change.value, language) : null;
+    case 'font':
+      return change.value ? chatDecorationMarks(`font:${change.value}`, language) : null;
+    case 'color': {
+      const color = change.value;
+      if (!color) return null;
+      const named = (Object.keys(CHAT_COLORS) as ChatColorKey[]).find((key) => CHAT_COLORS[key] === color);
+      return named
+        ? chatDecorationMarks(`color:${named}` as ChatTagKey, language)
+        : { open: `[${color}]`, close: `[/${color}]` };
+    }
+  }
+}
+
+/** Writes text at the end of a message, after a space where it would run on from a word. */
+export function appendedText(text: string, insert: string): string {
+  return text + (text.length > 0 && !/\s$/.test(text) ? ' ' : '') + insert;
 }
 
 /** A plain `<textarea>` as a field. It grows with what it holds until the reader sizes it by hand. */
 export class TextareaChatField implements ChatTextField {
   private sizedByHand = false;
+  readonly rich = false;
+  readonly activeMarks = signal<ChatDecoration | null>(null).asReadonly();
 
-  constructor(readonly element: HTMLTextAreaElement) {}
+  constructor(
+    readonly element: HTMLTextAreaElement,
+    private readonly language: () => ChatTagLanguage = () => 'ja'
+  ) {}
+
+  applyMark(change: ChatMarkChange): void {
+    const marks = marksOfChange(change, this.language());
+    if (marks) wrapFieldSelection(this, marks);
+  }
+
+  insertChip(chip: ChatRichChip, place: ChatChipPlace = 'caret'): void {
+    if (place === 'end') {
+      this.setText(appendedText(this.text(), chip.raw));
+      return;
+    }
+    const { from, to } = this.selection();
+    this.replaceRange(from, to, chip.raw);
+  }
+
+  selectedText(): string {
+    const { from, to } = this.selection();
+    return this.text().slice(from, to);
+  }
 
   text(): string {
     return this.element.value;

@@ -6,6 +6,8 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { resourceCatalogOf } from '@axe/domain/character/resource-catalog';
+import type { ChatTagLanguage } from '@axe/domain/chat/chat-decoration';
+import { findImageIdentifierByName, portraitCommandSite } from '@axe/domain/chat/chat-portrait-command';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { diceCommandExamples } from '@axe/domain/dice/dice-roll-line';
@@ -64,8 +66,43 @@ export class ChatSyntaxSourceService {
         this.speakerOf(sendFrom)
           ?.buffs.list()
           .map((buff) => buff.name) ?? [],
+      cutIns: source.cutIns,
       diceExamples: source.diceExamples,
     };
+  }
+
+  /** The language decorations are written in: the one the reader reads the tool in. */
+  tagLanguage(): ChatTagLanguage {
+    return this.language.currentLang();
+  }
+
+  /** The cut-ins that start from chat, by name. */
+  chatCutInNames(): ReadonlySet<string> {
+    return new Set(
+      this.objectStore
+        .getObjects<CutIn>(CutIn)
+        .filter((cutIn) => cutIn.chatActivate)
+        .map((cutIn) => cutIn.name)
+    );
+  }
+
+  /** The picture a portrait command picks of the speaker's, as it would be when the line is sent; null where none. */
+  portraitImage(sendFrom: string, raw: string): string | null {
+    const speaker = this.speakerOf(sendFrom);
+    const command = portraitCommandSite(raw)?.command;
+    const children = (speaker?.imageDataElement?.children ?? []).filter(
+      (child): child is DataElement => child instanceof DataElement
+    );
+    if (!command || command.type === 'hide') return null;
+    const entries = children.map((child) => ({
+      label: portraitNameOf(child),
+      identifier: this.imageStorage.get(child.value as string)?.identifier ?? '',
+    }));
+    const identifier =
+      command.type === 'index'
+        ? (entries[command.position - 1]?.identifier ?? '')
+        : findImageIdentifierByName(entries, command.name).identifier;
+    return identifier ? (this.imageStorage.get(identifier)?.url ?? null) : null;
   }
 
   private speakerOf(sendFrom: string): GameCharacter | null {

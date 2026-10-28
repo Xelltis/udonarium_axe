@@ -337,6 +337,9 @@ export class ChatInputComponent {
     },
     session: () => untracked(() => this.activeSession()),
     completionWords: () => this.syntaxSource.completionWordsFor(this.sendFrom, this.gameType),
+    language: () => this.syntaxSource.tagLanguage(),
+    cutInNames: () => this.syntaxSource.chatCutInNames(),
+    portraitImage: (raw) => this.syntaxSource.portraitImage(this.sendFrom, raw),
     translate: (key, params) => this.t(key, params),
   };
 

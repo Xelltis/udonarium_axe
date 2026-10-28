@@ -61,20 +61,23 @@ test.describe('the chat editor', () => {
     await expect(page.locator('chat-window input[name^="chat-tab"]').nth(0)).toBeChecked();
   });
 
-  test('draws a decorated line as it will look once the caret leaves it', async ({ page }) => {
+  test('turns stars typed round some words into bold, never showing them, and sends them as stars', async ({
+    page,
+  }) => {
     const input = chatInput(page);
-    await input.fill('とても**強く**言う');
-    await input.evaluate((element) => (element as HTMLElement).blur());
+    await input.click();
+    await page.keyboard.type('とても**強く**言う');
     await expect(input.locator('.chat-deco-bold')).toHaveText('強く');
     await expect(input).toHaveText('とても強く言う');
-
-    await input.click();
-    await input.press('End');
-    await input.press('ArrowLeft');
-    await input.press('ArrowLeft');
-    await input.press('ArrowLeft');
-    await expect(input).toHaveText('とても**強く**言う');
     await expectChatText(input, 'とても**強く**言う');
+  });
+
+  test('keeps stars put in all at once, not closed where the caret stops, as they look', async ({ page }) => {
+    const input = chatInput(page);
+    await input.fill('a**b** c');
+    await expect(input).toHaveText('a**b** c');
+    await expect(input.locator('.chat-deco-bold')).toHaveCount(0);
+    await expectChatText(input, 'a\\**b\\** c');
   });
 
   test('writes the syntax picked from its button where the caret is', async ({ page }) => {
@@ -87,24 +90,12 @@ test.describe('the chat editor', () => {
     await expectChatText(input, '攻撃 2D6 ');
   });
 
-  test('offers the names a syntax takes, picked with Tab', async ({ page }) => {
-    const input = chatInput(page);
-    await input.click();
-    await page.keyboard.type('《');
-    const offered = page.locator('.cm-tooltip-autocomplete li').first();
-    await expect(offered).toBeVisible({ timeout: 5000 });
-    const name = (await offered.textContent())!.trim();
-    await page.keyboard.press('Tab');
-    await expectChatText(input, `《${name}》`);
-    await expect(input).toBeFocused();
-  });
-
   test('marks what will not work, and lists it from the button beside the box', async ({ page }) => {
     const input = chatInput(page);
     await input.fill(':HP-1');
     const findings = page.locator('chat-window [data-testid="chat-input-findings"]');
     await expect(findings).toBeVisible({ timeout: 5000 });
-    await expect(input.locator('.cm-lintRange-warning')).toHaveCount(1);
+    await expect(input.locator('.chat-lint-warning')).toHaveCount(1);
 
     await findings.click();
     await expect(page.locator('chat-window [data-testid="chat-input-finding-list"]')).toContainText(
@@ -143,9 +134,9 @@ test.describe('the palette written in the editor', () => {
     await page.keyboard.press('Delete');
     await editor.fill('//強さ=3\n2d6+{強さ} 殴る\n:気力-1');
     await expectChatText(editor, '//強さ=3\n2d6+{強さ} 殴る\n:気力-1');
-    await expect(editor.locator('.cm-lintRange-error')).toHaveCount(1, { timeout: 5000 });
-    await expect(editor.locator('.cm-chat-reference')).toHaveCount(1);
-    await expect(editor.locator('.cm-chat-variable')).toHaveCount(1);
+    await expect(editor.locator('.chat-lint-error')).toHaveCount(1, { timeout: 5000 });
+    await expect(editor.locator('.chat-rich-reference')).toHaveCount(1);
+    await expect(editor.locator('.chat-rich-quiet')).toHaveCount(1);
   });
 });
 

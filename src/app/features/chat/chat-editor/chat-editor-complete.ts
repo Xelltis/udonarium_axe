@@ -1,5 +1,3 @@
-import type { Completion, CompletionContext, CompletionResult, CompletionSource } from '@codemirror/autocomplete';
-
 /** The names offered as a line is written, each by what it is written with. */
 export interface ChatCompletionWords {
   readonly statuses: readonly string[];
@@ -8,68 +6,64 @@ export interface ChatCompletionWords {
   readonly effects: readonly string[];
   /** The buffs the speaker has, to take off or stack onto. */
   readonly buffs: readonly string[];
+  /** The cut-ins that start from chat, offered after an at mark to play their sound alone. */
+  readonly cutIns: readonly string[];
   readonly diceExamples: readonly string[];
 }
 
-/** Every completion stays offered while the word goes on without a space. */
-const WORD = /^[^\s]*$/;
+/** What a name is offered for: a chip it becomes, or text written after a mark. */
+export type ChatTriggerKind = 'reference' | 'effect' | 'tail' | 'status' | 'buff';
 
-function options(names: readonly string[], type: string, close = ''): Completion[] {
-  return [...new Set(names)]
-    .filter((name) => name.length > 0)
-    .map((name) => ({ label: name, type, apply: name + close }));
+/** A name being written: what for, where its mark starts, and what is written after the mark so far. */
+export interface ChatTrigger {
+  kind: ChatTriggerKind;
+  /** Where the mark that starts it stands in the text read. */
+  from: number;
+  query: string;
 }
 
-/** Where a word the pattern ends the text before the caret with starts, past the space it may begin with. */
-function wordStart(context: CompletionContext, pattern: RegExp): number | null {
-  const match = context.matchBefore(pattern);
-  if (!match) return null;
-  return match.from + (/^\s/.test(match.text) ? 1 : 0);
-}
+const TRIGGERS: readonly { kind: ChatTriggerKind; pattern: RegExp }[] = [
+  { kind: 'reference', pattern: /([tTｔＴ]?[{｛][^{}｛｝\s\ufffc]*)$/ },
+  { kind: 'effect', pattern: /(《[^《》\s\ufffc]*)$/ },
+  { kind: 'tail', pattern: /(?:^|\s)([@＠][^\s\ufffc]*)$/ },
+  { kind: 'status', pattern: /(?:^|\s)([sSｓＳ]?[tTｔＴ]?[:：][^\s:：&＆+\-=>＋－＝＞\ufffc]*)$/ },
+  { kind: 'buff', pattern: /(?:^|\s)([sSｓＳ]?[tTｔＴ]?[&＆][+＋!！]*[^\s/&＆\ufffc]*)$/ },
+];
 
 /**
- * Offers names where the syntax being written takes one, and nowhere else: a reference's after
- * `{`, a status after a `:` that starts a word, a buff after a `&` that does, a portrait after
- * `@`, an effect after `《`, and a command of the game system for the first word of a line.
- * Elsewhere it offers nothing, so it never stands between the reader and the keys of the box.
+ * Finds the name being written right before the caret, from the text of its line up to the caret:
+ * a reference's after `{`, an effect's after `《`, a portrait's or a cut-in's after an at mark that
+ * starts a word, a status after a colon that does, and a buff after an ampersand that does. Null
+ * where none is, so nothing is offered in words of chat.
  */
-export function chatCompletionSource(words: () => ChatCompletionWords): CompletionSource {
-  return (context): CompletionResult | null => {
-    const known = words();
+export function findChatTrigger(before: string): ChatTrigger | null {
+  for (const { kind, pattern } of TRIGGERS) {
+    const match = pattern.exec(before);
+    if (!match) continue;
+    const written = match[1];
+    const from = match.index + match[0].length - written.length;
+    const mark =
+      /^[sSｓＳ]?[tTｔＴ]?[&＆][+＋!！]*|^[sSｓＳ]?[tTｔＴ]?[:：]|^[tTｔＴ]?[{｛]|^[@＠]|^《/.exec(written)?.[0] ?? '';
+    return { kind, from, query: written.slice(mark.length) };
+  }
+  return null;
+}
 
-    const reference = context.matchBefore(/[tTｔＴ]?[{｛][^{}｛｝\s]*$/);
-    if (reference) {
-      const from = reference.from + reference.text.search(/[{｛]/) + 1;
-      return { from, options: options([...known.statuses, ...known.variables], 'variable', '}'), validFor: WORD };
-    }
-
-    const effect = context.matchBefore(/《[^《》\s]*$/);
-    if (effect) return { from: effect.from + 1, options: options(known.effects, 'keyword', '》'), validFor: WORD };
-
-    const status = wordStart(context, /(?:^|\s)[sSｓＳ]?[tTｔＴ]?[:：][^\s:：&＆+\-=>＋－＝＞]*$/);
-    if (status != null) {
-      const from = context.state.doc.sliceString(status, context.pos).search(/[:：]/) + status + 1;
-      return { from, options: options(known.statuses, 'property'), validFor: /^[^\s:：&＆+\-=>＋－＝＞]*$/ };
-    }
-
-    const buff = wordStart(context, /(?:^|\s)[sSｓＳ]?[tTｔＴ]?[&＆][+＋!！]*[^\s/&＆]*$/);
-    if (buff != null) {
-      const marks = /^[sSｓＳ]?[tTｔＴ]?[&＆][+＋!！]*/.exec(context.state.doc.sliceString(buff, context.pos))![0];
-      return { from: buff + marks.length, options: options(known.buffs, 'class'), validFor: /^[^\s/&＆]*$/ };
-    }
-
-    const portrait = wordStart(context, /(?:^|\s)[@＠][^\s]*$/);
-    if (portrait != null) {
-      return { from: portrait + 1, options: options([...known.portraits, 'hide'], 'constant'), validFor: WORD };
-    }
-
-    const line = context.state.doc.lineAt(context.pos);
-    const first = context.matchBefore(/^[A-Za-z][^\s]*$/);
-    if (first && first.from === line.from) {
-      const typed = first.text.toLowerCase();
-      const commands = known.diceExamples.filter((command) => command.toLowerCase().startsWith(typed));
-      if (commands.length > 0) return { from: first.from, options: options(commands, 'function', ' '), validFor: WORD };
-    }
-    return null;
-  };
+/** The names offered for what is being written, those starting with what is written first. */
+export function chatTriggerOptions(trigger: ChatTrigger, words: ChatCompletionWords): string[] {
+  const pool =
+    trigger.kind === 'reference'
+      ? [...words.statuses, ...words.variables]
+      : trigger.kind === 'effect'
+        ? [...words.effects, 'vs']
+        : trigger.kind === 'tail'
+          ? [...words.portraits, ...words.cutIns]
+          : trigger.kind === 'status'
+            ? words.statuses
+            : words.buffs;
+  const query = trigger.query.toLowerCase();
+  const names = [...new Set(pool.filter((name) => name.length > 0))];
+  const starts = names.filter((name) => name.toLowerCase().startsWith(query));
+  const contains = names.filter((name) => !name.toLowerCase().startsWith(query) && name.toLowerCase().includes(query));
+  return [...starts, ...contains];
 }

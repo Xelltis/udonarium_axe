@@ -111,7 +111,7 @@ export function normalMarks(marks: ChatDecoration | null): ChatDecoration | null
 const QUOTE_PREFIX = /^>\s?/;
 
 /** Whether a palette line is a variable or a tab, which is kept as it stands. */
-function isDirectiveLine(line: string): boolean {
+export function isPaletteDirectiveLine(line: string): boolean {
   return paletteVariableSite(line) !== null || isPaletteTabLine(line);
 }
 
@@ -129,7 +129,7 @@ export function parseChatRichText(text: string, options: ChatRichParseOptions = 
   const placed: PlacedLine[] = [];
   if (options.mode === 'palette') {
     for (const line of text.split('\n')) {
-      if (isDirectiveLine(line)) {
+      if (isPaletteDirectiveLine(line)) {
         placed.push({
           line: { segments: line ? [{ kind: 'text', text: line, marks: null }] : [], directive: true, source: line },
           units: unitsOfPlain(line),

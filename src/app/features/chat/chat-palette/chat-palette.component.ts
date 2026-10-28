@@ -132,6 +132,9 @@ export class ChatPaletteComponent {
     changed: (text) => this.editPalette.set(text),
     session: () => this.paletteLint,
     completionWords: () => this.syntaxSource.completionWordsFor(this.character()?.identifier ?? '', this.gameType),
+    language: () => this.syntaxSource.tagLanguage(),
+    cutInNames: () => this.syntaxSource.chatCutInNames(),
+    portraitImage: (raw) => this.syntaxSource.portraitImage(this.character()?.identifier ?? '', raw),
     translate: (key, params) => this.t(key, params),
   };
 

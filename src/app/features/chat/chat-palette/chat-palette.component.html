@@ -304,7 +304,11 @@
 
   <div [hidden]="!isEdit() || viewMode() !== 'palette'" class="h-0 min-h-25 grow">
     @if (editsInEditor()) {
-      <div #paletteEditorHost data-chat-palette-editor class="flex size-full flex-col"></div>
+      <div
+        #paletteEditorHost
+        data-chat-palette-editor
+        class="border-ui-input-border bg-ui-input text-ui-text box-border size-full overflow-y-auto border border-solid"
+      ></div>
     } @else {
       <textarea
         class="box-border size-full resize-none font-sans"

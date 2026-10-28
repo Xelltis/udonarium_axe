@@ -1,34 +1,62 @@
-import type { ChatLintSession } from '@axe/application/chat/chat-lint.service';
+import { signal } from '@angular/core';
+import type { ChatLintAnnotation, ChatLintSession } from '@axe/application/chat/chat-lint.service';
 import type { TranslateFn } from '@axe/application/i18n/translate.token';
-import { type ChatSyntaxMode, scanChatSyntax } from '@axe/domain/chat-syntax/chat-syntax';
-import { chatCompletionSource, type ChatCompletionWords } from '@axe/features/chat/chat-editor/chat-editor-complete';
-import { type ChatEditorKeys, chatEditorKeys } from '@axe/features/chat/chat-editor/chat-editor-keys';
-import { toEditorDiagnostic } from '@axe/features/chat/chat-editor/chat-editor-lint';
-import { chatEditorTheme } from '@axe/features/chat/chat-editor/chat-editor-theme';
-import { livePreview, PREVIEW_LIMIT, refreshPreview } from '@axe/features/chat/chat-editor/chat-live-preview';
-import { minimalEdit } from '@axe/features/chat/chat-editor/minimal-edit';
+import { chatFontWanted$ } from '@axe/core/event/domain-events';
+import { type ChatDecoration, chatDecorationLayout, type ChatTagLanguage } from '@axe/domain/chat/chat-decoration';
+import { referenceSites } from '@axe/domain/chat/chat-reference';
+import { type ChatRichChip, type ChatRichMode, parseChatRichText } from '@axe/domain/chat/chat-rich-text';
+import type { ChatSyntaxScan, SyntaxKind } from '@axe/domain/chat-syntax/chat-syntax';
+import { isBattleChatTokenName } from '@axe/domain/effect/effect-chat-token';
+import type { ChatCompletionWords } from '@axe/features/chat/chat-editor/chat-editor-complete';
+import { ensureChatEditorStyle } from '@axe/features/chat/chat-editor/chat-editor-style';
+import {
+  type ChatDocText,
+  chipOfNode,
+  decorationOfMarks,
+  docOfLines,
+  marksOfDecoration,
+  nodeOfChip,
+  textOfDoc,
+} from '@axe/features/chat/chat-editor/chat-rich-convert';
+import { CHAT_MARK, CHAT_RICH_EXTENSIONS, CHIP_LETTER } from '@axe/features/chat/chat-editor/chat-rich-schema';
 import {
   CHAT_INPUT_ATTR,
+  type ChatChipPlace,
   type ChatFieldSelection,
+  type ChatMarkChange,
   type ChatTextField,
 } from '@axe/features/chat/chat-input/chat-text-field';
-import { acceptCompletion, autocompletion, closeCompletion, moveCompletionSelection } from '@codemirror/autocomplete';
-import { forceLinting, linter } from '@codemirror/lint';
-import { Annotation, Compartment, EditorSelection, EditorState, Prec } from '@codemirror/state';
-import { EditorView, keymap, placeholder, tooltips } from '@codemirror/view';
+import { computePosition, flip, offset, shift } from '@floating-ui/dom';
+import { Editor, Extension, InputRule } from '@tiptap/core';
+import { Placeholder, UndoRedo } from '@tiptap/extensions';
+import { type Mark, type Node as ProseMirrorNode, Slice } from '@tiptap/pm/model';
+import { Plugin, PluginKey, TextSelection, type Transaction } from '@tiptap/pm/state';
+import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
 
-/** What the editor asks of what holds it, beside its keys. */
-export interface ChatEditorHost extends ChatEditorKeys {
-  /** Whether it holds one chat line or a palette of them. */
-  readonly mode: ChatSyntaxMode;
+/** What the editor asks of what holds it. */
+export interface ChatEditorHost {
+  /** Whether it holds one chat message or a palette of them. */
+  readonly mode: ChatRichMode;
   /** What the empty editor says. */
   placeholder(): string;
+  /** The language decorations are written in. */
+  language(): ChatTagLanguage;
+  /** The cut-ins that start from chat, whose name ending a message is shown as a chip. */
+  cutInNames(): ReadonlySet<string>;
+  /** Enter: sends the line. Without it Enter breaks the line, as in a palette being written. */
+  submit?(): void;
+  /** Ctrl+Up and Ctrl+Down: an earlier or later line from the input's history. */
+  historyStep?(direction: -1 | 1): void;
+  /** Up and Down: steps through the palette's suggestions, answering whether the arrow was taken for that. */
+  suggestionStep?(direction: -1 | 1): boolean;
   /** The text as the reader changed it. A change made through the field itself is not told. */
   changed(text: string): void;
   /** What the text is checked as, for its colours, the values beside it and what will not work. */
   session(): ChatLintSession | null;
-  /** The names offered as the line is written. */
+  /** The names offered as a line is written. */
   completionWords(): ChatCompletionWords;
+  /** The picture a portrait command shows, for its chip; null where there is none. */
+  portraitImage(raw: string): string | null;
   readonly translate: TranslateFn;
 }
 
@@ -39,143 +67,227 @@ export interface ChatEditorStart {
   focused: boolean;
 }
 
-/** A change made through the field rather than by the reader, which the holder knows of already. */
-const fromHolder = Annotation.define<boolean>();
+/** Marks a change made through the field rather than by the reader, which the holder knows of already. */
+const FROM_HOLDER = 'chatFromHolder';
 
-/**
- * The keys of the names offered: Tab takes the one picked, Up and Down move through them and
- * Escape puts them away, each only while they are offered. Enter is left to send the line, so a
- * line typed out in full goes out on Enter whatever is offered beside it, and the keys need not
- * wait, as the completion's own do, for fear of an Enter taking a name nobody meant to pick.
- */
-const completionKeys = Prec.highest(
-  keymap.of([
-    { key: 'Tab', run: acceptCompletion },
-    { key: 'ArrowDown', run: moveCompletionSelection(true) },
-    { key: 'ArrowUp', run: moveCompletionSelection(false) },
-    { key: 'Escape', run: closeCompletion },
-  ])
-);
-
-/** How long after the last key the text is checked. */
+/** How long after the last key the text is checked for what will not work. */
 const LINT_DELAY_MS = 300;
 
+/** How long after a word is made with an input method an Enter is still taken for the one that made it. */
+const COMPOSITION_ENTER_MS = 50;
+
+/** Past this many letters the text is not coloured or checked, as reading it over at every key would lag. */
+const HIGHLIGHT_LIMIT = 8000;
+
+const SYNTAX = new PluginKey<DecorationSet>('chatSyntax');
+
+const KIND_CLASSES: Partial<Record<SyntaxKind, string>> = {
+  repeat: 'chat-rich-roll',
+  roll: 'chat-rich-roll',
+  reference: 'chat-rich-reference',
+  resource: 'chat-rich-resource',
+  buff: 'chat-rich-buff',
+  sweep: 'chat-rich-buff',
+  portrait: 'chat-rich-portrait',
+  cutIn: 'chat-rich-cut-in',
+  effect: 'chat-rich-effect',
+  diceToken: 'chat-rich-dice-token',
+  quote: 'chat-rich-quiet',
+  vnSuffix: 'chat-rich-quiet',
+  paletteVariable: 'chat-rich-quiet',
+  paletteTab: 'chat-rich-tab',
+};
+
+/** The decoration a pair of marks typed round some text stands for. */
+function decorationOfPair(open: string, close: string): ChatDecoration | null {
+  return chatDecorationLayout(`${open}x${close}`).runs[0]?.decoration ?? null;
+}
+
 /**
- * The editor as a field: the chat input reads and writes it, and moves the focus to it, as it does
- * the plain box. Its content element carries the chat input's mark and takes the keys.
+ * The editor as a field: a document of decorated text and chips, drawn as it will look, which the
+ * chat input reads and writes as the syntax string it sends. Its content element carries the chat
+ * input's mark and takes the keys.
  */
 export class ChatEditorField implements ChatTextField {
-  private readonly placeholderSlot = new Compartment();
-  private readonly tooltipSlot = new Compartment();
-  readonly view: EditorView;
+  readonly rich = true;
+  private readonly marksNow = signal<ChatDecoration | null>(null);
+  readonly activeMarks = this.marksNow.asReadonly();
+  readonly editor: Editor;
+  private written: { doc: ProseMirrorNode; language: ChatTagLanguage; out: ChatDocText } | null = null;
+  private composedAt = -Infinity;
+  private lintTimer: ReturnType<typeof setTimeout> | null = null;
+  private refreshAfterComposition = false;
+  private pendingText: { text: string; select?: ChatFieldSelection } | null = null;
+  private readonly tip: HTMLElement;
 
   constructor(
     readonly parent: HTMLElement,
     start: ChatEditorStart,
     private readonly host: ChatEditorHost
   ) {
-    const root = rootOf(parent);
-    this.view = new EditorView({
-      parent,
-      root,
-      state: EditorState.create({
-        doc: start.text,
-        selection: EditorSelection.single(start.selection.from, start.selection.to),
-        extensions: [
-          chatEditorKeys(host),
-          EditorView.lineWrapping,
-          EditorView.contentAttributes.of({
-            [CHAT_INPUT_ATTR]: '',
-            spellcheck: 'false',
-            enterkeyhint: host.submit ? 'send' : 'enter',
-            'aria-label': host.placeholder(),
-          }),
-          this.placeholderSlot.of(placeholder(host.placeholder())),
-          this.tooltipSlot.of(tooltips({ parent: bodyOf(root) })),
-          chatEditorTheme,
-          autocompletion({
-            override: [chatCompletionSource(() => host.completionWords())],
-            icons: false,
-            defaultKeymap: false,
-            interactionDelay: 0,
-          }),
-          completionKeys,
-          livePreview({
-            scan: (text) => {
-              const scan = host.session()?.scan();
-              return scan && scan.text === text ? scan : scanChatSyntax(text, host.mode);
-            },
-            annotations: (text) => {
-              const session = host.session();
-              return session && session.scan().text === text ? session.annotations() : [];
-            },
-          }),
-          linter(
-            (view) => {
-              const session = host.session();
-              const text = view.state.doc.toString();
-              if (!session || text.length > PREVIEW_LIMIT || session.scan().text !== text) return [];
-              return session.diagnostics().map((found) => toEditorDiagnostic(found, host.translate));
-            },
-            { delay: LINT_DELAY_MS }
-          ),
-          EditorView.updateListener.of((update) => {
-            if (!update.docChanged) return;
-            if (update.transactions.every((tr) => tr.annotation(fromHolder))) return;
-            host.changed(update.state.doc.toString());
-          }),
-        ],
-      }),
+    const document = parent.ownerDocument;
+    ensureChatEditorStyle(document);
+    if (document !== globalThis.document) ensureChatEditorStyle(globalThis.document);
+    this.tip = document.createElement('div');
+    this.tip.className = 'chat-rich-tip';
+    this.tip.hidden = true;
+    this.tip.setAttribute('role', 'tooltip');
+    document.body.append(this.tip);
+
+    this.editor = new Editor({
+      element: parent,
+      extensions: [
+        ...CHAT_RICH_EXTENSIONS,
+        UndoRedo,
+        Placeholder.configure({ placeholder: () => host.placeholder() }),
+        this.keys(),
+        this.rules(),
+        this.syntax(),
+      ],
+      enableCoreExtensions: { clipboardTextSerializer: false },
+      editorProps: {
+        attributes: {
+          class: 'chat-rich',
+          [CHAT_INPUT_ATTR]: '',
+          spellcheck: 'false',
+          enterkeyhint: host.submit ? 'send' : 'enter',
+          'aria-label': host.placeholder(),
+          'aria-multiline': 'true',
+        },
+        clipboardTextSerializer: (slice) => this.textOfSlice(slice),
+        handlePaste: (view, event) => this.paste(view, event),
+      },
     });
-    Object.defineProperty(this.view.contentDOM, 'chatText', { value: () => this.text() });
+    this.setText(start.text, start.selection, false);
+    this.editor.on('transaction', ({ transaction }) => this.afterTransaction(transaction));
+    this.editor.view.dom.addEventListener('mouseover', this.showTip);
+    this.editor.view.dom.addEventListener('mouseout', this.hideTip);
+    this.editor.view.dom.addEventListener('keydown', this.hideTip);
+    Object.defineProperty(this.editor.view.dom, 'chatText', { value: () => this.text() });
+    this.updateActiveMarks();
     if (start.focused) this.focus();
   }
 
   get element(): HTMLElement {
-    return this.view.contentDOM;
+    return this.editor.view.dom;
+  }
+
+  private get schema() {
+    return this.editor.schema;
+  }
+
+  /** The document as the syntax string, worked out once for each state of it. */
+  private writtenNow(): ChatDocText {
+    const doc = this.editor.state.doc;
+    const language = this.host.language();
+    if (this.written?.doc !== doc || this.written.language !== language) {
+      this.written = { doc, language, out: textOfDoc(doc, language, this.host.mode) };
+    }
+    return this.written.out;
   }
 
   text(): string {
-    return this.view.state.doc.toString();
+    return this.writtenNow().text;
   }
 
   selection(): ChatFieldSelection {
-    const main = this.view.state.selection.main;
-    return { from: main.from, to: main.to };
+    const { from, to } = this.editor.state.selection;
+    const out = this.writtenNow();
+    return { from: out.toOffset(from, from === to ? -1 : 1), to: out.toOffset(to, -1) };
   }
 
-  setText(text: string, select?: ChatFieldSelection): void {
-    const edit = minimalEdit(this.text(), text);
+  /**
+   * Puts the text in, read into decorated text and chips, changing only what differs from what the
+   * editor holds, so its history and the caret's place survive. Text that arrives while a word is
+   * being made with an input method waits until the word is made.
+   */
+  setText(text: string, select?: ChatFieldSelection, undoable = true): void {
+    const view = this.editor.view;
+    if (view.composing) {
+      this.pendingText = { text, select };
+      return;
+    }
+    const state = this.editor.state;
+    const lines = parseChatRichText(text, { mode: this.host.mode, cutInNames: this.host.cutInNames() }).lines;
+    const next = docOfLines(this.schema, lines);
+    const tr = state.tr;
+    const start = state.doc.content.findDiffStart(next.content);
+    if (start !== null) {
+      const end = state.doc.content.findDiffEnd(next.content)!;
+      let endA = end.a;
+      let endB = end.b;
+      const overlap = start - Math.min(endA, endB);
+      if (overlap > 0) {
+        endA += overlap;
+        endB += overlap;
+      }
+      tr.replace(start, endA, next.slice(start, endB));
+    }
+    const out = textOfDoc(tr.doc, this.host.language(), this.host.mode);
     const caret = select ?? { from: text.length, to: text.length };
-    this.view.dispatch({
-      changes: edit ?? undefined,
-      selection: EditorSelection.single(caret.from, caret.to),
-      annotations: fromHolder.of(true),
-      scrollIntoView: this.hasFocus(),
-    });
+    const from = out.toPos(caret.from, caret.from === caret.to ? -1 : 1);
+    const to = out.toPos(caret.to, -1);
+    tr.setSelection(TextSelection.create(tr.doc, Math.min(from, to), Math.max(from, to)));
+    tr.setMeta(FROM_HOLDER, true);
+    if (!undoable) tr.setMeta('addToHistory', false);
+    if (view.hasFocus()) tr.scrollIntoView();
+    view.dispatch(tr);
   }
 
   replaceRange(from: number, to: number, insert: string, select?: ChatFieldSelection): void {
+    const text = this.text();
     const end = from + insert.length;
-    const caret = select ?? { from: end, to: end };
-    this.view.dispatch({
-      changes: { from, to, insert },
-      selection: EditorSelection.single(caret.from, caret.to),
-      annotations: fromHolder.of(true),
-      scrollIntoView: true,
-    });
+    this.setText(text.slice(0, from) + insert + text.slice(to), select ?? { from: end, to: end });
   }
 
   focus(): void {
-    this.view.focus();
+    this.editor.view.focus();
   }
 
   hasFocus(): boolean {
-    return this.view.hasFocus;
+    return this.editor.view.hasFocus();
   }
 
   refit(): void {
-    this.view.requestMeasure();
+    this.editor.view.updateState(this.editor.state);
+  }
+
+  applyMark(change: ChatMarkChange): void {
+    const chain = this.editor.chain().focus();
+    switch (change.kind) {
+      case 'bold':
+      case 'italic':
+      case 'strike':
+        chain.toggleMark(CHAT_MARK[change.kind]).run();
+        return;
+      default:
+        if (change.value === null) chain.unsetMark(CHAT_MARK[change.kind]).run();
+        else chain.setMark(CHAT_MARK[change.kind], { value: change.value }).run();
+        if (change.kind === 'font' && change.value) chatFontWanted$.emit(change.value);
+    }
+  }
+
+  insertChip(chip: ChatRichChip, place: ChatChipPlace = 'caret'): void {
+    const state = this.editor.state;
+    const marks: readonly Mark[] = state.storedMarks ?? state.selection.$from.marks();
+    const node = nodeOfChip(this.schema, chip, marks);
+    const tr = state.tr;
+    if (place === 'end') {
+      const end = state.doc.content.size - 1;
+      const before = state.doc.textBetween(Math.max(0, end - 1), end, '\n', CHIP_LETTER);
+      const space = end > 1 && before.length > 0 && !/\s/.test(before) ? [this.schema.text(' ')] : [];
+      tr.insert(end, [...space, node]);
+      tr.setSelection(TextSelection.create(tr.doc, end + space.length + 1));
+    } else {
+      tr.replaceSelectionWith(node, false);
+    }
+    this.editor.view.dispatch(tr.scrollIntoView());
+    this.focus();
+  }
+
+  selectedText(): string {
+    const { from, to } = this.editor.state.selection;
+    return this.editor.state.doc.textBetween(from, to, '\n', (leaf) => chipOfNode(leaf)?.raw ?? '');
   }
 
   /** Where it stands, to start the plain box from when the reader goes back to it. */
@@ -184,49 +296,426 @@ export class ChatEditorField implements ChatTextField {
   }
 
   /**
-   * Draws the text again, for what is shown beside it, and checks it again at once where the text
-   * itself is unchanged, as when the room changed under it; a changed text is checked after the
-   * reader pauses, as ever.
+   * Colours the syntax again and checks it again, for a change to the text or to the room. What
+   * will not work is marked at once for a change to the room, and after the reader pauses for a
+   * change to the text.
    */
   refresh(textChanged: boolean): void {
-    this.view.dispatch({ effects: refreshPreview.of(null) });
-    if (!textChanged) forceLinting(this.view);
+    if (this.lintTimer) clearTimeout(this.lintTimer);
+    this.lintTimer = null;
+    if (textChanged) {
+      this.lintTimer = setTimeout(() => this.refresh(false), LINT_DELAY_MS);
+    }
+    this.paintSyntax(!textChanged);
   }
 
   /** Says what the empty editor says again, as when the language changes. */
   reconfigure(): void {
-    this.view.dispatch({ effects: this.placeholderSlot.reconfigure(placeholder(this.host.placeholder())) });
+    this.editor.view.dispatch(this.editor.state.tr.setMeta('addToHistory', false));
   }
 
-  /**
-   * Follows the editor into another window, when the panel it stands in is moved there whole, so
-   * that it reads the caret and the keys there and its hints open there.
-   */
+  /** Follows the editor into another window, when the panel it stands in is moved there whole. */
   followRoot(): void {
-    const root = rootOf(this.parent);
-    if (root === this.view.root) return;
-    this.view.setRoot(root);
-    this.view.dispatch({ effects: this.tooltipSlot.reconfigure(tooltips({ parent: bodyOf(root) })) });
+    const view = this.editor.view;
+    if (view.root === this.parent.getRootNode() || view.dom.ownerDocument === view.root) return;
+    view.updateRoot();
+    ensureChatEditorStyle(view.dom.ownerDocument);
+    view.dom.ownerDocument.body.append(this.tip);
   }
 
   /** Selects a stretch of the text and puts the caret there. */
   select(range: ChatFieldSelection): void {
-    this.view.dispatch({ selection: EditorSelection.single(range.from, range.to), scrollIntoView: true });
+    const out = this.writtenNow();
+    const tr = this.editor.state.tr.setSelection(
+      TextSelection.create(this.editor.state.doc, out.toPos(range.from, 1), out.toPos(range.to, -1))
+    );
+    this.editor.view.dispatch(tr.scrollIntoView());
     this.focus();
   }
 
   destroy(): void {
-    this.view.destroy();
+    if (this.lintTimer) clearTimeout(this.lintTimer);
+    this.tip.remove();
+    this.editor.destroy();
   }
-}
 
-function rootOf(element: HTMLElement): Document | ShadowRoot {
-  const root = element.getRootNode();
-  return root instanceof ShadowRoot ? root : element.ownerDocument;
-}
+  private afterTransaction(transaction: Transaction): void {
+    this.updateActiveMarks();
+    if (!transaction.docChanged) return;
+    for (const font of this.fontsIn(this.editor.state.doc)) chatFontWanted$.emit(font);
+    if (!transaction.getMeta(FROM_HOLDER)) this.host.changed(this.text());
+  }
 
-function bodyOf(root: Document | ShadowRoot): HTMLElement {
-  return (root instanceof ShadowRoot ? root.ownerDocument : root).body;
+  private fontsIn(doc: ProseMirrorNode): Set<string> {
+    const fonts = new Set<string>();
+    doc.descendants((node) => {
+      for (const mark of node.marks) if (mark.type.name === CHAT_MARK.font) fonts.add(String(mark.attrs['value']));
+    });
+    return fonts;
+  }
+
+  /**
+   * What is decorated where the caret is, or over the whole of the selection: a decoration counts
+   * only where every letter selected has it.
+   */
+  private updateActiveMarks(): void {
+    const state = this.editor.state;
+    const { from, to, empty, $from } = state.selection;
+    if (empty) {
+      this.marksNow.set(decorationOfMarks(state.storedMarks ?? $from.marks()));
+      return;
+    }
+    let common: readonly Mark[] | null = null;
+    state.doc.nodesBetween(from, to, (node) => {
+      if (!node.isInline) return true;
+      common = common === null ? node.marks : common.filter((mark) => mark.isInSet(node.marks));
+      return false;
+    });
+    this.marksNow.set(decorationOfMarks(common ?? []));
+  }
+
+  /** The keys of the chat input, and the Enter that makes a word with an input method kept from sending. */
+  private keys(): Extension {
+    const host = this.host;
+    const unchip = () => this.unchipBeforeCaret();
+    const composedJustNow = () => Date.now() - this.composedAt < COMPOSITION_ENTER_MS;
+    const composed = () => {
+      this.composedAt = Date.now();
+      setTimeout(() => this.afterComposition());
+    };
+    return Extension.create({
+      name: 'chatKeys',
+      priority: 1000,
+      addKeyboardShortcuts() {
+        const shortcuts: Record<string, () => boolean> = {
+          Backspace: unchip,
+        };
+        if (host.submit) {
+          const submit = host.submit.bind(host);
+          shortcuts['Enter'] = () => {
+            if (!this.editor.view.composing) submit();
+            return true;
+          };
+          shortcuts['Shift-Enter'] = () => this.editor.commands.splitBlock({ keepMarks: true });
+        }
+        if (host.historyStep) {
+          const step = host.historyStep.bind(host);
+          shortcuts['Ctrl-ArrowUp'] = () => (step(-1), true);
+          shortcuts['Ctrl-ArrowDown'] = () => (step(1), true);
+        }
+        if (host.suggestionStep) {
+          const step = host.suggestionStep.bind(host);
+          shortcuts['ArrowUp'] = () => step(-1);
+          shortcuts['ArrowDown'] = () => step(1);
+        }
+        return shortcuts;
+      },
+      addProseMirrorPlugins() {
+        return [
+          new Plugin({
+            props: {
+              handleKeyDown: (_view, event) => {
+                if (event.key !== 'Enter') return false;
+                if (event.isComposing || event.keyCode === 229) return true;
+                if (composedJustNow()) {
+                  event.preventDefault();
+                  return true;
+                }
+                return false;
+              },
+              handleDOMEvents: {
+                compositionend: () => {
+                  composed();
+                  return false;
+                },
+              },
+            },
+          }),
+        ];
+      },
+    });
+  }
+
+  /** Turns a chip right before the caret back into the text it stands for, less its last letter. */
+  private unchipBeforeCaret(): boolean {
+    const state = this.editor.state;
+    const { empty, $from } = state.selection;
+    const before = $from.nodeBefore;
+    const chip = empty && before ? chipOfNode(before) : null;
+    if (!chip || !before) return false;
+    const pos = $from.pos;
+    const rest = chip.raw.slice(0, -1);
+    const tr = state.tr.replaceWith(pos - 1, pos, rest ? this.schema.text(rest, before.marks) : []);
+    this.editor.view.dispatch(tr);
+    return true;
+  }
+
+  private afterComposition(): void {
+    const pending = this.pendingText;
+    this.pendingText = null;
+    if (pending) this.setText(pending.text, pending.select);
+    if (this.refreshAfterComposition) {
+      this.refreshAfterComposition = false;
+      this.refresh(true);
+    }
+  }
+
+  /**
+   * The shortcuts typed as syntax: a pair of decoration marks closed round some text becomes that
+   * decoration, and a reference, a ruby or an effect token closed becomes its chip. Backspace right
+   * after takes either back.
+   */
+  private rules(): Extension {
+    const rules = () => [this.markRule(), this.referenceRule(), this.rubyOrEffectRule()];
+    return Extension.create({
+      name: 'chatRules',
+      addInputRules() {
+        return rules();
+      },
+    });
+  }
+
+  private markRule(): InputRule {
+    return new InputRule({
+      find: (text) => {
+        const layout = chatDecorationLayout(text);
+        for (const mark of layout.marks) {
+          if (mark.to !== text.length || !mark.paired || mark.partner < 0) continue;
+          if (mark.kind !== 'stars' && mark.kind !== 'close') continue;
+          const open = layout.marks[mark.partner];
+          if (open.from >= mark.from) continue;
+          const decoration = decorationOfPair(text.slice(open.from, open.to), text.slice(mark.from, mark.to));
+          if (!decoration) continue;
+          return {
+            index: open.from,
+            text: text.slice(open.from),
+            data: { open: open.to - open.from, close: mark.to - mark.from, decoration },
+          };
+        }
+        return null;
+      },
+      handler: ({ state, range, match }) => {
+        const data = match.data as { open: number; close: number; decoration: ChatDecoration };
+        const innerFrom = range.from + data.open;
+        const innerTo = range.to - data.close;
+        if (innerTo <= innerFrom) return null;
+        const tr = state.tr;
+        const marks = marksOfDecoration(this.schema, data.decoration);
+        for (const mark of marks) tr.addMark(innerFrom, innerTo, mark);
+        tr.delete(innerTo, range.to);
+        tr.delete(range.from, innerFrom);
+        for (const mark of marks) tr.removeStoredMark(mark.type);
+        return undefined;
+      },
+    });
+  }
+
+  private referenceRule(): InputRule {
+    return new InputRule({
+      find: /[tTｔＴ]?[{｛][^{}｛｝\ufffc\n]+[}｝]$/,
+      handler: ({ state, range, match }) => {
+        const raw = match[0];
+        const site = referenceSites(raw)[0];
+        if (!site || site.from !== 0 || site.to !== raw.length) return null;
+        this.replaceWithChip(
+          state.tr,
+          range,
+          { kind: 'reference', raw, name: site.name, targeted: site.targeted, useMax: site.useMax },
+          state.doc.resolve(range.from + 1).marks()
+        );
+        return undefined;
+      },
+    });
+  }
+
+  private rubyOrEffectRule(): InputRule {
+    return new InputRule({
+      find: (text) => {
+        const ruby = /[|｜]([^|｜\s\ufffc]+?)《([^《》\ufffc]+?)》$/.exec(text);
+        if (ruby) return { index: ruby.index, text: ruby[0], data: { ruby: true, base: ruby[1], reading: ruby[2] } };
+        const effect = /《([^《》\ufffc\n]+)》$/.exec(text);
+        if (effect && effect[1].trim().length > 0) {
+          return { index: effect.index, text: effect[0], data: { ruby: false, name: effect[1].trim() } };
+        }
+        return null;
+      },
+      handler: ({ state, range, match }) => {
+        const data = match.data as { ruby: boolean; base?: string; reading?: string; name?: string };
+        const raw = match[0];
+        const marks = state.doc.resolve(range.from + 1).marks();
+        const chip: ChatRichChip = data.ruby
+          ? { kind: 'ruby', raw, base: data.base ?? '', reading: data.reading ?? '' }
+          : { kind: 'effect', raw, name: data.name ?? '', battle: isBattleChatTokenName(data.name ?? '') };
+        this.replaceWithChip(state.tr, range, chip, marks);
+        return undefined;
+      },
+    });
+  }
+
+  private replaceWithChip(
+    tr: Transaction,
+    range: { from: number; to: number },
+    chip: ChatRichChip,
+    marks: readonly Mark[]
+  ) {
+    tr.replaceWith(range.from, range.to, nodeOfChip(this.schema, chip, marks));
+  }
+
+  /** The syntax string a piece of the document is copied as. */
+  private textOfSlice(slice: Slice): string {
+    const first = slice.content.firstChild;
+    const paragraphs =
+      first?.type.name === 'paragraph' ? slice.content : this.schema.nodes['paragraph'].create(null, slice.content);
+    const doc = this.schema.nodes['doc'].create(null, paragraphs);
+    return textOfDoc(doc, this.host.language(), this.host.mode).text;
+  }
+
+  /** Pastes text as the syntax it is written in, its decorations and chips shown as they look. */
+  private paste(view: EditorView, event: ClipboardEvent): boolean {
+    const text = event.clipboardData?.getData('text/plain');
+    if (text === undefined || text.length < 1) return false;
+    const lines = parseChatRichText(text.replace(/\r\n?/g, '\n'), {
+      mode: this.host.mode,
+      cutInNames: this.host.cutInNames(),
+    }).lines.map((line) => ({ segments: line.segments }));
+    const doc = docOfLines(this.schema, lines);
+    view.dispatch(view.state.tr.replaceSelection(new Slice(doc.content, 1, 1)).scrollIntoView());
+    return true;
+  }
+
+  /** The plugin that holds the colours of the syntax and the marks of what will not work. */
+  private syntax(): Extension {
+    return Extension.create({
+      name: 'chatSyntax',
+      addProseMirrorPlugins() {
+        return [
+          new Plugin<DecorationSet>({
+            key: SYNTAX,
+            state: {
+              init: () => DecorationSet.empty,
+              apply: (tr, set) => tr.getMeta(SYNTAX) ?? set.map(tr.mapping, tr.doc),
+            },
+            props: {
+              decorations: (state) => SYNTAX.getState(state),
+            },
+          }),
+        ];
+      },
+    });
+  }
+
+  /** Colours the syntax of the text as the chat reads it, and marks what will not work where asked. */
+  private paintSyntax(withLint: boolean): void {
+    const view = this.editor.view;
+    if (view.isDestroyed) return;
+    if (view.composing) {
+      this.refreshAfterComposition = true;
+      return;
+    }
+    const session = this.host.session();
+    const out = this.writtenNow();
+    if (!session || out.text.length > HIGHLIGHT_LIMIT) {
+      view.dispatch(view.state.tr.setMeta(SYNTAX, DecorationSet.empty).setMeta('addToHistory', false));
+      return;
+    }
+    const scan = session.scan();
+    if (scan.text !== out.text) return;
+    const doc = view.state.doc;
+    const decorations: Decoration[] = [];
+    const annotations = session.annotations();
+    const chipAt = (from: number, to: number): number | null => {
+      const pos = out.toPos(from, 1);
+      const node = doc.nodeAt(pos);
+      return node && chipOfNode(node) && out.toOffset(pos + 1, -1) === to ? pos : null;
+    };
+    const chipsSeen = new Set<number>();
+    this.paintSpans(scan, annotations, out, chipAt, chipsSeen, decorations);
+    doc.descendants((node, pos) => {
+      const chip = chipOfNode(node);
+      if (!chip || (chip.kind !== 'portrait' && chip.kind !== 'cutIn')) return;
+      const attrs: Record<string, string> = {};
+      if (!chipsSeen.has(pos)) {
+        attrs['class'] = 'chat-chip-idle';
+        attrs['data-tip'] = this.host.translate('feature.chat.lint.chipNotAtEnd');
+      }
+      const image = chip.kind === 'portrait' ? this.host.portraitImage(chip.raw) : null;
+      if (image) attrs['style'] = `--chip-image: url("${image.replace(/["\\\\]/g, '')}")`;
+      if (Object.keys(attrs).length > 0) decorations.push(Decoration.node(pos, pos + node.nodeSize, attrs));
+    });
+    if (withLint) {
+      for (const found of session.diagnostics()) {
+        const tip = this.host.translate(
+          `feature.chat.lint.${found.code}`,
+          found.params ? { ...found.params } : undefined
+        );
+        const attrs = { class: `chat-lint-${found.severity}`, 'data-tip': tip };
+        const chip = chipAt(found.from, found.to);
+        if (chip !== null) {
+          decorations.push(Decoration.node(chip, chip + 1, attrs));
+          continue;
+        }
+        const from = out.toPos(found.from, 1);
+        const to = out.toPos(found.to, -1);
+        if (from < to) decorations.push(Decoration.inline(from, to, attrs));
+      }
+    }
+    view.dispatch(view.state.tr.setMeta(SYNTAX, DecorationSet.create(doc, decorations)).setMeta('addToHistory', false));
+  }
+
+  private paintSpans(
+    scan: ChatSyntaxScan,
+    annotations: readonly ChatLintAnnotation[],
+    out: ChatDocText,
+    chipAt: (from: number, to: number) => number | null,
+    chipsSeen: Set<number>,
+    decorations: Decoration[]
+  ): void {
+    const annotated = (kind: ChatLintAnnotation['kind'], from: number, to: number) =>
+      annotations.find((each) => each.kind === kind && each.from === from && each.to === to);
+    for (const span of scan.spans) {
+      if (span.kind === 'decoration' || span.kind === 'ruby') continue;
+      const chip = chipAt(span.from, span.to);
+      if (chip !== null) {
+        chipsSeen.add(chip);
+        const value = span.kind === 'reference' ? annotated('value', span.from, span.to) : undefined;
+        if (value) decorations.push(Decoration.node(chip, chip + 1, { 'data-value': value.label }));
+        continue;
+      }
+      if (span.kind === 'cutIn' && !annotated('cutIn', span.from, span.to)) continue;
+      const className = KIND_CLASSES[span.kind];
+      if (!className) continue;
+      const from = out.toPos(span.from, 1);
+      const to = out.toPos(span.to, -1);
+      if (from >= to) continue;
+      const roll = span.kind === 'roll' ? annotated('roll', span.from, span.to) : undefined;
+      decorations.push(
+        Decoration.inline(from, to, roll ? { class: className, 'data-tip': roll.label } : { class: className })
+      );
+    }
+  }
+
+  private readonly showTip = (event: MouseEvent): void => {
+    const target = (event.target as Element | null)?.closest?.('[data-tip]');
+    const text = target?.getAttribute('data-tip');
+    if (!target || !text) {
+      this.tip.hidden = true;
+      return;
+    }
+    this.tip.textContent = text;
+    this.tip.hidden = false;
+    void computePosition(target, this.tip, {
+      strategy: 'fixed',
+      placement: 'top',
+      middleware: [offset(6), flip({ fallbackPlacements: ['bottom'] }), shift({ padding: 8 })],
+    }).then(({ x, y }) => {
+      this.tip.style.left = `${x}px`;
+      this.tip.style.top = `${y}px`;
+    });
+  };
+
+  private readonly hideTip = (): void => {
+    this.tip.hidden = true;
+  };
 }
 
 /** Puts the editor into the element, starting from where the plain box stood. */

@@ -4164,7 +4164,8 @@
         "vn": {
           "dropped": "Unknown words ({{words}}) leave the 〔〕 as text",
           "duplicate": "Two words of one kind leave the 〔〕 as text"
-        }
+        },
+        "chipNotAtEnd": "Works only at the end of the line"
       },
       "syntax": {
         "button": "Syntax",
