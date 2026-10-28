@@ -16,15 +16,27 @@ export interface DiceChatToken {
   name: string;
 }
 
+/** Where the `dice:` token stands in a line, from its `d` to the end of the name. */
+export interface DiceChatTokenSite extends DiceChatToken {
+  from: number;
+  to: number;
+}
+
+/** Finds the `dice:` token in a chat line and where it stands, or null when there is none. */
+export function diceChatTokenSite(text: string): DiceChatTokenSite | null {
+  const matched = TOKEN_PATTERN.exec(text);
+  if (!matched) return null;
+  const to = matched.index + matched[0].length;
+  return { name: matched[1].trim(), from: to - matched[1].length - 'dice:'.length, to };
+}
+
 /**
  * Finds the `dice:` token in a chat line, or null when there is none. The name may come back empty,
  * meaning whoever spoke.
  */
 export function parseDiceChatToken(text: string): DiceChatToken | null {
-  const matched = TOKEN_PATTERN.exec(text);
-  if (!matched) return null;
-
-  return { name: matched[1].trim() };
+  const site = diceChatTokenSite(text);
+  return site ? { name: site.name } : null;
 }
 
 /** The token added to a palette row. */
