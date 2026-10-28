@@ -113,12 +113,12 @@ export function parseBuffModifierRequest(
 
 /**
  * Reads the statuses a `&!` buff moves where they are written together in its second field, each
- * with its operator and amount, parted by commas: `追D+4,回避-2`, `器用度+5~-1,HP^-20`. Null where
- * any of them cannot be read, or none is written.
+ * with its operator and amount, parted by commas: `追D+4,回避-2`, `器用度+5~-1,HP^-20`. A comma
+ * inside brackets belongs to the amount, as in `max(1,{Lv})`. Null where any of them cannot be
+ * read, or none is written.
  */
 export function parseBuffModifierItems(text: string): ParsedBuffModifierRequest[] | null {
-  const items = (text ?? '')
-    .split(/[,，、]/)
+  const items = splitOutsideBrackets(text ?? '')
     .map((item) => item.trim())
     .filter((item) => item.length > 0);
   if (items.length < 1) return null;
@@ -130,6 +130,24 @@ export function parseBuffModifierItems(text: string): ParsedBuffModifierRequest[
     requests.push(request);
   }
   return requests;
+}
+
+/** Parts the text at its commas of either width, leaving those inside brackets in place. */
+function splitOutsideBrackets(text: string): string[] {
+  const items: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < text.length; index++) {
+    const character = text[index];
+    if (character === '(' || character === '（') depth++;
+    else if ((character === ')' || character === '）') && depth > 0) depth--;
+    else if (depth === 0 && (character === ',' || character === '，' || character === '、')) {
+      items.push(text.slice(start, index));
+      start = index + 1;
+    }
+  }
+  items.push(text.slice(start));
+  return items;
 }
 
 /** The status a request moves, as a badge names it: `最大HP` for the far side of HP. */

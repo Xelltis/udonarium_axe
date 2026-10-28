@@ -157,6 +157,15 @@ describe('buff-modifier', () => {
       ]);
     });
 
+    it('keeps a comma inside brackets with the amount it belongs to', () => {
+      const requests = parseBuffModifierItems('攻撃+max(1,3),回避-1')!;
+
+      expect(requests.map((request) => [request.target, request.amount])).toEqual([
+        ['攻撃', 3],
+        ['回避', -1],
+      ]);
+    });
+
     it('reads one written that way as well', () => {
       expect(parseBuffModifierItems('筋力+2')).toEqual([parseBuffModifierRequest('筋力', '+', '2')]);
     });
