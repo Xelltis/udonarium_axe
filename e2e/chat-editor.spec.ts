@@ -1,6 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
 
-import { chatInput, chatInputText, chatTabPill, expectChatText, waitAppReady } from './helpers';
+import { chatInput, chatInputText, chatTabPill, createCharacter, expectChatText, waitAppReady } from './helpers';
 
 /** Has the reader's chat typed into the editor, as a reader who switched it on would. */
 async function withEditor(page: Page): Promise<void> {
@@ -124,6 +124,28 @@ test.describe('the chat editor', () => {
     // all that matters is that nothing went out.
     await expect.poll(() => chatInputText(input)).toContain('仮名');
     await expect(page.locator('chat-tab').getByText('仮名')).toHaveCount(0);
+  });
+});
+
+test.describe('the palette written in the editor', () => {
+  test('checks each line against the piece and the variables written above it', async ({ page }) => {
+    await withEditor(page);
+    await createCharacter(page);
+    await page.locator('game-character').first().dispatchEvent('contextmenu');
+    await page.locator('context-menu').getByText('チャットパレットを表示').click();
+    const palette = page.locator('chat-palette');
+    await palette.getByRole('button', { name: '編集', exact: true }).click();
+
+    const editor = palette.locator('[data-chat-palette-editor] [data-chat-input]');
+    await expect(editor).toBeVisible({ timeout: 10000 });
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('Delete');
+    await editor.fill('//強さ=3\n2d6+{強さ} 殴る\n:気力-1');
+    await expectChatText(editor, '//強さ=3\n2d6+{強さ} 殴る\n:気力-1');
+    await expect(editor.locator('.cm-lintRange-error')).toHaveCount(1, { timeout: 5000 });
+    await expect(editor.locator('.cm-chat-reference')).toHaveCount(1);
+    await expect(editor.locator('.cm-chat-variable')).toHaveCount(1);
   });
 });
 

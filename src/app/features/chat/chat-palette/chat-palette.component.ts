@@ -1,4 +1,5 @@
 import {
+  afterEveryRender,
   afterNextRender,
   ChangeDetectionStrategy,
   Component,
@@ -15,8 +16,10 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
+import { ChatLintService } from '@axe/application/chat/chat-lint.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPaletteRegistryService } from '@axe/application/chat/chat-palette-registry.service';
+import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -40,8 +43,11 @@ import { DataElement } from '@axe/domain/data/data-element';
 import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
+import type { ChatEditorField, ChatEditorHost } from '@axe/features/chat/chat-editor/chat-editor';
+import { CHAT_EDITOR_LOADER, type ChatEditorModule } from '@axe/features/chat/chat-editor/chat-editor-loader';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
 import { editsTextInPlace } from '@axe/features/chat/chat-input/chat-input-helpers';
+import { ChatSyntaxSourceService } from '@axe/features/chat/chat-input/chat-syntax-source.service';
 import { PaletteSearchResult, searchPaletteRows } from '@axe/features/chat/chat-palette/chat-palette-search';
 import { ChatPaletteTabService } from '@axe/features/chat/chat-palette/chat-palette-tab.service';
 import { ChatTabStripComponent } from '@axe/features/chat/chat-tab-strip/chat-tab-strip.component';
@@ -95,6 +101,58 @@ export class ChatPaletteComponent {
   readonly paletteListRef = viewChild<ElementRef<HTMLDivElement>>('paletteList');
   readonly completeSelectRef = viewChild<ElementRef<HTMLSelectElement>>('completeSelect');
   readonly editTextRef = viewChild<ElementRef<HTMLTextAreaElement>>('editText');
+
+  private readonly chatPreferences = inject(ChatPreferencesService);
+  private readonly editorLoader = inject(CHAT_EDITOR_LOADER);
+  private readonly syntaxSource = inject(ChatSyntaxSourceService);
+  private readonly paletteEditorHost = viewChild<ElementRef<HTMLElement>>('paletteEditorHost');
+  private readonly editorModule = signal<ChatEditorModule | null>(null);
+  private paletteEditor: ChatEditorField | null = null;
+
+  /**
+   * Whether the palette is written in the editor that colours each line's syntax and marks what
+   * will not work, for a reader who has it on and once it has arrived.
+   */
+  protected readonly editsInEditor = computed(
+    () => this.isEdit() && this.chatPreferences.richInput() && this.editorModule() !== null
+  );
+
+  /** What is written in the palette, checked line by line as it will be sent from it. */
+  private readonly paletteLint = inject(ChatLintService).watch({
+    text: computed(() => this.editPalette()),
+    sendFrom: computed(() => this.character()?.identifier ?? ''),
+    gameType: computed(() => this._gameType()),
+    path: 'palette',
+    mode: 'palette',
+  });
+
+  private readonly paletteEditorApi: ChatEditorHost = {
+    mode: 'palette',
+    placeholder: () => this.t('feature.chat.palette.editPlaceholder'),
+    changed: (text) => this.editPalette.set(text),
+    session: () => this.paletteLint,
+    completionWords: () => this.syntaxSource.completionWordsFor(this.character()?.identifier ?? '', this.gameType),
+    translate: (key, params) => this.t(key, params),
+  };
+
+  /** Puts the editor into the edit area while the palette is being written, and takes it down after. */
+  private followPaletteEditor(): void {
+    const host = this.paletteEditorHost()?.nativeElement ?? null;
+    const module = this.editorModule();
+    untracked(() => {
+      if (this.paletteEditor && this.paletteEditor.parent !== host) {
+        this.paletteEditor.destroy();
+        this.paletteEditor = null;
+      }
+      if (!host || !module || this.paletteEditor) return;
+      const text = this.editPalette();
+      this.paletteEditor = module.mountChatEditor(
+        host,
+        { text, selection: { from: 0, to: 0 }, focused: false },
+        this.paletteEditorApi
+      );
+    });
+  }
   readonly character = signal<GameCharacter | null>(null);
 
   readonly selectedLine = signal<number>(-1);
@@ -294,7 +352,19 @@ export class ChatPaletteComponent {
     this.destroyRef.onDestroy(() => {
       this.chatPaletteRegistry.unregister(this);
       if (this.isEdit()) this.toggleEditMode();
+      this.paletteEditor?.destroy();
     });
+    effect(() => {
+      if (!this.isEdit() || !this.chatPreferences.richInput() || this.editorModule()) return;
+      untracked(() => void this.editorLoader().then((module) => this.editorModule.set(module)));
+    });
+    effect(() => this.followPaletteEditor());
+    effect(() => {
+      this.paletteLint.annotations();
+      this.paletteLint.diagnostics();
+      untracked(() => this.paletteEditor?.refresh());
+    });
+    afterEveryRender(() => this.paletteEditor?.followRoot());
   }
 
   /**
