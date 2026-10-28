@@ -101,6 +101,16 @@ export class BuffManager {
     return removed;
   }
 
+  /**
+   * Takes a buff away as the reader sees it: the first row of a buff that moves several statuses goes
+   * with every further row of it, putting back all they moved. Any other row goes on its own.
+   */
+  removeWhole(data: DataElement): void {
+    const heads = buffGroupOf(data) === data.name ? data.name : '';
+    this.remove(data);
+    if (heads.length > 0) this.removeGroupMembers(heads);
+  }
+
   /** Takes the buff away, putting back whatever it moved on the sheet. */
   remove(data: DataElement): void {
     this.revertModifier(data);

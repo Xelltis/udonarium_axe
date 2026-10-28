@@ -270,7 +270,7 @@ export class GameDataElementBuffComponent {
   deletBuff(data: DataElement) {
     // Through the owner, so a buff that moved a status puts it back on the way out.
     const owner = ownerCharacterOf(data);
-    if (owner) owner.buffs.remove(data);
+    if (owner) owner.buffs.removeWhole(data);
     else data.destroy();
   }
 }

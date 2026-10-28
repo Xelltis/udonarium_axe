@@ -325,7 +325,10 @@ function applyCalculatedBuff(command: string, character: GameCharacter, piles: B
   );
 }
 
-/** Lays a buff of one row a status, or stacks it, and says in the chat what it did. */
+/**
+ * Lays a buff of one row a status, or stacks it, and says in the chat what it did. A single status
+ * stacked on a buff of several leaves the buff marked as several; laid anew, it is one again.
+ */
 function grantCalculatedBuff(
   character: GameCharacter,
   name: string,
@@ -337,12 +340,12 @@ function grantCalculatedBuff(
   const round = roundText.length > 0 && Number.isFinite(Number(roundText)) ? Number(roundText) : 3;
   const timing = resolveBuffTiming(rest[1] ?? '') ?? undefined;
   const trigger = (rest[2] ?? '').trim();
-  const grouped = requests.length > 1;
-  const appearance = { timing, trigger: trigger.length > 0 ? trigger : undefined, group: grouped ? name : '' };
-
   const stacking =
     piles !== 'none' && requests.every((request) => request.operator === 'add') && character.buffs.find(name) != null;
   if (!stacking) character.buffs.removeGroupMembers(name);
+  const grouped = requests.length > 1;
+  const group = grouped ? name : stacking ? undefined : '';
+  const appearance = { timing, trigger: trigger.length > 0 ? trigger : undefined, group };
 
   const missing: string[] = [];
   const effects: string[] = [];

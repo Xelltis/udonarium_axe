@@ -350,6 +350,20 @@ describe('resource-edit-helpers', () => {
         expect([value('追D'), value('回避')]).toEqual([5, 7]);
       });
 
+      it('keeps the buff as one of several when a single status is stacked on it', () => {
+        edit('&!全力攻撃/追D+4,回避-2/1');
+
+        edit('&+!全力攻撃/追D/+/1/1');
+
+        expect(rows()).toEqual([
+          ['全力攻撃', '全力攻撃'],
+          ['全力攻撃（回避）', '全力攻撃'],
+        ]);
+        const badges = toBuffBadges(character.buffDataElement ?? null);
+        expect(badges.map((badge) => badge.effect)).toEqual(['追D+5,回避-2']);
+        expect([value('追D'), value('回避')]).toEqual([5, 8]);
+      });
+
       it('moves a status at every count in a row of its own, as a single buff does', () => {
         edit('&!変身/技量+5~-1,回避-2/3');
         character.buffs.expireOneRound();

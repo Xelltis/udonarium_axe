@@ -283,7 +283,7 @@ export class BuffManagerPanelComponent {
     const element = this.selectedElement();
     if (!element) return;
     const owner = this.ownerOf(element);
-    if (owner) owner.buffs.remove(element);
+    if (owner) owner.buffs.removeWhole(element);
     else element.destroy();
     this.selected.set('');
     this.refresh();

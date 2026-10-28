@@ -184,6 +184,17 @@ describe('BuffManager', () => {
       expect(manager.list().map((data) => data.name)).toEqual(['加速']);
     });
 
+    it('goes whole when its first row is taken off, and only the row when a further one is', () => {
+      manager.addRound('加速', '', 2);
+
+      manager.removeWhole(manager.find('全力攻撃（回避）')!);
+      expect(manager.list().map((data) => data.name)).toEqual(['全力攻撃', '加速']);
+
+      manager.addRound('全力攻撃（回避）', '回避-2', 1, { group: '全力攻撃' });
+      manager.removeWhole(manager.find('全力攻撃')!);
+      expect(manager.list().map((data) => data.name)).toEqual(['加速']);
+    });
+
     it('comes back marked as the one buff when a step of the round is put back', () => {
       const before = manager.snapshot();
       manager.expireOneRound();
