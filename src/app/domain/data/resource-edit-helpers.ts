@@ -1,10 +1,14 @@
 import { toHalfWidth } from '@axe/core/util/string-util';
 import { parseBuffAppearance } from '@axe/domain/character/buff-appearance';
 import {
+  buffCommandKind,
+  readBuffStacking,
+  readCalculatedBuff,
+  removedBuffName,
+} from '@axe/domain/character/buff-command';
+import {
   describeBuffModifier,
   describeBuffModifierTarget,
-  isBuffModifierOperator,
-  parseBuffModifierItems,
   parseBuffModifierRequest,
   ParsedBuffModifierRequest,
 } from '@axe/domain/character/buff-modifier';
@@ -306,22 +310,10 @@ export function applyResourceEdit(edit: ResourceEdit, character: GameCharacter):
  * twice is still holding it there, so that starts over as always.
  */
 function applyCalculatedBuff(command: string, character: GameCharacter, piles: BuffPileOn): string {
-  const parts = command.replace(/^[tTｔＴ]?&[!！]/i, '').split('/');
-  const name = (parts[0] ?? '').trim();
+  const { name, requests, rest } = readCalculatedBuff(command);
   if (name.length < 1) return '';
-
-  const single = isBuffModifierOperator(parts[2] ?? '');
-  const requests = single
-    ? [parseBuffModifierRequest(parts[1] ?? '', parts[2] ?? '', parts[3] ?? '')]
-    : parseBuffModifierItems(parts[1] ?? '');
-  if (!requests || requests.some((request) => !request)) return `バフの書式が読めません ${name}    `;
-  return grantCalculatedBuff(
-    character,
-    name,
-    requests as ParsedBuffModifierRequest[],
-    parts.slice(single ? 4 : 2),
-    piles
-  );
+  if (!requests) return `バフの書式が読めません ${name}    `;
+  return grantCalculatedBuff(character, name, requests, rest, piles);
 }
 
 /**
@@ -373,20 +365,6 @@ function grantCalculatedBuff(
 }
 
 /**
- * What second helping the command asks for, and the command with that mark taken off.
- *
- * `&+猛攻撃/攻撃+2/3` adds its `+2` to whatever the standing 猛攻撃 already carries instead of
- * writing over it, and `&++猛攻撃/攻撃+2/3` adds the three rounds to the ones left as well. The
- * mark sits right after the ampersand so that everything downstream reads the command it always
- * read, `&+!` included.
- */
-function readBuffStacking(command: string): { piles: BuffPileOn; command: string } {
-  const marked = command.match(/^([tTｔＴ]?&)([+＋]{1,2})(?=[^+＋])/);
-  if (!marked) return { piles: 'none', command };
-  return { piles: marked[2].length > 1 ? 'extend' : 'stack', command: marked[1] + command.slice(marked[0].length) };
-}
-
-/**
  * Runs one `&` buff command on the character and returns the chat text reporting it.
  *
  * `&R-` and `&R+` move every buff's remaining rounds, `&D` clears buffs at zero rounds or fewer, `&name-`
@@ -402,22 +380,22 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
     text += `[${character.name}] `;
   }
 
-  if (command.match(/^[tTｔＴ]?&[RＲrｒ]-$/i)) {
+  const kind = buffCommandKind(command);
+  if (kind === 'roundsDown') {
     character.buffs.decreaseRound();
     text += 'バフRを減少    ';
-  } else if (command.match(/^[tTｔＴ]?&[RＲrｒ][+]$/i)) {
+  } else if (kind === 'roundsUp') {
     character.buffs.increaseRound();
     text += 'バフRを増加    ';
-  } else if (command.match(/^[tTｔＴ]?&[DＤdｄ]$/i)) {
+  } else if (kind === 'clearZero') {
     character.buffs.deleteZeroRound();
     text += '0R以下のバフを消去    ';
-  } else if (command.match(/^[tTｔＴ]?&.+-$/i)) {
-    const match = command.match(/^[tTｔＴ]?&(.+)-$/i);
-    const reg1 = match![1];
+  } else if (kind === 'remove') {
+    const reg1 = removedBuffName(command);
     if (character.buffs.delete(reg1)) {
       text += `${reg1}を消去    `;
     }
-  } else if (command.match(/^[tTｔＴ]?&[!！]/i)) {
+  } else if (kind === 'calculated') {
     text += applyCalculatedBuff(command, character, piles);
   } else {
     const splittext = readModifierLayout(command.replace(/^[tTｔＴ]?&/i, '').split('/'));
