@@ -568,6 +568,7 @@
                             type="checkbox"
                             [title]="ailment.effect || ailment.name"
                             [checked]="isAilmentOn(row.object, ailment)"
+                            [disabled]="!canEdit()"
                             (click)="$event.stopPropagation()"
                             (change)="toggleAilment($event, row.object, ailment)"
                           />
@@ -580,6 +581,7 @@
                             [style.color]="cell.element!.nowValueColor || null"
                             [title]="cell.element!.currentValue + ' / ' + cell.element!.value"
                             [(ngModel)]="cell.element!.currentValue"
+                            [readonly]="!canEdit()"
                             (click)="$event.stopPropagation()"
                           />
                         }
@@ -588,6 +590,7 @@
                             class="size-3.5 cursor-pointer align-middle [accent-color:var(--ui-accent)]"
                             type="checkbox"
                             [checked]="cell.element!.isChecked"
+                            [disabled]="!canEdit()"
                             (click)="$event.stopPropagation()"
                             (change)="cell.element!.value = cell.element!.isChecked ? 0 : 1"
                           />
@@ -600,6 +603,7 @@
                             class="border-ui-border-panel text-ui-text hover:border-b-ui-accent focus:border-b-ui-accent w-16 rounded-none border-0 border-b border-solid bg-transparent px-0.5 text-center font-[inherit] text-[12px] outline-none"
                             name="table-value"
                             [(ngModel)]="cell.element!.value"
+                            [readonly]="!canEdit()"
                             (click)="$event.stopPropagation()"
                           />
                         }

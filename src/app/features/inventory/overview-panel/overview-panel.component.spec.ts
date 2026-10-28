@@ -795,6 +795,61 @@ describe('OverviewPanelComponent', () => {
     });
   });
 
+  describe('a seat that may not edit the table', () => {
+    let character: GameCharacter;
+    let tagsSpy: { mockRestore(): void };
+
+    beforeEach(() => {
+      character = GameCharacter.create('popup-guest-test', 1, '');
+      const popup = { [DataElementAttribute.ROLE]: DataElementRole.FIELD, [DataElementAttribute.POPUP]: 'true' };
+      const note = DataElement.create('所持品', 'ロープ', { ...popup, type: DataElementType.NOTE });
+      const text = DataElement.create('職業', '剣士', popup);
+      const resource = DataElement.create('HP', 20, { ...popup, type: DataElementType.NUMBER_RESOURCE });
+      resource.currentValue = 12;
+      const check = DataElement.create('転倒', 0, { ...popup, type: DataElementType.CHECK });
+      for (const element of [note, text, resource, check]) character.detailDataElement!.appendChild(element);
+      component.tabletopObject = character;
+      tagsSpy = vi
+        .spyOn(component as unknown as { getInventoryTags: () => [] }, 'getInventoryTags')
+        .mockReturnValue([]);
+    });
+
+    afterEach(() => {
+      tagsSpy.mockRestore();
+      character.destroy();
+    });
+
+    const fields = () => {
+      const root = fixture.nativeElement as HTMLElement;
+      return {
+        typed: Array.from(
+          root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('textarea, input:not([type="checkbox"])')
+        ),
+        checks: Array.from(root.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')),
+      };
+    };
+
+    it('lets a guest read the fields, but neither type into them nor tick them', () => {
+      PeerCursor.myCursor = { role: PeerRole.Guest, identifier: 'guest-cursor' } as PeerCursor;
+      fixture.detectChanges();
+      const { typed, checks } = fields();
+
+      expect(typed.length).toBeGreaterThanOrEqual(3);
+      expect(typed.every((field) => field.readOnly)).toBe(true);
+      expect(checks.length).toBeGreaterThan(0);
+      expect(checks.every((check) => check.disabled)).toBe(true);
+    });
+
+    it('lets a player write in them', () => {
+      PeerCursor.myCursor = { role: PeerRole.Player, identifier: 'player-cursor' } as PeerCursor;
+      fixture.detectChanges();
+      const { typed, checks } = fields();
+
+      expect(typed.some((field) => field.readOnly)).toBe(false);
+      expect(checks.some((check) => check.disabled)).toBe(false);
+    });
+  });
+
   describe('keeping track of what is being edited', () => {
     it('marks one that was not marked', () => {
       component.changeChk('elem-1');

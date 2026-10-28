@@ -174,6 +174,7 @@
               class="text-ui-text hover:bg-ui-hover focus:bg-ui-input box-border size-full resize-none overflow-hidden rounded-xs border-none bg-transparent p-0 font-[inherit] leading-[inherit] wrap-anywhere [word-break:break-word] whitespace-pre-wrap outline-none"
               name="note-text"
               [(ngModel)]="note.text"
+              [readonly]="!canEdit || note.isLock"
               spellcheck="false"
             ></textarea>
           </div>
@@ -359,6 +360,7 @@
                             class="m-0 size-3.25 [accent-color:var(--ui-accent)]"
                             type="checkbox"
                             [checked]="isGapTableColumnActive(dataElm, column)"
+                            [disabled]="!canEdit"
                             (change)="setGapTableColumnActive(dataElm, column, $event)"
                           />
                         </label>
@@ -398,6 +400,7 @@
                               class="m-0 flex-none"
                               type="checkbox"
                               [checked]="isTableCheckCellChecked(cell)"
+                              [disabled]="!canEdit"
                               (change)="toggleTableCheckCell(cell, $event)"
                             />
                             @if (getTableCellLabel(cell)) {
@@ -413,6 +416,7 @@
                         } @else if (cell.fieldType === 'select') {
                           <select
                             class="overview-table-select text-ui-text hover:bg-ui-input focus:bg-ui-input w-full min-w-14 rounded-xs border-none bg-transparent font-[inherit] outline-none"
+                            [disabled]="!canEdit"
                             (change)="setTableSelectCellValueFromEvent(cell, $event)"
                           >
                             @if (!isTableSelectValueListed(cell)) {
@@ -454,6 +458,7 @@
               }}<input
                 type="checkbox"
                 [checked]="editCheckedIds.has(dataElm.myIdentifer)"
+                [disabled]="!canEdit"
                 (change)="changeChk(dataElm.myIdentifer)"
               />
             </span>
@@ -463,8 +468,8 @@
               <textarea
                 class="text-ui-text hover:bg-ui-hover focus:bg-ui-input box-border size-full resize-none overflow-hidden rounded-xs border-none bg-transparent p-0 font-[inherit] leading-[inherit] wrap-anywhere [word-break:break-word] whitespace-pre-wrap outline-none"
                 name="data-value"
-                name="data-value"
                 [(ngModel)]="dataElm.value"
+                [readonly]="!canEdit"
                 spellcheck="false"
                 (focus)="textFocus(dataElm.myIdentifer)"
                 [hidden]="!isEditUrl(dataElm.myIdentifer) && isUrlText(dataElm.value)"
@@ -504,9 +509,9 @@
         <div class="box-border truncate pr-4 leading-6">{{ dataElm.name }}</div>
         <div class="box-border truncate text-right text-[1.2em]/6">
           @if (dataElm.isChecked) {
-            <input type="checkbox" checked (click)="setCheckValue(dataElm, 0)" />
+            <input type="checkbox" checked [disabled]="!canEdit" (click)="setCheckValue(dataElm, 0)" />
           } @else {
-            <input type="checkbox" (click)="setCheckValue(dataElm, 1)" />
+            <input type="checkbox" [disabled]="!canEdit" (click)="setCheckValue(dataElm, 1)" />
           }
         </div>
       }
@@ -522,6 +527,7 @@
               name="data-current-value"
               [ngModel]="shownCurrentValue(dataElm)"
               (ngModelChange)="dataElm.currentValue = $event"
+              [readonly]="!canEdit"
             />
           </div>
           <span class="text-ui-text font-bold">/</span>
@@ -590,8 +596,8 @@
               class="text-ui-text hover:bg-ui-hover focus:bg-ui-input box-border w-full min-w-12 rounded-xs border-none bg-transparent p-0 text-right font-[inherit] leading-[inherit] outline-none"
               size="1"
               name="data-value"
-              name="data-value"
               [(ngModel)]="dataElm.value"
+              [readonly]="!canEdit"
             />
           }
         </div>

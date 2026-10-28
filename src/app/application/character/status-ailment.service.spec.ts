@@ -7,6 +7,8 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { newStatusAilment, StatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { DataElement } from '@axe/domain/data/data-element';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('StatusAilmentService', () => {
@@ -26,6 +28,7 @@ describe('StatusAilmentService', () => {
   });
 
   afterEach(() => {
+    PeerCursor.myCursor = null!;
     for (const made of created.splice(0)) ObjectStore.instance.remove(made);
     service.save([]);
     (StatusAilmentCatalog as unknown as Record<string, unknown>)['_instance'] = undefined;
@@ -150,6 +153,33 @@ describe('StatusAilmentService', () => {
       service.pull(goblin, '毒');
 
       expect(service.isOn(goblin, '毒')).toBe(false);
+    });
+
+    it('puts one on and takes it off from a tick, for a seat that may edit the table', () => {
+      PeerCursor.myCursor = { role: PeerRole.Player, identifier: 'player-cursor' } as PeerCursor;
+      const goblin = character('ゴブリン');
+      service.add('毒');
+      const poison = service.ailments()[0];
+
+      service.toggle(goblin, poison, true);
+      expect(service.isOn(goblin, '毒')).toBe(true);
+      service.toggle(goblin, poison, false);
+      expect(service.isOn(goblin, '毒')).toBe(false);
+    });
+
+    it('puts nothing on and takes nothing off from a tick of a guest', () => {
+      const goblin = character('ゴブリン');
+      service.add('毒');
+      const poison = service.ailments()[0];
+      service.add('麻痺');
+      service.plant(goblin, service.ailments()[1]);
+      PeerCursor.myCursor = { role: PeerRole.Guest, identifier: 'guest-cursor' } as PeerCursor;
+
+      service.toggle(goblin, poison, true);
+      service.toggle(goblin, service.ailments()[1], false);
+
+      expect(service.isOn(goblin, '毒')).toBe(false);
+      expect(service.isOn(goblin, '麻痺')).toBe(true);
     });
 
     it('says nothing is on a piece that was never given one', () => {
