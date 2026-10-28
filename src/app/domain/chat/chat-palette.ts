@@ -3,6 +3,7 @@ import { ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { toHalfWidth } from '@axe/core/util/string-util';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { CHARACTER_REFERENCE, readReferenceName } from '@axe/domain/chat/chat-reference';
 import { isPaletteTabLine } from '@axe/domain/chat/palette-rows';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { createCalcPass, evaluateCalcElement } from '@axe/domain/data/data-element-calc-env';
@@ -215,13 +216,8 @@ export class ChatPalette extends ObjectNode {
   }
 
   private parseVariable(palette: string): PaletteVariable | null {
-    const array = /^\s*[/／]{2}([^=＝{}｛｝\s]+)\s*[=＝]\s*(.+)\s*/gi.exec(palette);
-    if (!array) return null;
-    const variable: PaletteVariable = {
-      name: toHalfWidth(array[1]),
-      value: array[2],
-    };
-    return variable;
+    const site = paletteVariableSite(palette);
+    return site ? { name: site.name, value: site.value } : null;
   }
 
   /** Takes a synced update and marks the palette to be parsed again. */
@@ -244,6 +240,22 @@ export class DiceTablePalette extends ChatPalette {}
  */
 @SyncObject('sub-palette')
 export class SubPalette extends ObjectNode {}
+
+/** A `//name=value` line of a palette, read as the variable it sets, and where its name and value stand. */
+export interface PaletteVariableSite extends PaletteVariable {
+  nameFrom: number;
+  nameTo: number;
+  valueFrom: number;
+}
+
+/** Reads a palette line as a `//name=value` variable, or answers null when it is not one. */
+export function paletteVariableSite(line: string): PaletteVariableSite | null {
+  const matched = /^(\s*[/／]{2})([^=＝{}｛｝\s]+)(\s*[=＝]\s*)(.+)\s*/.exec(line);
+  if (!matched) return null;
+  const nameFrom = matched[1].length;
+  const nameTo = nameFrom + matched[2].length;
+  return { name: toHalfWidth(matched[2]), value: matched[4], nameFrom, nameTo, valueFrom: nameTo + matched[3].length };
+}
 
 /**
  * Fills in the references in a line of text.
@@ -321,14 +333,8 @@ export function evaluateReferences(
     loop++;
     isContinue = false;
     const line = evaluate;
-    evaluate = evaluate.replace(/[tTｔＴ]?[{｛]\s*([^{}｛｝]+)\s*[}｝]/g, (match, name, offset: number) => {
-      name = toHalfWidth(name);
-      let useMax = false;
-      const namematch = name.match(/(.+)([\^＾]$)/);
-      if (namematch) {
-        name = namematch[1];
-        useMax = true;
-      }
+    evaluate = evaluate.replace(CHARACTER_REFERENCE, (match, raw: string, offset: number) => {
+      const { name, useMax } = readReferenceName(raw);
       const filled = fillReference(match, name, useMax);
       if (filled == null) return keepUnfilled && !dropsUnanswered(line, offset) ? match : '';
       // Only a reference that was answered can bring more of them in, so only that keeps the pass going.

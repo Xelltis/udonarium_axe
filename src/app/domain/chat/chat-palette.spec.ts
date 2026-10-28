@@ -5,6 +5,7 @@ import {
   ChatPalette,
   DiceTablePalette,
   evaluateCharacterReferences,
+  paletteVariableSite,
   textTargetsCharacter,
 } from '@axe/domain/chat/chat-palette';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
@@ -370,5 +371,19 @@ describe('ChatPalette', () => {
     it('leaves a plain roll alone', () => {
       expect(textTargetsCharacter('2d6+3')).toBe(false);
     });
+  });
+});
+
+describe('paletteVariableSite', () => {
+  it('places the name and the value of a variable line', () => {
+    const line = ' //ＳＴＲ = 3+2';
+    const site = paletteVariableSite(line)!;
+    expect(site).toMatchObject({ name: 'STR', value: '3+2' });
+    expect(line.slice(site.nameFrom, site.nameTo)).toBe('ＳＴＲ');
+    expect(line.slice(site.valueFrom)).toBe('3+2');
+  });
+
+  it('answers null for a line that sets nothing', () => {
+    expect(paletteVariableSite('2d6 //攻撃')).toBeNull();
   });
 });
