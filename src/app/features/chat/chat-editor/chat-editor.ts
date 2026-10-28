@@ -125,6 +125,8 @@ export class ChatEditorField implements ChatTextField {
   private lintTimer: ReturnType<typeof setTimeout> | null = null;
   private refreshAfterComposition = false;
   private pendingText: { text: string; select?: ChatFieldSelection } | null = null;
+  /** Whether the paste coming is the one Ctrl+Shift+V asks for, to go in as the letters copied. */
+  private pastePlain = false;
   private readonly tip: HTMLElement;
   private readonly bubble: ChatBubble;
 
@@ -182,6 +184,10 @@ export class ChatEditorField implements ChatTextField {
           'aria-multiline': 'true',
         },
         clipboardTextSerializer: (slice) => this.textOfSlice(slice),
+        handleKeyDown: (_view, event) => {
+          this.pastePlain = event.shiftKey && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v';
+          return false;
+        },
         handlePaste: (view, event) => this.paste(view, event),
       },
     });
@@ -617,8 +623,15 @@ export class ChatEditorField implements ChatTextField {
     return textOfDoc(doc, this.host.language(), this.host.mode).text;
   }
 
-  /** Pastes text as the syntax it is written in, its decorations and chips shown as they look. */
+  /**
+   * Pastes text as the syntax it is written in, its decorations and chips shown as they look. A paste
+   * with Ctrl+Shift+V is left to the editor, which puts the letters in as they are.
+   */
   private paste(view: EditorView, event: ClipboardEvent): boolean {
+    if (this.pastePlain) {
+      this.pastePlain = false;
+      return false;
+    }
     const text = event.clipboardData?.getData('text/plain');
     if (text === undefined || text.length < 1) return false;
     const lines = parseChatRichText(text.replace(/\r\n?/g, '\n'), {

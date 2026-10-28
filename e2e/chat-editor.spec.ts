@@ -72,6 +72,30 @@ test.describe('the chat editor', () => {
     await expectChatText(input, 'とても**強く**言う');
   });
 
+  test('pastes syntax as the decorations and chips it writes, the letters as they are on Ctrl+Shift+V, and copies back as syntax', async ({
+    page,
+    context,
+  }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    const input = chatInput(page);
+    await input.click();
+    await page.evaluate(() => navigator.clipboard.writeText('今日は**晴れ**《vs》'));
+    await page.keyboard.press('ControlOrMeta+v');
+    await expect(input.locator('.chat-deco-bold')).toHaveText('晴れ');
+    await expect(input.locator('[data-chip="effect"]')).toHaveCount(1);
+    await expectChatText(input, '今日は**晴れ**《vs》');
+
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('ControlOrMeta+c');
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('今日は**晴れ**《vs》');
+
+    await page.keyboard.press('Delete');
+    await page.evaluate(() => navigator.clipboard.writeText('**そのまま**'));
+    await page.keyboard.press('ControlOrMeta+Shift+v');
+    await expect(input).toHaveText('**そのまま**');
+    await expect(input.locator('.chat-deco-bold')).toHaveCount(0);
+  });
+
   test('keeps stars put in all at once, not closed where the caret stops, as they look', async ({ page }) => {
     const input = chatInput(page);
     await input.fill('a**b** c');
