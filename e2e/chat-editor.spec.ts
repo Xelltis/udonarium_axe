@@ -449,6 +449,36 @@ test.describe('the palette written in the editor', () => {
   });
 });
 
+test.describe('the palette opened for editing', () => {
+  test('opens the editor at about where the list was scrolled to', async ({ page }) => {
+    await withEditor(page);
+    await createCharacter(page);
+    await page.locator('game-character').first().dispatchEvent('contextmenu');
+    await page.locator('context-menu').getByText('チャットパレットを表示').click();
+    const palette = page.locator('chat-palette');
+    await palette.getByRole('button', { name: '編集', exact: true }).click();
+    const editor = palette.locator('[data-chat-palette-editor] .ProseMirror');
+    await expect(editor).toBeVisible({ timeout: 10000 });
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('Delete');
+    await editor.fill(Array.from({ length: 200 }, (_, index) => `2d6 行${index}`).join('\n'));
+    await expect(editor.locator('p')).toHaveCount(200);
+    await palette.getByRole('button', { name: '確定' }).click();
+    const list = palette.getByTestId('chat-palette-list');
+    await expect(list.getByText('行199')).toBeAttached();
+    await list.evaluate((element) => (element.scrollTop = element.scrollHeight));
+
+    await palette.getByRole('button', { name: '編集', exact: true }).click();
+
+    const host = palette.locator('[data-chat-palette-editor]');
+    await expect(editor).toBeVisible();
+    await expect
+      .poll(() => host.evaluate((element) => element.scrollTop / Math.max(1, element.scrollHeight)))
+      .toBeGreaterThan(0.5);
+  });
+});
+
 test.describe('the plain box', () => {
   test('stands in for the editor for a reader who switched it off', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('chat-preferences', JSON.stringify({ richInput: false })));

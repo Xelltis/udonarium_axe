@@ -114,6 +114,8 @@ export class ChatPaletteComponent {
   private readonly paletteEditorHost = viewChild<ElementRef<HTMLElement>>('paletteEditorHost');
   private readonly editorModule = signal<ChatEditorModule | null>(null);
   private paletteEditor: ChatEditorField | null = null;
+  /** How far down the list was as editing opened, as a share of it, for the edit area to be scrolled to once drawn. */
+  private editScrollShare: number | null = null;
 
   /**
    * Whether the palette is written in the editor that colours each line's syntax and marks what
@@ -163,7 +165,16 @@ export class ChatPaletteComponent {
         this.paletteEditorApi
       );
       this.paletteEditor.refresh(false);
+      this.scrollEditToList();
+      this.editScrollShare = null;
     });
+  }
+
+  /** Scrolls the edit area, the editor or the text area, to about where the list was as editing opened. */
+  private scrollEditToList(): void {
+    const share = this.editScrollShare;
+    const scroller = this.editTextRef()?.nativeElement ?? this.paletteEditorHost()?.nativeElement;
+    if (share !== null && scroller) scroller.scrollTop = share * scroller.scrollHeight;
   }
   readonly character = signal<GameCharacter | null>(null);
 
@@ -686,7 +697,8 @@ export class ChatPaletteComponent {
    * Opens the palette text for editing, or writes the edited text back to the palette when editing
    * ends.
    *
-   * On opening, the text area is scrolled to about where the list was. It also runs when the panel
+   * On opening, the edit area is scrolled to about where the list was: the text area once it is
+   * drawn, and the editor once it is put in, which may come later. It also runs when the panel
    * closes mid-edit, so an edit is never lost by closing. A seat that may not rewrite the palette
    * opens nothing, and writes nothing back.
    */
@@ -697,17 +709,8 @@ export class ChatPaletteComponent {
     if (this.isEdit()) {
       const listEl = this.paletteListRef()?.nativeElement;
       this.editPalette.set(this.palette.value + '');
-      const listTop = listEl?.scrollTop ?? 0;
-      const listHeight = listEl?.scrollHeight ?? 1;
-      afterNextRender(
-        () => {
-          const textEl = this.editTextRef()?.nativeElement;
-          if (textEl) {
-            textEl.scrollTop = (listTop * textEl.scrollHeight) / listHeight;
-          }
-        },
-        { injector: this.injector }
-      );
+      this.editScrollShare = (listEl?.scrollTop ?? 0) / Math.max(1, listEl?.scrollHeight ?? 1);
+      afterNextRender(() => this.scrollEditToList(), { injector: this.injector });
     } else if (this.mayEdit()) {
       this.palette.setPalette(this.editPalette());
     }

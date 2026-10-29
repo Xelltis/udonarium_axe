@@ -234,6 +234,7 @@
   <div
     [hidden]="isEdit() || viewMode() !== 'palette'"
     class="box-border h-0 min-h-25 w-full grow overflow-y-auto font-sans"
+    data-testid="chat-palette-list"
     #paletteList
   >
     @for (row of shownRows(); track row.lineIndex) {
