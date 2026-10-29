@@ -32,7 +32,8 @@ function tailChip(name: string, words: ChatCompletionWords): ChatRichChip {
 /**
  * The list of names offered where the syntax being written takes one: statuses and variables after
  * `{`, effects after `《`, portraits and cut-ins after an at mark, statuses after a colon and buffs
- * after an ampersand that start a word. A reference, an effect, a portrait and a cut-in become chips;
+ * after an ampersand that start a word. A reference, an effect, a portrait and a cut-in become chips,
+ * a reference taking in its closing brace where one stands after the caret already;
  * a status and a buff are written as text after their mark. It opens over the caret, as the chat
  * sits at the foot of the screen. Up and Down move through it, Enter or Tab take the name, and
  * Escape puts it away; while it is open, Enter does not send. Where no name is offered, it does not
@@ -94,7 +95,15 @@ export function chatSuggestExtension(host: ChatSuggestHost): Extension {
                     ? { kind: 'effect', raw: `《${name}》`, name, battle: isBattleChatTokenName(name) }
                     : tailChip(name, host.completionWords());
               const kept = trigger.kind === 'tail' ? [] : marks;
-              tr.replaceWith(range.from, range.to, nodeOfChip(schema, chip, kept));
+              const lineEnd = current.state.doc.resolve(range.to).end();
+              const after = current.state.doc.textBetween(
+                range.to,
+                Math.min(range.to + 1, lineEnd),
+                undefined,
+                CHIP_LETTER
+              );
+              const to = trigger.kind === 'reference' && /^[}｝]$/.test(after) ? range.to + 1 : range.to;
+              tr.replaceWith(range.from, to, nodeOfChip(schema, chip, kept));
             }
             current.view.dispatch(tr.scrollIntoView());
             current.view.focus();

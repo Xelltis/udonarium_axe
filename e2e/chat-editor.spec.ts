@@ -355,6 +355,27 @@ test.describe('the chat editor', () => {
     await expect(input.locator('[data-chip="reference"]')).toHaveCount(1);
   });
 
+  test('takes in the closing brace already written when a name is picked for a reference', async ({ page }) => {
+    await page.locator('chat-window ng-select[name="send-from"]').click();
+    await page.locator('ng-dropdown-panel .ng-option', { hasText: 'キャラクターA' }).click();
+    const input = chatInput(page);
+    await input.click();
+
+    await page.locator('chat-window [data-testid="chat-toolbar-group-reference"]').click();
+    await page
+      .locator('[data-testid="chat-toolbar-panel"]')
+      .getByRole('listitem')
+      .filter({ hasText: /^\s*ターゲットの値/ })
+      .first()
+      .click();
+    await expectChatText(input, 't{}');
+    await expect(page.locator('[data-testid="chat-suggestions"]')).toBeVisible();
+    await page.keyboard.press('Enter');
+
+    await expect(input.locator('[data-chip="reference"]')).toHaveCount(1);
+    await expect.poll(() => chatInputText(input)).toMatch(/^t\{[^{}]+\}$/);
+  });
+
   test('offers the names a syntax takes over the caret, Enter taking one, and sends on Enter with none offered', async ({
     page,
   }) => {
