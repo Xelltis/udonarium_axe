@@ -12,6 +12,7 @@ import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { CHAT_EDITOR_LOADER, type ChatEditorModule } from '@axe/features/chat/chat-editor/chat-editor-loader';
 import { ChatPaletteComponent } from '@axe/features/chat/chat-palette/chat-palette.component';
 import { ChatTickerSelectionService } from '@axe/features/chat/chat-ticker-selection.service';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
@@ -619,5 +620,62 @@ describe('ChatPaletteComponent', () => {
 
       expect(searchBox()).toBeNull();
     });
+  });
+});
+
+describe('ChatPaletteComponent handing its text area over to the editor', () => {
+  let arrive: (module: ChatEditorModule) => void;
+  let mounted: ReturnType<typeof vi.fn>;
+  let char: GameCharacter;
+
+  beforeEach(() => {
+    PeerCursor.createMyCursor();
+    mounted = vi.fn(() => ({
+      parent: null,
+      refresh: vi.fn(),
+      refreshSoon: vi.fn(),
+      followRoot: vi.fn(),
+      destroy: vi.fn(),
+    }));
+    const loader = () =>
+      new Promise<ChatEditorModule | null>((resolve) => {
+        arrive = resolve;
+      });
+    TestBed.configureTestingModule({
+      imports: [ChatPaletteComponent],
+      providers: [...TEST_PROVIDERS, { provide: CHAT_EDITOR_LOADER, useValue: loader }],
+    });
+    char = GameCharacter.create('術者', 1, '');
+    char.chatPalette!.setPalette('2d6 攻撃\n1d100 調べる');
+  });
+
+  afterEach(() => {
+    ObjectStore.instance.remove(char);
+    for (const tab of [...ChatTabList.instance.chatTabs]) tab.destroy();
+  });
+
+  it('puts the editor in where the caret stood, with the keys, as it arrives while the palette is written', async () => {
+    const fixture = TestBed.createComponent(ChatPaletteComponent);
+    fixture.componentInstance.character.set(char);
+    fixture.detectChanges();
+    fixture.componentInstance.toggleEditMode();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const area = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>(
+      'textarea[name="edit-palette"]'
+    )!;
+    area.focus();
+    area.setSelectionRange(4, 6);
+
+    arrive({ mountChatEditor: mounted } as unknown as ChatEditorModule);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    TestBed.tick();
+
+    expect(mounted).toHaveBeenCalledWith(
+      expect.anything(),
+      { text: '2d6 攻撃\n1d100 調べる', selection: { from: 4, to: 6 }, focused: true },
+      expect.anything()
+    );
   });
 });
