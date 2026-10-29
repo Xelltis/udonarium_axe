@@ -102,14 +102,27 @@ export class ChatLintService {
   watch(source: ChatLintSource): ChatLintSession {
     const mode = source.mode ?? 'chat';
     const scan = computed(() => scanChatSyntax(source.text(), mode));
-    const context = computed(() => this.contextOf(source, scan()));
+    const variables = computed(() => (mode === 'palette' ? this.variablesWritten(scan()) : null), {
+      equal: sameVariables,
+    });
+    const context = computed(() => this.contextOf(source, scan, variables()));
     const diagnostics = computed(() => lintChatSyntax(scan(), context()));
     const annotations = computed(() => this.annotationsOf(scan(), context()));
     const rolls = computed(() => this.rollsOf(scan(), context()));
     return { scan, diagnostics, annotations, rolls };
   }
 
-  private contextOf(source: ChatLintSource, scan: ChatSyntaxScan): ChatLintContext {
+  /**
+   * What a text is checked against, which follows the room, not the text: the text itself is read
+   * only as a reference or a roll in it is checked, and a palette's variables only where they change.
+   * Whether the seat is kept off the table turns on the room server too, which no signal tells, so
+   * it is read as each text is checked.
+   */
+  private contextOf(
+    source: ChatLintSource,
+    scan: Signal<ChatSyntaxScan>,
+    variables: readonly PaletteVariable[] | null
+  ): ChatLintContext {
     this.systems.arrivals();
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     this.objectChange.collectionOf(CutIn.aliasName)();
@@ -130,7 +143,6 @@ export class ChatLintService {
       (selectedPiece instanceof GameCharacter && selectedPiece.isVisibleOnTable);
     for (const target of targets) this.objectChange.versionOf(target.identifier)();
     const cutIns = this.objectStore.getObjects<CutIn>(CutIn);
-    const variables = source.mode === 'palette' ? this.variablesWritten(scan) : null;
     const gameType = source.gameType();
     const path = typeof source.path === 'function' ? source.path() : source.path;
 
@@ -145,9 +157,11 @@ export class ChatLintService {
       targets,
       hasEffectTarget,
       isGameMaster,
-      keptOffTable: PeerCursor.isMyselfKeptOffTable,
+      get keptOffTable() {
+        return PeerCursor.isMyselfKeptOffTable;
+      },
       referenceValue: (site: ReferenceSite) => {
-        const typed = scan.text.slice(site.from, site.to);
+        const typed = scan().text.slice(site.from, site.to);
         if (site.targeted && targets.length < 1) return null;
         if (!site.targeted && !speaker && path === 'chatWindow') return null;
         const value = this.filled(typed, speaker, targets[0], variables, true);
@@ -162,7 +176,7 @@ export class ChatLintService {
       },
       hasPieceNamed: (name: string) => pieces.some((piece) => piece.name.trim() === name.trim()),
       rollCheck: (message: TextRange) =>
-        this.rollCheck(gameType, fill(scan.text.slice(message.from, message.to), targets[0])),
+        this.rollCheck(gameType, fill(scan().text.slice(message.from, message.to), targets[0])),
     };
   }
 
@@ -248,4 +262,13 @@ export class ChatLintService {
     }
     return rolls;
   }
+}
+
+/** Whether two readings of a palette's variables say the same, so what is checked against them stands. */
+function sameVariables(a: readonly PaletteVariable[] | null, b: readonly PaletteVariable[] | null): boolean {
+  if (a === null || b === null) return a === b;
+  return (
+    a.length === b.length &&
+    a.every((variable, index) => variable.name === b[index].name && variable.value === b[index].value)
+  );
 }

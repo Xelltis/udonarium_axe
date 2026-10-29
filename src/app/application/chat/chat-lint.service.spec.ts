@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ChatLintService, type ChatLintSource } from '@axe/application/chat/chat-lint.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -144,6 +145,21 @@ describe('ChatLintService', () => {
       expect(codesOf(session)).toEqual(['edit.keptOffTable']);
     } finally {
       keptOff.mockRestore();
+    }
+  });
+
+  it('looks the room over again for a change to the room, not for each letter typed', () => {
+    const text = signal('{HP} :HP-1');
+    const { session } = watch('', { text });
+    session.annotations();
+    const lookups = vi.spyOn(TestBed.inject(ObjectStore), 'getObjects');
+    try {
+      text.set('{HP} :HP-2');
+      expect(session.annotations().map((annotation) => annotation.kind)).toEqual(['value']);
+
+      expect(lookups).not.toHaveBeenCalled();
+    } finally {
+      lookups.mockRestore();
     }
   });
 
