@@ -54,6 +54,10 @@ const SYNTAX_BUTTONS: readonly { readonly key: ChatSyntaxGroupKey; readonly icon
  *
  * It works the plain box as well as the editor, which then writes the marks round the selection
  * and lights nothing up.
+ *
+ * The buttons are drawn in the panel's greys, or in `--chat-toolbar-ink`, `--chat-toolbar-ink-hover`
+ * and `--chat-toolbar-hover` where what holds the bar sets them, as a line's bubble does, whose
+ * colours follow the line's own.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -71,15 +75,20 @@ export class ChatToolbarComponent {
   /** The syntax there is to put in, worked out as the insert button opens. */
   readonly groups = input<() => ChatSyntaxGroup[]>(() => []);
   /**
+   * Whether the buttons for each kind of syntax are offered: not where a line already sent is edited,
+   * as editing it carries out no command.
+   */
+  readonly syntax = input(true);
+  /**
    * Tells that the buttons have written into the box, for what holds it to take the box's text as
    * the line being written, as it does what is typed.
    */
   readonly edited = output<void>();
 
   protected readonly buttonClass =
-    'text-ui-muted hover:bg-ui-hover hover:text-ui-text aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_.material-icons]:text-[17px]!';
+    'text-(--chat-toolbar-ink,var(--ui-text-muted)) hover:bg-(--chat-toolbar-hover,var(--ui-hover)) hover:text-(--chat-toolbar-ink-hover,var(--ui-text)) aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_.material-icons]:text-[17px]!';
   protected readonly wordButtonClass =
-    'text-ui-muted hover:bg-ui-hover hover:text-ui-text aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent rounded-ui-sm m-0 flex h-7 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent px-1 py-0 text-[11px] font-semibold transition-colors';
+    'text-(--chat-toolbar-ink,var(--ui-text-muted)) hover:bg-(--chat-toolbar-hover,var(--ui-hover)) hover:text-(--chat-toolbar-ink-hover,var(--ui-text)) aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent rounded-ui-sm m-0 flex h-7 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent px-1 py-0 text-[11px] font-semibold transition-colors';
   protected readonly rowClass =
     'text-ui-text hover:bg-ui-hover rounded-ui-sm m-0 flex w-full cursor-pointer items-center gap-2 border-none bg-transparent px-2 py-1 text-left text-[12px]';
   protected readonly chipClass =

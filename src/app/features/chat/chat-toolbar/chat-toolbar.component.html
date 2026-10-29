@@ -49,22 +49,24 @@
       {{ 'feature.chat.syntax.ruby' | transloco }}
     </button>
   </div>
-  <div class="flex items-center" role="group" [attr.aria-label]="'feature.chat.syntax.title' | transloco">
-    @for (entry of syntaxButtons; track entry.key) {
-      <button
-        type="button"
-        [class]="buttonClass"
-        [attr.data-testid]="'chat-toolbar-group-' + entry.key"
-        aria-haspopup="menu"
-        [attr.aria-expanded]="openOne() === entry.key"
-        [title]="groupLabel(entry.key)"
-        [attr.aria-label]="groupLabel(entry.key)"
-        (click)="toggle(entry.key, $event.currentTarget)"
-      >
-        <i class="material-icons">{{ entry.icon }}</i>
-      </button>
-    }
-  </div>
+  @if (syntax()) {
+    <div class="flex items-center" role="group" [attr.aria-label]="'feature.chat.syntax.title' | transloco">
+      @for (entry of syntaxButtons; track entry.key) {
+        <button
+          type="button"
+          [class]="buttonClass"
+          [attr.data-testid]="'chat-toolbar-group-' + entry.key"
+          aria-haspopup="menu"
+          [attr.aria-expanded]="openOne() === entry.key"
+          [title]="groupLabel(entry.key)"
+          [attr.aria-label]="groupLabel(entry.key)"
+          (click)="toggle(entry.key, $event.currentTarget)"
+        >
+          <i class="material-icons">{{ entry.icon }}</i>
+        </button>
+      }
+    </div>
+  }
 </div>
 
 <div

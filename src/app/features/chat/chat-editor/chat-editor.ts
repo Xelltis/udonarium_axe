@@ -53,6 +53,13 @@ export interface ChatEditorHost {
   cutInNames(): ReadonlySet<string>;
   /** Enter: sends the line. Without it Enter breaks the line, as in a palette being written. */
   submit?(): void;
+  /** Escape: puts the line down without keeping it, as editing a line already sent does. */
+  cancel?(): void;
+  /**
+   * The attribute the editable element is found by: the chat input's own where this is not told, so
+   * that an editor for a line already sent is not taken for the input.
+   */
+  readonly marker?: string;
   /** Ctrl+Up and Ctrl+Down: an earlier or later line from the input's history. */
   historyStep?(direction: -1 | 1): void;
   /** Up and Down: steps through the palette's suggestions, answering whether the arrow was taken for that. */
@@ -184,7 +191,7 @@ export class ChatEditorField implements ChatTextField {
       editorProps: {
         attributes: {
           class: 'chat-rich',
-          [CHAT_INPUT_ATTR]: '',
+          [host.marker ?? CHAT_INPUT_ATTR]: '',
           spellcheck: 'false',
           enterkeyhint: host.submit ? 'send' : 'enter',
           'aria-label': host.placeholder(),
@@ -478,6 +485,10 @@ export class ChatEditorField implements ChatTextField {
             return true;
           };
           shortcuts['Shift-Enter'] = () => this.editor.commands.splitBlock({ keepMarks: true });
+        }
+        if (host.cancel) {
+          const cancel = host.cancel.bind(host);
+          shortcuts['Escape'] = () => (cancel(), true);
         }
         if (host.historyStep) {
           const step = host.historyStep.bind(host);
