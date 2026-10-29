@@ -1,4 +1,4 @@
-import { partyIdsOwnedBy, readPartyPlayers } from '@axe/domain/party/party-membership';
+import { partyIdsOwnedBy, readPartyIdentifiers } from '@axe/domain/party/party-membership';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { syncValueOf } from '@axe/domain/replay/replay-diff';
 import type { ReplayViewer } from '@axe/domain/replay/replay-event';
@@ -84,7 +84,10 @@ export function replaySceneViewer(snapshots: readonly ReplayObjectSnapshot[], vi
   }));
   const parties = snapshots
     .filter((snapshot) => snapshot.aliasName === PARTY_ALIAS)
-    .map((snapshot) => ({ identifier: snapshot.identifier, playerIds: readPartyPlayers(text(snapshot, 'players')) }));
+    .map((snapshot) => ({
+      identifier: snapshot.identifier,
+      playerIds: readPartyIdentifiers(text(snapshot, 'players')),
+    }));
   return { userId, isGameMaster: false, partyIds: partyIdsOwnedBy(members, userId, parties) };
 }
 

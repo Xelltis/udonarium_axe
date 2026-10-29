@@ -58,7 +58,7 @@ interface BuffByCharacter {
  * How working out an amount ended: with a number, with nothing that could be read, or with a roll
  * that fell short of any total at all - an outright failure the system reports in words.
  */
-export type AmountOutcome = 'worked' | 'unreadable' | 'noTotal';
+type AmountOutcome = 'worked' | 'unreadable' | 'noTotal';
 
 interface RolledOnce {
   result: string;
@@ -238,7 +238,7 @@ export class ResourceEditProcessor {
    * plain arithmetic that ends it, which is added on. A roll that ends in an outright failure with
    * no total leaves the whole amount at nought: whatever was to be added to it does not come into it.
    */
-  async workOutAmount(edit: ResourceEdit, gameSystem: GameSystemClass): Promise<AmountOutcome> {
+  private async workOutAmount(edit: ResourceEdit, gameSystem: GameSystemClass): Promise<AmountOutcome> {
     if (!isPlainArithmetic(edit.amount)) return this.rollWholeAmount(edit, gameSystem);
 
     const embedded = await this.resolveEmbeddedRolls(edit, gameSystem);

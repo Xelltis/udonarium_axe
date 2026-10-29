@@ -3,8 +3,11 @@ export interface PartyMemberLike {
   partyIdentifier: string;
 }
 
-/** Reads the written players of a party, by user identifier, dropping the blanks and the repeats. */
-export function readPartyPlayers(written: string): string[] {
+/**
+ * Reads a list a party writes with a space between its identifiers, as its allies and its players
+ * are written, dropping the blanks and the repeats.
+ */
+export function readPartyIdentifiers(written: string): string[] {
   return [...new Set((written ?? '').split(' ').filter((held) => held.length > 0))];
 }
 

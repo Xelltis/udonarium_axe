@@ -2,7 +2,7 @@ import { Attributes } from '@axe/core/sync/attributes';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
 import { parseAttributesKeepingIdentifier, toAttributesKeepingIdentifier } from '@axe/core/sync/persisted-identifier';
-import { readPartyPlayers } from '@axe/domain/party/party-membership';
+import { readPartyIdentifiers } from '@axe/domain/party/party-membership';
 
 export const PARTY_COLORS = ['#7dd3fc', '#fca5a5', '#bef264', '#fcd34d', '#c4b5fd', '#f9a8d4'] as const;
 
@@ -36,12 +36,12 @@ export class Party extends GameObject {
 
   /** The parties it stands with, as identifiers. */
   get alliedWith(): string[] {
-    return readAllies(this.allies);
+    return readPartyIdentifiers(this.allies);
   }
 
   /** The players who play the party, as user identifiers. */
   get playerIds(): string[] {
-    return readPartyPlayers(this.players);
+    return readPartyIdentifiers(this.players);
   }
 
   /**
@@ -67,11 +67,6 @@ export class Party extends GameObject {
 export function nextPartyColor(usedColors: readonly string[]): string {
   const free = PARTY_COLORS.find((color) => !usedColors.includes(color));
   return free ?? PARTY_COLORS[usedColors.length % PARTY_COLORS.length];
-}
-
-/** Reads a written list of allies, dropping the blanks and the repeats. */
-export function readAllies(written: string): string[] {
-  return [...new Set(written.split(' ').filter((held) => held.length > 0))];
 }
 
 /** Writes a list of allies, or of players, back, which is the identifiers with a space between them. */
