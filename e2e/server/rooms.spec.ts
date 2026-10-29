@@ -33,7 +33,7 @@ test.describe('rooms and roles on the room server', () => {
     const room = uniqueName('役割の卓');
 
     await openLobby(guest.page);
-    await expect(guest.page.getByTestId('server-account-login')).toBeVisible();
+    await expect(guest.page.locator('lobby').getByTestId('server-account-login')).toBeVisible();
     await expect(guest.page.getByTestId('lobby-create-room')).toContainText('ログインして');
 
     await createRoom(gm.page, room);
