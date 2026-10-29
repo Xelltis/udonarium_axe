@@ -56,6 +56,7 @@ import { encodeVnEmote, vnBodyOf, vnEmoteOf } from '@axe/domain/visual-novel/vn-
 import { vnEmoteLabels } from '@axe/domain/visual-novel/vn-emote-label';
 import { ChatBookmarkService } from '@axe/features/chat/chat-bookmark.service';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
+import { ChatLineEditorComponent } from '@axe/features/chat/chat-line-editor/chat-line-editor.component';
 import {
   ChatLineAbilities,
   chatLineAbilities,
@@ -106,6 +107,7 @@ const BOOKMARK_KINDS: readonly ChatBookmarkKind[] = ['shared', 'personal'];
     SafePipe,
     TranslocoModule,
     DiceRollStageComponent,
+    ChatLineEditorComponent,
   ],
 })
 export class ChatMessageComponent {
@@ -659,28 +661,16 @@ export class ChatMessageComponent {
 
   readonly editDraft = signal<string | null>(null);
   readonly isEditing = computed(() => this.editDraft() !== null);
-  readonly editingTextArea = viewChild<ElementRef<HTMLTextAreaElement>>('editingTextArea');
 
   /**
    * Opens the line for editing in place, from the pencil button or the line's menu.
    *
-   * The draft starts from the words alone, without any novel-mode staging, and the text area is
-   * focused with the caret at the end once it is drawn. Does nothing for a line that may not change.
+   * The draft starts from the words alone, without any novel-mode staging, and the box it is
+   * edited in takes the keys with the caret at the end. Does nothing for a line that may not change.
    */
   startEdit() {
     if (!this.lineEdit.canEditMessage(this.chatMessage)) return;
     this.editDraft.set(vnBodyOf(this.chatMessage.vnEmote, this.chatMessage.text ?? ''));
-    afterNextRender(
-      () => {
-        const el = this.editingTextArea()?.nativeElement;
-        if (el) {
-          this.autoFitHeight(el);
-          el.focus();
-          el.setSelectionRange(el.value.length, el.value.length);
-        }
-      },
-      { injector: this.injector }
-    );
   }
 
   /**
@@ -709,31 +699,6 @@ export class ChatMessageComponent {
   /** Closes the editor and throws the draft away, leaving the message as it was. */
   cancelEdit() {
     this.editDraft.set(null);
-  }
-
-  /** Keeps the draft in step with the edit box and grows the box to fit, up to its height limit. */
-  onEditInput(value: string) {
-    this.editDraft.set(value);
-    const el = this.editingTextArea()?.nativeElement;
-    if (el) this.autoFitHeight(el);
-  }
-
-  /** Escape cancels the edit and Enter saves it; Shift+Enter and keys pressed mid-composition type as usual. */
-  onEditKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      this.cancelEdit();
-      return;
-    }
-    if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
-      event.preventDefault();
-      this.saveEdit();
-    }
-  }
-
-  private autoFitHeight(el: HTMLTextAreaElement): void {
-    el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 240)}px`;
   }
 
   /** The words for how novel mode was asked to stage this line, when the reader asked to see them. */

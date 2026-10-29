@@ -21,7 +21,7 @@ test.describe('the edit history of a line', () => {
     for (const next of ['こんばんは', 'こんばんは！']) {
       await line.locator('.msg-text').hover();
       await line.getByTestId('chat-message-action-edit').click();
-      const editor = line.locator('textarea');
+      const editor = line.locator('[data-chat-line-edit]');
       await editor.fill(next);
       await editor.press('Enter');
       await expect(editor).toHaveCount(0);

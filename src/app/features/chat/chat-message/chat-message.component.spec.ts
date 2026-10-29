@@ -1868,7 +1868,7 @@ describe('ChatMessageComponent', () => {
       const message = shown('me', 'こんばんわ');
 
       component.startEdit();
-      component.onEditInput('こんばんは');
+      component.editDraft.set('こんばんは');
       component.saveEdit();
       await settle();
 
