@@ -66,7 +66,7 @@ import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import type { ChatEditorField, ChatEditorHost, ChatEditorStart } from '@axe/features/chat/chat-editor/chat-editor';
 import { CHAT_EDITOR_LOADER, type ChatEditorModule } from '@axe/features/chat/chat-editor/chat-editor-loader';
 import { ChatInputDiceBotHelper } from '@axe/features/chat/chat-input/chat-input-dicebot';
-import { allowsChat } from '@axe/features/chat/chat-input/chat-input-helpers';
+import { allowsChat, lineStartOf } from '@axe/features/chat/chat-input/chat-input-helpers';
 import { ChatInputHistory } from '@axe/features/chat/chat-input/chat-input-history';
 import {
   type ChatSyntaxGroup,
@@ -269,7 +269,7 @@ export class ChatInputComponent {
     prefix: (text) =>
       this.writeIntoField((field) => {
         const { from, to } = field.selection();
-        const lineStart = field.text().lastIndexOf('\n', from - 1) + 1;
+        const lineStart = lineStartOf(field.text(), from);
         field.replaceRange(lineStart, lineStart, text, { from: from + text.length, to: to + text.length });
       }),
     chip: (chip, place) => this.writeIntoField((field) => field.insertChip(chip, place)),

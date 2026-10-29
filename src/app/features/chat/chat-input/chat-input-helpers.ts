@@ -56,3 +56,8 @@ const NON_TEXT_INPUT_TYPES: ReadonlySet<string> = new Set([
   'reset',
   'submit',
 ]);
+
+/** Where the line holding a place in a text starts: right after the line break before it, or at the start. */
+export function lineStartOf(text: string, at: number): number {
+  return at > 0 ? text.lastIndexOf('\n', at - 1) + 1 : 0;
+}

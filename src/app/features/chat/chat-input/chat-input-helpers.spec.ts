@@ -1,6 +1,6 @@
 import { Network } from '@axe/core/index';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { allowsChat, editsTextInPlace } from '@axe/features/chat/chat-input/chat-input-helpers';
+import { allowsChat, editsTextInPlace, lineStartOf } from '@axe/features/chat/chat-input/chat-input-helpers';
 
 interface MutableCharacter {
   location: { name: string };
@@ -86,5 +86,14 @@ describe('editsTextInPlace', () => {
     expect(editsTextInPlace(element('<textarea></textarea>'))).toBe(true);
     expect(editsTextInPlace(element('<input type="text">'))).toBe(true);
     expect(editsTextInPlace(element('<input type="checkbox">'))).toBe(false);
+  });
+});
+
+describe('lineStartOf', () => {
+  it('finds the start of the line a place stands on, the first line too', () => {
+    expect(lineStartOf('\n2d6', 0)).toBe(0);
+    expect(lineStartOf('\n2d6', 1)).toBe(1);
+    expect(lineStartOf('a\nbc', 3)).toBe(2);
+    expect(lineStartOf('abc', 2)).toBe(0);
   });
 });
