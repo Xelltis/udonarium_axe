@@ -82,9 +82,10 @@ export interface ChatEditorHost {
   stampHtml?(stampId: string): string | null;
   /**
    * Told each time what will not work has been marked, once the reader pauses or as the room
-   * changes, for whatever lists it to follow the marks rather than every key.
+   * changes, for whatever lists it to follow the marks rather than every key; or that nothing was,
+   * for a text too long to mark.
    */
-  linted?(): void;
+  linted?(marked: boolean): void;
   /**
    * Whether a portrait or a cut-in that ends a line is carried out from here, so that one put
    * anywhere else is marked as doing nothing; a line already said, rewritten, carries none out.
@@ -749,6 +750,7 @@ export class ChatEditorField implements ChatTextField {
     const out = this.writtenNow();
     if (!session || out.text.length > HIGHLIGHT_LIMIT) {
       view.dispatch(view.state.tr.setMeta(SYNTAX, DecorationSet.empty).setMeta('addToHistory', false));
+      if (withLint) this.host.linted?.(false);
       return;
     }
     const scan = session.scan();
@@ -794,7 +796,7 @@ export class ChatEditorField implements ChatTextField {
       }
     }
     view.dispatch(view.state.tr.setMeta(SYNTAX, DecorationSet.create(doc, decorations)).setMeta('addToHistory', false));
-    if (withLint) this.host.linted?.();
+    if (withLint) this.host.linted?.(true);
   }
 
   private paintSpans(

@@ -368,8 +368,11 @@ export class ChatInputComponent {
   /** The text checked as it will be sent from here, while it is typed into the editor. */
   private readonly activeSession = computed(() => (this.inputMode() === 'rich' ? this.lintSession : null));
 
-  /** Counts each time the editor has marked what will not work, which the list of findings follows. */
-  private readonly lintMarked = signal(0);
+  /**
+   * Each time the editor has marked what will not work, which the list of findings follows, and
+   * whether it could, or the text was too long to mark.
+   */
+  private readonly lintMarked = signal({ marked: true });
 
   /**
    * What was found in the line, while it is typed into the editor, and the text it was found in:
@@ -378,8 +381,8 @@ export class ChatInputComponent {
    */
   private readonly linted = computed<{ text: string; findings: ChatDiagnostic[] }>(() => {
     const session = this.activeSession();
-    this.lintMarked();
-    return session
+    const { marked } = this.lintMarked();
+    return session && marked
       ? untracked(() => ({ text: session.scan().text, findings: session.diagnostics() }))
       : { text: '', findings: [] };
   });
@@ -407,11 +410,18 @@ export class ChatInputComponent {
     return this.t(`feature.chat.lint.${found.code}`, found.params ? { ...found.params } : undefined);
   }
 
-  /** Puts the caret on what a finding is about, where the line still reads as it did when found. */
+  /**
+   * Puts the caret on what a finding is about. Where the line has changed since it was found, it
+   * is checked again at once instead, the list then showing where each finding now stands.
+   */
   protected goToFinding(found: ChatDiagnostic): void {
+    const field = this.richField();
+    if (this.linted().text !== this.text) {
+      field?.refresh(false);
+      return;
+    }
     this.closePanel();
-    if (this.linted().text !== this.text) return;
-    this.richField()?.select({ from: found.from, to: found.to });
+    field?.select({ from: found.from, to: found.to });
   }
 
   /** What the empty box says in place of its keys. */
@@ -446,7 +456,10 @@ export class ChatInputComponent {
     toolbarElement: () => this.hostElement.nativeElement.querySelector('[data-testid="chat-input-edits"]'),
     translate: (key, params) => this.t(key, params),
     stampHtml: (stampId) => this.syntaxSource.stampHtml(stampId),
-    linted: () => this.lintMarked.update((count) => count + 1),
+    linted: (marked) => {
+      this.lintMarked.set({ marked });
+      if (this.openPanel() === 'findings' && this.findings().length < 1) this.closePanel();
+    },
   };
 
   /**

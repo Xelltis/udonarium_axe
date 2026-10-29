@@ -388,6 +388,20 @@ test.describe('the chat editor', () => {
     );
   });
 
+  test('shuts the list of findings once nothing is found any more', async ({ page }) => {
+    const input = chatInput(page);
+    await input.fill(':HP-1');
+    const findings = page.locator('chat-window [data-testid="chat-input-findings"]');
+    await expect(findings).toBeVisible({ timeout: 5000 });
+    await findings.click();
+    const list = page.locator('chat-window [data-testid="chat-input-finding-list"]');
+    await expect(list).toBeVisible();
+
+    await input.fill('');
+
+    await expect(list).toBeHidden({ timeout: 5000 });
+  });
+
   test('sends nothing on the Enter that makes a word with an input method', async ({ page, browserName }) => {
     test.skip(browserName !== 'chromium', 'composition is driven through the Chrome DevTools Protocol');
     const input = chatInput(page);
