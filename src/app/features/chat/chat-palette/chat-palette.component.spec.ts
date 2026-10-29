@@ -680,6 +680,31 @@ describe('ChatPaletteComponent handing its text area over to the editor', () => 
     );
   });
 
+  it('waits for a word being made in the text area to be made before the editor takes its place', async () => {
+    const fixture = TestBed.createComponent(ChatPaletteComponent);
+    fixture.componentInstance.character.set(char);
+    fixture.detectChanges();
+    fixture.componentInstance.toggleEditMode();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const area = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>(
+      'textarea[name="edit-palette"]'
+    )!;
+    area.dispatchEvent(new CompositionEvent('compositionstart'));
+
+    arrive({ mountChatEditor: mounted } as unknown as ChatEditorModule);
+    await fixture.whenStable();
+    TestBed.tick();
+    expect(mounted).not.toHaveBeenCalled();
+
+    area.dispatchEvent(new CompositionEvent('compositionend'));
+    await new Promise((done) => setTimeout(done));
+    fixture.detectChanges();
+    TestBed.tick();
+
+    expect(mounted).toHaveBeenCalledOnce();
+  });
+
   it('takes up no caret kept for an editor that was not to be put in, when one is put in later', async () => {
     const preferences = TestBed.inject(ChatPreferencesService);
     preferences.setRichInput(false);

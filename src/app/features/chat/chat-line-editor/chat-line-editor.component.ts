@@ -32,6 +32,7 @@ import { ChatSyntaxSourceService } from '@axe/features/chat/chat-input/chat-synt
 import { type ChatTextField, TextareaChatField } from '@axe/features/chat/chat-input/chat-text-field';
 import { ChatToolbarComponent } from '@axe/features/chat/chat-toolbar/chat-toolbar.component';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
+import { ComposingMarkDirective, whenNotComposing } from '@axe/ui/directives/composing-mark.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** What editing a line looks at: its decorations, its rubies and its stamps, none of its commands. */
@@ -64,7 +65,7 @@ const LINE_EDIT_ATTR = 'data-chat-line-edit';
   selector: 'chat-line-editor',
   templateUrl: './chat-line-editor.component.html',
   host: { class: 'block w-full min-w-0' },
-  imports: [FormsModule, TranslocoModule, ChatToolbarComponent],
+  imports: [ComposingMarkDirective, FormsModule, TranslocoModule, ChatToolbarComponent],
 })
 export class ChatLineEditorComponent {
   private readonly preferences = inject(ChatPreferencesService);
@@ -155,7 +156,11 @@ export class ChatLineEditorComponent {
 
   constructor() {
     afterNextRender(() => this.focusPlainBox());
-    if (this.preferences.richInput()) void this.loader().then((module) => this.module.set(module));
+    if (this.preferences.richInput()) {
+      void this.loader().then((module) =>
+        whenNotComposing(this.plainBox()?.nativeElement, () => this.module.set(module))
+      );
+    }
     effect(() => {
       const host = this.editorHost()?.nativeElement ?? null;
       const module = this.module();

@@ -81,6 +81,7 @@ import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { AnchoredPopover } from '@axe/ui/anchored-popover';
 import { PortraitChoice, PortraitPickerComponent } from '@axe/ui/components/portrait-picker/portrait-picker.component';
 import { PortraitSliderComponent } from '@axe/ui/components/portrait-slider/portrait-slider.component';
+import { ComposingMarkDirective, whenNotComposing } from '@axe/ui/directives/composing-mark.directive';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { RovingToolbarDirective } from '@axe/ui/directives/roving-toolbar.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
@@ -99,6 +100,7 @@ const LIST_ROOM = 240;
   templateUrl: './chat-input.component.html',
   host: { class: 'block min-w-0 [container-type:inline-size]' },
   imports: [
+    ComposingMarkDirective,
     TextTooltipDirective,
     NgClass,
     NgStyle,
@@ -475,15 +477,17 @@ export class ChatInputComponent {
           this.editorUnreachable.set(true);
           return;
         }
-        const box = this.plainField()?.element;
-        if (box) {
-          this.handover = {
-            text: this.text,
-            selection: { from: box.selectionStart, to: box.selectionEnd },
-            focused: box.ownerDocument.activeElement === box,
-          };
-        }
-        this.editorModule.set(module);
+        whenNotComposing(this.plainField()?.element, () => {
+          const box = this.plainField()?.element;
+          if (box) {
+            this.handover = {
+              text: this.text,
+              selection: { from: box.selectionStart, to: box.selectionEnd },
+              focused: box.ownerDocument.activeElement === box,
+            };
+          }
+          this.editorModule.set(module);
+        });
       });
     };
     if (soon) return fetch();

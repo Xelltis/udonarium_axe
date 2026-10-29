@@ -53,6 +53,7 @@ import { ChatPaletteTabService } from '@axe/features/chat/chat-palette/chat-pale
 import { ChatTabStripComponent } from '@axe/features/chat/chat-tab-strip/chat-tab-strip.component';
 import { ChatTickerSelectionService } from '@axe/features/chat/chat-ticker-selection.service';
 import { GameDataElementComponent } from '@axe/features/data-element/game-data-element/game-data-element.component';
+import { ComposingMarkDirective, whenNotComposing } from '@axe/ui/directives/composing-mark.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -73,6 +74,7 @@ const PALETTE_TEXT_ATTR = 'data-chat-palette-text';
     '(keydown.control.arrowright)': 'switchTabByKey($event, 1)',
   },
   imports: [
+    ComposingMarkDirective,
     TextTooltipDirective,
     FormsModule,
     ChatInputComponent,
@@ -396,10 +398,12 @@ export class ChatPaletteComponent {
       if (!this.isEdit() || !this.chatPreferences.richInput() || this.editorModule()) return;
       untracked(
         () =>
-          void this.editorLoader().then((module) => {
-            this.handOverFromTextArea();
-            this.editorModule.set(module);
-          })
+          void this.editorLoader().then((module) =>
+            whenNotComposing(this.editTextRef()?.nativeElement, () => {
+              this.handOverFromTextArea();
+              this.editorModule.set(module);
+            })
+          )
       );
     });
     effect(() => this.followPaletteEditor());
