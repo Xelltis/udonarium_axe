@@ -14,14 +14,14 @@ const CHAT_EDITOR_CSS = `
 .chat-rich p.is-editor-empty:first-child::before{content:attr(data-placeholder);color:color-mix(in srgb,currentColor 50%,transparent);float:left;height:0;pointer-events:none}
 .chat-rich .chat-rich-italic{font-style:oblique 12deg}
 .chat-rich .chat-size-huge{font-size:1.4em}
-.chat-rich .chat-chip{display:inline-flex;align-items:center;gap:2px;margin:0 1px;padding:0 6px;border:1px solid var(--chip-accent,var(--ui-border-panel));border-radius:999px;background:var(--ui-elevated);color:var(--ui-text);font-size:.92em;font-weight:normal;font-style:normal;line-height:1.4;white-space:nowrap;vertical-align:baseline;cursor:default}
-.chat-rich .chat-chip-icon{font-size:14px!important;line-height:1;color:var(--chip-accent,inherit)}
-.chat-rich .chat-chip-badge{font-size:.7em;font-weight:700;opacity:.75}
-.chat-rich .chat-chip-reference{--chip-accent:${CHAT_COLORS.cyan};box-shadow:inset 3px 0 0 var(--chip-accent)}
-.chat-rich .chat-chip-reference[data-value]::after{content:attr(data-value);margin-left:3px;padding:0 4px;border-radius:6px;background:var(--ui-hover);color:var(--ui-text-muted);font-size:.85em}
+.chat-rich .chat-chip{display:inline-flex;align-items:center;gap:3px;box-sizing:border-box;height:1.6em;margin:0 1px;padding:0 6px;border:1px solid var(--chip-accent,var(--ui-border-panel));border-radius:999px;background:var(--ui-elevated);color:var(--ui-text);font-size:.92em;font-weight:normal;font-style:normal;line-height:1;white-space:nowrap;vertical-align:middle;cursor:default}
+.chat-rich .chat-chip-icon{font-size:1.1em!important;line-height:1;color:var(--chip-accent,inherit)}
+.chat-rich .chat-chip-badge{font-size:.7em;font-weight:700;line-height:1;opacity:.75}
+.chat-rich .chat-chip-reference{--chip-accent:${CHAT_COLORS.cyan}}
+.chat-rich .chat-chip-reference[data-value]::after{content:attr(data-value);margin-left:1px;padding:2px 4px;border-radius:6px;background:var(--ui-hover);color:var(--ui-text-muted);font-size:.85em;line-height:1}
 .chat-rich .chat-chip-effect,.chat-rich .chat-chip-cut-in{--chip-accent:${CHAT_COLORS.pink}}
 .chat-rich .chat-chip-portrait{--chip-accent:${CHAT_COLORS.green}}
-.chat-rich .chat-chip-thumb{display:none;width:16px;height:16px;margin-left:-3px;border-radius:50%;background:var(--chip-image) center/cover no-repeat}
+.chat-rich .chat-chip-thumb{display:none;width:1.15em;height:1.15em;margin-left:-3px;border-radius:50%;background:var(--chip-image) center/cover no-repeat}
 .chat-rich .chat-chip-portrait[style*="--chip-image"] .chat-chip-thumb{display:inline-block}
 .chat-rich .chat-chip-portrait[style*="--chip-image"] .chat-chip-icon{display:none}
 .chat-rich .chat-chip-idle{opacity:.5;border-style:dashed}

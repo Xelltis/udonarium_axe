@@ -217,6 +217,29 @@ test.describe('the chat editor', () => {
     expect(await page.evaluate(() => document.getSelection()?.toString().length ?? 0)).toBeGreaterThan(0);
   });
 
+  test('draws every chip in a line at one height, on one middle', async ({ page }) => {
+    const from = page.locator('chat-window .chat-select--from');
+    const search = from.locator('input[role="combobox"]');
+    await search.fill('キャラクターC');
+    await expect(
+      page.locator('.ng-dropdown-panel').getByRole('option', { name: 'キャラクターC', exact: true })
+    ).toBeVisible();
+    await search.press('Enter');
+    await expect(from.locator('.ng-value-label')).toHaveText('キャラクターC');
+    const input = chatInput(page);
+    await input.click();
+    await page.keyboard.type('《殴打》 {HP} |漢字《かんじ》 ');
+    await expect(input.locator('[data-chip="reference"][data-value]')).toHaveCount(1, { timeout: 5000 });
+    const boxes = await input
+      .locator('[data-chip="effect"], [data-chip="reference"]')
+      .evaluateAll((chips) =>
+        chips.map((chip) => chip.getBoundingClientRect()).map((box) => [box.height, box.top + box.height / 2])
+      );
+    expect(boxes).toHaveLength(2);
+    expect(Math.abs(boxes[0][0] - boxes[1][0])).toBeLessThanOrEqual(1);
+    expect(Math.abs(boxes[0][1] - boxes[1][1])).toBeLessThanOrEqual(1);
+  });
+
   test('opens a bar over the words selected, standing clear of the toolbar', async ({ page }) => {
     const input = chatInput(page);
     await input.click();
