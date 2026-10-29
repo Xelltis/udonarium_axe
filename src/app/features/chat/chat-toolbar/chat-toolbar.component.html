@@ -1,72 +1,70 @@
-<div
-  class="flex min-w-0 items-center"
-  role="group"
-  data-testid="chat-toolbar"
-  [attr.aria-label]="'feature.chat.toolbar.label' | transloco"
-  (mousedown)="keepSelection($event)"
->
-  <button
-    type="button"
-    [class]="buttonClass"
-    data-testid="chat-toolbar-bold"
-    [attr.aria-pressed]="isOn('bold')"
-    [title]="('feature.chat.decoration.bold' | transloco) + ' (Ctrl+B)'"
-    [attr.aria-label]="'feature.chat.decoration.bold' | transloco"
-    (click)="apply({ kind: 'bold' })"
-  >
-    <i class="material-icons">format_bold</i>
-  </button>
-  <button
-    type="button"
-    [class]="buttonClass"
-    data-testid="chat-toolbar-italic"
-    [attr.aria-pressed]="isOn('italic')"
-    [title]="('feature.chat.decoration.italic' | transloco) + ' (Ctrl+I)'"
-    [attr.aria-label]="'feature.chat.decoration.italic' | transloco"
-    (click)="apply({ kind: 'italic' })"
-  >
-    <i class="material-icons">format_italic</i>
-  </button>
-  <button
-    #styleButton
-    type="button"
-    [class]="buttonClass"
-    data-testid="chat-toolbar-style"
-    aria-haspopup="menu"
-    [attr.aria-expanded]="openOne() === 'style'"
-    [attr.aria-pressed]="styled()"
-    [title]="'feature.chat.toolbar.style' | transloco"
-    [attr.aria-label]="'feature.chat.toolbar.style' | transloco"
-    (click)="toggle('style')"
-  >
-    <i class="material-icons" [style.color]="active()?.color ?? null">text_format</i>
-  </button>
-  <button
-    #rubyButton
-    type="button"
-    [class]="wordButtonClass"
-    data-testid="chat-toolbar-ruby"
-    aria-haspopup="dialog"
-    [attr.aria-expanded]="openOne() === 'ruby'"
-    [title]="'feature.chat.syntax.rubyWrap' | transloco"
-    (click)="toggle('ruby')"
-  >
-    {{ 'feature.chat.syntax.ruby' | transloco }}
-  </button>
-  @for (entry of syntaxButtons; track entry.key) {
+<div class="flex min-w-0 items-center gap-2" data-testid="chat-toolbar" (mousedown)="keepSelection($event)">
+  <div class="flex items-center" role="group" [attr.aria-label]="'feature.chat.toolbar.label' | transloco">
     <button
       type="button"
       [class]="buttonClass"
-      [attr.data-testid]="'chat-toolbar-group-' + entry.key"
-      aria-haspopup="menu"
-      [attr.aria-expanded]="openOne() === entry.key"
-      [title]="groupLabel(entry.key)"
-      [attr.aria-label]="groupLabel(entry.key)"
-      (click)="toggle(entry.key, $event.currentTarget)"
+      data-testid="chat-toolbar-bold"
+      [attr.aria-pressed]="isOn('bold')"
+      [title]="('feature.chat.decoration.bold' | transloco) + ' (Ctrl+B)'"
+      [attr.aria-label]="'feature.chat.decoration.bold' | transloco"
+      (click)="apply({ kind: 'bold' })"
     >
-      <i class="material-icons">{{ entry.icon }}</i>
+      <i class="material-icons">format_bold</i>
     </button>
-  }
+    <button
+      type="button"
+      [class]="buttonClass"
+      data-testid="chat-toolbar-italic"
+      [attr.aria-pressed]="isOn('italic')"
+      [title]="('feature.chat.decoration.italic' | transloco) + ' (Ctrl+I)'"
+      [attr.aria-label]="'feature.chat.decoration.italic' | transloco"
+      (click)="apply({ kind: 'italic' })"
+    >
+      <i class="material-icons">format_italic</i>
+    </button>
+    <button
+      #styleButton
+      type="button"
+      [class]="buttonClass"
+      data-testid="chat-toolbar-style"
+      aria-haspopup="menu"
+      [attr.aria-expanded]="openOne() === 'style'"
+      [attr.aria-pressed]="styled()"
+      [title]="'feature.chat.toolbar.style' | transloco"
+      [attr.aria-label]="'feature.chat.toolbar.style' | transloco"
+      (click)="toggle('style')"
+    >
+      <i class="material-icons" [style.color]="active()?.color ?? null">format_size</i>
+    </button>
+    <button
+      #rubyButton
+      type="button"
+      [class]="wordButtonClass"
+      data-testid="chat-toolbar-ruby"
+      aria-haspopup="dialog"
+      [attr.aria-expanded]="openOne() === 'ruby'"
+      [title]="'feature.chat.syntax.rubyWrap' | transloco"
+      (click)="toggle('ruby')"
+    >
+      {{ 'feature.chat.syntax.ruby' | transloco }}
+    </button>
+  </div>
+  <div class="flex items-center" role="group" [attr.aria-label]="'feature.chat.syntax.title' | transloco">
+    @for (entry of syntaxButtons; track entry.key) {
+      <button
+        type="button"
+        [class]="buttonClass"
+        [attr.data-testid]="'chat-toolbar-group-' + entry.key"
+        aria-haspopup="menu"
+        [attr.aria-expanded]="openOne() === entry.key"
+        [title]="groupLabel(entry.key)"
+        [attr.aria-label]="groupLabel(entry.key)"
+        (click)="toggle(entry.key, $event.currentTarget)"
+      >
+        <i class="material-icons">{{ entry.icon }}</i>
+      </button>
+    }
+  </div>
 </div>
 
 <div

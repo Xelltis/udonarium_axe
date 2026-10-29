@@ -38,7 +38,7 @@ type ToolbarPopover = 'style' | 'ruby' | ChatSyntaxGroupKey;
 const SYNTAX_BUTTONS: readonly { readonly key: ChatSyntaxGroupKey; readonly icon: string }[] = [
   { key: 'dice', icon: 'casino' },
   { key: 'reference', icon: 'data_object' },
-  { key: 'resource', icon: 'favorite' },
+  { key: 'resource', icon: 'exposure' },
   { key: 'buff', icon: 'auto_fix_high' },
   { key: 'portrait', icon: 'face' },
   { key: 'effect', icon: 'movie' },
@@ -199,7 +199,7 @@ export class ChatToolbarComponent {
       {
         width: group ? 320 : 240,
         minHeight: 80,
-        align: 'start',
+        align: 'end',
         prefer: 'up',
       }
     );
