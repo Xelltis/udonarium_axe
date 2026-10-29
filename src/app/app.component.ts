@@ -94,6 +94,7 @@ import { VoteWidgetComponent } from '@axe/features/vote/vote-widget/vote-widget.
 import { CompassComponent } from '@axe/features/widgets/compass/compass.component';
 import { ConnectionQualityComponent } from '@axe/features/widgets/connection-quality/connection-quality.component';
 import { DigitalClockComponent } from '@axe/features/widgets/digital-clock/digital-clock.component';
+import { GameClockWidgetComponent } from '@axe/features/widgets/game-clock/game-clock-widget.component';
 import { RenderStatsComponent } from '@axe/features/widgets/render-stats/render-stats.component';
 import { PieceDragGhostComponent } from '@axe/ui/components/piece-drag-ghost/piece-drag-ghost.component';
 import { SnackbarComponent } from '@axe/ui/components/snackbar/snackbar.component';
@@ -118,6 +119,7 @@ import { version as APP_VERSION } from '@pkg';
     ConnectionQualityComponent,
     RenderStatsComponent,
     DigitalClockComponent,
+    GameClockWidgetComponent,
     CompassComponent,
     VoteWidgetComponent,
     HotbarBarComponent,

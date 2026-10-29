@@ -38,6 +38,7 @@ export const MENU_TOGGLES = [
   'widgetPlToolbar',
   'widgetGmToolbar',
   'widgetClock',
+  'widgetGameClock',
   'widgetCompass',
   'widgetRecording',
   'widgetConnectionQuality',
@@ -247,6 +248,7 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
     testId: 'seat-widget-gmToolbar',
   }),
   widget('widgetClock', 'schedule', 'app.fab.clock', { testId: 'seat-widget-clock' }),
+  widget('widgetGameClock', 'wb_twilight', 'app.fab.gameClock', { testId: 'seat-widget-gameClock' }),
   widget('widgetCompass', 'explore', 'app.fab.compass', { testId: 'seat-widget-compass' }),
   widget('widgetRecording', 'radio_button_checked', 'app.fab.recording', {
     testId: 'seat-widget-recording',

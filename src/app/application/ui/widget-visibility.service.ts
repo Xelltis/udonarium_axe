@@ -4,6 +4,7 @@ import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 
 export interface WidgetVisibility {
   readonly clock: boolean;
+  readonly gameClock: boolean;
   readonly compass: boolean;
   readonly miniPlayer: boolean;
   readonly connectionQuality: boolean;
@@ -16,6 +17,7 @@ export interface WidgetVisibility {
 
 const DEFAULT_VISIBILITY: WidgetVisibility = {
   clock: false,
+  gameClock: false,
   compass: false,
   miniPlayer: true,
   connectionQuality: false,
@@ -36,6 +38,7 @@ export function parseWidgetVisibility(raw: string | null): WidgetVisibility {
     const parsed = JSON.parse(raw) as Partial<WidgetVisibility>;
     return {
       clock: typeof parsed.clock === 'boolean' ? parsed.clock : DEFAULT_VISIBILITY.clock,
+      gameClock: typeof parsed.gameClock === 'boolean' ? parsed.gameClock : DEFAULT_VISIBILITY.gameClock,
       compass: typeof parsed.compass === 'boolean' ? parsed.compass : DEFAULT_VISIBILITY.compass,
       miniPlayer: typeof parsed.miniPlayer === 'boolean' ? parsed.miniPlayer : DEFAULT_VISIBILITY.miniPlayer,
       connectionQuality:
@@ -56,6 +59,7 @@ export class WidgetVisibilityService {
   private readonly restored = parseWidgetVisibility(readLocal(STORAGE_KEYS.widgets));
 
   readonly clock = signal(this.restored.clock);
+  readonly gameClock = signal(this.restored.gameClock);
   readonly compass = signal(this.restored.compass);
   readonly miniPlayer = signal(this.restored.miniPlayer);
   readonly connectionQuality = signal(this.restored.connectionQuality);
@@ -69,6 +73,7 @@ export class WidgetVisibilityService {
     effect(() => {
       const state: WidgetVisibility = {
         clock: this.clock(),
+        gameClock: this.gameClock(),
         compass: this.compass(),
         miniPlayer: this.miniPlayer(),
         connectionQuality: this.connectionQuality(),
@@ -85,6 +90,11 @@ export class WidgetVisibilityService {
   /** Shows or hides the clock widget. Remembered in this browser. */
   toggleClock(): void {
     this.clock.update((visible) => !visible);
+  }
+
+  /** Shows or hides the time the room keeps in its story. Remembered in this browser. */
+  toggleGameClock(): void {
+    this.gameClock.update((visible) => !visible);
   }
 
   /** Shows or hides the compass. Remembered in this browser. */

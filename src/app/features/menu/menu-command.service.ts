@@ -374,6 +374,8 @@ export class MenuCommandService {
         return this.widgets.gmToolbar();
       case 'widgetClock':
         return this.widgets.clock();
+      case 'widgetGameClock':
+        return this.widgets.gameClock();
       case 'widgetCompass':
         return this.widgets.compass();
       case 'widgetRecording':
@@ -501,6 +503,9 @@ export class MenuCommandService {
         return;
       case 'widgetClock':
         this.widgets.toggleClock();
+        return;
+      case 'widgetGameClock':
+        this.widgets.toggleGameClock();
         return;
       case 'widgetCompass':
         this.widgets.toggleCompass();

@@ -5,6 +5,7 @@ import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
 import { DEFAULT_BATTLE_SETTINGS } from '@axe/domain/battle/battle-settings';
 import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
 import { DEFAULT_SYSTEM_NOTICES, withNoticeRoute } from '@axe/domain/chat/system-notices';
+import { DEFAULT_GAME_CLOCK } from '@axe/domain/game-clock/game-clock';
 import { DEFAULT_DJ_SETTINGS } from '@axe/domain/media/dj-settings';
 import { DEFAULT_ROOM_VOLUMES } from '@axe/domain/media/room-volumes';
 import { Config } from '@axe/domain/peer/config';
@@ -124,6 +125,32 @@ describe('Config', () => {
 
       config.interruptKind = null;
       expect(config.interruptKind).toBeNull();
+    });
+  });
+
+  describe('the time the room keeps in its story', () => {
+    afterEach(() => {
+      Config.instance.gameClock = DEFAULT_GAME_CLOCK;
+    });
+
+    it('is the morning of the first day for a room saved before it could keep one, and reads back what it writes', () => {
+      const config = Config.instance;
+      expect(config.gameClock).toEqual(DEFAULT_GAME_CLOCK);
+
+      const kept = { ...DEFAULT_GAME_CLOCK, day: 4, mode: 'hours' as const, minutes: 1290 };
+      config.gameClock = kept;
+      expect(config.gameClock).toEqual(kept);
+    });
+
+    it('goes back to the first morning where an older version sends the config without it', () => {
+      Config.instance.gameClock = { ...DEFAULT_GAME_CLOCK, day: 9 };
+      const older = Config.instance.toContext();
+      delete (older.syncData['attributes'] as Record<string, unknown>)['_gameClock'];
+      older.majorVersion += 1;
+
+      Config.instance.apply(older);
+
+      expect(Config.instance.gameClock).toEqual(DEFAULT_GAME_CLOCK);
     });
   });
 

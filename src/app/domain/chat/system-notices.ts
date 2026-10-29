@@ -7,12 +7,22 @@
  */
 
 /** The kinds of notice a room may send somewhere of its own choosing. */
-export const SYSTEM_NOTICE_KINDS = ['round', 'diceReveal', 'trigger', 'movement', 'card', 'bgm', 'room'] as const;
+export const SYSTEM_NOTICE_KINDS = [
+  'round',
+  'clock',
+  'diceReveal',
+  'trigger',
+  'movement',
+  'card',
+  'bgm',
+  'room',
+] as const;
 export type SystemNoticeKind = (typeof SYSTEM_NOTICE_KINDS)[number];
 
 /** Where each kind always went, and goes while the room chooses nothing: the leftmost tab, or the system tab. */
 export const DEFAULT_NOTICE_PLACE: Readonly<Record<SystemNoticeKind, 'main' | 'system'>> = {
   round: 'main',
+  clock: 'main',
   diceReveal: 'main',
   trigger: 'main',
   movement: 'system',

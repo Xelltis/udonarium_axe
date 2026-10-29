@@ -11,6 +11,7 @@ import {
 import { readStampRules, StampRules, writeStampRules } from '@axe/domain/chat/stamp-rules';
 import { readSystemNotices, SystemNoticeRoutes, writeSystemNotices } from '@axe/domain/chat/system-notices';
 import { asDiceStage, DiceStage } from '@axe/domain/dice/dice-3d/dice-stage';
+import { type GameClock, readGameClock, writeGameClock } from '@axe/domain/game-clock/game-clock';
 import { type DjPads, readDjPads, writeDjPads } from '@axe/domain/media/dj-pads';
 import { type DjSettings, readDjSettings, writeDjSettings } from '@axe/domain/media/dj-settings';
 import {
@@ -62,6 +63,7 @@ export class Config extends withRuleAnswers() implements InnerXml {
   @SyncVar('_systemNotices') private _systemNotices: string = '';
   @SyncVar('_speechBubbles') private _speechBubbles: string = '';
   @SyncVar('_battleCutIn') private _battleCutIn: string = '';
+  @SyncVar('_gameClock') private _gameClock: string = '';
   @SyncVar('_turnSignal') private _turnSignal: string = '';
   @SyncVar('_turnTick') private _turnTick: string = '';
   @SyncVar('_resourceSliderDefault') private _resourceSliderDefault: string = '';
@@ -215,6 +217,19 @@ export class Config extends withRuleAnswers() implements InnerXml {
    */
   get carriedImageIdentifiers(): readonly string[] {
     return this.battleSettings.pictures;
+  }
+
+  /**
+   * The time the room keeps in its story: the day and the hour of it, as the game master moves it.
+   * A room that never set one reads as the morning of the first day.
+   *
+   * @see GameClock
+   */
+  get gameClock(): GameClock {
+    return readGameClock(this._gameClock);
+  }
+  set gameClock(clock: GameClock) {
+    this._gameClock = writeGameClock(clock);
   }
 
   /** The room's master volume, shared by every peer; a change applied to the config updates the jukebox at once. */

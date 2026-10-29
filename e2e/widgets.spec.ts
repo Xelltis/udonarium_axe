@@ -36,6 +36,31 @@ test.describe('widgets and switching the language', () => {
     await expect(clock).toHaveCount(0, { timeout: 5000 });
   });
 
+  test('keeps the time of the story for the room, which the master steps on and the chat is told of', async ({
+    page,
+  }) => {
+    await page
+      .locator('ui-panel')
+      .filter({ hasText: '接続情報' })
+      .getByRole('button', { name: /^\s*GM\s*$/ })
+      .click();
+    await expect(page.locator('app-gm-toolbar [title^="暗闇"]')).toBeVisible({ timeout: 10000 });
+    await toggleWidget(page, 'gameClock');
+    const clock = page.getByTestId('game-clock');
+    await expect(clock).toBeVisible({ timeout: 10000 });
+    await expect(clock.getByTestId('game-clock-day')).toHaveText('1日目');
+    await expect(clock.getByTestId('game-clock-time')).toHaveText('朝');
+
+    await clock.getByTestId('game-clock-on').click();
+
+    await expect(clock.getByTestId('game-clock-time')).toHaveText('昼');
+    await expect(page.locator('chat-tab chat-message').last()).toContainText('時間を進めました: 1日目 昼');
+
+    await clock.getByTestId('game-clock-settings').click();
+    await clock.getByTestId('game-clock-mode-hours').click();
+    await expect(clock.getByTestId('game-clock-time')).toHaveText('08:00');
+  });
+
   test('says in the connection quality widget that no one else is there', async ({ page }) => {
     const quality = page.locator('app-connection-quality > *');
     await expect(quality).toHaveCount(0);
