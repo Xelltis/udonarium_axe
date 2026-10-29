@@ -22,13 +22,28 @@ import {
   type ChatFontKey,
   type ChatSizeKey,
 } from '@axe/domain/chat/chat-decoration';
-import type { ChatSyntaxGroup, ChatSyntaxItem } from '@axe/features/chat/chat-input/chat-syntax-items';
+import type {
+  ChatSyntaxGroup,
+  ChatSyntaxGroupKey,
+  ChatSyntaxItem,
+} from '@axe/features/chat/chat-input/chat-syntax-items';
 import type { ChatMarkChange, ChatTextField } from '@axe/features/chat/chat-input/chat-text-field';
 import { AnchoredPopover } from '@axe/ui/anchored-popover';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** The popovers the toolbar opens, one at a time. */
-type ToolbarPopover = 'style' | 'ruby' | 'insert';
+type ToolbarPopover = 'style' | 'ruby' | ChatSyntaxGroupKey;
+
+/** The kinds of syntax there is to put in, a button to each, with the icon it shows. */
+const SYNTAX_BUTTONS: readonly { readonly key: ChatSyntaxGroupKey; readonly icon: string }[] = [
+  { key: 'dice', icon: 'casino' },
+  { key: 'reference', icon: 'data_object' },
+  { key: 'resource', icon: 'favorite' },
+  { key: 'buff', icon: 'auto_fix_high' },
+  { key: 'portrait', icon: 'face' },
+  { key: 'effect', icon: 'movie' },
+  { key: 'quote', icon: 'format_quote' },
+];
 
 /**
  * The formatting buttons in the bar over the chat input, in one row: bold and italic, a style button
@@ -62,9 +77,9 @@ export class ChatToolbarComponent {
   readonly edited = output<void>();
 
   protected readonly buttonClass =
-    'text-ui-muted hover:bg-ui-hover hover:text-ui-text aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent rounded-ui-sm m-0 flex h-7 min-w-7 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_.material-icons]:text-[18px]!';
+    'text-ui-muted hover:bg-ui-hover hover:text-ui-text aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_.material-icons]:text-[17px]!';
   protected readonly wordButtonClass =
-    'text-ui-muted hover:bg-ui-hover hover:text-ui-text aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent rounded-ui-sm m-0 flex h-7 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent px-1.5 py-0 text-[11px] font-semibold transition-colors';
+    'text-ui-muted hover:bg-ui-hover hover:text-ui-text aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent rounded-ui-sm m-0 flex h-7 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent px-1 py-0 text-[11px] font-semibold transition-colors';
   protected readonly rowClass =
     'text-ui-text hover:bg-ui-hover rounded-ui-sm m-0 flex w-full cursor-pointer items-center gap-2 border-none bg-transparent px-2 py-1 text-left text-[12px]';
   protected readonly chipClass =
@@ -96,15 +111,15 @@ export class ChatToolbarComponent {
     return !!marks && (!!marks.strike || !!marks.size || !!marks.font || !!marks.color);
   });
   protected readonly openOne = signal<ToolbarPopover | null>(null);
-  protected readonly shownGroups = signal<ChatSyntaxGroup[]>([]);
-  protected readonly groupIndex = signal(0);
+  protected readonly syntaxButtons = SYNTAX_BUTTONS;
+  /** The kind of syntax whose list stands open, as it was worked out when it opened. */
+  protected readonly openGroup = signal<ChatSyntaxGroup | null>(null);
   protected readonly rubyBase = signal('');
   protected readonly rubyReading = signal('');
   protected readonly rubyEditing = signal(false);
 
   private readonly styleButton = viewChild<ElementRef<HTMLElement>>('styleButton');
   private readonly rubyButton = viewChild<ElementRef<HTMLElement>>('rubyButton');
-  private readonly insertButton = viewChild<ElementRef<HTMLElement>>('insertButton');
   private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
   private readonly rubyInput = viewChild<ElementRef<HTMLInputElement>>('rubyInput');
   private popover: AnchoredPopover | null = null;
@@ -156,28 +171,33 @@ export class ChatToolbarComponent {
     return this.t(`feature.chat.decoration.${key}`);
   }
 
-  /** Opens a popover over its button, or shuts it where it stands open; one at a time. */
-  protected toggle(which: ToolbarPopover): void {
+  /**
+   * Opens a popover over its button, or shuts it where it stands open; one at a time. A kind of
+   * syntax opens the list of what there is of it, worked out as it opens.
+   */
+  protected toggle(which: ToolbarPopover, button: EventTarget | null = null): void {
     if (this.openOne() === which) {
       this.close();
       return;
     }
     this.close();
     if (which === 'style') for (const font of this.fonts) chatFontWanted$.emit(font);
-    if (which === 'insert') {
-      this.shownGroups.set(this.groups()());
-      this.groupIndex.set(Math.min(this.groupIndex(), Math.max(0, this.shownGroups().length - 1)));
-    }
     if (which === 'ruby') this.startRuby();
+    const group = which === 'style' || which === 'ruby' ? null : which;
+    if (group) {
+      this.openGroup.set(
+        this.groups()().find((each) => each.key === group) ?? { key: group, label: this.groupLabel(group), rows: [] }
+      );
+    }
     this.openOne.set(which);
-    const anchor = this.anchorOf(which);
+    const anchor = button instanceof HTMLElement ? button : this.anchorOf(which)?.nativeElement;
     const panel = this.panel();
     if (!anchor || !panel) return;
     this.popover = new AnchoredPopover(
-      () => anchor.nativeElement,
+      () => anchor,
       () => panel.nativeElement,
       {
-        width: which === 'insert' ? 320 : 240,
+        width: group ? 320 : 240,
         minHeight: 80,
         align: 'start',
         prefer: 'up',
@@ -202,9 +222,13 @@ export class ChatToolbarComponent {
         return this.styleButton();
       case 'ruby':
         return this.rubyButton();
-      case 'insert':
-        return this.insertButton();
+      default:
+        return undefined;
     }
+  }
+
+  protected groupLabel(key: ChatSyntaxGroupKey): string {
+    return this.t(`feature.chat.syntax.${key}`);
   }
 
   /** Opens the ruby popover from elsewhere, as the bar over a selection does. */
@@ -268,10 +292,5 @@ export class ChatToolbarComponent {
   protected write(item: ChatSyntaxItem): void {
     item.run();
     this.close();
-  }
-
-  protected selectGroup(index: number): void {
-    this.groupIndex.set(index);
-    afterNextRender(() => this.popover?.place(), { injector: this.injector });
   }
 }

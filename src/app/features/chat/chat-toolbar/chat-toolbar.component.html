@@ -1,5 +1,5 @@
 <div
-  class="flex min-w-0 items-center gap-0.5"
+  class="flex min-w-0 items-center"
   role="group"
   data-testid="chat-toolbar"
   [attr.aria-label]="'feature.chat.toolbar.label' | transloco"
@@ -53,20 +53,20 @@
   >
     {{ 'feature.chat.syntax.ruby' | transloco }}
   </button>
-  <span class="bg-ui-border-panel mx-0.5 h-4 w-px" aria-hidden="true"></span>
-  <button
-    #insertButton
-    type="button"
-    [class]="buttonClass"
-    data-testid="chat-toolbar-insert"
-    aria-haspopup="menu"
-    [attr.aria-expanded]="openOne() === 'insert'"
-    [title]="'feature.chat.syntax.title' | transloco"
-    [attr.aria-label]="'feature.chat.syntax.title' | transloco"
-    (click)="toggle('insert')"
-  >
-    <i class="material-icons">add_circle</i>
-  </button>
+  @for (entry of syntaxButtons; track entry.key) {
+    <button
+      type="button"
+      [class]="buttonClass"
+      [attr.data-testid]="'chat-toolbar-group-' + entry.key"
+      aria-haspopup="menu"
+      [attr.aria-expanded]="openOne() === entry.key"
+      [title]="groupLabel(entry.key)"
+      [attr.aria-label]="groupLabel(entry.key)"
+      (click)="toggle(entry.key, $event.currentTarget)"
+    >
+      <i class="material-icons">{{ entry.icon }}</i>
+    </button>
+  }
 </div>
 
 <div
@@ -161,22 +161,9 @@
         </button>
       </div>
     }
-    @case ('insert') {
-      <div class="flex flex-wrap gap-1" role="tablist">
-        @for (group of shownGroups(); track group.key; let index = $index) {
-          <button
-            type="button"
-            role="tab"
-            [class]="chipClass"
-            [attr.aria-selected]="groupIndex() === index"
-            [attr.data-group]="group.key"
-            (click)="selectGroup(index)"
-          >
-            {{ group.label }}
-          </button>
-        }
-      </div>
-      @if (shownGroups()[groupIndex()]; as group) {
+    @default {
+      @if (openGroup(); as group) {
+        <div class="text-ui-muted px-1 text-[11px]">{{ group.label }}</div>
         <div class="flex flex-col" role="list">
           @for (row of group.rows; track $index) {
             @if (row.items.length === 1) {

@@ -267,18 +267,18 @@ test.describe('the chat editor', () => {
     await expect(input.locator('ruby')).toHaveCount(1);
   });
 
-  test('writes the syntax picked from the insert button where it is read', async ({ page }) => {
+  test('writes the syntax picked from the button of its kind where it is read', async ({ page }) => {
     const input = chatInput(page);
     await input.click();
     await page.keyboard.type('攻撃 ');
-    await page.locator('chat-window [data-testid="chat-toolbar-insert"]').click();
+    const dice = page.locator('chat-window [data-testid="chat-toolbar-group-dice"]');
+    await expect(dice).toHaveAttribute('aria-label', 'ダイス');
+    await dice.click();
     const panel = page.locator('[data-testid="chat-toolbar-panel"]');
-    await panel.locator('[data-group="dice"]').click();
     await panel.getByRole('listitem').filter({ hasText: '2D6' }).first().click();
     await expectChatText(input, '攻撃 2D6 ');
 
-    await page.locator('chat-window [data-testid="chat-toolbar-insert"]').click();
-    await panel.locator('[data-group="effect"]').click();
+    await page.locator('chat-window [data-testid="chat-toolbar-group-effect"]').click();
     await panel.getByRole('listitem').filter({ hasText: '《vs》' }).click();
     await expectChatText(input, '攻撃 2D6 《vs》');
     await expect(input.locator('[data-chip="effect"]')).toHaveCount(1);
