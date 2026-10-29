@@ -24,8 +24,11 @@ export interface ChatSyntaxMenuSource {
 export interface ChatSyntaxWriter {
   /** Writes text over what is selected, or at the caret, selecting the stretch of it given, or putting the caret after it. */
   insert(text: string, select?: ChatFieldSelection): void;
-  /** Writes text at the start of the line, where what begins a line is read. */
-  prefix(text: string): void;
+  /**
+   * Writes text at the start of a line, where what begins one is read: the line the caret is on,
+   * or the first line of the message, the only one the dice bot reads a roll from.
+   */
+  prefix(text: string, line?: 'caret' | 'first'): void;
   /** Puts in a piece of syntax shown whole, at the caret or at the end of the message. */
   chip(chip: ChatRichChip, place: ChatChipPlace): void;
 }
@@ -85,8 +88,8 @@ export function chatSyntaxGroups(
     ...['2D6', '1D100', 'choice[A,B,C]', ...source.diceExamples].map((command) =>
       single(command, command, () => writer.insert(`${command} `))
     ),
-    single(word('secretRoll'), 'S2D6', () => writer.prefix('S')),
-    single(word('repeat'), 'x3 2D6', () => writer.prefix('x3 ')),
+    single(word('secretRoll'), 'S2D6', () => writer.prefix('S', 'first')),
+    single(word('repeat'), 'x3 2D6', () => writer.prefix('x3 ', 'first')),
   ]);
 
   const reference = (name: string, targeted: boolean): ChatSyntaxItem => {

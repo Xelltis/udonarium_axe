@@ -266,10 +266,10 @@ export class ChatInputComponent {
         const picked = select ? { from: from + select.from, to: from + select.to } : undefined;
         field.replaceRange(from, to, text, picked);
       }),
-    prefix: (text) =>
+    prefix: (text, line = 'caret') =>
       this.writeIntoField((field) => {
         const { from, to } = field.selection();
-        const lineStart = lineStartOf(field.text(), from);
+        const lineStart = line === 'first' ? 0 : lineStartOf(field.text(), from);
         field.replaceRange(lineStart, lineStart, text, { from: from + text.length, to: to + text.length });
       }),
     chip: (chip, place) => this.writeIntoField((field) => field.insertChip(chip, place)),
