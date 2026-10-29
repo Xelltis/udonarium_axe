@@ -45,6 +45,14 @@ describe('GameClockService', () => {
     expect(notices.at(-1)?.text).toBe('時間を戻しました: 1日目 夜');
   });
 
+  it('says nothing for a step back from the very start, which goes nowhere', () => {
+    service.step(-1);
+
+    expect(service.dayText()).toBe('1日目');
+    expect(service.timeText()).toBe('朝');
+    expect(notices).toEqual([]);
+  });
+
   it('keeps quiet where the room does not want the time said', () => {
     service.setAnnounce(false);
 

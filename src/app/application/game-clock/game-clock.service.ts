@@ -13,6 +13,7 @@ import {
   periodsOf,
   stepGameClock,
   withDay,
+  writeGameClock,
 } from '@axe/domain/game-clock/game-clock';
 import { Config } from '@axe/domain/peer/config';
 
@@ -54,10 +55,15 @@ export class GameClockService {
 
   readonly timeText = computed(() => formatGameClockTime(this.clock(), this.periods()));
 
-  /** Moves the clock on a step, or back one, and says so in the chat where the room wants it said. */
+  /**
+   * Moves the clock on a step, or back one, and says so in the chat where the room wants it said;
+   * back from the very start, where it goes nowhere, it says nothing.
+   */
   step(direction: 1 | -1): void {
     if (!this.canEdit()) return;
-    const next = stepGameClock(this.clock(), direction, this.periods().length);
+    const clock = this.clock();
+    const next = stepGameClock(clock, direction, this.periods().length);
+    if (writeGameClock(next) === writeGameClock(clock)) return;
     this.write(next);
     if (!next.announce) return;
     const key = direction > 0 ? 'feature.gameClock.announceOn' : 'feature.gameClock.announceBack';
