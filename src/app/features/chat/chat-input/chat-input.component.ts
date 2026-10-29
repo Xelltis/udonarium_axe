@@ -694,7 +694,6 @@ export class ChatInputComponent {
       if (!session || !field) return;
       const text = session.scan().text;
       session.annotations();
-      session.diagnostics();
       untracked(() => field.refresh(field === refreshedField && text !== refreshedText));
       refreshedText = text;
       refreshedField = field;

@@ -735,7 +735,7 @@ export class ChatEditorField implements ChatTextField {
     if (scan.text !== out.text) return;
     const doc = view.state.doc;
     const decorations: Decoration[] = [];
-    const annotations = session.annotations();
+    const annotations = withLint ? [...session.annotations(), ...session.rolls()] : session.annotations();
     const chipAt = (from: number, to: number): number | null => {
       const pos = out.toPos(from, 1);
       const node = doc.nodeAt(pos);

@@ -390,7 +390,6 @@ export class ChatPaletteComponent {
       }
       const text = this.paletteLint.scan().text;
       this.paletteLint.annotations();
-      this.paletteLint.diagnostics();
       untracked(() => this.paletteEditor?.refresh(text !== refreshedText));
       refreshedText = text;
     });

@@ -130,6 +130,7 @@ export class ChatLineEditorComponent {
       scan,
       diagnostics: computed(() => lintChatSyntax(scan(), context)),
       annotations: computed(() => []),
+      rolls: computed(() => []),
     };
   })();
 

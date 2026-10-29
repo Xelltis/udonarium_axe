@@ -78,15 +78,34 @@ describe('ChatLintService', () => {
       const text = signal(lines);
       const { session } = watch('', { text, path: 'palette', mode: 'palette' });
       session.diagnostics();
-      session.annotations();
+      session.rolls();
       const rolled = roll.mock.calls.length;
 
       text.set(`${lines}\n`);
       session.diagnostics();
-      session.annotations();
+      session.rolls();
 
       expect(rolled).toBeGreaterThanOrEqual(100);
       expect(roll.mock.calls.length).toBe(rolled);
+    } finally {
+      loaded.mockRestore();
+    }
+  });
+
+  it('rolls nothing for what is shown as the text is typed, leaving each roll to the rolls', () => {
+    const roll = vi.fn((command: string) => ({ text: `(${command}) ＞ 7` }));
+    const system = { ID: 'FakeSystem', COMMAND_PATTERN: null, eval: roll };
+    const loaded = vi
+      .spyOn(DiceBot, 'loadedGameSystem')
+      .mockReturnValue(system as unknown as ReturnType<typeof DiceBot.loadedGameSystem>);
+    try {
+      const { session } = watch('2d6+{HP} 攻撃');
+
+      expect(session.annotations().map((annotation) => annotation.kind)).toEqual(['value']);
+      expect(roll).not.toHaveBeenCalled();
+
+      expect(session.rolls()).toEqual([expect.objectContaining({ kind: 'roll', label: expect.stringContaining('7') })]);
+      expect(roll).toHaveBeenCalled();
     } finally {
       loaded.mockRestore();
     }

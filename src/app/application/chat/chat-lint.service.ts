@@ -47,11 +47,18 @@ export interface ChatLintAnnotation extends TextRange {
   readonly label: string;
 }
 
-/** What is read out of a text and found in it, kept up to date as it and the room change. */
+/**
+ * What is read out of a text and found in it, kept up to date as it and the room change. What is
+ * shown as the text is typed is cheap to work out; the diagnostics and the rolls' results, which
+ * roll each line, are left for whoever reads them once the reader pauses.
+ */
 export interface ChatLintSession {
   readonly scan: Signal<ChatSyntaxScan>;
   readonly diagnostics: Signal<ChatDiagnostic[]>;
+  /** What references are filled in with and the cut-ins the text starts, shown as it is typed; it follows the room too. */
   readonly annotations: Signal<ChatLintAnnotation[]>;
+  /** What each roll the text makes comes to, checked by rolling it. */
+  readonly rolls: Signal<ChatLintAnnotation[]>;
 }
 
 /**
@@ -91,7 +98,8 @@ export class ChatLintService {
     const context = computed(() => this.contextOf(source, scan()));
     const diagnostics = computed(() => lintChatSyntax(scan(), context()));
     const annotations = computed(() => this.annotationsOf(scan(), context()));
-    return { scan, diagnostics, annotations };
+    const rolls = computed(() => this.rollsOf(scan(), context()));
+    return { scan, diagnostics, annotations, rolls };
   }
 
   private contextOf(source: ChatLintSource, scan: ChatSyntaxScan): ChatLintContext {
@@ -233,14 +241,20 @@ export class ChatLintService {
       if (span.kind === 'reference') {
         const value = context.referenceValue(span.site);
         if (value != null) annotations.push({ kind: 'value', label: value, from: span.from, to: span.to });
-      } else if (span.kind === 'roll') {
-        const check = context.rollCheck(span.message);
-        if (check?.kind === 'rolled')
-          annotations.push({ kind: 'roll', label: check.result, from: span.from, to: span.to });
       } else if (span.kind === 'cutIn' && context.isChatCutIn(span.name)) {
         annotations.push({ kind: 'cutIn', label: span.name, from: span.from, to: span.to });
       }
     }
     return annotations;
+  }
+
+  private rollsOf(scan: ChatSyntaxScan, context: ChatLintContext): ChatLintAnnotation[] {
+    const rolls: ChatLintAnnotation[] = [];
+    for (const span of scan.spans) {
+      if (span.kind !== 'roll') continue;
+      const check = context.rollCheck(span.message);
+      if (check?.kind === 'rolled') rolls.push({ kind: 'roll', label: check.result, from: span.from, to: span.to });
+    }
+    return rolls;
   }
 }
