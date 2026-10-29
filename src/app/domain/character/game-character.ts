@@ -5,6 +5,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { generateUuid } from '@axe/core/util/uuid';
 import { BuffManager } from '@axe/domain/character/buff-manager';
 import { CharacterTemplateFactory } from '@axe/domain/character/character-template-factory';
+import { shownImageIdentifier } from '@axe/domain/character/shown-image';
 import { StatusAccessor } from '@axe/domain/character/status-accessor';
 import { BuffPalette, ChatPalette, SubPalette } from '@axe/domain/chat/chat-palette';
 import { DEFAULT_CHAT_BUBBLE_CODES, DEFAULT_CHAT_COLOR_CODES } from '@axe/domain/chat/constants';
@@ -290,37 +291,13 @@ export class GameCharacter extends OwnedTabletopObject {
     this._selectedPortraitIndex = num;
   }
 
-  private getIconNumElement(): DataElement | null {
-    if (!this.detailDataElement) return null;
-    const iconNum = this.detailDataElement.getFirstElementByName('ICON');
-    if (!iconNum || !iconNum.isNumberResource) return null;
-    return iconNum;
-  }
-
   /**
-   * The picture the piece shows on the table.
-   *
-   * Where the sheet has an `ICON` resource, its current value picks one of the pictures, held to
-   * the last one; otherwise the picture named by `imageIdentifier` is used. The empty image when
+   * The picture the piece shows on the table; see {@link shownImageIdentifier}. The empty image when
    * nothing is found.
    */
   override get imageFile(): ImageFile {
-    if (!this.imageDataElement) return ImageFile.Empty;
-
-    const iconNum = this.getIconNumElement();
-    if (!iconNum) {
-      const image = this.imageDataElement.getFirstElementByName('imageIdentifier');
-      if (!image) return ImageFile.Empty;
-      const file = ImageStorage.instance.get(image.value as string);
-      return file ? file : ImageFile.Empty;
-    } else {
-      let n = iconNum.currentValue as number;
-      if (n > this.imageDataElement.children.length - 1) n = this.imageDataElement.children.length - 1;
-      if (n < 0 || this.imageDataElement.children.length === 0) return ImageFile.Empty;
-      const image = this.imageDataElement.children[n];
-      const file = ImageStorage.instance.get(image.value as string);
-      return file ? file : ImageFile.Empty;
-    }
+    const identifier = shownImageIdentifier(this.imageDataElement, this.detailDataElement);
+    return (identifier.length > 0 ? ImageStorage.instance.get(identifier) : null) ?? ImageFile.Empty;
   }
 
   /** How many cells the piece spans, kept in its common data. 1 when unset. */

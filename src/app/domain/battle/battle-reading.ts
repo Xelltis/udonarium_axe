@@ -1,5 +1,6 @@
 import { isGaugeInverted, isGaugeShownOnPiece } from '@axe/domain/character/piece-gauge';
 import { resourceElementsOf } from '@axe/domain/character/resource-catalog';
+import { shownImageIdentifier } from '@axe/domain/character/shown-image';
 import { DataElement } from '@axe/domain/data/data-element';
 
 /** Only what reading a fighter needs of a piece, so a spec need not build one. */
@@ -28,7 +29,7 @@ export interface FighterReading {
   resources: ReadonlyMap<string, ResourceReading>;
 }
 
-/** Reads a piece and every resource it carries, as they stand now. */
+/** Reads a piece and every resource it carries, as they stand now, and the picture it shows on the table. */
 export function readFighter(source: FighterSource): FighterReading {
   const resources = new Map<string, ResourceReading>();
   for (const element of resourceElementsOf(source)) {
@@ -42,11 +43,10 @@ export function readFighter(source: FighterSource): FighterReading {
       bar: isGaugeShownOnPiece(element),
     });
   }
-  const imageElement = source.imageDataElement?.getFirstElementByName('imageIdentifier');
   return {
     identifier: source.identifier,
     name: source.name,
-    image: typeof imageElement?.value === 'string' ? imageElement.value : '',
+    image: shownImageIdentifier(source.imageDataElement, source.detailDataElement),
     resources,
   };
 }
