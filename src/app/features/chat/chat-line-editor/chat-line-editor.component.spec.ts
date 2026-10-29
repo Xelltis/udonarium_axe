@@ -123,4 +123,53 @@ describe('ChatLineEditorComponent handing its plain box over to the editor', () 
       expect.anything()
     );
   });
+
+  it('leaves the keys where the reader took them, after using the box', async () => {
+    let arrive!: (module: ChatEditorModule | null) => void;
+    const mounted = vi.fn(() => ({
+      parent: null,
+      text: () => 'こんばんは',
+      selection: () => ({ from: 0, to: 0 }),
+      refresh: vi.fn(),
+      refreshSoon: vi.fn(),
+      followRoot: vi.fn(),
+      destroy: vi.fn(),
+      focus: vi.fn(),
+      hasFocus: () => false,
+      activeMarks: () => null,
+    }));
+    TestBed.configureTestingModule({
+      imports: [ChatLineEditorComponent],
+      providers: [
+        ...TEST_PROVIDERS,
+        {
+          provide: CHAT_EDITOR_LOADER,
+          useValue: () =>
+            new Promise<ChatEditorModule | null>((resolve) => {
+              arrive = resolve;
+            }),
+        },
+      ],
+    });
+    const fixture = TestBed.createComponent(ChatLineEditorComponent);
+    fixture.componentRef.setInput('draft', 'こんばんは');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const area = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>('textarea')!;
+    area.focus();
+    area.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+    area.setSelectionRange(2, 2);
+    area.blur();
+
+    arrive({ mountChatEditor: mounted } as unknown as ChatEditorModule);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    TestBed.tick();
+
+    expect(mounted).toHaveBeenCalledWith(
+      expect.anything(),
+      { text: 'こんばんは', selection: { from: 2, to: 2 }, focused: false },
+      expect.anything()
+    );
+  });
 });

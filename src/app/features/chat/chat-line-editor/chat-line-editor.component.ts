@@ -207,14 +207,18 @@ export class ChatLineEditorComponent {
   }
 
   /**
-   * Keeps where the reader stood in the plain box, writing in it as the editor arrives to take its
-   * place. One that arrives before the box was put to use, as it does once fetched, starts as the
-   * box does, with the caret at the end and the keys.
+   * Keeps where the reader stood in the plain box, once they have used it, as the editor arrives to
+   * take its place: the caret, and the keys only where the box still has them. One that arrives
+   * before the box was put to use, as it does once fetched, starts as the box does, with the caret
+   * at the end and the keys.
    */
   private handOverFromPlainBox(): void {
     const box = this.plainBox()?.nativeElement;
-    if (!box || !this.plainUsed || box.ownerDocument.activeElement !== box) return;
-    this.handover = { selection: { from: box.selectionStart, to: box.selectionEnd }, focused: true };
+    if (!box || !this.plainUsed) return;
+    this.handover = {
+      selection: { from: box.selectionStart, to: box.selectionEnd },
+      focused: box.ownerDocument.activeElement === box,
+    };
   }
 
   private focusPlainBox(): void {
