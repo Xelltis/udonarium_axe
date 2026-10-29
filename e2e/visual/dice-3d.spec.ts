@@ -30,6 +30,18 @@ async function roll(page: Page, command: string) {
   await page.locator('chat-input').getByRole('button', { name: '送信' }).click();
 }
 
+/**
+ * Writes a roll and sends it with the dice bot and the page's randomness started over in between,
+ * once the box has checked the roll: checking a roll rolls it, and so draws on both.
+ */
+async function rollSeeded(page: Page, command: string) {
+  await chatInput(page).fill(command);
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+  await seedDiceBot(page);
+  await reseedRandom(page);
+  await page.locator('chat-input').getByRole('button', { name: '送信' }).click();
+}
+
 /** A fingerprint of the dice a canvas holds, or '' while it holds none. */
 function diceOn(canvas: Locator): Promise<string> {
   return canvas.evaluate((element: HTMLCanvasElement) => {
@@ -125,9 +137,7 @@ test('the dice of a chat roll come to rest in the frame of its answer', async ({
   await expect(stages.first()).toHaveAttribute('data-state', 'settled', { timeout: 30_000 });
   await atRest(stages.first().locator('canvas'));
 
-  await seedDiceBot(page);
-  await reseedRandom(page);
-  await roll(page, '2d6+1d20');
+  await rollSeeded(page, '2d6+1d20');
 
   await expect(stages).toHaveCount(2);
   const stage = stages.last();
@@ -145,10 +155,8 @@ test('the dice of a chat roll come to rest on the table', async ({ page }) => {
   await expect.poll(() => diceOn(overlay), { timeout: 30_000 }).not.toBe('');
   await expect.poll(() => overlay.evaluate((canvas: HTMLCanvasElement) => canvas.width), { timeout: 30_000 }).toBe(1);
 
-  await seedDiceBot(page);
   await keepFromFading(page);
-  await reseedRandom(page);
-  await roll(page, '2d6+1d20');
+  await rollSeeded(page, '2d6+1d20');
   // The dice come down in the middle of the screen, under the windows, which also tell the time.
   await closePanels(page);
 
