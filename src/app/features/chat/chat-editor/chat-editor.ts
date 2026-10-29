@@ -466,8 +466,8 @@ export class ChatEditorField implements ChatTextField {
   /**
    * The Enter that makes a word with an input method, kept from sending, from breaking the line or
    * from taking a name offered: one while the word is being made, and one right after it is made,
-   * which some browsers send once the word is done. It stands before every other key, as an
-   * extension's own keys come before its plugins.
+   * which some browsers send once the word is done. It stands before every other key, the list of
+   * names offered among them, as an extension's own keys come before its plugins.
    */
   private compositionGuard(): Extension {
     const composedJustNow = () => Date.now() - this.composedAt < COMPOSITION_ENTER_MS;
@@ -477,7 +477,7 @@ export class ChatEditorField implements ChatTextField {
     };
     return Extension.create({
       name: 'chatCompositionGuard',
-      priority: 1001,
+      priority: 1200,
       addProseMirrorPlugins() {
         return [
           new Plugin({

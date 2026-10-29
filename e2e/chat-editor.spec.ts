@@ -404,6 +404,22 @@ test.describe('the chat editor', () => {
     expect(await chatInputText(input)).toBe('直後');
     await expect(page.locator('chat-tab').getByText('直後')).toHaveCount(0);
   });
+
+  test('takes no name offered on an Enter that comes right after the word is made', async ({ page }) => {
+    const input = chatInput(page);
+    await input.click();
+    await page.keyboard.type('《');
+    await expect(page.locator('[data-testid="chat-suggestions"]')).toBeVisible();
+
+    await input.evaluate((box) => {
+      box.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '《' }));
+      box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    });
+
+    await page.waitForTimeout(300);
+    expect(await chatInputText(input)).toBe('《');
+    await expect(input.locator('[data-chip="effect"]')).toHaveCount(0);
+  });
 });
 
 test.describe('the palette written in the editor', () => {
