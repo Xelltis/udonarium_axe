@@ -697,6 +697,7 @@ export class ChatEditorField implements ChatTextField {
       if (!chipsSeen.has(pos)) {
         attrs['class'] = 'chat-chip-idle';
         attrs['data-tip'] = this.host.translate('feature.chat.lint.chipNotAtEnd');
+        attrs['data-severity'] = 'info';
       }
       const image = chip.kind === 'portrait' ? this.host.portraitImage(chip.raw) : null;
       if (image) attrs['style'] = `--chip-image: url("${image.replace(/["\\\\]/g, '')}")`;
@@ -708,7 +709,7 @@ export class ChatEditorField implements ChatTextField {
           `feature.chat.lint.${found.code}`,
           found.params ? { ...found.params } : undefined
         );
-        const attrs = { class: `chat-lint-${found.severity}`, 'data-tip': tip };
+        const attrs = { class: `chat-lint-${found.severity}`, 'data-tip': tip, 'data-severity': found.severity };
         const chip = chipAt(found.from, found.to);
         if (chip !== null) {
           decorations.push(Decoration.node(chip, chip + 1, attrs));
@@ -761,11 +762,23 @@ export class ChatEditorField implements ChatTextField {
       this.tip.hidden = true;
       return;
     }
-    this.tip.textContent = text;
+    const severity = target.getAttribute('data-severity');
+    const words = this.tip.ownerDocument.createElement('span');
+    words.textContent = text;
+    if (severity) {
+      const icon = this.tip.ownerDocument.createElement('i');
+      icon.className = 'material-icons';
+      icon.textContent = severity === 'error' ? 'error' : severity === 'warning' ? 'warning' : 'info';
+      this.tip.replaceChildren(icon, words);
+      this.tip.setAttribute('data-severity', severity);
+    } else {
+      this.tip.replaceChildren(words);
+      this.tip.removeAttribute('data-severity');
+    }
     this.tip.hidden = false;
     void computePosition(target, this.tip, {
       strategy: 'fixed',
-      placement: 'top',
+      placement: 'top-start',
       middleware: [offset(6), flip({ fallbackPlacements: ['bottom'] }), shift({ padding: 8 })],
     }).then(({ x, y }) => {
       this.tip.style.left = `${x}px`;
