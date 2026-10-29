@@ -267,7 +267,6 @@ function piecesFor(targeted: boolean, context: ChatLintContext): readonly GameCh
   return context.speaker ? [context.speaker] : [];
 }
 
-/** Checks a `:` command the way it is read into an edit, in the same order, for each piece it is aimed at. */
 /**
  * Whether a word that starts with a colon was meant as a resource command: one with an operator,
  * or one naming a status of the pieces it is aimed at that only lacks it. A face such as `:)` or
@@ -282,6 +281,7 @@ function meantAsResourceCommand(command: string, pieces: readonly GameCharacter[
   );
 }
 
+/** Checks a `:` command the way it is read into an edit, in the same order, for each piece it is aimed at. */
 function lintResource(command: string, span: TextRange, pieces: readonly GameCharacter[], add: Report): void {
   const parts = resourceCommandParts(command);
   if (!parts) return add(span, 'error', 'res.noOperator');
