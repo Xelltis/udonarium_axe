@@ -369,14 +369,18 @@ export class ChatInputComponent {
   private readonly lintMarked = signal(0);
 
   /**
-   * What was found in the line, while it is typed into the editor: as the editor last marked it,
-   * once the reader paused, so that the line is not checked whole at every key.
+   * What was found in the line, while it is typed into the editor, and the text it was found in:
+   * as the editor last marked it, once the reader paused, so that the line is not checked whole at
+   * every key.
    */
-  protected readonly findings = computed<ChatDiagnostic[]>(() => {
+  private readonly linted = computed<{ text: string; findings: ChatDiagnostic[] }>(() => {
     const session = this.activeSession();
     this.lintMarked();
-    return session ? untracked(() => session.diagnostics()) : [];
+    return session
+      ? untracked(() => ({ text: session.scan().text, findings: session.diagnostics() }))
+      : { text: '', findings: [] };
   });
+  protected readonly findings = computed(() => this.linted().findings);
   /** The sharpest of what was found, which the count beside the box is drawn in. */
   protected readonly worstSeverity = computed(() => {
     const found = this.findings();
@@ -388,9 +392,9 @@ export class ChatInputComponent {
     return severity === 'error' ? 'error' : severity === 'warning' ? 'warning' : 'info';
   }
 
-  /** The stretch of the line a finding is about, cut short where it runs long. */
+  /** The stretch of the line a finding is about, as it read when found, cut short where it runs long. */
   protected findingSyntax(found: ChatDiagnostic): string {
-    const written = this.text.slice(found.from, found.to);
+    const written = this.linted().text.slice(found.from, found.to);
     return written.length > 16 ? `${written.slice(0, 15)}…` : written;
   }
 
@@ -400,9 +404,10 @@ export class ChatInputComponent {
     return this.t(`feature.chat.lint.${found.code}`, found.params ? { ...found.params } : undefined);
   }
 
-  /** Puts the caret on what a finding is about. */
+  /** Puts the caret on what a finding is about, where the line still reads as it did when found. */
   protected goToFinding(found: ChatDiagnostic): void {
     this.closePanel();
+    if (this.linted().text !== this.text) return;
     this.richField()?.select({ from: found.from, to: found.to });
   }
 
