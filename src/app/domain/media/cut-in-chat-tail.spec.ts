@@ -1,4 +1,4 @@
-import { readCutInChatTail } from '@axe/domain/media/cut-in-chat-tail';
+import { cutInNamedAtLineEnd, readCutInChatTail } from '@axe/domain/media/cut-in-chat-tail';
 
 describe('readCutInChatTail', () => {
   it('reads the last word of a line and where it stands', () => {
@@ -21,5 +21,12 @@ describe('readCutInChatTail', () => {
 
   it('reads nothing when a space ends the line', () => {
     expect(readCutInChatTail('行くぞ 爆発 ')).toBeNull();
+  });
+
+  it('takes a name a line can end with, read back whole, and no other', () => {
+    expect(cutInNamedAtLineEnd('爆発')).toBe(true);
+    expect(cutInNamedAtLineEnd('big boom')).toBe(false);
+    expect(cutInNamedAtLineEnd('@boom')).toBe(false);
+    expect(cutInNamedAtLineEnd('')).toBe(false);
   });
 });

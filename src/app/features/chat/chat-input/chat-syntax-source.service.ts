@@ -19,6 +19,7 @@ import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { diceCommandExamples } from '@axe/domain/dice/dice-roll-line';
 import { CutIn } from '@axe/domain/media/cut-in';
+import { cutInNamedAtLineEnd } from '@axe/domain/media/cut-in-chat-tail';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import type { ChatCompletionWords } from '@axe/features/chat/chat-editor/chat-editor-complete';
 import type { ChatSyntaxMenuSource } from '@axe/features/chat/chat-input/chat-syntax-items';
@@ -55,10 +56,7 @@ export class ChatSyntaxSourceService {
         .filter((preset) => !preset.gmOnly || PeerCursor.isMyselfGameMaster)
         .map((preset) => preset.name.trim())
         .filter((name) => name.length > 0),
-      cutIns: this.objectStore
-        .getObjects<CutIn>(CutIn)
-        .filter((cutIn) => cutIn.chatActivate)
-        .map((cutIn) => cutIn.name),
+      cutIns: this.chatCutIns(),
       diceExamples: system && !DiceBot.isUnreachable(system) ? this.examplesOf(system) : [],
       isGameMaster: PeerCursor.isMyselfGameMaster,
     };
@@ -102,12 +100,15 @@ export class ChatSyntaxSourceService {
 
   /** The cut-ins that start from chat, by name. */
   chatCutInNames(): ReadonlySet<string> {
-    return new Set(
-      this.objectStore
-        .getObjects<CutIn>(CutIn)
-        .filter((cutIn) => cutIn.chatActivate)
-        .map((cutIn) => cutIn.name)
-    );
+    return new Set(this.chatCutIns());
+  }
+
+  /** The names of the cut-ins that start from chat and can be, by their name ending a line. */
+  private chatCutIns(): string[] {
+    return this.objectStore
+      .getObjects<CutIn>(CutIn)
+      .filter((cutIn) => cutIn.chatActivate && cutInNamedAtLineEnd(cutIn.name))
+      .map((cutIn) => cutIn.name);
   }
 
   /** A stamp put inside a line, as markup as tall as the letters, as the chat draws it; null for one not known. */

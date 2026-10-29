@@ -21,3 +21,12 @@ export function readCutInChatTail(text: string): CutInChatTail | null {
   const from = match.index;
   return { name: match[2], soundOnly: match[1] === '@', from, to: from + match[1].length + match[2].length };
 }
+
+/**
+ * Whether a cut-in can be started by its name ending a line: the name read back as the last word,
+ * whole. One with a space in it, or starting with an at mark, cannot.
+ */
+export function cutInNamedAtLineEnd(name: string): boolean {
+  const tail = readCutInChatTail(name);
+  return tail !== null && tail.name === name && !tail.soundOnly;
+}
