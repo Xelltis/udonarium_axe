@@ -172,11 +172,12 @@ export class ChatPaletteComponent {
 
   /**
    * Keeps where the reader stood in the text area, as the editor arrives to take its place: the
-   * caret, whether it had the keys, and how far down it was scrolled.
+   * caret, whether it had the keys, and how far down it was scrolled. Kept only while the editor is
+   * to be put in, and let go as editing ends.
    */
   private handOverFromTextArea(): void {
     const area = this.editTextRef()?.nativeElement;
-    if (!area || !this.isEdit()) return;
+    if (!area || !this.isEdit() || !this.chatPreferences.richInput()) return;
     this.handover = {
       selection: { from: area.selectionStart, to: area.selectionEnd },
       focused: area.ownerDocument.activeElement === area,
@@ -733,8 +734,9 @@ export class ChatPaletteComponent {
       this.editPalette.set(this.palette.value + '');
       this.editScrollShare = (listEl?.scrollTop ?? 0) / Math.max(1, listEl?.scrollHeight ?? 1);
       afterNextRender(() => this.scrollEditToList(), { injector: this.injector });
-    } else if (this.mayEdit()) {
-      this.palette.setPalette(this.editPalette());
+    } else {
+      this.handover = null;
+      if (this.mayEdit()) this.palette.setPalette(this.editPalette());
     }
   }
 

@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
+import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -677,5 +678,45 @@ describe('ChatPaletteComponent handing its text area over to the editor', () => 
       { text: '2d6 攻撃\n1d100 調べる', selection: { from: 4, to: 6 }, focused: true },
       expect.anything()
     );
+  });
+
+  it('takes up no caret kept for an editor that was not to be put in, when one is put in later', async () => {
+    const preferences = TestBed.inject(ChatPreferencesService);
+    preferences.setRichInput(false);
+    try {
+      const fixture = TestBed.createComponent(ChatPaletteComponent);
+      fixture.componentInstance.character.set(char);
+      fixture.detectChanges();
+      fixture.componentInstance.toggleEditMode();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      preferences.setRichInput(true);
+      TestBed.tick();
+      const area = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>(
+        'textarea[name="edit-palette"]'
+      )!;
+      area.focus();
+      area.setSelectionRange(4, 6);
+      preferences.setRichInput(false);
+      TestBed.tick();
+
+      arrive({ mountChatEditor: mounted } as unknown as ChatEditorModule);
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(mounted).not.toHaveBeenCalled();
+
+      preferences.setRichInput(true);
+      TestBed.tick();
+      fixture.detectChanges();
+      TestBed.tick();
+
+      expect(mounted).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ selection: { from: 0, to: 0 }, focused: false }),
+        expect.anything()
+      );
+    } finally {
+      preferences.setRichInput(true);
+    }
   });
 });

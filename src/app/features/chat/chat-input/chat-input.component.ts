@@ -518,14 +518,17 @@ export class ChatInputComponent {
     });
   }
 
-  /** Puts the caret back where it stood, in the plain box that took the editor's place. */
+  /**
+   * Puts the caret back where it stood, in the plain box that took the editor's place; where none
+   * did, as when the seat may no longer speak, it is let go, for no later editor to take it up.
+   */
   private restorePlainBox(): void {
     afterNextRender(
       () => {
         const field = this.plainField();
         const start = this.handover;
-        if (!field || !start) return;
         this.handover = null;
+        if (!field || !start) return;
         if (start.focused) field.focus();
         field.element.setSelectionRange(start.selection.from, start.selection.to);
       },
