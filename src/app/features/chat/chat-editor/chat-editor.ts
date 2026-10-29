@@ -40,7 +40,7 @@ import { BubbleMenu } from '@tiptap/extension-bubble-menu';
 import { Placeholder, UndoRedo } from '@tiptap/extensions';
 import { type Mark, type Node as ProseMirrorNode, Slice } from '@tiptap/pm/model';
 import { NodeSelection, Plugin, PluginKey, TextSelection, type Transaction } from '@tiptap/pm/state';
-import { AddMarkStep, ReplaceAroundStep, ReplaceStep } from '@tiptap/pm/transform';
+import { AddMarkStep, ReplaceAroundStep, ReplaceStep, type Step } from '@tiptap/pm/transform';
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
 
 /** What the editor asks of what holds it. */
@@ -192,6 +192,7 @@ export class ChatEditorField implements ChatTextField {
         UndoRedo,
         Placeholder.configure({ placeholder: () => host.placeholder() }),
         this.compositionGuard(),
+        lineBreaksAsParagraphs(),
         this.keys(),
         this.rules(),
         this.syntax(),
@@ -919,4 +920,45 @@ function fontsBroughtIn(transaction: Transaction): Set<string> {
 
 function takeFonts(marks: readonly Mark[], fonts: Set<string>): void {
   for (const mark of marks) if (mark.type.name === CHAT_MARK.font) fonts.add(String(mark.attrs['value']));
+}
+
+/**
+ * Keeps each line a paragraph of its own, as the text and the places in it are read: a line break
+ * that comes in inside a paragraph, by a drop or by text put in as typed, splits it there.
+ */
+function lineBreaksAsParagraphs(): Extension {
+  return Extension.create({
+    name: 'chatLineBreaks',
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          appendTransaction: (transactions, _before, state) => {
+            if (!transactions.some((transaction) => transaction.steps.some(bringsLineBreak))) return null;
+            const breaks: number[] = [];
+            state.doc.descendants((node, pos) => {
+              if (!node.isText) return true;
+              const text = node.text ?? '';
+              for (let at = text.indexOf('\n'); at >= 0; at = text.indexOf('\n', at + 1)) breaks.push(pos + at);
+              return false;
+            });
+            if (breaks.length < 1) return null;
+            const tr = state.tr;
+            for (const at of breaks.reverse()) tr.delete(at, at + 1).split(at);
+            return tr;
+          },
+        }),
+      ];
+    },
+  });
+}
+
+/** Whether a step puts in text holding a line break. */
+function bringsLineBreak(step: Step): boolean {
+  if (!(step instanceof ReplaceStep || step instanceof ReplaceAroundStep)) return false;
+  let found = false;
+  step.slice.content.descendants((node) => {
+    if (node.isText && (node.text ?? '').includes('\n')) found = true;
+    return !found;
+  });
+  return found;
 }

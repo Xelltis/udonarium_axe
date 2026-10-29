@@ -76,6 +76,18 @@ describe('the chat editor', () => {
     expect(parent.querySelector('strong, .chat-deco-bold, b')).not.toBeNull();
   });
 
+  it('splits a paragraph where a line break comes into it, so that each line is a paragraph', () => {
+    const editor = mount('ab');
+    const view = editor.editor.view;
+
+    editor.select({ from: 1, to: 1 });
+    view.dispatch(view.state.tr.insertText('x\ny'));
+
+    expect(view.state.doc.childCount).toBe(2);
+    expect(editor.text()).toBe('ax\nyb');
+    expect(editor.selection()).toEqual({ from: 4, to: 4 });
+  });
+
   it('writes over a stretch across the edge of a decoration, leaving its marks where they stand', () => {
     const editor = mount('**abc**d');
 
