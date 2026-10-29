@@ -6,6 +6,7 @@ describe('the chat editor', () => {
   let parent: HTMLElement;
   let field: ChatEditorField | null = null;
   let says: string;
+  let language: 'ja' | 'en';
 
   const host = (): ChatEditorHost =>
     ({
@@ -22,7 +23,7 @@ describe('the chat editor', () => {
         cutIns: [],
         diceExamples: [],
       }),
-      language: () => 'ja',
+      language: () => language,
       cutInNames: () => new Set<string>(),
       portraitImage: () => null,
       translate: (key: string) => key,
@@ -35,6 +36,7 @@ describe('the chat editor', () => {
 
   beforeEach(() => {
     says = '話す';
+    language = 'ja';
     parent = document.createElement('div');
     document.body.append(parent);
   });
@@ -97,6 +99,19 @@ describe('the chat editor', () => {
 
     expect(editor.text()).toBe('**ab** @face');
     expect(editor.editor.state.doc.lastChild!.lastChild!.marks).toEqual([]);
+  });
+
+  it('keeps a line written as it was when the reader switches the language, until it is touched again', () => {
+    const editor = mount('[赤]x[/赤]');
+    editor.select({ from: 5, to: 5 });
+    type(editor, 'y');
+    expect(editor.text()).toBe('[赤]xy[/赤]');
+
+    language = 'en';
+    expect(editor.text()).toBe('[赤]xy[/赤]');
+
+    type(editor, 'z');
+    expect(editor.text()).toBe('[red]xyz[/red]');
   });
 
   it('brings back no line cleared as sent with an undo', () => {

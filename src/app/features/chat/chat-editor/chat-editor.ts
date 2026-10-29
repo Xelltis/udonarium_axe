@@ -148,7 +148,7 @@ export class ChatEditorField implements ChatTextField {
   private readonly marksNow = signal<ChatDecoration | null>(null);
   readonly activeMarks = this.marksNow.asReadonly();
   readonly editor: Editor;
-  private written: { doc: ProseMirrorNode; language: ChatTagLanguage; out: ChatDocText } | null = null;
+  private written: { doc: ProseMirrorNode; out: ChatDocText } | null = null;
   private composedAt = -Infinity;
   /** Where the caret stood right after syntax typed became its chip, until anything else changes. */
   private chipMadeAt: number | null = null;
@@ -245,13 +245,14 @@ export class ChatEditorField implements ChatTextField {
     return this.editor.schema;
   }
 
-  /** The document as the syntax string, worked out once for each state of it. */
+  /**
+   * The document as the syntax string, worked out once for each state of it, in the language the
+   * reader reads then: a switch of language alone leaves it as written, as the text the holder
+   * keeps and checks, until the document next changes.
+   */
   private writtenNow(): ChatDocText {
     const doc = this.editor.state.doc;
-    const language = this.host.language();
-    if (this.written?.doc !== doc || this.written.language !== language) {
-      this.written = { doc, language, out: textOfDoc(doc, language, this.host.mode) };
-    }
+    if (this.written?.doc !== doc) this.written = { doc, out: textOfDoc(doc, this.host.language(), this.host.mode) };
     return this.written.out;
   }
 
