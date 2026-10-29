@@ -365,8 +365,18 @@ export class ChatInputComponent {
   /** The text checked as it will be sent from here, while it is typed into the editor. */
   private readonly activeSession = computed(() => (this.inputMode() === 'rich' ? this.lintSession : null));
 
-  /** What was found in the line, while it is typed into the editor. */
-  protected readonly findings = computed<ChatDiagnostic[]>(() => this.activeSession()?.diagnostics() ?? []);
+  /** Counts each time the editor has marked what will not work, which the list of findings follows. */
+  private readonly lintMarked = signal(0);
+
+  /**
+   * What was found in the line, while it is typed into the editor: as the editor last marked it,
+   * once the reader paused, so that the line is not checked whole at every key.
+   */
+  protected readonly findings = computed<ChatDiagnostic[]>(() => {
+    const session = this.activeSession();
+    this.lintMarked();
+    return session ? untracked(() => session.diagnostics()) : [];
+  });
   /** The sharpest of what was found, which the count beside the box is drawn in. */
   protected readonly worstSeverity = computed(() => {
     const found = this.findings();
@@ -428,6 +438,7 @@ export class ChatInputComponent {
     toolbarElement: () => this.hostElement.nativeElement.querySelector('[data-testid="chat-input-edits"]'),
     translate: (key, params) => this.t(key, params),
     stampHtml: (stampId) => this.syntaxSource.stampHtml(stampId),
+    linted: () => this.lintMarked.update((count) => count + 1),
   };
 
   /**

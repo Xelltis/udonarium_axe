@@ -79,6 +79,11 @@ export interface ChatEditorHost {
   readonly translate: TranslateFn;
   /** A stamp put inside the line, drawn as markup as tall as the letters, as the chat draws it; null where it is not known. */
   stampHtml?(stampId: string): string | null;
+  /**
+   * Told each time what will not work has been marked, once the reader pauses or as the room
+   * changes, for whatever lists it to follow the marks rather than every key.
+   */
+  linted?(): void;
 }
 
 /** The text an editor starts with, where its caret stands, and whether it takes the keys at once. */
@@ -774,6 +779,7 @@ export class ChatEditorField implements ChatTextField {
       }
     }
     view.dispatch(view.state.tr.setMeta(SYNTAX, DecorationSet.create(doc, decorations)).setMeta('addToHistory', false));
+    if (withLint) this.host.linted?.();
   }
 
   private paintSpans(
