@@ -26,7 +26,7 @@ import { guestUserIdAfter, guestUserIdOf, loadIdentity, saveIdentity } from '@ax
 import { ImageSharingSystem } from '@axe/core/storage/image-sharing-system';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { handOverOwnership } from '@axe/domain/peer/ownership';
-import { DEFAULT_CURSOR_IMAGE_IDENTIFIER, DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit, DEFAULT_PEER_ROLE } from '@axe/domain/peer/peer-role';
 import { markSeatWithheld } from '@axe/domain/peer/withheld-table';
 import { IdleSeatService } from '@axe/features/lobby/idle-seat.service';
@@ -108,8 +108,8 @@ export class NetworkEventHandlerService {
   private followedAccountUserId: string | null | undefined = undefined;
   /** The last account followed, kept after a logout so its user id is never taken for the tab's own. */
   private lastAccountUserId = '';
-  /** The account's name and avatar lent to the cursor, empty for what was not lent, to give back on logout. */
-  private lentLook = { name: '', imageIdentifier: '' };
+  /** The account's name lent to the cursor, empty where none was, to give back on logout. */
+  private lentName = '';
 
   constructor() {
     this.destroyRef.onDestroy(() => {
@@ -181,7 +181,7 @@ export class NetworkEventHandlerService {
       // A room server's clock sets the chat's as the seat comes in, though nobody else may be there.
       if (peer.isRoom && Network.serverClockOffset !== null) this.chatClock.calibrate();
       const account = Network.transport === 'server' ? this.auth.account() : null;
-      if (account) this.lendAccountLook(account.name, account.avatarUrl);
+      if (account) this.lendAccountName(account.name);
     }, this.destroyRef);
     this.objectChange.networkError$.subscribe((event) => {
       if (this.localMode) return;
@@ -548,8 +548,10 @@ export class NetworkEventHandlerService {
   /**
    * Follows a login or logout, in this tab or another, on a room server. In a room, the seat goes in
    * again as whoever is logged in now; outside one, it waits as them, taking what the old id held
-   * along. A login also lends the cursor the account's name and avatar while it has the defaults,
-   * and a logout takes back what is still as lent, so the guest seat does not go on as the account.
+   * along. A login also lends the cursor the account's name while it has the default, and a logout
+   * takes it back while it is still as lent, so the guest seat does not go on as the account. The
+   * account's avatar is never lent: it would put the face someone shows on Discord on the table,
+   * and come back over the default at every login and reload.
    * A login gone in a room, as when the server no longer takes it, says the seat is a guest now.
    */
   private followAccount(userId: string | null): void {
@@ -558,8 +560,8 @@ export class NetworkEventHandlerService {
     if (userId) this.lastAccountUserId = userId;
     if (this.localMode || Network.transport !== 'server') return;
     const account = this.auth.account();
-    if (account) this.lendAccountLook(account.name, account.avatarUrl);
-    else this.takeBackAccountLook();
+    if (account) this.lendAccountName(account.name);
+    else this.takeBackAccountName();
     if (previous === undefined || previous === userId || !Network.isOpen) return;
 
     const peer = Network.peerContext;
@@ -585,30 +587,20 @@ export class NetworkEventHandlerService {
     return peer.userId.startsWith(ACCOUNT_USER_ID_PREFIX) || peer.userId === this.lastAccountUserId;
   }
 
-  /** Puts the account's name and avatar on the cursor where it still has the defaults. */
-  private lendAccountLook(name: string, avatarUrl: string | null): void {
+  /** Puts the account's name on the cursor where it still has the default. */
+  private lendAccountName(name: string): void {
     const cursor = PeerCursor.myCursor;
-    if (!cursor) return;
-    if (cursor.name === DEFAULT_CURSOR_NAME && name) {
-      cursor.name = name;
-      this.lentLook.name = name;
-    }
-    if (cursor.imageIdentifier === DEFAULT_CURSOR_IMAGE_IDENTIFIER && avatarUrl) {
-      cursor.imageIdentifier = this.imageStorage.add(avatarUrl).identifier;
-      this.lentLook.imageIdentifier = cursor.imageIdentifier;
-    }
+    if (!cursor || cursor.name !== DEFAULT_CURSOR_NAME || !name) return;
+    cursor.name = name;
+    this.lentName = name;
   }
 
-  /** Puts the defaults back on the cursor where it still has the account's name or avatar as lent. */
-  private takeBackAccountLook(): void {
+  /** Puts the default name back on the cursor where it still has the account's as lent. */
+  private takeBackAccountName(): void {
     const cursor = PeerCursor.myCursor;
-    const lent = this.lentLook;
-    this.lentLook = { name: '', imageIdentifier: '' };
-    if (!cursor) return;
-    if (lent.name && cursor.name === lent.name) cursor.name = DEFAULT_CURSOR_NAME;
-    if (lent.imageIdentifier && cursor.imageIdentifier === lent.imageIdentifier) {
-      cursor.imageIdentifier = DEFAULT_CURSOR_IMAGE_IDENTIFIER;
-    }
+    const lent = this.lentName;
+    this.lentName = '';
+    if (cursor && lent && cursor.name === lent) cursor.name = DEFAULT_CURSOR_NAME;
   }
 
   /**

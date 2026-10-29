@@ -759,19 +759,28 @@ describe('NetworkEventHandlerService', () => {
       expect(PeerCursor.myCursor.name).toBe('ゴブリン使い');
     });
 
-    it('takes back on logout the name and avatar it lent, but not ones chosen since', () => {
+    it('never puts the account’s avatar on the cursor', () => {
+      vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: false, userId: 'tab-1' } as never);
+      vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
+      PeerCursor.myCursor.imageIdentifier = DEFAULT_CURSOR_IMAGE_IDENTIFIER;
+
+      account.set({ ...ACCOUNT, avatarUrl: 'https://cdn.example/a.png' });
+      TestBed.tick();
+
+      expect(PeerCursor.myCursor.imageIdentifier).toBe(DEFAULT_CURSOR_IMAGE_IDENTIFIER);
+    });
+
+    it('takes back on logout the name it lent, but not one chosen since', () => {
       vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ isRoom: false, userId: 'tab-1' } as never);
       vi.spyOn(Network, 'openStandby').mockImplementation(() => {});
       PeerCursor.myCursor.name = DEFAULT_CURSOR_NAME;
-      PeerCursor.myCursor.imageIdentifier = DEFAULT_CURSOR_IMAGE_IDENTIFIER;
-      account.set({ ...ACCOUNT, avatarUrl: 'https://cdn.example/a.png' });
+      account.set(ACCOUNT);
       TestBed.tick();
-      expect(PeerCursor.myCursor.imageIdentifier).not.toBe(DEFAULT_CURSOR_IMAGE_IDENTIFIER);
+      expect(PeerCursor.myCursor.name).toBe('Kai');
 
       account.set(null);
       TestBed.tick();
       expect(PeerCursor.myCursor.name).toBe(DEFAULT_CURSOR_NAME);
-      expect(PeerCursor.myCursor.imageIdentifier).toBe(DEFAULT_CURSOR_IMAGE_IDENTIFIER);
 
       account.set(ACCOUNT);
       TestBed.tick();
