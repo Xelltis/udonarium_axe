@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { BattleCutInPreferenceService } from '@axe/application/battle/battle-cut-in-preference.service';
 import { BattleLaunchService } from '@axe/application/battle/battle-launch.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
+import { PartyService } from '@axe/application/party/party.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -19,9 +20,11 @@ import {
   BattleTheme,
   battleThemeOf,
 } from '@axe/domain/battle/battle-settings';
+import { putOnBattleSide, standingBattleSide } from '@axe/domain/battle/battle-side';
 import { BATTLE_STAGE_SIZE_LABEL_KEYS, BATTLE_STAGE_SIZES } from '@axe/domain/battle/battle-stage-window';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
 import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { battleThemeLook } from '@axe/features/battle-cut-in/battle-themes';
@@ -35,8 +38,20 @@ export interface BattlePieceRow {
   name: string;
   imageUrl: string;
   side: BattleSide | null;
+  /** Whether it stands where its party does, rather than where it was put on its own. */
+  withParty: boolean;
+  /** Whether its party stands on a side, which it may be sent back to. */
+  partyPlaced: boolean;
   /** The effect it strikes with, by name. Empty strikes with the stage's own. */
   effect: string;
+}
+
+/** A party of the room, as the panel offers to put it on a side. */
+export interface BattlePartyRow {
+  identifier: string;
+  name: string;
+  color: string;
+  side: BattleSide | null;
 }
 
 /** A picture the room keeps to fight on, as the panel offers it. */
@@ -78,7 +93,16 @@ export class BattleCutInPanelComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly modal = inject(ModalService);
   private readonly images = inject(ImageStorage);
+  private readonly partyService = inject(PartyService);
 
+  /** The sides a party may be put on, in the order the buttons stand. */
+  protected readonly partySideChoices: readonly { key: string; side: BattleSide | null; labelKey: string }[] = [
+    { key: 'left', side: 'left', labelKey: 'feature.battleCutIn.left' },
+    { key: 'none', side: null, labelKey: 'feature.battleCutIn.partyNone' },
+    { key: 'right', side: 'right', labelKey: 'feature.battleCutIn.right' },
+  ];
+  protected readonly partySideButtonClass =
+    'border-ui-border-panel bg-ui-input text-ui-muted aria-pressed:border-ui-accent aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent hover:border-ui-accent m-0 -ml-px cursor-pointer border border-solid px-2 py-0.5 text-[11px] first:ml-0 first:rounded-l-[3px] last:rounded-r-[3px]';
   /** The colours the two sides are marked in, as the stage marks the fighters' plates. */
   protected readonly sideColors = { left: 'rgb(56 189 248 / 0.6)', right: 'rgb(251 113 133 / 0.6)' };
   /** The tool's own stages, the nights and then the days, each with a small copy of its picture to choose by. */
@@ -111,15 +135,31 @@ export class BattleCutInPanelComponent {
     });
   });
 
+  /** The room's parties, each with the side its members stand on where they were put on none. */
+  readonly parties = computed<BattlePartyRow[]>(() =>
+    this.partyService.parties().map((party) => ({
+      identifier: party.identifier,
+      name: party.name,
+      color: party.color,
+      side: asBattleSide(party.battleSide),
+    }))
+  );
+
   readonly rows = computed<BattlePieceRow[]>(() => {
     this.objectChange.fileVersion();
-    return this.pieces().map((character) => ({
-      identifier: character.identifier,
-      name: character.name,
-      imageUrl: character.imageFile.url,
-      side: asBattleSide(character.battleSide),
-      effect: character.battleEffect,
-    }));
+    const placed = new Set(this.parties().flatMap((party) => (party.side ? [party.identifier] : [])));
+    return this.pieces().map((character) => {
+      const partyPlaced = placed.has(character.partyIdentifier);
+      return {
+        identifier: character.identifier,
+        name: character.name,
+        imageUrl: character.imageFile.url,
+        side: standingBattleSide(character),
+        withParty: partyPlaced && character.battleSide === '',
+        partyPlaced,
+        effect: character.battleEffect,
+      };
+    });
   });
 
   readonly left = computed(() => this.rows().filter((row) => row.side === 'left'));
@@ -201,10 +241,26 @@ export class BattleCutInPanelComponent {
     this.focus.set(identifier);
   }
 
+  /** Puts a piece on a side, or takes it out of the lineup; see {@link putOnBattleSide}. */
   setSide(identifier: string, side: BattleSide | null): void {
     const piece = this.pieceOf(identifier);
     if (!piece || !this.isGameMaster()) return;
-    piece.battleSide = side ?? '';
+    putOnBattleSide(piece, side);
+  }
+
+  /** Sends a piece back to stand where its party does. */
+  followParty(identifier: string): void {
+    const piece = this.pieceOf(identifier);
+    if (!piece || !this.isGameMaster()) return;
+    piece.battleSide = '';
+  }
+
+  /** Puts a party on a side of the stage, or on neither, for every member not put on one of its own. */
+  setPartySide(identifier: string, side: BattleSide | null): void {
+    const party = this.objectStore.get(identifier);
+    if (!(party instanceof Party) || !this.isGameMaster()) return;
+    party.battleSide = side ?? '';
+    this.objectChange.notifyChanged(party.identifier);
   }
 
   setEffect(name: string): void {

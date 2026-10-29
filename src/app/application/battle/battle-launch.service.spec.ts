@@ -14,6 +14,7 @@ import { DataElement } from '@axe/domain/data/data-element';
 import { createEffectPreset, DEFAULT_EFFECT_PRESET_SEEDS } from '@axe/domain/effect/builtin-effect-presets';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { autoEffectIdentifier } from '@axe/domain/effect/resource-effect-map';
+import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
 import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -111,6 +112,18 @@ describe('BattleLaunchService', () => {
     goblin.battleSide = 'left';
 
     expect(service.play({ attacker: hero, defenders: [goblin] }, 'here')?.attackerSide).toBe('right');
+  });
+
+  it('stands a piece put on no side where its party stands, and the one struck across from it', () => {
+    const heroes = new Party();
+    heroes.battleSide = 'right';
+    heroes.initialize();
+    hero.partyIdentifier = heroes.identifier;
+
+    expect(service.play({ attacker: hero, defenders: [goblin] }, 'here')?.attackerSide).toBe('right');
+    expect(service.play({ attacker: goblin, defenders: [hero] }, 'here')?.attackerSide).toBe('left');
+
+    heroes.destroy();
   });
 
   it('strikes nobody with themselves', () => {

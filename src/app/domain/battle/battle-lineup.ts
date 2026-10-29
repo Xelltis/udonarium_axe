@@ -15,6 +15,29 @@ export function asBattleSide(value: unknown): BattleSide | null {
   return value === 'left' || value === 'right' ? value : null;
 }
 
+/** What a piece holds to stand out of the lineup though its party stands on a side. */
+export const BATTLE_SIDE_OUT = 'none';
+
+/** Only what the side of a piece is read from. */
+export interface SidedFighter {
+  battleSide: string;
+  partyIdentifier: string;
+}
+
+/**
+ * Which side a piece stands on: the one it was put on, else the one its party stands on, else
+ * none. A piece taken out of the lineup by hand stands on none, whatever its party does.
+ */
+export function battleSideOf(
+  piece: SidedFighter,
+  partySide: (partyIdentifier: string) => BattleSide | null
+): BattleSide | null {
+  if (piece.battleSide === BATTLE_SIDE_OUT) return null;
+  const own = asBattleSide(piece.battleSide);
+  if (own) return own;
+  return piece.partyIdentifier.length > 0 ? partySide(piece.partyIdentifier) : null;
+}
+
 /** The side across the stage. */
 export function oppositeBattleSide(side: BattleSide): BattleSide {
   return side === 'left' ? 'right' : 'left';

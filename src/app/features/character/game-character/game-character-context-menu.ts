@@ -14,6 +14,7 @@ import {
 } from '@axe/application/ui/tabletop-context-menu-actions';
 import { Network } from '@axe/core/index';
 import type { BattleSide } from '@axe/domain/battle/battle-lineup';
+import { standingBattleSide } from '@axe/domain/battle/battle-side';
 import { BUFF_VIEW_MODES } from '@axe/domain/character/buff-view-mode';
 import { heldDiceOf } from '@axe/domain/character/character-dice';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -144,7 +145,7 @@ function buildBattleAction(
       ...(callbacks.onSetBattleSide
         ? sides.map((side) => ({
             name:
-              (char.battleSide === (side ?? '') ? '✔ ' : '') +
+              (standingBattleSide(char) === side ? '✔ ' : '') +
               t(`feature.character.contextMenu.battleSide_${side ?? 'none'}`),
             action: () => callbacks.onSetBattleSide?.(side),
           }))

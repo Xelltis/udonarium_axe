@@ -17,6 +17,12 @@ export class Party extends GameObject {
    * sides where two have made terms needs a way to say so, and this is it.
    */
   @SyncVar() allies: string = '';
+  /**
+   * The side of the battle stage its members stand on, where one was not put on a side of its
+   * own: `left`, `right`, or empty for neither. Set once for a side of the table, it holds every
+   * exchange after until it is changed.
+   */
+  @SyncVar() battleSide: string = '';
 
   /** The parties it stands with, as identifiers. */
   get alliedWith(): string[] {

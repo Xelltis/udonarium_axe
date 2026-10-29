@@ -6,10 +6,11 @@ import { callBattleCutIn } from '@axe/core/event/domain-events';
 import { generateUuid } from '@axe/core/util/uuid';
 import { defaultBlowEffectIdentifier } from '@axe/domain/battle/battle-blow';
 import { DefeatRule, fighterBetween } from '@axe/domain/battle/battle-fighter';
-import { asBattleSide, attackerSideFor, BattleBout, lineupBout, LineupMember } from '@axe/domain/battle/battle-lineup';
+import { attackerSideFor, BattleBout, lineupBout, LineupMember } from '@axe/domain/battle/battle-lineup';
 import { readFighter, readingsDiffer } from '@axe/domain/battle/battle-reading';
 import { BattleScene, MAX_BATTLE_DEFENDERS } from '@axe/domain/battle/battle-scene';
 import { DEFAULT_DEFEAT_EFFECT_IDENTIFIER } from '@axe/domain/battle/battle-settings';
+import { standingBattleSide } from '@axe/domain/battle/battle-side';
 import { BattleRequest, BattleTake, takeBattle } from '@axe/domain/battle/battle-take';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
@@ -40,11 +41,14 @@ export class BattleLaunchService {
   private readonly library = inject(EffectLibraryService);
   private readonly objectChange = inject(ObjectChangeService);
 
-  /** The pieces out on the table that the master has put on a side, in the order the table holds them. */
+  /**
+   * The pieces out on the table that stand on a side, put there or standing with their party, in
+   * the order the table holds them.
+   */
   lineup(): LineupMember[] {
     const members: LineupMember[] = [];
     for (const character of this.tabletop.characters) {
-      const side = asBattleSide(character.battleSide);
+      const side = standingBattleSide(character);
       if (side && character.isVisibleOnTable) members.push({ identifier: character.identifier, side });
     }
     return members;
@@ -157,8 +161,8 @@ export class BattleLaunchService {
       attackerSide:
         request.attackerSide ??
         attackerSideFor(
-          asBattleSide(request.attacker.battleSide),
-          struck.map((defender) => asBattleSide(defender.battleSide))
+          standingBattleSide(request.attacker),
+          struck.map((defender) => standingBattleSide(defender))
         ),
       attacker: fighter(request.attacker),
       defenders,

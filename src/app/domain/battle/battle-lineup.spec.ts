@@ -1,4 +1,11 @@
-import { asBattleSide, attackerSideFor, lineupBout, LineupMember } from '@axe/domain/battle/battle-lineup';
+import {
+  asBattleSide,
+  attackerSideFor,
+  BATTLE_SIDE_OUT,
+  battleSideOf,
+  lineupBout,
+  LineupMember,
+} from '@axe/domain/battle/battle-lineup';
 
 describe('asBattleSide()', () => {
   it('reads the two sides and nothing else', () => {
@@ -63,5 +70,23 @@ describe('attackerSideFor()', () => {
   it('stands it on the left where nobody was put anywhere', () => {
     expect(attackerSideFor(null, [null])).toBe('left');
     expect(attackerSideFor(null, [])).toBe('left');
+  });
+});
+
+describe('battleSideOf()', () => {
+  const parties = (identifier: string) => (identifier === 'heroes' ? 'right' : null);
+
+  it('stands a piece where it was put, whatever its party does', () => {
+    expect(battleSideOf({ battleSide: 'left', partyIdentifier: 'heroes' }, parties)).toBe('left');
+  });
+
+  it('stands a piece put on no side where its party stands', () => {
+    expect(battleSideOf({ battleSide: '', partyIdentifier: 'heroes' }, parties)).toBe('right');
+    expect(battleSideOf({ battleSide: '', partyIdentifier: 'villains' }, parties)).toBeNull();
+    expect(battleSideOf({ battleSide: '', partyIdentifier: '' }, parties)).toBeNull();
+  });
+
+  it('keeps a piece taken out of the lineup out, though its party stands on a side', () => {
+    expect(battleSideOf({ battleSide: BATTLE_SIDE_OUT, partyIdentifier: 'heroes' }, parties)).toBeNull();
   });
 });
