@@ -1,5 +1,6 @@
 import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import { type ChatEditorField, type ChatEditorHost, mountChatEditor } from '@axe/features/chat/chat-editor/chat-editor';
+import { closeHistory } from '@tiptap/pm/history';
 
 describe('the chat editor', () => {
   let parent: HTMLElement;
@@ -101,6 +102,8 @@ describe('the chat editor', () => {
   it('brings back no line cleared as sent with an undo', () => {
     const editor = mount('');
     type(editor, 'sent');
+    const view = editor.editor.view;
+    view.dispatch(closeHistory(view.state.tr));
 
     editor.setText('', undefined, false);
     editor.editor.commands.undo();
