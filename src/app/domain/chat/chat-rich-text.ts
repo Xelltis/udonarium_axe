@@ -117,11 +117,6 @@ export function isPaletteDirectiveLine(line: string): boolean {
   return paletteVariableSite(line) !== null || isPaletteTabLine(line);
 }
 
-/** The text a segment is written with: its letters, or the text its chip stands for. */
-function segmentText(segment: ChatRichSegment): string {
-  return segment.kind === 'text' ? segment.text : segment.raw;
-}
-
 /**
  * Reads a syntax string into lines of decorated text and chips, the way it is drawn: decorations
  * by {@link chatDecorationLayout}, then rubies, references and effect tokens wherever no decoration
@@ -148,26 +143,6 @@ export function parseChatRichText(text: string, options: ChatRichParseOptions = 
 
 function unitsOfPlain(line: string): Range[] {
   return Array.from({ length: line.length }, (_, index) => ({ from: index, to: index + 1 }));
-}
-
-/**
- * A palette's variable or tab line as it now reads, never decorated: each letter one place, and a
- * chip put into it, as a reference typed there becomes, one place for the whole of its text.
- */
-function writeDirective(line: ChatRichLine): { text: string; units: Range[] } {
-  let text = '';
-  const units: Range[] = [];
-  for (const segment of line.segments) {
-    const written = segmentText(segment);
-    if (segment.kind === 'text') units.push(...unitsOfPlain(written).map((unit) => shifted(unit, text.length)));
-    else units.push({ from: text.length, to: text.length + written.length });
-    text += written;
-  }
-  return { text, units };
-}
-
-function shifted(range: Range, by: number): Range {
-  return { from: range.from + by, to: range.to + by };
 }
 
 /** Reads one message into its lines, each placed against its own line of the message. */
@@ -596,14 +571,16 @@ function drawnAsMeant(text: string, lines: readonly ChatRichLine[]): boolean {
  * is written as that text, so what nobody touched does not change by a letter; any other line is
  * written in the canonical way, its decorations as `**` and as tags in the reader's language.
  * Plain text is escaped only where the chat would otherwise read a mark in it, and the whole message
- * is read back to make sure it is drawn as meant.
+ * is read back to make sure it is drawn as meant. A palette's variable or tab line, never drawn
+ * decorated, is written as it now reads, a decoration the editor made in it going back to the marks
+ * it was typed as.
  */
 export function serializeChatRichText(lines: readonly ChatRichLine[], options: ChatRichSerializeOptions): ChatRichText {
   const placed: PlacedLine[] = [];
   const texts: string[] = [];
   const writeMessage = (message: readonly ChatRichLine[], keepSource: boolean, escapeAll: boolean) => {
     const out: { text: string; units: Range[] }[] = message.map((line) => {
-      if (line.directive) return writeDirective(line);
+      if (line.directive) return writeLine(line, options.language, false);
       if (keepSource && line.source !== undefined) {
         const reread = parseMessage(line.source, rereadOptions([line]));
         if (reread.length === 1 && sameRichLine(reread[0].line, line) && sameChipPlaces(reread[0].line, line)) {

@@ -342,6 +342,18 @@ describe('chat-rich-text', () => {
       expect(serializeChatRichText(edited, { language: 'ja', mode: 'palette' }).text).toBe('//HP=20\n◆◆探索');
     });
 
+    it('keeps the marks a decoration in a variable line was typed as', () => {
+      const line: ChatRichLine = {
+        directive: true,
+        segments: [
+          { kind: 'text', text: '//dmg=', marks: null },
+          { kind: 'text', text: 'x', marks: BOLD },
+        ],
+      };
+
+      expect(serializeChatRichText([line], { language: 'ja', mode: 'palette' }).text).toBe('//dmg=**x**');
+    });
+
     it('places a chip put into a variable line as one place, the way the editor counts it', () => {
       const line: ChatRichLine = {
         directive: true,
