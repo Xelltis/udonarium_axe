@@ -347,8 +347,9 @@ export class ChatEditorField implements ChatTextField {
     return this.editor.view.hasFocus();
   }
 
+  /** Nothing to do: the editor grows with what it holds by itself, its box sized as the page lays it out. */
   refit(): void {
-    this.editor.view.updateState(this.editor.state);
+    return;
   }
 
   applyMark(change: ChatMarkChange): void {
