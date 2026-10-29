@@ -218,6 +218,15 @@ function tagAt(text: string, at: number): { token: Token; end: number } | null {
   return effect ? { token: { type: 'open', raw, effect, pair: -1, from: at, to: end + 1 }, end } : null;
 }
 
+/**
+ * Words written to stand as they are in a line of chat, as a stamp's stand-in is: with a backslash
+ * before them where their brackets would otherwise be read as a decoration's tag, as `［赤］` and
+ * `[red]` would. Every version that reads tags reads the backslash, and shows the words alone.
+ */
+export function keptFromDecoration(words: string): string {
+  return tagAt(words, 0) ? `\\${words}` : words;
+}
+
 function indexOfAny(text: string, chars: string, from: number, until: number): number {
   for (let at = from; at < Math.min(until, text.length); at++) if (chars.includes(text[at])) return at;
   return -1;

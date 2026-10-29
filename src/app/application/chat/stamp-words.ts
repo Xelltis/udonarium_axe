@@ -1,6 +1,7 @@
 import { TranslateFn } from '@axe/application/i18n/translate.token';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { withoutExtension } from '@axe/core/util/file-name';
+import { keptFromDecoration } from '@axe/domain/chat/chat-decoration';
 import { stampLabelKey, stampNameKey, stampOf } from '@axe/domain/chat/stamp-catalog';
 
 /**
@@ -26,8 +27,8 @@ export function stampLabel(
 }
 
 /**
- * The words that stand in for a stamp wherever it cannot be drawn: what it is called, in brackets.
- * Empty for a stamp this version does not know.
+ * The words that stand in for a stamp wherever it cannot be drawn: what it is called, in brackets,
+ * kept from being read as a decoration's tag. Empty for a stamp this version does not know.
  */
 export function stampWords(
   stampId: string,
@@ -35,5 +36,5 @@ export function stampWords(
   nameInSet: (imageIdentifier: string) => string = () => ''
 ): string {
   const label = stampLabel(stampId, t, nameInSet);
-  return label.length > 0 ? t('ui.stamp.standIn', { words: label }) : '';
+  return label.length > 0 ? keptFromDecoration(t('ui.stamp.standIn', { words: label })) : '';
 }

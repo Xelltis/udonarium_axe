@@ -349,6 +349,17 @@ describe('ChatMessageService', () => {
       }
     });
 
+    it('keeps the name a stamp the room does not let be sent is written as from being read as a tag', () => {
+      Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['image:a', 'image:b'], false);
+      try {
+        const message = said('［赤:image:a］ 文 ［/:image:b］');
+
+        expect(message.text).toBe('\\［赤］ 文 \\［/］');
+      } finally {
+        Config.instance.stampRules = OPEN_STAMP_RULES;
+      }
+    });
+
     describe('in a line rewritten after it was said', () => {
       it('writes a stamp the room does not let be sent as its name, as a line said anew', () => {
         const message = said('まずは');

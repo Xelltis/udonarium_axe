@@ -33,6 +33,23 @@ describe('the words that stand in for a stamp', () => {
     }
   });
 
+  it('are kept from being read as a tag where a picture is named as one', () => {
+    TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+    ImageStorage.instance.add({
+      identifier: 'red-picture',
+      name: '赤.png',
+      type: 'image/png',
+      blob: null,
+      url: 'blob:red-picture',
+      thumbnail: { type: '', blob: null, url: '' },
+    });
+    try {
+      expect(stampWords('image:red-picture', t)).toBe('\\［赤］');
+    } finally {
+      ImageStorage.instance.delete('red-picture');
+    }
+  });
+
   it('are nothing for a stamp this version does not know', () => {
     expect(stampWords('sfx:from-a-newer-version', t)).toBe('');
   });

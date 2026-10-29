@@ -18,6 +18,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { keptFromDecoration } from '@axe/domain/chat/chat-decoration';
 import { liftImageReferences } from '@axe/domain/chat/chat-image-references';
 import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { copiedMessageContext } from '@axe/domain/chat/chat-message-copy';
@@ -453,7 +454,7 @@ export class ChatMessageService {
       const ref = stampOf(site.id);
       out += text.slice(at, site.from);
       if (!ref || !this.stampRules.allows('line', site.id)) {
-        out += `［${site.label}］`;
+        out += keptFromDecoration(`［${site.label}］`);
       } else {
         out += text.slice(site.from, site.to);
         if (ref.kind === 'image' && !pictures.includes(ref.imageIdentifier)) pictures.push(ref.imageIdentifier);

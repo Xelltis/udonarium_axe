@@ -8,6 +8,7 @@ import {
   chatDecorationMarkup,
   chatFontsIn,
   decoratedRunsOf,
+  keptFromDecoration,
   leaningPiecesOf,
   withoutChatDecoration,
   wrapChatSelection,
@@ -283,5 +284,20 @@ describe('chatDecorationLayout', () => {
       .filter((run) => run.decoration !== null)
       .flatMap((run) => [...run.text].map((letter) => [letter, run.decoration]));
     expect(placed).toEqual(drawn);
+  });
+});
+
+describe('keptFromDecoration', () => {
+  it('keeps words a tag would be read in from being one, and leaves any other as it is', () => {
+    expect(keptFromDecoration('［赤］')).toBe('\\［赤］');
+    expect(keptFromDecoration('[red]')).toBe('\\[red]');
+    expect(keptFromDecoration('［了解］')).toBe('［了解］');
+  });
+
+  it('shows the words alone, decorating nothing round them', () => {
+    const line = `${keptFromDecoration('［赤］')} 文 ${keptFromDecoration('［/］')}`;
+
+    expect(withoutChatDecoration(line)).toBe('［赤］ 文 ［/］');
+    expect(decoratedRunsOf(line).every((run) => run.decoration === null)).toBe(true);
   });
 });
