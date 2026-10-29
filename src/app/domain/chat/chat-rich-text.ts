@@ -371,11 +371,39 @@ function withPlainQuote(segments: readonly ChatRichSegment[]): ChatRichSegment[]
 }
 
 /**
+ * The segments of a line with the commands read off its end, the chips that pick a portrait or
+ * start a cut-in there, taken out of every mark along with the spaces round them: a mark closed
+ * after one would be read as part of its name, and one closed right before it would leave it no
+ * space to start after.
+ */
+function withPlainLineEnd(segments: readonly ChatRichSegment[]): ChatRichSegment[] {
+  let from = segments.length;
+  for (let index = segments.length - 1; index >= 0; index--) {
+    const segment = segments[index];
+    const isSpace = segment.kind === 'text' && segment.text.trim().length < 1;
+    if (!isSpace && segment.kind !== 'portrait' && segment.kind !== 'cutIn') break;
+    from = index;
+  }
+  const tail = segments.slice(from);
+  if (!tail.some((segment) => segment.kind !== 'text')) return [...segments];
+  const head = segments.slice(0, from);
+  const last = head.at(-1);
+  const space = last?.kind === 'text' ? (/\s+$/.exec(last.text)?.[0] ?? '') : '';
+  if (last?.kind === 'text' && space) head[head.length - 1] = { ...last, text: last.text.slice(0, -space.length) };
+  return [
+    ...head,
+    ...(space ? [{ kind: 'text' as const, text: space, marks: null }] : []),
+    ...tail.map((segment) => ({ ...segment, marks: null })),
+  ];
+}
+
+/**
  * Writes one line in the shortest way the chat reads back as it is drawn: bold as `**`, everything
  * else as tags opened where they start and closed by name where they end, those lasting longest
- * opened first, and all of them closed at the end of the line. Literal marks in the text are kept
- * from taking effect where `escapeAll` asks. Backslashes that would come right before a mark, and
- * so keep it from taking effect, are written after the mark instead.
+ * opened first, and all of them closed at the end of the line, before the commands read off it.
+ * Literal marks in the text are kept from taking effect where `escapeAll` asks. Backslashes that
+ * would come right before a mark, and so keep it from taking effect, are written after the mark
+ * instead.
  */
 function writeLine(
   line: ChatRichLine,
@@ -385,7 +413,7 @@ function writeLine(
   const pieces: Written[] = [];
   const open: TagWant[] = [];
   let bold = false;
-  const segments = withPlainQuote(line.segments).filter(
+  const segments = withPlainLineEnd(withPlainQuote(line.segments)).filter(
     (segment) => segment.kind !== 'text' || segment.text.length > 0
   );
   const lasting = (key: string, from: number) => {

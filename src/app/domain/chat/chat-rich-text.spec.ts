@@ -1,6 +1,8 @@
 import { type ChatDecoration, decoratedRunsOf } from '@axe/domain/chat/chat-decoration';
+import { parsePortraitCommand } from '@axe/domain/chat/chat-portrait-command';
 import {
   type ChatRichLine,
+  type ChatRichSegment,
   normalMarks,
   parseChatRichText,
   sameRichMarks,
@@ -286,6 +288,26 @@ describe('chat-rich-text', () => {
     it('carries the decoration of the text around it', () => {
       const [line] = parseChatRichText('**a{HP}**').lines;
       expect(line.segments[1]).toMatchObject({ kind: 'reference', marks: BOLD });
+    });
+
+    it('closes the marks before the commands read off the end of the line, and the space before them', () => {
+      const write = (segments: ChatRichSegment[]) => serializeChatRichText([{ segments }], { language: 'ja' }).text;
+      const portrait = { kind: 'portrait', command: { type: 'name', name: '笑顔' }, raw: '@笑顔' } as const;
+      const cutIn = { kind: 'cutIn', name: '爆発', soundOnly: false, raw: '爆発' } as const;
+
+      const bold = write([
+        { kind: 'text', text: 'hello ', marks: BOLD },
+        { ...portrait, marks: BOLD },
+      ]);
+      const red = write([
+        { kind: 'text', text: '行くぞ', marks: { ...BOLD, bold: false, color: '#e5484d' } },
+        { kind: 'text', text: ' ', marks: { ...BOLD, bold: false, color: '#e5484d' } },
+        { ...cutIn, marks: { ...BOLD, bold: false, color: '#e5484d' } },
+      ]);
+
+      expect(bold).toBe('**hello** @笑顔');
+      expect(parsePortraitCommand(bold)).toEqual({ type: 'name', name: '笑顔' });
+      expect(red).toBe('[赤]行くぞ[/赤] 爆発');
     });
   });
 
