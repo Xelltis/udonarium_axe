@@ -4,6 +4,7 @@ import {
   inlineStampToken,
   withInlineStampsAsWords,
 } from '@axe/domain/chat/inline-stamp';
+import { resourceCommandSites } from '@axe/domain/data/resource-command-words';
 
 describe('inline stamps', () => {
   it('reads the stamps of a family there is and of a room picture, with their names and places', () => {
@@ -34,6 +35,9 @@ describe('inline stamps', () => {
       '［:seal:ok］',
       '［了解:seal:OK］',
       '［了 解:seal:ok ］',
+      '［了 解:seal:ok］',
+      '［{了解}:seal:ok］',
+      '［了解@:seal:ok］',
     ]) {
       expect(inlineStampSites(text)).toEqual([]);
     }
@@ -43,9 +47,20 @@ describe('inline stamps', () => {
     expect(inlineStampToken('了解', 'seal:ok')).toBe('［了解:seal:ok］');
     expect(inlineStampToken(' 斬る:［一閃］\n ', 'battle:slash')).toBe('［斬る一閃:battle:slash］');
     expect(inlineStampToken('  ', 'battle:slash')).toBe('［slash:battle:slash］');
+    expect(inlineStampToken('Got  it', 'seal:ok')).toBe('［Got_it:seal:ok］');
+    expect(inlineStampToken('{名前}@立ち絵', 'seal:ok')).toBe('［名前立ち絵:seal:ok］');
     expect(inlineStampSites(inlineStampToken('絵  の 名', 'image:abc'))).toEqual([
-      { from: 0, to: '［絵 の 名:image:abc］'.length, label: '絵 の 名', id: 'image:abc' },
+      { from: 0, to: '［絵_の_名:image:abc］'.length, label: '絵_の_名', id: 'image:abc' },
     ]);
+  });
+
+  it('never lets a part of a name be read as a command', () => {
+    const token = inlineStampToken('Tom &Jerry ：HP-5 t&毒 &&1R-', 'image:abc');
+    const words = resourceCommandSites(`よし ${token} 行くぞ`);
+
+    expect(words.buffs).toEqual([]);
+    expect(words.resources).toEqual([]);
+    expect(words.sweeps).toEqual([]);
   });
 
   it('reads back what it writes, whatever the name', () => {

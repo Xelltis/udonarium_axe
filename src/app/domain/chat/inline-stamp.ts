@@ -7,7 +7,8 @@ import { STAMP_FAMILIES } from '@axe/domain/chat/stamp-catalog';
  *
  * Only an identifier of a family there is, or of a room's picture, is read as a stamp, so that
  * brackets someone happened to write are left as they are. The form keeps clear of what is
- * rewritten as a line is sent: it holds no brace, no at mark and no space.
+ * rewritten as a line is sent: it holds no brace, no at mark and no space. With no space in it, no
+ * part of a name can start a word, so none is ever read as a `&` or `:` command.
  */
 export interface InlineStampSite {
   readonly from: number;
@@ -21,7 +22,7 @@ const LABEL_REACH = 40;
 
 /** `［name:id］`, the identifier of a family there is or of a room's picture. */
 export const INLINE_STAMP = new RegExp(
-  `［([^［］:\\n]{1,${LABEL_REACH}}):((?:${STAMP_FAMILIES.join('|')}):[a-z0-9]+|image:[^［］\\s]+)］`,
+  `［([^［］:{}｛｝@＠\\s]{1,${LABEL_REACH}}):((?:${STAMP_FAMILIES.join('|')}):[a-z0-9]+|image:[^［］\\s]+)］`,
   'g'
 );
 
@@ -36,14 +37,15 @@ export function inlineStampSites(text: string): InlineStampSite[] {
 }
 
 /**
- * How a stamp is written into a line: its name, kept to what the form can hold, and its identifier.
- * A name with nothing left to it is written as the stamp's key.
+ * How a stamp is written into a line: its name, kept to what the form can hold with the spaces in
+ * it written as underscores, and its identifier. A name with nothing left to it is written as the
+ * stamp's key.
  */
 export function inlineStampToken(label: string, id: string): string {
   const kept = label
-    .replace(/[［］:\n]/g, '')
-    .replace(/\s+/g, ' ')
+    .replace(/[［］:{}｛｝@＠]/g, '')
     .trim()
+    .replace(/\s+/g, '_')
     .slice(0, LABEL_REACH);
   return `［${kept || id.slice(id.indexOf(':') + 1, id.indexOf(':') + 1 + LABEL_REACH)}:${id}］`;
 }
