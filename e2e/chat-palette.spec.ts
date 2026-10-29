@@ -33,7 +33,7 @@ test.describe('the chat palette', () => {
     const palette = page.locator('chat-palette');
     await palette.getByRole('button', { name: '編集', exact: true }).click();
     await expect(palette.getByText('編集中')).toBeVisible({ timeout: 3000 });
-    await expect(palette.locator('[data-chat-palette-editor] [data-chat-input]')).toBeVisible();
+    await expect(palette.locator('[data-chat-palette-editor] [data-chat-palette-text]')).toBeVisible();
   });
 
   test('moves to the next tab when the wheel is turned over the tabs, as the chat window does', async ({ page }) => {

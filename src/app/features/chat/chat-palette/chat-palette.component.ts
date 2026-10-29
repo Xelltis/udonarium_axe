@@ -56,6 +56,12 @@ import { GameDataElementComponent } from '@axe/features/data-element/game-data-e
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
+/**
+ * The attribute the editor a palette is written in is found by, apart from the chat input's: the
+ * keys that switch tabs from the input move the caret in here, as they do in any other text.
+ */
+const PALETTE_TEXT_ATTR = 'data-chat-palette-text';
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'chat-palette',
@@ -128,6 +134,7 @@ export class ChatPaletteComponent {
 
   private readonly paletteEditorApi: ChatEditorHost = {
     mode: 'palette',
+    marker: PALETTE_TEXT_ATTR,
     placeholder: () => this.t('feature.chat.palette.editPlaceholder'),
     changed: (text) => this.editPalette.set(text),
     session: () => this.paletteLint,

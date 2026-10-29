@@ -398,7 +398,7 @@ test.describe('the palette written in the editor', () => {
     const palette = page.locator('chat-palette');
     await palette.getByRole('button', { name: '編集', exact: true }).click();
 
-    const editor = palette.locator('[data-chat-palette-editor] [data-chat-input]');
+    const editor = palette.locator('[data-chat-palette-editor] [data-chat-palette-text]');
     await expect(editor).toBeVisible({ timeout: 10000 });
     await editor.click();
     await page.keyboard.press('ControlOrMeta+a');
@@ -409,6 +409,43 @@ test.describe('the palette written in the editor', () => {
     await expect(editor.locator('.chat-lint-error').filter({ hasText: '強さ' })).toHaveCount(0);
     await expect(editor.locator('.chat-rich-reference')).toHaveCount(1);
     await expect(editor.locator('.chat-rich-quiet')).toHaveCount(1);
+  });
+
+  test('keeps an edit to a variable line, and leaves Ctrl and the arrows to the caret there', async ({ page }) => {
+    await withEditor(page);
+    await createCharacter(page);
+    await page.locator('game-character').first().dispatchEvent('contextmenu');
+    await page.locator('context-menu').getByText('チャットパレットを表示').click();
+    const palette = page.locator('chat-palette');
+    await palette.getByRole('button', { name: '編集', exact: true }).click();
+    const editor = palette.locator('[data-chat-palette-editor] .ProseMirror');
+    await expect(editor).toBeVisible({ timeout: 10000 });
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('Delete');
+    await editor.fill('//強さ=3\n2d6+{強さ} 殴る');
+    await expectChatText(editor, '//強さ=3\n2d6+{強さ} 殴る');
+    await palette.getByRole('button', { name: '確定' }).click();
+    await palette.getByRole('button', { name: '編集', exact: true }).click();
+    await expect(editor).toBeVisible();
+    const checkedTab = () =>
+      palette.locator('input[name^="chat-tab"]:checked').evaluate((input) => input.parentElement!.textContent!.trim());
+    const tab = await checkedTab();
+
+    const settled = () =>
+      page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+    await editor.locator('p').first().click();
+    await page.keyboard.press('Control+ArrowLeft');
+    await page.keyboard.press('End');
+    await settled();
+    await page.keyboard.press('Backspace');
+    await page.keyboard.type('5');
+    await expectChatText(editor, '//強さ=5\n2d6+{強さ} 殴る');
+    await palette.getByRole('button', { name: '確定' }).click();
+    await palette.getByRole('button', { name: '編集', exact: true }).click();
+
+    await expectChatText(editor, '//強さ=5\n2d6+{強さ} 殴る');
+    expect(await checkedTab()).toBe(tab);
   });
 });
 
