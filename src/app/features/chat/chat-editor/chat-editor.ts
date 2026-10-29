@@ -40,6 +40,7 @@ import { BubbleMenu } from '@tiptap/extension-bubble-menu';
 import { Placeholder, UndoRedo } from '@tiptap/extensions';
 import { type Mark, type Node as ProseMirrorNode, Slice } from '@tiptap/pm/model';
 import { NodeSelection, Plugin, PluginKey, TextSelection, type Transaction } from '@tiptap/pm/state';
+import { AddMarkStep, ReplaceAroundStep, ReplaceStep } from '@tiptap/pm/transform';
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
 
 /** What the editor asks of what holds it. */
@@ -222,6 +223,7 @@ export class ChatEditorField implements ChatTextField {
       },
     });
     this.setText(start.text, start.selection, false);
+    for (const font of fontsIn(this.editor.state.doc)) chatFontWanted$.emit(font);
     this.editor.on('transaction', ({ transaction }) => this.afterTransaction(transaction));
     this.editor.view.dom.addEventListener('mouseover', this.showTip);
     this.editor.view.dom.addEventListener('mouseout', this.hideTip);
@@ -431,16 +433,8 @@ export class ChatEditorField implements ChatTextField {
     this.updateActiveMarks();
     this.bubble.refresh();
     if (!transaction.docChanged) return;
-    for (const font of this.fontsIn(this.editor.state.doc)) chatFontWanted$.emit(font);
+    for (const font of fontsBroughtIn(transaction)) chatFontWanted$.emit(font);
     if (!transaction.getMeta(FROM_HOLDER)) this.host.changed(this.text());
-  }
-
-  private fontsIn(doc: ProseMirrorNode): Set<string> {
-    const fonts = new Set<string>();
-    doc.descendants((node) => {
-      for (const mark of node.marks) if (mark.type.name === CHAT_MARK.font) fonts.add(String(mark.attrs['value']));
-    });
-    return fonts;
   }
 
   /**
@@ -870,4 +864,30 @@ export class ChatEditorField implements ChatTextField {
 /** Puts the editor into the element, starting from where the plain box stood. */
 export function mountChatEditor(parent: HTMLElement, start: ChatEditorStart, host: ChatEditorHost): ChatEditorField {
   return new ChatEditorField(parent, start, host);
+}
+
+/** The fonts a text is decorated in, for the page to fetch as the editor starts with it. */
+function fontsIn(doc: ProseMirrorNode): Set<string> {
+  const fonts = new Set<string>();
+  doc.descendants((node) => takeFonts(node.marks, fonts));
+  return fonts;
+}
+
+/**
+ * The fonts a change brings into the text, for the page to fetch: those of a decoration put on, and
+ * those of what is put in, typed, pasted or set. What was there already was asked for as it came.
+ */
+function fontsBroughtIn(transaction: Transaction): Set<string> {
+  const fonts = new Set<string>();
+  for (const step of transaction.steps) {
+    if (step instanceof AddMarkStep) takeFonts([step.mark], fonts);
+    else if (step instanceof ReplaceStep || step instanceof ReplaceAroundStep) {
+      step.slice.content.descendants((node) => takeFonts(node.marks, fonts));
+    }
+  }
+  return fonts;
+}
+
+function takeFonts(marks: readonly Mark[], fonts: Set<string>): void {
+  for (const mark of marks) if (mark.type.name === CHAT_MARK.font) fonts.add(String(mark.attrs['value']));
 }
