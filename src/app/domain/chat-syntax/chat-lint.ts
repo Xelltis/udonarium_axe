@@ -16,7 +16,7 @@ import type { ReferenceSite } from '@axe/domain/chat/chat-reference';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
 import type { ChatSyntaxScan, SyntaxSpan, TextRange } from '@axe/domain/chat-syntax/chat-syntax';
 import { hasSecretEditMark, resourceCommandParts } from '@axe/domain/data/resource-command-words';
-import { parseResourceEditOption } from '@axe/domain/data/resource-edit-helpers';
+import { parseResourceEditOption, readModifierLayout } from '@axe/domain/data/resource-edit-helpers';
 import { readNamedResourceSlot } from '@axe/domain/data/resource-slot';
 import { type RollCheck, rollLimitBreaches } from '@axe/domain/dice/dice-roll-line';
 
@@ -303,7 +303,7 @@ function lintBuff(source: string, span: TextRange, pieces: readonly GameCharacte
     return;
   }
   if (kind === 'plain') {
-    const rounds = command.replace(/^[tTｔＴ]?&/i, '').split('/')[2];
+    const rounds = readModifierLayout(command.replace(/^[tTｔＴ]?&/i, '').split('/'))[2];
     if (rounds && Number.isNaN(parseInt(rounds))) add(span, 'info', 'buff.roundsDefault');
   }
 }

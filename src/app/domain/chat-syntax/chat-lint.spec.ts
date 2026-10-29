@@ -136,6 +136,11 @@ describe('lintChatSyntax', () => {
       expect(codes('&加護/防御+2/ずっと')).toEqual(['buff.roundsDefault']);
     });
 
+    it('reads the rounds of a buff written with its status, mark and amount apart where they stand after them', () => {
+      expect(codes('&加護/防御/+/2/3')).toEqual([]);
+      expect(codes('&加護/防御/+/2/ずっと')).toEqual(['buff.roundsDefault']);
+    });
+
     it('finds a sweep by anyone but the game master', () => {
       expect(codes('&&毒-')).toEqual(['sweep.gmOnly']);
       expect(codes('&&毒-', { isGameMaster: true })).toEqual([]);

@@ -471,7 +471,7 @@ function plantCommandedState(state: StatusAilment, parts: string[], character: G
  *
  * Without the mark the status is left where it is; the note says what the buff would move.
  */
-function readModifierLayout(parts: string[]): string[] {
+export function readModifierLayout(parts: string[]): string[] {
   if (parts.length < 4) return parts;
   const request = parseBuffModifierRequest(parts[1], parts[2], parts[3]);
   if (!request) return parts;
