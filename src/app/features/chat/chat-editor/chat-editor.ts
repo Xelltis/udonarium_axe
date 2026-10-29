@@ -206,14 +206,14 @@ export class ChatEditorField implements ChatTextField {
       ],
       enableCoreExtensions: { clipboardTextSerializer: false },
       editorProps: {
-        attributes: {
+        attributes: () => ({
           class: 'chat-rich',
           [host.marker ?? CHAT_INPUT_ATTR]: '',
           spellcheck: 'false',
           enterkeyhint: host.submit ? 'send' : 'enter',
           'aria-label': host.placeholder(),
           'aria-multiline': 'true',
-        },
+        }),
         clipboardTextSerializer: (slice) => this.textOfSlice(slice),
         handleKeyDown: (_view, event) => {
           this.pastePlain = event.shiftKey && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v';
@@ -384,7 +384,7 @@ export class ChatEditorField implements ChatTextField {
     this.lintForRoom();
   }
 
-  /** Says what the empty editor says again, as when the language changes. */
+  /** Says what the empty editor says again, and names the box again, as when the language changes. */
   reconfigure(): void {
     this.editor.view.dispatch(this.editor.state.tr.setMeta('addToHistory', false));
   }
