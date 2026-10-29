@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { CHAT_EDITOR_LOADER, type ChatEditorModule } from '@axe/features/chat/chat-editor/chat-editor-loader';
 import { ChatLineEditorComponent } from '@axe/features/chat/chat-line-editor/chat-line-editor.component';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -71,5 +72,54 @@ describe('ChatLineEditorComponent', () => {
 
     expect(box().value).toMatch(/^こん［.+:seal:ok］ばんは$/);
     expect(drafts.at(-1)).toBe(box().value);
+  });
+});
+
+describe('ChatLineEditorComponent handing its plain box over to the editor', () => {
+  it('puts the editor in where the caret stood, as it arrives while the line is written', async () => {
+    let arrive!: (module: ChatEditorModule | null) => void;
+    const mounted = vi.fn(() => ({
+      parent: null,
+      text: () => 'こんばんは',
+      selection: () => ({ from: 0, to: 0 }),
+      refresh: vi.fn(),
+      refreshSoon: vi.fn(),
+      followRoot: vi.fn(),
+      destroy: vi.fn(),
+      focus: vi.fn(),
+      hasFocus: () => false,
+      activeMarks: () => null,
+    }));
+    TestBed.configureTestingModule({
+      imports: [ChatLineEditorComponent],
+      providers: [
+        ...TEST_PROVIDERS,
+        {
+          provide: CHAT_EDITOR_LOADER,
+          useValue: () =>
+            new Promise<ChatEditorModule | null>((resolve) => {
+              arrive = resolve;
+            }),
+        },
+      ],
+    });
+    const fixture = TestBed.createComponent(ChatLineEditorComponent);
+    fixture.componentRef.setInput('draft', 'こんばんは');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const area = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>('textarea')!;
+    area.setSelectionRange(1, 2);
+    area.blur();
+
+    arrive({ mountChatEditor: mounted } as unknown as ChatEditorModule);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    TestBed.tick();
+
+    expect(mounted).toHaveBeenCalledWith(
+      expect.anything(),
+      { text: 'こんばんは', selection: { from: 1, to: 2 }, focused: false },
+      expect.anything()
+    );
   });
 });

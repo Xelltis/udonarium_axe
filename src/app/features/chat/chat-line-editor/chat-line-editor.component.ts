@@ -25,7 +25,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { inlineStampToken } from '@axe/domain/chat/inline-stamp';
 import { type ChatLintContext, lintChatSyntax } from '@axe/domain/chat-syntax/chat-lint';
 import { scanChatSyntax, type SyntaxKind } from '@axe/domain/chat-syntax/chat-syntax';
-import type { ChatEditorField, ChatEditorHost } from '@axe/features/chat/chat-editor/chat-editor';
+import type { ChatEditorField, ChatEditorHost, ChatEditorStart } from '@axe/features/chat/chat-editor/chat-editor';
 import type { ChatCompletionWords } from '@axe/features/chat/chat-editor/chat-editor-complete';
 import { CHAT_EDITOR_LOADER, type ChatEditorModule } from '@axe/features/chat/chat-editor/chat-editor-loader';
 import { ChatSyntaxSourceService } from '@axe/features/chat/chat-input/chat-syntax-source.service';
@@ -96,6 +96,8 @@ export class ChatLineEditorComponent {
 
   private readonly editorHost = viewChild<ElementRef<HTMLElement>>('editorHost');
   private readonly plainBox = viewChild<ElementRef<HTMLTextAreaElement>>('plainBox');
+  /** Where the caret stood in the plain box the editor takes the place of, arriving while it was written in. */
+  private handover: Pick<ChatEditorStart, 'selection' | 'focused'> | null = null;
   private readonly toolbar = viewChild(ChatToolbarComponent);
   private readonly richField = signal<ChatEditorField | null>(null);
   private readonly plainField = computed(() => {
@@ -158,7 +160,10 @@ export class ChatLineEditorComponent {
     afterNextRender(() => this.focusPlainBox());
     if (this.preferences.richInput()) {
       void this.loader().then((module) =>
-        whenNotComposing(this.plainBox()?.nativeElement, () => this.module.set(module))
+        whenNotComposing(this.plainBox()?.nativeElement, () => {
+          this.handOverFromPlainBox();
+          this.module.set(module);
+        })
       );
     }
     effect(() => {
@@ -194,13 +199,22 @@ export class ChatLineEditorComponent {
     if (!host || !module || this.richField()) return;
     const text = this.plainField()?.text() ?? this.text();
     this.text.set(text);
-    this.richField.set(
-      module.mountChatEditor(
-        host,
-        { text, selection: { from: text.length, to: text.length }, focused: true },
-        this.editorHostApi
-      )
-    );
+    const start = this.handover ?? { selection: { from: text.length, to: text.length }, focused: true };
+    this.handover = null;
+    this.richField.set(module.mountChatEditor(host, { text, ...start }, this.editorHostApi));
+  }
+
+  /**
+   * Keeps where the reader stood in the plain box, as the editor arrives to take its place: the
+   * caret, and whether it had the keys.
+   */
+  private handOverFromPlainBox(): void {
+    const box = this.plainBox()?.nativeElement;
+    if (!box) return;
+    this.handover = {
+      selection: { from: box.selectionStart, to: box.selectionEnd },
+      focused: box.ownerDocument.activeElement === box,
+    };
   }
 
   private focusPlainBox(): void {
