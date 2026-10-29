@@ -27,7 +27,7 @@ const TRIGGERS: readonly { kind: ChatTriggerKind; pattern: RegExp }[] = [
   { kind: 'effect', pattern: /(《[^《》\s\ufffc]*)$/ },
   { kind: 'tail', pattern: /(?:^|\s)([@＠][^\s\ufffc]*)$/ },
   { kind: 'status', pattern: /(?:^|\s)([sSｓＳ]?[tTｔＴ]?[:：][^\s:：&＆+\-=>＋－＝＞\ufffc]*)$/ },
-  { kind: 'buff', pattern: /(?:^|\s)([sSｓＳ]?[tTｔＴ]?[&＆][+＋!！]*[^\s/&＆\ufffc]*)$/ },
+  { kind: 'buff', pattern: /(?:^|\s)([sｓ]?[tTｔＴ]?[&＆][+＋!！]*[^\s/&＆\ufffc]*)$/ },
 ];
 
 /**
@@ -43,7 +43,7 @@ export function findChatTrigger(before: string): ChatTrigger | null {
     const written = match[1];
     const from = match.index + match[0].length - written.length;
     const mark =
-      /^[sSｓＳ]?[tTｔＴ]?[&＆][+＋!！]*|^[sSｓＳ]?[tTｔＴ]?[:：]|^[tTｔＴ]?[{｛]|^[@＠]|^《/.exec(written)?.[0] ?? '';
+      /^[sｓ]?[tTｔＴ]?[&＆][+＋!！]*|^[sSｓＳ]?[tTｔＴ]?[:：]|^[tTｔＴ]?[{｛]|^[@＠]|^《/.exec(written)?.[0] ?? '';
     return { kind, from, query: written.slice(mark.length) };
   }
   return null;

@@ -537,6 +537,10 @@ describe('DiceBot', () => {
       );
     });
 
+    it('leaves a word such as S&W alone, as no secret buff', () => {
+      expect(DiceBot.deleteMyselfResourceBuff('射撃 S&W M36 s&毒/1/3')).toBe('射撃 S&W M36 ');
+    });
+
     it('keeps a stamp whole, and takes it as ending a command as a space does', () => {
       expect(DiceBot.deleteMyselfResourceBuff('t:HP-3 ［にこ:sfx:smile］:MP-1')).toBe('t:HP-3 ［にこ:sfx:smile］');
       expect(DiceBot.deleteMyselfResourceBuff(':MP-1［にこ:sfx:smile］ 行くぞ')).toBe('［にこ:sfx:smile］ 行くぞ');

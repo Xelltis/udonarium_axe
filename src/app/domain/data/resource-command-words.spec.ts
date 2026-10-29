@@ -64,6 +64,18 @@ describe('resourceCommandSites', () => {
     expect(words.buffs.map((site) => line.slice(site.from, site.to))).toEqual(['&加護/3']);
   });
 
+  it('takes S& in capitals for a word such as S&W, and s& alone for a secret buff', () => {
+    const word = resourceCommandSites('射撃 S&W M36');
+    expect(word.buffs).toEqual([]);
+    expect(word.secret).toBe(false);
+    expect(hasSecretEditMark('射撃 S&W M36')).toBe(false);
+
+    const secret = resourceCommandSites('毒を盛る s&毒/1/3');
+    expect(secret.buffs.map((site) => site.command)).toEqual(['&毒/1/3']);
+    expect(secret.secret).toBe(true);
+    expect(resourceCommandSites('S:HP-1').secret).toBe(true);
+  });
+
   it('takes a secret command written right after a stamp as secret', () => {
     const line = '［にこ:sfx:smile］s:HP-5';
 

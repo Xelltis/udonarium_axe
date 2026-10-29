@@ -17,8 +17,12 @@ export interface ResourceCommandWords {
   buffs: ResourceCommandSite[];
 }
 
-const SECRET_MARK = /(\s[sSｓＳ][tTｔＴ]?[:：&＆])/i;
-const SECRET_PREFIX = /(\s)[sSｓＳ](?=[tTｔＴ]?[:：&＆])/g;
+/**
+ * The `s` that makes a command secret: before a resource command in either case, and before a buff
+ * in lower case alone, so that words such as `S&W` stay words.
+ */
+const SECRET_MARK = /\s(?:[sSｓＳ][tTｔＴ]?[:：]|[sｓ][tTｔＴ]?[&＆])/;
+const SECRET_PREFIX = /(\s)(?:[sSｓＳ](?=[tTｔＴ]?[:：])|[sｓ](?=[tTｔＴ]?[&＆]))/g;
 
 /**
  * Whether a line holds a secret resource or buff command: an `s:`, `st:`, `s&` or `st&` that starts a

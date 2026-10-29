@@ -439,7 +439,9 @@ export class DiceBot extends GameObject {
         continue;
       }
 
-      if (beforeIsSpace && /[sSｓＳ]/.test(chktext) && /[:：&＆]/.test(str[i + 1] ?? '')) {
+      const secretMark = /[sSｓＳ]/.test(chktext) && /[:：]/.test(str[i + 1] ?? '');
+      const secretBuffMark = /[sｓ]/.test(chktext) && /[&＆]/.test(str[i + 1] ?? '');
+      if (beforeIsSpace && (secretMark || secretBuffMark)) {
         beforeIsSpace = false;
         beforeIsT = false;
         deleteCommand = true;
