@@ -13,6 +13,7 @@ import {
   type PortraitCommand,
 } from '@axe/domain/chat/chat-portrait-command';
 import type { ReferenceSite } from '@axe/domain/chat/chat-reference';
+import { stampOf } from '@axe/domain/chat/stamp-catalog';
 import type { ChatSyntaxScan, SyntaxSpan, TextRange } from '@axe/domain/chat-syntax/chat-syntax';
 import { hasSecretEditMark, resourceCommandParts } from '@axe/domain/data/resource-command-words';
 import { parseResourceEditOption } from '@axe/domain/data/resource-edit-helpers';
@@ -62,6 +63,8 @@ export const CHAT_LINT_CODES = [
   'deco.unpaired',
   'vn.dropped',
   'vn.duplicate',
+  'stamp.unknown',
+  'stamp.denied',
 ] as const;
 
 /** What a finding is about. */
@@ -101,6 +104,8 @@ export interface ChatLintContext {
   hasPieceNamed(name: string): boolean;
   /** What the game system makes of a message, or null while that is not known yet. */
   rollCheck(message: TextRange): RollCheck | null;
+  /** Whether the room lets a stamp be sent in a line; every stamp where this is not told. */
+  stampAllowed?(stampId: string): boolean;
 }
 
 /**
@@ -184,6 +189,11 @@ function lintMessage(
         break;
       case 'decoration':
         if (!span.mark.paired && span.mark.kind !== 'escape') lintUnpairedMark(text, message, span, add);
+        break;
+      case 'stamp':
+        if (!stampOf(span.id)) add(span, 'info', 'stamp.unknown', { params: { name: span.label } });
+        else if (context.stampAllowed && !context.stampAllowed(span.id))
+          add(span, 'warning', 'stamp.denied', { params: { name: span.label } });
         break;
       case 'vnSuffix':
         if (!span.site.read) {

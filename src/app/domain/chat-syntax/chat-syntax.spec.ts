@@ -22,6 +22,15 @@ describe('scanChatSyntax', () => {
     expect(textsOf(scan, 'reference')).toEqual(['{筋力}']);
   });
 
+  it('reads a stamp put inside the line, with its name and identifier', () => {
+    const scan = scanChatSyntax('了解［了解:seal:ok］です');
+    expect(textsOf(scan, 'stamp')).toEqual(['［了解:seal:ok］']);
+    expect(scan.spans.find((span) => span.kind === 'stamp')).toEqual(
+      expect.objectContaining({ id: 'seal:ok', label: '了解' })
+    );
+    expect(markersOf(scan, 'stamp')).toEqual(['［', '］']);
+  });
+
   it('reads no roll from words of chat', () => {
     expect(textsOf(scanChatSyntax('1日目は休み'), 'roll')).toEqual([]);
     expect(textsOf(scanChatSyntax('こんにちは 2d6'), 'roll')).toEqual([]);

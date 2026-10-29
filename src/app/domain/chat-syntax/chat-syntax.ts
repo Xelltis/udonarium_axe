@@ -9,6 +9,7 @@ import { paletteVariableSite } from '@axe/domain/chat/chat-palette';
 import { type PortraitCommand, portraitCommandSite } from '@axe/domain/chat/chat-portrait-command';
 import { CHARACTER_REFERENCE, type ReferenceSite, referenceSites } from '@axe/domain/chat/chat-reference';
 import { RUBY_NOTATION } from '@axe/domain/chat/chat-ruby-notation';
+import { inlineStampSites } from '@axe/domain/chat/inline-stamp';
 import { isPaletteTabLine } from '@axe/domain/chat/palette-rows';
 import { lexDiceCommand } from '@axe/domain/chat-syntax/dice-command-lexer';
 import { findEmbeddedRolls } from '@axe/domain/data/embedded-roll';
@@ -68,6 +69,8 @@ export type SyntaxSpan = TextRange & { readonly parts: readonly SyntaxPart[] } &
     | { readonly kind: 'effect'; readonly name: string; readonly battle: boolean; readonly order: number }
     | { readonly kind: 'diceToken'; readonly name: string }
     | { readonly kind: 'ruby' }
+    /** A stamp put inside the line, by the identifier it is kept under and the name it was written with. */
+    | { readonly kind: 'stamp'; readonly id: string; readonly label: string }
     /** A decoration mark; `pairedWith` is where the mark it is paired with stands, if it is. */
     | { readonly kind: 'decoration'; readonly mark: ChatDecorationMark; readonly pairedWith: TextRange | null }
     | { readonly kind: 'quote' }
@@ -277,6 +280,22 @@ function scanMessage(message: string, offset: number, spans: SyntaxSpan[], decor
       parts: [
         { role: 'marker', from: at(diceToken.from), to: at(diceToken.from + 5) },
         { role: 'name', from: at(diceToken.from + 5), to: at(diceToken.to) },
+      ],
+    });
+  }
+
+  for (const site of inlineStampSites(message)) {
+    spans.push({
+      kind: 'stamp',
+      id: site.id,
+      label: site.label,
+      from: at(site.from),
+      to: at(site.to),
+      parts: [
+        { role: 'marker', from: at(site.from), to: at(site.from + 1) },
+        { role: 'name', from: at(site.from + 1), to: at(site.from + 1 + site.label.length) },
+        { role: 'field', from: at(site.from + 2 + site.label.length), to: at(site.to - 1) },
+        { role: 'marker', from: at(site.to - 1), to: at(site.to) },
       ],
     });
   }

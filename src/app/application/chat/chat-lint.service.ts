@@ -1,4 +1,5 @@
 import { computed, inject, Injectable, type Signal, signal } from '@angular/core';
+import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -71,6 +72,7 @@ export class ChatLintService {
   private readonly uiSignal = inject(UiSignalService);
   private readonly effectLibrary = inject(EffectLibraryService);
   private readonly imageStorage = inject(ImageStorage);
+  private readonly stampRules = inject(StampRulesService);
 
   private readonly systemsArrived = signal(0);
   private readonly fetched = new Map<string, GameSystemClass>();
@@ -127,6 +129,7 @@ export class ChatLintService {
       },
       portraits: () => this.portraitsOf(speaker),
       isChatCutIn: (name: string) => cutIns.some((cutIn) => cutIn.chatActivate && cutIn.name === name),
+      stampAllowed: (stampId: string) => this.stampRules.allows('line', stampId),
       hasEffect: (name: string) => {
         const needle = name.trim();
         return presets.some(

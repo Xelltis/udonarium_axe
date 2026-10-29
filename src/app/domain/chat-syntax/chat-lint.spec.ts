@@ -41,6 +41,22 @@ describe('lintChatSyntax', () => {
     return lint(text, overrides).map((found) => found.code);
   }
 
+  describe('stamps put inside a line', () => {
+    it('finds one this version does not know, which is written as its name', () => {
+      expect(lint('［新顔:sfx:fromthefuture］')).toEqual([
+        expect.objectContaining({ severity: 'info', code: 'stamp.unknown', params: { name: '新顔' } }),
+      ]);
+    });
+
+    it('finds one the room does not let be sent, and none it does', () => {
+      const stampAllowed = (stampId: string) => stampId !== 'seal:ok';
+      expect(lint('［了解:seal:ok］［ドッ:sfx:boom］', { stampAllowed })).toEqual([
+        expect.objectContaining({ severity: 'warning', code: 'stamp.denied', params: { name: '了解' }, from: 0 }),
+      ]);
+      expect(codes('［ドッ:sfx:boom］')).toEqual([]);
+    });
+  });
+
   describe('rolls', () => {
     it('says what the game system makes of the roll', () => {
       expect(codes('CC<=50', { rollCheck: () => ({ kind: 'plainText' }) })).toEqual(['dice.plainText']);

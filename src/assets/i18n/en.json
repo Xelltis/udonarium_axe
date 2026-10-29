@@ -4169,7 +4169,11 @@
           "dropped": "Unknown words ({{words}}) leave the 〔〕 as text",
           "duplicate": "Two words of one kind leave the 〔〕 as text"
         },
-        "chipNotAtEnd": "Works only at the end of the line"
+        "chipNotAtEnd": "Works only at the end of the line",
+        "stamp": {
+          "unknown": "“{{name}}” is a stamp this version does not have, so its name is shown instead",
+          "denied": "“{{name}}” is a stamp this room has stopped, so its name is sent instead"
+        }
       },
       "syntax": {
         "title": "Write syntax",
