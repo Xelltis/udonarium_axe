@@ -645,6 +645,9 @@ describe('ChatInputComponent', () => {
         }),
       ]);
       expect(emitted[0].stamp!.words.length).toBeGreaterThan(0);
+
+      component.moveHistory(null, -1);
+      expect(component.text).toMatch(/^［.+:seal:ok］$/);
     });
 
     it('puts the stamp picked in at the caret among the words, to go out inside them', async () => {

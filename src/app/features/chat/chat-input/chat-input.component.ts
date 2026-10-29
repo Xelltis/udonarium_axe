@@ -1062,6 +1062,7 @@ export class ChatInputComponent {
 
     const lone = this.loneStamp();
     if (lone) {
+      this.chatHistory.push(this.text);
       this.text = '';
       this.textField()?.setText('');
       this.previousWritingLength = 0;
