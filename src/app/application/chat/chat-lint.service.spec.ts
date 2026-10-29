@@ -1,8 +1,11 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ChatLintService, type ChatLintSource } from '@axe/application/chat/chat-lint.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('ChatLintService', () => {
@@ -108,6 +111,24 @@ describe('ChatLintService', () => {
       expect(roll).toHaveBeenCalled();
     } finally {
       loaded.mockRestore();
+    }
+  });
+
+  it('checks nothing again for a move of the reader’s cursor that leaves its role as it was', () => {
+    PeerCursor.createMyCursor();
+    try {
+      const { session } = watch(':HP-1');
+      const first = session.diagnostics();
+
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      expect(session.diagnostics()).toBe(first);
+
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+      expect(session.diagnostics()).not.toBe(first);
+    } finally {
+      PeerCursor.myCursor.destroy();
+      PeerCursor.myCursor = null!;
     }
   });
 

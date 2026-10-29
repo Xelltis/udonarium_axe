@@ -87,6 +87,18 @@ export class ChatLintService {
   private readonly selection = inject(SelectionSignalService);
 
   private readonly systems = inject(GameSystemPrefetchService);
+
+  /**
+   * What this seat may do, read from its cursor: only a change to that makes a text checked again,
+   * not every move of the cursor, which comes at every step of a movement planned.
+   */
+  private readonly seat = computed(
+    () => {
+      this.objectChange.trackMyCursor();
+      return { isGameMaster: PeerCursor.isMyselfGameMaster, keptOffTable: PeerCursor.isMyselfKeptOffTable };
+    },
+    { equal: (a, b) => a.isGameMaster === b.isGameMaster && a.keptOffTable === b.keptOffTable }
+  );
   private readonly rollChecks = new Map<string, RollCheck>();
 
   /** Starts checking a text, for as long as its signals are read. */
@@ -104,7 +116,7 @@ export class ChatLintService {
     this.systems.arrivals();
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     this.objectChange.collectionOf(CutIn.aliasName)();
-    this.objectChange.trackMyCursor();
+    const seat = this.seat();
     this.uiSignal.targetChange();
     const presets = this.effectLibrary.presets();
 
@@ -135,8 +147,8 @@ export class ChatLintService {
       speaker,
       targets,
       hasEffectTarget,
-      isGameMaster: PeerCursor.isMyselfGameMaster,
-      keptOffTable: PeerCursor.isMyselfKeptOffTable,
+      isGameMaster: seat.isGameMaster,
+      keptOffTable: seat.keptOffTable,
       referenceValue: (site: ReferenceSite) => {
         const typed = scan.text.slice(site.from, site.to);
         if (site.targeted && targets.length < 1) return null;
@@ -149,9 +161,7 @@ export class ChatLintService {
       stampAllowed: (stampId: string) => this.stampRules.allows('line', stampId),
       hasEffect: (name: string) => {
         const needle = name.trim();
-        return presets.some(
-          (preset) => preset.name.trim() === needle && (!preset.gmOnly || PeerCursor.isMyselfGameMaster)
-        );
+        return presets.some((preset) => preset.name.trim() === needle && (!preset.gmOnly || seat.isGameMaster));
       },
       hasPieceNamed: (name: string) => pieces.some((piece) => piece.name.trim() === name.trim()),
       rollCheck: (message: TextRange) =>
