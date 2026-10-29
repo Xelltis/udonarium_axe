@@ -38,11 +38,14 @@ export class GameClockService {
   /** Whether this seat moves the clock and sets it up, which only the game master does. */
   readonly canEdit = computed(() => this.permission.isGameMaster());
 
-  /** The parts of a day the clock is told by: the room's, else the reader's language's own. */
-  readonly periods = computed<readonly string[]>(() => {
+  /** The parts of a day the reader's language has, which the clock is told by where the room names none. */
+  private readonly defaultPeriods = computed<readonly string[]>(() => {
     this.language.currentLang();
-    return periodsOf(this.clock(), cleanPeriods(this.t('feature.gameClock.defaultPeriods').split(',')));
+    return cleanPeriods(this.t('feature.gameClock.defaultPeriods').split(','));
   });
+
+  /** The parts of a day the clock is told by: the room's, else the reader's language's own. */
+  readonly periods = computed<readonly string[]>(() => periodsOf(this.clock(), this.defaultPeriods()));
 
   readonly dayText = computed(() => {
     this.language.currentLang();
@@ -83,12 +86,15 @@ export class GameClockService {
     if (this.canEdit()) this.write({ ...this.clock(), mode });
   }
 
-  /** Names the parts of a day from a list written with commas between them; an empty one goes back to the language's own. */
+  /**
+   * Names the parts of a day from a list written with commas between them; an empty one goes back to
+   * the language's own. The part it is now stays, unless there are no longer as many parts.
+   */
   setPeriods(written: string): void {
     if (!this.canEdit()) return;
-    const periods = cleanPeriods(written.split(/[,、，]/));
-    const clock = this.clock();
-    this.write({ ...clock, periods, period: Math.min(clock.period, Math.max(0, periods.length - 1)) });
+    const clock = { ...this.clock(), periods: cleanPeriods(written.split(/[,、，]/)) };
+    const count = periodsOf(clock, this.defaultPeriods()).length;
+    this.write({ ...clock, period: Math.min(clock.period, Math.max(0, count - 1)) });
   }
 
   setStep(step: number): void {

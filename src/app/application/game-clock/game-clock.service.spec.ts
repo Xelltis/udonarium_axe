@@ -76,6 +76,16 @@ describe('GameClockService', () => {
     expect(service.dayText()).toBe('Day 12');
   });
 
+  it('keeps the part of the day it is when the names go back to the language’s own', () => {
+    service.setPeriods('早朝、朝, 昼,夕方,夜');
+    service.setPeriod(3);
+
+    service.setPeriods('');
+
+    expect(service.periods()).toEqual(['朝', '昼', '夕', '夜']);
+    expect(service.timeText()).toBe('夜');
+  });
+
   it('lets nobody but the master move the clock or set it up', () => {
     PeerCursor.myCursor.role = PeerRole.Player;
 
