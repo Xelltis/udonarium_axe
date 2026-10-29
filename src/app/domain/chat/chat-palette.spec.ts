@@ -310,6 +310,14 @@ describe('ChatPalette', () => {
         expect(evaluateCharacterReferences('2d6+10{加護}', cursed).text).toBe('2d6+10+10');
       });
 
+      it('takes a note with no number as nought after an operator, and as nothing joined on', () => {
+        const poisoned = wearing(wearing(makeCharacter(false), '&毒/苦しい/3'), '&加護/攻撃+0/3');
+
+        expect(evaluateCharacterReferences('2d6+{加護}', poisoned).text).toBe('2d6+0');
+        expect(evaluateCharacterReferences(':HP-{毒}', poisoned).text).toBe(':HP-0');
+        expect(evaluateCharacterReferences('2d6+10{加護}', poisoned).text).toBe('2d6+10');
+      });
+
       it('still reads the words of the note anywhere else in the line', () => {
         const attacker = wearing(makeCharacter(false), '&練技/攻撃+2/3');
 

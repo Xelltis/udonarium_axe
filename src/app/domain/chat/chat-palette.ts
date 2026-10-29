@@ -381,10 +381,12 @@ function formulaPlace(line: string, offset: number): FormulaPlace {
 
 /**
  * A buff's strength as a term of the number it stands in: after an operator without a sign of its
- * own, a negative one in brackets; joined on, with its sign, which is what joins it.
+ * own, a negative one in brackets, and nought for a note that carries no number, so the operator
+ * is not left waiting; joined on, with its sign, which is what joins it, or nothing.
  */
 function strengthAsTerm(strength: string, place: FormulaPlace): string {
   if (place !== 'operand') return strength;
+  if (strength.length < 1) return '0';
   if (strength.startsWith('+')) return strength.slice(1);
   return strength.startsWith('-') ? `(${strength})` : strength;
 }
