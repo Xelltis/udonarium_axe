@@ -49,6 +49,7 @@ describe('InviteJoinComponent', () => {
     offersLogin: WritableSignal<boolean | null>;
     isLoggingIn: WritableSignal<boolean>;
     startLogin: ReturnType<typeof vi.fn>;
+    refreshProviders: ReturnType<typeof vi.fn>;
   };
 
   async function setup(hash: string): Promise<void> {
@@ -117,6 +118,7 @@ describe('InviteJoinComponent', () => {
       offersLogin: signal(null),
       isLoggingIn: signal(false),
       startLogin: vi.fn().mockResolvedValue(undefined),
+      refreshProviders: vi.fn().mockResolvedValue(undefined),
     };
     PeerCursor.myCursor = { reConnectPass: '', role: PeerRole.Player, update: vi.fn() } as unknown as PeerCursor;
     vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(true);
@@ -561,6 +563,22 @@ describe('InviteJoinComponent', () => {
 
         await eventually(() => expect(joinServerRoom).toHaveBeenCalledOnce());
         expect(bannerText()).not.toContain('PL・GMとして入るには');
+      });
+
+      it('asks the server whether it offers a login before asking the reader, and asks nothing where none is known', async () => {
+        auth.offersLogin.set(null);
+        await setup(link(''));
+        await eventually(() => expect(joinServerRoom).toHaveBeenCalledOnce());
+        expect(auth.refreshProviders).toHaveBeenCalled();
+        fixture.destroy();
+        TestBed.resetTestingModule();
+        joinServerRoom.mockClear();
+
+        auth.refreshProviders.mockImplementation(async () => auth.offersLogin.set(true));
+        await setup(link(''));
+
+        await eventually(() => expect(bannerText()).toContain('PL・GMとして入るには'));
+        expect(joinServerRoom).not.toHaveBeenCalled();
       });
 
       it('asks nothing where the server offers no login, or on a screen for streaming', async () => {

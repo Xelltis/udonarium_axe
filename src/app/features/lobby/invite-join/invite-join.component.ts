@@ -178,11 +178,14 @@ export class InviteJoinComponent {
    * Waits, where a room server offers a login the reader has not made, for them to log in or to
    * choose to watch. A link opened as on any other table would otherwise take them in as a guest
    * without a word, and the login is in the lobby, which a link never opens. A screen for streaming,
-   * which always watches, and a tab that chose to watch the room before are not asked.
+   * which always watches, and a tab that chose to watch the room before are not asked; nor is a
+   * reader where the server is not known to offer a login, once it has been asked.
    */
   private async logInOrWatch(roomKey: string): Promise<void> {
-    if (!this.auth.isConfigured || this.auth.account() || this.auth.offersLogin() === false) return;
+    if (!this.auth.isConfigured || this.auth.account()) return;
     if (this.overlayMode.active() || readWatchedWithoutLogin().includes(roomKey)) return;
+    if (this.auth.offersLogin() === null) await this.auth.refreshProviders();
+    if (this.auth.offersLogin() !== true || this.auth.account()) return;
     this.askedRoomKey = roomKey;
     this.state.set('askLogin');
     await new Promise<void>((resolve) => (this.answerLogin = resolve));
