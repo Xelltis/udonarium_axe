@@ -172,6 +172,10 @@ describe('lintChatSyntax', () => {
       expect(codes('やあ @hide')).toEqual([]);
     });
 
+    it('says nothing of an at mark no portrait answers that plays a cut-in’s sound', () => {
+      expect(codes('やあ @爆発', { portraits, isChatCutIn: (name) => name === '爆発' })).toEqual([]);
+    });
+
     it('finds a portrait or cut-in on a line aimed at targets, which ends with their name', () => {
       expect(codes('t:HP-1 @笑顔', { portraits, targets: [target] })).toEqual(['portrait.lostByTarget']);
       expect(codes('t:HP-1 爆発', { targets: [target], isChatCutIn: () => true })).toEqual(['cutIn.lostByTarget']);

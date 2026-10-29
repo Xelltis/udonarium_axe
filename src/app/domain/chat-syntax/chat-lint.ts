@@ -174,7 +174,7 @@ function lintMessage(
         break;
       case 'portrait':
         if (targeting) add(span, 'warning', 'portrait.lostByTarget');
-        else if (!portraitFound) add(span, 'warning', 'portrait.unknown');
+        else if (!portraitFound && !playsCutInSound(span.command, context)) add(span, 'warning', 'portrait.unknown');
         break;
       case 'cutIn':
         if (portraitFound || !context.isChatCutIn(span.name)) break;
@@ -309,6 +309,11 @@ function lintBuff(source: string, span: TextRange, pieces: readonly GameCharacte
     const named = findStatusAilment(StatusAilmentCatalog.instance.ailments, parts[0]);
     if (!named && parts[2] && Number.isNaN(parseInt(parts[2]))) add(span, 'info', 'buff.roundsDefault');
   }
+}
+
+/** Whether an `@name` no portrait answers plays the sound of the cut-in of that name instead, as it is meant to. */
+function playsCutInSound(command: PortraitCommand, context: ChatLintContext): boolean {
+  return command.type === 'name' && context.isChatCutIn(command.name);
 }
 
 /** Whether a portrait command finds a picture of the speaker's, so that it is taken off the line. */
