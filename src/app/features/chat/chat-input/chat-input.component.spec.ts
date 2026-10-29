@@ -161,11 +161,13 @@ describe('ChatInputComponent', () => {
       fixture.detectChanges();
     }
 
-    it('runs through the portraits of a speaker with several, in the row of the selects', async () => {
+    it('runs through the portraits of a speaker with several, at the start of the row of buttons', async () => {
       await speakAs(withPortraits(3));
 
       expect(slider()?.max).toBe('2');
-      expect(slider()?.closest('[data-testid="chat-input-selects"]')).not.toBeNull();
+      const row = slider()?.closest('[data-testid="chat-input-edits"]');
+      expect(row).not.toBeNull();
+      expect(row?.firstElementChild?.matches('[data-testid="chat-input-portraits"]')).toBe(true);
     });
 
     it('speaks with the portrait the knob is moved to', async () => {

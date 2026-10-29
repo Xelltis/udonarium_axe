@@ -203,6 +203,12 @@ test.describe('the character a chat line is sent as', () => {
     for (const select of await selects.locator('ng-select').all()) {
       expect((await select.boundingBox())!.width).toBeGreaterThanOrEqual(72);
     }
+    const buttons = (await edits.getByTestId('chat-input-color').boundingBox())!;
+    const right = (await rowOf(edits)).x + (await rowOf(edits)).width;
+    expect(right - (buttons.x + buttons.width)).toBeLessThan(80);
+    expect((await edits.getByTestId('chat-toolbar-bold').boundingBox())!.x).toBeGreaterThan(
+      (await rowOf(edits)).x + 100
+    );
 
     await edits.getByTestId('chat-input-color').click();
     await expect(page.locator('chat-window').getByRole('button', { name: '持ち色2' })).toBeVisible();

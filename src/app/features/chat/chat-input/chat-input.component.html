@@ -74,6 +74,8 @@
           }}</span>
         }
       </div>
+    </div>
+    <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1" data-testid="chat-input-edits">
       @if (hasPortraitSlider()) {
         <portrait-slider
           class="min-w-0"
@@ -83,9 +85,7 @@
           (picked)="portraitIndex = $event"
         />
       }
-    </div>
-    <div class="flex min-w-0 flex-wrap items-center gap-1" data-testid="chat-input-edits">
-      <div class="flex shrink-0 items-center">
+      <div class="ml-auto flex shrink-0 items-center">
         @if (canSpeak()) {
           @defer (when toolbarWanted()) {
             <chat-toolbar class="shrink-0" [field]="textField()" [groups]="syntaxGroups" (edited)="takeFieldText()" />
@@ -117,8 +117,6 @@
         >
           <span [class]="swatchClass" [style.background-color]="chatColor(colorSelectNo())"></span>
         </button>
-      </div>
-      <div class="ml-auto flex shrink-0 items-center gap-0.5">
         @if (showsMyDice()) {
           <button
             type="button"
