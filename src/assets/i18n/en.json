@@ -4152,10 +4152,12 @@
         "effect": {
           "blank": "Effects after an empty 《》 are not read",
           "unknown": "The effect \"{{name}}\" is not in the library",
-          "extra": "One effect plays per line; the rest are not read"
+          "extra": "One effect plays per line; the rest are not read",
+          "noTarget": "No piece is targeted or selected, so the effect “{{name}}” does not play"
         },
         "battle": {
-          "noSpeaker": "The speaker is no piece, so no battle cut-in plays"
+          "noSpeaker": "The speaker is no piece, so no battle cut-in plays",
+          "noTarget": "No piece is targeted or selected, so the battle cut-in does not play"
         },
         "diceToken": {
           "unknown": "There is no piece named \"{{name}}\"",

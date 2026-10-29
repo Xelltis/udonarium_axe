@@ -176,6 +176,20 @@ describe('lintChatSyntax', () => {
       expect(codes('《爆炎》《雷》', { hasEffect: () => true })).toEqual(['effect.extra']);
     });
 
+    it('finds an effect with no piece targeted or selected to play on, but not in a line aimed at targets', () => {
+      const known = { hasEffect: () => true };
+      expect(lint('《爆炎》', { ...known, hasEffectTarget: false })).toEqual([
+        expect.objectContaining({ code: 'effect.noTarget', severity: 'warning', params: { name: '爆炎' } }),
+      ]);
+      expect(codes('《爆炎》', { ...known, hasEffectTarget: true })).toEqual([]);
+      expect(codes('t:HP-1 《爆炎》', { ...known, hasEffectTarget: false })).not.toContain('effect.noTarget');
+    });
+
+    it('finds a battle with nobody to strike, the speaker being a piece', () => {
+      expect(codes('《vs》', { hasEffectTarget: false })).toEqual(['battle.noTarget']);
+      expect(codes('《vs》', { hasEffectTarget: true })).toEqual([]);
+    });
+
     it('finds dice on a piece that is not there', () => {
       expect(lint('2d6 dice:オーク')[0]).toMatchObject({ code: 'diceToken.unknown', params: { name: 'オーク' } });
       expect(codes('2d6 dice:', {})).toEqual([]);

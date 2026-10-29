@@ -2,6 +2,7 @@ import { computed, inject, Injectable, type Signal, signal } from '@angular/core
 import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -73,6 +74,7 @@ export class ChatLintService {
   private readonly effectLibrary = inject(EffectLibraryService);
   private readonly imageStorage = inject(ImageStorage);
   private readonly stampRules = inject(StampRulesService);
+  private readonly selection = inject(SelectionSignalService);
 
   private readonly systemsArrived = signal(0);
   private readonly fetched = new Map<string, GameSystemClass>();
@@ -103,6 +105,11 @@ export class ChatLintService {
     const speaker = found instanceof GameCharacter ? found : null;
     const pieces = this.objectStore.getObjects<GameCharacter>(GameCharacter);
     const targets = pieces.filter((piece) => piece.location.name === 'table' && piece.targeted);
+    const selected = this.selection.selectedObject();
+    const selectedPiece = selected ? this.objectStore.get(selected.identifier) : null;
+    const hasEffectTarget =
+      pieces.some((piece) => piece.isVisibleOnTable && piece.targeted) ||
+      (selectedPiece instanceof GameCharacter && selectedPiece.isVisibleOnTable);
     for (const target of targets) this.objectChange.versionOf(target.identifier)();
     const cutIns = this.objectStore.getObjects<CutIn>(CutIn);
     const variables = source.mode === 'palette' ? this.variablesWritten(scan) : null;
@@ -118,6 +125,7 @@ export class ChatLintService {
       path,
       speaker,
       targets,
+      hasEffectTarget,
       isGameMaster: PeerCursor.isMyselfGameMaster,
       keptOffTable: PeerCursor.isMyselfKeptOffTable,
       referenceValue: (site: ReferenceSite) => {

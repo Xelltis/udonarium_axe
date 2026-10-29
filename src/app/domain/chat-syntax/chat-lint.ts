@@ -58,6 +58,8 @@ export const CHAT_LINT_CODES = [
   'effect.unknown',
   'effect.extra',
   'battle.noSpeaker',
+  'battle.noTarget',
+  'effect.noTarget',
   'diceToken.unknown',
   'diceToken.keptOffTable',
   'deco.unpaired',
@@ -106,6 +108,11 @@ export interface ChatLintContext {
   rollCheck(message: TextRange): RollCheck | null;
   /** Whether the room lets a stamp be sent in a line; every stamp where this is not told. */
   stampAllowed?(stampId: string): boolean;
+  /**
+   * Whether an effect from a line not aimed at targets has a piece to play on: one targeted, or else
+   * one selected. A line of chat plays no effect without one; taken to have one where this is not told.
+   */
+  readonly hasEffectTarget?: boolean;
 }
 
 /**
@@ -178,9 +185,12 @@ function lintMessage(
           effectsStopped = true;
         } else if (span.battle) {
           if (!context.speaker) add(span, 'info', 'battle.noSpeaker');
+          else if (!targeting && context.hasEffectTarget === false) add(span, 'warning', 'battle.noTarget');
         } else if (effectsStopped) break;
         else if (span.order > 0) add(span, 'info', 'effect.extra');
         else if (!context.hasEffect(span.name)) add(span, 'warning', 'effect.unknown', { params: { name: span.name } });
+        else if (!targeting && context.hasEffectTarget === false)
+          add(span, 'warning', 'effect.noTarget', { params: { name: span.name } });
         break;
       case 'diceToken':
         if (context.keptOffTable) add(span, 'warning', 'diceToken.keptOffTable');

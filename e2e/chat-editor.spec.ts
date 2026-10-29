@@ -329,6 +329,18 @@ test.describe('the chat editor', () => {
     await expectChatText(input, '');
   });
 
+  test('marks an effect with no piece targeted or selected to play on', async ({ page }) => {
+    const input = chatInput(page);
+    await input.click();
+    await page.keyboard.type('《');
+    await expect(page.locator('[data-testid="chat-suggestions"]')).toBeVisible();
+    await page.keyboard.press('Enter');
+    const chip = input.locator('[data-chip="effect"]');
+    await expect(chip).toHaveCount(1);
+    await expect(chip).toHaveClass(/chat-lint-warning/, { timeout: 5000 });
+    await expect(chip).toHaveAttribute('data-tip', /対象のコマがいない/);
+  });
+
   test('marks what will not work, and lists it from the button beside the box', async ({ page }) => {
     const input = chatInput(page);
     await input.fill(':HP-1');
