@@ -1,3 +1,4 @@
+import { decoratedRunsOf } from '@axe/domain/chat/chat-decoration';
 import {
   inlineStampsAlone,
   inlineStampSites,
@@ -38,6 +39,8 @@ describe('inline stamps', () => {
       '［了 解:seal:ok］',
       '［{了解}:seal:ok］',
       '［了解@:seal:ok］',
+      '［**:seal:ok］',
+      '［|字《じ》:seal:ok］',
     ]) {
       expect(inlineStampSites(text)).toEqual([]);
     }
@@ -52,6 +55,14 @@ describe('inline stamps', () => {
     expect(inlineStampSites(inlineStampToken('絵  の 名', 'image:abc'))).toEqual([
       { from: 0, to: '［絵_の_名:image:abc］'.length, label: '絵_の_名', id: 'image:abc' },
     ]);
+  });
+
+  it('keeps a name from pairing with the decorations and rubies of the line round it', () => {
+    const token = inlineStampToken('**大|事《だいじ》**[赤]\\', 'image:abc');
+    expect(token).toBe('［大事だいじ赤:image:abc］');
+
+    const runs = decoratedRunsOf(`**hi** ${token}`);
+    expect(runs.some((run) => run.text.includes(token))).toBe(true);
   });
 
   it('never lets a part of a name be read as a command', () => {

@@ -8,7 +8,8 @@ import { STAMP_FAMILIES } from '@axe/domain/chat/stamp-catalog';
  * Only an identifier of a family there is, or of a room's picture, is read as a stamp, so that
  * brackets someone happened to write are left as they are. The form keeps clear of what is
  * rewritten as a line is sent: it holds no brace, no at mark and no space. With no space in it, no
- * part of a name can start a word, so none is ever read as a `&` or `:` command.
+ * part of a name can start a word, so none is ever read as a `&` or `:` command. Nor does it hold
+ * a mark a decoration or a ruby is written with, which would pair with one in the line round it.
  */
 export interface InlineStampSite {
   readonly from: number;
@@ -20,9 +21,12 @@ export interface InlineStampSite {
 /** The longest name kept in the written form. */
 const LABEL_REACH = 40;
 
+/** What a name may not hold: the form's own marks, what a sent line rewrites, and the marks of decorations and rubies. */
+const LABEL_BARRED = '［］:{}｛｝@＠*＊\\[\\]|｜《》\\\\';
+
 /** `［name:id］`, the identifier of a family there is or of a room's picture. */
 export const INLINE_STAMP = new RegExp(
-  `［([^［］:{}｛｝@＠\\s]{1,${LABEL_REACH}}):((?:${STAMP_FAMILIES.join('|')}):[a-z0-9]+|image:[^［］\\s]+)］`,
+  `［([^${LABEL_BARRED}\\s]{1,${LABEL_REACH}}):((?:${STAMP_FAMILIES.join('|')}):[a-z0-9]+|image:[^［］\\s]+)］`,
   'g'
 );
 
@@ -43,7 +47,7 @@ export function inlineStampSites(text: string): InlineStampSite[] {
  */
 export function inlineStampToken(label: string, id: string): string {
   const kept = label
-    .replace(/[［］:{}｛｝@＠]/g, '')
+    .replace(new RegExp(`[${LABEL_BARRED}]`, 'g'), '')
     .trim()
     .replace(/\s+/g, '_')
     .slice(0, LABEL_REACH);
