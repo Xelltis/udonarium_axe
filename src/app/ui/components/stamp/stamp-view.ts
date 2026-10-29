@@ -105,9 +105,11 @@ let stampsWritten = 0;
 /**
  * A stamp written out as markup, for text drawn as markup to hold, as a line of chat is: as tall as
  * the letters round it, or in a box of the size given in pixels. Every word in it is escaped, and
- * a seal gives its filter an id of its own, so no seal leans on another that may not be drawn.
+ * a seal gives its filter an id of its own, so no seal leans on another that may not be drawn: one
+ * made from `key`, which a line written again gives again, so the same line is the same markup, or
+ * else one counted afresh.
  */
-export function stampMarkup(stampId: string, view: StampView, box: number | 'inline'): string {
+export function stampMarkup(stampId: string, view: StampView, box: number | 'inline', key?: string): string {
   const height = box === 'inline' ? '1.5em' : `${box}px`;
   const name = escapeHtml(view.name);
   const width = view.kind === 'words' ? '' : `width:${height};`;
@@ -118,7 +120,8 @@ export function stampMarkup(stampId: string, view: StampView, box: number | 'inl
       return `${open}<span class="leading-none font-black whitespace-nowrap italic" style="color:${escapeHtml(view.color)};font-size:${size};text-shadow:${SOUND_EFFECT_EDGE};transform:rotate(${view.tilt}deg)">${escapeHtml(view.words)}</span></span>`;
     }
     case 'picture': {
-      const svg = view.svg.replaceAll(SEAL_FILTER_ID, `${SEAL_FILTER_ID}-line-${++stampsWritten}`);
+      const own = key === undefined ? `${++stampsWritten}` : key.replace(/[^A-Za-z0-9_-]/g, '_');
+      const svg = view.svg.replaceAll(SEAL_FILTER_ID, `${SEAL_FILTER_ID}-line-${own}`);
       return `${open}<span class="block size-full" style="transform:rotate(${view.tilt}deg)">${svg}</span></span>`;
     }
     case 'image':

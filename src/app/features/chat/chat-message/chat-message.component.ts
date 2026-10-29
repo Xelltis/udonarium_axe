@@ -49,7 +49,7 @@ import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
 import { inlineStampsAlone, inlineStampSites } from '@axe/domain/chat/inline-stamp';
-import { isPictureStamp, stampOf } from '@axe/domain/chat/stamp-catalog';
+import { IMAGE_STAMP_PREFIX, isPictureStamp, stampOf } from '@axe/domain/chat/stamp-catalog';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { encodeVnEmote, vnBodyOf, vnEmoteOf } from '@axe/domain/visual-novel/vn-emote';
@@ -1081,15 +1081,20 @@ export class ChatMessageComponent {
 
   /**
    * Draws the stamps put inside a line, as tall as its letters, or as large as a stamp sent on its
-   * own where the line is made of stamps alone. A room's picture is drawn again once it arrives.
+   * own where the line is made of stamps alone. A room's picture is drawn again once it arrives;
+   * only a line holding one follows the pictures arriving. Each stamp is keyed by the line and its
+   * place in it, so the line written again is the same markup and is left as it stands.
    */
   private stampsIn(body: string): InlineStampMarkup {
-    this.objectChange.fileVersion();
+    if (inlineStampSites(body).some((site) => site.id.startsWith(IMAGE_STAMP_PREFIX))) this.objectChange.fileVersion();
     const alone = inlineStampsAlone(body) !== null;
     const source = roomStampViewSource(this.t, this.imageStorage, this.stampPacks);
+    const line = this.chatMessage?.identifier ?? 'line';
+    let drawn = 0;
     return (stampId) => {
       const view = stampViewOf(stampId, source);
-      return view ? stampMarkup(stampId, view, alone ? this.stampLineSize(stampId, true) : 'inline') : null;
+      const box = alone ? this.stampLineSize(stampId, true) : 'inline';
+      return view ? stampMarkup(stampId, view, box, `${line}-${drawn++}`) : null;
     };
   }
 }

@@ -34,6 +34,14 @@ describe('stamp markup', () => {
     expect(second).toContain('height:64px');
   });
 
+  it('gives a seal keyed the same filter each time it is written', () => {
+    const view = stampViewOf('seal:ok', source())!;
+
+    expect(stampMarkup('seal:ok', view, 'inline', 'line-1')).toBe(stampMarkup('seal:ok', view, 'inline', 'line-1'));
+    expect(stampMarkup('seal:ok', view, 'inline', 'line-1')).not.toBe(stampMarkup('seal:ok', view, 'inline', 'line-2'));
+    expect(stampMarkup('seal:ok', view, 'inline', 'a b"c')).toContain(`${SEAL_FILTER_ID}-line-a_b_c`);
+  });
+
   it('draws a room picture once it is here, escaping its address and name', () => {
     const view = stampViewOf('image:named', source({ named: { url: 'blob:x?a=1&b="2"', name: 'file' } }))!;
     const html = stampMarkup('image:named', view, 'inline');

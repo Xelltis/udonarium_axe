@@ -643,6 +643,30 @@ describe('ChatMessageComponent', () => {
       expect(result).toBe('<span class="chat-quote">@プレイヤー<br>aaaaaaaaaa</span>');
     });
 
+    it('writes a line holding a seal the same each time, so it is not drawn again for nothing', () => {
+      fixture.componentRef.setInput('chatMessage', { identifier: 'seal-msg-id' } as ChatMessage);
+
+      const first = component.escapeHtmlAndRuby('了解［了解:seal:ok］と［了解:seal:ok］');
+      const again = component.escapeHtmlAndRuby('了解［了解:seal:ok］と［了解:seal:ok］');
+
+      expect(again).toBe(first);
+      const ids = [...first.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
+      expect(ids).toHaveLength(2);
+      expect(new Set(ids).size).toBe(2);
+    });
+
+    it('follows the pictures arriving only for a line holding a room picture', () => {
+      const objectChange = TestBed.inject(ObjectChangeService);
+      const followed = vi.spyOn(objectChange, 'fileVersion');
+      fixture.componentRef.setInput('chatMessage', { identifier: 'picture-msg-id' } as ChatMessage);
+
+      component.escapeHtmlAndRuby('ただの発言［了解:seal:ok］');
+      expect(followed).not.toHaveBeenCalled();
+
+      component.escapeHtmlAndRuby('絵［絵:image:abc］');
+      expect(followed).toHaveBeenCalled();
+    });
+
     it('leaves an unquoted line alone', () => {
       const mockMessage = { identifier: 'no-quote-msg-id' } as ChatMessage;
       fixture.componentRef.setInput('chatMessage', mockMessage);
