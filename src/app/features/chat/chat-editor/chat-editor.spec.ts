@@ -135,6 +135,15 @@ describe('the chat editor', () => {
     expect(editor.text().startsWith('**ab')).toBe(true);
   });
 
+  it('reads what it writes as syntax, as typed syntax is read', () => {
+    const editor = mount('ab');
+
+    editor.replaceRange(1, 1, '**x**');
+
+    expect(editor.text()).toBe('a**x**b');
+    expect(editor.editor.state.doc.firstChild!.child(1).marks.map((mark) => mark.type.name)).toContain('chatBold');
+  });
+
   it('puts the caret after what it wrote, and keeps a selection beyond it where it stood', () => {
     const editor = mount('x **y** z');
 

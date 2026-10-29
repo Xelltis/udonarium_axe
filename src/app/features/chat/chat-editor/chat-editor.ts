@@ -105,6 +105,9 @@ export interface ChatEditorStart {
 /** Marks a change made through the field rather than by the reader, which the holder knows of already. */
 const FROM_HOLDER = 'chatFromHolder';
 
+/** A letter of the private use area, standing in for syntax written in until the text is read again. */
+const STAND_IN_LETTER = '\ue000';
+
 /** Marks the change that turned syntax just typed into its chip, which Backspace right after takes back. */
 const CHIP_MADE = 'chatChipMade';
 
@@ -307,13 +310,15 @@ export class ChatEditorField implements ChatTextField {
   /**
    * Writes text over a stretch of the text, as the toolbar does, in what the editor holds rather
    * than in the text it is written as, so the marks a decoration is written with at the edges of
-   * the stretch stay where they are. What is written is then read again, as typed syntax is.
+   * the stretch stay where they are. It goes in as letters standing in for it, which nothing reads
+   * as a mark, and then as the syntax it is, read again as typed syntax is.
    */
   replaceRange(from: number, to: number, insert: string, select?: ChatFieldSelection): void {
     const out = this.writtenNow();
     const start = out.toPos(from, from === to ? -1 : 1);
     const end = Math.max(start, out.toPos(to, -1));
-    const tr = this.editor.state.tr.insertText(insert, start, end);
+    const standIn = STAND_IN_LETTER.repeat(insert.length);
+    const tr = this.editor.state.tr.insertText(standIn, start, end);
     const pick = select ?? { from: from + insert.length, to: from + insert.length };
     const docAt = (offset: number, assoc: -1 | 1): number => {
       if (offset >= from && offset <= from + insert.length) return start + (offset - from);
@@ -325,7 +330,10 @@ export class ChatEditorField implements ChatTextField {
       from: written.toOffset(docAt(pick.from, 1), pick.from === pick.to ? -1 : 1),
       to: written.toOffset(docAt(pick.to, -1), -1),
     };
-    this.setText(written.text, caret);
+    const at = written.text.indexOf(standIn);
+    const text =
+      insert && at >= 0 ? written.text.slice(0, at) + insert + written.text.slice(at + standIn.length) : written.text;
+    this.setText(text, caret);
   }
 
   focus(): void {
