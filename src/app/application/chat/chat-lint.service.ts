@@ -89,16 +89,13 @@ export class ChatLintService {
   private readonly systems = inject(GameSystemPrefetchService);
 
   /**
-   * What this seat may do, read from its cursor: only a change to that makes a text checked again,
-   * not every move of the cursor, which comes at every step of a movement planned.
+   * Whether this seat is the game master's, read from its cursor: only a change to that makes a text
+   * checked again, not every move of the cursor, which comes at every step of a movement planned.
    */
-  private readonly seat = computed(
-    () => {
-      this.objectChange.trackMyCursor();
-      return { isGameMaster: PeerCursor.isMyselfGameMaster, keptOffTable: PeerCursor.isMyselfKeptOffTable };
-    },
-    { equal: (a, b) => a.isGameMaster === b.isGameMaster && a.keptOffTable === b.keptOffTable }
-  );
+  private readonly isGameMaster = computed(() => {
+    this.objectChange.trackMyCursor();
+    return PeerCursor.isMyselfGameMaster;
+  });
   private readonly rollChecks = new Map<string, RollCheck>();
 
   /** Starts checking a text, for as long as its signals are read. */
@@ -116,7 +113,7 @@ export class ChatLintService {
     this.systems.arrivals();
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     this.objectChange.collectionOf(CutIn.aliasName)();
-    const seat = this.seat();
+    const isGameMaster = this.isGameMaster();
     this.uiSignal.targetChange();
     const presets = this.effectLibrary.presets();
 
@@ -147,8 +144,8 @@ export class ChatLintService {
       speaker,
       targets,
       hasEffectTarget,
-      isGameMaster: seat.isGameMaster,
-      keptOffTable: seat.keptOffTable,
+      isGameMaster,
+      keptOffTable: PeerCursor.isMyselfKeptOffTable,
       referenceValue: (site: ReferenceSite) => {
         const typed = scan.text.slice(site.from, site.to);
         if (site.targeted && targets.length < 1) return null;
@@ -161,7 +158,7 @@ export class ChatLintService {
       stampAllowed: (stampId: string) => this.stampRules.allows('line', stampId),
       hasEffect: (name: string) => {
         const needle = name.trim();
-        return presets.some((preset) => preset.name.trim() === needle && (!preset.gmOnly || seat.isGameMaster));
+        return presets.some((preset) => preset.name.trim() === needle && (!preset.gmOnly || isGameMaster));
       },
       hasPieceNamed: (name: string) => pieces.some((piece) => piece.name.trim() === name.trim()),
       rollCheck: (message: TextRange) =>

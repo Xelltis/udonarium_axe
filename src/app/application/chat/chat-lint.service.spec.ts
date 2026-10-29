@@ -132,6 +132,21 @@ describe('ChatLintService', () => {
     }
   });
 
+  it('reads afresh at each change to the text whether the seat is kept off the table', () => {
+    const text = signal(':HP-1');
+    const { session } = watch('', { text });
+    expect(codesOf(session)).toEqual([]);
+
+    const keptOff = vi.spyOn(PeerCursor, 'isMyselfKeptOffTable', 'get').mockReturnValue(true);
+    try {
+      text.set(':HP-2');
+
+      expect(codesOf(session)).toEqual(['edit.keptOffTable']);
+    } finally {
+      keptOff.mockRestore();
+    }
+  });
+
   it('reads the variables written into a palette being edited', () => {
     const { session } = watch('//強さ=3\n{強さ} 殴る\n{弱さ}', { path: 'palette', mode: 'palette' });
     expect(session.diagnostics().map((found) => [found.code, found.params?.['name']])).toEqual([
