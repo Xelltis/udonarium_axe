@@ -105,6 +105,20 @@ test.describe('the chat editor', () => {
     await expectChatText(input, '《vs');
   });
 
+  test('takes a chip away whole with Backspace once the caret has moved on from it', async ({ page }) => {
+    const input = chatInput(page);
+    await input.click();
+    await page.keyboard.type('《vs》');
+    await expect(input.locator('[data-chip="effect"]')).toHaveCount(1);
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowRight');
+
+    await page.keyboard.press('Backspace');
+
+    await expect(input.locator('[data-chip="effect"]')).toHaveCount(0);
+    await expectChatText(input, '');
+  });
+
   test('pastes syntax as the decorations and chips it writes, the letters as they are on Ctrl+Shift+V, and copies back as syntax', async ({
     page,
     context,

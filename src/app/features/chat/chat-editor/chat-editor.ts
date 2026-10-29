@@ -104,6 +104,9 @@ export interface ChatEditorStart {
 /** Marks a change made through the field rather than by the reader, which the holder knows of already. */
 const FROM_HOLDER = 'chatFromHolder';
 
+/** Marks the change that turned syntax just typed into its chip, which Backspace right after takes back. */
+const CHIP_MADE = 'chatChipMade';
+
 /** How long after the last key the text is checked for what will not work. */
 const LINT_DELAY_MS = 300;
 
@@ -149,6 +152,8 @@ export class ChatEditorField implements ChatTextField {
   readonly editor: Editor;
   private written: { doc: ProseMirrorNode; language: ChatTagLanguage; out: ChatDocText } | null = null;
   private composedAt = -Infinity;
+  /** Where the caret stood right after syntax typed became its chip, until anything else changes. */
+  private chipMadeAt: number | null = null;
   /** Marks what will not work once the reader has stood still a moment. */
   private readonly lintLater = debounce(() => this.paintSyntax(true), LINT_DELAY_MS);
   /** Marks it a moment after the room changes, and at that pace for as long as it keeps changing. */
@@ -448,6 +453,8 @@ export class ChatEditorField implements ChatTextField {
   }
 
   private afterTransaction(transaction: Transaction): void {
+    if (transaction.getMeta(CHIP_MADE)) this.chipMadeAt = transaction.selection.from;
+    else if (transaction.docChanged || transaction.selectionSet) this.chipMadeAt = null;
     this.updateActiveMarks();
     this.bubble.refresh();
     if (!transaction.docChanged) return;
@@ -575,10 +582,14 @@ export class ChatEditorField implements ChatTextField {
     });
   }
 
-  /** Turns a chip right before the caret back into the text it stands for, less its last letter. */
+  /**
+   * Turns a chip right before the caret back into the text it stands for, less its last letter,
+   * right after the syntax typed became it; any other chip goes whole, as one letter would.
+   */
   private unchipBeforeCaret(): boolean {
     const state = this.editor.state;
     const { empty, $from } = state.selection;
+    if (this.chipMadeAt !== $from.pos) return false;
     const before = $from.nodeBefore;
     const chip = empty && before ? chipOfNode(before) : null;
     if (!chip || !before) return false;
@@ -697,7 +708,7 @@ export class ChatEditorField implements ChatTextField {
     chip: ChatRichChip,
     marks: readonly Mark[]
   ) {
-    tr.replaceWith(range.from, range.to, nodeOfChip(this.schema, chip, marks));
+    tr.replaceWith(range.from, range.to, nodeOfChip(this.schema, chip, marks)).setMeta(CHIP_MADE, true);
   }
 
   /** The syntax string a piece of the document is copied as. */
