@@ -1099,7 +1099,7 @@ export class ChatInputComponent {
     if (lone) {
       this.chatHistory.push(this.text);
       this.text = '';
-      this.textField()?.setText('');
+      this.textField()?.setText('', undefined, false);
       this.previousWritingLength = 0;
       this.sendStamp(lone);
       return;
@@ -1144,7 +1144,7 @@ export class ChatInputComponent {
       this.chat.emit(composeChatOutgoing({ ...draft, gameSystem }));
     });
     this.text = '';
-    this.textField()?.setText('');
+    this.textField()?.setText('', undefined, false);
     this.previousWritingLength = this.text.length;
     this.kickCalcFitHeight();
     this.cancelReply();

@@ -98,6 +98,16 @@ describe('the chat editor', () => {
     expect(editor.editor.state.doc.lastChild!.lastChild!.marks).toEqual([]);
   });
 
+  it('brings back no line cleared as sent with an undo', () => {
+    const editor = mount('');
+    type(editor, 'sent');
+
+    editor.setText('', undefined, false);
+    editor.editor.commands.undo();
+
+    expect(editor.text()).toBe('');
+  });
+
   it('writes over a stretch across the edge of a decoration, leaving its marks where they stand', () => {
     const editor = mount('**abc**d');
 

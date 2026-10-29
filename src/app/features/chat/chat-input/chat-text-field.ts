@@ -49,8 +49,11 @@ export interface ChatTextField {
   readonly element: HTMLElement;
   text(): string;
   selection(): ChatFieldSelection;
-  /** Puts the text in whole, the caret at its end or the selection where given. */
-  setText(text: string, select?: ChatFieldSelection): void;
+  /**
+   * Puts the text in whole, the caret at its end or the selection where given; as no step to undo
+   * where `undoable` is false, as the box cleared once its line is sent.
+   */
+  setText(text: string, select?: ChatFieldSelection, undoable?: boolean): void;
   /** Writes over a stretch of the text, the caret after what was written or the selection where given. */
   replaceRange(from: number, to: number, insert: string, select?: ChatFieldSelection): void;
   focus(): void;
