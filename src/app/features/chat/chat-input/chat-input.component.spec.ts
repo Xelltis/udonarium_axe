@@ -618,7 +618,7 @@ describe('ChatInputComponent', () => {
       }
     });
 
-    it('wraps the words picked out in the plain box in the decoration chosen on the toolbar, and keeps them picked out', async () => {
+    it('wraps the words picked out in the plain box in the decoration chosen on the toolbar, keeps them picked out and takes them as the line', async () => {
       fixture.componentRef.setInput('canSpeak', true);
       fixture.detectChanges();
       component.text = '今日は晴れ';
@@ -639,6 +639,7 @@ describe('ChatInputComponent', () => {
 
       expect(box.value).toBe('今日は**晴れ**');
       expect([box.selectionStart, box.selectionEnd]).toEqual([5, 7]);
+      expect(component.text).toBe('今日は**晴れ**');
     });
 
     it('sends the one picked under the words in the box, as the send button sends them, and clears the box', async () => {

@@ -8,6 +8,7 @@ import {
   inject,
   Injector,
   input,
+  output,
   signal,
   viewChild,
 } from '@angular/core';
@@ -55,6 +56,11 @@ export class ChatToolbarComponent {
   readonly compact = input(false);
   /** The syntax there is to put in, worked out as the insert button opens. */
   readonly groups = input<() => ChatSyntaxGroup[]>(() => []);
+  /**
+   * Tells that the buttons have written into the box, for what holds it to take the box's text as
+   * the line being written, as it does what is typed.
+   */
+  readonly edited = output<void>();
 
   protected readonly buttonClass =
     'text-ui-muted hover:bg-ui-hover hover:text-ui-text aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent rounded-ui-sm m-0 flex h-7 min-w-7 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_.material-icons]:text-[18px]!';
@@ -121,7 +127,10 @@ export class ChatToolbarComponent {
   }
 
   protected apply(change: ChatMarkChange): void {
-    this.field()?.applyMark(change);
+    const field = this.field();
+    if (!field) return;
+    field.applyMark(change);
+    this.edited.emit();
   }
 
   protected setSize(size: ChatSizeKey | null): void {
@@ -241,6 +250,7 @@ export class ChatToolbarComponent {
     const reading = this.rubyReading().replace(/[《》\n]/g, '');
     if (!field || !base || !reading) return;
     field.insertChip({ kind: 'ruby', raw: `|${base}《${reading}》`, base, reading });
+    this.edited.emit();
     this.close();
   }
 
@@ -251,6 +261,7 @@ export class ChatToolbarComponent {
     const { from, to } = field.selection();
     field.replaceRange(from, to, this.rubyBase());
     field.focus();
+    this.edited.emit();
     this.close();
   }
 

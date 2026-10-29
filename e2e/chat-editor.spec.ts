@@ -13,6 +13,19 @@ async function withEditor(page: Page): Promise<void> {
   await expect(page.locator('chat-window [data-chat-input-mode="rich"]')).toBeVisible({ timeout: 10000 });
 }
 
+/** Puts a ruby in from the toolbar's ruby popover, the words and their reading typed into it. */
+async function rubyFromToolbar(page: Page, base: string, reading: string): Promise<void> {
+  await page.locator('chat-window [data-testid="chat-toolbar-ruby"]').click();
+  await page.getByTestId('chat-toolbar-ruby-base').fill(base);
+  await page.getByTestId('chat-toolbar-ruby-reading').fill(reading);
+  await page.getByTestId('chat-toolbar-ruby-apply').click();
+}
+
+/** The lines in the log that hold a ruby. */
+function linesWithRuby(page: Page) {
+  return page.locator('chat-tab chat-message').filter({ has: page.locator('ruby.chat-ruby') });
+}
+
 test.describe('the chat editor', () => {
   test.beforeEach(async ({ page }) => {
     await withEditor(page);
@@ -147,6 +160,38 @@ test.describe('the chat editor', () => {
     await page.keyboard.press('Control+b');
     await page.keyboard.type('太く');
     await expectChatText(input, '普通**太く**');
+  });
+
+  test('sends a line of a ruby alone, typed or put in from the toolbar', async ({ page }) => {
+    const input = chatInput(page);
+    await input.click();
+    await page.keyboard.type('|漢字《かんじ》');
+    await expect(input.locator('[data-chip="ruby"]')).toHaveCount(1);
+    await input.press('Enter');
+    await expectChatText(input, '');
+    await expect(linesWithRuby(page)).toHaveCount(1);
+
+    await rubyFromToolbar(page, '仮名', 'かな');
+    await expectChatText(input, '|仮名《かな》');
+    await input.press('Enter');
+    await expectChatText(input, '');
+    await expect(linesWithRuby(page)).toHaveCount(2);
+    await expect(linesWithRuby(page).last().locator('rt')).toHaveText('かな');
+  });
+
+  test('takes a ruby off from the toolbar, sending the words left', async ({ page }) => {
+    const input = chatInput(page);
+    await input.click();
+    await rubyFromToolbar(page, '漢字', 'かんじ');
+    await input.locator('[data-chip="ruby"]').click();
+    await page.locator('chat-window [data-testid="chat-toolbar-ruby"]').click();
+    await page.getByRole('button', { name: 'ルビを外す' }).click();
+    await expectChatText(input, '漢字');
+
+    await input.press('Enter');
+    await expectChatText(input, '');
+    await expect(page.locator('chat-tab chat-message').filter({ hasText: '漢字' })).toHaveCount(1);
+    await expect(linesWithRuby(page)).toHaveCount(0);
   });
 
   test('opens a bar over the words selected, standing clear of the toolbar', async ({ page }) => {
@@ -306,5 +351,17 @@ test.describe('the plain box', () => {
     await input.selectText();
     await page.locator('chat-window [data-testid="chat-toolbar-bold"]').click();
     await expectChatText(input, '**強く**');
+  });
+
+  test('sends a line of a ruby alone, put in from the toolbar', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('chat-preferences', JSON.stringify({ richInput: false })));
+    await waitAppReady(page);
+    const input = chatInput(page);
+    await input.click();
+    await rubyFromToolbar(page, '漢字', 'かんじ');
+    await expectChatText(input, '|漢字《かんじ》');
+    await input.press('Enter');
+    await expectChatText(input, '');
+    await expect(linesWithRuby(page)).toHaveCount(1);
   });
 });

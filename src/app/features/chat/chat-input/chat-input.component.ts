@@ -195,6 +195,14 @@ export class ChatInputComponent {
     field.focus();
     this.kickCalcFitHeight();
   }
+
+  /** Takes what the toolbar wrote into the box as the line being written, as what is typed is taken. */
+  protected takeFieldText(): void {
+    const field = this.textField();
+    if (!field) return;
+    this.text = field.text();
+    this.onInput();
+  }
   private readonly batchService = inject(BatchService);
   private readonly contextMenu = inject(ContextMenuService);
   private readonly language = inject(LanguageService);

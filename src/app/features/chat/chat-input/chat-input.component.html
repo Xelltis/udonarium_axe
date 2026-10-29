@@ -209,7 +209,12 @@
 
     @if (canSpeak()) {
       @defer (when toolbarWanted()) {
-        <chat-toolbar [field]="textField()" [compact]="dense() || isCompact()" [groups]="syntaxGroups" />
+        <chat-toolbar
+          [field]="textField()"
+          [compact]="dense() || isCompact()"
+          [groups]="syntaxGroups"
+          (edited)="takeFieldText()"
+        />
       }
       <form name="chat-input" class="m-0 flex min-w-0 items-center gap-2">
         @if (inputMode() === 'rich') {
