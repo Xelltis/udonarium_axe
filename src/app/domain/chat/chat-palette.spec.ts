@@ -9,6 +9,7 @@ import {
   textTargetsCharacter,
 } from '@axe/domain/chat/chat-palette';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
+import { applyBuffEdit } from '@axe/domain/data/resource-edit-helpers';
 
 describe('ChatPalette', () => {
   beforeEach(() => {
@@ -285,6 +286,35 @@ describe('ChatPalette', () => {
       const target = makeCharacter(false, '4');
 
       expect(evaluateCharacterReferences('{HP} t{HP}', speaker, target).text).toBe('13 4');
+    });
+
+    describe('a buff named where a number is worked out', () => {
+      function wearing(character: GameCharacter, command: string): GameCharacter {
+        character.addBuffDataElement();
+        applyBuffEdit({ command, object: character, targeted: false }, character);
+        return character;
+      }
+
+      it('lends the number its note carries, to the amount the target is hit for', () => {
+        const attacker = wearing(makeCharacter(false), '&練技/攻撃+2/3');
+        const target = wearing(makeCharacter(false, '4'), '&守り/防護+3/3');
+
+        expect(evaluateCharacterReferences('t:HP-{練技}', attacker, target).text).toBe('t:HP-2');
+        expect(evaluateCharacterReferences('t:HP-({HP}+{練技}-t{守り})', attacker, target).text).toBe('t:HP-(13+2-3)');
+      });
+
+      it('brackets a number below nought after an operator, and keeps the sign of one joined on', () => {
+        const cursed = wearing(wearing(makeCharacter(false), '&呪い/攻撃-1/3'), '&加護/+10/3');
+
+        expect(evaluateCharacterReferences(':HP+{呪い}', cursed).text).toBe(':HP+(-1)');
+        expect(evaluateCharacterReferences('2d6+10{加護}', cursed).text).toBe('2d6+10+10');
+      });
+
+      it('still reads the words of the note anywhere else in the line', () => {
+        const attacker = wearing(makeCharacter(false), '&練技/攻撃+2/3');
+
+        expect(evaluateCharacterReferences('2d6 {練技}が効いている', attacker).text).toBe('2d6 攻撃+2が効いている');
+      });
     });
 
     it('leaves the line alone when nobody is speaking it', () => {

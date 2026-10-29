@@ -2,6 +2,7 @@ import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { toHalfWidth } from '@axe/core/util/string-util';
+import { parseBuffStrength } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { CHARACTER_REFERENCE, readReferenceName } from '@axe/domain/chat/chat-reference';
 import { isPaletteTabLine } from '@axe/domain/chat/palette-rows';
@@ -283,7 +284,7 @@ export function evaluateReferences(
   // One line can name the same sheet several times over, so it is read once for all of them.
   const calcPass = createCalcPass();
 
-  const evaluateElementText = (element: DataElement, useMax: boolean): string | null => {
+  const evaluateElementText = (element: DataElement, useMax: boolean, formula: FormulaPlace): string | null => {
     if (collectImageAttachments && element.fieldType === DataElementFieldType.IMAGE) {
       const imageIdentifier = String(element.value ?? '').trim();
       if (imageIdentifier.length > 0 && !attachmentImageIdentifiers.includes(imageIdentifier)) {
@@ -302,17 +303,20 @@ export function evaluateReferences(
     if (useMax && element.isNumberResource) {
       return `${element.value}`;
     }
+    if (formula !== 'none' && isWornBuff(element)) {
+      return strengthAsTerm(parseBuffStrength(`${element.currentValue ?? ''}`), formula);
+    }
     return element.isNumberResource ? `${element.currentValue}` : `${element.value}`;
   };
 
-  const fillReference = (match: string, name: string, useMax: boolean): string | null => {
+  const fillReference = (match: string, name: string, useMax: boolean, formula: FormulaPlace): string | null => {
     if (match.match(/^[tTｔＴ].*/)) {
       for (const variable of target?.chatPalette?.paletteVariables ?? []) {
         if (variable.name == name) return variable.value.replace(/[{｛]/g, 't{');
       }
       const element = target?.rootDataElement ? DataElement.findElementByReference(target.rootDataElement, name) : null;
       if (!element) return null;
-      const targetElementText = evaluateElementText(element, useMax);
+      const targetElementText = evaluateElementText(element, useMax, formula);
       if (targetElementText == null) return null;
       return targetElementText.match(/[{｛]\s*([^{}｛｝]+)\s*[}｝]/g)
         ? targetElementText.replace(/[{｛]/g, 't{')
@@ -323,7 +327,7 @@ export function evaluateReferences(
       if (variable.name == name) return variable.value;
     }
     const element = extendVariables ? DataElement.findElementByReference(extendVariables, name) : null;
-    return element ? evaluateElementText(element, useMax) : null;
+    return element ? evaluateElementText(element, useMax, formula) : null;
   };
 
   const limit = 128;
@@ -335,7 +339,7 @@ export function evaluateReferences(
     const line = evaluate;
     evaluate = evaluate.replace(CHARACTER_REFERENCE, (match, raw: string, offset: number) => {
       const { name, useMax } = readReferenceName(raw);
-      const filled = fillReference(match, name, useMax);
+      const filled = fillReference(match, name, useMax, formulaPlace(line, offset));
       if (filled == null) return keepUnfilled && !dropsUnanswered(line, offset) ? match : '';
       // Only a reference that was answered can bring more of them in, so only that keeps the pass going.
       isContinue = true;
@@ -358,6 +362,56 @@ function dropsUnanswered(line: string, offset: number): boolean {
   const end = leadingWordEnd(line);
   if (offset >= end || !/[0-9)\]}｝）］]/.test(line[offset - 1] ?? '')) return false;
   return looksLikeRollWord(line.slice(0, end).replace(/[tTｔＴ]?[{｛][^{}｛｝]*[}｝]/g, ''));
+}
+
+/**
+ * Where a reference stands in a number that is worked out: in the roll the line starts with or in
+ * the amount of a resource command (`:HP-{攻撃力}`, `t:HP-{攻撃力}`), after an operator or joined
+ * straight onto what comes before it, as `2d+10{加護}` is; or in no such number at all. A buff named
+ * in one lends the number its note carries, as its badge shows it, rather than the words of the note.
+ */
+type FormulaPlace = 'operand' | 'joined' | 'none';
+
+function formulaPlace(line: string, offset: number): FormulaPlace {
+  const end = leadingWordEnd(line);
+  const inRoll = offset < end && looksLikeRollWord(line.slice(0, end).replace(/[tTｔＴ]?[{｛][^{}｛｝]*[}｝]/g, ''));
+  if (!inRoll && !RESOURCE_COMMAND_WORD.test(line.slice(wordStart(line, offset), offset))) return 'none';
+  return /[-+=＋－＝*/×÷(（]$/.test(line.slice(0, offset)) ? 'operand' : 'joined';
+}
+
+/**
+ * A buff's strength as a term of the number it stands in: after an operator without a sign of its
+ * own, a negative one in brackets; joined on, with its sign, which is what joins it.
+ */
+function strengthAsTerm(strength: string, place: FormulaPlace): string {
+  if (place !== 'operand') return strength;
+  if (strength.startsWith('+')) return strength.slice(1);
+  return strength.startsWith('-') ? `(${strength})` : strength;
+}
+
+/** A word that is a resource command, read up to a point in it: the mark, a name and an operator before it. */
+const RESOURCE_COMMAND_WORD = /^[sSｓＳ]?[tTｔＴ]?[:：][^\s]*?[-+=＋－＝*/×÷]/;
+
+/** Where the word holding a point of a line starts, counting a space inside a reference's braces as part of it. */
+function wordStart(line: string, offset: number): number {
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < offset; index++) {
+    const character = line[index];
+    if (character === '{' || character === '｛') depth++;
+    else if ((character === '}' || character === '｝') && depth > 0) depth--;
+    else if (depth === 0 && /\s/.test(character)) start = index + 1;
+  }
+  return start;
+}
+
+/** Whether an element is a buff a character wears, kept under the character's buffs rather than on its sheet. */
+function isWornBuff(element: DataElement): boolean {
+  if (!element.isNumberResource || element.children.length > 0) return false;
+  for (let node = element.parent; node instanceof DataElement; node = node.parent) {
+    if (node.name === 'buff' && node.parent instanceof DataElement && node.parent.name === 'character') return true;
+  }
+  return false;
 }
 
 /** Where the first word of a line ends, counting a space inside a reference's braces as part of it. */
