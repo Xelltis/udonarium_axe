@@ -52,6 +52,22 @@ test.describe('editing a line in place', () => {
     await expect(line.locator('[data-chat-search-text] [data-stamp-id="seal:ok"]')).toBeVisible();
   });
 
+  test('marks no word that ends a line said as doing nothing there', async ({ page }) => {
+    const input = chatInput(page);
+    await input.fill('またね @アリス');
+    await input.press('Enter');
+    await expectChatText(input, '');
+    // Once it is edited, the word is drawn as a chip without its at mark, so the line is found by the rest.
+    const line = page.locator('chat-tab chat-message').filter({ hasText: 'またね' }).last();
+    await line.locator('.msg-text').hover();
+    await line.getByTestId('chat-message-action-edit').click();
+    const editor = line.locator('[data-chat-line-edit]');
+    await expect(editor.locator('[data-chip="portrait"]')).toHaveCount(1);
+
+    await page.waitForTimeout(500);
+    await expect(editor.locator('.chat-chip-idle')).toHaveCount(0);
+  });
+
   test('puts an edit down on Escape, the line as it was', async ({ page }) => {
     const { line, editor } = await sayAndEdit(page, 'そのまま');
     await page.keyboard.type('変えない');

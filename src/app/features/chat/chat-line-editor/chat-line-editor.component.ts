@@ -137,6 +137,7 @@ export class ChatLineEditorComponent {
   private readonly editorHostApi: ChatEditorHost = {
     mode: 'chat',
     marker: LINE_EDIT_ATTR,
+    readsLineEnd: false,
     placeholder: () => this.t('feature.chat.message.edit'),
     language: () => this.syntaxSource.tagLanguage(),
     cutInNames: () => new Set(),

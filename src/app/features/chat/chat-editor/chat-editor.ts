@@ -84,6 +84,11 @@ export interface ChatEditorHost {
    * changes, for whatever lists it to follow the marks rather than every key.
    */
   linted?(): void;
+  /**
+   * Whether a portrait or a cut-in that ends a line is carried out from here, so that one put
+   * anywhere else is marked as doing nothing; a line already said, rewritten, carries none out.
+   */
+  readonly readsLineEnd?: boolean;
 }
 
 /** The text an editor starts with, where its caret stands, and whether it takes the keys at once. */
@@ -752,7 +757,7 @@ export class ChatEditorField implements ChatTextField {
       const chip = chipOfNode(node);
       if (!chip || (chip.kind !== 'portrait' && chip.kind !== 'cutIn')) return;
       const attrs: Record<string, string> = {};
-      if (!chipsSeen.has(pos)) {
+      if (this.host.readsLineEnd !== false && !chipsSeen.has(pos)) {
         attrs['class'] = 'chat-chip-idle';
         attrs['data-tip'] = this.host.translate('feature.chat.lint.chipNotAtEnd');
         attrs['data-severity'] = 'info';
