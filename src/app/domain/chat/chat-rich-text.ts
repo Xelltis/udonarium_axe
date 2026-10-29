@@ -150,6 +150,26 @@ function unitsOfPlain(line: string): Range[] {
   return Array.from({ length: line.length }, (_, index) => ({ from: index, to: index + 1 }));
 }
 
+/**
+ * A palette's variable or tab line as it now reads, never decorated: each letter one place, and a
+ * chip put into it, as a reference typed there becomes, one place for the whole of its text.
+ */
+function writeDirective(line: ChatRichLine): { text: string; units: Range[] } {
+  let text = '';
+  const units: Range[] = [];
+  for (const segment of line.segments) {
+    const written = segmentText(segment);
+    if (segment.kind === 'text') units.push(...unitsOfPlain(written).map((unit) => shifted(unit, text.length)));
+    else units.push({ from: text.length, to: text.length + written.length });
+    text += written;
+  }
+  return { text, units };
+}
+
+function shifted(range: Range, by: number): Range {
+  return { from: range.from + by, to: range.to + by };
+}
+
 /** Reads one message into its lines, each placed against its own line of the message. */
 function parseMessage(message: string, options: ChatRichParseOptions): PlacedLine[] {
   const layout = chatDecorationLayout(message);
@@ -583,10 +603,7 @@ export function serializeChatRichText(lines: readonly ChatRichLine[], options: C
   const texts: string[] = [];
   const writeMessage = (message: readonly ChatRichLine[], keepSource: boolean, escapeAll: boolean) => {
     const out: { text: string; units: Range[] }[] = message.map((line) => {
-      if (line.directive) {
-        const text = line.segments.map(segmentText).join('');
-        return { text, units: unitsOfPlain(text) };
-      }
+      if (line.directive) return writeDirective(line);
       if (keepSource && line.source !== undefined) {
         const reread = parseMessage(line.source, rereadOptions([line]));
         if (reread.length === 1 && sameRichLine(reread[0].line, line) && sameChipPlaces(reread[0].line, line)) {

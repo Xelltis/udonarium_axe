@@ -341,6 +341,23 @@ describe('chat-rich-text', () => {
 
       expect(serializeChatRichText(edited, { language: 'ja', mode: 'palette' }).text).toBe('//HP=20\n◆◆探索');
     });
+
+    it('places a chip put into a variable line as one place, the way the editor counts it', () => {
+      const line: ChatRichLine = {
+        directive: true,
+        segments: [
+          { kind: 'text', text: '//x=', marks: null },
+          { kind: 'reference', name: 'HP', targeted: false, useMax: false, raw: '{HP}', marks: null },
+          { kind: 'text', text: '+1', marks: null },
+        ],
+      };
+      const written = serializeChatRichText([line], { language: 'ja', mode: 'palette' });
+
+      expect(written.text).toBe('//x={HP}+1');
+      expect(written.toText({ line: 0, offset: 5 })).toBe(8);
+      expect(written.toText({ line: 0, offset: 6 })).toBe(9);
+      expect(written.toModel(9)).toEqual({ line: 0, offset: 6 });
+    });
   });
 
   describe('places', () => {
