@@ -25,7 +25,9 @@ test.describe('the chat editor on a phone', () => {
     await expect(pane.locator('chat-tab').getByText('スマホから')).toBeVisible({ timeout: 5000 });
   });
 
-  test('keeps the dice bot in the bar on a phone, the bar going on to a second row', async ({ page }) => {
+  test('keeps the selects in the first row of the bar on a phone and the edit buttons in the second', async ({
+    page,
+  }) => {
     await page.goto('/');
     await expect(page.locator('app-mobile-shell nav')).toBeVisible({ timeout: 20000 });
     const closeStartupPanel = page.locator('ui-panel .bg-ui-titlebar button').last();
@@ -35,6 +37,10 @@ test.describe('the chat editor on a phone', () => {
     await expect(bar.locator('ng-select[name="game-type"]')).toBeVisible();
     await expect(bar.getByRole('button', { name: '?' })).toBeVisible();
     await expect(bar.getByTestId('chat-input-color')).toBeVisible();
-    expect((await bar.boundingBox())!.height).toBeLessThan(72);
+    const selects = (await bar.getByTestId('chat-input-selects').boundingBox())!;
+    const edits = (await bar.getByTestId('chat-input-edits').boundingBox())!;
+    expect(selects.height).toBeLessThan(48);
+    expect(edits.height).toBeLessThan(48);
+    expect(edits.y).toBeGreaterThan(selects.y);
   });
 });

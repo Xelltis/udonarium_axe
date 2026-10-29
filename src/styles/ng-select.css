@@ -29,26 +29,28 @@
   font-size: 13px !important;
 }
 
-/* The speaker, recipient and dice bot selects in the bar over chat-input. The bar keeps to one row
-   where it can, so the selects give up their width first, down to a narrowest that still shows a
-   name begun, before a group goes down to a second row.
+/* The speaker, recipient and dice bot selects in the first row of the bar over chat-input. Each
+   keeps a width that still reads a name, and the row sends the dice bot on to a line of its own
+   rather than squeeze them below it. Where the row has room to spare, the speaker and the recipient
+   take some of it.
    Moved over from chat-input.component.css, and kept global so that they survive the scoped CSS going
    away with the move to Tailwind. */
 .ng-select.ud-select.chat-select {
-  flex: 0 1 8rem;
+  flex: 1 1 120px;
   width: auto !important;
-  min-width: 4.5rem;
-  max-width: 11rem;
+  min-width: 96px;
+  max-width: 220px;
 }
 
 .ng-select.ud-select.chat-select.chat-select--to {
-  flex-basis: 6rem;
-  min-width: 4rem;
+  flex-basis: 96px;
+  min-width: 72px;
+  max-width: 180px;
 }
 
 .ng-select.ud-select.chat-select.chat-select--game-type {
-  flex: 0 1 10rem;
-  min-width: 6rem;
+  flex: 0 1 160px;
+  min-width: 112px;
 }
 
 /* The novel mode toolbar is packed tight across, so the speaker select keeps its width down and shrinks. */

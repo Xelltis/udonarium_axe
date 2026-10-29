@@ -148,7 +148,7 @@ describe('ChatInputComponent', () => {
     }
 
     const slider = () => {
-      openTools();
+      fixture.detectChanges();
       return fixture.nativeElement.querySelector(
         '[data-testid="chat-input-portraits"] input[type="range"]'
       ) as HTMLInputElement | null;
@@ -161,11 +161,11 @@ describe('ChatInputComponent', () => {
       fixture.detectChanges();
     }
 
-    it('runs through the portraits of a speaker with several, under the tools button', async () => {
+    it('runs through the portraits of a speaker with several, in the row of the selects', async () => {
       await speakAs(withPortraits(3));
 
       expect(slider()?.max).toBe('2');
-      expect(slider()?.closest('[data-testid="chat-input-tools-row"]')).not.toBeNull();
+      expect(slider()?.closest('[data-testid="chat-input-selects"]')).not.toBeNull();
     });
 
     it('speaks with the portrait the knob is moved to', async () => {
@@ -253,36 +253,30 @@ describe('ChatInputComponent', () => {
     });
   });
 
-  /** Opens the row under the bar where the tools that do not fit in it are, where it is shut. */
-  function openTools(): void {
-    fixture.detectChanges();
-    const tools = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
-      '[data-testid="chat-input-tools"]'
-    );
-    if (tools && tools.getAttribute('aria-expanded') !== 'true') tools.click();
-    fixture.detectChanges();
-  }
-
   describe('the bar over the box', () => {
     const bar = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="chat-input-bar"]')!;
     const find = (selector: string) => (fixture.nativeElement as HTMLElement).querySelector(selector);
 
-    it('holds the speaker, the recipient, the formatting buttons, the speech colour and the dice bot in one bar', async () => {
+    it('holds the selects in its first row and the buttons that edit the line in its second', async () => {
       fixture.componentRef.setInput('canSpeak', true);
       fixture.detectChanges();
       await vi.waitFor(() => {
         fixture.detectChanges();
         expect(bar().querySelector('[data-testid="chat-toolbar"]')).not.toBeNull();
       });
+      const selects = bar().querySelector('[data-testid="chat-input-selects"]')!;
+      const edits = bar().querySelector('[data-testid="chat-input-edits"]')!;
 
       expect(bar().getAttribute('role')).toBe('toolbar');
-      expect(Array.from(bar().querySelectorAll('ng-select')).map((select) => select.getAttribute('name'))).toEqual([
+      expect(Array.from(selects.querySelectorAll('ng-select')).map((select) => select.getAttribute('name'))).toEqual([
         'send-from',
         'send-to',
         'game-type',
       ]);
-      expect(bar().querySelector('[data-testid="chat-input-color"]')).not.toBeNull();
-      expect(find('[data-testid="chat-input-tools"]')).toBeNull();
+      expect(edits.querySelector('[data-testid="chat-toolbar"]')).not.toBeNull();
+      expect(edits.querySelector('[data-testid="chat-input-stamp"]')).not.toBeNull();
+      expect(edits.querySelector('[data-testid="chat-input-color"]')).not.toBeNull();
+      expect(edits.querySelector('ng-select')).toBeNull();
     });
 
     it('leaves the formatting buttons out for a tab the reader may not speak in, keeping the rest', async () => {
@@ -423,7 +417,7 @@ describe('ChatInputComponent', () => {
 
   describe('the button to choose how this seat’s dice look', () => {
     const button = () => {
-      openTools();
+      fixture.detectChanges();
       return fixture.nativeElement.querySelector('[data-testid="chat-my-dice"]') as HTMLButtonElement | null;
     };
     let stageBefore: DiceStage;
@@ -539,7 +533,7 @@ describe('ChatInputComponent', () => {
     });
 
     const tickerSwitch = () => {
-      openTools();
+      fixture.detectChanges();
       return fixture.nativeElement.querySelector('[data-testid="chat-send-to-ticker"]');
     };
 

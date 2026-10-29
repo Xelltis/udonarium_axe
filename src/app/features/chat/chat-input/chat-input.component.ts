@@ -114,16 +114,10 @@ const LIST_ROOM = 240;
 })
 export class ChatInputComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;
-  protected readonly isToolsOpen = signal(false);
-
-  protected toggleTools(): void {
-    this.isToolsOpen.update((open) => !open);
-  }
-
   protected readonly barButtonClass =
-    'text-ui-muted hover:bg-ui-hover hover:text-ui-text aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent aria-expanded:bg-ui-hover rounded-ui-sm m-0 flex h-7 min-w-7 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[18px]!';
+    'text-ui-muted hover:bg-ui-hover hover:text-ui-text aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent aria-expanded:bg-ui-hover rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!';
   protected readonly barWordButtonClass =
-    'text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm m-0 flex h-7 min-w-7 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent px-1.5 py-0 text-[12px] font-semibold transition-colors hover:shadow-none';
+    'text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent px-1 py-0 text-[12px] font-semibold transition-colors hover:shadow-none';
   protected readonly swatchClass = 'block size-3.5 rounded-full shadow-[0_0_0_1px_var(--ui-panel-border)]';
   protected readonly panelRowClass =
     'text-ui-text hover:bg-ui-hover rounded-ui-sm m-0 flex w-full cursor-pointer items-center gap-2 border-none bg-transparent px-2 py-1 text-left text-[12px]';
@@ -131,11 +125,6 @@ export class ChatInputComponent {
     'border-ui-border-panel bg-ui-elevated text-ui-muted shadow-ui-sm data-[severity=error]:text-ui-danger data-[severity=warning]:text-ui-warning data-[severity=info]:text-ui-accent absolute right-5 -bottom-2 z-1 m-0 flex h-4.5 cursor-pointer items-center gap-0.5 rounded-full border border-solid px-1.5 text-[11px] leading-none font-semibold hover:shadow-none [&_i]:text-[13px]!';
   protected readonly findingRowClass =
     'text-ui-text hover:bg-ui-hover data-[severity=error]:[&_i]:text-ui-danger data-[severity=warning]:[&_i]:text-ui-warning data-[severity=info]:[&_i]:text-ui-accent rounded-ui-sm m-0 flex w-full cursor-pointer items-start gap-2 border-none bg-transparent px-2 py-1 text-left text-[12px] leading-snug [&_i]:mt-px [&_i]:text-[15px]!';
-
-  /** Whether there is anything for the tools button to show in the row it opens under the bar. */
-  protected readonly hasTools = computed(
-    () => this.hasPortraitSlider() || this.showsMyDice() || this.showsTickerSwitch()
-  );
 
   private readonly colorsButton = viewChild<ElementRef<HTMLElement>>('colorsButton');
   private readonly colorsPanel = viewChild<ElementRef<HTMLElement>>('colorsPanel');
@@ -516,8 +505,8 @@ export class ChatInputComponent {
   readonly onlyCharacters = input(false);
   readonly disableQuote = input(false);
   /**
-   * Packs the input down for a panel whose own list needs the room: a smaller portrait, and the
-   * colours and the ticker switch folded behind a button.
+   * Packs the input down for a panel whose own list needs the room: less space round it, and a box
+   * that starts a line high.
    */
   readonly dense = input(false);
   /** What the empty box says in place of its keys, for a panel that fills the box its own way. */

@@ -182,20 +182,29 @@ test.describe('the character a chat line is sent as', () => {
     await expect(page.locator('chat-window chat-input ng-select')).toHaveCount(3);
   });
 
-  test('keeps the speaker, the recipient, the formatting, the stamps, the speech colour and the dice bot in one row over the box', async ({
+  test('puts the selects in the first row of the bar and the buttons that edit the line in the second', async ({
     page,
   }) => {
     const bar = page.locator('chat-window [data-testid="chat-input-bar"]');
     await expect(bar).toHaveAttribute('role', 'toolbar');
-    await expect(bar.locator('ng-select')).toHaveCount(3);
-    await expect(bar.getByTestId('chat-toolbar-bold')).toBeVisible();
-    await expect(bar.getByTestId('chat-input-stamp')).toBeVisible();
-    const tops = await bar
-      .locator('ng-select, [data-testid="chat-toolbar-bold"], [data-testid="chat-input-color"], button:has-text("?")')
-      .evaluateAll((elements) => elements.map((element) => Math.round(element.getBoundingClientRect().top)));
-    expect(new Set(tops.map((top) => Math.round(top / 8))).size).toBe(1);
+    const selects = bar.getByTestId('chat-input-selects');
+    const edits = bar.getByTestId('chat-input-edits');
+    await expect(selects.locator('ng-select')).toHaveCount(3);
+    await expect(selects.getByRole('button', { name: '?' })).toBeVisible();
+    await expect(edits.getByTestId('chat-toolbar-bold')).toBeVisible();
+    await expect(edits.getByTestId('chat-input-stamp')).toBeVisible();
+    for (const key of ['dice', 'reference', 'resource', 'buff', 'portrait', 'effect', 'quote']) {
+      await expect(edits.getByTestId(`chat-toolbar-group-${key}`)).toBeVisible();
+    }
+    const rowOf = async (row: typeof selects) => (await row.boundingBox())!;
+    expect((await rowOf(selects)).height).toBeLessThan(36);
+    expect((await rowOf(edits)).height).toBeLessThan(36);
+    expect((await rowOf(edits)).y).toBeGreaterThan((await rowOf(selects)).y);
+    for (const select of await selects.locator('ng-select').all()) {
+      expect((await select.boundingBox())!.width).toBeGreaterThanOrEqual(72);
+    }
 
-    await bar.getByTestId('chat-input-color').click();
+    await edits.getByTestId('chat-input-color').click();
     await expect(page.locator('chat-window').getByRole('button', { name: '持ち色2' })).toBeVisible();
     await expect(page.locator('chat-window').getByRole('button', { name: /色設定/ })).toBeVisible();
   });
