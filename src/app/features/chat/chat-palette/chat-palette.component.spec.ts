@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
+import { ChatLintService } from '@axe/application/chat/chat-lint.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -11,6 +12,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { CHAT_EDITOR_LOADER, type ChatEditorModule } from '@axe/features/chat/chat-editor/chat-editor-loader';
@@ -241,6 +243,27 @@ describe('ChatPaletteComponent', () => {
       expect(open).not.toHaveBeenCalled();
       expect(event.preventDefault).not.toHaveBeenCalled();
     });
+  });
+
+  it('checks its lines against the room’s default dice bot where the palette keeps the plain one', () => {
+    const watch = vi.spyOn(TestBed.inject(ChatLintService), 'watch');
+    const palette = TestBed.createComponent(ChatPaletteComponent);
+    const char = createChar('術者');
+    char.chatPalette!.dicebot = 'DiceBot';
+    palette.componentInstance.character.set(char);
+    palette.detectChanges();
+    TestBed.tick();
+    const source = watch.mock.calls[0][0];
+    expect(source.path).toBe('palette');
+    const before = Config.instance.defaultDiceBot;
+    try {
+      Config.instance.defaultDiceBot = 'Cthulhu7th';
+      TestBed.inject(ObjectChangeService).notifyChanged('Config');
+
+      expect(source.gameType()).toBe('Cthulhu7th');
+    } finally {
+      Config.instance.defaultDiceBot = before;
+    }
   });
 
   describe('rewriting the palette', () => {

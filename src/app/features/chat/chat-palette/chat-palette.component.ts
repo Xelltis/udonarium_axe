@@ -41,6 +41,7 @@ import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permi
 import { PaletteRow, paletteRowsOf, paletteTabsOf } from '@axe/domain/chat/palette-rows';
 import { DataElement } from '@axe/domain/data/data-element';
 import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import type { ChatEditorField, ChatEditorHost, ChatEditorStart } from '@axe/features/chat/chat-editor/chat-editor';
@@ -137,7 +138,7 @@ export class ChatPaletteComponent {
   private readonly paletteLint = inject(ChatLintService).watch({
     text: computed(() => this.editPalette()),
     sendFrom: computed(() => this.character()?.identifier ?? ''),
-    gameType: computed(() => this._gameType()),
+    gameType: computed(() => this.rolledGameType()),
     path: 'palette',
     mode: 'palette',
   });
@@ -148,7 +149,8 @@ export class ChatPaletteComponent {
     placeholder: () => this.t('feature.chat.palette.editPlaceholder'),
     changed: (text) => this.editPalette.set(text),
     session: () => this.paletteLint,
-    completionWords: () => this.syntaxSource.completionWordsFor(this.character()?.identifier ?? '', this.gameType),
+    completionWords: () =>
+      this.syntaxSource.completionWordsFor(this.character()?.identifier ?? '', untracked(this.rolledGameType)),
     language: () => this.syntaxSource.tagLanguage(),
     cutInNames: () => this.syntaxSource.chatCutInNames(),
     portraitImage: (raw) => this.syntaxSource.portraitImage(this.character()?.identifier ?? '', raw),
@@ -281,6 +283,16 @@ export class ChatPaletteComponent {
   get gameType(): string {
     return this._gameType();
   }
+
+  /**
+   * The game system the palette's lines are rolled with, as its input sends them: its own, or the
+   * room's default where it keeps the plain dice bot.
+   */
+  private readonly rolledGameType = computed(() => {
+    this.objectChange.versionOf('Config')();
+    const own = this._gameType();
+    return own === 'DiceBot' ? this.objectStore.get<Config>('Config')?.defaultDiceBot || own : own;
+  });
   set gameType(gameType: string) {
     this._gameType.set(gameType);
     const char = this.character();
