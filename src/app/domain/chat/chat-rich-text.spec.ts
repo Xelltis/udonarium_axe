@@ -118,6 +118,9 @@ const UNCHANGED = [
   '2d6+{筋力}',
   '[赤]a**b**c[/赤]',
   '\\**a** b',
+  '了解［了解:seal:ok］',
+  '**［ドッ:sfx:boom］**［絵:image:abc］',
+  '［メモ:todo:later］',
 ];
 
 const CHANGED = [
@@ -257,6 +260,15 @@ describe('chat-rich-text', () => {
       ]);
     });
 
+    it('reads a stamp put inside the line as a chip, with its identifier and name', () => {
+      const [line] = parseChatRichText('了解［了解:seal:ok］です').lines;
+      expect(line.segments).toEqual([
+        { kind: 'text', text: '了解', marks: null },
+        { kind: 'stamp', id: 'seal:ok', label: '了解', raw: '［了解:seal:ok］', marks: null },
+        { kind: 'text', text: 'です', marks: null },
+      ]);
+    });
+
     it('reads the last word as a cut-in only where one of that name starts from chat', () => {
       const kinds = (names: string[]) =>
         parseChatRichText('行くぞ 爆発', { cutInNames: new Set(names) }).lines[0].segments.map(
@@ -345,6 +357,8 @@ describe('chat-rich-text', () => {
       '\n',
       'a',
       'あ',
+      '［了解:seal:ok］',
+      ':',
     ];
 
     function random(seed: number): () => number {

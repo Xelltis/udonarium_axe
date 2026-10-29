@@ -321,6 +321,35 @@ describe('ChatMessageService', () => {
     });
   });
 
+  describe('sending stamps put inside a line', () => {
+    function said(text: string): ChatMessage {
+      const service = TestBed.inject(ChatMessageService);
+      PeerCursor.createMyCursor();
+      const tab = new ChatTab();
+      tab.initialize();
+      ObjectStore.instance.add(tab);
+      return service.sendMessage(tab, text, null, PeerCursor.myCursor.identifier);
+    }
+
+    it('sends them as they were written, a picture from the room going among the attachments once', () => {
+      const message = said('了解［了解:seal:ok］［絵:image:stamp-picture］［絵:image:stamp-picture］');
+
+      expect(message.text).toBe('了解［了解:seal:ok］［絵:image:stamp-picture］［絵:image:stamp-picture］');
+      expect(message.attachmentImageIdentifierList).toEqual(['stamp-picture']);
+    });
+
+    it('writes as its name a stamp the room does not let be sent, or one this version does not know', () => {
+      Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['seal:ok'], false);
+      try {
+        const message = said('［了解:seal:ok］と［新顔:sfx:fromthefuture］と［ドッ:sfx:boom］');
+
+        expect(message.text).toBe('［了解］と［新顔］と［ドッ:sfx:boom］');
+      } finally {
+        Config.instance.stampRules = OPEN_STAMP_RULES;
+      }
+    });
+  });
+
   describe('what a line records about who spoke it', () => {
     it('writes down the role the speaker was wearing at the time', () => {
       const service = TestBed.inject(ChatMessageService);

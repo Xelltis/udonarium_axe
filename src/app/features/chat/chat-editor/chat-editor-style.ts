@@ -24,6 +24,7 @@ const CHAT_EDITOR_CSS = `
 .chat-rich .chat-chip-portrait[style*="--chip-image"] .chat-chip-thumb{display:inline-block}
 .chat-rich .chat-chip-portrait[style*="--chip-image"] .chat-chip-icon{display:none}
 .chat-rich .chat-chip-idle{opacity:.5;border-style:dashed}
+.chat-rich .chat-chip-stamp{display:inline-flex;vertical-align:middle;margin:0 1px;border-radius:4px}
 .chat-rich .ProseMirror-selectednode{outline:2px solid var(--ui-accent);outline-offset:1px}
 .chat-rich ruby.chat-chip-ruby{padding:0 1px;border-radius:3px;background:color-mix(in srgb,currentColor 8%,transparent)}
 .chat-rich .chat-rich-roll{color:${CHAT_COLORS.blue};font-weight:600}

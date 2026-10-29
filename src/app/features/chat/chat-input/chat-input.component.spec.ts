@@ -1,6 +1,5 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -9,7 +8,6 @@ import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
-import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -617,7 +615,7 @@ describe('ChatInputComponent', () => {
       expect(component.colorSelectNo()).toBe(0);
     });
 
-    it('opens the stamps beside the send button, and puts the one picked under the words, to go out alone with Enter from an empty box', () => {
+    it('opens the stamps from the bar, and sends the one picked alone as a stamp of its own with Enter', () => {
       fixture.componentRef.setInput('canSpeak', true);
       fixture.detectChanges();
       component.text = '';
@@ -626,16 +624,18 @@ describe('ChatInputComponent', () => {
       component.chat.subscribe((value) => emitted.push(value));
 
       const button = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
-        '[data-testid="chat-input-stamp"]'
+        '[data-testid="chat-input-bar"] [data-testid="chat-input-stamp"]'
       )!;
       button.click();
       expect(toggle).toHaveBeenCalledWith(button, 'line', expect.any(Function));
       toggle.mock.calls[0][2]('seal:ok');
       expect(emitted).toEqual([]);
+      expect(component.text).toMatch(/^［.+:seal:ok］$/);
 
       component.sendChat(new KeyboardEvent('keydown', { key: 'Enter' }));
       component.sendChat(new KeyboardEvent('keydown', { key: 'Enter' }));
 
+      expect(component.text).toBe('');
       expect(emitted).toEqual([
         expect.objectContaining({
           text: '',
@@ -648,29 +648,29 @@ describe('ChatInputComponent', () => {
       expect(emitted[0].stamp!.words.length).toBeGreaterThan(0);
     });
 
-    it('sends the stamp picked at once from the plain box', () => {
-      const stored = localStorage.getItem(STORAGE_KEYS.chatPreferences);
-      TestBed.inject(ChatPreferencesService).setRichInput(false);
-      try {
-        fixture.componentRef.setInput('canSpeak', true);
-        fixture.detectChanges();
-        component.text = '';
-        const toggle = vi.spyOn(TestBed.inject(StampPickerService), 'toggle').mockImplementation(() => undefined);
-        const emitted: Outgoing[] = [];
-        component.chat.subscribe((value) => emitted.push(value));
+    it('puts the stamp picked in at the caret among the words, to go out inside them', async () => {
+      fixture.componentRef.setInput('canSpeak', true);
+      fixture.detectChanges();
+      const toggle = vi.spyOn(TestBed.inject(StampPickerService), 'toggle').mockImplementation(() => undefined);
+      const box = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>('[data-chat-input]')!;
+      component.text = '了解です';
+      box.value = '了解です';
+      box.setSelectionRange(2, 2);
+      const outgoing = sent();
 
-        (fixture.nativeElement as HTMLElement)
-          .querySelector<HTMLButtonElement>('[data-testid="chat-input-stamp"]')!
-          .click();
-        toggle.mock.calls[0][2]('seal:ok');
+      (fixture.nativeElement as HTMLElement)
+        .querySelector<HTMLButtonElement>('[data-testid="chat-input-stamp"]')!
+        .click();
+      toggle.mock.calls[0][2]('seal:ok');
+      const written = box.value;
+      expect(written).toMatch(/^了解［.+:seal:ok］です$/);
+      expect(component.text).toBe(written);
 
-        expect(emitted).toEqual([
-          expect.objectContaining({ text: '', stamp: { id: 'seal:ok', words: expect.any(String) } }),
-        ]);
-      } finally {
-        if (stored === null) localStorage.removeItem(STORAGE_KEYS.chatPreferences);
-        else localStorage.setItem(STORAGE_KEYS.chatPreferences, stored);
-      }
+      component.sendChat(new KeyboardEvent('keydown', { key: 'Enter' }));
+
+      const line = await outgoing;
+      expect(line.text).toBe(written);
+      expect(line.stamp).toBeUndefined();
     });
 
     it('wraps the words picked out in the plain box in the decoration chosen on the toolbar, keeps them picked out and takes them as the line', async () => {

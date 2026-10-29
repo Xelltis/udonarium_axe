@@ -1,6 +1,8 @@
 import { inject, Injectable } from '@angular/core';
+import { StampPackService } from '@axe/application/chat/stamp-pack.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
@@ -15,6 +17,7 @@ import { CutIn } from '@axe/domain/media/cut-in';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import type { ChatCompletionWords } from '@axe/features/chat/chat-editor/chat-editor-complete';
 import type { ChatSyntaxMenuSource } from '@axe/features/chat/chat-input/chat-syntax-items';
+import { roomStampViewSource, stampMarkup, stampViewOf } from '@axe/ui/components/stamp/stamp-view';
 
 /**
  * What a speaker and the room offer to be written in chat, gathered for the syntax button and for
@@ -26,6 +29,8 @@ export class ChatSyntaxSourceService {
   private readonly imageStorage = inject(ImageStorage);
   private readonly effectLibrary = inject(EffectLibraryService);
   private readonly language = inject(LanguageService);
+  private readonly stampPacks = inject(StampPackService);
+  private readonly t = inject(TRANSLATE_FN);
 
   /**
    * What the speaker and the room offer. A game system not loaded yet offers no commands, and is
@@ -84,6 +89,12 @@ export class ChatSyntaxSourceService {
         .filter((cutIn) => cutIn.chatActivate)
         .map((cutIn) => cutIn.name)
     );
+  }
+
+  /** A stamp put inside a line, as markup as tall as the letters, as the chat draws it; null for one not known. */
+  stampHtml(stampId: string): string | null {
+    const view = stampViewOf(stampId, roomStampViewSource(this.t, this.imageStorage, this.stampPacks));
+    return view ? stampMarkup(stampId, view, 'inline') : null;
   }
 
   /** The picture a portrait command picks of the speaker's, as it would be when the line is sent; null where none. */

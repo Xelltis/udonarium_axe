@@ -11,6 +11,7 @@ import { paletteVariableSite } from '@axe/domain/chat/chat-palette';
 import { type PortraitCommand, portraitCommandSite } from '@axe/domain/chat/chat-portrait-command';
 import { referenceSites } from '@axe/domain/chat/chat-reference';
 import { RUBY_NOTATION } from '@axe/domain/chat/chat-ruby-notation';
+import { inlineStampSites } from '@axe/domain/chat/inline-stamp';
 import { isPaletteTabLine } from '@axe/domain/chat/palette-rows';
 import { effectTokenSites } from '@axe/domain/effect/effect-chat-token';
 import { readCutInChatTail } from '@axe/domain/media/cut-in-chat-tail';
@@ -33,7 +34,8 @@ export type ChatRichChip =
   | { kind: 'reference'; name: string; targeted: boolean; useMax: boolean; raw: string }
   | { kind: 'effect'; name: string; battle: boolean; raw: string }
   | { kind: 'portrait'; command: PortraitCommand; raw: string }
-  | { kind: 'cutIn'; name: string; soundOnly: boolean; raw: string };
+  | { kind: 'cutIn'; name: string; soundOnly: boolean; raw: string }
+  | { kind: 'stamp'; id: string; label: string; raw: string };
 
 /** Text in one look, or a chip; `marks` is null for text drawn plainly. */
 export type ChatRichSegment =
@@ -169,6 +171,9 @@ function parseMessage(message: string, options: ChatRichParseOptions): PlacedLin
     if (chips.some((other) => other.from < to && from < other.to)) return;
     chips.push({ from, to, chip });
   };
+  for (const site of inlineStampSites(message)) {
+    take(site.from, site.to, { kind: 'stamp', id: site.id, label: site.label, raw: message.slice(site.from, site.to) });
+  }
   for (const ruby of message.matchAll(RUBY_NOTATION)) {
     const raw = ruby[0];
     take(ruby.index, ruby.index + raw.length, { kind: 'ruby', base: ruby[1], reading: ruby[2], raw });

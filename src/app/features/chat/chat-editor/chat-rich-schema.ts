@@ -19,6 +19,7 @@ export const CHAT_CHIP = {
   effect: 'chatEffect',
   portrait: 'chatPortrait',
   cutIn: 'chatCutIn',
+  stamp: 'chatStamp',
 } as const;
 
 export type ChatChipNodeName = (typeof CHAT_CHIP)[keyof typeof CHAT_CHIP];
@@ -182,6 +183,20 @@ const ChatCutIn = chipNode(
   ]
 );
 
+/**
+ * A stamp put inside the line, as an emoji is. Drawn here as its name; the editor draws the stamp
+ * itself over it, as it is drawn in the chat.
+ */
+export const ChatStamp = chipNode(
+  CHAT_CHIP.stamp,
+  { id: { default: '', rendered: false }, label: { default: '', rendered: false } },
+  ({ node }) => [
+    'span',
+    { class: 'chat-chip-stamp', 'data-chip': 'stamp', 'data-stamp-id': String(node.attrs['id']) },
+    `［${String(node.attrs['label'])}］`,
+  ]
+);
+
 /** Everything a chat line's document is made of. */
 export const CHAT_RICH_EXTENSIONS: AnyExtension[] = [
   ChatDocument,
@@ -198,4 +213,5 @@ export const CHAT_RICH_EXTENSIONS: AnyExtension[] = [
   ChatEffect,
   ChatPortrait,
   ChatCutIn,
+  ChatStamp,
 ];

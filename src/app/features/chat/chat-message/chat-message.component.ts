@@ -48,7 +48,7 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
-import { inlineStampsAlone } from '@axe/domain/chat/inline-stamp';
+import { inlineStampsAlone, inlineStampSites } from '@axe/domain/chat/inline-stamp';
 import { isPictureStamp, stampOf } from '@axe/domain/chat/stamp-catalog';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -72,7 +72,7 @@ import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.servic
 import { SystemAvatarMenuService } from '@axe/features/chat/system-avatar-menu.service';
 import { DiceRollStageComponent } from '@axe/ui/components/dice-roll-stage/dice-roll-stage.component';
 import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
-import { stampMarkup, stampViewOf, StampViewSource } from '@axe/ui/components/stamp/stamp-view';
+import { roomStampViewSource, stampMarkup, stampViewOf } from '@axe/ui/components/stamp/stamp-view';
 import { ChatColorStylePipe } from '@axe/ui/pipes/chat-color-style.pipe';
 import { LinkifyPipe } from '@axe/ui/pipes/linkify.pipe';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -191,11 +191,15 @@ export class ChatMessageComponent {
     return stampId;
   });
 
-  /** The pictures attached to the line, less the one drawn as its stamp. */
+  /** The pictures attached to the line, less those drawn as its stamps, under it or inside it. */
   protected readonly shownAttachments = computed(() => {
-    const drawn = stampOf(this.sentStamp());
-    const stampPicture = drawn?.kind === 'image' ? drawn.imageIdentifier : null;
-    return this.attachmentImageFiles().filter((image) => image.identifier !== stampPicture);
+    const stamps = [this.sentStamp(), ...inlineStampSites(this.chatMessageInput()?.text ?? '').map((site) => site.id)];
+    const drawn = new Set<string>();
+    for (const stampId of stamps) {
+      const ref = stampOf(stampId);
+      if (ref?.kind === 'image') drawn.add(ref.imageIdentifier);
+    }
+    return this.attachmentImageFiles().filter((image) => !drawn.has(image.identifier));
   });
   /**
    * How large the stamp a line was sent as is drawn: a picture larger than the app's own, so that
@@ -1117,14 +1121,7 @@ export class ChatMessageComponent {
   private stampsIn(body: string): InlineStampMarkup {
     this.objectChange.fileVersion();
     const alone = inlineStampsAlone(body) !== null;
-    const source: StampViewSource = {
-      t: this.t,
-      picture: (imageIdentifier) => {
-        const image = this.imageStorage.get(imageIdentifier);
-        return image?.url ? { url: image.url, name: image.name } : null;
-      },
-      nameInSet: (imageIdentifier) => this.stampPacks.nameOf(imageIdentifier),
-    };
+    const source = roomStampViewSource(this.t, this.imageStorage, this.stampPacks);
     return (stampId) => {
       const view = stampViewOf(stampId, source);
       return view ? stampMarkup(stampId, view, alone ? this.stampLineSize(stampId, true) : 'inline') : null;

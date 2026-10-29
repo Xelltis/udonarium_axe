@@ -23,7 +23,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { StampPackService } from '@axe/application/chat/stamp-pack.service';
 import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
-import { stampWords } from '@axe/application/chat/stamp-words';
+import { stampLabel, stampWords } from '@axe/application/chat/stamp-words';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -49,6 +49,8 @@ import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { composeChatOutgoing, composeStampOutgoing, OutgoingStamp } from '@axe/domain/chat/chat-outgoing';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
+import { inlineStampsAlone, inlineStampToken } from '@axe/domain/chat/inline-stamp';
+import { stampOf } from '@axe/domain/chat/stamp-catalog';
 import type { ChatDiagnostic } from '@axe/domain/chat-syntax/chat-lint';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
@@ -77,7 +79,6 @@ import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { AnchoredPopover } from '@axe/ui/anchored-popover';
 import { PortraitChoice, PortraitPickerComponent } from '@axe/ui/components/portrait-picker/portrait-picker.component';
 import { PortraitSliderComponent } from '@axe/ui/components/portrait-slider/portrait-slider.component';
-import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -105,7 +106,6 @@ const LIST_ROOM = 240;
     SafePipe,
     TranslocoModule,
     ChatToolbarComponent,
-    StampComponent,
   ],
 })
 export class ChatInputComponent {
@@ -430,6 +430,7 @@ export class ChatInputComponent {
     openRuby: () => this.toolbar()?.openRuby(),
     toolbarElement: () => this.hostElement.nativeElement.querySelector('[data-testid="chat-input-bar"]'),
     translate: (key, params) => this.t(key, params),
+    stampHtml: (stampId) => this.syntaxSource.stampHtml(stampId),
   };
 
   /**
@@ -1006,8 +1007,7 @@ export class ChatInputComponent {
     if (event) event.preventDefault();
 
     if (!this.canSpeak()) return;
-    const stamp = this.attachedStamp();
-    if (!this.text.length && !stamp) return;
+    if (!this.text.length) return;
     if (event && (event as KeyboardEvent).key !== 'Enter') return;
     if (event && (event as KeyboardEvent).isComposing) return;
 
@@ -1016,12 +1016,27 @@ export class ChatInputComponent {
       return;
     }
 
-    if (stamp) {
-      this.pendingStamp.set(null);
-      this.sendStamp(stamp);
+    const lone = this.loneStamp();
+    if (lone) {
+      this.text = '';
+      this.textField()?.setText('');
+      this.previousWritingLength = 0;
+      this.sendStamp(lone);
       return;
     }
     this.sendDraft();
+  }
+
+  /**
+   * The stamp a line is made of, where it is one stamp alone with nothing said, no reply and no quote:
+   * such a line goes out as a stamp sent on its own, drawn large by every version.
+   */
+  private loneStamp(): string | null {
+    if (this.replyTarget() || this.quoteTarget()) return null;
+    const stamps = inlineStampsAlone(this.text);
+    if (stamps?.length !== 1) return null;
+    const [stampId] = stamps;
+    return this.stampRules.allows('line', stampId) && stampOf(stampId) ? stampId : null;
   }
 
   /**
@@ -1056,38 +1071,22 @@ export class ChatInputComponent {
     this.cancelQuote();
   }
 
-  /**
-   * Opens the stamps over the button beside the send button. The one picked goes under the words in
-   * the editor, to be sent with them; from the plain box it is sent at once.
-   */
+  /** Opens the stamps over their button in the bar, the one picked going in at the caret. */
   protected openStamps(anchor: EventTarget | null): void {
     if (!(anchor instanceof Element)) return;
-    const pick =
-      this.inputMode() !== 'plain'
-        ? (stampId: string) => this.attachStamp(stampId)
-        : (stampId: string) => this.sendStamp(stampId);
-    this.stampPicker.toggle(anchor, 'line', pick);
+    this.stampPicker.toggle(anchor, 'line', (stampId) => this.putStamp(stampId));
   }
 
   /**
-   * The stamp the line in the editor goes out with, shown under its words as it will be drawn: one
-   * to a line, a second one picked taking its place.
+   * Puts a stamp in at the caret, as an emoji is, to go out with the words round it, where the room
+   * lets it be sent: a chip in the editor, its written form in the plain box.
    */
-  protected readonly pendingStamp = signal<string | null>(null);
-
-  /**
-   * The stamp sent with the words, shown under them once the editor has arrived: none once the plain
-   * box takes over or the room stops stamp lines.
-   */
-  protected readonly attachedStamp = computed(() =>
-    this.inputMode() !== 'plain' && this.stampLinesOn() ? this.pendingStamp() : null
-  );
-
-  /** Puts a stamp under the words being written, to go out with them, where the room lets it be sent. */
-  private attachStamp(stampId: string): void {
+  private putStamp(stampId: string): void {
     if (!this.canSpeak() || !this.stampRules.allows('line', stampId)) return;
-    this.pendingStamp.set(stampId);
-    this.focusInput();
+    const label = stampLabel(stampId, this.t, (imageIdentifier) => this.stampPacks.nameOf(imageIdentifier));
+    this.writeIntoField((field) =>
+      field.insertChip({ kind: 'stamp', id: stampId, label, raw: inlineStampToken(label, stampId) }, 'caret')
+    );
   }
 
   /**

@@ -69,6 +69,8 @@ export function nodeOfChip(schema: Schema, chip: ChatRichChip, marks: readonly M
         null,
         marks
       );
+    case 'stamp':
+      return schema.nodes[CHAT_CHIP.stamp].create({ raw: chip.raw, id: chip.id, label: chip.label }, null, marks);
   }
 }
 
@@ -97,6 +99,8 @@ export function chipOfNode(node: ProseMirrorNode): ChatRichChip | null {
       };
     case CHAT_CHIP.cutIn:
       return { kind: 'cutIn', raw, name: String(attrs['name']), soundOnly: !!attrs['soundOnly'] };
+    case CHAT_CHIP.stamp:
+      return { kind: 'stamp', raw, id: String(attrs['id']), label: String(attrs['label']) };
     default:
       return null;
   }

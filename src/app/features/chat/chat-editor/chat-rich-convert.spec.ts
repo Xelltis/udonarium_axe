@@ -8,12 +8,17 @@ describe('chat-rich-convert', () => {
   const docOf = (text: string, mode: 'chat' | 'palette' = 'chat') =>
     docOfLines(schema, parseChatRichText(text, { mode, cutInNames: new Set(['爆発']) }).lines);
 
-  it.each(['', '2d6+{筋力} **攻撃**', '[赤]a\nb[/赤]', '|漢字《かんじ》《爆炎》 @笑顔', '行くぞ 爆発', '> q\n\n  x  '])(
-    'writes a document read from a text back as that text: %j',
-    (text) => {
-      expect(textOfDoc(docOf(text), 'ja', 'chat').text).toBe(text);
-    }
-  );
+  it.each([
+    '',
+    '2d6+{筋力} **攻撃**',
+    '[赤]a\nb[/赤]',
+    '|漢字《かんじ》《爆炎》 @笑顔',
+    '行くぞ 爆発',
+    '> q\n\n  x  ',
+    '**了解［了解:seal:ok］**',
+  ])('writes a document read from a text back as that text: %j', (text) => {
+    expect(textOfDoc(docOf(text), 'ja', 'chat').text).toBe(text);
+  });
 
   it('holds decorations as marks and syntax shown whole as chips', () => {
     const doc = docOf('**強く** {HP} |漢字《かんじ》');
@@ -22,6 +27,12 @@ describe('chat-rich-convert', () => {
     expect(decorationOfMarks(paragraph.child(0).marks)).toMatchObject({ bold: true });
     expect(paragraph.child(0).marks.map((mark) => mark.type.name)).toEqual([CHAT_MARK.bold]);
     expect([paragraph.child(2).type.name, paragraph.child(4).type.name]).toEqual([CHAT_CHIP.reference, CHAT_CHIP.ruby]);
+  });
+
+  it('holds a stamp put inside the line as a chip of its own', () => {
+    const chip = docOf('あ［了解:seal:ok］').child(0).child(1);
+    expect(chip.type.name).toBe(CHAT_CHIP.stamp);
+    expect(chip.attrs).toMatchObject({ id: 'seal:ok', label: '了解', raw: '［了解:seal:ok］' });
   });
 
   it('writes an edited document the canonical way', () => {

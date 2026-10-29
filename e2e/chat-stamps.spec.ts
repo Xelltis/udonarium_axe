@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { chatInput, expectChatText, openPanel, waitAppReady } from './helpers';
+import { chatInput, chatInputText, expectChatText, openPanel, waitAppReady } from './helpers';
 
 /** Says a line from the chat input, pressing it first so the chat window comes over the panels it overlaps. */
 async function say(page: Page, text: string) {
@@ -65,11 +65,11 @@ test.describe('chat stamps and reactions', () => {
     await waitAppReady(page);
   });
 
-  test('opens the stamps over their button, and puts the one picked under the words, sending it as a line of its own with Enter', async ({
+  test('opens the stamps over their button, and sends the one picked alone as a large stamp with Enter', async ({
     page,
   }) => {
     const input = chatInput(page);
-    const button = page.getByTestId('chat-input-stamp');
+    const button = page.locator('chat-window [data-testid="chat-input-stamp"]');
     await button.click();
     await expect(page.getByTestId('stamp-picker')).toBeVisible();
     const buttonBox = (await button.boundingBox())!;
@@ -77,69 +77,71 @@ test.describe('chat stamps and reactions', () => {
     expect(pickerBox.y + pickerBox.height).toBeLessThanOrEqual(buttonBox.y + 1);
     await pickStamp(page, 'seal:ok');
 
-    const pending = page.getByTestId('chat-input-pending-stamp');
-    await expect(pending.locator('[data-stamp-id="seal:ok"]')).toBeVisible();
+    await expect(input.locator('[data-chip="stamp"][data-stamp-id="seal:ok"]')).toHaveCount(1);
     await expect(stampLines(page)).toHaveCount(0);
 
     await input.press('Enter');
-    await expect(pending).toHaveCount(0);
+    await expectChatText(input, '');
     await expect(stampLines(page)).toHaveCount(1);
     await expect(stampLines(page).getByTestId('chat-message-stamp').locator('[data-stamp-id="seal:ok"]')).toBeVisible();
-    await expect(stampLines(page).getByTestId('chat-message-said-with-stamp')).toHaveCount(0);
     await expect(stampLines(page)).not.toContainText('［了解］');
   });
 
-  test('sends a stamp put under the words together with them as one line', async ({ page }) => {
+  test('puts the stamp picked in at the caret, sending it small inside the words', async ({ page }) => {
     const input = chatInput(page);
-    await input.fill('今のは見逃せない');
-    await page.getByTestId('chat-input-stamp').click();
-    await pickStamp(page, 'sfx:shock');
-
+    await input.click();
+    await page.keyboard.type('今のは見逃せない');
     await expectChatText(input, '今のは見逃せない');
-    await expect(page.getByTestId('chat-input-pending-stamp').locator('[data-stamp-id="sfx:shock"]')).toBeVisible();
-    await input.press('Enter');
-
-    await expectChatText(input, '');
-    await expect(page.getByTestId('chat-input-pending-stamp')).toHaveCount(0);
-    const line = lineSaying(page, '今のは見逃せない');
-    await expect(line).toHaveCount(1);
-    await expect(line.getByTestId('chat-message-said-with-stamp')).toHaveText('今のは見逃せない');
-    await expect(line.getByTestId('chat-message-stamp').locator('[data-stamp-id="sfx:shock"]')).toBeVisible();
-    await expect(line).not.toContainText('［ガーン］');
-    await expect(stampLines(page)).toHaveCount(1);
-  });
-
-  test('puts a second stamp picked in place of the first, and takes it away with its close button', async ({
-    page,
-  }) => {
-    const input = chatInput(page);
-    await page.getByTestId('chat-input-stamp').click();
-    await pickStamp(page, 'seal:ok');
-    await page.getByTestId('chat-input-stamp').click();
+    await page.keyboard.press('Home');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    await page.locator('chat-window [data-testid="chat-input-stamp"]').click();
     await pickStamp(page, 'sfx:shock');
+    await expect.poll(() => chatInputText(input)).toMatch(/^今の［.+:sfx:shock］は見逃せない$/);
 
-    const pending = page.getByTestId('chat-input-pending-stamp');
-    await expect(pending.locator('[data-stamp-id]')).toHaveCount(1);
-    await expect(pending.locator('[data-stamp-id="sfx:shock"]')).toBeVisible();
-
-    await pending.getByRole('button', { name: 'スタンプを外す' }).click();
-    await expect(pending).toHaveCount(0);
     await input.press('Enter');
-    await expect(stampLines(page)).toHaveCount(0);
+    await expectChatText(input, '');
+    const line = lineSaying(page, '見逃せない');
+    await expect(line).toHaveCount(1);
+    const drawn = line.locator('[data-chat-search-text] [data-stamp-id="sfx:shock"]');
+    await expect(drawn).toBeVisible();
+    expect((await drawn.boundingBox())!.height).toBeLessThan(32);
+    await expect(line.getByTestId('chat-message-stamp')).toHaveCount(0);
   });
 
-  test('sends a stamp at once from the plain box', async ({ page }) => {
+  test('draws a line of stamps alone large, side by side', async ({ page }) => {
+    const input = chatInput(page);
+    for (const stampId of ['seal:ok', 'sfx:shock']) {
+      await page.locator('chat-window [data-testid="chat-input-stamp"]').click();
+      await pickStamp(page, stampId);
+    }
+    await expect(input.locator('[data-chip="stamp"]')).toHaveCount(2);
+
+    await input.press('Enter');
+    await expectChatText(input, '');
+    const line = page
+      .locator('chat-tab chat-message')
+      .filter({ has: page.locator('[data-chat-search-text] [data-stamp-id="sfx:shock"]') });
+    const drawn = line.locator('[data-chat-search-text] [data-stamp-id]');
+    await expect(drawn).toHaveCount(2);
+    expect((await drawn.last().boundingBox())!.height).toBeGreaterThanOrEqual(56);
+  });
+
+  test('writes the stamp picked into the plain box at the caret, sending it drawn', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('chat-preferences', JSON.stringify({ richInput: false })));
     await waitAppReady(page);
     await expect(page.locator('chat-window [data-chat-input-mode="plain"]')).toBeVisible();
     const textarea = chatInput(page);
-    await textarea.fill('今のは見逃せない');
-    await page.getByTestId('chat-input-stamp').click();
-    await pickStamp(page, 'sfx:shock');
+    await textarea.fill('了解です');
+    await page.locator('chat-window [data-testid="chat-input-stamp"]').click();
+    await pickStamp(page, 'seal:ok');
+    await expect(textarea).toHaveValue(/^了解です［.+:seal:ok］$/);
 
+    await textarea.press('Enter');
     await expectChatText(textarea, '');
-    const line = lineSaying(page, '今のは見逃せない');
-    await expect(line.getByTestId('chat-message-stamp').locator('[data-stamp-id="sfx:shock"]')).toBeVisible();
+    await expect(
+      lineSaying(page, '了解です').locator('[data-chat-search-text] [data-stamp-id="seal:ok"]')
+    ).toBeVisible();
   });
 
   test("lists a reaction added from the toolbar as one's own, pressed, and removes it when pressed again", async ({

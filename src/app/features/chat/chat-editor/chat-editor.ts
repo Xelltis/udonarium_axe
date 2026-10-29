@@ -20,7 +20,12 @@ import {
   nodeOfChip,
   textOfDoc,
 } from '@axe/features/chat/chat-editor/chat-rich-convert';
-import { CHAT_MARK, CHAT_RICH_EXTENSIONS, CHIP_LETTER } from '@axe/features/chat/chat-editor/chat-rich-schema';
+import {
+  CHAT_MARK,
+  CHAT_RICH_EXTENSIONS,
+  ChatStamp,
+  CHIP_LETTER,
+} from '@axe/features/chat/chat-editor/chat-rich-schema';
 import {
   CHAT_INPUT_ATTR,
   type ChatChipPlace,
@@ -65,6 +70,8 @@ export interface ChatEditorHost {
   /** What the bar over a selection must not cover: the toolbar over the box. */
   toolbarElement?(): HTMLElement | null;
   readonly translate: TranslateFn;
+  /** A stamp put inside the line, drawn as markup as tall as the letters, as the chat draws it; null where it is not known. */
+  stampHtml?(stampId: string): string | null;
 }
 
 /** The text an editor starts with, where its caret stands, and whether it takes the keys at once. */
@@ -153,7 +160,7 @@ export class ChatEditorField implements ChatTextField {
     this.editor = new Editor({
       element: parent,
       extensions: [
-        ...CHAT_RICH_EXTENSIONS,
+        ...CHAT_RICH_EXTENSIONS.map((extension) => (extension === ChatStamp ? this.stampChip() : extension)),
         UndoRedo,
         Placeholder.configure({ placeholder: () => host.placeholder() }),
         this.keys(),
@@ -428,6 +435,27 @@ export class ChatEditorField implements ChatTextField {
   }
 
   /** The keys of the chat input, and the Enter that makes a word with an input method kept from sending. */
+  /** The stamp chip, drawn as the host draws the stamp, or as its name where the host cannot. */
+  private stampChip() {
+    const host = this.host;
+    const page = this.parent.ownerDocument;
+    return ChatStamp.extend({
+      addNodeView() {
+        return ({ node }) => {
+          const dom = page.createElement('span');
+          dom.className = 'chat-chip-stamp';
+          dom.setAttribute('data-chip', 'stamp');
+          dom.setAttribute('data-stamp-id', String(node.attrs['id']));
+          dom.contentEditable = 'false';
+          const html = host.stampHtml?.(String(node.attrs['id']));
+          if (html) dom.innerHTML = html;
+          else dom.textContent = `［${String(node.attrs['label'])}］`;
+          return { dom };
+        };
+      },
+    });
+  }
+
   private keys(): Extension {
     const host = this.host;
     const unchip = () => this.unchipBeforeCaret();

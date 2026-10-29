@@ -34,6 +34,7 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
 import { OUT_OF_STORY_TAG } from '@axe/domain/chat/constants';
 import { dieRollTag } from '@axe/domain/chat/die-roll-tag';
+import { inlineStampSites } from '@axe/domain/chat/inline-stamp';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
 import { joinStampLine } from '@axe/domain/chat/stamp-line';
 import { DEFAULT_NOTICE_PLACE, NOTICE_OFF, noticeRouteOf, SystemNoticeKind } from '@axe/domain/chat/system-notices';
@@ -317,7 +318,12 @@ export class ChatMessageService {
       speaker instanceof GameCharacter ? speaker.rootDataElement : null,
       attachmentImageIdentifiers ?? []
     );
-    text = resolvedMessage.text;
+    const stamped = this.inlineStampsGoingOut(resolvedMessage.text);
+    text = stamped.text;
+    const attachments = [
+      ...resolvedMessage.attachmentImageIdentifiers,
+      ...stamped.pictures.filter((picture) => !resolvedMessage.attachmentImageIdentifiers.includes(picture)),
+    ];
 
     const imgIndex = resolvePortraitIndex(portraitIndex);
     const messageColor = resolveMessageColor(color, '#000000');
@@ -339,8 +345,8 @@ export class ChatMessageService {
       sendFrom: sendFrom,
       senderRole: PeerCursor.myRole,
     };
-    if (resolvedMessage.attachmentImageIdentifiers.length > 0) {
-      chatMessage.attachmentImageIdentifiers = JSON.stringify(resolvedMessage.attachmentImageIdentifiers);
+    if (attachments.length > 0) {
+      chatMessage.attachmentImageIdentifiers = JSON.stringify(attachments);
     }
     if (replyTo) {
       chatMessage.replyTo = replyTo;
@@ -415,6 +421,29 @@ export class ChatMessageService {
     emitSendMessage({ messageIdentifier: chat.identifier, messageTarget: null });
     emitDiceTableMessage({ messageIdentifier: chat.identifier });
     return chat;
+  }
+
+  /**
+   * The stamps put inside a line as it goes out. One this version does not know, or one the room
+   * does not let be sent, is written as its name instead; a picture from the room's sets goes among
+   * the attachments as well, for the room saved to carry it.
+   */
+  private inlineStampsGoingOut(text: string): { text: string; pictures: string[] } {
+    const pictures: string[] = [];
+    let out = '';
+    let at = 0;
+    for (const site of inlineStampSites(text)) {
+      const ref = stampOf(site.id);
+      out += text.slice(at, site.from);
+      if (!ref || !this.stampRules.allows('line', site.id)) {
+        out += `［${site.label}］`;
+      } else {
+        out += text.slice(site.from, site.to);
+        if (ref.kind === 'image' && !pictures.includes(ref.imageIdentifier)) pictures.push(ref.imageIdentifier);
+      }
+      at = site.to;
+    }
+    return { text: out + text.slice(at), pictures };
   }
 
   /**

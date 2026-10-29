@@ -1,4 +1,5 @@
 import type { TranslateFn } from '@axe/application/i18n/translate.token';
+import type { ImageStorage } from '@axe/core/storage/image-storage';
 import { stampArtUrl, stampLabelKey, StampMotion, stampNameKey, stampOf } from '@axe/domain/chat/stamp-catalog';
 import { SEAL_FILTER_ID, sealStampSvg } from '@axe/domain/chat/stamp-glyphs';
 import { escapeHtml } from '@axe/ui/text-decoration/decorate-chat-text';
@@ -45,6 +46,22 @@ export interface StampViewSource {
   picture(imageIdentifier: string): { url: string; name: string } | null;
   /** The name a room's picture has in a set, or empty. */
   nameInSet(imageIdentifier: string): string;
+}
+
+/** What drawing a stamp reads from the room: its images, the names its sets give them, and the reader's language. */
+export function roomStampViewSource(
+  t: TranslateFn,
+  images: ImageStorage,
+  sets: { nameOf(imageIdentifier: string): string }
+): StampViewSource {
+  return {
+    t,
+    picture: (imageIdentifier) => {
+      const image = images.get(imageIdentifier);
+      return image?.url ? { url: image.url, name: image.name } : null;
+    },
+    nameInSet: (imageIdentifier) => sets.nameOf(imageIdentifier),
+  };
 }
 
 /**

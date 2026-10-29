@@ -6,7 +6,13 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { StampMotion } from '@axe/domain/chat/stamp-catalog';
 import { SEAL_FILTER_ID } from '@axe/domain/chat/stamp-glyphs';
-import { SOUND_EFFECT_EDGE, StampView, stampViewOf, stampWordsSize } from '@axe/ui/components/stamp/stamp-view';
+import {
+  roomStampViewSource,
+  SOUND_EFFECT_EDGE,
+  StampView,
+  stampViewOf,
+  stampWordsSize,
+} from '@axe/ui/components/stamp/stamp-view';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 
 /** How many stamps have been made, for each to give its seal's filter an id of its own. */
@@ -66,14 +72,7 @@ export class StampComponent {
   protected readonly view = computed<(StampView & { fontSizePx: number }) | null>(() => {
     this.objectChange.fileVersion();
     this.language.currentLang();
-    const view = stampViewOf(this.stampId(), {
-      t: this.t,
-      picture: (imageIdentifier) => {
-        const image = this.imageStorage.get(imageIdentifier);
-        return image?.url ? { url: image.url, name: image.name } : null;
-      },
-      nameInSet: (imageIdentifier) => this.packs.nameOf(imageIdentifier),
-    });
+    const view = stampViewOf(this.stampId(), roomStampViewSource(this.t, this.imageStorage, this.packs));
     if (!view) return null;
     const fontSizePx = view.kind === 'words' ? stampWordsSize(view.words, this.size()) : 0;
     if (view.kind === 'picture') {
