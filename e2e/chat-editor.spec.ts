@@ -1,6 +1,14 @@
 import { expect, type Page, test } from '@playwright/test';
 
-import { chatInput, chatInputText, chatTabPill, createCharacter, expectChatText, waitAppReady } from './helpers';
+import {
+  chatInput,
+  chatInputText,
+  chatTabPill,
+  createCharacter,
+  expectChatText,
+  openChatSettingsMenuItem,
+  waitAppReady,
+} from './helpers';
 
 /** Has the reader's chat typed into the editor, as a reader who switched it on would. */
 async function withEditor(page: Page): Promise<void> {
@@ -576,6 +584,27 @@ test.describe('the palette opened for editing', () => {
     await expect
       .poll(() => host.evaluate((element) => element.scrollTop / Math.max(1, element.scrollHeight)))
       .toBeGreaterThan(0.5);
+  });
+});
+
+test.describe('switching the editor off', () => {
+  test('puts the caret back where it stood, in the plain box that takes the editor’s place', async ({ page }) => {
+    await withEditor(page);
+    const input = chatInput(page);
+    await input.click();
+    await page.keyboard.type('abcdef');
+    await expectChatText(input, 'abcdef');
+    for (let step = 0; step < 3; step++) await page.keyboard.press('ArrowLeft');
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+
+    await openChatSettingsMenuItem(page, 'チャット設定');
+    const toggle = page.locator('chat-message-setting [data-testid="chat-rich-input"]');
+    await expect(toggle).toBeChecked();
+    await toggle.uncheck();
+
+    const box = page.locator('chat-window textarea[data-chat-input]');
+    await expect(box).toHaveValue('abcdef');
+    expect(await box.evaluate((area: HTMLTextAreaElement) => [area.selectionStart, area.selectionEnd])).toEqual([3, 3]);
   });
 });
 

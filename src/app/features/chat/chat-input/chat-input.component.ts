@@ -534,8 +534,9 @@ export class ChatInputComponent {
   }
 
   /**
-   * Puts the caret back where it stood, in the plain box that took the editor's place; where none
-   * did, as when the seat may no longer speak, it is let go, for no later editor to take it up.
+   * Puts the caret back where it stood, in the plain box that took the editor's place, its text put
+   * in with it, as the box's own is written in only after; where none did, as when the seat may no
+   * longer speak, it is let go, for no later editor to take it up.
    */
   private restorePlainBox(): void {
     afterNextRender(
@@ -545,7 +546,7 @@ export class ChatInputComponent {
         this.handover = null;
         if (!field || !start) return;
         if (start.focused) field.focus();
-        field.element.setSelectionRange(start.selection.from, start.selection.to);
+        field.setText(start.text, start.selection);
       },
       { injector: this.injector }
     );
