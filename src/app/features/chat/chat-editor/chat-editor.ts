@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import type { ChatLintAnnotation, ChatLintSession } from '@axe/application/chat/chat-lint.service';
 import type { TranslateFn } from '@axe/application/i18n/translate.token';
 import { chatFontWanted$ } from '@axe/core/event/domain-events';
+import { debounce } from '@axe/core/util/debounce';
 import { type ChatDecoration, chatDecorationLayout, type ChatTagLanguage } from '@axe/domain/chat/chat-decoration';
 import { referenceSites } from '@axe/domain/chat/chat-reference';
 import { type ChatRichChip, type ChatRichMode, parseChatRichText } from '@axe/domain/chat/chat-rich-text';
@@ -146,7 +147,8 @@ export class ChatEditorField implements ChatTextField {
   readonly editor: Editor;
   private written: { doc: ProseMirrorNode; language: ChatTagLanguage; out: ChatDocText } | null = null;
   private composedAt = -Infinity;
-  private lintTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Marks what will not work once the reader, or the room, has stood still a moment. */
+  private readonly lintLater = debounce(() => this.paintSyntax(true), LINT_DELAY_MS);
   private refreshAfterComposition = false;
   private pendingText: { text: string; select?: ChatFieldSelection } | null = null;
   /** Whether the paste coming is the one Ctrl+Shift+V asks for, to go in as the letters copied. */
@@ -359,17 +361,21 @@ export class ChatEditorField implements ChatTextField {
   }
 
   /**
-   * Colours the syntax again and checks it again, for a change to the text or to the room. What
-   * will not work is marked at once for a change to the room, and after the reader pauses for a
-   * change to the text.
+   * Colours the syntax again and checks it again, at once, or for a change to the text, which is
+   * coloured at once and checked after the reader pauses.
    */
   refresh(textChanged: boolean): void {
-    if (this.lintTimer) clearTimeout(this.lintTimer);
-    this.lintTimer = null;
-    if (textChanged) {
-      this.lintTimer = setTimeout(() => this.refresh(false), LINT_DELAY_MS);
-    }
+    this.lintLater.cancel();
+    if (textChanged) this.lintLater();
     this.paintSyntax(!textChanged);
+  }
+
+  /**
+   * Colours and checks it again once the room has stood still a moment, for a change to the room
+   * alone, which may come at every step of a piece dragged.
+   */
+  refreshSoon(): void {
+    this.lintLater();
   }
 
   /** Says what the empty editor says again, as when the language changes. */
@@ -397,7 +403,7 @@ export class ChatEditorField implements ChatTextField {
   }
 
   destroy(): void {
-    if (this.lintTimer) clearTimeout(this.lintTimer);
+    this.lintLater.cancel();
     this.tip.remove();
     this.editor.destroy();
     this.bubble.element.remove();

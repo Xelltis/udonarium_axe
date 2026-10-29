@@ -705,7 +705,10 @@ export class ChatInputComponent {
       if (!session || !field) return;
       const text = session.scan().text;
       session.annotations();
-      untracked(() => field.refresh(field === refreshedField && text !== refreshedText));
+      untracked(() => {
+        if (field === refreshedField && text === refreshedText) field.refreshSoon();
+        else field.refresh(field === refreshedField);
+      });
       refreshedText = text;
       refreshedField = field;
     });

@@ -168,7 +168,10 @@ export class ChatLineEditorComponent {
       if (!field) return;
       const text = this.session.scan().text;
       this.session.diagnostics();
-      untracked(() => field.refresh(field === refreshedField && text !== refreshedText));
+      untracked(() => {
+        if (field === refreshedField && text === refreshedText) field.refreshSoon();
+        else field.refresh(field === refreshedField);
+      });
       refreshedText = text;
       refreshedField = field;
     });
