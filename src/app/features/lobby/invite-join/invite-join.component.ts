@@ -114,7 +114,9 @@ export class InviteJoinComponent {
     const params = parseInviteLink(location.hash);
     if (!params) return;
     this.objectChange.networkOpen$.subscribe(() => {
-      if (isInAnotherRoom(params.roomId)) dropInvitationFromAddress();
+      if (!isInAnotherRoom(params.roomId)) return;
+      dropInvitationFromAddress();
+      if (this.state() === 'askLogin') this.answerLogin?.();
     }, this.destroyRef);
 
     this.roomName.set(params.roomName);
@@ -179,7 +181,8 @@ export class InviteJoinComponent {
    * choose to watch. A link opened as on any other table would otherwise take them in as a guest
    * without a word, and the login is in the lobby, which a link never opens. A screen for streaming,
    * which always watches, and a tab that chose to watch the room before are not asked; nor is a
-   * reader where the server is not known to offer a login, once it has been asked.
+   * reader where the server is not known to offer a login, once it has been asked. The question
+   * goes as another room opens meanwhile, which the reader went to instead.
    */
   private async logInOrWatch(roomKey: string): Promise<void> {
     if (!this.auth.isConfigured || this.auth.account()) return;

@@ -565,6 +565,19 @@ describe('InviteJoinComponent', () => {
         expect(bannerText()).not.toContain('PL・GMとして入るには');
       });
 
+      it('takes the question away, going into nothing, once the reader goes into another room instead', async () => {
+        await setup(link(''));
+        await eventually(() => expect(bannerText()).toContain('PL・GMとして入るには'));
+
+        vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('made-room');
+        (
+          TestBed.inject(ObjectChangeService) as unknown as { _networkOpen$: { emit(event: object): void } }
+        )._networkOpen$.emit({ peerId: 'made-room-peer' });
+
+        await eventually(() => expect(bannerText()).not.toContain('PL・GMとして入るには'));
+        expect(joinServerRoom).not.toHaveBeenCalled();
+      });
+
       it('asks again for another room the server keeps no key for, after watching one', async () => {
         const keyless = (id: string, name: string): IRoomInfo => ({
           ...serverRoom(false),
