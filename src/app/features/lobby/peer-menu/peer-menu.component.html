@@ -84,6 +84,10 @@
   </div>
 </div>
 
+@if (offersLogin()) {
+  <server-account class="px-3 pb-2.5" data-testid="peer-menu-login" [framed]="false" />
+}
+
 <hr class="mx-3 border-(--ui-panel-border)" />
 
 <div class="space-y-1.5 px-3 py-2">

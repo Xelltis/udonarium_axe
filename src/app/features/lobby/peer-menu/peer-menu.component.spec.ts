@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
@@ -277,6 +278,25 @@ describe('PeerMenuComponent', () => {
       report!.click();
 
       expect(opened).toHaveBeenCalledWith(ReportDialogComponent, { target: 'room', name: '卓' });
+    });
+
+    it('offers a guest the login, which one who came in by a link never sees in the lobby, until logged in', () => {
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      const auth = TestBed.inject(ServerAuthService);
+      vi.spyOn(auth, 'isConfigured', 'get').mockReturnValue(true);
+      vi.spyOn(auth, 'offersLogin').mockReturnValue(true);
+      const login = () =>
+        (fixture.nativeElement as HTMLElement).querySelector(
+          '[data-testid="peer-menu-login"] [data-testid="server-account-login"]'
+        );
+      fixture = TestBed.createComponent(PeerMenuComponent);
+      fixture.detectChanges();
+      expect(login()).not.toBeNull();
+
+      vi.spyOn(auth, 'account').mockReturnValue({ userId: 'acct_1', name: 'Kai', avatarUrl: null });
+      fixture = TestBed.createComponent(PeerMenuComponent);
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="peer-menu-login"]')).toBeNull();
     });
 
     it('offers the lobby, where the reader logs in or leaves, however many are in the room', () => {

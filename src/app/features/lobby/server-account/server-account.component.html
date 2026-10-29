@@ -4,7 +4,8 @@
   </p>
 } @else {
   <div
-    class="border-ui-border-panel mb-3 flex flex-wrap items-center gap-2 border-b border-solid pb-2.5 text-[0.8rem]"
+    class="flex flex-wrap items-center gap-2 text-[0.8rem]"
+    [class]="framed() ? 'border-ui-border-panel mb-3 border-b border-solid pb-2.5' : ''"
     data-testid="server-account"
   >
     @if (account(); as account) {

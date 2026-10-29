@@ -120,6 +120,30 @@ test.describe('rooms and roles on the room server', () => {
     await leaveAll(gm, coGm);
   });
 
+  test('someone not logged in who opens a room’s link is asked to log in or to watch, and may log in from inside', async ({
+    browser,
+    roomServer,
+  }) => {
+    const gm = await openSeat(browser, roomServer, 'GMさん');
+    const room = uniqueName('聞く卓');
+    await createRoom(gm.page, room);
+    await expect(gm.page.getByTestId('peer-menu-invite-expires')).toBeVisible({ timeout: 10_000 });
+    const invitation = (await gm.page.locator('peer-menu input[readonly]').first().inputValue()).replace(
+      /^https?:\/\/[^/]+\//,
+      `${roomServer.appUrl}/`
+    );
+
+    const guest = await openSeat(browser, roomServer, '見学さん', null, invitation);
+    await expect(guest.page.getByTestId('invite-join')).toContainText('PL・GMとして入るには', { timeout: 30_000 });
+    await expect(guest.page.getByTestId('invite-join-login')).toBeVisible();
+    await guest.page.getByTestId('invite-join-watch').click();
+
+    await expectInRoom(guest.page, room);
+    expect(await serverRole(guest.page)).toBe('見学');
+    await expect(guest.page.getByTestId('peer-menu-login').getByTestId('server-account-login')).toBeVisible();
+    await leaveAll(gm, guest);
+  });
+
   test('a login run out on the server is turned away with a reason', async ({ browser, roomServer }) => {
     const gm = await openSeat(browser, roomServer, 'GMさん');
     const room = uniqueName('遅刻の卓');

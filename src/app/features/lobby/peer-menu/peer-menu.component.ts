@@ -14,6 +14,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { leavingLoss, leavingLossText } from '@axe/application/lobby/leaving-loss';
+import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ReportService } from '@axe/application/moderation/report.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
@@ -45,6 +46,7 @@ import { dropInvitationFromAddress } from '@axe/features/lobby/leave-room';
 import { LobbyComponent } from '@axe/features/lobby/lobby/lobby.component';
 import { ReConnectComponent } from '@axe/features/lobby/re-connect/re-connect.component';
 import { roomDeletionMessageKey, RoomDeletionService } from '@axe/features/lobby/room-deletion.service';
+import { ServerAccountComponent } from '@axe/features/lobby/server-account/server-account.component';
 import { ServerWatchService } from '@axe/features/lobby/server-watch.service';
 import { ReportDialogComponent } from '@axe/features/moderation/report-dialog/report-dialog.component';
 import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-archive-event-handler.service';
@@ -68,7 +70,7 @@ export type ConnectionMode = (typeof CONNECTION_MODES)[number];
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'peer-menu',
   templateUrl: './peer-menu.component.html',
-  imports: [FormsModule, DatePipe, SafePipe, TranslocoModule],
+  imports: [FormsModule, DatePipe, SafePipe, ServerAccountComponent, TranslocoModule],
 })
 export class PeerMenuComponent {
   private readonly t = inject(TRANSLATE_FN);
@@ -150,6 +152,15 @@ export class PeerMenuComponent {
    * the config, which may load after the panel opens at startup.
    */
   protected readonly isServerTransport = signal(Network.transport === 'server');
+  private readonly auth = inject(ServerAuthService);
+  /**
+   * Whether the login is offered here, to a guest on a room server: one who came in by a link never
+   * sees the lobby, where it otherwise is.
+   */
+  protected readonly offersLogin = computed(
+    () =>
+      this.isServerTransport() && this.auth.isConfigured && !this.auth.account() && this.auth.offersLogin() !== false
+  );
   /** Whether this seat may report the room to the room server's operator, as anyone in it may. */
   protected readonly canReport = inject(ReportService).canReport;
   private readonly objectSynchronizer = inject(ObjectSynchronizer);
