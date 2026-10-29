@@ -299,10 +299,28 @@ export class ChatEditorField implements ChatTextField {
     view.dispatch(tr);
   }
 
+  /**
+   * Writes text over a stretch of the text, as the toolbar does, in what the editor holds rather
+   * than in the text it is written as, so the marks a decoration is written with at the edges of
+   * the stretch stay where they are. What is written is then read again, as typed syntax is.
+   */
   replaceRange(from: number, to: number, insert: string, select?: ChatFieldSelection): void {
-    const text = this.text();
-    const end = from + insert.length;
-    this.setText(text.slice(0, from) + insert + text.slice(to), select ?? { from: end, to: end });
+    const out = this.writtenNow();
+    const start = out.toPos(from, from === to ? -1 : 1);
+    const end = Math.max(start, out.toPos(to, -1));
+    const tr = this.editor.state.tr.insertText(insert, start, end);
+    const pick = select ?? { from: from + insert.length, to: from + insert.length };
+    const docAt = (offset: number, assoc: -1 | 1): number => {
+      if (offset >= from && offset <= from + insert.length) return start + (offset - from);
+      const old = offset < from ? offset : offset - insert.length + (to - from);
+      return tr.mapping.map(out.toPos(old, assoc), assoc);
+    };
+    const written = textOfDoc(tr.doc, this.host.language(), this.host.mode);
+    const caret = {
+      from: written.toOffset(docAt(pick.from, 1), pick.from === pick.to ? -1 : 1),
+      to: written.toOffset(docAt(pick.to, -1), -1),
+    };
+    this.setText(written.text, caret);
   }
 
   focus(): void {
