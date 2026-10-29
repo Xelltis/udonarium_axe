@@ -10,6 +10,7 @@ import type { ChatSyntaxScan, SyntaxKind } from '@axe/domain/chat-syntax/chat-sy
 import { isBattleChatTokenName } from '@axe/domain/effect/effect-chat-token';
 import { buildChatBubble, type ChatBubble } from '@axe/features/chat/chat-editor/chat-editor-bubble';
 import type { ChatCompletionWords } from '@axe/features/chat/chat-editor/chat-editor-complete';
+import { CHAT_HIGHLIGHT_LIMIT } from '@axe/features/chat/chat-editor/chat-editor-loader';
 import { ensureChatEditorStyle } from '@axe/features/chat/chat-editor/chat-editor-style';
 import { chatSuggestExtension } from '@axe/features/chat/chat-editor/chat-editor-suggest';
 import {
@@ -112,9 +113,6 @@ const LINT_DELAY_MS = 300;
 
 /** How long after a word is made with an input method an Enter is still taken for the one that made it. */
 const COMPOSITION_ENTER_MS = 50;
-
-/** Past this many letters the text is not coloured or checked, as reading it over at every key would lag. */
-const HIGHLIGHT_LIMIT = 8000;
 
 const SYNTAX = new PluginKey<DecorationSet>('chatSyntax');
 
@@ -772,7 +770,7 @@ export class ChatEditorField implements ChatTextField {
     }
     const session = this.host.session();
     const out = this.writtenNow();
-    if (!session || out.text.length > HIGHLIGHT_LIMIT) {
+    if (!session || out.text.length > CHAT_HIGHLIGHT_LIMIT) {
       view.dispatch(view.state.tr.setMeta(SYNTAX, DecorationSet.empty).setMeta('addToHistory', false));
       if (withLint) this.host.linted?.(false);
       return;

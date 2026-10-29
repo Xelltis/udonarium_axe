@@ -64,7 +64,11 @@ import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { ChatColorSettingComponent } from '@axe/features/chat/chat-color-setting/chat-color-setting.component';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import type { ChatEditorField, ChatEditorHost, ChatEditorStart } from '@axe/features/chat/chat-editor/chat-editor';
-import { CHAT_EDITOR_LOADER, type ChatEditorModule } from '@axe/features/chat/chat-editor/chat-editor-loader';
+import {
+  CHAT_EDITOR_LOADER,
+  CHAT_HIGHLIGHT_LIMIT,
+  type ChatEditorModule,
+} from '@axe/features/chat/chat-editor/chat-editor-loader';
 import { ChatInputDiceBotHelper } from '@axe/features/chat/chat-input/chat-input-dicebot';
 import { allowsChat, lineStartOf } from '@axe/features/chat/chat-input/chat-input-helpers';
 import { ChatInputHistory } from '@axe/features/chat/chat-input/chat-input-history';
@@ -731,8 +735,8 @@ export class ChatInputComponent {
       const session = this.activeSession();
       const field = this.richField();
       if (!session || !field) return;
-      const text = session.scan().text;
-      session.annotations();
+      const text = this._text();
+      if (text.length <= CHAT_HIGHLIGHT_LIMIT) session.annotations();
       untracked(() => {
         if (field === refreshedField && text === refreshedText) field.refreshSoon();
         else field.refresh(field === refreshedField);

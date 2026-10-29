@@ -44,7 +44,11 @@ import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import type { ChatEditorField, ChatEditorHost, ChatEditorStart } from '@axe/features/chat/chat-editor/chat-editor';
-import { CHAT_EDITOR_LOADER, type ChatEditorModule } from '@axe/features/chat/chat-editor/chat-editor-loader';
+import {
+  CHAT_EDITOR_LOADER,
+  CHAT_HIGHLIGHT_LIMIT,
+  type ChatEditorModule,
+} from '@axe/features/chat/chat-editor/chat-editor-loader';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
 import { editsTextInPlace } from '@axe/features/chat/chat-input/chat-input-helpers';
 import { ChatSyntaxSourceService } from '@axe/features/chat/chat-input/chat-syntax-source.service';
@@ -413,8 +417,8 @@ export class ChatPaletteComponent {
         refreshedText = null;
         return;
       }
-      const text = this.paletteLint.scan().text;
-      this.paletteLint.annotations();
+      const text = this.editPalette();
+      if (text.length <= CHAT_HIGHLIGHT_LIMIT) this.paletteLint.annotations();
       untracked(() => {
         if (text === refreshedText) this.paletteEditor?.refreshSoon();
         else this.paletteEditor?.refresh(true);
