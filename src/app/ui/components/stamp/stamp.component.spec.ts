@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { imageStampId } from '@axe/domain/chat/stamp-catalog';
 import { StampPack } from '@axe/domain/chat/stamp-pack';
@@ -133,5 +134,15 @@ describe('StampComponent', () => {
     const second = show('seal:ok', 2)!;
     expect(second.className).toContain('animate-stamp-press');
     expect(second).not.toBe(first);
+  });
+
+  it('follows the pictures arriving only for a stamp of a room’s picture', () => {
+    const followed = vi.spyOn(TestBed.inject(ObjectChangeService), 'fileVersion');
+
+    show('sfx:creepy');
+    expect(followed).not.toHaveBeenCalled();
+
+    show(imageStampId('not-here-yet'));
+    expect(followed).toHaveBeenCalled();
   });
 });

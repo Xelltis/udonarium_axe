@@ -4,6 +4,7 @@ import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { IMAGE_STAMP_PREFIX } from '@axe/domain/chat/stamp-catalog';
 import { StampMotion } from '@axe/domain/chat/stamp-catalog';
 import { SEAL_FILTER_ID } from '@axe/domain/chat/stamp-glyphs';
 import {
@@ -70,7 +71,7 @@ export class StampComponent {
   private readonly sealFilterId = `${SEAL_FILTER_ID}-${++stampsMade}`;
 
   protected readonly view = computed<(StampView & { fontSizePx: number }) | null>(() => {
-    this.objectChange.fileVersion();
+    if (this.stampId().startsWith(IMAGE_STAMP_PREFIX)) this.objectChange.fileVersion();
     this.language.currentLang();
     const view = stampViewOf(this.stampId(), roomStampViewSource(this.t, this.imageStorage, this.packs));
     if (!view) return null;
