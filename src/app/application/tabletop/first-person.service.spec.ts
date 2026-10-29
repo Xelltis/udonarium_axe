@@ -371,6 +371,26 @@ describe('FirstPersonService', () => {
       }
     });
 
+    it('shows a player held in the view the game master put up what the piece sees, not what the table shows them', () => {
+      darkTable();
+      lampAt(6, 5);
+      gameMasterInTheRoom();
+      const piece = pieceAt(5, 5, 90);
+      piece.owner = 'somebody-else';
+      table.sharedViewPiece = piece.identifier;
+      touch(table.identifier, piece.identifier);
+
+      expect(service().forced()).toBe(true);
+      expect(service().litCells()).toBe(service().sight());
+
+      table.sharedViewPiece = '';
+      piece.owner = '';
+      touch(table.identifier, piece.identifier);
+      service().enterSeat(piece.identifier);
+      expect(service().forced()).toBe(false);
+      expect(service().litCells()).not.toBe(service().sight());
+    });
+
     it('shows the game master the room whether or not a lamp is burning in it', () => {
       darkTable();
       becomeGameMaster();

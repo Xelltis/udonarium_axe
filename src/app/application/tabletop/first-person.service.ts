@@ -222,12 +222,16 @@ export class FirstPersonService {
     return overlay?.rememberSeen ? overlay.explored : null;
   });
 
-  /** The cells in plain sight from the eye, cut back to what the table shows this seat. */
+  /**
+   * The cells in plain sight from the eye, cut back to what the table shows this seat. A view the
+   * game master holds the room in is what the piece sees, whoever looks out of it: a seat with no
+   * eyes of its own there would otherwise be held in the dark.
+   */
   readonly litCells = computed<CellBits | null>(() => {
     const sight = this.sight();
     if (!sight) return null;
     const overlay = this.vision.overlayVision();
-    if (this.isGameMaster() || !overlay || overlay.visible.count !== sight.count) return sight;
+    if (this.isGameMaster() || this.forced() || !overlay || overlay.visible.count !== sight.count) return sight;
     const lit = sight.copy();
     lit.and(overlay.visible);
     return lit;
