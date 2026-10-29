@@ -6,6 +6,8 @@ import {
   removedBuffName,
 } from '@axe/domain/character/buff-command';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { findStatusAilment } from '@axe/domain/character/status-ailment';
+import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { textTargetsCharacter } from '@axe/domain/chat/chat-palette';
 import {
   findImageIdentifierByName,
@@ -303,8 +305,9 @@ function lintBuff(source: string, span: TextRange, pieces: readonly GameCharacte
     return;
   }
   if (kind === 'plain') {
-    const rounds = readModifierLayout(command.replace(/^[tTｔＴ]?&/i, '').split('/'))[2];
-    if (rounds && Number.isNaN(parseInt(rounds))) add(span, 'info', 'buff.roundsDefault');
+    const parts = readModifierLayout(command.replace(/^[tTｔＴ]?&/i, '').split('/'));
+    const named = findStatusAilment(StatusAilmentCatalog.instance.ailments, parts[0]);
+    if (!named && parts[2] && Number.isNaN(parseInt(parts[2]))) add(span, 'info', 'buff.roundsDefault');
   }
 }
 

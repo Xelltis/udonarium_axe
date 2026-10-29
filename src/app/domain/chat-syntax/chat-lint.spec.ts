@@ -1,4 +1,6 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { newStatusAilment } from '@axe/domain/character/status-ailment';
+import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { type ChatLintContext, lintChatSyntax } from '@axe/domain/chat-syntax/chat-lint';
 import { scanChatSyntax } from '@axe/domain/chat-syntax/chat-syntax';
 
@@ -134,6 +136,16 @@ describe('lintChatSyntax', () => {
 
     it('says rounds that are no number last three', () => {
       expect(codes('&加護/防御+2/ずっと')).toEqual(['buff.roundsDefault']);
+    });
+
+    it('says nothing of three rounds for a buff named after a state the room keeps, which lasts the state’s', () => {
+      StatusAilmentCatalog.instance.ailments = [{ ...newStatusAilment('毒'), rounds: 5 }];
+      try {
+        expect(codes('&毒/2d6/ずっと')).toEqual([]);
+        expect(codes('&加護/2d6/ずっと')).toEqual(['buff.roundsDefault']);
+      } finally {
+        StatusAilmentCatalog.instance.ailments = [];
+      }
     });
 
     it('reads the rounds of a buff written with its status, mark and amount apart where they stand after them', () => {
