@@ -54,10 +54,24 @@ export class ChatSyntaxSourceService {
         .getObjects<CutIn>(CutIn)
         .filter((cutIn) => cutIn.chatActivate)
         .map((cutIn) => cutIn.name),
-      diceExamples: system && !DiceBot.isUnreachable(system) ? diceCommandExamples(system) : [],
+      diceExamples: system && !DiceBot.isUnreachable(system) ? this.examplesOf(system) : [],
       isGameMaster: PeerCursor.isMyselfGameMaster,
     };
   }
+
+  /**
+   * The commands a game system gives as examples, worked out once for each system: each is tried
+   * by rolling it, which is too dear to do again at every key while names are offered.
+   */
+  private examplesOf(system: Parameters<typeof diceCommandExamples>[0]): string[] {
+    const known = this.diceExamples.get(system);
+    if (known) return known;
+    const examples = diceCommandExamples(system);
+    this.diceExamples.set(system, examples);
+    return examples;
+  }
+
+  private readonly diceExamples = new WeakMap<object, string[]>();
 
   /** The names the editor offers as a line is written, the speaker's buffs among them. */
   completionWordsFor(sendFrom: string, gameType: string): ChatCompletionWords {
