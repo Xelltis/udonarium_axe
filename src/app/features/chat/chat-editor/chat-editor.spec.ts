@@ -144,6 +144,22 @@ describe('the chat editor', () => {
     expect(editor.editor.state.doc.firstChild!.child(1).marks.map((mark) => mark.type.name)).toContain('chatBold');
   });
 
+  it('writes what begins a line before the decoration the line starts with', () => {
+    const editor = mount('**大事な話**');
+
+    editor.replaceRange(0, 0, '> ');
+
+    expect(editor.text()).toBe('> **大事な話**');
+  });
+
+  it('puts what it writes where it was written, a letter like its stand-in elsewhere in the line or not', () => {
+    const editor = mount('\ue000a');
+
+    editor.replaceRange(2, 2, 'b');
+
+    expect(editor.text()).toBe('\ue000ab');
+  });
+
   it('puts the caret after what it wrote, and keeps a selection beyond it where it stood', () => {
     const editor = mount('x **y** z');
 

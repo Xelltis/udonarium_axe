@@ -311,7 +311,8 @@ export class ChatEditorField implements ChatTextField {
    * Writes text over a stretch of the text, as the toolbar does, in what the editor holds rather
    * than in the text it is written as, so the marks a decoration is written with at the edges of
    * the stretch stay where they are. It goes in as letters standing in for it, which nothing reads
-   * as a mark, and then as the syntax it is, read again as typed syntax is.
+   * as a mark, and then as the syntax it is, read again as typed syntax is. Written at the start of
+   * a line, as what begins one is, it goes in plain, before any decoration the line starts with.
    */
   replaceRange(from: number, to: number, insert: string, select?: ChatFieldSelection): void {
     const out = this.writtenNow();
@@ -319,6 +320,7 @@ export class ChatEditorField implements ChatTextField {
     const end = Math.max(start, out.toPos(to, -1));
     const standIn = STAND_IN_LETTER.repeat(insert.length);
     const tr = this.editor.state.tr.insertText(standIn, start, end);
+    if (tr.doc.resolve(start).parentOffset === 0) tr.removeMark(start, start + standIn.length);
     const pick = select ?? { from: from + insert.length, to: from + insert.length };
     const docAt = (offset: number, assoc: -1 | 1): number => {
       if (offset >= from && offset <= from + insert.length) return start + (offset - from);
@@ -330,7 +332,8 @@ export class ChatEditorField implements ChatTextField {
       from: written.toOffset(docAt(pick.from, 1), pick.from === pick.to ? -1 : 1),
       to: written.toOffset(docAt(pick.to, -1), -1),
     };
-    const at = written.text.indexOf(standIn);
+    const expected = written.toOffset(start + 1, -1) - 1;
+    const at = written.text.startsWith(standIn, expected) ? expected : written.text.indexOf(standIn);
     const text =
       insert && at >= 0 ? written.text.slice(0, at) + insert + written.text.slice(at + standIn.length) : written.text;
     this.setText(text, caret);
