@@ -177,7 +177,8 @@ test.describe('rolling chat dice in 3D', () => {
   test("rolls one's own dice in the material chosen in my dice", async ({ page }) => {
     await chooseStage(page, 'frame');
 
-    await page.getByTestId('chat-my-dice').click();
+    await page.locator('chat-window [data-testid="chat-input-tools"]').dispatchEvent('click');
+    await page.getByTestId('chat-my-dice').dispatchEvent('click');
     await expect(page.getByTestId('my-dice-try-out')).toBeVisible({ timeout: 10000 });
     await page.getByTestId('my-dice-material-metal').click();
     await expect(page.getByTestId('my-dice-material-metal')).toHaveAttribute('aria-checked', 'true');
@@ -194,7 +195,8 @@ test.describe('rolling chat dice in 3D', () => {
   test("rolls one's own dice with the picture put on in my dice, laid the way chosen", async ({ page }) => {
     await chooseStage(page, 'frame');
 
-    await page.getByTestId('chat-my-dice').click();
+    await page.locator('chat-window [data-testid="chat-input-tools"]').dispatchEvent('click');
+    await page.getByTestId('chat-my-dice').dispatchEvent('click');
     await page.getByTestId('my-dice-picture-file').setInputFiles({
       name: 'checks.png',
       mimeType: 'image/png',

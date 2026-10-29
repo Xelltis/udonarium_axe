@@ -3703,7 +3703,10 @@
         "myDice": "My Dice",
         "stamp": "Send a stamp (with what you have typed, if anything)",
         "attachStamp": "Add a stamp (sent with what you type on Enter)",
-        "dropStamp": "Remove the stamp"
+        "dropStamp": "Remove the stamp",
+        "bar": "Chat input tools",
+        "colorSlot": "Colour {{n}}",
+        "colors": "Speech colour"
       },
       "decoration": {
         "bold": "Bold",

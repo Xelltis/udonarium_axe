@@ -3703,7 +3703,10 @@
         "myDice": "마이 주사위",
         "stamp": "스탬프 보내기 (입력 중인 글이 있으면 함께)",
         "attachStamp": "스탬프 붙이기 (Enter로 글과 함께 보내기)",
-        "dropStamp": "스탬프 빼기"
+        "dropStamp": "스탬프 빼기",
+        "bar": "입력란 도구",
+        "colorSlot": "보유 색 {{n}}",
+        "colors": "발언 색"
       },
       "decoration": {
         "bold": "굵게",

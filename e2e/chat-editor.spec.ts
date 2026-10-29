@@ -194,6 +194,29 @@ test.describe('the chat editor', () => {
     await expect(linesWithRuby(page)).toHaveCount(0);
   });
 
+  test('selects the words a drag runs over from anywhere in the box, leaving the panel where it stands', async ({
+    page,
+  }) => {
+    const input = chatInput(page);
+    await input.click();
+    await page.keyboard.type('ドラッグで選ぶ言葉');
+    await expectChatText(input, 'ドラッグで選ぶ言葉');
+    const panel = page.locator('.draggable-panel').filter({ has: page.locator('chat-window') });
+    const before = (await panel.boundingBox())!;
+    const box = (await page.locator('chat-window [data-chat-input-box]').boundingBox())!;
+    const line = (await input.locator('p').first().boundingBox())!;
+    expect(box.y + box.height - 8).toBeGreaterThan(line.y + line.height);
+
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height - 8);
+    await page.mouse.down();
+    await page.mouse.move(line.x + 4, line.y + line.height / 2, { steps: 8 });
+    await page.mouse.up();
+
+    const after = (await panel.boundingBox())!;
+    expect([after.x, after.y]).toEqual([before.x, before.y]);
+    expect(await page.evaluate(() => document.getSelection()?.toString().length ?? 0)).toBeGreaterThan(0);
+  });
+
   test('opens a bar over the words selected, standing clear of the toolbar', async ({ page }) => {
     const input = chatInput(page);
     await input.click();
@@ -216,7 +239,7 @@ test.describe('the chat editor', () => {
     await page.keyboard.type('赤く');
     await expectChatText(input, '赤く');
     await page.keyboard.press('ControlOrMeta+a');
-    const button = page.locator('chat-window [data-testid="chat-toolbar-color"]');
+    const button = page.locator('chat-window [data-testid="chat-toolbar-style"]');
     await button.click();
     const panel = page.locator('[data-testid="chat-toolbar-panel"]');
     await expect(panel).toBeVisible();

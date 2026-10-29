@@ -90,7 +90,8 @@ test.describe('the chat window', () => {
     await expect(page.locator('chat-input').getByRole('button', { name: '?' })).toBeVisible();
   });
 
-  test('has the colour settings button', async ({ page }) => {
+  test('has the colour settings button under the speech colour button', async ({ page }) => {
+    await page.locator('chat-window [data-testid="chat-input-color"]').click();
     await expect(page.locator('chat-input').getByRole('button', { name: /色設定/ })).toBeVisible();
   });
 });
@@ -178,7 +179,38 @@ test.describe('the character a chat line is sent as', () => {
   });
 
   test('has three ng-selects, for the sender, the recipient and the dice bot', async ({ page }) => {
-    await expect(page.locator('chat-input ng-select')).toHaveCount(3);
+    await expect(page.locator('chat-window chat-input ng-select')).toHaveCount(3);
+  });
+
+  test('keeps the speaker, the recipient, the formatting, the stamps, the speech colour and the dice bot in one row over the box', async ({
+    page,
+  }) => {
+    const bar = page.locator('chat-window [data-testid="chat-input-bar"]');
+    await expect(bar).toHaveAttribute('role', 'toolbar');
+    await expect(bar.locator('ng-select')).toHaveCount(3);
+    await expect(bar.getByTestId('chat-toolbar-bold')).toBeVisible();
+    await expect(bar.getByTestId('chat-input-stamp')).toBeVisible();
+    const tops = await bar
+      .locator('ng-select, [data-testid="chat-toolbar-bold"], [data-testid="chat-input-color"], button:has-text("?")')
+      .evaluateAll((elements) => elements.map((element) => Math.round(element.getBoundingClientRect().top)));
+    expect(new Set(tops.map((top) => Math.round(top / 8))).size).toBe(1);
+
+    await bar.getByTestId('chat-input-color').click();
+    await expect(page.locator('chat-window').getByRole('button', { name: '持ち色2' })).toBeVisible();
+    await expect(page.locator('chat-window').getByRole('button', { name: /色設定/ })).toBeVisible();
+  });
+
+  test('opens the list of recipients upward from the chat at the foot of the screen, on the screen', async ({
+    page,
+  }) => {
+    const select = page.locator('chat-window ng-select[name="send-to"]');
+    await select.click();
+    const list = page.locator('ng-dropdown-panel');
+    await expect(list).toBeVisible();
+    const opened = (await list.boundingBox())!;
+    const anchor = (await select.boundingBox())!;
+    expect(opened.y + opened.height).toBeLessThanOrEqual(anchor.y + 1);
+    expect(opened.y).toBeGreaterThanOrEqual(0);
   });
 });
 

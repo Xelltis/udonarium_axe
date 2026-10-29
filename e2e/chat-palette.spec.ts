@@ -113,6 +113,7 @@ test.describe('the chat palette', () => {
 test.describe('the chat colour settings modal', () => {
   test('opens chat-color-setting from the colour settings button', async ({ page }) => {
     await waitAppReady(page);
+    await page.locator('chat-input').getByTestId('chat-input-color').first().click();
     await page
       .locator('chat-input')
       .getByRole('button', { name: /色設定/ })

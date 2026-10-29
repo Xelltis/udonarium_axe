@@ -149,10 +149,12 @@ describe('ChatInputComponent', () => {
       return character;
     }
 
-    const slider = () =>
-      fixture.nativeElement.querySelector(
+    const slider = () => {
+      openTools();
+      return fixture.nativeElement.querySelector(
         '[data-testid="chat-input-portraits"] input[type="range"]'
       ) as HTMLInputElement | null;
+    };
 
     async function speakAs(character: GameCharacter): Promise<void> {
       component.sendFrom = character.identifier;
@@ -161,11 +163,11 @@ describe('ChatInputComponent', () => {
       fixture.detectChanges();
     }
 
-    it('runs through the portraits of a speaker with several, beside the colours', async () => {
+    it('runs through the portraits of a speaker with several, under the tools button', async () => {
       await speakAs(withPortraits(3));
 
       expect(slider()?.max).toBe('2');
-      expect(slider()?.closest('[data-testid="chat-input-colors"]')).not.toBeNull();
+      expect(slider()?.closest('[data-testid="chat-input-tools-row"]')).not.toBeNull();
     });
 
     it('speaks with the portrait the knob is moved to', async () => {
@@ -253,6 +255,73 @@ describe('ChatInputComponent', () => {
     });
   });
 
+  /** Opens the row under the bar where the tools that do not fit in it are, where it is shut. */
+  function openTools(): void {
+    fixture.detectChanges();
+    const tools = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      '[data-testid="chat-input-tools"]'
+    );
+    if (tools && tools.getAttribute('aria-expanded') !== 'true') tools.click();
+    fixture.detectChanges();
+  }
+
+  describe('the bar over the box', () => {
+    const bar = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="chat-input-bar"]')!;
+    const find = (selector: string) => (fixture.nativeElement as HTMLElement).querySelector(selector);
+
+    it('holds the speaker, the recipient, the formatting buttons, the speech colour and the dice bot in one bar', async () => {
+      fixture.componentRef.setInput('canSpeak', true);
+      fixture.detectChanges();
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(bar().querySelector('[data-testid="chat-toolbar"]')).not.toBeNull();
+      });
+
+      expect(bar().getAttribute('role')).toBe('toolbar');
+      expect(Array.from(bar().querySelectorAll('ng-select')).map((select) => select.getAttribute('name'))).toEqual([
+        'send-from',
+        'send-to',
+        'game-type',
+      ]);
+      expect(bar().querySelector('[data-testid="chat-input-color"]')).not.toBeNull();
+      expect(find('[data-testid="chat-input-tools"]')).toBeNull();
+    });
+
+    it('leaves the formatting buttons out for a tab the reader may not speak in, keeping the rest', async () => {
+      fixture.componentRef.setInput('canSpeak', false);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(bar().querySelector('[data-testid="chat-toolbar"]')).toBeNull();
+      expect(bar().querySelectorAll('ng-select')).toHaveLength(3);
+      expect(bar().querySelector('[data-testid="chat-input-color"]')).not.toBeNull();
+    });
+
+    it('speaks in the colour picked from the colour button, which then shows it', () => {
+      fixture.detectChanges();
+      const panel = find('[data-testid="chat-input-colors"]') as HTMLElement;
+      panel.showPopover = () => undefined;
+      panel.hidePopover = () => undefined;
+      (find('[data-testid="chat-input-color"]') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      const swatches = Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+          '[data-testid="chat-input-colors"] button[aria-pressed]'
+        )
+      );
+      expect(swatches).toHaveLength(3);
+
+      swatches[2].click();
+      fixture.detectChanges();
+
+      expect(component.colorSelectNo()).toBe(2);
+      expect(
+        (find('[data-testid="chat-input-color"] span') as HTMLElement).style.backgroundColor.replace(/\s/g, '')
+      ).toBe((swatches[2].querySelector('span') as HTMLElement).style.backgroundColor.replace(/\s/g, ''));
+    });
+  });
+
   describe('packed down for a panel', () => {
     function find(selector: string): Element | null {
       return (fixture.nativeElement as HTMLElement).querySelector(selector);
@@ -261,27 +330,6 @@ describe('ChatInputComponent', () => {
     function textBox(): HTMLTextAreaElement {
       return find('textarea[name="chat-input-text"]') as HTMLTextAreaElement;
     }
-
-    it('shows the colours with the dice bot, and no button to fold them, by default', () => {
-      fixture.detectChanges();
-
-      expect(find('ng-select[name="game-type"]')).not.toBeNull();
-      expect(find('[data-testid="chat-input-colors"]')).not.toBeNull();
-      expect(find('[data-testid="chat-input-tools"]')).toBeNull();
-    });
-
-    it('folds the colours behind a button, keeping the dice bot in view', () => {
-      fixture.componentRef.setInput('dense', true);
-      fixture.detectChanges();
-
-      expect(find('ng-select[name="game-type"]')).not.toBeNull();
-      expect(find('[data-testid="chat-input-colors"]')).toBeNull();
-
-      (find('[data-testid="chat-input-tools"]') as HTMLButtonElement).click();
-      fixture.detectChanges();
-
-      expect(find('[data-testid="chat-input-colors"]')).not.toBeNull();
-    });
 
     it('starts the box a line high, leaving it to grow with what is typed', () => {
       fixture.detectChanges();
@@ -376,8 +424,10 @@ describe('ChatInputComponent', () => {
   });
 
   describe('the button to choose how this seat’s dice look', () => {
-    const button = () =>
-      fixture.nativeElement.querySelector('[data-testid="chat-my-dice"]') as HTMLButtonElement | null;
+    const button = () => {
+      openTools();
+      return fixture.nativeElement.querySelector('[data-testid="chat-my-dice"]') as HTMLButtonElement | null;
+    };
     let stageBefore: DiceStage;
 
     beforeEach(() => {
@@ -490,18 +540,23 @@ describe('ChatInputComponent', () => {
       expect(DiceBot.gameSystemForLineAsync).toHaveBeenCalledWith(component.gameType, 'こんにちは');
     });
 
+    const tickerSwitch = () => {
+      openTools();
+      return fixture.nativeElement.querySelector('[data-testid="chat-send-to-ticker"]');
+    };
+
     it('offers the ticker only where this screen runs one, and marks the line when it is asked to', async () => {
       fixture.detectChanges();
-      expect(fixture.nativeElement.querySelector('[data-testid="chat-send-to-ticker"]')).toBeNull();
+      expect(tickerSwitch()).toBeNull();
 
       TestBed.inject(TabletopDisplayService).set({ multiAngleTickerEnabled: true });
       fixture.detectChanges();
       // The room runs one, but this seat is in perspective and has no band of its own.
-      expect(fixture.nativeElement.querySelector('[data-testid="chat-send-to-ticker"]')).toBeNull();
+      expect(tickerSwitch()).toBeNull();
 
       TestBed.inject(ViewModePreferenceService).choose('flat');
       fixture.detectChanges();
-      expect(fixture.nativeElement.querySelector('[data-testid="chat-send-to-ticker"]')).toBeTruthy();
+      expect(tickerSwitch()).toBeTruthy();
 
       component.toggleTickerSend();
       component.text = 'ラウンド開始';
@@ -519,7 +574,7 @@ describe('ChatInputComponent', () => {
       TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
       fixture.detectChanges();
 
-      expect(fixture.nativeElement.querySelector('[data-testid="chat-send-to-ticker"]')).toBeNull();
+      expect(tickerSwitch()).toBeNull();
       expect(component.showsTickerSwitch()).toBe(false);
     });
 

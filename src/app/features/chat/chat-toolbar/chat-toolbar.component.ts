@@ -28,13 +28,14 @@ import { AnchoredPopover } from '@axe/ui/anchored-popover';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** The popovers the toolbar opens, one at a time. */
-type ToolbarPopover = 'size' | 'font' | 'color' | 'style' | 'ruby' | 'insert';
+type ToolbarPopover = 'style' | 'ruby' | 'insert';
 
 /**
- * The buttons over the chat input: bold, italic and a line through, which light up where the caret
- * or the selection is decorated, the size, the font and the colour, a ruby over the words selected,
- * and the syntax there is to put in, a group to each kind. Every popover opens upward, as the chat
- * sits at the foot of the screen, and keeps on the screen.
+ * The formatting buttons in the bar over the chat input, in one row: bold and italic, a style button
+ * holding a line through, the size, the font and the colour, a ruby over the words selected, and the
+ * syntax there is to put in, a group to each kind. A button lights up where the caret or the
+ * selection has what it puts on. Every popover opens upward, as the chat sits at the foot of the
+ * screen, and keeps on the screen.
  *
  * It works the plain box as well as the editor, which then writes the marks round the selection
  * and lights nothing up.
@@ -43,7 +44,7 @@ type ToolbarPopover = 'size' | 'font' | 'color' | 'style' | 'ruby' | 'insert';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'chat-toolbar',
   templateUrl: './chat-toolbar.component.html',
-  host: { class: 'block min-w-0' },
+  host: { class: 'flex min-w-0' },
   imports: [TranslocoModule],
 })
 export class ChatToolbarComponent {
@@ -52,8 +53,6 @@ export class ChatToolbarComponent {
 
   /** What the buttons work on; nothing while there is no box to write in. */
   readonly field = input<ChatTextField | null>(null);
-  /** Packs the buttons down, the size, font and colour folded into one, for a narrow input. */
-  readonly compact = input(false);
   /** The syntax there is to put in, worked out as the insert button opens. */
   readonly groups = input<() => ChatSyntaxGroup[]>(() => []);
   /**
@@ -76,11 +75,6 @@ export class ChatToolbarComponent {
     'border-ui-input-border bg-ui-input text-ui-text focus:border-ui-accent rounded-ui-sm box-border w-full border border-solid px-1.5 py-1 text-[12px] focus:outline-none';
 
   protected readonly sizes = CHAT_SIZE_KEYS;
-  protected readonly sizeClasses: Record<ChatSizeKey, string> = {
-    small: 'chat-size-small',
-    large: 'chat-size-large',
-    huge: 'chat-size-huge',
-  };
   protected readonly fontClasses: Record<ChatFontKey, string> = {
     mincho: 'chat-font-mincho',
     rounded: 'chat-font-rounded',
@@ -96,6 +90,11 @@ export class ChatToolbarComponent {
   }));
 
   protected readonly active = computed(() => this.field()?.activeMarks() ?? null);
+  /** Whether the caret or the selection has a line through it or a size, a font or a colour, lighting the style button. */
+  protected readonly styled = computed(() => {
+    const marks = this.active();
+    return !!marks && (!!marks.strike || !!marks.size || !!marks.font || !!marks.color);
+  });
   protected readonly openOne = signal<ToolbarPopover | null>(null);
   protected readonly shownGroups = signal<ChatSyntaxGroup[]>([]);
   protected readonly groupIndex = signal(0);
@@ -103,9 +102,6 @@ export class ChatToolbarComponent {
   protected readonly rubyReading = signal('');
   protected readonly rubyEditing = signal(false);
 
-  private readonly sizeButton = viewChild<ElementRef<HTMLElement>>('sizeButton');
-  private readonly fontButton = viewChild<ElementRef<HTMLElement>>('fontButton');
-  private readonly colorButton = viewChild<ElementRef<HTMLElement>>('colorButton');
   private readonly styleButton = viewChild<ElementRef<HTMLElement>>('styleButton');
   private readonly rubyButton = viewChild<ElementRef<HTMLElement>>('rubyButton');
   private readonly insertButton = viewChild<ElementRef<HTMLElement>>('insertButton');
@@ -167,7 +163,7 @@ export class ChatToolbarComponent {
       return;
     }
     this.close();
-    if (which === 'font' || which === 'style') for (const font of this.fonts) chatFontWanted$.emit(font);
+    if (which === 'style') for (const font of this.fonts) chatFontWanted$.emit(font);
     if (which === 'insert') {
       this.shownGroups.set(this.groups()());
       this.groupIndex.set(Math.min(this.groupIndex(), Math.max(0, this.shownGroups().length - 1)));
@@ -202,12 +198,6 @@ export class ChatToolbarComponent {
 
   private anchorOf(which: ToolbarPopover): ElementRef<HTMLElement> | undefined {
     switch (which) {
-      case 'size':
-        return this.sizeButton();
-      case 'font':
-        return this.fontButton();
-      case 'color':
-        return this.colorButton();
       case 'style':
         return this.styleButton();
       case 'ruby':

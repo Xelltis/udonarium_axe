@@ -1,4 +1,4 @@
-import { NgClass, NgStyle } from '@angular/common';
+import { NgClass } from '@angular/common';
 import {
   afterEveryRender,
   afterNextRender,
@@ -74,6 +74,7 @@ import { type ChatTextField, TextareaChatField } from '@axe/features/chat/chat-i
 import { ChatToolbarComponent } from '@axe/features/chat/chat-toolbar/chat-toolbar.component';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
+import { AnchoredPopover } from '@axe/ui/anchored-popover';
 import { PortraitChoice, PortraitPickerComponent } from '@axe/ui/components/portrait-picker/portrait-picker.component';
 import { PortraitSliderComponent } from '@axe/ui/components/portrait-slider/portrait-slider.component';
 import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
@@ -84,6 +85,8 @@ import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
 
 const COLOR_SETTING_PANEL = 'chat-color-setting';
+/** The room a select's list wants above it before it opens upward: the most it shows at once. */
+const LIST_ROOM = 240;
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -97,7 +100,6 @@ const COLOR_SETTING_PANEL = 'chat-color-setting';
     FormsModule,
     NgOptionComponent,
     NgSelectWindowDirective,
-    NgStyle,
     PortraitPickerComponent,
     PortraitSliderComponent,
     SafePipe,
@@ -112,6 +114,95 @@ export class ChatInputComponent {
 
   protected toggleTools(): void {
     this.isToolsOpen.update((open) => !open);
+  }
+
+  protected readonly barButtonClass =
+    'text-ui-muted hover:bg-ui-hover hover:text-ui-text aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent aria-expanded:bg-ui-hover rounded-ui-sm m-0 flex h-7 min-w-7 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[18px]!';
+  protected readonly barWordButtonClass =
+    'text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm m-0 flex h-7 min-w-7 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent px-1.5 py-0 text-[12px] font-semibold transition-colors hover:shadow-none';
+  protected readonly swatchClass = 'block size-3.5 rounded-full shadow-[0_0_0_1px_var(--ui-panel-border)]';
+  protected readonly panelRowClass =
+    'text-ui-text hover:bg-ui-hover rounded-ui-sm m-0 flex w-full cursor-pointer items-center gap-2 border-none bg-transparent px-2 py-1 text-left text-[12px]';
+  protected readonly findingsChipClass =
+    'border-ui-border-panel bg-ui-elevated text-ui-muted shadow-ui-sm data-[severity=error]:text-ui-danger data-[severity=warning]:text-ui-warning data-[severity=info]:text-ui-accent absolute right-5 -bottom-2 z-1 m-0 flex h-4.5 cursor-pointer items-center gap-0.5 rounded-full border border-solid px-1.5 text-[11px] leading-none font-semibold hover:shadow-none [&_i]:text-[13px]!';
+  protected readonly findingRowClass =
+    'text-ui-text hover:bg-ui-hover data-[severity=error]:[&_i]:text-ui-danger data-[severity=warning]:[&_i]:text-ui-warning data-[severity=info]:[&_i]:text-ui-accent rounded-ui-sm m-0 flex w-full cursor-pointer items-start gap-2 border-none bg-transparent px-2 py-1 text-left text-[12px] leading-snug [&_i]:mt-px [&_i]:text-[15px]!';
+
+  /** Whether there is anything for the tools button to show in the row it opens under the bar. */
+  protected readonly hasTools = computed(
+    () => this.hasPortraitSlider() || this.showsMyDice() || this.showsTickerSwitch()
+  );
+
+  private readonly colorsButton = viewChild<ElementRef<HTMLElement>>('colorsButton');
+  private readonly colorsPanel = viewChild<ElementRef<HTMLElement>>('colorsPanel');
+  private readonly findingsButton = viewChild<ElementRef<HTMLElement>>('findingsButton');
+  private readonly findingsPanel = viewChild<ElementRef<HTMLElement>>('findingsPanel');
+  private readonly panel = signal<{ which: 'colors' | 'findings'; popover: AnchoredPopover } | null>(null);
+
+  /**
+   * The popover standing open from the bar or the box: the speech colours, or what was found in the
+   * line. It shuts on a press outside it and on Escape as well.
+   */
+  protected readonly openPanel = computed(() => {
+    const open = this.panel();
+    return open?.popover.isOpen() ? open.which : null;
+  });
+
+  /** Opens a popover over its button, upward as the chat sits at the foot of the screen, or shuts it. */
+  protected togglePanel(which: 'colors' | 'findings'): void {
+    const wasOpen = this.openPanel() === which;
+    this.closePanel();
+    if (wasOpen) return;
+    const anchor = which === 'colors' ? this.colorsButton() : this.findingsButton();
+    const panel = which === 'colors' ? this.colorsPanel() : this.findingsPanel();
+    if (!anchor || !panel) return;
+    const popover = new AnchoredPopover(
+      () => anchor.nativeElement,
+      () => panel.nativeElement,
+      {
+        width: which === 'colors' ? 160 : 320,
+        minHeight: 40,
+        align: which === 'colors' ? 'start' : 'end',
+        prefer: 'up',
+      }
+    );
+    this.panel.set({ which, popover });
+    if (!popover.show()) {
+      this.closePanel();
+      return;
+    }
+    afterNextRender(() => popover.place(), { injector: this.injector });
+  }
+
+  protected closePanel(): void {
+    const open = this.panel();
+    open?.popover.close();
+    open?.popover.destroy();
+    this.panel.set(null);
+  }
+
+  /** Speaks in one of the three colours, from the colour popover. */
+  protected pickColor(index: number): void {
+    this.setColorNum(index);
+    this.closePanel();
+  }
+
+  /** Opens the colour settings from the colour popover. */
+  protected openColorSetting(): void {
+    this.closePanel();
+    this.showColorSetting();
+  }
+
+  /**
+   * Has a select in the bar open its list upward, as the chat sits at the foot of the screen, and
+   * downward only where there is too little room above and more below. Set on the select itself as
+   * it is pressed or focused, since it reads the way at the moment it opens.
+   */
+  protected aimList(select: NgSelectComponent, event: Event): void {
+    if (!(event.currentTarget instanceof HTMLElement)) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const below = (event.currentTarget.ownerDocument.defaultView?.innerHeight ?? 0) - rect.bottom;
+    select.dropdownPosition.set(rect.top >= LIST_ROOM || rect.top >= below ? 'top' : 'bottom');
   }
 
   private readonly destroyRef = inject(DestroyRef);
@@ -279,7 +370,22 @@ export class ChatInputComponent {
 
   /** What was found in the line, while it is typed into the editor. */
   protected readonly findings = computed<ChatDiagnostic[]>(() => this.activeSession()?.diagnostics() ?? []);
-  protected readonly findingsOpen = signal(false);
+  /** The sharpest of what was found, which the count beside the box is drawn in. */
+  protected readonly worstSeverity = computed(() => {
+    const found = this.findings();
+    if (found.some((one) => one.severity === 'error')) return 'error';
+    return found.some((one) => one.severity === 'warning') ? 'warning' : 'info';
+  });
+
+  protected severityIcon(severity: ChatDiagnostic['severity']): string {
+    return severity === 'error' ? 'error' : severity === 'warning' ? 'warning' : 'info';
+  }
+
+  /** The stretch of the line a finding is about, cut short where it runs long. */
+  protected findingSyntax(found: ChatDiagnostic): string {
+    const written = this.text.slice(found.from, found.to);
+    return written.length > 16 ? `${written.slice(0, 15)}…` : written;
+  }
 
   /** What a finding says, in the reader's language. */
   protected findingText(found: ChatDiagnostic): string {
@@ -289,6 +395,7 @@ export class ChatInputComponent {
 
   /** Puts the caret on what a finding is about. */
   protected goToFinding(found: ChatDiagnostic): void {
+    this.closePanel();
     this.richField()?.select({ from: found.from, to: found.to });
   }
 
@@ -321,7 +428,7 @@ export class ChatInputComponent {
     cutInNames: () => this.syntaxSource.chatCutInNames(),
     portraitImage: (raw) => this.syntaxSource.portraitImage(this.sendFrom, raw),
     openRuby: () => this.toolbar()?.openRuby(),
-    toolbarElement: () => this.hostElement.nativeElement.querySelector('[data-testid="chat-toolbar"]'),
+    toolbarElement: () => this.hostElement.nativeElement.querySelector('[data-testid="chat-input-bar"]'),
     translate: (key, params) => this.t(key, params),
   };
 
@@ -527,6 +634,7 @@ export class ChatInputComponent {
 
   constructor() {
     afterNextRender(() => this.toolbarWanted.set(true));
+    this.destroyRef.onDestroy(() => this.closePanel());
     this.objectChange.onObjectChangedForAlias(
       [GameCharacter.aliasName],
       (event) => {
