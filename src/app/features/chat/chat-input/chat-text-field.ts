@@ -11,7 +11,6 @@ import {
   wrapChatSelection,
 } from '@axe/domain/chat/chat-decoration';
 import type { ChatRichChip } from '@axe/domain/chat/chat-rich-text';
-import type { ChatDecorationMarks } from '@axe/features/chat/chat-input/chat-decoration-context-menu';
 
 /** The attribute on whatever a chat line is typed into, the element that takes the keys. */
 export const CHAT_INPUT_ATTR = 'data-chat-input';
@@ -34,6 +33,12 @@ export type ChatMarkChange =
 
 /** Where a chip goes: at the caret, or at the end of the message, where a portrait or a cut-in is read. */
 export type ChatChipPlace = 'caret' | 'end';
+
+/** The marks written round what is selected in the box to decorate it. */
+export interface ChatDecorationMarks {
+  open: string;
+  close: string;
+}
 
 /**
  * What a chat line is typed into, a plain box or the editor that draws the line as it will look,
