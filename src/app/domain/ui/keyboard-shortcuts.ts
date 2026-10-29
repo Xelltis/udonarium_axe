@@ -135,6 +135,10 @@ export const KEYBOARD_SHORTCUTS: readonly KeyboardShortcut[] = [
     ['Ctrl', '↑'],
     ['Ctrl', '↓'],
   ]),
+  line('chat', 'tabs', [
+    ['Ctrl', '←'],
+    ['Ctrl', '→'],
+  ]),
   line('chat', 'search', [['Ctrl', 'F']], { probe: { key: 'f', ctrl: true, command: 'search' } }),
 
   line('firstPerson', 'move', [['W'], ['A'], ['S'], ['D'], ['↑'], ['↓']], {

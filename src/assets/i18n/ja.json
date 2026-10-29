@@ -1938,6 +1938,7 @@
           "send": "送る",
           "newline": "改行する",
           "history": "送った発言を呼び戻す",
+          "tabs": "チャットのタブを切り替える",
           "search": "チャット窓の上でログを探す"
         },
         "firstPerson": {
@@ -3686,7 +3687,7 @@
       "input": {
         "you": "（あなた）",
         "everyone": "全員",
-        "textareaPlaceholder": "Enter:送信 Shift+Enter:改行 Ctrl+上下:履歴 Ctrl+左右:タブ切替",
+        "textareaPlaceholder": "メッセージを入力（Shift+Enterで改行）",
         "viewOnly": "このタブは閲覧のみ（発言できません）",
         "diceBotNotFound": "※ダイスボットが見つかりません",
         "colorSetting": "色設定",

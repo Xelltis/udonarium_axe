@@ -1938,6 +1938,7 @@
           "send": "Send",
           "newline": "Start a new line",
           "history": "Bring back what you sent",
+          "tabs": "Switch the chat tab",
           "search": "Search the log, with the pointer over the chat window"
         },
         "firstPerson": {
@@ -3686,7 +3687,7 @@
       "input": {
         "you": " (you)",
         "everyone": "Everyone",
-        "textareaPlaceholder": "Enter: send / Shift+Enter: new line / Ctrl+Up/Down: history / Ctrl+Left/Right: switch tab",
+        "textareaPlaceholder": "Type a message (Shift+Enter for a new line)",
         "viewOnly": "View only — you can't post in this tab",
         "diceBotNotFound": "* Dice bot not found",
         "colorSetting": "Color settings",
