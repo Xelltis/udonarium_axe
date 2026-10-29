@@ -39,6 +39,14 @@ function tailChip(name: string, words: ChatCompletionWords): ChatRichChip {
  * open, and takes no key.
  */
 export function chatSuggestExtension(host: ChatSuggestHost): Extension {
+  const offered = new WeakMap<EditorState, string[]>();
+  const offeredNow = (state: EditorState): string[] => {
+    const known = offered.get(state);
+    if (known) return known;
+    const names = offeredAt(state, host);
+    offered.set(state, names);
+    return names;
+  };
   return Extension.create({
     name: 'chatSuggest',
     priority: 1100,
@@ -60,8 +68,8 @@ export function chatSuggestExtension(host: ChatSuggestHost): Extension {
               text: before.slice(trigger.from),
             };
           },
-          allow: ({ state }) => offeredAt(state, host).length > 0,
-          items: ({ editor: current }) => offeredAt(current.state, host),
+          allow: ({ state }) => offeredNow(state).length > 0,
+          items: ({ editor: current }) => offeredNow(current.state),
           command: ({ editor: current, range, props: name }) => {
             const written = current.state.doc.textBetween(range.from, range.to, undefined, CHIP_LETTER);
             const trigger = findChatTrigger(written);
@@ -99,7 +107,8 @@ export function chatSuggestExtension(host: ChatSuggestHost): Extension {
 
 /**
  * The names offered where the caret stands. Where none is, the list is not taken up at all, so
- * that Escape and Enter are left to the box, as they are in an editor that offers no names.
+ * that Escape and Enter are left to the box, as they are in an editor that offers no names. They
+ * are worked out once for each state of the editor, which asks first whether to offer and then what.
  */
 function offeredAt(state: EditorState, host: ChatSuggestHost): string[] {
   const $position = state.selection.$from;
