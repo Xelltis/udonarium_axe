@@ -719,7 +719,7 @@ export class ChatInputComponent {
     effect(() => {
       const text = this._text();
       const field = this.richField();
-      if (field && field.text() !== text) untracked(() => field.setText(text));
+      if (field && untracked(() => field.text()) !== text) untracked(() => field.setText(text));
     });
     effect(() => {
       this.placeholderText();
