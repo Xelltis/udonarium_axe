@@ -12,8 +12,8 @@ const CHAT_TAIL_PATTERN = /\s(@?)(\S+)$/i;
  * Reads the last word of a line, which starts the cut-in of that name, and an `@` before it, which
  * plays only the cut-in's sound.
  *
- * The word must follow a space and end the line, so a line of one word, or one with a space after
- * its last word, names no cut-in.
+ * The word must end the line and follow a space or start it, so a line of one word names its
+ * cut-in too, and one with a space after its last word names none.
  */
 export function readCutInChatTail(text: string): CutInChatTail | null {
   const match = CHAT_TAIL_PATTERN.exec(` ${text}`);
