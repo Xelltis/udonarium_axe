@@ -26,6 +26,16 @@ describe('partyIdsOwnedBy', () => {
   it('returns nothing without a user', () => {
     expect(partyIdsOwnedBy([member('', 'p1')], '')).toEqual([]);
   });
+
+  it('counts a party that names you among its players, with no character of yours in it', () => {
+    const parties = [
+      { identifier: 'p1', playerIds: ['u1', 'u2'] },
+      { identifier: 'p2', playerIds: ['u2'] },
+    ];
+
+    expect(partyIdsOwnedBy([member('u1', 'p3')], 'u1', parties)).toEqual(['p3', 'p1']);
+    expect(partyIdsOwnedBy([], 'u1', parties)).toEqual(['p1']);
+  });
 });
 
 describe('membersOfParty', () => {

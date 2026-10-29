@@ -5,6 +5,7 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
@@ -619,6 +620,31 @@ describe('FirstPersonService', () => {
       becomeGameMaster();
       service().enterSeat(piece.identifier);
       expect(service().canWalk()).toBe(true);
+    });
+
+    it('lets a player its party names walk it, and look out of it from a seat of their own', () => {
+      const party = new Party();
+      party.players = 'me';
+      party.initialize();
+      const piece = sharedView('somebody-else');
+      piece.partyIdentifier = party.identifier;
+      touch(piece.identifier, party.identifier);
+
+      expect(service().canWalk()).toBe(true);
+      expect(
+        service()
+          .seats()
+          .map((seat) => seat.identifier)
+      ).toContain(piece.identifier);
+
+      party.players = '';
+      touch(party.identifier);
+      expect(service().canWalk()).toBe(false);
+      expect(
+        service()
+          .seats()
+          .map((seat) => seat.identifier)
+      ).not.toContain(piece.identifier);
     });
 
     it('still lets a seat walk a piece nobody has claimed when no view is forced', () => {

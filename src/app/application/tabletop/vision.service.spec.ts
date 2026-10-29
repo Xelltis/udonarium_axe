@@ -4,6 +4,7 @@ import { objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_VISION_CELLS_MISS, PERF_VISION_SCENE, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
@@ -577,6 +578,17 @@ describe('VisionService', () => {
       expect(service.isTokenVisible(lurkerInStealth('p1'))).toBe(true);
       expect(service.isTokenVisible(lurkerInStealth('', 'party-a'))).toBe(true);
       expect(service.isTokenVisible(lurkerInStealth('', 'party-b'))).toBe(false);
+    });
+
+    it('is seen by a player its party names among its players, who owns nothing in it', () => {
+      makeMyCursor('p1', PeerRole.Player);
+      const party = new Party('party-explorers');
+      party.players = 'p1';
+      party.initialize();
+
+      expect(service.isTokenVisible(lurkerInStealth('', 'party-explorers'))).toBe(true);
+      expect(service.isTokenVisible(lurkerInStealth('', 'party-b'))).toBe(false);
+      party.destroy();
     });
 
     it('is hidden from a game master looking at the table as a player', () => {

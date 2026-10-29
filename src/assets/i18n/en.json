@@ -388,7 +388,9 @@
         "gather": "Gather a party on this spot",
         "gatherOnTable": "{{name}} (the {{count}} on the table)",
         "gatherWithAway": "{{name}} (bring in {{count}} more)",
-        "allies": "Stands with:"
+        "allies": "Stands with:",
+        "players": "Players:",
+        "playersHint": "The players ticked share the sight of every piece of the party and may look out of any of them in first person. For a table that moves one piece together, put the piece in a party and tick its players."
       }
     },
     "hotbar": {

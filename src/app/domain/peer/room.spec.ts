@@ -179,7 +179,7 @@ describe('Room', () => {
       const xml = new Room().innerXml();
 
       expect(xml).toContain(
-        `<party name="本隊" color="#fcd34d" allies="" battleSide="" identifier="${party.identifier}">`
+        `<party name="本隊" color="#fcd34d" allies="" battleSide="" players="" identifier="${party.identifier}">`
       );
       expect(xml).toContain(`partyIdentifier="${party.identifier}"`);
     });

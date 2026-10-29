@@ -24,10 +24,21 @@ describe('a party in a file', () => {
     expect(read(xml).battleSide).toBe('right');
   });
 
-  it('stands a party written before it had a side on neither', () => {
+  it('writes the players who play it, and reads them back', () => {
+    const party = new Party('party-explorers');
+    party.players = 'user-a user-b';
+    const xml = party.toXml();
+    ObjectStore.instance.delete(party, false);
+    ObjectStore.instance.clearDeleteHistory();
+
+    expect(read(xml).playerIds).toEqual(['user-a', 'user-b']);
+  });
+
+  it('stands a party written before it had a side on neither, played by nobody but its owners', () => {
     const party = read('<party name="冒険者" color="#7dd3fc" allies="" identifier="party-old"></party>');
 
     expect(party.name).toBe('冒険者');
     expect(party.battleSide).toBe('');
+    expect(party.playerIds).toEqual([]);
   });
 });

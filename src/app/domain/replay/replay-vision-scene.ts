@@ -1,4 +1,4 @@
-import { partyIdsOwnedBy } from '@axe/domain/party/party-membership';
+import { partyIdsOwnedBy, readPartyPlayers } from '@axe/domain/party/party-membership';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { syncValueOf } from '@axe/domain/replay/replay-diff';
 import type { ReplayViewer } from '@axe/domain/replay/replay-event';
@@ -41,6 +41,7 @@ import type { VisionType } from '@axe/domain/tabletop/vision-types';
 const TABLE_ALIAS = 'game-table';
 const SELECTER_ALIAS = 'TableSelecter';
 const CHARACTER_ALIAS = 'character';
+const PARTY_ALIAS = 'party';
 const TERRAIN_ALIAS = 'terrain';
 const LIGHT_ALIAS = 'light-source';
 const TABLE_PLACE = 'table';
@@ -60,7 +61,10 @@ export function replayViewTableOf(snapshots: readonly ReplayObjectSnapshot[]): R
   return tables.find((table) => table.identifier === wanted) ?? tables[0];
 }
 
-/** The viewer. The game master sees everything; a player sees through their own pieces and their companions alone. */
+/**
+ * The viewer. The game master sees everything; a player sees through their own pieces and those of
+ * the parties they are in, by a character of theirs or by being named one of its players.
+ */
 export function replaySceneViewer(snapshots: readonly ReplayObjectSnapshot[], viewer: ReplayViewer): SceneViewer {
   const userId = viewer.userId;
   if (viewer.role === PeerRole.GameMaster) return { userId, isGameMaster: true };
@@ -78,7 +82,10 @@ export function replaySceneViewer(snapshots: readonly ReplayObjectSnapshot[], vi
     owner: text(snapshot, 'owner'),
     partyIdentifier: text(snapshot, 'partyIdentifier'),
   }));
-  return { userId, isGameMaster: false, partyIds: partyIdsOwnedBy(members, userId) };
+  const parties = snapshots
+    .filter((snapshot) => snapshot.aliasName === PARTY_ALIAS)
+    .map((snapshot) => ({ identifier: snapshot.identifier, playerIds: readPartyPlayers(text(snapshot, 'players')) }));
+  return { userId, isGameMaster: false, partyIds: partyIdsOwnedBy(members, userId, parties) };
 }
 
 /**
