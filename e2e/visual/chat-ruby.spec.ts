@@ -1,7 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
 import { chatInput, expectChatText, openChatSettingsMenuItem } from '../helpers';
-import { prepare } from './fixtures';
+import { prepare, waitChatEditor } from './fixtures';
 
 /** Sets one of the chat settings and shuts the panel again, so it covers nothing that is shot. */
 async function setChatSetting(page: Page, name: string, value: string) {
@@ -13,6 +13,7 @@ async function setChatSetting(page: Page, name: string, value: string) {
 }
 
 async function say(page: Page, line: string) {
+  await waitChatEditor(page);
   const textarea = chatInput(page);
   await textarea.fill(line);
   await textarea.press('Enter');

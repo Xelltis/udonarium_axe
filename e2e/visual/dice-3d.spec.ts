@@ -1,7 +1,7 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
 import { chatInput, openPanel } from '../helpers';
-import { becomeGm, closePanels, prepare, reseedRandom } from './fixtures';
+import { becomeGm, closePanels, prepare, reseedRandom, waitChatEditor } from './fixtures';
 
 // The dice are drawn with WebGL, which headless Chromium gives through SwiftShader.
 test.use({ launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } });
@@ -26,6 +26,7 @@ async function chooseStage(page: Page, stage: 'frame' | 'table') {
 }
 
 async function roll(page: Page, command: string) {
+  await waitChatEditor(page);
   await chatInput(page).fill(command);
   await page.locator('chat-input').getByRole('button', { name: '送信' }).click();
 }
@@ -35,6 +36,7 @@ async function roll(page: Page, command: string) {
  * once the box has checked the roll: checking a roll rolls it, and so draws on both.
  */
 async function rollSeeded(page: Page, command: string) {
+  await waitChatEditor(page);
   await chatInput(page).fill(command);
   await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
   await seedDiceBot(page);
