@@ -397,7 +397,11 @@ test.describe('the chat editor', () => {
     const list = page.locator('chat-window [data-testid="chat-input-finding-list"]');
     await expect(list).toBeVisible();
 
-    await input.fill('');
+    // Cleared by keys from where the caret is, as a press would shut the list by itself.
+    await input.focus();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('Delete');
+    await expectChatText(input, '');
 
     await expect(list).toBeHidden({ timeout: 5000 });
   });
