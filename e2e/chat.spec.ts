@@ -186,9 +186,9 @@ test.describe('the character a chat line is sent as', () => {
     page,
   }) => {
     const bar = page.locator('chat-window [data-testid="chat-input-bar"]');
-    await expect(bar).toHaveAttribute('role', 'toolbar');
     const selects = bar.getByTestId('chat-input-selects');
     const edits = bar.getByTestId('chat-input-edits');
+    await expect(edits).toHaveAttribute('role', 'toolbar');
     await expect(selects.locator('ng-select')).toHaveCount(3);
     await expect(selects.getByRole('button', { name: '?' })).toBeVisible();
     await expect(edits.getByTestId('chat-toolbar-bold')).toBeVisible();
@@ -215,19 +215,35 @@ test.describe('the character a chat line is sent as', () => {
     await expect(page.locator('chat-window').getByRole('button', { name: /色設定/ })).toBeVisible();
   });
 
-  test('writes the line in the box in the colour and on the bubble it will be shown in', async ({ page }) => {
+  test('writes the line in the box in the colour and on the bubble it will be shown in, as its button shows', async ({
+    page,
+  }) => {
     await page.locator('chat-window [data-testid="chat-input-color"]').click();
-    const second = page.locator('chat-window').getByRole('button', { name: '持ち色2' });
-    const chosen = await second.locator('span').evaluate((element) => getComputedStyle(element).backgroundColor);
-    await second.click();
+    const second = page.locator('chat-window').getByRole('button', { name: '持ち色2' }).locator('span');
+    const look = (element: Element) => [getComputedStyle(element).color, getComputedStyle(element).backgroundColor];
+    const [color, bubble] = await second.evaluate(look);
+    await page.locator('chat-window').getByRole('button', { name: '持ち色2' }).click();
     const box = page.locator('chat-window [data-chat-input-box]');
-    await expect.poll(() => box.evaluate((element) => getComputedStyle(element).color)).toBe(chosen);
+    await expect.poll(() => box.evaluate(look)).toEqual([color, bubble]);
+    await expect
+      .poll(() => page.locator('chat-window [data-testid="chat-input-color"] span').evaluate(look))
+      .toEqual([color, bubble]);
     const input = chatInput(page);
     await input.click();
     await page.keyboard.type('色');
-    await expect.poll(() => input.evaluate((element) => getComputedStyle(element).color)).toBe(chosen);
-    const background = await box.evaluate((element) => getComputedStyle(element).backgroundColor);
-    expect(background).not.toBe('rgba(0, 0, 0, 0)');
+    await expect.poll(() => input.evaluate((element) => getComputedStyle(element).color)).toBe(color);
+  });
+
+  test('takes one Tab stop in the row of buttons, the arrows moving along it', async ({ page }) => {
+    const edits = page.locator('chat-window [data-testid="chat-input-edits"]');
+    await expect(edits.getByTestId('chat-toolbar-bold')).toBeVisible();
+    await edits.getByTestId('chat-toolbar-bold').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(edits.getByTestId('chat-toolbar-italic')).toBeFocused();
+    await page.keyboard.press('End');
+    await expect(edits.getByTestId('chat-input-color')).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(chatInput(page)).toBeFocused();
   });
 
   test('opens the list of recipients upward from the chat at the foot of the screen, on the screen', async ({

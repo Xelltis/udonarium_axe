@@ -269,7 +269,7 @@ describe('ChatInputComponent', () => {
       const selects = bar().querySelector('[data-testid="chat-input-selects"]')!;
       const edits = bar().querySelector('[data-testid="chat-input-edits"]')!;
 
-      expect(bar().getAttribute('role')).toBe('toolbar');
+      expect(bar().querySelector('[data-testid="chat-input-edits"]')?.getAttribute('role')).toBe('toolbar');
       expect(Array.from(selects.querySelectorAll('ng-select')).map((select) => select.getAttribute('name'))).toEqual([
         'send-from',
         'send-to',
@@ -623,7 +623,7 @@ describe('ChatInputComponent', () => {
         '[data-testid="chat-input-bar"] [data-testid="chat-input-stamp"]'
       )!;
       button.click();
-      expect(toggle).toHaveBeenCalledWith(button, 'line', expect.any(Function));
+      expect(toggle).toHaveBeenCalledWith(button, 'line', expect.any(Function), 'end');
       toggle.mock.calls[0][2]('seal:ok');
       expect(emitted).toEqual([]);
       expect(component.text).toMatch(/^［.+:seal:ok］$/);

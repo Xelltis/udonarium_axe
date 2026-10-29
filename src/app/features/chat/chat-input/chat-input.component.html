@@ -5,12 +5,7 @@
   [class.gap-x-1.5!]="dense()"
   [class.p-1.5!]="dense()"
 >
-  <div
-    role="toolbar"
-    data-testid="chat-input-bar"
-    class="col-span-2 flex min-w-0 flex-col gap-1"
-    [attr.aria-label]="'feature.chat.input.bar' | transloco"
-  >
+  <div data-testid="chat-input-bar" class="col-span-2 flex min-w-0 flex-col gap-1">
     <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1" data-testid="chat-input-selects">
       <div class="flex min-w-0 grow items-center gap-1">
         <ng-select
@@ -75,7 +70,13 @@
         }
       </div>
     </div>
-    <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1" data-testid="chat-input-edits">
+    <div
+      role="toolbar"
+      uiRovingToolbar
+      class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1"
+      data-testid="chat-input-edits"
+      [attr.aria-label]="'feature.chat.input.bar' | transloco"
+    >
       @if (hasPortraitSlider()) {
         <portrait-slider
           class="min-w-0"
@@ -85,12 +86,16 @@
           (picked)="portraitIndex = $event"
         />
       }
-      <div class="ml-auto flex shrink-0 items-center">
+      <div class="ml-auto flex shrink-0 items-center gap-2">
         @if (canSpeak()) {
           @defer (when toolbarWanted()) {
             <chat-toolbar class="shrink-0" [field]="textField()" [groups]="syntaxGroups" (edited)="takeFieldText()" />
+          } @placeholder {
+            <div class="h-7 w-66" aria-hidden="true"></div>
           }
-          @if (stampLinesOn()) {
+        }
+        <div class="flex items-center">
+          @if (canSpeak() && stampLinesOn()) {
             <button
               type="button"
               data-testid="chat-input-stamp"
@@ -103,44 +108,48 @@
               <i class="material-icons">emoji_emotions</i>
             </button>
           }
-        }
-        <button
-          #colorsButton
-          type="button"
-          data-testid="chat-input-color"
-          aria-haspopup="dialog"
-          [class]="barButtonClass"
-          [attr.aria-expanded]="openPanel() === 'colors'"
-          [title]="'feature.chat.input.colors' | transloco"
-          [attr.aria-label]="'feature.chat.input.colors' | transloco"
-          (click)="togglePanel('colors')"
-        >
-          <span [class]="swatchClass" [style.background-color]="chatColor(colorSelectNo())"></span>
-        </button>
-        @if (showsMyDice()) {
           <button
+            #colorsButton
             type="button"
-            data-testid="chat-my-dice"
+            data-testid="chat-input-color"
+            aria-haspopup="dialog"
             [class]="barButtonClass"
-            [title]="'feature.chat.input.myDice' | transloco"
-            [attr.aria-label]="'feature.chat.input.myDice' | transloco"
-            (click)="openMyDice()"
+            [attr.aria-expanded]="openPanel() === 'colors'"
+            [title]="'feature.chat.input.colors' | transloco"
+            [attr.aria-label]="'feature.chat.input.colors' | transloco"
+            (click)="togglePanel('colors')"
           >
-            <i class="material-icons">casino</i>
+            <span [class]="colorSampleClass" [ngStyle]="lineLook()">A</span>
           </button>
-        }
-        @if (showsTickerSwitch()) {
-          <button
-            type="button"
-            data-testid="chat-send-to-ticker"
-            [class]="barButtonClass"
-            [attr.aria-pressed]="sendsToTicker()"
-            [title]="'feature.chat.input.sendToTickerHint' | transloco"
-            [attr.aria-label]="'feature.chat.input.sendToTicker' | transloco"
-            (click)="toggleTickerSend()"
-          >
-            <i class="material-icons">animation</i>
-          </button>
+        </div>
+        @if (showsMyDice() || showsTickerSwitch()) {
+          <div class="flex items-center">
+            @if (showsMyDice()) {
+              <button
+                type="button"
+                data-testid="chat-my-dice"
+                [class]="barButtonClass"
+                [title]="'feature.chat.input.myDice' | transloco"
+                [attr.aria-label]="'feature.chat.input.myDice' | transloco"
+                (click)="openMyDice()"
+              >
+                <i class="material-icons">casino</i>
+              </button>
+            }
+            @if (showsTickerSwitch()) {
+              <button
+                type="button"
+                data-testid="chat-send-to-ticker"
+                [class]="barButtonClass"
+                [attr.aria-pressed]="sendsToTicker()"
+                [title]="'feature.chat.input.sendToTickerHint' | transloco"
+                [attr.aria-label]="'feature.chat.input.sendToTicker' | transloco"
+                (click)="toggleTickerSend()"
+              >
+                <i class="material-icons">animation</i>
+              </button>
+            }
+          </div>
         }
       </div>
     </div>
@@ -163,7 +172,7 @@
             [attr.aria-label]="'feature.chat.input.colorSlot' | transloco: { n: i + 1 }"
             (click)="pickColor(i)"
           >
-            <span [class]="swatchClass" [style.background-color]="chatColor(i)"></span>
+            <span [class]="colorSampleClass" [ngStyle]="lookOf(i)">A</span>
           </button>
         }
       </div>
@@ -251,6 +260,7 @@
               data-chat-input-box
               data-chat-input-mode="rich"
               [ngStyle]="lineLook()"
+              [class.pb-5]="findings().length > 0"
               class="panel-no-drag border-ui-input-border rounded-ui-sm bg-ui-input text-ui-text focus-within:border-ui-accent box-border flex max-h-60 min-h-10 w-full min-w-0 flex-1 resize-y flex-col overflow-y-auto border border-solid transition-colors focus-within:shadow-[0_0_0_2px_var(--ui-accent-glow)]"
             >
               <div #editorHost class="flex min-w-0 flex-1 flex-col"></div>

@@ -82,6 +82,7 @@ import { AnchoredPopover } from '@axe/ui/anchored-popover';
 import { PortraitChoice, PortraitPickerComponent } from '@axe/ui/components/portrait-picker/portrait-picker.component';
 import { PortraitSliderComponent } from '@axe/ui/components/portrait-slider/portrait-slider.component';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
+import { RovingToolbarDirective } from '@axe/ui/directives/roving-toolbar.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { ChatColorStylePipe } from '@axe/ui/pipes/chat-color-style.pipe';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -110,6 +111,7 @@ const LIST_ROOM = 240;
     SafePipe,
     TranslocoModule,
     ChatToolbarComponent,
+    RovingToolbarDirective,
   ],
 })
 export class ChatInputComponent {
@@ -118,11 +120,12 @@ export class ChatInputComponent {
     'text-ui-muted hover:bg-ui-hover hover:text-ui-text aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent aria-expanded:bg-ui-hover rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!';
   protected readonly barWordButtonClass =
     'text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent px-1 py-0 text-[12px] font-semibold transition-colors hover:shadow-none';
-  protected readonly swatchClass = 'block size-3.5 rounded-full shadow-[0_0_0_1px_var(--ui-panel-border)]';
+  protected readonly colorSampleClass =
+    'flex size-5 items-center justify-center rounded-[5px] text-[12px] leading-none font-bold shadow-[0_0_0_1px_var(--ui-border-panel)]';
   protected readonly panelRowClass =
     'text-ui-text hover:bg-ui-hover rounded-ui-sm m-0 flex w-full cursor-pointer items-center gap-2 border-none bg-transparent px-2 py-1 text-left text-[12px]';
   protected readonly findingsChipClass =
-    'border-ui-border-panel bg-ui-elevated text-ui-muted shadow-ui-sm data-[severity=error]:text-ui-danger data-[severity=warning]:text-ui-warning data-[severity=info]:text-ui-accent absolute right-5 -bottom-2 z-1 m-0 flex h-4.5 cursor-pointer items-center gap-0.5 rounded-full border border-solid px-1.5 text-[11px] leading-none font-semibold hover:shadow-none [&_i]:text-[13px]!';
+    'border-ui-border-panel bg-ui-elevated text-ui-muted shadow-ui-sm data-[severity=error]:text-ui-danger data-[severity=warning]:text-ui-warning data-[severity=info]:text-ui-accent absolute right-5 bottom-1 z-1 m-0 flex h-4.5 cursor-pointer items-center gap-0.5 rounded-full border border-solid px-1.5 text-[11px] leading-none font-semibold hover:shadow-none [&_i]:text-[13px]!';
   protected readonly findingRowClass =
     'text-ui-text hover:bg-ui-hover data-[severity=error]:[&_i]:text-ui-danger data-[severity=warning]:[&_i]:text-ui-warning data-[severity=info]:[&_i]:text-ui-accent rounded-ui-sm m-0 flex w-full cursor-pointer items-start gap-2 border-none bg-transparent px-2 py-1 text-left text-[12px] leading-snug [&_i]:mt-px [&_i]:text-[15px]!';
 
@@ -155,7 +158,7 @@ export class ChatInputComponent {
       {
         width: which === 'colors' ? 160 : 320,
         minHeight: 40,
-        align: which === 'colors' ? 'start' : 'end',
+        align: 'end',
         prefer: 'up',
       }
     );
@@ -813,19 +816,22 @@ export class ChatInputComponent {
   private readonly colorStyle = new ChatColorStylePipe();
 
   /**
-   * The colour the line will be shown in and the bubble it will sit on, on this reader's theme, for
-   * the box it is written in to show it as it will look.
+   * The colour a line is shown in from one of the three slots and the bubble it sits on, on this
+   * reader's theme: the box written in shows it, and the colour buttons draw it as a sample.
    */
-  protected readonly lineLook = computed(() => {
+  protected lookOf(slot: number): Record<string, string> | null {
     const theme = this.theme.resolved();
-    const bubbles = this.chatBubbles(this.colorSelectNo());
+    const bubbles = this.chatBubbles(slot);
     return this.colorStyle.transform(
-      this.selectChatColor,
+      this.chatColor(slot),
       theme,
       theme === 'dark' ? bubbles.dark : bubbles.light,
       this.skins.toneOf(theme)
     );
-  });
+  }
+
+  /** How the line being written will look, in the slot chosen. */
+  protected readonly lineLook = computed(() => this.lookOf(this.colorSelectNo()));
 
   /**
    * Whether the colours of the lines come from the character spoken as: they do but for a guest,
@@ -1086,7 +1092,7 @@ export class ChatInputComponent {
   /** Opens the stamps over their button in the bar, the one picked going in at the caret. */
   protected openStamps(anchor: EventTarget | null): void {
     if (!(anchor instanceof Element)) return;
-    this.stampPicker.toggle(anchor, 'line', (stampId) => this.putStamp(stampId));
+    this.stampPicker.toggle(anchor, 'line', (stampId) => this.putStamp(stampId), 'end');
   }
 
   /**
