@@ -424,6 +424,22 @@ export class ChatMessageService {
   }
 
   /**
+   * Rewrites a line already sent, as a line said anew goes out: a stamp put inside it that this
+   * version does not know, or the room does not let be sent, is written as its name, and the
+   * pictures from the room's sets among its attachments follow the stamps it now holds, those it
+   * no longer holds going with them. A picture attached by hand stays.
+   */
+  editMessage(message: ChatMessage, text: string, staging: string, at: number): void {
+    const stamped = this.inlineStampsGoingOut(text);
+    const before = this.inlineStampsGoingOut(message.text ?? '').pictures;
+    const attached = message.attachmentImageIdentifierList.filter((picture) => !before.includes(picture));
+    const attachments = [...attached, ...stamped.pictures.filter((picture) => !attached.includes(picture))];
+    message.edit(stamped.text, staging, at);
+    const written = attachments.length > 0 ? JSON.stringify(attachments) : '';
+    if ((message.attachmentImageIdentifiers ?? '') !== written) message.attachmentImageIdentifiers = written;
+  }
+
+  /**
    * The stamps put inside a line as it goes out. One this version does not know, or one the room
    * does not let be sent, is written as its name instead; a picture from the room's sets goes among
    * the attachments as well, for the room saved to carry it.

@@ -348,6 +348,32 @@ describe('ChatMessageService', () => {
         Config.instance.stampRules = OPEN_STAMP_RULES;
       }
     });
+
+    describe('in a line rewritten after it was said', () => {
+      it('writes a stamp the room does not let be sent as its name, as a line said anew', () => {
+        const message = said('まずは');
+        Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['sfx:boom'], false);
+        try {
+          TestBed.inject(ChatMessageService).editMessage(message, 'まずは［ドッ:sfx:boom］', '', 2000);
+
+          expect(message.text).toBe('まずは［ドッ］');
+        } finally {
+          Config.instance.stampRules = OPEN_STAMP_RULES;
+        }
+      });
+
+      it('carries the pictures of the stamps it now holds, and lets go those it holds no more', () => {
+        const service = TestBed.inject(ChatMessageService);
+        const message = said('これ［絵:image:stamp-picture］');
+        message.attachmentImageIdentifiers = JSON.stringify(['stamp-picture', 'attached-by-hand']);
+
+        service.editMessage(message, 'これ［別:image:other-picture］', '', 2000);
+
+        expect(message.attachmentImageIdentifierList).toEqual(['attached-by-hand', 'other-picture']);
+        service.editMessage(message, 'これ', '', 3000);
+        expect(message.attachmentImageIdentifierList).toEqual(['attached-by-hand']);
+      });
+    });
   });
 
   describe('what a line records about who spoke it', () => {

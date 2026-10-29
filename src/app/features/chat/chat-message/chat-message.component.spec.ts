@@ -1875,6 +1875,21 @@ describe('ChatMessageComponent', () => {
       expect(message.versions.map((version) => version.text)).toEqual(['こんばんわ', 'こんばんは']);
     });
 
+    it('writes a stamp the room does not let be sent as its name when the line is saved, as a line said anew', async () => {
+      const message = shown('me', 'まずは');
+      Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['sfx:boom'], false);
+      try {
+        component.startEdit();
+        component.editDraft.set('まずは［ドッ:sfx:boom］');
+        component.saveEdit();
+        await settle();
+
+        expect(message.text).toBe('まずは［ドッ］');
+      } finally {
+        Config.instance.stampRules = OPEN_STAMP_RULES;
+      }
+    });
+
     it('opens every wording under the line from its edited mark, for anyone who sees it, and closes again', async () => {
       const message = shown('someone', 'こんばんわ');
       message.edit('こんばんは', '', 2000);

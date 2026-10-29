@@ -692,7 +692,7 @@ export class ChatMessageComponent {
     // A line said before the staging was kept apart still carries it at the end. Editing the
     // body would take it away with the rest of the suffix, so it moves beside the line first.
     const staging = encodeVnEmote(vnEmoteOf(this.chatMessage.vnEmote, this.chatMessage.text ?? ''));
-    this.chatMessage.edit(next, staging, this.clock.now());
+    this.chatMessageService.editMessage(this.chatMessage, next, staging, this.clock.now());
     this.editDraft.set(null);
   }
 
