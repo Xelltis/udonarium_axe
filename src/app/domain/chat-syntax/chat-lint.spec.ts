@@ -118,6 +118,8 @@ describe('lintChatSyntax', () => {
     it('finds what reading the command into an edit turns down', () => {
       expect(codes(':HP-5')).toEqual([]);
       expect(codes(':HP')).toEqual(['res.noOperator']);
+      expect(codes('ok :) :-) :D')).toEqual([]);
+      expect(codes('ok :)', { speaker: null })).toEqual([]);
       expect(codes(':HP-')).toEqual(['res.noAmount']);
       expect(codes(':気力-1')).toEqual(['res.unknownStatus']);
       expect(codes(':HP-5Q')).toEqual(['res.badOption']);
