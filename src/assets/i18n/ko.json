@@ -3687,7 +3687,7 @@
       "input": {
         "you": "(당신)",
         "everyone": "전원",
-        "textareaPlaceholder": "메시지를 입력하세요 (Shift+Enter로 줄바꿈)",
+        "textareaPlaceholder": "Enter: 전송 Shift+Enter: 줄바꿈 Ctrl+↑↓: 기록 Ctrl+←→: 탭 전환",
         "viewOnly": "이 탭은 열람만 가능합니다(발언할 수 없습니다)",
         "diceBotNotFound": "※ 다이스봇을 찾을 수 없습니다",
         "colorSetting": "색 설정",

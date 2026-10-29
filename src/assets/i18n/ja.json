@@ -3687,7 +3687,7 @@
       "input": {
         "you": "（あなた）",
         "everyone": "全員",
-        "textareaPlaceholder": "メッセージを入力（Shift+Enterで改行）",
+        "textareaPlaceholder": "Enter:送信 Shift+Enter:改行 Ctrl+上下:履歴 Ctrl+左右:タブ切替",
         "viewOnly": "このタブは閲覧のみ（発言できません）",
         "diceBotNotFound": "※ダイスボットが見つかりません",
         "colorSetting": "色設定",

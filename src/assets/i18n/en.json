@@ -3687,7 +3687,7 @@
       "input": {
         "you": " (you)",
         "everyone": "Everyone",
-        "textareaPlaceholder": "Type a message (Shift+Enter for a new line)",
+        "textareaPlaceholder": "Enter: send / Shift+Enter: new line / Ctrl+Up/Down: history / Ctrl+Left/Right: switch tab",
         "viewOnly": "View only — you can't post in this tab",
         "diceBotNotFound": "* Dice bot not found",
         "colorSetting": "Color settings",
