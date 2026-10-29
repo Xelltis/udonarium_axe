@@ -218,10 +218,9 @@ describe('lintChatSyntax', () => {
   });
 
   describe('decorations and staging', () => {
-    it('finds a mark left unpaired, and closes it at the end of its line', () => {
-      const text = '**強く\n次';
-      const [found] = lint(text);
-      expect(found).toMatchObject({ code: 'deco.unpaired', fix: { from: 4, to: 4, insert: '**' } });
+    it('finds a mark left unpaired', () => {
+      const [found] = lint('**強く\n次');
+      expect(found).toMatchObject({ code: 'deco.unpaired', from: 0, to: 2 });
     });
 
     it('names the words that give a staging bracket up', () => {

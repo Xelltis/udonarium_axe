@@ -74,17 +74,11 @@ export const CHAT_LINT_CODES = [
 /** What a finding is about. */
 export type ChatLintCode = (typeof CHAT_LINT_CODES)[number];
 
-/** A change to the text that puts a finding right. */
-export interface ChatQuickFix extends TextRange {
-  readonly insert: string;
-}
-
 /** Something found in the text, where it stands, and what it is. */
 export interface ChatDiagnostic extends TextRange {
   readonly severity: ChatDiagnosticSeverity;
   readonly code: ChatLintCode;
   readonly params?: Readonly<Record<string, string | number>>;
-  readonly fix?: ChatQuickFix;
 }
 
 /** What the text is checked against: who speaks it, whom it is aimed at, and what the room holds. */
@@ -200,7 +194,7 @@ function lintMessage(
           add(span, 'warning', 'diceToken.unknown', { params: { name: span.name } });
         break;
       case 'decoration':
-        if (!span.mark.paired && span.mark.kind !== 'escape') lintUnpairedMark(text, message, span, add);
+        if (!span.mark.paired && span.mark.kind !== 'escape') add(span, 'warning', 'deco.unpaired');
         break;
       case 'stamp':
         if (!stampOf(span.id)) add(span, 'info', 'stamp.unknown', { params: { name: span.label } });
@@ -227,7 +221,7 @@ type Report = (
   span: TextRange,
   severity: ChatDiagnosticSeverity,
   code: ChatLintCode,
-  extra?: { params?: Record<string, string | number>; fix?: ChatQuickFix }
+  extra?: { params?: Record<string, string | number> }
 ) => void;
 
 const ROLL_CHECK_FINDINGS: Partial<Record<RollCheck['kind'], [ChatDiagnosticSeverity, ChatLintCode]>> = {
@@ -324,18 +318,4 @@ function portraitResolves(command: PortraitCommand, context: ChatLintContext): b
   if (command.type === 'index') return (portraits[command.position - 1]?.identifier ?? '').length > 0;
   if (command.type === 'name') return findImageIdentifierByName([...portraits], command.name).identifier.length > 0;
   return false;
-}
-
-/** A mark left unpaired, which is drawn as typed; the fix closes it at the end of its line. */
-function lintUnpairedMark(
-  text: string,
-  message: TextRange,
-  span: SyntaxSpan & { kind: 'decoration' },
-  add: Report
-): void {
-  if (span.mark.kind === 'close') return add(span, 'warning', 'deco.unpaired');
-  const lineEnd = text.indexOf('\n', span.to - message.from);
-  const end = message.from + (lineEnd < 0 ? text.length : lineEnd);
-  const insert = span.mark.kind === 'stars' ? '**' : '[/]';
-  add(span, 'warning', 'deco.unpaired', { fix: { from: end, to: end, insert } });
 }
