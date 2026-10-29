@@ -94,7 +94,11 @@ export const CHIP_LETTER = '\ufffc';
 /** What every chip holds: the text it was written with, which it is written back as. */
 const RAW = { raw: { default: '', rendered: false } };
 
-/** A piece of syntax shown whole, which is selected, deleted and moved as one. */
+/**
+ * A piece of syntax shown whole, which is selected, deleted and moved as one. It reads as one
+ * letter wherever its paragraph is read as text, so that what is typed round it, as the closing
+ * marks of a decoration it stands in, is read against the paragraph as typed.
+ */
 function chipNode(
   name: string,
   attributes: Record<string, { default: unknown; rendered: false }>,
@@ -112,6 +116,9 @@ function chipNode(
     },
     renderText() {
       return CHIP_LETTER;
+    },
+    extendNodeSchema(extension) {
+      return extension.name === name ? { leafText: () => CHIP_LETTER } : {};
     },
     renderHTML({ node }) {
       return render({ node });

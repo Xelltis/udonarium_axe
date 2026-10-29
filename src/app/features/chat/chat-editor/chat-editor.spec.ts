@@ -55,6 +55,27 @@ describe('the chat editor', () => {
     expect(box.getAttribute('aria-label')).toBe('Say');
   });
 
+  /** Types letters one at a time, as the browser hands them over, the shortcuts typed as syntax and all. */
+  function type(editor: ChatEditorField, letters: string): void {
+    const view = editor.editor.view;
+    for (const letter of letters) {
+      const { from, to } = view.state.selection;
+      const taken = view.someProp('handleTextInput', (handle) =>
+        handle(view, from, to, letter, () => view.state.tr.insertText(letter, from, to))
+      );
+      if (!taken) view.dispatch(view.state.tr.insertText(letter, from, to));
+    }
+  }
+
+  it('makes a decoration closed round a chip, as round any other text', () => {
+    const editor = mount('');
+
+    type(editor, '**{HP}**');
+
+    expect(editor.text()).toBe('**{HP}**');
+    expect(parent.querySelector('strong, .chat-deco-bold, b')).not.toBeNull();
+  });
+
   it('writes over a stretch across the edge of a decoration, leaving its marks where they stand', () => {
     const editor = mount('**abc**d');
 
