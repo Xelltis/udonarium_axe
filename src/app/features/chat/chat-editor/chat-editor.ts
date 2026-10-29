@@ -170,6 +170,7 @@ export class ChatEditorField implements ChatTextField {
         ...CHAT_RICH_EXTENSIONS.map((extension) => (extension === ChatStamp ? this.stampChip() : extension)),
         UndoRedo,
         Placeholder.configure({ placeholder: () => host.placeholder() }),
+        this.compositionGuard(),
         this.keys(),
         this.rules(),
         this.syntax(),
@@ -441,7 +442,6 @@ export class ChatEditorField implements ChatTextField {
     this.marksNow.set(decorationOfMarks(common ?? []));
   }
 
-  /** The keys of the chat input, and the Enter that makes a word with an input method kept from sending. */
   /** The stamp chip, drawn as the host draws the stamp, or as its name where the host cannot. */
   private stampChip() {
     const host = this.host;
@@ -463,14 +463,51 @@ export class ChatEditorField implements ChatTextField {
     });
   }
 
-  private keys(): Extension {
-    const host = this.host;
-    const unchip = () => this.unchipBeforeCaret();
+  /**
+   * The Enter that makes a word with an input method, kept from sending, from breaking the line or
+   * from taking a name offered: one while the word is being made, and one right after it is made,
+   * which some browsers send once the word is done. It stands before every other key, as an
+   * extension's own keys come before its plugins.
+   */
+  private compositionGuard(): Extension {
     const composedJustNow = () => Date.now() - this.composedAt < COMPOSITION_ENTER_MS;
     const composed = () => {
       this.composedAt = Date.now();
       setTimeout(() => this.afterComposition());
     };
+    return Extension.create({
+      name: 'chatCompositionGuard',
+      priority: 1001,
+      addProseMirrorPlugins() {
+        return [
+          new Plugin({
+            props: {
+              handleKeyDown: (_view, event) => {
+                if (event.key !== 'Enter') return false;
+                if (event.isComposing || event.keyCode === 229) return true;
+                if (composedJustNow()) {
+                  event.preventDefault();
+                  return true;
+                }
+                return false;
+              },
+              handleDOMEvents: {
+                compositionend: () => {
+                  composed();
+                  return false;
+                },
+              },
+            },
+          }),
+        ];
+      },
+    });
+  }
+
+  /** The keys of the chat input: Enter sends, Shift+Enter breaks the line, and the host's own. */
+  private keys(): Extension {
+    const host = this.host;
+    const unchip = () => this.unchipBeforeCaret();
     return Extension.create({
       name: 'chatKeys',
       priority: 1000,
@@ -501,29 +538,6 @@ export class ChatEditorField implements ChatTextField {
           shortcuts['ArrowDown'] = () => step(1);
         }
         return shortcuts;
-      },
-      addProseMirrorPlugins() {
-        return [
-          new Plugin({
-            props: {
-              handleKeyDown: (_view, event) => {
-                if (event.key !== 'Enter') return false;
-                if (event.isComposing || event.keyCode === 229) return true;
-                if (composedJustNow()) {
-                  event.preventDefault();
-                  return true;
-                }
-                return false;
-              },
-              handleDOMEvents: {
-                compositionend: () => {
-                  composed();
-                  return false;
-                },
-              },
-            },
-          }),
-        ];
       },
     });
   }

@@ -387,6 +387,23 @@ test.describe('the chat editor', () => {
     await expect.poll(() => chatInputText(input)).toContain('仮名');
     await expect(page.locator('chat-tab').getByText('仮名')).toHaveCount(0);
   });
+
+  test('sends nothing on an Enter that comes right after the word is made', async ({ page }) => {
+    const input = chatInput(page);
+    await input.click();
+    await page.keyboard.type('直後');
+    await expect.poll(() => chatInputText(input)).toBe('直後');
+
+    // Some browsers send the Enter that made the word once the word is done; it stands in for that.
+    await input.evaluate((box) => {
+      box.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '直後' }));
+      box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    });
+
+    await page.waitForTimeout(300);
+    expect(await chatInputText(input)).toBe('直後');
+    await expect(page.locator('chat-tab').getByText('直後')).toHaveCount(0);
+  });
 });
 
 test.describe('the palette written in the editor', () => {
