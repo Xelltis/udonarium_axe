@@ -262,6 +262,7 @@
             <div
               data-chat-input-box
               data-chat-input-mode="rich"
+              [ngStyle]="lineLook()"
               class="panel-no-drag border-ui-input-border rounded-ui-sm bg-ui-input text-ui-text focus-within:border-ui-accent box-border flex max-h-60 min-h-10 w-full min-w-0 flex-1 resize-y flex-col overflow-y-auto border border-solid transition-colors focus-within:shadow-[0_0_0_2px_var(--ui-accent-glow)]"
             >
               <div #editorHost class="flex min-w-0 flex-1 flex-col"></div>
@@ -272,8 +273,9 @@
               data-chat-input
               data-chat-input-box
               [attr.data-chat-input-mode]="inputMode()"
+              [ngStyle]="lineLook()"
               [attr.rows]="dense() ? 1 : null"
-              class="chat-input border-ui-input-border rounded-ui-sm bg-ui-input text-ui-text focus:border-ui-accent box-border max-h-60 min-h-10 w-full min-w-0 flex-1 resize-y border border-solid px-2 py-1.5 align-bottom font-[inherit] text-[13px] leading-[1.4] transition-colors focus:shadow-[0_0_0_2px_var(--ui-accent-glow)] focus:outline-none"
+              class="chat-input border-ui-input-border rounded-ui-sm bg-ui-input text-ui-text focus:border-ui-accent box-border max-h-60 min-h-10 w-full min-w-0 flex-1 resize-y border border-solid px-2 py-1.5 align-bottom font-[inherit] text-[13px] leading-[1.4] transition-colors placeholder:text-current/50 focus:shadow-[0_0_0_2px_var(--ui-accent-glow)] focus:outline-none"
               [placeholder]="
                 placeholder() ||
                 ((isCompact()

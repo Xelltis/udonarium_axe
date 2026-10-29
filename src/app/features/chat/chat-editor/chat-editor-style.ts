@@ -8,9 +8,9 @@ const STYLE_ID = 'chat-rich-editor-style';
  * editor is fetched, so none of it weighs on the page as it starts.
  */
 const CHAT_EDITOR_CSS = `
-.chat-rich{flex:1 1 auto;outline:none;box-sizing:border-box;min-height:100%;padding:6px 8px;font-size:13px;line-height:1.45;color:var(--ui-text);caret-color:var(--ui-text);white-space:pre-wrap;overflow-wrap:anywhere}
+.chat-rich{flex:1 1 auto;outline:none;box-sizing:border-box;min-height:100%;padding:6px 8px;font-size:13px;line-height:1.45;color:inherit;caret-color:currentColor;white-space:pre-wrap;overflow-wrap:anywhere}
 .chat-rich p{margin:0}
-.chat-rich p.is-editor-empty:first-child::before{content:attr(data-placeholder);color:var(--ui-text-dim);float:left;height:0;pointer-events:none}
+.chat-rich p.is-editor-empty:first-child::before{content:attr(data-placeholder);color:color-mix(in srgb,currentColor 50%,transparent);float:left;height:0;pointer-events:none}
 .chat-rich .chat-rich-italic{font-style:oblique 12deg}
 .chat-rich .chat-size-huge{font-size:1.4em}
 .chat-rich .chat-chip{display:inline-flex;align-items:center;gap:2px;margin:0 1px;padding:0 6px;border:1px solid color-mix(in srgb,currentColor 35%,transparent);border-radius:999px;background:color-mix(in srgb,currentColor 12%,transparent);font-size:.92em;line-height:1.4;white-space:nowrap;vertical-align:baseline;cursor:default}

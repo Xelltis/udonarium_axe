@@ -1,4 +1,4 @@
-import { NgClass } from '@angular/common';
+import { NgClass, NgStyle } from '@angular/common';
 import {
   afterEveryRender,
   afterNextRender,
@@ -35,6 +35,8 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
+import { SkinService } from '@axe/application/ui/skin.service';
+import { ThemeService } from '@axe/application/ui/theme.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { callWritingAMessage } from '@axe/core/event/domain-events';
@@ -81,6 +83,7 @@ import { PortraitChoice, PortraitPickerComponent } from '@axe/ui/components/port
 import { PortraitSliderComponent } from '@axe/ui/components/portrait-slider/portrait-slider.component';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
+import { ChatColorStylePipe } from '@axe/ui/pipes/chat-color-style.pipe';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
@@ -97,6 +100,7 @@ const LIST_ROOM = 240;
   imports: [
     TextTooltipDirective,
     NgClass,
+    NgStyle,
     NgSelectComponent,
     FormsModule,
     NgOptionComponent,
@@ -814,6 +818,25 @@ export class ChatInputComponent {
   get selectChatColor() {
     return this.chatColor(this.colorSelectNo());
   }
+
+  private readonly theme = inject(ThemeService);
+  private readonly skins = inject(SkinService);
+  private readonly colorStyle = new ChatColorStylePipe();
+
+  /**
+   * The colour the line will be shown in and the bubble it will sit on, on this reader's theme, for
+   * the box it is written in to show it as it will look.
+   */
+  protected readonly lineLook = computed(() => {
+    const theme = this.theme.resolved();
+    const bubbles = this.chatBubbles(this.colorSelectNo());
+    return this.colorStyle.transform(
+      this.selectChatColor,
+      theme,
+      theme === 'dark' ? bubbles.dark : bubbles.light,
+      this.skins.toneOf(theme)
+    );
+  });
 
   /**
    * Whether the colours of the lines come from the character spoken as: they do but for a guest,

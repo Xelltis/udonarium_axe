@@ -200,6 +200,21 @@ test.describe('the character a chat line is sent as', () => {
     await expect(page.locator('chat-window').getByRole('button', { name: /色設定/ })).toBeVisible();
   });
 
+  test('writes the line in the box in the colour and on the bubble it will be shown in', async ({ page }) => {
+    await page.locator('chat-window [data-testid="chat-input-color"]').click();
+    const second = page.locator('chat-window').getByRole('button', { name: '持ち色2' });
+    const chosen = await second.locator('span').evaluate((element) => getComputedStyle(element).backgroundColor);
+    await second.click();
+    const box = page.locator('chat-window [data-chat-input-box]');
+    await expect.poll(() => box.evaluate((element) => getComputedStyle(element).color)).toBe(chosen);
+    const input = chatInput(page);
+    await input.click();
+    await page.keyboard.type('色');
+    await expect.poll(() => input.evaluate((element) => getComputedStyle(element).color)).toBe(chosen);
+    const background = await box.evaluate((element) => getComputedStyle(element).backgroundColor);
+    expect(background).not.toBe('rgba(0, 0, 0, 0)');
+  });
+
   test('opens the list of recipients upward from the chat at the foot of the screen, on the screen', async ({
     page,
   }) => {
