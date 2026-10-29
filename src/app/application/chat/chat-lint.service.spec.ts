@@ -165,18 +165,18 @@ describe('ChatLintService', () => {
   });
 
   it('checks no roll in a line a dice table of the room answers', () => {
-    const system = { ID: 'FakeSystem', COMMAND_PATTERN: /^ET1/i, eval: () => null };
+    const system = { ID: 'FakeSystem', COMMAND_PATTERN: /^1d6T/i, eval: () => null };
     const loaded = vi
       .spyOn(DiceBot, 'loadedGameSystem')
       .mockReturnValue(system as unknown as ReturnType<typeof DiceBot.loadedGameSystem>);
     const table = new DiceTable();
     table.initialize();
     try {
-      const { session } = watch('ET1');
-      table.command = 'ET2';
+      const { session } = watch('1d6T');
+      table.command = '1d6U';
       expect(codesOf(session)).toEqual(['dice.unrollable']);
 
-      table.command = 'ET1';
+      table.command = '1d6T';
       TestBed.inject(ObjectChangeService).notifyChanged(table.identifier);
 
       expect(codesOf(session)).toEqual([]);

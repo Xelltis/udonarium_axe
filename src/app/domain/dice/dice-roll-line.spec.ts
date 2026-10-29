@@ -99,6 +99,12 @@ describe('dice-roll-line', () => {
       }
     });
 
+    it('says nothing of a word that starts as a roll does but throws no dice and compares nothing', () => {
+      for (const line of ['10:30 集合', '1st session', '100% sure', '10cm', '3DS', 'A4 paper', 'HP10 left']) {
+        expect(checkRollLine(cthulhu, false, line), line).toEqual({ kind: 'notRoll' });
+      }
+    });
+
     it('tells a command this system does not take from chat', () => {
       expect(checkRollLine(plain, false, 'CC<=50')).toEqual({ kind: 'plainText' });
     });

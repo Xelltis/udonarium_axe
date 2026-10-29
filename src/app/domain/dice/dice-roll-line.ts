@@ -102,18 +102,25 @@ function diceThrownBy(command: string): number {
 }
 
 /**
+ * What tells a word that is shaped like a roll was meant as one: dice thrown, as `2d6` or `2B6`, or a
+ * target compared to, as `<=50`. Words such as `10:30`, `1st`, `100%` or `A4` are chat.
+ */
+const ROLL_INTENT = /\d*[dD]\d|\d[bBrRuU]\d|[<>=]/;
+
+/**
  * Checks a line as the dice bot would roll it when sent: in half-width, with its repeat count taken
  * off, tested against the system's command pattern, and then rolled. A roll that would throw more
- * dice than the system can is not tried, as the system would only give up on it. Words shaped like
- * a roll that the system turns down or cannot roll are told apart from chat, which digits alone,
- * plain sums and words past ASCII are taken for.
+ * dice than the system can is not tried, as the system would only give up on it. Words that throw
+ * dice or compare against a target, which the system turns down or cannot roll, are told apart from
+ * chat, which digits alone, plain sums, words past ASCII and words such as `10:30` are taken for.
  */
 export function checkRollLine(system: RollCheckSystem, unreachable: boolean, text: string): RollCheck {
   const line = readRollLine(toHalfWidth(text));
   const rollText = line.rollText;
   if (unreachable) return looksLikeDiceCommand(rollText) ? { kind: 'cannotCheck' } : { kind: 'notRoll' };
   const word = firstWordOf(rollText);
-  const meantAsRoll = looksLikeRollWord(word) && !/^\d+$/.test(word) && !isDicelessArithmetic(word);
+  const meantAsRoll =
+    looksLikeRollWord(word) && !/^\d+$/.test(word) && !isDicelessArithmetic(word) && ROLL_INTENT.test(word);
   if (system.COMMAND_PATTERN && !system.COMMAND_PATTERN.test(rollText)) {
     return meantAsRoll ? { kind: 'plainText' } : { kind: 'notRoll' };
   }
