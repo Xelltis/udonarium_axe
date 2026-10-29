@@ -619,12 +619,14 @@ export function serializeChatRichText(lines: readonly ChatRichLine[], options: C
 /** A text and its lines, with the way between places in the model and in the text. */
 function richText(text: string, placed: readonly PlacedLine[]): ChatRichText {
   const starts: number[] = [];
+  const lengths: number[] = [];
   let at = 0;
   for (const line of text.split('\n')) {
     starts.push(at);
+    lengths.push(line.length);
     at += line.length + 1;
   }
-  const lineLength = (line: number) => (text.split('\n')[line] ?? '').length;
+  const lineLength = (line: number) => lengths[line] ?? 0;
   return {
     text,
     lines: placed.map((each) => each.line),
@@ -636,15 +638,28 @@ function richText(text: string, placed: readonly PlacedLine[]): ChatRichText {
       return start + (units.length > 0 && assoc < 0 ? units[units.length - 1].to : lineLength(line));
     },
     toModel(position, assoc = -1) {
-      let line = 0;
-      while (line + 1 < starts.length && starts[line + 1] <= position) line++;
+      const line = Math.max(0, firstAbove(starts.length, (index) => starts[index] > position) - 1);
       const local = position - starts[line];
       const units = placed[line]?.units ?? [];
-      let offset = 0;
-      while (offset < units.length && units[offset].to <= local) offset++;
+      let offset = firstAbove(units.length, (index) => units[index].to > local);
       const inside = units[offset];
       if (inside && inside.from < local && local < inside.to && assoc > 0) offset++;
       return { line, offset };
     },
   };
+}
+
+/**
+ * The first of `count` places in order where `above` holds, it holding from there on; `count`
+ * where it holds nowhere. Found by halving, as the places in a long text are many.
+ */
+function firstAbove(count: number, above: (index: number) => boolean): number {
+  let low = 0;
+  let high = count;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (above(middle)) high = middle;
+    else low = middle + 1;
+  }
+  return low;
 }
