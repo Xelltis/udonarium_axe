@@ -3564,12 +3564,14 @@
       },
       "invite": {
         "joining": "「{{roomName}}」に参加しています…",
+        "askLogin": "「{{roomName}}」にPL・GMとして入るには、Discordでログインします。ログインしないと見学として入ります",
         "notFound": "「{{roomName}}」が見つかりませんでした",
         "failed": "「{{roomName}}」に参加できませんでした",
         "banned": "「{{roomName}}」に入れません。部屋のサーバーの運営者が、この回線を止めています",
         "offline": "オフラインのため「{{roomName}}」に入れません。入るときは、接続パネルでオンラインに切り替えてください",
         "openLobby": "ロビーを開く",
-        "dismiss": "閉じる"
+        "dismiss": "閉じる",
+        "watch": "見学で入る"
       },
       "account": {
         "login": "Discordでログイン",

@@ -3564,12 +3564,14 @@
       },
       "invite": {
         "joining": "Joining \"{{roomName}}\"…",
+        "askLogin": "To join \"{{roomName}}\" as a player or GM, log in with Discord. Without logging in, you join as a guest",
         "notFound": "\"{{roomName}}\" was not found",
         "failed": "Could not join \"{{roomName}}\"",
         "banned": "Cannot join \"{{roomName}}\". The room server's operator has blocked this connection.",
         "offline": "You are offline, so you cannot join \"{{roomName}}\". To join, switch to online in the connection panel",
         "openLobby": "Open lobby",
-        "dismiss": "Dismiss"
+        "dismiss": "Dismiss",
+        "watch": "Join as a guest"
       },
       "account": {
         "login": "Log in with Discord",

@@ -3564,12 +3564,14 @@
       },
       "invite": {
         "joining": "\"{{roomName}}\"에 참가하고 있습니다…",
+        "askLogin": "\"{{roomName}}\"에 PL·GM으로 들어가려면 Discord로 로그인해 주세요. 로그인하지 않으면 관전 상태로 들어갑니다",
         "notFound": "\"{{roomName}}\"을(를) 찾지 못했습니다",
         "failed": "\"{{roomName}}\"에 참가하지 못했습니다",
         "banned": "\"{{roomName}}\"에 들어갈 수 없습니다. 방 서버 운영자가 이 회선을 차단했습니다.",
         "offline": "오프라인이라 \"{{roomName}}\"에 들어갈 수 없습니다. 들어가려면 연결 패널에서 온라인으로 전환해 주세요",
         "openLobby": "로비 열기",
-        "dismiss": "닫기"
+        "dismiss": "닫기",
+        "watch": "관전으로 들어가기"
       },
       "account": {
         "login": "Discord로 로그인",
