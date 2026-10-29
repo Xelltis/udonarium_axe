@@ -271,6 +271,19 @@ describe('chat-rich-text', () => {
       ]);
     });
 
+    it('writes back as it was a line ending in a cut-in, read with the cut-ins that start from chat', () => {
+      const cutInNames = new Set(['爆発']);
+      const line = '[red]hi[/red] 爆発';
+      const read = parseChatRichText(line, { cutInNames });
+      expect(read.lines[0].segments.at(-1)?.kind).toBe('cutIn');
+      expect(serializeChatRichText(read.lines, { language: 'ja' }).text).toBe(line);
+
+      const palette = `${line}\n[red]a[/red] 爆発`;
+      const rows = parseChatRichText(palette, { cutInNames, mode: 'palette' });
+      expect(rows.lines.map((row) => row.segments.at(-1)?.kind)).toEqual(['cutIn', 'cutIn']);
+      expect(serializeChatRichText(rows.lines, { language: 'ja', mode: 'palette' }).text).toBe(palette);
+    });
+
     it('reads the last word as a cut-in only where one of that name starts from chat', () => {
       const kinds = (names: string[]) =>
         parseChatRichText('行くぞ 爆発', { cutInNames: new Set(names) }).lines[0].segments.map(

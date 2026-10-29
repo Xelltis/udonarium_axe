@@ -537,13 +537,24 @@ function escapeLine(
 }
 
 /**
+ * How the text of lines is read again to be checked against them: with the names of the cut-ins
+ * their chips start, which end a line as a chip only where the reading knows them.
+ */
+function rereadOptions(lines: readonly ChatRichLine[]): ChatRichParseOptions {
+  const names = lines.flatMap((line) =>
+    line.segments.flatMap((segment) => (segment.kind === 'cutIn' ? [segment.name] : []))
+  );
+  return { cutInNames: new Set(names) };
+}
+
+/**
  * The message as it was read, where every line still holds the text it was read from and the whole
  * of it is drawn as the lines are: a decoration may run over several lines, which no line on its
  * own would show.
  */
 function untouchedMessage(message: readonly ChatRichLine[]): PlacedLine[] | null {
   if (message.length < 1 || message.some((line) => line.source === undefined || line.directive)) return null;
-  const reread = parseMessage(message.map((line) => line.source).join('\n'), {});
+  const reread = parseMessage(message.map((line) => line.source).join('\n'), rereadOptions(message));
   if (reread.length !== message.length) return null;
   return reread.every(
     (placedLine, index) =>
@@ -555,7 +566,7 @@ function untouchedMessage(message: readonly ChatRichLine[]): PlacedLine[] | null
 
 /** Whether a written message is drawn as its lines meant. */
 function drawnAsMeant(text: string, lines: readonly ChatRichLine[]): boolean {
-  const reread = parseMessage(text, {});
+  const reread = parseMessage(text, rereadOptions(lines));
   if (reread.length !== lines.length) return false;
   return reread.every((placed, index) => sameRichLine(placed.line, lines[index]));
 }
@@ -577,7 +588,7 @@ export function serializeChatRichText(lines: readonly ChatRichLine[], options: C
         return { text, units: unitsOfPlain(text) };
       }
       if (keepSource && line.source !== undefined) {
-        const reread = parseMessage(line.source, {});
+        const reread = parseMessage(line.source, rereadOptions([line]));
         if (reread.length === 1 && sameRichLine(reread[0].line, line) && sameChipPlaces(reread[0].line, line)) {
           return { text: line.source, units: reread[0].units };
         }
