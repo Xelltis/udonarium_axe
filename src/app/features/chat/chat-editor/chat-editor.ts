@@ -356,7 +356,7 @@ export class ChatEditorField implements ChatTextField {
 
   insertChip(chip: ChatRichChip, place: ChatChipPlace = 'caret'): void {
     const state = this.editor.state;
-    const marks: readonly Mark[] = state.storedMarks ?? state.selection.$from.marks();
+    const marks: readonly Mark[] = place === 'end' ? [] : (state.storedMarks ?? state.selection.$from.marks());
     const node = nodeOfChip(this.schema, chip, marks);
     const tr = state.tr;
     if (place === 'end') {

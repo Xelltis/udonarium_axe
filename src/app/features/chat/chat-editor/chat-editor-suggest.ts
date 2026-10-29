@@ -93,7 +93,8 @@ export function chatSuggestExtension(host: ChatSuggestHost): Extension {
                   : trigger.kind === 'effect'
                     ? { kind: 'effect', raw: `《${name}》`, name, battle: isBattleChatTokenName(name) }
                     : tailChip(name, host.completionWords());
-              tr.replaceWith(range.from, range.to, nodeOfChip(schema, chip, marks));
+              const kept = trigger.kind === 'tail' ? [] : marks;
+              tr.replaceWith(range.from, range.to, nodeOfChip(schema, chip, kept));
             }
             current.view.dispatch(tr.scrollIntoView());
             current.view.focus();

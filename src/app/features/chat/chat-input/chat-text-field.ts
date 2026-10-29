@@ -63,7 +63,10 @@ export interface ChatTextField {
   readonly activeMarks: Signal<ChatDecoration | null>;
   /** Puts a decoration on what is selected, or on what is typed next, or takes it off. */
   applyMark(change: ChatMarkChange): void;
-  /** Puts in a piece of syntax shown whole: over what is selected at the caret, or at the end of the message. */
+  /**
+   * Puts in a piece of syntax shown whole: over what is selected at the caret, in the decoration
+   * there, or at the end of the message, plain, as a command read off the end of a line is written.
+   */
   insertChip(chip: ChatRichChip, place?: ChatChipPlace): void;
   /** What is selected, as it is shown. */
   selectedText(): string;

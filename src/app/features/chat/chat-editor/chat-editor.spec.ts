@@ -88,6 +88,16 @@ describe('the chat editor', () => {
     expect(editor.selection()).toEqual({ from: 4, to: 4 });
   });
 
+  it('puts a portrait in at the end plain, whatever the caret stands in', () => {
+    const editor = mount('**ab**');
+    editor.select({ from: 3, to: 3 });
+
+    editor.insertChip({ kind: 'portrait', command: { type: 'name', name: 'face' }, raw: '@face' }, 'end');
+
+    expect(editor.text()).toBe('**ab** @face');
+    expect(editor.editor.state.doc.lastChild!.lastChild!.marks).toEqual([]);
+  });
+
   it('writes over a stretch across the edge of a decoration, leaving its marks where they stand', () => {
     const editor = mount('**abc**d');
 
