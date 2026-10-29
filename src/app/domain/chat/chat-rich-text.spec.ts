@@ -309,6 +309,18 @@ describe('chat-rich-text', () => {
   });
 
   describe('places', () => {
+    it('counts places by the pieces the line now holds, though it reads as its source did', () => {
+      const [source] = parseChatRichText('見て @笑顔').lines;
+      expect(source.segments.at(-1)?.kind).toBe('portrait');
+      const typedOut = { segments: [{ kind: 'text' as const, text: '見て @笑顔', marks: null }], source: '見て @笑顔' };
+
+      const written = serializeChatRichText([typedOut], { language: 'ja' });
+
+      expect(written.text).toBe('見て @笑顔');
+      expect(written.toText({ line: 0, offset: 4 }, 1)).toBe(4);
+      expect(written.toModel(5)).toEqual({ line: 0, offset: 5 });
+    });
+
     it('finds each letter and chip of the model in the text and back', () => {
       const text = '**ab**{HP}c\nd';
       const read = parseChatRichText(text);

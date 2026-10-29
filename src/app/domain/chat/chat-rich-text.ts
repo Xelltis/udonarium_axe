@@ -284,6 +284,28 @@ export function sameRichLine(a: ChatRichLine, b: ChatRichLine): boolean {
   );
 }
 
+/**
+ * Whether two lines hold their chips in the same places, each standing for the same text. A line
+ * whose chip went back to its letters, or whose letters became a chip, is drawn the same but stands
+ * in the editor as other pieces, which places in it are counted by.
+ */
+function sameChipPlaces(a: ChatRichLine, b: ChatRichLine): boolean {
+  const places = (line: ChatRichLine) => {
+    const found: string[] = [];
+    let at = 0;
+    for (const segment of line.segments) {
+      if (segment.kind === 'text') {
+        at += [...segment.text].length;
+        continue;
+      }
+      found.push(`${at}:${segment.raw}`);
+      at += [...segment.raw].length;
+    }
+    return found.join('\n');
+  };
+  return places(a) === places(b);
+}
+
 /** One thing a decoration sets other than bold, written as one tag. */
 interface TagWant {
   key: string;
@@ -495,7 +517,12 @@ function untouchedMessage(message: readonly ChatRichLine[]): PlacedLine[] | null
   if (message.length < 1 || message.some((line) => line.source === undefined || line.directive)) return null;
   const reread = parseMessage(message.map((line) => line.source).join('\n'), {});
   if (reread.length !== message.length) return null;
-  return reread.every((placedLine, index) => sameRichLine(placedLine.line, message[index])) ? reread : null;
+  return reread.every(
+    (placedLine, index) =>
+      sameRichLine(placedLine.line, message[index]) && sameChipPlaces(placedLine.line, message[index])
+  )
+    ? reread
+    : null;
 }
 
 /** Whether a written message is drawn as its lines meant. */
@@ -523,7 +550,7 @@ export function serializeChatRichText(lines: readonly ChatRichLine[], options: C
       }
       if (keepSource && line.source !== undefined) {
         const reread = parseMessage(line.source, {});
-        if (reread.length === 1 && sameRichLine(reread[0].line, line)) {
+        if (reread.length === 1 && sameRichLine(reread[0].line, line) && sameChipPlaces(reread[0].line, line)) {
           return { text: line.source, units: reread[0].units };
         }
       }
