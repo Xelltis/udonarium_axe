@@ -69,6 +69,13 @@ describe('chatSyntaxGroups', () => {
     expect(written).toEqual(['chip reference {攻撃} caret', 'insert :HP-1 [1]', 'insert :職業>text [text]']);
   });
 
+  it('puts a reference to the target in as a chip too, and leaves an unknown name to type between the braces', () => {
+    const groups = chatSyntaxGroups(source(), writer, t);
+    run(groups, 'reference', 'HP', 1);
+    run(groups, 'reference', 'targetReference');
+    expect(written).toEqual(['chip reference t{HP} caret', 'insert t{} []']);
+  });
+
   it('puts a portrait or a cut-in at the end of the message, where it is read', () => {
     const groups = chatSyntaxGroups(source(), writer, t);
     run(groups, 'portrait', '笑顔');

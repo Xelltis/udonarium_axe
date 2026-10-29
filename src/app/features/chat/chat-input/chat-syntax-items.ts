@@ -89,13 +89,20 @@ export function chatSyntaxGroups(
     single(word('repeat'), 'x3 2D6', () => writer.prefix('x3 ')),
   ]);
 
+  const reference = (name: string, targeted: boolean): ChatSyntaxItem => {
+    const raw = `${targeted ? 't' : ''}{${name}}`;
+    return {
+      label: targeted ? 't{}' : '{}',
+      written: raw,
+      run: () => writer.chip({ kind: 'reference', raw, name, targeted, useMax: false }, 'caret'),
+    };
+  };
   group('reference', [
-    ...[...source.statuses.map((status) => status.name), ...source.variables].map((name) =>
-      single(name, `{${name}}`, () =>
-        writer.chip({ kind: 'reference', raw: `{${name}}`, name, targeted: false, useMax: false }, 'caret')
-      )
-    ),
-    single(word('targetReference'), `t{${word('name')}}`, withHole(writer, 't{', word('name'), '}')),
+    ...[...source.statuses.map((status) => status.name), ...source.variables].map((name) => ({
+      label: name,
+      items: [reference(name, false), reference(name, true)],
+    })),
+    single(word('targetReference'), `t{${word('name')}}`, () => writer.insert('t{}', { from: 2, to: 2 })),
   ]);
 
   group('resource', [

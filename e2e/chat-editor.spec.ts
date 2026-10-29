@@ -307,6 +307,26 @@ test.describe('the chat editor', () => {
     await expect(input.locator('[data-chip="effect"]')).toHaveCount(1);
   });
 
+  test('puts a reference to the target in as a chip, from the reference button', async ({ page }) => {
+    await page.locator('chat-window ng-select[name="send-from"]').click();
+    await page.locator('ng-dropdown-panel .ng-option', { hasText: 'キャラクターA' }).click();
+    const input = chatInput(page);
+    await input.click();
+    await page.keyboard.type('t:HP-');
+    await expectChatText(input, 't:HP-');
+
+    await page.locator('chat-window [data-testid="chat-toolbar-group-reference"]').click();
+    const panel = page.locator('[data-testid="chat-toolbar-panel"]');
+    await panel
+      .getByRole('listitem')
+      .filter({ hasText: /^\s*HP/ })
+      .getByRole('button', { name: 't{}' })
+      .click();
+
+    await expectChatText(input, 't:HP-t{HP}');
+    await expect(input.locator('[data-chip="reference"]')).toHaveCount(1);
+  });
+
   test('offers the names a syntax takes over the caret, Enter taking one, and sends on Enter with none offered', async ({
     page,
   }) => {
