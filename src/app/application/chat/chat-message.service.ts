@@ -429,11 +429,13 @@ export class ChatMessageService {
    * version does not know, or the room does not let be sent, is written as its name, and the
    * pictures from the room's sets among its attachments follow the stamps it now holds, those it
    * no longer holds going with them, those the room has stopped since among them. A picture
-   * attached by hand stays.
+   * attached by hand stays, and so does that of a stamp under the line.
    */
   editMessage(message: ChatMessage, text: string, staging: string, at: number): void {
     const stamped = this.inlineStampsGoingOut(text);
-    const before = stampPicturesIn(message.text ?? '');
+    const under = stampOf(message.stamp ?? '');
+    const kept = under?.kind === 'image' ? under.imageIdentifier : null;
+    const before = stampPicturesIn(message.text ?? '').filter((picture) => picture !== kept);
     const attached = message.attachmentImageIdentifierList.filter((picture) => !before.includes(picture));
     const attachments = [...attached, ...stamped.pictures.filter((picture) => !attached.includes(picture))];
     message.edit(stamped.text, staging, at);

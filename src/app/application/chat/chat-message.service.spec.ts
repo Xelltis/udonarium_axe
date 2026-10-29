@@ -385,6 +385,16 @@ describe('ChatMessageService', () => {
         expect(message.attachmentImageIdentifierList).toEqual(['attached-by-hand']);
       });
 
+      it('keeps the picture of the stamp under the line, used inside it too, when it is taken out of the line', () => {
+        const service = TestBed.inject(ChatMessageService);
+        const message = said('これ［絵:image:stamp-picture］');
+        message.stamp = 'image:stamp-picture';
+
+        service.editMessage(message, 'これ', '', 2000);
+
+        expect(message.attachmentImageIdentifierList).toEqual(['stamp-picture']);
+      });
+
       it('lets go the picture of a stamp the room has stopped since, which goes out as its name', () => {
         const service = TestBed.inject(ChatMessageService);
         const message = said('これ［絵:image:stamp-picture］');
