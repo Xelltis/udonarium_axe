@@ -37,6 +37,7 @@ class StackHostComponent {
     <div class="loose"><span class="inside-loose">plain</span></div>
     <div class="panel-no-drag"><div class="inside-claimed">a timeline</div></div>
     <button class="a-button">press</button>
+    <div class="written" contenteditable="true"><p class="written-line">words</p></div>
   </div>`,
   changeDetection: ChangeDetectionStrategy.Eager,
   imports: [DraggableDirective],
@@ -202,6 +203,11 @@ describe('DraggableDirective', () => {
 
     it('leaves alone what sits inside such a region, however deep', () => {
       expect(claimed('.inside-claimed')).toBe(true);
+    });
+
+    it('leaves a press in text that can be written in to select its words', () => {
+      expect(claimed('.written')).toBe(true);
+      expect(claimed('.written-line')).toBe(true);
     });
   });
 

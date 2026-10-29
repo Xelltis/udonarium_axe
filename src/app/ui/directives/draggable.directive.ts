@@ -22,14 +22,15 @@ export class DraggableDirective {
   /**
    * What a press must not start a drag on.
    *
-   * Besides the controls a press belongs to, a panel's contents can claim a region of it
-   * by wearing `panel-no-drag`: a timeline being scrubbed, a stage a layer is dragged
-   * around, a list being reordered. Without it the panel takes the press as well and the
-   * two drags pull against each other.
+   * Besides the controls a press belongs to, and text that can be written in, where a drag
+   * selects words, a panel's contents can claim a region of it by wearing `panel-no-drag`: a
+   * timeline being scrubbed, a stage a layer is dragged around, a list being reordered.
+   * Without it the panel takes the press as well and the two drags pull against each other.
    */
-  readonly unhandleSelector = input('input,textarea,button,select,option,span,.panel-no-drag', {
-    alias: 'draggable.unhandle',
-  });
+  readonly unhandleSelector = input(
+    'input,textarea,button,select,option,span,[contenteditable]:not([contenteditable="false"]),.panel-no-drag',
+    { alias: 'draggable.unhandle' }
+  );
   readonly stackSelector = input('', { alias: 'draggable.stack' });
   readonly opacity = input(0.7, { alias: 'draggable.opacity' });
   readonly allowOverHalf = input(false, { alias: 'draggable.allowOverHalf' });
