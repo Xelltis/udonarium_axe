@@ -281,7 +281,7 @@ export class InviteJoinComponent {
       this.state.set('failed');
       return;
     }
-    await this.logInOrWatch(room.roomKey ?? '');
+    await this.logInOrWatch(room.roomKey || `${room.id}/${room.name}`);
     if (this.movedOn(params)) return;
     let password = params.password;
     if (room.hasPassword && password.length < 1) {

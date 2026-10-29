@@ -565,6 +565,31 @@ describe('InviteJoinComponent', () => {
         expect(bannerText()).not.toContain('PL・GMとして入るには');
       });
 
+      it('asks again for another room the server keeps no key for, after watching one', async () => {
+        const keyless = (id: string, name: string): IRoomInfo => ({
+          ...serverRoom(false),
+          id,
+          name,
+          roomKey: undefined,
+        });
+        const linkTo = (id: string, name: string) =>
+          buildInviteLink('', { roomId: id, roomName: name, roomKey: '', password: '', role: null, overlay: false });
+        findServerRoom.mockResolvedValue(keyless('a1b', 'room'));
+        await setup(linkTo('a1b', 'room'));
+        await eventually(() => expect(bannerText()).toContain('PL・GMとして入るには'));
+        press('invite-join-watch');
+        await eventually(() => expect(joinServerRoom).toHaveBeenCalledOnce());
+        fixture.destroy();
+        TestBed.resetTestingModule();
+        joinServerRoom.mockClear();
+
+        findServerRoom.mockResolvedValue(keyless('z9z', 'other'));
+        await setup(linkTo('z9z', 'other'));
+
+        await eventually(() => expect(bannerText()).toContain('PL・GMとして入るには'));
+        expect(joinServerRoom).not.toHaveBeenCalled();
+      });
+
       it('asks the server whether it offers a login before asking the reader, and asks nothing where none is known', async () => {
         auth.offersLogin.set(null);
         await setup(link(''));
