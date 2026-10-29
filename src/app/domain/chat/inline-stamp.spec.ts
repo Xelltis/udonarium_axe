@@ -75,10 +75,16 @@ describe('inline stamps', () => {
   });
 
   it('reads back what it writes, whatever the name', () => {
-    for (const label of ['了解', 'ゴゴゴゴ', 'a:b', '［x］', 'x'.repeat(60), '']) {
+    for (const label of ['了解', 'ゴゴゴゴ', 'a:b', '［x］', 'x'.repeat(60), '', '***']) {
       const token = inlineStampToken(label, 'sfx:boom');
       expect(inlineStampSites(`前${token}後`).map((site) => site.id)).toEqual(['sfx:boom']);
     }
+  });
+
+  it('reads back a stamp of a picture known by its address, whose name leaves nothing', () => {
+    const token = inlineStampToken('***', 'image:https://example.com/a.png');
+    expect(inlineStampSites(token).map((site) => site.id)).toEqual(['image:https://example.com/a.png']);
+    expect(inlineStampSites(inlineStampToken('', 'image:***')).map((site) => site.id)).toEqual(['image:***']);
   });
 
   it('keeps its form through what is rewritten as a line is sent', () => {

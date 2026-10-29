@@ -43,15 +43,16 @@ export function inlineStampSites(text: string): InlineStampSite[] {
 /**
  * How a stamp is written into a line: its name, kept to what the form can hold with the spaces in
  * it written as underscores, and its identifier. A name with nothing left to it is written as the
- * stamp's key.
+ * stamp's key, kept the same way, or as `stamp` where nothing is left of that either.
  */
 export function inlineStampToken(label: string, id: string): string {
-  const kept = label
-    .replace(new RegExp(`[${LABEL_BARRED}]`, 'g'), '')
-    .trim()
-    .replace(/\s+/g, '_')
-    .slice(0, LABEL_REACH);
-  return `［${kept || id.slice(id.indexOf(':') + 1, id.indexOf(':') + 1 + LABEL_REACH)}:${id}］`;
+  const keep = (name: string) =>
+    name
+      .replace(new RegExp(`[${LABEL_BARRED}]`, 'g'), '')
+      .trim()
+      .replace(/\s+/g, '_')
+      .slice(0, LABEL_REACH);
+  return `［${keep(label) || keep(id.slice(id.indexOf(':') + 1)) || 'stamp'}:${id}］`;
 }
 
 /** A text with each stamp inside it written as its name, in brackets, as plain text shows it. */
