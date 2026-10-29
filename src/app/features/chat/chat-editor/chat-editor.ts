@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import type { ChatLintAnnotation, ChatLintSession } from '@axe/application/chat/chat-lint.service';
 import type { TranslateFn } from '@axe/application/i18n/translate.token';
 import { chatFontWanted$ } from '@axe/core/event/domain-events';
-import { debounce } from '@axe/core/util/debounce';
+import { coalesce, debounce } from '@axe/core/util/debounce';
 import { type ChatDecoration, chatDecorationLayout, type ChatTagLanguage } from '@axe/domain/chat/chat-decoration';
 import { referenceSites } from '@axe/domain/chat/chat-reference';
 import { type ChatRichChip, type ChatRichMode, parseChatRichText } from '@axe/domain/chat/chat-rich-text';
@@ -147,8 +147,10 @@ export class ChatEditorField implements ChatTextField {
   readonly editor: Editor;
   private written: { doc: ProseMirrorNode; language: ChatTagLanguage; out: ChatDocText } | null = null;
   private composedAt = -Infinity;
-  /** Marks what will not work once the reader, or the room, has stood still a moment. */
+  /** Marks what will not work once the reader has stood still a moment. */
   private readonly lintLater = debounce(() => this.paintSyntax(true), LINT_DELAY_MS);
+  /** Marks it a moment after the room changes, and at that pace for as long as it keeps changing. */
+  private readonly lintForRoom = coalesce(() => this.paintSyntax(true), LINT_DELAY_MS);
   private refreshAfterComposition = false;
   private pendingText: { text: string; select?: ChatFieldSelection } | null = null;
   /** Whether the paste coming is the one Ctrl+Shift+V asks for, to go in as the letters copied. */
@@ -366,16 +368,17 @@ export class ChatEditorField implements ChatTextField {
    */
   refresh(textChanged: boolean): void {
     this.lintLater.cancel();
+    this.lintForRoom.cancel();
     if (textChanged) this.lintLater();
     this.paintSyntax(!textChanged);
   }
 
   /**
-   * Colours and checks it again once the room has stood still a moment, for a change to the room
-   * alone, which may come at every step of a piece dragged.
+   * Colours and checks it again a moment after a change to the room alone, which may come at every
+   * step of a piece dragged: once for all that come in that moment, and so on while they keep coming.
    */
   refreshSoon(): void {
-    this.lintLater();
+    this.lintForRoom();
   }
 
   /** Says what the empty editor says again, as when the language changes. */
@@ -404,6 +407,7 @@ export class ChatEditorField implements ChatTextField {
 
   destroy(): void {
     this.lintLater.cancel();
+    this.lintForRoom.cancel();
     this.tip.remove();
     this.editor.destroy();
     this.bubble.element.remove();
