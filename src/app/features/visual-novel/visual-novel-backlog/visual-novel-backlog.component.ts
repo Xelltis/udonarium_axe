@@ -12,6 +12,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -74,6 +75,7 @@ export class VisualNovelBacklogComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly lineEdit = inject(ChatLineEditService);
   private readonly clock = inject(ChatClockService);
+  private readonly chatMessages = inject(ChatMessageService);
   private readonly imageService = inject(ImageService);
   private readonly translate = inject(TRANSLATE_FN);
   private readonly language = inject(LanguageService);
@@ -318,7 +320,7 @@ export class VisualNovelBacklogComponent {
       exited: this.editExited(),
     });
     if (message.text !== text || message.vnEmote !== emote) {
-      message.edit(text, emote, this.clock.now());
+      this.chatMessages.editMessage(message, text, emote, this.clock.now());
     }
     if (message.vnPortraitPos !== this.editSlot()) {
       message.vnPortraitPos = this.editSlot();

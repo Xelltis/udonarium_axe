@@ -116,6 +116,21 @@ describe('VisualNovelBacklogComponent', () => {
     expect(message.versions.map((version) => version.text)).toEqual(['やあ', 'こんばんは']);
   });
 
+  it('lets a stamp’s picture go with the stamp taken out of a line edited here, as an edit in the chat does', () => {
+    addMessage('これ［絵:image:stamp-picture］', 'アリス', {
+      attachmentImageIdentifiers: JSON.stringify(['stamp-picture']),
+    });
+    createComponent();
+
+    component.startEditEntry(component.entries()[0]);
+    component.editText.set('これだけ');
+    component.saveEditEntry();
+
+    const message = TestBed.inject(VisualNovelPlaybackService).messages()[0];
+    expect(message.text).toBe('これだけ');
+    expect(message.attachmentImageIdentifierList).toEqual([]);
+  });
+
   it('takes the staging off a line when it is all taken away, keeping the words as they were', () => {
     addMessage('やあ 〔叫び〕', 'アリス', { imageIdentifier: addImage() });
     createComponent();
