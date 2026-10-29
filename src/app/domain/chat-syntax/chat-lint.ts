@@ -102,6 +102,8 @@ export interface ChatLintContext {
   hasPieceNamed(name: string): boolean;
   /** What the game system makes of a message, or null while that is not known yet. */
   rollCheck(message: TextRange): RollCheck | null;
+  /** What a message is rolled as, its references filled in; the message as typed where this is not told. */
+  rolledText?(message: TextRange): string;
   /** Whether the room lets a stamp be sent in a line; every stamp where this is not told. */
   stampAllowed?(stampId: string): boolean;
   /**
@@ -248,8 +250,14 @@ function lintRoll(text: string, message: TextRange, span: TextRange, context: Ch
     return;
   }
   if (check.kind !== 'rolled') return;
-  for (const breach of rollLimitBreaches(text)) {
+  const breaches = rollLimitBreaches(text);
+  for (const breach of breaches) {
     add({ from: message.from + breach.from, to: message.from + breach.to }, 'warning', LIMIT_FINDINGS[breach.limit]);
+  }
+  const rolled = context.rolledText?.(message) ?? text;
+  if (breaches.length > 0 || rolled === text) return;
+  for (const limit of new Set(rollLimitBreaches(rolled).map((breach) => breach.limit))) {
+    add(span, 'warning', LIMIT_FINDINGS[limit]);
   }
 }
 

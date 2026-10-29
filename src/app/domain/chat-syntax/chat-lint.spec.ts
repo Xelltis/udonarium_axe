@@ -71,6 +71,15 @@ describe('lintChatSyntax', () => {
       expect(codes('2d6', { rollCheck: () => ({ kind: 'rolled', result: '7' }) })).toEqual([]);
     });
 
+    it('finds a limit reached through a reference, filled in as the line is rolled', () => {
+      const found = lint('{回数}D6', {
+        rollCheck: () => ({ kind: 'rolled', result: '7' }),
+        rolledText: () => '500D6',
+      }).filter((finding) => finding.code.startsWith('dice.'));
+
+      expect(found.map((finding) => [finding.code, finding.from, finding.to])).toEqual([['dice.tooManyDice', 0, 6]]);
+    });
+
     it('places the terms past what the dice library rolls', () => {
       const text = '300d6+2d6';
       const found = lint(text, { rollCheck: () => ({ kind: 'rolled', result: '0' }) });

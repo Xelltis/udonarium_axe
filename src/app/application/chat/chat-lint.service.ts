@@ -183,6 +183,7 @@ export class ChatLintService {
         if (tableCommands.has(toHalfWidth(line).trim().split(/\s/)[0])) return null;
         return this.rollCheck(gameType, fill(line, targets[0]));
       },
+      rolledText: (message: TextRange) => fill(scan().text.slice(message.from, message.to), targets[0]),
     };
   }
 
