@@ -260,7 +260,7 @@ function parseMessage(message: string, options: ChatRichParseOptions): PlacedLin
 /** What a line looks like letter by letter: each letter and chip's text, with its decoration. */
 function flatten(line: ChatRichLine): { text: string; marks: ChatDecoration | null }[] {
   const letters: { text: string; marks: ChatDecoration | null }[] = [];
-  for (const segment of line.segments) {
+  for (const segment of withPlainLineEnd(line.segments)) {
     const text = segment.kind === 'text' ? segment.text : segment.raw;
     for (const letter of text) letters.push({ text: letter, marks: normalMarks(segment.marks) });
   }
@@ -269,13 +269,21 @@ function flatten(line: ChatRichLine): { text: string; marks: ChatDecoration | nu
   return letters;
 }
 
-/** Whether two lines are drawn the same, chips counted as the text they stand for. */
+/**
+ * Whether two lines are drawn the same, chips counted as the text they stand for. A line is taken
+ * as it is written: the commands ending it, and a quote mark starting it, plain whatever they were
+ * put in. A backslash may stand on either side of a mark next to it, as one is written after a
+ * mark it would otherwise keep from taking effect, so what it is drawn in does not count.
+ */
 export function sameRichLine(a: ChatRichLine, b: ChatRichLine): boolean {
   const left = flatten(a);
   const right = flatten(b);
   return (
     left.length === right.length &&
-    left.every((letter, index) => letter.text === right[index].text && sameRichMarks(letter.marks, right[index].marks))
+    left.every(
+      (letter, index) =>
+        letter.text === right[index].text && (letter.text === '\\' || sameRichMarks(letter.marks, right[index].marks))
+    )
   );
 }
 

@@ -271,6 +271,51 @@ describe('chat-rich-text', () => {
       ]);
     });
 
+    it('writes no backslash for a decorated portrait ending a line, nor into a line nobody touched', () => {
+      const RED = { ...BOLD, bold: false, color: '#e5484d' };
+      const portrait = { kind: 'portrait', command: { type: 'name', name: 'face' }, raw: '@face' } as const;
+      const write = (lines: ChatRichLine[]) => serializeChatRichText(lines, { language: 'ja' }).text;
+
+      expect(
+        write([
+          {
+            segments: [
+              { kind: 'text', text: 'a ** b ', marks: null },
+              { ...portrait, marks: BOLD },
+            ],
+          },
+        ])
+      ).toBe('a ** b @face');
+      const [untouched] = parseChatRichText('[赤]x').lines;
+      expect(
+        write([
+          untouched,
+          {
+            segments: [
+              { kind: 'text', text: 'y ', marks: RED },
+              { ...portrait, marks: RED },
+            ],
+          },
+        ])
+      ).toBe('[赤]x\n[赤]y[/赤] @face');
+    });
+
+    it('writes no backslash into a line for one that only moved past a mark', () => {
+      const written = serializeChatRichText(
+        [
+          {
+            segments: [
+              { kind: 'text', text: 'x [赤] y a\\', marks: null },
+              { kind: 'text', text: 'b', marks: BOLD },
+            ],
+          },
+        ],
+        { language: 'ja' }
+      ).text;
+
+      expect(written.startsWith('x [赤] y a')).toBe(true);
+    });
+
     it('writes back as it was a line ending in a cut-in, read with the cut-ins that start from chat', () => {
       const cutInNames = new Set(['爆発']);
       const line = '[red]hi[/red] 爆発';
