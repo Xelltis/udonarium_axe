@@ -67,6 +67,31 @@ describe('ChatLintService', () => {
     }
   });
 
+  it('rolls each line of a long palette once, however often it is checked again', () => {
+    const roll = vi.fn((command: string) => ({ text: `(${command}) ＞ 7` }));
+    const system = { ID: 'FakeSystem', COMMAND_PATTERN: null, eval: roll };
+    const loaded = vi
+      .spyOn(DiceBot, 'loadedGameSystem')
+      .mockReturnValue(system as unknown as ReturnType<typeof DiceBot.loadedGameSystem>);
+    try {
+      const lines = Array.from({ length: 100 }, (_, index) => `2d6+${index} 技能${index}`).join('\n');
+      const text = signal(lines);
+      const { session } = watch('', { text, path: 'palette', mode: 'palette' });
+      session.diagnostics();
+      session.annotations();
+      const rolled = roll.mock.calls.length;
+
+      text.set(`${lines}\n`);
+      session.diagnostics();
+      session.annotations();
+
+      expect(rolled).toBeGreaterThanOrEqual(100);
+      expect(roll.mock.calls.length).toBe(rolled);
+    } finally {
+      loaded.mockRestore();
+    }
+  });
+
   it('reads the variables written into a palette being edited', () => {
     const { session } = watch('//強さ=3\n{強さ} 殴る\n{弱さ}', { path: 'palette', mode: 'palette' });
     expect(session.diagnostics().map((found) => [found.code, found.params?.['name']])).toEqual([

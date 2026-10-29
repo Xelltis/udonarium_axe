@@ -54,8 +54,11 @@ export interface ChatLintSession {
   readonly annotations: Signal<ChatLintAnnotation[]>;
 }
 
-/** How many roll checks are kept, so that a text checked again as it is drawn is not rolled again. */
-const ROLL_CHECKS_KEPT = 64;
+/**
+ * How many roll checks are kept, so that a text checked again as it is drawn is not rolled again:
+ * enough for every roll line of a long palette, each checked again at every key.
+ */
+const ROLL_CHECKS_KEPT = 1024;
 
 /**
  * Checks the syntax of a text being written against the room, the way sending it would go: the
@@ -189,7 +192,10 @@ export class ChatLintService {
     return entries;
   }
 
-  /** What the game system makes of a text, or null while its code is on the way. */
+  /**
+   * What the game system makes of a text, or null while its code is on the way. The checks used
+   * last are the ones kept longest.
+   */
   private rollCheck(gameType: string, text: string): RollCheck | null {
     const system = DiceBot.loadedGameSystem(gameType) ?? this.fetched.get(gameType) ?? null;
     if (!system) {
@@ -199,7 +205,11 @@ export class ChatLintService {
     const unreachable = DiceBot.isUnreachable(system);
     const key = `${system.ID}\u0000${unreachable ? '!' : ''}\u0000${text}`;
     const kept = this.rollChecks.get(key);
-    if (kept) return kept;
+    if (kept) {
+      this.rollChecks.delete(key);
+      this.rollChecks.set(key, kept);
+      return kept;
+    }
     const check = checkRollLine(system, unreachable, text);
     this.rollChecks.set(key, check);
     if (this.rollChecks.size > ROLL_CHECKS_KEPT) this.rollChecks.delete(this.rollChecks.keys().next().value!);
