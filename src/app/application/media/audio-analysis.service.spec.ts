@@ -189,6 +189,7 @@ describe('AudioAnalysisService', () => {
     const service = start();
     await vi.waitFor(() => expect(AudioTag.get('track-j')?.analysis).toBeTruthy());
     await vi.waitFor(() => expect(service.reading()).toBe(''));
+    await new Promise((resolve) => setTimeout(resolve, 20));
     const look = vi.spyOn(AudioProfile, 'sharedAnalysisOf');
     const changes = TestBed.inject(ObjectChangeService);
 
