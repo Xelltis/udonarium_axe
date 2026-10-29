@@ -52,6 +52,16 @@ export function parsePortraitCommand(text: string): PortraitCommand {
   return portraitCommandSite(text)?.command ?? { type: 'none' };
 }
 
+/**
+ * Whether a portrait can be picked by its name at the end of a line: `@name` written there reads
+ * back as that name. A name with a space in it does not, as the command is one word, nor one read
+ * as a position or as `hide`.
+ */
+export function portraitNamedAtLineEnd(name: string): boolean {
+  const command = portraitCommandSite(`@${name}`)?.command;
+  return command?.type === 'name' && command.name === name;
+}
+
 /** The line with its trailing portrait command taken off, so the command itself is never shown. */
 export function stripPortraitCommand(text: string): string {
   return text.replace(/([@＠]\S+\s*)$/i, '');

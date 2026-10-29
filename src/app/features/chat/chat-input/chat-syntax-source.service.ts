@@ -9,7 +9,11 @@ import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { resourceCatalogOf } from '@axe/domain/character/resource-catalog';
 import type { ChatTagLanguage } from '@axe/domain/chat/chat-decoration';
-import { findImageIdentifierByName, portraitCommandSite } from '@axe/domain/chat/chat-portrait-command';
+import {
+  findImageIdentifierByName,
+  portraitCommandSite,
+  portraitNamedAtLineEnd,
+} from '@axe/domain/chat/chat-portrait-command';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { diceCommandExamples } from '@axe/domain/dice/dice-roll-line';
@@ -135,11 +139,13 @@ export class ChatSyntaxSourceService {
     return found instanceof GameCharacter ? found : null;
   }
 
+  /** The speaker's portraits that are here and can be picked by name at the end of a line. */
   private portraitsOf(speaker: GameCharacter | null): string[] {
     const children = speaker?.imageDataElement?.children ?? [];
     return children
       .filter((child): child is DataElement => child instanceof DataElement)
       .filter((child) => this.imageStorage.get(child.value as string) != null)
-      .map((child) => portraitNameOf(child));
+      .map((child) => portraitNameOf(child))
+      .filter((name) => portraitNamedAtLineEnd(name));
   }
 }

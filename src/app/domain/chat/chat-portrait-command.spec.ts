@@ -2,6 +2,7 @@ import {
   findImageIdentifierByName,
   parsePortraitCommand,
   portraitCommandSite,
+  portraitNamedAtLineEnd,
   stripPortraitCommand,
 } from '@axe/domain/chat/chat-portrait-command';
 
@@ -101,6 +102,21 @@ describe('chat-portrait-command', () => {
 
     it('finds nothing where no space comes before the mark', () => {
       expect(portraitCommandSite('mail@example.com')).toBeNull();
+    });
+  });
+
+  describe('portraitNamedAtLineEnd', () => {
+    it('takes a name the command reads back whole', () => {
+      expect(portraitNamedAtLineEnd('笑顔')).toBe(true);
+      expect(portraitNamedAtLineEnd('笑顔2')).toBe(true);
+    });
+
+    it('leaves out a name with a space in it, or one read as a position or as hide', () => {
+      expect(portraitNamedAtLineEnd('笑顔 大')).toBe(false);
+      expect(portraitNamedAtLineEnd(' 笑顔')).toBe(false);
+      expect(portraitNamedAtLineEnd('2')).toBe(false);
+      expect(portraitNamedAtLineEnd('Hide')).toBe(false);
+      expect(portraitNamedAtLineEnd('')).toBe(false);
     });
   });
 });
