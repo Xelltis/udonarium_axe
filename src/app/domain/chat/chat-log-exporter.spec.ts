@@ -52,6 +52,16 @@ describe('ChatLogExporter', () => {
     it('writes a stamp put inside a line as its name', () => {
       expect(ChatLogExporter.escapeHtmlLines('了解［了解:seal:ok］\nまた')).toBe('了解［了解］<br>また');
     });
+
+    it('leaves a stamp called by the name of a tag as only its name', () => {
+      expect(ChatLogExporter.escapeHtmlLines('［赤:image:abc］の後［/:image:def］')).toBe('［赤］の後［/］');
+    });
+
+    it('keeps a stamp whole in a leaning run', () => {
+      const html = ChatLogExporter.escapeHtmlLines('[斜体]a［了解:seal:ok］[/]');
+      expect(html).toContain('［了解］');
+      expect(html).not.toContain('seal:ok');
+    });
   });
 
   describe('escapeHtml', () => {

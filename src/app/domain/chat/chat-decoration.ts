@@ -1,4 +1,5 @@
-import { withInlineStampsAsWords } from '@axe/domain/chat/inline-stamp';
+import { RUBY_NOTATION } from '@axe/domain/chat/chat-ruby-notation';
+import { INLINE_STAMP, withInlineStampsAsWords } from '@axe/domain/chat/inline-stamp';
 
 /**
  * The decorations a line of chat can carry, written in its text: `**bold**`, and a name in square
@@ -498,6 +499,20 @@ export function leaningPiecesOf(text: string): string[] {
     opening = '';
   }
   if (opening) pieces.push(opening);
+  return pieces;
+}
+
+const KEPT_WHOLE = new RegExp(`${INLINE_STAMP.source}|${RUBY_NOTATION.source}|\\\\s`, 'g');
+
+/** The pieces a leaning run breaks between, with a stamp, a word and its reading, and a `\s`, each kept whole. */
+export function leaningPiecesKeepingNotation(text: string): string[] {
+  const pieces: string[] = [];
+  let at = 0;
+  for (const match of text.matchAll(KEPT_WHOLE)) {
+    pieces.push(...leaningPiecesOf(text.slice(at, match.index)), match[0]);
+    at = match.index + match[0].length;
+  }
+  pieces.push(...leaningPiecesOf(text.slice(at)));
   return pieces;
 }
 

@@ -10,10 +10,11 @@ import {
   chatFontsIn,
   DecoratedRun,
   decoratedRunsOf,
+  leaningPiecesKeepingNotation,
   leaningPiecesOf,
 } from '@axe/domain/chat/chat-decoration';
 import { RUBY_NOTATION, rubyRunsOf } from '@axe/domain/chat/chat-ruby-notation';
-import { INLINE_STAMP, inlineStampSites } from '@axe/domain/chat/inline-stamp';
+import { inlineStampSites } from '@axe/domain/chat/inline-stamp';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
 
 const HTML_ESCAPE_MAP: Readonly<Record<string, string>> = {
@@ -196,18 +197,4 @@ function markupOfPiece(piece: string, stamps?: InlineStampMarkup): string {
     at = site.to;
   }
   return html + applyRubyMarkup(escapeHtml(piece.slice(at)));
-}
-
-const KEPT_WHOLE = new RegExp(`${INLINE_STAMP.source}|${RUBY_NOTATION.source}|\\\\s`, 'g');
-
-/** The pieces a leaning run breaks between, with a stamp, a word and its reading, and a `\s`, each kept whole. */
-function leaningPiecesKeepingNotation(text: string): string[] {
-  const pieces: string[] = [];
-  let at = 0;
-  for (const match of text.matchAll(KEPT_WHOLE)) {
-    pieces.push(...leaningPiecesOf(text.slice(at, match.index)), match[0]);
-    at = match.index + match[0].length;
-  }
-  pieces.push(...leaningPiecesOf(text.slice(at)));
-  return pieces;
 }
