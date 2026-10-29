@@ -1,4 +1,5 @@
 import { parseBuffRemovalCommand } from '@axe/domain/character/buff-bulk-removal';
+import { INLINE_STAMP } from '@axe/domain/chat/inline-stamp';
 
 /** One command picked out of a chat line, in the form it is carried out in, and where it was typed. */
 export interface ResourceCommandSite {
@@ -30,10 +31,11 @@ export function hasSecretEditMark(text: string): boolean {
  * Full-width marks are read as half-width ones, and the `s` in front of a word's first `:`, `t:`,
  * `&` or `t&` is taken off, the rest of the word then read as any other. Each word is a sweep, or
  * else, when it starts with `:`, `&`, `t:` or `t&`, splits into the commands each mark begins. A
- * word that starts any other way holds no command.
+ * word that starts any other way holds no command. A stamp put inside the line ends a word as a
+ * space does, so one put right after a command is never read as part of it.
  */
 export function resourceCommandSites(text: string): ResourceCommandWords {
-  const padded = ` ${text}`;
+  const padded = ` ${text.replace(INLINE_STAMP, (stamp) => ' '.repeat(stamp.length))}`;
   const rawAt: number[] = [];
   for (let index = 0; index < padded.length; index++) rawAt.push(index - 1);
   for (const prefix of [...padded.matchAll(SECRET_PREFIX)].reverse()) rawAt.splice(prefix.index + 1, 1);

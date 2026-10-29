@@ -56,6 +56,14 @@ describe('resourceCommandSites', () => {
     }).toEqual(pickedTheOldWay(line));
   });
 
+  it('ends a command at a stamp put right after it, which is never read as part of it', () => {
+    const line = ':HP-5［にこ:sfx:smile］&加護/3［了解:seal:ok］';
+    const words = resourceCommandSites(line);
+
+    expect(words.resources.map((site) => line.slice(site.from, site.to))).toEqual([':HP-5']);
+    expect(words.buffs.map((site) => line.slice(site.from, site.to))).toEqual(['&加護/3']);
+  });
+
   it('spans each command where it was typed', () => {
     const line = '攻撃 :HP-1:MP-2 &加護/3';
     const words = resourceCommandSites(line);
