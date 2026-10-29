@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ChatLintService } from '@axe/application/chat/chat-lint.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -317,6 +318,24 @@ describe('ChatInputComponent', () => {
         ink.style.backgroundColor
       );
     });
+  });
+
+  it('checks a line against the room’s default dice bot as the room changes it', () => {
+    const watch = vi.spyOn(TestBed.inject(ChatLintService), 'watch');
+    TestBed.createComponent(ChatInputComponent).componentRef.setInput('gameType', 'DiceBot');
+    const source = watch.mock.calls.at(-1)![0];
+    const before = Config.instance.defaultDiceBot;
+    try {
+      Config.instance.defaultDiceBot = 'SwordWorld2.5';
+      TestBed.inject(ObjectChangeService).notifyChanged('Config');
+      expect(source.gameType()).toBe('SwordWorld2.5');
+
+      Config.instance.defaultDiceBot = 'Cthulhu7th';
+      TestBed.inject(ObjectChangeService).notifyChanged('Config');
+      expect(source.gameType()).toBe('Cthulhu7th');
+    } finally {
+      Config.instance.defaultDiceBot = before;
+    }
   });
 
   describe('packed down for a panel', () => {

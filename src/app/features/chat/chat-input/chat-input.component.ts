@@ -358,7 +358,10 @@ export class ChatInputComponent {
   private readonly lintSession = inject(ChatLintService).watch({
     text: computed(() => this._text()),
     sendFrom: computed(() => this._sendFrom()),
-    gameType: computed(() => this.gameType),
+    gameType: computed(() => {
+      this.objectChange.versionOf('Config')();
+      return this.gameType;
+    }),
     path: () => this.lintPath(),
   });
 
