@@ -51,6 +51,7 @@ describe('buff-command', () => {
 
   it('still takes the name right after a timing for the piece the timing waits on', () => {
     expect(readCalculatedBuffLook(['手番開始', '術者'])).toEqual({ timing: 'turnStart', trigger: '術者' });
+    expect(readCalculatedBuffLook(['', 'ゴブリン'])).toEqual({ trigger: 'ゴブリン' });
     expect(readCalculatedBuffLook(['turnEnd', '術者', 'red', '🔥'])).toEqual({
       timing: 'turnEnd',
       trigger: '術者',

@@ -70,21 +70,22 @@ export function readCalculatedBuff(command: string): CalculatedBuffCommand {
 }
 
 /**
- * The look written after a `&!` command's rounds. A timing followed by a bare name stands as it
- * always has, the timing and the piece whose turn it waits for; past those, or written any other
- * way, the fields are read as a plain buff's look is: a colour, an icon, a timing and an `@` trigger,
- * in whichever order they come.
+ * The look written after a `&!` command's rounds. A timing, or a blank where it goes, followed by a
+ * bare name stands as it always has, the timing and the piece whose turn it waits for; past those,
+ * or written any other way, the fields are read as a plain buff's look is: a colour, an icon, a
+ * timing and an `@` trigger, in whichever order they come.
  */
 export function readCalculatedBuffLook(fields: readonly string[]): BuffAppearance {
   const [timing = '', trigger = ''] = fields.map((field) => (field ?? '').trim());
   const bare =
-    isBuffTimingToken(timing) &&
+    (timing.length < 1 || isBuffTimingToken(timing)) &&
     trigger.length > 0 &&
     !trigger.startsWith('@') &&
     !isBuffColorToken(trigger) &&
     !isBuffTimingToken(trigger);
   if (!bare) return parseBuffAppearance(fields);
-  return { ...parseBuffAppearance(fields.slice(2)), timing: resolveBuffTiming(timing)!, trigger };
+  const look = { ...parseBuffAppearance(fields.slice(2)), trigger };
+  return timing.length > 0 ? { ...look, timing: resolveBuffTiming(timing)! } : look;
 }
 
 /** One `/`-separated field of a buff command, where it stands in the command. */
