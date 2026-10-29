@@ -25,10 +25,11 @@ export interface ChatSyntaxWriter {
   /** Writes text over what is selected, or at the caret, selecting the stretch of it given, or putting the caret after it. */
   insert(text: string, select?: ChatFieldSelection): void;
   /**
-   * Writes text at the start of a line, where what begins one is read: the line the caret is on,
-   * or the first line of the message, the only one the dice bot reads a roll from.
+   * Writes text at the start of a line, where what begins one is read: the line the caret is on;
+   * the first line of the message, the only one the dice bot reads a roll from; or the start of the
+   * roll on it, after any count of repeats it starts with.
    */
-  prefix(text: string, line?: 'caret' | 'first'): void;
+  prefix(text: string, line?: 'caret' | 'first' | 'roll'): void;
   /** Puts in a piece of syntax shown whole, at the caret or at the end of the message. */
   chip(chip: ChatRichChip, place: ChatChipPlace): void;
 }
@@ -88,7 +89,7 @@ export function chatSyntaxGroups(
     ...['2D6', '1D100', 'choice[A,B,C]', ...source.diceExamples].map((command) =>
       single(command, command, () => writer.insert(`${command} `))
     ),
-    single(word('secretRoll'), 'S2D6', () => writer.prefix('S', 'first')),
+    single(word('secretRoll'), 'S2D6', () => writer.prefix('S', 'roll')),
     single(word('repeat'), 'x3 2D6', () => writer.prefix('x3 ', 'first')),
   ]);
 

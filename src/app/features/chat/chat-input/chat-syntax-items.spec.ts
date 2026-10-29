@@ -54,12 +54,12 @@ describe('chatSyntaxGroups', () => {
     expect(groups[0].rows.map((row) => row.items[0].written)).toContain('CC<=50');
   });
 
-  it('writes commands at the caret, and a secret roll at the start of the first line, where the roll is read', () => {
+  it('writes commands at the caret, and a secret roll at the start of the roll on the first line, where it is read', () => {
     const groups = chatSyntaxGroups(source(), writer, t);
     run(groups, 'dice', 'CC<=50');
     run(groups, 'dice', 'secretRoll');
     run(groups, 'dice', 'repeat');
-    expect(written).toEqual(['insert CC<=50 ', 'prefix S first', 'prefix x3  first']);
+    expect(written).toEqual(['insert CC<=50 ', 'prefix S roll', 'prefix x3  first']);
   });
 
   it('puts references in as chips, and changes a status with its amount selected to be typed over', () => {

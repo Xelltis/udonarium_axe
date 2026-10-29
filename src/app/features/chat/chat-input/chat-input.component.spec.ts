@@ -21,6 +21,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
+import type { ChatSyntaxWriter } from '@axe/features/chat/chat-input/chat-syntax-items';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -318,6 +319,18 @@ describe('ChatInputComponent', () => {
         ink.style.backgroundColor
       );
     });
+  });
+
+  it('puts a secret roll’s mark after the count of repeats the roll starts with', async () => {
+    fixture.componentRef.setInput('canSpeak', true);
+    fixture.detectChanges();
+    component.text = '3 2D6';
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    (component as unknown as { syntaxWriter: ChatSyntaxWriter }).syntaxWriter.prefix('S', 'roll');
+
+    expect(component.text).toBe('3 S2D6');
   });
 
   it('checks a line against the room’s default dice bot as the room changes it', () => {
