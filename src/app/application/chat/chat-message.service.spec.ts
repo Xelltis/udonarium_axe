@@ -373,6 +373,20 @@ describe('ChatMessageService', () => {
         service.editMessage(message, 'これ', '', 3000);
         expect(message.attachmentImageIdentifierList).toEqual(['attached-by-hand']);
       });
+
+      it('lets go the picture of a stamp the room has stopped since, which goes out as its name', () => {
+        const service = TestBed.inject(ChatMessageService);
+        const message = said('これ［絵:image:stamp-picture］');
+        Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['image:stamp-picture'], false);
+        try {
+          service.editMessage(message, 'これだ［絵:image:stamp-picture］', '', 2000);
+
+          expect(message.text).toBe('これだ［絵］');
+          expect(message.attachmentImageIdentifierList).toEqual([]);
+        } finally {
+          Config.instance.stampRules = OPEN_STAMP_RULES;
+        }
+      });
     });
   });
 

@@ -427,11 +427,12 @@ export class ChatMessageService {
    * Rewrites a line already sent, as a line said anew goes out: a stamp put inside it that this
    * version does not know, or the room does not let be sent, is written as its name, and the
    * pictures from the room's sets among its attachments follow the stamps it now holds, those it
-   * no longer holds going with them. A picture attached by hand stays.
+   * no longer holds going with them, those the room has stopped since among them. A picture
+   * attached by hand stays.
    */
   editMessage(message: ChatMessage, text: string, staging: string, at: number): void {
     const stamped = this.inlineStampsGoingOut(text);
-    const before = this.inlineStampsGoingOut(message.text ?? '').pictures;
+    const before = stampPicturesIn(message.text ?? '');
     const attached = message.attachmentImageIdentifierList.filter((picture) => !before.includes(picture));
     const attachments = [...attached, ...stamped.pictures.filter((picture) => !attached.includes(picture))];
     message.edit(stamped.text, staging, at);
@@ -632,4 +633,14 @@ export class ChatMessageService {
     const latest = chatTab.latestTimeStamp;
     return calcChatTimestamp(now, latest);
   }
+}
+
+/** The pictures from the room's sets that the stamps put inside a line show, whatever the room lets be sent now. */
+function stampPicturesIn(text: string): string[] {
+  const pictures: string[] = [];
+  for (const site of inlineStampSites(text)) {
+    const ref = stampOf(site.id);
+    if (ref?.kind === 'image' && !pictures.includes(ref.imageIdentifier)) pictures.push(ref.imageIdentifier);
+  }
+  return pictures;
 }
