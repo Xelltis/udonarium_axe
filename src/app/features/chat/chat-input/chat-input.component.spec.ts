@@ -255,21 +255,22 @@ describe('ChatInputComponent', () => {
     });
   });
 
-  describe('the bar over the box', () => {
-    const bar = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="chat-input-bar"]')!;
-    const find = (selector: string) => (fixture.nativeElement as HTMLElement).querySelector(selector);
+  describe('the row over the box and the buttons along it', () => {
+    const root = () => fixture.nativeElement as HTMLElement;
+    const find = (selector: string) => root().querySelector(selector);
 
-    it('holds the selects in its first row and the buttons that edit the line in its second', async () => {
+    it("holds the selects in the row over the box, and the buttons that edit the line in the box's own frame", async () => {
       fixture.componentRef.setInput('canSpeak', true);
       fixture.detectChanges();
       await vi.waitFor(() => {
         fixture.detectChanges();
-        expect(bar().querySelector('[data-testid="chat-toolbar"]')).not.toBeNull();
+        expect(find('[data-testid="chat-toolbar"]')).not.toBeNull();
       });
-      const selects = bar().querySelector('[data-testid="chat-input-selects"]')!;
-      const edits = bar().querySelector('[data-testid="chat-input-edits"]')!;
+      const selects = find('[data-testid="chat-input-selects"]')!;
+      const frame = find('[data-testid="chat-input-frame"]')!;
+      const edits = frame.querySelector('[data-testid="chat-input-edits"]')!;
 
-      expect(bar().querySelector('[data-testid="chat-input-edits"]')?.getAttribute('role')).toBe('toolbar');
+      expect(edits.getAttribute('role')).toBe('toolbar');
       expect(Array.from(selects.querySelectorAll('ng-select')).map((select) => select.getAttribute('name'))).toEqual([
         'send-from',
         'send-to',
@@ -279,6 +280,7 @@ describe('ChatInputComponent', () => {
       expect(edits.querySelector('[data-testid="chat-input-stamp"]')).not.toBeNull();
       expect(edits.querySelector('[data-testid="chat-input-color"]')).not.toBeNull();
       expect(edits.querySelector('ng-select')).toBeNull();
+      expect(edits.nextElementSibling?.matches('[data-chat-input-box]')).toBe(true);
     });
 
     it('leaves the formatting buttons out for a tab the reader may not speak in, keeping the rest', async () => {
@@ -287,12 +289,13 @@ describe('ChatInputComponent', () => {
       await fixture.whenStable();
       fixture.detectChanges();
 
-      expect(bar().querySelector('[data-testid="chat-toolbar"]')).toBeNull();
-      expect(bar().querySelectorAll('ng-select')).toHaveLength(3);
-      expect(bar().querySelector('[data-testid="chat-input-color"]')).not.toBeNull();
+      expect(find('[data-testid="chat-toolbar"]')).toBeNull();
+      expect(root().querySelectorAll('ng-select')).toHaveLength(3);
+      expect(find('[data-testid="chat-input-frame"] [data-testid="chat-input-color"]')).not.toBeNull();
+      expect(find('[data-chat-input-box]')).toBeNull();
     });
 
-    it('speaks in the colour picked from the colour button, which then shows it', () => {
+    it('speaks in the colour picked from the colour button, which then underlines its letter with it', () => {
       fixture.detectChanges();
       const panel = find('[data-testid="chat-input-colors"]') as HTMLElement;
       panel.showPopover = () => undefined;
@@ -300,9 +303,7 @@ describe('ChatInputComponent', () => {
       (find('[data-testid="chat-input-color"]') as HTMLButtonElement).click();
       fixture.detectChanges();
       const swatches = Array.from(
-        (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
-          '[data-testid="chat-input-colors"] button[aria-pressed]'
-        )
+        root().querySelectorAll<HTMLButtonElement>('[data-testid="chat-input-colors"] button[aria-pressed]')
       );
       expect(swatches).toHaveLength(3);
 
@@ -310,9 +311,11 @@ describe('ChatInputComponent', () => {
       fixture.detectChanges();
 
       expect(component.colorSelectNo()).toBe(2);
-      expect(
-        (find('[data-testid="chat-input-color"] span') as HTMLElement).style.backgroundColor.replace(/\s/g, '')
-      ).toBe((swatches[2].querySelector('span') as HTMLElement).style.backgroundColor.replace(/\s/g, ''));
+      const ink = document.createElement('span');
+      ink.style.backgroundColor = component.chatColor(2);
+      expect((find('[data-testid="chat-input-color-ink"]') as HTMLElement).style.backgroundColor).toBe(
+        ink.style.backgroundColor
+      );
     });
   });
 
@@ -620,7 +623,7 @@ describe('ChatInputComponent', () => {
       component.chat.subscribe((value) => emitted.push(value));
 
       const button = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
-        '[data-testid="chat-input-bar"] [data-testid="chat-input-stamp"]'
+        '[data-testid="chat-input-edits"] [data-testid="chat-input-stamp"]'
       )!;
       button.click();
       expect(toggle).toHaveBeenCalledWith(button, 'line', expect.any(Function), 'end');

@@ -1,7 +1,7 @@
 @let label = name() ?? ('ui.portraitPicker.unnamed' | transloco: { index: selectedIndex() + 1 });
 <input
   type="range"
-  class="portrait-slider m-0 h-4 w-24 shrink-0 cursor-pointer appearance-none bg-transparent p-0 [-webkit-appearance:none]"
+  class="portrait-slider m-0 h-4 w-24 min-w-10 cursor-pointer appearance-none bg-transparent p-0 [-webkit-appearance:none]"
   min="0"
   [max]="last()"
   step="1"

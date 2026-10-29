@@ -1,4 +1,4 @@
-<div class="flex min-w-0 items-center gap-2" data-testid="chat-toolbar" (mousedown)="keepSelection($event)">
+<div class="flex min-w-0 flex-wrap items-center gap-x-2" data-testid="chat-toolbar" (mousedown)="keepSelection($event)">
   <div class="flex items-center" role="group" [attr.aria-label]="'feature.chat.toolbar.label' | transloco">
     <button
       type="button"
@@ -50,6 +50,7 @@
     </button>
   </div>
   @if (syntax()) {
+    <span class="bg-ui-border-panel h-4 w-px shrink-0 @max-[420px]:hidden" aria-hidden="true"></span>
     <div class="flex items-center" role="group" [attr.aria-label]="'feature.chat.syntax.title' | transloco">
       @for (entry of syntaxButtons; track entry.key) {
         <button

@@ -5,153 +5,66 @@
   [class.gap-x-1.5!]="dense()"
   [class.p-1.5!]="dense()"
 >
-  <div data-testid="chat-input-bar" class="col-span-2 flex min-w-0 flex-col gap-1">
-    <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1" data-testid="chat-input-selects">
-      <div class="flex min-w-0 grow items-center gap-1">
-        <ng-select
-          #fromList
-          (pointerdown)="aimList(fromList, $event)"
-          (focusin)="aimList(fromList, $event)"
-          name="send-from"
-          class="ud-select chat-select chat-select--from"
-          [(ngModel)]="sendFrom"
-          [clearable]="false"
-        >
-          @if (!onlyCharacters()) {
-            <ng-option [value]="myPeer.identifier"
-              >{{ myPeer.name }}{{ 'feature.chat.input.you' | transloco }}</ng-option
-            >
-          }
-          @for (gameCharacter of gameCharacters(); track gameCharacter.identifier) {
-            <ng-option [value]="gameCharacter.identifier">{{ gameCharacter.name }}</ng-option>
-          }
-        </ng-select>
-        <span class="text-ui-muted flex-none text-[11px] leading-none @max-[320px]:hidden">▶</span>
-        <ng-select
-          #toList
-          (pointerdown)="aimList(toList, $event)"
-          (focusin)="aimList(toList, $event)"
-          name="send-to"
-          class="ud-select chat-select chat-select--to"
-          [(ngModel)]="sendTo"
-          [clearable]="false"
-        >
-          <ng-option [value]="''">{{ 'feature.chat.input.everyone' | transloco }}</ng-option>
-          @for (peer of otherPeers; track peer) {
-            <ng-option [value]="peer.identifier"
-              >{{ peer.name }}
-              @if (peer === myPeer) {
-                {{ 'feature.chat.input.you' | transloco }}
-              }
-            </ng-option>
-          }
-        </ng-select>
-      </div>
-      <div class="flex shrink-0 items-center gap-0.5">
-        <ng-select
-          #gameTypeList
-          (pointerdown)="aimList(gameTypeList, $event)"
-          (focusin)="aimList(gameTypeList, $event)"
-          name="game-type"
-          class="ud-select chat-select chat-select--game-type"
-          (change)="loadDiceBot($event)"
-          [(ngModel)]="gameType"
-          [clearable]="false"
-        >
-          @for (diceBotInfo of diceBotInfos; track diceBotInfo) {
-            <ng-option [value]="diceBotInfo.id">{{ diceBotInfo.name }}</ng-option>
-          }
-        </ng-select>
-        <button type="button" [class]="barWordButtonClass" (click)="showDicebotHelp()">?</button>
-        @if (!isGameTypeInList()) {
-          <span class="text-ui-danger min-w-0 flex-[0_1_auto] text-[11px]">{{
-            'feature.chat.input.diceBotNotFound' | transloco
-          }}</span>
+  <div class="col-span-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1" data-testid="chat-input-selects">
+    <div class="flex min-w-0 grow basis-60 items-center gap-1">
+      <ng-select
+        #fromList
+        (pointerdown)="aimList(fromList, $event)"
+        (focusin)="aimList(fromList, $event)"
+        name="send-from"
+        class="ud-select chat-select chat-select--from"
+        [(ngModel)]="sendFrom"
+        [clearable]="false"
+      >
+        @if (!onlyCharacters()) {
+          <ng-option [value]="myPeer.identifier">{{ myPeer.name }}{{ 'feature.chat.input.you' | transloco }}</ng-option>
         }
-      </div>
+        @for (gameCharacter of gameCharacters(); track gameCharacter.identifier) {
+          <ng-option [value]="gameCharacter.identifier">{{ gameCharacter.name }}</ng-option>
+        }
+      </ng-select>
+      <span class="text-ui-muted flex-none text-[11px] leading-none @max-[320px]:hidden">▶</span>
+      <ng-select
+        #toList
+        (pointerdown)="aimList(toList, $event)"
+        (focusin)="aimList(toList, $event)"
+        name="send-to"
+        class="ud-select chat-select chat-select--to"
+        [(ngModel)]="sendTo"
+        [clearable]="false"
+      >
+        <ng-option [value]="''">{{ 'feature.chat.input.everyone' | transloco }}</ng-option>
+        @for (peer of otherPeers; track peer) {
+          <ng-option [value]="peer.identifier"
+            >{{ peer.name }}
+            @if (peer === myPeer) {
+              {{ 'feature.chat.input.you' | transloco }}
+            }
+          </ng-option>
+        }
+      </ng-select>
     </div>
-    <div
-      role="toolbar"
-      uiRovingToolbar
-      class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1"
-      data-testid="chat-input-edits"
-      [attr.aria-label]="'feature.chat.input.bar' | transloco"
-    >
-      @if (hasPortraitSlider()) {
-        <portrait-slider
-          class="min-w-0"
-          data-testid="chat-input-portraits"
-          [choices]="portraitChoices()"
-          [selectedIndex]="portraitIndex"
-          (picked)="portraitIndex = $event"
-        />
+    <div class="flex shrink-0 items-center gap-0.5">
+      <ng-select
+        #gameTypeList
+        (pointerdown)="aimList(gameTypeList, $event)"
+        (focusin)="aimList(gameTypeList, $event)"
+        name="game-type"
+        class="ud-select chat-select chat-select--game-type"
+        (change)="loadDiceBot($event)"
+        [(ngModel)]="gameType"
+        [clearable]="false"
+      >
+        @for (diceBotInfo of diceBotInfos; track diceBotInfo) {
+          <ng-option [value]="diceBotInfo.id">{{ diceBotInfo.name }}</ng-option>
+        }
+      </ng-select>
+      <button type="button" [class]="barWordButtonClass" (click)="showDicebotHelp()">?</button>
+      @if (!isGameTypeInList()) {
+        <span class="text-ui-danger min-w-0 flex-[0_1_auto] text-[11px]">{{
+          'feature.chat.input.diceBotNotFound' | transloco
+        }}</span>
       }
-      <div class="ml-auto flex shrink-0 items-center gap-2">
-        @if (canSpeak()) {
-          @defer (when toolbarWanted()) {
-            <chat-toolbar class="shrink-0" [field]="textField()" [groups]="syntaxGroups" (edited)="takeFieldText()" />
-          } @placeholder {
-            <div class="h-7 w-66" aria-hidden="true"></div>
-          }
-        }
-        <div class="flex items-center">
-          @if (canSpeak() && stampLinesOn()) {
-            <button
-              type="button"
-              data-testid="chat-input-stamp"
-              aria-haspopup="listbox"
-              [class]="barButtonClass"
-              [title]="'feature.chat.input.stamp' | transloco"
-              [attr.aria-label]="'feature.chat.input.stamp' | transloco"
-              (click)="openStamps($event.currentTarget)"
-            >
-              <i class="material-icons">emoji_emotions</i>
-            </button>
-          }
-          <button
-            #colorsButton
-            type="button"
-            data-testid="chat-input-color"
-            aria-haspopup="dialog"
-            [class]="barButtonClass"
-            [attr.aria-expanded]="openPanel() === 'colors'"
-            [title]="'feature.chat.input.colors' | transloco"
-            [attr.aria-label]="'feature.chat.input.colors' | transloco"
-            (click)="togglePanel('colors')"
-          >
-            <span [class]="colorSampleClass" [ngStyle]="lineLook()">A</span>
-          </button>
-        </div>
-        @if (showsMyDice() || showsTickerSwitch()) {
-          <div class="flex items-center">
-            @if (showsMyDice()) {
-              <button
-                type="button"
-                data-testid="chat-my-dice"
-                [class]="barButtonClass"
-                [title]="'feature.chat.input.myDice' | transloco"
-                [attr.aria-label]="'feature.chat.input.myDice' | transloco"
-                (click)="openMyDice()"
-              >
-                <i class="material-icons">casino</i>
-              </button>
-            }
-            @if (showsTickerSwitch()) {
-              <button
-                type="button"
-                data-testid="chat-send-to-ticker"
-                [class]="barButtonClass"
-                [attr.aria-pressed]="sendsToTicker()"
-                [title]="'feature.chat.input.sendToTickerHint' | transloco"
-                [attr.aria-label]="'feature.chat.input.sendToTicker' | transloco"
-                (click)="toggleTickerSend()"
-              >
-                <i class="material-icons">animation</i>
-              </button>
-            }
-          </div>
-        }
-      </div>
     </div>
   </div>
 
@@ -252,16 +165,116 @@
       </div>
     }
 
-    @if (canSpeak()) {
-      <form name="chat-input" class="m-0 flex min-w-0 flex-1 items-end gap-2">
-        <div class="relative flex min-w-0 flex-1 self-stretch">
+    <form name="chat-input" class="m-0 flex min-w-0 flex-1 items-end gap-2">
+      <div
+        data-testid="chat-input-frame"
+        class="border-ui-input-border rounded-ui-sm bg-ui-input has-[[data-chat-input-box]:focus-within]:border-ui-accent relative box-border flex min-w-0 flex-1 flex-col self-stretch overflow-hidden border border-solid transition-[border-color,box-shadow] has-[[data-chat-input-box]:focus-within]:shadow-[0_0_0_2px_var(--ui-accent-glow)]"
+      >
+        <div
+          role="toolbar"
+          uiRovingToolbar
+          class="border-ui-input-border flex min-w-0 shrink-0 flex-wrap items-center gap-x-2 border-b border-solid px-1"
+          data-testid="chat-input-edits"
+          [attr.aria-label]="'feature.chat.input.bar' | transloco"
+        >
+          @if (hasPortraitSlider()) {
+            <portrait-slider
+              class="min-w-28 grow basis-0"
+              data-testid="chat-input-portraits"
+              [choices]="portraitChoices()"
+              [selectedIndex]="portraitIndex"
+              (picked)="portraitIndex = $event"
+            />
+          }
+          <div class="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-x-2">
+            @if (canSpeak()) {
+              @defer (when toolbarWanted()) {
+                <chat-toolbar
+                  class="min-w-0"
+                  [field]="textField()"
+                  [groups]="syntaxGroups"
+                  (edited)="takeFieldText()"
+                />
+              } @placeholder {
+                <div class="h-7 w-66" aria-hidden="true"></div>
+              }
+              <span [class]="ruleClass" aria-hidden="true"></span>
+            }
+            <div class="flex items-center">
+              @if (canSpeak() && stampLinesOn()) {
+                <button
+                  type="button"
+                  data-testid="chat-input-stamp"
+                  aria-haspopup="listbox"
+                  [class]="barButtonClass"
+                  [title]="'feature.chat.input.stamp' | transloco"
+                  [attr.aria-label]="'feature.chat.input.stamp' | transloco"
+                  (click)="openStamps($event.currentTarget)"
+                >
+                  <i class="material-icons">emoji_emotions</i>
+                </button>
+              }
+              <button
+                #colorsButton
+                type="button"
+                data-testid="chat-input-color"
+                aria-haspopup="dialog"
+                [class]="barButtonClass"
+                [attr.aria-expanded]="openPanel() === 'colors'"
+                [title]="'feature.chat.input.colors' | transloco"
+                [attr.aria-label]="'feature.chat.input.colors' | transloco"
+                (click)="togglePanel('colors')"
+              >
+                <span class="flex flex-col items-center gap-0.5 leading-none">
+                  <span class="text-[14px] font-bold">A</span>
+                  <span
+                    data-testid="chat-input-color-ink"
+                    class="h-0.75 w-3.5 rounded-full"
+                    [ngStyle]="lineInk()"
+                  ></span>
+                </span>
+              </button>
+            </div>
+            @if (showsMyDice() || showsTickerSwitch()) {
+              <span [class]="ruleClass" aria-hidden="true"></span>
+              <div class="flex items-center">
+                @if (showsMyDice()) {
+                  <button
+                    type="button"
+                    data-testid="chat-my-dice"
+                    [class]="barButtonClass"
+                    [title]="'feature.chat.input.myDice' | transloco"
+                    [attr.aria-label]="'feature.chat.input.myDice' | transloco"
+                    (click)="openMyDice()"
+                  >
+                    <i class="material-icons">casino</i>
+                  </button>
+                }
+                @if (showsTickerSwitch()) {
+                  <button
+                    type="button"
+                    data-testid="chat-send-to-ticker"
+                    [class]="barButtonClass"
+                    [attr.aria-pressed]="sendsToTicker()"
+                    [title]="'feature.chat.input.sendToTickerHint' | transloco"
+                    [attr.aria-label]="'feature.chat.input.sendToTicker' | transloco"
+                    (click)="toggleTickerSend()"
+                  >
+                    <i class="material-icons">animation</i>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        </div>
+        @if (canSpeak()) {
           @if (inputMode() === 'rich') {
             <div
               data-chat-input-box
               data-chat-input-mode="rich"
               [ngStyle]="lineLook()"
               [class.pb-5]="findings().length > 0"
-              class="panel-no-drag border-ui-input-border rounded-ui-sm bg-ui-input text-ui-text focus-within:border-ui-accent box-border flex max-h-60 min-h-10 w-full min-w-0 flex-1 resize-y flex-col overflow-y-auto border border-solid transition-colors focus-within:shadow-[0_0_0_2px_var(--ui-accent-glow)]"
+              class="panel-no-drag bg-ui-input text-ui-text box-border flex max-h-60 min-h-10 w-full min-w-0 grow resize-y flex-col overflow-y-auto"
             >
               <div #editorHost class="flex min-w-0 flex-1 flex-col"></div>
             </div>
@@ -273,7 +286,7 @@
               [attr.data-chat-input-mode]="inputMode()"
               [ngStyle]="lineLook()"
               [attr.rows]="dense() ? 1 : null"
-              class="chat-input border-ui-input-border rounded-ui-sm bg-ui-input text-ui-text focus:border-ui-accent box-border max-h-60 min-h-10 w-full min-w-0 flex-1 resize-y border border-solid px-2 py-1.5 align-bottom font-[inherit] text-[13px] leading-[1.4] transition-colors placeholder:text-current/50 focus:shadow-[0_0_0_2px_var(--ui-accent-glow)] focus:outline-none"
+              class="chat-input bg-ui-input text-ui-text m-0 box-border block max-h-60 min-h-10 w-full min-w-0 grow resize-y border-none px-2 py-1.5 font-[inherit] text-[13px] leading-[1.4] placeholder:text-current/65 focus:outline-none"
               [placeholder]="
                 placeholder() ||
                 ((isCompact()
@@ -311,7 +324,16 @@
               >{{ findings().length }}
             </button>
           }
-        </div>
+        } @else {
+          <div
+            class="text-ui-dim m-0 flex min-h-10 w-full grow items-center gap-1.5 px-2 py-1.5 text-[12px] [&_.material-icons]:text-[16px]!"
+          >
+            <i class="material-icons">visibility</i>
+            {{ 'feature.chat.input.viewOnly' | transloco }}
+          </div>
+        }
+      </div>
+      @if (canSpeak()) {
         <button
           type="submit"
           class="border-ui-accent bg-ui-accent-solid hover:border-ui-accent hover:bg-ui-accent-solid m-0 flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid p-0 text-[12px] font-semibold text-white transition-[background,border-color,filter] hover:text-white hover:shadow-none hover:brightness-110 [&_i]:text-[18px] [&_i]:leading-none"
@@ -320,7 +342,9 @@
         >
           <i class="material-icons">send</i>
         </button>
-      </form>
+      }
+    </form>
+    @if (canSpeak()) {
       <div
         #findingsPanel
         popover="manual"
@@ -343,13 +367,6 @@
             </button>
           }
         }
-      </div>
-    } @else {
-      <div
-        class="text-ui-dim border-ui-input-border rounded-ui-sm bg-ui-input m-0 flex min-h-10 w-full items-center gap-1.5 border border-solid px-2 py-1.5 text-[12px] [&_.material-icons]:text-[16px]!"
-      >
-        <i class="material-icons">visibility</i>
-        {{ 'feature.chat.input.viewOnly' | transloco }}
       </div>
     }
   </div>

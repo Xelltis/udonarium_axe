@@ -182,12 +182,13 @@ test.describe('the character a chat line is sent as', () => {
     await expect(page.locator('chat-window chat-input ng-select')).toHaveCount(3);
   });
 
-  test('puts the selects in the first row of the bar and the buttons that edit the line in the second', async ({
+  test('puts the selects in the row over the box and the buttons that edit the line along the top of the box', async ({
     page,
   }) => {
-    const bar = page.locator('chat-window [data-testid="chat-input-bar"]');
-    const selects = bar.getByTestId('chat-input-selects');
-    const edits = bar.getByTestId('chat-input-edits');
+    const input = page.locator('chat-window chat-input');
+    const selects = input.getByTestId('chat-input-selects');
+    const frame = input.getByTestId('chat-input-frame');
+    const edits = frame.getByTestId('chat-input-edits');
     await expect(edits).toHaveAttribute('role', 'toolbar');
     await expect(selects.locator('ng-select')).toHaveCount(3);
     await expect(selects.getByRole('button', { name: '?' })).toBeVisible();
@@ -196,26 +197,56 @@ test.describe('the character a chat line is sent as', () => {
     for (const key of ['dice', 'reference', 'resource', 'buff', 'portrait', 'effect', 'quote']) {
       await expect(edits.getByTestId(`chat-toolbar-group-${key}`)).toBeVisible();
     }
-    const rowOf = async (row: typeof selects) => (await row.boundingBox())!;
-    expect((await rowOf(selects)).height).toBeLessThan(36);
-    expect((await rowOf(edits)).height).toBeLessThan(36);
-    expect((await rowOf(edits)).y).toBeGreaterThan((await rowOf(selects)).y);
-    for (const select of await selects.locator('ng-select').all()) {
-      expect((await select.boundingBox())!.width).toBeGreaterThanOrEqual(72);
-    }
-    const buttons = (await edits.getByTestId('chat-input-color').boundingBox())!;
-    const right = (await rowOf(edits)).x + (await rowOf(edits)).width;
-    expect(right - (buttons.x + buttons.width)).toBeLessThan(80);
-    expect((await edits.getByTestId('chat-toolbar-bold').boundingBox())!.x).toBeGreaterThan(
-      (await rowOf(edits)).x + 100
+    const boxOf = async (element: typeof selects) => (await element.boundingBox())!;
+    const row = await boxOf(selects);
+    const band = await boxOf(edits);
+    const box = await boxOf(frame.locator('[data-chat-input-box]'));
+    expect(row.height).toBeLessThan(36);
+    expect(band.height).toBeLessThan(36);
+    expect(band.y).toBeGreaterThan(row.y + row.height);
+    expect(Math.abs(band.x - box.x)).toBeLessThan(1);
+    expect(Math.abs(band.x + band.width - (box.x + box.width))).toBeLessThan(1);
+    expect(box.y).toBeGreaterThanOrEqual(band.y + band.height - 1);
+
+    const [from, to, gameType] = await Promise.all(
+      (await selects.locator('ng-select').all()).map(async (select) => (await select.boundingBox())!)
     );
+    expect(Math.abs(from.width - to.width)).toBeLessThan(2);
+    expect(gameType.x - (to.x + to.width)).toBeLessThan(16);
+    const color = await boxOf(edits.getByTestId('chat-input-color'));
+    expect(band.x + band.width - (color.x + color.width)).toBeLessThan(16);
 
     await edits.getByTestId('chat-input-color').click();
     await expect(page.locator('chat-window').getByRole('button', { name: '持ち色2' })).toBeVisible();
     await expect(page.locator('chat-window').getByRole('button', { name: /色設定/ })).toBeVisible();
   });
 
-  test('writes the line in the box in the colour and on the bubble it will be shown in, as its button shows', async ({
+  test('keeps the slider of a speaker with several portraits on the line of the buttons where there is room', async ({
+    page,
+  }) => {
+    await page.locator('game-character').first().dispatchEvent('contextmenu');
+    await page.locator('context-menu').getByText('詳細を表示').click();
+    const sheet = page.locator('game-character-sheet');
+    await expect(sheet).toBeVisible({ timeout: 10000 });
+    await sheet.locator('button[title="立ち絵を追加"]').click();
+    await page.locator('modal img').nth(1).click();
+    await page.locator('ui-panel', { has: sheet }).locator('.bg-ui-titlebar button').last().dispatchEvent('click');
+    await expect(sheet).toBeHidden();
+    await page.locator('chat-window ng-select[name="send-from"]').click();
+    await page.locator('ng-dropdown-panel .ng-option', { hasText: 'モンスターA' }).click();
+
+    const edits = page.locator('chat-window [data-testid="chat-input-edits"]');
+    const slider = edits.getByTestId('chat-input-portraits');
+    await expect(slider).toBeVisible();
+    const band = (await edits.boundingBox())!;
+    const knob = (await slider.boundingBox())!;
+    const bold = (await edits.getByTestId('chat-toolbar-bold').boundingBox())!;
+    expect(band.height).toBeLessThan(36);
+    expect(Math.abs(knob.y + knob.height / 2 - (bold.y + bold.height / 2))).toBeLessThan(4);
+    expect(knob.x + knob.width).toBeLessThan(bold.x);
+  });
+
+  test('writes the line in the box in the colour and on the bubble it will be shown in, as its button underlines', async ({
     page,
   }) => {
     await page.locator('chat-window [data-testid="chat-input-color"]').click();
@@ -226,8 +257,12 @@ test.describe('the character a chat line is sent as', () => {
     const box = page.locator('chat-window [data-chat-input-box]');
     await expect.poll(() => box.evaluate(look)).toEqual([color, bubble]);
     await expect
-      .poll(() => page.locator('chat-window [data-testid="chat-input-color"] span').evaluate(look))
-      .toEqual([color, bubble]);
+      .poll(() =>
+        page
+          .locator('chat-window [data-testid="chat-input-color-ink"]')
+          .evaluate((element) => getComputedStyle(element).backgroundColor)
+      )
+      .toBe(color);
     const input = chatInput(page);
     await input.click();
     await page.keyboard.type('色');

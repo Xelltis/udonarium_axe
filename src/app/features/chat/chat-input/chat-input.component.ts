@@ -120,6 +120,7 @@ export class ChatInputComponent {
     'text-ui-muted hover:bg-ui-hover hover:text-ui-text aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent aria-expanded:bg-ui-hover rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!';
   protected readonly barWordButtonClass =
     'text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent px-1 py-0 text-[12px] font-semibold transition-colors hover:shadow-none';
+  protected readonly ruleClass = 'bg-ui-border-panel h-4 w-px shrink-0 @max-[420px]:hidden';
   protected readonly colorSampleClass =
     'flex size-5 items-center justify-center rounded-[5px] text-[12px] leading-none font-bold shadow-[0_0_0_1px_var(--ui-border-panel)]';
   protected readonly panelRowClass =
@@ -424,7 +425,7 @@ export class ChatInputComponent {
     cutInNames: () => this.syntaxSource.chatCutInNames(),
     portraitImage: (raw) => this.syntaxSource.portraitImage(this.sendFrom, raw),
     openRuby: () => this.toolbar()?.openRuby(),
-    toolbarElement: () => this.hostElement.nativeElement.querySelector('[data-testid="chat-input-bar"]'),
+    toolbarElement: () => this.hostElement.nativeElement.querySelector('[data-testid="chat-input-edits"]'),
     translate: (key, params) => this.t(key, params),
     stampHtml: (stampId) => this.syntaxSource.stampHtml(stampId),
   };
@@ -835,6 +836,18 @@ export class ChatInputComponent {
 
   /** How the line being written will look, in the slot chosen. */
   protected readonly lineLook = computed(() => this.lookOf(this.colorSelectNo()));
+
+  /**
+   * The colour the line is sent in, drawn under the letter of the colour button and ringed with its
+   * bubble, so a dark ink still shows on a dark bar.
+   */
+  protected readonly lineInk = computed(() => {
+    const look = this.lineLook();
+    return {
+      'background-color': look?.['color'] ?? this.selectChatColor,
+      'box-shadow': `0 0 0 1px ${look?.['background-color'] ?? 'var(--ui-border-panel)'}`,
+    };
+  });
 
   /**
    * Whether the colours of the lines come from the character spoken as: they do but for a guest,
