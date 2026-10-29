@@ -1,5 +1,5 @@
 import { parseBuffRemovalCommand } from '@axe/domain/character/buff-bulk-removal';
-import { resourceCommandParts, resourceCommandSites } from '@axe/domain/data/resource-command-words';
+import { hasSecretEditMark, resourceCommandParts, resourceCommandSites } from '@axe/domain/data/resource-command-words';
 
 /**
  * The way commands were picked out of a line before they kept their place, to hold the new reading
@@ -62,6 +62,13 @@ describe('resourceCommandSites', () => {
 
     expect(words.resources.map((site) => line.slice(site.from, site.to))).toEqual([':HP-5']);
     expect(words.buffs.map((site) => line.slice(site.from, site.to))).toEqual(['&加護/3']);
+  });
+
+  it('takes a secret command written right after a stamp as secret', () => {
+    const line = '［にこ:sfx:smile］s:HP-5';
+
+    expect(hasSecretEditMark(line)).toBe(true);
+    expect(resourceCommandSites(line).secret).toBe(true);
   });
 
   it('spans each command where it was typed', () => {

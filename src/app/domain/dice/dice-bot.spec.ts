@@ -536,6 +536,11 @@ describe('DiceBot', () => {
         '攻撃  st:HP-2   t&呪い/2'
       );
     });
+
+    it('keeps a stamp whole, and takes it as ending a command as a space does', () => {
+      expect(DiceBot.deleteMyselfResourceBuff('t:HP-3 ［にこ:sfx:smile］:MP-1')).toBe('t:HP-3 ［にこ:sfx:smile］');
+      expect(DiceBot.deleteMyselfResourceBuff(':MP-1［にこ:sfx:smile］ 行くぞ')).toBe('［にこ:sfx:smile］ 行くぞ');
+    });
   });
 
   describe('a system whose chunk cannot be fetched', () => {

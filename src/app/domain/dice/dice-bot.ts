@@ -29,6 +29,7 @@ import { toHalfWidth } from '@axe/core/util/string-util';
 import { answerColorsOf } from '@axe/domain/chat/chat-color';
 import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { inlineStampSites } from '@axe/domain/chat/inline-stamp';
 import { hasSecretEditMark } from '@axe/domain/data/resource-command-words';
 import { DiceRollResult, ResourceEditProcessor } from '@axe/domain/data/resource-edit-processor';
 import { diceRollDetailOf, encodeDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
@@ -415,6 +416,8 @@ export class DiceBot extends GameObject {
    * A line sent to several targets is repeated for each, and only the first copy should change the
    * speaker's own sheet. A `:` or `&` command runs to the next space and is removed unless it
    * follows a `t`; one after an `s` alone, a secret one for the speaker, is removed with its `s`.
+   * A stamp put inside the line is kept whole and ends a command as a space does, as the commands
+   * are read.
    */
   static deleteMyselfResourceBuff(str: string): string {
     let beforeIsSpace = true;
@@ -422,8 +425,19 @@ export class DiceBot extends GameObject {
     let tCommand = false;
     let deleteCommand = false;
     const chars: string[] = [];
+    const stamps = new Map(inlineStampSites(str).map((site) => [site.from, site.to]));
     for (let i = 0; i < str.length; i++) {
       const chktext: string = str[i];
+      const stampEnd = stamps.get(i);
+      if (stampEnd !== undefined) {
+        chars.push(str.slice(i, stampEnd));
+        i = stampEnd - 1;
+        beforeIsSpace = true;
+        beforeIsT = false;
+        deleteCommand = false;
+        tCommand = false;
+        continue;
+      }
 
       if (beforeIsSpace && /[sSｓＳ]/.test(chktext) && /[:：&＆]/.test(str[i + 1] ?? '')) {
         beforeIsSpace = false;

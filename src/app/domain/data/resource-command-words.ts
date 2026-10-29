@@ -20,9 +20,17 @@ export interface ResourceCommandWords {
 const SECRET_MARK = /(\s[sSｓＳ][tTｔＴ]?[:：&＆])/i;
 const SECRET_PREFIX = /(\s)[sSｓＳ](?=[tTｔＴ]?[:：&＆])/g;
 
-/** Whether a line holds a secret resource or buff command: an `s:`, `st:`, `s&` or `st&` that starts a word. */
+/**
+ * Whether a line holds a secret resource or buff command: an `s:`, `st:`, `s&` or `st&` that starts a
+ * word, a stamp put inside the line ending a word as a space does.
+ */
 export function hasSecretEditMark(text: string): boolean {
-  return SECRET_MARK.test(` ${text}`);
+  return SECRET_MARK.test(` ${withStampsAsSpaces(text)}`);
+}
+
+/** A line with each stamp put inside it written as spaces as long, which end a word and hold no command. */
+function withStampsAsSpaces(text: string): string {
+  return text.replace(INLINE_STAMP, (stamp) => ' '.repeat(stamp.length));
 }
 
 /**
@@ -35,7 +43,7 @@ export function hasSecretEditMark(text: string): boolean {
  * space does, so one put right after a command is never read as part of it.
  */
 export function resourceCommandSites(text: string): ResourceCommandWords {
-  const padded = ` ${text.replace(INLINE_STAMP, (stamp) => ' '.repeat(stamp.length))}`;
+  const padded = ` ${withStampsAsSpaces(text)}`;
   const rawAt: number[] = [];
   for (let index = 0; index < padded.length; index++) rawAt.push(index - 1);
   for (const prefix of [...padded.matchAll(SECRET_PREFIX)].reverse()) rawAt.splice(prefix.index + 1, 1);
