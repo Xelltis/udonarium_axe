@@ -686,14 +686,17 @@ export class ChatInputComponent {
       untracked(() => this.richField()?.reconfigure());
     });
     let refreshedText: string | null = null;
+    let refreshedField: ChatEditorField | null = null;
     effect(() => {
       const session = this.activeSession();
-      if (!session) return;
+      const field = this.richField();
+      if (!session || !field) return;
       const text = session.scan().text;
       session.annotations();
       session.diagnostics();
-      untracked(() => this.richField()?.refresh(text !== refreshedText));
+      untracked(() => field.refresh(field === refreshedField && text !== refreshedText));
       refreshedText = text;
+      refreshedField = field;
     });
     afterEveryRender(() => this.richField()?.followRoot());
     this.destroyRef.onDestroy(() => this.richField()?.destroy());

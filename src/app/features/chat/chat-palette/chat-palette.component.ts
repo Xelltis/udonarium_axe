@@ -155,6 +155,7 @@ export class ChatPaletteComponent {
         { text, selection: { from: 0, to: 0 }, focused: false },
         this.paletteEditorApi
       );
+      this.paletteEditor.refresh(false);
     });
   }
   readonly character = signal<GameCharacter | null>(null);

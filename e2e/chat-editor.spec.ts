@@ -423,3 +423,23 @@ test.describe('the plain box', () => {
     await expect(linesWithRuby(page)).toHaveCount(1);
   });
 });
+
+test.describe('the editor arriving after typing has begun', () => {
+  test('marks what was typed into the box before the editor came, once it comes', async ({ page }) => {
+    await waitAppReady(page);
+    const from = page.locator('chat-window .chat-select--from');
+    const search = from.locator('input[role="combobox"]');
+    await search.fill('キャラクターC');
+    await expect(
+      page.locator('.ng-dropdown-panel').getByRole('option', { name: 'キャラクターC', exact: true })
+    ).toBeVisible();
+    await search.press('Enter');
+    await expect(from.locator('.ng-value-label')).toHaveText('キャラクターC');
+    const input = chatInput(page);
+    await input.click();
+    await page.keyboard.type('{HP} 2d6 ');
+
+    await expect(page.locator('chat-window [data-chat-input-mode="rich"]')).toBeVisible({ timeout: 10000 });
+    await expect(chatInput(page).locator('[data-chip="reference"][data-value]')).toHaveCount(1, { timeout: 5000 });
+  });
+});
