@@ -15,6 +15,7 @@
       [ngModel]="draft()"
       (ngModelChange)="typed($event)"
       (keydown)="onPlainKeydown($event)"
+      (pointerdown)="plainUsed = true"
       rows="1"
     ></textarea>
   }

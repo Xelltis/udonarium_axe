@@ -98,6 +98,8 @@ export class ChatLineEditorComponent {
   private readonly plainBox = viewChild<ElementRef<HTMLTextAreaElement>>('plainBox');
   /** Where the caret stood in the plain box the editor takes the place of, arriving while it was written in. */
   private handover: Pick<ChatEditorStart, 'selection' | 'focused'> | null = null;
+  /** Whether the reader has typed, pressed a key or pressed in the plain box, which then holds where they stand. */
+  protected plainUsed = false;
   private readonly toolbar = viewChild(ChatToolbarComponent);
   private readonly richField = signal<ChatEditorField | null>(null);
   private readonly plainField = computed(() => {
@@ -205,16 +207,14 @@ export class ChatLineEditorComponent {
   }
 
   /**
-   * Keeps where the reader stood in the plain box, as the editor arrives to take its place: the
-   * caret, and whether it had the keys.
+   * Keeps where the reader stood in the plain box, writing in it as the editor arrives to take its
+   * place. One that arrives before the box was put to use, as it does once fetched, starts as the
+   * box does, with the caret at the end and the keys.
    */
   private handOverFromPlainBox(): void {
     const box = this.plainBox()?.nativeElement;
-    if (!box) return;
-    this.handover = {
-      selection: { from: box.selectionStart, to: box.selectionEnd },
-      focused: box.ownerDocument.activeElement === box,
-    };
+    if (!box || !this.plainUsed || box.ownerDocument.activeElement !== box) return;
+    this.handover = { selection: { from: box.selectionStart, to: box.selectionEnd }, focused: true };
   }
 
   private focusPlainBox(): void {
@@ -247,6 +247,7 @@ export class ChatLineEditorComponent {
 
   /** Escape puts the edit down and Enter keeps it; Shift+Enter and keys pressed mid-composition type as usual. */
   protected onPlainKeydown(event: KeyboardEvent): void {
+    this.plainUsed = true;
     if (event.key === 'Escape') {
       event.preventDefault();
       this.abandoned.emit();

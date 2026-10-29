@@ -108,8 +108,9 @@ describe('ChatLineEditorComponent handing its plain box over to the editor', () 
     fixture.detectChanges();
     await fixture.whenStable();
     const area = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>('textarea')!;
+    area.focus();
+    area.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
     area.setSelectionRange(1, 2);
-    area.blur();
 
     arrive({ mountChatEditor: mounted } as unknown as ChatEditorModule);
     await fixture.whenStable();
@@ -118,7 +119,7 @@ describe('ChatLineEditorComponent handing its plain box over to the editor', () 
 
     expect(mounted).toHaveBeenCalledWith(
       expect.anything(),
-      { text: 'こんばんは', selection: { from: 1, to: 2 }, focused: false },
+      { text: 'こんばんは', selection: { from: 1, to: 2 }, focused: true },
       expect.anything()
     );
   });
