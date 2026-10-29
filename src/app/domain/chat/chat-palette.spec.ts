@@ -310,6 +310,13 @@ describe('ChatPalette', () => {
         expect(evaluateCharacterReferences('2d6+10{加護}', cursed).text).toBe('2d6+10+10');
       });
 
+      it('joins on a number written without a sign with a plus, so it is not run into the one before', () => {
+        const guarded = wearing(makeCharacter(false), '&加護/防護3/3');
+
+        expect(evaluateCharacterReferences('2d6+10{加護}', guarded).text).toBe('2d6+10+3');
+        expect(evaluateCharacterReferences(':HP-10{加護}', guarded).text).toBe(':HP-10+3');
+      });
+
       it('takes a note with no number as nought after an operator, and as nothing joined on', () => {
         const poisoned = wearing(wearing(makeCharacter(false), '&毒/苦しい/3'), '&加護/攻撃+0/3');
 
