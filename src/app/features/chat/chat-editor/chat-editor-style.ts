@@ -3,8 +3,9 @@ import { CHAT_COLORS } from '@axe/domain/chat/chat-decoration';
 const STYLE_ID = 'chat-rich-editor-style';
 
 /**
- * How the editor draws what is written in it: chips, the colour of each syntax, wavy lines under
- * what will not work, and the hint that opens over them. It is written into a page only once the
+ * How the editor draws what is written in it: chips on a ground of their own, each kind of syntax
+ * with a light tint behind it, its words left in the colour the line is written in, wavy lines
+ * under what will not work, and the hint that opens over them. It is written into a page only once the
  * editor is fetched, so none of it weighs on the page as it starts.
  */
 const CHAT_EDITOR_CSS = `
@@ -13,13 +14,13 @@ const CHAT_EDITOR_CSS = `
 .chat-rich p.is-editor-empty:first-child::before{content:attr(data-placeholder);color:color-mix(in srgb,currentColor 50%,transparent);float:left;height:0;pointer-events:none}
 .chat-rich .chat-rich-italic{font-style:oblique 12deg}
 .chat-rich .chat-size-huge{font-size:1.4em}
-.chat-rich .chat-chip{display:inline-flex;align-items:center;gap:2px;margin:0 1px;padding:0 6px;border:1px solid color-mix(in srgb,currentColor 35%,transparent);border-radius:999px;background:color-mix(in srgb,currentColor 12%,transparent);font-size:.92em;line-height:1.4;white-space:nowrap;vertical-align:baseline;cursor:default}
-.chat-rich .chat-chip-icon{font-size:14px!important;line-height:1}
+.chat-rich .chat-chip{display:inline-flex;align-items:center;gap:2px;margin:0 1px;padding:0 6px;border:1px solid var(--chip-accent,var(--ui-border-panel));border-radius:999px;background:var(--ui-elevated);color:var(--ui-text);font-size:.92em;font-weight:normal;font-style:normal;line-height:1.4;white-space:nowrap;vertical-align:baseline;cursor:default}
+.chat-rich .chat-chip-icon{font-size:14px!important;line-height:1;color:var(--chip-accent,inherit)}
 .chat-rich .chat-chip-badge{font-size:.7em;font-weight:700;opacity:.75}
-.chat-rich .chat-chip-reference{color:${CHAT_COLORS.cyan}}
+.chat-rich .chat-chip-reference{--chip-accent:${CHAT_COLORS.cyan};box-shadow:inset 3px 0 0 var(--chip-accent)}
 .chat-rich .chat-chip-reference[data-value]::after{content:attr(data-value);margin-left:3px;padding:0 4px;border-radius:6px;background:var(--ui-hover);color:var(--ui-text-muted);font-size:.85em}
-.chat-rich .chat-chip-effect,.chat-rich .chat-chip-cut-in{color:${CHAT_COLORS.pink}}
-.chat-rich .chat-chip-portrait{color:${CHAT_COLORS.green}}
+.chat-rich .chat-chip-effect,.chat-rich .chat-chip-cut-in{--chip-accent:${CHAT_COLORS.pink}}
+.chat-rich .chat-chip-portrait{--chip-accent:${CHAT_COLORS.green}}
 .chat-rich .chat-chip-thumb{display:none;width:16px;height:16px;margin-left:-3px;border-radius:50%;background:var(--chip-image) center/cover no-repeat}
 .chat-rich .chat-chip-portrait[style*="--chip-image"] .chat-chip-thumb{display:inline-block}
 .chat-rich .chat-chip-portrait[style*="--chip-image"] .chat-chip-icon{display:none}
@@ -27,15 +28,16 @@ const CHAT_EDITOR_CSS = `
 .chat-rich .chat-chip-stamp{display:inline-flex;vertical-align:middle;margin:0 1px;border-radius:4px}
 .chat-rich .ProseMirror-selectednode{outline:2px solid var(--ui-accent);outline-offset:1px}
 .chat-rich ruby.chat-chip-ruby{padding:0 1px;border-radius:3px;background:color-mix(in srgb,currentColor 8%,transparent)}
-.chat-rich .chat-rich-roll{color:${CHAT_COLORS.blue};font-weight:600}
-.chat-rich .chat-rich-resource{color:${CHAT_COLORS.orange}}
-.chat-rich .chat-rich-buff{color:${CHAT_COLORS.purple}}
-.chat-rich .chat-rich-reference{color:${CHAT_COLORS.cyan}}
-.chat-rich .chat-rich-effect,.chat-rich .chat-rich-cut-in{color:${CHAT_COLORS.pink}}
-.chat-rich .chat-rich-portrait{color:${CHAT_COLORS.green}}
-.chat-rich .chat-rich-dice-token{color:${CHAT_COLORS.blue}}
-.chat-rich .chat-rich-quiet{color:${CHAT_COLORS.gray}}
-.chat-rich .chat-rich-tab{color:${CHAT_COLORS.purple};font-weight:700}
+.chat-rich :is(.chat-rich-roll,.chat-rich-resource,.chat-rich-buff,.chat-rich-reference,.chat-rich-effect,.chat-rich-cut-in,.chat-rich-portrait,.chat-rich-dice-token,.chat-rich-tab){border-radius:3px;background:color-mix(in srgb,var(--syntax-tint) 24%,transparent);box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.chat-rich .chat-rich-roll{--syntax-tint:${CHAT_COLORS.blue};font-weight:600}
+.chat-rich .chat-rich-resource{--syntax-tint:${CHAT_COLORS.orange}}
+.chat-rich .chat-rich-buff{--syntax-tint:${CHAT_COLORS.purple}}
+.chat-rich .chat-rich-reference{--syntax-tint:${CHAT_COLORS.cyan}}
+.chat-rich .chat-rich-effect,.chat-rich .chat-rich-cut-in{--syntax-tint:${CHAT_COLORS.pink}}
+.chat-rich .chat-rich-portrait{--syntax-tint:${CHAT_COLORS.green}}
+.chat-rich .chat-rich-dice-token{--syntax-tint:${CHAT_COLORS.blue}}
+.chat-rich .chat-rich-quiet{opacity:.6}
+.chat-rich .chat-rich-tab{--syntax-tint:${CHAT_COLORS.purple};font-weight:700}
 .chat-rich .chat-lint-error{text-decoration:underline wavy var(--ui-danger) 1px;text-underline-offset:3px;text-decoration-skip-ink:none}
 .chat-rich .chat-lint-warning{text-decoration:underline wavy var(--ui-warning) 1px;text-underline-offset:3px;text-decoration-skip-ink:none}
 .chat-rich .chat-lint-info{text-decoration:underline dotted var(--ui-accent) 1px;text-underline-offset:3px}
