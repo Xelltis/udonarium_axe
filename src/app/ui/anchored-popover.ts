@@ -12,8 +12,8 @@ export interface PopoverFit {
   width: number;
   /** The least height worth opening at, so that a short window still shows something. */
   minHeight: number;
-  /** Whether it lines up with the left edge of the anchor or sits centred on it. */
-  align?: 'start' | 'center';
+  /** Whether it lines up with the left or the right edge of the anchor, or sits centred on it. */
+  align?: 'start' | 'end' | 'center';
   /**
    * Whether it opens upward wherever it fits there, as what hangs off something at the foot of the
    * screen does; otherwise it opens to whichever side has the more room.
@@ -49,7 +49,12 @@ export function fitPopover(anchor: DOMRect, fit: PopoverFit, view: PopoverViewpo
   const roomAbove = anchor.top - VIEWPORT_MARGIN - ANCHOR_GAP;
   const roomBelow = view.height - anchor.bottom - VIEWPORT_MARGIN - ANCHOR_GAP;
   const opensUpward = fit.prefer === 'up' ? roomAbove >= height || roomBelow < roomAbove : roomBelow < roomAbove;
-  const left = fit.align === 'start' ? anchor.left : anchor.left + anchor.width / 2 - width / 2;
+  const left =
+    fit.align === 'start'
+      ? anchor.left
+      : fit.align === 'end'
+        ? anchor.left + anchor.width - width
+        : anchor.left + anchor.width / 2 - width / 2;
   const top = opensUpward ? anchor.top - ANCHOR_GAP - height : anchor.bottom + ANCHOR_GAP;
   return {
     width,

@@ -39,6 +39,10 @@ describe('placing a popover against what it hangs off', () => {
     expect(fitPopover(anchor(100), { ...fit, align: 'start' }, view, 200).left).toBe(400);
   });
 
+  it('lines up with the right edge where it is asked to', () => {
+    expect(fitPopover(anchor(100), { ...fit, align: 'end' }, view, 200).left).toBe(400 + 40 - 300);
+  });
+
   it('keeps a margin from the edges of the window', () => {
     expect(fitPopover(anchor(100, 20, 0, 10), fit, view, 200).left).toBe(8);
     expect(fitPopover(anchor(100, 20, 995, 5), fit, view, 200).left).toBe(1000 - 300 - 8);
