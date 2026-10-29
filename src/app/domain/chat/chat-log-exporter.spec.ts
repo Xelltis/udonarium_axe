@@ -48,6 +48,12 @@ describe('ChatLogExporter', () => {
     });
   });
 
+  describe('escapeHtmlLines', () => {
+    it('writes a stamp put inside a line as its name', () => {
+      expect(ChatLogExporter.escapeHtmlLines('了解［了解:seal:ok］\nまた')).toBe('了解［了解］<br>また');
+    });
+  });
+
   describe('escapeHtml', () => {
     it('escapes the markup characters', () => {
       expect(ChatLogExporter.escapeHtml('<script>alert("xss")</script>')).toBe(

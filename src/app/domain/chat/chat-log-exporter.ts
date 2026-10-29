@@ -7,6 +7,7 @@ import {
 } from '@axe/domain/chat/chat-decoration';
 import type { ChatMessage } from '@axe/domain/chat/chat-message';
 import { rubyMarkupOfLine } from '@axe/domain/chat/chat-ruby-notation';
+import { withInlineStampsAsWords } from '@axe/domain/chat/inline-stamp';
 import { vnBodyOf } from '@axe/domain/visual-novel/vn-emote';
 
 export type ChatLogLine = Pick<
@@ -111,13 +112,12 @@ export class ChatLogExporter {
 
   /**
    * Escapes the text of a message as `escapeHtml` does, one line at a time, with the chat's
-   * decorations drawn round it, and joins the lines with `<br>` so the breaks a person typed survive
-   * the escaping.
+   * decorations drawn round it and a stamp put inside it written as its name, and joins the lines
+   * with `<br>` so the breaks a person typed survive the escaping.
    */
   static escapeHtmlLines(value: string): string {
-    return chatDecorationMarkup(decoratedRunsOf(value.replace(/\r\n/g, '\n')), ChatLogExporter.escapeHtml)
-      .split('\n')
-      .join('<br>');
+    const text = withInlineStampsAsWords(value.replace(/\r\n/g, '\n'));
+    return chatDecorationMarkup(decoratedRunsOf(text), ChatLogExporter.escapeHtml).split('\n').join('<br>');
   }
 
   /**

@@ -127,6 +127,45 @@ describe('decorate-chat-text', () => {
     });
   });
 
+  describe('stamps put inside a line', () => {
+    const markup = (stampId: string, label: string) => `<i data-id="${stampId}">${label}</i>`;
+
+    it('draws each stamp by the markup given, escaping the words round it', () => {
+      expect(decorateChatStyleText('<a>［了解:seal:ok］と［ドッ:sfx:boom］', markup)).toBe(
+        '&lt;a&gt;<i data-id="seal:ok">了解</i>と<i data-id="sfx:boom">ドッ</i>'
+      );
+    });
+
+    it('writes a stamp as its name, escaped, where no markup is given or it draws nothing', () => {
+      expect(decorateChatStyleText('前［<了解>:seal:ok］後')).toBe('前［&lt;了解&gt;］後');
+      expect(decorateChatStyleText('［了解:seal:ok］', () => null)).toBe('［了解］');
+    });
+
+    it('keeps a stamp whole in a leaning run, and inside bold', () => {
+      expect(decorateChatStyleText('[斜体]あ［了解:seal:ok］[/]', markup)).toBe(
+        '<span class="chat-deco chat-deco-italic">あ</span>' +
+          '<span class="chat-deco chat-deco-italic"><i data-id="seal:ok">了解</i></span>'
+      );
+      expect(decorateChatStyleText('**［了解:seal:ok］**', markup)).toBe(
+        '<span class="chat-deco chat-deco-bold"><i data-id="seal:ok">了解</i></span>'
+      );
+    });
+
+    it('cuts a stamp out as a run of its own for a line shown a little at a time', () => {
+      expect(splitRubyNotation('あ［了解:seal:ok］い')).toEqual([
+        { text: 'あ', reading: '', decoration: null },
+        { text: '［了解］', reading: '', decoration: null, stamp: 'seal:ok' },
+        { text: 'い', reading: '', decoration: null },
+      ]);
+    });
+
+    it('leaves a stamp this version does not know as its name in that run', () => {
+      expect(splitRubyNotation('［新顔:sfx:fromthefuture］')).toEqual([
+        { text: '［新顔］', reading: '', decoration: null },
+      ]);
+    });
+  });
+
   describe('decorateChatStyleText, all of it at once', () => {
     it('escapes, then rubies, then quotes', () => {
       const input = '> @勇者\n> こんにちは|世界《せかい》';

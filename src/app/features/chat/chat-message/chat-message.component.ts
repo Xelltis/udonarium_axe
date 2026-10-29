@@ -20,6 +20,7 @@ import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.servic
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatReactionService, ReactionTally } from '@axe/application/chat/chat-reaction.service';
+import { StampPackService } from '@axe/application/chat/stamp-pack.service';
 import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { SystemAvatarKind, SystemAvatarService } from '@axe/application/chat/system-avatar.service';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
@@ -47,6 +48,7 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
+import { inlineStampsAlone } from '@axe/domain/chat/inline-stamp';
 import { isPictureStamp, stampOf } from '@axe/domain/chat/stamp-catalog';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -70,10 +72,11 @@ import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.servic
 import { SystemAvatarMenuService } from '@axe/features/chat/system-avatar-menu.service';
 import { DiceRollStageComponent } from '@axe/ui/components/dice-roll-stage/dice-roll-stage.component';
 import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
+import { stampMarkup, stampViewOf, StampViewSource } from '@axe/ui/components/stamp/stamp-view';
 import { ChatColorStylePipe } from '@axe/ui/pipes/chat-color-style.pipe';
 import { LinkifyPipe } from '@axe/ui/pipes/linkify.pipe';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
-import { decorateChatStyleText } from '@axe/ui/text-decoration/decorate-chat-text';
+import { decorateChatStyleText, InlineStampMarkup } from '@axe/ui/text-decoration/decorate-chat-text';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** How long a line stays lit after a jump to it, before it fades back. */
@@ -117,6 +120,7 @@ export class ChatMessageComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly imageStorage = inject(ImageStorage);
+  private readonly stampPacks = inject(StampPackService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly language = inject(LanguageService);
   private readonly uiSignalService = inject(UiSignalService);
@@ -1102,7 +1106,29 @@ export class ChatMessageComponent {
     this.language.currentLang();
     this.objectChange.versionOf(this.chatMessage?.identifier)();
     const decoded = this.isSystemMessage ? decodeI18nMessage(text, this.t) : text;
-    return decorateChatStyleText(vnBodyOf(this.chatMessage?.vnEmote, decoded));
+    const body = vnBodyOf(this.chatMessage?.vnEmote, decoded);
+    return decorateChatStyleText(body, this.stampsIn(body));
+  }
+
+  /**
+   * Draws the stamps put inside a line, as tall as its letters, or as large as a stamp sent on its
+   * own where the line is made of stamps alone. A room's picture is drawn again once it arrives.
+   */
+  private stampsIn(body: string): InlineStampMarkup {
+    this.objectChange.fileVersion();
+    const alone = inlineStampsAlone(body) !== null;
+    const source: StampViewSource = {
+      t: this.t,
+      picture: (imageIdentifier) => {
+        const image = this.imageStorage.get(imageIdentifier);
+        return image?.url ? { url: image.url, name: image.name } : null;
+      },
+      nameInSet: (imageIdentifier) => this.stampPacks.nameOf(imageIdentifier),
+    };
+    return (stampId) => {
+      const view = stampViewOf(stampId, source);
+      return view ? stampMarkup(stampId, view, alone ? this.stampLineSize(stampId, true) : 'inline') : null;
+    };
   }
 }
 

@@ -1,5 +1,7 @@
 @for (part of parts(); track $index) {
-  @if (part.reading.length > 0) {
+  @if (part.stamp) {
+    <ui-stamp class="align-middle" [stampId]="part.stamp" [size]="stampSize()" />
+  } @else if (part.reading.length > 0) {
     <ruby
       class="chat-ruby"
       [class]="classesOf(part)"

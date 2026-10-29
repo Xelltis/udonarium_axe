@@ -1,3 +1,5 @@
+import { withInlineStampsAsWords } from '@axe/domain/chat/inline-stamp';
+
 /**
  * The decorations a line of chat can carry, written in its text: `**bold**`, and a name in square
  * brackets closed by `[/]` or by the name again, `[明朝]…[/明朝]`, for a font, a size, a colour,
@@ -405,11 +407,16 @@ export function chatDecorationLayout(text: string): {
   return { marks, runs };
 }
 
-/** What a line says with its decorations taken out, as it is read aloud, searched or written plainly. */
+/**
+ * What a line says with its decorations taken out, as it is read aloud, searched or written plainly:
+ * a stamp put inside it is written as its name in brackets.
+ */
 export function withoutChatDecoration(text: string): string {
-  return decoratedRunsOf(text)
-    .map((run) => run.text)
-    .join('');
+  return withInlineStampsAsWords(
+    decoratedRunsOf(text)
+      .map((run) => run.text)
+      .join('')
+  );
 }
 
 /** The fonts the runs of a line are drawn in, each once, for whatever has to load them. */

@@ -4,15 +4,13 @@ import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { stampArtUrl, stampLabelKey, StampMotion, stampNameKey, stampOf } from '@axe/domain/chat/stamp-catalog';
-import { SEAL_FILTER_ID, sealStampSvg } from '@axe/domain/chat/stamp-glyphs';
+import { StampMotion } from '@axe/domain/chat/stamp-catalog';
+import { SEAL_FILTER_ID } from '@axe/domain/chat/stamp-glyphs';
+import { SOUND_EFFECT_EDGE, StampView, stampViewOf, stampWordsSize } from '@axe/ui/components/stamp/stamp-view';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 
 /** How many stamps have been made, for each to give its seal's filter an id of its own. */
 let stampsMade = 0;
-
-/** The ink the name of a picture from the room is written in while the picture is not here. */
-const MISSING_PICTURE_INK = '#8a8f99';
 
 /** The classes that move a stamp once, written out whole so the rules for stopped motion find them. */
 const MOTION_CLASSES: Readonly<Record<StampMotion, string>> = {
@@ -22,38 +20,6 @@ const MOTION_CLASSES: Readonly<Record<StampMotion, string>> = {
   beat: 'animate-stamp-beat',
   press: 'animate-stamp-press',
 };
-
-/** The white edge and the drop the words of a sound effect are written with, as in a comic. */
-const SOUND_EFFECT_EDGE = [
-  '0.07em 0 0 #fff',
-  '-0.07em 0 0 #fff',
-  '0 0.07em 0 #fff',
-  '0 -0.07em 0 #fff',
-  '0.05em 0.05em 0 #fff',
-  '-0.05em 0.05em 0 #fff',
-  '0.05em -0.05em 0 #fff',
-  '-0.05em -0.05em 0 #fff',
-  '0.09em 0.11em 0 rgba(0, 0, 0, 0.35)',
-].join(', ');
-
-type StampView =
-  | {
-      readonly kind: 'words';
-      readonly name: string;
-      readonly words: string;
-      readonly color: string;
-      readonly tilt: number;
-      readonly fontSizePx: number;
-      readonly motion: StampMotion;
-    }
-  | {
-      readonly kind: 'picture';
-      readonly name: string;
-      readonly svg: string;
-      readonly tilt: number;
-      readonly motion: StampMotion;
-    }
-  | { readonly kind: 'image'; readonly name: string; readonly url: string; readonly motion: StampMotion };
 
 /**
  * One stamp, drawn at the size asked for.
@@ -97,57 +63,26 @@ export class StampComponent {
    */
   private readonly sealFilterId = `${SEAL_FILTER_ID}-${++stampsMade}`;
 
-  protected readonly view = computed<StampView | null>(() => {
-    const ref = stampOf(this.stampId());
-    if (!ref) return null;
-    if (ref.kind === 'image') {
-      this.objectChange.fileVersion();
-      const image = this.imageStorage.get(ref.imageIdentifier);
-      if (!image?.url) {
-        this.language.currentLang();
-        const name = this.packs.nameOf(ref.imageIdentifier) || this.t('ui.stamp.picture');
-        const words = this.t('ui.stamp.standIn', { words: name });
-        return {
-          kind: 'words',
-          name,
-          words,
-          color: MISSING_PICTURE_INK,
-          tilt: 0,
-          fontSizePx: this.wordsSize(words),
-          motion: 'pop',
-        };
-      }
-      const name = this.packs.nameOf(ref.imageIdentifier) || image.name;
-      return { kind: 'image', name, url: image.url, motion: 'pop' };
-    }
+  protected readonly view = computed<(StampView & { fontSizePx: number }) | null>(() => {
+    this.objectChange.fileVersion();
     this.language.currentLang();
-    const { stamp } = ref;
-    const name = this.t(stampNameKey(stamp));
-    const art = stampArtUrl(stamp);
-    if (art) return { kind: 'image', name, url: art, motion: stamp.motion };
-    const words = this.t(stampLabelKey(stamp));
-    if (stamp.family === 'seal') {
-      const svg = sealStampSvg(words, stamp.color).replaceAll(SEAL_FILTER_ID, this.sealFilterId);
-      return { kind: 'picture', name, svg, tilt: stamp.tilt, motion: stamp.motion };
+    const view = stampViewOf(this.stampId(), {
+      t: this.t,
+      picture: (imageIdentifier) => {
+        const image = this.imageStorage.get(imageIdentifier);
+        return image?.url ? { url: image.url, name: image.name } : null;
+      },
+      nameInSet: (imageIdentifier) => this.packs.nameOf(imageIdentifier),
+    });
+    if (!view) return null;
+    const fontSizePx = view.kind === 'words' ? stampWordsSize(view.words, this.size()) : 0;
+    if (view.kind === 'picture') {
+      return { ...view, svg: view.svg.replaceAll(SEAL_FILTER_ID, this.sealFilterId), fontSizePx };
     }
-    return {
-      kind: 'words',
-      name,
-      words,
-      color: stamp.color,
-      tilt: stamp.tilt,
-      fontSizePx: this.wordsSize(words),
-      motion: stamp.motion,
-    };
+    return { ...view, fontSizePx };
   });
 
   protected readonly hoverName = computed(() => (this.named() ? (this.view()?.name ?? null) : null));
-
-  /** How large words are written for the box: smaller the more there are, within bounds. */
-  private wordsSize(words: string): number {
-    const length = Math.max(2, Array.from(words).length);
-    return Math.round(this.size() * Math.max(0.24, Math.min(0.6, 1.25 / length)));
-  }
 
   protected readonly edge = SOUND_EFFECT_EDGE;
 

@@ -33,6 +33,10 @@ describe('decoratedRunsOf', () => {
     ]);
   });
 
+  it('writes a stamp put inside a line as its name, when the decorations are taken out', () => {
+    expect(withoutChatDecoration('**了解**［了解:seal:ok］')).toBe('了解［了解］');
+  });
+
   it('leaves a lone pair of stars, and stars a line apart, as they were typed', () => {
     expect(withoutChatDecoration('**だけ')).toBe('**だけ');
     expect(withoutChatDecoration('**a**b**')).toBe('ab**');
