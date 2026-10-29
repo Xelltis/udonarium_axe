@@ -19,14 +19,29 @@ export class ComposingMarkDirective {
   }
 }
 
+/** How often a box a word is being made in is looked at, for having been taken away meanwhile. */
+const BOX_GONE_CHECK_MS = 500;
+
 /**
  * Runs `then` once no word is being made in the box: at once, or a moment after the word is made,
- * once it has reached whatever reads the box, so that taking the box away loses none of it.
+ * once it has reached whatever reads the box, so that taking the box away loses none of it; or
+ * once the box has gone by itself, which ends the word with no word of it.
  */
 export function whenNotComposing(box: HTMLElement | null | undefined, then: () => void): void {
   if (!box?.hasAttribute(COMPOSING_ATTR)) {
     then();
     return;
   }
-  box.addEventListener('compositionend', () => setTimeout(then), { once: true });
+  let ran = false;
+  const run = () => {
+    if (ran) return;
+    ran = true;
+    clearInterval(watch);
+    box.removeEventListener('compositionend', run);
+    setTimeout(then);
+  };
+  box.addEventListener('compositionend', run);
+  const watch = setInterval(() => {
+    if (!box.isConnected) run();
+  }, BOX_GONE_CHECK_MS);
 }

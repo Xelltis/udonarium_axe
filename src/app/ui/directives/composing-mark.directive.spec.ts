@@ -38,4 +38,21 @@ describe('ComposingMarkDirective', () => {
     expect(run).toHaveBeenCalledOnce();
     expect(area.hasAttribute('data-composing')).toBe(false);
   });
+
+  it('runs once the box a word was being made in is taken away, with no word made', () => {
+    vi.useFakeTimers();
+    try {
+      const area = box();
+      const run = vi.fn();
+      area.dispatchEvent(new CompositionEvent('compositionstart'));
+      whenNotComposing(area, run);
+
+      area.remove();
+      vi.advanceTimersByTime(1000);
+
+      expect(run).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
