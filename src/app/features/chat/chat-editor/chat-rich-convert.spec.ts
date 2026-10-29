@@ -56,6 +56,16 @@ describe('chat-rich-convert', () => {
     expect(written.toOffset(doc.child(0).nodeSize + 2)).toBe(13);
   });
 
+  it('finds each line of a palette, places going to it and back the same', () => {
+    const text = '2d6 攻撃\n//強さ=3\n**強く** {HP}\n\n1d100 調べる';
+    const written = textOfDoc(docOf(text, 'palette'), 'ja', 'palette');
+    expect(written.text).toBe(text);
+
+    for (const offset of [0, 3, 7, 10, 17, 21, 27, 30]) {
+      expect(written.toOffset(written.toPos(offset, 1), 1)).toBe(offset);
+    }
+  });
+
   it('writes a palette a line at a time, keeping its variables and tabs', () => {
     const text = '//HP=**1**\n◆◆戦闘\n2d6 {HP}\n**殴る**';
     const written = textOfDoc(docOf(text, 'palette'), 'ja', 'palette');

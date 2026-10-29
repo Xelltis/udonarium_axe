@@ -187,8 +187,7 @@ export function textOfDoc(doc: ProseMirrorNode, language: ChatTagLanguage, mode:
   }
   const pointOf = (offset: number, assoc: -1 | 1) => {
     if (mode !== 'palette') return parts[0].toModel(offset, assoc);
-    let line = 0;
-    while (line + 1 < partStarts.length && partStarts[line + 1] <= offset) line++;
+    const line = lastStanding(partStarts, offset);
     return { line, offset: parts[line].toModel(offset - partStarts[line], assoc).offset };
   };
   return {
@@ -200,13 +199,27 @@ export function textOfDoc(doc: ProseMirrorNode, language: ChatTagLanguage, mode:
       return start + 1 + Math.min(point.offset, paragraph.content.size);
     },
     toOffset(pos, assoc = -1) {
-      let line = 0;
-      while (line + 1 < starts.length && starts[line + 1] < pos) line++;
+      const line = lastStanding(starts, pos, true);
       const offset = Math.max(0, Math.min(pos - starts[line] - 1, paragraphs[line].content.size));
       if (mode !== 'palette') return parts[0].toText({ line, offset }, assoc);
       return partStarts[line] + parts[line].toText({ line: 0, offset }, assoc);
     },
   };
+}
+
+/**
+ * The last of places in order standing at or before a point, or before it where `strictly`; the
+ * first where none does. Found by halving, as a long palette has many lines.
+ */
+function lastStanding(starts: readonly number[], point: number, strictly = false): number {
+  let low = 0;
+  let high = starts.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (strictly ? starts[middle] < point : starts[middle] <= point) low = middle + 1;
+    else high = middle;
+  }
+  return Math.max(0, low - 1);
 }
 
 function paletteLineText(paragraph: ProseMirrorNode, line: ChatRichLine, language: ChatTagLanguage): ChatRichText {
