@@ -15,6 +15,9 @@ import {
 import { BuffPileOn } from '@axe/domain/character/buff-stack';
 import { resolveBuffTiming } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { findStatusAilment, type StatusAilment } from '@axe/domain/character/status-ailment';
+import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
+import { plantStatusAilment, statusAilmentAsCommanded } from '@axe/domain/character/status-ailment-plant';
 import { DataElement } from '@axe/domain/data/data-element';
 import { findEmbeddedRolls, replaceEmbeddedRolls } from '@axe/domain/data/embedded-roll';
 import { resourceCommandParts } from '@axe/domain/data/resource-command-words';
@@ -369,9 +372,10 @@ function grantCalculatedBuff(
  *
  * `&R-` and `&R+` move every buff's remaining rounds, `&D` clears buffs at zero rounds or fewer, `&name-`
  * removes one buff, `&!` adds a buff that changes a status, and anything else adds a plain
- * `name/effect/rounds/appearance` buff. A `+` right after the ampersand stacks onto a buff of the
- * same name rather than starting it over, and `++` lengthens it by the rounds asked for as well.
- * A targeted command's text starts with the character's name.
+ * `name/effect/rounds/appearance` buff; one named after a state the room keeps puts that state on,
+ * what the command leaves out read from the room's list of states. A `+` right after the ampersand
+ * stacks onto a buff of the same name rather than starting it over, and `++` lengthens it by the
+ * rounds asked for as well. A targeted command's text starts with the character's name.
  */
 export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string {
   const { piles, command } = readBuffStacking(buff.command);
@@ -399,6 +403,10 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
     text += applyCalculatedBuff(command, character, piles);
   } else {
     const splittext = readModifierLayout(command.replace(/^[tTｔＴ]?&/i, '').split('/'));
+    const state = findStatusAilment(StatusAilmentCatalog.instance.ailments, splittext[0]);
+    if (state && (piles === 'none' || !character.buffs.find(state.name))) {
+      return text + plantCommandedState(state, splittext, character);
+    }
     let round: number | undefined = undefined;
     let sub = '';
     const buffname = splittext[0];
@@ -436,6 +444,25 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
   }
 
   return text;
+}
+
+/**
+ * A plain buff naming a state the room keeps, put on as the room describes the state: the note,
+ * the rounds and the look the command writes stand in for the state's own, and the rest, the
+ * status the state moves among it, is the state's. Laid on top of one already worn, the buff
+ * piles on as any plain one does instead.
+ */
+function plantCommandedState(state: StatusAilment, parts: string[], character: GameCharacter): string {
+  const rounds = parts.length > 2 ? Number.parseInt(parts[2], 10) : Number.NaN;
+  const look = parseBuffAppearance(parts.slice(3));
+  const ailment = statusAilmentAsCommanded(state, {
+    note: parts[1] ?? '',
+    rounds: Number.isNaN(rounds) ? null : rounds,
+    look,
+  });
+  plantStatusAilment(character, ailment, look.trigger ? { trigger: look.trigger } : {});
+  const told = [ailment.name, ailment.effect, ailment.rounds > 0 ? `${ailment.rounds}R` : '', ...parts.slice(3)];
+  return `バフを付与 ${told.filter((part) => part.length > 0).join('/')}    `;
 }
 
 /**
