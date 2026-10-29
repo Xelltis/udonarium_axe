@@ -277,6 +277,20 @@ test.describe('the chat editor', () => {
     await expectChatText(input, '[赤]赤く[/赤]');
   });
 
+  test('opens a popover again at one press once it shut by itself', async ({ page }) => {
+    const button = page.locator('chat-window [data-testid="chat-toolbar-style"]');
+    const panel = page.locator('[data-testid="chat-toolbar-panel"]');
+    await button.click();
+    await expect(panel).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(panel).toBeHidden();
+    await expect(button).toHaveAttribute('aria-expanded', 'false');
+
+    await button.click();
+    await expect(panel).toBeVisible();
+  });
+
   test('puts a reading over the words selected, as a ruby', async ({ page }) => {
     const input = chatInput(page);
     await input.click();

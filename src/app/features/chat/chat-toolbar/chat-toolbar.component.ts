@@ -119,7 +119,15 @@ export class ChatToolbarComponent {
     const marks = this.active();
     return !!marks && (!!marks.strike || !!marks.size || !!marks.font || !!marks.color);
   });
-  protected readonly openOne = signal<ToolbarPopover | null>(null);
+  /** The popover asked for last, from as it is being set up until it is shut. */
+  private readonly asked = signal<ToolbarPopover | null>(null);
+  private readonly popover = signal<AnchoredPopover | null>(null);
+  /** The popover standing open, which also shuts by itself on a press outside it and on Escape. */
+  protected readonly openOne = computed(() => {
+    const asked = this.asked();
+    const popover = this.popover();
+    return asked && (!popover || popover.isOpen()) ? asked : null;
+  });
   protected readonly syntaxButtons = SYNTAX_BUTTONS;
   /** The kind of syntax whose list stands open, as it was worked out when it opened. */
   protected readonly openGroup = signal<ChatSyntaxGroup | null>(null);
@@ -131,10 +139,9 @@ export class ChatToolbarComponent {
   private readonly rubyButton = viewChild<ElementRef<HTMLElement>>('rubyButton');
   private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
   private readonly rubyInput = viewChild<ElementRef<HTMLInputElement>>('rubyInput');
-  private popover: AnchoredPopover | null = null;
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.popover?.destroy());
+    inject(DestroyRef).onDestroy(() => this.popover()?.destroy());
   }
 
   /** Keeps the box's selection while a button is pressed, so what the button does falls on it. */
@@ -198,11 +205,11 @@ export class ChatToolbarComponent {
         this.groups()().find((each) => each.key === group) ?? { key: group, label: this.groupLabel(group), rows: [] }
       );
     }
-    this.openOne.set(which);
+    this.asked.set(which);
     const anchor = button instanceof HTMLElement ? button : this.anchorOf(which)?.nativeElement;
     const panel = this.panel();
     if (!anchor || !panel) return;
-    this.popover = new AnchoredPopover(
+    const popover = new AnchoredPopover(
       () => anchor,
       () => panel.nativeElement,
       {
@@ -212,13 +219,14 @@ export class ChatToolbarComponent {
         prefer: 'up',
       }
     );
-    if (!this.popover.show()) {
-      this.openOne.set(null);
+    this.popover.set(popover);
+    if (!popover.show()) {
+      this.close();
       return;
     }
     afterNextRender(
       () => {
-        this.popover?.place();
+        popover.place();
         if (which === 'ruby') this.rubyInput()?.nativeElement.focus();
       },
       { injector: this.injector }
@@ -246,10 +254,11 @@ export class ChatToolbarComponent {
   }
 
   protected close(): void {
-    this.popover?.close();
-    this.popover?.destroy();
-    this.popover = null;
-    this.openOne.set(null);
+    const popover = this.popover();
+    popover?.close();
+    popover?.destroy();
+    this.popover.set(null);
+    this.asked.set(null);
   }
 
   /** Reads the ruby to edit: the one selected as a chip, or the words selected, to put a reading over. */
