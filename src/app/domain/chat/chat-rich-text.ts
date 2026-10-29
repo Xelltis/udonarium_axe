@@ -518,7 +518,7 @@ export function serializeChatRichText(lines: readonly ChatRichLine[], options: C
   const writeMessage = (message: readonly ChatRichLine[], keepSource: boolean, escapeAll: boolean) => {
     const out: { text: string; units: Range[] }[] = message.map((line) => {
       if (line.directive) {
-        const text = line.source ?? line.segments.map(segmentText).join('');
+        const text = line.segments.map(segmentText).join('');
         return { text, units: unitsOfPlain(text) };
       }
       if (keepSource && line.source !== undefined) {

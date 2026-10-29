@@ -296,6 +296,16 @@ describe('chat-rich-text', () => {
       expect(read.lines.map((line) => !!line.directive)).toEqual([true, true, false]);
       expect(serializeChatRichText(read.lines, { language: 'ja', mode: 'palette' }).text).toBe(text);
     });
+
+    it('writes a variable or a tab as it now reads, not as it was first read', () => {
+      const read = parseChatRichText('//HP=10\n◆◆戦闘', { mode: 'palette' });
+      const edited = read.lines.map((line, index) => ({
+        ...line,
+        segments: [{ kind: 'text' as const, text: index === 0 ? '//HP=20' : '◆◆探索', marks: null }],
+      }));
+
+      expect(serializeChatRichText(edited, { language: 'ja', mode: 'palette' }).text).toBe('//HP=20\n◆◆探索');
+    });
   });
 
   describe('places', () => {
