@@ -25,6 +25,11 @@ export interface BattleFighter {
   gauges: BattleGauge[];
   /** Whether the exchange brought it down. */
   defeated: boolean;
+  /**
+   * Which way its picture faces, so the stage turns it to face across; absent or none stands it as
+   * drawn, as an older version sends it.
+   */
+  facing?: BattleSide | null;
 }
 
 /**
@@ -148,6 +153,7 @@ function normalizeFighter(raw: unknown): BattleFighter | null {
     image: text(source['image']),
     gauges,
     defeated: source['defeated'] === true,
+    facing: asBattleSide(source['facing']),
   };
 }
 

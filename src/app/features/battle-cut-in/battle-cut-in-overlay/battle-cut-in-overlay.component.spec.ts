@@ -143,6 +143,33 @@ describe('BattleCutInOverlayComponent', () => {
     }
   });
 
+  it('turns a picture facing the side it stands on to face across, and leaves the rest as drawn', () => {
+    for (const identifier of ['facing-hero', 'facing-goblin']) {
+      ImageStorage.instance.add({
+        identifier,
+        name: `${identifier}.webp`,
+        type: 'image/webp',
+        blob: new Blob(['picture'], { type: 'image/webp' }),
+        url: `blob:${identifier}`,
+        thumbnail: { type: '', blob: null, url: '' },
+      });
+    }
+    try {
+      const played = scene();
+      const root = play({
+        ...played,
+        attacker: { ...played.attacker, image: 'facing-hero', facing: 'left' },
+        defenders: [{ ...played.defenders[0], image: 'facing-goblin', facing: 'left' }],
+      });
+
+      expect(root.querySelector('img[alt="勇者"]')?.classList.contains('-scale-x-100')).toBe(true);
+      expect(root.querySelector('img[alt="ゴブリン"]')?.classList.contains('-scale-x-100')).toBe(false);
+    } finally {
+      ImageStorage.instance.delete('facing-hero');
+      ImageStorage.instance.delete('facing-goblin');
+    }
+  });
+
   it('lays the stage’s own picture where the room’s picture has not arrived', () => {
     const root = play(scene({ theme: 'mecha-day', background: 'not-here-yet' }));
 

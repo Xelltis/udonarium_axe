@@ -1,3 +1,4 @@
+import { asBattleSide, BattleSide } from '@axe/domain/battle/battle-lineup';
 import { isGaugeInverted, isGaugeShownOnPiece } from '@axe/domain/character/piece-gauge';
 import { resourceElementsOf } from '@axe/domain/character/resource-catalog';
 import { shownImageIdentifier } from '@axe/domain/character/shown-image';
@@ -9,6 +10,8 @@ export interface FighterSource {
   name: string;
   detailDataElement: DataElement | null;
   imageDataElement: DataElement | null;
+  /** Which way the picture faces, `left` or `right`; anything else stands it as drawn. */
+  battleFacing?: string;
 }
 
 /** One resource of a piece as it read at one moment. */
@@ -26,6 +29,8 @@ export interface FighterReading {
   identifier: string;
   name: string;
   image: string;
+  /** Which way the picture faces, none where it is stood as drawn. */
+  facing: BattleSide | null;
   resources: ReadonlyMap<string, ResourceReading>;
 }
 
@@ -47,6 +52,7 @@ export function readFighter(source: FighterSource): FighterReading {
     identifier: source.identifier,
     name: source.name,
     image: shownImageIdentifier(source.imageDataElement, source.detailDataElement),
+    facing: asBattleSide(source.battleFacing),
     resources,
   };
 }

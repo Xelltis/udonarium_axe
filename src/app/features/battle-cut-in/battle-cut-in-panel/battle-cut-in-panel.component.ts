@@ -44,6 +44,8 @@ export interface BattlePieceRow {
   partyPlaced: boolean;
   /** The effect it strikes with, by name. Empty strikes with the stage's own. */
   effect: string;
+  /** Which way its picture faces, none where it is stood as drawn. */
+  facing: BattleSide | null;
 }
 
 /** A party of the room, as the panel offers to put it on a side. */
@@ -158,6 +160,7 @@ export class BattleCutInPanelComponent {
         withParty: partyPlaced && character.battleSide === '',
         partyPlaced,
         effect: character.battleEffect,
+        facing: asBattleSide(character.battleFacing),
       };
     });
   });
@@ -267,6 +270,13 @@ export class BattleCutInPanelComponent {
     const piece = this.pieceOf(this.focus());
     if (!piece || !this.canEditFocused()) return;
     piece.battleEffect = name.trim();
+  }
+
+  /** Says which way the picture of the piece in focus faces, for the stage to turn it to face across. */
+  setFacing(facing: string): void {
+    const piece = this.pieceOf(this.focus());
+    if (!piece || !this.canEditFocused()) return;
+    piece.battleFacing = asBattleSide(facing) ?? '';
   }
 
   /** Plays the lineup for the whole room. */

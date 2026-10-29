@@ -158,10 +158,16 @@ export class GameCharacter extends OwnedTabletopObject {
    */
   @SyncVar() cutInPortraitFits: string = '';
   /**
-   * The side of the battle stage the master has put the piece on, `left` or `right`. Empty leaves
-   * it out of the lineup the stage plays when nobody says who strikes whom.
+   * The side of the battle stage the master has put the piece on, `left` or `right`. Empty stands it
+   * where its party does, and out of the lineup where its party stands on neither; `none` keeps it
+   * out though its party stands on a side.
    */
   @SyncVar() battleSide: string = '';
+  /**
+   * Which way the picture of the piece faces, `left` or `right`, so the battle stage turns it to
+   * face the one across from it; empty to stand it as drawn.
+   */
+  @SyncVar() battleFacing: string = '';
   /** The effect the piece strikes with on the battle stage, by name. Empty strikes with the stage's own. */
   @SyncVar() battleEffect: string = '';
 

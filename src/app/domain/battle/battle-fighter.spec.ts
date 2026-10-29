@@ -61,6 +61,16 @@ describe('reading a fighter', () => {
     expect(readFighter(hero).image).toBe('image-hero');
   });
 
+  it('carries the way the picture faces onto the stage', () => {
+    const hero = { ...piece(), battleFacing: 'left' };
+
+    const reading = readFighter(hero);
+
+    expect(reading.facing).toBe('left');
+    expect(fighterBetween(reading, reading, { enabled: false, resource: '' }).facing).toBe('left');
+    expect(readFighter(piece()).facing).toBeNull();
+  });
+
   it('carries the bars, then whatever else moved, and brings down one that fell to nothing', () => {
     const hp = resource('HP', 12, 20, true);
     const mp = resource('MP', 5, 10, true);

@@ -197,6 +197,23 @@ describe('BattleCutInPanelComponent', () => {
     expect(component.focusedPreset()?.name).toBe('斬撃');
   });
 
+  it('says which way the picture of a piece faces, for the stage to turn it to face across', async () => {
+    const root = open(PeerRole.Player);
+
+    component.focusOn(goblin.identifier);
+    await settle();
+    const select = root.querySelector<HTMLSelectElement>('[data-testid="battle-facing"]')!;
+    select.value = select.options[1].value;
+    select.dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(goblin.battleFacing).toBe('left');
+    expect(component.focused()?.facing).toBe('left');
+
+    component.setFacing('');
+    expect(goblin.battleFacing).toBe('');
+  });
+
   it('turns the stage off for this screen alone', () => {
     const root = open(PeerRole.Player);
 

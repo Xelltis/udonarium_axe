@@ -78,6 +78,7 @@
                 @if (figure.imageUrl) {
                   <img
                     class="block w-auto max-w-40 object-contain"
+                    [class.-scale-x-100]="figure.mirrored"
                     [style.filter]="looks.figureShadow"
                     [style.height.px]="figureHeight"
                     [src]="figure.imageUrl"

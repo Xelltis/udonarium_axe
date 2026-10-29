@@ -76,6 +76,7 @@ import {
   standingTransform,
 } from '@axe/features/battle-cut-in/battle-stage-layout';
 import { BATTLE_PICTURE_LOOK, BattleBandLook, battleThemeLook } from '@axe/features/battle-cut-in/battle-themes';
+import { MirroredPictureService } from '@axe/features/battle-cut-in/mirrored-picture.service';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import {
   EFFECT_CAMERA_LIFT_PX,
@@ -158,6 +159,11 @@ interface FighterView {
   striking: boolean;
   point: Point3;
   imageUrl: string;
+  /**
+   * Whether its picture is turned left for right: a picture facing the side it stands on faces
+   * away from the one across.
+   */
+  mirrored: boolean;
   /** Whether the reader may read its numbers, as for the bars over the piece. */
   readable: boolean;
   /** How its body answers going down, as a piece on the table does. */
@@ -167,6 +173,8 @@ interface FighterView {
 export interface FigureFrame {
   key: string;
   imageUrl: string;
+  /** Whether the picture is turned left for right. */
+  mirrored: boolean;
   name: string;
   transform: string;
   shadowTransform: string;
@@ -226,6 +234,7 @@ export class BattleCutInOverlayComponent {
   private readonly motion = inject(MotionService);
   private readonly library = inject(EffectLibraryService);
   private readonly images = inject(ImageStorage);
+  private readonly mirrors = inject(MirroredPictureService);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly disclosure = inject(DisclosureService);
@@ -362,6 +371,7 @@ export class BattleCutInOverlayComponent {
       return {
         key: view.key,
         imageUrl: view.imageUrl,
+        mirrored: view.mirrored,
         name: view.fighter.name,
         transform: standingTransform(view.point, shift, 0),
         shadowTransform: lyingTransform(view.point, shift),
@@ -461,7 +471,11 @@ export class BattleCutInOverlayComponent {
       baseSize: BATTLE_CELL_PX,
       viewRotation: BATTLE_VIEW,
       resolvePosition: (identifier) => views.find((view) => view.fighter.identifier === identifier)?.point ?? null,
-      resolveImage: (identifier) => views.find((view) => view.fighter.identifier === identifier)?.imageUrl ?? '',
+      resolveImage: (identifier) => {
+        const view = views.find((held) => held.fighter.identifier === identifier);
+        if (!view) return '';
+        return view.mirrored ? this.mirrors.of(view.imageUrl) || view.imageUrl : view.imageUrl;
+      },
     };
   });
 
@@ -708,13 +722,17 @@ export class BattleCutInOverlayComponent {
     reaction: DefeatReaction
   ): FighterView {
     const image = fighter.image.length > 0 ? this.images.get(fighter.image) : null;
+    const imageUrl = image?.url ?? '';
+    const mirrored = fighter.facing === side;
+    if (mirrored && imageUrl.length > 0) this.mirrors.of(imageUrl);
     return {
       key: `${striking ? 'a' : 'd'}-${fighter.identifier}`,
       fighter,
       side,
       striking,
       point,
-      imageUrl: image?.url ?? '',
+      imageUrl,
+      mirrored,
       readable: this.readable(fighter.identifier),
       reaction,
     };
