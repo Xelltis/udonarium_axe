@@ -5,6 +5,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
+import { DiceTable } from '@axe/domain/dice/dice-table';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -160,6 +161,28 @@ describe('ChatLintService', () => {
       expect(lookups).not.toHaveBeenCalled();
     } finally {
       lookups.mockRestore();
+    }
+  });
+
+  it('checks no roll in a line a dice table of the room answers', () => {
+    const system = { ID: 'FakeSystem', COMMAND_PATTERN: /^ET1/i, eval: () => null };
+    const loaded = vi
+      .spyOn(DiceBot, 'loadedGameSystem')
+      .mockReturnValue(system as unknown as ReturnType<typeof DiceBot.loadedGameSystem>);
+    const table = new DiceTable();
+    table.initialize();
+    try {
+      const { session } = watch('ET1');
+      table.command = 'ET2';
+      expect(codesOf(session)).toEqual(['dice.unrollable']);
+
+      table.command = 'ET1';
+      TestBed.inject(ObjectChangeService).notifyChanged(table.identifier);
+
+      expect(codesOf(session)).toEqual([]);
+    } finally {
+      table.destroy();
+      loaded.mockRestore();
     }
   });
 

@@ -7,6 +7,7 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { toHalfWidth } from '@axe/core/util/string-util';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { evaluateReferences, type PaletteVariable } from '@axe/domain/chat/chat-palette';
@@ -22,6 +23,7 @@ import {
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { checkRollLine, type RollCheck } from '@axe/domain/dice/dice-roll-line';
+import { DiceTable } from '@axe/domain/dice/dice-table';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 
@@ -143,6 +145,7 @@ export class ChatLintService {
       (selectedPiece instanceof GameCharacter && selectedPiece.isVisibleOnTable);
     for (const target of targets) this.objectChange.versionOf(target.identifier)();
     const cutIns = this.objectStore.getObjects<CutIn>(CutIn);
+    const tableCommands = this.diceTableCommands();
     const gameType = source.gameType();
     const path = typeof source.path === 'function' ? source.path() : source.path;
 
@@ -175,9 +178,23 @@ export class ChatLintService {
         return presets.some((preset) => preset.name.trim() === needle && (!preset.gmOnly || isGameMaster));
       },
       hasPieceNamed: (name: string) => pieces.some((piece) => piece.name.trim() === name.trim()),
-      rollCheck: (message: TextRange) =>
-        this.rollCheck(gameType, fill(scan().text.slice(message.from, message.to), targets[0])),
+      rollCheck: (message: TextRange) => {
+        const line = scan().text.slice(message.from, message.to);
+        if (tableCommands.has(toHalfWidth(line).trim().split(/\s/)[0])) return null;
+        return this.rollCheck(gameType, fill(line, targets[0]));
+      },
     };
+  }
+
+  /**
+   * The commands of the room's dice tables, which answer a line starting with one instead of the
+   * dice bot, so such a line is no roll to check.
+   */
+  private diceTableCommands(): ReadonlySet<string> {
+    this.objectChange.collectionOf(DiceTable.aliasName)();
+    const tables = this.objectStore.getObjects<DiceTable>(DiceTable);
+    for (const table of tables) this.objectChange.versionOf(table.identifier)();
+    return new Set(tables.map((table) => table.command).filter((command) => command.length > 0));
   }
 
   /**
