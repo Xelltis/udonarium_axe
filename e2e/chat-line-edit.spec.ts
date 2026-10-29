@@ -68,6 +68,16 @@ test.describe('editing a line in place', () => {
     await expect(editor.locator('.chat-chip-idle')).toHaveCount(0);
   });
 
+  test('puts an edit down at one Escape right after a mark that starts a name', async ({ page }) => {
+    const { line, editor } = await sayAndEdit(page, '名前の前');
+    await page.keyboard.type(' {');
+
+    await page.keyboard.press('Escape');
+
+    await expect(editor).toHaveCount(0);
+    await expect(line.locator('[data-chat-search-text]')).toHaveText('名前の前');
+  });
+
   test('puts an edit down on Escape, the line as it was', async ({ page }) => {
     const { line, editor } = await sayAndEdit(page, 'そのまま');
     await page.keyboard.type('変えない');

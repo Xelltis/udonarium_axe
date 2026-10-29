@@ -9,7 +9,7 @@ import { nodeOfChip } from '@axe/features/chat/chat-editor/chat-rich-convert';
 import { CHIP_LETTER } from '@axe/features/chat/chat-editor/chat-rich-schema';
 import { computePosition, flip, offset, shift } from '@floating-ui/dom';
 import { Extension } from '@tiptap/core';
-import { PluginKey } from '@tiptap/pm/state';
+import { type EditorState, PluginKey } from '@tiptap/pm/state';
 import { Suggestion, type SuggestionProps } from '@tiptap/suggestion';
 
 /** How many names are offered at once. */
@@ -35,7 +35,8 @@ function tailChip(name: string, words: ChatCompletionWords): ChatRichChip {
  * after an ampersand that start a word. A reference, an effect, a portrait and a cut-in become chips;
  * a status and a buff are written as text after their mark. It opens over the caret, as the chat
  * sits at the foot of the screen. Up and Down move through it, Enter or Tab take the name, and
- * Escape puts it away; while it is open, Enter does not send.
+ * Escape puts it away; while it is open, Enter does not send. Where no name is offered, it does not
+ * open, and takes no key.
  */
 export function chatSuggestExtension(host: ChatSuggestHost): Extension {
   return Extension.create({
@@ -59,13 +60,8 @@ export function chatSuggestExtension(host: ChatSuggestHost): Extension {
               text: before.slice(trigger.from),
             };
           },
-          items: ({ query, editor: current }) => {
-            const $position = current.state.selection.$from;
-            const before = $position.parent.textBetween(0, $position.parentOffset, undefined, CHIP_LETTER);
-            const trigger = findChatTrigger(before);
-            if (!trigger) return [];
-            return chatTriggerOptions({ ...trigger, query }, host.completionWords()).slice(0, MOST_OFFERED);
-          },
+          allow: ({ state }) => offeredAt(state, host).length > 0,
+          items: ({ editor: current }) => offeredAt(current.state, host),
           command: ({ editor: current, range, props: name }) => {
             const written = current.state.doc.textBetween(range.from, range.to, undefined, CHIP_LETTER);
             const trigger = findChatTrigger(written);
@@ -99,6 +95,17 @@ export function chatSuggestExtension(host: ChatSuggestHost): Extension {
       ];
     },
   });
+}
+
+/**
+ * The names offered where the caret stands. Where none is, the list is not taken up at all, so
+ * that Escape and Enter are left to the box, as they are in an editor that offers no names.
+ */
+function offeredAt(state: EditorState, host: ChatSuggestHost): string[] {
+  const $position = state.selection.$from;
+  const before = $position.parent.textBetween(0, $position.parentOffset, undefined, CHIP_LETTER);
+  const trigger = findChatTrigger(before);
+  return trigger ? chatTriggerOptions(trigger, host.completionWords()).slice(0, MOST_OFFERED) : [];
 }
 
 /** The list the names are shown in, drawn over the caret and moved through by the keys. */
