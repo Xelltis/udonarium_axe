@@ -297,6 +297,22 @@ describe('resource-edit-helpers', () => {
       expect(character.status.getValue('HP', 'now')).toBe(before + 2);
     });
 
+    it('dresses a buff that moves a status in the look written after its rounds', () => {
+      character.detailDataElement!.appendChild(DataElement.create('膂力', 10, {}));
+
+      applyBuffEdit(
+        { command: '&!練技/膂力+2/3/blue/💪/手番開始/@術者', object: character, targeted: false },
+        character
+      );
+      const data = character.buffs.find('練技')!;
+
+      expect(character.status.getValue('膂力', 'now')).toBe(12);
+      expect(data.getAttribute(DataElementAttribute.BUFF_ICON)).toBe('💪');
+      expect(data.getAttribute(DataElementAttribute.BUFF_COLOR)).toBe(resolveBuffColor('blue'));
+      expect(data.getAttribute(DataElementAttribute.BUFF_TIMING)).toBe('turnStart');
+      expect(data.getAttribute(DataElementAttribute.BUFF_TRIGGER)).toBe('術者');
+    });
+
     describe('a buff named after a state the room keeps', () => {
       const edit = (command: string, targeted = false) =>
         applyBuffEdit({ command, object: character, targeted }, character);

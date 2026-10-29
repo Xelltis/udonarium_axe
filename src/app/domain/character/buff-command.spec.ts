@@ -1,8 +1,10 @@
+import { resolveBuffColor } from '@axe/domain/character/buff-appearance';
 import {
   buffCommandFields,
   buffCommandKind,
   readBuffStacking,
   readCalculatedBuff,
+  readCalculatedBuffLook,
   removedBuffName,
 } from '@axe/domain/character/buff-command';
 
@@ -36,6 +38,25 @@ describe('buff-command', () => {
 
   it('reads no statuses where one of them cannot be read', () => {
     expect(readCalculatedBuff('&!猛攻撃/攻撃/+/たくさん/3').requests).toBeNull();
+  });
+
+  it('reads the look after the rounds of a calculated buff as that of a plain one, in any order', () => {
+    expect(readCalculatedBuffLook(['blue', '💪', '手番開始', '@術者'])).toEqual({
+      color: resolveBuffColor('blue'),
+      icon: '💪',
+      timing: 'turnStart',
+      trigger: '術者',
+    });
+  });
+
+  it('still takes the name right after a timing for the piece the timing waits on', () => {
+    expect(readCalculatedBuffLook(['手番開始', '術者'])).toEqual({ timing: 'turnStart', trigger: '術者' });
+    expect(readCalculatedBuffLook(['turnEnd', '術者', 'red', '🔥'])).toEqual({
+      timing: 'turnEnd',
+      trigger: '術者',
+      color: resolveBuffColor('red'),
+      icon: '🔥',
+    });
   });
 
   it('places each field after the marks', () => {

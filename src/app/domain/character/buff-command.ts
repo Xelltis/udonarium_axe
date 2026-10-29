@@ -1,3 +1,4 @@
+import { type BuffAppearance, isBuffColorToken, parseBuffAppearance } from '@axe/domain/character/buff-appearance';
 import {
   isBuffModifierOperator,
   parseBuffModifierItems,
@@ -5,6 +6,7 @@ import {
   type ParsedBuffModifierRequest,
 } from '@axe/domain/character/buff-modifier';
 import type { BuffPileOn } from '@axe/domain/character/buff-stack';
+import { isBuffTimingToken, resolveBuffTiming } from '@axe/domain/character/buff-timing';
 
 /**
  * What a `&` buff command does: move every buff's rounds down or up, clear the buffs at nought, take
@@ -65,6 +67,24 @@ export function readCalculatedBuff(command: string): CalculatedBuffCommand {
   const read =
     requests && requests.every((request) => request !== null) ? (requests as ParsedBuffModifierRequest[]) : null;
   return { name, requests: read, rest: parts.slice(single ? 4 : 2) };
+}
+
+/**
+ * The look written after a `&!` command's rounds. A timing followed by a bare name stands as it
+ * always has, the timing and the piece whose turn it waits for; past those, or written any other
+ * way, the fields are read as a plain buff's look is: a colour, an icon, a timing and an `@` trigger,
+ * in whichever order they come.
+ */
+export function readCalculatedBuffLook(fields: readonly string[]): BuffAppearance {
+  const [timing = '', trigger = ''] = fields.map((field) => (field ?? '').trim());
+  const bare =
+    isBuffTimingToken(timing) &&
+    trigger.length > 0 &&
+    !trigger.startsWith('@') &&
+    !isBuffColorToken(trigger) &&
+    !isBuffTimingToken(trigger);
+  if (!bare) return parseBuffAppearance(fields);
+  return { ...parseBuffAppearance(fields.slice(2)), timing: resolveBuffTiming(timing)!, trigger };
 }
 
 /** One `/`-separated field of a buff command, where it stands in the command. */
