@@ -1,5 +1,6 @@
-import { computed, inject, Injectable, type Signal, signal } from '@angular/core';
+import { computed, inject, Injectable, type Signal } from '@angular/core';
 import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
+import { GameSystemPrefetchService } from '@axe/application/dice/game-system-prefetch.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
@@ -23,7 +24,6 @@ import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { checkRollLine, type RollCheck } from '@axe/domain/dice/dice-roll-line';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import type GameSystemClass from 'bcdice/lib/game_system';
 
 /** How a text is sent: typed into chat, or from a palette. */
 export type ChatLintPath = ChatLintContext['path'];
@@ -86,9 +86,7 @@ export class ChatLintService {
   private readonly stampRules = inject(StampRulesService);
   private readonly selection = inject(SelectionSignalService);
 
-  private readonly systemsArrived = signal(0);
-  private readonly fetched = new Map<string, GameSystemClass>();
-  private readonly fetching = new Set<string>();
+  private readonly systems = inject(GameSystemPrefetchService);
   private readonly rollChecks = new Map<string, RollCheck>();
 
   /** Starts checking a text, for as long as its signals are read. */
@@ -103,7 +101,7 @@ export class ChatLintService {
   }
 
   private contextOf(source: ChatLintSource, scan: ChatSyntaxScan): ChatLintContext {
-    this.systemsArrived();
+    this.systems.arrivals();
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     this.objectChange.collectionOf(CutIn.aliasName)();
     this.objectChange.trackMyCursor();
@@ -205,11 +203,8 @@ export class ChatLintService {
    * last are the ones kept longest.
    */
   private rollCheck(gameType: string, text: string): RollCheck | null {
-    const system = DiceBot.loadedGameSystem(gameType) ?? this.fetched.get(gameType) ?? null;
-    if (!system) {
-      this.fetch(gameType);
-      return null;
-    }
+    const system = this.systems.systemFor(gameType);
+    if (!system) return null;
     const unreachable = DiceBot.isUnreachable(system);
     const key = `${system.ID}\u0000${unreachable ? '!' : ''}\u0000${text}`;
     const kept = this.rollChecks.get(key);
@@ -222,17 +217,6 @@ export class ChatLintService {
     this.rollChecks.set(key, check);
     if (this.rollChecks.size > ROLL_CHECKS_KEPT) this.rollChecks.delete(this.rollChecks.keys().next().value!);
     return check;
-  }
-
-  private fetch(gameType: string): void {
-    if (this.fetching.has(gameType)) return;
-    this.fetching.add(gameType);
-    void DiceBot.loadGameSystemAsync(gameType)
-      .then((system) => this.fetched.set(gameType, system))
-      .finally(() => {
-        this.fetching.delete(gameType);
-        this.systemsArrived.update((count) => count + 1);
-      });
   }
 
   private annotationsOf(scan: ChatSyntaxScan, context: ChatLintContext): ChatLintAnnotation[] {

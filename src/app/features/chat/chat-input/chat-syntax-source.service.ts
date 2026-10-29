@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { StampPackService } from '@axe/application/chat/stamp-pack.service';
+import { GameSystemPrefetchService } from '@axe/application/dice/game-system-prefetch.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -35,6 +36,7 @@ export class ChatSyntaxSourceService {
   private readonly language = inject(LanguageService);
   private readonly stampPacks = inject(StampPackService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly systems = inject(GameSystemPrefetchService);
 
   /**
    * What the speaker and the room offer. A game system not loaded yet offers no commands, and is
@@ -42,8 +44,7 @@ export class ChatSyntaxSourceService {
    */
   sourceFor(sendFrom: string, gameType: string): ChatSyntaxMenuSource {
     const speaker = this.speakerOf(sendFrom);
-    const system = DiceBot.loadedGameSystem(gameType);
-    if (!system) void DiceBot.loadGameSystemAsync(gameType);
+    const system = this.systems.systemFor(gameType);
     return {
       language: this.language.currentLang(),
       statuses: speaker ? resourceCatalogOf([speaker]) : [],
