@@ -6,6 +6,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { DiceTable } from '@axe/domain/dice/dice-table';
+import { CutIn } from '@axe/domain/media/cut-in';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -183,6 +184,23 @@ describe('ChatLintService', () => {
     } finally {
       table.destroy();
       loaded.mockRestore();
+    }
+  });
+
+  it('checks again as a cut-in starts from chat or no longer does', () => {
+    const cutIn = new CutIn();
+    cutIn.initialize();
+    cutIn.name = '爆発';
+    try {
+      const { session } = watch('行くぞ 爆発');
+      expect(session.annotations().map((annotation) => annotation.kind)).toEqual([]);
+
+      cutIn.chatActivate = true;
+      TestBed.inject(ObjectChangeService).notifyChanged(cutIn.identifier);
+
+      expect(session.annotations().map((annotation) => annotation.kind)).toEqual(['cutIn']);
+    } finally {
+      cutIn.destroy();
     }
   });
 

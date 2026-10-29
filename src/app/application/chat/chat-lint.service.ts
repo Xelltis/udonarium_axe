@@ -145,6 +145,7 @@ export class ChatLintService {
       (selectedPiece instanceof GameCharacter && selectedPiece.isVisibleOnTable);
     for (const target of targets) this.objectChange.versionOf(target.identifier)();
     const cutIns = this.objectStore.getObjects<CutIn>(CutIn);
+    for (const cutIn of cutIns) this.objectChange.versionOf(cutIn.identifier)();
     const tableCommands = this.diceTableCommands();
     const gameType = source.gameType();
     const path = typeof source.path === 'function' ? source.path() : source.path;
