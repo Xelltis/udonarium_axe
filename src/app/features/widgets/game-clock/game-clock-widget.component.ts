@@ -90,7 +90,7 @@ export class GameClockWidgetComponent {
    * field bound one way would not where the clock kept to its bounds and so stayed as it was.
    */
   protected changeDay(field: HTMLInputElement): void {
-    this.clock.setDay(+field.value);
+    if (field.value.trim().length > 0) this.clock.setDay(+field.value);
     field.value = `${this.clock.clock().day}`;
   }
 

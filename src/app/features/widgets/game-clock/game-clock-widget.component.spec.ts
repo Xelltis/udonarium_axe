@@ -86,7 +86,8 @@ describe('GameClockWidgetComponent', () => {
     };
 
     expect(change('game-clock-day-input', '0')).toBe('1');
-    expect(change('game-clock-day-input', '')).toBe('1');
+    expect(change('game-clock-day-input', '37')).toBe('37');
+    expect(change('game-clock-day-input', '')).toBe('37');
     expect(change('game-clock-periods', '')).toBe('');
     expect(change('game-clock-periods', ' , ,')).toBe('');
     expect(change('game-clock-day-format', '  ')).toBe('');
