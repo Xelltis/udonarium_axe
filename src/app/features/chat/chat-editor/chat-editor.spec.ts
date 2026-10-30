@@ -339,6 +339,14 @@ describe('the chat editor', () => {
     expect(editor.editor.state.doc.firstChild!.child(1).marks.map((mark) => mark.type.name)).toContain('chatBold');
   });
 
+  it('writes what is asked to go in plain outside the decoration it is written into', () => {
+    const editor = mount('**ab**');
+
+    editor.replaceRange(4, 4, ' :HP-1', undefined, true);
+
+    expect(editor.text()).toBe('**ab** :HP-1');
+  });
+
   it('writes what begins a line before the decoration the line starts with', () => {
     const editor = mount('**大事な話**');
 

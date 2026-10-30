@@ -26,13 +26,15 @@ export interface ChatSyntaxWriter {
   insert(text: string, select?: ChatFieldSelection): void;
   /**
    * Writes text as {@link insert} does, as a word of its own: after a space where the caret stands
-   * right after a letter, as a command is read only where it starts a word.
+   * right after a letter, and outside any decoration round the caret, as a command is read only
+   * where it starts a word.
    */
   word(text: string, select?: ChatFieldSelection): void;
   /**
-   * Writes text at the start of a line, where what begins one is read: the line the caret is on;
-   * the first line of the message, the only one the dice bot reads a roll from; or the start of the
-   * roll on it, after any count of repeats it starts with.
+   * Writes text at the start of a line, where what begins one is read, outside any decoration the
+   * line starts with: the line the caret is on; the first line of the message, the only one the
+   * dice bot reads a roll from; or the start of the roll on it, after any count of repeats it
+   * starts with.
    */
   prefix(text: string, line?: 'caret' | 'first' | 'roll'): void;
   /** Puts in a piece of syntax shown whole, at the caret or at the end of the message. */

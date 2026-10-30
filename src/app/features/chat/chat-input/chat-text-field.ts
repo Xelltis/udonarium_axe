@@ -54,8 +54,11 @@ export interface ChatTextField {
    * where `undoable` is false, as the box cleared once its line is sent.
    */
   setText(text: string, select?: ChatFieldSelection, undoable?: boolean): void;
-  /** Writes over a stretch of the text, the caret after what was written or the selection where given. */
-  replaceRange(from: number, to: number, insert: string, select?: ChatFieldSelection): void;
+  /**
+   * Writes over a stretch of the text, the caret after what was written or the selection where
+   * given; outside any decoration round it where asked to go in `plain`, as a command is.
+   */
+  replaceRange(from: number, to: number, insert: string, select?: ChatFieldSelection, plain?: boolean): void;
   focus(): void;
   hasFocus(): boolean;
   /** Fits the field to what it holds, unless the reader has sized it by hand. */

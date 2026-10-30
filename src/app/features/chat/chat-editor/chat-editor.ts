@@ -350,15 +350,16 @@ export class ChatEditorField implements ChatTextField {
    * than in the text it is written as, so the marks a decoration is written with at the edges of
    * the stretch stay where they are. It goes in as letters standing in for it, which nothing reads
    * as a mark, and then as the syntax it is, read again as typed syntax is. Written at the start of
-   * a line, as what begins one is, it goes in plain, before any decoration the line starts with.
+   * a line, as what begins one is, or asked to go in `plain`, as a command is, which a decoration
+   * round it would keep from being read, it goes in outside the decoration it is written into.
    */
-  replaceRange(from: number, to: number, insert: string, select?: ChatFieldSelection): void {
+  replaceRange(from: number, to: number, insert: string, select?: ChatFieldSelection, plain = false): void {
     const out = this.writtenNow();
     const start = out.toPos(from, from === to ? -1 : 1);
     const end = Math.max(start, out.toPos(to, -1));
     const standIn = STAND_IN_LETTER.repeat(insert.length);
     const tr = this.editor.state.tr.insertText(standIn, start, end);
-    if (tr.doc.resolve(start).parentOffset === 0) tr.removeMark(start, start + standIn.length);
+    if (plain || tr.doc.resolve(start).parentOffset === 0) tr.removeMark(start, start + standIn.length);
     const pick = select ?? { from: from + insert.length, to: from + insert.length };
     const docAt = (offset: number, assoc: -1 | 1): number => {
       if (offset >= from && offset <= from + insert.length) return start + (offset - from);

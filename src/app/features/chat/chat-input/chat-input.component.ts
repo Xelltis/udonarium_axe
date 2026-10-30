@@ -282,7 +282,7 @@ export class ChatInputComponent {
         const space = from > 0 && !/\s/.test(field.text()[from - 1]) ? ' ' : '';
         const at = from + space.length;
         const picked = select ? { from: at + select.from, to: at + select.to } : undefined;
-        field.replaceRange(from, to, space + text, picked);
+        field.replaceRange(from, to, space + text, picked, true);
       }),
     prefix: (text, line = 'caret') =>
       this.writeIntoField((field) => {
@@ -294,7 +294,7 @@ export class ChatInputComponent {
               ? readRollLine(rollableText(field.text().split('\n')[0])).rollFrom
               : 0;
         const shifted = (at: number) => (at < lineStart ? at : at + text.length);
-        field.replaceRange(lineStart, lineStart, text, { from: shifted(from), to: shifted(to) });
+        field.replaceRange(lineStart, lineStart, text, { from: shifted(from), to: shifted(to) }, true);
       }),
     chip: (chip, place) => this.writeIntoField((field) => field.insertChip(chip, place)),
   };
