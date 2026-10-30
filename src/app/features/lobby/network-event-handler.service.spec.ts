@@ -798,6 +798,19 @@ describe('NetworkEventHandlerService', () => {
         expect(PeerCursor.myCursor.imageIdentifier).toBe(DEFAULT_CURSOR_IMAGE_IDENTIFIER);
       });
 
+      it('puts the new account’s look in place of the one lent, where the login moves straight on to it', () => {
+        const other = 'https://cdn.discordapp.com/avatars/2/b.png';
+        PeerCursor.myCursor.name = DEFAULT_CURSOR_NAME;
+        account.set({ ...ACCOUNT, avatarUrl: AVATAR });
+        TestBed.tick();
+
+        account.set({ userId: 'acct_2', name: 'Mio', avatarUrl: other });
+        TestBed.tick();
+
+        expect(PeerCursor.myCursor.imageIdentifier).toBe(other);
+        expect(PeerCursor.myCursor.name).toBe('Mio');
+      });
+
       it('keeps off the icon of an account that chose its icon by hand in this browser before', () => {
         noteIconChosenByHand(ACCOUNT.userId);
 

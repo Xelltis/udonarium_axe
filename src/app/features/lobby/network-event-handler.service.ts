@@ -589,25 +589,34 @@ export class NetworkEventHandlerService {
 
   /**
    * Puts the account's name on the cursor where it still has the default, and its avatar where the
-   * icon is still the default and the account has never chosen one by hand in this browser. An icon
-   * found chosen already, as one picked before the login, counts as chosen by hand from then on, so
-   * the avatar does not come over it once a reload has taken it back to the default.
+   * icon is still the default and the account has never chosen one by hand in this browser. What is
+   * still as lent before, as when the login moves straight on to another account or to a new
+   * avatar, counts as the default. An icon found chosen already, as one picked before the login,
+   * counts as chosen by hand from then on, so the avatar does not come over it once a reload has
+   * taken it back to the default.
    */
   private lendAccountLook(account: { userId: string; name: string; avatarUrl: string | null }): void {
     const cursor = PeerCursor.myCursor;
     if (!cursor) return;
-    if (cursor.name === DEFAULT_CURSOR_NAME && account.name) {
+    const lent = this.lentLook;
+    const nameFree = cursor.name === DEFAULT_CURSOR_NAME || (lent.name !== '' && cursor.name === lent.name);
+    if (nameFree && account.name) {
       cursor.name = account.name;
-      this.lentLook.name = account.name;
+      lent.name = account.name;
     }
     const icon = cursor.imageIdentifier;
-    if (icon !== DEFAULT_CURSOR_IMAGE_IDENTIFIER) {
-      if (icon !== this.lentLook.imageIdentifier) noteIconChosenByHand(account.userId);
+    const iconLent = lent.imageIdentifier !== '' && icon === lent.imageIdentifier;
+    if (icon !== DEFAULT_CURSOR_IMAGE_IDENTIFIER && !iconLent) {
+      noteIconChosenByHand(account.userId);
       return;
     }
-    if (!account.avatarUrl || hasChosenIconByHand(account.userId)) return;
+    if (!account.avatarUrl || hasChosenIconByHand(account.userId)) {
+      if (iconLent) cursor.imageIdentifier = DEFAULT_CURSOR_IMAGE_IDENTIFIER;
+      lent.imageIdentifier = '';
+      return;
+    }
     cursor.imageIdentifier = this.imageStorage.add(account.avatarUrl).identifier;
-    this.lentLook.imageIdentifier = cursor.imageIdentifier;
+    lent.imageIdentifier = cursor.imageIdentifier;
   }
 
   /** Puts the defaults back on the cursor where it still has the account's name or avatar as lent. */
