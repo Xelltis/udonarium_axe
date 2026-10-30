@@ -272,16 +272,24 @@ describe('sending what is queued', () => {
   });
 
   it('waits while the channel is already holding a megabyte', () => {
-    const sent: Uint8Array[] = [];
-    const inner = stream();
-    inner.dataChannel = channel(1024 * 1024, sent);
-    inner.sendQueue.add(new Uint8Array([1]));
+    // On the clock the test owns: a channel that stays full has the queue try again for as long as
+    // anything runs, in the files after this one too.
+    vi.useFakeTimers();
+    try {
+      const sent: Uint8Array[] = [];
+      const inner = stream();
+      inner.dataChannel = channel(1024 * 1024, sent);
+      inner.sendQueue.add(new Uint8Array([1]));
 
-    inner.execQueue();
+      inner.execQueue();
 
-    expect(sent).toHaveLength(0);
-    expect(inner.sendQueue.size).toBe(1);
-    expect(inner.isQueuing).toBe(true);
+      expect(sent).toHaveLength(0);
+      expect(inner.sendQueue.size).toBe(1);
+      expect(inner.isQueuing).toBe(true);
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
   });
 
   it('waits on the clock rather than coming straight back to a full channel', () => {
