@@ -306,6 +306,23 @@ describe('the chat editor', () => {
     expect(editor.text()).not.toContain('sent');
   });
 
+  it('keeps a clear not to be undone so, though the same text is set again while the word is made', () => {
+    const editor = mount('');
+    type(editor, 'sent');
+    const view = editor.editor.view;
+    view.dispatch(closeHistory(view.state.tr));
+    const input = (view as unknown as { input: { composing: boolean } }).input;
+
+    input.composing = true;
+    editor.setText('', undefined, false);
+    editor.setText('');
+    input.composing = false;
+    (editor as unknown as { afterComposition(): void }).afterComposition();
+    editor.editor.commands.undo();
+
+    expect(editor.text()).toBe('');
+  });
+
   it('puts in nothing that waited on a word being made once the editor is taken down', () => {
     const told: string[] = [];
     const editor = mountChatEditor(parent, { text: 'sent', selection: { from: 0, to: 0 }, focused: false }, {

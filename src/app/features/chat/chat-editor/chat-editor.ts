@@ -299,12 +299,13 @@ export class ChatEditorField implements ChatTextField {
    * Puts the text in, read into decorated text and chips, changing only what differs from what the
    * editor holds, so its history and the caret's place survive. Text that arrives while a word is
    * being made with an input method waits until the word is made, and then goes in over it, the
-   * holder told what the box holds, as the word made has told it otherwise.
+   * holder told what the box holds, as the word made has told it otherwise; one of those not to be
+   * undone keeps the text that goes in so, whatever is set after it meanwhile.
    */
   setText(text: string, select?: ChatFieldSelection, undoable = true): void {
     const view = this.editor.view;
     if (view.composing) {
-      this.pendingText = { text, select, undoable };
+      this.pendingText = { text, select, undoable: undoable && (this.pendingText?.undoable ?? true) };
       return;
     }
     const state = this.editor.state;
