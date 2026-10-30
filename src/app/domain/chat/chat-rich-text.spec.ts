@@ -494,6 +494,14 @@ describe('chat-rich-text', () => {
       expect(read.toModel(12)).toEqual({ line: 1, offset: 0 });
     });
 
+    it('finds a place past what a line holds at its end, and one past the last line at the end of the text', () => {
+      const read = parseChatRichText('ab\n');
+      expect(read.toText({ line: 1, offset: 2 }, -1)).toBe(3);
+      expect(read.toText({ line: 1, offset: 2 }, 1)).toBe(3);
+      expect(read.toText({ line: 2, offset: 1 }, -1)).toBe(3);
+      expect(read.toText({ line: 0, offset: 5 }, -1)).toBe(2);
+    });
+
     it('goes there and back for every letter of a written text', () => {
       const written = serializeChatRichText(
         parseChatRichText('[赤]a**b**[/赤]{HP}\\**c').lines.map((line) => ({ segments: line.segments })),

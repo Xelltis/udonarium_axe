@@ -629,10 +629,11 @@ function richText(text: string, placed: readonly PlacedLine[]): ChatRichText {
     toText({ line, offset }, assoc = -1) {
       const units = placed[line]?.units ?? [];
       const start = starts[line] ?? text.length;
-      if (assoc < 0 && offset > 0) return start + units[Math.min(offset, units.length) - 1].to;
-      if (assoc < 0 && offset === 0) return start;
-      if (offset < units.length) return start + units[offset].from;
-      return start + (units.length > 0 && assoc < 0 ? units[units.length - 1].to : lineLength(line));
+      const at = Math.min(offset, units.length);
+      if (assoc < 0 && at > 0) return start + units[at - 1].to;
+      if (assoc < 0 && at === 0) return start;
+      if (at < units.length) return start + units[at].from;
+      return start + lineLength(line);
     },
     toModel(position, assoc = -1) {
       const line = Math.max(0, firstAbove(starts.length, (index) => starts[index] > position) - 1);
