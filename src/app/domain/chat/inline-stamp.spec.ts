@@ -3,6 +3,7 @@ import {
   inlineStampsAlone,
   inlineStampSites,
   inlineStampToken,
+  isInlineStampId,
   withInlineStampsAsWords,
 } from '@axe/domain/chat/inline-stamp';
 import { resourceCommandSites } from '@axe/domain/data/resource-command-words';
@@ -41,6 +42,12 @@ describe('inline stamps', () => {
       '［了解@:seal:ok］',
       '［**:seal:ok］',
       '［|字《じ》:seal:ok］',
+      '［絵:image:a**b］',
+      '［絵:image:x[赤]y］',
+      '［絵:image:a\\*b］',
+      '［絵:image:|字《じ》］',
+      '［絵:image:{HP}］',
+      '［絵:image:a@b］',
     ]) {
       expect(inlineStampSites(text)).toEqual([]);
     }
@@ -88,7 +95,14 @@ describe('inline stamps', () => {
   it('reads back a stamp of a picture known by its address, whose name leaves nothing', () => {
     const token = inlineStampToken('***', 'image:https://example.com/a.png');
     expect(inlineStampSites(token).map((site) => site.id)).toEqual(['image:https://example.com/a.png']);
-    expect(inlineStampSites(inlineStampToken('', 'image:***')).map((site) => site.id)).toEqual(['image:***']);
+    expect(inlineStampSites(inlineStampToken('', 'image:%%%')).map((site) => site.id)).toEqual(['image:%%%']);
+  });
+
+  it('writes no stamp of a picture whose identifier holds a mark the line would read', () => {
+    expect(isInlineStampId('image:abc')).toBe(true);
+    expect(isInlineStampId('seal:ok')).toBe(true);
+    expect(isInlineStampId('image:a**b')).toBe(false);
+    expect(isInlineStampId('image:a b')).toBe(false);
   });
 
   it('keeps its form through what is rewritten as a line is sent', () => {

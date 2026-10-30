@@ -24,7 +24,7 @@ import { stampLabel } from '@axe/application/chat/stamp-words';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { inlineStampToken } from '@axe/domain/chat/inline-stamp';
+import { inlineStampToken, isInlineStampId } from '@axe/domain/chat/inline-stamp';
 import { type ChatLintContext, lintChatSyntax } from '@axe/domain/chat-syntax/chat-lint';
 import { scanChatSyntax, type SyntaxKind } from '@axe/domain/chat-syntax/chat-syntax';
 import type { ChatEditorField, ChatEditorHost, ChatEditorStart } from '@axe/features/chat/chat-editor/chat-editor';
@@ -289,7 +289,7 @@ export class ChatLineEditorComponent {
 
   private putStamp(stampId: string): void {
     const field = this.field();
-    if (!field || !this.stampRules.allows('line', stampId)) return;
+    if (!field || !this.stampRules.allows('line', stampId) || !isInlineStampId(stampId)) return;
     const label = stampLabel(stampId, this.t, (imageIdentifier) => this.stampPacks.nameOf(imageIdentifier));
     field.insertChip({ kind: 'stamp', id: stampId, label, raw: inlineStampToken(label, stampId) }, 'caret');
     field.focus();

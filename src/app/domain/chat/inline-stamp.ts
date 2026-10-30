@@ -21,14 +21,25 @@ export interface InlineStampSite {
 /** The longest name kept in the written form. */
 const LABEL_REACH = 40;
 
-/** What a name may not hold: the form's own marks, what a sent line rewrites, and the marks of decorations and rubies. */
-const LABEL_BARRED = '［］:{}｛｝@＠*＊\\[\\]|｜《》\\\\';
+/**
+ * What an identifier may not hold: the form's brackets, what a sent line rewrites, and the marks of
+ * decorations and rubies. A room picture known by its address keeps its colons.
+ */
+const ID_BARRED = '［］{}｛｝@＠*＊\\[\\]|｜《》\\\\';
+
+/** What a name may not hold: what an identifier may not, and the colon that ends the name. */
+const LABEL_BARRED = `:${ID_BARRED}`;
+
+/** The identifier of a family there is, or of a room's picture. */
+const STAMP_ID = `(?:${STAMP_FAMILIES.join('|')}):[a-z0-9]+|image:[^${ID_BARRED}\\s]+`;
 
 /** `［name:id］`, the identifier of a family there is or of a room's picture. */
-export const INLINE_STAMP = new RegExp(
-  `［([^${LABEL_BARRED}\\s]{1,${LABEL_REACH}}):((?:${STAMP_FAMILIES.join('|')}):[a-z0-9]+|image:[^［］\\s]+)］`,
-  'g'
-);
+export const INLINE_STAMP = new RegExp(`［([^${LABEL_BARRED}\\s]{1,${LABEL_REACH}}):(${STAMP_ID})］`, 'g');
+
+/** Whether a stamp can be written inside a line: its identifier is read back as the stamp's own. */
+export function isInlineStampId(id: string): boolean {
+  return new RegExp(`^(?:${STAMP_ID})$`).test(id);
+}
 
 /** The stamps written inside a text, in the order they stand. */
 export function inlineStampSites(text: string): InlineStampSite[] {

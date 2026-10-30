@@ -51,7 +51,7 @@ import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { composeChatOutgoing, composeStampOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
-import { inlineStampsAlone, inlineStampToken } from '@axe/domain/chat/inline-stamp';
+import { inlineStampsAlone, inlineStampToken, isInlineStampId } from '@axe/domain/chat/inline-stamp';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
 import type { ChatDiagnostic } from '@axe/domain/chat-syntax/chat-lint';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -1188,7 +1188,7 @@ export class ChatInputComponent {
    * lets it be sent: a chip in the editor, its written form in the plain box.
    */
   private putStamp(stampId: string): void {
-    if (!this.canSpeak() || !this.stampRules.allows('line', stampId)) return;
+    if (!this.canSpeak() || !this.stampRules.allows('line', stampId) || !isInlineStampId(stampId)) return;
     const label = stampLabel(stampId, this.t, (imageIdentifier) => this.stampPacks.nameOf(imageIdentifier));
     this.writeIntoField((field) =>
       field.insertChip({ kind: 'stamp', id: stampId, label, raw: inlineStampToken(label, stampId) }, 'caret')
