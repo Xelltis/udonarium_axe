@@ -762,7 +762,7 @@ describe('ChatInputComponent', () => {
       expect(component.text).toBe('今日は**晴れ**');
     });
 
-    it('sends the one picked under the words in the box, as the send button sends them, and clears the box', async () => {
+    it('sends a stamp as a line of its own, leaving the words in the box', async () => {
       fixture.componentRef.setInput('canSpeak', true);
       fixture.detectChanges();
       component.text = 'いくぞ！';
@@ -770,15 +770,10 @@ describe('ChatInputComponent', () => {
 
       component.sendStamp('roll:critical');
 
-      expect(component.text).toBe('');
+      expect(component.text).toBe('いくぞ！');
       expect(await outgoing).toEqual(
-        expect.objectContaining({
-          text: 'いくぞ！',
-          gameSystem,
-          stamp: { id: 'roll:critical', words: expect.any(String) },
-        })
+        expect.objectContaining({ stamp: { id: 'roll:critical', words: expect.any(String) } })
       );
-      expect(DiceBot.gameSystemForLineAsync).toHaveBeenCalledWith(component.gameType, 'いくぞ！');
     });
 
     it('offers no stamps where the room does not let them be sent, and sends none it denies', () => {

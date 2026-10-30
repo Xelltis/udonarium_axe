@@ -49,7 +49,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatBubbleColors, chatBubbleOf, chatColorOf, DEFAULT_CHAT_COLOR } from '@axe/domain/chat/chat-color';
 import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
-import { composeChatOutgoing, composeStampOutgoing, OutgoingStamp } from '@axe/domain/chat/chat-outgoing';
+import { composeChatOutgoing, composeStampOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { inlineStampsAlone, inlineStampToken } from '@axe/domain/chat/inline-stamp';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
@@ -1140,11 +1140,8 @@ export class ChatInputComponent {
     return this.stampRules.allows('line', stampId) && stampOf(stampId) ? stampId : null;
   }
 
-  /**
-   * Sends what the box holds, with a stamp under it where one is given, and clears the box, the reply
-   * and the quote.
-   */
-  private sendDraft(stamp?: OutgoingStamp): void {
+  /** Sends what the box holds, and clears the box, the reply and the quote. */
+  private sendDraft(): void {
     if (!this.sendFrom.length) this.sendFrom = this.myPeer.identifier;
 
     this.chatHistory.push(this.text);
@@ -1159,7 +1156,6 @@ export class ChatInputComponent {
       replyTo: this.replyTarget()?.identifier ?? '',
       quoteOf: this.quoteTarget()?.identifier ?? '',
       toTicker: this.showsTickerSwitch() && this.sendsToTicker(),
-      ...(stamp ? { stamp } : {}),
     };
     DiceBot.gameSystemForLineAsync(this.gameType, draft.text).then((gameSystem) => {
       this.chat.emit(composeChatOutgoing({ ...draft, gameSystem }));
@@ -1191,18 +1187,13 @@ export class ChatInputComponent {
   }
 
   /**
-   * Sends a stamp, from whoever the box speaks as and to whoever it speaks to, in its colour. With
-   * words in the box it goes under them as one line, sent as the send button sends them, and the box
-   * is cleared; with the box empty it goes as a line of its own.
+   * Sends a stamp as a line of its own, from whoever the box speaks as and to whoever it speaks to,
+   * in its colour, as a line made of one stamp alone goes out.
    */
   sendStamp(stampId: string): void {
     if (!this.canSpeak() || !this.stampRules.allows('line', stampId)) return;
     const words = stampWords(stampId, this.t, (imageIdentifier) => this.stampPacks.nameOf(imageIdentifier));
     if (words.length < 1) return;
-    if (this.text.trim().length > 0) {
-      this.sendDraft({ id: stampId, words });
-      return;
-    }
     if (!this.sendFrom.length) this.sendFrom = this.myPeer.identifier;
     this.chat.emit(
       composeStampOutgoing(
