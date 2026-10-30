@@ -181,6 +181,21 @@ describe('the chat editor', () => {
     );
   });
 
+  it('breaks the line on Shift+Enter where Enter sends nothing, as in a palette', () => {
+    const editor = mountChatEditor(parent, { text: 'ab', selection: { from: 1, to: 1 }, focused: false }, {
+      ...host(),
+      mode: 'palette',
+    } as ChatEditorHost);
+    field = editor;
+    const view = editor.editor.view;
+
+    view.someProp('handleKeyDown', (handle) =>
+      handle(view, new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true }))
+    );
+
+    expect(editor.text()).toBe('a\nb');
+  });
+
   it('makes a decoration closed round a chip, as round any other text', () => {
     const editor = mount('');
 

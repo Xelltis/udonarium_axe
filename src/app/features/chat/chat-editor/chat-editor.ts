@@ -606,7 +606,10 @@ export class ChatEditorField implements ChatTextField {
     });
   }
 
-  /** The keys of the chat input: Enter sends, Shift+Enter breaks the line, and the host's own. */
+  /**
+   * The keys of the chat input: Enter sends where the host sends, Shift+Enter breaks the line
+   * wherever the editor stands, as a palette's box did, and the host's own.
+   */
   private keys(): Extension {
     const host = this.host;
     const unchip = () => this.unchipBeforeCaret();
@@ -616,6 +619,7 @@ export class ChatEditorField implements ChatTextField {
       addKeyboardShortcuts() {
         const shortcuts: Record<string, () => boolean> = {
           Backspace: unchip,
+          'Shift-Enter': () => this.editor.commands.splitBlock({ keepMarks: true }),
         };
         if (host.submit) {
           const submit = host.submit.bind(host);
@@ -623,7 +627,6 @@ export class ChatEditorField implements ChatTextField {
             if (!this.editor.view.composing) submit();
             return true;
           };
-          shortcuts['Shift-Enter'] = () => this.editor.commands.splitBlock({ keepMarks: true });
         }
         if (host.cancel) {
           const cancel = host.cancel.bind(host);
