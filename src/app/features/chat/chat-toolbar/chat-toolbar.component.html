@@ -95,9 +95,11 @@
         @for (size of sizes; track size) {
           <button type="button" [class]="chipClass" (click)="setSize(size)">{{ sizeLabel(size) }}</button>
         }
-        <button type="button" [class]="chipClass" (click)="setSize(null)">
-          {{ 'feature.chat.toolbar.normal' | transloco }}
-        </button>
+        @if (undecorates()) {
+          <button type="button" [class]="chipClass" data-testid="chat-toolbar-size-normal" (click)="setSize(null)">
+            {{ 'feature.chat.toolbar.normal' | transloco }}
+          </button>
+        }
       </div>
       <div class="text-ui-muted text-[11px]">{{ 'feature.chat.decoration.font' | transloco }}</div>
       <div class="flex flex-wrap gap-1">
@@ -106,9 +108,11 @@
             <span [class]="fontClasses[font]">{{ fontLabel(font) }}</span>
           </button>
         }
-        <button type="button" [class]="chipClass" (click)="setFont(null)">
-          {{ 'feature.chat.toolbar.normal' | transloco }}
-        </button>
+        @if (undecorates()) {
+          <button type="button" [class]="chipClass" data-testid="chat-toolbar-font-normal" (click)="setFont(null)">
+            {{ 'feature.chat.toolbar.normal' | transloco }}
+          </button>
+        }
       </div>
       <div class="text-ui-muted text-[11px]">{{ 'feature.chat.decoration.color' | transloco }}</div>
       <div class="grid grid-cols-6 gap-1">
@@ -123,9 +127,11 @@
           ></button>
         }
       </div>
-      <button type="button" [class]="rowClass" (click)="setColor(null)">
-        {{ 'feature.chat.toolbar.clearColor' | transloco }}
-      </button>
+      @if (undecorates()) {
+        <button type="button" [class]="rowClass" data-testid="chat-toolbar-color-clear" (click)="setColor(null)">
+          {{ 'feature.chat.toolbar.clearColor' | transloco }}
+        </button>
+      }
     }
     @case ('ruby') {
       <label class="flex flex-col gap-0.5">

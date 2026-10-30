@@ -114,6 +114,13 @@ export class ChatToolbarComponent {
   }));
 
   protected readonly active = computed(() => this.field()?.activeMarks() ?? null);
+
+  /**
+   * Whether the size, the font and the colour can be taken off from here: in the editor, which
+   * holds them as decorations, but not in the plain box, where they are written as tags this has
+   * no way to find the ends of.
+   */
+  protected readonly undecorates = computed(() => this.field()?.rich !== false);
   /** Whether the caret or the selection has a line through it or a size, a font or a colour, lighting the style button. */
   protected readonly styled = computed(() => {
     const marks = this.active();
