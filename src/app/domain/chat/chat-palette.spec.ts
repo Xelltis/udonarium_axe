@@ -432,6 +432,12 @@ describe('ChatPalette', () => {
     it('leaves a plain roll alone', () => {
       expect(textTargetsCharacter('2d6+3')).toBe(false);
     });
+
+    it('counts a secret command aimed at targets as aiming, as the command is carried out', () => {
+      expect(textTargetsCharacter('st&呪い-')).toBe(true);
+      expect(textTargetsCharacter('攻撃 st:HP-1')).toBe(true);
+      expect(textTargetsCharacter('S&W St&W')).toBe(false);
+    });
   });
 });
 

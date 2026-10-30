@@ -9,6 +9,7 @@ import { withInlineStampsAsSpaces } from '@axe/domain/chat/inline-stamp';
 import { isPaletteTabLine } from '@axe/domain/chat/palette-rows';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { createCalcPass, evaluateCalcElement } from '@axe/domain/data/data-element-calc-env';
+import { resourceCommandSites } from '@axe/domain/data/resource-command-words';
 import { looksLikeRollWord } from '@axe/domain/dice/dice-roll-line';
 
 export interface PaletteLine {
@@ -454,16 +455,12 @@ export function evaluateCharacterReferences(
 }
 
 /**
- * Whether the line is aimed at the pieces marked on the table. A stamp put inside the line ends a
- * word as a space does, so a targeted command right after one is read as starting a word.
+ * Whether the line is aimed at the pieces marked on the table: it names a status of theirs with a
+ * `t{}` reference, or holds a command aimed at them, read as the commands are carried out, a
+ * secret one and one a stamp put right before it starts among them.
  */
 export function textTargetsCharacter(line: string): boolean {
-  const text = withInlineStampsAsSpaces(line);
-  let istarget = !!text.match(/[tTｔＴ][{｛]\s*([^{}｛｝]+)\s*[}｝]/g);
-
-  if (text.match(/^[sSｓＳ]?[tTｔＴ][:：]([^:：]+)/g)) istarget = true;
-  if (text.match(/\s[sSｓＳ]?[tTｔＴ][:：]([^:：]+)/g)) istarget = true;
-  if (text.match(/^[tTｔＴ][&＆]([^&＆]+)/g)) istarget = true;
-  if (text.match(/\s[tTｔＴ][&＆]([^&＆]+)/g)) istarget = true;
-  return istarget;
+  if (/[tTｔＴ][{｛]\s*([^{}｛｝]+)\s*[}｝]/.test(withInlineStampsAsSpaces(line))) return true;
+  const words = resourceCommandSites(line);
+  return [...words.resources, ...words.buffs].some((site) => site.command.startsWith('t'));
 }

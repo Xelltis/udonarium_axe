@@ -100,11 +100,14 @@ export class ResourceEditProcessor {
       const words = resourceCommandSites(oneMessageTargetContext.text);
       if (words.secret) isSecret = true;
       for (const sweep of words.sweeps) buffSweeps.push(sweep.command);
+      const object = oneMessageTargetContext.object;
       for (const res of words.resources) {
-        resourceByCharacter.push({ resourceCommand: res.command, object: oneMessageTargetContext.object! });
+        if (object || !res.command.startsWith('t'))
+          resourceByCharacter.push({ resourceCommand: res.command, object: object! });
       }
       for (const buff of words.buffs) {
-        buffByCharacter.push({ buffCommand: buff.command, object: oneMessageTargetContext.object! });
+        if (object || !buff.command.startsWith('t'))
+          buffByCharacter.push({ buffCommand: buff.command, object: object! });
       }
     }
     return this.resourceEditProcess(

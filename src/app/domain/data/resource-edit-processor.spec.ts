@@ -311,6 +311,13 @@ describe('ResourceEditProcessor', () => {
         return (piece.buffDataElement?.children[0]?.children ?? []).map((data) => data.name);
       }
 
+      it('carries out no command aimed at targets that came with none, rather than failing', async () => {
+        await expect(
+          processor.checkResourceEditCommand(speak('st&毒-'), [{ text: 'st&毒-', object: null }])
+        ).resolves.toBeUndefined();
+        expect(names(character)).toEqual(['毒', '加速']);
+      });
+
       it('takes a buff of that name off every piece on the table for the game master, and says how many', async () => {
         PeerCursor.myCursor.role = PeerRole.GameMaster;
 
