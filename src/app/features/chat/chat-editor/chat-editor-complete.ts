@@ -1,3 +1,5 @@
+import { namableInResourceCommand } from '@axe/domain/data/resource-command-words';
+
 /** The names offered as a line is written, each by what it is written with. */
 export interface ChatCompletionWords {
   readonly statuses: readonly string[];
@@ -66,4 +68,3 @@ export function chatTriggerOptions(trigger: ChatTrigger, words: ChatCompletionWo
   const contains = names.filter((name) => !name.toLowerCase().startsWith(query) && name.toLowerCase().includes(query));
   return [...starts, ...contains];
 }
-import { namableInResourceCommand } from '@axe/domain/data/resource-command-words';

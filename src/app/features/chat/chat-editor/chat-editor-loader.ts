@@ -6,7 +6,8 @@ export type ChatEditorModule = typeof ChatEditor;
 
 /**
  * How long a text may be for its syntax to be coloured and checked: past it, the editor draws it
- * plain, and nothing reads it over at every key.
+ * plain, and neither colours nor checks it at every key, though it is still written out as it
+ * changes.
  */
 export const CHAT_HIGHLIGHT_LIMIT = 8000;
 
