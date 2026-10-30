@@ -37,6 +37,11 @@ describe('scanChatSyntax', () => {
     expect(textsOf(scan, 'stamp')).toEqual(['［笑:seal:ok］']);
   });
 
+  it('counts in the secret s of a command after a stamp, which ends a word as a space does', () => {
+    const scan = scanChatSyntax('［にこ:sfx:smile］s:HP-5');
+    expect(textsOf(scan, 'resource')).toEqual(['s:HP-5']);
+  });
+
   it('reads no roll from words of chat', () => {
     expect(textsOf(scanChatSyntax('1日目は休み'), 'roll')).toEqual([]);
     expect(textsOf(scanChatSyntax('こんにちは 2d6'), 'roll')).toEqual([]);
