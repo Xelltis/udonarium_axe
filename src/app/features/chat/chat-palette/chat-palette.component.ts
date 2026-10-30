@@ -156,7 +156,7 @@ export class ChatPaletteComponent {
     cutInNames: () => this.syntaxSource.chatCutInNames(),
     portraitImage: (raw) => this.syntaxSource.portraitImage(this.character()?.identifier ?? '', raw),
     translate: (key, params) => this.t(key, params),
-    stampHtml: (stampId) => this.syntaxSource.stampHtml(stampId),
+    stampHtml: (stampId, key) => this.syntaxSource.stampHtml(stampId, key),
   };
 
   /** Puts the editor into the edit area while the palette is being written, and takes it down after. */
@@ -430,6 +430,7 @@ export class ChatPaletteComponent {
       }
       const text = this.editPalette();
       if (text.length <= CHAT_HIGHLIGHT_LIMIT) this.paletteLint.annotations();
+      this.objectChange.fileVersion();
       untracked(() => {
         if (text === refreshedText) this.paletteEditor?.refreshSoon();
         else this.paletteEditor?.refresh(true);

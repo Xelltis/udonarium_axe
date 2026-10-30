@@ -112,9 +112,9 @@ export class ChatSyntaxSourceService {
   }
 
   /** A stamp put inside a line, as markup as tall as the letters, as the chat draws it; null for one not known. */
-  stampHtml(stampId: string): string | null {
+  stampHtml(stampId: string, key?: string): string | null {
     const view = stampViewOf(stampId, roomStampViewSource(this.t, this.imageStorage, this.stampPacks));
-    return view ? stampMarkup(stampId, view, 'inline') : null;
+    return view ? stampMarkup(stampId, view, 'inline', key) : null;
   }
 
   /** The picture a portrait command picks of the speaker's, as it would be when the line is sent; null where none. */

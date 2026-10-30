@@ -86,8 +86,11 @@ export interface ChatEditorHost {
   /** What the bar over a selection must not cover: the toolbar over the box. */
   toolbarElement?(): HTMLElement | null;
   readonly translate: TranslateFn;
-  /** A stamp put inside the line, drawn as markup as tall as the letters, as the chat draws it; null where it is not known. */
-  stampHtml?(stampId: string): string | null;
+  /**
+   * A stamp put inside the line, drawn as markup as tall as the letters, as the chat draws it; null
+   * where it is not known. A key keeps the markup of one chip the same from one drawing to the next.
+   */
+  stampHtml?(stampId: string, key?: string): string | null;
   /**
    * Told each time what will not work has been marked, once the reader pauses or as the room
    * changes, for whatever lists it to follow the marks rather than every key; or that nothing was,
@@ -116,6 +119,9 @@ const STAND_IN_LETTER = '\ue000';
 
 /** Marks the change that turned syntax just typed into its chip, which Backspace right after takes back. */
 const CHIP_MADE = 'chatChipMade';
+
+/** How many stamp chips have been drawn on the page, for each to be drawn under a key of its own. */
+let stampChipsMade = 0;
 
 /** How long after the last key the text is checked for what will not work. */
 const LINT_DELAY_MS = 300;
@@ -169,6 +175,8 @@ export class ChatEditorField implements ChatTextField {
   private pendingText: { text: string; select?: ChatFieldSelection; undoable: boolean } | null = null;
   /** Whether the paste coming is the one Ctrl+Shift+V asks for, to go in as the letters copied. */
   private pastePlain = false;
+  /** How each stamp chip in the editor is drawn again, for as long as it stands in it. */
+  private readonly stampChips = new Set<() => void>();
   /** The undo history, kept to hand so that a text put in not to be undone can start it afresh. */
   private readonly undoHistory = history();
   private readonly tip: HTMLElement;
@@ -518,22 +526,36 @@ export class ChatEditorField implements ChatTextField {
     this.marksNow.set(decorationOfMarks(common ?? []));
   }
 
-  /** The stamp chip, drawn as the host draws the stamp, or as its name where the host cannot. */
+  /**
+   * The stamp chip, drawn as the host draws the stamp, or as its name where the host cannot. Each is
+   * drawn under a key of its own, and drawn again as the syntax is coloured again where the host now
+   * draws it otherwise, as once the picture of a room's stamp has arrived.
+   */
   private stampChip() {
     const host = this.host;
     const page = this.parent.ownerDocument;
+    const drawn = this.stampChips;
     return ChatStamp.extend({
       addNodeView() {
         return ({ node }) => {
+          const id = String(node.attrs['id']);
+          const key = `chat-chip-${++stampChipsMade}`;
           const dom = page.createElement('span');
           dom.className = 'chat-chip-stamp';
           dom.setAttribute('data-chip', 'stamp');
-          dom.setAttribute('data-stamp-id', String(node.attrs['id']));
+          dom.setAttribute('data-stamp-id', id);
           dom.contentEditable = 'false';
-          const html = host.stampHtml?.(String(node.attrs['id']));
-          if (html) dom.innerHTML = html;
-          else dom.textContent = `［${String(node.attrs['label'])}］`;
-          return { dom };
+          let shown: string | null | undefined;
+          const draw = () => {
+            const html = host.stampHtml?.(id, key) ?? null;
+            if (html === shown) return;
+            shown = html;
+            if (html) dom.innerHTML = html;
+            else dom.textContent = `［${String(node.attrs['label'])}］`;
+          };
+          draw();
+          drawn.add(draw);
+          return { dom, destroy: () => drawn.delete(draw) };
         };
       },
     });
@@ -817,6 +839,7 @@ export class ChatEditorField implements ChatTextField {
       this.refreshAfterComposition = true;
       return;
     }
+    for (const draw of this.stampChips) draw();
     const session = this.host.session();
     const out = this.writtenNow();
     if (!session || out.text.length > CHAT_HIGHLIGHT_LIMIT) {

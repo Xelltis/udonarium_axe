@@ -472,7 +472,7 @@ export class ChatInputComponent {
     openRuby: () => this.toolbar()?.openRuby(),
     toolbarElement: () => this.hostElement.nativeElement.querySelector('[data-testid="chat-input-edits"]'),
     translate: (key, params) => this.t(key, params),
-    stampHtml: (stampId) => this.syntaxSource.stampHtml(stampId),
+    stampHtml: (stampId, key) => this.syntaxSource.stampHtml(stampId, key),
     linted: (marked) => {
       this.lintMarked.set({ marked });
       if (this.openPanel() === 'findings' && this.findings().length < 1) this.closePanel();
@@ -747,6 +747,7 @@ export class ChatInputComponent {
       if (!session || !field) return;
       const text = this._text();
       if (text.length <= CHAT_HIGHLIGHT_LIMIT) session.annotations();
+      this.objectChange.fileVersion();
       untracked(() => {
         if (field === refreshedField && text === refreshedText) field.refreshSoon();
         else field.refresh(field === refreshedField);

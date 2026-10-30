@@ -22,6 +22,7 @@ import { StampPackService } from '@axe/application/chat/stamp-pack.service';
 import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { stampLabel } from '@axe/application/chat/stamp-words';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { inlineStampToken } from '@axe/domain/chat/inline-stamp';
 import { type ChatLintContext, lintChatSyntax } from '@axe/domain/chat-syntax/chat-lint';
 import { scanChatSyntax, type SyntaxKind } from '@axe/domain/chat-syntax/chat-syntax';
@@ -70,6 +71,7 @@ const LINE_EDIT_ATTR = 'data-chat-line-edit';
 })
 export class ChatLineEditorComponent {
   private readonly preferences = inject(ChatPreferencesService);
+  private readonly objectChange = inject(ObjectChangeService);
   private readonly loader = inject(CHAT_EDITOR_LOADER);
   private readonly syntaxSource = inject(ChatSyntaxSourceService);
   private readonly stampPicker = inject(StampPickerService);
@@ -158,7 +160,7 @@ export class ChatLineEditorComponent {
     openRuby: () => this.toolbar()?.openRuby(),
     toolbarElement: () => this.host.nativeElement.querySelector('[data-testid="chat-line-edit-toolbar"]'),
     translate: (key, params) => this.t(key, params),
-    stampHtml: (stampId) => this.syntaxSource.stampHtml(stampId),
+    stampHtml: (stampId, key) => this.syntaxSource.stampHtml(stampId, key),
   };
 
   constructor() {
@@ -184,6 +186,7 @@ export class ChatLineEditorComponent {
       if (!field) return;
       const text = this.session.scan().text;
       this.session.diagnostics();
+      this.objectChange.fileVersion();
       untracked(() => {
         if (field === refreshedField && text === refreshedText) field.refreshSoon();
         else field.refresh(field === refreshedField);

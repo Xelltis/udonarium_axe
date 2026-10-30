@@ -138,6 +138,31 @@ describe('the chat editor', () => {
     expect(editor.text()).toBe('**強打** {HP}');
   });
 
+  it('draws a stamp again as it is checked again, once its picture has arrived', () => {
+    let picture: string | null = null;
+    const keys = new Set<string | undefined>();
+    const editor = mountChatEditor(
+      parent,
+      { text: '見て［絵:image:abc］', selection: { from: 0, to: 0 }, focused: false },
+      {
+        ...host(),
+        stampHtml: (_id: string, key?: string) => {
+          keys.add(key);
+          return picture;
+        },
+      } as ChatEditorHost
+    );
+    field = editor;
+    expect(parent.querySelector('[data-chip="stamp"]')?.textContent).toBe('［絵］');
+
+    picture = '<img alt="絵">';
+    editor.refresh(false);
+
+    expect(parent.querySelector('[data-chip="stamp"] img')).not.toBeNull();
+    expect(keys.size).toBe(1);
+    expect([...keys][0]).toBeTruthy();
+  });
+
   it('makes a decoration closed round a chip, as round any other text', () => {
     const editor = mount('');
 

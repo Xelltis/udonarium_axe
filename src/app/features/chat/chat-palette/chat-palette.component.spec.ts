@@ -730,6 +730,26 @@ describe('ChatPaletteComponent handing its text area over to the editor', () => 
     );
   });
 
+  it('colours the editor again as a picture arrives, for the stamps in it to be drawn', async () => {
+    const fixture = TestBed.createComponent(ChatPaletteComponent);
+    fixture.componentInstance.character.set(char);
+    fixture.detectChanges();
+    fixture.componentInstance.toggleEditMode();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    arrive({ mountChatEditor: mounted } as unknown as ChatEditorModule);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    TestBed.tick();
+    const field = mounted.mock.results[0].value as { refreshSoon: ReturnType<typeof vi.fn> };
+    field.refreshSoon.mockClear();
+
+    TestBed.inject(ObjectChangeService).fileVersion.update((version) => version + 1);
+    TestBed.tick();
+
+    expect(field.refreshSoon).toHaveBeenCalled();
+  });
+
   it('waits for a word being made in the text area to be made before the editor takes its place', async () => {
     const fixture = TestBed.createComponent(ChatPaletteComponent);
     fixture.componentInstance.character.set(char);

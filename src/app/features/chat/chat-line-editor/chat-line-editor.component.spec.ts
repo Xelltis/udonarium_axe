@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { CHAT_EDITOR_LOADER, type ChatEditorModule } from '@axe/features/chat/chat-editor/chat-editor-loader';
 import { ChatLineEditorComponent } from '@axe/features/chat/chat-line-editor/chat-line-editor.component';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
@@ -247,6 +248,17 @@ describe('ChatLineEditorComponent handing its plain box over to the editor', () 
         { text: 'こんばんは', selection: { from: 3, to: 3 }, focused: true },
         expect.anything()
       );
+    });
+
+    it('colours the editor again as a picture arrives, for the stamps in it to be drawn', async () => {
+      await openAndArrive();
+      const field = mounted.mock.results[0].value as { refreshSoon: ReturnType<typeof vi.fn> };
+      field.refreshSoon.mockClear();
+
+      TestBed.inject(ObjectChangeService).fileVersion.update((version) => version + 1);
+      TestBed.tick();
+
+      expect(field.refreshSoon).toHaveBeenCalled();
     });
 
     it('leaves the keys with another field the reader went to meanwhile', async () => {

@@ -930,6 +930,45 @@ describe('ChatInputComponent fetching the editor', () => {
     );
   });
 
+  it('colours the editor again as a picture arrives, for the stamps in it to be drawn', async () => {
+    let arrive!: (module: ChatEditorModule | null) => void;
+    loader.mockImplementation(
+      () =>
+        new Promise<ChatEditorModule | null>((resolve) => {
+          arrive = resolve;
+        })
+    );
+    const field = {
+      parent: null,
+      text: () => '',
+      selection: () => ({ from: 0, to: 0 }),
+      refresh: vi.fn(),
+      refreshSoon: vi.fn(),
+      followRoot: vi.fn(),
+      destroy: vi.fn(),
+      focus: vi.fn(),
+      hasFocus: () => false,
+      activeMarks: () => null,
+      setText: vi.fn(),
+      reconfigure: vi.fn(),
+      rich: true,
+    };
+    const fixture = TestBed.createComponent(ChatInputComponent);
+    fixture.componentRef.setInput('canSpeak', true);
+    fixture.detectChanges();
+    (fixture.nativeElement as HTMLElement).querySelector('textarea')!.dispatchEvent(new FocusEvent('focus'));
+    arrive({ mountChatEditor: () => field } as unknown as ChatEditorModule);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    TestBed.tick();
+    field.refreshSoon.mockClear();
+
+    TestBed.inject(ObjectChangeService).fileVersion.update((version) => version + 1);
+    TestBed.tick();
+
+    expect(field.refreshSoon).toHaveBeenCalled();
+  });
+
   it('fetches it at once as the box is first touched, without waiting for the page to have time to spare', () => {
     const fixture = TestBed.createComponent(ChatInputComponent);
     fixture.componentRef.setInput('canSpeak', true);
