@@ -325,6 +325,14 @@ describe('ChatPalette', () => {
         expect(evaluateCharacterReferences('choice[{加護},x]', guarded).text).toBe('choice[3,x]');
       });
 
+      it('lends the number in a roll that a stamp put right after it ends, as a space would', () => {
+        const guarded = wearing(makeCharacter(false), '&加護/防護3/3');
+
+        expect(evaluateCharacterReferences('2d6+{加護}［x:seal:ok］ 攻撃', guarded).text).toBe(
+          '2d6+3［x:seal:ok］ 攻撃'
+        );
+      });
+
       it('takes a note with no number as nought after an operator, and as nothing joined on', () => {
         const poisoned = wearing(wearing(makeCharacter(false), '&毒/苦しい/3'), '&加護/攻撃+0/3');
 
@@ -438,5 +446,13 @@ describe('paletteVariableSite', () => {
 
   it('answers null for a line that sets nothing', () => {
     expect(paletteVariableSite('2d6 //攻撃')).toBeNull();
+  });
+
+  describe('a line aimed at the pieces marked', () => {
+    it('is aimed by a targeted command a stamp put right before it starts, as a space would', () => {
+      expect(textTargetsCharacter('攻撃［いいね:seal:ok］t:HP-1')).toBe(true);
+      expect(textTargetsCharacter('攻撃［いいね:seal:ok］t&加護/防護+2/3')).toBe(true);
+      expect(textTargetsCharacter('攻撃t:HP-1')).toBe(false);
+    });
   });
 });

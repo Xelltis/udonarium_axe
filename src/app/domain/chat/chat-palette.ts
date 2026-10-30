@@ -5,6 +5,7 @@ import { toHalfWidth } from '@axe/core/util/string-util';
 import { parseBuffStrength } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { CHARACTER_REFERENCE, readReferenceName } from '@axe/domain/chat/chat-reference';
+import { withInlineStampsAsSpaces } from '@axe/domain/chat/inline-stamp';
 import { isPaletteTabLine } from '@axe/domain/chat/palette-rows';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { createCalcPass, evaluateCalcElement } from '@axe/domain/data/data-element-calc-env';
@@ -336,7 +337,7 @@ export function evaluateReferences(
   while (isContinue) {
     loop++;
     isContinue = false;
-    const line = evaluate;
+    const line = withInlineStampsAsSpaces(evaluate);
     evaluate = evaluate.replace(CHARACTER_REFERENCE, (match, raw: string, offset: number) => {
       const { name, useMax } = readReferenceName(raw);
       const filled = fillReference(match, name, useMax, formulaPlace(line, offset));
@@ -449,8 +450,12 @@ export function evaluateCharacterReferences(
   );
 }
 
-/** Whether the line is aimed at the pieces marked on the table. */
-export function textTargetsCharacter(text: string): boolean {
+/**
+ * Whether the line is aimed at the pieces marked on the table. A stamp put inside the line ends a
+ * word as a space does, so a targeted command right after one is read as starting a word.
+ */
+export function textTargetsCharacter(line: string): boolean {
+  const text = withInlineStampsAsSpaces(line);
   let istarget = !!text.match(/[tTｔＴ][{｛]\s*([^{}｛｝]+)\s*[}｝]/g);
 
   if (text.match(/^[sSｓＳ]?[tTｔＴ][:：]([^:：]+)/g)) istarget = true;
