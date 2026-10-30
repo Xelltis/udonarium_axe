@@ -97,6 +97,29 @@ export class ChatLintService {
     this.objectChange.trackMyCursor();
     return PeerCursor.isMyselfGameMaster;
   });
+  /**
+   * The names the pieces in the room go by, for the dice tokens put onto them: read again as any
+   * piece changes, but a change that leaves every name as it was checks no text again.
+   */
+  private readonly pieceNames = computed(
+    () => {
+      const pieces = this.trackedPieces();
+      return new Set(pieces.map((piece) => piece.name.trim()));
+    },
+    { equal: (a, b) => a.size === b.size && [...a].every((name) => b.has(name)) }
+  );
+
+  /** Whether an effect has a piece to fall on: a piece on the table targeted, or one selected. */
+  private readonly hasEffectTarget = computed(() => {
+    this.uiSignal.targetChange();
+    const pieces = this.trackedPieces();
+    const selected = this.selection.selectedObject();
+    const selectedPiece = selected ? this.objectStore.get(selected.identifier) : null;
+    return (
+      pieces.some((piece) => piece.isVisibleOnTable && piece.targeted) ||
+      (selectedPiece instanceof GameCharacter && selectedPiece.isVisibleOnTable)
+    );
+  });
   private readonly rollChecks = new Map<string, RollCheck>();
 
   /** Starts checking a text, for as long as its signals are read. */
@@ -128,6 +151,8 @@ export class ChatLintService {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     this.objectChange.collectionOf(CutIn.aliasName)();
     const isGameMaster = this.isGameMaster();
+    const pieceNames = this.pieceNames();
+    const hasEffectTarget = this.hasEffectTarget();
     this.uiSignal.targetChange();
     const presets = this.effectLibrary.presets();
 
@@ -137,11 +162,6 @@ export class ChatLintService {
     const speaker = found instanceof GameCharacter ? found : null;
     const pieces = this.objectStore.getObjects<GameCharacter>(GameCharacter);
     const targets = pieces.filter((piece) => piece.location.name === 'table' && piece.targeted);
-    const selected = this.selection.selectedObject();
-    const selectedPiece = selected ? this.objectStore.get(selected.identifier) : null;
-    const hasEffectTarget =
-      pieces.some((piece) => piece.isVisibleOnTable && piece.targeted) ||
-      (selectedPiece instanceof GameCharacter && selectedPiece.isVisibleOnTable);
     for (const target of targets) this.objectChange.versionOf(target.identifier)();
     const cutIns = this.objectStore.getObjects<CutIn>(CutIn);
     for (const cutIn of cutIns) this.objectChange.versionOf(cutIn.identifier)();
@@ -177,7 +197,7 @@ export class ChatLintService {
         const needle = name.trim();
         return presets.some((preset) => preset.name.trim() === needle && (!preset.gmOnly || isGameMaster));
       },
-      hasPieceNamed: (name: string) => pieces.some((piece) => piece.name.trim() === name.trim()),
+      hasPieceNamed: (name: string) => pieceNames.has(name.trim()),
       rollCheck: (message: TextRange) => {
         const line = scan().text.slice(message.from, message.to);
         if (tableCommands.has(rollableText(line).trim().split(/\s/)[0])) return null;
@@ -185,6 +205,14 @@ export class ChatLintService {
       },
       rolledText: (message: TextRange) => fill(scan().text.slice(message.from, message.to), targets[0]),
     };
+  }
+
+  /** The pieces in the room, each followed, so that what reads them is read again as any of them changes. */
+  private trackedPieces(): GameCharacter[] {
+    this.objectChange.collectionOf(GameCharacter.aliasName)();
+    const pieces = this.objectStore.getObjects<GameCharacter>(GameCharacter);
+    for (const piece of pieces) this.objectChange.versionOf(piece.identifier)();
+    return pieces;
   }
 
   /**

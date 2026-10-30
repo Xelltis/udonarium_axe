@@ -187,6 +187,38 @@ describe('ChatLintService', () => {
     }
   });
 
+  it('checks again as a piece is renamed to the name a dice token is put onto', () => {
+    const piece = GameCharacter.create('ゴブ', 1, '');
+    try {
+      const { session } = watch('2d6 dice:ゴブリン');
+      expect(codesOf(session)).toEqual(['diceToken.unknown']);
+
+      piece.name = 'ゴブリン';
+      TestBed.inject(ObjectChangeService).notifyChanged(piece.identifier);
+
+      expect(codesOf(session)).toEqual([]);
+    } finally {
+      piece.destroy();
+    }
+  });
+
+  it('checks again as the piece a battle is aimed at is put on the table or taken off it', () => {
+    const piece = GameCharacter.create('ゴブリン', 1, '');
+    piece.setLocation('graveyard');
+    piece.targeted = true;
+    try {
+      const { session } = watch('いくぞ《vs》');
+      expect(codesOf(session)).toEqual(['battle.noTarget']);
+
+      piece.setLocation('table');
+      TestBed.inject(ObjectChangeService).notifyChanged(piece.identifier);
+
+      expect(codesOf(session)).toEqual([]);
+    } finally {
+      piece.destroy();
+    }
+  });
+
   it('checks no roll in a line a dice table answers with a stamp put right after its command', () => {
     const system = { ID: 'FakeSystem', COMMAND_PATTERN: /^1d6T/i, eval: () => null };
     const loaded = vi
