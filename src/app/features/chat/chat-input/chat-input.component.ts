@@ -494,14 +494,16 @@ export class ChatInputComponent {
 
   /**
    * Fetches the editor once the page has drawn and has time to spare, or at once on the first touch
-   * of the box, for a reader who has it on.
+   * of the box, for a reader who has it on; none for a box taken away meanwhile.
    */
   protected requestEditor(soon = false): void {
     if (this.editorFetched || !this.chatPreferences.richInput()) return;
     if (soon) return this.fetchEditor();
     if (this.editorRequested) return;
     this.editorRequested = true;
-    const fetch = () => this.fetchEditor();
+    const fetch = () => {
+      if (!this.destroyRef.destroyed) this.fetchEditor();
+    };
     const view = this.hostElement.nativeElement.ownerDocument.defaultView;
     if (view?.requestIdleCallback) view.requestIdleCallback(fetch, { timeout: 2000 });
     else setTimeout(fetch, 200);

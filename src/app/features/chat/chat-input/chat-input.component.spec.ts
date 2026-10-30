@@ -908,6 +908,19 @@ describe('ChatInputComponent fetching the editor', () => {
     vi.restoreAllMocks();
   });
 
+  it('fetches no editor for a box taken away before the page had time to spare', () => {
+    const fixture = TestBed.createComponent(ChatInputComponent);
+    fixture.componentRef.setInput('canSpeak', true);
+    fixture.detectChanges();
+    const idle = window.requestIdleCallback as unknown as ReturnType<typeof vi.fn>;
+    expect(idle).toHaveBeenCalled();
+
+    fixture.destroy();
+    (idle.mock.calls[0][0] as () => void)();
+
+    expect(loader).not.toHaveBeenCalled();
+  });
+
   it('starts the editor where the caret stands as it is put in, after the editor arrived', async () => {
     let arrive!: (module: ChatEditorModule | null) => void;
     loader.mockImplementation(
