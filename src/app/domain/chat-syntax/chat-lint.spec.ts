@@ -204,6 +204,8 @@ describe('lintChatSyntax', () => {
 
     it('says a cut-in on a secret line does not start', () => {
       expect(codes('s:HP-1 爆発', { isChatCutIn: (name) => name === '爆発' })).toEqual(['cutIn.secret']);
+      expect(codes('S2d6 爆発', { isChatCutIn: () => true, secretRoll: () => true })).toEqual(['cutIn.secret']);
+      expect(codes('S2d6 爆発', { isChatCutIn: () => true, secretRoll: () => false })).toEqual([]);
     });
 
     it('says nothing of a last word no cut-in is named', () => {

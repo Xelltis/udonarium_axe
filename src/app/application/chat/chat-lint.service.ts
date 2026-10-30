@@ -22,7 +22,7 @@ import {
 } from '@axe/domain/chat-syntax/chat-syntax';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
-import { checkRollLine, rollableText, type RollCheck } from '@axe/domain/dice/dice-roll-line';
+import { checkRollLine, isSecretRollLine, rollableText, type RollCheck } from '@axe/domain/dice/dice-roll-line';
 import { DiceTable } from '@axe/domain/dice/dice-table';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -210,6 +210,11 @@ export class ChatLintService {
         return this.rollCheck(gameType, fill(line, targets[0]));
       },
       rolledText: (message: TextRange) => fill(scan().text.slice(message.from, message.to), targets[0]),
+      secretRoll: (message: TextRange) => {
+        const system = this.systems.systemFor(gameType);
+        const line = fill(scan().text.slice(message.from, message.to), targets[0]);
+        return system != null && isSecretRollLine(system, DiceBot.isUnreachable(system), line);
+      },
     };
   }
 

@@ -143,6 +143,36 @@ export function meantAsRollWord(word: string): boolean {
 }
 
 /**
+ * The line read the way a secret roll is looked for, {@link rollableText rollable} and in lower case
+ * with any repeat count taken off: null unless it then begins with `s`, and otherwise holding what
+ * follows it.
+ */
+export function secretRollMatch(text: string): RegExpExecArray | null {
+  const nonRepeatText = rollableText(text)
+    .toLowerCase()
+    .replace(/^(\d+)?\s+/, 'repeat1 ')
+    .replace(/^x(\d+)?\s+/, 'repeat1 ')
+    .replace(/repeat(\d+)?\s+/, '');
+  return /^s(.*)?/gi.exec(nonRepeatText);
+}
+
+/**
+ * Whether a line goes out as a secret roll, which hides it from all but its sender and starts no
+ * cut-in: after any repeat count it begins with `s`, and the system takes what follows for a
+ * command. Where the system's code could not be fetched, what follows has only to look like dice.
+ */
+export function isSecretRollLine(
+  system: Pick<RollCheckSystem, 'COMMAND_PATTERN'>,
+  unreachable: boolean,
+  text: string
+): boolean {
+  const match = secretRollMatch(text);
+  if (system.COMMAND_PATTERN) return !!(match && system.COMMAND_PATTERN.test(match[1]));
+  if (unreachable) return !!match && looksLikeDiceCommand(match[1] ?? '');
+  return false;
+}
+
+/**
  * Checks a line as the dice bot would roll it when sent: in half-width, with its repeat count taken
  * off, tested against the system's command pattern, and then rolled. A roll that would throw more
  * dice than the system can is not tried, as the system would only give up on it. Words that throw

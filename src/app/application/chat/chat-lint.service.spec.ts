@@ -299,6 +299,24 @@ describe('ChatLintService', () => {
     }
   });
 
+  it('says a cut-in at the end of a secret roll does not start, as the game system takes the roll', () => {
+    const system = { ID: 'FakeSystem', COMMAND_PATTERN: /^s?\d+d\d+/i, eval: () => ({ text: '(2D6) ＞ 7' }) };
+    const loaded = vi
+      .spyOn(DiceBot, 'loadedGameSystem')
+      .mockReturnValue(system as unknown as ReturnType<typeof DiceBot.loadedGameSystem>);
+    const cutIn = new CutIn();
+    cutIn.initialize();
+    cutIn.name = '爆発';
+    cutIn.chatActivate = true;
+    try {
+      expect(codesOf(watch('S2d6 爆発').session)).toEqual(['cutIn.secret']);
+      expect(codesOf(watch('Sこんにちは 爆発').session)).toEqual([]);
+    } finally {
+      cutIn.destroy();
+      loaded.mockRestore();
+    }
+  });
+
   it('reads the variables written into a palette being edited', () => {
     const { session } = watch('//強さ=3\n{強さ} 殴る\n{弱さ}', { path: 'palette', mode: 'palette' });
     expect(session.diagnostics().map((found) => [found.code, found.params?.['name']])).toEqual([

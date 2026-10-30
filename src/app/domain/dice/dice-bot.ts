@@ -32,7 +32,13 @@ import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { hasSecretEditMark, resourceCommandSites } from '@axe/domain/data/resource-command-words';
 import { DiceRollResult, ResourceEditProcessor } from '@axe/domain/data/resource-edit-processor';
 import { diceRollDetailOf, encodeDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
-import { looksLikeDiceCommand, readRollLine, rollableText } from '@axe/domain/dice/dice-roll-line';
+import {
+  isSecretRollLine,
+  looksLikeDiceCommand,
+  readRollLine,
+  rollableText,
+  secretRollMatch,
+} from '@axe/domain/dice/dice-roll-line';
 import { DiceTable } from '@axe/domain/dice/dice-table';
 import { ServerRollRequests } from '@axe/domain/dice/server-roll-requests';
 import { GameSystemInfo } from 'bcdice/lib/bcdice/game_system_list.json';
@@ -288,7 +294,7 @@ export class DiceBot extends GameObject {
    * the chat window tags the line, and could bring an `s` of its own.
    */
   private static mayBeSecretRoll(text: string): boolean {
-    return DiceBot.secretRollMatch(text) !== null || toHalfWidth(text).includes('{');
+    return secretRollMatch(text) !== null || toHalfWidth(text).includes('{');
   }
 
   /**
@@ -447,28 +453,7 @@ export class DiceBot extends GameObject {
    * command pattern has no secret lines.
    */
   checkSecretDiceCommand(gameSystem: GameSystemClass, chatText: string): boolean {
-    const regArray = DiceBot.secretRollMatch(chatText);
-    if (gameSystem.COMMAND_PATTERN) {
-      return !!(regArray && gameSystem.COMMAND_PATTERN.test(regArray[1]));
-    }
-    if (DiceBot.isUnreachable(gameSystem)) {
-      return !!regArray && looksLikeDiceCommand(regArray[1] ?? '');
-    }
-    return false;
-  }
-
-  /**
-   * The line read the way a secret roll is looked for, {@link rollableText rollable} and in lower
-   * case with any repeat count taken off: null unless it then begins with `s`, and otherwise holding
-   * what follows it.
-   */
-  private static secretRollMatch(chatText: string): RegExpExecArray | null {
-    const text: string = rollableText(chatText).toLowerCase();
-    const nonRepeatText = text
-      .replace(/^(\d+)?\s+/, 'repeat1 ')
-      .replace(/^x(\d+)?\s+/, 'repeat1 ')
-      .replace(/repeat(\d+)?\s+/, '');
-    return /^s(.*)?/gi.exec(nonRepeatText);
+    return isSecretRollLine(gameSystem, DiceBot.isUnreachable(gameSystem), chatText);
   }
 
   /**

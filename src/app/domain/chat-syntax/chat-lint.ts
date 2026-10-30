@@ -114,6 +114,8 @@ export interface ChatLintContext {
   rollCheck(message: TextRange): RollCheck | null;
   /** What a message is rolled as, its references filled in; the message as typed where this is not told. */
   rolledText?(message: TextRange): string;
+  /** Whether a message goes out as a secret roll, its references filled in; not where this is not told. */
+  secretRoll?(message: TextRange): boolean;
   /** Whether the room lets a stamp be sent in a line; every stamp where this is not told. */
   stampAllowed?(stampId: string): boolean;
   /**
@@ -226,7 +228,9 @@ function lintMessage(
       case 'cutIn':
         if (portraitFound || !context.isChatCutIn(span.name)) break;
         if (targeting) add(span, 'warning', 'cutIn.lostByTarget', { params: { name: span.name } });
-        else if (hasSecretEditMark(text)) add(span, 'info', 'cutIn.secret', { params: { name: span.name } });
+        else if (hasSecretEditMark(text) || context.secretRoll?.(message)) {
+          add(span, 'info', 'cutIn.secret', { params: { name: span.name } });
+        }
         break;
       case 'effect':
         if (span.name.length < 1) {
