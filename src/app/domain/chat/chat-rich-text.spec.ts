@@ -381,6 +381,40 @@ describe('chat-rich-text', () => {
       expect(parsePortraitCommand(bold)).toEqual({ type: 'name', name: '笑顔' });
       expect(red).toBe('[赤]行くぞ[/赤] 爆発');
     });
+
+    it('closes the marks before the stamps round the command read off the end of the line', () => {
+      const write = (segments: ChatRichSegment[]) => serializeChatRichText([{ segments }], { language: 'ja' }).text;
+      const portrait = { kind: 'portrait', command: { type: 'name', name: '笑顔' }, raw: '@笑顔' } as const;
+      const stamp = { kind: 'stamp', id: 'seal:ok', label: '了解', raw: '［了解:seal:ok］' } as const;
+
+      const after = write([
+        { kind: 'text', text: 'hello ', marks: BOLD },
+        { ...portrait, marks: BOLD },
+        { kind: 'text', text: ' ', marks: null },
+        { ...stamp, marks: null },
+      ]);
+      const round = write([
+        { kind: 'text', text: 'hello', marks: BOLD },
+        { ...stamp, marks: BOLD },
+        { ...portrait, marks: BOLD },
+        { ...stamp, marks: BOLD },
+      ]);
+
+      expect(after).toBe('**hello** @笑顔 ［了解:seal:ok］');
+      expect(parsePortraitCommand(after)).toEqual({ type: 'name', name: '笑顔' });
+      expect(parsePortraitCommand(round)).toEqual({ type: 'name', name: '笑顔' });
+    });
+
+    it('leaves the marks on stamps that end a line with no command read off it', () => {
+      const stamp = { kind: 'stamp', id: 'seal:ok', label: '了解', raw: '［了解:seal:ok］' } as const;
+      const line: ChatRichLine = {
+        segments: [
+          { kind: 'text', text: 'hello ', marks: BOLD },
+          { ...stamp, marks: BOLD },
+        ],
+      };
+      expect(serializeChatRichText([line], { language: 'ja' }).text).toBe('**hello ［了解:seal:ok］**');
+    });
   });
 
   describe('palettes', () => {

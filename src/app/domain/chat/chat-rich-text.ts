@@ -358,20 +358,20 @@ interface Written {
 
 /**
  * The segments of a line with the commands read off its end, the chips that pick a portrait or
- * start a cut-in there, taken out of every mark along with the spaces round them: a mark closed
- * after one would be read as part of its name, and one closed right before it would leave it no
- * space to start after.
+ * start a cut-in there, taken out of every mark along with the spaces and the stamps round them,
+ * which are read as spaces: a mark closed after one would be read as part of its name, and one
+ * closed right before it would leave it no space to start after.
  */
 function withPlainLineEnd(segments: readonly ChatRichSegment[]): ChatRichSegment[] {
   let from = segments.length;
   for (let index = segments.length - 1; index >= 0; index--) {
     const segment = segments[index];
     const isSpace = segment.kind === 'text' && segment.text.trim().length < 1;
-    if (!isSpace && segment.kind !== 'portrait' && segment.kind !== 'cutIn') break;
+    if (!isSpace && segment.kind !== 'stamp' && segment.kind !== 'portrait' && segment.kind !== 'cutIn') break;
     from = index;
   }
   const tail = segments.slice(from);
-  if (!tail.some((segment) => segment.kind !== 'text')) return [...segments];
+  if (!tail.some((segment) => segment.kind === 'portrait' || segment.kind === 'cutIn')) return [...segments];
   const head = segments.slice(0, from);
   const last = head.at(-1);
   const space = last?.kind === 'text' ? (/\s+$/.exec(last.text)?.[0] ?? '') : '';
