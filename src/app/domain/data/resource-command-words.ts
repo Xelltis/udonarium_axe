@@ -18,11 +18,26 @@ export interface ResourceCommandWords {
 }
 
 /**
- * The `s` that makes a command secret: before a resource command in either case, and before a buff
- * in lower case alone, so that words such as `S&W` stay words.
+ * What follows the ampersand of a buff command an `s` before it keeps secret: a buff laid with its
+ * fields, one taken off, rounds moved, the buffs at nought cleared, or one that moves statuses. A
+ * bare name is not, as `s&p` reads as a word as well.
  */
-const SECRET_MARK = /\s(?:[sSｓＳ][tTｔＴ]?[:：]|[sｓ][tTｔＴ]?[&＆])/;
-const SECRET_PREFIX = /(\s)(?:[sSｓＳ](?=[tTｔＴ]?[:：])|[sｓ](?=[tTｔＴ]?[&＆]))/g;
+const SECRET_BUFF_SHAPE = String.raw`(?:[+＋]{0,2}[!！]|[RrＲｒ][-+＋－](?=\s|$)|[DdＤｄ](?=\s|$)|\S*[/／]|\S*[-－](?=\s|$))`;
+
+/**
+ * The `s` that makes a command secret: before a resource command in either case, and before a buff
+ * command in lower case alone, so that words such as `S&W` and `s&p` stay words.
+ */
+const SECRET_MARK = new RegExp(String.raw`\s(?:[sSｓＳ][tTｔＴ]?[:：]|[sｓ][tTｔＴ]?[&＆]${SECRET_BUFF_SHAPE})`);
+const SECRET_PREFIX = new RegExp(
+  String.raw`(\s)(?:[sSｓＳ](?=[tTｔＴ]?[:：])|[sｓ](?=[tTｔＴ]?[&＆]${SECRET_BUFF_SHAPE}))`,
+  'g'
+);
+
+/** Whether what follows an ampersand is a buff command an `s` before the ampersand keeps secret. */
+export function secretBuffFollows(afterAmpersand: string): boolean {
+  return new RegExp(`^${SECRET_BUFF_SHAPE}`).test(afterAmpersand);
+}
 
 /**
  * Whether a line holds a secret resource or buff command: an `s:`, `st:`, `s&` or `st&` that starts a

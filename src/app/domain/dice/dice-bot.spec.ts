@@ -587,6 +587,7 @@ describe('DiceBot', () => {
 
     it('leaves a word such as S&W alone, as no secret buff', () => {
       expect(DiceBot.deleteMyselfResourceBuff('射撃 S&W M36 s&毒/1/3')).toBe('射撃 S&W M36 ');
+      expect(DiceBot.deleteMyselfResourceBuff('I bought s&p 500 s&毒-')).toBe('I bought s&p 500 ');
     });
 
     it('keeps a stamp whole, and takes it as ending a command as a space does', () => {

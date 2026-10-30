@@ -76,6 +76,19 @@ describe('resourceCommandSites', () => {
     expect(resourceCommandSites('S:HP-1').secret).toBe(true);
   });
 
+  it('takes s& as a secret buff only where a buff command follows, leaving a word such as s&p a word', () => {
+    const word = resourceCommandSites('I bought s&p 500 today');
+    expect(word.buffs).toEqual([]);
+    expect(word.secret).toBe(false);
+    expect(hasSecretEditMark('I bought s&p 500 today')).toBe(false);
+
+    for (const command of ['s&毒/1/3', 's&毒-', 's&R-', 's&D', 's&!猛攻/攻撃+2/3', 's&+猛攻/攻撃+2/3', 'st&呪い-']) {
+      const read = resourceCommandSites(command);
+      expect(read.buffs, command).toHaveLength(1);
+      expect(read.secret, command).toBe(true);
+    }
+  });
+
   it('takes a secret command written right after a stamp as secret', () => {
     const line = '［にこ:sfx:smile］s:HP-5';
 

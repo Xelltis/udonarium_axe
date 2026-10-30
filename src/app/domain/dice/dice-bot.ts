@@ -29,8 +29,8 @@ import { toHalfWidth } from '@axe/core/util/string-util';
 import { answerColorsOf } from '@axe/domain/chat/chat-color';
 import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { inlineStampSites } from '@axe/domain/chat/inline-stamp';
-import { hasSecretEditMark } from '@axe/domain/data/resource-command-words';
+import { inlineStampSites, withInlineStampsAsSpaces } from '@axe/domain/chat/inline-stamp';
+import { hasSecretEditMark, secretBuffFollows } from '@axe/domain/data/resource-command-words';
 import { DiceRollResult, ResourceEditProcessor } from '@axe/domain/data/resource-edit-processor';
 import { diceRollDetailOf, encodeDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
 import { looksLikeDiceCommand, readRollLine, rollableText } from '@axe/domain/dice/dice-roll-line';
@@ -426,6 +426,7 @@ export class DiceBot extends GameObject {
     let deleteCommand = false;
     const chars: string[] = [];
     const stamps = new Map(inlineStampSites(str).map((site) => [site.from, site.to]));
+    const unstamped = withInlineStampsAsSpaces(str);
     for (let i = 0; i < str.length; i++) {
       const chktext: string = str[i];
       const stampEnd = stamps.get(i);
@@ -440,7 +441,8 @@ export class DiceBot extends GameObject {
       }
 
       const secretMark = /[sSｓＳ]/.test(chktext) && /[:：]/.test(str[i + 1] ?? '');
-      const secretBuffMark = /[sｓ]/.test(chktext) && /[&＆]/.test(str[i + 1] ?? '');
+      const secretBuffMark =
+        /[sｓ]/.test(chktext) && /[&＆]/.test(str[i + 1] ?? '') && secretBuffFollows(unstamped.slice(i + 2));
       if (beforeIsSpace && (secretMark || secretBuffMark)) {
         beforeIsSpace = false;
         beforeIsT = false;
