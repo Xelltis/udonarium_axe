@@ -1124,6 +1124,7 @@ export class ChatInputComponent {
       this.text = '';
       this.textField()?.setText('', undefined, false);
       this.previousWritingLength = 0;
+      this.kickCalcFitHeight();
       this.sendStamp(lone);
       return;
     }
