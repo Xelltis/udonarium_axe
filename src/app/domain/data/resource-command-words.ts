@@ -34,11 +34,6 @@ const SECRET_PREFIX = new RegExp(
   'g'
 );
 
-/** Whether what follows an ampersand is a buff command an `s` before the ampersand keeps secret. */
-export function secretBuffFollows(afterAmpersand: string): boolean {
-  return new RegExp(`^${SECRET_BUFF_SHAPE}`).test(afterAmpersand);
-}
-
 /**
  * Whether a line holds a secret resource or buff command: an `s:`, `st:`, `s&` or `st&` that starts a
  * word, a stamp put inside the line ending a word as a space does.

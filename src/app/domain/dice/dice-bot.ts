@@ -29,8 +29,8 @@ import { toHalfWidth } from '@axe/core/util/string-util';
 import { answerColorsOf } from '@axe/domain/chat/chat-color';
 import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { inlineStampSites, withInlineStampsAsSpaces } from '@axe/domain/chat/inline-stamp';
-import { hasSecretEditMark, secretBuffFollows } from '@axe/domain/data/resource-command-words';
+import { withInlineStampsAsSpaces } from '@axe/domain/chat/inline-stamp';
+import { hasSecretEditMark, resourceCommandSites } from '@axe/domain/data/resource-command-words';
 import { DiceRollResult, ResourceEditProcessor } from '@axe/domain/data/resource-edit-processor';
 import { diceRollDetailOf, encodeDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
 import { looksLikeDiceCommand, readRollLine, rollableText } from '@axe/domain/dice/dice-roll-line';
@@ -414,87 +414,24 @@ export class DiceBot extends GameObject {
    * aimed at a target.
    *
    * A line sent to several targets is repeated for each, and only the first copy should change the
-   * speaker's own sheet. A `:` or `&` command runs to the next space and is removed unless it
-   * follows a `t`; one after an `s` alone, a secret one for the speaker, is removed with its `s`.
-   * A stamp put inside the line is kept whole and ends a command as a space does, as the commands
-   * are read.
+   * speaker's own sheet. What is taken out is what the line is read to carry out, so the copy holds
+   * the same aimed commands: each `:` or `&` command that does not follow a `t`, with the `s` that
+   * makes it secret, and each `&&` sweep. Everything else is kept as it was written, a stamp put
+   * inside the line among it.
    */
   static deleteMyselfResourceBuff(str: string): string {
-    let beforeIsSpace = true;
-    let beforeIsT = false;
-    let tCommand = false;
-    let deleteCommand = false;
-    const chars: string[] = [];
-    const stamps = new Map(inlineStampSites(str).map((site) => [site.from, site.to]));
     const unstamped = withInlineStampsAsSpaces(str);
-    for (let i = 0; i < str.length; i++) {
-      const chktext: string = str[i];
-      const stampEnd = stamps.get(i);
-      if (stampEnd !== undefined) {
-        chars.push(str.slice(i, stampEnd));
-        i = stampEnd - 1;
-        beforeIsSpace = true;
-        beforeIsT = false;
-        deleteCommand = false;
-        tCommand = false;
-        continue;
-      }
-
-      const secretMark = /[sSｓＳ]/.test(chktext) && /[:：]/.test(str[i + 1] ?? '');
-      const secretBuffMark =
-        /[sｓ]/.test(chktext) && /[&＆]/.test(str[i + 1] ?? '') && secretBuffFollows(unstamped.slice(i + 2));
-      if (beforeIsSpace && (secretMark || secretBuffMark)) {
-        beforeIsSpace = false;
-        beforeIsT = false;
-        deleteCommand = true;
-        tCommand = false;
-        continue;
-      }
-
-      if (beforeIsSpace && chktext.match(/[tTｔＴ]/)) {
-        beforeIsSpace = false;
-        beforeIsT = true;
-        deleteCommand = false;
-        tCommand = false;
-        chars.push(str[i]);
-        continue;
-      }
-
-      if (beforeIsT && chktext.match(/[:：&＆]/)) {
-        beforeIsSpace = false;
-        beforeIsT = false;
-        deleteCommand = false;
-        tCommand = true;
-        chars.push(str[i]);
-        continue;
-      }
-
-      if ((tCommand || beforeIsSpace || deleteCommand) && chktext.match(/[:：&＆]/)) {
-        beforeIsSpace = false;
-        beforeIsT = false;
-        deleteCommand = true;
-        tCommand = false;
-        continue;
-      }
-
-      if (chktext.match(/\s/)) {
-        beforeIsSpace = true;
-        beforeIsT = false;
-        deleteCommand = false;
-        tCommand = false;
-        chars.push(str[i]);
-        continue;
-      } else {
-        beforeIsSpace = false;
-      }
-
-      if (deleteCommand) {
-        continue;
-      }
-
-      chars.push(str[i]);
+    const words = resourceCommandSites(str);
+    const own = [...words.resources, ...words.buffs]
+      .filter((site) => !site.command.startsWith('t'))
+      .concat(words.sweeps)
+      .sort((a, b) => b.from - a.from);
+    let kept = str;
+    for (const site of own) {
+      const secret = /[sSｓＳ]/.test(str[site.from - 1] ?? '') && /^\s?$/.test(unstamped[site.from - 2] ?? '');
+      kept = kept.slice(0, secret ? site.from - 1 : site.from) + kept.slice(site.to);
     }
-    return chars.join('');
+    return kept;
   }
 
   /**

@@ -594,6 +594,14 @@ describe('DiceBot', () => {
       expect(DiceBot.deleteMyselfResourceBuff('t:HP-3 ［にこ:sfx:smile］:MP-1')).toBe('t:HP-3 ［にこ:sfx:smile］');
       expect(DiceBot.deleteMyselfResourceBuff(':MP-1［にこ:sfx:smile］ 行くぞ')).toBe('［にこ:sfx:smile］ 行くぞ');
     });
+
+    it('takes a sweep out of the copy as the line reads it, its s in either case', () => {
+      expect(DiceBot.deleteMyselfResourceBuff('t:HP-1 S&&毒-')).toBe('t:HP-1 ');
+    });
+
+    it('keeps a colon or an ampersand that starts no command', () => {
+      expect(DiceBot.deleteMyselfResourceBuff('A : B & C t:HP-1')).toBe('A : B & C t:HP-1');
+    });
   });
 
   describe('a system whose chunk cannot be fetched', () => {
