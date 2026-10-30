@@ -37,7 +37,7 @@ import { OUT_OF_STORY_TAG } from '@axe/domain/chat/constants';
 import { dieRollTag } from '@axe/domain/chat/die-roll-tag';
 import { inlineStampSites } from '@axe/domain/chat/inline-stamp';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
-import { joinStampLine } from '@axe/domain/chat/stamp-line';
+import { joinStampLine, standInForStamp } from '@axe/domain/chat/stamp-line';
 import { DEFAULT_NOTICE_PLACE, NOTICE_OFF, noticeRouteOf, SystemNoticeKind } from '@axe/domain/chat/system-notices';
 import { DataElement } from '@axe/domain/data/data-element';
 import { encodeDiceLook } from '@axe/domain/dice/dice-3d/dice-look';
@@ -432,9 +432,12 @@ export class ChatMessageService {
    * version does not know, or the room does not let be sent, is written as its name, and the
    * pictures from the room's sets among its attachments follow the stamps it now holds, those it
    * no longer holds going with them, those the room has stopped since among them. A picture
-   * attached by hand stays, and so does that of a stamp under the line.
+   * attached by hand stays, and so does that of a stamp under the line. For a line with a stamp
+   * under it, the text is what was said with the stamp, the words standing in for it kept as the
+   * last line.
    */
   editMessage(message: ChatMessage, text: string, staging: string, at: number): void {
+    if (message.sentStamp) text = joinStampLine(text, standInForStamp(message.text ?? ''));
     const stamped = this.inlineStampsGoingOut(text);
     const under = stampOf(message.stamp ?? '');
     const kept = under?.kind === 'image' ? under.imageIdentifier : null;

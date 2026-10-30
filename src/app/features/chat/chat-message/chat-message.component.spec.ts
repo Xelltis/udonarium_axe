@@ -1924,6 +1924,23 @@ describe('ChatMessageComponent', () => {
       expect(message.versions.map((version) => version.text)).toEqual(['こんばんわ', 'こんばんは']);
     });
 
+    it('edits only what was said with a stamp under the line, the words standing in for it kept', async () => {
+      const message = shown('me', 'いくぞ\n［了解］');
+      message.stamp = 'seal:ok';
+
+      component.startEdit();
+      expect(component.editDraft()).toBe('いくぞ');
+      component.saveEdit();
+      await settle();
+      expect(message.versions).toEqual([]);
+
+      component.startEdit();
+      component.editDraft.set('いくぞ！');
+      component.saveEdit();
+      await settle();
+      expect(message.text).toBe('いくぞ！\n［了解］');
+    });
+
     it('writes nothing for a line saved as it was, though a stamp in it is one the room has stopped since', async () => {
       const message = shown('me', 'まずは［ドッ:sfx:boom］');
       Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['sfx:boom'], false);

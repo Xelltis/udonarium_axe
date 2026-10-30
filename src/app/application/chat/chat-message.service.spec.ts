@@ -395,6 +395,17 @@ describe('ChatMessageService', () => {
         expect(message.attachmentImageIdentifierList).toEqual(['stamp-picture']);
       });
 
+      it('rewrites what was said with a stamp under the line, keeping the words standing in for the stamp', () => {
+        const message = said('hello');
+        message.text = 'hello\n［了解］';
+        message.stamp = 'seal:ok';
+
+        TestBed.inject(ChatMessageService).editMessage(message, 'hello world', '', 2000);
+
+        expect(message.text).toBe('hello world\n［了解］');
+        expect(message.saidWithStamp).toBe('hello world');
+      });
+
       it('lets go the picture of a stamp the room has stopped since, which goes out as its name', () => {
         const service = TestBed.inject(ChatMessageService);
         const message = said('これ［絵:image:stamp-picture］');

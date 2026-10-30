@@ -21,6 +21,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { saidWithStamp } from '@axe/domain/chat/stamp-line';
 import {
   encodeVnEmote,
   VN_BUBBLE_ANIMATIONS,
@@ -277,7 +278,8 @@ export class VisualNovelBacklogComponent {
     if (!this.canEdit(entry.message)) return;
     const raw = entry.message.text ?? '';
     const parsed = vnEmoteOf(entry.message.vnEmote, raw);
-    this.editText.set(vnBodyOf(entry.message.vnEmote, raw));
+    const body = vnBodyOf(entry.message.vnEmote, raw);
+    this.editText.set(entry.message.sentStamp ? saidWithStamp(body) : body);
     this.editKind.set(parsed.kind);
     this.editShape.set(parsed.shape);
     this.editBubbleAnimation.set(parsed.bubbleAnimation);
@@ -319,7 +321,8 @@ export class VisualNovelBacklogComponent {
       flipped: this.editFlipped(),
       exited: this.editExited(),
     });
-    if (message.text !== text || message.vnEmote !== emote) {
+    const said = message.sentStamp ? saidWithStamp(message.text ?? '') : message.text;
+    if (said !== text || message.vnEmote !== emote) {
       this.chatMessages.editMessage(message, text, emote, this.clock.now());
     }
     if (message.vnPortraitPos !== this.editSlot()) {

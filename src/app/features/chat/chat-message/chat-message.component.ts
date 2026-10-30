@@ -50,6 +50,7 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
 import { inlineStampsAlone, inlineStampSites } from '@axe/domain/chat/inline-stamp';
 import { IMAGE_STAMP_PREFIX, isPictureStamp, stampOf } from '@axe/domain/chat/stamp-catalog';
+import { saidWithStamp } from '@axe/domain/chat/stamp-line';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { encodeVnEmote, vnBodyOf, vnEmoteOf } from '@axe/domain/visual-novel/vn-emote';
@@ -675,7 +676,13 @@ export class ChatMessageComponent {
    */
   startEdit() {
     if (!this.lineEdit.canEditMessage(this.chatMessage)) return;
-    this.editDraft.set(vnBodyOf(this.chatMessage.vnEmote, this.chatMessage.text ?? ''));
+    this.editDraft.set(this.wordsToEdit());
+  }
+
+  /** The words a reader edits: what the line says, or what it says with the stamp under it. */
+  private wordsToEdit(): string {
+    const body = vnBodyOf(this.chatMessage.vnEmote, this.chatMessage.text ?? '');
+    return this.chatMessage.sentStamp ? saidWithStamp(body) : body;
   }
 
   /**
@@ -690,7 +697,7 @@ export class ChatMessageComponent {
     const draft = this.editDraft();
     if (draft === null) return;
     const next = draft.trimEnd();
-    const unchanged = next === vnBodyOf(this.chatMessage.vnEmote, this.chatMessage.text ?? '').trimEnd();
+    const unchanged = next === this.wordsToEdit().trimEnd();
     if (next.length === 0 || unchanged || !this.lineEdit.canEditMessage(this.chatMessage)) {
       this.cancelEdit();
       return;
