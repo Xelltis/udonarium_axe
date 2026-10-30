@@ -70,6 +70,26 @@ describe('the chat editor', () => {
     }
   }
 
+  it('makes the name picked after an at mark the chip the line is read back as, a cut-in’s name too', async () => {
+    const editor = mountChatEditor(parent, { text: '', selection: { from: 0, to: 0 }, focused: false }, {
+      ...host(),
+      completionWords: () => ({ ...host().completionWords(), cutIns: ['bgm'] }),
+      cutInNames: () => new Set(['bgm']),
+    } as ChatEditorHost);
+    field = editor;
+    const view = editor.editor.view;
+    type(editor, 'hi @bg');
+    await new Promise((resolve) => setTimeout(resolve));
+    view.someProp('handleKeyDown', (handle) => handle(view, new KeyboardEvent('keydown', { key: 'Enter' })));
+    const picked = parent.querySelector('[data-chip]')?.getAttribute('data-chip');
+    expect(editor.text()).toBe('hi @bgm');
+
+    editor.replaceRange(0, 0, '> ');
+
+    expect(editor.text()).toBe('> hi @bgm');
+    expect(parent.querySelector('[data-chip]')?.getAttribute('data-chip')).toBe(picked);
+  });
+
   it('makes a decoration closed round a chip, as round any other text', () => {
     const editor = mount('');
 

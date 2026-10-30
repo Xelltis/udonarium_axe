@@ -20,13 +20,13 @@ export interface ChatSuggestHost {
   completionWords(): ChatCompletionWords;
 }
 
-/** The chip a name picked after an at mark becomes: a portrait, or a cut-in's sound where the speaker has no such portrait. */
-function tailChip(name: string, words: ChatCompletionWords): ChatRichChip {
-  const raw = `@${name}`;
-  if (words.cutIns.includes(name) && !words.portraits.includes(name)) {
-    return { kind: 'cutIn', raw, name, soundOnly: true };
-  }
-  return { kind: 'portrait', raw, command: { type: 'name', name } };
+/**
+ * The chip a name picked after an at mark becomes: the portrait command the line is read back as,
+ * a cut-in's name among them, as the line is sent as one too, its sound playing where the speaker
+ * has no such portrait.
+ */
+function tailChip(name: string): ChatRichChip {
+  return { kind: 'portrait', raw: `@${name}`, command: { type: 'name', name } };
 }
 
 /**
@@ -93,7 +93,7 @@ export function chatSuggestExtension(host: ChatSuggestHost): Extension {
                     }
                   : trigger.kind === 'effect'
                     ? { kind: 'effect', raw: `《${name}》`, name, battle: isBattleChatTokenName(name) }
-                    : tailChip(name, host.completionWords());
+                    : tailChip(name);
               const kept = trigger.kind === 'tail' ? [] : marks;
               const lineEnd = current.state.doc.resolve(range.to).end();
               const after = current.state.doc.textBetween(
