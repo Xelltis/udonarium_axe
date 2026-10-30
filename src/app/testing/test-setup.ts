@@ -6,6 +6,7 @@ import { ɵgetCleanupHook as getCleanupHook, TestBed, TestModuleMetadata } from 
 import { BrowserDynamicTestingModule, platformBrowserDynamicTesting } from '@angular/platform-browser-dynamic/testing';
 import { loadConfig$ } from '@axe/core/event/domain-events';
 import { Logger, LogLevel } from '@axe/core/logging/logger';
+import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { resetPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
@@ -15,8 +16,10 @@ import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { forgetWithheldTable } from '@axe/domain/peer/withheld-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TurnState } from '@axe/domain/tabletop/turn-state';
+import { resetChatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { basename, join, resolve } from 'path';
 
@@ -394,6 +397,15 @@ function stopSynchronizing(): void {
   ObjectSynchronizer.instance.destroy();
 }
 
+// What the page holds outside any object: whether it is cut off from the room, whether the table it
+// holds came withheld, and the tone the chat's bubbles are measured against. A worker runs file
+// after file in one page, so each starts from a page just opened.
+function forgetPageState(): void {
+  setNetworkIsolated(false);
+  forgetWithheldTable();
+  resetChatBubbleBaseTone();
+}
+
 // The cursor of whoever is reading is a static as well, and it decides what a role is allowed to
 // see. A test that leaves a game master behind hands the next one a game master, which is how a
 // toolbar meant for a player comes out missing. Nothing is anybody until a test says so.
@@ -444,6 +456,7 @@ beforeEach(async () => {
   // A test that turns logging up, as the logger specs do, must not leave the next one printing.
   Logger.setLevel(LogLevel.NONE);
   stopSynchronizing();
+  forgetPageState();
   emptyObjectStore();
   forgetMyCursor();
   forgetSeatPreferences();

@@ -57,3 +57,12 @@ export function markLoadedWithheld(withheld: boolean, onServerAsPlayer: boolean)
 export function carriesWithheldInto(roomKey: string | null): boolean {
   return heldFromElsewhere || (heldAsSeatIn !== null && heldAsSeatIn !== roomKey);
 }
+
+/**
+ * Forgets what the table was held as, as on a page just opened. The page keeps this for as long as
+ * it is open; only a test between two of its own has any reason to say this.
+ */
+export function forgetWithheldTable(): void {
+  heldAsSeatIn = null;
+  heldFromElsewhere = false;
+}
