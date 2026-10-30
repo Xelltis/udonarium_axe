@@ -5,7 +5,12 @@ import { chatFontWanted$ } from '@axe/core/event/domain-events';
 import { coalesce, debounce } from '@axe/core/util/debounce';
 import { type ChatDecoration, chatDecorationLayout, type ChatTagLanguage } from '@axe/domain/chat/chat-decoration';
 import { referenceSites } from '@axe/domain/chat/chat-reference';
-import { type ChatRichChip, type ChatRichMode, parseChatRichText } from '@axe/domain/chat/chat-rich-text';
+import {
+  type ChatRichChip,
+  type ChatRichLine,
+  type ChatRichMode,
+  parseChatRichText,
+} from '@axe/domain/chat/chat-rich-text';
 import type { ChatSyntaxScan, SyntaxKind } from '@axe/domain/chat-syntax/chat-syntax';
 import { isBattleChatTokenName } from '@axe/domain/effect/effect-chat-token';
 import { buildChatBubble, type ChatBubble } from '@axe/features/chat/chat-editor/chat-editor-bubble';
@@ -230,6 +235,7 @@ export class ChatEditorField implements ChatTextField {
           return false;
         },
         handlePaste: (view, event) => this.paste(view, event),
+        clipboardTextParser: (text, _context, plain) => this.sliceOfText(text, plain),
       },
     });
     this.setText(start.text, start.selection, false);
@@ -764,13 +770,22 @@ export class ChatEditorField implements ChatTextField {
     }
     const text = event.clipboardData?.getData('text/plain');
     if (text === undefined || text.length < 1) return false;
-    const lines = parseChatRichText(text.replace(/\r\n?/g, '\n'), {
-      mode: this.host.mode,
-      cutInNames: this.host.cutInNames(),
-    }).lines.map((line) => ({ segments: line.segments }));
-    const doc = docOfLines(this.schema, lines);
-    view.dispatch(view.state.tr.replaceSelection(new Slice(doc.content, 1, 1)).scrollIntoView());
+    view.dispatch(view.state.tr.replaceSelection(this.sliceOfText(text, false)).scrollIntoView());
     return true;
+  }
+
+  /**
+   * What a text put in from outside becomes, pasted or dropped: read as the chat's syntax, or, pasted
+   * with Ctrl+Shift+V, the letters as they are. Each line is a paragraph, a blank one among them.
+   */
+  private sliceOfText(text: string, plain: boolean): Slice {
+    const written = text.replace(/\r\n?/g, '\n');
+    const lines: ChatRichLine[] = plain
+      ? written.split('\n').map((line) => ({ segments: line ? [{ kind: 'text', text: line, marks: null }] : [] }))
+      : parseChatRichText(written, { mode: this.host.mode, cutInNames: this.host.cutInNames() }).lines.map((line) => ({
+          segments: line.segments,
+        }));
+    return new Slice(docOfLines(this.schema, lines).content, 1, 1);
   }
 
   /** The plugin that holds the colours of the syntax and the marks of what will not work. */

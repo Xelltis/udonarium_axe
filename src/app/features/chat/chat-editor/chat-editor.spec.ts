@@ -117,6 +117,27 @@ describe('the chat editor', () => {
     expect(gap('bottom')).toBe(8);
   });
 
+  it('pastes the letters as they are with their blank lines kept, where asked to paste them plain', () => {
+    const editor = mount('');
+
+    editor.editor.view.pasteText('line1\n\n**line2**');
+
+    expect(editor.text()).toBe('line1\n\n\\**line2\\**');
+  });
+
+  it('reads a text dropped in as the chat’s syntax, as a paste is read', () => {
+    const editor = mount('');
+    const view = editor.editor.view;
+
+    const slice = view.someProp('clipboardTextParser', (parse) =>
+      parse('**強打** {HP}', view.state.selection.$from, false, view)
+    );
+
+    expect(slice).toBeDefined();
+    view.dispatch(view.state.tr.replaceSelection(slice!));
+    expect(editor.text()).toBe('**強打** {HP}');
+  });
+
   it('makes a decoration closed round a chip, as round any other text', () => {
     const editor = mount('');
 
