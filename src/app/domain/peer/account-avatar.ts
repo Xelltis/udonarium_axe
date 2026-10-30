@@ -7,5 +7,5 @@ const ACCOUNT_AVATAR_PREFIX = 'https://cdn.discordapp.com/avatars/';
  * room's pictures are picked from.
  */
 export function isAccountAvatar(imageIdentifier: string): boolean {
-  return imageIdentifier.startsWith(ACCOUNT_AVATAR_PREFIX);
+  return typeof imageIdentifier === 'string' && imageIdentifier.startsWith(ACCOUNT_AVATAR_PREFIX);
 }
