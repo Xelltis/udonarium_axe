@@ -348,6 +348,7 @@ export class ChatInputComponent {
   private readonly editorUnreachable = signal(false);
   private readonly richField = signal<ChatEditorField | null>(null);
   private editorRequested = false;
+  private editorFetched = false;
   /** Where the box stood when one kind gave way to the other, for the other to start from. */
   private handover: ChatEditorStart | null = null;
 
@@ -479,31 +480,36 @@ export class ChatInputComponent {
    * of the box, for a reader who has it on.
    */
   protected requestEditor(soon = false): void {
-    if (this.editorRequested || !this.chatPreferences.richInput()) return;
+    if (this.editorFetched || !this.chatPreferences.richInput()) return;
+    if (soon) return this.fetchEditor();
+    if (this.editorRequested) return;
     this.editorRequested = true;
-    const fetch = () => {
-      void this.editorLoader().then((module) => {
-        if (!module) {
-          this.editorUnreachable.set(true);
-          return;
-        }
-        whenNotComposing(this.plainField()?.element, () => {
-          const box = this.plainField()?.element;
-          if (box) {
-            this.handover = {
-              text: this.text,
-              selection: { from: box.selectionStart, to: box.selectionEnd },
-              focused: box.ownerDocument.activeElement === box,
-            };
-          }
-          this.editorModule.set(module);
-        });
-      });
-    };
-    if (soon) return fetch();
+    const fetch = () => this.fetchEditor();
     const view = this.hostElement.nativeElement.ownerDocument.defaultView;
     if (view?.requestIdleCallback) view.requestIdleCallback(fetch, { timeout: 2000 });
     else setTimeout(fetch, 200);
+  }
+
+  private fetchEditor(): void {
+    if (this.editorFetched) return;
+    this.editorFetched = true;
+    void this.editorLoader().then((module) => {
+      if (!module) {
+        this.editorUnreachable.set(true);
+        return;
+      }
+      whenNotComposing(this.plainField()?.element, () => {
+        const box = this.plainField()?.element;
+        if (box) {
+          this.handover = {
+            text: this.text,
+            selection: { from: box.selectionStart, to: box.selectionEnd },
+            focused: box.ownerDocument.activeElement === box,
+          };
+        }
+        this.editorModule.set(module);
+      });
+    });
   }
 
   private readonly hostElement = inject(ElementRef<HTMLElement>);

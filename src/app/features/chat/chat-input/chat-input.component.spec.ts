@@ -20,6 +20,7 @@ import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
+import { CHAT_EDITOR_LOADER, type ChatEditorModule } from '@axe/features/chat/chat-editor/chat-editor-loader';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
 import type { ChatSyntaxWriter } from '@axe/features/chat/chat-input/chat-syntax-items';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
@@ -845,5 +846,36 @@ describe('ChatInputComponent', () => {
       expect(emitted).not.toHaveBeenCalled();
       expect(component.text).toBe('hel');
     });
+  });
+});
+
+describe('ChatInputComponent fetching the editor', () => {
+  let loader: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    PeerCursor.createMyCursor();
+    loader = vi.fn(() => new Promise<ChatEditorModule | null>(() => undefined));
+    TestBed.configureTestingModule({
+      imports: [ChatInputComponent],
+      providers: [...TEST_PROVIDERS, { provide: CHAT_EDITOR_LOADER, useValue: loader }],
+    });
+    Object.defineProperty(window, 'requestIdleCallback', { value: vi.fn(() => 0), configurable: true });
+  });
+
+  afterEach(() => {
+    delete (window as { requestIdleCallback?: unknown }).requestIdleCallback;
+    vi.restoreAllMocks();
+  });
+
+  it('fetches it at once as the box is first touched, without waiting for the page to have time to spare', () => {
+    const fixture = TestBed.createComponent(ChatInputComponent);
+    fixture.componentRef.setInput('canSpeak', true);
+    fixture.detectChanges();
+    TestBed.tick();
+    expect(loader).not.toHaveBeenCalled();
+
+    (fixture.nativeElement as HTMLElement).querySelector('textarea')!.dispatchEvent(new FocusEvent('focus'));
+
+    expect(loader).toHaveBeenCalledTimes(1);
   });
 });
