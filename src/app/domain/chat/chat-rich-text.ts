@@ -493,6 +493,9 @@ function isReadableMark(mark: string): boolean {
   return chatDecorationLayout(`\\${mark}`).marks.some((found) => found.kind === 'escape' && found.from === 0);
 }
 
+/** A tag written where the search is set to start, as the chat's tags are written. */
+const TAG_AT = /[[［][^[\]［］\n]{1,24}[\]］]/y;
+
 /**
  * Puts backslashes into a written line wherever plain text would start a mark the chat reads, and
  * says where each letter and chip went.
@@ -523,7 +526,9 @@ function escapeLine(
       at = end - 1;
       continue;
     }
-    const tag = /^[[［][^[\]［］\n]{1,24}[\]］]/.exec(text.slice(at))?.[0];
+    if (text[at] !== '[' && text[at] !== '［') continue;
+    TAG_AT.lastIndex = at;
+    const tag = TAG_AT.exec(text)?.[0];
     if (tag && isReadableMark(tag)) escapeAt.add(at);
   }
   let written = '';
