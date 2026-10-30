@@ -127,6 +127,20 @@ function offeredAt(state: EditorState, host: ChatSuggestHost): string[] {
   return trigger ? chatTriggerOptions(trigger, host.completionWords()).slice(0, MOST_OFFERED) : [];
 }
 
+/**
+ * Scrolls a list just far enough for an entry in it to be seen whole, as the keys move through
+ * entries past what it shows.
+ */
+export function keepInView(
+  list: { scrollTop: number; readonly clientHeight: number },
+  entry: { readonly offsetTop: number; readonly offsetHeight: number }
+): void {
+  if (entry.offsetTop < list.scrollTop) list.scrollTop = entry.offsetTop;
+  else if (entry.offsetTop + entry.offsetHeight > list.scrollTop + list.clientHeight) {
+    list.scrollTop = entry.offsetTop + entry.offsetHeight - list.clientHeight;
+  }
+}
+
 /** The list the names are shown in, drawn over the caret and moved through by the keys. */
 function suggestionList() {
   let element: HTMLElement | null = null;
@@ -147,6 +161,8 @@ function suggestionList() {
       button.addEventListener('click', () => props?.command(name));
       element!.append(button);
     });
+    const chosen = element.children[picked];
+    if (chosen instanceof HTMLElement) keepInView(element, chosen);
     const rect = props.clientRect?.();
     if (!rect || element.hidden) return;
     const reference = { getBoundingClientRect: () => rect };
