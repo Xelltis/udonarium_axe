@@ -655,6 +655,21 @@ describe('ChatMessageComponent', () => {
       expect(new Set(ids).size).toBe(2);
     });
 
+    it('gives the seals of a line drawn in two places filters of their own in each', () => {
+      const message = { identifier: 'seal-msg-twice' } as ChatMessage;
+      fixture.componentRef.setInput('chatMessage', message);
+      const other = TestBed.createComponent(ChatMessageComponent);
+      other.componentRef.setInput('chatMessage', message);
+      const ids = (markup: string) => [...markup.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
+
+      const here = ids(component.escapeHtmlAndRuby('了解［了解:seal:ok］'));
+      const there = ids(other.componentInstance.escapeHtmlAndRuby('了解［了解:seal:ok］'));
+
+      expect(here).toHaveLength(1);
+      expect(there).toHaveLength(1);
+      expect(there[0]).not.toBe(here[0]);
+    });
+
     it('follows the pictures arriving only for a line holding a room picture', () => {
       const objectChange = TestBed.inject(ObjectChangeService);
       const followed = vi.spyOn(objectChange, 'fileVersion');

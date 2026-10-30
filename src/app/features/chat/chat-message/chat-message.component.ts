@@ -86,6 +86,9 @@ const LINE_FLASH_MS = 1800;
 /** The kinds of mark a line can carry, in the order they are offered. */
 const BOOKMARK_KINDS: readonly ChatBookmarkKind[] = ['shared', 'personal'];
 
+/** How many lines have been drawn, for the seals in each to take filter ids no other drawing of the line has. */
+let linesDrawn = 0;
+
 @Component({
   selector: 'chat-message',
   templateUrl: './chat-message.component.html',
@@ -122,6 +125,8 @@ export class ChatMessageComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly imageStorage = inject(ImageStorage);
+  /** This drawing of a line, apart from any other drawing of the same line in another window. */
+  private readonly drawing = ++linesDrawn;
   private readonly stampPacks = inject(StampPackService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly language = inject(LanguageService);
@@ -1083,19 +1088,19 @@ export class ChatMessageComponent {
   /**
    * Draws the stamps put inside a line, as tall as its letters, or as large as a stamp sent on its
    * own where the line is made of stamps alone. A room's picture is drawn again once it arrives;
-   * only a line holding one follows the pictures arriving. Each stamp is keyed by the line and its
-   * place in it, so the line written again is the same markup and is left as it stands.
+   * only a line holding one follows the pictures arriving. Each stamp is keyed by this drawing of
+   * the line and its place in it, so the line written again is the same markup and is left as it
+   * stands, and the same line drawn in another window gives its seals filters of their own.
    */
   private stampsIn(body: string): InlineStampMarkup {
     if (inlineStampSites(body).some((site) => site.id.startsWith(IMAGE_STAMP_PREFIX))) this.objectChange.fileVersion();
     const alone = inlineStampsAlone(body) !== null;
     const source = roomStampViewSource(this.t, this.imageStorage, this.stampPacks);
-    const line = this.chatMessage?.identifier ?? 'line';
     let drawn = 0;
     return (stampId) => {
       const view = stampViewOf(stampId, source);
       const box = alone ? this.stampLineSize(stampId, true) : 'inline';
-      return view ? stampMarkup(stampId, view, box, `${line}-${drawn++}`) : null;
+      return view ? stampMarkup(stampId, view, box, `${this.drawing}-${drawn++}`) : null;
     };
   }
 }
