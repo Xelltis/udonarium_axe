@@ -28,6 +28,7 @@ import { Logger } from '@axe/core/logging/logger';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { networkMessage$, networkSend } from '@axe/core/network/network-messaging';
 import { transportOf } from '@axe/core/network/transport';
+import { noteIconChosenByHand } from '@axe/core/storage/icon-chosen-by-hand';
 import { loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
@@ -438,12 +439,15 @@ export class PeerMenuComponent {
 
   /**
    * Opens the image picker and makes the chosen image the reader's icon. Closing it without a
-   * choice changes nothing.
+   * choice changes nothing. An icon chosen while logged in to a room server is noted as chosen by
+   * hand, so that the account's avatar is no longer put on at login.
    */
   changeIcon() {
     this.modalService.open<string>(FileSelecterComponent).then((value) => {
       if (!this.myPeer || !value) return;
       this.myPeer.imageIdentifier = value;
+      const account = this.auth.account();
+      if (account) noteIconChosenByHand(account.userId);
     });
   }
 

@@ -25,6 +25,7 @@ export const STORAGE_KEYS = {
   firstPersonPiece: 'ui-first-person-piece',
   hotbar: 'ui-hotbar',
   hotbarOwner: 'ui-hotbar-owner',
+  iconChosenByHand: 'axe.icon.chosenByHand',
   imageEditFirst: 'ui-image-edit-first',
   inventoryCompact: 'ui-inventory-compact',
   inventoryFolded: 'ui-inventory-folded',
