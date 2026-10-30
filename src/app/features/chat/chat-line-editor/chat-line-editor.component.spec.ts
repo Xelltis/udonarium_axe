@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import type { ChatLintSession } from '@axe/application/chat/chat-lint.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { CHAT_EDITOR_LOADER, type ChatEditorModule } from '@axe/features/chat/chat-editor/chat-editor-loader';
 import { ChatLineEditorComponent } from '@axe/features/chat/chat-line-editor/chat-line-editor.component';
@@ -45,6 +46,14 @@ describe('ChatLineEditorComponent', () => {
     box().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     box().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect([kept, abandoned]).toEqual([1, 1]);
+  });
+
+  it('says nothing of a decoration round a roll, as a line rewritten runs its commands no more', () => {
+    fixture.componentRef.setInput('draft', '**2d6 攻撃**');
+    fixture.detectChanges();
+    const session = (fixture.componentInstance as unknown as { session: ChatLintSession }).session;
+
+    expect(session.diagnostics().map((found) => found.code)).not.toContain('deco.hidesCommand');
   });
 
   it('tells what is typed as the draft', () => {

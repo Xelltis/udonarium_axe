@@ -4170,7 +4170,8 @@
           "keptOffTable": "Dice do not move while you are watching"
         },
         "deco": {
-          "unpaired": "An unclosed decoration shows as typed"
+          "unpaired": "An unclosed decoration shows as typed",
+          "hidesCommand": "Inside a decoration, this is not read as a command"
         },
         "vn": {
           "dropped": "Unknown words ({{words}}) leave the 〔〕 as text",

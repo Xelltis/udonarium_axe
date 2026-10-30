@@ -8,6 +8,7 @@ import {
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { findStatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
+import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import { textTargetsCharacter } from '@axe/domain/chat/chat-palette';
 import {
   findImageIdentifierByName,
@@ -17,10 +18,17 @@ import {
 import type { ReferenceSite } from '@axe/domain/chat/chat-reference';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
 import type { ChatSyntaxScan, SyntaxSpan, TextRange } from '@axe/domain/chat-syntax/chat-syntax';
-import { hasSecretEditMark, resourceCommandParts } from '@axe/domain/data/resource-command-words';
+import { hasSecretEditMark, resourceCommandParts, resourceCommandSites } from '@axe/domain/data/resource-command-words';
 import { parseResourceEditOption, readModifierLayout } from '@axe/domain/data/resource-edit-helpers';
 import { readNamedResourceSlot } from '@axe/domain/data/resource-slot';
-import { type RollCheck, rollLimitBreaches } from '@axe/domain/dice/dice-roll-line';
+import {
+  firstWordOf,
+  meantAsRollWord,
+  readRollLine,
+  rollableText,
+  type RollCheck,
+  rollLimitBreaches,
+} from '@axe/domain/dice/dice-roll-line';
 
 /** How much a finding matters: it will not work, it may not work as meant, or it is worth knowing. */
 export type ChatDiagnosticSeverity = 'error' | 'warning' | 'info';
@@ -65,6 +73,7 @@ export const CHAT_LINT_CODES = [
   'diceToken.unknown',
   'diceToken.keptOffTable',
   'deco.unpaired',
+  'deco.hidesCommand',
   'vn.dropped',
   'vn.duplicate',
   'stamp.unknown',
@@ -127,6 +136,22 @@ export function lintChatSyntax(scan: ChatSyntaxScan, context: ChatLintContext): 
   return found.sort((a, b) => a.from - b.from || a.to - b.to);
 }
 
+/**
+ * Whether a decoration keeps a roll or a change from being read: the line with its decorations
+ * taken off starts with a roll, or holds a change of a status or a buff, that the line as written
+ * does not, the marks of a decoration standing in the words the commands are read from.
+ */
+function decorationHidesCommand(text: string): boolean {
+  const bare = withoutChatDecoration(text);
+  if (bare === text) return false;
+  const rolls = (line: string) => meantAsRollWord(firstWordOf(readRollLine(rollableText(line)).rollText));
+  const changes = (line: string) => {
+    const words = resourceCommandSites(line);
+    return words.resources.length + words.buffs.length;
+  };
+  return (rolls(bare) && !rolls(text)) || changes(bare) > changes(text);
+}
+
 function lintMessage(
   text: string,
   message: TextRange,
@@ -141,6 +166,7 @@ function lintMessage(
   const portrait = spans.find((span) => span.kind === 'portrait');
   const portraitFound = portrait?.kind === 'portrait' && portraitResolves(portrait.command, context);
   let effectsStopped = false;
+  let hidesCommandFound = false;
 
   for (const span of spans) {
     switch (span.kind) {
@@ -198,6 +224,10 @@ function lintMessage(
         break;
       case 'decoration':
         if (!span.mark.paired && span.mark.kind !== 'escape') add(span, 'warning', 'deco.unpaired');
+        else if (span.mark.paired && !hidesCommandFound && decorationHidesCommand(text)) {
+          hidesCommandFound = true;
+          add(message, 'warning', 'deco.hidesCommand');
+        }
         break;
       case 'stamp':
         if (!stampOf(span.id)) add(span, 'info', 'stamp.unknown', { params: { name: span.label } });

@@ -118,7 +118,10 @@ export class ChatLineEditorComponent {
 
   private readonly text = linkedSignal(() => this.draft());
 
-  /** The line's decorations, rubies and stamps, checked as it is edited; its commands left alone. */
+  /**
+   * The line's decorations, rubies and stamps, checked as it is edited; its commands left alone,
+   * which run no more, nor whether a decoration keeps one from being read.
+   */
   private readonly session: ChatLintSession = (() => {
     const scan = computed(() => {
       const read = scanChatSyntax(this.text(), 'chat');
@@ -140,7 +143,9 @@ export class ChatLineEditorComponent {
     };
     return {
       scan,
-      diagnostics: computed(() => lintChatSyntax(scan(), context)),
+      diagnostics: computed(() =>
+        lintChatSyntax(scan(), context).filter((found) => found.code !== 'deco.hidesCommand')
+      ),
       annotations: computed(() => []),
       rolls: computed(() => []),
     };

@@ -117,6 +117,14 @@ function diceThrownBy(command: string): number {
 const ROLL_INTENT = /\d*[dD]\d|\d[bBrRuU]\d|[<>=]/;
 
 /**
+ * Whether a word is shaped like a roll and was meant as one: it throws dice or compares against a
+ * target, and is no number alone, no plain sum and no word such as `10:30`.
+ */
+export function meantAsRollWord(word: string): boolean {
+  return looksLikeRollWord(word) && !/^\d+$/.test(word) && !isDicelessArithmetic(word) && ROLL_INTENT.test(word);
+}
+
+/**
  * Checks a line as the dice bot would roll it when sent: in half-width, with its repeat count taken
  * off, tested against the system's command pattern, and then rolled. A roll that would throw more
  * dice than the system can is not tried, as the system would only give up on it. Words that throw
@@ -128,8 +136,7 @@ export function checkRollLine(system: RollCheckSystem, unreachable: boolean, tex
   const rollText = line.rollText;
   if (unreachable) return looksLikeDiceCommand(rollText) ? { kind: 'cannotCheck' } : { kind: 'notRoll' };
   const word = firstWordOf(rollText);
-  const meantAsRoll =
-    looksLikeRollWord(word) && !/^\d+$/.test(word) && !isDicelessArithmetic(word) && ROLL_INTENT.test(word);
+  const meantAsRoll = meantAsRollWord(word);
   if (system.COMMAND_PATTERN && !system.COMMAND_PATTERN.test(rollText)) {
     return meantAsRoll ? { kind: 'plainText' } : { kind: 'notRoll' };
   }

@@ -234,6 +234,14 @@ describe('lintChatSyntax', () => {
       expect(found).toMatchObject({ code: 'deco.unpaired', from: 0, to: 2 });
     });
 
+    it('finds a decoration round a roll or a change, which keeps it from being read as one', () => {
+      expect(codes('**2d6 攻撃**')).toContain('deco.hidesCommand');
+      expect(codes('ab **:HP-1**')).toContain('deco.hidesCommand');
+      expect(codes('2d6 **攻撃**')).not.toContain('deco.hidesCommand');
+      expect(codes('**こんにちは** 1d6')).not.toContain('deco.hidesCommand');
+      expect(codes('**Hello1** there')).not.toContain('deco.hidesCommand');
+    });
+
     it('names the words that give a staging bracket up', () => {
       expect(lint('メモ 〔叫び・重要〕')[0]).toMatchObject({ code: 'vn.dropped', params: { words: '重要' } });
       expect(codes('〔叫び・もやもや〕')).toEqual(['vn.duplicate']);
