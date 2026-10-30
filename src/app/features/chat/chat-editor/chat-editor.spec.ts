@@ -280,6 +280,14 @@ describe('the chat editor', () => {
     expect(editor.text()).toBe('**> xy**');
   });
 
+  it('puts a portrait picked in place of the one the line already ends with', () => {
+    const editor = mount('hello @hide');
+
+    editor.insertChip({ kind: 'portrait', raw: '@face', command: { type: 'name', name: 'face' } }, 'end');
+
+    expect(editor.text()).toBe('hello @face');
+  });
+
   it('makes a decoration closed round a chip, as round any other text', () => {
     const editor = mount('');
 

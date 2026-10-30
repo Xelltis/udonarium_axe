@@ -10,6 +10,7 @@ import {
   type ChatTagLanguage,
   wrapChatSelection,
 } from '@axe/domain/chat/chat-decoration';
+import { portraitCommandSite } from '@axe/domain/chat/chat-portrait-command';
 import type { ChatRichChip } from '@axe/domain/chat/chat-rich-text';
 
 /** The attribute on whatever a chat line is typed into, the element that takes the keys. */
@@ -71,7 +72,8 @@ export interface ChatTextField {
   applyMark(change: ChatMarkChange): void;
   /**
    * Puts in a piece of syntax shown whole: over what is selected at the caret, in the decoration
-   * there, or at the end of the message, plain, as a command read off the end of a line is written.
+   * there, or at the end of the message, plain, as a command read off the end of a line is written,
+   * a portrait or a cut-in in place of the one the message already ends with.
    */
   insertChip(chip: ChatRichChip, place?: ChatChipPlace): void;
   /** What is selected, as it is shown. */
@@ -125,7 +127,14 @@ export class TextareaChatField implements ChatTextField {
 
   insertChip(chip: ChatRichChip, place: ChatChipPlace = 'caret'): void {
     if (place === 'end') {
-      this.setText(appendedText(this.text(), chip.raw));
+      const text = this.text();
+      const ending = chip.kind === 'portrait' || chip.kind === 'cutIn' ? portraitCommandSite(text) : null;
+      if (ending) {
+        const end = ending.from + chip.raw.length;
+        this.setText(text.slice(0, ending.from) + chip.raw + text.slice(ending.to), { from: end, to: end });
+      } else {
+        this.setText(appendedText(text, chip.raw));
+      }
       return;
     }
     const { from, to } = this.selection();
