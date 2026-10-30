@@ -160,10 +160,12 @@ export class ChatToolbarComponent {
     return !!this.active()?.[kind];
   }
 
+  /** Puts a decoration on and gives the keys back to the box, which a pick made by key would leave in the popover. */
   protected apply(change: ChatMarkChange): void {
     const field = this.field();
     if (!field) return;
     field.applyMark(change);
+    field.focus();
     this.edited.emit();
   }
 
@@ -289,6 +291,7 @@ export class ChatToolbarComponent {
     const reading = this.rubyReading().replace(/[《》\n]/g, '');
     if (!field || !base || !reading) return;
     field.insertChip({ kind: 'ruby', raw: `|${base}《${reading}》`, base, reading });
+    field.focus();
     this.edited.emit();
     this.close();
   }
