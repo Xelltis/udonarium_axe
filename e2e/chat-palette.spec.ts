@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { createCharacter, waitAppReady } from './helpers';
+import { createCharacter, expectChatText, waitAppReady } from './helpers';
 
 async function openChatPalette(page: import('@playwright/test').Page) {
   await waitAppReady(page);
@@ -89,6 +89,33 @@ test.describe('the chat palette', () => {
     await label.dispatchEvent('click');
     await page.locator('chat-palette [popover]').getByRole('option', { name: 'ひらめき' }).dispatchEvent('click');
     await expect(label).toHaveText('ひらめき');
+  });
+
+  test('lets another tab be opened after a jump to a heading picked from the menu', async ({ page }) => {
+    const palette = page.locator('chat-palette');
+    await palette.getByRole('button', { name: '編集', exact: true }).click();
+    const editor = palette.locator('[data-chat-palette-editor] [data-chat-palette-text]');
+    await expect(editor).toBeVisible({ timeout: 10000 });
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('Delete');
+    await editor.fill('1d100 目星\n◆◆戦闘\n◆攻撃\n2d6+3 攻撃\n◆◆探索\nCC<=50');
+    await expectChatText(editor, '1d100 目星\n◆◆戦闘\n◆攻撃\n2d6+3 攻撃\n◆◆探索\nCC<=50');
+    await palette.getByRole('button', { name: '確定', exact: true }).click();
+    const tab = (name: string) => palette.getByTestId('palette-tab').filter({ hasText: name });
+    const line = (text: string) => palette.locator('[data-line]').filter({ hasText: text });
+
+    await tab('戦闘').click();
+    await palette.getByTestId('palette-headings-menu').click();
+    await page.locator('context-menu').getByText('攻撃').click();
+    await expect(line('2d6+3 攻撃')).toBeVisible();
+
+    await tab('探索').click();
+    await expect(tab('探索')).toHaveAttribute('aria-selected', 'true');
+    await expect(line('CC<=50')).toBeVisible();
+    await tab('メイン').click();
+    await expect(line('1d100 目星')).toBeVisible();
+    await expect(line('2d6+3 攻撃')).toHaveCount(0);
   });
 
   test('puts the search box above the list, and the results right under the search box', async ({ page }) => {
