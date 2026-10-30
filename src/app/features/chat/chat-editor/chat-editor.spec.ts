@@ -1,6 +1,7 @@
 import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import { type ChatEditorField, type ChatEditorHost, mountChatEditor } from '@axe/features/chat/chat-editor/chat-editor';
 import { closeHistory } from '@tiptap/pm/history';
+import { TextSelection } from '@tiptap/pm/state';
 
 describe('the chat editor', () => {
   let parent: HTMLElement;
@@ -210,6 +211,16 @@ describe('the chat editor', () => {
     );
 
     expect(editor.text()).toBe('a\nb');
+  });
+
+  it('keeps a line that came bold over its quote mark as no quote, once a letter is typed into it', () => {
+    const editor = mount('**> x**');
+    const view = editor.editor.view;
+    view.dispatch(view.state.tr.setSelection(TextSelection.atEnd(view.state.doc)));
+
+    type(editor, 'y');
+
+    expect(editor.text()).toBe('**> xy**');
   });
 
   it('makes a decoration closed round a chip, as round any other text', () => {

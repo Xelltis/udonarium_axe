@@ -166,6 +166,17 @@ describe('chat-rich-text', () => {
       }
     });
 
+    it('keeps a quote mark a line came with inside the decoration opening before it, as no quote', () => {
+      const [line] = parseChatRichText('**> x**').lines;
+      const edited: ChatRichLine = {
+        segments: [{ kind: 'text', text: '> xy', marks: BOLD }],
+        source: line.source,
+      };
+      expect(serializeChatRichText([edited], { language: 'ja' }).text).toBe('**> xy**');
+      const typed: ChatRichLine = { segments: [{ kind: 'text', text: '> xy', marks: BOLD }] };
+      expect(serializeChatRichText([typed], { language: 'ja' }).text).toBe('> **xy**');
+    });
+
     it('writes decorations the shortest way, in the reader\u2019s language', () => {
       expect(canonical('[red]x[/]')).toBe('[赤]x[/赤]');
       expect(canonical('[red]x[/]', 'en')).toBe('[red]x[/red]');

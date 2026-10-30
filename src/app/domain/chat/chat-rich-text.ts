@@ -264,15 +264,15 @@ function flatten(line: ChatRichLine): { text: string; marks: ChatDecoration | nu
     const text = segment.kind === 'text' ? segment.text : segment.raw;
     for (const letter of text) letters.push({ text: letter, marks: normalMarks(segment.marks) });
   }
-  const quote = QUOTE_PREFIX.exec(letters.map((letter) => letter.text).join(''));
+  const quote = quotesAsTyped(line) ? QUOTE_PREFIX.exec(letters.map((letter) => letter.text).join('')) : null;
   for (let index = 0; index < (quote?.[0].length ?? 0); index++) letters[index].marks = null;
   return letters;
 }
 
 /**
  * Whether two lines are drawn the same, chips counted as the text they stand for. A line is taken
- * as it is written: the commands ending it, and a quote mark starting it, plain whatever they were
- * put in. A backslash may stand on either side of a mark next to it, as one is written after a
+ * as it is written: the commands ending it, and a quote mark starting it where it is written as a
+ * quote, plain whatever they were put in. A backslash may stand on either side of a mark next to it, as one is written after a
  * mark it would otherwise keep from taking effect, so what it is drawn in does not count.
  */
 export function sameRichLine(a: ChatRichLine, b: ChatRichLine): boolean {
@@ -359,8 +359,19 @@ interface Written {
   spans: Range[];
 }
 
-/** Splits a line's leading quote mark off as plain text, as the chat draws it whatever decoration it falls in. */
-function withPlainQuote(segments: readonly ChatRichSegment[]): ChatRichSegment[] {
+/**
+ * Whether a line's leading quote mark is written plain, as a quote: in a line typed afresh, or one
+ * that came as a quote. A line that came with a decoration opening before its quote mark, which
+ * the chat draws as no quote, keeps the mark inside the decoration.
+ */
+function quotesAsTyped(line: ChatRichLine): boolean {
+  return line.source === undefined || QUOTE_PREFIX.test(line.source);
+}
+
+/** Splits a line's leading quote mark off as plain text where it is written as a quote. */
+function withPlainQuote(line: ChatRichLine): ChatRichSegment[] {
+  const segments = line.segments;
+  if (!quotesAsTyped(line)) return [...segments];
   const first = segments[0];
   if (!first || first.kind !== 'text') return [...segments];
   const quote = QUOTE_PREFIX.exec(first.text);
@@ -416,7 +427,7 @@ function writeLine(
   const pieces: Written[] = [];
   const open: TagWant[] = [];
   let bold = false;
-  const segments = withPlainLineEnd(withPlainQuote(line.segments)).filter(
+  const segments = withPlainLineEnd(withPlainQuote(line)).filter(
     (segment) => segment.kind !== 'text' || segment.text.length > 0
   );
   const lasting = (key: string, from: number) => {
