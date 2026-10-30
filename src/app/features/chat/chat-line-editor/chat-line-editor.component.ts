@@ -33,6 +33,7 @@ import { type ChatTextField, TextareaChatField } from '@axe/features/chat/chat-i
 import { ChatToolbarComponent } from '@axe/features/chat/chat-toolbar/chat-toolbar.component';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { ComposingMarkDirective, whenNotComposing } from '@axe/ui/directives/composing-mark.directive';
+import { followPlainBox, type PlainBoxStand } from '@axe/ui/plain-box-handover';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** What editing a line looks at: its decorations, its rubies and its stamps, none of its commands. */
@@ -96,8 +97,8 @@ export class ChatLineEditorComponent {
 
   private readonly editorHost = viewChild<ElementRef<HTMLElement>>('editorHost');
   private readonly plainBox = viewChild<ElementRef<HTMLTextAreaElement>>('plainBox');
-  /** Where the caret stood in the plain box the editor takes the place of, arriving while it was written in. */
-  private handover: Pick<ChatEditorStart, 'selection' | 'focused'> | null = null;
+  /** Where the reader stands in the plain box the editor arrived to take the place of, read as it is put in. */
+  private plainStand: (() => PlainBoxStand) | null = null;
   /** Whether the reader has typed, pressed a key or pressed in the plain box, which then holds where they stand. */
   protected plainUsed = false;
   /** Whether the plain box has been given the keys, as it is when the line opens. */
@@ -165,7 +166,8 @@ export class ChatLineEditorComponent {
     if (this.preferences.richInput()) {
       void this.loader().then((module) =>
         whenNotComposing(this.plainBox()?.nativeElement, () => {
-          this.handOverFromPlainBox();
+          const box = this.plainBox()?.nativeElement;
+          this.plainStand = box ? followPlainBox(box) : null;
           this.module.set(module);
         })
       );
@@ -203,26 +205,23 @@ export class ChatLineEditorComponent {
     if (!host || !module || this.richField()) return;
     const text = this.plainField()?.text() ?? this.text();
     this.text.set(text);
-    const start = this.handover ?? { selection: { from: text.length, to: text.length }, focused: true };
-    this.handover = null;
+    const start = this.startFromPlainBox(text.length);
     this.richField.set(module.mountChatEditor(host, { text, ...start }, this.editorHostApi));
   }
 
   /**
-   * Keeps where the reader stood in the plain box, once they have used it, as the editor arrives to
-   * take its place: the caret, and the keys only where the box still has them. One that arrives
-   * before the box was put to use, as it does once fetched, starts as the box does, with the caret
+   * Where the editor starts as it takes the plain box's place, read from the box as it is put in:
+   * where the reader stood in the box, once they have used it, with the keys only where the box
+   * still had them. One put in before the box was put to use starts as the box does, with the caret
    * at the end and the keys, unless the reader has taken the keys from the box meanwhile.
    */
-  private handOverFromPlainBox(): void {
-    const box = this.plainBox()?.nativeElement;
-    if (!box) return;
-    const focused = box.ownerDocument.activeElement === box;
-    if (this.plainUsed) {
-      this.handover = { selection: { from: box.selectionStart, to: box.selectionEnd }, focused };
-    } else if (this.plainFocused && !focused) {
-      this.handover = { selection: { from: box.value.length, to: box.value.length }, focused: false };
-    }
+  private startFromPlainBox(end: number): Pick<ChatEditorStart, 'selection' | 'focused'> {
+    const stand = this.plainStand?.();
+    this.plainStand = null;
+    const atEnd = { from: end, to: end };
+    if (!stand) return { selection: atEnd, focused: true };
+    if (this.plainUsed) return stand;
+    return { selection: atEnd, focused: stand.focused || !this.plainFocused };
   }
 
   private focusPlainBox(): void {

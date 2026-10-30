@@ -226,6 +226,29 @@ describe('ChatLineEditorComponent handing its plain box over to the editor', () 
       );
     });
 
+    it('starts where the caret stands as it is put in, moved after the editor arrived', async () => {
+      const fixture = TestBed.createComponent(ChatLineEditorComponent);
+      fixture.componentRef.setInput('draft', 'こんばんは');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const area = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>('textarea')!;
+      area.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+      area.setSelectionRange(1, 1);
+
+      arrive({ mountChatEditor: mounted } as unknown as ChatEditorModule);
+      await Promise.resolve();
+      await Promise.resolve();
+      area.setSelectionRange(3, 3);
+      fixture.detectChanges();
+      TestBed.tick();
+
+      expect(mounted).toHaveBeenCalledWith(
+        expect.anything(),
+        { text: 'こんばんは', selection: { from: 3, to: 3 }, focused: true },
+        expect.anything()
+      );
+    });
+
     it('leaves the keys with another field the reader went to meanwhile', async () => {
       const other = document.createElement('input');
       document.body.append(other);

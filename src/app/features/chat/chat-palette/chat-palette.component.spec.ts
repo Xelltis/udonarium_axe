@@ -703,6 +703,33 @@ describe('ChatPaletteComponent handing its text area over to the editor', () => 
     );
   });
 
+  it('puts the editor in where the caret stands as it is put in, moved after the editor arrived', async () => {
+    const fixture = TestBed.createComponent(ChatPaletteComponent);
+    fixture.componentInstance.character.set(char);
+    fixture.detectChanges();
+    fixture.componentInstance.toggleEditMode();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const area = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>(
+      'textarea[name="edit-palette"]'
+    )!;
+    area.focus();
+    area.setSelectionRange(4, 6);
+
+    arrive({ mountChatEditor: mounted } as unknown as ChatEditorModule);
+    await Promise.resolve();
+    await Promise.resolve();
+    area.setSelectionRange(1, 1);
+    fixture.detectChanges();
+    TestBed.tick();
+
+    expect(mounted).toHaveBeenCalledWith(
+      expect.anything(),
+      { text: '2d6 攻撃\n1d100 調べる', selection: { from: 1, to: 1 }, focused: true },
+      expect.anything()
+    );
+  });
+
   it('waits for a word being made in the text area to be made before the editor takes its place', async () => {
     const fixture = TestBed.createComponent(ChatPaletteComponent);
     fixture.componentInstance.character.set(char);

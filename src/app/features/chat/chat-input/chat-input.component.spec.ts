@@ -882,6 +882,54 @@ describe('ChatInputComponent fetching the editor', () => {
     vi.restoreAllMocks();
   });
 
+  it('starts the editor where the caret stands as it is put in, after the editor arrived', async () => {
+    let arrive!: (module: ChatEditorModule | null) => void;
+    loader.mockImplementation(
+      () =>
+        new Promise<ChatEditorModule | null>((resolve) => {
+          arrive = resolve;
+        })
+    );
+    const mounted = vi.fn(() => ({
+      parent: null,
+      text: () => '今のは見逃せない',
+      selection: () => ({ from: 0, to: 0 }),
+      refresh: vi.fn(),
+      refreshSoon: vi.fn(),
+      followRoot: vi.fn(),
+      destroy: vi.fn(),
+      focus: vi.fn(),
+      hasFocus: () => false,
+      activeMarks: () => null,
+      setText: vi.fn(),
+      reconfigure: vi.fn(),
+      rich: true,
+    }));
+    const fixture = TestBed.createComponent(ChatInputComponent);
+    fixture.componentRef.setInput('canSpeak', true);
+    fixture.detectChanges();
+    fixture.componentInstance.text = '今のは見逃せない';
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const box = (fixture.nativeElement as HTMLElement).querySelector('textarea')!;
+    box.focus();
+    box.dispatchEvent(new FocusEvent('focus'));
+    box.setSelectionRange(8, 8);
+
+    arrive({ mountChatEditor: mounted } as unknown as ChatEditorModule);
+    await Promise.resolve();
+    await Promise.resolve();
+    box.setSelectionRange(2, 2);
+    fixture.detectChanges();
+    TestBed.tick();
+
+    expect(mounted).toHaveBeenCalledWith(
+      expect.anything(),
+      { text: '今のは見逃せない', selection: { from: 2, to: 2 }, focused: true },
+      expect.anything()
+    );
+  });
+
   it('fetches it at once as the box is first touched, without waiting for the page to have time to spare', () => {
     const fixture = TestBed.createComponent(ChatInputComponent);
     fixture.componentRef.setInput('canSpeak', true);

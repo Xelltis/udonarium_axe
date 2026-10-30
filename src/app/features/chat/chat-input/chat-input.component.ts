@@ -92,6 +92,7 @@ import { RovingToolbarDirective } from '@axe/ui/directives/roving-toolbar.direct
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { ChatColorStylePipe } from '@axe/ui/pipes/chat-color-style.pipe';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { followPlainBox, type PlainBoxStand } from '@axe/ui/plain-box-handover';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NgOptionComponent, NgSelectComponent } from '@ng-select/ng-select';
 
@@ -352,6 +353,8 @@ export class ChatInputComponent {
   private editorFetched = false;
   /** Where the box stood when one kind gave way to the other, for the other to start from. */
   private handover: ChatEditorStart | null = null;
+  /** Where the reader stands in the plain box the editor arrived to take the place of, read as it is put in. */
+  private plainStand: (() => PlainBoxStand) | null = null;
 
   /**
    * Which box lines are typed into: the editor that draws them as they will look, the plain box
@@ -501,13 +504,7 @@ export class ChatInputComponent {
       }
       whenNotComposing(this.plainField()?.element, () => {
         const box = this.plainField()?.element;
-        if (box) {
-          this.handover = {
-            text: this.text,
-            selection: { from: box.selectionStart, to: box.selectionEnd },
-            focused: box.ownerDocument.activeElement === box,
-          };
-        }
+        this.plainStand = box ? followPlainBox(box) : null;
         this.editorModule.set(module);
       });
     });
@@ -527,11 +524,10 @@ export class ChatInputComponent {
         this.richField.set(null);
       }
       if (host && module && !this.richField()) {
-        const start = this.handover ?? {
-          text: this.text,
-          selection: { from: this.text.length, to: this.text.length },
-          focused: false,
-        };
+        const stand = this.plainStand?.();
+        this.plainStand = null;
+        const start = this.handover ??
+          stand ?? { selection: { from: this.text.length, to: this.text.length }, focused: false };
         this.handover = null;
         this.richField.set(module.mountChatEditor(host, { ...start, text: this.text }, this.editorHostApi));
       }

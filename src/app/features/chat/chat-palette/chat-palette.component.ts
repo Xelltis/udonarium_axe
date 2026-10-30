@@ -44,7 +44,7 @@ import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
-import type { ChatEditorField, ChatEditorHost, ChatEditorStart } from '@axe/features/chat/chat-editor/chat-editor';
+import type { ChatEditorField, ChatEditorHost } from '@axe/features/chat/chat-editor/chat-editor';
 import {
   CHAT_EDITOR_LOADER,
   CHAT_HIGHLIGHT_LIMIT,
@@ -60,6 +60,7 @@ import { ChatTickerSelectionService } from '@axe/features/chat/chat-ticker-selec
 import { GameDataElementComponent } from '@axe/features/data-element/game-data-element/game-data-element.component';
 import { ComposingMarkDirective, whenNotComposing } from '@axe/ui/directives/composing-mark.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
+import { followPlainBox, type PlainBoxStand } from '@axe/ui/plain-box-handover';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /**
@@ -123,8 +124,8 @@ export class ChatPaletteComponent {
   private paletteEditor: ChatEditorField | null = null;
   /** How far down the list was as editing opened, as a share of it, for the edit area to be scrolled to once drawn. */
   private editScrollShare: number | null = null;
-  /** Where the caret stood in the text area the editor takes the place of, arriving while it was written in. */
-  private handover: Pick<ChatEditorStart, 'selection' | 'focused'> | null = null;
+  /** Where the reader stands in the text area the editor arrived to take the place of, read as it is put in. */
+  private plainStand: (() => PlainBoxStand) | null = null;
 
   /**
    * Whether the palette is written in the editor that colours each line's syntax and marks what
@@ -169,8 +170,8 @@ export class ChatPaletteComponent {
       }
       if (!host || !module || this.paletteEditor) return;
       const text = this.editPalette();
-      const start = this.handover ?? { selection: { from: 0, to: 0 }, focused: false };
-      this.handover = null;
+      const start = this.plainStand?.() ?? { selection: { from: 0, to: 0 }, focused: false };
+      this.plainStand = null;
       this.paletteEditor = module.mountChatEditor(host, { text, ...start }, this.paletteEditorApi);
       this.paletteEditor.refresh(false);
       this.scrollEditToList();
@@ -179,17 +180,15 @@ export class ChatPaletteComponent {
   }
 
   /**
-   * Keeps where the reader stood in the text area, as the editor arrives to take its place: the
-   * caret, whether it had the keys, and how far down it was scrolled. Kept only while the editor is
-   * to be put in, and let go as editing ends.
+   * Follows the text area as the editor arrives to take its place, for where the reader stands in it
+   * to be read as the editor is put in: the caret, and whether it has the keys. How far down it is
+   * scrolled is kept as the editor arrives, as a text area taken off the page is scrolled no more.
+   * Let go as editing ends.
    */
   private handOverFromTextArea(): void {
     const area = this.editTextRef()?.nativeElement;
     if (!area || !this.isEdit() || !this.chatPreferences.richInput()) return;
-    this.handover = {
-      selection: { from: area.selectionStart, to: area.selectionEnd },
-      focused: area.ownerDocument.activeElement === area,
-    };
+    this.plainStand = followPlainBox(area);
     this.editScrollShare = area.scrollTop / Math.max(1, area.scrollHeight);
   }
 
@@ -755,7 +754,7 @@ export class ChatPaletteComponent {
       this.editScrollShare = (listEl?.scrollTop ?? 0) / Math.max(1, listEl?.scrollHeight ?? 1);
       afterNextRender(() => this.scrollEditToList(), { injector: this.injector });
     } else {
-      this.handover = null;
+      this.plainStand = null;
       if (this.mayEdit()) this.palette.setPalette(this.editPalette());
     }
   }
