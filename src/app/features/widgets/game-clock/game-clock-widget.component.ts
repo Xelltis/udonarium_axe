@@ -3,14 +3,24 @@ import { FormsModule } from '@angular/forms';
 import { GameClockService } from '@axe/application/game-clock/game-clock.service';
 import { WIDGET_GAME_CLOCK } from '@axe/application/ui/widget-place';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
-import { formatGameClockTime, GAME_CLOCK_STEPS, type GameClockMode } from '@axe/domain/game-clock/game-clock';
+import {
+  dayFractionOf,
+  formatGameClockTime,
+  GAME_CLOCK_STEPS,
+  type GameClockMode,
+} from '@axe/domain/game-clock/game-clock';
+import { clockSky, SKY_ARC, SKY_HEIGHT, SKY_STARS, SKY_WIDTH } from '@axe/features/widgets/game-clock/clock-sky';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
+/** How many skies have been drawn on the page, for each to name its colours apart from another's. */
+let skiesDrawn = 0;
+
 /**
  * The time the room keeps in its story, as a widget each seat shows or hides for itself: the day
- * and the hour of it, which the game master steps on and back from here and sets up below.
+ * and the hour of it written over a sky of that hour, the sun or the moon crossing it, which the
+ * game master steps on and back from a bar under it and sets up below.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -33,6 +43,28 @@ export class GameClockWidgetComponent {
   });
 
   protected readonly steps = GAME_CLOCK_STEPS;
+  protected readonly skyId = `game-clock-sky-${++skiesDrawn}`;
+  protected readonly skyWidth = SKY_WIDTH;
+  protected readonly skyHeight = SKY_HEIGHT;
+  protected readonly skyArc = SKY_ARC;
+  protected readonly stars = SKY_STARS;
+
+  /** The sky of the hour the clock stands at. */
+  protected readonly sky = computed(() => clockSky(dayFractionOf(this.clock.clock(), this.clock.periods().length)));
+
+  /** A mark for each part of the day, the one the clock stands in lit. */
+  protected readonly periodMarks = computed(() => {
+    const periods = this.clock.periods();
+    const at = Math.min(this.clock.clock().period, periods.length - 1);
+    return periods.map((_, index) => index === at);
+  });
+
+  /** The part of the day a step on goes to, the first of the next day after the last. */
+  protected readonly nextPeriod = computed(() => {
+    const periods = this.clock.periods();
+    const at = Math.min(this.clock.clock().period, periods.length - 1);
+    return periods[(at + 1) % Math.max(1, periods.length)] ?? '';
+  });
   protected readonly modes: readonly GameClockMode[] = ['periods', 'hours'];
   protected readonly settingsOpen = signal(false);
 

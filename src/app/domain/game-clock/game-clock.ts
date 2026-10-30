@@ -148,3 +148,14 @@ function wholeWithin(value: unknown, low: number, high: number, fallback: number
   if (!Number.isFinite(number)) return fallback;
   return Math.min(high, Math.max(low, Math.floor(number)));
 }
+
+/**
+ * How far through the day the clock stands, from 0 at midnight to just short of 1: the time on a
+ * clock of 24 hours, or, told by parts of the day, the start of the part, the parts laid evenly
+ * over the day from dawn on, as morning, noon, evening and night are.
+ */
+export function dayFractionOf(clock: GameClock, periodCount: number): number {
+  if (clock.mode === 'hours') return clock.minutes / MINUTES_IN_DAY;
+  const count = Math.max(1, periodCount);
+  return (0.25 + Math.min(clock.period, count - 1) / count) % 1;
+}

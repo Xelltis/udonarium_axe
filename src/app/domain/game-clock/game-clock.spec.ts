@@ -1,5 +1,6 @@
 import {
   cleanPeriods,
+  dayFractionOf,
   DEFAULT_GAME_CLOCK,
   formatGameClockDay,
   formatGameClockTime,
@@ -115,6 +116,20 @@ describe('the time the room keeps in its story', () => {
     it('writes the part of the day, or the time on the clock', () => {
       expect(formatGameClockTime(clock({ period: 3 }), PARTS)).toBe('夜');
       expect(formatGameClockTime(clock({ mode: 'hours', minutes: 545 }), PARTS)).toBe('09:05');
+    });
+  });
+
+  describe('dayFractionOf', () => {
+    it('reads the time on a clock of 24 hours as the share of the day gone', () => {
+      expect(dayFractionOf(clock({ mode: 'hours', minutes: 0 }), 4)).toBe(0);
+      expect(dayFractionOf(clock({ mode: 'hours', minutes: 18 * 60 }), 4)).toBe(0.75);
+    });
+
+    it('lays the parts of the day evenly from dawn, morning at six, noon at twelve and night at midnight', () => {
+      expect([0, 1, 2, 3].map((period) => dayFractionOf(clock({ period }), PARTS.length))).toEqual([
+        0.25, 0.5, 0.75, 0,
+      ]);
+      expect(dayFractionOf(clock({ period: 9 }), PARTS.length)).toBe(0);
     });
   });
 });
