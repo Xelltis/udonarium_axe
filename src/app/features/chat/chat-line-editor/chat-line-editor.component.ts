@@ -237,7 +237,7 @@ export class ChatLineEditorComponent {
   private focusPlainBox(): void {
     const box = this.plainBox()?.nativeElement;
     if (!box) return;
-    this.fitPlainBox(box);
+    this.plainField()?.refit();
     this.plainFocused = true;
     box.focus();
     box.setSelectionRange(box.value.length, box.value.length);
@@ -253,14 +253,12 @@ export class ChatLineEditorComponent {
     const field = this.field();
     if (!field) return;
     this.write(field.text());
-    const box = this.plainBox()?.nativeElement;
-    if (box) this.fitPlainBox(box);
+    this.plainField()?.refit();
   }
 
   protected typed(value: string): void {
     this.write(value);
-    const box = this.plainBox()?.nativeElement;
-    if (box) this.fitPlainBox(box);
+    this.plainField()?.refit();
   }
 
   /** Escape puts the edit down and Enter keeps it; Shift+Enter and keys pressed mid-composition type as usual. */
@@ -290,10 +288,5 @@ export class ChatLineEditorComponent {
     field.insertChip({ kind: 'stamp', id: stampId, label, raw: inlineStampToken(label, stampId) }, 'caret');
     field.focus();
     this.takeFieldText();
-  }
-
-  private fitPlainBox(box: HTMLTextAreaElement): void {
-    box.style.height = 'auto';
-    box.style.height = `${Math.min(box.scrollHeight, 240)}px`;
   }
 }
