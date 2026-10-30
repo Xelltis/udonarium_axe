@@ -77,7 +77,6 @@ export class ChatLineEditorComponent {
   private readonly stampRules = inject(StampRulesService);
   private readonly stampPacks = inject(StampPackService);
   private readonly t = inject(TRANSLATE_FN);
-  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   /** What the line says as the edit starts. */
   readonly draft = input.required<string>();
@@ -98,6 +97,8 @@ export class ChatLineEditorComponent {
 
   private readonly editorHost = viewChild<ElementRef<HTMLElement>>('editorHost');
   private readonly plainBox = viewChild<ElementRef<HTMLTextAreaElement>>('plainBox');
+  /** The buttons along the line, which the bar over a selection keeps clear of. */
+  private readonly editsBar = viewChild<ElementRef<HTMLElement>>('editsBar');
   /** Where the reader stands in the plain box the editor arrived to take the place of, read as it is put in. */
   private plainStand: (() => PlainBoxStand) | null = null;
   /** Whether the reader has typed, pressed a key or pressed in the plain box, which then holds where they stand. */
@@ -157,7 +158,7 @@ export class ChatLineEditorComponent {
     completionWords: () => NO_WORDS,
     portraitImage: () => null,
     openRuby: () => this.toolbar()?.openRuby(),
-    toolbarElement: () => this.host.nativeElement.querySelector('[data-testid="chat-line-edit-toolbar"]'),
+    toolbarElement: () => this.editsBar()?.nativeElement ?? null,
     translate: (key, params) => this.t(key, params),
     stampHtml: (stampId, key) => this.syntaxSource.stampHtml(stampId, key),
   };

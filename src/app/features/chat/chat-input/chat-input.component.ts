@@ -142,6 +142,8 @@ export class ChatInputComponent {
   private readonly colorsPanel = viewChild<ElementRef<HTMLElement>>('colorsPanel');
   private readonly findingsButton = viewChild<ElementRef<HTMLElement>>('findingsButton');
   private readonly findingsPanel = viewChild<ElementRef<HTMLElement>>('findingsPanel');
+  /** The bar of buttons over the box, which the bar over a selection keeps clear of. */
+  private readonly editsBar = viewChild<ElementRef<HTMLElement>>('editsBar');
   private readonly panel = signal<{ which: 'colors' | 'findings'; popover: AnchoredPopover } | null>(null);
 
   /**
@@ -470,7 +472,7 @@ export class ChatInputComponent {
     cutInNames: () => this.syntaxSource.chatCutInNames(),
     portraitImage: (raw) => this.syntaxSource.portraitImage(this.sendFrom, raw),
     openRuby: () => this.toolbar()?.openRuby(),
-    toolbarElement: () => this.hostElement.nativeElement.querySelector('[data-testid="chat-input-edits"]'),
+    toolbarElement: () => this.editsBar()?.nativeElement ?? null,
     translate: (key, params) => this.t(key, params),
     stampHtml: (stampId, key) => this.syntaxSource.stampHtml(stampId, key),
     linted: (marked) => {
