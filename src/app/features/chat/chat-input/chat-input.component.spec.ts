@@ -776,6 +776,22 @@ describe('ChatInputComponent', () => {
       );
     });
 
+    it('sends a picked stamp that cannot be written into a line as a line of its own', async () => {
+      fixture.componentRef.setInput('canSpeak', true);
+      fixture.detectChanges();
+      const picked = vi.spyOn(TestBed.inject(StampPickerService), 'toggle');
+      const outgoing = sent();
+      (component as unknown as { openStamps(anchor: Element): void }).openStamps(document.body);
+
+      picked.mock.calls[0][2]('image:https://cdn.example.com/pkg@1.0/a.png');
+
+      expect(await outgoing).toEqual(
+        expect.objectContaining({
+          stamp: expect.objectContaining({ id: 'image:https://cdn.example.com/pkg@1.0/a.png' }),
+        })
+      );
+    });
+
     it('offers no stamps where the room does not let them be sent, and sends none it denies', () => {
       fixture.componentRef.setInput('canSpeak', true);
       const config = Config.instance;

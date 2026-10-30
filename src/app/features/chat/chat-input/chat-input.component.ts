@@ -1185,10 +1185,16 @@ export class ChatInputComponent {
 
   /**
    * Puts a stamp in at the caret, as an emoji is, to go out with the words round it, where the room
-   * lets it be sent: a chip in the editor, its written form in the plain box.
+   * lets it be sent: a chip in the editor, its written form in the plain box. One that cannot be
+   * written into a line, as a picture known by an address with an at mark in it, goes out as a line
+   * of its own.
    */
   private putStamp(stampId: string): void {
-    if (!this.canSpeak() || !this.stampRules.allows('line', stampId) || !isInlineStampId(stampId)) return;
+    if (!this.canSpeak() || !this.stampRules.allows('line', stampId)) return;
+    if (!isInlineStampId(stampId)) {
+      this.sendStamp(stampId);
+      return;
+    }
     const label = stampLabel(stampId, this.t, (imageIdentifier) => this.stampPacks.nameOf(imageIdentifier));
     this.writeIntoField((field) =>
       field.insertChip({ kind: 'stamp', id: stampId, label, raw: inlineStampToken(label, stampId) }, 'caret')
