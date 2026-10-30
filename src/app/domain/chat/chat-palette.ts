@@ -409,8 +409,14 @@ function strengthAsTerm(strength: string, place: FormulaPlace): string {
   return strength.startsWith('-') ? `(${strength})` : strength;
 }
 
-/** A word that is a resource command, read up to a point in it: the mark, a name and an operator before it. */
-const RESOURCE_COMMAND_WORD = /^[sSｓＳ]?[tTｔＴ]?[:：][^\s]*?[-+=＋－＝*/×÷]/;
+/**
+ * A word that is a resource command working out a number, read up to a point in it: the mark, a
+ * name and the operator after it, one that moves or sets the number rather than `>`, which writes
+ * text.
+ */
+const RESOURCE_COMMAND_WORD = /^[sSｓＳ]?[tTｔＴ]?[:：][^\s\-+=>－＋＝＞]*[-+=－＋＝]/;
+
+/** Where the word holding a point of a line starts, counting a space inside a reference's braces as part of it. */
 function wordStart(line: string, offset: number): number {
   let depth = 0;
   let start = 0;

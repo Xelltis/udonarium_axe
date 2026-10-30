@@ -338,6 +338,12 @@ describe('ChatPalette', () => {
         expect(evaluateCharacterReferences('3 2d6+{練技}', attacker).text).toBe('3 2d6+2');
       });
 
+      it('reads the words of the note in the text a > command writes, which is no number', () => {
+        const cursed = wearing(makeCharacter(false), '&呪い/攻撃-1/3');
+
+        expect(evaluateCharacterReferences(':メモ>状態-{呪い}', cursed).text).toBe(':メモ>状態-攻撃-1');
+      });
+
       it('lends the number in a roll that a stamp put right after it ends, as a space would', () => {
         const guarded = wearing(makeCharacter(false), '&加護/防護3/3');
 
