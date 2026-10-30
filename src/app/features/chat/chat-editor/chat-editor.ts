@@ -263,6 +263,8 @@ export class ChatEditorField implements ChatTextField {
     this.editor.view.dom.addEventListener('mouseover', this.showTip);
     this.editor.view.dom.addEventListener('mouseout', this.hideTip);
     this.editor.view.dom.addEventListener('keydown', this.hideTip);
+    this.editor.view.dom.addEventListener('focusin', this.takeKeys);
+    this.editor.view.dom.addEventListener('focusout', this.giveKeys);
     Object.defineProperty(this.editor.view.dom, 'chatText', { value: () => this.text() });
     this.updateActiveMarks();
     if (start.focused) this.focus();
@@ -432,10 +434,26 @@ export class ChatEditorField implements ChatTextField {
     return selection instanceof NodeSelection ? chipOfNode(selection.node) : null;
   }
 
-  /** Where it stands, to start the plain box from when the reader goes back to it. */
+  /**
+   * Where it stands, to start the plain box from when the reader goes back to it. The keys are the
+   * editor's where it still holds them, or where it held them last and nothing else holds them now,
+   * as taking it off the page while it holds them leaves them with the page itself, and the plain
+   * box is often put in only after the page is drawn without the editor.
+   */
   snapshot(): ChatEditorStart {
-    return { text: this.text(), selection: this.selection(), focused: this.hasFocus() };
+    const active = this.editor.view.dom.ownerDocument.activeElement;
+    const focused = this.hasFocus() || (this.heldKeys && (active === null || active === active.ownerDocument.body));
+    return { text: this.text(), selection: this.selection(), focused };
   }
+
+  /** Whether the editor held the keys last, as against something else on the page taking them from it. */
+  private heldKeys = false;
+  private readonly takeKeys = (): void => {
+    this.heldKeys = true;
+  };
+  private readonly giveKeys = (event: FocusEvent): void => {
+    if (event.relatedTarget) this.heldKeys = false;
+  };
 
   /**
    * Colours the syntax again and checks it again, at once, or for a change to the text, which is

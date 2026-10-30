@@ -315,6 +315,24 @@ describe('the chat editor', () => {
     expect(tipped?.textContent).toBe('2d6');
   });
 
+  it('says it held the keys once taken off the page while holding them, and not once they went elsewhere', () => {
+    const editor = mount('words');
+    editor.focus();
+    parent.remove();
+    expect(editor.snapshot().focused).toBe(true);
+
+    document.body.append(parent);
+    editor.focus();
+    const other = document.createElement('input');
+    document.body.append(other);
+    try {
+      other.focus();
+      expect(editor.snapshot().focused).toBe(false);
+    } finally {
+      other.remove();
+    }
+  });
+
   it('names the buttons of the bar over a selection again as the language changes', () => {
     let tongue = 'ja';
     const editor = mountChatEditor(parent, { text: '', selection: { from: 0, to: 0 }, focused: false }, {
