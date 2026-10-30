@@ -74,6 +74,17 @@ describe('GameClockWidgetComponent', () => {
     expect(root.querySelector('[data-testid="game-clock-periods"]')).toBeNull();
   });
 
+  it('picks the last part of the day in the set-up for a clock that stands past the parts there are now', async () => {
+    Config.instance.gameClock = { ...DEFAULT_GAME_CLOCK, period: 5 };
+    const root = open(PeerRole.GameMaster);
+    root.querySelector<HTMLButtonElement>('[data-testid="game-clock-settings"]')!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(text(root, 'game-clock-time')).toBe('夜');
+    expect(root.querySelector<HTMLSelectElement>('[data-testid="game-clock-period"]')!.selectedIndex).toBe(3);
+  });
+
   it('shows in each field what the clock keeps, where it kept to its bounds or tidied what was written', () => {
     const root = open(PeerRole.GameMaster);
     root.querySelector<HTMLButtonElement>('[data-testid="game-clock-settings"]')!.click();

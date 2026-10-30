@@ -18,6 +18,7 @@ import {
   formatGameClockTime,
   GAME_CLOCK_STEPS,
   type GameClockMode,
+  periodIndexOf,
 } from '@axe/domain/game-clock/game-clock';
 import { clockSky, SKY_ARC, SKY_HEIGHT, SKY_STARS, SKY_WIDTH } from '@axe/features/widgets/game-clock/clock-sky';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
@@ -85,17 +86,20 @@ export class GameClockWidgetComponent {
     inject(DestroyRef).onDestroy(() => cancelAnimationFrame(this.skyFrame));
   }
 
+  /** Which part of the day the clock stands in, as the set-up picks it. */
+  protected readonly periodIndex = computed(() => periodIndexOf(this.clock.clock(), this.clock.periods().length));
+
   /** A mark for each part of the day, the one the clock stands in lit. */
   protected readonly periodMarks = computed(() => {
     const periods = this.clock.periods();
-    const at = Math.min(this.clock.clock().period, periods.length - 1);
+    const at = periodIndexOf(this.clock.clock(), periods.length);
     return periods.map((_, index) => index === at);
   });
 
   /** The part of the day a step on goes to, the first of the next day after the last. */
   protected readonly nextPeriod = computed(() => {
     const periods = this.clock.periods();
-    const at = Math.min(this.clock.clock().period, periods.length - 1);
+    const at = periodIndexOf(this.clock.clock(), periods.length);
     return periods[(at + 1) % Math.max(1, periods.length)] ?? '';
   });
   protected readonly modes: readonly GameClockMode[] = ['periods', 'hours'];

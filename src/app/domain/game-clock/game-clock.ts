@@ -110,6 +110,14 @@ export function cleanPeriods(names: readonly string[]): string[] {
   return kept.slice(0, MAX_GAME_CLOCK_PERIODS);
 }
 
+/**
+ * Which of so many parts of the day the clock stands in: the one it keeps, or the last there is
+ * where it keeps one past those there are now, as after its names were cut back.
+ */
+export function periodIndexOf(clock: GameClock, periodCount: number): number {
+  return Math.max(0, Math.min(clock.period, periodCount - 1));
+}
+
 /** The parts of a day the clock is told by: its own, else the ones given for the reader's language. */
 export function periodsOf(clock: GameClock, defaults: readonly string[]): readonly string[] {
   return clock.periods.length > 0 ? clock.periods : defaults;
@@ -130,7 +138,7 @@ export function stepGameClock(clock: GameClock, direction: 1 | -1, periodCount: 
     return { ...clock, day, minutes: moved - days * MINUTES_IN_DAY };
   }
   const count = Math.max(1, periodCount);
-  const moved = Math.min(clock.period, count - 1) + direction;
+  const moved = periodIndexOf(clock, count) + direction;
   const days = Math.floor(moved / count);
   const day = clock.day + days;
   if (day < 1) return { ...clock, day: 1, period: 0 };
@@ -156,7 +164,7 @@ export function formatGameClockTime(clock: GameClock, periods: readonly string[]
     const minutes = clock.minutes % 60;
     return `${`${hours}`.padStart(2, '0')}:${`${minutes}`.padStart(2, '0')}`;
   }
-  return periods[Math.min(clock.period, periods.length - 1)] ?? '';
+  return periods[periodIndexOf(clock, periods.length)] ?? '';
 }
 
 function wholeWithin(value: unknown, low: number, high: number, fallback: number): number {
@@ -173,5 +181,5 @@ function wholeWithin(value: unknown, low: number, high: number, fallback: number
 export function dayFractionOf(clock: GameClock, periodCount: number): number {
   if (clock.mode === 'hours') return clock.minutes / MINUTES_IN_DAY;
   const count = Math.max(1, periodCount);
-  return (0.25 + Math.min(clock.period, count - 1) / count) % 1;
+  return (0.25 + periodIndexOf(clock, count) / count) % 1;
 }

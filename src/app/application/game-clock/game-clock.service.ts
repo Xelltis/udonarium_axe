@@ -11,6 +11,7 @@ import {
   formatGameClockTime,
   type GameClock,
   type GameClockMode,
+  periodIndexOf,
   periodsOf,
   stepGameClock,
   withDay,
@@ -101,7 +102,7 @@ export class GameClockService {
     if (!this.canEdit()) return;
     const clock = { ...this.clock(), periods: cleanPeriods(written.split(/[,、，]/)) };
     const count = periodsOf(clock, this.defaultPeriods()).length;
-    this.write({ ...clock, period: Math.min(clock.period, Math.max(0, count - 1)) });
+    this.write({ ...clock, period: periodIndexOf(clock, count) });
   }
 
   setStep(step: number): void {

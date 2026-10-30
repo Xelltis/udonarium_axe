@@ -197,7 +197,7 @@
               data-testid="game-clock-period"
               [class]="fieldClass"
               class="flex-1"
-              [ngModel]="clock.clock().period"
+              [ngModel]="periodIndex()"
               (ngModelChange)="clock.setPeriod($event)"
             >
               @for (name of clock.periods(); track $index) {
