@@ -334,6 +334,21 @@ describe('ChatInputComponent', () => {
     expect(component.text).toBe('3 S2D6');
   });
 
+  it('leaves the caret where it stood before a secret roll’s mark put in after it', async () => {
+    fixture.componentRef.setInput('canSpeak', true);
+    fixture.detectChanges();
+    component.text = '3 2D6';
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const box = (fixture.nativeElement as HTMLElement).querySelector('textarea')!;
+    box.setSelectionRange(0, 0);
+
+    (component as unknown as { syntaxWriter: ChatSyntaxWriter }).syntaxWriter.prefix('S', 'roll');
+
+    expect(component.text).toBe('3 S2D6');
+    expect([box.selectionStart, box.selectionEnd]).toEqual([0, 0]);
+  });
+
   it('checks a line against the room’s default dice bot as the room changes it', () => {
     const watch = vi.spyOn(TestBed.inject(ChatLintService), 'watch');
     TestBed.createComponent(ChatInputComponent).componentRef.setInput('gameType', 'DiceBot');

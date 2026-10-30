@@ -282,7 +282,8 @@ export class ChatInputComponent {
             : line === 'roll'
               ? readRollLine(rollableText(field.text().split('\n')[0])).rollFrom
               : 0;
-        field.replaceRange(lineStart, lineStart, text, { from: from + text.length, to: to + text.length });
+        const shifted = (at: number) => (at < lineStart ? at : at + text.length);
+        field.replaceRange(lineStart, lineStart, text, { from: shifted(from), to: shifted(to) });
       }),
     chip: (chip, place) => this.writeIntoField((field) => field.insertChip(chip, place)),
   };
