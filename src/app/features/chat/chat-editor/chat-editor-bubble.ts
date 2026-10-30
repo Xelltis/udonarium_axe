@@ -14,6 +14,8 @@ export interface ChatBubbleActions {
 export interface ChatBubble {
   readonly element: HTMLElement;
   refresh(): void;
+  /** Names its buttons again, in the language the tool is now read in. */
+  relabel(): void;
 }
 
 /**
@@ -27,27 +29,34 @@ export function buildChatBubble(document: Document, actions: ChatBubbleActions):
   element.setAttribute('data-testid', 'chat-bubble');
   element.addEventListener('mousedown', (event) => event.preventDefault());
 
-  const button = (label: string, title: string, run: () => void, icon = true) => {
+  const t = actions.translate;
+  const namings: (() => void)[] = [];
+  const name = (made: HTMLElement, titleKey: string, wordsKey?: string) => {
+    const naming = () => {
+      made.title = t(titleKey);
+      made.setAttribute('aria-label', made.title);
+      if (wordsKey) made.textContent = t(wordsKey);
+    };
+    naming();
+    namings.push(naming);
+  };
+  const button = (glyphName: string | null, titleKey: string, run: () => void, wordsKey?: string) => {
     const made = document.createElement('button');
     made.type = 'button';
-    made.title = title;
-    made.setAttribute('aria-label', title);
-    if (icon) {
+    if (glyphName) {
       const glyph = document.createElement('i');
       glyph.className = 'material-icons';
-      glyph.textContent = label;
+      glyph.textContent = glyphName;
       made.append(glyph);
-    } else {
-      made.textContent = label;
     }
+    name(made, titleKey, wordsKey);
     made.addEventListener('click', run);
     element.append(made);
     return made;
   };
-  const t = actions.translate;
-  const bold = button('format_bold', t('feature.chat.decoration.bold'), () => actions.apply({ kind: 'bold' }));
-  const italic = button('format_italic', t('feature.chat.decoration.italic'), () => actions.apply({ kind: 'italic' }));
-  const strike = button('format_strikethrough', t('feature.chat.decoration.strike'), () =>
+  const bold = button('format_bold', 'feature.chat.decoration.bold', () => actions.apply({ kind: 'bold' }));
+  const italic = button('format_italic', 'feature.chat.decoration.italic', () => actions.apply({ kind: 'italic' }));
+  const strike = button('format_strikethrough', 'feature.chat.decoration.strike', () =>
     actions.apply({ kind: 'strike' })
   );
   bold.dataset['mark'] = 'bold';
@@ -62,24 +71,22 @@ export function buildChatBubble(document: Document, actions: ChatBubbleActions):
     swatch.type = 'button';
     swatch.className = 'chat-rich-bubble-swatch';
     swatch.style.backgroundColor = CHAT_COLORS[key];
-    swatch.title = t(`feature.chat.decoration.${key}`);
-    swatch.setAttribute('aria-label', swatch.title);
+    name(swatch, `feature.chat.decoration.${key}`);
     swatch.addEventListener('click', () => actions.apply({ kind: 'color', value: CHAT_COLORS[key] }));
     swatches.append(swatch);
   }
   const clear = document.createElement('button');
   clear.type = 'button';
   clear.className = 'chat-rich-bubble-swatch chat-rich-bubble-clear';
-  clear.title = t('feature.chat.toolbar.clearColor');
-  clear.setAttribute('aria-label', clear.title);
+  name(clear, 'feature.chat.toolbar.clearColor');
   clear.addEventListener('click', () => actions.apply({ kind: 'color', value: null }));
   swatches.append(clear);
-  const color = button('format_color_text', t('feature.chat.decoration.color'), () => {
+  const color = button('format_color_text', 'feature.chat.decoration.color', () => {
     swatches.hidden = !swatches.hidden;
   });
   if (actions.openRuby) {
     const openRuby = actions.openRuby.bind(actions);
-    button(t('feature.chat.syntax.ruby'), t('feature.chat.syntax.rubyWrap'), () => openRuby(), false);
+    button(null, 'feature.chat.syntax.rubyWrap', () => openRuby(), 'feature.chat.syntax.ruby');
   }
   element.append(swatches);
 
@@ -92,6 +99,9 @@ export function buildChatBubble(document: Document, actions: ChatBubbleActions):
       strike.setAttribute('aria-pressed', String(!!active?.strike));
       color.style.color = active?.color ?? '';
       if (element.style.visibility === 'hidden' || !element.isConnected) swatches.hidden = true;
+    },
+    relabel() {
+      for (const naming of namings) naming();
     },
   };
 }

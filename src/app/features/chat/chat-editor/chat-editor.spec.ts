@@ -163,6 +163,25 @@ describe('the chat editor', () => {
     expect([...keys][0]).toBeTruthy();
   });
 
+  it('names the buttons of the bar over a selection again as the language changes', () => {
+    let tongue = 'ja';
+    const editor = mountChatEditor(parent, { text: '', selection: { from: 0, to: 0 }, focused: false }, {
+      ...host(),
+      translate: (key: string) => `${tongue}:${key}`,
+    } as unknown as ChatEditorHost);
+    field = editor;
+    const bar = (editor as unknown as { bubble: { element: HTMLElement } }).bubble.element;
+    expect(bar.querySelector('button')?.getAttribute('aria-label')).toBe('ja:feature.chat.decoration.bold');
+
+    tongue = 'en';
+    editor.reconfigure();
+
+    expect(bar.querySelector('button')?.getAttribute('aria-label')).toBe('en:feature.chat.decoration.bold');
+    expect(bar.querySelector('.chat-rich-bubble-clear')?.getAttribute('title')).toBe(
+      'en:feature.chat.toolbar.clearColor'
+    );
+  });
+
   it('makes a decoration closed round a chip, as round any other text', () => {
     const editor = mount('');
 
