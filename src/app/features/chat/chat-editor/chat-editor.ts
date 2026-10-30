@@ -126,6 +126,8 @@ const LINT_DELAY_MS = 300;
 const COMPOSITION_ENTER_MS = 50;
 
 const SYNTAX = new PluginKey<DecorationSet>('chatSyntax');
+/** What will not work and what a roll comes out as, kept apart so that they stay put as the reader types. */
+const LINT = new PluginKey<DecorationSet>('chatLint');
 
 const KIND_CLASSES: Partial<Record<SyntaxKind, string>> = {
   repeat: 'chat-rich-roll',
@@ -856,22 +858,28 @@ export class ChatEditorField implements ChatTextField {
       name: 'chatSyntax',
       addProseMirrorPlugins() {
         return [
-          new Plugin<DecorationSet>({
-            key: SYNTAX,
-            state: {
-              init: () => DecorationSet.empty,
-              apply: (tr, set) => tr.getMeta(SYNTAX) ?? set.map(tr.mapping, tr.doc),
-            },
-            props: {
-              decorations: (state) => SYNTAX.getState(state),
-            },
-          }),
+          ...[SYNTAX, LINT].map(
+            (key) =>
+              new Plugin<DecorationSet>({
+                key,
+                state: {
+                  init: () => DecorationSet.empty,
+                  apply: (tr, set) => tr.getMeta(key) ?? set.map(tr.mapping, tr.doc),
+                },
+                props: {
+                  decorations: (state) => key.getState(state),
+                },
+              })
+          ),
         ];
       },
     });
   }
 
-  /** Colours the syntax of the text as the chat reads it, and marks what will not work where asked. */
+  /**
+   * Colours the syntax of the text as the chat reads it, and marks what will not work where asked.
+   * Where not asked, the marks of the last check stay, moved along with the text, until the next.
+   */
   private paintSyntax(withLint: boolean): void {
     const view = this.editor.view;
     if (view.isDestroyed) return;
@@ -882,7 +890,12 @@ export class ChatEditorField implements ChatTextField {
     const session = this.host.session();
     const out = this.writtenNow();
     if (!session || out.text.length > CHAT_HIGHLIGHT_LIMIT) {
-      view.dispatch(view.state.tr.setMeta(SYNTAX, DecorationSet.empty).setMeta('addToHistory', false));
+      view.dispatch(
+        view.state.tr
+          .setMeta(SYNTAX, DecorationSet.empty)
+          .setMeta(LINT, DecorationSet.empty)
+          .setMeta('addToHistory', false)
+      );
       if (withLint) this.host.linted?.(false);
       return;
     }
@@ -890,7 +903,7 @@ export class ChatEditorField implements ChatTextField {
     if (scan.text !== out.text) return;
     const doc = view.state.doc;
     const decorations: Decoration[] = [];
-    const annotations = withLint ? [...session.annotations(), ...session.rolls()] : session.annotations();
+    const annotations = session.annotations();
     const chipAt = (from: number, to: number): number | null => {
       const pos = out.toPos(from, 1);
       const node = doc.nodeAt(pos);
@@ -911,7 +924,14 @@ export class ChatEditorField implements ChatTextField {
       if (image) attrs['style'] = `--chip-image: url("${image.replace(/["\\\\]/g, '')}")`;
       if (Object.keys(attrs).length > 0) decorations.push(Decoration.node(pos, pos + node.nodeSize, attrs));
     });
+    const tr = view.state.tr.setMeta(SYNTAX, DecorationSet.create(doc, decorations));
     if (withLint) {
+      const lint: Decoration[] = [];
+      for (const roll of session.rolls()) {
+        const from = out.toPos(roll.from, 1);
+        const to = out.toPos(roll.to, -1);
+        if (from < to) lint.push(Decoration.inline(from, to, { 'data-tip': roll.label }));
+      }
       for (const found of session.diagnostics()) {
         const tip = this.host.translate(
           `feature.chat.lint.${found.code}`,
@@ -920,15 +940,16 @@ export class ChatEditorField implements ChatTextField {
         const attrs = { class: `chat-lint-${found.severity}`, 'data-tip': tip, 'data-severity': found.severity };
         const chip = chipAt(found.from, found.to);
         if (chip !== null) {
-          decorations.push(Decoration.node(chip, chip + 1, attrs));
+          lint.push(Decoration.node(chip, chip + 1, attrs));
           continue;
         }
         const from = out.toPos(found.from, 1);
         const to = out.toPos(found.to, -1);
-        if (from < to) decorations.push(Decoration.inline(from, to, attrs));
+        if (from < to) lint.push(Decoration.inline(from, to, attrs));
       }
+      tr.setMeta(LINT, DecorationSet.create(doc, lint));
     }
-    view.dispatch(view.state.tr.setMeta(SYNTAX, DecorationSet.create(doc, decorations)).setMeta('addToHistory', false));
+    view.dispatch(tr.setMeta('addToHistory', false));
     if (withLint) this.host.linted?.(true);
   }
 
@@ -962,10 +983,7 @@ export class ChatEditorField implements ChatTextField {
       const from = out.toPos(span.from, 1);
       const to = out.toPos(span.to, -1);
       if (from >= to) continue;
-      const roll = span.kind === 'roll' ? annotated('roll', span.from, span.to) : undefined;
-      decorations.push(
-        Decoration.inline(from, to, roll ? { class: className, 'data-tip': roll.label } : { class: className })
-      );
+      decorations.push(Decoration.inline(from, to, { class: className }));
     }
   }
 

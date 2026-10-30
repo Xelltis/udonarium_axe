@@ -271,6 +271,50 @@ describe('the chat editor', () => {
     expect(tip()).toBe('en:feature.chat.lint.chipNotAtEnd');
   });
 
+  it('keeps what the last check found marked while the reader types on, until the next check', () => {
+    const written = signal(':気力-1 あ');
+    const session = {
+      scan: computed(() => scanChatSyntax(written())),
+      diagnostics: signal([{ from: 0, to: 6, severity: 'error', code: 'res.unknownStatus' }]),
+      annotations: signal([]),
+      rolls: signal([]),
+    };
+    const editor = mountChatEditor(parent, { text: written(), selection: { from: 0, to: 0 }, focused: false }, {
+      ...host(),
+      session: () => session,
+      changed: (text: string) => written.set(text),
+    } as unknown as ChatEditorHost);
+    field = editor;
+    editor.refresh(false);
+    expect(parent.querySelector('.chat-lint-error')?.textContent).toBe(':気力-1');
+
+    const view = editor.editor.view;
+    view.dispatch(view.state.tr.setSelection(TextSelection.atEnd(view.state.doc)));
+    type(editor, 'い');
+    editor.refresh(true);
+
+    expect(parent.querySelector('.chat-lint-error')?.textContent).toBe(':気力-1');
+  });
+
+  it('shows what a roll comes out as over the roll once it is checked', () => {
+    const written = signal('2d6 攻撃');
+    const session = {
+      scan: computed(() => scanChatSyntax(written())),
+      diagnostics: signal([]),
+      annotations: signal([]),
+      rolls: signal([{ kind: 'roll', label: '(2D6) ＞ 7', from: 0, to: 3 }]),
+    };
+    field = mountChatEditor(parent, { text: written(), selection: { from: 0, to: 0 }, focused: false }, {
+      ...host(),
+      session: () => session,
+    } as unknown as ChatEditorHost);
+
+    field.refresh(false);
+
+    const tipped = parent.querySelector('[data-tip="(2D6) ＞ 7"]');
+    expect(tipped?.textContent).toBe('2d6');
+  });
+
   it('names the buttons of the bar over a selection again as the language changes', () => {
     let tongue = 'ja';
     const editor = mountChatEditor(parent, { text: '', selection: { from: 0, to: 0 }, focused: false }, {
