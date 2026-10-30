@@ -126,6 +126,20 @@ describe('the chat editor', () => {
     expect(editor.text()).toBe('');
   });
 
+  it('brings back nothing of what was written before a line cleared as sent, however many times undone', () => {
+    const editor = mount('');
+    type(editor, 'hello');
+    const view = editor.editor.view;
+    view.dispatch(closeHistory(view.state.tr));
+    view.dispatch(view.state.tr.delete(view.state.selection.from - 1, view.state.selection.from));
+    expect(editor.text()).toBe('hell');
+
+    editor.setText('', undefined, false);
+    for (let undo = 0; undo < 3; undo++) editor.editor.commands.undo();
+
+    expect(editor.text()).toBe('');
+  });
+
   it('puts a text that waited on a word being made in as asked, and tells the holder what it then holds', () => {
     const told: string[] = [];
     const editor = mountChatEditor(parent, { text: '', selection: { from: 0, to: 0 }, focused: false }, {

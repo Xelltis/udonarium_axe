@@ -39,6 +39,7 @@ import { computePosition, flip, offset, shift } from '@floating-ui/dom';
 import { Editor, Extension, InputRule } from '@tiptap/core';
 import { BubbleMenu } from '@tiptap/extension-bubble-menu';
 import { Placeholder, UndoRedo } from '@tiptap/extensions';
+import { history } from '@tiptap/pm/history';
 import { type Mark, type Node as ProseMirrorNode, Slice } from '@tiptap/pm/model';
 import { NodeSelection, Plugin, PluginKey, TextSelection, type Transaction } from '@tiptap/pm/state';
 import { AddMarkStep, ReplaceAroundStep, ReplaceStep, type Step } from '@tiptap/pm/transform';
@@ -163,6 +164,8 @@ export class ChatEditorField implements ChatTextField {
   private pendingText: { text: string; select?: ChatFieldSelection; undoable: boolean } | null = null;
   /** Whether the paste coming is the one Ctrl+Shift+V asks for, to go in as the letters copied. */
   private pastePlain = false;
+  /** The undo history, kept to hand so that a text put in not to be undone can start it afresh. */
+  private readonly undoHistory = history();
   private readonly tip: HTMLElement;
   private readonly bubble: ChatBubble;
 
@@ -190,7 +193,7 @@ export class ChatEditorField implements ChatTextField {
       element: parent,
       extensions: [
         ...CHAT_RICH_EXTENSIONS.map((extension) => (extension === ChatStamp ? this.stampChip() : extension)),
-        UndoRedo,
+        UndoRedo.extend({ addProseMirrorPlugins: () => [this.undoHistory] }),
         Placeholder.configure({ placeholder: () => host.placeholder() }),
         this.compositionGuard(),
         lineBreaksAsParagraphs(),
@@ -303,9 +306,20 @@ export class ChatEditorField implements ChatTextField {
     const to = out.toPos(caret.to, -1);
     tr.setSelection(TextSelection.create(tr.doc, Math.min(from, to), Math.max(from, to)));
     tr.setMeta(FROM_HOLDER, true);
-    if (!undoable) tr.setMeta('addToHistory', false);
+    if (!undoable) this.forgetHistory(tr);
     if (view.hasFocus()) tr.scrollIntoView();
     view.dispatch(tr);
+  }
+
+  /**
+   * Starts the undo history afresh with a transaction, as a text that is not to be undone leaves
+   * nothing before it to undo either: a step kept from before would be undone against a text it was
+   * never written in, putting back pieces of what had been taken out. The history takes the state a
+   * transaction carries under its own key for the one to keep, as its own undo hands it over.
+   */
+  private forgetHistory(tr: Transaction): void {
+    tr.setMeta('addToHistory', false);
+    tr.setMeta(this.undoHistory, { historyState: this.undoHistory.spec.state!.init({}, this.editor.state) });
   }
 
   /**
