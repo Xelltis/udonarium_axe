@@ -139,6 +139,24 @@ describe('the chat editor', () => {
     expect(editor.text()).toBe('**a**');
   });
 
+  it('reads a text dropped in with markup of its own as the chat’s syntax, as a paste is read', () => {
+    const editor = mount('');
+    const view = editor.editor.view;
+    const drop = {
+      dataTransfer: {
+        getData: (type: string) => (type === 'text/plain' ? '**強打** {HP}' : '<b>**強打**</b> {HP}'),
+      },
+      clientX: 0,
+      clientY: 0,
+      preventDefault: () => undefined,
+    } as unknown as DragEvent;
+
+    const taken = view.someProp('handleDrop', (handle) => handle(view, drop, view.state.doc.slice(0, 0), false));
+
+    expect(taken).toBe(true);
+    expect(editor.text()).toBe('**強打** {HP}');
+  });
+
   it('reads a text dropped in as the chat’s syntax, as a paste is read', () => {
     const editor = mount('');
     const view = editor.editor.view;

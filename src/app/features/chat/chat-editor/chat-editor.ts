@@ -255,6 +255,7 @@ export class ChatEditorField implements ChatTextField {
           },
         },
         handlePaste: (view, event) => this.paste(view, event),
+        handleDrop: (view, event, _slice, moved) => this.drop(view, event, moved),
         clipboardTextParser: (text, _context, plain) => this.sliceOfText(text, plain),
       },
     });
@@ -825,6 +826,21 @@ export class ChatEditorField implements ChatTextField {
     const text = event.clipboardData?.getData('text/plain');
     if (text === undefined || text.length < 1) return false;
     view.dispatch(view.state.tr.replaceSelection(this.sliceOfText(text, false)).scrollIntoView());
+    return true;
+  }
+
+  /**
+   * Takes a text dropped in from outside as the chat's syntax, as a paste is read, though it comes
+   * with markup of its own, as from a page or the chat's log; a stretch moved within the editor is
+   * left to it.
+   */
+  private drop(view: EditorView, event: DragEvent, moved: boolean): boolean {
+    const text = event.dataTransfer?.getData('text/plain');
+    if (moved || !text) return false;
+    event.preventDefault();
+    const at = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.from;
+    const tr = view.state.tr.replaceRange(at, at, this.sliceOfText(text, false));
+    view.dispatch(tr.setSelection(TextSelection.near(tr.doc.resolve(tr.mapping.map(at, 1)))).scrollIntoView());
     return true;
   }
 
