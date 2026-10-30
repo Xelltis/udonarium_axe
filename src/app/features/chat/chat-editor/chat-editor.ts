@@ -473,12 +473,13 @@ export class ChatEditorField implements ChatTextField {
   }
 
   /**
-   * Says what the empty editor says again, and names the box and the buttons of the bar over a
-   * selection again, as when the language changes.
+   * Says what the empty editor says again, names the box and the buttons of the bar over a
+   * selection again, and writes the hints over its syntax again, as when the language changes.
    */
   reconfigure(): void {
     this.bubble.relabel();
     this.drawStamps();
+    this.paintSyntax(true);
     this.editor.view.dispatch(this.editor.state.tr.setMeta('addToHistory', false));
   }
 

@@ -1,4 +1,6 @@
+import { computed, signal } from '@angular/core';
 import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
+import { scanChatSyntax } from '@axe/domain/chat-syntax/chat-syntax';
 import { type ChatEditorField, type ChatEditorHost, mountChatEditor } from '@axe/features/chat/chat-editor/chat-editor';
 import { closeHistory } from '@tiptap/pm/history';
 import { TextSelection } from '@tiptap/pm/state';
@@ -203,6 +205,35 @@ describe('the chat editor', () => {
     expect(parent.querySelector('[data-chip="stamp"] img')).not.toBeNull();
     expect(keys.size).toBe(1);
     expect([...keys][0]).toBeTruthy();
+  });
+
+  it('writes the hints over its syntax again in the language switched to', () => {
+    let tongue = 'ja';
+    const written = signal('見て @笑顔');
+    const session = {
+      scan: computed(() => scanChatSyntax(written())),
+      diagnostics: signal([]),
+      annotations: signal([]),
+      rolls: signal([]),
+    };
+    const editor = mountChatEditor(parent, { text: written(), selection: { from: 0, to: 0 }, focused: false }, {
+      ...host(),
+      session: () => session,
+      changed: (text: string) => written.set(text),
+      translate: (key: string) => `${tongue}:${key}`,
+    } as unknown as ChatEditorHost);
+    field = editor;
+    const view = editor.editor.view;
+    view.dispatch(view.state.tr.setSelection(TextSelection.atEnd(view.state.doc)));
+    type(editor, ' です');
+    editor.refresh(false);
+    const tip = () => parent.querySelector('[data-chip="portrait"]')?.getAttribute('data-tip');
+    expect(tip()).toBe('ja:feature.chat.lint.chipNotAtEnd');
+
+    tongue = 'en';
+    editor.reconfigure();
+
+    expect(tip()).toBe('en:feature.chat.lint.chipNotAtEnd');
   });
 
   it('names the buttons of the bar over a selection again as the language changes', () => {
