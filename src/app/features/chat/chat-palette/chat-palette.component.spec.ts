@@ -6,6 +6,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { childrenChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -350,6 +351,29 @@ describe('ChatPaletteComponent', () => {
       expect(drawnLines().join('|')).toContain('2d6+3 攻撃');
       expect(drawnLines().join('|')).not.toContain('CC<=50');
       expect(component.paletteHeadings().map((row) => row.headingName)).toEqual(['攻撃']);
+    });
+
+    it('lets another tab be opened after a jump to a heading in one', () => {
+      speakerWithTabs();
+      fixture.detectChanges();
+      const id = (component as unknown as { _timeId: string })._timeId;
+      TestBed.inject(UiSignalService).requestJumpIndex(id, 2);
+      TestBed.tick();
+      fixture.detectChanges();
+      expect(tabs()[1].getAttribute('aria-selected')).toBe('true');
+
+      tabs()[2].click();
+      TestBed.tick();
+      fixture.detectChanges();
+
+      expect(tabs()[2].getAttribute('aria-selected')).toBe('true');
+      expect(drawnLines()).toEqual(['CC<=50']);
+
+      tabs()[0].click();
+      TestBed.tick();
+      fixture.detectChanges();
+
+      expect(drawnLines()).toEqual(['1d100 目星']);
     });
 
     it('opens the tab it was left on when the character comes back to the panel', () => {

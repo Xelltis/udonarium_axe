@@ -401,7 +401,7 @@ export class ChatPaletteComponent {
     effect(() => {
       const req = this.uiSignalService.jumpIndexRequest();
       if (!req || this._timeId != req.targetId) return;
-      this.japmIndex(req.lineNo);
+      untracked(() => this.japmIndex(req.lineNo));
     });
     this.destroyRef.onDestroy(() => {
       this.chatPaletteRegistry.unregister(this);
