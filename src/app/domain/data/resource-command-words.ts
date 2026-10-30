@@ -6,6 +6,8 @@ export interface ResourceCommandSite {
   command: string;
   from: number;
   to: number;
+  /** Where it starts with the `s` that keeps it secret counted in; {@link from} where it has none. */
+  markFrom: number;
 }
 
 /** The `:` resource, `&` buff and `&&` sweep commands a chat line holds, in the order they were typed. */
@@ -24,13 +26,18 @@ export interface ResourceCommandWords {
  */
 const SECRET_BUFF_SHAPE = String.raw`(?:[+＋]{0,2}[!！]|[RrＲｒ][-+＋－](?=\s|$)|[DdＤｄ](?=\s|$)|\S*[/／]|\S*[-－](?=\s|$))`;
 
+/** A `&&` sweep, which ends with a minus and reads as no word. */
+const SWEEP_SHAPE = String.raw`[&＆]{2}\S+[-－](?=\s|$)`;
+
 /**
- * The `s` that makes a command secret: before a resource command in either case, and before a buff
- * command in lower case alone, so that words such as `S&W` and `s&p` stay words.
+ * The `s` that makes a command secret: before a resource command or a sweep in either case, and
+ * before a buff command in lower case alone, so that words such as `S&W` and `s&p` stay words.
  */
-const SECRET_MARK = new RegExp(String.raw`\s(?:[sSｓＳ][tTｔＴ]?[:：]|[sｓ][tTｔＴ]?[&＆]${SECRET_BUFF_SHAPE})`);
+const SECRET_MARK = new RegExp(
+  String.raw`\s(?:[sSｓＳ][tTｔＴ]?[:：]|[sｓ][tTｔＴ]?[&＆]${SECRET_BUFF_SHAPE}|[sSｓＳ]${SWEEP_SHAPE})`
+);
 const SECRET_PREFIX = new RegExp(
-  String.raw`(\s)(?:[sSｓＳ](?=[tTｔＴ]?[:：])|[sｓ](?=[tTｔＴ]?[&＆]${SECRET_BUFF_SHAPE}))`,
+  String.raw`(\s)(?:[sSｓＳ](?=[tTｔＴ]?[:：]|${SWEEP_SHAPE})|[sｓ](?=[tTｔＴ]?[&＆]${SECRET_BUFF_SHAPE}))`,
   'g'
 );
 
@@ -55,7 +62,8 @@ export function resourceCommandSites(text: string): ResourceCommandWords {
   const padded = ` ${withInlineStampsAsSpaces(text)}`;
   const rawAt: number[] = [];
   for (let index = 0; index < padded.length; index++) rawAt.push(index - 1);
-  for (const prefix of [...padded.matchAll(SECRET_PREFIX)].reverse()) rawAt.splice(prefix.index + 1, 1);
+  const prefixes = [...padded.matchAll(SECRET_PREFIX)].map((prefix) => prefix.index);
+  for (const at of [...prefixes].reverse()) rawAt.splice(at + 1, 1);
   const normalized = padded
     .replace(SECRET_PREFIX, '$1')
     .replace(/([tTｔＴ][:：])/gi, 't:')
@@ -64,11 +72,15 @@ export function resourceCommandSites(text: string): ResourceCommandWords {
     .replace(/([&＆])/gi, '&');
 
   const words: ResourceCommandWords = { secret: hasSecretEditMark(text), sweeps: [], resources: [], buffs: [] };
-  const siteOf = (command: string, at: number): ResourceCommandSite => ({
-    command,
-    from: rawAt[at],
-    to: rawAt[at + command.length - 1] + 1,
-  });
+  const siteOf = (command: string, at: number): ResourceCommandSite => {
+    const from = rawAt[at];
+    return {
+      command,
+      from,
+      to: rawAt[at + command.length - 1] + 1,
+      markFrom: prefixes.includes(from - 1) ? from - 1 : from,
+    };
+  };
 
   for (const word of normalized.matchAll(/\S+/g)) {
     const chktxt = word[0];

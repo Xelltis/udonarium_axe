@@ -29,7 +29,6 @@ import { toHalfWidth } from '@axe/core/util/string-util';
 import { answerColorsOf } from '@axe/domain/chat/chat-color';
 import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { withInlineStampsAsSpaces } from '@axe/domain/chat/inline-stamp';
 import { hasSecretEditMark, resourceCommandSites } from '@axe/domain/data/resource-command-words';
 import { DiceRollResult, ResourceEditProcessor } from '@axe/domain/data/resource-edit-processor';
 import { diceRollDetailOf, encodeDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
@@ -420,17 +419,13 @@ export class DiceBot extends GameObject {
    * inside the line among it.
    */
   static deleteMyselfResourceBuff(str: string): string {
-    const unstamped = withInlineStampsAsSpaces(str);
     const words = resourceCommandSites(str);
     const own = [...words.resources, ...words.buffs]
       .filter((site) => !site.command.startsWith('t'))
       .concat(words.sweeps)
       .sort((a, b) => b.from - a.from);
     let kept = str;
-    for (const site of own) {
-      const secret = /[sSｓＳ]/.test(str[site.from - 1] ?? '') && /^\s?$/.test(unstamped[site.from - 2] ?? '');
-      kept = kept.slice(0, secret ? site.from - 1 : site.from) + kept.slice(site.to);
-    }
+    for (const site of own) kept = kept.slice(0, site.markFrom) + kept.slice(site.to);
     return kept;
   }
 

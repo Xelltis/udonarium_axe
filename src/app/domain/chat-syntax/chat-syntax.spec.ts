@@ -56,6 +56,12 @@ describe('scanChatSyntax', () => {
     expect(textsOf(scan, 'sweep')).toEqual(['&&毒-']);
   });
 
+  it('reads a sweep with the s that keeps it secret, in either case', () => {
+    const scan = scanChatSyntax('s&&毒- S&&呪い-');
+    expect(textsOf(scan, 'sweep')).toEqual(['s&&毒-', 'S&&呪い-']);
+    expect(markersOf(scan, 'sweep')).toEqual(['s&&', 'S&&']);
+  });
+
   it('places the name, operator and amount of a resource command', () => {
     const scan = scanChatSyntax(':HP-[k10]');
     const [span] = scan.spans.filter((each) => each.kind === 'resource');

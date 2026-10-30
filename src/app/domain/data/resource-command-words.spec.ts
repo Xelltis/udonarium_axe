@@ -124,6 +124,24 @@ describe('resourceCommandSites', () => {
     expect(words.resources).toEqual([]);
   });
 
+  it('tells where each command starts with the s that keeps it secret, and where without', () => {
+    const line = 'ｓｔ：ＨＰ－１ :MP-1 s&加護/3';
+    const words = resourceCommandSites(line);
+    expect([...words.resources, ...words.buffs].map((site) => line.slice(site.markFrom, site.to))).toEqual([
+      'ｓｔ：ＨＰ－１',
+      ':MP-1',
+      's&加護/3',
+    ]);
+  });
+
+  it('takes a sweep after an s in either case as secret, the s no part of it', () => {
+    for (const line of ['s&&毒-', 'S&&毒-', 'Ｓ＆＆毒－']) {
+      const words = resourceCommandSites(line);
+      expect(words.secret).toBe(true);
+      expect(words.sweeps.map((site) => [site.markFrom, site.from, site.to])).toEqual([[0, 1, line.length]]);
+    }
+  });
+
   it('spans a sweep as a whole word', () => {
     const line = '終わり &&全部-';
     const [sweep] = resourceCommandSites(line).sweeps;

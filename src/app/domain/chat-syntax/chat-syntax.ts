@@ -9,7 +9,7 @@ import { paletteVariableSite } from '@axe/domain/chat/chat-palette';
 import { type PortraitCommand, portraitCommandSite } from '@axe/domain/chat/chat-portrait-command';
 import { CHARACTER_REFERENCE, type ReferenceSite, referenceSites } from '@axe/domain/chat/chat-reference';
 import { RUBY_NOTATION } from '@axe/domain/chat/chat-ruby-notation';
-import { inlineStampSites, withInlineStampsAsSpaces } from '@axe/domain/chat/inline-stamp';
+import { inlineStampSites } from '@axe/domain/chat/inline-stamp';
 import { isPaletteTabLine } from '@axe/domain/chat/palette-rows';
 import { lexDiceCommand } from '@axe/domain/chat-syntax/dice-command-lexer';
 import { findEmbeddedRolls } from '@axe/domain/data/embedded-roll';
@@ -172,10 +172,9 @@ function scanMessage(message: string, offset: number, spans: SyntaxSpan[], decor
   }
 
   const words = resourceCommandSites(message);
-  const unstamped = withInlineStampsAsSpaces(message);
   for (const site of words.resources) {
     const targeted = site.command.startsWith('t');
-    const from = secretPrefixBefore(unstamped, site.from, /[sSｓＳ]/);
+    const from = site.markFrom;
     const parts: SyntaxPart[] = [{ role: 'marker', from: at(from), to: at(site.from + (targeted ? 2 : 1)) }];
     const command = resourceCommandParts(site.command);
     if (command) {
@@ -199,7 +198,7 @@ function scanMessage(message: string, offset: number, spans: SyntaxSpan[], decor
   }
   for (const site of words.buffs) {
     const targeted = site.command.startsWith('t');
-    const from = secretPrefixBefore(unstamped, site.from, /[sｓ]/);
+    const from = site.markFrom;
     const fields = buffCommandFields(site.command);
     const parts: SyntaxPart[] = [{ role: 'marker', from: at(from), to: at(site.from + (fields[0]?.from ?? 0)) }];
     fields.forEach((field, index) => {
@@ -217,9 +216,9 @@ function scanMessage(message: string, offset: number, spans: SyntaxSpan[], decor
     spans.push({
       kind: 'sweep',
       command: site.command,
-      from: at(site.from),
+      from: at(site.markFrom),
       to: at(site.to),
-      parts: [{ role: 'marker', from: at(site.from), to: at(site.from + 2) }],
+      parts: [{ role: 'marker', from: at(site.markFrom), to: at(site.from + 2) }],
     });
   }
 
@@ -371,17 +370,6 @@ function scanMessage(message: string, offset: number, spans: SyntaxSpan[], decor
         : [],
     });
   }
-}
-
-/**
- * Where a command starts once the `s` that keeps it secret, right before it at the start of a word,
- * is counted in: in either case before a resource command, in lower case alone before a buff, as
- * they are carried out. The line is read with its stamps as spaces, as a stamp ends a word.
- */
-function secretPrefixBefore(unstamped: string, from: number, mark: RegExp): number {
-  const before = unstamped[from - 1] ?? '';
-  const space = from - 2 < 0 || /\s/.test(unstamped[from - 2]);
-  return mark.test(before) && space ? from - 1 : from;
 }
 
 function scanRoll(message: string, offset: number, spans: SyntaxSpan[]): void {
