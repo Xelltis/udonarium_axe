@@ -92,6 +92,31 @@ describe('the chat editor', () => {
     expect(parent.querySelector('[data-chip]')?.getAttribute('data-chip')).toBe(picked);
   });
 
+  /** Mounts the editor offering these words, the list of names opened by what is typed. */
+  function offering(words: Partial<ReturnType<ChatEditorHost['completionWords']>>, text = '', at = 0) {
+    const editor = mountChatEditor(parent, { text, selection: { from: at, to: at }, focused: false }, {
+      ...host(),
+      completionWords: () => ({ ...host().completionWords(), ...words }),
+    } as ChatEditorHost);
+    field = editor;
+    return editor;
+  }
+
+  function press(editor: ChatEditorField, init: KeyboardEventInit): void {
+    const view = editor.editor.view;
+    view.someProp('handleKeyDown', (handle) => handle(view, new KeyboardEvent('keydown', init)));
+  }
+
+  it('breaks the line on Shift+Enter while names are offered, picking none', async () => {
+    const editor = offering({ statuses: ['HP'] });
+    type(editor, '{H');
+    await new Promise((resolve) => setTimeout(resolve));
+
+    press(editor, { key: 'Enter', shiftKey: true });
+
+    expect(editor.text()).toBe('{H\n');
+  });
+
   it('puts the caret at a chip’s edge when asked for a caret inside it, selecting nothing', () => {
     const editor = mount('a{HP}b');
 

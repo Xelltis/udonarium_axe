@@ -201,7 +201,7 @@ function suggestionList() {
         draw();
         return true;
       }
-      if (event.key === 'Enter' || event.key === 'Tab') {
+      if ((event.key === 'Enter' && !event.shiftKey) || event.key === 'Tab') {
         props.command(props.items[picked]);
         return true;
       }
