@@ -1,17 +1,5 @@
 import { BufferSharingTask } from '@axe/core/storage/buffer-sharing-task';
 
-const mocks = vi.hoisted(() => {
-  return {
-    networkSend: vi.fn(),
-    networkMessage$: { subscribe: () => () => {} },
-  };
-});
-
-vi.mock('@axe/core/network/network-messaging', () => ({
-  networkSend: mocks.networkSend,
-  networkMessage$: mocks.networkMessage$,
-}));
-
 describe('BufferSharingTask', () => {
   afterEach(() => {
     vi.restoreAllMocks();
