@@ -99,6 +99,24 @@ describe('the chat editor', () => {
     expect(from).toBe(to);
   });
 
+  it('keeps the bar over a selection clear of the toolbar above it, and close under it where it opens below', () => {
+    const toolbar = { getBoundingClientRect: () => ({ top: 60, bottom: 96, height: 36 }) };
+    const editor = mountChatEditor(parent, { text: 'words', selection: { from: 0, to: 0 }, focused: false }, {
+      ...host(),
+      toolbarElement: () => toolbar,
+    } as unknown as ChatEditorHost);
+    field = editor;
+    const gap = (placement: string) =>
+      (editor as unknown as { bubbleGap(placement: string, top: number, height: number): number }).bubbleGap(
+        placement,
+        100,
+        30
+      );
+
+    expect(gap('top')).toBeGreaterThan(40);
+    expect(gap('bottom')).toBe(8);
+  });
+
   it('makes a decoration closed round a chip, as round any other text', () => {
     const editor = mount('');
 

@@ -208,7 +208,7 @@ export class ChatEditorField implements ChatTextField {
           options: {
             strategy: 'fixed',
             placement: 'top',
-            offset: ({ rects }) => this.bubbleGap(rects.reference.y, rects.floating.height),
+            offset: ({ placement, rects }) => this.bubbleGap(placement, rects.reference.y, rects.floating.height),
             flip: { fallbackPlacements: ['bottom'] },
             shift: { padding: 8 },
           },
@@ -469,11 +469,12 @@ export class ChatEditorField implements ChatTextField {
   }
 
   /**
-   * How far over the selection its bar stands: just over it, or over the toolbar where it would
-   * otherwise cover the toolbar's buttons.
+   * How far from the selection its bar stands: just over it, or over the toolbar where it would
+   * otherwise cover the toolbar's buttons, and just under it where there is no room above.
    */
-  private bubbleGap(selectionTop: number, height: number): number {
+  private bubbleGap(placement: string, selectionTop: number, height: number): number {
     const gap = 8;
+    if (!placement.startsWith('top')) return gap;
     const toolbar = this.host.toolbarElement?.()?.getBoundingClientRect();
     if (!toolbar || toolbar.height < 1) return gap;
     const bottom = selectionTop - gap;
