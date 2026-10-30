@@ -32,6 +32,7 @@ import { type AmbienceKind } from '@axe/domain/effect/ambience/ambience-kind';
 import { canBrowseImage, ImageTag } from '@axe/domain/media/image-tag';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Party } from '@axe/domain/party/party';
+import { isAccountAvatar } from '@axe/domain/peer/account-avatar';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -465,6 +466,7 @@ export class TabletopActionService {
     // under a tag someone keeps to themselves by anyone but them and the master.
     const images = this.imageStorage.images.filter(
       (image) =>
+        !isAccountAvatar(image.identifier) &&
         (ImageTag.get(image.identifier)?.tag ?? '') === tag &&
         canBrowseImage(
           ImageTag.get(image.identifier) ?? null,

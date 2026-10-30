@@ -31,6 +31,23 @@ describe('FileSelecterComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('offers no account’s avatar among the pictures to pick, untagged or all', () => {
+    const storage = TestBed.inject(ImageStorage);
+    const avatar = storage.add('https://cdn.discordapp.com/avatars/1/a.png');
+    const plain = storage.add('https://example.com/b.png');
+    try {
+      const shown = () => component.images().map((image) => image.identifier);
+      expect(shown()).toContain(plain.identifier);
+      expect(shown()).not.toContain(avatar.identifier);
+
+      component.selectTag.set(component.tagList[1]);
+      expect(shown()).not.toContain(avatar.identifier);
+    } finally {
+      storage.delete(avatar.identifier);
+      storage.delete(plain.identifier);
+    }
+  });
+
   describe('uploading pictures', () => {
     function playing(role: PeerRole): void {
       PeerCursor.createMyCursor().role = role;
