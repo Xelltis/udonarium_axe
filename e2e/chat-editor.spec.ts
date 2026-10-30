@@ -335,11 +335,11 @@ test.describe('the chat editor', () => {
     await dice.click();
     const panel = page.locator('[data-testid="chat-toolbar-panel"]');
     await panel.getByRole('listitem').filter({ hasText: '2D6' }).first().click();
-    await expectChatText(input, '攻撃 2D6 ');
+    await expectChatText(input, '2D6 攻撃 ');
 
     await page.locator('chat-window [data-testid="chat-toolbar-group-effect"]').click();
     await panel.getByRole('listitem').filter({ hasText: '《vs》' }).click();
-    await expectChatText(input, '攻撃 2D6 《vs》');
+    await expectChatText(input, '2D6 攻撃 《vs》');
     await expect(input.locator('[data-chip="effect"]')).toHaveCount(1);
   });
 
