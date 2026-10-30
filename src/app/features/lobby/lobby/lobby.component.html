@@ -66,7 +66,7 @@
         </tr>
       </thead>
       <tbody class="[&_tr:hover_td]:bg-ui-hover [&_tr:last-child_td]:border-b-0">
-        @for (room of rooms(); track room) {
+        @for (room of rooms(); track room.alias) {
           <tr>
             <td
               class="border-ui-border-panel text-ui-muted border-b border-solid px-2.5 py-1.75 text-center font-mono text-[0.72rem] whitespace-nowrap"
