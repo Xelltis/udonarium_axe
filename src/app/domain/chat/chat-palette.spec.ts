@@ -325,6 +325,12 @@ describe('ChatPalette', () => {
         expect(evaluateCharacterReferences('choice[{加護},x]', guarded).text).toBe('choice[3,x]');
       });
 
+      it('lends the number in a roll repeated by a count before it', () => {
+        const attacker = wearing(makeCharacter(false), '&練技/攻撃+2/3');
+
+        expect(evaluateCharacterReferences('3 2d6+{練技}', attacker).text).toBe('3 2d6+2');
+      });
+
       it('lends the number in a roll that a stamp put right after it ends, as a space would', () => {
         const guarded = wearing(makeCharacter(false), '&加護/防護3/3');
 

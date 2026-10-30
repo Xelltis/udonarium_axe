@@ -10,7 +10,7 @@ import { isPaletteTabLine } from '@axe/domain/chat/palette-rows';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { createCalcPass, evaluateCalcElement } from '@axe/domain/data/data-element-calc-env';
 import { resourceCommandSites } from '@axe/domain/data/resource-command-words';
-import { looksLikeRollWord } from '@axe/domain/dice/dice-roll-line';
+import { looksLikeRollWord, rollableText, rollWordSite } from '@axe/domain/dice/dice-roll-line';
 
 export interface PaletteLine {
   palette: string;
@@ -361,13 +361,20 @@ export function evaluateReferences(
  * reader to see what went unanswered.
  */
 function dropsUnanswered(line: string, offset: number): boolean {
-  if (offset >= leadingWordEnd(line) || !/[0-9)\]}｝）］]/.test(line[offset - 1] ?? '')) return false;
+  if (!inRollWord(line, offset) || !/[0-9)\]}｝）］]/.test(line[offset - 1] ?? '')) return false;
   return leadsWithRoll(line);
 }
 
-/** Whether a line starts with a roll, read from its first word with the references in it taken out. */
+/** Whether a point of a line stands in the word it rolls. */
+function inRollWord(line: string, offset: number): boolean {
+  const site = rollWordSite(line);
+  return offset >= site.from && offset < site.to;
+}
+
+/** Whether a line starts with a roll, read from the word it rolls with the references in it taken out. */
 function leadsWithRoll(line: string): boolean {
-  return looksLikeRollWord(line.slice(0, leadingWordEnd(line)).replace(/[tTｔＴ]?[{｛][^{}｛｝]*[}｝]/g, ''));
+  const site = rollWordSite(line);
+  return looksLikeRollWord(rollableText(line.slice(site.from, site.to)).replace(/[tTｔＴ]?[{｛][^{}｛｝]*[}｝]/g, ''));
 }
 
 /**
@@ -380,7 +387,7 @@ function leadsWithRoll(line: string): boolean {
 type FormulaPlace = 'operand' | 'joined' | 'within' | 'none';
 
 function formulaPlace(line: string, offset: number): FormulaPlace {
-  const inRoll = offset < leadingWordEnd(line) && leadsWithRoll(line);
+  const inRoll = inRollWord(line, offset) && leadsWithRoll(line);
   if (!inRoll && !RESOURCE_COMMAND_WORD.test(line.slice(wordStart(line, offset), offset))) return 'none';
   const before = line.slice(0, offset);
   if (/[-+=＋－＝*/×÷(（]$/.test(before)) return 'operand';
@@ -403,8 +410,6 @@ function strengthAsTerm(strength: string, place: FormulaPlace): string {
 
 /** A word that is a resource command, read up to a point in it: the mark, a name and an operator before it. */
 const RESOURCE_COMMAND_WORD = /^[sSｓＳ]?[tTｔＴ]?[:：][^\s]*?[-+=＋－＝*/×÷]/;
-
-/** Where the word holding a point of a line starts, counting a space inside a reference's braces as part of it. */
 function wordStart(line: string, offset: number): number {
   let depth = 0;
   let start = 0;
@@ -424,18 +429,6 @@ function isWornBuff(element: DataElement): boolean {
     if (node.name === 'buff' && node.parent instanceof DataElement && node.parent.name === 'character') return true;
   }
   return false;
-}
-
-/** Where the first word of a line ends, counting a space inside a reference's braces as part of it. */
-function leadingWordEnd(line: string): number {
-  let depth = 0;
-  for (let index = 0; index < line.length; index++) {
-    const character = line[index];
-    if (character === '{' || character === '｛') depth++;
-    else if ((character === '}' || character === '｝') && depth > 0) depth--;
-    else if (depth === 0 && /\s/.test(character)) return index;
-  }
-  return line.length;
 }
 
 /** The references a piece can fill in, whether or not it keeps a palette of its own to draw variables from. */

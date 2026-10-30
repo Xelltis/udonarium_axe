@@ -1,4 +1,3 @@
-import { toHalfWidth } from '@axe/core/util/string-util';
 import { buffCommandFields } from '@axe/domain/character/buff-command';
 import {
   chatDecorationLayout,
@@ -15,7 +14,7 @@ import { lexDiceCommand } from '@axe/domain/chat-syntax/dice-command-lexer';
 import { findEmbeddedRolls } from '@axe/domain/data/embedded-roll';
 import { resourceCommandParts, resourceCommandSites } from '@axe/domain/data/resource-command-words';
 import { diceChatTokenSite } from '@axe/domain/dice/dice-chat-token';
-import { firstWordOf, looksLikeRollWord, readRollLine, rollableText } from '@axe/domain/dice/dice-roll-line';
+import { looksLikeRollWord, readRollLine, rollableText, rollWordSite } from '@axe/domain/dice/dice-roll-line';
 import { effectTokenSites } from '@axe/domain/effect/effect-chat-token';
 import { readCutInChatTail } from '@axe/domain/media/cut-in-chat-tail';
 import { type LegacyVnSuffixSite, legacyVnSuffixSite } from '@axe/domain/visual-novel/vn-emote';
@@ -385,9 +384,10 @@ function scanRoll(message: string, offset: number, spans: SyntaxSpan[]): void {
       parts: [{ role: 'number', from: offset, to: offset + count[1].length }],
     });
   }
-  const word = firstWordOf(toHalfWidth(line.rollText));
+  const site = rollWordSite(message);
+  const word = rollable.slice(site.from, site.to);
   if (word.length < 1 || !looksLikeRollWord(word.replace(CHARACTER_REFERENCE, ''))) return;
-  const from = offset + line.rollFrom;
+  const from = offset + site.from;
   spans.push({
     kind: 'roll',
     message: { from: offset, to: offset + message.length },

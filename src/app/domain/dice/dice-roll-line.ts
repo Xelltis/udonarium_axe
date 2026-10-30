@@ -38,6 +38,24 @@ export function readRollLine(text: string): RollLine {
 }
 
 /**
+ * Where the word a line rolls stands: the first after any repeat count, read as the dice bot reads
+ * the line, with a space inside a reference's braces counted as part of it, as the word is once the
+ * reference is filled in.
+ */
+export function rollWordSite(text: string): { from: number; to: number } {
+  const rollable = rollableText(text);
+  const from = readRollLine(rollable).rollFrom;
+  let depth = 0;
+  for (let index = from; index < rollable.length; index++) {
+    const character = rollable[index];
+    if (character === '{') depth++;
+    else if (character === '}' && depth > 0) depth--;
+    else if (depth === 0 && /\s/.test(character)) return { from, to: index };
+  }
+  return { from, to: rollable.length };
+}
+
+/**
  * Whether text may be a dice command where there is no game system to ask: its first word holds a
  * digit or one of `<>=[(`, and is not a resource or buff change, which begins with `:` or `&` after
  * an optional `s` or `t`.

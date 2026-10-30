@@ -42,6 +42,10 @@ describe('scanChatSyntax', () => {
     expect(textsOf(scan, 'resource')).toEqual(['s:HP-5']);
   });
 
+  it('reads a reference with a space inside its braces as part of the roll, as it is rolled', () => {
+    expect(textsOf(scanChatSyntax('2d6+{攻撃 力} 攻撃'), 'roll')).toEqual(['2d6+{攻撃 力}']);
+  });
+
   it('reads no roll from words of chat', () => {
     expect(textsOf(scanChatSyntax('1日目は休み'), 'roll')).toEqual([]);
     expect(textsOf(scanChatSyntax('こんにちは 2d6'), 'roll')).toEqual([]);
