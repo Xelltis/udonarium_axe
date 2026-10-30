@@ -846,8 +846,13 @@ export class ChatEditorField implements ChatTextField {
     chipsSeen: Set<number>,
     decorations: Decoration[]
   ): void {
+    const byPlace = new Map<string, ChatLintAnnotation>();
+    for (const each of annotations) {
+      const key = `${each.kind}:${each.from}:${each.to}`;
+      if (!byPlace.has(key)) byPlace.set(key, each);
+    }
     const annotated = (kind: ChatLintAnnotation['kind'], from: number, to: number) =>
-      annotations.find((each) => each.kind === kind && each.from === from && each.to === to);
+      byPlace.get(`${kind}:${from}:${to}`);
     for (const span of scan.spans) {
       if (span.kind === 'decoration' || span.kind === 'ruby') continue;
       const chip = chipAt(span.from, span.to);
