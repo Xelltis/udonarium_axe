@@ -1,3 +1,5 @@
+import { inlineStampSites, withInlineStampsAsSpaces } from '@axe/domain/chat/inline-stamp';
+
 /** The last word of a chat line, read as the cut-in it may start, and where that word stands. */
 export interface CutInChatTail {
   name: string;
@@ -13,10 +15,15 @@ const CHAT_TAIL_PATTERN = /\s(@?)(\S+)$/i;
  * plays only the cut-in's sound.
  *
  * The word must end the line and follow a space or start it, so a line of one word names its
- * cut-in too, and one with a space after its last word names none.
+ * cut-in too, and one with a space after its last word names none. A stamp put inside the line ends
+ * a word as a space does, and stamps at the very end are passed over, so a stamp put right after
+ * the name leaves it the last word.
  */
 export function readCutInChatTail(text: string): CutInChatTail | null {
-  const match = CHAT_TAIL_PATTERN.exec(` ${text}`);
+  const sites = inlineStampSites(text);
+  let end = text.length;
+  for (let at = sites.length - 1; at >= 0 && sites[at].to === end; at--) end = sites[at].from;
+  const match = CHAT_TAIL_PATTERN.exec(` ${withInlineStampsAsSpaces(text.slice(0, end))}`);
   if (!match) return null;
   const from = match.index;
   return { name: match[2], soundOnly: match[1] === '@', from, to: from + match[1].length + match[2].length };

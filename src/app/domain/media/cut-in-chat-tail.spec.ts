@@ -29,4 +29,13 @@ describe('readCutInChatTail', () => {
     expect(cutInNamedAtLineEnd('@boom')).toBe(false);
     expect(cutInNamedAtLineEnd('')).toBe(false);
   });
+
+  describe('a stamp put right after the name of a cut-in', () => {
+    it('ends the name as a space would, the name still ending the line', () => {
+      const text = '行くぞ 爆発［笑:sfx:laugh］';
+      const tail = readCutInChatTail(text)!;
+      expect(tail).toMatchObject({ name: '爆発', soundOnly: false });
+      expect(text.slice(tail.from, tail.to)).toBe('爆発');
+    });
+  });
 });

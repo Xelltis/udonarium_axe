@@ -48,4 +48,10 @@ describe('diceChatTokenSite', () => {
   it('places a token that starts the line', () => {
     expect(diceChatTokenSite('dice: 2d6')).toEqual({ name: '', from: 0, to: 5 });
   });
+
+  describe('a stamp put right after the dice token', () => {
+    it('ends the name, as a space would', () => {
+      expect(parseDiceChatToken('2d6 dice:ゴブリン［笑:sfx:laugh］')).toEqual({ name: 'ゴブリン' });
+    });
+  });
 });

@@ -1,4 +1,5 @@
 import { normalizeSearchText } from '@axe/core/util/text-search';
+import { withInlineStampsAsSpaces } from '@axe/domain/chat/inline-stamp';
 
 /** `position` counts from 1, the way every portrait picker in the app numbers them. */
 export type PortraitCommand =
@@ -28,10 +29,11 @@ const PORTRAIT_TAIL = /\s[@＠](\S+)\s*$/i;
  * with, and where it stands.
  *
  * The command must follow a space, so an address such as `mail@example.com` is not one. Full-width
- * `＠` counts too.
+ * `＠` counts too. A stamp put inside the line ends the command as a space does, so one put right
+ * after it leaves the command at the end of the line.
  */
 export function portraitCommandSite(text: string): PortraitCommandSite | null {
-  const match = PORTRAIT_TAIL.exec(' ' + text);
+  const match = PORTRAIT_TAIL.exec(' ' + withInlineStampsAsSpaces(text));
   if (!match) return null;
   const token = match[1];
   const from = match.index;
@@ -62,9 +64,14 @@ export function portraitNamedAtLineEnd(name: string): boolean {
   return command?.type === 'name' && command.name === name;
 }
 
-/** The line with its trailing portrait command taken off, so the command itself is never shown. */
+/**
+ * The line with its trailing portrait command taken off, and the space after it, so the command
+ * itself is never shown; a stamp after it stays.
+ */
 export function stripPortraitCommand(text: string): string {
-  return text.replace(/([@＠]\S+\s*)$/i, '');
+  const site = portraitCommandSite(text);
+  if (!site) return text;
+  return text.slice(0, site.from) + text.slice(site.to).replace(/^\s+/, '');
 }
 
 /**

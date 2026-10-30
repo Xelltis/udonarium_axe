@@ -119,4 +119,12 @@ describe('chat-portrait-command', () => {
       expect(portraitNamedAtLineEnd('')).toBe(false);
     });
   });
+
+  describe('a stamp put right after the portrait command', () => {
+    it('ends the command as a space would, and stays in the line as the command is taken off', () => {
+      const text = 'こんにちは @笑顔［笑:sfx:laugh］';
+      expect(parsePortraitCommand(text)).toEqual({ type: 'name', name: '笑顔' });
+      expect(stripPortraitCommand(text)).toBe('こんにちは ［笑:sfx:laugh］');
+    });
+  });
 });
