@@ -353,6 +353,14 @@ export function evaluateReferences(
 }
 
 /**
+ * Whether a reference nothing answers, standing at a place in a line typed into chat, is emptied out
+ * of it as the line is sent rather than left as it was; see {@link dropsUnanswered}.
+ */
+export function emptiesUnanswered(line: string, offset: number): boolean {
+  return dropsUnanswered(withInlineStampsAsSpaces(line), offset);
+}
+
+/**
  * Whether a reference nobody answers is emptied out of a line typed into chat rather than left as it
  * was: one added to the roll the line starts with as a term of its own, right after a number or a
  * closing bracket, like `2d+10{加護}` where 加護 carries its own sign. Left out, it adds nothing, as

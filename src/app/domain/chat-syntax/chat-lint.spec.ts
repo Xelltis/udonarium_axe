@@ -115,6 +115,8 @@ describe('lintChatSyntax', () => {
     it('finds one nothing answers, kept as typed in chat and emptied from a palette', () => {
       expect(lint('{気力}')[0]).toMatchObject({ code: 'ref.unknownKept', params: { name: '気力' } });
       expect(codes('{気力}', { path: 'palette' })).toEqual(['ref.unknownEmptied']);
+      expect(codes('2d6+1{加護}')).toEqual(['ref.unknownEmptied']);
+      expect(codes('やった{歓喜}')).toEqual(['ref.unknownKept']);
       expect(codes('{HP}', { referenceValue: () => '10' })).toEqual([]);
     });
 

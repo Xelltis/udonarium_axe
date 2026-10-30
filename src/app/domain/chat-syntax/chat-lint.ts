@@ -10,7 +10,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { findStatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { decoratedRunsOf } from '@axe/domain/chat/chat-decoration';
-import { textTargetsCharacter } from '@axe/domain/chat/chat-palette';
+import { emptiesUnanswered, textTargetsCharacter } from '@axe/domain/chat/chat-palette';
 import {
   findImageIdentifierByName,
   type ImageNameEntry,
@@ -202,10 +202,12 @@ function lintMessage(
           if (!later) add(span, 'error', 'target.none');
         } else if (!span.site.targeted && !context.speaker && !targeting && context.path === 'chatWindow')
           add(span, 'warning', 'ref.noSpeaker');
-        else if (context.referenceValue(span.site) == null)
-          add(span, 'warning', context.path === 'palette' ? 'ref.unknownEmptied' : 'ref.unknownKept', {
+        else if (context.referenceValue(span.site) == null) {
+          const emptied = context.path === 'palette' || emptiesUnanswered(text, span.site.from - message.from);
+          add(span, 'warning', emptied ? 'ref.unknownEmptied' : 'ref.unknownKept', {
             params: { name: span.site.name },
           });
+        }
         break;
       case 'resource':
       case 'buff':
