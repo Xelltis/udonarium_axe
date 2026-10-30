@@ -2,11 +2,13 @@
  * A copy of the picture at a url turned left for right, as an object url, for drawing it where it
  * is cut and moved as a background, which no transform reaches.
  *
- * Null for a picture that does not load, or one the page may not read back. A picture that moves
- * is copied as it stands at first; the copy is a still.
+ * Null for a picture that does not load, or one the page may not read back. One from another site
+ * is asked for as one to be read back, which a site that lets it be read gives. A picture that
+ * moves is copied as it stands at first; the copy is a still.
  */
 export async function mirroredPictureUrl(url: string): Promise<string | null> {
   const picture = new Image();
+  if (/^https?:/i.test(url)) picture.crossOrigin = 'anonymous';
   picture.src = url;
   try {
     await picture.decode();
