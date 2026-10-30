@@ -2,7 +2,7 @@ import '@angular/compiler';
 
 import { EnvironmentProviders, NO_ERRORS_SCHEMA, Provider } from '@angular/core';
 import { ɵresolveComponentResources as resolveComponentResources } from '@angular/core';
-import { TestBed, TestModuleMetadata } from '@angular/core/testing';
+import { ɵgetCleanupHook as getCleanupHook, TestBed, TestModuleMetadata } from '@angular/core/testing';
 import { BrowserDynamicTestingModule, platformBrowserDynamicTesting } from '@angular/platform-browser-dynamic/testing';
 import { loadConfig$ } from '@axe/core/event/domain-events';
 import { Logger, LogLevel } from '@axe/core/logging/logger';
@@ -342,6 +342,16 @@ function applyWaitForDefault(): void {
   vi.waitFor = wrapped;
 }
 applyWaitForDefault();
+
+// Angular registers the hooks that tear a TestBed module down as @angular/core/testing is first
+// evaluated. A worker that runs file after file without isolation evaluates it once, so every file
+// after the first would keep the module the one before it built. The unit-test builder registers
+// them again for each file under `ng test`; outside it, setup does the same.
+const ANGULAR_BUILDER_SETUP = Symbol.for('@angular/cli/testbed-setup');
+if (!(globalThis as unknown as Record<symbol, unknown>)[ANGULAR_BUILDER_SETUP]) {
+  beforeEach(getCleanupHook(false));
+  afterEach(getCleanupHook(true));
+}
 
 // Vitest runs setup once per test file; swallow the "already initialized" throw on re-entry.
 try {

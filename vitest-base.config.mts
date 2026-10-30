@@ -14,5 +14,10 @@ export default defineConfig({
   test: {
     testTimeout: 30_000,
     hookTimeout: 30_000,
+    // A worker runs file after file in one page, with the modules the files before it loaded,
+    // rather than starting each file afresh. Making a happy-dom page and loading Angular for each
+    // file took the whole run nearly four times as long; `ng test` runs this way by default. What
+    // one file leaves behind for the next, test-setup.ts puts back before each test.
+    isolate: false,
   },
 });
