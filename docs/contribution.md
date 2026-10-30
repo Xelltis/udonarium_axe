@@ -80,7 +80,7 @@ chore(release): bump version to 1.2.2
 型だけの変更でspecの結果は変わらない。importはTypeScriptで変換した結果から読み、その結果は
 `node_modules/.cache/axe-vitest/`に置いて次の実行で使い回す。
 
-ただし、ランナーの設定（`vitest.config.ts`など）や、テストのセットアップが静的なimportで読み込むファイル
+ただし、ランナーの設定（`vitest.config.mts`など）や、テストのセットアップが静的なimportで読み込むファイル
 （間接的に読むものも含む）をstagedにしたときは、どのspecにも影響するので全量を回す。
 セットアップが`TestBed`を使うspecのためだけに読み込むサービス（`loadGlobalTestProviders()`の先）に
 当たったときは、本文に`TestBed`を含むspecをすべて足す。全量は`pre-push`とCIが見る。
@@ -93,14 +93,14 @@ chore(release): bump version to 1.2.2
 [GitHub Actions](../.github/workflows/ci.yml)が同じ関門を通したうえで、
 フックの外にあるものまで見る。
 
-| ジョブ           | 内容                                   |
-| ---------------- | -------------------------------------- |
-| `Format`         | `npm run format:check`                 |
-| `Lint`           | `npm run lint`                         |
-| `Test (ng test)` | `npm test`（Angular builderの設定）    |
-| `Test (vitest)`  | `npx vitest run`（`vitest.config.ts`） |
-| `Build`          | `npm run build`                        |
-| `Website`        | `website/`のVitePressビルド            |
+| ジョブ           | 内容                                    |
+| ---------------- | --------------------------------------- |
+| `Format`         | `npm run format:check`                  |
+| `Lint`           | `npm run lint`                          |
+| `Test (ng test)` | `npm test`（Angular builderの設定）     |
+| `Test (vitest)`  | `npx vitest run`（`vitest.config.mts`） |
+| `Build`          | `npm run build`                         |
+| `Website`        | `website/`のVitePressビルド             |
 
 ユニットテストの2経路は別ジョブに分けてある。片方だけ落ちることがあるので、
 チェック名で落ちた経路が分かるようにしている。

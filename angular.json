@@ -110,7 +110,7 @@
             "runner": "vitest",
             "watch": false,
             "setupFiles": ["src/app/testing/test-setup.ts"],
-            "runnerConfig": "vitest-base.config.ts"
+            "runnerConfig": "vitest-base.config.mts"
           }
         },
         "lint": {

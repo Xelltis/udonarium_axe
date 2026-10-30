@@ -25,7 +25,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFile
 import { createRequire } from 'node:module';
 import { posix } from 'node:path';
 
-const VITEST_CONFIG = 'vitest.config.ts';
+const VITEST_CONFIG = 'vitest.config.mts';
 const ANGULAR_WORKSPACE = 'angular.json';
 const UNIT_TEST_BUILDER = '@angular/build:unit-test';
 const ALIASES = [
@@ -60,7 +60,7 @@ function resolveSpecifier(specifier, fromFile, files) {
 
 /**
  * The files both test paths load before any spec: the setup files and the configs the runners
- * are pointed at, as `vitest.config.ts` and the unit-test targets in `angular.json` name them.
+ * are pointed at, as `vitest.config.mts` and the unit-test targets in `angular.json` name them.
  */
 function runnerInputs() {
   const setupFiles = new Set();

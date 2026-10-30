@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 
 /**
  * Runner tuning shared by both test paths: `ng test` loads this file through
- * `runnerConfig` in angular.json, and vitest.config.ts spreads the same values.
+ * `runnerConfig` in angular.json, and vitest.config.mts spreads the same values.
  *
  * The suite runs in the pre-commit hook alongside `ng lint`, and both compile
  * the whole project. On a busy machine a worker can be descheduled for several

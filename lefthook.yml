@@ -13,8 +13,8 @@ pre-commit:
     - name: test
       glob:
         - 'src/**/*.{ts,html,css}'
-        - 'vitest.config.ts'
-        - 'vitest-base.config.ts'
+        - 'vitest.config.mts'
+        - 'vitest-base.config.mts'
         - 'tsconfig.spec.json'
       run: node scripts/vitest-related.mjs {staged_files}
 

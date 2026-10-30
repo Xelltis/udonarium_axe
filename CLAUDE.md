@@ -47,7 +47,7 @@ composition → features → ui → application → infrastructure → domain �
 
 ## パスエイリアス
 
-`tsconfig.json`と`vitest.config.ts`の双方で定義済み（変更時は両方を揃える）。
+`tsconfig.json`と`vitest.config.mts`の双方で定義済み（変更時は両方を揃える）。
 
 - `@axe/*` → `src/app/*`
 - `@env/*` → `src/environments/*`
@@ -58,7 +58,7 @@ composition → features → ui → application → infrastructure → domain �
 - **Angular 22** — Zoneless (`provideZonelessChangeDetection()`)、OnPush
 - **スタイル** — Tailwind v4。`src/styles.css`で`@import 'tailwindcss';`グローバル適用
 - **テスト** — Vitest + happy-dom。`ng test`（`@angular/build:unit-test`）と
-  `npx vitest run`（`vitest.config.ts`）の2経路があり共に通す必要あり。
+  `npx vitest run`（`vitest.config.mts`）の2経路があり共に通す必要あり。
   共通setupは[src/app/testing/test-setup.ts](src/app/testing/test-setup.ts)
 - **E2E** — Playwright (`npm run e2e` / `npm run e2e:ui`)
 - **P2P / シリアライズ** — `@skyway-sdk/core` v2 + `@msgpack/msgpack` v3
