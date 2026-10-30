@@ -325,6 +325,13 @@ describe('ChatPalette', () => {
         expect(evaluateCharacterReferences('choice[{加護},x]', guarded).text).toBe('choice[3,x]');
       });
 
+      it('lends a number with a plus inside a number of its own without the plus', () => {
+        const guarded = wearing(makeCharacter(false), '&加護/防護+3/3');
+
+        expect(evaluateCharacterReferences('2d{加護}', guarded).text).toBe('2d3');
+        expect(evaluateCharacterReferences('K20@{加護}', guarded).text).toBe('K20@3');
+      });
+
       it('lends the number in a roll repeated by a count before it', () => {
         const attacker = wearing(makeCharacter(false), '&練技/攻撃+2/3');
 
