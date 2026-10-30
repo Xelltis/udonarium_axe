@@ -8,7 +8,7 @@ import {
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { findStatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
-import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
+import { decoratedRunsOf } from '@axe/domain/chat/chat-decoration';
 import { textTargetsCharacter } from '@axe/domain/chat/chat-palette';
 import {
   findImageIdentifierByName,
@@ -148,7 +148,9 @@ export function lintChatSyntax(scan: ChatSyntaxScan, context: ChatLintContext): 
  * does not, the marks of a decoration standing in the words the commands are read from.
  */
 function decorationHidesCommand(text: string): boolean {
-  const bare = withoutChatDecoration(text);
+  const bare = decoratedRunsOf(text)
+    .map((run) => run.text)
+    .join('');
   if (bare === text) return false;
   const rolls = (line: string) => meantAsRollWord(firstWordOf(readRollLine(rollableText(line)).rollText));
   const changes = (line: string) => {

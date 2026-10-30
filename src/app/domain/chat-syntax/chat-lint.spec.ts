@@ -248,6 +248,7 @@ describe('lintChatSyntax', () => {
       expect(codes('2d6 **攻撃**')).not.toContain('deco.hidesCommand');
       expect(codes('**こんにちは** 1d6')).not.toContain('deco.hidesCommand');
       expect(codes('**Hello1** there')).not.toContain('deco.hidesCommand');
+      expect(codes('**2d6**［笑:seal:ok］')).toContain('deco.hidesCommand');
     });
 
     it('names the words that give a staging bracket up', () => {
