@@ -15,6 +15,15 @@ import { isBuffTimingToken, resolveBuffTiming } from '@axe/domain/character/buff
 export type BuffCommandKind = 'roundsDown' | 'roundsUp' | 'clearZero' | 'remove' | 'calculated' | 'plain';
 
 /**
+ * A buff command in the half-width marks it is read in: its ampersand, and a `＋` or `－` at its
+ * end, which moves the rounds or takes a buff off. A full-width sign inside its fields stays as it
+ * is.
+ */
+export function halfWidthBuffCommand(command: string): string {
+  return command.replace('＆', '&').replace(/＋$/, '+').replace(/－$/, '-');
+}
+
+/**
  * What second helping the command asks for, and the command with that mark taken off.
  *
  * `&+猛攻撃/攻撃+2/3` adds its `+2` to whatever the standing 猛攻撃 already carries instead of

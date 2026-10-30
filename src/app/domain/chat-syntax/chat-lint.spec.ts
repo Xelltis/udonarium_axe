@@ -149,6 +149,7 @@ describe('lintChatSyntax', () => {
 
     it('finds a buff to take off that the piece does not have', () => {
       expect(codes('&加護-')).toEqual(['buff.notFound']);
+      expect(codes('＆加護－')).toEqual(['buff.notFound']);
       speaker.addExtendData();
       speaker.buffs.addRound('加護', '', 3);
       expect(codes('&加護-')).toEqual([]);

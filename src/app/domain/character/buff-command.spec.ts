@@ -2,6 +2,7 @@ import { resolveBuffColor } from '@axe/domain/character/buff-appearance';
 import {
   buffCommandFields,
   buffCommandKind,
+  halfWidthBuffCommand,
   readBuffStacking,
   readCalculatedBuff,
   readCalculatedBuffLook,
@@ -16,6 +17,12 @@ describe('buff-command', () => {
     expect(buffCommandKind('&加護-')).toBe('remove');
     expect(buffCommandKind('&!猛攻撃/攻撃/+/2/3')).toBe('calculated');
     expect(buffCommandKind('&加護/防御+2/3')).toBe('plain');
+  });
+
+  it('reads the full-width marks of a command as the half-width ones it is carried out with', () => {
+    expect(buffCommandKind(halfWidthBuffCommand('＆加護－'))).toBe('remove');
+    expect(buffCommandKind(halfWidthBuffCommand('t＆R＋'))).toBe('roundsUp');
+    expect(halfWidthBuffCommand('＆加護/防御＋2/3')).toBe('&加護/防御＋2/3');
   });
 
   it('names the buff a removal takes off', () => {

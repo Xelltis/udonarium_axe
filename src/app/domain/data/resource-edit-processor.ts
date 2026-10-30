@@ -6,6 +6,7 @@ import {
   parseBuffRemovalCommand,
   removeBuffsAcross,
 } from '@axe/domain/character/buff-bulk-removal';
+import { halfWidthBuffCommand } from '@axe/domain/character/buff-command';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { answerColorsOf } from '@axe/domain/chat/chat-color';
 import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
@@ -199,7 +200,7 @@ export class ResourceEditProcessor {
       const targeted = !!oneText.match(/^t&/i);
       if (targeted) {
         const object = buff.object;
-        const replaceText = oneText.replace('＆', '&').replace(/＋$/, '+').replace(/－$/, '-');
+        const replaceText = halfWidthBuffCommand(oneText);
         repBuffCommandList.push({
           command: replaceText,
           object: object,
@@ -210,7 +211,7 @@ export class ResourceEditProcessor {
           Logger.debug('[DiceBot] 送信元がキャラクターではないためバフ操作不可');
           continue;
         } else {
-          const replaceText = oneText.replace('＆', '&').replace(/＋$/, '+').replace(/－$/, '-');
+          const replaceText = halfWidthBuffCommand(oneText);
           repBuffCommandList.push({
             command: replaceText,
             object: sendFromObject,

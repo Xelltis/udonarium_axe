@@ -1,6 +1,7 @@
 import { toHalfWidth } from '@axe/core/util/string-util';
 import {
   buffCommandKind,
+  halfWidthBuffCommand,
   readBuffStacking,
   readCalculatedBuff,
   removedBuffName,
@@ -353,7 +354,7 @@ function lintResource(command: string, span: TextRange, pieces: readonly GameCha
 
 /** Checks a `&` command the way laying it would go, for each piece it is aimed at. */
 function lintBuff(source: string, span: TextRange, pieces: readonly GameCharacter[], add: Report): void {
-  const { command } = readBuffStacking(source.replace('＆', '&'));
+  const { command } = readBuffStacking(halfWidthBuffCommand(source));
   const kind = buffCommandKind(command);
   if (kind === 'remove') {
     const name = removedBuffName(command);
