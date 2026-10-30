@@ -538,6 +538,22 @@ describe('ChatMessageService', () => {
       expect(message.isSystem).toBe(false);
       expect(PeerCursor.myCursor.lastControlCharacterName).toBe('勇者');
     });
+
+    it('sends the stamps of a line under a name of its own as a line said anew goes out', () => {
+      const service = TestBed.inject(ChatMessageService);
+      const chatTab = new ChatTab();
+      chatTab.initialize();
+      ObjectStore.instance.add(chatTab);
+      Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['seal:ok'], false);
+      try {
+        const message = service.sendAsNamed(chatTab, '開いた［了解:seal:ok］［絵:image:door-picture］', null, '扉');
+
+        expect(message.text).toBe('開いた［了解］［絵:image:door-picture］');
+        expect(message.attachmentImageIdentifierList).toEqual(['door-picture']);
+      } finally {
+        Config.instance.stampRules = OPEN_STAMP_RULES;
+      }
+    });
   });
 
   describe('the portrait command at the end of a line', () => {

@@ -396,7 +396,7 @@ export class ChatMessageService {
    * This is how something on the table talks: a door or a chest saying what it is. Dice in the line
    * are rolled for it, and the result comes back under the same name. It leaves alone who this
    * reader last spoke as, since the reader did not say it, and nothing in the line reaches a
-   * piece's resources, since no piece is speaking.
+   * piece's resources, since no piece is speaking. Its stamps go out as those of a line said anew.
    */
   sendAsNamed(
     chatTab: ChatTab,
@@ -405,6 +405,8 @@ export class ChatMessageService {
     name: string,
     color?: string
   ): ChatMessage {
+    const stamped = this.inlineStampsGoingOut(text);
+    text = stamped.text;
     const dicebot = this.objectStore.get<DiceBot>('DiceBot')!;
     const chatMessage: ChatMessageContext = {
       from: Network.peerContext.userId,
@@ -418,6 +420,7 @@ export class ChatMessageService {
       sendFrom: '',
       senderRole: PeerCursor.myRole,
     };
+    if (stamped.pictures.length > 0) chatMessage.attachmentImageIdentifiers = JSON.stringify(stamped.pictures);
     const chat = chatTab.addMessage(chatMessage);
     emitSendMessage({ messageIdentifier: chat.identifier, messageTarget: null });
     emitDiceTableMessage({ messageIdentifier: chat.identifier });
