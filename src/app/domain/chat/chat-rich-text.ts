@@ -647,6 +647,7 @@ function richText(text: string, placed: readonly PlacedLine[]): ChatRichText {
       const units = placed[line]?.units ?? [];
       const start = starts[line] ?? text.length;
       if (assoc < 0 && offset > 0) return start + units[Math.min(offset, units.length) - 1].to;
+      if (assoc < 0 && offset === 0) return start;
       if (offset < units.length) return start + units[offset].from;
       return start + (units.length > 0 && assoc < 0 ? units[units.length - 1].to : lineLength(line));
     },

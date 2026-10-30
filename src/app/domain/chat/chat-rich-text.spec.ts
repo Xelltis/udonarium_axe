@@ -434,6 +434,8 @@ describe('chat-rich-text', () => {
       const text = '**ab**{HP}c\nd';
       const read = parseChatRichText(text);
       expect(read.toText({ line: 0, offset: 0 }, 1)).toBe(2);
+      expect(read.toText({ line: 0, offset: 0 }, -1)).toBe(0);
+      expect(read.toText({ line: 1, offset: 0 }, -1)).toBe(12);
       expect(read.toText({ line: 0, offset: 2 }, -1)).toBe(4);
       expect(read.toText({ line: 0, offset: 2 }, 1)).toBe(6);
       expect(read.toText({ line: 0, offset: 3 }, -1)).toBe(10);
