@@ -93,6 +93,14 @@ describe('lintChatSyntax', () => {
       expect(codes('t{HP}')).toEqual(['target.none']);
     });
 
+    it('finds nothing in a palette line aimed at targets with none picked out yet, as they are picked as it is sent', () => {
+      const palette = { path: 'palette' as const, hasEffect: () => true, hasEffectTarget: false };
+      expect(codes('t:HP-1', palette)).toEqual([]);
+      expect(codes('2d6+t{HP}', palette)).toEqual([]);
+      expect(codes('《斬撃》', palette)).toEqual([]);
+      expect(codes('《斬撃》', { ...palette, path: 'chatWindow' })).toEqual(['effect.noTarget']);
+    });
+
     it('checks a command aimed at targets against each of them', () => {
       expect(codes('t:HP-1', { targets: [target] })).toEqual([]);
       expect(lint('t:気力-1', { targets: [target] })[0]).toMatchObject({

@@ -158,6 +158,11 @@ function decorationHidesCommand(text: string): boolean {
   return (rolls(bare) && !rolls(text)) || changes(bare) > changes(text);
 }
 
+/**
+ * Checks one message. A palette's lines are written to be sent later, aimed at the targets and the
+ * pieces an effect plays on as each is sent, so in a palette nothing that turns on the pieces
+ * picked out now is found at fault where none are.
+ */
 function lintMessage(
   text: string,
   message: TextRange,
@@ -167,6 +172,7 @@ function lintMessage(
 ): void {
   const targeting = textTargetsCharacter(text);
   const noTarget = targeting && context.targets.length < 1;
+  const later = context.path === 'palette';
   const add = (span: TextRange, severity: ChatDiagnosticSeverity, code: ChatLintCode, extra = {}) =>
     found.push({ from: span.from, to: span.to, severity, code, ...extra });
   const portrait = spans.find((span) => span.kind === 'portrait');
@@ -178,11 +184,12 @@ function lintMessage(
   for (const span of spans) {
     switch (span.kind) {
       case 'roll':
-        lintRoll(text, message, span, context, add);
+        if (!(later && noTarget)) lintRoll(text, message, span, context, add);
         break;
       case 'reference':
-        if (span.site.targeted && noTarget) add(span, 'error', 'target.none');
-        else if (!span.site.targeted && !context.speaker && !targeting && context.path === 'chatWindow')
+        if (span.site.targeted && noTarget) {
+          if (!later) add(span, 'error', 'target.none');
+        } else if (!span.site.targeted && !context.speaker && !targeting && context.path === 'chatWindow')
           add(span, 'warning', 'ref.noSpeaker');
         else if (context.referenceValue(span.site) == null)
           add(span, 'warning', context.path === 'palette' ? 'ref.unknownEmptied' : 'ref.unknownKept', {
@@ -192,8 +199,9 @@ function lintMessage(
       case 'resource':
       case 'buff':
         if (span.kind === 'resource' && !meantAsResourceCommand(span.command, piecesFor(span.targeted, context))) break;
-        if (span.targeted && noTarget) add(span, 'error', 'target.none');
-        else if (context.keptOffTable) add(span, 'warning', 'edit.keptOffTable');
+        if (span.targeted && noTarget) {
+          if (!later) add(span, 'error', 'target.none');
+        } else if (context.keptOffTable) add(span, 'warning', 'edit.keptOffTable');
         else if (!span.targeted && !context.speaker) add(span, 'warning', 'edit.noSpeaker');
         else if (span.kind === 'resource') lintResource(span.command, span, piecesFor(span.targeted, context), add);
         else lintBuff(span.command, span, piecesFor(span.targeted, context), add);
@@ -217,11 +225,11 @@ function lintMessage(
           effectsStopped = true;
         } else if (span.battle) {
           if (!context.speaker) add(span, 'info', 'battle.noSpeaker');
-          else if (!targeting && context.hasEffectTarget === false) add(span, 'warning', 'battle.noTarget');
+          else if (!later && !targeting && context.hasEffectTarget === false) add(span, 'warning', 'battle.noTarget');
         } else if (effectsStopped) break;
         else if (span.order > 0) add(span, 'info', 'effect.extra');
         else if (!context.hasEffect(span.name)) add(span, 'warning', 'effect.unknown', { params: { name: span.name } });
-        else if (!targeting && context.hasEffectTarget === false)
+        else if (!later && !targeting && context.hasEffectTarget === false)
           add(span, 'warning', 'effect.noTarget', { params: { name: span.name } });
         break;
       case 'diceToken':
