@@ -409,7 +409,8 @@ function forgetMyCursor(): void {
 // draws the buffs as a count leave the next building its services from that. A worker runs file
 // after file in one page, so the page's storage is emptied before every test, whatever key it was
 // written under. The storage is the page's own, taken as each file starts, as a spec may hand the
-// page a refusing one for a test.
+// page a refusing one for a test, and taken once anything the file before stood in for is put back.
+vi.unstubAllGlobals();
 const pageStorage = { local: globalThis.localStorage, session: globalThis.sessionStorage };
 
 function forgetSeatPreferences(): void {
