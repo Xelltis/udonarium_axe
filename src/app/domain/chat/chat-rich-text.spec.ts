@@ -7,6 +7,7 @@ import {
   parseChatRichText,
   sameRichMarks,
   serializeChatRichText,
+  writePlain,
 } from '@axe/domain/chat/chat-rich-text';
 
 /** How the chat draws a message, letter by letter: a leading quote mark plain, line breaks plain. */
@@ -515,6 +516,33 @@ describe('chat-rich-text', () => {
         const at = written.toText({ line: 0, offset }, 1);
         expect(written.toModel(at, 1), String(offset)).toEqual({ line: 0, offset });
       }
+    });
+  });
+
+  describe('text written in plain', () => {
+    const plain = (text: string, from: number, to: number, insert: string) =>
+      writePlain(text, from, to, insert, { language: 'ja' });
+
+    it('closes the decoration round the caret before the text and opens it again after', () => {
+      const written = plain('**abcd**', 4, 4, ' :HP-1');
+      expect(written.text).toBe('**ab** :HP-1**cd**');
+      expect(written.place(4 + 6)).toBe(12);
+    });
+
+    it('writes over what is selected and keeps the rest of the line decorated as it was', () => {
+      expect(plain('[赤]abcd[/赤] e', 4, 6, ':MP-2').text).toBe('[赤]a[/赤]:MP-2[赤]d[/赤] e');
+    });
+
+    it('writes into undecorated text as it stands', () => {
+      const written = plain('abcd', 2, 2, ':HP-1');
+      expect(written.text).toBe('ab:HP-1cd');
+      expect(written.place(7)).toBe(7);
+    });
+
+    it('answers where a place after the stretch now stands, the marks put round it counted', () => {
+      const written = plain('**ab**cd\nef', 6, 6, '&加護/3');
+      expect(written.text).toBe('**ab**&加護/3cd\nef');
+      expect(written.place(6 + 5 + 3, 1)).toBe(written.text.indexOf('ef'));
     });
   });
 

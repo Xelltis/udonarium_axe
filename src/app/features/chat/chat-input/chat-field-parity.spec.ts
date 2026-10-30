@@ -87,6 +87,18 @@ const cases: Case[] = [
     act: (field) => field.replaceRange(4, 4, 'X'),
   },
   {
+    name: 'writes a command plain inside a bold word, outside the bold',
+    text: '**abcd**',
+    selection: { from: 4, to: 4 },
+    act: (field) => field.replaceRange(4, 4, ' :HP-1', undefined, true),
+  },
+  {
+    name: 'writes a command plain over coloured words, selecting part of it',
+    text: '[赤]abcd[/赤] e',
+    selection: { from: 4, to: 6 },
+    act: (field) => field.replaceRange(4, 6, ':MP-2', { from: 5, to: 7 }, true),
+  },
+  {
     name: 'writes a command after a stamp',
     text: `hello${STAMP}`,
     selection: { from: 5 + STAMP.length, to: 5 + STAMP.length },

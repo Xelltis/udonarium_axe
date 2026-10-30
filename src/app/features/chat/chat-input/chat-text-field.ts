@@ -11,7 +11,7 @@ import {
   wrapChatSelection,
 } from '@axe/domain/chat/chat-decoration';
 import { writtenAtLineEnd } from '@axe/domain/chat/chat-line-end';
-import type { ChatRichChip } from '@axe/domain/chat/chat-rich-text';
+import { type ChatRichChip, writePlain } from '@axe/domain/chat/chat-rich-text';
 
 /** The attribute on whatever a chat line is typed into, the element that takes the keys. */
 export const CHAT_INPUT_ATTR = 'data-chat-input';
@@ -154,10 +154,19 @@ export class TextareaChatField implements ChatTextField {
     this.element.setSelectionRange(caret.from, caret.to);
   }
 
-  replaceRange(from: number, to: number, insert: string, select?: ChatFieldSelection): void {
+  replaceRange(from: number, to: number, insert: string, select?: ChatFieldSelection, plain = false): void {
     const text = this.element.value;
     const end = from + insert.length;
-    this.setText(text.slice(0, from) + insert + text.slice(to), select ?? { from: end, to: end });
+    const pick = select ?? { from: end, to: end };
+    if (!plain) {
+      this.setText(text.slice(0, from) + insert + text.slice(to), pick);
+      return;
+    }
+    const written = writePlain(text, from, to, insert, { language: this.language(), cutInNames: this.cutInNames() });
+    this.setText(written.text, {
+      from: written.place(pick.from, pick.from === pick.to ? -1 : 1),
+      to: written.place(pick.to, -1),
+    });
   }
 
   focus(): void {

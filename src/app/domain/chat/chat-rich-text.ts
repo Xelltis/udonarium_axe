@@ -612,6 +612,106 @@ export function serializeChatRichText(lines: readonly ChatRichLine[], options: C
   return richText(texts.join('\n'), placed);
 }
 
+/** A letter of the private use area, standing in for text written in plain until it is written out. */
+const PLAIN_STAND_IN = '\ue000';
+
+/** A message with text written into it, and where a place in it as simply spliced now stands. */
+export interface ChatPlainWrite {
+  readonly text: string;
+  /**
+   * Where a place in the message, as it reads with the text simply spliced in, stands in the message
+   * written: before the marks put round the text, or after them.
+   */
+  place(offset: number, assoc?: -1 | 1): number;
+}
+
+/**
+ * Writes text over a stretch of a message outside any decoration round it, as a command is put in,
+ * which the chat reads only undecorated: marks open there close before the text and open again
+ * after it. A stretch over more than one line, or on a palette's variable or tab line, is spliced
+ * in as it is.
+ */
+export function writePlain(
+  text: string,
+  from: number,
+  to: number,
+  insert: string,
+  options: ChatRichSerializeOptions & ChatRichParseOptions
+): ChatPlainWrite {
+  const spliced: ChatPlainWrite = { text: text.slice(0, from) + insert + text.slice(to), place: (offset) => offset };
+  const read = parseChatRichText(text, { mode: options.mode, cutInNames: options.cutInNames });
+  const start = read.toModel(from, from === to ? -1 : 1);
+  const end = read.toModel(to, -1);
+  const line = read.lines[start.line];
+  if (!insert || !line || line.directive || end.line !== start.line) return spliced;
+  const endOffset = Math.max(start.offset, end.offset);
+  const standIn = PLAIN_STAND_IN.repeat(insert.length);
+  const lines = read.lines.map((each, index) =>
+    index === start.line
+      ? {
+          segments: splicedSegments(each.segments, start.offset, endOffset, {
+            kind: 'text',
+            text: standIn,
+            marks: null,
+          }),
+        }
+      : each
+  );
+  const written = serializeChatRichText(lines, options);
+  const expected = written.toText({ line: start.line, offset: start.offset + 1 }, -1) - 1;
+  const at = written.text.startsWith(standIn, expected) ? expected : written.text.indexOf(standIn);
+  if (at < 0) return spliced;
+  const grown = insert.length - (endOffset - start.offset);
+  return {
+    text: written.text.slice(0, at) + insert + written.text.slice(at + standIn.length),
+    place(offset, assoc = -1) {
+      if (offset >= from && offset <= from + insert.length) {
+        return written.toText({ line: start.line, offset: start.offset + offset - from }, assoc);
+      }
+      const after = offset > from;
+      const point = read.toModel(after ? offset - insert.length + (to - from) : offset, assoc);
+      return written.toText(
+        after && point.line === start.line ? { ...point, offset: point.offset + grown } : point,
+        assoc
+      );
+    },
+  };
+}
+
+/** A line's segments with a stretch of them, counted as the model counts places, written over by one. */
+function splicedSegments(
+  segments: readonly ChatRichSegment[],
+  from: number,
+  to: number,
+  inserted: ChatRichSegment
+): ChatRichSegment[] {
+  const out: ChatRichSegment[] = [];
+  let placed = false;
+  const place = () => {
+    if (!placed) out.push(inserted);
+    placed = true;
+  };
+  let at = 0;
+  for (const segment of segments) {
+    const start = at;
+    at += segment.kind === 'text' ? segment.text.length : 1;
+    if (at <= from) {
+      out.push(segment);
+    } else if (start >= to) {
+      place();
+      out.push(segment);
+    } else if (segment.kind === 'text') {
+      if (start < from) out.push({ ...segment, text: segment.text.slice(0, from - start) });
+      place();
+      if (at > to) out.push({ ...segment, text: segment.text.slice(to - start) });
+    } else {
+      place();
+    }
+  }
+  place();
+  return out;
+}
+
 /** A text and its lines, with the way between places in the model and in the text. */
 function richText(text: string, placed: readonly PlacedLine[]): ChatRichText {
   const starts: number[] = [];
