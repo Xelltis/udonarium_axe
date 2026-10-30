@@ -73,6 +73,25 @@ describe('GameClockWidgetComponent', () => {
     expect(root.querySelector('[data-testid="game-clock-periods"]')).toBeNull();
   });
 
+  it('shows in each field what the clock keeps, where it kept to its bounds or tidied what was written', () => {
+    const root = open(PeerRole.GameMaster);
+    root.querySelector<HTMLButtonElement>('[data-testid="game-clock-settings"]')!.click();
+    fixture.detectChanges();
+    const change = (testId: string, value: string) => {
+      const field = root.querySelector<HTMLInputElement>(`[data-testid="${testId}"]`)!;
+      field.value = value;
+      field.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+      return field.value;
+    };
+
+    expect(change('game-clock-day-input', '0')).toBe('1');
+    expect(change('game-clock-day-input', '')).toBe('1');
+    expect(change('game-clock-periods', '')).toBe('');
+    expect(change('game-clock-periods', ' , ,')).toBe('');
+    expect(change('game-clock-day-format', '  ')).toBe('');
+  });
+
   it('hides itself for this seat alone', () => {
     const root = open(PeerRole.Player);
 

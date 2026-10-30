@@ -56,9 +56,32 @@ export class GameClockWidgetComponent {
     this.settingsOpen.update((open) => !open);
   }
 
-  protected setTime(value: string): void {
-    const [hours, minutes] = value.split(':').map(Number);
+  /**
+   * Sets the day a field was changed to, and shows in the field the day the clock keeps, which a
+   * field bound one way would not where the clock kept to its bounds and so stayed as it was.
+   */
+  protected changeDay(field: HTMLInputElement): void {
+    this.clock.setDay(+field.value);
+    field.value = `${this.clock.clock().day}`;
+  }
+
+  /** Names the parts of a day as a field was changed to, and shows in it the names as the clock tidied them. */
+  protected changePeriods(field: HTMLInputElement): void {
+    this.clock.setPeriods(field.value);
+    field.value = this.periodsValue();
+  }
+
+  /** Sets the time of day a field was changed to, and shows in it the time the clock keeps. */
+  protected changeTime(field: HTMLInputElement): void {
+    const [hours, minutes] = field.value.split(':').map(Number);
     if (Number.isFinite(hours) && Number.isFinite(minutes)) this.clock.setMinutes(hours * 60 + minutes);
+    field.value = this.timeValue();
+  }
+
+  /** Sets how the day is written as a field was changed to, and shows in it the form the clock keeps. */
+  protected changeDayFormat(field: HTMLInputElement): void {
+    this.clock.setDayFormat(field.value);
+    field.value = this.clock.clock().dayFormat;
   }
 
   protected close(): void {

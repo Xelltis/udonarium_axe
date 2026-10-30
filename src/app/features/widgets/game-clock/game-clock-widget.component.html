@@ -93,7 +93,7 @@
             [class]="fieldClass"
             class="w-20"
             [value]="clock.clock().day"
-            (change)="clock.setDay(+$any($event.target).value)"
+            (change)="changeDay($any($event.target))"
           />
         </label>
         @if (clock.clock().mode === 'periods') {
@@ -119,7 +119,7 @@
               [class]="fieldClass"
               [value]="periodsValue()"
               [placeholder]="'feature.gameClock.defaultPeriods' | transloco"
-              (change)="clock.setPeriods($any($event.target).value)"
+              (change)="changePeriods($any($event.target))"
             />
             <span class="text-ui-dim text-[11px]">{{ 'feature.gameClock.periodsHint' | transloco }}</span>
           </label>
@@ -131,7 +131,7 @@
               data-testid="game-clock-time-input"
               [class]="fieldClass"
               [value]="timeValue()"
-              (change)="setTime($any($event.target).value)"
+              (change)="changeTime($any($event.target))"
             />
           </label>
           <label class="flex items-center gap-2">
@@ -163,7 +163,7 @@
             [class]="fieldClass"
             [value]="clock.clock().dayFormat"
             [placeholder]="'feature.gameClock.dayFormat' | transloco"
-            (change)="clock.setDayFormat($any($event.target).value)"
+            (change)="changeDayFormat($any($event.target))"
           />
           <span class="text-ui-dim text-[11px]">{{ 'feature.gameClock.dayFormatHint' | transloco }}</span>
         </label>
