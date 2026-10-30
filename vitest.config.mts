@@ -68,7 +68,6 @@ function specTsconfig(): string {
         ...specs.map(fromCache),
         fromCache(resolve(ROOT, 'src')) + '/**/*.d.ts',
         fromCache(resolve(ROOT, 'src/app/testing/test-setup.ts')),
-        fromCache(resolve(ROOT, 'src/polyfills.ts')),
       ],
     },
     null,
