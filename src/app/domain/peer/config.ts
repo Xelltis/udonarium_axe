@@ -501,14 +501,12 @@ export class Config extends withRuleAnswers() implements InnerXml {
   }
 
   /**
-   * Forgets the one held here, so that the next reader is given a new one.
-   *
-   * It is held here as well as in the store. Emptying the store leaves this one holding the room's settings,
-   * and it goes back into the store the moment it is read. Only a test between two of its own has
-   * any reason to say this.
+   * Lets go of the one held here as it leaves the store, so that the next reader is given one made
+   * anew, as for a room just started, rather than this one put back as it was.
    */
-  static forget(): void {
-    Config._instance = undefined as unknown as Config;
+  override onStoreRemoved() {
+    super.onStoreRemoved();
+    if (Config._instance === this) Config._instance = undefined as unknown as Config;
   }
 
   /**

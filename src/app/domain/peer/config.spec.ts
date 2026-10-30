@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { VolumeType } from '@axe/core/storage/audio-output';
 import { ObjectContext } from '@axe/core/sync/game-object';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
 import { DEFAULT_BATTLE_SETTINGS } from '@axe/domain/battle/battle-settings';
 import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
@@ -24,6 +25,16 @@ describe('Config', () => {
     // thrown after the test has finished.
     await waitZeroTimeout();
     (Config as unknown as { _instance: Config | undefined })._instance = undefined;
+  });
+
+  it('makes one anew once the one held has left the store, rather than putting that one back', () => {
+    const held = Config.instance;
+    held.gameClock = { ...DEFAULT_GAME_CLOCK, day: 5 };
+
+    ObjectStore.instance.delete(held, false);
+
+    expect(Config.instance).not.toBe(held);
+    expect(Config.instance.gameClock.day).toBe(1);
   });
 
   describe('engagement-zone rules', () => {

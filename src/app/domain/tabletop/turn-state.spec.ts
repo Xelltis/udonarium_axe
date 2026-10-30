@@ -1,8 +1,10 @@
+import { ObjectStore } from '@axe/core/sync/object-store';
 import {
   NO_HOLDING,
   readTurnHolding,
   readTurnStart,
   turnStartMark,
+  TurnState,
   writeTurnHolding,
 } from '@axe/domain/tabletop/turn-state';
 
@@ -59,5 +61,17 @@ describe('what the round holds back', () => {
       interrupted: [],
       givenBack: [],
     });
+  });
+});
+
+describe('the turn state the room holds', () => {
+  it('makes one anew once the one held has left the store, rather than putting that one back', () => {
+    const held = TurnState.instance;
+    held.round = 3;
+
+    ObjectStore.instance.delete(held, false);
+
+    expect(TurnState.instance).not.toBe(held);
+    expect(TurnState.instance.round).toBe(0);
   });
 });
