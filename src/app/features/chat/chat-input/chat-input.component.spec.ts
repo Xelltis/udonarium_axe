@@ -674,7 +674,7 @@ describe('ChatInputComponent', () => {
         '[data-testid="chat-input-edits"] [data-testid="chat-input-stamp"]'
       )!;
       button.click();
-      expect(toggle).toHaveBeenCalledWith(button, 'line', expect.any(Function), 'end');
+      expect(toggle).toHaveBeenCalledWith(button, 'line', expect.any(Function), 'end', 'up');
       toggle.mock.calls[0][2]('seal:ok');
       expect(emitted).toEqual([]);
       expect(component.text).toMatch(/^［.+:seal:ok］$/);

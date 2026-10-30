@@ -1167,7 +1167,7 @@ export class ChatInputComponent {
   /** Opens the stamps over their button in the bar, the one picked going in at the caret. */
   protected openStamps(anchor: EventTarget | null): void {
     if (!(anchor instanceof Element)) return;
-    this.stampPicker.toggle(anchor, 'line', (stampId) => this.putStamp(stampId), 'end');
+    this.stampPicker.toggle(anchor, 'line', (stampId) => this.putStamp(stampId), 'end', 'up');
   }
 
   /**

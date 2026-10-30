@@ -42,19 +42,33 @@ export class StampPickerService {
    * Opens the stamps the room lets be used `use`'s way under `anchor`, handing the one picked to
    * `pick`, or closes them where the same button opened them last.
    */
-  toggle(anchor: Element, use: StampUse, pick: (stampId: string) => void, align: 'center' | 'end' = 'center'): void {
+  toggle(
+    anchor: Element,
+    use: StampUse,
+    pick: (stampId: string) => void,
+    align: 'center' | 'end' = 'center',
+    prefer?: 'up'
+  ): void {
     if (this.opened?.anchor === anchor) {
       this.close();
       return;
     }
-    this.open(anchor, use, pick, align);
+    this.open(anchor, use, pick, align, prefer);
   }
 
   /**
-   * Opens the stamps the room lets be used `use`'s way under `anchor`, closing any already open:
-   * centred on it, or lined up with its right edge for a button at the right of a row.
+   * Opens the stamps the room lets be used `use`'s way by `anchor`, closing any already open:
+   * centred on it, or lined up with its right edge for a button at the right of a row. They open
+   * toward the larger room, or upward wherever they fit there, as asked for a button at the foot
+   * of the screen.
    */
-  open(anchor: Element, use: StampUse, pick: (stampId: string) => void, align: 'center' | 'end' = 'center'): void {
+  open(
+    anchor: Element,
+    use: StampUse,
+    pick: (stampId: string) => void,
+    align: 'center' | 'end' = 'center',
+    prefer?: 'up'
+  ): void {
     this.close();
     const parent = this.overlays.layerFor(anchor.ownerDocument) ?? this.overlays.current() ?? this.overlays.main;
     if (!parent) return;
@@ -78,7 +92,7 @@ export class StampPickerService {
       width: PICKER_WIDTH,
       minHeight: PICKER_MIN_HEIGHT,
       align,
-      prefer: 'up',
+      prefer,
     });
 
     const page = element.ownerDocument;
