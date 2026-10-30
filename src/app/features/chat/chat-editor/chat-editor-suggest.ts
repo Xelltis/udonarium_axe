@@ -102,7 +102,8 @@ export function chatSuggestExtension(host: ChatSuggestHost): Extension {
                 undefined,
                 CHIP_LETTER
               );
-              const to = trigger.kind === 'reference' && /^[}｝]$/.test(after) ? range.to + 1 : range.to;
+              const closing = trigger.kind === 'reference' ? /^[}｝]$/ : trigger.kind === 'effect' ? /^》$/ : null;
+              const to = closing?.test(after) ? range.to + 1 : range.to;
               tr.replaceWith(range.from, to, nodeOfChip(schema, chip, kept));
             }
             current.view.dispatch(tr.scrollIntoView());

@@ -107,6 +107,16 @@ describe('the chat editor', () => {
     view.someProp('handleKeyDown', (handle) => handle(view, new KeyboardEvent('keydown', init)));
   }
 
+  it('takes up the closing bracket standing after the caret as an effect is picked', async () => {
+    const editor = offering({ effects: ['battle'] }, '《》', 1);
+    type(editor, 'ba');
+    await new Promise((resolve) => setTimeout(resolve));
+
+    press(editor, { key: 'Enter' });
+
+    expect(editor.text()).toBe('《battle》');
+  });
+
   it('breaks the line on Shift+Enter while names are offered, picking none', async () => {
     const editor = offering({ statuses: ['HP'] });
     type(editor, '{H');
