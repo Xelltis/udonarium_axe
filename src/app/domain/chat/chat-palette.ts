@@ -360,9 +360,13 @@ export function evaluateReferences(
  * reader to see what went unanswered.
  */
 function dropsUnanswered(line: string, offset: number): boolean {
-  const end = leadingWordEnd(line);
-  if (offset >= end || !/[0-9)\]}｝）］]/.test(line[offset - 1] ?? '')) return false;
-  return looksLikeRollWord(line.slice(0, end).replace(/[tTｔＴ]?[{｛][^{}｛｝]*[}｝]/g, ''));
+  if (offset >= leadingWordEnd(line) || !/[0-9)\]}｝）］]/.test(line[offset - 1] ?? '')) return false;
+  return leadsWithRoll(line);
+}
+
+/** Whether a line starts with a roll, read from its first word with the references in it taken out. */
+function leadsWithRoll(line: string): boolean {
+  return looksLikeRollWord(line.slice(0, leadingWordEnd(line)).replace(/[tTｔＴ]?[{｛][^{}｛｝]*[}｝]/g, ''));
 }
 
 /**
@@ -375,8 +379,7 @@ function dropsUnanswered(line: string, offset: number): boolean {
 type FormulaPlace = 'operand' | 'joined' | 'within' | 'none';
 
 function formulaPlace(line: string, offset: number): FormulaPlace {
-  const end = leadingWordEnd(line);
-  const inRoll = offset < end && looksLikeRollWord(line.slice(0, end).replace(/[tTｔＴ]?[{｛][^{}｛｝]*[}｝]/g, ''));
+  const inRoll = offset < leadingWordEnd(line) && leadsWithRoll(line);
   if (!inRoll && !RESOURCE_COMMAND_WORD.test(line.slice(wordStart(line, offset), offset))) return 'none';
   const before = line.slice(0, offset);
   if (/[-+=＋－＝*/×÷(（]$/.test(before)) return 'operand';
