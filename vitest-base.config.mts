@@ -19,5 +19,9 @@ export default defineConfig({
     // file took the whole run nearly four times as long; `ng test` runs this way by default. What
     // one file leaves behind for the next, test-setup.ts puts back before each test.
     isolate: false,
+    // A spy or a global stood in for by one test is put back before the next, in the same file or
+    // the next one, rather than trusting each test to put back what it changed.
+    restoreMocks: true,
+    unstubGlobals: true,
   },
 });
