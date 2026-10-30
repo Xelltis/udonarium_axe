@@ -187,6 +187,24 @@ describe('ChatLintService', () => {
     }
   });
 
+  it('checks no roll in a line a dice table answers with a stamp put right after its command', () => {
+    const system = { ID: 'FakeSystem', COMMAND_PATTERN: /^1d6T/i, eval: () => null };
+    const loaded = vi
+      .spyOn(DiceBot, 'loadedGameSystem')
+      .mockReturnValue(system as unknown as ReturnType<typeof DiceBot.loadedGameSystem>);
+    const table = new DiceTable();
+    table.initialize();
+    table.command = '1d6T';
+    try {
+      const { session } = watch('1d6T［ok:seal:ok］');
+
+      expect(codesOf(session)).toEqual([]);
+    } finally {
+      table.destroy();
+      loaded.mockRestore();
+    }
+  });
+
   it('checks again as a cut-in starts from chat or no longer does', () => {
     const cutIn = new CutIn();
     cutIn.initialize();

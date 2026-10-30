@@ -1,5 +1,5 @@
 import { parseBuffRemovalCommand } from '@axe/domain/character/buff-bulk-removal';
-import { INLINE_STAMP } from '@axe/domain/chat/inline-stamp';
+import { withInlineStampsAsSpaces } from '@axe/domain/chat/inline-stamp';
 
 /** One command picked out of a chat line, in the form it is carried out in, and where it was typed. */
 export interface ResourceCommandSite {
@@ -29,12 +29,7 @@ const SECRET_PREFIX = /(\s)(?:[sSｓＳ](?=[tTｔＴ]?[:：])|[sｓ](?=[tTｔＴ
  * word, a stamp put inside the line ending a word as a space does.
  */
 export function hasSecretEditMark(text: string): boolean {
-  return SECRET_MARK.test(` ${withStampsAsSpaces(text)}`);
-}
-
-/** A line with each stamp put inside it written as spaces as long, which end a word and hold no command. */
-function withStampsAsSpaces(text: string): string {
-  return text.replace(INLINE_STAMP, (stamp) => ' '.repeat(stamp.length));
+  return SECRET_MARK.test(` ${withInlineStampsAsSpaces(text)}`);
 }
 
 /**
@@ -47,7 +42,7 @@ function withStampsAsSpaces(text: string): string {
  * space does, so one put right after a command is never read as part of it.
  */
 export function resourceCommandSites(text: string): ResourceCommandWords {
-  const padded = ` ${withStampsAsSpaces(text)}`;
+  const padded = ` ${withInlineStampsAsSpaces(text)}`;
   const rawAt: number[] = [];
   for (let index = 0; index < padded.length; index++) rawAt.push(index - 1);
   for (const prefix of [...padded.matchAll(SECRET_PREFIX)].reverse()) rawAt.splice(prefix.index + 1, 1);

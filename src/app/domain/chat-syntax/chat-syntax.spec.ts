@@ -31,6 +31,12 @@ describe('scanChatSyntax', () => {
     expect(markersOf(scan, 'stamp')).toEqual(['［', '］']);
   });
 
+  it('reads a roll that a stamp put right after it ends, as a space would', () => {
+    const scan = scanChatSyntax('2d6［笑:seal:ok］攻撃');
+    expect(textsOf(scan, 'roll')).toEqual(['2d6']);
+    expect(textsOf(scan, 'stamp')).toEqual(['［笑:seal:ok］']);
+  });
+
   it('reads no roll from words of chat', () => {
     expect(textsOf(scanChatSyntax('1日目は休み'), 'roll')).toEqual([]);
     expect(textsOf(scanChatSyntax('こんにちは 2d6'), 'roll')).toEqual([]);

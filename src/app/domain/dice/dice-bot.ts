@@ -33,7 +33,7 @@ import { inlineStampSites } from '@axe/domain/chat/inline-stamp';
 import { hasSecretEditMark } from '@axe/domain/data/resource-command-words';
 import { DiceRollResult, ResourceEditProcessor } from '@axe/domain/data/resource-edit-processor';
 import { diceRollDetailOf, encodeDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
-import { looksLikeDiceCommand, readRollLine } from '@axe/domain/dice/dice-roll-line';
+import { looksLikeDiceCommand, readRollLine, rollableText } from '@axe/domain/dice/dice-roll-line';
 import { DiceTable } from '@axe/domain/dice/dice-table';
 import { ServerRollRequests } from '@axe/domain/dice/server-roll-requests';
 import { GameSystemInfo } from 'bcdice/lib/bcdice/game_system_list.json';
@@ -524,11 +524,12 @@ export class DiceBot extends GameObject {
   }
 
   /**
-   * The line read the way a secret roll is looked for, in half-width lower case with any repeat
-   * count taken off: null unless it then begins with `s`, and otherwise holding what follows it.
+   * The line read the way a secret roll is looked for, {@link rollableText rollable} and in lower
+   * case with any repeat count taken off: null unless it then begins with `s`, and otherwise holding
+   * what follows it.
    */
   private static secretRollMatch(chatText: string): RegExpExecArray | null {
-    const text: string = toHalfWidth(chatText).toLowerCase();
+    const text: string = rollableText(chatText).toLowerCase();
     const nonRepeatText = text
       .replace(/^(\d+)?\s+/, 'repeat1 ')
       .replace(/^x(\d+)?\s+/, 'repeat1 ')
@@ -596,9 +597,9 @@ export class DiceBot extends GameObject {
 
     let text: string;
     if (data.messageTarget) {
-      text = toHalfWidth(data.messageTarget.text);
+      text = rollableText(data.messageTarget.text);
     } else {
-      text = toHalfWidth(chatMessage.text);
+      text = rollableText(chatMessage.text);
     }
 
     const gameType: string = chatMessage.tags ? chatMessage.tags[0] : '';
@@ -661,7 +662,7 @@ export class DiceBot extends GameObject {
       return;
     }
 
-    const text: string = toHalfWidth(chatMessage.text).trim();
+    const text: string = rollableText(chatMessage.text).trim();
     const splitText = text.split(/\s/);
 
     const diceTable = this.getDiceTables();

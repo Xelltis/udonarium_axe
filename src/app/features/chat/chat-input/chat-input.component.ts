@@ -44,7 +44,6 @@ import { PeerContext } from '@axe/core/network/peer-context';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { toHalfWidth } from '@axe/core/util/string-util';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatBubbleColors, chatBubbleOf, chatColorOf, DEFAULT_CHAT_COLOR } from '@axe/domain/chat/chat-color';
@@ -57,7 +56,7 @@ import { stampOf } from '@axe/domain/chat/stamp-catalog';
 import type { ChatDiagnostic } from '@axe/domain/chat-syntax/chat-lint';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
-import { readRollLine } from '@axe/domain/dice/dice-roll-line';
+import { readRollLine, rollableText } from '@axe/domain/dice/dice-roll-line';
 import { mayBeChosen } from '@axe/domain/peer/chosen-seat';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -281,7 +280,7 @@ export class ChatInputComponent {
           line === 'caret'
             ? lineStartOf(field.text(), from)
             : line === 'roll'
-              ? readRollLine(toHalfWidth(field.text().split('\n')[0])).rollFrom
+              ? readRollLine(rollableText(field.text().split('\n')[0])).rollFrom
               : 0;
         field.replaceRange(lineStart, lineStart, text, { from: from + text.length, to: to + text.length });
       }),

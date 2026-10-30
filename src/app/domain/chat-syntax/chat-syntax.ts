@@ -15,7 +15,7 @@ import { lexDiceCommand } from '@axe/domain/chat-syntax/dice-command-lexer';
 import { findEmbeddedRolls } from '@axe/domain/data/embedded-roll';
 import { resourceCommandParts, resourceCommandSites } from '@axe/domain/data/resource-command-words';
 import { diceChatTokenSite } from '@axe/domain/dice/dice-chat-token';
-import { firstWordOf, looksLikeRollWord, readRollLine } from '@axe/domain/dice/dice-roll-line';
+import { firstWordOf, looksLikeRollWord, readRollLine, rollableText } from '@axe/domain/dice/dice-roll-line';
 import { effectTokenSites } from '@axe/domain/effect/effect-chat-token';
 import { readCutInChatTail } from '@axe/domain/media/cut-in-chat-tail';
 import { type LegacyVnSuffixSite, legacyVnSuffixSite } from '@axe/domain/visual-novel/vn-emote';
@@ -380,8 +380,9 @@ function secretPrefixBefore(message: string, from: number): number {
 }
 
 function scanRoll(message: string, offset: number, spans: SyntaxSpan[]): void {
-  const line = readRollLine(toHalfWidth(message));
-  const count = /^(\d+)\s/.exec(toHalfWidth(message));
+  const rollable = rollableText(message);
+  const line = readRollLine(rollable);
+  const count = /^(\d+)\s/.exec(rollable);
   if (count && line.rollFrom > 0) {
     spans.push({
       kind: 'repeat',

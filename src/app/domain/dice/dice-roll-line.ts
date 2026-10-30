@@ -1,4 +1,5 @@
 import { toHalfWidth } from '@axe/core/util/string-util';
+import { withInlineStampsAsSpaces } from '@axe/domain/chat/inline-stamp';
 import { isDicelessArithmetic } from '@axe/domain/data/embedded-roll';
 
 /**
@@ -15,7 +16,15 @@ export interface RollLine {
 }
 
 /**
- * Splits a line, already in half-width, into its repeat count and the command after it.
+ * A line as the dice bot reads it: in half-width, with each stamp put inside it written as spaces
+ * as long, so that one put right after a command ends the command as a space would.
+ */
+export function rollableText(text: string): string {
+  return toHalfWidth(withInlineStampsAsSpaces(text));
+}
+
+/**
+ * Splits a line, already {@link rollableText rollable}, into its repeat count and the command after it.
  *
  * A count is digits followed by spaces at the very start; a line that starts with a space has a
  * count of one. Only the first line of what follows is handed on. When nothing follows the count,
@@ -115,7 +124,7 @@ const ROLL_INTENT = /\d*[dD]\d|\d[bBrRuU]\d|[<>=]/;
  * chat, which digits alone, plain sums, words past ASCII and words such as `10:30` are taken for.
  */
 export function checkRollLine(system: RollCheckSystem, unreachable: boolean, text: string): RollCheck {
-  const line = readRollLine(toHalfWidth(text));
+  const line = readRollLine(rollableText(text));
   const rollText = line.rollText;
   if (unreachable) return looksLikeDiceCommand(rollText) ? { kind: 'cannotCheck' } : { kind: 'notRoll' };
   const word = firstWordOf(rollText);
@@ -145,7 +154,7 @@ export function checkRollLine(system: RollCheckSystem, unreachable: boolean, tex
  * count past what it repeats: each answers 0, or the roll is turned down, rather than rolled.
  */
 export function rollLimitBreaches(text: string): RollLimitBreach[] {
-  const half = toHalfWidth(text);
+  const half = rollableText(text);
   const line = readRollLine(half);
   const breaches: RollLimitBreach[] = [];
   if (line.rollFrom > 0 && line.repeat > MOST_REPEATS) {

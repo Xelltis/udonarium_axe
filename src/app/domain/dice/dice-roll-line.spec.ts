@@ -93,6 +93,14 @@ describe('dice-roll-line', () => {
       });
     });
 
+    it('rolls a command with a stamp put right after it, which ends it as a space would', () => {
+      expect(checkRollLine(cthulhu, false, 'CC<=50［笑:seal:ok］目星')).toMatchObject({ kind: 'rolled' });
+      expect(checkRollLine(plain, false, '２ 2d6［笑:seal:ok］')).toMatchObject({
+        kind: 'rolled',
+        result: expect.stringContaining('#2'),
+      });
+    });
+
     it('says nothing of chat, digits alone or a plain sum', () => {
       for (const line of ['こんにちは', '1日目は休み', '100', '2+3', 'hello there']) {
         expect(checkRollLine(cthulhu, false, line), line).toEqual({ kind: 'notRoll' });

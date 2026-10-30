@@ -16,6 +16,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
+import { DiceTable } from '@axe/domain/dice/dice-table';
 import { SERVER_ROLL_WAIT_MS } from '@axe/domain/dice/server-roll-requests';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { beMyself } from '@axe/testing/peer-context-stub';
@@ -456,6 +457,53 @@ describe('DiceBot', () => {
       expect(tab.chatMessages[1].isServerRoll).toBe(false);
       bot.destroy();
       tab.destroy();
+    });
+
+    it('rolls a command with a stamp put right after it, as though a space stood there', async () => {
+      PeerCursor.createMyCursor();
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(null);
+      vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      const tab = ChatTabList.instance.addChatTab('メイン');
+      const asked = tab.addMessage({
+        from: PeerCursor.myUserId,
+        name: 'わたし',
+        text: '2d6［笑:seal:ok］攻撃',
+        tag: 'DiceBot',
+      });
+      const bot = new DiceBot();
+      bot.initialize();
+
+      await bot['handleSendMessage']({ messageIdentifier: asked.identifier, messageTarget: null });
+
+      expect(tab.chatMessages).toHaveLength(2);
+      expect(tab.chatMessages[1].text).toContain('(2D6)');
+      bot.destroy();
+      tab.destroy();
+    });
+
+    it('rolls on a dice table whose command a stamp put right after it ends', async () => {
+      PeerCursor.createMyCursor();
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(null);
+      vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      const table = DiceTable.create();
+      table.command = 'FOREST';
+      const tab = ChatTabList.instance.addChatTab('メイン');
+      const asked = tab.addMessage({
+        from: PeerCursor.myUserId,
+        name: 'わたし',
+        text: 'FOREST［笑:seal:ok］',
+        tag: 'DiceBot',
+      });
+      const bot = new DiceBot();
+      bot.initialize();
+
+      await bot['handleDiceTableMessage']({ messageIdentifier: asked.identifier });
+
+      expect(tab.chatMessages).toHaveLength(2);
+      expect(tab.chatMessages[1].text).toContain('ダイス表チャート例');
+      bot.destroy();
+      tab.destroy();
+      table.destroy();
     });
   });
 

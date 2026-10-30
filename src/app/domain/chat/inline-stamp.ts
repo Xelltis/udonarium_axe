@@ -61,6 +61,15 @@ export function withInlineStampsAsWords(text: string): string {
 }
 
 /**
+ * A text with each stamp inside it written as spaces as long, for what reads words and commands out
+ * of a line: a stamp ends a word as a space does, holds no command, and leaves where everything
+ * else stands as it was.
+ */
+export function withInlineStampsAsSpaces(text: string): string {
+  return text.replace(INLINE_STAMP, (stamp) => ' '.repeat(stamp.length));
+}
+
+/**
  * The stamps a text is made of, where it holds nothing but stamps and the space between them; null
  * for a text with words in it, or with nothing at all.
  */
