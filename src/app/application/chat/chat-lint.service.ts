@@ -99,6 +99,15 @@ export class ChatLintService {
     return PeerCursor.isMyselfGameMaster;
   });
   /**
+   * Whether the reader's seat is kept off the table, followed as their role changes: a guest made a
+   * player is checked again with the text as it was. The room server's part, which no signal tells,
+   * is read again as each text is checked.
+   */
+  private readonly keptOffTable = computed(() => {
+    this.objectChange.trackMyCursor();
+    return PeerCursor.isMyselfKeptOffTable;
+  });
+  /**
    * The names the pieces in the room go by, for the dice tokens put onto them: read again as any
    * piece changes, but a change that leaves every name as it was checks no text again.
    */
@@ -157,6 +166,7 @@ export class ChatLintService {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     this.objectChange.collectionOf(CutIn.aliasName)();
     const isGameMaster = this.isGameMaster();
+    this.keptOffTable();
     const pieceNames = this.pieceNames();
     const hasEffectTarget = this.hasEffectTarget();
     this.uiSignal.targetChange();

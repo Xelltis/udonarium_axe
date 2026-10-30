@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ChatLintService, type ChatLintSource } from '@axe/application/chat/chat-lint.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { Network } from '@axe/core/network/network';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -152,6 +153,19 @@ describe('ChatLintService', () => {
     } finally {
       keptOff.mockRestore();
     }
+  });
+
+  it('checks again as the reader is made a player from a guest, the text as it was', () => {
+    vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.role = PeerRole.Guest;
+    const { session } = watch(':HP-1');
+    expect(codesOf(session)).toEqual(['edit.keptOffTable']);
+
+    PeerCursor.myCursor.role = PeerRole.Player;
+    TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+
+    expect(codesOf(session)).toEqual([]);
   });
 
   it('looks the room over again for a change to the room, not for each letter typed', () => {
