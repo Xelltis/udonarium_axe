@@ -308,8 +308,9 @@
           findPeerName(context.peerId) || shortId(context.peerId)
         }}</span>
         @if (amGameMaster()) {
-          <!-- Drawn again when the room server keeps a role as it was, so the picker shows the role as it stands. -->
-          @for (drawn of [roleSelectsDrawn()]; track drawn) {
+          <!-- Drawn again when the room server keeps a role as it was, so the picker shows the role as it stands;
+               tracked by a key, as drawing anew is meant. -->
+          @for (drawn of [roleSelectsDrawn()]; track 'drawn ' + drawn) {
             <select
               class="shrink-0 text-[0.7rem]"
               [ngModel]="findPeerRole(context.peerId)"

@@ -1,5 +1,6 @@
 @if (view(); as v) {
-  @for (turn of [play()]; track turn) {
+  <!-- Drawn anew for each turn, so that its move starts over; tracked by a key, as drawing anew is meant. -->
+  @for (turn of [play()]; track 'turn ' + turn) {
     <span
       class="pointer-events-none relative inline-flex items-center justify-center select-none"
       data-stamp
