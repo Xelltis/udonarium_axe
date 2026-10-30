@@ -8,6 +8,7 @@ import { loadConfig$ } from '@axe/core/event/domain-events';
 import { Logger, LogLevel } from '@axe/core/logging/logger';
 import { resetPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
@@ -377,6 +378,13 @@ function emptyObjectStore(): void {
   AudioProfile.clearLocal();
 }
 
+// A spec that starts the synchronizer and leaves it running hands the tests after it, in other files
+// too, one that takes in the updates still waiting to go out, and so puts back objects the store was
+// emptied of. Nothing syncs until a test starts it.
+function stopSynchronizing(): void {
+  ObjectSynchronizer.instance.destroy();
+}
+
 // The cursor of whoever is reading is a static as well, and it decides what a role is allowed to
 // see. A test that leaves a game master behind hands the next one a game master, which is how a
 // toolbar meant for a player comes out missing. Nothing is anybody until a test says so.
@@ -426,6 +434,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   // A test that turns logging up, as the logger specs do, must not leave the next one printing.
   Logger.setLevel(LogLevel.NONE);
+  stopSynchronizing();
   emptyObjectStore();
   forgetMyCursor();
   forgetSeatPreferences();
