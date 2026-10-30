@@ -229,7 +229,8 @@ function lintMessage(
         break;
       case 'cutIn':
         if (portraitFound || !context.isChatCutIn(span.name)) break;
-        if (targeting) add(span, 'warning', 'cutIn.lostByTarget', { params: { name: span.name } });
+        if (context.keptOffTable) add(span, 'warning', 'edit.keptOffTable');
+        else if (targeting) add(span, 'warning', 'cutIn.lostByTarget', { params: { name: span.name } });
         else if (hasSecretEditMark(text) || context.secretRoll?.(message)) {
           add(span, 'info', 'cutIn.secret', { params: { name: span.name } });
         }
@@ -238,6 +239,8 @@ function lintMessage(
         if (span.name.length < 1) {
           if (!effectsStopped) add(span, 'warning', 'effect.blank');
           effectsStopped = true;
+        } else if (context.keptOffTable) {
+          if (!effectsStopped) add(span, 'warning', 'edit.keptOffTable');
         } else if (span.battle) {
           if (!context.speaker) add(span, 'info', 'battle.noSpeaker');
           else if (!later && !targeting && context.hasEffectTarget === false) add(span, 'warning', 'battle.noTarget');

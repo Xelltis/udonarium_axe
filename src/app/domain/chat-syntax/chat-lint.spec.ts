@@ -141,6 +141,12 @@ describe('lintChatSyntax', () => {
       expect(codes(':HP-{ダメージ}')).not.toContain('res.badOption');
     });
 
+    it('finds an effect, a battle or a cut-in on a seat watching, which plays none of them', () => {
+      expect(codes('攻撃 《ファイア》', { keptOffTable: true, hasEffect: () => true })).toEqual(['edit.keptOffTable']);
+      expect(codes('斬る 《vs》', { keptOffTable: true })).toEqual(['edit.keptOffTable']);
+      expect(codes('行くぞ 爆発', { keptOffTable: true, isChatCutIn: () => true })).toEqual(['edit.keptOffTable']);
+    });
+
     it('finds a command with nobody to carry it out', () => {
       expect(codes(':HP-5', { speaker: null })).toEqual(['edit.noSpeaker']);
       expect(codes(':HP-5 &加護/3', { keptOffTable: true })).toEqual(['edit.keptOffTable', 'edit.keptOffTable']);
