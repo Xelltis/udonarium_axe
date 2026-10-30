@@ -1899,6 +1899,21 @@ describe('ChatMessageComponent', () => {
       expect(message.versions.map((version) => version.text)).toEqual(['こんばんわ', 'こんばんは']);
     });
 
+    it('writes nothing for a line saved as it was, though a stamp in it is one the room has stopped since', async () => {
+      const message = shown('me', 'まずは［ドッ:sfx:boom］');
+      Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['sfx:boom'], false);
+      try {
+        component.startEdit();
+        component.saveEdit();
+        await settle();
+
+        expect(message.text).toBe('まずは［ドッ:sfx:boom］');
+        expect(message.versions).toEqual([]);
+      } finally {
+        Config.instance.stampRules = OPEN_STAMP_RULES;
+      }
+    });
+
     it('writes a stamp the room does not let be sent as its name when the line is saved, as a line said anew', async () => {
       const message = shown('me', 'まずは');
       Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['sfx:boom'], false);

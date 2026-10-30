@@ -685,7 +685,8 @@ export class ChatMessageComponent {
     const draft = this.editDraft();
     if (draft === null) return;
     const next = draft.trimEnd();
-    if (next.length === 0 || !this.lineEdit.canEditMessage(this.chatMessage)) {
+    const unchanged = next === vnBodyOf(this.chatMessage.vnEmote, this.chatMessage.text ?? '').trimEnd();
+    if (next.length === 0 || unchanged || !this.lineEdit.canEditMessage(this.chatMessage)) {
       this.cancelEdit();
       return;
     }
