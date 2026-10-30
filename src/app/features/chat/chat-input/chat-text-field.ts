@@ -10,7 +10,7 @@ import {
   type ChatTagLanguage,
   wrapChatSelection,
 } from '@axe/domain/chat/chat-decoration';
-import { portraitCommandSite } from '@axe/domain/chat/chat-portrait-command';
+import { writtenAtLineEnd } from '@axe/domain/chat/chat-line-end';
 import type { ChatRichChip } from '@axe/domain/chat/chat-rich-text';
 
 /** The attribute on whatever a chat line is typed into, the element that takes the keys. */
@@ -72,8 +72,8 @@ export interface ChatTextField {
   applyMark(change: ChatMarkChange): void;
   /**
    * Puts in a piece of syntax shown whole: over what is selected at the caret, in the decoration
-   * there, or at the end of the message, plain, as a command read off the end of a line is written,
-   * a portrait or a cut-in in place of the one the message already ends with.
+   * there, or at the end of the message, plain, where a portrait and a cut-in are read off a line,
+   * as {@link writtenAtLineEnd} writes it there.
    */
   insertChip(chip: ChatRichChip, place?: ChatChipPlace): void;
   /** What is selected, as it is shown. */
@@ -104,11 +104,6 @@ export function marksOfChange(change: ChatMarkChange, language: ChatTagLanguage)
   }
 }
 
-/** Writes text at the end of a message, after a space where it would run on from a word. */
-export function appendedText(text: string, insert: string): string {
-  return text + (text.length > 0 && !/\s$/.test(text) ? ' ' : '') + insert;
-}
-
 /** A plain `<textarea>` as a field. It grows with what it holds until the reader sizes it by hand. */
 export class TextareaChatField implements ChatTextField {
   private sizedByHand = false;
@@ -117,7 +112,8 @@ export class TextareaChatField implements ChatTextField {
 
   constructor(
     readonly element: HTMLTextAreaElement,
-    private readonly language: () => ChatTagLanguage = () => 'ja'
+    private readonly language: () => ChatTagLanguage = () => 'ja',
+    private readonly cutInNames: () => ReadonlySet<string> = () => new Set()
   ) {}
 
   applyMark(change: ChatMarkChange): void {
@@ -127,14 +123,8 @@ export class TextareaChatField implements ChatTextField {
 
   insertChip(chip: ChatRichChip, place: ChatChipPlace = 'caret'): void {
     if (place === 'end') {
-      const text = this.text();
-      const ending = chip.kind === 'portrait' || chip.kind === 'cutIn' ? portraitCommandSite(text) : null;
-      if (ending) {
-        const end = ending.from + chip.raw.length;
-        this.setText(text.slice(0, ending.from) + chip.raw + text.slice(ending.to), { from: end, to: end });
-      } else {
-        this.setText(appendedText(text, chip.raw));
-      }
+      const written = writtenAtLineEnd(this.text(), chip.raw, chip.kind, this.cutInNames());
+      this.setText(written.text, { from: written.caret, to: written.caret });
       return;
     }
     const { from, to } = this.selection();

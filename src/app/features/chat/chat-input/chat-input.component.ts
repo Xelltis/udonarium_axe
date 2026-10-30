@@ -349,7 +349,13 @@ export class ChatInputComponent {
 
   private readonly plainField = computed(() => {
     const box = this.textAreaElementRef()?.nativeElement;
-    return box ? new TextareaChatField(box, () => this.syntaxSource.tagLanguage()) : null;
+    return box
+      ? new TextareaChatField(
+          box,
+          () => this.syntaxSource.tagLanguage(),
+          () => this.syntaxSource.chatCutInNames()
+        )
+      : null;
   });
 
   private readonly injector = inject(Injector);

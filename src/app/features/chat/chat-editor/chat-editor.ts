@@ -4,6 +4,7 @@ import type { TranslateFn } from '@axe/application/i18n/translate.token';
 import { chatFontWanted$ } from '@axe/core/event/domain-events';
 import { coalesce, debounce } from '@axe/core/util/debounce';
 import { type ChatDecoration, chatDecorationLayout, type ChatTagLanguage } from '@axe/domain/chat/chat-decoration';
+import { writtenAtLineEnd } from '@axe/domain/chat/chat-line-end';
 import { referenceSites } from '@axe/domain/chat/chat-reference';
 import {
   type ChatRichChip,
@@ -27,12 +28,7 @@ import {
   nodeOfChip,
   textOfDoc,
 } from '@axe/features/chat/chat-editor/chat-rich-convert';
-import {
-  CHAT_MARK,
-  CHAT_RICH_EXTENSIONS,
-  ChatStamp,
-  CHIP_LETTER,
-} from '@axe/features/chat/chat-editor/chat-rich-schema';
+import { CHAT_MARK, CHAT_RICH_EXTENSIONS, ChatStamp } from '@axe/features/chat/chat-editor/chat-rich-schema';
 import {
   CHAT_INPUT_ATTR,
   type ChatChipPlace,
@@ -412,45 +408,16 @@ export class ChatEditorField implements ChatTextField {
   }
 
   insertChip(chip: ChatRichChip, place: ChatChipPlace = 'caret'): void {
-    const state = this.editor.state;
-    const marks: readonly Mark[] = place === 'end' ? [] : (state.storedMarks ?? state.selection.$from.marks());
-    const node = nodeOfChip(this.schema, chip, marks);
-    const tr = state.tr;
-    const ending = place === 'end' ? this.endingTailChip() : null;
-    if (ending !== null) {
-      tr.replaceWith(ending, ending + 1, node);
-      tr.setSelection(TextSelection.create(tr.doc, ending + 1));
-    } else if (place === 'end') {
-      const end = state.doc.content.size - 1;
-      const before = state.doc.textBetween(Math.max(0, end - 1), end, '\n', CHIP_LETTER);
-      const space = end > 1 && before.length > 0 && !/\s/.test(before) ? [this.schema.text(' ')] : [];
-      tr.insert(end, [...space, node]);
-      tr.setSelection(TextSelection.create(tr.doc, end + space.length + 1));
-    } else {
-      tr.replaceSelectionWith(node, false);
-    }
-    this.editor.view.dispatch(tr.scrollIntoView());
     this.focus();
-  }
-
-  /**
-   * Where the chip of a portrait or a cut-in the message already ends with stands, spaces after it
-   * passed over, which a chip put at the end takes the place of, as only one is read there; null
-   * where the message ends otherwise.
-   */
-  private endingTailChip(): number | null {
-    const doc = this.editor.state.doc;
-    const last = doc.lastChild;
-    if (!last) return null;
-    let at = doc.content.size - 1;
-    for (let index = last.childCount - 1; index >= 0; index--) {
-      const child = last.child(index);
-      at -= child.nodeSize;
-      if (child.isText && /^\s*$/.test(child.text ?? '')) continue;
-      const kind = chipOfNode(child)?.kind;
-      return kind === 'portrait' || kind === 'cutIn' ? at : null;
+    if (place === 'end') {
+      const written = writtenAtLineEnd(this.text(), chip.raw, chip.kind, this.host.cutInNames());
+      this.setText(written.text, { from: written.caret, to: written.caret });
+      return;
     }
-    return null;
+    const state = this.editor.state;
+    const marks: readonly Mark[] = state.storedMarks ?? state.selection.$from.marks();
+    const tr = state.tr.replaceSelectionWith(nodeOfChip(this.schema, chip, marks), false);
+    this.editor.view.dispatch(tr.scrollIntoView());
   }
 
   selectedText(): string {
