@@ -339,11 +339,20 @@ function meantAsResourceCommand(command: string, pieces: readonly GameCharacter[
   );
 }
 
-/** Checks a `:` command the way it is read into an edit, in the same order, for each piece it is aimed at. */
+/** Whether a command holds a reference, filled in before the command is read, so that what it names is not known yet. */
+function holdsReference(command: string): boolean {
+  return /[{｛]/.test(command);
+}
+
+/**
+ * Checks a `:` command the way it is read into an edit, in the same order, for each piece it is aimed
+ * at. The status and the amount of one holding a reference are read only once it is filled in.
+ */
 function lintResource(command: string, span: TextRange, pieces: readonly GameCharacter[], add: Report): void {
   const parts = resourceCommandParts(command);
   if (!parts) return add(span, 'error', 'res.noOperator');
   if (parts.operator !== '>' && parts.amount === '') return add(span, 'error', 'res.noAmount');
+  if (holdsReference(command)) return;
   const name = readNamedResourceSlot(parts.name).name;
   const missing = pieces.filter(
     (piece) => !piece.status.canChangeName(name) && !piece.status.canChangeName(toHalfWidth(name))
@@ -356,10 +365,14 @@ function lintResource(command: string, span: TextRange, pieces: readonly GameCha
   if (parts.operator !== '>' && parseResourceEditOption(parts.amount).isErr) add(span, 'error', 'res.badOption');
 }
 
-/** Checks a `&` command the way laying it would go, for each piece it is aimed at. */
+/**
+ * Checks a `&` command the way laying it would go, for each piece it is aimed at. The buff and the
+ * statuses one holding a reference names are read only once it is filled in.
+ */
 function lintBuff(source: string, span: TextRange, pieces: readonly GameCharacter[], add: Report): void {
   const { command } = readBuffStacking(halfWidthBuffCommand(source));
   const kind = buffCommandKind(command);
+  if (holdsReference(command) && (kind === 'remove' || kind === 'calculated')) return;
   if (kind === 'remove') {
     const name = removedBuffName(command);
     const without = pieces.filter((piece) => piece.buffs.find(name) == null);

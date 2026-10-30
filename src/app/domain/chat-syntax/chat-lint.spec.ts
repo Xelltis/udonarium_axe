@@ -134,6 +134,11 @@ describe('lintChatSyntax', () => {
       expect(codes(':HP-5Q')).toEqual(['res.badOption']);
     });
 
+    it('says nothing of a name or an amount a reference fills in, which is read only once it is', () => {
+      expect(codes(':{対象}-1')).not.toContain('res.unknownStatus');
+      expect(codes(':HP-{ダメージ}')).not.toContain('res.badOption');
+    });
+
     it('finds a command with nobody to carry it out', () => {
       expect(codes(':HP-5', { speaker: null })).toEqual(['edit.noSpeaker']);
       expect(codes(':HP-5 &加護/3', { keptOffTable: true })).toEqual(['edit.keptOffTable', 'edit.keptOffTable']);
@@ -153,6 +158,11 @@ describe('lintChatSyntax', () => {
       speaker.addExtendData();
       speaker.buffs.addRound('加護', '', 3);
       expect(codes('&加護-')).toEqual([]);
+    });
+
+    it('says nothing of a buff or a status a reference names, which is read only once it is filled in', () => {
+      expect(codes('&{バフ}-')).not.toContain('buff.notFound');
+      expect(codes('&!強化/{能力}/+/2/3')).not.toContain('buff.missingStatus');
     });
 
     it('says rounds that are no number last three', () => {
