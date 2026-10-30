@@ -9,7 +9,7 @@ const STYLE_ID = 'chat-rich-editor-style';
  * editor is fetched, so none of it weighs on the page as it starts.
  */
 const CHAT_EDITOR_CSS = `
-.chat-rich{flex:1 1 auto;outline:none;box-sizing:border-box;min-height:100%;padding:6px 8px;font-size:13px;line-height:1.45;color:inherit;caret-color:currentColor;white-space:pre-wrap;overflow-wrap:anywhere}
+.chat-rich{flex:1 1 auto;outline:none;box-sizing:border-box;min-height:100%;padding:6px 8px;font-size:var(--chat-rich-font-size,13px);line-height:1.45;color:inherit;caret-color:currentColor;white-space:pre-wrap;overflow-wrap:anywhere}
 .chat-rich p{margin:0}
 .chat-rich p.is-editor-empty:first-child::before{content:attr(data-placeholder);color:color-mix(in srgb,currentColor 65%,transparent);float:left;height:0;pointer-events:none}
 .chat-rich .chat-rich-italic{font-style:oblique 12deg}

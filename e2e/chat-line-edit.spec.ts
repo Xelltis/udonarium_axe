@@ -22,6 +22,13 @@ test.describe('editing a line in place', () => {
     await expect(page.locator('chat-window [data-chat-input-mode="rich"]')).toBeVisible({ timeout: 10000 });
   });
 
+  test('edits a line at the size the chat is read at', async ({ page }) => {
+    await page.evaluate(() => document.documentElement.style.setProperty('--chat-font-size', '19px'));
+    const { editor } = await sayAndEdit(page, '大きく');
+
+    expect(await editor.evaluate((box) => getComputedStyle(box).fontSize)).toBe('19px');
+  });
+
   test('edits a line as it will look, with the formatting buttons and no syntax to put in', async ({ page }) => {
     const { line, editor } = await sayAndEdit(page, '今日は晴れ');
     await expect(editor).toHaveAttribute('contenteditable', 'true');
