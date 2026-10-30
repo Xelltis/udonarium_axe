@@ -173,7 +173,10 @@ export class ChatEditorField implements ChatTextField {
   private readonly lintForRoom = coalesce(() => this.paintSyntax(true), LINT_DELAY_MS);
   private refreshAfterComposition = false;
   private pendingText: { text: string; select?: ChatFieldSelection; undoable: boolean } | null = null;
-  /** Whether the paste coming is the one Ctrl+Shift+V asks for, to go in as the letters copied. */
+  /**
+   * Whether the paste coming is the one Ctrl+Shift+V asks for, to go in as the letters copied: from
+   * the key going down until it comes up, as a paste it asks for comes in between.
+   */
   private pastePlain = false;
   /** How each stamp chip in the editor is drawn again, for as long as it stands in it. */
   private readonly stampChips = new Set<() => void>();
@@ -241,6 +244,12 @@ export class ChatEditorField implements ChatTextField {
         handleKeyDown: (_view, event) => {
           this.pastePlain = event.shiftKey && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v';
           return false;
+        },
+        handleDOMEvents: {
+          keyup: () => {
+            this.pastePlain = false;
+            return false;
+          },
         },
         handlePaste: (view, event) => this.paste(view, event),
         clipboardTextParser: (text, _context, plain) => this.sliceOfText(text, plain),

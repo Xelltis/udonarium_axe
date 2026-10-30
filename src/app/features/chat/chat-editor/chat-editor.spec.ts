@@ -124,6 +124,20 @@ describe('the chat editor', () => {
     expect(editor.text()).toBe('line1\n\n\\**line2\\**');
   });
 
+  it('reads a paste that follows a Ctrl+Shift+V which pasted nothing as syntax', () => {
+    const editor = mount('');
+    const view = editor.editor.view;
+    const press = new KeyboardEvent('keydown', { key: 'V', ctrlKey: true, shiftKey: true });
+    view.someProp('handleKeyDown', (handle) => handle(view, press));
+    view.dom.dispatchEvent(new KeyboardEvent('keyup', { key: 'V', ctrlKey: true, shiftKey: true }));
+
+    const paste = new Event('paste') as ClipboardEvent;
+    Object.defineProperty(paste, 'clipboardData', { value: { getData: () => '**a**' } });
+    view.someProp('handlePaste', (handle) => handle(view, paste, view.state.doc.slice(0, 0)));
+
+    expect(editor.text()).toBe('**a**');
+  });
+
   it('reads a text dropped in as the chat’s syntax, as a paste is read', () => {
     const editor = mount('');
     const view = editor.editor.view;
