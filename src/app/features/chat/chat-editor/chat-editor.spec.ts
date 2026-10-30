@@ -126,6 +126,30 @@ describe('the chat editor', () => {
     expect(editor.text()).toBe('');
   });
 
+  it('puts a text that waited on a word being made in as asked, and tells the holder what it then holds', () => {
+    const told: string[] = [];
+    const editor = mountChatEditor(parent, { text: '', selection: { from: 0, to: 0 }, focused: false }, {
+      ...host(),
+      changed: (text: string) => told.push(text),
+    } as ChatEditorHost);
+    field = editor;
+    type(editor, 'sent');
+    const view = editor.editor.view;
+    view.dispatch(closeHistory(view.state.tr));
+    const input = (view as unknown as { input: { composing: boolean } }).input;
+
+    input.composing = true;
+    editor.setText('', undefined, false);
+    view.dispatch(view.state.tr.insertText('語'));
+    input.composing = false;
+    (editor as unknown as { afterComposition(): void }).afterComposition();
+
+    expect(editor.text()).toBe('');
+    expect(told.at(-1)).toBe('');
+    editor.editor.commands.undo();
+    expect(editor.text()).not.toContain('sent');
+  });
+
   it('writes over a stretch across the edge of a decoration, leaving its marks where they stand', () => {
     const editor = mount('**abc**d');
 

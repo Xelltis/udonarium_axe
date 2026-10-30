@@ -160,7 +160,7 @@ export class ChatEditorField implements ChatTextField {
   /** Marks it a moment after the room changes, and at that pace for as long as it keeps changing. */
   private readonly lintForRoom = coalesce(() => this.paintSyntax(true), LINT_DELAY_MS);
   private refreshAfterComposition = false;
-  private pendingText: { text: string; select?: ChatFieldSelection } | null = null;
+  private pendingText: { text: string; select?: ChatFieldSelection; undoable: boolean } | null = null;
   /** Whether the paste coming is the one Ctrl+Shift+V asks for, to go in as the letters copied. */
   private pastePlain = false;
   private readonly tip: HTMLElement;
@@ -272,12 +272,13 @@ export class ChatEditorField implements ChatTextField {
   /**
    * Puts the text in, read into decorated text and chips, changing only what differs from what the
    * editor holds, so its history and the caret's place survive. Text that arrives while a word is
-   * being made with an input method waits until the word is made.
+   * being made with an input method waits until the word is made, and then goes in over it, the
+   * holder told what the box holds, as the word made has told it otherwise.
    */
   setText(text: string, select?: ChatFieldSelection, undoable = true): void {
     const view = this.editor.view;
     if (view.composing) {
-      this.pendingText = { text, select };
+      this.pendingText = { text, select, undoable };
       return;
     }
     const state = this.editor.state;
@@ -615,7 +616,10 @@ export class ChatEditorField implements ChatTextField {
   private afterComposition(): void {
     const pending = this.pendingText;
     this.pendingText = null;
-    if (pending) this.setText(pending.text, pending.select);
+    if (pending) {
+      this.setText(pending.text, pending.select, pending.undoable);
+      this.host.changed(this.text());
+    }
     if (this.refreshAfterComposition) {
       this.refreshAfterComposition = false;
       this.refresh(true);
