@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { MotionService } from '@axe/application/ui/motion.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { DEFAULT_GAME_CLOCK } from '@axe/domain/game-clock/game-clock';
 import { Config } from '@axe/domain/peer/config';
@@ -91,6 +92,67 @@ describe('GameClockWidgetComponent', () => {
     expect(change('game-clock-periods', '')).toBe('');
     expect(change('game-clock-periods', ' , ,')).toBe('');
     expect(change('game-clock-day-format', '  ')).toBe('');
+  });
+
+  describe('the sun and the moon moving on', () => {
+    /** Where a body stands, read off the transform it is drawn with. */
+    function placeOf(root: HTMLElement, body: 'sun' | 'moon'): { x: number; y: number } {
+      const drawn = root.querySelector<SVGGElement>(`[data-testid="game-clock-${body}"]`)!.style.transform;
+      const [x, y] = /translate\(([-\d.]+)px, ([-\d.]+)px\)/.exec(drawn)!.slice(1).map(Number);
+      return { x, y };
+    }
+
+    /** How far a point lies off the arc the bodies go round, 0 on it. */
+    const offArc = ({ x, y }: { x: number; y: number }) => Math.abs(((x - 120) / 100) ** 2 + ((y - 62) / 50) ** 2 - 1);
+
+    /** The places a body passes through, frame by frame, as the clock is stepped on once. */
+    async function framesStepping(root: HTMLElement, body: 'sun' | 'moon'): Promise<{ x: number; y: number }[]> {
+      root.querySelector<HTMLButtonElement>('[data-testid="game-clock-on"]')!.click();
+      const places: { x: number; y: number }[] = [];
+      for (let frame = 0; frame < 60; frame++) {
+        await vi.advanceTimersByTimeAsync(16);
+        fixture.detectChanges();
+        places.push(placeOf(root, body));
+      }
+      return places;
+    }
+
+    beforeEach(() => vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout'] }));
+    afterEach(() => vi.useRealTimers());
+
+    it('goes along its arc from noon to evening, westward all the way', async () => {
+      Config.instance.gameClock = { ...DEFAULT_GAME_CLOCK, period: 1 };
+      const root = open(PeerRole.GameMaster);
+
+      const places = await framesStepping(root, 'sun');
+
+      expect(places.every((place) => offArc(place) < 0.001)).toBe(true);
+      expect(places.some((place) => place.x > 25 && place.x < 115)).toBe(true);
+      expect(places.every((place, index) => index === 0 || place.x <= places[index - 1].x)).toBe(true);
+      expect(places.at(-1)!.x).toBeCloseTo(20);
+    });
+
+    it('goes there at once for a seat that keeps the screen still', () => {
+      TestBed.inject(MotionService).set('off');
+      Config.instance.gameClock = { ...DEFAULT_GAME_CLOCK, period: 1 };
+      const root = open(PeerRole.GameMaster);
+
+      root.querySelector<HTMLButtonElement>('[data-testid="game-clock-on"]')!.click();
+      fixture.detectChanges();
+
+      expect(placeOf(root, 'sun').x).toBeCloseTo(20);
+    });
+
+    it('crosses the sky from east to west on a day of two parts, rather than along the horizon', async () => {
+      Config.instance.gameClock = { ...DEFAULT_GAME_CLOCK, periods: ['昼', '夜'] };
+      const root = open(PeerRole.GameMaster);
+
+      const places = await framesStepping(root, 'sun');
+
+      expect(places.every((place) => offArc(place) < 0.001)).toBe(true);
+      expect(places.every((place, index) => index === 0 || place.x <= places[index - 1].x)).toBe(true);
+      expect(places.some((place) => place.y < 20)).toBe(true);
+    });
   });
 
   it('hides itself for this seat alone', () => {

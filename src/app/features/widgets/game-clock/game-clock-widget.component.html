@@ -18,16 +18,8 @@
       >
         <defs>
           <linearGradient [attr.id]="skyId + '-air'" x1="0" y1="0" x2="0" y2="1">
-            <stop
-              offset="0"
-              class="motion-safe:transition-[stop-color] motion-safe:duration-700"
-              [style.stop-color]="sky().top"
-            />
-            <stop
-              offset="0.8"
-              class="motion-safe:transition-[stop-color] motion-safe:duration-700"
-              [style.stop-color]="sky().horizon"
-            />
+            <stop offset="0" [style.stop-color]="sky().top" />
+            <stop offset="0.8" [style.stop-color]="sky().horizon" />
           </linearGradient>
           <radialGradient [attr.id]="skyId + '-sun-glow'">
             <stop offset="0" stop-color="#ffe7a3" stop-opacity="0.8" />
@@ -43,7 +35,7 @@
           </radialGradient>
         </defs>
         <rect [attr.width]="skyWidth" [attr.height]="skyHeight" [attr.fill]="'url(#' + skyId + '-air)'" />
-        <g class="motion-safe:transition-opacity motion-safe:duration-700" [attr.opacity]="sky().stars">
+        <g [attr.opacity]="sky().stars">
           @for (star of stars; track $index) {
             <circle [attr.cx]="star.x" [attr.cy]="star.y" [attr.r]="star.r" fill="#fff" />
           }
@@ -58,18 +50,13 @@
         />
         <g
           data-testid="game-clock-moon"
-          class="motion-safe:transition-[transform,opacity] motion-safe:duration-700 motion-safe:ease-out"
           [style.transform]="'translate(' + sky().moon.x + 'px, ' + sky().moon.y + 'px)'"
           [style.opacity]="0.4 + 0.6 * sky().stars"
         >
           <circle r="16" [attr.fill]="'url(#' + skyId + '-moon-glow)'" />
           <circle r="5.5" fill="#eef1ff" [attr.mask]="'url(#' + skyId + '-crescent)'" />
         </g>
-        <g
-          data-testid="game-clock-sun"
-          class="motion-safe:transition-transform motion-safe:duration-700 motion-safe:ease-out"
-          [style.transform]="'translate(' + sky().sun.x + 'px, ' + sky().sun.y + 'px)'"
-        >
+        <g data-testid="game-clock-sun" [style.transform]="'translate(' + sky().sun.x + 'px, ' + sky().sun.y + 'px)'">
           <circle r="20" [attr.fill]="'url(#' + skyId + '-sun-glow)'" />
           <circle r="6.5" fill="#ffd66b" />
         </g>

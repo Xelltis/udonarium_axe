@@ -1,6 +1,16 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GameClockService } from '@axe/application/game-clock/game-clock.service';
+import { MotionService } from '@axe/application/ui/motion.service';
 import { WIDGET_GAME_CLOCK } from '@axe/application/ui/widget-place';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import {
@@ -16,6 +26,9 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 /** How many skies have been drawn on the page, for each to name its colours apart from another's. */
 let skiesDrawn = 0;
+
+/** How long the sky takes to move on to a new hour. */
+const SKY_MOVE_MS = 700;
 
 /**
  * The time the room keeps in its story, as a widget each seat shows or hides for itself: the day
@@ -49,8 +62,28 @@ export class GameClockWidgetComponent {
   protected readonly skyArc = SKY_ARC;
   protected readonly stars = SKY_STARS;
 
-  /** The sky of the hour the clock stands at. */
-  protected readonly sky = computed(() => clockSky(dayFractionOf(this.clock.clock(), this.clock.periods().length)));
+  private readonly motion = inject(MotionService);
+  /** How far through the day the clock stands. */
+  private readonly dayFraction = computed(() => dayFractionOf(this.clock.clock(), this.clock.periods().length));
+  /**
+   * How far through the day the sky is drawn, counted on past a whole day rather than back to 0: it
+   * moves on to the clock's over a moment, frame by frame and always forward, so that the sun and
+   * the moon go along their arc from east to west and round under it, never back. It goes there at
+   * once where the seat keeps the screen still. Null until the sky is first drawn.
+   */
+  private readonly shownFraction = signal<number | null>(null);
+  private skyFrame = 0;
+
+  /** The sky of the hour the clock stands at, or is moving on to. */
+  protected readonly sky = computed(() => clockSky(this.shownFraction() ?? this.dayFraction()));
+
+  constructor() {
+    effect(() => {
+      const fraction = this.dayFraction();
+      untracked(() => this.moveSkyTo(fraction));
+    });
+    inject(DestroyRef).onDestroy(() => cancelAnimationFrame(this.skyFrame));
+  }
 
   /** A mark for each part of the day, the one the clock stands in lit. */
   protected readonly periodMarks = computed(() => {
@@ -115,5 +148,24 @@ export class GameClockWidgetComponent {
 
   protected close(): void {
     this.widgets.gameClock.set(false);
+  }
+
+  /** Moves the sky on to a share of the day, from where it is drawn, as {@link shownFraction} says. */
+  private moveSkyTo(fraction: number): void {
+    cancelAnimationFrame(this.skyFrame);
+    const from = this.shownFraction();
+    if (from === null || !this.motion.enabled()) {
+      this.shownFraction.set(fraction);
+      return;
+    }
+    const ahead = (((fraction - from) % 1) + 1) % 1;
+    let start: number | null = null;
+    const frame = (now: number) => {
+      start ??= now;
+      const done = Math.min(1, (now - start) / SKY_MOVE_MS);
+      this.shownFraction.set(from + ahead * (1 - (1 - done) ** 3));
+      if (done < 1) this.skyFrame = requestAnimationFrame(frame);
+    };
+    if (ahead > 0) this.skyFrame = requestAnimationFrame(frame);
   }
 }
