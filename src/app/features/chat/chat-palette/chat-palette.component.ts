@@ -150,8 +150,7 @@ export class ChatPaletteComponent {
     placeholder: () => this.t('feature.chat.palette.editPlaceholder'),
     changed: (text) => this.editPalette.set(text),
     session: () => this.paletteLint,
-    completionWords: () =>
-      this.syntaxSource.completionWordsFor(this.character()?.identifier ?? '', untracked(this.rolledGameType)),
+    completionWords: () => this.syntaxSource.completionWordsFor(this.character()?.identifier ?? ''),
     language: () => this.syntaxSource.tagLanguage(),
     cutInNames: () => this.syntaxSource.chatCutInNames(),
     portraitImage: (raw) => this.syntaxSource.portraitImage(this.character()?.identifier ?? '', raw),

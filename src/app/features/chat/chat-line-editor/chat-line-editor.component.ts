@@ -48,7 +48,6 @@ const NO_WORDS: ChatCompletionWords = {
   effects: [],
   buffs: [],
   cutIns: [],
-  diceExamples: [],
 };
 
 /** The attribute the editor for a line already sent is found by, apart from the chat input's. */

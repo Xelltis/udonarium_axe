@@ -8,7 +8,6 @@ export interface ChatCompletionWords {
   readonly buffs: readonly string[];
   /** The cut-ins that start from chat, offered after an at mark to play their sound alone. */
   readonly cutIns: readonly string[];
-  readonly diceExamples: readonly string[];
 }
 
 /** What a name is offered for: a chip it becomes, or text written after a mark. */

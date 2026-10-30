@@ -12,7 +12,6 @@ describe('chat-editor-complete', () => {
     effects: ['爆炎'],
     buffs: ['加護', 'tough'],
     cutIns: ['登場'],
-    diceExamples: ['CC<=50'],
   };
 
   it('finds a reference being written, with what is typed after its brace', () => {

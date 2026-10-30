@@ -44,10 +44,18 @@ export class ChatSyntaxSourceService {
    * fetched for the next time.
    */
   sourceFor(sendFrom: string, gameType: string): ChatSyntaxMenuSource {
-    const speaker = this.speakerOf(sendFrom);
     const system = this.systems.systemFor(gameType);
     return {
+      ...this.namesFor(this.speakerOf(sendFrom)),
       language: this.language.currentLang(),
+      diceExamples: system && !DiceBot.isUnreachable(system) ? this.examplesOf(system) : [],
+      isGameMaster: PeerCursor.isMyselfGameMaster,
+    };
+  }
+
+  /** The names the speaker and the room offer, which the menu of syntax and the names offered as a line is written share. */
+  private namesFor(speaker: GameCharacter | null) {
+    return {
       statuses: speaker ? resourceCatalogOf([speaker]) : [],
       variables: speaker?.chatPalette?.paletteVariables.map((variable) => variable.name) ?? [],
       portraits: this.portraitsOf(speaker),
@@ -57,8 +65,6 @@ export class ChatSyntaxSourceService {
         .map((preset) => preset.name.trim())
         .filter((name) => name.length > 0),
       cutIns: this.chatCutIns(),
-      diceExamples: system && !DiceBot.isUnreachable(system) ? this.examplesOf(system) : [],
-      isGameMaster: PeerCursor.isMyselfGameMaster,
     };
   }
 
@@ -76,20 +82,17 @@ export class ChatSyntaxSourceService {
 
   private readonly diceExamples = new WeakMap<object, string[]>();
 
-  /** The names the editor offers as a line is written, the speaker's buffs among them. */
-  completionWordsFor(sendFrom: string, gameType: string): ChatCompletionWords {
-    const source = this.sourceFor(sendFrom, gameType);
+  /**
+   * The names the editor offers as a line is written, the speaker's buffs among them. They hold no
+   * dice commands, so no game system is fetched or rolled for them as a key is typed.
+   */
+  completionWordsFor(sendFrom: string): ChatCompletionWords {
+    const speaker = this.speakerOf(sendFrom);
+    const names = this.namesFor(speaker);
     return {
-      statuses: source.statuses.map((status) => status.name),
-      variables: source.variables,
-      portraits: source.portraits,
-      effects: source.effects,
-      buffs:
-        this.speakerOf(sendFrom)
-          ?.buffs.list()
-          .map((buff) => buff.name) ?? [],
-      cutIns: source.cutIns,
-      diceExamples: source.diceExamples,
+      ...names,
+      statuses: names.statuses.map((status) => status.name),
+      buffs: speaker?.buffs.list().map((buff) => buff.name) ?? [],
     };
   }
 

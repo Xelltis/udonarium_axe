@@ -21,7 +21,6 @@ describe('the chat editor', () => {
         effects: [],
         buffs: [],
         cutIns: [],
-        diceExamples: [],
       }),
       language: () => language,
       cutInNames: () => new Set<string>(),
