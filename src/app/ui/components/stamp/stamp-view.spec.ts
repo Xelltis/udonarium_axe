@@ -55,6 +55,12 @@ describe('stamp markup', () => {
     expect(stampMarkup('image:named', view, 'inline')).toContain('［&lt;名前&gt;］');
   });
 
+  it('writes the name a line gave a room picture neither here nor in a set, before the word for any picture', () => {
+    expect(stampViewOf('image:gone', source(), 'ねこ')).toEqual(expect.objectContaining({ words: '［ねこ］' }));
+    expect(stampViewOf('image:gone', source())).toEqual(expect.objectContaining({ words: '［ui.stamp.picture］' }));
+    expect(stampViewOf('image:named', source(), 'ねこ')).toEqual(expect.objectContaining({ words: '［<名前>］' }));
+  });
+
   it('knows nothing of a stamp this version does not know', () => {
     expect(stampViewOf('sfx:fromthefuture', source())).toBeNull();
   });

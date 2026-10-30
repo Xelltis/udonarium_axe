@@ -67,15 +67,16 @@ export function roomStampViewSource(
 /**
  * How a stamp is drawn. A sound effect is its words in heavy leaning letters; a seal is drawn; the
  * character's stamps and a stamp from a room's set are their pictures; while the picture of a stamp
- * from the room is not here, its name is written in grey in its place. Null for a stamp this version
+ * from the room is not here, its name is written in grey in its place: the one in the room's sets,
+ * the picture's own, or else the one the line it stands in gave it. Null for a stamp this version
  * does not know.
  */
-export function stampViewOf(stampId: string, source: StampViewSource): StampView | null {
+export function stampViewOf(stampId: string, source: StampViewSource, writtenAs = ''): StampView | null {
   const ref = stampOf(stampId);
   if (!ref) return null;
   if (ref.kind === 'image') {
     const image = source.picture(ref.imageIdentifier);
-    const name = source.nameInSet(ref.imageIdentifier) || image?.name || source.t('ui.stamp.picture');
+    const name = source.nameInSet(ref.imageIdentifier) || image?.name || writtenAs || source.t('ui.stamp.picture');
     if (!image?.url) {
       const words = source.t('ui.stamp.standIn', { words: name });
       return { kind: 'words', name, words, color: MISSING_PICTURE_INK, tilt: 0, motion: 'pop' };

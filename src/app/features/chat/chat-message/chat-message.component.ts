@@ -1097,8 +1097,8 @@ export class ChatMessageComponent {
     const alone = inlineStampsAlone(body) !== null;
     const source = roomStampViewSource(this.t, this.imageStorage, this.stampPacks);
     let drawn = 0;
-    return (stampId) => {
-      const view = stampViewOf(stampId, source);
+    return (stampId, label) => {
+      const view = stampViewOf(stampId, source, label);
       const box = alone ? this.stampLineSize(stampId, this.chatSimpleDispFlag()) : 'inline';
       return view ? stampMarkup(stampId, view, box, `${this.drawing}-${drawn++}`) : null;
     };
