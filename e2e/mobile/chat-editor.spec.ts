@@ -45,4 +45,31 @@ test.describe('the chat editor on a phone', () => {
     expect(band.y).toBeGreaterThan(selects.y + selects.height);
     expect(Math.abs(band.x - box.x)).toBeLessThan(1);
   });
+
+  test('writes in the editor at a size the phone does not zoom onto, and leaves a line edited selectable', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await expect(page.locator('app-mobile-shell nav')).toBeVisible({ timeout: 20000 });
+    const pane = page.locator('app-mobile-chat-pane');
+    await expect(pane.locator('[data-chat-input-mode="rich"]')).toBeVisible({ timeout: 20000 });
+
+    expect(await chatInput(pane).evaluate((box) => getComputedStyle(box).fontSize)).toBe('16px');
+
+    const selectable = await page.evaluate(() => {
+      const message = document.createElement('chat-message');
+      const text = document.createElement('div');
+      text.className = 'msg-text';
+      const editor = document.createElement('div');
+      editor.contentEditable = 'true';
+      text.append(editor);
+      message.append(text);
+      document.body.append(message);
+      const style = getComputedStyle(editor);
+      const value = style.userSelect || style.getPropertyValue('-webkit-user-select');
+      message.remove();
+      return { value, touch: document.body.classList.contains('touch-input') };
+    });
+    expect(selectable).toEqual({ value: 'text', touch: true });
+  });
 });
