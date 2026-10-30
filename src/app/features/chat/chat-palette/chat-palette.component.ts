@@ -22,6 +22,7 @@ import { ChatPaletteRegistryService } from '@axe/application/chat/chat-palette-r
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { DiceBotCatalogService } from '@axe/application/dice/dice-bot-catalog.service';
 import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
+import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -104,6 +105,7 @@ export class ChatPaletteComponent {
   private readonly chatTickerSelection = inject(ChatTickerSelectionService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly language = inject(LanguageService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly chatPaletteRegistry = inject(ChatPaletteRegistryService);
@@ -436,6 +438,10 @@ export class ChatPaletteComponent {
         else this.paletteEditor?.refresh(true);
       });
       refreshedText = text;
+    });
+    effect(() => {
+      this.language.currentLang();
+      untracked(() => this.paletteEditor?.reconfigure());
     });
     afterEveryRender(() => this.paletteEditor?.followRoot());
   }

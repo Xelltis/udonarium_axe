@@ -21,6 +21,7 @@ import { ChatPaletteComponent } from '@axe/features/chat/chat-palette/chat-palet
 import { ChatTickerSelectionService } from '@axe/features/chat/chat-ticker-selection.service';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { TranslocoService } from '@jsverse/transloco';
 import GameSystemClass from 'bcdice/lib/game_system';
 
 describe('ChatPaletteComponent', () => {
@@ -684,6 +685,7 @@ describe('ChatPaletteComponent handing its text area over to the editor', () => 
       refreshSoon: vi.fn(),
       followRoot: vi.fn(),
       destroy: vi.fn(),
+      reconfigure: vi.fn(),
     }));
     const loader = () =>
       new Promise<ChatEditorModule | null>((resolve) => {
@@ -772,6 +774,26 @@ describe('ChatPaletteComponent handing its text area over to the editor', () => 
     TestBed.tick();
 
     expect(field.refreshSoon).toHaveBeenCalled();
+  });
+
+  it('names the editor and its bars again as the language changes', async () => {
+    const fixture = TestBed.createComponent(ChatPaletteComponent);
+    fixture.componentInstance.character.set(char);
+    fixture.detectChanges();
+    fixture.componentInstance.toggleEditMode();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    arrive({ mountChatEditor: mounted } as unknown as ChatEditorModule);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    TestBed.tick();
+    const field = mounted.mock.results[0].value as { reconfigure: ReturnType<typeof vi.fn> };
+    field.reconfigure.mockClear();
+
+    TestBed.inject(TranslocoService).setActiveLang('en');
+    TestBed.tick();
+
+    expect(field.reconfigure).toHaveBeenCalled();
   });
 
   it('follows the text area for no editor where the editor could not be fetched', async () => {

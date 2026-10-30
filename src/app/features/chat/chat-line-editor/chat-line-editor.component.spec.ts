@@ -4,6 +4,7 @@ import { CHAT_EDITOR_LOADER, type ChatEditorModule } from '@axe/features/chat/ch
 import { ChatLineEditorComponent } from '@axe/features/chat/chat-line-editor/chat-line-editor.component';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { TranslocoService } from '@jsverse/transloco';
 
 describe('ChatLineEditorComponent', () => {
   let fixture: ComponentFixture<ChatLineEditorComponent>;
@@ -90,6 +91,7 @@ describe('ChatLineEditorComponent handing its plain box over to the editor', () 
       focus: vi.fn(),
       hasFocus: () => false,
       activeMarks: () => null,
+      reconfigure: vi.fn(),
     }));
     TestBed.configureTestingModule({
       imports: [ChatLineEditorComponent],
@@ -138,6 +140,7 @@ describe('ChatLineEditorComponent handing its plain box over to the editor', () 
       focus: vi.fn(),
       hasFocus: () => false,
       activeMarks: () => null,
+      reconfigure: vi.fn(),
     }));
     TestBed.configureTestingModule({
       imports: [ChatLineEditorComponent],
@@ -189,6 +192,7 @@ describe('ChatLineEditorComponent handing its plain box over to the editor', () 
         focus: vi.fn(),
         hasFocus: () => false,
         activeMarks: () => null,
+        reconfigure: vi.fn(),
       }));
       TestBed.configureTestingModule({
         imports: [ChatLineEditorComponent],
@@ -259,6 +263,17 @@ describe('ChatLineEditorComponent handing its plain box over to the editor', () 
       TestBed.tick();
 
       expect(field.refreshSoon).toHaveBeenCalled();
+    });
+
+    it('names the editor and its bars again as the language changes', async () => {
+      await openAndArrive();
+      const field = mounted.mock.results[0].value as { reconfigure: ReturnType<typeof vi.fn> };
+      field.reconfigure.mockClear();
+
+      TestBed.inject(TranslocoService).setActiveLang('en');
+      TestBed.tick();
+
+      expect(field.reconfigure).toHaveBeenCalled();
     });
 
     it('leaves the keys with another field the reader went to meanwhile', async () => {
