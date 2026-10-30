@@ -19,6 +19,17 @@ export class TurnState extends GameObject {
     return TurnState._instance;
   }
 
+  /**
+   * Forgets the one held here, so that the next reader is given a new one.
+   *
+   * It is held here as well as in the store. Emptying the store leaves this one holding whose turn it is,
+   * and it goes back into the store the moment it is read. Only a test between two of its own has
+   * any reason to say this.
+   */
+  static forget(): void {
+    TurnState._instance = undefined as unknown as TurnState;
+  }
+
   @SyncVar() currentIdentifier: string = '';
   /** The side whose phase it is, where the round is taken side by side. */
   @SyncVar() currentSide: string = '';

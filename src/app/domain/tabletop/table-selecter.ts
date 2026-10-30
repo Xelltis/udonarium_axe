@@ -19,6 +19,17 @@ export class TableSelecter extends GameObject {
     return TableSelecter._instance;
   }
 
+  /**
+   * Forgets the one held here, so that the next reader is given a new one.
+   *
+   * It is held here as well as in the store. Emptying the store leaves this one holding the table on show and what is picked on it,
+   * and it goes back into the store the moment it is read. Only a test between two of its own has
+   * any reason to say this.
+   */
+  static forget(): void {
+    TableSelecter._instance = undefined as unknown as TableSelecter;
+  }
+
   @SyncVar() viewTableIdentifier: string = '';
   private cleanups: (() => void)[] = [];
 

@@ -9,10 +9,14 @@ import { Logger, LogLevel } from '@axe/core/logging/logger';
 import { resetPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
+import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { TurnState } from '@axe/domain/tabletop/turn-state';
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { basename, join, resolve } from 'path';
 
@@ -372,8 +376,13 @@ function emptyObjectStore(): void {
   // any spec ever added, and it hands them back the moment the next one reads it.
   ChatTabList.forget();
   // The room's summary setting is held the same way, and a spec that sets out the default table
-  // leaves the inventory sorting by a status and then by name for every file after it.
+  // leaves the inventory sorting by a status and then by name for every file after it. So are the
+  // room's settings, the states it keeps, the table on show and whose turn it is.
   DataSummarySetting.forget();
+  Config.forget();
+  StatusAilmentCatalog.forget();
+  TableSelecter.forget();
+  TurnState.forget();
   // Readings of sounds made on this device are held by their own module beside the store.
   AudioProfile.clearLocal();
 }

@@ -15,6 +15,7 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { moveNeighbourToward } from '@axe/domain/tabletop/move/move-neighbours';
 import { pieceCellOf } from '@axe/domain/tabletop/move/piece-on-grid';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { LightPreset } from '@axe/domain/tabletop/vision-types';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -39,6 +40,7 @@ describe('FirstPersonService', () => {
     table.height = 12;
     table.gridSize = GRID;
     table.initialize();
+    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
     PeerCursor.createMyCursor();
     PeerCursor.myCursor.role = PeerRole.Player;
     PeerCursor.myCursor.userId = 'me';

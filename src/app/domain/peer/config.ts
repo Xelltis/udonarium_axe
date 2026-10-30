@@ -501,6 +501,17 @@ export class Config extends withRuleAnswers() implements InnerXml {
   }
 
   /**
+   * Forgets the one held here, so that the next reader is given a new one.
+   *
+   * It is held here as well as in the store. Emptying the store leaves this one holding the room's settings,
+   * and it goes back into the store the moment it is read. Only a test between two of its own has
+   * any reason to say this.
+   */
+  static forget(): void {
+    Config._instance = undefined as unknown as Config;
+  }
+
+  /**
    * Loading a saved room copies the saved settings onto the room's existing config and discards this copy.
    *
    * This keeps a single config in the room rather than adding a second one from the save file.
