@@ -256,6 +256,14 @@ describe('ChatLintService', () => {
     }
   });
 
+  it('finds no target missing in a palette as it is written, but does in the palette’s own box, sent at once', () => {
+    const palette = watch('t:HP-1', { path: 'palette', mode: 'palette' });
+    const box = watch('t:HP-1', { path: 'palette' });
+
+    expect(codesOf(palette.session)).not.toContain('target.none');
+    expect(codesOf(box.session)).toContain('target.none');
+  });
+
   it('checks no roll in a line a dice table answers with a stamp put right after its command', () => {
     const system = { ID: 'FakeSystem', COMMAND_PATTERN: /^1d6T/i, eval: () => null };
     const loaded = vi

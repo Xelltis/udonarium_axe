@@ -181,6 +181,7 @@ export class ChatLintService {
 
     return {
       path,
+      sentLater: source.mode === 'palette',
       speaker,
       targets,
       hasEffectTarget,

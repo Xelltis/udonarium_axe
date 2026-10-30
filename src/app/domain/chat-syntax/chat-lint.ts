@@ -120,6 +120,12 @@ export interface ChatLintContext {
    * one selected. A line of chat plays no effect without one; taken to have one where this is not told.
    */
   readonly hasEffectTarget?: boolean;
+  /**
+   * Whether the text is written to be sent later, as a palette's lines are as the palette is
+   * written, aimed at the targets and the pieces an effect plays on as each is sent; a line typed
+   * to be sent now, in the palette's own box among them, is not.
+   */
+  readonly sentLater?: boolean;
 }
 
 /**
@@ -161,9 +167,9 @@ function decorationHidesCommand(text: string): boolean {
 }
 
 /**
- * Checks one message. A palette's lines are written to be sent later, aimed at the targets and the
- * pieces an effect plays on as each is sent, so in a palette nothing that turns on the pieces
- * picked out now is found at fault where none are.
+ * Checks one message. A text written to be sent later, as a palette's lines are, is aimed at the
+ * targets and the pieces an effect plays on as each line is sent, so nothing in it that turns on
+ * the pieces picked out now is found at fault where none are.
  */
 function lintMessage(
   text: string,
@@ -174,7 +180,7 @@ function lintMessage(
 ): void {
   const targeting = textTargetsCharacter(text);
   const noTarget = targeting && context.targets.length < 1;
-  const later = context.path === 'palette';
+  const later = context.sentLater === true;
   const add = (span: TextRange, severity: ChatDiagnosticSeverity, code: ChatLintCode, extra = {}) =>
     found.push({ from: span.from, to: span.to, severity, code, ...extra });
   const portrait = spans.find((span) => span.kind === 'portrait');
