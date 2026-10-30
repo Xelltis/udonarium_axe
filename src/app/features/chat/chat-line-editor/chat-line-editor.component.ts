@@ -175,6 +175,7 @@ export class ChatLineEditorComponent {
     if (this.preferences.richInput()) {
       void this.loader().then((module) =>
         whenNotComposing(this.plainBox()?.nativeElement, () => {
+          if (!module) return;
           const box = this.plainBox()?.nativeElement;
           this.plainStand = box ? followPlainBox(box) : null;
           this.module.set(module);
