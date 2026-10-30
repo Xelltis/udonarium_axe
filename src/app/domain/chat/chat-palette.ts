@@ -366,24 +366,27 @@ function dropsUnanswered(line: string, offset: number): boolean {
 
 /**
  * Where a reference stands in a number that is worked out: in the roll the line starts with or in
- * the amount of a resource command (`:HP-{攻撃力}`, `t:HP-{攻撃力}`), after an operator or joined
- * straight onto what comes before it, as `2d+10{加護}` is; or in no such number at all. A buff named
- * in one lends the number its note carries, as its badge shows it, rather than the words of the note.
+ * the amount of a resource command (`:HP-{攻撃力}`, `t:HP-{攻撃力}`), after an operator, joined
+ * straight onto a number before it, as `2d+10{加護}` is, or within a number of its own after a
+ * letter or a mark, as `2d{加護}` and `K20@{加護}` are; or in no such number at all. A buff named in
+ * one lends the number its note carries, as its badge shows it, rather than the words of the note.
  */
-type FormulaPlace = 'operand' | 'joined' | 'none';
+type FormulaPlace = 'operand' | 'joined' | 'within' | 'none';
 
 function formulaPlace(line: string, offset: number): FormulaPlace {
   const end = leadingWordEnd(line);
   const inRoll = offset < end && looksLikeRollWord(line.slice(0, end).replace(/[tTｔＴ]?[{｛][^{}｛｝]*[}｝]/g, ''));
   if (!inRoll && !RESOURCE_COMMAND_WORD.test(line.slice(wordStart(line, offset), offset))) return 'none';
-  return /[-+=＋－＝*/×÷(（]$/.test(line.slice(0, offset)) ? 'operand' : 'joined';
+  const before = line.slice(0, offset);
+  if (/[-+=＋－＝*/×÷(（]$/.test(before)) return 'operand';
+  return /[0-9０-９)）\]］}｝]$/.test(before) ? 'joined' : 'within';
 }
 
 /**
  * A buff's strength as a term of the number it stands in: after an operator without a sign of its
  * own, a negative one in brackets, and nought for a note that carries no number, so the operator
  * is not left waiting; joined on, with its sign, which is what joins it, a plus for one written
- * without, or nothing.
+ * without, or nothing; within a number of its own, as it is.
  */
 function strengthAsTerm(strength: string, place: FormulaPlace): string {
   if (place === 'joined') return strength && !/^[-+]/.test(strength) ? `+${strength}` : strength;

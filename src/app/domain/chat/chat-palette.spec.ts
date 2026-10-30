@@ -317,6 +317,14 @@ describe('ChatPalette', () => {
         expect(evaluateCharacterReferences(':HP-10{加護}', guarded).text).toBe(':HP-10+3');
       });
 
+      it('lends the number as it is where it stands inside a number of its own, after a letter or a mark', () => {
+        const guarded = wearing(makeCharacter(false), '&加護/防護3/3');
+
+        expect(evaluateCharacterReferences('2d{加護}', guarded).text).toBe('2d3');
+        expect(evaluateCharacterReferences('K20@{加護}', guarded).text).toBe('K20@3');
+        expect(evaluateCharacterReferences('choice[{加護},x]', guarded).text).toBe('choice[3,x]');
+      });
+
       it('takes a note with no number as nought after an operator, and as nothing joined on', () => {
         const poisoned = wearing(wearing(makeCharacter(false), '&毒/苦しい/3'), '&加護/攻撃+0/3');
 
