@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { GameClockService } from '@axe/application/game-clock/game-clock.service';
 import { WIDGET_GAME_CLOCK } from '@axe/application/ui/widget-place';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
-import { GAME_CLOCK_STEPS, type GameClockMode } from '@axe/domain/game-clock/game-clock';
+import { formatGameClockTime, GAME_CLOCK_STEPS, type GameClockMode } from '@axe/domain/game-clock/game-clock';
 import { DraggableDirective } from '@axe/ui/directives/draggable.directive';
 import { WidgetPlaceDirective } from '@axe/ui/directives/widget-place.directive';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -44,10 +44,7 @@ export class GameClockWidgetComponent {
     'border-ui-border-panel bg-ui-input text-ui-muted aria-pressed:border-ui-accent aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent m-0 -ml-px cursor-pointer border border-solid px-2 py-0.5 text-[11px] first:ml-0 first:rounded-l-[3px] last:rounded-r-[3px]';
 
   /** The time of day on the clock, as a time field writes it. */
-  protected readonly timeValue = computed(() => {
-    const minutes = this.clock.clock().minutes;
-    return `${`${Math.floor(minutes / 60)}`.padStart(2, '0')}:${`${minutes % 60}`.padStart(2, '0')}`;
-  });
+  protected readonly timeValue = computed(() => formatGameClockTime({ ...this.clock.clock(), mode: 'hours' }, []));
 
   /** The names of the parts of a day the room has set, as the field shows them; empty for the language's own. */
   protected readonly periodsValue = computed(() => this.clock.clock().periods.join(','));
