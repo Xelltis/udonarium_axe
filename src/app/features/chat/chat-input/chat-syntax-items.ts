@@ -25,6 +25,11 @@ export interface ChatSyntaxWriter {
   /** Writes text over what is selected, or at the caret, selecting the stretch of it given, or putting the caret after it. */
   insert(text: string, select?: ChatFieldSelection): void;
   /**
+   * Writes text as {@link insert} does, as a word of its own: after a space where the caret stands
+   * right after a letter, as a command is read only where it starts a word.
+   */
+  word(text: string, select?: ChatFieldSelection): void;
+  /**
    * Writes text at the start of a line, where what begins one is read: the line the caret is on;
    * the first line of the message, the only one the dice bot reads a roll from; or the start of the
    * roll on it, after any count of repeats it starts with.
@@ -61,17 +66,17 @@ function single(label: string, written: string, run: () => void): ChatSyntaxRow 
   return { label, items: [{ label, written, run }] };
 }
 
-/** Text written with a stretch of it selected, for the reader to type over. */
+/** A word of its own written with a stretch of it selected, for the reader to type over. */
 function withHole(writer: ChatSyntaxWriter, before: string, hole: string, after = ''): () => void {
-  return () => writer.insert(before + hole + after, { from: before.length, to: before.length + hole.length });
+  return () => writer.word(before + hole + after, { from: before.length, to: before.length + hole.length });
 }
 
 /**
  * The syntax the input's insert button offers, a group to each kind: dice, references, resource and
  * buff changes, portraits, effects and cut-ins, and quotes. Each row is named with what it writes, so
  * that a reader who picks from it learns to write the same by hand, and writes it where it is read:
- * at the caret with a word to type over selected, at the start of the line, or as a chip at the end
- * of the message. A group the speaker or the room has nothing for is left out, as is the sweep a
+ * a roll at the start of the roll on the first line, a change of a status or a buff as a word of its
+ * own at the caret with a word to type over selected, a quote at the start of the line, or a chip. A group the speaker or the room has nothing for is left out, as is the sweep a
  * player cannot use.
  */
 export function chatSyntaxGroups(
@@ -87,7 +92,7 @@ export function chatSyntaxGroups(
 
   group('dice', [
     ...['2D6', '1D100', 'choice[A,B,C]', ...source.diceExamples].map((command) =>
-      single(command, command, () => writer.insert(`${command} `))
+      single(command, command, () => writer.prefix(`${command} `, 'roll'))
     ),
     single(word('secretRoll'), 'S2D6', () => writer.prefix('S', 'roll')),
     single(word('repeat'), 'x3 2D6', () => writer.prefix('x3 ', 'first')),
@@ -133,8 +138,8 @@ export function chatSyntaxGroups(
     ),
     single(word('buffCalculated'), `&!${word('name')}/HP/+/1/3`, withHole(writer, '&!', word('name'), '/HP/+/1/3')),
     single(word('buffRemove'), `&${word('name')}-`, withHole(writer, '&', word('name'), '-')),
-    single(word('buffRoundsDown'), '&R-', () => writer.insert('&R- ')),
-    single(word('buffClear'), '&D', () => writer.insert('&D ')),
+    single(word('buffRoundsDown'), '&R-', () => writer.word('&R- ')),
+    single(word('buffClear'), '&D', () => writer.word('&D ')),
     ...(source.isGameMaster
       ? [single(word('buffSweep'), `&&${word('name')}-`, withHole(writer, '&&', word('name'), '-'))]
       : []),

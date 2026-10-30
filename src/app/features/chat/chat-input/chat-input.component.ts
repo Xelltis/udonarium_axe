@@ -276,6 +276,14 @@ export class ChatInputComponent {
         const picked = select ? { from: from + select.from, to: from + select.to } : undefined;
         field.replaceRange(from, to, text, picked);
       }),
+    word: (text, select) =>
+      this.writeIntoField((field) => {
+        const { from, to } = field.selection();
+        const space = from > 0 && !/\s/.test(field.text()[from - 1]) ? ' ' : '';
+        const at = from + space.length;
+        const picked = select ? { from: at + select.from, to: at + select.to } : undefined;
+        field.replaceRange(from, to, space + text, picked);
+      }),
     prefix: (text, line = 'caret') =>
       this.writeIntoField((field) => {
         const { from, to } = field.selection();

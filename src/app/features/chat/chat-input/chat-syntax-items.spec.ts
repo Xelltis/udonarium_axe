@@ -10,6 +10,7 @@ describe('chatSyntaxGroups', () => {
   let written: string[];
   const writer: ChatSyntaxWriter = {
     insert: (text, select) => written.push(`insert ${text}${select ? ` [${text.slice(select.from, select.to)}]` : ''}`),
+    word: (text, select) => written.push(`word ${text}${select ? ` [${text.slice(select.from, select.to)}]` : ''}`),
     prefix: (text, line = 'caret') => written.push(`prefix ${text} ${line}`),
     chip: (chip, place) => written.push(`chip ${chip.kind} ${chip.raw} ${place}`),
   };
@@ -54,12 +55,12 @@ describe('chatSyntaxGroups', () => {
     expect(groups[0].rows.map((row) => row.items[0].written)).toContain('CC<=50');
   });
 
-  it('writes commands at the caret, and a secret roll at the start of the roll on the first line, where it is read', () => {
+  it('writes a dice command and a secret roll at the start of the roll on the first line, where it is read', () => {
     const groups = chatSyntaxGroups(source(), writer, t);
     run(groups, 'dice', 'CC<=50');
     run(groups, 'dice', 'secretRoll');
     run(groups, 'dice', 'repeat');
-    expect(written).toEqual(['insert CC<=50 ', 'prefix S roll', 'prefix x3  first']);
+    expect(written).toEqual(['prefix CC<=50  roll', 'prefix S roll', 'prefix x3  first']);
   });
 
   it('puts references in as chips, and changes a status with its amount selected to be typed over', () => {
@@ -67,7 +68,15 @@ describe('chatSyntaxGroups', () => {
     run(groups, 'reference', '攻撃');
     run(groups, 'resource', 'HP', 0);
     run(groups, 'resource', '職業', 3);
-    expect(written).toEqual(['chip reference {攻撃} caret', 'insert :HP-1 [1]', 'insert :職業>text [text]']);
+    expect(written).toEqual(['chip reference {攻撃} caret', 'word :HP-1 [1]', 'word :職業>text [text]']);
+  });
+
+  it('writes a resource or buff change as a word of its own, as it is read only where it starts a word', () => {
+    const groups = chatSyntaxGroups(source(), writer, t);
+    run(groups, 'resource', 'secret');
+    run(groups, 'buff', 'buffPlain');
+    run(groups, 'buff', 'buffRoundsDown');
+    expect(written).toEqual(['word s:HP-1 [HP]', 'word &name/buffEffect/3 [name]', 'word &R- ']);
   });
 
   it('puts a reference to the target in as a chip too, and leaves an unknown name to type between the braces', () => {

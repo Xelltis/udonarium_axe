@@ -334,6 +334,21 @@ describe('ChatInputComponent', () => {
     expect(component.text).toBe('3 S2D6');
   });
 
+  it('writes a change of a status as a word of its own after the words before the caret', async () => {
+    fixture.componentRef.setInput('canSpeak', true);
+    fixture.detectChanges();
+    component.text = 'hello';
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const box = (fixture.nativeElement as HTMLElement).querySelector('textarea')!;
+    box.setSelectionRange(5, 5);
+
+    (component as unknown as { syntaxWriter: ChatSyntaxWriter }).syntaxWriter.word(':HP-1', { from: 4, to: 5 });
+
+    expect(component.text).toBe('hello :HP-1');
+    expect([box.selectionStart, box.selectionEnd]).toEqual([10, 11]);
+  });
+
   it('leaves the caret where it stood before a secret roll’s mark put in after it', async () => {
     fixture.componentRef.setInput('canSpeak', true);
     fixture.detectChanges();
