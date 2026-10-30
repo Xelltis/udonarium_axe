@@ -661,6 +661,7 @@ export class ChatEditorField implements ChatTextField {
   private afterComposition(): void {
     const pending = this.pendingText;
     this.pendingText = null;
+    if (this.editor.isDestroyed) return;
     if (pending) {
       this.setText(pending.text, pending.select, pending.undoable);
       this.host.changed(this.text());

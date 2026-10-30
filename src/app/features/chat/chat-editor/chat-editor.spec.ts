@@ -257,6 +257,23 @@ describe('the chat editor', () => {
     expect(editor.text()).not.toContain('sent');
   });
 
+  it('puts in nothing that waited on a word being made once the editor is taken down', () => {
+    const told: string[] = [];
+    const editor = mountChatEditor(parent, { text: 'sent', selection: { from: 0, to: 0 }, focused: false }, {
+      ...host(),
+      changed: (text: string) => told.push(text),
+    } as ChatEditorHost);
+    const input = (editor.editor.view as unknown as { input: { composing: boolean } }).input;
+    input.composing = true;
+    editor.setText('');
+    input.composing = false;
+
+    editor.destroy();
+
+    expect(() => (editor as unknown as { afterComposition(): void }).afterComposition()).not.toThrow();
+    expect(told).toEqual([]);
+  });
+
   it('writes over a stretch across the edge of a decoration, leaving its marks where they stand', () => {
     const editor = mount('**abc**d');
 
