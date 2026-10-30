@@ -100,6 +100,8 @@ export class ChatLineEditorComponent {
   private handover: Pick<ChatEditorStart, 'selection' | 'focused'> | null = null;
   /** Whether the reader has typed, pressed a key or pressed in the plain box, which then holds where they stand. */
   protected plainUsed = false;
+  /** Whether the plain box has been given the keys, as it is when the line opens. */
+  private plainFocused = false;
   private readonly toolbar = viewChild(ChatToolbarComponent);
   private readonly richField = signal<ChatEditorField | null>(null);
   private readonly plainField = computed(() => {
@@ -210,21 +212,24 @@ export class ChatLineEditorComponent {
    * Keeps where the reader stood in the plain box, once they have used it, as the editor arrives to
    * take its place: the caret, and the keys only where the box still has them. One that arrives
    * before the box was put to use, as it does once fetched, starts as the box does, with the caret
-   * at the end and the keys.
+   * at the end and the keys, unless the reader has taken the keys from the box meanwhile.
    */
   private handOverFromPlainBox(): void {
     const box = this.plainBox()?.nativeElement;
-    if (!box || !this.plainUsed) return;
-    this.handover = {
-      selection: { from: box.selectionStart, to: box.selectionEnd },
-      focused: box.ownerDocument.activeElement === box,
-    };
+    if (!box) return;
+    const focused = box.ownerDocument.activeElement === box;
+    if (this.plainUsed) {
+      this.handover = { selection: { from: box.selectionStart, to: box.selectionEnd }, focused };
+    } else if (this.plainFocused && !focused) {
+      this.handover = { selection: { from: box.value.length, to: box.value.length }, focused: false };
+    }
   }
 
   private focusPlainBox(): void {
     const box = this.plainBox()?.nativeElement;
     if (!box) return;
     this.fitPlainBox(box);
+    this.plainFocused = true;
     box.focus();
     box.setSelectionRange(box.value.length, box.value.length);
   }

@@ -172,4 +172,74 @@ describe('ChatLineEditorComponent handing its plain box over to the editor', () 
       expect.anything()
     );
   });
+  describe('arriving before the box is put to use', () => {
+    let arrive!: (module: ChatEditorModule | null) => void;
+    let mounted: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      mounted = vi.fn(() => ({
+        parent: null,
+        text: () => 'こんばんは',
+        selection: () => ({ from: 0, to: 0 }),
+        refresh: vi.fn(),
+        refreshSoon: vi.fn(),
+        followRoot: vi.fn(),
+        destroy: vi.fn(),
+        focus: vi.fn(),
+        hasFocus: () => false,
+        activeMarks: () => null,
+      }));
+      TestBed.configureTestingModule({
+        imports: [ChatLineEditorComponent],
+        providers: [
+          ...TEST_PROVIDERS,
+          {
+            provide: CHAT_EDITOR_LOADER,
+            useValue: () =>
+              new Promise<ChatEditorModule | null>((resolve) => {
+                arrive = resolve;
+              }),
+          },
+        ],
+      });
+    });
+
+    async function openAndArrive(before?: () => void) {
+      const fixture = TestBed.createComponent(ChatLineEditorComponent);
+      fixture.componentRef.setInput('draft', 'こんばんは');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      before?.();
+      arrive({ mountChatEditor: mounted } as unknown as ChatEditorModule);
+      await fixture.whenStable();
+      fixture.detectChanges();
+      TestBed.tick();
+    }
+
+    it('takes the keys the box was given as the line opened', async () => {
+      await openAndArrive();
+
+      expect(mounted).toHaveBeenCalledWith(
+        expect.anything(),
+        { text: 'こんばんは', selection: { from: 5, to: 5 }, focused: true },
+        expect.anything()
+      );
+    });
+
+    it('leaves the keys with another field the reader went to meanwhile', async () => {
+      const other = document.createElement('input');
+      document.body.append(other);
+      try {
+        await openAndArrive(() => other.focus());
+
+        expect(mounted).toHaveBeenCalledWith(
+          expect.anything(),
+          { text: 'こんばんは', selection: { from: 5, to: 5 }, focused: false },
+          expect.anything()
+        );
+      } finally {
+        other.remove();
+      }
+    });
+  });
 });
