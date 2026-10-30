@@ -13,7 +13,7 @@ import {
   parseChatRichText,
 } from '@axe/domain/chat/chat-rich-text';
 import type { ChatSyntaxScan, SyntaxKind } from '@axe/domain/chat-syntax/chat-syntax';
-import { isBattleChatTokenName } from '@axe/domain/effect/effect-chat-token';
+import { chatNotationEnding, isBattleChatTokenName } from '@axe/domain/effect/effect-chat-token';
 import { buildChatBubble, type ChatBubble } from '@axe/features/chat/chat-editor/chat-editor-bubble';
 import type { ChatCompletionWords } from '@axe/features/chat/chat-editor/chat-editor-complete';
 import { CHAT_HIGHLIGHT_LIMIT } from '@axe/features/chat/chat-editor/chat-editor-loader';
@@ -767,13 +767,13 @@ export class ChatEditorField implements ChatTextField {
   private rubyOrEffectRule(): InputRule {
     return new InputRule({
       find: (text) => {
-        const ruby = /[|｜]([^|｜\s\ufffc]+?)《([^《》\ufffc]+?)》$/.exec(text);
-        if (ruby) return { index: ruby.index, text: ruby[0], data: { ruby: true, base: ruby[1], reading: ruby[2] } };
-        const effect = /《([^《》\ufffc\n]+)》$/.exec(text);
-        if (effect && effect[1].trim().length > 0) {
-          return { index: effect.index, text: effect[0], data: { ruby: false, name: effect[1].trim() } };
+        const found = chatNotationEnding(text);
+        const raw = found ? text.slice(found.from) : '';
+        if (!found || raw.includes('\ufffc')) return null;
+        if (found.kind === 'ruby') {
+          return { index: found.from, text: raw, data: { ruby: true, base: found.base, reading: found.reading } };
         }
-        return null;
+        return found.name.length > 0 ? { index: found.from, text: raw, data: { ruby: false, name: found.name } } : null;
       },
       handler: ({ state, range, match }) => {
         const data = match.data as { ruby: boolean; base?: string; reading?: string; name?: string };

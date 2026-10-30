@@ -425,6 +425,17 @@ describe('the chat editor', () => {
     expect(editor.text().startsWith('**ab')).toBe(true);
   });
 
+  it('makes a ruby typed in the chip the line is read back as, split where the chat splits it', () => {
+    const editor = mount('');
+
+    type(editor, '|漢《か《な》');
+
+    const chips: Record<string, unknown>[] = [];
+    editor.editor.state.doc.descendants((node) => void (node.isAtom && chips.push(node.attrs)));
+    expect(editor.text()).toBe('|漢《か《な》');
+    expect(chips).toEqual([expect.objectContaining({ base: '漢', reading: 'か《な' })]);
+  });
+
   it('reads what it writes as syntax, as typed syntax is read', () => {
     const editor = mount('ab');
 

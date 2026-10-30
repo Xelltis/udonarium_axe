@@ -65,6 +65,25 @@ export function effectTokenSites(text: string): EffectTokenSite[] {
   return sites;
 }
 
+/** A ruby, or a `《name》` token, a text ends with, and where it starts. */
+export type EndingChatNotation =
+  | { readonly kind: 'ruby'; readonly from: number; readonly base: string; readonly reading: string }
+  | { readonly kind: 'token'; readonly from: number; readonly name: string };
+
+/**
+ * The ruby or the `《name》` token a text ends with, read from the left as the chat reads the line,
+ * so that a reading its ruby takes up is no token and a ruby splits where the chat splits it; null
+ * where the text ends with neither.
+ */
+export function chatNotationEnding(text: string): EndingChatNotation | null {
+  let last: RegExpExecArray | undefined;
+  for (const matched of text.matchAll(RUBY_OR_TOKEN)) last = matched;
+  if (!last || last.index + last[0].length !== text.length) return null;
+  return last[3] === undefined
+    ? { kind: 'ruby', from: last.index, base: last[1], reading: last[2] }
+    : { kind: 'token', from: last.index, name: last[3].trim() };
+}
+
 /**
  * Takes the first effect token out of a line. Null when there is none. The battle stage's token
  * names no effect, so it is passed over; a token with nothing in it ends the search.
