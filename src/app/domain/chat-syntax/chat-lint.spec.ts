@@ -248,8 +248,9 @@ describe('lintChatSyntax', () => {
     });
 
     it('finds a battle with nobody to strike, the speaker being a piece', () => {
-      expect(codes('《vs》', { hasEffectTarget: false })).toEqual(['battle.noTarget']);
-      expect(codes('《vs》', { hasEffectTarget: true })).toEqual([]);
+      expect(codes('《vs》', { hasEffectTarget: false, hasBattleDefender: false })).toEqual(['battle.noTarget']);
+      expect(codes('《vs》', { hasEffectTarget: true, hasBattleDefender: true })).toEqual([]);
+      expect(codes('《vs》', { hasEffectTarget: true, hasBattleDefender: false })).toEqual(['battle.noTarget']);
     });
 
     it('finds dice on a piece that is not there', () => {

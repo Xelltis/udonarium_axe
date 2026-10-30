@@ -124,6 +124,11 @@ export interface ChatLintContext {
    */
   readonly hasEffectTarget?: boolean;
   /**
+   * Whether a battle from a line not aimed at targets has a piece to fight other than the speaker,
+   * which fights nobody; taken to have one where this is not told.
+   */
+  readonly hasBattleDefender?: boolean;
+  /**
    * Whether the text is written to be sent later, as a palette's lines are as the palette is
    * written, aimed at the targets and the pieces an effect plays on as each is sent; a line typed
    * to be sent now, in the palette's own box among them, is not.
@@ -243,7 +248,7 @@ function lintMessage(
           if (!effectsStopped) add(span, 'warning', 'edit.keptOffTable');
         } else if (span.battle) {
           if (!context.speaker) add(span, 'info', 'battle.noSpeaker');
-          else if (!later && !targeting && context.hasEffectTarget === false) add(span, 'warning', 'battle.noTarget');
+          else if (!later && !targeting && context.hasBattleDefender === false) add(span, 'warning', 'battle.noTarget');
         } else if (effectsStopped) break;
         else if (span.order > 0) add(span, 'info', 'effect.extra');
         else if (!context.hasEffect(span.name)) add(span, 'warning', 'effect.unknown', { params: { name: span.name } });

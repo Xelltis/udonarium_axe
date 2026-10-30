@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ChatLintService, type ChatLintSource } from '@axe/application/chat/chat-lint.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { Network } from '@axe/core/network/network';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -152,6 +153,24 @@ describe('ChatLintService', () => {
       expect(codesOf(session)).toEqual(['edit.keptOffTable']);
     } finally {
       keptOff.mockRestore();
+    }
+  });
+
+  it('finds a battle with nobody to strike where the speaker is the one piece selected', () => {
+    speaker.location = { name: 'table', x: 0, y: 0 };
+    const other = GameCharacter.create('敵', 1, '');
+    other.location = { name: 'table', x: 100, y: 0 };
+    try {
+      const selection = TestBed.inject(SelectionSignalService);
+      selection.selectObject(other.identifier, other.aliasName);
+      const { session } = watch('斬る 《vs》');
+      expect(codesOf(session)).toEqual([]);
+
+      selection.selectObject(speaker.identifier, speaker.aliasName);
+
+      expect(codesOf(session)).toEqual(['battle.noTarget']);
+    } finally {
+      other.destroy();
     }
   });
 

@@ -119,17 +119,21 @@ export class ChatLintService {
     { equal: (a, b) => a.size === b.size && [...a].every((name) => b.has(name)) }
   );
 
-  /** Whether an effect has a piece to fall on: a piece on the table targeted, or one selected. */
-  private readonly hasEffectTarget = computed(() => {
-    this.uiSignal.targetChange();
-    const pieces = this.trackedPieces();
-    const selected = this.selection.selectedObject();
-    const selectedPiece = selected ? this.objectStore.get(selected.identifier) : null;
-    return (
-      pieces.some((piece) => piece.isVisibleOnTable && piece.targeted) ||
-      (selectedPiece instanceof GameCharacter && selectedPiece.isVisibleOnTable)
-    );
-  });
+  /**
+   * The pieces an effect or a battle from a line not aimed at targets plays on: those on the table
+   * targeted, or else the one selected.
+   */
+  private readonly effectCandidates = computed(
+    () => {
+      this.uiSignal.targetChange();
+      const targeted = this.trackedPieces().filter((piece) => piece.isVisibleOnTable && piece.targeted);
+      if (targeted.length > 0) return targeted;
+      const selected = this.selection.selectedObject();
+      const selectedPiece = selected ? this.objectStore.get(selected.identifier) : null;
+      return selectedPiece instanceof GameCharacter && selectedPiece.isVisibleOnTable ? [selectedPiece] : [];
+    },
+    { equal: (a, b) => a.length === b.length && a.every((piece, index) => piece === b[index]) }
+  );
   private readonly rollChecks = new Map<string, RollCheck>();
 
   /** Starts checking a text, for as long as its signals are read. */
@@ -168,7 +172,7 @@ export class ChatLintService {
     const isGameMaster = this.isGameMaster();
     this.keptOffTable();
     const pieceNames = this.pieceNames();
-    const hasEffectTarget = this.hasEffectTarget();
+    const candidates = this.effectCandidates();
     this.uiSignal.targetChange();
     const presets = this.effectLibrary.presets();
 
@@ -199,7 +203,8 @@ export class ChatLintService {
       sentLater: source.mode === 'palette',
       speaker,
       targets,
-      hasEffectTarget,
+      hasEffectTarget: candidates.length > 0,
+      hasBattleDefender: candidates.some((piece) => piece !== speaker),
       isGameMaster,
       get keptOffTable() {
         return PeerCursor.isMyselfKeptOffTable;
