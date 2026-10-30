@@ -385,10 +385,7 @@ export class ChatInputComponent {
   private readonly lintSession = inject(ChatLintService).watch({
     text: computed(() => this._text()),
     sendFrom: computed(() => this._sendFrom()),
-    gameType: computed(() => {
-      this.objectChange.versionOf('Config')();
-      return this.gameType;
-    }),
+    gameType: computed(() => this.rolledGameType()),
     path: () => this.lintPath(),
   });
 
@@ -586,23 +583,28 @@ export class ChatInputComponent {
   readonly gameTypeChange = output<string>();
 
   private readonly _gameType = linkedSignal(() => this.gameTypeInput());
-  private _isGameTypeByUser = 0;
+  private readonly gameTypeByUser = signal(false);
+
   /**
-   * The game system whose dice bot reads the lines sent from this input.
-   *
-   * Until the user picks one, the plain dice bot is shown as the room's default dice bot. Picking
-   * one reports it through `gameTypeChange`.
+   * The game system whose dice bot reads the lines sent from this input, read afresh as the room's
+   * default changes: until the user picks one, the plain dice bot stands for the room's default.
+   */
+  readonly rolledGameType = computed(() => {
+    this.objectChange.versionOf('Config')();
+    const own = this._gameType();
+    return own == 'DiceBot' && !this.gameTypeByUser() ? (this.config?.defaultDiceBot ?? own) : own;
+  });
+
+  /**
+   * The game system whose dice bot reads the lines sent from this input; see {@link rolledGameType}.
+   * Picking one reports it through `gameTypeChange`.
    */
   get gameType(): string {
-    if (this._gameType() == 'DiceBot' && this._isGameTypeByUser == 0) {
-      return this.config?.defaultDiceBot ?? this._gameType();
-    } else {
-      return this._gameType();
-    }
+    return this.rolledGameType();
   }
 
   set gameType(gameType: string) {
-    this._isGameTypeByUser = 1;
+    this.gameTypeByUser.set(true);
     this._gameType.set(gameType);
     this.gameTypeChange.emit(gameType);
   }

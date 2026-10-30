@@ -42,7 +42,6 @@ import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permi
 import { PaletteRow, paletteRowsOf, paletteTabsOf } from '@axe/domain/chat/palette-rows';
 import { DataElement } from '@axe/domain/data/data-element';
 import { emptyHotbarSlotDraft } from '@axe/domain/hotbar/hotbar-draft';
-import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import type { ChatEditorField, ChatEditorHost } from '@axe/features/chat/chat-editor/chat-editor';
@@ -284,15 +283,8 @@ export class ChatPaletteComponent {
     return this._gameType();
   }
 
-  /**
-   * The game system the palette's lines are rolled with, as its input sends them: its own, or the
-   * room's default where it keeps the plain dice bot.
-   */
-  private readonly rolledGameType = computed(() => {
-    this.objectChange.versionOf('Config')();
-    const own = this._gameType();
-    return own === 'DiceBot' ? this.objectStore.get<Config>('Config')?.defaultDiceBot || own : own;
-  });
+  /** The game system the palette's lines are rolled with, as its input sends them, taken from the input itself. */
+  private readonly rolledGameType = computed(() => this.chatInputComponent().rolledGameType());
   set gameType(gameType: string) {
     this._gameType.set(gameType);
     const char = this.character();

@@ -268,6 +268,29 @@ describe('ChatPaletteComponent', () => {
     }
   });
 
+  it('checks its lines against the plain dice bot once the reader picks it in the palette’s input', () => {
+    const watch = vi.spyOn(TestBed.inject(ChatLintService), 'watch');
+    const palette = TestBed.createComponent(ChatPaletteComponent);
+    const char = createChar('術者');
+    char.chatPalette!.dicebot = 'DiceBot';
+    palette.componentInstance.character.set(char);
+    palette.detectChanges();
+    TestBed.tick();
+    const source = watch.mock.calls[0][0];
+    const before = Config.instance.defaultDiceBot;
+    try {
+      Config.instance.defaultDiceBot = 'Cthulhu7th';
+      TestBed.inject(ObjectChangeService).notifyChanged('Config');
+
+      palette.componentInstance.chatInputComponent().gameType = 'DiceBot';
+      TestBed.tick();
+
+      expect(source.gameType()).toBe('DiceBot');
+    } finally {
+      Config.instance.defaultDiceBot = before;
+    }
+  });
+
   describe('rewriting the palette', () => {
     let char: GameCharacter;
 
