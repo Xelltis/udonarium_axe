@@ -455,7 +455,16 @@ export class ChatEditorField implements ChatTextField {
    * step of a piece dragged: once for all that come in that moment, and so on while they keep coming.
    */
   refreshSoon(): void {
+    this.drawStamps();
     this.lintForRoom();
+  }
+
+  /**
+   * Draws the stamp chips again where the host now draws them otherwise, as once the picture of a
+   * room's stamp has arrived: on a change to the room or to the language, not at every key.
+   */
+  private drawStamps(): void {
+    for (const draw of this.stampChips) draw();
   }
 
   /**
@@ -464,6 +473,7 @@ export class ChatEditorField implements ChatTextField {
    */
   reconfigure(): void {
     this.bubble.relabel();
+    this.drawStamps();
     this.editor.view.dispatch(this.editor.state.tr.setMeta('addToHistory', false));
   }
 
@@ -542,8 +552,8 @@ export class ChatEditorField implements ChatTextField {
 
   /**
    * The stamp chip, drawn as the host draws the stamp, or as its name where the host cannot. Each is
-   * drawn under a key of its own, and drawn again as the syntax is coloured again where the host now
-   * draws it otherwise, as once the picture of a room's stamp has arrived.
+   * drawn under a key of its own, and drawn again as the room or the language changes where the
+   * host now draws it otherwise, as once the picture of a room's stamp has arrived.
    */
   private stampChip() {
     const host = this.host;
@@ -857,7 +867,6 @@ export class ChatEditorField implements ChatTextField {
       this.refreshAfterComposition = true;
       return;
     }
-    for (const draw of this.stampChips) draw();
     const session = this.host.session();
     const out = this.writtenNow();
     if (!session || out.text.length > CHAT_HIGHLIGHT_LIMIT) {

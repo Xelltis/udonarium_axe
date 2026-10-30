@@ -151,7 +151,7 @@ describe('the chat editor', () => {
     expect(editor.text()).toBe('**強打** {HP}');
   });
 
-  it('draws a stamp again as it is checked again, once its picture has arrived', () => {
+  it('draws a stamp again as the room changes, once its picture has arrived, but not at every key', () => {
     let picture: string | null = null;
     const keys = new Set<string | undefined>();
     const editor = mountChatEditor(
@@ -169,7 +169,9 @@ describe('the chat editor', () => {
     expect(parent.querySelector('[data-chip="stamp"]')?.textContent).toBe('［絵］');
 
     picture = '<img alt="絵">';
-    editor.refresh(false);
+    editor.refresh(true);
+    expect(parent.querySelector('[data-chip="stamp"] img')).toBeNull();
+    editor.refreshSoon();
 
     expect(parent.querySelector('[data-chip="stamp"] img')).not.toBeNull();
     expect(keys.size).toBe(1);
