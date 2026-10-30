@@ -94,6 +94,25 @@ describe('chatSyntaxGroups', () => {
     expect(written).toEqual(['chip portrait @笑顔 end', 'chip cutIn 登場 end', 'chip effect 《vs》 caret']);
   });
 
+  it('offers a change only for a status a change can name, a name with a space or a mark kept to references', () => {
+    const groups = chatSyntaxGroups(
+      source({
+        statuses: [
+          { name: 'HP', isResource: true },
+          { name: 'Max HP', isResource: true },
+          { name: 'HP-max', isResource: true },
+        ],
+      }),
+      writer,
+      t
+    );
+    const labels = (key: string) => groups.find((group) => group.key === key)!.rows.map((row) => row.label);
+    expect(labels('resource')).toContain('HP');
+    expect(labels('resource')).not.toContain('Max HP');
+    expect(labels('resource')).not.toContain('HP-max');
+    expect(labels('reference')).toContain('Max HP');
+  });
+
   it('offers the sweep only to the game master', () => {
     const sweeps = (gm: boolean) =>
       chatSyntaxGroups(source({ isGameMaster: gm }), writer, t)

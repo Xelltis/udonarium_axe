@@ -42,4 +42,10 @@ describe('chat-editor-complete', () => {
     expect(chatTriggerOptions({ kind: 'effect', from: 0, query: 'v' }, words)).toEqual(['vs']);
     expect(chatTriggerOptions({ kind: 'buff', from: 0, query: 'ou' }, words)).toEqual(['tough']);
   });
+
+  it('offers after a colon only the statuses a change can name, keeping the rest to references', () => {
+    const spaced = { ...words, statuses: ['HP', 'Max HP', 'HP-max'] };
+    expect(chatTriggerOptions({ kind: 'status', from: 0, query: '' }, spaced)).toEqual(['HP']);
+    expect(chatTriggerOptions({ kind: 'reference', from: 0, query: '' }, spaced)).toContain('Max HP');
+  });
 });

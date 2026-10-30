@@ -58,7 +58,7 @@ export function chatTriggerOptions(trigger: ChatTrigger, words: ChatCompletionWo
         : trigger.kind === 'tail'
           ? [...words.portraits, ...words.cutIns]
           : trigger.kind === 'status'
-            ? words.statuses
+            ? words.statuses.filter(namableInResourceCommand)
             : words.buffs;
   const query = trigger.query.toLowerCase();
   const names = [...new Set(pool.filter((name) => name.length > 0))];
@@ -66,3 +66,4 @@ export function chatTriggerOptions(trigger: ChatTrigger, words: ChatCompletionWo
   const contains = names.filter((name) => !name.toLowerCase().startsWith(query) && name.toLowerCase().includes(query));
   return [...starts, ...contains];
 }
+import { namableInResourceCommand } from '@axe/domain/data/resource-command-words';

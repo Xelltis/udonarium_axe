@@ -1,6 +1,7 @@
 import type { TranslateFn } from '@axe/application/i18n/translate.token';
 import type { ChatTagLanguage } from '@axe/domain/chat/chat-decoration';
 import type { ChatRichChip } from '@axe/domain/chat/chat-rich-text';
+import { namableInResourceCommand } from '@axe/domain/data/resource-command-words';
 import { isBattleChatTokenName } from '@axe/domain/effect/effect-chat-token';
 import type { ChatChipPlace, ChatFieldSelection } from '@axe/features/chat/chat-input/chat-text-field';
 
@@ -117,17 +118,19 @@ export function chatSyntaxGroups(
   ]);
 
   group('resource', [
-    ...source.statuses.map((status) => ({
-      label: status.name,
-      items: [
-        { label: '-', written: `:${status.name}-1`, run: withHole(writer, `:${status.name}-`, '1') },
-        { label: '+', written: `:${status.name}+1`, run: withHole(writer, `:${status.name}+`, '1') },
-        { label: '=', written: `:${status.name}=1`, run: withHole(writer, `:${status.name}=`, '1') },
-        status.isResource
-          ? { label: '^+', written: `:${status.name}^+1`, run: withHole(writer, `:${status.name}^+`, '1') }
-          : { label: '>', written: `:${status.name}>`, run: withHole(writer, `:${status.name}>`, word('text')) },
-      ],
-    })),
+    ...source.statuses
+      .filter((status) => namableInResourceCommand(status.name))
+      .map((status) => ({
+        label: status.name,
+        items: [
+          { label: '-', written: `:${status.name}-1`, run: withHole(writer, `:${status.name}-`, '1') },
+          { label: '+', written: `:${status.name}+1`, run: withHole(writer, `:${status.name}+`, '1') },
+          { label: '=', written: `:${status.name}=1`, run: withHole(writer, `:${status.name}=`, '1') },
+          status.isResource
+            ? { label: '^+', written: `:${status.name}^+1`, run: withHole(writer, `:${status.name}^+`, '1') }
+            : { label: '>', written: `:${status.name}>`, run: withHole(writer, `:${status.name}>`, word('text')) },
+        ],
+      })),
     single(word('toTarget'), 't:HP-1', withHole(writer, 't:', 'HP', '-1')),
     single(word('secret'), 's:HP-1', withHole(writer, 's:', 'HP', '-1')),
   ]);

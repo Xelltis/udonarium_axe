@@ -99,3 +99,11 @@ export function resourceCommandParts(command: string): ResourceCommandParts | nu
   const operatorAt = nameFrom + match[1].length;
   return { name: match[1], nameFrom, operator: match[2], operatorAt, amount: match[3], amountFrom: operatorAt + 1 };
 }
+
+/**
+ * Whether a status can be named in a `:` command: one word holding none of the marks the command is
+ * read by, a space, a colon, an ampersand or an operator, which would end the name where they stand.
+ */
+export function namableInResourceCommand(name: string): boolean {
+  return name.length > 0 && !/[\s:：&＆\-+=>－＋＝＞]/.test(name);
+}
