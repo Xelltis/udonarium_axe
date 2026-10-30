@@ -451,8 +451,10 @@ export class ChatEditorField implements ChatTextField {
   /** Selects a stretch of the text and puts the caret there. */
   select(range: ChatFieldSelection): void {
     const out = this.writtenNow();
+    const from = out.toPos(range.from, range.from === range.to ? -1 : 1);
+    const to = out.toPos(range.to, -1);
     const tr = this.editor.state.tr.setSelection(
-      TextSelection.create(this.editor.state.doc, out.toPos(range.from, 1), out.toPos(range.to, -1))
+      TextSelection.create(this.editor.state.doc, Math.min(from, to), Math.max(from, to))
     );
     this.editor.view.dispatch(tr.scrollIntoView());
     this.focus();

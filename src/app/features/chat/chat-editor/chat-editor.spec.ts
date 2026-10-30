@@ -90,6 +90,15 @@ describe('the chat editor', () => {
     expect(parent.querySelector('[data-chip]')?.getAttribute('data-chip')).toBe(picked);
   });
 
+  it('puts the caret at a chip’s edge when asked for a caret inside it, selecting nothing', () => {
+    const editor = mount('a{HP}b');
+
+    editor.select({ from: 3, to: 3 });
+
+    const { from, to } = editor.selection();
+    expect(from).toBe(to);
+  });
+
   it('makes a decoration closed round a chip, as round any other text', () => {
     const editor = mount('');
 
