@@ -4,8 +4,7 @@ import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { IMAGE_STAMP_PREFIX } from '@axe/domain/chat/stamp-catalog';
-import { StampMotion } from '@axe/domain/chat/stamp-catalog';
+import { IMAGE_STAMP_PREFIX, StampMotion } from '@axe/domain/chat/stamp-catalog';
 import { SEAL_FILTER_ID } from '@axe/domain/chat/stamp-glyphs';
 import {
   roomStampViewSource,

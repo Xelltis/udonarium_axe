@@ -14,7 +14,6 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
@@ -105,7 +104,6 @@ let linesDrawn = 0;
     NgStyle,
     NgTemplateOutlet,
     DatePipe,
-    FormsModule,
     LinkifyPipe,
     ChatColorStylePipe,
     SafePipe,
