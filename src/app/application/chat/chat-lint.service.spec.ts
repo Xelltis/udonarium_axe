@@ -317,6 +317,18 @@ describe('ChatLintService', () => {
     }
   });
 
+  it('checks a palette line as it is sent, its written line breaks broken', () => {
+    const roll = vi.fn((command: string) => (/^2d6(\s|$)/i.test(command) ? { text: '(2D6) ＞ 7' } : null));
+    const system = { ID: 'FakeSystem', COMMAND_PATTERN: null, eval: roll };
+    vi.spyOn(DiceBot, 'loadedGameSystem').mockReturnValue(
+      system as unknown as ReturnType<typeof DiceBot.loadedGameSystem>
+    );
+    const { session } = watch('2d6\\nBoom', { path: 'palette', mode: 'palette' });
+
+    expect(codesOf(session)).not.toContain('dice.unrollable');
+    expect(roll).toHaveBeenCalledWith('2d6');
+  });
+
   it('reads the variables written into a palette being edited', () => {
     const { session } = watch('//強さ=3\n{強さ} 殴る\n{弱さ}', { path: 'palette', mode: 'palette' });
     expect(session.diagnostics().map((found) => [found.code, found.params?.['name']])).toEqual([

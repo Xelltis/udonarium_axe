@@ -143,7 +143,8 @@ export class ChatLintService {
    * The room's pictures, which portraits are found among, and its states, which a buff may name,
    * are followed too.
    * Whether the seat is kept off the table turns on the room server too, which no signal tells, so
-   * it is read as each text is checked.
+   * it is read as each text is checked. A palette's line is rolled as it goes out, each `\n` written
+   * in it broken into a line of its own.
    */
   private contextOf(
     source: ChatLintSource,
@@ -178,6 +179,10 @@ export class ChatLintService {
       if (path === 'chatWindow' && !speaker && !target) return text;
       return this.filled(text, speaker, target, variables, path === 'chatWindow');
     };
+    const sent = (message: TextRange): string => {
+      const line = scan().text.slice(message.from, message.to);
+      return source.mode === 'palette' ? line.replace(/\\n/g, '\n') : line;
+    };
 
     return {
       path,
@@ -205,14 +210,14 @@ export class ChatLintService {
       },
       hasPieceNamed: (name: string) => pieceNames.has(name.trim()),
       rollCheck: (message: TextRange) => {
-        const line = scan().text.slice(message.from, message.to);
+        const line = sent(message);
         if (tableCommands.has(rollableText(line).trim().split(/\s/)[0])) return null;
         return this.rollCheck(gameType, fill(line, targets[0]));
       },
-      rolledText: (message: TextRange) => fill(scan().text.slice(message.from, message.to), targets[0]),
+      rolledText: (message: TextRange) => fill(sent(message), targets[0]),
       secretRoll: (message: TextRange) => {
         const system = this.systems.systemFor(gameType);
-        const line = fill(scan().text.slice(message.from, message.to), targets[0]);
+        const line = fill(sent(message), targets[0]);
         return system != null && isSecretRollLine(system, DiceBot.isUnreachable(system), line);
       },
     };
