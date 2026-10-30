@@ -670,6 +670,16 @@ describe('ChatMessageComponent', () => {
       expect(there[0]).not.toBe(here[0]);
     });
 
+    it('draws a line of stamps alone as large as a stamp sent on its own, in either layout', () => {
+      fixture.componentRef.setInput('chatMessage', { identifier: 'stamps-alone' } as ChatMessage);
+      const height = (markup: string) => /height:(\d+)px/.exec(markup)?.[1];
+
+      expect(height(component.escapeHtmlAndRuby('［了解:seal:ok］［了解:seal:ok］'))).toBe('96');
+
+      fixture.componentRef.setInput('chatSimpleDispFlag', true);
+      expect(height(component.escapeHtmlAndRuby('［了解:seal:ok］［了解:seal:ok］'))).toBe('64');
+    });
+
     it('follows the pictures arriving only for a line holding a room picture', () => {
       const objectChange = TestBed.inject(ObjectChangeService);
       const followed = vi.spyOn(objectChange, 'fileVersion');

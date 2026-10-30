@@ -1099,7 +1099,7 @@ export class ChatMessageComponent {
     let drawn = 0;
     return (stampId) => {
       const view = stampViewOf(stampId, source);
-      const box = alone ? this.stampLineSize(stampId, true) : 'inline';
+      const box = alone ? this.stampLineSize(stampId, this.chatSimpleDispFlag()) : 'inline';
       return view ? stampMarkup(stampId, view, box, `${this.drawing}-${drawn++}`) : null;
     };
   }
