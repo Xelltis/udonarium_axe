@@ -119,6 +119,15 @@ describe('the time the room keeps in its story', () => {
     });
   });
 
+  describe('stepping past the last day', () => {
+    it('stops at the end of the last day rather than going back to the start of it', () => {
+      const late = clock({ mode: 'hours', day: 99999, minutes: 23 * 60, step: 60 });
+      expect(stepGameClock(late, 1, PARTS.length)).toEqual({ ...late, minutes: 24 * 60 - 1 });
+      const night = clock({ day: 99999, period: 3 });
+      expect(stepGameClock(night, 1, PARTS.length)).toEqual(night);
+    });
+  });
+
   describe('dayFractionOf', () => {
     it('reads the time on a clock of 24 hours as the share of the day gone', () => {
       expect(dayFractionOf(clock({ mode: 'hours', minutes: 0 }), 4)).toBe(0);

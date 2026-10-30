@@ -104,7 +104,7 @@ export function periodsOf(clock: GameClock, defaults: readonly string[]): readon
 /**
  * The clock a step on or back leaves: the next part of the day, or the clock moved on by its step,
  * going over into the next day past the last, and back into the one before past the first. The
- * first day is as far back as it goes.
+ * start of the first day is as far back as it goes, and the end of the last as far on.
  */
 export function stepGameClock(clock: GameClock, direction: 1 | -1, periodCount: number): GameClock {
   if (clock.mode === 'hours') {
@@ -112,14 +112,16 @@ export function stepGameClock(clock: GameClock, direction: 1 | -1, periodCount: 
     const days = Math.floor(moved / MINUTES_IN_DAY);
     const day = clock.day + days;
     if (day < 1) return { ...clock, day: 1, minutes: 0 };
-    return { ...clock, day: Math.min(MAX_DAY, day), minutes: moved - days * MINUTES_IN_DAY };
+    if (day > MAX_DAY) return { ...clock, day: MAX_DAY, minutes: MINUTES_IN_DAY - 1 };
+    return { ...clock, day, minutes: moved - days * MINUTES_IN_DAY };
   }
   const count = Math.max(1, periodCount);
   const moved = Math.min(clock.period, count - 1) + direction;
   const days = Math.floor(moved / count);
   const day = clock.day + days;
   if (day < 1) return { ...clock, day: 1, period: 0 };
-  return { ...clock, day: Math.min(MAX_DAY, day), period: moved - days * count };
+  if (day > MAX_DAY) return { ...clock, day: MAX_DAY, period: count - 1 };
+  return { ...clock, day, period: moved - days * count };
 }
 
 /** The clock on another day, the hour of it left as it was. */
