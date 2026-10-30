@@ -14,20 +14,16 @@ describe('writtenAtLineEnd', () => {
     expect(portrait(`hello @hide${STAMP}`)).toEqual({ text: `hello @face${STAMP}`, caret: 11 });
   });
 
-  it('puts a portrait after a cut-in, which is read once the portrait is taken off', () => {
-    expect(portrait('hello 登場')).toEqual({ text: 'hello 登場 @face', caret: 14 });
+  it('puts a portrait in place of the cut-in the line ends with, as a line starts one or the other', () => {
+    expect(portrait('hello 登場')).toEqual({ text: 'hello @face', caret: 11 });
+    expect(portrait(`hello 登場${STAMP}`)).toEqual({ text: `hello @face${STAMP}`, caret: 11 });
   });
 
-  it('puts a cut-in in place of the one the line ends with', () => {
+  it('puts a cut-in in place of the cut-in or the portrait the line ends with', () => {
     expect(cutIn('hello 登場')).toEqual({ text: 'hello 退場', caret: 8 });
     expect(cutIn(`hello 登場${STAMP}`)).toEqual({ text: `hello 退場${STAMP}`, caret: 8 });
-  });
-
-  it('puts a cut-in before the portrait the line ends with, in place of a cut-in there', () => {
-    expect(cutIn('hello @face')).toEqual({ text: 'hello 退場 @face', caret: 8 });
-    expect(cutIn('@face')).toEqual({ text: '退場 @face', caret: 2 });
-    expect(cutIn('hello 登場 @face')).toEqual({ text: 'hello 退場 @face', caret: 8 });
-    expect(cutIn(`hello 登場${STAMP} @face`)).toEqual({ text: `hello 退場${STAMP} @face`, caret: 8 });
+    expect(cutIn('hello @face')).toEqual({ text: 'hello 退場', caret: 8 });
+    expect(cutIn(`hello @face ${STAMP}`)).toEqual({ text: `hello 退場${STAMP}`, caret: 8 });
   });
 
   it('puts a cut-in last after a word that names no cut-in', () => {

@@ -9,15 +9,14 @@ export interface WrittenAtLineEnd {
 }
 
 /**
- * Writes a piece of syntax at the end of a message, where a sent line is read for the portrait
- * command it ends with and then, that taken off, for the cut-in its last word names; only one of
- * each is read there.
+ * Writes a piece of syntax at the end of a message, where a sent line is read for one command: the
+ * portrait command it ends with, or, where there is none, the cut-in its last word names. Stamps
+ * after either are passed over as they are read.
  *
- * A portrait goes in place of the portrait command the text ends with, and last where there is
- * none. A cut-in goes in place of the cut-in, one of `cutInNames`, that ends the text before any
- * portrait command, and otherwise just before that portrait command, or last. Anything else goes
- * last. What goes last, or before a portrait command, goes after a space where it would run on
- * from a word.
+ * A portrait or a cut-in goes in place of whichever of those the text ends with, a cut-in one of
+ * `cutInNames`, and last where there is none. A cut-in put in place of one keeps the stamps after
+ * it with no space before them, as a cut-in's name followed by a space is not read. Anything else
+ * goes last. What goes last goes after a space where it would run on from a word.
  */
 export function writtenAtLineEnd(
   text: string,
@@ -25,22 +24,16 @@ export function writtenAtLineEnd(
   kind: ChatRichChip['kind'],
   cutInNames: ReadonlySet<string>
 ): WrittenAtLineEnd {
-  const over = (from: number, to: number): WrittenAtLineEnd => ({
-    text: text.slice(0, from) + raw + text.slice(to),
-    caret: from + raw.length,
-  });
-  const after = (head: string): WrittenAtLineEnd => {
-    const space = head.length > 0 && !/\s$/.test(head) ? ' ' : '';
-    const rest = text.slice(head.length);
-    const gap = rest.length > 0 && !/^\s/.test(rest) ? ' ' : '';
-    return { text: head + space + raw + gap + rest, caret: head.length + space.length + raw.length };
-  };
-
   const portrait = portraitCommandSite(text);
-  if (kind === 'portrait') return portrait ? over(portrait.from, portrait.to) : after(text);
-  if (kind !== 'cutIn') return after(text);
-  const head = portrait ? text.slice(0, portrait.from).trimEnd() : text;
-  const cutIn = readCutInChatTail(head);
-  if (cutIn && cutInNames.has(cutIn.name)) return over(cutIn.from, cutIn.to);
-  return after(head);
+  const cutIn = portrait ? null : readCutInChatTail(text);
+  const tail = portrait ?? (cutIn && cutInNames.has(cutIn.name) ? cutIn : null);
+  if (tail && (kind === 'portrait' || kind === 'cutIn')) {
+    const rest = text.slice(tail.to);
+    return {
+      text: text.slice(0, tail.from) + raw + (kind === 'cutIn' ? rest.replace(/\s+/g, '') : rest),
+      caret: tail.from + raw.length,
+    };
+  }
+  const space = text.length > 0 && !/\s$/.test(text) ? ' ' : '';
+  return { text: text + space + raw, caret: text.length + space.length + raw.length };
 }
