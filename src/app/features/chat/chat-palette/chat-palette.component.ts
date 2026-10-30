@@ -414,6 +414,7 @@ export class ChatPaletteComponent {
         () =>
           void this.editorLoader().then((module) =>
             whenNotComposing(this.editTextRef()?.nativeElement, () => {
+              if (!module) return;
               this.handOverFromTextArea();
               this.editorModule.set(module);
             })

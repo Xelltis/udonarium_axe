@@ -750,6 +750,24 @@ describe('ChatPaletteComponent handing its text area over to the editor', () => 
     expect(field.refreshSoon).toHaveBeenCalled();
   });
 
+  it('follows the text area for no editor where the editor could not be fetched', async () => {
+    const fixture = TestBed.createComponent(ChatPaletteComponent);
+    fixture.componentInstance.character.set(char);
+    fixture.detectChanges();
+    fixture.componentInstance.toggleEditMode();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const area = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>(
+      'textarea[name="edit-palette"]'
+    )!;
+    const listen = vi.spyOn(area, 'addEventListener');
+
+    arrive(null as unknown as ChatEditorModule);
+    await fixture.whenStable();
+
+    expect(listen).not.toHaveBeenCalledWith('focus', expect.anything());
+  });
+
   it('waits for a word being made in the text area to be made before the editor takes its place', async () => {
     const fixture = TestBed.createComponent(ChatPaletteComponent);
     fixture.componentInstance.character.set(char);
