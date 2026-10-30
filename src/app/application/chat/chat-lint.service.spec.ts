@@ -2,8 +2,12 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ChatLintService, type ChatLintSource } from '@axe/application/chat/chat-lint.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { newStatusAilment } from '@axe/domain/character/status-ailment';
+import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
+import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { DiceTable } from '@axe/domain/dice/dice-table';
 import { CutIn } from '@axe/domain/media/cut-in';
@@ -216,6 +220,39 @@ describe('ChatLintService', () => {
       expect(codesOf(session)).toEqual([]);
     } finally {
       piece.destroy();
+    }
+  });
+
+  it('checks a portrait command again as the picture it picks arrives', () => {
+    const url = 'https://example.com/smile.png';
+    const portrait = DataElement.create('imageIdentifier', url, { type: 'image', currentValue: '笑顔' });
+    speaker.imageDataElement!.appendChild(portrait);
+    const { session } = watch('こんにちは @笑顔');
+    expect(codesOf(session)).toContain('portrait.unknown');
+
+    const image = TestBed.inject(ImageStorage).add(url);
+    try {
+      TestBed.inject(ObjectChangeService).fileVersion.update((version) => version + 1);
+
+      expect(codesOf(session)).not.toContain('portrait.unknown');
+    } finally {
+      TestBed.inject(ImageStorage).delete(image.identifier);
+    }
+  });
+
+  it('checks a buff again as the room’s states change', () => {
+    const catalog = StatusAilmentCatalog.instance;
+    const before = catalog.ailments;
+    try {
+      const { session } = watch('&毒/2d6/ずっと');
+      expect(codesOf(session)).toContain('buff.roundsDefault');
+
+      catalog.ailments = [...before, { ...newStatusAilment('毒'), rounds: 2 }];
+      TestBed.inject(ObjectChangeService).notifyChanged(catalog.identifier);
+
+      expect(codesOf(session)).not.toContain('buff.roundsDefault');
+    } finally {
+      catalog.ailments = before;
     }
   });
 

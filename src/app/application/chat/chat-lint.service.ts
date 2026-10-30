@@ -9,6 +9,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { evaluateReferences, type PaletteVariable } from '@axe/domain/chat/chat-palette';
 import type { ImageNameEntry } from '@axe/domain/chat/chat-portrait-command';
 import type { ReferenceSite } from '@axe/domain/chat/chat-reference';
@@ -139,6 +140,8 @@ export class ChatLintService {
   /**
    * What a text is checked against, which follows the room, not the text: the text itself is read
    * only as a reference or a roll in it is checked, and a palette's variables only where they change.
+   * The room's pictures, which portraits are found among, and its states, which a buff may name,
+   * are followed too.
    * Whether the seat is kept off the table turns on the room server too, which no signal tells, so
    * it is read as each text is checked.
    */
@@ -148,6 +151,8 @@ export class ChatLintService {
     variables: readonly PaletteVariable[] | null
   ): ChatLintContext {
     this.systems.arrivals();
+    this.objectChange.fileVersion();
+    this.objectChange.versionOf(StatusAilmentCatalog.instance.identifier)();
     this.objectChange.collectionOf(GameCharacter.aliasName)();
     this.objectChange.collectionOf(CutIn.aliasName)();
     const isGameMaster = this.isGameMaster();
