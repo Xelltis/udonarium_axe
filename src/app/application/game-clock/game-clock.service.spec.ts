@@ -84,6 +84,14 @@ describe('GameClockService', () => {
     expect(service.dayText()).toBe('Day 12');
   });
 
+  it('keeps the day written as long as it is read, and no longer', () => {
+    service.setDayFormat(`${'x'.repeat(100)}{n}`);
+
+    expect(service.clock().dayFormat).toBe('x'.repeat(40));
+    const held = (Config.instance as unknown as { _gameClock: string })._gameClock;
+    expect(JSON.parse(held).dayFormat).toBe('x'.repeat(40));
+  });
+
   it('keeps the part of the day it is when the names go back to the language’s own', () => {
     service.setPeriods('早朝、朝, 昼,夕方,夜');
     service.setPeriod(3);

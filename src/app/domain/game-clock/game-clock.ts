@@ -1,3 +1,5 @@
+import { toGraphemes } from '@axe/core/util/graphemes';
+
 /**
  * The time in the story the room keeps: which day it is, and the hour of it, told either as one
  * of the parts a day is split into (morning, noon, evening, night) or on a clock of 24 hours.
@@ -35,6 +37,18 @@ export const MAX_GAME_CLOCK_PERIODS = 12;
 const MINUTES_IN_DAY = 24 * 60;
 const MAX_DAY = 99999;
 const MAX_NAME_LENGTH = 20;
+/** As long as the way the day is written may be. */
+const MAX_DAY_FORMAT_LENGTH = MAX_NAME_LENGTH * 2;
+
+/** Text cut to so many letters as a reader sees them, so that no letter written in two is split. */
+function cutShort(text: string, letters: number): string {
+  return text.length <= letters ? text : toGraphemes(text).slice(0, letters).join('');
+}
+
+/** How the day is written, trimmed and cut as the clock keeps it. */
+export function cleanDayFormat(format: string): string {
+  return cutShort(format.trim(), MAX_DAY_FORMAT_LENGTH);
+}
 
 export const DEFAULT_GAME_CLOCK: GameClock = {
   day: 1,
@@ -73,7 +87,7 @@ export function readGameClock(held: unknown): GameClock {
     minutes: wholeWithin(source['minutes'], 0, MINUTES_IN_DAY - 1, DEFAULT_GAME_CLOCK.minutes),
     periods,
     step: (GAME_CLOCK_STEPS as readonly number[]).includes(step) ? step : DEFAULT_GAME_CLOCK.step,
-    dayFormat: typeof source['dayFormat'] === 'string' ? source['dayFormat'].slice(0, MAX_NAME_LENGTH * 2) : '',
+    dayFormat: typeof source['dayFormat'] === 'string' ? cleanDayFormat(source['dayFormat']) : '',
     announce: source['announce'] !== false,
   };
 }
@@ -90,7 +104,7 @@ export function writeGameClock(clock: GameClock): string {
 export function cleanPeriods(names: readonly string[]): string[] {
   const kept: string[] = [];
   for (const raw of names) {
-    const name = raw.trim().slice(0, MAX_NAME_LENGTH);
+    const name = cutShort(raw.trim(), MAX_NAME_LENGTH);
     if (name.length > 0 && !kept.includes(name)) kept.push(name);
   }
   return kept.slice(0, MAX_GAME_CLOCK_PERIODS);

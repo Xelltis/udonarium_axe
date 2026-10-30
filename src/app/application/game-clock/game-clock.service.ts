@@ -5,6 +5,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import {
+  cleanDayFormat,
   cleanPeriods,
   formatGameClockDay,
   formatGameClockTime,
@@ -109,7 +110,7 @@ export class GameClockService {
 
   /** Sets how the day is written, `{n}` standing for its number; one without it goes back to the language's own. */
   setDayFormat(format: string): void {
-    if (this.canEdit()) this.write({ ...this.clock(), dayFormat: format.trim() });
+    if (this.canEdit()) this.write({ ...this.clock(), dayFormat: cleanDayFormat(format) });
   }
 
   setAnnounce(announce: boolean): void {

@@ -56,6 +56,17 @@ describe('the time the room keeps in its story', () => {
     expect(cleanPeriods(Array.from({ length: 20 }, (_, index) => `${index}`))).toHaveLength(12);
   });
 
+  it('cuts a long name short without splitting a letter written in two', () => {
+    const lone = /[\ud800-\udbff](?![\udc00-\udfff])/;
+    const [name] = cleanPeriods(['あ'.repeat(19) + '𠮷' + 'いう']);
+    expect(lone.test(name)).toBe(false);
+    expect(name.endsWith('𠮷')).toBe(true);
+
+    const format = readGameClock(JSON.stringify({ dayFormat: 'あ'.repeat(39) + '🌙' + '{n}' })).dayFormat;
+    expect(lone.test(format)).toBe(false);
+    expect(format.endsWith('🌙')).toBe(true);
+  });
+
   it('tells the hour by the parts of the language where the room has named none', () => {
     expect(periodsOf(clock(), PARTS)).toEqual(PARTS);
     expect(periodsOf(clock({ periods: ['昼', '夜'] }), PARTS)).toEqual(['昼', '夜']);
