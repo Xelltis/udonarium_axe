@@ -51,6 +51,10 @@ describe('inline stamps', () => {
     expect(inlineStampToken(' 斬る:［一閃］\n ', 'battle:slash')).toBe('［斬る一閃:battle:slash］');
     expect(inlineStampToken('  ', 'battle:slash')).toBe('［slash:battle:slash］');
     expect(inlineStampToken('Got  it', 'seal:ok')).toBe('［Got_it:seal:ok］');
+    const long = `${'あ'.repeat(39)}😀`;
+    const token = inlineStampToken(long, 'image:abc');
+    expect(token).toBe(`［${'あ'.repeat(39)}:image:abc］`);
+    expect(inlineStampSites(token)).toHaveLength(1);
     expect(inlineStampToken('{名前}@立ち絵', 'seal:ok')).toBe('［名前立ち絵:seal:ok］');
     expect(inlineStampSites(inlineStampToken('絵  の 名', 'image:abc'))).toEqual([
       { from: 0, to: '［絵_の_名:image:abc］'.length, label: '絵_の_名', id: 'image:abc' },

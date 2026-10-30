@@ -128,10 +128,16 @@ export interface ChatLintContext {
  */
 export function lintChatSyntax(scan: ChatSyntaxScan, context: ChatLintContext): ChatDiagnostic[] {
   const found: ChatDiagnostic[] = [];
+  const spans = [...scan.spans].sort((a, b) => a.from - b.from);
+  let first = 0;
   for (const message of scan.messages) {
     const text = scan.text.slice(message.from, message.to);
-    const spans = scan.spans.filter((span) => span.from >= message.from && span.to <= message.to);
-    lintMessage(text, message, spans, context, found);
+    while (first < spans.length && spans[first].from < message.from) first++;
+    const inside: SyntaxSpan[] = [];
+    for (let at = first; at < spans.length && spans[at].from <= message.to; at++) {
+      if (spans[at].to <= message.to) inside.push(spans[at]);
+    }
+    lintMessage(text, message, inside, context, found);
   }
   return found.sort((a, b) => a.from - b.from || a.to - b.to);
 }
@@ -167,6 +173,7 @@ function lintMessage(
   const portraitFound = portrait?.kind === 'portrait' && portraitResolves(portrait.command, context);
   let effectsStopped = false;
   let hidesCommandFound = false;
+  let hidesCommand: boolean | undefined;
 
   for (const span of spans) {
     switch (span.kind) {
@@ -224,7 +231,7 @@ function lintMessage(
         break;
       case 'decoration':
         if (!span.mark.paired && span.mark.kind !== 'escape') add(span, 'warning', 'deco.unpaired');
-        else if (span.mark.paired && !hidesCommandFound && decorationHidesCommand(text)) {
+        else if (span.mark.paired && !hidesCommandFound && (hidesCommand ??= decorationHidesCommand(text))) {
           hidesCommandFound = true;
           add(message, 'warning', 'deco.hidesCommand');
         }
