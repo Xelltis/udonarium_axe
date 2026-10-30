@@ -264,15 +264,12 @@ function flatten(line: ChatRichLine): { text: string; marks: ChatDecoration | nu
     const text = segment.kind === 'text' ? segment.text : segment.raw;
     for (const letter of text) letters.push({ text: letter, marks: normalMarks(segment.marks) });
   }
-  const quote = quotesAsTyped(line) ? QUOTE_PREFIX.exec(letters.map((letter) => letter.text).join('')) : null;
-  for (let index = 0; index < (quote?.[0].length ?? 0); index++) letters[index].marks = null;
   return letters;
 }
 
 /**
  * Whether two lines are drawn the same, chips counted as the text they stand for. A line is taken
- * as it is written: the commands ending it, and a quote mark starting it where it is written as a
- * quote, plain whatever they were put in. A backslash may stand on either side of a mark next to it, as one is written after a
+ * as it is written: the commands ending it plain whatever they were put in. A backslash may stand on either side of a mark next to it, as one is written after a
  * mark it would otherwise keep from taking effect, so what it is drawn in does not count.
  */
 export function sameRichLine(a: ChatRichLine, b: ChatRichLine): boolean {
@@ -360,31 +357,6 @@ interface Written {
 }
 
 /**
- * Whether a line's leading quote mark is written plain, as a quote: in a line typed afresh, or one
- * that came as a quote. A line that came with a decoration opening before its quote mark, which
- * the chat draws as no quote, keeps the mark inside the decoration.
- */
-function quotesAsTyped(line: ChatRichLine): boolean {
-  return line.source === undefined || QUOTE_PREFIX.test(line.source);
-}
-
-/** Splits a line's leading quote mark off as plain text where it is written as a quote. */
-function withPlainQuote(line: ChatRichLine): ChatRichSegment[] {
-  const segments = line.segments;
-  if (!quotesAsTyped(line)) return [...segments];
-  const first = segments[0];
-  if (!first || first.kind !== 'text') return [...segments];
-  const quote = QUOTE_PREFIX.exec(first.text);
-  if (!quote) return [...segments];
-  const rest = first.text.slice(quote[0].length);
-  return [
-    { kind: 'text', text: quote[0], marks: null },
-    ...(rest ? [{ ...first, text: rest }] : []),
-    ...segments.slice(1),
-  ];
-}
-
-/**
  * The segments of a line with the commands read off its end, the chips that pick a portrait or
  * start a cut-in there, taken out of every mark along with the spaces round them: a mark closed
  * after one would be read as part of its name, and one closed right before it would leave it no
@@ -427,7 +399,7 @@ function writeLine(
   const pieces: Written[] = [];
   const open: TagWant[] = [];
   let bold = false;
-  const segments = withPlainLineEnd(withPlainQuote(line)).filter(
+  const segments = withPlainLineEnd(line.segments).filter(
     (segment) => segment.kind !== 'text' || segment.text.length > 0
   );
   const lasting = (key: string, from: number) => {

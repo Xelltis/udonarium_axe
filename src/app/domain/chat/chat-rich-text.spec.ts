@@ -166,15 +166,18 @@ describe('chat-rich-text', () => {
       }
     });
 
-    it('keeps a quote mark a line came with inside the decoration opening before it, as no quote', () => {
-      const [line] = parseChatRichText('**> x**').lines;
-      const edited: ChatRichLine = {
-        segments: [{ kind: 'text', text: '> xy', marks: BOLD }],
-        source: line.source,
+    it('writes a quote mark as a quote where it stands plain, and inside the decoration it is drawn in', () => {
+      const bold: ChatRichLine = { segments: [{ kind: 'text', text: '> xy', marks: BOLD }] };
+      expect(serializeChatRichText([bold], { language: 'ja' }).text).toBe('**> xy**');
+      const quoted: ChatRichLine = {
+        segments: [
+          { kind: 'text', text: '> ', marks: null },
+          { kind: 'text', text: 'xy', marks: BOLD },
+        ],
       };
-      expect(serializeChatRichText([edited], { language: 'ja' }).text).toBe('**> xy**');
-      const typed: ChatRichLine = { segments: [{ kind: 'text', text: '> xy', marks: BOLD }] };
-      expect(serializeChatRichText([typed], { language: 'ja' }).text).toBe('> **xy**');
+      expect(serializeChatRichText([quoted], { language: 'ja' }).text).toBe('> **xy**');
+      const pasted = parseChatRichText('x\n**> a**\ny').lines.map((line) => ({ segments: line.segments }));
+      expect(serializeChatRichText(pasted, { language: 'ja' }).text).toBe('x\n**> a**\ny');
     });
 
     it('writes decorations the shortest way, in the reader\u2019s language', () => {
