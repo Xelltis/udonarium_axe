@@ -172,7 +172,15 @@ describe('the chat editor', () => {
     picture = '<img alt="絵">';
     editor.refresh(true);
     expect(parent.querySelector('[data-chip="stamp"] img')).toBeNull();
-    editor.refreshSoon();
+    vi.useFakeTimers();
+    try {
+      editor.refreshSoon();
+      editor.refreshSoon();
+      expect(parent.querySelector('[data-chip="stamp"] img')).toBeNull();
+      vi.advanceTimersByTime(1000);
+    } finally {
+      vi.useRealTimers();
+    }
 
     expect(parent.querySelector('[data-chip="stamp"] img')).not.toBeNull();
     expect(keys.size).toBe(1);

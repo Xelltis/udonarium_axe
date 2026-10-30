@@ -170,7 +170,10 @@ export class ChatEditorField implements ChatTextField {
   /** Marks what will not work once the reader has stood still a moment. */
   private readonly lintLater = debounce(() => this.paintSyntax(true), LINT_DELAY_MS);
   /** Marks it a moment after the room changes, and at that pace for as long as it keeps changing. */
-  private readonly lintForRoom = coalesce(() => this.paintSyntax(true), LINT_DELAY_MS);
+  private readonly lintForRoom = coalesce(() => {
+    this.drawStamps();
+    this.paintSyntax(true);
+  }, LINT_DELAY_MS);
   private refreshAfterComposition = false;
   private pendingText: { text: string; select?: ChatFieldSelection; undoable: boolean } | null = null;
   /**
@@ -452,11 +455,11 @@ export class ChatEditorField implements ChatTextField {
   }
 
   /**
-   * Colours and checks it again a moment after a change to the room alone, which may come at every
-   * step of a piece dragged: once for all that come in that moment, and so on while they keep coming.
+   * Colours and checks it again, and draws its stamps again, a moment after a change to the room
+   * alone, which may come at every step of a piece dragged: once for all that come in that moment,
+   * and so on while they keep coming.
    */
   refreshSoon(): void {
-    this.drawStamps();
     this.lintForRoom();
   }
 
