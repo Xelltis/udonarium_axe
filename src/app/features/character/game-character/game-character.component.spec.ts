@@ -2866,9 +2866,9 @@ describe('GameCharacterComponent', () => {
       table.mode2d = true;
       table.multiAngleEnabled = true;
       table.multiAngleResourceBuffEnabled = true;
-      vi.spyOn(ImageStorage.instance, 'get').mockImplementation(
-        (identifier) => (identifier === '452c31a22f' ? { url: 'blob:blessing' } : null) as never
-      );
+      const pictures = vi
+        .spyOn(ImageStorage.instance, 'get')
+        .mockImplementation((identifier) => (identifier === '452c31a22f' ? { url: 'blob:blessing' } : null) as never);
       const character = GameCharacter.create('絵の印', 1, '');
       const buff = DataElement.create('加護', 2, { type: DataElementType.NUMBER_RESOURCE });
       buff.setAttribute(DataElementAttribute.BUFF_ICON, '452c31a22f');
@@ -2883,6 +2883,7 @@ describe('GameCharacterComponent', () => {
         expect(icon.textContent).not.toContain('452c31a22f');
       } finally {
         character.destroy();
+        pictures.mockRestore();
       }
     });
 
