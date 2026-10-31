@@ -544,6 +544,19 @@ describe('resource-edit-helpers', () => {
       expect(character.status.getValue('HP', 'now')).toBe(3);
     });
 
+    it('keeps a status held at a value where it is when more is stacked on the buff', () => {
+      applyBuffEdit({ command: '&!石化/HP/=/0/1', object: character, targeted: false }, character);
+
+      const stacked = applyBuffEdit({ command: '&+!石化/HP/+/2/3', object: character, targeted: false }, character);
+      applyBuffEdit({ command: '&++!石化/HP/+/2/2', object: character, targeted: false }, character);
+      applyBuffEdit({ command: '&+石化/HP+2/1', object: character, targeted: false }, character);
+
+      expect(character.status.getValue('HP', 'now')).toBe(0);
+      expect(stacked).toBe('石化を加算 HP=0/3R    ');
+      expect(character.buffs.find('石化')!.currentValue).toBe('HP=0');
+      expect(character.buffs.find('石化')!.value).toBe(5);
+    });
+
     it('writes an unmarked calculated buff over the one standing', () => {
       character.status.changeValue('HP', 'now', -100);
       const before = character.status.getValue('HP', 'now')!;

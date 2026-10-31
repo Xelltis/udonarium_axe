@@ -310,7 +310,8 @@ export function applyResourceEdit(edit: ResourceEdit, character: GameCharacter):
  * `&+!` stacks: a second helping moves the status again and the buff remembers both, rather than
  * putting the first one back, and `&++!` lengthens the buff by the rounds asked for as well.
  * Holding a status at a value (`=`) is the one thing that cannot stack, since holding it there
- * twice is still holding it there, so that starts over as always.
+ * twice is still holding it there, so that starts over as always. For the same reason a helping
+ * stacked on a buff that holds its status leaves the status held, adding only to the rounds.
  */
 function applyCalculatedBuff(command: string, character: GameCharacter, piles: BuffPileOn): string {
   const { name, requests, rest } = readCalculatedBuff(command);
