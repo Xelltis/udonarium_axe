@@ -84,21 +84,24 @@
 
   @if (palettePicks().length) {
     <div class="flex items-center gap-2">
-      <span class="text-ui-muted w-20 shrink-0">{{ 'feature.hotbar.editor.fromPalette' | transloco }}</span>
+      <label class="text-ui-muted w-20 shrink-0" for="hotbar-editor-palette-input">{{
+        'feature.hotbar.editor.fromPalette' | transloco
+      }}</label>
       <ng-select
         data-testid="hotbar-editor-palette"
         class="ud-select palette-pick-select min-w-0 flex-1"
+        labelForId="hotbar-editor-palette-input"
         bindLabel="line"
-        bindValue="line"
-        groupBy="group"
+        bindValue="id"
+        groupBy="groupIndex"
+        [groupValue]="palettePickGroup"
         [items]="palettePickItems()"
-        [ngModel]="pickedPaletteLine()"
+        [ngModel]="pickedPaletteId()"
         (ngModelChange)="takeFromPalette($event)"
         [ngModelOptions]="{ standalone: true }"
         [clearable]="false"
         [placeholder]="'feature.hotbar.editor.fromPaletteHint' | transloco"
         [notFoundText]="'feature.hotbar.editor.paletteNotFound' | transloco"
-        [ariaLabel]="'feature.hotbar.editor.fromPalette' | transloco"
       >
         <ng-template ng-optgroup-tmp let-item="item">
           {{ item.group || ('feature.hotbar.editor.paletteLoose' | transloco) }}

@@ -145,6 +145,46 @@ describe('HotbarSlotEditorComponent', () => {
       expect(lines).toEqual(['2d6+3 攻撃', '1d100<={威力}']);
     });
 
+    it('keeps two groups under the same heading apart, in the order they are written', async () => {
+      const list = await openPalettePicker('◆A\nx\n◆B\ny\n◆A\nz');
+
+      const groups = [...list.querySelectorAll('.ng-optgroup')].map((group) => group.textContent?.trim());
+      const lines = [...list.querySelectorAll('.ng-option')].map((option) => option.textContent?.trim());
+
+      expect(groups).toEqual(['A', 'B', 'A']);
+      expect(lines).toEqual(['x', 'y', 'z']);
+    });
+
+    it('shows the line taken as the one chosen, of two that read the same', async () => {
+      vi.spyOn(TestBed.inject(PanelService), 'close').mockImplementation(() => undefined);
+      let list = await openPalettePicker('◆攻撃\n2d6\n◆防御\n2d6');
+      list.querySelectorAll<HTMLElement>('.ng-option')[1].click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const picker = fixture.debugElement.query(By.css('[data-testid="hotbar-editor-palette"]'));
+      (picker.componentInstance as NgSelectComponent).open();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      list = document.querySelector<HTMLElement>('.ng-dropdown-panel')!;
+
+      const options = [...list.querySelectorAll('.ng-option')];
+      expect(options.map((option) => option.classList.contains('ng-option-selected'))).toEqual([false, true]);
+    });
+
+    it('is named by its caption, which focuses it when pressed', async () => {
+      document.body.appendChild(root());
+      await openPalettePicker('2d6+3 攻撃');
+      const caption = root().querySelector<HTMLLabelElement>('label[for="hotbar-editor-palette-input"]')!;
+      const input = root().querySelector<HTMLInputElement>('#hotbar-editor-palette-input')!;
+
+      caption.click();
+
+      expect(input.closest('[data-testid="hotbar-editor-palette"]')).not.toBeNull();
+      expect(document.activeElement).toBe(input);
+      root().remove();
+    });
+
     it('marks the list for the stylesheet that keeps it to the width of the box, however long a line runs', async () => {
       const list = await openPalettePicker(`準備《生体探知粒子》${'あ'.repeat(200)}`);
 
