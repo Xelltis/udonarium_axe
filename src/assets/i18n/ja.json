@@ -452,6 +452,7 @@
         "fromPalette": "パレットから",
         "fromPaletteHint": "（チャットパレットの行を選ぶ）",
         "paletteLoose": "見出しなし",
+        "paletteNotFound": "当てはまる行がありません",
         "rangeName": "射程の名前",
         "rangeSize": "大きさ",
         "rangeLength": "長さ",

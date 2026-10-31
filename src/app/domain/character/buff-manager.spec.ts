@@ -684,6 +684,27 @@ describe('BuffManager', () => {
         expect(status.getValue('命中', 'now')).toBe(10);
       });
 
+      it('keeps a status held at a value where it is, and gives back what the hold took', () => {
+        grant('石化', '命中', '=', '3');
+        stack('石化', '命中', '+', '2');
+
+        expect(status.getValue('命中', 'now')).toBe(3);
+
+        sheeted.delete('石化');
+
+        expect(status.getValue('命中', 'now')).toBe(10);
+      });
+
+      it('leaves the note of a buff holding a status at a value as it was', () => {
+        sheeted.addRound('石化', '命中=3', 2);
+        sheeted.applyModifier(sheeted.find('石化')!, parseBuffModifierRequest('命中', '=', '3')!);
+
+        sheeted.stackRound('石化', '命中+2', 3);
+
+        expect(sheeted.find('石化')!.currentValue).toBe('命中=3');
+        expect(sheeted.find('石化')!.value).toBe(3);
+      });
+
       it('takes back a buff standing on some other status before laying this one', () => {
         const other = parseBuffModifierRequest('命中', '+', '2')!;
         sheeted.addRound('変転', '', 2);

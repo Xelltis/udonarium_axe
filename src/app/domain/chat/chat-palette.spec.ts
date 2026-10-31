@@ -184,6 +184,18 @@ describe('ChatPalette', () => {
       expect(palette.evaluate('2d+10{加護}', DataElement.create('character', ''))).toBe('2d+10');
     });
 
+    it('builds the name of a reference out of another one, filling in the inner one first', () => {
+      const palette = new ChatPalette();
+      palette.initialize();
+      palette.setPalette('//属性=火\n2d6+{{武器}威力} {{属性}耐性}');
+      const sheet = DataElement.create('character', '');
+      sheet.appendChild(DataElement.create('武器', 'ロングソード'));
+      sheet.appendChild(DataElement.create('ロングソード威力', '7'));
+      sheet.appendChild(DataElement.create('火耐性', '3'));
+
+      expect(palette.evaluate('2d6+{{武器}威力} {{属性}耐性}', sheet)).toBe('2d6+7 3');
+    });
+
     it('works from a row as well', () => {
       const palette = new ChatPalette();
       palette.initialize();
@@ -286,6 +298,14 @@ describe('ChatPalette', () => {
       const target = makeCharacter(false, '4');
 
       expect(evaluateCharacterReferences('{HP} t{HP}', speaker, target).text).toBe('13 4');
+    });
+
+    it('builds the name of a reference out of another one, from the speaker or from the target', () => {
+      const speaker = makeCharacter(true);
+      speaker.detailDataElement!.appendChild(DataElement.create('部位', 'ステータス'));
+      const target = makeCharacter(false, '4');
+
+      expect(evaluateCharacterReferences('{{部位}/HP} t{{部位}/HP}', speaker, target).text).toBe('13 4');
     });
 
     describe('a buff named where a number is worked out', () => {

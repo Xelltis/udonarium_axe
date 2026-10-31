@@ -11,6 +11,14 @@
   min-width: var(--gde-select-width) !important;
 }
 
+/* The palette line picker of a hotbar slot. A palette line can run to a hundred characters and more, and
+   the list would grow with the longest of them, so it keeps to the width of the box instead and each line
+   is cut short at its end with an ellipsis. */
+.ng-dropdown-panel.ud-select.palette-pick-select {
+  width: 100% !important;
+  min-width: 0;
+}
+
 /* A variant for the selects dice-table-setting wants at full width.
    Moved over from dice-table-setting.component.css, and kept global so that it
    survives the scoped CSS going away with the move to Tailwind. */
@@ -82,6 +90,15 @@
   font-size: 12px;
   padding: 5px 10px;
   transition: background var(--ui-transition);
+}
+
+/* The heading a list is grouped under, which ng-select's own theme draws in dark grey for a light list. */
+.ng-dropdown-panel.ud-select .ng-dropdown-panel-items .ng-optgroup {
+  background: var(--ui-menu-bg);
+  color: var(--ui-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 10px 2px;
 }
 
 .ng-dropdown-panel.ud-select .ng-dropdown-panel-items .ng-option.ng-option-marked {
