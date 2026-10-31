@@ -223,6 +223,7 @@ export class GameTableGestureService {
     const depth = Math.max(TABLE_PERSPECTIVE_PX / 100, TABLE_PERSPECTIVE_PX - this.viewPositionZ);
     const projectionScale = this.orthographicProjection ? `scale(${(TABLE_PERSPECTIVE_PX / depth).toFixed(6)}) ` : '';
     this.gameTableEl.style.transform = `${projectionScale}translateZ(${tz}px) translateY(${ty}px) translateX(${tx}px) rotateY(${ry}deg) rotateX(${rx}deg) rotateZ(${rz}deg)`;
+    this.gameTableEl.dataset['camera'] = [tx, ty, tz, rx, ry, rz, this.orthographicProjection ? 1 : 0].join(',');
 
     this.coordinateService.invalidateTabletopTransform();
     // The backdrops follow a move of the view as well as a turn, so they are told every frame.

@@ -267,6 +267,27 @@ describe('TerrainComponent', () => {
       door.destroy();
     });
 
+    it('says on its element whether it is a door and whether it stands open', () => {
+      const door = Terrain.create('door', 0.25, 1, 2, '', '');
+      fixture.componentRef.setInput('terrain', door);
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      expect(host.hasAttribute('data-door')).toBe(false);
+      expect(host.getAttribute('data-object-id')).toBe(door.identifier);
+
+      door.doorStyle = DoorStyle.SWING;
+      TestBed.inject(ObjectChangeServiceForSpec).notifyChanged(door.identifier);
+      fixture.detectChanges();
+      expect(host.getAttribute('data-door')).toBe('closed');
+
+      door.isDoorOpen = true;
+      TestBed.inject(ObjectChangeServiceForSpec).notifyChanged(door.identifier);
+      fixture.detectChanges();
+      expect(host.getAttribute('data-door')).toBe('open');
+
+      door.destroy();
+    });
+
     it('runs a sliding door the length of itself, into the wall it was set into', () => {
       const terrain = Terrain.create('sliding door', 0.25, 1, 2, '', '');
       terrain.doorStyle = DoorStyle.SLIDE;

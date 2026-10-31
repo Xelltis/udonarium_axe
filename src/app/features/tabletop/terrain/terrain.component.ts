@@ -144,6 +144,8 @@ function sameOrBothEmpty<T>(a: readonly T[], b: readonly T[]): boolean {
   host: {
     class: 'block',
     '[style.display]': "isHiddenByFog() ? 'none' : null",
+    '[attr.data-object-id]': 'terrain().identifier',
+    '[attr.data-door]': "isDoor() ? (isDoorOpen() ? 'open' : 'closed') : null",
     '(dragstart)': 'onDragstart($event)',
     '(contextmenu)': 'onContextMenu($event)',
   },

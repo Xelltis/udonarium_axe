@@ -55,6 +55,7 @@ import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-o
   imports: [MovableDirective, RotableDirective, SelectableDirective, NgStyle, SafePipe, CardFaceTextComponent],
   host: {
     '[style.display]': "isHiddenByFog() ? 'none' : null",
+    '[attr.data-object-id]': 'card().identifier',
     class: 'block',
     '(carddrop)': 'onCardDrop($event)',
     '(dragstart)': 'onDragstart($event)',

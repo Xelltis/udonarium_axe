@@ -205,6 +205,7 @@
           }
           @if (isPoster() && 0 < imageFile().url.length) {
             <img
+              data-part="picture"
               class="image chrome-smooth-image-trick pointer-events-none absolute inset-0 m-auto block size-full object-contain"
               [class.opacity-50]="inStealth()"
               [ngStyle]="{
@@ -1015,6 +1016,7 @@
 <ng-template #picture let-facing="facing" let-sizing="sizing" let-style="style" let-copyStyle="copyStyle">
   <img
     appSeeThrough
+    data-part="picture"
     class="image chrome-smooth-image-trick pointer-events-auto inset-x-0 bottom-0 m-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
     [class]="sizing"
     [class.opacity-50]="inStealth()"

@@ -67,6 +67,7 @@ const TUMBLE_PATHS = 3;
   imports: [BillboardDirective, MovableDirective, RotableDirective, SelectableDirective, NgStyle, SafePipe],
   host: {
     '[style.display]': "isHiddenByFog() ? 'none' : null",
+    '[attr.data-object-id]': 'diceSymbol().identifier',
     '(dragstart)': 'onDragstart($event)',
     '(contextmenu)': 'onContextMenu($event)',
   },

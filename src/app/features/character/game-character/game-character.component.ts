@@ -229,6 +229,7 @@ const WATER_RIPPLE_LIFT_PX = 0.5;
     class: 'block',
     '[style.display]': "isHiddenByVision() ? 'none' : null",
     '[style.z-index]': 'stackIndex()',
+    '[attr.data-object-id]': 'gameCharacter()?.identifier ?? null',
     '(dragstart)': 'onDragstart($event)',
     '(contextmenu)': 'onContextMenu($event)',
   },

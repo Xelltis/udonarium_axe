@@ -1033,6 +1033,7 @@ export class MovableDirective implements MovableInteractionContext {
     const offset = onWall ? '' : this.transformCssOffset;
     const posZ = onWall ? -this.posZ - WALL_OCCLUSION_INSET_PX : this.posZ;
     this.nativeElement.style.transform = toTransformCss(this.posX, this.posY, posZ, offset);
+    this.nativeElement.dataset['location'] = `${this.posX},${this.posY},${this.posZ}`;
   }
 
   /** Makes the other pieces hittable or not according to the layers this piece collides with. */

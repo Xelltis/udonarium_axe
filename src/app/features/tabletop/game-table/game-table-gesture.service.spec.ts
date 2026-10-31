@@ -113,6 +113,15 @@ describe('GameTableGestureService', () => {
       expect(rotation()).toEqual({ x: 50, y: 0, z: 30 });
     });
 
+    it('writes where the camera stands to the table, in the frame the table moves in', async () => {
+      service.setTransform(40, 0, 0, 0, 0, 0);
+      expect(gameTableEl.dataset['camera']).toBeUndefined();
+
+      await nextFrame();
+
+      expect(gameTableEl.dataset['camera']).toBe('140.0000,0.0000,0.0000,50.0000,0.0000,10.0000,0');
+    });
+
     it('says nothing about the way it faces when the view was only slid', async () => {
       const rotation = TestBed.inject(UiSignalService).tableViewRotation;
       service.setTransform(40, 0, 0, 0, 0, 0);

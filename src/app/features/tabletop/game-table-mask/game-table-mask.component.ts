@@ -69,6 +69,7 @@ const MASK_WRITING_OUTLINE =
   imports: [MovableDirective, SelectableDirective, NgStyle, SafePipe, TranslocoModule],
   host: {
     class: 'block',
+    '[attr.data-object-id]': 'gameTableMask()?.identifier ?? null',
     '(dragstart)': 'onDragstart($event)',
     '(pointerdown)': 'onInputStartPointer($event)',
     '(pointermove)': 'onInputMovePointer($event)',

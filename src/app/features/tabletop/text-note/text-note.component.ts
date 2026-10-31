@@ -55,6 +55,7 @@ import { formatNoteText } from '@axe/ui/text-decoration/format-note-text';
   imports: [MovableDirective, RotableDirective, SelectableDirective, NgStyle, FormsModule, LinkifyPipe, SafePipe],
   host: {
     '[style.display]': "isHiddenByFog() ? 'none' : null",
+    '[attr.data-object-id]': 'textNote().identifier',
     class: 'block',
     '(dragstart)': 'onDragstart($event)',
     '(mousedown)': 'onMouseDown($event)',

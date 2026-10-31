@@ -71,6 +71,7 @@ const LAID_OUT_FOR_CELL_PX = 50;
   ],
   host: {
     '[style.display]': "isHiddenByFog() ? 'none' : null",
+    '[attr.data-object-id]': 'cardStack().identifier',
     class: 'block',
     '(carddrop)': 'onCardDrop($event)',
     '(dragstart)': 'onDragstart($event)',

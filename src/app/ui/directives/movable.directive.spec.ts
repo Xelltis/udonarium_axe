@@ -181,6 +181,37 @@ describe('MovableDirective', () => {
       expect(directiveFor('north-wall').isGridSnap).toBe(true);
     });
   });
+
+  describe('where the piece is drawn', () => {
+    let fixture: ComponentFixture<TestHostComponent>;
+
+    beforeEach(async () => {
+      TestBed.configureTestingModule({
+        imports: [TestHostComponent],
+        providers: [...TEST_PROVIDERS],
+      }).compileComponents();
+      fixture = TestBed.createComponent(TestHostComponent);
+      fixture.detectChanges();
+    });
+
+    function drawnAt(surface: string | undefined, x: number, y: number, z: number): HTMLElement {
+      const directive = fixture.debugElement.children[0].injector.get(MovableDirective);
+      directive['tabletopObject'] = { location: { name: 'table', x, y, surface } } as TabletopObject;
+      directive.posX = x;
+      directive.posY = y;
+      directive.posZ = z;
+      directive['updateTransformCss']();
+      return fixture.debugElement.children[0].nativeElement as HTMLElement;
+    }
+
+    it('writes where it stands on its surface beside the transform it is drawn with', () => {
+      expect(drawnAt(undefined, 120, 80, 25).dataset['location']).toBe('120,80,25');
+    });
+
+    it('writes its height off a wall as it is, though the wall draws it turned the other way', () => {
+      expect(drawnAt('north-wall', 50, 60, 10).dataset['location']).toBe('50,60,10');
+    });
+  });
 });
 
 describe('MovableDirective layers', () => {

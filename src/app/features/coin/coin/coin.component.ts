@@ -52,6 +52,8 @@ const MIN_THICKNESS_PX = 5;
   imports: [MovableDirective, RotableDirective, SelectableDirective, NgStyle, SafePipe],
   host: {
     '[style.display]': "isHiddenByFog() ? 'none' : null",
+    '[attr.data-object-id]': 'coin().identifier',
+    '[attr.data-face]': 'displayedFace()',
     class: 'block',
     '(dragstart)': 'onDragstart($event)',
     '(contextmenu)': 'onContextMenu($event)',

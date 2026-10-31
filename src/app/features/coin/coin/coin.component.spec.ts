@@ -59,6 +59,18 @@ describe('CoinComponent', () => {
     expect(component.faceTransform()).toContain('rotateY(180deg)');
   });
 
+  it('says on its element which face is up, and which coin it is', () => {
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.getAttribute('data-face')).toBe('front');
+    expect(host.getAttribute('data-object-id')).toBe(coin.identifier);
+
+    coin.face = 'back';
+    TestBed.inject(ObjectChangeService).notifyChanged(coin.identifier);
+    fixture.detectChanges();
+    expect(host.getAttribute('data-face')).toBe('back');
+  });
+
   it('parts the faces by the thickness and rings the edge between them', () => {
     fixture.detectChanges();
     const half = component.thickness() / 2;
