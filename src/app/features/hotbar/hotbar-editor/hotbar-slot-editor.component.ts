@@ -48,9 +48,11 @@ import { CHARACTER_PANELS, DEFAULT_CHARACTER_PANEL, panelLabelKey } from '@axe/d
 import { EffectPreviewComponent } from '@axe/features/effect/effect-preview/effect-preview.component';
 import { findSlotActor } from '@axe/features/hotbar/hotbar-actor';
 import { HotbarRunnerService } from '@axe/features/hotbar/hotbar-runner.service';
+import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
+import { NgOptgroupTemplateDirective, NgSelectComponent } from '@ng-select/ng-select';
 
 /**
  * A trial belongs to no cell of the bar, so what it lays out is its own to take down again.
@@ -63,11 +65,27 @@ const REHEARSAL_CELL: HotbarCell = { page: -1, slotIndex: -1 };
 /** What a step joining a group waits for, until the reader says otherwise. */
 const DEFAULT_STEP_DELAY_MS = 300;
 
+/** A palette line as the picker lists it, with the tab and heading it was written beneath. */
+interface PalettePick {
+  line: string;
+  /** `tab / heading`, either alone, or empty for a line written under neither. */
+  group: string;
+}
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'hotbar-slot-editor',
   templateUrl: './hotbar-slot-editor.component.html',
-  imports: [TextTooltipDirective, FormsModule, SafePipe, TranslocoModule, EffectPreviewComponent],
+  imports: [
+    TextTooltipDirective,
+    FormsModule,
+    SafePipe,
+    TranslocoModule,
+    EffectPreviewComponent,
+    NgSelectComponent,
+    NgOptgroupTemplateDirective,
+    NgSelectWindowDirective,
+  ],
 })
 export class HotbarSlotEditorComponent {
   private readonly panelService = inject(PanelService);
@@ -184,6 +202,23 @@ export class HotbarSlotEditorComponent {
     if (!palette) return [];
     this.objectChange.versionOf(palette.identifier)();
     return paletteCommandGroups(palette.getPalette());
+  });
+
+  /**
+   * The same lines laid out flat for the picker, each carrying its group. Two groups under the same
+   * tab and heading are listed as one.
+   */
+  protected readonly palettePickItems = computed<PalettePick[]>(() =>
+    this.palettePicks().flatMap((group) => {
+      const label = group.tab && group.heading ? `${group.tab} / ${group.heading}` : group.tab || group.heading;
+      return group.lines.map((line) => ({ line, group: label }));
+    })
+  );
+
+  /** The palette line the box holds as it stands, which the picker shows as chosen; none once it is reworded. */
+  protected readonly pickedPaletteLine = computed(() => {
+    const value = this.draft().value;
+    return this.palettePickItems().some((pick) => pick.line === value) ? value : null;
   });
 
   /** Only a slot that acts on a character has to say which one. */

@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
 import { HotbarStoreService } from '@axe/application/hotbar/hotbar-store.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -14,6 +15,7 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { HotbarSlotEditorComponent } from '@axe/features/hotbar/hotbar-editor/hotbar-slot-editor.component';
 import { HotbarRunnerService } from '@axe/features/hotbar/hotbar-runner.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { NgSelectComponent } from '@ng-select/ng-select';
 
 describe('HotbarSlotEditorComponent', () => {
   let fixture: ComponentFixture<HotbarSlotEditorComponent>;
@@ -116,36 +118,52 @@ describe('HotbarSlotEditorComponent', () => {
     expect(argument.value).toBe('/w gm 準備できました');
   });
 
-  it('offers the lines already written in the palette of the character it speaks as', () => {
-    character.chatPalette!.setPalette('◆戦闘\n2d6+3 攻撃\n//威力=7\n\n1d100<={威力}');
-    TestBed.inject(ChatSpeakerService).set(character.identifier);
-    component.setFrom({ page: 1, slotIndex: 3 }, emptyHotbarSlotDraft('chat'));
-    fixture.detectChanges();
+  describe('the palette picker', () => {
+    async function openPalettePicker(palette: string): Promise<HTMLElement> {
+      character.chatPalette!.setPalette(palette);
+      TestBed.inject(ChatSpeakerService).set(character.identifier);
+      component.setFrom({ page: 1, slotIndex: 3 }, emptyHotbarSlotDraft('chat'));
+      fixture.detectChanges();
+      const picker = fixture.debugElement.query(By.css('[data-testid="hotbar-editor-palette"]'));
+      (picker.componentInstance as NgSelectComponent).open();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      return document.querySelector<HTMLElement>('.ng-dropdown-panel')!;
+    }
 
-    const picker = root().querySelector<HTMLSelectElement>('[data-testid="hotbar-editor-palette"]')!;
-    const lines = [...picker.querySelectorAll('optgroup option')].map((option) => option.textContent?.trim());
+    afterEach(() => {
+      for (const panel of document.querySelectorAll('.ng-dropdown-panel')) panel.remove();
+    });
 
-    expect(picker.querySelector('optgroup')?.label).toBe('戦闘');
-    expect(lines).toEqual(['2d6+3 攻撃', '1d100<={威力}']);
-  });
+    it('offers the lines already written in the palette of the character it speaks as', async () => {
+      const list = await openPalettePicker('◆戦闘\n2d6+3 攻撃\n//威力=7\n\n1d100<={威力}');
 
-  it('takes a palette line into the box, leaving it there to be worked on', () => {
-    character.chatPalette!.setPalette('2d6+3 攻撃');
-    TestBed.inject(ChatSpeakerService).set(character.identifier);
-    component.setFrom({ page: 1, slotIndex: 3 }, emptyHotbarSlotDraft('chat'));
-    fixture.detectChanges();
-    vi.spyOn(TestBed.inject(PanelService), 'close').mockImplementation(() => undefined);
+      const groups = [...list.querySelectorAll('.ng-optgroup')].map((group) => group.textContent?.trim());
+      const lines = [...list.querySelectorAll('.ng-option')].map((option) => option.textContent?.trim());
 
-    const picker = root().querySelector<HTMLSelectElement>('[data-testid="hotbar-editor-palette"]')!;
-    picker.value = '2d6+3 攻撃';
-    picker.dispatchEvent(new Event('change'));
-    fixture.detectChanges();
+      expect(groups).toEqual(['戦闘']);
+      expect(lines).toEqual(['2d6+3 攻撃', '1d100<={威力}']);
+    });
 
-    const argument = root().querySelector<HTMLTextAreaElement>('[data-testid="hotbar-editor-argument"]')!;
-    expect(argument.value).toBe('2d6+3 攻撃');
+    it('marks the list for the stylesheet that keeps it to the width of the box, however long a line runs', async () => {
+      const list = await openPalettePicker(`準備《生体探知粒子》${'あ'.repeat(200)}`);
 
-    click('hotbar-editor-save');
-    expect(hotbar.slotAt(1, 3)?.argument).toBe('2d6+3 攻撃');
+      expect(list.classList).toContain('palette-pick-select');
+    });
+
+    it('takes a palette line into the box, leaving it there to be worked on', async () => {
+      vi.spyOn(TestBed.inject(PanelService), 'close').mockImplementation(() => undefined);
+      const list = await openPalettePicker('2d6+3 攻撃');
+
+      list.querySelector<HTMLElement>('.ng-option')!.click();
+      fixture.detectChanges();
+
+      const argument = root().querySelector<HTMLTextAreaElement>('[data-testid="hotbar-editor-argument"]')!;
+      expect(argument.value).toBe('2d6+3 攻撃');
+
+      click('hotbar-editor-save');
+      expect(hotbar.slotAt(1, 3)?.argument).toBe('2d6+3 攻撃');
+    });
   });
 
   it('leaves the picker away for a kind that says nothing', () => {
