@@ -29,5 +29,6 @@ export function copiedMessageContext(message: ChatMessage, timestamp: number): C
     diceLook: message.diceLook,
     diceImageIdentifier: message.diceImageIdentifier,
     ...(message.stamp ? { stamp: message.stamp } : {}),
+    ...(message.stampAttachments ? { stampAttachments: message.stampAttachments } : {}),
   };
 }

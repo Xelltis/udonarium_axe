@@ -349,6 +349,10 @@ export class ChatMessageService {
     if (attachments.length > 0) {
       chatMessage.attachmentImageIdentifiers = JSON.stringify(attachments);
     }
+    if (stamped.pictures.length > 0) {
+      const byHand = resolvedMessage.attachmentImageIdentifiers;
+      chatMessage.stampAttachments = JSON.stringify(stamped.pictures.filter((picture) => !byHand.includes(picture)));
+    }
     if (replyTo) {
       chatMessage.replyTo = replyTo;
     }
@@ -420,7 +424,10 @@ export class ChatMessageService {
       sendFrom: '',
       senderRole: PeerCursor.myRole,
     };
-    if (stamped.pictures.length > 0) chatMessage.attachmentImageIdentifiers = JSON.stringify(stamped.pictures);
+    if (stamped.pictures.length > 0) {
+      chatMessage.attachmentImageIdentifiers = JSON.stringify(stamped.pictures);
+      chatMessage.stampAttachments = JSON.stringify(stamped.pictures);
+    }
     const chat = chatTab.addMessage(chatMessage);
     emitSendMessage({ messageIdentifier: chat.identifier, messageTarget: null });
     emitDiceTableMessage({ messageIdentifier: chat.identifier });
@@ -432,7 +439,9 @@ export class ChatMessageService {
    * version does not know, or the room does not let be sent, is written as its name, and the
    * pictures from the room's sets among its attachments follow the stamps it now holds, those it
    * no longer holds going with them, those the room has stopped since among them. A picture
-   * attached by hand stays, and so does that of a stamp under the line. For a line with a stamp
+   * attached by hand stays, a stamp in the line showing it too or not, and so does that of a stamp
+   * under the line; for a line said by a version that kept no record of which were attached by
+   * hand, those its stamps showed are taken to have come with them. For a line with a stamp
    * under it, the text is what was said with the stamp, the words standing in for it kept as the
    * last line.
    */
@@ -441,12 +450,17 @@ export class ChatMessageService {
     const stamped = this.inlineStampsGoingOut(text);
     const under = stampOf(message.stamp ?? '');
     const kept = under?.kind === 'image' ? under.imageIdentifier : null;
-    const before = stampPicturesIn(message.text ?? '').filter((picture) => picture !== kept);
+    const recorded = message.stampAttachmentList;
+    const before = recorded ?? stampPicturesIn(message.text ?? '').filter((picture) => picture !== kept);
     const attached = message.attachmentImageIdentifierList.filter((picture) => !before.includes(picture));
     const attachments = [...attached, ...stamped.pictures.filter((picture) => !attached.includes(picture))];
     message.edit(stamped.text, staging, at);
     const written = attachments.length > 0 ? JSON.stringify(attachments) : '';
     if ((message.attachmentImageIdentifiers ?? '') !== written) message.attachmentImageIdentifiers = written;
+    if (stamped.pictures.length > 0 || recorded !== null) {
+      const onlyForStamps = JSON.stringify(stamped.pictures.filter((picture) => !attached.includes(picture)));
+      if ((message.stampAttachments ?? '') !== onlyForStamps) message.stampAttachments = onlyForStamps;
+    }
   }
 
   /**

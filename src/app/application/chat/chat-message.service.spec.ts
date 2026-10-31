@@ -322,13 +322,14 @@ describe('ChatMessageService', () => {
   });
 
   describe('sending stamps put inside a line', () => {
-    function said(text: string): ChatMessage {
+    function said(text: string, attached?: string[]): ChatMessage {
       const service = TestBed.inject(ChatMessageService);
       PeerCursor.createMyCursor();
       const tab = new ChatTab();
       tab.initialize();
       ObjectStore.instance.add(tab);
-      return service.sendMessage(tab, text, null, PeerCursor.myCursor.identifier);
+      const none = undefined;
+      return service.sendMessage(tab, text, null, PeerCursor.myCursor.identifier, none, none, none, none, attached);
     }
 
     it('sends them as they were written, a picture from the room going among the attachments once', () => {
@@ -393,6 +394,36 @@ describe('ChatMessageService', () => {
         expect(message.attachmentImageIdentifierList).toEqual(['attached-by-hand', 'other-picture']);
         service.editMessage(message, 'これ', '', 3000);
         expect(message.attachmentImageIdentifierList).toEqual(['attached-by-hand']);
+      });
+
+      it('keeps a picture attached by hand that a stamp in the line shows too, once the stamp is taken out', () => {
+        const service = TestBed.inject(ChatMessageService);
+        const message = said('見て［絵:image:stamp-picture］', ['stamp-picture']);
+
+        service.editMessage(message, '見て', '', 2000);
+
+        expect(message.attachmentImageIdentifierList).toEqual(['stamp-picture']);
+      });
+
+      it('reads a line from a version that kept no record of its stamps’ pictures by the stamps in its text', () => {
+        const service = TestBed.inject(ChatMessageService);
+        const message = said('これ［絵:image:stamp-picture］');
+        message.attachmentImageIdentifiers = JSON.stringify(['stamp-picture', 'attached-by-hand']);
+        message.removeAttribute('stampAttachments');
+
+        service.editMessage(message, 'これ', '', 2000);
+
+        expect(message.attachmentImageIdentifierList).toEqual(['attached-by-hand']);
+      });
+
+      it('trusts the record of its stamps’ pictures only for those still attached, as an older version edits a line', () => {
+        const service = TestBed.inject(ChatMessageService);
+        const message = said('これ［絵:image:stamp-picture］');
+        message.attachmentImageIdentifiers = JSON.stringify(['picture-an-older-version-put-in']);
+
+        service.editMessage(message, 'これ', '', 2000);
+
+        expect(message.attachmentImageIdentifierList).toEqual(['picture-an-older-version-put-in']);
       });
 
       it('keeps the picture of the stamp under the line, used inside it too, when it is taken out of the line', () => {

@@ -45,6 +45,7 @@ export interface ChatMessageContext {
   dicebot?: string;
   imageIdentifier?: string;
   attachmentImageIdentifiers?: string;
+  stampAttachments?: string;
 
   imagePos?: number;
   messColor?: string;
@@ -70,6 +71,13 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
   @SyncVar() dicebot: string;
   @SyncVar() imageIdentifier: string;
   @SyncVar() attachmentImageIdentifiers: string = '';
+  /**
+   * Which of the attachments are there only for a stamp inside the line to show, as a json array:
+   * those of the room's pictures that no one attached by hand as well. Kept for a line holding such
+   * a stamp, and left without an initialiser so that no other line carries it; a line said by a
+   * version that did not keep it reads back an empty string, see {@link stampAttachmentList}.
+   */
+  @SyncVar() stampAttachments: string;
   @SyncVar() imagePos: number;
   @SyncVar() vnPortraitPos: number = VN_PORTRAIT_POS_UNSET;
   /**
@@ -245,6 +253,22 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
     const target = ObjectStore.instance.get<ChatMessage>(this.quoteOf);
     return target instanceof ChatMessage ? target : null;
   }
+  /**
+   * The pictures attached only for the stamps inside the line to show, as {@link stampAttachments}
+   * keeps them; null for a line that keeps no such record, whose stamps' pictures are to be told by
+   * the stamps in its text.
+   */
+  get stampAttachmentList(): string[] | null {
+    const raw = `${this.stampAttachments ?? ''}`.trim();
+    if (!raw.startsWith('[')) return null;
+    try {
+      const kept = JSON.parse(raw) as unknown;
+      return Array.isArray(kept) ? kept.filter((picture): picture is string => typeof picture === 'string') : null;
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * The identifiers of the pictures attached to the line.
    *

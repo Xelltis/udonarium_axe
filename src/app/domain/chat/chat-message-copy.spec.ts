@@ -68,6 +68,14 @@ describe('copiedMessageContext()', () => {
     expect('stamp' in copiedMessageContext(line(), 4200)).toBe(false);
   });
 
+  it('carries over which attachments came only with the stamps in it, and writes none where none is kept', () => {
+    const message = new ChatMessage();
+    message.stampAttachments = '["stamp-picture"]';
+    expect(copiedMessageContext(message, 1).stampAttachments).toBe('["stamp-picture"]');
+
+    expect('stampAttachments' in copiedMessageContext(new ChatMessage(), 1)).toBe(false);
+  });
+
   it('leaves behind what points at the tab it came from', () => {
     const message = line();
     message.value = 'それで？';
