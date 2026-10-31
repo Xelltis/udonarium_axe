@@ -3,6 +3,7 @@ import { CardTargetService } from '@axe/application/card/card-target.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
 import { ContextMenuAction, ContextMenuService, ContextMenuType } from '@axe/application/ui/context-menu.service';
@@ -1483,40 +1484,55 @@ describe('GameTableComponent', () => {
   });
 
   describe('camera glide', () => {
-    it('eases the table to the focus and takes the easing off again', () => {
-      vi.useFakeTimers();
+    const FRAME_TIMERS = [
+      'setTimeout',
+      'clearTimeout',
+      'requestAnimationFrame',
+      'cancelAnimationFrame',
+      'performance',
+    ] as const;
+
+    it('glides the table to the focus a frame at a time, with no easing left on the table', () => {
+      vi.useFakeTimers({ toFake: [...FRAME_TIMERS] });
       fixture.detectChanges();
       const tableEl = component.gameTable().nativeElement;
+      const camera = TestBed.inject(TableCameraService);
+      vi.advanceTimersByTime(50);
+      const before = tableEl.style.transform;
 
       TestBed.inject(SelectionSignalService).focusCoordinate.set({ x: 100, y: 100, timestamp: 1 });
       fixture.detectChanges();
-      vi.advanceTimersByTime(50);
-      expect(tableEl.style.transition).toBe('0.2s ease-out');
+      vi.advanceTimersByTime(50 + 16 * 3);
+      const midway = tableEl.style.transform;
+      expect(midway).not.toBe(before);
+      expect(camera.view?.positionX).toBe(component.gestureService.viewPositionX);
 
+      vi.advanceTimersByTime(400);
+      const landed = tableEl.style.transform;
+      expect(landed).not.toBe(midway);
       vi.advanceTimersByTime(100);
+      expect(tableEl.style.transform).toBe(landed);
       expect(tableEl.style.transition).toBe('');
       vi.useRealTimers();
     });
 
-    it('counts the view as written out again once the glide has landed', () => {
-      vi.useFakeTimers();
+    it('tells whatever reads the view about each step of the glide', () => {
+      vi.useFakeTimers({ toFake: [...FRAME_TIMERS] });
       fixture.detectChanges();
-      const tableEl = component.gameTable().nativeElement;
       const coordinates = component['coordinateService'];
+      vi.advanceTimersByTime(50);
 
       TestBed.inject(SelectionSignalService).focusCoordinate.set({ x: 100, y: 100, timestamp: 3 });
       fixture.detectChanges();
-      vi.advanceTimersByTime(149);
-      const whileGliding = coordinates.tabletopTransformVersion();
-
-      vi.advanceTimersByTime(1);
-      expect(tableEl.style.transition).toBe('');
-      expect(coordinates.tabletopTransformVersion()).toBeGreaterThan(whileGliding);
+      vi.advanceTimersByTime(50);
+      const atStart = coordinates.tabletopTransformVersion();
+      vi.advanceTimersByTime(16 * 4);
+      expect(coordinates.tabletopTransformVersion()).toBeGreaterThanOrEqual(atStart + 3);
       vi.useRealTimers();
     });
 
     it('drops the glide when the table goes before it lands', () => {
-      vi.useFakeTimers();
+      vi.useFakeTimers({ toFake: [...FRAME_TIMERS] });
       fixture.detectChanges();
       const tableEl = component.gameTable().nativeElement;
 

@@ -9,6 +9,7 @@ import { BillboardFrameService } from '@axe/application/ui/billboard-frame.servi
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { CAMERA_GLIDE_MS, easeOut } from '@axe/domain/tabletop/camera/camera-glide';
 import { tableCameraAttribute, tableCameraTransform, TableCameraView } from '@axe/domain/tabletop/camera/table-camera';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -106,6 +107,7 @@ export class GameTableGestureService {
 
   private frame: number | null = null;
   private turned = false;
+  private glideFrame: number | null = null;
 
   private mouseGesture: TableMouseGesture | null = null;
   private touchGesture: TableTouchGesture | null = null;
@@ -159,6 +161,7 @@ export class GameTableGestureService {
   destroy(): void {
     if (this.frame !== null) cancelAnimationFrame(this.frame);
     this.frame = null;
+    this.stopGlide();
     this.mouseGesture?.destroy();
     this.mouseGesture = null;
     this.touchGesture?.destroy();
@@ -193,6 +196,7 @@ export class GameTableGestureService {
    * writing and the telling happen together, once, when the frame comes round.
    */
   setTransform(tX: number, tY: number, tZ: number, rX: number, rY: number, rZ: number): void {
+    this.stopGlide();
     if (this.tiltLocked) {
       rX = -this.viewRotateX;
       rY = -this.viewRotateY;
@@ -248,6 +252,38 @@ export class GameTableGestureService {
       rotateZ: this.viewRotateZ,
       orthographic: this.orthographicProjection,
     };
+  }
+
+  /**
+   * Slides the camera by the amounts given over {@link CAMERA_GLIDE_MS}, easing out, and shows each
+   * step in its own frame, so that what reads the view on the way finds it where it is drawn. A
+   * gesture that moves the view while it glides stops the glide where it has got to.
+   */
+  glideBy(tX: number, tY: number, tZ: number): void {
+    this.stopGlide();
+    if (typeof requestAnimationFrame !== 'function') {
+      this.setTransform(tX, tY, tZ, 0, 0, 0);
+      return;
+    }
+    const fromX = this.viewPositionX;
+    const fromY = this.viewPositionY;
+    const fromZ = this.viewPositionZ;
+    let started: number | null = null;
+    const step = (now: number) => {
+      started ??= now;
+      const along = easeOut((now - started) / CAMERA_GLIDE_MS);
+      this.viewPositionX = fromX + tX * along;
+      this.viewPositionY = fromY + tY * along;
+      this.viewPositionZ = fromZ + tZ * along;
+      this.showTransform();
+      this.glideFrame = along < 1 ? requestAnimationFrame(step) : null;
+    };
+    this.glideFrame = requestAnimationFrame(step);
+  }
+
+  private stopGlide(): void {
+    if (this.glideFrame !== null) cancelAnimationFrame(this.glideFrame);
+    this.glideFrame = null;
   }
 
   /**
