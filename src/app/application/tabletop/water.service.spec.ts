@@ -69,6 +69,22 @@ describe('WaterService', () => {
     expect(service.waterAt(4.5 * gridSize, 4.5 * gridSize)).toBeNull();
   });
 
+  it('lays water off the board as it lays it on the board, on either side', async () => {
+    await lay('water', -6, -3, 2, 2);
+    await lay('water', 24, 21, 2, 1);
+
+    expect(service.cells().size).toBe(6);
+    expect(service.waterAt(-5.5 * gridSize, -2.5 * gridSize)).not.toBeNull();
+    expect(service.waterAt(25.5 * gridSize, 21.5 * gridSize)).not.toBeNull();
+    expect(service.waterAt(-3.5 * gridSize, -2.5 * gridSize)).toBeNull();
+  });
+
+  it('keeps the table grid itself while all the water lies on the board', async () => {
+    await lay('water', 1, 1, 2, 2);
+
+    expect(service.grid()).toBe(TestBed.inject(VisionService).cellGrid());
+  });
+
   it('keeps the water on ground nobody has walked to hidden with the rest of that ground', async () => {
     await lay('water', 0, 0, 4, 1);
     vi.spyOn(TestBed.inject(VisionService), 'isHiddenByFog').mockImplementation((x) => x > 2 * gridSize);

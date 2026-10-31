@@ -19,6 +19,13 @@ export interface CellGrid extends MapGrid {
    * Nothing on a grid whose cells are all whole.
    */
   readonly clip?: { readonly width: number; readonly height: number };
+  /**
+   * Where the grid's first column and row stand among the table's cells, for a grid that reaches
+   * past the table's top or left edge. Even, so that each column and row keeps the parity the steps
+   * between hexes are read by. Nothing on a grid that starts where the table does.
+   */
+  readonly originCol?: number;
+  readonly originRow?: number;
 }
 
 export interface CellPoint {
@@ -51,7 +58,9 @@ export function sameCellGrid(a: CellGrid, b: CellGrid): boolean {
     a.rows === b.rows &&
     a.type === b.type &&
     a.clip?.width === b.clip?.width &&
-    a.clip?.height === b.clip?.height
+    a.clip?.height === b.clip?.height &&
+    (a.originCol ?? 0) === (b.originCol ?? 0) &&
+    (a.originRow ?? 0) === (b.originRow ?? 0)
   );
 }
 
@@ -67,11 +76,20 @@ export function cellColRow(grid: CellGrid, index: number): { col: number; row: n
 }
 
 /**
+ * The column and row of a cell index among the table's cells, which on a grid reaching past the
+ * table's top or left edge are not its column and row on the grid. The index is not checked.
+ */
+export function tableColRowOf(grid: CellGrid, index: number): { col: number; row: number } {
+  const { col, row } = cellColRow(grid, index);
+  return { col: col + (grid.originCol ?? 0), row: row + (grid.originRow ?? 0) };
+}
+
+/**
  * The centre of a cell in table pixels, on square and hex grids alike; the centre of what is on the
  * table of a square cut off by the table's edge.
  */
 export function cellCenterOf(grid: CellGrid, index: number): CellPoint {
-  const { col, row } = cellColRow(grid, index);
+  const { col, row } = tableColRowOf(grid, index);
   if (grid.clip && !isHexGrid(grid.type)) return clippedCentre(col, row, grid.sizePx, grid.clip);
   return cellCentre({ x: col, y: row }, grid);
 }
@@ -109,12 +127,14 @@ function clippedCentre(
  */
 export function cellIndexAt(grid: CellGrid, x: number, y: number): number {
   if (grid.sizePx <= 0) return -1;
+  const originCol = grid.originCol ?? 0;
+  const originRow = grid.originRow ?? 0;
   if (!isHexGrid(grid.type)) {
     if (grid.clip && (x >= grid.clip.width || y >= grid.clip.height)) return -1;
-    return cellIndexOf(grid, Math.floor(x / grid.sizePx), Math.floor(y / grid.sizePx));
+    return cellIndexOf(grid, Math.floor(x / grid.sizePx) - originCol, Math.floor(y / grid.sizePx) - originRow);
   }
   const { col, row } = pixelToHexCell(x, y, grid.sizePx, isFlatTopGrid(grid.type));
-  return cellIndexOf(grid, col, row);
+  return cellIndexOf(grid, col - originCol, row - originRow);
 }
 
 /**
@@ -123,7 +143,7 @@ export function cellIndexAt(grid: CellGrid, x: number, y: number): number {
  */
 export function cellPolygonOf(grid: CellGrid, index: number): CellPoint[] {
   if (grid.clip && !isHexGrid(grid.type)) {
-    const { col, row } = cellColRow(grid, index);
+    const { col, row } = tableColRowOf(grid, index);
     const box = clippedBox(col, row, grid.sizePx, grid.clip);
     return [
       { x: box.left, y: box.top },
@@ -153,19 +173,27 @@ export function cellPolygonOf(grid: CellGrid, index: number): CellPoint[] {
  * the cells along the edge overhang it.
  */
 export function gridExtentPx(grid: CellGrid): { minX: number; minY: number; maxX: number; maxY: number } {
+  const originCol = grid.originCol ?? 0;
+  const originRow = grid.originRow ?? 0;
   if (!isHexGrid(grid.type)) {
-    const maxX = grid.cols * grid.sizePx;
-    const maxY = grid.rows * grid.sizePx;
-    if (!grid.clip) return { minX: 0, minY: 0, maxX, maxY };
-    return { minX: 0, minY: 0, maxX: Math.min(maxX, grid.clip.width), maxY: Math.min(maxY, grid.clip.height) };
+    const minX = originCol * grid.sizePx;
+    const minY = originRow * grid.sizePx;
+    const maxX = (originCol + grid.cols) * grid.sizePx;
+    const maxY = (originRow + grid.rows) * grid.sizePx;
+    if (!grid.clip) return { minX, minY, maxX, maxY };
+    return { minX, minY, maxX: Math.min(maxX, grid.clip.width), maxY: Math.min(maxY, grid.clip.height) };
   }
   const { colSpacing, rowSpacing, circumradius } = hexLayoutOf(grid.sizePx, isFlatTopGrid(grid.type));
-  return {
+  const extent = {
     minX: -circumradius,
     minY: -circumradius,
     maxX: colSpacing * grid.cols + circumradius,
     maxY: rowSpacing * grid.rows + circumradius,
   };
+  if (originCol === 0 && originRow === 0) return extent;
+  const left = colSpacing * originCol;
+  const top = rowSpacing * originRow;
+  return { minX: extent.minX + left, minY: extent.minY + top, maxX: extent.maxX + left, maxY: extent.maxY + top };
 }
 
 /**
@@ -173,14 +201,16 @@ export function gridExtentPx(grid: CellGrid): { minX: number; minY: number; maxX
  * up once rather than for every cell.
  */
 function cellCentreFinder(grid: CellGrid): (col: number, row: number) => CellPoint {
+  const originCol = grid.originCol ?? 0;
+  const originRow = grid.originRow ?? 0;
   if (!isHexGrid(grid.type)) {
     const size = grid.sizePx;
     const clip = grid.clip;
-    if (clip) return (col, row) => clippedCentre(col, row, size, clip);
-    return (col, row) => ({ x: (col + 0.5) * size, y: (row + 0.5) * size });
+    if (clip) return (col, row) => clippedCentre(col + originCol, row + originRow, size, clip);
+    return (col, row) => ({ x: (col + originCol + 0.5) * size, y: (row + originRow + 0.5) * size });
   }
   const { colSpacing, rowSpacing, isFlatTop } = hexLayoutOf(grid.sizePx, isFlatTopGrid(grid.type));
-  return (col, row) => hexCellCenter(col, row, colSpacing, rowSpacing, isFlatTop);
+  return (col, row) => hexCellCenter(col + originCol, row + originRow, colSpacing, rowSpacing, isFlatTop);
 }
 
 /** Visits every cell with its index and centre, row by row. Does nothing on a grid with no size. */
@@ -246,10 +276,13 @@ function boxToCellBounds(
 }
 
 function looseCellAt(grid: CellGrid, x: number, y: number): { col: number; row: number } {
+  const originCol = grid.originCol ?? 0;
+  const originRow = grid.originRow ?? 0;
   if (!isHexGrid(grid.type)) {
-    return { col: Math.floor(x / grid.sizePx), row: Math.floor(y / grid.sizePx) };
+    return { col: Math.floor(x / grid.sizePx) - originCol, row: Math.floor(y / grid.sizePx) - originRow };
   }
-  return pixelToHexCell(x, y, grid.sizePx, isFlatTopGrid(grid.type));
+  const { col, row } = pixelToHexCell(x, y, grid.sizePx, isFlatTopGrid(grid.type));
+  return { col: col - originCol, row: row - originRow };
 }
 
 /**

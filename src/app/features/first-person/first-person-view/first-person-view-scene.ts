@@ -168,9 +168,13 @@ export function propInSight(sight: FirstPersonSight, eye: EyeFrame, prop: PropSh
  * The surface of the water in sight, cell by cell: seen from above where the eye stands over it,
  * from below where the eye is under it. Each cell is cut to the near plane as the floor is, and fades
  * with the distance as the water would, and more in murky water the eye is in.
+ *
+ * The cells are numbered on the grid the water is laid on, which reaches past the board where water
+ * lies off it; what has been seen is read on the board's own grid, by the middle of each cell.
  */
 export function waterQuadViews(
   cells: Iterable<WaterCell>,
+  waterGrid: CellGrid,
   camera: FirstPersonCamera,
   sight: FirstPersonSight & { readonly grid: CellGrid },
   look: { readonly scale: number; readonly murk: number | null }
@@ -181,11 +185,14 @@ export function waterQuadViews(
   const nearPx = gridSize * NEAR_CELLS;
   const views: WaterQuadView[] = [];
   for (const cell of cells) {
-    if (seen && !seen.get(cell.index)) continue;
+    if (seen) {
+      const seenAt = cellIndexAt(grid, cell.cx, cell.cy);
+      if (seenAt < 0 || !seen.get(seenAt)) continue;
+    }
     const depth = depthOf(eye, { x: cell.cx, y: cell.cy });
     if (depth > reach + gridSize) continue;
     const zPx = cell.surfacePx > cell.floorPx ? cell.surfacePx : cell.floorPx + WET_FLOOR_LIFT_PX;
-    const polygon = clipPolygonToEye(eye, cellPolygonOf(grid, cell.index), nearPx, zPx);
+    const polygon = clipPolygonToEye(eye, cellPolygonOf(waterGrid, cell.index), nearPx, zPx);
     if (polygon.length < 3) continue;
     const quad = waterQuadOf(cell.index, polygon, zPx, camera.z >= zPx ? 'up' : 'down', depth);
     const far = 1 - (1 - FAR_WATER_OPACITY) * Math.min(Math.max(depth / Math.max(reach, 1), 0), 1);

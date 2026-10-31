@@ -513,9 +513,11 @@ export class FirstPersonViewComponent {
     const camera = this.viewCamera();
     const sight = this.sight();
     const cells = this.water.cells();
-    if (!camera || !sight.grid || sight.gridSize <= 0 || cells.size < 1) return [];
+    const waterGrid = this.water.grid();
+    if (!camera || !sight.grid || !waterGrid || sight.gridSize <= 0 || cells.size < 1) return [];
     return waterQuadViews(
       cells.values(),
+      waterGrid,
       camera,
       { ...sight, grid: sight.grid },
       {

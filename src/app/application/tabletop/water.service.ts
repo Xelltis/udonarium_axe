@@ -9,6 +9,7 @@ import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf, terrainCovers } from '@axe/domain/tabletop/terrain-box';
 import { terrainTopPxAt } from '@axe/domain/tabletop/terrain-slope-surface';
 import { type WaterArea, type WaterCell, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
+import { sameWaterGrid, waterGridOver } from '@axe/domain/tabletop/water/water-grid';
 
 const NO_CELLS: ReadonlyMap<number, WaterCell> = new Map();
 
@@ -53,8 +54,17 @@ export class WaterService {
       });
   });
 
-  /** The grid of the table in view, or null where there is none to lay water on. */
-  readonly grid = computed<CellGrid | null>(() => this.vision.cellGrid());
+  /**
+   * The grid of the table in view, reaching past its edges as far as water laid off the board
+   * does, or null where there is no table to lay water on.
+   */
+  readonly grid = computed<CellGrid | null>(
+    () => {
+      const table = this.vision.cellGrid();
+      return table ? waterGridOver(table, this.areas()) : null;
+    },
+    { equal: sameWaterGrid }
+  );
 
   /**
    * How high the ground stands in every cell, read only while there is water to stand over it.
