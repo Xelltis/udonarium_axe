@@ -2,12 +2,14 @@ import { inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
 import { BillboardFrameService } from '@axe/application/ui/billboard-frame.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { tableCameraAttribute, tableCameraTransform, TableCameraView } from '@axe/domain/tabletop/camera/table-camera';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { SwitchNoticeService } from '@axe/features/tabletop/board-switch/switch-notice.service';
@@ -74,6 +76,7 @@ export class GameTableGestureService {
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly tabletopService = inject(TabletopService);
   private readonly coordinateService = inject(CoordinateService);
+  private readonly tableCamera = inject(TableCameraService);
   private readonly switchPresses = inject(SwitchPressService);
   private readonly switchNotices = inject(SwitchNoticeService);
   private readonly t = inject(TRANSLATE_FN);
@@ -211,19 +214,10 @@ export class GameTableGestureService {
 
   /** Writes the view out and tells the table which way it faces, both in the one frame. */
   private showTransform(): void {
-    const tx = this.viewPositionX.toFixed(4);
-    const ty = this.viewPositionY.toFixed(4);
-    const tz = this.viewPositionZ.toFixed(4);
-    const rx = this.viewRotateX.toFixed(4);
-    const ry = this.viewRotateY.toFixed(4);
-    const rz = this.viewRotateZ.toFixed(4);
-    // The camera is held short of the plane it would be standing on. At the plane the divisor
-    // is nothing and the whole transform is thrown out by the browser, taking the pan and the
-    // rotation with it; past it the board is drawn mirrored.
-    const depth = Math.max(TABLE_PERSPECTIVE_PX / 100, TABLE_PERSPECTIVE_PX - this.viewPositionZ);
-    const projectionScale = this.orthographicProjection ? `scale(${(TABLE_PERSPECTIVE_PX / depth).toFixed(6)}) ` : '';
-    this.gameTableEl.style.transform = `${projectionScale}translateZ(${tz}px) translateY(${ty}px) translateX(${tx}px) rotateY(${ry}deg) rotateX(${rx}deg) rotateZ(${rz}deg)`;
-    this.gameTableEl.dataset['camera'] = [tx, ty, tz, rx, ry, rz, this.orthographicProjection ? 1 : 0].join(',');
+    const view = this.currentView();
+    this.gameTableEl.style.transform = tableCameraTransform(view);
+    this.gameTableEl.dataset['camera'] = tableCameraAttribute(view);
+    this.tableCamera.showView(view);
 
     this.coordinateService.invalidateTabletopTransform();
     // The backdrops follow a move of the view as well as a turn, so they are told every frame.
@@ -241,6 +235,19 @@ export class GameTableGestureService {
     // table turns in rather than in the one after it.
     this.billboardFrame.apply(rotation);
     this.uiSignalService.notifyTableViewRotation(rotation.x, rotation.y, rotation.z);
+  }
+
+  /** The view as the fields hold it now. */
+  private currentView(): TableCameraView {
+    return {
+      positionX: this.viewPositionX,
+      positionY: this.viewPositionY,
+      positionZ: this.viewPositionZ,
+      rotateX: this.viewRotateX,
+      rotateY: this.viewRotateY,
+      rotateZ: this.viewRotateZ,
+      orthographic: this.orthographicProjection,
+    };
   }
 
   /**

@@ -1,7 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { Transform } from '@axe/core/transform/transform';
 import { PERF_TRANSFORM_INIT, perfCounters } from '@axe/core/util/perf-counters';
+import {
+  DEFAULT_TABLE_CAMERA_VIEW,
+  pageOfTablePoint,
+  tableSceneMatrix,
+} from '@axe/domain/tabletop/camera/table-camera';
 
 describe('CoordinateService', () => {
   let service: CoordinateService;
@@ -29,6 +35,48 @@ describe('CoordinateService', () => {
     service.invalidateTabletopTransform();
 
     expect(service.tabletopTransformVersion()).toBe(before + 2);
+  });
+
+  describe('points on the table’s floor', () => {
+    const layout = { left: 8, top: 40, width: 1280, height: 760, boardWidth: 1000, boardHeight: 750 };
+
+    function tableDrawn(): HTMLElement {
+      const table = document.createElement('div');
+      document.body.appendChild(table);
+      service.tabletopOriginElement = table;
+      const camera = TestBed.inject(TableCameraService);
+      camera.setLayout(layout);
+      camera.showView({ ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: 30, positionZ: -500 });
+      return table;
+    }
+
+    it('are worked out from the camera, without reading the page’s styles back', () => {
+      const table = tableDrawn();
+      perfCounters.drain();
+      const scene = tableSceneMatrix({ ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: 30, positionZ: -500 }, layout);
+      const expected = pageOfTablePoint(scene, 300, 200, 0);
+
+      const onPage = service.convertToGlobal({ x: 300, y: 200, z: 0 }, table);
+      const many = service.convertManyToGlobal([{ x: 300, y: 200, z: 0 }], table);
+
+      expect(onPage.x).toBeCloseTo(expected.x, 9);
+      expect(onPage.y).toBeCloseTo(expected.y, 9);
+      expect(many[0].x).toBeCloseTo(expected.x, 9);
+      expect(service.tabletopSceneMatrix().m41).toBe(scene.m41);
+      expect(perfCounters.drain().get(PERF_TRANSFORM_INIT)).toBeUndefined();
+      table.remove();
+    });
+
+    it('come back from the page to where they were on the board', () => {
+      const table = tableDrawn();
+      const onPage = service.convertToGlobal({ x: 640, y: 120, z: 0 }, table);
+
+      const back = service.convertToLocal({ x: onPage.x, y: onPage.y, z: 0 }, table);
+
+      expect(back.x).toBeCloseTo(640, 6);
+      expect(back.y).toBeCloseTo(120, 6);
+      table.remove();
+    });
   });
 
   describe('the transform pool', () => {

@@ -1,13 +1,16 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { Transform } from '@axe/core/transform/transform';
+import { pageOfTablePoint, tablePointOfPage } from '@axe/domain/tabletop/camera/table-camera';
 
 @Injectable({
   providedIn: 'root',
 })
 export class CoordinateService {
   private readonly pointerDeviceService = inject(PointerDeviceService);
+  private readonly tableCamera = inject(TableCameraService);
 
   tabletopOriginElement: HTMLElement = document.body;
 
@@ -63,6 +66,15 @@ export class CoordinateService {
     });
   }
 
+  /**
+   * Whether points on this element are worked out from the table's camera rather than read back
+   * from the page's styles: only the board's own floor is, once the table has drawn a view and been
+   * laid out. Anything standing on the board still walks the styles above it.
+   */
+  private cameraOver(element: HTMLElement): boolean {
+    return element === this.tabletopOriginElement;
+  }
+
   /** The kept table transform where it fits, and a pooled one otherwise; only the pooled one is given back. */
   private borrow(element: HTMLElement, pool: Transform): { transform: Transform; pooled: boolean } {
     const kept = this.originTransform(element);
@@ -78,6 +90,8 @@ export class CoordinateService {
    * perspective above it, as it stands this frame; a point's place is its x and y over its w.
    */
   tabletopSceneMatrix(out: Matrix3D = new Matrix3D()): Matrix3D {
+    const scene = this.tableCamera.sceneMatrix();
+    if (scene) return out.identity().append(scene);
     const borrowed = this.borrow(this.tabletopOriginElement, this._transformA);
     borrowed.transform.sceneMatrix(out);
     this.giveBack(borrowed);
@@ -86,6 +100,11 @@ export class CoordinateService {
 
   /** Converts a point on the page into the element's own space, through every transform above it. */
   convertToLocal(pointer: PointerCoordinate, element: HTMLElement = document.body): PointerCoordinate {
+    const inverse = this.cameraOver(element) && this.tableCamera.inverseSceneMatrix();
+    if (inverse) {
+      const onBoard = tablePointOfPage(inverse, pointer.x, pointer.y);
+      return { x: onBoard.x, y: onBoard.y, z: onBoard.z };
+    }
     const borrowed = this.borrow(element, this._transformA);
     const ray = borrowed.transform.globalToLocal(pointer.x, pointer.y, pointer.z ?? 0);
     this.giveBack(borrowed);
@@ -94,6 +113,11 @@ export class CoordinateService {
 
   /** Converts a point in the element's own space back onto the page. */
   convertToGlobal(pointer: PointerCoordinate, element: HTMLElement = document.body): PointerCoordinate {
+    const scene = this.cameraOver(element) && this.tableCamera.sceneMatrix();
+    if (scene) {
+      const onPage = pageOfTablePoint(scene, pointer.x, pointer.y, pointer.z ?? 0);
+      return { x: onPage.x, y: onPage.y, z: onPage.z };
+    }
     const borrowed = this.borrow(element, this._transformA);
     const ray = borrowed.transform.localToGlobal(pointer.x, pointer.y, pointer.z ?? 0);
     this.giveBack(borrowed);
@@ -105,6 +129,13 @@ export class CoordinateService {
     pointers: readonly PointerCoordinate[],
     element: HTMLElement = document.body
   ): PointerCoordinate[] {
+    const scene = this.cameraOver(element) && this.tableCamera.sceneMatrix();
+    if (scene) {
+      return pointers.map((pointer) => {
+        const onPage = pageOfTablePoint(scene, pointer.x, pointer.y, pointer.z ?? 0);
+        return { x: onPage.x, y: onPage.y, z: onPage.z };
+      });
+    }
     const borrowed = this.borrow(element, this._transformA);
     const result = pointers.map((pointer) => {
       const ray = borrowed.transform.localToGlobal(pointer.x, pointer.y, pointer.z ?? 0);

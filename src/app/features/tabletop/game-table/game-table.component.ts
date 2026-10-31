@@ -29,6 +29,7 @@ import { FirstPersonService } from '@axe/application/tabletop/first-person.servi
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -47,6 +48,7 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ImageFile, imageFileEqual } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { observeSize } from '@axe/core/util/observe-size';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { FilterType, GameTable, GridType } from '@axe/domain/tabletop/game-table';
@@ -248,6 +250,7 @@ export class GameTableComponent {
   private readonly createMenu = inject(CreateObjectMenuService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly coordinateService = inject(CoordinateService);
+  private readonly tableCamera = inject(TableCameraService);
   private readonly imageService = inject(ImageService);
   private readonly motion = inject(MotionService);
   private readonly tabletopService = inject(TabletopService);
@@ -423,6 +426,8 @@ export class GameTableComponent {
       this.redrawTableGrid();
       this.gestureService.setTransform(0, 0, 0, 0, 0, 0);
       this.coordinateService.tabletopOriginElement = this.gameObjects().nativeElement;
+      this.updateCameraLayout();
+      this.destroyRef.onDestroy(observeSize(this.rootElementRef().nativeElement, () => this.updateCameraLayout()));
       this.syncMode2d();
     });
   }
@@ -581,6 +586,8 @@ export class GameTableComponent {
 
   private readonly gridFaces = new GridFaceCache();
   private glideTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The board as wide and deep as its cells run, as last written to the table's box. */
+  private boardPx = { width: 0, height: 0 };
 
   /**
    * The CSS background for a wall: its picture, with the grid picture laid over it when there is
@@ -1149,6 +1156,23 @@ export class GameTableComponent {
     this.coordinateService.invalidateTabletopTransform();
   }
 
+  /**
+   * Tells the camera where the table sits on the page and how big its board is, once the table has
+   * been set up, whenever the box it is seen through changes size, and whenever the board does.
+   */
+  private updateCameraLayout(): void {
+    if (!this._initialized) return;
+    const rect = this.rootElementRef().nativeElement.getBoundingClientRect();
+    this.tableCamera.setLayout({
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+      boardWidth: this.boardPx.width,
+      boardHeight: this.boardPx.height,
+    });
+  }
+
   private tableVisualCenter(): { x: number; y: number } {
     const table = this.currentTable;
     const geo = computeHexMaskGeometry(table.width, table.height, table.gridSize, table.gridType);
@@ -1207,6 +1231,8 @@ export class GameTableComponent {
       const canvas = this.gridCanvas().nativeElement;
       this.gameTable().nativeElement.style.width = width * gridSize + 'px';
       this.gameTable().nativeElement.style.height = height * gridSize + 'px';
+      this.boardPx = { width: width * gridSize, height: height * gridSize };
+      this.updateCameraLayout();
       canvas.style.width = scale === 1 ? '' : `${boardWidthPx}px`;
       canvas.style.height = scale === 1 ? '' : `${boardHeightPx}px`;
 
