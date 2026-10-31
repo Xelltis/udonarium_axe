@@ -10,7 +10,7 @@ import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { DataElement } from '@axe/domain/data/data-element';
+import { DataElement, DataElementType } from '@axe/domain/data/data-element';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { isWithheldHere } from '@axe/domain/tabletop/withheld';
@@ -37,6 +37,17 @@ function getDiceImagePrefix(faces: string[]): string | null {
     default:
       return null;
   }
+}
+
+/**
+ * The items of a detail that hold a value, depth first, leaving out the headings that only gather
+ * others; `visit` is shown every element on the way, headings among them.
+ */
+function itemsOf(element: DataElement, visit: (element: DataElement) => void): DataElement[] {
+  return element.children.flatMap((child) => {
+    visit(child);
+    return child.children.length > 0 ? itemsOf(child, visit) : [child];
+  });
 }
 
 @Component({
@@ -131,6 +142,54 @@ export class DiceSymbolSheetComponent {
   set hideName(value: boolean) {
     const dice = this._diceSymbol();
     if (dice) dice.hideName = value;
+  }
+
+  /**
+   * The item of the die's detail its description is written in: the one named as a description in
+   * the reader's language, or, where none is, the die's one note, as a die brought from a room made
+   * elsewhere may hold it. A die with several notes and none of that name has none, so that no
+   * other note is written over. Looked for again as the detail changes, here or at another seat.
+   */
+  private readonly descriptionItem = computed<DataElement | null>(() => {
+    const dice = this._diceSymbol();
+    const detail = dice?.detailDataElement;
+    if (!dice || !detail) return null;
+    this.objectChange.versionOf(dice.identifier)();
+    this.objectChange.versionOf(detail.identifier)();
+    return this.descriptionItemIn(detail, (element) => this.objectChange.versionOf(element.identifier)());
+  });
+
+  private descriptionItemIn(detail: DataElement, visit: (element: DataElement) => void = () => {}): DataElement | null {
+    const items = itemsOf(detail, visit);
+    const name = this.translateFn('feature.dice.symbolSheet.description');
+    const notes = items.filter((item) => item.isNote);
+    return items.find((item) => item.name === name) ?? (notes.length === 1 ? notes[0] : null);
+  }
+
+  /** What the die says of itself in the popup shown when it is pointed at. */
+  readonly description = computed<string>(() => {
+    const item = this.descriptionItem();
+    if (!item) return '';
+    this.objectChange.versionOf(item.identifier)();
+    return String(item.value ?? '');
+  });
+
+  /**
+   * Writes the die's description. Written for the first time, it is added as a note named as a
+   * description; left empty, nothing is added. The item is looked for in the detail as it stands,
+   * as the next key can come before the note just added is heard of.
+   */
+  writeDescription(value: string): void {
+    const detail = this._diceSymbol()?.detailDataElement;
+    if (!detail) return;
+    const item = this.descriptionItemIn(detail);
+    if (item) {
+      item.value = value;
+      return;
+    }
+    if (value.length < 1) return;
+    const name = this.translateFn('feature.dice.symbolSheet.description');
+    detail.appendChild(DataElement.create(name, value, { type: DataElementType.NOTE }));
   }
 
   /**

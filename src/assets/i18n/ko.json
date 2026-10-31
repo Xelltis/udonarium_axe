@@ -1231,7 +1231,9 @@
         "resetDefault": "기본값으로 되돌리기",
         "copyDice": "복제 만들기",
         "saving": "저장 중 {{percent}}%",
-        "save": "저장"
+        "save": "저장",
+        "description": "설명",
+        "descriptionHint": "주사위에 마우스를 올리면 표시됩니다"
       },
       "tableSetting": {
         "title": "주사위 표 설정",

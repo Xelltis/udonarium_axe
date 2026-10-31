@@ -1231,7 +1231,9 @@
         "resetDefault": "デフォルトに戻す",
         "copyDice": "コピーを作る",
         "saving": "保存中 {{percent}}%",
-        "save": "保存"
+        "save": "保存",
+        "description": "説明",
+        "descriptionHint": "ダイスにマウスを重ねたときの表示に出ます"
       },
       "tableSetting": {
         "title": "ダイス表設定",
