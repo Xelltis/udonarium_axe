@@ -451,8 +451,9 @@ export class ChatMessageService {
 
   /**
    * The stamps put inside a line as it goes out. One this version does not know, or one the room
-   * does not let be sent, is written as its name instead; a picture from the room's sets goes among
-   * the attachments as well, for the room saved to carry it.
+   * does not let be sent, is written as its name instead, with a space between it and any word it
+   * touches, as a stamp ends a word for the commands in a line; a picture from the room's sets goes
+   * among the attachments as well, for the room saved to carry it.
    */
   private inlineStampsGoingOut(text: string): { text: string; pictures: string[] } {
     const pictures: string[] = [];
@@ -462,7 +463,9 @@ export class ChatMessageService {
       const ref = stampOf(site.id);
       out += text.slice(at, site.from);
       if (!ref || !this.stampRules.allows('line', site.id)) {
-        out += keptFromDecoration(`［${site.label}］`);
+        const before = out.at(-1) ?? ' ';
+        const after = text[site.to] ?? ' ';
+        out += `${/\s/.test(before) ? '' : ' '}${keptFromDecoration(`［${site.label}］`)}${/\s/.test(after) ? '' : ' '}`;
       } else {
         out += text.slice(site.from, site.to);
         if (ref.kind === 'image' && !pictures.includes(ref.imageIdentifier)) pictures.push(ref.imageIdentifier);

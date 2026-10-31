@@ -343,7 +343,17 @@ describe('ChatMessageService', () => {
       try {
         const message = said('［了解:seal:ok］と［新顔:sfx:fromthefuture］と［ドッ:sfx:boom］');
 
-        expect(message.text).toBe('［了解］と［新顔］と［ドッ:sfx:boom］');
+        expect(message.text).toBe('［了解］ と ［新顔］ と［ドッ:sfx:boom］');
+      } finally {
+        Config.instance.stampRules = OPEN_STAMP_RULES;
+      }
+    });
+
+    it('keeps the name a stamp the room does not let be sent is written as apart from the words round it', () => {
+      Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['seal:ok'], false);
+      try {
+        expect(said('2d6［了解:seal:ok］').text).toBe('2d6 ［了解］');
+        expect(said('a ［了解:seal:ok］ b').text).toBe('a ［了解］ b');
       } finally {
         Config.instance.stampRules = OPEN_STAMP_RULES;
       }
@@ -367,7 +377,7 @@ describe('ChatMessageService', () => {
         try {
           TestBed.inject(ChatMessageService).editMessage(message, 'まずは［ドッ:sfx:boom］', '', 2000);
 
-          expect(message.text).toBe('まずは［ドッ］');
+          expect(message.text).toBe('まずは ［ドッ］');
         } finally {
           Config.instance.stampRules = OPEN_STAMP_RULES;
         }
@@ -413,7 +423,7 @@ describe('ChatMessageService', () => {
         try {
           service.editMessage(message, 'これだ［絵:image:stamp-picture］', '', 2000);
 
-          expect(message.text).toBe('これだ［絵］');
+          expect(message.text).toBe('これだ ［絵］');
           expect(message.attachmentImageIdentifierList).toEqual([]);
         } finally {
           Config.instance.stampRules = OPEN_STAMP_RULES;
@@ -559,7 +569,7 @@ describe('ChatMessageService', () => {
       try {
         const message = service.sendAsNamed(chatTab, '開いた［了解:seal:ok］［絵:image:door-picture］', null, '扉');
 
-        expect(message.text).toBe('開いた［了解］［絵:image:door-picture］');
+        expect(message.text).toBe('開いた ［了解］ ［絵:image:door-picture］');
         expect(message.attachmentImageIdentifierList).toEqual(['door-picture']);
       } finally {
         Config.instance.stampRules = OPEN_STAMP_RULES;

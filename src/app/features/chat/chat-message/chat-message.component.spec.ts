@@ -1965,7 +1965,7 @@ describe('ChatMessageComponent', () => {
         component.saveEdit();
         await settle();
 
-        expect(message.text).toBe('まずは［ドッ］');
+        expect(message.text).toBe('まずは ［ドッ］');
       } finally {
         Config.instance.stampRules = OPEN_STAMP_RULES;
       }
