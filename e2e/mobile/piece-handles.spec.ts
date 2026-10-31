@@ -28,7 +28,7 @@ test.describe('character pieces seen on a phone', () => {
 
     const piece = page
       .locator('game-character')
-      .filter({ has: page.locator('img.image') })
+      .filter({ has: page.locator('[data-part="picture"]') })
       .filter({ has: page.getByTestId('buff-plate') })
       .first();
     await expect(piece.getByTestId('roll-grab-head')).toBeAttached({ timeout: 10000 });
@@ -37,7 +37,7 @@ test.describe('character pieces seen on a phone', () => {
     const clear = async (): Promise<string> => {
       const head = await boxRound(piece.getByTestId('roll-grab-head'));
       const foot = await boxRound(piece.getByTestId('roll-grab-foot'));
-      const picture = await boxRound(piece.locator('img.image'));
+      const picture = await boxRound(piece.locator('[data-part="picture"]'));
       const labels = [
         picture,
         await boxRound(piece.getByTestId('piece-name')),

@@ -146,7 +146,7 @@ test.describe('mounts', () => {
     await rideAOnB(page);
     const mount = piece(page, 'キャラクターB');
     const rider = page.locator('game-character[data-e2e-pinned="キャラクターA"]');
-    const from = await centreOf(rider.locator('img.image'));
+    const from = await centreOf(rider.locator('[data-part="picture"]'));
     const cell = (await pedestal(mount).boundingBox())!.width;
 
     await drag(page, from, { x: from.x - cell * 3, y: from.y });
@@ -171,16 +171,13 @@ test.describe('mounts', () => {
     const rider = await pinnedPiece(page, 'モンスターB');
     await chooseRide(page, 'モンスターC', '乗り物にする');
     await settle(rider);
-    await drag(page, await centreOf(rider.locator('img.image')), await centreOf(pedestal(mount)));
+    await drag(page, await centreOf(rider.locator('[data-part="picture"]')), await centreOf(pedestal(mount)));
     await settle(rider);
     const offer = page.getByTestId('snackbar');
     await expect(offer).toContainText('モンスターB は モンスターC の上にいます', { timeout: 5000 });
     await offer.getByTestId('snackbar-action').click();
     const at = async (of: typeof mount) => {
-      const [x, y] = /translate3d\(([-\d.]+)px, ([-\d.]+)px/
-        .exec(await placeOf(of))!
-        .slice(1)
-        .map(Number);
+      const [x, y] = (await placeOf(of)).split(',').map(Number);
       return { x, y };
     };
     const gap = async () => {

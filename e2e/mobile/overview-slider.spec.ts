@@ -36,7 +36,7 @@ test.describe('a piece’s overview opened on a phone', () => {
     // The piece is tapped with touches alone. The emulated phone keeps a mouse at the corner of the
     // screen, and a real tap's mouse events go back to it, which reads as leaving the piece.
     // WebKit will not build a Touch, so the touch is a plain object on a plain event.
-    const picture = piece.locator('img.image').first();
+    const picture = piece.locator('[data-part="picture"]').first();
     const box = (await picture.boundingBox())!;
     await picture.evaluate(
       (target, point) => {

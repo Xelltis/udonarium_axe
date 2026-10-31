@@ -45,7 +45,7 @@ async function rideAOnB(page: Page) {
   await chooseRide(page, 'キャラクターB', '乗り物にする');
   await settlePiece(rider);
   await settlePiece(mount);
-  await drag(page, await centreOf(rider.locator('img.image')), await centreOf(pedestal(mount)));
+  await drag(page, await centreOf(rider.locator('[data-part="picture"]')), await centreOf(pedestal(mount)));
   await settlePiece(rider);
   const offer = page.getByTestId('snackbar');
   await expect(offer).toContainText('キャラクターB の上にいます', { timeout: 5000 });
@@ -72,7 +72,7 @@ test('a piece riding a mount stands on it, on a hex grid', async ({ page }) => {
   // down where it is, the mount stands on a cell the rider can be put down on as well.
   const mount = piece(page, 'キャラクターB');
   await settlePiece(mount);
-  const at = await centreOf(mount.locator('img.image'));
+  const at = await centreOf(mount.locator('[data-part="picture"]'));
   await drag(page, at, { x: at.x + 4, y: at.y + 4 });
   await settlePiece(mount);
   await rideAOnB(page);

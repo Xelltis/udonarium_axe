@@ -202,16 +202,14 @@ test.describe('zooming the game table', () => {
   });
 
   test('zooms the game table with the wheel', async ({ page }) => {
-    // The wheel listener is bound to the <game-table> element, and the transform is written to the parent
-    // div of #app-game-table (the #gameTable template reference). A template reference does not become a
-    // DOM id, so style.transform is read from the parent of #app-game-table.
-    const transformedEl = page.locator('#app-game-table').locator('xpath=..');
-    const initialTransform = await transformedEl.evaluate((el) => (el as HTMLElement).style.transform);
+    // The table writes where its camera stands to data-camera each time the view moves.
+    const camera = page.locator('[data-camera]');
+    const initialCamera = await camera.getAttribute('data-camera');
     await page.mouse.move(900, 250);
     await page.mouse.wheel(0, -200);
     await page.waitForTimeout(300);
-    const afterTransform = await transformedEl.evaluate((el) => (el as HTMLElement).style.transform);
-    expect(afterTransform).not.toBe(initialTransform);
+    const afterCamera = await camera.getAttribute('data-camera');
+    expect(afterCamera).not.toBe(initialCamera);
   });
 
   test('does not crash when zoomed out and in with the wheel again and again', async ({ page }) => {

@@ -89,7 +89,7 @@ test.describe('terrain', () => {
     const top = terrain.getByTestId('terrain-glass-face').first();
     await expect(top).toBeAttached();
     const box = (await top.boundingBox())!;
-    const placed = () => terrain.evaluate((el) => (el.firstElementChild as HTMLElement).style.transform);
+    const placed = () => terrain.locator(':scope > [data-location]').first().getAttribute('data-location');
     const before = await placed();
 
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);

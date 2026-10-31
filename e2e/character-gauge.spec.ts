@@ -170,8 +170,8 @@ test.describe('what shows above a piece', () => {
     await expect(badges.first()).toBeAttached({ timeout: 10000 });
     await expect(badges).toHaveCount(2, { timeout: 10000 });
 
-    const movable = piece.locator('> div').first();
-    const before = await movable.evaluate((element) => (element as HTMLElement).style.transform);
+    const movable = piece.locator(':scope > [data-location]').first();
+    const before = await movable.getAttribute('data-location');
 
     await selectBuffView(page, '詳細');
     await expect(badges).toHaveCount(0, { timeout: 5000 });
@@ -185,7 +185,7 @@ test.describe('what shows above a piece', () => {
     await selectBuffView(page, 'アイコン');
     await expect(badges).toHaveCount(2, { timeout: 5000 });
 
-    expect(await movable.evaluate((element) => (element as HTMLElement).style.transform)).toBe(before);
+    expect(await movable.getAttribute('data-location')).toBe(before);
   });
 
   test('moves only that piece when its name label is dragged', async ({ page }) => {

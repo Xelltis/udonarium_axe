@@ -43,7 +43,7 @@ test.describe("a piece picture's width and height", () => {
       .locator('game-character')
       .filter({ hasText: 'キャラクターB' })
       .first()
-      .locator('img.image.chrome-smooth-image-trick');
+      .locator('[data-part="picture"]');
     await expect
       .poll(() => picture.evaluate((img) => parseFloat(img.style.width) / parseFloat(img.style.height)))
       .toBeCloseTo(333 / Number(heightNow), 3);

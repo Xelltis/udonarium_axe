@@ -106,13 +106,11 @@ test.describe('terrain drawn in batches', () => {
         .locator('terrain')
         .filter({ has: page.locator('.cursor-pointer') })
         .nth(opened!.index);
-      const face = door.locator('.z-1').first();
-      const before = await face.evaluate((el) => (el as HTMLElement).style.transform);
+      const before = await door.getAttribute('data-door');
+      expect(before).not.toBeNull();
       await page.mouse.click(opened!.x, opened!.y);
 
-      await expect
-        .poll(() => face.evaluate((el) => (el as HTMLElement).style.transform), { timeout: 5000 })
-        .not.toBe(before);
+      await expect.poll(() => door.getAttribute('data-door'), { timeout: 5000 }).not.toBe(before);
     });
   }
 });

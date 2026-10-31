@@ -100,7 +100,7 @@ test.describe('resources shown as sliders', () => {
       .last()
       .dispatchEvent('click');
     await expect(sheet).toHaveCount(0);
-    const picture = (await piece.locator('img.image').first().boundingBox())!;
+    const picture = (await piece.locator('[data-part="picture"]').first().boundingBox())!;
     await page.mouse.move(picture.x + picture.width / 2, picture.y + picture.height / 2);
     await page.mouse.move(picture.x + picture.width / 2 + 2, picture.y + picture.height / 2 + 2);
 

@@ -71,13 +71,7 @@ test.describe('coins (with motion turned off)', () => {
 
   test('shows the face that came up at once after a throw', async ({ page }) => {
     const coin = page.locator('coin').first();
-    const shown = () =>
-      coin.evaluate((element) => {
-        const face = [...element.querySelectorAll<HTMLElement>('div')].find(
-          (div) => div.style.transform.startsWith('translateZ') && div.style.transform.includes('rotateY')
-        );
-        return face?.style.transform.includes('rotateY(180deg)') ? '裏' : '表';
-      });
+    const shown = async () => ((await coin.getAttribute('data-face')) === 'back' ? '裏' : '表');
     // The chat draws only the lines that fill it while it follows the bottom, so a throw's line is
     // told by the mark left on the last line before it rather than by how many lines are drawn.
     const latest = page

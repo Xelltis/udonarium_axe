@@ -20,7 +20,7 @@ test.describe('the memo kept with a piece', () => {
       .dispatchEvent('click');
     await expect(memo).toHaveCount(0);
 
-    const picture = (await piece.locator('img.image').first().boundingBox())!;
+    const picture = (await piece.locator('[data-part="picture"]').first().boundingBox())!;
     await page.mouse.move(picture.x + picture.width / 2, picture.y + picture.height / 2);
     await page.mouse.move(picture.x + picture.width / 2 + 2, picture.y + picture.height / 2 + 2);
     const toggle = page.getByTestId('overview-memo-toggle');

@@ -3,14 +3,12 @@ import { expect, Locator, Page, test } from '@playwright/test';
 import { openPanel, waitAppReady } from './helpers';
 import { centreOf, pedestal, piece } from './see-through-helpers';
 
-/** Where a piece stands on the table, read off the transform its movable element is drawn with. */
+/** Where a piece stands on the table, as the table last drew it. */
 async function placeOf(of: Locator): Promise<{ x: number; y: number }> {
-  const transform = await of
-    .locator('> div')
-    .first()
-    .evaluate((element) => (element as HTMLElement).style.transform);
-  const [, x, y] = /translate3d\(([-\d.]+)px,\s*([-\d.]+)px/.exec(transform) ?? [];
-  return { x: Number(x), y: Number(y) };
+  const [x, y] = ((await of.locator(':scope > [data-location]').first().getAttribute('data-location')) ?? '')
+    .split(',')
+    .map(Number);
+  return { x, y };
 }
 
 async function openTableSettings(page: Page): Promise<Locator> {

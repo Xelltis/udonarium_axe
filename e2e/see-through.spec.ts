@@ -28,7 +28,7 @@ async function hoverOnto(page: Page, at: Point) {
 test.describe('the see-through parts of a piece’s picture', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
-    await expect(piece(page, 'モンスターC').locator('img.image')).toBeVisible({ timeout: 10000 });
+    await expect(piece(page, 'モンスターC').locator('[data-part="picture"]')).toBeVisible({ timeout: 10000 });
     await closePanels(page);
     await settle(piece(page, 'モンスターC'));
   });
@@ -115,7 +115,7 @@ test.describe('the see-through parts of a piece’s picture under a finger', () 
     await waitAppReady(page);
     const front = piece(page, 'モンスターC');
     const back = piece(page, 'モンスターB');
-    await expect(front.locator('img.image')).toBeVisible({ timeout: 10000 });
+    await expect(front.locator('[data-part="picture"]')).toBeVisible({ timeout: 10000 });
     await closePanels(page);
     await settle(front);
     const behind = await centreOf(pedestal(back));
