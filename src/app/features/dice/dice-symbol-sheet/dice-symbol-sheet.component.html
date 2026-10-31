@@ -37,6 +37,24 @@
       <h3
         class="text-ui-accent border-ui-border-panel m-0 mb-2.5 flex items-center gap-1.5 border-b pb-1.5 text-[13px] font-semibold [&_.material-icons]:text-[16px]!"
       >
+        <i class="material-icons">subject</i>
+        {{ 'feature.dice.symbolSheet.description' | transloco }}
+      </h3>
+      <textarea
+        class="bg-ui-input border-ui-border-panel rounded-ui-sm text-ui-text box-border block min-h-20 w-full resize-y border px-2 py-1 font-[inherit] text-[13px] leading-[1.6]"
+        data-testid="dice-sheet-description"
+        spellcheck="false"
+        [attr.aria-label]="'feature.dice.symbolSheet.description' | transloco"
+        [placeholder]="'feature.dice.symbolSheet.descriptionHint' | transloco"
+        [ngModel]="description()"
+        (ngModelChange)="writeDescription($event)"
+      ></textarea>
+    </section>
+
+    <section class="bg-ui-accent-bg border-ui-border-panel rounded-ui-sm box-border border p-3">
+      <h3
+        class="text-ui-accent border-ui-border-panel m-0 mb-2.5 flex items-center gap-1.5 border-b pb-1.5 text-[13px] font-semibold [&_.material-icons]:text-[16px]!"
+      >
         <i class="material-icons">straighten</i>
         {{ 'feature.dice.symbolSheet.komaImageSection' | transloco }}
       </h3>

@@ -36,17 +36,36 @@ export interface GroundAmbienceSpec {
   unit: number;
   /** How far the phase is offset, so several of these side by side do not move together. */
   phase?: number;
-  /**
-   * Which of the sheets the rise is split into through the depth this one is.
-   *
-   * One sheet over a wide area puts the far and the near at the same depth, which looks
-   * like a band pasted on the board. Near and far are raised separately to give it body.
-   */
-  sliceIndex?: number;
-  sliceCount?: number;
 }
 
-/** How many sheets the rise is split into. One is enough while the depth is shallow. */
+/**
+ * What the rise over an area is drawn from: the area, how tall the sheets stand (`height`), and
+ * how the table lies under the camera.
+ */
+export interface GroundVaporSpec extends GroundAmbienceSpec {
+  /** How deep the area is, in pixels. */
+  depth: number;
+  /** How far the table is turned about the vertical, in degrees. */
+  turn: number;
+  /** How far the table is tipped back from facing the camera, in degrees. */
+  tilt: number;
+}
+
+/**
+ * One sheet of the rise, facing the camera, and the point of the area it stands on, at the near
+ * edge of the stretch it draws.
+ *
+ * Its canvas has its origin at that point, and its particles are drawn out to either side along
+ * the line across the camera's view.
+ */
+export interface VaporSheet {
+  layer: EffectParticleLayer;
+  /** Where on the area the sheet stands, in pixels from the area's top left. */
+  groundX: number;
+  groundY: number;
+}
+
+/** How many sheets the rise is split into, by how deep the area runs away from the camera. One is enough while it is shallow. */
 export function vaporSliceCount(depth: number, unit: number): number {
   const cells = unit > 0 ? depth / unit : 0;
   return Math.min(Math.max(Math.round(cells / 2.5), 1), MAX_VAPOR_SLICES);
@@ -61,8 +80,8 @@ const SURFACE_SEED = 40993;
 const VAPOR_SEED = 15683;
 const MAX_SURFACE_PARTICLES = 420;
 /**
- * The cap on the rising particles counts per sheet.
- * Capped across the whole area, each sheet thins as it widens until a few flames float apart.
+ * The cap on the rising particles, counted for each sheet the depth of the area splits the rise into.
+ * Capped across the whole area alone, a wide area thins until a few flames float apart.
  */
 const MAX_VAPOR_PER_SLICE = 150;
 const MAX_VAPOR_SLICES = 5;
@@ -178,47 +197,84 @@ export function groundSurfaceLayer(spec: GroundAmbienceSpec): EffectParticleLaye
 }
 
 /**
- * What rises, drawn facing the camera. The origin is the middle of the near edge.
- * The canvas spreads a margin to the sides and above.
+ * What rises, drawn on sheets facing the camera.
+ *
+ * Each particle rises from a point of the area of its own, which stays where it is however the
+ * table is turned. The sheets stand one behind another across the camera's line of sight, each
+ * at the near edge of the stretch of the area it draws, and each particle is drawn on the one
+ * standing nearest in front of its point, moved up the sheet by how far its point lies behind
+ * it, so it shows over the cell it rises from. Moved down instead, it would sink under the
+ * floor the sheet stands on. Stood one behind another along the table's own depth, a table
+ * turned side on puts every sheet edge on in one line through the middle of the area.
  */
-export function groundVaporLayer(spec: GroundAmbienceSpec): EffectParticleLayer {
+export function groundVaporSheets(spec: GroundVaporSpec): VaporSheet[] {
   perfCounters.bump(PERF_AMBIENCE_LAYER);
   const width = Math.max(spec.width, 0);
+  const depth = Math.max(spec.depth, 0);
   const height = Math.max(spec.height, 0);
   const unit = unitOf(spec);
+  const turn = radiansOf(spec.turn);
+  const lean = Math.abs(Math.cos(radiansOf(spec.tilt)));
+  const across = { x: Math.cos(turn), y: -Math.sin(turn) };
+  const toward = { x: Math.sin(turn), y: Math.cos(turn) };
+
+  const reach = (width * Math.abs(toward.x) + depth * Math.abs(toward.y)) / 2;
+  const count = vaporSliceCount(reach * 2, unit);
+  const band = (reach * 2) / count;
+  const diagonal = Math.hypot(width, depth);
   const largest = largestVapor(spec.kind);
   const padX = unit * (largest.width / 2 + VAPOR_PAD_MARGIN_UNITS);
   const padY = unit * (largest.height / 2 + VAPOR_PAD_MARGIN_UNITS);
-  const layer: EffectParticleLayer = {
-    width: width + padX * 2,
-    height: height + padY * 2,
-    originX: width / 2 + padX,
-    originY: height + padY,
-    particles: [],
-  };
+  // How far a particle can be moved up its sheet, taken at its widest for this many sheets, so the canvas keeps its size as the table turns while they stay as many.
+  const lift = diagonal / count;
+  const nearEdgeOf = (sheet: number) => -reach + (sheet + 1) * band;
+
+  const sheets: VaporSheet[] = [];
+  for (let index = 0; index < count; index++) {
+    const along = nearEdgeOf(index);
+    sheets.push({
+      layer: {
+        width: diagonal + padX * 2,
+        height: height + padY * 2 + lift,
+        originX: diagonal / 2 + padX,
+        originY: height + padY + lift,
+        particles: [],
+      },
+      groundX: width / 2 + toward.x * along,
+      groundY: depth / 2 + toward.y * along,
+    });
+  }
 
   const density = ambienceDensityOf(spec.density);
-  const slices = Math.max(Math.round(spec.sliceCount ?? 1), 1);
-  const sliceIndex = Math.max(Math.round(spec.sliceIndex ?? 0), 0);
-  const total = Math.round((VAPOR_PER_CELL[spec.kind] * width * density) / unit);
-  const count = Math.min(Math.round(total / slices), MAX_VAPOR_PER_SLICE);
-  if (count < 1) return layer;
+  const wanted = Math.round((VAPOR_PER_CELL[spec.kind] * width * density) / unit);
+  const total = Math.min(wanted, MAX_VAPOR_PER_SLICE * vaporSliceCount(depth, unit));
+  if (total < 1) return sheets;
 
   const color = ambienceColorOf(spec.kind, spec.color);
   const shade = ambiencePalette(spec.kind).secondary;
-  // Each sheet takes its own seed and phase; the same on both, the near and the far would lay one picture over another and give it no body.
-  const random = seededRandom(VAPOR_SEED + sliceIndex * 7919);
-  const elapsed = elapsedOf(spec) + sliceIndex * 211;
-  const columns = Math.min(Math.max(Math.round(width / (unit * 1.8)), 1), 8);
+  const random = seededRandom(VAPOR_SEED);
+  const elapsed = elapsedOf(spec);
+  const columns = clusterCount(width, unit);
+  const rows = clusterCount(depth, unit);
 
-  for (let index = 0; index < count; index++) {
+  for (let index = 0; index < total; index++) {
     const r = randomsOf(random);
-    const particle = vaporParticle(spec.kind, r, elapsed, width, height, unit, color, shade, columns);
-    if (!particle) continue;
-    particle.alpha *= falloff(width / 2 - Math.abs(particle.x), marginOf(unit * 0.5, width));
-    layer.particles.push(particle);
+    const deep = random();
+    const options = vaporOptionsOf(spec.kind, r);
+    if (!options) continue;
+    const point = vaporPointOf(options, r, deep, width, depth, unit, columns, rows);
+    const particle = vaporParticle(options, r, elapsed, height, unit, color, shade);
+    particle.alpha *= falloff(width / 2 - Math.abs(point.x - width / 2), marginOf(unit * 0.5, width));
+
+    const dx = point.x - width / 2;
+    const dy = point.y - depth / 2;
+    const ahead = dx * toward.x + dy * toward.y;
+    const sheet = band > 0 ? Math.min(Math.max(Math.floor((ahead + reach) / band), 0), count - 1) : 0;
+    particle.x += dx * across.x + dy * across.y;
+    particle.y += (ahead - nearEdgeOf(sheet)) * lean;
+    sheets[sheet].layer.particles.push(particle);
   }
-  return layer;
+  return sheets;
 }
 
 /**
@@ -573,34 +629,58 @@ const VAPOR_OPTIONS: Partial<Record<AmbienceKind, readonly RisingOptions[]>> = {
   ],
 };
 
+/** Which of the ways its kind rises a particle takes, or null for a kind that has nothing rising. */
+function vaporOptionsOf(kind: AmbienceKind, r: Randoms): RisingOptions | null {
+  const variants = VAPOR_OPTIONS[kind];
+  if (!variants || variants.length < 1) return null;
+  return variants[Math.min(Math.floor(r.e * variants.length), variants.length - 1)];
+}
+
+/** How many clumps a run of the area gathers its vents into, across or in depth. */
+function clusterCount(span: number, unit: number): number {
+  return Math.min(Math.max(Math.round(span / (unit * 1.8)), 1), 8);
+}
+
+/** The point of the area a particle rises from, in pixels from its top left: in a clump, or anywhere on it. */
+function vaporPointOf(
+  options: RisingOptions,
+  r: Randoms,
+  deep: number,
+  width: number,
+  depth: number,
+  unit: number,
+  columns: number,
+  rows: number
+): { x: number; y: number } {
+  if (!options.clustered) return { x: r.b * width, y: deep * depth };
+  const row = Math.floor(deep * rows);
+  const y = ((row + 0.5) / rows) * depth + (deep * rows - row - 0.5) * unit * 0.4;
+  return {
+    x: ((Math.floor(r.b * columns) + 0.5) / columns) * width + (r.c - 0.5) * unit * 0.4,
+    y: Math.min(Math.max(y, 0), depth),
+  };
+}
+
+/** One rising particle, placed from the point it rises from: `x` is only its sway. */
 function vaporParticle(
-  kind: AmbienceKind,
+  options: RisingOptions,
   r: Randoms,
   elapsed: number,
-  width: number,
   height: number,
   unit: number,
   color: string,
-  shade: string,
-  columns: number
-): EffectParticle | null {
-  const variants = VAPOR_OPTIONS[kind];
-  if (!variants || variants.length < 1) return null;
-  const options = variants[Math.min(Math.floor(r.e * variants.length), variants.length - 1)];
-
+  shade: string
+): EffectParticle {
   const life = options.life * (1 + (options.lifeSpread ?? 0) * (r.f - 0.5));
   const local = wrap(r.a * life + elapsed, life) / life;
   const climb = options.ease ? Math.pow(local, options.ease) : local;
   const from = options.from ?? 0;
-  const base = options.clustered
-    ? ((Math.floor(r.b * columns) + 0.5) / columns - 0.5) * width + (r.c - 0.5) * unit * 0.4
-    : (r.b - 0.5) * width;
 
   // Smoke and haze that only rise read as a sheet sliding; each mass turns and twists slowly on its own beat.
   const churn = options.shape === 'smoke' ? elapsed * 0.00022 + r.b * TAU : 0;
 
   return {
-    x: base + Math.sin(elapsed * 0.0008 + r.a * TAU) * unit * options.sway * local,
+    x: Math.sin(elapsed * 0.0008 + r.a * TAU) * unit * options.sway * local,
     y: -(from + climb * (options.reach - from)) * height,
     size: unit * (options.size + options.grow * local) * scaleOf(options, r.d),
     angle: churn === 0 ? 0 : churn * (0.5 + r.c),
@@ -640,6 +720,10 @@ function largestVapor(kind: AmbienceKind): { width: number; height: number } {
 }
 
 const TAU = Math.PI * 2;
+
+function radiansOf(degrees: number): number {
+  return Number.isFinite(degrees) ? (degrees * Math.PI) / 180 : 0;
+}
 
 /**
  * It thins towards the edge of the box.

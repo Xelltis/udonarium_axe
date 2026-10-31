@@ -37,7 +37,7 @@ import {
   type ChatTextField,
 } from '@axe/features/chat/chat-input/chat-text-field';
 import { computePosition, flip, offset, shift } from '@floating-ui/dom';
-import { Editor, Extension, InputRule } from '@tiptap/core';
+import { Editor, Extension, extensions, InputRule, type KeyboardShortcutCommand } from '@tiptap/core';
 import { BubbleMenu } from '@tiptap/extension-bubble-menu';
 import { Placeholder, UndoRedo } from '@tiptap/extensions';
 import { history } from '@tiptap/pm/history';
@@ -209,6 +209,7 @@ export class ChatEditorField implements ChatTextField {
     this.editor = new Editor({
       element: parent,
       extensions: [
+        keysLeftToComposition(),
         ...CHAT_RICH_EXTENSIONS.map((extension) => (extension === ChatStamp ? this.stampChip() : extension)),
         UndoRedo.extend({ addProseMirrorPlugins: () => [this.undoHistory] }),
         Placeholder.configure({ placeholder: () => host.placeholder() }),
@@ -231,7 +232,7 @@ export class ChatEditorField implements ChatTextField {
           },
         }),
       ],
-      enableCoreExtensions: { clipboardTextSerializer: false },
+      enableCoreExtensions: { clipboardTextSerializer: false, keymap: false },
       editorProps: {
         attributes: () => ({
           class: 'chat-rich',
@@ -686,9 +687,12 @@ export class ChatEditorField implements ChatTextField {
 
   /**
    * Turns a chip right before the caret back into the text it stands for, less its last letter,
-   * right after the syntax typed became it; any other chip goes whole, as one letter would.
+   * right after the syntax typed became it; any other chip goes whole, as one letter would. Nothing
+   * while a word is being made with an input method, whose letters taken off reach the keys as a
+   * Backspace too.
    */
   private unchipBeforeCaret(): boolean {
+    if (this.editor.view.composing) return false;
     const state = this.editor.state;
     const { empty, $from } = state.selection;
     if (this.chipMadeAt !== $from.pos) return false;
@@ -1070,6 +1074,30 @@ function fontsBroughtIn(transaction: Transaction): Set<string> {
 
 function takeFonts(marks: readonly Mark[], fonts: Set<string>): void {
   for (const mark of marks) if (mark.type.name === CHAT_MARK.font) fonts.add(String(mark.attrs['value']));
+}
+
+/**
+ * The editor's own keys, Backspace among them, put in its own place and kept quiet while a word is
+ * being made with an input method.
+ *
+ * The view hands a letter the input method takes off the word being made to the keys as a
+ * Backspace. The editor's own Backspace answers it with a change even where it does nothing, and
+ * that change draws the text over the word being made: the input method loses the word, the
+ * letters left are taken in as typed, and the word starts again after them.
+ */
+function keysLeftToComposition(): Extension {
+  return extensions.Keymap.extend({
+    addKeyboardShortcuts() {
+      const editor = this.editor;
+      const own = this.parent?.() ?? {};
+      return Object.fromEntries(
+        Object.entries(own).map(([key, run]): [string, KeyboardShortcutCommand] => [
+          key,
+          (props) => !editor.view.composing && run(props),
+        ])
+      );
+    },
+  });
 }
 
 /**

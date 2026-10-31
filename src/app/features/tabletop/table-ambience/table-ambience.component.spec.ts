@@ -4,6 +4,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
+import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableAmbienceComponent } from '@axe/features/tabletop/table-ambience/table-ambience.component';
@@ -73,14 +74,14 @@ describe('TableAmbienceComponent', () => {
   it('layers the upright part deeper over a wider area', async () => {
     // A single sheet puts the far and the near at the same depth, which reads as a band.
     fixture.detectChanges();
-    const narrow = fixture.componentInstance.vaporSlices().length;
+    const narrow = fixture.componentInstance.vaporSheets().length;
 
     ambience.width = 16;
     ambience.height = 16;
     await new Promise((resolve) => setTimeout(resolve, 20));
     fixture.detectChanges();
 
-    expect(fixture.componentInstance.vaporSlices().length).toBeGreaterThan(narrow);
+    expect(fixture.componentInstance.vaporSheets().length).toBeGreaterThan(narrow);
   });
 
   it('raises the far sheets above the near ones', async () => {
@@ -88,11 +89,25 @@ describe('TableAmbienceComponent', () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     fixture.detectChanges();
 
-    const grounds = fixture.componentInstance.vaporSlices().map((slice) => slice.groundY);
+    const grounds = fixture.componentInstance.vaporSheets().map((sheet) => sheet.groundY);
     expect(grounds.length).toBeGreaterThan(1);
     for (let index = 1; index < grounds.length; index++) {
       expect(grounds[index]).toBeGreaterThan(grounds[index - 1]);
     }
+  });
+
+  it('stands the sheets one behind another along the line of sight as the table is turned side on', async () => {
+    ambience.width = 16;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    TestBed.inject(UiSignalService).notifyTableViewRotation(50, 0, 90);
+    fixture.detectChanges();
+
+    const sheets = fixture.componentInstance.vaporSheets();
+    expect(sheets.length).toBeGreaterThan(1);
+    const gridSize = TestBed.inject(TabletopService).gridSize();
+    for (const sheet of sheets) expect(sheet.groundY).toBeCloseTo(2 * gridSize);
+    const canvas = element().querySelectorAll<HTMLElement>('effect-canvas')[1];
+    expect(canvas.style.transform).toContain(`translate3d(${sheets[0].groundX}px`);
   });
 
   it('lets the board take the pointer while it is locked', () => {

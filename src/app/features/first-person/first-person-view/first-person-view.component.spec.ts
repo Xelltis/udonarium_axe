@@ -1452,6 +1452,26 @@ describe('FirstPersonViewComponent', () => {
       expect(inside(fixture).skyGradient()).not.toContain('color-mix');
     });
 
+    it('lays a pond ahead where it lies however far off the board other water is laid', async () => {
+      pond(3, 2, 3, 3, 0.3);
+      lookOutOf(pieceAt(4, 7));
+      await settled();
+      const fixture = mount();
+      const transforms = () =>
+        Array.from(element(fixture).querySelectorAll<HTMLElement>('[data-water-quad]')).map(
+          (quad) => quad.style.transform
+        );
+      const before = transforms();
+
+      pond(-7, -5, 2, 2, 0.3);
+      await settled();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(before.length).toBeGreaterThan(0);
+      expect(transforms()).toEqual(expect.arrayContaining(before));
+    });
+
     it('turns the view to the depths for an eye under the surface', async () => {
       pond(2, 4, 5, 6, 2);
       lookOutOf(pieceAt(4, 7));

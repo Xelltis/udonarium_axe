@@ -496,6 +496,37 @@ describe('the chat editor', () => {
     expect(editor.text()).toBe('');
   });
 
+  it('makes no change on the Backspace the view hands on as a word being made loses a letter', () => {
+    const editor = mount('');
+    type(editor, 'こんにち');
+    const view = editor.editor.view;
+    const input = (view as unknown as { input: { composing: boolean } }).input;
+    let changes = 0;
+    editor.editor.on('transaction', () => (changes += 1));
+
+    input.composing = true;
+    const taken = view.someProp('handleKeyDown', (handle) =>
+      handle(view, new KeyboardEvent('keydown', { key: 'Backspace', keyCode: 8 }))
+    );
+    input.composing = false;
+
+    expect(taken).toBeFalsy();
+    expect(changes).toBe(0);
+    expect(editor.text()).toBe('こんにち');
+  });
+
+  it('still takes away what is selected on Backspace once no word is being made', () => {
+    const editor = mount('abc');
+    const view = editor.editor.view;
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 4)));
+
+    view.someProp('handleKeyDown', (handle) =>
+      handle(view, new KeyboardEvent('keydown', { key: 'Backspace', keyCode: 8 }))
+    );
+
+    expect(editor.text()).toBe('');
+  });
+
   it('puts in nothing that waited on a word being made once the editor is taken down', () => {
     const told: string[] = [];
     const editor = mountChatEditor(parent, { text: 'sent', selection: { from: 0, to: 0 }, focused: false }, {

@@ -1,4 +1,4 @@
-import { cellColRow, type CellGrid, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { type CellGrid, cellPolygonOf, tableColRowOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import type { WaterCell } from '@axe/domain/tabletop/water/water-cells';
 
@@ -50,7 +50,7 @@ export function waterSheetsOf(
   const groups = new Map<string, WaterCell[]>();
   const ordered = [...cells].sort((a, b) => a.index - b.index);
   for (const cell of ordered) {
-    const { col, row } = cellColRow(grid, cell.index);
+    const { col, row } = tableColRowOf(grid, cell.index);
     const key = `${Math.floor(col / WATER_CHUNK_CELLS)},${Math.floor(row / WATER_CHUNK_CELLS)}:${lookOf(cell)}`;
     const group = groups.get(key);
     if (group) group.push(cell);
@@ -118,7 +118,7 @@ function rowRuns(grid: CellGrid, group: readonly WaterCell[]): { x: number; y: n
     ]);
   };
   for (const cell of group) {
-    const at = cellColRow(grid, cell.index);
+    const at = tableColRowOf(grid, cell.index);
     if (last && at.row === last.row && at.col === last.col + 1) {
       last = at;
       continue;
