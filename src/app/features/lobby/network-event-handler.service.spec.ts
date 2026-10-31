@@ -22,7 +22,7 @@ import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { ASSET_RETRY_DELAY_MS } from '@axe/core/storage/asset-retries';
 import { AudioSharingSystem } from '@axe/core/storage/audio-sharing-system';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
-import { noteIconChosenByHand } from '@axe/core/storage/icon-chosen-by-hand';
+import { hasChosenIconByHand, noteIconChosenByHand } from '@axe/core/storage/icon-chosen-by-hand';
 import { clearIdentity, loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { ImageSharingSystem } from '@axe/core/storage/image-sharing-system';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -809,6 +809,17 @@ describe('NetworkEventHandlerService', () => {
 
         expect(PeerCursor.myCursor.imageIdentifier).toBe(other);
         expect(PeerCursor.myCursor.name).toBe('Mio');
+      });
+
+      it('takes the account’s own avatar, chosen as the icon, for one lent rather than one chosen by hand', () => {
+        PeerCursor.myCursor.imageIdentifier = AVATAR;
+        account.set({ ...ACCOUNT, avatarUrl: AVATAR });
+        TestBed.tick();
+
+        expect(hasChosenIconByHand(ACCOUNT.userId)).toBe(false);
+        account.set(null);
+        TestBed.tick();
+        expect(PeerCursor.myCursor.imageIdentifier).toBe(DEFAULT_CURSOR_IMAGE_IDENTIFIER);
       });
 
       it('keeps off the icon of an account that chose its icon by hand in this browser before', () => {

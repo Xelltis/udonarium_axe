@@ -28,8 +28,9 @@ import { Logger } from '@axe/core/logging/logger';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { networkMessage$, networkSend } from '@axe/core/network/network-messaging';
 import { transportOf } from '@axe/core/network/transport';
-import { noteIconChosenByHand } from '@axe/core/storage/icon-chosen-by-hand';
+import { forgetIconChosenByHand, noteIconChosenByHand } from '@axe/core/storage/icon-chosen-by-hand';
 import { loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { buildInviteLink } from '@axe/domain/peer/invite-link';
@@ -154,6 +155,7 @@ export class PeerMenuComponent {
    */
   protected readonly isServerTransport = signal(Network.transport === 'server');
   private readonly auth = inject(ServerAuthService);
+  private readonly imageStorage = inject(ImageStorage);
   /**
    * Whether the login is offered here, to a guest on a room server: one who came in by a link never
    * sees the lobby, where it otherwise is.
@@ -440,14 +442,19 @@ export class PeerMenuComponent {
   /**
    * Opens the image picker and makes the chosen image the reader's icon. Closing it without a
    * choice changes nothing. An icon chosen while logged in to a room server is noted as chosen by
-   * hand, so that the account's avatar is no longer put on at login.
+   * hand, so that the account's avatar is no longer put on at login; the account's own avatar, which
+   * the picker offers to the reader alone, goes back to being put on.
    */
   changeIcon() {
-    this.modalService.open<string>(FileSelecterComponent).then((value) => {
+    const avatarUrl = this.auth.account()?.avatarUrl;
+    const ownAvatar = avatarUrl ? this.imageStorage.add(avatarUrl).identifier : null;
+    this.modalService.open<string>(FileSelecterComponent, { ownAvatar }).then((value) => {
       if (!this.myPeer || !value) return;
       this.myPeer.imageIdentifier = value;
       const account = this.auth.account();
-      if (account) noteIconChosenByHand(account.userId);
+      if (!account) return;
+      if (value === ownAvatar) forgetIconChosenByHand(account.userId);
+      else noteIconChosenByHand(account.userId);
     });
   }
 

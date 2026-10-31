@@ -11,7 +11,7 @@ import { Network } from '@axe/core/network/network';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
-import { hasChosenIconByHand } from '@axe/core/storage/icon-chosen-by-hand';
+import { hasChosenIconByHand, noteIconChosenByHand } from '@axe/core/storage/icon-chosen-by-hand';
 import { loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
@@ -315,6 +315,28 @@ describe('PeerMenuComponent', () => {
 
         expect(PeerCursor.myCursor.imageIdentifier).toBe('chosen-icon');
         expect(hasChosenIconByHand('acct_1')).toBe(true);
+      } finally {
+        localStorage.removeItem(STORAGE_KEYS.iconChosenByHand);
+      }
+    });
+
+    it('offers the reader their own avatar to choose, and forgets the icon was chosen by hand once it is', async () => {
+      const avatar = 'https://cdn.discordapp.com/avatars/1/a.png';
+      noteIconChosenByHand('acct_1');
+      vi.spyOn(TestBed.inject(ServerAuthService), 'account').mockReturnValue({
+        userId: 'acct_1',
+        name: 'Kai',
+        avatarUrl: avatar,
+      });
+      const opened = vi.spyOn(TestBed.inject(ModalService), 'open').mockResolvedValue(avatar);
+      try {
+        component.changeIcon();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(opened).toHaveBeenCalledWith(expect.anything(), { ownAvatar: avatar });
+        expect(PeerCursor.myCursor.imageIdentifier).toBe(avatar);
+        expect(hasChosenIconByHand('acct_1')).toBe(false);
       } finally {
         localStorage.removeItem(STORAGE_KEYS.iconChosenByHand);
       }

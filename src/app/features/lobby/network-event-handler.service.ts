@@ -591,7 +591,7 @@ export class NetworkEventHandlerService {
    * Puts the account's name on the cursor where it still has the default, and its avatar where the
    * icon is still the default and the account has never chosen one by hand in this browser. What is
    * still as lent before, as when the login moves straight on to another account or to a new
-   * avatar, counts as the default. An icon found chosen already, as one picked before the login,
+   * avatar, counts as the default, and the account's own avatar, chosen again, as lent. An icon found chosen already, as one picked before the login,
    * counts as chosen by hand from then on, so the avatar does not come over it once a reload has
    * taken it back to the default.
    */
@@ -605,6 +605,10 @@ export class NetworkEventHandlerService {
       lent.name = account.name;
     }
     const icon = cursor.imageIdentifier;
+    if (account.avatarUrl && icon === account.avatarUrl) {
+      lent.imageIdentifier = icon;
+      return;
+    }
     const iconLent = lent.imageIdentifier !== '' && icon === lent.imageIdentifier;
     if (icon !== DEFAULT_CURSOR_IMAGE_IDENTIFIER && !iconLent) {
       noteIconChosenByHand(account.userId);

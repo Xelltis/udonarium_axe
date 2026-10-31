@@ -25,3 +25,10 @@ export function noteIconChosenByHand(accountUserId: string): void {
   if (!accountUserId || chosen.includes(accountUserId)) return;
   writeLocal(STORAGE_KEYS.iconChosenByHand, JSON.stringify([...chosen, accountUserId]));
 }
+
+/** Forgets that an account chose its icon by hand, as when it goes back to its own avatar. */
+export function forgetIconChosenByHand(accountUserId: string): void {
+  const chosen = accountsChosen();
+  if (!chosen.includes(accountUserId)) return;
+  writeLocal(STORAGE_KEYS.iconChosenByHand, JSON.stringify(chosen.filter((id) => id !== accountUserId)));
+}

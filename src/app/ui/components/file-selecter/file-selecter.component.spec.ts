@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AssetOwnershipService } from '@axe/application/file/asset-ownership.service';
+import { ModalService } from '@axe/application/ui/modal.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -45,6 +46,22 @@ describe('FileSelecterComponent', () => {
     } finally {
       storage.delete(avatar.identifier);
       storage.delete(plain.identifier);
+    }
+  });
+
+  it('offers among the pictures the one avatar it is told it may, the reader’s own, and no other', () => {
+    const storage = TestBed.inject(ImageStorage);
+    const own = storage.add('https://cdn.discordapp.com/avatars/1/a.png');
+    const other = storage.add('https://cdn.discordapp.com/avatars/2/b.png');
+    vi.spyOn(TestBed.inject(ModalService), 'option', 'get').mockReturnValue({ ownAvatar: own.identifier });
+    try {
+      const picker = TestBed.createComponent(FileSelecterComponent).componentInstance;
+      const shown = picker.images().map((image) => image.identifier);
+      expect(shown).toContain(own.identifier);
+      expect(shown).not.toContain(other.identifier);
+    } finally {
+      storage.delete(own.identifier);
+      storage.delete(other.identifier);
     }
   });
 
