@@ -132,6 +132,28 @@ export function parseBuffModifierItems(text: string): ParsedBuffModifierRequest[
   return requests;
 }
 
+/**
+ * Whether a buff holds at a value the very status a request moves, the same side of it included.
+ * A helping stacked on such a buff leaves the status held, as holding it there twice is still
+ * holding it there.
+ */
+export function holdsRequestedStatus(
+  modifier: BuffModifier | null,
+  request: Pick<ParsedBuffModifierRequest, 'target' | 'slot'>
+): boolean {
+  return modifier?.operator === 'set' && modifier.target === request.target && modifier.slot === request.slot;
+}
+
+/**
+ * Whether a note piled on a buff speaks of nothing but the status the buff holds at a value, as
+ * `HP+2` does on a buff holding HP. Such a note would only hide the value the status is held at.
+ */
+export function speaksOnlyOfHeldStatus(modifier: BuffModifier | null, note: string): boolean {
+  if (modifier?.operator !== 'set') return false;
+  const items = parseBuffModifierItems(note);
+  return items !== null && items.every((item) => holdsRequestedStatus(modifier, item));
+}
+
 /** Parts the text at its commas of either width, leaving those inside brackets in place. */
 function splitOutsideBrackets(text: string): string[] {
   const items: string[] = [];

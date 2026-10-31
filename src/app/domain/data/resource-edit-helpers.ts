@@ -10,8 +10,10 @@ import {
 import {
   describeBuffModifier,
   describeBuffModifierTarget,
+  holdsRequestedStatus,
   parseBuffModifierRequest,
   ParsedBuffModifierRequest,
+  readBuffModifier,
 } from '@axe/domain/character/buff-modifier';
 import { BuffPileOn } from '@axe/domain/character/buff-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -345,10 +347,12 @@ function grantCalculatedBuff(
   requests.forEach((request, index) => {
     const rowName = index === 0 ? name : `${name}（${describeBuffModifierTarget(request)}）`;
     const effect = describeBuffModifier(request);
-    const rowStacking = stacking && character.buffs.find(rowName) != null;
+    const standing = stacking ? character.buffs.find(rowName) : null;
+    const rowStacking = standing != null;
+    const note = standing && holdsRequestedStatus(readBuffModifier(standing), request) ? '' : effect;
     if (!rowStacking) character.buffs.addRound(rowName, effect, round, appearance);
-    else if (piles === 'extend') character.buffs.extendRound(rowName, effect, round, appearance);
-    else character.buffs.stackRound(rowName, effect, round, appearance);
+    else if (piles === 'extend') character.buffs.extendRound(rowName, note, round, appearance);
+    else character.buffs.stackRound(rowName, note, round, appearance);
 
     const data = character.buffs.find(rowName);
     if (!data) return;

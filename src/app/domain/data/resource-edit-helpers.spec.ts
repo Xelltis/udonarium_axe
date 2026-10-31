@@ -557,6 +557,44 @@ describe('resource-edit-helpers', () => {
       expect(character.buffs.find('石化')!.value).toBe(5);
     });
 
+    it('lets the hold go and writes the new note where more is stacked on another status', () => {
+      const edit = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
+      edit('&!石化/HP/=/0/1');
+
+      expect(edit('&+!石化/MP/-/2/3')).toBe('石化を加算 MP-2/3R    ');
+      expect([character.status.getValue('HP', 'now'), character.status.getValue('MP', 'now')]).toEqual([200, 98]);
+      expect(character.buffs.find('石化')!.currentValue).toBe('MP-2');
+    });
+
+    it('keeps the maximum held where more is stacked on that side of the status', () => {
+      const edit = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
+      edit('&!石化/HP^/=/30/1');
+      const held = character.buffs.find('石化')!.currentValue;
+
+      edit('&+!石化/HP^/+/2/3');
+
+      expect(character.status.getValue('HP', 'max')).toBe(30);
+      expect(character.buffs.find('石化')!.currentValue).toBe(held);
+    });
+
+    it('writes a plain note about another status over a buff holding one, which stays held', () => {
+      applyBuffEdit({ command: '&!石化/HP/=/0/1', object: character, targeted: false }, character);
+
+      applyBuffEdit({ command: '&+石化/MP+2/1', object: character, targeted: false }, character);
+
+      expect(character.buffs.find('石化')!.currentValue).toBe('MP+2');
+      expect(character.status.getValue('HP', 'now')).toBe(0);
+    });
+
+    it('says the held status is missing where it has gone from the sheet before more is stacked', () => {
+      applyBuffEdit({ command: '&!石化/MP/=/0/1', object: character, targeted: false }, character);
+      character.detailDataElement!.getFirstElementByName('MP')!.destroy();
+
+      const text = applyBuffEdit({ command: '&+!石化/MP/+/2/3', object: character, targeted: false }, character);
+
+      expect(text).toBe('石化を加算 MP=0/3R (MPが見つかりません)    ');
+    });
+
     it('writes an unmarked calculated buff over the one standing', () => {
       character.status.changeValue('HP', 'now', -100);
       const before = character.status.getValue('HP', 'now')!;
