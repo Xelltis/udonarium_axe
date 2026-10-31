@@ -12,6 +12,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
+import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -20,6 +21,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { saidWithStamp } from '@axe/domain/chat/stamp-line';
 import {
   encodeVnEmote,
   VN_BUBBLE_ANIMATIONS,
@@ -74,6 +76,7 @@ export class VisualNovelBacklogComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly lineEdit = inject(ChatLineEditService);
   private readonly clock = inject(ChatClockService);
+  private readonly chatMessages = inject(ChatMessageService);
   private readonly imageService = inject(ImageService);
   private readonly translate = inject(TRANSLATE_FN);
   private readonly language = inject(LanguageService);
@@ -275,7 +278,8 @@ export class VisualNovelBacklogComponent {
     if (!this.canEdit(entry.message)) return;
     const raw = entry.message.text ?? '';
     const parsed = vnEmoteOf(entry.message.vnEmote, raw);
-    this.editText.set(vnBodyOf(entry.message.vnEmote, raw));
+    const body = vnBodyOf(entry.message.vnEmote, raw);
+    this.editText.set(entry.message.sentStamp ? saidWithStamp(body) : body);
     this.editKind.set(parsed.kind);
     this.editShape.set(parsed.shape);
     this.editBubbleAnimation.set(parsed.bubbleAnimation);
@@ -317,8 +321,9 @@ export class VisualNovelBacklogComponent {
       flipped: this.editFlipped(),
       exited: this.editExited(),
     });
-    if (message.text !== text || message.vnEmote !== emote) {
-      message.edit(text, emote, this.clock.now());
+    const said = message.sentStamp ? saidWithStamp(message.text ?? '') : message.text;
+    if (said !== text || message.vnEmote !== emote) {
+      this.chatMessages.editMessage(message, text, emote, this.clock.now());
     }
     if (message.vnPortraitPos !== this.editSlot()) {
       message.vnPortraitPos = this.editSlot();

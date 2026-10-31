@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { openPanel, openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
+import { chatInput, expectChatText, openPanel, openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
 
 function pieceOf(page: Page, name: string): Locator {
   return page.locator('game-character').filter({ hasText: name }).first();
@@ -21,10 +21,10 @@ async function speakAs(page: Page, name: string, line: string) {
     await search.press('Enter');
     await expect(chosen).toHaveText(name);
   }
-  const textarea = page.locator('textarea.chat-input');
+  const textarea = chatInput(page);
   await textarea.fill(line);
   await textarea.press('Enter');
-  await expect(textarea).toHaveValue('');
+  await expectChatText(textarea, '');
 }
 
 /** A character's line comes up in a bubble over its piece on the table. */

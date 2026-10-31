@@ -107,6 +107,16 @@ export class PartyService {
       );
   }
 
+  /** Names a player among those who play a party, or takes them off it. */
+  setPlayer(party: Party, userId: string, playing: boolean): void {
+    if (userId.length < 1) return;
+    const held = party.playerIds;
+    const written = writeAllies(playing ? [...held, userId] : held.filter((player) => player !== userId));
+    if (party.players === written) return;
+    party.players = written;
+    this.objectChange.notifyChanged(party.identifier);
+  }
+
   private write(party: Party, allies: readonly string[]): void {
     const written = writeAllies(allies);
     if (party.allies === written) return;

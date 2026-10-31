@@ -42,6 +42,19 @@ test.describe('the battle cut-in', () => {
     await expect(stage).toHaveCount(0);
   });
 
+  test('turns a piece to face across where its picture faces the side it stands on', async ({ page }) => {
+    const panel = await setUpLineup(page);
+    await panel.getByTestId('battle-effect-piece').selectOption({ label: 'キャラクターA' });
+    await panel.getByTestId('battle-facing').selectOption({ label: '左向き' });
+
+    await panel.getByTestId('battle-cut-in-play-here').dispatchEvent('click');
+
+    const stage = page.getByTestId('battle-cut-in');
+    await expect(stage).toBeVisible({ timeout: 10000 });
+    await expect(stage.locator('img[alt="キャラクターA"]')).toHaveClass(/-scale-x-100/);
+    await expect(stage.locator('img[alt="モンスターA"]')).not.toHaveClass(/-scale-x-100/);
+  });
+
   test('closes by itself once the exchange has played', async ({ page }) => {
     const panel = await setUpLineup(page);
 

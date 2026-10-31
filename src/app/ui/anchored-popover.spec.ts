@@ -22,12 +22,25 @@ describe('placing a popover against what it hangs off', () => {
     expect(placed.top).toBe(700 - 6 - 200);
   });
 
+  it('opens upward wherever it fits there when asked to, as at the foot of the screen', () => {
+    const view = { width: 800, height: 600 };
+    const nearTop = new DOMRect(100, 150, 40, 20);
+    expect(fitPopover(nearTop, { width: 200, minHeight: 40, prefer: 'up' }, view, 120).opensUpward).toBe(true);
+    expect(fitPopover(nearTop, { width: 200, minHeight: 40 }, view, 120).opensUpward).toBe(false);
+    const atTop = new DOMRect(100, 30, 40, 20);
+    expect(fitPopover(atTop, { width: 200, minHeight: 40, prefer: 'up' }, view, 120).opensUpward).toBe(false);
+  });
+
   it('sits centred on what it hangs off', () => {
     expect(fitPopover(anchor(100), fit, view, 200).left).toBe(400 + 20 - 150);
   });
 
   it('lines up with the left edge where it is asked to', () => {
     expect(fitPopover(anchor(100), { ...fit, align: 'start' }, view, 200).left).toBe(400);
+  });
+
+  it('lines up with the right edge where it is asked to', () => {
+    expect(fitPopover(anchor(100), { ...fit, align: 'end' }, view, 200).left).toBe(400 + 40 - 300);
   });
 
   it('keeps a margin from the edges of the window', () => {
@@ -93,6 +106,28 @@ describe('a popover that hangs off something on the page', () => {
     popover.dispatchEvent(new Event('pointerdown', { bubbles: true }));
 
     expect(held.isOpen()).toBe(true);
+  });
+
+  it('stands open through a press inside it where it hangs off a button beside it', () => {
+    const button = document.createElement('button');
+    const beside = document.createElement('div');
+    beside.showPopover = () => undefined;
+    beside.hidePopover = () => undefined;
+    document.body.append(button, beside);
+    const apart = new AnchoredPopover(
+      () => button,
+      () => beside,
+      { width: 200, minHeight: 100 }
+    );
+    apart.show();
+
+    beside.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    expect(apart.isOpen()).toBe(true);
+    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    expect(apart.isOpen()).toBe(false);
+    apart.destroy();
+    button.remove();
+    beside.remove();
   });
 
   it('shuts on Escape, and stands through any other key', () => {

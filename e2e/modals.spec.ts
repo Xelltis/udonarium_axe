@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { waitAppReady } from './helpers';
+import { chatInput, waitAppReady } from './helpers';
 
 test.describe('the change-icon modal (file-selector)', () => {
   test('opens the file-selector modal from "change icon"', async ({ page }) => {
@@ -44,7 +44,7 @@ test.describe('editing chat messages', () => {
    */
   async function sendMessage(page: Page, text: string) {
     const rows = page.locator('chat-message');
-    await page.locator('textarea.chat-input').fill(text);
+    await chatInput(page).fill(text);
     await page.locator('chat-input').getByRole('button', { name: '送信' }).click();
     await expect(rows.filter({ hasText: text })).toHaveCount(1, { timeout: 5000 });
     return rows.last();
@@ -64,11 +64,11 @@ test.describe('editing chat messages', () => {
     await waitAppReady(page);
     const row = await sendMessage(page, '編集テスト');
 
-    // It turns into a textarea in place rather than opening another modal.
+    // It turns into an edit box in place rather than opening another modal.
     await startEdit(row);
-    const editing = row.locator('textarea');
+    const editing = row.locator('[data-chat-line-edit]');
     await expect(editing).toBeVisible({ timeout: 5000 });
-    await expect(editing).toHaveValue('編集テスト');
+    await expect(editing).toHaveText('編集テスト');
 
     await editing.fill('編集しました');
     await row.getByRole('button', { name: '変更' }).click();
@@ -83,7 +83,7 @@ test.describe('editing chat messages', () => {
     const row = await sendMessage(page, '取消テスト');
 
     await startEdit(row);
-    const editing = row.locator('textarea');
+    const editing = row.locator('[data-chat-line-edit]');
     await expect(editing).toBeVisible({ timeout: 5000 });
     await editing.fill('捨てる文');
     await row.getByRole('button', { name: 'キャンセル' }).click();

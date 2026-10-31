@@ -4,6 +4,8 @@ import { TableFocusService } from '@axe/application/tabletop/table-focus.service
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Party } from '@axe/domain/party/party';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { PartyListPanelComponent } from '@axe/features/gm-tools/party-list/party-list-panel.component';
 import { expectClosesForAGuest } from '@axe/testing/closes-for-a-guest';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -61,6 +63,33 @@ describe('PartyListPanelComponent', () => {
     const parties = partyService.parties();
     expect(parties).toHaveLength(2);
     expect(parties[0].color).not.toBe(parties[1].color);
+  });
+
+  it('names a player connected now among those who play a party, and takes them off again', async () => {
+    const player = new PeerCursor('party-player-cursor');
+    player.userId = 'party-player';
+    player.name = 'あおい';
+    player.role = PeerRole.Player;
+    player.initialize();
+    panel().addParty();
+    const party = partyService.parties()[0];
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const tick = () =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
+        `[data-testid="party-players-${party.name}"] input[type="checkbox"]`
+      )!;
+    expect(tick().closest('label')?.textContent).toContain('あおい');
+    tick().click();
+    fixture.detectChanges();
+    expect(party.playerIds).toEqual(['party-player']);
+
+    tick().click();
+    fixture.detectChanges();
+    expect(party.playerIds).toEqual([]);
+    player.destroy();
   });
 
   it('puts an unattached character into a party', () => {

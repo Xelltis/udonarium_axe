@@ -43,6 +43,11 @@
       <ng-container appReloadNotice />
     }
     <app-digital-clock></app-digital-clock>
+    @defer (when widgets.gameClock()) {
+      <app-game-clock-widget></app-game-clock-widget>
+    } @error {
+      <ng-container appReloadNotice />
+    }
     @defer (when widgets.compass()) {
       <app-compass></app-compass>
     } @error {

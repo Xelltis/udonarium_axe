@@ -19,6 +19,15 @@ export class TurnState extends GameObject {
     return TurnState._instance;
   }
 
+  /**
+   * Lets go of the one held here as it leaves the store, so that the next reader is given one made
+   * anew, as for a room just started, rather than this one put back as it was.
+   */
+  override onStoreRemoved() {
+    super.onStoreRemoved();
+    if (TurnState._instance === this) TurnState._instance = undefined as unknown as TurnState;
+  }
+
   @SyncVar() currentIdentifier: string = '';
   /** The side whose phase it is, where the round is taken side by side. */
   @SyncVar() currentSide: string = '';

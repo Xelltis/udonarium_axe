@@ -9,6 +9,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { presetSoundLabelKey, soundFileName } from '@axe/domain/media/preset-sound-labels';
+import { isAccountAvatar } from '@axe/domain/peer/account-avatar';
 import { CONCEALED_LOCATION } from '@axe/domain/tabletop/board-switch/concealment';
 import {
   clampSwitchDelay,
@@ -139,7 +140,7 @@ export class SwitchActionListComponent {
   protected readonly images = computed<NameChoice[]>(() => {
     this.objectChange.fileVersion();
     return this.imageStorage.images
-      .filter((image) => image.name.trim().length > 0)
+      .filter((image) => image.name.trim().length > 0 && !isAccountAvatar(image.identifier))
       .map((image) => ({ value: image.identifier, name: image.name }));
   });
 

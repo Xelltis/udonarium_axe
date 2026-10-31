@@ -141,9 +141,14 @@ describe('TableWaterLayerComponent', () => {
 
   it('floats leaves on water given them, and none on bare water', async () => {
     // The leaves are drawn on a canvas the test runtime cannot draw on; a stand-in that takes every call lets them be laid.
+    // The net of light under them is drawn on one as well, the first time any water is, and reads back what it made.
     const anything: () => unknown = () => ({ addColorStop: () => undefined });
+    const createImageData = (width: number, height: number) => ({ data: new Uint8ClampedArray(width * height * 4) });
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
-      new Proxy({}, { get: () => anything, set: () => true }) as never
+      new Proxy(
+        {},
+        { get: (_, key) => (key === 'createImageData' ? createImageData : anything), set: () => true }
+      ) as never
     );
     vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,AAAA');
     const pond = await lay('water', 3, 3);

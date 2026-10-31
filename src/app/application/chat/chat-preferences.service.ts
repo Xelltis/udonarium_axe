@@ -57,12 +57,17 @@ export interface ChatScopedSoundSetting {
 
 const DEFAULT_SOUND: ChatScopedSoundSetting = { scope: 'all', all: DEFAULT_CHAT_SOUND, tabs: {} };
 
+/** Whether lines are typed into the editor for a reader who has not chosen. */
+const RICH_INPUT_BY_DEFAULT = true;
+
 interface StoredChatPreferences {
   fontSize?: number;
   /** Whether the chat log says how novel mode was asked to stage a line. Off unless asked for. */
   showVnEmoteBadge?: boolean;
   /** Whether a chat window's title says how many lines the tab holds. Off unless asked for. */
   showMessageCount?: boolean;
+  /** Whether lines are typed into the editor that draws them as they will look, or into a plain box. */
+  richInput?: boolean;
   colors?: string[];
   display?: ChatDisplayPreferences;
   portrait?: ChatScopedSetting;
@@ -122,6 +127,11 @@ export class ChatPreferencesService {
    * against another - can ask for it, and it stays on this browser.
    */
   readonly showMessageCount = computed(() => this.stored().showMessageCount === true);
+  /**
+   * Whether lines are typed into the editor that draws them as they will look, colours each syntax
+   * and marks what will not work, rather than into a plain box. Kept in this browser only.
+   */
+  readonly richInput = computed(() => this.stored().richInput ?? RICH_INPUT_BY_DEFAULT);
 
   /**
    * How this reader has ruby drawn: over its word or in brackets after it or not at all, over the
@@ -170,6 +180,11 @@ export class ChatPreferencesService {
   /** Turns the line count beside a chat window's title on or off for this reader. */
   setShowMessageCount(v: boolean): void {
     this.patch({ showMessageCount: v });
+  }
+
+  /** Has lines typed into the editor that draws them as they will look, or into a plain box. */
+  setRichInput(v: boolean): void {
+    this.patch({ richInput: v });
   }
 
   /** Sets the chat text size, clamped to the allowed range; anything not a number falls back to the default. */
@@ -282,6 +297,7 @@ function readStored(): StoredChatPreferences {
     if (typeof source['fontSize'] === 'number') stored.fontSize = clampFontSize(source['fontSize']);
     if (source['showVnEmoteBadge'] === true) stored.showVnEmoteBadge = true;
     if (source['showMessageCount'] === true) stored.showMessageCount = true;
+    if (typeof source['richInput'] === 'boolean') stored.richInput = source['richInput'];
     const colors = readColors(source['colors']);
     if (colors) stored.colors = colors;
     const display = readDisplay(source['display']);

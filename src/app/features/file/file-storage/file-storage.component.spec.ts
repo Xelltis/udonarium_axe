@@ -40,6 +40,24 @@ describe('FileStorageComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('lists no account’s avatar among the room’s pictures, untagged or all', () => {
+    const storage = TestBed.inject(ImageStorage);
+    const avatar = storage.add('https://cdn.discordapp.com/avatars/1/a.png');
+    const plain = storage.add('https://example.com/b.png');
+    try {
+      const listed = () => component.images().map((image) => image.identifier);
+      expect(listed()).toContain(plain.identifier);
+      expect(listed()).not.toContain(avatar.identifier);
+
+      component.selectTag.set(component.tagList()[1]);
+      expect(listed()).toContain(plain.identifier);
+      expect(listed()).not.toContain(avatar.identifier);
+    } finally {
+      storage.delete(avatar.identifier);
+      storage.delete(plain.identifier);
+    }
+  });
+
   it('lets the panel take the pointer again once the drag ends', async () => {
     await expectPanelDragRecovery(FileStorageComponent);
   });

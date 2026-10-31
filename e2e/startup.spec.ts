@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { openFabMenu, waitAppReady } from './helpers';
+import { chatInput, openFabMenu, waitAppReady } from './helpers';
 
 test.describe('starting the application', () => {
   test('starts the app', async ({ page }) => {
@@ -37,7 +37,7 @@ test.describe('panels shown at start', () => {
   test('opens the connection and chat panels by itself at start-up', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('input[placeholder="ニックネーム"]')).toBeVisible({ timeout: 20000 });
-    await expect(page.locator('textarea.chat-input')).toBeVisible({ timeout: 20000 });
+    await expect(chatInput(page)).toBeVisible({ timeout: 20000 });
   });
 });
 

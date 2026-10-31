@@ -8,7 +8,7 @@ name: CI
 # request take tens of minutes. Run `npm run e2e` locally.
 #
 # The unit tests run their two ways as separate jobs: ng test with the settings the Angular
-# builder makes, npx vitest run with vitest.config.ts. One does fail without the other, so the
+# builder makes, npx vitest run with vitest.config.mts. One does fail without the other, so the
 # check's name tells which.
 
 on:

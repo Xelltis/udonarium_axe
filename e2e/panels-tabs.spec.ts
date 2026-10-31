@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { closeFabMenu, openPanel, waitAppReady } from './helpers';
+import { chatInput, closeFabMenu, expectChatText, openPanel, waitAppReady } from './helpers';
 
 /** The title bar of a panel, which is what a panel is dragged and dropped by. */
 function barOf(panel: Locator): Locator {
@@ -86,7 +86,7 @@ test.describe('gathering panels into tabs', () => {
   });
 
   test('keeps a half-written chat message when panels are gathered', async ({ page }) => {
-    const input = page.locator('textarea.chat-input');
+    const input = chatInput(page);
     await input.fill('書きかけの一行');
     await openPanel(page, 'テーブル設定');
 
@@ -95,7 +95,7 @@ test.describe('gathering panels into tabs', () => {
     await dragBarOnto(page, carried, landing);
 
     await expect(landing.locator('[role="tab"]')).toHaveCount(2);
-    await expect(input).toHaveValue('書きかけの一行');
+    await expectChatText(input, '書きかけの一行');
   });
 
   test('turns a tab back into a panel of its own when it is dragged out', async ({ page }) => {

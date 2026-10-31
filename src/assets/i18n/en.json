@@ -388,7 +388,9 @@
         "gather": "Gather a party on this spot",
         "gatherOnTable": "{{name}} (the {{count}} on the table)",
         "gatherWithAway": "{{name}} (bring in {{count}} more)",
-        "allies": "Stands with:"
+        "allies": "Stands with:",
+        "players": "Players:",
+        "playersHint": "The players ticked share the sight of every piece of the party and may look out of any of them in first person. For a table that moves one piece together, put the piece in a party and tick its players."
       }
     },
     "hotbar": {
@@ -1938,6 +1940,7 @@
           "send": "Send",
           "newline": "Start a new line",
           "history": "Bring back what you sent",
+          "tabs": "Switch the chat tab",
           "search": "Search the log, with the pointer over the chat window"
         },
         "firstPerson": {
@@ -3217,6 +3220,8 @@
         "openFromRound": "Choose where notices go",
         "kind_round": "Round and turn progress",
         "kindHint_round": "Rounds starting and ending, turns, buffs running out or swept off",
+        "kind_clock": "Time in the story",
+        "kindHint_clock": "When the game master moves the time in the story on or back",
         "kind_diceReveal": "Dice revealed on the table",
         "kindHint_diceReveal": "The face of a hidden die when it is opened",
         "kind_trigger": "Triggers",
@@ -3559,12 +3564,14 @@
       },
       "invite": {
         "joining": "Joining \"{{roomName}}\"…",
+        "askLogin": "To join \"{{roomName}}\" as a player or GM, log in with Discord. Without logging in, you join as a guest",
         "notFound": "\"{{roomName}}\" was not found",
         "failed": "Could not join \"{{roomName}}\"",
         "banned": "Cannot join \"{{roomName}}\". The room server's operator has blocked this connection.",
         "offline": "You are offline, so you cannot join \"{{roomName}}\". To join, switch to online in the connection panel",
         "openLobby": "Open lobby",
-        "dismiss": "Dismiss"
+        "dismiss": "Dismiss",
+        "watch": "Join as a guest"
       },
       "account": {
         "login": "Log in with Discord",
@@ -3701,11 +3708,12 @@
         "sendToTickerHint": "Also run this line around the edge of the screen",
         "tools": "Input settings",
         "myDice": "My Dice",
-        "stamp": "Send a stamp (with what you have typed, if anything)"
+        "stamp": "Put in a stamp",
+        "bar": "Chat input tools",
+        "colorSlot": "Colour {{n}}",
+        "colors": "Speech colour"
       },
       "decoration": {
-        "title": "Text decoration",
-        "button": "Style",
         "bold": "Bold",
         "italic": "Italic",
         "strike": "Strikethrough",
@@ -3886,7 +3894,9 @@
         "ruby_size_half": "Half the text",
         "ruby_size_normal": "Standard",
         "ruby_size_large": "Large",
-        "rubyHint": "Applies to ruby in the chat, novel mode, shared notes and saved logs. This setting is for this device only"
+        "rubyHint": "Applies to ruby in the chat, novel mode, shared notes and saved logs. This setting is for this device only",
+        "richInput": "Use the formatted chat input",
+        "richInputTooltip": "Write bold, colours and ruby in the chat input as they will look, with each syntax coloured and what will not work marked. Off, the input takes the syntax as typed. This screen only"
       },
       "systemAvatar": {
         "title": "System-chan",
@@ -4095,6 +4105,122 @@
         "noPacks": "The room has no stamp sets yet",
         "tooLarge": "Over 2MB and not added: {{names}}",
         "alreadyIn": "That picture is in this set already"
+      },
+      "lint": {
+        "list": "Syntax notes",
+        "dice": {
+          "plainText": "Not a command of this dice bot, so it is sent as chat",
+          "unrollable": "The dice bot cannot roll this, so no result comes",
+          "failed": "The dice bot breaks off rolling this, so no result comes",
+          "tooMany": "Too many dice to roll, so the dice bot does not roll it",
+          "noRepeat": "Repeated 0 times, it is not rolled",
+          "cannotCheck": "The dice bot could not be loaded, so this cannot be checked",
+          "tooManyDice": "A term rolls up to 200 dice; more comes out as 0",
+          "tooManySides": "A die has up to 10000 sides; more comes out as 0",
+          "tooManyRepeats": "A roll repeats up to 100 times"
+        },
+        "target": {
+          "none": "No target is picked out, so \"No target selected\" is sent in place of this line"
+        },
+        "ref": {
+          "unknownKept": "\"{{name}}\" is on neither the sheet nor the palette, so it is sent as typed",
+          "unknownEmptied": "\"{{name}}\" is on neither the sheet nor the palette, so it comes out empty",
+          "noSpeaker": "The speaker is no piece, so references are not filled in"
+        },
+        "edit": {
+          "noSpeaker": "The speaker is no piece, so this does nothing",
+          "keptOffTable": "This does nothing while you are watching"
+        },
+        "res": {
+          "noOperator": "No + - = or > after the name, so this does nothing",
+          "noAmount": "No amount, so this does nothing",
+          "unknownStatus": "{{piece}} has no \"{{name}}\", so this does nothing",
+          "badOption": "Letters after the amount cannot be read, so this does nothing"
+        },
+        "buff": {
+          "noName": "The buff has no name, so this does nothing",
+          "unreadable": "The status, operation or amount cannot be read, so no buff is laid",
+          "missingStatus": "There is no \"{{name}}\", so that status does not move",
+          "notFound": "{{piece}} has no buff \"{{name}}\"",
+          "roundsDefault": "The rounds are no number, so it lasts 3 rounds"
+        },
+        "sweep": {
+          "gmOnly": "Only the GM can sweep buffs off"
+        },
+        "portrait": {
+          "unknown": "No such portrait, so this is sent as typed",
+          "lostByTarget": "A line aimed at targets does not change the portrait"
+        },
+        "cutIn": {
+          "secret": "A secret line does not start the cut-in \"{{name}}\"",
+          "lostByTarget": "A line aimed at targets does not start the cut-in \"{{name}}\""
+        },
+        "effect": {
+          "blank": "Effects after an empty 《》 are not read",
+          "unknown": "The effect \"{{name}}\" is not in the library",
+          "extra": "One effect plays per line; the rest are not read",
+          "noTarget": "No piece is targeted or selected, so the effect “{{name}}” does not play"
+        },
+        "battle": {
+          "noSpeaker": "The speaker is no piece, so no battle cut-in plays",
+          "noTarget": "No piece is targeted or selected, so the battle cut-in does not play"
+        },
+        "diceToken": {
+          "unknown": "There is no piece named \"{{name}}\"",
+          "keptOffTable": "Dice do not move while you are watching"
+        },
+        "deco": {
+          "unpaired": "An unclosed decoration shows as typed",
+          "hidesCommand": "Inside a decoration, this is not read as a command"
+        },
+        "vn": {
+          "dropped": "Unknown words ({{words}}) leave the 〔〕 as text",
+          "duplicate": "Two words of one kind leave the 〔〕 as text"
+        },
+        "chipNotAtEnd": "Works only at the end of the line",
+        "stamp": {
+          "unknown": "“{{name}}” is a stamp this version does not have, so its name is shown instead",
+          "denied": "“{{name}}” is a stamp this room has stopped, so its name is sent instead"
+        }
+      },
+      "syntax": {
+        "title": "Write syntax",
+        "ruby": "Ruby",
+        "rubyWrap": "Ruby over the selected word",
+        "base": "word",
+        "reading": "reading",
+        "dice": "Dice",
+        "secretRoll": "Roll in secret",
+        "repeat": "Roll repeatedly",
+        "reference": "Reference",
+        "targetReference": "A value of the target",
+        "name": "name",
+        "resource": "Resource change",
+        "text": "text",
+        "toTarget": "On the target",
+        "secret": "In secret",
+        "buff": "Buff",
+        "buffPlain": "Lay",
+        "buffEffect": "effect",
+        "buffCalculated": "Move a status",
+        "buffRemove": "Take off",
+        "buffRoundsDown": "Count rounds down",
+        "buffClear": "Clear those at 0 rounds",
+        "buffSweep": "Take off the whole table",
+        "portrait": "Portrait",
+        "portraitHide": "No portrait",
+        "effect": "Effects and cut-ins",
+        "battle": "Battle cut-in",
+        "quote": "Quote",
+        "quoteLine": "Quote"
+      },
+      "toolbar": {
+        "label": "Formatting",
+        "style": "Size, font and colour",
+        "normal": "Normal",
+        "clearColor": "No colour",
+        "applyRuby": "Add",
+        "removeRuby": "Remove the ruby"
       }
     },
     "visualNovel": {
@@ -5572,11 +5698,22 @@
       "onTable": "Pieces on the table",
       "toLeft": "To left",
       "toRight": "To right",
+      "partyHeading": "Sides of the parties",
+      "partyHint": "Put a party on the left or the right, and its members not put on a side of their own stand there, until it is changed.",
+      "partyNone": "Neither",
+      "withParty": "party",
+      "withPartyHint": "Stands where its party does",
+      "followParty": "Back to its party",
       "effectHeading": "Attack effect of a piece",
       "effectHint": "An attack that names no effect plays the effect set on the piece. Without one, an effect that suits the amount of damage or healing plays.",
       "piece": "Piece",
       "effect": "Effect",
       "stageEffect": "(None)",
+      "facing": "Facing",
+      "facingAsDrawn": "As drawn",
+      "facingLeft": "Faces left",
+      "facingRight": "Faces right",
+      "facingHint": "Say which way the picture faces, and the stage turns it left for right where it would face away from the one across.",
       "noPieces": "There are no pieces on the table.",
       "roomHeading": "Room settings",
       "roomMasterOnly": "Only the GM can change these.",
@@ -5602,6 +5739,31 @@
       "addPicture": "Add picture",
       "removePicture": "Remove “{{name}}”",
       "picturesHint": "Pictures added here can be chosen as the stage, up to {{limit}}."
+    },
+    "gameClock": {
+      "title": "Time in the story",
+      "dayFormat": "Day {n}",
+      "defaultPeriods": "Morning,Noon,Evening,Night",
+      "announceOn": "Time moves on: {{day}}, {{time}}",
+      "announceBack": "Time goes back: {{day}}, {{time}}",
+      "stepOn": "Move the time on",
+      "stepBack": "Move the time back",
+      "settings": "Set up the time in the story",
+      "close": "Hide the time in the story",
+      "mode": "Told by",
+      "mode_periods": "Parts of the day",
+      "mode_hours": "24 hours",
+      "day": "Day",
+      "period": "Part of the day now",
+      "periods": "Names of the parts of the day",
+      "periodsHint": "Write them in the order of a day, with commas between. Empty is Morning, Noon, Evening, Night.",
+      "time": "Time now",
+      "step": "One step",
+      "stepMinutes": "{{n}} min",
+      "stepHours": "{{n}} h",
+      "dayFormatLabel": "How the day is written",
+      "dayFormatHint": "{n} is the number of the day (e.g. Day {n}). Empty is Day {n}.",
+      "announce": "Say it in the chat when the time moves on or back"
     }
   },
   "app": {
@@ -5621,6 +5783,7 @@
       "gameResources": "Game resources",
       "media": "Media",
       "clock": "Clock",
+      "gameClock": "Time in the story",
       "compass": "Compass",
       "connectionQuality": "Connection quality",
       "miniPlayer": "Mini player",

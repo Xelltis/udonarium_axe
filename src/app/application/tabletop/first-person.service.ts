@@ -12,6 +12,8 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { isControllableByUser } from '@axe/domain/character/character-control';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { Party } from '@axe/domain/party/party';
+import { partyIdsOwnedBy } from '@axe/domain/party/party-membership';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import {
   directionOf,
@@ -222,12 +224,16 @@ export class FirstPersonService {
     return overlay?.rememberSeen ? overlay.explored : null;
   });
 
-  /** The cells in plain sight from the eye, cut back to what the table shows this seat. */
+  /**
+   * The cells in plain sight from the eye, cut back to what the table shows this seat. A view the
+   * game master holds the room in is what the piece sees, whoever looks out of it: a seat with no
+   * eyes of its own there would otherwise be held in the dark.
+   */
   readonly litCells = computed<CellBits | null>(() => {
     const sight = this.sight();
     if (!sight) return null;
     const overlay = this.vision.overlayVision();
-    if (this.isGameMaster() || !overlay || overlay.visible.count !== sight.count) return sight;
+    if (this.isGameMaster() || this.forced() || !overlay || overlay.visible.count !== sight.count) return sight;
     const lit = sight.copy();
     lit.and(overlay.visible);
     return lit;
@@ -337,6 +343,12 @@ export class FirstPersonService {
     return minimapViewOf({ ...ground, reveal: this.reveal() }, pose);
   });
 
+  /**
+   * Whether this seat may walk the piece it looks out of. A view the game master has put up for the
+   * room is for its owner and the players of its party to walk and everyone else to watch: a piece
+   * nobody has claimed is anyone's on the table, but here it is the game master's, who set it out
+   * in front of the room, unless its party names players.
+   */
   readonly canWalk = computed(() => {
     const piece = this.piece();
     if (!piece) return false;
@@ -345,10 +357,9 @@ export class FirstPersonService {
     if (!me || me.isGuest) return false;
     if (piece.isLock || this.movePlan.isPlanning() || this.replay.isOpen()) return false;
     if (me.isGameMaster) return true;
-    // A view the game master has put up for the room is the owner's to walk and everyone
-    // else's to watch. A piece nobody has claimed is anyone's on the table, but here it is
-    // the game master's alone: they are the one who set it out in front of the room.
-    if (this.forced()) return piece.owner.length > 0 && isControllableByUser(piece, me.userId);
+    if (this.forced()) {
+      return (piece.owner.length > 0 && isControllableByUser(piece, me.userId)) || this.plays(piece, me.userId);
+    }
     return isControllableByUser(piece, me.userId);
   });
 
@@ -387,8 +398,27 @@ export class FirstPersonService {
     this.table();
     const characters = this.objectStore.getObjects<GameCharacter>(GameCharacter);
     for (const character of characters) this.objectChange.versionOf(character.identifier)();
-    return firstPersonSeats(characters, PeerCursor.myCursor?.userId ?? '', (character) => this.canLookOutOf(character));
+    const userId = PeerCursor.myCursor?.userId ?? '';
+    return firstPersonSeats(
+      characters,
+      userId,
+      (character) => this.canLookOutOf(character),
+      new Set(this.playedParties(userId))
+    );
   });
+
+  /** Whether a user is named among the players of the party the piece is in. */
+  private plays(piece: GameCharacter, userId: string): boolean {
+    return userId.length > 0 && this.playedParties(userId).includes(piece.partyIdentifier);
+  }
+
+  /** The parties that name a user among their players, by identifier. */
+  private playedParties(userId: string): string[] {
+    this.objectChange.collectionOf(Party.aliasName)();
+    const parties = this.objectStore.getObjects<Party>(Party);
+    for (const party of parties) this.objectChange.versionOf(party.identifier)();
+    return partyIdsOwnedBy([], userId, parties);
+  }
 
   canLookOutOf(piece: GameCharacter): boolean {
     const table = this.table();

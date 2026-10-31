@@ -29,45 +29,25 @@
   font-size: 13px !important;
 }
 
-/* The flex settings of chat-input's speaker / recipient / dice bot selects.
-   Moved over from chat-input.component.css, and kept global so that they
-   survive the scoped CSS going away with the move to Tailwind. */
+/* The speaker, recipient and dice bot selects in the row over chat-input. Each keeps a width that
+   still reads a name, and the row sends the dice bot on to a line of its own rather than squeeze them
+   below it. The speaker and the recipient share out what room the row has between them, so no gap
+   opens before the dice bot however wide the window is.
+   Moved over from chat-input.component.css, and kept global so that they survive the scoped CSS going
+   away with the move to Tailwind. */
 .ng-select.ud-select.chat-select {
-  flex: 1 1 9rem;
+  flex: 1 1 120px;
   width: auto !important;
-  min-width: 7rem;
-  max-width: 100%;
+  min-width: 96px;
 }
 
 .ng-select.ud-select.chat-select.chat-select--to {
-  flex-basis: 7rem;
+  min-width: 72px;
 }
 
 .ng-select.ud-select.chat-select.chat-select--game-type {
-  flex-basis: 11rem;
-}
-
-/* At chat-input's @container (max-width: 420px) and (max-width: 320px),
-   the speaker select's flex-basis changes. The chat-input-controls class
-   serves as the container. */
-@container (max-width: 420px) {
-  .ng-select.ud-select.chat-select {
-    flex-basis: calc(50% - 16px);
-    min-width: 0;
-  }
-  .ng-select.ud-select.chat-select.chat-select--game-type {
-    flex-basis: 100%;
-  }
-  /* A packed input keeps the help and settings buttons beside the dice bot, giving that row to the list below. */
-  .ng-select.ud-select.chat-select.chat-select--game-type.chat-select--shares-row {
-    flex-basis: 6rem;
-  }
-}
-
-@container (max-width: 320px) {
-  .ng-select.ud-select.chat-select {
-    flex-basis: 100%;
-  }
+  flex: 0 1 160px;
+  min-width: 112px;
 }
 
 /* The novel mode toolbar is packed tight across, so the speaker select keeps its width down and shrinks. */

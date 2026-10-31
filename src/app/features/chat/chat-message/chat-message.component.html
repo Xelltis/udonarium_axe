@@ -92,11 +92,8 @@
             [class.select-text!]="isSelectingText()"
           >
             @if (isEditing()) {
-              <div class="flex flex-col gap-1.5 py-1">
+              <div class="py-1">
                 <ng-container [ngTemplateOutlet]="editBox" />
-                <div class="text-ui-dim flex items-center justify-end gap-2 text-[11px]">
-                  <ng-container [ngTemplateOutlet]="editButtons" />
-                </div>
               </div>
             } @else if (!isSecret() || chatMessage.isSendFromSelf || canRevealSecret) {
               <ng-container [ngTemplateOutlet]="lineWords" />
@@ -216,11 +213,8 @@
               [class.select-text!]="isSelectingText()"
             >
               @if (isEditing()) {
-                <span class="ml-1.5 inline-flex w-full max-w-md flex-col gap-1 align-top">
+                <span class="ml-1.5 inline-flex w-full max-w-md flex-col align-top">
                   <ng-container [ngTemplateOutlet]="editBox" />
-                  <span class="text-ui-dim flex items-center justify-end gap-2 text-[11px]">
-                    <ng-container [ngTemplateOutlet]="editButtons" />
-                  </span>
                 </span>
               } @else if (!isSecret() || chatMessage.isSendFromSelf || canRevealSecret) {
                 <ng-container [ngTemplateOutlet]="lineWords" />
@@ -511,14 +505,14 @@
 
 <!-- The box the line is edited in. -->
 <ng-template #editBox>
-  <textarea
-    #editingTextArea
-    class="border-ui-accent bg-ui-input text-ui-text rounded-ui-sm focus:border-ui-accent block max-h-60 w-full resize-none border border-solid px-2 py-1 text-(length:--chat-font-size) leading-normal outline-none"
-    [ngModel]="editDraft()"
-    (ngModelChange)="onEditInput($event)"
-    (keydown)="onEditKeydown($event)"
-    rows="1"
-  ></textarea>
+  <chat-line-editor
+    [draft]="editDraft() ?? ''"
+    (draftChange)="editDraft.set($event)"
+    (kept)="saveEdit()"
+    (abandoned)="cancelEdit()"
+  >
+    <ng-container [ngTemplateOutlet]="editButtons" />
+  </chat-line-editor>
 </ng-template>
 
 <!-- The hint and the buttons under the edit box. -->

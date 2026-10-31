@@ -264,6 +264,50 @@ export function parseLegacyVnEmoteSuffix(text: string): VnEmote & { text: string
   return { ...parsed, text: text.slice(0, matched.index) };
 }
 
+/** A staging bracket at the end of a line, where it stands, and whether it is read as staging. */
+export interface LegacyVnSuffixSite {
+  /** From the `〔` to just past the `〕`. */
+  from: number;
+  to: number;
+  /** Whether every word in it is one staging is written with, each kind once. */
+  read: boolean;
+  /** Each word between the `・`, and whether it is one staging is written with. */
+  words: { from: number; to: number; known: boolean }[];
+}
+
+const LEGACY_WORDS: ReadonlySet<string> = new Set([
+  LEGACY_FLIP_TOKEN,
+  LEGACY_EXIT_TOKEN,
+  ...LEGACY_MESSAGE_KIND_BY_TOKEN.keys(),
+  ...LEGACY_SHAPE_BY_TOKEN.keys(),
+  ...LEGACY_BUBBLE_ANIMATION_BY_TOKEN.keys(),
+  ...LEGACY_PORTRAIT_EMOTE_BY_TOKEN.keys(),
+  ...LEGACY_EMOTION_MARK_BY_TOKEN.keys(),
+]);
+
+/**
+ * Finds the `〔…〕` bracket at the end of a line, read just as {@link parseLegacyVnEmoteSuffix} reads
+ * it, with where it and each word in it stand. Null where no bracket ends the line.
+ */
+export function legacyVnSuffixSite(text: string): LegacyVnSuffixSite | null {
+  const matched = LEGACY_SUFFIX_PATTERN.exec(text);
+  if (!matched) return null;
+  const from = text.indexOf('〔', matched.index);
+  const words: LegacyVnSuffixSite['words'] = [];
+  let at = from + 1;
+  for (const word of matched[1].split('・')) {
+    const lead = word.length - word.trimStart().length;
+    words.push({ from: at + lead, to: at + word.trimEnd().length, known: LEGACY_WORDS.has(word.trim()) });
+    at += word.length + 1;
+  }
+  return {
+    from,
+    to: from + matched[1].length + 2,
+    read: parseLegacyVnEmoteSuffix(text).text !== text,
+    words,
+  };
+}
+
 /**
  * Writes the staging into the end of the line, the way an older line carries it.
  *

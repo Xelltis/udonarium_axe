@@ -40,6 +40,14 @@ export async function reseedRandom(page: Page, seed = 0x2f6e2b1) {
   }, seed);
 }
 
+/**
+ * Waits for the chat box to be the editor. The plain box is drawn first and put away once the
+ * editor has been fetched, and a line filled in as the two change places is lost.
+ */
+export async function waitChatEditor(page: Page) {
+  await expect(page.locator('chat-window [data-chat-input-mode="rich"]')).toBeVisible({ timeout: 10000 });
+}
+
 export async function becomeGm(page: Page) {
   const connection = page.locator('ui-panel').filter({ hasText: '接続情報' });
   await connection.getByRole('button', { name: /^\s*GM\s*$/ }).click();

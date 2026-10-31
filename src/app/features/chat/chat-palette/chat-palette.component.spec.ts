@@ -1,21 +1,27 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CharacterMacroService } from '@axe/application/chat/character-macro.service';
+import { ChatLintService } from '@axe/application/chat/chat-lint.service';
+import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { childrenChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { CHAT_EDITOR_LOADER, type ChatEditorModule } from '@axe/features/chat/chat-editor/chat-editor-loader';
 import { ChatPaletteComponent } from '@axe/features/chat/chat-palette/chat-palette.component';
 import { ChatTickerSelectionService } from '@axe/features/chat/chat-ticker-selection.service';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { TranslocoService } from '@jsverse/transloco';
 import GameSystemClass from 'bcdice/lib/game_system';
 
 describe('ChatPaletteComponent', () => {
@@ -241,6 +247,50 @@ describe('ChatPaletteComponent', () => {
     });
   });
 
+  it('checks its lines against the room’s default dice bot where the palette keeps the plain one', () => {
+    const watch = vi.spyOn(TestBed.inject(ChatLintService), 'watch');
+    const palette = TestBed.createComponent(ChatPaletteComponent);
+    const char = createChar('術者');
+    char.chatPalette!.dicebot = 'DiceBot';
+    palette.componentInstance.character.set(char);
+    palette.detectChanges();
+    TestBed.tick();
+    const source = watch.mock.calls[0][0];
+    expect(source.path).toBe('palette');
+    const before = Config.instance.defaultDiceBot;
+    try {
+      Config.instance.defaultDiceBot = 'Cthulhu7th';
+      TestBed.inject(ObjectChangeService).notifyChanged('Config');
+
+      expect(source.gameType()).toBe('Cthulhu7th');
+    } finally {
+      Config.instance.defaultDiceBot = before;
+    }
+  });
+
+  it('checks its lines against the plain dice bot once the reader picks it in the palette’s input', () => {
+    const watch = vi.spyOn(TestBed.inject(ChatLintService), 'watch');
+    const palette = TestBed.createComponent(ChatPaletteComponent);
+    const char = createChar('術者');
+    char.chatPalette!.dicebot = 'DiceBot';
+    palette.componentInstance.character.set(char);
+    palette.detectChanges();
+    TestBed.tick();
+    const source = watch.mock.calls[0][0];
+    const before = Config.instance.defaultDiceBot;
+    try {
+      Config.instance.defaultDiceBot = 'Cthulhu7th';
+      TestBed.inject(ObjectChangeService).notifyChanged('Config');
+
+      palette.componentInstance.chatInputComponent().gameType = 'DiceBot';
+      TestBed.tick();
+
+      expect(source.gameType()).toBe('DiceBot');
+    } finally {
+      Config.instance.defaultDiceBot = before;
+    }
+  });
+
   describe('rewriting the palette', () => {
     let char: GameCharacter;
 
@@ -325,6 +375,29 @@ describe('ChatPaletteComponent', () => {
       expect(drawnLines().join('|')).toContain('2d6+3 攻撃');
       expect(drawnLines().join('|')).not.toContain('CC<=50');
       expect(component.paletteHeadings().map((row) => row.headingName)).toEqual(['攻撃']);
+    });
+
+    it('lets another tab be opened after a jump to a heading in one', () => {
+      speakerWithTabs();
+      fixture.detectChanges();
+      const id = (component as unknown as { _timeId: string })._timeId;
+      TestBed.inject(UiSignalService).requestJumpIndex(id, 2);
+      TestBed.tick();
+      fixture.detectChanges();
+      expect(tabs()[1].getAttribute('aria-selected')).toBe('true');
+
+      tabs()[2].click();
+      TestBed.tick();
+      fixture.detectChanges();
+
+      expect(tabs()[2].getAttribute('aria-selected')).toBe('true');
+      expect(drawnLines()).toEqual(['CC<=50']);
+
+      tabs()[0].click();
+      TestBed.tick();
+      fixture.detectChanges();
+
+      expect(drawnLines()).toEqual(['1d100 目星']);
     });
 
     it('opens the tab it was left on when the character comes back to the panel', () => {
@@ -619,5 +692,213 @@ describe('ChatPaletteComponent', () => {
 
       expect(searchBox()).toBeNull();
     });
+  });
+});
+
+describe('ChatPaletteComponent handing its text area over to the editor', () => {
+  let arrive: (module: ChatEditorModule) => void;
+  let mounted: ReturnType<typeof vi.fn>;
+  let char: GameCharacter;
+
+  beforeEach(() => {
+    PeerCursor.createMyCursor();
+    mounted = vi.fn(() => ({
+      parent: null,
+      refresh: vi.fn(),
+      refreshSoon: vi.fn(),
+      followRoot: vi.fn(),
+      destroy: vi.fn(),
+      reconfigure: vi.fn(),
+    }));
+    const loader = () =>
+      new Promise<ChatEditorModule | null>((resolve) => {
+        arrive = resolve;
+      });
+    TestBed.configureTestingModule({
+      imports: [ChatPaletteComponent],
+      providers: [...TEST_PROVIDERS, { provide: CHAT_EDITOR_LOADER, useValue: loader }],
+    });
+    char = GameCharacter.create('術者', 1, '');
+    char.chatPalette!.setPalette('2d6 攻撃\n1d100 調べる');
+  });
+
+  afterEach(() => {
+    ObjectStore.instance.remove(char);
+    for (const tab of [...ChatTabList.instance.chatTabs]) tab.destroy();
+  });
+
+  it('puts the editor in where the caret stood, with the keys, as it arrives while the palette is written', async () => {
+    const fixture = TestBed.createComponent(ChatPaletteComponent);
+    fixture.componentInstance.character.set(char);
+    fixture.detectChanges();
+    fixture.componentInstance.toggleEditMode();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const area = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>(
+      'textarea[name="edit-palette"]'
+    )!;
+    area.focus();
+    area.setSelectionRange(4, 6);
+
+    arrive({ mountChatEditor: mounted } as unknown as ChatEditorModule);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    TestBed.tick();
+
+    expect(mounted).toHaveBeenCalledWith(
+      expect.anything(),
+      { text: '2d6 攻撃\n1d100 調べる', selection: { from: 4, to: 6 }, focused: true },
+      expect.anything()
+    );
+  });
+
+  it('puts the editor in where the caret stands as it is put in, moved after the editor arrived', async () => {
+    const fixture = TestBed.createComponent(ChatPaletteComponent);
+    fixture.componentInstance.character.set(char);
+    fixture.detectChanges();
+    fixture.componentInstance.toggleEditMode();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const area = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>(
+      'textarea[name="edit-palette"]'
+    )!;
+    area.focus();
+    area.setSelectionRange(4, 6);
+
+    arrive({ mountChatEditor: mounted } as unknown as ChatEditorModule);
+    await Promise.resolve();
+    await Promise.resolve();
+    area.setSelectionRange(1, 1);
+    fixture.detectChanges();
+    TestBed.tick();
+
+    expect(mounted).toHaveBeenCalledWith(
+      expect.anything(),
+      { text: '2d6 攻撃\n1d100 調べる', selection: { from: 1, to: 1 }, focused: true },
+      expect.anything()
+    );
+  });
+
+  it('colours the editor again as a picture arrives, for the stamps in it to be drawn', async () => {
+    const fixture = TestBed.createComponent(ChatPaletteComponent);
+    fixture.componentInstance.character.set(char);
+    fixture.detectChanges();
+    fixture.componentInstance.toggleEditMode();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    arrive({ mountChatEditor: mounted } as unknown as ChatEditorModule);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    TestBed.tick();
+    const field = mounted.mock.results[0].value as { refreshSoon: ReturnType<typeof vi.fn> };
+    field.refreshSoon.mockClear();
+
+    TestBed.inject(ObjectChangeService).fileVersion.update((version) => version + 1);
+    TestBed.tick();
+
+    expect(field.refreshSoon).toHaveBeenCalled();
+  });
+
+  it('names the editor and its bars again as the language changes', async () => {
+    const fixture = TestBed.createComponent(ChatPaletteComponent);
+    fixture.componentInstance.character.set(char);
+    fixture.detectChanges();
+    fixture.componentInstance.toggleEditMode();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    arrive({ mountChatEditor: mounted } as unknown as ChatEditorModule);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    TestBed.tick();
+    const field = mounted.mock.results[0].value as { reconfigure: ReturnType<typeof vi.fn> };
+    field.reconfigure.mockClear();
+
+    TestBed.inject(TranslocoService).setActiveLang('en');
+    TestBed.tick();
+
+    expect(field.reconfigure).toHaveBeenCalled();
+  });
+
+  it('follows the text area for no editor where the editor could not be fetched', async () => {
+    const fixture = TestBed.createComponent(ChatPaletteComponent);
+    fixture.componentInstance.character.set(char);
+    fixture.detectChanges();
+    fixture.componentInstance.toggleEditMode();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const area = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>(
+      'textarea[name="edit-palette"]'
+    )!;
+    const listen = vi.spyOn(area, 'addEventListener');
+
+    arrive(null as unknown as ChatEditorModule);
+    await fixture.whenStable();
+
+    expect(listen).not.toHaveBeenCalledWith('focus', expect.anything());
+  });
+
+  it('waits for a word being made in the text area to be made before the editor takes its place', async () => {
+    const fixture = TestBed.createComponent(ChatPaletteComponent);
+    fixture.componentInstance.character.set(char);
+    fixture.detectChanges();
+    fixture.componentInstance.toggleEditMode();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const area = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>(
+      'textarea[name="edit-palette"]'
+    )!;
+    area.dispatchEvent(new CompositionEvent('compositionstart'));
+
+    arrive({ mountChatEditor: mounted } as unknown as ChatEditorModule);
+    await fixture.whenStable();
+    TestBed.tick();
+    expect(mounted).not.toHaveBeenCalled();
+
+    area.dispatchEvent(new CompositionEvent('compositionend'));
+    await new Promise((done) => setTimeout(done));
+    fixture.detectChanges();
+    TestBed.tick();
+
+    expect(mounted).toHaveBeenCalledOnce();
+  });
+
+  it('takes up no caret kept for an editor that was not to be put in, when one is put in later', async () => {
+    const preferences = TestBed.inject(ChatPreferencesService);
+    preferences.setRichInput(false);
+    try {
+      const fixture = TestBed.createComponent(ChatPaletteComponent);
+      fixture.componentInstance.character.set(char);
+      fixture.detectChanges();
+      fixture.componentInstance.toggleEditMode();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      preferences.setRichInput(true);
+      TestBed.tick();
+      const area = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>(
+        'textarea[name="edit-palette"]'
+      )!;
+      area.focus();
+      area.setSelectionRange(4, 6);
+      preferences.setRichInput(false);
+      TestBed.tick();
+
+      arrive({ mountChatEditor: mounted } as unknown as ChatEditorModule);
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(mounted).not.toHaveBeenCalled();
+
+      preferences.setRichInput(true);
+      TestBed.tick();
+      fixture.detectChanges();
+      TestBed.tick();
+
+      expect(mounted).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ selection: { from: 0, to: 0 }, focused: false }),
+        expect.anything()
+      );
+    } finally {
+      preferences.setRichInput(true);
+    }
   });
 });

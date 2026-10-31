@@ -16,6 +16,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
+import { DiceTable } from '@axe/domain/dice/dice-table';
 import { SERVER_ROLL_WAIT_MS } from '@axe/domain/dice/server-roll-requests';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { beMyself } from '@axe/testing/peer-context-stub';
@@ -457,6 +458,53 @@ describe('DiceBot', () => {
       bot.destroy();
       tab.destroy();
     });
+
+    it('rolls a command with a stamp put right after it, as though a space stood there', async () => {
+      PeerCursor.createMyCursor();
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(null);
+      vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      const tab = ChatTabList.instance.addChatTab('メイン');
+      const asked = tab.addMessage({
+        from: PeerCursor.myUserId,
+        name: 'わたし',
+        text: '2d6［笑:seal:ok］攻撃',
+        tag: 'DiceBot',
+      });
+      const bot = new DiceBot();
+      bot.initialize();
+
+      await bot['handleSendMessage']({ messageIdentifier: asked.identifier, messageTarget: null });
+
+      expect(tab.chatMessages).toHaveLength(2);
+      expect(tab.chatMessages[1].text).toContain('(2D6)');
+      bot.destroy();
+      tab.destroy();
+    });
+
+    it('rolls on a dice table whose command a stamp put right after it ends', async () => {
+      PeerCursor.createMyCursor();
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(null);
+      vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      const table = DiceTable.create();
+      table.command = 'FOREST';
+      const tab = ChatTabList.instance.addChatTab('メイン');
+      const asked = tab.addMessage({
+        from: PeerCursor.myUserId,
+        name: 'わたし',
+        text: 'FOREST［笑:seal:ok］',
+        tag: 'DiceBot',
+      });
+      const bot = new DiceBot();
+      bot.initialize();
+
+      await bot['handleDiceTableMessage']({ messageIdentifier: asked.identifier });
+
+      expect(tab.chatMessages).toHaveLength(2);
+      expect(tab.chatMessages[1].text).toContain('ダイス表チャート例');
+      bot.destroy();
+      tab.destroy();
+      table.destroy();
+    });
   });
 
   it('throws the dice in the look the roll asked for, and in none where it asked for none', () => {
@@ -501,6 +549,16 @@ describe('DiceBot', () => {
       bot.initialize();
       expect(bot.aliasName).toBe('dice-bot');
     });
+
+    it('takes a line with a secret resource or buff command for a secret one', () => {
+      const bot = new DiceBot();
+      for (const line of ['s:HP-1', '攻撃 ST:HP-2', 'ｓ＆加護/3', 'あ st&呪い-']) {
+        expect(bot.checkSecretEditCommand(line), line).toBe(true);
+      }
+      for (const line of [':HP-1', 'sushi:おいしい', 'ts:HP-1']) {
+        expect(bot.checkSecretEditCommand(line), line).toBe(false);
+      }
+    });
   });
 
   describe('its static members', () => {
@@ -519,6 +577,30 @@ describe('DiceBot', () => {
 
     it('lists the systems it knows', () => {
       expect(Array.isArray(DiceBot.diceBotInfos)).toBe(true);
+    });
+
+    it('strips the commands for the speaker from a copy of a line for another target, secret ones too', () => {
+      expect(DiceBot.deleteMyselfResourceBuff('攻撃 s:HP-1 st:HP-2 s&加護/3 :MP-1 t&呪い/2')).toBe(
+        '攻撃  st:HP-2   t&呪い/2'
+      );
+    });
+
+    it('leaves a word such as S&W alone, as no secret buff', () => {
+      expect(DiceBot.deleteMyselfResourceBuff('射撃 S&W M36 s&毒/1/3')).toBe('射撃 S&W M36 ');
+      expect(DiceBot.deleteMyselfResourceBuff('I bought s&p 500 s&毒-')).toBe('I bought s&p 500 ');
+    });
+
+    it('keeps a stamp whole, and takes it as ending a command as a space does', () => {
+      expect(DiceBot.deleteMyselfResourceBuff('t:HP-3 ［にこ:sfx:smile］:MP-1')).toBe('t:HP-3 ［にこ:sfx:smile］');
+      expect(DiceBot.deleteMyselfResourceBuff(':MP-1［にこ:sfx:smile］ 行くぞ')).toBe('［にこ:sfx:smile］ 行くぞ');
+    });
+
+    it('takes a sweep out of the copy as the line reads it, its s in either case', () => {
+      expect(DiceBot.deleteMyselfResourceBuff('t:HP-1 S&&毒-')).toBe('t:HP-1 ');
+    });
+
+    it('keeps a colon or an ampersand that starts no command', () => {
+      expect(DiceBot.deleteMyselfResourceBuff('A : B & C t:HP-1')).toBe('A : B & C t:HP-1');
     });
   });
 

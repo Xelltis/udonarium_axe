@@ -48,6 +48,8 @@ export interface GameCharacterContextMenuCallbacks {
   onPlayBattle?: () => void;
   /** Puts the piece on a side of the battle stage's lineup, or takes it off. Left out but for the master. */
   onSetBattleSide?: (side: BattleSide | null) => void;
+  /** The side the piece stands on in a battle now, its own or its party's, marked among the sides offered. */
+  battleSide?: BattleSide | null;
   /**
    * Gives every resource of the piece a slider, or takes them all away. Left out for a seat that may
    * not, or a piece with no resource.
@@ -144,7 +146,7 @@ function buildBattleAction(
       ...(callbacks.onSetBattleSide
         ? sides.map((side) => ({
             name:
-              (char.battleSide === (side ?? '') ? '✔ ' : '') +
+              ((callbacks.battleSide ?? null) === side ? '✔ ' : '') +
               t(`feature.character.contextMenu.battleSide_${side ?? 'none'}`),
             action: () => callbacks.onSetBattleSide?.(side),
           }))

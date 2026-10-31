@@ -1,6 +1,8 @@
 import { resolveBuffColor } from '@axe/domain/character/buff-appearance';
 import { toBuffBadges } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { newStatusAilment, type StatusAilment } from '@axe/domain/character/status-ailment';
+import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 import { DataElement, DataElementAttribute } from '@axe/domain/data/data-element';
 import {
   applyBuffEdit,
@@ -293,6 +295,103 @@ describe('resource-edit-helpers', () => {
 
       expect(text).toBe('猛攻撃を付与 HP+1~+1/3R    ');
       expect(character.status.getValue('HP', 'now')).toBe(before + 2);
+    });
+
+    it('dresses a buff that moves a status in the look written after its rounds', () => {
+      character.detailDataElement!.appendChild(DataElement.create('膂力', 10, {}));
+
+      applyBuffEdit(
+        { command: '&!練技/膂力+2/3/blue/💪/手番開始/@術者', object: character, targeted: false },
+        character
+      );
+      const data = character.buffs.find('練技')!;
+
+      expect(character.status.getValue('膂力', 'now')).toBe(12);
+      expect(data.getAttribute(DataElementAttribute.BUFF_ICON)).toBe('💪');
+      expect(data.getAttribute(DataElementAttribute.BUFF_COLOR)).toBe(resolveBuffColor('blue'));
+      expect(data.getAttribute(DataElementAttribute.BUFF_TIMING)).toBe('turnStart');
+      expect(data.getAttribute(DataElementAttribute.BUFF_TRIGGER)).toBe('術者');
+    });
+
+    describe('a buff named after a state the room keeps', () => {
+      const edit = (command: string, targeted = false) =>
+        applyBuffEdit({ command, object: character, targeted }, character);
+      const fallen: StatusAilment = {
+        name: '転倒',
+        color: 'gray',
+        icon: '🤕',
+        rounds: 1,
+        timing: 'turnEnd',
+        effect: '回避-2。起き上がるまで移動できない',
+        stat: '',
+        op: '',
+        amount: '',
+      };
+      const stunned: StatusAilment = {
+        ...newStatusAilment('麻痺'),
+        effect: '行動できない',
+        stat: '回避',
+        op: '=',
+        amount: '0',
+      };
+
+      beforeEach(() => {
+        StatusAilmentCatalog.instance.ailments = [fallen, stunned];
+        character.detailDataElement!.appendChild(DataElement.create('回避', 6, {}));
+      });
+
+      afterEach(() => {
+        StatusAilmentCatalog.instance.ailments = [];
+      });
+
+      it('puts the state on as the room describes it when the command gives the name alone', () => {
+        const text = edit('t&転倒', true);
+        const data = character.buffs.find('転倒')!;
+
+        expect(text).toBe('[テスト戦士] バフを付与 転倒/回避-2。起き上がるまで移動できない/1R    ');
+        expect(data.currentValue).toBe(fallen.effect);
+        expect(data.value).toBe(1);
+        expect(data.getAttribute(DataElementAttribute.BUFF_ICON)).toBe('🤕');
+        expect(data.getAttribute(DataElementAttribute.BUFF_COLOR)).toBe('gray');
+        expect(data.getAttribute(DataElementAttribute.BUFF_TIMING)).toBe('turnEnd');
+      });
+
+      it('takes what the command writes in place of the state, and the state for the rest', () => {
+        edit('&転倒/起き上がるまで/3/blue');
+        const data = character.buffs.find('転倒')!;
+
+        expect(data.currentValue).toBe('起き上がるまで');
+        expect(data.value).toBe(3);
+        expect(data.getAttribute(DataElementAttribute.BUFF_COLOR)).toBe(resolveBuffColor('blue'));
+        expect(data.getAttribute(DataElementAttribute.BUFF_ICON)).toBe('🤕');
+      });
+
+      it('moves the status the state names, and gives it back as the state comes off', () => {
+        edit('&麻痺');
+
+        expect(character.status.getValue('回避', 'now')).toBe(0);
+        expect(character.buffs.find('麻痺')!.currentValue).toBe('行動できない');
+
+        edit('&麻痺-');
+
+        expect(character.status.getValue('回避', 'now')).toBe(6);
+      });
+
+      it('piles onto the state already worn as any plain buff does', () => {
+        edit('&転倒');
+
+        edit('&++転倒//2');
+
+        const data = character.buffs.find('転倒')!;
+        expect(data.value).toBe(3);
+        expect(data.currentValue).toBe(fallen.effect);
+      });
+
+      it('leaves a buff the room keeps no state of as plain as before', () => {
+        edit('&転倒しそう');
+
+        expect(character.buffs.find('転倒しそう')!.currentValue).toBe('');
+      });
     });
 
     describe('a buff that moves several statuses', () => {

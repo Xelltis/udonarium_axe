@@ -3,10 +3,12 @@ import {
   CHAT_TAG_NAMES,
   chatColorHalo,
   ChatDecoration,
+  chatDecorationLayout,
   chatDecorationMarks,
   chatDecorationMarkup,
   chatFontsIn,
   decoratedRunsOf,
+  keptFromDecoration,
   leaningPiecesOf,
   withoutChatDecoration,
   wrapChatSelection,
@@ -30,6 +32,10 @@ describe('decoratedRunsOf', () => {
       { text: '晴れ', decoration: decorated({ bold: true }) },
       { text: 'です', decoration: null },
     ]);
+  });
+
+  it('writes a stamp put inside a line as its name, when the decorations are taken out', () => {
+    expect(withoutChatDecoration('**了解**［了解:seal:ok］')).toBe('了解［了解］');
   });
 
   it('leaves a lone pair of stars, and stars a line apart, as they were typed', () => {
@@ -224,5 +230,74 @@ describe('the marks a button writes', () => {
     expect(wrapped).toEqual({ text: '>**a**\n**b**\n\n**c**<', selectionStart: 3, selectionEnd: 17 });
     expect(withoutChatDecoration(wrapped.text)).toBe('>a\nb\n\nc<');
     expect(wrapChatSelection('a\nb', 0, 3, { open: '[赤]', close: '[/赤]' }).text).toBe('[赤]a\nb[/赤]');
+  });
+});
+
+describe('chatDecorationLayout', () => {
+  const marksOf = (text: string) =>
+    chatDecorationLayout(text).marks.map((mark) => [mark.kind, text.slice(mark.from, mark.to), mark.paired]);
+
+  it('places the marks that take effect and the stretch they decorate', () => {
+    const text = 'a **b** [赤]c[/]';
+    const layout = chatDecorationLayout(text);
+    expect(marksOf(text)).toEqual([
+      ['stars', '**', true],
+      ['stars', '**', true],
+      ['open', '[赤]', true],
+      ['close', '[/]', true],
+    ]);
+    expect(layout.runs.map((run) => [text.slice(run.from, run.to), run.decoration.bold, run.decoration.color])).toEqual(
+      [
+        ['b', true, null],
+        ['c', false, '#e5484d'],
+      ]
+    );
+  });
+
+  it('says which mark each is paired with', () => {
+    expect(chatDecorationLayout('**a** [赤]b[/]').marks.map((mark) => mark.partner)).toEqual([1, 0, 3, 2]);
+    expect(chatDecorationLayout('**a').marks.map((mark) => mark.partner)).toEqual([-1]);
+  });
+
+  it('marks what is left unpaired, which is drawn as typed', () => {
+    expect(marksOf('**a [赤]b')).toEqual([
+      ['stars', '**', false],
+      ['open', '[赤]', false],
+    ]);
+    expect(chatDecorationLayout('**a [赤]b').runs).toEqual([]);
+  });
+
+  it('places the backslash that keeps a mark as typed', () => {
+    const text = '\\**a**';
+    expect(marksOf(text)).toEqual([
+      ['escape', '\\', true],
+      ['stars', '**', false],
+    ]);
+  });
+
+  it('decorates each letter as the line is drawn', () => {
+    const text = '[太字]x **y[小]z[/小]** w[/太字] \\[赤]v';
+    const placed = chatDecorationLayout(text).runs.flatMap((run) =>
+      [...text.slice(run.from, run.to)].map((letter) => [letter, run.decoration])
+    );
+    const drawn = decoratedRunsOf(text)
+      .filter((run) => run.decoration !== null)
+      .flatMap((run) => [...run.text].map((letter) => [letter, run.decoration]));
+    expect(placed).toEqual(drawn);
+  });
+});
+
+describe('keptFromDecoration', () => {
+  it('keeps words a tag would be read in from being one, and leaves any other as it is', () => {
+    expect(keptFromDecoration('［赤］')).toBe('\\［赤］');
+    expect(keptFromDecoration('[red]')).toBe('\\[red]');
+    expect(keptFromDecoration('［了解］')).toBe('［了解］');
+  });
+
+  it('shows the words alone, decorating nothing round them', () => {
+    const line = `${keptFromDecoration('［赤］')} 文 ${keptFromDecoration('［/］')}`;
+
+    expect(withoutChatDecoration(line)).toBe('［赤］ 文 ［/］');
+    expect(decoratedRunsOf(line).every((run) => run.decoration === null)).toBe(true);
   });
 });

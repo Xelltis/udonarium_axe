@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openPanel, waitAppReady } from './helpers';
+import { chatInput, openPanel, waitAppReady } from './helpers';
 
 /** A 1x1 transparent PNG, turned into a Buffer from base64 for setInputFiles. */
 const TINY_PNG = Buffer.from(
@@ -98,6 +98,6 @@ test.describe('loading a ZIP or XML (save and load in the FAB)', () => {
       buffer: EMPTY_ZIP,
     });
     // Even if the load fails, the chat input should still show, which tells that the app is alive.
-    await expect(page.locator('textarea.chat-input')).toBeVisible({ timeout: 10000 });
+    await expect(chatInput(page)).toBeVisible({ timeout: 10000 });
   });
 });

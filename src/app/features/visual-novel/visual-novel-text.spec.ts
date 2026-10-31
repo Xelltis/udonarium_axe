@@ -8,6 +8,15 @@ describe('typedLineOf', () => {
     expect(line.ends.length).toBe(6);
   });
 
+  it('types a stamp put inside the line whole, as one letter', () => {
+    const line = typedLineOf('あ［了解:seal:ok］い');
+    expect(line.ends.length).toBe(3);
+    expect(typedPartsOf(line, 2)).toEqual([
+      { text: 'あ', reading: '', decoration: null },
+      { text: '［了解］', reading: '', decoration: null, stamp: 'seal:ok' },
+    ]);
+  });
+
   it('gives a line with no notation the letters it always had', () => {
     const line = typedLineOf('あ🎉い');
     expect(line.text).toBe('あ🎉い');

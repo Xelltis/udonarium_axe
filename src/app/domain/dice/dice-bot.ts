@@ -29,8 +29,16 @@ import { toHalfWidth } from '@axe/core/util/string-util';
 import { answerColorsOf } from '@axe/domain/chat/chat-color';
 import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { hasSecretEditMark, resourceCommandSites } from '@axe/domain/data/resource-command-words';
 import { DiceRollResult, ResourceEditProcessor } from '@axe/domain/data/resource-edit-processor';
 import { diceRollDetailOf, encodeDiceRollDetail } from '@axe/domain/dice/dice-roll-detail';
+import {
+  isSecretRollLine,
+  looksLikeDiceCommand,
+  readRollLine,
+  rollableText,
+  secretRollMatch,
+} from '@axe/domain/dice/dice-roll-line';
 import { DiceTable } from '@axe/domain/dice/dice-table';
 import { ServerRollRequests } from '@axe/domain/dice/server-roll-requests';
 import { GameSystemInfo } from 'bcdice/lib/bcdice/game_system_list.json';
@@ -254,6 +262,16 @@ export class DiceBot extends GameObject {
     }
   }
 
+  /**
+   * The game system for an id when its code is already here, without waiting or fetching: null
+   * while the catalog or the system has yet to load. An id not in the catalog answers the plain dice
+   * bot, as a roll would be made with.
+   */
+  static loadedGameSystem(gameType: string): GameSystemClass | null {
+    if (DiceBot.diceBotInfos.length < 1) return null;
+    return this.loadCustomGameSystem(gameType) ?? DiceBot.loadedSystem(DiceBot.catalogIdOf(gameType));
+  }
+
   private static catalogIdOf(gameType: string): string {
     return DiceBot.diceBotInfos.some((info) => info.id === gameType) ? gameType : PLAIN_DICE_BOT;
   }
@@ -276,7 +294,7 @@ export class DiceBot extends GameObject {
    * the chat window tags the line, and could bring an `s` of its own.
    */
   private static mayBeSecretRoll(text: string): boolean {
-    return DiceBot.secretRollMatch(text) !== null || toHalfWidth(text).includes('{');
+    return secretRollMatch(text) !== null || toHalfWidth(text).includes('{');
   }
 
   /**
@@ -355,20 +373,12 @@ export class DiceBot extends GameObject {
     } as unknown as GameSystemClass;
   }
 
-  private static isUnreachable(gameSystem: GameSystemClass): boolean {
-    return DiceBot.unreachableSystems.has(gameSystem);
-  }
-
   /**
-   * Whether text under the stand-in may be a dice command: its first word holds a digit or one of
-   * `<>=[(`, and is not a resource or buff change, which begins with `:` or `&` after an optional
-   * `s` or `t`. With no command pattern to go by, this keeps ordinary chat, and changes worked out
-   * apart from any roll, from being taken for a roll.
+   * Whether the system is the stand-in for one whose code could not be fetched, which recognises no
+   * command and rolls nothing.
    */
-  private static looksLikeCommand(text: string): boolean {
-    const firstWord = /^\S*/.exec(text)?.[0] ?? '';
-    if (/^[sｓＳ]?[tｔＴ]?[:：&＆]/i.test(firstWord)) return false;
-    return /[\d<>=[(]/.test(firstWord);
+  static isUnreachable(gameSystem: GameSystemClass): boolean {
+    return DiceBot.unreachableSystems.has(gameSystem);
   }
 
   private static get loadingQueue(): PromiseQueue {
@@ -409,74 +419,28 @@ export class DiceBot extends GameObject {
    * aimed at a target.
    *
    * A line sent to several targets is repeated for each, and only the first copy should change the
-   * speaker's own sheet. A `:` or `&` command runs to the next space and is removed unless it
-   * follows a `t`.
+   * speaker's own sheet. What is taken out is what the line is read to carry out, so the copy holds
+   * the same aimed commands: each `:` or `&` command that does not follow a `t`, with the `s` that
+   * makes it secret, and each `&&` sweep. Everything else is kept as it was written, a stamp put
+   * inside the line among it.
    */
   static deleteMyselfResourceBuff(str: string): string {
-    let beforeIsSpace = true;
-    let beforeIsT = false;
-    let tCommand = false;
-    let deleteCommand = false;
-    const chars: string[] = [];
-    for (let i = 0; i < str.length; i++) {
-      const chktext: string = str[i];
-
-      if (beforeIsSpace && chktext.match(/[tTｔＴ]/)) {
-        beforeIsSpace = false;
-        beforeIsT = true;
-        deleteCommand = false;
-        tCommand = false;
-        chars.push(str[i]);
-        continue;
-      }
-
-      if (beforeIsT && chktext.match(/[:：&＆]/)) {
-        beforeIsSpace = false;
-        beforeIsT = false;
-        deleteCommand = false;
-        tCommand = true;
-        chars.push(str[i]);
-        continue;
-      }
-
-      if ((tCommand || beforeIsSpace || deleteCommand) && chktext.match(/[:：&＆]/)) {
-        beforeIsSpace = false;
-        beforeIsT = false;
-        deleteCommand = true;
-        tCommand = false;
-        continue;
-      }
-
-      if (chktext.match(/\s/)) {
-        beforeIsSpace = true;
-        beforeIsT = false;
-        deleteCommand = false;
-        tCommand = false;
-        chars.push(str[i]);
-        continue;
-      } else {
-        beforeIsSpace = false;
-      }
-
-      if (deleteCommand) {
-        continue;
-      }
-
-      chars.push(str[i]);
-    }
-    return chars.join('');
+    const words = resourceCommandSites(str);
+    const own = [...words.resources, ...words.buffs]
+      .filter((site) => !site.command.startsWith('t'))
+      .concat(words.sweeps)
+      .sort((a, b) => b.from - a.from);
+    let kept = str;
+    for (const site of own) kept = kept.slice(0, site.markFrom) + kept.slice(site.to);
+    return kept;
   }
 
   /**
-   * Whether the line holds a secret resource command, an `s:` or `st:` at the start or after a
-   * space.
+   * Whether the line holds a secret resource or buff command, an `s:`, `st:`, `s&` or `st&` at the
+   * start or after a space.
    */
   checkSecretEditCommand(chatText: string): boolean {
-    const text: string = ` ${toHalfWidth(chatText).toLowerCase()}`;
-    const replaceText = text.replace('：', ':');
-    const m = replaceText.match(/\sST?:/i);
-    if (m) return true;
-    return false;
+    return hasSecretEditMark(chatText);
   }
 
   /**
@@ -489,27 +453,7 @@ export class DiceBot extends GameObject {
    * command pattern has no secret lines.
    */
   checkSecretDiceCommand(gameSystem: GameSystemClass, chatText: string): boolean {
-    const regArray = DiceBot.secretRollMatch(chatText);
-    if (gameSystem.COMMAND_PATTERN) {
-      return !!(regArray && gameSystem.COMMAND_PATTERN.test(regArray[1]));
-    }
-    if (DiceBot.isUnreachable(gameSystem)) {
-      return !!regArray && DiceBot.looksLikeCommand(regArray[1] ?? '');
-    }
-    return false;
-  }
-
-  /**
-   * The line read the way a secret roll is looked for, in half-width lower case with any repeat
-   * count taken off: null unless it then begins with `s`, and otherwise holding what follows it.
-   */
-  private static secretRollMatch(chatText: string): RegExpExecArray | null {
-    const text: string = toHalfWidth(chatText).toLowerCase();
-    const nonRepeatText = text
-      .replace(/^(\d+)?\s+/, 'repeat1 ')
-      .replace(/^x(\d+)?\s+/, 'repeat1 ')
-      .replace(/repeat(\d+)?\s+/, '');
-    return /^s(.*)?/gi.exec(nonRepeatText);
+    return isSecretRollLine(gameSystem, DiceBot.isUnreachable(gameSystem), chatText);
   }
 
   /**
@@ -572,20 +516,20 @@ export class DiceBot extends GameObject {
 
     let text: string;
     if (data.messageTarget) {
-      text = toHalfWidth(data.messageTarget.text);
+      text = rollableText(data.messageTarget.text);
     } else {
-      text = toHalfWidth(chatMessage.text);
+      text = rollableText(chatMessage.text);
     }
 
     const gameType: string = chatMessage.tags ? chatMessage.tags[0] : '';
 
     try {
-      const regArray = /^((\d+)?\s+)?(.*)?/gi.exec(text);
-      const repeat: number = regArray![2] != null ? Number(regArray![2]) : 1;
-      let rollText: string = regArray![3] != null ? regArray![3] : text;
+      const line = readRollLine(text);
+      const repeat = line.repeat;
+      let rollText = line.rollText;
       const gameSystem = await DiceBot.loadGameSystemAsync(gameType);
       if (DiceBot.isUnreachable(gameSystem)) {
-        if (DiceBot.looksLikeCommand(rollText)) {
+        if (looksLikeDiceCommand(rollText)) {
           emitDiceBotUnreachable({ messageIdentifier: chatMessage.identifier, gameType: gameSystem.ID });
         }
         return;
@@ -637,7 +581,7 @@ export class DiceBot extends GameObject {
       return;
     }
 
-    const text: string = toHalfWidth(chatMessage.text).trim();
+    const text: string = rollableText(chatMessage.text).trim();
     const splitText = text.split(/\s/);
 
     const diceTable = this.getDiceTables();

@@ -51,6 +51,23 @@ describe('ChatMessage', () => {
     });
   });
 
+  describe('stampAttachmentList', () => {
+    it('reads which attachments came only with the stamps in it, and none kept for a line that kept no record', () => {
+      const msg = new ChatMessage();
+      msg.initialize();
+      expect(msg.stampAttachmentList).toBeNull();
+
+      msg.stampAttachments = JSON.stringify(['stamp-picture']);
+      expect(msg.stampAttachmentList).toEqual(['stamp-picture']);
+
+      msg.stampAttachments = '[]';
+      expect(msg.stampAttachmentList).toEqual([]);
+
+      msg.stampAttachments = '';
+      expect(msg.stampAttachmentList).toBeNull();
+    });
+  });
+
   describe('timestamp', () => {
     it('returns one when the attribute is unset', () => {
       const msg = new ChatMessage();
@@ -389,6 +406,22 @@ describe('ChatMessage', () => {
       expect(restored).toBeInstanceOf(ChatMessage);
       expect(restored.replyTo).toBe('msg-target-1');
       expect(restored.quoteOf).toBe('msg-quote-1');
+    });
+
+    it('keeps which attachments came only with the stamps through the saved data, and writes nothing for a line without', () => {
+      const msg = new ChatMessage();
+      msg.initialize();
+      msg.stampAttachments = JSON.stringify(['stamp-picture']);
+      const plain = new ChatMessage();
+      plain.initialize();
+
+      const xml = msg.toXml();
+      expect(plain.toXml()).not.toContain('stampAttachments');
+
+      store.delete(msg, false);
+      store.clearDeleteHistory();
+      const restored = ObjectSerializer.instance.parseXml(xml) as ChatMessage;
+      expect(restored.stampAttachmentList).toEqual(['stamp-picture']);
     });
 
     it('keeps the identifiers in the saved data, so the message replied to can still be found after a reload', () => {

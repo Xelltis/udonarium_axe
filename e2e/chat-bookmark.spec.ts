@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { waitAppReady } from './helpers';
+import { chatInput, expectChatText, waitAppReady } from './helpers';
 
 /** Opens the toolbar over a line and picks a kind of bookmark from its bookmark button. */
 async function bookmark(page: Page, line: Locator, kind: '共有' | '個人') {
@@ -14,11 +14,11 @@ async function bookmark(page: Page, line: Locator, kind: '共有' | '個人') {
 }
 
 async function say(page: Page, lines: string[]) {
-  const textarea = page.locator('textarea.chat-input');
+  const textarea = chatInput(page);
   for (const line of lines) {
     await textarea.fill(line);
     await textarea.press('Enter');
-    await expect(textarea).toHaveValue('');
+    await expectChatText(textarea, '');
   }
 }
 
@@ -43,7 +43,7 @@ test.describe('chat bookmarks', () => {
       page,
       Array.from({ length: 24 }, (_, i) => `雑談${i + 1}`)
     );
-    const textarea = page.locator('textarea.chat-input');
+    const textarea = chatInput(page);
     await textarea.press('Control+ArrowRight');
     await expect(lineSaying(page, '犯人は左利きだったと思う')).toHaveCount(0);
 

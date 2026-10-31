@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { newStatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
 
@@ -19,6 +20,16 @@ describe('StatusAilmentCatalog', () => {
 
   it('holds one catalogue for the room', () => {
     expect(StatusAilmentCatalog.instance).toBe(StatusAilmentCatalog.instance);
+  });
+
+  it('makes one anew once the one held has left the store, rather than putting that one back', () => {
+    const held = StatusAilmentCatalog.instance;
+    held.ailments = [newStatusAilment('毒')];
+
+    ObjectStore.instance.delete(held, false);
+
+    expect(StatusAilmentCatalog.instance).not.toBe(held);
+    expect(StatusAilmentCatalog.instance.ailments).toEqual([]);
   });
 
   it('starts with nothing on hand', () => {

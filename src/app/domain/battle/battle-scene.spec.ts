@@ -34,8 +34,9 @@ describe('normalizeBattleScene()', () => {
         image: '',
         gauges: [{ name: 'MP', before: 10, after: 7, max: 20, inverted: false }],
         defeated: false,
+        facing: null,
       },
-      defenders: [{ identifier: 'goblin', name: 'goblin', image: '', gauges: [], defeated: true }],
+      defenders: [{ identifier: 'goblin', name: 'goblin', image: '', gauges: [], defeated: true, facing: null }],
       effect: 'EffectPreset_slash_1',
       defeatEffect: 'EffectPreset_defeat_dissolve',
       background: 'image-1',
@@ -123,5 +124,28 @@ describe('isBattleDefeat()', () => {
     expect(isBattleDefeat(8, 10, 10, true)).toBe(true);
     expect(isBattleDefeat(10, 12, 10, true)).toBe(false);
     expect(isBattleDefeat(0, 3, 0, true)).toBe(false);
+  });
+});
+
+describe('the way a fighter faces, carried in a scene', () => {
+  const fighter = (facing?: unknown) => ({
+    identifier: 'hero',
+    name: '勇者',
+    image: '',
+    gauges: [],
+    defeated: false,
+    facing,
+  });
+  const scene = (facing?: unknown) =>
+    normalizeBattleScene({ key: 'k', attackerSide: 'left', attacker: fighter(facing), defenders: [fighter()] });
+
+  it('reads the way the picture faces', () => {
+    expect(scene('left')?.attacker.facing).toBe('left');
+    expect(scene('right')?.attacker.facing).toBe('right');
+  });
+
+  it('stands a fighter as drawn where an older version sends no way, or one it does not know', () => {
+    expect(scene()?.attacker.facing).toBeNull();
+    expect(scene('up')?.attacker.facing).toBeNull();
   });
 });

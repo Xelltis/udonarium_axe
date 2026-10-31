@@ -19,6 +19,19 @@ describe('firstPersonSeats', () => {
     expect(firstPersonSeats([mine, theirs], 'me', anyPiece)).toEqual([{ identifier: mine.identifier, name: 'わたし' }]);
   });
 
+  it('offers a piece of somebody else in a party that names this seat among its players', () => {
+    const theirs = pieceNamed('隊長', 'someone-else');
+    theirs.partyIdentifier = 'explorers';
+    const elsewhere = pieceNamed('よそ', 'someone-else');
+    elsewhere.partyIdentifier = 'others';
+
+    expect(firstPersonSeats([theirs, elsewhere], 'me', anyPiece, new Set(['explorers']))).toEqual([
+      { identifier: theirs.identifier, name: '隊長' },
+    ]);
+    theirs.location = { name: GRAVEYARD_LOCATION, x: 0, y: 0 };
+    expect(firstPersonSeats([theirs], 'me', anyPiece, new Set(['explorers']))).toEqual([]);
+  });
+
   it('counts a piece nobody has claimed as one this seat may work', () => {
     const loose = pieceNamed('野良');
 

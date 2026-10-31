@@ -1,7 +1,7 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { openPanel } from '../helpers';
-import { becomeGm, closePanels, prepare, reseedRandom } from './fixtures';
+import { chatInput, openPanel } from '../helpers';
+import { becomeGm, closePanels, prepare, reseedRandom, waitChatEditor } from './fixtures';
 
 // The dice are drawn with WebGL, which headless Chromium gives through SwiftShader.
 test.use({ launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } });
@@ -26,7 +26,21 @@ async function chooseStage(page: Page, stage: 'frame' | 'table') {
 }
 
 async function roll(page: Page, command: string) {
-  await page.locator('textarea.chat-input').fill(command);
+  await waitChatEditor(page);
+  await chatInput(page).fill(command);
+  await page.locator('chat-input').getByRole('button', { name: '送信' }).click();
+}
+
+/**
+ * Writes a roll and sends it with the dice bot and the page's randomness started over in between,
+ * once the box has checked the roll: checking a roll rolls it, and so draws on both.
+ */
+async function rollSeeded(page: Page, command: string) {
+  await waitChatEditor(page);
+  await chatInput(page).fill(command);
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+  await seedDiceBot(page);
+  await reseedRandom(page);
   await page.locator('chat-input').getByRole('button', { name: '送信' }).click();
 }
 
@@ -125,9 +139,7 @@ test('the dice of a chat roll come to rest in the frame of its answer', async ({
   await expect(stages.first()).toHaveAttribute('data-state', 'settled', { timeout: 30_000 });
   await atRest(stages.first().locator('canvas'));
 
-  await seedDiceBot(page);
-  await reseedRandom(page);
-  await roll(page, '2d6+1d20');
+  await rollSeeded(page, '2d6+1d20');
 
   await expect(stages).toHaveCount(2);
   const stage = stages.last();
@@ -145,10 +157,8 @@ test('the dice of a chat roll come to rest on the table', async ({ page }) => {
   await expect.poll(() => diceOn(overlay), { timeout: 30_000 }).not.toBe('');
   await expect.poll(() => overlay.evaluate((canvas: HTMLCanvasElement) => canvas.width), { timeout: 30_000 }).toBe(1);
 
-  await seedDiceBot(page);
   await keepFromFading(page);
-  await reseedRandom(page);
-  await roll(page, '2d6+1d20');
+  await rollSeeded(page, '2d6+1d20');
   // The dice come down in the middle of the screen, under the windows, which also tell the time.
   await closePanels(page);
 

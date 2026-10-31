@@ -1,4 +1,4 @@
-import { buildDiceChatToken, parseDiceChatToken } from '@axe/domain/dice/dice-chat-token';
+import { buildDiceChatToken, diceChatTokenSite, parseDiceChatToken } from '@axe/domain/dice/dice-chat-token';
 
 describe('parseDiceChatToken()', () => {
   it('takes the piece named after the roll', () => {
@@ -34,5 +34,24 @@ describe('parseDiceChatToken()', () => {
 describe('buildDiceChatToken()', () => {
   it('writes it in a form that can be pasted onto a palette', () => {
     expect(buildDiceChatToken('ゴブリンA')).toBe('dice:ゴブリンA');
+  });
+});
+
+describe('diceChatTokenSite', () => {
+  it('places the token from its d to the end of the name', () => {
+    const text = '2d6\u3000dice:ゴブリンA 攻撃';
+    const site = diceChatTokenSite(text)!;
+    expect(text.slice(site.from, site.to)).toBe('dice:ゴブリンA');
+    expect(site.name).toBe('ゴブリンA');
+  });
+
+  it('places a token that starts the line', () => {
+    expect(diceChatTokenSite('dice: 2d6')).toEqual({ name: '', from: 0, to: 5 });
+  });
+
+  describe('a stamp put right after the dice token', () => {
+    it('ends the name, as a space would', () => {
+      expect(parseDiceChatToken('2d6 dice:ゴブリン［笑:sfx:laugh］')).toEqual({ name: 'ゴブリン' });
+    });
   });
 });

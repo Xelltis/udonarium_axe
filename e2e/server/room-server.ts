@@ -6,6 +6,8 @@ import { join, resolve } from 'node:path';
 
 import { Browser, BrowserContext, expect, Locator, Page, test as base } from '@playwright/test';
 
+import { chatInput } from '../helpers';
+
 /**
  * The room server project runs the backend's Cloudflare Worker under `wrangler dev`, next to a
  * build served with a config that points at it, and plays a room in several browsers at once.
@@ -292,7 +294,7 @@ export async function openSeat(
   }
   const page = await context.newPage();
   await page.goto(url, { timeout: 45_000 });
-  await expect(page.locator('textarea.chat-input')).toBeVisible({ timeout: 30_000 });
+  await expect(chatInput(page)).toBeVisible({ timeout: 30_000 });
   return { context, page, name, login };
 }
 
@@ -371,7 +373,7 @@ export async function serverRole(page: Page): Promise<string> {
 
 /** Says a line in the chat. */
 export async function say(page: Page, text: string): Promise<void> {
-  const input = page.locator('textarea.chat-input');
+  const input = chatInput(page);
   await input.click();
   await input.fill(text);
   await input.press('Enter');

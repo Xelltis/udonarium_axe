@@ -41,6 +41,7 @@ import { ChatBookmarkListComponent } from '@axe/features/chat/chat-bookmark/chat
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
 import { editsTextInPlace } from '@axe/features/chat/chat-input/chat-input-helpers';
+import { CHAT_INPUT_ATTR } from '@axe/features/chat/chat-input/chat-text-field';
 import { ChatMessageSettingComponent } from '@axe/features/chat/chat-message-setting/chat-message-setting.component';
 import { ChatPortraitComponent } from '@axe/features/chat/chat-portrait/chat-portrait.component';
 import { isChatSearchShortcut } from '@axe/features/chat/chat-search/chat-search';
@@ -197,7 +198,7 @@ export class ChatWindowComponent {
   closeSearch(): void {
     this.searchOpen.set(false);
     const host = this.hostElement.nativeElement;
-    (host.querySelector<HTMLElement>('textarea.chat-input') ?? host).focus();
+    (host.querySelector<HTMLElement>(`[${CHAT_INPUT_ATTR}]`) ?? host).focus();
   }
 
   /** Opens the search from its button, or closes it when it is open. */
@@ -221,7 +222,7 @@ export class ChatWindowComponent {
   closeBookmarks(): void {
     this.bookmarksOpen.set(false);
     const host = this.hostElement.nativeElement;
-    (host.querySelector<HTMLElement>('textarea.chat-input') ?? host).focus();
+    (host.querySelector<HTMLElement>(`[${CHAT_INPUT_ATTR}]`) ?? host).focus();
   }
 
   /**

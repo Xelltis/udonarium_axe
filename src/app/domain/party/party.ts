@@ -2,6 +2,7 @@ import { Attributes } from '@axe/core/sync/attributes';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
 import { parseAttributesKeepingIdentifier, toAttributesKeepingIdentifier } from '@axe/core/sync/persisted-identifier';
+import { readPartyIdentifiers } from '@axe/domain/party/party-membership';
 
 export const PARTY_COLORS = ['#7dd3fc', '#fca5a5', '#bef264', '#fcd34d', '#c4b5fd', '#f9a8d4'] as const;
 
@@ -17,10 +18,30 @@ export class Party extends GameObject {
    * sides where two have made terms needs a way to say so, and this is it.
    */
   @SyncVar() allies: string = '';
+  /**
+   * The side of the battle stage its members stand on, where one was not put on a side of its
+   * own: `left`, `right`, or empty for neither. Set once for a side of the table, it holds every
+   * exchange after until it is changed.
+   */
+  @SyncVar() battleSide: string = '';
+  /**
+   * The players who play the party, by user identifier, written one after another.
+   *
+   * Owning a character in a party is one way into it; this is the other, for a table where the
+   * whole party is one piece nobody owns, or one owned by whoever happens to lead. A player here
+   * sees through every piece of the party as its owner would, may look out of any of them in first
+   * person, and walks one the game master holds the room in.
+   */
+  @SyncVar() players: string = '';
 
   /** The parties it stands with, as identifiers. */
   get alliedWith(): string[] {
-    return readAllies(this.allies);
+    return readPartyIdentifiers(this.allies);
+  }
+
+  /** The players who play the party, as user identifiers. */
+  get playerIds(): string[] {
+    return readPartyIdentifiers(this.players);
   }
 
   /**
@@ -48,12 +69,7 @@ export function nextPartyColor(usedColors: readonly string[]): string {
   return free ?? PARTY_COLORS[usedColors.length % PARTY_COLORS.length];
 }
 
-/** Reads a written list of allies, dropping the blanks and the repeats. */
-export function readAllies(written: string): string[] {
-  return [...new Set(written.split(' ').filter((held) => held.length > 0))];
-}
-
-/** Writes a list of allies back, which is the identifiers with a space between them. */
+/** Writes a list of allies, or of players, back, which is the identifiers with a space between them. */
 export function writeAllies(allies: readonly string[]): string {
   return [...new Set(allies.filter((held) => held.length > 0))].join(' ');
 }

@@ -329,5 +329,18 @@
         (ngModelChange)="setShowMessageCount($event)"
       />
     </label>
+    <label
+      class="flex cursor-pointer items-center justify-between gap-2 py-1"
+      [title]="'feature.chat.messageSetting.richInputTooltip' | transloco"
+    >
+      <span class="text-ui-muted flex-1 text-[12px]">{{ 'feature.chat.messageSetting.richInput' | transloco }}</span>
+      <input
+        type="checkbox"
+        name="chat-rich-input"
+        data-testid="chat-rich-input"
+        [ngModel]="richInput()"
+        (ngModelChange)="setRichInput($event)"
+      />
+    </label>
   </section>
 </form>

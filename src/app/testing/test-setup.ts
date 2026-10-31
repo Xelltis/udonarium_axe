@@ -2,22 +2,24 @@ import '@angular/compiler';
 
 import { EnvironmentProviders, NO_ERRORS_SCHEMA, Provider } from '@angular/core';
 import { ɵresolveComponentResources as resolveComponentResources } from '@angular/core';
-import { TestBed, TestModuleMetadata } from '@angular/core/testing';
+import { ɵgetCleanupHook as getCleanupHook, TestBed, TestModuleMetadata } from '@angular/core/testing';
 import { BrowserDynamicTestingModule, platformBrowserDynamicTesting } from '@angular/platform-browser-dynamic/testing';
 import { loadConfig$ } from '@axe/core/event/domain-events';
 import { Logger, LogLevel } from '@axe/core/logging/logger';
+import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { resetPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { forgetWithheldTable } from '@axe/domain/peer/withheld-table';
+import { resetChatBubbleBaseTone } from '@axe/domain/ui/chat-bubble-base';
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { basename, join, resolve } from 'path';
 
 Logger.setLevel(LogLevel.NONE);
-
-import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 
 const srcAppDir = resolve(process.cwd(), 'src/app');
 const fileMap = new Map<string, string>();
@@ -343,6 +345,16 @@ function applyWaitForDefault(): void {
 }
 applyWaitForDefault();
 
+// Angular registers the hooks that tear a TestBed module down as @angular/core/testing is first
+// evaluated. A worker that runs file after file without isolation evaluates it once, so every file
+// after the first would keep the module the one before it built. The unit-test builder registers
+// them again for each file under `ng test`; outside it, setup does the same.
+const ANGULAR_BUILDER_SETUP = Symbol.for('@angular/cli/testbed-setup');
+if (!(globalThis as unknown as Record<symbol, unknown>)[ANGULAR_BUILDER_SETUP]) {
+  beforeEach(getCleanupHook(false));
+  afterEach(getCleanupHook(true));
+}
+
 // Vitest runs setup once per test file; swallow the "already initialized" throw on re-entry.
 try {
   TestBed.initTestEnvironment(BrowserDynamicTestingModule, platformBrowserDynamicTesting());
@@ -369,6 +381,22 @@ function emptyObjectStore(): void {
   AudioProfile.clearLocal();
 }
 
+// A spec that starts the synchronizer and leaves it running hands the tests after it, in other files
+// too, one that takes in the updates still waiting to go out, and so puts back objects the store was
+// emptied of. Nothing syncs until a test starts it.
+function stopSynchronizing(): void {
+  ObjectSynchronizer.instance.destroy();
+}
+
+// What the page holds outside any object: whether it is cut off from the room, whether the table it
+// holds came withheld, and the tone the chat's bubbles are measured against. A worker runs file
+// after file in one page, so each starts from a page just opened.
+function forgetPageState(): void {
+  setNetworkIsolated(false);
+  forgetWithheldTable();
+  resetChatBubbleBaseTone();
+}
+
 // The cursor of whoever is reading is a static as well, and it decides what a role is allowed to
 // see. A test that leaves a game master behind hands the next one a game master, which is how a
 // toolbar meant for a player comes out missing. Nothing is anybody until a test says so.
@@ -376,26 +404,18 @@ function forgetMyCursor(): void {
   PeerCursor.myCursor = null!;
 }
 
-// How this seat looks at the table is intentionally persistent in the application, but a spec that
-// asks for a flat screen must not leave the next one's otherwise ordinary table lying down. The
-// same goes for what a seat shows: a spec that puts a toolbar away, folds one or hides the bars
-// over the pieces writes that choice to the browser, and the file after it builds its services
-// from whatever is left there. A reader's own bookmarks on chat lines are kept there too, as are the
-// readings of sounds this device has made.
+// What a seat chooses is kept in the browser on purpose, but a spec that asks for a flat screen must
+// not leave the next one's otherwise ordinary table lying down, nor one that puts a toolbar away or
+// draws the buffs as a count leave the next building its services from that. A worker runs file
+// after file in one page, so the page's storage is emptied before every test, whatever key it was
+// written under. The storage is the page's own, taken as each file starts, as a spec may hand the
+// page a refusing one for a test, and taken once anything the file before stood in for is put back.
+vi.unstubAllGlobals();
+const pageStorage = { local: globalThis.localStorage, session: globalThis.sessionStorage };
+
 function forgetSeatPreferences(): void {
-  localStorage.removeItem(STORAGE_KEYS.tabletopDisplay);
-  localStorage.removeItem(STORAGE_KEYS.viewMode);
-  localStorage.removeItem(STORAGE_KEYS.localMode);
-  localStorage.removeItem(STORAGE_KEYS.firstPersonPiece);
-  localStorage.removeItem(STORAGE_KEYS.widgets);
-  localStorage.removeItem(STORAGE_KEYS.toolbars);
-  localStorage.removeItem(STORAGE_KEYS.pieceOverlay);
-  localStorage.removeItem(STORAGE_KEYS.compassFace);
-  localStorage.removeItem(STORAGE_KEYS.personalVolumes);
-  localStorage.removeItem(STORAGE_KEYS.chatPersonalBookmarks);
-  localStorage.removeItem(STORAGE_KEYS.audioAnalyses);
-  localStorage.removeItem(STORAGE_KEYS.djDeckOpen);
-  localStorage.removeItem(STORAGE_KEYS.beatLightOff);
+  pageStorage.local.clear();
+  pageStorage.session.clear();
 }
 
 /**
@@ -427,6 +447,8 @@ beforeAll(async () => {
 beforeEach(async () => {
   // A test that turns logging up, as the logger specs do, must not leave the next one printing.
   Logger.setLevel(LogLevel.NONE);
+  stopSynchronizing();
+  forgetPageState();
   emptyObjectStore();
   forgetMyCursor();
   forgetSeatPreferences();

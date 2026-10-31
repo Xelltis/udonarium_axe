@@ -14,12 +14,12 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { ChatLineEditService } from '@axe/application/chat/chat-line-edit.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPreferencesService } from '@axe/application/chat/chat-preferences.service';
 import { ChatReactionService, ReactionTally } from '@axe/application/chat/chat-reaction.service';
+import { StampPackService } from '@axe/application/chat/stamp-pack.service';
 import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { SystemAvatarKind, SystemAvatarService } from '@axe/application/chat/system-avatar.service';
 import { decodeI18nMessage } from '@axe/application/i18n/i18n-message';
@@ -47,13 +47,16 @@ import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
-import { isPictureStamp, stampOf } from '@axe/domain/chat/stamp-catalog';
+import { inlineStampsAlone, inlineStampSites } from '@axe/domain/chat/inline-stamp';
+import { IMAGE_STAMP_PREFIX, isPictureStamp, stampOf } from '@axe/domain/chat/stamp-catalog';
+import { saidWithStamp } from '@axe/domain/chat/stamp-line';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { encodeVnEmote, vnBodyOf, vnEmoteOf } from '@axe/domain/visual-novel/vn-emote';
 import { vnEmoteLabels } from '@axe/domain/visual-novel/vn-emote-label';
 import { ChatBookmarkService } from '@axe/features/chat/chat-bookmark.service';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
+import { ChatLineEditorComponent } from '@axe/features/chat/chat-line-editor/chat-line-editor.component';
 import {
   ChatLineAbilities,
   chatLineAbilities,
@@ -70,10 +73,11 @@ import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.servic
 import { SystemAvatarMenuService } from '@axe/features/chat/system-avatar-menu.service';
 import { DiceRollStageComponent } from '@axe/ui/components/dice-roll-stage/dice-roll-stage.component';
 import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
+import { roomStampViewSource, stampMarkup, stampViewOf } from '@axe/ui/components/stamp/stamp-view';
 import { ChatColorStylePipe } from '@axe/ui/pipes/chat-color-style.pipe';
 import { LinkifyPipe } from '@axe/ui/pipes/linkify.pipe';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
-import { decorateChatStyleText } from '@axe/ui/text-decoration/decorate-chat-text';
+import { decorateChatStyleText, InlineStampMarkup } from '@axe/ui/text-decoration/decorate-chat-text';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** How long a line stays lit after a jump to it, before it fades back. */
@@ -81,6 +85,9 @@ const LINE_FLASH_MS = 1800;
 
 /** The kinds of mark a line can carry, in the order they are offered. */
 const BOOKMARK_KINDS: readonly ChatBookmarkKind[] = ['shared', 'personal'];
+
+/** How many lines have been drawn, for the seals in each to take filter ids no other drawing of the line has. */
+let linesDrawn = 0;
 
 @Component({
   selector: 'chat-message',
@@ -97,12 +104,12 @@ const BOOKMARK_KINDS: readonly ChatBookmarkKind[] = ['shared', 'personal'];
     NgStyle,
     NgTemplateOutlet,
     DatePipe,
-    FormsModule,
     LinkifyPipe,
     ChatColorStylePipe,
     SafePipe,
     TranslocoModule,
     DiceRollStageComponent,
+    ChatLineEditorComponent,
   ],
 })
 export class ChatMessageComponent {
@@ -117,6 +124,9 @@ export class ChatMessageComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly imageStorage = inject(ImageStorage);
+  /** This drawing of a line, apart from any other drawing of the same line in another window. */
+  private readonly drawing = ++linesDrawn;
+  private readonly stampPacks = inject(StampPackService);
   private readonly t = inject(TRANSLATE_FN);
   private readonly language = inject(LanguageService);
   private readonly uiSignalService = inject(UiSignalService);
@@ -187,11 +197,15 @@ export class ChatMessageComponent {
     return stampId;
   });
 
-  /** The pictures attached to the line, less the one drawn as its stamp. */
+  /** The pictures attached to the line, less those drawn as its stamps, under it or inside it. */
   protected readonly shownAttachments = computed(() => {
-    const drawn = stampOf(this.sentStamp());
-    const stampPicture = drawn?.kind === 'image' ? drawn.imageIdentifier : null;
-    return this.attachmentImageFiles().filter((image) => image.identifier !== stampPicture);
+    const stamps = [this.sentStamp(), ...inlineStampSites(this.chatMessageInput()?.text ?? '').map((site) => site.id)];
+    const drawn = new Set<string>();
+    for (const stampId of stamps) {
+      const ref = stampOf(stampId);
+      if (ref?.kind === 'image') drawn.add(ref.imageIdentifier);
+    }
+    return this.attachmentImageFiles().filter((image) => !drawn.has(image.identifier));
   });
   /**
    * How large the stamp a line was sent as is drawn: a picture larger than the app's own, so that
@@ -651,28 +665,22 @@ export class ChatMessageComponent {
 
   readonly editDraft = signal<string | null>(null);
   readonly isEditing = computed(() => this.editDraft() !== null);
-  readonly editingTextArea = viewChild<ElementRef<HTMLTextAreaElement>>('editingTextArea');
 
   /**
    * Opens the line for editing in place, from the pencil button or the line's menu.
    *
-   * The draft starts from the words alone, without any novel-mode staging, and the text area is
-   * focused with the caret at the end once it is drawn. Does nothing for a line that may not change.
+   * The draft starts from the words alone, without any novel-mode staging, and the box it is
+   * edited in takes the keys with the caret at the end. Does nothing for a line that may not change.
    */
   startEdit() {
     if (!this.lineEdit.canEditMessage(this.chatMessage)) return;
-    this.editDraft.set(vnBodyOf(this.chatMessage.vnEmote, this.chatMessage.text ?? ''));
-    afterNextRender(
-      () => {
-        const el = this.editingTextArea()?.nativeElement;
-        if (el) {
-          this.autoFitHeight(el);
-          el.focus();
-          el.setSelectionRange(el.value.length, el.value.length);
-        }
-      },
-      { injector: this.injector }
-    );
+    this.editDraft.set(this.wordsToEdit());
+  }
+
+  /** The words a reader edits: what the line says, or what it says with the stamp under it. */
+  private wordsToEdit(): string {
+    const body = vnBodyOf(this.chatMessage.vnEmote, this.chatMessage.text ?? '');
+    return this.chatMessage.sentStamp ? saidWithStamp(body) : body;
   }
 
   /**
@@ -687,45 +695,21 @@ export class ChatMessageComponent {
     const draft = this.editDraft();
     if (draft === null) return;
     const next = draft.trimEnd();
-    if (next.length === 0 || !this.lineEdit.canEditMessage(this.chatMessage)) {
+    const unchanged = next === this.wordsToEdit().trimEnd();
+    if (next.length === 0 || unchanged || !this.lineEdit.canEditMessage(this.chatMessage)) {
       this.cancelEdit();
       return;
     }
     // A line said before the staging was kept apart still carries it at the end. Editing the
     // body would take it away with the rest of the suffix, so it moves beside the line first.
     const staging = encodeVnEmote(vnEmoteOf(this.chatMessage.vnEmote, this.chatMessage.text ?? ''));
-    this.chatMessage.edit(next, staging, this.clock.now());
+    this.chatMessageService.editMessage(this.chatMessage, next, staging, this.clock.now());
     this.editDraft.set(null);
   }
 
   /** Closes the editor and throws the draft away, leaving the message as it was. */
   cancelEdit() {
     this.editDraft.set(null);
-  }
-
-  /** Keeps the draft in step with the edit box and grows the box to fit, up to its height limit. */
-  onEditInput(value: string) {
-    this.editDraft.set(value);
-    const el = this.editingTextArea()?.nativeElement;
-    if (el) this.autoFitHeight(el);
-  }
-
-  /** Escape cancels the edit and Enter saves it; Shift+Enter and keys pressed mid-composition type as usual. */
-  onEditKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      this.cancelEdit();
-      return;
-    }
-    if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
-      event.preventDefault();
-      this.saveEdit();
-    }
-  }
-
-  private autoFitHeight(el: HTMLTextAreaElement): void {
-    el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 240)}px`;
   }
 
   /** The words for how novel mode was asked to stage this line, when the reader asked to see them. */
@@ -1102,7 +1086,27 @@ export class ChatMessageComponent {
     this.language.currentLang();
     this.objectChange.versionOf(this.chatMessage?.identifier)();
     const decoded = this.isSystemMessage ? decodeI18nMessage(text, this.t) : text;
-    return decorateChatStyleText(vnBodyOf(this.chatMessage?.vnEmote, decoded));
+    const body = vnBodyOf(this.chatMessage?.vnEmote, decoded);
+    return decorateChatStyleText(body, this.stampsIn(body));
+  }
+
+  /**
+   * Draws the stamps put inside a line, as tall as its letters, or as large as a stamp sent on its
+   * own where the line is made of stamps alone. A room's picture is drawn again once it arrives;
+   * only a line holding one follows the pictures arriving. Each stamp is keyed by this drawing of
+   * the line and its place in it, so the line written again is the same markup and is left as it
+   * stands, and the same line drawn in another window gives its seals filters of their own.
+   */
+  private stampsIn(body: string): InlineStampMarkup {
+    if (inlineStampSites(body).some((site) => site.id.startsWith(IMAGE_STAMP_PREFIX))) this.objectChange.fileVersion();
+    const alone = inlineStampsAlone(body) !== null;
+    const source = roomStampViewSource(this.t, this.imageStorage, this.stampPacks);
+    let drawn = 0;
+    return (stampId, label) => {
+      const view = stampViewOf(stampId, source, label);
+      const box = alone ? this.stampLineSize(stampId, this.chatSimpleDispFlag()) : 'inline';
+      return view ? stampMarkup(stampId, view, box, `${this.drawing}-${drawn++}`) : null;
+    };
   }
 }
 

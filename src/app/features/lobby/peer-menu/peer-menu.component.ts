@@ -14,6 +14,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { leavingLoss, leavingLossText } from '@axe/application/lobby/leaving-loss';
+import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ReportService } from '@axe/application/moderation/report.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
@@ -27,7 +28,9 @@ import { Logger } from '@axe/core/logging/logger';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { networkMessage$, networkSend } from '@axe/core/network/network-messaging';
 import { transportOf } from '@axe/core/network/transport';
+import { forgetIconChosenByHand, noteIconChosenByHand } from '@axe/core/storage/icon-chosen-by-hand';
 import { loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
+import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { buildInviteLink } from '@axe/domain/peer/invite-link';
@@ -45,6 +48,7 @@ import { dropInvitationFromAddress } from '@axe/features/lobby/leave-room';
 import { LobbyComponent } from '@axe/features/lobby/lobby/lobby.component';
 import { ReConnectComponent } from '@axe/features/lobby/re-connect/re-connect.component';
 import { roomDeletionMessageKey, RoomDeletionService } from '@axe/features/lobby/room-deletion.service';
+import { ServerAccountComponent } from '@axe/features/lobby/server-account/server-account.component';
 import { ServerWatchService } from '@axe/features/lobby/server-watch.service';
 import { ReportDialogComponent } from '@axe/features/moderation/report-dialog/report-dialog.component';
 import { RoomArchiveEventHandlerService } from '@axe/features/room-archive/room-archive-event-handler.service';
@@ -68,7 +72,7 @@ export type ConnectionMode = (typeof CONNECTION_MODES)[number];
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'peer-menu',
   templateUrl: './peer-menu.component.html',
-  imports: [FormsModule, DatePipe, SafePipe, TranslocoModule],
+  imports: [FormsModule, DatePipe, SafePipe, ServerAccountComponent, TranslocoModule],
 })
 export class PeerMenuComponent {
   private readonly t = inject(TRANSLATE_FN);
@@ -150,6 +154,16 @@ export class PeerMenuComponent {
    * the config, which may load after the panel opens at startup.
    */
   protected readonly isServerTransport = signal(Network.transport === 'server');
+  private readonly auth = inject(ServerAuthService);
+  private readonly imageStorage = inject(ImageStorage);
+  /**
+   * Whether the login is offered here, to a guest on a room server: one who came in by a link never
+   * sees the lobby, where it otherwise is.
+   */
+  protected readonly offersLogin = computed(
+    () =>
+      this.isServerTransport() && this.auth.isConfigured && !this.auth.account() && this.auth.offersLogin() !== false
+  );
   /** Whether this seat may report the room to the room server's operator, as anyone in it may. */
   protected readonly canReport = inject(ReportService).canReport;
   private readonly objectSynchronizer = inject(ObjectSynchronizer);
@@ -427,12 +441,20 @@ export class PeerMenuComponent {
 
   /**
    * Opens the image picker and makes the chosen image the reader's icon. Closing it without a
-   * choice changes nothing.
+   * choice changes nothing. An icon chosen while logged in to a room server is noted as chosen by
+   * hand, so that the account's avatar is no longer put on at login; the account's own avatar, which
+   * the picker offers to the reader alone, goes back to being put on.
    */
   changeIcon() {
-    this.modalService.open<string>(FileSelecterComponent).then((value) => {
+    const avatarUrl = this.auth.account()?.avatarUrl;
+    const ownAvatar = avatarUrl ? this.imageStorage.add(avatarUrl).identifier : null;
+    this.modalService.open<string>(FileSelecterComponent, { ownAvatar }).then((value) => {
       if (!this.myPeer || !value) return;
       this.myPeer.imageIdentifier = value;
+      const account = this.auth.account();
+      if (!account) return;
+      if (value === ownAvatar) forgetIconChosenByHand(account.userId);
+      else noteIconChosenByHand(account.userId);
     });
   }
 

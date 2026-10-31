@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { SUPPORTED_LANGS } from '@axe/application/i18n/transloco.config';
+import { CHAT_LINT_CODES } from '@axe/domain/chat-syntax/chat-lint';
 
 type Tree = Record<string, unknown>;
 
@@ -26,6 +27,13 @@ describe('translation keys', () => {
   const dictionaries = Object.fromEntries(
     SUPPORTED_LANGS.map((lang) => [lang, flatten(JSON.parse(readFileSync(`src/assets/i18n/${lang}.json`, 'utf-8')))])
   );
+
+  it('say every chat syntax finding, built from its code, in every language', () => {
+    for (const lang of SUPPORTED_LANGS) {
+      const missing = CHAT_LINT_CODES.filter((code) => !dictionaries[lang][`feature.chat.lint.${code}`]);
+      expect(missing, lang).toEqual([]);
+    }
+  });
 
   it('hold the same keys in every language', () => {
     const reference = Object.keys(dictionaries['ja']).sort();

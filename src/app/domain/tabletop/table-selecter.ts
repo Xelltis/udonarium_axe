@@ -39,9 +39,10 @@ export class TableSelecter extends GameObject {
   }
 
   // GameObject Lifecycle
-  /** Stops following table selection. */
+  /** Stops following table selection, and lets go of the one held here, for the next reader to make anew. */
   override onStoreRemoved() {
     super.onStoreRemoved();
+    if (TableSelecter._instance === this) TableSelecter._instance = undefined as unknown as TableSelecter;
     this.cleanups.forEach((c) => c());
     this.cleanups = [];
   }

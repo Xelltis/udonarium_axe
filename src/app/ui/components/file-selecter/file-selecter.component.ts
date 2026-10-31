@@ -11,6 +11,7 @@ import { emitSelectFile } from '@axe/core/event/domain-events';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { canBrowseImage, ImageTag } from '@axe/domain/media/image-tag';
+import { isAccountAvatar } from '@axe/domain/peer/account-avatar';
 import { ImageEditQueue } from '@axe/ui/components/image-editor/image-edit-queue.service';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -35,6 +36,8 @@ export class FileSelecterComponent {
   private readonly t = inject(TRANSLATE_FN);
 
   isAllowedEmpty: boolean = false;
+  /** The one account's avatar the picker may offer: the reader's own, as an icon is chosen; none else. */
+  private ownAvatar: string | null = null;
 
   private get allTag(): string {
     return this.t('ui.fileSelecter.tagAll');
@@ -43,9 +46,11 @@ export class FileSelecterComponent {
   /**
    * A picture the master is keeping back is not offered to anyone else, nor one under a tag someone
    * keeps to themselves to anyone but them and the master. Nothing here hides one already standing
-   * on the table: this is about what may be picked, not what is seen.
+   * on the table: this is about what may be picked, not what is seen. Nor is an account's avatar,
+   * which is no picture of the room's, but for the reader's own where the picker was told it.
    */
   private mayShow(imageFile: ImageFile): boolean {
+    if (isAccountAvatar(imageFile.context.identifier)) return imageFile.context.identifier === this.ownAvatar;
     const tag = ImageTag.get(imageFile.context.identifier) ?? null;
     return canBrowseImage(tag, this.rolePermission.canSeeHidden(), true, this.tagLock.hides);
   }
@@ -74,7 +79,7 @@ export class FileSelecterComponent {
           imageFileList.push(imageFile);
         }
       } else {
-        if (this.selectTag() == '') {
+        if (this.selectTag() == '' && this.mayShow(imageFile)) {
           imageFileList.push(imageFile);
         }
       }
@@ -196,6 +201,7 @@ export class FileSelecterComponent {
   constructor() {
     const option = this.modalService.option as Record<string, unknown>;
     this.isAllowedEmpty = !!option?.isAllowedEmpty;
+    this.ownAvatar = typeof option?.['ownAvatar'] === 'string' ? option['ownAvatar'] : null;
     queueMicrotask(() => (this.modalService.title = this.panelService.title = this.t('ui.fileSelecter.panelTitle')));
   }
 

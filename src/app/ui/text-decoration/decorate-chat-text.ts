@@ -10,9 +10,12 @@ import {
   chatFontsIn,
   DecoratedRun,
   decoratedRunsOf,
+  leaningPiecesKeepingNotation,
   leaningPiecesOf,
 } from '@axe/domain/chat/chat-decoration';
 import { RUBY_NOTATION, rubyRunsOf } from '@axe/domain/chat/chat-ruby-notation';
+import { inlineStampSites } from '@axe/domain/chat/inline-stamp';
+import { stampOf } from '@axe/domain/chat/stamp-catalog';
 
 const HTML_ESCAPE_MAP: Readonly<Record<string, string>> = {
   '&': '&amp;',
@@ -68,6 +71,8 @@ export interface RubyPart {
   readonly reading: string;
   /** The chat's decorations on the run, null for a plain one. */
   readonly decoration: ChatDecoration | null;
+  /** The stamp the run stands for, where it is a stamp put inside the line; its text is the stamp's name. */
+  readonly stamp?: string;
 }
 
 /**
@@ -85,6 +90,22 @@ export function splitRubyNotation(text: string): RubyPart[] {
 }
 
 function rubyPartsOf(text: string, decoration: ChatDecoration | null): RubyPart[] {
+  const sites = inlineStampSites(text);
+  if (sites.length > 0) {
+    const parts: RubyPart[] = [];
+    let at = 0;
+    for (const site of sites) {
+      parts.push(...rubyPartsOf(text.slice(at, site.from), decoration));
+      const words = `［${site.label}］`;
+      parts.push(
+        stampOf(site.id)
+          ? { text: words, reading: '', decoration, stamp: site.id }
+          : { text: words, reading: '', decoration }
+      );
+      at = site.to;
+    }
+    return [...parts, ...rubyPartsOf(text.slice(at), decoration)];
+  }
   const parts: RubyPart[] = [];
   const plain = (from: number, to: number) => {
     if (to <= from) return;
@@ -148,28 +169,32 @@ export function decorateQuoteLines(html: string): string {
   return parts.join('\n');
 }
 
+/** Draws a stamp put inside a line, by its identifier and the name it was sent with; null to write its name. */
+export type InlineStampMarkup = (stampId: string, label: string) => string | null;
+
 /**
  * Applies the chat's decorations (`**bold**`, `[明朝]…[/]`), escaping html and applying the ruby
- * notation (`|word《reading》`) in each piece they leave, then quoted lines (`> ...`).
+ * notation (`|word《reading》`) in each piece they leave, then quoted lines (`> ...`). A stamp put
+ * inside the line is drawn by the markup given, or else written as its name in brackets.
  */
-export function decorateChatStyleText(text: string): string {
+export function decorateChatStyleText(text: string, stamps?: InlineStampMarkup): string {
   const runs = decoratedRunsOf(text);
   askForFonts(runs);
   return decorateQuoteLines(
-    chatDecorationMarkup(runs, (piece) => applyRubyMarkup(escapeHtml(piece)), leaningPiecesKeepingNotation)
+    chatDecorationMarkup(runs, (piece) => markupOfPiece(piece, stamps), leaningPiecesKeepingNotation)
   );
 }
 
-const KEPT_WHOLE = new RegExp(`${RUBY_NOTATION.source}|\\\\s`, 'g');
-
-/** The pieces a leaning run breaks between, with a word and its reading, and a `\s`, each kept whole. */
-function leaningPiecesKeepingNotation(text: string): string[] {
-  const pieces: string[] = [];
+/** A piece of a line escaped, with its ruby set over its words and each stamp in it drawn. */
+function markupOfPiece(piece: string, stamps?: InlineStampMarkup): string {
+  const sites = inlineStampSites(piece);
+  if (sites.length < 1) return applyRubyMarkup(escapeHtml(piece));
+  let html = '';
   let at = 0;
-  for (const match of text.matchAll(KEPT_WHOLE)) {
-    pieces.push(...leaningPiecesOf(text.slice(at, match.index)), match[0]);
-    at = match.index + match[0].length;
+  for (const site of sites) {
+    html += applyRubyMarkup(escapeHtml(piece.slice(at, site.from)));
+    html += stamps?.(site.id, site.label) ?? escapeHtml(`［${site.label}］`);
+    at = site.to;
   }
-  pieces.push(...leaningPiecesOf(text.slice(at)));
-  return pieces;
+  return html + applyRubyMarkup(escapeHtml(piece.slice(at)));
 }

@@ -1,6 +1,7 @@
 import {
   BATTLE_CHAT_TOKEN,
   buildEffectChatToken,
+  effectTokenSites,
   hasBattleChatToken,
   parseEffectChatToken,
   stripEffectChatTokens,
@@ -83,5 +84,17 @@ describe('buildEffectChatToken()', () => {
   it('writes it in a form that can be pasted onto a palette', () => {
     expect(buildEffectChatToken('爆炎')).toBe('《爆炎》');
     expect(parseEffectChatToken(buildEffectChatToken('爆炎'))?.name).toBe('爆炎');
+  });
+});
+
+describe('effectTokenSites', () => {
+  it('places every token, brackets included, passing over the readings of rubies', () => {
+    const text = '|爆炎《ばくえん》だ《爆炎》《 vs 》《 》';
+    const sites = effectTokenSites(text);
+    expect(sites.map((site) => [text.slice(site.from, site.to), site.name, site.battle])).toEqual([
+      ['《爆炎》', '爆炎', false],
+      ['《 vs 》', 'vs', true],
+      ['《 》', '', false],
+    ]);
   });
 });

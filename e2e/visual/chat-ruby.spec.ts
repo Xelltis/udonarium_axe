@@ -1,13 +1,23 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openChatSettingsMenuItem } from '../helpers';
-import { prepare } from './fixtures';
+import { chatInput, expectChatText, openChatSettingsMenuItem } from '../helpers';
+import { prepare, waitChatEditor } from './fixtures';
+
+/** Sets one of the chat settings and shuts the panel again, so it covers nothing that is shot. */
+async function setChatSetting(page: Page, name: string, value: string) {
+  await openChatSettingsMenuItem(page, 'チャット設定');
+  const setting = page.locator('chat-message-setting');
+  await setting.locator(`select[name="${name}"]`).selectOption(value);
+  await page.locator('ui-panel', { has: setting }).locator('.bg-ui-titlebar button').last().dispatchEvent('click');
+  await expect(setting).toHaveCount(0);
+}
 
 async function say(page: Page, line: string) {
-  const textarea = page.locator('textarea.chat-input');
+  await waitChatEditor(page);
+  const textarea = chatInput(page);
   await textarea.fill(line);
   await textarea.press('Enter');
-  await expect(textarea).toHaveValue('');
+  await expectChatText(textarea, '');
 }
 
 test('ruby laid out 1:2:1, together in the middle and from the first letter', async ({ page }) => {
@@ -19,12 +29,11 @@ test('ruby laid out 1:2:1, together in the middle and from the first letter', as
   await page.mouse.move(1279, 799);
   await expect(message).toHaveScreenshot('chat-ruby-even.png', { maxDiffPixels: 4 });
 
-  await openChatSettingsMenuItem(page, 'チャット設定');
-  await page.locator('chat-message-setting select[name="ruby-spacing"]').selectOption('tight');
+  await setChatSetting(page, 'ruby-spacing', 'tight');
   await page.mouse.move(1279, 799);
   await expect(message).toHaveScreenshot('chat-ruby-tight.png', { maxDiffPixels: 4 });
 
-  await page.locator('chat-message-setting select[name="ruby-align"]').selectOption('start');
+  await setChatSetting(page, 'ruby-align', 'start');
   await page.mouse.move(1279, 799);
   await expect(message).toHaveScreenshot('chat-ruby-start.png', { maxDiffPixels: 4 });
 });

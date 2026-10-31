@@ -1,13 +1,13 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { waitAppReady } from './helpers';
+import { chatInput, expectChatText, waitAppReady } from './helpers';
 
 async function say(page: Page, lines: string[]) {
-  const textarea = page.locator('textarea.chat-input');
+  const textarea = chatInput(page);
   for (const line of lines) {
     await textarea.fill(line);
     await textarea.press('Enter');
-    await expect(textarea).toHaveValue('');
+    await expectChatText(textarea, '');
   }
 }
 
@@ -21,14 +21,14 @@ test.describe('searching the chat', () => {
     ]);
     // Going to another tab and back redraws only the last few lines of the log, so the first line
     // leaves the DOM.
-    const textarea = page.locator('textarea.chat-input');
+    const textarea = chatInput(page);
     await textarea.press('Control+ArrowRight');
     await textarea.press('Control+ArrowLeft');
     await expect(page.locator('chat-tab').getByText('合言葉はアヒル')).toHaveCount(0);
   });
 
   test('opens on Ctrl+F, and finds and shows even old lines that are not drawn', async ({ page }) => {
-    const textarea = page.locator('textarea.chat-input');
+    const textarea = chatInput(page);
     await textarea.press('Control+f');
     const box = page.getByTestId('chat-search-input');
     await expect(box).toBeFocused();
@@ -49,7 +49,7 @@ test.describe('searching the chat', () => {
   });
 
   test('clears the marks and goes back to the input when closed with Esc', async ({ page }) => {
-    const textarea = page.locator('textarea.chat-input');
+    const textarea = chatInput(page);
     await textarea.press('Control+f');
     await page.getByTestId('chat-search-input').fill('アヒル');
     await expect(page.getByTestId('chat-search-count')).toHaveText('2 / 2');

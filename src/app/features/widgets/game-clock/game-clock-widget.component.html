@@ -1,0 +1,277 @@
+@if (widgets.gameClock()) {
+  <div
+    class="group rounded-ui-lg text-ui-text border-ui-border-panel bg-ui-panel/80 shadow-ui-sm fixed top-0 left-0 z-100 box-border flex w-60 cursor-grab flex-col overflow-hidden border border-solid [backdrop-filter:blur(20px)_saturate(1.4)] select-none [-webkit-backdrop-filter:blur(20px)_saturate(1.4)] active:cursor-grabbing"
+    data-testid="game-clock"
+    role="group"
+    [attr.aria-label]="'feature.gameClock.title' | transloco"
+    appDraggable
+    [appWidgetPlace]="widgetName"
+    [widgetFallback]="fallback"
+    [draggable.unhandle]="'button, input, select, label'"
+  >
+    <div class="relative h-24 w-full" data-testid="game-clock-sky" [attr.data-body]="sky().body">
+      <svg
+        class="absolute inset-0 size-full"
+        [attr.viewBox]="'0 0 ' + skyWidth + ' ' + skyHeight"
+        preserveAspectRatio="xMidYMid slice"
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient [attr.id]="skyId + '-air'" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" [style.stop-color]="sky().top" />
+            <stop offset="0.8" [style.stop-color]="sky().horizon" />
+          </linearGradient>
+          <radialGradient [attr.id]="skyId + '-sun-glow'">
+            <stop offset="0" stop-color="#ffe7a3" stop-opacity="0.8" />
+            <stop offset="1" stop-color="#ffb347" stop-opacity="0" />
+          </radialGradient>
+          <mask [attr.id]="skyId + '-crescent'">
+            <circle r="5.5" fill="#fff" />
+            <circle cx="-2.6" cy="-1.8" r="4.6" fill="#000" />
+          </mask>
+          <radialGradient [attr.id]="skyId + '-moon-glow'">
+            <stop offset="0" stop-color="#dfe6ff" stop-opacity="0.6" />
+            <stop offset="1" stop-color="#9fb0ff" stop-opacity="0" />
+          </radialGradient>
+        </defs>
+        <rect [attr.width]="skyWidth" [attr.height]="skyHeight" [attr.fill]="'url(#' + skyId + '-air)'" />
+        <g [attr.opacity]="sky().stars">
+          @for (star of stars; track $index) {
+            <circle [attr.cx]="star.x" [attr.cy]="star.y" [attr.r]="star.r" fill="#fff" />
+          }
+        </g>
+        <path
+          [attr.d]="skyArc"
+          fill="none"
+          stroke="#fff"
+          stroke-opacity="0.28"
+          stroke-width="0.8"
+          stroke-dasharray="1.5 3.5"
+        />
+        <g
+          data-testid="game-clock-moon"
+          [style.transform]="'translate(' + sky().moon.x + 'px, ' + sky().moon.y + 'px)'"
+          [style.opacity]="0.4 + 0.6 * sky().stars"
+        >
+          <circle r="16" [attr.fill]="'url(#' + skyId + '-moon-glow)'" />
+          <circle r="5.5" fill="#eef1ff" [attr.mask]="'url(#' + skyId + '-crescent)'" />
+        </g>
+        <g data-testid="game-clock-sun" [style.transform]="'translate(' + sky().sun.x + 'px, ' + sky().sun.y + 'px)'">
+          <circle r="20" [attr.fill]="'url(#' + skyId + '-sun-glow)'" />
+          <circle r="6.5" fill="#ffd66b" />
+        </g>
+        <path
+          d="M0 62 C 30 58 50 53 80 57 S 140 49 170 55 S 222 58 240 61 L 240 96 L 0 96 Z"
+          fill="#0a0e24"
+          fill-opacity="0.45"
+        />
+        <path
+          d="M0 70 C 26 64 50 66 74 71 S 120 63 146 68 S 200 62 240 69 L 240 96 L 0 96 Z"
+          fill="#060918"
+          fill-opacity="0.82"
+        />
+      </svg>
+
+      <div
+        class="absolute inset-x-0 bottom-1.5 flex flex-col items-center text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.7)]"
+        aria-live="polite"
+      >
+        <span
+          class="text-[10px] leading-tight font-semibold tracking-[0.2em] text-white/80"
+          data-testid="game-clock-day"
+          >{{ clock.dayText() }}</span
+        >
+        <span
+          class="text-[26px] leading-none font-bold tracking-wide [font-variant-numeric:tabular-nums]"
+          data-testid="game-clock-time"
+          >{{ clock.timeText() }}</span
+        >
+      </div>
+
+      @if (clock.clock().mode === 'periods') {
+        <div class="absolute right-2.5 bottom-2.5 flex items-center gap-1" aria-hidden="true">
+          @for (current of periodMarks(); track $index) {
+            <span
+              class="rounded-full motion-safe:transition-all motion-safe:duration-500"
+              [class]="current ? 'size-2 bg-white shadow-[0_0_6px_rgba(255,255,255,0.9)]' : 'size-1.5 bg-white/35'"
+            ></span>
+          }
+        </div>
+      }
+
+      <button
+        type="button"
+        class="absolute top-1 right-1 m-0 inline-flex size-6 cursor-pointer items-center justify-center rounded-full border-none bg-black/25 p-0 text-white/85 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/45 hover:text-white focus-visible:opacity-100 [&_.material-icons]:text-[16px]!"
+        [title]="'feature.gameClock.close' | transloco"
+        [attr.aria-label]="'feature.gameClock.close' | transloco"
+        (click)="close()"
+      >
+        <i class="material-icons">close</i>
+      </button>
+    </div>
+
+    @if (clock.canEdit()) {
+      <div class="border-ui-border-panel flex items-center gap-0.5 border-t border-solid px-1 py-0.5">
+        <button
+          type="button"
+          data-testid="game-clock-back"
+          [class]="buttonClass"
+          [title]="'feature.gameClock.stepBack' | transloco"
+          [attr.aria-label]="'feature.gameClock.stepBack' | transloco"
+          (click)="clock.step(-1)"
+        >
+          <i class="material-icons">chevron_left</i>
+        </button>
+        <button
+          type="button"
+          data-testid="game-clock-on"
+          [class]="buttonClass"
+          [title]="'feature.gameClock.stepOn' | transloco"
+          [attr.aria-label]="'feature.gameClock.stepOn' | transloco"
+          (click)="clock.step(1)"
+        >
+          <i class="material-icons">chevron_right</i>
+        </button>
+        <span class="text-ui-dim min-w-0 flex-1 truncate px-1 text-[11px]" data-testid="game-clock-next">
+          @if (clock.clock().mode === 'hours') {
+            ±{{
+              clock.clock().step % 60 === 0
+                ? ('feature.gameClock.stepHours' | transloco: { n: clock.clock().step / 60 })
+                : ('feature.gameClock.stepMinutes' | transloco: { n: clock.clock().step })
+            }}
+          } @else {
+            → {{ nextPeriod() }}
+          }
+        </span>
+        <button
+          type="button"
+          data-testid="game-clock-settings"
+          [class]="buttonClass"
+          [attr.aria-expanded]="settingsOpen()"
+          [title]="'feature.gameClock.settings' | transloco"
+          [attr.aria-label]="'feature.gameClock.settings' | transloco"
+          (click)="toggleSettings()"
+        >
+          <i class="material-icons">tune</i>
+        </button>
+      </div>
+    }
+
+    @if (clock.canEdit() && settingsOpen()) {
+      <div
+        class="border-ui-border-panel flex flex-col gap-1.5 border-t border-solid px-2 pt-1.5 pb-2 text-[12px]"
+        data-testid="game-clock-form"
+      >
+        <div class="flex items-center gap-2">
+          <span class="text-ui-muted w-20 shrink-0">{{ 'feature.gameClock.mode' | transloco }}</span>
+          <div class="flex" role="group" [attr.aria-label]="'feature.gameClock.mode' | transloco">
+            @for (mode of modes; track mode) {
+              <button
+                type="button"
+                [class]="modeButtonClass"
+                [attr.aria-pressed]="clock.clock().mode === mode"
+                [attr.data-testid]="'game-clock-mode-' + mode"
+                (click)="clock.setMode(mode)"
+              >
+                {{ 'feature.gameClock.mode_' + mode | transloco }}
+              </button>
+            }
+          </div>
+        </div>
+        <label class="flex items-center gap-2">
+          <span class="text-ui-muted w-20 shrink-0">{{ 'feature.gameClock.day' | transloco }}</span>
+          <input
+            type="number"
+            min="1"
+            data-testid="game-clock-day-input"
+            [class]="fieldClass"
+            class="w-20"
+            [value]="clock.clock().day"
+            (change)="changeDay($any($event.target))"
+          />
+        </label>
+        @if (clock.clock().mode === 'periods') {
+          <label class="flex items-center gap-2">
+            <span class="text-ui-muted w-20 shrink-0">{{ 'feature.gameClock.period' | transloco }}</span>
+            <select
+              data-testid="game-clock-period"
+              [class]="fieldClass"
+              class="flex-1"
+              [ngModel]="periodIndex()"
+              (ngModelChange)="clock.setPeriod($event)"
+            >
+              @for (name of clock.periods(); track $index) {
+                <option [ngValue]="$index">{{ name }}</option>
+              }
+            </select>
+          </label>
+          <label class="flex flex-col gap-0.5">
+            <span class="text-ui-muted">{{ 'feature.gameClock.periods' | transloco }}</span>
+            <input
+              type="text"
+              data-testid="game-clock-periods"
+              [class]="fieldClass"
+              [value]="periodsValue()"
+              [placeholder]="'feature.gameClock.defaultPeriods' | transloco"
+              (change)="changePeriods($any($event.target))"
+            />
+            <span class="text-ui-dim text-[11px]">{{ 'feature.gameClock.periodsHint' | transloco }}</span>
+          </label>
+        } @else {
+          <label class="flex items-center gap-2">
+            <span class="text-ui-muted w-20 shrink-0">{{ 'feature.gameClock.time' | transloco }}</span>
+            <input
+              type="time"
+              data-testid="game-clock-time-input"
+              [class]="fieldClass"
+              [value]="timeValue()"
+              (change)="changeTime($any($event.target))"
+            />
+          </label>
+          <label class="flex items-center gap-2">
+            <span class="text-ui-muted w-20 shrink-0">{{ 'feature.gameClock.step' | transloco }}</span>
+            <select
+              data-testid="game-clock-step"
+              [class]="fieldClass"
+              class="flex-1"
+              [ngModel]="clock.clock().step"
+              (ngModelChange)="clock.setStep($event)"
+            >
+              @for (step of steps; track step) {
+                <option [ngValue]="step">
+                  {{
+                    step % 60 === 0
+                      ? ('feature.gameClock.stepHours' | transloco: { n: step / 60 })
+                      : ('feature.gameClock.stepMinutes' | transloco: { n: step })
+                  }}
+                </option>
+              }
+            </select>
+          </label>
+        }
+        <label class="flex flex-col gap-0.5">
+          <span class="text-ui-muted">{{ 'feature.gameClock.dayFormatLabel' | transloco }}</span>
+          <input
+            type="text"
+            data-testid="game-clock-day-format"
+            [class]="fieldClass"
+            [value]="clock.clock().dayFormat"
+            [placeholder]="'feature.gameClock.dayFormat' | transloco"
+            (change)="changeDayFormat($any($event.target))"
+          />
+          <span class="text-ui-dim text-[11px]">{{ 'feature.gameClock.dayFormatHint' | transloco }}</span>
+        </label>
+        <label class="flex cursor-pointer items-center gap-1.5">
+          <input
+            type="checkbox"
+            class="m-0 cursor-pointer [accent-color:var(--ui-accent)]"
+            data-testid="game-clock-announce"
+            [ngModel]="clock.clock().announce"
+            (ngModelChange)="clock.setAnnounce($event)"
+          />
+          <span>{{ 'feature.gameClock.announce' | transloco }}</span>
+        </label>
+      </div>
+    }
+  </div>
+}

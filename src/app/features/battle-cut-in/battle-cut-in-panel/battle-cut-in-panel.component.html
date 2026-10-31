@@ -79,6 +79,33 @@
       <span class="text-[12px] font-semibold">{{ 'feature.battleCutIn.lineupHeading' | transloco }}</span>
     </div>
     <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.battleCutIn.lineupHint' | transloco }}</p>
+    @if (isGameMaster() && parties().length > 0) {
+      <div class="flex flex-col gap-1" data-testid="battle-party-sides">
+        <span class="text-ui-muted text-[11px] font-semibold">{{
+          'feature.battleCutIn.partyHeading' | transloco
+        }}</span>
+        <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.battleCutIn.partyHint' | transloco }}</p>
+        @for (party of parties(); track party.identifier) {
+          <div class="flex items-center gap-1.5" [attr.data-testid]="'battle-party-' + party.name">
+            <span class="size-2.5 shrink-0 rounded-full" [style.background]="party.color"></span>
+            <span class="min-w-0 flex-1 truncate text-[12px]">{{ party.name }}</span>
+            <div class="flex shrink-0" role="group" [attr.aria-label]="party.name">
+              @for (choice of partySideChoices; track choice.key) {
+                <button
+                  type="button"
+                  [class]="partySideButtonClass"
+                  [attr.aria-pressed]="party.side === choice.side"
+                  [attr.data-testid]="'battle-party-' + choice.key + '-' + party.name"
+                  (click)="setPartySide(party.identifier, choice.side)"
+                >
+                  {{ choice.labelKey | transloco }}
+                </button>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
     <div class="grid grid-cols-2 gap-2">
       @for (column of [left(), right()]; track $index; let isLeft = $first) {
         <div
@@ -92,6 +119,14 @@
           @for (row of column; track row.identifier) {
             <div class="flex items-center gap-1.5">
               <ng-container *ngTemplateOutlet="pieceTemplate; context: { $implicit: row }" />
+              @if (row.withParty) {
+                <span
+                  class="text-ui-dim shrink-0 text-[10px]"
+                  [attr.data-testid]="'battle-with-party-' + row.name"
+                  [title]="'feature.battleCutIn.withPartyHint' | transloco"
+                  >{{ 'feature.battleCutIn.withParty' | transloco }}</span
+                >
+              }
               @if (isGameMaster()) {
                 <button
                   type="button"
@@ -130,6 +165,16 @@
             >
               {{ 'feature.battleCutIn.toRight' | transloco }}
             </button>
+            @if (row.partyPlaced) {
+              <button
+                type="button"
+                class="border-ui-border-panel bg-ui-input rounded-ui-sm hover:border-ui-accent cursor-pointer border border-solid px-1.5 py-0.5 text-[11px]"
+                [attr.data-testid]="'battle-follow-party-' + row.name"
+                (click)="followParty(row.identifier)"
+              >
+                {{ 'feature.battleCutIn.followParty' | transloco }}
+              </button>
+            }
           </div>
         }
       </div>
@@ -177,6 +222,21 @@
       @if (focusedPreset(); as preset) {
         <effect-preview [preset]="preset" />
       }
+      <label class="flex items-center gap-2 text-[12px]">
+        <span class="text-ui-muted w-16 shrink-0">{{ 'feature.battleCutIn.facing' | transloco }}</span>
+        <select
+          class="border-ui-border-panel bg-ui-input text-ui-text min-w-0 flex-1 rounded-[3px] border border-solid px-1.5 py-0.5 text-[12px] disabled:opacity-60"
+          data-testid="battle-facing"
+          [disabled]="!canEditFocused()"
+          [ngModel]="focused()?.facing ?? ''"
+          (ngModelChange)="setFacing($event)"
+        >
+          <option [ngValue]="''">{{ 'feature.battleCutIn.facingAsDrawn' | transloco }}</option>
+          <option [ngValue]="'left'">{{ 'feature.battleCutIn.facingLeft' | transloco }}</option>
+          <option [ngValue]="'right'">{{ 'feature.battleCutIn.facingRight' | transloco }}</option>
+        </select>
+      </label>
+      <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.battleCutIn.facingHint' | transloco }}</p>
     } @else {
       <p class="text-ui-dim m-0 text-[12px]">{{ 'feature.battleCutIn.noPieces' | transloco }}</p>
     }

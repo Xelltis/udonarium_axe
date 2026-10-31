@@ -1,0 +1,49 @@
+<div class="flex flex-col gap-1">
+  @if (inEditor()) {
+    <div
+      #editorHost
+      data-chat-line-edit-box
+      class="panel-no-drag border-ui-accent rounded-ui-sm box-border flex max-h-60 min-h-8 w-full min-w-0 flex-col overflow-y-auto border border-solid bg-transparent text-(length:--chat-font-size) leading-normal text-inherit [--chat-rich-font-size:var(--chat-font-size)]"
+    ></div>
+  } @else {
+    <textarea
+      #plainBox
+      uiComposingMark
+      data-chat-line-edit
+      [attr.aria-label]="'feature.chat.message.edit' | transloco"
+      class="border-ui-accent bg-ui-input text-ui-text rounded-ui-sm focus:border-ui-accent block max-h-60 w-full resize-none border border-solid px-2 py-1 text-(length:--chat-font-size) leading-normal outline-none"
+      [ngModel]="draft()"
+      (ngModelChange)="typed($event)"
+      (keydown)="onPlainKeydown($event)"
+      (pointerdown)="plainUsed = true"
+      rows="1"
+    ></textarea>
+  }
+  <div
+    class="flex flex-wrap items-center gap-x-2 gap-y-1 [--chat-toolbar-hover:color-mix(in_srgb,currentColor_12%,transparent)] [--chat-toolbar-ink-hover:currentColor] [--chat-toolbar-ink:color-mix(in_srgb,currentColor_72%,transparent)]"
+    data-testid="chat-line-edit-toolbar"
+    #editsBar
+  >
+    <div class="flex items-center">
+      @defer (on immediate) {
+        <chat-toolbar [field]="field()" [syntax]="false" (edited)="takeFieldText()" />
+      }
+      @if (stampLinesOn()) {
+        <button
+          type="button"
+          data-testid="chat-line-edit-stamp"
+          aria-haspopup="listbox"
+          [class]="stampButtonClass"
+          [title]="'feature.chat.input.stamp' | transloco"
+          [attr.aria-label]="'feature.chat.input.stamp' | transloco"
+          (click)="openStamps($event.currentTarget)"
+        >
+          <i class="material-icons">emoji_emotions</i>
+        </button>
+      }
+    </div>
+    <div class="ml-auto flex items-center gap-2 text-[11px] text-(--chat-toolbar-ink)">
+      <ng-content />
+    </div>
+  </div>
+</div>

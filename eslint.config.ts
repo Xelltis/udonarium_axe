@@ -276,6 +276,24 @@ export default defineConfig([
     files: ['src/app/**/*.spec.ts', 'src/app/testing/**/*.ts'],
     rules: { '@angular-eslint/prefer-on-push-component-change-detection': 'off' },
   },
+  /* A module mocked with vi.mock does nothing under `ng test`, which bundles the specs, and under
+   *  `npx vitest run`, whose workers run file after file without isolating them, a module that
+   *  imported the mock goes on holding it for the files after. Specs stand in for what they need
+   *  with vi.spyOn and the seams the code gives instead. */
+  {
+    files: ['src/app/**/*.spec.ts'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        { object: 'vi', property: 'mock', message: 'Stand in with vi.spyOn or a seam; vi.mock leaks between files.' },
+        {
+          object: 'vi',
+          property: 'doMock',
+          message: 'Stand in with vi.spyOn or a seam; vi.doMock leaks between files.',
+        },
+      ],
+    },
+  },
   {
     files: ['src/app/**/*.html'],
     extends: [...angular.configs.templateRecommended],

@@ -37,7 +37,10 @@ export interface TypedLine {
   readonly partStarts: readonly number[];
 }
 
-/** Prepares a line for typing out: cut into ruby runs, with every letter's end and run worked out once. */
+/**
+ * Prepares a line for typing out: cut into ruby runs, with every letter's end and run worked out
+ * once. A stamp put inside the line comes out whole, as one letter.
+ */
 export function typedLineOf(line: string): TypedLine {
   const parts = splitRubyNotation(line);
   const ends: number[] = [];
@@ -46,7 +49,7 @@ export function typedLineOf(line: string): TypedLine {
   let at = 0;
   parts.forEach((part, index) => {
     partStarts.push(at);
-    for (const end of graphemeEnds(part.text)) {
+    for (const end of part.stamp ? [part.text.length] : graphemeEnds(part.text)) {
       ends.push(at + end);
       partOfLetter.push(index);
     }

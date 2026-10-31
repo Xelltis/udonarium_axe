@@ -388,7 +388,9 @@
         "gather": "이 지점을 중심으로 파티 배치",
         "gatherOnTable": "{{name}}（테이블의 {{count}}명）",
         "gatherWithAway": "{{name}}（테이블 밖 {{count}}명도 내보내기）",
-        "allies": "동맹:"
+        "allies": "동맹:",
+        "players": "플레이어:",
+        "playersHint": "체크한 플레이어는 이 파티의 말의 시야를 공유하고, 1인칭에서도 그 말에서 볼 수 있습니다. 하나의 말을 함께 움직이는 탁에서는 그 말을 파티에 넣고 플레이어를 체크합니다."
       }
     },
     "hotbar": {
@@ -1938,6 +1940,7 @@
           "send": "보내기",
           "newline": "줄 바꾸기",
           "history": "보낸 발언 불러오기",
+          "tabs": "채팅 탭 전환",
           "search": "채팅 창 위에서 로그 검색"
         },
         "firstPerson": {
@@ -3217,6 +3220,8 @@
         "openFromRound": "알림을 보낼 곳 고르기",
         "kind_round": "라운드·차례 진행",
         "kindHint_round": "라운드 시작과 끝, 차례, 버프 만료와 일괄 해제",
+        "kind_clock": "게임 내 시간",
+        "kindHint_clock": "GM이 게임 내 시간을 진행하거나 되돌렸을 때",
         "kind_diceReveal": "판 위 주사위 공개",
         "kindHint_diceReveal": "엎어 둔 주사위를 열었을 때의 눈",
         "kind_trigger": "트리거",
@@ -3559,12 +3564,14 @@
       },
       "invite": {
         "joining": "\"{{roomName}}\"에 참가하고 있습니다…",
+        "askLogin": "\"{{roomName}}\"에 PL·GM으로 들어가려면 Discord로 로그인해 주세요. 로그인하지 않으면 관전 상태로 들어갑니다",
         "notFound": "\"{{roomName}}\"을(를) 찾지 못했습니다",
         "failed": "\"{{roomName}}\"에 참가하지 못했습니다",
         "banned": "\"{{roomName}}\"에 들어갈 수 없습니다. 방 서버 운영자가 이 회선을 차단했습니다.",
         "offline": "오프라인이라 \"{{roomName}}\"에 들어갈 수 없습니다. 들어가려면 연결 패널에서 온라인으로 전환해 주세요",
         "openLobby": "로비 열기",
-        "dismiss": "닫기"
+        "dismiss": "닫기",
+        "watch": "관전으로 들어가기"
       },
       "account": {
         "login": "Discord로 로그인",
@@ -3701,11 +3708,12 @@
         "sendToTickerHint": "이 발언을 화면 외곽에도 흘려보냅니다",
         "tools": "입력 설정",
         "myDice": "마이 주사위",
-        "stamp": "스탬프 보내기 (입력 중인 글이 있으면 함께)"
+        "stamp": "스탬프 넣기",
+        "bar": "입력란 도구",
+        "colorSlot": "보유 색 {{n}}",
+        "colors": "발언 색"
       },
       "decoration": {
-        "title": "글자 꾸미기",
-        "button": "꾸미기",
         "bold": "굵게",
         "italic": "기울임",
         "strike": "취소선",
@@ -3886,7 +3894,9 @@
         "ruby_size_half": "본문의 절반",
         "ruby_size_normal": "표준",
         "ruby_size_large": "크게",
-        "rubyHint": "채팅, 노벨 모드, 공유 메모, 내보내는 로그의 루비에 적용됩니다. 이 설정은 이 기기에만 적용됩니다"
+        "rubyHint": "채팅, 노벨 모드, 공유 메모, 내보내는 로그의 루비에 적용됩니다. 이 설정은 이 기기에만 적용됩니다",
+        "richInput": "서식 입력란 사용",
+        "richInputTooltip": "채팅 입력란에서 굵은 글씨, 색, 루비를 보낸 뒤의 모습 그대로 쓰고, 표기를 종류별로 색으로 구분하며, 효과가 없는 표기에 표시를 합니다. 끄면 표기를 그대로 입력하는 입력란이 됩니다. 이 화면만의 설정입니다"
       },
       "systemAvatar": {
         "title": "시스템쨩",
@@ -4095,6 +4105,122 @@
         "noPacks": "방의 스탬프 세트가 아직 없습니다",
         "tooLarge": "2MB를 넘어 추가하지 못했습니다: {{names}}",
         "alreadyIn": "그 이미지는 이미 이 세트에 있습니다"
+      },
+      "lint": {
+        "list": "표기 지적",
+        "dice": {
+          "plainText": "이 다이스봇의 커맨드가 아니므로 발언으로 보내집니다",
+          "unrollable": "다이스봇이 굴릴 수 없는 표기입니다. 결과는 나오지 않습니다",
+          "failed": "다이스봇이 굴리는 도중에 멈춥니다. 결과는 나오지 않습니다",
+          "tooMany": "굴릴 다이스가 너무 많아 다이스봇이 굴리지 않습니다",
+          "noRepeat": "0번은 굴려지지 않습니다",
+          "cannotCheck": "다이스봇을 불러올 수 없어 확인할 수 없습니다",
+          "tooManyDice": "다이스는 한 항에 200개까지입니다. 넘으면 0이 됩니다",
+          "tooManySides": "다이스의 면은 10000까지입니다. 넘으면 0이 됩니다",
+          "tooManyRepeats": "반복은 100번까지입니다"
+        },
+        "target": {
+          "none": "타깃이 없으므로 이 줄 대신 \"대상이 선택되지 않았습니다\"가 나옵니다"
+        },
+        "ref": {
+          "unknownKept": "\"{{name}}\"은(는) 시트에도 팔레트에도 없으므로 그대로 보내집니다",
+          "unknownEmptied": "\"{{name}}\"은(는) 시트에도 팔레트에도 없으므로 비게 됩니다",
+          "noSpeaker": "발언자가 말이 아니므로 참조가 채워지지 않습니다"
+        },
+        "edit": {
+          "noSpeaker": "발언자가 말이 아니므로 이 조작은 효과가 없습니다",
+          "keptOffTable": "관전하는 동안에는 이 조작은 효과가 없습니다"
+        },
+        "res": {
+          "noOperator": "증감 기호(+・-・=・>)가 없으므로 효과가 없습니다",
+          "noAmount": "양이 없으므로 효과가 없습니다",
+          "unknownStatus": "{{piece}}에 \"{{name}}\"이(가) 없으므로 효과가 없습니다",
+          "badOption": "양 뒤에 읽을 수 없는 문자가 있으므로 효과가 없습니다"
+        },
+        "buff": {
+          "noName": "버프 이름이 없으므로 효과가 없습니다",
+          "unreadable": "스테이터스・조작・양을 읽을 수 없으므로 버프가 붙지 않습니다",
+          "missingStatus": "\"{{name}}\"이(가) 없으므로 그 스테이터스는 움직이지 않습니다",
+          "notFound": "{{piece}}에는 \"{{name}}\" 버프가 없습니다",
+          "roundsDefault": "남은 라운드가 숫자가 아니므로 3라운드가 됩니다"
+        },
+        "sweep": {
+          "gmOnly": "버프 일괄 해제는 GM만 쓸 수 있습니다"
+        },
+        "portrait": {
+          "unknown": "이 스탠딩을 찾을 수 없어 문자 그대로 보내집니다",
+          "lostByTarget": "타깃을 향한 줄에서는 스탠딩이 바뀌지 않습니다"
+        },
+        "cutIn": {
+          "secret": "시크릿 줄에서는 컷인 \"{{name}}\"이(가) 일어나지 않습니다",
+          "lostByTarget": "타깃을 향한 줄에서는 컷인 \"{{name}}\"이(가) 일어나지 않습니다"
+        },
+        "effect": {
+          "blank": "빈 《》 뒤의 연출은 읽히지 않습니다",
+          "unknown": "연출 \"{{name}}\"은(는) 라이브러리에 없습니다",
+          "extra": "연출은 한 줄에 하나입니다. 두 번째부터는 읽히지 않습니다",
+          "noTarget": "대상 말이 없어 연출 「{{name}}」이(가) 일어나지 않습니다. 말을 타깃으로 하거나 선택하세요"
+        },
+        "battle": {
+          "noSpeaker": "발언자가 말이 아니므로 전투 컷인이 일어나지 않습니다",
+          "noTarget": "대상 말이 없어 전투 컷인이 일어나지 않습니다. 말을 타깃으로 하거나 선택하세요"
+        },
+        "diceToken": {
+          "unknown": "\"{{name}}\"이라는 이름의 말은 없습니다",
+          "keptOffTable": "관전하는 동안에는 다이스가 움직이지 않습니다"
+        },
+        "deco": {
+          "unpaired": "닫히지 않은 장식은 문자 그대로 나옵니다",
+          "hidesCommand": "장식 안에 있어서 명령으로 읽히지 않습니다"
+        },
+        "vn": {
+          "dropped": "모르는 단어({{words}})가 있어 〔〕는 문자 그대로 나옵니다",
+          "duplicate": "같은 종류의 단어가 2개 있어 〔〕는 문자 그대로 나옵니다"
+        },
+        "chipNotAtEnd": "문장 끝에 둘 때만 효과가 있습니다",
+        "stamp": {
+          "unknown": "「{{name}}」은(는) 이 버전에 없는 스탬프라 이름이 글자로 표시됩니다",
+          "denied": "「{{name}}」은(는) 이 방에서 막힌 스탬프라 이름이 글자로 전송됩니다"
+        }
+      },
+      "syntax": {
+        "title": "표기 넣기",
+        "ruby": "루비",
+        "rubyWrap": "선택한 단어에 루비 달기",
+        "base": "한자",
+        "reading": "읽기",
+        "dice": "다이스",
+        "secretRoll": "시크릿으로 굴리기",
+        "repeat": "반복해서 굴리기",
+        "reference": "참조",
+        "targetReference": "타깃의 값",
+        "name": "이름",
+        "resource": "리소스 조작",
+        "text": "문자",
+        "toTarget": "타깃에게",
+        "secret": "시크릿으로",
+        "buff": "버프",
+        "buffPlain": "붙이기",
+        "buffEffect": "효과",
+        "buffCalculated": "스테이터스 움직이기",
+        "buffRemove": "떼기",
+        "buffRoundsDown": "남은 라운드 줄이기",
+        "buffClear": "0라운드 이하 지우기",
+        "buffSweep": "탁자 전체에서 떼기",
+        "portrait": "스탠딩",
+        "portraitHide": "스탠딩 숨기기",
+        "effect": "연출・컷인",
+        "battle": "전투 컷인",
+        "quote": "인용",
+        "quoteLine": "인용하기"
+      },
+      "toolbar": {
+        "label": "서식",
+        "style": "크기・글꼴・색",
+        "normal": "기본",
+        "clearColor": "색 빼기",
+        "applyRuby": "달기",
+        "removeRuby": "루비 빼기"
       }
     },
     "visualNovel": {
@@ -5860,11 +5986,22 @@
       "onTable": "테이블의 말",
       "toLeft": "왼쪽으로",
       "toRight": "오른쪽으로",
+      "partyHeading": "진영의 위치",
+      "partyHint": "진영마다 좌우를 정하면, 조를 정하지 않은 말은 그 진영 쪽에 섭니다. 바꿀 때까지 그 위치를 유지합니다.",
+      "partyNone": "없음",
+      "withParty": "진영",
+      "withPartyHint": "진영의 위치에 서 있습니다",
+      "followParty": "진영으로 되돌리기",
       "effectHeading": "말의 공격 연출",
       "effectHint": "연출을 지정하지 않은 공격에서는 말에 설정한 연출이 나옵니다. 설정이 없으면 피해나 회복량에 맞는 연출이 나옵니다.",
       "piece": "말",
       "effect": "연출",
       "stageEffect": "(설정 안 함)",
+      "facing": "그림의 방향",
+      "facingAsDrawn": "그대로",
+      "facingLeft": "왼쪽을 향함",
+      "facingRight": "오른쪽을 향함",
+      "facingHint": "그림이 향한 쪽을 고르면, 무대에서는 상대 쪽을 보도록 좌우를 반전합니다.",
       "noPieces": "테이블에 말이 없습니다.",
       "roomHeading": "방 설정",
       "roomMasterOnly": "GM만 변경할 수 있습니다.",
@@ -5890,6 +6027,31 @@
       "addPicture": "이미지 등록",
       "removePicture": "「{{name}}」 등록 해제",
       "picturesHint": "등록한 이미지는 무대로 고를 수 있습니다. {{limit}}장까지 등록할 수 있습니다."
+    },
+    "gameClock": {
+      "title": "게임 내 시간",
+      "dayFormat": "{n}일째",
+      "defaultPeriods": "아침,낮,저녁,밤",
+      "announceOn": "시간을 진행했습니다: {{day}} {{time}}",
+      "announceBack": "시간을 되돌렸습니다: {{day}} {{time}}",
+      "stepOn": "시간 진행",
+      "stepBack": "시간 되돌리기",
+      "settings": "게임 내 시간 설정",
+      "close": "게임 내 시간 숨기기",
+      "mode": "시각의 표시",
+      "mode_periods": "시간대",
+      "mode_hours": "24시간",
+      "day": "일",
+      "period": "지금의 시간대",
+      "periods": "시간대의 이름",
+      "periodsHint": "쉼표로 구분해 하루의 순서대로 씁니다. 비우면 「아침,낮,저녁,밤」입니다.",
+      "time": "지금의 시각",
+      "step": "한 번에 진행",
+      "stepMinutes": "{{n}}분",
+      "stepHours": "{{n}}시간",
+      "dayFormatLabel": "날짜의 표기",
+      "dayFormatHint": "{n}이 날의 수가 됩니다（예: Day {n}）. 비우면 「{n}일째」입니다.",
+      "announce": "진행하거나 되돌렸을 때 채팅에 표시"
     }
   },
   "app": {
@@ -5909,6 +6071,7 @@
       "gameResources": "게임 리소스",
       "media": "미디어",
       "clock": "시계",
+      "gameClock": "게임 내 시간",
       "compass": "나침반",
       "connectionQuality": "통신 품질",
       "miniPlayer": "미니 플레이어",

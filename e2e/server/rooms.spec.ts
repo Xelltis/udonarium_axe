@@ -1,5 +1,6 @@
 import { Page } from '@playwright/test';
 
+import { chatInput } from '../helpers';
 import {
   chatTabText,
   createRoom,
@@ -32,7 +33,7 @@ test.describe('rooms and roles on the room server', () => {
     const room = uniqueName('役割の卓');
 
     await openLobby(guest.page);
-    await expect(guest.page.getByTestId('server-account-login')).toBeVisible();
+    await expect(guest.page.locator('lobby').getByTestId('server-account-login')).toBeVisible();
     await expect(guest.page.getByTestId('lobby-create-room')).toContainText('ログインして');
 
     await createRoom(gm.page, room);
@@ -84,7 +85,7 @@ test.describe('rooms and roles on the room server', () => {
     await expect(rolePickerFor(gm.page, 'PLさん')).toHaveValue(/guest/, { timeout: 10_000 });
 
     await pl.page.reload();
-    await expect(pl.page.locator('textarea.chat-input')).toBeVisible({ timeout: 30_000 });
+    await expect(chatInput(pl.page)).toBeVisible({ timeout: 30_000 });
     await joinRoom(pl.page, room);
     await expect(roleShown(pl.page)).toHaveText('見学', { timeout: 20_000 });
 
@@ -117,6 +118,30 @@ test.describe('rooms and roles on the room server', () => {
 
     await expect(roleShown(coGm.page)).toHaveText('GM', { timeout: 10_000 });
     await leaveAll(gm, coGm);
+  });
+
+  test('someone not logged in who opens a room’s link is asked to log in or to watch, and may log in from inside', async ({
+    browser,
+    roomServer,
+  }) => {
+    const gm = await openSeat(browser, roomServer, 'GMさん');
+    const room = uniqueName('聞く卓');
+    await createRoom(gm.page, room);
+    await expect(gm.page.getByTestId('peer-menu-invite-expires')).toBeVisible({ timeout: 10_000 });
+    const invitation = (await gm.page.locator('peer-menu input[readonly]').first().inputValue()).replace(
+      /^https?:\/\/[^/]+\//,
+      `${roomServer.appUrl}/`
+    );
+
+    const guest = await openSeat(browser, roomServer, '見学さん', null, invitation);
+    await expect(guest.page.getByTestId('invite-join')).toContainText('PL・GMとして入るには', { timeout: 30_000 });
+    await expect(guest.page.getByTestId('invite-join-login')).toBeVisible();
+    await guest.page.getByTestId('invite-join-watch').click();
+
+    await expectInRoom(guest.page, room);
+    expect(await serverRole(guest.page)).toBe('見学');
+    await expect(guest.page.getByTestId('peer-menu-login').getByTestId('server-account-login')).toBeVisible();
+    await leaveAll(gm, guest);
   });
 
   test('a login run out on the server is turned away with a reason', async ({ browser, roomServer }) => {
@@ -173,7 +198,7 @@ test.describe('deleting a room', () => {
     await createRoom(gm.page, room);
     // Back to waiting, outside the room, where the list is shown.
     await gm.page.reload();
-    await expect(gm.page.locator('textarea.chat-input')).toBeVisible({ timeout: 30_000 });
+    await expect(chatInput(gm.page)).toBeVisible({ timeout: 30_000 });
 
     await reloadLobby(gm.page);
     await reloadLobby(pl.page);

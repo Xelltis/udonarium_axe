@@ -388,7 +388,9 @@
         "gather": "この地点を中心にパーティを配置",
         "gatherOnTable": "{{name}}（卓上の{{count}}体）",
         "gatherWithAway": "{{name}}（卓外の{{count}}体も出す）",
-        "allies": "同盟:"
+        "allies": "同盟:",
+        "players": "プレイヤー:",
+        "playersHint": "チェックしたプレイヤーは、このパーティのコマの視界を共有し、一人称でもそのコマから見られます。1つのコマをみんなで動かす卓では、そのコマをパーティに入れてプレイヤーをチェックします。"
       }
     },
     "hotbar": {
@@ -1938,6 +1940,7 @@
           "send": "送る",
           "newline": "改行する",
           "history": "送った発言を呼び戻す",
+          "tabs": "チャットのタブを切り替える",
           "search": "チャット窓の上でログを探す"
         },
         "firstPerson": {
@@ -3217,6 +3220,8 @@
         "openFromRound": "通知の送り先を選ぶ",
         "kind_round": "ラウンド・手番の進行",
         "kindHint_round": "ラウンドの開始と終了、手番、バフの期限切れと一括解除",
+        "kind_clock": "ゲーム内時間",
+        "kindHint_clock": "GMがゲーム内時間を進めたり戻したりしたとき",
         "kind_diceReveal": "盤上のダイスの公開",
         "kindHint_diceReveal": "伏せたダイスを開けたときの出目",
         "kind_trigger": "トリガー",
@@ -3559,12 +3564,14 @@
       },
       "invite": {
         "joining": "「{{roomName}}」に参加しています…",
+        "askLogin": "「{{roomName}}」にPL・GMとして入るには、Discordでログインします。ログインしないと見学として入ります",
         "notFound": "「{{roomName}}」が見つかりませんでした",
         "failed": "「{{roomName}}」に参加できませんでした",
         "banned": "「{{roomName}}」に入れません。部屋のサーバーの運営者が、この回線を止めています",
         "offline": "オフラインのため「{{roomName}}」に入れません。入るときは、接続パネルでオンラインに切り替えてください",
         "openLobby": "ロビーを開く",
-        "dismiss": "閉じる"
+        "dismiss": "閉じる",
+        "watch": "見学で入る"
       },
       "account": {
         "login": "Discordでログイン",
@@ -3701,11 +3708,12 @@
         "sendToTickerHint": "この発言を画面の外周にも流します",
         "tools": "入力の設定",
         "myDice": "マイダイス",
-        "stamp": "スタンプを送る（入力中の文があれば一緒に）"
+        "stamp": "スタンプを入れる",
+        "bar": "入力欄の操作",
+        "colorSlot": "持ち色{{n}}",
+        "colors": "発言の色"
       },
       "decoration": {
-        "title": "文字の装飾",
-        "button": "装飾",
         "bold": "太字",
         "italic": "斜体",
         "strike": "取り消し線",
@@ -3886,7 +3894,9 @@
         "ruby_size_half": "親文字の半分",
         "ruby_size_normal": "標準",
         "ruby_size_large": "大きめ",
-        "rubyHint": "チャット、ノベルモード、共有メモ、書き出すログのルビに効きます。この設定はこの端末だけのものです"
+        "rubyHint": "チャット、ノベルモード、共有メモ、書き出すログのルビに効きます。この設定はこの端末だけのものです",
+        "richInput": "書式つきの入力欄を使う",
+        "richInputTooltip": "チャットの入力欄で、太字や色、ルビを送ったあとの見た目のまま書き、記法を種類ごとに色分けして、効かない書き方に印を付けます。オフにすると、記法をそのまま打つ入力欄になります。この画面だけの設定です"
       },
       "systemAvatar": {
         "title": "システムちゃん",
@@ -4095,6 +4105,122 @@
         "noPacks": "部屋のスタンプのセットはまだありません",
         "tooLarge": "2MB を超えるため追加できませんでした：{{names}}",
         "alreadyIn": "その画像はもうこのセットにあります"
+      },
+      "lint": {
+        "list": "記法の指摘",
+        "dice": {
+          "plainText": "このダイスボットのコマンドではないため、発言として送られます",
+          "unrollable": "ダイスボットが振れない書き方です。結果は出ません",
+          "failed": "ダイスボットが振る途中で止まります。結果は出ません",
+          "tooMany": "振るダイスが多すぎるため、ダイスボットは振りません",
+          "noRepeat": "0回は振られません",
+          "cannotCheck": "ダイスボットを読み込めないため、確かめられません",
+          "tooManyDice": "ダイスは1つの項に200個までです。超えると0になります",
+          "tooManySides": "ダイスの面は10000までです。超えると0になります",
+          "tooManyRepeats": "繰り返しは100回までです"
+        },
+        "target": {
+          "none": "ターゲットがいないため、この行の代わりに「対象が未選択です」と出ます"
+        },
+        "ref": {
+          "unknownKept": "「{{name}}」はシートにもパレットにもないため、そのまま送られます",
+          "unknownEmptied": "「{{name}}」はシートにもパレットにもないため、空になります",
+          "noSpeaker": "発言者がコマではないため、参照は埋まりません"
+        },
+        "edit": {
+          "noSpeaker": "発言者がコマではないため、この操作は効きません",
+          "keptOffTable": "見学しているあいだは、この操作は効きません"
+        },
+        "res": {
+          "noOperator": "増減の記号（+・-・=・>）がないため、効きません",
+          "noAmount": "量がないため、効きません",
+          "unknownStatus": "{{piece}}に「{{name}}」がないため、効きません",
+          "badOption": "量のうしろに読めない文字があるため、効きません"
+        },
+        "buff": {
+          "noName": "バフの名前がないため、効きません",
+          "unreadable": "ステータス・操作・量が読めないため、バフは付きません",
+          "missingStatus": "「{{name}}」がないため、そのステータスは動きません",
+          "notFound": "{{piece}}には「{{name}}」のバフがありません",
+          "roundsDefault": "残ラウンドが数ではないため、3ラウンドになります"
+        },
+        "sweep": {
+          "gmOnly": "バフの一括解除はGMだけが使えます"
+        },
+        "portrait": {
+          "unknown": "この立ち絵が見つからないため、文字のまま送られます",
+          "lostByTarget": "ターゲットに向けた行では、立ち絵は切り替わりません"
+        },
+        "cutIn": {
+          "secret": "シークレットの行では、カットイン「{{name}}」は起きません",
+          "lostByTarget": "ターゲットに向けた行では、カットイン「{{name}}」は起きません"
+        },
+        "effect": {
+          "blank": "中身のない《》より後ろの演出は読まれません",
+          "unknown": "演出「{{name}}」はライブラリにありません",
+          "extra": "演出は1行に1つです。2つ目からは読まれません",
+          "noTarget": "対象のコマがいないため、演出「{{name}}」は起きません。コマをターゲットにするか選んでください"
+        },
+        "battle": {
+          "noSpeaker": "発言者がコマではないため、戦闘カットインは起きません",
+          "noTarget": "対象のコマがいないため、戦闘カットインは起きません。コマをターゲットにするか選んでください"
+        },
+        "diceToken": {
+          "unknown": "「{{name}}」という名前のコマはありません",
+          "keptOffTable": "見学しているあいだは、ダイスは動きません"
+        },
+        "deco": {
+          "unpaired": "閉じていない装飾は、文字のまま出ます",
+          "hidesCommand": "装飾の中にあるので、コマンドとして読まれません"
+        },
+        "vn": {
+          "dropped": "知らない語（{{words}}）があるため、〔〕は文字のまま出ます",
+          "duplicate": "同じ種類の語が2つあるため、〔〕は文字のまま出ます"
+        },
+        "chipNotAtEnd": "文末に置いたときだけ効きます",
+        "stamp": {
+          "unknown": "「{{name}}」はこの版にないスタンプのため、名前の文字で出ます",
+          "denied": "「{{name}}」はこの部屋で止められているスタンプのため、名前の文字で送られます"
+        }
+      },
+      "syntax": {
+        "title": "記法を入れる",
+        "ruby": "ルビ",
+        "rubyWrap": "選んだ語にルビを振る",
+        "base": "漢字",
+        "reading": "よみ",
+        "dice": "ダイス",
+        "secretRoll": "シークレットで振る",
+        "repeat": "繰り返して振る",
+        "reference": "参照",
+        "targetReference": "ターゲットの値",
+        "name": "名前",
+        "resource": "リソース操作",
+        "text": "文字",
+        "toTarget": "ターゲットに",
+        "secret": "シークレットで",
+        "buff": "バフ",
+        "buffPlain": "付ける",
+        "buffEffect": "効果",
+        "buffCalculated": "ステータスを動かす",
+        "buffRemove": "外す",
+        "buffRoundsDown": "残ラウンドを減らす",
+        "buffClear": "0ラウンド以下を消す",
+        "buffSweep": "卓全体から外す",
+        "portrait": "立ち絵",
+        "portraitHide": "立ち絵を出さない",
+        "effect": "演出・カットイン",
+        "battle": "戦闘カットイン",
+        "quote": "引用",
+        "quoteLine": "引用する"
+      },
+      "toolbar": {
+        "label": "書式",
+        "style": "大きさ・書体・色",
+        "normal": "標準",
+        "clearColor": "色を外す",
+        "applyRuby": "振る",
+        "removeRuby": "ルビを外す"
       }
     },
     "visualNovel": {
@@ -5572,11 +5698,22 @@
       "onTable": "卓のコマ",
       "toLeft": "左へ",
       "toRight": "右へ",
+      "partyHeading": "陣営の位置",
+      "partyHint": "陣営ごとに左右を決めると、組を決めていないコマはその陣営の側に並びます。変えるまで、その位置のままです。",
+      "partyNone": "なし",
+      "withParty": "陣営",
+      "withPartyHint": "陣営の位置で並んでいます",
+      "followParty": "陣営に戻す",
       "effectHeading": "コマの攻撃演出",
       "effectHint": "演出を指定しない攻撃では、コマに設定した演出が出ます。設定がなければ、ダメージや回復の量に合った演出が出ます。",
       "piece": "コマ",
       "effect": "演出",
       "stageEffect": "（設定しない）",
+      "facing": "絵の向き",
+      "facingAsDrawn": "そのまま",
+      "facingLeft": "左向き",
+      "facingRight": "右向き",
+      "facingHint": "絵が向いている側を選ぶと、舞台では相手のほうを向くように左右を反転します。",
       "noPieces": "卓にコマがありません。",
       "roomHeading": "部屋の設定",
       "roomMasterOnly": "GM だけが変更できます。",
@@ -5602,6 +5739,31 @@
       "addPicture": "画像を登録",
       "removePicture": "「{{name}}」の登録を外す",
       "picturesHint": "登録した画像は舞台として選べます。{{limit}}枚まで登録できます。"
+    },
+    "gameClock": {
+      "title": "ゲーム内時間",
+      "dayFormat": "{n}日目",
+      "defaultPeriods": "朝,昼,夕,夜",
+      "announceOn": "時間を進めました: {{day}} {{time}}",
+      "announceBack": "時間を戻しました: {{day}} {{time}}",
+      "stepOn": "時間を進める",
+      "stepBack": "時間を戻す",
+      "settings": "ゲーム内時間の設定",
+      "close": "ゲーム内時間を隠す",
+      "mode": "時刻の表し方",
+      "mode_periods": "時間帯",
+      "mode_hours": "24時間",
+      "day": "日",
+      "period": "いまの時間帯",
+      "periods": "時間帯の名前",
+      "periodsHint": "カンマで区切って、1日の順に書きます。空にすると「朝,昼,夕,夜」です。",
+      "time": "いまの時刻",
+      "step": "1回で進める",
+      "stepMinutes": "{{n}}分",
+      "stepHours": "{{n}}時間",
+      "dayFormatLabel": "日の書き方",
+      "dayFormatHint": "{n} が日の数になります（例: Day {n}）。空にすると「{n}日目」です。",
+      "announce": "進めたり戻したりしたときにチャットに出す"
     }
   },
   "app": {
@@ -5621,6 +5783,7 @@
       "gameResources": "ゲームリソース",
       "media": "メディア",
       "clock": "時計",
+      "gameClock": "ゲーム内時間",
       "compass": "方位磁石",
       "connectionQuality": "通信品質",
       "miniPlayer": "ミニプレイヤー",

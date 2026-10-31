@@ -5,10 +5,11 @@ import { basename, isAbsolute, join, relative, resolve, sep } from 'path';
 import { defineConfig } from 'vitest/config';
 import { parseCLI } from 'vitest/node';
 
-import base from './vitest-base.config';
+import base from './vitest-base.config.mts';
 
-const SPEC_TSCONFIG = resolve(__dirname, 'tsconfig.spec.json');
-const SPEC_TSCONFIG_CACHE = resolve(__dirname, 'node_modules/.cache/axe-vitest');
+const ROOT = import.meta.dirname;
+const SPEC_TSCONFIG = resolve(ROOT, 'tsconfig.spec.json');
+const SPEC_TSCONFIG_CACHE = resolve(ROOT, 'node_modules/.cache/axe-vitest');
 
 function toPosix(path: string): string {
   return path.split(sep).join('/');
@@ -31,8 +32,8 @@ function specFilesUnder(dir: string): string[] {
 function filterReaches(filter: string, specFile: string): boolean {
   const bare = filter.replace(/:\d+$/, '');
   if (isAbsolute(bare) && specFile.startsWith(bare)) return true;
-  const path = toPosix(relative(__dirname, specFile)).toLowerCase();
-  return path.includes(toPosix(bare).toLowerCase()) || path.includes(toPosix(relative(__dirname, bare)).toLowerCase());
+  const path = toPosix(relative(ROOT, specFile)).toLowerCase();
+  return path.includes(toPosix(bare).toLowerCase()) || path.includes(toPosix(relative(ROOT, bare)).toLowerCase());
 }
 
 /**
@@ -56,7 +57,7 @@ function specTsconfig(): string {
   if (!options.run || options.related || options.changed || options.coverage || filter.length === 0) {
     return SPEC_TSCONFIG;
   }
-  const specs = specFilesUnder(resolve(__dirname, 'src')).filter((spec) => filter.some((f) => filterReaches(f, spec)));
+  const specs = specFilesUnder(resolve(ROOT, 'src')).filter((spec) => filter.some((f) => filterReaches(f, spec)));
   if (specs.length === 0) return SPEC_TSCONFIG;
 
   const fromCache = (path: string) => toPosix(relative(SPEC_TSCONFIG_CACHE, path));
@@ -65,9 +66,8 @@ function specTsconfig(): string {
       extends: fromCache(SPEC_TSCONFIG),
       include: [
         ...specs.map(fromCache),
-        fromCache(resolve(__dirname, 'src')) + '/**/*.d.ts',
-        fromCache(resolve(__dirname, 'src/app/testing/test-setup.ts')),
-        fromCache(resolve(__dirname, 'src/polyfills.ts')),
+        fromCache(resolve(ROOT, 'src')) + '/**/*.d.ts',
+        fromCache(resolve(ROOT, 'src/app/testing/test-setup.ts')),
       ],
     },
     null,
@@ -85,9 +85,9 @@ export default defineConfig({
   plugins: [angular({ jit: false, tsconfig: specTsconfig() })],
   resolve: {
     alias: {
-      '@axe': resolve(__dirname, 'src/app'),
-      '@env': resolve(__dirname, 'src/environments'),
-      '@pkg': resolve(__dirname, 'package.json'),
+      '@axe': resolve(ROOT, 'src/app'),
+      '@env': resolve(ROOT, 'src/environments'),
+      '@pkg': resolve(ROOT, 'package.json'),
     },
   },
   test: {

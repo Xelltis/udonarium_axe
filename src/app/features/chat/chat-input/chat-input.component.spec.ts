@@ -1,9 +1,9 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ChatLintService } from '@axe/application/chat/chat-lint.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
@@ -20,7 +20,9 @@ import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
+import { CHAT_EDITOR_LOADER, type ChatEditorModule } from '@axe/features/chat/chat-editor/chat-editor-loader';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
+import type { ChatSyntaxWriter } from '@axe/features/chat/chat-input/chat-syntax-items';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -148,10 +150,12 @@ describe('ChatInputComponent', () => {
       return character;
     }
 
-    const slider = () =>
-      fixture.nativeElement.querySelector(
+    const slider = () => {
+      fixture.detectChanges();
+      return fixture.nativeElement.querySelector(
         '[data-testid="chat-input-portraits"] input[type="range"]'
       ) as HTMLInputElement | null;
+    };
 
     async function speakAs(character: GameCharacter): Promise<void> {
       component.sendFrom = character.identifier;
@@ -160,11 +164,13 @@ describe('ChatInputComponent', () => {
       fixture.detectChanges();
     }
 
-    it('runs through the portraits of a speaker with several, beside the colours', async () => {
+    it('runs through the portraits of a speaker with several, at the start of the row of buttons', async () => {
       await speakAs(withPortraits(3));
 
       expect(slider()?.max).toBe('2');
-      expect(slider()?.closest('[data-testid="chat-input-colors"]')).not.toBeNull();
+      const row = slider()?.closest('[data-testid="chat-input-edits"]');
+      expect(row).not.toBeNull();
+      expect(row?.firstElementChild?.matches('[data-testid="chat-input-portraits"]')).toBe(true);
     });
 
     it('speaks with the portrait the knob is moved to', async () => {
@@ -252,6 +258,130 @@ describe('ChatInputComponent', () => {
     });
   });
 
+  describe('the row over the box and the buttons along it', () => {
+    const root = () => fixture.nativeElement as HTMLElement;
+    const find = (selector: string) => root().querySelector(selector);
+
+    it("holds the selects in the row over the box, and the buttons that edit the line in the box's own frame", async () => {
+      fixture.componentRef.setInput('canSpeak', true);
+      fixture.detectChanges();
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(find('[data-testid="chat-toolbar"]')).not.toBeNull();
+      });
+      const selects = find('[data-testid="chat-input-selects"]')!;
+      const frame = find('[data-testid="chat-input-frame"]')!;
+      const edits = frame.querySelector('[data-testid="chat-input-edits"]')!;
+
+      expect(edits.getAttribute('role')).toBe('toolbar');
+      expect(Array.from(selects.querySelectorAll('ng-select')).map((select) => select.getAttribute('name'))).toEqual([
+        'send-from',
+        'send-to',
+        'game-type',
+      ]);
+      expect(edits.querySelector('[data-testid="chat-toolbar"]')).not.toBeNull();
+      expect(edits.querySelector('[data-testid="chat-input-stamp"]')).not.toBeNull();
+      expect(edits.querySelector('[data-testid="chat-input-color"]')).not.toBeNull();
+      expect(edits.querySelector('ng-select')).toBeNull();
+      expect(edits.nextElementSibling?.matches('[data-chat-input-box]')).toBe(true);
+    });
+
+    it('leaves the formatting buttons out for a tab the reader may not speak in, keeping the rest', async () => {
+      fixture.componentRef.setInput('canSpeak', false);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(find('[data-testid="chat-toolbar"]')).toBeNull();
+      expect(root().querySelectorAll('ng-select')).toHaveLength(3);
+      expect(find('[data-testid="chat-input-frame"] [data-testid="chat-input-color"]')).not.toBeNull();
+      expect(find('[data-chat-input-box]')).toBeNull();
+    });
+
+    it('speaks in the colour picked from the colour button, which then underlines its letter with it', () => {
+      fixture.detectChanges();
+      const panel = find('[data-testid="chat-input-colors"]') as HTMLElement;
+      panel.showPopover = () => undefined;
+      panel.hidePopover = () => undefined;
+      (find('[data-testid="chat-input-color"]') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      const swatches = Array.from(
+        root().querySelectorAll<HTMLButtonElement>('[data-testid="chat-input-colors"] button[aria-pressed]')
+      );
+      expect(swatches).toHaveLength(3);
+
+      swatches[2].click();
+      fixture.detectChanges();
+
+      expect(component.colorSelectNo()).toBe(2);
+      const ink = document.createElement('span');
+      ink.style.backgroundColor = component.chatColor(2);
+      expect((find('[data-testid="chat-input-color-ink"]') as HTMLElement).style.backgroundColor).toBe(
+        ink.style.backgroundColor
+      );
+    });
+  });
+
+  it('puts a secret roll’s mark after the count of repeats the roll starts with', async () => {
+    fixture.componentRef.setInput('canSpeak', true);
+    fixture.detectChanges();
+    component.text = '3 2D6';
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    (component as unknown as { syntaxWriter: ChatSyntaxWriter }).syntaxWriter.prefix('S', 'roll');
+
+    expect(component.text).toBe('3 S2D6');
+  });
+
+  it('writes a change of a status as a word of its own after the words before the caret', async () => {
+    fixture.componentRef.setInput('canSpeak', true);
+    fixture.detectChanges();
+    component.text = 'hello';
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const box = (fixture.nativeElement as HTMLElement).querySelector('textarea')!;
+    box.setSelectionRange(5, 5);
+
+    (component as unknown as { syntaxWriter: ChatSyntaxWriter }).syntaxWriter.word(':HP-1', { from: 4, to: 5 });
+
+    expect(component.text).toBe('hello :HP-1');
+    expect([box.selectionStart, box.selectionEnd]).toEqual([10, 11]);
+  });
+
+  it('leaves the caret where it stood before a secret roll’s mark put in after it', async () => {
+    fixture.componentRef.setInput('canSpeak', true);
+    fixture.detectChanges();
+    component.text = '3 2D6';
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const box = (fixture.nativeElement as HTMLElement).querySelector('textarea')!;
+    box.setSelectionRange(0, 0);
+
+    (component as unknown as { syntaxWriter: ChatSyntaxWriter }).syntaxWriter.prefix('S', 'roll');
+
+    expect(component.text).toBe('3 S2D6');
+    expect([box.selectionStart, box.selectionEnd]).toEqual([0, 0]);
+  });
+
+  it('checks a line against the room’s default dice bot as the room changes it', () => {
+    const watch = vi.spyOn(TestBed.inject(ChatLintService), 'watch');
+    TestBed.createComponent(ChatInputComponent).componentRef.setInput('gameType', 'DiceBot');
+    const source = watch.mock.calls.at(-1)![0];
+    const before = Config.instance.defaultDiceBot;
+    try {
+      Config.instance.defaultDiceBot = 'SwordWorld2.5';
+      TestBed.inject(ObjectChangeService).notifyChanged('Config');
+      expect(source.gameType()).toBe('SwordWorld2.5');
+
+      Config.instance.defaultDiceBot = 'Cthulhu7th';
+      TestBed.inject(ObjectChangeService).notifyChanged('Config');
+      expect(source.gameType()).toBe('Cthulhu7th');
+    } finally {
+      Config.instance.defaultDiceBot = before;
+    }
+  });
+
   describe('packed down for a panel', () => {
     function find(selector: string): Element | null {
       return (fixture.nativeElement as HTMLElement).querySelector(selector);
@@ -260,27 +390,6 @@ describe('ChatInputComponent', () => {
     function textBox(): HTMLTextAreaElement {
       return find('textarea[name="chat-input-text"]') as HTMLTextAreaElement;
     }
-
-    it('shows the colours with the dice bot, and no button to fold them, by default', () => {
-      fixture.detectChanges();
-
-      expect(find('ng-select[name="game-type"]')).not.toBeNull();
-      expect(find('[data-testid="chat-input-colors"]')).not.toBeNull();
-      expect(find('[data-testid="chat-input-tools"]')).toBeNull();
-    });
-
-    it('folds the colours behind a button, keeping the dice bot in view', () => {
-      fixture.componentRef.setInput('dense', true);
-      fixture.detectChanges();
-
-      expect(find('ng-select[name="game-type"]')).not.toBeNull();
-      expect(find('[data-testid="chat-input-colors"]')).toBeNull();
-
-      (find('[data-testid="chat-input-tools"]') as HTMLButtonElement).click();
-      fixture.detectChanges();
-
-      expect(find('[data-testid="chat-input-colors"]')).not.toBeNull();
-    });
 
     it('starts the box a line high, leaving it to grow with what is typed', () => {
       fixture.detectChanges();
@@ -375,8 +484,10 @@ describe('ChatInputComponent', () => {
   });
 
   describe('the button to choose how this seat’s dice look', () => {
-    const button = () =>
-      fixture.nativeElement.querySelector('[data-testid="chat-my-dice"]') as HTMLButtonElement | null;
+    const button = () => {
+      fixture.detectChanges();
+      return fixture.nativeElement.querySelector('[data-testid="chat-my-dice"]') as HTMLButtonElement | null;
+    };
     let stageBefore: DiceStage;
 
     beforeEach(() => {
@@ -395,8 +506,10 @@ describe('ChatInputComponent', () => {
 
       Config.instance.diceStage = 'frame';
       fixture.detectChanges();
-      await fixture.whenStable();
-      expect(button()).not.toBeNull();
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(button()).not.toBeNull();
+      });
     });
 
     it('is not offered to a guest, who is not offered the panel', async () => {
@@ -464,7 +577,7 @@ describe('ChatInputComponent', () => {
     it('empties the box when Enter comes before the typing has been drawn', async () => {
       fixture.componentRef.setInput('canSpeak', true);
       await fixture.whenStable();
-      const box = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>('textarea.chat-input')!;
+      const box = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>('[data-chat-input]')!;
       const outgoing = sent();
 
       box.value = '雑談1';
@@ -487,18 +600,23 @@ describe('ChatInputComponent', () => {
       expect(DiceBot.gameSystemForLineAsync).toHaveBeenCalledWith(component.gameType, 'こんにちは');
     });
 
+    const tickerSwitch = () => {
+      fixture.detectChanges();
+      return fixture.nativeElement.querySelector('[data-testid="chat-send-to-ticker"]');
+    };
+
     it('offers the ticker only where this screen runs one, and marks the line when it is asked to', async () => {
       fixture.detectChanges();
-      expect(fixture.nativeElement.querySelector('[data-testid="chat-send-to-ticker"]')).toBeNull();
+      expect(tickerSwitch()).toBeNull();
 
       TestBed.inject(TabletopDisplayService).set({ multiAngleTickerEnabled: true });
       fixture.detectChanges();
       // The room runs one, but this seat is in perspective and has no band of its own.
-      expect(fixture.nativeElement.querySelector('[data-testid="chat-send-to-ticker"]')).toBeNull();
+      expect(tickerSwitch()).toBeNull();
 
       TestBed.inject(ViewModePreferenceService).choose('flat');
       fixture.detectChanges();
-      expect(fixture.nativeElement.querySelector('[data-testid="chat-send-to-ticker"]')).toBeTruthy();
+      expect(tickerSwitch()).toBeTruthy();
 
       component.toggleTickerSend();
       component.text = 'ラウンド開始';
@@ -516,7 +634,7 @@ describe('ChatInputComponent', () => {
       TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
       fixture.detectChanges();
 
-      expect(fixture.nativeElement.querySelector('[data-testid="chat-send-to-ticker"]')).toBeNull();
+      expect(tickerSwitch()).toBeNull();
       expect(component.showsTickerSwitch()).toBe(false);
     });
 
@@ -559,7 +677,7 @@ describe('ChatInputComponent', () => {
       expect(component.colorSelectNo()).toBe(0);
     });
 
-    it('opens the stamps beside the send button, and sends the one picked on its own from an empty box', () => {
+    it('opens the stamps from the bar, and sends the one picked alone as a stamp of its own with Enter', () => {
       fixture.componentRef.setInput('canSpeak', true);
       fixture.detectChanges();
       component.text = '';
@@ -568,12 +686,18 @@ describe('ChatInputComponent', () => {
       component.chat.subscribe((value) => emitted.push(value));
 
       const button = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
-        '[data-testid="chat-input-stamp"]'
+        '[data-testid="chat-input-edits"] [data-testid="chat-input-stamp"]'
       )!;
       button.click();
-      expect(toggle).toHaveBeenCalledWith(button, 'line', expect.any(Function));
+      expect(toggle).toHaveBeenCalledWith(button, 'line', expect.any(Function), 'end', 'up');
       toggle.mock.calls[0][2]('seal:ok');
+      expect(emitted).toEqual([]);
+      expect(component.text).toMatch(/^［.+:seal:ok］$/);
 
+      component.sendChat(new KeyboardEvent('keydown', { key: 'Enter' }));
+      component.sendChat(new KeyboardEvent('keydown', { key: 'Enter' }));
+
+      expect(component.text).toBe('');
       expect(emitted).toEqual([
         expect.objectContaining({
           text: '',
@@ -584,28 +708,61 @@ describe('ChatInputComponent', () => {
         }),
       ]);
       expect(emitted[0].stamp!.words.length).toBeGreaterThan(0);
+
+      component.moveHistory(null, -1);
+      expect(component.text).toMatch(/^［.+:seal:ok］$/);
     });
 
-    it('wraps the words picked out in the box in the decoration chosen from its button, and keeps them picked out', () => {
+    it('puts the stamp picked in at the caret among the words, to go out inside them', async () => {
+      fixture.componentRef.setInput('canSpeak', true);
+      fixture.detectChanges();
+      const toggle = vi.spyOn(TestBed.inject(StampPickerService), 'toggle').mockImplementation(() => undefined);
+      const box = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>('[data-chat-input]')!;
+      component.text = '了解です';
+      box.value = '了解です';
+      box.setSelectionRange(2, 2);
+      const outgoing = sent();
+
+      (fixture.nativeElement as HTMLElement)
+        .querySelector<HTMLButtonElement>('[data-testid="chat-input-stamp"]')!
+        .click();
+      toggle.mock.calls[0][2]('seal:ok');
+      const written = box.value;
+      expect(written).toMatch(/^了解［.+:seal:ok］です$/);
+      expect(component.text).toBe(written);
+
+      component.sendChat(new KeyboardEvent('keydown', { key: 'Enter' }));
+
+      const line = await outgoing;
+      expect(line.text).toBe(written);
+      expect(line.stamp).toBeUndefined();
+    });
+
+    it('wraps the words picked out in the plain box in the decoration chosen on the toolbar, keeps them picked out and takes them as the line', async () => {
       fixture.componentRef.setInput('canSpeak', true);
       fixture.detectChanges();
       component.text = '今日は晴れ';
-      const box = component.textAreaElementRef()!.nativeElement;
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+        expect(
+          (fixture.nativeElement as HTMLElement).querySelector('[data-testid="chat-toolbar-bold"]')
+        ).not.toBeNull();
+      });
+      await fixture.whenStable();
+      const box = (fixture.nativeElement as HTMLElement).querySelector<HTMLTextAreaElement>('[data-chat-input]')!;
       box.value = '今日は晴れ';
       box.setSelectionRange(3, 5);
-      const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
 
       (fixture.nativeElement as HTMLElement)
-        .querySelector<HTMLButtonElement>('[data-testid="chat-input-decoration"]')!
+        .querySelector<HTMLButtonElement>('[data-testid="chat-toolbar-bold"]')!
         .click();
-      open.mock.calls[0][1][0].action!();
 
-      expect(component.text).toBe('今日は**晴れ**');
       expect(box.value).toBe('今日は**晴れ**');
       expect([box.selectionStart, box.selectionEnd]).toEqual([5, 7]);
+      expect(component.text).toBe('今日は**晴れ**');
     });
 
-    it('sends the one picked under the words in the box, as the send button sends them, and clears the box', async () => {
+    it('sends a stamp as a line of its own, leaving the words in the box', async () => {
       fixture.componentRef.setInput('canSpeak', true);
       fixture.detectChanges();
       component.text = 'いくぞ！';
@@ -613,15 +770,26 @@ describe('ChatInputComponent', () => {
 
       component.sendStamp('roll:critical');
 
-      expect(component.text).toBe('');
+      expect(component.text).toBe('いくぞ！');
+      expect(await outgoing).toEqual(
+        expect.objectContaining({ stamp: { id: 'roll:critical', words: expect.any(String) } })
+      );
+    });
+
+    it('sends a picked stamp that cannot be written into a line as a line of its own', async () => {
+      fixture.componentRef.setInput('canSpeak', true);
+      fixture.detectChanges();
+      const picked = vi.spyOn(TestBed.inject(StampPickerService), 'toggle');
+      const outgoing = sent();
+      (component as unknown as { openStamps(anchor: Element): void }).openStamps(document.body);
+
+      picked.mock.calls[0][2]('image:https://cdn.example.com/pkg@1.0/a.png');
+
       expect(await outgoing).toEqual(
         expect.objectContaining({
-          text: 'いくぞ！',
-          gameSystem,
-          stamp: { id: 'roll:critical', words: expect.any(String) },
+          stamp: expect.objectContaining({ id: 'image:https://cdn.example.com/pkg@1.0/a.png' }),
         })
       );
-      expect(DiceBot.gameSystemForLineAsync).toHaveBeenCalledWith(component.gameType, 'いくぞ！');
     });
 
     it('offers no stamps where the room does not let them be sent, and sends none it denies', () => {
@@ -719,5 +887,136 @@ describe('ChatInputComponent', () => {
       expect(emitted).not.toHaveBeenCalled();
       expect(component.text).toBe('hel');
     });
+  });
+});
+
+describe('ChatInputComponent fetching the editor', () => {
+  let loader: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    PeerCursor.createMyCursor();
+    loader = vi.fn(() => new Promise<ChatEditorModule | null>(() => undefined));
+    TestBed.configureTestingModule({
+      imports: [ChatInputComponent],
+      providers: [...TEST_PROVIDERS, { provide: CHAT_EDITOR_LOADER, useValue: loader }],
+    });
+    Object.defineProperty(window, 'requestIdleCallback', { value: vi.fn(() => 0), configurable: true });
+  });
+
+  afterEach(() => {
+    delete (window as { requestIdleCallback?: unknown }).requestIdleCallback;
+    vi.restoreAllMocks();
+  });
+
+  it('fetches no editor for a box taken away before the page had time to spare', () => {
+    const fixture = TestBed.createComponent(ChatInputComponent);
+    fixture.componentRef.setInput('canSpeak', true);
+    fixture.detectChanges();
+    const idle = window.requestIdleCallback as unknown as ReturnType<typeof vi.fn>;
+    expect(idle).toHaveBeenCalled();
+
+    fixture.destroy();
+    (idle.mock.calls[0][0] as () => void)();
+
+    expect(loader).not.toHaveBeenCalled();
+  });
+
+  it('starts the editor where the caret stands as it is put in, after the editor arrived', async () => {
+    let arrive!: (module: ChatEditorModule | null) => void;
+    loader.mockImplementation(
+      () =>
+        new Promise<ChatEditorModule | null>((resolve) => {
+          arrive = resolve;
+        })
+    );
+    const mounted = vi.fn(() => ({
+      parent: null,
+      text: () => '今のは見逃せない',
+      selection: () => ({ from: 0, to: 0 }),
+      refresh: vi.fn(),
+      refreshSoon: vi.fn(),
+      followRoot: vi.fn(),
+      destroy: vi.fn(),
+      focus: vi.fn(),
+      hasFocus: () => false,
+      activeMarks: () => null,
+      setText: vi.fn(),
+      reconfigure: vi.fn(),
+      rich: true,
+    }));
+    const fixture = TestBed.createComponent(ChatInputComponent);
+    fixture.componentRef.setInput('canSpeak', true);
+    fixture.detectChanges();
+    fixture.componentInstance.text = '今のは見逃せない';
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const box = (fixture.nativeElement as HTMLElement).querySelector('textarea')!;
+    box.focus();
+    box.dispatchEvent(new FocusEvent('focus'));
+    box.setSelectionRange(8, 8);
+
+    arrive({ mountChatEditor: mounted } as unknown as ChatEditorModule);
+    await Promise.resolve();
+    await Promise.resolve();
+    box.setSelectionRange(2, 2);
+    fixture.detectChanges();
+    TestBed.tick();
+
+    expect(mounted).toHaveBeenCalledWith(
+      expect.anything(),
+      { text: '今のは見逃せない', selection: { from: 2, to: 2 }, focused: true },
+      expect.anything()
+    );
+  });
+
+  it('colours the editor again as a picture arrives, for the stamps in it to be drawn', async () => {
+    let arrive!: (module: ChatEditorModule | null) => void;
+    loader.mockImplementation(
+      () =>
+        new Promise<ChatEditorModule | null>((resolve) => {
+          arrive = resolve;
+        })
+    );
+    const field = {
+      parent: null,
+      text: () => '',
+      selection: () => ({ from: 0, to: 0 }),
+      refresh: vi.fn(),
+      refreshSoon: vi.fn(),
+      followRoot: vi.fn(),
+      destroy: vi.fn(),
+      focus: vi.fn(),
+      hasFocus: () => false,
+      activeMarks: () => null,
+      setText: vi.fn(),
+      reconfigure: vi.fn(),
+      rich: true,
+    };
+    const fixture = TestBed.createComponent(ChatInputComponent);
+    fixture.componentRef.setInput('canSpeak', true);
+    fixture.detectChanges();
+    (fixture.nativeElement as HTMLElement).querySelector('textarea')!.dispatchEvent(new FocusEvent('focus'));
+    arrive({ mountChatEditor: () => field } as unknown as ChatEditorModule);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    TestBed.tick();
+    field.refreshSoon.mockClear();
+
+    TestBed.inject(ObjectChangeService).fileVersion.update((version) => version + 1);
+    TestBed.tick();
+
+    expect(field.refreshSoon).toHaveBeenCalled();
+  });
+
+  it('fetches it at once as the box is first touched, without waiting for the page to have time to spare', () => {
+    const fixture = TestBed.createComponent(ChatInputComponent);
+    fixture.componentRef.setInput('canSpeak', true);
+    fixture.detectChanges();
+    TestBed.tick();
+    expect(loader).not.toHaveBeenCalled();
+
+    (fixture.nativeElement as HTMLElement).querySelector('textarea')!.dispatchEvent(new FocusEvent('focus'));
+
+    expect(loader).toHaveBeenCalledTimes(1);
   });
 });

@@ -2,10 +2,15 @@ import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { ObjectContext } from '@axe/core/sync/game-object';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { toHalfWidth } from '@axe/core/util/string-util';
+import { parseBuffStrength } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { CHARACTER_REFERENCE, readReferenceName } from '@axe/domain/chat/chat-reference';
+import { withInlineStampsAsSpaces } from '@axe/domain/chat/inline-stamp';
 import { isPaletteTabLine } from '@axe/domain/chat/palette-rows';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { createCalcPass, evaluateCalcElement } from '@axe/domain/data/data-element-calc-env';
+import { resourceCommandSites } from '@axe/domain/data/resource-command-words';
+import { looksLikeRollWord, rollableText, rollWordSite } from '@axe/domain/dice/dice-roll-line';
 
 export interface PaletteLine {
   palette: string;
@@ -214,13 +219,8 @@ export class ChatPalette extends ObjectNode {
   }
 
   private parseVariable(palette: string): PaletteVariable | null {
-    const array = /^\s*[/／]{2}([^=＝{}｛｝\s]+)\s*[=＝]\s*(.+)\s*/gi.exec(palette);
-    if (!array) return null;
-    const variable: PaletteVariable = {
-      name: toHalfWidth(array[1]),
-      value: array[2],
-    };
-    return variable;
+    const site = paletteVariableSite(palette);
+    return site ? { name: site.name, value: site.value } : null;
   }
 
   /** Takes a synced update and marks the palette to be parsed again. */
@@ -243,6 +243,22 @@ export class DiceTablePalette extends ChatPalette {}
  */
 @SyncObject('sub-palette')
 export class SubPalette extends ObjectNode {}
+
+/** A `//name=value` line of a palette, read as the variable it sets, and where its name and value stand. */
+export interface PaletteVariableSite extends PaletteVariable {
+  nameFrom: number;
+  nameTo: number;
+  valueFrom: number;
+}
+
+/** Reads a palette line as a `//name=value` variable, or answers null when it is not one. */
+export function paletteVariableSite(line: string): PaletteVariableSite | null {
+  const matched = /^(\s*[/／]{2})([^=＝{}｛｝\s]+)(\s*[=＝]\s*)(.+)\s*/.exec(line);
+  if (!matched) return null;
+  const nameFrom = matched[1].length;
+  const nameTo = nameFrom + matched[2].length;
+  return { name: toHalfWidth(matched[2]), value: matched[4], nameFrom, nameTo, valueFrom: nameTo + matched[3].length };
+}
 
 /**
  * Fills in the references in a line of text.
@@ -270,7 +286,7 @@ export function evaluateReferences(
   // One line can name the same sheet several times over, so it is read once for all of them.
   const calcPass = createCalcPass();
 
-  const evaluateElementText = (element: DataElement, useMax: boolean): string | null => {
+  const evaluateElementText = (element: DataElement, useMax: boolean, formula: FormulaPlace): string | null => {
     if (collectImageAttachments && element.fieldType === DataElementFieldType.IMAGE) {
       const imageIdentifier = String(element.value ?? '').trim();
       if (imageIdentifier.length > 0 && !attachmentImageIdentifiers.includes(imageIdentifier)) {
@@ -289,17 +305,20 @@ export function evaluateReferences(
     if (useMax && element.isNumberResource) {
       return `${element.value}`;
     }
+    if (formula !== 'none' && isWornBuff(element)) {
+      return strengthAsTerm(parseBuffStrength(`${element.currentValue ?? ''}`), formula);
+    }
     return element.isNumberResource ? `${element.currentValue}` : `${element.value}`;
   };
 
-  const fillReference = (match: string, name: string, useMax: boolean): string | null => {
+  const fillReference = (match: string, name: string, useMax: boolean, formula: FormulaPlace): string | null => {
     if (match.match(/^[tTｔＴ].*/)) {
       for (const variable of target?.chatPalette?.paletteVariables ?? []) {
         if (variable.name == name) return variable.value.replace(/[{｛]/g, 't{');
       }
       const element = target?.rootDataElement ? DataElement.findElementByReference(target.rootDataElement, name) : null;
       if (!element) return null;
-      const targetElementText = evaluateElementText(element, useMax);
+      const targetElementText = evaluateElementText(element, useMax, formula);
       if (targetElementText == null) return null;
       return targetElementText.match(/[{｛]\s*([^{}｛｝]+)\s*[}｝]/g)
         ? targetElementText.replace(/[{｛]/g, 't{')
@@ -310,7 +329,7 @@ export function evaluateReferences(
       if (variable.name == name) return variable.value;
     }
     const element = extendVariables ? DataElement.findElementByReference(extendVariables, name) : null;
-    return element ? evaluateElementText(element, useMax) : null;
+    return element ? evaluateElementText(element, useMax, formula) : null;
   };
 
   const limit = 128;
@@ -319,16 +338,10 @@ export function evaluateReferences(
   while (isContinue) {
     loop++;
     isContinue = false;
-    const line = evaluate;
-    evaluate = evaluate.replace(/[tTｔＴ]?[{｛]\s*([^{}｛｝]+)\s*[}｝]/g, (match, name, offset: number) => {
-      name = toHalfWidth(name);
-      let useMax = false;
-      const namematch = name.match(/(.+)([\^＾]$)/);
-      if (namematch) {
-        name = namematch[1];
-        useMax = true;
-      }
-      const filled = fillReference(match, name, useMax);
+    const line = withInlineStampsAsSpaces(evaluate);
+    evaluate = evaluate.replace(CHARACTER_REFERENCE, (match, raw: string, offset: number) => {
+      const { name, useMax } = readReferenceName(raw);
+      const filled = fillReference(match, name, useMax, formulaPlace(line, offset));
       if (filled == null) return keepUnfilled && !dropsUnanswered(line, offset) ? match : '';
       // Only a reference that was answered can bring more of them in, so only that keeps the pass going.
       isContinue = true;
@@ -340,6 +353,14 @@ export function evaluateReferences(
 }
 
 /**
+ * Whether a reference nothing answers, standing at a place in a line typed into chat, is emptied out
+ * of it as the line is sent rather than left as it was; see {@link dropsUnanswered}.
+ */
+export function emptiesUnanswered(line: string, offset: number): boolean {
+  return dropsUnanswered(withInlineStampsAsSpaces(line), offset);
+}
+
+/**
  * Whether a reference nobody answers is emptied out of a line typed into chat rather than left as it
  * was: one added to the roll the line starts with as a term of its own, right after a number or a
  * closing bracket, like `2d+10{加護}` where 加護 carries its own sign. Left out, it adds nothing, as
@@ -348,22 +369,81 @@ export function evaluateReferences(
  * reader to see what went unanswered.
  */
 function dropsUnanswered(line: string, offset: number): boolean {
-  const end = leadingWordEnd(line);
-  if (offset >= end || !/[0-9)\]}｝）］]/.test(line[offset - 1] ?? '')) return false;
-  const bare = line.slice(0, end).replace(/[tTｔＴ]?[{｛][^{}｛｝]*[}｝]/g, '');
-  return /^[\x21-\x7E]+$/.test(bare) && /^(?:[0-9([]|[A-Za-z]{1,8}[0-9<>=([+\-*/@#$])/.test(bare);
+  if (!inRollWord(line, offset) || !/[0-9)\]}｝）］]/.test(line[offset - 1] ?? '')) return false;
+  return leadsWithRoll(line);
 }
 
-/** Where the first word of a line ends, counting a space inside a reference's braces as part of it. */
-function leadingWordEnd(line: string): number {
+/** Whether a point of a line stands in the word it rolls. */
+function inRollWord(line: string, offset: number): boolean {
+  const site = rollWordSite(line);
+  return offset >= site.from && offset < site.to;
+}
+
+/** Whether a line starts with a roll, read from the word it rolls with the references in it taken out. */
+function leadsWithRoll(line: string): boolean {
+  const site = rollWordSite(line);
+  return looksLikeRollWord(rollableText(line.slice(site.from, site.to)).replace(/[tTｔＴ]?[{｛][^{}｛｝]*[}｝]/g, ''));
+}
+
+/**
+ * Where a reference stands in a number that is worked out: in the roll the line starts with or in
+ * the amount of a resource command (`:HP-{攻撃力}`, `t:HP-{攻撃力}`), after an operator, joined
+ * straight onto a number before it, as `2d+10{加護}` is, or within a number of its own after a
+ * letter or a mark, as `2d{加護}` and `K20@{加護}` are; or in no such number at all. A buff named in
+ * one lends the number its note carries, as its badge shows it, rather than the words of the note.
+ */
+type FormulaPlace = 'operand' | 'joined' | 'within' | 'none';
+
+function formulaPlace(line: string, offset: number): FormulaPlace {
+  const inRoll = inRollWord(line, offset) && leadsWithRoll(line);
+  if (!inRoll && !RESOURCE_COMMAND_WORD.test(line.slice(wordStart(line, offset), offset))) return 'none';
+  const before = line.slice(0, offset);
+  if (/[-+=＋－＝*/×÷(（]$/.test(before)) return 'operand';
+  return /[0-9０-９)）\]］}｝]$/.test(before) ? 'joined' : 'within';
+}
+
+/**
+ * A buff's strength as a term of the number it stands in: after an operator without a sign of its
+ * own, a negative one in brackets, and nought for a note that carries no number, so the operator
+ * is not left waiting; joined on, with its sign, which is what joins it, a plus for one written
+ * without, or nothing; within a number of its own, without a plus, which would read as an operator.
+ */
+function strengthAsTerm(strength: string, place: FormulaPlace): string {
+  if (place === 'joined') return strength && !/^[-+]/.test(strength) ? `+${strength}` : strength;
+  if (place === 'within') return strength.replace(/^\+/, '');
+  if (place !== 'operand') return strength;
+  if (strength.length < 1) return '0';
+  if (strength.startsWith('+')) return strength.slice(1);
+  return strength.startsWith('-') ? `(${strength})` : strength;
+}
+
+/**
+ * A word that is a resource command working out a number, read up to a point in it: the mark, a
+ * name and the operator after it, one that moves or sets the number rather than `>`, which writes
+ * text.
+ */
+const RESOURCE_COMMAND_WORD = /^[sSｓＳ]?[tTｔＴ]?[:：][^\s\-+=>－＋＝＞]*[-+=－＋＝]/;
+
+/** Where the word holding a point of a line starts, counting a space inside a reference's braces as part of it. */
+function wordStart(line: string, offset: number): number {
   let depth = 0;
-  for (let index = 0; index < line.length; index++) {
+  let start = 0;
+  for (let index = 0; index < offset; index++) {
     const character = line[index];
     if (character === '{' || character === '｛') depth++;
     else if ((character === '}' || character === '｝') && depth > 0) depth--;
-    else if (depth === 0 && /\s/.test(character)) return index;
+    else if (depth === 0 && /\s/.test(character)) start = index + 1;
   }
-  return line.length;
+  return start;
+}
+
+/** Whether an element is a buff a character wears, kept under the character's buffs rather than on its sheet. */
+function isWornBuff(element: DataElement): boolean {
+  if (!element.isNumberResource || element.children.length > 0) return false;
+  for (let node = element.parent; node instanceof DataElement; node = node.parent) {
+    if (node.name === 'buff' && node.parent instanceof DataElement && node.parent.name === 'character') return true;
+  }
+  return false;
 }
 
 /** The references a piece can fill in, whether or not it keeps a palette of its own to draw variables from. */
@@ -382,13 +462,13 @@ export function evaluateCharacterReferences(
   );
 }
 
-/** Whether the line is aimed at the pieces marked on the table. */
-export function textTargetsCharacter(text: string): boolean {
-  let istarget = !!text.match(/[tTｔＴ][{｛]\s*([^{}｛｝]+)\s*[}｝]/g);
-
-  if (text.match(/^[sSｓＳ]?[tTｔＴ][:：]([^:：]+)/g)) istarget = true;
-  if (text.match(/\s[sSｓＳ]?[tTｔＴ][:：]([^:：]+)/g)) istarget = true;
-  if (text.match(/^[tTｔＴ][&＆]([^&＆]+)/g)) istarget = true;
-  if (text.match(/\s[tTｔＴ][&＆]([^&＆]+)/g)) istarget = true;
-  return istarget;
+/**
+ * Whether the line is aimed at the pieces marked on the table: it names a status of theirs with a
+ * `t{}` reference, or holds a command aimed at them, read as the commands are carried out, a
+ * secret one and one a stamp put right before it starts among them.
+ */
+export function textTargetsCharacter(line: string): boolean {
+  if (/[tTｔＴ][{｛]\s*([^{}｛｝]+)\s*[}｝]/.test(withInlineStampsAsSpaces(line))) return true;
+  const words = resourceCommandSites(line);
+  return [...words.resources, ...words.buffs].some((site) => site.command.startsWith('t'));
 }

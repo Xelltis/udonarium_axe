@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { OperatorContactComponent } from '@axe/features/lobby/operator-contact/operator-contact.component';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -14,8 +14,9 @@ const LOGIN_ERROR_KEYS: Readonly<Record<string, string>> = {
 };
 
 /**
- * The login with the room server, at the top of the lobby: a button to log in with Discord, or
- * who is logged in with a way out and a way to delete the account, asked twice.
+ * The login with the room server, at the top of the lobby and, for a guest, in the connection
+ * panel: a button to log in with Discord, or who is logged in with a way out and a way to delete
+ * the account, asked twice.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -26,6 +27,9 @@ const LOGIN_ERROR_KEYS: Readonly<Record<string, string>> = {
 })
 export class ServerAccountComponent {
   private readonly auth = inject(ServerAuthService);
+
+  /** Whether it is ruled off from what comes below, as at the top of the lobby. */
+  readonly framed = input(true);
 
   protected readonly account = this.auth.account;
   protected readonly isLoggingIn = this.auth.isLoggingIn;

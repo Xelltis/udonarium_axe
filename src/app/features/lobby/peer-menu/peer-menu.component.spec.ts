@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
@@ -10,6 +11,7 @@ import { Network } from '@axe/core/network/network';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { localDispatch } from '@axe/core/network/network-messaging';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
+import { hasChosenIconByHand, noteIconChosenByHand } from '@axe/core/storage/icon-chosen-by-hand';
 import { loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
@@ -277,6 +279,67 @@ describe('PeerMenuComponent', () => {
       report!.click();
 
       expect(opened).toHaveBeenCalledWith(ReportDialogComponent, { target: 'room', name: '卓' });
+    });
+
+    it('offers a guest the login, which one who came in by a link never sees in the lobby, until logged in', () => {
+      PeerCursor.myCursor.role = PeerRole.Guest;
+      const auth = TestBed.inject(ServerAuthService);
+      vi.spyOn(auth, 'isConfigured', 'get').mockReturnValue(true);
+      vi.spyOn(auth, 'offersLogin').mockReturnValue(true);
+      const login = () =>
+        (fixture.nativeElement as HTMLElement).querySelector(
+          '[data-testid="peer-menu-login"] [data-testid="server-account-login"]'
+        );
+      fixture = TestBed.createComponent(PeerMenuComponent);
+      fixture.detectChanges();
+      expect(login()).not.toBeNull();
+
+      vi.spyOn(auth, 'account').mockReturnValue({ userId: 'acct_1', name: 'Kai', avatarUrl: null });
+      fixture = TestBed.createComponent(PeerMenuComponent);
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="peer-menu-login"]')).toBeNull();
+    });
+
+    it('notes an icon chosen while logged in as chosen by hand, for the avatar to stay off it at login', async () => {
+      localStorage.removeItem(STORAGE_KEYS.iconChosenByHand);
+      vi.spyOn(TestBed.inject(ServerAuthService), 'account').mockReturnValue({
+        userId: 'acct_1',
+        name: 'Kai',
+        avatarUrl: null,
+      });
+      vi.spyOn(TestBed.inject(ModalService), 'open').mockResolvedValue('chosen-icon');
+      try {
+        component.changeIcon();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(PeerCursor.myCursor.imageIdentifier).toBe('chosen-icon');
+        expect(hasChosenIconByHand('acct_1')).toBe(true);
+      } finally {
+        localStorage.removeItem(STORAGE_KEYS.iconChosenByHand);
+      }
+    });
+
+    it('offers the reader their own avatar to choose, and forgets the icon was chosen by hand once it is', async () => {
+      const avatar = 'https://cdn.discordapp.com/avatars/1/a.png';
+      noteIconChosenByHand('acct_1');
+      vi.spyOn(TestBed.inject(ServerAuthService), 'account').mockReturnValue({
+        userId: 'acct_1',
+        name: 'Kai',
+        avatarUrl: avatar,
+      });
+      const opened = vi.spyOn(TestBed.inject(ModalService), 'open').mockResolvedValue(avatar);
+      try {
+        component.changeIcon();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(opened).toHaveBeenCalledWith(expect.anything(), { ownAvatar: avatar });
+        expect(PeerCursor.myCursor.imageIdentifier).toBe(avatar);
+        expect(hasChosenIconByHand('acct_1')).toBe(false);
+      } finally {
+        localStorage.removeItem(STORAGE_KEYS.iconChosenByHand);
+      }
     });
 
     it('offers the lobby, where the reader logs in or leaves, however many are in the room', () => {

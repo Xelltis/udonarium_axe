@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 
 describe('TableSelecter', () => {
@@ -21,6 +22,16 @@ describe('TableSelecter', () => {
 
     it('identifies itself as the table selector', () => {
       expect(TableSelecter.instance.identifier).toBe('TableSelecter');
+    });
+
+    it('makes one anew once the one held has left the store, rather than putting that one back', () => {
+      const held = TableSelecter.instance;
+      held.viewTableIdentifier = 'table-before';
+
+      ObjectStore.instance.delete(held, false);
+
+      expect(TableSelecter.instance).not.toBe(held);
+      expect(TableSelecter.instance.viewTableIdentifier).toBe('');
     });
   });
 

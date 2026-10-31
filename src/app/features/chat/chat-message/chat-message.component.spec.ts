@@ -643,6 +643,55 @@ describe('ChatMessageComponent', () => {
       expect(result).toBe('<span class="chat-quote">@プレイヤー<br>aaaaaaaaaa</span>');
     });
 
+    it('writes a line holding a seal the same each time, so it is not drawn again for nothing', () => {
+      fixture.componentRef.setInput('chatMessage', { identifier: 'seal-msg-id' } as ChatMessage);
+
+      const first = component.escapeHtmlAndRuby('了解［了解:seal:ok］と［了解:seal:ok］');
+      const again = component.escapeHtmlAndRuby('了解［了解:seal:ok］と［了解:seal:ok］');
+
+      expect(again).toBe(first);
+      const ids = [...first.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
+      expect(ids).toHaveLength(2);
+      expect(new Set(ids).size).toBe(2);
+    });
+
+    it('gives the seals of a line drawn in two places filters of their own in each', () => {
+      const message = { identifier: 'seal-msg-twice' } as ChatMessage;
+      fixture.componentRef.setInput('chatMessage', message);
+      const other = TestBed.createComponent(ChatMessageComponent);
+      other.componentRef.setInput('chatMessage', message);
+      const ids = (markup: string) => [...markup.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
+
+      const here = ids(component.escapeHtmlAndRuby('了解［了解:seal:ok］'));
+      const there = ids(other.componentInstance.escapeHtmlAndRuby('了解［了解:seal:ok］'));
+
+      expect(here).toHaveLength(1);
+      expect(there).toHaveLength(1);
+      expect(there[0]).not.toBe(here[0]);
+    });
+
+    it('draws a line of stamps alone as large as a stamp sent on its own, in either layout', () => {
+      fixture.componentRef.setInput('chatMessage', { identifier: 'stamps-alone' } as ChatMessage);
+      const height = (markup: string) => /height:(\d+)px/.exec(markup)?.[1];
+
+      expect(height(component.escapeHtmlAndRuby('［了解:seal:ok］［了解:seal:ok］'))).toBe('96');
+
+      fixture.componentRef.setInput('chatSimpleDispFlag', true);
+      expect(height(component.escapeHtmlAndRuby('［了解:seal:ok］［了解:seal:ok］'))).toBe('64');
+    });
+
+    it('follows the pictures arriving only for a line holding a room picture', () => {
+      const objectChange = TestBed.inject(ObjectChangeService);
+      const followed = vi.spyOn(objectChange, 'fileVersion');
+      fixture.componentRef.setInput('chatMessage', { identifier: 'picture-msg-id' } as ChatMessage);
+
+      component.escapeHtmlAndRuby('ただの発言［了解:seal:ok］');
+      expect(followed).not.toHaveBeenCalled();
+
+      component.escapeHtmlAndRuby('絵［絵:image:abc］');
+      expect(followed).toHaveBeenCalled();
+    });
+
     it('leaves an unquoted line alone', () => {
       const mockMessage = { identifier: 'no-quote-msg-id' } as ChatMessage;
       fixture.componentRef.setInput('chatMessage', mockMessage);
@@ -1868,11 +1917,58 @@ describe('ChatMessageComponent', () => {
       const message = shown('me', 'こんばんわ');
 
       component.startEdit();
-      component.onEditInput('こんばんは');
+      component.editDraft.set('こんばんは');
       component.saveEdit();
       await settle();
 
       expect(message.versions.map((version) => version.text)).toEqual(['こんばんわ', 'こんばんは']);
+    });
+
+    it('edits only what was said with a stamp under the line, the words standing in for it kept', async () => {
+      const message = shown('me', 'いくぞ\n［了解］');
+      message.stamp = 'seal:ok';
+
+      component.startEdit();
+      expect(component.editDraft()).toBe('いくぞ');
+      component.saveEdit();
+      await settle();
+      expect(message.versions).toEqual([]);
+
+      component.startEdit();
+      component.editDraft.set('いくぞ！');
+      component.saveEdit();
+      await settle();
+      expect(message.text).toBe('いくぞ！\n［了解］');
+    });
+
+    it('writes nothing for a line saved as it was, though a stamp in it is one the room has stopped since', async () => {
+      const message = shown('me', 'まずは［ドッ:sfx:boom］');
+      Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['sfx:boom'], false);
+      try {
+        component.startEdit();
+        component.saveEdit();
+        await settle();
+
+        expect(message.text).toBe('まずは［ドッ:sfx:boom］');
+        expect(message.versions).toEqual([]);
+      } finally {
+        Config.instance.stampRules = OPEN_STAMP_RULES;
+      }
+    });
+
+    it('writes a stamp the room does not let be sent as its name when the line is saved, as a line said anew', async () => {
+      const message = shown('me', 'まずは');
+      Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['sfx:boom'], false);
+      try {
+        component.startEdit();
+        component.editDraft.set('まずは［ドッ:sfx:boom］');
+        component.saveEdit();
+        await settle();
+
+        expect(message.text).toBe('まずは ［ドッ］');
+      } finally {
+        Config.instance.stampRules = OPEN_STAMP_RULES;
+      }
     });
 
     it('opens every wording under the line from its edited mark, for anyone who sees it, and closes again', async () => {

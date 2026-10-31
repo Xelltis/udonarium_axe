@@ -3,15 +3,36 @@
     [class.top-3]="!isOffline()"
     [class.top-24]="isOffline()"
     class="border-ui-border-panel bg-ui-panel rounded-ui-lg shadow-ui-md text-ui-text absolute left-1/2 z-200 flex max-w-[92vw] -translate-x-1/2 items-center gap-3 border border-solid px-4 py-2.5 [backdrop-filter:blur(24px)_saturate(1.5)] [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]"
+    [class.flex-wrap]="isAskingLogin()"
+    data-testid="invite-join"
   >
     <i class="material-icons text-ui-accent text-[20px]" [class.vibration-amine]="isJoining()">
-      {{ isJoining() ? 'meeting_room' : 'error_outline' }}
+      {{ isJoining() ? 'meeting_room' : isAskingLogin() ? 'login' : 'error_outline' }}
     </i>
-    <span class="truncate text-[0.82rem]">{{ message() }}</span>
+    <span class="min-w-0 flex-1 text-[0.82rem]" [class.truncate]="!isAskingLogin()">{{ message() }}</span>
     @if (bannedContact(); as contact) {
       <operator-contact class="shrink-0" [contact]="contact" />
     }
-    @if (!isJoining()) {
+    @if (isAskingLogin()) {
+      <div class="ml-auto flex shrink-0 items-center gap-2">
+        <button
+          class="rounded-ui-sm border-ui-accent bg-ui-accent-solid hover:border-ui-accent-hover hover:bg-ui-accent-hover cursor-pointer border border-solid px-[1.1em] py-[0.4em] text-[0.8rem] text-white hover:shadow-[0_0_0_3px_var(--ui-accent-glow)]"
+          [disabled]="isLoggingIn()"
+          data-testid="invite-join-login"
+          (click)="logIn()"
+        >
+          <i class="material-icons align-middle text-[14px]!">login</i>
+          {{ (isLoggingIn() ? 'feature.lobby.account.loggingIn' : 'feature.lobby.account.login') | transloco }}
+        </button>
+        <button
+          class="rounded-ui-sm cursor-pointer px-[0.9em] py-[0.4em] text-[0.8rem]"
+          data-testid="invite-join-watch"
+          (click)="watch()"
+        >
+          {{ 'feature.lobby.invite.watch' | transloco }}
+        </button>
+      </div>
+    } @else if (!isJoining()) {
       @if (!isOffline()) {
         <button
           class="rounded-ui-sm border-ui-accent bg-ui-accent-solid hover:border-ui-accent-hover hover:bg-ui-accent-hover cursor-pointer border border-solid px-[1.1em] py-[0.4em] text-[0.8rem] text-white hover:shadow-[0_0_0_3px_var(--ui-accent-glow)]"

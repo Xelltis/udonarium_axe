@@ -8,6 +8,7 @@ import { waitZeroTimeout } from '@axe/core/util/zero-timeout';
 import { BATTLE_PICTURE_LIMIT, DEFAULT_BATTLE_SETTINGS } from '@axe/domain/battle/battle-settings';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { createEffectPreset, DEFAULT_EFFECT_PRESET_SEEDS } from '@axe/domain/effect/builtin-effect-presets';
+import { Party } from '@axe/domain/party/party';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -79,6 +80,58 @@ describe('BattleCutInPanelComponent', () => {
     expect(texts(root, '[data-testid="battle-lineup-right"]')[0]).toContain('魔法使い');
   });
 
+  describe('the sides of the parties', () => {
+    let heroes: Party;
+
+    beforeEach(() => {
+      heroes = new Party();
+      heroes.name = '冒険者';
+      heroes.initialize();
+      hero.partyIdentifier = heroes.identifier;
+      mage.partyIdentifier = heroes.identifier;
+    });
+
+    it('stands every member put on no side of its own where the master puts its party', async () => {
+      goblin.battleSide = 'left';
+      mage.battleSide = 'left';
+      const root = open(PeerRole.GameMaster);
+
+      root.querySelector<HTMLElement>('[data-testid="battle-party-right-冒険者"]')!.click();
+      await settle();
+
+      expect(heroes.battleSide).toBe('right');
+      expect(texts(root, '[data-testid="battle-lineup-right"]')[0]).toContain('勇者');
+      expect(texts(root, '[data-testid="battle-lineup-left"]')[0]).toContain('魔法使い');
+      expect(root.querySelector('[data-testid="battle-with-party-勇者"]')).not.toBeNull();
+      expect(root.querySelector('[data-testid="battle-with-party-魔法使い"]')).toBeNull();
+    });
+
+    it('keeps a member taken out of the lineup out until it is sent back to its party', async () => {
+      heroes.battleSide = 'right';
+      const root = open(PeerRole.GameMaster);
+
+      component.setSide(hero.identifier, null);
+      await settle();
+
+      expect(texts(root, '[data-testid="battle-lineup-other"]')).toEqual(
+        expect.arrayContaining([expect.stringContaining('勇者')])
+      );
+      root.querySelector<HTMLElement>('[data-testid="battle-follow-party-勇者"]')!.click();
+      await settle();
+
+      expect(hero.battleSide).toBe('');
+      expect(texts(root, '[data-testid="battle-lineup-right"]')[0]).toContain('勇者');
+    });
+
+    it('lets nobody but the master put a party on a side', () => {
+      const root = open(PeerRole.Player);
+
+      expect(root.querySelector('[data-testid="battle-party-sides"]')).toBeNull();
+      component.setPartySide(heroes.identifier, 'left');
+      expect(heroes.battleSide).toBe('');
+    });
+  });
+
   it('shows a player the lineup without the means to change it', () => {
     hero.battleSide = 'left';
     const root = open(PeerRole.Player);
@@ -142,6 +195,23 @@ describe('BattleCutInPanelComponent', () => {
 
     expect(goblin.battleEffect).toBe('斬撃');
     expect(component.focusedPreset()?.name).toBe('斬撃');
+  });
+
+  it('says which way the picture of a piece faces, for the stage to turn it to face across', async () => {
+    const root = open(PeerRole.Player);
+
+    component.focusOn(goblin.identifier);
+    await settle();
+    const select = root.querySelector<HTMLSelectElement>('[data-testid="battle-facing"]')!;
+    select.value = select.options[1].value;
+    select.dispatchEvent(new Event('change'));
+    await settle();
+
+    expect(goblin.battleFacing).toBe('left');
+    expect(component.focused()?.facing).toBe('left');
+
+    component.setFacing('');
+    expect(goblin.battleFacing).toBe('');
   });
 
   it('turns the stage off for this screen alone', () => {

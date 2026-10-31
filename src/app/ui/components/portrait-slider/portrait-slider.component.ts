@@ -4,7 +4,8 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 /**
  * A small slider running through a character's portraits, followed by the place of the one it
- * rests on and its name.
+ * rests on and its name. Pressed for room, the name is cut short and the slider narrows, so it can
+ * share a row with other controls.
  *
  * Each portrait is chosen as the knob passes it, so dragging runs through the faces one after
  * another. The wheel over the slider steps it too, as do the arrow keys.

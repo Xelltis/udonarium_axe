@@ -1,18 +1,26 @@
 import { toHalfWidth } from '@axe/core/util/string-util';
 import { parseBuffAppearance } from '@axe/domain/character/buff-appearance';
 import {
+  buffCommandKind,
+  readBuffStacking,
+  readCalculatedBuff,
+  readCalculatedBuffLook,
+  removedBuffName,
+} from '@axe/domain/character/buff-command';
+import {
   describeBuffModifier,
   describeBuffModifierTarget,
-  isBuffModifierOperator,
-  parseBuffModifierItems,
   parseBuffModifierRequest,
   ParsedBuffModifierRequest,
 } from '@axe/domain/character/buff-modifier';
 import { BuffPileOn } from '@axe/domain/character/buff-stack';
-import { resolveBuffTiming } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { findStatusAilment, type StatusAilment } from '@axe/domain/character/status-ailment';
+import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
+import { plantStatusAilment, statusAilmentAsCommanded } from '@axe/domain/character/status-ailment-plant';
 import { DataElement } from '@axe/domain/data/data-element';
 import { findEmbeddedRolls, replaceEmbeddedRolls } from '@axe/domain/data/embedded-roll';
+import { resourceCommandParts } from '@axe/domain/data/resource-command-words';
 import { readNamedResourceSlot, type ResourceSlot, resourceSlotLabel } from '@axe/domain/data/resource-slot';
 
 export interface ResourceEditOption {
@@ -155,18 +163,16 @@ export function convertCommandToResourceEdit(
   oneResourceEdit.object = object;
   oneResourceEdit.targeted = targeted;
 
-  const replaceText = ` ${text.replace('：', ':').replace('＋', '+').replace('－', '-').replace('＝', '=').replace('＞', '>')}`;
-  const resourceEditRegExp = /[:]([^-+=>]+)([-+=>])(.*)/;
-  const resourceEditResult = replaceText.match(resourceEditRegExp);
-  if (!resourceEditResult) return false;
-  if (resourceEditResult[2] !== '>' && resourceEditResult[3] === '') return false;
+  const parts = resourceCommandParts(text);
+  if (!parts) return false;
+  if (parts.operator !== '>' && parts.amount === '') return false;
 
-  const named = readNamedResourceSlot(resourceEditResult[1]);
+  const named = readNamedResourceSlot(parts.name);
   const reg1 = named.name;
   const reg1HalfWidth = toHalfWidth(reg1);
   oneResourceEdit.nowOrMax = named.slot;
 
-  oneResourceEdit.operator = resourceEditResult[2];
+  oneResourceEdit.operator = parts.operator;
 
   if (object.status.canChangeName(reg1)) {
     oneResourceEdit.target = reg1;
@@ -177,17 +183,17 @@ export function convertCommandToResourceEdit(
   }
 
   if (oneResourceEdit.operator === '>') {
-    oneResourceEdit.replace = resourceEditResult[3];
+    oneResourceEdit.replace = parts.amount;
     return true;
   }
 
-  const reg3 = splitOptionLetters(toHalfWidth(resourceEditResult[3])).amount;
+  const reg3 = splitOptionLetters(toHalfWidth(parts.amount)).amount;
   const commandPrefix = oneResourceEdit.operator === '-' ? '-' : '';
   oneResourceEdit.amount = reg3;
   const leading = commandPrefix === '-' ? wrapLeadingDivision(oneResourceEdit.amount) : oneResourceEdit.amount;
   oneResourceEdit.command = `${commandPrefix}${leading}+(1d1-1)`;
 
-  const optionCommand = parseResourceEditOption(resourceEditResult[3]);
+  const optionCommand = parseResourceEditOption(parts.amount);
   if (optionCommand.isErr) {
     return false;
   }
@@ -307,22 +313,10 @@ export function applyResourceEdit(edit: ResourceEdit, character: GameCharacter):
  * twice is still holding it there, so that starts over as always.
  */
 function applyCalculatedBuff(command: string, character: GameCharacter, piles: BuffPileOn): string {
-  const parts = command.replace(/^[tTｔＴ]?&[!！]/i, '').split('/');
-  const name = (parts[0] ?? '').trim();
+  const { name, requests, rest } = readCalculatedBuff(command);
   if (name.length < 1) return '';
-
-  const single = isBuffModifierOperator(parts[2] ?? '');
-  const requests = single
-    ? [parseBuffModifierRequest(parts[1] ?? '', parts[2] ?? '', parts[3] ?? '')]
-    : parseBuffModifierItems(parts[1] ?? '');
-  if (!requests || requests.some((request) => !request)) return `バフの書式が読めません ${name}    `;
-  return grantCalculatedBuff(
-    character,
-    name,
-    requests as ParsedBuffModifierRequest[],
-    parts.slice(single ? 4 : 2),
-    piles
-  );
+  if (!requests) return `バフの書式が読めません ${name}    `;
+  return grantCalculatedBuff(character, name, requests, rest, piles);
 }
 
 /**
@@ -338,14 +332,12 @@ function grantCalculatedBuff(
 ): string {
   const roundText = (rest[0] ?? '').trim();
   const round = roundText.length > 0 && Number.isFinite(Number(roundText)) ? Number(roundText) : 3;
-  const timing = resolveBuffTiming(rest[1] ?? '') ?? undefined;
-  const trigger = (rest[2] ?? '').trim();
   const stacking =
     piles !== 'none' && requests.every((request) => request.operator === 'add') && character.buffs.find(name) != null;
   if (!stacking) character.buffs.removeGroupMembers(name);
   const grouped = requests.length > 1;
   const group = grouped ? name : stacking ? undefined : '';
-  const appearance = { timing, trigger: trigger.length > 0 ? trigger : undefined, group };
+  const appearance = { ...readCalculatedBuffLook(rest.slice(1)), group };
 
   const missing: string[] = [];
   const effects: string[] = [];
@@ -374,27 +366,14 @@ function grantCalculatedBuff(
 }
 
 /**
- * What second helping the command asks for, and the command with that mark taken off.
- *
- * `&+猛攻撃/攻撃+2/3` adds its `+2` to whatever the standing 猛攻撃 already carries instead of
- * writing over it, and `&++猛攻撃/攻撃+2/3` adds the three rounds to the ones left as well. The
- * mark sits right after the ampersand so that everything downstream reads the command it always
- * read, `&+!` included.
- */
-function readBuffStacking(command: string): { piles: BuffPileOn; command: string } {
-  const marked = command.match(/^([tTｔＴ]?&)([+＋]{1,2})(?=[^+＋])/);
-  if (!marked) return { piles: 'none', command };
-  return { piles: marked[2].length > 1 ? 'extend' : 'stack', command: marked[1] + command.slice(marked[0].length) };
-}
-
-/**
  * Runs one `&` buff command on the character and returns the chat text reporting it.
  *
  * `&R-` and `&R+` move every buff's remaining rounds, `&D` clears buffs at zero rounds or fewer, `&name-`
  * removes one buff, `&!` adds a buff that changes a status, and anything else adds a plain
- * `name/effect/rounds/appearance` buff. A `+` right after the ampersand stacks onto a buff of the
- * same name rather than starting it over, and `++` lengthens it by the rounds asked for as well.
- * A targeted command's text starts with the character's name.
+ * `name/effect/rounds/appearance` buff; one named after a state the room keeps puts that state on,
+ * what the command leaves out read from the room's list of states. A `+` right after the ampersand
+ * stacks onto a buff of the same name rather than starting it over, and `++` lengthens it by the
+ * rounds asked for as well. A targeted command's text starts with the character's name.
  */
 export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string {
   const { piles, command } = readBuffStacking(buff.command);
@@ -403,25 +382,29 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
     text += `[${character.name}] `;
   }
 
-  if (command.match(/^[tTｔＴ]?&[RＲrｒ]-$/i)) {
+  const kind = buffCommandKind(command);
+  if (kind === 'roundsDown') {
     character.buffs.decreaseRound();
     text += 'バフRを減少    ';
-  } else if (command.match(/^[tTｔＴ]?&[RＲrｒ][+]$/i)) {
+  } else if (kind === 'roundsUp') {
     character.buffs.increaseRound();
     text += 'バフRを増加    ';
-  } else if (command.match(/^[tTｔＴ]?&[DＤdｄ]$/i)) {
+  } else if (kind === 'clearZero') {
     character.buffs.deleteZeroRound();
     text += '0R以下のバフを消去    ';
-  } else if (command.match(/^[tTｔＴ]?&.+-$/i)) {
-    const match = command.match(/^[tTｔＴ]?&(.+)-$/i);
-    const reg1 = match![1];
+  } else if (kind === 'remove') {
+    const reg1 = removedBuffName(command);
     if (character.buffs.delete(reg1)) {
       text += `${reg1}を消去    `;
     }
-  } else if (command.match(/^[tTｔＴ]?&[!！]/i)) {
+  } else if (kind === 'calculated') {
     text += applyCalculatedBuff(command, character, piles);
   } else {
     const splittext = readModifierLayout(command.replace(/^[tTｔＴ]?&/i, '').split('/'));
+    const state = findStatusAilment(StatusAilmentCatalog.instance.ailments, splittext[0]);
+    if (state && (piles === 'none' || !character.buffs.find(state.name))) {
+      return text + plantCommandedState(state, splittext, character);
+    }
     let round: number | undefined = undefined;
     let sub = '';
     const buffname = splittext[0];
@@ -462,6 +445,25 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
 }
 
 /**
+ * A plain buff naming a state the room keeps, put on as the room describes the state: the note,
+ * the rounds and the look the command writes stand in for the state's own, and the rest, the
+ * status the state moves among it, is the state's. Laid on top of one already worn, the buff
+ * piles on as any plain one does instead.
+ */
+function plantCommandedState(state: StatusAilment, parts: string[], character: GameCharacter): string {
+  const rounds = parts.length > 2 ? Number.parseInt(parts[2], 10) : Number.NaN;
+  const look = parseBuffAppearance(parts.slice(3));
+  const ailment = statusAilmentAsCommanded(state, {
+    note: parts[1] ?? '',
+    rounds: Number.isNaN(rounds) ? null : rounds,
+    look,
+  });
+  plantStatusAilment(character, ailment, look.trigger ? { trigger: look.trigger } : {});
+  const told = [ailment.name, ailment.effect, ailment.rounds > 0 ? `${ailment.rounds}R` : '', ...parts.slice(3)];
+  return `バフを付与 ${told.filter((part) => part.length > 0).join('/')}    `;
+}
+
+/**
  * A plain buff written in the `&!` layout, `name/status/op/amount/R/…`, read as the plain
  * `name/note/R/…` it stands for, so the rounds written after the amount are the ones it lasts.
  * Read as a plain buff, the operator would stand where the rounds go and the rounds would be
@@ -469,7 +471,7 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
  *
  * Without the mark the status is left where it is; the note says what the buff would move.
  */
-function readModifierLayout(parts: string[]): string[] {
+export function readModifierLayout(parts: string[]): string[] {
   if (parts.length < 4) return parts;
   const request = parseBuffModifierRequest(parts[1], parts[2], parts[3]);
   if (!request) return parts;

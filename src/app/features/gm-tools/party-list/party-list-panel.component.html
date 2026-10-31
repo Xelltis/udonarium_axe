@@ -71,6 +71,29 @@
         </div>
       }
 
+      @let choices = playerChoices(party);
+      @if (choices.length) {
+        <div
+          class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 pl-5"
+          [attr.data-testid]="'party-players-' + party.name"
+          [title]="'feature.gmTools.party.playersHint' | transloco"
+        >
+          <span class="text-ui-dim text-[11px]">{{ 'feature.gmTools.party.players' | transloco }}</span>
+          @for (player of choices; track player.userId) {
+            <label class="text-ui-muted flex cursor-pointer items-center gap-1 text-[11px] select-none">
+              <input
+                type="checkbox"
+                class="size-3 cursor-pointer [accent-color:var(--ui-accent)]"
+                [ngModel]="player.playing"
+                [name]="'player-' + party.identifier + '-' + player.userId"
+                (ngModelChange)="setPlayer(party, player.userId, $event)"
+              />
+              {{ player.name }}
+            </label>
+          }
+        </div>
+      }
+
       <div class="mt-1.5 flex flex-col gap-1 pl-5">
         @for (character of members(party); track character.identifier) {
           <div class="flex items-center gap-2">

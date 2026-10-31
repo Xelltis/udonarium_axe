@@ -1,4 +1,5 @@
 import { toHalfWidth } from '@axe/core/util/string-util';
+import { CHARACTER_REFERENCE } from '@axe/domain/chat/chat-reference';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 
 /** A line with the pictures it named taken out of its words, and every picture it now carries. */
@@ -24,7 +25,7 @@ export function liftImageReferences(
   if (!root) return { text, attachmentImageIdentifiers: [...attached] };
 
   const lifted = [...attached];
-  const rest = text.replace(/[tTｔＴ]?[{｛]\s*([^{}｛｝]+)\s*[}｝]/g, (match, name) => {
+  const rest = text.replace(CHARACTER_REFERENCE, (match, name) => {
     if (match.match(/^[tTｔＴ].*/)) return match;
 
     const element = DataElement.findElementByReference(root, toHalfWidth(name));

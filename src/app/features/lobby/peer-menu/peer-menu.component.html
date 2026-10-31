@@ -84,6 +84,10 @@
   </div>
 </div>
 
+@if (offersLogin()) {
+  <server-account class="px-3 pb-2.5" data-testid="peer-menu-login" [framed]="false" />
+}
+
 <hr class="mx-3 border-(--ui-panel-border)" />
 
 <div class="space-y-1.5 px-3 py-2">
@@ -304,8 +308,9 @@
           findPeerName(context.peerId) || shortId(context.peerId)
         }}</span>
         @if (amGameMaster()) {
-          <!-- Drawn again when the room server keeps a role as it was, so the picker shows the role as it stands. -->
-          @for (drawn of [roleSelectsDrawn()]; track drawn) {
+          <!-- Drawn again when the room server keeps a role as it was, so the picker shows the role as it stands;
+               tracked by a key, as drawing anew is meant. -->
+          @for (drawn of [roleSelectsDrawn()]; track 'drawn ' + drawn) {
             <select
               class="shrink-0 text-[0.7rem]"
               [ngModel]="findPeerRole(context.peerId)"

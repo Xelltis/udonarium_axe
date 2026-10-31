@@ -58,6 +58,18 @@ describe('StampPickerService', () => {
     expect(picker()).toBeNull();
   });
 
+  it('opens toward the larger room for a reaction, and upward from the bar over the box where it fits', () => {
+    vi.spyOn(anchor, 'getBoundingClientRect').mockReturnValue(new DOMRect(10, 300, 40, 20));
+    const below = 300 + 20;
+
+    service.open(anchor, 'reaction', (id) => picked.push(id));
+    expect(parseFloat(picker()!.style.top)).toBeGreaterThanOrEqual(below);
+    service.close();
+
+    service.open(anchor, 'line', (id) => picked.push(id), 'end', 'up');
+    expect(parseFloat(picker()!.style.top)).toBeLessThan(300);
+  });
+
   it('closes on a press outside it, and on Escape, but not on a press inside it', () => {
     service.open(anchor, 'line', (id) => picked.push(id));
     press(picker()!);

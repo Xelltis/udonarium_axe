@@ -127,7 +127,8 @@ export function forgetAudioOutput(): void {
 
 /**
  * Stands in for Web Audio, the audio element, fetch and object URLs, with a fresh audio output, and
- * gives back the stand-in context and the element every new `Audio` is. Undone by
+ * gives back the stand-in context and the element every new `Audio` is. A sound fetched by its url
+ * comes back empty, as a spec that cares about the bytes says what they are. Undone by
  * `vi.unstubAllGlobals()` and `vi.restoreAllMocks()`.
  */
 export function installWebAudioMock(): { context: AudioContextMock; element: AudioElmMock } {
@@ -143,7 +144,10 @@ export function installWebAudioMock(): { context: AudioContextMock; element: Aud
     return element;
   }
   vi.stubGlobal('Audio', AudioCtor);
-  vi.stubGlobal('fetch', vi.fn());
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(new Blob()))
+  );
   vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-url');
   vi.spyOn(URL, 'revokeObjectURL').mockReturnValue(undefined);
   forgetAudioOutput();

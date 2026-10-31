@@ -28,6 +28,7 @@ import { sheetPanelBox, sheetPanelTitle } from '@axe/application/ui/sheet-panel'
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
+import { putOnBattleSide, standingBattleSide } from '@axe/domain/battle/battle-side';
 import { type BuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
@@ -158,7 +159,8 @@ export class GameCharacterMenuService {
         onShowBattle: () =>
           this.roomPanels.open<BattleCutInPanelHandle>('battleCutIn', {}, (panel) => panel.focusOn(char.identifier)),
         onPlayBattle: this.rolePermission.canEditTabletop() ? () => void this.playBattle(char) : undefined,
-        onSetBattleSide: this.rolePermission.isGameMaster() ? (side) => (char.battleSide = side ?? '') : undefined,
+        onSetBattleSide: this.rolePermission.isGameMaster() ? (side) => putOnBattleSide(char, side) : undefined,
+        battleSide: standingBattleSide(char),
         onSetResourceSliders: this.resourceSliders.maySetAll(char)
           ? (shown) => this.resourceSliders.setAll(char, shown)
           : undefined,

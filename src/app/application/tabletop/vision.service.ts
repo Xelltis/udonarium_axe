@@ -11,6 +11,7 @@ import {
   perfTimed,
 } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { Party } from '@axe/domain/party/party';
 import { partyIdsOwnedBy } from '@axe/domain/party/party-membership';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
@@ -306,8 +307,12 @@ export class VisionService {
       .map((cursor) => cursor.userId);
   }
 
+  /** The parties a user is in, by the characters they own and the parties that name them as players. */
   private partyIdsOf(userId: string): string[] {
-    return partyIdsOwnedBy(this.objectStore.getObjects<GameCharacter>(GameCharacter), userId);
+    this.objectChange.collectionOf(Party.aliasName)();
+    const parties = this.objectStore.getObjects<Party>(Party);
+    for (const party of parties) this.objectChange.versionOf(party.identifier)();
+    return partyIdsOwnedBy(this.objectStore.getObjects<GameCharacter>(GameCharacter), userId, parties);
   }
 
   private currentTable(): GameTable | null {

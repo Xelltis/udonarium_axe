@@ -5,9 +5,11 @@ import {
   ChatPalette,
   DiceTablePalette,
   evaluateCharacterReferences,
+  paletteVariableSite,
   textTargetsCharacter,
 } from '@axe/domain/chat/chat-palette';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
+import { applyBuffEdit } from '@axe/domain/data/resource-edit-helpers';
 
 describe('ChatPalette', () => {
   beforeEach(() => {
@@ -286,6 +288,85 @@ describe('ChatPalette', () => {
       expect(evaluateCharacterReferences('{HP} t{HP}', speaker, target).text).toBe('13 4');
     });
 
+    describe('a buff named where a number is worked out', () => {
+      function wearing(character: GameCharacter, command: string): GameCharacter {
+        character.addBuffDataElement();
+        applyBuffEdit({ command, object: character, targeted: false }, character);
+        return character;
+      }
+
+      it('lends the number its note carries, to the amount the target is hit for', () => {
+        const attacker = wearing(makeCharacter(false), '&練技/攻撃+2/3');
+        const target = wearing(makeCharacter(false, '4'), '&守り/防護+3/3');
+
+        expect(evaluateCharacterReferences('t:HP-{練技}', attacker, target).text).toBe('t:HP-2');
+        expect(evaluateCharacterReferences('t:HP-({HP}+{練技}-t{守り})', attacker, target).text).toBe('t:HP-(13+2-3)');
+      });
+
+      it('brackets a number below nought after an operator, and keeps the sign of one joined on', () => {
+        const cursed = wearing(wearing(makeCharacter(false), '&呪い/攻撃-1/3'), '&加護/+10/3');
+
+        expect(evaluateCharacterReferences(':HP+{呪い}', cursed).text).toBe(':HP+(-1)');
+        expect(evaluateCharacterReferences('2d6+10{加護}', cursed).text).toBe('2d6+10+10');
+      });
+
+      it('joins on a number written without a sign with a plus, so it is not run into the one before', () => {
+        const guarded = wearing(makeCharacter(false), '&加護/防護3/3');
+
+        expect(evaluateCharacterReferences('2d6+10{加護}', guarded).text).toBe('2d6+10+3');
+        expect(evaluateCharacterReferences(':HP-10{加護}', guarded).text).toBe(':HP-10+3');
+      });
+
+      it('lends the number as it is where it stands inside a number of its own, after a letter or a mark', () => {
+        const guarded = wearing(makeCharacter(false), '&加護/防護3/3');
+
+        expect(evaluateCharacterReferences('2d{加護}', guarded).text).toBe('2d3');
+        expect(evaluateCharacterReferences('K20@{加護}', guarded).text).toBe('K20@3');
+        expect(evaluateCharacterReferences('choice[{加護},x]', guarded).text).toBe('choice[3,x]');
+      });
+
+      it('lends a number with a plus inside a number of its own without the plus', () => {
+        const guarded = wearing(makeCharacter(false), '&加護/防護+3/3');
+
+        expect(evaluateCharacterReferences('2d{加護}', guarded).text).toBe('2d3');
+        expect(evaluateCharacterReferences('K20@{加護}', guarded).text).toBe('K20@3');
+      });
+
+      it('lends the number in a roll repeated by a count before it', () => {
+        const attacker = wearing(makeCharacter(false), '&練技/攻撃+2/3');
+
+        expect(evaluateCharacterReferences('3 2d6+{練技}', attacker).text).toBe('3 2d6+2');
+      });
+
+      it('reads the words of the note in the text a > command writes, which is no number', () => {
+        const cursed = wearing(makeCharacter(false), '&呪い/攻撃-1/3');
+
+        expect(evaluateCharacterReferences(':メモ>状態-{呪い}', cursed).text).toBe(':メモ>状態-攻撃-1');
+      });
+
+      it('lends the number in a roll that a stamp put right after it ends, as a space would', () => {
+        const guarded = wearing(makeCharacter(false), '&加護/防護3/3');
+
+        expect(evaluateCharacterReferences('2d6+{加護}［x:seal:ok］ 攻撃', guarded).text).toBe(
+          '2d6+3［x:seal:ok］ 攻撃'
+        );
+      });
+
+      it('takes a note with no number as nought after an operator, and as nothing joined on', () => {
+        const poisoned = wearing(wearing(makeCharacter(false), '&毒/苦しい/3'), '&加護/攻撃+0/3');
+
+        expect(evaluateCharacterReferences('2d6+{加護}', poisoned).text).toBe('2d6+0');
+        expect(evaluateCharacterReferences(':HP-{毒}', poisoned).text).toBe(':HP-0');
+        expect(evaluateCharacterReferences('2d6+10{加護}', poisoned).text).toBe('2d6+10');
+      });
+
+      it('still reads the words of the note anywhere else in the line', () => {
+        const attacker = wearing(makeCharacter(false), '&練技/攻撃+2/3');
+
+        expect(evaluateCharacterReferences('2d6 {練技}が効いている', attacker).text).toBe('2d6 攻撃+2が効いている');
+      });
+    });
+
     it('leaves the line alone when nobody is speaking it', () => {
       expect(evaluateCharacterReferences('2d6+{HP}', null).text).toBe('2d6+{HP}');
     });
@@ -369,6 +450,34 @@ describe('ChatPalette', () => {
 
     it('leaves a plain roll alone', () => {
       expect(textTargetsCharacter('2d6+3')).toBe(false);
+    });
+
+    it('counts a secret command aimed at targets as aiming, as the command is carried out', () => {
+      expect(textTargetsCharacter('st&呪い-')).toBe(true);
+      expect(textTargetsCharacter('攻撃 st:HP-1')).toBe(true);
+      expect(textTargetsCharacter('S&W St&W')).toBe(false);
+    });
+  });
+});
+
+describe('paletteVariableSite', () => {
+  it('places the name and the value of a variable line', () => {
+    const line = ' //ＳＴＲ = 3+2';
+    const site = paletteVariableSite(line)!;
+    expect(site).toMatchObject({ name: 'STR', value: '3+2' });
+    expect(line.slice(site.nameFrom, site.nameTo)).toBe('ＳＴＲ');
+    expect(line.slice(site.valueFrom)).toBe('3+2');
+  });
+
+  it('answers null for a line that sets nothing', () => {
+    expect(paletteVariableSite('2d6 //攻撃')).toBeNull();
+  });
+
+  describe('a line aimed at the pieces marked', () => {
+    it('is aimed by a targeted command a stamp put right before it starts, as a space would', () => {
+      expect(textTargetsCharacter('攻撃［いいね:seal:ok］t:HP-1')).toBe(true);
+      expect(textTargetsCharacter('攻撃［いいね:seal:ok］t&加護/防護+2/3')).toBe(true);
+      expect(textTargetsCharacter('攻撃t:HP-1')).toBe(false);
     });
   });
 });

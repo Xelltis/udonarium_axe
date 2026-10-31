@@ -28,6 +28,16 @@ export class StatusAilmentCatalog extends ObjectNode {
   }
 
   /**
+   * Lets go of the one held here as it leaves the store, so that the next reader is given one made
+   * anew, as for a room just started, rather than this one put back as it was.
+   */
+  override onStoreRemoved() {
+    super.onStoreRemoved();
+    if (StatusAilmentCatalog._instance === this)
+      StatusAilmentCatalog._instance = undefined as unknown as StatusAilmentCatalog;
+  }
+
+  /**
    * The states the catalog holds, read from its one-to-a-line text. Assigning a list rewrites that
    * text, which travels with the room.
    */

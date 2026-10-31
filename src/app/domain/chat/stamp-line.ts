@@ -9,6 +9,11 @@ export function joinStampLine(said: string, standIn: string): string {
   return said.length > 0 ? `${said}\n${standIn}` : standIn;
 }
 
+/** The words standing in for a stamp, from the text of its line: its last line. */
+export function standInForStamp(text: string): string {
+  return text.slice(text.lastIndexOf('\n') + 1);
+}
+
 /**
  * What was said with a stamp, from the text of its line: all but the last line, which stands in for
  * the stamp. Empty for a stamp sent on its own.

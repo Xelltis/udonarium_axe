@@ -5,6 +5,7 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
@@ -14,6 +15,7 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { moveNeighbourToward } from '@axe/domain/tabletop/move/move-neighbours';
 import { pieceCellOf } from '@axe/domain/tabletop/move/piece-on-grid';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { LightPreset } from '@axe/domain/tabletop/vision-types';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -38,6 +40,7 @@ describe('FirstPersonService', () => {
     table.height = 12;
     table.gridSize = GRID;
     table.initialize();
+    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
     PeerCursor.createMyCursor();
     PeerCursor.myCursor.role = PeerRole.Player;
     PeerCursor.myCursor.userId = 'me';
@@ -371,6 +374,26 @@ describe('FirstPersonService', () => {
       }
     });
 
+    it('shows a player held in the view the game master put up what the piece sees, not what the table shows them', () => {
+      darkTable();
+      lampAt(6, 5);
+      gameMasterInTheRoom();
+      const piece = pieceAt(5, 5, 90);
+      piece.owner = 'somebody-else';
+      table.sharedViewPiece = piece.identifier;
+      touch(table.identifier, piece.identifier);
+
+      expect(service().forced()).toBe(true);
+      expect(service().litCells()).toBe(service().sight());
+
+      table.sharedViewPiece = '';
+      piece.owner = '';
+      touch(table.identifier, piece.identifier);
+      service().enterSeat(piece.identifier);
+      expect(service().forced()).toBe(false);
+      expect(service().litCells()).not.toBe(service().sight());
+    });
+
     it('shows the game master the room whether or not a lamp is burning in it', () => {
       darkTable();
       becomeGameMaster();
@@ -599,6 +622,31 @@ describe('FirstPersonService', () => {
       becomeGameMaster();
       service().enterSeat(piece.identifier);
       expect(service().canWalk()).toBe(true);
+    });
+
+    it('lets a player its party names walk it, and look out of it from a seat of their own', () => {
+      const party = new Party();
+      party.players = 'me';
+      party.initialize();
+      const piece = sharedView('somebody-else');
+      piece.partyIdentifier = party.identifier;
+      touch(piece.identifier, party.identifier);
+
+      expect(service().canWalk()).toBe(true);
+      expect(
+        service()
+          .seats()
+          .map((seat) => seat.identifier)
+      ).toContain(piece.identifier);
+
+      party.players = '';
+      touch(party.identifier);
+      expect(service().canWalk()).toBe(false);
+      expect(
+        service()
+          .seats()
+          .map((seat) => seat.identifier)
+      ).not.toContain(piece.identifier);
     });
 
     it('still lets a seat walk a piece nobody has claimed when no view is forced', () => {

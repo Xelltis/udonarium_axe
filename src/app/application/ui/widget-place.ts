@@ -1,6 +1,7 @@
 import type { WidgetLayoutService } from '@axe/application/ui/widget-layout.service';
 
 export const WIDGET_CLOCK = 'clock';
+export const WIDGET_GAME_CLOCK = 'gameClock';
 export const WIDGET_COMPASS = 'compass';
 export const WIDGET_CONNECTION_QUALITY = 'connectionQuality';
 export const WIDGET_VOTE = 'vote';

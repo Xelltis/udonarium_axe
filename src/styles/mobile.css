@@ -3,13 +3,14 @@
 /*
  * A part of a panel marked data-own-mobile-layout sizes its own controls for a phone, by its own
  * width, so the blanket sizes below leave it alone. Text is still never drawn under 16px, which is
- * what keeps iOS from zooming onto a box as it is typed in.
+ * what keeps iOS from zooming onto a box as it is typed in, the chat's editor among them.
  */
 body.mobile-layout
   :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar)
   input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
 body.mobile-layout :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar) select,
-body.mobile-layout :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar) textarea {
+body.mobile-layout :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar) textarea,
+body.mobile-layout :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-rail, app-hotbar) .chat-rich {
   font-size: 16px;
 }
 
@@ -71,7 +72,7 @@ body.mobile-layout app-hand-rail .hand-rail {
   max-width: 100vw;
 }
 
-body.mobile-layout app-mobile-shell .chat-input {
+body.mobile-layout app-mobile-shell [data-chat-input-box] {
   height: auto !important;
   max-height: 22dvh;
 }
@@ -217,6 +218,10 @@ body.mobile-layout visual-novel-overlay textarea {
   font-size: 16px;
 }
 
+body.mobile-layout visual-novel-overlay .chat-rich {
+  font-size: 16px;
+}
+
 body.mobile-layout visual-novel-overlay button:not(.material-icons) {
   min-height: 40px;
 }
@@ -228,14 +233,14 @@ body.touch-input :is(ui-panel, app-mobile-shell, modal, context-menu, app-hand-r
 /*
  * A press held on a line of chat opens what can be done with it, copying its words among them.
  * Left selectable, the same press would also start picking the words out under the menu. The box
- * a line is edited in stays selectable.
+ * a line is edited in stays selectable, the plain one or the editor.
  */
 body.touch-input chat-message .msg-text {
   -webkit-user-select: none;
   user-select: none;
 }
 
-body.touch-input chat-message .msg-text textarea {
+body.touch-input chat-message .msg-text :is(textarea, [contenteditable='true']) {
   -webkit-user-select: text;
   user-select: text;
 }
@@ -286,7 +291,7 @@ game-table {
   }
 }
 
-body.mobile-layout app-mobile-chat-pane .chat-input,
+body.mobile-layout app-mobile-chat-pane [data-chat-input],
 body.mobile-layout ui-panel input,
 body.mobile-layout ui-panel textarea {
   -webkit-user-select: text;

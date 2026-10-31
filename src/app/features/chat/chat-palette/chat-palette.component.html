@@ -7,6 +7,7 @@
       [onlyCharacters]="true"
       [disableQuote]="true"
       [dense]="true"
+      lintPath="palette"
       [canSpeak]="canSpeakCurrentTab()"
       [placeholder]="
         (isCompact() ? 'feature.chat.palette.inputHintTouch' : 'feature.chat.palette.inputHint') | transloco
@@ -233,6 +234,7 @@
   <div
     [hidden]="isEdit() || viewMode() !== 'palette'"
     class="box-border h-0 min-h-25 w-full grow overflow-y-auto font-sans"
+    data-testid="chat-palette-list"
     #paletteList
   >
     @for (row of shownRows(); track row.lineIndex) {
@@ -302,13 +304,22 @@
   }
 
   <div [hidden]="!isEdit() || viewMode() !== 'palette'" class="h-0 min-h-25 grow">
-    <textarea
-      class="box-border size-full resize-none font-sans"
-      name="edit-palette"
-      #editText
-      [ngModel]="editPalette()"
-      (ngModelChange)="editPalette.set($event)"
-      [placeholder]="'feature.chat.palette.editPlaceholder' | transloco"
-    ></textarea>
+    @if (editsInEditor()) {
+      <div
+        #paletteEditorHost
+        data-chat-palette-editor
+        class="panel-no-drag border-ui-input-border bg-ui-input text-ui-text box-border size-full overflow-y-auto border border-solid"
+      ></div>
+    } @else {
+      <textarea
+        class="box-border size-full resize-none font-sans"
+        name="edit-palette"
+        uiComposingMark
+        #editText
+        [ngModel]="editPalette()"
+        (ngModelChange)="editPalette.set($event)"
+        [placeholder]="'feature.chat.palette.editPlaceholder' | transloco"
+      ></textarea>
+    }
   </div>
 </div>

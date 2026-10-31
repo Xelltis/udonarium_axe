@@ -1,3 +1,6 @@
+import { RUBY_NOTATION } from '@axe/domain/chat/chat-ruby-notation';
+import { INLINE_STAMP, withInlineStampsAsWords } from '@axe/domain/chat/inline-stamp';
+
 /**
  * The decorations a line of chat can carry, written in its text: `**bold**`, and a name in square
  * brackets closed by `[/]` or by the name again, `[明朝]…[/明朝]`, for a font, a size, a colour,
@@ -137,11 +140,13 @@ function sameEffect(a: TagEffect, b: TagEffect): boolean {
   return a.kind === b.kind && ('value' in a ? a.value : '') === ('value' in b ? b.value : '');
 }
 
-type Token =
+type Token = { from: number; to: number } & (
   | { type: 'text'; text: string }
+  | { type: 'escape' }
   | { type: 'stars'; raw: string; pair: number }
   | { type: 'open'; raw: string; effect: TagEffect; pair: number }
-  | { type: 'close'; raw: string; effect: TagEffect | null; pair: number };
+  | { type: 'close'; raw: string; effect: TagEffect | null; pair: number }
+);
 
 const OPEN_BRACKETS = '[［';
 const CLOSE_BRACKETS = ']］';
@@ -149,38 +154,48 @@ const SLASHES = '/／';
 /** How far past a bracket its closing bracket is looked for: further than any tag's name runs. */
 const TAG_REACH = 24;
 
-/** Cuts a line into its text and the marks that might decorate it, before any is paired. */
+/**
+ * Cuts a line into its text and the marks that might decorate it, before any is paired, each with
+ * where it stands. A backslash that keeps a mark from taking effect is a token of its own.
+ */
 function tokensOf(text: string): Token[] {
   const tokens: Token[] = [];
   let plain = '';
-  const flush = () => {
-    if (plain.length > 0) tokens.push({ type: 'text', text: plain });
+  let plainFrom = 0;
+  const flush = (to: number) => {
+    if (plain.length > 0) tokens.push({ type: 'text', text: plain, from: plainFrom, to });
     plain = '';
+  };
+  const addPlain = (piece: string, at: number) => {
+    if (plain.length < 1) plainFrom = at;
+    plain += piece;
   };
   for (let at = 0; at < text.length; at++) {
     const char = text[at];
     const next = text[at + 1];
     if (char === '\\' && (next === '*' ? text[at + 2] === '*' : tagAt(text, at + 1) !== null)) {
-      plain += next;
+      flush(at);
+      tokens.push({ type: 'escape', from: at, to: at + 1 });
+      addPlain(next, at + 1);
       at++;
       continue;
     }
     if (char === '*' && next === '*') {
-      flush();
-      tokens.push({ type: 'stars', raw: '**', pair: -1 });
+      flush(at);
+      tokens.push({ type: 'stars', raw: '**', pair: -1, from: at, to: at + 2 });
       at++;
       continue;
     }
     const tag = tagAt(text, at);
     if (tag) {
-      flush();
+      flush(at);
       tokens.push(tag.token);
       at = tag.end;
       continue;
     }
-    plain += char;
+    addPlain(char, at);
   }
-  flush();
+  flush(text.length);
   return tokens;
 }
 
@@ -195,10 +210,21 @@ function tagAt(text: string, at: number): { token: Token; end: number } | null {
   if (SLASHES.includes(inside[0])) {
     const name = inside.slice(1);
     const effect = name.trim().length > 0 ? effectOfName(name) : null;
-    return name.trim().length === 0 || effect ? { token: { type: 'close', raw, effect, pair: -1 }, end } : null;
+    return name.trim().length === 0 || effect
+      ? { token: { type: 'close', raw, effect, pair: -1, from: at, to: end + 1 }, end }
+      : null;
   }
   const effect = effectOfName(inside);
-  return effect ? { token: { type: 'open', raw, effect, pair: -1 }, end } : null;
+  return effect ? { token: { type: 'open', raw, effect, pair: -1, from: at, to: end + 1 }, end } : null;
+}
+
+/**
+ * Words written to stand as they are in a line of chat, as a stamp's stand-in is: with a backslash
+ * before them where their brackets would otherwise be read as a decoration's tag, as `［赤］` and
+ * `[red]` would. Every version that reads tags reads the backslash, and shows the words alone.
+ */
+export function keptFromDecoration(words: string): string {
+  return tagAt(words, 0) ? `\\${words}` : words;
 }
 
 function indexOfAny(text: string, chars: string, from: number, until: number): number {
@@ -282,29 +308,27 @@ function sameDecoration(a: ChatDecoration | null, b: ChatDecoration | null): boo
   );
 }
 
-/** A line cut into runs, each with what it is drawn with, the marks taken out and the unpaired ones left as text. */
-export function decoratedRunsOf(text: string): DecoratedRun[] {
+/**
+ * Walks a line's pieces of text in order, each with where it stands and what it is drawn with: its
+ * text, and the marks left unpaired, which stay text. Answers the tokens, paired.
+ */
+function walkDecorations(
+  text: string,
+  visit: (piece: string, from: number, to: number, decoration: ChatDecoration | null) => void
+): Token[] {
   const tokens = tokensOf(text);
   pair(tokens);
-  const runs: DecoratedRun[] = [];
   const open: { index: number; effect: TagEffect }[] = [];
   let bold = false;
-  const push = (piece: string) => {
-    if (piece.length < 1) return;
-    const decoration = decorationOf(
+  const current = () =>
+    decorationOf(
       open.map((entry) => entry.effect),
       bold
     );
-    const last = runs.at(-1);
-    if (last && sameDecoration(last.decoration, decoration)) {
-      runs[runs.length - 1] = { text: last.text + piece, decoration };
-    } else {
-      runs.push({ text: piece, decoration });
-    }
-  };
   tokens.forEach((token, index) => {
-    if (token.type === 'text') return push(token.text);
-    if (token.pair < 0) return push(token.raw);
+    if (token.type === 'escape') return;
+    if (token.type === 'text') return visit(token.text, token.from, token.to, current());
+    if (token.pair < 0) return visit(token.raw, token.from, token.to, current());
     if (token.type === 'stars') {
       bold = token.pair > index;
       return;
@@ -316,14 +340,93 @@ export function decoratedRunsOf(text: string): DecoratedRun[] {
     const at = open.findIndex((entry) => entry.index === token.pair);
     if (at >= 0) open.splice(at, 1);
   });
+  return tokens;
+}
+
+/** A line cut into runs, each with what it is drawn with, the marks taken out and the unpaired ones left as text. */
+export function decoratedRunsOf(text: string): DecoratedRun[] {
+  const runs: DecoratedRun[] = [];
+  walkDecorations(text, (piece, _from, _to, decoration) => {
+    if (piece.length < 1) return;
+    const last = runs.at(-1);
+    if (last && sameDecoration(last.decoration, decoration)) {
+      runs[runs.length - 1] = { text: last.text + piece, decoration };
+    } else {
+      runs.push({ text: piece, decoration });
+    }
+  });
   return runs;
 }
 
-/** What a line says with its decorations taken out, as it is read aloud, searched or written plainly. */
+/**
+ * A mark in a line that might decorate it, where it stands, and whether it does: a `**`, an opening
+ * or closing tag, or a backslash that keeps the mark after it from taking effect.
+ */
+export interface ChatDecorationMark {
+  readonly kind: 'stars' | 'open' | 'close' | 'escape';
+  readonly from: number;
+  readonly to: number;
+  /** Whether the mark takes effect; one left unpaired is drawn as the text it is. */
+  readonly paired: boolean;
+  /** The index among the marks of the one it is paired with, or -1. */
+  readonly partner: number;
+}
+
+/** A stretch of a line drawn with one decoration, by where it stands in the line as typed. */
+export interface PlacedChatDecoration {
+  readonly from: number;
+  readonly to: number;
+  readonly decoration: ChatDecoration;
+}
+
+/**
+ * Where a line's decoration marks stand and what each stretch of it is drawn with, read just as
+ * {@link decoratedRunsOf} reads it, for an editor that draws the line as it will look while keeping
+ * the marks in place.
+ */
+export function chatDecorationLayout(text: string): {
+  marks: ChatDecorationMark[];
+  runs: PlacedChatDecoration[];
+} {
+  const runs: PlacedChatDecoration[] = [];
+  const tokens = walkDecorations(text, (_piece, from, to, decoration) => {
+    if (!decoration || from >= to) return;
+    const last = runs.at(-1);
+    if (last && last.to === from && sameDecoration(last.decoration, decoration)) {
+      runs[runs.length - 1] = { from: last.from, to, decoration };
+    } else {
+      runs.push({ from, to, decoration });
+    }
+  });
+  const markAt = new Map<number, number>();
+  tokens.forEach((token, index) => {
+    if (token.type !== 'text') markAt.set(index, markAt.size);
+  });
+  const marks: ChatDecorationMark[] = [];
+  for (const token of tokens) {
+    if (token.type === 'text') continue;
+    const pair = token.type === 'escape' ? -1 : token.pair;
+    marks.push({
+      kind: token.type,
+      from: token.from,
+      to: token.to,
+      paired: token.type === 'escape' || pair >= 0,
+      partner: pair >= 0 ? (markAt.get(pair) ?? -1) : -1,
+    });
+  }
+  return { marks, runs };
+}
+
+/**
+ * What a line says with its decorations taken out, as it is read aloud, searched or written plainly:
+ * a stamp put inside it is written as its name in brackets.
+ */
 export function withoutChatDecoration(text: string): string {
-  return decoratedRunsOf(text)
-    .map((run) => run.text)
-    .join('');
+  return withInlineStampsAsWords(
+    decoratedRunsOf(text)
+      .map((run) => run.text)
+      .join('')
+  );
 }
 
 /** The fonts the runs of a line are drawn in, each once, for whatever has to load them. */
@@ -405,6 +508,20 @@ export function leaningPiecesOf(text: string): string[] {
     opening = '';
   }
   if (opening) pieces.push(opening);
+  return pieces;
+}
+
+const KEPT_WHOLE = new RegExp(`${INLINE_STAMP.source}|${RUBY_NOTATION.source}|\\\\s`, 'g');
+
+/** The pieces a leaning run breaks between, with a stamp, a word and its reading, and a `\s`, each kept whole. */
+export function leaningPiecesKeepingNotation(text: string): string[] {
+  const pieces: string[] = [];
+  let at = 0;
+  for (const match of text.matchAll(KEPT_WHOLE)) {
+    pieces.push(...leaningPiecesOf(text.slice(at, match.index)), match[0]);
+    at = match.index + match[0].length;
+  }
+  pieces.push(...leaningPiecesOf(text.slice(at)));
   return pieces;
 }
 

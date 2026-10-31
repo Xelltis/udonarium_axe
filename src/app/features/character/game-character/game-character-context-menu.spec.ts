@@ -134,7 +134,7 @@ describe('buildGameCharacterContextMenu()', () => {
 
   describe('the battle stage', () => {
     type Entry = { name?: unknown; action?: () => void; subActions?: readonly unknown[] };
-    function battleEntries(char: MutableChar & { battleSide?: string }, extra: object): Entry[] {
+    function battleEntries(char: MutableChar, extra: object): Entry[] {
       const menu = buildGameCharacterContextMenu(
         char as unknown as GameCharacter,
         50,
@@ -158,12 +158,9 @@ describe('buildGameCharacterContextMenu()', () => {
       expect(onShowBattle).toHaveBeenCalled();
     });
 
-    it('lets only the master put the piece on a side, marking the side it stands on', () => {
+    it('lets only the master put the piece on a side, marking the side it stands on as it is told', () => {
       const onSetBattleSide = vi.fn();
-      const asMaster = battleEntries(
-        { ...makeChar(), battleSide: 'right' },
-        { onShowBattle: vi.fn(), onSetBattleSide }
-      );
+      const asMaster = battleEntries(makeChar(), { onShowBattle: vi.fn(), onSetBattleSide, battleSide: 'right' });
 
       expect(asMaster.map((entry) => entry.name)).toEqual([
         '攻撃演出を選ぶ…',
