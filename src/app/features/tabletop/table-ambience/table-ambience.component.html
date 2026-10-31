@@ -21,8 +21,8 @@
     <effect-canvas class="backface-hidden" [ngStyle]="canvasStyle(layer)" [layer]="layer"></effect-canvas>
   }
 
-  @for (slice of vaporSlices(); track slice.key) {
-    <effect-canvas class="backface-visible" [ngStyle]="vaporStyle(slice)" [layer]="slice.layer"></effect-canvas>
+  @for (sheet of vaporSheets(); track sheet.key) {
+    <effect-canvas class="backface-visible" [ngStyle]="vaporStyle(sheet)" [layer]="sheet.layer"></effect-canvas>
   }
 
   <div

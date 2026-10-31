@@ -13,9 +13,9 @@ import { isInStore } from '@axe/core/sync/object-store';
 import {
   groundSurfaceLayer,
   groundSurfaceWash,
-  groundVaporLayer,
+  groundVaporSheets,
   vaporCellsOf,
-  vaporSliceCount,
+  type VaporSheet,
 } from '@axe/domain/effect/ambience/ambience-ground';
 import { EffectParticleLayer } from '@axe/domain/effect/effect-particles';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -35,12 +35,13 @@ import { translateZCss, Z_OFFSET_AMBIENCE_PX } from '@axe/ui/tabletop/z-offset';
  */
 const CAMERA_LIFT_PX = 8;
 
-/** One upright sheet. Several are spaced through the depth to give it body. */
-export interface VaporSlice {
-  key: string;
-  layer: EffectParticleLayer;
-  /** Where this sheet stands within the area, in pixels, growing towards the front. */
-  groundY: number;
+/** How the table lies under the camera before it has been turned or tipped. */
+const DEFAULT_TURN = 10;
+const DEFAULT_TILT = 50;
+
+/** A sheet of the rise drawn, under the place it has among all the sheets, empty ones included. */
+export interface ShownVaporSheet extends VaporSheet {
+  key: number;
 }
 
 @Component({
@@ -104,28 +105,22 @@ export class TableAmbienceComponent {
   });
 
   /**
-   * The upright part is split into several sheets through the depth.
+   * The upright part, on sheets standing one behind another across the camera's line of sight.
    * One sheet over a wide area puts the far and the near at the same depth and reads as a band.
    */
-  readonly vaporSlices = computed<VaporSlice[]>(() => {
+  readonly vaporSheets = computed<ShownVaporSheet[]>(() => {
     if (!this.ambienceService.motionEnabled()) return [];
 
-    const depth = this.pixelHeight();
-    const unit = this.gridSize();
-    const count = vaporSliceCount(depth, unit);
-    const height = unit * vaporCellsOf(this.area().kind);
-    const slices: VaporSlice[] = [];
-
-    for (let index = 0; index < count; index++) {
-      const layer = groundVaporLayer({
-        ...this.specOf(this.pixelWidth(), height),
-        sliceIndex: index,
-        sliceCount: count,
-      });
-      if (layer.particles.length < 1) continue;
-      slices.push({ key: `vapor-${index}`, layer, groundY: ((index + 0.5) / count) * depth });
-    }
-    return slices;
+    const rotation = this.uiSignalService.tableViewRotation();
+    const height = this.gridSize() * vaporCellsOf(this.area().kind);
+    return groundVaporSheets({
+      ...this.specOf(this.pixelWidth(), height),
+      depth: this.pixelHeight(),
+      turn: rotation?.z ?? DEFAULT_TURN,
+      tilt: rotation?.x ?? DEFAULT_TILT,
+    })
+      .map((sheet, key) => ({ ...sheet, key }))
+      .filter((sheet) => sheet.layer.particles.length > 0);
   });
 
   private specOf(width: number, height: number) {
@@ -155,12 +150,12 @@ export class TableAmbienceComponent {
   }
 
   /** What rises faces the camera; left flat it would spread sideways. */
-  protected vaporStyle(slice: VaporSlice): Record<string, string> {
+  protected vaporStyle(sheet: VaporSheet): Record<string, string> {
     const rotation = this.uiSignalService.tableViewRotation();
-    const layer = slice.layer;
+    const layer = sheet.layer;
     const transform =
-      `translate3d(${this.pixelWidth() / 2}px, ${slice.groundY}px, 0px)` +
-      ` rotateZ(${-(rotation?.z ?? 10)}deg) rotateX(${-(rotation?.x ?? 50)}deg) rotateY(${-(rotation?.y ?? 0)}deg)` +
+      `translate3d(${sheet.groundX}px, ${sheet.groundY}px, 0px)` +
+      ` rotateZ(${-(rotation?.z ?? DEFAULT_TURN)}deg) rotateX(${-(rotation?.x ?? DEFAULT_TILT)}deg) rotateY(${-(rotation?.y ?? 0)}deg)` +
       ` translateZ(${CAMERA_LIFT_PX}px) translate(${-layer.originX}px, ${-layer.originY}px)`;
 
     return {

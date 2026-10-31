@@ -1,8 +1,10 @@
 import {
+  type GroundAmbienceSpec,
   groundSurfaceLayer,
   groundSurfaceWash,
-  groundVaporLayer,
+  groundVaporSheets,
   vaporCellsOf,
+  type VaporSheet,
   vaporSliceCount,
 } from '@axe/domain/effect/ambience/ambience-ground';
 import { type AmbienceKind, ambiencePalette, GROUND_AMBIENCE_KINDS } from '@axe/domain/effect/ambience/ambience-kind';
@@ -22,6 +24,17 @@ function specOf(kind: AmbienceKind, elapsed: number, density = 0.6, height = HEI
   return { kind, color: '', density, elapsed, width: WIDTH, height, unit: UNIT };
 }
 
+/** The rise over a line of ground with no depth, seen square on, which comes on one sheet at its middle. */
+function vaporOf(spec: GroundAmbienceSpec) {
+  const [sheet] = groundVaporSheets({ ...spec, depth: 0, turn: 0, tilt: 50 });
+  return sheet.layer;
+}
+
+/** Every particle of the rise, over all its sheets. */
+function particlesOf(sheets: readonly VaporSheet[]) {
+  return sheets.flatMap((sheet) => sheet.layer.particles);
+}
+
 describe('groundSurfaceLayer()', () => {
   it('returns particles for the kinds that have a surface', () => {
     for (const kind of DRAWN_BY_THE_AREA.filter((candidate) => candidate !== 'fog')) {
@@ -31,7 +44,7 @@ describe('groundSurfaceLayer()', () => {
 
   it('shows a pool of mist by what rises from it alone, with nothing on the surface', () => {
     expect(groundSurfaceLayer(specOf('fog', 1200)).particles).toHaveLength(0);
-    expect(groundVaporLayer(specOf('fog', 1200, 0.6, VAPOR_HEIGHT)).particles.length).toBeGreaterThan(0);
+    expect(vaporOf(specOf('fog', 1200, 0.6, VAPOR_HEIGHT)).particles.length).toBeGreaterThan(0);
   });
 
   it('shows nothing at no density', () => {
@@ -64,15 +77,15 @@ describe('groundSurfaceLayer()', () => {
   });
 });
 
-describe('groundVaporLayer()', () => {
+describe('groundVaporSheets()', () => {
   it('returns rising particles for every kind', () => {
     for (const kind of DRAWN_BY_THE_AREA) {
-      expect(groundVaporLayer(specOf(kind, 1500, 0.6, VAPOR_HEIGHT)).particles.length).toBeGreaterThan(0);
+      expect(vaporOf(specOf(kind, 1500, 0.6, VAPOR_HEIGHT)).particles.length).toBeGreaterThan(0);
     }
   });
 
   it('puts the origin at the middle of the near edge and widens the canvas by the margin', () => {
-    const layer = groundVaporLayer(specOf('vent', 0, 0.6, VAPOR_HEIGHT));
+    const layer = vaporOf(specOf('vent', 0, 0.6, VAPOR_HEIGHT));
     // The origin is the middle of the near edge, and the canvas spreads a margin around it.
     expect(layer.originX).toBeGreaterThan(WIDTH / 2);
     expect(layer.originY).toBeGreaterThan(VAPOR_HEIGHT);
@@ -82,7 +95,7 @@ describe('groundVaporLayer()', () => {
 
   it('shows nothing below the origin', () => {
     for (const kind of DRAWN_BY_THE_AREA) {
-      for (const particle of groundVaporLayer(specOf(kind, 2600, 1, VAPOR_HEIGHT)).particles) {
+      for (const particle of vaporOf(specOf(kind, 2600, 1, VAPOR_HEIGHT)).particles) {
         expect(particle.y).toBeLessThanOrEqual(0);
         expect(particle.y).toBeGreaterThanOrEqual(-VAPOR_HEIGHT);
       }
@@ -91,7 +104,7 @@ describe('groundVaporLayer()', () => {
 
   it('keeps every opacity between none and full', () => {
     for (const kind of DRAWN_BY_THE_AREA) {
-      for (const particle of groundVaporLayer(specOf(kind, 3100, 1, VAPOR_HEIGHT)).particles) {
+      for (const particle of vaporOf(specOf(kind, 3100, 1, VAPOR_HEIGHT)).particles) {
         expect(particle.alpha).toBeGreaterThanOrEqual(0);
         expect(particle.alpha).toBeLessThanOrEqual(1);
       }
@@ -102,7 +115,7 @@ describe('groundVaporLayer()', () => {
 describe('water', () => {
   it('draws nothing of its own, being drawn whole by the water layer', () => {
     expect(groundSurfaceLayer(specOf('water', 1200, 1)).particles).toHaveLength(0);
-    expect(groundVaporLayer(specOf('water', 1200, 1, VAPOR_HEIGHT)).particles).toHaveLength(0);
+    expect(vaporOf(specOf('water', 1200, 1, VAPOR_HEIGHT)).particles).toHaveLength(0);
     expect(groundSurfaceWash('water', '', 1)).toBe('');
   });
 });
@@ -132,7 +145,7 @@ describe('how it looks the moment it is placed', () => {
     // though nothing had been placed at all.
     for (const kind of DRAWN_BY_THE_AREA) {
       const surface = groundSurfaceLayer(placedSpec(kind, width));
-      const vapor = groundVaporLayer(placedSpec(kind, UNIT * 2.6));
+      const vapor = vaporOf(placedSpec(kind, UNIT * 2.6));
       expect(surface.particles.length + vapor.particles.length).toBeGreaterThanOrEqual(14);
     }
   });
@@ -146,7 +159,11 @@ describe('how it looks the moment it is placed', () => {
       for (const elapsed of [0, 700, 1600, 2900, 5200]) {
         const layers = [
           groundSurfaceLayer({ ...placedSpec(kind, width), elapsed }),
-          groundVaporLayer({ ...placedSpec(kind, UNIT * 2.6), elapsed }),
+          ...[0, 37, 90, 215].flatMap((turn) =>
+            groundVaporSheets({ ...placedSpec(kind, UNIT * 2.6), elapsed, depth: width, turn, tilt: 50 }).map(
+              (sheet) => sheet.layer
+            )
+          ),
         ];
         for (const layer of layers) {
           for (const particle of layer.particles) {
@@ -168,32 +185,27 @@ describe('how it looks the moment it is placed', () => {
 
   it('adds no particles when the rise is split through the depth', () => {
     // Thickening with each sheet added, a wider area would draw more slowly and lose its colour.
-    const wide = { ...placedSpec('vent', UNIT * 3), width: UNIT * 16 };
-    const single = groundVaporLayer(wide).particles.length;
-    const sliced = [0, 1, 2, 3, 4].reduce(
-      (total, index) => total + groundVaporLayer({ ...wide, sliceIndex: index, sliceCount: 5 }).particles.length,
-      0
-    );
-    expect(sliced).toBeLessThanOrEqual(single + 5);
+    const shallow = { ...placedSpec('vent', UNIT * 3), width: UNIT * 16, depth: UNIT, turn: 0, tilt: 50 };
+    const deep = { ...shallow, depth: UNIT * 16 };
+    expect(groundVaporSheets(deep).length).toBeGreaterThan(groundVaporSheets(shallow).length);
+    expect(particlesOf(groundVaporSheets(deep)).length).toBe(particlesOf(groundVaporSheets(shallow)).length);
   });
 
   it('keeps the flame as dense over a wider area', () => {
     // Capped by the total count, each sheet thins as it widens until a few flames float apart.
     const densityOf = (cells: number) => {
       const areaWidth = UNIT * cells;
-      const slices = vaporSliceCount(areaWidth, UNIT);
       let covered = 0;
-      for (let index = 0; index < slices; index++) {
-        const layer = groundVaporLayer({
-          ...placedSpec('blaze', UNIT * vaporCellsOf('blaze')),
-          width: areaWidth,
-          sliceIndex: index,
-          sliceCount: slices,
-        });
-        for (const particle of layer.particles) {
-          if (particle.shape !== 'glow') continue;
-          covered += particle.size * particle.size * particle.stretch * particle.alpha;
-        }
+      const sheets = groundVaporSheets({
+        ...placedSpec('blaze', UNIT * vaporCellsOf('blaze')),
+        width: areaWidth,
+        depth: areaWidth,
+        turn: 0,
+        tilt: 50,
+      });
+      for (const particle of particlesOf(sheets)) {
+        if (particle.shape !== 'glow') continue;
+        covered += particle.size * particle.size * particle.stretch * particle.alpha;
       }
       return covered / areaWidth;
     };
@@ -209,17 +221,73 @@ describe('how it looks the moment it is placed', () => {
   });
 
   it('draws each sheet differently', () => {
-    const wide = { ...placedSpec('vent', UNIT * 3), width: UNIT * 16, sliceCount: 4 };
-    const first = groundVaporLayer({ ...wide, sliceIndex: 0 }).particles;
-    const second = groundVaporLayer({ ...wide, sliceIndex: 1 }).particles;
-    expect(second).not.toEqual(first);
+    const [first, second] = groundVaporSheets({
+      ...placedSpec('vent', UNIT * 3),
+      width: UNIT * 16,
+      depth: UNIT * 10,
+      turn: 0,
+      tilt: 50,
+    });
+    expect(second.layer.particles).not.toEqual(first.layer.particles);
+  });
+
+  describe('as the table is turned', () => {
+    const area = { ...placedSpec('lava', UNIT * vaporCellsOf('lava')), width: UNIT * 8, depth: UNIT * 2, tilt: 50 };
+
+    /** How far across the camera's view each spark is drawn from the middle of the area, its sway and all. */
+    function sparksAcross(turn: number): number[] {
+      const radians = (turn * Math.PI) / 180;
+      const across = { x: Math.cos(radians), y: -Math.sin(radians) };
+      return groundVaporSheets({ ...area, turn }).flatMap((sheet) =>
+        sheet.layer.particles.map(
+          (particle) =>
+            (sheet.groundX - area.width / 2) * across.x + (sheet.groundY - area.depth / 2) * across.y + particle.x
+        )
+      );
+    }
+
+    it('draws a long, narrow area turned side on as narrow as it shows', () => {
+      // Stood along the table's own depth, every sheet stood edge on through the middle of the area and drew it as one line as wide as the area is long.
+      const sway = UNIT * 0.6;
+      expect(Math.max(...sparksAcross(90).map(Math.abs))).toBeLessThanOrEqual(area.depth / 2 + sway);
+      expect(Math.max(...sparksAcross(0).map(Math.abs))).toBeGreaterThan(area.width / 2 - UNIT);
+    });
+
+    it('stands the sheets one behind another along the line of sight', () => {
+      const sheets = groundVaporSheets({ ...area, turn: 90 });
+      expect(sheets.length).toBeGreaterThan(1);
+      for (const sheet of sheets) expect(sheet.groundY).toBeCloseTo(area.depth / 2);
+      const grounds = sheets.map((sheet) => sheet.groundX);
+      for (let index = 1; index < grounds.length; index++) expect(grounds[index]).toBeGreaterThan(grounds[index - 1]);
+    });
+
+    it('never draws a particle down its sheet, where the floor it stands on would cover it', () => {
+      for (const turn of [0, 30, 90, 135, 250]) {
+        for (const sheet of groundVaporSheets({ ...area, depth: UNIT * 6, turn })) {
+          for (const particle of sheet.layer.particles) expect(particle.y).toBeLessThanOrEqual(1e-9);
+        }
+      }
+    });
+
+    it('draws as many particles whichever way it is turned', () => {
+      const counts = [0, 30, 90, 180, 300].map((turn) => particlesOf(groundVaporSheets({ ...area, turn })).length);
+      expect(new Set(counts).size).toBe(1);
+    });
+
+    it('keeps the canvas the same size while the sheets are as many', () => {
+      const sizes = [80, 90, 100].map((turn) =>
+        groundVaporSheets({ ...area, turn }).map((sheet) => `${sheet.layer.width}x${sheet.layer.height}`)
+      );
+      expect(sizes[1]).toEqual(sizes[0]);
+      expect(sizes[2]).toEqual(sizes[0]);
+    });
   });
 
   describe('ground on fire', () => {
     const height = UNIT * vaporCellsOf('blaze');
 
     function flames() {
-      return groundVaporLayer(placedSpec('blaze', height)).particles.filter(
+      return vaporOf(placedSpec('blaze', height)).particles.filter(
         (particle) => particle.shape === 'glow' && particle.alpha >= 0.08
       );
     }
@@ -250,7 +318,7 @@ describe('how it looks the moment it is placed', () => {
     });
 
     it('burns white at the root and carries dark smoke above', () => {
-      const layer = groundVaporLayer(placedSpec('blaze', height));
+      const layer = vaporOf(placedSpec('blaze', height));
       expect(layer.particles.some((particle) => particle.color === '#ffffff')).toBe(true);
       expect(layer.particles.some((particle) => particle.shape === 'smoke')).toBe(true);
 
