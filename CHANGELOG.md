@@ -1,3 +1,17 @@
+## [1.74.1](https://github.com/Xelltis/udonarium_axe/compare/v1.74.0...v1.74.1) (2026-10-31)
+
+### 🐛 Bug Fixes
+
+* **ambience:** keep what rises from an area over its cells as the table is turned ([95fd7ee](https://github.com/Xelltis/udonarium_axe/commit/95fd7ee7f9fb3cab1d8f28c3260208e02d2a3757))
+* **chat:** keep a word being made with an input method when Backspace takes a letter off it ([fc7bfb1](https://github.com/Xelltis/udonarium_axe/commit/fc7bfb1298fed49158f761209fae04b97b5a8ef7))
+* **dice:** let a die be given a description again ([9dd0ee7](https://github.com/Xelltis/udonarium_axe/commit/9dd0ee76543d65a1fc9b3fe90334e0ecc204e8af))
+* **tabletop:** draw water laid off the board ([a2e5ea1](https://github.com/Xelltis/udonarium_axe/commit/a2e5ea1018c9fd4fbe3fbb8cd961ac2d73d7a933))
+
+### 📝 Documentation
+
+* **manual:** say where the description of a die is written ([e4c9286](https://github.com/Xelltis/udonarium_axe/commit/e4c928668d25616df9582c6bd1f8424fabe246c5))
+* **release:** add the notes for v1.74.1 ([119ee22](https://github.com/Xelltis/udonarium_axe/commit/119ee224aa02bee078b57593f8909cc2cdfc3c4e))
+
 ## [1.74.0](https://github.com/Xelltis/udonarium_axe/compare/v1.73.0...v1.74.0) (2026-10-31)
 
 ### ✨ Features
