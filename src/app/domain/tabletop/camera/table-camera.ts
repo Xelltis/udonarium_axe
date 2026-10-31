@@ -1,0 +1,161 @@
+import { Matrix3D } from '@axe/core/transform/matrix-3d';
+import type { IPoint3D } from '@axe/core/transform/transform';
+import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
+
+/**
+ * Where the table's camera stands: how far the board is slid and pushed back, and how it is turned,
+ * in the units the table's transform is written in (pixels and degrees).
+ */
+export interface TableCameraView {
+  readonly positionX: number;
+  readonly positionY: number;
+  readonly positionZ: number;
+  readonly rotateX: number;
+  readonly rotateY: number;
+  readonly rotateZ: number;
+  /** Drawn without perspective, the push back standing in as a scale. */
+  readonly orthographic: boolean;
+}
+
+/** Where the table is laid out on the page and how big its board is, in CSS pixels. */
+export interface TableLayout {
+  /** The page position and size of the box the camera looks through. */
+  readonly left: number;
+  readonly top: number;
+  readonly width: number;
+  readonly height: number;
+  /** The board, as wide and deep as its cells run. */
+  readonly boardWidth: number;
+  readonly boardHeight: number;
+}
+
+/** The camera the table opens with. */
+export const DEFAULT_TABLE_CAMERA_VIEW: TableCameraView = {
+  positionX: 100,
+  positionY: 0,
+  positionZ: 0,
+  rotateX: 50,
+  rotateY: 0,
+  rotateZ: 10,
+  orthographic: false,
+};
+
+/** A number as the transform writes it, to four places, so what is worked out is what is drawn. */
+function written(value: number): number {
+  return Number(value.toFixed(4));
+}
+
+/**
+ * How far back the camera stands from the board, held short of the plane it would be standing on.
+ * At the plane the divisor is nothing and the browser throws the whole transform out; past it the
+ * board is drawn mirrored.
+ */
+export function cameraDepth(positionZ: number): number {
+  return Math.max(TABLE_PERSPECTIVE_PX / 100, TABLE_PERSPECTIVE_PX - positionZ);
+}
+
+/** The scale an orthographic view draws the board at, to six places as the transform writes it. */
+export function orthographicScale(positionZ: number): number {
+  return Number((TABLE_PERSPECTIVE_PX / cameraDepth(positionZ)).toFixed(6));
+}
+
+/** The CSS transform the board is drawn with for a view. */
+export function tableCameraTransform(view: TableCameraView): string {
+  const scale = view.orthographic ? `scale(${orthographicScale(view.positionZ).toFixed(6)}) ` : '';
+  return (
+    `${scale}translateZ(${view.positionZ.toFixed(4)}px) translateY(${view.positionY.toFixed(4)}px) ` +
+    `translateX(${view.positionX.toFixed(4)}px) rotateY(${view.rotateY.toFixed(4)}deg) ` +
+    `rotateX(${view.rotateX.toFixed(4)}deg) rotateZ(${view.rotateZ.toFixed(4)}deg)`
+  );
+}
+
+/** The view written as `x,y,z,rx,ry,rz,orthographic`, which the table puts on itself for tests to read. */
+export function tableCameraAttribute(view: TableCameraView): string {
+  return [
+    view.positionX.toFixed(4),
+    view.positionY.toFixed(4),
+    view.positionZ.toFixed(4),
+    view.rotateX.toFixed(4),
+    view.rotateY.toFixed(4),
+    view.rotateZ.toFixed(4),
+    view.orthographic ? 1 : 0,
+  ].join(',');
+}
+
+/**
+ * Where the board's box sits in the box the camera looks through, before the camera moves it.
+ *
+ * The box is centred. A board wider than the screen is the exception: its side margins come to
+ * nothing rather than going below it, so it starts at the left edge. Top and bottom have no such
+ * floor. All three browser engines lay it out this way.
+ */
+export function boardOffset(layout: TableLayout): { x: number; y: number } {
+  return {
+    x: Math.max(0, (layout.width - layout.boardWidth) / 2),
+    y: (layout.height - layout.boardHeight) / 2,
+  };
+}
+
+const scratch = new Matrix3D();
+
+function appendRows(out: Matrix3D, rows: readonly number[]): void {
+  out.append(scratch.setData(rows as number[]));
+}
+
+/**
+ * Appends the turn, push and scale of a view after the current transform, in the order the
+ * browser applies the functions of the transform the board is drawn with.
+ */
+function appendView(out: Matrix3D, view: TableCameraView): void {
+  const z = (written(view.rotateZ) * Math.PI) / 180;
+  const x = (written(view.rotateX) * Math.PI) / 180;
+  const y = (written(view.rotateY) * Math.PI) / 180;
+  appendRows(out, [Math.cos(z), Math.sin(z), 0, 0, -Math.sin(z), Math.cos(z), 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+  appendRows(out, [1, 0, 0, 0, 0, Math.cos(x), Math.sin(x), 0, 0, -Math.sin(x), Math.cos(x), 0, 0, 0, 0, 1]);
+  appendRows(out, [Math.cos(y), 0, -Math.sin(y), 0, 0, 1, 0, 0, Math.sin(y), 0, Math.cos(y), 0, 0, 0, 0, 1]);
+  out.appendPosition(written(view.positionX), written(view.positionY), written(view.positionZ));
+  if (view.orthographic) {
+    const s = orthographicScale(view.positionZ);
+    appendRows(out, [s, 0, 0, 0, 0, s, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+  }
+}
+
+/**
+ * The matrix that takes a point of the board onto the page, through the camera and the perspective
+ * the table is drawn in. A point's place on the page is its x and y over its w.
+ *
+ * The board turns about its middle and is seen from in front of the middle of the box the camera
+ * looks through, 3000 pixels back (`TABLE_PERSPECTIVE_PX`).
+ */
+export function tableSceneMatrix(view: TableCameraView, layout: TableLayout, out: Matrix3D = new Matrix3D()): Matrix3D {
+  const middleX = layout.boardWidth / 2;
+  const middleY = layout.boardHeight / 2;
+  const offset = boardOffset(layout);
+  out.identity();
+  out.appendPosition(-middleX, -middleY, 0);
+  appendView(out, view);
+  out.appendPosition(middleX + offset.x, middleY + offset.y, 0);
+  if (!view.orthographic) {
+    const eyeX = layout.width / 2;
+    const eyeY = layout.height / 2;
+    out.appendPosition(-eyeX, -eyeY, 0);
+    out.appendPerspective(TABLE_PERSPECTIVE_PX);
+    out.appendPosition(eyeX, eyeY, 0);
+  }
+  out.appendPosition(layout.left, layout.top, 0);
+  return out;
+}
+
+/** Where a point of the board shows on the page, through a matrix from `tableSceneMatrix`. */
+export function pageOfTablePoint(scene: Matrix3D, x: number, y: number, z: number): IPoint3D {
+  return scene.project({ x, y, z, w: 1 });
+}
+
+/**
+ * Where a point of the page lands on the board's own plane, through the inverse of a matrix from
+ * `tableSceneMatrix`. The answer's z is the depth the point had before it was carried to the plane,
+ * as `Transform.globalToLocal` gives it.
+ */
+export function tablePointOfPage(inverseScene: Matrix3D, pageX: number, pageY: number): IPoint3D {
+  return inverseScene.unproject({ x: pageX, y: pageY });
+}
