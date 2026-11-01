@@ -1,6 +1,6 @@
 import { selectGameTable$ } from '@axe/core/event/domain-events';
 import { GameTable } from '@axe/domain/tabletop/game-table';
-import { copyGameTable } from '@axe/domain/tabletop/game-table-copy';
+import { copyGameTable, freeTableName } from '@axe/domain/tabletop/game-table-copy';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 
 describe('copyGameTable', () => {
@@ -44,5 +44,16 @@ describe('copyGameTable', () => {
 
     expect(copy.selected).toBe(false);
     expect(shown).toEqual([]);
+  });
+});
+
+describe('freeTableName', () => {
+  it('keeps the name wanted while no table goes by it', () => {
+    expect(freeTableName('村のコピー', ['村'])).toBe('村のコピー');
+  });
+
+  it('numbers the name from 2 past those taken, so that a scene can find each table by name', () => {
+    expect(freeTableName('村のコピー', ['村', '村のコピー'])).toBe('村のコピー (2)');
+    expect(freeTableName('村のコピー', ['村', '村のコピー', ' 村のコピー (2) '])).toBe('村のコピー (3)');
   });
 });

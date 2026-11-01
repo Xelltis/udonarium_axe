@@ -41,7 +41,7 @@ import {
 import { ensureFogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { asFogMode, DEFAULT_FOG_COLOR, FOG_MODES, FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { FilterType, GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
-import { copyGameTable } from '@axe/domain/tabletop/game-table-copy';
+import { copyGameTable, freeTableName } from '@axe/domain/tabletop/game-table-copy';
 import { MAX_SQUARE_SPAN, squareSpanOf } from '@axe/domain/tabletop/move/move-grid';
 import { MAX_CELL_PX, MIN_CELL_PX } from '@axe/domain/tabletop/rescale-table-contents';
 import {
@@ -810,7 +810,11 @@ export class GameTableSettingComponent {
    */
   duplicate() {
     if (!this.rolePermission.canEditTabletop() || !this.selectedTable || this.isDeleted) return;
-    const name = this.t('feature.tabletop.tableSetting.copyName', { name: this.selectedTable.name });
+    const wanted = this.t('feature.tabletop.tableSetting.copyName', { name: this.selectedTable.name });
+    const name = freeTableName(
+      wanted,
+      this.objectStore.getObjects(GameTable).map((table) => table.name)
+    );
     const copy = copyGameTable(this.selectedTable, name);
     if (copy) this.selectGameTable(copy.identifier);
   }
