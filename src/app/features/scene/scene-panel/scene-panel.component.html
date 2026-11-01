@@ -8,6 +8,7 @@
     [style.margin-left.px]="depth * 12"
     [class.bg-ui-accent-bg!]="picked() === scene.identifier"
     [class.border-ui-accent!]="isDropTarget(scene)"
+    [class.panel-no-drag]="canEdit()"
     [attr.draggable]="canEdit() ? 'true' : null"
     (click)="pick(scene)"
     (contextmenu)="openMenu($event, scene)"
