@@ -10,8 +10,10 @@ import {
 import {
   describeBuffModifier,
   describeBuffModifierTarget,
+  holdsRequestedStatus,
   parseBuffModifierRequest,
   ParsedBuffModifierRequest,
+  readBuffModifier,
 } from '@axe/domain/character/buff-modifier';
 import { BuffPileOn } from '@axe/domain/character/buff-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -310,7 +312,8 @@ export function applyResourceEdit(edit: ResourceEdit, character: GameCharacter):
  * `&+!` stacks: a second helping moves the status again and the buff remembers both, rather than
  * putting the first one back, and `&++!` lengthens the buff by the rounds asked for as well.
  * Holding a status at a value (`=`) is the one thing that cannot stack, since holding it there
- * twice is still holding it there, so that starts over as always.
+ * twice is still holding it there, so that starts over as always. For the same reason a helping
+ * stacked on a buff that holds its status leaves the status held, adding only to the rounds.
  */
 function applyCalculatedBuff(command: string, character: GameCharacter, piles: BuffPileOn): string {
   const { name, requests, rest } = readCalculatedBuff(command);
@@ -344,10 +347,12 @@ function grantCalculatedBuff(
   requests.forEach((request, index) => {
     const rowName = index === 0 ? name : `${name}（${describeBuffModifierTarget(request)}）`;
     const effect = describeBuffModifier(request);
-    const rowStacking = stacking && character.buffs.find(rowName) != null;
+    const standing = stacking ? character.buffs.find(rowName) : null;
+    const rowStacking = standing != null;
+    const note = standing && holdsRequestedStatus(readBuffModifier(standing), request) ? '' : effect;
     if (!rowStacking) character.buffs.addRound(rowName, effect, round, appearance);
-    else if (piles === 'extend') character.buffs.extendRound(rowName, effect, round, appearance);
-    else character.buffs.stackRound(rowName, effect, round, appearance);
+    else if (piles === 'extend') character.buffs.extendRound(rowName, note, round, appearance);
+    else character.buffs.stackRound(rowName, note, round, appearance);
 
     const data = character.buffs.find(rowName);
     if (!data) return;

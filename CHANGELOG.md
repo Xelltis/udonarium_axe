@@ -1,3 +1,20 @@
+## [1.74.2](https://github.com/Xelltis/udonarium_axe/compare/v1.74.1...v1.74.2) (2026-10-31)
+
+### 🐛 Bug Fixes
+
+* **buff:** keep a held note only for a helping on the held status ([24a8391](https://github.com/Xelltis/udonarium_axe/commit/24a8391b289df3995317d2efdfa629e473027ba9))
+* **buff:** keep a status held at a value when more is stacked on its buff ([d1c5ac4](https://github.com/Xelltis/udonarium_axe/commit/d1c5ac49f755c2eabbdebab6cb537693bc42a948))
+* **hotbar:** keep the palette line picker within the slot editor ([af146be](https://github.com/Xelltis/udonarium_axe/commit/af146be96609d2c655d2d4e34cb04b16645da05a))
+* **hotbar:** list the palette lines in order and tell same lines apart ([82968c9](https://github.com/Xelltis/udonarium_axe/commit/82968c90e2f1137bcc860304810a3d7570f1bb68))
+
+### 📝 Documentation
+
+* **buff:** say a hold stays only for a helping on the held status ([1cef3fd](https://github.com/Xelltis/udonarium_axe/commit/1cef3fda7738b64d4b55a8a19b463805ac400040))
+* **manual:** cover nested reference names and stacking on a held buff ([223b464](https://github.com/Xelltis/udonarium_axe/commit/223b464d15d40f0b747e3178a35005631e7c4328))
+* **manual:** say how the hotbar's palette picker shows long lines ([348b69b](https://github.com/Xelltis/udonarium_axe/commit/348b69bdcb3c147a4d111999acb8619f611eba19))
+* **release:** add the notes for v1.74.2 ([3fa1d4a](https://github.com/Xelltis/udonarium_axe/commit/3fa1d4a9c7ad9f0c73ca38fb1d5f55556df72517))
+* **website:** show double braces in inline code as written ([f638a57](https://github.com/Xelltis/udonarium_axe/commit/f638a5732e2b86d9819510f0e80300e706c7e2dd))
+
 ## [1.74.1](https://github.com/Xelltis/udonarium_axe/compare/v1.74.0...v1.74.1) (2026-10-31)
 
 ### 🐛 Bug Fixes

@@ -452,6 +452,7 @@
         "fromPalette": "From the palette",
         "fromPaletteHint": "(pick a line from the chat palette)",
         "paletteLoose": "Under no heading",
+        "paletteNotFound": "No line matches",
         "rangeName": "Range name",
         "rangeSize": "Size",
         "rangeLength": "Length",

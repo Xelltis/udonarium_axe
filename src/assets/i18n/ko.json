@@ -452,6 +452,7 @@
         "fromPalette": "팔레트에서",
         "fromPaletteHint": "(채팅 팔레트의 줄을 고른다)",
         "paletteLoose": "제목 없음",
+        "paletteNotFound": "맞는 줄이 없습니다",
         "rangeName": "사거리 이름",
         "rangeSize": "크기",
         "rangeLength": "길이",

@@ -5,8 +5,10 @@ import {
   BuffModifier,
   clearBuffModifier,
   describeStandingModifier,
+  holdsRequestedStatus,
   ParsedBuffModifierRequest,
   readBuffModifier,
+  speaksOnlyOfHeldStatus,
   writeBuffModifier,
 } from '@axe/domain/character/buff-modifier';
 import { stackBuffEffect } from '@axe/domain/character/buff-stack';
@@ -133,13 +135,18 @@ export class BuffManager {
    * distances added together, so taking the buff away puts back everything it did in all.
    *
    * A buff standing on some other status has nothing in common with this one, so what it moved
-   * goes back before the new one is laid, which leaves this the same as applying it fresh.
+   * goes back before the new one is laid, which leaves this the same as applying it fresh. One
+   * holding the same status at a value keeps holding it there, and nothing is moved. Null where the
+   * sheet has no such status, as for a buff laid fresh.
    */
   stackModifier(data: DataElement, request: ParsedBuffModifierRequest): BuffModifier | null {
     const standing = readBuffModifier(data);
     if (!standing || standing.target !== request.target || standing.slot !== request.slot) {
       this.revertModifier(data);
       return this.applyModifier(data, request);
+    }
+    if (holdsRequestedStatus(standing, request)) {
+      return this.status()?.getValue(request.target, request.slot) == null ? null : standing;
     }
 
     const moved = this.moveStatus(request);
@@ -442,7 +449,9 @@ export class BuffManager {
    * `攻撃+2` laid twice reads `攻撃+4`. Where the two notes do not say the same thing about the
    * same number there is nothing to add up, and the new note is written as it stands. The rounds
    * become whichever count is longer, so a short second helping never cuts a long one short, and
-   * a buff held until cleared is left held. A name no buff goes by yet is simply granted.
+   * a buff held until cleared is left held. A name no buff goes by yet is simply granted. A buff
+   * holding a status at a value keeps the note that says so where the new note speaks of that status
+   * alone, since holding it there twice is still holding it there.
    */
   stackRound(name: string, info: string = '', round?: number, appearance: BuffAppearance = {}): void {
     this.pileOn(name, info, round, appearance, (standing, asked) => Math.max(standing, asked));
@@ -474,9 +483,11 @@ export class BuffManager {
       return;
     }
 
-    const stacked = stackBuffEffect(`${data.currentValue ?? ''}`, info);
-    if (stacked !== null) data.currentValue = stacked;
-    else if (info.length > 0) data.currentValue = info;
+    if (!speaksOnlyOfHeldStatus(readBuffModifier(data), info)) {
+      const stacked = stackBuffEffect(`${data.currentValue ?? ''}`, info);
+      if (stacked !== null) data.currentValue = stacked;
+      else if (info.length > 0) data.currentValue = info;
+    }
     applyAppearance(data, appearance);
 
     if (round === undefined || !buffExpires(data)) return;

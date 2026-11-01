@@ -147,6 +147,17 @@ export default defineConfig({
         }
       });
 
+      // Vue reads `{{ }}` anywhere in a page as an expression, inline code included, while a page
+      // writes it there to show the braces themselves. Inline code is shown as written.
+      md.core.ruler.push('axe-code-as-written', (state) => {
+        for (const token of state.tokens) {
+          if (token.type !== 'inline') continue;
+          for (const kid of token.children ?? []) {
+            if (kid.type === 'code_inline') kid.attrSet('v-pre', '');
+          }
+        }
+      });
+
       // Default VitePress tables are `display: block`, so they shrink to their
       // content and hug the left edge. Wrapping them lets the table fill the
       // column while wide ones scroll sideways inside the wrapper.
@@ -337,6 +348,7 @@ export default defineConfig({
           text: 'リリースノート',
           items: [
             { text: '一覧', link: '/release-notes/' },
+            { text: 'v1.74.2', link: '/release-notes/v1.74.2' },
             { text: 'v1.74.1', link: '/release-notes/v1.74.1' },
             { text: 'v1.74.0', link: '/release-notes/v1.74.0' },
             { text: 'v1.73.0', link: '/release-notes/v1.73.0' },

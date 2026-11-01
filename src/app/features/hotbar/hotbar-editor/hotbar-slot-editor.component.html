@@ -83,29 +83,31 @@
   }
 
   @if (palettePicks().length) {
-    <label class="flex items-center gap-2">
-      <span class="text-ui-muted w-20 shrink-0">{{ 'feature.hotbar.editor.fromPalette' | transloco }}</span>
-      <select
+    <div class="flex items-center gap-2">
+      <label class="text-ui-muted w-20 shrink-0" for="hotbar-editor-palette-input">{{
+        'feature.hotbar.editor.fromPalette' | transloco
+      }}</label>
+      <ng-select
         data-testid="hotbar-editor-palette"
-        class="border-ui-border-panel bg-ui-elevated text-ui-text min-w-0 flex-1 rounded-[3px] border border-solid px-1.5 py-1"
-        (change)="takeFromPalette($any($event.target).value)"
+        class="ud-select palette-pick-select min-w-0 flex-1"
+        labelForId="hotbar-editor-palette-input"
+        bindLabel="line"
+        bindValue="id"
+        groupBy="groupIndex"
+        [groupValue]="palettePickGroup"
+        [items]="palettePickItems()"
+        [ngModel]="pickedPaletteId()"
+        (ngModelChange)="takeFromPalette($event)"
+        [ngModelOptions]="{ standalone: true }"
+        [clearable]="false"
+        [placeholder]="'feature.hotbar.editor.fromPaletteHint' | transloco"
+        [notFoundText]="'feature.hotbar.editor.paletteNotFound' | transloco"
       >
-        <option value="">{{ 'feature.hotbar.editor.fromPaletteHint' | transloco }}</option>
-        @for (group of palettePicks(); track $index) {
-          <optgroup
-            [label]="
-              group.tab && group.heading
-                ? group.tab + ' / ' + group.heading
-                : group.tab || group.heading || ('feature.hotbar.editor.paletteLoose' | transloco)
-            "
-          >
-            @for (line of group.lines; track $index) {
-              <option [value]="line" [selected]="line === draft().value">{{ line }}</option>
-            }
-          </optgroup>
-        }
-      </select>
-    </label>
+        <ng-template ng-optgroup-tmp let-item="item">
+          {{ item.group || ('feature.hotbar.editor.paletteLoose' | transloco) }}
+        </ng-template>
+      </ng-select>
+    </div>
   }
 
   @switch (kind()) {
