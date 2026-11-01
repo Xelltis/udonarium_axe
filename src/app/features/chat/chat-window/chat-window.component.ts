@@ -164,6 +164,8 @@ export class ChatWindowComponent {
 
   /** What is being typed into the chat, followed for the scenario texts it brings up. */
   protected readonly typed = signal('');
+  /** The words of scenario texts with their decoration taken off, kept so that each key does not strip them all again. */
+  private readonly plainWords = new Map<string, string>();
 
   /**
    * The game master's scenario texts that what is being typed matches, offered over the input as
@@ -175,8 +177,14 @@ export class ChatWindowComponent {
     this.objectChange.collectionOf(ScenarioText.aliasName)();
     const texts = ScenarioText.all();
     for (const text of texts) this.objectChange.versionOf(text.identifier)();
-    return scenarioTextsMatching(texts, this.typed(), withoutChatDecoration).map((text) => {
-      const plain = withoutChatDecoration(`${text.text ?? ''}`)
+    if (this.plainWords.size > texts.length * 2 + 16) this.plainWords.clear();
+    const plainOf = (words: string) => {
+      let plain = this.plainWords.get(words);
+      if (plain === undefined) this.plainWords.set(words, (plain = withoutChatDecoration(words)));
+      return plain;
+    };
+    return scenarioTextsMatching(texts, this.typed(), plainOf).map((text) => {
+      const plain = plainOf(`${text.text ?? ''}`)
         .replace(/\s+/g, ' ')
         .trim();
       return {

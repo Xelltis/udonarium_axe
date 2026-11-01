@@ -48,13 +48,20 @@ describe('the texts offered as the chat is typed', () => {
     return Object.assign(new ScenarioText(), { title, text: words });
   }
 
-  it('offers those whose title or words hold what is typed, ignoring case and decoration', () => {
-    const texts = [textOf('導入', '**雨**が降る'), textOf('Mansion', '扉'), textOf('空', '')];
+  it('offers those whose title holds what is typed, or a line of whose words begins with it, ignoring case and decoration', () => {
+    const texts = [textOf('導入', '霧が出ている。\n  **雨**が降る'), textOf('Mansion', '扉'), textOf('空', '')];
     const plain = (text: string) => text.replaceAll('**', '');
 
     expect(scenarioTextsMatching(texts, '雨が', plain).map((text) => text.title)).toEqual(['導入']);
     expect(scenarioTextsMatching(texts, 'mansion', plain).map((text) => text.title)).toEqual(['Mansion']);
     expect(scenarioTextsMatching(texts, '空', plain)).toEqual([]);
+  });
+
+  it('brings nothing up for words found only in the middle of a line', () => {
+    const texts = [textOf('屋敷', '扉を開けている。')];
+
+    expect(scenarioTextsMatching(texts, 'ている', (text) => text)).toEqual([]);
+    expect(scenarioTextsMatching(texts, '扉を', (text) => text).map((text) => text.title)).toEqual(['屋敷']);
   });
 
   it('offers nothing for fewer than two letters', () => {

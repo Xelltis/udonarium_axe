@@ -80,9 +80,11 @@ export class ScenarioText extends GameObject {
 export const SCENARIO_TEXT_SUGGESTIONS = 8;
 
 /**
- * The texts offered as what is being typed into the chat is matched: those whose title or words
- * hold it, ignoring case and decoration, in the order of the list. Nothing is offered for fewer than
- * two letters, as the palette offers nothing either, nor for a text with no words.
+ * The texts offered as what is being typed into the chat is matched: those whose title holds it,
+ * or one of whose lines begins with it, ignoring case and decoration, in the order of the list.
+ * Words found only in the middle of a line bring nothing up, so that the few letters an ordinary
+ * line opens with do not call up every passage holding them. Nothing is offered for fewer than two
+ * letters, as the palette offers nothing either, nor for a text with no words.
  */
 export function scenarioTextsMatching(
   texts: readonly ScenarioText[],
@@ -94,7 +96,9 @@ export function scenarioTextsMatching(
   return texts
     .filter((text) => {
       const plain = plainOf(`${text.text ?? ''}`);
-      return plain.trim().length > 0 && `${text.title}\n${plain}`.toLowerCase().includes(words);
+      if (plain.trim().length < 1) return false;
+      if (`${text.title ?? ''}`.toLowerCase().includes(words)) return true;
+      return plain.split('\n').some((line) => line.trim().toLowerCase().startsWith(words));
     })
     .slice(0, SCENARIO_TEXT_SUGGESTIONS);
 }
