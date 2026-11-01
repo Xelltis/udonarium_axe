@@ -43,26 +43,31 @@
           (change)="toggleGaugeInverted()"
         />
       </label>
-      <div
-        class="col-span-full grid grid-cols-[auto_auto_auto] items-center justify-start gap-1.5"
+      <label
+        class="col-span-full grid-cols-[auto_auto_auto] justify-start"
         [title]="'feature.dataElement.field.gaugeColorHint' | transloco"
       >
         <span>{{ 'feature.dataElement.field.gaugeColor' | transloco }}</span>
         <input
           type="color"
           name="data-gauge-color"
-          [attr.aria-label]="'feature.dataElement.field.gaugeColor' | transloco"
+          class="h-7! w-12! shrink-0 cursor-pointer p-0.5!"
           [value]="gaugeColorShown()"
           (change)="setGaugeColor($any($event.target).value)"
         />
         @if (gaugeFixedColor()) {
-          <button type="button" data-testid="data-gauge-color-auto" (click)="setGaugeColor('')">
+          <button
+            type="button"
+            data-testid="data-gauge-color-auto"
+            class="text-ui-muted hover:text-ui-accent m-0 cursor-pointer border-none bg-transparent p-0 text-[0.86em] whitespace-nowrap hover:shadow-none"
+            (click)="setGaugeColor('')"
+          >
             {{ 'feature.dataElement.field.gaugeColorAuto' | transloco }}
           </button>
         } @else {
-          <span class="text-ui-dim text-[11px]">{{ 'feature.dataElement.field.gaugeColorAutoNote' | transloco }}</span>
+          <span>{{ 'feature.dataElement.field.gaugeColorAutoNote' | transloco }}</span>
         }
-      </div>
+      </label>
     }
     @if (canShowPieceGauge()) {
       <label
