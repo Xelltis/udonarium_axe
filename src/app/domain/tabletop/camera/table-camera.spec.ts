@@ -2,6 +2,7 @@ import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import {
   boardOffset,
   DEFAULT_TABLE_CAMERA_VIEW,
+  drawnScaleAt,
   pageOfTablePoint,
   tableCameraAttribute,
   tableCameraTransform,
@@ -63,6 +64,23 @@ describe('table camera', () => {
         expect(right.x - left.x).toBeCloseTo(50 * viewPositionZToZoom(positionZ), 3);
       }
     }
+  });
+
+  it('draws a thing smaller the further off it stands, by the scale it works out', () => {
+    // Tilted only, the board's x axis runs along the page's at every point, so a short piece of it is
+    // drawn as long as the scale says, times one length for the whole view.
+    const tilted = { ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: 0, positionZ: -300 };
+    const scene = tableSceneMatrix(tilted, screen);
+    const drawnLength = (x: number, y: number) =>
+      pageOfTablePoint(scene, x + 1, y, 0).x - pageOfTablePoint(scene, x, y, 0).x;
+    const near = drawnScaleAt(scene, 500, 700, 0);
+    const far = drawnScaleAt(scene, 500, 50, 0);
+
+    expect(far).toBeLessThan(near);
+    expect(drawnLength(500, 50) / far).toBeCloseTo(drawnLength(500, 700) / near, 6);
+
+    const flat = tableSceneMatrix({ ...tilted, orthographic: true }, screen);
+    expect(drawnScaleAt(flat, 500, 700, 0)).toBeCloseTo(drawnScaleAt(flat, 500, 50, 120), 9);
   });
 
   it('runs the line of sight through a page point from the eye into the board', () => {

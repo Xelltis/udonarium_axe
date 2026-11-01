@@ -82,6 +82,16 @@ describe('TableSurfaceService', () => {
     expect(service.sizeOf('no-such-face')).toBeNull();
   });
 
+  it('stands a point of a face, lifted off it, where its frame puts it, and draws it smaller further off', () => {
+    const north = service.boardPointOf('north-wall', 120, 60, 25)!;
+    expect(north).toEqual({ x: 120, y: 25, z: 240 });
+    expect(service.drawnScaleOn('floor', 500, 375)).toBeNull();
+
+    showTable();
+    expect(service.drawnScaleOn('north-wall', 500, 0)!).toBeLessThan(service.drawnScaleOn('floor', 500, 740)!);
+    expect(service.boardPointOf('no-such-face', 0, 0)).toBeNull();
+  });
+
   it('lets a piece hang over the edge of a board, and of no face of the table', () => {
     expect(service.overhangs('a-board')).toBe(true);
     for (const face of ['floor', 'north-wall', 'east-wall', 'south-wall', 'west-wall']) {

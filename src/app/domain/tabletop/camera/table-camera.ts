@@ -151,6 +151,16 @@ export function pageOfTablePoint(scene: Matrix3D, x: number, y: number, z: numbe
   return scene.project({ x, y, z, w: 1 });
 }
 
+/**
+ * How large a thing at a point of the board is drawn, against how large it would be drawn at the
+ * depth of the page itself: the perspective draws a thing the smaller the further off it stands. An
+ * orthographic view draws everything at one size, and so answers one everywhere.
+ */
+export function drawnScaleAt(scene: Matrix3D, x: number, y: number, z: number): number {
+  const w = x * scene.m14 + y * scene.m24 + z * scene.m34 + scene.m44;
+  return w > 0 ? 1 / w : 0;
+}
+
 /** A point of the board's space: x and y across the board, z up off it, all in table pixels. */
 export interface TablePoint {
   readonly x: number;

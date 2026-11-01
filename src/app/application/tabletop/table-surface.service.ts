@@ -1,8 +1,8 @@
 import { inject, Injectable } from '@angular/core';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { pageOfTablePoint, tableRayOfPage } from '@axe/domain/tabletop/camera/table-camera';
-import { SurfaceCrossing, surfaceCrossing, SurfaceFrame, surfaceFrame } from '@axe/domain/tabletop/surface-space';
+import { drawnScaleAt, pageOfTablePoint, tableRayOfPage } from '@axe/domain/tabletop/camera/table-camera';
+import { SurfaceCrossing, surfaceCrossing, SurfaceFrame, surfaceFrame, Vec3 } from '@axe/domain/tabletop/surface-space';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
 import { TABLE_SURFACES, TableSurface } from '@axe/domain/tabletop/tabletop-object';
@@ -74,12 +74,30 @@ export class TableSurfaceService {
   /** Where a point of a face, lifted some way off it, is drawn on the page, or null before the table has a camera. */
   pageOf(surface: string, localX: number, localY: number, height = 0): { x: number; y: number } | null {
     const scene = this.camera.sceneMatrix();
-    const frame = this.frameOf(surface);
-    if (!scene || !frame) return null;
-    const x = frame.origin.x + frame.u.x * localX + frame.v.x * localY + frame.normal.x * height;
-    const y = frame.origin.y + frame.u.y * localX + frame.v.y * localY + frame.normal.y * height;
-    const z = frame.origin.z + frame.u.z * localX + frame.v.z * localY + frame.normal.z * height;
-    const onPage = pageOfTablePoint(scene, x, y, z);
+    const point = this.boardPointOf(surface, localX, localY, height);
+    if (!scene || !point) return null;
+    const onPage = pageOfTablePoint(scene, point.x, point.y, point.z);
     return { x: onPage.x, y: onPage.y };
+  }
+
+  /**
+   * How large a thing at a point of a face is drawn, against how large it would be drawn at the depth
+   * of the page itself, or null before the table has a camera.
+   */
+  drawnScaleOn(surface: string, localX: number, localY: number, height = 0): number | null {
+    const scene = this.camera.sceneMatrix();
+    const point = this.boardPointOf(surface, localX, localY, height);
+    return scene && point ? drawnScaleAt(scene, point.x, point.y, point.z) : null;
+  }
+
+  /** Where a point of a face, lifted some way off it, stands in the board's space, or null for a face it does not know. */
+  boardPointOf(surface: string, localX: number, localY: number, height = 0): Vec3 | null {
+    const frame = this.frameOf(surface);
+    if (!frame) return null;
+    return {
+      x: frame.origin.x + frame.u.x * localX + frame.v.x * localY + frame.normal.x * height,
+      y: frame.origin.y + frame.u.y * localX + frame.v.y * localY + frame.normal.y * height,
+      z: frame.origin.z + frame.u.z * localX + frame.v.z * localY + frame.normal.z * height,
+    };
   }
 }
