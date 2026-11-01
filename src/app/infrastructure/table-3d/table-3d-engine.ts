@@ -2,8 +2,12 @@ import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import type { TableWorld, TableWorldBoard } from '@axe/domain/tabletop/world/table-world';
 import type { Table3dCamera, Table3dEngine, Table3dEngineOptions } from '@axe/infrastructure/table-3d/table-3d-port';
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
+import { float, max, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
 import {
+  BufferGeometry,
   Camera,
+  DoubleSide,
+  Float32BufferAttribute,
   Matrix4,
   Mesh,
   MeshBasicNodeMaterial,
@@ -11,6 +15,9 @@ import {
   PerspectiveCamera,
   PlaneGeometry,
   Scene,
+  SRGBColorSpace,
+  Texture,
+  TextureLoader,
   WebGPURenderer,
 } from 'three/webgpu';
 
@@ -18,8 +25,8 @@ import {
 const NEAR_PX = 1;
 const FAR_PX = 50000;
 
-/** The colour the bare board is drawn in until it has a picture of its own. */
-const BOARD_COLOUR = 0x8c8f87;
+/** How much white the board is veiled with while nothing is laid under it, as the page veils it. */
+const BOARD_VEIL = 0.15;
 
 /**
  * The board's axes as the scene's: the board runs x to the east, y to the south and z up, and the
@@ -54,12 +61,23 @@ class ThreeTableEngine implements Table3dEngine {
   private boardShape = '';
   private changed = true;
   private lost = false;
+  private loading = 0;
+  private needsFrame: () => void = () => undefined;
+  private readonly pictures = new TextureLoader();
 
   constructor(
     private readonly renderer: WebGPURenderer,
     readonly backend: 'webgpu' | 'webgl2'
   ) {
     for (const camera of [this.perspective, this.orthographic]) camera.matrixAutoUpdate = false;
+  }
+
+  onNeedsFrame(listener: () => void): void {
+    this.needsFrame = listener;
+  }
+
+  isLoading(): boolean {
+    return this.loading > 0;
   }
 
   onLost(listener: () => void): void {
@@ -119,9 +137,21 @@ class ThreeTableEngine implements Table3dEngine {
     }
   }
 
-  /** Lays the board flat at the floor, as wide and deep as it runs, and builds it again only when that changes. */
+  /**
+   * Lays the board flat at the floor with its picture stretched over its box, cut to its cells on a
+   * hex board, and builds it again only when any of that changes.
+   */
   private placeBoard(board: TableWorldBoard | null): void {
-    const shape = board ? `${board.widthPx}x${board.depthPx}` : '';
+    const shape = board
+      ? JSON.stringify([
+          board.shape.box,
+          board.shape.hexes?.length ?? 0,
+          board.gridSize,
+          board.gridType,
+          board.pictureUrl,
+          board.veiled,
+        ])
+      : '';
     if (shape === this.boardShape) return;
     this.boardShape = shape;
     if (this.board) {
@@ -130,10 +160,74 @@ class ThreeTableEngine implements Table3dEngine {
       this.board = null;
     }
     if (!board) return;
-    const geometry = new PlaneGeometry(board.widthPx, board.depthPx);
-    geometry.rotateX(-Math.PI / 2);
-    this.board = new Mesh(geometry, new MeshBasicNodeMaterial({ color: BOARD_COLOUR }));
-    this.board.position.set(board.widthPx / 2, 0, board.depthPx / 2);
+    const material = new MeshBasicNodeMaterial({ transparent: true, side: DoubleSide });
+    material.colorNode = boardColour(board.pictureUrl ? this.picture(board.pictureUrl) : null, board.veiled);
+    this.board = new Mesh(boardGeometry(board), material);
     this.scene.add(this.board);
   }
+
+  /** A picture to draw, which asks for a frame once it has come. */
+  private picture(url: string): Texture {
+    this.loading++;
+    const settle = () => {
+      this.loading--;
+      this.changed = true;
+      this.needsFrame();
+    };
+    const picture = this.pictures.load(url, settle, undefined, settle);
+    picture.colorSpace = SRGBColorSpace;
+    return picture;
+  }
+}
+
+/** A colour the library's colour-space functions answer, which they do not say is a colour. */
+function colourNode(node: unknown): ReturnType<typeof vec3> {
+  return node as ReturnType<typeof vec3>;
+}
+
+/**
+ * The board's picture as the page draws it, in sRGB: over a little white where nothing is laid
+ * under the board, which shows through where the picture is clear, and over what lies behind.
+ */
+function boardColour(picture: Texture | null, veiled: boolean) {
+  const veil = float(veiled ? BOARD_VEIL : 0);
+  const sampled = picture ? texture(picture) : vec4(0, 0, 0, 0);
+  const clear = float(1).sub(sampled.a);
+  const alpha = float(1).sub(float(1).sub(veil).mul(clear));
+  const shown = colourNode(sRGBTransferOETF(sampled.rgb))
+    .mul(sampled.a)
+    .add(veil.mul(clear))
+    .div(max(alpha, float(0.0001)));
+  return vec4(colourNode(sRGBTransferEOTF(shown)), alpha);
+}
+
+/**
+ * The board's face, lying on the floor: its whole box on a square board, and each of its cells on a
+ * hex board, with the picture's box read off across it.
+ */
+function boardGeometry(board: TableWorldBoard): BufferGeometry {
+  const { box, hexes } = board.shape;
+  if (!hexes) {
+    const plane = new PlaneGeometry(box.width, box.height);
+    plane.rotateX(-Math.PI / 2);
+    plane.translate(box.x + box.width / 2, 0, box.y + box.height / 2);
+    return plane;
+  }
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const corner = (point: { x: number; y: number }) => {
+    positions.push(point.x, 0, point.y);
+    uvs.push((point.x - box.x) / box.width, 1 - (point.y - box.y) / box.height);
+  };
+  for (const hex of hexes) {
+    for (let i = 1; i < hex.length - 1; i++) {
+      corner(hex[0]);
+      corner(hex[i]);
+      corner(hex[i + 1]);
+    }
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
+  return geometry;
 }

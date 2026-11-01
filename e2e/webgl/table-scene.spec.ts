@@ -18,9 +18,8 @@ type SceneHooks = {
   project(x: number, y: number, z: number): Point | null;
 };
 
-/** The colour the bare board is drawn in on the canvas. */
-const BOARD: [number, number, number] = [0x8c, 0x8f, 0x87];
-const SAME_COLOUR = 8;
+/** How far apart two readings of one point may be and still be the same colour. */
+const SAME_COLOUR = 3;
 /** How far inside and outside an edge of the board the colour is read, in pixels. */
 const AWAY_PX = 6;
 
@@ -96,22 +95,36 @@ async function coloursAt(page: Page, points: Point[]): Promise<number[][]> {
   );
 }
 
-function isBoard(colour: number[]): boolean {
-  return colour.every((value, index) => Math.abs(value - BOARD[index]) <= SAME_COLOUR);
+function apart(a: number[], b: number[]): number {
+  return Math.max(...a.map((value, index) => Math.abs(value - b[index])));
 }
 
-/** Holds the board the canvas draws against where the camera puts its edges. */
+/**
+ * Holds the board the canvas draws against where the camera puts its edges: hiding the canvas
+ * changes what shows just inside an edge, where the canvas draws the board, and leaves what shows
+ * just outside it, where the canvas draws nothing.
+ */
 async function expectBoardWhereTheCameraPutsIt(page: Page) {
   const points = await edgePoints(page);
   // A phone's screen shows one edge of the board, a desktop's all four.
   expect(points.length, 'edges of the board on the screen with nothing over them').toBeGreaterThanOrEqual(1);
-  const colours = await coloursAt(
-    page,
-    points.flatMap(({ inside, outside }) => [inside, outside])
-  );
+  const read = points.flatMap(({ inside, outside }) => [inside, outside]);
+  const canvas = page.getByTestId('table-scene');
+  const shown = await coloursAt(page, read);
+  await canvas.evaluate((element) => (element.style.visibility = 'hidden'));
+  const behind = await coloursAt(page, read);
+  await canvas.evaluate((element) => (element.style.visibility = ''));
   for (let i = 0; i < points.length; i++) {
-    expect(isBoard(colours[i * 2]), `inside edge ${i}: ${colours[i * 2]}`).toBe(true);
-    expect(isBoard(colours[i * 2 + 1]), `outside edge ${i}: ${colours[i * 2 + 1]}`).toBe(false);
+    const inside = i * 2;
+    const outside = i * 2 + 1;
+    expect(
+      apart(shown[inside], behind[inside]),
+      `inside edge ${i}: ${shown[inside]} over ${behind[inside]}`
+    ).toBeGreaterThan(SAME_COLOUR * 2);
+    expect(
+      apart(shown[outside], behind[outside]),
+      `outside edge ${i}: ${shown[outside]} over ${behind[outside]}`
+    ).toBeLessThanOrEqual(SAME_COLOUR);
   }
 }
 

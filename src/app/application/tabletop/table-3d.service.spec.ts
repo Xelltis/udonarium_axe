@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
+import { ImageService } from '@axe/application/storage/image.service';
 import { TABLE_3D_ENGINES, TABLE_GRAPHICS, Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { TableGraphics } from '@axe/core/util/graphics-acceleration';
 import { DEFAULT_TABLE_CAMERA_VIEW } from '@axe/domain/tabletop/camera/table-camera';
@@ -17,6 +19,8 @@ class FakeEngine implements Table3dEngine {
   drawn = 0;
   disposed = false;
   lose: () => void = () => undefined;
+  arrive: () => void = () => undefined;
+  loading = false;
   private changed = false;
 
   constructor(readonly options: Table3dEngineOptions) {
@@ -50,6 +54,18 @@ class FakeEngine implements Table3dEngine {
 
   onLost(listener: () => void): void {
     this.lose = listener;
+  }
+
+  onNeedsFrame(listener: () => void): void {
+    this.arrive = () => {
+      this.loading = false;
+      this.changed = true;
+      listener();
+    };
+  }
+
+  isLoading(): boolean {
+    return this.loading;
   }
 }
 
@@ -218,5 +234,32 @@ describe('Table3dService', () => {
     await scene.whenIdle();
 
     expect(scene.preparing()).toBe(false);
+  });
+
+  it('waits for what the engine is loading, and draws once it has come', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    TestBed.tick();
+    await scene.whenIdle();
+    const engine = engines[0];
+    engine.loading = true;
+
+    let settled = false;
+    void scene.whenIdle().then(() => (settled = true));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(settled).toBe(false);
+
+    engine.arrive();
+    await scene.whenIdle();
+    expect(settled).toBe(true);
+    expect(engine.drawn).toBe(2);
+  });
+
+  it('reads the pictures the scene names from where this browser keeps them', () => {
+    const scene = service();
+    expect(scene.world().board?.pictureUrl).toBe(
+      TestBed.inject(ImageService).getEmptyOr(TestBed.inject(TabletopService).currentTable.imageIdentifier).url
+    );
   });
 });

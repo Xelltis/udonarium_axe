@@ -9,12 +9,15 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { ImageService } from '@axe/application/storage/image.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { TableGraphics, tableGraphicsOf } from '@axe/core/util/graphics-acceleration';
 import { matrixColumns, tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
+import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { tableWorldOf } from '@axe/domain/tabletop/world/table-world';
 import type {
   Table3dBackend,
@@ -59,6 +62,8 @@ export class Table3dService {
   private readonly tabletop = inject(TabletopService);
   private readonly camera = inject(TableCameraService);
   private readonly injector = inject(Injector);
+  private readonly images = inject(ImageService);
+  private readonly objectChange = inject(ObjectChangeService);
   private readonly loadEngines = inject(TABLE_3D_ENGINES);
   private readonly askGraphics = inject(TABLE_GRAPHICS);
 
@@ -77,13 +82,18 @@ export class Table3dService {
   readonly canvasGeneration = signal(0);
   private restarts = 0;
 
-  /** The scene of the table in view. */
-  readonly world = computed(() => tableWorldOf(this.tabletop.currentTableVersion()));
+  /** The scene of the table in view, with the pictures it names read from where this browser keeps them. */
+  readonly world = computed(() => {
+    this.objectChange.fileVersion();
+    this.objectChange.collectionOf(TableBackgroundLayer.aliasName)();
+    return tableWorldOf(this.tabletop.currentTableVersion(), (identifier) => this.images.getEmptyOr(identifier).url);
+  });
 
   /** Whether the canvas is asked for but not drawing yet, which the table covers until it is. */
   readonly preparing = computed(() => this.drawsOnCanvas() && this.backend() === null && !this.unavailable());
 
   private frame: number | null = null;
+  private engine: Table3dEngine | null = null;
   private starting: Promise<unknown> | null = null;
   private readonly idleWaiters: (() => void)[] = [];
 
@@ -112,6 +122,8 @@ export class Table3dService {
       }
       engine = made;
       if (!made) return;
+      this.engine = made;
+      made.onNeedsFrame(() => this.drawSoon(made));
       effects.push(...this.follow(made));
       made.onLost(() => this.restart());
     });
@@ -126,6 +138,7 @@ export class Table3dService {
       if (this.frame !== null) cancelAnimationFrame(this.frame);
       this.frame = null;
       engine?.dispose();
+      if (this.engine === engine) this.engine = null;
       this.backend.set(null);
       this.settleIfIdle();
     };
@@ -222,7 +235,7 @@ export class Table3dService {
   }
 
   private settleIfIdle(): void {
-    if (this.frame !== null || this.starting !== null) return;
+    if (this.frame !== null || this.starting !== null || this.engine?.isLoading()) return;
     for (const resolve of this.idleWaiters.splice(0)) resolve();
   }
 }
