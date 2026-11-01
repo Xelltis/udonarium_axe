@@ -80,7 +80,8 @@ export default defineConfig({
     {
       name: 'mobile-webgl',
       use: { ...devices['Pixel 7'], reducedMotion: 'reduce', storageState: drawsOnCanvas },
-      testMatch: [/webgl\/.*\.spec\.ts/],
+      // A phone has no game master's toolbar, which the specs that build on the table go through.
+      testMatch: [/webgl\/table-scene\.spec\.ts/],
     },
     {
       name: 'mobile',
