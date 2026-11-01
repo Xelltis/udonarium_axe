@@ -34,7 +34,7 @@
 | 2    | カメラの式（domain）と`TableCameraService`                  | 済み                                    |
 | 3    | 当たり判定の索引                                            | 済み                                    |
 | 4    | 入力の書き直し（CSSの卓のままでも動く形）                   | 済み（回転は段階7へ）                   |
-| 5    | 描画の土台（three.jsの囲い、engine、開発用の切り替え、HUD） | 未着手                                  |
+| 5    | 描画の土台（three.jsの囲い、engine、開発用の切り替え、HUD） | 済み（HUDは段階7へ）                    |
 | 6    | 盤と地形                                                    | 未着手                                  |
 | 7    | コマと物                                                    | 未着手                                  |
 | 8    | 起伏のある地面                                              | 未着手                                  |
@@ -64,6 +64,16 @@
 回転は段階7に回した。持ち手の高さはコマの種類ごとに違い、地形は上面、キャラクターは立ち絵の板、ボードは足元にある。角度はその面の上で測るので、1つの高さで視線との交点を取ると、背の高い地形では交点が大きくずれる（2マスの高さで傾きが50°なら約120px）。持ち手を画面空間のHUDにする段階7で、各コマが持ち手の高さを渡す形にする。
 
 移し替えの途中で、既存の不具合を2つ直した。まとめた山札が面を引き継がず、壁の上でまとめると床へ移っていた件と、素早く離したカードを山札が古い位置で判定して取り込まなかった件である。
+
+段階5で、卓をthree.jsでcanvasに描けるようにした。描画の本体は`infrastructure/table-3d/table-3d-engine.ts`で、`WebGPURenderer`を使い、WebGPUが使えなければWebGL2で描く。変更を伝えられたあとの次のフレームでだけ描く。カメラは`tableEyeMatrix`（盤の点を目の空間へ運ぶ行列）から組む。透視は焦点距離3000pxの`PerspectiveCamera`、正射影は`OrthographicCamera`である。盤の座標（x東・y南・z上）は左手系なので、three.jsの右手系へ`(x, z, y)`と入れ替えて写す。今は無地の盤だけを描く。
+
+`Table3dService`は、場面（`domain/tabletop/world/`の`TableWorld`）とカメラをエンジンへ渡す。エンジンは遅延のチャンクで、canvasで描く席では起動後の暇な時間に先読みし、準備ができるまで卓に覆いを出す。WebGPUもWebGL2も作れないブラウザでは、卓の場所に理由を出す。描画の文脈が失われたら新しいcanvasで作り直し、3回までにする。描き方は`?renderer=three`（WebGL2に限るなら`three-webgl2`）で切り替え、ブラウザに覚えさせる。既定は段階14まで今のCSSの卓で、canvasで描く席ではCSSの盤の絵を隠す。
+
+three.jsを読んでよいフォルダーは`infrastructure/three-fence.spec.ts`で固定した。ダイスの囲いのspecを一般化したもので、外から読める入口は、型だけの`table-3d-port.ts`と品質の表`table-3d-quality.ts`だけになる。
+
+確かめ方として、Playwrightに`chromium-webgl`・`mobile-webgl`・`chromium-webgpu`の3つのプロジェクトを足した。headlessのChromiumは旗なしではWebGPUのアダプターを出さないので、前の2つはWebGL2を通る。`chromium-webgpu`はS5の旗でSwiftShaderの代替アダプターを使う。`e2e/webgl/table-scene.spec.ts`は、カメラが置く盤の辺のすぐ内側と外側の色を画面の写しから読み、canvasの盤が同じ位置にあることを確かめる。盤を30pxずらすと落ちる。canvasで描いても通るspecは`playwright.config.ts`の許可リストに足していく。
+
+エンジンのチャンクは591KB（転送135KB）で、`angular.json`の予算で警告を1.2MB、エラーを1.6MBにした。S5で`three/webgpu`だけの場面が899KBだったことからの値である。initialは段階5で約8KB増え、警告を17.56KB超えている。
 
 段階1で足した目印は、コマが動く要素の`data-location`（面の上の`x,y,z`）、卓の`data-camera`（位置・回転・正射影）、コインの`data-face`、扉の`data-door`、コマの`data-object-id`、キャラクターの絵の`data-part="picture"`。e2eはtransformの文字列を読むのをやめ、これらを読む（`e995dd17e`・`cf85fc0f2`）。
 
@@ -183,7 +193,9 @@ GPUなしの目安として、headlessのSwiftShader（1280×720）でも測っ�
 
 ## 後回しにしたこと
 
-- `window.__axeTable`の描き終わりを待つ`whenIdle`は、three.jsで描くようになってから要るので段階5で足す。ほかのフックは段階3で前倒しした。
+- 画面空間のHUD（名札・ゲージなど）と、その根のtransformだけを毎フレーム書く`HudFrameService`は、載せる物ができる段階7で作る。段階5では、置く物のない層だけを先に作ることはしなかった。
+- 品質の表（`table-3d-quality.ts`）は作ったが、個人の設定として選ぶ画面と、描画への反映は段階10で足す。
+- `visual-webgpu`・`visual-webgl2`の撮影は、描く物がそろう段階14で始める。
 - e2eで`elementFromPoint`を使う6か所（`see-through`・`hex-pedestal`・`terrain-batch`・カットイン2つ）は、CSSの卓の当たり判定そのものを確かめている。コマが当たり判定に入る段階7で、索引に問う形に書き直す。
 - 重なったコマのメニューは、今も`TabletopOverlapService.findAt`でページの要素から集めている。段階7で当たり判定の`allAt`に置き換える。
 - 押した場所が何もない卓かどうかを、押下の要素で決めている所がある（卓のジェスチャー、移動の計画、画像のドロップの的）。canvasで描くと押下の要素が変わるので、段階5で当たり判定とcanvasを組み合わせて決める形に直す。
