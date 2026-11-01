@@ -1,4 +1,6 @@
 import { inject, Injectable, untracked } from '@angular/core';
+import { CoordinateService } from '@axe/application/input/coordinate.service';
+import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
@@ -32,6 +34,8 @@ export class TablePickService {
   private readonly camera = inject(TableCameraService);
   private readonly surfaces = inject(TableSurfaceService);
   private readonly images = inject(ImageService);
+  private readonly coordinates = inject(CoordinateService);
+  private readonly pointerDevice = inject(PointerDeviceService);
 
   /** Each object's target, kept until the object or the table's grid changes. */
   private readonly made = new Map<string, { key: string; target: PickTarget }>();
@@ -52,6 +56,34 @@ export class TablePickService {
   allAt(pageX: number, pageY: number, accepts?: (target: PickTarget) => boolean): PickHit[] {
     const ray = this.rayAt(pageX, pageY);
     return ray ? pickAll(this.targets(), ray, accepts) : [];
+  }
+
+  /**
+   * Where a point of the page lands on the table, in the board's space and never below the floor:
+   * on the first thing the line of sight meets that a piece can be put on (a block, a wall drawn
+   * with a picture, a white board or the floor), or on the floor's plane where it meets none of
+   * them. Before the table has a camera it is read off the element at the point, as the table drawn
+   * in the page always did.
+   */
+  landingAt(pageX: number, pageY: number): PointerCoordinate {
+    const ray = this.rayAt(pageX, pageY);
+    if (!ray) {
+      const under = document.elementFromPoint(pageX, pageY);
+      return this.coordinates.calcTabletopLocalCoordinate(
+        { x: pageX, y: pageY, z: 0 },
+        under instanceof HTMLElement ? under : undefined
+      );
+    }
+    const hit = pickFirst([...this.faceTargets(), ...this.targets()], ray);
+    if (hit) return { x: hit.point.x, y: hit.point.y, z: Math.max(0, hit.point.z) };
+    const along = ray.direction.z !== 0 ? -ray.origin.z / ray.direction.z : 0;
+    return { x: ray.origin.x + ray.direction.x * along, y: ray.origin.y + ray.direction.y * along, z: 0 };
+  }
+
+  /** Where the pointer lands on the table, as {@link landingAt} says. */
+  landingAtPointer(): PointerCoordinate {
+    const pointer = this.pointerDevice.pointers[0];
+    return this.landingAt(pointer.x, pointer.y);
   }
 
   /** The targets of what stands on the table in view, and is not hidden from this seat. */

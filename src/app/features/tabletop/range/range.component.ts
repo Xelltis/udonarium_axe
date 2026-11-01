@@ -12,12 +12,12 @@ import {
   viewChild,
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -75,7 +75,7 @@ export class RangeComponent {
   private readonly panelService = inject(PanelService);
   private readonly objectPanels = inject(ObjectPanelService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
-  private readonly coordinateService = inject(CoordinateService);
+  private readonly tablePick = inject(TablePickService);
   protected readonly tabletopService = inject(TabletopService);
   private readonly objectStore = inject(ObjectStore);
   private readonly inventoryService = inject(GameObjectInventoryService);
@@ -279,7 +279,7 @@ export class RangeComponent {
     if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
     const menuPosition = this.pointerDeviceService.pointers[0];
     if (this.pieceContextMenu.openForSelection(this.range(), this.gridSize, menuPosition)) return;
-    const objectPosition = this.coordinateService.calcTabletopLocalCoordinate();
+    const objectPosition = this.tablePick.landingAtPointer();
     const menu = buildRangeContextMenuModel(
       this.range()!,
       this.gridSize,

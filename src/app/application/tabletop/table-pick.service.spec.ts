@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
@@ -118,6 +119,54 @@ describe('TablePickService', () => {
     table.appendChild(board);
     return board;
   }
+
+  describe('where a point lands', () => {
+    it('is on top of the block the line of sight meets, and on the floor beside it', async () => {
+      blockAt(5, 5);
+      await settled();
+      const top = onPage(5, 5, 2 * GRID);
+      const onTop = service.landingAt(top.x, top.y);
+      expect(onTop.x).toBeCloseTo(5.5 * GRID, 6);
+      expect(onTop.y).toBeCloseTo(5.5 * GRID, 6);
+      expect(onTop.z).toBeCloseTo(2 * GRID, 6);
+
+      const bare = onPage(12, 12, 0);
+      expect(service.landingAt(bare.x, bare.y)).toMatchObject({ z: 0 });
+      expect(service.landingAt(bare.x, bare.y).x).toBeCloseTo(12.5 * GRID, 6);
+    });
+
+    it('is on the floor’s plane beyond the edge of the table', () => {
+      const beyond = pageOfTablePoint(camera.sceneMatrix()!, -300, 400, 0);
+      const landed = service.landingAt(beyond.x, beyond.y);
+      expect(landed.x).toBeCloseTo(-300, 6);
+      expect(landed.y).toBeCloseTo(400, 6);
+      expect(landed.z).toBe(0);
+    });
+
+    it('is on a board stood up where the board draws the point', async () => {
+      const board = boardAt(300, 200, 90);
+      await settled();
+      const surfaces = TestBed.inject(TableSurfaceService);
+      // Well up the board, clear of its foot on the floor.
+      const onPage = surfaces.pageOf(board.identifier, 100, 50)!;
+      const landed = service.landingAt(onPage.x, onPage.y);
+      const expected = surfaces.boardPointOf(board.identifier, 100, 50)!;
+      expect(expected.z).toBeGreaterThan(50);
+      expect(landed.x).toBeCloseTo(expected.x, 6);
+      expect(landed.y).toBeCloseTo(expected.y, 6);
+      expect(landed.z).toBeCloseTo(expected.z, 6);
+    });
+
+    it('is read off the element at the point before the table has a camera', () => {
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+      const read = vi
+        .spyOn(TestBed.inject(CoordinateService), 'calcTabletopLocalCoordinate')
+        .mockReturnValue({ x: 1, y: 2, z: 3 });
+      expect(TestBed.inject(TablePickService).landingAt(40, 50)).toEqual({ x: 1, y: 2, z: 3 });
+      expect(read.mock.calls[0][0]).toEqual({ x: 40, y: 50, z: 0 });
+    });
+  });
 
   describe('the face a point lands on', () => {
     it('is the floor where nothing else is', async () => {

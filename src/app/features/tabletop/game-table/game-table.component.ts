@@ -987,7 +987,7 @@ export class GameTableComponent {
     if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
 
     const menuPosition = this.pointerDeviceService.pointers[0];
-    const objectPosition = this.coordinateService.calcTabletopLocalCoordinate();
+    const objectPosition = this.tablePick.landingAtPointer();
     this.openTableContextMenu(menuPosition, objectPosition);
   }
 

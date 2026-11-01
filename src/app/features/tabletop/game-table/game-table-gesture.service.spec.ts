@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -407,11 +407,7 @@ describe('GameTableGestureService', () => {
       gestures.gameObjectsEl = floor;
       gestures.gridCanvasEl = document.createElement('canvas');
       gestures.getGridShow = () => false;
-      vi.spyOn(TestBed.inject(CoordinateService), 'calcTabletopLocalCoordinate').mockReturnValue({
-        x: 125,
-        y: 75,
-        z: 0,
-      });
+      vi.spyOn(TestBed.inject(TablePickService), 'landingAt').mockReturnValue({ x: 125, y: 75, z: 0 });
       press = vi.spyOn(TestBed.inject(SwitchPressService), 'pressGroundAt').mockResolvedValue('pressed');
     });
 

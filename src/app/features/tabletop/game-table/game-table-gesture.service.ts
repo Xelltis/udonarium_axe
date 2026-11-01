@@ -3,6 +3,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
 import { BillboardFrameService } from '@axe/application/ui/billboard-frame.service';
@@ -77,17 +78,18 @@ export class GameTableGestureService {
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly tabletopService = inject(TabletopService);
   private readonly coordinateService = inject(CoordinateService);
+  private readonly tablePick = inject(TablePickService);
   private readonly tableCamera = inject(TableCameraService);
   private readonly switchPresses = inject(SwitchPressService);
   private readonly switchNotices = inject(SwitchNoticeService);
   private readonly t = inject(TRANSLATE_FN);
 
   /**
-   * Where a left press on the bare table began, for pressing the painted ground under it once the
+   * Whether a left press began on the bare table, for pressing the painted ground under it once the
    * hand lets go without having turned the view or drawn a box. A press on a block with a switch
    * of its own is the block's.
    */
-  private groundPress: { target: HTMLElement } | null = null;
+  private groundPress = false;
 
   isTableTransformMode = false;
   isTableTransformed = false;
@@ -362,8 +364,7 @@ export class GameTableGestureService {
       me.button === 1 ||
       me.button === 2 ||
       target.closest('[data-table-passthrough]') != null;
-    this.groundPress =
-      isEmptyTablePress && me.button === 0 && target.closest('[data-switch-host]') == null ? { target } : null;
+    this.groundPress = isEmptyTablePress && me.button === 0 && target.closest('[data-switch-host]') == null;
     if (isEmptyTablePress) {
       this.isTableTransformMode = true;
       this.marqueeGesture?.arm(e as PointerEvent);
@@ -386,19 +387,19 @@ export class GameTableGestureService {
     this.uiSignalService.notifyTerrainGridEnd();
 
     const groundPress = this.groundPress;
-    this.groundPress = null;
+    this.groundPress = false;
     if (!released && !wasMarqueeActive && !this.isTableTransformed) {
       this.selectionSignalService.clearSelection();
-      if (groundPress) void this.pressGround(groundPress.target, e as MouseEvent);
+      if (groundPress) void this.pressGround(e as MouseEvent);
     }
   }
 
   /**
-   * Presses the painted ground under where a click let go, reading the point on whatever was
-   * clicked so that the top of a locked block reaches the ground it stands on.
+   * Presses the painted ground under where a click let go, at the point the click lands on, so that
+   * the top of a locked block reaches the ground it stands on.
    */
-  private async pressGround(target: HTMLElement, e: MouseEvent): Promise<void> {
-    const at = this.coordinateService.calcTabletopLocalCoordinate({ x: e.clientX, y: e.clientY, z: 0 }, target);
+  private async pressGround(e: MouseEvent): Promise<void> {
+    const at = this.tablePick.landingAt(e.clientX, e.clientY);
     const outcome = await this.switchPresses.pressGroundAt(at.x, at.y);
     if (!outcome || outcome === 'pressed' || outcome === 'busy') return;
     this.switchNotices.show(this.t(`feature.boardSwitch.refused.${outcome}`), e.clientX, e.clientY);
@@ -453,10 +454,7 @@ export class GameTableGestureService {
   }
 
   private screenToTablePoint(screenX: number, screenY: number): MarqueePoint {
-    const local = this.coordinateService.calcTabletopLocalCoordinate(
-      { x: screenX, y: screenY, z: 0 },
-      this.gameObjectsEl
-    );
+    const local = this.coordinateService.convertToFace({ x: screenX, y: screenY, z: 0 }, 'floor');
     return { x: local.x, y: local.y };
   }
 

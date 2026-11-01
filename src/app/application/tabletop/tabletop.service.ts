@@ -1,6 +1,6 @@
-import { computed, DestroyRef, inject, Injectable, Signal } from '@angular/core';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
+import { computed, DestroyRef, inject, Injectable, Injector, Signal } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TabletopDisplayPreferenceService } from '@axe/application/ui/tabletop-display-preference.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
@@ -45,7 +45,11 @@ type LocationName = string;
 
 @Injectable({ providedIn: 'root' })
 export class TabletopService {
-  private readonly coordinateService = inject(CoordinateService);
+  /**
+   * Fetches what picking needs only when a piece is dropped: picking reads the table through this
+   * service, so it cannot be asked for while this one is being made.
+   */
+  private readonly injector = inject(Injector);
   private readonly objectStore = inject(ObjectStore);
   private readonly objectSerializer = inject(ObjectSerializer);
   private readonly chatTabList = inject(ChatTabList);
@@ -277,15 +281,10 @@ export class TabletopService {
       const gameObject = this.objectSerializer.parseXml(xmlElement);
 
       if (gameObject instanceof TabletopObject) {
-        const dropTarget = event.dropPoint
-          ? ((document.elementFromPoint(event.dropPoint.x, event.dropPoint.y) as HTMLElement) ?? undefined)
-          : undefined;
-        const pointer = dropTarget
-          ? this.coordinateService.calcTabletopLocalCoordinate(
-              { x: event.dropPoint!.x, y: event.dropPoint!.y, z: 0 },
-              dropTarget
-            )
-          : this.coordinateService.calcTabletopLocalCoordinate();
+        const pick = this.injector.get(TablePickService);
+        const pointer = event.dropPoint
+          ? pick.landingAt(event.dropPoint.x, event.dropPoint.y)
+          : pick.landingAtPointer();
         gameObject.location.x = pointer.x - this.gridSize() / 2;
         gameObject.location.y = pointer.y - this.gridSize() / 2;
         gameObject.posZ = pointer.z;

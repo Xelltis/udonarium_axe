@@ -14,6 +14,7 @@ import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -32,6 +33,7 @@ import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { hexCircumradius, isFlatTopGrid, isHexGrid, pixelToHexCell } from '@axe/domain/tabletop/hex-geometry';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { surfaceKeyOf } from '@axe/domain/tabletop/tabletop-object';
 import { CreateObjectMenuService } from '@axe/features/tabletop/create-menu/create-object-menu.service';
 import { buildGameTableMaskContextMenu } from '@axe/features/tabletop/game-table-mask/game-table-mask-context-menu';
 import {
@@ -88,6 +90,7 @@ export class GameTableMaskComponent {
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly modalService = inject(ModalService);
   private readonly coordinateService = inject(CoordinateService);
+  private readonly tablePick = inject(TablePickService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly inventoryService = inject(GameObjectInventoryService);
   private readonly uiSignalService = inject(UiSignalService);
@@ -650,9 +653,9 @@ export class GameTableMaskComponent {
       offsetX = position.offsetX;
       offsetY = position.offsetY;
     } else {
-      const scratchingPosition = this.coordinateService.calcTabletopLocalCoordinate(
+      const scratchingPosition = this.coordinateService.convertToFace(
         this.pointerDeviceService.pointers[0],
-        this.elementRef.nativeElement
+        surfaceKeyOf(mask)
       );
       offsetX = scratchingPosition.x - mask.location.x;
       offsetY = scratchingPosition.y - mask.location.y;
@@ -737,7 +740,7 @@ export class GameTableMaskComponent {
     if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
     const menuPosition = this.pointerDeviceService.pointers[0];
     if (this.pieceContextMenu.openForSelection(mask, this.gridSize, menuPosition)) return;
-    const objectPosition = this.coordinateService.calcTabletopLocalCoordinate();
+    const objectPosition = this.tablePick.landingAtPointer();
     const menuArray = buildGameTableMaskContextMenu({
       mask: mask,
       gridSize: this.gridSize,

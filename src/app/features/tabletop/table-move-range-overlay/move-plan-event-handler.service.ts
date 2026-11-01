@@ -1,6 +1,7 @@
 import { DestroyRef, effect, inject, Injectable } from '@angular/core';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
 
 /**
@@ -15,6 +16,7 @@ import { isTypingTarget } from '@axe/core/input/typing-target';
 export class MovePlanEventHandlerService {
   private readonly movePlan = inject(MovePlannerService);
   private readonly coordinate = inject(CoordinateService);
+  private readonly tablePick = inject(TablePickService);
   private readonly destroyRef = inject(DestroyRef);
 
   private listening = false;
@@ -131,7 +133,6 @@ export class MovePlanEventHandlerService {
   }
 
   private tablePoint(event: MouseEvent): { x: number; y: number } {
-    const target = event.target instanceof HTMLElement ? event.target : undefined;
-    return this.coordinate.calcTabletopLocalCoordinate({ x: event.clientX, y: event.clientY, z: 0 }, target);
+    return this.tablePick.landingAt(event.clientX, event.clientY);
   }
 }

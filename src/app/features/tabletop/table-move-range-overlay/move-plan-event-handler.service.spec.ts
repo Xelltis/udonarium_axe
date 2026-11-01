@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { MovePlan } from '@axe/application/tabletop/move-plan.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { MovePlanEventHandlerService } from '@axe/features/tabletop/table-move-range-overlay/move-plan-event-handler.service';
 
 describe('MovePlanEventHandlerService', () => {
@@ -20,10 +21,8 @@ describe('MovePlanEventHandlerService', () => {
     cancel: vi.fn(),
     toggleJump: vi.fn(),
   };
-  const coordinate = {
-    tabletopOriginElement: document.body,
-    calcTabletopLocalCoordinate: vi.fn(() => ({ x: 120, y: 340, z: 0 })),
-  };
+  const coordinate = { tabletopOriginElement: document.body };
+  const tablePick = { landingAt: vi.fn(() => ({ x: 120, y: 340, z: 0 })) };
 
   function openAMove(piece = 'piece'): void {
     opened.update((count) => count + 1);
@@ -56,6 +55,7 @@ describe('MovePlanEventHandlerService', () => {
       providers: [
         { provide: MovePlannerService, useValue: movePlan },
         { provide: CoordinateService, useValue: coordinate },
+        { provide: TablePickService, useValue: tablePick },
       ],
     });
     TestBed.inject(MovePlanEventHandlerService);

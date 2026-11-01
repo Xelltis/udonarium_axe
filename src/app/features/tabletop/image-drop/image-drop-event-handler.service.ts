@@ -1,9 +1,9 @@
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { ImageDroppedEvent } from '@axe/core/event/domain-events';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -22,7 +22,7 @@ export class ImageDropEventHandlerService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tabletopActionService = inject(TabletopActionService);
-  private readonly coordinateService = inject(CoordinateService);
+  private readonly tablePick = inject(TablePickService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly t = inject(TRANSLATE_FN);
@@ -37,12 +37,7 @@ export class ImageDropEventHandlerService {
     const dropTarget = document.elementFromPoint(event.dropPoint.x, event.dropPoint.y) as HTMLElement | null;
     if (!isTabletopDropTarget(dropTarget)) return;
 
-    const position = this.clampToTable(
-      this.coordinateService.calcTabletopLocalCoordinate(
-        { x: event.dropPoint.x, y: event.dropPoint.y, z: 0 },
-        dropTarget!
-      )
-    );
+    const position = this.clampToTable(this.tablePick.landingAt(event.dropPoint.x, event.dropPoint.y));
     const name = characterNameFromFileName(event.fileName, this.t('feature.tabletop.action.defaultCharacterName'));
 
     this.tabletopActionService.createGameCharacterWith(position, name, event.identifier);
