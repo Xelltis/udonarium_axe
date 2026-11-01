@@ -130,6 +130,27 @@ function changesBetweenShots(page: Page): Promise<Changes> {
   );
 }
 
+/** A point of the page on a block as picking finds it, where the page draws no piece over it, and that block. */
+async function pointOnBlock(page: Page): Promise<{ x: number; y: number; id: string }> {
+  const found = await page.evaluate(() => {
+    const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+    const layer = document.querySelector('#app-table-layer')!;
+    for (let y = 200; y < innerHeight - 100; y += 7) {
+      for (let x = 200; x < innerWidth - 200; x += 7) {
+        const front = document.elementFromPoint(x, y);
+        if (!front || !layer.contains(front) || front.closest('[data-object-id]')) continue;
+        const picked = hooks.pickAt(x, y);
+        // Well inside the block, so a press there lands on it whichever way it is rounded.
+        const around = [-6, 6].every((dx) => [-6, 6].every((dy) => hooks.pickAt(x + dx, y + dy) === picked));
+        if (picked !== null && hooks.aliasOf(picked) === 'terrain' && around) return { x, y, id: picked };
+      }
+    }
+    return null;
+  });
+  expect(found, 'a point on a block').not.toBeNull();
+  return found!;
+}
+
 test.describe('blocks drawn on a canvas', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
@@ -174,4 +195,38 @@ test.describe('blocks drawn on a canvas', () => {
       expect(changes.blockChanged / changes.block, `the blocks hide it: ${JSON.stringify(changes)}`).toBeLessThan(0.01);
     });
   }
+
+  test('open a block’s menu when it is right-clicked on the canvas', async ({ page }) => {
+    expect(await setBlocksDown(page)).toBeGreaterThanOrEqual(3);
+    await idle(page);
+    const spot = await pointOnBlock(page);
+
+    await page.mouse.click(spot.x, spot.y, { button: 'right' });
+
+    const menu = page.locator('context-menu');
+    await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
+    await expect(menu.getByText('傾斜')).toBeVisible();
+  });
+
+  test('move a block dragged on the canvas', async ({ page }) => {
+    expect(await setBlocksDown(page)).toBeGreaterThanOrEqual(3);
+    await idle(page);
+    const spot = await pointOnBlock(page);
+    const place = page.locator(`terrain[data-object-id="${spot.id}"] [data-location]`).first();
+    const before = await place.getAttribute('data-location');
+
+    await page.mouse.move(spot.x, spot.y);
+    await page.mouse.down();
+    await page.mouse.move(spot.x + 60, spot.y + 30, { steps: 6 });
+    await page.mouse.move(spot.x + 120, spot.y + 60, { steps: 6 });
+    await page.mouse.up();
+
+    await expect.poll(() => place.getAttribute('data-location')).not.toBe(before);
+    await idle(page);
+    const left = await page.evaluate(
+      ({ x, y }) => (window as unknown as { __axeTable: Hooks }).__axeTable.pickAt(x, y),
+      { x: spot.x, y: spot.y }
+    );
+    expect(left, 'the block has gone from where it was pressed').not.toBe(spot.id);
+  });
 });
