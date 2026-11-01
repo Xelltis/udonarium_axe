@@ -6,7 +6,7 @@
       class="border-ui-border-panel bg-ui-elevated text-ui-text min-w-0 flex-1 rounded-[3px] border border-solid px-1.5 py-1"
       (change)="setKind($any($event.target).value)"
     >
-      @for (choice of kinds; track choice) {
+      @for (choice of kinds(); track choice) {
         <option [value]="choice" [selected]="choice === kind()">
           {{ 'feature.hotbar.kind.' + choice | transloco }}
         </option>

@@ -113,7 +113,16 @@ export class HotbarSlotEditorComponent {
   readonly cell = signal<HotbarCell>({ page: 0, slotIndex: 0 });
   readonly draft = signal<HotbarSlotDraft>(emptyHotbarSlotDraft());
 
-  readonly kinds = HOTBAR_SLOT_KINDS;
+  /**
+   * The kinds a slot may be made, the scenes only for the game master, who alone puts them on and
+   * whose scenes nobody else is to read the names of. A slot already of a kind keeps it listed.
+   */
+  readonly kinds = computed(() => {
+    this.objectChange.trackMyCursor();
+    const master = PeerCursor.isMyselfGameMaster;
+    const current = this.kind();
+    return HOTBAR_SLOT_KINDS.filter((kind) => kind !== 'scene' || master || kind === current);
+  });
   protected readonly effectModes = EFFECT_MODES;
   protected readonly panelNames = CHARACTER_PANELS;
   protected readonly turnActions = TURN_ACTIONS;
@@ -266,6 +275,8 @@ export class HotbarSlotEditorComponent {
   });
   /** The scenes a scene slot may put on. */
   protected readonly sceneChoices = computed(() => {
+    this.objectChange.trackMyCursor();
+    if (!PeerCursor.isMyselfGameMaster) return [];
     this.objectChange.collectionOf(BoardScene.aliasName)();
     return BoardScene.all().map((scene) => ({ identifier: scene.identifier, name: scene.name }));
   });
