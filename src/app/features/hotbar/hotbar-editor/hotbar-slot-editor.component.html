@@ -169,6 +169,34 @@
         </select>
       </label>
     }
+    @case ('scene') {
+      <label class="flex items-center gap-2">
+        <span class="text-ui-muted w-20 shrink-0">{{ 'feature.hotbar.editor.scene' | transloco }}</span>
+        <select
+          data-testid="hotbar-editor-scene"
+          class="border-ui-border-panel bg-ui-elevated text-ui-text min-w-0 flex-1 rounded-[3px] border border-solid px-1.5 py-1"
+          (change)="setScene($any($event.target).value)"
+        >
+          <option value="" [selected]="!sceneOptions()?.scene">
+            {{ 'feature.hotbar.editor.unchosen' | transloco }}
+          </option>
+          @for (scene of sceneChoices(); track scene.identifier) {
+            <option [value]="scene.identifier" [selected]="scene.identifier === sceneOptions()?.scene">
+              {{ scene.name }}
+            </option>
+          }
+        </select>
+      </label>
+      <label class="flex cursor-pointer items-center gap-1.5">
+        <input
+          type="checkbox"
+          class="m-0 cursor-pointer [accent-color:var(--ui-accent)]"
+          [checked]="sceneOptions()?.keepBgm === true"
+          (change)="patchOptions({ keepBgm: $any($event.target).checked })"
+        />
+        <span>{{ 'feature.scene.menu.applyWithoutBgm' | transloco }}</span>
+      </label>
+    }
     @case ('turn') {
       <label class="flex items-center gap-2">
         <span class="text-ui-muted w-20 shrink-0">{{ 'feature.hotbar.editor.action' | transloco }}</span>

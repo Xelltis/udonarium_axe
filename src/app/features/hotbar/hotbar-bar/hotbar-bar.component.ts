@@ -41,6 +41,7 @@ import { presetSoundLabelKey, soundFileName } from '@axe/domain/media/preset-sou
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
+import { BoardScene } from '@axe/domain/scene/board-scene';
 import { MenuCommand, menuCommandOf } from '@axe/domain/ui/menu-command';
 import { HotbarService } from '@axe/features/hotbar/hotbar.service';
 import { findSlotActorAmong } from '@axe/features/hotbar/hotbar-actor';
@@ -460,6 +461,13 @@ export class HotbarBarComponent {
     if (slot.slotKind === 'menu') {
       const command = this.menuCommandOfSlot(slot);
       return command ? this.t(this.menuCommands.labelKeyOf(command)) : '';
+    }
+    if (slot.slotKind === 'scene') {
+      const options = slot.options;
+      if (options.kind !== 'scene') return '';
+      this.objectChange.collectionOf(BoardScene.aliasName)();
+      const found = findByReference(BoardScene.all(), options.scene, options.sceneName);
+      return found?.thing.name ?? options.sceneName;
     }
     const identifier = slot.argument.trim();
     if (!identifier) return '';

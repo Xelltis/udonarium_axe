@@ -6,6 +6,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
 import { NamedCueService } from '@axe/application/media/named-cue.service';
 import { TableBgmService } from '@axe/application/media/table-bgm.service';
+import { BoardSceneService } from '@axe/application/tabletop/board-scene.service';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { Network } from '@axe/core/network/network';
@@ -18,6 +19,7 @@ import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { BoardScene } from '@axe/domain/scene/board-scene';
 import { BoardSwitch } from '@axe/domain/tabletop/board-switch/board-switch';
 import {
   defaultSwitchDefinition,
@@ -507,6 +509,31 @@ describe('SwitchPressService', () => {
           ],
         })
       );
+      expect(music).not.toHaveBeenCalled();
+    });
+
+    it('puts a scene on for whoever presses it, found by its name, with none of the table’s music over it', async () => {
+      const cellar = new GameTable();
+      cellar.name = '地下室';
+      cellar.initialize();
+      const scene = new BoardScene();
+      scene.name = '地下';
+      scene.tableIdentifier = cellar.identifier;
+      scene.bgm = 'stop';
+      scene.initialize();
+      const music = vi.spyOn(TestBed.inject(TableBgmService), 'playFor').mockImplementation(() => undefined);
+      const apply = vi.spyOn(TestBed.inject(BoardSceneService), 'apply');
+
+      await presses.press(
+        switchWith({
+          actions: [
+            { kind: 'showTable', table: { identifier: cellar.identifier, name: '地下室' }, delayMs: 0, extra: {} },
+            { kind: 'scene', scene: { identifier: 'elsewhere', name: '地下' }, keepBgm: false, delayMs: 0, extra: {} },
+          ],
+        })
+      );
+
+      expect(apply).toHaveBeenCalledWith(scene, { bgm: true, trusted: true });
       expect(music).not.toHaveBeenCalled();
     });
 

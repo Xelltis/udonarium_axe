@@ -71,6 +71,14 @@ describe('SceneEditorComponent', () => {
     expect(root.querySelector('[data-testid="scene-picture-floorImageIdentifier"]')).toBeNull();
   });
 
+  it('darkens every screen while the scene changes, where its box is ticked', () => {
+    const root = open();
+
+    tick(root, 'fade');
+
+    expect(scene.fade).toBe('true');
+  });
+
   it('starts the music and background sounds as silence while the room plays none', () => {
     const root = open();
 

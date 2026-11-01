@@ -49,6 +49,8 @@ export type HotbarPayload =
   | { kind: 'menu'; command: string }
   | { kind: 'sound'; local: boolean }
   | { kind: 'cutIn'; soundOnly: boolean }
+  /** The scene, by identifier and by the name it went by, and whether the music is left as it is. */
+  | { kind: 'scene'; scene: string; sceneName: string; keepBgm: boolean }
   | { kind: 'turn'; action: TurnAction }
   /** A piece changing what it looks like. A part left at its "leave it" value is not touched. */
   | { kind: 'appearance'; image: number; portrait: number; size: number }
@@ -108,6 +110,8 @@ export function defaultHotbarPayload(kind: HotbarSlotKind): HotbarPayload {
       return { kind: 'sound', local: false };
     case 'cutIn':
       return { kind: 'cutIn', soundOnly: false };
+    case 'scene':
+      return { kind: 'scene', scene: '', sceneName: '', keepBgm: false };
     case 'turn':
       return { kind: 'turn', action: 'next' };
     case 'appearance':
@@ -168,6 +172,13 @@ export function parseHotbarPayload(kind: HotbarSlotKind, raw: unknown): HotbarPa
       return { kind: 'sound', local: readBoolean(held.local, fallback.local) };
     case 'cutIn':
       return { kind: 'cutIn', soundOnly: readBoolean(held.soundOnly, fallback.soundOnly) };
+    case 'scene':
+      return {
+        kind: 'scene',
+        scene: readString(held.scene, fallback.scene),
+        sceneName: readString(held.sceneName, fallback.sceneName),
+        keepBgm: readBoolean(held.keepBgm, fallback.keepBgm),
+      };
     case 'turn':
       return { kind: 'turn', action: readOneOf(held.action, TURN_ACTIONS, fallback.action) };
     case 'appearance':

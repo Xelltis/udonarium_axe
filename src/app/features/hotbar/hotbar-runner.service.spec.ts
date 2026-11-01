@@ -5,6 +5,7 @@ import { DiceRollService } from '@axe/application/dice/dice-roll.service';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { CutInService } from '@axe/application/media/cut-in.service';
+import { BoardSceneService } from '@axe/application/tabletop/board-scene.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
@@ -28,6 +29,8 @@ import { hotbarSlotTag } from '@axe/domain/hotbar/hotbar-tag';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
+import { BoardScene } from '@axe/domain/scene/board-scene';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { menuCommandOf } from '@axe/domain/ui/menu-command';
@@ -442,6 +445,40 @@ describe('HotbarRunnerService', () => {
 
       expect(run(slot, null)).toEqual({ ok: true });
       expect(launch).toHaveBeenCalledWith(cutIn);
+    });
+
+    describe('a scene slot', () => {
+      function sceneSlot(identifier: string, name = '', keepBgm = false): HotbarSlot {
+        return slotOf('scene', '', { kind: 'scene', scene: identifier, sceneName: name, keepBgm });
+      }
+
+      it('puts the scene on for the game master, by name where the identifier came from another room', () => {
+        PeerCursor.createMyCursor();
+        PeerCursor.myCursor.role = PeerRole.GameMaster;
+        const scene = new BoardScene();
+        scene.name = '夜の村';
+        scene.initialize();
+        const apply = vi.spyOn(TestBed.inject(BoardSceneService), 'apply').mockReturnValue(true);
+
+        expect(run(sceneSlot('elsewhere', '夜の村', true), null)).toEqual({ ok: true });
+        expect(apply).toHaveBeenCalledWith(scene, { bgm: false });
+      });
+
+      it('does nothing for a player, and says so where the scene is gone', () => {
+        PeerCursor.createMyCursor();
+        const scene = new BoardScene();
+        scene.initialize();
+
+        PeerCursor.myCursor.role = PeerRole.Player;
+        expect(run(sceneSlot(scene.identifier), null)).toEqual({ ok: false, reason: 'notAllowed' });
+
+        PeerCursor.myCursor.role = PeerRole.GameMaster;
+        expect(run(sceneSlot('gone'), null)).toEqual({ ok: false, reason: 'notFound' });
+      });
+
+      it('leaves the value an older version would say in the chat empty', () => {
+        expect(sceneSlot('scene-1', '夜の村').argument).toBe('');
+      });
     });
 
     it('says so when the cut-in it points at is gone', () => {

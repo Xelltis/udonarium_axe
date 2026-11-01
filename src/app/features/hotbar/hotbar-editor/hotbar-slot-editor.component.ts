@@ -42,6 +42,7 @@ import {
 import { CutIn } from '@axe/domain/media/cut-in';
 import { presetSoundLabelKey, soundFileName } from '@axe/domain/media/preset-sound-labels';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { BoardScene } from '@axe/domain/scene/board-scene';
 import { RANGE_DEFAULT_BORDER_COLOR, RANGE_DEFAULT_FILL_COLOR } from '@axe/domain/tabletop/range';
 import { isMenuCommandOffered, MENU_COMMANDS } from '@axe/domain/ui/menu-command';
 import { CHARACTER_PANELS, DEFAULT_CHARACTER_PANEL, panelLabelKey } from '@axe/domain/ui/room-panel';
@@ -263,6 +264,22 @@ export class HotbarSlotEditorComponent {
     const role = PeerCursor.myRole;
     return MENU_COMMANDS.filter((command) => command.action.kind !== 'custom' && isMenuCommandOffered(command, role));
   });
+  /** The scenes a scene slot may put on. */
+  protected readonly sceneChoices = computed(() => {
+    this.objectChange.collectionOf(BoardScene.aliasName)();
+    return BoardScene.all().map((scene) => ({ identifier: scene.identifier, name: scene.name }));
+  });
+  protected readonly sceneOptions = computed(() => {
+    const options = this.options();
+    return options.kind === 'scene' ? options : null;
+  });
+
+  /** Points a scene slot at a scene, keeping the name it went by for a bar read in another room. */
+  protected setScene(identifier: string): void {
+    const scene = this.sceneChoices().find((choice) => choice.identifier === identifier);
+    this.patchOptions({ scene: scene?.identifier ?? '', sceneName: scene?.name ?? '' });
+  }
+
   protected readonly menuCommandKey = computed(() => {
     const options = this.options();
     return options.kind === 'menu' ? options.command : '';

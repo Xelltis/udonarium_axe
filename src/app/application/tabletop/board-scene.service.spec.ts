@@ -3,7 +3,8 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { CutInService } from '@axe/application/media/cut-in.service';
 import { TableBgmService } from '@axe/application/media/table-bgm.service';
 import { BoardSceneService } from '@axe/application/tabletop/board-scene.service';
-import { emitSelectGameTable, selectGameTable$ } from '@axe/core/event/domain-events';
+import { emitSelectGameTable, sceneFade$, selectGameTable$ } from '@axe/core/event/domain-events';
+import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -16,6 +17,7 @@ import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { BoardScene } from '@axe/domain/scene/board-scene';
+import { SCENE_FADE } from '@axe/domain/scene/board-scene-parts';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -190,6 +192,39 @@ describe('BoardSceneService', () => {
       expect(rain.stop).not.toHaveBeenCalled();
       expect(crowd.stop).toHaveBeenCalled();
       expect(start.mock.calls).toEqual([['fire']]);
+    });
+  });
+
+  describe('a scene that fades', () => {
+    beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout'] }));
+    afterEach(() => vi.useRealTimers());
+
+    it('darkens every screen first, and is put on once they are dark', () => {
+      let fades = 0;
+      const off = sceneFade$.subscribe(() => fades++);
+
+      setNetworkIsolated(true);
+      try {
+        service.apply(scene({ fade: 'true', floorImageIdentifier: 'night' }));
+      } finally {
+        setNetworkIsolated(false);
+      }
+      expect(fades).toBe(1);
+      expect(village.imageIdentifier).not.toBe('night');
+
+      vi.advanceTimersByTime(SCENE_FADE.inMs);
+      off();
+      expect(village.imageIdentifier).toBe('night');
+    });
+
+    it('is not put on once it is deleted while the screens darken', () => {
+      const night = scene({ fade: 'true', floorImageIdentifier: 'night' });
+
+      service.apply(night);
+      night.destroy();
+      vi.advanceTimersByTime(SCENE_FADE.inMs);
+
+      expect(village.imageIdentifier).not.toBe('night');
     });
   });
 

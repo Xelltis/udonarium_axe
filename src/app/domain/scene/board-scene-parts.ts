@@ -5,6 +5,12 @@ import type { BoardScene } from '@axe/domain/scene/board-scene';
 import { FilterType, type GameTable } from '@axe/domain/tabletop/game-table';
 import { foregroundFitOf, foregroundOpacityOf } from '@axe/domain/tabletop/table-foreground';
 
+/**
+ * How a screen darkens while a scene changes: dark within the first span, the scene put on as it is,
+ * kept dark a moment longer for the change to reach every screen, then light again.
+ */
+export const SCENE_FADE = { inMs: 300, holdMs: 250, outMs: 450 } as const;
+
 /** What a scene writes in a picture's place to take the picture away. */
 export const SCENE_NO_PICTURE = 'none';
 

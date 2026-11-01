@@ -3,9 +3,9 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { GameClockService } from '@axe/application/game-clock/game-clock.service';
 import { CutInService } from '@axe/application/media/cut-in.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
-import { emitSelectGameTable } from '@axe/core/event/domain-events';
+import { callSceneFade, emitSelectGameTable } from '@axe/core/event/domain-events';
 import { GameObject } from '@axe/core/sync/game-object';
-import { ObjectStore } from '@axe/core/sync/object-store';
+import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { findByReference } from '@axe/domain/hotbar/hotbar-reference';
 import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
@@ -23,6 +23,7 @@ import {
   BOARD_SCENE_PART_FIELDS,
   type BoardSceneFields,
   captureTableLook,
+  SCENE_FADE,
   type SceneBgm,
   sceneBgmOf,
   type SceneBgs,
@@ -68,10 +69,24 @@ export class BoardSceneService {
 
   /**
    * Puts a scene on, leaving out the music or the words where asked. A part naming something no
-   * longer here, such as a deleted table or cut-in, is passed over. Answers whether it was put on.
+   * longer here, such as a deleted table or cut-in, is passed over. A scene that fades darkens every
+   * screen first and is put on once they are dark. Answers whether it was put on.
    */
   apply(scene: BoardScene, options: BoardSceneApplyOptions = {}): boolean {
     if (options.trusted ? PeerCursor.isMyselfKeptOffTable : !this.canUse()) return false;
+    if (`${scene.fade ?? ''}` !== 'true') {
+      this.putOn(scene, options);
+      return true;
+    }
+    callSceneFade();
+    setTimeout(() => {
+      if (isInStore(scene)) this.putOn(scene, options);
+    }, SCENE_FADE.inMs);
+    return true;
+  }
+
+  /** Puts a scene on at once, as {@link apply} describes. */
+  private putOn(scene: BoardScene, options: BoardSceneApplyOptions): void {
     const selecter = TableSelecter.instance;
     const named = this.tableOf(scene);
     const table = named ?? selecter.viewTable;
@@ -91,7 +106,6 @@ export class BoardSceneService {
       if (this.canUse()) Config.instance.boardScene = scene.identifier;
     });
     if (options.text !== false) this.say(scene);
-    return true;
   }
 
   /** Makes a scene of the table as it stands and what the room hears, under a name, last in the list. */

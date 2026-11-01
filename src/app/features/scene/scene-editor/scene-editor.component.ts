@@ -74,6 +74,7 @@ const SWITCHED_PARTS: readonly BoardScenePart[] = [
   'bgm',
   'bgs',
   'clock',
+  'fade',
 ];
 
 /**
@@ -213,6 +214,7 @@ export class SceneEditorComponent {
     if (part === 'bgm' && !now.bgm) taken.bgm = 'stop';
     if (part === 'bgs' && !now.bgs) taken.bgs = 'stop';
     if (part === 'clock') taken.clockPeriod = `${this.clock.clock().period}`;
+    if (part === 'fade') taken.fade = 'true';
     if (part === 'table' && !now.tableIdentifier) return;
     this.write(taken as Partial<BoardSceneFields>);
   }

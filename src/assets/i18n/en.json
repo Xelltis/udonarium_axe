@@ -486,7 +486,8 @@
         "appearanceSize": "Size",
         "appearanceKeep": "Leave",
         "appearanceHint": "A box left empty is left alone. The picture and the portrait are numbered from one, in the order the character carries them. The size is in cells. The portrait reaches this screen alone.",
-        "menuCommand": "Entry"
+        "menuCommand": "Entry",
+        "scene": "Scene"
       },
       "kind": {
         "chat": "Chat / dice",
@@ -503,7 +504,8 @@
         "prefill": "Draft into the chat box",
         "turn": "Turn order",
         "group": "Multi-action",
-        "appearance": "Change how it looks"
+        "appearance": "Change how it looks",
+        "scene": "Scene"
       },
       "mode": {
         "cast": "Cast",
@@ -537,7 +539,8 @@
         "prefill": "Puts the text in the chat box without sending it, for a long line you want to finish by hand.",
         "turn": "Moves the turn order on or back.",
         "group": "Choose other slots and this one fires them in turn. A multi-action cannot hold another.",
-        "appearance": "Swaps the piece's picture, the portrait it speaks with, and its size. Put beside an effect in a multi-action, it is a transformation."
+        "appearance": "Swaps the piece's picture, the portrait it speaks with, and its size. Put beside an effect in a multi-action, it is a transformation.",
+        "scene": "Applies the scene chosen. Only the GM can use it."
       },
       "lock": "Hold it where it stands",
       "pageTitle": "Page {{page}}",
@@ -5480,7 +5483,8 @@
         "showTable": "Switch the table",
         "carry": "Carry the presser's piece",
         "tableSetting": "Change table settings",
-        "battle": "Battle cut-in"
+        "battle": "Battle cut-in",
+        "scene": "Apply a scene"
       },
       "delay": "Wait (s)",
       "moveUp": "Move up",
@@ -5572,7 +5576,8 @@
         "on": "On",
         "off": "Off"
       },
-      "battleHint": "Plays a battle cut-in for everyone with the pieces the GM put on the left and right. The attacker is, of the pieces in the lineup, the one whose turn it is, then the presser's piece, then the first on the left."
+      "battleHint": "Plays a battle cut-in for everyone with the pieces the GM put on the left and right. The attacker is, of the pieces in the lineup, the one whose turn it is, then the presser's piece, then the first on the left.",
+      "sceneHint": "Applies the scene from the screen of whoever presses it, a player as well."
     },
     "soundSettings": {
       "ownHeading": "Your volume",
