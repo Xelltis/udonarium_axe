@@ -7,6 +7,7 @@ import { TableSurfaceService } from '@axe/application/tabletop/table-surface.ser
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { DEFAULT_TABLE_CAMERA_VIEW, pageOfTablePoint, TableLayout } from '@axe/domain/tabletop/camera/table-camera';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -254,5 +255,16 @@ describe('TablePickService', () => {
     expect(service.pickAt(frame.x, frame.y)?.target).toMatchObject({ id: die.identifier, layer: 'dice-symbol' });
     expect(service.targets()).toEqual([]);
     expect(service.landingAt(frame.x, frame.y).z).toBe(0);
+  });
+
+  it('lands on a coin where its disc lies, and beside it on nothing', async () => {
+    const coin = Coin.create('coin');
+    coin.location = { name: 'table', x: 5 * GRID, y: 5 * GRID };
+    await settled();
+
+    const top = onPage(5, 5, 6);
+    expect(service.pickAt(top.x, top.y)?.target).toMatchObject({ id: coin.identifier, layer: 'coin' });
+    const corner = pageOfTablePoint(camera.sceneMatrix()!, 5 * GRID + 3, 5 * GRID + 3, 6);
+    expect(service.pickAt(corner.x, corner.y)).toBeNull();
   });
 });

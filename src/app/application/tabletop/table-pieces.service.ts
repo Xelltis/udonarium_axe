@@ -9,12 +9,14 @@ import { TransientPlacementService } from '@axe/application/tabletop/transient-p
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
 import { boardSurfaceOf, surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { DICE_FRAME_COLOUR, diceSymbolSprites } from '@axe/domain/tabletop/world/dice-symbol-sprites';
+import { tableCoinOf, TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 
 /** The theme's colour a frame takes for a piece that is somebody's, as the page names it. */
@@ -30,14 +32,15 @@ interface DrawnPlace {
 }
 
 /**
- * The sprites the pieces on the table in view are drawn with, worked out for this seat: what the
- * seat may not see is left out, and a piece it is moving is drawn where it is being moved to.
+ * How the pieces on the table in view are drawn, worked out for this seat: the sprites most are
+ * drawn with, and the coins. What the seat may not see is left out, and a piece it is moving is
+ * drawn where it is being moved to.
  *
  * Both the canvas that draws the table and the picking that says what a press lands on read them,
  * so a piece is pressed where it is drawn.
  */
 @Injectable({ providedIn: 'root' })
-export class TableSpritesService {
+export class TablePiecesService {
   private readonly tabletop = inject(TabletopService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly images = inject(ImageService);
@@ -51,6 +54,34 @@ export class TableSpritesService {
 
   /** Every sprite of every piece drawn on the table in view. */
   readonly sprites = computed<readonly TableWorldSprite[]>(() => this.diceSprites());
+
+  /** Every coin on the table in view. */
+  readonly coins = computed<readonly TableWorldCoin[]>(() => {
+    this.objectChange.collectionOf(Coin.aliasName)();
+    this.objectChange.collectionOf(WhiteBoard.aliasName)();
+    this.objectChange.fileVersion();
+    this.transient.version();
+    const gridSize = this.tabletop.currentTableVersion().gridSize;
+    const coins: TableWorldCoin[] = [];
+    for (const coin of this.tabletop.coins) {
+      this.objectChange.versionOf(coin.identifier)();
+      const size = coin.size > 0 ? coin.size : 1;
+      if (this.vision.isPieceHiddenByFog(coin, size)) continue;
+      const place = this.placeOf(coin);
+      if (!place) continue;
+      const drawn = tableCoinOf({
+        id: coin.identifier,
+        ...place,
+        sizePx: size * gridSize,
+        rotateDeg: coin.rotate,
+        backUp: coin.face === 'back',
+        frontPictureUrl: this.images.getEmptyOr(coin.frontImage).url,
+        backPictureUrl: this.images.getEmptyOr(coin.backImage).url,
+      });
+      if (drawn) coins.push(drawn);
+    }
+    return coins;
+  });
 
   /** The walls drawn on the table in view, which are drawn only with a picture. */
   private readonly drawnWalls = computed<ReadonlySet<string>>(() => {

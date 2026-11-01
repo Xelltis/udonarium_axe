@@ -6,6 +6,7 @@ import type {
   TableWorldCap,
   TableWorldWall,
 } from '@axe/domain/tabletop/world/table-world';
+import { CoinLayer } from '@axe/infrastructure/table-3d/coin-layer';
 import { changedChunks, chunkSignatures, facesByOwner, OwnedFaces } from '@axe/infrastructure/table-3d/face-chunks';
 import {
   boardGeometry,
@@ -123,6 +124,10 @@ class ThreeTableEngine implements Table3dEngine {
   private laidWalls: readonly TableWorldWall[] | null = null;
   private laidCaps: readonly TableWorldCap[] | null = null;
   private readonly sprites = new SpriteLayer((url) => this.sharedPicture(url, false));
+  private readonly coins = new CoinLayer(() => {
+    this.changed = true;
+    this.needsFrame();
+  });
 
   constructor(
     private readonly renderer: WebGPURenderer,
@@ -131,6 +136,7 @@ class ThreeTableEngine implements Table3dEngine {
     for (const camera of [this.perspective, this.orthographic]) camera.matrixAutoUpdate = false;
     this.scene.add(this.facesRoot);
     this.scene.add(this.sprites.group);
+    this.scene.add(this.coins.group);
   }
 
   onNeedsFrame(listener: () => void): void {
@@ -148,6 +154,7 @@ class ThreeTableEngine implements Table3dEngine {
       boardGridTriangles: shown(this.grid),
       topsGridTriangles: shown(this.topsGrid),
       sprites: this.sprites.group.children.length,
+      coins: this.coins.group.children.length,
     };
   }
 
@@ -166,6 +173,7 @@ class ThreeTableEngine implements Table3dEngine {
       this.placeFaces(world.walls, world.caps, world.board?.gridSize ?? 50);
     }
     this.sprites.set(world.sprites);
+    this.coins.set(world.coins);
     this.changed = true;
   }
 
@@ -226,6 +234,7 @@ class ThreeTableEngine implements Table3dEngine {
 
   dispose(): void {
     this.sprites.dispose();
+    this.coins.dispose();
     disposeObject(this.scene);
     for (const picture of this.loaded.values()) picture.dispose();
     for (const material of this.looks.values()) material.dispose();

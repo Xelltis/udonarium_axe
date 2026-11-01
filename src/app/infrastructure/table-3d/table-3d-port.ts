@@ -40,6 +40,8 @@ export interface Table3dStats {
   readonly topsGridTriangles: number;
   /** The pictures and frames of the pieces drawn. */
   readonly sprites: number;
+  /** The coins drawn. */
+  readonly coins: number;
 }
 
 /** What draws the table on a canvas. It draws only when something it was told has changed. */

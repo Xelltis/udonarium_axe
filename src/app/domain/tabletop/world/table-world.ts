@@ -11,6 +11,7 @@ import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TerrainFogCover } from '@axe/domain/tabletop/terrain-cover';
 import { blockFacesOf } from '@axe/domain/tabletop/world/block-faces';
+import { TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 
 /** A point of the board, in table pixels. */
@@ -98,12 +99,13 @@ export interface TableWorld {
   readonly board: TableWorldBoard | null;
   readonly walls: readonly TableWorldWall[];
   readonly caps: readonly TableWorldCap[];
-  /** The pictures and frames the pieces on the table are drawn with. */
+  /** The pictures and frames most pieces on the table are drawn with. */
   readonly sprites: readonly TableWorldSprite[];
+  readonly coins: readonly TableWorldCoin[];
 }
 
 /** The scene with nothing in it. */
-export const EMPTY_TABLE_WORLD: TableWorld = { board: null, walls: [], caps: [], sprites: [] };
+export const EMPTY_TABLE_WORLD: TableWorld = { board: null, walls: [], caps: [], sprites: [], coins: [] };
 
 /** How much bigger than a cell each hex a board is cut to is, so the cut leaves no seam between cells. */
 const HEX_CUT_OVERLAP_PX = 1;
@@ -140,6 +142,7 @@ export function tableWorldOf(
     },
     ...facesOf(table, terrains, pictureOf, coverOf),
     sprites: [],
+    coins: [],
   };
 }
 

@@ -12,7 +12,7 @@ import {
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
-import { TableSpritesService } from '@axe/application/tabletop/table-sprites.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
@@ -71,7 +71,7 @@ export class Table3dService {
   private readonly images = inject(ImageService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly vision = inject(VisionService);
-  private readonly pieces = inject(TableSpritesService);
+  private readonly pieces = inject(TablePiecesService);
   private readonly loadEngines = inject(TABLE_3D_ENGINES);
   private readonly askGraphics = inject(TABLE_GRAPHICS);
 
@@ -116,7 +116,11 @@ export class Table3dService {
    * The scene of the table in view: its board and blocks, and the pieces on it. A piece being moved
    * builds the pieces again and leaves the blocks as they were.
    */
-  readonly world = computed<TableWorld>(() => ({ ...this.faces(), sprites: this.pieces.sprites() }));
+  readonly world = computed<TableWorld>(() => ({
+    ...this.faces(),
+    sprites: this.pieces.sprites(),
+    coins: this.pieces.coins(),
+  }));
 
   /** Whether the canvas is asked for but not drawing yet, which the table covers until it is. */
   readonly preparing = computed(() => this.drawsOnCanvas() && this.backend() === null && !this.unavailable());

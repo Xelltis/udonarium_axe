@@ -4,18 +4,19 @@ import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
-import { TableSpritesService } from '@axe/application/tabletop/table-sprites.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { tableEyeMatrix, TableRay, tableRayOfPage } from '@axe/domain/tabletop/camera/table-camera';
 import { faceTarget } from '@axe/domain/tabletop/pick/face-pick';
-import { PickQuad } from '@axe/domain/tabletop/pick/pick-geometry';
+import { PickCylinder, PickShape } from '@axe/domain/tabletop/pick/pick-geometry';
 import { pickAll, pickFirst, PickHit, PickTarget } from '@axe/domain/tabletop/pick/pick-index';
 import { beamPickTarget, terrainPickTarget } from '@axe/domain/tabletop/pick/terrain-pick';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
 import { boardSurfaceOf, surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { COIN_KIND, TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import { eyeAxesOf, spriteCorners, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 
 /**
@@ -24,8 +25,7 @@ import { eyeAxesOf, spriteCorners, TableWorldSprite } from '@axe/domain/tabletop
  * drawn there.
  *
  * Terrain on the floor and on the white boards and the beams put on the walls are picked, and so
- * are the faces things are put on and the pieces drawn from sprites, by the sprites they are drawn
- * with.
+ * are the faces things are put on and the pieces, by the shapes the canvas draws them with.
  */
 @Injectable({
   providedIn: 'root',
@@ -39,13 +39,14 @@ export class TablePickService {
   private readonly images = inject(ImageService);
   private readonly coordinates = inject(CoordinateService);
   private readonly pointerDevice = inject(PointerDeviceService);
-  private readonly pieces = inject(TableSpritesService);
+  private readonly pieces = inject(TablePiecesService);
 
   /** Each object's target, kept until the object or the table's grid changes. */
   private readonly made = new Map<string, { key: string; target: PickTarget }>();
   /** The pieces' targets, kept until the pieces or the camera change. */
   private pieceTargetsMade: {
     sprites: readonly TableWorldSprite[];
+    coins: readonly TableWorldCoin[];
     camera: number;
     targets: readonly PickTarget[];
   } | null = null;
@@ -133,25 +134,37 @@ export class TablePickService {
   }
 
   /**
-   * The targets of the pieces drawn on the table in view, each made of the sprites it is drawn with,
-   * as the canvas lays them out for this seat. A sprite turned to the eye is picked where it is
-   * turned to now.
+   * The targets of the pieces drawn on the table in view, as the canvas lays them out for this
+   * seat: a piece drawn from sprites is made of a flat shape for each, a sprite turned to the eye
+   * picked where it is turned to now, and a coin is a disc on the face it lies on.
    */
   pieceTargets(): readonly PickTarget[] {
     return untracked(() => {
       const sprites = this.pieces.sprites();
+      const coins = this.pieces.coins();
       const camera = this.camera.version();
       const made = this.pieceTargetsMade;
-      if (made && made.sprites === sprites && made.camera === camera) return made.targets;
+      if (made && made.sprites === sprites && made.coins === coins && made.camera === camera) return made.targets;
       const view = this.camera.view;
       const layout = this.camera.layout;
       if (!view || !layout) return [];
       const eye = eyeAxesOf(tableEyeMatrix(view, layout));
-      const byOwner = new Map<string, { kind: string; shapes: PickQuad[] }>();
+      const byOwner = new Map<string, { kind: string; shapes: PickShape[] }>();
       for (const sprite of sprites) {
         const owner = byOwner.get(sprite.owner) ?? { kind: sprite.kind, shapes: [] };
         owner.shapes.push({ kind: 'quad', corners: spriteCorners(sprite, eye) });
         byOwner.set(sprite.owner, owner);
+      }
+      for (const coin of coins) {
+        const disc: PickCylinder = {
+          kind: 'cylinder',
+          centerX: coin.x,
+          centerY: coin.y,
+          radius: coin.radiusPx,
+          base: coin.base,
+          top: coin.base + coin.thicknessPx,
+        };
+        byOwner.set(coin.id, { kind: COIN_KIND, shapes: [{ kind: 'on-face', frame: coin.face, shape: disc }] });
       }
       const targets = [...byOwner].map(([id, owner]): PickTarget => ({
         id,
@@ -159,7 +172,7 @@ export class TablePickService {
         order: 0,
         shapes: owner.shapes,
       }));
-      this.pieceTargetsMade = { sprites, camera, targets };
+      this.pieceTargetsMade = { sprites, coins, camera, targets };
       return targets;
     });
   }
