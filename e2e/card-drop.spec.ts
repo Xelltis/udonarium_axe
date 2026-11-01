@@ -80,6 +80,10 @@ async function makeDeck(page: Page, at: Point) {
   const menu = await openTableContextMenu(page, at);
   await (await revealMenuEntry(page, menu, 'トランプの山札を作成')).click();
   await expect(page.locator('card-stack')).toHaveCount(before + 1, { timeout: 10000 });
+  // The new deck is made under the pointer, and the overview it opens there would cover the next
+  // place reached for.
+  await page.mouse.move(5, 400);
+  await expect(page.locator('overview-panel')).toHaveCount(0, { timeout: 5000 });
 }
 
 test.describe('letting go of cards over a deck', () => {
