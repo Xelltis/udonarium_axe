@@ -5,6 +5,7 @@ import type {
   TableWorldCap,
   TableWorldWall,
 } from '@axe/domain/tabletop/world/table-world';
+import { changedChunks, chunkSignatures, facesByOwner, OwnedFaces } from '@axe/infrastructure/table-3d/face-chunks';
 import {
   boardGeometry,
   capGeometry,
@@ -46,6 +47,14 @@ const FAR_PX = 50000;
 
 /** How much white the board is veiled with while nothing is laid under it, as the page veils it. */
 const BOARD_VEIL = 0.15;
+
+/** What a face wears: the picture, how it is laid, and whether it is glass. */
+type FaceLook = { pictureUrl: string; tilePx: number; glass: boolean };
+
+/** The key faces drawn with one material share. */
+function lookOf(face: FaceLook): string {
+  return face.glass || !face.pictureUrl ? 'glass' : `${face.pictureUrl}|${face.tilePx > 0}`;
+}
 
 /** How far above the board the grid is laid, as the page lifts it. */
 const GRID_LIFT_PX = 0.15;
@@ -91,20 +100,22 @@ class ThreeTableEngine implements Table3dEngine {
   private needsFrame: () => void = () => undefined;
   private readonly pictures = new TextureLoader();
   private readonly loaded = new Map<string, Texture>();
-  private faces: Group | null = null;
+  private readonly facesRoot = new Group();
+  private readonly chunks = new Map<string, { owners: Map<string, string>; meshes: Group }>();
+  private readonly looks = new Map<string, MeshBasicNodeMaterial>();
   private grid: Mesh | null = null;
   private gridPicture: CanvasTexture | null = null;
   private gridDrawn = '';
   private lastGrid: Table3dGrid | null = null;
   private gridded: readonly TableWorldCap[] = [];
   private topsGrid: Mesh | null = null;
-  private facesPlanned = '';
 
   constructor(
     private readonly renderer: WebGPURenderer,
     readonly backend: 'webgpu' | 'webgl2'
   ) {
     for (const camera of [this.perspective, this.orthographic]) camera.matrixAutoUpdate = false;
+    this.scene.add(this.facesRoot);
   }
 
   onNeedsFrame(listener: () => void): void {
@@ -124,7 +135,7 @@ class ThreeTableEngine implements Table3dEngine {
 
   setWorld(world: TableWorld): void {
     this.placeBoard(world.board);
-    this.placeFaces(world.walls, world.caps);
+    this.placeFaces(world.walls, world.caps, world.board?.gridSize ?? 50);
     this.changed = true;
   }
 
@@ -185,6 +196,7 @@ class ThreeTableEngine implements Table3dEngine {
   dispose(): void {
     disposeObject(this.scene);
     for (const picture of this.loaded.values()) picture.dispose();
+    for (const material of this.looks.values()) material.dispose();
     try {
       this.renderer.dispose();
     } catch {
@@ -258,44 +270,56 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   /**
-   * Builds the faces of the blocks and of the table's walls afresh whenever any of them changes. The
-   * faces wearing the same picture the same way are drawn as one shape, so the table is drawn in as
-   * many calls as it has pictures rather than faces.
+   * Lays out the faces of the blocks and of the table's walls in chunks of the table's cells, and
+   * builds again only the chunks where anything changed: a block moved takes the chunk it left and
+   * the one it came to. Within a chunk the faces wearing the same picture the same way are drawn as
+   * one shape, so a chunk is drawn in as many calls as it has pictures rather than faces.
    */
-  private placeFaces(walls: readonly TableWorldWall[], caps: readonly TableWorldCap[]): void {
-    const planned = JSON.stringify([walls, caps]);
-    if (planned === this.facesPlanned) return;
-    this.facesPlanned = planned;
-    if (this.faces) {
-      this.scene.remove(this.faces);
-      this.faces.traverse((object) => {
-        const mesh = object as Mesh;
-        mesh.geometry?.dispose();
-        (mesh.material as MeshBasicNodeMaterial | undefined)?.dispose();
-      });
-      this.faces = null;
-    }
-    const byLook = new Map<
-      string,
-      { face: { pictureUrl: string; tilePx: number; glass: boolean }; shapes: BufferGeometry[] }
-    >();
-    const add = (face: { pictureUrl: string; tilePx: number; glass: boolean }, shape: BufferGeometry) => {
-      const key = face.glass || !face.pictureUrl ? 'glass' : `${face.pictureUrl}|${face.tilePx > 0}`;
-      const look = byLook.get(key) ?? { face, shapes: [] };
-      look.shapes.push(shape);
-      byLook.set(key, look);
-    };
-    for (const wall of walls) add(wall, wallGeometry(wall));
-    for (const cap of caps) add(cap, capGeometry(cap));
-    const faces = new Group();
-    for (const { face, shapes } of byLook.values()) {
-      faces.add(new Mesh(mergedFaces(shapes), this.faceMaterial(face)));
-      for (const shape of shapes) shape.dispose();
-    }
-    this.faces = faces;
-    this.scene.add(faces);
+  private placeFaces(walls: readonly TableWorldWall[], caps: readonly TableWorldCap[], gridSize: number): void {
+    const owned = facesByOwner(walls, caps, gridSize);
+    const wanted = chunkSignatures(owned);
+    const before = new Map([...this.chunks].map(([key, chunk]) => [key, chunk.owners]));
+    for (const key of changedChunks(before, wanted)) this.buildChunk(key, wanted.get(key) ?? null, owned);
     this.gridded = caps.filter((cap) => cap.gridded);
     this.placeTopsGrid();
+  }
+
+  private buildChunk(key: string, owners: Map<string, string> | null, owned: ReadonlyMap<string, OwnedFaces>): void {
+    const old = this.chunks.get(key);
+    if (old) {
+      this.facesRoot.remove(old.meshes);
+      old.meshes.traverse((object) => (object as Mesh).geometry?.dispose());
+      this.chunks.delete(key);
+    }
+    if (!owners) return;
+    const byLook = new Map<string, { face: FaceLook; shapes: BufferGeometry[] }>();
+    const add = (face: FaceLook, shape: BufferGeometry) => {
+      const look = byLook.get(lookOf(face)) ?? { face, shapes: [] };
+      look.shapes.push(shape);
+      byLook.set(lookOf(face), look);
+    };
+    for (const owner of owners.keys()) {
+      const entry = owned.get(owner)!;
+      for (const wall of entry.walls) add(wall, wallGeometry(wall));
+      for (const cap of entry.caps) add(cap, capGeometry(cap));
+    }
+    const meshes = new Group();
+    for (const [look, { face, shapes }] of byLook) {
+      meshes.add(new Mesh(mergedFaces(shapes), this.sharedLook(look, face)));
+      for (const shape of shapes) shape.dispose();
+    }
+    this.chunks.set(key, { owners, meshes });
+    this.facesRoot.add(meshes);
+  }
+
+  /** The material every face wearing one picture one way is drawn with, made once. */
+  private sharedLook(look: string, face: FaceLook): MeshBasicNodeMaterial {
+    let material = this.looks.get(look);
+    if (!material) {
+      material = this.faceMaterial(face);
+      this.looks.set(look, material);
+    }
+    return material;
   }
 
   /** Lays the table's grid over the tops of the blocks that wear it, as it shows on the board. */
