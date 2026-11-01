@@ -217,6 +217,64 @@ describe('MovableDirective', () => {
   });
 });
 
+describe('MovableDirective a piece drawn inside another', () => {
+  @Component({
+    selector: 'nested-host',
+    template: `<div appMovable data-e2e="board" [movable.option]="{}">
+      <div appMovable data-e2e="piece" [movable.option]="{}" [movable.disable]="pieceLocked"></div>
+    </div>`,
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [MovableDirective],
+  })
+  class NestedHostComponent {
+    pieceLocked = false;
+  }
+
+  interface Pressed {
+    input: { isGrabbing: boolean } | null;
+  }
+
+  /** Both pieces, once they listen for presses, which they start to a little after they are drawn. */
+  async function mount(pieceLocked: boolean): Promise<{ board: Pressed; piece: Pressed; pieceElement: HTMLElement }> {
+    TestBed.configureTestingModule({ imports: [NestedHostComponent], providers: [...TEST_PROVIDERS] });
+    vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(true);
+    const fixture = TestBed.createComponent(NestedHostComponent);
+    fixture.componentInstance.pieceLocked = pieceLocked;
+    fixture.detectChanges();
+    const directiveOf = (name: string) =>
+      fixture.debugElement
+        .query((node) => node.attributes['data-e2e'] === name)
+        .injector.get(MovableDirective) as unknown as Pressed;
+    const pieceElement = fixture.nativeElement.querySelector('[data-e2e="piece"]') as HTMLElement;
+    const board = directiveOf('board');
+    const piece = directiveOf('piece');
+    await vi.waitFor(() => expect(board.input && piece.input).toBeTruthy());
+    return { board, piece, pieceElement };
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('is taken up alone when pressed, rather than carried along with what it is drawn in', async () => {
+    const { board, piece, pieceElement } = await mount(false);
+
+    pieceElement.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+
+    expect(piece.input?.isGrabbing).toBe(true);
+    expect(board.input?.isGrabbing).toBe(false);
+  });
+
+  it('leaves the press to what it is drawn in when it is locked', async () => {
+    const { board, piece, pieceElement } = await mount(true);
+
+    pieceElement.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+
+    expect(piece.input?.isGrabbing).toBe(false);
+    expect(board.input?.isGrabbing).toBe(true);
+  });
+});
+
 describe('MovableDirective layers', () => {
   @Component({
     selector: 'layer-host',

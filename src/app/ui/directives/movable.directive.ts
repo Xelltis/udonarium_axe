@@ -57,7 +57,9 @@ import {
   handleInputEnd,
   handleInputMove,
   handleInputStart,
+  isPressTaken,
   MovableInteractionContext,
+  takePress,
 } from '@axe/ui/directives/movable-interaction';
 
 const WALL_OCCLUSION_INSET_PX = 2;
@@ -647,8 +649,16 @@ export class MovableDirective implements MovableInteractionContext {
   /**
    * Called when the piece is pressed: selects it, joins a drag of the whole selection, and
    * starts listening to the wheel for raising or lowering it while it is held.
+   *
+   * A press a piece standing on this one has taken up is left to that piece, so a piece stuck to a
+   * board is dragged off it rather than carried along with the board. A piece that does not take
+   * the press, being locked, leaves it to the board.
    */
   onInputStart(e: MouseEvent | TouchEvent) {
+    if (isPressTaken(e)) {
+      this.input?.cancel();
+      return;
+    }
     this.callSelectedEvent();
     this.promoteWhileMoving(true);
     if (this.collidableElements.length < 1) this.findCollidableElements();
@@ -657,6 +667,7 @@ export class MovableDirective implements MovableInteractionContext {
     window.addEventListener('wheel', this.onWheelWhileGrabbed, { capture: true, passive: false });
     this.takeUpPiece();
     handleInputStart(this, e);
+    if (this.input?.isGrabbing) takePress(e);
   }
 
   /**

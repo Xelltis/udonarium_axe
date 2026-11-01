@@ -42,6 +42,22 @@ export interface MovableInteractionContext {
   scratchObjectPosition(start: boolean): void;
 }
 
+/** The presses a piece has already taken up, so the pieces it stands inside leave them alone. */
+const takenPresses = new WeakSet<Event>();
+
+/**
+ * Whether a press has already been taken up by a piece drawn inside this one, as a piece stuck to a
+ * white board is drawn inside the board. A press reaches the inner piece first, on its way out.
+ */
+export function isPressTaken(e: Event): boolean {
+  return takenPresses.has(e);
+}
+
+/** Says a press has been taken up, so a piece this one stands inside does not take it up as well. */
+export function takePress(e: Event): void {
+  takenPresses.add(e);
+}
+
 /**
  * Takes up a piece when it is pressed.
  *
