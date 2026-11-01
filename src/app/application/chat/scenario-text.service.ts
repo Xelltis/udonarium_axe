@@ -8,6 +8,7 @@ import { Network } from '@axe/core/network/network';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEY_PREFIXES, storageKeyFor } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { chatColorOf, DEFAULT_CHAT_COLOR } from '@axe/domain/chat/chat-color';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ScenarioText, type ScenarioTextSpeaker, scenarioTextSpeakerOf } from '@axe/domain/scenario-text/scenario-text';
@@ -20,6 +21,9 @@ export interface ScenarioTextSendOptions {
   /** The players it is whispered to, by their cursors; none says it to everyone who reads the tab. */
   readonly to?: readonly string[];
 }
+
+/** The colour the room says things in, as a system line goes out. */
+const SYSTEM_COLOR = '#006633';
 
 /** The fields of a text a copy of it takes over. */
 const COPIED_FIELDS = ['text', 'folderName', 'sendAs', 'tab', 'color', 'stamps'] as const;
@@ -82,10 +86,11 @@ export class ScenarioTextService {
     if (!this.canUse()) return null;
     const words = `${text.text ?? ''}`;
     if (words.trim().length < 1) return null;
-    const tab = this.tabOf(options.tab ?? text.tab);
+    const speaker = this.speakerOf(text, options.speaker);
+    const tab = this.tabOf(options.tab ?? text.tab, speaker);
     if (!tab) return null;
     const color = `${text.color ?? ''}`.trim();
-    const message = this.chat.sendVerbatim(tab, words, this.speakerOf(text, options.speaker), {
+    const message = this.chat.sendVerbatim(tab, words, speaker, {
       to: options.to ?? [],
       ...(color ? { color } : {}),
     });
@@ -100,6 +105,15 @@ export class ScenarioTextService {
     return this.sentAtByText.get(identifier) ?? null;
   }
 
+  /** The colour a text is said in as it stands: its own, else that of whoever says it. */
+  colorOf(text: ScenarioText): string {
+    const own = `${text.color ?? ''}`.trim();
+    if (own) return own;
+    const speaker = this.speakerOf(text);
+    if (speaker.kind === 'system') return SYSTEM_COLOR;
+    return speaker.kind === 'character' ? chatColorOf(speaker.character, 0) : DEFAULT_CHAT_COLOR;
+  }
+
   private speakerOf(text: ScenarioText, asked?: ScenarioTextSpeaker): VerbatimSpeaker {
     const speaker = asked ?? scenarioTextSpeakerOf(text.sendAs);
     if (speaker === 'system') return { kind: 'system' };
@@ -108,10 +122,15 @@ export class ScenarioTextService {
     return { kind: 'named', name: text.title.trim() || this.t('feature.scenarioText.untitled') };
   }
 
-  private tabOf(identifier: string): ChatTab | null {
+  /**
+   * The tab a text is said in: the one named, else the one being read. The system tab, which only
+   * the system says anything in, gives way to the first tab anyone else may speak in.
+   */
+  private tabOf(identifier: string, speaker: VerbatimSpeaker): ChatTab | null {
     const named = identifier ? this.objectStore.get(identifier) : null;
-    if (named instanceof ChatTab) return named;
-    return this.activeTab.current() ?? this.chat.chatTabs[0] ?? null;
+    const tab = named instanceof ChatTab ? named : (this.activeTab.current() ?? this.chat.chatTabs[0] ?? null);
+    if (!tab?.isSystemTab || speaker.kind === 'system') return tab;
+    return this.chat.chatTabs.find((candidate) => !candidate.isSystemTab) ?? null;
   }
 
   private markSent(identifier: string): void {

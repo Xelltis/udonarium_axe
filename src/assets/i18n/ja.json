@@ -5900,6 +5900,8 @@
       "tab": "タブ",
       "tabBeingRead": "開いているタブ",
       "color": "色",
+      "colorOfSpeaker": "話し手の色に戻す",
+      "colorOfSpeakerNote": "（話し手の色）",
       "whisperPlaceholder": "秘話で送る相手（選ばないと全員に送ります）",
       "send": "送る",
       "whisper": "秘話で送る",

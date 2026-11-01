@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { SYSTEM_CHAT_TAB_IDENTIFIER } from '@axe/domain/chat/constants';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ScenarioText } from '@axe/domain/scenario-text/scenario-text';
@@ -72,6 +73,55 @@ describe('ScenarioTextPanelComponent', () => {
     const said = main.children.at(-1) as unknown as { name: string; text: string };
     expect([said.name, said.text]).toEqual(['導入', '**雨**が降っている']);
     expect(root.querySelector('[data-testid="scenario-text-sent"]')).not.toBeNull();
+  });
+
+  it('whispers only from the button under the text picked, and lets the players go when another is picked', async () => {
+    const letter = textOf('密書', 'あなただけに', 1);
+    textOf('描写', '雨', 2);
+    const other = new PeerCursor();
+    other.userId = 'pl-user';
+    other.name = 'ミナ';
+    other.initialize();
+    const root = open(PeerRole.GameMaster);
+    const rows = () => root.querySelectorAll<HTMLElement>('[data-testid="scenario-text-row"]');
+    const lastTo = () => `${(main.children.at(-1) as unknown as { to?: string }).to ?? ''}`;
+
+    rows()[0].click();
+    await redraw();
+    fixture.componentInstance['whisperTo'].set([other.identifier]);
+    await redraw();
+
+    rows()[1].querySelector<HTMLButtonElement>('[data-testid="scenario-text-row-send"]')!.click();
+    expect(lastTo()).toBe('');
+
+    root.querySelector<HTMLButtonElement>('[data-testid="scenario-text-send"]')!.click();
+    expect(lastTo()).not.toBe('');
+    expect((main.children.at(-1) as unknown as { text: string }).text).toBe(letter.text);
+
+    rows()[1].click();
+    await redraw();
+    expect(fixture.componentInstance['whisperTo']()).toEqual([]);
+    other.destroy();
+  });
+
+  it('offers no system tab to say a text in, and puts the speaker’s colour back once one was chosen', async () => {
+    const notices = new ChatTab(SYSTEM_CHAT_TAB_IDENTIFIER);
+    notices.name = '通知';
+    notices.initialize();
+    ChatTabList.instance.addChatTab(notices);
+    const text = textOf('描写', '雨', 1);
+    text.color = '#123456';
+    const root = open(PeerRole.GameMaster);
+    root.querySelector<HTMLElement>('[data-testid="scenario-text-row"]')!.click();
+    await redraw();
+
+    expect(root.querySelector('[data-testid="scenario-text-editor"]')!.textContent).not.toContain('通知');
+    root.querySelector<HTMLButtonElement>('[data-testid="scenario-text-color-clear"]')!.click();
+    await redraw();
+
+    expect(text.color).toBe('');
+    expect(root.querySelector<HTMLInputElement>('[data-testid="scenario-text-color"]')!.value).toBe('#000000');
+    notices.destroy();
   });
 
   it('writes a new text, sharing the words a moment after the last key', async () => {

@@ -1,10 +1,12 @@
 import { TestBed } from '@angular/core/testing';
+import { ActiveChatTabService } from '@axe/application/chat/active-chat-tab.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
 import { ScenarioTextService } from '@axe/application/chat/scenario-text.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { SYSTEM_CHAT_TAB_IDENTIFIER } from '@axe/domain/chat/constants';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ScenarioText } from '@axe/domain/scenario-text/scenario-text';
@@ -74,6 +76,28 @@ describe('ScenarioTextService', () => {
       { kind: 'system' },
       { to: ['cursor-1'] }
     );
+  });
+
+  it('says it in the first tab anyone may speak in while the system tab is being read, but as the room in the system tab', () => {
+    const notices = new ChatTab(SYSTEM_CHAT_TAB_IDENTIFIER);
+    notices.initialize();
+    ChatTabList.instance.addChatTab(notices);
+    TestBed.inject(ActiveChatTabService).set(notices.identifier);
+
+    expect(service.send(textOf({ title: '描写', text: '雨' }))!.parent).not.toBe(notices);
+    expect(service.send(textOf({ title: '描写', text: '雨' }), { speaker: 'system' })!.parent).toBe(notices);
+    notices.destroy();
+  });
+
+  it('tells the colour a text goes out in: its own, else its speaker’s', () => {
+    const hero = GameCharacter.create('ヒロ', 1, '');
+    hero.chatColorCode = ['#aa0000', '#000000', '#000000'];
+    TestBed.inject(ChatSpeakerService).set(hero.identifier);
+
+    expect(service.colorOf(textOf({ text: '雨', color: '#123456' }))).toBe('#123456');
+    expect(service.colorOf(textOf({ text: '雨', sendAs: 'system' }))).toBe('#006633');
+    expect(service.colorOf(textOf({ text: '雨', sendAs: 'character' }))).toBe('#aa0000');
+    expect(service.colorOf(textOf({ text: '雨' }))).toBe('#000000');
   });
 
   it('says nothing for a player, nor a text with no words', () => {

@@ -167,7 +167,9 @@ export class ScenarioTextPanelComponent {
 
   protected readonly chatTabs = computed(() => {
     this.objectChange.collectionOf('chat-tab')();
-    return ChatTabList.instance.chatTabs.map((tab) => ({ identifier: tab.identifier, name: tab.name }));
+    return ChatTabList.instance.chatTabs
+      .filter((tab) => !tab.isSystemTab)
+      .map((tab) => ({ identifier: tab.identifier, name: tab.name }));
   });
 
   /** Everybody else at the table, who a text may be whispered to. */
@@ -227,15 +229,28 @@ export class ScenarioTextPanelComponent {
     return made;
   }
 
+  /** Picks a text to write and say, the players chosen to whisper the last one to let go. */
   protected pick(text: ScenarioText): void {
     this.flushWrite();
+    if (this.picked() !== text.identifier) this.whisperTo.set([]);
     this.picked.set(text.identifier);
   }
 
-  /** Says a text in the chat, as it says itself unless told otherwise, to the players chosen to whisper to. */
-  protected send(text: ScenarioText, speaker?: ScenarioTextSpeaker): void {
+  /**
+   * Says a text in the chat, as it says itself unless told otherwise. Only the button under the text
+   * picked whispers it, to the players chosen beside that button; a row's own button and its menu
+   * say it to everyone.
+   */
+  protected send(text: ScenarioText, options: { speaker?: ScenarioTextSpeaker; whispered?: boolean } = {}): void {
     this.flushWrite();
-    this.texts.send(text, { ...(speaker ? { speaker } : {}), to: this.whisperTo() });
+    const to = options.whispered ? this.whisperTo() : [];
+    this.texts.send(text, { ...(options.speaker ? { speaker: options.speaker } : {}), to });
+  }
+
+  /** The colour the text goes out in as it stands, its own or its speaker's. */
+  protected colorOf(text: ScenarioText): string {
+    this.objectChange.versionOf(text.identifier)();
+    return this.texts.colorOf(text);
   }
 
   protected rename(text: ScenarioText, title: string): void {
@@ -284,7 +299,7 @@ export class ScenarioTextPanelComponent {
       this.shelf.knownPaths(),
       reorder,
       {
-        sendAs: (speaker) => this.send(text, speaker),
+        sendAs: (speaker) => this.send(text, { speaker }),
         edit: () => this.pick(text),
         duplicate: () => this.duplicate(text),
         moveTo: (path) => this.shelf.fileInto([text], path),

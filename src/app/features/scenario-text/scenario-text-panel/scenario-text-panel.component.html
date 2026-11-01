@@ -206,11 +206,24 @@
               <span class="text-ui-muted">{{ 'feature.scenarioText.color' | transloco }}</span>
               <input
                 type="color"
+                data-testid="scenario-text-color"
                 class="h-6 w-8 cursor-pointer border-none bg-transparent p-0"
-                [value]="text.color || '#000000'"
+                [value]="colorOf(text)"
                 (change)="setColor(text, $any($event.target).value)"
               />
             </label>
+            @if (text.color) {
+              <button
+                type="button"
+                data-testid="scenario-text-color-clear"
+                class="text-ui-muted hover:text-ui-accent m-0 inline-flex cursor-pointer items-center border-none bg-transparent p-0 text-[11px] hover:shadow-none"
+                (click)="setColor(text, '')"
+              >
+                {{ 'feature.scenarioText.colorOfSpeaker' | transloco }}
+              </button>
+            } @else {
+              <span class="text-ui-dim text-[11px]">{{ 'feature.scenarioText.colorOfSpeakerNote' | transloco }}</span>
+            }
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <ng-select
@@ -231,7 +244,7 @@
               data-testid="scenario-text-send"
               class="rounded-ui-sm bg-ui-accent-solid m-0 inline-flex cursor-pointer items-center gap-1 border border-solid border-transparent px-3 py-1 text-[12px] font-semibold text-white transition-opacity hover:opacity-85 hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[16px]!"
               [disabled]="!rowOf(text).hasWords"
-              (click)="send(text)"
+              (click)="send(text, { whispered: true })"
             >
               <i class="material-icons">send</i>
               {{ (whisperTo().length > 0 ? 'feature.scenarioText.whisper' : 'feature.scenarioText.send') | transloco }}

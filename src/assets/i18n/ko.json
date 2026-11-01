@@ -6188,6 +6188,8 @@
       "tab": "탭",
       "tabBeingRead": "열려 있는 탭",
       "color": "색",
+      "colorOfSpeaker": "말하는 쪽의 색으로 되돌리기",
+      "colorOfSpeakerNote": "（말하는 쪽의 색）",
       "whisperPlaceholder": "귓속말로 보낼 상대（고르지 않으면 모두에게 보냅니다）",
       "send": "보내기",
       "whisper": "귓속말로 보내기",

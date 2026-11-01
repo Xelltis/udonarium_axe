@@ -5900,6 +5900,8 @@
       "tab": "Tab",
       "tabBeingRead": "Tab being read",
       "color": "Colour",
+      "colorOfSpeaker": "Use the speaker's colour",
+      "colorOfSpeakerNote": "(the speaker's colour)",
       "whisperPlaceholder": "Whisper to (none sends it to everyone)",
       "send": "Send",
       "whisper": "Whisper",
