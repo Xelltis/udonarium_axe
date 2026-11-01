@@ -45,3 +45,11 @@ export function laurelLeaves(center: number, radius: number, leafCount = 6): Coi
   }
   return leaves;
 }
+
+/** The middle of the 100-unit square a coin's emblem is struck in. */
+export const COIN_EMBLEM_CENTRE = 50;
+/** The star struck on a coin's front, and the rays behind it. */
+export const coinStar = starPoints(COIN_EMBLEM_CENTRE, 25, 10.5);
+export const coinStarRays = starPoints(COIN_EMBLEM_CENTRE, 33, 4, 12);
+/** The laurel struck on a coin's back. */
+export const coinLaurel = laurelLeaves(COIN_EMBLEM_CENTRE, 28);

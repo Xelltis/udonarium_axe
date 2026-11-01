@@ -27,9 +27,9 @@ import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switc
 import { imageFileEqual } from '@axe/core/storage/image-file';
 import { isInStore } from '@axe/core/sync/object-store';
 import { Coin, CoinFace } from '@axe/domain/coin/coin';
+import { coinLaurel, coinStar, coinStarRays } from '@axe/domain/coin/coin-emblem';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { buildCoinContextMenu } from '@axe/features/coin/coin/coin-context-menu';
-import { laurelLeaves, starPoints } from '@axe/features/coin/coin/coin-emblem';
 import { CoinFlipService } from '@axe/features/coin/coin-flip.service';
 import { MovableDirective, MovableOption } from '@axe/ui/directives/movable.directive';
 import { RotableDirective, RotableOption } from '@axe/ui/directives/rotable.directive';
@@ -40,7 +40,6 @@ import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop
 import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
 
 const EDGE_SEGMENT_COUNT = 24;
-const EMBLEM_CENTER = 50;
 const EDGE_SEGMENT_OVERLAP = 1.06;
 const THICKNESS_RATIO = 0.11;
 const MIN_THICKNESS_PX = 5;
@@ -120,9 +119,9 @@ export class CoinComponent {
   readonly frontLabel = computed(() => this.translateFn('feature.coin.face.front'));
   readonly backLabel = computed(() => this.translateFn('feature.coin.face.back'));
 
-  readonly starPoints = starPoints(EMBLEM_CENTER, 25, 10.5);
-  readonly starRayPoints = starPoints(EMBLEM_CENTER, 33, 4, 12);
-  readonly laurelLeaves = laurelLeaves(EMBLEM_CENTER, 28);
+  readonly starPoints = coinStar;
+  readonly starRayPoints = coinStarRays;
+  readonly laurelLeaves = coinLaurel;
 
   readonly frontImage = computed(
     () => {

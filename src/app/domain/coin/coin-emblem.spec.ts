@@ -1,4 +1,4 @@
-import { laurelLeaves, starPoints } from '@axe/features/coin/coin/coin-emblem';
+import { laurelLeaves, starPoints } from '@axe/domain/coin/coin-emblem';
 
 describe('starPoints()', () => {
   it('alternates between the outer and the inner radius', () => {
