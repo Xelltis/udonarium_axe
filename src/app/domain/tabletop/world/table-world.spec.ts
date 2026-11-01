@@ -1,5 +1,6 @@
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
+import { Terrain } from '@axe/domain/tabletop/terrain';
 import { boardShapeOf, EMPTY_TABLE_WORLD, tableWorldOf } from '@axe/domain/tabletop/world/table-world';
 
 describe('the table world', () => {
@@ -51,5 +52,49 @@ describe('the table world', () => {
     expect(shape.hexes![0]).toHaveLength(6);
     const xs = shape.hexes!.flat().map((corner) => corner.x);
     expect(Math.min(...xs)).toBeCloseTo(shape.box.x - 1, 0);
+  });
+
+  describe('the faces of the blocks and of the table', () => {
+    const made: Terrain[] = [];
+    afterEach(() => made.splice(0).forEach((terrain) => terrain.destroy()));
+
+    function block(wallPicture: string, topPicture = ''): Terrain {
+      const terrain = Terrain.create('block', 2, 1, 3, wallPicture, topPicture);
+      terrain.location = { name: 'table', x: 100, y: 50 };
+      made.push(terrain);
+      return terrain;
+    }
+
+    const picture = (identifier: string) => (identifier ? `blob:${identifier}` : '');
+
+    it('stands the sides of a block from its foot to its top, wearing its pictures', () => {
+      const world = tableWorldOf(table(), picture, [block('stone', 'grass')]);
+      const sides = world.walls.filter((wall) => !wall.id.startsWith('table:'));
+
+      expect(sides).toHaveLength(4);
+      expect(sides.every((wall) => wall.basePx === 0 && wall.topPx === 180 && wall.pictureUrl === 'blob:stone')).toBe(
+        true
+      );
+      expect(world.caps.find((cap) => cap.facing === 'up')).toMatchObject({ zPx: 180, pictureUrl: 'blob:grass' });
+    });
+
+    it('makes a block with no picture on any face glass', () => {
+      const world = tableWorldOf(table(), picture, [block('')]);
+      expect(world.walls.filter((wall) => !wall.id.startsWith('table:')).every((wall) => wall.glass)).toBe(true);
+    });
+
+    it('stands a wall of the table only where it has a picture, as the page does', () => {
+      const walled = table();
+      walled.wallHeight = 4;
+      walled.showNorthWall = true;
+      walled.showEastWall = true;
+      walled.northWallImageIdentifier = 'brick';
+      walled.eastWallImageIdentifier = '';
+
+      const tableWalls = tableWorldOf(walled, picture).walls.filter((wall) => wall.id.startsWith('table:'));
+
+      expect(tableWalls.map((wall) => wall.id)).toEqual(['table:north']);
+      expect(tableWalls[0]).toMatchObject({ topPx: 240, pictureUrl: 'blob:brick' });
+    });
   });
 });

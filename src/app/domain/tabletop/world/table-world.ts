@@ -1,3 +1,4 @@
+import { firstPersonWorldOf } from '@axe/domain/tabletop/first-person/first-person-world';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import {
   hexCellCenter,
@@ -7,6 +8,7 @@ import {
   isFlatTopGrid,
 } from '@axe/domain/tabletop/hex-geometry';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
+import { Terrain } from '@axe/domain/tabletop/terrain';
 
 /** A point of the board, in table pixels. */
 export interface TableWorldPoint {
@@ -38,26 +40,63 @@ export interface TableWorldBoard {
 }
 
 /**
+ * An upright face standing on the floor between two points, from a height to a height, in table
+ * pixels: a side of a block, or a wall of the table.
+ */
+export interface TableWorldWall {
+  readonly id: string;
+  readonly ax: number;
+  readonly ay: number;
+  readonly bx: number;
+  readonly by: number;
+  readonly basePx: number;
+  readonly topPx: number;
+  /** The picture the face wears, or empty for none. */
+  readonly pictureUrl: string;
+  /** The side of one tile of the picture, or 0 where the picture is stretched over the face. */
+  readonly tilePx: number;
+  /** Whether the face is glass, as a block with no picture on any face is. */
+  readonly glass: boolean;
+}
+
+/** A flat face lying at a height, facing up or down: the top or the underside of a block. */
+export interface TableWorldCap {
+  readonly id: string;
+  readonly outline: readonly TableWorldPoint[];
+  readonly zPx: number;
+  readonly facing: 'up' | 'down';
+  readonly pictureUrl: string;
+  readonly tilePx: number;
+  readonly glass: boolean;
+}
+
+/**
  * What the table in view puts in front of the camera: everything a renderer draws, worked out from
  * the objects of the room and nothing else. A table with no board in view draws nothing.
  */
 export interface TableWorld {
   readonly board: TableWorldBoard | null;
+  readonly walls: readonly TableWorldWall[];
+  readonly caps: readonly TableWorldCap[];
 }
 
 /** The scene with nothing in it. */
-export const EMPTY_TABLE_WORLD: TableWorld = { board: null };
+export const EMPTY_TABLE_WORLD: TableWorld = { board: null, walls: [], caps: [] };
 
 /** How much bigger than a cell each hex a board is cut to is, so the cut leaves no seam between cells. */
 const HEX_CUT_OVERLAP_PX = 1;
 
 /**
- * The scene of a table, or the empty scene where there is none in view. `pictureOf` says where the
- * picture an identifier names is to be read from, or nothing for one there is no picture for.
+ * The scene of a table, or the empty scene where there is none in view, with the blocks given
+ * standing on it. `pictureOf` says where the picture an identifier names is to be read from, or
+ * nothing for one there is no picture for.
+ *
+ * Only what the seat may see is to be given: a block left out is not in the scene at all.
  */
 export function tableWorldOf(
   table: GameTable | null | undefined,
-  pictureOf: (identifier: string) => string = () => ''
+  pictureOf: (identifier: string) => string = () => '',
+  terrains: readonly Terrain[] = []
 ): TableWorld {
   if (!table) return EMPTY_TABLE_WORLD;
   const gridSize = table.gridSize > 0 ? table.gridSize : 50;
@@ -74,7 +113,44 @@ export function tableWorldOf(
       pictureUrl: pictureOf(table.imageIdentifier),
       veiled: !laidUnder,
     },
+    ...facesOf(table, terrains, pictureOf),
   };
+}
+
+/**
+ * The faces of the blocks on the floor and of the table's own walls. A wall of the table is drawn
+ * only with a picture, as the page draws it.
+ */
+function facesOf(
+  table: GameTable,
+  terrains: readonly Terrain[],
+  pictureOf: (identifier: string) => string
+): Pick<TableWorld, 'walls' | 'caps'> {
+  const planned = firstPersonWorldOf(table, terrains);
+  const walls = planned.walls
+    .map((wall): TableWorldWall => ({
+      id: wall.id,
+      ax: wall.ax,
+      ay: wall.ay,
+      bx: wall.bx,
+      by: wall.by,
+      basePx: wall.basePx,
+      topPx: wall.topPx,
+      pictureUrl: wall.image ? pictureOf(wall.image) : '',
+      tilePx: wall.tilePx,
+      glass: wall.glass,
+    }))
+    .filter((wall) => !wall.id.startsWith('table:') || wall.pictureUrl !== '');
+  const caps = planned.caps.map((cap): TableWorldCap => ({
+    id: cap.id,
+    outline: cap.outline,
+    zPx: cap.zPx,
+    facing: cap.facing,
+    pictureUrl: cap.image ? pictureOf(cap.image) : '',
+    tilePx: cap.tilePx,
+    glass: cap.glass,
+  }));
+  return { walls, caps };
 }
 
 /** The box a board's picture is stretched over, and the hexes it is cut to where its cells are hexes. */
