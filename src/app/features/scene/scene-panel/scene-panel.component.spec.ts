@@ -91,6 +91,17 @@ describe('ScenePanelComponent', () => {
     expect(root.querySelector('[data-testid="scene-current"]')).not.toBeNull();
   });
 
+  it('keeps the panel still while a row is carried to a folder or another row', () => {
+    const scene = new BoardScene();
+    scene.name = '夜の村';
+    scene.initialize();
+    const root = open(PeerRole.GameMaster);
+
+    const row = root.querySelector<HTMLElement>('[data-testid="scene-row"]')!;
+    expect(row.getAttribute('draggable')).toBe('true');
+    expect(row.classList).toContain('panel-no-drag');
+  });
+
   it('lays the scenes out in their folders, with the folders kept empty', () => {
     const night = new BoardScene();
     night.name = '夜';

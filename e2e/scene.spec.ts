@@ -80,6 +80,24 @@ test.describe('scenes', () => {
     const folder = panel.locator('[data-folder-area][data-folder-path="村"]');
     await expect(folder.getByTestId('scene-row')).toHaveCount(1);
   });
+
+  test('files a scene dragged by its picture onto a folder, the panel staying where it stands', async ({ page }) => {
+    const panel = await makeNightScene(page);
+    await panel.getByTestId('scene-create-folder').click();
+    const name = panel.getByTestId('folder-name-input');
+    await name.fill('村');
+    await name.press('Enter');
+    const frame = page.locator('ui-panel').filter({ has: panel });
+    const before = await frame.boundingBox();
+
+    await panel
+      .getByTestId('scene-row')
+      .dragTo(panel.locator('[data-folder-dropzone][data-folder-path="村"]'), { sourcePosition: { x: 12, y: 12 } });
+
+    const folder = panel.locator('[data-folder-area][data-folder-path="村"]');
+    await expect(folder.getByTestId('scene-row')).toHaveCount(1);
+    expect(await frame.boundingBox()).toEqual(before);
+  });
 });
 
 test.describe('the picture in front of the table', () => {

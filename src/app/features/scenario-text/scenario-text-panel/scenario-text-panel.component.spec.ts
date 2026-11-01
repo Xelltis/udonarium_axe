@@ -124,6 +124,15 @@ describe('ScenarioTextPanelComponent', () => {
     notices.destroy();
   });
 
+  it('keeps the panel still while a row is carried to a folder or another row', () => {
+    textOf('導入', '雨が降っている');
+    const root = open(PeerRole.GameMaster);
+
+    const row = root.querySelector<HTMLElement>('[data-testid="scenario-text-row"]')!;
+    expect(row.getAttribute('draggable')).toBe('true');
+    expect(row.classList).toContain('panel-no-drag');
+  });
+
   it('writes a new text, sharing the words a moment after the last key', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const root = open(PeerRole.GameMaster);
