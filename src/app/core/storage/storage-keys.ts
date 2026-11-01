@@ -23,6 +23,7 @@ export const STORAGE_KEYS = {
   djDeckOpen: 'mini-jukebox-dj-deck',
   effectAutoPlay: 'axe.effect.autoPlay',
   firstPersonPiece: 'ui-first-person-piece',
+  foregroundSeeThrough: 'axe.foreground.seeThrough',
   hotbar: 'ui-hotbar',
   hotbarOwner: 'ui-hotbar-owner',
   iconChosenByHand: 'axe.icon.chosenByHand',

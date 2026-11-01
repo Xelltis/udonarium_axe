@@ -261,6 +261,35 @@ describe('GameTableSettingComponent', () => {
     });
   });
 
+  describe('the picture in front of everything', () => {
+    let table: GameTable;
+
+    beforeEach(() => {
+      PeerCursor.createMyCursor();
+      table = new GameTable();
+      table.initialize();
+      component.selectGameTable(table.identifier);
+    });
+
+    it('writes how opaque and how fitted the picture is, and takes it off', () => {
+      table.foregroundImageIdentifier = 'mist';
+
+      component.tableForegroundOpacity = 40;
+      component.tableForegroundFit = 'contain';
+      expect([table.foregroundOpacity, table.foregroundFit]).toEqual([0.4, 'contain']);
+      expect([component.tableForegroundOpacity, component.tableForegroundFit]).toEqual([40, 'contain']);
+
+      component.clearForeground();
+      expect(table.foregroundImageIdentifier).toBe('');
+    });
+
+    it('shows a table that never set the picture as fully opaque and filling the screen', () => {
+      expect(component.tableForegroundOpacity).toBe(100);
+      expect(component.tableForegroundFit).toBe('cover');
+      expect(component.tableForegroundImage.url).toBe('');
+    });
+  });
+
   describe('copying a table', () => {
     let table: GameTable;
 
