@@ -40,6 +40,7 @@ import {
 import { ensureFogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { asFogMode, DEFAULT_FOG_COLOR, FOG_MODES, FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { FilterType, GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
+import { copyGameTable } from '@axe/domain/tabletop/game-table-copy';
 import { MAX_SQUARE_SPAN, squareSpanOf } from '@axe/domain/tabletop/move/move-grid';
 import { MAX_CELL_PX, MIN_CELL_PX } from '@axe/domain/tabletop/rescale-table-contents';
 import {
@@ -762,6 +763,17 @@ export class GameTableSettingComponent {
       this.isSaving.set(false);
       this.progressPercent.set(0);
     }, 500);
+  }
+
+  /**
+   * Copies the picked table, with everything on it, under a name saying it is a copy, and shows the
+   * copy; does nothing for a reader who may not edit the table.
+   */
+  duplicate() {
+    if (!this.rolePermission.canEditTabletop() || !this.selectedTable || this.isDeleted) return;
+    const name = this.t('feature.tabletop.tableSetting.copyName', { name: this.selectedTable.name });
+    const copy = copyGameTable(this.selectedTable, name);
+    if (copy) this.selectGameTable(copy.identifier);
   }
 
   /**

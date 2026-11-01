@@ -8,6 +8,8 @@ import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { Config } from '@axe/domain/peer/config';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { FilterType, GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { GameTableSettingComponent } from '@axe/features/tabletop/game-table-setting/game-table-setting.component';
@@ -256,6 +258,41 @@ describe('GameTableSettingComponent', () => {
       const select: HTMLSelectElement = fixture.nativeElement.querySelector('select[name="tableSnapMode"]');
       expect(select.value).toBe('grid');
       expect(hint()).not.toBeNull();
+    });
+  });
+
+  describe('copying a table', () => {
+    let table: GameTable;
+
+    beforeEach(() => {
+      PeerCursor.createMyCursor();
+      table = new GameTable();
+      table.name = '村';
+      table.initialize();
+      component.selectGameTable(table.identifier);
+    });
+
+    it('copies the picked table under a name saying so, and shows the copy without its cut-ins or music', () => {
+      const launch = vi.spyOn(TestBed.inject(CutInService), 'launchForTable').mockReturnValue(true);
+      const music = vi.spyOn(TestBed.inject(TableBgmService), 'playFor').mockImplementation(() => undefined);
+
+      component.duplicate();
+
+      const shown = TestBed.inject(TableSelecter).viewTable!;
+      expect(shown.identifier).not.toBe(table.identifier);
+      expect(shown.name).toBe('村のコピー');
+      expect(component.selectedTable).toBe(shown);
+      expect(ObjectStore.instance.getObjects(GameTable)).toHaveLength(2);
+      expect(launch).not.toHaveBeenCalled();
+      expect(music).not.toHaveBeenCalled();
+    });
+
+    it('copies nothing for a guest, who may not change the table', () => {
+      PeerCursor.myCursor.role = PeerRole.Guest;
+
+      component.duplicate();
+
+      expect(ObjectStore.instance.getObjects(GameTable)).toEqual([table]);
     });
   });
 

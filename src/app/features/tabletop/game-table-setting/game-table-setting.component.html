@@ -926,6 +926,15 @@
             </button>
             <button
               type="button"
+              data-testid="table-duplicate"
+              class="rounded-ui-sm border-ui-border-panel text-ui-text hover:border-ui-accent hover:bg-ui-hover m-0 inline-flex cursor-pointer items-center gap-1.25 border border-solid bg-transparent px-3 py-1.25 text-[12px] font-semibold transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-[0.35] [&_.material-icons]:text-[15px]!"
+              [title]="'feature.tabletop.tableSetting.duplicateHint' | transloco"
+              (click)="duplicate()"
+            >
+              <i class="material-icons">content_copy</i>{{ 'feature.tabletop.tableSetting.duplicate' | transloco }}
+            </button>
+            <button
+              type="button"
               class="rounded-ui-sm border-ui-danger text-ui-danger hover:border-ui-danger hover:text-ui-danger m-0 inline-flex cursor-pointer items-center gap-1.25 border border-solid bg-transparent px-3 py-1.25 text-[12px] font-semibold transition-[background,opacity] hover:bg-[color-mix(in_srgb,var(--ui-danger)_15%,transparent)] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-[0.35] [&_.material-icons]:text-[15px]!"
               (click)="delete()"
               [attr.disabled]="getGameTables().length <= 1 ? '' : null"
