@@ -81,6 +81,8 @@ export interface TableWorldCap {
   readonly heights?: readonly number[];
   /** Where on its picture each corner of the outline stands, across and up; otherwise laid out on the board. */
   readonly uvs?: readonly TableWorldPoint[];
+  /** Whether the table's grid is laid over the face, as it is over the top of a block that asks for it. */
+  readonly gridded?: boolean;
   readonly facing: 'up' | 'down';
   readonly pictureUrl: string;
   readonly tilePx: number;

@@ -114,4 +114,14 @@ describe('the faces of the blocks', () => {
     turned.rotate = 90;
     expect(faces(turned).caps[0].uvs).toEqual(faces(block()).caps[0].uvs);
   });
+
+  it('lays the table’s grid over the top of a block that asks for it, and not under it', () => {
+    const gridded = block();
+    gridded.isGrid = true;
+    gridded.altitude = 1;
+    const caps = faces(gridded).caps;
+    expect(caps.find((cap) => cap.facing === 'up')?.gridded).toBe(true);
+    expect(caps.find((cap) => cap.facing === 'down')?.gridded).toBeUndefined();
+    expect(faces(block()).caps[0].gridded).toBeUndefined();
+  });
 });

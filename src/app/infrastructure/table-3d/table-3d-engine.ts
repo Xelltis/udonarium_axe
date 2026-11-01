@@ -5,7 +5,13 @@ import type {
   TableWorldCap,
   TableWorldWall,
 } from '@axe/domain/tabletop/world/table-world';
-import { boardGeometry, capGeometry, mergedFaces, wallGeometry } from '@axe/infrastructure/table-3d/face-geometry';
+import {
+  boardGeometry,
+  capGeometry,
+  griddedTops,
+  mergedFaces,
+  wallGeometry,
+} from '@axe/infrastructure/table-3d/face-geometry';
 import type {
   Table3dCamera,
   Table3dEngine,
@@ -89,6 +95,9 @@ class ThreeTableEngine implements Table3dEngine {
   private grid: Mesh | null = null;
   private gridPicture: CanvasTexture | null = null;
   private gridDrawn = '';
+  private lastGrid: Table3dGrid | null = null;
+  private gridded: readonly TableWorldCap[] = [];
+  private topsGrid: Mesh | null = null;
   private facesPlanned = '';
 
   constructor(
@@ -144,13 +153,19 @@ class ThreeTableEngine implements Table3dEngine {
 
   setGrid(grid: Table3dGrid | null): void {
     const drawn = grid ? JSON.stringify([grid.box, grid.revision]) : '';
+    this.lastGrid = grid;
     if (drawn !== this.gridDrawn) {
       this.gridDrawn = drawn;
       this.placeGrid(grid);
-    } else if (grid && this.grid) {
-      (this.grid.material as MeshBasicNodeMaterial).opacity = grid.opacity;
+      this.placeTopsGrid();
+    } else if (grid) {
+      for (const mesh of [this.grid, this.topsGrid]) {
+        if (mesh) (mesh.material as MeshBasicNodeMaterial).opacity = grid.opacity;
+      }
     }
-    if (this.grid) this.grid.visible = (grid?.opacity ?? 0) > 0;
+    for (const mesh of [this.grid, this.topsGrid]) {
+      if (mesh) mesh.visible = (grid?.opacity ?? 0) > 0;
+    }
     this.changed = true;
   }
 
@@ -279,6 +294,31 @@ class ThreeTableEngine implements Table3dEngine {
     }
     this.faces = faces;
     this.scene.add(faces);
+    this.gridded = caps.filter((cap) => cap.gridded);
+    this.placeTopsGrid();
+  }
+
+  /** Lays the table's grid over the tops of the blocks that wear it, as it shows on the board. */
+  private placeTopsGrid(): void {
+    if (this.topsGrid) {
+      this.scene.remove(this.topsGrid);
+      this.topsGrid.geometry.dispose();
+      (this.topsGrid.material as MeshBasicNodeMaterial).dispose();
+      this.topsGrid = null;
+    }
+    const grid = this.lastGrid;
+    if (!grid || !this.gridPicture || this.gridded.length === 0) return;
+    const material = new MeshBasicNodeMaterial({
+      map: this.gridPicture,
+      transparent: true,
+      opacity: grid.opacity,
+      depthWrite: false,
+      side: DoubleSide,
+    });
+    this.topsGrid = new Mesh(griddedTops(this.gridded, grid.box, GRID_LIFT_PX), material);
+    this.topsGrid.renderOrder = 1;
+    this.topsGrid.visible = grid.opacity > 0;
+    this.scene.add(this.topsGrid);
   }
 
   private faceMaterial(face: { pictureUrl: string; tilePx: number; glass: boolean }): MeshBasicNodeMaterial {

@@ -61,6 +61,7 @@ export function blockFacesOf(
         facing,
         pictureUrl: url,
         ...look,
+        ...(facing === 'up' && terrain.isGrid ? { gridded: true } : {}),
       });
     };
     if (terrain.hasWall && block.topPx > block.basePx) {

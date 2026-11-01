@@ -1,6 +1,12 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { boardShapeOf } from '@axe/domain/tabletop/world/table-world';
-import { boardGeometry, capGeometry, mergedFaces, wallGeometry } from '@axe/infrastructure/table-3d/face-geometry';
+import {
+  boardGeometry,
+  capGeometry,
+  griddedTops,
+  mergedFaces,
+  wallGeometry,
+} from '@axe/infrastructure/table-3d/face-geometry';
 
 /** The heights (the scene's y) of a geometry's corners, at each place along the floor they stand. */
 function heightsByPlace(positions: ArrayLike<number>): Map<string, number[]> {
@@ -89,5 +95,29 @@ describe('the shapes of the faces drawn on the canvas', () => {
       Array.from(second.getAttribute('position').array)
     );
     expect(joined.getAttribute('uv').count).toBe(joined.getAttribute('position').count);
+  });
+
+  it('reads the table’s grid off at each point of the board for a top that wears it, a hair above it', () => {
+    const top = {
+      ...face,
+      outline: [
+        { x: 100, y: 50 },
+        { x: 200, y: 50 },
+        { x: 200, y: 100 },
+        { x: 100, y: 100 },
+      ],
+      zPx: 50,
+      facing: 'up' as const,
+    };
+
+    const grid = griddedTops([top], { x: 0, y: 0, width: 1000, height: 500 }, 0.5);
+
+    const positions = Array.from(grid.getAttribute('position').array);
+    const uvs = Array.from(grid.getAttribute('uv').array);
+    const first = positions.slice(0, 3);
+    expect(first[1]).toBe(50.5);
+    const corner = positions.findIndex((_, i) => i % 3 === 0 && positions[i] === 200 && positions[i + 2] === 100) / 3;
+    expect(uvs[corner * 2]).toBeCloseTo(0.2, 6);
+    expect(uvs[corner * 2 + 1]).toBeCloseTo(0.8, 6);
   });
 });

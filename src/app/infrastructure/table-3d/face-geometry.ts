@@ -121,3 +121,30 @@ export function mergedFaces(shapes: readonly BufferGeometry[]): BufferGeometry {
   merged.setAttribute('uv', new Float32BufferAttribute(joined('uv'), 2));
   return merged;
 }
+
+/**
+ * The tops that wear the table's grid, lifted a hair above themselves, with the grid's canvas read
+ * off at each point of the board, so the grid on a block lines up with the grid on the board.
+ */
+export function griddedTops(
+  caps: readonly TableWorldCap[],
+  box: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+  liftPx: number
+): BufferGeometry {
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  for (const cap of caps) {
+    const contour = cap.outline.map((point) => new Vector2(point.x, point.y));
+    for (const triangle of ShapeUtils.triangulateShape(contour, [])) {
+      for (const index of triangle) {
+        const point = cap.outline[index];
+        positions.push(point.x, (cap.heights?.[index] ?? cap.zPx) + liftPx, point.y);
+        uvs.push((point.x - box.x) / box.width, 1 - (point.y - box.y) / box.height);
+      }
+    }
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
+  return geometry;
+}
