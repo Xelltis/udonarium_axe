@@ -43,3 +43,44 @@ function rendererOf(makeCanvas: () => HTMLCanvasElement, options: WebGLContextAt
     gl.getExtension('WEBGL_lose_context')?.loseContext();
   }
 }
+
+/** The interfaces this browser can draw the 3D table through. */
+export interface TableGraphics {
+  readonly webgpu: boolean;
+  readonly webgl2: boolean;
+}
+
+type GpuNavigator = { readonly gpu?: { requestAdapter(): Promise<unknown> } };
+
+/**
+ * Whether this browser can draw the 3D table, through WebGPU where it gives an adapter and through
+ * WebGL2 where it makes a context. A browser with its graphics turned off and its software drawing
+ * forbidden gives neither, and the table is not to be drawn there at all. The context made to ask
+ * is let go at once.
+ */
+export async function tableGraphicsOf(
+  gpu: GpuNavigator['gpu'] = (navigator as unknown as GpuNavigator).gpu,
+  makeCanvas: () => HTMLCanvasElement = () => document.createElement('canvas')
+): Promise<TableGraphics> {
+  return { webgpu: await givesAdapter(gpu), webgl2: makesWebGl2(makeCanvas) };
+}
+
+async function givesAdapter(gpu: GpuNavigator['gpu']): Promise<boolean> {
+  try {
+    return (await gpu?.requestAdapter()) != null;
+  } catch {
+    return false;
+  }
+}
+
+function makesWebGl2(makeCanvas: () => HTMLCanvasElement): boolean {
+  let gl: WebGL2RenderingContext | null;
+  try {
+    gl = makeCanvas().getContext('webgl2') as WebGL2RenderingContext | null;
+  } catch {
+    return false;
+  }
+  if (!gl) return false;
+  gl.getExtension('WEBGL_lose_context')?.loseContext();
+  return true;
+}

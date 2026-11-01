@@ -1,4 +1,4 @@
-import { drawsWithoutGpu, isSoftwareRenderer } from '@axe/core/util/graphics-acceleration';
+import { drawsWithoutGpu, isSoftwareRenderer, tableGraphicsOf } from '@axe/core/util/graphics-acceleration';
 
 /** A canvas whose WebGL answers as a browser with or without the GPU does. */
 function canvasOf(answer: { fast: string | null; any: string | null }) {
@@ -68,5 +68,31 @@ describe('drawsWithoutGpu', () => {
     } as unknown as HTMLCanvasElement;
 
     expect(drawsWithoutGpu(() => throwing)).toBe(false);
+  });
+});
+
+describe('tableGraphicsOf', () => {
+  function canvasMaking(webgl2: boolean): () => HTMLCanvasElement {
+    return () =>
+      ({
+        getContext: (kind: string) =>
+          kind === 'webgl2' && webgl2 ? { getExtension: () => ({ loseContext: () => undefined }) } : null,
+      }) as unknown as HTMLCanvasElement;
+  }
+
+  it('says WebGPU is there where the browser gives an adapter, and WebGL2 where it makes a context', async () => {
+    const gpu = { requestAdapter: () => Promise.resolve({}) };
+    expect(await tableGraphicsOf(gpu, canvasMaking(true))).toEqual({ webgpu: true, webgl2: true });
+  });
+
+  it('says neither is there for a browser with no adapter and no context', async () => {
+    const gpu = { requestAdapter: () => Promise.resolve(null) };
+    expect(await tableGraphicsOf(gpu, canvasMaking(false))).toEqual({ webgpu: false, webgl2: false });
+    expect(await tableGraphicsOf(undefined, canvasMaking(true))).toEqual({ webgpu: false, webgl2: true });
+  });
+
+  it('takes an adapter refused with an error for no adapter', async () => {
+    const gpu = { requestAdapter: () => Promise.reject(new Error('blocked')) };
+    expect((await tableGraphicsOf(gpu, canvasMaking(true))).webgpu).toBe(false);
   });
 });
