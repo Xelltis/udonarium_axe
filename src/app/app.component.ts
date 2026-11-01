@@ -15,6 +15,7 @@ import { DiceThrowService } from '@axe/application/dice/dice-throw.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
 import { AudioAnalysisService } from '@axe/application/media/audio-analysis.service';
 import { CutInService } from '@axe/application/media/cut-in.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { GravityService } from '@axe/application/tabletop/gravity.service';
@@ -35,6 +36,8 @@ import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.se
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 import { RoomPanelName } from '@axe/domain/ui/room-panel';
 import type { Vote } from '@axe/domain/vote/vote';
 import { AlarmEventHandlerService } from '@axe/features/alarm/alarm-event-handler.service';
@@ -100,7 +103,6 @@ import { PieceDragGhostComponent } from '@axe/ui/components/piece-drag-ghost/pie
 import { SnackbarComponent } from '@axe/ui/components/snackbar/snackbar.component';
 import { ReloadNoticeDirective } from '@axe/ui/directives/reload-notice.directive';
 import { version as APP_VERSION } from '@pkg';
-
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-root',
@@ -154,6 +156,17 @@ export class AppComponent {
   protected readonly battleCutIn = inject(BattleCutInStateService);
   private readonly handRail = inject(HandRailService);
   readonly widgets = inject(WidgetVisibilityService);
+  private readonly rolePermission = inject(RolePermissionService);
+  /**
+   * Whether this seat draws the game master's bar, which only the game master does while it is not
+   * hidden; its code is fetched the first time it is wanted.
+   */
+  protected readonly gmToolbarWanted = computed(() => this.rolePermission.isGameMaster() && this.widgets.gmToolbar());
+  /** The same for a player's bar. */
+  protected readonly plToolbarWanted = computed(() => {
+    this.objectChange.trackMyCursor();
+    return PeerCursor.myRole === PeerRole.Player && this.widgets.plToolbar();
+  });
   readonly viewport = inject(ViewportService);
   readonly mobile = inject(MobileLayoutService);
   readonly overlayMode = inject(OverlayModeService);
