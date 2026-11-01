@@ -99,3 +99,21 @@ export function capGeometry(cap: TableWorldCap): BufferGeometry {
   geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
   return geometry;
 }
+
+/** Faces built apart, as one shape: their corners and the places of their pictures, one after another. */
+export function mergedFaces(shapes: readonly BufferGeometry[]): BufferGeometry {
+  const joined = (name: 'position' | 'uv') => {
+    const parts = shapes.map((shape) => shape.getAttribute(name).array as Float32Array);
+    const all = new Float32Array(parts.reduce((length, part) => length + part.length, 0));
+    let at = 0;
+    for (const part of parts) {
+      all.set(part, at);
+      at += part.length;
+    }
+    return all;
+  };
+  const merged = new BufferGeometry();
+  merged.setAttribute('position', new Float32BufferAttribute(joined('position'), 3));
+  merged.setAttribute('uv', new Float32BufferAttribute(joined('uv'), 2));
+  return merged;
+}

@@ -1,6 +1,6 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { boardShapeOf } from '@axe/domain/tabletop/world/table-world';
-import { boardGeometry, capGeometry, wallGeometry } from '@axe/infrastructure/table-3d/face-geometry';
+import { boardGeometry, capGeometry, mergedFaces, wallGeometry } from '@axe/infrastructure/table-3d/face-geometry';
 
 /** The heights (the scene's y) of a geometry's corners, at each place along the floor they stand. */
 function heightsByPlace(positions: ArrayLike<number>): Map<string, number[]> {
@@ -76,5 +76,18 @@ describe('the shapes of the faces drawn on the canvas', () => {
     });
 
     expect(board.getAttribute('position').count).toBe(6 * 4 * 3);
+  });
+
+  it('joins faces built apart into one shape, one after another', () => {
+    const first = wallGeometry({ ...face, ax: 0, ay: 0, bx: 50, by: 0, basePx: 0, topPx: 50 });
+    const second = wallGeometry({ ...face, ax: 50, ay: 0, bx: 50, by: 50, basePx: 0, topPx: 50 });
+
+    const joined = mergedFaces([first, second]);
+
+    expect(joined.getAttribute('position').count).toBe(first.getAttribute('position').count * 2);
+    expect(Array.from(joined.getAttribute('position').array).slice(-18)).toEqual(
+      Array.from(second.getAttribute('position').array)
+    );
+    expect(joined.getAttribute('uv').count).toBe(joined.getAttribute('position').count);
   });
 });

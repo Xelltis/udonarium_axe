@@ -5,7 +5,7 @@ import type {
   TableWorldCap,
   TableWorldWall,
 } from '@axe/domain/tabletop/world/table-world';
-import { boardGeometry, capGeometry, wallGeometry } from '@axe/infrastructure/table-3d/face-geometry';
+import { boardGeometry, capGeometry, mergedFaces, wallGeometry } from '@axe/infrastructure/table-3d/face-geometry';
 import type {
   Table3dCamera,
   Table3dEngine,
@@ -15,6 +15,7 @@ import type {
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
 import { float, max, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
 import {
+  BufferGeometry,
   Camera,
   CanvasTexture,
   DoubleSide,
@@ -242,8 +243,9 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   /**
-   * Builds the faces of the blocks and of the table's walls afresh whenever any of them changes.
-   * The materials are shared by the faces wearing the same picture the same way.
+   * Builds the faces of the blocks and of the table's walls afresh whenever any of them changes. The
+   * faces wearing the same picture the same way are drawn as one shape, so the table is drawn in as
+   * many calls as it has pictures rather than faces.
    */
   private placeFaces(walls: readonly TableWorldWall[], caps: readonly TableWorldCap[]): void {
     const planned = JSON.stringify([walls, caps]);
@@ -251,22 +253,30 @@ class ThreeTableEngine implements Table3dEngine {
     this.facesPlanned = planned;
     if (this.faces) {
       this.scene.remove(this.faces);
-      this.faces.traverse((object) => (object as Mesh).geometry?.dispose());
+      this.faces.traverse((object) => {
+        const mesh = object as Mesh;
+        mesh.geometry?.dispose();
+        (mesh.material as MeshBasicNodeMaterial | undefined)?.dispose();
+      });
       this.faces = null;
     }
-    const materials = new Map<string, MeshBasicNodeMaterial>();
-    const materialFor = (face: { pictureUrl: string; tilePx: number; glass: boolean }) => {
-      const key = face.glass ? 'glass' : `${face.pictureUrl}|${face.tilePx > 0}`;
-      let material = materials.get(key);
-      if (!material) {
-        material = this.faceMaterial(face);
-        materials.set(key, material);
-      }
-      return material;
+    const byLook = new Map<
+      string,
+      { face: { pictureUrl: string; tilePx: number; glass: boolean }; shapes: BufferGeometry[] }
+    >();
+    const add = (face: { pictureUrl: string; tilePx: number; glass: boolean }, shape: BufferGeometry) => {
+      const key = face.glass || !face.pictureUrl ? 'glass' : `${face.pictureUrl}|${face.tilePx > 0}`;
+      const look = byLook.get(key) ?? { face, shapes: [] };
+      look.shapes.push(shape);
+      byLook.set(key, look);
     };
+    for (const wall of walls) add(wall, wallGeometry(wall));
+    for (const cap of caps) add(cap, capGeometry(cap));
     const faces = new Group();
-    for (const wall of walls) faces.add(new Mesh(wallGeometry(wall), materialFor(wall)));
-    for (const cap of caps) faces.add(new Mesh(capGeometry(cap), materialFor(cap)));
+    for (const { face, shapes } of byLook.values()) {
+      faces.add(new Mesh(mergedFaces(shapes), this.faceMaterial(face)));
+      for (const shape of shapes) shape.dispose();
+    }
     this.faces = faces;
     this.scene.add(faces);
   }
