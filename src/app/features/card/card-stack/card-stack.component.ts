@@ -20,7 +20,6 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { ContextMenuSeparator, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
-import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
@@ -35,6 +34,7 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { CardDrawCountDialogComponent } from '@axe/features/card/card-draw-count-dialog/card-draw-count-dialog.component';
+import { CardDropService } from '@axe/features/card/card-drop.service';
 import { CardGameService } from '@axe/features/card/card-game.service';
 import { buildCardStackContextMenu } from '@axe/features/card/card-stack/card-stack-context-menu';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
@@ -73,7 +73,6 @@ const LAID_OUT_FOR_CELL_PX = 50;
     '[style.display]': "isHiddenByFog() ? 'none' : null",
     '[attr.data-object-id]': 'cardStack().identifier',
     class: 'block',
-    '(carddrop)': 'onCardDrop($event)',
     '(dragstart)': 'onDragstart($event)',
     '(contextmenu)': 'onContextMenu($event)',
   },
@@ -92,7 +91,7 @@ export class CardStackComponent {
   private readonly visionService = inject(VisionService);
   protected readonly tabletopService = inject(TabletopService);
   private readonly modalService = inject(ModalService);
-  private readonly multiMovableService = inject(MultiMovableService);
+  private readonly cardDrop = inject(CardDropService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly translateFn = inject(TRANSLATE_FN);
   private readonly confirm = inject(ConfirmService);
@@ -308,43 +307,6 @@ export class CardStackComponent {
     this.animeState.set('inactive');
   }
 
-  /**
-   * Takes a card or stack dropped close enough onto this one.
-   *
-   * A card within 50px goes on top, along with any cards moved together with it. Another stack
-   * within 25px is merged with this one into a new stack that replaces both. Drops of anything
-   * else, or of this stack onto itself, are left to other listeners.
-   */
-  onCardDrop(e: Event) {
-    const ce = e as CustomEvent;
-    if (this.cardStack() === ce.detail || (!(ce.detail instanceof Card) && !(ce.detail instanceof CardStack))) {
-      return;
-    }
-    e.stopPropagation();
-    e.preventDefault();
-
-    if (ce.detail instanceof Card) {
-      const card: Card = ce.detail;
-      const distance: number =
-        (card.location.x - this.cardStack().location.x) ** 2 +
-        (card.location.y - this.cardStack().location.y) ** 2 +
-        (card.posZ - this.cardStack().posZ) ** 2;
-      if (distance < this.gridSize ** 2) {
-        this.cardStack().putOnTop(card);
-        for (const follower of this.multiMovableService.followerTabletopObjectsFor(card.identifier)) {
-          if (follower instanceof Card) this.cardStack().putOnTop(follower);
-        }
-      }
-    } else if (ce.detail instanceof CardStack) {
-      const cardStack: CardStack = ce.detail;
-      const distance: number =
-        (cardStack.location.x - this.cardStack().location.x) ** 2 +
-        (cardStack.location.y - this.cardStack().location.y) ** 2 +
-        (cardStack.posZ - this.cardStack().posZ) ** 2;
-      if (distance < (this.gridSize / 2) ** 2) this.concatStack(cardStack);
-    }
-  }
-
   /** Feeds a press into the double-tap detector, which draws a card when a second press lands in place. */
   startDoubleClickTimer(e: MouseEvent | TouchEvent) {
     this.doubleTap.handle(e, () => this.onDoubleClick());
@@ -427,12 +389,12 @@ export class CardStackComponent {
   }
 
   /**
-   * Plays the put-down sound when a drag ends, and offers the stack as a drop to its siblings so it
-   * can merge into a stack it landed on.
+   * Plays the put-down sound when a drag ends, and offers the stack to what it landed on, so it can
+   * merge into a stack or take in a card there.
    */
   onMoved() {
     SoundEffect.play(PresetSound.cardPut);
-    this.dispatchCardDropEvent();
+    this.cardDrop.drop(this.cardStack());
   }
 
   private drawCard(): Card | null {
@@ -561,36 +523,6 @@ export class CardStackComponent {
 
     this.cardStack().setLocation('graveyard');
     this.cardStack().destroy();
-  }
-
-  private concatStack(topStack: CardStack, bottomStack: CardStack = this.cardStack()) {
-    const newCardStack = CardStack.create(topStack.name);
-    newCardStack.location.name = bottomStack.location.name;
-    newCardStack.location.x = bottomStack.location.x;
-    newCardStack.location.y = bottomStack.location.y;
-    newCardStack.posZ = bottomStack.posZ;
-    newCardStack.zindex = topStack.zindex;
-    newCardStack.rotate = bottomStack.rotate;
-
-    const bottomCards: Card[] = bottomStack.drawCardAll();
-    const topCards: Card[] = topStack.drawCardAll();
-    for (const card of [...topCards, ...bottomCards]) newCardStack.putOnBottom(card);
-
-    bottomStack.setLocation('');
-    bottomStack.destroy();
-
-    topStack.setLocation('');
-    topStack.destroy();
-  }
-
-  private dispatchCardDropEvent() {
-    const element: HTMLElement = this.elementRef.nativeElement;
-    const parent = element.parentElement!;
-    const children = parent.children;
-    const event = new CustomEvent('carddrop', { detail: this.cardStack(), bubbles: true });
-    for (let i = 0; i < children.length; i++) {
-      children[i].dispatchEvent(event);
-    }
   }
 
   private showDetail(gameObject: CardStack) {

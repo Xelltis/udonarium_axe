@@ -30,6 +30,7 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { buildCardContextMenu } from '@axe/features/card/card/card-context-menu';
 import { selectOverlappingCards } from '@axe/features/card/card/overlapping-cards';
+import { CardDropService } from '@axe/features/card/card-drop.service';
 import { CardFlipCutInService } from '@axe/features/card/card-flip-cut-in.service';
 import { elementsAt } from '@axe/features/card/hand-rail/elements-at';
 import { HandDragService } from '@axe/features/card/hand-rail/hand-drag.service';
@@ -57,12 +58,12 @@ import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-o
     '[style.display]': "isHiddenByFog() ? 'none' : null",
     '[attr.data-object-id]': 'card().identifier',
     class: 'block',
-    '(carddrop)': 'onCardDrop($event)',
     '(dragstart)': 'onDragstart($event)',
     '(contextmenu)': 'onContextMenu($event)',
   },
 })
 export class CardComponent {
+  private readonly cardDrop = inject(CardDropService);
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly rolePermission = inject(RolePermissionService);
@@ -368,35 +369,6 @@ export class CardComponent {
   }
 
   /**
-   * Answers a card or card stack let go of on the table near this card.
-   *
-   * A stack dropped within 25px of the card snaps onto it and takes the card in at its bottom.
-   * Anything else, or the card landing on itself, passes the event on untouched.
-   */
-  onCardDrop(e: Event) {
-    const ce = e as CustomEvent;
-    if (this.card() === ce.detail || (!(ce.detail instanceof Card) && !(ce.detail instanceof CardStack))) {
-      return;
-    }
-    e.stopPropagation();
-    e.preventDefault();
-
-    if (ce.detail instanceof CardStack) {
-      const cardStack: CardStack = ce.detail;
-      const distance: number =
-        (cardStack.location.x - this.card().location.x) ** 2 +
-        (cardStack.location.y - this.card().location.y) ** 2 +
-        (cardStack.posZ - this.card().posZ) ** 2;
-      if (distance < (this.gridSize / 2) ** 2) {
-        cardStack.location.x = this.card().location.x;
-        cardStack.location.y = this.card().location.y;
-        cardStack.posZ = this.card().posZ;
-        cardStack.putOnBottom(this.card());
-      }
-    }
-  }
-
-  /**
    * Feeds a press on the card to the double-tap detector, which flips the card on the second tap.
    */
   startDoubleClickTimer(e: MouseEvent | TouchEvent) {
@@ -492,8 +464,8 @@ export class CardComponent {
    * Finishes a drag or rotation of the card.
    *
    * Let go of over the hand rail, the card returns to where it lay and goes into this user's hand.
-   * Anywhere else it stays where it landed and the other pieces under it are told, so a stack can
-   * take it in.
+   * Anywhere else it stays where it landed and is offered to what it landed on, so a stack can take
+   * it in.
    */
   onMoved() {
     this.handDrag.disarmTableDrag();
@@ -510,7 +482,7 @@ export class CardComponent {
       return;
     }
     SoundEffect.play(PresetSound.cardPut);
-    this.dispatchCardDropEvent();
+    this.cardDrop.drop(this.card());
   }
 
   private isDroppedOnHandRail(): boolean {
@@ -543,16 +515,6 @@ export class CardComponent {
       card.toHand(userId);
       card.update();
       this.objectChange.notifyChanged(card.identifier);
-    }
-  }
-
-  private dispatchCardDropEvent() {
-    const element: HTMLElement = this.elementRef.nativeElement;
-    const parent = element.parentElement!;
-    const children = parent.children;
-    const event = new CustomEvent('carddrop', { detail: this.card(), bubbles: true });
-    for (let i = 0; i < children.length; i++) {
-      children[i].dispatchEvent(event);
     }
   }
 
