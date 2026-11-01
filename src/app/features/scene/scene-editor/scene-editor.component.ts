@@ -1,5 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GameClockService } from '@axe/application/game-clock/game-clock.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -15,6 +15,7 @@ import {
   DEFAULT_AMBIENCE_DENSITY,
   SKY_AMBIENCE_KINDS,
 } from '@axe/domain/effect/ambience/ambience-kind';
+import { findByReference } from '@axe/domain/hotbar/hotbar-reference';
 import { AUDIO_TAG_BGS, AudioTag } from '@axe/domain/media/audio-tag';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { Playlist } from '@axe/domain/media/playlist';
@@ -38,6 +39,7 @@ import {
 } from '@axe/domain/scene/board-scene-parts';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { foregroundFitOf, foregroundOpacityOf, TABLE_FOREGROUND_FITS } from '@axe/domain/tabletop/table-foreground';
+import { ChatLineEditorComponent } from '@axe/features/chat/chat-line-editor/chat-line-editor.component';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -53,6 +55,9 @@ type PictureField =
   | 'eastWallImageIdentifier'
   | 'southWallImageIdentifier'
   | 'westWallImageIdentifier';
+
+/** How long after the last key the words of a scene are shared with the room. */
+const WRITE_DELAY_MS = 400;
 
 const WALL_PICTURE_FIELD: Record<SceneWallSide, PictureField> = {
   north: 'northWallImageIdentifier',
@@ -86,7 +91,15 @@ const SWITCHED_PARTS: readonly BoardScenePart[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-scene-editor',
   templateUrl: './scene-editor.component.html',
-  imports: [FormsModule, NgTemplateOutlet, NgSelectModule, NgSelectWindowDirective, SafePipe, TranslocoModule],
+  imports: [
+    ChatLineEditorComponent,
+    FormsModule,
+    NgTemplateOutlet,
+    NgSelectModule,
+    NgSelectWindowDirective,
+    SafePipe,
+    TranslocoModule,
+  ],
 })
 export class SceneEditorComponent {
   private readonly objectChange = inject(ObjectChangeService);
@@ -104,6 +117,12 @@ export class SceneEditorComponent {
   readonly apply = output<void>();
   /** The table as it stands is to be written over the scene. */
   readonly overwrite = output<void>();
+
+  private pendingText: { scene: BoardScene; words: string; timer: ReturnType<typeof setTimeout> } | null = null;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.flushText());
+  }
 
   protected readonly switchedParts = SWITCHED_PARTS;
   protected readonly wallSides = SCENE_WALL_SIDES;
@@ -304,12 +323,15 @@ export class SceneEditorComponent {
     );
   }
 
-  protected bgmPlaylist(): string {
+  /** The playlist the scene plays, found as putting the scene on finds it, or null for none chosen. */
+  protected bgmPlaylist(): string | null {
     const scene = this.current();
-    const named = this.playlists().find(
-      (playlist) => playlist.identifier === scene.bgmPlaylistIdentifier || playlist.name === scene.bgmPlaylistName
+    const found = findByReference(
+      this.playlists(),
+      `${scene.bgmPlaylistIdentifier ?? ''}`,
+      `${scene.bgmPlaylistName ?? ''}`
     );
-    return named?.identifier ?? '';
+    return found?.thing.identifier ?? null;
   }
 
   protected setBgmPlaylist(identifier: string): void {
@@ -330,6 +352,23 @@ export class SceneEditorComponent {
 
   protected setPeriod(period: number): void {
     this.write({ clockPeriod: `${period}` });
+  }
+
+  /** Shares the scene's words with the room a moment after the last key, rather than at every key. */
+  protected writeTextLater(scene: BoardScene, words: string): void {
+    if (!this.canEdit()) return;
+    if (this.pendingText && this.pendingText.scene !== scene) this.flushText();
+    if (this.pendingText) clearTimeout(this.pendingText.timer);
+    this.pendingText = { scene, words, timer: setTimeout(() => this.flushText(), WRITE_DELAY_MS) };
+  }
+
+  /** Shares words still waiting to be, as before the scene is put on, copied or written over. */
+  flushText(): void {
+    const pending = this.pendingText;
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    this.pendingText = null;
+    if (this.canEdit() && pending.scene.text !== pending.words) pending.scene.writeText(pending.words);
   }
 
   /** Writes fields of the scene, for a reader who may change it. */

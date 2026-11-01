@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, viewChild } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -82,6 +82,8 @@ export class ScenePanelComponent {
 
   /** The scene picked for putting together, by identifier. */
   protected readonly picked = signal<string | null>(null);
+  /** The editor of the scene picked, whose words may still be waiting to be shared. */
+  private readonly editor = viewChild(SceneEditorComponent);
   protected readonly reorder = new RowReorder<BoardScene>();
 
   protected readonly shelf = new FolderShelf<BoardScene>({
@@ -162,6 +164,7 @@ export class ScenePanelComponent {
   }
 
   protected apply(scene: BoardScene, options: { bgm?: boolean; text?: boolean } = {}): void {
+    this.editor()?.flushText();
     this.scenes.apply(scene, options);
   }
 
@@ -172,6 +175,7 @@ export class ScenePanelComponent {
       message: this.t('feature.scene.overwriteConfirm', { name: this.rowOf(scene).name }),
       okLabel: this.t('feature.scene.menu.overwrite'),
     });
+    this.editor()?.flushText();
     if (sure) this.scenes.overwrite(scene);
   }
 
@@ -215,6 +219,7 @@ export class ScenePanelComponent {
   }
 
   protected duplicate(scene: BoardScene): void {
+    this.editor()?.flushText();
     const copy = this.scenes.duplicate(scene, this.t('feature.scene.copyName', { name: this.rowOf(scene).name }));
     if (copy) this.picked.set(copy.identifier);
   }

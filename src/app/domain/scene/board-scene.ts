@@ -3,6 +3,8 @@ import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { parseAttributesKeepingIdentifier, toAttributesKeepingIdentifier } from '@axe/core/sync/persisted-identifier';
+import { inlineStampSites } from '@axe/domain/chat/inline-stamp';
+import { GameTable } from '@axe/domain/tabletop/game-table';
 
 /**
  * A scene: how a table looks and what the room hears, kept to be put on in one go, such as the
@@ -66,6 +68,8 @@ export class BoardScene extends GameObject {
   @SyncVar() text = '';
   /** The tab it is said in; empty for the first tab. */
   @SyncVar() textTab = '';
+  /** The stamps put in {@link text}, by identifier, so that a save finds their pictures. */
+  @SyncVar() stamps = '';
   /** `true` to darken every screen for a moment while the scene changes. */
   @SyncVar() fade = '';
 
@@ -85,9 +89,23 @@ export class BoardScene extends GameObject {
     return BoardScene.all().reduce((last, scene) => Math.max(last, Number(scene.order) || 0), 0) + 1;
   }
 
-  /** What a save writes of the scene, with its identifier, as a switch or a hotbar slot names it by that. */
+  /** Writes what is said as the scene is put on, and which stamps it holds beside it. */
+  writeText(text: string): void {
+    this.text = text;
+    const stamps = [...new Set(inlineStampSites(text).map((site) => site.id))].join(' ');
+    if (this.stamps !== stamps) this.stamps = stamps;
+  }
+
+  /**
+   * What a save writes of the scene, with its identifier, as a switch or a hotbar slot names it by
+   * that. A table does not keep its identifier through a save, so the scene is found by the name its
+   * table goes by now, renamed since or not.
+   */
   toAttributes(): Attributes {
-    return toAttributesKeepingIdentifier(this);
+    const attributes = toAttributesKeepingIdentifier(this);
+    const table = ObjectStore.instance.get(`${this.tableIdentifier ?? ''}`);
+    if (table instanceof GameTable) attributes['tableName'] = table.name;
+    return attributes;
   }
 
   /** Reads the scene back from a save under the identifier written with it. */

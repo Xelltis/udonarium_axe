@@ -243,32 +243,34 @@
               <option [ngValue]="'playlist'">{{ 'feature.scene.editor.bgmPlaylist' | transloco }}</option>
             </select>
             @if (scene.bgm === 'track') {
-              <select
-                [class]="fieldClass"
+              <ng-select
+                class="ud-select"
                 data-testid="scene-bgm-track"
-                [disabled]="!canEdit()"
-                [ngModel]="scene.bgmIdentifier"
-                (ngModelChange)="write({ bgmIdentifier: $event })"
-              >
-                <option [ngValue]="''">{{ 'feature.scene.editor.chooseTrack' | transloco }}</option>
-                @for (track of musicTracks(); track track.identifier) {
-                  <option [ngValue]="track.identifier">{{ track.name }}</option>
-                }
-              </select>
+                bindLabel="name"
+                bindValue="identifier"
+                [items]="musicTracks()"
+                [readonly]="!canEdit()"
+                [clearable]="false"
+                [ngModel]="scene.bgmIdentifier || null"
+                [ngModelOptions]="{ standalone: true }"
+                [placeholder]="'feature.scene.editor.chooseTrack' | transloco"
+                (ngModelChange)="write({ bgmIdentifier: $event ?? '' })"
+              />
             }
             @if (scene.bgm === 'playlist') {
-              <select
-                [class]="fieldClass"
+              <ng-select
+                class="ud-select"
                 data-testid="scene-bgm-playlist"
-                [disabled]="!canEdit()"
+                bindLabel="label"
+                bindValue="identifier"
+                [items]="playlists()"
+                [readonly]="!canEdit()"
+                [clearable]="false"
                 [ngModel]="bgmPlaylist()"
+                [ngModelOptions]="{ standalone: true }"
+                [placeholder]="'feature.scene.editor.choosePlaylist' | transloco"
                 (ngModelChange)="setBgmPlaylist($event)"
-              >
-                <option [ngValue]="''">{{ 'feature.scene.editor.choosePlaylist' | transloco }}</option>
-                @for (playlist of playlists(); track playlist.identifier) {
-                  <option [ngValue]="playlist.identifier">{{ playlist.label }}</option>
-                }
-              </select>
+              />
             }
           }
           @case ('bgs') {
@@ -334,16 +336,16 @@
 
   <section class="border-ui-border-panel rounded-ui-sm flex flex-col gap-1.5 border border-solid px-2 py-1.5">
     <span class="font-semibold">{{ 'feature.scene.part.text' | transloco }}</span>
-    <textarea
-      rows="3"
-      data-testid="scene-text"
-      [class]="fieldClass"
-      class="resize-y"
-      [value]="scene.text"
-      [placeholder]="'feature.scene.editor.textPlaceholder' | transloco"
-      [disabled]="!canEdit()"
-      (change)="write({ text: $any($event.target).value })"
-    ></textarea>
+    @for (each of [scene]; track each.identifier) {
+      <div data-testid="scene-text" [class.pointer-events-none]="!canEdit()" [class.opacity-50]="!canEdit()">
+        <chat-line-editor
+          [draft]="each.text"
+          [enterKeeps]="false"
+          [placeholder]="'feature.scene.editor.textPlaceholder' | transloco"
+          (draftChange)="writeTextLater(each, $event)"
+        />
+      </div>
+    }
     <label class="flex items-center gap-2">
       <span class="text-ui-muted w-20 shrink-0">{{ 'feature.scene.editor.textTab' | transloco }}</span>
       <select

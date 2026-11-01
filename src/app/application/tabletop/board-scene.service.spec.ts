@@ -88,10 +88,31 @@ describe('BoardSceneService', () => {
       expect(ownMusic).not.toHaveBeenCalled();
     });
 
-    it('finds the table by name where its identifier means nothing here, as after a save is read back', () => {
-      service.apply(scene({ tableIdentifier: 'gone', tableName: '洞窟' }));
+    it('finds the table by name where its identifier means nothing here, as after a save is read back, and names it by its identifier from then on', () => {
+      const back = scene({ tableIdentifier: 'gone', tableName: '洞窟' });
+
+      service.apply(back);
 
       expect(TableSelecter.instance.viewTableIdentifier).toBe(cave.identifier);
+      expect(back.tableIdentifier).toBe(cave.identifier);
+    });
+
+    it('takes up the name its table goes by now, renamed since', () => {
+      const deep = scene({ tableIdentifier: cave.identifier, tableName: '洞窟' });
+      cave.name = '地底湖';
+
+      service.apply(deep);
+
+      expect(deep.tableName).toBe('地底湖');
+    });
+
+    it('writes its look nowhere when the table it names is gone, rather than over the table shown', () => {
+      village.imageIdentifier = 'day';
+
+      service.apply(scene({ tableIdentifier: 'gone', tableName: '消えた塔', floorImageIdentifier: 'tower' }));
+
+      expect(TableSelecter.instance.viewTableIdentifier).toBe(village.identifier);
+      expect(village.imageIdentifier).toBe('day');
     });
 
     it('sends the look and the table shown in one go', () => {
@@ -119,12 +140,13 @@ describe('BoardSceneService', () => {
       expect(village.imageIdentifier).not.toBe('night');
     });
 
-    it('is put on for a player pressing a switch the game master set up, without being remembered', () => {
+    it('is put on for a player pressing a switch the game master set up, and remembered as the scene the room is in', () => {
       PeerCursor.myCursor.role = PeerRole.Player;
+      const night = scene({ floorImageIdentifier: 'night' });
 
-      expect(service.apply(scene({ floorImageIdentifier: 'night' }), { trusted: true })).toBe(true);
+      expect(service.apply(night, { trusted: true })).toBe(true);
       expect(village.imageIdentifier).toBe('night');
-      expect(Config.instance.boardScene).toBe('');
+      expect(Config.instance.boardScene).toBe(night.identifier);
     });
   });
 
@@ -249,14 +271,14 @@ describe('BoardSceneService', () => {
         return work();
       });
       const say = vi
-        .spyOn(TestBed.inject(ChatMessageService), 'sendSystemMessageToTab')
-        .mockImplementation(() => (order.push('words'), null as never));
+        .spyOn(TestBed.inject(ChatMessageService), 'sendVerbatim')
+        .mockImplementation(() => (order.push('words'), null));
 
       service.apply(scene({ text: '夜が来た' }));
       service.apply(scene({ text: '夜が来た' }), { text: false });
 
-      expect(say.mock.calls.map(([to, words]) => [to, words])).toEqual([
-        [ChatTabList.instance.chatTabs[0], '夜が来た'],
+      expect(say.mock.calls.map(([to, words, as]) => [to, words, as])).toEqual([
+        [ChatTabList.instance.chatTabs[0], '夜が来た', { kind: 'system' }],
       ]);
       expect(order).toEqual(['look', 'words', 'look']);
     });

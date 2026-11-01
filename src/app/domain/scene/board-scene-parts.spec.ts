@@ -69,6 +69,12 @@ describe('the parts of a scene', () => {
       expect(sceneBgmOf(scene({ bgm: 'loud' }))).toBeNull();
     });
 
+    it('counts the music as changed once a way of putting it on is chosen, a track still to be picked included', () => {
+      expect(scenePartsOf(scene({ bgm: 'track' }))).toEqual(['bgm']);
+      expect(scenePartsOf(scene({ bgm: 'playlist' }))).toEqual(['bgm']);
+      expect(scenePartsOf(scene({ bgm: 'loud' }))).toEqual([]);
+    });
+
     it('reads the background sounds it leaves playing', () => {
       expect(sceneBgsOf(scene({ bgs: 'replace', bgsIdentifiers: 'rain, fire,rain' }))).toEqual({
         mode: 'replace',

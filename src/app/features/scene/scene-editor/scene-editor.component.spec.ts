@@ -88,6 +88,35 @@ describe('SceneEditorComponent', () => {
     expect([scene.bgm, scene.bgs]).toEqual(['stop', 'stop']);
   });
 
+  it('keeps the music ticked as a track or a playlist is chosen to put on, for one to be picked', async () => {
+    const root = open();
+    tick(root, 'bgm');
+    await redraw();
+
+    const mode = root.querySelector<HTMLSelectElement>('[data-testid="scene-bgm-mode"]')!;
+    mode.selectedIndex = 1;
+    mode.dispatchEvent(new Event('change'));
+    await redraw();
+
+    expect(scene.bgm).toBe('track');
+    expect(root.querySelector<HTMLInputElement>('[data-testid="scene-part-toggle-bgm"]')!.checked).toBe(true);
+    expect(root.querySelector('[data-testid="scene-bgm-track"]')).not.toBeNull();
+  });
+
+  it('shares the scene’s words a moment after the last key, or at once when asked to, as before it is put on', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    open();
+    await redraw();
+    const editor = fixture.componentInstance;
+
+    editor['writeTextLater'](scene, '夜が来た ［月:image:moon］');
+    expect(scene.text).toBe('');
+    editor.flushText();
+
+    expect([scene.text, scene.stamps]).toEqual(['夜が来た ［月:image:moon］', 'image:moon']);
+    vi.useRealTimers();
+  });
+
   it('shows the table chosen, by identifier and name', async () => {
     const cave = new GameTable();
     cave.name = '洞窟';

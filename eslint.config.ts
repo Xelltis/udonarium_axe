@@ -82,7 +82,7 @@ const FEATURE_DEPENDENCIES: Record<string, readonly string[]> = {
   'room-archive': [],
   'room-settings': ['room-archive', 'skin'],
   'scenario-text': ['chat'],
-  scene: [],
+  scene: ['chat'],
   skin: [],
   'sound-settings': [],
   'status-ailment': [],

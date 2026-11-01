@@ -69,8 +69,9 @@ export class BoardSceneService {
 
   /**
    * Puts a scene on, leaving out the music or the words where asked. A part naming something no
-   * longer here, such as a deleted table or cut-in, is passed over. A scene that fades darkens every
-   * screen first and is put on once they are dark. Answers whether it was put on.
+   * longer here, such as a deleted cut-in, is passed over. A scene whose table is gone writes its
+   * look nowhere, rather than over the table being shown. A scene that fades darkens every screen
+   * first and is put on once they are dark. Answers whether it was put on.
    */
   apply(scene: BoardScene, options: BoardSceneApplyOptions = {}): boolean {
     if (options.trusted ? PeerCursor.isMyselfKeptOffTable : !this.canUse()) return false;
@@ -89,8 +90,10 @@ export class BoardSceneService {
   private putOn(scene: BoardScene, options: BoardSceneApplyOptions): void {
     const selecter = TableSelecter.instance;
     const named = this.tableOf(scene);
-    const table = named ?? selecter.viewTable;
+    const namesTable = `${scene.tableIdentifier ?? ''}`.trim() !== '' || `${scene.tableName ?? ''}`.trim() !== '';
+    const table = named ?? (namesTable ? null : selecter.viewTable);
     const shows = named !== null && named.identifier !== selecter.viewTableIdentifier;
+    const mayWrite = this.canUse() || options.trusted === true;
     const bgm = options.bgm === false ? null : sceneBgmOf(scene);
     const bgs = sceneBgsOf(scene);
     const cutIn = this.cutInOf(scene);
@@ -103,7 +106,8 @@ export class BoardSceneService {
       if (bgm) this.putOnMusic(bgm);
       if (cutIn) this.cutIns.launch(cutIn);
       if (period !== null) this.clock.setPeriod(period, { trusted: options.trusted });
-      if (this.canUse()) Config.instance.boardScene = scene.identifier;
+      if (named && this.canUse()) this.settleTable(scene, named);
+      if (mayWrite) Config.instance.boardScene = scene.identifier;
     });
     if (options.text !== false) this.say(scene);
   }
@@ -192,6 +196,15 @@ export class BoardSceneService {
     return fields;
   }
 
+  /**
+   * Has the scene name its table as it is now: by the identifier it goes by here, for a scene that
+   * found it by name, as after a save read back, and by the name it goes by now, renamed since.
+   */
+  private settleTable(scene: BoardScene, table: GameTable): void {
+    if (scene.tableIdentifier !== table.identifier) scene.tableIdentifier = table.identifier;
+    if (scene.tableName !== table.name) scene.tableName = table.name;
+  }
+
   private tableOf(scene: BoardScene): GameTable | null {
     return (
       findByReference(this.objectStore.getObjects(GameTable), scene.tableIdentifier, scene.tableName)?.thing ?? null
@@ -254,7 +267,7 @@ export class BoardSceneService {
     if (words.length < 1) return;
     const tabs = ChatTabList.instance.chatTabs;
     const tab = tabs.find((candidate) => candidate.identifier === scene.textTab) ?? tabs[0];
-    if (tab) this.chat.sendSystemMessageToTab(tab, words);
+    if (tab) this.chat.sendVerbatim(tab, words, { kind: 'system' });
   }
 }
 

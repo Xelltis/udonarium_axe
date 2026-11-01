@@ -1,7 +1,7 @@
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ambienceDensityOf } from '@axe/domain/effect/ambience/ambience-kind';
 import { parseCutInIdentifiers } from '@axe/domain/media/table-cut-in';
-import { type BoardScene, sceneBgmOf } from '@axe/domain/scene/board-scene';
+import { type BoardScene } from '@axe/domain/scene/board-scene';
 import { FilterType, type GameTable } from '@axe/domain/tabletop/game-table';
 import { foregroundFitOf, foregroundOpacityOf } from '@axe/domain/tabletop/table-foreground';
 
@@ -61,6 +61,7 @@ export const BOARD_SCENE_FIELDS = [
   'clockPeriod',
   'text',
   'textTab',
+  'stamps',
   'fade',
 ] as const satisfies readonly (keyof BoardScene)[];
 export type BoardSceneFields = Pick<BoardScene, (typeof BOARD_SCENE_FIELDS)[number]>;
@@ -87,9 +88,12 @@ export const BOARD_SCENE_PART_FIELDS: Readonly<Record<BoardScenePart, readonly (
   bgs: ['bgs', 'bgsIdentifiers'],
   cutIn: ['cutInIdentifiers'],
   clock: ['clockPeriod'],
-  text: ['text', 'textTab'],
+  text: ['text', 'textTab', 'stamps'],
   fade: ['fade'],
 };
+
+/** The ways a scene puts on music; a scene with one of them chosen changes the music. */
+const SCENE_BGM_MODES: readonly string[] = ['stop', 'track', 'playlist'];
 
 /** The fields of a scene that say how the table looks, which the look of a table is caught in. */
 export type BoardSceneLookFields = Pick<
@@ -233,7 +237,11 @@ export function scenePeriodOf(value: unknown): number | null {
   return /^\d{1,2}$/.test(held) ? Number(held) : null;
 }
 
-/** The parts a scene changes, in the order they are listed. */
+/**
+ * The parts a scene changes, in the order they are listed. Its music counts once a way of putting
+ * it on is chosen, a track or a playlist still to be picked included; putting it on then leaves the
+ * music alone until one is.
+ */
 export function scenePartsOf(scene: BoardSceneFields): BoardScenePart[] {
   const changes: Record<BoardScenePart, boolean> = {
     table: text(scene.tableIdentifier).length > 0 || text(scene.tableName).length > 0,
@@ -248,7 +256,7 @@ export function scenePartsOf(scene: BoardSceneFields): BoardScenePart[] {
     weather: sceneWeatherOf(scene.weather) !== null,
     darkness: sceneToggleOf(scene.darkness) !== undefined,
     fog: sceneToggleOf(scene.fog) !== undefined,
-    bgm: sceneBgmOf(scene) !== null,
+    bgm: SCENE_BGM_MODES.includes(text(scene.bgm)),
     bgs: sceneBgsOf(scene) !== null,
     cutIn: parseCutInIdentifiers(text(scene.cutInIdentifiers)).length > 0,
     clock: scenePeriodOf(scene.clockPeriod) !== null,
