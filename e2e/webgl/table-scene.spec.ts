@@ -137,6 +137,20 @@ test.describe('the table drawn on a canvas', () => {
     await expectBoardWhereTheCameraPutsIt(page);
   });
 
+  test('draws the board again on a fresh canvas once the graphics card lets the drawing go', async ({ page }) => {
+    await sceneDrawn(page);
+    await page.evaluate(() => {
+      const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="table-scene"]')!;
+      canvas.dataset['lost'] = '';
+      canvas.getContext('webgl2')?.getExtension('WEBGL_lose_context')?.loseContext();
+    });
+
+    await expect(page.locator('[data-testid="table-scene"][data-lost]')).toHaveCount(0, { timeout: 10000 });
+    await expect(page.getByTestId('table-scene')).toHaveCount(1);
+    await sceneDrawn(page);
+    await expectBoardWhereTheCameraPutsIt(page);
+  });
+
   test('draws through WebGL2 where the browser gives no WebGPU adapter', async ({ page }) => {
     await sceneDrawn(page);
     expect(await page.evaluate(() => (window as unknown as { __axeTable: SceneHooks }).__axeTable.renderer())).toBe(

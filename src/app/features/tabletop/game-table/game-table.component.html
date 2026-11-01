@@ -84,7 +84,9 @@
 >
   <!-- The table drawn through three.js, under the page's own 3D, for a seat that has asked for it. -->
   @if (table3d.drawsOnCanvas()) {
-    <canvas class="pointer-events-none absolute inset-0 size-full" data-testid="table-scene" #sceneCanvas></canvas>
+    @for (generation of [table3d.canvasGeneration()]; track generation) {
+      <canvas class="pointer-events-none absolute inset-0 size-full" data-testid="table-scene" #sceneCanvas></canvas>
+    }
     @if (table3d.unavailable()) {
       <p
         class="bg-ui-panel text-ui-text pointer-events-auto absolute top-1/2 left-1/2 z-10 max-w-[32em] -translate-1/2 rounded-lg p-4 text-sm"

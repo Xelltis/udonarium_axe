@@ -37,6 +37,9 @@ export const TABLE_3D_ENGINES = new InjectionToken<() => Promise<Table3dEngineMo
   factory: () => () => import('@axe/infrastructure/table-3d/table-3d-engine'),
 });
 
+/** How many times a canvas whose drawing the graphics card let go is made again, before the table is left alone. */
+const RESTARTS = 3;
+
 /** Asks which interfaces this browser can draw the table through. */
 export const TABLE_GRAPHICS = new InjectionToken<() => Promise<TableGraphics>>('table graphics', {
   providedIn: 'root',
@@ -67,6 +70,12 @@ export class Table3dService {
   readonly unavailable = signal(false);
   /** The interface the canvas draws through, once it draws. */
   readonly backend = signal<Table3dBackend | null>(null);
+  /**
+   * Goes up each time a canvas is to be made afresh, after the graphics card let the old one's
+   * drawing go: a canvas that lost its drawing cannot be drawn on again.
+   */
+  readonly canvasGeneration = signal(0);
+  private restarts = 0;
 
   /** The scene of the table in view. */
   readonly world = computed(() => tableWorldOf(this.tabletop.currentTableVersion()));
@@ -95,7 +104,9 @@ export class Table3dService {
         return;
       }
       engine = made;
-      if (made) effects.push(...this.follow(made));
+      if (!made) return;
+      effects.push(...this.follow(made));
+      made.onLost(() => this.restart());
     });
     this.starting = started;
     void started.finally(() => {
@@ -111,6 +122,14 @@ export class Table3dService {
       this.backend.set(null);
       this.settleIfIdle();
     };
+  }
+
+  /** Has a fresh canvas made, a few times at most, for one whose drawing the graphics card let go. */
+  private restart(): void {
+    this.backend.set(null);
+    if (this.restarts >= RESTARTS) return;
+    this.restarts++;
+    this.canvasGeneration.update((generation) => generation + 1);
   }
 
   /** Settles once the canvas has drawn everything it was told, or at once while it has nothing to draw. */

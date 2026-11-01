@@ -53,12 +53,20 @@ class ThreeTableEngine implements Table3dEngine {
   private board: Mesh | null = null;
   private boardShape = '';
   private changed = true;
+  private lost = false;
 
   constructor(
     private readonly renderer: WebGPURenderer,
     readonly backend: 'webgpu' | 'webgl2'
   ) {
     for (const camera of [this.perspective, this.orthographic]) camera.matrixAutoUpdate = false;
+  }
+
+  onLost(listener: () => void): void {
+    this.renderer.onDeviceLost = () => {
+      this.lost = true;
+      listener();
+    };
   }
 
   setWorld(world: TableWorld): void {
@@ -96,7 +104,7 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   renderIfChanged(): boolean {
-    if (!this.changed) return false;
+    if (!this.changed || this.lost) return false;
     this.changed = false;
     this.renderer.render(this.scene, this.camera);
     return true;
@@ -104,7 +112,11 @@ class ThreeTableEngine implements Table3dEngine {
 
   dispose(): void {
     disposeObject(this.scene);
-    this.renderer.dispose();
+    try {
+      this.renderer.dispose();
+    } catch {
+      // A renderer whose card let it go has nothing left to give back.
+    }
   }
 
   /** Lays the board flat at the floor, as wide and deep as it runs, and builds it again only when that changes. */

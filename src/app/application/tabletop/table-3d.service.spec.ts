@@ -16,6 +16,7 @@ class FakeEngine implements Table3dEngine {
   sizes: [number, number][] = [];
   drawn = 0;
   disposed = false;
+  lose: () => void = () => undefined;
   private changed = false;
 
   constructor(readonly options: Table3dEngineOptions) {
@@ -45,6 +46,10 @@ class FakeEngine implements Table3dEngine {
 
   dispose(): void {
     this.disposed = true;
+  }
+
+  onLost(listener: () => void): void {
+    this.lose = listener;
   }
 }
 
@@ -171,5 +176,18 @@ describe('Table3dService', () => {
 
     expect(engines[0].disposed).toBe(true);
     expect(scene.backend()).toBeNull();
+  });
+
+  it('has a fresh canvas made when the graphics card lets the drawing go, a few times at most', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+
+    engines[0].lose();
+
+    expect(scene.backend()).toBeNull();
+    expect(scene.canvasGeneration()).toBe(1);
+    for (let again = 0; again < 5; again++) engines[0].lose();
+    expect(scene.canvasGeneration()).toBe(3);
   });
 });

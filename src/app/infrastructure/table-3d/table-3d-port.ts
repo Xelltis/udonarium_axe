@@ -26,6 +26,11 @@ export interface Table3dEngine {
   resize(width: number, height: number, pixelRatio: number): void;
   /** Draws the scene when anything changed since it was last drawn, and answers whether it drew. */
   renderIfChanged(): boolean;
+  /**
+   * Calls back once the graphics card lets the drawing go, as when the driver restarts; the engine
+   * draws nothing from then on, and the canvas it drew on can be drawn on no more.
+   */
+  onLost(listener: () => void): void;
   dispose(): void;
 }
 
