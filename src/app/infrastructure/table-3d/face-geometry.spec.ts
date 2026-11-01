@@ -4,6 +4,7 @@ import {
   boardGeometry,
   capGeometry,
   griddedTops,
+  gridOverBoard,
   mergedFaces,
   wallGeometry,
 } from '@axe/infrastructure/table-3d/face-geometry';
@@ -119,5 +120,21 @@ describe('the shapes of the faces drawn on the canvas', () => {
     const corner = positions.findIndex((_, i) => i % 3 === 0 && positions[i] === 200 && positions[i + 2] === 100) / 3;
     expect(uvs[corner * 2]).toBeCloseTo(0.2, 6);
     expect(uvs[corner * 2 + 1]).toBeCloseTo(0.8, 6);
+  });
+
+  it('cuts the grid over a hex board to the board’s cells, and lays it over the whole box of a square one', () => {
+    const shape = boardShapeOf(3, 2, 50, GridType.HEX_VERTICAL);
+    const box = { x: -10, y: -20, width: 200, height: 150 };
+
+    const hex = gridOverBoard(shape.hexes, box, 0.15);
+    const square = gridOverBoard(null, box, 0.15);
+
+    expect(hex.getAttribute('position').count).toBe(6 * 4 * 3);
+    expect(
+      Array.from(hex.getAttribute('position').array)
+        .filter((_, i) => i % 3 === 1)
+        .every((y) => Math.abs(y - 0.15) < 1e-6)
+    ).toBe(true);
+    expect(square.getAttribute('position').count).toBe(4);
   });
 });

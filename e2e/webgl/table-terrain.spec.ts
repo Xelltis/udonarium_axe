@@ -151,19 +151,27 @@ test.describe('blocks drawn on a canvas', () => {
     expect(wrong / (changes.block + changes.bare), JSON.stringify(changes)).toBeLessThan(0.01);
   });
 
-  test('lay the grid over the bare board and under themselves', async ({ page }) => {
-    expect(await setBlocksDown(page)).toBeGreaterThanOrEqual(3);
-    await idle(page);
-    await grabScreen(page);
+  for (const [grid, gridType] of [
+    ['square', '0'],
+    ['hex', '1'],
+  ]) {
+    test(`lay the grid over the bare board and under themselves, on a ${grid} grid`, async ({ page }) => {
+      await openPanel(page, 'テーブル設定');
+      await page.locator('select[name="tableGridType"]').selectOption(gridType);
+      await closePanels(page);
+      expect(await setBlocksDown(page)).toBeGreaterThanOrEqual(3);
+      await idle(page);
+      await grabScreen(page);
 
-    await openPanel(page, 'テーブル設定');
-    await page.locator('input[name="tableGridShow"]').check();
-    await closePanels(page);
-    await idle(page);
-    await grabScreen(page);
+      await openPanel(page, 'テーブル設定');
+      await page.locator('input[name="tableGridShow"]').check();
+      await closePanels(page);
+      await idle(page);
+      await grabScreen(page);
 
-    const changes = await changesBetweenShots(page);
-    expect(changes.bareChanged / changes.bare, `the grid shows: ${JSON.stringify(changes)}`).toBeGreaterThan(0.01);
-    expect(changes.blockChanged / changes.block, `the blocks hide it: ${JSON.stringify(changes)}`).toBeLessThan(0.01);
-  });
+      const changes = await changesBetweenShots(page);
+      expect(changes.bareChanged / changes.bare, `the grid shows: ${JSON.stringify(changes)}`).toBeGreaterThan(0.01);
+      expect(changes.blockChanged / changes.block, `the blocks hide it: ${JSON.stringify(changes)}`).toBeLessThan(0.01);
+    });
+  }
 });

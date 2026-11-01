@@ -1,4 +1,9 @@
-import type { TableWorldBoard, TableWorldCap, TableWorldWall } from '@axe/domain/tabletop/world/table-world';
+import type {
+  TableWorldBoard,
+  TableWorldBoardShape,
+  TableWorldCap,
+  TableWorldWall,
+} from '@axe/domain/tabletop/world/table-world';
 import { BufferGeometry, Float32BufferAttribute, PlaneGeometry, ShapeUtils, Vector2 } from 'three/webgpu';
 
 /**
@@ -141,6 +146,41 @@ export function griddedTops(
         positions.push(point.x, (cap.heights?.[index] ?? cap.zPx) + liftPx, point.y);
         uvs.push((point.x - box.x) / box.width, 1 - (point.y - box.y) / box.height);
       }
+    }
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
+  return geometry;
+}
+
+/**
+ * The table's grid laid over the board a hair above it: over its box on a square board, and cut to
+ * the board's cells on a hex board as the page cuts it, with the grid's canvas read off across its
+ * own box.
+ */
+export function gridOverBoard(
+  hexes: TableWorldBoardShape['hexes'],
+  box: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+  liftPx: number
+): BufferGeometry {
+  if (!hexes) {
+    const plane = new PlaneGeometry(box.width, box.height);
+    plane.rotateX(-Math.PI / 2);
+    plane.translate(box.x + box.width / 2, liftPx, box.y + box.height / 2);
+    return plane;
+  }
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const corner = (point: { x: number; y: number }) => {
+    positions.push(point.x, liftPx, point.y);
+    uvs.push((point.x - box.x) / box.width, 1 - (point.y - box.y) / box.height);
+  };
+  for (const hex of hexes) {
+    for (let i = 1; i < hex.length - 1; i++) {
+      corner(hex[0]);
+      corner(hex[i]);
+      corner(hex[i + 1]);
     }
   }
   const geometry = new BufferGeometry();

@@ -2,6 +2,7 @@ import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import type {
   TableWorld,
   TableWorldBoard,
+  TableWorldBoardShape,
   TableWorldCap,
   TableWorldWall,
 } from '@axe/domain/tabletop/world/table-world';
@@ -10,6 +11,7 @@ import {
   boardGeometry,
   capGeometry,
   griddedTops,
+  gridOverBoard,
   mergedFaces,
   wallGeometry,
 } from '@axe/infrastructure/table-3d/face-geometry';
@@ -33,7 +35,6 @@ import {
   MeshBasicNodeMaterial,
   OrthographicCamera,
   PerspectiveCamera,
-  PlaneGeometry,
   RepeatWrapping,
   Scene,
   SRGBColorSpace,
@@ -42,8 +43,12 @@ import {
   WebGPURenderer,
 } from 'three/webgpu';
 
-/** How near and far the camera draws, in table pixels from the eye. */
-const NEAR_PX = 1;
+/**
+ * How near and far the camera draws, in table pixels from the eye. The near plane stands well off
+ * the eye, since how finely depth is told apart falls with how near it is, and the grid lies only a
+ * hair above the board.
+ */
+const NEAR_PX = 100;
 const FAR_PX = 50000;
 
 /** How much white the board is veiled with while nothing is laid under it, as the page veils it. */
@@ -56,6 +61,9 @@ type FaceLook = { pictureUrl: string; tilePx: number; glass: boolean };
 function lookOf(face: FaceLook): string {
   return face.glass || !face.pictureUrl ? 'glass' : `${face.pictureUrl}|${face.tilePx > 0}`;
 }
+
+/** Draws a face laid flat on another in front of it, as the grid on the board, past the depth's rounding. */
+const PULLED_FORWARD = { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 };
 
 /** How far above the board the grid is laid, as the page lifts it. */
 const GRID_LIFT_PX = 0.15;
@@ -107,6 +115,7 @@ class ThreeTableEngine implements Table3dEngine {
   private grid: Mesh | null = null;
   private gridPicture: CanvasTexture | null = null;
   private gridDrawn = '';
+  private boardHexes: TableWorldBoardShape['hexes'] = null;
   private lastGrid: Table3dGrid | null = null;
   private gridded: readonly TableWorldCap[] = [];
   private topsGrid: Mesh | null = null;
@@ -231,6 +240,9 @@ class ThreeTableEngine implements Table3dEngine {
       : '';
     if (shape === this.boardShape) return;
     this.boardShape = shape;
+    this.boardHexes = board?.shape.hexes ?? null;
+    this.gridDrawn = '';
+    if (this.lastGrid) this.setGrid(this.lastGrid);
     if (this.board) {
       this.scene.remove(this.board);
       disposeObject(this.board);
@@ -265,14 +277,14 @@ class ThreeTableEngine implements Table3dEngine {
       this.gridPicture.colorSpace = SRGBColorSpace;
     }
     this.gridPicture.needsUpdate = true;
-    const geometry = new PlaneGeometry(grid.box.width, grid.box.height);
-    geometry.rotateX(-Math.PI / 2);
-    geometry.translate(grid.box.x + grid.box.width / 2, GRID_LIFT_PX, grid.box.y + grid.box.height / 2);
+    const geometry = gridOverBoard(this.boardHexes, grid.box, GRID_LIFT_PX);
     const material = new MeshBasicNodeMaterial({
       map: this.gridPicture,
       transparent: true,
       opacity: grid.opacity,
       depthWrite: false,
+      side: DoubleSide,
+      ...PULLED_FORWARD,
     });
     this.grid = new Mesh(geometry, material);
     this.grid.renderOrder = 1;
@@ -348,6 +360,7 @@ class ThreeTableEngine implements Table3dEngine {
       opacity: grid.opacity,
       depthWrite: false,
       side: DoubleSide,
+      ...PULLED_FORWARD,
     });
     this.topsGrid = new Mesh(griddedTops(this.gridded, grid.box, GRID_LIFT_PX), material);
     this.topsGrid.renderOrder = 1;
