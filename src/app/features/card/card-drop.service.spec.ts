@@ -95,6 +95,17 @@ describe('CardDropService', () => {
     expect(ObjectStore.instance.get(upper.identifier)).toBeNull();
   });
 
+  it('keeps a stack merged on a wall on that wall', () => {
+    stack(300, 300, 'east-wall', 1);
+    const upper = stack(305, 300, 'east-wall', 1);
+
+    service.drop(upper);
+
+    const merged = ObjectStore.instance.getObjects(CardStack);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].location.surface).toBe('east-wall');
+  });
+
   it('asks only what stands on the same face', () => {
     const onFloor = stack(100, 100);
     const onWall = card(100, 100, 'north-wall');

@@ -60,6 +60,7 @@ function distanceSquared(a: TabletopObject, b: TabletopObject): number {
 function mergeStacks(topStack: CardStack, bottomStack: CardStack): void {
   const newCardStack = CardStack.create(topStack.name);
   newCardStack.location.name = bottomStack.location.name;
+  newCardStack.location.surface = bottomStack.location.surface;
   newCardStack.location.x = bottomStack.location.x;
   newCardStack.location.y = bottomStack.location.y;
   newCardStack.posZ = bottomStack.posZ;
