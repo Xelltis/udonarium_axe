@@ -1,6 +1,7 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { Transform } from '@axe/core/transform/transform';
 import { pageOfTablePoint, tablePointOfPage } from '@axe/domain/tabletop/camera/table-camera';
@@ -11,6 +12,7 @@ import { pageOfTablePoint, tablePointOfPage } from '@axe/domain/tabletop/camera/
 export class CoordinateService {
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly tableCamera = inject(TableCameraService);
+  private readonly tableSurfaces = inject(TableSurfaceService);
 
   tabletopOriginElement: HTMLElement = document.body;
 
@@ -68,11 +70,22 @@ export class CoordinateService {
 
   /**
    * Whether points on this element are worked out from the table's camera rather than read back
-   * from the page's styles: only the board's own floor is, once the table has drawn a view and been
-   * laid out. Anything standing on the board still walks the styles above it.
+   * from the page's styles as the board's own floor, once the table has drawn a view and been laid
+   * out. The walls and the boards are worked out from their own faces; anything standing on the
+   * board still walks the styles above it.
    */
   private cameraOver(element: HTMLElement): boolean {
     return element === this.tabletopOriginElement;
+  }
+
+  /**
+   * The face of the table or the board an element is the face of, by its `data-surface`, for the
+   * walls and the white boards. A point on one is worked out from that face's frame; its height is
+   * taken along the face's normal, out into the room.
+   */
+  private faceOf(element: HTMLElement): string | null {
+    const face = typeof element.getAttribute === 'function' ? element.getAttribute('data-surface') : null;
+    return face && face !== 'floor' ? face : null;
   }
 
   /** The kept table transform where it fits, and a pooled one otherwise; only the pooled one is given back. */
@@ -105,6 +118,9 @@ export class CoordinateService {
       const onBoard = tablePointOfPage(inverse, pointer.x, pointer.y);
       return { x: onBoard.x, y: onBoard.y, z: onBoard.z };
     }
+    const face = this.faceOf(element);
+    const onFace = face && this.tableSurfaces.pointOn(face, pointer.x, pointer.y);
+    if (onFace) return { x: onFace.localX, y: onFace.localY, z: 0 };
     const borrowed = this.borrow(element, this._transformA);
     const ray = borrowed.transform.globalToLocal(pointer.x, pointer.y, pointer.z ?? 0);
     this.giveBack(borrowed);
@@ -118,6 +134,9 @@ export class CoordinateService {
       const onPage = pageOfTablePoint(scene, pointer.x, pointer.y, pointer.z ?? 0);
       return { x: onPage.x, y: onPage.y, z: onPage.z };
     }
+    const face = this.faceOf(element);
+    const onPage = face && this.tableSurfaces.pageOf(face, pointer.x, pointer.y, pointer.z ?? 0);
+    if (onPage) return { x: onPage.x, y: onPage.y, z: pointer.z ?? 0 };
     const borrowed = this.borrow(element, this._transformA);
     const ray = borrowed.transform.localToGlobal(pointer.x, pointer.y, pointer.z ?? 0);
     this.giveBack(borrowed);
@@ -134,6 +153,13 @@ export class CoordinateService {
       return pointers.map((pointer) => {
         const onPage = pageOfTablePoint(scene, pointer.x, pointer.y, pointer.z ?? 0);
         return { x: onPage.x, y: onPage.y, z: onPage.z };
+      });
+    }
+    const face = this.faceOf(element);
+    if (face && this.tableSurfaces.frameOf(face) && this.tableCamera.sceneMatrix()) {
+      return pointers.map((pointer) => {
+        const onPage = this.tableSurfaces.pageOf(face, pointer.x, pointer.y, pointer.z ?? 0)!;
+        return { x: onPage.x, y: onPage.y, z: pointer.z ?? 0 };
       });
     }
     const borrowed = this.borrow(element, this._transformA);

@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { Transform } from '@axe/core/transform/transform';
 import { PERF_TRANSFORM_INIT, perfCounters } from '@axe/core/util/perf-counters';
 import {
@@ -8,6 +9,7 @@ import {
   pageOfTablePoint,
   tableSceneMatrix,
 } from '@axe/domain/tabletop/camera/table-camera';
+import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('CoordinateService', () => {
   let service: CoordinateService;
@@ -76,6 +78,38 @@ describe('CoordinateService', () => {
       expect(back.x).toBeCloseTo(640, 6);
       expect(back.y).toBeCloseTo(120, 6);
       table.remove();
+    });
+  });
+
+  describe('points on a wall or a white board', () => {
+    it('are worked out from the face the element is, by its data-surface', () => {
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+      service = TestBed.inject(CoordinateService);
+      const camera = TestBed.inject(TableCameraService);
+      camera.setLayout({ left: 0, top: 0, width: 1280, height: 800, boardWidth: 1000, boardHeight: 750 });
+      camera.showView(DEFAULT_TABLE_CAMERA_VIEW);
+      const surfaces = TestBed.inject(TableSurfaceService);
+      const frame = {
+        origin: { x: 0, y: 0, z: 300 },
+        u: { x: 1, y: 0, z: 0 },
+        v: { x: 0, y: 0, z: -1 },
+        normal: { x: 0, y: 1, z: 0 },
+      };
+      vi.spyOn(surfaces, 'frameOf').mockReturnValue(frame);
+      const wall = document.createElement('div');
+      wall.setAttribute('data-surface', 'north-wall');
+      document.body.appendChild(wall);
+      perfCounters.drain();
+
+      const onPage = service.convertToGlobal({ x: 120, y: 60, z: 0 }, wall);
+      const back = service.convertToLocal({ x: onPage.x, y: onPage.y, z: 0 }, wall);
+
+      expect(onPage).toMatchObject(surfaces.pageOf('north-wall', 120, 60)!);
+      expect(back.x).toBeCloseTo(120, 6);
+      expect(back.y).toBeCloseTo(60, 6);
+      expect(perfCounters.drain().get(PERF_TRANSFORM_INIT)).toBeUndefined();
+      wall.remove();
     });
   });
 
