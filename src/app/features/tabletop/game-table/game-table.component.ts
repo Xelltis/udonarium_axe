@@ -89,6 +89,7 @@ import {
   LayerDrawing,
 } from '@axe/features/tabletop/game-table/background-layer-views';
 import { beamTopGridGeometry, beamWallFaceGrid } from '@axe/features/tabletop/game-table/beam-top-grid';
+import { handCanvasPressesOn } from '@axe/features/tabletop/game-table/canvas-presses';
 import { glideTransform } from '@axe/features/tabletop/game-table/game-table-camera';
 import { buildGameTableContextMenu, GameTableMenu } from '@axe/features/tabletop/game-table/game-table-context-menu';
 import { GameTableGestureService } from '@axe/features/tabletop/game-table/game-table-gesture.service';
@@ -455,6 +456,13 @@ export class GameTableComponent {
       this.updateCameraLayout();
       this.destroyRef.onDestroy(observeSize(this.rootElementRef().nativeElement, () => this.updateCameraLayout()));
       this.destroyRef.onDestroy(this.followGridShown());
+      this.destroyRef.onDestroy(
+        handCanvasPressesOn(this.rootElementRef().nativeElement, {
+          drawsOnCanvas: () => this.table3d.drawsOnCanvas(),
+          pickAt: (x, y) => this.tablePick.pickAt(x, y)?.target.id ?? null,
+          entryOf: (identifier) => this.tabletopOverlap.get(identifier),
+        })
+      );
       this.destroyRef.onDestroy(
         installTableTestHooks(
           window,
