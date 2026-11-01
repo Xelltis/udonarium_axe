@@ -151,6 +151,50 @@ export function pageOfTablePoint(scene: Matrix3D, x: number, y: number, z: numbe
   return scene.project({ x, y, z, w: 1 });
 }
 
+/** A point of the board's space: x and y across the board, z up off it, all in table pixels. */
+export interface TablePoint {
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+}
+
+/**
+ * The line of sight through a point of the page, in the board's space: everything on it is drawn
+ * at that point. Points further along the direction lie further from the eye.
+ */
+export interface TableRay {
+  readonly origin: TablePoint;
+  /** A unit vector, pointing away from the eye. */
+  readonly direction: TablePoint;
+}
+
+/** A point given in the page's own depth, carried back through the inverse scene matrix. */
+function intoBoard(inverseScene: Matrix3D, pageX: number, pageY: number, depth: number): TablePoint {
+  const m = inverseScene;
+  const x = pageX * m.m11 + pageY * m.m21 + depth * m.m31 + m.m41;
+  const y = pageX * m.m12 + pageY * m.m22 + depth * m.m32 + m.m42;
+  const z = pageX * m.m13 + pageY * m.m23 + depth * m.m33 + m.m43;
+  const w = pageX * m.m14 + pageY * m.m24 + depth * m.m34 + m.m44;
+  return { x: x / w, y: y / w, z: z / w };
+}
+
+/**
+ * The line of sight through a point of the page, through the inverse of a matrix from
+ * `tableSceneMatrix`.
+ *
+ * The page keeps a depth of its own through the matrix, which grows towards the eye; two depths
+ * at the same page point give two points of the board's space on the one line of sight.
+ */
+export function tableRayOfPage(inverseScene: Matrix3D, pageX: number, pageY: number): TableRay {
+  const near = intoBoard(inverseScene, pageX, pageY, 0);
+  const far = intoBoard(inverseScene, pageX, pageY, -1000);
+  const dx = far.x - near.x;
+  const dy = far.y - near.y;
+  const dz = far.z - near.z;
+  const length = Math.hypot(dx, dy, dz);
+  return { origin: near, direction: { x: dx / length, y: dy / length, z: dz / length } };
+}
+
 /**
  * Where a point of the page lands on the board's own plane, through the inverse of a matrix from
  * `tableSceneMatrix`. The answer's z is the depth the point had before it was carried to the plane,

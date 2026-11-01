@@ -7,6 +7,7 @@ import {
   tableCameraTransform,
   TableLayout,
   tablePointOfPage,
+  tableRayOfPage,
   tableSceneMatrix,
 } from '@axe/domain/tabletop/camera/table-camera';
 import { MEASURED_CAMERA_CASES } from '@axe/domain/tabletop/camera/table-camera.fixture';
@@ -61,6 +62,26 @@ describe('table camera', () => {
         // The orthographic scale is written to six places, which is as near as the drawn board comes.
         expect(right.x - left.x).toBeCloseTo(50 * viewPositionZToZoom(positionZ), 3);
       }
+    }
+  });
+
+  it('runs the line of sight through a page point from the eye into the board', () => {
+    for (const orthographic of [false, true]) {
+      const view = { ...DEFAULT_TABLE_CAMERA_VIEW, positionZ: -600, rotateZ: 37, orthographic };
+      const scene = tableSceneMatrix(view, screen);
+      const inverse = new Matrix3D();
+      scene.invert(inverse);
+      const raised = pageOfTablePoint(scene, 420, 260, 120);
+
+      const ray = tableRayOfPage(inverse, raised.x, raised.y);
+
+      // The raised point lies on the line, and the floor under it is further from the eye.
+      const along = (raised.z - ray.origin.z) / ray.direction.z;
+      expect(ray.origin.x + ray.direction.x * along).toBeCloseTo(420, 4);
+      expect(ray.origin.y + ray.direction.y * along).toBeCloseTo(260, 4);
+      const toFloor = -ray.origin.z / ray.direction.z;
+      expect(toFloor).toBeGreaterThan(along);
+      expect(Math.hypot(ray.direction.x, ray.direction.y, ray.direction.z)).toBeCloseTo(1, 9);
     }
   });
 
