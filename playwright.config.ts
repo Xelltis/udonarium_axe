@@ -59,6 +59,25 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], storageState: drawsOnCanvas },
       testMatch: PASSING_ON_CANVAS,
     },
+    // The table drawn through WebGPU: headless Chromium gives SwiftShader's stand-in adapter with
+    // these flags, and Vulkan is what puts a WebGPU canvas on the screen at all.
+    {
+      name: 'chromium-webgpu',
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: drawsOnCanvas,
+        launchOptions: {
+          args: [
+            '--enable-unsafe-webgpu',
+            '--enable-features=Vulkan',
+            '--use-vulkan=swiftshader',
+            '--use-angle=swiftshader',
+            '--enable-unsafe-swiftshader',
+          ],
+        },
+      },
+      testMatch: [/webgl\/.*\.spec\.ts/],
+    },
     {
       name: 'mobile-webgl',
       use: { ...devices['Pixel 7'], reducedMotion: 'reduce', storageState: drawsOnCanvas },

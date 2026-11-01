@@ -139,6 +139,7 @@ test.describe('the table drawn on a canvas', () => {
   });
 
   test('draws the board again on a fresh canvas once the graphics card lets the drawing go', async ({ page }) => {
+    test.skip(test.info().project.name === 'chromium-webgpu', 'a WebGPU device cannot be lost from the page');
     await sceneDrawn(page);
     await page.evaluate(() => {
       const canvas = document.querySelector<HTMLCanvasElement>('[data-testid="table-scene"]')!;
@@ -152,10 +153,13 @@ test.describe('the table drawn on a canvas', () => {
     await expectBoardWhereTheCameraPutsIt(page);
   });
 
-  test('draws through WebGL2 where the browser gives no WebGPU adapter', async ({ page }) => {
+  test('draws through WebGPU where the browser gives an adapter, and through WebGL2 where it does not', async ({
+    page,
+  }) => {
     await sceneDrawn(page);
+    const expected = test.info().project.name === 'chromium-webgpu' ? 'webgpu' : 'webgl2';
     expect(await page.evaluate(() => (window as unknown as { __axeTable: SceneHooks }).__axeTable.renderer())).toBe(
-      'webgl2'
+      expected
     );
   });
 });
