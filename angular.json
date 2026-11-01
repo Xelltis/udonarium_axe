@@ -73,6 +73,12 @@
                   "type": "initial",
                   "maximumWarning": "3.1mb",
                   "maximumError": "3.5mb"
+                },
+                {
+                  "type": "bundle",
+                  "name": "table-3d-engine",
+                  "maximumWarning": "1.2mb",
+                  "maximumError": "1.6mb"
                 }
               ]
             },
