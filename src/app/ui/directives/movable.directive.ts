@@ -5,14 +5,12 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeEvent, ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GravityService } from '@axe/application/tabletop/gravity.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
-import {
-  footprintOf,
-  TabletopOverlapRegistryEntry,
-  TabletopOverlapService,
-} from '@axe/application/ui/tabletop-overlap.service';
+import { footprintOf, TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { perfCounters, perfTimed } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ALTITUDE_STEP_CELLS, steppedAltitude } from '@axe/domain/tabletop/altitude-step';
@@ -28,8 +26,10 @@ import {
 import { GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
 import { gridSnapPosition } from '@axe/domain/tabletop/grid-snap';
 import { clearRunAlong, MoveBlock, turnedMoveBlock } from '@axe/domain/tabletop/move/blocked-path';
-import { SurfaceDims, surfaceWorldBox, WorldBox } from '@axe/domain/tabletop/surface-space';
+import { TERRAIN_PICK_LAYER } from '@axe/domain/tabletop/pick/terrain-pick';
+import { WorldBox } from '@axe/domain/tabletop/surface-space';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { isTableWall } from '@axe/domain/tabletop/table-walls';
 import {
   boardSurfaceOf,
   isOffTheFloor,
@@ -43,7 +43,6 @@ import { InputHandler } from '@axe/ui/directives/input-handler';
 import {
   applyPointerEvents,
   collectCollidableElements,
-  dropTargetSurface,
   MovableLayerItem,
   registerLayer,
   setLayerCollidable,
@@ -92,6 +91,8 @@ export class MovableDirective implements MovableInteractionContext {
   private readonly multiMovableService = inject(MultiMovableService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tabletopOverlap = inject(TabletopOverlapService);
+  private readonly tablePick = inject(TablePickService);
+  private readonly tableSurfaces = inject(TableSurfaceService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -676,7 +677,7 @@ export class MovableDirective implements MovableInteractionContext {
 
   private moveWhileHeld(e: MouseEvent | TouchEvent) {
     const pointerSurface = this.surfaceUnderPointer();
-    const overDifferentSurface = pointerSurface !== null && pointerSurface !== this.surfaceElement();
+    const overDifferentSurface = pointerSurface !== null && pointerSurface !== this.currentSurface();
     if (overDifferentSurface && this.input?.isDragging && this.input.pointer) {
       const rest = this.computeBeamRest(this.input.pointer);
       if (rest) {
@@ -699,41 +700,73 @@ export class MovableDirective implements MovableInteractionContext {
     perfTimed('dragPreview', () => this.updateDragPreview(pointerSurface));
   }
 
-  /** The face under the pointer that this piece could be put down on, or nothing. */
-  private surfaceUnderPointer(): HTMLElement | null {
+  /**
+   * The face under the pointer that this piece could be put down on, or nothing: the floor, a wall
+   * or a white board, named as a location names it. The line of sight stops at what this piece
+   * collides with and gives the face that stands on, and passes through the rest, the piece's own
+   * layer among them. The piece itself is passed through, and so is what rides on it, since a board
+   * carries its own face along under the pointer and would be laid on itself.
+   */
+  private surfaceUnderPointer(): string | null {
     const pointer = this.input?.pointer;
     if (!pointer) return null;
-    const under = perfTimed('hitTest', () => document.elementFromPoint(pointer.x, pointer.y) as HTMLElement | null);
-    return dropTargetSurface(this.nativeElement, under);
+    const self = this.tabletopObject?.identifier;
+    return perfTimed('hitTest', () =>
+      this.tablePick.faceAt(pointer.x, pointer.y, {
+        excluding: new Set(self ? [self] : []),
+        stopsAt: (target) => target.layer !== this.layerName && this.colideLayers.includes(target.layer),
+      })
+    );
+  }
+
+  /** The face this piece stands on, named as its location names it. */
+  private currentSurface(): string {
+    return this.tabletopObject?.location?.surface || 'floor';
+  }
+
+  /**
+   * Where a point of the page lands on a face this piece could be moved onto, kept inside the face
+   * unless the face lets a piece hang over its edge, as the corner the piece would be put at; or
+   * null where the point is off the face altogether.
+   */
+  private placeOnFace(surface: string, pointer: PointerCoordinate): { x: number; y: number } | null {
+    const onFace = this.tableSurfaces.pointOn(surface, pointer.x, pointer.y);
+    const size = this.tableSurfaces.sizeOf(surface);
+    if (!onFace || !size) return null;
+    if (onFace.localX < 0 || onFace.localX > size.width || onFace.localY < 0 || onFace.localY > size.height) {
+      return null;
+    }
+    const rawX = onFace.localX - this.width / 2;
+    const rawY = onFace.localY - this.height / 2;
+    if (this.tableSurfaces.overhangs(surface)) return { x: rawX, y: rawY };
+    return {
+      x: Math.max(0, Math.min(Math.max(0, size.width - this.width), rawX)),
+      y: Math.max(0, Math.min(Math.max(0, size.height - this.height), rawY)),
+    };
+  }
+
+  /** The element a face is drawn with while the table is drawn in the page, or null. */
+  private elementOfFace(surface: string): HTMLElement | null {
+    if (surface === 'floor') return this.coordinateService.tabletopOriginElement;
+    return document.querySelector<HTMLElement>(`[data-surface="${CSS.escape(surface)}"]`);
   }
 
   private dragPreviewElement: HTMLElement | null = null;
-  private dragPreviewSurface: HTMLElement | null = null;
+  private dragPreviewSurface: string | null = null;
 
-  private updateDragPreview(targetSurface: HTMLElement | null): void {
+  private updateDragPreview(targetSurface: string | null): void {
     if (!this.input?.isDragging) {
       this.clearDragPreview();
       return;
     }
     const pointer = this.input.pointer;
-    if (!pointer) {
+    if (!pointer || !targetSurface || targetSurface === this.currentSurface()) {
       this.clearDragPreview();
       return;
     }
-    if (!targetSurface || targetSurface === this.surfaceElement()) {
-      this.clearDragPreview();
-      return;
-    }
-    const local = this.coordinateService.convertToLocal({ x: pointer.x, y: pointer.y, z: 0 }, targetSurface);
-    const surfaceW = targetSurface.offsetWidth || targetSurface.clientWidth;
-    const surfaceH = targetSurface.offsetHeight || targetSurface.clientHeight;
-    const tolerance = 0;
-    if (
-      local.x < -tolerance ||
-      local.x > surfaceW + tolerance ||
-      local.y < -tolerance ||
-      local.y > surfaceH + tolerance
-    ) {
+    const placed = this.placeOnFace(targetSurface, pointer);
+    const faceElement = this.elementOfFace(targetSurface);
+    if (!placed || !faceElement) {
       this.clearDragPreview();
       return;
     }
@@ -741,14 +774,9 @@ export class MovableDirective implements MovableInteractionContext {
       this.clearDragPreview();
       this.dragPreviewSurface = targetSurface;
       this.dragPreviewElement = this.createDragPreviewElement();
-      targetSurface.appendChild(this.dragPreviewElement);
+      faceElement.appendChild(this.dragPreviewElement);
     }
-    const rawX = local.x - this.width / 2;
-    const rawY = local.y - this.height / 2;
-    const overflows = targetSurface.hasAttribute('data-surface-overflow');
-    const x = overflows ? rawX : Math.max(0, Math.min(Math.max(0, surfaceW - this.width), rawX));
-    const y = overflows ? rawY : Math.max(0, Math.min(Math.max(0, surfaceH - this.height), rawY));
-    this.dragPreviewElement!.style.transform = `translate3d(${Math.floor(x)}px, ${Math.floor(y)}px, 0)`;
+    this.dragPreviewElement!.style.transform = `translate3d(${Math.floor(placed.x)}px, ${Math.floor(placed.y)}px, 0)`;
   }
 
   private createDragPreviewElement(): HTMLElement {
@@ -807,31 +835,12 @@ export class MovableDirective implements MovableInteractionContext {
     const pointer = this.input?.pointer;
     if (!pointer) return;
     if (this.restOnBeamUnderPointer(pointer)) return;
-    const targetSurfaceEl = this.surfaceUnderPointer();
-    if (!targetSurfaceEl) return;
-    const currentSurfaceEl = this.surfaceElement();
-    if (targetSurfaceEl === currentSurfaceEl) return;
-    const targetSurface = (targetSurfaceEl.dataset.surface ?? 'floor') as TableSurface;
-    const local = this.coordinateService.convertToLocal({ x: pointer.x, y: pointer.y, z: 0 }, targetSurfaceEl);
-    const surfaceW = targetSurfaceEl.offsetWidth || targetSurfaceEl.clientWidth;
-    const surfaceH = targetSurfaceEl.offsetHeight || targetSurfaceEl.clientHeight;
-    const tolerance = 0;
-    if (
-      local.x < -tolerance ||
-      local.x > surfaceW + tolerance ||
-      local.y < -tolerance ||
-      local.y > surfaceH + tolerance
-    ) {
-      return;
-    }
-    const rawX = local.x - this.width / 2;
-    const rawY = local.y - this.height / 2;
-    // A board lets a piece hang over its edge; a wall of the table does not.
-    const overflows = targetSurfaceEl.hasAttribute('data-surface-overflow');
-    const clampedX = overflows ? rawX : Math.max(0, Math.min(Math.max(0, surfaceW - this.width), rawX));
-    const clampedY = overflows ? rawY : Math.max(0, Math.min(Math.max(0, surfaceH - this.height), rawY));
-    const newX = this.mathFloor ? Math.floor(clampedX) : clampedX;
-    const newY = this.mathFloor ? Math.floor(clampedY) : clampedY;
+    const targetSurface = this.surfaceUnderPointer();
+    if (!targetSurface || targetSurface === this.currentSurface()) return;
+    const placed = this.placeOnFace(targetSurface, pointer);
+    if (!placed) return;
+    const newX = this.mathFloor ? Math.floor(placed.x) : placed.x;
+    const newY = this.mathFloor ? Math.floor(placed.y) : placed.y;
     if (this.updateTimer !== null) {
       clearTimeout(this.updateTimer);
       this.updateTimer = null;
@@ -871,43 +880,33 @@ export class MovableDirective implements MovableInteractionContext {
   }
 
   private computeBeamRest(pointer: PointerCoordinate): { x: number; y: number; z: number } | null {
-    const table = this.tableSelecter.viewTable;
-    if (!table) return null;
-    const gridSize = this.tableGridSize();
-    const dims: SurfaceDims = {
-      widthPx: table.width * gridSize,
-      depthPx: table.height * gridSize,
-      wallHeightPx: table.wallHeight * gridSize,
-    };
-    const beam = this.highestBeamUnderPointer(pointer, dims);
-    if (!beam) return null;
-    const world = this.coordinateService.convertToLocal({ x: pointer.x, y: pointer.y, z: 0 }, this.surfaceElement());
-    return beamRestPosition(beam, world.x, world.y, this.width, this.height);
+    const beam = this.highestBeamUnderPointer(pointer);
+    return beam ? beamRestPosition(beam.box, beam.at.x, beam.at.y, this.width, this.height) : null;
   }
 
-  private highestBeamUnderPointer(pointer: PointerCoordinate, dims: SurfaceDims): WorldBox | null {
-    const selfId = this.tabletopObject.identifier;
-    const gridSize = this.tableGridSize();
-    let best: WorldBox | null = null;
-    for (const obj of this.tabletopOverlap.findAt(pointer.x, pointer.y)) {
-      if (obj.identifier === selfId) continue;
-      if (!(obj instanceof Terrain)) continue;
-      const surface = surfaceOf(obj);
-      if (surface === 'floor') continue;
-      const entry: TabletopOverlapRegistryEntry | undefined = this.tabletopOverlap.get(obj.identifier);
-      if (!entry) continue;
-      const footprint = footprintOf(entry, gridSize);
-      const box = surfaceWorldBox(
-        surface,
-        obj.location.x,
-        obj.location.y,
-        footprint.width,
-        footprint.height,
-        obj.altitude * gridSize + obj.posZ,
-        obj.height * gridSize,
-        dims
-      );
-      if (!best || box.maxZ > best.maxZ) best = box;
+  /**
+   * The highest beam, a block put on a wall, the line of sight through the pointer meets, and where
+   * it meets it.
+   */
+  private highestBeamUnderPointer(pointer: PointerCoordinate): { box: WorldBox; at: { x: number; y: number } } | null {
+    const self = this.tabletopObject.identifier;
+    let best: { box: WorldBox; at: { x: number; y: number } } | null = null;
+    for (const hit of this.tablePick.allAt(pointer.x, pointer.y)) {
+      const target = hit.target;
+      if (target.id === self || target.layer !== TERRAIN_PICK_LAYER || !isTableWall(target.surface)) continue;
+      const shape = target.shapes[0];
+      if (shape?.kind !== 'prism') continue;
+      const xs = shape.outline.map((point) => point.x);
+      const ys = shape.outline.map((point) => point.y);
+      const box: WorldBox = {
+        minX: Math.min(...xs),
+        maxX: Math.max(...xs),
+        minY: Math.min(...ys),
+        maxY: Math.max(...ys),
+        minZ: shape.base,
+        maxZ: shape.top,
+      };
+      if (!best || box.maxZ > best.box.maxZ) best = { box, at: hit.point };
     }
     return best;
   }

@@ -4,12 +4,15 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { GravityService } from '@axe/application/tabletop/gravity.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable, GridSnapStyle } from '@axe/domain/tabletop/game-table';
+import { TERRAIN_PICK_LAYER } from '@axe/domain/tabletop/pick/terrain-pick';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -250,11 +253,15 @@ describe('MovableDirective drop preview', () => {
       cancel(): void;
       destroy(): void;
     } | null;
+    width: number;
+    height: number;
+    tableSurfaces: TableSurfaceService;
+    dragPreviewElement: HTMLElement | null;
     onInputMoveNow(e: MouseEvent): void;
-    surfaceUnderPointer(): HTMLElement | null;
-    surfaceElement(): HTMLElement;
+    surfaceUnderPointer(): string | null;
+    currentSurface(): string;
     clearDragPreview(): void;
-    updateDragPreview(surface: HTMLElement | null): void;
+    updateDragPreview(surface: string | null): void;
   }
 
   @Component({
@@ -281,9 +288,29 @@ describe('MovableDirective drop preview', () => {
     return directive;
   }
 
+  /** A wall a thousand pixels long and three hundred high, with the pointer at a point of it. */
+  function overWall(directive: Internals, localX: number, localY: number): HTMLElement {
+    const wall = document.createElement('div');
+    wall.setAttribute('data-surface', 'north-wall');
+    document.body.appendChild(wall);
+    vi.spyOn(directive.tableSurfaces, 'pointOn').mockReturnValue({
+      t: 1,
+      point: { x: localX, y: 0, z: localY },
+      localX,
+      localY,
+    });
+    vi.spyOn(directive.tableSurfaces, 'sizeOf').mockReturnValue({ width: 1000, height: 300 });
+    return wall;
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    document.querySelectorAll('[data-surface]').forEach((element) => element.remove());
+  });
+
   it('looks for the face under the pointer once per move', () => {
     const directive = mount(true);
-    const own = directive.surfaceElement();
+    const own = directive.currentSurface();
     const look = vi.spyOn(directive, 'surfaceUnderPointer').mockReturnValue(own);
     const preview = vi.spyOn(directive, 'updateDragPreview').mockImplementation(() => undefined);
 
@@ -297,13 +324,57 @@ describe('MovableDirective drop preview', () => {
     // The input handler sets isDragging after the move callback returns, so the first move
     // always runs with it unset, and the preview clears itself whatever face it is handed.
     const directive = mount(false);
-    const own = directive.surfaceElement();
-    vi.spyOn(directive, 'surfaceUnderPointer').mockReturnValue(own);
+    vi.spyOn(directive, 'surfaceUnderPointer').mockReturnValue(directive.currentSurface());
     const clear = vi.spyOn(directive, 'clearDragPreview').mockImplementation(() => undefined);
 
     directive.onInputMoveNow(new MouseEvent('mousemove'));
 
     expect(clear).toHaveBeenCalled();
+  });
+
+  it('draws where the piece would land on the face under the pointer, by the face’s name', () => {
+    const directive = mount(true);
+    directive.width = 40;
+    directive.height = 60;
+    const wall = overWall(directive, 500, 100);
+
+    directive.updateDragPreview('north-wall');
+
+    expect(directive.dragPreviewElement?.parentElement).toBe(wall);
+    expect(directive.dragPreviewElement?.style.transform).toBe('translate3d(480px, 70px, 0)');
+  });
+
+  it('keeps it inside a face of the table, which nothing hangs over the edge of', () => {
+    const directive = mount(true);
+    directive.width = 40;
+    directive.height = 60;
+    overWall(directive, 995, 5);
+    vi.spyOn(directive.tableSurfaces, 'overhangs').mockReturnValue(false);
+
+    directive.updateDragPreview('north-wall');
+
+    expect(directive.dragPreviewElement?.style.transform).toBe('translate3d(960px, 0px, 0)');
+  });
+
+  it('lets it hang over the edge of a face that allows it', () => {
+    const directive = mount(true);
+    directive.width = 40;
+    directive.height = 60;
+    overWall(directive, 995, 5);
+    vi.spyOn(directive.tableSurfaces, 'overhangs').mockReturnValue(true);
+
+    directive.updateDragPreview('north-wall');
+
+    expect(directive.dragPreviewElement?.style.transform).toBe('translate3d(975px, -25px, 0)');
+  });
+
+  it('draws nothing where the pointer is off the face altogether', () => {
+    const directive = mount(true);
+    overWall(directive, 1010, 100);
+
+    directive.updateDragPreview('north-wall');
+
+    expect(directive.dragPreviewElement).toBeNull();
   });
 });
 
@@ -962,8 +1033,11 @@ describe('MovableDirective telling the others where a piece was dropped', () => 
   interface Internals {
     tabletopObject: TabletopObject;
     input: { pointer: { x: number; y: number; z: number }; cancel(): void; destroy(): void } | null;
-    coordinateService: { convertToLocal(pointer: unknown, element: HTMLElement): { x: number; y: number; z: number } };
-    surfaceUnderPointer(): HTMLElement | null;
+    tableSurfaces: TableSurfaceService;
+    tablePick: TablePickService;
+    width: number;
+    height: number;
+    surfaceUnderPointer(): string | null;
     computeBeamRest(pointer: unknown): { x: number; y: number; z: number } | null;
     maybeSwitchSurfaceOnDrop(): void;
   }
@@ -1000,19 +1074,40 @@ describe('MovableDirective telling the others where a piece was dropped', () => 
   it('sends the board a piece was dropped on, where no snapping follows to send it later', () => {
     const piece = GameCharacter.create('dropped on a board', 1, '');
     const directive = mount(piece);
-    const board = document.createElement('div');
-    board.dataset['surface'] = 'a-board';
-    board.setAttribute('data-surface-overflow', '');
-    Object.defineProperty(board, 'offsetWidth', { value: 500 });
-    Object.defineProperty(board, 'offsetHeight', { value: 500 });
     vi.spyOn(directive, 'computeBeamRest').mockReturnValue(null);
-    vi.spyOn(directive, 'surfaceUnderPointer').mockReturnValue(board);
-    vi.spyOn(directive.coordinateService, 'convertToLocal').mockReturnValue({ x: 100, y: 100, z: 0 });
+    vi.spyOn(directive, 'surfaceUnderPointer').mockReturnValue('a-board');
+    vi.spyOn(directive.tableSurfaces, 'pointOn').mockReturnValue({
+      t: 1,
+      point: { x: 0, y: 0, z: 0 },
+      localX: 100,
+      localY: 100,
+    });
+    vi.spyOn(directive.tableSurfaces, 'sizeOf').mockReturnValue({ width: 500, height: 500 });
     const surfaces = surfacesSentFor(piece);
 
     directive.maybeSwitchSurfaceOnDrop();
 
     expect(surfaces).toEqual(['a-board']);
+  });
+
+  it('stays where it was when let go of off the face under the pointer', () => {
+    const piece = GameCharacter.create('dropped beside a board', 1, '');
+    const directive = mount(piece);
+    vi.spyOn(directive, 'computeBeamRest').mockReturnValue(null);
+    vi.spyOn(directive, 'surfaceUnderPointer').mockReturnValue('a-board');
+    vi.spyOn(directive.tableSurfaces, 'pointOn').mockReturnValue({
+      t: 1,
+      point: { x: 0, y: 0, z: 0 },
+      localX: -10,
+      localY: 100,
+    });
+    vi.spyOn(directive.tableSurfaces, 'sizeOf').mockReturnValue({ width: 500, height: 500 });
+    const surfaces = surfacesSentFor(piece);
+
+    directive.maybeSwitchSurfaceOnDrop();
+
+    expect(surfaces).toEqual([]);
+    expect(piece.location.surface).toBeUndefined();
   });
 
   it('sends a piece taken off a wall onto a beam as off the wall', () => {
@@ -1025,5 +1120,43 @@ describe('MovableDirective telling the others where a piece was dropped', () => 
     directive.maybeSwitchSurfaceOnDrop();
 
     expect(surfaces).toEqual([undefined]);
+  });
+
+  it('rests a piece on the highest beam the pointer is over, where the pointer meets it', () => {
+    const piece = GameCharacter.create('put on a beam', 1, '');
+    const directive = mount(piece);
+    directive.width = 50;
+    directive.height = 50;
+    const beam = (id: string, surface: string, top: number) => ({
+      target: {
+        id,
+        layer: TERRAIN_PICK_LAYER,
+        order: 0,
+        surface,
+        shapes: [
+          {
+            kind: 'prism' as const,
+            outline: [
+              { x: 0, y: 0 },
+              { x: 400, y: 0 },
+              { x: 400, y: 50 },
+              { x: 0, y: 50 },
+            ],
+            base: top - 50,
+            top,
+          },
+        ],
+      },
+      t: 1,
+      point: { x: 220, y: 30, z: top },
+      shapeIndex: 0,
+    });
+    vi.spyOn(directive.tablePick, 'allAt').mockReturnValue([
+      beam('low', 'north-wall', 100),
+      beam('on the floor', 'floor', 400),
+      beam('high', 'north-wall', 200),
+    ]);
+
+    expect(directive.computeBeamRest({ x: 0, y: 0, z: 0 })).toEqual({ x: 195, y: 5, z: 200 });
   });
 });

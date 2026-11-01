@@ -2,7 +2,6 @@ import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import {
   applyPointerEvents,
   collectCollidableElements,
-  dropTargetSurface,
   MovableCoordinateResolver,
   MovableLayerItem,
   resolveMovableLocalCoordinate,
@@ -189,46 +188,5 @@ describe('movable-helpers', () => {
         z: 0,
       });
     });
-  });
-});
-
-describe('dropTargetSurface()', () => {
-  function surfaceIn(parent: Element, name: string): HTMLElement {
-    const surface = document.createElement('div');
-    surface.dataset.surface = name;
-    parent.appendChild(surface);
-    return surface;
-  }
-
-  it('finds the face the pointer is over', () => {
-    const table = document.createElement('div');
-    const floor = surfaceIn(table, 'floor');
-    const piece = document.createElement('div');
-    floor.appendChild(piece);
-
-    expect(dropTargetSurface(piece, floor)).toBe(floor);
-  });
-
-  it('reads the face off whatever the pointer actually landed on', () => {
-    const table = document.createElement('div');
-    const floor = surfaceIn(table, 'floor');
-    const tile = document.createElement('span');
-    floor.appendChild(tile);
-
-    expect(dropTargetSurface(document.createElement('div'), tile)).toBe(floor);
-  });
-
-  it('will not lay a board on a face the board is carrying', () => {
-    // Dragged, a board brings its own face under the pointer with it; taken at its word it
-    // lands wherever its own corner happens to be, and leaps about the table.
-    const board = document.createElement('div');
-    const itsOwnFace = surfaceIn(board, 'board-identifier');
-
-    expect(dropTargetSurface(board, itsOwnFace)).toBeNull();
-  });
-
-  it('says nothing where the pointer is over no face at all', () => {
-    expect(dropTargetSurface(document.createElement('div'), null)).toBeNull();
-    expect(dropTargetSurface(document.createElement('div'), document.createElement('div'))).toBeNull();
   });
 });

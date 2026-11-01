@@ -150,19 +150,6 @@ export function unregisterLayer(
 }
 
 /**
- * The face under the pointer that a piece could be put down on, or nothing.
- *
- * A board carries a face of its own, and while it is being dragged that face travels under
- * the pointer with it. Taken at its word the board is laid on itself, and it lands wherever
- * its own corner happens to be, so the board would leap about the table.
- */
-export function dropTargetSurface(dragged: Element, under: Element | null): HTMLElement | null {
-  const surface = under?.closest<HTMLElement>('[data-surface]') ?? null;
-  if (!surface || dragged.contains(surface)) return null;
-  return surface;
-}
-
-/**
  * Which way a turn of the wheel went, whichever axis the browser reported it on.
  *
  * Held with shift a wheel is taken for a sideways scroll, so the turn arrives on deltaX with
