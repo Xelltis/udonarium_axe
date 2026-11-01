@@ -359,7 +359,11 @@
   </div>
 </div>
 <table-weather-overlay></table-weather-overlay>
-<table-foreground-overlay></table-foreground-overlay>
+@defer (when laysForeground()) {
+  <table-foreground-overlay></table-foreground-overlay>
+} @error {
+  <ng-container appReloadNotice />
+}
 <table-dice-overlay></table-dice-overlay>
 <scene-fade-overlay></scene-fade-overlay>
 @if (screenFlash()) {

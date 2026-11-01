@@ -56,6 +56,7 @@ import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font
 import { zoomToViewPositionZ } from '@axe/domain/tabletop/physical-scale';
 import { SurfaceDims } from '@axe/domain/tabletop/surface-space';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
+import { tableForegroundOf } from '@axe/domain/tabletop/table-foreground';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
 import { WallFace, WallLight, WallSilhouette } from '@axe/domain/tabletop/vision-scene';
@@ -139,6 +140,7 @@ import {
   overlayScale,
 } from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
 import { BackdropDirective } from '@axe/ui/directives/backdrop.directive';
+import { ReloadNoticeDirective } from '@axe/ui/directives/reload-notice.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { translateZCss, Z_OFFSET_BACKGROUND_LAYERS_PX, Z_OFFSET_FOREGROUND_LAYERS_PX } from '@axe/ui/tabletop/z-offset';
@@ -233,6 +235,7 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
     TableWaterFloorComponent,
     TableWeatherOverlayComponent,
     TableForegroundOverlayComponent,
+    ReloadNoticeDirective,
     SceneFadeOverlayComponent,
     TableDiceOverlayComponent,
   ],
@@ -255,6 +258,13 @@ export class GameTableComponent {
   private readonly imageService = inject(ImageService);
   private readonly motion = inject(MotionService);
   private readonly tabletopService = inject(TabletopService);
+  /**
+   * Whether the table shown lays a picture in front of everything. The code that draws it is
+   * fetched the first time one does, as most tables never lay any.
+   */
+  protected readonly laysForeground = computed(
+    () => tableForegroundOf(this.tabletopService.currentTableVersion()) !== null
+  );
   private readonly ambienceService = inject(TableAmbienceService);
   private readonly terrainBatch = inject(TerrainBatchService);
   private readonly tabletopActionService = inject(TabletopActionService);
