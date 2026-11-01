@@ -88,7 +88,8 @@ export class Table3dService {
 
   /**
    * The scene of the table in view, with the pictures it names read from where this browser keeps
-   * them. A block the fog lies over entirely is left out, so nothing of it is drawn at all.
+   * them. A block the fog lies over entirely is left out, so nothing of it is drawn at all, and one
+   * it lies over in part is cut back to the cells the seat has reached.
    */
   readonly world = computed(() => {
     this.objectChange.fileVersion();
@@ -99,7 +100,12 @@ export class Table3dService {
       this.objectChange.versionOf(terrain.identifier)();
       return !this.hiddenByFog(terrain);
     });
-    return tableWorldOf(table, (identifier) => this.images.getEmptyOr(identifier).url, terrains);
+    return tableWorldOf(
+      table,
+      (identifier) => this.images.getEmptyOr(identifier).url,
+      terrains,
+      (terrain) => this.vision.terrainFogCover(terrain)
+    );
   });
 
   /** Whether the canvas is asked for but not drawing yet, which the table covers until it is. */

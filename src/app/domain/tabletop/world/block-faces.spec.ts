@@ -76,4 +76,42 @@ describe('the faces of the blocks', () => {
     const north = walls.find((wall) => wall.id.endsWith(':north'))!;
     expect(north.profile!.map((stop) => stop.heightPx)).toEqual([0, 100]);
   });
+
+  describe('in the fog', () => {
+    const half = { cols: 2, rows: 1, cleared: [true, false], brightness: [1, 1] };
+
+    function fogged(terrain: Terrain, cover: typeof half | null) {
+      return blockFacesOf([terrain], GRID, GridType.SQUARE, picture, () => cover);
+    }
+
+    it('cuts a block back to the cells the seat has reached', () => {
+      const { walls, caps } = fogged(block(), half);
+
+      expect(caps.map((cap) => cap.id.split(':')[1])).toEqual(['top@0']);
+      const xs = caps[0].outline.map((point) => point.x);
+      expect([Math.min(...xs), Math.max(...xs)]).toEqual([100, 150]);
+      const sides = walls.map((wall) => wall.id.split(':')[1]);
+      expect(sides).toEqual(['north@0', 'south@0', 'west@0']);
+      const north = walls.find((wall) => wall.id.endsWith('north@0'))!;
+      expect(north).toMatchObject({ ax: 150, bx: 100, uFrom: 0.5, uTo: 1 });
+    });
+
+    it('draws nothing of a block none of which has been reached', () => {
+      const { walls, caps } = fogged(block(), { ...half, cleared: [false, false] });
+      expect(walls).toHaveLength(0);
+      expect(caps).toHaveLength(0);
+    });
+
+    it('draws a sloping block whole once any of it has been reached, as the page does', () => {
+      const ramp = block();
+      ramp.slopeSides = ['e'];
+      expect(fogged(ramp, half).walls.map((wall) => wall.id.split(':')[1])).toEqual(['north', 'east', 'south', 'west']);
+    });
+  });
+
+  it('lays a stretched picture in the block’s own frame, so it turns with the block', () => {
+    const turned = block();
+    turned.rotate = 90;
+    expect(faces(turned).caps[0].uvs).toEqual(faces(block()).caps[0].uvs);
+  });
 });

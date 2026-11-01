@@ -46,7 +46,10 @@ export function wallGeometry(wall: TableWorldWall): BufferGeometry {
         { at: 1, heightPx: wall.topPx },
       ];
   const highest = Math.max(...stops.map((stop) => stop.heightPx));
-  const across = (at: number) => (wall.tilePx > 0 ? (length * at) / wall.tilePx : at);
+  const across = (at: number) => {
+    if (wall.uFrom !== undefined && wall.uTo !== undefined) return wall.uFrom + (wall.uTo - wall.uFrom) * at;
+    return wall.tilePx > 0 ? (length * at) / wall.tilePx : at;
+  };
   const up = (height: number) =>
     wall.tilePx > 0 ? (height - wall.basePx) / wall.tilePx : (height - wall.basePx) / (highest - wall.basePx || 1);
   const positions: number[] = [];
@@ -90,7 +93,8 @@ export function capGeometry(cap: TableWorldCap): BufferGeometry {
     for (const index of triangle) {
       const point = cap.outline[index];
       positions.push(point.x, cap.heights?.[index] ?? cap.zPx, point.y);
-      if (cap.tilePx > 0) uvs.push(point.x / cap.tilePx, -point.y / cap.tilePx);
+      if (cap.uvs) uvs.push(cap.uvs[index].x, cap.uvs[index].y);
+      else if (cap.tilePx > 0) uvs.push(point.x / cap.tilePx, -point.y / cap.tilePx);
       else uvs.push((point.x - minX) / width, 1 - (point.y - minY) / depth);
     }
   }

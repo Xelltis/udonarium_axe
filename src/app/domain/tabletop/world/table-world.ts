@@ -9,6 +9,7 @@ import {
 } from '@axe/domain/tabletop/hex-geometry';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { TerrainFogCover } from '@axe/domain/tabletop/terrain-cover';
 import { blockFacesOf } from '@axe/domain/tabletop/world/block-faces';
 
 /** A point of the board, in table pixels. */
@@ -63,6 +64,12 @@ export interface TableWorldWall {
   readonly tilePx: number;
   /** Whether the face is glass, as a block with no picture on any face is. */
   readonly glass: boolean;
+  /**
+   * How far across its picture the face's first and second points stand, for a face that is a part
+   * of a wider one; a whole face runs across its picture from its first point.
+   */
+  readonly uFrom?: number;
+  readonly uTo?: number;
 }
 
 /** A flat face lying at a height, facing up or down: the top or the underside of a block. */
@@ -72,6 +79,8 @@ export interface TableWorldCap {
   readonly zPx: number;
   /** How high each corner of the outline stands, for a piece of a slope; otherwise all stand at `zPx`. */
   readonly heights?: readonly number[];
+  /** Where on its picture each corner of the outline stands, across and up; otherwise laid out on the board. */
+  readonly uvs?: readonly TableWorldPoint[];
   readonly facing: 'up' | 'down';
   readonly pictureUrl: string;
   readonly tilePx: number;
@@ -99,12 +108,14 @@ const HEX_CUT_OVERLAP_PX = 1;
  * standing on it. `pictureOf` says where the picture an identifier names is to be read from, or
  * nothing for one there is no picture for.
  *
- * Only what the seat may see is to be given: a block left out is not in the scene at all.
+ * Only what the seat may see is to be given: a block left out is not in the scene at all, and of a
+ * block the fog lies over in part, `coverOf` says which of its cells the seat has reached.
  */
 export function tableWorldOf(
   table: GameTable | null | undefined,
   pictureOf: (identifier: string) => string = () => '',
-  terrains: readonly Terrain[] = []
+  terrains: readonly Terrain[] = [],
+  coverOf: (terrain: Terrain) => TerrainFogCover | null = () => null
 ): TableWorld {
   if (!table) return EMPTY_TABLE_WORLD;
   const gridSize = table.gridSize > 0 ? table.gridSize : 50;
@@ -121,7 +132,7 @@ export function tableWorldOf(
       pictureUrl: pictureOf(table.imageIdentifier),
       veiled: !laidUnder,
     },
-    ...facesOf(table, terrains, pictureOf),
+    ...facesOf(table, terrains, pictureOf, coverOf),
   };
 }
 
@@ -132,10 +143,11 @@ export function tableWorldOf(
 function facesOf(
   table: GameTable,
   terrains: readonly Terrain[],
-  pictureOf: (identifier: string) => string
+  pictureOf: (identifier: string) => string,
+  coverOf: (terrain: Terrain) => TerrainFogCover | null
 ): Pick<TableWorld, 'walls' | 'caps'> {
   const gridSize = table.gridSize > 0 ? table.gridSize : 50;
-  const blocks = blockFacesOf(terrains, gridSize, table.gridType, pictureOf);
+  const blocks = blockFacesOf(terrains, gridSize, table.gridType, pictureOf, coverOf);
   const tableWalls = firstPersonWorldOf(table, [])
     .walls.map((wall): TableWorldWall => ({
       id: wall.id,
