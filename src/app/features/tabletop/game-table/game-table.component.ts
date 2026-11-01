@@ -30,6 +30,7 @@ import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -42,6 +43,7 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewLockService } from '@axe/application/ui/view-lock.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
@@ -99,6 +101,7 @@ import { GridFaceCache } from '@axe/features/tabletop/game-table/grid-face-cache
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
 import { bucketBySurface, DrawnSurfaces } from '@axe/features/tabletop/game-table/surface-buckets';
 import { TableMarqueeOverlayComponent } from '@axe/features/tabletop/game-table/table-marquee-overlay/table-marquee-overlay.component';
+import { installTableTestHooks } from '@axe/features/tabletop/game-table/table-test-hooks';
 import { GameTableMaskComponent } from '@axe/features/tabletop/game-table-mask/game-table-mask.component';
 import {
   buildHexOuterBorderSvg,
@@ -251,6 +254,8 @@ export class GameTableComponent {
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly coordinateService = inject(CoordinateService);
   private readonly tableCamera = inject(TableCameraService);
+  private readonly tablePick = inject(TablePickService);
+  private readonly tabletopOverlap = inject(TabletopOverlapService);
   private readonly imageService = inject(ImageService);
   private readonly motion = inject(MotionService);
   private readonly tabletopService = inject(TabletopService);
@@ -427,6 +432,7 @@ export class GameTableComponent {
       this.coordinateService.tabletopOriginElement = this.gameObjects().nativeElement;
       this.updateCameraLayout();
       this.destroyRef.onDestroy(observeSize(this.rootElementRef().nativeElement, () => this.updateCameraLayout()));
+      this.destroyRef.onDestroy(installTableTestHooks(window, this.tablePick, this.tableCamera, this.tabletopOverlap));
       this.syncMode2d();
     });
   }

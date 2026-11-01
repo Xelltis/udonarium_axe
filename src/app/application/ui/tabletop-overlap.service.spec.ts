@@ -87,6 +87,36 @@ describe('TabletopOverlapService', () => {
     expect(service.findAt(5, 5)).toEqual([]);
   });
 
+  describe('the piece drawn in front at a point', () => {
+    it('is the registered piece whose element holds the topmost element there', () => {
+      const piece = makeObject('front');
+      const element = makeElement({ x: 0, y: 0, w: 10, h: 10 });
+      const inner = document.createElement('span');
+      element.appendChild(inner);
+      service.register(piece, element);
+      vi.spyOn(document, 'elementFromPoint').mockReturnValue(inner);
+
+      expect(service.drawnAt(5, 5)).toBe(piece);
+    });
+
+    it('is asked of the sources that draw pieces without an element of their own, with the topmost element alone', () => {
+      const merged = makeObject('merged');
+      const top = document.createElement('div');
+      const source = vi.fn<OverlapHitSource>(() => [merged]);
+      service.addHitSource(source);
+      vi.spyOn(document, 'elementFromPoint').mockReturnValue(top);
+
+      expect(service.drawnAt(5, 6)).toBe(merged);
+      expect(source).toHaveBeenCalledWith([top], 5, 6);
+    });
+
+    it('is nothing where the front of the page belongs to no piece, or the point is not a number', () => {
+      vi.spyOn(document, 'elementFromPoint').mockReturnValue(document.createElement('div'));
+      expect(service.drawnAt(5, 5)).toBeNull();
+      expect(service.drawnAt(Number.NaN, 5)).toBeNull();
+    });
+  });
+
   it('dispatches a context menu event to a registered element', async () => {
     const obj = makeObject('a');
     const el = makeElement({ x: 0, y: 0, w: 10, h: 10 });

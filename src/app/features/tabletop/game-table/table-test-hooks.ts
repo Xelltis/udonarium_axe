@@ -1,0 +1,85 @@
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
+import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
+import { ObjectStore } from '@axe/core/sync/object-store';
+import { pageOfTablePoint, TableCameraView } from '@axe/domain/tabletop/camera/table-camera';
+import { PickTarget } from '@axe/domain/tabletop/pick/pick-index';
+
+/** What the end-to-end suite can ask the table, in a browser driven by automation. */
+export interface TableTestHooks {
+  /** The identifier of what a point of the page lands on, or null. */
+  pickAt(pageX: number, pageY: number): string | null;
+  /** The identifiers of everything the line of sight through a point of the page meets, nearest first. */
+  pickAllAt(pageX: number, pageY: number): string[];
+  /** The identifier of the piece the page draws in front at a point, or null, while the table is drawn in the page. */
+  drawnAt(pageX: number, pageY: number): string | null;
+  /** Where a point of the board is drawn on the page, or null before the table has a camera. */
+  project(x: number, y: number, z: number): { x: number; y: number } | null;
+  /** The view the table last drew. */
+  camera(): TableCameraView | null;
+  /** What kind of object an identifier names, such as `terrain` or `character`, or null. */
+  aliasOf(identifier: string): string | null;
+  /**
+   * The edges of the solids things are picked by, as drawn on the page: each as `[x1, y1, x2, y2]`.
+   * A point within a pixel or two of one may be told apart differently by the page and by picking.
+   */
+  edgesOnPage(): [number, number, number, number][];
+}
+
+type HookedWindow = Window & { __axeTable?: TableTestHooks };
+
+/**
+ * Puts the table's test hooks on the window, in a browser that says automation drives it and in
+ * no other. Answers the function that takes them off again.
+ */
+export function installTableTestHooks(
+  win: Window,
+  pick: TablePickService,
+  camera: TableCameraService,
+  overlap: TabletopOverlapService
+): () => void {
+  if (!win.navigator.webdriver) return () => undefined;
+  const hooked = win as HookedWindow;
+  hooked.__axeTable = {
+    pickAt: (pageX, pageY) => pick.pickAt(pageX, pageY)?.target.id ?? null,
+    pickAllAt: (pageX, pageY) => pick.allAt(pageX, pageY).map((hit) => hit.target.id),
+    drawnAt: (pageX, pageY) => overlap.drawnAt(pageX, pageY)?.identifier ?? null,
+    project: (x, y, z) => {
+      const scene = camera.sceneMatrix();
+      if (!scene) return null;
+      const onPage = pageOfTablePoint(scene, x, y, z);
+      return { x: onPage.x, y: onPage.y };
+    },
+    camera: () => camera.view,
+    aliasOf: (identifier) => ObjectStore.instance.get(identifier)?.aliasName ?? null,
+    edgesOnPage: () => {
+      const scene = camera.sceneMatrix();
+      return scene
+        ? pick.targets().flatMap((target) => edgesOf(target, (x, y, z) => pageOfTablePoint(scene, x, y, z)))
+        : [];
+    },
+  };
+  return () => {
+    delete hooked.__axeTable;
+  };
+}
+
+/** The edges of a target's solids, carried onto the page: the rims of their tops and bases, and their uprights. */
+function edgesOf(
+  target: PickTarget,
+  onPage: (x: number, y: number, z: number) => { x: number; y: number }
+): [number, number, number, number][] {
+  const edges: [number, number, number, number][] = [];
+  for (const shape of target.shapes) {
+    if (shape.kind !== 'prism') continue;
+    const tops = shape.outline.map((point) => onPage(point.x, point.y, shape.top));
+    const bases = shape.outline.map((point) => onPage(point.x, point.y, shape.base));
+    tops.forEach((top, i) => {
+      const next = (i + 1) % tops.length;
+      edges.push([top.x, top.y, tops[next].x, tops[next].y]);
+      edges.push([bases[i].x, bases[i].y, bases[next].x, bases[next].y]);
+      edges.push([top.x, top.y, bases[i].x, bases[i].y]);
+    });
+  }
+  return edges;
+}

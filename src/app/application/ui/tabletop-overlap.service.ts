@@ -122,6 +122,24 @@ export class TabletopOverlapService {
   }
 
   /**
+   * The piece the page draws in front at a point, or null where the front of the page there
+   * belongs to no piece. Read off the topmost element, as `findAt` reads every one under the point.
+   */
+  drawnAt(x: number, y: number): TabletopObject | null {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    const top = document.elementFromPoint(x, y);
+    if (!top) return null;
+    for (const entry of this.registry.values()) {
+      if (entry.element?.contains(top)) return entry.object;
+    }
+    for (const source of this.hitSources) {
+      const [object] = source([top], x, y);
+      if (object) return object;
+    }
+    return null;
+  }
+
+  /**
    * Opens the context menu of a piece at a point, as though it had been right-clicked there.
    *
    * The menu is opened on the next task, so the menu it was chosen from can close first. Does
