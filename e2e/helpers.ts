@@ -263,3 +263,15 @@ export async function revealMenuEntry(page: Page, menu: Locator, name: string, e
   await expect(entry).toBeVisible({ timeout: 5000 });
   return entry;
 }
+
+/** Turns a piece by dragging the handle given round its middle, as far as the drag takes it. */
+export async function turnByHandle(page: Page, handle: Locator) {
+  await handle.hover({ force: true });
+  const box = (await handle.boundingBox())!;
+  const from = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x + 40, from.y + 70, { steps: 8 });
+  await page.mouse.move(from.x + 90, from.y + 110, { steps: 8 });
+  await page.mouse.up();
+}

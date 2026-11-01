@@ -31,6 +31,7 @@ import { MovePlannerService } from '@axe/application/tabletop/move-planner.servi
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -255,6 +256,7 @@ export class GameTableComponent {
   private readonly coordinateService = inject(CoordinateService);
   private readonly tableCamera = inject(TableCameraService);
   private readonly tablePick = inject(TablePickService);
+  private readonly tableSurfaces = inject(TableSurfaceService);
   private readonly tabletopOverlap = inject(TabletopOverlapService);
   private readonly imageService = inject(ImageService);
   private readonly motion = inject(MotionService);
@@ -432,7 +434,9 @@ export class GameTableComponent {
       this.coordinateService.tabletopOriginElement = this.gameObjects().nativeElement;
       this.updateCameraLayout();
       this.destroyRef.onDestroy(observeSize(this.rootElementRef().nativeElement, () => this.updateCameraLayout()));
-      this.destroyRef.onDestroy(installTableTestHooks(window, this.tablePick, this.tableCamera, this.tabletopOverlap));
+      this.destroyRef.onDestroy(
+        installTableTestHooks(window, this.tablePick, this.tableCamera, this.tabletopOverlap, this.tableSurfaces)
+      );
       this.syncMode2d();
     });
   }

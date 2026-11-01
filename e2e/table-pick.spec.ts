@@ -1,7 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
 import { becomeGm, closePanels } from './dungeon-helpers';
-import { openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
+import { openTableContextMenu, revealMenuEntry, turnByHandle, waitAppReady } from './helpers';
 
 /**
  * The table works out what a press lands on by running the line of sight against the shapes of
@@ -126,6 +126,27 @@ test.describe('picking what stands on the table', () => {
       const compared = await compare(page);
       const total = compared.agree + compared.disagree;
       expect(total).toBeGreaterThan(300);
+      expect(compared.disagree / total, JSON.stringify(compared.samples)).toBeLessThan(0.01);
+    });
+
+    test(`lands on a block the page draws at a point once it has been turned, on a ${grid} grid`, async ({ page }) => {
+      await useGrid(page, gridType);
+      expect(await setBlocksDown(page)).toBeGreaterThanOrEqual(4);
+      const edges = () =>
+        page.evaluate(() => JSON.stringify((window as unknown as { __axeTable: Hooks }).__axeTable.edgesOnPage()));
+      const before = await edges();
+      await turnByHandle(page, page.locator('terrain').first().locator('.rotate-grab').last());
+      await expect.poll(edges).not.toBe(before);
+      // A block let go of glides the rest of the way to the angle it snaps to.
+      await page.waitForFunction(() =>
+        document
+          .getAnimations()
+          .every((animation) => !(animation instanceof CSSTransition) || animation.playState !== 'running')
+      );
+      await page.waitForLoadState('networkidle');
+
+      const compared = await compare(page);
+      const total = compared.agree + compared.disagree;
       expect(compared.disagree / total, JSON.stringify(compared.samples)).toBeLessThan(0.01);
     });
   }

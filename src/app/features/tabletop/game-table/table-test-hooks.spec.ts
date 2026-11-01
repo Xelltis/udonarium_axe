@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { installTableTestHooks, TableTestHooks } from '@axe/features/tabletop/game-table/table-test-hooks';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -15,7 +16,8 @@ describe('table test hooks', () => {
       win,
       TestBed.inject(TablePickService),
       TestBed.inject(TableCameraService),
-      TestBed.inject(TabletopOverlapService)
+      TestBed.inject(TabletopOverlapService),
+      TestBed.inject(TableSurfaceService)
     );
     return { win, remove };
   }

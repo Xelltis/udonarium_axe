@@ -1,5 +1,6 @@
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { pageOfTablePoint, TableCameraView } from '@axe/domain/tabletop/camera/table-camera';
@@ -24,6 +25,8 @@ export interface TableTestHooks {
    * A point within a pixel or two of one may be told apart differently by the page and by picking.
    */
   edgesOnPage(): [number, number, number, number][];
+  /** Where a point of a face (the floor, a wall or a board), lifted some way off it, is drawn on the page. */
+  surfacePageOf(surface: string, localX: number, localY: number, height?: number): { x: number; y: number } | null;
 }
 
 type HookedWindow = Window & { __axeTable?: TableTestHooks };
@@ -36,7 +39,8 @@ export function installTableTestHooks(
   win: Window,
   pick: TablePickService,
   camera: TableCameraService,
-  overlap: TabletopOverlapService
+  overlap: TabletopOverlapService,
+  surfaces: TableSurfaceService
 ): () => void {
   if (!win.navigator.webdriver) return () => undefined;
   const hooked = win as HookedWindow;
@@ -52,6 +56,7 @@ export function installTableTestHooks(
     },
     camera: () => camera.view,
     aliasOf: (identifier) => ObjectStore.instance.get(identifier)?.aliasName ?? null,
+    surfacePageOf: (surface, localX, localY, height) => surfaces.pageOf(surface, localX, localY, height),
     edgesOnPage: () => {
       const scene = camera.sceneMatrix();
       return scene
