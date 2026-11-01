@@ -33,9 +33,14 @@ export interface TableTestHooks {
   /** Settles once the canvas has drawn everything it was told, or at once while there is no canvas. */
   whenIdle(): Promise<void>;
   /** What the canvas's engine holds, counted, or null while there is none. */
-  sceneStats(): { chunks: number; boardGridTriangles: number; topsGridTriangles: number } | null;
+  sceneStats(): { chunks: number; boardGridTriangles: number; topsGridTriangles: number; sprites: number } | null;
   /** How wide and deep the board of the scene runs, in table pixels, or null where there is no board. */
   sceneBoard(): { widthPx: number; depthPx: number } | null;
+  /**
+   * The boxes on the page round each sprite a piece is picked by, in the order the piece is drawn
+   * with them: for a die, its frame and then its picture.
+   */
+  pieceBoxesOnPage(identifier: string): { x: number; y: number; width: number; height: number }[];
   /** Where a point of a face (the floor, a wall or a board), lifted some way off it, is drawn on the page. */
   surfacePageOf(surface: string, localX: number, localY: number, height?: number): { x: number; y: number } | null;
 }
@@ -77,6 +82,20 @@ export function installTableTestHooks(
     },
     faceAt: (pageX, pageY) => pick.faceAt(pageX, pageY, { stopsAt: () => true }),
     surfacePageOf: (surface, localX, localY, height) => surfaces.pageOf(surface, localX, localY, height),
+    pieceBoxesOnPage: (identifier) => {
+      const scene = camera.sceneMatrix();
+      const target = pick.pieceTargets().find((candidate) => candidate.id === identifier);
+      if (!scene || !target) return [];
+      return target.shapes.flatMap((shape) => {
+        if (shape.kind !== 'quad') return [];
+        const corners = shape.corners.map((corner) => pageOfTablePoint(scene, corner.x, corner.y, corner.z));
+        const xs = corners.map((corner) => corner.x);
+        const ys = corners.map((corner) => corner.y);
+        const x = Math.min(...xs);
+        const y = Math.min(...ys);
+        return [{ x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y }];
+      });
+    },
     edgesOnPage: () => {
       const scene = camera.sceneMatrix();
       return scene

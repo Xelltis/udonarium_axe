@@ -7,6 +7,7 @@ import { TableSurfaceService } from '@axe/application/tabletop/table-surface.ser
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { DEFAULT_TABLE_CAMERA_VIEW, pageOfTablePoint, TableLayout } from '@axe/domain/tabletop/camera/table-camera';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -242,5 +243,16 @@ describe('TablePickService', () => {
 
     const front = TestBed.inject(TableSurfaceService).pageOf('north-wall', 150, 125, GRID)!;
     expect(service.pickAt(front.x, front.y)?.target).toMatchObject({ id: beam.identifier, surface: 'north-wall' });
+  });
+
+  it('lands on a die where its frame lies, and lets the blocks a piece lands on be picked apart from it', async () => {
+    const die = DiceSymbol.create('D6', DiceType.D6, 1);
+    die.location = { name: 'table', x: 5 * GRID, y: 5 * GRID };
+    await settled();
+
+    const frame = onPage(5, 5, 1);
+    expect(service.pickAt(frame.x, frame.y)?.target).toMatchObject({ id: die.identifier, layer: 'dice-symbol' });
+    expect(service.targets()).toEqual([]);
+    expect(service.landingAt(frame.x, frame.y).z).toBe(0);
   });
 });

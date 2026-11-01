@@ -4,25 +4,28 @@ import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TableSpritesService } from '@axe/application/tabletop/table-sprites.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { TableRay, tableRayOfPage } from '@axe/domain/tabletop/camera/table-camera';
+import { tableEyeMatrix, TableRay, tableRayOfPage } from '@axe/domain/tabletop/camera/table-camera';
 import { faceTarget } from '@axe/domain/tabletop/pick/face-pick';
+import { PickQuad } from '@axe/domain/tabletop/pick/pick-geometry';
 import { pickAll, pickFirst, PickHit, PickTarget } from '@axe/domain/tabletop/pick/pick-index';
 import { beamPickTarget, terrainPickTarget } from '@axe/domain/tabletop/pick/terrain-pick';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
 import { boardSurfaceOf, surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { eyeAxesOf, spriteCorners, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 
 /**
  * Says what a point of the page lands on among the things on the table, by running the line of
  * sight through it against the shapes those things make, rather than by asking the page what is
  * drawn there.
  *
- * Terrain on the floor and on the white boards and the beams put on the walls are picked so far,
- * and so are the faces things are put on. Pieces come once they are drawn by the same placement on
- * a canvas.
+ * Terrain on the floor and on the white boards and the beams put on the walls are picked, and so
+ * are the faces things are put on and the pieces drawn from sprites, by the sprites they are drawn
+ * with.
  */
 @Injectable({
   providedIn: 'root',
@@ -36,9 +39,16 @@ export class TablePickService {
   private readonly images = inject(ImageService);
   private readonly coordinates = inject(CoordinateService);
   private readonly pointerDevice = inject(PointerDeviceService);
+  private readonly pieces = inject(TableSpritesService);
 
   /** Each object's target, kept until the object or the table's grid changes. */
   private readonly made = new Map<string, { key: string; target: PickTarget }>();
+  /** The pieces' targets, kept until the pieces or the camera change. */
+  private pieceTargetsMade: {
+    sprites: readonly TableWorldSprite[];
+    camera: number;
+    targets: readonly PickTarget[];
+  } | null = null;
 
   /** The line of sight through a point of the page, or null before the table has a camera. */
   rayAt(pageX: number, pageY: number): TableRay | null {
@@ -46,16 +56,16 @@ export class TablePickService {
     return inverse ? tableRayOfPage(inverse, pageX, pageY) : null;
   }
 
-  /** What a point of the page lands on first, or null where it lands on nothing. */
+  /** What a point of the page lands on first, a block or a piece, or null where it lands on nothing. */
   pickAt(pageX: number, pageY: number, accepts?: (target: PickTarget) => boolean): PickHit | null {
     const ray = this.rayAt(pageX, pageY);
-    return ray ? pickFirst(this.targets(), ray, accepts) : null;
+    return ray ? pickFirst([...this.targets(), ...this.pieceTargets()], ray, accepts) : null;
   }
 
-  /** Everything a point of the page lands on, nearest the eye first. */
+  /** Everything a point of the page lands on, blocks and pieces, nearest the eye first. */
   allAt(pageX: number, pageY: number, accepts?: (target: PickTarget) => boolean): PickHit[] {
     const ray = this.rayAt(pageX, pageY);
-    return ray ? pickAll(this.targets(), ray, accepts) : [];
+    return ray ? pickAll([...this.targets(), ...this.pieceTargets()], ray, accepts) : [];
   }
 
   /**
@@ -86,7 +96,10 @@ export class TablePickService {
     return this.landingAt(pointer.x, pointer.y);
   }
 
-  /** The targets of what stands on the table in view, and is not hidden from this seat. */
+  /**
+   * The targets of the blocks standing on the table in view and not hidden from this seat, which
+   * are what a piece may be put on and what stops the line of sight a piece is moved along.
+   */
   targets(): PickTarget[] {
     return untracked(() => {
       const table = this.tabletop.currentTable;
@@ -115,6 +128,38 @@ export class TablePickService {
         );
       }
       for (const identifier of this.made.keys()) if (!live.has(identifier)) this.made.delete(identifier);
+      return targets;
+    });
+  }
+
+  /**
+   * The targets of the pieces drawn on the table in view, each made of the sprites it is drawn with,
+   * as the canvas lays them out for this seat. A sprite turned to the eye is picked where it is
+   * turned to now.
+   */
+  pieceTargets(): readonly PickTarget[] {
+    return untracked(() => {
+      const sprites = this.pieces.sprites();
+      const camera = this.camera.version();
+      const made = this.pieceTargetsMade;
+      if (made && made.sprites === sprites && made.camera === camera) return made.targets;
+      const view = this.camera.view;
+      const layout = this.camera.layout;
+      if (!view || !layout) return [];
+      const eye = eyeAxesOf(tableEyeMatrix(view, layout));
+      const byOwner = new Map<string, { kind: string; shapes: PickQuad[] }>();
+      for (const sprite of sprites) {
+        const owner = byOwner.get(sprite.owner) ?? { kind: sprite.kind, shapes: [] };
+        owner.shapes.push({ kind: 'quad', corners: spriteCorners(sprite, eye) });
+        byOwner.set(sprite.owner, owner);
+      }
+      const targets = [...byOwner].map(([id, owner]): PickTarget => ({
+        id,
+        layer: owner.kind,
+        order: 0,
+        shapes: owner.shapes,
+      }));
+      this.pieceTargetsMade = { sprites, camera, targets };
       return targets;
     });
   }
