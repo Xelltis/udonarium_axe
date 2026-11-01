@@ -1,0 +1,101 @@
+import type { TableWorldBoard, TableWorldCap, TableWorldWall } from '@axe/domain/tabletop/world/table-world';
+import { BufferGeometry, Float32BufferAttribute, PlaneGeometry, ShapeUtils, Vector2 } from 'three/webgpu';
+
+/**
+ * The board's face, lying on the floor: its whole box on a square board, and each of its cells on a
+ * hex board, with the picture's box read off across it.
+ */
+export function boardGeometry(board: TableWorldBoard): BufferGeometry {
+  const { box, hexes } = board.shape;
+  if (!hexes) {
+    const plane = new PlaneGeometry(box.width, box.height);
+    plane.rotateX(-Math.PI / 2);
+    plane.translate(box.x + box.width / 2, 0, box.y + box.height / 2);
+    return plane;
+  }
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const corner = (point: { x: number; y: number }) => {
+    positions.push(point.x, 0, point.y);
+    uvs.push((point.x - box.x) / box.width, 1 - (point.y - box.y) / box.height);
+  };
+  for (const hex of hexes) {
+    for (let i = 1; i < hex.length - 1; i++) {
+      corner(hex[0]);
+      corner(hex[i]);
+      corner(hex[i + 1]);
+    }
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
+  return geometry;
+}
+
+/**
+ * An upright face between two points of the floor, from its foot to its top, or to the heights a
+ * slope over it folds through. A tiled picture runs along it a tile at a time, measured from its
+ * first point and its foot; any other is stretched over the whole face, up to its highest point.
+ */
+export function wallGeometry(wall: TableWorldWall): BufferGeometry {
+  const length = Math.hypot(wall.bx - wall.ax, wall.by - wall.ay);
+  const stops = wall.profile?.length
+    ? wall.profile
+    : [
+        { at: 0, heightPx: wall.topPx },
+        { at: 1, heightPx: wall.topPx },
+      ];
+  const highest = Math.max(...stops.map((stop) => stop.heightPx));
+  const across = (at: number) => (wall.tilePx > 0 ? (length * at) / wall.tilePx : at);
+  const up = (height: number) =>
+    wall.tilePx > 0 ? (height - wall.basePx) / wall.tilePx : (height - wall.basePx) / (highest - wall.basePx || 1);
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const corner = (at: number, height: number) => {
+    positions.push(wall.ax + (wall.bx - wall.ax) * at, height, wall.ay + (wall.by - wall.ay) * at);
+    uvs.push(across(at), up(height));
+  };
+  for (let i = 0; i < stops.length - 1; i++) {
+    const from = stops[i];
+    const to = stops[i + 1];
+    corner(from.at, wall.basePx);
+    corner(to.at, wall.basePx);
+    corner(to.at, to.heightPx);
+    corner(from.at, wall.basePx);
+    corner(to.at, to.heightPx);
+    corner(from.at, from.heightPx);
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
+  return geometry;
+}
+
+/**
+ * A flat face of a block, its outline cut into triangles at its height. A tiled picture is laid
+ * from the board's corner a tile at a time; any other is stretched over the outline's box.
+ */
+export function capGeometry(cap: TableWorldCap): BufferGeometry {
+  const contour = cap.outline.map((point) => new Vector2(point.x, point.y));
+  const triangles = ShapeUtils.triangulateShape(contour, []);
+  const xs = cap.outline.map((point) => point.x);
+  const ys = cap.outline.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  const width = Math.max(...xs) - minX || 1;
+  const depth = Math.max(...ys) - minY || 1;
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  for (const triangle of triangles) {
+    for (const index of triangle) {
+      const point = cap.outline[index];
+      positions.push(point.x, cap.heights?.[index] ?? cap.zPx, point.y);
+      if (cap.tilePx > 0) uvs.push(point.x / cap.tilePx, -point.y / cap.tilePx);
+      else uvs.push((point.x - minX) / width, 1 - (point.y - minY) / depth);
+    }
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
+  return geometry;
+}

@@ -5,6 +5,7 @@ import type {
   TableWorldCap,
   TableWorldWall,
 } from '@axe/domain/tabletop/world/table-world';
+import { boardGeometry, capGeometry, wallGeometry } from '@axe/infrastructure/table-3d/face-geometry';
 import type {
   Table3dCamera,
   Table3dEngine,
@@ -14,11 +15,9 @@ import type {
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
 import { float, max, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
 import {
-  BufferGeometry,
   Camera,
   CanvasTexture,
   DoubleSide,
-  Float32BufferAttribute,
   Group,
   Matrix4,
   Mesh,
@@ -28,11 +27,9 @@ import {
   PlaneGeometry,
   RepeatWrapping,
   Scene,
-  ShapeUtils,
   SRGBColorSpace,
   Texture,
   TextureLoader,
-  Vector2,
   WebGPURenderer,
 } from 'three/webgpu';
 
@@ -334,93 +331,4 @@ function boardColour(picture: Texture | null, veiled: boolean) {
     .add(veil.mul(clear))
     .div(max(alpha, float(0.0001)));
   return vec4(colourNode(sRGBTransferEOTF(shown)), alpha);
-}
-
-/**
- * The board's face, lying on the floor: its whole box on a square board, and each of its cells on a
- * hex board, with the picture's box read off across it.
- */
-function boardGeometry(board: TableWorldBoard): BufferGeometry {
-  const { box, hexes } = board.shape;
-  if (!hexes) {
-    const plane = new PlaneGeometry(box.width, box.height);
-    plane.rotateX(-Math.PI / 2);
-    plane.translate(box.x + box.width / 2, 0, box.y + box.height / 2);
-    return plane;
-  }
-  const positions: number[] = [];
-  const uvs: number[] = [];
-  const corner = (point: { x: number; y: number }) => {
-    positions.push(point.x, 0, point.y);
-    uvs.push((point.x - box.x) / box.width, 1 - (point.y - box.y) / box.height);
-  };
-  for (const hex of hexes) {
-    for (let i = 1; i < hex.length - 1; i++) {
-      corner(hex[0]);
-      corner(hex[i]);
-      corner(hex[i + 1]);
-    }
-  }
-  const geometry = new BufferGeometry();
-  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
-  return geometry;
-}
-
-/**
- * An upright face between two points of the floor, from its foot to its top. A tiled picture runs
- * along it a tile at a time, measured from its first point and its foot; any other is stretched
- * over the whole face.
- */
-function wallGeometry(wall: TableWorldWall): BufferGeometry {
-  const length = Math.hypot(wall.bx - wall.ax, wall.by - wall.ay);
-  const height = wall.topPx - wall.basePx;
-  const across = wall.tilePx > 0 ? length / wall.tilePx : 1;
-  const up = wall.tilePx > 0 ? height / wall.tilePx : 1;
-  const geometry = new BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new Float32BufferAttribute(
-      [
-        [wall.ax, wall.basePx, wall.ay],
-        [wall.bx, wall.basePx, wall.by],
-        [wall.bx, wall.topPx, wall.by],
-        [wall.ax, wall.basePx, wall.ay],
-        [wall.bx, wall.topPx, wall.by],
-        [wall.ax, wall.topPx, wall.ay],
-      ].flat(),
-      3
-    )
-  );
-  geometry.setAttribute('uv', new Float32BufferAttribute([0, 0, across, 0, across, up, 0, 0, across, up, 0, up], 2));
-  return geometry;
-}
-
-/**
- * A flat face of a block, its outline cut into triangles at its height. A tiled picture is laid
- * from the board's corner a tile at a time; any other is stretched over the outline's box.
- */
-function capGeometry(cap: TableWorldCap): BufferGeometry {
-  const contour = cap.outline.map((point) => new Vector2(point.x, point.y));
-  const triangles = ShapeUtils.triangulateShape(contour, []);
-  const xs = cap.outline.map((point) => point.x);
-  const ys = cap.outline.map((point) => point.y);
-  const minX = Math.min(...xs);
-  const minY = Math.min(...ys);
-  const width = Math.max(...xs) - minX || 1;
-  const depth = Math.max(...ys) - minY || 1;
-  const positions: number[] = [];
-  const uvs: number[] = [];
-  for (const triangle of triangles) {
-    for (const index of triangle) {
-      const point = cap.outline[index];
-      positions.push(point.x, cap.zPx, point.y);
-      if (cap.tilePx > 0) uvs.push(point.x / cap.tilePx, -point.y / cap.tilePx);
-      else uvs.push((point.x - minX) / width, 1 - (point.y - minY) / depth);
-    }
-  }
-  const geometry = new BufferGeometry();
-  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
-  return geometry;
 }
