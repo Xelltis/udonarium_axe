@@ -9,6 +9,7 @@ import {
   input,
   linkedSignal,
   signal,
+  viewChild,
 } from '@angular/core';
 import { CardTargetService } from '@axe/application/card/card-target.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
@@ -64,6 +65,7 @@ import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-o
 })
 export class CardComponent {
   private readonly cardDrop = inject(CardDropService);
+  private readonly movableRef = viewChild(MovableDirective);
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly pieceContextMenu = inject(PieceContextMenuService);
   private readonly rolePermission = inject(RolePermissionService);
@@ -482,6 +484,7 @@ export class CardComponent {
       return;
     }
     SoundEffect.play(PresetSound.cardPut);
+    this.movableRef()?.commitPosition();
     this.cardDrop.drop(this.card());
   }
 

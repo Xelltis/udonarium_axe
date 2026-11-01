@@ -9,6 +9,7 @@ import {
   input,
   linkedSignal,
   signal,
+  viewChild,
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -92,6 +93,7 @@ export class CardStackComponent {
   protected readonly tabletopService = inject(TabletopService);
   private readonly modalService = inject(ModalService);
   private readonly cardDrop = inject(CardDropService);
+  private readonly movableRef = viewChild(MovableDirective);
   private readonly destroyRef = inject(DestroyRef);
   private readonly translateFn = inject(TRANSLATE_FN);
   private readonly confirm = inject(ConfirmService);
@@ -394,6 +396,7 @@ export class CardStackComponent {
    */
   onMoved() {
     SoundEffect.play(PresetSound.cardPut);
+    this.movableRef()?.commitPosition();
     this.cardDrop.drop(this.cardStack());
   }
 
