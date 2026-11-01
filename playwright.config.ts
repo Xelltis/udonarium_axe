@@ -18,6 +18,7 @@ const PASSING_ON_CANVAS = [
   /table-drop-faces\.spec\.ts/,
   /card-drop\.spec\.ts/,
   /dice-symbol-flags\.spec\.ts/,
+  /coin\.spec\.ts/,
 ];
 
 export default defineConfig({
