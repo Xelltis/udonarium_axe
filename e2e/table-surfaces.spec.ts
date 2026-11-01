@@ -1,8 +1,8 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
 import { becomeGm, closePanels } from './dungeon-helpers';
-import { openPanel, openTableContextMenu, revealMenuEntry, turnByHandle, waitAppReady } from './helpers';
-import { solidPng } from './png-helpers';
+import { openTableContextMenu, revealMenuEntry, turnByHandle, waitAppReady } from './helpers';
+import { showWall } from './table-face-helpers';
 
 /**
  * Things are put on five faces of the table and on white boards. A canvas has no elements for those
@@ -47,27 +47,6 @@ async function farthestApart(face: Locator, surface: string): Promise<number> {
     },
     { surface, points: LOCAL_POINTS }
   );
-}
-
-async function showWall(page: Page, wallName: string, key: string) {
-  await openPanel(page, 'テーブル設定');
-  const settings = page.locator('game-table-setting');
-  await expect(settings).toBeVisible({ timeout: 10000 });
-  await settings.getByRole('button', { name: `${wallName}画像を追加` }).click();
-  const picker = page.locator('file-selector');
-  await expect(picker).toBeVisible();
-  await picker
-    .locator('input[type="file"]')
-    .setInputFiles({ name: `${key}.png`, mimeType: 'image/png', buffer: solidPng(200, 100, [120, 110, 90]) });
-  // The picker takes a picture just added as the one chosen, and closes by itself.
-  await expect(picker).toHaveCount(0);
-  await settings
-    .locator('div')
-    .filter({ has: page.getByRole('img', { name: `${wallName}画像`, exact: true }) })
-    .last()
-    .getByRole('checkbox')
-    .check();
-  await closePanels(page);
 }
 
 async function pitchBoard(page: Page, label: string) {
