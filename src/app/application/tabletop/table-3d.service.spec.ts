@@ -56,22 +56,28 @@ class FakeEngine implements Table3dEngine {
 describe('Table3dService', () => {
   let engines: FakeEngine[];
   let graphics: TableGraphics;
+  /** How many times the engine was loaded for the service made last; each service counts its own. */
+  let loaded: { count: number };
 
   function service(): Table3dService {
     engines = [];
+    const counted = { count: 0 };
+    loaded = counted;
     TestBed.configureTestingModule({
       providers: [
         ...TEST_PROVIDERS,
         {
           provide: TABLE_3D_ENGINES,
-          useValue: () =>
-            Promise.resolve({
+          useValue: () => {
+            counted.count++;
+            return Promise.resolve({
               createTable3dEngine: (_canvas: HTMLCanvasElement, options: Table3dEngineOptions) => {
                 const engine = new FakeEngine(options);
                 engines.push(engine);
                 return Promise.resolve(engine);
               },
-            }),
+            });
+          },
         },
         { provide: TABLE_GRAPHICS, useValue: () => Promise.resolve(graphics) },
       ],
@@ -189,5 +195,28 @@ describe('Table3dService', () => {
     expect(scene.canvasGeneration()).toBe(1);
     for (let again = 0; again < 5; again++) engines[0].lose();
     expect(scene.canvasGeneration()).toBe(3);
+  });
+
+  it('loads the engine while the page is idle for a seat that draws on a canvas, and not for one that does not', async () => {
+    service();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(loaded.count).toBe(0);
+
+    TestBed.resetTestingModule();
+    localStorage.setItem(STORAGE_KEYS.tableRenderer, 'three');
+    service();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(loaded.count).toBe(1);
+  });
+
+  it('is preparing from when the canvas is asked for until it draws', async () => {
+    localStorage.setItem(STORAGE_KEYS.tableRenderer, 'three');
+    const scene = service();
+    expect(scene.preparing()).toBe(true);
+
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+
+    expect(scene.preparing()).toBe(false);
   });
 });

@@ -34,6 +34,7 @@ async function sceneDrawn(page: Page) {
     )
     .not.toBeNull();
   await page.evaluate(() => (window as unknown as { __axeTable: SceneHooks }).__axeTable.whenIdle());
+  await expect(page.getByTestId('table-scene-cover')).toHaveCount(0);
 }
 
 /**

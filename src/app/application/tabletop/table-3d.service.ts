@@ -80,9 +80,16 @@ export class Table3dService {
   /** The scene of the table in view. */
   readonly world = computed(() => tableWorldOf(this.tabletop.currentTableVersion()));
 
+  /** Whether the canvas is asked for but not drawing yet, which the table covers until it is. */
+  readonly preparing = computed(() => this.drawsOnCanvas() && this.backend() === null && !this.unavailable());
+
   private frame: number | null = null;
   private starting: Promise<unknown> | null = null;
   private readonly idleWaiters: (() => void)[] = [];
+
+  constructor() {
+    if (untracked(this.drawsOnCanvas)) this.loadSoon();
+  }
 
   /** Draws on a canvas from now on, or goes back to the page, and remembers which in this browser. */
   choose(renderer: TableRenderer): void {
@@ -122,6 +129,16 @@ export class Table3dService {
       this.backend.set(null);
       this.settleIfIdle();
     };
+  }
+
+  /**
+   * Loads the engine while the page has nothing else to do, so a table drawn on a canvas does not
+   * wait for it on opening.
+   */
+  private loadSoon(): void {
+    const whenIdle =
+      typeof requestIdleCallback === 'function' ? requestIdleCallback : (run: () => void) => setTimeout(run, 0);
+    whenIdle(() => void this.loadEngines().catch(() => undefined));
   }
 
   /** Has a fresh canvas made, a few times at most, for one whose drawing the graphics card let go. */
