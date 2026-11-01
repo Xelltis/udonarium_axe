@@ -14,7 +14,6 @@ const drawsOnCanvas = {
  */
 const PASSING_ON_CANVAS = [
   /webgl\/.*\.spec\.ts/,
-  /table-pick\.spec\.ts/,
   /table-surfaces\.spec\.ts/,
   /table-drop-faces\.spec\.ts/,
   /card-drop\.spec\.ts/,

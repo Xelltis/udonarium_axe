@@ -150,6 +150,7 @@
           <div
             class="pointer-events-auto absolute inset-0 backface-visible"
             data-table-passthrough
+            [class.opacity-0]="table3d.drawsOnCanvas()"
             [style.background-image]="wall.surfaceBackground | safe: 'style'"
             [style.background-size]="wall.surfaceBackgroundSize"
             [style.background-repeat]="wall.surfaceBackgroundRepeat"
@@ -232,7 +233,14 @@
         </div>
       }
       @if (terrainsBySurface().floor.length) {
-        <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
+        <!--
+          Drawn on the canvas instead for a seat that asks for it. Hidden rather than faded: a faded
+          box draws what is in it flat, which would move where its blocks are pressed.
+        -->
+        <div
+          class="pointer-events-none absolute inset-0 m-auto transform-3d"
+          [class.invisible]="table3d.drawsOnCanvas()"
+        >
           @for (terrain of floorTerrainsDrawnAlone(); track terrain.identifier) {
             <terrain class="absolute will-change-transform backface-visible transform-3d" [terrain]="terrain"></terrain>
           }

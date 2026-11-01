@@ -13,11 +13,13 @@ import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { VisionService } from '@axe/application/tabletop/vision.service';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { TableGraphics, tableGraphicsOf } from '@axe/core/util/graphics-acceleration';
 import { matrixColumns, tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
+import { Terrain } from '@axe/domain/tabletop/terrain';
 import { tableWorldOf } from '@axe/domain/tabletop/world/table-world';
 import type {
   Table3dBackend,
@@ -64,6 +66,7 @@ export class Table3dService {
   private readonly injector = inject(Injector);
   private readonly images = inject(ImageService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly vision = inject(VisionService);
   private readonly loadEngines = inject(TABLE_3D_ENGINES);
   private readonly askGraphics = inject(TABLE_GRAPHICS);
 
@@ -82,11 +85,20 @@ export class Table3dService {
   readonly canvasGeneration = signal(0);
   private restarts = 0;
 
-  /** The scene of the table in view, with the pictures it names read from where this browser keeps them. */
+  /**
+   * The scene of the table in view, with the pictures it names read from where this browser keeps
+   * them. A block the fog lies over entirely is left out, so nothing of it is drawn at all.
+   */
   readonly world = computed(() => {
     this.objectChange.fileVersion();
     this.objectChange.collectionOf(TableBackgroundLayer.aliasName)();
-    return tableWorldOf(this.tabletop.currentTableVersion(), (identifier) => this.images.getEmptyOr(identifier).url);
+    this.objectChange.collectionOf(Terrain.aliasName)();
+    const table = this.tabletop.currentTableVersion();
+    const terrains = this.tabletop.terrains.filter((terrain) => {
+      this.objectChange.versionOf(terrain.identifier)();
+      return !this.hiddenByFog(terrain);
+    });
+    return tableWorldOf(table, (identifier) => this.images.getEmptyOr(identifier).url, terrains);
   });
 
   /** Whether the canvas is asked for but not drawing yet, which the table covers until it is. */
@@ -99,6 +111,11 @@ export class Table3dService {
 
   constructor() {
     if (untracked(this.drawsOnCanvas)) this.loadSoon();
+  }
+
+  private hiddenByFog(terrain: Terrain): boolean {
+    const cover = this.vision.terrainFogCover(terrain);
+    return cover !== null && !cover.cleared.some((cell) => cell);
   }
 
   /** Draws on a canvas from now on, or goes back to the page, and remembers which in this browser. */
