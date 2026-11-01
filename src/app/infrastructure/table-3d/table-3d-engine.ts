@@ -5,12 +5,18 @@ import type {
   TableWorldCap,
   TableWorldWall,
 } from '@axe/domain/tabletop/world/table-world';
-import type { Table3dCamera, Table3dEngine, Table3dEngineOptions } from '@axe/infrastructure/table-3d/table-3d-port';
+import type {
+  Table3dCamera,
+  Table3dEngine,
+  Table3dEngineOptions,
+  Table3dGrid,
+} from '@axe/infrastructure/table-3d/table-3d-port';
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
 import { float, max, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
 import {
   BufferGeometry,
   Camera,
+  CanvasTexture,
   DoubleSide,
   Float32BufferAttribute,
   Group,
@@ -36,6 +42,9 @@ const FAR_PX = 50000;
 
 /** How much white the board is veiled with while nothing is laid under it, as the page veils it. */
 const BOARD_VEIL = 0.15;
+
+/** How far above the board the grid is laid, as the page lifts it. */
+const GRID_LIFT_PX = 0.15;
 
 /** How a glass face is drawn: a pale blue, mostly clear. */
 const GLASS_COLOUR = 0xcfe6ff;
@@ -79,6 +88,9 @@ class ThreeTableEngine implements Table3dEngine {
   private readonly pictures = new TextureLoader();
   private readonly loaded = new Map<string, Texture>();
   private faces: Group | null = null;
+  private grid: Mesh | null = null;
+  private gridPicture: CanvasTexture | null = null;
+  private gridDrawn = '';
   private facesPlanned = '';
 
   constructor(
@@ -132,6 +144,18 @@ class ThreeTableEngine implements Table3dEngine {
     this.changed = true;
   }
 
+  setGrid(grid: Table3dGrid | null): void {
+    const drawn = grid ? JSON.stringify([grid.box, grid.revision]) : '';
+    if (drawn !== this.gridDrawn) {
+      this.gridDrawn = drawn;
+      this.placeGrid(grid);
+    } else if (grid && this.grid) {
+      (this.grid.material as MeshBasicNodeMaterial).opacity = grid.opacity;
+    }
+    if (this.grid) this.grid.visible = (grid?.opacity ?? 0) > 0;
+    this.changed = true;
+  }
+
   resize(width: number, height: number, pixelRatio: number): void {
     this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(width, height, false);
@@ -182,6 +206,42 @@ class ThreeTableEngine implements Table3dEngine {
     material.colorNode = boardColour(board.pictureUrl ? this.picture(board.pictureUrl) : null, board.veiled);
     this.board = new Mesh(boardGeometry(board), material);
     this.scene.add(this.board);
+  }
+
+  /**
+   * Lays the page's grid canvas over the board where the page lays it, a hair above the board as the
+   * page lifts it, drawn again from the canvas whenever the page draws on it.
+   */
+  private placeGrid(grid: Table3dGrid | null): void {
+    if (this.grid) {
+      this.scene.remove(this.grid);
+      this.grid.geometry.dispose();
+      (this.grid.material as MeshBasicNodeMaterial).dispose();
+      this.grid = null;
+    }
+    if (!grid) {
+      this.gridPicture?.dispose();
+      this.gridPicture = null;
+      return;
+    }
+    if (this.gridPicture?.image !== grid.canvas) {
+      this.gridPicture?.dispose();
+      this.gridPicture = new CanvasTexture(grid.canvas);
+      this.gridPicture.colorSpace = SRGBColorSpace;
+    }
+    this.gridPicture.needsUpdate = true;
+    const geometry = new PlaneGeometry(grid.box.width, grid.box.height);
+    geometry.rotateX(-Math.PI / 2);
+    geometry.translate(grid.box.x + grid.box.width / 2, GRID_LIFT_PX, grid.box.y + grid.box.height / 2);
+    const material = new MeshBasicNodeMaterial({
+      map: this.gridPicture,
+      transparent: true,
+      opacity: grid.opacity,
+      depthWrite: false,
+    });
+    this.grid = new Mesh(geometry, material);
+    this.grid.renderOrder = 1;
+    this.scene.add(this.grid);
   }
 
   /**

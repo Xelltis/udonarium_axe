@@ -26,6 +26,7 @@ import type {
   Table3dCamera,
   Table3dEngine,
   Table3dEngineModule,
+  Table3dGrid,
 } from '@axe/infrastructure/table-3d/table-3d-port';
 
 /**
@@ -106,6 +107,8 @@ export class Table3dService {
 
   private frame: number | null = null;
   private engine: Table3dEngine | null = null;
+  /** The page's grid, laid over the board on the canvas, or null while the page draws none. */
+  private readonly grid = signal<Table3dGrid | null>(null);
   private starting: Promise<unknown> | null = null;
   private readonly idleWaiters: (() => void)[] = [];
 
@@ -116,6 +119,14 @@ export class Table3dService {
   private hiddenByFog(terrain: Terrain): boolean {
     const cover = this.vision.terrainFogCover(terrain);
     return cover !== null && !cover.cleared.some((cell) => cell);
+  }
+
+  /**
+   * Hands the canvas the grid the page draws on a canvas of its own, to lay over the board where
+   * the page lays it, or takes it away with null.
+   */
+  showGrid(grid: Table3dGrid | null): void {
+    this.grid.set(grid);
   }
 
   /** Draws on a canvas from now on, or goes back to the page, and remembers which in this browser. */
@@ -208,6 +219,13 @@ export class Table3dService {
       effect(
         () => {
           engine.setWorld(this.world());
+          this.drawSoon(engine);
+        },
+        { injector: this.injector }
+      ),
+      effect(
+        () => {
+          engine.setGrid(this.grid());
           this.drawSoon(engine);
         },
         { injector: this.injector }

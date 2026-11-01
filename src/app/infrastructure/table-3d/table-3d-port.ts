@@ -17,11 +17,25 @@ export interface Table3dCamera {
   readonly height: number;
 }
 
+/**
+ * The grid, drawn by the page on a canvas of its own and laid over the board: where that canvas
+ * lies on the board, in table pixels, how opaque it is shown, and a count that goes up each time
+ * the page draws on it again.
+ */
+export interface Table3dGrid {
+  readonly canvas: HTMLCanvasElement;
+  readonly box: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  readonly opacity: number;
+  readonly revision: number;
+}
+
 /** What draws the table on a canvas. It draws only when something it was told has changed. */
 export interface Table3dEngine {
   readonly backend: Table3dBackend;
   setWorld(world: TableWorld): void;
   setCamera(camera: Table3dCamera): void;
+  /** Lays the grid over the board, or takes it away with null. */
+  setGrid(grid: Table3dGrid | null): void;
   /** Sizes the canvas's drawing to the box it covers, in CSS pixels, at the screen's pixel ratio. */
   resize(width: number, height: number, pixelRatio: number): void;
   /** Draws the scene when anything changed since it was last drawn, and answers whether it drew. */

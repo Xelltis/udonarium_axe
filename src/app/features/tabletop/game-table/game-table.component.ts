@@ -440,6 +440,7 @@ export class GameTableComponent {
       this.coordinateService.tabletopOriginElement = this.gameObjects().nativeElement;
       this.updateCameraLayout();
       this.destroyRef.onDestroy(observeSize(this.rootElementRef().nativeElement, () => this.updateCameraLayout()));
+      this.destroyRef.onDestroy(this.followGridShown());
       this.destroyRef.onDestroy(
         installTableTestHooks(
           window,
@@ -1172,6 +1173,40 @@ export class GameTableComponent {
    * Tells the camera where the table sits on the page and how big its board is, once the table has
    * been set up, whenever the box it is seen through changes size, and whenever the board does.
    */
+  /**
+   * Hands the canvas the grid again whenever the page shows or hides its own, which it does by
+   * writing the grid's opacity from more than one place. Answers what stops following it.
+   */
+  private followGridShown(): () => void {
+    const shown = new MutationObserver(() => this.shareGrid());
+    shown.observe(this.gridCanvas().nativeElement, { attributes: true, attributeFilter: ['style'] });
+    return () => shown.disconnect();
+  }
+
+  /** How many times the page has drawn its grid, so the canvas draws it again from the page's. */
+  private gridRevision = 0;
+
+  /**
+   * Hands the canvas the page's grid: the canvas it is drawn on, where that lies on the board, and
+   * how opaque the page shows it.
+   */
+  private shareGrid(): void {
+    const canvas = this.gridCanvas().nativeElement;
+    const board = this.gameObjects().nativeElement;
+    let x = 0;
+    let y = 0;
+    for (let at: HTMLElement | null = canvas; at && at !== board; at = at.offsetParent as HTMLElement | null) {
+      x += at.offsetLeft;
+      y += at.offsetTop;
+    }
+    this.table3d.showGrid({
+      canvas,
+      box: { x, y, width: canvas.offsetWidth, height: canvas.offsetHeight },
+      opacity: Number(canvas.style.opacity || 0),
+      revision: this.gridRevision,
+    });
+  }
+
   private updateCameraLayout(): void {
     if (!this._initialized) return;
     const rect = this.rootElementRef().nativeElement.getBoundingClientRect();
@@ -1263,6 +1298,8 @@ export class GameTableComponent {
       } else {
         render.render(width, height, gridSize, gridType, gridColor, gridFontColor, false, 0, 0, squareSpan);
       }
+      this.gridRevision++;
+      this.shareGrid();
     }
 
     setTimeout(() => {

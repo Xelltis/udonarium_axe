@@ -7,7 +7,12 @@ import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { TableGraphics } from '@axe/core/util/graphics-acceleration';
 import { DEFAULT_TABLE_CAMERA_VIEW } from '@axe/domain/tabletop/camera/table-camera';
 import type { TableWorld } from '@axe/domain/tabletop/world/table-world';
-import type { Table3dCamera, Table3dEngine, Table3dEngineOptions } from '@axe/infrastructure/table-3d/table-3d-port';
+import type {
+  Table3dCamera,
+  Table3dEngine,
+  Table3dEngineOptions,
+  Table3dGrid,
+} from '@axe/infrastructure/table-3d/table-3d-port';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 /** An engine that keeps what it is told and counts what it draws. */
@@ -16,6 +21,7 @@ class FakeEngine implements Table3dEngine {
   worlds: TableWorld[] = [];
   cameras: Table3dCamera[] = [];
   sizes: [number, number][] = [];
+  grids: (Table3dGrid | null)[] = [];
   drawn = 0;
   disposed = false;
   lose: () => void = () => undefined;
@@ -34,6 +40,11 @@ class FakeEngine implements Table3dEngine {
 
   setCamera(camera: Table3dCamera): void {
     this.cameras.push(camera);
+    this.changed = true;
+  }
+
+  setGrid(grid: Table3dGrid | null): void {
+    this.grids.push(grid);
     this.changed = true;
   }
 
@@ -261,5 +272,27 @@ describe('Table3dService', () => {
     expect(scene.world().board?.pictureUrl).toBe(
       TestBed.inject(ImageService).getEmptyOr(TestBed.inject(TabletopService).currentTable.imageIdentifier).url
     );
+  });
+
+  it('hands the engine the grid the page draws, and draws it on the next frame', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    TestBed.tick();
+    await scene.whenIdle();
+    const engine = engines[0];
+    const grid = {
+      canvas: document.createElement('canvas'),
+      box: { x: 0, y: 0, width: 1000, height: 750 },
+      opacity: 1,
+      revision: 1,
+    };
+
+    scene.showGrid(grid);
+    TestBed.tick();
+    await scene.whenIdle();
+
+    expect(engine.grids.at(-1)).toBe(grid);
+    expect(engine.drawn).toBe(2);
   });
 });
