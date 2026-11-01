@@ -7,7 +7,7 @@ import {
   normalizeFolderPath,
   parentFolderPath,
   rewriteFolderPath,
-} from '@axe/domain/character/character-folder';
+} from '@axe/domain/folder/folder-path';
 
 describe('normalizeFolderPath()', () => {
   it('leaves a plain name alone', () => {

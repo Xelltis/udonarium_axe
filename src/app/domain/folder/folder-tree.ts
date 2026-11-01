@@ -1,4 +1,4 @@
-import { FOLDER_SEPARATOR, folderSegments } from '@axe/domain/character/character-folder';
+import { FOLDER_SEPARATOR, folderSegments } from '@axe/domain/folder/folder-path';
 
 export interface FolderNode<T> {
   readonly path: string;

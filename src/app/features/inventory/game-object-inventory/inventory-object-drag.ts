@@ -2,10 +2,8 @@ import { signal } from '@angular/core';
 import { capturePointer, releasePointer } from '@axe/core/input/pointer-capture';
 import { GameObject } from '@axe/core/sync/game-object';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import {
-  folderPathFromElement,
-  inventoryTabFromElement,
-} from '@axe/features/inventory/game-object-inventory/inventory-folder-drag';
+import { inventoryTabFromElement } from '@axe/features/inventory/game-object-inventory/inventory-folder-drag';
+import { folderPathFromElement } from '@axe/ui/folder-tree/folder-drop';
 
 export interface ObjectDragHost {
   /** Whether this reader may file pieces into folders on the tab being shown. */

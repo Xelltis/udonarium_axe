@@ -1,5 +1,5 @@
 import { matchesSearchText, normalizeSearchText } from '@axe/core/util/text-search';
-import { normalizeFolderPath } from '@axe/domain/character/character-folder';
+import { normalizeFolderPath } from '@axe/domain/folder/folder-path';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 /**

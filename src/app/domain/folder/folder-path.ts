@@ -4,7 +4,7 @@ export const MAX_FOLDER_DEPTH = 4;
 const FULL_WIDTH_SEPARATOR = /／/g;
 
 /**
- * Splits a character's folder path into its folder names.
+ * Splits a folder path into its folder names.
  *
  * A full-width slash counts as a separator, blank segments are dropped, and anything past the
  * fourth level is cut off.

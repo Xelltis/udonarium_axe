@@ -3,7 +3,7 @@ import {
   collectFolderPaths,
   descendantFolderPaths,
   type FolderNode,
-} from '@axe/features/inventory/game-object-inventory/inventory-folder-tree';
+} from '@axe/domain/folder/folder-tree';
 
 interface Item {
   name: string;
