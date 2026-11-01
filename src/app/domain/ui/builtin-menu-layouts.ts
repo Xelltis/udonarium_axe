@@ -30,6 +30,7 @@ const FAB: MenuLayout = {
     item('roomSettings'),
     group('table', 'table_restaurant', 'app.fab.table', [
       'tableSetting',
+      'scene',
       'mapEditor',
       'dungeonGenerator',
       'tabletopDisplay',
@@ -43,7 +44,14 @@ const FAB: MenuLayout = {
       'diceTableSetting',
       'handRail',
     ]),
-    group('media', 'movie', 'app.fab.media', ['images', 'jukebox', 'cutIn', 'effectLibrary', 'battleCutIn']),
+    group('media', 'movie', 'app.fab.media', [
+      'images',
+      'jukebox',
+      'cutIn',
+      'effectLibrary',
+      'battleCutIn',
+      'scenarioText',
+    ]),
     group(
       'saveLoad',
       'sd_storage',
@@ -99,6 +107,7 @@ const GM_TOOLBAR: MenuLayout = {
     item('npcBar'),
     item('partyList'),
     item('inventory'),
+    item('scene'),
     item('darkness'),
     item('fog'),
     item('firstPersonShare'),

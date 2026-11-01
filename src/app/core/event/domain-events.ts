@@ -158,6 +158,8 @@ export const chatFontWanted$ = new EventChannel<string>();
 
 export const effectCast$ = new EventChannel<EffectCastEvent>();
 export const battleCutIn$ = new EventChannel<BattleCutInEvent>();
+/** Every screen darkens for a moment, as a scene changes under the dark. */
+export const sceneFade$ = new EventChannel<void>();
 export const diceRolled$ = new EventChannel<DiceRolledEvent>();
 export const diceThrow$ = new EventChannel<DiceThrowEvent>();
 export const diceBotCatalog$ = new EventChannel<void>();
@@ -331,6 +333,11 @@ export function callEffectCast(cast: unknown) {
   networkSend('EFFECT_CAST', cast);
 }
 
+/** Darkens every screen for a moment, this one included, while a scene is put on under the dark. */
+export function callSceneFade() {
+  networkSend('SCENE_FADE', null);
+}
+
 /**
  * Plays an exchange on the battle stage of every device, this one included, or of this device
  * alone to see how it looks.
@@ -407,6 +414,9 @@ networkMessage$.subscribe((msg) => {
       break;
     case 'BATTLE_CUT_IN':
       battleCutIn$.emit({ scene: msg.data });
+      break;
+    case 'SCENE_FADE':
+      sceneFade$.emit();
       break;
     case 'RESOURCE_CHANGE':
       resourceChange$.emit(msg.data as ResourceChangeEvent);

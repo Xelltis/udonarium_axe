@@ -5,6 +5,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
 import { NamedCueService } from '@axe/application/media/named-cue.service';
 import { TableBgmService } from '@axe/application/media/table-bgm.service';
+import { BoardSceneLoader } from '@axe/application/tabletop/board-scene-loader';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
 import { blockFootprintOf } from '@axe/application/tabletop/functional-paint.service';
 import { TableTriggerService } from '@axe/application/tabletop/table-trigger.service';
@@ -23,6 +24,7 @@ import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { findByReference } from '@axe/domain/hotbar/hotbar-reference';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { BoardScene, sceneBgmOf } from '@axe/domain/scene/board-scene';
 import { BoardSwitch, spendSwitch, switchHasGoFor } from '@axe/domain/tabletop/board-switch/board-switch';
 import {
   clampSwitchSpawn,
@@ -106,6 +108,7 @@ export class SwitchPressService {
   private readonly images = inject(ImageStorage);
   private readonly audios = inject(AudioStorage);
   private readonly tableBgm = inject(TableBgmService);
+  private readonly boardScenes = inject(BoardSceneLoader);
   private readonly battle = inject(BattleLaunchLoaderService);
 
   private readonly running = new Set<string>();
@@ -256,6 +259,12 @@ export class SwitchPressService {
         emitSelectGameTable({ identifier: table.identifier });
         // A switch that sets the music itself has the last word on it.
         if (switched && !setsMusic(context.definition)) this.tableBgm.playFor(table);
+        return;
+      }
+      case 'scene': {
+        const scene = findByReference(BoardScene.all(), action.scene.identifier, action.scene.name.trim())?.thing;
+        const scenes = scene ? await this.boardScenes.load() : null;
+        if (scene && scenes) scenes.apply(scene, { bgm: !action.keepBgm, trusted: true });
         return;
       }
       case 'carry': {
@@ -435,9 +444,12 @@ export class SwitchPressService {
 
 /** Whether a switch puts music on or stops it itself, which a table it shows then leaves to it. */
 function setsMusic(definition: SwitchDefinition): boolean {
-  return definition.actions.some(
-    (action) =>
-      action.kind === 'tableSetting' &&
-      (action.bgmStop || action.bgm.identifier.length > 0 || action.bgm.name.trim().length > 0)
-  );
+  return definition.actions.some((action) => {
+    if (action.kind === 'tableSetting') {
+      return action.bgmStop || action.bgm.identifier.length > 0 || action.bgm.name.trim().length > 0;
+    }
+    if (action.kind !== 'scene' || action.keepBgm) return false;
+    const scene = findByReference(BoardScene.all(), action.scene.identifier, action.scene.name)?.thing;
+    return scene ? sceneBgmOf(scene) !== null : false;
+  });
 }

@@ -1,0 +1,257 @@
+<ng-template #textRow let-text let-depth="depth">
+  @let row = rowOf(text);
+  <div
+    class="hover:bg-ui-hover mt-0.5 flex cursor-pointer items-center gap-1.5 rounded-sm border border-solid border-transparent px-1.5 py-1 transition-colors"
+    data-testid="scenario-text-row"
+    role="button"
+    [attr.data-text-title]="row.title"
+    [style.margin-left.px]="depth * 12"
+    [class.bg-ui-accent-bg!]="picked() === text.identifier"
+    [class.border-ui-accent!]="isDropTarget(text)"
+    [attr.draggable]="canEdit() ? 'true' : null"
+    (click)="pick(text)"
+    (contextmenu)="openMenu($event, text)"
+    (dragstart)="dragStart($event, text)"
+    (dragover)="dragOver($event, text)"
+    (drop)="dropOnRow($event)"
+    (dragend)="dragEnd()"
+  >
+    <div class="flex min-w-0 flex-1 flex-col">
+      <span class="flex min-w-0 items-center gap-1">
+        <span class="truncate text-[12px] font-semibold">{{ row.title }}</span>
+        @if (row.sentAt) {
+          <i
+            class="material-icons text-ui-accent shrink-0 text-[13px]!"
+            data-testid="scenario-text-sent"
+            [title]="'feature.scenarioText.sentAt' | transloco: { time: row.sentAt }"
+            >done</i
+          >
+        }
+      </span>
+      <span class="text-ui-dim truncate text-[11px]">{{
+        row.preview || ('feature.scenarioText.noWords' | transloco)
+      }}</span>
+    </div>
+    @if (canEdit() && row.hasWords) {
+      <button
+        type="button"
+        class="text-ui-muted hover:bg-ui-accent-bg hover:text-ui-accent m-0 inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[18px]!"
+        data-testid="scenario-text-row-send"
+        [title]="'feature.scenarioText.send' | transloco"
+        [attr.aria-label]="'feature.scenarioText.sendNamed' | transloco: { title: row.title }"
+        (click)="$event.stopPropagation(); send(text)"
+      >
+        <i class="material-icons">send</i>
+      </button>
+    }
+  </div>
+</ng-template>
+
+<div class="text-ui-text @container flex h-full min-h-0 flex-col text-[13px]" data-testid="scenario-text-panel">
+  @if (!canEdit()) {
+    <p class="text-ui-dim m-0 p-4 text-center text-[12px]">{{ 'feature.scenarioText.gameMasterOnly' | transloco }}</p>
+  } @else {
+    <div class="border-ui-border-panel flex shrink-0 flex-wrap items-center gap-1.5 border-b border-solid px-2 py-1.5">
+      <button
+        type="button"
+        data-testid="scenario-text-create"
+        class="rounded-ui-sm bg-ui-accent-solid m-0 inline-flex cursor-pointer items-center gap-1 border border-solid border-transparent px-2.5 py-1 text-[12px] font-semibold text-white transition-opacity hover:opacity-85 hover:shadow-none [&_.material-icons]:text-[16px]!"
+        (click)="create()"
+      >
+        <i class="material-icons">note_add</i>{{ 'feature.scenarioText.create' | transloco }}
+      </button>
+      <button
+        type="button"
+        data-testid="scenario-text-create-folder"
+        class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:text-ui-accent m-0 inline-flex size-7 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
+        [title]="'common.folder.newFolder' | transloco"
+        [attr.aria-label]="'common.folder.newFolder' | transloco"
+        (click)="createFolder()"
+      >
+        <i class="material-icons">create_new_folder</i>
+      </button>
+      <button
+        type="button"
+        data-testid="scenario-text-import"
+        class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:text-ui-accent m-0 inline-flex size-7 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
+        [class.border-ui-accent!]="importing()"
+        [title]="'feature.scenarioText.import' | transloco"
+        [attr.aria-label]="'feature.scenarioText.import' | transloco"
+        [attr.aria-expanded]="importing()"
+        (click)="importing.set(!importing())"
+      >
+        <i class="material-icons">post_add</i>
+      </button>
+      <input
+        type="search"
+        data-testid="scenario-text-search"
+        class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border min-w-24 flex-1 border border-solid px-2 py-1 text-[12px] outline-none"
+        [placeholder]="'feature.scenarioText.search' | transloco"
+        [attr.aria-label]="'feature.scenarioText.search' | transloco"
+        [ngModel]="search()"
+        (ngModelChange)="search.set($event)"
+      />
+    </div>
+    @if (importing()) {
+      <div
+        class="border-ui-border-panel bg-ui-elevated flex shrink-0 flex-col gap-1.5 border-b border-solid p-2 text-[12px]"
+        data-testid="scenario-text-import-box"
+      >
+        <span class="text-ui-dim text-[11px]">{{ 'feature.scenarioText.importHint' | transloco }}</span>
+        <textarea
+          #pasted
+          rows="6"
+          data-testid="scenario-text-import-words"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full resize-y border border-solid px-2 py-1 text-[12px] outline-none"
+          [placeholder]="'feature.scenarioText.importPlaceholder' | transloco"
+        ></textarea>
+        <div class="flex justify-end gap-1.5">
+          <button
+            type="button"
+            class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:text-ui-text m-0 cursor-pointer border border-solid bg-transparent px-2.5 py-1 text-[12px] hover:shadow-none"
+            (click)="importing.set(false)"
+          >
+            {{ 'common.button.cancel' | transloco }}
+          </button>
+          <button
+            type="button"
+            data-testid="scenario-text-import-run"
+            class="rounded-ui-sm bg-ui-accent-solid m-0 cursor-pointer border border-solid border-transparent px-2.5 py-1 text-[12px] font-semibold text-white hover:opacity-85 hover:shadow-none"
+            (click)="importFrom(pasted.value)"
+          >
+            {{ 'feature.scenarioText.importRun' | transloco }}
+          </button>
+        </div>
+      </div>
+    }
+    <div class="flex min-h-0 flex-1 flex-col @[620px]:flex-row">
+      <div
+        class="border-ui-border-panel min-h-28 shrink-0 overflow-y-auto border-solid p-1.5 @[620px]:max-h-none! @[620px]:w-60 @[620px]:border-r"
+        [class.max-h-[35%]]="pickedText() !== null"
+        [class.flex-1]="pickedText() === null"
+      >
+        @if (found(); as matches) {
+          @for (text of matches; track text.identifier) {
+            <ng-container *ngTemplateOutlet="textRow; context: { $implicit: text, depth: 0 }" />
+          } @empty {
+            <p class="text-ui-dim m-0 px-2 py-4 text-center text-[12px]">
+              {{ 'feature.scenarioText.noMatch' | transloco }}
+            </p>
+          }
+        } @else {
+          @if (isEmpty()) {
+            <p class="text-ui-dim m-0 px-2 py-4 text-center text-[12px]" data-testid="scenario-text-empty">
+              {{ 'feature.scenarioText.empty' | transloco }}
+            </p>
+          }
+          <app-folder-tree
+            [tree]="tree()"
+            [shelf]="shelf"
+            [row]="textRow"
+            [canEdit]="canEdit()"
+            [dragging]="reorder.held() !== null"
+            (dropped)="dropIntoFolder($event)"
+          />
+        }
+      </div>
+      @for (text of pickedList(); track text.identifier) {
+        <div
+          class="border-ui-border-panel flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto border-t border-solid p-2.5 text-[12px] @[620px]:border-t-0"
+          data-testid="scenario-text-editor"
+        >
+          <input
+            type="text"
+            data-testid="scenario-text-title"
+            class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border min-w-0 border border-solid px-2 py-1 text-[13px] font-semibold outline-none"
+            [value]="text.title"
+            [placeholder]="'feature.scenarioText.titlePlaceholder' | transloco"
+            (change)="rename(text, $any($event.target).value)"
+          />
+          <chat-line-editor
+            [draft]="text.text"
+            [enterKeeps]="false"
+            [tall]="true"
+            [placeholder]="'feature.scenarioText.wordsPlaceholder' | transloco"
+            (draftChange)="writeLater(text, $event)"
+          />
+          <div class="flex flex-wrap items-center gap-2">
+            <label class="flex items-center gap-1">
+              <span class="text-ui-muted">{{ 'feature.scenarioText.saidAs' | transloco }}</span>
+              <select
+                data-testid="scenario-text-speaker"
+                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text border border-solid px-1.5 py-0.5 text-[12px]"
+                [ngModel]="speakerOf(text)"
+                (ngModelChange)="setSpeaker(text, $event)"
+              >
+                @for (speaker of speakers; track speaker) {
+                  <option [ngValue]="speaker">{{ 'feature.scenarioText.speaker.' + speaker | transloco }}</option>
+                }
+              </select>
+            </label>
+            <label class="flex items-center gap-1">
+              <span class="text-ui-muted">{{ 'feature.scenarioText.tab' | transloco }}</span>
+              <select
+                data-testid="scenario-text-tab"
+                class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text border border-solid px-1.5 py-0.5 text-[12px]"
+                [ngModel]="text.tab"
+                (ngModelChange)="setTab(text, $event)"
+              >
+                <option [ngValue]="''">{{ 'feature.scenarioText.tabBeingRead' | transloco }}</option>
+                @for (tab of chatTabs(); track tab.identifier) {
+                  <option [ngValue]="tab.identifier">{{ tab.name }}</option>
+                }
+              </select>
+            </label>
+            <label class="flex items-center gap-1">
+              <span class="text-ui-muted">{{ 'feature.scenarioText.color' | transloco }}</span>
+              <input
+                type="color"
+                data-testid="scenario-text-color"
+                class="h-6 w-8 cursor-pointer border-none bg-transparent p-0"
+                [value]="colorOf(text)"
+                (change)="setColor(text, $any($event.target).value)"
+              />
+            </label>
+            @if (text.color) {
+              <button
+                type="button"
+                data-testid="scenario-text-color-clear"
+                class="text-ui-muted hover:text-ui-accent m-0 inline-flex cursor-pointer items-center border-none bg-transparent p-0 text-[11px] hover:shadow-none"
+                (click)="setColor(text, '')"
+              >
+                {{ 'feature.scenarioText.colorOfSpeaker' | transloco }}
+              </button>
+            } @else {
+              <span class="text-ui-dim text-[11px]">{{ 'feature.scenarioText.colorOfSpeakerNote' | transloco }}</span>
+            }
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <ng-select
+              class="ud-select min-w-40 flex-1"
+              data-testid="scenario-text-whisper"
+              [multiple]="true"
+              [ngModel]="whisperTo()"
+              [ngModelOptions]="{ standalone: true }"
+              [placeholder]="'feature.scenarioText.whisperPlaceholder' | transloco"
+              (ngModelChange)="whisperTo.set($event)"
+            >
+              @for (player of players(); track player.identifier) {
+                <ng-option [value]="player.identifier">{{ player.name }}</ng-option>
+              }
+            </ng-select>
+            <button
+              type="button"
+              data-testid="scenario-text-send"
+              class="rounded-ui-sm bg-ui-accent-solid m-0 inline-flex cursor-pointer items-center gap-1 border border-solid border-transparent px-3 py-1 text-[12px] font-semibold text-white transition-opacity hover:opacity-85 hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[16px]!"
+              [disabled]="!rowOf(text).hasWords"
+              (click)="send(text, { whispered: true })"
+            >
+              <i class="material-icons">send</i>
+              {{ (whisperTo().length > 0 ? 'feature.scenarioText.whisper' : 'feature.scenarioText.send') | transloco }}
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

@@ -1,0 +1,90 @@
+<ng-template #folder let-node>
+  <div
+    data-folder-area
+    [attr.data-folder-path]="node.path"
+    (dragover)="allowDrop($event)"
+    (drop)="drop($event, node.path)"
+  >
+    <div
+      class="text-ui-text bg-ui-elevated border-ui-border-panel hover:border-ui-accent mt-1 flex cursor-pointer items-center gap-1 rounded-[5px] border border-solid p-1 text-[12px] font-semibold transition-[background,border-color] select-none"
+      role="button"
+      data-folder-dropzone
+      data-testid="folder-heading"
+      [attr.data-folder-path]="node.path"
+      [attr.aria-expanded]="!shelf().isCollapsed(node.path)"
+      [style.margin-left.px]="node.depth * 12"
+      (click)="shelf().toggle(node.path)"
+    >
+      <i
+        class="material-icons text-ui-muted shrink-0 text-[18px]! transition-transform"
+        [class.-rotate-90]="shelf().isCollapsed(node.path)"
+        >expand_more</i
+      >
+      <i class="material-icons text-ui-muted shrink-0 text-[15px]!">folder</i>
+      @if (shelf().editing() === node.path) {
+        <input
+          appAutoFocus
+          class="border-ui-accent text-ui-text box-border min-w-0 flex-1 rounded-none border-0 border-b border-solid bg-transparent px-0.5 font-[inherit] text-[12px] font-semibold outline-none"
+          name="folder-name"
+          data-testid="folder-name-input"
+          [value]="node.name"
+          (click)="$event.stopPropagation()"
+          (keydown.escape)="shelf().cancelRename()"
+          (keydown.enter)="shelf().commitRename(node.path, $any($event.target).value)"
+          (blur)="shelf().commitRename(node.path, $any($event.target).value, true)"
+        />
+      } @else {
+        <span class="truncate">{{ node.name }}</span>
+      }
+      <span class="text-ui-dim ml-auto shrink-0 text-[11px] font-normal tabular-nums">{{ node.totalCount }}</span>
+      @if (canEdit() && shelf().editing() !== node.path) {
+        <button
+          type="button"
+          [class]="iconButtonClass"
+          [title]="'common.folder.newSubfolder' | transloco"
+          [attr.aria-label]="'common.folder.newSubfolder' | transloco"
+          (click)="$event.stopPropagation(); shelf().createFolder(node.path)"
+        >
+          <i class="material-icons">create_new_folder</i>
+        </button>
+        <button
+          type="button"
+          [class]="iconButtonClass"
+          [title]="'common.folder.rename' | transloco"
+          [attr.aria-label]="'common.folder.rename' | transloco"
+          (click)="$event.stopPropagation(); shelf().startRename(node.path)"
+        >
+          <i class="material-icons">edit</i>
+        </button>
+        <button
+          type="button"
+          [class]="iconButtonClass"
+          class="hover:bg-ui-danger-bg! hover:text-ui-danger!"
+          data-testid="folder-delete"
+          [title]="'common.folder.delete' | transloco"
+          [attr.aria-label]="'common.folder.delete' | transloco"
+          (click)="$event.stopPropagation(); shelf().deleteFolder(node.path)"
+        >
+          <i class="material-icons">delete</i>
+        </button>
+      }
+    </div>
+    @if (!shelf().isCollapsed(node.path)) {
+      @for (child of node.children; track child.path) {
+        <ng-container *ngTemplateOutlet="folder; context: folderContext(child)" />
+      }
+      @for (item of node.items; track item.identifier) {
+        <ng-container *ngTemplateOutlet="row(); context: rowContext(item, node.depth + 1)" />
+      }
+    }
+  </div>
+</ng-template>
+
+@for (node of tree().roots; track node.path) {
+  <ng-container *ngTemplateOutlet="folder; context: folderContext(node)" />
+}
+<div data-folder-area data-folder-path="" class="min-h-2" (dragover)="allowDrop($event)" (drop)="drop($event, '')">
+  @for (item of tree().loose; track item.identifier) {
+    <ng-container *ngTemplateOutlet="row(); context: rowContext(item, 0)" />
+  }
+</div>

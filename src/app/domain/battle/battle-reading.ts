@@ -1,5 +1,5 @@
 import { asBattleSide, BattleSide } from '@axe/domain/battle/battle-lineup';
-import { isGaugeInverted, isGaugeShownOnPiece } from '@axe/domain/character/piece-gauge';
+import { gaugeFixedColorOf, isGaugeInverted, isGaugeShownOnPiece } from '@axe/domain/character/piece-gauge';
 import { resourceElementsOf } from '@axe/domain/character/resource-catalog';
 import { shownImageIdentifier } from '@axe/domain/character/shown-image';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -20,6 +20,8 @@ export interface ResourceReading {
   current: number;
   max: number;
   inverted: boolean;
+  /** The colour set for its bar, or empty for that of how full it stands. */
+  color: string;
   /** Whether the piece shows it as a bar over its head. */
   bar: boolean;
 }
@@ -45,6 +47,7 @@ export function readFighter(source: FighterSource): FighterReading {
       current: Number.isFinite(current) ? current : 0,
       max: Number.isFinite(max) ? max : 0,
       inverted: isGaugeInverted(element),
+      color: gaugeFixedColorOf(element),
       bar: isGaugeShownOnPiece(element),
     });
   }

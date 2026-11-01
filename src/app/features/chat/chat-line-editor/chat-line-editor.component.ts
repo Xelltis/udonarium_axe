@@ -82,6 +82,15 @@ export class ChatLineEditorComponent {
 
   /** What the line says as the edit starts. */
   readonly draft = input.required<string>();
+  /**
+   * Whether Enter keeps the edit and Escape puts it down, as for a line already sent. Off for a
+   * passage written at length, where Enter starts a new line and nothing is kept or put down.
+   */
+  readonly enterKeeps = input(true);
+  /** What the empty box says; the line's own words unless given. */
+  readonly placeholder = input<string | null>(null);
+  /** Whether the box stands tall, for a passage rather than a line. */
+  readonly tall = input(false);
   /** What the line says as it is edited. */
   readonly draftChange = output<string>();
   /** Enter, or the change button beside it: the edit is to be kept. */
@@ -151,24 +160,32 @@ export class ChatLineEditorComponent {
     };
   })();
 
-  private readonly editorHostApi: ChatEditorHost = {
+  /**
+   * What the editor asks of the box. Enter and Escape are left to the editor itself in a passage,
+   * where it then starts a new line, so neither is offered there at all.
+   */
+  private readonly editorHostApi: ChatEditorHost = ((component: ChatLineEditorComponent) => ({
     mode: 'chat',
     marker: LINE_EDIT_ATTR,
     readsLineEnd: false,
-    placeholder: () => this.t('feature.chat.message.edit'),
-    language: () => this.syntaxSource.tagLanguage(),
+    placeholder: () => component.placeholder() ?? component.t('feature.chat.message.edit'),
+    language: () => component.syntaxSource.tagLanguage(),
     cutInNames: () => new Set(),
-    submit: () => this.kept.emit(),
-    cancel: () => this.abandoned.emit(),
-    changed: (text) => this.write(text),
-    session: () => this.session,
+    get submit() {
+      return component.enterKeeps() ? () => component.kept.emit() : undefined;
+    },
+    get cancel() {
+      return component.enterKeeps() ? () => component.abandoned.emit() : undefined;
+    },
+    changed: (text) => component.write(text),
+    session: () => component.session,
     completionWords: () => NO_WORDS,
     portraitImage: () => null,
-    openRuby: () => this.toolbar()?.openRuby(),
-    toolbarElement: () => this.editsBar()?.nativeElement ?? null,
-    translate: (key, params) => this.t(key, params),
-    stampHtml: (stampId, key) => this.syntaxSource.stampHtml(stampId, key),
-  };
+    openRuby: () => component.toolbar()?.openRuby(),
+    toolbarElement: () => component.editsBar()?.nativeElement ?? null,
+    translate: (key, params) => component.t(key, params),
+    stampHtml: (stampId, key) => component.syntaxSource.stampHtml(stampId, key),
+  }))(this);
 
   constructor() {
     afterNextRender(() => this.focusPlainBox());
@@ -267,9 +284,13 @@ export class ChatLineEditorComponent {
     this.plainField()?.refit();
   }
 
-  /** Escape puts the edit down and Enter keeps it; Shift+Enter and keys pressed mid-composition type as usual. */
+  /**
+   * Escape puts the edit down and Enter keeps it; Shift+Enter and keys pressed mid-composition type
+   * as usual, as every key does in a passage written at length.
+   */
   protected onPlainKeydown(event: KeyboardEvent): void {
     this.plainUsed = true;
+    if (!this.enterKeeps()) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       this.abandoned.emit();

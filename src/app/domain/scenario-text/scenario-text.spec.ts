@@ -1,0 +1,70 @@
+import { ScenarioText, scenarioTextsMatching, scenarioTextSpeakerOf } from '@axe/domain/scenario-text/scenario-text';
+
+describe('ScenarioText', () => {
+  it('keeps the stamps put in its words beside them, each once, for a save to find their pictures', () => {
+    const text = new ScenarioText();
+    text.initialize();
+
+    text.write('地図［地図:image:map-1］と鍵［鍵:image:key-1］、もう一度［地図:image:map-1］');
+
+    expect(text.stamps).toBe('image:map-1 image:key-1');
+    text.write('何もない');
+    expect(text.stamps).toBe('');
+  });
+
+  it('says a text under its title where it names no way, or one this version does not know', () => {
+    expect(scenarioTextSpeakerOf('')).toBe('title');
+    expect(scenarioTextSpeakerOf(undefined)).toBe('title');
+    expect(scenarioTextSpeakerOf('narrator')).toBe('title');
+    expect(scenarioTextSpeakerOf('system')).toBe('system');
+  });
+
+  it('lists the texts in their order, after the last when one is added', () => {
+    const later = new ScenarioText();
+    later.order = 5;
+    later.initialize();
+    const first = new ScenarioText();
+    first.order = 1;
+    first.initialize();
+
+    expect(ScenarioText.all()).toEqual([first, later]);
+    expect(ScenarioText.nextOrder()).toBe(6);
+  });
+
+  it('goes into a save with its identifier and the stamps it holds', () => {
+    const text = new ScenarioText('handout-1');
+    text.initialize();
+    text.write('［地図:image:map-1］');
+
+    const xml = text.toXml();
+
+    expect(xml).toContain('identifier="handout-1"');
+    expect(xml).toContain('stamps="image:map-1"');
+  });
+});
+
+describe('the texts offered as the chat is typed', () => {
+  function textOf(title: string, words: string): ScenarioText {
+    return Object.assign(new ScenarioText(), { title, text: words });
+  }
+
+  it('offers those whose title holds what is typed, or a line of whose words begins with it, ignoring case and decoration', () => {
+    const texts = [textOf('導入', '霧が出ている。\n  **雨**が降る'), textOf('Mansion', '扉'), textOf('空', '')];
+    const plain = (text: string) => text.replaceAll('**', '');
+
+    expect(scenarioTextsMatching(texts, '雨が', plain).map((text) => text.title)).toEqual(['導入']);
+    expect(scenarioTextsMatching(texts, 'mansion', plain).map((text) => text.title)).toEqual(['Mansion']);
+    expect(scenarioTextsMatching(texts, '空', plain)).toEqual([]);
+  });
+
+  it('brings nothing up for words found only in the middle of a line', () => {
+    const texts = [textOf('屋敷', '扉を開けている。')];
+
+    expect(scenarioTextsMatching(texts, 'ている', (text) => text)).toEqual([]);
+    expect(scenarioTextsMatching(texts, '扉を', (text) => text).map((text) => text.title)).toEqual(['屋敷']);
+  });
+
+  it('offers nothing for fewer than two letters', () => {
+    expect(scenarioTextsMatching([textOf('雨', '雨')], '雨', (text) => text)).toEqual([]);
+  });
+});

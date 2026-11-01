@@ -10,6 +10,7 @@ export const HOTBAR_SLOT_KINDS = [
   'firstPerson',
   'sound',
   'cutIn',
+  'scene',
   'prefill',
   'turn',
   'appearance',

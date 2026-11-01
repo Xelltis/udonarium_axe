@@ -5,6 +5,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import {
+  carryPeriodSkies,
   cleanDayFormat,
   cleanPeriods,
   formatGameClockDay,
@@ -12,9 +13,11 @@ import {
   type GameClock,
   type GameClockMode,
   periodIndexOf,
+  type PeriodSkies,
   periodsOf,
   stepGameClock,
   withDay,
+  withPeriodSky,
   writeGameClock,
 } from '@axe/domain/game-clock/game-clock';
 import { Config } from '@axe/domain/peer/config';
@@ -36,6 +39,12 @@ export class GameClockService {
   readonly clock = computed<GameClock>(() => {
     this.objectChange.versionOf(Config.instance.identifier)();
     return Config.instance.gameClock;
+  });
+
+  /** The hour each part of the day's sky is drawn at, as the room chose it. */
+  readonly skies = computed<PeriodSkies>(() => {
+    this.objectChange.versionOf(Config.instance.identifier)();
+    return Config.instance.gameClockSkies;
   });
 
   /** Whether this seat moves the clock and sets it up, which only the game master does. */
@@ -77,9 +86,14 @@ export class GameClockService {
     if (this.canEdit()) this.write(withDay(this.clock(), day));
   }
 
-  /** Puts the clock to one of the parts of the day, by its place among them. */
-  setPeriod(period: number): void {
-    if (!this.canEdit()) return;
+  /**
+   * Puts the clock to one of the parts of the day, by its place among them. A scene put on by a
+   * switch the master set up does so for whoever pressed it, `trusted`; a clock told by the hour
+   * on a 24-hour face is then left alone, as it has no parts.
+   */
+  setPeriod(period: number, options: { trusted?: boolean } = {}): void {
+    if (!this.canEdit() && !options.trusted) return;
+    if (options.trusted && this.clock().mode !== 'periods') return;
     const count = this.periods().length;
     this.write({ ...this.clock(), period: Math.max(0, Math.min(count - 1, Math.floor(period))) });
   }
@@ -96,13 +110,22 @@ export class GameClockService {
 
   /**
    * Names the parts of a day from a list written with commas between them; an empty one goes back to
-   * the language's own. The part it is now stays, unless there are no longer as many parts.
+   * the language's own. The part it is now stays, unless there are no longer as many parts, and each
+   * part keeps the sky it was drawn with, as {@link carryPeriodSkies} carries it over.
    */
   setPeriods(written: string): void {
     if (!this.canEdit()) return;
     const clock = { ...this.clock(), periods: cleanPeriods(written.split(/[,、，]/)) };
-    const count = periodsOf(clock, this.defaultPeriods()).length;
-    this.write({ ...clock, period: periodIndexOf(clock, count) });
+    const periods = periodsOf(clock, this.defaultPeriods());
+    Config.instance.gameClockSkies = carryPeriodSkies(this.skies(), this.periods(), periods);
+    this.write({ ...clock, period: periodIndexOf(clock, periods.length) });
+  }
+
+  /** Draws the sky of one part of the day, by its place among them, at an hour; null lays it evenly again. */
+  setSky(index: number, hour: number | null): void {
+    if (!this.canEdit()) return;
+    Config.instance.gameClockSkies = withPeriodSky(this.skies(), index, hour);
+    this.objectChange.notifyChanged(Config.instance.identifier);
   }
 
   setStep(step: number): void {

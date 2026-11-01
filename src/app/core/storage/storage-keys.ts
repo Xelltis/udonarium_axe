@@ -23,6 +23,7 @@ export const STORAGE_KEYS = {
   djDeckOpen: 'mini-jukebox-dj-deck',
   effectAutoPlay: 'axe.effect.autoPlay',
   firstPersonPiece: 'ui-first-person-piece',
+  foregroundSeeThrough: 'axe.foreground.seeThrough',
   hotbar: 'ui-hotbar',
   hotbarOwner: 'ui-hotbar-owner',
   iconChosenByHand: 'axe.icon.chosenByHand',
@@ -74,6 +75,7 @@ export const STORAGE_KEYS = {
 export const STORAGE_KEY_PREFIXES = {
   menuLayout: 'axe.menu',
   personalFolders: 'axe.inventory.personal-folders',
+  scenarioTextSent: 'axe.scenario-text.sent',
 } as const;
 
 /** The key a setting kept per room, menu or the like is kept under, the prefix alone for an empty part. */

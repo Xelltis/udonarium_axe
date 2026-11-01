@@ -20,6 +20,7 @@ describe('the keys the app keeps settings under in the browser', () => {
       djDeckOpen: 'mini-jukebox-dj-deck',
       effectAutoPlay: 'axe.effect.autoPlay',
       firstPersonPiece: 'ui-first-person-piece',
+      foregroundSeeThrough: 'axe.foreground.seeThrough',
       hotbar: 'ui-hotbar',
       hotbarOwner: 'ui-hotbar-owner',
       iconChosenByHand: 'axe.icon.chosenByHand',
@@ -66,6 +67,7 @@ describe('the keys the app keeps settings under in the browser', () => {
     expect(STORAGE_KEY_PREFIXES).toEqual({
       menuLayout: 'axe.menu',
       personalFolders: 'axe.inventory.personal-folders',
+      scenarioTextSent: 'axe.scenario-text.sent',
     });
   });
 

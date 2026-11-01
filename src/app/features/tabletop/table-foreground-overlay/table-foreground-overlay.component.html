@@ -1,0 +1,11 @@
+@if (shown(); as foreground) {
+  <img
+    class="block size-full select-none"
+    data-testid="table-foreground"
+    alt=""
+    draggable="false"
+    [src]="foreground.url | safe: 'resourceUrl'"
+    [style.object-fit]="foreground.fit"
+    [style.opacity]="foreground.opacity"
+  />
+}

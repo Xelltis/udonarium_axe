@@ -203,6 +203,7 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
   panel('chat', 'speaker_notes', 'chatWindow', 'app.fab.chat'),
   panel('roomSettings', 'room_preferences', 'roomSettings', 'app.fab.roomSettings'),
   panel('tableSetting', 'layers', 'tableSetting', 'app.fab.tableSetting'),
+  panel('scene', 'theaters', 'boardScene', 'feature.scene.title', { audience: 'gameMaster' }),
   panel('mapEditor', 'architecture', 'mapEditor', 'feature.mapEditor.title', { audience: 'gameMaster' }),
   panel('dungeonGenerator', 'map', 'dungeonGenerator', 'feature.tabletop.dungeonGenerator.title', {
     audience: 'gameMaster',
@@ -218,6 +219,7 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
   panel('cutIn', 'slideshow', 'cutInList', 'app.fab.cutIn'),
   panel('effectLibrary', 'auto_awesome', 'effectLibrary', 'feature.effect.title', { audience: 'playing' }),
   panel('battleCutIn', 'sports_martial_arts', 'battleCutIn', 'feature.battleCutIn.title'),
+  panel('scenarioText', 'menu_book', 'scenarioText', 'feature.scenarioText.title', { audience: 'gameMaster' }),
   panel('skin', 'palette', 'skin', 'app.fab.skin', { testId: 'seat-skin' }),
   panel('soundSettings', 'volume_up', 'soundSettings', 'app.fab.soundSettings', { testId: 'seat-sound-settings' }),
   panel('objectList', 'category', 'objectList', 'app.fab.objectList', { audience: 'gameMaster' }),

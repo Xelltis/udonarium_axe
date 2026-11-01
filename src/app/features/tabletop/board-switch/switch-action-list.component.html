@@ -177,6 +177,31 @@
           }
         </select>
         <p class="text-ui-muted m-0 text-[11px] leading-snug">{{ 'feature.boardSwitch.showTableHint' | transloco }}</p>
+      } @else if (action.kind === 'scene') {
+        <select
+          class="border-ui-border-panel bg-ui-elevated text-ui-text min-w-0 rounded-[3px] border border-solid px-1.5 py-0.5 text-[12px]"
+          data-testid="switch-action-scene"
+          (change)="setScene(index, $any($event.target).value)"
+        >
+          <option value="" [selected]="!action.scene.identifier">
+            {{ 'feature.boardSwitch.unchosen' | transloco }}
+          </option>
+          @for (choice of scenes(); track choice.value) {
+            <option [value]="choice.value" [selected]="choice.value === action.scene.identifier">
+              {{ choice.name }}
+            </option>
+          }
+        </select>
+        <label class="flex cursor-pointer items-center gap-1.5 text-[12px]">
+          <input
+            type="checkbox"
+            class="m-0 cursor-pointer [accent-color:var(--ui-accent)]"
+            [checked]="action.keepBgm"
+            (change)="setKeepBgm(index, $any($event.target).checked)"
+          />
+          <span>{{ 'feature.scene.menu.applyWithoutBgm' | transloco }}</span>
+        </label>
+        <p class="text-ui-muted m-0 text-[11px] leading-snug">{{ 'feature.boardSwitch.sceneHint' | transloco }}</p>
       } @else if (action.kind === 'carry') {
         <div class="flex items-center gap-2 text-[12px]">
           <label class="text-ui-muted flex items-center gap-1">

@@ -22,9 +22,11 @@ import { AssetOwner } from '@axe/domain/media/asset-owner';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
+import { Playlist } from '@axe/domain/media/playlist';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { markLoadedWithheld, markSeatWithheld } from '@axe/domain/peer/withheld-table';
+import { BoardScene } from '@axe/domain/scene/board-scene';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -400,6 +402,71 @@ describe('SaveDataService', () => {
         reaction.destroy();
         tab.destroy();
       }
+    });
+  });
+
+  describe('the pictures a scene puts on', () => {
+    const night = 'd'.repeat(64);
+
+    afterEach(() => ImageStorage.instance.delete(night));
+
+    it('go into a saved room with the scene', async () => {
+      ImageStorage.instance.add({
+        identifier: night,
+        name: 'night.webp',
+        type: 'image/webp',
+        blob: new Blob(['night'], { type: 'image/webp' }),
+        url: 'blob:night',
+        thumbnail: { type: '', blob: null, url: '' },
+      });
+      const scene = new BoardScene();
+      scene.foregroundImageIdentifier = night;
+      scene.initialize();
+      const privateApi = TestBed.inject(SaveDataService) as unknown as SaveDataServicePrivateApi;
+      const saved = vi.spyOn(privateApi, 'saveAsync').mockResolvedValue(undefined);
+
+      await privateApi._saveRoomAsync('room');
+
+      expect((saved.mock.calls[0][0] as File[]).map((file) => file.name)).toContain(`${night}.webp`);
+      vi.restoreAllMocks();
+    });
+  });
+
+  describe('the playlists of the jukebox', () => {
+    it('go into a saved room, a snapshot and the archive a browser starts on alike', async () => {
+      const first = new Playlist(Playlist.DEFAULT_IDENTIFIER);
+      first.entries = ['town-theme'];
+      first.initialize();
+      Playlist.create('Battle', ['battle-theme']);
+      const service = TestBed.inject(SaveDataService);
+      const privateApi = service as unknown as SaveDataServicePrivateApi & {
+        buildRoomFiles: (pretty: boolean, everything?: boolean) => File[];
+      };
+      const saved = vi.spyOn(privateApi, 'saveAsync').mockResolvedValue(undefined);
+
+      await privateApi._saveRoomAsync('room');
+      const playlistsOf = (files: File[]) => files.find((file) => file.name === 'playlist.xml')?.text();
+
+      for (const files of [
+        saved.mock.calls[0][0] as File[],
+        privateApi.buildRoomFiles(false),
+        privateApi.buildRoomFiles(false, true),
+      ]) {
+        const xml = await playlistsOf(files);
+        expect(xml).toContain('<entry audio="town-theme"/>');
+        expect(xml).toContain('name="Battle"');
+      }
+      vi.restoreAllMocks();
+    });
+
+    it('stay out of a piece saved on its own', async () => {
+      const privateApi = TestBed.inject(SaveDataService) as unknown as SaveDataServicePrivateApi;
+      const saved = vi.spyOn(privateApi, 'saveAsync').mockResolvedValue(undefined);
+
+      await privateApi._saveGameObjectAsync(GameCharacter.create('一人', 1, ''), 'one');
+
+      expect((saved.mock.calls[0][0] as File[]).map((file) => file.name)).not.toContain('playlist.xml');
+      vi.restoreAllMocks();
     });
   });
 

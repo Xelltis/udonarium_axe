@@ -12,6 +12,7 @@ import { HotbarSlot } from '@axe/domain/hotbar/hotbar-slot';
 import { HOTBAR_SLOT_KINDS } from '@axe/domain/hotbar/hotbar-slot-kind';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { BoardScene } from '@axe/domain/scene/board-scene';
 import { HotbarSlotEditorComponent } from '@axe/features/hotbar/hotbar-editor/hotbar-slot-editor.component';
 import { HotbarRunnerService } from '@axe/features/hotbar/hotbar-runner.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -54,10 +55,39 @@ describe('HotbarSlotEditorComponent', () => {
     store.clearDeleteHistory();
   });
 
-  it('offers every kind a slot can be', () => {
-    const options = [...root().querySelectorAll<HTMLOptionElement>('[data-testid="hotbar-editor-kind"] option')];
+  function kindOptions(): string[] {
+    return [...root().querySelectorAll<HTMLOptionElement>('[data-testid="hotbar-editor-kind"] option')].map(
+      (option) => option.value
+    );
+  }
 
-    expect(options.map((option) => option.value)).toEqual([...HOTBAR_SLOT_KINDS]);
+  it('offers the game master every kind a slot can be', async () => {
+    PeerCursor.myCursor.role = PeerRole.GameMaster;
+    component.setFrom({ page: 1, slotIndex: 3 }, emptyHotbarSlotDraft('sound'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(kindOptions()).toEqual([...HOTBAR_SLOT_KINDS]);
+  });
+
+  it('offers nobody else a scene, nor the names of the master’s scenes in one made already', async () => {
+    const plot = new BoardScene();
+    plot.name = '裏切り者の館';
+    plot.initialize();
+    PeerCursor.myCursor.role = PeerRole.Player;
+    component.setFrom({ page: 1, slotIndex: 3 }, emptyHotbarSlotDraft('sound'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(kindOptions()).not.toContain('scene');
+
+    component.setFrom({ page: 1, slotIndex: 3 }, emptyHotbarSlotDraft('scene'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(kindOptions()).toContain('scene');
+    expect(root().querySelector('[data-testid="hotbar-editor-scene"]')?.textContent).not.toContain('裏切り者の館');
+    plot.destroy();
   });
 
   describe('a menu slot', () => {

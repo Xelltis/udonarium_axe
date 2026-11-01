@@ -56,6 +56,7 @@ import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font
 import { zoomToViewPositionZ } from '@axe/domain/tabletop/physical-scale';
 import { SurfaceDims } from '@axe/domain/tabletop/surface-space';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
+import { tableForegroundOf } from '@axe/domain/tabletop/table-foreground';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
 import { WallFace, WallLight, WallSilhouette } from '@axe/domain/tabletop/vision-scene';
@@ -105,10 +106,12 @@ import {
 import { TableInterruptOverlayComponent } from '@axe/features/tabletop/interrupt-prompt/table-interrupt-overlay.component';
 import { LightSourceComponent } from '@axe/features/tabletop/light-source/light-source.component';
 import { RangeComponent } from '@axe/features/tabletop/range/range.component';
+import { SceneFadeOverlayComponent } from '@axe/features/tabletop/scene-fade-overlay/scene-fade-overlay.component';
 import { TableAltitudeGuideOverlayComponent } from '@axe/features/tabletop/table-altitude-guide-overlay/table-altitude-guide-overlay.component';
 import { TableAmbienceComponent } from '@axe/features/tabletop/table-ambience/table-ambience.component';
 import { TableBeamOverlayComponent } from '@axe/features/tabletop/table-beam-overlay/table-beam-overlay.component';
 import { TableDiceOverlayComponent } from '@axe/features/tabletop/table-dice-overlay/table-dice-overlay.component';
+import { TableForegroundOverlayComponent } from '@axe/features/tabletop/table-foreground-overlay/table-foreground-overlay.component';
 import { TableFreePathOverlayComponent } from '@axe/features/tabletop/table-free-path-overlay/table-free-path-overlay.component';
 import { TableMoveBlockOverlayComponent } from '@axe/features/tabletop/table-move-block-overlay/table-move-block-overlay.component';
 import { TableMoveCostOverlayComponent } from '@axe/features/tabletop/table-move-cost-overlay/table-move-cost-overlay.component';
@@ -137,6 +140,7 @@ import {
   overlayScale,
 } from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
 import { BackdropDirective } from '@axe/ui/directives/backdrop.directive';
+import { ReloadNoticeDirective } from '@axe/ui/directives/reload-notice.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { translateZCss, Z_OFFSET_BACKGROUND_LAYERS_PX, Z_OFFSET_FOREGROUND_LAYERS_PX } from '@axe/ui/tabletop/z-offset';
@@ -230,6 +234,9 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
     TableWaterLayerComponent,
     TableWaterFloorComponent,
     TableWeatherOverlayComponent,
+    TableForegroundOverlayComponent,
+    ReloadNoticeDirective,
+    SceneFadeOverlayComponent,
     TableDiceOverlayComponent,
   ],
   host: {
@@ -251,6 +258,13 @@ export class GameTableComponent {
   private readonly imageService = inject(ImageService);
   private readonly motion = inject(MotionService);
   private readonly tabletopService = inject(TabletopService);
+  /**
+   * Whether the table shown lays a picture in front of everything. The code that draws it is
+   * fetched the first time one does, as most tables never lay any.
+   */
+  protected readonly laysForeground = computed(
+    () => tableForegroundOf(this.tabletopService.currentTableVersion()) !== null
+  );
   private readonly ambienceService = inject(TableAmbienceService);
   private readonly terrainBatch = inject(TerrainBatchService);
   private readonly tabletopActionService = inject(TabletopActionService);

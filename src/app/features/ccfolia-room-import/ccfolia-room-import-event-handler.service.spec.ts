@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { emitCcfoliaRoomDropped } from '@axe/core/event/domain-events';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { CcfoliaRoomImportService } from '@axe/features/ccfolia-room-import/ccfolia-room-import.service';
@@ -10,6 +11,7 @@ import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 const SUMMARY = {
   tableName: 'ココフォリアのルーム',
   tableCount: 1,
+  sceneCount: 0,
   panelCount: 2,
   pieceCount: 1,
   hiddenPanelCount: 0,
@@ -61,6 +63,20 @@ describe('CcfoliaRoomImportEventHandlerService', () => {
     expect(messages[0]).toContain('feature.tabletop.ccfoliaImport.imported');
     expect(messages[1]).toContain('feature.tabletop.ccfoliaImport.skippedDecks');
     expect(messages[2]).toContain('feature.tabletop.ccfoliaImport.bgmNotice');
+  });
+
+  it('asks a room of several scenes how they come across, scenes on one table on a yes and tables otherwise', async () => {
+    setup();
+    const ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
+
+    emitCcfoliaRoomDropped({ entries: {} });
+    await vi.waitFor(() => expect(importAsync).toHaveBeenCalled());
+    const chooseShape = importAsync.mock.calls[0][1] as (count: number) => Promise<string>;
+
+    expect(await chooseShape(3)).toBe('scenes');
+    expect(ask).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('3') }));
+    ask.mockResolvedValue(false);
+    expect(await chooseShape(3)).toBe('tables');
   });
 
   it('imports nothing without permission to edit', async () => {

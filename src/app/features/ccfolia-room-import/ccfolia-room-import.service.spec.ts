@@ -4,6 +4,7 @@ import { ArchiveEntries } from '@axe/core/storage/room-archive';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
+import { BoardScene } from '@axe/domain/scene/board-scene';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { CcfoliaRoomImportService } from '@axe/features/ccfolia-room-import/ccfolia-room-import.service';
@@ -242,6 +243,70 @@ describe('CcfoliaRoomImportService', () => {
     }
     expect(result.summary!.tableCount).toBe(2);
     expect(result.summary!.panelCount).toBe(1);
+  });
+
+  describe('asked to bring the scenes as scenes', () => {
+    function twoScenes(): Record<string, unknown> {
+      const data = roomData({
+        items: {
+          aaaaaaaaaaaaaaaaaaaa: { x: 0, y: 0, width: 2, height: 2, imageUrl: 'icon.png', order: 0 },
+        },
+        scenes: {
+          s1: { name: '前景なし', order: 0, backgroundUrl: 'bg.jpeg', foregroundUrl: null },
+          s2: { name: '戦闘シート', order: 1, backgroundUrl: 'bg.jpeg', foregroundUrl: 'face.png' },
+        },
+      });
+      (data['entities'] as Record<string, unknown>)['room'] = {
+        backgroundUrl: 'bg.jpeg',
+        foregroundUrl: 'face.png',
+        fieldWidth: 20,
+        fieldHeight: 10,
+      };
+      return data;
+    }
+
+    it('builds one table, the panels on it, with a scene for each, its pictures on the floor and behind', async () => {
+      const before = tables().length;
+      const asked: number[] = [];
+
+      const result = await service.importAsync(entriesOf(twoScenes(), ['bg.jpeg', 'icon.png', 'face.png']), (count) => {
+        asked.push(count);
+        return Promise.resolve('scenes');
+      });
+
+      const [table] = tables().slice(before);
+      expect(tables().slice(before)).toHaveLength(1);
+      expect(table.name).toBe('戦闘シート');
+      expect(table.children.filter((child) => child instanceof Terrain)).toHaveLength(1);
+      const scenes = BoardScene.all();
+      expect(scenes.map((scene) => [scene.name, scene.tableIdentifier, scene.floorImageIdentifier])).toEqual([
+        ['前景なし', table.identifier, 'none'],
+        ['戦闘シート', table.identifier, 'image-3'],
+      ]);
+      expect(scenes.every((scene) => scene.backgroundImageIdentifier === 'image-1')).toBe(true);
+      expect(asked).toEqual([2]);
+      expect([result.summary!.tableCount, result.summary!.sceneCount]).toEqual([1, 2]);
+    });
+
+    it('makes a table per scene, as before, where the answer is tables', async () => {
+      const before = tables().length;
+
+      const result = await service.importAsync(entriesOf(twoScenes(), ['bg.jpeg', 'icon.png', 'face.png']), () =>
+        Promise.resolve('tables')
+      );
+
+      expect(tables().slice(before)).toHaveLength(2);
+      expect(BoardScene.all()).toEqual([]);
+      expect(result.summary!.sceneCount).toBe(0);
+    });
+
+    it('asks nothing of a room with fewer than two scenes', async () => {
+      const chooseShape = vi.fn();
+
+      await service.importAsync(entriesOf(roomData(), ['bg.jpeg']), chooseShape);
+
+      expect(chooseShape).not.toHaveBeenCalled();
+    });
   });
 
   it('shows the table for the scene matching the current foreground', async () => {

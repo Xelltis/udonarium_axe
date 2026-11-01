@@ -155,6 +155,15 @@
     "sound": {
       "mute": "{{name}}を消す",
       "unmute": "{{name}}を出す"
+    },
+    "folder": {
+      "newFolder": "新しいフォルダ",
+      "newSubfolder": "この中にフォルダを作る",
+      "rename": "フォルダ名を変える",
+      "delete": "このフォルダを削除",
+      "none": "フォルダなし",
+      "defaultName": "フォルダ{{index}}",
+      "confirmDelete": "「{{name}}」を削除しますか？（中の{{count}}件はフォルダなしに戻ります）"
     }
   },
   "feature": {
@@ -477,7 +486,8 @@
         "appearanceSize": "大きさ",
         "appearanceKeep": "変えない",
         "appearanceHint": "空欄の項目はそのままです。コマ画像と立ち絵はキャラクターが持つ画像の番号で、1 から数えます。大きさはマス数です。立ち絵は自分の画面だけに効きます。",
-        "menuCommand": "項目"
+        "menuCommand": "項目",
+        "scene": "シーン"
       },
       "kind": {
         "chat": "チャット／ダイス",
@@ -494,7 +504,8 @@
         "prefill": "チャット欄に下書きする",
         "turn": "行動順",
         "group": "マルチアクション",
-        "appearance": "見た目を変える"
+        "appearance": "見た目を変える",
+        "scene": "シーン"
       },
       "mode": {
         "cast": "発動",
@@ -528,7 +539,8 @@
         "prefill": "チャット入力欄に文字を置くだけで、送信はしません。長い呪文や定型文の下書きに使います。",
         "turn": "行動順を進めたり戻したりします。",
         "group": "他の枠をいくつか選んで、選んだ順に撃ちます。マルチアクション同士は選べません。",
-        "appearance": "コマの絵・立ち絵・大きさを差し替えます。マルチアクションでエフェクトと並べると、変身の演出になります。"
+        "appearance": "コマの絵・立ち絵・大きさを差し替えます。マルチアクションでエフェクトと並べると、変身の演出になります。",
+        "scene": "シーンを選んで反映します。GMだけが使えます。"
       },
       "lock": "位置を固定",
       "pageTitle": "{{page}} ページ目",
@@ -2387,7 +2399,13 @@
           "denied": "卓の編集権限がないため、ルームデータを取り込めません。",
           "unrecognized": "ココフォリアのルームデータとして読めませんでした。",
           "failed": "ルームデータの取り込みに失敗しました。"
-        }
+        },
+        "sceneName": "シーン{{index}}",
+        "importedScenes": "ココフォリアのシーン {{count}} 件を、テーブルのシーンにしました。シーンのパネルから反映できます。",
+        "shapeTitle": "ココフォリアのシーンの取り込み方",
+        "shapeQuestion": "このルームにはシーンが {{count}} 件あります。テーブル1枚にまとめてシーンとして取り込みますか？　シーンごとにテーブルを作ることもできます。",
+        "shapeScenes": "テーブル1枚とシーンにする",
+        "shapeTables": "シーンごとにテーブル"
       },
       "selection": {
         "title": "選択中のオブジェクト",
@@ -2685,6 +2703,17 @@
         "bgFilterNone": "なし",
         "bgFilterWhite": "ホワイト",
         "bgFilterBlack": "ブラック",
+        "imageForeground": "前景",
+        "imageForegroundAlt": "前景の画像",
+        "addImageForeground": "前景画像を追加",
+        "clearForeground": "外す",
+        "foregroundOpacity": "不透明度",
+        "foregroundFit": "合わせ方",
+        "foregroundFit_cover": "画面を埋める（はみ出しは切る）",
+        "foregroundFit_contain": "全体を収める",
+        "foregroundFit_fill": "画面に引き伸ばす",
+        "foregroundSeeThrough": "自分の画面では薄く見る（GMだけ）",
+        "foregroundHint": "画面の手前、コマの上に重ねる絵です。窓枠や霧、場面の一枚絵に使います。クリックは下のコマや盤面に届きます",
         "wallHeight": "壁の高さ",
         "cellSize": "1マスの大きさ（px）",
         "squareSpan": "移動と射程の1マス",
@@ -2705,6 +2734,9 @@
         "addImageSouthWall": "南壁画像を追加",
         "addImageWestWall": "西壁画像を追加",
         "save": "保存",
+        "duplicate": "複製",
+        "duplicateHint": "このテーブルを、地形・壁・明かり・背景レイヤー・スイッチごと写します",
+        "copyName": "{{name}}のコピー",
         "delete": "削除",
         "restore": "元に戻す",
         "sectionWeather": "天候（マップ全体）",
@@ -5457,7 +5489,8 @@
         "showTable": "テーブルを切り替える",
         "carry": "押した人のコマを運ぶ",
         "tableSetting": "テーブル設定を変える",
-        "battle": "戦闘カットイン"
+        "battle": "戦闘カットイン",
+        "scene": "シーンを反映"
       },
       "delay": "待ち（秒）",
       "moveUp": "上へ",
@@ -5549,7 +5582,8 @@
         "on": "オン",
         "off": "オフ"
       },
-      "battleHint": "GM が左右に分けたコマで、戦闘カットインを全員に出します。攻撃するのは、組にいるコマのうち手番のコマ、押した人のコマ、左の先頭の順です。"
+      "battleHint": "GM が左右に分けたコマで、戦闘カットインを全員に出します。攻撃するのは、組にいるコマのうち手番のコマ、押した人のコマ、左の先頭の順です。",
+      "sceneHint": "押した人の画面でシーンを反映します。PLが押しても反映されます。"
     },
     "soundSettings": {
       "ownHeading": "自分の音量",
@@ -5766,7 +5800,131 @@
       "stepHours": "{{n}}時間",
       "dayFormatLabel": "日の書き方",
       "dayFormatHint": "{n} が日の数になります（例: Day {n}）。空にすると「{n}日目」です。",
-      "announce": "進めたり戻したりしたときにチャットに出す"
+      "announce": "進めたり戻したりしたときにチャットに出す",
+      "skies": "時間帯の空",
+      "skiesHint": "時間帯ごとに、どの時刻の空を出すかを選びます。自動は1日を時間帯の数で等分した時刻です。",
+      "skyEven": "自動（{{hour}}時）",
+      "sky_6": "朝（6時）",
+      "sky_9": "午前（9時）",
+      "sky_12": "昼（12時）",
+      "sky_15": "午後（15時）",
+      "sky_18": "夕（18時）",
+      "sky_21": "宵（21時）",
+      "sky_0": "夜（0時）",
+      "sky_3": "未明（3時）"
+    },
+    "scene": {
+      "title": "シーン",
+      "create": "今の盤面から作る",
+      "createHint": "見せているテーブルの見た目と、流れているBGM・環境音をシーンにします",
+      "defaultName": "シーン{{index}}",
+      "untitled": "名前のないシーン",
+      "copyName": "{{name}}のコピー",
+      "empty": "シーンはまだありません。盤面を整えてから「今の盤面から作る」を押します",
+      "apply": "反映",
+      "applyNamed": "「{{name}}」を反映",
+      "current": "いまのシーン",
+      "gameMasterOnly": "シーンはGMだけが使えます",
+      "overwriteConfirm": "「{{name}}」を今の盤面で上書きしますか？（印の付いた項目だけが書き換わります）",
+      "deleteConfirm": "「{{name}}」を削除しますか？",
+      "menu": {
+        "applyWithoutBgm": "BGMを変えずに反映",
+        "applyWithoutText": "テキストを送らずに反映",
+        "edit": "編集",
+        "overwrite": "今の盤面で上書き",
+        "overwriteHint": "印の付いた項目を、見せているテーブルと流れている音で書き直します",
+        "duplicate": "複製",
+        "moveTo": "フォルダへ移す",
+        "delete": "削除"
+      },
+      "part": {
+        "table": "見せるテーブル",
+        "floor": "床",
+        "background": "背景",
+        "walls": "壁",
+        "foreground": "前景",
+        "weather": "天候",
+        "darkness": "暗闇",
+        "fog": "戦場の霧",
+        "bgm": "BGM",
+        "bgs": "環境音",
+        "cutIn": "カットイン",
+        "clock": "ゲーム内時間の時間帯",
+        "text": "切り替えのテキスト",
+        "fade": "暗転"
+      },
+      "wall": {
+        "north": "北壁",
+        "east": "東壁",
+        "south": "南壁",
+        "west": "西壁"
+      },
+      "editor": {
+        "namePlaceholder": "シーンの名前",
+        "hint": "チェックした項目だけが、反映したときに変わります。チェックを入れると、いまの盤面の値から始まります",
+        "leave": "変えない",
+        "pickPicture": "画像を選ぶ",
+        "noPicture": "なし",
+        "takeAway": "なしにする",
+        "on": "入れる",
+        "off": "切る",
+        "bgmStop": "止める",
+        "bgmTrack": "曲を流す",
+        "bgmPlaylist": "再生リストを最初から流す",
+        "chooseTrack": "曲を選ぶ",
+        "choosePlaylist": "再生リストを選ぶ",
+        "bgsNone": "選ばないと、環境音をすべて止めます",
+        "bgsHint": "選んだ環境音だけを流し、ほかは止めます",
+        "clockHours": "ゲーム内時間が24時間のときは変わりません",
+        "cutInsNone": "反映したときに流すカットイン（複数なら1つを選んで流します）",
+        "cutInStopsMusic": "音楽つきのカットインは、流れるとBGMを止めます。シーンのBGMと一緒には使えません",
+        "textPlaceholder": "反映したときにチャットへ出す文（装飾の記法が使えます）",
+        "textTab": "出すタブ",
+        "firstTab": "最初のタブ"
+      }
+    },
+    "scenarioText": {
+      "title": "シナリオテキスト",
+      "create": "新しいテキスト",
+      "defaultTitle": "テキスト{{index}}",
+      "untitled": "名前のないテキスト",
+      "copyTitle": "{{title}}のコピー",
+      "empty": "テキストはまだありません。「新しいテキスト」で書き始めます",
+      "noWords": "（本文なし）",
+      "noMatch": "見つかりません",
+      "search": "タイトルと本文から探す",
+      "gameMasterOnly": "シナリオテキストはGMだけが使えます",
+      "titlePlaceholder": "タイトル（タイトルとして送ると発言者の名前になります）",
+      "wordsPlaceholder": "本文。チャットと同じ装飾が使えます。Enterで改行します",
+      "saidAs": "送り方",
+      "tab": "タブ",
+      "tabBeingRead": "開いているタブ",
+      "color": "色",
+      "colorOfSpeaker": "話し手の色に戻す",
+      "colorOfSpeakerNote": "（話し手の色）",
+      "whisperPlaceholder": "秘話で送る相手（選ばないと全員に送ります）",
+      "send": "送る",
+      "whisper": "秘話で送る",
+      "sendNamed": "「{{title}}」を送る",
+      "sentAt": "{{time}}に送りました",
+      "deleteConfirm": "「{{title}}」を削除しますか？",
+      "speaker": {
+        "title": "タイトルとして",
+        "character": "話しているキャラクターとして",
+        "system": "システムとして"
+      },
+      "menu": {
+        "sendAs": "送り方を変えて送る",
+        "edit": "編集",
+        "duplicate": "複製",
+        "moveTo": "フォルダへ移す",
+        "delete": "削除"
+      },
+      "suggestions": "シナリオテキストの候補",
+      "import": "まとめて取り込む",
+      "importRun": "取り込む",
+      "importHint": "台本の文章を貼り付けると、見出し（# か ■ で始まる行）ごとに1件のテキストに分けます。見出しがタイトルになります",
+      "importPlaceholder": "# 導入\n雨が降っている。\n\n# 屋敷\n扉が軋む。"
     }
   },
   "app": {
@@ -6031,6 +6189,11 @@
       "pieceGauge": "コマにバーを表示",
       "resourceSlider": "スライダー表示",
       "gaugeInverted": "マイナスリソース",
+      "gaugeInvertedHint": "増えるほど悪い値として扱います。バーは満タンに近いほど赤くなり、増えるとダメージ、減ると回復の演出と音になります。バーの色だけを変えたいときは「バーの色」を使います",
+      "gaugeColor": "バーの色",
+      "gaugeColorAuto": "自動に戻す",
+      "gaugeColorAutoNote": "（自動：残りに応じて変わる）",
+      "gaugeColorHint": "コマの頭上などのバーを、残りにかかわらずこの色で描きます。増減の演出と音は変わりません",
       "overResource": "オーバーリソース",
       "overResourceHint": "現在値が最大値を超えられるようにします。一時的な補正などを、最大値を戻り先にして管理できます",
       "changeEffect": "増減でエフェクト",

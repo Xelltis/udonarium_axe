@@ -48,6 +48,18 @@ describe('ChatLineEditorComponent', () => {
     expect([kept, abandoned]).toEqual([1, 1]);
   });
 
+  it('neither keeps nor puts down a passage written at length, where Enter starts a new line', () => {
+    fixture.componentRef.setInput('enterKeeps', false);
+    fixture.componentRef.setInput('placeholder', '本文');
+    fixture.detectChanges();
+
+    box().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }));
+    box().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+
+    expect([kept, abandoned]).toEqual([0, 0]);
+    expect(box().getAttribute('placeholder')).toBe('本文');
+  });
+
   it('says nothing of a decoration round a roll, as a line rewritten runs its commands no more', () => {
     fixture.componentRef.setInput('draft', '**2d6 攻撃**');
     fixture.detectChanges();

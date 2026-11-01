@@ -56,6 +56,16 @@ export class GameTable extends ObjectNode {
   @SyncVar() imageIdentifier: string = 'imageIdentifier';
   @SyncVar() backgroundImageIdentifier: string = 'imageIdentifier';
   @SyncVar() backgroundFilterType: FilterType = FilterType.NONE;
+  /**
+   * The picture laid over the whole view, in front of the board and everything on it, such as a
+   * window frame or mist; empty for none. Read it, with the two after it, through
+   * `tableForegroundOf`, as a peer that has never heard of it sends none of the three.
+   */
+  @SyncVar() foregroundImageIdentifier: string = '';
+  /** How opaque the picture in front is, from 0 to 1. */
+  @SyncVar() foregroundOpacity: number = 1;
+  /** How the picture in front is fitted to the screen: `cover`, `contain` or `fill`. */
+  @SyncVar() foregroundFit: string = '';
   @SyncVar() selected: boolean = false;
   @SyncVar() gridType: GridType = GridType.SQUARE;
   @SyncVar() lightSnapToGrid: boolean = false;

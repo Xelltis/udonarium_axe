@@ -304,6 +304,8 @@ export default defineConfig({
           text: 'GMの道具',
           items: [
             { text: 'オブジェクト一覧（GM）', link: '/manual/gm-object-list' },
+            { text: 'シーン', link: '/manual/scene' },
+            { text: 'シナリオテキスト', link: '/manual/scenario-text' },
             { text: 'マップエディター', link: '/manual/map-editor' },
             { text: 'マップ生成', link: '/manual/map-generator' },
           ],
@@ -348,6 +350,7 @@ export default defineConfig({
           text: 'リリースノート',
           items: [
             { text: '一覧', link: '/release-notes/' },
+            { text: 'v1.75.0', link: '/release-notes/v1.75.0' },
             { text: 'v1.74.2', link: '/release-notes/v1.74.2' },
             { text: 'v1.74.1', link: '/release-notes/v1.74.1' },
             { text: 'v1.74.0', link: '/release-notes/v1.74.0' },

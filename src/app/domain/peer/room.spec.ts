@@ -17,6 +17,8 @@ import { Party, PARTY_COLORS } from '@axe/domain/party/party';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { Room } from '@axe/domain/peer/room';
 import { isTableWithheld } from '@axe/domain/peer/withheld-table';
+import { ScenarioText } from '@axe/domain/scenario-text/scenario-text';
+import { BoardScene } from '@axe/domain/scene/board-scene';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 
@@ -159,6 +161,62 @@ describe('Room', () => {
       room.withheld = 'true';
 
       expect(room.toXml()).toContain('withheld="true"');
+    });
+  });
+
+  describe('saving the scenes', () => {
+    it('writes each scene with the identifier a switch or a hotbar slot names it by', () => {
+      const scene = new BoardScene('scene-night');
+      scene.name = '夜の村';
+      scene.floorImageIdentifier = 'night-village';
+      scene.initialize();
+
+      const xml = new Room().innerXml();
+
+      expect(xml).toContain('<board-scene');
+      expect(xml).toContain('identifier="scene-night"');
+      expect(xml).toContain('floorImageIdentifier="night-village"');
+    });
+
+    it('reads them back under their identifiers, in place of the scenes the room had', () => {
+      const old = new BoardScene('scene-old');
+      old.initialize();
+
+      loadRoom('<board-scene identifier="scene-day" name="昼の村" order="1" darkness="off"></board-scene>');
+
+      expect(store.get('scene-old')).toBeNull();
+      const back = store.get<BoardScene>('scene-day');
+      expect(back?.name).toBe('昼の村');
+      expect(back?.order).toBe(1);
+      expect(back?.darkness).toBe('off');
+    });
+
+    it('leaves the room with no scenes after a room saved before there were any', () => {
+      const old = new BoardScene('scene-old');
+      old.initialize();
+
+      loadRoom('<game-table name="卓"></game-table>');
+
+      expect(BoardScene.all()).toEqual([]);
+    });
+
+    it('carries the scenario texts too, in place of the room’s own on a load', () => {
+      const old = new ScenarioText('text-old');
+      old.initialize();
+      expect(new Room().innerXml()).toContain('<scenario-text');
+
+      loadRoom('<scenario-text identifier="text-intro" title="導入" text="雨が降っている"></scenario-text>');
+
+      expect(store.get('text-old')).toBeNull();
+      expect(store.get<ScenarioText>('text-intro')?.text).toBe('雨が降っている');
+    });
+
+    it('reads the rest of a room whose data names a kind of object this version does not know', () => {
+      loadRoom(
+        '<board-scene-from-the-future name="?"></board-scene-from-the-future><game-table name="卓"></game-table>'
+      );
+
+      expect(store.getObjects(GameTable).map((table) => table.name)).toEqual(['卓']);
     });
   });
 

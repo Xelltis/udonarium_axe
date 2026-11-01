@@ -24,6 +24,9 @@ export function buildRoomImportMessages(summary: CcfoliaRoomImportSummary): Room
     },
   ];
 
+  if (summary.sceneCount > 0) {
+    messages.push({ key: `${PREFIX}importedScenes`, params: { count: summary.sceneCount } });
+  }
   if (summary.hiddenPanelCount > 0) {
     messages.push({ key: `${PREFIX}hiddenPanels`, params: { count: summary.hiddenPanelCount } });
   }

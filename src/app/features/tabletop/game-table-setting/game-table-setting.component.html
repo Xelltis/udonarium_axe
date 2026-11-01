@@ -194,6 +194,94 @@
             <option value="black">{{ 'feature.tabletop.tableSetting.bgFilterBlack' | transloco }}</option>
           </select>
 
+          <label class="text-ui-muted self-start pt-1 text-[11px]">{{
+            'feature.tabletop.tableSetting.imageForeground' | transloco
+          }}</label>
+          <div class="flex flex-col gap-1.5" data-testid="table-foreground-setting">
+            <div class="flex items-start gap-2">
+              @if (tableForegroundImage.url) {
+                <img
+                  class="rounded-ui-sm border-ui-border-panel bg-ui-input hover:border-ui-accent block h-16.5 w-22 cursor-pointer border border-solid object-contain transition-colors"
+                  [src]="tableForegroundImage.url | safe: 'resourceUrl'"
+                  (click)="openForegroundImageModal()"
+                  [alt]="'feature.tabletop.tableSetting.imageForegroundAlt' | transloco"
+                />
+              } @else {
+                <button
+                  type="button"
+                  data-testid="table-foreground-pick"
+                  class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-muted hover:border-ui-accent hover:bg-ui-input hover:text-ui-accent m-0 flex h-16.5 w-22 cursor-pointer items-center justify-center border border-dashed p-1 text-center text-[11px] leading-[1.4] transition-colors hover:shadow-none"
+                  (click)="openForegroundImageModal()"
+                >
+                  {{ 'feature.tabletop.tableSetting.addImageForeground' | transloco }}
+                </button>
+              }
+              @if (tableForegroundImage.url) {
+                <button
+                  type="button"
+                  class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-muted hover:border-ui-accent hover:text-ui-accent m-0 inline-flex cursor-pointer items-center gap-1.5 self-center border border-solid px-2.5 py-1.5 text-[11px] whitespace-nowrap transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-50"
+                  (click)="clearForeground()"
+                  [attr.disabled]="!isEditable ? '' : null"
+                >
+                  <span class="material-icons text-[14px]! leading-none">hide_image</span>
+                  {{ 'feature.tabletop.tableSetting.clearForeground' | transloco }}
+                </button>
+              }
+            </div>
+            @if (tableForegroundImage.url) {
+              <label class="flex items-center gap-2 text-[11px]">
+                <span class="text-ui-muted w-16 shrink-0">{{
+                  'feature.tabletop.tableSetting.foregroundOpacity' | transloco
+                }}</span>
+                <input
+                  type="range"
+                  min="5"
+                  max="100"
+                  step="5"
+                  class="min-w-0 flex-1 [accent-color:var(--ui-accent)]"
+                  data-testid="table-foreground-opacity"
+                  [ngModel]="tableForegroundOpacity"
+                  (ngModelChange)="tableForegroundOpacity = $event"
+                  [attr.disabled]="!isEditable ? '' : null"
+                />
+                <span class="text-ui-muted w-9 text-right tabular-nums">{{ tableForegroundOpacity }}%</span>
+              </label>
+              <label class="flex items-center gap-2 text-[11px]">
+                <span class="text-ui-muted w-16 shrink-0">{{
+                  'feature.tabletop.tableSetting.foregroundFit' | transloco
+                }}</span>
+                <select
+                  class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border min-w-0 flex-1 border border-solid px-2 py-1 text-[12px] transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                  data-testid="table-foreground-fit"
+                  [ngModel]="tableForegroundFit"
+                  (ngModelChange)="tableForegroundFit = $event"
+                  [attr.disabled]="!isEditable ? '' : null"
+                >
+                  @for (fit of foregroundFits; track fit) {
+                    <option [ngValue]="fit">
+                      {{ 'feature.tabletop.tableSetting.foregroundFit_' + fit | transloco }}
+                    </option>
+                  }
+                </select>
+              </label>
+              @if (canSeeHidden()) {
+                <label class="flex cursor-pointer items-center gap-1.5 text-[11px]">
+                  <input
+                    type="checkbox"
+                    class="m-0 cursor-pointer [accent-color:var(--ui-accent)]"
+                    data-testid="table-foreground-see-through"
+                    [ngModel]="foregroundSeeThrough.asked()"
+                    (ngModelChange)="foregroundSeeThrough.set($event)"
+                  />
+                  <span>{{ 'feature.tabletop.tableSetting.foregroundSeeThrough' | transloco }}</span>
+                </label>
+              }
+            }
+            <span class="text-ui-dim text-[11px]">{{
+              'feature.tabletop.tableSetting.foregroundHint' | transloco
+            }}</span>
+          </div>
+
           <label class="text-ui-muted col-start-1 self-start pt-1 text-[11px]">{{
             'feature.tabletop.tableSetting.imageWalls' | transloco
           }}</label>
@@ -923,6 +1011,15 @@
               } @else {
                 <i class="material-icons">save</i>{{ 'feature.tabletop.tableSetting.save' | transloco }}
               }
+            </button>
+            <button
+              type="button"
+              data-testid="table-duplicate"
+              class="rounded-ui-sm border-ui-border-panel text-ui-text hover:border-ui-accent hover:bg-ui-hover m-0 inline-flex cursor-pointer items-center gap-1.25 border border-solid bg-transparent px-3 py-1.25 text-[12px] font-semibold transition-colors hover:shadow-none disabled:cursor-not-allowed disabled:opacity-[0.35] [&_.material-icons]:text-[15px]!"
+              [title]="'feature.tabletop.tableSetting.duplicateHint' | transloco"
+              (click)="duplicate()"
+            >
+              <i class="material-icons">content_copy</i>{{ 'feature.tabletop.tableSetting.duplicate' | transloco }}
             </button>
             <button
               type="button"

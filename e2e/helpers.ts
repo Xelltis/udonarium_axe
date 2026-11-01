@@ -127,9 +127,9 @@ export async function openPanel(page: Page, dataLabel: string) {
  * has the window opened before it is pressed.
  */
 const SUBMENU_LABELS: Readonly<Record<string, readonly string[]>> = {
-  table: ['テーブル設定', 'マップエディター', 'マップ生成', '卓上ディスプレイ', 'ノベルモード'],
+  table: ['テーブル設定', 'シーン', 'マップエディター', 'マップ生成', '卓上ディスプレイ', 'ノベルモード'],
   gameResources: ['インベントリ', 'バフマネージャー', '状態異常', 'ダイス表設定', '手札'],
-  media: ['画像', 'ジュークボックス', 'カットイン', 'エフェクト', '戦闘カットイン'],
+  media: ['画像', 'ジュークボックス', 'カットイン', 'エフェクト', '戦闘カットイン', 'シナリオテキスト'],
 };
 
 /**

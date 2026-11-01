@@ -7,6 +7,7 @@ import { piece } from './see-through-helpers';
 test.describe('a piece in stealth', () => {
   async function setRole(page: Page, role: 'GM' | 'PL') {
     const connection = page.locator('ui-panel').filter({ hasText: '接続情報' });
+    await connection.getByText('接続情報', { exact: true }).click({ position: { x: 8, y: 6 } });
     await connection.getByRole('button', { name: new RegExp(`^\\s*${role}\\s*$`) }).click();
   }
 
