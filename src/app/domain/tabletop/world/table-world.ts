@@ -9,6 +9,7 @@ import {
 } from '@axe/domain/tabletop/hex-geometry';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { blockFacesOf } from '@axe/domain/tabletop/world/block-faces';
 
 /** A point of the board, in table pixels. */
 export interface TableWorldPoint {
@@ -51,6 +52,11 @@ export interface TableWorldWall {
   readonly by: number;
   readonly basePx: number;
   readonly topPx: number;
+  /**
+   * How high the face's top stands along it, from its first point (0) to its second (1), for a side
+   * under a slope; a face without one is `topPx` high all along.
+   */
+  readonly profile?: readonly { readonly at: number; readonly heightPx: number }[];
   /** The picture the face wears, or empty for none. */
   readonly pictureUrl: string;
   /** The side of one tile of the picture, or 0 where the picture is stretched over the face. */
@@ -64,6 +70,8 @@ export interface TableWorldCap {
   readonly id: string;
   readonly outline: readonly TableWorldPoint[];
   readonly zPx: number;
+  /** How high each corner of the outline stands, for a piece of a slope; otherwise all stand at `zPx`. */
+  readonly heights?: readonly number[];
   readonly facing: 'up' | 'down';
   readonly pictureUrl: string;
   readonly tilePx: number;
@@ -126,9 +134,10 @@ function facesOf(
   terrains: readonly Terrain[],
   pictureOf: (identifier: string) => string
 ): Pick<TableWorld, 'walls' | 'caps'> {
-  const planned = firstPersonWorldOf(table, terrains);
-  const walls = planned.walls
-    .map((wall): TableWorldWall => ({
+  const gridSize = table.gridSize > 0 ? table.gridSize : 50;
+  const blocks = blockFacesOf(terrains, gridSize, table.gridType, pictureOf);
+  const tableWalls = firstPersonWorldOf(table, [])
+    .walls.map((wall): TableWorldWall => ({
       id: wall.id,
       ax: wall.ax,
       ay: wall.ay,
@@ -140,17 +149,8 @@ function facesOf(
       tilePx: wall.tilePx,
       glass: wall.glass,
     }))
-    .filter((wall) => !wall.id.startsWith('table:') || wall.pictureUrl !== '');
-  const caps = planned.caps.map((cap): TableWorldCap => ({
-    id: cap.id,
-    outline: cap.outline,
-    zPx: cap.zPx,
-    facing: cap.facing,
-    pictureUrl: cap.image ? pictureOf(cap.image) : '',
-    tilePx: cap.tilePx,
-    glass: cap.glass,
-  }));
-  return { walls, caps };
+    .filter((wall) => wall.pictureUrl !== '');
+  return { walls: [...blocks.walls, ...tableWalls], caps: blocks.caps };
 }
 
 /** The box a board's picture is stretched over, and the hexes it is cut to where its cells are hexes. */
