@@ -82,6 +82,18 @@
   [class.animate-effect-shake-hard]="screenShake() === 'hard'"
   #root
 >
+  <!-- The table drawn through three.js, under the page's own 3D, for a seat that has asked for it. -->
+  @if (table3d.drawsOnCanvas()) {
+    <canvas class="pointer-events-none absolute inset-0 size-full" data-testid="table-scene" #sceneCanvas></canvas>
+    @if (table3d.unavailable()) {
+      <p
+        class="bg-ui-panel text-ui-text pointer-events-auto absolute top-1/2 left-1/2 z-10 max-w-[32em] -translate-1/2 rounded-lg p-4 text-sm"
+        data-testid="table-scene-unavailable"
+      >
+        {{ 'feature.tabletop.scene.unavailable' | transloco }}
+      </p>
+    }
+  }
   <div class="absolute inset-0 m-auto block size-1500 backface-hidden transform-3d" #gameTable>
     <div id="app-game-table" class="absolute size-full backface-hidden transform-3d" data-surface="floor" #gameObjects>
       <!-- What drifts under the board. -->
@@ -96,6 +108,7 @@
       <div
         class="pointer-events-none absolute top-0 left-0 size-full overflow-hidden bg-size-[100%_100%] bg-no-repeat backface-hidden transform-3d"
         [class.bg-white/15]="showsTableSurfaceVeil()"
+        [class.invisible]="table3d.drawsOnCanvas()"
         [ngStyle]="tableSurfaceStyle()"
         [style.background-image]="'url(' + tableImage().url + ')' | safe: 'style'"
       >

@@ -55,6 +55,7 @@ describe('the keys the app keeps settings under in the browser', () => {
       skinMatLight: 'ui-skin-mat-light',
       skinRecipeDark: 'ui-skin-recipe-dark',
       skinRecipeLight: 'ui-skin-recipe-light',
+      tableRenderer: 'axe.table.renderer',
       tabletopDisplay: 'ui-tabletop-display',
       theme: 'ui-theme',
       toolbars: 'ui-toolbars',

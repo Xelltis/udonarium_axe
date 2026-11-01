@@ -3023,7 +3023,10 @@
       },
       "shownTo_master": "The master alone",
       "shownTo_sight": "Once it is in sight",
-      "shownTo_room": "Everyone"
+      "shownTo_room": "Everyone",
+      "scene": {
+        "unavailable": "This browser cannot draw the table in 3D, as neither WebGPU nor WebGL2 is available. Turn graphics acceleration on in the browser’s settings and restart the browser. Everything else, the chat included, works as before."
+      }
     },
     "roomSettings": {
       "title": "Room settings",

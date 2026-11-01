@@ -28,6 +28,7 @@ import { ConcealmentService } from '@axe/application/tabletop/concealment.servic
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
@@ -257,6 +258,7 @@ export class GameTableComponent {
   private readonly tableCamera = inject(TableCameraService);
   private readonly tablePick = inject(TablePickService);
   private readonly tableSurfaces = inject(TableSurfaceService);
+  protected readonly table3d = inject(Table3dService);
   private readonly tabletopOverlap = inject(TabletopOverlapService);
   private readonly imageService = inject(ImageService);
   private readonly motion = inject(MotionService);
@@ -300,6 +302,10 @@ export class GameTableComponent {
   private readonly concealment = inject(ConcealmentService);
 
   constructor() {
+    effect((onCleanup) => {
+      const canvas = this.sceneCanvas()?.nativeElement;
+      if (canvas) onCleanup(this.table3d.attach(canvas));
+    });
     this.destroyRef.onDestroy(() => {
       if (this.glideTimer !== null) clearTimeout(this.glideTimer);
       this.glideTimer = null;
@@ -435,7 +441,14 @@ export class GameTableComponent {
       this.updateCameraLayout();
       this.destroyRef.onDestroy(observeSize(this.rootElementRef().nativeElement, () => this.updateCameraLayout()));
       this.destroyRef.onDestroy(
-        installTableTestHooks(window, this.tablePick, this.tableCamera, this.tabletopOverlap, this.tableSurfaces)
+        installTableTestHooks(
+          window,
+          this.tablePick,
+          this.tableCamera,
+          this.tabletopOverlap,
+          this.tableSurfaces,
+          this.table3d
+        )
       );
       this.syncMode2d();
     });
@@ -510,6 +523,8 @@ export class GameTableComponent {
   readonly gameTable = viewChild.required<ElementRef<HTMLElement>>('gameTable');
   readonly gameObjects = viewChild.required<ElementRef<HTMLElement>>('gameObjects');
   readonly gridCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('gridCanvas');
+  /** The canvas the table is drawn on through three.js, there only while a seat asks for it. */
+  private readonly sceneCanvas = viewChild<ElementRef<HTMLCanvasElement>>('sceneCanvas');
 
   /** The room's table selector, which says which table is in use. */
   get tableSelecter(): TableSelecter {

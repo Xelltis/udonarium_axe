@@ -3023,7 +3023,10 @@
       },
       "shownTo_master": "GM만",
       "shownTo_sight": "시야에 들어오면",
-      "shownTo_room": "전원"
+      "shownTo_room": "전원",
+      "scene": {
+        "unavailable": "이 브라우저에서는 테이블을 3D로 그릴 수 없습니다. WebGPU와 WebGL2를 모두 사용할 수 없기 때문입니다. 브라우저 설정에서 그래픽 가속을 켠 뒤 브라우저를 다시 시작해 주세요. 채팅 등 다른 기능은 지금처럼 쓸 수 있습니다."
+      }
     },
     "roomSettings": {
       "title": "방 설정",

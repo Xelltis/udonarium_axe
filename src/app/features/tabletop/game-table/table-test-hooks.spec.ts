@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
@@ -17,7 +18,8 @@ describe('table test hooks', () => {
       TestBed.inject(TablePickService),
       TestBed.inject(TableCameraService),
       TestBed.inject(TabletopOverlapService),
-      TestBed.inject(TableSurfaceService)
+      TestBed.inject(TableSurfaceService),
+      TestBed.inject(Table3dService)
     );
     return { win, remove };
   }
@@ -26,6 +28,7 @@ describe('table test hooks', () => {
     const { win, remove } = install(true);
     expect(win.__axeTable?.camera()).toBeNull();
     expect(win.__axeTable?.pickAt(10, 10)).toBeNull();
+    expect(win.__axeTable?.renderer()).toBeNull();
     remove();
     expect(win.__axeTable).toBeUndefined();
   });

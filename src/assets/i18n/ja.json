@@ -3023,7 +3023,10 @@
       },
       "shownTo_master": "GM だけ",
       "shownTo_sight": "視界に入ったら",
-      "shownTo_room": "全員"
+      "shownTo_room": "全員",
+      "scene": {
+        "unavailable": "このブラウザでは卓を3Dで描けません。WebGPUもWebGL2も使えないためです。ブラウザの設定でグラフィックアクセラレーションを有効にし、ブラウザを再起動してください。チャットなど卓のほかの機能は今のまま使えます。"
+      }
     },
     "roomSettings": {
       "title": "部屋設定",

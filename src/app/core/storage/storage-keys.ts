@@ -58,6 +58,7 @@ export const STORAGE_KEYS = {
   skinMatLight: 'ui-skin-mat-light',
   skinRecipeDark: 'ui-skin-recipe-dark',
   skinRecipeLight: 'ui-skin-recipe-light',
+  tableRenderer: 'axe.table.renderer',
   tabletopDisplay: 'ui-tabletop-display',
   theme: 'ui-theme',
   toolbars: 'ui-toolbars',

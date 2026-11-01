@@ -1,3 +1,4 @@
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
@@ -27,6 +28,12 @@ export interface TableTestHooks {
   edgesOnPage(): [number, number, number, number][];
   /** The face a piece let go of at a point of the page would be put on, or null. */
   faceAt(pageX: number, pageY: number): string | null;
+  /** The interface the canvas draws the table through, or null while the table is not drawn on one. */
+  renderer(): 'webgpu' | 'webgl2' | null;
+  /** Settles once the canvas has drawn everything it was told, or at once while there is no canvas. */
+  whenIdle(): Promise<void>;
+  /** How wide and deep the board of the scene runs, in table pixels, or null where there is no board. */
+  sceneBoard(): { widthPx: number; depthPx: number } | null;
   /** Where a point of a face (the floor, a wall or a board), lifted some way off it, is drawn on the page. */
   surfacePageOf(surface: string, localX: number, localY: number, height?: number): { x: number; y: number } | null;
 }
@@ -42,7 +49,8 @@ export function installTableTestHooks(
   pick: TablePickService,
   camera: TableCameraService,
   overlap: TabletopOverlapService,
-  surfaces: TableSurfaceService
+  surfaces: TableSurfaceService,
+  scene: Table3dService
 ): () => void {
   if (!win.navigator.webdriver) return () => undefined;
   const hooked = win as HookedWindow;
@@ -58,6 +66,12 @@ export function installTableTestHooks(
     },
     camera: () => camera.view,
     aliasOf: (identifier) => ObjectStore.instance.get(identifier)?.aliasName ?? null,
+    renderer: () => scene.backend(),
+    whenIdle: () => scene.whenIdle(),
+    sceneBoard: () => {
+      const board = scene.world().board;
+      return board ? { widthPx: board.widthPx, depthPx: board.depthPx } : null;
+    },
     faceAt: (pageX, pageY) => pick.faceAt(pageX, pageY, { stopsAt: () => true }),
     surfacePageOf: (surface, localX, localY, height) => surfaces.pageOf(surface, localX, localY, height),
     edgesOnPage: () => {
