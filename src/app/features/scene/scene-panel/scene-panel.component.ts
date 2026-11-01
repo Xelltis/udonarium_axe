@@ -183,7 +183,9 @@ export class ScenePanelComponent {
     if (!this.canEdit()) return;
     event.preventDefault();
     event.stopPropagation();
+    this.editor()?.flushText();
     const row = this.rowOf(scene);
+    const parts = scenePartsOf(scene);
     const siblings = this.siblingsOf(scene);
     const index = siblings.indexOf(scene);
     const reorder = buildReorderContextMenu(
@@ -199,8 +201,8 @@ export class ScenePanelComponent {
     const actions = buildSceneContextMenu(
       {
         folderName: normalizeFolderPath(scene.folderName),
-        hasMusic: row.parts.includes('bgm'),
-        hasText: row.parts.includes('text'),
+        hasMusic: parts.includes('bgm'),
+        hasText: parts.includes('text'),
       },
       this.shelf.knownPaths(),
       reorder,

@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { BoardSceneService } from '@axe/application/tabletop/board-scene.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
+import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { emitSelectGameTable } from '@axe/core/event/domain-events';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -8,6 +10,7 @@ import { PeerRole } from '@axe/domain/peer/peer-role';
 import { BoardScene } from '@axe/domain/scene/board-scene';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { SceneEditorComponent } from '@axe/features/scene/scene-editor/scene-editor.component';
 import { ScenePanelComponent } from '@axe/features/scene/scene-panel/scene-panel.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -117,6 +120,25 @@ describe('ScenePanelComponent', () => {
 
     expect(Config.instance.boardSceneFolders).toEqual(['フォルダ1']);
     expect(root.querySelector('[data-testid="folder-name-input"]')).not.toBeNull();
+  });
+
+  it('offers to put a scene on without its words while they are still being typed', async () => {
+    const scene = new BoardScene();
+    scene.name = '夜の村';
+    scene.initialize();
+    const menu = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+    const root = open(PeerRole.GameMaster);
+    root.querySelector<HTMLElement>('[data-testid="scene-row"]')!.click();
+    await redraw();
+    const editor = fixture.debugElement.query(By.directive(SceneEditorComponent))
+      .componentInstance as SceneEditorComponent;
+    editor['writeTextLater'](scene, '夜が来た');
+
+    root.querySelector<HTMLElement>('[data-testid="scene-row"]')!.dispatchEvent(new MouseEvent('contextmenu'));
+
+    const names = (menu.mock.calls[0][1] as { name?: string }[]).map((action) => action.name);
+    expect(names).toContain('テキストを送らずに反映');
+    expect(scene.text).toBe('夜が来た');
   });
 
   it('writes the board over a scene only once the game master says so', async () => {
