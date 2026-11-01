@@ -15,7 +15,9 @@ import { WIDGET_GAME_CLOCK } from '@axe/application/ui/widget-place';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import {
   dayFractionOf,
+  evenDayFractionOf,
   formatGameClockTime,
+  GAME_CLOCK_SKY_HOURS,
   GAME_CLOCK_STEPS,
   type GameClockMode,
   periodIndexOf,
@@ -65,7 +67,9 @@ export class GameClockWidgetComponent {
 
   private readonly motion = inject(MotionService);
   /** How far through the day the clock stands. */
-  private readonly dayFraction = computed(() => dayFractionOf(this.clock.clock(), this.clock.periods().length));
+  private readonly dayFraction = computed(() =>
+    dayFractionOf(this.clock.clock(), this.clock.periods().length, this.clock.skies())
+  );
   /**
    * How far through the day the sky is drawn, counted on past a whole day rather than back to 0: it
    * moves on to the clock's over a moment, frame by frame and always forward, so that the sun and
@@ -114,6 +118,22 @@ export class GameClockWidgetComponent {
 
   /** The time of day on the clock, as a time field writes it. */
   protected readonly timeValue = computed(() => formatGameClockTime({ ...this.clock.clock(), mode: 'hours' }, []));
+
+  protected readonly skyHours = GAME_CLOCK_SKY_HOURS;
+
+  /**
+   * Each part of the day with the hour its sky is drawn at, null where it is laid evenly, and the
+   * hour it falls at laid evenly, which the choice of that says.
+   */
+  protected readonly periodSkies = computed(() => {
+    const periods = this.clock.periods();
+    const skies = this.clock.skies();
+    return periods.map((name, index) => ({
+      name,
+      hour: skies[index] ?? null,
+      evenHour: Math.round(evenDayFractionOf(index, periods.length) * 24) % 24,
+    }));
+  });
 
   /** The names of the parts of a day the room has set, as the field shows them; empty for the language's own. */
   protected readonly periodsValue = computed(() => this.clock.clock().periods.join(','));

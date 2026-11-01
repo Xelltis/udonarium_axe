@@ -5766,7 +5766,18 @@
       "stepHours": "{{n}} h",
       "dayFormatLabel": "How the day is written",
       "dayFormatHint": "{n} is the number of the day (e.g. Day {n}). Empty is Day {n}.",
-      "announce": "Say it in the chat when the time moves on or back"
+      "announce": "Say it in the chat when the time moves on or back",
+      "skies": "Sky of each part of the day",
+      "skiesHint": "Choose the hour whose sky each part of the day shows. Even spaces the parts evenly over the day.",
+      "skyEven": "Even ({{hour}}:00)",
+      "sky_6": "Morning (6:00)",
+      "sky_9": "Forenoon (9:00)",
+      "sky_12": "Noon (12:00)",
+      "sky_15": "Afternoon (15:00)",
+      "sky_18": "Evening (18:00)",
+      "sky_21": "Late evening (21:00)",
+      "sky_0": "Night (0:00)",
+      "sky_3": "Small hours (3:00)"
     }
   },
   "app": {

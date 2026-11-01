@@ -25,6 +25,7 @@ describe('GameClockService', () => {
 
   afterEach(() => {
     Config.instance.gameClock = DEFAULT_GAME_CLOCK;
+    Config.instance.gameClockSkies = [];
     vi.restoreAllMocks();
   });
 
@@ -108,8 +109,42 @@ describe('GameClockService', () => {
     service.step(1);
     service.setDay(5);
     service.setMode('hours');
+    service.setSky(0, 12);
 
     expect(Config.instance.gameClock).toEqual(DEFAULT_GAME_CLOCK);
+    expect(Config.instance.gameClockSkies).toEqual([]);
     expect(notices).toEqual([]);
+  });
+
+  it('draws each part of the day at the hour the master chose for its sky, or lays it evenly again', () => {
+    service.setPeriods('昼,夜');
+    service.setSky(0, 12);
+    service.setSky(1, 0);
+
+    expect(service.skies()).toEqual([12, 0]);
+
+    service.setSky(1, null);
+
+    expect(service.skies()).toEqual([12]);
+  });
+
+  it('keeps each part’s sky with its name when the master names the parts anew', () => {
+    service.setPeriods('昼,夜');
+    service.setSky(0, 12);
+    service.setSky(1, 0);
+
+    service.setPeriods('朝,昼,夕,夜');
+
+    expect(service.skies()).toEqual([null, 12, null, 0]);
+  });
+
+  it('leaves the skies as they were when the clock is stepped', () => {
+    service.setPeriods('昼,夜');
+    service.setSky(1, 0);
+
+    service.step(1);
+
+    expect(service.timeText()).toBe('夜');
+    expect(service.skies()).toEqual([null, 0]);
   });
 });

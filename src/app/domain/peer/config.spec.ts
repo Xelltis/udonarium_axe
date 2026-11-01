@@ -165,6 +165,52 @@ describe('Config', () => {
     });
   });
 
+  describe('the skies of the parts of a day', () => {
+    function attributesOf(context: ObjectContext): Record<string, unknown> {
+      return context.syncData['attributes'] as Record<string, unknown>;
+    }
+
+    afterEach(() => {
+      Config.instance.gameClock = DEFAULT_GAME_CLOCK;
+      Config.instance.gameClockSkies = [];
+    });
+
+    it('lays every part evenly for a room saved before the skies, and reads back what it writes', () => {
+      expect(Config.instance.gameClockSkies).toEqual([]);
+
+      Config.instance.gameClockSkies = [12, null, 0];
+
+      expect(Config.instance.gameClockSkies).toEqual([12, null, 0]);
+    });
+
+    it('holds nothing at all for a room that chose none', () => {
+      expect(attributesOf(Config.instance.toContext())['_gameClockSkies']).toBe('');
+    });
+
+    it('lays every part evenly again where the config comes in without them, as from a bag sent empty', () => {
+      Config.instance.gameClockSkies = [12, 0];
+      const older = Config.instance.toContext();
+      delete attributesOf(older)['_gameClockSkies'];
+      older.majorVersion += 1;
+
+      Config.instance.apply(older);
+
+      expect(Config.instance.gameClockSkies).toEqual([]);
+    });
+
+    it('stays as it was where an older version writes the clock, which knows nothing of the skies', () => {
+      Config.instance.gameClockSkies = [12, 0];
+      const older = Config.instance.toContext();
+      attributesOf(older)['_gameClock'] = JSON.stringify({ ...DEFAULT_GAME_CLOCK, period: 1 });
+      older.majorVersion += 1;
+
+      Config.instance.apply(older);
+
+      expect(Config.instance.gameClock.period).toBe(1);
+      expect(Config.instance.gameClockSkies).toEqual([12, 0]);
+    });
+  });
+
   describe('setting the sides out', () => {
     it('has no tables for a room saved before it could, and reads back what it writes', () => {
       const config = Config.instance;
