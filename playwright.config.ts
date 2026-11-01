@@ -2,6 +2,24 @@ import { defineConfig, devices } from '@playwright/test';
 
 const isCI = !!process.env['CI'];
 
+/** A browser that has asked for the table to be drawn on a canvas through three.js, as a seat does in its settings. */
+const drawsOnCanvas = {
+  cookies: [],
+  origins: [{ origin: 'http://localhost:4300', localStorage: [{ name: 'axe.table.renderer', value: 'three' }] }],
+};
+
+/**
+ * The specs that pass with the table drawn on a canvas. Each stage that moves something of the
+ * table onto the canvas adds the specs it has made pass, until every spec is here.
+ */
+const PASSING_ON_CANVAS = [
+  /webgl\/.*\.spec\.ts/,
+  /table-pick\.spec\.ts/,
+  /table-surfaces\.spec\.ts/,
+  /table-drop-faces\.spec\.ts/,
+  /card-drop\.spec\.ts/,
+];
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -32,7 +50,19 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/, /server\/.*\.spec\.ts/],
+      testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/, /server\/.*\.spec\.ts/, /webgl\/.*\.spec\.ts/],
+    },
+    // The same browser with the table drawn on a canvas. Headless Chromium gives no WebGPU adapter
+    // without flags, so this goes through WebGL2.
+    {
+      name: 'chromium-webgl',
+      use: { ...devices['Desktop Chrome'], storageState: drawsOnCanvas },
+      testMatch: PASSING_ON_CANVAS,
+    },
+    {
+      name: 'mobile-webgl',
+      use: { ...devices['Pixel 7'], reducedMotion: 'reduce', storageState: drawsOnCanvas },
+      testMatch: [/webgl\/.*\.spec\.ts/],
     },
     {
       name: 'mobile',
