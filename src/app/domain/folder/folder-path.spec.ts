@@ -6,7 +6,9 @@ import {
   MAX_FOLDER_DEPTH,
   normalizeFolderPath,
   parentFolderPath,
+  readFolderPaths,
   rewriteFolderPath,
+  writeFolderPaths,
 } from '@axe/domain/folder/folder-path';
 
 describe('normalizeFolderPath()', () => {
@@ -118,5 +120,22 @@ describe('rewriteFolderPath()', () => {
 
   it('normalizes what it writes', () => {
     expect(rewriteFolderPath('第1話/洞窟', '第1話', ' 序章／導入 ')).toBe('序章/導入/洞窟');
+  });
+});
+
+describe('folder paths kept as JSON', () => {
+  it('reads none from nothing, or from what cannot be read', () => {
+    for (const held of ['', undefined, null, 'not json', '{"a":1}', '"one"']) {
+      expect(readFolderPaths(held)).toEqual([]);
+    }
+  });
+
+  it('tidies each path as it is stored, leaving out the empty, the repeats and what is not a path', () => {
+    expect(readFolderPaths('["第1話／村 ", "第1話/村", "", 3, "第2話"]')).toEqual(['第1話/村', '第2話']);
+  });
+
+  it('writes nothing for no folders, and reads back what it writes', () => {
+    expect(writeFolderPaths([])).toBe('');
+    expect(readFolderPaths(writeFolderPaths(['a/b', 'c']))).toEqual(['a/b', 'c']);
   });
 });

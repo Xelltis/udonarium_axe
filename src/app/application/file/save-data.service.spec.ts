@@ -26,6 +26,7 @@ import { Playlist } from '@axe/domain/media/playlist';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { markLoadedWithheld, markSeatWithheld } from '@axe/domain/peer/withheld-table';
+import { BoardScene } from '@axe/domain/scene/board-scene';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -401,6 +402,33 @@ describe('SaveDataService', () => {
         reaction.destroy();
         tab.destroy();
       }
+    });
+  });
+
+  describe('the pictures a scene puts on', () => {
+    const night = 'd'.repeat(64);
+
+    afterEach(() => ImageStorage.instance.delete(night));
+
+    it('go into a saved room with the scene', async () => {
+      ImageStorage.instance.add({
+        identifier: night,
+        name: 'night.webp',
+        type: 'image/webp',
+        blob: new Blob(['night'], { type: 'image/webp' }),
+        url: 'blob:night',
+        thumbnail: { type: '', blob: null, url: '' },
+      });
+      const scene = new BoardScene();
+      scene.foregroundImageIdentifier = night;
+      scene.initialize();
+      const privateApi = TestBed.inject(SaveDataService) as unknown as SaveDataServicePrivateApi;
+      const saved = vi.spyOn(privateApi, 'saveAsync').mockResolvedValue(undefined);
+
+      await privateApi._saveRoomAsync('room');
+
+      expect((saved.mock.calls[0][0] as File[]).map((file) => file.name)).toContain(`${night}.webp`);
+      vi.restoreAllMocks();
     });
   });
 

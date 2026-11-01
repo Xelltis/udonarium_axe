@@ -116,6 +116,24 @@ describe('GameClockService', () => {
     expect(notices).toEqual([]);
   });
 
+  it('puts the clock to a part of the day for a player pressing a switch the master set up', () => {
+    PeerCursor.myCursor.role = PeerRole.Player;
+
+    service.setPeriod(2);
+    expect(service.timeText()).toBe('朝');
+
+    service.setPeriod(2, { trusted: true });
+    expect(service.timeText()).toBe('夕');
+  });
+
+  it('leaves a clock told by the hour alone for a switch, as it has no parts of the day', () => {
+    service.setMode('hours');
+
+    service.setPeriod(3, { trusted: true });
+
+    expect(Config.instance.gameClock.period).toBe(0);
+  });
+
   it('draws each part of the day at the hour the master chose for its sky, or lays it evenly again', () => {
     service.setPeriods('昼,夜');
     service.setSky(0, 12);

@@ -165,6 +165,26 @@ describe('Config', () => {
     });
   });
 
+  describe('the scenes', () => {
+    afterEach(() => {
+      Config.instance.boardScene = '';
+      Config.instance.boardSceneFolders = [];
+    });
+
+    it('holds no scene put on and no folder for a room saved before there were scenes', () => {
+      expect(Config.instance.boardScene).toBe('');
+      expect(Config.instance.boardSceneFolders).toEqual([]);
+    });
+
+    it('reads back the scene put on and the folders made, each folder tidied and once', () => {
+      Config.instance.boardScene = 'scene-night';
+      Config.instance.boardSceneFolders = ['第1話／村', '第1話/村', '', '第2話'];
+
+      expect(Config.instance.boardScene).toBe('scene-night');
+      expect(Config.instance.boardSceneFolders).toEqual(['第1話/村', '第2話']);
+    });
+  });
+
   describe('the skies of the parts of a day', () => {
     function attributesOf(context: ObjectContext): Record<string, unknown> {
       return context.syncData['attributes'] as Record<string, unknown>;

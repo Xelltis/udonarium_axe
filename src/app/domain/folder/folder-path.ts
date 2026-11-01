@@ -59,3 +59,31 @@ export function rewriteFolderPath(path: string, from: string, to: string): strin
   if (destination.length < 1) return '';
   return normalizeFolderPath(destination + path.slice(from.length));
 }
+
+/**
+ * Folder paths kept as JSON, as a room keeps the folders made with nothing filed in them yet: each
+ * tidied as it is stored, the empty and the repeats left out. Anything that cannot be read is none.
+ */
+export function readFolderPaths(held: unknown): string[] {
+  const text = `${held ?? ''}`;
+  if (text.length < 1) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  const paths: string[] = [];
+  for (const raw of parsed) {
+    const path = typeof raw === 'string' ? normalizeFolderPath(raw) : '';
+    if (path.length > 0 && !paths.includes(path)) paths.push(path);
+  }
+  return paths;
+}
+
+/** Writes folder paths the way {@link readFolderPaths} reads them, empty for none. */
+export function writeFolderPaths(paths: readonly string[]): string {
+  const kept = readFolderPaths(JSON.stringify(paths));
+  return kept.length > 0 ? JSON.stringify(kept) : '';
+}

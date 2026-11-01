@@ -86,9 +86,14 @@ export class GameClockService {
     if (this.canEdit()) this.write(withDay(this.clock(), day));
   }
 
-  /** Puts the clock to one of the parts of the day, by its place among them. */
-  setPeriod(period: number): void {
-    if (!this.canEdit()) return;
+  /**
+   * Puts the clock to one of the parts of the day, by its place among them. A scene put on by a
+   * switch the master set up does so for whoever pressed it, `trusted`; a clock told by the hour
+   * on a 24-hour face is then left alone, as it has no parts.
+   */
+  setPeriod(period: number, options: { trusted?: boolean } = {}): void {
+    if (!this.canEdit() && !options.trusted) return;
+    if (options.trusted && this.clock().mode !== 'periods') return;
     const count = this.periods().length;
     this.write({ ...this.clock(), period: Math.max(0, Math.min(count - 1, Math.floor(period))) });
   }
