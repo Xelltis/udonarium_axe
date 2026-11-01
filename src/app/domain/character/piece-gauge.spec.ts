@@ -1,4 +1,5 @@
 import {
+  fixedGaugeColor,
   gaugeColor,
   gaugeNumbersOf,
   gaugeRatio,
@@ -80,6 +81,41 @@ describe('selectPieceGauges()', () => {
     expect(isGaugeInverted(madness)).toBe(true);
     expect(gauge).toMatchObject({ ratio: 0.75, inverted: true });
     expect(gauge.color).toBe(gaugeColor(0.25));
+  });
+
+  it('draws a bar in the colour set for it however full it stands, its rise still read as worse where it is inverted', () => {
+    const root = DataElement.create('detail', '', {});
+    created.push(root);
+    const hp = resource('HP', 10, 200, true);
+    hp.setAttribute(DataElementAttribute.GAUGE_COLOR, '#E53935');
+    root.appendChild(hp);
+    const madness = resource('狂気度', 150, 200, true, true);
+    madness.setAttribute(DataElementAttribute.GAUGE_COLOR, '#3949ab');
+    root.appendChild(madness);
+
+    const [hpGauge, madnessGauge] = selectPieceGauges(root);
+
+    expect(hpGauge.color).toBe('#e53935');
+    expect(madnessGauge).toMatchObject({ color: '#3949ab', inverted: true });
+  });
+
+  it('follows how full the bar stands where no colour is set, an empty one or one that is not a colour', () => {
+    const root = DataElement.create('detail', '', {});
+    created.push(root);
+    const empty = resource('HP', 150, 200, true);
+    empty.setAttribute(DataElementAttribute.GAUGE_COLOR, '');
+    const wrong = resource('MP', 150, 200, true);
+    wrong.setAttribute(DataElementAttribute.GAUGE_COLOR, 'red');
+    root.appendChild(resource('SAN', 150, 200, true));
+    root.appendChild(empty);
+    root.appendChild(wrong);
+
+    expect(selectPieceGauges(root).map((gauge) => gauge.color)).toEqual([
+      gaugeColor(0.75),
+      gaugeColor(0.75),
+      gaugeColor(0.75),
+    ]);
+    expect(fixedGaugeColor('')).toBe('');
   });
 
   it('picks up nothing that is not a resource', () => {

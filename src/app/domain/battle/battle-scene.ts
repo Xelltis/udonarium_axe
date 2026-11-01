@@ -1,5 +1,6 @@
 import { asBattleSide, BattleSide } from '@axe/domain/battle/battle-lineup';
 import { asBattleTheme, BattleTheme } from '@axe/domain/battle/battle-settings';
+import { fixedGaugeColor } from '@axe/domain/character/piece-gauge';
 
 /**
  * A resource of one fighter as it stood before the exchange and after it.
@@ -14,6 +15,8 @@ export interface BattleGauge {
   max: number;
   /** A resource that grows worse as it rises, such as madness. */
   inverted: boolean;
+  /** The colour set for its bar, or empty (or missing, from an older version) for that of how full it stands. */
+  color?: string;
 }
 
 /** One piece on the stage, written down as it was when the exchange was played. */
@@ -166,6 +169,7 @@ function normalizeGauge(raw: unknown): BattleGauge | null {
     after: number(source['after']),
     max: number(source['max']),
     inverted: source['inverted'] === true,
+    color: fixedGaugeColor(source['color']),
   };
 }
 
