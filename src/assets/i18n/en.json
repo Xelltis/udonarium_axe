@@ -2399,7 +2399,13 @@
           "denied": "You do not have permission to edit this table, so the room data was not imported.",
           "unrecognized": "This file could not be read as CCFOLIA room data.",
           "failed": "Importing the room data failed."
-        }
+        },
+        "sceneName": "Scene {{index}}",
+        "importedScenes": "The {{count}} scenes of the CCFOLIA room are now scenes of the table. Apply them from the Scenes panel.",
+        "shapeTitle": "Importing the CCFOLIA scenes",
+        "shapeQuestion": "This room has {{count}} scenes. Import them as scenes of one table? Each can also become a table of its own.",
+        "shapeScenes": "One table with scenes",
+        "shapeTables": "A table for each scene"
       },
       "selection": {
         "title": "Selected objects",
