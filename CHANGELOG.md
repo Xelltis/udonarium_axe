@@ -1,3 +1,55 @@
+## [1.75.0](https://github.com/Xelltis/udonarium_axe/compare/v1.74.2...v1.75.0) (2026-11-01)
+
+### ✨ Features
+
+* **ccfolia-import:** bring the scenes of a CCFOLIA room in as scenes of one table ([e2e31d2](https://github.com/Xelltis/udonarium_axe/commit/e2e31d21894d540537e164137e532d1d9ea0bfd2))
+* **character:** set the colour of a resource's bar apart from its meaning ([cd68efd](https://github.com/Xelltis/udonarium_axe/commit/cd68efd337c1cde589a42fb9d19b130ac753e098))
+* **game-clock:** choose the hour of the sky each part of the day shows ([7ea3d60](https://github.com/Xelltis/udonarium_axe/commit/7ea3d605442ff30ce66993e20aa04764392b940f))
+* **scenario-text:** offer the texts in the chat input and split pasted scripts into them ([384c4e9](https://github.com/Xelltis/udonarium_axe/commit/384c4e9a5f34c6e1b7d2e7e78f2d6814e3336ae6))
+* **scenario-text:** write passages before the session and say them word for word ([f5cfb3e](https://github.com/Xelltis/udonarium_axe/commit/f5cfb3e56e7189b20f7e1934e33cf205b8a2f5f6))
+* **scene:** keep scenes of a table's look and the room's sound ([01ab18a](https://github.com/Xelltis/udonarium_axe/commit/01ab18afb7c7bc37b257c48c0be21cf137225e34))
+* **scene:** put scenes on from the hotbar and from switches, fading through black ([ab2d978](https://github.com/Xelltis/udonarium_axe/commit/ab2d978c929370a371c1cd1e513a6d269de05dd4))
+* **scene:** put scenes together and on from a panel ([992d3b3](https://github.com/Xelltis/udonarium_axe/commit/992d3b3350f3dcf92fc9411d3eceef3cae6b0759))
+* **tabletop:** duplicate a table from the table settings ([3991d58](https://github.com/Xelltis/udonarium_axe/commit/3991d58f9384bad1b021c3c05dd52c870fa896b4))
+* **tabletop:** lay a picture in front of the whole table ([b3b1c09](https://github.com/Xelltis/udonarium_axe/commit/b3b1c09325e07be7425927d103b76bc79501f71c))
+
+### 🐛 Bug Fixes
+
+* **character:** give the bar colour box a width to press ([964a489](https://github.com/Xelltis/udonarium_axe/commit/964a48909a43ac33d3561eb2ed192a726ed53c09))
+* **chat:** say prepared words as a piece in that piece's colours ([3925436](https://github.com/Xelltis/udonarium_axe/commit/39254365ef047ebc4a09c1f4032aa7fa599f40f2))
+* **chat:** take a scenario text from the suggestions however it is picked ([19bfe1e](https://github.com/Xelltis/udonarium_axe/commit/19bfe1ed7d827fd7696fa07856f6a1af61a1a9b7))
+* **hotbar:** offer scene slots, and the names of scenes, to the game master alone ([75b396b](https://github.com/Xelltis/udonarium_axe/commit/75b396b57ecf6fb2c30e8ca69cfcdf433d07ac6d))
+* **jukebox:** bring the playlists back under the identifiers they were saved with ([5b70190](https://github.com/Xelltis/udonarium_axe/commit/5b7019092cbe529dddeeb90addff763a219eea4c))
+* **jukebox:** keep the playlists in a saved room ([b78db9d](https://github.com/Xelltis/udonarium_axe/commit/b78db9d2f3a19fb62c8ef561e698f9c59572b8cc))
+* **menu:** leave the scenario texts off the game master's bar by default ([e8a43f3](https://github.com/Xelltis/udonarium_axe/commit/e8a43f39ed5a9a1c0f5dc6e78454f2bae3acba2f))
+* **scenario-text:** offer texts by their titles and the starts of their lines ([26e2635](https://github.com/Xelltis/udonarium_axe/commit/26e26354ebd6381d6c19c9948be2aaa6ad8f4ca4))
+* **scenario-text:** whisper from the text picked only, and say texts where they can be said ([d24b3f3](https://github.com/Xelltis/udonarium_axe/commit/d24b3f38210ed0f08811bb9a328d34a7e30fee88))
+* **scene:** keep a scene on its own table, its music and its words ([99ba1f4](https://github.com/Xelltis/udonarium_axe/commit/99ba1f44f2db0d0f51b3458fee52ce1f07f06049))
+* **scene:** keep the panel still while a scene or a text is dragged into a folder ([ceacd53](https://github.com/Xelltis/udonarium_axe/commit/ceacd53c8e71ca6d2e618810511ceaaf1909a1ed))
+* **scene:** read a scene's words still being typed before opening its menu ([8cc4088](https://github.com/Xelltis/udonarium_axe/commit/8cc4088a1d03f30fd4679da80fcec66e46f4b02b))
+* **tabletop:** give a table copied a name no table goes by yet ([ec13863](https://github.com/Xelltis/udonarium_axe/commit/ec13863ede13efaaab2e9ca4acace6ce17b61a7e))
+
+### ⚡ Performance
+
+* **app:** fetch each toolbar only for the role that draws it ([f2be258](https://github.com/Xelltis/udonarium_axe/commit/f2be258c2f84b1217e84ecda71bd8cf2552b10d4))
+* **scene:** fetch the code that puts scenes on only once a slot or a switch wants it ([eaa13b9](https://github.com/Xelltis/udonarium_axe/commit/eaa13b93dd79792fb737ad27ab2bfdfca9dac19c))
+* **tabletop:** fetch the picture in front only once a table lays one ([202b2dd](https://github.com/Xelltis/udonarium_axe/commit/202b2dd280bc42ec980bffd227e3a43ac46ce354))
+
+### 📝 Documentation
+
+* **manual:** add pages for scenes and scenario texts ([3fb8996](https://github.com/Xelltis/udonarium_axe/commit/3fb89966cfe7b7ddd59977febe763e004856311e))
+* **manual:** describe the colour of a resource's bar ([cfefa98](https://github.com/Xelltis/udonarium_axe/commit/cfefa98f38588c4180f09792370e0f77b29c5a8a))
+* **manual:** follow the fixes to scenes, scenario texts and table copies ([b1b5eef](https://github.com/Xelltis/udonarium_axe/commit/b1b5eef53ba67bc036cf104358fd279851e4318c))
+* **manual:** list the scenes on the game master's bar and the texts under media ([50bb107](https://github.com/Xelltis/udonarium_axe/commit/50bb107b49f5743f7bc1a9670e7d882fdc3d0afd))
+* **manual:** say the room server lets the master alone write scenes and texts ([103e54c](https://github.com/Xelltis/udonarium_axe/commit/103e54cc509dab19f3e558442684ab6a4341130c))
+* **release:** add the bar colour and the server's write rule to v1.75.0 ([4ac62fc](https://github.com/Xelltis/udonarium_axe/commit/4ac62fcafe590c91210bb8be56b5eb1bc20e277a))
+* **release:** add the notes for v1.75.0 ([fc1f791](https://github.com/Xelltis/udonarium_axe/commit/fc1f7913d53e2418d59660c9f07d09bc03ca03c1))
+* **release:** date v1.75.0 the day it goes out ([9771160](https://github.com/Xelltis/udonarium_axe/commit/977116050f81fa472b2eac0b48e616ebe26786f4))
+
+### ♻️ Refactor
+
+* **folder:** move the folder paths and tree out of the inventory ([3d22e05](https://github.com/Xelltis/udonarium_axe/commit/3d22e05791713869a6ca86207eb7a26b83d19a67))
+
 ## [1.74.2](https://github.com/Xelltis/udonarium_axe/compare/v1.74.1...v1.74.2) (2026-10-31)
 
 ### 🐛 Bug Fixes

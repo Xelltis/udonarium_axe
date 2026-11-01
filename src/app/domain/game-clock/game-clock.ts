@@ -174,12 +174,81 @@ function wholeWithin(value: unknown, low: number, high: number, fallback: number
 }
 
 /**
- * How far through the day the clock stands, from 0 at midnight to just short of 1: the time on a
- * clock of 24 hours, or, told by parts of the day, the start of the part, the parts laid evenly
- * over the day from dawn on, as morning, noon, evening and night are.
+ * The hour of the day the sky of each part of the day is drawn at, by the part's place among them:
+ * null, or nothing at its place, for a part laid evenly over the day as the parts are by default.
+ *
+ * Kept apart from the clock, so that a version that knows nothing of it, writing the clock as the
+ * game master steps it, leaves it as it was.
  */
-export function dayFractionOf(clock: GameClock, periodCount: number): number {
+export type PeriodSkies = readonly (number | null)[];
+
+/** The hours a part of the day may be drawn at, every three from dawn round to the small hours. */
+export const GAME_CLOCK_SKY_HOURS = [6, 9, 12, 15, 18, 21, 0, 3] as const;
+
+/**
+ * Reads the skies a room holds for its parts of the day. Empty text is a room that has chosen none,
+ * and anything that cannot be read reads the same way; a place holding no whole hour of the day
+ * reads as laid evenly.
+ */
+export function readPeriodSkies(held: unknown): PeriodSkies {
+  const text = `${held ?? ''}`;
+  if (text.length < 1) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .slice(0, MAX_GAME_CLOCK_PERIODS)
+    .map((hour) => (Number.isInteger(hour) && hour >= 0 && hour < 24 ? (hour as number) : null));
+}
+
+/** Writes skies the way {@link readPeriodSkies} reads them, empty where every part is laid evenly. */
+export function writePeriodSkies(skies: PeriodSkies): string {
+  const kept = [...skies];
+  while (kept.length > 0 && kept[kept.length - 1] === null) kept.pop();
+  return kept.length > 0 ? JSON.stringify(kept) : '';
+}
+
+/** The skies with the part at one place drawn at an hour, or laid evenly again for null. */
+export function withPeriodSky(skies: PeriodSkies, index: number, hour: number | null): PeriodSkies {
+  const next = Array.from({ length: Math.max(skies.length, index + 1) }, (_, at) => skies[at] ?? null);
+  next[index] = hour;
+  return next;
+}
+
+/**
+ * The skies carried over to parts of the day named anew: each part keeps the sky of the part of the
+ * same name, and, where there are as many parts as before, one renamed where it stands keeps the
+ * sky of the part that stood there.
+ */
+export function carryPeriodSkies(skies: PeriodSkies, before: readonly string[], after: readonly string[]): PeriodSkies {
+  return after.map((name, index) => {
+    const was = before.indexOf(name);
+    if (was >= 0) return skies[was] ?? null;
+    return before.length === after.length ? (skies[index] ?? null) : null;
+  });
+}
+
+/**
+ * Where a part of the day falls when the parts are laid evenly over the day from dawn on, as
+ * morning, noon, evening and night are.
+ */
+export function evenDayFractionOf(index: number, periodCount: number): number {
+  return (0.25 + index / Math.max(1, periodCount)) % 1;
+}
+
+/**
+ * How far through the day the clock stands, from 0 at midnight to just short of 1: the time on a
+ * clock of 24 hours, or, told by parts of the day, the hour the part's sky is drawn at where one is
+ * chosen, else the start of the part, the parts laid evenly over the day from dawn on.
+ */
+export function dayFractionOf(clock: GameClock, periodCount: number, skies: PeriodSkies = []): number {
   if (clock.mode === 'hours') return clock.minutes / MINUTES_IN_DAY;
   const count = Math.max(1, periodCount);
-  return (0.25 + periodIndexOf(clock, count) / count) % 1;
+  const index = periodIndexOf(clock, count);
+  const hour = skies[index] ?? null;
+  return hour === null ? evenDayFractionOf(index, count) : hour / 24;
 }

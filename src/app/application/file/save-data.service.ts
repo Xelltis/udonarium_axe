@@ -44,6 +44,7 @@ import { carriedImagesOf } from '@axe/domain/media/carried-images';
 import { ImageLinkList } from '@axe/domain/media/image-link-list';
 import { ImageTagList } from '@axe/domain/media/image-tag-list';
 import { ImageTagLockList } from '@axe/domain/media/image-tag-lock-list';
+import { PlaylistList } from '@axe/domain/media/playlist-list';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { Room } from '@axe/domain/peer/room';
@@ -98,7 +99,8 @@ export class SaveDataService {
    * percentage.
    *
    * The archive holds the room, chat, config, summary setting and status catalogue as XML, with the
-   * pictures they refer to and the audio list. Saves are queued, so one never overlaps another.
+   * pictures they refer to, the audio list and the playlists. Saves are queued, so one never
+   * overlaps another.
    *
    * While a recording's board is shown in place of the table, cut off from the room, nothing is
    * saved and the reader is told why: the board is what the one who recorded it saw, which may be
@@ -215,9 +217,9 @@ export class SaveDataService {
   }
 
   /**
-   * The files of a room save: the room's XML, the pictures it names and their tags and links, and
-   * the list of sounds. With `everything`, every picture and sound this browser holds the bytes of
-   * goes in as well, named by the room or not.
+   * The files of a room save: the room's XML, the pictures it names and their tags and links, the
+   * list of sounds and the jukebox's playlists. With `everything`, every picture and sound this
+   * browser holds the bytes of goes in as well, named by the room or not.
    */
   private buildRoomFiles(pretty = true, everything = false): File[] {
     const { roomXml, chatXml, files } = this.buildRoomXmlParts(pretty);
@@ -241,6 +243,8 @@ export class SaveDataService {
     if (everything) files.push(...audioArchiveFiles(audios, files));
     const audioTagXml = this.convertToXml(AudioTagList.create(audios), pretty);
     files.push(new File([audioTagXml], 'audiotag.xml', { type: 'text/plain' }));
+    const playlistXml = this.convertToXml(new PlaylistList(), pretty);
+    files.push(new File([playlistXml], 'playlist.xml', { type: 'text/plain' }));
     files.push(...this.roomRightsFiles([...images, ...audios], pretty));
 
     return files;

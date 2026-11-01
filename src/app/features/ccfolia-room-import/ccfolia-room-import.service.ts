@@ -8,6 +8,8 @@ import { ImportedCharacterFactory } from '@axe/domain/character/import/imported-
 import { DataElement } from '@axe/domain/data/data-element';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { ImageTag } from '@axe/domain/media/image-tag';
+import { BoardScene } from '@axe/domain/scene/board-scene';
+import { SCENE_NO_PICTURE } from '@axe/domain/scene/board-scene-parts';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import {
   ImportedRoom,
@@ -33,9 +35,17 @@ const PANEL_THICKNESS = 0.02;
 
 export type CcfoliaRoomImportError = 'unrecognized' | 'failed';
 
+/**
+ * How the scenes of the other tool come across: each as a table of its own, or all on one table
+ * as scenes of it, each putting its pictures on that table.
+ */
+export type CcfoliaRoomImportShape = 'tables' | 'scenes';
+
 export interface CcfoliaRoomImportSummary {
   tableName: string;
   tableCount: number;
+  /** How many scenes were made, none where each scene became a table. */
+  sceneCount: number;
   panelCount: number;
   pieceCount: number;
   hiddenPanelCount: number;
@@ -51,7 +61,8 @@ export interface CcfoliaRoomImportResult {
 /**
  * Takes a room archive from another tool and builds tables from it.
  * Each scene becomes one table, and the panels are copied onto every one: there, panels and
- * pieces survive a scene change, whereas terrain here belongs to its table.
+ * pieces survive a scene change, whereas terrain here belongs to its table. Asked to, it builds one
+ * table and makes each scene a scene of it instead, putting the scene's pictures on that table.
  * Parsing belongs to the domain; this service registers images, builds objects and switches tables.
  */
 @Injectable({ providedIn: 'root' })
@@ -60,19 +71,24 @@ export class CcfoliaRoomImportService {
   private readonly t = inject(TRANSLATE_FN);
 
   /**
-   * Builds tables from the files of a room archive, one for each scene, registering its images
-   * first.
+   * Builds tables from the files of a room archive, registering its images first: one for each
+   * scene, or, where the room has two scenes or more and the shape chosen is `scenes`, one table
+   * with a scene for each.
    *
    * Answers a summary of what was made, or `unrecognized` when the files are not such an archive
    * and `failed` when building them went wrong.
    */
-  async importAsync(entries: ArchiveEntries): Promise<CcfoliaRoomImportResult> {
+  async importAsync(
+    entries: ArchiveEntries,
+    chooseShape: (sceneCount: number) => Promise<CcfoliaRoomImportShape> = async () => 'tables'
+  ): Promise<CcfoliaRoomImportResult> {
     const room = parseRoomData(entries);
     if (!room) return { summary: null, error: 'unrecognized' };
 
     try {
+      const shape = room.scenes.length >= 2 ? await chooseShape(room.scenes.length) : 'tables';
       const images = await this.registerImages(room, entries);
-      return { summary: this.build(room, images), error: null };
+      return { summary: this.build(room, images, shape), error: null };
     } catch {
       return { summary: null, error: 'failed' };
     }
@@ -93,7 +109,11 @@ export class CcfoliaRoomImportService {
     return images;
   }
 
-  private build(room: ImportedRoom, images: Map<string, string>): CcfoliaRoomImportSummary {
+  private build(
+    room: ImportedRoom,
+    images: Map<string, string>,
+    shape: CcfoliaRoomImportShape
+  ): CcfoliaRoomImportSummary {
     const field = resolveFieldSize(room.fieldWidth, room.fieldHeight);
     const geometry: RoomGridGeometry = {
       fieldWidth: field.width,
@@ -105,9 +125,20 @@ export class CcfoliaRoomImportService {
     const usablePanels = visiblePanels.filter((panel) => images.has(panel.imageFileName));
 
     const scenes = room.scenes.length > 0 ? room.scenes : [sceneOfRoom(room)];
-    const tables = scenes.map((scene) => this.createTable(scene, room, images, geometry, usablePanels));
-    const selected = scenes.findIndex((scene) => scene.foregroundFileName === room.foregroundFileName);
-    emitSelectGameTable({ identifier: tables[Math.max(selected, 0)].identifier });
+    const selected = Math.max(
+      scenes.findIndex((scene) => scene.foregroundFileName === room.foregroundFileName),
+      0
+    );
+    const tables =
+      shape === 'scenes'
+        ? [this.createTable(scenes[selected], room, images, geometry, usablePanels)]
+        : scenes.map((scene) => this.createTable(scene, room, images, geometry, usablePanels));
+    const shown = shape === 'scenes' ? tables[0] : tables[selected];
+    if (shape === 'scenes') {
+      const firstOrder = BoardScene.nextOrder();
+      scenes.forEach((scene, index) => this.createScene(scene, room, images, shown, firstOrder + index));
+    }
+    emitSelectGameTable({ identifier: shown.identifier });
 
     let missingImageCount = visiblePanels.length - usablePanels.length;
     for (const piece of room.pieces) {
@@ -117,14 +148,39 @@ export class CcfoliaRoomImportService {
     }
 
     return {
-      tableName: tables[Math.max(selected, 0)].name,
+      tableName: shown.name,
       tableCount: tables.length,
+      sceneCount: shape === 'scenes' ? scenes.length : 0,
       panelCount: usablePanels.length,
       pieceCount: room.pieces.length,
       hiddenPanelCount: room.panels.length - visiblePanels.length,
       missingImageCount,
       skipped: room.skipped,
     };
+  }
+
+  /**
+   * A scene of the other tool as a scene of the table: its foreground on the floor and its
+   * background behind, a picture it lacks taken away, so that putting it on looks the way the
+   * scene did there.
+   */
+  private createScene(
+    scene: ImportedRoomScene,
+    room: ImportedRoom,
+    images: Map<string, string>,
+    table: GameTable,
+    order: number
+  ): BoardScene {
+    const made = new BoardScene();
+    made.name = scene.name === '' ? this.t('feature.tabletop.ccfoliaImport.sceneName', { index: order }) : scene.name;
+    made.order = order;
+    made.tableIdentifier = table.identifier;
+    made.tableName = table.name;
+    made.floorImageIdentifier = images.get(scene.foregroundFileName) ?? SCENE_NO_PICTURE;
+    made.backgroundImageIdentifier =
+      images.get(scene.backgroundFileName) ?? images.get(room.backgroundFileName) ?? SCENE_NO_PICTURE;
+    made.initialize();
+    return made;
   }
 
   /**

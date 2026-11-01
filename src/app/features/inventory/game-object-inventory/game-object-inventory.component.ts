@@ -40,13 +40,13 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { turnCache } from '@axe/core/util/turn-cache';
 import { resolveBuffColor } from '@axe/domain/character/buff-appearance';
 import { BuffBadge, buffIconUrlOf, toBuffBadges } from '@axe/domain/character/buff-badge';
-import { normalizeFolderPath } from '@axe/domain/character/character-folder';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { gaugeRatio } from '@axe/domain/character/piece-gauge';
 import { StatusAilment } from '@axe/domain/character/status-ailment';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { createCalcPass, evaluateCalcElement } from '@axe/domain/data/data-element-calc-env';
 import { SortOrder } from '@axe/domain/data/data-summary-setting';
+import { normalizeFolderPath } from '@axe/domain/folder/folder-path';
 import { InventoryChromePart } from '@axe/domain/inventory/inventory-chrome';
 import {
   INVENTORY_VIEW_LABEL_KEYS,

@@ -1,12 +1,10 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
-import {
-  FOLDER_DROPZONE_SELECTOR,
-  INVENTORY_TAB_DROPZONE_SELECTOR,
-} from '@axe/features/inventory/game-object-inventory/inventory-folder-drag';
+import { INVENTORY_TAB_DROPZONE_SELECTOR } from '@axe/features/inventory/game-object-inventory/inventory-folder-drag';
 import {
   InventoryObjectDrag,
   ObjectDragHost,
 } from '@axe/features/inventory/game-object-inventory/inventory-object-drag';
+import { FOLDER_DROPZONE_SELECTOR } from '@axe/ui/folder-tree/folder-drop';
 
 function pointerAt(x: number, y: number): PointerEvent {
   const target = {

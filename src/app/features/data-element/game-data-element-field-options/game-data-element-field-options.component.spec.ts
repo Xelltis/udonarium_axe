@@ -222,6 +222,43 @@ describe('GameDataElementFieldOptionsComponent', () => {
     expect(element.getAttribute(DataElementAttribute.IMAGE_POPUP_ORIGINAL)).toBe('');
   });
 
+  describe('the colour of a resource’s bar', () => {
+    function hp(): DataElement {
+      return DataElement.create('HP', 20, {
+        type: DataElementType.NUMBER_RESOURCE,
+        currentValue: 20,
+        [DataElementAttribute.FIELD_TYPE]: DataElementFieldType.RESOURCE,
+      });
+    }
+
+    it('is set apart from the resource growing worse as it rises, and put back to follow how full it stands', async () => {
+      const element = hp();
+      const host = show(element);
+      const box = () => host.querySelector('input[name="data-gauge-color"]') as HTMLInputElement;
+
+      box().value = '#e53935';
+      box().dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(element.getAttribute(DataElementAttribute.GAUGE_COLOR)).toBe('#e53935');
+      expect(element.getAttribute(DataElementAttribute.GAUGE_INVERTED)).toBe('');
+
+      host.querySelector<HTMLButtonElement>('[data-testid="data-gauge-color-auto"]')!.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(element.getAttribute(DataElementAttribute.GAUGE_COLOR)).toBe('');
+      expect(host.querySelector('[data-testid="data-gauge-color-auto"]')).toBeNull();
+    });
+
+    it('is not offered for anything that is not a resource', () => {
+      const host = show(DataElement.create('メモ', 'テキスト'));
+
+      expect(host.querySelector('input[name="data-gauge-color"]')).toBeNull();
+    });
+  });
+
   describe('a resource set to go over its maximum', () => {
     function bonus(): DataElement {
       return DataElement.create('命中V', 1, {

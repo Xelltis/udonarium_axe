@@ -187,3 +187,18 @@ describe('hotbar slot payloads', () => {
     });
   });
 });
+
+describe('the options of a scene slot', () => {
+  it('reads a scene slot written by nobody as pointing at no scene, putting its music on', () => {
+    expect(parseHotbarPayload('scene', '')).toEqual({ kind: 'scene', scene: '', sceneName: '', keepBgm: false });
+  });
+
+  it('reads back the scene and the music left alone', () => {
+    expect(parseHotbarPayload('scene', '{"kind":"scene","scene":"s-1","sceneName":"夜","keepBgm":true}')).toEqual({
+      kind: 'scene',
+      scene: 's-1',
+      sceneName: '夜',
+      keepBgm: true,
+    });
+  });
+});

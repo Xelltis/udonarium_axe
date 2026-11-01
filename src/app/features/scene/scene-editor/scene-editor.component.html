@@ -1,0 +1,365 @@
+<ng-template #picture let-field>
+  <div class="flex items-center gap-1.5">
+    <button
+      type="button"
+      [class]="thumbClass"
+      [attr.data-testid]="'scene-picture-' + field"
+      [title]="'feature.scene.editor.pickPicture' | transloco"
+      [disabled]="!canEdit()"
+      (click)="pickPicture(field)"
+    >
+      @if (pictureOf(field); as shown) {
+        @if (shown.url) {
+          <img class="block size-full object-cover" alt="" [src]="shown.url | safe: 'resourceUrl'" />
+        } @else {
+          <i class="material-icons text-[18px]!">image</i>
+        }
+      } @else {
+        {{ 'feature.scene.editor.noPicture' | transloco }}
+      }
+    </button>
+    @if (pictureOf(field)) {
+      <button type="button" [class]="smallButtonClass" [disabled]="!canEdit()" (click)="clearPicture(field)">
+        <i class="material-icons">hide_image</i>{{ 'feature.scene.editor.takeAway' | transloco }}
+      </button>
+    }
+  </div>
+</ng-template>
+
+@let scene = current();
+<div class="flex flex-col gap-2 p-2.5 text-[12px]" data-testid="scene-editor">
+  <div class="flex flex-wrap items-center gap-1.5">
+    <input
+      type="text"
+      data-testid="scene-name"
+      [class]="fieldClass"
+      class="min-w-32 flex-1 text-[13px]! font-semibold"
+      [value]="scene.name"
+      [placeholder]="'feature.scene.editor.namePlaceholder' | transloco"
+      [disabled]="!canEdit()"
+      (change)="rename($any($event.target).value)"
+    />
+    <button
+      type="button"
+      data-testid="scene-apply"
+      class="rounded-ui-sm bg-ui-accent-solid m-0 inline-flex cursor-pointer items-center gap-1 border border-solid border-transparent px-2.5 py-1 text-[12px] font-semibold text-white transition-opacity hover:opacity-85 hover:shadow-none disabled:cursor-not-allowed disabled:opacity-40 [&_.material-icons]:text-[16px]!"
+      [disabled]="!canEdit()"
+      (click)="apply.emit()"
+    >
+      <i class="material-icons">play_arrow</i>{{ 'feature.scene.apply' | transloco }}
+    </button>
+    <button
+      type="button"
+      data-testid="scene-overwrite"
+      [class]="smallButtonClass"
+      [title]="'feature.scene.menu.overwriteHint' | transloco"
+      [disabled]="!canEdit()"
+      (click)="overwrite.emit()"
+    >
+      <i class="material-icons">save_as</i>{{ 'feature.scene.menu.overwrite' | transloco }}
+    </button>
+  </div>
+  <p class="text-ui-dim m-0 text-[11px]">{{ 'feature.scene.editor.hint' | transloco }}</p>
+
+  @for (part of switchedParts; track part) {
+    <section
+      class="border-ui-border-panel rounded-ui-sm flex flex-col gap-1.5 border border-solid px-2 py-1.5"
+      [class.bg-ui-elevated]="isOn(part)"
+      [attr.data-testid]="'scene-part-' + part"
+    >
+      <label class="flex cursor-pointer items-center gap-1.5 font-semibold">
+        <input
+          type="checkbox"
+          class="m-0 cursor-pointer [accent-color:var(--ui-accent)]"
+          [attr.data-testid]="'scene-part-toggle-' + part"
+          [checked]="isOn(part)"
+          [disabled]="!canEdit()"
+          (change)="setPart(part, $any($event.target).checked)"
+        />
+        <span>{{ 'feature.scene.part.' + part | transloco }}</span>
+        @if (!isOn(part)) {
+          <span class="text-ui-dim text-[11px] font-normal">{{ 'feature.scene.editor.leave' | transloco }}</span>
+        }
+      </label>
+
+      @if (isOn(part)) {
+        @switch (part) {
+          @case ('table') {
+            <select
+              [class]="fieldClass"
+              data-testid="scene-table"
+              [disabled]="!canEdit()"
+              [ngModel]="scene.tableIdentifier"
+              (ngModelChange)="setTable($event)"
+            >
+              @for (table of tables(); track table.identifier) {
+                <option [ngValue]="table.identifier">{{ table.name }}</option>
+              }
+              @if (tableMissing()) {
+                <option [ngValue]="scene.tableIdentifier">{{ scene.tableName }}</option>
+              }
+            </select>
+          }
+          @case ('floor') {
+            <ng-container *ngTemplateOutlet="picture; context: { $implicit: 'floorImageIdentifier' }" />
+          }
+          @case ('background') {
+            <ng-container *ngTemplateOutlet="picture; context: { $implicit: 'backgroundImageIdentifier' }" />
+            <label class="flex items-center gap-2">
+              <span class="text-ui-muted w-20 shrink-0">{{
+                'feature.tabletop.tableSetting.bgFilter' | transloco
+              }}</span>
+              <select
+                [class]="fieldClass"
+                class="flex-1"
+                [disabled]="!canEdit()"
+                [ngModel]="backgroundFilter()"
+                (ngModelChange)="write({ backgroundFilter: $event })"
+              >
+                <option [ngValue]="'none'">{{ 'feature.tabletop.tableSetting.bgFilterNone' | transloco }}</option>
+                <option [ngValue]="'white'">{{ 'feature.tabletop.tableSetting.bgFilterWhite' | transloco }}</option>
+                <option [ngValue]="'black'">{{ 'feature.tabletop.tableSetting.bgFilterBlack' | transloco }}</option>
+              </select>
+            </label>
+          }
+          @case ('walls') {
+            @for (side of wallSides; track side) {
+              <div class="flex items-center gap-2">
+                <label class="flex w-20 shrink-0 cursor-pointer items-center gap-1">
+                  <input
+                    type="checkbox"
+                    class="m-0 cursor-pointer [accent-color:var(--ui-accent)]"
+                    [checked]="wallShown(side)"
+                    [disabled]="!canEdit()"
+                    (change)="setWallShown(side, $any($event.target).checked)"
+                  />
+                  <span>{{ 'feature.scene.wall.' + side | transloco }}</span>
+                </label>
+                <ng-container *ngTemplateOutlet="picture; context: { $implicit: wallPictureField[side] }" />
+              </div>
+            }
+          }
+          @case ('foreground') {
+            <ng-container *ngTemplateOutlet="picture; context: { $implicit: 'foregroundImageIdentifier' }" />
+            @if (pictureOf('foregroundImageIdentifier')) {
+              <label class="flex items-center gap-2">
+                <span class="text-ui-muted w-20 shrink-0">{{
+                  'feature.tabletop.tableSetting.foregroundOpacity' | transloco
+                }}</span>
+                <input
+                  type="range"
+                  min="5"
+                  max="100"
+                  step="5"
+                  class="min-w-0 flex-1 [accent-color:var(--ui-accent)]"
+                  [disabled]="!canEdit()"
+                  [ngModel]="foregroundOpacity()"
+                  (ngModelChange)="setForegroundOpacity($event)"
+                />
+                <span class="text-ui-muted w-9 text-right tabular-nums">{{ foregroundOpacity() }}%</span>
+              </label>
+              <label class="flex items-center gap-2">
+                <span class="text-ui-muted w-20 shrink-0">{{
+                  'feature.tabletop.tableSetting.foregroundFit' | transloco
+                }}</span>
+                <select
+                  [class]="fieldClass"
+                  class="flex-1"
+                  [disabled]="!canEdit()"
+                  [ngModel]="foregroundFit()"
+                  (ngModelChange)="write({ foregroundFit: $event })"
+                >
+                  @for (fit of foregroundFits; track fit) {
+                    <option [ngValue]="fit">
+                      {{ 'feature.tabletop.tableSetting.foregroundFit_' + fit | transloco }}
+                    </option>
+                  }
+                </select>
+              </label>
+            }
+          }
+          @case ('weather') {
+            @let shownWeather = weather();
+            <select
+              [class]="fieldClass"
+              data-testid="scene-weather"
+              [disabled]="!canEdit()"
+              [ngModel]="shownWeather.kind"
+              (ngModelChange)="setWeather({ kind: $event })"
+            >
+              <option [ngValue]="''">{{ 'feature.tabletop.tableSetting.weatherNone' | transloco }}</option>
+              @for (kind of weatherKinds; track kind) {
+                <option [ngValue]="kind">{{ weatherKindLabel(kind) }}</option>
+              }
+            </select>
+            @if (shownWeather.kind) {
+              <label class="flex items-center gap-2">
+                <span class="text-ui-muted w-20 shrink-0">{{ 'feature.ambience.densityLabel' | transloco }}</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  class="min-w-0 flex-1 [accent-color:var(--ui-accent)]"
+                  [disabled]="!canEdit()"
+                  [ngModel]="shownWeather.density * 100"
+                  (ngModelChange)="setWeather({ density: $event / 100 })"
+                />
+              </label>
+            }
+          }
+          @case ('darkness') {
+            <select
+              [class]="fieldClass"
+              [disabled]="!canEdit()"
+              [ngModel]="toggleOf('darkness')"
+              (ngModelChange)="write({ darkness: $event })"
+            >
+              <option [ngValue]="'on'">{{ 'feature.scene.editor.on' | transloco }}</option>
+              <option [ngValue]="'off'">{{ 'feature.scene.editor.off' | transloco }}</option>
+            </select>
+          }
+          @case ('fog') {
+            <select
+              [class]="fieldClass"
+              [disabled]="!canEdit()"
+              [ngModel]="toggleOf('fog')"
+              (ngModelChange)="write({ fog: $event })"
+            >
+              <option [ngValue]="'on'">{{ 'feature.scene.editor.on' | transloco }}</option>
+              <option [ngValue]="'off'">{{ 'feature.scene.editor.off' | transloco }}</option>
+            </select>
+          }
+          @case ('bgm') {
+            <select
+              [class]="fieldClass"
+              data-testid="scene-bgm-mode"
+              [disabled]="!canEdit()"
+              [ngModel]="scene.bgm"
+              (ngModelChange)="write({ bgm: $event })"
+            >
+              <option [ngValue]="'stop'">{{ 'feature.scene.editor.bgmStop' | transloco }}</option>
+              <option [ngValue]="'track'">{{ 'feature.scene.editor.bgmTrack' | transloco }}</option>
+              <option [ngValue]="'playlist'">{{ 'feature.scene.editor.bgmPlaylist' | transloco }}</option>
+            </select>
+            @if (scene.bgm === 'track') {
+              <ng-select
+                class="ud-select"
+                data-testid="scene-bgm-track"
+                bindLabel="name"
+                bindValue="identifier"
+                [items]="musicTracks()"
+                [readonly]="!canEdit()"
+                [clearable]="false"
+                [ngModel]="scene.bgmIdentifier || null"
+                [ngModelOptions]="{ standalone: true }"
+                [placeholder]="'feature.scene.editor.chooseTrack' | transloco"
+                (ngModelChange)="write({ bgmIdentifier: $event ?? '' })"
+              />
+            }
+            @if (scene.bgm === 'playlist') {
+              <ng-select
+                class="ud-select"
+                data-testid="scene-bgm-playlist"
+                bindLabel="label"
+                bindValue="identifier"
+                [items]="playlists()"
+                [readonly]="!canEdit()"
+                [clearable]="false"
+                [ngModel]="bgmPlaylist()"
+                [ngModelOptions]="{ standalone: true }"
+                [placeholder]="'feature.scene.editor.choosePlaylist' | transloco"
+                (ngModelChange)="setBgmPlaylist($event)"
+              />
+            }
+          }
+          @case ('bgs') {
+            <ng-select
+              class="ud-select"
+              data-testid="scene-bgs"
+              [multiple]="true"
+              [readonly]="!canEdit()"
+              [ngModel]="bgsChoice()"
+              [ngModelOptions]="{ standalone: true }"
+              [placeholder]="'feature.scene.editor.bgsNone' | transloco"
+              (ngModelChange)="setBgsChoice($event)"
+            >
+              @for (sound of backgroundSounds(); track sound.identifier) {
+                <ng-option [value]="sound.identifier">{{ sound.name }}</ng-option>
+              }
+            </ng-select>
+            <span class="text-ui-dim text-[11px]">{{ 'feature.scene.editor.bgsHint' | transloco }}</span>
+          }
+          @case ('clock') {
+            <select
+              [class]="fieldClass"
+              data-testid="scene-clock"
+              [disabled]="!canEdit()"
+              [ngModel]="period()"
+              (ngModelChange)="setPeriod($event)"
+            >
+              @for (name of periods(); track $index) {
+                <option [ngValue]="$index">{{ name }}</option>
+              }
+            </select>
+            @if (clockTellsHours()) {
+              <span class="text-ui-dim text-[11px]">{{ 'feature.scene.editor.clockHours' | transloco }}</span>
+            }
+          }
+        }
+      }
+    </section>
+  }
+
+  <section class="border-ui-border-panel rounded-ui-sm flex flex-col gap-1.5 border border-solid px-2 py-1.5">
+    <span class="font-semibold">{{ 'feature.scene.part.cutIn' | transloco }}</span>
+    <ng-select
+      class="ud-select"
+      data-testid="scene-cut-ins"
+      [multiple]="true"
+      [readonly]="!canEdit()"
+      [ngModel]="cutInChoice()"
+      [ngModelOptions]="{ standalone: true }"
+      [placeholder]="'feature.scene.editor.cutInsNone' | transloco"
+      (ngModelChange)="setCutInChoice($event)"
+    >
+      @for (cutIn of cutIns(); track cutIn.identifier) {
+        <ng-option [value]="cutIn.identifier">{{ cutIn.name }}</ng-option>
+      }
+    </ng-select>
+    @if (cutInStopsMusic()) {
+      <span class="text-ui-warning text-[11px]" data-testid="scene-cut-in-music">{{
+        'feature.scene.editor.cutInStopsMusic' | transloco
+      }}</span>
+    }
+  </section>
+
+  <section class="border-ui-border-panel rounded-ui-sm flex flex-col gap-1.5 border border-solid px-2 py-1.5">
+    <span class="font-semibold">{{ 'feature.scene.part.text' | transloco }}</span>
+    @for (each of [scene]; track each.identifier) {
+      <div data-testid="scene-text" [class.pointer-events-none]="!canEdit()" [class.opacity-50]="!canEdit()">
+        <chat-line-editor
+          [draft]="each.text"
+          [enterKeeps]="false"
+          [placeholder]="'feature.scene.editor.textPlaceholder' | transloco"
+          (draftChange)="writeTextLater(each, $event)"
+        />
+      </div>
+    }
+    <label class="flex items-center gap-2">
+      <span class="text-ui-muted w-20 shrink-0">{{ 'feature.scene.editor.textTab' | transloco }}</span>
+      <select
+        [class]="fieldClass"
+        class="flex-1"
+        [disabled]="!canEdit()"
+        [ngModel]="scene.textTab"
+        (ngModelChange)="write({ textTab: $event })"
+      >
+        <option [ngValue]="''">{{ 'feature.scene.editor.firstTab' | transloco }}</option>
+        @for (tab of chatTabs(); track tab.identifier) {
+          <option [ngValue]="tab.identifier">{{ tab.name }}</option>
+        }
+      </select>
+    </label>
+  </section>
+</div>

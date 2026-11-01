@@ -18,6 +18,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { chatBubbleOf, chatColorOf } from '@axe/domain/chat/chat-color';
 import { keptFromDecoration } from '@axe/domain/chat/chat-decoration';
 import { liftImageReferences } from '@axe/domain/chat/chat-image-references';
 import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
@@ -45,6 +46,12 @@ import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import GameSystemClass from 'bcdice/lib/game_system';
+
+/** Who prepared words are said as: a name of their own, a piece, or the room itself. */
+export type VerbatimSpeaker =
+  | { readonly kind: 'named'; readonly name: string }
+  | { readonly kind: 'character'; readonly character: GameCharacter }
+  | { readonly kind: 'system' };
 
 @Injectable({ providedIn: 'root' })
 export class ChatMessageService {
@@ -432,6 +439,64 @@ export class ChatMessageService {
     emitSendMessage({ messageIdentifier: chat.identifier, messageTarget: null });
     emitDiceTableMessage({ messageIdentifier: chat.identifier });
     return chat;
+  }
+
+  /**
+   * Says prepared words into a tab as they were written: under a name of their own, as a piece, or as
+   * the room itself. Nothing in them is rolled or read as a command, so a passage opening with
+   * `1d100` goes out as written however long it is, its last word plays a cut-in as any line's
+   * does, and no piece's resources or portrait change. The stamps put in it go out as those of a
+   * line said anew. Whispered to the players named, only they and the sender read it. None but the
+   * system speaks where the reader may not speak, nor anyone in the system tab. Said as a piece with
+   * no colour given, it goes out in the piece's first colour and bubbles, as a line typed as it does.
+   */
+  sendVerbatim(
+    chatTab: ChatTab,
+    text: string,
+    as: VerbatimSpeaker,
+    options: { to?: readonly string[]; color?: string } = {}
+  ): ChatMessage | null {
+    if (as.kind !== 'system' && !canRoleSpeakTab(chatTab, PeerCursor.myRole)) return null;
+    const stamped = this.inlineStampsGoingOut(text);
+    const to = (options.to ?? []).filter((identifier) => identifier.length > 0);
+    const toNames = to.map((identifier) => this.findObjectName(identifier)).join(', ');
+    const named = (name: string) => (toNames ? `${name} > ${toNames}` : name);
+    const chatMessage: ChatMessageContext = {
+      from: Network.peerContext.userId,
+      name: '',
+      imageIdentifier: '',
+      timestamp: this.calcTimeStamp(chatTab),
+      tag: as.kind === 'system' ? 'system-message' : '',
+      text: stamped.text,
+      imagePos: -1,
+      messColor: resolveMessageColor(options.color, as.kind === 'system' ? '#006633' : '#000000'),
+      senderRole: PeerCursor.myRole,
+    };
+    if (as.kind === 'system') {
+      chatMessage.name = encodeI18nMessage('common.chat.systemName');
+    } else if (as.kind === 'named') {
+      chatMessage.name = named(as.name);
+      chatMessage.sendFrom = '';
+    } else {
+      const speaker = as.character.identifier;
+      const portrait = resolvePortraitIndex(undefined);
+      chatMessage.name = named(this.findObjectName(speaker));
+      chatMessage.imageIdentifier = this.findImageIdentifier(speaker, portrait);
+      chatMessage.imagePos = PeerCursor.isMyselfKeptOffTable ? undefined : this.findImagePos(speaker);
+      chatMessage.sendFrom = speaker;
+      if (!options.color) {
+        chatMessage.messColor = resolveMessageColor(chatColorOf(as.character, 0), '#000000');
+        const bubbles = chatBubbleOf(as.character, 0);
+        if (bubbles.light) chatMessage.messBubbleLight = bubbles.light;
+        if (bubbles.dark) chatMessage.messBubbleDark = bubbles.dark;
+      }
+    }
+    if (to.length > 0) chatMessage.to = to.map((identifier) => this.whisperTo(identifier)).join(' ');
+    if (stamped.pictures.length > 0) {
+      chatMessage.attachmentImageIdentifiers = JSON.stringify(stamped.pictures);
+      chatMessage.stampAttachments = JSON.stringify(stamped.pictures);
+    }
+    return chatTab.addMessage(chatMessage);
   }
 
   /**

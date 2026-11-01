@@ -33,6 +33,7 @@ describe('GameClockWidgetComponent', () => {
   afterEach(() => {
     fixture?.destroy();
     Config.instance.gameClock = DEFAULT_GAME_CLOCK;
+    Config.instance.gameClockSkies = [];
     vi.restoreAllMocks();
   });
 
@@ -163,6 +164,59 @@ describe('GameClockWidgetComponent', () => {
       expect(places.every((place) => offArc(place) < 0.001)).toBe(true);
       expect(places.every((place, index) => index === 0 || place.x <= places[index - 1].x)).toBe(true);
       expect(places.some((place) => place.y < 20)).toBe(true);
+    });
+  });
+
+  describe('the sky chosen for each part of the day', () => {
+    /** Where a body stands, read off the transform it is drawn with. */
+    function placeOf(root: HTMLElement, body: 'sun' | 'moon'): { x: number; y: number } {
+      const drawn = root.querySelector<SVGGElement>(`[data-testid="game-clock-${body}"]`)!.style.transform;
+      const [x, y] = /translate\(([-\d.]+)px, ([-\d.]+)px\)/.exec(drawn)!.slice(1).map(Number);
+      return { x, y };
+    }
+
+    beforeEach(() => {
+      TestBed.inject(MotionService).set('off');
+      Config.instance.gameClock = { ...DEFAULT_GAME_CLOCK, periods: ['昼', '夜'] };
+    });
+
+    it('draws noon and midnight for a day of noon and night, rather than morning and evening', () => {
+      Config.instance.gameClockSkies = [12, 0];
+      const root = open(PeerRole.GameMaster);
+      const shown = () => root.querySelector('[data-testid="game-clock-sky"]')!.getAttribute('data-body');
+
+      expect(shown()).toBe('sun');
+      expect(placeOf(root, 'sun').x).toBeCloseTo(120);
+      expect(placeOf(root, 'sun').y).toBeCloseTo(12);
+
+      root.querySelector<HTMLButtonElement>('[data-testid="game-clock-on"]')!.click();
+      fixture.detectChanges();
+
+      expect(shown()).toBe('moon');
+      expect(placeOf(root, 'moon').x).toBeCloseTo(120);
+      expect(placeOf(root, 'moon').y).toBeCloseTo(12);
+    });
+
+    it('lets the master choose the hour of each part’s sky in the set-up, saying what the even one falls at', async () => {
+      const root = open(PeerRole.GameMaster);
+      root.querySelector<HTMLButtonElement>('[data-testid="game-clock-settings"]')!.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const night = root.querySelector<HTMLSelectElement>('[data-testid="game-clock-sky-1"]')!;
+
+      expect(night.options[night.selectedIndex].textContent?.trim()).toBe('自動（18時）');
+
+      night.selectedIndex = Array.from(night.options).findIndex((option) => option.textContent?.trim() === '夜（0時）');
+      night.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+
+      expect(Config.instance.gameClockSkies).toEqual([null, 0]);
+    });
+
+    it('offers no choice of sky to a player', () => {
+      const root = open(PeerRole.Player);
+
+      expect(root.querySelector('[data-testid="game-clock-sky-0"]')).toBeNull();
     });
   });
 

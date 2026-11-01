@@ -30,6 +30,7 @@ export function fighterBetween(before: FighterReading, after: FighterReading, ru
       after: now.current,
       max: now.max,
       inverted: now.inverted,
+      color: now.color,
     };
     if (now.bar) gauges.push(gauge);
     else if (gauge.before !== gauge.after) moved.push(gauge);

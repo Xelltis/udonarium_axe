@@ -81,6 +81,7 @@ export const DataElementAttribute = {
   JUDGE_MODE: 'cs-judge-mode',
   PIECE_GAUGE: 'cs-piece-gauge',
   GAUGE_INVERTED: 'cs-gauge-inverted',
+  GAUGE_COLOR: 'cs-gauge-color',
   RESOURCE_SLIDER: 'cs-resource-slider',
   OVER_RESOURCE: 'cs-over-resource',
   CHANGE_EFFECT: 'cs-change-effect',

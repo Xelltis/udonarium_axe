@@ -446,6 +446,35 @@
           }
         }
       }
+    ],
+    "gmPreparations": [
+      {
+        "aliasName": "scenario-text",
+        "identifier": "handout",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "title": "真相",
+          "text": "犯人は執事",
+          "folderName": "",
+          "order": 1,
+          "sendAs": "",
+          "tab": "",
+          "color": "",
+          "stamps": ""
+        }
+      },
+      {
+        "aliasName": "board-scene",
+        "identifier": "nightScene",
+        "majorVersion": 1,
+        "minorVersion": 0.5,
+        "syncData": {
+          "name": "夜の村",
+          "floorImageIdentifier": "night",
+          "darkness": "on"
+        }
+      }
     ]
   },
   "cases": [
@@ -607,6 +636,26 @@
         "owner": "hidden",
         "player": "hidden",
         "guest": "hidden"
+      }
+    },
+    {
+      "room": "gmPreparations",
+      "identifier": "handout",
+      "expect": {
+        "gm": "full",
+        "owner": "hidden",
+        "player": "hidden",
+        "guest": "hidden"
+      }
+    },
+    {
+      "room": "gmPreparations",
+      "identifier": "nightScene",
+      "expect": {
+        "gm": "full",
+        "owner": "full",
+        "player": "full",
+        "guest": "full"
       }
     }
   ]

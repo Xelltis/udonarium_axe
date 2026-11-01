@@ -38,6 +38,13 @@ describe('switch definitions', () => {
         { kind: 'removeSelf' as const, delayMs: 0, extra: {} },
         { kind: 'battle' as const, delayMs: 300, extra: {} },
         { kind: 'showTable' as const, table: { identifier: 'cellar', name: '地下室' }, delayMs: 0, extra: {} },
+        {
+          kind: 'scene' as const,
+          scene: { identifier: 'scene-night', name: '夜の村' },
+          keepBgm: true,
+          delayMs: 0,
+          extra: {},
+        },
         { kind: 'carry' as const, col: 3, row: 4, table: { identifier: '', name: '' }, delayMs: 0, extra: {} },
         {
           kind: 'tableSetting' as const,
@@ -156,5 +163,34 @@ describe('switch definitions', () => {
     expect(switchDoesAnything({ ...blank, actions: [{ kind: 'sound', name: 'bell', delayMs: 0, extra: {} }] })).toBe(
       true
     );
+  });
+});
+
+describe('a switch that puts a scene on', () => {
+  it('names no scene and puts its music on until somebody chooses one, and does nothing till then', () => {
+    const fresh = newSwitchAction('scene');
+
+    expect(fresh).toEqual({
+      kind: 'scene',
+      scene: { identifier: '', name: '' },
+      keepBgm: false,
+      delayMs: 0,
+      extra: {},
+    });
+    expect(switchDoesAnything({ ...parseSwitchDefinition(''), actions: [fresh] })).toBe(false);
+    expect(
+      switchDoesAnything({
+        ...parseSwitchDefinition(''),
+        actions: [{ ...fresh, scene: { identifier: '', name: '夜' } }],
+      })
+    ).toBe(true);
+  });
+
+  it('keeps what an older version wrote beside the action', () => {
+    const read = parseSwitchDefinition(
+      JSON.stringify({ actions: [{ kind: 'scene', scene: { identifier: 's', name: '夜' }, later: 1 }] })
+    );
+
+    expect(read.actions[0]).toMatchObject({ kind: 'scene', keepBgm: false, extra: { later: 1 } });
   });
 });

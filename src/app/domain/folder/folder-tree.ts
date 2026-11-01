@@ -1,4 +1,4 @@
-import { FOLDER_SEPARATOR, folderSegments } from '@axe/domain/character/character-folder';
+import { FOLDER_SEPARATOR, folderSegments, normalizeFolderPath } from '@axe/domain/folder/folder-path';
 
 export interface FolderNode<T> {
   readonly path: string;
@@ -102,4 +102,19 @@ function settleLevel<T>(level: Map<string, FolderBuilder<T>>): FolderNode<T>[] {
       };
     })
     .sort((left, right) => left.name.localeCompare(right.name, 'ja', { numeric: true }));
+}
+
+/**
+ * The whole list with the things of one folder put in the order given, in the places they held
+ * together, everything else left where it stands.
+ */
+export function withFolderInOrder<T>(
+  list: readonly T[],
+  pathOf: (item: T) => string,
+  folder: string,
+  ordered: readonly T[]
+): T[] {
+  const queue = [...ordered];
+  const inFolder = (item: T) => normalizeFolderPath(pathOf(item)) === folder;
+  return list.map((item) => (inFolder(item) ? (queue.shift() ?? item) : item));
 }

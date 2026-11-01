@@ -217,6 +217,29 @@
             />
             <span class="text-ui-dim text-[11px]">{{ 'feature.gameClock.periodsHint' | transloco }}</span>
           </label>
+          <div class="flex flex-col gap-0.5" role="group" [attr.aria-label]="'feature.gameClock.skies' | transloco">
+            <span class="text-ui-muted">{{ 'feature.gameClock.skies' | transloco }}</span>
+            @for (period of periodSkies(); track $index) {
+              <label class="flex items-center gap-2">
+                <span class="w-20 shrink-0 truncate" [title]="period.name">{{ period.name }}</span>
+                <select
+                  [attr.data-testid]="'game-clock-sky-' + $index"
+                  [class]="fieldClass"
+                  class="flex-1"
+                  [ngModel]="period.hour"
+                  (ngModelChange)="clock.setSky($index, $event)"
+                >
+                  <option [ngValue]="null">
+                    {{ 'feature.gameClock.skyEven' | transloco: { hour: period.evenHour } }}
+                  </option>
+                  @for (hour of skyHours; track hour) {
+                    <option [ngValue]="hour">{{ 'feature.gameClock.sky_' + hour | transloco }}</option>
+                  }
+                </select>
+              </label>
+            }
+            <span class="text-ui-dim text-[11px]">{{ 'feature.gameClock.skiesHint' | transloco }}</span>
+          </div>
         } @else {
           <label class="flex items-center gap-2">
             <span class="text-ui-muted w-20 shrink-0">{{ 'feature.gameClock.time' | transloco }}</span>

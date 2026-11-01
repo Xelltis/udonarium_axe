@@ -1,7 +1,7 @@
 import { inject, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { MyDiceService } from '@axe/application/dice/my-dice.service';
-import { resourceEditMessage$ } from '@axe/core/event/domain-events';
+import { diceTableMessage$, resourceEditMessage$, sendMessage$ } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -602,6 +602,104 @@ describe('ChatMessageService', () => {
 
         expect(message.text).toBe('開いた ［了解］ ［絵:image:door-picture］');
         expect(message.attachmentImageIdentifierList).toEqual(['door-picture']);
+      } finally {
+        Config.instance.stampRules = OPEN_STAMP_RULES;
+      }
+    });
+  });
+
+  describe('prepared words said as they were written', () => {
+    let service: ChatMessageService;
+    let chatTab: ChatTab;
+
+    beforeEach(() => {
+      service = TestBed.inject(ChatMessageService);
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      chatTab = new ChatTab();
+      chatTab.initialize();
+      ObjectStore.instance.add(chatTab);
+    });
+
+    afterEach(() => {
+      PeerCursor.myCursor = null!;
+    });
+
+    it('rolls nothing in them and reads no command out of them, however long they are', () => {
+      const rolled: string[] = [];
+      const offRoll = diceTableMessage$.subscribe((event) => rolled.push(event.messageIdentifier));
+      const offSend = sendMessage$.subscribe((event) => rolled.push(event.messageIdentifier));
+      const long = `S1d100 ${'あ'.repeat(5000)}`;
+
+      const message = service.sendVerbatim(chatTab, long, { kind: 'named', name: '語り手' })!;
+      offRoll();
+      offSend();
+
+      expect(message.text).toBe(long);
+      expect(message.name).toBe('語り手');
+      expect(message.tag ?? '').toBe('');
+      expect(rolled).toEqual([]);
+    });
+
+    it('says them as a piece, with its portrait, or as the room', () => {
+      const hero = GameCharacter.create('ヒロ', 1, '');
+
+      const asHero = service.sendVerbatim(chatTab, '行くぞ', { kind: 'character', character: hero })!;
+      const asRoom = service.sendVerbatim(chatTab, '夜が来た', { kind: 'system' })!;
+
+      expect([asHero.name, asHero.sendFrom]).toEqual(['ヒロ', hero.identifier]);
+      expect(asRoom.isSystemMessage).toBe(true);
+    });
+
+    it('says them as a piece in its first colour and bubbles, unless given a colour', () => {
+      const hero = GameCharacter.create('ヒロ', 1, '');
+      hero.chatColorCode = ['#aa0000', '#00aa00', '#0000aa'];
+      hero.chatBubbleLight = ['#ffeeee', '', ''];
+      hero.chatBubbleDark = ['#330000', '', ''];
+
+      const own = service.sendVerbatim(chatTab, '行くぞ', { kind: 'character', character: hero })!;
+      const given = service.sendVerbatim(
+        chatTab,
+        '行くぞ',
+        { kind: 'character', character: hero },
+        { color: '#123456' }
+      )!;
+
+      expect([own.messColor, own.messBubbleLight, own.messBubbleDark]).toEqual(['#aa0000', '#ffeeee', '#330000']);
+      expect(given.messColor).toBe('#123456');
+    });
+
+    it('whispers them to the players named, by their cursors', () => {
+      const other = new PeerCursor();
+      other.userId = 'pl-user';
+      other.name = 'ミナ';
+      other.initialize();
+
+      const message = service.sendVerbatim(
+        chatTab,
+        '秘密の手紙',
+        { kind: 'named', name: '手紙' },
+        { to: [other.identifier] }
+      )!;
+
+      expect(message.to).toBe('pl-user');
+      expect(message.name).toBe('手紙 > ミナ');
+    });
+
+    it('says nothing where the reader may not speak, unless as the room', () => {
+      PeerCursor.myCursor.role = PeerRole.Player;
+      chatTab.plCanSpeak = false;
+
+      expect(service.sendVerbatim(chatTab, '…', { kind: 'named', name: '語り手' })).toBeNull();
+      expect(service.sendVerbatim(chatTab, '…', { kind: 'system' })).not.toBeNull();
+    });
+
+    it('sends the stamps in them as a line said anew goes out', () => {
+      Config.instance.stampRules = withStampsAllowed(OPEN_STAMP_RULES, 'line', ['seal:ok'], false);
+      try {
+        const message = service.sendVerbatim(chatTab, '［絵:image:handout］', { kind: 'named', name: '資料' })!;
+
+        expect(message.attachmentImageIdentifierList).toEqual(['handout']);
       } finally {
         Config.instance.stampRules = OPEN_STAMP_RULES;
       }

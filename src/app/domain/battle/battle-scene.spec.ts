@@ -32,7 +32,7 @@ describe('normalizeBattleScene()', () => {
         identifier: 'hero',
         name: 'hero',
         image: '',
-        gauges: [{ name: 'MP', before: 10, after: 7, max: 20, inverted: false }],
+        gauges: [{ name: 'MP', before: 10, after: 7, max: 20, inverted: false, color: '' }],
         defeated: false,
         facing: null,
       },
@@ -44,6 +44,20 @@ describe('normalizeBattleScene()', () => {
       secret: true,
       seed: 42,
     });
+  });
+
+  it('reads the colour set for a bar, and none where an older version sent none or something not a colour', () => {
+    const gauges = (raw: Record<string, unknown>) =>
+      normalizeBattleScene({
+        key: 'k1',
+        attackerSide: 'left',
+        attacker: fighter('hero', { gauges: [{ name: 'HP', before: 10, after: 7, max: 20, inverted: false, ...raw }] }),
+        defenders: [fighter('goblin')],
+      })!.attacker.gauges[0].color;
+
+    expect(gauges({ color: '#E53935' })).toBe('#e53935');
+    expect(gauges({})).toBe('');
+    expect(gauges({ color: 'red; background: url(x)' })).toBe('');
   });
 
   it('plays nothing without somebody striking or somebody struck', () => {
@@ -69,7 +83,7 @@ describe('normalizeBattleScene()', () => {
 
     expect(scene?.attackerSide).toBe('left');
     expect(scene?.theme).toBe('fantasy-day');
-    expect(scene?.attacker.gauges).toEqual([{ name: 'HP', before: 0, after: 0, max: 0, inverted: false }]);
+    expect(scene?.attacker.gauges).toEqual([{ name: 'HP', before: 0, after: 0, max: 0, inverted: false, color: '' }]);
     expect(scene?.defenders).toHaveLength(1);
     expect(scene?.effect).toBe('');
     expect(scene?.secret).toBe(false);

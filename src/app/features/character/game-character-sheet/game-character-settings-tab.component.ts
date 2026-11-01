@@ -5,7 +5,6 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
 import { getMyPeerId } from '@axe/core/network/peer-context-source';
-import { normalizeFolderPath } from '@axe/domain/character/character-folder';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import {
   clampPieceImageHeight,
@@ -28,6 +27,7 @@ import {
   findElementTemplateHolder,
   readElementTemplates,
 } from '@axe/domain/data/data-element-templates';
+import { normalizeFolderPath } from '@axe/domain/folder/folder-path';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import {
   readSeatHeight,

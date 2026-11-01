@@ -5,6 +5,7 @@ function summaryOf(overrides: Partial<CcfoliaRoomImportSummary> = {}): CcfoliaRo
   return {
     tableName: '戦闘シート',
     tableCount: 14,
+    sceneCount: 0,
     panelCount: 3,
     pieceCount: 2,
     hiddenPanelCount: 0,
@@ -23,6 +24,12 @@ describe('buildRoomImportMessages', () => {
       },
       { key: 'feature.tabletop.ccfoliaImport.bgmNotice', params: {} },
     ]);
+  });
+
+  it('says how many scenes it made, where it made the scenes as scenes', () => {
+    const messages = buildRoomImportMessages(summaryOf({ tableCount: 1, sceneCount: 3 }));
+
+    expect(messages[1]).toEqual({ key: 'feature.tabletop.ccfoliaImport.importedScenes', params: { count: 3 } });
   });
 
   it('gives each kind of missing element a line of its own', () => {

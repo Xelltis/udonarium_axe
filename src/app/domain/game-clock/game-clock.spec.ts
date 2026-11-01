@@ -1,4 +1,5 @@
 import {
+  carryPeriodSkies,
   cleanPeriods,
   dayFractionOf,
   DEFAULT_GAME_CLOCK,
@@ -7,9 +8,12 @@ import {
   type GameClock,
   periodsOf,
   readGameClock,
+  readPeriodSkies,
   stepGameClock,
   withDay,
+  withPeriodSky,
   writeGameClock,
+  writePeriodSkies,
 } from '@axe/domain/game-clock/game-clock';
 
 const PARTS = ['朝', '昼', '夕', '夜'];
@@ -150,6 +154,57 @@ describe('the time the room keeps in its story', () => {
         0.25, 0.5, 0.75, 0,
       ]);
       expect(dayFractionOf(clock({ period: 9 }), PARTS.length)).toBe(0);
+    });
+
+    it('draws a part of the day at the hour chosen for its sky, and the rest laid evenly', () => {
+      const skies = [12, 0];
+
+      expect([0, 1].map((period) => dayFractionOf(clock({ period }), 2, skies))).toEqual([0.5, 0]);
+      expect([0, 1].map((period) => dayFractionOf(clock({ period }), 2))).toEqual([0.25, 0.75]);
+      expect(dayFractionOf(clock({ period: 1 }), 3, [21])).toBeCloseTo(0.25 + 1 / 3);
+    });
+
+    it('leaves a clock of 24 hours to its time, whatever skies the parts have', () => {
+      expect(dayFractionOf(clock({ mode: 'hours', minutes: 6 * 60 }), 4, [0, 0, 0, 0])).toBe(0.25);
+    });
+  });
+
+  describe('the skies of the parts of a day', () => {
+    it('reads none for a room that chose none, or holds what cannot be read', () => {
+      for (const held of ['', undefined, null, 'not json', '{"a":1}', '12']) {
+        expect(readPeriodSkies(held)).toEqual([]);
+      }
+    });
+
+    it('reads a place holding no whole hour of the day as laid evenly', () => {
+      expect(readPeriodSkies('[12,null,24,-1,6.5,"3",0]')).toEqual([12, null, null, null, null, null, 0]);
+    });
+
+    it('reads no more places than a day has parts', () => {
+      expect(readPeriodSkies(JSON.stringify(Array.from({ length: 20 }, () => 6)))).toHaveLength(12);
+    });
+
+    it('writes nothing for parts all laid evenly, and leaves off the even ones at the end', () => {
+      expect(writePeriodSkies([])).toBe('');
+      expect(writePeriodSkies([null, null])).toBe('');
+      expect(writePeriodSkies([null, 12, null])).toBe('[null,12]');
+      expect(readPeriodSkies(writePeriodSkies([null, 12, null]))).toEqual([null, 12]);
+    });
+
+    it('sets the sky of one part, past the places held so far, and lays it evenly again', () => {
+      const set = withPeriodSky([], 2, 18);
+      expect(set).toEqual([null, null, 18]);
+      expect(withPeriodSky(set, 2, null)).toEqual([null, null, null]);
+    });
+
+    it('carries each sky over to the part of the same name when the parts are named anew', () => {
+      expect(carryPeriodSkies([12, 0], ['昼', '夜'], ['朝', '昼', '夕', '夜'])).toEqual([null, 12, null, 0]);
+      expect(carryPeriodSkies([12, 0], ['昼', '夜'], ['夜', '昼'])).toEqual([0, 12]);
+    });
+
+    it('keeps the sky of a part renamed where it stands, where there are as many parts as before', () => {
+      expect(carryPeriodSkies([12, 0], ['昼', '夜'], ['真昼', '夜'])).toEqual([12, 0]);
+      expect(carryPeriodSkies([12, 0], ['昼', '夜'], ['真昼', '夜', '深夜'])).toEqual([null, 0, null]);
     });
   });
 });

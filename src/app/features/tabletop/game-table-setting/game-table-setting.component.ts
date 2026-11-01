@@ -10,6 +10,7 @@ import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { GUEST_PERSONA, VisionService } from '@axe/application/tabletop/vision.service';
+import { ForegroundSeeThroughService } from '@axe/application/ui/foreground-see-through.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
@@ -40,6 +41,7 @@ import {
 import { ensureFogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { asFogMode, DEFAULT_FOG_COLOR, FOG_MODES, FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { FilterType, GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
+import { copyGameTable, freeTableName } from '@axe/domain/tabletop/game-table-copy';
 import { MAX_SQUARE_SPAN, squareSpanOf } from '@axe/domain/tabletop/move/move-grid';
 import { MAX_CELL_PX, MIN_CELL_PX } from '@axe/domain/tabletop/rescale-table-contents';
 import {
@@ -50,6 +52,13 @@ import {
   TableBackgroundLayer,
   TableLayerPlacement,
 } from '@axe/domain/tabletop/table-background-layer';
+import {
+  foregroundFitOf,
+  foregroundOpacityOf,
+  TABLE_FOREGROUND_FITS,
+  type TableForegroundFit,
+  tableForegroundOf,
+} from '@axe/domain/tabletop/table-foreground';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import {
@@ -85,6 +94,10 @@ export class GameTableSettingComponent {
   private readonly t = inject(TRANSLATE_FN);
 
   readonly isReadOnly = computed(() => !this.rolePermission.canEditTabletop());
+  /** Whether this reader may see through the picture in front, which only the game master does. */
+  readonly canSeeHidden = computed(() => this.rolePermission.canSeeHidden());
+  protected readonly foregroundSeeThrough = inject(ForegroundSeeThroughService);
+  protected readonly foregroundFits = TABLE_FOREGROUND_FITS;
   private readonly saveDataService = inject(SaveDataService);
   private readonly imageService = inject(ImageService);
   private readonly panelService = inject(PanelService);
@@ -123,6 +136,33 @@ export class GameTableSettingComponent {
     this.objectChange.fileVersion();
     if (this.selectedTable) this.objectChange.versionOf(this.selectedTable.identifier)();
     return this.imageService.getEmptyOr(this.selectedTable ? this.selectedTable.backgroundImageIdentifier : '');
+  }
+
+  /** The picture the picked table lays in front of everything, or the empty image when it lays none. */
+  get tableForegroundImage(): ImageFile {
+    this.objectChange.fileVersion();
+    if (this.selectedTable) this.objectChange.versionOf(this.selectedTable.identifier)();
+    const foreground = this.selectedTable ? tableForegroundOf(this.selectedTable) : null;
+    return this.imageService.getEmptyOr(foreground?.imageIdentifier ?? '');
+  }
+
+  /** How opaque the picture in front is, in percent; writes are ignored while the table cannot be edited. */
+  get tableForegroundOpacity(): number {
+    if (this.selectedTable) this.objectChange.versionOf(this.selectedTable.identifier)();
+    return Math.round(foregroundOpacityOf(this.selectedTable?.foregroundOpacity) * 100);
+  }
+  set tableForegroundOpacity(percent: number) {
+    if (!this.isEditable || !this.selectedTable) return;
+    this.selectedTable.foregroundOpacity = foregroundOpacityOf(Number(percent) / 100);
+  }
+
+  /** How the picture in front is fitted; writes are ignored while the table cannot be edited. */
+  get tableForegroundFit(): TableForegroundFit {
+    if (this.selectedTable) this.objectChange.versionOf(this.selectedTable.identifier)();
+    return foregroundFitOf(this.selectedTable?.foregroundFit);
+  }
+  set tableForegroundFit(fit: TableForegroundFit) {
+    if (this.isEditable && this.selectedTable) this.selectedTable.foregroundFit = foregroundFitOf(fit);
   }
 
   /** The picked table's name; writes are ignored while the table cannot be edited. */
@@ -765,6 +805,21 @@ export class GameTableSettingComponent {
   }
 
   /**
+   * Copies the picked table, with everything on it, under a name saying it is a copy, and shows the
+   * copy; does nothing for a reader who may not edit the table.
+   */
+  duplicate() {
+    if (!this.rolePermission.canEditTabletop() || !this.selectedTable || this.isDeleted) return;
+    const wanted = this.t('feature.tabletop.tableSetting.copyName', { name: this.selectedTable.name });
+    const name = freeTableName(
+      wanted,
+      this.objectStore.getObjects(GameTable).map((table) => table.name)
+    );
+    const copy = copyGameTable(this.selectedTable, name);
+    if (copy) this.selectGameTable(copy.identifier);
+  }
+
+  /**
    * Destroys the picked table, keeping its XML so it can be restored from this panel; does nothing
    * for a reader who may not edit the table.
    */
@@ -1037,6 +1092,20 @@ export class GameTableSettingComponent {
       if (!this.selectedTable || !value) return;
       this.selectedTable.backgroundImageIdentifier = value;
     });
+  }
+
+  /** Opens the image picker and sets the chosen picture as the one the picked table lays in front of everything. */
+  openForegroundImageModal() {
+    if (this.isDeleted) return;
+    this.modalService.open<string>(FileSelecterComponent, { isAllowedEmpty: true }).then((value) => {
+      if (!this.selectedTable || !value) return;
+      this.selectedTable.foregroundImageIdentifier = value;
+    });
+  }
+
+  /** Takes the picture in front off the picked table. */
+  clearForeground() {
+    if (this.isEditable && this.selectedTable) this.selectedTable.foregroundImageIdentifier = '';
   }
 
   private openWallImageModal(apply: (table: GameTable, value: string) => void) {

@@ -86,9 +86,9 @@ describe('reading a fighter', () => {
 
     expect(readingsDiffer(before, after)).toBe(true);
     expect(fighter.gauges).toEqual([
-      { name: 'HP', before: 12, after: 0, max: 20, inverted: false },
-      { name: 'MP', before: 5, after: 5, max: 10, inverted: false },
-      { name: '弾', before: 6, after: 5, max: 6, inverted: false },
+      { name: 'HP', before: 12, after: 0, max: 20, inverted: false, color: '' },
+      { name: 'MP', before: 5, after: 5, max: 10, inverted: false, color: '' },
+      { name: '弾', before: 6, after: 5, max: 6, inverted: false, color: '' },
     ]);
     expect(fighter.defeated).toBe(true);
   });

@@ -3,7 +3,8 @@ import {
   collectFolderPaths,
   descendantFolderPaths,
   type FolderNode,
-} from '@axe/features/inventory/game-object-inventory/inventory-folder-tree';
+  withFolderInOrder,
+} from '@axe/domain/folder/folder-tree';
 
 interface Item {
   name: string;
@@ -126,5 +127,14 @@ describe('descendantFolderPaths()', () => {
       '第1話/洞窟',
       '第1話/洞窟/最奥',
     ]);
+  });
+});
+
+describe('withFolderInOrder()', () => {
+  it('puts one folder’s things in the order given, where they stood together, the rest left alone', () => {
+    const list = [item('a', '村'), item('b'), item('c', '村'), item('d', '洞窟'), item('e', '村')];
+    const [a, b, c, d, e] = list;
+
+    expect(withFolderInOrder(list, (entry) => entry.folder, '村', [e, a, c])).toEqual([e, b, a, d, c]);
   });
 });

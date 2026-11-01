@@ -4,6 +4,7 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import {
   ancestorFolderPaths,
   FOLDER_SEPARATOR,
@@ -12,14 +13,9 @@ import {
   MAX_FOLDER_DEPTH,
   normalizeFolderPath,
   rewriteFolderPath,
-} from '@axe/domain/character/character-folder';
-import { GameCharacter } from '@axe/domain/character/game-character';
+} from '@axe/domain/folder/folder-path';
+import { buildFolderTree, collectFolderPaths, type FolderTree } from '@axe/domain/folder/folder-tree';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
-import {
-  buildFolderTree,
-  collectFolderPaths,
-  type FolderTree,
-} from '@axe/features/inventory/game-object-inventory/inventory-folder-tree';
 import {
   type InventoryRow,
   PERSONAL_INVENTORY_TAB,

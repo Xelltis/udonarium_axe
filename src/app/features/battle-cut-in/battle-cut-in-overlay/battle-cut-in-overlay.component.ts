@@ -435,7 +435,7 @@ export class BattleCutInOverlayComponent {
           return {
             name: gauge.name,
             percent: ratio * 100,
-            color: gaugeColor(ratio, gauge.inverted),
+            color: gauge.color || gaugeColor(ratio, gauge.inverted),
             numbers: readable ? `${Math.round(reading)}/${gauge.max}` : HIDDEN_GAUGE_NUMBERS,
           };
         }),

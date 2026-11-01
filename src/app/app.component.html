@@ -54,8 +54,16 @@
       <ng-container appReloadNotice />
     }
     <app-connection-quality></app-connection-quality>
-    <app-gm-toolbar></app-gm-toolbar>
-    <app-pl-toolbar></app-pl-toolbar>
+    @defer (when gmToolbarWanted()) {
+      <app-gm-toolbar></app-gm-toolbar>
+    } @error {
+      <ng-container appReloadNotice />
+    }
+    @defer (when plToolbarWanted()) {
+      <app-pl-toolbar></app-pl-toolbar>
+    } @error {
+      <ng-container appReloadNotice />
+    }
     <app-hand-rail></app-hand-rail>
   }
   <app-hotbar />

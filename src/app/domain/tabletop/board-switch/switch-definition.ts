@@ -25,6 +25,7 @@ export const SWITCH_ACTION_KINDS = [
   'removeSelf',
   'spawn',
   'showTable',
+  'scene',
   'carry',
   'tableSetting',
   'battle',
@@ -128,6 +129,16 @@ export interface SwitchShowTable extends SwitchActionBase {
 }
 
 /**
+ * A scene put on for whoever pressed the switch, as the game master set it up: the table it shows,
+ * its look and its sounds, with the music left as it is where asked.
+ */
+export interface SwitchScene extends SwitchActionBase {
+  kind: 'scene';
+  scene: SwitchTargetRef;
+  keepBgm: boolean;
+}
+
+/**
  * The presser's piece carried to a cell, on the table being looked at or on another, which turns
  * the room's view with it the way a pitfall to the floor below does.
  */
@@ -195,6 +206,7 @@ export type SwitchAction =
   | SwitchRemoveSelf
   | SwitchSpawn
   | SwitchShowTable
+  | SwitchScene
   | SwitchCarry
   | SwitchTableSetting
   | SwitchBattle
@@ -258,6 +270,7 @@ const TARGET_KEYS = ['kind', 'delayMs', 'target'];
 const BARE_KEYS = ['kind', 'delayMs'];
 const SPAWN_KEYS = ['kind', 'delayMs', 'target', 'count', 'place'];
 const SHOW_TABLE_KEYS = ['kind', 'delayMs', 'table'];
+const SCENE_KEYS = ['kind', 'delayMs', 'scene', 'keepBgm'];
 const CARRY_KEYS = ['kind', 'delayMs', 'col', 'row', 'table'];
 const TABLE_SETTING_KEYS = ['kind', 'delayMs', 'darkness', 'fog', 'image', 'bgm', 'bgmStop'];
 const CUE_KEYS = ['kind', 'delayMs', 'name'];
@@ -358,6 +371,15 @@ function readAction(raw: unknown): SwitchAction | null {
   if (kind === 'removeSelf' || kind === 'battle') return { kind, delayMs, extra: leftOver(raw, BARE_KEYS) };
   if (kind === 'showTable')
     return { kind, table: readTarget(raw['table']), delayMs, extra: leftOver(raw, SHOW_TABLE_KEYS) };
+  if (kind === 'scene') {
+    return {
+      kind,
+      scene: readTarget(raw['scene']),
+      keepBgm: raw['keepBgm'] === true,
+      delayMs,
+      extra: leftOver(raw, SCENE_KEYS),
+    };
+  }
   if (kind === 'carry') {
     return {
       kind,
@@ -448,6 +470,14 @@ function writeAction(action: SwitchAction): Record<string, unknown> {
       return { ...action.extra, kind: action.kind, delayMs: action.delayMs };
     case 'showTable':
       return { ...action.extra, kind: action.kind, delayMs: action.delayMs, table: { ...action.table } };
+    case 'scene':
+      return {
+        ...action.extra,
+        kind: action.kind,
+        delayMs: action.delayMs,
+        scene: { ...action.scene },
+        keepBgm: action.keepBgm,
+      };
     case 'carry':
       return {
         ...action.extra,
@@ -507,6 +537,7 @@ export function newSwitchAction(kind: 'removeSelf'): SwitchRemoveSelf;
 export function newSwitchAction(kind: 'battle'): SwitchBattle;
 export function newSwitchAction(kind: 'spawn'): SwitchSpawn;
 export function newSwitchAction(kind: 'showTable'): SwitchShowTable;
+export function newSwitchAction(kind: 'scene'): SwitchScene;
 export function newSwitchAction(kind: 'carry'): SwitchCarry;
 export function newSwitchAction(kind: 'tableSetting'): SwitchTableSetting;
 export function newSwitchAction(kind: SwitchCue['kind']): SwitchCue;
@@ -521,6 +552,7 @@ export function newSwitchAction(kind: SwitchActionKind): SwitchAction {
     return { kind, target: { identifier: '', name: '' }, count: 1, place: 'host', delayMs: 0, extra: {} };
   }
   if (kind === 'showTable') return { kind, table: { identifier: '', name: '' }, delayMs: 0, extra: {} };
+  if (kind === 'scene') return { kind, scene: { identifier: '', name: '' }, keepBgm: false, delayMs: 0, extra: {} };
   if (kind === 'carry') return { kind, col: 0, row: 0, table: { identifier: '', name: '' }, delayMs: 0, extra: {} };
   if (kind === 'tableSetting') {
     return {
@@ -548,6 +580,7 @@ export function switchDoesAnything(definition: SwitchDefinition): boolean {
     if (action.kind === 'reveal' || action.kind === 'conceal' || action.kind === 'spawn') return names(action.target);
     if (action.kind === 'removeSelf' || action.kind === 'carry' || action.kind === 'battle') return true;
     if (action.kind === 'showTable') return names(action.table);
+    if (action.kind === 'scene') return names(action.scene);
     if (action.kind === 'tableSetting') {
       return (
         action.darkness !== 'keep' ||

@@ -81,6 +81,8 @@ const FEATURE_DEPENDENCIES: Record<string, readonly string[]> = {
   replay: [],
   'room-archive': [],
   'room-settings': ['room-archive', 'skin'],
+  'scenario-text': ['chat'],
+  scene: ['chat'],
   skin: [],
   'sound-settings': [],
   'status-ailment': [],
