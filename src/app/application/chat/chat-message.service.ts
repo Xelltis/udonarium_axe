@@ -18,6 +18,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { chatBubbleOf, chatColorOf } from '@axe/domain/chat/chat-color';
 import { keptFromDecoration } from '@axe/domain/chat/chat-decoration';
 import { liftImageReferences } from '@axe/domain/chat/chat-image-references';
 import { ChatMessage, ChatMessageContext, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
@@ -446,7 +447,8 @@ export class ChatMessageService {
    * `1d100` goes out as written however long it is, its last word plays a cut-in as any line's
    * does, and no piece's resources or portrait change. The stamps put in it go out as those of a
    * line said anew. Whispered to the players named, only they and the sender read it. None but the
-   * system speaks where the reader may not speak, nor anyone in the system tab.
+   * system speaks where the reader may not speak, nor anyone in the system tab. Said as a piece with
+   * no colour given, it goes out in the piece's first colour and bubbles, as a line typed as it does.
    */
   sendVerbatim(
     chatTab: ChatTab,
@@ -482,6 +484,12 @@ export class ChatMessageService {
       chatMessage.imageIdentifier = this.findImageIdentifier(speaker, portrait);
       chatMessage.imagePos = PeerCursor.isMyselfKeptOffTable ? undefined : this.findImagePos(speaker);
       chatMessage.sendFrom = speaker;
+      if (!options.color) {
+        chatMessage.messColor = resolveMessageColor(chatColorOf(as.character, 0), '#000000');
+        const bubbles = chatBubbleOf(as.character, 0);
+        if (bubbles.light) chatMessage.messBubbleLight = bubbles.light;
+        if (bubbles.dark) chatMessage.messBubbleDark = bubbles.dark;
+      }
     }
     if (to.length > 0) chatMessage.to = to.map((identifier) => this.whisperTo(identifier)).join(' ');
     if (stamped.pictures.length > 0) {

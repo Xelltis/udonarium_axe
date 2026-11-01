@@ -651,6 +651,24 @@ describe('ChatMessageService', () => {
       expect(asRoom.isSystemMessage).toBe(true);
     });
 
+    it('says them as a piece in its first colour and bubbles, unless given a colour', () => {
+      const hero = GameCharacter.create('ヒロ', 1, '');
+      hero.chatColorCode = ['#aa0000', '#00aa00', '#0000aa'];
+      hero.chatBubbleLight = ['#ffeeee', '', ''];
+      hero.chatBubbleDark = ['#330000', '', ''];
+
+      const own = service.sendVerbatim(chatTab, '行くぞ', { kind: 'character', character: hero })!;
+      const given = service.sendVerbatim(
+        chatTab,
+        '行くぞ',
+        { kind: 'character', character: hero },
+        { color: '#123456' }
+      )!;
+
+      expect([own.messColor, own.messBubbleLight, own.messBubbleDark]).toEqual(['#aa0000', '#ffeeee', '#330000']);
+      expect(given.messColor).toBe('#123456');
+    });
+
     it('whispers them to the players named, by their cursors', () => {
       const other = new PeerCursor();
       other.userId = 'pl-user';
