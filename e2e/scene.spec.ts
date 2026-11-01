@@ -1,6 +1,6 @@
 import { expect, type Page, test } from '@playwright/test';
 
-import { openPanel, waitAppReady } from './helpers';
+import { chatInputText, openPanel, waitAppReady } from './helpers';
 
 /** How much of the darkness drawn over the table has been painted. */
 const paintedPixels = (page: Page) =>
@@ -35,9 +35,10 @@ async function makeNightScene(page: Page) {
   const editor = panel.getByTestId('scene-editor');
   await editor.getByTestId('scene-part-toggle-darkness').check();
   await editor.getByTestId('scene-part-darkness').locator('select').selectOption({ label: '入れる' });
-  const words = editor.getByTestId('scene-text');
-  await words.fill('夜が来た');
-  await words.blur();
+  const words = editor.getByTestId('scene-text').locator('[data-chat-line-edit]');
+  await words.click();
+  await page.keyboard.type('夜が来た');
+  await expect.poll(() => chatInputText(words)).toBe('夜が来た');
   return panel;
 }
 

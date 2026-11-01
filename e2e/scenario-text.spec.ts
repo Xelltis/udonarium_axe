@@ -43,12 +43,14 @@ test.describe('scenario texts', () => {
     await expect(panel.getByTestId('scenario-text-sent')).toBeVisible();
   });
 
-  test('offers the text over the chat input as its words are typed, and puts them in the input', async ({ page }) => {
+  test('offers the text over the chat input as the start of a line of its words is typed, and puts them in the input', async ({
+    page,
+  }) => {
     await writeText(page);
 
     const input = chatInput(page);
     await input.focus();
-    await page.keyboard.type('軋む');
+    await page.keyboard.type('扉が');
     const suggestions = page.getByTestId('chat-text-suggestions');
     await expect(suggestions).toBeVisible({ timeout: 10000 });
     await suggestions.selectOption({ index: 0 });
