@@ -75,6 +75,7 @@ export class Config extends withRuleAnswers() implements InnerXml {
   @SyncVar('_gameClockSkies') private _gameClockSkies: string = '';
   @SyncVar('_boardScene') private _boardScene: string = '';
   @SyncVar('_boardSceneFolders') private _boardSceneFolders: string = '';
+  @SyncVar('_scenarioTextFolders') private _scenarioTextFolders: string = '';
   @SyncVar('_turnSignal') private _turnSignal: string = '';
   @SyncVar('_turnTick') private _turnTick: string = '';
   @SyncVar('_resourceSliderDefault') private _resourceSliderDefault: string = '';
@@ -270,6 +271,14 @@ export class Config extends withRuleAnswers() implements InnerXml {
   }
   set boardSceneFolders(paths: readonly string[]) {
     this._boardSceneFolders = writeFolderPaths(paths);
+  }
+
+  /** The folders the game master made for scenario texts, kept even while nothing is filed in them. */
+  get scenarioTextFolders(): readonly string[] {
+    return readFolderPaths(this._scenarioTextFolders);
+  }
+  set scenarioTextFolders(paths: readonly string[]) {
+    this._scenarioTextFolders = writeFolderPaths(paths);
   }
 
   /** The room's master volume, shared by every peer; a change applied to the config updates the jukebox at once. */

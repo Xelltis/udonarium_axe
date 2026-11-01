@@ -12,6 +12,7 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { buildReorderContextMenu } from '@axe/application/ui/reorder-context-menu';
 import { GameObject } from '@axe/core/sync/game-object';
 import { normalizeFolderPath } from '@axe/domain/folder/folder-path';
+import { withFolderInOrder } from '@axe/domain/folder/folder-tree';
 import { Config } from '@axe/domain/peer/config';
 import { BoardScene } from '@axe/domain/scene/board-scene';
 import { type BoardScenePart, scenePartsOf, scenePictureIn } from '@axe/domain/scene/board-scene-parts';
@@ -294,10 +295,7 @@ export class ScenePanelComponent {
   private putInOrder(moved: BoardScene, ordered: readonly BoardScene[]): void {
     if (!this.canEdit()) return;
     const folder = normalizeFolderPath(moved.folderName);
-    const queue = [...ordered];
-    const list = BoardScene.all().map((scene) =>
-      normalizeFolderPath(scene.folderName) === folder ? (queue.shift() ?? scene) : scene
-    );
+    const list = withFolderInOrder(BoardScene.all(), (scene) => scene.folderName, folder, ordered);
     GameObject.batch(() => {
       list.forEach((scene, index) => {
         if (Number(scene.order) !== index + 1) scene.order = index + 1;

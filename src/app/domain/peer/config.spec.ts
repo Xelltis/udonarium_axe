@@ -176,6 +176,14 @@ describe('Config', () => {
       expect(Config.instance.boardSceneFolders).toEqual([]);
     });
 
+    it('keeps the scenario texts’ folders apart from the scenes’', () => {
+      Config.instance.scenarioTextFolders = ['導入'];
+
+      expect(Config.instance.scenarioTextFolders).toEqual(['導入']);
+      expect(Config.instance.boardSceneFolders).toEqual([]);
+      Config.instance.scenarioTextFolders = [];
+    });
+
     it('reads back the scene put on and the folders made, each folder tidied and once', () => {
       Config.instance.boardScene = 'scene-night';
       Config.instance.boardSceneFolders = ['第1話／村', '第1話/村', '', '第2話'];

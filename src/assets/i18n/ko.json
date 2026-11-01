@@ -6164,6 +6164,42 @@
         "textTab": "낼 탭",
         "firstTab": "첫 탭"
       }
+    },
+    "scenarioText": {
+      "title": "시나리오 텍스트",
+      "create": "새 텍스트",
+      "defaultTitle": "텍스트{{index}}",
+      "untitled": "이름 없는 텍스트",
+      "copyTitle": "{{title}} 사본",
+      "empty": "텍스트가 아직 없습니다. 「새 텍스트」로 쓰기 시작합니다",
+      "noWords": "（본문 없음）",
+      "noMatch": "찾을 수 없습니다",
+      "search": "제목과 본문에서 찾기",
+      "gameMasterOnly": "시나리오 텍스트는 GM만 쓸 수 있습니다",
+      "titlePlaceholder": "제목（제목으로 보내면 발언자의 이름이 됩니다）",
+      "wordsPlaceholder": "본문. 채팅과 같은 장식을 쓸 수 있습니다. Enter로 줄을 바꿉니다",
+      "saidAs": "보내는 방식",
+      "tab": "탭",
+      "tabBeingRead": "열려 있는 탭",
+      "color": "색",
+      "whisperPlaceholder": "귓속말로 보낼 상대（고르지 않으면 모두에게 보냅니다）",
+      "send": "보내기",
+      "whisper": "귓속말로 보내기",
+      "sendNamed": "「{{title}}」 보내기",
+      "sentAt": "{{time}}에 보냈습니다",
+      "deleteConfirm": "「{{title}}」을(를) 삭제할까요?",
+      "speaker": {
+        "title": "제목으로",
+        "character": "말하고 있는 캐릭터로",
+        "system": "시스템으로"
+      },
+      "menu": {
+        "sendAs": "보내는 방식을 바꿔 보내기",
+        "edit": "편집",
+        "duplicate": "복제",
+        "moveTo": "폴더로 옮기기",
+        "delete": "삭제"
+      }
     }
   },
   "app": {

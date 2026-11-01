@@ -5876,6 +5876,42 @@
         "textTab": "出すタブ",
         "firstTab": "最初のタブ"
       }
+    },
+    "scenarioText": {
+      "title": "シナリオテキスト",
+      "create": "新しいテキスト",
+      "defaultTitle": "テキスト{{index}}",
+      "untitled": "名前のないテキスト",
+      "copyTitle": "{{title}}のコピー",
+      "empty": "テキストはまだありません。「新しいテキスト」で書き始めます",
+      "noWords": "（本文なし）",
+      "noMatch": "見つかりません",
+      "search": "タイトルと本文から探す",
+      "gameMasterOnly": "シナリオテキストはGMだけが使えます",
+      "titlePlaceholder": "タイトル（タイトルとして送ると発言者の名前になります）",
+      "wordsPlaceholder": "本文。チャットと同じ装飾が使えます。Enterで改行します",
+      "saidAs": "送り方",
+      "tab": "タブ",
+      "tabBeingRead": "開いているタブ",
+      "color": "色",
+      "whisperPlaceholder": "秘話で送る相手（選ばないと全員に送ります）",
+      "send": "送る",
+      "whisper": "秘話で送る",
+      "sendNamed": "「{{title}}」を送る",
+      "sentAt": "{{time}}に送りました",
+      "deleteConfirm": "「{{title}}」を削除しますか？",
+      "speaker": {
+        "title": "タイトルとして",
+        "character": "話しているキャラクターとして",
+        "system": "システムとして"
+      },
+      "menu": {
+        "sendAs": "送り方を変えて送る",
+        "edit": "編集",
+        "duplicate": "複製",
+        "moveTo": "フォルダへ移す",
+        "delete": "削除"
+      }
     }
   },
   "app": {

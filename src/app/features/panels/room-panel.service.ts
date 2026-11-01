@@ -256,6 +256,14 @@ export class RoomPanelService {
             import('@axe/features/scene/scene-panel/scene-panel.component').then((m) => m.ScenePanelComponent),
           option: { width: 680, height: 600, minWidth: 320, minHeight: 320, single: 'board-scene' },
         };
+      case 'scenarioText':
+        return {
+          load: () =>
+            import('@axe/features/scenario-text/scenario-text-panel/scenario-text-panel.component').then(
+              (m) => m.ScenarioTextPanelComponent
+            ),
+          option: { width: 640, height: 560, minWidth: 320, minHeight: 320, single: 'scenario-text' },
+        };
       case 'battleCutIn':
         return {
           load: () =>

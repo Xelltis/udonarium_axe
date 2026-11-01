@@ -5876,6 +5876,42 @@
         "textTab": "Tab",
         "firstTab": "First tab"
       }
+    },
+    "scenarioText": {
+      "title": "Scenario texts",
+      "create": "New text",
+      "defaultTitle": "Text {{index}}",
+      "untitled": "Untitled text",
+      "copyTitle": "Copy of {{title}}",
+      "empty": "No texts yet. Start one with New text.",
+      "noWords": "(no words)",
+      "noMatch": "Nothing found",
+      "search": "Search titles and words",
+      "gameMasterOnly": "Only the GM uses scenario texts",
+      "titlePlaceholder": "Title (sent as the speaker's name when said under the title)",
+      "wordsPlaceholder": "The words. Chat decoration works. Enter starts a new line.",
+      "saidAs": "Said as",
+      "tab": "Tab",
+      "tabBeingRead": "Tab being read",
+      "color": "Colour",
+      "whisperPlaceholder": "Whisper to (none sends it to everyone)",
+      "send": "Send",
+      "whisper": "Whisper",
+      "sendNamed": "Send \"{{title}}\"",
+      "sentAt": "Sent at {{time}}",
+      "deleteConfirm": "Delete \"{{title}}\"?",
+      "speaker": {
+        "title": "Under its title",
+        "character": "As the character speaking",
+        "system": "As the system"
+      },
+      "menu": {
+        "sendAs": "Send as someone else",
+        "edit": "Edit",
+        "duplicate": "Duplicate",
+        "moveTo": "Move to folder",
+        "delete": "Delete"
+      }
     }
   },
   "app": {

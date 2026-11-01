@@ -23,6 +23,7 @@ import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { markLoadedWithheld } from '@axe/domain/peer/withheld-table';
+import { ScenarioText } from '@axe/domain/scenario-text/scenario-text';
 import { BoardScene } from '@axe/domain/scene/board-scene';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
@@ -58,7 +59,8 @@ export class Room extends GameObject implements InnerXml {
   /**
    * Writes everything on the table into the save file: tables, parties, characters, ranges, lights, notes,
    * card stacks, loose cards, dice, coins, cut-ins, dice tables, effect presets and effect fields, the room's
-   * own sets of stamps with their pictures, the scenes, and the stamps put on lines of chat.
+   * own sets of stamps with their pictures, the scenes and the scenario texts, and the stamps put on lines
+   * of chat.
    *
    * Cards inside a stack are written with their stack. Stamps are written only for lines still in the
    * chat, since those on a line that went with its tab answer nothing.
@@ -88,6 +90,7 @@ export class Room extends GameObject implements InnerXml {
       ...ObjectStore.instance.getObjects(EffectField),
       ...ObjectStore.instance.getObjects(StampPack),
       ...BoardScene.all(),
+      ...ScenarioText.all(),
       ...ObjectStore.instance
         .getObjects(ChatReaction)
         .filter((reaction) => ObjectStore.instance.get(reaction.messageIdentifier) instanceof ChatMessage),
@@ -143,6 +146,7 @@ export class Room extends GameObject implements InnerXml {
       ...ObjectStore.instance.getObjects(EffectField),
       ...ObjectStore.instance.getObjects(StampPack),
       ...ObjectStore.instance.getObjects(BoardScene),
+      ...ObjectStore.instance.getObjects(ScenarioText),
       ...(bringsReactions ? ObjectStore.instance.getObjects(ChatReaction) : []),
     ];
 

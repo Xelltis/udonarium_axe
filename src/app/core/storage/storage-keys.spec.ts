@@ -67,6 +67,7 @@ describe('the keys the app keeps settings under in the browser', () => {
     expect(STORAGE_KEY_PREFIXES).toEqual({
       menuLayout: 'axe.menu',
       personalFolders: 'axe.inventory.personal-folders',
+      scenarioTextSent: 'axe.scenario-text.sent',
     });
   });
 

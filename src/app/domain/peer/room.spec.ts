@@ -17,6 +17,7 @@ import { Party, PARTY_COLORS } from '@axe/domain/party/party';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 import { Room } from '@axe/domain/peer/room';
 import { isTableWithheld } from '@axe/domain/peer/withheld-table';
+import { ScenarioText } from '@axe/domain/scenario-text/scenario-text';
 import { BoardScene } from '@axe/domain/scene/board-scene';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { LightSource } from '@axe/domain/tabletop/light-source';
@@ -197,6 +198,17 @@ describe('Room', () => {
       loadRoom('<game-table name="卓"></game-table>');
 
       expect(BoardScene.all()).toEqual([]);
+    });
+
+    it('carries the scenario texts too, in place of the room’s own on a load', () => {
+      const old = new ScenarioText('text-old');
+      old.initialize();
+      expect(new Room().innerXml()).toContain('<scenario-text');
+
+      loadRoom('<scenario-text identifier="text-intro" title="導入" text="雨が降っている"></scenario-text>');
+
+      expect(store.get('text-old')).toBeNull();
+      expect(store.get<ScenarioText>('text-intro')?.text).toBe('雨が降っている');
     });
 
     it('reads the rest of a room whose data names a kind of object this version does not know', () => {
