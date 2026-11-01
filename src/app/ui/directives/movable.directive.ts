@@ -7,6 +7,7 @@ import { GravityService } from '@axe/application/tabletop/gravity.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
+import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
@@ -96,6 +97,7 @@ export class MovableDirective implements MovableInteractionContext {
   private readonly tabletopOverlap = inject(TabletopOverlapService);
   private readonly tablePick = inject(TablePickService);
   private readonly tableSurfaces = inject(TableSurfaceService);
+  private readonly transient = inject(TransientPlacementService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -227,6 +229,7 @@ export class MovableDirective implements MovableInteractionContext {
     });
     this.destroyRef.onDestroy(() => {
       this.cancel();
+      if (this.tabletopObject) this.transient.release(this.tabletopObject.identifier);
       if (this.input) this.input.destroy();
       this.unregister();
       this.unregisterOverlap();
@@ -602,6 +605,7 @@ export class MovableDirective implements MovableInteractionContext {
     this.setAnimatedTransition(true);
     this.setCollidableLayer(false);
     this.clearContactProbe();
+    if (this.updateTimer === null) this.releasePlacement();
   }
 
   /**
@@ -736,6 +740,7 @@ export class MovableDirective implements MovableInteractionContext {
 
   private dragPreviewElement: HTMLElement | null = null;
   private dragPreviewSurface: string | null = null;
+  private showsDropPreview = false;
 
   private updateDragPreview(targetSurface: string | null): void {
     if (!this.input?.isDragging) {
@@ -748,18 +753,28 @@ export class MovableDirective implements MovableInteractionContext {
       return;
     }
     const placed = this.placeOnFace(targetSurface, pointer);
-    const faceElement = this.coordinateService.faceElement(targetSurface);
-    if (!placed || !faceElement) {
+    if (!placed) {
       this.clearDragPreview();
       return;
     }
-    if (this.dragPreviewSurface !== targetSurface) {
-      this.clearDragPreview();
-      this.dragPreviewSurface = targetSurface;
+    const x = Math.floor(placed.x);
+    const y = Math.floor(placed.y);
+    this.transient.showDropPreview({ surface: targetSurface, x, y, width: this.width, height: this.height });
+    this.showsDropPreview = true;
+    this.drawDropPreviewElement(targetSurface, x, y);
+  }
+
+  /** Draws the outline in the element of the face, while the table is drawn in the page. */
+  private drawDropPreviewElement(surface: string, x: number, y: number): void {
+    if (this.dragPreviewSurface !== surface) {
+      this.removeDropPreviewElement();
+      const faceElement = this.coordinateService.faceElement(surface);
+      if (!faceElement) return;
+      this.dragPreviewSurface = surface;
       this.dragPreviewElement = this.createDragPreviewElement();
       faceElement.appendChild(this.dragPreviewElement);
     }
-    this.dragPreviewElement!.style.transform = `translate3d(${Math.floor(placed.x)}px, ${Math.floor(placed.y)}px, 0)`;
+    this.dragPreviewElement!.style.transform = `translate3d(${x}px, ${y}px, 0)`;
   }
 
   private createDragPreviewElement(): HTMLElement {
@@ -782,6 +797,13 @@ export class MovableDirective implements MovableInteractionContext {
   }
 
   private clearDragPreview(): void {
+    this.removeDropPreviewElement();
+    if (!this.showsDropPreview) return;
+    this.showsDropPreview = false;
+    this.transient.showDropPreview(null);
+  }
+
+  private removeDropPreviewElement(): void {
     if (this.dragPreviewElement) {
       this.dragPreviewElement.remove();
       this.dragPreviewElement = null;
@@ -958,6 +980,7 @@ export class MovableDirective implements MovableInteractionContext {
     this.tabletopObject.location.x = this.posX;
     this.tabletopObject.location.y = this.posY;
     this.tabletopObject.posZ = this.posZ;
+    if (!this.input?.isGrabbing) this.releasePlacement();
   }
 
   private setUpdateTimer() {
@@ -967,12 +990,26 @@ export class MovableDirective implements MovableInteractionContext {
         this.tabletopObject.location.y = this.posY;
         this.tabletopObject.posZ = this.posZ;
         this.updateTimer = null;
+        if (!this.input?.isGrabbing) this.releasePlacement();
       }, 66);
+    }
+    if (this.tabletopObject) {
+      this.transient.place(this.tabletopObject.identifier, {
+        surface: this.currentSurface(),
+        x: this.posX,
+        y: this.posY,
+        z: this.posZ,
+      });
     }
     this.updateTransformCss();
     if (this.input?.isGrabbing && this._multiAdapter) {
       this.multiMovableService.applyLeaderDelta(this._multiAdapter);
     }
+  }
+
+  /** Lets the piece be shown where its object says, once its object has caught up with it. */
+  private releasePlacement(): void {
+    if (this.tabletopObject) this.transient.release(this.tabletopObject.identifier);
   }
 
   private findCollidableElements() {

@@ -6,6 +6,7 @@ import { GravityService } from '@axe/application/tabletop/gravity.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
+import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { Network } from '@axe/core/network/network';
@@ -1215,5 +1216,119 @@ describe('MovableDirective telling the others where a piece was dropped', () => 
     ]);
 
     expect(directive.computeBeamRest({ x: 0, y: 0, z: 0 })).toEqual({ x: 195, y: 5, z: 200 });
+  });
+});
+
+describe('MovableDirective showing a dragged piece ahead of its object', () => {
+  @Component({
+    selector: 'transient-host',
+    template: `<div appMovable [movable.option]="{}"></div>`,
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [MovableDirective],
+  })
+  class TransientHostComponent {}
+
+  interface Internals {
+    tabletopObject: TabletopObject;
+    input: {
+      isGrabbing: boolean;
+      isDragging: boolean;
+      pointer: { x: number; y: number; z: number };
+      cancel(): void;
+      destroy(): void;
+    } | null;
+    posX: number;
+    width: number;
+    height: number;
+    tableSurfaces: TableSurfaceService;
+    commitPosition(): void;
+    cancel(): void;
+    updateDragPreview(surface: string | null): void;
+    clearDragPreview(): void;
+  }
+
+  let transient: TransientPlacementService;
+
+  function mount(piece: GameCharacter): Internals {
+    if (!ObjectStore.instance.get(piece.identifier)) ObjectStore.instance.add(piece, false);
+    TestBed.configureTestingModule({ imports: [TransientHostComponent], providers: [...TEST_PROVIDERS] });
+    const fixture = TestBed.createComponent(TransientHostComponent);
+    fixture.detectChanges();
+    const directive = fixture.debugElement.children[0].injector.get(MovableDirective) as unknown as Internals;
+    directive.tabletopObject = piece;
+    directive.input = {
+      isGrabbing: true,
+      isDragging: true,
+      pointer: { x: 0, y: 0, z: 0 },
+      cancel: () => undefined,
+      destroy: () => undefined,
+    };
+    transient = TestBed.inject(TransientPlacementService);
+    return directive;
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('shows the piece where it is dragged to before its object is told, for as long as it is held', () => {
+    const piece = GameCharacter.create('dragged', 1, '');
+    const directive = mount(piece);
+    vi.useFakeTimers();
+
+    directive.posX = 120;
+    expect(transient.placementOf(piece.identifier)).toMatchObject({ surface: 'floor', x: 120 });
+    expect(piece.location.x).not.toBe(120);
+
+    vi.advanceTimersByTime(66);
+    expect(piece.location.x).toBe(120);
+    expect(transient.placementOf(piece.identifier)).not.toBeNull();
+  });
+
+  it('lets go of the piece once it is let go of and its object has caught up', () => {
+    const piece = GameCharacter.create('let go of', 1, '');
+    const directive = mount(piece);
+    vi.useFakeTimers();
+    directive.posX = 120;
+    directive.input!.isGrabbing = false;
+
+    directive.cancel();
+    expect(transient.placementOf(piece.identifier)).not.toBeNull();
+
+    vi.advanceTimersByTime(66);
+    expect(transient.placementOf(piece.identifier)).toBeNull();
+  });
+
+  it('lets go of the piece at once when its place is written straight away', () => {
+    const piece = GameCharacter.create('put down', 1, '');
+    const directive = mount(piece);
+    directive.posX = 140;
+    directive.input!.isGrabbing = false;
+
+    directive.commitPosition();
+
+    expect(transient.placementOf(piece.identifier)).toBeNull();
+    expect(piece.location.x).toBe(140);
+  });
+
+  it('shows the outline of where the piece would land on another face, and takes it away', () => {
+    const piece = GameCharacter.create('over a wall', 1, '');
+    const directive = mount(piece);
+    directive.width = 40;
+    directive.height = 60;
+    vi.spyOn(directive.tableSurfaces, 'pointOn').mockReturnValue({
+      t: 1,
+      point: { x: 0, y: 0, z: 0 },
+      localX: 500,
+      localY: 100,
+    });
+    vi.spyOn(directive.tableSurfaces, 'sizeOf').mockReturnValue({ width: 1000, height: 300 });
+
+    directive.updateDragPreview('north-wall');
+    expect(transient.dropPreview()).toEqual({ surface: 'north-wall', x: 480, y: 70, width: 40, height: 60 });
+
+    directive.clearDragPreview();
+    expect(transient.dropPreview()).toBeNull();
   });
 });
