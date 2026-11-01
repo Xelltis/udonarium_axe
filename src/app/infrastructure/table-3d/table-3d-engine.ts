@@ -18,6 +18,7 @@ import type {
   Table3dEngine,
   Table3dEngineOptions,
   Table3dGrid,
+  Table3dStats,
 } from '@axe/infrastructure/table-3d/table-3d-port';
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
 import { float, max, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
@@ -124,6 +125,15 @@ class ThreeTableEngine implements Table3dEngine {
 
   isLoading(): boolean {
     return this.loading > 0;
+  }
+
+  stats(): Table3dStats {
+    const shown = (mesh: Mesh | null) => (mesh?.visible ? mesh.geometry.getAttribute('position').count / 3 : 0);
+    return {
+      chunks: this.chunks.size,
+      boardGridTriangles: shown(this.grid),
+      topsGridTriangles: shown(this.topsGrid),
+    };
   }
 
   onLost(listener: () => void): void {

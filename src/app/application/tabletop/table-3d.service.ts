@@ -27,6 +27,7 @@ import type {
   Table3dEngine,
   Table3dEngineModule,
   Table3dGrid,
+  Table3dStats,
 } from '@axe/infrastructure/table-3d/table-3d-port';
 
 /**
@@ -194,6 +195,11 @@ export class Table3dService {
     if (this.restarts >= RESTARTS) return;
     this.restarts++;
     this.canvasGeneration.update((generation) => generation + 1);
+  }
+
+  /** What the engine holds, counted, or null while there is no engine. */
+  stats(): Table3dStats | null {
+    return this.engine?.stats() ?? null;
   }
 
   /** Settles once the canvas has drawn everything it was told, or at once while it has nothing to draw. */

@@ -78,6 +78,10 @@ class FakeEngine implements Table3dEngine {
   isLoading(): boolean {
     return this.loading;
   }
+
+  stats() {
+    return { chunks: 0, boardGridTriangles: 0, topsGridTriangles: 0 };
+  }
 }
 
 describe('Table3dService', () => {

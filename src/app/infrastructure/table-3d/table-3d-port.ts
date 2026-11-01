@@ -29,6 +29,14 @@ export interface Table3dGrid {
   readonly revision: number;
 }
 
+/** What the engine holds, counted. */
+export interface Table3dStats {
+  readonly chunks: number;
+  /** The triangles of the grid over the board and over the tops that wear it, 0 where it is not shown. */
+  readonly boardGridTriangles: number;
+  readonly topsGridTriangles: number;
+}
+
 /** What draws the table on a canvas. It draws only when something it was told has changed. */
 export interface Table3dEngine {
   readonly backend: Table3dBackend;
@@ -44,6 +52,8 @@ export interface Table3dEngine {
   onNeedsFrame(listener: () => void): void;
   /** Whether the engine is still loading something it was told to draw. */
   isLoading(): boolean;
+  /** What the engine holds, counted, for the end-to-end specs to read. */
+  stats(): Table3dStats;
   /**
    * Calls back once the graphics card lets the drawing go, as when the driver restarts; the engine
    * draws nothing from then on, and the canvas it drew on can be drawn on no more.

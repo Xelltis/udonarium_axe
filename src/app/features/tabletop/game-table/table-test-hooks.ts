@@ -32,6 +32,8 @@ export interface TableTestHooks {
   renderer(): 'webgpu' | 'webgl2' | null;
   /** Settles once the canvas has drawn everything it was told, or at once while there is no canvas. */
   whenIdle(): Promise<void>;
+  /** What the canvas's engine holds, counted, or null while there is none. */
+  sceneStats(): { chunks: number; boardGridTriangles: number; topsGridTriangles: number } | null;
   /** How wide and deep the board of the scene runs, in table pixels, or null where there is no board. */
   sceneBoard(): { widthPx: number; depthPx: number } | null;
   /** Where a point of a face (the floor, a wall or a board), lifted some way off it, is drawn on the page. */
@@ -68,6 +70,7 @@ export function installTableTestHooks(
     aliasOf: (identifier) => ObjectStore.instance.get(identifier)?.aliasName ?? null,
     renderer: () => scene.backend(),
     whenIdle: () => scene.whenIdle(),
+    sceneStats: () => scene.stats(),
     sceneBoard: () => {
       const board = scene.world().board;
       return board ? { widthPx: board.widthPx, depthPx: board.depthPx } : null;
