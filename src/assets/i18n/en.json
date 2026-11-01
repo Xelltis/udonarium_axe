@@ -5911,7 +5911,12 @@
         "duplicate": "Duplicate",
         "moveTo": "Move to folder",
         "delete": "Delete"
-      }
+      },
+      "suggestions": "Scenario text suggestions",
+      "import": "Import in bulk",
+      "importRun": "Import",
+      "importHint": "Paste the script: each heading (a line starting with # or ■) becomes a text, the heading its title.",
+      "importPlaceholder": "# Opening\nRain is falling.\n\n# The mansion\nThe door creaks."
     }
   },
   "app": {

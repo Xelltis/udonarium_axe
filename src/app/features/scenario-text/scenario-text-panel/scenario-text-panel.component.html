@@ -70,6 +70,18 @@
       >
         <i class="material-icons">create_new_folder</i>
       </button>
+      <button
+        type="button"
+        data-testid="scenario-text-import"
+        class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:text-ui-accent m-0 inline-flex size-7 cursor-pointer items-center justify-center border border-solid bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!"
+        [class.border-ui-accent!]="importing()"
+        [title]="'feature.scenarioText.import' | transloco"
+        [attr.aria-label]="'feature.scenarioText.import' | transloco"
+        [attr.aria-expanded]="importing()"
+        (click)="importing.set(!importing())"
+      >
+        <i class="material-icons">post_add</i>
+      </button>
       <input
         type="search"
         data-testid="scenario-text-search"
@@ -80,6 +92,38 @@
         (ngModelChange)="search.set($event)"
       />
     </div>
+    @if (importing()) {
+      <div
+        class="border-ui-border-panel bg-ui-elevated flex shrink-0 flex-col gap-1.5 border-b border-solid p-2 text-[12px]"
+        data-testid="scenario-text-import-box"
+      >
+        <span class="text-ui-dim text-[11px]">{{ 'feature.scenarioText.importHint' | transloco }}</span>
+        <textarea
+          #pasted
+          rows="6"
+          data-testid="scenario-text-import-words"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent box-border w-full resize-y border border-solid px-2 py-1 text-[12px] outline-none"
+          [placeholder]="'feature.scenarioText.importPlaceholder' | transloco"
+        ></textarea>
+        <div class="flex justify-end gap-1.5">
+          <button
+            type="button"
+            class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:text-ui-text m-0 cursor-pointer border border-solid bg-transparent px-2.5 py-1 text-[12px] hover:shadow-none"
+            (click)="importing.set(false)"
+          >
+            {{ 'common.button.cancel' | transloco }}
+          </button>
+          <button
+            type="button"
+            data-testid="scenario-text-import-run"
+            class="rounded-ui-sm bg-ui-accent-solid m-0 cursor-pointer border border-solid border-transparent px-2.5 py-1 text-[12px] font-semibold text-white hover:opacity-85 hover:shadow-none"
+            (click)="importFrom(pasted.value)"
+          >
+            {{ 'feature.scenarioText.importRun' | transloco }}
+          </button>
+        </div>
+      </div>
+    }
     <div class="flex min-h-0 flex-1 flex-col @[620px]:flex-row">
       <div
         class="border-ui-border-panel min-h-28 shrink-0 overflow-y-auto border-solid p-1.5 @[620px]:max-h-none! @[620px]:w-60 @[620px]:border-r"

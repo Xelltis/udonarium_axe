@@ -75,3 +75,26 @@ export class ScenarioText extends GameObject {
     parseAttributesKeepingIdentifier(this, attributes);
   }
 }
+
+/** As many texts as the chat input offers at once. */
+export const SCENARIO_TEXT_SUGGESTIONS = 8;
+
+/**
+ * The texts offered as what is being typed into the chat is matched: those whose title or words
+ * hold it, ignoring case and decoration, in the order of the list. Nothing is offered for fewer than
+ * two letters, as the palette offers nothing either, nor for a text with no words.
+ */
+export function scenarioTextsMatching(
+  texts: readonly ScenarioText[],
+  typed: string,
+  plainOf: (text: string) => string
+): ScenarioText[] {
+  const words = typed.trim().toLowerCase();
+  if (words.length < 2) return [];
+  return texts
+    .filter((text) => {
+      const plain = plainOf(`${text.text ?? ''}`);
+      return plain.trim().length > 0 && `${text.title}\n${plain}`.toLowerCase().includes(words);
+    })
+    .slice(0, SCENARIO_TEXT_SUGGESTIONS);
+}

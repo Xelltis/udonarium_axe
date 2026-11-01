@@ -1,4 +1,4 @@
-import { ScenarioText, scenarioTextSpeakerOf } from '@axe/domain/scenario-text/scenario-text';
+import { ScenarioText, scenarioTextsMatching, scenarioTextSpeakerOf } from '@axe/domain/scenario-text/scenario-text';
 
 describe('ScenarioText', () => {
   it('keeps the stamps put in its words beside them, each once, for a save to find their pictures', () => {
@@ -40,5 +40,24 @@ describe('ScenarioText', () => {
 
     expect(xml).toContain('identifier="handout-1"');
     expect(xml).toContain('stamps="image:map-1"');
+  });
+});
+
+describe('the texts offered as the chat is typed', () => {
+  function textOf(title: string, words: string): ScenarioText {
+    return Object.assign(new ScenarioText(), { title, text: words });
+  }
+
+  it('offers those whose title or words hold what is typed, ignoring case and decoration', () => {
+    const texts = [textOf('導入', '**雨**が降る'), textOf('Mansion', '扉'), textOf('空', '')];
+    const plain = (text: string) => text.replaceAll('**', '');
+
+    expect(scenarioTextsMatching(texts, '雨が', plain).map((text) => text.title)).toEqual(['導入']);
+    expect(scenarioTextsMatching(texts, 'mansion', plain).map((text) => text.title)).toEqual(['Mansion']);
+    expect(scenarioTextsMatching(texts, '空', plain)).toEqual([]);
+  });
+
+  it('offers nothing for fewer than two letters', () => {
+    expect(scenarioTextsMatching([textOf('雨', '雨')], '雨', (text) => text)).toEqual([]);
   });
 });

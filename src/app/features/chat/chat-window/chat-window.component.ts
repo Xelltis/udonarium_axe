@@ -66,6 +66,9 @@ const WRITING_STRIP_PX = 32;
 
 const NEAR_BOTTOM_THRESHOLD_PX = 350;
 const AT_BOTTOM_THRESHOLD_PX = 8;
+import { ScenarioTextService } from '@axe/application/chat/scenario-text.service';
+import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
+import { ScenarioText, scenarioTextsMatching } from '@axe/domain/scenario-text/scenario-text';
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'chat-window',
@@ -155,6 +158,57 @@ export class ChatWindowComponent {
   }
 
   private readonly logScroll = viewChild.required<ElementRef<HTMLDivElement>>('logScroll');
+  private readonly chatInput = viewChild(ChatInputComponent);
+  private readonly suggestionList = viewChild<ElementRef<HTMLSelectElement>>('suggestionBox');
+  private readonly scenarioTexts = inject(ScenarioTextService);
+
+  /** What is being typed into the chat, followed for the scenario texts it brings up. */
+  protected readonly typed = signal('');
+
+  /**
+   * The game master's scenario texts that what is being typed matches, offered over the input as
+   * the palette offers its lines; picking one puts its words in the input, to be said as whoever
+   * is speaking. Nobody else is offered any.
+   */
+  protected readonly textSuggestions = computed(() => {
+    if (!this.scenarioTexts.canUse()) return [];
+    this.objectChange.collectionOf(ScenarioText.aliasName)();
+    const texts = ScenarioText.all();
+    for (const text of texts) this.objectChange.versionOf(text.identifier)();
+    return scenarioTextsMatching(texts, this.typed(), withoutChatDecoration).map((text) => {
+      const plain = withoutChatDecoration(`${text.text ?? ''}`)
+        .replace(/\s+/g, ' ')
+        .trim();
+      return {
+        identifier: text.identifier,
+        label: `${text.title.trim() || this.t('feature.scenarioText.untitled')}: ${plain.slice(0, 40)}`,
+        words: `${text.text ?? ''}`,
+      };
+    });
+  });
+
+  /** The suggestion highlighted, or -1 while none is or the list is closed. */
+  protected suggestionIndex(): number {
+    return this.suggestionList()?.nativeElement.selectedIndex ?? -1;
+  }
+
+  /** Moves the highlight among the suggestions, as the chat input asks with the arrow keys. */
+  protected stepSuggestion(direction: number): void {
+    const list = this.suggestionList()?.nativeElement;
+    if (!list) return;
+    const next = list.selectedIndex + direction;
+    if (next < 0) return;
+    list.selectedIndex = Math.min(next, list.length - 1);
+  }
+
+  /** Puts the words of the suggestion at an index in the input, in place of what was typed. */
+  protected takeSuggestion(index: number): void {
+    const picked = this.textSuggestions()[index];
+    const input = this.chatInput();
+    if (!picked || !input) return;
+    input.text = picked.words;
+    this.typed.set('');
+  }
   readonly chatTabRef = viewChild(ChatTabComponent);
   private readonly searchBar = viewChild(ChatSearchBarComponent);
   private readonly bookmarkList = viewChild(ChatBookmarkListComponent);

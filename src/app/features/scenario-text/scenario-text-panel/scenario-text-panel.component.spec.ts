@@ -92,6 +92,23 @@ describe('ScenarioTextPanelComponent', () => {
     expect(text.text).toBe('扉の向こうに');
   });
 
+  it('splits writing pasted in at its headings into texts', async () => {
+    const root = open(PeerRole.GameMaster);
+    root.querySelector<HTMLButtonElement>('[data-testid="scenario-text-import"]')!.click();
+    await redraw();
+
+    root.querySelector<HTMLTextAreaElement>('[data-testid="scenario-text-import-words"]')!.value =
+      '# 導入\n雨が降っている。\n# 真相\n犯人は執事。';
+    root.querySelector<HTMLButtonElement>('[data-testid="scenario-text-import-run"]')!.click();
+    await redraw();
+
+    expect(ScenarioText.all().map((text) => [text.title, text.text])).toEqual([
+      ['導入', '雨が降っている。'],
+      ['真相', '犯人は執事。'],
+    ]);
+    expect(root.querySelector('[data-testid="scenario-text-import-box"]')).toBeNull();
+  });
+
   it('finds the texts whose title or words hold what is searched for', async () => {
     textOf('導入', '雨が降っている', 1);
     textOf('真相', '犯人は執事', 2);

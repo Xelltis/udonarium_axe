@@ -24,6 +24,7 @@ import {
   type ScenarioTextSpeaker,
   scenarioTextSpeakerOf,
 } from '@axe/domain/scenario-text/scenario-text';
+import { splitScenarioTexts } from '@axe/domain/scenario-text/scenario-text-import';
 import { ChatLineEditorComponent } from '@axe/features/chat/chat-line-editor/chat-line-editor.component';
 import { buildScenarioTextContextMenu } from '@axe/features/scenario-text/scenario-text-context-menu';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
@@ -198,6 +199,32 @@ export class ScenarioTextPanelComponent {
 
   protected createFolder(): void {
     this.shelf.createFolder();
+  }
+
+  /** Whether the box writing is pasted into, to be split into texts, is open. */
+  protected readonly importing = signal(false);
+
+  /**
+   * Makes a text of each heading in writing pasted in, with the words under it, in the folder of
+   * the text picked, and picks the first. Answers how many were made.
+   */
+  protected importFrom(pasted: string): number {
+    if (!this.canEdit()) return 0;
+    this.flushWrite();
+    const folder = normalizeFolderPath(this.pickedText()?.folderName ?? '');
+    let first: ScenarioText | null = null;
+    let made = 0;
+    for (const split of splitScenarioTexts(pasted)) {
+      const title = split.title || this.t('feature.scenarioText.defaultTitle', { index: this.all().length + made + 1 });
+      const text = this.texts.create(title, folder);
+      if (!text) continue;
+      text.write(split.text);
+      first ??= text;
+      made++;
+    }
+    if (first) this.picked.set(first.identifier);
+    this.importing.set(false);
+    return made;
   }
 
   protected pick(text: ScenarioText): void {
