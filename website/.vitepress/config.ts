@@ -304,6 +304,8 @@ export default defineConfig({
           text: 'GMの道具',
           items: [
             { text: 'オブジェクト一覧（GM）', link: '/manual/gm-object-list' },
+            { text: 'シーン', link: '/manual/scene' },
+            { text: 'シナリオテキスト', link: '/manual/scenario-text' },
             { text: 'マップエディター', link: '/manual/map-editor' },
             { text: 'マップ生成', link: '/manual/map-generator' },
           ],
