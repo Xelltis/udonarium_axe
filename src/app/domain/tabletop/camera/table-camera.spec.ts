@@ -3,16 +3,18 @@ import {
   boardOffset,
   DEFAULT_TABLE_CAMERA_VIEW,
   drawnScaleAt,
+  matrixColumns,
   pageOfTablePoint,
   tableCameraAttribute,
   tableCameraTransform,
+  tableEyeMatrix,
   TableLayout,
   tablePointOfPage,
   tableRayOfPage,
   tableSceneMatrix,
 } from '@axe/domain/tabletop/camera/table-camera';
 import { MEASURED_CAMERA_CASES } from '@axe/domain/tabletop/camera/table-camera.fixture';
-import { viewPositionZToZoom } from '@axe/domain/tabletop/physical-scale';
+import { TABLE_PERSPECTIVE_PX, viewPositionZToZoom } from '@axe/domain/tabletop/physical-scale';
 
 const screen: TableLayout = { left: 0, top: 0, width: 1280, height: 800, boardWidth: 1000, boardHeight: 750 };
 
@@ -81,6 +83,34 @@ describe('table camera', () => {
 
     const flat = tableSceneMatrix({ ...tilted, orthographic: true }, screen);
     expect(drawnScaleAt(flat, 500, 700, 0)).toBeCloseTo(drawnScaleAt(flat, 500, 50, 120), 9);
+  });
+
+  it('puts a point of the board where the eye sees it, which the perspective then carries onto the page', () => {
+    const layout = { ...screen, left: 12, top: 40 };
+    for (const orthographic of [false, true]) {
+      const view = { ...DEFAULT_TABLE_CAMERA_VIEW, positionZ: -400, rotateZ: 37, orthographic };
+      const eye = tableEyeMatrix(view, layout);
+      const scene = tableSceneMatrix(view, layout);
+      for (const [x, y, z] of [
+        [100, 100, 0],
+        [500, 375, 80],
+        [930, 640, 0],
+      ]) {
+        const seen = eye.project({ x, y, z, w: 1 });
+        const depth =
+          (eye.m13 * x + eye.m23 * y + eye.m33 * z + eye.m43) / (eye.m14 * x + eye.m24 * y + eye.m34 * z + eye.m44);
+        const shrink = orthographic ? 1 : TABLE_PERSPECTIVE_PX / (TABLE_PERSPECTIVE_PX - depth);
+        const page = pageOfTablePoint(scene, x, y, z);
+        expect(layout.left + layout.width / 2 + seen.x * shrink).toBeCloseTo(page.x, 6);
+        expect(layout.top + layout.height / 2 + seen.y * shrink).toBeCloseTo(page.y, 6);
+      }
+    }
+  });
+
+  it('gives a matrix a column at a time', () => {
+    const columns = matrixColumns(new Matrix3D().appendPosition(10, 20, 30));
+    expect(columns.slice(12, 15)).toEqual([10, 20, 30]);
+    expect(columns).toHaveLength(16);
   });
 
   it('runs the line of sight through a page point from the eye into the board', () => {

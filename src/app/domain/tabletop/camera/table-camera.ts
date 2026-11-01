@@ -121,29 +121,60 @@ function appendView(out: Matrix3D, view: TableCameraView): void {
 }
 
 /**
- * The matrix that takes a point of the board onto the page, through the camera and the perspective
- * the table is drawn in. A point's place on the page is its x and y over its w.
+ * The matrix that takes a point of the board into the space the eye looks through: in pixels from
+ * the middle of the box the camera looks through, x to the right, y down the page and z out of it
+ * towards the eye. A perspective view sees this space from `TABLE_PERSPECTIVE_PX` out along z; an
+ * orthographic one has its scale in it already.
  *
- * The board turns about its middle and is seen from in front of the middle of the box the camera
- * looks through, 3000 pixels back (`TABLE_PERSPECTIVE_PX`).
+ * The board turns about its middle, which stands where the board's box sits in the box the camera
+ * looks through.
  */
-export function tableSceneMatrix(view: TableCameraView, layout: TableLayout, out: Matrix3D = new Matrix3D()): Matrix3D {
+export function tableEyeMatrix(view: TableCameraView, layout: TableLayout, out: Matrix3D = new Matrix3D()): Matrix3D {
   const middleX = layout.boardWidth / 2;
   const middleY = layout.boardHeight / 2;
   const offset = boardOffset(layout);
   out.identity();
   out.appendPosition(-middleX, -middleY, 0);
   appendView(out, view);
-  out.appendPosition(middleX + offset.x, middleY + offset.y, 0);
-  if (!view.orthographic) {
-    const eyeX = layout.width / 2;
-    const eyeY = layout.height / 2;
-    out.appendPosition(-eyeX, -eyeY, 0);
-    out.appendPerspective(TABLE_PERSPECTIVE_PX);
-    out.appendPosition(eyeX, eyeY, 0);
-  }
-  out.appendPosition(layout.left, layout.top, 0);
+  out.appendPosition(middleX + offset.x - layout.width / 2, middleY + offset.y - layout.height / 2, 0);
   return out;
+}
+
+/**
+ * The matrix that takes a point of the board onto the page, through the camera and the perspective
+ * the table is drawn in. A point's place on the page is its x and y over its w.
+ *
+ * The board is seen from in front of the middle of the box the camera looks through, 3000 pixels
+ * back (`TABLE_PERSPECTIVE_PX`).
+ */
+export function tableSceneMatrix(view: TableCameraView, layout: TableLayout, out: Matrix3D = new Matrix3D()): Matrix3D {
+  tableEyeMatrix(view, layout, out);
+  if (!view.orthographic) out.appendPerspective(TABLE_PERSPECTIVE_PX);
+  out.appendPosition(layout.left + layout.width / 2, layout.top + layout.height / 2, 0);
+  return out;
+}
+
+/** A matrix's sixteen numbers, a column at a time, as a graphics library reads them in. */
+export function matrixColumns(matrix: Matrix3D): number[] {
+  const m = matrix;
+  return [
+    m.m11,
+    m.m12,
+    m.m13,
+    m.m14,
+    m.m21,
+    m.m22,
+    m.m23,
+    m.m24,
+    m.m31,
+    m.m32,
+    m.m33,
+    m.m34,
+    m.m41,
+    m.m42,
+    m.m43,
+    m.m44,
+  ];
 }
 
 /** Where a point of the board shows on the page, through a matrix from `tableSceneMatrix`. */
