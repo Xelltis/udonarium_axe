@@ -37,11 +37,15 @@ export class Playlist extends GameObject {
     });
   }
 
-  /** Makes a new, empty playlist under a name and shares it with the room. */
-  static create(name: string): Playlist {
+  /**
+   * Makes a new playlist under a name and shares it with the room: empty and made now, unless the
+   * tracks and the time it goes by are given, as for one put back from a save.
+   */
+  static create(name: string, entries: readonly string[] = [], createdAt: number = Date.now()): Playlist {
     const playlist = new Playlist();
     playlist.name = name;
-    playlist.createdAt = Date.now();
+    playlist.createdAt = createdAt;
+    playlist.entries = [...entries];
     playlist.initialize();
     return playlist;
   }

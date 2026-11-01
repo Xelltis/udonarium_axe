@@ -396,6 +396,22 @@ describe('FileArchiver', () => {
         expect(asked).toEqual(['withheld']);
       }
     );
+
+    it('reads no playlists in beside a room whose load was declined', async () => {
+      vi.spyOn(ObjectStore.instance, 'get').mockReturnValue({
+        isLoadOk: () => false,
+        reloadCheckStart: vi.fn(),
+      } as unknown as ReturnType<typeof ObjectStore.instance.get>);
+      const read: string[] = [];
+      const off = xmlLoaded$.subscribe((event) => read.push(event.xmlElement.tagName));
+
+      await FileArchiver.instance.load([
+        new File(['<playlist-list></playlist-list>'], 'playlist.xml', { type: 'text/xml' }),
+      ]);
+      off();
+
+      expect(read).toEqual([]);
+    });
   });
 
   describe('an archive made elsewhere, naming its pictures by the bytes they came as', () => {
