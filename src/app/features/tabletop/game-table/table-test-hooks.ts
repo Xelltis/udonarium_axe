@@ -25,6 +25,8 @@ export interface TableTestHooks {
    * A point within a pixel or two of one may be told apart differently by the page and by picking.
    */
   edgesOnPage(): [number, number, number, number][];
+  /** The face a piece let go of at a point of the page would be put on, or null. */
+  faceAt(pageX: number, pageY: number): string | null;
   /** Where a point of a face (the floor, a wall or a board), lifted some way off it, is drawn on the page. */
   surfacePageOf(surface: string, localX: number, localY: number, height?: number): { x: number; y: number } | null;
 }
@@ -56,6 +58,7 @@ export function installTableTestHooks(
     },
     camera: () => camera.view,
     aliasOf: (identifier) => ObjectStore.instance.get(identifier)?.aliasName ?? null,
+    faceAt: (pageX, pageY) => pick.faceAt(pageX, pageY, { stopsAt: () => true }),
     surfacePageOf: (surface, localX, localY, height) => surfaces.pageOf(surface, localX, localY, height),
     edgesOnPage: () => {
       const scene = camera.sceneMatrix();

@@ -69,4 +69,23 @@ describe('TableSurfaceService', () => {
     expect(service.pointOn('floor', 100, 100)).toBeNull();
     expect(service.pageOf('floor', 10, 10)).toBeNull();
   });
+
+  it('sizes the floor, a wall and a board, and nothing it does not know', () => {
+    const board = new WhiteBoard();
+    board.initialize();
+    board.width = 4;
+    board.height = 3;
+    expect(service.sizeOf('floor')).toEqual({ width: 1000, height: 750 });
+    expect(service.sizeOf('north-wall')).toEqual({ width: 1000, height: 300 });
+    expect(service.sizeOf('west-wall')).toEqual({ width: 750, height: 300 });
+    expect(service.sizeOf(board.identifier)).toEqual({ width: 200, height: 150 });
+    expect(service.sizeOf('no-such-face')).toBeNull();
+  });
+
+  it('lets a piece hang over the edge of a board, and of no face of the table', () => {
+    expect(service.overhangs('a-board')).toBe(true);
+    for (const face of ['floor', 'north-wall', 'east-wall', 'south-wall', 'west-wall']) {
+      expect(service.overhangs(face)).toBe(false);
+    }
+  });
 });

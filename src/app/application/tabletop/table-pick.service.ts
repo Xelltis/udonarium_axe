@@ -1,12 +1,16 @@
 import { inject, Injectable, untracked } from '@angular/core';
+import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { TableRay, tableRayOfPage } from '@axe/domain/tabletop/camera/table-camera';
+import { faceTarget } from '@axe/domain/tabletop/pick/face-pick';
 import { pickAll, pickFirst, PickHit, PickTarget } from '@axe/domain/tabletop/pick/pick-index';
-import { terrainPickTarget } from '@axe/domain/tabletop/pick/terrain-pick';
-import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
+import { beamPickTarget, terrainPickTarget } from '@axe/domain/tabletop/pick/terrain-pick';
+import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
+import { boardSurfaceOf, surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 
 /**
@@ -14,8 +18,9 @@ import { Terrain } from '@axe/domain/tabletop/terrain';
  * sight through it against the shapes those things make, rather than by asking the page what is
  * drawn there.
  *
- * Only what stands on the board's own floor is picked so far; what hangs on a wall or lies on a
- * white board is read on that surface's own frame, which comes later.
+ * Terrain on the floor and on the white boards and the beams put on the walls are picked so far,
+ * and so are the faces things are put on. Pieces come once they are drawn by the same placement on
+ * a canvas.
  */
 @Injectable({
   providedIn: 'root',
@@ -25,6 +30,8 @@ export class TablePickService {
   private readonly vision = inject(VisionService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly camera = inject(TableCameraService);
+  private readonly surfaces = inject(TableSurfaceService);
+  private readonly images = inject(ImageService);
 
   /** Each object's target, kept until the object or the table's grid changes. */
   private readonly made = new Map<string, { key: string; target: PickTarget }>();
@@ -54,11 +61,25 @@ export class TablePickService {
       const grid = `${table.gridSize}|${table.gridType}`;
       const live = new Set<string>();
       const targets: PickTarget[] = [];
+      const dims = {
+        widthPx: table.width * table.gridSize,
+        depthPx: table.height * table.gridSize,
+        wallHeightPx: table.wallHeight * table.gridSize,
+      };
       for (const terrain of this.tabletop.terrains) {
-        if (surfaceOf(terrain) !== 'floor' || this.hiddenByFog(terrain)) continue;
+        const onFloor = surfaceOf(terrain) === 'floor';
+        if (onFloor && this.hiddenByFog(terrain)) continue;
+        const board = boardSurfaceOf(terrain);
+        const boardFrame = board ? this.surfaces.frameOf(board) : null;
+        if (board && !boardFrame) continue;
         live.add(terrain.identifier);
+        const boardVersion = board ? this.objectChange.versionOf(board)() : '';
         targets.push(
-          this.keep(terrain.identifier, grid, () => terrainPickTarget(terrain, table.gridSize, table.gridType))
+          this.keep(terrain.identifier, `${grid}|${table.wallHeight}|${boardVersion}`, () =>
+            onFloor
+              ? terrainPickTarget(terrain, table.gridSize, table.gridType, boardFrame ?? undefined)
+              : beamPickTarget(terrain, table.gridSize, dims)
+          )
         );
       }
       for (const identifier of this.made.keys()) if (!live.has(identifier)) this.made.delete(identifier);
@@ -73,6 +94,49 @@ export class TablePickService {
     const target = make();
     this.made.set(identifier, { key, target });
     return target;
+  }
+
+  /**
+   * The face a point of the page lands on, the floor, a wall drawn with a picture or a white board,
+   * or null where it lands on none. `stopsAt` says which other targets the line of sight stops at
+   * before it, and one it stops at gives the face that target stands on. What is named in
+   * `excluding`, and whatever stands on a face named there, is passed through.
+   */
+  faceAt(
+    pageX: number,
+    pageY: number,
+    options: { readonly excluding?: ReadonlySet<string>; readonly stopsAt?: (target: PickTarget) => boolean } = {}
+  ): string | null {
+    const ray = this.rayAt(pageX, pageY);
+    if (!ray) return null;
+    const excluding = options.excluding ?? new Set<string>();
+    const stopsAt = options.stopsAt ?? (() => false);
+    const candidates = [...this.faceTargets(), ...this.targets().filter(stopsAt)].filter(
+      (target) => !excluding.has(target.id) && !(target.surface !== undefined && excluding.has(target.surface))
+    );
+    return pickFirst(candidates, ray)?.target.surface ?? null;
+  }
+
+  /**
+   * The faces things are put on: the floor, the walls drawn with a picture, and every white board. A
+   * board laid flat lies over the floor, and of two laid in one place the later is drawn on top.
+   */
+  faceTargets(): PickTarget[] {
+    return untracked(() => {
+      const table = this.tabletop.currentTable;
+      const faces: PickTarget[] = [];
+      const face = (id: string, order = 0) => {
+        const frame = this.surfaces.frameOf(id);
+        const size = this.surfaces.sizeOf(id);
+        if (frame && size) faces.push(faceTarget(id, frame, size.width, size.height, order));
+      };
+      face('floor');
+      for (const wall of tableWallSettings(table)) {
+        if (wall.shown && this.images.getEmptyOr(wall.imageIdentifier).url) face(wall.surface);
+      }
+      this.tabletop.whiteBoards.forEach((board, index) => face(board.identifier, index + 1));
+      return faces;
+    });
   }
 
   /** A block the fog lies over entirely is not drawn, so nothing lands on it. */

@@ -4,6 +4,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { pageOfTablePoint, tableRayOfPage } from '@axe/domain/tabletop/camera/table-camera';
 import { SurfaceCrossing, surfaceCrossing, SurfaceFrame, surfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
 import { TABLE_SURFACES, TableSurface } from '@axe/domain/tabletop/tabletop-object';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { whiteBoardFrame } from '@axe/domain/tabletop/white-board-frame';
@@ -38,6 +39,24 @@ export class TableSurfaceService {
     }
     const board = this.objectStore?.get(surface);
     return board instanceof WhiteBoard ? whiteBoardFrame(board, table.gridSize) : null;
+  }
+
+  /** How far a face runs across and down, in pixels, or null for a face it does not know. */
+  sizeOf(surface: string): { width: number; height: number } | null {
+    const table = this.tableSelecter?.viewTable;
+    if (!table) return null;
+    if (surface === 'floor') return { width: table.width * table.gridSize, height: table.height * table.gridSize };
+    const wall = tableWallSettings(table).find((setting) => setting.surface === surface);
+    if (wall) return { width: wall.lengthPx, height: wall.heightPx };
+    const board = this.objectStore?.get(surface);
+    return board instanceof WhiteBoard
+      ? { width: board.width * table.gridSize, height: board.height * table.gridSize }
+      : null;
+  }
+
+  /** Whether a piece may hang over the edge of a face: of a white board it may, of the table's own faces not. */
+  overhangs(surface: string): boolean {
+    return !(TABLE_SURFACES as readonly string[]).includes(surface);
   }
 
   /**

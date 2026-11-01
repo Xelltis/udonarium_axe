@@ -1,4 +1,5 @@
 import { TablePoint, TableRay } from '@axe/domain/tabletop/camera/table-camera';
+import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
 
 /** A point across the board, in table pixels. */
 export interface PickPoint2 {
@@ -46,7 +47,18 @@ export interface PickFloor {
   readonly z: number;
 }
 
-export type PickShape = PickPrism | PickQuad | PickCylinder | PickFloor;
+/**
+ * A shape laid out on a face that need not lie on the board, such as a block stuck to a white board
+ * stood up: the shape is read in the face's own axes, across it, down it and out of it, as the
+ * board reads the shapes standing on it.
+ */
+export interface PickOnFace {
+  readonly kind: 'on-face';
+  readonly frame: SurfaceFrame;
+  readonly shape: PickPrism | PickQuad | PickCylinder | PickFloor;
+}
+
+export type PickShape = PickPrism | PickQuad | PickCylinder | PickFloor | PickOnFace;
 
 /** Where a line of sight meets a shape. */
 export interface PickShapeHit {
@@ -271,6 +283,30 @@ function hitRoof(ray: TableRay, shape: PickPrism): number | null {
 }
 
 /** Where a line of sight first meets a shape, or null where it misses it. */
+function dot(a: TablePoint, b: TablePoint): number {
+  return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+function hitOnFace(ray: TableRay, shape: PickOnFace): PickShapeHit | null {
+  const { origin, u, v, normal } = shape.frame;
+  const from = { x: ray.origin.x - origin.x, y: ray.origin.y - origin.y, z: ray.origin.z - origin.z };
+  const local: TableRay = {
+    origin: { x: dot(from, u), y: dot(from, v), z: dot(from, normal) },
+    direction: { x: dot(ray.direction, u), y: dot(ray.direction, v), z: dot(ray.direction, normal) },
+  };
+  const hit = hitShape(local, shape.shape);
+  if (!hit) return null;
+  const { x, y, z } = hit.point;
+  return {
+    ...hit,
+    point: {
+      x: origin.x + u.x * x + v.x * y + normal.x * z,
+      y: origin.y + u.y * x + v.y * y + normal.y * z,
+      z: origin.z + u.z * x + v.z * y + normal.z * z,
+    },
+  };
+}
+
 export function hitShape(ray: TableRay, shape: PickShape): PickShapeHit | null {
   switch (shape.kind) {
     case 'prism':
@@ -281,5 +317,7 @@ export function hitShape(ray: TableRay, shape: PickShape): PickShapeHit | null {
       return hitCylinder(ray, shape);
     case 'floor':
       return hitFloor(ray, shape);
+    case 'on-face':
+      return hitOnFace(ray, shape);
   }
 }

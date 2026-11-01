@@ -1,13 +1,17 @@
 import { TestBed } from '@angular/core/testing';
+import { ImageService } from '@axe/application/storage/image.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { DEFAULT_TABLE_CAMERA_VIEW, pageOfTablePoint, TableLayout } from '@axe/domain/tabletop/camera/table-camera';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TerrainFogCover } from '@axe/domain/tabletop/terrain-cover';
+import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -100,5 +104,94 @@ describe('TablePickService', () => {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     expect(TestBed.inject(TablePickService).pickAt(100, 100)).toBeNull();
+    expect(TestBed.inject(TablePickService).faceAt(100, 100)).toBeNull();
+  });
+
+  function boardAt(x: number, y: number, pitch = 0, rotate = 0): WhiteBoard {
+    const board = new WhiteBoard();
+    board.initialize();
+    board.width = 8;
+    board.height = 4;
+    board.location = { name: 'table', x, y };
+    board.pitch = pitch;
+    board.rotate = rotate;
+    table.appendChild(board);
+    return board;
+  }
+
+  describe('the face a point lands on', () => {
+    it('is the floor where nothing else is', async () => {
+      await settled();
+      const bare = onPage(12, 12, 0);
+      expect(service.faceAt(bare.x, bare.y)).toBe('floor');
+    });
+
+    it('is a board lying on the floor, over the floor it lies on', async () => {
+      const board = boardAt(100, 100);
+      await settled();
+      const over = onPage(4, 3, 0);
+      expect(service.faceAt(over.x, over.y)).toBe(board.identifier);
+    });
+
+    it('is a wall only once the wall is drawn with a picture', async () => {
+      table.showNorthWall = true;
+      table.northWallImageIdentifier = 'north-picture';
+      await settled();
+      const onWall = TestBed.inject(TableSurfaceService).pageOf('north-wall', 500, 20)!;
+      expect(service.faceAt(onWall.x, onWall.y)).not.toBe('north-wall');
+
+      const picture = { isEmpty: false, url: 'blob:north-picture' } as unknown as ImageFile;
+      vi.spyOn(TestBed.inject(ImageService), 'getEmptyOr').mockReturnValue(picture);
+      expect(service.faceAt(onWall.x, onWall.y)).toBe('north-wall');
+    });
+
+    it('is the face what stands in the way stands on, once the line of sight stops at it', async () => {
+      // A block on the floor stands over a board lying there: past the block the line of sight
+      // reaches the board.
+      boardAt(0, 0).height = 8;
+      blockAt(4, 3, 2);
+      await settled();
+      const top = onPage(4, 3, 2 * GRID);
+      expect(service.faceAt(top.x, top.y, { stopsAt: () => true })).toBe('floor');
+      expect(service.faceAt(top.x, top.y)).not.toBe('floor');
+    });
+
+    it('passes through a face it is told to, and whatever stands on that face', async () => {
+      const board = boardAt(100, 100);
+      const onBoard = Terrain.create('on the board', 1, 1, 2, '', '');
+      onBoard.location = { name: 'table', x: 100, y: 50, surface: board.identifier };
+      table.appendChild(onBoard);
+      await settled();
+      const top = onPage(4, 3, 2 * GRID);
+      const options = { excluding: new Set([board.identifier]), stopsAt: () => true };
+      expect(service.faceAt(top.x, top.y, options)).toBe('floor');
+    });
+  });
+
+  it('lands on a block stuck to a board where the board draws it, however the board is turned', async () => {
+    const board = boardAt(300, 200, 60, 20);
+    const onBoard = Terrain.create('on the board', 1, 1, 1, '', '');
+    onBoard.location = { name: 'table', x: 50, y: 50, surface: board.identifier };
+    table.appendChild(onBoard);
+    await settled();
+    const surfaces = TestBed.inject(TableSurfaceService);
+
+    const front = surfaces.pageOf(board.identifier, 75, 75, GRID)!;
+    expect(service.pickAt(front.x, front.y)?.target).toMatchObject({
+      id: onBoard.identifier,
+      surface: board.identifier,
+    });
+    const beside = surfaces.pageOf(board.identifier, 300, 75)!;
+    expect(service.pickAt(beside.x, beside.y)).toBeNull();
+  });
+
+  it('lands on a block put on a wall where it runs out from the wall', async () => {
+    const beam = Terrain.create('beam', 4, 1, 1, '', '');
+    beam.location = { name: 'table', x: 100, y: 100, surface: 'north-wall' };
+    table.appendChild(beam);
+    await settled();
+
+    const front = TestBed.inject(TableSurfaceService).pageOf('north-wall', 150, 125, GRID)!;
+    expect(service.pickAt(front.x, front.y)?.target).toMatchObject({ id: beam.identifier, surface: 'north-wall' });
   });
 });

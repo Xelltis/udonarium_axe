@@ -86,4 +86,29 @@ describe('pick geometry', () => {
     expect(hitShape(eastwardAt(50, 2), coin)!.point.x).toBeCloseTo(30, 9);
     expect(hitShape(downOnto(75, 50), coin)).toBeNull();
   });
+
+  it('reads a shape on a face stood up in the face’s own axes, and gives the point back on the board', () => {
+    // A face standing on the line y = 300, its top edge 200 up, facing south.
+    const frame = {
+      origin: { x: 0, y: 300, z: 200 },
+      u: { x: 1, y: 0, z: 0 },
+      v: { x: 0, y: 0, z: -1 },
+      normal: { x: 0, y: 1, z: 0 },
+    };
+    const box = { kind: 'prism', outline: square, base: 0, top: 20 } as const;
+    const onFace = { kind: 'on-face', frame, shape: box } as const;
+    const northward = (x: number, z: number): TableRay => ({
+      origin: { x, y: 1000, z },
+      direction: { x: 0, y: -1, z: 0 },
+    });
+
+    const hit = hitShape(northward(50, 150), onFace)!;
+
+    expect(hit.t).toBeCloseTo(680, 9);
+    expect(hit.point.x).toBeCloseTo(50, 9);
+    expect(hit.point.y).toBeCloseTo(320, 9);
+    expect(hit.point.z).toBeCloseTo(150, 9);
+    expect(hitShape(northward(150, 150), onFace)).toBeNull();
+    expect(hitShape(northward(50, 250), onFace)).toBeNull();
+  });
 });

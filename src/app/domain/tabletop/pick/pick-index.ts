@@ -9,6 +9,8 @@ export interface PickTarget {
   readonly layer: string;
   /** Which of two things the same distance off is in front: the greater. */
   readonly order: number;
+  /** The face it stands on, as a location names it, where that matters to the caller. */
+  readonly surface?: string;
   readonly shapes: readonly PickShape[];
   /**
    * Whether the picture on one of the quads is solid at a point of it, read across and down from

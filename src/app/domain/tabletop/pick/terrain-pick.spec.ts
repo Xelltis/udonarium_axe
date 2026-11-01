@@ -1,7 +1,8 @@
 import { TableRay } from '@axe/domain/tabletop/camera/table-camera';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { hitShape } from '@axe/domain/tabletop/pick/pick-geometry';
-import { terrainPickShape } from '@axe/domain/tabletop/pick/terrain-pick';
+import { beamPickTarget, terrainPickShape, terrainPickTarget } from '@axe/domain/tabletop/pick/terrain-pick';
+import { surfaceWorldBox } from '@axe/domain/tabletop/surface-space';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 
 function downOnto(x: number, y: number): TableRay {
@@ -100,5 +101,61 @@ describe('terrain pick shape of a door', () => {
     const shape = terrainPickShape(slid, 50, GridType.SQUARE);
     expect(hitShape(downOnto(125, 105), shape)).toBeNull();
     expect(hitShape(downOnto(175, 105), shape)).not.toBeNull();
+  });
+});
+
+describe('terrain pick target', () => {
+  const made: Terrain[] = [];
+  const dims = { widthPx: 1000, depthPx: 750, wallHeightPx: 300 };
+
+  function block(surface: string | undefined): Terrain {
+    const terrain = Terrain.create('block', 2, 1, 1, '', '');
+    terrain.location = { name: 'table', x: 100, y: 40, surface };
+    made.push(terrain);
+    return terrain;
+  }
+
+  afterEach(() => made.splice(0).forEach((terrain) => terrain.destroy()));
+
+  it('names the floor as the face a block on the floor stands on', () => {
+    const target = terrainPickTarget(block(undefined), 50, GridType.SQUARE);
+    expect(target.surface).toBe('floor');
+    expect(target.shapes[0].kind).toBe('prism');
+  });
+
+  it('stands a block stuck to a board out of the board, in the board’s frame', () => {
+    // A board standing on the line y = 300 like a wall, facing south.
+    const frame = {
+      origin: { x: 0, y: 300, z: 200 },
+      u: { x: 1, y: 0, z: 0 },
+      v: { x: 0, y: 0, z: -1 },
+      normal: { x: 0, y: 1, z: 0 },
+    };
+    const target = terrainPickTarget(block('a-board'), 50, GridType.SQUARE, frame);
+    const northward: TableRay = { origin: { x: 150, y: 1000, z: 140 }, direction: { x: 0, y: -1, z: 0 } };
+
+    expect(target.surface).toBe('a-board');
+    expect(hitShape(northward, target.shapes[0])!.point.y).toBeCloseTo(350, 9);
+    expect(hitShape({ ...northward, origin: { x: 150, y: 1000, z: 180 } }, target.shapes[0])).toBeNull();
+  });
+
+  it('fills the box a beam put on a wall fills, and names the wall', () => {
+    const beam = block('north-wall');
+    beam.altitude = 1;
+    const target = beamPickTarget(beam, 50, dims);
+    const box = surfaceWorldBox('north-wall', 100, 40, 100, 50, 50, 50, dims);
+
+    expect(target.surface).toBe('north-wall');
+    expect(target.shapes[0]).toEqual({
+      kind: 'prism',
+      outline: [
+        { x: box.minX, y: box.minY },
+        { x: box.maxX, y: box.minY },
+        { x: box.maxX, y: box.maxY },
+        { x: box.minX, y: box.maxY },
+      ],
+      base: box.minZ,
+      top: box.maxZ,
+    });
   });
 });
