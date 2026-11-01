@@ -155,6 +155,15 @@
     "sound": {
       "mute": "{{name}} 끄기",
       "unmute": "{{name}} 켜기"
+    },
+    "folder": {
+      "newFolder": "새 폴더",
+      "newSubfolder": "이 안에 폴더 만들기",
+      "rename": "폴더 이름 바꾸기",
+      "delete": "이 폴더 삭제",
+      "none": "폴더 없음",
+      "defaultName": "폴더{{index}}",
+      "confirmDelete": "「{{name}}」을(를) 삭제할까요?（안의 {{count}}건은 폴더 없음으로 돌아갑니다）"
     }
   },
   "feature": {
@@ -6080,6 +6089,76 @@
       "sky_21": "초저녁（21시）",
       "sky_0": "밤（0시）",
       "sky_3": "새벽（3시）"
+    },
+    "scene": {
+      "title": "장면",
+      "create": "지금의 판으로 만들기",
+      "createHint": "보여 주고 있는 테이블의 모습과 흐르는 BGM·환경음을 장면으로 만듭니다",
+      "defaultName": "장면{{index}}",
+      "untitled": "이름 없는 장면",
+      "copyName": "{{name}} 사본",
+      "empty": "장면이 아직 없습니다. 판을 갖춘 뒤 「지금의 판으로 만들기」를 누릅니다",
+      "apply": "반영",
+      "applyNamed": "「{{name}}」 반영",
+      "current": "지금의 장면",
+      "gameMasterOnly": "장면은 GM만 쓸 수 있습니다",
+      "overwriteConfirm": "「{{name}}」을(를) 지금의 판으로 덮어쓸까요?（표시한 항목만 바뀝니다）",
+      "deleteConfirm": "「{{name}}」을(를) 삭제할까요?",
+      "menu": {
+        "applyWithoutBgm": "BGM은 그대로 반영",
+        "applyWithoutText": "텍스트 없이 반영",
+        "edit": "편집",
+        "overwrite": "지금의 판으로 덮어쓰기",
+        "overwriteHint": "표시한 항목을 보여 주는 테이블과 흐르는 소리로 다시 씁니다",
+        "duplicate": "복제",
+        "moveTo": "폴더로 옮기기",
+        "delete": "삭제"
+      },
+      "part": {
+        "table": "보여 줄 테이블",
+        "floor": "바닥",
+        "background": "배경",
+        "walls": "벽",
+        "foreground": "전경",
+        "weather": "날씨",
+        "darkness": "어둠",
+        "fog": "전장의 안개",
+        "bgm": "BGM",
+        "bgs": "환경음",
+        "cutIn": "컷인",
+        "clock": "게임 내 시간의 시간대",
+        "text": "전환 텍스트",
+        "fade": "암전"
+      },
+      "wall": {
+        "north": "북쪽 벽",
+        "east": "동쪽 벽",
+        "south": "남쪽 벽",
+        "west": "서쪽 벽"
+      },
+      "editor": {
+        "namePlaceholder": "장면의 이름",
+        "hint": "체크한 항목만 반영할 때 바뀝니다. 체크하면 지금의 판의 값에서 시작합니다",
+        "leave": "바꾸지 않음",
+        "pickPicture": "이미지 고르기",
+        "noPicture": "없음",
+        "takeAway": "없음으로",
+        "on": "켜기",
+        "off": "끄기",
+        "bgmStop": "멈춤",
+        "bgmTrack": "곡 틀기",
+        "bgmPlaylist": "재생 목록을 처음부터 틀기",
+        "chooseTrack": "곡 고르기",
+        "choosePlaylist": "재생 목록 고르기",
+        "bgsNone": "고르지 않으면 환경음을 모두 멈춥니다",
+        "bgsHint": "고른 환경음만 틀고 나머지는 멈춥니다",
+        "clockHours": "게임 내 시간이 24시간일 때는 바뀌지 않습니다",
+        "cutInsNone": "반영할 때 틀 컷인（여럿이면 하나를 골라 틉니다）",
+        "cutInStopsMusic": "음악이 있는 컷인은 흐르면 BGM을 멈춥니다. 장면의 BGM과 함께는 쓸 수 없습니다",
+        "textPlaceholder": "반영할 때 채팅에 낼 문장（장식 표기를 쓸 수 있습니다）",
+        "textTab": "낼 탭",
+        "firstTab": "첫 탭"
+      }
     }
   },
   "app": {

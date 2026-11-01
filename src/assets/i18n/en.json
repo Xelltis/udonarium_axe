@@ -155,6 +155,15 @@
     "sound": {
       "mute": "Turn {{name}} off",
       "unmute": "Turn {{name}} on"
+    },
+    "folder": {
+      "newFolder": "New folder",
+      "newSubfolder": "New folder inside",
+      "rename": "Rename folder",
+      "delete": "Delete this folder",
+      "none": "No folder",
+      "defaultName": "Folder {{index}}",
+      "confirmDelete": "Delete \"{{name}}\"? (The {{count}} inside go back to no folder.)"
     }
   },
   "feature": {
@@ -5792,6 +5801,76 @@
       "sky_21": "Late evening (21:00)",
       "sky_0": "Night (0:00)",
       "sky_3": "Small hours (3:00)"
+    },
+    "scene": {
+      "title": "Scenes",
+      "create": "From the board",
+      "createHint": "Make a scene of how the shown table looks and the music and background sounds playing",
+      "defaultName": "Scene {{index}}",
+      "untitled": "Untitled scene",
+      "copyName": "Copy of {{name}}",
+      "empty": "No scenes yet. Set the board up, then press From the board.",
+      "apply": "Apply",
+      "applyNamed": "Apply \"{{name}}\"",
+      "current": "Current scene",
+      "gameMasterOnly": "Only the GM uses scenes",
+      "overwriteConfirm": "Overwrite \"{{name}}\" with the board as it is? (Only the ticked parts change.)",
+      "deleteConfirm": "Delete \"{{name}}\"?",
+      "menu": {
+        "applyWithoutBgm": "Apply, keeping the music",
+        "applyWithoutText": "Apply without the text",
+        "edit": "Edit",
+        "overwrite": "Overwrite from the board",
+        "overwriteHint": "Write the shown table and the sounds playing over the ticked parts",
+        "duplicate": "Duplicate",
+        "moveTo": "Move to folder",
+        "delete": "Delete"
+      },
+      "part": {
+        "table": "Table shown",
+        "floor": "Floor",
+        "background": "Background",
+        "walls": "Walls",
+        "foreground": "Foreground",
+        "weather": "Weather",
+        "darkness": "Darkness",
+        "fog": "Fog of war",
+        "bgm": "Music",
+        "bgs": "Ambience",
+        "cutIn": "Cut-ins",
+        "clock": "Part of the day",
+        "text": "Scene text",
+        "fade": "Fade to black"
+      },
+      "wall": {
+        "north": "North wall",
+        "east": "East wall",
+        "south": "South wall",
+        "west": "West wall"
+      },
+      "editor": {
+        "namePlaceholder": "Scene name",
+        "hint": "Only the ticked parts change when the scene is applied. Ticking one starts it from the board as it is.",
+        "leave": "Leave as is",
+        "pickPicture": "Choose an image",
+        "noPicture": "None",
+        "takeAway": "Set to none",
+        "on": "On",
+        "off": "Off",
+        "bgmStop": "Stop",
+        "bgmTrack": "Play a track",
+        "bgmPlaylist": "Play a playlist from the top",
+        "chooseTrack": "Choose a track",
+        "choosePlaylist": "Choose a playlist",
+        "bgsNone": "With none chosen, every ambience stops",
+        "bgsHint": "Plays only the ambience chosen and stops the rest",
+        "clockHours": "Left alone while the time is told on a 24-hour clock",
+        "cutInsNone": "Cut-ins to play on applying (one of several is drawn)",
+        "cutInStopsMusic": "A cut-in with music of its own stops the room's music when it plays, so it cannot go with the scene's music",
+        "textPlaceholder": "Said in the chat on applying (chat decoration works)",
+        "textTab": "Tab",
+        "firstTab": "First tab"
+      }
     }
   },
   "app": {

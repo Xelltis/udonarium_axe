@@ -65,6 +65,30 @@ export const BOARD_SCENE_FIELDS = [
 ] as const satisfies readonly (keyof BoardScene)[];
 export type BoardSceneFields = Pick<BoardScene, (typeof BOARD_SCENE_FIELDS)[number]>;
 
+/** The fields each part of a scene is held in, which leaving the part alone empties. */
+export const BOARD_SCENE_PART_FIELDS: Readonly<Record<BoardScenePart, readonly (keyof BoardSceneFields)[]>> = {
+  table: ['tableIdentifier', 'tableName'],
+  floor: ['floorImageIdentifier'],
+  background: ['backgroundImageIdentifier', 'backgroundFilter'],
+  walls: [
+    'northWallImageIdentifier',
+    'eastWallImageIdentifier',
+    'southWallImageIdentifier',
+    'westWallImageIdentifier',
+    'wallsShown',
+  ],
+  foreground: ['foregroundImageIdentifier', 'foregroundOpacity', 'foregroundFit'],
+  weather: ['weather'],
+  darkness: ['darkness'],
+  fog: ['fog'],
+  bgm: ['bgm', 'bgmIdentifier', 'bgmPlaylistIdentifier', 'bgmPlaylistName'],
+  bgs: ['bgs', 'bgsIdentifiers'],
+  cutIn: ['cutInIdentifiers'],
+  clock: ['clockPeriod'],
+  text: ['text', 'textTab'],
+  fade: ['fade'],
+};
+
 /** The fields of a scene that say how the table looks, which the look of a table is caught in. */
 export type BoardSceneLookFields = Pick<
   BoardSceneFields,

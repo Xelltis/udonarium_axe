@@ -155,6 +155,15 @@
     "sound": {
       "mute": "{{name}}を消す",
       "unmute": "{{name}}を出す"
+    },
+    "folder": {
+      "newFolder": "新しいフォルダ",
+      "newSubfolder": "この中にフォルダを作る",
+      "rename": "フォルダ名を変える",
+      "delete": "このフォルダを削除",
+      "none": "フォルダなし",
+      "defaultName": "フォルダ{{index}}",
+      "confirmDelete": "「{{name}}」を削除しますか？（中の{{count}}件はフォルダなしに戻ります）"
     }
   },
   "feature": {
@@ -5792,6 +5801,76 @@
       "sky_21": "宵（21時）",
       "sky_0": "夜（0時）",
       "sky_3": "未明（3時）"
+    },
+    "scene": {
+      "title": "シーン",
+      "create": "今の盤面から作る",
+      "createHint": "見せているテーブルの見た目と、流れているBGM・環境音をシーンにします",
+      "defaultName": "シーン{{index}}",
+      "untitled": "名前のないシーン",
+      "copyName": "{{name}}のコピー",
+      "empty": "シーンはまだありません。盤面を整えてから「今の盤面から作る」を押します",
+      "apply": "反映",
+      "applyNamed": "「{{name}}」を反映",
+      "current": "いまのシーン",
+      "gameMasterOnly": "シーンはGMだけが使えます",
+      "overwriteConfirm": "「{{name}}」を今の盤面で上書きしますか？（印の付いた項目だけが書き換わります）",
+      "deleteConfirm": "「{{name}}」を削除しますか？",
+      "menu": {
+        "applyWithoutBgm": "BGMを変えずに反映",
+        "applyWithoutText": "テキストを送らずに反映",
+        "edit": "編集",
+        "overwrite": "今の盤面で上書き",
+        "overwriteHint": "印の付いた項目を、見せているテーブルと流れている音で書き直します",
+        "duplicate": "複製",
+        "moveTo": "フォルダへ移す",
+        "delete": "削除"
+      },
+      "part": {
+        "table": "見せるテーブル",
+        "floor": "床",
+        "background": "背景",
+        "walls": "壁",
+        "foreground": "前景",
+        "weather": "天候",
+        "darkness": "暗闇",
+        "fog": "戦場の霧",
+        "bgm": "BGM",
+        "bgs": "環境音",
+        "cutIn": "カットイン",
+        "clock": "ゲーム内時間の時間帯",
+        "text": "切り替えのテキスト",
+        "fade": "暗転"
+      },
+      "wall": {
+        "north": "北壁",
+        "east": "東壁",
+        "south": "南壁",
+        "west": "西壁"
+      },
+      "editor": {
+        "namePlaceholder": "シーンの名前",
+        "hint": "チェックした項目だけが、反映したときに変わります。チェックを入れると、いまの盤面の値から始まります",
+        "leave": "変えない",
+        "pickPicture": "画像を選ぶ",
+        "noPicture": "なし",
+        "takeAway": "なしにする",
+        "on": "入れる",
+        "off": "切る",
+        "bgmStop": "止める",
+        "bgmTrack": "曲を流す",
+        "bgmPlaylist": "再生リストを最初から流す",
+        "chooseTrack": "曲を選ぶ",
+        "choosePlaylist": "再生リストを選ぶ",
+        "bgsNone": "選ばないと、環境音をすべて止めます",
+        "bgsHint": "選んだ環境音だけを流し、ほかは止めます",
+        "clockHours": "ゲーム内時間が24時間のときは変わりません",
+        "cutInsNone": "反映したときに流すカットイン（複数なら1つを選んで流します）",
+        "cutInStopsMusic": "音楽つきのカットインは、流れるとBGMを止めます。シーンのBGMと一緒には使えません",
+        "textPlaceholder": "反映したときにチャットへ出す文（装飾の記法が使えます）",
+        "textTab": "出すタブ",
+        "firstTab": "最初のタブ"
+      }
     }
   },
   "app": {

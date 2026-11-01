@@ -20,8 +20,8 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { BoardScene } from '@axe/domain/scene/board-scene';
 import {
   BOARD_SCENE_FIELDS,
+  BOARD_SCENE_PART_FIELDS,
   type BoardSceneFields,
-  type BoardScenePart,
   captureTableLook,
   type SceneBgm,
   sceneBgmOf,
@@ -124,7 +124,7 @@ export class BoardSceneService {
       for (const part of parts) {
         if (part === 'bgm' && !now.bgm) continue;
         if (part === 'bgs' && !now.bgs) continue;
-        take(CAPTURED_FIELDS_OF[part] ?? []);
+        take(BOARD_SCENE_PART_FIELDS[part]);
       }
     });
   }
@@ -145,8 +145,11 @@ export class BoardSceneService {
     return findByReference(BoardScene.all(), identifier, name)?.thing ?? null;
   }
 
-  /** The table as it stands and what the room hears, as the fields of a scene. */
-  private capture(): Partial<BoardSceneFields> {
+  /**
+   * The table as it stands and what the room hears, as the fields of a scene: the table shown and
+   * every part of its look, and the music and background sounds only where the room plays any.
+   */
+  capture(): Partial<BoardSceneFields> {
     const table = TableSelecter.instance.viewTable;
     const fields: Partial<BoardSceneFields> = table
       ? { tableIdentifier: table.identifier, tableName: table.name, ...captureTableLook(table) }
@@ -240,26 +243,6 @@ export class BoardSceneService {
     if (tab) this.chat.sendSystemMessageToTab(tab, words);
   }
 }
-
-/** The fields the table and the room, as they stand, write over each part a scene changes. */
-const CAPTURED_FIELDS_OF: Partial<Record<BoardScenePart, readonly (keyof BoardSceneFields)[]>> = {
-  table: ['tableIdentifier', 'tableName'],
-  floor: ['floorImageIdentifier'],
-  background: ['backgroundImageIdentifier', 'backgroundFilter'],
-  walls: [
-    'northWallImageIdentifier',
-    'eastWallImageIdentifier',
-    'southWallImageIdentifier',
-    'westWallImageIdentifier',
-    'wallsShown',
-  ],
-  foreground: ['foregroundImageIdentifier', 'foregroundOpacity', 'foregroundFit'],
-  weather: ['weather'],
-  darkness: ['darkness'],
-  fog: ['fog'],
-  bgm: ['bgm', 'bgmIdentifier', 'bgmPlaylistIdentifier', 'bgmPlaylistName'],
-  bgs: ['bgs', 'bgsIdentifiers'],
-};
 
 /** Whether a sound is the room's music rather than a sound effect or a background sound. */
 function isMusic(identifier: string): boolean {

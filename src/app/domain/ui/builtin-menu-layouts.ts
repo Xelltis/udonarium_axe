@@ -30,6 +30,7 @@ const FAB: MenuLayout = {
     item('roomSettings'),
     group('table', 'table_restaurant', 'app.fab.table', [
       'tableSetting',
+      'scene',
       'mapEditor',
       'dungeonGenerator',
       'tabletopDisplay',

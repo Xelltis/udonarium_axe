@@ -203,6 +203,7 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
   panel('chat', 'speaker_notes', 'chatWindow', 'app.fab.chat'),
   panel('roomSettings', 'room_preferences', 'roomSettings', 'app.fab.roomSettings'),
   panel('tableSetting', 'layers', 'tableSetting', 'app.fab.tableSetting'),
+  panel('scene', 'theaters', 'boardScene', 'feature.scene.title', { audience: 'gameMaster' }),
   panel('mapEditor', 'architecture', 'mapEditor', 'feature.mapEditor.title', { audience: 'gameMaster' }),
   panel('dungeonGenerator', 'map', 'dungeonGenerator', 'feature.tabletop.dungeonGenerator.title', {
     audience: 'gameMaster',

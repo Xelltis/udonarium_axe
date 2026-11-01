@@ -79,6 +79,7 @@ const FEATURE_DEPENDENCIES: Record<string, readonly string[]> = {
   'pl-tools': ['menu'],
   'range-shape-editor': [],
   replay: [],
+  scene: [],
   'room-archive': [],
   'room-settings': ['room-archive', 'skin'],
   skin: [],
