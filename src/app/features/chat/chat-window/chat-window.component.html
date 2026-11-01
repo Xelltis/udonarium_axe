@@ -200,7 +200,8 @@
             class="border-ui-border-panel bg-ui-elevated text-ui-text absolute bottom-0 left-2 z-10 box-border w-[calc(100%-1rem)] resize-none overflow-y-auto rounded-sm border border-solid font-sans text-[12px] opacity-95"
             [attr.size]="suggestions.length < 2 ? 2 : suggestions.length"
             [attr.aria-label]="'feature.scenarioText.suggestions' | transloco"
-            (click)="takeSuggestion($any($event.target).selectedIndex ?? -1)"
+            (input)="takeSuggestion($any($event.currentTarget).selectedIndex ?? -1)"
+            (click)="takeSuggestion($any($event.currentTarget).selectedIndex ?? -1)"
           >
             @for (suggestion of suggestions; track suggestion.identifier) {
               <option [value]="suggestion.identifier">{{ suggestion.label }}</option>
