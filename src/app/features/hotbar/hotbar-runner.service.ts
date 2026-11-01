@@ -7,7 +7,7 @@ import { EffectFieldService } from '@axe/application/effect/effect-field.service
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CutInService } from '@axe/application/media/cut-in.service';
-import { BoardSceneService } from '@axe/application/tabletop/board-scene.service';
+import { BoardSceneLoader } from '@axe/application/tabletop/board-scene-loader';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
@@ -33,6 +33,7 @@ import { hotbarSlotTag } from '@axe/domain/hotbar/hotbar-tag';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { BoardScene } from '@axe/domain/scene/board-scene';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { menuCommandOf } from '@axe/domain/ui/menu-command';
 import { DEFAULT_CHARACTER_PANEL } from '@axe/domain/ui/room-panel';
@@ -80,7 +81,7 @@ export class HotbarRunnerService {
   private readonly tableFocus = inject(TableFocusService);
   private readonly uiSignal = inject(UiSignalService);
   private readonly cutInService = inject(CutInService);
-  private readonly boardScenes = inject(BoardSceneService);
+  private readonly boardScenes = inject(BoardSceneLoader);
   private readonly turnOrder = inject(TurnOrderService);
   private readonly firstPerson = inject(FirstPersonService);
   private readonly menuCommands = inject(MenuCommandService);
@@ -363,10 +364,11 @@ export class HotbarRunnerService {
   private runScene(slot: HotbarSlot): HotbarRunResult {
     const options = slot.options;
     if (options.kind !== 'scene') return failed('notFound');
-    if (!this.boardScenes.canUse()) return failed('notAllowed');
-    const scene = this.boardScenes.sceneNamed(options.scene, options.sceneName);
+    if (!PeerCursor.isMyselfGameMaster) return failed('notAllowed');
+    const scene = findByReference(BoardScene.all(), options.scene, options.sceneName)?.thing;
     if (!scene) return failed('notFound');
-    return this.boardScenes.apply(scene, { bgm: !options.keepBgm }) ? OK : failed('notAllowed');
+    void this.boardScenes.load().then((scenes) => scenes?.apply(scene, { bgm: !options.keepBgm }));
+    return OK;
   }
 
   private runCutIn(slot: HotbarSlot): HotbarRunResult {

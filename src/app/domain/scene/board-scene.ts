@@ -95,3 +95,38 @@ export class BoardScene extends GameObject {
     parseAttributesKeepingIdentifier(this, attributes);
   }
 }
+
+/**
+ * How a screen darkens while a scene changes: dark within the first span, the scene put on as it is,
+ * kept dark a moment longer for the change to reach every screen, then light again.
+ */
+export const SCENE_FADE = { inMs: 300, holdMs: 250, outMs: 450 } as const;
+
+/** The music a scene puts on: none, a track, or a playlist from its first track. */
+export type SceneBgm =
+  | { readonly mode: 'stop' }
+  | { readonly mode: 'track'; readonly identifier: string }
+  | { readonly mode: 'playlist'; readonly identifier: string; readonly name: string };
+
+/** A field of a scene as text, trimmed; a field a peer never sent reads as empty. */
+function sceneText(value: unknown): string {
+  return `${value ?? ''}`.trim();
+}
+
+/** The music a scene puts on, or null where it leaves the music alone or names nothing to play. */
+export function sceneBgmOf(
+  scene: Pick<BoardScene, 'bgm' | 'bgmIdentifier' | 'bgmPlaylistIdentifier' | 'bgmPlaylistName'>
+): SceneBgm | null {
+  const mode = sceneText(scene.bgm);
+  if (mode === 'stop') return { mode };
+  if (mode === 'track') {
+    const identifier = sceneText(scene.bgmIdentifier);
+    return identifier ? { mode, identifier } : null;
+  }
+  if (mode === 'playlist') {
+    const identifier = sceneText(scene.bgmPlaylistIdentifier);
+    const name = sceneText(scene.bgmPlaylistName);
+    return identifier || name ? { mode, identifier, name } : null;
+  }
+  return null;
+}

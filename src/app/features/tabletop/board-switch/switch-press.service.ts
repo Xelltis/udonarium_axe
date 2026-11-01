@@ -5,7 +5,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatSpeakerService } from '@axe/application/chat/chat-speaker.service';
 import { NamedCueService } from '@axe/application/media/named-cue.service';
 import { TableBgmService } from '@axe/application/media/table-bgm.service';
-import { BoardSceneService } from '@axe/application/tabletop/board-scene.service';
+import { BoardSceneLoader } from '@axe/application/tabletop/board-scene-loader';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
 import { blockFootprintOf } from '@axe/application/tabletop/functional-paint.service';
 import { TableTriggerService } from '@axe/application/tabletop/table-trigger.service';
@@ -24,8 +24,7 @@ import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { findByReference } from '@axe/domain/hotbar/hotbar-reference';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { BoardScene } from '@axe/domain/scene/board-scene';
-import { sceneBgmOf } from '@axe/domain/scene/board-scene-parts';
+import { BoardScene, sceneBgmOf } from '@axe/domain/scene/board-scene';
 import { BoardSwitch, spendSwitch, switchHasGoFor } from '@axe/domain/tabletop/board-switch/board-switch';
 import {
   clampSwitchSpawn,
@@ -109,7 +108,7 @@ export class SwitchPressService {
   private readonly images = inject(ImageStorage);
   private readonly audios = inject(AudioStorage);
   private readonly tableBgm = inject(TableBgmService);
-  private readonly boardScenes = inject(BoardSceneService);
+  private readonly boardScenes = inject(BoardSceneLoader);
   private readonly battle = inject(BattleLaunchLoaderService);
 
   private readonly running = new Set<string>();
@@ -263,8 +262,9 @@ export class SwitchPressService {
         return;
       }
       case 'scene': {
-        const scene = this.boardScenes.sceneNamed(action.scene.identifier, action.scene.name.trim());
-        if (scene) this.boardScenes.apply(scene, { bgm: !action.keepBgm, trusted: true });
+        const scene = findByReference(BoardScene.all(), action.scene.identifier, action.scene.name.trim())?.thing;
+        const scenes = scene ? await this.boardScenes.load() : null;
+        if (scene && scenes) scenes.apply(scene, { bgm: !action.keepBgm, trusted: true });
         return;
       }
       case 'carry': {

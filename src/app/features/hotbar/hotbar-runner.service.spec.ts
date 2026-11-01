@@ -452,7 +452,7 @@ describe('HotbarRunnerService', () => {
         return slotOf('scene', '', { kind: 'scene', scene: identifier, sceneName: name, keepBgm });
       }
 
-      it('puts the scene on for the game master, by name where the identifier came from another room', () => {
+      it('puts the scene on for the game master, by name where the identifier came from another room', async () => {
         PeerCursor.createMyCursor();
         PeerCursor.myCursor.role = PeerRole.GameMaster;
         const scene = new BoardScene();
@@ -461,7 +461,7 @@ describe('HotbarRunnerService', () => {
         const apply = vi.spyOn(TestBed.inject(BoardSceneService), 'apply').mockReturnValue(true);
 
         expect(run(sceneSlot('elsewhere', '夜の村', true), null)).toEqual({ ok: true });
-        expect(apply).toHaveBeenCalledWith(scene, { bgm: false });
+        await vi.waitFor(() => expect(apply).toHaveBeenCalledWith(scene, { bgm: false }));
       });
 
       it('does nothing for a player, and says so where the scene is gone', () => {

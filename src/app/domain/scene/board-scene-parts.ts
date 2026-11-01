@@ -1,15 +1,9 @@
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ambienceDensityOf } from '@axe/domain/effect/ambience/ambience-kind';
 import { parseCutInIdentifiers } from '@axe/domain/media/table-cut-in';
-import type { BoardScene } from '@axe/domain/scene/board-scene';
+import { type BoardScene, sceneBgmOf } from '@axe/domain/scene/board-scene';
 import { FilterType, type GameTable } from '@axe/domain/tabletop/game-table';
 import { foregroundFitOf, foregroundOpacityOf } from '@axe/domain/tabletop/table-foreground';
-
-/**
- * How a screen darkens while a scene changes: dark within the first span, the scene put on as it is,
- * kept dark a moment longer for the change to reach every screen, then light again.
- */
-export const SCENE_FADE = { inMs: 300, holdMs: 250, outMs: 450 } as const;
 
 /** What a scene writes in a picture's place to take the picture away. */
 export const SCENE_NO_PICTURE = 'none';
@@ -70,6 +64,8 @@ export const BOARD_SCENE_FIELDS = [
   'fade',
 ] as const satisfies readonly (keyof BoardScene)[];
 export type BoardSceneFields = Pick<BoardScene, (typeof BOARD_SCENE_FIELDS)[number]>;
+
+export { SCENE_FADE, type SceneBgm, sceneBgmOf } from '@axe/domain/scene/board-scene';
 
 /** The fields each part of a scene is held in, which leaving the part alone empties. */
 export const BOARD_SCENE_PART_FIELDS: Readonly<Record<BoardScenePart, readonly (keyof BoardSceneFields)[]>> = {
@@ -152,12 +148,6 @@ const WALL_SHOWN_FIELD = {
   west: 'showWestWall',
 } as const satisfies Record<SceneWallSide, keyof SceneTableFields>;
 
-/** The music a scene puts on: none, a track, or a playlist from its first track. */
-export type SceneBgm =
-  | { readonly mode: 'stop' }
-  | { readonly mode: 'track'; readonly identifier: string }
-  | { readonly mode: 'playlist'; readonly identifier: string; readonly name: string };
-
 /** The background sounds a scene leaves playing: just those it names, or none at all. */
 export type SceneBgs =
   { readonly mode: 'replace'; readonly identifiers: readonly string[] } | { readonly mode: 'stop' };
@@ -227,24 +217,6 @@ export function sceneWeatherOf(value: unknown): SceneWeather | null {
     color: typeof parsed['color'] === 'string' ? parsed['color'] : '',
     density: ambienceDensityOf(parsed['density'] as number),
   };
-}
-
-/** The music a scene puts on, or null where it leaves the music alone or names nothing to play. */
-export function sceneBgmOf(
-  scene: Pick<BoardSceneFields, 'bgm' | 'bgmIdentifier' | 'bgmPlaylistIdentifier' | 'bgmPlaylistName'>
-): SceneBgm | null {
-  const mode = text(scene.bgm);
-  if (mode === 'stop') return { mode };
-  if (mode === 'track') {
-    const identifier = text(scene.bgmIdentifier);
-    return identifier ? { mode, identifier } : null;
-  }
-  if (mode === 'playlist') {
-    const identifier = text(scene.bgmPlaylistIdentifier);
-    const name = text(scene.bgmPlaylistName);
-    return identifier || name ? { mode, identifier, name } : null;
-  }
-  return null;
 }
 
 /** The background sounds a scene leaves playing, or null where it leaves them alone. */

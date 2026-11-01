@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { sceneFade$ } from '@axe/core/event/domain-events';
-import { SCENE_FADE } from '@axe/domain/scene/board-scene-parts';
+import { SCENE_FADE } from '@axe/domain/scene/board-scene';
 
 /**
  * The dark a scene changes under: the table goes black for a moment, the scene is put on, and it
