@@ -24,7 +24,9 @@ describe('PlaylistList', () => {
   it('writes every playlist in order, the first one marked, with its tracks', () => {
     const xml = savedRoom();
 
-    expect(xml).toContain('<list name="Town" default="true"><entry audio="town-a"/><entry audio="town-b"/></list>');
+    expect(xml).toContain(
+      '<list identifier="Playlist" name="Town" default="true"><entry audio="town-a"/><entry audio="town-b"/></list>'
+    );
     expect(xml.indexOf('name="Battle"')).toBeLessThan(xml.indexOf('name="Boss &amp; Co."'));
   });
 
@@ -52,6 +54,44 @@ describe('PlaylistList', () => {
 
     expect(Playlist.all()).not.toContain(old);
     expect(Playlist.all().map((playlist) => playlist.name)).toEqual(['Town', 'Battle', 'Boss & Co.']);
+  });
+
+  it('brings each playlist back under the identifier it was saved with', () => {
+    makeFirst();
+    const battle = Playlist.create('Battle', ['battle-a'], 1000);
+    const xml = ObjectSerializer.instance.toXml(new PlaylistList());
+    ObjectStore.instance.delete(battle, false);
+    ObjectStore.instance.clearDeleteHistory();
+
+    ObjectSerializer.instance.parseXml(xml);
+
+    expect(ObjectStore.instance.get<Playlist>(battle.identifier)?.entries).toEqual(['battle-a']);
+  });
+
+  it('takes over the playlist still here under the identifier, rather than making a second', () => {
+    makeFirst();
+    const battle = Playlist.create('Battle', ['battle-a'], 1000);
+    const xml = ObjectSerializer.instance.toXml(new PlaylistList());
+    battle.entries = ['changed since'];
+
+    ObjectSerializer.instance.parseXml(xml);
+
+    expect(Playlist.all()).toContain(battle);
+    expect(battle.entries).toEqual(['battle-a']);
+    expect(Playlist.all()).toHaveLength(2);
+  });
+
+  it('makes one afresh for an identifier the room deleted, which the others would delete again', () => {
+    makeFirst();
+    const battle = Playlist.create('Battle', ['battle-a'], 1000);
+    const xml = ObjectSerializer.instance.toXml(new PlaylistList());
+    battle.destroy();
+
+    ObjectSerializer.instance.parseXml(xml);
+
+    const back = Playlist.all().find((playlist) => playlist.name === 'Battle')!;
+    expect(back.identifier).not.toBe(battle.identifier);
+    expect(back.entries).toEqual(['battle-a']);
   });
 
   it('empties the first playlist when the save brings none for it', () => {

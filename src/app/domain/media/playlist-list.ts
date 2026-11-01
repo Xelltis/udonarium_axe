@@ -9,8 +9,9 @@ import { Playlist } from '@axe/domain/media/playlist';
 const PLAYLIST = 'list';
 const ENTRY = 'entry';
 
-/** A playlist as a save keeps it: its name, whether it is the room's first, and its tracks in order. */
+/** A playlist as a save keeps it: its identifier and name, whether it is the room's first, and its tracks. */
 interface SavedPlaylist {
+  identifier: string;
   name: string;
   isDefault: boolean;
   entries: string[];
@@ -22,7 +23,8 @@ interface SavedPlaylist {
  *
  * A track is kept by its sound's identifier, the hash of its bytes, so it is found again wherever
  * the same sound is held. One whose sound is not held is kept on the list all the same and plays
- * once the sound comes in.
+ * once the sound comes in. Each playlist comes back under the identifier it was saved with, as a
+ * scene names the playlist it plays by that.
  */
 @SyncObject('playlist-list')
 export class PlaylistList extends ObjectNode implements InnerXml {
@@ -40,15 +42,18 @@ export class PlaylistList extends ObjectNode implements InnerXml {
           .map((identifier) => `<${ENTRY} audio="${encodeAttributeValue(identifier)}"/>`)
           .join('');
         const first = playlist.isDefault ? ' default="true"' : '';
-        return `<${PLAYLIST} name="${encodeAttributeValue(playlist.name ?? '')}"${first}>${entries}</${PLAYLIST}>`;
+        const identifier = encodeAttributeValue(playlist.identifier);
+        const name = encodeAttributeValue(playlist.name ?? '');
+        return `<${PLAYLIST} identifier="${identifier}" name="${name}"${first}>${entries}</${PLAYLIST}>`;
       })
       .join('');
   }
 
   /**
-   * Puts the saved playlists in place of the room's: the room's first one takes the saved first
-   * one's name and tracks where it stands, as it is never deleted, and the others are made afresh
-   * in the order they were saved, in place of those there were.
+   * Puts the saved playlists in place of the room's, in the order they were saved: the room's first
+   * one takes the saved first one's name and tracks where it stands, as it is never deleted. Each of
+   * the others takes over the playlist here under its identifier, or comes back under it, or, where
+   * the room deleted that identifier, is made afresh; those the save does not bring are deleted.
    */
   override parseInnerXml(element: Element): void {
     const saved = Array.from(element.children)
@@ -60,14 +65,37 @@ export class PlaylistList extends ObjectNode implements InnerXml {
       firstHere.name = first?.name ?? '';
       firstHere.entries = first?.entries ?? [];
     }
+    const others = saved.filter(
+      (playlist) => !playlist.isDefault && playlist.identifier !== Playlist.DEFAULT_IDENTIFIER
+    );
+    const kept = new Set(others.map((playlist) => playlist.identifier).filter((identifier) => identifier.length > 0));
     for (const playlist of Playlist.all()) {
-      if (!playlist.isDefault) playlist.destroy();
+      if (!playlist.isDefault && !kept.has(playlist.identifier)) playlist.destroy();
     }
     const now = Date.now();
-    saved
-      .filter((playlist) => !playlist.isDefault)
-      .forEach((playlist, index) => Playlist.create(playlist.name, playlist.entries, now + index));
+    others.forEach((playlist, index) => putBack(playlist, now + index));
   }
+}
+
+/**
+ * A saved playlist taken in under its identifier where it may be, else made afresh. Coming back
+ * under one nothing here goes by, it is said to be coming back first, as somebody who saw it
+ * deleted before this browser came in would delete it again otherwise.
+ */
+function putBack(saved: SavedPlaylist, createdAt: number): void {
+  const here = saved.identifier ? ObjectStore.instance.get(saved.identifier) : null;
+  if (here instanceof Playlist) {
+    here.name = saved.name;
+    here.entries = saved.entries;
+    here.createdAt = createdAt;
+    return;
+  }
+  if (here || !saved.identifier || ObjectStore.instance.isDeleted(saved.identifier)) {
+    Playlist.create(saved.name, saved.entries, createdAt);
+    return;
+  }
+  ObjectStore.instance.announceComingBack([saved.identifier]);
+  Playlist.create(saved.name, saved.entries, createdAt, saved.identifier);
 }
 
 function readSavedPlaylist(element: Element): SavedPlaylist {
@@ -77,6 +105,7 @@ function readSavedPlaylist(element: Element): SavedPlaylist {
     if (identifier && !entries.includes(identifier)) entries.push(identifier);
   }
   return {
+    identifier: element.getAttribute('identifier') ?? '',
     name: element.getAttribute('name') ?? '',
     isDefault: element.getAttribute('default') === 'true',
     entries,
