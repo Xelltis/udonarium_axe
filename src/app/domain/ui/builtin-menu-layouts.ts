@@ -108,7 +108,6 @@ const GM_TOOLBAR: MenuLayout = {
     item('partyList'),
     item('inventory'),
     item('scene'),
-    item('scenarioText'),
     item('darkness'),
     item('fog'),
     item('firstPersonShare'),
