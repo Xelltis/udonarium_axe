@@ -144,45 +144,43 @@ describe('movable-helpers', () => {
   });
 
   describe('resolveMovableLocalCoordinate', () => {
-    function makeSurface(surface?: string): HTMLElement {
-      const el = document.createElement('div');
-      if (surface) el.dataset.surface = surface;
-      return el;
-    }
-
+    const asked: string[] = [];
     const resolver: MovableCoordinateResolver = {
-      convertToLocal: (c) => ({ x: c.x, y: c.y, z: 0 }),
+      convertToFace: (c, surface) => {
+        asked.push(surface);
+        return { x: c.x, y: c.y, z: 0 };
+      },
     };
 
+    beforeEach(() => asked.splice(0));
+
     it('on the floor it takes the supporting z under the pointer and rests on the terrain', () => {
-      const floor = makeSurface('floor');
       const contactSupportZ = (cx: number, cy: number) => (cx === 10 && cy === 20 ? 100 : 0);
 
-      const result = resolveMovableLocalCoordinate(resolver, floor, { x: 10, y: 20, z: 0 }, contactSupportZ);
+      const result = resolveMovableLocalCoordinate(resolver, 'floor', { x: 10, y: 20, z: 0 }, contactSupportZ);
 
       expect(result).toEqual({ x: 10, y: 20, z: 100 });
+      expect(asked).toEqual(['floor']);
     });
 
     it('a wall surface takes the same supporting z, stacking up the wall', () => {
-      const wall = makeSurface('north');
       const contactSupportZ = (cx: number, cy: number) => (cx === 5 && cy === 6 ? 50 : 0);
 
-      const result = resolveMovableLocalCoordinate(resolver, wall, { x: 5, y: 6, z: 0 }, contactSupportZ);
+      const result = resolveMovableLocalCoordinate(resolver, 'north-wall', { x: 5, y: 6, z: 0 }, contactSupportZ);
 
       expect(result).toEqual({ x: 5, y: 6, z: 50 });
+      expect(asked).toEqual(['north-wall']);
     });
 
     it('with nothing supporting it, z is zero on floor and wall alike', () => {
-      const floor = makeSurface('floor');
-      const wall = makeSurface('north');
       const contactSupportZ = () => 0;
 
-      expect(resolveMovableLocalCoordinate(resolver, floor, { x: 1, y: 2, z: 0 }, contactSupportZ)).toEqual({
+      expect(resolveMovableLocalCoordinate(resolver, 'floor', { x: 1, y: 2, z: 0 }, contactSupportZ)).toEqual({
         x: 1,
         y: 2,
         z: 0,
       });
-      expect(resolveMovableLocalCoordinate(resolver, wall, { x: 1, y: 2, z: 0 }, contactSupportZ)).toEqual({
+      expect(resolveMovableLocalCoordinate(resolver, 'north-wall', { x: 1, y: 2, z: 0 }, contactSupportZ)).toEqual({
         x: 1,
         y: 2,
         z: 0,

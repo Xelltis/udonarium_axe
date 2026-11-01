@@ -2,7 +2,7 @@ import { PointerCoordinate } from '@axe/application/input/pointer-device.service
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 export interface MovableCoordinateResolver {
-  convertToLocal(pointer: PointerCoordinate, element: HTMLElement): PointerCoordinate;
+  convertToFace(pointer: PointerCoordinate, surface: string): PointerCoordinate;
 }
 
 export type MovableLayerItem = {
@@ -38,11 +38,11 @@ export function shouldTransitionTo(
  */
 export function resolveMovableLocalCoordinate(
   coordinateService: MovableCoordinateResolver,
-  surfaceElement: HTMLElement,
+  surface: string,
   pointer2d: PointerCoordinate,
   contactSupportZ: (centerX: number, centerY: number) => number
 ): PointerCoordinate {
-  const local = coordinateService.convertToLocal(pointer2d, surfaceElement);
+  const local = coordinateService.convertToFace(pointer2d, surface);
   return { x: local.x, y: local.y, z: Math.max(0, contactSupportZ(local.x, local.y)) };
 }
 

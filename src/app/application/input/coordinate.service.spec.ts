@@ -113,6 +113,54 @@ describe('CoordinateService', () => {
     });
   });
 
+  describe('points on a face named as a location names it', () => {
+    beforeEach(() => {
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
+      service = TestBed.inject(CoordinateService);
+    });
+
+    it('are worked out from the face’s frame once the table has a camera, with no element for it', () => {
+      const camera = TestBed.inject(TableCameraService);
+      camera.setLayout({ left: 0, top: 0, width: 1280, height: 800, boardWidth: 1000, boardHeight: 750 });
+      camera.showView(DEFAULT_TABLE_CAMERA_VIEW);
+      const surfaces = TestBed.inject(TableSurfaceService);
+      vi.spyOn(surfaces, 'frameOf').mockReturnValue({
+        origin: { x: 0, y: 0, z: 300 },
+        u: { x: 1, y: 0, z: 0 },
+        v: { x: 0, y: 0, z: -1 },
+        normal: { x: 0, y: 1, z: 0 },
+      });
+      const walk = vi.spyOn(service, 'convertToLocal');
+
+      const onPage = service.convertFromFace({ x: 120, y: 60, z: 0 }, 'north-wall');
+      const back = service.convertToFace(onPage, 'north-wall');
+
+      expect(onPage).toMatchObject(surfaces.pageOf('north-wall', 120, 60)!);
+      expect(back.x).toBeCloseTo(120, 6);
+      expect(back.y).toBeCloseTo(60, 6);
+      expect(walk).not.toHaveBeenCalled();
+    });
+
+    it('are read back from the element the face is drawn with before then, or from the table', () => {
+      const table = document.createElement('div');
+      const wall = document.createElement('div');
+      wall.setAttribute('data-surface', 'east-wall');
+      document.body.append(table, wall);
+      service.tabletopOriginElement = table;
+      const walk = vi.spyOn(service, 'convertToLocal').mockReturnValue({ x: 1, y: 2, z: 0 });
+
+      service.convertToFace({ x: 10, y: 10, z: 0 }, 'east-wall');
+      service.convertToFace({ x: 10, y: 10, z: 0 }, 'floor');
+      service.convertToFace({ x: 10, y: 10, z: 0 }, 'a-board-not-drawn');
+
+      expect(walk.mock.calls.map((call) => call[1])).toEqual([wall, table, table]);
+      expect(service.faceElement('a-board-not-drawn')).toBeNull();
+      table.remove();
+      wall.remove();
+    });
+  });
+
   describe('the transform pool', () => {
     it('reuses its transforms across repeated conversions', () => {
       const internal = service as unknown as { _transformA: Transform; _transformB: Transform };

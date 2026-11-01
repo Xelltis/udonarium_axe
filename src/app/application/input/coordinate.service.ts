@@ -111,6 +111,38 @@ export class CoordinateService {
     return out;
   }
 
+  /**
+   * Converts a point on the page onto a face, named as a location names it (the floor, a wall or a
+   * white board), in the face's own axes. Worked out from the table's camera once it has drawn a
+   * view, and read back from the element the face is drawn with until then.
+   */
+  convertToFace(pointer: PointerCoordinate, surface: string): PointerCoordinate {
+    const onFace = this.tableSurfaces.pointOn(surface, pointer.x, pointer.y);
+    if (onFace) return { x: onFace.localX, y: onFace.localY, z: 0 };
+    return this.convertToLocal(pointer, this.faceElement(surface) ?? this.tabletopOriginElement);
+  }
+
+  /** Converts a point of a face, lifted `z` off it, onto the page: the way back from {@link convertToFace}. */
+  convertFromFace(pointer: PointerCoordinate, surface: string): PointerCoordinate {
+    const onPage = this.tableSurfaces.pageOf(surface, pointer.x, pointer.y, pointer.z ?? 0);
+    if (onPage) return { x: onPage.x, y: onPage.y, z: pointer.z ?? 0 };
+    return this.convertToGlobal(pointer, this.faceElement(surface) ?? this.tabletopOriginElement);
+  }
+
+  /**
+   * How large a thing at a point of a face is drawn, against how large it would be drawn at the depth
+   * of the page itself, or null before the table has a camera.
+   */
+  drawnScaleOnFace(pointer: PointerCoordinate, surface: string): number | null {
+    return this.tableSurfaces.drawnScaleOn(surface, pointer.x, pointer.y, pointer.z ?? 0);
+  }
+
+  /** The element a face is drawn with while the table is drawn in the page, or null where there is none. */
+  faceElement(surface: string): HTMLElement | null {
+    if (surface === 'floor') return this.tabletopOriginElement;
+    return document.querySelector<HTMLElement>(`[data-surface="${CSS.escape(surface)}"]`);
+  }
+
   /** Converts a point on the page into the element's own space, through every transform above it. */
   convertToLocal(pointer: PointerCoordinate, element: HTMLElement = document.body): PointerCoordinate {
     const inverse = this.cameraOver(element) && this.tableCamera.inverseSceneMatrix();

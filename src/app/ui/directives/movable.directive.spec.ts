@@ -548,7 +548,6 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
 
   function grab(directive: MovableDirective, atLocal: { x: number; y: number }): void {
     TestBed.inject(PointerDeviceService).isDragging = true;
-    directive.targetStartRect = directive.nativeElement.getBoundingClientRect();
     (directive as unknown as { input: unknown }).input = {
       isGrabbing: true,
       isDragging: true,

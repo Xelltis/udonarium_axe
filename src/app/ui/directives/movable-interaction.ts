@@ -17,7 +17,8 @@ export interface MovableInteractionContext {
   pointerDeviceService: PointerDeviceService;
   coordinateService: CoordinateService;
   nativeElement: HTMLElement;
-  surfaceElement(): HTMLElement;
+  /** The face the piece stands on, named as its location names it. */
+  currentSurface(): string;
   contactSupportZ(centerX: number, centerY: number): number;
   posX: number;
   posY: number;
@@ -27,7 +28,8 @@ export interface MovableInteractionContext {
   ratio: number;
   pointerOffset2d: { x: number; y: number; z: number };
   pointerStart3d: { x: number; y: number; z: number };
-  targetStartRect: DOMRect;
+  /** How large the piece was drawn where it was taken up, or null before the table has a camera. */
+  startDrawnScale: number | null;
   onstart: { emit(e: PointerEvent): void };
   ondragstart: { emit(e: PointerEvent): void };
   ondrag: { emit(e: PointerEvent): void };
@@ -39,7 +41,6 @@ export interface MovableInteractionContext {
   cancel(): void;
   cancelTableGesture(): void;
   snapToGrid(gridSize?: number): void;
-  scratchObjectPosition(start: boolean): void;
 }
 
 /** The presses a piece has already taken up, so the pieces it stands inside leave them alone. */
@@ -90,7 +91,7 @@ export function handleInputStart(context: MovableInteractionContext, e: MouseEve
     y: context.posY + context.height / 2,
     z: context.posZ,
   };
-  const target2d = context.coordinateService.convertToGlobal(target3d, context.surfaceElement());
+  const target2d = context.coordinateService.convertFromFace(target3d, context.currentSurface());
 
   context.setPointerEvents(true);
 
@@ -102,12 +103,7 @@ export function handleInputStart(context: MovableInteractionContext, e: MouseEve
   context.pointerStart3d.y = target3d.y;
   context.pointerStart3d.z = target3d.z;
 
-  context.targetStartRect = context.nativeElement.getBoundingClientRect();
-
-  if (context.isScratcOwner()) {
-    context.scratchObjectPosition(true);
-  }
-
+  context.startDrawnScale = context.coordinateService.drawnScaleOnFace(target3d, context.currentSurface());
   context.ratio = 1.0;
 }
 
@@ -136,7 +132,7 @@ export function handleInputMove(context: MovableInteractionContext, e: MouseEven
 
   const pointer3d = resolveMovableLocalCoordinate(
     context.coordinateService,
-    context.surfaceElement(),
+    context.currentSurface(),
     pointer2d,
     (centerX, centerY) => context.contactSupportZ(centerX, centerY)
   );
@@ -148,18 +144,19 @@ export function handleInputMove(context: MovableInteractionContext, e: MouseEven
   if (!input.isDragging) context.ondragstart.emit(e as PointerEvent);
   context.ondrag.emit(e as PointerEvent);
 
-  const targetRect = context.nativeElement.getBoundingClientRect();
-  const ratio = targetRect.width / context.targetStartRect.width;
-  if (ratio < context.ratio) {
-    context.ratio += (ratio - context.ratio) * 0.1;
+  const drawnScale = context.coordinateService.drawnScaleOnFace(
+    { x: context.posX + context.width / 2, y: context.posY + context.height / 2, z: context.posZ },
+    context.currentSurface()
+  );
+  if (drawnScale !== null && context.startDrawnScale) {
+    const ratio = drawnScale / context.startDrawnScale;
+    if (ratio < context.ratio) context.ratio += (ratio - context.ratio) * 0.1;
   }
 
   if (!context.isScratcOwner()) {
     context.posX = pointer3d.x;
     context.posY = pointer3d.y;
     context.posZ = pointer3d.z;
-  } else {
-    context.scratchObjectPosition(false);
   }
 }
 

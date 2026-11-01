@@ -33,6 +33,7 @@ import { isTableWall } from '@axe/domain/tabletop/table-walls';
 import {
   boardSurfaceOf,
   isOffTheFloor,
+  surfaceKeyOf,
   surfaceOf,
   TableSurface,
   TabletopObject,
@@ -182,7 +183,7 @@ export class MovableDirective implements MovableInteractionContext {
   pointerOffset2d: PointerCoordinate = { x: 0, y: 0, z: 0 };
   pointerStart3d: PointerCoordinate = { x: 0, y: 0, z: 0 };
 
-  targetStartRect!: DOMRect;
+  startDrawnScale: number | null = null;
 
   height: number = 0;
   width: number = 0;
@@ -383,7 +384,7 @@ export class MovableDirective implements MovableInteractionContext {
     if (e.shiftKey && this.sendAloft(self, spin < 0)) return;
     if (this.contactProbe === null) this.contactProbe = this.buildContactProbe();
     const rider = this.contactRider(self);
-    const center = this.coordinateService.convertToLocal(dragPointer2d(this), this.surfaceElement());
+    const center = this.coordinateService.convertToFace(dragPointer2d(this), this.currentSurface());
     const levels = contactRestLevels(this.contactProbe, center.x, center.y, rider);
     const next = nextContactLevel(levels, rider.restingZ, spin < 0);
     if (next === null) return;
@@ -618,29 +619,6 @@ export class MovableDirective implements MovableInteractionContext {
     this.selectionSignalService.cancelTableGesture();
   }
 
-  /**
-   * Looks up the table point under the pointer for a scratch owner's drag.
-   *
-   * Nothing is kept or moved: the piece stays where it is.
-   */
-  scratchObjectPosition(_start: boolean) {
-    const pointerScratch2d = {
-      x: this.input!.pointer.x,
-      y: this.input!.pointer.y,
-      z: 0,
-    };
-    pointerScratch2d.x = Math.min(window.innerWidth - 0.1, Math.max(pointerScratch2d.x, 0.1));
-    pointerScratch2d.y = Math.min(window.innerHeight - 0.1, Math.max(pointerScratch2d.y, 0.1));
-
-    const elementScratch = document.elementFromPoint(pointerScratch2d.x, pointerScratch2d.y) as HTMLElement;
-    if (elementScratch == null) return;
-
-    const pointerSchratch3d = this.coordinateService.calcTabletopLocalCoordinate(pointerScratch2d, elementScratch);
-
-    pointerSchratch3d.x -= this.posX;
-    pointerSchratch3d.y -= this.posY;
-  }
-
   /** Whether the local user's role may not edit the tabletop, which locks the piece in place. */
   isReadOnly(): boolean {
     return !this.rolePermission.canEditTabletop();
@@ -731,8 +709,8 @@ export class MovableDirective implements MovableInteractionContext {
   }
 
   /** The face this piece stands on, named as its location names it. */
-  private currentSurface(): string {
-    return this.tabletopObject?.location?.surface || 'floor';
+  currentSurface(): string {
+    return this.tabletopObject?.location ? surfaceKeyOf(this.tabletopObject) : 'floor';
   }
 
   /**
@@ -756,12 +734,6 @@ export class MovableDirective implements MovableInteractionContext {
     };
   }
 
-  /** The element a face is drawn with while the table is drawn in the page, or null. */
-  private elementOfFace(surface: string): HTMLElement | null {
-    if (surface === 'floor') return this.coordinateService.tabletopOriginElement;
-    return document.querySelector<HTMLElement>(`[data-surface="${CSS.escape(surface)}"]`);
-  }
-
   private dragPreviewElement: HTMLElement | null = null;
   private dragPreviewSurface: string | null = null;
 
@@ -776,7 +748,7 @@ export class MovableDirective implements MovableInteractionContext {
       return;
     }
     const placed = this.placeOnFace(targetSurface, pointer);
-    const faceElement = this.elementOfFace(targetSurface);
+    const faceElement = this.coordinateService.faceElement(targetSurface);
     if (!placed || !faceElement) {
       this.clearDragPreview();
       return;
@@ -815,15 +787,6 @@ export class MovableDirective implements MovableInteractionContext {
       this.dragPreviewElement = null;
       this.dragPreviewSurface = null;
     }
-  }
-
-  /**
-   * The surface the piece's position is measured on: the wall or board it stands on, or the
-   * table itself.
-   */
-  surfaceElement(): HTMLElement {
-    const closest = this.nativeElement.closest<HTMLElement>('[data-surface]');
-    return closest ?? this.coordinateService.tabletopOriginElement;
   }
 
   /**
