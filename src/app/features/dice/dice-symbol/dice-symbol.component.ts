@@ -19,6 +19,7 @@ import { DisclosureService } from '@axe/application/permission/disclosure.servic
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { BillboardFacing, facesAlways, NOT_TURNED } from '@axe/application/ui/billboard-frame.service';
@@ -93,6 +94,12 @@ export class DiceSymbolComponent {
   private readonly disclosureService = inject(DisclosureService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly translateFn = inject(TRANSLATE_FN);
+
+  /**
+   * Whether the die is drawn on the table's canvas, which leaves its frame and picture here clear:
+   * they still take the presses where the canvas draws them.
+   */
+  readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
 
   readonly isHiddenByFog = computed(() => {
     const piece = this.diceSymbol();

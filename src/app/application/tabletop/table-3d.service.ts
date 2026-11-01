@@ -12,6 +12,7 @@ import {
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TableSpritesService } from '@axe/application/tabletop/table-sprites.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
@@ -20,7 +21,8 @@ import { TableGraphics, tableGraphicsOf } from '@axe/core/util/graphics-accelera
 import { matrixColumns, tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { Terrain } from '@axe/domain/tabletop/terrain';
-import { tableWorldOf } from '@axe/domain/tabletop/world/table-world';
+import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
+import { TableWorld, tableWorldOf } from '@axe/domain/tabletop/world/table-world';
 import type {
   Table3dBackend,
   Table3dCamera,
@@ -69,6 +71,7 @@ export class Table3dService {
   private readonly images = inject(ImageService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly vision = inject(VisionService);
+  private readonly pieces = inject(TableSpritesService);
   private readonly loadEngines = inject(TABLE_3D_ENGINES);
   private readonly askGraphics = inject(TABLE_GRAPHICS);
 
@@ -88,11 +91,11 @@ export class Table3dService {
   private restarts = 0;
 
   /**
-   * The scene of the table in view, with the pictures it names read from where this browser keeps
-   * them. A block the fog lies over entirely is left out, so nothing of it is drawn at all, and one
-   * it lies over in part is cut back to the cells the seat has reached.
+   * The board and the blocks of the table in view, with the pictures they name read from where this
+   * browser keeps them. A block the fog lies over entirely is left out, so nothing of it is drawn at
+   * all, and one it lies over in part is cut back to the cells the seat has reached.
    */
-  readonly world = computed(() => {
+  private readonly faces = computed(() => {
     this.objectChange.fileVersion();
     this.objectChange.collectionOf(TableBackgroundLayer.aliasName)();
     this.objectChange.collectionOf(Terrain.aliasName)();
@@ -108,6 +111,12 @@ export class Table3dService {
       (terrain) => this.vision.terrainFogCover(terrain)
     );
   });
+
+  /**
+   * The scene of the table in view: its board and blocks, and the pieces on it. A piece being moved
+   * builds the pieces again and leaves the blocks as they were.
+   */
+  readonly world = computed<TableWorld>(() => ({ ...this.faces(), sprites: this.pieces.sprites() }));
 
   /** Whether the canvas is asked for but not drawing yet, which the table covers until it is. */
   readonly preparing = computed(() => this.drawsOnCanvas() && this.backend() === null && !this.unavailable());
@@ -264,8 +273,10 @@ export class Table3dService {
     const view = this.camera.view;
     const layout = this.camera.layout;
     if (!view || !layout) return null;
+    const eye = tableEyeMatrix(view, layout);
     return {
-      eye: matrixColumns(tableEyeMatrix(view, layout)),
+      eye: matrixColumns(eye),
+      axes: eyeAxesOf(eye),
       orthographic: view.orthographic,
       width: layout.width,
       height: layout.height,

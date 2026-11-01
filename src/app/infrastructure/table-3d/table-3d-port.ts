@@ -1,3 +1,4 @@
+import type { EyeAxes } from '@axe/domain/tabletop/world/table-sprites';
 import type { TableWorld } from '@axe/domain/tabletop/world/table-world';
 
 /** Which of the browser's graphics interfaces the table is drawn through. */
@@ -11,6 +12,8 @@ export interface Table3dCamera {
    * the eye.
    */
   readonly eye: readonly number[];
+  /** Which way the eye's right and up run on the board, which a sprite turned to the eye lies along. */
+  readonly axes: EyeAxes;
   readonly orthographic: boolean;
   /** The box the camera looks through, in CSS pixels. */
   readonly width: number;
@@ -35,6 +38,8 @@ export interface Table3dStats {
   /** The triangles of the grid over the board and over the tops that wear it, 0 where it is not shown. */
   readonly boardGridTriangles: number;
   readonly topsGridTriangles: number;
+  /** The pictures and frames of the pieces drawn. */
+  readonly sprites: number;
 }
 
 /** What draws the table on a canvas. It draws only when something it was told has changed. */

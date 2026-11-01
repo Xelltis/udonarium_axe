@@ -11,6 +11,7 @@ import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TerrainFogCover } from '@axe/domain/tabletop/terrain-cover';
 import { blockFacesOf } from '@axe/domain/tabletop/world/block-faces';
+import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 
 /** A point of the board, in table pixels. */
 export interface TableWorldPoint {
@@ -97,18 +98,21 @@ export interface TableWorld {
   readonly board: TableWorldBoard | null;
   readonly walls: readonly TableWorldWall[];
   readonly caps: readonly TableWorldCap[];
+  /** The pictures and frames the pieces on the table are drawn with. */
+  readonly sprites: readonly TableWorldSprite[];
 }
 
 /** The scene with nothing in it. */
-export const EMPTY_TABLE_WORLD: TableWorld = { board: null, walls: [], caps: [] };
+export const EMPTY_TABLE_WORLD: TableWorld = { board: null, walls: [], caps: [], sprites: [] };
 
 /** How much bigger than a cell each hex a board is cut to is, so the cut leaves no seam between cells. */
 const HEX_CUT_OVERLAP_PX = 1;
 
 /**
  * The scene of a table, or the empty scene where there is none in view, with the blocks given
- * standing on it. `pictureOf` says where the picture an identifier names is to be read from, or
- * nothing for one there is no picture for.
+ * standing on it and no pieces: the sprites the pieces are drawn with are worked out apart.
+ * `pictureOf` says where the picture an identifier names is to be read from, or nothing for one
+ * there is no picture for.
  *
  * Only what the seat may see is to be given: a block left out is not in the scene at all, and of a
  * block the fog lies over in part, `coverOf` says which of its cells the seat has reached.
@@ -135,6 +139,7 @@ export function tableWorldOf(
       veiled: !laidUnder,
     },
     ...facesOf(table, terrains, pictureOf, coverOf),
+    sprites: [],
   };
 }
 

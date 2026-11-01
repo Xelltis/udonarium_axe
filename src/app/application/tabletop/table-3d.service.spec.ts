@@ -3,6 +3,7 @@ import { ImageService } from '@axe/application/storage/image.service';
 import { TABLE_3D_ENGINES, TABLE_GRAPHICS, Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { TableGraphics } from '@axe/core/util/graphics-acceleration';
 import { DEFAULT_TABLE_CAMERA_VIEW } from '@axe/domain/tabletop/camera/table-camera';
@@ -80,7 +81,7 @@ class FakeEngine implements Table3dEngine {
   }
 
   stats() {
-    return { chunks: 0, boardGridTriangles: 0, topsGridTriangles: 0 };
+    return { chunks: 0, boardGridTriangles: 0, topsGridTriangles: 0, sprites: 0 };
   }
 }
 
@@ -176,6 +177,24 @@ describe('Table3dService', () => {
     await scene.whenIdle();
 
     expect(engines[0].drawn).toBe(2);
+  });
+
+  it('hands the engine the pieces again as one is moved, with the blocks’ faces as they were', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    TestBed.tick();
+    await scene.whenIdle();
+    const before = engines[0].worlds.at(-1)!;
+
+    TestBed.inject(TransientPlacementService).place('a-piece', { surface: 'floor', x: 10, y: 20, z: 0 });
+    TestBed.tick();
+    await scene.whenIdle();
+
+    const after = engines[0].worlds.at(-1)!;
+    expect(after).not.toBe(before);
+    expect(after.walls).toBe(before.walls);
+    expect(after.caps).toBe(before.caps);
   });
 
   it('draws through WebGL2 where it is asked to, or where WebGPU cannot be had', async () => {

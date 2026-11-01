@@ -15,6 +15,7 @@ import {
   mergedFaces,
   wallGeometry,
 } from '@axe/infrastructure/table-3d/face-geometry';
+import { SpriteLayer } from '@axe/infrastructure/table-3d/sprite-layer';
 import type {
   Table3dCamera,
   Table3dEngine,
@@ -119,6 +120,9 @@ class ThreeTableEngine implements Table3dEngine {
   private lastGrid: Table3dGrid | null = null;
   private gridded: readonly TableWorldCap[] = [];
   private topsGrid: Mesh | null = null;
+  private laidWalls: readonly TableWorldWall[] | null = null;
+  private laidCaps: readonly TableWorldCap[] | null = null;
+  private readonly sprites = new SpriteLayer((url) => this.sharedPicture(url, false));
 
   constructor(
     private readonly renderer: WebGPURenderer,
@@ -126,6 +130,7 @@ class ThreeTableEngine implements Table3dEngine {
   ) {
     for (const camera of [this.perspective, this.orthographic]) camera.matrixAutoUpdate = false;
     this.scene.add(this.facesRoot);
+    this.scene.add(this.sprites.group);
   }
 
   onNeedsFrame(listener: () => void): void {
@@ -142,6 +147,7 @@ class ThreeTableEngine implements Table3dEngine {
       chunks: this.chunks.size,
       boardGridTriangles: shown(this.grid),
       topsGridTriangles: shown(this.topsGrid),
+      sprites: this.sprites.group.children.length,
     };
   }
 
@@ -154,7 +160,12 @@ class ThreeTableEngine implements Table3dEngine {
 
   setWorld(world: TableWorld): void {
     this.placeBoard(world.board);
-    this.placeFaces(world.walls, world.caps, world.board?.gridSize ?? 50);
+    if (world.walls !== this.laidWalls || world.caps !== this.laidCaps) {
+      this.laidWalls = world.walls;
+      this.laidCaps = world.caps;
+      this.placeFaces(world.walls, world.caps, world.board?.gridSize ?? 50);
+    }
+    this.sprites.set(world.sprites);
     this.changed = true;
   }
 
@@ -178,6 +189,7 @@ class ThreeTableEngine implements Table3dEngine {
     }
     this.camera.matrix.copy(toCamera).invert();
     this.camera.updateMatrixWorld(true);
+    this.sprites.face(view.axes);
     this.changed = true;
   }
 
@@ -213,6 +225,7 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   dispose(): void {
+    this.sprites.dispose();
     disposeObject(this.scene);
     for (const picture of this.loaded.values()) picture.dispose();
     for (const material of this.looks.values()) material.dispose();
