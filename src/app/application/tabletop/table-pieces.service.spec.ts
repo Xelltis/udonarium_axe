@@ -170,6 +170,12 @@ describe('TablePiecesService', () => {
     expect(pieces.sprites()).toMatchObject([{ id: `${board.identifier}#face`, widthPx: 200, heightPx: 100 }]);
   });
 
+  it('turns a piece about the middle of its first sprite lying on its face, on the face it is drawn on', () => {
+    const die = dieAt(100, 200);
+
+    expect(pieces.turnAboutOf(die)).toEqual({ surface: 'floor', x: 125, y: 225, height: 1 });
+  });
+
   it('moves the parts of a piece a move moves, about the middle of where it stands', () => {
     const die = dieAt(100, 200);
     const pose = { across: 10, down: 0, out: 0, scale: 2, turnDeg: 90, flipDeg: 0 };

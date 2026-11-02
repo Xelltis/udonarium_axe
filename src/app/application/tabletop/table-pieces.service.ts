@@ -1,4 +1,4 @@
-import { computed, inject, Injectable } from '@angular/core';
+import { computed, inject, Injectable, untracked } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
@@ -457,6 +457,27 @@ export class TablePiecesService {
     const board = this.objectStore.get(named);
     if (board instanceof WhiteBoard) this.objectChange.versionOf(board.identifier)();
     return board instanceof WhiteBoard || this.drawnWalls().has(named) ? named : 'floor';
+  }
+
+  /**
+   * Where a piece drawn on the table turns about: the middle of the first of its sprites lying on
+   * its face, on the face it is drawn on, in the face's own pixels, and how far off the face that
+   * lies. Null for a piece not drawn, or drawn with nothing lying on its face.
+   */
+  turnAboutOf(piece: TabletopObject): { surface: string; x: number; y: number; height: number } | null {
+    const lying = untracked(this.sprites).find(
+      (sprite) => sprite.owner === piece.identifier && sprite.order !== undefined && sprite.facing !== 'eye'
+    );
+    const surface = this.surfaceOf(piece);
+    const frame = this.surfaces.frameOf(surface);
+    if (!lying || !frame) return null;
+    const from = {
+      x: lying.centre.x - frame.origin.x,
+      y: lying.centre.y - frame.origin.y,
+      z: lying.centre.z - frame.origin.z,
+    };
+    const along = (axis: { x: number; y: number; z: number }) => from.x * axis.x + from.y * axis.y + from.z * axis.z;
+    return { surface, x: along(frame.u), y: along(frame.v), height: along(frame.normal) };
   }
 
   /** A colour of the theme on screen, as the page names it, or the colour given where it cannot be read. */
