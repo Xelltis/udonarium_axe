@@ -120,6 +120,18 @@ describe('HudFrameService', () => {
     expect(handle.style.transform).toBe('translate(25px, 30px) translate(-50%, -50%)');
   });
 
+  it('draws an element put on a point at the size the table is drawn at there, where asked', () => {
+    vi.spyOn(TestBed.inject(TableSurfaceService), 'pageOf').mockImplementation((_surface, x) => ({
+      x: 100 + x * 0.5,
+      y: 80,
+    }));
+    const orbit = element();
+    frame.place(orbit, { owner: 'die', at: { surface: 'floor', x: 0, y: 0, height: 0 }, scaled: true });
+    frame.writeNow();
+
+    expect(orbit.style.transform).toBe('translate(25px, 30px) scale(0.5) translate(-50%, -50%)');
+  });
+
   it('puts the middle of an element on a corner of a part', () => {
     const handle = element();
     frame.place(handle, { owner: 'die', part: 'picture', corner: 2 });

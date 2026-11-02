@@ -24,6 +24,8 @@ export interface HudAnchor {
    * middle on, rather than a part: as a handle that turns a piece about a point of its own.
    */
   readonly at?: { readonly surface: string; readonly x: number; readonly y: number; readonly height: number };
+  /** Whether an element put on a point is drawn at the size the table is drawn at there, as one lying on the face. */
+  readonly scaled?: boolean;
   /**
    * A corner of the part, round from its top left as a picture on it is read, to put the element's
    * middle on: as the handles at a board's foot.
@@ -134,10 +136,12 @@ export class HudFrameService {
       const piece = boxes.get(placed.anchor.owner);
       const at = placed.anchor.at;
       const point = at ? this.surfaces.pageOf(at.surface, at.x, at.y, at.height) : null;
+      const beside = at && placed.anchor.scaled ? this.surfaces.pageOf(at.surface, at.x + 1, at.y, at.height) : null;
+      const scale = point && beside ? Math.hypot(beside.x - point.x, beside.y - point.y) : null;
       const style = !piece
         ? null
         : at
-          ? point && centredOn(point, piece)
+          ? point && centredOn(point, piece, scale)
           : styleOf(placed.anchor, piece, ranks.get(placed.anchor.owner) ?? 0, sizes.get(element));
       const written = style ? JSON.stringify(style) : '';
       if (written === placed.written) continue;
@@ -164,10 +168,14 @@ function px(value: number): string {
   return `${Math.round(value * 100) / 100}px`;
 }
 
-/** The style that puts an element's middle on a point of the page, within the root of a piece drawn in these boxes. */
-function centredOn(point: { x: number; y: number }, piece: PiecePageBoxes): HudStyle {
+/**
+ * The style that puts an element's middle on a point of the page, within the root of a piece drawn
+ * in these boxes, and draws it at a scale where one is given.
+ */
+function centredOn(point: { x: number; y: number }, piece: PiecePageBoxes, scale: number | null = null): HudStyle {
+  const scaled = scale === null ? '' : ` scale(${Math.round(scale * 1000) / 1000})`;
   return {
-    transform: `translate(${px(point.x - piece.whole.left)}, ${px(point.y - piece.whole.top)}) translate(-50%, -50%)`,
+    transform: `translate(${px(point.x - piece.whole.left)}, ${px(point.y - piece.whole.top)})${scaled} translate(-50%, -50%)`,
     width: null,
     height: null,
     zIndex: '',
