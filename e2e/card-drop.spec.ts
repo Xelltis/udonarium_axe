@@ -33,7 +33,11 @@ async function bareSpots(page: Page, count: number, cardDrawn = false): Promise<
   const layer = (await page.locator('#app-table-layer').boundingBox())!;
   const spots = await page.evaluate(
     ({ left, top, count, cardDrawn }) => {
-      const hooks = (window as unknown as { __axeTable: { drawnAt(x: number, y: number): string | null } }).__axeTable;
+      const hooks = (
+        window as unknown as {
+          __axeTable: { drawnAt(x: number, y: number): string | null; pickAt(x: number, y: number): string | null };
+        }
+      ).__axeTable;
       const found: { x: number; y: number }[] = [];
       for (let y = 200; y < innerHeight - 200 && found.length < count; y += 40) {
         for (let x = 300; x < innerWidth - 300 && found.length < count; x += 40) {
@@ -45,7 +49,13 @@ async function bareSpots(page: Page, count: number, cardDrawn = false): Promise<
             down.every((dy) => {
               const at = { x: left + x + dx, y: top + y + dy };
               const front = document.elementFromPoint(at.x, at.y);
-              return !!front && table.contains(front) && hooks.drawnAt(at.x, at.y) === null;
+              // Clear of what the page draws, and of what a canvas draws, which the page lays over it.
+              return (
+                !!front &&
+                table.contains(front) &&
+                hooks.drawnAt(at.x, at.y) === null &&
+                hooks.pickAt(at.x, at.y) === null
+              );
             })
           );
           if (clear && found.every((spot) => Math.hypot(spot.x - x, spot.y - y) > 250)) found.push({ x, y });
