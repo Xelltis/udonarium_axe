@@ -73,7 +73,10 @@ const ON_THE_TABLE = [
  * the processor's cores and runs the canvas specs about a quarter faster.
  */
 const CANVAS_LAUNCH = existsSync('/usr/share/vulkan/icd.d/lvp_icd.json')
-  ? { args: ['--use-angle=vulkan', '--enable-features=Vulkan', '--ignore-gpu-blocklist'] }
+  ? {
+      args: ['--use-angle=vulkan', '--enable-features=Vulkan', '--ignore-gpu-blocklist'],
+      env: { ...process.env, LP_NUM_THREADS: '4' },
+    }
   : {};
 
 /**
@@ -125,6 +128,7 @@ export default defineConfig({
       testMatch: ON_THE_TABLE,
       testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/, /server\/.*\.spec\.ts/, ...PAGE_DRAWING_ONLY],
       timeout: 60000,
+      workers: 4,
     },
     // The table drawn through WebGPU: headless Chromium gives SwiftShader's stand-in adapter with
     // these flags, and Vulkan is what puts a WebGPU canvas on the screen at all.
