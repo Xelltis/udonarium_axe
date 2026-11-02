@@ -1,7 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
 import { closePanels } from '../dungeon-helpers';
-import { createDiceSymbol, openTableContextMenu, revealMenuEntry, waitAppReady } from '../helpers';
+import { createCharacter, createDiceSymbol, openTableContextMenu, revealMenuEntry, waitAppReady } from '../helpers';
 
 /**
  * Pieces drawn on the canvas. The page still lays each piece out, clear, to take its presses, so
@@ -162,6 +162,7 @@ const PIECES: readonly {
   { name: 'mask', tag: 'game-table-mask', create: createMask, shapes: 1, menuEntry: 'スクラッチ開始' },
   { name: 'range', tag: 'range', create: createRange, shapes: 1, menuEntry: '形状変更' },
   { name: 'light', tag: 'light-source', create: createLight, shapes: 1, menuEntry: '光源設定…', lights: true },
+  { name: 'character', tag: 'game-character', create: createCharacter, shapes: 1, menuEntry: '詳細を表示' },
 ];
 
 /** Makes a piece and waits until the canvas draws it and its animations are over, and answers its identifier. */
@@ -235,6 +236,7 @@ test.describe('pieces drawn on a canvas', () => {
     [PIECES[5], '[data-part="cover"]'],
     [PIECES[6], 'canvas'],
     [PIECES[7], '[data-part="mark"]'],
+    [PIECES[8], '[data-part="pedestal"]'],
   ] as const) {
     test(`lay a ${piece.name}’s picture where the page lays it out`, async ({ page }) => {
       await piece.prepare?.(page);
@@ -276,6 +278,26 @@ test.describe('pieces drawn on a canvas', () => {
         .getBoundingClientRect();
       return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
     }, id);
+
+    for (const side of ['x', 'y', 'width', 'height'] as const) {
+      expect(Math.abs(drawn[side] - laidOut[side]), `${side}: ${JSON.stringify([drawn, laidOut])}`).toBeLessThan(
+        BOX_SLACK_PX
+      );
+    }
+  });
+
+  test('stand a character’s picture where the page stands it', async ({ page }) => {
+    const character = page.locator('game-character', { has: page.getByText('キャラクターB', { exact: true }) });
+    const id = (await character.getAttribute('data-object-id'))!;
+    await idle(page);
+    await expect.poll(async () => (await boxesOf(page, id)).length, { timeout: 10000 }).toBe(2);
+    await settled(page, id);
+
+    const [, drawn] = await boxesOf(page, id);
+    const laidOut = await character.locator('img[data-part="picture"]').evaluate((picture) => {
+      const rect = picture.getBoundingClientRect();
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    });
 
     for (const side of ['x', 'y', 'width', 'height'] as const) {
       expect(Math.abs(drawn[side] - laidOut[side]), `${side}: ${JSON.stringify([drawn, laidOut])}`).toBeLessThan(

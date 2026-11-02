@@ -9,23 +9,10 @@ const drawsOnCanvas = {
 };
 
 /**
- * The specs that pass with the table drawn on a canvas. Each stage that moves something of the
- * table onto the canvas adds the specs it has made pass, until every spec is here.
+ * The specs that read how the page itself draws the table, which a canvas draws instead, and so
+ * have nothing to read there: what the page's blocks are picked by, and how it gathers them.
  */
-const PASSING_ON_CANVAS = [
-  /webgl\/.*\.spec\.ts/,
-  /table-surfaces\.spec\.ts/,
-  /table-drop-faces\.spec\.ts/,
-  /dice-symbol-flags\.spec\.ts/,
-  /coin\.spec\.ts/,
-  /\/card(-[a-z-]+)?\.spec\.ts/,
-  /speech-bubble-note-format\.spec\.ts/,
-  /tabletop-altitude\.spec\.ts/,
-  /tabletop-objects\.spec\.ts/,
-  /\/tabletop\.spec\.ts/,
-  /range-area\.spec\.ts/,
-  /cut-in-speaker-white-board\.spec\.ts/,
-];
+const PAGE_DRAWING_ONLY = [/table-pick\.spec\.ts/, /terrain-batch\.spec\.ts/];
 
 export default defineConfig({
   testDir: './e2e',
@@ -60,11 +47,13 @@ export default defineConfig({
       testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/, /server\/.*\.spec\.ts/, /webgl\/.*\.spec\.ts/],
     },
     // The same browser with the table drawn on a canvas. Headless Chromium gives no WebGPU adapter
-    // without flags, so this goes through WebGL2.
+    // without flags, so this goes through WebGL2, drawn in software: a spec that drags a piece
+    // about many times takes some three times as long as on the page, so it is given twice the time.
     {
       name: 'chromium-webgl',
       use: { ...devices['Desktop Chrome'], storageState: drawsOnCanvas },
-      testMatch: PASSING_ON_CANVAS,
+      testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/, /server\/.*\.spec\.ts/, ...PAGE_DRAWING_ONLY],
+      timeout: 60000,
     },
     // The table drawn through WebGPU: headless Chromium gives SwiftShader's stand-in adapter with
     // these flags, and Vulkan is what puts a WebGPU canvas on the screen at all.
