@@ -92,16 +92,22 @@ export class HudFrameService {
     this.write();
   }
 
+  /**
+   * Writes again whenever the camera or the pieces move. Started by the first element put, which may
+   * be put from within an effect, out of which an effect cannot be made.
+   */
   private follow(): void {
     if (this.following) return;
-    this.following = effect(
-      () => {
-        this.camera.version();
-        this.pieces.sprites();
-        this.pieces.coins();
-        untracked(() => this.writeSoon());
-      },
-      { injector: this.injector }
+    this.following = untracked(() =>
+      effect(
+        () => {
+          this.camera.version();
+          this.pieces.sprites();
+          this.pieces.coins();
+          untracked(() => this.writeSoon());
+        },
+        { injector: this.injector }
+      )
     );
   }
 

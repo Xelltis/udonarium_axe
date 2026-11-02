@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { effect, Injector, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { HudFrameService } from '@axe/application/tabletop/hud-frame.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
@@ -59,6 +59,15 @@ describe('HudFrameService', () => {
   afterEach(() => {
     elements.splice(0);
     vi.restoreAllMocks();
+  });
+
+  it('may be asked to put an element from within an effect', () => {
+    const put = element();
+    effect(() => frame.place(put, { owner: 'die' }), { injector: TestBed.inject(Injector) });
+
+    expect(() => TestBed.tick()).not.toThrow();
+    frame.writeNow();
+    expect(put.style.transform).toBe('translate(75px, 50px)');
   });
 
   it('puts the root of a piece over the box round all of it', () => {
