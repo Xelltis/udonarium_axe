@@ -16,6 +16,8 @@ import {
 import { DungeonPoint } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { cellCenterOf, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { ensureGroundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
+import { groundChunksOfRaster, GroundRaster } from '@axe/domain/tabletop/ground/ground-raster';
 import { DEFAULT_HAZARD_ELEMENT, hazardPresetOf } from '@axe/domain/tabletop/hazard-presets';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import {
@@ -143,6 +145,8 @@ export interface DungeonBuildOptions {
    * those are is worked out from the layout before the building starts.
    */
   muster?: readonly MusterStand[];
+  /** How high the ground of the table is raised, where the map raises it. Left out, it lies flat. */
+  ground?: GroundRaster | null;
 }
 
 /** One piece and the cell of the finished map it is to be standing on. */
@@ -211,6 +215,7 @@ export class DungeonBuildService {
 
     const grid: MapGrid = { type: options.gridType ?? GridType.SQUARE, sizePx: GRID_SIZE };
     const table = this.createTable(size, mood, options, grid);
+    if (options.ground) this.raiseGround(table, options.ground);
 
     let done = 0;
     for (const block of blocks.blocks) {
@@ -251,6 +256,14 @@ export class DungeonBuildService {
     table.fogEnabled = options.fogEnabled ?? false;
     table.initialize();
     return table;
+  }
+
+  /** Raises the ground of the table as the map raises it, keeping only the chunks it raises. */
+  private raiseGround(table: GameTable, raster: GroundRaster): void {
+    const chunks = groundChunksOfRaster(raster);
+    if (chunks.length < 1) return;
+    const field = ensureGroundFieldOn(table);
+    for (const chunk of chunks) field.writeChunk(chunk);
   }
 
   /**

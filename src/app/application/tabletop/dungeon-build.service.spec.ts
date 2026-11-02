@@ -12,6 +12,8 @@ import { FURNISHING_SHAPES } from '@axe/domain/tabletop/dungeon/room-furnishing'
 import { MAX_DUNGEON_TRAPS } from '@axe/domain/tabletop/dungeon/trap-placing';
 import { planField } from '@axe/domain/tabletop/field/field-generator';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
+import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { SYNC_OBJECTS_PER_TERRAIN } from '@axe/domain/tabletop/map-blocks';
 import { terrainBlocksMovement } from '@axe/domain/tabletop/move/blocked-cells';
@@ -223,6 +225,30 @@ describe('DungeonBuildService', () => {
 
     expect(store.getObjects(GameTable).length).toBe(1);
     expect(store.getObjects(GameTable)[0]).toBe(result.table);
+  });
+
+  it('raises the ground of a field as its layout raises it, and leaves a flat one with none kept', async () => {
+    const raised = planField({ atmosphere: 'woodland', size: 20, density: 50, seed: 3, relief: 2 });
+    const flat = planField({ atmosphere: 'woodland', size: 20, density: 50, seed: 3 });
+
+    const built = await service.build(
+      raised.layout,
+      raised.atmosphere,
+      raised.blocks,
+      options({ ground: raised.layout.relief })
+    );
+    const plain = await service.build(
+      flat.layout,
+      flat.atmosphere,
+      flat.blocks,
+      options({ ground: flat.layout.relief })
+    );
+
+    const ground = groundSurfaceOf(groundFieldOn(built.table)!.readChunks());
+    const relief = raised.layout.relief!;
+    const highest = relief.heights.indexOf(Math.max(...relief.heights));
+    expect(ground.sampleAt(highest % relief.columns, Math.floor(highest / relief.columns))).toBe(2);
+    expect(groundFieldOn(plain.table)).toBeNull();
   });
 
   it('leaves the table uncovered unless the fog was asked for', async () => {

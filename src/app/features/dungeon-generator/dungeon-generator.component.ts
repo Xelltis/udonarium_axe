@@ -58,11 +58,13 @@ import { musterCells } from '@axe/domain/tabletop/dungeon/entrance-muster';
 import { MAX_DUNGEON_TRAPS } from '@axe/domain/tabletop/dungeon/trap-placing';
 import {
   clampFieldDensity,
+  clampFieldRelief,
   clampFieldSize,
   FIELD_ATMOSPHERE_IDS,
   fieldAtmosphereById,
   FieldAtmosphereId,
   MAX_FIELD_DENSITY,
+  MAX_FIELD_RELIEF,
   MAX_FIELD_SIZE,
   MIN_FIELD_DENSITY,
   MIN_FIELD_SIZE,
@@ -120,6 +122,7 @@ export class DungeonGeneratorComponent {
   protected readonly maxFieldSize = MAX_FIELD_SIZE;
   protected readonly minDensity = MIN_FIELD_DENSITY;
   protected readonly maxDensity = MAX_FIELD_DENSITY;
+  protected readonly maxRelief = MAX_FIELD_RELIEF;
   protected readonly minWallHeight = MIN_WALL_HEIGHT;
   protected readonly maxWallHeight = MAX_WALL_HEIGHT;
   protected readonly minCorridorWidth = MIN_CORRIDOR_WIDTH;
@@ -135,6 +138,9 @@ export class DungeonGeneratorComponent {
   protected readonly fieldAtmosphere = signal<FieldAtmosphereId>('woodland');
   protected readonly fieldSize = signal(40);
   protected readonly fieldDensity = signal(50);
+  /** How high the ground of open country is raised, in cells; a town is never raised. */
+  protected readonly fieldRelief = signal(0);
+  protected readonly fieldRaises = computed(() => !fieldAtmosphereById(this.fieldAtmosphere()).town);
   protected readonly roomCount = signal(8);
   protected readonly trapCount = signal(0);
   protected readonly seed = signal(Math.floor(Math.random() * SEED_LIMIT));
@@ -243,6 +249,7 @@ export class DungeonGeneratorComponent {
       density: this.fieldDensity(),
       seed: this.seed(),
       gridType: this.gridType(),
+      relief: this.fieldRelief(),
     })
   );
 
@@ -300,6 +307,10 @@ export class DungeonGeneratorComponent {
 
   protected setFieldDensity(density: number): void {
     this.fieldDensity.set(clampFieldDensity(density));
+  }
+
+  protected setFieldRelief(relief: number): void {
+    this.fieldRelief.set(clampFieldRelief(relief));
   }
 
   protected setWall(material: DungeonMaterial): void {
@@ -405,6 +416,7 @@ export class DungeonGeneratorComponent {
           gridType: this.gridType(),
           fogEnabled: this.fogEnabled(),
           muster: this.musterStands(plan),
+          ground: this.field() ? (plan as FieldPlan).layout.relief : null,
         },
         // A map with nothing standing on it is finished the moment it starts, not NaN done.
         (done, total) => this.progress.set(total > 0 ? Math.round((done / total) * 100) : 100)

@@ -7,6 +7,8 @@ import {
 } from '@axe/domain/tabletop/field/field-atmosphere';
 import { fieldBoardSize, planField } from '@axe/domain/tabletop/field/field-generator';
 import { propAt } from '@axe/domain/tabletop/field/field-layout';
+import { GridType } from '@axe/domain/tabletop/grid-type';
+import { boardExtentPx } from '@axe/domain/tabletop/map-grid';
 import { MAP_MAX_TERRAINS } from '@axe/domain/tabletop/map-blocks';
 
 const SEEDS = [1, 7, 42, 1234, 999];
@@ -316,5 +318,79 @@ describe('planField()', () => {
         expect(plan.blocks.blocks.length).toBeLessThanOrEqual(MAP_MAX_TERRAINS);
       }
     }
+  });
+});
+
+describe('the ground of a field raised as high as asked', () => {
+  it('raises nothing where no height is asked for', () => {
+    expect(planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7 }).layout.relief ?? null).toBeNull();
+    expect(
+      planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7, relief: 0 }).layout.relief ?? null
+    ).toBeNull();
+  });
+
+  it('raises the highest ground to the height asked, leaves the lowest on the board, and covers it all', () => {
+    const relief = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7, relief: 3 }).layout.relief!;
+
+    expect(relief.columns).toBe(40 * 2 + 1);
+    expect(relief.rows).toBe(30 * 2 + 1);
+    expect(Math.max(...relief.heights)).toBe(3);
+    expect(Math.min(...relief.heights)).toBe(0);
+  });
+
+  it('keeps the same ground and the same things standing on it, whatever height it is raised to', () => {
+    const flat = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7 });
+    const raised = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7, relief: 4 });
+
+    expect(raised.layout.ground).toEqual(flat.layout.ground);
+    expect(raised.layout.props).toEqual(flat.layout.props);
+    expect(raised.blocks).toEqual(flat.blocks);
+  });
+
+  it('leaves open water level, at the board', () => {
+    const plan = planField({ atmosphere: 'coast', size: 40, density: 50, seed: 7, relief: 3 });
+    const relief = plan.layout.relief!;
+    const water = plan.atmosphere.bands.map((band) => band.bare === true);
+
+    let wet = 0;
+    for (let y = 0; y < plan.layout.height; y++) {
+      for (let x = 0; x < plan.layout.width; x++) {
+        if (!water[plan.layout.ground[y * plan.layout.width + x]]) continue;
+        wet++;
+        expect(relief.heights[(y * 2 + 1) * relief.columns + x * 2 + 1]).toBe(0);
+      }
+    }
+    expect(wet).toBeGreaterThan(0);
+    expect(Math.max(...relief.heights)).toBe(3);
+  });
+
+  it('holds the height asked for between none and six cells, in half cells', () => {
+    const asked = (relief: number) =>
+      Math.max(
+        ...(planField({ atmosphere: 'meadow', size: 20, density: 50, seed: 1, relief }).layout.relief?.heights ?? [0])
+      );
+
+    expect(asked(1.3)).toBe(1.5);
+    expect(asked(20)).toBe(6);
+    expect(asked(-2)).toBe(0);
+    expect(asked(Number.NaN)).toBe(0);
+  });
+
+  it('raises the ground under the whole of a hex board, as high as asked', () => {
+    const plan = planField({
+      atmosphere: 'woodland',
+      size: 40,
+      density: 50,
+      seed: 7,
+      relief: 3,
+      gridType: GridType.HEX_VERTICAL,
+    });
+    const relief = plan.layout.relief!;
+    const extent = boardExtentPx(plan.layout, { type: GridType.HEX_VERTICAL, sizePx: 1 });
+
+    expect(relief.columns).toBeGreaterThanOrEqual(extent.widthPx * 2);
+    expect(relief.rows).toBeGreaterThanOrEqual(extent.heightPx * 2);
+    expect(Math.max(...relief.heights)).toBeGreaterThan(2.5);
+    expect(Math.min(...relief.heights)).toBeLessThan(0.5);
   });
 });

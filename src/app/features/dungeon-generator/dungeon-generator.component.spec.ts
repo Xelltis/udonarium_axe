@@ -6,6 +6,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
 import { DungeonGeneratorComponent } from '@axe/features/dungeon-generator/dungeon-generator.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -31,6 +32,8 @@ type Panel = DungeonGeneratorComponent & {
   fieldPlan(): { blocks: { blocks: { thing?: string; skin?: { side: { kind: string; id?: string } } }[] } };
   fieldSize: { set(value: number): void; (): number };
   fieldDensity: { set(value: number): void; (): number };
+  setFieldRelief(relief: number): void;
+  fieldRaises(): boolean;
   boardSize(): string;
   tooMany(): boolean;
   preview(): { viewBox: string; rects: unknown[] };
@@ -295,6 +298,24 @@ describe('DungeonGeneratorComponent', () => {
       expect(component.builtTable()).not.toBeNull();
       expect(component.builtTable()!.terrains.length).toBe(component.terrainCount());
       expect(component.summary()).toContain('20x15');
+    });
+
+    it('raises the ground of the table it builds as high as asked, and offers no height for a town', async () => {
+      (component as unknown as { exportFn: unknown }).exportFn = stubPainting();
+      component.fieldSize.set(20);
+      component.setFieldRelief(2);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('[data-testid="field-relief"]')).not.toBeNull();
+      await component.generate();
+
+      const kept = groundFieldOn(component.builtTable()!)!.readChunks();
+      expect(Math.max(...kept.flatMap((chunk) => [...chunk.heights]))).toBe(2 * 64);
+
+      component.chooseFieldAtmosphere('city');
+      fixture.detectChanges();
+      expect(component.fieldRaises()).toBe(false);
+      expect(fixture.nativeElement.querySelector('[data-testid="field-relief"]')).toBeNull();
     });
 
     it('builds a town in every facade its preset has until a wall is chosen, and in that one after', () => {

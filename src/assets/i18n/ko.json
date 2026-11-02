@@ -2924,6 +2924,7 @@
           "ground": "지면 재질",
           "fieldSize": "맵 크기",
           "density": "초목 밀도",
+          "relief": "지면 기복(칸)",
           "gridType": "칸 모양",
           "hexNote": "헥스는 하나로 묶을 수 없어 칸마다 지형을 놓습니다. 그만큼 판이 작아집니다.",
           "corridorWidth": "통로의 폭",

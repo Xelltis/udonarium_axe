@@ -1,5 +1,6 @@
 import {
   clampFieldDensity,
+  clampFieldRelief,
   clampFieldSize,
   FieldAtmosphere,
   fieldAtmosphereById,
@@ -19,6 +20,8 @@ export interface FieldRequest {
   size: number;
   density: number;
   seed: number;
+  /** How high open ground is raised from its lowest to its highest, in cells. Left out, it lies flat. */
+  relief?: number;
 }
 
 export interface FieldPlan {
@@ -46,7 +49,8 @@ export function planField(request: FieldRequest): FieldPlan {
   const grid: MapGrid = { type: request.gridType ?? GridType.SQUARE, sizePx: 1 };
   const { width, height } = fieldBoardSize(request.size, grid.type);
   const density = clampFieldDensity(request.density);
-  const layout = generateField(atmosphere, width, height, request.seed, density);
+  const relief = clampFieldRelief(request.relief ?? 0);
+  const layout = generateField(atmosphere, width, height, request.seed, density, relief, grid.type);
   const span = mergeSpanFor(grid, FIELD_MERGE_SPAN);
   return { atmosphere, layout, blocks: fieldToBlocks(layout, atmosphere, request.seed, span) };
 }

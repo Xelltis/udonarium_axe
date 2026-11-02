@@ -350,6 +350,8 @@ export const MIN_FIELD_SIZE = 20;
 export const MAX_FIELD_SIZE = 60;
 export const MIN_FIELD_DENSITY = 0;
 export const MAX_FIELD_DENSITY = 100;
+/** How high the ground of a field may be raised from its lowest to its highest, in cells. */
+export const MAX_FIELD_RELIEF = 6;
 
 /**
  * A requested board width held between 20 and 60 cells and rounded; the smallest for anything that
@@ -367,6 +369,15 @@ export function clampFieldSize(size: number): number {
 export function clampFieldDensity(density: number): number {
   if (!Number.isFinite(density)) return 50;
   return Math.min(MAX_FIELD_DENSITY, Math.max(MIN_FIELD_DENSITY, Math.round(density)));
+}
+
+/**
+ * A requested height for the ground of a field held between none and six cells, in half cells; none
+ * for anything that is not a number.
+ */
+export function clampFieldRelief(relief: number): number {
+  if (!Number.isFinite(relief)) return 0;
+  return Math.min(MAX_FIELD_RELIEF, Math.max(0, Math.round(relief * 2) / 2));
 }
 
 export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {

@@ -2924,6 +2924,7 @@
           "ground": "Ground material",
           "fieldSize": "Map size",
           "density": "Undergrowth",
+          "relief": "Ground relief (cells)",
           "gridType": "Cell shape",
           "hexNote": "Hexes cannot be gathered up, so a block is placed per cell and the board is made smaller to pay for it.",
           "corridorWidth": "Passage width",
