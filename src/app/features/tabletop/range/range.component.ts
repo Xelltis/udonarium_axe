@@ -17,6 +17,7 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -41,6 +42,7 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { CreateObjectMenuService } from '@axe/features/tabletop/create-menu/create-object-menu.service';
 import { buildRangeContextMenuModel } from '@axe/features/tabletop/range/range-context-menu';
+import { PictureRegion } from '@axe/infrastructure/image/element-picture';
 import {
   initialRangeClip,
   paintRange,
@@ -54,6 +56,7 @@ import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
+import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { translateZCss, Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
 
@@ -63,6 +66,7 @@ import { translateZCss, Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MovableDirective, TooltipDirective, RotableDirective, SelectableDirective, NgStyle],
   host: {
+    '[attr.data-object-id]': 'range().identifier',
     '(dragstart)': 'onDragstart($event)',
     '(contextmenu)': 'onContextMenu($event)',
   },
@@ -91,6 +95,13 @@ export class RangeComponent {
 
   readonly gridCanvas = viewChild<ElementRef<HTMLCanvasElement>>('gridCanvas');
   readonly rangeCanvas = viewChild<ElementRef<HTMLCanvasElement>>('rangeCanvas');
+  private readonly cells = viewChild<ElementRef<HTMLElement>>('cells');
+
+  /**
+   * Whether the range is drawn on the table's canvas from a picture of its cells taken here, which
+   * leaves them clear here, still taking the presses where the canvas draws them.
+   */
+  readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
 
   readonly clipPath = computed<string>(() => {
     this._clipVersion();
@@ -228,6 +239,21 @@ export class RangeComponent {
       },
       this.destroyRef
     );
+    pictureForCanvas({
+      identifier: () => this.range().identifier,
+      element: () => this.cells()?.nativeElement,
+      pictured: () => this.drawsOnCanvas(),
+      follows: () => {
+        this.rangeVersion();
+        this.clipPath();
+        this.opacity();
+      },
+      region: (cells) => {
+        const canvases = [this.gridCanvas(), this.rangeCanvas()].map((canvas) => canvas?.nativeElement);
+        if (!canvases[0] || !canvases[1]) return null;
+        return regionCovering(canvases.map((canvas) => boxWithin(canvas!, cells)));
+      },
+    });
     setupMovableRotableForPiece(this, {
       target: this.range,
       collideLayers: ['terrain'],
@@ -429,4 +455,24 @@ export class RangeComponent {
     );
     this._clipVersion.update((v) => v + 1);
   }
+}
+
+/** Where an element lies within an ancestor laid out round it, in the ancestor's own pixels. */
+function boxWithin(element: HTMLElement, ancestor: HTMLElement): PictureRegion {
+  let left = 0;
+  let top = 0;
+  for (let at: HTMLElement | null = element; at && at !== ancestor; at = at.offsetParent as HTMLElement | null) {
+    left += at.offsetLeft;
+    top += at.offsetTop;
+  }
+  return { left, top, width: element.offsetWidth, height: element.offsetHeight };
+}
+
+/** The smallest box round all the boxes given. */
+function regionCovering(boxes: readonly PictureRegion[]): PictureRegion {
+  const left = Math.min(...boxes.map((box) => box.left));
+  const top = Math.min(...boxes.map((box) => box.top));
+  const right = Math.max(...boxes.map((box) => box.left + box.width));
+  const bottom = Math.max(...boxes.map((box) => box.top + box.height));
+  return { left, top, width: right - left, height: bottom - top };
 }

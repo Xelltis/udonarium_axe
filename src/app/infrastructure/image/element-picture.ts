@@ -4,6 +4,14 @@ const DETAIL = 2;
 /** The faces the page draws text with from its own fonts rather than the system's. */
 const OWN_FONTS = ['Material Icons'];
 
+/** A box within an element's own box, in pixels from its top left corner. */
+export interface PictureRegion {
+  readonly left: number;
+  readonly top: number;
+  readonly width: number;
+  readonly height: number;
+}
+
 /** The fonts the page draws with, each as the rule that names it, read once. */
 const fontRules = new Map<string, Promise<string>>();
 
@@ -52,10 +60,19 @@ function fontRuleOf(family: string): Promise<string> {
 
 /**
  * Copies an element and everything in it with every style the page gives each written on it, so
- * the copy looks the same where no style sheet reaches. The pictures it shows are carried in it.
+ * the copy looks the same where no style sheet reaches. The pictures it shows are carried in it,
+ * and what is drawn on a canvas in it is carried as a picture.
  */
 async function styledCopyOf(element: Element, families: Set<string>): Promise<Element> {
-  const copy = element.cloneNode(false) as Element;
+  const copy =
+    element instanceof HTMLCanvasElement ? document.createElement('img') : (element.cloneNode(false) as Element);
+  if (element instanceof HTMLCanvasElement && copy instanceof HTMLImageElement) {
+    try {
+      copy.src = element.toDataURL();
+    } catch {
+      copy.removeAttribute('src');
+    }
+  }
   if (copy instanceof HTMLElement || copy instanceof SVGElement) {
     const style = getComputedStyle(element);
     const written: string[] = [];
@@ -83,14 +100,19 @@ async function styledCopyOf(element: Element, families: Set<string>): Promise<El
 }
 
 /**
- * A picture of an element as the page lays it out, flat and as big as its own box, drawn finer
- * than the page draws it. The element is drawn as it would be with nothing turning or hiding it:
- * its own transform and clearness are left out, and it does not scroll. Null where it cannot be
- * drawn, as for an element with no size.
+ * A picture of an element as the page lays it out, flat, drawn finer than the page draws it: of its
+ * own box, or of the region of it given, which may reach past its box to take in what overflows it.
+ * The element is drawn as it would be with nothing turning or hiding it: its own transform and
+ * clearness are left out, and it does not scroll. Null where it cannot be drawn, as for a region of
+ * no size.
  */
-export async function pictureOfElement(element: HTMLElement): Promise<Blob | null> {
-  const width = element.offsetWidth;
-  const height = element.offsetHeight;
+export async function pictureOfElement(element: HTMLElement, region?: PictureRegion): Promise<Blob | null> {
+  const { left, top, width, height } = region ?? {
+    left: 0,
+    top: 0,
+    width: element.offsetWidth,
+    height: element.offsetHeight,
+  };
   if (!(width > 0 && height > 0)) return null;
   const families = new Set<string>();
   const copy = (await styledCopyOf(element, families)) as HTMLElement;
@@ -104,8 +126,9 @@ export async function pictureOfElement(element: HTMLElement): Promise<Blob | nul
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width * DETAIL}" height="${height * DETAIL}" ` +
     `viewBox="0 0 ${width} ${height}"><foreignObject width="${width}" height="${height}">` +
     (fonts ? `<style xmlns="http://www.w3.org/1999/xhtml">${fonts}</style>` : '') +
+    `<div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;left:${-left}px;top:${-top}px">` +
     new XMLSerializer().serializeToString(copy) +
-    `</foreignObject></svg>`;
+    `</div></foreignObject></svg>`;
   const picture = new Image();
   picture.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(markup)}`;
   try {

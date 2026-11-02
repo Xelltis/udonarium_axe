@@ -15,6 +15,7 @@ import { CardStack } from '@axe/domain/card/card-stack';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
+import { RangeArea } from '@axe/domain/tabletop/range';
 import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
 import { boardSurfaceOf, surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -22,7 +23,7 @@ import { TextNote } from '@axe/domain/tabletop/text-note';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { cardSprites, cardStackSprites, SizedPicture } from '@axe/domain/tabletop/world/card-sprites';
 import { DICE_FRAME_COLOUR, diceSymbolSprites } from '@axe/domain/tabletop/world/dice-symbol-sprites';
-import { maskSprites } from '@axe/domain/tabletop/world/mask-sprites';
+import { maskSprites, rangeSprites } from '@axe/domain/tabletop/world/flat-piece-sprites';
 import { tableCoinOf, TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { textNoteSprites } from '@axe/domain/tabletop/world/text-note-sprites';
@@ -68,6 +69,7 @@ export class TablePiecesService {
   /** Every sprite of every piece drawn on the table in view. */
   readonly sprites = computed<readonly TableWorldSprite[]>(() => [
     ...this.maskSprites(),
+    ...this.rangeSprites(),
     ...this.noteSprites(),
     ...this.cardSprites(),
     ...this.diceSprites(),
@@ -127,6 +129,28 @@ export class TablePiecesService {
           ...place,
           altitudePx: mask.altitude * gridSize,
           picture: this.pagePictures.pictureOf(mask.identifier),
+        })
+      );
+    }
+    return sprites;
+  });
+
+  /** The ranges, drawn from the pictures the page takes of their cells. */
+  private readonly rangeSprites = computed(() => {
+    this.objectChange.collectionOf(RangeArea.aliasName)();
+    this.transient.version();
+    const gridSize = this.tabletop.currentTableVersion().gridSize;
+    const sprites: TableWorldSprite[] = [];
+    for (const range of this.tabletop.ranges) {
+      this.objectChange.versionOf(range.identifier)();
+      const place = this.placeOf(range);
+      if (!place) continue;
+      sprites.push(
+        ...rangeSprites({
+          id: range.identifier,
+          ...place,
+          altitudePx: range.altitude * gridSize,
+          picture: this.pagePictures.pictureOf(range.identifier),
         })
       );
     }

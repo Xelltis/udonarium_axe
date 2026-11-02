@@ -1,10 +1,15 @@
 import { Injectable, signal } from '@angular/core';
 
-/** A part of a piece as a picture: where the picture is, and how big the page lays the part out. */
+/**
+ * A part of a piece as a picture: where the picture is, how big the page lays the part out, and
+ * where its top left corner lies off the piece's own corner, which is nowhere off it where not given.
+ */
 export interface PiecePicture {
   readonly url: string;
   readonly widthPx: number;
   readonly heightPx: number;
+  readonly offsetX?: number;
+  readonly offsetY?: number;
 }
 
 /**

@@ -14,6 +14,7 @@ import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
+import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -139,6 +140,21 @@ describe('TablePiecesService', () => {
 
     TestBed.inject(PiecePicturesService).show(mask.identifier, { url: 'blob:mask', widthPx: 150, heightPx: 100 });
 
-    expect(pieces.sprites()).toMatchObject([{ id: `${mask.identifier}#cover`, centre: { x: 175, y: 250 } }]);
+    expect(pieces.sprites()).toMatchObject([{ id: `${mask.identifier}#picture`, centre: { x: 175, y: 250 } }]);
+  });
+
+  it('lays a range’s cells round its place from the picture the page takes of them', () => {
+    const range = RangeArea.create('range', 1, 3, 0.5);
+    range.location = { name: 'table', x: 100, y: 200 };
+
+    TestBed.inject(PiecePicturesService).show(range.identifier, {
+      url: 'blob:cells',
+      widthPx: 300,
+      heightPx: 200,
+      offsetX: -150,
+      offsetY: -100,
+    });
+
+    expect(pieces.sprites()).toMatchObject([{ id: `${range.identifier}#picture`, centre: { x: 100, y: 200 } }]);
   });
 });

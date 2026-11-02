@@ -1,7 +1,7 @@
 import { afterRenderEffect, DestroyRef, inject } from '@angular/core';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
-import { pictureOfElement } from '@axe/infrastructure/image/element-picture';
+import { pictureOfElement, PictureRegion } from '@axe/infrastructure/image/element-picture';
 
 /** A part of a piece the page lays out itself, for the canvas to draw the piece from a picture of. */
 export interface PictureForCanvas {
@@ -13,6 +13,12 @@ export interface PictureForCanvas {
   readonly pictured: () => boolean;
   /** Reads everything the part's look follows, so that it is pictured again whenever any of it changes. */
   readonly follows: () => void;
+  /**
+   * The region of the part to picture, in its own pixels, which is also where the picture lies off
+   * the piece's own corner: for a part whose drawing overflows a box of no size. Its own box where
+   * not given.
+   */
+  readonly region?: (element: HTMLElement) => PictureRegion | null;
 }
 
 /**
@@ -43,14 +49,22 @@ export function pictureForCanvas(part: PictureForCanvas): void {
       theme.resolved();
       const element = part.element();
       if (!element) return;
+      const region = part.region
+        ? part.region(element)
+        : { left: 0, top: 0, width: element.offsetWidth, height: element.offsetHeight };
+      if (!region) return;
       const ask = ++asked;
-      const widthPx = element.offsetWidth;
-      const heightPx = element.offsetHeight;
-      void pictureOfElement(element).then((picture) => {
+      void pictureOfElement(element, region).then((picture) => {
         if (ask !== asked || !picture) return;
         if (handed && handed !== identifier) pictures.forget(handed);
         handed = identifier;
-        pictures.show(identifier, { url: URL.createObjectURL(picture), widthPx, heightPx });
+        pictures.show(identifier, {
+          url: URL.createObjectURL(picture),
+          widthPx: region.width,
+          heightPx: region.height,
+          offsetX: region.left,
+          offsetY: region.top,
+        });
       });
     },
   });

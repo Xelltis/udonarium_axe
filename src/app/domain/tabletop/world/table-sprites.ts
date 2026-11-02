@@ -127,3 +127,45 @@ export function turnedOnFace(frame: SurfaceFrame, degrees: number): { across: Ve
   });
   return { across: mix(frame.u, frame.v, cos, sin), down: mix(frame.u, frame.v, -sin, cos) };
 }
+
+/** A picture the page takes of a part of a piece, and where the part lies off the piece's corner. */
+export interface PagePicture {
+  readonly url: string;
+  readonly widthPx: number;
+  readonly heightPx: number;
+  readonly offsetX?: number;
+  readonly offsetY?: number;
+}
+
+/**
+ * The sprite of a piece drawn flat from the picture the page takes of it: lying on the face the
+ * piece lies on, as far off the face as given, the picture's corner as far off the piece's corner as
+ * the page lays it, and in the order of how far off the face it lies.
+ */
+export function lyingPicture(
+  piece: {
+    readonly id: string;
+    readonly kind: string;
+    readonly frame: SurfaceFrame;
+    readonly x: number;
+    readonly y: number;
+  },
+  out: number,
+  picture: PagePicture
+): TableWorldSprite {
+  const across = piece.x + (picture.offsetX ?? 0) + picture.widthPx / 2;
+  const down = piece.y + (picture.offsetY ?? 0) + picture.heightPx / 2;
+  return {
+    id: `${piece.id}#picture`,
+    owner: piece.id,
+    kind: piece.kind,
+    centre: pointOnFace(piece.frame, across, down, out),
+    widthPx: picture.widthPx,
+    heightPx: picture.heightPx,
+    facing: turnedOnFace(piece.frame, 0),
+    look: { kind: 'picture', url: picture.url },
+    brightness: 1,
+    twoSided: false,
+    order: out,
+  };
+}
