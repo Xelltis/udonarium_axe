@@ -18,6 +18,7 @@ import { DisclosureService } from '@axe/application/permission/disclosure.servic
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ContextMenuSeparator, ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -73,6 +74,12 @@ export class CardComponent {
   private readonly objectPanels = inject(ObjectPanelService);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   protected readonly tabletopService = inject(TabletopService);
+
+  /**
+   * Whether the card is drawn on the table's canvas, which leaves its pictures here clear: they
+   * still take the presses where the canvas draws them.
+   */
+  readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
   private readonly imageService = inject(ImageService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly objectChange = inject(ObjectChangeService);

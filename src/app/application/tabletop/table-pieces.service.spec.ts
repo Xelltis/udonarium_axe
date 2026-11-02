@@ -7,6 +7,8 @@ import { TransientPlacementService } from '@axe/application/tabletop/transient-p
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { Card } from '@axe/domain/card/card';
+import { CardStack } from '@axe/domain/card/card-stack';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -94,6 +96,26 @@ describe('TablePiecesService', () => {
 
     expect(pieces.coins()).toMatchObject([
       { id: coin.identifier, x: 100 + gridSize / 2, y: 200 + gridSize / 2, outer: { side: 'back' }, backUp: true },
+    ]);
+  });
+
+  it('lays a card on the floor with the picture of the face it shows', () => {
+    const card = Card.create('card', 'front-picture', 'back-picture');
+    card.location = { name: 'table', x: 100, y: 200 };
+
+    expect(pieces.sprites()).toMatchObject([{ id: `${card.identifier}#face`, owner: card.identifier, kind: 'card' }]);
+  });
+
+  it('stands a stack of cards on the floor as thick as its cards', () => {
+    const stack = CardStack.create('stack');
+    stack.location = { name: 'table', x: 100, y: 200 };
+    for (let i = 0; i < 3; i++) stack.putOnTop(Card.create(`card-${i}`, 'front-picture', 'back-picture'));
+
+    expect(pieces.sprites().map((sprite) => sprite.id)).toEqual([
+      `${stack.identifier}#layer-0`,
+      `${stack.identifier}#layer-1`,
+      `${stack.identifier}#plate`,
+      `${stack.identifier}#top`,
     ]);
   });
 });

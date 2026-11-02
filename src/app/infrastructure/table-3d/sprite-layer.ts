@@ -21,6 +21,13 @@ const FRAME_MAX_PX = 1024;
 /** Draws a sprite lying flat on a face in front of the face, past the depth's rounding. */
 const PULLED_FORWARD = { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 };
 
+/**
+ * Where the sprites lying flat on a face come in the order things are drawn: after the board, the
+ * blocks and the grid, one after another from the lowest, so a card laid over another is drawn
+ * over it however close the two lie.
+ */
+const FIRST_LYING = 10;
+
 /** A direction of the board's space as the scene's, whose axes run east, up and south. */
 function sceneDirection(v: { x: number; y: number; z: number }): Vector3 {
   return new Vector3(v.x, v.z, v.y);
@@ -77,6 +84,7 @@ export class SpriteLayer {
         this.group.add(drawn.mesh);
       }
       const mesh = drawn.mesh;
+      mesh.renderOrder = 0;
       mesh.position.copy(sceneDirection(sprite.centre));
       mesh.scale.set(sprite.widthPx, sprite.heightPx, 1);
       if (sprite.facing === 'eye') {
@@ -92,7 +100,23 @@ export class SpriteLayer {
       this.drawn.delete(id);
     }
     this.facingEye = facingEye;
+    this.stackLying(sprites);
     this.forgetUnused();
+  }
+
+  /**
+   * Draws the sprites lying flat on a face one after another, from the lowest off its face, and
+   * the earlier of two as low first. They write no depth, so the order alone says which is over which.
+   */
+  private stackLying(sprites: readonly TableWorldSprite[]): void {
+    const lying = sprites
+      .map((sprite, index) => ({ sprite, index }))
+      .filter(({ sprite }) => sprite.order !== undefined)
+      .sort((a, b) => a.sprite.order! - b.sprite.order! || a.index - b.index);
+    lying.forEach(({ sprite }, rank) => {
+      const drawn = this.drawn.get(sprite.id);
+      if (drawn) drawn.mesh.renderOrder = FIRST_LYING + rank;
+    });
   }
 
   /** Turns the sprites that face the eye to an eye that now looks along these axes. */
@@ -113,11 +137,14 @@ export class SpriteLayer {
   private material(key: string, sprite: TableWorldSprite): MeshBasicNodeMaterial {
     let material = this.materials.get(key);
     if (material) return material;
+    const lying = sprite.order !== undefined;
     material = new MeshBasicNodeMaterial({
       transparent: true,
       alphaTest: 0.01,
+      opacity: sprite.opacity ?? 1,
+      depthWrite: !lying,
       side: sprite.twoSided ? DoubleSide : FrontSide,
-      ...(sprite.facing === 'eye' ? {} : PULLED_FORWARD),
+      ...(lying ? PULLED_FORWARD : {}),
     });
     material.map = this.texture(sprite.look, sprite.widthPx, sprite.heightPx);
     if (sprite.brightness !== 1) material.colorNode = dimmed(material.map, sprite.brightness);
@@ -168,11 +195,11 @@ function dimmed(picture: Texture, brightness: number) {
   return vec4(colourNode(sRGBTransferEOTF(scaled)), sampled.a);
 }
 
-/** What sprites sharing a material have alike: what they show, how bright, from which sides and how they lie. */
+/** What sprites sharing a material have alike: what they show, how bright and how clear, from which sides, and whether they lie flat. */
 function lookKey(sprite: TableWorldSprite): string {
   const shown =
     sprite.look.kind === 'picture' ? sprite.look.url : frameKey(sprite.look, sprite.widthPx, sprite.heightPx);
-  return `${shown}|${sprite.brightness}|${sprite.twoSided}|${sprite.facing === 'eye'}`;
+  return `${shown}|${sprite.brightness}|${sprite.opacity ?? 1}|${sprite.twoSided}|${sprite.order !== undefined}`;
 }
 
 function frameKey(look: Extract<TableWorldLook, { kind: 'frame' }>, width: number, height: number): string {

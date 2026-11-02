@@ -9,18 +9,25 @@ import { TransientPlacementService } from '@axe/application/tabletop/transient-p
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { Card } from '@axe/domain/card/card';
+import { CardStack } from '@axe/domain/card/card-stack';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
 import { boardSurfaceOf, surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
+import { cardSprites, cardStackSprites, SizedPicture } from '@axe/domain/tabletop/world/card-sprites';
 import { DICE_FRAME_COLOUR, diceSymbolSprites } from '@axe/domain/tabletop/world/dice-symbol-sprites';
 import { tableCoinOf, TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 
 /** The theme's colour a frame takes for a piece that is somebody's, as the page names it. */
 const OWNED_FRAME_COLOUR_PROPERTY = '--ui-panel-border';
+/** The theme's colour of the plate a stack of cards shows its top card on, as the page names it. */
+const STACK_PLATE_COLOUR_PROPERTY = '--ui-elevated';
+/** The plate's colour where the theme cannot be read. */
+const STACK_PLATE_COLOUR = '#21262d';
 
 /** Where a piece is drawn: on which face, at which corner of it, and how far off it. */
 interface DrawnPlace {
@@ -53,7 +60,7 @@ export class TablePiecesService {
   private readonly objectStore = inject(ObjectStore);
 
   /** Every sprite of every piece drawn on the table in view. */
-  readonly sprites = computed<readonly TableWorldSprite[]>(() => this.diceSprites());
+  readonly sprites = computed<readonly TableWorldSprite[]>(() => [...this.cardSprites(), ...this.diceSprites()]);
 
   /** Every coin on the table in view. */
   readonly coins = computed<readonly TableWorldCoin[]>(() => {
@@ -93,6 +100,69 @@ export class TablePiecesService {
     );
   });
 
+  private readonly cardSprites = computed(() => {
+    this.objectChange.collectionOf(Card.aliasName)();
+    this.objectChange.collectionOf(CardStack.aliasName)();
+    this.objectChange.collectionOf(WhiteBoard.aliasName)();
+    this.objectChange.fileVersion();
+    this.objectChange.networkVersion();
+    this.objectChange.trackMyCursor();
+    this.transient.version();
+    this.theme.resolved();
+    const gridSize = this.tabletop.currentTableVersion().gridSize;
+    const thick = !this.tabletop.mode2d();
+    const plate = this.themeColour(STACK_PLATE_COLOUR_PROPERTY, STACK_PLATE_COLOUR);
+    const sprites: TableWorldSprite[] = [];
+    for (const card of this.tabletop.cards) {
+      this.objectChange.versionOf(card.identifier)();
+      const size = Math.max(0, card.size);
+      if (this.vision.isPieceHiddenByFog(card, size)) continue;
+      const place = this.placeOf(card);
+      if (!place) continue;
+      sprites.push(
+        ...cardSprites({
+          id: card.identifier,
+          ...place,
+          zindex: card.zindex,
+          rotateDeg: card.rotate,
+          widthPx: size * gridSize,
+          picture: this.sized(this.images.getSkeletonOr(card.isFront ? card.frontImage : card.backImage).url),
+          peek: card.isPeeking ? this.sized(this.images.getSkeletonOr(card.frontImage).url) : null,
+        })
+      );
+    }
+    for (const stack of this.tabletop.cardStacks) {
+      this.objectChange.versionOf(stack.identifier)();
+      const top = stack.topCard;
+      const size = top ? top.size : 2;
+      if (this.vision.isPieceHiddenByFog(stack, size)) continue;
+      const place = this.placeOf(stack);
+      if (!place) continue;
+      sprites.push(
+        ...cardStackSprites({
+          id: stack.identifier,
+          ...place,
+          zindex: stack.zindex,
+          rotateDeg: stack.rotate,
+          widthPx: size * gridSize,
+          cardCount: stack.cards.length,
+          thick: thick && surfaceOf(stack) === 'floor',
+          top: top
+            ? { picture: this.sized(this.images.getSkeletonOr(stack.imageFile).url), rotateDeg: top.rotate }
+            : null,
+          plateColour: plate,
+        })
+      );
+    }
+    return sprites;
+  });
+
+  /** A picture with how big it is, or null while that is not known. */
+  private sized(url: string): SizedPicture | null {
+    const size = url ? this.pictureSizes.sizeOf(url) : null;
+    return size ? { url, ...size } : null;
+  }
+
   private readonly diceSprites = computed(() => {
     this.objectChange.collectionOf(DiceSymbol.aliasName)();
     this.objectChange.collectionOf(WhiteBoard.aliasName)();
@@ -103,7 +173,7 @@ export class TablePiecesService {
     this.theme.resolved();
     const gridSize = this.tabletop.currentTableVersion().gridSize;
     const facesEye = this.tabletop.imageBillboard() || this.tabletop.mode2d();
-    const owned = this.ownedFrameColour();
+    const owned = this.themeColour(OWNED_FRAME_COLOUR_PROPERTY, DICE_FRAME_COLOUR);
     const sprites: TableWorldSprite[] = [];
     for (const die of this.tabletop.diceSymbols) {
       this.objectChange.versionOf(die.identifier)();
@@ -153,9 +223,10 @@ export class TablePiecesService {
     };
   }
 
-  private ownedFrameColour(): string {
-    if (typeof getComputedStyle !== 'function') return DICE_FRAME_COLOUR;
-    const colour = getComputedStyle(document.documentElement).getPropertyValue(OWNED_FRAME_COLOUR_PROPERTY).trim();
-    return colour || DICE_FRAME_COLOUR;
+  /** A colour of the theme on screen, as the page names it, or the colour given where it cannot be read. */
+  private themeColour(property: string, otherwise: string): string {
+    if (typeof getComputedStyle !== 'function') return otherwise;
+    const colour = getComputedStyle(document.documentElement).getPropertyValue(property).trim();
+    return colour || otherwise;
   }
 }

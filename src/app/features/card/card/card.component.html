@@ -20,6 +20,7 @@
     @if (imageFile()) {
       <img
         class="m-auto block h-auto w-full [transform-style:inherit]"
+        [class.opacity-0]="drawsOnCanvas()"
         [ngStyle]="{
           width: imageSupersamplePercent(),
           maxWidth: 'none',
@@ -42,6 +43,7 @@
     @if (canPeek() && peekImageUrl().length > 0) {
       <img
         class="pointer-events-none absolute block object-contain filter-[opacity(0.8)] will-change-[opacity] [transform-style:inherit]"
+        [class.opacity-0]="drawsOnCanvas()"
         [ngStyle]="{
           left: peekImageLayout().left + 'px',
           top: peekImageLayout().top + 'px',

@@ -20,12 +20,15 @@
     @for (layer of stackLayers(); track $index) {
       <div
         class="pointer-events-none absolute inset-0 rounded-[5px] backface-hidden transform-3d"
+        [class.opacity-0]="drawsOnCanvas()"
         [style.background-color]="layer.bg"
         [style.transform]="'translateZ(' + layer.z + 'px)'"
       ></div>
     }
     <div
       class="border-ui-elevated bg-ui-elevated relative size-full rounded-[5px] border-[5px] border-solid backface-hidden transform-3d"
+      [class.border-transparent!]="drawsOnCanvas()"
+      [class.bg-transparent!]="drawsOnCanvas()"
       [style.transform]="'translateZ(' + stackThicknessPx() + 'px)'"
       [style.transform-style]="isPoster() ? 'inherit' : null"
       [style.backface-visibility]="isPoster() ? 'visible' : null"
@@ -38,6 +41,7 @@
         >
           <img
             class="chrome-smooth-image-trick inset-0 m-auto block h-auto w-full"
+            [class.opacity-0]="drawsOnCanvas()"
             [ngStyle]="{
               width: imageSupersamplePercent(),
               maxWidth: 'none',

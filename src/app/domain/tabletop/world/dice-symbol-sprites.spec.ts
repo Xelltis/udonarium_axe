@@ -33,6 +33,7 @@ describe('the sprites a die is drawn with', () => {
       heightPx: 50,
       facing: { across: { x: 1, y: 0, z: 0 }, down: { x: 0, y: 1, z: 0 } },
       twoSided: false,
+      order: 1,
     });
     expect(frame.look).toEqual({
       kind: 'frame',
@@ -54,6 +55,7 @@ describe('the sprites a die is drawn with', () => {
       facing: 'eye',
       look: { kind: 'picture', url: 'blob:face' },
     });
+    expect(picture.order).toBeUndefined();
   });
 
   it('stands its picture square to the die where pictures do not turn to the reader', () => {

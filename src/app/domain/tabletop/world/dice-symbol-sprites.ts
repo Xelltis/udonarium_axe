@@ -73,6 +73,7 @@ export function diceSymbolSprites(die: DiceSymbolLayout): TableWorldSprite[] {
       },
       brightness: die.frameBrightness,
       twoSided: false,
+      order: out,
     },
   ];
   const picture = die.picture;
@@ -107,6 +108,7 @@ export function diceSymbolSprites(die: DiceSymbolLayout): TableWorldSprite[] {
         z: middle.z - (axes.down.z * height) / 2,
       },
       facing: axes,
+      order: out,
     });
   }
   return sprites;

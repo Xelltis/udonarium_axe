@@ -38,8 +38,16 @@ export interface TableWorldSprite {
   readonly look: TableWorldLook;
   /** How bright it is drawn, from black at 0 to its own colours at 1, as the page dims a piece. */
   readonly brightness: number;
+  /** How opaque it is drawn, 1 where it is not given. */
+  readonly opacity?: number;
   /** Whether it shows from behind as well as from in front. */
   readonly twoSided: boolean;
+  /**
+   * For a sprite lying flat on a face, how far off the face the page lifts it, which says which of
+   * the sprites lying in one place is drawn over which: the higher over the lower, and of two as
+   * high the later over the earlier. A sprite that stands up from its face has none.
+   */
+  readonly order?: number;
 }
 
 /** Which way the eye's right and the eye's up run in the board's space. */

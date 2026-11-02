@@ -16,6 +16,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
@@ -91,6 +92,12 @@ export class CardStackComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly visionService = inject(VisionService);
   protected readonly tabletopService = inject(TabletopService);
+
+  /**
+   * Whether the stack is drawn on the table's canvas, which leaves its layers, its plate and its top
+   * card here clear: they still take the presses where the canvas draws them.
+   */
+  readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
   private readonly modalService = inject(ModalService);
   private readonly cardDrop = inject(CardDropService);
   private readonly movableRef = viewChild(MovableDirective);
