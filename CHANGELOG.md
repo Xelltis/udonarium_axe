@@ -1,3 +1,13 @@
+## [1.75.3](https://github.com/Xelltis/udonarium_axe/compare/v1.75.2...v1.75.3) (2026-11-02)
+
+### 🐛 Bug Fixes
+
+* **buff:** show a buff's colour, and ∞R for one that never runs out, in the detail view over a piece ([964804a](https://github.com/Xelltis/udonarium_axe/commit/964804a7861018e62fefcb2b5eecd7f7f4746855))
+
+### 📝 Documentation
+
+* **release:** add the notes for v1.75.3 ([43dbe7e](https://github.com/Xelltis/udonarium_axe/commit/43dbe7eeb7e432920daad4383ae3f1650c6bf327))
+
 ## [1.75.2](https://github.com/Xelltis/udonarium_axe/compare/v1.75.1...v1.75.2) (2026-11-02)
 
 ### 🐛 Bug Fixes
