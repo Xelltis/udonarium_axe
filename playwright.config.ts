@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+
 import { defineConfig, devices } from '@playwright/test';
 
 const isCI = !!process.env['CI'];
@@ -7,6 +9,72 @@ const drawsOnCanvas = {
   cookies: [],
   origins: [{ origin: 'http://localhost:4300', localStorage: [{ name: 'axe.table.renderer', value: 'three' }] }],
 };
+
+/**
+ * The specs about the table itself: what is drawn on it, where, and what a press on it does. A table
+ * drawn on a canvas is put through these alone; the rest (the chat, the panels, the novel screen and
+ * so on) do the same whichever way the table is drawn, and are run once, on the page's own table. A
+ * new spec about the table goes on this list.
+ */
+const ON_THE_TABLE = [
+  /e2e\/webgl\/.*\.spec\.ts$/,
+  ...[
+    'background-backdrop',
+    'board-switch',
+    'buff-view',
+    'button-guide',
+    'card',
+    'card-advanced',
+    'card-drop',
+    'card-individual',
+    'card-old-maid',
+    'card-stack-more',
+    'card-tcg',
+    'character',
+    'character-flags',
+    'character-gauge',
+    'coin',
+    'darkness',
+    'dice-symbol-flags',
+    'disclosure',
+    'engagement-zone',
+    'first-person-entry',
+    'free-path-move',
+    'gm-tools',
+    'hex-pedestal',
+    'line-of-fire',
+    'map-effects',
+    'move-interrupt',
+    'over-resource',
+    'piece-image-size',
+    'piece-overlay',
+    'range-area',
+    'ride',
+    'see-through',
+    'speech-bubble-note-format',
+    'start-room',
+    'stealth',
+    'strict-move',
+    'table-cells-and-music',
+    'table-drop-faces',
+    'table-surfaces',
+    'tabletop',
+    'tabletop-altitude',
+    'tabletop-misc',
+    'tabletop-objects',
+    'unseen-pieces',
+  ].map((name) => new RegExp(`e2e/${name}\\.spec\\.ts$`)),
+];
+
+/**
+ * How a browser that draws the table on a canvas is launched. Headless Chromium has no graphics card
+ * to draw with and draws through SwiftShader; where Mesa's Vulkan driver for the processor
+ * (llvmpipe) is installed, it is had to draw through that instead, which spreads the drawing over
+ * the processor's cores and runs the canvas specs about a quarter faster.
+ */
+const CANVAS_LAUNCH = existsSync('/usr/share/vulkan/icd.d/lvp_icd.json')
+  ? { args: ['--use-angle=vulkan', '--enable-features=Vulkan', '--ignore-gpu-blocklist'] }
+  : {};
 
 /**
  * The specs that read how the page itself draws the table, which a canvas draws instead, and so
@@ -21,9 +89,9 @@ export default defineConfig({
   forbidOnly: isCI,
   retries: isCI ? 2 : 1,
   // The static server holds 77 MB where `ng serve` held 1.3 GB, so the run can
-  // afford real parallelism: 4 workers finish this suite in half the time of 2
-  // and still use less memory in total than the old dev-server setup.
-  workers: isCI ? 2 : 4,
+  // afford real parallelism. Each worker's browser takes about half a gigabyte:
+  // 6 finish a run some 13% sooner than 4, and 8 hardly sooner than 6.
+  workers: isCI ? 2 : 6,
   reporter: 'html',
   // A page load off the build settles in well under a second; 60s was sized for
   // the dev server compiling on demand.
@@ -47,12 +115,14 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/, /server\/.*\.spec\.ts/, /webgl\/.*\.spec\.ts/],
     },
-    // The same browser with the table drawn on a canvas. Headless Chromium gives no WebGPU adapter
-    // without flags, so this goes through WebGL2, drawn in software: a spec that drags a piece
-    // about many times takes some three times as long as on the page, so it is given twice the time.
+    // The same browser with the table drawn on a canvas, put through the specs about the table. Headless
+    // Chromium gives no WebGPU adapter without flags, so this goes through WebGL2, drawn in software: a
+    // spec that drags a piece about many times takes some three times as long as on the page, so it is
+    // given twice the time.
     {
       name: 'chromium-webgl',
-      use: { ...devices['Desktop Chrome'], storageState: drawsOnCanvas },
+      use: { ...devices['Desktop Chrome'], storageState: drawsOnCanvas, launchOptions: CANVAS_LAUNCH },
+      testMatch: ON_THE_TABLE,
       testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/, /server\/.*\.spec\.ts/, ...PAGE_DRAWING_ONLY],
       timeout: 60000,
     },
@@ -77,7 +147,12 @@ export default defineConfig({
     },
     {
       name: 'mobile-webgl',
-      use: { ...devices['Pixel 7'], reducedMotion: 'reduce', storageState: drawsOnCanvas },
+      use: {
+        ...devices['Pixel 7'],
+        reducedMotion: 'reduce',
+        storageState: drawsOnCanvas,
+        launchOptions: CANVAS_LAUNCH,
+      },
       // A phone has no game master's toolbar, which the specs that build on the table go through.
       testMatch: [/webgl\/table-scene\.spec\.ts/],
     },
@@ -133,7 +208,10 @@ export default defineConfig({
     // on its own port so a dev server left running on 4200 is never picked up
     // by mistake.
     command: 'npm run e2e:serve',
-    url: 'http://localhost:4300',
+    // Asked over IPv6: under WSL's mirrored networking a connection to a closed port on 127.0.0.1
+    // is not refused but left to time out, which held every run up by two and a half minutes
+    // before the server was even started. ::1 refuses at once, and the server listens on both.
+    url: 'http://[::1]:4300',
     reuseExistingServer: !isCI,
   },
 });
