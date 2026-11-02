@@ -81,7 +81,7 @@ class FakeEngine implements Table3dEngine {
   }
 
   stats() {
-    return { chunks: 0, boardGridTriangles: 0, topsGridTriangles: 0, sprites: 0 };
+    return { chunks: 0, boardGridTriangles: 0, topsGridTriangles: 0, sprites: 0, coins: 0 };
   }
 }
 
