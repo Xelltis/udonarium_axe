@@ -23,6 +23,7 @@ const PASSING_ON_CANVAS = [
   /tabletop-altitude\.spec\.ts/,
   /tabletop-objects\.spec\.ts/,
   /\/tabletop\.spec\.ts/,
+  /range-area\.spec\.ts/,
 ];
 
 export default defineConfig({
