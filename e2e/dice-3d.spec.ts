@@ -14,6 +14,10 @@ test.use({
 
 /** A chat roll's dice tumble in the frame of the line that answers it, when the room has them shown there. */
 test.describe('rolling chat dice in 3D', () => {
+  // One after another in one worker: each roll draws in software and runs the physics in a worker,
+  // and six of them at once, one to a worker, starved every browser past its timeouts.
+  test.describe.configure({ mode: 'default' });
+
   async function becomeGameMaster(page: Page) {
     await page
       .locator('ui-panel')
