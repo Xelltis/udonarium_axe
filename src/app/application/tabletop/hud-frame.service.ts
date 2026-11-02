@@ -137,6 +137,7 @@ export class HudFrameService {
     const ranks = new Map(
       [...boxes].sort(([, a], [, b]) => a.nearness - b.nearness).map(([owner], rank) => [owner, rank + 1])
     );
+    const origin = this.camera.layout ?? { left: 0, top: 0 };
     const sizes = new Map<HTMLElement, { width: number; height: number }>();
     for (const [element, placed] of this.placed) {
       if (placed.anchor.place === 'face')
@@ -152,7 +153,7 @@ export class HudFrameService {
         ? null
         : at
           ? point && centredOn(point, piece, scale)
-          : styleOf(placed.anchor, piece, ranks.get(placed.anchor.owner) ?? 0, sizes.get(element));
+          : styleOf(placed.anchor, piece, ranks.get(placed.anchor.owner) ?? 0, sizes.get(element), origin);
       const written = style ? JSON.stringify(style) : '';
       if (written === placed.written) continue;
       placed.written = written;
@@ -192,17 +193,21 @@ function centredOn(point: { x: number; y: number }, piece: PiecePageBoxes, scale
   };
 }
 
-/** The style that puts an element of a size against a piece drawn in these boxes. */
+/**
+ * The style that puts an element of a size against a piece drawn in these boxes, the root of a piece
+ * within the screen that lies over the table from the origin given, on the page.
+ */
 function styleOf(
   anchor: HudAnchor,
   piece: PiecePageBoxes,
   rank: number,
-  size: { width: number; height: number } | undefined
+  size: { width: number; height: number } | undefined,
+  origin: { left: number; top: number }
 ): HudStyle | null {
   const whole = piece.whole;
   if (anchor.part === undefined) {
     return {
-      transform: `translate(${px(whole.left)}, ${px(whole.top)})`,
+      transform: `translate(${px(whole.left - origin.left)}, ${px(whole.top - origin.top)})`,
       width: px(whole.width),
       height: px(whole.height),
       zIndex: String(rank),

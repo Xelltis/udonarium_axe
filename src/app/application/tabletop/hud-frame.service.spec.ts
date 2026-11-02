@@ -74,6 +74,22 @@ describe('HudFrameService', () => {
     expect(put.style.transform).toBe('translate(75px, 50px)');
   });
 
+  it('puts the root of a piece within the screen over the table, wherever the table lies on the page', () => {
+    (TestBed.inject(TableCameraService) as unknown as { layout: object }).layout = {
+      left: 20,
+      top: 10,
+      width: 800,
+      height: 600,
+      boardWidth: 1000,
+      boardHeight: 1000,
+    };
+    const root = element();
+    frame.place(root, { owner: 'die' });
+    frame.writeNow();
+
+    expect(root.style.transform).toBe('translate(55px, 40px)');
+  });
+
   it('puts the root of a piece over the box round all of it', () => {
     const root = element();
     frame.place(root, { owner: 'die' });
