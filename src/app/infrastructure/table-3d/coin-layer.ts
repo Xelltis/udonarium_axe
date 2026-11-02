@@ -1,5 +1,5 @@
 import type { TableWorldCoin, TableWorldCoinSide } from '@axe/domain/tabletop/world/table-coins';
-import { pointOnFace, turnedOnFace } from '@axe/domain/tabletop/world/table-sprites';
+import { pointOnFace, turnedAbout, turnedOnFace } from '@axe/domain/tabletop/world/table-sprites';
 import { paintCoinSide } from '@axe/infrastructure/table-3d/coin-sides';
 import {
   BufferGeometry,
@@ -144,15 +144,18 @@ function sideKey(look: TableWorldCoinSide, radius: number): string {
 
 /**
  * Stands a coin's body where the coin lies: its middle half its thickness off its underside, its
- * axis out of the face, and turned in the face as the coin is.
+ * axis out of the face, and turned in the face as the coin is; and where a move has it, as it flips.
  */
 function place(body: Group, coin: TableWorldCoin): void {
   const axes = turnedOnFace(coin.face, coin.rotateDeg);
-  const x = sceneDirection(axes.across).normalize();
-  const y = sceneDirection(coin.face.normal).normalize();
+  const flip = coin.motion?.flipDeg ?? 0;
+  const x = sceneDirection(turnedAbout(axes.across, axes.down, flip)).normalize();
+  const y = sceneDirection(turnedAbout(coin.face.normal, axes.down, flip)).normalize();
   const z = new Vector3().crossVectors(x, y).normalize();
-  body.position.copy(sceneDirection(pointOnFace(coin.face, coin.x, coin.y, coin.base + coin.thicknessPx / 2)));
+  const lift = coin.motion?.out ?? 0;
+  body.position.copy(sceneDirection(pointOnFace(coin.face, coin.x, coin.y, coin.base + coin.thicknessPx / 2 + lift)));
   body.quaternion.setFromRotationMatrix(new Matrix4().makeBasis(x, y, z));
+  body.scale.setScalar(coin.motion?.scale ?? 1);
 }
 
 /**

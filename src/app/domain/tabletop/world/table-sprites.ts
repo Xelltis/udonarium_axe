@@ -50,6 +50,11 @@ export interface TableWorldSprite {
    * high the later over the earlier. A sprite that stands up from its face has none.
    */
   readonly order?: number;
+  /**
+   * A turn about an axis through its middle, by the right hand about the axis, put on after the way
+   * it lies: as a picture turned to the eye is turned again while the piece it stands on spins.
+   */
+  readonly turn?: { readonly axis: Vec3; readonly deg: number };
 }
 
 /** Which way the eye's right and the eye's up run in the board's space. */
@@ -75,10 +80,27 @@ export function eyeAxesOf(eye: Matrix3D): EyeAxes {
   };
 }
 
+/** A direction turned about an axis by an angle in degrees, by the right hand about the axis. */
+export function turnedAbout(v: Vec3, axis: Vec3, degrees: number): Vec3 {
+  const k = unit(axis);
+  const turn = (degrees * Math.PI) / 180;
+  const cos = Math.cos(turn);
+  const sin = Math.sin(turn);
+  const dot = k.x * v.x + k.y * v.y + k.z * v.z;
+  return {
+    x: v.x * cos + (k.y * v.z - k.z * v.y) * sin + k.x * dot * (1 - cos),
+    y: v.y * cos + (k.z * v.x - k.x * v.z) * sin + k.y * dot * (1 - cos),
+    z: v.z * cos + (k.x * v.y - k.y * v.x) * sin + k.z * dot * (1 - cos),
+  };
+}
+
 /** The directions a sprite runs across and down, given which way the eye looks. */
 export function spriteAxes(sprite: TableWorldSprite, eye: EyeAxes): { across: Vec3; down: Vec3 } {
-  if (sprite.facing !== 'eye') return sprite.facing;
-  return { across: eye.right, down: { x: -eye.up.x, y: -eye.up.y, z: -eye.up.z } };
+  const axes =
+    sprite.facing !== 'eye' ? sprite.facing : { across: eye.right, down: { x: -eye.up.x, y: -eye.up.y, z: -eye.up.z } };
+  const turn = sprite.turn;
+  if (!turn) return axes;
+  return { across: turnedAbout(axes.across, turn.axis, turn.deg), down: turnedAbout(axes.down, turn.axis, turn.deg) };
 }
 
 /**

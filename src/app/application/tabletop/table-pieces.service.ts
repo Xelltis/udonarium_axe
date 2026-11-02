@@ -3,7 +3,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { PageDrawnPiecesService } from '@axe/application/tabletop/page-drawn-pieces.service';
+import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
@@ -36,6 +36,7 @@ import { characterSprites } from '@axe/domain/tabletop/world/character-sprites';
 import { DICE_FRAME_COLOUR, diceSymbolSprites } from '@axe/domain/tabletop/world/dice-symbol-sprites';
 import { maskSprites, rangeSprites } from '@axe/domain/tabletop/world/flat-piece-sprites';
 import { lightSourceSprites } from '@axe/domain/tabletop/world/light-source-sprites';
+import { MotionPivot, movedSprite } from '@axe/domain/tabletop/world/piece-motions';
 import { tableCoinOf, TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { textNoteSprites } from '@axe/domain/tabletop/world/text-note-sprites';
@@ -59,8 +60,8 @@ interface DrawnPlace {
 
 /**
  * How the pieces on the table in view are drawn, worked out for this seat: the sprites most are
- * drawn with, and the coins. What the seat may not see is left out, and so is a piece the page
- * draws itself for a while; a piece the seat is moving is drawn where it is being moved to.
+ * drawn with, and the coins. What the seat may not see is left out; a piece the seat is moving is
+ * drawn where it is being moved to, and a piece playing a move where the move has it.
  *
  * Both the canvas that draws the table and the picking that says what a press lands on read them,
  * so a piece is pressed where it is drawn.
@@ -79,29 +80,51 @@ export class TablePiecesService {
   private readonly objectStore = inject(ObjectStore);
   private readonly pagePictures = inject(PiecePicturesService);
   private readonly roomRules = inject(RoomRulesService);
-  private readonly pageDrawn = inject(PageDrawnPiecesService);
+  private readonly motions = inject(PieceMotionsService);
 
-  /** Every sprite of every piece drawn on the table in view. */
-  readonly sprites = computed<readonly TableWorldSprite[]>(() =>
-    [
-      ...this.boardSprites(),
-      ...this.lightSprites(),
-      ...this.maskSprites(),
-      ...this.rangeSprites(),
-      ...this.noteSprites(),
-      ...this.cardSprites(),
-      ...this.diceSprites(),
-      ...this.characterSprites(),
-    ].filter((sprite) => !this.pageDrawn.drawsItself(sprite.owner))
-  );
+  /** Every sprite of every piece drawn on the table in view, where it stands. */
+  private readonly standing = computed<readonly TableWorldSprite[]>(() => [
+    ...this.boardSprites(),
+    ...this.lightSprites(),
+    ...this.maskSprites(),
+    ...this.rangeSprites(),
+    ...this.noteSprites(),
+    ...this.cardSprites(),
+    ...this.diceSprites(),
+    ...this.characterSprites(),
+  ]);
 
-  /** Every coin on the table in view. */
+  /**
+   * Every sprite of every piece drawn on the table in view, a piece playing a move where the move
+   * has it now. A piece moves about the middle of the first sprite of it lying on its face, as the
+   * page moves it about the middle of where it stands.
+   */
+  readonly sprites = computed<readonly TableWorldSprite[]>(() => {
+    const standing = this.standing();
+    const poses = this.motions.posesNow();
+    if (!poses.size) return standing;
+    const pivots = new Map<string, MotionPivot>();
+    for (const sprite of standing) {
+      if (sprite.order === undefined || sprite.facing === 'eye' || pivots.has(sprite.owner)) continue;
+      pivots.set(sprite.owner, { point: sprite.centre, across: sprite.facing.across, down: sprite.facing.down });
+    }
+    return standing.map((sprite) => {
+      const playing = poses.get(sprite.owner);
+      const pivot = pivots.get(sprite.owner);
+      if (!playing || !pivot) return sprite;
+      if (playing.parts && !playing.parts.includes(sprite.id.slice(sprite.id.lastIndexOf('#') + 1))) return sprite;
+      return movedSprite(sprite, playing.pose, pivot);
+    });
+  });
+
+  /** Every coin on the table in view, a coin flipping where its flip has it now. */
   readonly coins = computed<readonly TableWorldCoin[]>(() => {
     this.objectChange.collectionOf(Coin.aliasName)();
     this.objectChange.collectionOf(WhiteBoard.aliasName)();
     this.objectChange.fileVersion();
     this.transient.version();
     const gridSize = this.tabletop.currentTableVersion().gridSize;
+    const poses = this.motions.posesNow();
     const coins: TableWorldCoin[] = [];
     for (const coin of this.tabletop.coins) {
       this.objectChange.versionOf(coin.identifier)();
@@ -114,11 +137,12 @@ export class TablePiecesService {
         ...place,
         sizePx: size * gridSize,
         rotateDeg: coin.rotate,
-        backUp: coin.face === 'back',
+        backUp: poses.get(coin.identifier)?.backUp ?? coin.face === 'back',
         frontPictureUrl: this.images.getEmptyOr(coin.frontImage).url,
         backPictureUrl: this.images.getEmptyOr(coin.backImage).url,
       });
-      if (drawn && !this.pageDrawn.drawsItself(coin.identifier)) coins.push(drawn);
+      const playing = poses.get(coin.identifier);
+      if (drawn) coins.push(playing ? { ...drawn, motion: playing.pose } : drawn);
     }
     return coins;
   });

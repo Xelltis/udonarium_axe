@@ -16,6 +16,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -48,7 +49,6 @@ import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { DoubleTap } from '@axe/ui/tabletop/double-tap';
-import { drawnByPageWhile } from '@axe/ui/tabletop/drawn-by-page-while';
 import { hideIconWhileTouched } from '@axe/ui/tabletop/icon-hiding';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { supersampleFactor, supersampleInsetPercent, supersampleTransform } from '@axe/ui/tabletop/supersample';
@@ -96,11 +96,11 @@ export class CardStackComponent {
 
   /**
    * Whether the stack is drawn on the table's canvas, which leaves its layers, its plate and its top
-   * card here clear: they still take the presses where the canvas draws them.
+   * card here clear: they still take the presses where the canvas draws them. The canvas plays its
+   * shuffle too.
    */
-  readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
-  /** Whether the stack is drawn on the canvas now: not while it is shuffled, which the page plays and draws itself. */
-  readonly drawnOnCanvas = computed(() => this.drawsOnCanvas() && !(this.animeState() === 'active'));
+  readonly drawnOnCanvas = inject(Table3dService).drawsOnCanvas;
+  private readonly motions = inject(PieceMotionsService);
   private readonly modalService = inject(ModalService);
   private readonly cardDrop = inject(CardDropService);
   private readonly movableRef = viewChild(MovableDirective);
@@ -289,13 +289,10 @@ export class CardStackComponent {
   private readonly doubleTap = new DoubleTap(() => this.input);
 
   constructor() {
-    drawnByPageWhile(
-      () => this.cardStack().identifier,
-      () => this.drawsOnCanvas() && this.animeState() === 'active'
-    );
     this.objectChange.shuffleCardStack$.subscribe((event) => {
       if (event.identifier === this.cardStack().identifier) {
         this.animeState.set('active');
+        if (this.drawnOnCanvas()) this.motions.play(event.identifier, 'shuffle', { parts: ['top'] });
       }
     }, this.destroyRef);
     setupMovableRotableForPiece(this, {

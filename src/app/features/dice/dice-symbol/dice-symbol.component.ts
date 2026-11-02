@@ -1,5 +1,6 @@
 import { NgStyle } from '@angular/common';
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -19,6 +20,7 @@ import { DisclosureService } from '@axe/application/permission/disclosure.servic
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -39,6 +41,7 @@ import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
+import { PieceMotionKind } from '@axe/domain/tabletop/world/piece-motions';
 import { buildDiceSymbolContextMenu } from '@axe/features/dice/dice-symbol/dice-symbol-context-menu';
 import { BillboardDirective } from '@axe/ui/directives/billboard.directive';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
@@ -49,7 +52,6 @@ import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { makeBillboardTransform } from '@axe/ui/tabletop/billboard-transform';
 import { DoubleTap } from '@axe/ui/tabletop/double-tap';
-import { drawnByPageWhile } from '@axe/ui/tabletop/drawn-by-page-while';
 import { hideIconWhileTouched } from '@axe/ui/tabletop/icon-hiding';
 import { pieceImageView } from '@axe/ui/tabletop/piece-image-view';
 import { pieceLabelFacings } from '@axe/ui/tabletop/piece-label-facings';
@@ -60,7 +62,9 @@ import { translateZCss, Z_OFFSET_TALL_OBJECT_PX } from '@axe/ui/tabletop/z-offse
 const TUMBLE_MS = 800;
 /** How long the callout stays up afterwards, which is the length of its own animation. */
 const RESULT_POPUP_MS = 1300;
-const TUMBLE_PATHS = 3;
+/** The ways a die tumbles, taken in turn, as the page's animations of the same names play them. */
+const TUMBLES: readonly PieceMotionKind[] = ['dice-tumble-a', 'dice-tumble-b', 'dice-tumble-c'];
+const TUMBLE_PATHS = TUMBLES.length;
 
 @Component({
   selector: 'dice-symbol',
@@ -98,11 +102,10 @@ export class DiceSymbolComponent {
 
   /**
    * Whether the die is drawn on the table's canvas, which leaves its frame and picture here clear:
-   * they still take the presses where the canvas draws them.
+   * they still take the presses where the canvas draws them. The canvas plays its tumble too.
    */
-  readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
-  /** Whether the die is drawn on the canvas now: not while it tumbles, which the page plays and draws itself. */
-  readonly drawnOnCanvas = computed(() => this.drawsOnCanvas() && !(this.animeState() === 'active'));
+  readonly drawnOnCanvas = inject(Table3dService).drawsOnCanvas;
+  private readonly motions = inject(PieceMotionsService);
 
   readonly isHiddenByFog = computed(() => {
     const piece = this.diceSymbol();
@@ -343,10 +346,9 @@ export class DiceSymbolComponent {
   }
 
   constructor() {
-    drawnByPageWhile(
-      () => this.diceSymbol().identifier,
-      () => this.drawsOnCanvas() && this.animeState() === 'active'
-    );
+    afterNextRender(() => {
+      if (this.drawnOnCanvas()) this.motions.play(this.diceSymbol().identifier, 'bounce-in');
+    });
     this.objectChange.rollDiceSymbol$.subscribe((event) => {
       if (event.identifier === this.diceSymbol().identifier) this.startRoll();
     }, this.destroyRef);
@@ -389,7 +391,15 @@ export class DiceSymbolComponent {
     this.tumble.update((path) => (path + 1) % TUMBLE_PATHS);
     this.animeState.set('inactive');
 
-    this.rollTimers.push(setTimeout(() => this.animeState.set('active')));
+    this.rollTimers.push(
+      setTimeout(() => {
+        this.animeState.set('active');
+        if (this.drawnOnCanvas())
+          this.motions.play(this.diceSymbol().identifier, TUMBLES[this.tumble()], {
+            parts: ['picture'],
+          });
+      })
+    );
     this.rollTimers.push(
       setTimeout(() => {
         // A die nobody may see calls nothing out; the face is the owner's to read.

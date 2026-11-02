@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
-import { PageDrawnPiecesService } from '@axe/application/tabletop/page-drawn-pieces.service';
+import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
@@ -170,14 +170,35 @@ describe('TablePiecesService', () => {
     expect(pieces.sprites()).toMatchObject([{ id: `${board.identifier}#face`, widthPx: 200, heightPx: 100 }]);
   });
 
-  it('leaves out a piece the page draws itself for a while, and draws it again once handed back', () => {
+  it('moves the parts of a piece a move moves, about the middle of where it stands', () => {
     const die = dieAt(100, 200);
-    const pages = TestBed.inject(PageDrawnPiecesService);
+    const pose = { across: 10, down: 0, out: 0, scale: 2, turnDeg: 90, flipDeg: 0 };
+    vi.spyOn(TestBed.inject(PieceMotionsService), 'posesNow').mockReturnValue(
+      new Map([[die.identifier, { pose, parts: ['picture'] }]])
+    );
 
-    pages.draw(die.identifier, true);
-    expect(pieces.sprites()).toEqual([]);
+    const [frame, picture] = pieces.sprites();
 
-    pages.draw(die.identifier, false);
-    expect(pieces.sprites().map((sprite) => sprite.owner)).toEqual([die.identifier, die.identifier]);
+    expect(frame.centre).toEqual({ x: 125, y: 225, z: 1 });
+    expect(frame.widthPx).toBe(gridSize);
+    expect(picture.centre.x).toBeCloseTo(135, 6);
+    expect(picture.centre.y).toBeCloseTo(225, 6);
+    expect(picture.widthPx).toBe(gridSize * 2);
+    expect(picture.facing).not.toBe('eye');
+    if (picture.facing === 'eye') return;
+    expect(picture.facing.across.x).toBeCloseTo(0, 6);
+    expect(picture.facing.across.y).toBeCloseTo(1, 6);
+  });
+
+  it('turns a flipping coin over from the side it starts on, whichever it is to land on', () => {
+    const coin = Coin.create('coin');
+    coin.location = { name: 'table', x: 100, y: 200 };
+    coin.face = 'back';
+    const pose = { across: 0, down: 0, out: 90, scale: 1.18, turnDeg: 0, flipDeg: 720 };
+    vi.spyOn(TestBed.inject(PieceMotionsService), 'posesNow').mockReturnValue(
+      new Map([[coin.identifier, { pose, backUp: false }]])
+    );
+
+    expect(pieces.coins()).toMatchObject([{ id: coin.identifier, backUp: false, motion: pose }]);
   });
 });

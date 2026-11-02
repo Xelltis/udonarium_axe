@@ -306,14 +306,28 @@ test.describe('pieces drawn on a canvas', () => {
     }
   });
 
-  test('hand a die to the page while it tumbles, and draw it again once it has come to rest', async ({ page }) => {
+  test('tumble a die on the canvas, its picture moving and its frame staying, and bring it to rest', async ({
+    page,
+  }) => {
     const id = await made(page, PIECES[0]);
+    await idle(page);
+    const [frame, picture] = await boxesOf(page, id);
 
     await page.locator(`dice-symbol[data-object-id="${id}"]`).dispatchEvent('contextmenu');
     await page.locator('context-menu').getByText('ダイスを振る', { exact: true }).click();
 
-    await expect.poll(async () => (await boxesOf(page, id)).length, { timeout: 5000 }).toBe(0);
-    await expect.poll(async () => (await boxesOf(page, id)).length, { timeout: 10000 }).toBe(2);
+    let tumbling: Box[] = [];
+    await expect
+      .poll(
+        async () => {
+          tumbling = await boxesOf(page, id);
+          return tumbling.length === 2 && JSON.stringify(tumbling[1]) !== JSON.stringify(picture);
+        },
+        { timeout: 3000, intervals: [50] }
+      )
+      .toBe(true);
+    expect(tumbling[0]).toEqual(frame);
+    await expect.poll(() => boxesOf(page, id), { timeout: 5000 }).toEqual([frame, picture]);
   });
 
   for (const piece of PIECES) {

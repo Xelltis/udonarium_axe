@@ -15,6 +15,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -37,7 +38,6 @@ import { RotableDirective, RotableOption } from '@axe/ui/directives/rotable.dire
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { DoubleTap } from '@axe/ui/tabletop/double-tap';
-import { drawnByPageWhile } from '@axe/ui/tabletop/drawn-by-page-while';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
 
@@ -78,11 +78,10 @@ export class CoinComponent {
 
   /**
    * Whether the coin is drawn on the table's canvas, which leaves its sides and rim here clear: they
-   * still take the presses where the canvas draws them.
+   * still take the presses where the canvas draws them. The canvas plays its flip too.
    */
-  readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
-  /** Whether the coin is drawn on the canvas now: not while it spins, which the page plays and draws itself. */
-  readonly drawnOnCanvas = computed(() => this.drawsOnCanvas() && !this.isSpinning());
+  readonly drawnOnCanvas = inject(Table3dService).drawsOnCanvas;
+  private readonly motions = inject(PieceMotionsService);
 
   readonly isHiddenByFog = computed(() => {
     const piece = this.coin();
@@ -198,10 +197,6 @@ export class CoinComponent {
   }
 
   constructor() {
-    drawnByPageWhile(
-      () => this.coin().identifier,
-      () => this.drawsOnCanvas() && this.isSpinning()
-    );
     this.objectChange.flipCoin$.subscribe((event) => {
       if (event.identifier === this.coin().identifier) this.startSpin(event.face as CoinFace);
     }, this.destroyRef);
@@ -303,9 +298,15 @@ export class CoinComponent {
     const current = this.spin();
     if (current && current.to === to) return;
 
-    this.spin.set({ from: current?.from ?? untracked(this.modelFace), to });
+    const from = current?.from ?? untracked(this.modelFace);
+    this.spin.set({ from, to });
     this.isSpinning.set(false);
     setTimeout(() => this.isSpinning.set(true));
+    if (this.drawnOnCanvas()) {
+      this.motions.play(this.coin().identifier, from === to ? 'coin-flip' : 'coin-flip-turn', {
+        backUp: from === 'back',
+      });
+    }
   }
 
   private showDetail() {

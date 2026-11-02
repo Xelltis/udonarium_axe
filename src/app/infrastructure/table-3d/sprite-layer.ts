@@ -1,4 +1,9 @@
-import type { EyeAxes, TableWorldLook, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
+import {
+  type EyeAxes,
+  spriteAxes,
+  type TableWorldLook,
+  type TableWorldSprite,
+} from '@axe/domain/tabletop/world/table-sprites';
 import { float, max, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
 import {
   CanvasTexture,
@@ -45,6 +50,15 @@ function turnAlong(across: { x: number; y: number; z: number }, down: { x: numbe
   return new Matrix4().makeBasis(x, y, z);
 }
 
+/** An eye for working out the way a sprite lies that does not turn to the eye, which never reads it. */
+const UNUSED_EYE: EyeAxes = { right: { x: 1, y: 0, z: 0 }, up: { x: 0, y: 0, z: 1 } };
+
+/** Turns a sprite that faces the eye to an eye looking along these axes, and on by its own turn. */
+function turnToEye(mesh: Mesh, sprite: TableWorldSprite, eye: EyeAxes): void {
+  const { across, down } = spriteAxes(sprite, eye);
+  mesh.quaternion.setFromRotationMatrix(turnAlong(across, down));
+}
+
 interface Drawn {
   readonly mesh: Mesh;
   readonly look: string;
@@ -61,15 +75,15 @@ export class SpriteLayer {
   private readonly drawn = new Map<string, Drawn>();
   private readonly materials = new Map<string, MeshBasicNodeMaterial>();
   private readonly frames = new Map<string, CanvasTexture>();
-  private facingEye: readonly Mesh[] = [];
-  private eye: Matrix4 | null = null;
+  private facingEye: readonly { readonly mesh: Mesh; readonly sprite: TableWorldSprite }[] = [];
+  private eye: EyeAxes | null = null;
 
   constructor(private readonly pictureOf: (url: string) => Texture) {}
 
   /** Lays out the sprites the scene holds now, making only the ones not drawn before. */
   set(sprites: readonly TableWorldSprite[]): void {
     const wanted = new Set<string>();
-    const facingEye: Mesh[] = [];
+    const facingEye: { mesh: Mesh; sprite: TableWorldSprite }[] = [];
     for (const sprite of sprites) {
       wanted.add(sprite.id);
       const look = lookKey(sprite);
@@ -88,10 +102,11 @@ export class SpriteLayer {
       mesh.position.copy(sceneDirection(sprite.centre));
       mesh.scale.set(sprite.widthPx, sprite.heightPx, 1);
       if (sprite.facing === 'eye') {
-        facingEye.push(mesh);
-        if (this.eye) mesh.quaternion.setFromRotationMatrix(this.eye);
+        facingEye.push({ mesh, sprite });
+        if (this.eye) turnToEye(mesh, sprite, this.eye);
       } else {
-        mesh.quaternion.setFromRotationMatrix(turnAlong(sprite.facing.across, sprite.facing.down));
+        const { across, down } = spriteAxes(sprite, UNUSED_EYE);
+        mesh.quaternion.setFromRotationMatrix(turnAlong(across, down));
       }
     }
     for (const [id, drawn] of this.drawn) {
@@ -121,8 +136,8 @@ export class SpriteLayer {
 
   /** Turns the sprites that face the eye to an eye that now looks along these axes. */
   face(axes: EyeAxes): void {
-    this.eye = turnAlong(axes.right, { x: -axes.up.x, y: -axes.up.y, z: -axes.up.z });
-    for (const mesh of this.facingEye) mesh.quaternion.setFromRotationMatrix(this.eye);
+    this.eye = axes;
+    for (const { mesh, sprite } of this.facingEye) turnToEye(mesh, sprite, axes);
   }
 
   dispose(): void {

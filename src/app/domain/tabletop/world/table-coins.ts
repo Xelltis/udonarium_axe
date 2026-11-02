@@ -1,4 +1,5 @@
 import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
+import type { MotionPose } from '@axe/domain/tabletop/world/piece-motions';
 
 /** The alias a coin is known by. */
 export const COIN_KIND = 'coin';
@@ -34,6 +35,11 @@ export interface TableWorldCoin {
   readonly inner: TableWorldCoinSide;
   /** Whether it lies back up, which turns its rim over with it. */
   readonly backUp: boolean;
+  /**
+   * Where a move it is playing has it now, as it flips: lifted off its face, grown, and turned over
+   * the line running down its face. At rest where not given.
+   */
+  readonly motion?: MotionPose;
 }
 
 /** A coin on the table, as much of it as is drawn. */
