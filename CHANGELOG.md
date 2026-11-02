@@ -1,3 +1,19 @@
+## [1.75.1](https://github.com/Xelltis/udonarium_axe/compare/v1.75.0...v1.75.1) (2026-11-02)
+
+### 🐛 Bug Fixes
+
+* **buff:** keep none out of the colour words and the rounds out of a lasting buff's line ([6a673d5](https://github.com/Xelltis/udonarium_axe/commit/6a673d5cf9b2fd085ea1d2456e47ee7deeaa4545))
+* **buff:** read none as the timing that never runs out ([2e18a69](https://github.com/Xelltis/udonarium_axe/commit/2e18a6938372a9edf46e1e3dee5e6a612c8ec3c6))
+* **chat:** aim a line at the targets when a reference of the speaker's reads one ([16d309e](https://github.com/Xelltis/udonarium_axe/commit/16d309e1a87d6ba5810beb1bd41e2b169a928242))
+* **chat:** check whether a line is aimed the way sending it reads ([2eefce1](https://github.com/Xelltis/udonarium_axe/commit/2eefce1e0d7705eda1e34a48fc3e971adbfe151c))
+* **chat:** fill every target from the line the speaker filled in ([a0a8f3a](https://github.com/Xelltis/udonarium_axe/commit/a0a8f3aeb74bdf3f69625f0dc3cd60f8ae70601a))
+
+### 📝 Documentation
+
+* **manual:** say a field's t{} aims the line and how to lay a buff that stays ([40cdafc](https://github.com/Xelltis/udonarium_axe/commit/40cdafc55c2960df8c4e91455bda2dc98149eaae))
+* **release:** add the notes for v1.75.1 ([338965f](https://github.com/Xelltis/udonarium_axe/commit/338965f234dee35d652d94ce0aef6fc7c6c29d76))
+* **release:** note what v1.75.1 changes for lines written the old way ([3105f8c](https://github.com/Xelltis/udonarium_axe/commit/3105f8c6acfe2808cdff1ab351f7a9b827e2b186))
+
 ## [1.75.0](https://github.com/Xelltis/udonarium_axe/compare/v1.74.2...v1.75.0) (2026-11-01)
 
 ### ✨ Features
