@@ -25,7 +25,11 @@ export class ConnectionCallback {
   onConnect!: (peer: IPeerContext) => void;
   onDisconnect!: (peer: IPeerContext) => void;
   onReconnect!: (peer: IPeerContext, state: PeerReconnectState) => void;
-  onData!: (peer: IPeerContext | null, data: unknown[]) => void;
+  /**
+   * Data arrived, from a peer, or with `own` set, this seat's own data handed back to it as it went
+   * out, which is this seat's whatever its peer has come to be called since.
+   */
+  onData!: (peer: IPeerContext | null, data: unknown[], own?: boolean) => void;
   onError!: (peer: IPeerContext, errorType: string, errorMessage: string, errorObject: unknown) => void;
   /** The room server gave this seat another role while it is in the room. */
   onRoleChange?: (role: ServerRole) => void;

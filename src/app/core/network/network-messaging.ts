@@ -115,9 +115,11 @@ export const LOCAL_ONLY_EVENTS: ReadonlySet<string> = new Set([
  *
  * An event only the room server may send, whose word outranks any version, is dropped unless the
  * room server itself sent it: another seat, or any seat with SkyWay, could send one by that name.
- * An event this device only tells itself is dropped from anybody.
+ * An event this device only tells itself is dropped from anybody. With `own` set the events are
+ * this device's own, handed back to it as they went out, and are its own though its peer has come
+ * to be called otherwise since they were sent, as when its connection opens or gives up.
  */
-export function receiveEvents(events: EventContext[]): void {
+export function receiveEvents(events: EventContext[], own = false): void {
   for (const ctx of events) {
     if (LOCAL_ONLY_EVENTS.has(ctx.eventName)) {
       Logger.warn(
@@ -134,7 +136,7 @@ export function receiveEvents(events: EventContext[]): void {
       eventName: ctx.eventName,
       data: ctx.data,
       sendFrom: ctx.sendFrom,
-      isSendFromSelf: ctx.sendFrom === Network.peerId,
+      isSendFromSelf: own || ctx.sendFrom === Network.peerId,
     });
   }
   scheduleAngularTick();
@@ -190,7 +192,7 @@ export function initializeNetworkMessaging(): void {
     localDispatch('PEER_RECONNECT', { peerId: peer.peerId, state });
   };
 
-  callback.onData = (_peer, data) => receiveEvents(data as EventContext[]);
+  callback.onData = (_peer, data, own) => receiveEvents(data as EventContext[], own);
 
   callback.onError = (peer, errorType, errorMessage, errorObject) => {
     Logger.debug('[NetworkMessaging]', `<${peer.peerId}> ${errorMessage}`);

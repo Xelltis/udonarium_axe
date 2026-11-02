@@ -1,3 +1,4 @@
+import { Network } from '@axe/core/network/network';
 import {
   childrenChanged$,
   markForChanged,
@@ -28,6 +29,22 @@ describe('object-event-extension', () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
       expect(callback).toHaveBeenCalled();
       expect(callback.mock.calls[0][0]).toEqual(expect.objectContaining({ identifier: obj.identifier }));
+      sub();
+    });
+
+    it('tells a change this seat made as its own, though the seat’s peer changes before the notice goes out', async () => {
+      const obj = new ObjectNode();
+      obj.initialize();
+      const peer = vi.spyOn(Network, 'peerId', 'get').mockReturnValue('this-seat');
+      const callback = vi.fn();
+      const sub = objectChanged$.subscribe(callback);
+
+      markForChanged(obj);
+      markForChanged(new ObjectNode(), 'another-seat');
+      peer.mockReturnValue('???');
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(callback.mock.calls.map(([event]) => event.isSendFromSelf)).toEqual([true, false]);
       sub();
     });
   });

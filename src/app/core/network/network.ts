@@ -417,8 +417,8 @@ export class Network {
     }
 
     if (this.callback.onData) {
-      this.callback.onData(null, broadcast);
-      this.callback.onData(this.peer, echocast);
+      this.callback.onData(null, broadcast, true);
+      this.callback.onData(this.peer, echocast, true);
     }
 
     if (this.queue.size > 0) {

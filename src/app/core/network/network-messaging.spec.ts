@@ -87,4 +87,13 @@ describe('receiveEvents', () => {
 
     expect(received).toEqual([]);
   });
+
+  it('tells this device’s own events handed back to it as its own, though its peer has been renamed since', () => {
+    vi.spyOn(Network, 'peerId', 'get').mockReturnValue('renamed');
+
+    receiveEvents([event('UPDATE_GAME_OBJECT', '???')], true);
+    receiveEvents([event('UPDATE_GAME_OBJECT', '???')]);
+
+    expect(received.map((message) => message.isSendFromSelf)).toEqual([true, false]);
+  });
 });

@@ -131,6 +131,17 @@ describe('Network', () => {
       expect(connectionSend.mock.calls).toEqual([[['first']], [['second']]]);
     });
 
+    it('hands what it sends back to this seat as its own', () => {
+      const onData = vi.fn();
+      const before = Network.instance.callback.onData;
+      Network.instance.callback.onData = onData;
+      Network.instance.send('to everyone');
+      internals().sendQueue();
+      Network.instance.callback.onData = before;
+
+      expect(onData).toHaveBeenCalledWith(null, ['to everyone'], true);
+    });
+
     it('keeps messages without a key apart', () => {
       Network.instance.send('same');
       Network.instance.send('same');

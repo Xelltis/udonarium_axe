@@ -106,12 +106,14 @@ export class ObjectSynchronizer {
             }
             break;
           }
+          // A seat's own update heard back is told as its own however its peer is called by now.
           case 'UPDATE_GAME_OBJECT': {
             const context: ObjectContext = msg.data as ObjectContext;
+            const origin = msg.isSendFromSelf ? Network.peerId : msg.sendFrom;
             let object: GameObject | null = ObjectStore.instance.get(context.identifier);
             if (object) {
               if (!msg.isSendFromSelf) object = this.updateObject(object, context);
-              markForChanged(object, msg.sendFrom);
+              markForChanged(object, origin);
             } else if (ObjectStore.instance.isDeleted(context.identifier)) {
               if (!msg.isSendFromSelf) this.answerChangeOfDeleted(context, msg.sendFrom);
             } else if (
@@ -121,7 +123,7 @@ export class ObjectSynchronizer {
             ) {
               this.askedOfServer.delete(context.identifier);
               object = this.createObject(context);
-              if (object) markForChanged(object, msg.sendFrom);
+              if (object) markForChanged(object, origin);
             }
             break;
           }

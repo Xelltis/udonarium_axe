@@ -1,9 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { messageAdded$, selectGameTable$ } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
-import { localDispatch } from '@axe/core/network/network-messaging';
+import { localDispatch, receiveEvents } from '@axe/core/network/network-messaging';
 import { AuthorityEvent } from '@axe/core/network/server/server-protocol';
 import { GameObject } from '@axe/core/sync/game-object';
+import { objectChanged$ } from '@axe/core/sync/object-event-extension';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { SynchronizeRequest, SynchronizeTask } from '@axe/core/sync/synchronize-task';
@@ -106,6 +107,25 @@ describe('ObjectSynchronizer', () => {
         }),
         'peer-a'
       );
+    });
+
+    it('tells an update of its own heard back as its own, though its peer has been renamed since it went out', async () => {
+      ObjectSynchronizer.instance.initialize();
+      const piece = new GameObject('own-piece');
+      ObjectStore.instance.add(piece, false);
+      const sent = piece.toContext();
+      vi.spyOn(Network, 'peerId', 'get').mockReturnValue('renamed');
+      const heard: boolean[] = [];
+      const off = objectChanged$.subscribe((event) => {
+        if (event.identifier === 'own-piece') heard.push(event.isSendFromSelf);
+      });
+
+      receiveEvents([{ eventName: 'UPDATE_GAME_OBJECT', data: sent, sendFrom: '???' }], true);
+      await Promise.resolve();
+      off();
+      ObjectStore.instance.delete(piece, false);
+
+      expect(heard).toEqual([true]);
     });
   });
 

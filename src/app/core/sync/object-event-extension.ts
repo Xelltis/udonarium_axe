@@ -28,7 +28,7 @@ export interface ObjectStoreEvent {
 export const objectAdded$ = new EventChannel<ObjectStoreEvent>();
 export const objectRemoved$ = new EventChannel<ObjectStoreEvent>();
 
-const objectBatches = new Map<string, { object: GameObject; originFrom: string }>();
+const objectBatches = new Map<string, { object: GameObject; fromSelf: boolean }>();
 const nodeBatches = new Set<string>();
 
 let isBatching = false;
@@ -38,13 +38,15 @@ let isBatching = false;
  *
  * Notices are gathered and delivered together in a microtask, one per object however often it
  * changed, followed by a LOCAL_OBJECT_UPDATED message. sendFrom decides whether listeners see the
- * change as their own; the last one given for an object wins.
+ * change as their own, held against this seat's peer as it is when the change is made: a seat whose
+ * peer changes before the notice goes out, as when its connection gives up, still made the change.
+ * The last one given for an object wins.
  */
 export function markForChanged(object: GameObject, sendFrom: string = Network.peerId) {
   if (!object) return;
   objectBatches.set(object.identifier, {
     object,
-    originFrom: sendFrom,
+    fromSelf: sendFrom === Network.peerId,
   });
   if (object instanceof ObjectNode) markForChildrenChanged(object.parent);
 
@@ -85,7 +87,7 @@ const triggerEvent = () => {
     objectChanged$.emit({
       aliasName: data.object.aliasName,
       identifier: data.object.identifier,
-      isSendFromSelf: data.originFrom === Network.peerId,
+      isSendFromSelf: data.fromSelf,
     });
   }
 
