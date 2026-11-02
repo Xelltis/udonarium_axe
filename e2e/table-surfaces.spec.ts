@@ -84,7 +84,7 @@ test.describe('the faces things are put on', () => {
     // Over a table drawn on a canvas the face is put once the canvas draws the board.
     await expect(face).toBeVisible({ timeout: 10000 });
     const board = (await face.getAttribute('data-surface'))!;
-    expect(await farthestApart(face, board), 'lying').toBeLessThan(SLACK_PX);
+    await expect.poll(() => farthestApart(face, board), { timeout: 5000, message: 'lying' }).toBeLessThan(SLACK_PX);
     for (const label of ['斜めに立てる', '立てる']) {
       await pitchBoard(page, label);
       await expect.poll(() => farthestApart(face, board), { timeout: 5000, message: label }).toBeLessThan(SLACK_PX);

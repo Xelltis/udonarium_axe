@@ -6,7 +6,17 @@ import { solidPng } from './png-helpers';
 
 export type FaceHooks = {
   surfacePageOf(surface: string, x: number, y: number): { x: number; y: number } | null;
+  whenIdle(): Promise<void>;
 };
+
+/**
+ * Waits for the table to be drawn as it now stands: over a canvas, for the canvas to draw it and for
+ * what the screen lays over it, a board's face among them, to be put where the canvas draws it,
+ * which is done in a frame after the table changes. On the page's own table it settles at once.
+ */
+export async function whenDrawn(page: Page): Promise<void> {
+  await page.evaluate(() => (window as unknown as { __axeTable: FaceHooks }).__axeTable.whenIdle());
+}
 
 /** Shows a wall of the table with a plain picture on it, which a wall needs before it is drawn. */
 export async function showWall(page: Page, wallName: string, key: string) {

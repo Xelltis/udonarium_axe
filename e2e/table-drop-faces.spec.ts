@@ -3,7 +3,7 @@ import { expect, Locator, Page, test } from '@playwright/test';
 import { becomeGm, closePanels } from './dungeon-helpers';
 import { openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
 import { piece, placeOf, Point, settle } from './see-through-helpers';
-import { FaceHooks, faceOf, pageOfFace, showWall } from './table-face-helpers';
+import { FaceHooks, faceOf, pageOfFace, showWall, whenDrawn } from './table-face-helpers';
 
 /**
  * A piece let go of over another face than the one it stands on moves onto that face: a white board
@@ -26,6 +26,7 @@ async function makeBoard(page: Page): Promise<string> {
   const face = page.locator('white-board [data-surface]');
   // Over a table drawn on a canvas the face is put once the canvas draws the board.
   await expect(face).toBeVisible({ timeout: 10000 });
+  await whenDrawn(page);
   return (await face.getAttribute('data-surface'))!;
 }
 
