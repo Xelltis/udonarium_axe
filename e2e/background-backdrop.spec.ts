@@ -54,10 +54,12 @@ test.describe('background layers placed at the back', () => {
 
     const viewport = page.viewportSize()!;
     const at = { x: viewport.width - 120, y: viewport.height - 80 };
+    // Dragged with the middle button, which pans as the left does: a left press held still for a
+    // moment opens a marquee instead, and a busy page can be that long telling of the first move.
     await page.mouse.move(at.x, at.y);
-    await page.mouse.down();
+    await page.mouse.down({ button: 'middle' });
     await page.mouse.move(at.x - 100, at.y, { steps: 8 });
-    await page.mouse.up();
+    await page.mouse.up({ button: 'middle' });
 
     await expect.poll(shifts).not.toEqual(before);
     const after = await shifts();
