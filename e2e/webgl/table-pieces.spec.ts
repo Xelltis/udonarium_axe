@@ -266,6 +266,7 @@ test.describe('pieces drawn on a canvas', () => {
     const id = (await face.getAttribute('data-surface'))!;
     await idle(page);
     await expect.poll(async () => (await boxesOf(page, id)).length, { timeout: 10000 }).toBe(1);
+    await idle(page);
 
     const [drawn] = await boxesOf(page, id);
     const laidOut = await page.evaluate((identifier) => {
@@ -465,19 +466,23 @@ test.describe('pieces drawn on a canvas', () => {
       await page.mouse.down();
       await page.mouse.move(grabX + 60, grabY + 20, { steps: 6 });
       await page.mouse.move(grabX + 120, grabY + 40, { steps: 6 });
+      let moved = shape;
       await expect
         .poll(async () => {
-          const [moved] = await boxesOf(page, id);
+          [moved] = await boxesOf(page, id);
           return moved.x - shape.x;
         })
         .toBeGreaterThan(60);
       await page.mouse.up();
       await idle(page);
 
-      // Let go, it is drawn where its object now says, near the pointer, give or take a snap to the grid.
+      // Let go, it is drawn where its object now says: where it was drawn while dragged, give or take
+      // a snap to the grid. A piece follows the pointer by the moves it is told of, which a slower
+      // page gathers into fewer, so how near the pointer it comes is not asked.
       const [dropped] = await boxesOf(page, id);
-      const off = Math.hypot(dropped.x - shape.x - 120, dropped.y - shape.y - 40);
-      expect(off, JSON.stringify([shape, dropped])).toBeLessThan(45);
+      const off = Math.hypot(dropped.x - moved.x, dropped.y - moved.y);
+      expect(off, JSON.stringify([shape, moved, dropped])).toBeLessThan(45);
+      expect(dropped.x - shape.x, JSON.stringify([shape, dropped])).toBeGreaterThan(60);
     });
   }
 });

@@ -1,3 +1,4 @@
+import { HudFrameService } from '@axe/application/tabletop/hud-frame.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
@@ -32,7 +33,10 @@ export interface TableTestHooks {
   faceAt(pageX: number, pageY: number): string | null;
   /** The interface the canvas draws the table through, or null while the table is not drawn on one. */
   renderer(): 'webgpu' | 'webgl2' | null;
-  /** Settles once the canvas has drawn everything it was told, or at once while there is no canvas. */
+  /**
+   * Settles once the canvas has drawn everything it was told and what the screen lays over it is
+   * where the canvas draws it, or at once while there is no canvas.
+   */
   whenIdle(): Promise<void>;
   /** What the canvas's engine holds, counted, or null while there is none. */
   sceneStats(): {
@@ -67,7 +71,8 @@ export function installTableTestHooks(
   camera: TableCameraService,
   overlap: TabletopOverlapService,
   surfaces: TableSurfaceService,
-  scene: Table3dService
+  scene: Table3dService,
+  hud: HudFrameService
 ): () => void {
   if (!win.navigator.webdriver) return () => undefined;
   const hooked = win as HookedWindow;
@@ -84,7 +89,7 @@ export function installTableTestHooks(
     camera: () => camera.view,
     aliasOf: (identifier) => ObjectStore.instance.get(identifier)?.aliasName ?? null,
     renderer: () => scene.backend(),
-    whenIdle: () => scene.whenIdle(),
+    whenIdle: () => scene.whenIdle().then(() => hud.writeNow()),
     sceneStats: () => scene.stats(),
     spritesOf: (identifier) =>
       scene

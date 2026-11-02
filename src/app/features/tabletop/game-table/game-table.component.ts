@@ -27,6 +27,7 @@ import { BoardSwitchService } from '@axe/application/tabletop/board-switch.servi
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
+import { HudFrameService } from '@axe/application/tabletop/hud-frame.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
@@ -270,6 +271,7 @@ export class GameTableComponent {
   private readonly tableSurfaces = inject(TableSurfaceService);
   protected readonly table3d = inject(Table3dService);
   private readonly tabletopOverlap = inject(TabletopOverlapService);
+  private readonly hudFrame = inject(HudFrameService);
   private readonly imageService = inject(ImageService);
   private readonly motion = inject(MotionService);
   private readonly tabletopService = inject(TabletopService);
@@ -472,7 +474,8 @@ export class GameTableComponent {
           this.tableCamera,
           this.tabletopOverlap,
           this.tableSurfaces,
-          this.table3d
+          this.table3d,
+          this.hudFrame
         )
       );
       this.syncMode2d();
