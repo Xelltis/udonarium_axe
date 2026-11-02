@@ -19,6 +19,7 @@ import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -56,6 +57,7 @@ import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { translateZCss, Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
@@ -64,7 +66,7 @@ import { translateZCss, Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
   selector: 'range',
   templateUrl: './range.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MovableDirective, TooltipDirective, RotableDirective, SelectableDirective, NgStyle],
+  imports: [HudPlaceDirective, MovableDirective, TooltipDirective, RotableDirective, SelectableDirective, NgStyle],
   host: {
     '[attr.data-object-id]': 'range().identifier',
     '(dragstart)': 'onDragstart($event)',
@@ -102,6 +104,7 @@ export class RangeComponent {
    * leaves them clear here, still taking the presses where the canvas draws them.
    */
   readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
+  private readonly pieces = inject(TablePiecesService);
 
   readonly clipPath = computed<string>(() => {
     this._clipVersion();
@@ -174,6 +177,31 @@ export class RangeComponent {
   readonly rotateGrabDistancePx = computed(() => Math.max(1, this.length()) * this.tabletopService.squarePx());
 
   readonly singleRotateGrabX = 0;
+
+  /** The point the range turns about over a table drawn on a canvas: its own point, at its height. */
+  readonly turnPoint = computed(() => {
+    const range = this.range();
+    this.rangeVersion();
+    return {
+      surface: this.pieces.surfaceOf(range),
+      x: range.location.x,
+      y: range.location.y,
+      height: range.posZ + this.altitude() * this.gridSize,
+    };
+  });
+
+  /** Where the range's handle stands over a table drawn on a canvas: off its point, turned as it is. */
+  readonly grabPoint = computed(() => {
+    const about = this.turnPoint();
+    const across = this.usesSingleRotateGrab() ? this.singleRotateGrabX : this.rotateGrabDistancePx();
+    const down = this.usesSingleRotateGrab() ? this.singleRotateGrabY() : 0;
+    const turn = (this.range().rotate * Math.PI) / 180;
+    return {
+      ...about,
+      x: about.x + across * Math.cos(turn) - down * Math.sin(turn),
+      y: about.y + across * Math.sin(turn) + down * Math.cos(turn),
+    };
+  });
 
   readonly singleRotateGrabY = computed(() => -Math.max(1, this.length()) * this.tabletopService.squarePx());
 
@@ -264,6 +292,8 @@ export class RangeComponent {
         const snapXY = isHexGrid(this.currentTable.gridType) ? 0 : half;
         return { x: snapXY, y: snapXY };
       },
+      placedElsewhere: this.drawsOnCanvas,
+      turnsAbout: () => this.turnPoint(),
     });
     afterNextRender(() => {
       this._initialized = true;

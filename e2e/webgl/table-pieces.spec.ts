@@ -231,7 +231,7 @@ test.describe('pieces drawn on a canvas', () => {
     [PIECES[3], '[data-part="top"]'],
     [PIECES[4], '.rounded-b-ui-sm'],
     [PIECES[5], '[data-part="cover"]'],
-    [PIECES[6], 'canvas'],
+    [PIECES[6], '[data-part="picture"]'],
     [PIECES[7], '[data-part="mark"]'],
     [PIECES[8], '[data-part="pedestal"]'],
   ] as const) {

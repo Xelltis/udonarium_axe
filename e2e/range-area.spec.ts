@@ -84,13 +84,27 @@ test.describe('square and diamond ranges', () => {
   }) => {
     await createSquareRange(page, '四角形として出力');
     const range = page.locator('range').first();
-    await range.locator('canvas').first().hover({ force: true });
+    // The range turns about its own point, which is where the page draws that point of the floor.
+    const [x, y, z] = (await range.locator('[data-location]').first().getAttribute('data-location'))!
+      .split(',')
+      .map(Number);
+    const centre = await page.evaluate(
+      ([x, y, z]) =>
+        (
+          window as unknown as {
+            __axeTable: { surfacePageOf(surface: string, x: number, y: number, z: number): { x: number; y: number } };
+          }
+        ).__axeTable.surfacePageOf('floor', x, y, z),
+      [x, y, z]
+    );
+    await page.mouse.move(centre.x, centre.y);
     const grab = range.locator('.rotate-grab').first();
+    // Over a table drawn on a canvas the handle is put once the canvas draws the range.
+    await expect(grab).toBeVisible();
     const box = await grab.boundingBox();
-    const centre = await range.locator('[approtable]').first().boundingBox();
-    if (!box || !centre) throw new Error('the range is not on screen');
-    const cx = centre.x + centre.width / 2;
-    const cy = centre.y + centre.height / 2;
+    if (!box) throw new Error('the range is not on screen');
+    const cx = centre.x;
+    const cy = centre.y;
     const radius = Math.hypot(box.x + box.width / 2 - cx, box.y + box.height / 2 - cy);
 
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
