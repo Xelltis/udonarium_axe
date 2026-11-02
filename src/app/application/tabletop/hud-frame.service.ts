@@ -67,8 +67,12 @@ export class HudFrameService {
   private following: EffectRef | null = null;
   private frame: number | null = null;
 
-  /** Puts an element against a piece from now on. Hands back the way to stop. */
+  /**
+   * Puts an element against a piece from now on. Hands back the way to stop. An element not put
+   * anywhere yet is hidden until it is, rather than shown for a frame where it was laid out.
+   */
   place(element: HTMLElement, anchor: HudAnchor): () => void {
+    if (!element.style.transform) element.style.visibility = 'hidden';
     const placed: Placed = { anchor, written: null };
     this.placed.set(element, placed);
     this.follow();

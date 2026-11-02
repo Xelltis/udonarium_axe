@@ -65,6 +65,26 @@ describe('HudFrameService', () => {
     vi.restoreAllMocks();
   });
 
+  it('hides an element put against a piece until the frame puts it where the piece is drawn', () => {
+    const put = element();
+    frame.place(put, { owner: 'die' });
+
+    expect(put.style.visibility).toBe('hidden');
+    frame.writeNow();
+    expect(put.style.visibility).toBe('');
+    expect(put.style.transform).toBe('translate(75px, 50px)');
+  });
+
+  it('keeps an element shown where it is while it is put against a piece afresh', () => {
+    const put = element();
+    const stop = frame.place(put, { owner: 'die' });
+    frame.writeNow();
+    stop();
+    frame.place(put, { owner: 'die', part: 'picture' });
+
+    expect(put.style.visibility).toBe('');
+  });
+
   it('may be asked to put an element from within an effect', () => {
     const put = element();
     effect(() => frame.place(put, { owner: 'die' }), { injector: TestBed.inject(Injector) });
