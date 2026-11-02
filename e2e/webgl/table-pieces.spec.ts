@@ -13,6 +13,7 @@ type Box = { x: number; y: number; width: number; height: number };
 
 type Hooks = {
   renderer(): string | null;
+  moving(identifier: string): boolean;
   edgesOnPage(): [number, number, number, number][];
   whenIdle(): Promise<void>;
   pickAt(x: number, y: number): string | null;
@@ -60,7 +61,10 @@ async function grabScreen(page: Page): Promise<void> {
   }, shot.toString('base64'));
 }
 
-/** Waits for a piece's animations, such as the bounce it comes onto the table with, to finish. */
+/**
+ * Waits for a piece's animations, such as the bounce it comes onto the table with, to finish: the
+ * page's, and the moves the canvas plays itself.
+ */
 async function settled(page: Page, identifier: string) {
   await expect
     .poll(() =>
@@ -69,7 +73,8 @@ async function settled(page: Page, identifier: string) {
           document
             .querySelector(`[data-object-id="${id}"]`)!
             .getAnimations({ subtree: true })
-            .filter((animation) => animation.playState === 'running').length,
+            .filter((animation) => animation.playState === 'running').length +
+          ((window as unknown as { __axeTable: Hooks }).__axeTable.moving(id) ? 1 : 0),
         identifier
       )
     )

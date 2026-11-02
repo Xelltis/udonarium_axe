@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { HudFrameService } from '@axe/application/tabletop/hud-frame.service';
+import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
@@ -21,7 +22,8 @@ describe('table test hooks', () => {
       TestBed.inject(TabletopOverlapService),
       TestBed.inject(TableSurfaceService),
       TestBed.inject(Table3dService),
-      TestBed.inject(HudFrameService)
+      TestBed.inject(HudFrameService),
+      TestBed.inject(PieceMotionsService)
     );
     return { win, remove };
   }

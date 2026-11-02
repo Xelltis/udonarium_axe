@@ -1,4 +1,5 @@
 import { HudFrameService } from '@axe/application/tabletop/hud-frame.service';
+import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
@@ -38,6 +39,8 @@ export interface TableTestHooks {
    * where the canvas draws it, or at once while there is no canvas.
    */
   whenIdle(): Promise<void>;
+  /** Whether a piece is playing a move on the canvas now, as a die tumbling or coming into view. */
+  moving(identifier: string): boolean;
   /** What the canvas's engine holds, counted, or null while there is none. */
   sceneStats(): {
     chunks: number;
@@ -72,7 +75,8 @@ export function installTableTestHooks(
   overlap: TabletopOverlapService,
   surfaces: TableSurfaceService,
   scene: Table3dService,
-  hud: HudFrameService
+  hud: HudFrameService,
+  motions: PieceMotionsService
 ): () => void {
   if (!win.navigator.webdriver) return () => undefined;
   const hooked = win as HookedWindow;
@@ -90,6 +94,7 @@ export function installTableTestHooks(
     aliasOf: (identifier) => ObjectStore.instance.get(identifier)?.aliasName ?? null,
     renderer: () => scene.backend(),
     whenIdle: () => scene.whenIdle().then(() => hud.writeNow()),
+    moving: (identifier) => motions.isPlaying(identifier),
     sceneStats: () => scene.stats(),
     spritesOf: (identifier) =>
       scene
