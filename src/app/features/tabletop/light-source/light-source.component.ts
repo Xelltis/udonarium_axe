@@ -1,7 +1,18 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  ElementRef,
+  inject,
+  input,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -25,6 +36,7 @@ import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { makeBillboardTransform } from '@axe/ui/tabletop/billboard-transform';
+import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { translateZCss, Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
 
@@ -35,6 +47,7 @@ import { translateZCss, Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
   imports: [MovableDirective, RotableDirective, SelectableDirective, TooltipDirective, SafePipe],
   host: {
     '[style.display]': "isHiddenByFog() ? 'none' : null",
+    '[attr.data-object-id]': 'lightSource().identifier',
     class: 'block',
     '(dragstart)': 'onDragstart($event)',
     '(contextmenu)': 'onContextMenu($event)',
@@ -66,10 +79,26 @@ export class LightSourceComponent {
   readonly movableOption = signal<MovableOption>({});
   readonly rotableOption = signal<RotableOption>({});
 
+  /**
+   * Whether the light is drawn on the table's canvas from a picture of what marks it taken here,
+   * which leaves the mark here clear, still taking the presses where the canvas draws it.
+   */
+  readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
+  private readonly mark = viewChild<ElementRef<HTMLElement>>('mark');
+
   constructor() {
     setupMovableRotableForPiece(this, {
       target: this.lightSource,
       transformCssOffset: translateZCss(Z_OFFSET_RANGE_PX),
+    });
+    pictureForCanvas({
+      identifier: () => this.lightSource().identifier,
+      element: () => this.mark()?.nativeElement,
+      pictured: () => this.drawsOnCanvas(),
+      follows: () => {
+        this.skinUrl();
+        this.iconColor();
+      },
     });
     this.objectChange.onObjectChangedFor(
       () => {

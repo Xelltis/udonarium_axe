@@ -32,7 +32,10 @@
   @if (skinUrl().length > 0) {
     <div
       class="pointer-events-auto absolute inset-0 m-auto bg-contain bg-center bg-no-repeat transform-3d"
+      #mark
+      data-part="mark"
       [class.opacity-40]="!enabled()"
+      [style.opacity]="drawsOnCanvas() ? 0 : null"
       [style.width.px]="gridSize"
       [style.height.px]="gridSize"
       [style.transform]="skinTransform()"
@@ -42,7 +45,10 @@
   } @else {
     <div
       class="pointer-events-auto absolute inset-0 m-auto flex size-9 items-center justify-center rounded-full border border-white/40 bg-black/40 transform-3d"
+      #mark
+      data-part="mark"
       [class.opacity-40]="!enabled()"
+      [style.opacity]="drawsOnCanvas() ? 0 : null"
       [style.transform]="skinTransform()"
       [appTooltip]="lightSource()"
     >

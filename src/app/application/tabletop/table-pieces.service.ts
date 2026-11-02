@@ -15,6 +15,7 @@ import { CardStack } from '@axe/domain/card/card-stack';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
+import { LightSource } from '@axe/domain/tabletop/light-source';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
@@ -24,6 +25,7 @@ import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { cardSprites, cardStackSprites, SizedPicture } from '@axe/domain/tabletop/world/card-sprites';
 import { DICE_FRAME_COLOUR, diceSymbolSprites } from '@axe/domain/tabletop/world/dice-symbol-sprites';
 import { maskSprites, rangeSprites } from '@axe/domain/tabletop/world/flat-piece-sprites';
+import { lightSourceSprites } from '@axe/domain/tabletop/world/light-source-sprites';
 import { tableCoinOf, TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { textNoteSprites } from '@axe/domain/tabletop/world/text-note-sprites';
@@ -70,6 +72,7 @@ export class TablePiecesService {
   /** Every sprite of every piece drawn on the table in view. */
   readonly sprites = computed<readonly TableWorldSprite[]>(() => [
     ...this.boardSprites(),
+    ...this.lightSprites(),
     ...this.maskSprites(),
     ...this.rangeSprites(),
     ...this.noteSprites(),
@@ -126,6 +129,31 @@ export class TablePiecesService {
       if (!frame) continue;
       sprites.push(
         ...whiteBoardSprites({ id: board.identifier, frame, picture: this.pagePictures.pictureOf(board.identifier) })
+      );
+    }
+    return sprites;
+  });
+
+  /** The light sources, drawn from the pictures the page takes of what marks them. */
+  private readonly lightSprites = computed(() => {
+    this.objectChange.collectionOf(LightSource.aliasName)();
+    this.transient.version();
+    const gridSize = this.tabletop.currentTableVersion().gridSize;
+    const sprites: TableWorldSprite[] = [];
+    for (const light of this.tabletop.lightSources) {
+      this.objectChange.versionOf(light.identifier)();
+      if (this.vision.isPieceHiddenByFog(light, 1)) continue;
+      const place = this.placeOf(light);
+      if (!place) continue;
+      sprites.push(
+        ...lightSourceSprites({
+          id: light.identifier,
+          ...place,
+          altitudePx: light.altitude * gridSize,
+          cellPx: gridSize,
+          lit: light.lightEnabled,
+          picture: this.pagePictures.pictureOf(light.identifier),
+        })
       );
     }
     return sprites;
