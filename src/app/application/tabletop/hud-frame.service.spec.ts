@@ -1,7 +1,9 @@
 import { effect, Injector, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { HudFrameService } from '@axe/application/tabletop/hud-frame.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
@@ -42,6 +44,8 @@ describe('HudFrameService', () => {
     TestBed.configureTestingModule({
       providers: [
         { provide: TablePiecesService, useValue: { sprites, coins: signal([]) } },
+        { provide: TablePickService, useValue: { targets: () => [] } },
+        { provide: Table3dService, useValue: { world: sprites } },
         {
           provide: TableCameraService,
           useValue: {
@@ -138,6 +142,37 @@ describe('HudFrameService', () => {
     frame.writeNow();
 
     expect(handle.style.transform).toBe('translate(35px, 20px) translate(-50%, -50%)');
+  });
+
+  it('puts what goes with a block against the block, by the shapes it is picked by', () => {
+    vi.spyOn(TestBed.inject(TablePickService), 'targets').mockReturnValue([
+      {
+        id: 'block',
+        layer: 'terrain',
+        order: 0,
+        shapes: [
+          {
+            kind: 'prism',
+            outline: [
+              { x: 200, y: 200 },
+              { x: 260, y: 200 },
+              { x: 260, y: 240 },
+              { x: 200, y: 240 },
+            ],
+            base: 0,
+            top: 50,
+          },
+        ],
+      },
+    ]);
+    const root = element();
+    const handle = element();
+    frame.place(root, { owner: 'block' });
+    frame.place(handle, { owner: 'block', part: 'top', corner: 2 });
+    frame.writeNow();
+
+    expect(root.style.transform).toBe('translate(200px, 200px)');
+    expect(handle.style.transform).toBe('translate(60px, 40px) translate(-50%, -50%)');
   });
 
   it('draws the root of a nearer piece over the root of one further off', () => {

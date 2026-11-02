@@ -1,5 +1,6 @@
 import type { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { pageOfTablePoint, TablePoint } from '@axe/domain/tabletop/camera/table-camera';
+import { PickTarget } from '@axe/domain/tabletop/pick/pick-index';
 import { TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import { EyeAxes, pointOnFace, spriteCorners, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 
@@ -125,6 +126,53 @@ export function piecePageBoxes(
       }
     }
     boxes.set(owner, { whole: boxRound(onPage), parts: pageParts, nearness });
+  }
+  return boxes;
+}
+
+/** The part a block's top is boxed as, among the parts its boxes are named by. */
+export const TOP_PART = 'top';
+
+/**
+ * Where the blocks are drawn on the page, from the shapes picking finds them by: for each, the box
+ * round all of it, and its top as the part `top`, with its corners where its top has four.
+ */
+export function blockPageBoxes(
+  targets: readonly PickTarget[],
+  scene: Matrix3D,
+  eye: EyeAxes
+): Map<string, PiecePageBoxes> {
+  const boxes = new Map<string, PiecePageBoxes>();
+  for (const target of targets) {
+    const all: TablePoint[] = [];
+    const tops: TablePoint[] = [];
+    for (const shape of target.shapes) {
+      const onFace = shape.kind === 'on-face' ? shape : null;
+      const prism = onFace ? onFace.shape : shape;
+      if (prism.kind !== 'prism') continue;
+      const at = (x: number, y: number, z: number): TablePoint =>
+        onFace ? pointOnFace(onFace.frame, x, y, z) : { x, y, z };
+      for (const corner of prism.outline) {
+        const top = at(corner.x, corner.y, prism.roofAt ? prism.roofAt(corner.x, corner.y) : prism.top);
+        tops.push(top);
+        all.push(top, at(corner.x, corner.y, prism.base));
+      }
+    }
+    if (!tops.length) continue;
+    const onPage = (points: TablePoint[]) => points.map((point) => pageOfTablePoint(scene, point.x, point.y, point.z));
+    const topOnPage = onPage(tops);
+    const middle = {
+      x: tops.reduce((sum, point) => sum + point.x, 0) / tops.length,
+      y: tops.reduce((sum, point) => sum + point.y, 0) / tops.length,
+      z: tops.reduce((sum, point) => sum + point.z, 0) / tops.length,
+    };
+    const top: PagePart = { ...boxRound(topOnPage), scale: scaleAt(scene, eye, middle) };
+    const [a, b, c, d] = topOnPage.map((point) => ({ x: point.x, y: point.y }));
+    boxes.set(target.id, {
+      whole: boxRound(onPage(all)),
+      parts: new Map([[TOP_PART, tops.length === 4 ? { ...top, corners: [a, b, c, d] } : top]]),
+      nearness: Math.max(...all.map((point) => nearnessOf(scene, point))),
+    });
   }
   return boxes;
 }

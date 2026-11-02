@@ -1,5 +1,5 @@
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
-import { COIN_PART, piecePageBoxes, quadMatrix } from '@axe/domain/tabletop/world/page-boxes';
+import { blockPageBoxes, COIN_PART, piecePageBoxes, quadMatrix, TOP_PART } from '@axe/domain/tabletop/world/page-boxes';
 import { TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 
@@ -149,5 +149,71 @@ describe('quadMatrix', () => {
         { x: 3, y: 0 },
       ])
     ).toBeNull();
+  });
+});
+
+describe('blockPageBoxes', () => {
+  const scene = new Matrix3D().identity();
+
+  it('boxes a block round its top and its foot, and its top with the corners of a square one', () => {
+    const boxes = blockPageBoxes(
+      [
+        {
+          id: 'block',
+          layer: 'terrain',
+          order: 0,
+          shapes: [
+            {
+              kind: 'prism',
+              outline: [
+                { x: 0, y: 0 },
+                { x: 100, y: 0 },
+                { x: 100, y: 50 },
+                { x: 0, y: 50 },
+              ],
+              base: 0,
+              top: 40,
+            },
+          ],
+        },
+      ],
+      scene,
+      EYE
+    );
+
+    const block = boxes.get('block')!;
+    expect(block.whole).toEqual({ left: 0, top: 0, width: 100, height: 50 });
+    expect(block.parts.get(TOP_PART)!.corners).toEqual([
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 100, y: 50 },
+      { x: 0, y: 50 },
+    ]);
+    expect(block.nearness).toBe(40);
+  });
+
+  it('boxes a block on a face where the face carries it, and a top of more than four corners whole', () => {
+    const lifted = { ...FLOOR, origin: { x: 10, y: 20, z: 30 } };
+    const hexagon = Array.from({ length: 6 }, (_, i) => ({
+      x: Math.cos((i * Math.PI) / 3) * 10,
+      y: Math.sin((i * Math.PI) / 3) * 10,
+    }));
+    const boxes = blockPageBoxes(
+      [
+        {
+          id: 'hex',
+          layer: 'terrain',
+          order: 0,
+          shapes: [{ kind: 'on-face', frame: lifted, shape: { kind: 'prism', outline: hexagon, base: 0, top: 5 } }],
+        },
+      ],
+      scene,
+      EYE
+    );
+
+    const top = boxes.get('hex')!.parts.get(TOP_PART)!;
+    expect(top.left).toBeCloseTo(0, 6);
+    expect(top.width).toBeCloseTo(20, 6);
+    expect(top.corners).toBeUndefined();
   });
 });

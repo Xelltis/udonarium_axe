@@ -1,9 +1,17 @@
 import { effect, EffectRef, inject, Injectable, Injector, untracked } from '@angular/core';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
-import { PageBox, PiecePageBoxes, piecePageBoxes, quadMatrix } from '@axe/domain/tabletop/world/page-boxes';
+import {
+  blockPageBoxes,
+  PageBox,
+  PiecePageBoxes,
+  piecePageBoxes,
+  quadMatrix,
+} from '@axe/domain/tabletop/world/page-boxes';
 import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
 
 /**
@@ -51,6 +59,8 @@ interface Placed {
 export class HudFrameService {
   private readonly camera = inject(TableCameraService);
   private readonly pieces = inject(TablePiecesService);
+  private readonly pick = inject(TablePickService);
+  private readonly scene = inject(Table3dService);
   private readonly surfaces = inject(TableSurfaceService);
   private readonly injector = inject(Injector);
   private readonly placed = new Map<HTMLElement, Placed>();
@@ -73,18 +83,19 @@ export class HudFrameService {
     };
   }
 
-  /** Where every piece drawn on the table shows on the page now, or null before the camera is set. */
+  /**
+   * Where every piece and every block drawn on the table shows on the page now, or null before the
+   * camera is set.
+   */
   boxesNow(): Map<string, PiecePageBoxes> | null {
     const scene = this.camera.sceneMatrix();
     const view = this.camera.view;
     const layout = this.camera.layout;
     if (!scene || !view || !layout) return null;
-    return piecePageBoxes(
-      untracked(this.pieces.sprites),
-      untracked(this.pieces.coins),
-      scene,
-      eyeAxesOf(tableEyeMatrix(view, layout))
-    );
+    const eye = eyeAxesOf(tableEyeMatrix(view, layout));
+    const boxes = piecePageBoxes(untracked(this.pieces.sprites), untracked(this.pieces.coins), scene, eye);
+    for (const [id, block] of blockPageBoxes(this.pick.targets(), scene, eye)) boxes.set(id, block);
+    return boxes;
   }
 
   /** Puts every element where it goes now, rather than in the next frame. */
@@ -95,8 +106,8 @@ export class HudFrameService {
   }
 
   /**
-   * Writes again whenever the camera or the pieces move. Started by the first element put, which may
-   * be put from within an effect, out of which an effect cannot be made.
+   * Writes again whenever the camera, the pieces or the blocks move. Started by the first element
+   * put, which may be put from within an effect, out of which an effect cannot be made.
    */
   private follow(): void {
     if (this.following) return;
@@ -104,8 +115,7 @@ export class HudFrameService {
       effect(
         () => {
           this.camera.version();
-          this.pieces.sprites();
-          this.pieces.coins();
+          this.scene.world();
           untracked(() => this.writeSoon());
         },
         { injector: this.injector }
