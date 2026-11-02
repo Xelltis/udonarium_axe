@@ -2,6 +2,7 @@ import { inject, Injectable, untracked } from '@angular/core';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ImageService } from '@axe/application/storage/image.service';
+import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
@@ -18,6 +19,7 @@ import { boardSurfaceOf, surfaceOf } from '@axe/domain/tabletop/tabletop-object'
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { COIN_KIND, TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import { eyeAxesOf, spriteCorners, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
+import { AlphaMask, seesThroughAt } from '@axe/domain/ui/see-through';
 
 /**
  * Says what a point of the page lands on among the things on the table, by running the line of
@@ -40,6 +42,7 @@ export class TablePickService {
   private readonly coordinates = inject(CoordinateService);
   private readonly pointerDevice = inject(PointerDeviceService);
   private readonly pieces = inject(TablePiecesService);
+  private readonly pictures = inject(PictureSizeService);
 
   /** Each object's target, kept until the object or the table's grid changes. */
   private readonly made = new Map<string, { key: string; target: PickTarget }>();
@@ -149,10 +152,13 @@ export class TablePickService {
       const layout = this.camera.layout;
       if (!view || !layout) return [];
       const eye = eyeAxesOf(tableEyeMatrix(view, layout));
-      const byOwner = new Map<string, { kind: string; shapes: PickShape[] }>();
+      const byOwner = new Map<string, { kind: string; shapes: PickShape[]; masks: (AlphaMask | null)[] }>();
       for (const sprite of sprites) {
-        const owner = byOwner.get(sprite.owner) ?? { kind: sprite.kind, shapes: [] };
+        const owner = byOwner.get(sprite.owner) ?? { kind: sprite.kind, shapes: [], masks: [] };
         owner.shapes.push({ kind: 'quad', corners: spriteCorners(sprite, eye) });
+        owner.masks.push(
+          sprite.seeThrough && sprite.look.kind === 'picture' ? this.pictures.maskOf(sprite.look.url) : null
+        );
         byOwner.set(sprite.owner, owner);
       }
       for (const coin of coins) {
@@ -164,14 +170,24 @@ export class TablePickService {
           base: coin.base,
           top: coin.base + coin.thicknessPx,
         };
-        byOwner.set(coin.id, { kind: COIN_KIND, shapes: [{ kind: 'on-face', frame: coin.face, shape: disc }] });
+        byOwner.set(coin.id, {
+          kind: COIN_KIND,
+          shapes: [{ kind: 'on-face', frame: coin.face, shape: disc }],
+          masks: [null],
+        });
       }
-      const targets = [...byOwner].map(([id, owner]): PickTarget => ({
-        id,
-        layer: owner.kind,
-        order: 0,
-        shapes: owner.shapes,
-      }));
+      const targets = [...byOwner].map(([id, owner]): PickTarget => {
+        const masks = owner.masks;
+        return {
+          id,
+          layer: owner.kind,
+          order: 0,
+          shapes: owner.shapes,
+          ...(masks.some((mask) => mask !== null)
+            ? { opaqueAt: (shape, u, v) => !masks[shape] || !seesThroughAt(masks[shape]!, { u, v }) }
+            : {}),
+        };
+      });
       this.pieceTargetsMade = { sprites, coins, camera, targets };
       return targets;
     });

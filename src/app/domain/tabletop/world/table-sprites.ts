@@ -42,6 +42,8 @@ export interface TableWorldSprite {
   readonly opacity?: number;
   /** Whether it shows from behind as well as from in front. */
   readonly twoSided: boolean;
+  /** Whether a press on a clear part of its picture passes through it, as through a piece's picture. */
+  readonly seeThrough?: boolean;
   /**
    * For a sprite lying flat on a face, how far off the face the page lifts it, which says which of
    * the sprites lying in one place is drawn over which: the higher over the lower, and of two as

@@ -1,12 +1,15 @@
 import { TestBed } from '@angular/core/testing';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { ImageService } from '@axe/application/storage/image.service';
+import { PictureSizeService } from '@axe/application/storage/picture-size.service';
+import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { DEFAULT_TABLE_CAMERA_VIEW, pageOfTablePoint, TableLayout } from '@axe/domain/tabletop/camera/table-camera';
@@ -266,5 +269,41 @@ describe('TablePickService', () => {
     expect(service.pickAt(top.x, top.y)?.target).toMatchObject({ id: coin.identifier, layer: 'coin' });
     const corner = pageOfTablePoint(camera.sceneMatrix()!, 5 * GRID + 3, 5 * GRID + 3, 6);
     expect(service.pickAt(corner.x, corner.y)).toBeNull();
+  });
+
+  it('passes a press through the clear parts of a character’s picture, and lands on it where it is drawn', async () => {
+    const character = GameCharacter.create('hero', 1, 'hero-picture');
+    character.location = { name: 'table', x: 5 * GRID, y: 5 * GRID };
+    table.appendChild(character);
+    vi.spyOn(TestBed.inject(ImageService), 'getEmptyOr').mockReturnValue({
+      isEmpty: false,
+      url: 'blob:hero',
+    } as unknown as ImageFile);
+    const pictures = TestBed.inject(PictureSizeService);
+    vi.spyOn(pictures, 'sizeOf').mockReturnValue({ width: 2, height: 2 });
+    // The picture is solid along its left half and clear along its right.
+    vi.spyOn(pictures, 'maskOf').mockReturnValue({ width: 2, height: 2, alpha: new Uint8Array([255, 0, 255, 0]) });
+    TestBed.inject(PiecePicturesService).show(character.identifier, {
+      url: 'blob:pedestal',
+      widthPx: GRID,
+      heightPx: GRID,
+    });
+    await settled();
+
+    // The picture stands a cell tall over the middle of its cell, turned to the reader.
+    const solid = pageOfTablePoint(
+      camera.sceneMatrix()!,
+      5 * GRID + GRID / 2 - 10,
+      5 * GRID + GRID / 2,
+      1 + GRID * 0.75
+    );
+    const clear = pageOfTablePoint(
+      camera.sceneMatrix()!,
+      5 * GRID + GRID / 2 + 10,
+      5 * GRID + GRID / 2,
+      1 + GRID * 0.75
+    );
+    expect(service.pickAt(solid.x, solid.y)?.target.id).toBe(character.identifier);
+    expect(service.pickAt(clear.x, clear.y)).toBeNull();
   });
 });

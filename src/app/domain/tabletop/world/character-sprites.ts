@@ -97,6 +97,7 @@ export function characterSprites(character: CharacterLayout): TableWorldSprite[]
     brightness: 1,
     ...(character.opacity < 1 ? { opacity: character.opacity } : {}),
     twoSided: true,
+    seeThrough: true,
   };
   if (character.onFloor) {
     const normal = character.frame.normal;
