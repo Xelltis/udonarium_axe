@@ -4,7 +4,7 @@ import { GridSnapStyle } from '@axe/domain/tabletop/game-table';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { InputHandler } from '@axe/ui/directives/input-handler';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
-import { RotableOption, RotableTabletopObject } from '@axe/ui/directives/rotable.directive';
+import { RotableOption, RotableTabletopObject, TurnAbout } from '@axe/ui/directives/rotable.directive';
 
 export interface MovableSetup<T extends TabletopObject> {
   readonly target: Signal<T | null | undefined>;
@@ -17,6 +17,11 @@ export interface MovableSetup<T extends TabletopObject> {
   readonly layerName?: string;
   /** Whether the piece's element is put where it is drawn by something else; see {@link MovableOption}. */
   readonly placedElsewhere?: Signal<boolean>;
+  /**
+   * Where a piece put by something else turns about, for one that does not turn about its middle;
+   * see {@link RotableOption}.
+   */
+  readonly turnsAbout?: (t: T) => TurnAbout | null;
 }
 
 function applyMovableOption<T extends TabletopObject>(
@@ -75,7 +80,9 @@ export function setupMovableRotableForPiece<T extends RotableTabletopObject>(
     applyMovableOption(ctx.movableOption, piece, opts);
     ctx.rotableOption.set({
       tabletopObject: piece,
-      turnsAbout: opts.placedElsewhere?.() ? () => pieces.turnAboutOf(piece) : undefined,
+      turnsAbout: opts.placedElsewhere?.()
+        ? () => (opts.turnsAbout ? opts.turnsAbout(piece) : pieces.turnAboutOf(piece))
+        : undefined,
     });
   });
 }

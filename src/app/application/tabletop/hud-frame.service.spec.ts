@@ -3,10 +3,11 @@ import { TestBed } from '@angular/core/testing';
 import { HudFrameService } from '@axe/application/tabletop/hud-frame.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { DEFAULT_TABLE_CAMERA_VIEW } from '@axe/domain/tabletop/camera/table-camera';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const FLAT = { across: { x: 1, y: 0, z: 0 }, down: { x: 0, y: 1, z: 0 } };
 
@@ -55,7 +56,10 @@ describe('HudFrameService', () => {
     frame = TestBed.inject(HudFrameService);
   });
 
-  afterEach(() => elements.splice(0));
+  afterEach(() => {
+    elements.splice(0);
+    vi.restoreAllMocks();
+  });
 
   it('puts the root of a piece over the box round all of it', () => {
     const root = element();
@@ -95,6 +99,16 @@ describe('HudFrameService', () => {
 
     expect(laid.style.transform).toBe('matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 15, 0, 0, 1)');
     expect(laid.style.width).toBe('20px');
+  });
+
+  it('puts the middle of an element on a point of a face, within the root', () => {
+    vi.spyOn(TestBed.inject(TableSurfaceService), 'pageOf').mockReturnValue({ x: 100, y: 80 });
+    const handle = element();
+    frame.place(handle, { owner: 'die', at: { surface: 'floor', x: 1, y: 2, height: 3 } });
+    frame.writeNow();
+
+    expect(TestBed.inject(TableSurfaceService).pageOf).toHaveBeenCalledWith('floor', 1, 2, 3);
+    expect(handle.style.transform).toBe('translate(25px, 30px) translate(-50%, -50%)');
   });
 
   it('draws the root of a nearer piece over the root of one further off', () => {

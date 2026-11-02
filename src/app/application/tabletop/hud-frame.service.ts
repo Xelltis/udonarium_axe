@@ -1,6 +1,7 @@
 import { effect, EffectRef, inject, Injectable, Injector, untracked } from '@angular/core';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
 import { PageBox, PiecePageBoxes, piecePageBoxes, quadMatrix } from '@axe/domain/tabletop/world/page-boxes';
 import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
@@ -18,6 +19,11 @@ export interface HudAnchor {
   readonly owner: string;
   readonly part?: string;
   readonly place?: HudPlace;
+  /**
+   * A point of a face, in the face's own pixels and lifted some way off it, to put the element's
+   * middle on, rather than a part: as a handle that turns a piece about a point of its own.
+   */
+  readonly at?: { readonly surface: string; readonly x: number; readonly y: number; readonly height: number };
 }
 
 interface Placed {
@@ -38,6 +44,7 @@ interface Placed {
 export class HudFrameService {
   private readonly camera = inject(TableCameraService);
   private readonly pieces = inject(TablePiecesService);
+  private readonly surfaces = inject(TableSurfaceService);
   private readonly injector = inject(Injector);
   private readonly placed = new Map<HTMLElement, Placed>();
   private following: EffectRef | null = null;
@@ -114,9 +121,13 @@ export class HudFrameService {
     }
     for (const [element, placed] of this.placed) {
       const piece = boxes.get(placed.anchor.owner);
-      const style = piece
-        ? styleOf(placed.anchor, piece, ranks.get(placed.anchor.owner) ?? 0, sizes.get(element))
-        : null;
+      const at = placed.anchor.at;
+      const point = at ? this.surfaces.pageOf(at.surface, at.x, at.y, at.height) : null;
+      const style = !piece
+        ? null
+        : at
+          ? point && centredOn(point, piece)
+          : styleOf(placed.anchor, piece, ranks.get(placed.anchor.owner) ?? 0, sizes.get(element));
       const written = style ? JSON.stringify(style) : '';
       if (written === placed.written) continue;
       placed.written = written;
@@ -140,6 +151,16 @@ interface HudStyle {
 
 function px(value: number): string {
   return `${Math.round(value * 100) / 100}px`;
+}
+
+/** The style that puts an element's middle on a point of the page, within the root of a piece drawn in these boxes. */
+function centredOn(point: { x: number; y: number }, piece: PiecePageBoxes): HudStyle {
+  return {
+    transform: `translate(${px(point.x - piece.whole.left)}, ${px(point.y - piece.whole.top)}) translate(-50%, -50%)`,
+    width: null,
+    height: null,
+    zIndex: '',
+  };
 }
 
 /** The style that puts an element of a size against a piece drawn in these boxes. */
