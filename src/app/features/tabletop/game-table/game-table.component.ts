@@ -868,8 +868,12 @@ export class GameTableComponent {
   });
 
   readonly charactersBySurface = computed(() => bucketBySurface(this.characters(), this.drawnSurfaces()));
-  readonly cardsBySurface = computed(() => bucketBySurface(this.cards(), this.drawnSurfaces()));
-  readonly cardStacksBySurface = computed(() => bucketBySurface(this.cardStacks(), this.drawnSurfaces()));
+  readonly cardsBySurface = computed(() =>
+    bucketBySurface(this.table3d.drawsOnCanvas() ? [] : this.cards(), this.drawnSurfaces())
+  );
+  readonly cardStacksBySurface = computed(() =>
+    bucketBySurface(this.table3d.drawsOnCanvas() ? [] : this.cardStacks(), this.drawnSurfaces())
+  );
   readonly rangesBySurface = computed(() => bucketBySurface(this.ranges(), this.drawnSurfaces()));
   readonly textNotesBySurface = computed(() => bucketBySurface(this.textNotes(), this.drawnSurfaces()));
   readonly diceSymbolsBySurface = computed(() =>
@@ -881,6 +885,8 @@ export class GameTableComponent {
    */
   readonly diceSymbolsOverCanvas = computed(() => (this.table3d.drawsOnCanvas() ? this.diceSymbols() : []));
   readonly coinsOverCanvas = computed(() => (this.table3d.drawsOnCanvas() ? this.coins() : []));
+  readonly cardsOverCanvas = computed(() => (this.table3d.drawsOnCanvas() ? this.cards() : []));
+  readonly cardStacksOverCanvas = computed(() => (this.table3d.drawsOnCanvas() ? this.cardStacks() : []));
   readonly coinsBySurface = computed(() =>
     bucketBySurface(this.table3d.drawsOnCanvas() ? [] : this.coins(), this.drawnSurfaces())
   );

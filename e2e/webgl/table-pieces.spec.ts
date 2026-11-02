@@ -227,8 +227,8 @@ test.describe('pieces drawn on a canvas', () => {
   });
 
   for (const [piece, part] of [
-    [PIECES[2], 'img'],
-    [PIECES[3], 'img'],
+    [PIECES[2], '[data-part="face"]'],
+    [PIECES[3], '[data-part="top"]'],
     [PIECES[4], '.rounded-b-ui-sm'],
     [PIECES[5], '[data-part="cover"]'],
     [PIECES[6], 'canvas'],

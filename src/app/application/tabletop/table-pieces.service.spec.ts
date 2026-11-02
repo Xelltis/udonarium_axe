@@ -112,6 +112,22 @@ describe('TablePiecesService', () => {
     expect(pieces.sprites()).toMatchObject([{ id: `${card.identifier}#face`, owner: card.identifier, kind: 'card' }]);
   });
 
+  it('lays a card from the picture the page takes of its face, where it carries words', () => {
+    const card = Card.create('card', 'front-picture', 'back-picture');
+    card.location = { name: 'table', x: 100, y: 200 };
+
+    TestBed.inject(PiecePicturesService).show(card.identifier, { url: 'blob:face', widthPx: 100, heightPx: 150 });
+
+    expect(pieces.sprites()).toMatchObject([
+      {
+        id: `${card.identifier}#face`,
+        look: { url: 'blob:face' },
+        widthPx: gridSize * card.size,
+        heightPx: gridSize * card.size * 1.5,
+      },
+    ]);
+  });
+
   it('stands a stack of cards on the floor as thick as its cards', () => {
     const stack = CardStack.create('stack');
     stack.location = { name: 'table', x: 100, y: 200 };

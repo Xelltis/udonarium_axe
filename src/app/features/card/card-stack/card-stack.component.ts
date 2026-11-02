@@ -49,7 +49,9 @@ import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { DoubleTap } from '@axe/ui/tabletop/double-tap';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { hideIconWhileTouched } from '@axe/ui/tabletop/icon-hiding';
+import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { supersampleFactor, supersampleInsetPercent, supersampleTransform } from '@axe/ui/tabletop/supersample';
 import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
@@ -63,6 +65,7 @@ const LAID_OUT_FOR_CELL_PX = 50;
   templateUrl: './card-stack.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    HudPlaceDirective,
     MovableDirective,
     NgClass,
     RotableDirective,
@@ -116,6 +119,19 @@ export class CardStackComponent {
   });
 
   readonly cardStack = input.required<CardStack>();
+
+  /**
+   * Whether the canvas draws the top card from a picture taken of it here, as it does of a face that
+   * carries words: the canvas draws only the card's own picture.
+   */
+  readonly picturesTop = computed(() => {
+    this.objectChange.versionOf(this.cardStack().identifier)();
+    this.objectChange.networkVersion();
+    const top = this.cardStack().topCard;
+    if (top) this.objectChange.versionOf(top.identifier)();
+    return this.drawnOnCanvas() && !!top && top.isVisible && top.faceText.length > 0;
+  });
+  private readonly pictured = viewChild<ElementRef<HTMLElement>>('pictured');
 
   readonly isLock = computed(() => {
     const cardStack = this.cardStack();
@@ -299,6 +315,16 @@ export class CardStackComponent {
       target: this.cardStack,
       collideLayers: ['terrain'],
       transformCssOffset: translateZCss(Z_OFFSET_TABLETOP_OBJECT_PX),
+      placedElsewhere: this.drawnOnCanvas,
+    });
+    pictureForCanvas({
+      identifier: () => this.cardStack().identifier,
+      element: () => this.pictured()?.nativeElement,
+      pictured: () => this.picturesTop(),
+      follows: () => {
+        this.objectChange.versionOf(this.cardStack().identifier)();
+        this.imageFile();
+      },
     });
     this.destroyRef.onDestroy(() => {
       this.doubleTap.cancel();

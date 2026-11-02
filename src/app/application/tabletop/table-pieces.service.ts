@@ -340,7 +340,9 @@ export class TablePiecesService {
           zindex: card.zindex,
           rotateDeg: card.rotate,
           widthPx: size * gridSize,
-          picture: this.sized(this.images.getSkeletonOr(card.isFront ? card.frontImage : card.backImage).url),
+          picture:
+            this.pictured(card.identifier) ??
+            this.sized(this.images.getSkeletonOr(card.isFront ? card.frontImage : card.backImage).url),
           peek: card.isPeeking ? this.sized(this.images.getSkeletonOr(card.frontImage).url) : null,
         })
       );
@@ -362,7 +364,10 @@ export class TablePiecesService {
           cardCount: stack.cards.length,
           thick: thick && surfaceOf(stack) === 'floor',
           top: top
-            ? { picture: this.sized(this.images.getSkeletonOr(stack.imageFile).url), rotateDeg: top.rotate }
+            ? {
+                picture: this.pictured(stack.identifier) ?? this.sized(this.images.getSkeletonOr(stack.imageFile).url),
+                rotateDeg: top.rotate,
+              }
             : null,
           plateColour: plate,
         })
@@ -388,6 +393,12 @@ export class TablePiecesService {
   private sized(url: string): SizedPicture | null {
     const size = url ? this.pictureSizes.sizeOf(url) : null;
     return size ? { url, ...size } : null;
+  }
+
+  /** The picture the page takes of a piece for the canvas, sized as a sprite's picture is, or null for none. */
+  private pictured(identifier: string): SizedPicture | null {
+    const picture = this.pagePictures.pictureOf(identifier);
+    return picture ? { url: picture.url, width: picture.widthPx, height: picture.heightPx } : null;
   }
 
   private readonly diceSprites = computed(() => {

@@ -46,7 +46,9 @@ import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { containedImageRect } from '@axe/ui/tabletop/contained-image-rect';
 import { DoubleTap } from '@axe/ui/tabletop/double-tap';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { hideIconWhileTouched } from '@axe/ui/tabletop/icon-hiding';
+import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { supersampleFactor, supersampleInsetPercent, supersampleTransform } from '@axe/ui/tabletop/supersample';
 import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
@@ -55,7 +57,15 @@ import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-o
   selector: 'card',
   templateUrl: './card.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MovableDirective, RotableDirective, SelectableDirective, NgStyle, SafePipe, CardFaceTextComponent],
+  imports: [
+    HudPlaceDirective,
+    MovableDirective,
+    RotableDirective,
+    SelectableDirective,
+    NgStyle,
+    SafePipe,
+    CardFaceTextComponent,
+  ],
   host: {
     '[style.display]': "isHiddenByFog() ? 'none' : null",
     '[attr.data-object-id]': 'card().identifier',
@@ -239,6 +249,18 @@ export class CardComponent {
     return card.isFront;
   });
 
+  /**
+   * Whether the canvas draws the card's face from a picture taken of it here, as it does of a face
+   * that carries words: the canvas draws only the card's own pictures.
+   */
+  readonly picturesFace = computed(() => {
+    const card = this.card();
+    this.objectChange.versionOf(card.identifier)();
+    this.objectChange.networkVersion();
+    return this.drawsOnCanvas() && card.isVisible && card.faceText.length > 0;
+  });
+  private readonly pictured = viewChild<ElementRef<HTMLElement>>('pictured');
+
   readonly canPeek = computed(() => {
     const card = this.card();
     this.objectChange.versionOf(card.identifier)();
@@ -361,6 +383,16 @@ export class CardComponent {
       target: this.card,
       collideLayers: ['terrain'],
       transformCssOffset: translateZCss(Z_OFFSET_TABLETOP_OBJECT_PX),
+      placedElsewhere: this.drawsOnCanvas,
+    });
+    pictureForCanvas({
+      identifier: () => this.card().identifier,
+      element: () => this.pictured()?.nativeElement,
+      pictured: () => this.picturesFace(),
+      follows: () => {
+        this.objectChange.versionOf(this.card().identifier)();
+        this.displayedImageUrl();
+      },
     });
     this.destroyRef.onDestroy(() => {
       this.doubleTap.cancel();
