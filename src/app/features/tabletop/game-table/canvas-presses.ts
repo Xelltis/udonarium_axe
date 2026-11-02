@@ -3,8 +3,15 @@ import type { TabletopOverlapRegistryEntry } from '@axe/application/ui/tabletop-
 /** The screen of pieces laid over the canvas. */
 const HUD = '[data-testid="table-hud"]';
 
-/** The presses a block drawn on the canvas is handed, as the page would have handed them to it. */
-const HANDED_ON = ['mousedown', 'touchstart', 'contextmenu', 'dblclick'] as const;
+/** What on the screen over the canvas is pressed for itself, wherever it lies. */
+const CONTROLS = 'button, a, input, select, textarea, [contenteditable], .rotate-grab';
+
+/**
+ * The presses a block drawn on the canvas is handed, as the page would have handed them to it: a
+ * click among them, as a door is opened and a switch pressed by one, and the pointer going down
+ * before it, which tells a click from the end of a turn of the table.
+ */
+const HANDED_ON = ['pointerdown', 'mousedown', 'touchstart', 'click', 'contextmenu', 'dblclick'] as const;
 
 /** What handing presses on needs of the table. */
 export interface CanvasPressRoutes {
@@ -32,8 +39,10 @@ export interface CanvasPressRoutes {
  *
  * A piece laid over the canvas is a box on the screen round where it is drawn, and its box and the
  * boxes of its parts take in more than the piece: a press on one is picked too, and handed to what
- * it lands on, or to the table where it lands on nothing. A press on a label of the piece is its own,
- * and so is a press a script sends to the piece, which is aimed at it rather than at a point.
+ * it lands on, or to the table where it lands on nothing. A press on a label of the piece that lands
+ * on something else drawn, as a name hanging over the piece behind, is handed to that; one that lands
+ * on nothing is the piece's own, as is a press on a control of it and one a script sends to it, which
+ * is aimed at it rather than at a point.
  */
 export function handCanvasPressesOn(root: HTMLElement, routes: CanvasPressRoutes): () => void {
   const handed = new WeakSet<Event>();
@@ -41,12 +50,16 @@ export function handCanvasPressesOn(root: HTMLElement, routes: CanvasPressRoutes
     if (handed.has(event) || !routes.drawsOnCanvas()) return;
     const target = event.target instanceof Element ? event.target : null;
     const aimed = routes.aimedAtTarget ? routes.aimedAtTarget(event) : !event.isTrusted;
-    const boxed = !aimed && target?.matches(`${HUD} [data-part], ${HUD} [data-hud-box]`) ? target : null;
-    if (!boxed && target?.closest('[data-object-id], white-board')) return;
+    const onScreen = !aimed && target?.closest(HUD) ? target : null;
+    const boxed = onScreen?.matches('[data-part], [data-hud-box]') ? onScreen : null;
+    const label = !boxed && onScreen && !onScreen.closest(CONTROLS) ? onScreen : null;
+    if (!boxed && !label && target?.closest('[data-object-id], white-board')) return;
     const point = pointOf(event as MouseEvent | TouchEvent);
     if (!point) return;
     const picked = routes.pickAt(point.x, point.y);
-    if (boxed && picked === boxed.closest('[data-object-id]')?.getAttribute('data-object-id')) return;
+    const own = (boxed ?? label)?.closest('[data-object-id]')?.getAttribute('data-object-id');
+    if ((boxed || label) && picked === own) return;
+    if (label && !picked) return;
     const entry = picked ? routes.entryOf(picked) : undefined;
     if (!entry) {
       if (boxed) handTo(event, root);
@@ -97,7 +110,7 @@ function copyOf(event: MouseEvent | TouchEvent): Event {
     });
   }
   const mouse = event as MouseEvent;
-  return new MouseEvent(mouse.type, {
+  const init: MouseEventInit = {
     bubbles: true,
     cancelable: true,
     clientX: mouse.clientX,
@@ -111,5 +124,14 @@ function copyOf(event: MouseEvent | TouchEvent): Event {
     ctrlKey: mouse.ctrlKey,
     metaKey: mouse.metaKey,
     shiftKey: mouse.shiftKey,
-  });
+  };
+  if (typeof PointerEvent === 'function' && event instanceof PointerEvent) {
+    return new PointerEvent(event.type, {
+      ...init,
+      pointerId: event.pointerId,
+      pointerType: event.pointerType,
+      isPrimary: event.isPrimary,
+    });
+  }
+  return new MouseEvent(mouse.type, init);
 }

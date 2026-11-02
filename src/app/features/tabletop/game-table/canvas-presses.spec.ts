@@ -55,9 +55,11 @@ describe('handing presses on the canvas to the blocks drawn there', () => {
     expect(reached).toEqual(['block:mousedown', 'root:mousedown']);
   });
 
-  it('hands the block its right click and its double click as well', () => {
+  it('hands the block its right click, its double click, its click and the pointer going down as well', () => {
     expect(pressOn(root, 'contextmenu').reached[0]).toBe('block:contextmenu');
     expect(pressOn(root, 'dblclick').reached[0]).toBe('block:dblclick');
+    expect(pressOn(root, 'click').reached[0]).toBe('block:click');
+    expect(pressOn(root, 'pointerdown').reached[0]).toBe('block:pointerdown');
   });
 
   it('leaves a press alone where it lands on a piece the page still draws, or on nothing picked', () => {
@@ -125,8 +127,21 @@ describe('handing presses on the canvas to the blocks drawn there', () => {
       expect(pressOn(part).reached).toEqual(['root:mousedown']);
     });
 
-    it('keeps a press on a label of it, wherever picking says it lands', () => {
+    it('hands a press on a label of it that lands on something else drawn to that', () => {
+      expect(pressOn(label).reached).toEqual(['block:mousedown', 'root:mousedown']);
+    });
+
+    it('keeps a press on a label of it that lands on it or on nothing', () => {
+      picked = 'a-die';
       expect(pressOn(label).reached).toEqual(['root:mousedown']);
+      picked = null;
+      expect(pressOn(label).reached).toEqual(['root:mousedown']);
+    });
+
+    it('keeps a press on a control of it, wherever picking says it lands', () => {
+      const button = document.createElement('button');
+      label.appendChild(button);
+      expect(pressOn(button).reached).toEqual(['root:mousedown']);
     });
   });
 });
