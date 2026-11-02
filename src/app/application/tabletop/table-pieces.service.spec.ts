@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
+import { GroundService } from '@axe/application/tabletop/ground.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
@@ -17,6 +18,7 @@ import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -63,6 +65,29 @@ describe('TablePiecesService', () => {
     expect(drawn.map((sprite) => sprite.id)).toEqual([`${die.identifier}#frame`, `${die.identifier}#picture`]);
     expect(drawn[0].centre).toEqual({ x: 100 + gridSize / 2, y: 200 + gridSize / 2, z: 1 });
     expect(drawn[1].look).toEqual({ kind: 'picture', url: 'blob:face' });
+  });
+
+  it('lifts a die on the floor onto the raised ground under its middle', () => {
+    TestBed.inject(GroundService).dab({ kind: 'raise', x: 2.5, y: 4.5, radius: 3, strength: 1 });
+    const die = dieAt(100, 200);
+
+    const [frame] = pieces.sprites().filter((sprite) => sprite.owner === die.identifier);
+
+    expect(frame.centre.z).toBeCloseTo(1 + gridSize, 6);
+  });
+
+  it('lifts a die standing on a block by as far as the block is lifted, keeping it on the block’s top', () => {
+    const ground = TestBed.inject(GroundService);
+    ground.dab({ kind: 'raise', x: 2.5, y: 4.5, radius: 3, strength: 1 });
+    const block = Terrain.create('block', 1, 1, 1, '', '');
+    block.location = { name: 'table', x: 100, y: 200 };
+    TestBed.inject(TableSelecter).viewTable!.appendChild(block);
+    const die = dieAt(100, 200);
+    die.posZ = gridSize;
+
+    const [frame] = pieces.sprites().filter((sprite) => sprite.owner === die.identifier);
+
+    expect(frame.centre.z).toBeCloseTo(1 + gridSize + ground.lowestPxIn(100, 200, gridSize, gridSize), 6);
   });
 
   it('draws a die this seat is moving where it is being moved to', () => {

@@ -3,7 +3,12 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { applyGroundDab, GroundDab } from '@axe/domain/tabletop/ground/ground-brush';
 import { ensureGroundFieldOn, groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
-import { FLAT_GROUND, GroundSurface, groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
+import {
+  FLAT_GROUND,
+  GroundSurface,
+  groundSurfaceOf,
+  lowestGroundPxIn,
+} from '@axe/domain/tabletop/ground/ground-surface';
 
 /**
  * The raised, sunk and painted ground of the table in view, which what stands on the floor stands
@@ -34,28 +39,10 @@ export class GroundService {
     return untracked(this.surface).heightAt(x / gridSize, y / gridSize) * gridSize;
   }
 
-  /**
-   * How far the ground under a box on the floor lifts what stands in it, in table pixels: the lowest
-   * the ground stands anywhere in the box, so that a block stood on uneven ground sinks into the rise
-   * rather than hanging over the dip. The box is read at its corners and every half cell along and
-   * across it.
-   */
+  /** How far the ground under a box of the board lifts what stands on it, in table pixels (`lowestGroundPxIn`). */
   lowestPxIn(x: number, y: number, width: number, height: number): number {
     const gridSize = untracked(this.tabletop.currentTableVersion).gridSize;
-    const surface = untracked(this.surface);
-    if (!(gridSize > 0) || surface.isFlat) return 0;
-    const along = (length: number): number[] => {
-      const at: number[] = [];
-      for (let d = 0; d < length; d += gridSize / 2) at.push(d);
-      return [...at, length];
-    };
-    let lowest = Infinity;
-    for (const across of along(width)) {
-      for (const down of along(height)) {
-        lowest = Math.min(lowest, surface.heightAt((x + across) / gridSize, (y + down) / gridSize));
-      }
-    }
-    return lowest * gridSize;
+    return lowestGroundPxIn(untracked(this.surface), gridSize, x, y, width, height);
   }
 
   /**

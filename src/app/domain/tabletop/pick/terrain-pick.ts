@@ -32,10 +32,10 @@ function placed(terrain: Terrain, gridSize: number, point: PickPoint2): PickPoin
  * The solid a block makes: its top's outline (a rectangle on a square board, the hexagon of its
  * cells on a hex one) stood up from where it rests to its top, which may slope.
  */
-export function terrainPickShape(terrain: Terrain, gridSize: number, gridType: GridType): PickPrism {
+export function terrainPickShape(terrain: Terrain, gridSize: number, gridType: GridType, groundLiftPx = 0): PickPrism {
   // An open door is picked where it has swung, slid, lifted or sunk to.
   const door = openDoorMotion(terrain, gridSize);
-  const base = terrain.altitude * gridSize + terrain.posZ + (door?.lift ?? 0);
+  const base = terrain.altitude * gridSize + terrain.posZ + (door?.lift ?? 0) + groundLiftPx;
   const top = base + terrain.height * gridSize;
   const outline = terrainTopOutline(terrain, gridSize, gridType).map((point) =>
     placed(terrain, gridSize, door ? movedByDoor(door, point.x, point.y) : point)
@@ -46,22 +46,23 @@ export function terrainPickShape(terrain: Terrain, gridSize: number, gridType: G
     outline,
     base,
     top,
-    roofAt: slopes ? (x, y) => terrainTopPxAt(terrain, gridSize, gridType, x, y) : undefined,
+    roofAt: slopes ? (x, y) => terrainTopPxAt(terrain, gridSize, gridType, x, y) + groundLiftPx : undefined,
   };
 }
 
 /**
  * A block on the floor, or stuck to a white board, as something a press can land on. A board lays
  * out what stands on it as the floor does, so a block on one is the same shape read in the board's
- * frame.
+ * frame. A block on the floor stands as far up as the raised ground lifts it.
  */
 export function terrainPickTarget(
   terrain: Terrain,
   gridSize: number,
   gridType: GridType,
-  boardFrame?: SurfaceFrame
+  boardFrame?: SurfaceFrame,
+  groundLiftPx = 0
 ): PickTarget {
-  const shape = terrainPickShape(terrain, gridSize, gridType);
+  const shape = terrainPickShape(terrain, gridSize, gridType, groundLiftPx);
   return {
     id: terrain.identifier,
     layer: TERRAIN_PICK_LAYER,

@@ -1,6 +1,6 @@
 import { firstPersonWorldOf } from '@axe/domain/tabletop/first-person/first-person-world';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
-import { FLAT_GROUND, GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
+import { FLAT_GROUND, groundLiftOfBlock, GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
 import {
   hexCellCenter,
   hexCircumradius,
@@ -151,7 +151,7 @@ export function tableWorldOf(
           ? hexGroundMesh(shape.hexes, shape.box, ground, gridSize)
           : squareGroundMesh(shape.box, ground, gridSize),
     },
-    ...facesOf(table, terrains, pictureOf, coverOf),
+    ...facesOf(table, terrains, pictureOf, coverOf, ground),
     sprites: [],
     coins: [],
   };
@@ -165,10 +165,13 @@ function facesOf(
   table: GameTable,
   terrains: readonly Terrain[],
   pictureOf: (identifier: string) => string,
-  coverOf: (terrain: Terrain) => TerrainFogCover | null
+  coverOf: (terrain: Terrain) => TerrainFogCover | null,
+  ground: GroundSurface
 ): Pick<TableWorld, 'walls' | 'caps'> {
   const gridSize = table.gridSize > 0 ? table.gridSize : 50;
-  const blocks = blockFacesOf(terrains, gridSize, table.gridType, pictureOf, coverOf);
+  const blocks = blockFacesOf(terrains, gridSize, table.gridType, pictureOf, coverOf, (terrain) =>
+    groundLiftOfBlock(ground, gridSize, terrain)
+  );
   const tableWalls = firstPersonWorldOf(table, [])
     .walls.map((wall): TableWorldWall => ({
       id: wall.id,

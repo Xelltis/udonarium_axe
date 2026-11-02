@@ -31,6 +31,20 @@ describe('the faces of the blocks', () => {
     expect(caps[0]).toMatchObject({ zPx: 100, facing: 'up', pictureUrl: 'blob:grass' });
   });
 
+  it('lifts a block by as far as the raised ground under it lifts it', () => {
+    const { walls, caps } = blockFacesOf(
+      [block()],
+      GRID,
+      GridType.SQUARE,
+      picture,
+      () => null,
+      () => 30
+    );
+
+    expect(walls.find((wall) => wall.id.endsWith(':north'))).toMatchObject({ basePx: 30, topPx: 130 });
+    expect(caps[0]).toMatchObject({ zPx: 130 });
+  });
+
   it('turns a block about its middle', () => {
     const turned = block();
     turned.rotate = 90;

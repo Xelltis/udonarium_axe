@@ -27,6 +27,13 @@ describe('terrain pick shape', () => {
     expect(hitShape(downOnto(210, 140), shape)).toBeNull();
   });
 
+  it('lifts a block by as far as the raised ground under it lifts it', () => {
+    const shape = terrainPickShape(terrain(2, 1, 3), 50, GridType.SQUARE, 30);
+
+    expect(shape.base).toBe(30);
+    expect(shape.top).toBe(30 + 150);
+  });
+
   it('turns a block about its middle', () => {
     const block = terrain(2, 1, 1);
     block.rotate = 90;

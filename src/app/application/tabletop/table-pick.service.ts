@@ -4,12 +4,14 @@ import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { GroundService } from '@axe/application/tabletop/ground.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { tableEyeMatrix, TableRay, tableRayOfPage } from '@axe/domain/tabletop/camera/table-camera';
+import { groundLiftOfBlock } from '@axe/domain/tabletop/ground/ground-surface';
 import { faceTarget } from '@axe/domain/tabletop/pick/face-pick';
 import { PickCylinder, PickShape } from '@axe/domain/tabletop/pick/pick-geometry';
 import { pickAll, pickFirst, PickHit, PickTarget } from '@axe/domain/tabletop/pick/pick-index';
@@ -33,6 +35,7 @@ import { AlphaMask, seesThroughAt } from '@axe/domain/ui/see-through';
   providedIn: 'root',
 })
 export class TablePickService {
+  private readonly ground = inject(GroundService);
   private readonly tabletop = inject(TabletopService);
   private readonly vision = inject(VisionService);
   private readonly objectChange = inject(ObjectChangeService);
@@ -107,6 +110,7 @@ export class TablePickService {
   targets(): PickTarget[] {
     return untracked(() => {
       const table = this.tabletop.currentTable;
+      const ground = this.ground.surface();
       const grid = `${table.gridSize}|${table.gridType}`;
       const live = new Set<string>();
       const targets: PickTarget[] = [];
@@ -123,10 +127,11 @@ export class TablePickService {
         if (board && !boardFrame) continue;
         live.add(terrain.identifier);
         const boardVersion = board ? this.objectChange.versionOf(board)() : '';
+        const lift = onFloor && !board ? groundLiftOfBlock(ground, table.gridSize, terrain) : 0;
         targets.push(
-          this.keep(terrain.identifier, `${grid}|${table.wallHeight}|${boardVersion}`, () =>
+          this.keep(terrain.identifier, `${grid}|${table.wallHeight}|${boardVersion}|${lift}`, () =>
             onFloor
-              ? terrainPickTarget(terrain, table.gridSize, table.gridType, boardFrame ?? undefined)
+              ? terrainPickTarget(terrain, table.gridSize, table.gridType, boardFrame ?? undefined, lift)
               : beamPickTarget(terrain, table.gridSize, dims)
           )
         );

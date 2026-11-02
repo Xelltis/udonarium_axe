@@ -78,3 +78,51 @@ export function heightBetweenSamples(sampleAt: (i: number, j: number) => number,
   const bottomLeft = sampleAt(i, j + 1);
   return topLeft + fy * (bottomLeft - topLeft) + fx * (bottomRight - bottomLeft);
 }
+
+/**
+ * How far the ground under a box of the board lifts what stands on it, in table pixels: the lowest the
+ * ground stands anywhere in the box, so that a block stood on uneven ground sinks into the rise rather
+ * than hanging over the dip. The box is read at its corners and every half cell along and across it.
+ */
+export function lowestGroundPxIn(
+  ground: GroundSurface,
+  gridSize: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): number {
+  if (ground.isFlat || !(gridSize > 0)) return 0;
+  const along = (length: number): number[] => {
+    const at: number[] = [];
+    for (let d = 0; d < length; d += gridSize / GROUND_SAMPLES_PER_CELL) at.push(d);
+    return [...at, length];
+  };
+  let lowest = Infinity;
+  for (const across of along(width)) {
+    for (const down of along(height)) {
+      lowest = Math.min(lowest, ground.heightAt((x + across) / gridSize, (y + down) / gridSize));
+    }
+  }
+  return lowest * gridSize;
+}
+
+/** How far the ground lifts a block on the floor, in table pixels: the lowest it stands under the block's box. */
+export function groundLiftOfBlock(
+  ground: GroundSurface,
+  gridSize: number,
+  block: {
+    readonly location: { readonly x: number; readonly y: number };
+    readonly width: number;
+    readonly depth: number;
+  }
+): number {
+  return lowestGroundPxIn(
+    ground,
+    gridSize,
+    block.location.x,
+    block.location.y,
+    block.width * gridSize,
+    block.depth * gridSize
+  );
+}

@@ -3,6 +3,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { GroundService } from '@axe/application/tabletop/ground.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
@@ -19,7 +20,9 @@ import { pieceImageWidthApart } from '@axe/domain/character/piece-image-size';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
+import { groundLiftOfBlock } from '@axe/domain/tabletop/ground/ground-surface';
 import { LightSource } from '@axe/domain/tabletop/light-source';
+import { canBeStoodOn } from '@axe/domain/tabletop/move/landing-height';
 import { landingLeanAt } from '@axe/domain/tabletop/move/landing-height';
 import { pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import { RangeArea } from '@axe/domain/tabletop/range';
@@ -27,7 +30,9 @@ import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
 import { boardSurfaceOf, surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { terrainCovers } from '@axe/domain/tabletop/terrain-box';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
+import { terrainTopPxAt } from '@axe/domain/tabletop/terrain-slope-surface';
 import { SurfaceLean } from '@axe/domain/tabletop/terrain-slope-surface';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
@@ -74,6 +79,7 @@ export class TablePiecesService {
   private readonly pictureSizes = inject(PictureSizeService);
   private readonly surfaces = inject(TableSurfaceService);
   private readonly vision = inject(VisionService);
+  private readonly ground = inject(GroundService);
   private readonly transient = inject(TransientPlacementService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly theme = inject(ThemeService);
@@ -449,13 +455,31 @@ export class TablePiecesService {
     const surface = this.surfaceOf(piece);
     const frame = this.surfaces.frameOf(surface);
     if (!frame) return null;
-    return {
-      frame,
-      onFloor: surface === 'floor',
-      x: moving?.x ?? piece.location.x,
-      y: moving?.y ?? piece.location.y,
-      z: moving?.z ?? piece.posZ,
-    };
+    const x = moving?.x ?? piece.location.x;
+    const y = moving?.y ?? piece.location.y;
+    const z = moving?.z ?? piece.posZ;
+    const onFloor = surface === 'floor';
+    return { frame, onFloor, x, y, z: onFloor ? z + this.groundLiftOf(piece, x, y, z) : z };
+  }
+
+  /**
+   * How far the raised ground lifts a piece on the floor, in table pixels: as far as the block it stands
+   * on is lifted, so it stays on the block's top, or else by the ground under its middle.
+   */
+  private groundLiftOf(piece: TabletopObject, x: number, y: number, z: number): number {
+    const ground = this.ground.surface();
+    if (ground.isFlat) return 0;
+    const table = this.tabletop.currentTableVersion();
+    const gridSize = table.gridSize > 0 ? table.gridSize : 50;
+    const size = Number((piece as { size?: unknown }).size);
+    const half = size > 0 ? (size * gridSize) / 2 : 0;
+    const [middleX, middleY] = [x + half, y + half];
+    for (const terrain of this.tabletop.terrains) {
+      if (!canBeStoodOn(terrain) || !terrainCovers(terrain, gridSize, middleX, middleY)) continue;
+      const top = terrainTopPxAt(terrain, gridSize, table.gridType, middleX, middleY);
+      if (Math.abs(top - z) < 1) return groundLiftOfBlock(ground, gridSize, terrain);
+    }
+    return ground.heightAt(middleX / gridSize, middleY / gridSize) * gridSize;
   }
 
   /**

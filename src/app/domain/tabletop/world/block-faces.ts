@@ -31,7 +31,8 @@ export function blockFacesOf(
   gridSize: number,
   gridType: GridType,
   pictureOf: (identifier: string) => string,
-  coverOf: (terrain: Terrain) => TerrainFogCover | null = () => null
+  coverOf: (terrain: Terrain) => TerrainFogCover | null = () => null,
+  liftOf: (terrain: Terrain) => number = () => 0
 ): { walls: TableWorldWall[]; caps: TableWorldCap[] } {
   const walls: TableWorldWall[] = [];
   const caps: TableWorldCap[] = [];
@@ -39,7 +40,7 @@ export function blockFacesOf(
     if (surfaceOf(terrain) !== 'floor') continue;
     const cover = coverOf(terrain);
     if (cover && !cover.cleared.some((cell) => cell)) continue;
-    const block = laidOut(terrain, gridSize, gridType);
+    const block = laidOut(terrain, gridSize, gridType, liftOf(terrain));
     const boxSides = block.outline.length === 4 && !block.hex;
     const cut = cover && !cover.cleared.every((cell) => cell) && boxSides && !block.roof ? cover : null;
     const tilePx = terrain.isTiledTexture ? gridSize : 0;
@@ -197,12 +198,12 @@ interface LaidOutBlock {
   stretched(points: readonly SlopePoint[]): TableWorldPoint[];
 }
 
-function laidOut(terrain: Terrain, gridSize: number, gridType: GridType): LaidOutBlock {
+function laidOut(terrain: Terrain, gridSize: number, gridType: GridType, groundLiftPx: number): LaidOutBlock {
   const width = terrain.width * gridSize;
   const depth = terrain.depth * gridSize;
   const outline = terrainTopOutline(terrain, gridSize, gridType);
   const door = openDoorMotion(terrain, gridSize);
-  const lift = door?.lift ?? 0;
+  const lift = (door?.lift ?? 0) + groundLiftPx;
   const topPx = terrainTopPx(terrain, gridSize) + lift;
   const basePx = topPx - terrain.height * gridSize;
   const roof = terrainSlopeRoofOf(terrain, gridSize, gridType);
