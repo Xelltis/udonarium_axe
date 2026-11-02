@@ -12,6 +12,8 @@ import { cellCount, cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cel
 import { ensureFogMemoryOn, fogMemoryOn } from '@axe/domain/tabletop/fog/fog-memory';
 import { FogMode } from '@axe/domain/tabletop/fog/fog-mode';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { GROUND_CHUNK_SAMPLE_COUNT, GROUND_CHUNK_SAMPLES } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { ensureGroundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
@@ -246,6 +248,70 @@ describe('VisionService', () => {
       const underfoot = cellIndexAt(shared.grid, 375, 375);
 
       expect(shared.cells.get(underfoot)).toBe(true);
+    });
+  });
+
+  describe('on raised ground', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    async function settle(): Promise<void> {
+      for (let round = 0; round < 3; round++) {
+        await vi.advanceTimersByTimeAsync(GEOMETRY_THROTTLE);
+        service.scene();
+      }
+    }
+
+    /** A table in daylight with its fog on, its ground raised two cells across a band of columns of samples. */
+    function tableRaised(fromSample: number, toSample: number): GameTable {
+      makeMyCursor('p1', PeerRole.Player);
+      const table = makeDarkTable();
+      table.darknessEnabled = false;
+      table.fogEnabled = true;
+      const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT);
+      for (let j = 0; j < GROUND_CHUNK_SAMPLES; j++) {
+        for (let i = fromSample; i < toSample; i++) heights[j * GROUND_CHUNK_SAMPLES + i] = 128;
+      }
+      ensureGroundFieldOn(table).writeChunk({ cx: 0, cy: 0, heights, paint: null });
+      return table;
+    }
+
+    function watcherAt(table: GameTable, col: number, row: number): GameCharacter {
+      const pc = GameCharacter.create('PC', 1, '');
+      pc.owner = 'p1';
+      pc.location.x = col * 50;
+      pc.location.y = row * 50;
+      pc.visionRange = 20;
+      table.appendChild(pc);
+      return pc;
+    }
+
+    it('clears the side of a ridge facing a piece on the plain, and not the plain behind it', async () => {
+      const table = tableRaised(16, 24);
+      watcherAt(table, 2, 5);
+      await settle();
+
+      const shared = service.sharedVisibleCells()!;
+      expect(shared.cells.get(cellIndexAt(shared.grid, 425, 275))).toBe(true);
+      expect(shared.cells.get(cellIndexAt(shared.grid, 675, 275))).toBe(false);
+    });
+
+    it('reads the roof of a block at the height the ground raises it to, for a piece looking down on it', async () => {
+      const table = tableRaised(0, GROUND_CHUNK_SAMPLES);
+      const block = Terrain.create('crate', 6, 6, 1, 'wall.png', 'floor.png');
+      block.location.x = 250;
+      block.location.y = 150;
+      table.appendChild(block);
+      watcherAt(table, 2, 5).altitude = 1;
+      await settle();
+
+      const shared = service.sharedVisibleCells()!;
+      expect(shared.cells.get(cellIndexAt(shared.grid, 525, 275))).toBe(true);
     });
   });
 

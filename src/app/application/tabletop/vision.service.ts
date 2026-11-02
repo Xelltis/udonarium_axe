@@ -37,8 +37,14 @@ import { computeVisibleCellsFor, VisibleCellsOptions } from '@axe/domain/tableto
 import { visibleCellsLightKey, VisibleCellsMemo, visionSourceKey } from '@axe/domain/tabletop/fog/visible-cells-memo';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
-import { FLAT_GROUND, GroundSurface, groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
+import {
+  FLAT_GROUND,
+  groundLiftOfBlock,
+  GroundSurface,
+  groundSurfaceOf,
+} from '@axe/domain/tabletop/ground/ground-surface';
 import { SegmentIndexes } from '@axe/domain/tabletop/los/segment-index';
+import { groundHeightsOn } from '@axe/domain/tabletop/move/landing-height';
 import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -273,7 +279,14 @@ export class VisionService {
     const table = this.currentTable();
     if (!table) return null;
     const gridSize = table.gridSize;
-    return collectSegments(table, gridSize, table.width * gridSize, table.height * gridSize, groundOf(table));
+    return collectSegments(table, gridSize, table.width * gridSize, table.height * gridSize, this.raisedGround());
+  });
+
+  /** The raised ground of the table in view, read again only when what stands on the table changes. */
+  private readonly raisedGround = computed<GroundSurface>(() => {
+    this.standingEpoch();
+    const table = this.currentTable();
+    return table ? groundOf(table) : FLAT_GROUND;
   });
 
   readonly viewer = computed<SceneViewer>(
@@ -365,7 +378,7 @@ export class VisionService {
       characters,
       standing,
       (identifier) => this.objectStore.get<GameCharacter>(identifier),
-      groundOf(table)
+      this.raisedGround()
     );
   }
 
@@ -407,14 +420,16 @@ export class VisionService {
     const grid = this.cellGrid();
     const table = this.currentTable();
     if (!grid || !table) return null;
+    const ground = this.raisedGround();
     const cells = new CellBits(cellCount(grid));
     const tops = new Float32Array(cellCount(grid));
     const bases = new Float32Array(cellCount(grid)).fill(Infinity);
     for (const terrain of table.terrains) {
       if (!terrain.hasWall || !terrain.blocksSightNow || surfaceOf(terrain) !== 'floor') continue;
       const box = terrainBoxOf(terrain, grid.sizePx);
-      const top = terrainTopPx(terrain, grid.sizePx);
-      const base = terrainBasePx(terrain, grid.sizePx);
+      const lift = groundLiftOfBlock(ground, grid.sizePx, terrain);
+      const top = terrainTopPx(terrain, grid.sizePx) + lift;
+      const base = terrainBasePx(terrain, grid.sizePx) + lift;
       forEachCellInBox(grid, box.minX, box.minY, box.maxX, box.maxY, (cell) => {
         cells.set(cell);
         if (top > tops[cell]) tops[cell] = top;
@@ -422,6 +437,12 @@ export class VisionService {
       });
     }
     return { cells, tops, bases };
+  });
+
+  /** How high the raised ground stands under the middle of each cell of the fog, or null where it is flat. */
+  private readonly groundHeights = computed<Float64Array | null>(() => {
+    const grid = this.cellGrid();
+    return grid ? groundHeightsOn(grid, this.raisedGround()) : null;
   });
 
   readonly sightIndexes = computed<SegmentIndexes | null>(() => {
@@ -454,6 +475,7 @@ export class VisionService {
           blocking: standing?.cells,
           blockingTops: standing?.tops,
           blockingBases: standing?.bases,
+          groundHeights: this.groundHeights(),
         };
         const surroundings = [
           grid,
@@ -462,6 +484,7 @@ export class VisionService {
           standing?.cells,
           standing?.tops,
           standing?.bases,
+          options.groundHeights,
           visibleCellsLightKey(scene),
         ];
         const perSource = new Map<string, CellBits>();

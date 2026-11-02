@@ -2,8 +2,12 @@ import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCount, CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { computeVisibleCellsFor, VisibleCellsOptions } from '@axe/domain/tabletop/fog/visible-cells';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { GROUND_CHUNK_SAMPLE_COUNT, GROUND_CHUNK_SAMPLES } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { groundSightSegments } from '@axe/domain/tabletop/ground/ground-sight';
+import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
 import { SegmentIndexes } from '@axe/domain/tabletop/los/segment-index';
 import { rectangleSegments, TallSegment } from '@axe/domain/tabletop/los/segments';
+import { groundHeightsOn } from '@axe/domain/tabletop/move/landing-height';
 import { isLit, SceneLight, SceneVisionSource, VisionScene } from '@axe/domain/tabletop/vision-scene';
 import { DOME_LOBES, VisionLobe, visionLobesOf, VisionShape } from '@axe/domain/tabletop/vision-shape';
 import { VisionType } from '@axe/domain/tabletop/vision-types';
@@ -166,6 +170,35 @@ describe('computeVisibleCellsFor', () => {
     const short = computeVisibleCellsFor(eyes({ x: 500, y: 500, rangePx: 150 }), options);
     expect(short.get(near)).toBe(true);
     expect(short.get(far)).toBe(false);
+  });
+
+  describe('an eye on the plain before a ridge of the raised ground', () => {
+    /** A ridge two cells high from the eighth column to the middle of the twelfth, seen in daylight. */
+    function ridge(): VisibleCellsOptions {
+      const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT);
+      for (let j = 0; j < GROUND_CHUNK_SAMPLES; j++) {
+        for (let i = 16; i < 24; i++) heights[j * GROUND_CHUNK_SAMPLES + i] = 128;
+      }
+      const ground = groundSurfaceOf([{ cx: 0, cy: 0, heights, paint: null }]);
+      const walls = groundSightSegments(ground, 1000, 1000, 50);
+      const built = scene({ darknessEnabled: false, sightSegments: walls, lightSegments: walls });
+      return { ...optionsFor(built), groundHeights: groundHeightsOn(GRID, ground) };
+    }
+
+    it('sees the side of the ridge that faces it, and not the plain behind it', () => {
+      const cells = computeVisibleCellsFor(eyes({ x: 125, y: 275, z: 25 }), ridge());
+
+      expect(cells.get(cellIndexOf(GRID, 8, 5))).toBe(true);
+      expect(cells.get(cellIndexOf(GRID, 13, 5))).toBe(false);
+      expect(cells.get(cellIndexOf(GRID, 5, 5))).toBe(true);
+    });
+
+    it('sees the plain behind it from up on the ridge', () => {
+      const cells = computeVisibleCellsFor(eyes({ x: 475, y: 275, z: 125 }), ridge());
+
+      expect(cells.get(cellIndexOf(GRID, 13, 5))).toBe(true);
+      expect(cells.get(cellIndexOf(GRID, 2, 5))).toBe(true);
+    });
   });
 
   describe('an eye standing on the roof of a block', () => {
