@@ -24,6 +24,7 @@ const PASSING_ON_CANVAS = [
   /tabletop-objects\.spec\.ts/,
   /\/tabletop\.spec\.ts/,
   /range-area\.spec\.ts/,
+  /cut-in-speaker-white-board\.spec\.ts/,
 ];
 
 export default defineConfig({

@@ -248,6 +248,31 @@ test.describe('pieces drawn on a canvas', () => {
     });
   }
 
+  test('lay a white board’s face where the page lays it out', async ({ page }) => {
+    const menu = await openTableContextMenu(page, { x: 600, y: 420 });
+    await (await revealMenuEntry(page, menu, 'ホワイトボードを作成')).click();
+    const face = page.locator('white-board [data-surface]').last();
+    await expect(face).toBeAttached({ timeout: 10000 });
+    const id = (await face.getAttribute('data-surface'))!;
+    await idle(page);
+    await expect.poll(async () => (await boxesOf(page, id)).length, { timeout: 10000 }).toBe(1);
+
+    const [drawn] = await boxesOf(page, id);
+    const laidOut = await page.evaluate((identifier) => {
+      const rect = document
+        .querySelector(`[data-surface="${identifier}"]`)!
+        .parentElement!.querySelector('[data-part="face"]')!
+        .getBoundingClientRect();
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    }, id);
+
+    for (const side of ['x', 'y', 'width', 'height'] as const) {
+      expect(Math.abs(drawn[side] - laidOut[side]), `${side}: ${JSON.stringify([drawn, laidOut])}`).toBeLessThan(
+        BOX_SLACK_PX
+      );
+    }
+  });
+
   for (const piece of PIECES) {
     test(`draw a ${piece.name} where picking finds it, and nothing anywhere else`, async ({ page }) => {
       await piece.prepare?.(page);
