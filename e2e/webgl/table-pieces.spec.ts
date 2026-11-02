@@ -109,6 +109,13 @@ async function drawCard(page: Page) {
   await page.mouse.move(5, 400);
 }
 
+async function createNote(page: Page) {
+  const before = await page.locator('text-note').count();
+  const menu = await openTableContextMenu(page);
+  await (await revealMenuEntry(page, menu, '共有メモを作成')).click();
+  await expect(page.locator('text-note')).toHaveCount(before + 1, { timeout: 10000 });
+}
+
 /**
  * The kinds of piece drawn on the canvas: what is set out before one is made, how it is made, how
  * many shapes it is drawn with and what its menu holds.
@@ -126,6 +133,7 @@ const PIECES: readonly {
   { name: 'card', tag: 'card', prepare: createDeck, create: drawCard, shapes: 1, menuEntry: '手札に加える' },
   // A deck stands in 30 layers under its plate and its top card.
   { name: 'deck', tag: 'card-stack', create: createDeck, shapes: 32, menuEntry: '１枚引く' },
+  { name: 'note', tag: 'text-note', create: createNote, shapes: 1, menuEntry: 'メモを編集' },
 ];
 
 /** Makes a piece and waits until the canvas draws it and its animations are over, and answers its identifier. */
@@ -195,6 +203,7 @@ test.describe('pieces drawn on a canvas', () => {
   for (const [piece, part] of [
     [PIECES[2], 'img'],
     [PIECES[3], 'img'],
+    [PIECES[4], '.rounded-b-ui-sm'],
   ] as const) {
     test(`lay a ${piece.name}’s picture where the page lays it out`, async ({ page }) => {
       await piece.prepare?.(page);
@@ -286,7 +295,7 @@ test.describe('pieces drawn on a canvas', () => {
       const id = await made(page, piece);
       const [shape] = await boxesOf(page, id);
 
-      await page.mouse.click(shape.x + shape.width / 2, shape.y + shape.height - 6, { button: 'right' });
+      await page.mouse.click(shape.x + shape.width / 2, shape.y + shape.height / 2, { button: 'right' });
 
       const menu = page.locator('context-menu');
       await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
@@ -298,7 +307,7 @@ test.describe('pieces drawn on a canvas', () => {
       const id = await made(page, piece);
       const [shape] = await boxesOf(page, id);
       const grabX = shape.x + shape.width / 2;
-      const grabY = shape.y + shape.height - 6;
+      const grabY = shape.y + shape.height / 2;
 
       await page.mouse.move(grabX, grabY);
       await page.mouse.down();

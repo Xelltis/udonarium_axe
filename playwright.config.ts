@@ -19,6 +19,9 @@ const PASSING_ON_CANVAS = [
   /dice-symbol-flags\.spec\.ts/,
   /coin\.spec\.ts/,
   /\/card(-[a-z-]+)?\.spec\.ts/,
+  /speech-bubble-note-format\.spec\.ts/,
+  /tabletop-altitude\.spec\.ts/,
+  /tabletop-objects\.spec\.ts/,
 ];
 
 export default defineConfig({
