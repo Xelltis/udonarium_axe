@@ -212,9 +212,10 @@ export class WhiteBoardComponent {
     { equal: () => false }
   );
 
+  /** The characters on the board, which a table drawn on a canvas lays over itself instead. */
   readonly characters = computed<GameCharacter[]>(() => {
     this.surfaceVersion();
-    return this.contentsOf(this.tabletopService.characters);
+    return this.drawsOnCanvas() ? [] : this.contentsOf(this.tabletopService.characters);
   });
   readonly terrains = computed<Terrain[]>(() => {
     this.surfaceVersion();

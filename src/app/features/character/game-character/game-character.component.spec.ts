@@ -8,6 +8,8 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
+import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { BillboardFacing, BillboardFrameService } from '@axe/application/ui/billboard-frame.service';
@@ -3195,5 +3197,50 @@ describe('GameCharacterComponent', () => {
       ObjectStore.instance.remove(preset);
       character.destroy();
     }
+  });
+
+  describe('over a table drawn on a canvas', () => {
+    beforeEach(() => {
+      TestBed.inject(Table3dService).renderer.set('three');
+      fixture = TestBed.createComponent(GameCharacterComponent);
+      component = fixture.componentInstance;
+    });
+
+    afterEach(() => TestBed.inject(Table3dService).renderer.set('css'));
+
+    it('lays its pedestal and its labels out on the screen, and draws its pedestal out of sight for the canvas', () => {
+      const character = GameCharacter.create('コマ', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+      fixture.detectChanges();
+      const element = fixture.nativeElement as HTMLElement;
+
+      expect(
+        element.querySelector('[data-part="pedestal"][data-testid="multi-angle-piece-motion-source"]')
+      ).not.toBeNull();
+      expect(element.querySelector('[data-testid="piece-name"]')?.textContent).toContain('コマ');
+      expect(element.querySelector('[appbillboard]')).toBeNull();
+      expect(element.querySelector('.fixed [data-part="pedestal"]')).not.toBeNull();
+      character.destroy();
+    });
+
+    it('turns on its own while the table is seen from straight above with its pieces turning', async () => {
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.mode2d = true;
+      table.multiAngleEnabled = true;
+      await Promise.resolve();
+      const turn = vi.spyOn(TestBed.inject(PieceMotionsService), 'turnOnItsOwn');
+      const character = GameCharacter.create('コマ', 1, '');
+      fixture.componentRef.setInput('gameCharacter', character);
+      fixture.detectChanges();
+      TestBed.tick();
+
+      expect(turn).toHaveBeenCalledWith(
+        character.identifier,
+        expect.objectContaining({ mode: 'continuous', revolutionSeconds: 60 })
+      );
+      fixture.destroy();
+      expect(turn).toHaveBeenLastCalledWith(character.identifier, null);
+      character.destroy();
+    });
   });
 });

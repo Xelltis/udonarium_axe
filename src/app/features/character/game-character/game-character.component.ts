@@ -26,10 +26,12 @@ import { FirstPersonService } from '@axe/application/tabletop/first-person.servi
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
+import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -93,6 +95,7 @@ import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { PieceWaterLook, pieceWaterLook } from '@axe/domain/tabletop/water/submersion';
+import { PieceMotionKind } from '@axe/domain/tabletop/world/piece-motions';
 import {
   GameCharacterMenuHost,
   GameCharacterMenuService,
@@ -112,6 +115,7 @@ import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { makeBillboardTransform, makeScreenLiftTransform } from '@axe/ui/tabletop/billboard-transform';
 import { hexPedestalGrabStyle, hexPedestalRingStyle } from '@axe/ui/tabletop/hex-pedestal-style';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { makeMultiAngleCurvedName } from '@axe/ui/tabletop/multi-angle-curved-name';
 import {
   makeMultiAngleBuffOrbit,
@@ -124,6 +128,13 @@ import { pieceLabelFacings } from '@axe/ui/tabletop/piece-label-facings';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { translateZCss, Z_OFFSET_TALL_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
 import { TranslocoModule } from '@jsverse/transloco';
+
+/** How a piece that falls falls on the canvas, by how the page plays it. */
+const FALLS: Readonly<Record<string, PieceMotionKind>> = {
+  dissolve: 'defeat-dissolve',
+  bisect: 'defeat-bisect',
+  flinch: 'defeat-flinch',
+};
 
 const DECOR_SUPERSAMPLE = 3;
 const DECOR_BASE_FONT_PX = 10;
@@ -215,6 +226,7 @@ const WATER_RIPPLE_LIFT_PX = 0.5;
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     BillboardDirective,
+    HudPlaceDirective,
     SeeThroughDirective,
     MovableDirective,
     RotableDirective,
@@ -276,26 +288,37 @@ export class GameCharacterComponent {
     return this.gameCharacter()?.targeted ?? false;
   });
 
-  private readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
+  protected readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
+  private readonly motions = inject(PieceMotionsService);
+  private readonly pieces = inject(TablePiecesService);
   private readonly pedestal = viewChild<ElementRef<HTMLElement>>('pedestal');
 
   /**
    * Whether the table's canvas draws the piece, from its picture and a picture of its pedestal taken
-   * here, which leaves both clear here, still taking the presses where the canvas draws them. The
-   * page draws the piece itself while it is turning on its own, standing in water, or being struck,
-   * healed or felled.
+   * here; the screen over the canvas then holds only the piece's labels and handles.
    */
-  readonly drawnOnCanvas = computed(() => {
+  readonly drawnOnCanvas = computed(() => !!this.gameCharacter() && this.drawsOnCanvas() && !this.isHiddenByVision());
+
+  /** The part of the piece its labels hang over on the screen over a canvas: its picture, or its pedestal where it has none. */
+  protected readonly labelledPart = computed(() => (this.imageFile().url.length > 0 ? 'picture' : 'pedestal'));
+  /** The middle of the piece's pedestal over a canvas, which its labels round it, seen from above, circle. */
+  protected readonly pedestalMiddle = computed(() => {
     const char = this.gameCharacter();
-    if (!char || !this.drawsOnCanvas() || this.isHiddenByVision()) return false;
+    if (!char) return undefined;
     this.objectChange.versionOf(char.identifier)();
-    return (
-      !this.multiAngleNameOrbitEnabled() &&
-      this.inWater() === null &&
-      this.hitFlash() === null &&
-      this.defeatReaction() === ''
-    );
+    const middle = (this.size() * this.gridSize) / 2;
+    return {
+      surface: this.pieces.surfaceOf(char),
+      x: char.location.x + middle,
+      y: char.location.y + middle,
+      height: char.posZ + this.altitude() * this.gridSize,
+    };
   });
+
+  /** The labels' sizes on the screen over a canvas, which draws them at the size the piece is drawn at. */
+  protected readonly hudDecorFontSizePx = DECOR_BASE_FONT_PX;
+  protected readonly hudNameFontSizePx = NAME_BASE_FONT_PX;
+  protected readonly hudSpeechStampPx = SPEECH_STAMP_PX;
 
   readonly isSharedView = computed(() => {
     const char = this.gameCharacter();
@@ -388,9 +411,46 @@ export class GameCharacterComponent {
       transformCssOffset: translateZCss(Z_OFFSET_TALL_OBJECT_PX),
       snapStyle: (char) => (char.size % 1 !== 0 ? GridSnapStyle.VERTEX : undefined),
       snapToSquare: (char, at) => pieceCornerOnSquare(this.tabletopService.currentTable, char, at),
+      placedElsewhere: this.drawsOnCanvas,
+    });
+    effect(() => {
+      const char = this.gameCharacter();
+      if (!char) return;
+      const turning =
+        this.drawnOnCanvas() && this.multiAngleNameOrbitEnabled()
+          ? {
+              mode: multiAnglePieceMotionMode(this.tabletopService.display().multiAngleMotionMode),
+              revolutionSeconds: this.multiAnglePieceRevolutionSeconds(),
+              pauseSeconds: this.tabletopService.display().multiAnglePauseSeconds,
+              phase: this.multiAnglePiecePhase(),
+            }
+          : null;
+      untracked(() => this.motions.turnOnItsOwn(char.identifier, turning));
+    });
+    let felling: string | null = null;
+    effect(() => {
+      const reaction = this.defeatReaction();
+      const char = this.gameCharacter();
+      untracked(() => {
+        if (felling) this.motions.stop(felling);
+        felling = null;
+        const falls = FALLS[reaction];
+        if (!char || !this.drawnOnCanvas() || !falls) return;
+        this.motions.play(char.identifier, falls, { holds: true });
+        felling = char.identifier;
+      });
+    });
+    effect(() => {
+      if (this.hitFlash() !== 'damage' || this.defeatReaction()) return;
+      const char = this.gameCharacter();
+      untracked(() => {
+        if (char && this.drawnOnCanvas()) this.motions.play(char.identifier, 'hit-shake');
+      });
     });
 
     this.destroyRef.onDestroy(() => {
+      const char = this.gameCharacter();
+      if (char) this.motions.turnOnItsOwn(char.identifier, null);
       clearTimeout(this.highlightTimer);
       clearTimeout(this.unhighlightTimer);
       this.rightDrag.dispose();

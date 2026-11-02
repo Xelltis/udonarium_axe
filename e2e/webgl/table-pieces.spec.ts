@@ -384,10 +384,8 @@ test.describe('pieces drawn on a canvas', () => {
             const owner = element?.closest('[data-object-id]');
             if (!owner) return true;
             if (owner.getAttribute('data-object-id') !== identifier) return false;
-            if (element!.closest('[data-testid="table-hud"]')) {
-              if (element!.matches('[data-part], [data-hud-box]')) return true;
-              const part = element!.closest('[data-part]');
-              return !!part && owner.contains(part) && getComputedStyle(part).opacity === '0';
+            if (element!.closest('[data-testid="table-hud"]') && element!.matches('[data-part], [data-hud-box]')) {
+              return true;
             }
             for (let at: Element | null = element; at && at !== owner.parentElement; at = at.parentElement) {
               if (getComputedStyle(at).opacity === '0') return true;

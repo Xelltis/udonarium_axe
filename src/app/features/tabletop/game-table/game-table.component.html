@@ -432,6 +432,14 @@
       @for (coin of coinsOverCanvas(); track coin.identifier) {
         <coin class="block" [coin]="coin" [appTooltip]="coin" [appHudPlace]="{ owner: coin.identifier }"></coin>
       }
+      @for (character of charactersOverCanvas(); track character.identifier) {
+        <game-character
+          class="block"
+          [gameCharacter]="character"
+          [appTooltip]="character"
+          [appHudPlace]="{ owner: character.identifier }"
+        ></game-character>
+      }
       @for (diceSymbol of diceSymbolsOverCanvas(); track diceSymbol.identifier) {
         <dice-symbol
           class="block"

@@ -6,6 +6,7 @@ import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.ser
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { pageOfTablePoint, TableCameraView } from '@axe/domain/tabletop/camera/table-camera';
 import { PickTarget } from '@axe/domain/tabletop/pick/pick-index';
+import { partOf } from '@axe/domain/tabletop/world/page-boxes';
 import { pointOnFace } from '@axe/domain/tabletop/world/table-sprites';
 
 /** What the end-to-end suite can ask the table, in a browser driven by automation. */
@@ -50,6 +51,8 @@ export interface TableTestHooks {
   pieceBoxesOnPage(identifier: string): { x: number; y: number; width: number; height: number }[];
   /** Where a point of a face (the floor, a wall or a board), lifted some way off it, is drawn on the page. */
   surfacePageOf(surface: string, localX: number, localY: number, height?: number): { x: number; y: number } | null;
+  /** The sprites a piece is drawn with, each named as its part and as large as it is drawn, in table pixels. */
+  spritesOf(identifier: string): { part: string; widthPx: number; heightPx: number }[];
 }
 
 type HookedWindow = Window & { __axeTable?: TableTestHooks };
@@ -83,6 +86,11 @@ export function installTableTestHooks(
     renderer: () => scene.backend(),
     whenIdle: () => scene.whenIdle(),
     sceneStats: () => scene.stats(),
+    spritesOf: (identifier) =>
+      scene
+        .world()
+        .sprites.filter((sprite) => sprite.owner === identifier)
+        .map((sprite) => ({ part: partOf(sprite), widthPx: sprite.widthPx, heightPx: sprite.heightPx })),
     sceneBoard: () => {
       const board = scene.world().board;
       return board ? { widthPx: board.widthPx, depthPx: board.depthPx } : null;
