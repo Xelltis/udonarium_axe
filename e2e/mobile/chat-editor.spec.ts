@@ -31,6 +31,9 @@ test.describe('the chat editor on a phone', () => {
     const closeStartupPanel = page.locator('ui-panel .bg-ui-titlebar button').last();
     if (await closeStartupPanel.count()) await closeStartupPanel.click();
     const input = page.locator('app-mobile-chat-pane chat-input');
+    // The plain box gives way to the editor once its code has loaded, which a busy page can be
+    // doing while the boxes are measured.
+    await expect(input.locator('[data-chat-input-mode="rich"]')).toBeVisible({ timeout: 20000 });
     await expect(input.locator('ng-select[name="send-from"]')).toBeVisible({ timeout: 20000 });
     await expect(input.locator('ng-select[name="game-type"]')).toBeVisible();
     await expect(input.getByRole('button', { name: '?' })).toBeVisible();
