@@ -6,6 +6,7 @@ import {
   DiceTablePalette,
   evaluateCharacterReferences,
   paletteVariableSite,
+  speakerFilledLine,
   textTargetsCharacter,
 } from '@axe/domain/chat/chat-palette';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
@@ -460,6 +461,33 @@ describe('ChatPalette', () => {
       detail.appendChild(calc);
 
       expect(palette.evaluate('{残り}', detail)).toBe('7');
+    });
+  });
+
+  describe('speakerFilledLine()', () => {
+    function speakerWith(fields: Record<string, string>, palette = ''): GameCharacter {
+      const character = GameCharacter.create('話者', 1, '');
+      character.chatPalette?.setPalette(palette);
+      for (const [name, value] of Object.entries(fields)) {
+        character.detailDataElement!.appendChild(DataElement.create(name, value));
+      }
+      return character;
+    }
+
+    it("fills in the speaker's references and leaves the target's as typed", () => {
+      const speaker = speakerWith({ 項目A: '3', 項目C: '{項目A}+t{項目B}' });
+
+      expect(speakerFilledLine('{項目C}', speaker)).toBe('3+t{項目B}');
+    });
+
+    it('leaves a target reference joined onto a roll, which a target may yet answer', () => {
+      const speaker = speakerWith({}, '//攻撃=2d6+10t{加護}');
+
+      expect(speakerFilledLine('{攻撃}', speaker)).toBe('2d6+10t{加護}');
+    });
+
+    it('leaves a reference of nobody as typed', () => {
+      expect(speakerFilledLine('2d6+{攻撃}', null)).toBe('2d6+{攻撃}');
     });
   });
 

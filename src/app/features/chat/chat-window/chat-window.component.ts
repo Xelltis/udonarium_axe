@@ -28,13 +28,13 @@ import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { delay } from '@axe/core/util/delay';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { aimLine } from '@axe/domain/chat/character-macro';
 import { ChatMessage, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
-import { evaluateCharacterReferences, textTargetsCharacter } from '@axe/domain/chat/chat-palette';
+import { evaluateCharacterReferences } from '@axe/domain/chat/chat-palette';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
-import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ChatBookmarkService } from '@axe/features/chat/chat-bookmark.service';
 import { ChatBookmarkListComponent } from '@axe/features/chat/chat-bookmark/chat-bookmark-list.component';
@@ -714,8 +714,9 @@ export class ChatWindowComponent {
   /**
    * Sends a line from the chat input to the current tab.
    *
-   * Character references in the text are filled in from the speaker. A line that targets characters
-   * is sent once for each targeted piece on the table, filled in against that piece and tagged with
+   * Character references in the text are filled in from the speaker. A line that targets characters,
+   * as typed or once the speaker's references in it are filled in (see `aimLine`), is sent once for
+   * each targeted piece on the table, filled in against that piece and tagged with
    * its name, with the parts that change the speaker's own resources or buffs taken out after the
    * first copy so they apply once; with nothing targeted, the line says so. Nothing is sent when
    * the reader may not speak in the tab. A line marked for the ticker is also shown there. A stamp
@@ -745,7 +746,8 @@ export class ChatWindowComponent {
         return evaluated.text;
       };
 
-      if (textTargetsCharacter(value.text)) {
+      const aimed = aimLine(value.text, speaker);
+      if (aimed.targeted) {
         objects = this.targetedGameCharacterList();
         let first = true;
         if (objects.length == 0) {
@@ -753,13 +755,7 @@ export class ChatWindowComponent {
         }
         for (const object of objects) {
           outtext += first ? '' : '\n';
-          const str = value.text;
-          let str2: string;
-          if (first) {
-            str2 = str;
-          } else {
-            str2 = DiceBot.deleteMyselfResourceBuff(str);
-          }
+          const str2 = first ? value.text : aimed.repeated;
 
           const filled = fillIn(str2, object);
           outtext += filled;
