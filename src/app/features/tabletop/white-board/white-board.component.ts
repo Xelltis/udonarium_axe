@@ -1,9 +1,19 @@
 import { NgStyle } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  input,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
@@ -36,6 +46,7 @@ import { RotableDirective, RotableOption } from '@axe/ui/directives/rotable.dire
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 
 @Component({
@@ -78,8 +89,27 @@ export class WhiteBoardComponent {
   readonly movableOption = signal<MovableOption>({});
   readonly rotableOption = signal<RotableOption>({});
 
+  /**
+   * Whether the board is drawn on the table's canvas from a picture of what it wears taken here,
+   * which leaves its face here clear, still taking the presses where the canvas draws it.
+   */
+  readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
+  private readonly face = viewChild<ElementRef<HTMLElement>>('face');
+
   constructor() {
     setupMovableRotableForPiece(this, { target: this.whiteBoard });
+    pictureForCanvas({
+      identifier: () => this.whiteBoard().identifier,
+      element: () => this.face()?.nativeElement,
+      pictured: () => this.drawsOnCanvas(),
+      follows: () => {
+        this.widthPx();
+        this.heightPx();
+        this.opacity();
+        this.color();
+        this.imageUrl();
+      },
+    });
   }
 
   /** The table's grid cell size in pixels, which the board's width and height are counted in. */

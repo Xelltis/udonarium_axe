@@ -17,6 +17,7 @@ import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TextNote } from '@axe/domain/tabletop/text-note';
+import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -156,5 +157,15 @@ describe('TablePiecesService', () => {
     });
 
     expect(pieces.sprites()).toMatchObject([{ id: `${range.identifier}#picture`, centre: { x: 100, y: 200 } }]);
+  });
+
+  it('stands a white board where its face is, from the picture the page takes of what it wears', () => {
+    const board = WhiteBoard.create('board', 4, 2, 1);
+    board.location = { name: 'table', x: 100, y: 200 };
+    TestBed.inject(TableSelecter).viewTable!.appendChild(board);
+
+    TestBed.inject(PiecePicturesService).show(board.identifier, { url: 'blob:board', widthPx: 200, heightPx: 100 });
+
+    expect(pieces.sprites()).toMatchObject([{ id: `${board.identifier}#face`, widthPx: 200, heightPx: 100 }]);
   });
 });

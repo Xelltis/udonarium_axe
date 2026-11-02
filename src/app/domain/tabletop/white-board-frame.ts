@@ -9,7 +9,10 @@ import { WhiteBoard } from '@axe/domain/tabletop/white-board';
  * bottom of it, up to standing at ninety; it turns about the middle of that foot. What stands on it
  * is laid out across and down the face from the top-left corner, as on the table itself.
  */
-export function whiteBoardFrame(board: WhiteBoard, gridSize: number): SurfaceFrame {
+export function whiteBoardFrame(
+  board: Pick<WhiteBoard, 'width' | 'height' | 'pitch' | 'rotate' | 'posZ'> & { location: { x: number; y: number } },
+  gridSize: number
+): SurfaceFrame {
   const width = board.width * gridSize;
   const height = board.height * gridSize;
   const pitch = (board.pitch * Math.PI) / 180;

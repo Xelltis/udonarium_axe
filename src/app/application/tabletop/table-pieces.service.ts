@@ -27,6 +27,7 @@ import { maskSprites, rangeSprites } from '@axe/domain/tabletop/world/flat-piece
 import { tableCoinOf, TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { textNoteSprites } from '@axe/domain/tabletop/world/text-note-sprites';
+import { whiteBoardSprites } from '@axe/domain/tabletop/world/white-board-sprites';
 
 /** The theme's colour a frame takes for a piece that is somebody's, as the page names it. */
 const OWNED_FRAME_COLOUR_PROPERTY = '--ui-panel-border';
@@ -68,6 +69,7 @@ export class TablePiecesService {
 
   /** Every sprite of every piece drawn on the table in view. */
   readonly sprites = computed<readonly TableWorldSprite[]>(() => [
+    ...this.boardSprites(),
     ...this.maskSprites(),
     ...this.rangeSprites(),
     ...this.noteSprites(),
@@ -111,6 +113,22 @@ export class TablePiecesService {
         .filter((wall) => wall.shown && this.images.getEmptyOr(wall.imageIdentifier).url)
         .map((wall) => wall.surface)
     );
+  });
+
+  /** The white boards, drawn from the pictures the page takes of their faces. */
+  private readonly boardSprites = computed(() => {
+    this.objectChange.collectionOf(WhiteBoard.aliasName)();
+    this.transient.version();
+    const sprites: TableWorldSprite[] = [];
+    for (const board of this.tabletop.whiteBoards) {
+      this.objectChange.versionOf(board.identifier)();
+      const frame = this.surfaces.frameOf(board.identifier);
+      if (!frame) continue;
+      sprites.push(
+        ...whiteBoardSprites({ id: board.identifier, frame, picture: this.pagePictures.pictureOf(board.identifier) })
+      );
+    }
+    return sprites;
   });
 
   /** The map masks, drawn from the pictures the page takes of them cut to their open cells. */

@@ -39,20 +39,23 @@
       </div>
     }
     <div class="size-full origin-bottom transform-3d" [style.transform]="pitchTransform()">
-      <div
-        class="pointer-events-auto absolute inset-0 backface-visible"
-        [style.opacity]="opacity()"
-        [style.background-color]="color()"
-      ></div>
-
-      @if (imageUrl().length > 0) {
-        <!-- Whatever is drawn on the board is not the board: it hangs at its own weight over a
-             face that may be faded to nothing, so a plan can float in the air over the table. -->
+      <!-- What the board wears, which a seat drawing the table on a canvas pictures for it. -->
+      <div class="absolute inset-0 backface-visible" #face data-part="face" [class.opacity-0]="drawsOnCanvas()">
         <div
-          class="pointer-events-none absolute inset-0 bg-contain bg-center bg-no-repeat backface-visible"
-          [style.background-image]="'url(' + imageUrl() + ')' | safe: 'style'"
+          class="pointer-events-auto absolute inset-0 backface-visible"
+          [style.opacity]="opacity()"
+          [style.background-color]="color()"
         ></div>
-      }
+
+        @if (imageUrl().length > 0) {
+          <!-- Whatever is drawn on the board is not the board: it hangs at its own weight over a
+               face that may be faded to nothing, so a plan can float in the air over the table. -->
+          <div
+            class="pointer-events-none absolute inset-0 bg-contain bg-center bg-no-repeat backface-visible"
+            [style.background-image]="'url(' + imageUrl() + ')' | safe: 'style'"
+          ></div>
+        }
+      </div>
 
       @for (picture of livePictures(); track picture.id) {
         <img

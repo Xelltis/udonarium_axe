@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { drawnScaleAt, pageOfTablePoint, tableRayOfPage } from '@axe/domain/tabletop/camera/table-camera';
 import { SurfaceCrossing, surfaceCrossing, SurfaceFrame, surfaceFrame, Vec3 } from '@axe/domain/tabletop/surface-space';
@@ -25,8 +26,12 @@ export class TableSurfaceService {
   private readonly tableSelecter = inject(TableSelecter, { optional: true });
   private readonly camera = inject(TableCameraService);
   private readonly objectStore = inject(ObjectStore, { optional: true });
+  private readonly transient = inject(TransientPlacementService);
 
-  /** The face a surface name stands for, or null for a name that is neither a face of the table nor a board. */
+  /**
+   * The face a surface name stands for, or null for a name that is neither a face of the table nor a
+   * board. A board this seat is moving is where it is being moved to, as it is drawn.
+   */
   frameOf(surface: string): SurfaceFrame | null {
     const table = this.tableSelecter?.viewTable;
     if (!table) return null;
@@ -38,7 +43,11 @@ export class TableSurfaceService {
       });
     }
     const board = this.objectStore?.get(surface);
-    return board instanceof WhiteBoard ? whiteBoardFrame(board, table.gridSize) : null;
+    if (!(board instanceof WhiteBoard)) return null;
+    const moving = this.transient.placementOf(board.identifier);
+    if (!moving) return whiteBoardFrame(board, table.gridSize);
+    const { width, height, pitch, rotate } = board;
+    return whiteBoardFrame({ width, height, pitch, rotate, location: moving, posZ: moving.z }, table.gridSize);
   }
 
   /** How far a face runs across and down, in pixels, or null for a face it does not know. */
