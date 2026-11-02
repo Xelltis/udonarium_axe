@@ -35,6 +35,11 @@ export interface HudAnchor {
   /** Whether an element put on a point is drawn at the size the table is drawn at there, as one lying on the face. */
   readonly scaled?: boolean;
   /**
+   * Another point of a face, for an element laid from the point `at` to it as a line: its top left on
+   * the one, running down its height to the other, as the guide down from a piece raised off the floor.
+   */
+  readonly reach?: { readonly surface: string; readonly x: number; readonly y: number; readonly height: number };
+  /**
    * A corner of the part, round from its top left as a picture on it is read, to put the element's
    * middle on: as the handles at a board's foot.
    */
@@ -161,11 +166,15 @@ export class HudFrameService {
       const point = at ? this.surfaces.pageOf(at.surface, at.x, at.y, at.height) : null;
       const beside = at && placed.anchor.scaled ? this.surfaces.pageOf(at.surface, at.x + 1, at.y, at.height) : null;
       const scale = point && beside ? Math.hypot(beside.x - point.x, beside.y - point.y) : null;
+      const reach = placed.anchor.reach;
+      const end = point && reach ? this.surfaces.pageOf(reach.surface, reach.x, reach.y, reach.height) : null;
       const style = !piece
         ? null
-        : at
-          ? point && centredOn(point, piece, scale)
-          : styleOf(placed.anchor, piece, ranks.get(placed.anchor.owner) ?? 0, sizes.get(element), origin);
+        : at && reach
+          ? point && end && laidBetween(point, end, piece)
+          : at
+            ? point && centredOn(point, piece, scale)
+            : styleOf(placed.anchor, piece, ranks.get(placed.anchor.owner) ?? 0, sizes.get(element), origin);
       const written = style ? JSON.stringify(style) : '';
       if (written === placed.written) continue;
       placed.written = written;
@@ -201,6 +210,20 @@ function centredOn(point: { x: number; y: number }, piece: PiecePageBoxes, scale
     transform: `translate(${px(point.x - piece.whole.left)}, ${px(point.y - piece.whole.top)})${scaled} translate(-50%, -50%)`,
     width: null,
     height: null,
+    zIndex: '',
+  };
+}
+
+/**
+ * The style that lays an element as a line from one point of the page to another, within the root of a
+ * piece drawn in these boxes: its top left on the first, turned so that its height runs to the second.
+ */
+function laidBetween(from: { x: number; y: number }, to: { x: number; y: number }, piece: PiecePageBoxes): HudStyle {
+  const turn = (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI - 90;
+  return {
+    transform: `translate(${px(from.x - piece.whole.left)}, ${px(from.y - piece.whole.top)}) rotate(${Math.round(turn * 100) / 100}deg)`,
+    width: null,
+    height: px(Math.hypot(to.x - from.x, to.y - from.y)),
     zIndex: '',
   };
 }

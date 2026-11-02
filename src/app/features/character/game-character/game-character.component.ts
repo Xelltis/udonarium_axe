@@ -346,6 +346,25 @@ export class GameCharacterComponent {
     };
   });
 
+  /**
+   * The guide down from a piece raised off the face it stands on, or up to one sunk under it, over a
+   * canvas: from the height its picture floats at to the face, with what is written at its ends and
+   * halfway. Nothing for a piece within half a cell of the face, or one set not to show it.
+   */
+  protected readonly altitudeGuide = computed(() => {
+    const char = this.gameCharacter();
+    const lifted = this.pedestalMiddle();
+    const altitude = this.altitude();
+    if (!char || !lifted || !char.isAltitudeIndicate || Math.abs(altitude) < 0.5) return null;
+    const ground = { ...lifted, height: char.posZ };
+    return {
+      lifted,
+      ground,
+      middle: { ...lifted, height: (lifted.height + ground.height) / 2 },
+      altitude: Math.abs(altitude),
+    };
+  });
+
   /** The labels' sizes on the screen over a canvas, which draws them at the size the piece is drawn at. */
   protected readonly hudDecorFontSizePx = DECOR_BASE_FONT_PX;
   protected readonly hudNameFontSizePx = NAME_BASE_FONT_PX;

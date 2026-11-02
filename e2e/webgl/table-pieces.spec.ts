@@ -342,6 +342,37 @@ test.describe('pieces drawn on a canvas', () => {
     expect(middleOf(tipped).x, JSON.stringify([upright, tipped])).toBeGreaterThan(middleOf(upright).x + 5);
   });
 
+  test('guide a character raised off the floor down to the middle of its pedestal', async ({ page }) => {
+    const character = page.locator('game-character', { has: page.getByText('キャラクターB', { exact: true }) });
+    const id = (await character.getAttribute('data-object-id'))!;
+    await idle(page);
+    await expect(character.getByTestId('altitude-guide')).toHaveCount(0);
+
+    await character.dispatchEvent('contextmenu');
+    const menu = page.locator('context-menu');
+    await (await revealMenuEntry(page, menu, '高度設定')).hover();
+    const altitude = menu.locator('input[name="altitude-number"]');
+    await altitude.click();
+    await altitude.press('Control+a');
+    await altitude.pressSequentially('2');
+    // A press outside the menu closes it; where the menu opens decides where a click would land.
+    await page.locator('#app-table-layer').dispatchEvent('mousedown');
+    await expect(menu).toHaveCount(0, { timeout: 5000 });
+    await idle(page);
+
+    const guide = character.getByTestId('altitude-guide');
+    await expect(guide).toBeVisible({ timeout: 5000 });
+    const [pedestal] = await boxesOf(page, id);
+    const line = (await guide.boundingBox())!;
+    const report = JSON.stringify([line, pedestal]);
+    // From the height the picture floats at, straight down the screen to the middle of the pedestal.
+    expect(Math.abs(line.x + line.width / 2 - (pedestal.x + pedestal.width / 2)), report).toBeLessThan(4);
+    expect(Math.abs(line.y + line.height - (pedestal.y + pedestal.height / 2)), report).toBeLessThan(4);
+    expect(line.height, report).toBeGreaterThan(pedestal.height);
+    await expect(character.getByTestId('altitude-guide-altitude')).toHaveText('2');
+    await expect(character.getByTestId('altitude-guide-elevation')).toHaveText('2');
+  });
+
   test('tumble a die on the canvas, its picture moving and its frame staying, and bring it to rest', async ({
     page,
   }) => {

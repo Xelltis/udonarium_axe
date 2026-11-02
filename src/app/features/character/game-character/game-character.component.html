@@ -331,6 +331,28 @@
             </div>
           </div>
         }
+        @if (altitudeGuide(); as guide) {
+          <!-- The guide from the height the piece floats at to the face it stands on. -->
+          <div
+            data-testid="altitude-guide"
+            class="pointer-events-none w-0 border-l-2 border-dashed border-l-black"
+            [appHudPlace]="{ owner: id, at: guide.lifted, reach: guide.ground }"
+          ></div>
+          <div class="pointer-events-none size-0" [appHudPlace]="{ owner: id, at: guide.lifted }">
+            <span
+              data-testid="altitude-guide-elevation"
+              class="text-ui-text absolute left-1 -translate-y-1/2 text-[12px] font-extrabold whitespace-nowrap italic [text-shadow:var(--ui-panel-bg)_0px_0px_3px]"
+              >{{ elevation }}</span
+            >
+          </div>
+          <div class="pointer-events-none size-0" [appHudPlace]="{ owner: id, at: guide.middle }">
+            <span
+              data-testid="altitude-guide-altitude"
+              class="text-ui-text absolute left-1 -translate-y-1/2 text-[10px] whitespace-nowrap [text-shadow:var(--ui-panel-bg)_0px_0px_3px]"
+              >{{ guide.altitude }}</span
+            >
+          </div>
+        }
         @if (imageFile().url.length > 0) {
           <img
             data-part="picture"

@@ -160,6 +160,23 @@ describe('HudFrameService', () => {
     expect(handle.style.transform).toBe('translate(25px, 30px) translate(-50%, -50%)');
   });
 
+  it('lays an element as a line from a point of a face down to another, within the root', () => {
+    vi.spyOn(TestBed.inject(TableSurfaceService), 'pageOf').mockImplementation((_surface, _x, _y, height = 0) => ({
+      x: 100,
+      y: 120 - height,
+    }));
+    const guide = element();
+    frame.place(guide, {
+      owner: 'die',
+      at: { surface: 'floor', x: 1, y: 2, height: 40 },
+      reach: { surface: 'floor', x: 1, y: 2, height: 0 },
+    });
+    frame.writeNow();
+
+    expect(guide.style.transform).toBe('translate(25px, 30px) rotate(0deg)');
+    expect(guide.style.height).toBe('40px');
+  });
+
   it('draws an element put on a point at the size the table is drawn at there, where asked', () => {
     vi.spyOn(TestBed.inject(TableSurfaceService), 'pageOf').mockImplementation((_surface, x) => ({
       x: 100 + x * 0.5,
