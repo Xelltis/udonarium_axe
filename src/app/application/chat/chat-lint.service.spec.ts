@@ -289,6 +289,14 @@ describe('ChatLintService', () => {
     }
   });
 
+  it('finds no target for a reference of the speaker that reads one through t{}, as sending it would', () => {
+    speaker.detailDataElement!.appendChild(DataElement.create('攻撃', '2d6+t{防御}'));
+
+    const { session } = watch('{攻撃}');
+
+    expect(codesOf(session)).toEqual(['target.none']);
+  });
+
   it('finds no target missing in a palette as it is written, but does in the palette’s own box, sent at once', () => {
     const palette = watch('t:HP-1', { path: 'palette', mode: 'palette' });
     const box = watch('t:HP-1', { path: 'palette' });

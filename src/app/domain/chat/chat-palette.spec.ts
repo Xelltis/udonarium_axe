@@ -463,6 +463,35 @@ describe('ChatPalette', () => {
     });
   });
 
+  describe('evaluateCharacterReferences() leaving every reference nothing answers', () => {
+    function speakerWith(fields: Record<string, string>, palette = ''): GameCharacter {
+      const character = GameCharacter.create('話者', 1, '');
+      character.chatPalette?.setPalette(palette);
+      for (const [name, value] of Object.entries(fields)) {
+        character.detailDataElement!.appendChild(DataElement.create(name, value));
+      }
+      return character;
+    }
+    const filled = (line: string, speaker: GameCharacter | null) =>
+      evaluateCharacterReferences(line, speaker, undefined, 'always').text;
+
+    it("fills in the speaker's references and leaves the target's as typed", () => {
+      const speaker = speakerWith({ 項目A: '3', 項目C: '{項目A}+t{項目B}' });
+
+      expect(filled('{項目C}', speaker)).toBe('3+t{項目B}');
+    });
+
+    it('leaves a target reference joined onto a roll, which a target may yet answer', () => {
+      const speaker = speakerWith({}, '//攻撃=2d6+10t{加護}');
+
+      expect(filled('{攻撃}', speaker)).toBe('2d6+10t{加護}');
+    });
+
+    it('leaves a reference of nobody as typed', () => {
+      expect(filled('2d6+{攻撃}', null)).toBe('2d6+{攻撃}');
+    });
+  });
+
   describe('textTargetsCharacter()', () => {
     it('counts a t{} reference as aiming at the marked pieces', () => {
       expect(textTargetsCharacter('2d6 t{ATK}')).toBe(true);

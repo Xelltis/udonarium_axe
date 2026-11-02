@@ -1,5 +1,7 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { buildMacroMessage } from '@axe/domain/chat/character-macro';
+import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
+import { applyBuffEdit } from '@axe/domain/data/resource-edit-helpers';
 
 describe('building a macro message', () => {
   function speaker(name: string, palette?: string): GameCharacter {
@@ -55,6 +57,76 @@ describe('building a macro message', () => {
 
     expect(message.text).toBe('対象がいません');
     expect(message.targetContexts).toEqual([]);
+  });
+
+  describe('a line aimed only through a reference of the speaker', () => {
+    function withFields(character: GameCharacter, fields: Record<string, string>): GameCharacter {
+      for (const [name, value] of Object.entries(fields)) {
+        character.detailDataElement!.appendChild(DataElement.create(name, value));
+      }
+      return character;
+    }
+
+    it('goes to the target a field of the speaker reads through t{}', () => {
+      const character = withFields(speaker('A', ''), { 項目A: '3', 項目C: '{項目A}+t{項目B}' });
+      const target = withFields(speaker('B'), { 項目B: '5' });
+
+      const message = buildMacroMessage(character, '{項目C}', [target], '対象なし');
+
+      expect(message.text).toBe('3+5 [B]');
+      expect(message.targetContexts).toEqual([{ text: '3+5', object: target }]);
+    });
+
+    it('goes to the target a variable of the palette reads through t{}', () => {
+      const character = speaker('A', '//攻撃=2d6+t{防御}');
+      const target = withFields(speaker('B'), { 防御: '4' });
+
+      expect(buildMacroMessage(character, '{攻撃}', [target], '対象なし').text).toBe('2d6+4 [B]');
+    });
+
+    it('says so when nobody is marked', () => {
+      const character = withFields(speaker('A', ''), { 項目C: '1+t{項目B}' });
+
+      expect(buildMacroMessage(character, '{項目C}', [], '対象がいません').text).toBe('対象がいません');
+    });
+
+    it('reads the line alike for every target, the speaker filled in first', () => {
+      const character = speaker('A', '//命中=2d6+5');
+      const wearing = (name: string) => {
+        const target = speaker(name);
+        target.addBuffDataElement();
+        applyBuffEdit({ command: '&加護/防御+2/3', object: target, targeted: false }, target);
+        return target;
+      };
+
+      const message = buildMacroMessage(character, '{命中}+t{加護}', [wearing('B'), wearing('C')], '対象なし');
+
+      expect(message.text).toBe('2d6+5+2 [B]\n2d6+5+2 [C]');
+    });
+
+    it('sends on the picture a reference of the speaker stands for, in a line aimed at targets', () => {
+      const character = speaker('A', '');
+      character.detailDataElement!.appendChild(
+        DataElement.create('立ち絵', 'portrait-id', { fieldType: DataElementFieldType.IMAGE })
+      );
+
+      const message = buildMacroMessage(character, '{立ち絵}t:HP-1', [speaker('B'), speaker('C')], '対象なし');
+
+      expect(message.attachmentImageIdentifiers).toEqual(['portrait-id']);
+      expect(message.text).toBe('t:HP-1 [B]\nt:HP-1 [C]');
+    });
+
+    it('acts on the speaker once, though the command doing so came in through a reference', () => {
+      const character = speaker('A', '//攻撃=:MP-2 t:HP-3');
+      const first = speaker('B');
+      const second = speaker('C');
+
+      const lines = buildMacroMessage(character, '{攻撃}', [first, second], '対象なし').text.split('\n');
+
+      expect(lines[0]).toBe(':MP-2 t:HP-3 [B]');
+      expect(lines[1]).not.toContain(':MP-2');
+      expect(lines[1]).toContain('t:HP-3 [C]');
+    });
   });
 
   it('speaks for a character that keeps no palette of its own', () => {

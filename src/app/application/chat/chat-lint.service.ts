@@ -216,6 +216,7 @@ export class ChatLintService {
         const value = this.filled(typed, speaker, targets[0], variables, true);
         return value === typed ? null : value;
       },
+      speakerFilled: (text: string) => this.filled(text, speaker, undefined, variables, 'always'),
       portraits: () => this.portraitsOf(speaker),
       isChatCutIn: (name: string) => cutIns.some((cutIn) => cutIn.chatActivate && cutIn.name === name),
       stampAllowed: (stampId: string) => this.stampRules.allows('line', stampId),
@@ -260,14 +261,15 @@ export class ChatLintService {
   /**
    * A text with its references filled in from the speaker, a target and the palette's variables,
    * those written into a palette being edited where given. One nothing answers is kept as typed
-   * when `keepUnfilled`, as chat keeps it, or emptied out, as a palette does.
+   * when `keepUnfilled`, as chat keeps it, or emptied out, as a palette does; `always` keeps every
+   * one, a `t{}` joined onto a roll among them.
    */
   private filled(
     text: string,
     speaker: GameCharacter | null,
     target: GameCharacter | undefined,
     variables: readonly PaletteVariable[] | null,
-    keepUnfilled: boolean
+    keepUnfilled: boolean | 'always'
   ): string {
     const own = variables ?? speaker?.chatPalette?.paletteVariables ?? [];
     return evaluateReferences(text, own, speaker?.rootDataElement ?? undefined, target, true, keepUnfilled).text;

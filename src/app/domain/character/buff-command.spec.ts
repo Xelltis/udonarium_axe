@@ -7,6 +7,7 @@ import {
   readCalculatedBuff,
   readCalculatedBuffLook,
   removedBuffName,
+  splitBuffRounds,
 } from '@axe/domain/character/buff-command';
 
 describe('buff-command', () => {
@@ -27,6 +28,14 @@ describe('buff-command', () => {
 
   it('names the buff a removal takes off', () => {
     expect(removedBuffName('t&加護-')).toBe('加護');
+  });
+
+  it('splits the rounds from the look after them, a timing in their place read as part of the look', () => {
+    expect(splitBuffRounds(['3', 'red'])).toEqual({ rounds: '3', look: ['red'] });
+    expect(splitBuffRounds(['', 'red'])).toEqual({ rounds: '', look: ['red'] });
+    expect(splitBuffRounds(['none', 'red'])).toEqual({ rounds: undefined, look: ['none', 'red'] });
+    expect(splitBuffRounds(['手番開始', '術者'])).toEqual({ rounds: undefined, look: ['手番開始', '術者'] });
+    expect(splitBuffRounds([])).toEqual({ rounds: undefined, look: [] });
   });
 
   it('takes the stacking mark off before the rest is read', () => {

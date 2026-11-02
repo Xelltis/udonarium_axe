@@ -41,7 +41,11 @@ const COLOR_ALIASES: Record<string, string> = {
   grey: 'gray',
 };
 
-const DEFAULT_TOKENS = ['default', 'none', '既定', 'なし', '黒'];
+/**
+ * The words that put a buff's colour back to the default. `none` and `なし` are not among them: they
+ * name the timing that never runs out.
+ */
+const DEFAULT_TOKENS = ['default', '既定', '黒'];
 const HEX_PATTERN = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
 
 /** Turns a colour token into a css colour. Empty for a reset and for anything unknown. */
