@@ -36,6 +36,8 @@ import {
 import { computeVisibleCellsFor, VisibleCellsOptions } from '@axe/domain/tabletop/fog/visible-cells';
 import { visibleCellsLightKey, VisibleCellsMemo, visionSourceKey } from '@axe/domain/tabletop/fog/visible-cells-memo';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
+import { FLAT_GROUND, GroundSurface, groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
 import { SegmentIndexes } from '@axe/domain/tabletop/los/segment-index';
 import { pieceCentreOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -121,16 +123,33 @@ function sameCoverScope(a: CoverScope, b: CoverScope): boolean {
     sameCells(a.explored, b.explored)
   );
 }
-const RELEVANT_ALIASES = new Set(['character', 'light-source', 'terrain', 'table-ambience', 'game-table']);
+const RELEVANT_ALIASES = new Set([
+  'character',
+  'light-source',
+  'terrain',
+  'table-ambience',
+  'game-table',
+  'ground-field',
+  'ground-chunk',
+]);
 /** How many table cells one bucket of the sight index spans. */
 const SIGHT_INDEX_BUCKET_CELLS = 2;
-/** What the walls of a place are cut from. A piece walking past moves none of it. */
-const STANDING_ALIASES = new Set(['terrain', 'table-ambience', 'game-table']);
+/** What the walls of a place are cut from, the raised ground among it. A piece walking past moves none of it. */
+const STANDING_ALIASES = new Set(['terrain', 'table-ambience', 'game-table', 'ground-field', 'ground-chunk']);
 /** How many answers to keep, set well above what a single repaint asks for. */
 const MEMO_LIMIT = 8192;
 const EMPTY_SILHOUETTES: WallSilhouette[] = [];
 const EMPTY_WALL_LIGHTS: WallLight[] = [];
 const EMPTY_FOUND: ReadonlySet<string> = new Set();
+/**
+ * The raised ground of a table, read from what it keeps. Read when the scene is built, which a change
+ * to the ground sets off as a change to anything else standing does.
+ */
+function groundOf(table: GameTable): GroundSurface {
+  const field = groundFieldOn(table);
+  return field ? groundSurfaceOf(field.readChunks()) : FLAT_GROUND;
+}
+
 function faceKey(face: WallFace): string {
   return `${face.ax}:${face.ay}:${face.bx}:${face.by}:${face.nx}:${face.ny}:${face.heightPx}`;
 }
@@ -254,7 +273,7 @@ export class VisionService {
     const table = this.currentTable();
     if (!table) return null;
     const gridSize = table.gridSize;
-    return collectSegments(table, gridSize, table.width * gridSize, table.height * gridSize);
+    return collectSegments(table, gridSize, table.width * gridSize, table.height * gridSize, groundOf(table));
   });
 
   readonly viewer = computed<SceneViewer>(
@@ -341,7 +360,13 @@ export class VisionService {
     const characters = this.objectStore.getObjects<GameCharacter>(GameCharacter);
     this.sceneKeys.clear();
     for (const character of characters) this.sceneKeys.set(character.identifier, characterSceneKey(character));
-    return assembleScene(table, characters, standing, (identifier) => this.objectStore.get<GameCharacter>(identifier));
+    return assembleScene(
+      table,
+      characters,
+      standing,
+      (identifier) => this.objectStore.get<GameCharacter>(identifier),
+      groundOf(table)
+    );
   }
 
   /**
