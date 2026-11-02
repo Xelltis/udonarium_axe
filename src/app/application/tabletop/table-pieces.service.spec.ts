@@ -2,8 +2,8 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
+import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
-import { TextNoteFacesService } from '@axe/application/tabletop/text-note-faces.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -126,7 +126,7 @@ describe('TablePiecesService', () => {
     note.location = { name: 'table', x: 100, y: 200 };
     expect(pieces.sprites()).toEqual([]);
 
-    TestBed.inject(TextNoteFacesService).show(note.identifier, { url: 'blob:panel', widthPx: 100, heightPx: 50 });
+    TestBed.inject(PiecePicturesService).show(note.identifier, { url: 'blob:panel', widthPx: 100, heightPx: 50 });
 
     expect(pieces.sprites()).toMatchObject([{ id: `${note.identifier}#panel`, look: { url: 'blob:panel' } }]);
   });

@@ -3,9 +3,9 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { TextNoteFacesService } from '@axe/application/tabletop/text-note-faces.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
@@ -61,7 +61,7 @@ export class TablePiecesService {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly theme = inject(ThemeService);
   private readonly objectStore = inject(ObjectStore);
-  private readonly noteFaces = inject(TextNoteFacesService);
+  private readonly pagePictures = inject(PiecePicturesService);
 
   /** Every sprite of every piece drawn on the table in view. */
   readonly sprites = computed<readonly TableWorldSprite[]>(() => [
@@ -127,7 +127,7 @@ export class TablePiecesService {
           altitudePx: note.altitude * gridSize,
           rotateDeg: note.rotate,
           upright: note.isUpright,
-          face: this.noteFaces.faceOf(note.identifier),
+          face: this.pagePictures.pictureOf(note.identifier),
         })
       );
     }
