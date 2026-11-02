@@ -19,6 +19,8 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { BoardSwitchService } from '@axe/application/tabletop/board-switch.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ButtonGuideService } from '@axe/application/ui/button-guide.service';
@@ -76,6 +78,7 @@ import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { hexPedestalGrabStyle, hexPedestalRingStyle } from '@axe/ui/tabletop/hex-pedestal-style';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import {
   ShadedBackground,
@@ -140,7 +143,7 @@ function sameOrBothEmpty<T>(a: readonly T[], b: readonly T[]): boolean {
   selector: 'terrain',
   templateUrl: './terrain.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MovableDirective, RotableDirective, SelectableDirective, NgStyle, SafePipe],
+  imports: [HudPlaceDirective, MovableDirective, RotableDirective, SelectableDirective, NgStyle, SafePipe],
   host: {
     class: 'block',
     '[style.display]': "isHiddenByFog() ? 'none' : null",
@@ -166,6 +169,11 @@ export class TerrainComponent {
   private readonly t = inject(TRANSLATE_FN);
   /** Whether every button on the screen is saying what it is, switches on the table among them. */
   protected readonly guide = inject(ButtonGuideService);
+  /** Whether the table is drawn on a canvas, over which the block is laid on the screen rather than in the page's 3D. */
+  protected readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
+  private readonly pieces = inject(TablePiecesService);
+  /** The corners of the block's top, round from its top left, where its handles stand over a canvas. */
+  protected readonly topCorners = [0, 1, 2, 3] as const;
 
   constructor() {
     effect(() => {
@@ -185,6 +193,13 @@ export class TerrainComponent {
     setupMovableRotableForPiece(this, {
       target: this.terrain,
       collideLayers: ['terrain'],
+      placedElsewhere: this.drawsOnCanvas,
+      turnsAbout: (terrain) => ({
+        surface: this.pieces.surfaceOf(terrain),
+        x: terrain.location.x + (this.width() * this.gridSize) / 2,
+        y: terrain.location.y + (this.depth() * this.gridSize) / 2,
+        height: terrain.posZ + (this.altitude() + this.height()) * this.gridSize,
+      }),
     });
     afterNextRender(() => {
       this._initialized = true;

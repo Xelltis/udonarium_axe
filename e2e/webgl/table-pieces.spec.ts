@@ -347,6 +347,34 @@ test.describe('pieces drawn on a canvas', () => {
     await expect.poll(async () => (await boxesOf(page, id))[0].width / before.width).toBeGreaterThan(1.2);
   });
 
+  test('turn a block by the handle at a corner of its top', async ({ page }) => {
+    const menu = await openTableContextMenu(page);
+    await (await revealMenuEntry(page, menu, '地形を作成')).click();
+    const block = page.locator('terrain').last();
+    const top = block.locator('[data-part="top"]');
+    await expect(top).toBeVisible({ timeout: 10000 });
+    await idle(page);
+    const before = (await top.boundingBox())!;
+    const handle = block.locator('.rotate-grab').nth(2);
+    const grab = (await handle.boundingBox())!;
+    const middle = { x: before.x + before.width / 2, y: before.y + before.height / 2 };
+    const from = { x: grab.x + grab.width / 2, y: grab.y + grab.height / 2 };
+    const reach = Math.hypot(from.x - middle.x, from.y - middle.y);
+    const start = Math.atan2(from.y - middle.y, from.x - middle.x);
+
+    await page.mouse.move(middle.x, middle.y);
+    await page.mouse.move(from.x, from.y, { steps: 4 });
+    await page.mouse.down();
+    // An eighth of a turn round the middle, which a square top shows by growing its box.
+    for (const step of [1, 2, 3]) {
+      const turn = start + (step / 3) * (Math.PI / 4);
+      await page.mouse.move(middle.x + Math.cos(turn) * reach, middle.y + Math.sin(turn) * reach, { steps: 4 });
+    }
+    await page.mouse.up();
+
+    await expect.poll(async () => (await top.boundingBox())!.width / before.width).toBeGreaterThan(1.15);
+  });
+
   for (const piece of PIECES) {
     test(`draw a ${piece.name} where picking finds it, and nothing anywhere else`, async ({ page }) => {
       test.skip(piece.lights === true, 'a light changes the table round it as well');

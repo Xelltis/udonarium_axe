@@ -10,9 +10,10 @@ const drawsOnCanvas = {
 
 /**
  * The specs that read how the page itself draws the table, which a canvas draws instead, and so
- * have nothing to read there: what the page's blocks are picked by, and how it gathers them.
+ * have nothing to read there: what the page's blocks are picked by, how it gathers them, and how it
+ * shades them in the dark, which a canvas does with its own lights.
  */
-const PAGE_DRAWING_ONLY = [/table-pick\.spec\.ts/, /terrain-batch\.spec\.ts/];
+const PAGE_DRAWING_ONLY = [/table-pick\.spec\.ts/, /terrain-batch\.spec\.ts/, /terrain-darkness\.spec\.ts/];
 
 export default defineConfig({
   testDir: './e2e',

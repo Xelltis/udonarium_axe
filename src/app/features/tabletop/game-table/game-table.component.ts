@@ -903,6 +903,16 @@ export class GameTableComponent {
   readonly terrainsBySurface = computed(() => bucketBySurface(this.terrains(), this.drawnSurfaces()));
 
   /** The terrain on the floor that is not drawn together with the blocks that do not move. */
+  /**
+   * The blocks laid over a table drawn on a canvas, on the screen where the canvas draws them: all but
+   * the ones drawn together, which have no element of their own.
+   */
+  readonly terrainsOverCanvas = computed(() => {
+    if (!this.table3d.drawsOnCanvas()) return [];
+    const merged = this.terrainBatch.mergedTerrains();
+    return this.terrains().filter((terrain) => !merged.has(terrain.identifier));
+  });
+
   readonly floorTerrainsDrawnAlone = computed(() => {
     const merged = this.terrainBatch.mergedTerrains();
     const floor = this.terrainsBySurface().floor;

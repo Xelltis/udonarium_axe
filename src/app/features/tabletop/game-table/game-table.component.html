@@ -227,8 +227,13 @@
               [appTooltip]="diceSymbol"
             ></dice-symbol>
           }
-          @for (terrain of terrainsBySurface()[wall.surface]; track terrain.identifier) {
-            <terrain class="absolute will-change-transform backface-visible transform-3d" [terrain]="terrain"></terrain>
+          @if (!table3d.drawsOnCanvas()) {
+            @for (terrain of terrainsBySurface()[wall.surface]; track terrain.identifier) {
+              <terrain
+                class="absolute will-change-transform backface-visible transform-3d"
+                [terrain]="terrain"
+              ></terrain>
+            }
           }
         </div>
       }
@@ -241,8 +246,13 @@
           class="pointer-events-none absolute inset-0 m-auto transform-3d"
           [class.invisible]="table3d.drawsOnCanvas()"
         >
-          @for (terrain of floorTerrainsDrawnAlone(); track terrain.identifier) {
-            <terrain class="absolute will-change-transform backface-visible transform-3d" [terrain]="terrain"></terrain>
+          @if (!table3d.drawsOnCanvas()) {
+            @for (terrain of floorTerrainsDrawnAlone(); track terrain.identifier) {
+              <terrain
+                class="absolute will-change-transform backface-visible transform-3d"
+                [terrain]="terrain"
+              ></terrain>
+            }
           }
           <terrain-batch-layer />
         </div>
@@ -393,6 +403,9 @@
     <!-- The pieces over a table drawn on a canvas: flat on the screen, each where the canvas draws it. -->
     <div class="pointer-events-none absolute inset-0 isolate overflow-hidden" data-testid="table-hud">
       @if (table3d.drawsOnCanvas()) {
+        @for (terrain of terrainsOverCanvas(); track terrain.identifier) {
+          <terrain class="block" [terrain]="terrain" [appHudPlace]="{ owner: terrain.identifier }"></terrain>
+        }
         @for (board of whiteBoards(); track board.identifier) {
           <white-board class="block" [whiteBoard]="board" [appHudPlace]="{ owner: board.identifier }"></white-board>
         }

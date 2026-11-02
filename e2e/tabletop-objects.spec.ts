@@ -88,7 +88,8 @@ test.describe('terrain', () => {
     const terrain = page.locator('terrain').first();
     await terrain.dispatchEvent('contextmenu');
     await page.locator('context-menu').getByText('テクスチャを外して透明にする').click();
-    const top = terrain.getByTestId('terrain-glass-face').first();
+    // The page draws the clear top itself; over a table drawn on a canvas the top is laid on the screen.
+    const top = terrain.getByTestId('terrain-glass-face').or(terrain.locator('[data-part="top"]')).first();
     await expect(top).toBeAttached();
     const box = (await top.boundingBox())!;
     const placed = () => terrain.locator(':scope > [data-location]').first().getAttribute('data-location');

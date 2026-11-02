@@ -217,9 +217,10 @@ export class WhiteBoardComponent {
     this.surfaceVersion();
     return this.drawsOnCanvas() ? [] : this.contentsOf(this.tabletopService.characters);
   });
+  /** The blocks on the board, which a table drawn on a canvas lays over itself instead. */
   readonly terrains = computed<Terrain[]>(() => {
     this.surfaceVersion();
-    return this.contentsOf(this.tabletopService.terrains);
+    return this.drawsOnCanvas() ? [] : this.contentsOf(this.tabletopService.terrains);
   });
   /** The masks on the board, which a table drawn on a canvas lays over itself instead. */
   readonly masks = computed<GameTableMask[]>(() => {
