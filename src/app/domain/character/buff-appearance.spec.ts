@@ -24,7 +24,6 @@ describe('resolveBuffColor()', () => {
 
   it('returns nothing for a reset and for anything it does not know', () => {
     expect(resolveBuffColor('既定')).toBe('');
-    expect(resolveBuffColor('none')).toBe('');
     expect(resolveBuffColor('こんな色は無い')).toBe('');
     expect(resolveBuffColor('')).toBe('');
   });
@@ -35,6 +34,8 @@ describe('isBuffColorToken()', () => {
     expect(isBuffColorToken('green')).toBe(true);
     expect(isBuffColorToken('#fff')).toBe(true);
     expect(isBuffColorToken('既定')).toBe(true);
+    expect(isBuffColorToken('none')).toBe(false);
+    expect(isBuffColorToken('なし')).toBe(false);
     expect(isBuffColorToken('☠️')).toBe(false);
     expect(isBuffColorToken('')).toBe(false);
   });

@@ -65,7 +65,11 @@ describe('remote-controller-helpers', () => {
 
     it('reads none as the timing that never runs out, after the rounds or in their place', () => {
       expect(parseBuffInput('毒 継続2 3 none')!.appearance).toEqual({ timing: 'none' });
-      expect(parseBuffInput('毒 継続2 none')).toMatchObject({ round: 3, appearance: { timing: 'none' } });
+      expect(parseBuffInput('毒 継続2 none')).toMatchObject({
+        round: 3,
+        appearance: { timing: 'none' },
+        bufftext: '毒/継続2/none',
+      });
     });
 
     it('reads nothing from an empty line', () => {

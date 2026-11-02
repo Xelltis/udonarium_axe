@@ -29,7 +29,8 @@ export interface ParsedBuffInput {
  * icon words; a timing in place of the rounds reads as the rounds left out. A `+` in front of the
  * name asks for the note's number to be added to a buff of that name already standing rather than
  * written over it, and `++` lengthens it by the rounds asked for as well. The chat line announcing
- * it joins the words with slashes and marks the rounds with `R`. An empty line is null.
+ * it joins the words with slashes and marks the rounds with `R`, leaving them out for a buff that
+ * never runs out. An empty line is null.
  */
 export function parseBuffInput(text: string): ParsedBuffInput | null {
   const parts = text.split(/\s+/);
@@ -50,8 +51,8 @@ export function parseBuffInput(text: string): ParsedBuffInput | null {
     round = parseInt(rounds);
     if (Number.isNaN(round)) round = 3;
   }
-  bufftext += '/' + round + 'R';
   const appearance = parseBuffAppearance(look);
+  if (appearance.timing !== 'none') bufftext += '/' + round + 'R';
   for (const token of look) bufftext += '/' + token;
   return { buffname, sub, round, bufftext, appearance, piles };
 }

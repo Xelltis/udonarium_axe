@@ -17,6 +17,7 @@ import {
   readBuffModifier,
 } from '@axe/domain/character/buff-modifier';
 import { BuffPileOn } from '@axe/domain/character/buff-stack';
+import { buffExpires } from '@axe/domain/character/buff-timing';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { findStatusAilment, type StatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
@@ -369,7 +370,8 @@ function grantCalculatedBuff(
   if (!data) return '';
   const verb = stacking ? '加算' : '付与';
   const lack = missing.length > 0 ? ` (${missing.join('・')}が見つかりません)` : '';
-  return `${name}を${verb} ${effects.join(',')}/${data.value}R${lack}    `;
+  const left = buffExpires(data) ? `/${data.value}R` : '';
+  return `${name}を${verb} ${effects.join(',')}${left}${lack}    `;
 }
 
 /**
@@ -431,21 +433,26 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
       } else {
         round = 3;
       }
-      bufftext = `${bufftext}/${round}R`;
     }
 
     const appearance = parseBuffAppearance(look);
-    for (const token of look) {
-      if (token) bufftext = `${bufftext}/${token}`;
-    }
+    const lookText = look
+      .filter((token) => token)
+      .map((token) => `/${token}`)
+      .join('');
+    const told = () => {
+      const laid = character.buffs.find(buffname);
+      const roundText = round !== undefined && (!laid || buffExpires(laid)) ? `/${round}R` : '';
+      return `${bufftext}${roundText}${lookText}`;
+    };
 
     if (piles !== 'none' && character.buffs.find(buffname)) {
       if (piles === 'extend') character.buffs.extendRound(buffname, sub, round, appearance);
       else character.buffs.stackRound(buffname, sub, round, appearance);
-      text += `バフを加算 ${describeStandingBuff(character, buffname, bufftext)}    `;
+      text += `バフを加算 ${describeStandingBuff(character, buffname, told())}    `;
     } else {
       character.buffs.addRound(buffname, sub, round, appearance);
-      text += `バフを付与 ${bufftext}    `;
+      text += `バフを付与 ${told()}    `;
     }
   }
 
@@ -468,7 +475,8 @@ function plantCommandedState(state: StatusAilment, parts: string[], character: G
     look,
   });
   plantStatusAilment(character, ailment, look.trigger ? { trigger: look.trigger } : {});
-  const told = [ailment.name, ailment.effect, ailment.rounds > 0 ? `${ailment.rounds}R` : '', ...written.look];
+  const counted = ailment.rounds > 0 && ailment.timing !== 'none';
+  const told = [ailment.name, ailment.effect, counted ? `${ailment.rounds}R` : '', ...written.look];
   return `バフを付与 ${told.filter((part) => part.length > 0).join('/')}    `;
 }
 
@@ -487,10 +495,13 @@ export function readModifierLayout(parts: string[]): string[] {
   return [parts[0], describeBuffModifier(request), ...parts.slice(4)];
 }
 
-/** How a stacked buff reads once it stands, so the chat line names the total rather than the helping. */
+/**
+ * How a stacked buff reads once it stands, so the chat line names the total rather than the helping,
+ * and the rounds left only for a buff that runs out.
+ */
 function describeStandingBuff(character: GameCharacter, name: string, fallback: string): string {
   const data = character.buffs.find(name);
   if (!data) return fallback;
   const note = `${data.currentValue ?? ''}`;
-  return `${name}${note.length > 0 ? `/${note}` : ''}/${data.value}R`;
+  return `${name}${note.length > 0 ? `/${note}` : ''}${buffExpires(data) ? `/${data.value}R` : ''}`;
 }

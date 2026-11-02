@@ -334,6 +334,16 @@ describe('resource-edit-helpers', () => {
         expect(told).toBe('バフを付与 加護/防御+2/none    ');
       });
 
+      it('tells of no rounds for a buff that stays, however it is laid', () => {
+        character.detailDataElement!.appendChild(DataElement.create('命中', 5, {}));
+        const edit = (command: string) => applyBuffEdit({ command, object: character, targeted: false }, character);
+
+        expect(edit('&加護/防御+2/3/none')).toBe('バフを付与 加護/防御+2/none    ');
+        expect(edit('&+加護/防御+1/2')).toBe('バフを加算 加護/防御+3    ');
+        expect(edit('&!集中/命中/+/1/none')).toBe('集中を付与 命中+1    ');
+        expect(edit('&呪い/攻撃-1/3')).toBe('バフを付与 呪い/攻撃-1/3R    ');
+      });
+
       it('keeps a buff that moves a status, as the buff manager writes one that stays', () => {
         character.detailDataElement!.appendChild(DataElement.create('命中', 5, {}));
 
@@ -387,6 +397,14 @@ describe('resource-edit-helpers', () => {
         expect(data.getAttribute(DataElementAttribute.BUFF_ICON)).toBe('🤕');
         expect(data.getAttribute(DataElementAttribute.BUFF_COLOR)).toBe('gray');
         expect(data.getAttribute(DataElementAttribute.BUFF_TIMING)).toBe('turnEnd');
+      });
+
+      it('lays the state to stay with a timing where the rounds go, and tells of no rounds', () => {
+        const text = edit('&転倒/起き上がるまで/none');
+        const data = character.buffs.find('転倒')!;
+
+        expect(text).toBe('バフを付与 転倒/起き上がるまで/none    ');
+        expect(data.getAttribute(DataElementAttribute.BUFF_TIMING)).toBe('none');
       });
 
       it('takes what the command writes in place of the state, and the state for the rest', () => {
