@@ -85,6 +85,18 @@ describe('HudFrameService', () => {
     expect(label.style.transform).toBe('translate(25px, 0px) scale(1) translate(-50%, -100%)');
   });
 
+  it('lays an element on a part, its own box drawn onto the corners of the part, leaving its size alone', () => {
+    const laid = element();
+    laid.style.width = '20px';
+    Object.defineProperty(laid, 'offsetWidth', { value: 20 });
+    Object.defineProperty(laid, 'offsetHeight', { value: 20 });
+    frame.place(laid, { owner: 'die', part: 'picture', place: 'face' });
+    frame.writeNow();
+
+    expect(laid.style.transform).toBe('matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 15, 0, 0, 1)');
+    expect(laid.style.width).toBe('20px');
+  });
+
   it('draws the root of a nearer piece over the root of one further off', () => {
     sprites.update((drawn) => [...drawn, lying('near#frame', 300, 300, 40, 50)]);
     const far = element();

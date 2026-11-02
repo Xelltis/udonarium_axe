@@ -2,15 +2,16 @@ import { effect, EffectRef, inject, Injectable, Injector, untracked } from '@ang
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
-import { PageBox, PiecePageBoxes, piecePageBoxes } from '@axe/domain/tabletop/world/page-boxes';
+import { PageBox, PiecePageBoxes, piecePageBoxes, quadMatrix } from '@axe/domain/tabletop/world/page-boxes';
 import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
 
 /**
  * Where an element of the screen over a table drawn on a canvas is put against the part of the piece
- * it goes with: over the part, stretched to its box, or above or below its middle, at the size the
- * part is drawn at, as a name hangs over a piece.
+ * it goes with: over the part, stretched to its box; above or below its middle, at the size the part
+ * is drawn at, as a name hangs over a piece; or laid on the part itself, its own box drawn onto the
+ * part's corners in perspective, as a note's text is laid on the note while it is written.
  */
-export type HudPlace = 'box' | 'above' | 'below';
+export type HudPlace = 'box' | 'above' | 'below' | 'face';
 
 /** What an element is put against: a piece, and a part of it, or the whole piece where none is named. */
 export interface HudAnchor {
@@ -106,26 +107,34 @@ export class HudFrameService {
     const ranks = new Map(
       [...boxes].sort(([, a], [, b]) => a.nearness - b.nearness).map(([owner], rank) => [owner, rank + 1])
     );
+    const sizes = new Map<HTMLElement, { width: number; height: number }>();
+    for (const [element, placed] of this.placed) {
+      if (placed.anchor.place === 'face')
+        sizes.set(element, { width: element.offsetWidth, height: element.offsetHeight });
+    }
     for (const [element, placed] of this.placed) {
       const piece = boxes.get(placed.anchor.owner);
-      const style = piece ? styleOf(placed.anchor, piece, ranks.get(placed.anchor.owner) ?? 0) : null;
+      const style = piece
+        ? styleOf(placed.anchor, piece, ranks.get(placed.anchor.owner) ?? 0, sizes.get(element))
+        : null;
       const written = style ? JSON.stringify(style) : '';
       if (written === placed.written) continue;
       placed.written = written;
       element.style.visibility = style ? '' : 'hidden';
       if (!style) continue;
       element.style.transform = style.transform;
-      element.style.width = style.width;
-      element.style.height = style.height;
+      if (style.width !== null) element.style.width = style.width;
+      if (style.height !== null) element.style.height = style.height;
       element.style.zIndex = style.zIndex;
     }
   }
 }
 
+/** The style an element is put with; a size of null leaves the element's own size alone. */
 interface HudStyle {
   readonly transform: string;
-  readonly width: string;
-  readonly height: string;
+  readonly width: string | null;
+  readonly height: string | null;
   readonly zIndex: string;
 }
 
@@ -133,8 +142,13 @@ function px(value: number): string {
   return `${Math.round(value * 100) / 100}px`;
 }
 
-/** The style that puts an element against a piece drawn in these boxes. */
-function styleOf(anchor: HudAnchor, piece: PiecePageBoxes, rank: number): HudStyle | null {
+/** The style that puts an element of a size against a piece drawn in these boxes. */
+function styleOf(
+  anchor: HudAnchor,
+  piece: PiecePageBoxes,
+  rank: number,
+  size: { width: number; height: number } | undefined
+): HudStyle | null {
   const whole = piece.whole;
   if (anchor.part === undefined) {
     return {
@@ -156,13 +170,25 @@ function styleOf(anchor: HudAnchor, piece: PiecePageBoxes, rank: number): HudSty
       zIndex: '',
     };
   }
+  if (place === 'face') {
+    if (!part.corners || !size) return null;
+    const [a, b, c, d] = part.corners.map((corner) => ({ x: corner.x - whole.left, y: corner.y - whole.top }));
+    const matrix = quadMatrix(size.width, size.height, [a, b, c, d]);
+    if (!matrix) return null;
+    return {
+      transform: `matrix3d(${matrix.map((value) => Math.round(value * 1e6) / 1e6).join(', ')})`,
+      width: null,
+      height: null,
+      zIndex: '',
+    };
+  }
   const middle = within.left + within.width / 2;
   const edge = place === 'above' ? within.top : within.top + within.height;
   const shift = place === 'above' ? '-100%' : '0';
   return {
     transform: `translate(${px(middle)}, ${px(edge)}) scale(${Math.round(part.scale * 1000) / 1000}) translate(-50%, ${shift})`,
-    width: '',
-    height: '',
+    width: null,
+    height: null,
     zIndex: '',
   };
 }

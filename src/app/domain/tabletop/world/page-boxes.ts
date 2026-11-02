@@ -17,10 +17,21 @@ export interface PageBox {
   readonly height: number;
 }
 
+/** A point of the page, in page pixels. */
+export interface PagePoint {
+  readonly x: number;
+  readonly y: number;
+}
+
 /** A part of a piece as it is drawn on the page. */
 export interface PagePart extends PageBox {
   /** How many page pixels a table pixel across its middle is drawn as, facing the eye. */
   readonly scale: number;
+  /**
+   * For a part drawn with one sprite, where its corners are drawn, round from its top left as a
+   * picture on it is read.
+   */
+  readonly corners?: readonly [PagePoint, PagePoint, PagePoint, PagePoint];
 }
 
 /** A piece as it is drawn on the page: the box round all of it, and its parts by name. */
@@ -72,15 +83,18 @@ export function piecePageBoxes(
   scene: Matrix3D,
   eye: EyeAxes
 ): Map<string, PiecePageBoxes> {
-  const corners = new Map<string, Map<string, { points: TablePoint[]; middle: TablePoint }>>();
-  const add = (owner: string, part: string, points: TablePoint[], middle: TablePoint) => {
-    const parts = corners.get(owner) ?? new Map<string, { points: TablePoint[]; middle: TablePoint }>();
+  const corners = new Map<string, Map<string, { points: TablePoint[]; middle: TablePoint; sprites: number }>>();
+  const add = (owner: string, part: string, points: TablePoint[], middle: TablePoint, sprites: number) => {
+    const parts =
+      corners.get(owner) ?? new Map<string, { points: TablePoint[]; middle: TablePoint; sprites: number }>();
     const kept = parts.get(part);
-    if (kept) kept.points.push(...points);
-    else parts.set(part, { points: [...points], middle });
+    if (kept) {
+      kept.points.push(...points);
+      kept.sprites += sprites;
+    } else parts.set(part, { points: [...points], middle, sprites });
     corners.set(owner, parts);
   };
-  for (const sprite of sprites) add(sprite.owner, partOf(sprite), spriteCorners(sprite, eye), sprite.centre);
+  for (const sprite of sprites) add(sprite.owner, partOf(sprite), spriteCorners(sprite, eye), sprite.centre, 1);
   for (const coin of coins) {
     const rim: TablePoint[] = [];
     for (let i = 0; i < RIM_POINTS; i++) {
@@ -92,20 +106,56 @@ export function piecePageBoxes(
         pointOnFace(coin.face, across, down, coin.base + coin.thicknessPx)
       );
     }
-    add(coin.id, COIN_PART, rim, pointOnFace(coin.face, coin.x, coin.y, coin.base + coin.thicknessPx / 2));
+    add(coin.id, COIN_PART, rim, pointOnFace(coin.face, coin.x, coin.y, coin.base + coin.thicknessPx / 2), 0);
   }
   const boxes = new Map<string, PiecePageBoxes>();
   for (const [owner, parts] of corners) {
     const onPage: { x: number; y: number }[] = [];
     let nearness = -Infinity;
     const pageParts = new Map<string, PagePart>();
-    for (const [part, { points, middle }] of parts) {
+    for (const [part, { points, middle, sprites }] of parts) {
       const projected = points.map((point) => pageOfTablePoint(scene, point.x, point.y, point.z));
       onPage.push(...projected);
       for (const point of points) nearness = Math.max(nearness, nearnessOf(scene, point));
-      pageParts.set(part, { ...boxRound(projected), scale: scaleAt(scene, eye, middle) });
+      const box = { ...boxRound(projected), scale: scaleAt(scene, eye, middle) };
+      if (sprites !== 1) pageParts.set(part, box);
+      else {
+        const [a, b, c, d] = projected.map((point) => ({ x: point.x, y: point.y }));
+        pageParts.set(part, { ...box, corners: [a, b, c, d] });
+      }
     }
     boxes.set(owner, { whole: boxRound(onPage), parts: pageParts, nearness });
   }
   return boxes;
+}
+
+/**
+ * The CSS `matrix3d` that draws a box of an element, of the size given and with its origin at its
+ * top left, onto four corners of the page, round from its top left: the perspective of a flat thing
+ * drawn in 3D, so the element lies exactly where that thing is drawn.
+ */
+export function quadMatrix(
+  width: number,
+  height: number,
+  corners: readonly [PagePoint, PagePoint, PagePoint, PagePoint]
+): number[] | null {
+  if (!(width > 0) || !(height > 0)) return null;
+  const [p0, p1, p2, p3] = corners;
+  const dx1 = p1.x - p2.x;
+  const dx2 = p3.x - p2.x;
+  const dy1 = p1.y - p2.y;
+  const dy2 = p3.y - p2.y;
+  const sx = p0.x - p1.x + p2.x - p3.x;
+  const sy = p0.y - p1.y + p2.y - p3.y;
+  const den = dx1 * dy2 - dx2 * dy1;
+  if (Math.abs(den) < 1e-9) return null;
+  const g = (sx * dy2 - dx2 * sy) / den;
+  const h = (dx1 * sy - sx * dy1) / den;
+  const a = p1.x - p0.x + g * p1.x;
+  const b = p3.x - p0.x + h * p3.x;
+  const c = p0.x;
+  const d = p1.y - p0.y + g * p1.y;
+  const e = p3.y - p0.y + h * p3.y;
+  const f = p0.y;
+  return [a / width, d / width, 0, g / width, b / height, e / height, 0, h / height, 0, 0, 1, 0, c, f, 0, 1];
 }
