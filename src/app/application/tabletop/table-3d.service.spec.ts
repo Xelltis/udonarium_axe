@@ -12,12 +12,14 @@ import type {
   Table3dCamera,
   Table3dEngine,
   Table3dEngineOptions,
+  Table3dFloorCanvas,
   Table3dGrid,
 } from '@axe/infrastructure/table-3d/table-3d-port';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 /** An engine that keeps what it is told and counts what it draws. */
 class FakeEngine implements Table3dEngine {
+  floorCanvases: readonly Table3dFloorCanvas[] = [];
   readonly backend: 'webgpu' | 'webgl2';
   worlds: TableWorld[] = [];
   cameras: Table3dCamera[] = [];
@@ -47,6 +49,10 @@ class FakeEngine implements Table3dEngine {
   setGrid(grid: Table3dGrid | null): void {
     this.grids.push(grid);
     this.changed = true;
+  }
+
+  setFloorCanvases(canvases: readonly Table3dFloorCanvas[]): void {
+    this.floorCanvases = canvases;
   }
 
   resize(width: number, height: number): void {
@@ -81,7 +87,7 @@ class FakeEngine implements Table3dEngine {
   }
 
   stats() {
-    return { chunks: 0, boardGridTriangles: 0, topsGridTriangles: 0, sprites: 0, coins: 0 };
+    return { chunks: 0, boardGridTriangles: 0, topsGridTriangles: 0, sprites: 0, coins: 0, floorCanvases: 0 };
   }
 }
 

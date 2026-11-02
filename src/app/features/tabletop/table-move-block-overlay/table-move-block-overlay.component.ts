@@ -1,10 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, viewChild } from '@angular/core';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { CellGrid, cellGridOf, gridExtentPx } from '@axe/domain/tabletop/fog/cell-grid';
 import { MoveBlockService } from '@axe/features/tabletop/table-move-block-overlay/move-block.service';
 import { moveRangePolygons } from '@axe/features/tabletop/table-move-range-overlay/move-range-render';
 import { overlayScale } from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
+import { laidOnCanvasFloor } from '@axe/ui/tabletop/laid-on-canvas-floor';
 import { translateZCss, Z_OFFSET_MASK_PX } from '@axe/ui/tabletop/z-offset';
 
 export const MOVE_BLOCK_RESTING_FILL = 'rgba(220, 60, 60, 0.16)';
@@ -24,6 +26,13 @@ export class TableMoveBlockOverlayComponent {
   private readonly moveBlock = inject(MoveBlockService);
   private readonly tabletopService = inject(TabletopService);
   private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('blockCanvas');
+  /** Whether the table is drawn on a canvas, which lays this canvas over its board instead. */
+  protected readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
+  private readonly painted = laidOnCanvasFloor({
+    id: () => 'move-block',
+    canvas: () => this.canvasRef()?.nativeElement,
+    heightPx: () => Z_OFFSET_MASK_PX,
+  });
 
   protected readonly zTransform = computed(() => translateZCss(Z_OFFSET_MASK_PX));
 
@@ -42,6 +51,7 @@ export class TableMoveBlockOverlayComponent {
       const canvas = this.canvasRef()?.nativeElement;
       if (!view || !canvas) return;
       this.paint(canvas, view);
+      this.painted();
     });
   }
 

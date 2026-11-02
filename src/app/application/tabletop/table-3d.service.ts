@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { FloorCanvasesService } from '@axe/application/tabletop/floor-canvases.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -72,6 +73,7 @@ export class Table3dService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly vision = inject(VisionService);
   private readonly pieces = inject(TablePiecesService);
+  private readonly floorCanvases = inject(FloorCanvasesService);
   private readonly loadEngines = inject(TABLE_3D_ENGINES);
   private readonly askGraphics = inject(TABLE_GRAPHICS);
 
@@ -251,6 +253,13 @@ export class Table3dService {
       effect(
         () => {
           engine.setGrid(this.grid());
+          this.drawSoon(engine);
+        },
+        { injector: this.injector }
+      ),
+      effect(
+        () => {
+          engine.setFloorCanvases(this.floorCanvases.all());
           this.drawSoon(engine);
         },
         { injector: this.injector }

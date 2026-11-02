@@ -1,18 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { createCharacter, openPanel, waitAppReady } from './helpers';
-
-/** Turns on the room's strict movement, which is what makes an ordinary press open a move. */
-async function askForStrictMoves(page: Page) {
-  await openPanel(page, '部屋設定');
-  const panel = page.locator('room-settings-panel');
-  await expect(panel).toBeVisible({ timeout: 10000 });
-  await panel.locator('[data-testid="room-settings-tab-move"]').click();
-  const strict = panel.locator('input[name="moveStrict"]');
-  await expect(strict).toBeVisible({ timeout: 5000 });
-  if (!(await strict.isChecked())) await strict.check();
-  await expect(strict).toBeChecked();
-}
+import { createCharacter, waitAppReady } from './helpers';
+import { askForStrictMoves, openMove } from './move-helpers';
 
 /** Closes every panel, so nothing lies over the band at the foot of the screen. */
 async function closePanels(page: Page) {
@@ -21,14 +10,6 @@ async function closePanels(page: Page) {
     await panels.first().locator('.bg-ui-titlebar button', { hasText: 'close' }).dispatchEvent('click');
   }
   await expect(panels).toHaveCount(0);
-}
-
-/** Opens the move the piece's own menu offers, which is the one a press opens under strict play. */
-async function openMove(page: Page) {
-  await page.locator('game-character').first().dispatchEvent('contextmenu');
-  const menu = page.locator('context-menu');
-  await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-  await menu.getByText('移動', { exact: true }).click();
 }
 
 test.describe('strict movement', () => {

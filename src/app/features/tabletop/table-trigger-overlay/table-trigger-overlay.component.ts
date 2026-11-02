@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, viewChild } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableTriggerService } from '@axe/application/tabletop/table-trigger.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
@@ -7,6 +8,7 @@ import { cellCenterOf, CellGrid, cellGridOf, cellIndexOf, gridExtentPx } from '@
 import { triggerEffectLine } from '@axe/domain/tabletop/table-trigger';
 import { moveRangePolygons } from '@axe/features/tabletop/table-move-range-overlay/move-range-render';
 import { overlayScale } from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
+import { laidOnCanvasFloor } from '@axe/ui/tabletop/laid-on-canvas-floor';
 import { translateZCss, Z_OFFSET_MASK_PX } from '@axe/ui/tabletop/z-offset';
 
 /** One piece of ground to draw, and how it is to be drawn. */
@@ -43,6 +45,13 @@ export class TableTriggerOverlayComponent {
   private readonly t = inject(TRANSLATE_FN);
   private readonly tabletopService = inject(TabletopService);
   private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('triggerCanvas');
+  /** Whether the table is drawn on a canvas, which lays this canvas over its board instead. */
+  protected readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
+  private readonly painted = laidOnCanvasFloor({
+    id: () => 'trigger',
+    canvas: () => this.canvasRef()?.nativeElement,
+    heightPx: () => Z_OFFSET_MASK_PX,
+  });
 
   protected readonly zTransform = computed(() => translateZCss(Z_OFFSET_MASK_PX));
 
@@ -102,6 +111,7 @@ export class TableTriggerOverlayComponent {
       const canvas = this.canvasRef()?.nativeElement;
       if (!grid || !canvas || patches.length < 1) return;
       this.paint(canvas, grid, patches);
+      this.painted();
     });
   }
 

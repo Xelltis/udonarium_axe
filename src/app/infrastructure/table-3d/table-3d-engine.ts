@@ -16,11 +16,13 @@ import {
   mergedFaces,
   wallGeometry,
 } from '@axe/infrastructure/table-3d/face-geometry';
+import { FloorCanvasLayer } from '@axe/infrastructure/table-3d/floor-canvas-layer';
 import { SpriteLayer } from '@axe/infrastructure/table-3d/sprite-layer';
 import type {
   Table3dCamera,
   Table3dEngine,
   Table3dEngineOptions,
+  Table3dFloorCanvas,
   Table3dGrid,
   Table3dStats,
 } from '@axe/infrastructure/table-3d/table-3d-port';
@@ -132,6 +134,7 @@ class ThreeTableEngine implements Table3dEngine {
   private laidWalls: readonly TableWorldWall[] | null = null;
   private laidCaps: readonly TableWorldCap[] | null = null;
   private readonly sprites = new SpriteLayer((url) => this.spritePicture(url));
+  private readonly floorCanvases = new FloorCanvasLayer();
   private readonly coins = new CoinLayer(() => {
     this.changed = true;
     this.needsFrame();
@@ -145,6 +148,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.scene.add(this.facesRoot);
     this.scene.add(this.sprites.group);
     this.scene.add(this.coins.group);
+    this.scene.add(this.floorCanvases.group);
   }
 
   onNeedsFrame(listener: () => void): void {
@@ -163,6 +167,7 @@ class ThreeTableEngine implements Table3dEngine {
       topsGridTriangles: shown(this.topsGrid),
       sprites: this.sprites.group.children.length,
       coins: this.coins.group.children.length,
+      floorCanvases: this.floorCanvases.group.children.length,
     };
   }
 
@@ -246,6 +251,11 @@ class ThreeTableEngine implements Table3dEngine {
     this.changed = true;
   }
 
+  setFloorCanvases(canvases: readonly Table3dFloorCanvas[]): void {
+    this.floorCanvases.set(canvases);
+    this.changed = true;
+  }
+
   resize(width: number, height: number, pixelRatio: number): void {
     this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(width, height, false);
@@ -262,6 +272,7 @@ class ThreeTableEngine implements Table3dEngine {
   dispose(): void {
     this.sprites.dispose();
     this.coins.dispose();
+    this.floorCanvases.dispose();
     disposeObject(this.scene);
     for (const picture of this.loaded.values()) picture.dispose();
     for (const material of this.looks.values()) material.dispose();

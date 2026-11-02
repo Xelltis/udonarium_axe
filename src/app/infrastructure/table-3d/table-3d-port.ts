@@ -32,6 +32,18 @@ export interface Table3dGrid {
   readonly revision: number;
 }
 
+/**
+ * A canvas the page paints on and lays on the board, as where a piece may move: where it lies, in
+ * table pixels, how high over the board, and a count that goes up each time the page paints it anew.
+ */
+export interface Table3dFloorCanvas {
+  readonly id: string;
+  readonly canvas: HTMLCanvasElement;
+  readonly box: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  readonly heightPx: number;
+  readonly revision: number;
+}
+
 /** What the engine holds, counted. */
 export interface Table3dStats {
   readonly chunks: number;
@@ -42,6 +54,8 @@ export interface Table3dStats {
   readonly sprites: number;
   /** The coins drawn. */
   readonly coins: number;
+  /** The canvases the page paints on laid over the board. */
+  readonly floorCanvases: number;
 }
 
 /** What draws the table on a canvas. It draws only when something it was told has changed. */
@@ -51,6 +65,8 @@ export interface Table3dEngine {
   setCamera(camera: Table3dCamera): void;
   /** Lays the grid over the board, or takes it away with null. */
   setGrid(grid: Table3dGrid | null): void;
+  /** Lays the canvases the page paints on over the board, as they are now. */
+  setFloorCanvases(canvases: readonly Table3dFloorCanvas[]): void;
   /** Sizes the canvas's drawing to the box it covers, in CSS pixels, at the screen's pixel ratio. */
   resize(width: number, height: number, pixelRatio: number): void;
   /** Draws the scene when anything changed since it was last drawn, and answers whether it drew. */

@@ -2,15 +2,19 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   ElementRef,
   inject,
+  untracked,
   viewChild,
   viewChildren,
 } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { FloorCanvasesService } from '@axe/application/tabletop/floor-canvases.service';
 import { MoveLanding, MovePlan, MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_MOVE_RANGE_PAINT, perfCounters } from '@axe/core/util/perf-counters';
@@ -67,6 +71,9 @@ interface RaisedLayer {
   cells: CellBits;
   transform: string;
 }
+
+/** The name the ground's canvas is laid on a canvas's floor by, and the raised layers' after it. */
+const FLOOR_ID = 'move-range';
 
 /** How many raised layers are drawn at once, each of which costs a canvas of its own. */
 const RAISED_LAYER_LIMIT = 4;
@@ -158,6 +165,11 @@ export class TableMoveRangeOverlayComponent {
   private readonly vision = inject(VisionService);
   private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('rangeCanvas');
   private readonly raisedCanvasRefs = viewChildren<ElementRef<HTMLCanvasElement>>('raisedCanvas');
+  /** Whether the table is drawn on a canvas, which lays these canvases over its board instead. */
+  protected readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
+  private readonly floors = inject(FloorCanvasesService);
+  /** How many raised layers are laid over the board of a table drawn on a canvas now. */
+  private raisedLaid = 0;
   /** The parts each set of cells has been cut into for a layer, kept while the set is drawn. */
   private readonly parts = new WeakMap<CellBits, { layer: CellBits; on: boolean; part: CellBits | null }[]>();
   /** The cells of every raised layer as one set, kept against the layers it was gathered from. */
@@ -276,14 +288,44 @@ export class TableMoveRangeOverlayComponent {
       const layers = this.raised();
       const canvas = this.canvasRef()?.nativeElement;
       const aloft = this.raisedCanvasRefs();
-      if (!painting || !canvas) return;
+      if (!painting || !canvas) {
+        untracked(() => this.takeUpFloors());
+        return;
+      }
       const lifted = this.unionOf(layers);
       this.paint(canvas, painting, lifted ? { cells: lifted, on: false } : null);
       layers.forEach((layer, at) => {
         const element = aloft[at]?.nativeElement;
         if (element) this.paint(element, painting, { cells: layer.cells, on: true });
       });
+      untracked(() => this.layFloors(canvas, layers, aloft));
     });
+    inject(DestroyRef).onDestroy(() => this.takeUpFloors());
+  }
+
+  /**
+   * Lays the canvases over the board of a table drawn on a canvas, each at the height it is painted
+   * for: the ground's, and each raised layer's.
+   */
+  private layFloors(
+    canvas: HTMLCanvasElement,
+    layers: readonly RaisedLayer[],
+    aloft: readonly ElementRef<HTMLCanvasElement>[]
+  ): void {
+    if (!this.drawsOnCanvas()) return this.takeUpFloors();
+    this.floors.show(FLOOR_ID, canvas, Z_OFFSET_RANGE_PX);
+    layers.forEach((layer, at) => {
+      const element = aloft[at]?.nativeElement;
+      if (element) this.floors.show(`${FLOOR_ID}-${at}`, element, layer.heightPx + Z_OFFSET_RANGE_PX);
+    });
+    for (let at = layers.length; at < this.raisedLaid; at++) this.floors.forget(`${FLOOR_ID}-${at}`);
+    this.raisedLaid = layers.length;
+  }
+
+  private takeUpFloors(): void {
+    this.floors.forget(FLOOR_ID);
+    for (let at = 0; at < this.raisedLaid; at++) this.floors.forget(`${FLOOR_ID}-${at}`);
+    this.raisedLaid = 0;
   }
 
   /**
