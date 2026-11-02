@@ -9,6 +9,7 @@ describe('handing presses on the canvas to the blocks drawn there', () => {
   let onCanvas: boolean;
   let picked: string | null;
   let entries: Record<string, TabletopOverlapRegistryEntry>;
+  let aimed: boolean;
   let remove: () => void;
 
   beforeEach(() => {
@@ -20,11 +21,13 @@ describe('handing presses on the canvas to the blocks drawn there', () => {
     document.body.appendChild(root);
     onCanvas = true;
     picked = 'a-block';
+    aimed = false;
     entries = { 'a-block': { object: {} as TabletopObject, element: block } };
     remove = handCanvasPressesOn(root, {
       drawsOnCanvas: () => onCanvas,
       pickAt: () => picked,
       entryOf: (identifier) => entries[identifier],
+      aimedAtTarget: () => aimed,
     });
   });
 
@@ -115,6 +118,11 @@ describe('handing presses on the canvas to the blocks drawn there', () => {
       part.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
       root.removeEventListener('mousedown', onRoot);
       expect(reached).toEqual([root]);
+    });
+
+    it('keeps a press a script sends to its box, aimed at it rather than at a point', () => {
+      aimed = true;
+      expect(pressOn(part).reached).toEqual(['root:mousedown']);
     });
 
     it('keeps a press on a label of it, wherever picking says it lands', () => {

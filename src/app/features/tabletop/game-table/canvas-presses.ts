@@ -14,6 +14,11 @@ export interface CanvasPressRoutes {
   pickAt(pageX: number, pageY: number): string | null;
   /** What the table knows of a piece: the element it listens for presses on, or how to open its menu. */
   entryOf(identifier: string): TabletopOverlapRegistryEntry | undefined;
+  /**
+   * Whether a press is aimed at the element it is sent to rather than at a point, as one a script
+   * sends is: where not given, any press not made by the user.
+   */
+  aimedAtTarget?(event: Event): boolean;
 }
 
 /**
@@ -27,14 +32,16 @@ export interface CanvasPressRoutes {
  *
  * A piece laid over the canvas is a box on the screen round where it is drawn, and its box and the
  * boxes of its parts take in more than the piece: a press on one is picked too, and handed to what
- * it lands on, or to the table where it lands on nothing. A press on a label of the piece is its own.
+ * it lands on, or to the table where it lands on nothing. A press on a label of the piece is its own,
+ * and so is a press a script sends to the piece, which is aimed at it rather than at a point.
  */
 export function handCanvasPressesOn(root: HTMLElement, routes: CanvasPressRoutes): () => void {
   const handed = new WeakSet<Event>();
   const handOn = (event: Event) => {
     if (handed.has(event) || !routes.drawsOnCanvas()) return;
     const target = event.target instanceof Element ? event.target : null;
-    const boxed = target?.matches(`${HUD} [data-part], ${HUD} [data-hud-box]`) ? target : null;
+    const aimed = routes.aimedAtTarget ? routes.aimedAtTarget(event) : !event.isTrusted;
+    const boxed = !aimed && target?.matches(`${HUD} [data-part], ${HUD} [data-hud-box]`) ? target : null;
     if (!boxed && target?.closest('[data-object-id], white-board')) return;
     const point = pointOf(event as MouseEvent | TouchEvent);
     if (!point) return;
