@@ -44,6 +44,16 @@ describe('waterCellsOf()', () => {
     }
   });
 
+  it('reaches down to the ground where it has been dug below the board and the water’s floor', () => {
+    const grid = cellGridOf(10, 10, G, GridType.SQUARE);
+    const pit = cellIndexOf(grid, 0, 0);
+
+    const [cell] = [...waterCellsOf(grid, [area({})], (index) => (index === pit ? -40 : 0)).values()];
+
+    expect(cell).toMatchObject({ floorPx: -40, surfacePx: 25, flat: false });
+    expect([...waterCellsOf(grid, [area({})], () => 0).values()][0]).toMatchObject({ floorPx: 0, flat: true });
+  });
+
   it('gives a cell under two areas the higher surface', () => {
     const grid = cellGridOf(4, 4, G, GridType.SQUARE);
     const cells = waterCellsOf(grid, [

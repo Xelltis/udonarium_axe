@@ -1,5 +1,6 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { GroundService } from '@axe/application/tabletop/ground.service';
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -26,6 +27,7 @@ export class WaterService {
   private readonly tabletopService = inject(TabletopService);
   private readonly vision = inject(VisionService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly raisedGround = inject(GroundService);
 
   /** The bodies of water this seat may see, in table pixels. */
   readonly areas = computed<WaterArea[]>(() => {
@@ -75,7 +77,7 @@ export class WaterService {
   readonly ground = computed<Float64Array | null>(() => {
     const grid = this.grid();
     if (!grid || this.areas().length < 1) return null;
-    return landingHeightsOn(grid, this.terrainsByWater());
+    return landingHeightsOn(grid, this.terrainsByWater(), this.raisedGround.surface());
   });
 
   /**

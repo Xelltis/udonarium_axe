@@ -71,6 +71,8 @@ const LEVEL_PX = 0.5;
  * slope running down from the shore, the water there is only as deep as the surface stands over
  * it, and where the ground rises to the surface or above, the cell is dry land. `groundOf` gives
  * how high the ground stands in a cell, and is left out where the water lies on its own floor.
+ * Where the raised ground of the table has been dug below the board and below the water's floor,
+ * as a river bed or a pond, the water reaches down to the ground.
  */
 export function waterCellsOf(
   grid: CellGrid,
@@ -89,6 +91,7 @@ export function waterCellsOf(
       (index, cx, cy) => {
         const ground = groundOf(index);
         const risen = ground > area.floorPx + LEVEL_PX;
+        const dug = ground < Math.min(0, area.floorPx) - LEVEL_PX;
         if (risen && ground >= surfacePx - LEVEL_PX) return;
         const held = cells.get(index);
         if (held && held.surfacePx >= surfacePx) return;
@@ -96,9 +99,9 @@ export function waterCellsOf(
           index,
           cx,
           cy,
-          floorPx: risen ? ground : area.floorPx,
+          floorPx: risen || dug ? ground : area.floorPx,
           surfacePx,
-          flat: !risen,
+          flat: !risen && !dug,
           areaFloorPx: area.floorPx,
           color: area.color,
           density: area.density,
