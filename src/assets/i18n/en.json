@@ -3005,6 +3005,21 @@
           "roll": "Dodge"
         }
       },
+      "groundBrush": {
+        "kind_raise": "Raise",
+        "kind_lower": "Dig",
+        "kind_smooth": "Smooth",
+        "kind_flatten": "Flatten",
+        "kind_paint": "Paint",
+        "layer_grass": "Grass",
+        "layer_dirt": "Dirt",
+        "layer_rock": "Rock",
+        "layer_sand": "Sand",
+        "radius": "Size",
+        "strength": "Strength",
+        "undo": "Take back the last stroke",
+        "close": "Stop shaping the ground"
+      },
       "movePlan": {
         "hint": "Click to walk there / right-click to set a corner (again on the same spot takes it back) / Enter to go / Esc to leave it",
         "jump": "Jump",
@@ -5980,6 +5995,7 @@
       "recording": "Recording",
       "fogOn": "Fog of war: on (click to turn off)",
       "fogOff": "Fog of war: off (click to turn on)",
+      "groundBrush": "Raise, dig and paint the ground (canvas table)",
       "namesShown": "Names: shown (click to hide)",
       "namesHidden": "Names: hidden (click to show)",
       "resourceBarsShown": "Resource bars: shown (click to hide)",

@@ -86,6 +86,7 @@ import { StreamingOverlayComponent } from '@axe/features/streaming-overlay/strea
 import { SwitchNoticeComponent } from '@axe/features/tabletop/board-switch/switch-notice.component';
 import { FogMemoryWriterService } from '@axe/features/tabletop/fog-of-war/fog-memory-writer.service';
 import { GameTableComponent } from '@axe/features/tabletop/game-table/game-table.component';
+import { GroundBrushBandComponent } from '@axe/features/tabletop/ground-brush-band/ground-brush-band.component';
 import { ImageDropEventHandlerService } from '@axe/features/tabletop/image-drop/image-drop-event-handler.service';
 import { InterruptPromptComponent } from '@axe/features/tabletop/interrupt-prompt/interrupt-prompt.component';
 import { MovePlanBandComponent } from '@axe/features/tabletop/move-plan-band/move-plan-band.component';
@@ -135,6 +136,7 @@ import { version as APP_VERSION } from '@pkg';
     InviteJoinComponent,
     StreamingOverlayComponent,
     SwitchNoticeComponent,
+    GroundBrushBandComponent,
     MovePlanBandComponent,
     InterruptPromptComponent,
     SnackbarComponent,

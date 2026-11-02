@@ -1,3 +1,4 @@
+import { GroundService } from '@axe/application/tabletop/ground.service';
 import { HudFrameService } from '@axe/application/tabletop/hud-frame.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
@@ -41,6 +42,8 @@ export interface TableTestHooks {
   whenIdle(): Promise<void>;
   /** Whether a piece is playing a move on the canvas now, as a die tumbling or coming into view. */
   moving(identifier: string): boolean;
+  /** How high the raised ground of the table in view stands at a point of the board, in table pixels. */
+  groundAt(x: number, y: number): number;
   /** What the canvas's engine holds, counted, or null while there is none. */
   sceneStats(): {
     chunks: number;
@@ -76,7 +79,8 @@ export function installTableTestHooks(
   surfaces: TableSurfaceService,
   scene: Table3dService,
   hud: HudFrameService,
-  motions: PieceMotionsService
+  motions: PieceMotionsService,
+  ground: GroundService
 ): () => void {
   if (!win.navigator.webdriver) return () => undefined;
   const hooked = win as HookedWindow;
@@ -95,6 +99,7 @@ export function installTableTestHooks(
     renderer: () => scene.backend(),
     whenIdle: () => scene.whenIdle().then(() => hud.writeNow()),
     moving: (identifier) => motions.isPlaying(identifier),
+    groundAt: (x, y) => ground.heightPxAt(x, y),
     sceneStats: () => scene.stats(),
     spritesOf: (identifier) =>
       scene

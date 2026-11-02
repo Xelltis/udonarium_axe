@@ -110,6 +110,7 @@ const GM_TOOLBAR: MenuLayout = {
     item('scene'),
     item('darkness'),
     item('fog'),
+    item('groundBrush'),
     item('firstPersonShare'),
     item('nameLabels'),
     item('resourceBars'),

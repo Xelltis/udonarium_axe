@@ -3005,6 +3005,21 @@
           "roll": "회피"
         }
       },
+      "groundBrush": {
+        "kind_raise": "높이기",
+        "kind_lower": "파기",
+        "kind_smooth": "다듬기",
+        "kind_flatten": "평평하게",
+        "kind_paint": "칠하기",
+        "layer_grass": "풀",
+        "layer_dirt": "흙",
+        "layer_rock": "바위",
+        "layer_sand": "모래",
+        "radius": "크기",
+        "strength": "세기",
+        "undo": "직전 획 취소",
+        "close": "지형 편집 끝내기"
+      },
       "movePlan": {
         "hint": "클릭하면 이동 / 우클릭으로 경유지 지정(같은 자리를 다시 누르면 취소) / Enter로 확정 / Esc로 중지",
         "jump": "뛰기",
@@ -6273,6 +6288,7 @@
       "recording": "녹화",
       "fogOn": "전장의 안개: 켬(클릭하면 끔)",
       "fogOff": "전장의 안개: 끔(클릭하면 켬)",
+      "groundBrush": "지형 높이기·파기·칠하기(canvas 테이블)",
       "namesShown": "이름: 표시 중 (클릭하면 숨김)",
       "namesHidden": "이름: 숨김 (클릭하면 표시)",
       "resourceBarsShown": "리소스 바: 표시 중 (클릭하면 숨김)",

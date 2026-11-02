@@ -1,0 +1,88 @@
+<!-- Said at the foot of the screen, as the band of a move is: see move-plan-band. -->
+@if (shown()) {
+  <div
+    class="bg-ui-panel shadow-ui-md text-ui-text fixed bottom-28 left-1/2 flex max-w-[94vw] -translate-x-1/2 flex-wrap items-center gap-2 rounded-2xl px-3 py-2 text-sm opacity-95"
+    data-testid="ground-brush-band"
+    data-ground-brush-band
+    [style.zIndex]="zIndex"
+  >
+    <div class="border-ui-border-panel flex shrink-0 rounded-full border border-solid p-0.5" role="group">
+      @for (kind of kinds; track kind) {
+        <button
+          type="button"
+          class="inline-flex min-h-8 cursor-pointer items-center rounded-full border-none px-3 text-[0.86em] whitespace-nowrap transition-[background,color]"
+          [class.bg-ui-accent-solid]="settings().kind === kind"
+          [class.text-white]="settings().kind === kind"
+          [class.bg-transparent]="settings().kind !== kind"
+          [class.text-ui-muted]="settings().kind !== kind"
+          [attr.aria-pressed]="settings().kind === kind"
+          [attr.data-testid]="'ground-brush-' + kind"
+          (click)="choose({ kind })"
+        >
+          {{ 'feature.tabletop.groundBrush.kind_' + kind | transloco }}
+        </button>
+      }
+    </div>
+    @if (settings().kind === 'paint') {
+      <div class="flex shrink-0 gap-1" role="group">
+        @for (layer of layers; track layer) {
+          <button
+            type="button"
+            class="border-ui-border-panel inline-flex min-h-8 cursor-pointer items-center rounded-full border border-solid px-2.5 text-[0.86em]"
+            [class.bg-ui-accent-bg]="settings().layer === layer"
+            [attr.aria-pressed]="settings().layer === layer"
+            [attr.data-testid]="'ground-brush-layer-' + layer"
+            (click)="chooseLayer(layer)"
+          >
+            {{ 'feature.tabletop.groundBrush.layer_' + layer | transloco }}
+          </button>
+        }
+      </div>
+    }
+    <label class="flex items-center gap-1 text-[0.86em]">
+      {{ 'feature.tabletop.groundBrush.radius' | transloco }}
+      <input
+        type="range"
+        min="0.5"
+        max="8"
+        step="0.5"
+        class="w-24"
+        data-testid="ground-brush-radius"
+        [value]="settings().radius"
+        (input)="chooseNumber('radius', $event)"
+      />
+    </label>
+    <label class="flex items-center gap-1 text-[0.86em]">
+      {{ 'feature.tabletop.groundBrush.strength' | transloco }}
+      <input
+        type="range"
+        min="0.05"
+        max="1"
+        step="0.05"
+        class="w-24"
+        data-testid="ground-brush-strength"
+        [value]="settings().strength"
+        (input)="chooseNumber('strength', $event)"
+      />
+    </label>
+    <button
+      type="button"
+      class="text-ui-muted hover:bg-ui-hover inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-full border-none bg-transparent px-2.5 disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[18px]!"
+      data-testid="ground-brush-undo"
+      [disabled]="undoable() < 1"
+      [title]="'feature.tabletop.groundBrush.undo' | transloco"
+      (click)="undo()"
+    >
+      <i class="material-icons">undo</i>
+    </button>
+    <button
+      type="button"
+      class="text-ui-muted hover:bg-ui-hover inline-flex min-h-8 cursor-pointer items-center rounded-full border-none bg-transparent px-2.5 [&_.material-icons]:text-[18px]!"
+      data-testid="ground-brush-close"
+      [title]="'feature.tabletop.groundBrush.close' | transloco"
+      (click)="close()"
+    >
+      <i class="material-icons">close</i>
+    </button>
+  </div>
+}

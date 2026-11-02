@@ -3005,6 +3005,21 @@
           "roll": "回避"
         }
       },
+      "groundBrush": {
+        "kind_raise": "盛る",
+        "kind_lower": "削る",
+        "kind_smooth": "ならす",
+        "kind_flatten": "平らにする",
+        "kind_paint": "塗る",
+        "layer_grass": "草",
+        "layer_dirt": "土",
+        "layer_rock": "岩",
+        "layer_sand": "砂",
+        "radius": "大きさ",
+        "strength": "強さ",
+        "undo": "直前のひと塗りを取り消す",
+        "close": "地面の編集を終える"
+      },
       "movePlan": {
         "hint": "クリックで移動 / 右クリックで経由地点（同じ場所をもう一度で取り消し）/ Enter で確定 / Esc で中止",
         "jump": "跳ぶ",
@@ -5980,6 +5995,7 @@
       "recording": "録画",
       "fogOn": "戦場の霧: オン（クリックでオフ）",
       "fogOff": "戦場の霧: オフ（クリックでオン）",
+      "groundBrush": "地面を盛る・削る・塗る（canvasの卓）",
       "namesShown": "名前: 表示中（クリックで隠す）",
       "namesHidden": "名前: 非表示（クリックで表示）",
       "resourceBarsShown": "リソースバー: 表示中（クリックで隠す）",

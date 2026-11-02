@@ -26,6 +26,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { BoardSwitchService } from '@axe/application/tabletop/board-switch.service';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { GroundService } from '@axe/application/tabletop/ground.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { HudFrameService } from '@axe/application/tabletop/hud-frame.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
@@ -276,6 +277,7 @@ export class GameTableComponent {
   private readonly tabletopOverlap = inject(TabletopOverlapService);
   private readonly hudFrame = inject(HudFrameService);
   private readonly pieceMotions = inject(PieceMotionsService);
+  private readonly ground = inject(GroundService);
   private readonly imageService = inject(ImageService);
   private readonly motion = inject(MotionService);
   private readonly tabletopService = inject(TabletopService);
@@ -480,7 +482,8 @@ export class GameTableComponent {
           this.tableSurfaces,
           this.table3d,
           this.hudFrame,
-          this.pieceMotions
+          this.pieceMotions,
+          this.ground
         )
       );
       this.syncMode2d();

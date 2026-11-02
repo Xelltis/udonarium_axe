@@ -8,6 +8,8 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { GroundBrushService } from '@axe/application/tabletop/ground-brush.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
@@ -140,6 +142,8 @@ export class MenuCommandService {
   private readonly buffView = inject(BuffViewPreferenceService);
   private readonly mobile = inject(MobileLayoutService);
   private readonly viewport = inject(ViewportService);
+  private readonly groundBrush = inject(GroundBrushService);
+  private readonly table3d = inject(Table3dService);
 
   private readonly roomFiles = inject(RoomFilesService);
   private filePicker: (() => void) | null = null;
@@ -238,12 +242,16 @@ export class MenuCommandService {
   /**
    * Whether the command is worth drawing now.
    *
-   * Only the switch to the small-screen layout answers no: it is meaningless on a screen wide
-   * enough for the desktop one, or on a screen already using it.
+   * The switch to the small-screen layout answers no on a screen wide enough for the desktop one,
+   * or on a screen already using it, and the ground brush on a table the page draws itself, which
+   * does not draw raised ground.
    */
   isAvailable(command: MenuCommand): boolean {
     if (command.action.kind === 'act' && command.action.act === 'useMobileLayout') {
       return this.viewport.isCompact() && this.mobile.prefersDesktop();
+    }
+    if (command.action.kind === 'toggle' && command.action.toggle === 'groundBrush') {
+      return this.table3d.drawsOnCanvas();
     }
     return true;
   }
@@ -272,6 +280,8 @@ export class MenuCommandService {
       switch (action.toggle) {
         case 'darkness':
           return this.darknessEnabled() ? 'bedtime' : 'bedtime_off';
+        case 'groundBrush':
+          return 'landscape';
         case 'fog':
           return this.fogEnabled() ? 'foggy' : 'filter_drama';
         case 'nameLabels':
@@ -313,6 +323,8 @@ export class MenuCommandService {
       switch (action.toggle) {
         case 'darkness':
           return this.darknessEnabled() ? 'app.fab.darknessOn' : 'app.fab.darknessOff';
+        case 'groundBrush':
+          return 'app.fab.groundBrush';
         case 'fog':
           return this.fogEnabled() ? 'app.fab.fogOn' : 'app.fab.fogOff';
         case 'nameLabels':
@@ -356,6 +368,8 @@ export class MenuCommandService {
         return this.handRail.isOpen();
       case 'darkness':
         return this.darknessEnabled();
+      case 'groundBrush':
+        return this.groundBrush.active();
       case 'fog':
         return this.fogEnabled();
       case 'nameLabels':
@@ -476,6 +490,9 @@ export class MenuCommandService {
         return;
       case 'darkness':
         this.flipTable('darknessEnabled');
+        return;
+      case 'groundBrush':
+        this.groundBrush.active.update((active) => !active);
         return;
       case 'fog':
         this.flipTable('fogEnabled');
