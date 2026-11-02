@@ -306,6 +306,16 @@ test.describe('pieces drawn on a canvas', () => {
     }
   });
 
+  test('hand a die to the page while it tumbles, and draw it again once it has come to rest', async ({ page }) => {
+    const id = await made(page, PIECES[0]);
+
+    await page.locator(`dice-symbol[data-object-id="${id}"]`).dispatchEvent('contextmenu');
+    await page.locator('context-menu').getByText('ダイスを振る', { exact: true }).click();
+
+    await expect.poll(async () => (await boxesOf(page, id)).length, { timeout: 5000 }).toBe(0);
+    await expect.poll(async () => (await boxesOf(page, id)).length, { timeout: 10000 }).toBe(2);
+  });
+
   for (const piece of PIECES) {
     test(`draw a ${piece.name} where picking finds it, and nothing anywhere else`, async ({ page }) => {
       test.skip(piece.lights === true, 'a light changes the table round it as well');
