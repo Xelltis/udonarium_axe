@@ -14,6 +14,7 @@ const character: CharacterLayout = {
   rotateDeg: 0,
   rollDeg: 0,
   dropShadow: false,
+  lean: null,
   altitudePx: 0,
   pedestal: { url: 'blob:pedestal', widthPx: 50, heightPx: 50 },
   picture: { url: 'blob:hero', width: 100, height: 200 },
@@ -93,5 +94,19 @@ describe('the sprites a character is drawn with', () => {
       opacity: 0.7,
       order: 1,
     });
+  });
+
+  it('leans the pedestal and the shadow as the ground under the piece leans, and stands the picture upright', () => {
+    const [pedestal, shadow, picture] = characterSprites({
+      ...character,
+      dropShadow: true,
+      lean: { eastward: 1, southward: 0 },
+    });
+
+    const across = (pedestal.facing as Exclude<typeof pedestal.facing, 'eye'>).across;
+    expect(across.x).toBeCloseTo(Math.SQRT1_2, 6);
+    expect(across.z).toBeCloseTo(Math.SQRT1_2, 6);
+    expect(shadow.facing).toEqual(pedestal.facing);
+    expect(picture.facing).toBe('eye');
   });
 });

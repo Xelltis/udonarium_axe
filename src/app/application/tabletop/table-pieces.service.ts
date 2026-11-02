@@ -19,10 +19,15 @@ import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { LightSource } from '@axe/domain/tabletop/light-source';
+import { landingLeanAt } from '@axe/domain/tabletop/move/landing-height';
+import { pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
 import { boardSurfaceOf, surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { Terrain } from '@axe/domain/tabletop/terrain';
+import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
+import { SurfaceLean } from '@axe/domain/tabletop/terrain-slope-surface';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { cardSprites, cardStackSprites, SizedPicture } from '@axe/domain/tabletop/world/card-sprites';
@@ -140,6 +145,7 @@ export class TablePiecesService {
     const mode2d = this.tabletop.mode2d();
     const facesEye = this.tabletop.imageBillboard() || mode2d;
     const fitsInCell = mode2d && this.roomRules.rulesFor(table).pieceImageInCell;
+    this.objectChange.collectionOf(Terrain.aliasName)();
     const sprites: TableWorldSprite[] = [];
     for (const character of this.tabletop.characters) {
       this.objectChange.versionOf(character.identifier)();
@@ -154,6 +160,7 @@ export class TablePiecesService {
           rotateDeg: character.rotate,
           rollDeg: character.roll,
           dropShadow: character.isDropShadow,
+          lean: mode2d ? null : this.leanUnder(character, gridSize),
           altitudePx: character.altitude * gridSize,
           pedestal: this.pagePictures.pictureOf(character.identifier),
           picture: this.sized(this.images.getEmptyOr(character.imageFile).url),
@@ -335,6 +342,19 @@ export class TablePiecesService {
     }
     return sprites;
   });
+
+  /** How the ground under the middle of a piece leans, as the blocks it stands over lean, or null where it is level. */
+  private leanUnder(piece: GameCharacter, gridSize: number): SurfaceLean | null {
+    const middle = pieceCentreOffsetPx(piece, gridSize);
+    const x = piece.location.x + middle;
+    const y = piece.location.y + middle;
+    const standingOn = this.tabletop.terrains.filter((terrain) => {
+      const box = terrainBoxOf(terrain, gridSize);
+      return box.minX <= x && x <= box.maxX && box.minY <= y && y <= box.maxY;
+    });
+    for (const terrain of standingOn) this.objectChange.versionOf(terrain.identifier)();
+    return landingLeanAt(standingOn, gridSize, x, y, this.tabletop.currentTableVersion().gridType);
+  }
 
   /** A picture with how big it is, or null while that is not known. */
   private sized(url: string): SizedPicture | null {

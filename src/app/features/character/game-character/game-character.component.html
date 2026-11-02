@@ -101,21 +101,21 @@
               <div
                 class="absolute box-border size-full rounded-[25px] border-[6px] border-solid border-[#ffcc80] backface-hidden"
                 [ngStyle]="pedestalStyleShown()"
-                [style.transform]="multiAnglePiecePedestalRotation()"
+                [style.transform]="drawnOnCanvas() ? null : multiAnglePiecePedestalRotation()"
               ></div>
             }
             @if (this.gameCharacter()!.hideInventory) {
               <div
                 class="absolute box-border size-full rounded-[25px] border-[6px] border-solid border-[#A0E0FF] backface-hidden"
                 [ngStyle]="pedestalStyleHidden()"
-                [style.transform]="multiAnglePiecePedestalRotation()"
+                [style.transform]="drawnOnCanvas() ? null : multiAnglePiecePedestalRotation()"
               ></div>
             }
             <div
               data-testid="multi-angle-rotating-pedestal"
               class="absolute box-border size-full rounded-[25px] border-2 border-solid border-[#212121] backface-hidden"
               [ngStyle]="pedestalOuterStyle()"
-              [style.transform]="multiAnglePiecePedestalRotation()"
+              [style.transform]="drawnOnCanvas() ? null : multiAnglePiecePedestalRotation()"
             ></div>
             @if (isTargeted()) {
               <div
