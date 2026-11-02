@@ -180,6 +180,17 @@ describe('HudFrameService', () => {
     expect(handle.style.transform).toBe('translate(35px, 20px) translate(-50%, -50%)');
   });
 
+  it('puts the middle of an element on the middle of an edge of a part', () => {
+    const foot = element();
+    const side = element();
+    frame.place(foot, { owner: 'die', part: 'picture', edge: 'bottom' });
+    frame.place(side, { owner: 'die', part: 'picture', edge: 'right' });
+    frame.writeNow();
+
+    expect(foot.style.transform).toBe('translate(25px, 20px) translate(-50%, -50%)');
+    expect(side.style.transform).toBe('translate(35px, 10px) translate(-50%, -50%)');
+  });
+
   it('puts what goes with a block against the block, by the shapes it is picked by', () => {
     vi.spyOn(TestBed.inject(TablePickService), 'targets').mockReturnValue([
       {

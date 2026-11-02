@@ -1,5 +1,5 @@
 import { surfaceFrame } from '@axe/domain/tabletop/surface-space';
-import { CharacterLayout, characterSprites } from '@axe/domain/tabletop/world/character-sprites';
+import { CharacterLayout, characterRollPivot, characterSprites } from '@axe/domain/tabletop/world/character-sprites';
 
 const dims = { widthPx: 1000, depthPx: 800, wallHeightPx: 300 };
 
@@ -108,5 +108,16 @@ describe('the sprites a character is drawn with', () => {
     expect(across.z).toBeCloseTo(Math.SQRT1_2, 6);
     expect(shadow.facing).toEqual(pedestal.facing);
     expect(picture.facing).toBe('eye');
+  });
+});
+
+describe('where a character is tipped over about', () => {
+  it('is the middle of its cell’s height over the middle of its pedestal, at its altitude', () => {
+    expect(characterRollPivot(character)).toEqual({ x: 125, y: 225, z: 1 + 25 });
+    expect(characterRollPivot({ ...character, altitudePx: 50 })).toEqual({ x: 125, y: 225, z: 1 + 50 + 25 });
+  });
+
+  it('is nowhere for a character on a wall, whose picture lies on the wall', () => {
+    expect(characterRollPivot({ ...character, frame: surfaceFrame('north-wall', dims), onFloor: false })).toBeNull();
   });
 });

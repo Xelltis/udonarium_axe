@@ -183,6 +183,18 @@ describe('RotableDirective', () => {
       expect(element.style.transform).toBe(laidOut);
     });
 
+    it('turns a part the screen puts upright by where the pointer lies round a point of the screen', () => {
+      const writable = directive as unknown as Record<string, unknown>;
+      writable['turnsOnScreenAbout'] = () => ({ x: 300, y: 200 });
+      writable['input'] = { ...(writable['input'] as object), pointer: { x: 300, y: 260, z: 0 } };
+      const laidOut = element.style.transform;
+
+      directive.onInputMove(new MouseEvent('mousemove', { cancelable: true }));
+
+      expect(directive.rotate).toBeCloseTo(90);
+      expect(element.style.transform).toBe(laidOut);
+    });
+
     it('turns freely without Alt, and says so', () => {
       moveTo(31, false);
 

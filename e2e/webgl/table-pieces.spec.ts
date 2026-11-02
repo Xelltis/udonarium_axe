@@ -309,6 +309,39 @@ test.describe('pieces drawn on a canvas', () => {
     }
   });
 
+  test('tip a character’s picture over by a handle beside it, about the middle of its cell', async ({ page }) => {
+    const character = page.locator('game-character', { has: page.getByText('キャラクターB', { exact: true }) });
+    const id = (await character.getAttribute('data-object-id'))!;
+    await idle(page);
+    await expect.poll(async () => (await boxesOf(page, id)).length, { timeout: 10000 }).toBe(2);
+    await settled(page, id);
+    const [, upright] = await boxesOf(page, id);
+
+    const headBox = (await character.getByTestId('roll-grab-head').boundingBox())!;
+    const footBox = (await character.getByTestId('roll-grab-foot').boundingBox())!;
+    const middleOf = (box: Box) => ({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
+    // Either side of the picture halfway up, clear of it, so a press on the picture takes hold of the piece.
+    const report = JSON.stringify([headBox, footBox, upright]);
+    expect(Math.abs(middleOf(headBox).y - middleOf(upright).y), report).toBeLessThan(6);
+    expect(Math.abs(middleOf(footBox).y - middleOf(upright).y), report).toBeLessThan(6);
+    expect(headBox.x, report).toBeGreaterThan(upright.x + upright.width - 6);
+    expect(footBox.x + footBox.width, report).toBeLessThan(upright.x + 6);
+
+    const grab = middleOf(headBox);
+    await page.mouse.move(grab.x, grab.y);
+    await page.mouse.down();
+    await page.mouse.move(grab.x + 10, grab.y + 40, { steps: 5 });
+    await page.mouse.move(grab.x + 10, grab.y + 90, { steps: 5 });
+    await page.mouse.up();
+    await idle(page);
+
+    // Turned down on the right, the picture is tipped over to the right: drawn wider than it stood,
+    // and further right.
+    const [, tipped] = await boxesOf(page, id);
+    expect(tipped.width, JSON.stringify([upright, tipped])).toBeGreaterThan(upright.width * 1.3);
+    expect(middleOf(tipped).x, JSON.stringify([upright, tipped])).toBeGreaterThan(middleOf(upright).x + 5);
+  });
+
   test('tumble a die on the canvas, its picture moving and its frame staying, and bring it to rest', async ({
     page,
   }) => {

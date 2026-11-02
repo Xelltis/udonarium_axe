@@ -31,6 +31,7 @@ import { PieceTargetService } from '@axe/application/tabletop/piece-target.servi
 import { RideService } from '@axe/application/tabletop/ride.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
@@ -77,6 +78,7 @@ import { collectDataElements } from '@axe/domain/data/data-element-tree';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { pageOfTablePoint } from '@axe/domain/tabletop/camera/table-camera';
 import { GridSnapStyle } from '@axe/domain/tabletop/game-table';
 import { calcHexFlowerParams, HexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
@@ -291,7 +293,36 @@ export class GameCharacterComponent {
   protected readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
   private readonly motions = inject(PieceMotionsService);
   private readonly pieces = inject(TablePiecesService);
+  private readonly tableCamera = inject(TableCameraService);
   private readonly pedestal = viewChild<ElementRef<HTMLElement>>('pedestal');
+
+  /**
+   * How the handles that tip the piece over are turned over a table drawn on a canvas: on the screen,
+   * about the point the canvas tips the picture over about.
+   */
+  protected readonly rollOption: RotableOption = { turnsOnScreenAbout: () => this.rollPivotOnPage() };
+
+  /** Where on the page the canvas tips the piece's picture over about, or null where it does not. */
+  private rollPivotOnPage(): { x: number; y: number } | null {
+    const character = this.gameCharacter();
+    const scene = this.tableCamera.sceneMatrix();
+    const pivot = character ? this.pieces.rollPivotOf(character) : null;
+    return pivot && scene ? pageOfTablePoint(scene, pivot.x, pivot.y, pivot.z) : null;
+  }
+
+  /**
+   * The handles that tip the piece over, over a table drawn on a canvas: the edge of the picture each
+   * stands against, and how far off the middle of that edge its middle lies, on the screen. They stand
+   * either side of the picture halfway up, as on a phone, since the screen puts them over the picture
+   * and one at the head covered the middle of a short picture, where a press takes hold of the piece.
+   */
+  protected readonly rollHandles = computed(() => {
+    const clear = this.rollHandleSizePx() / 2 + this.rollHandleGapPx();
+    return [
+      { testId: 'roll-grab-head', edge: 'right' as const, dx: clear },
+      { testId: 'roll-grab-foot', edge: 'left' as const, dx: -clear },
+    ];
+  });
 
   /**
    * Whether the table's canvas draws the piece, from its picture and a picture of its pedestal taken

@@ -32,7 +32,7 @@ import { SurfaceLean } from '@axe/domain/tabletop/terrain-slope-surface';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { cardSprites, cardStackSprites, SizedPicture } from '@axe/domain/tabletop/world/card-sprites';
-import { characterSprites } from '@axe/domain/tabletop/world/character-sprites';
+import { characterRollPivot, characterSprites } from '@axe/domain/tabletop/world/character-sprites';
 import { DICE_FRAME_COLOUR, diceSymbolSprites } from '@axe/domain/tabletop/world/dice-symbol-sprites';
 import { maskSprites, rangeSprites } from '@axe/domain/tabletop/world/flat-piece-sprites';
 import { lightSourceSprites } from '@axe/domain/tabletop/world/light-source-sprites';
@@ -489,6 +489,21 @@ export class TablePiecesService {
     };
     const along = (axis: { x: number; y: number; z: number }) => from.x * axis.x + from.y * axis.y + from.z * axis.z;
     return { surface, x: along(frame.u), y: along(frame.v), height: along(frame.normal) };
+  }
+
+  /**
+   * Where a character drawn on the table is tipped over about when it is rolled, as its picture is
+   * drawn: on the table, in table pixels. Null for one not drawn, or on a wall or a board.
+   */
+  rollPivotOf(character: GameCharacter): { x: number; y: number; z: number } | null {
+    const place = untracked(() => this.placeOf(character));
+    if (!place) return null;
+    const gridSize = untracked(this.tabletop.currentTableVersion).gridSize;
+    return characterRollPivot({
+      ...place,
+      sizePx: Math.max(0, character.size) * gridSize,
+      altitudePx: character.altitude * gridSize,
+    });
   }
 
   /** A colour of the theme on screen, as the page names it, or the colour given where it cannot be read. */

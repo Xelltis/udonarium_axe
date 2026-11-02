@@ -39,7 +39,15 @@ export interface HudAnchor {
    * middle on: as the handles at a board's foot.
    */
   readonly corner?: 0 | 1 | 2 | 3;
+  /**
+   * The middle of an edge of the part, as a picture on it is read, to put the element's middle on:
+   * as the handles at the head and the foot of a character's picture.
+   */
+  readonly edge?: 'top' | 'right' | 'bottom' | 'left';
 }
+
+/** The corners an edge of a part runs between, round from its top left. */
+const EDGE_CORNERS = { top: [0, 1], right: [1, 2], bottom: [2, 3], left: [3, 0] } as const;
 
 interface Placed {
   anchor: HudAnchor;
@@ -222,6 +230,11 @@ function styleOf(
   if (anchor.corner !== undefined) {
     const corner = part.corners?.[anchor.corner];
     return corner ? centredOn(corner, piece) : null;
+  }
+  if (anchor.edge !== undefined) {
+    if (!part.corners) return null;
+    const [from, to] = EDGE_CORNERS[anchor.edge].map((corner) => part.corners![corner]);
+    return centredOn({ x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 }, piece);
   }
   const within: PageBox = { ...part, left: part.left - whole.left, top: part.top - whole.top };
   const place = anchor.place ?? 'box';

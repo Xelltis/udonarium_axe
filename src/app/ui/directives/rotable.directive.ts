@@ -38,6 +38,12 @@ export interface RotableOption {
    * left as the screen puts it.
    */
   readonly turnsAbout?: () => TurnAbout | null;
+  /**
+   * For a part the screen over a canvas puts upright before the reader, as a character's picture
+   * tipped over sideways: the point of the page it turns about. It is then turned by where the
+   * pointer lies round that point on the screen, and its element is left as the screen puts it.
+   */
+  readonly turnsOnScreenAbout?: () => { x: number; y: number } | null;
 }
 
 @Directive({ selector: '[appRotable]' })
@@ -57,6 +63,7 @@ export class RotableDirective {
 
   private transformCssOffset: string = '';
   private turnsAbout: (() => TurnAbout | null) | null = null;
+  private turnsOnScreenAbout: (() => { x: number; y: number } | null) | null = null;
   private grabbingSelecter: string = '.rotate-grab';
   readonly option = input<RotableOption | undefined>(undefined, { alias: 'rotable.option' });
   readonly isDisable = input(false, { alias: 'rotable.disable' });
@@ -117,6 +124,7 @@ export class RotableDirective {
       if (opt.grabbingSelecter != null) this.grabbingSelecter = opt.grabbingSelecter;
       if (opt.transformCssOffset != null) this.transformCssOffset = opt.transformCssOffset;
       this.turnsAbout = opt.turnsAbout ?? null;
+      this.turnsOnScreenAbout = opt.turnsOnScreenAbout ?? null;
       this.refreshObjectChangeListener();
     });
     effect(() => {
@@ -348,6 +356,10 @@ export class RotableDirective {
     grabbingElement: HTMLElement,
     parentElement: HTMLElement
   ): PointerCoordinate | null {
+    if (this.turnsOnScreenAbout) {
+      const about = this.turnsOnScreenAbout();
+      return about ? { x: pointer.x - about.x, y: pointer.y - about.y, z: 0 } : null;
+    }
     if (!this.turnsAbout) {
       const local = this.coordinateService.convertLocalToLocal(pointer, grabbingElement, parentElement);
       return {
@@ -427,7 +439,7 @@ export class RotableDirective {
   }
 
   private updateTransformCss() {
-    if (this.turnsAbout) return;
+    if (this.turnsAbout || this.turnsOnScreenAbout) return;
     const css = `${this.transformCssOffset} rotateZ(${this.rotate.toFixed(4)}deg)`;
     this.nativeElement.style.transform = css;
   }

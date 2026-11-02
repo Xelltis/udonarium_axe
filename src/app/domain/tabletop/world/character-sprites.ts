@@ -56,6 +56,24 @@ export interface CharacterLayout {
   readonly opacity: number;
 }
 
+/**
+ * Where a character standing on the floor is tipped over about when it is rolled: the middle of its
+ * cell's height over the middle of its pedestal, at its altitude. Null for one on a wall or a board,
+ * whose picture lies on the face.
+ */
+export function characterRollPivot(
+  character: Pick<CharacterLayout, 'frame' | 'onFloor' | 'x' | 'y' | 'z' | 'sizePx' | 'altitudePx'>
+): Vec3 | null {
+  if (!character.onFloor) return null;
+  const size = character.sizePx;
+  return pointOnFace(
+    character.frame,
+    character.x + size / 2,
+    character.y + size / 2,
+    character.z + LIFT_PX + character.altitudePx + size / 2
+  );
+}
+
 /** How wide and tall a picture is drawn: held inside a square, or at the height or width asked. */
 function pictureSize(character: CharacterLayout, width: number, height: number): { w: number; h: number } {
   const size = character.sizePx;
@@ -206,7 +224,7 @@ export function characterSprites(character: CharacterLayout): TableWorldSprite[]
       y: -axes.across.y * sin - normal.y * cos,
       z: -axes.across.z * sin - normal.z * cos,
     };
-    const pivot = pointOnFace(character.frame, middleAcross, middleDown, out + character.altitudePx + size / 2);
+    const pivot = characterRollPivot(character)!;
     const below = size / 2 - (character.fitsInCell ? size / 2 : h / 2);
     sprites.push({
       ...base,
