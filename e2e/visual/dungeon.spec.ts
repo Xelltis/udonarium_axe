@@ -75,13 +75,13 @@ async function letImagesArrive(page: Page) {
   await settle(page, 100);
 }
 
-/** The offer to restore an earlier table comes and goes with the autosave, and is not what is watched. */
-async function dismissRestoreOffer(page: Page) {
-  const later = page.locator('app-room-restore-banner button', { hasText: 'あとで' });
-  if (await later.count()) {
-    await later.first().dispatchEvent('click');
-    await settle(page, 100);
-  }
+/**
+ * Keeps the offer to restore an earlier table out of the picture. It comes and goes with the
+ * autosave, so turning it down before a shot can still leave it back over the toolbar by the time
+ * the shot is taken, and it is not what is watched.
+ */
+async function hideRestoreOffer(page: Page) {
+  await page.addStyleTag({ content: 'app-room-restore-banner { visibility: hidden !important; }' });
 }
 
 /**
@@ -111,10 +111,10 @@ for (const grid of GRIDS) {
     await buildDungeon(page, grid.label);
     await hideFloorLight(page);
     await hidePieces(page);
+    await hideRestoreOffer(page);
     await closePanels(page);
     await settle(page, 400);
     await letImagesArrive(page);
-    await dismissRestoreOffer(page);
     await snap(page, grid.name, { threshold: 0, maxDiffPixels: 0, timeout: 150000 });
 
     await page.locator('body').click({ position: { x: 1200, y: 780 } });
@@ -122,7 +122,6 @@ for (const grid of GRIDS) {
     for (let step = 0; step < 4; step++) await page.keyboard.press('Shift+ArrowUp');
     await settle(page, 400);
     await letImagesArrive(page);
-    await dismissRestoreOffer(page);
     await snap(page, `${grid.name}-turned`, { threshold: 0, maxDiffPixels: 0, timeout: 150000 });
   });
 }
