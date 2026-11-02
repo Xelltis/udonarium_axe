@@ -1,6 +1,7 @@
 import { NgStyle } from '@angular/common';
 import {
   afterNextRender,
+  afterRenderEffect,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -21,12 +22,15 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { TextNoteFacesService } from '@axe/application/tabletop/text-note-faces.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
+import { ThemeService } from '@axe/application/ui/theme.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { debounce } from '@axe/core/util/debounce';
@@ -36,6 +40,7 @@ import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { buildTextNoteContextMenuModel } from '@axe/features/tabletop/text-note/text-note-context-menu';
+import { pictureOfElement } from '@axe/infrastructure/image/element-picture';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { RotableOption } from '@axe/ui/directives/rotable.directive';
@@ -96,6 +101,20 @@ export class TextNoteComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly translateFn = inject(TRANSLATE_FN);
+  private readonly noteFaces = inject(TextNoteFacesService);
+  private readonly theme = inject(ThemeService);
+
+  /**
+   * Whether the note is drawn on the table's canvas, from a picture of its panel taken here: the
+   * panel here is left clear, still taking the presses where the canvas draws it, and is shown
+   * again only while the note is written in.
+   */
+  readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
+  private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
+  /** The latest picture asked for, which alone is handed over once it is taken. */
+  private picturing = 0;
+  /** The note the picture handed over is of, to take it back once the note is no longer drawn here. */
+  private picturedAs: string | null = null;
 
   readonly isHiddenByFog = computed(() => {
     const piece = this.textNote();
@@ -116,6 +135,21 @@ export class TextNoteComponent {
       target: this.textNote,
       collideLayers: ['terrain'],
       transformCssOffset: translateZCss(Z_OFFSET_TABLETOP_OBJECT_PX),
+    });
+    afterRenderEffect({
+      read: () => {
+        if (!this.drawsOnCanvas() || this.isEditing()) return;
+        this.textNoteVersion();
+        this.canView();
+        this.limitHeight();
+        this.imageFile();
+        this.theme.resolved();
+        const panel = this.panel()?.nativeElement;
+        if (panel) void this.picturePanel(panel);
+      },
+    });
+    this.destroyRef.onDestroy(() => {
+      if (this.picturedAs) this.noteFaces.forget(this.picturedAs);
     });
     this.destroyRef.onDestroy(() => {
       this.writeTextSoon.cancel();
@@ -223,6 +257,21 @@ export class TextNoteComponent {
     }
     return v;
   });
+
+  /** Takes a picture of the panel as it is laid out now, and hands it to the canvas. */
+  private async picturePanel(panel: HTMLElement): Promise<void> {
+    const asked = ++this.picturing;
+    const width = panel.offsetWidth;
+    const height = panel.offsetHeight;
+    const picture = await pictureOfElement(panel);
+    if (asked !== this.picturing || !picture) return;
+    this.picturedAs = this.textNote().identifier;
+    this.noteFaces.show(this.picturedAs, {
+      url: URL.createObjectURL(picture),
+      widthPx: width,
+      heightPx: height,
+    });
+  }
 
   /**
    * Whether the note is locked, which keeps it from being moved or edited; setting it writes

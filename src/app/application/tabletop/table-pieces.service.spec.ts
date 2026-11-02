@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
+import { TextNoteFacesService } from '@axe/application/tabletop/text-note-faces.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -13,6 +14,7 @@ import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { TextNote } from '@axe/domain/tabletop/text-note';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -117,5 +119,15 @@ describe('TablePiecesService', () => {
       `${stack.identifier}#plate`,
       `${stack.identifier}#top`,
     ]);
+  });
+
+  it('draws a note from the picture the page takes of its panel, once there is one', () => {
+    const note = TextNote.create('title', 'text');
+    note.location = { name: 'table', x: 100, y: 200 };
+    expect(pieces.sprites()).toEqual([]);
+
+    TestBed.inject(TextNoteFacesService).show(note.identifier, { url: 'blob:panel', widthPx: 100, heightPx: 50 });
+
+    expect(pieces.sprites()).toMatchObject([{ id: `${note.identifier}#panel`, look: { url: 'blob:panel' } }]);
   });
 });

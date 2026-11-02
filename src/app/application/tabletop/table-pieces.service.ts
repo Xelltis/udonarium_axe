@@ -5,6 +5,7 @@ import { PictureSizeService } from '@axe/application/storage/picture-size.servic
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { TextNoteFacesService } from '@axe/application/tabletop/text-note-faces.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
@@ -16,11 +17,13 @@ import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
 import { boardSurfaceOf, surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { TextNote } from '@axe/domain/tabletop/text-note';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { cardSprites, cardStackSprites, SizedPicture } from '@axe/domain/tabletop/world/card-sprites';
 import { DICE_FRAME_COLOUR, diceSymbolSprites } from '@axe/domain/tabletop/world/dice-symbol-sprites';
 import { tableCoinOf, TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
+import { textNoteSprites } from '@axe/domain/tabletop/world/text-note-sprites';
 
 /** The theme's colour a frame takes for a piece that is somebody's, as the page names it. */
 const OWNED_FRAME_COLOUR_PROPERTY = '--ui-panel-border';
@@ -58,9 +61,14 @@ export class TablePiecesService {
   private readonly rolePermission = inject(RolePermissionService);
   private readonly theme = inject(ThemeService);
   private readonly objectStore = inject(ObjectStore);
+  private readonly noteFaces = inject(TextNoteFacesService);
 
   /** Every sprite of every piece drawn on the table in view. */
-  readonly sprites = computed<readonly TableWorldSprite[]>(() => [...this.cardSprites(), ...this.diceSprites()]);
+  readonly sprites = computed<readonly TableWorldSprite[]>(() => [
+    ...this.noteSprites(),
+    ...this.cardSprites(),
+    ...this.diceSprites(),
+  ]);
 
   /** Every coin on the table in view. */
   readonly coins = computed<readonly TableWorldCoin[]>(() => {
@@ -98,6 +106,32 @@ export class TablePiecesService {
         .filter((wall) => wall.shown && this.images.getEmptyOr(wall.imageIdentifier).url)
         .map((wall) => wall.surface)
     );
+  });
+
+  /** The notes, drawn from the pictures the page takes of their panels. */
+  private readonly noteSprites = computed(() => {
+    this.objectChange.collectionOf(TextNote.aliasName)();
+    this.objectChange.collectionOf(WhiteBoard.aliasName)();
+    this.transient.version();
+    const gridSize = this.tabletop.currentTableVersion().gridSize;
+    const sprites: TableWorldSprite[] = [];
+    for (const note of this.tabletop.textNotes) {
+      this.objectChange.versionOf(note.identifier)();
+      if (this.vision.isPieceHiddenByFog(note, 1)) continue;
+      const place = this.placeOf(note);
+      if (!place) continue;
+      sprites.push(
+        ...textNoteSprites({
+          id: note.identifier,
+          ...place,
+          altitudePx: note.altitude * gridSize,
+          rotateDeg: note.rotate,
+          upright: note.isUpright,
+          face: this.noteFaces.faceOf(note.identifier),
+        })
+      );
+    }
+    return sprites;
   });
 
   private readonly cardSprites = computed(() => {

@@ -34,6 +34,8 @@
       >
         <div
           class="bg-ui-panel border-ui-border-panel text-ui-text rounded-b-ui-sm shadow-ui-md transform-style-flat absolute inset-x-0 bottom-0 box-border flex origin-[50%_100%] transform-[rotateX(-90deg)] flex-col overflow-hidden border border-solid bg-size-[100%_100%] bg-no-repeat [-webkit-transform-style:preserve-3d] transform-3d"
+          #panel
+          [class.opacity-0]="drawsOnCanvas() && !isEditing()"
           [style.background-image]="'url(' + imageFile().url + ')' | safe: 'style'"
           [style.width.px]="width * gridSize"
           [style.min-height.px]="height * gridSize"

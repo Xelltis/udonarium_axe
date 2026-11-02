@@ -174,7 +174,26 @@ class ThreeTableEngine implements Table3dEngine {
     }
     this.sprites.set(world.sprites);
     this.coins.set(world.coins);
+    this.forgetPictures(world);
     this.changed = true;
+  }
+
+  /**
+   * Lets go of the pictures nothing in the scene wears any more, as the old picture of a note
+   * written in again, and of the materials that wore them.
+   */
+  private forgetPictures(world: TableWorld): void {
+    const worn = new Set<string>();
+    for (const face of [...world.walls, ...world.caps]) worn.add(face.pictureUrl);
+    for (const sprite of world.sprites) if (sprite.look.kind === 'picture') worn.add(sprite.look.url);
+    for (const [key, picture] of this.loaded) {
+      const url = key.slice(0, key.lastIndexOf('|'));
+      if (worn.has(url)) continue;
+      picture.dispose();
+      this.loaded.delete(key);
+      this.looks.get(key)?.dispose();
+      this.looks.delete(key);
+    }
   }
 
   setCamera(view: Table3dCamera): void {
