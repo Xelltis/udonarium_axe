@@ -215,6 +215,16 @@ describe('MovableDirective', () => {
     it('writes its height off a wall as it is, though the wall draws it turned the other way', () => {
       expect(drawnAt('north-wall', 50, 60, 10).dataset['location']).toBe('50,60,10');
     });
+
+    it('leaves a piece put by something else where it is put, marking where and on which face it stands', () => {
+      const directive = fixture.debugElement.children[0].injector.get(MovableDirective);
+      directive['placedElsewhere'] = true;
+      const element = drawnAt('north-wall', 50, 60, 10);
+
+      expect(element.style.transform).toBe('');
+      expect(element.dataset['location']).toBe('50,60,10');
+      expect(element.dataset['onSurface']).toBe('north-wall');
+    });
   });
 });
 

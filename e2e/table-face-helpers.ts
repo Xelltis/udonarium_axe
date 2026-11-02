@@ -40,7 +40,15 @@ export async function pageOfFace(page: Page, surface: string, x: number, y: numb
   return onPage!;
 }
 
-/** The face a piece stands on, by the face of the table or of the board it is drawn on. */
+/**
+ * The face a piece stands on, by the face of the table or of the board it is drawn on; or, for a
+ * piece on the screen over a table drawn on a canvas, by the face it marks itself as standing on.
+ */
 export function faceOf(piece: Locator): Promise<string | null> {
-  return piece.evaluate((element) => element.closest('[data-surface]')?.getAttribute('data-surface') ?? null);
+  return piece.evaluate(
+    (element) =>
+      element.querySelector('[data-on-surface]')?.getAttribute('data-on-surface') ??
+      element.closest('[data-surface]')?.getAttribute('data-surface') ??
+      null
+  );
 }

@@ -83,7 +83,8 @@ export interface MovableOption {
   readonly snapToSquare?: (at: { x: number; y: number }) => { x: number; y: number } | null;
   /**
    * Whether something else puts the piece's element where the piece is drawn, as the screen over a
-   * table drawn on a canvas puts its pieces; the directive then only marks where the piece stands.
+   * table drawn on a canvas puts its pieces; the directive then only marks where the piece stands,
+   * and on which face, as no face of the page holds it.
    */
   readonly placedElsewhere?: boolean;
 }
@@ -1050,6 +1051,7 @@ export class MovableDirective implements MovableInteractionContext {
   private updateTransformCss() {
     if (this.placedElsewhere) {
       this.nativeElement.dataset['location'] = `${this.posX},${this.posY},${this.posZ}`;
+      this.nativeElement.dataset['onSurface'] = this.currentSurface();
       return;
     }
     const onWall = this.isOnWallSurface();

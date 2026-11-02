@@ -111,6 +111,14 @@ describe('HudFrameService', () => {
     expect(handle.style.transform).toBe('translate(25px, 30px) translate(-50%, -50%)');
   });
 
+  it('puts the middle of an element on a corner of a part', () => {
+    const handle = element();
+    frame.place(handle, { owner: 'die', part: 'picture', corner: 2 });
+    frame.writeNow();
+
+    expect(handle.style.transform).toBe('translate(35px, 20px) translate(-50%, -50%)');
+  });
+
   it('draws the root of a nearer piece over the root of one further off', () => {
     sprites.update((drawn) => [...drawn, lying('near#frame', 300, 300, 40, 50)]);
     const far = element();

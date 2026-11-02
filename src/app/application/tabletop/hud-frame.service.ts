@@ -24,6 +24,11 @@ export interface HudAnchor {
    * middle on, rather than a part: as a handle that turns a piece about a point of its own.
    */
   readonly at?: { readonly surface: string; readonly x: number; readonly y: number; readonly height: number };
+  /**
+   * A corner of the part, round from its top left as a picture on it is read, to put the element's
+   * middle on: as the handles at a board's foot.
+   */
+  readonly corner?: 0 | 1 | 2 | 3;
 }
 
 interface Placed {
@@ -181,6 +186,10 @@ function styleOf(
   }
   const part = piece.parts.get(anchor.part);
   if (!part) return null;
+  if (anchor.corner !== undefined) {
+    const corner = part.corners?.[anchor.corner];
+    return corner ? centredOn(corner, piece) : null;
+  }
   const within: PageBox = { ...part, left: part.left - whole.left, top: part.top - whole.top };
   const place = anchor.place ?? 'box';
   if (place === 'box') {
