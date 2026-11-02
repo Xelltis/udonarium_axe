@@ -1,3 +1,15 @@
+## [1.75.2](https://github.com/Xelltis/udonarium_axe/compare/v1.75.1...v1.75.2) (2026-11-02)
+
+### 🐛 Bug Fixes
+
+* **deps:** bump entities from 8.1.0 to 9.0.0 ([cea97b5](https://github.com/Xelltis/udonarium_axe/commit/cea97b5cfaf5b6c8b9593e759fd8eda423d34a72))
+* **deps:** bump the angular group with 13 updates ([c860631](https://github.com/Xelltis/udonarium_axe/commit/c8606312fed55b900a145c472795248ee2564896))
+* **deps:** bump the production-minor-patch group with 5 updates ([bdb5f43](https://github.com/Xelltis/udonarium_axe/commit/bdb5f4315cfeb03f09a7129cc706cd91ef861578))
+
+### 📝 Documentation
+
+* **release:** add the notes for v1.75.2 ([9ac11bb](https://github.com/Xelltis/udonarium_axe/commit/9ac11bbc8d2f77e4b90194b15a6f94c6ec2693c2))
+
 ## [1.75.1](https://github.com/Xelltis/udonarium_axe/compare/v1.75.0...v1.75.1) (2026-11-02)
 
 ### 🐛 Bug Fixes
