@@ -85,7 +85,6 @@ export function toBuffBadges(buffRoot: DataElement | null): BuffBadge[] {
   for (const data of rows) {
     if (isBuffGroupMember(data)) continue;
     const group = buffGroupOf(data);
-    const rounds = Number(data.value);
     const effect =
       group.length > 0
         ? rows
@@ -93,18 +92,27 @@ export function toBuffBadges(buffRoot: DataElement | null): BuffBadge[] {
             .map((row) => `${row.currentValue ?? ''}`)
             .join(',')
         : `${data.currentValue ?? ''}`;
-    const icon = buffIconOf(data);
-    badges.push({
-      identifier: data.identifier,
-      icon,
-      iconUrl: buffIconUrlOf(icon),
-      name: data.name,
-      effect,
-      strength: parseBuffStrength(effect),
-      rounds: Number.isFinite(rounds) ? rounds : 0,
-      expires: buffExpires(data),
-      color: buffColorOf(data),
-    });
+    badges.push(buffBadgeOf(data, effect));
   }
   return badges;
+}
+
+/**
+ * The badge of one buff's row: its icon in its colour, the strength read from the effect given, its
+ * own by default, and the rounds left where time takes it away.
+ */
+export function buffBadgeOf(data: DataElement, effect = `${data.currentValue ?? ''}`): BuffBadge {
+  const rounds = Number(data.value);
+  const icon = buffIconOf(data);
+  return {
+    identifier: data.identifier,
+    icon,
+    iconUrl: buffIconUrlOf(icon),
+    name: data.name,
+    effect,
+    strength: parseBuffStrength(effect),
+    rounds: Number.isFinite(rounds) ? rounds : 0,
+    expires: buffExpires(data),
+    color: buffColorOf(data),
+  };
 }
