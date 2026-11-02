@@ -4482,7 +4482,11 @@
         "image": "이미지",
         "functionPaint": "기능 펜",
         "functionErase": "기능 지우개",
-        "function": "기능 도구"
+        "function": "기능 도구",
+        "relief": "기복"
+      },
+      "relief": {
+        "hint": "테이블의 지면을 높이고, 낮추고, 고르고, 평평하게 합니다. 내보내는 이미지에는 들어가지 않고, 「기능만 반영」으로 테이블의 지면이 됩니다."
       },
       "function": {
         "title": "기능 칠하기",
@@ -4704,7 +4708,8 @@
           "stamp": "스탬프",
           "freehand": "자유선",
           "text": "텍스트",
-          "image": "이미지"
+          "image": "이미지",
+          "relief": "기복"
         }
       },
       "actions": {
@@ -4730,7 +4735,7 @@
         "setTableDone": "테이블 배경으로 설정했습니다",
         "exportError": "내보내기에 실패했습니다",
         "applyFunctions": "기능만 반영",
-        "applyFunctionsHint": "바닥 이미지는 그대로 두고, 칠한 진입 금지·지형·마스크만 테이블에 반영합니다",
+        "applyFunctionsHint": "바닥 이미지는 그대로 두고, 칠한 진입 금지·지형·마스크·기복만 테이블에 반영합니다",
         "applyFunctionsDone": "칠한 기능을 테이블에 반영했습니다",
         "applyFunctionsGridMismatch": "테이블과 칸이 맞지 않습니다. 먼저 테이블을 가져오세요"
       },

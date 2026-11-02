@@ -4482,7 +4482,11 @@
         "image": "Image",
         "functionPaint": "Function pen",
         "functionErase": "Function eraser",
-        "function": "Function"
+        "function": "Function",
+        "relief": "Relief"
+      },
+      "relief": {
+        "hint": "Raise, lower, smooth and flatten the ground of the table. It stays out of the exported picture, and becomes the table’s ground when you lay the functions."
       },
       "function": {
         "title": "Function paint",
@@ -4704,7 +4708,8 @@
           "stamp": "Stamps",
           "freehand": "Freehand",
           "text": "Text",
-          "image": "Image"
+          "image": "Image",
+          "relief": "Relief"
         }
       },
       "actions": {
@@ -4730,7 +4735,7 @@
         "setTableDone": "Set as table background",
         "exportError": "Export failed",
         "applyFunctions": "Lay the functions",
-        "applyFunctionsHint": "Lays the painted no-entry, terrain and masks on the table, leaving the floor as it is",
+        "applyFunctionsHint": "Lays the painted no-entry, terrain, masks and relief on the table, leaving the floor as it is",
         "applyFunctionsDone": "Laid the painted functions on the table",
         "applyFunctionsGridMismatch": "The grid does not match the table. Read the table in first"
       },

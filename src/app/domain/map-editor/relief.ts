@@ -1,5 +1,5 @@
 import { MapScene, ReliefLayer } from '@axe/domain/map-editor/scene';
-import { applyGroundDab, GroundDab } from '@axe/domain/tabletop/ground/ground-brush';
+import { applyGroundDab, GroundBrushKind, GroundDab } from '@axe/domain/tabletop/ground/ground-brush';
 import {
   decodeGroundHeights,
   encodeGroundHeights,
@@ -9,6 +9,18 @@ import {
 
 /** The name a relief layer brought in from a table goes by. */
 export const IMPORTED_RELIEF_LAYER_NAME = 'relief';
+
+/** What the relief brush does: any stroke of the ground brush but paint, which is left to the table. */
+export type ReliefBrushKind = Exclude<GroundBrushKind, 'paint'>;
+
+export const RELIEF_BRUSH_KINDS: readonly ReliefBrushKind[] = ['raise', 'lower', 'smooth', 'flatten'];
+
+/** How the relief brush shapes the ground: what it does, how far it reaches and how hard, in cells. */
+export interface ReliefBrush {
+  readonly kind: ReliefBrushKind;
+  readonly radius: number;
+  readonly strength: number;
+}
 
 const HEIGHT_LIMIT = 32767;
 

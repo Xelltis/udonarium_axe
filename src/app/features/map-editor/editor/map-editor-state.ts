@@ -4,6 +4,7 @@ import { sampleCurvePoints } from '@axe/domain/map-editor/curve-geometry';
 import type { EditorTool, LineKind, ShapeGeneratorKind } from '@axe/domain/map-editor/editor-tool';
 import { cellCenter, pointToCell } from '@axe/domain/map-editor/grid-cells';
 import { SceneHistory } from '@axe/domain/map-editor/history';
+import { dabRelief, ReliefBrush, reliefChunksOf } from '@axe/domain/map-editor/relief';
 import {
   CellLayer,
   createLayer,
@@ -18,6 +19,7 @@ import {
   MapLayer,
   MapScene,
   newId,
+  ReliefLayer,
   rememberPaintedRoles,
   ShapeItem,
   ShapeKind,
@@ -73,6 +75,7 @@ import {
   MapFunctionRole,
 } from '@axe/domain/tabletop/function-paint';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
 
 export interface Selection {
   layerId: string;
@@ -128,6 +131,10 @@ export class MapEditorState {
   readonly freehandWidth = signal(4);
 
   readonly eraserSize = signal(16);
+
+  /** How the relief brush shapes the ground: what it does, how far it reaches and how hard, in cells. */
+  readonly reliefBrush = signal<ReliefBrush>({ kind: 'raise', radius: 2, strength: 0.25 });
+  private reliefLevel = 0;
 
   readonly fontSize = signal(20);
   readonly textColor = signal('#1a1a1a');
@@ -285,7 +292,7 @@ export class MapEditorState {
    * Takes a layer in hand, and the brush that painted it with it.
    *
    * Choosing a layer of functions is choosing to work on what it does, so the tool that works
-   * on it is put in hand as well. Without that the properties on show are some other tool's,
+   * on it is put in hand as well, and so is the relief brush for a layer of relief. Without that the properties on show are some other tool's,
    * and a patch that was painted with settings of its own looks like one that cannot be
    * changed at all.
    */
@@ -297,6 +304,7 @@ export class MapEditorState {
       this.functionSpec.set({ ...chosen.spec });
       if (this.tool() !== 'functionPaint' && this.tool() !== 'functionErase') this.tool.set('functionPaint');
     }
+    if (chosen && chosen.kind === 'relief') this.tool.set('relief');
     this.bump();
   }
 
@@ -407,6 +415,27 @@ export class MapEditorState {
     );
     if (layers.length < 1) return;
     for (const layer of layers) eraseFunctionCell(layer, col, row);
+    this.bump();
+  }
+
+  /**
+   * Starts a stroke of the relief brush at a point of the scene, in pixels, on the relief layer for
+   * new work: flattening levels that layer to the height it stood at here. Recorded when the gesture
+   * ends.
+   */
+  beginReliefStroke(x: number, y: number): void {
+    const layer = this.ensureLayerFor('relief') as ReliefLayer;
+    const cellPx = this.scene.cellPx;
+    this.reliefLevel = groundSurfaceOf(reliefChunksOf(layer)).heightAt(x / cellPx, y / cellPx);
+    this.dabReliefAt(x, y);
+  }
+
+  /** Lays a dab of the stroke under way at a point of the scene, in pixels. */
+  dabReliefAt(x: number, y: number): void {
+    const layer = this.ensureLayerFor('relief') as ReliefLayer;
+    const { kind, radius, strength } = this.reliefBrush();
+    const cellPx = this.scene.cellPx;
+    dabRelief(layer, { kind, x: x / cellPx, y: y / cellPx, radius, strength, level: this.reliefLevel });
     this.bump();
   }
 

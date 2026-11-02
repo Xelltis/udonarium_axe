@@ -39,7 +39,7 @@ export class MapEditorLayerDrawerComponent {
   readonly compact = input(false);
   readonly open = input(true);
 
-  protected readonly layerKinds: LayerKind[] = ['cell', 'shape', 'stamp', 'freehand', 'text', 'image'];
+  protected readonly layerKinds: LayerKind[] = ['cell', 'shape', 'stamp', 'freehand', 'text', 'image', 'relief'];
   protected readonly functionRoles = everyFunctionRole();
   protected readonly functionRoleLabelKey = functionRoleLabelKey;
   protected readonly addLayerMenuOpen = signal(false);

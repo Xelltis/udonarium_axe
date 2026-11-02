@@ -27,6 +27,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { PERF_MAP_EDITOR_DRAW, perfCounters } from '@axe/core/util/perf-counters';
 import { curveAnchorAt, fitImageSize, imageCorners, imageHandleAt } from '@axe/domain/map-editor/editor-hit-test';
 import { cellCenter, pointToCell } from '@axe/domain/map-editor/grid-cells';
+import { RELIEF_BRUSH_KINDS, ReliefBrush } from '@axe/domain/map-editor/relief';
 import {
   cellKey,
   ImageItem,
@@ -191,7 +192,10 @@ export class MapEditorPanelComponent {
       label: 'feature.mapEditor.tools.function',
       covers: ['functionErase'],
     },
+    { tool: 'relief', icon: 'landscape', key: 'H' },
   ];
+
+  protected readonly reliefKinds = RELIEF_BRUSH_KINDS;
 
   protected toolLabelKey(def: ToolDef): string {
     return def.label ?? 'feature.mapEditor.tools.' + def.tool;
@@ -549,6 +553,8 @@ export class MapEditorPanelComponent {
         return 'freehand';
       case 'text':
         return 'text';
+      case 'relief':
+        return 'relief';
       default:
         return 'none';
     }
@@ -601,6 +607,8 @@ export class MapEditorPanelComponent {
         return this.freehandDown(pos);
       case 'text':
         return this.textDown(pos);
+      case 'relief':
+        return this.reliefDown(pos);
     }
   }
 
@@ -642,6 +650,8 @@ export class MapEditorPanelComponent {
         return this.boxMove(pos);
       case 'freehand':
         return this.freehandMove(pos);
+      case 'relief':
+        return this.reliefMove(pos);
     }
   }
 
@@ -666,6 +676,9 @@ export class MapEditorPanelComponent {
         break;
       case 'freehand':
         this.freehandUp();
+        break;
+      case 'relief':
+        this.state.endGesture();
         break;
     }
     this.gesture.dragging = false;
@@ -757,6 +770,25 @@ export class MapEditorPanelComponent {
     this.gesture.lastPaintedCell = null;
     this.gesture.lastPaintPx = null;
     this.paintAt(pos, this.state.tool());
+  }
+
+  private reliefDown(pos: { x: number; y: number }): void {
+    this.state.beginGesture();
+    this.state.beginReliefStroke(pos.x, pos.y);
+    this.gesture.lastPaintPx = pos;
+  }
+
+  /** Lays the next dab of the relief brush once the pointer is a quarter of the brush's reach on. */
+  private reliefMove(pos: { x: number; y: number }): void {
+    const last = this.gesture.lastPaintPx;
+    const gap = (this.state.reliefBrush().radius * this.state.current.cellPx) / 4;
+    if (last && Math.hypot(pos.x - last.x, pos.y - last.y) < gap) return;
+    this.state.dabReliefAt(pos.x, pos.y);
+    this.gesture.lastPaintPx = pos;
+  }
+
+  protected setReliefBrush(change: Partial<ReliefBrush>): void {
+    this.state.reliefBrush.update((brush) => ({ ...brush, ...change }));
   }
 
   private paintUp(): void {

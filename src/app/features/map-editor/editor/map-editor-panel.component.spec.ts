@@ -6,11 +6,13 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { ShortcutScopeService } from '@axe/application/ui/shortcut-scope.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { pointToCell } from '@axe/domain/map-editor/grid-cells';
+import { sceneReliefChunks } from '@axe/domain/map-editor/relief';
 import { cellKey, createScene, ImageLayer, ShapeLayer, StampLayer, TextLayer } from '@axe/domain/map-editor/scene';
 import { serializeScene } from '@axe/domain/map-editor/serialize';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
 import { MapEditorFilesService } from '@axe/features/map-editor/editor/map-editor-files.service';
 import { MapEditorGesture } from '@axe/features/map-editor/editor/map-editor-gesture';
 import {
@@ -430,6 +432,42 @@ describe('MapEditorPanelComponent', () => {
     c.onPointerDown({ button: 0, pointerId: 1, clientX: 64, clientY: 64 } as unknown as PointerEvent);
     expect(c.editingText()).not.toBeNull();
     expect(c.editingText()!.itemId).toBeNull();
+  });
+
+  it('raises the ground under a press and a drag of the relief brush, and keeps the stroke as one step', () => {
+    component['state'].tool.set('relief');
+    component['state'].reliefBrush.set({ kind: 'raise', radius: 1, strength: 0.5 });
+    const c = component as unknown as {
+      onPointerDown: (e: PointerEvent) => void;
+      onPointerMove: (e: PointerEvent) => void;
+      onPointerUp: (e: PointerEvent) => void;
+      board: () => { nativeElement: HTMLCanvasElement } | undefined;
+      tools: { tool: string }[];
+    };
+    (c as unknown as { board: () => { nativeElement: HTMLCanvasElement } }).board = () => ({
+      nativeElement: {
+        setPointerCapture: () => {},
+        releasePointerCapture: () => {},
+        getBoundingClientRect: () => ({ left: 0, top: 0 }),
+      } as never,
+    });
+    const cellPx = component['state'].current.cellPx;
+    const at = (cells: number) => ({ button: 0, pointerId: 1, clientX: cells * cellPx, clientY: 4 * cellPx });
+
+    c.onPointerDown(at(4) as unknown as PointerEvent);
+    c.onPointerMove(at(4.1) as unknown as PointerEvent);
+    c.onPointerMove(at(6) as unknown as PointerEvent);
+    c.onPointerUp(at(6) as unknown as PointerEvent);
+
+    const ground = groundSurfaceOf(sceneReliefChunks(component['state'].current));
+    expect(ground.heightAt(4, 4)).toBe(0.5);
+    expect(ground.heightAt(6, 4)).toBe(0.5);
+    expect(ground.heightAt(5, 4)).toBe(0);
+    expect(c.tools.some((def) => def.tool === 'relief')).toBe(true);
+
+    component['state'].undo();
+
+    expect(component['state'].current.layers.some((layer) => layer.kind === 'relief')).toBe(false);
   });
 
   it('names the same cell while the pointer crosses one, and another when it leaves', () => {

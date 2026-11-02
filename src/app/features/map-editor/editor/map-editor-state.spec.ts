@@ -1,5 +1,6 @@
 import { sampleCurvePoints } from '@axe/domain/map-editor/curve-geometry';
 import { DEFAULT_FUNCTION_SPEC } from '@axe/domain/map-editor/function-layer';
+import { sceneReliefChunks } from '@axe/domain/map-editor/relief';
 import {
   CellLayer,
   DEFAULT_SCENE_BACKGROUND,
@@ -13,6 +14,7 @@ import {
   TextLayer,
 } from '@axe/domain/map-editor/scene';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 
 describe('MapEditorState', () => {
@@ -110,6 +112,49 @@ describe('MapEditorState', () => {
 
     // Two layers of wall in different stone read as two 'terrain' rows in the drawer otherwise.
     expect(state.current.layers[0].name).not.toBe('terrain');
+  });
+
+  describe('the relief brush', () => {
+    function reliefHeightAt(x: number, y: number): number {
+      return groundSurfaceOf(sceneReliefChunks(state.current)).heightAt(x, y);
+    }
+
+    it('raises the ground on a relief layer of its own along a stroke, and takes the stroke back as one step', () => {
+      const cellPx = state.current.cellPx;
+      state.reliefBrush.set({ kind: 'raise', radius: 1, strength: 0.5 });
+      state.beginGesture();
+      state.beginReliefStroke(4 * cellPx, 4 * cellPx);
+      state.dabReliefAt(5 * cellPx, 4 * cellPx);
+      state.endGesture();
+
+      expect(state.current.layers.map((layer) => layer.kind)).toEqual(['relief']);
+      expect(reliefHeightAt(4, 4)).toBe(0.5);
+      expect(reliefHeightAt(5, 4)).toBe(0.5);
+
+      state.undo();
+
+      expect(reliefHeightAt(4, 4)).toBe(0);
+    });
+
+    it('flattens the layer towards the height it stood at where the stroke began', () => {
+      const cellPx = state.current.cellPx;
+      state.reliefBrush.set({ kind: 'raise', radius: 1, strength: 1 });
+      state.beginReliefStroke(4 * cellPx, 4 * cellPx);
+      state.reliefBrush.set({ kind: 'flatten', radius: 2, strength: 1 });
+
+      state.beginReliefStroke(8 * cellPx, 4 * cellPx);
+      state.dabReliefAt(4 * cellPx, 4 * cellPx);
+
+      expect(reliefHeightAt(4, 4)).toBe(0);
+    });
+
+    it('takes up the brush when a relief layer is chosen', () => {
+      state.addEmptyLayer('relief', 'hills');
+
+      state.setActiveLayer(state.current.layers[0].id);
+
+      expect(state.tool()).toBe('relief');
+    });
   });
 
   it('clears the history for a new scene', () => {
