@@ -1,5 +1,5 @@
 import type { EyeAxes, TableWorldLook, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
-import { float, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
+import { float, max, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
 import {
   CanvasTexture,
   DoubleSide,
@@ -147,7 +147,8 @@ export class SpriteLayer {
       ...(lying ? PULLED_FORWARD : {}),
     });
     material.map = this.texture(sprite.look, sprite.widthPx, sprite.heightPx);
-    if (sprite.brightness !== 1) material.colorNode = dimmed(material.map, sprite.brightness);
+    if (sprite.look.kind === 'picture') material.colorNode = shown(material.map, sprite.brightness);
+    else if (sprite.brightness !== 1) material.colorNode = dimmed(material.map, sprite.brightness);
     this.materials.set(key, material);
     return material;
   }
@@ -186,6 +187,18 @@ export class SpriteLayer {
 /** A colour the library's colour-space functions answer, which they do not say is a colour. */
 function colourNode(node: unknown): ReturnType<typeof vec3> {
   return node as ReturnType<typeof vec3>;
+}
+
+/**
+ * A picture whose colours carry its clearness, as a sprite's picture is held, shown as the page
+ * shows it: its colours taken back apart from its clearness, and dimmed as the page dims one.
+ */
+function shown(picture: Texture, brightness: number) {
+  const sampled = texture(picture);
+  const colour = colourNode(sampled.rgb.div(max(sampled.a, float(0.0001))));
+  if (brightness === 1) return vec4(colour, sampled.a);
+  const scaled = colourNode(sRGBTransferOETF(colour)).mul(float(brightness));
+  return vec4(colourNode(sRGBTransferEOTF(scaled)), sampled.a);
 }
 
 /** A picture dimmed as the page dims one, by scaling its colours as they are written, in sRGB. */

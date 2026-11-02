@@ -64,6 +64,14 @@ function lookOf(face: FaceLook): string {
   return face.glass || !face.pictureUrl ? 'glass' : `${face.pictureUrl}|${face.tilePx > 0}`;
 }
 
+/**
+ * Where the board and the blocks come in the order things are drawn: before everything standing on
+ * them, so the soft edge of a picture standing at the far side of the board is laid over the board
+ * rather than over nothing.
+ */
+const BOARD_ORDER = -2;
+const BLOCKS_ORDER = -1;
+
 /** Draws a face laid flat on another in front of it, as the grid on the board, past the depth's rounding. */
 const PULLED_FORWARD = { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 };
 
@@ -123,7 +131,7 @@ class ThreeTableEngine implements Table3dEngine {
   private topsGrid: Mesh | null = null;
   private laidWalls: readonly TableWorldWall[] | null = null;
   private laidCaps: readonly TableWorldCap[] | null = null;
-  private readonly sprites = new SpriteLayer((url) => this.sharedPicture(url, false));
+  private readonly sprites = new SpriteLayer((url) => this.spritePicture(url));
   private readonly coins = new CoinLayer(() => {
     this.changed = true;
     this.needsFrame();
@@ -293,6 +301,7 @@ class ThreeTableEngine implements Table3dEngine {
     const material = new MeshBasicNodeMaterial({ transparent: true, side: DoubleSide });
     material.colorNode = boardColour(board.pictureUrl ? this.picture(board.pictureUrl) : null, board.veiled);
     this.board = new Mesh(boardGeometry(board), material);
+    this.board.renderOrder = BOARD_ORDER;
     this.scene.add(this.board);
   }
 
@@ -368,7 +377,9 @@ class ThreeTableEngine implements Table3dEngine {
     }
     const meshes = new Group();
     for (const [look, { face, shapes }] of byLook) {
-      meshes.add(new Mesh(mergedFaces(shapes), this.sharedLook(look, face)));
+      const mesh = new Mesh(mergedFaces(shapes), this.sharedLook(look, face));
+      mesh.renderOrder = BLOCKS_ORDER;
+      meshes.add(mesh);
       for (const shape of shapes) shape.dispose();
     }
     this.chunks.set(key, { owners, meshes });
@@ -431,6 +442,22 @@ class ThreeTableEngine implements Table3dEngine {
     if (!picture) {
       picture = this.picture(url);
       if (tiled) picture.wrapS = picture.wrapT = RepeatWrapping;
+      this.loaded.set(key, picture);
+    }
+    return picture;
+  }
+
+  /**
+   * A picture a sprite wears, shared by every sprite that wears it, with its colours made to carry
+   * its clearness: drawn smaller, a picture's clear parts would otherwise run their colour, often
+   * white, into the edge of what is solid.
+   */
+  private spritePicture(url: string): Texture {
+    const key = `${url}|sprite`;
+    let picture = this.loaded.get(key);
+    if (!picture) {
+      picture = this.picture(url);
+      picture.premultiplyAlpha = true;
       this.loaded.set(key, picture);
     }
     return picture;
