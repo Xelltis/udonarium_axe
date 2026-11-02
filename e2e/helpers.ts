@@ -173,9 +173,10 @@ export async function openTableContextMenu(page: Page, position = { x: 900, y: 2
 
 /** Makes a new character on the table. */
 export async function createCharacter(page: Page) {
+  const before = await page.locator('game-character').count();
   const menu = await openTableContextMenu(page);
   await menu.getByText('キャラクターを作成').click();
-  await expect(page.locator('game-character').first()).toBeAttached({ timeout: 10000 });
+  await expect(page.locator('game-character')).toHaveCount(before + 1, { timeout: 10000 });
 }
 
 /** Makes a new dice symbol (D6) on the table. */
