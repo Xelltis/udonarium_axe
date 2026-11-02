@@ -20,6 +20,7 @@ const LAYER_ICONS: Record<LayerKind, string> = {
   text: 'title',
   image: 'image',
   function: 'dashboard_customize',
+  relief: 'landscape',
 };
 
 @Component({

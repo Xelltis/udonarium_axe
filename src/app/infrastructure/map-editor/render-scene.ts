@@ -1,12 +1,14 @@
 import { catmullRomSegments } from '@axe/domain/map-editor/curve-geometry';
 import { functionInkOf } from '@axe/domain/map-editor/function-layer';
 import { cellCenter, pointToCell } from '@axe/domain/map-editor/grid-cells';
+import { reliefChunksOf } from '@axe/domain/map-editor/relief';
 import {
   FillStyle,
   FreehandStroke,
   ImageItem,
   MapScene,
   parseCellKey,
+  ReliefLayer,
   sceneHeightPx,
   sceneWidthPx,
   ShapeItem,
@@ -17,6 +19,11 @@ import {
   TextItem,
 } from '@axe/domain/map-editor/scene';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import {
+  GROUND_CHUNK_SAMPLES,
+  GROUND_HEIGHT_STEP,
+  GROUND_SAMPLES_PER_CELL,
+} from '@axe/domain/tabletop/ground/ground-chunk-data';
 import {
   fillHexPath,
   hexCircumradius,
@@ -413,6 +420,52 @@ function drawGridLines(ctx: CanvasRenderingContext2D, scene: MapScene, width: nu
  * scene's own setting unless the options say otherwise. A text being edited in place can be left
  * out.
  */
+/** How high ground has to stand for its tint to be at its deepest, in cells. */
+const RELIEF_FULL_CELLS = 4;
+const RELIEF_RAISED = '140, 92, 44';
+const RELIEF_SUNK = '44, 96, 168';
+const RELIEF_CONTOUR = 'rgba(60, 36, 16, 0.75)';
+
+/**
+ * Draws a relief layer as a map of heights: a square round every sample, tinted brown the higher it
+ * stands and blue the deeper it is dug, and a line wherever the ground crosses a whole cell of
+ * height between one sample and the next.
+ */
+function drawReliefLayer(ctx: CanvasRenderingContext2D, layer: ReliefLayer, cellPx: number): void {
+  const step = cellPx / GROUND_SAMPLES_PER_CELL;
+  for (const chunk of reliefChunksOf(layer)) {
+    const left = chunk.cx * GROUND_CHUNK_SAMPLES;
+    const top = chunk.cy * GROUND_CHUNK_SAMPLES;
+    const cells = (i: number, j: number) => chunk.heights[j * GROUND_CHUNK_SAMPLES + i] * GROUND_HEIGHT_STEP;
+    for (let j = 0; j < GROUND_CHUNK_SAMPLES; j++) {
+      for (let i = 0; i < GROUND_CHUNK_SAMPLES; i++) {
+        const height = cells(i, j);
+        if (height === 0) continue;
+        const depth = Math.min(1, Math.abs(height) / RELIEF_FULL_CELLS);
+        ctx.fillStyle = `rgba(${height > 0 ? RELIEF_RAISED : RELIEF_SUNK}, ${0.15 + 0.55 * depth})`;
+        ctx.fillRect((left + i - 0.5) * step, (top + j - 0.5) * step, step, step);
+      }
+    }
+    ctx.strokeStyle = RELIEF_CONTOUR;
+    ctx.lineWidth = Math.max(1, cellPx / 32);
+    ctx.beginPath();
+    for (let j = 0; j < GROUND_CHUNK_SAMPLES; j++) {
+      for (let i = 0; i < GROUND_CHUNK_SAMPLES; i++) {
+        const level = Math.floor(cells(i, j));
+        if (i + 1 < GROUND_CHUNK_SAMPLES && Math.floor(cells(i + 1, j)) !== level) {
+          ctx.moveTo((left + i + 0.5) * step, (top + j - 0.5) * step);
+          ctx.lineTo((left + i + 0.5) * step, (top + j + 0.5) * step);
+        }
+        if (j + 1 < GROUND_CHUNK_SAMPLES && Math.floor(cells(i, j + 1)) !== level) {
+          ctx.moveTo((left + i - 0.5) * step, (top + j + 0.5) * step);
+          ctx.lineTo((left + i + 0.5) * step, (top + j + 0.5) * step);
+        }
+      }
+    }
+    ctx.stroke();
+  }
+}
+
 export function renderScene(
   ctx: CanvasRenderingContext2D,
   scene: MapScene,
@@ -468,6 +521,9 @@ export function renderScene(
         break;
       case 'image':
         for (const item of layer.items) drawImageItem(ctx, item, helpers, layer.opacity, scene);
+        break;
+      case 'relief':
+        if (options?.drawFunctionLayers) drawReliefLayer(ctx, layer, scene.cellPx);
         break;
       case 'function': {
         if (!options?.drawFunctionLayers) break;

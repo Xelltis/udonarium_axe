@@ -31,6 +31,7 @@ import {
 } from '@axe/domain/tabletop/function-paint';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
+import { ensureGroundFieldOn, groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { blockOrigin as gridBlockOrigin, cellCentre } from '@axe/domain/tabletop/map-grid';
 import { ensureMoveBlockMapOn, moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
@@ -415,8 +416,17 @@ export class FunctionalPaintService {
       this.layTriggers(table, plan);
       this.layMoveCosts(table, plan);
       this.layAmbiences(table, grid, plan);
+      this.layGround(table, plan);
     });
     return true;
+  }
+
+  /** Writes the chunks of the raised ground the plan names, each in place of the one kept there. */
+  private layGround(table: GameTable, plan: FunctionPaintPlan): void {
+    const chunks = plan.ground ?? [];
+    if (chunks.length < 1) return;
+    const field = ensureGroundFieldOn(table);
+    for (const chunk of chunks) field.writeChunk(chunk);
   }
 
   private closeCells(table: GameTable, grid: CellGrid, blocked: readonly string[]): void {
@@ -641,6 +651,7 @@ export class FunctionalPaintService {
           return stood ? { ...stood.rect, spec: ambienceSpecOf(held) } : null;
         })
         .filter((block): block is AmbienceBlock => block !== null),
+      groundChunks: groundFieldOn(table)?.readChunks() ?? [],
     };
   }
 }

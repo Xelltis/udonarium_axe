@@ -1,4 +1,5 @@
 import { CellRect, rectCells } from '@axe/domain/tabletop/cell-rectangles';
+import { GroundChunkData } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import {
   asHazardExtraCost,
   asHazardKind,
@@ -744,6 +745,8 @@ export interface FunctionPaintPlan {
   terrain: BlockChange<TerrainBlock>;
   mask: BlockChange<MaskBlock>;
   trigger: BlockChange<TriggerBlock>;
+  /** The chunks of the raised ground to write, each in place of the one the table keeps there. */
+  ground?: GroundChunkData[];
 }
 
 /**

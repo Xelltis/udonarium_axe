@@ -1,4 +1,5 @@
 import { DEFAULT_AMBIENCE_DENSITY } from '@axe/domain/effect/ambience/ambience-kind';
+import { groundChangeOf, sceneReliefChunks, sceneSpeaksForRelief } from '@axe/domain/map-editor/relief';
 import { FunctionLayer, MapScene } from '@axe/domain/map-editor/scene';
 import { parseCellKey } from '@axe/domain/tabletop/cell-key';
 import { CellRect, largestRectangles } from '@axe/domain/tabletop/cell-rectangles';
@@ -230,7 +231,9 @@ function blockedCellsOf(scene: MapScene): string[] {
  */
 export function sceneCarriesFunctions(scene: MapScene, role?: MapFunctionRole): boolean {
   return scene.layers.some(
-    (layer) => layer.kind === 'function' && (role === undefined || (layer as FunctionLayer).role === role)
+    (layer) =>
+      (layer.kind === 'function' && (role === undefined || (layer as FunctionLayer).role === role)) ||
+      (layer.kind === 'relief' && role === undefined)
   );
 }
 
@@ -245,7 +248,7 @@ export function sceneCarriesFunctions(scene: MapScene, role?: MapFunctionRole): 
 export function sceneSpeaksFor(scene: MapScene, role?: MapFunctionRole): boolean {
   if (sceneCarriesFunctions(scene, role)) return true;
   const spoken = scene.paintedRoles ?? [];
-  return role === undefined ? spoken.length > 0 : spoken.includes(role);
+  return role === undefined ? spoken.length > 0 || sceneSpeaksForRelief(scene) : spoken.includes(role);
 }
 
 function functionLayersOf(scene: MapScene, role: MapFunctionRole): FunctionLayer[] {
@@ -293,5 +296,6 @@ export function planFunctionPaint(scene: MapScene, table: TableSnapshot): Functi
       sceneSpeaksFor(scene, 'trigger') || laysHazards
         ? blockChange([...triggerBlocksOf(scene, hex), ...hazard.trigger], table.triggerBlocks)
         : { add: [], remove: [] },
+    ground: sceneSpeaksForRelief(scene) ? groundChangeOf(sceneReliefChunks(scene), table.groundChunks ?? []) : [],
   };
 }

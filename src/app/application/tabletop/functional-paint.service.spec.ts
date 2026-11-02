@@ -15,6 +15,8 @@ import {
 } from '@axe/domain/tabletop/function-paint';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
+import { GROUND_CHUNK_SAMPLE_COUNT } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
 import { cellCentre } from '@axe/domain/tabletop/map-grid';
 import { ensureMoveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
@@ -167,6 +169,26 @@ describe('FunctionalPaintService', () => {
       expect(laid[0].depth).toBe(2);
       expect(laid[0].location.x).toBe(1 * 50);
       expect(laid[0].location.y).toBe(2 * 50);
+    });
+
+    it('writes the chunks of raised ground it is handed, reads them back, and leaves the ground alone when handed none', () => {
+      const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT);
+      heights[5] = 64;
+      service.apply(plan({ ground: [{ cx: 0, cy: 0, heights, paint: null }] }));
+
+      expect(service.snapshot()!.groundChunks!.map((chunk) => chunk.heights[5])).toEqual([64]);
+
+      service.apply(plan());
+
+      expect(
+        groundFieldOn(table)!
+          .readChunks()
+          .map((chunk) => chunk.heights[5])
+      ).toEqual([64]);
+    });
+
+    it('reads a table that keeps no ground as having none to bring in', () => {
+      expect(service.snapshot()!.groundChunks).toEqual([]);
     });
 
     it('reads a laid block back as the block it is', () => {

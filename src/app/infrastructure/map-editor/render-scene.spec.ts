@@ -1,4 +1,5 @@
 import { DEFAULT_FUNCTION_SPEC } from '@axe/domain/map-editor/function-layer';
+import { dabRelief } from '@axe/domain/map-editor/relief';
 import {
   CellLayer,
   createLayer,
@@ -7,6 +8,7 @@ import {
   FunctionLayer,
   ImageLayer,
   MapScene,
+  ReliefLayer,
   ShapeLayer,
   StampLayer,
   TextLayer,
@@ -190,6 +192,35 @@ describe('renderScene', () => {
       });
 
       expect(cellFillsIn(ctx)).toBe(0);
+    });
+  });
+
+  describe('the relief of the ground', () => {
+    function relief(): ReliefLayer {
+      const layer = createLayer('relief', 'relief') as ReliefLayer;
+      dabRelief(layer, { kind: 'raise', x: 1, y: 1, radius: 1, strength: 1 });
+      return layer;
+    }
+
+    function stepFills(ctx: ReturnType<typeof createMockCtx>): number {
+      return ctx.calls.filter((c) => c.method === 'fillRect' && c.args[2] === 5 && c.args[3] === 5).length;
+    }
+
+    it('leaves it out of the picture unless the editor asks to see its workings', () => {
+      const ctx = createMockCtx();
+
+      renderScene(ctx, sceneWith(relief()), helpers, { drawGrid: false });
+
+      expect(stepFills(ctx)).toBe(0);
+    });
+
+    it('tints every sample it raises, and lines where it crosses a whole cell', () => {
+      const ctx = createMockCtx();
+
+      renderScene(ctx, sceneWith(relief()), helpers, { drawGrid: false, drawFunctionLayers: true });
+
+      expect(stepFills(ctx)).toBeGreaterThan(0);
+      expect(ctx.counts('lineTo')).toBeGreaterThan(0);
     });
   });
 
