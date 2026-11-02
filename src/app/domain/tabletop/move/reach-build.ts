@@ -102,6 +102,11 @@ export interface ReachInputs {
   readonly heights: Float64Array;
   /** How high the ground the piece sets out from stands. */
   readonly standingPx: number;
+  /**
+   * How high the table's raised ground stands under every cell, blocks left out, or null where it is
+   * flat: a step from one cell to the next is shut where the ground rises or drops more than a cell.
+   */
+  readonly groundHeights?: Float64Array | null;
   /** The pieces the person moving can see, the piece itself among them. */
   readonly standing: readonly GameCharacter[];
   /** Those of them whose ground stands in the piece's way. */
@@ -145,6 +150,7 @@ export function buildReach(inputs: ReachInputs): BuiltReach {
     closed,
     heights,
     standingPx,
+    groundHeights,
     standing,
     inTheWay,
     allied,
@@ -235,21 +241,27 @@ export function buildReach(inputs: ReachInputs): BuiltReach {
   // Everything the search is handed is in steps rather than in cells, since a road is
   // crossed in half of one. Prices are worked out in cells, the way a table talks about
   // them, and turned at the last moment.
+  // A piece that goes over what is in its way goes over a cliff of the ground as well.
+  const cliffs = groundHeights && !going.clears ? groundHeights : null;
+  const priced: (index: number, from: number) => number = charges
+    ? (index, from) => {
+        let price = 1 + going.toll + (dear ? dear[index] : 0);
+        // Squeezing costs the step again, which is what makes a gap worth going round.
+        if (squeezed?.get(index)) price += 1;
+        if (crossing > 0 && passage.costly.get(index)) price += crossing;
+        if (held && mode === 'cost' && held.get(index)) price += extra;
+        if (fights && leavesFight(fights, from, index)) {
+          price += breakOutToll(rules.breakOutMode, fights.prices[from], flat);
+        }
+        return stepsFor(price);
+      }
+    : PLAIN_GOING;
   const options: ReachOptions = {
     diagonals: rules.diagonalMove,
-    costOf: charges
-      ? (index, from) => {
-          let price = 1 + going.toll + (dear ? dear[index] : 0);
-          // Squeezing costs the step again, which is what makes a gap worth going round.
-          if (squeezed?.get(index)) price += 1;
-          if (crossing > 0 && passage.costly.get(index)) price += crossing;
-          if (held && mode === 'cost' && held.get(index)) price += extra;
-          if (fights && leavesFight(fights, from, index)) {
-            price += breakOutToll(rules.breakOutMode, fights.prices[from], flat);
-          }
-          return stepsFor(price);
-        }
-      : PLAIN_GOING,
+    costOf: cliffs
+      ? (index, from) =>
+          isWalkableStep(cliffs[index], cliffs[from], table.gridSize) ? priced(index, from) : Number.POSITIVE_INFINITY
+      : priced,
     stopsAt: stopsWhere(held && mode === 'stop' ? held : null, zones?.stops ?? null),
     // Where a wide piece may stand is settled by what it may enter at all, above; what is
     // left here is ground somebody else is holding, which is crossed but not stopped on.

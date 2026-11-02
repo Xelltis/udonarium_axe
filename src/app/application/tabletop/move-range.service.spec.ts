@@ -15,6 +15,8 @@ import { Config } from '@axe/domain/peer/config';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { GROUND_CHUNK_SAMPLE_COUNT, GROUND_CHUNK_SAMPLES } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { ensureGroundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
 import { isSquareGrid } from '@axe/domain/tabletop/move/move-grid';
 import { stepsFor } from '@axe/domain/tabletop/move/move-steps';
 import { countCells } from '@axe/domain/tabletop/move/reachable-cells';
@@ -104,6 +106,35 @@ describe('MoveRangeService', () => {
     expect(view.cells.get(cellIndexOf(view.grid, 6, 5))).toBe(false);
     expect(view.cells.get(cellIndexOf(view.grid, 7, 5))).toBe(false);
     expect(view.cells.get(cellIndexOf(view.grid, 5, 2))).toBe(true);
+  });
+
+  /** Raises the ground from a column on to the east edge of the table, by a number of cells. */
+  function groundRaisedFrom(col: number, cells: number): void {
+    const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT);
+    for (let j = 0; j < GROUND_CHUNK_SAMPLES; j++) {
+      for (let i = col * 2; i < GROUND_CHUNK_SAMPLES; i++) heights[j * GROUND_CHUNK_SAMPLES + i] = cells * 64;
+    }
+    ensureGroundFieldOn(table).writeChunk({ cx: 0, cy: 0, heights, paint: null });
+  }
+
+  it('walks round a cliff of the ground higher than a cell rather than up it', () => {
+    groundRaisedFrom(6, 2);
+
+    service.show(pieceAt(5, 5, 3));
+
+    const view = service.range()!;
+    expect(view.cells.get(cellIndexOf(view.grid, 6, 5))).toBe(false);
+    expect(view.cells.get(cellIndexOf(view.grid, 4, 5))).toBe(true);
+  });
+
+  it('walks up a rise of the ground of a cell, as a step', () => {
+    groundRaisedFrom(6, 1);
+
+    service.show(pieceAt(5, 5, 3));
+
+    const view = service.range()!;
+    expect(view.cells.get(cellIndexOf(view.grid, 6, 5))).toBe(true);
+    expect(view.cells.get(cellIndexOf(view.grid, 7, 5))).toBe(true);
   });
 
   it('walks through a door somebody has opened', () => {
