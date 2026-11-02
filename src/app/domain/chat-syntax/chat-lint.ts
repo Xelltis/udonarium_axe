@@ -105,6 +105,12 @@ export interface ChatLintContext {
   readonly keptOffTable: boolean;
   /** What a reference is filled in with, or null where nothing answers it. */
   referenceValue(site: ReferenceSite): string | null;
+  /**
+   * A text with the speaker's references filled in and every other one left as typed, which tells
+   * whether a reference of theirs aims the line at the targets, as sending it does; the text as
+   * typed where this is not told.
+   */
+  speakerFilled?(text: string): string;
   /** The speaker's portraits, by label; an identifier is empty where its picture is missing. */
   portraits(): readonly ImageNameEntry[];
   /** Whether a cut-in of that name starts from chat. */
@@ -187,8 +193,11 @@ function lintMessage(
   context: ChatLintContext,
   found: ChatDiagnostic[]
 ): void {
-  const targeting = textTargetsCharacter(text);
+  const speakerFilled = (typed: string) => context.speakerFilled?.(typed) ?? typed;
+  const targeting = textTargetsCharacter(text) || textTargetsCharacter(speakerFilled(text));
   const noTarget = targeting && context.targets.length < 1;
+  const aimsThrough = (site: ReferenceSite) =>
+    textTargetsCharacter(speakerFilled(text.slice(site.from - message.from, site.to - message.from)));
   const later = context.sentLater === true;
   const add = (span: TextRange, severity: ChatDiagnosticSeverity, code: ChatLintCode, extra = {}) =>
     found.push({ from: span.from, to: span.to, severity, code, ...extra });
@@ -204,7 +213,7 @@ function lintMessage(
         if (!(later && noTarget)) lintRoll(text, message, span, context, add);
         break;
       case 'reference':
-        if (span.site.targeted && noTarget) {
+        if (noTarget && (span.site.targeted || aimsThrough(span.site))) {
           if (!later) add(span, 'error', 'target.none');
         } else if (!span.site.targeted && !context.speaker && !targeting && context.path === 'chatWindow')
           add(span, 'warning', 'ref.noSpeaker');
