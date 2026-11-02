@@ -152,6 +152,7 @@ import { BackdropDirective } from '@axe/ui/directives/backdrop.directive';
 import { ReloadNoticeDirective } from '@axe/ui/directives/reload-notice.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { FloorPlaneDirective } from '@axe/ui/tabletop/floor-plane.directive';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { translateZCss, Z_OFFSET_BACKGROUND_LAYERS_PX, Z_OFFSET_FOREGROUND_LAYERS_PX } from '@axe/ui/tabletop/z-offset';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -204,6 +205,7 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
   providers: [GameTableGestureService],
   imports: [
     BackdropDirective,
+    FloorPlaneDirective,
     HudPlaceDirective,
     NgClass,
     NgTemplateOutlet,

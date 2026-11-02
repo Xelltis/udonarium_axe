@@ -1,3 +1,11 @@
+<!-- The marks drawn on the floor: laid in the page's 3D, or on the screen over a canvas in perspective. -->
+<ng-template #floorMarks>
+  <table-zone-overlay class="contents"></table-zone-overlay>
+  <table-free-path-overlay class="contents"></table-free-path-overlay>
+  <table-interrupt-overlay class="contents"></table-interrupt-overlay>
+  <table-target-overlay class="contents"></table-target-overlay>
+  <replay-route-overlay class="contents"></replay-route-overlay>
+</ng-template>
 <!--
   One run of drifting pictures. The wrapper wears the same shape as the board, so a hex table
   keeps its outline, and it carries the depth for the whole run: hiding what overflows flattens
@@ -389,19 +397,20 @@
       <table-move-cost-overlay class="contents"></table-move-cost-overlay>
       <table-trigger-overlay class="contents"></table-trigger-overlay>
       <table-move-range-overlay class="contents"></table-move-range-overlay>
-      <table-zone-overlay class="contents"></table-zone-overlay>
-      <table-free-path-overlay class="contents"></table-free-path-overlay>
-      <table-interrupt-overlay class="contents"></table-interrupt-overlay>
+      @if (!table3d.drawsOnCanvas()) {
+        <ng-container [ngTemplateOutlet]="floorMarks"></ng-container>
+      }
       <table-altitude-guide-overlay class="contents"></table-altitude-guide-overlay>
-      <table-target-overlay class="contents"></table-target-overlay>
       <table-effect-overlay class="contents"></table-effect-overlay>
       <effect-target-overlay class="contents"></effect-target-overlay>
-      <replay-route-overlay class="contents"></replay-route-overlay>
     </div>
   </div>
   @if (table3d.drawsOnCanvas()) {
     <!-- The pieces over a table drawn on a canvas: flat on the screen, each where the canvas draws it. -->
     <div class="pointer-events-none absolute inset-0 isolate overflow-hidden" data-testid="table-hud">
+      <div class="pointer-events-none" data-testid="table-floor-plane" appFloorPlane>
+        <ng-container [ngTemplateOutlet]="floorMarks"></ng-container>
+      </div>
       @if (table3d.drawsOnCanvas()) {
         @for (terrain of terrainsOverCanvas(); track terrain.identifier) {
           <terrain class="block" [terrain]="terrain" [appHudPlace]="{ owner: terrain.identifier }"></terrain>
