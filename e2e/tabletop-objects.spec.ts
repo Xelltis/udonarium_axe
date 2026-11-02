@@ -1,6 +1,8 @@
 import { expect, Page, test } from '@playwright/test';
 
+import { closePanels } from './dungeon-helpers';
 import { openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
+import { centreOf, pedestal, piece, settle } from './see-through-helpers';
 
 async function createObject(page: Page, menuName: string, selector: string) {
   const menu = await openTableContextMenu(page);
@@ -105,5 +107,32 @@ test.describe('terrain', () => {
     await expect(page.locator('context-menu').locator('li').first()).toBeVisible({ timeout: 5000 });
     await page.locator('context-menu').getByText('傾斜').hover();
     await expect(page.locator('context-menu').getByText('壁を非表示')).toBeVisible({ timeout: 5000 });
+  });
+});
+
+test.describe('pieces under the pointer', () => {
+  test('lists the terrain under a character in the character menu', async ({ page }) => {
+    await waitAppReady(page);
+    await closePanels(page);
+    await createObject(page, '地形を作成', 'terrain');
+    const layer = (await page.locator('#app-table-layer').boundingBox())!;
+    const terrain = { x: layer.x + 900, y: layer.y + 250 };
+    const monster = piece(page, 'キャラクターB');
+    await settle(monster);
+    const from = await centreOf(pedestal(monster));
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move((from.x + terrain.x) / 2, (from.y + terrain.y) / 2, { steps: 6 });
+    await page.mouse.move(terrain.x, terrain.y, { steps: 8 });
+    await page.mouse.up();
+    await settle(monster);
+
+    const at = await centreOf(pedestal(monster));
+    await page.mouse.click(at.x, at.y, { button: 'right' });
+    const menu = page.locator('context-menu');
+    const below = menu.getByText(/^重なっているオブジェクト \(\d+\)$/);
+    await expect(below).toBeVisible({ timeout: 5000 });
+    await below.hover();
+    await expect(menu.getByText(/^地形/).first()).toBeVisible({ timeout: 5000 });
   });
 });

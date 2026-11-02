@@ -1,5 +1,7 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 
@@ -40,6 +42,7 @@ export function footprintOf(
 })
 export class TabletopOverlapService {
   private readonly pointerDeviceService = inject(PointerDeviceService);
+  private readonly injector = inject(Injector);
   private readonly registry = new Map<string, TabletopOverlapRegistryEntry>();
   private readonly hitSources = new Set<OverlapHitSource>();
 
@@ -94,10 +97,18 @@ export class TabletopOverlapService {
   /**
    * The registered pieces that lie under a point, in registration order rather than stacking
    * order, and after them those drawn without an element of their own. Empty for a non-finite
-   * point.
+   * point. On a table drawn on a canvas they are the pieces the line of sight through the point
+   * meets, nearest first, as the canvas draws them.
    */
   findAt(x: number, y: number): TabletopObject[] {
     if (!Number.isFinite(x) || !Number.isFinite(y)) return [];
+    // Looked up when asked rather than when made: what picks things up reads, through the table,
+    // services that look back to this one.
+    if (this.injector.get(Table3dService).drawsOnCanvas()) {
+      const met = this.injector.get(TablePickService).allAt(x, y);
+      const objects = met.map((hit) => this.registry.get(hit.target.id)?.object);
+      return objects.filter((object, at): object is TabletopObject => !!object && objects.indexOf(object) === at);
+    }
 
     const hits = document.elementsFromPoint(x, y);
     if (hits.length === 0) return [];

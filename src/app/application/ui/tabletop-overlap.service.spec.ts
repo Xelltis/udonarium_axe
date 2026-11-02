@@ -1,8 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { footprintOf, OverlapHitSource, TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
+import { PickHit } from '@axe/domain/tabletop/pick/pick-index';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 function makeObject(identifier: string): TabletopObject {
   return { identifier, aliasName: 'character', name: identifier } as unknown as TabletopObject;
@@ -31,7 +35,7 @@ describe('TabletopOverlapService', () => {
     if (addedElementsFromPoint) {
       (document as unknown as { elementsFromPoint: (x: number, y: number) => Element[] }).elementsFromPoint = () => [];
     }
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({ providers: TEST_PROVIDERS });
     service = TestBed.inject(TabletopOverlapService);
   });
 
@@ -41,6 +45,25 @@ describe('TabletopOverlapService', () => {
     vi.restoreAllMocks();
     // The page outlives this file: the stand-in would answer every spec after this one in the worker.
     if (addedElementsFromPoint) delete (document as { elementsFromPoint?: unknown }).elementsFromPoint;
+  });
+
+  it('lists what the line of sight through a point meets, nearest first, on a table drawn on a canvas', () => {
+    const near = makeObject('near');
+    const far = makeObject('far');
+    service.register(far, makeElement({ x: 0, y: 0, w: 10, h: 10 }));
+    service.register(near, makeElement({ x: 0, y: 0, w: 10, h: 10 }));
+    TestBed.inject(Table3dService).renderer.set('three');
+    const hit = (id: string) => ({ target: { id } }) as unknown as PickHit;
+    vi.spyOn(TestBed.inject(TablePickService), 'allAt').mockReturnValue([
+      hit('near'),
+      hit('near'),
+      hit('far'),
+      hit('gone'),
+    ]);
+    const elementsFromPoint = vi.spyOn(document, 'elementsFromPoint');
+
+    expect(service.findAt(5, 5)).toEqual([near, far]);
+    expect(elementsFromPoint).not.toHaveBeenCalled();
   });
 
   it('returns nothing without looking when the coordinates are not numbers', () => {
