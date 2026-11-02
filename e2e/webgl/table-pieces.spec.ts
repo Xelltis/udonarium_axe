@@ -116,6 +116,13 @@ async function createNote(page: Page) {
   await expect(page.locator('text-note')).toHaveCount(before + 1, { timeout: 10000 });
 }
 
+async function createMask(page: Page) {
+  const before = await page.locator('game-table-mask').count();
+  const menu = await openTableContextMenu(page);
+  await (await revealMenuEntry(page, menu, 'マップマスクを作成')).click();
+  await expect(page.locator('game-table-mask')).toHaveCount(before + 1, { timeout: 10000 });
+}
+
 /**
  * The kinds of piece drawn on the canvas: what is set out before one is made, how it is made, how
  * many shapes it is drawn with and what its menu holds.
@@ -134,6 +141,7 @@ const PIECES: readonly {
   // A deck stands in 30 layers under its plate and its top card.
   { name: 'deck', tag: 'card-stack', create: createDeck, shapes: 32, menuEntry: '１枚引く' },
   { name: 'note', tag: 'text-note', create: createNote, shapes: 1, menuEntry: 'メモを編集' },
+  { name: 'mask', tag: 'game-table-mask', create: createMask, shapes: 1, menuEntry: 'スクラッチ開始' },
 ];
 
 /** Makes a piece and waits until the canvas draws it and its animations are over, and answers its identifier. */
@@ -204,6 +212,7 @@ test.describe('pieces drawn on a canvas', () => {
     [PIECES[2], 'img'],
     [PIECES[3], 'img'],
     [PIECES[4], '.rounded-b-ui-sm'],
+    [PIECES[5], '[data-part="cover"]'],
   ] as const) {
     test(`lay a ${piece.name}’s picture where the page lays it out`, async ({ page }) => {
       await piece.prepare?.(page);

@@ -22,6 +22,7 @@ const PASSING_ON_CANVAS = [
   /speech-bubble-note-format\.spec\.ts/,
   /tabletop-altitude\.spec\.ts/,
   /tabletop-objects\.spec\.ts/,
+  /\/tabletop\.spec\.ts/,
 ];
 
 export default defineConfig({
