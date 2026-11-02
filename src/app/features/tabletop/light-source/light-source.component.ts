@@ -13,6 +13,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -36,6 +37,7 @@ import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { makeBillboardTransform } from '@axe/ui/tabletop/billboard-transform';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { translateZCss, Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
@@ -44,7 +46,7 @@ import { translateZCss, Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
   selector: 'light-source',
   templateUrl: './light-source.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MovableDirective, RotableDirective, SelectableDirective, TooltipDirective, SafePipe],
+  imports: [HudPlaceDirective, MovableDirective, RotableDirective, SelectableDirective, TooltipDirective, SafePipe],
   host: {
     '[style.display]': "isHiddenByFog() ? 'none' : null",
     '[attr.data-object-id]': 'lightSource().identifier',
@@ -84,12 +86,15 @@ export class LightSourceComponent {
    * which leaves the mark here clear, still taking the presses where the canvas draws it.
    */
   readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
+  private readonly pieces = inject(TablePiecesService);
   private readonly mark = viewChild<ElementRef<HTMLElement>>('mark');
 
   constructor() {
     setupMovableRotableForPiece(this, {
       target: this.lightSource,
       transformCssOffset: translateZCss(Z_OFFSET_RANGE_PX),
+      placedElsewhere: this.drawsOnCanvas,
+      turnsAbout: () => this.turnPoint(),
     });
     pictureForCanvas({
       identifier: () => this.lightSource().identifier,
@@ -198,6 +203,26 @@ export class LightSourceComponent {
   onMoved() {
     SoundEffect.play(PresetSound.cardPut);
   }
+
+  /** The point a light turns about over a table drawn on a canvas: the middle of its cell, on its face. */
+  readonly turnPoint = computed(() => {
+    const light = this.lightSource();
+    this.objectChange.versionOf(light.identifier)();
+    return {
+      surface: this.pieces.surfaceOf(light),
+      x: light.location.x + this.gridSize / 2,
+      y: light.location.y + this.gridSize / 2,
+      height: light.posZ,
+    };
+  });
+
+  /** Where a cone's handle stands over a table drawn on a canvas: off its point, the way it shines. */
+  readonly grabPoint = computed(() => {
+    const about = this.turnPoint();
+    const turn = (this.lightSource().rotate * Math.PI) / 180;
+    const reach = this.gridSize * 0.9;
+    return { ...about, x: about.x + reach * Math.cos(turn), y: about.y + reach * Math.sin(turn) };
+  });
 
   /** Turns the light to the angle the rotate handle reports, which aims a cone light. */
   onRotated(degree: number) {

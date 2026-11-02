@@ -332,11 +332,13 @@
           </white-board>
         }
       }
-      @for (light of lightSources(); track light.identifier) {
-        <light-source
-          class="absolute will-change-transform backface-visible transform-3d"
-          [lightSource]="light"
-        ></light-source>
+      @if (!table3d.drawsOnCanvas()) {
+        @for (light of lightSources(); track light.identifier) {
+          <light-source
+            class="absolute will-change-transform backface-visible transform-3d"
+            [lightSource]="light"
+          ></light-source>
+        }
       }
       @if (diceSymbolsBySurface().floor.length) {
         <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
@@ -396,6 +398,9 @@
         }
         @for (range of ranges(); track range.identifier) {
           <range class="block" [range]="range" [appHudPlace]="{ owner: range.identifier }"></range>
+        }
+        @for (light of lightSources(); track light.identifier) {
+          <light-source class="block" [lightSource]="light" [appHudPlace]="{ owner: light.identifier }"></light-source>
         }
       }
       @for (mask of tableMasksOverCanvas(); track mask.identifier) {
