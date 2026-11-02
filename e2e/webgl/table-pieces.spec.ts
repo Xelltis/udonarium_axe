@@ -132,6 +132,13 @@ async function createRange(page: Page) {
   await expect(page.locator('range')).toHaveCount(before + 1, { timeout: 10000 });
 }
 
+async function createLight(page: Page) {
+  const before = await page.locator('light-source').count();
+  const menu = await openTableContextMenu(page);
+  await (await revealMenuEntry(page, menu, '光源を作成')).click();
+  await expect(page.locator('light-source')).toHaveCount(before + 1, { timeout: 10000 });
+}
+
 /**
  * The kinds of piece drawn on the canvas: what is set out before one is made, how it is made, how
  * many shapes it is drawn with and what its menu holds.
@@ -143,6 +150,8 @@ const PIECES: readonly {
   create: (page: Page) => Promise<void>;
   shapes: number;
   menuEntry: string;
+  /** Whether it lights the table round it, which changes the screen beyond where it is drawn. */
+  lights?: boolean;
 }[] = [
   { name: 'die', tag: 'dice-symbol', create: createDiceSymbol, shapes: 2, menuEntry: 'ダイス目を設定' },
   { name: 'coin', tag: 'coin', create: createCoin, shapes: 1, menuEntry: 'コインを投げる' },
@@ -152,6 +161,7 @@ const PIECES: readonly {
   { name: 'note', tag: 'text-note', create: createNote, shapes: 1, menuEntry: 'メモを編集' },
   { name: 'mask', tag: 'game-table-mask', create: createMask, shapes: 1, menuEntry: 'スクラッチ開始' },
   { name: 'range', tag: 'range', create: createRange, shapes: 1, menuEntry: '形状変更' },
+  { name: 'light', tag: 'light-source', create: createLight, shapes: 1, menuEntry: '光源設定…', lights: true },
 ];
 
 /** Makes a piece and waits until the canvas draws it and its animations are over, and answers its identifier. */
@@ -224,6 +234,7 @@ test.describe('pieces drawn on a canvas', () => {
     [PIECES[4], '.rounded-b-ui-sm'],
     [PIECES[5], '[data-part="cover"]'],
     [PIECES[6], 'canvas'],
+    [PIECES[7], '[data-part="mark"]'],
   ] as const) {
     test(`lay a ${piece.name}’s picture where the page lays it out`, async ({ page }) => {
       await piece.prepare?.(page);
@@ -275,6 +286,7 @@ test.describe('pieces drawn on a canvas', () => {
 
   for (const piece of PIECES) {
     test(`draw a ${piece.name} where picking finds it, and nothing anywhere else`, async ({ page }) => {
+      test.skip(piece.lights === true, 'a light changes the table round it as well');
       await piece.prepare?.(page);
       await idle(page);
       await grabScreen(page);
