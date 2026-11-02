@@ -49,4 +49,20 @@ describe('the board laid over raised ground', () => {
       expect(x).toBeLessThanOrEqual(50);
     }
   });
+
+  it('colours the points over painted samples, and leaves the mesh unpainted where nothing is', () => {
+    const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT);
+    const paint = new Uint8Array(GROUND_CHUNK_SAMPLE_COUNT * 4);
+    paint.set([0, 0, 15, 0], (1 * GROUND_CHUNK_SAMPLES + 1) * 4);
+    const painted = groundSurfaceOf([{ cx: 0, cy: 0, heights, paint }]);
+
+    expect(painted.isFlat).toBe(false);
+    const mesh = squareGroundMesh({ x: 0, y: 0, width: 100, height: 50 }, painted, GRID);
+    const rock = 1 * 5 + 1;
+    expect([...mesh.paint!.subarray(rock * 4, rock * 4 + 4)].map((value) => Math.round(value * 100) / 100)).toEqual([
+      0.5, 0.5, 0.5, 0.85,
+    ]);
+    expect(mesh.paint![3]).toBe(0);
+    expect(squareGroundMesh({ x: 0, y: 0, width: 100, height: 50 }, hill(), GRID).paint).toBeNull();
+  });
 });

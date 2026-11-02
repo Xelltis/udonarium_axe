@@ -1,3 +1,4 @@
+import { GROUND_PAINT_FULL, GROUND_SAMPLES_PER_CELL } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
 
 /**
@@ -9,6 +10,52 @@ export interface GroundMesh {
   readonly points: Float32Array;
   readonly uvs: Float32Array;
   readonly triangles: Uint32Array;
+  /**
+   * The paint at each point, four to a point: its colour, in sRGB, and how much of it covers the
+   * board's picture there. Null where nothing is painted.
+   */
+  readonly paint: Float32Array | null;
+}
+
+/** The colour each kind of ground is painted in, in sRGB, in the order of `GROUND_PAINT_LAYERS`. */
+const PAINT_COLOURS: readonly (readonly [number, number, number])[] = [
+  [0.36, 0.54, 0.23],
+  [0.48, 0.35, 0.23],
+  [0.5, 0.5, 0.5],
+  [0.85, 0.76, 0.55],
+];
+
+/** How much of the board's picture the fullest paint covers. */
+const PAINT_COVER = 0.85;
+
+/**
+ * The paint at every point of a mesh, read off the sample nearest each, or null where nothing is
+ * painted anywhere.
+ */
+function paintOf(points: Float32Array, ground: GroundSurface, gridSize: number): Float32Array | null {
+  const count = points.length / 3;
+  const paint = new Float32Array(count * 4);
+  let painted = false;
+  for (let point = 0; point < count; point++) {
+    const shares = ground.paintAt(
+      Math.round((points[point * 3] / gridSize) * GROUND_SAMPLES_PER_CELL),
+      Math.round((points[point * 3 + 1] / gridSize) * GROUND_SAMPLES_PER_CELL)
+    );
+    if (!shares) continue;
+    let total = 0;
+    const colour = [0, 0, 0];
+    shares.forEach((share, layer) => {
+      total += share;
+      for (let channel = 0; channel < 3; channel++) colour[channel] += PAINT_COLOURS[layer][channel] * share;
+    });
+    if (total <= 0) continue;
+    painted = true;
+    paint.set(
+      [...colour.map((value) => value / total), Math.min(1, total / GROUND_PAINT_FULL) * PAINT_COVER],
+      point * 4
+    );
+  }
+  return painted ? paint : null;
 }
 
 /** A box of the board, in table pixels. */
@@ -61,7 +108,7 @@ export function squareGroundMesh(box: Box, ground: GroundSurface, gridSize: numb
       written += 6;
     }
   }
-  return { points, uvs, triangles };
+  return { points, uvs, triangles, paint: paintOf(points, ground, gridSize) };
 }
 
 /**
@@ -101,5 +148,11 @@ export function hexGroundMesh(
       }
     }
   }
-  return { points: new Float32Array(points), uvs: new Float32Array(uvs), triangles: new Uint32Array(triangles) };
+  const laid = new Float32Array(points);
+  return {
+    points: laid,
+    uvs: new Float32Array(uvs),
+    triangles: new Uint32Array(triangles),
+    paint: paintOf(laid, ground, gridSize),
+  };
 }

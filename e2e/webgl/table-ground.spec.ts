@@ -89,6 +89,23 @@ test.describe('the ground of a table drawn on a canvas', () => {
     expect(Math.abs(back.y - flat.y), JSON.stringify([flat, back])).toBeLessThan(1);
   });
 
+  test('paints the ground the kind of ground chosen, where the brush is laid', async ({ page }) => {
+    const spot = { x: 640, y: 200 };
+    const clip = { x: spot.x - 6, y: spot.y - 6, width: 12, height: 12 };
+    const bare = await page.screenshot({ clip });
+
+    await page.getByTestId('toolbar-ground-brush').click();
+    await page.getByTestId('ground-brush-paint').click();
+    await page.getByTestId('ground-brush-layer-rock').click();
+    await page.mouse.move(spot.x - 30, spot.y);
+    await page.mouse.down();
+    await page.mouse.move(spot.x + 30, spot.y, { steps: 6 });
+    await page.mouse.up();
+    await idle(page);
+
+    expect(await page.screenshot({ clip })).not.toEqual(bare);
+  });
+
   test('takes presses on the table only while the brush is on', async ({ page }) => {
     await page.getByTestId('toolbar-ground-brush').click();
     await expect(page.getByTestId('ground-brush-band')).toBeVisible();

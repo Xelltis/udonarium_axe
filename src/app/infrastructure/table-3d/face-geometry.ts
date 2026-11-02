@@ -50,7 +50,9 @@ export function boardGeometry(board: TableWorldBoard): BufferGeometry {
  * the board's picture stretched over it as over the flat board.
  */
 export function groundGeometry(ground: GroundMesh): BufferGeometry {
-  return overGround(ground, 0, null);
+  const geometry = overGround(ground, 0, null);
+  if (ground.paint) geometry.setAttribute('color', new Float32BufferAttribute(ground.paint, 4));
+  return geometry;
 }
 
 /**

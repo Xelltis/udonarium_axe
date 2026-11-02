@@ -30,7 +30,7 @@ import type {
   Table3dStats,
 } from '@axe/infrastructure/table-3d/table-3d-port';
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
-import { float, max, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
+import { attribute, float, max, mix, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
 import {
   BufferGeometry,
   Camera,
@@ -315,7 +315,11 @@ class ThreeTableEngine implements Table3dEngine {
     }
     if (!board) return;
     const material = new MeshBasicNodeMaterial({ transparent: true, side: DoubleSide });
-    material.colorNode = boardColour(board.pictureUrl ? this.picture(board.pictureUrl) : null, board.veiled);
+    material.colorNode = boardColour(
+      board.pictureUrl ? this.picture(board.pictureUrl) : null,
+      board.veiled,
+      !!board.ground?.paint
+    );
     this.board = new Mesh(board.ground ? groundGeometry(board.ground) : boardGeometry(board), material);
     this.board.renderOrder = BOARD_ORDER;
     this.scene.add(this.board);
@@ -504,7 +508,7 @@ function colourNode(node: unknown): ReturnType<typeof vec3> {
  * The board's picture as the page draws it, in sRGB: over a little white where nothing is laid
  * under the board, which shows through where the picture is clear, and over what lies behind.
  */
-function boardColour(picture: Texture | null, veiled: boolean) {
+function boardColour(picture: Texture | null, veiled: boolean, painted = false) {
   const veil = float(veiled ? BOARD_VEIL : 0);
   const sampled = picture ? texture(picture) : vec4(0, 0, 0, 0);
   const clear = float(1).sub(sampled.a);
@@ -513,5 +517,9 @@ function boardColour(picture: Texture | null, veiled: boolean) {
     .mul(sampled.a)
     .add(veil.mul(clear))
     .div(max(alpha, float(0.0001)));
-  return vec4(colourNode(sRGBTransferEOTF(shown)), alpha);
+  if (!painted) return vec4(colourNode(sRGBTransferEOTF(shown)), alpha);
+  // The paint is laid over the board in sRGB, as the page would lay one picture over another.
+  const paint = attribute('color', 'vec4');
+  const over = colourNode(mix(shown, paint.rgb, paint.a));
+  return vec4(colourNode(sRGBTransferEOTF(over)), max(alpha, paint.a));
 }

@@ -10,10 +10,15 @@ import {
  * board. Where no chunk is kept the ground is the board itself.
  */
 export interface GroundSurface {
-  /** Whether any chunk raises or sinks the ground anywhere. */
+  /** Whether the ground is the bare board: no chunk raises, sinks or paints it anywhere. */
   readonly isFlat: boolean;
   /** How high the sample a number of half cells across and down from the board's top left stands, in cells. */
   sampleAt(i: number, j: number): number;
+  /**
+   * The shares of paint a sample wears, four of them in the order of `GROUND_PAINT_LAYERS`, each out
+   * of `GROUND_PAINT_FULL`, or null where it wears none.
+   */
+  paintAt(i: number, j: number): Uint8Array | null;
   /**
    * How high the ground stands at a point, in cells across and down from the board's top left. Between
    * samples each square of four is read as two triangles split from its top left to its bottom right
@@ -26,6 +31,7 @@ export interface GroundSurface {
 export const FLAT_GROUND: GroundSurface = {
   isFlat: true,
   sampleAt: () => 0,
+  paintAt: () => null,
   heightAt: () => 0,
 };
 
@@ -37,12 +43,26 @@ function chunkKey(cx: number, cy: number): string {
 /** The ground made of the chunks given; a chunk given twice is read as the last of them. */
 export function groundSurfaceOf(chunks: Iterable<GroundChunkData>): GroundSurface {
   const byKey = new Map<string, Int16Array>();
+  const paintByKey = new Map<string, Uint8Array>();
   let raised = false;
   for (const chunk of chunks) {
     byKey.set(chunkKey(chunk.cx, chunk.cy), chunk.heights);
-    if (!raised) raised = chunk.heights.some((height) => height !== 0);
+    if (chunk.paint) paintByKey.set(chunkKey(chunk.cx, chunk.cy), chunk.paint);
+    else paintByKey.delete(chunkKey(chunk.cx, chunk.cy));
+    if (!raised)
+      raised = chunk.heights.some((height) => height !== 0) || chunk.paint?.some((share) => share > 0) === true;
   }
   if (!raised) return FLAT_GROUND;
+  const paintAt = (i: number, j: number): Uint8Array | null => {
+    if (i < 0 || j < 0) return null;
+    const cx = Math.floor(i / GROUND_CHUNK_SAMPLES);
+    const cy = Math.floor(j / GROUND_CHUNK_SAMPLES);
+    const paint = paintByKey.get(chunkKey(cx, cy));
+    if (!paint) return null;
+    const at = ((j - cy * GROUND_CHUNK_SAMPLES) * GROUND_CHUNK_SAMPLES + (i - cx * GROUND_CHUNK_SAMPLES)) * 4;
+    const shares = paint.subarray(at, at + 4);
+    return shares.some((share) => share > 0) ? shares : null;
+  };
   const sampleAt = (i: number, j: number): number => {
     if (i < 0 || j < 0) return 0;
     const cx = Math.floor(i / GROUND_CHUNK_SAMPLES);
@@ -56,6 +76,7 @@ export function groundSurfaceOf(chunks: Iterable<GroundChunkData>): GroundSurfac
   return {
     isFlat: false,
     sampleAt,
+    paintAt,
     heightAt: (x, y) => heightBetweenSamples(sampleAt, x * GROUND_SAMPLES_PER_CELL, y * GROUND_SAMPLES_PER_CELL),
   };
 }
