@@ -1,4 +1,15 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, effect, ElementRef, inject, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  effect,
+  ElementRef,
+  inject,
+  untracked,
+  viewChild,
+} from '@angular/core';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
+import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { perfCounters, perfTimed } from '@axe/core/util/perf-counters';
@@ -32,6 +43,8 @@ export const VISION_ANIMATION_INTERVAL_MS = 50;
 })
 export class TableVisionOverlayComponent {
   protected readonly visionService = inject(VisionService);
+  protected readonly table3d = inject(Table3dService);
+  private readonly tableVeil = inject(TableVeilService);
   private readonly renderLite = inject(RenderLiteService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly zTransform = translateZCss(Z_OFFSET_DARKNESS_PX);
@@ -119,7 +132,19 @@ export class TableVisionOverlayComponent {
       this.draw(this.now(), null);
       this.syncLoop();
     });
-    this.destroyRef.onDestroy(() => this.stopLoop());
+    // A table drawn on a canvas lays the veil over its own scene, from this canvas kept out of sight.
+    effect(() => {
+      const onCanvas = this.table3d.drawsOnCanvas();
+      const canvas = this.canvasRef()?.nativeElement;
+      untracked(() => {
+        if (onCanvas && canvas && this.plan) this.tableVeil.show(canvas);
+        else this.tableVeil.forget();
+      });
+    });
+    this.destroyRef.onDestroy(() => {
+      this.stopLoop();
+      this.tableVeil.forget();
+    });
   }
 
   /**
@@ -129,6 +154,7 @@ export class TableVisionOverlayComponent {
    * a scene coming back would otherwise be drawn against.
    */
   private forgetScene(): void {
+    this.tableVeil.forget();
     this.plan = null;
     this.drawnLayout = '';
     this.animated = false;
@@ -221,8 +247,9 @@ export class TableVisionOverlayComponent {
   }
 
   private drawNow(timeMs: number, dirty: DirtyRect | null): void {
-    const ctx = this.canvasRef()?.nativeElement.getContext('2d');
-    if (!ctx || !this.plan) return;
+    const canvas = this.canvasRef()?.nativeElement;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx || !this.plan) return;
     drawOverlayPlan(
       ctx,
       this.plan,
@@ -237,6 +264,7 @@ export class TableVisionOverlayComponent {
       this.scale,
       this.scratch
     );
+    if (this.table3d.drawsOnCanvas()) this.tableVeil.show(canvas);
   }
 
   /**

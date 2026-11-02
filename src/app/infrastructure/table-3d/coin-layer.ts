@@ -51,7 +51,12 @@ export class CoinLayer {
   private readonly sides = new Map<string, PaintedSide>();
   private readonly rim = new MeshBasicNodeMaterial({ vertexColors: true, side: DoubleSide });
 
-  constructor(private readonly needsFrame: () => void) {}
+  constructor(
+    private readonly needsFrame: () => void,
+    private readonly dress: (material: MeshBasicNodeMaterial) => void = () => undefined
+  ) {
+    this.dress(this.rim);
+  }
 
   /** Lays out the coins the scene holds now, building again only the ones whose shape or sides changed. */
   set(coins: readonly TableWorldCoin[]): void {
@@ -106,6 +111,7 @@ export class CoinLayer {
       const texture = new CanvasTexture(canvas);
       texture.colorSpace = SRGBColorSpace;
       const material = new MeshBasicNodeMaterial({ map: texture, transparent: true, alphaTest: 0.01 });
+      this.dress(material);
       painted = { texture, material, users: 0 };
       this.sides.set(key, painted);
       if (look.pictureUrl) this.paintPicture(look, radius, canvas, texture);

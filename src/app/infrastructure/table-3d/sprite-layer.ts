@@ -78,7 +78,10 @@ export class SpriteLayer {
   private facingEye: readonly { readonly mesh: Mesh; readonly sprite: TableWorldSprite }[] = [];
   private eye: EyeAxes | null = null;
 
-  constructor(private readonly pictureOf: (url: string) => Texture) {}
+  constructor(
+    private readonly pictureOf: (url: string) => Texture,
+    private readonly dress: (material: MeshBasicNodeMaterial) => void = () => undefined
+  ) {}
 
   /** Lays out the sprites the scene holds now, making only the ones not drawn before. */
   set(sprites: readonly TableWorldSprite[]): void {
@@ -164,6 +167,7 @@ export class SpriteLayer {
     material.map = this.texture(sprite.look, sprite.widthPx, sprite.heightPx);
     if (sprite.look.kind === 'picture') material.colorNode = shown(material.map, sprite.brightness);
     else if (sprite.brightness !== 1) material.colorNode = dimmed(material.map, sprite.brightness);
+    this.dress(material);
     this.materials.set(key, material);
     return material;
   }

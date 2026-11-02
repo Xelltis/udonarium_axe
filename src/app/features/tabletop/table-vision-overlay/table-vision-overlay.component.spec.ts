@@ -1,5 +1,7 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
+import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { PERF_HEX_SURFACE_CELLS, perfCounters } from '@axe/core/util/perf-counters';
 import { GridType } from '@axe/domain/tabletop/game-table';
@@ -7,6 +9,7 @@ import type { OverlayVision, SceneViewer, VisionScene } from '@axe/domain/tablet
 import { TableVisionOverlayComponent } from '@axe/features/tabletop/table-vision-overlay/table-vision-overlay.component';
 import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
 import { contextThatTakesAnything } from '@axe/testing/fake-canvas-context';
+import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 function hexScene(partial: Partial<VisionScene> = {}): VisionScene {
@@ -42,7 +45,7 @@ describe('TableVisionOverlayComponent on a hex table', () => {
     scene.set(null);
     TestBed.configureTestingModule({
       imports: [TableVisionOverlayComponent],
-      providers: [{ provide: VisionService, useValue: { scene, viewer, overlayVision } }],
+      providers: [...TEST_PROVIDERS, { provide: VisionService, useValue: { scene, viewer, overlayVision } }],
     });
     fixture = TestBed.createComponent(TableVisionOverlayComponent);
     fixture.detectChanges();
@@ -93,5 +96,30 @@ describe('TableVisionOverlayComponent on a hex table', () => {
     await show(hexScene({ widthPx: 600 }));
 
     expect(perfCounters.drain().get(PERF_HEX_SURFACE_CELLS)).toBe(2);
+  });
+
+  it('keeps its canvas out of sight on a table drawn on a canvas, and hands it over as the veil each time it draws', async () => {
+    const veil = TestBed.inject(TableVeilService);
+    await show(hexScene());
+    const canvas = (fixture.nativeElement as HTMLElement).querySelector('canvas')!;
+    expect(canvas.classList.contains('invisible')).toBe(false);
+    expect(veil.veil()).toBeNull();
+
+    TestBed.inject(Table3dService).choose('three');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const first = veil.veil()?.revision ?? 0;
+    await show(hexScene({ darknessLevel: 0.5 }));
+
+    expect(canvas.classList.contains('invisible')).toBe(true);
+    expect(veil.veil()?.canvas).toBe(canvas);
+    expect(veil.veil()!.revision).toBeGreaterThan(first);
+    expect(veil.veil()!.box.width).toBeGreaterThan(0);
+
+    TestBed.inject(Table3dService).choose('css');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(veil.veil()).toBeNull();
   });
 });

@@ -28,7 +28,9 @@ import type {
   Table3dFloorCanvas,
   Table3dGrid,
   Table3dStats,
+  Table3dVeil,
 } from '@axe/infrastructure/table-3d/table-3d-port';
+import { SceneVeil } from '@axe/infrastructure/table-3d/veil';
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
 import { attribute, float, max, mix, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
 import {
@@ -137,12 +139,19 @@ class ThreeTableEngine implements Table3dEngine {
   private topsGrid: Mesh | null = null;
   private laidWalls: readonly TableWorldWall[] | null = null;
   private laidCaps: readonly TableWorldCap[] | null = null;
-  private readonly sprites = new SpriteLayer((url) => this.spritePicture(url));
+  private readonly veil = new SceneVeil();
+  private readonly sprites = new SpriteLayer(
+    (url) => this.spritePicture(url),
+    (material) => this.veil.cover(material)
+  );
   private readonly floorCanvases = new FloorCanvasLayer();
-  private readonly coins = new CoinLayer(() => {
-    this.changed = true;
-    this.needsFrame();
-  });
+  private readonly coins = new CoinLayer(
+    () => {
+      this.changed = true;
+      this.needsFrame();
+    },
+    (material) => this.veil.cover(material)
+  );
 
   constructor(
     private readonly renderer: WebGPURenderer,
@@ -172,6 +181,7 @@ class ThreeTableEngine implements Table3dEngine {
       sprites: this.sprites.group.children.length,
       coins: this.coins.group.children.length,
       floorCanvases: this.floorCanvases.group.children.length,
+      veilRevision: this.veil.revision,
     };
   }
 
@@ -260,6 +270,10 @@ class ThreeTableEngine implements Table3dEngine {
     this.changed = true;
   }
 
+  setVeil(veil: Table3dVeil | null): void {
+    if (this.veil.set(veil)) this.changed = true;
+  }
+
   resize(width: number, height: number, pixelRatio: number): void {
     this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(width, height, false);
@@ -277,6 +291,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.sprites.dispose();
     this.coins.dispose();
     this.floorCanvases.dispose();
+    this.veil.dispose();
     disposeObject(this.scene);
     for (const picture of this.loaded.values()) picture.dispose();
     for (const material of this.looks.values()) material.dispose();
@@ -321,6 +336,7 @@ class ThreeTableEngine implements Table3dEngine {
       board.veiled,
       !!board.ground?.paint
     );
+    this.veil.cover(material);
     this.board = new Mesh(board.ground ? groundGeometry(board.ground) : boardGeometry(board), material);
     this.board.renderOrder = BOARD_ORDER;
     this.scene.add(this.board);
@@ -359,6 +375,7 @@ class ThreeTableEngine implements Table3dEngine {
       side: DoubleSide,
       ...PULLED_FORWARD,
     });
+    this.veil.cover(material);
     this.grid = new Mesh(geometry, material);
     this.grid.renderOrder = 1;
     this.scene.add(this.grid);
@@ -437,6 +454,7 @@ class ThreeTableEngine implements Table3dEngine {
       side: DoubleSide,
       ...PULLED_FORWARD,
     });
+    this.veil.cover(material);
     this.topsGrid = new Mesh(griddedTops(this.gridded, grid.box, GRID_LIFT_PX), material);
     this.topsGrid.renderOrder = 1;
     this.topsGrid.visible = grid.opacity > 0;
@@ -444,17 +462,18 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   private faceMaterial(face: { pictureUrl: string; tilePx: number; glass: boolean }): MeshBasicNodeMaterial {
-    if (face.glass || !face.pictureUrl) {
-      return new MeshBasicNodeMaterial({
-        color: GLASS_COLOUR,
-        transparent: true,
-        opacity: GLASS_OPACITY,
-        depthWrite: false,
-        side: DoubleSide,
-      });
-    }
-    const material = new MeshBasicNodeMaterial({ side: DoubleSide, transparent: true, alphaTest: 0.01 });
-    material.map = this.sharedPicture(face.pictureUrl, face.tilePx > 0);
+    const material =
+      face.glass || !face.pictureUrl
+        ? new MeshBasicNodeMaterial({
+            color: GLASS_COLOUR,
+            transparent: true,
+            opacity: GLASS_OPACITY,
+            depthWrite: false,
+            side: DoubleSide,
+          })
+        : new MeshBasicNodeMaterial({ side: DoubleSide, transparent: true, alphaTest: 0.01 });
+    if (!face.glass && face.pictureUrl) material.map = this.sharedPicture(face.pictureUrl, face.tilePx > 0);
+    this.veil.cover(material);
     return material;
   }
 

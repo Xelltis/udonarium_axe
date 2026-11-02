@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { ImageService } from '@axe/application/storage/image.service';
 import { TABLE_3D_ENGINES, TABLE_GRAPHICS, Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
@@ -14,6 +15,7 @@ import type {
   Table3dEngineOptions,
   Table3dFloorCanvas,
   Table3dGrid,
+  Table3dVeil,
 } from '@axe/infrastructure/table-3d/table-3d-port';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -25,6 +27,7 @@ class FakeEngine implements Table3dEngine {
   cameras: Table3dCamera[] = [];
   sizes: [number, number][] = [];
   grids: (Table3dGrid | null)[] = [];
+  veils: (Table3dVeil | null)[] = [];
   drawn = 0;
   disposed = false;
   lose: () => void = () => undefined;
@@ -53,6 +56,11 @@ class FakeEngine implements Table3dEngine {
 
   setFloorCanvases(canvases: readonly Table3dFloorCanvas[]): void {
     this.floorCanvases = canvases;
+  }
+
+  setVeil(veil: Table3dVeil | null): void {
+    this.veils.push(veil);
+    this.changed = true;
   }
 
   resize(width: number, height: number): void {
@@ -87,7 +95,15 @@ class FakeEngine implements Table3dEngine {
   }
 
   stats() {
-    return { chunks: 0, boardGridTriangles: 0, topsGridTriangles: 0, sprites: 0, coins: 0, floorCanvases: 0 };
+    return {
+      chunks: 0,
+      boardGridTriangles: 0,
+      topsGridTriangles: 0,
+      sprites: 0,
+      coins: 0,
+      floorCanvases: 0,
+      veilRevision: 0,
+    };
   }
 }
 
@@ -323,5 +339,33 @@ describe('Table3dService', () => {
 
     expect(engine.grids.at(-1)).toBe(grid);
     expect(engine.drawn).toBe(2);
+  });
+
+  it('hands the engine the veil the page draws each time it is drawn again, and draws it on the next frame', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    TestBed.tick();
+    await scene.whenIdle();
+    const engine = engines[0];
+    const drawn = engine.drawn;
+    const canvas = document.createElement('canvas');
+    Object.assign(canvas.style, { left: '-40px', top: '-40px', width: '1080px', height: '830px' });
+    const veil = TestBed.inject(TableVeilService);
+
+    veil.show(canvas);
+    TestBed.tick();
+    await scene.whenIdle();
+    veil.show(canvas);
+    TestBed.tick();
+    await scene.whenIdle();
+
+    expect(engine.veils.at(-1)).toEqual({ canvas, box: { x: -40, y: -40, width: 1080, height: 830 }, revision: 2 });
+    expect(engine.drawn).toBe(drawn + 2);
+
+    veil.forget();
+    TestBed.tick();
+
+    expect(engine.veils.at(-1)).toBeNull();
   });
 });

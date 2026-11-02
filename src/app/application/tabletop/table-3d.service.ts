@@ -15,6 +15,7 @@ import { FloorCanvasesService } from '@axe/application/tabletop/floor-canvases.s
 import { GroundService } from '@axe/application/tabletop/ground.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
+import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
@@ -75,6 +76,7 @@ export class Table3dService {
   private readonly vision = inject(VisionService);
   private readonly pieces = inject(TablePiecesService);
   private readonly floorCanvases = inject(FloorCanvasesService);
+  private readonly tableVeil = inject(TableVeilService);
   private readonly ground = inject(GroundService);
   private readonly loadEngines = inject(TABLE_3D_ENGINES);
   private readonly askGraphics = inject(TABLE_GRAPHICS);
@@ -263,6 +265,13 @@ export class Table3dService {
       effect(
         () => {
           engine.setFloorCanvases(this.floorCanvases.all());
+          this.drawSoon(engine);
+        },
+        { injector: this.injector }
+      ),
+      effect(
+        () => {
+          engine.setVeil(this.tableVeil.veil());
           this.drawSoon(engine);
         },
         { injector: this.injector }

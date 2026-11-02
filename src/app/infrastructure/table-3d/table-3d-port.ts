@@ -44,6 +44,18 @@ export interface Table3dFloorCanvas {
   readonly revision: number;
 }
 
+/**
+ * The veil the page draws over what this seat cannot see well, the darkness and the fog and what is
+ * only remembered, on a canvas of its own: where that canvas lies on the board, in table pixels, and a
+ * count that goes up each time the page draws on it again. It is laid over everything standing in the
+ * scene as the page lays it over its own drawing, in sRGB.
+ */
+export interface Table3dVeil {
+  readonly canvas: HTMLCanvasElement;
+  readonly box: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  readonly revision: number;
+}
+
 /** What the engine holds, counted. */
 export interface Table3dStats {
   readonly chunks: number;
@@ -56,6 +68,8 @@ export interface Table3dStats {
   readonly coins: number;
   /** The canvases the page paints on laid over the board. */
   readonly floorCanvases: number;
+  /** How many times the veil has been laid anew, 0 while there is none. */
+  readonly veilRevision: number;
 }
 
 /** What draws the table on a canvas. It draws only when something it was told has changed. */
@@ -67,6 +81,8 @@ export interface Table3dEngine {
   setGrid(grid: Table3dGrid | null): void;
   /** Lays the canvases the page paints on over the board, as they are now. */
   setFloorCanvases(canvases: readonly Table3dFloorCanvas[]): void;
+  /** Lays the veil over the scene, or takes it away with null. */
+  setVeil(veil: Table3dVeil | null): void;
   /** Sizes the canvas's drawing to the box it covers, in CSS pixels, at the screen's pixel ratio. */
   resize(width: number, height: number, pixelRatio: number): void;
   /** Draws the scene when anything changed since it was last drawn, and answers whether it drew. */
