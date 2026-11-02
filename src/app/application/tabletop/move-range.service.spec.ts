@@ -938,6 +938,22 @@ describe('MoveRangeService and the ground an enemy holds', () => {
       expect(service.canStepTo(piece, at(6, 5))).toBe(true);
     });
 
+    it('keeps a piece from stepping up a cliff of the ground it could walk round to, range or no range', () => {
+      const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT);
+      for (let j = 0; j < GROUND_CHUNK_SAMPLES; j++) {
+        for (let i = 6 * 2; i < GROUND_CHUNK_SAMPLES; i++) heights[j * GROUND_CHUNK_SAMPLES + i] = j < 9 * 2 ? 128 : 64;
+      }
+      ensureGroundFieldOn(table).writeChunk({ cx: 0, cy: 0, heights, paint: null });
+      const piece = pieceAt(5, 10, 9);
+
+      expect(service.canStepTo(piece, at(6, 10))).toBe(true);
+      piece.location = { name: 'table', x: 5 * GRID, y: 5 * GRID };
+      expect(service.canStepTo(piece, at(6, 5))).toBe(false);
+
+      table.moveRangeEnabled = false;
+      expect(service.canStepTo(piece, at(6, 5))).toBe(false);
+    });
+
     it('lets a piece whose sheet says nothing about walking take a step all the same', () => {
       const piece = pieceAt(5, 5, 2);
       DataElement.findElementByReference(piece.rootDataElement!, '移動')!.destroy();

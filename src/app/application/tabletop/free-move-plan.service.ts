@@ -2,6 +2,7 @@ import { computed, effect, inject, Injectable, signal, untracked } from '@angula
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
+import { GroundService } from '@axe/application/tabletop/ground.service';
 import { InterruptOutcome, MoveInterruptService } from '@axe/application/tabletop/move-interrupt.service';
 import {
   kindToChangeTo,
@@ -65,6 +66,7 @@ interface FreeTerms {
   readonly start: MovePoint;
   readonly blocks: readonly MoveBlock[];
   readonly zones: ZoneMoveLimits | null;
+  readonly ground: LegLimits['ground'];
 }
 
 /**
@@ -88,6 +90,7 @@ export class FreeMovePlanService {
   private readonly ride = inject(RideService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
+  private readonly ground = inject(GroundService);
 
   private readonly held = signal<FreePlan | null>(null);
   private readonly opened = signal(0);
@@ -342,6 +345,7 @@ export class FreeMovePlanService {
       shut: terms.zones?.shut ?? [],
       stops: terms.zones?.stops ?? [],
       escapes: terms.zones?.escapes ?? [],
+      ground: terms.ground,
     };
   }
 
@@ -357,11 +361,13 @@ export class FreeMovePlanService {
     if (budgetPx <= 0) return null;
     const zones = this.zones.moveLimitsFor(character, kind.name);
     if (zones?.noReach) return null;
+    const surface = this.ground.surface();
     return {
       budgetPx,
       start: zones?.startPoint ?? pieceCentreOf(character, table.gridSize),
       blocks: terrainMoveBlocks(table.terrains, table.gridSize, character.size),
       zones,
+      ground: surface.isFlat ? null : { surface, gridSize: table.gridSize },
     };
   }
 

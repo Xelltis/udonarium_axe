@@ -1,5 +1,7 @@
+import { GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
 import { terrainBlocksMovement } from '@axe/domain/tabletop/move/blocked-cells';
 import { clearRunAlong, MoveBlock, MovePoint, turnedMoveBlock } from '@axe/domain/tabletop/move/blocked-path';
+import { isWalkableStep } from '@axe/domain/tabletop/move/landing-height';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { zoneCovers, ZoneShape } from '@axe/domain/tabletop/zone/zone-geometry';
 
@@ -8,6 +10,9 @@ import { zoneCovers, ZoneShape } from '@axe/domain/tabletop/zone/zone-geometry';
  * reads as across the edge rather than a rounding short of it.
  */
 const ACROSS_EDGE_PX = 0.5;
+
+/** How many times a cell of the way the raised ground is read, walking a leg over it. */
+const GROUND_READS_PER_CELL = 4;
 
 /** How long a way of straight legs is, in pixels. */
 export function pathLength(points: readonly MovePoint[]): number {
@@ -148,6 +153,8 @@ export interface LegLimits {
   readonly stops: readonly ZoneShape[];
   /** Zones that end the move as the piece walks out of them. */
   readonly escapes: readonly ZoneShape[];
+  /** The raised ground the leg walks over, and how wide a cell is; none where it is flat. */
+  readonly ground?: { readonly surface: GroundSurface; readonly gridSize: number } | null;
 }
 
 /** Where a leg ends, and whether it ended the move there. */
@@ -171,6 +178,7 @@ export function walkLeg(from: MovePoint, to: MovePoint, limits: LegLimits): Walk
   const gap = limits.gapPx / length;
   let along = Math.min(1, limits.budgetPx / length);
   along = Math.min(along, clearRunAlong(from, to, limits.blocks, limits.gapPx));
+  if (limits.ground) along = Math.min(along, groundRunAlong(from, to, limits.ground.surface, limits.ground.gridSize));
   for (const shape of limits.shut) {
     const enter = entryAlong(from, to, shape);
     if (enter !== null) along = Math.min(along, Math.max(0, enter - gap));
@@ -188,6 +196,28 @@ export function walkLeg(from: MovePoint, to: MovePoint, limits: LegLimits): Walk
   for (const shape of limits.escapes) ending(exitAlong(from, to, shape));
   const end = pointAlong(from, to, along);
   return { end, length: length * along, stopped };
+}
+
+/**
+ * How far along the way from one point to another a piece walks before the raised ground climbs or
+ * drops too far to walk: more than a cell over the last cell of the way, as a step between cells
+ * is measured on a grid. Answers a fraction of the way, ending on the last point read that could be
+ * stood on; 1 where the way is clear.
+ */
+export function groundRunAlong(from: MovePoint, to: MovePoint, ground: GroundSurface, gridSize: number): number {
+  const length = Math.hypot(to.x - from.x, to.y - from.y);
+  if (ground.isFlat || !(gridSize > 0) || length <= 0) return 1;
+  const heightAt = (point: MovePoint) => ground.heightAt(point.x / gridSize, point.y / gridSize) * gridSize;
+  const stepPx = gridSize / GROUND_READS_PER_CELL;
+  const count = Math.ceil(length / stepPx);
+  const heights = [heightAt(from)];
+  for (let index = 1; index <= count; index++) {
+    const here = heightAt(pointAlong(from, to, Math.min(1, (index * stepPx) / length)));
+    const back = heights[Math.max(0, index - GROUND_READS_PER_CELL)];
+    if (!isWalkableStep(here, back, gridSize)) return ((index - 1) * stepPx) / length;
+    heights.push(here);
+  }
+  return 1;
 }
 
 /**

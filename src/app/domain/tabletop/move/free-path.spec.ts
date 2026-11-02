@@ -1,3 +1,5 @@
+import { GROUND_CHUNK_SAMPLE_COUNT, GROUND_CHUNK_SAMPLES } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
 import { entryAlong, exitAlong, LegLimits, pathLength, stepsAlong, walkLeg } from '@axe/domain/tabletop/move/free-path';
 import { zoneCovers, ZoneShape } from '@axe/domain/tabletop/zone/zone-geometry';
 
@@ -117,6 +119,41 @@ describe('free paths', () => {
 
       expect(leg.end).toEqual({ x: 50, y: 0 });
       expect(leg.stopped).toBe(false);
+    });
+  });
+
+  describe('walking a leg over raised ground', () => {
+    const GRID = 50;
+
+    /** Ground raised by a number of cells from three cells across on, all at once or over a few cells. */
+    function raisedFrom3(cells: number, overCells = 0) {
+      const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT);
+      for (let j = 0; j < GROUND_CHUNK_SAMPLES; j++) {
+        for (let i = 0; i < GROUND_CHUNK_SAMPLES; i++) {
+          const up = overCells > 0 ? Math.min(1, Math.max(0, (i / 2 - 3) / overCells)) : i >= 6 ? 1 : 0;
+          heights[j * GROUND_CHUNK_SAMPLES + i] = Math.round(up * cells * 64);
+        }
+      }
+      return { surface: groundSurfaceOf([{ cx: 0, cy: 0, heights, paint: null }]), gridSize: GRID };
+    }
+
+    it('stops at the foot of a cliff higher than a cell', () => {
+      const leg = walkLeg({ x: 0, y: 25 }, { x: 300, y: 25 }, { ...OPEN, ground: raisedFrom3(2) });
+
+      expect(leg.end.x).toBeGreaterThan(100);
+      expect(leg.end.x).toBeLessThan(150);
+    });
+
+    it('walks up a rise of a cell, and up a slope that climbs less than a cell a cell', () => {
+      expect(walkLeg({ x: 0, y: 25 }, { x: 300, y: 25 }, { ...OPEN, ground: raisedFrom3(1) }).end.x).toBe(300);
+      expect(walkLeg({ x: 0, y: 25 }, { x: 400, y: 25 }, { ...OPEN, ground: raisedFrom3(3, 4) }).end.x).toBe(400);
+    });
+
+    it('stops partway down a slope that drops more than a cell a cell', () => {
+      const leg = walkLeg({ x: 400, y: 25 }, { x: 0, y: 25 }, { ...OPEN, ground: raisedFrom3(4, 2) });
+
+      expect(leg.end.x).toBeGreaterThan(150);
+      expect(leg.end.x).toBeLessThan(250);
     });
   });
 });

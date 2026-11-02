@@ -2,6 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { GroundService } from '@axe/application/tabletop/ground.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
@@ -87,6 +88,7 @@ export class FirstPersonService {
   private readonly movePlan = inject(MovePlannerService);
   private readonly pieceStep = inject(PieceStepService);
   private readonly replay = inject(ReplayPlaybackService);
+  private readonly raisedGround = inject(GroundService);
 
   private readonly worldEpoch = signal(0);
 
@@ -551,6 +553,7 @@ export class FirstPersonService {
         gridSize: table.gridSize,
         terrains: table.terrains,
         others: this.othersOf(piece, table),
+        raised: this.raisedGround.surface(),
       };
       if (!freeStepClear(from, to, ground)) return this.blocked();
       await this.pieceStep.stepToPoint(piece, table, to, true);

@@ -170,8 +170,23 @@ export class MoveRangeService {
     // The cell asked about is one of the table's own; a reach over squares of several cells
     // numbers its squares instead, so it is answered from the table's cells below.
     const terms = squareSpanOf(table) > 1 ? null : this.termsOf(character);
-    if (terms) return cell < terms.cells.count && terms.cells.get(cell);
-    return this.cellsToStandOn(character)?.(cell) ?? false;
+    const open = terms
+      ? cell < terms.cells.count && terms.cells.get(cell)
+      : (this.cellsToStandOn(character)?.(cell) ?? false);
+    return open && this.groundStepsTo(character, table, cell);
+  }
+
+  /**
+   * Whether the raised ground lets a piece step from the cell it stands on onto another, rather than
+   * up or down a cliff: a reach walks round one, so a cell beyond it may be reached and still not be
+   * one step away.
+   */
+  private groundStepsTo(character: GameCharacter, table: GameTable, cell: number): boolean {
+    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+    const heights = this.groundHeightsFor(grid);
+    const start = pieceCellOf(grid, character, table.gridSize);
+    if (!heights || start < 0 || start >= heights.length || cell >= heights.length) return true;
+    return isWalkableStep(heights[cell], heights[start], table.gridSize);
   }
 
   /**
