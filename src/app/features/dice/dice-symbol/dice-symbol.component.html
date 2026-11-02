@@ -14,8 +14,31 @@
     (movable.ondragend)="onMoved()"
   >
     @let id = diceSymbol().identifier;
-    <div data-part="frame" [appHudPlace]="{ owner: id, part: 'frame' }"></div>
-    <div data-part="picture" [appHudPlace]="{ owner: id, part: 'picture' }"></div>
+    <div
+      class="size-full"
+      appRotable
+      [rotable.option]="rotableOption()"
+      [rotable.disable]="mode2dEnabled()"
+      (rotable.ondragstart)="onMove()"
+      (rotable.ondragend)="onMoved()"
+    >
+      @if (!isIconHidden() && !isLock && !mode2dEnabled()) {
+        <div [appHudPlace]="{ owner: id, part: 'frame' }">
+          <div
+            class="rotate-grab absolute -top-5.5 -left-1.5 -z-1 h-[calc(100%+44px)] w-[calc(100%+12px)] cursor-default rounded-[37px] opacity-0 group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
+          >
+            <div
+              class="pointer-events-none box-border size-full rounded-[22px] border-x-12 border-y-28 border-solid border-t-[#999] border-r-[#ccc] border-b-[#ccc] border-l-[#999]"
+            >
+              <div class="material-icons text-ui-muted absolute inset-x-0 bottom-0 m-auto w-6">autorenew</div>
+              <div class="material-icons text-ui-muted absolute inset-x-0 top-0 m-auto w-6">autorenew</div>
+            </div>
+          </div>
+        </div>
+      }
+      <div data-part="frame" [appHudPlace]="{ owner: id, part: 'frame' }"></div>
+      <div data-part="picture" [appHudPlace]="{ owner: id, part: 'picture' }"></div>
+    </div>
     <div
       class="pointer-events-none flex flex-col items-center gap-1 whitespace-nowrap"
       [appHudPlace]="{ owner: id, part: 'picture', place: 'above' }"

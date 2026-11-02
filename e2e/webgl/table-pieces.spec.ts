@@ -332,6 +332,26 @@ test.describe('pieces drawn on a canvas', () => {
     await expect.poll(() => boxesOf(page, id), { timeout: 5000 }).toEqual([frame, picture]);
   });
 
+  test('turn a die by dragging the handle round it', async ({ page }) => {
+    const id = await made(page, PIECES[0]);
+    const [before] = await boxesOf(page, id);
+
+    // The handle runs round the die's frame, and is grabbed just below it, where the die's picture
+    // standing up does not cover it.
+    const middle = { x: before.x + before.width / 2, y: before.y + before.height / 2 };
+    const reach = before.height / 2 + 11;
+    await page.mouse.move(middle.x, middle.y + reach);
+    await page.mouse.down();
+    // An eighth of a turn round the middle, which a square shows by growing its box.
+    for (const step of [1, 2, 3]) {
+      const turn = (step / 3) * (Math.PI / 4);
+      await page.mouse.move(middle.x - Math.sin(turn) * reach, middle.y + Math.cos(turn) * reach, { steps: 4 });
+    }
+    await page.mouse.up();
+
+    await expect.poll(async () => (await boxesOf(page, id))[0].width / before.width).toBeGreaterThan(1.2);
+  });
+
   for (const piece of PIECES) {
     test(`draw a ${piece.name} where picking finds it, and nothing anywhere else`, async ({ page }) => {
       test.skip(piece.lights === true, 'a light changes the table round it as well');

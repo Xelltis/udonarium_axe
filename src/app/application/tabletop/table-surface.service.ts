@@ -69,15 +69,25 @@ export class TableSurfaceService {
   }
 
   /**
-   * Where a point of the page lands on a face, in the face's own axes, or null before the table has
-   * a camera or for a face the line of sight runs along.
+   * Where a point of the page lands on a face, or on the face lifted a height off it, in the face's
+   * own axes; null before the table has a camera or for a face the line of sight runs along.
    */
-  pointOn(surface: string, pageX: number, pageY: number): SurfaceCrossing | null {
+  pointOn(surface: string, pageX: number, pageY: number, height = 0): SurfaceCrossing | null {
     const inverse = this.camera.inverseSceneMatrix();
     const frame = this.frameOf(surface);
     if (!inverse || !frame) return null;
     const ray = tableRayOfPage(inverse, pageX, pageY);
-    return surfaceCrossing(frame, ray.origin, ray.direction);
+    const lifted = height
+      ? {
+          ...frame,
+          origin: {
+            x: frame.origin.x + frame.normal.x * height,
+            y: frame.origin.y + frame.normal.y * height,
+            z: frame.origin.z + frame.normal.z * height,
+          },
+        }
+      : frame;
+    return surfaceCrossing(lifted, ray.origin, ray.direction);
   }
 
   /** Where a point of a face, lifted some way off it, is drawn on the page, or null before the table has a camera. */

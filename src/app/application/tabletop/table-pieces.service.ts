@@ -435,10 +435,7 @@ export class TablePiecesService {
    */
   private placeOf(piece: TabletopObject): DrawnPlace | null {
     const moving = this.transient.placementOf(piece.identifier);
-    const named = moving?.surface ?? (boardSurfaceOf(piece) || surfaceOf(piece));
-    const board = this.objectStore.get(named);
-    if (board instanceof WhiteBoard) this.objectChange.versionOf(board.identifier)();
-    const surface = board instanceof WhiteBoard || this.drawnWalls().has(named) ? named : 'floor';
+    const surface = this.surfaceOf(piece);
     const frame = this.surfaces.frameOf(surface);
     if (!frame) return null;
     return {
@@ -448,6 +445,18 @@ export class TablePiecesService {
       y: moving?.y ?? piece.location.y,
       z: moving?.z ?? piece.posZ,
     };
+  }
+
+  /**
+   * The face a piece is drawn on, as a location names it: the one this seat is moving it on, or the
+   * one it stands on. A piece on a wall the table does not draw, or on a board no longer there, is
+   * drawn on the floor.
+   */
+  surfaceOf(piece: TabletopObject): string {
+    const named = this.transient.placementOf(piece.identifier)?.surface ?? (boardSurfaceOf(piece) || surfaceOf(piece));
+    const board = this.objectStore.get(named);
+    if (board instanceof WhiteBoard) this.objectChange.versionOf(board.identifier)();
+    return board instanceof WhiteBoard || this.drawnWalls().has(named) ? named : 'floor';
   }
 
   /** A colour of the theme on screen, as the page names it, or the colour given where it cannot be read. */

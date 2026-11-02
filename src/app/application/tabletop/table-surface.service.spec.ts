@@ -65,6 +65,18 @@ describe('TableSurfaceService', () => {
     }
   });
 
+  it('brings a point drawn some way off a face back to where it was on the face lifted that far', () => {
+    showTable();
+    const onPage = service.pageOf('floor', 80, 40, 60)!;
+
+    const lifted = service.pointOn('floor', onPage.x, onPage.y, 60)!;
+    const onFloor = service.pointOn('floor', onPage.x, onPage.y)!;
+
+    expect(lifted.localX).toBeCloseTo(80, 6);
+    expect(lifted.localY).toBeCloseTo(40, 6);
+    expect(Math.hypot(onFloor.localX - 80, onFloor.localY - 40)).toBeGreaterThan(10);
+  });
+
   it('has nothing to say before the table has a camera', () => {
     expect(service.pointOn('floor', 100, 100)).toBeNull();
     expect(service.pageOf('floor', 10, 10)).toBeNull();

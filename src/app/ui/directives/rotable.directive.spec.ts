@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
@@ -165,6 +166,22 @@ describe('RotableDirective', () => {
     function guide() {
       return TestBed.inject(RotationGuideService).turn();
     }
+
+    it('turns a piece the screen puts by where the pointer crosses its face at the height of its handles', () => {
+      const pointOn = vi
+        .spyOn(TestBed.inject(TableSurfaceService), 'pointOn')
+        .mockImplementation((surface, x, y) => ({ localX: 100 + x, localY: 200 + y }) as never);
+      const writable = directive as unknown as Record<string, unknown>;
+      writable['turnsAbout'] = () => ({ surface: 'north-wall', x: 100, y: 200, height: 30 });
+      writable['input'] = { ...(writable['input'] as object), pointer: { x: 0, y: 50, z: 0 } };
+      const laidOut = element.style.transform;
+
+      directive.onInputMove(new MouseEvent('mousemove', { cancelable: true }));
+
+      expect(pointOn).toHaveBeenCalledWith('north-wall', 0, 50, 30);
+      expect(directive.rotate).toBeCloseTo(90);
+      expect(element.style.transform).toBe(laidOut);
+    });
 
     it('turns freely without Alt, and says so', () => {
       moveTo(31, false);

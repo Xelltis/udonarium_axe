@@ -3,6 +3,7 @@ import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeEvent, ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { GridType } from '@axe/domain/tabletop/game-table';
@@ -16,10 +17,27 @@ export interface RotableTabletopObject extends TabletopObject {
   rotate: number;
 }
 
+/** Where a piece put on the screen over a table drawn on a canvas turns about. */
+export interface TurnAbout {
+  /** The face it stands on, as a location names it. */
+  readonly surface: string;
+  /** Its middle on that face, in the face's own pixels. */
+  readonly x: number;
+  readonly y: number;
+  /** How far off the face its handles lie, in table pixels. */
+  readonly height: number;
+}
+
 export interface RotableOption {
   readonly tabletopObject?: RotableTabletopObject;
   readonly grabbingSelecter?: string;
   readonly transformCssOffset?: string;
+  /**
+   * For a piece the screen over a canvas puts where it is drawn: where it turns about. It is then
+   * turned by where the pointer crosses its face at the height of its handles, and its element is
+   * left as the screen puts it.
+   */
+  readonly turnsAbout?: () => TurnAbout | null;
 }
 
 @Directive({ selector: '[appRotable]' })
@@ -28,6 +46,7 @@ export class RotableDirective {
   private readonly batchService = inject(BatchService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly coordinateService = inject(CoordinateService);
+  private readonly tableSurfaces = inject(TableSurfaceService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly rotationGuide = inject(RotationGuideService);
@@ -37,6 +56,7 @@ export class RotableDirective {
   private tabletopObject: RotableTabletopObject | null = null;
 
   private transformCssOffset: string = '';
+  private turnsAbout: (() => TurnAbout | null) | null = null;
   private grabbingSelecter: string = '.rotate-grab';
   readonly option = input<RotableOption | undefined>(undefined, { alias: 'rotable.option' });
   readonly isDisable = input(false, { alias: 'rotable.disable' });
@@ -96,6 +116,7 @@ export class RotableDirective {
       if (opt.tabletopObject != null) this.tabletopObject = opt.tabletopObject;
       if (opt.grabbingSelecter != null) this.grabbingSelecter = opt.grabbingSelecter;
       if (opt.transformCssOffset != null) this.transformCssOffset = opt.transformCssOffset;
+      this.turnsAbout = opt.turnsAbout ?? null;
       this.refreshObjectChangeListener();
     });
     effect(() => {
@@ -212,11 +233,12 @@ export class RotableDirective {
     const grabbingElement = this.grabbingElement;
     const parentElement = this.nativeElement.parentElement;
     if (!input || !grabbingElement || !parentElement) return this.cancel();
+    const pointer = this.pointerAround(input.pointer, grabbingElement, parentElement);
+    if (!pointer) return this.cancel();
 
     e.stopPropagation();
     this.onstart.emit(e as PointerEvent);
 
-    const pointer = this.coordinateService.convertLocalToLocal(input.pointer, grabbingElement, parentElement);
     this.rotateOffset = this.calcRotate(pointer, this.rotate);
     this.setAnimatedTransition(false);
   }
@@ -240,7 +262,8 @@ export class RotableDirective {
 
     if (e.cancelable) e.preventDefault();
     e.stopPropagation();
-    const pointer3d = this.coordinateService.convertLocalToLocal(input.pointer, grabbingElement, parentElement);
+    const pointer3d = this.pointerAround(input.pointer, grabbingElement, parentElement);
+    if (!pointer3d) return;
     this.freeAngle = this.calcRotate(pointer3d, this.rotateOffset);
     this.snapping = (e as MouseEvent).altKey === true;
 
@@ -316,11 +339,31 @@ export class RotableDirective {
     this.snapToPolygonal();
   }
 
+  /**
+   * Where the pointer is against the middle the element turns about: on the face the piece stands
+   * on, for a piece the screen puts; in the element's parent, as laid out, for one the page lays out.
+   */
+  private pointerAround(
+    pointer: PointerCoordinate,
+    grabbingElement: HTMLElement,
+    parentElement: HTMLElement
+  ): PointerCoordinate | null {
+    if (!this.turnsAbout) {
+      const local = this.coordinateService.convertLocalToLocal(pointer, grabbingElement, parentElement);
+      return {
+        x: local.x - this.nativeElement.clientWidth / 2,
+        y: local.y - this.nativeElement.clientHeight / 2,
+        z: local.z,
+      };
+    }
+    const about = this.turnsAbout();
+    const onFace = about ? this.tableSurfaces.pointOn(about.surface, pointer.x, pointer.y, about.height) : null;
+    return about && onFace ? { x: onFace.localX - about.x, y: onFace.localY - about.y, z: 0 } : null;
+  }
+
   private calcRotate(pointer: PointerCoordinate, rotateOffset: number): number {
-    const centerX = this.nativeElement.clientWidth / 2;
-    const centerY = this.nativeElement.clientHeight / 2;
-    const x = pointer.x - centerX;
-    const y = pointer.y - centerY;
+    const x = pointer.x;
+    const y = pointer.y;
     const rad = Math.atan2(y, x);
     return ((rad * 180) / Math.PI - rotateOffset) % 360;
   }
@@ -370,6 +413,7 @@ export class RotableDirective {
   }
 
   private setAnimatedTransition(isEnable: boolean) {
+    if (this.turnsAbout) return;
     this.nativeElement.style.transition = isEnable ? 'transform 132ms linear' : '';
   }
 
@@ -378,10 +422,12 @@ export class RotableDirective {
   }
 
   private stopTransition() {
+    if (this.turnsAbout) return;
     this.nativeElement.style.transform = window.getComputedStyle(this.nativeElement).transform;
   }
 
   private updateTransformCss() {
+    if (this.turnsAbout) return;
     const css = `${this.transformCssOffset} rotateZ(${this.rotate.toFixed(4)}deg)`;
     this.nativeElement.style.transform = css;
   }

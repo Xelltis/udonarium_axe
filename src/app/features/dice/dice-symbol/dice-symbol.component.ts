@@ -22,6 +22,7 @@ import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { BillboardFacing, facesAlways, NOT_TURNED } from '@axe/application/ui/billboard-frame.service';
@@ -115,6 +116,7 @@ export class DiceSymbolComponent {
    */
   readonly drawnOnCanvas = inject(Table3dService).drawsOnCanvas;
   private readonly motions = inject(PieceMotionsService);
+  private readonly pieces = inject(TablePiecesService);
 
   readonly isHiddenByFog = computed(() => {
     const piece = this.diceSymbol();
@@ -367,6 +369,15 @@ export class DiceSymbolComponent {
       collideLayers: ['terrain'],
       transformCssOffset: translateZCss(Z_OFFSET_TALL_OBJECT_PX),
       placedElsewhere: this.drawnOnCanvas,
+      turnsAbout: (die) => {
+        const middle = (Math.max(0, die.size) * this.gridSize) / 2;
+        return {
+          surface: this.pieces.surfaceOf(die),
+          x: die.location.x + middle,
+          y: die.location.y + middle,
+          height: die.posZ,
+        };
+      },
     });
     this.destroyRef.onDestroy(() => {
       this.doubleTap.cancel();
