@@ -282,16 +282,14 @@ export class GameCharacterComponent {
   /**
    * Whether the table's canvas draws the piece, from its picture and a picture of its pedestal taken
    * here, which leaves both clear here, still taking the presses where the canvas draws them. The
-   * page draws the piece itself while it is tipped over, turning on its own, standing on a slope or
-   * in water, casting a drop shadow, or being struck, healed or felled.
+   * page draws the piece itself while it is turning on its own, standing on a slope or in water, or
+   * being struck, healed or felled.
    */
   readonly drawnOnCanvas = computed(() => {
     const char = this.gameCharacter();
     if (!char || !this.drawsOnCanvas() || this.isHiddenByVision()) return false;
     this.objectChange.versionOf(char.identifier)();
     return (
-      this.rollSignal() === 0 &&
-      !char.isDropShadow &&
       !this.multiAngleNameOrbitEnabled() &&
       this.groundLean() === '' &&
       this.inWater() === null &&

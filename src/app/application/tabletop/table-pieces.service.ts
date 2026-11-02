@@ -152,6 +152,8 @@ export class TablePiecesService {
           ...place,
           sizePx: Math.max(0, character.size) * gridSize,
           rotateDeg: character.rotate,
+          rollDeg: character.roll,
+          dropShadow: character.isDropShadow,
           altitudePx: character.altitude * gridSize,
           pedestal: this.pagePictures.pictureOf(character.identifier),
           picture: this.sized(this.images.getEmptyOr(character.imageFile).url),

@@ -12,6 +12,8 @@ const character: CharacterLayout = {
   z: 0,
   sizePx: 50,
   rotateDeg: 0,
+  rollDeg: 0,
+  dropShadow: false,
   altitudePx: 0,
   pedestal: { url: 'blob:pedestal', widthPx: 50, heightPx: 50 },
   picture: { url: 'blob:hero', width: 100, height: 200 },
@@ -66,5 +68,30 @@ describe('the sprites a character is drawn with', () => {
   it('draws a piece in stealth half clear, and nothing of one whose pedestal the page keeps to itself', () => {
     expect(characterSprites({ ...character, opacity: 0.5 })[1].opacity).toBe(0.5);
     expect(characterSprites({ ...character, pedestal: null })).toEqual([]);
+  });
+
+  it('swings the picture about the middle of the cell’s height as far as the piece is tipped over', () => {
+    const [, picture] = characterSprites({ ...character, facesEye: false, rollDeg: 90 });
+
+    // Tipped a quarter over, the picture lies along the floor's east, its foot at the pivot's west.
+    expect(picture.centre.x).toBeCloseTo(125 + 25, 6);
+    expect(picture.centre.z).toBeCloseTo(1 + 25, 6);
+    const facing = picture.facing as Exclude<typeof picture.facing, 'eye'>;
+    expect(facing.down.x).toBeCloseTo(-1, 6);
+    expect(facing.across.z).toBeCloseTo(-1, 6);
+  });
+
+  it('casts the picture’s shadow, squashed to half its height, ending at the middle of the cell', () => {
+    const [, shadow] = characterSprites({ ...character, dropShadow: true });
+
+    expect(shadow).toMatchObject({
+      id: 'hero#shadow',
+      centre: { x: 125, y: 200 + 25 - 25, z: 1 },
+      widthPx: 50,
+      heightPx: 50,
+      brightness: 0,
+      opacity: 0.7,
+      order: 1,
+    });
   });
 });
