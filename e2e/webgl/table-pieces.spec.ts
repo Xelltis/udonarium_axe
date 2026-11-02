@@ -182,7 +182,7 @@ test.describe('pieces drawn on a canvas', () => {
     await closePanels(page);
   });
 
-  test('lay a die’s frame and picture where the page lays them out', async ({ page }) => {
+  test('box a die’s frame and picture on the screen where the canvas draws them', async ({ page }) => {
     const id = await made(page, PIECES[0]);
 
     const [frame, picture] = await boxesOf(page, id);
@@ -192,8 +192,10 @@ test.describe('pieces drawn on a canvas', () => {
         const rect = element.getBoundingClientRect();
         return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
       };
-      const band = [...die.querySelectorAll('div')].find((div) => getComputedStyle(div).borderTopWidth === '6px')!;
-      return { frame: box(band), picture: box(die.querySelector('img')!) };
+      return {
+        frame: box(die.querySelector('[data-part="frame"]')!),
+        picture: box(die.querySelector('[data-part="picture"]')!),
+      };
     }, id);
 
     for (const [part, drawn, page] of [
@@ -361,11 +363,13 @@ test.describe('pieces drawn on a canvas', () => {
             return Math.max(...[0, 1, 2].map((c) => Math.abs(before.data[at + c] - after.data[at + c]))) > 6;
           };
           // A point the page draws a part of the piece over, or where another piece lies, says
-          // nothing of where the canvas draws this one.
+          // nothing of where the canvas draws this one. The clear boxes of the screen over the
+          // canvas draw nothing.
           const tellsOfPiece = (element: Element | null) => {
             const owner = element?.closest('[data-object-id]');
             if (!owner) return true;
             if (owner.getAttribute('data-object-id') !== identifier) return false;
+            if (element!.closest('[data-testid="table-hud"]')) return element!.matches('[data-part], [data-hud-box]');
             for (let at: Element | null = element; at && at !== owner.parentElement; at = at.parentElement) {
               if (getComputedStyle(at).opacity === '0') return true;
             }

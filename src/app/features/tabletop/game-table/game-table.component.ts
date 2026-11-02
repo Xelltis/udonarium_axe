@@ -151,6 +151,7 @@ import { BackdropDirective } from '@axe/ui/directives/backdrop.directive';
 import { ReloadNoticeDirective } from '@axe/ui/directives/reload-notice.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { translateZCss, Z_OFFSET_BACKGROUND_LAYERS_PX, Z_OFFSET_FOREGROUND_LAYERS_PX } from '@axe/ui/tabletop/z-offset';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -202,6 +203,7 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
   providers: [GameTableGestureService],
   imports: [
     BackdropDirective,
+    HudPlaceDirective,
     NgClass,
     NgTemplateOutlet,
     TerrainComponent,
@@ -870,7 +872,14 @@ export class GameTableComponent {
   readonly cardStacksBySurface = computed(() => bucketBySurface(this.cardStacks(), this.drawnSurfaces()));
   readonly rangesBySurface = computed(() => bucketBySurface(this.ranges(), this.drawnSurfaces()));
   readonly textNotesBySurface = computed(() => bucketBySurface(this.textNotes(), this.drawnSurfaces()));
-  readonly diceSymbolsBySurface = computed(() => bucketBySurface(this.diceSymbols(), this.drawnSurfaces()));
+  readonly diceSymbolsBySurface = computed(() =>
+    bucketBySurface(this.table3d.drawsOnCanvas() ? [] : this.diceSymbols(), this.drawnSurfaces())
+  );
+  /**
+   * The pieces laid over a table drawn on a canvas, flat on the screen where the canvas draws them,
+   * rather than in the page's own 3D: wherever they stand, on the floor, a wall or a white board.
+   */
+  readonly diceSymbolsOverCanvas = computed(() => (this.table3d.drawsOnCanvas() ? this.diceSymbols() : []));
   readonly coinsBySurface = computed(() => bucketBySurface(this.coins(), this.drawnSurfaces()));
   readonly terrainsBySurface = computed(() => bucketBySurface(this.terrains(), this.drawnSurfaces()));
 

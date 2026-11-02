@@ -52,6 +52,7 @@ import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { makeBillboardTransform } from '@axe/ui/tabletop/billboard-transform';
 import { DoubleTap } from '@axe/ui/tabletop/double-tap';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { hideIconWhileTouched } from '@axe/ui/tabletop/icon-hiding';
 import { pieceImageView } from '@axe/ui/tabletop/piece-image-view';
 import { pieceLabelFacings } from '@axe/ui/tabletop/piece-label-facings';
@@ -70,7 +71,15 @@ const TUMBLE_PATHS = TUMBLES.length;
   selector: 'dice-symbol',
   templateUrl: './dice-symbol.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BillboardDirective, MovableDirective, RotableDirective, SelectableDirective, NgStyle, SafePipe],
+  imports: [
+    BillboardDirective,
+    HudPlaceDirective,
+    MovableDirective,
+    RotableDirective,
+    SelectableDirective,
+    NgStyle,
+    SafePipe,
+  ],
   host: {
     '[style.display]': "isHiddenByFog() ? 'none' : null",
     '[attr.data-object-id]': 'diceSymbol().identifier',
@@ -357,6 +366,7 @@ export class DiceSymbolComponent {
       target: this.diceSymbol,
       collideLayers: ['terrain'],
       transformCssOffset: translateZCss(Z_OFFSET_TALL_OBJECT_PX),
+      placedElsewhere: this.drawnOnCanvas,
     });
     this.destroyRef.onDestroy(() => {
       this.doubleTap.cancel();

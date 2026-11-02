@@ -383,6 +383,19 @@
       <replay-route-overlay class="contents"></replay-route-overlay>
     </div>
   </div>
+  @if (table3d.drawsOnCanvas()) {
+    <!-- The pieces over a table drawn on a canvas: flat on the screen, each where the canvas draws it. -->
+    <div class="pointer-events-none absolute inset-0 isolate overflow-hidden" data-testid="table-hud">
+      @for (diceSymbol of diceSymbolsOverCanvas(); track diceSymbol.identifier) {
+        <dice-symbol
+          class="block"
+          [diceSymbol]="diceSymbol"
+          [appTooltip]="diceSymbol"
+          [appHudPlace]="{ owner: diceSymbol.identifier }"
+        ></dice-symbol>
+      }
+    </div>
+  }
 </div>
 <table-weather-overlay></table-weather-overlay>
 @defer (when laysForeground()) {
