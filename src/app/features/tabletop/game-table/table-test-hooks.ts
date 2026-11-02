@@ -23,7 +23,7 @@ export interface TableTestHooks {
   /** What kind of object an identifier names, such as `terrain` or `character`, or null. */
   aliasOf(identifier: string): string | null;
   /**
-   * The edges of the solids things are picked by, as drawn on the page: each as `[x1, y1, x2, y2]`.
+   * The edges of the shapes things are picked by, as drawn on the page: each as `[x1, y1, x2, y2]`.
    * A point within a pixel or two of one may be told apart differently by the page and by picking.
    */
   edgesOnPage(): [number, number, number, number][];
@@ -124,7 +124,9 @@ export function installTableTestHooks(
     edgesOnPage: () => {
       const scene = camera.sceneMatrix();
       return scene
-        ? pick.targets().flatMap((target) => edgesOf(target, (x, y, z) => pageOfTablePoint(scene, x, y, z)))
+        ? [...pick.targets(), ...pick.pieceTargets()].flatMap((target) =>
+            edgesOf(target, (x, y, z) => pageOfTablePoint(scene, x, y, z))
+          )
         : [];
     },
   };
@@ -133,22 +135,46 @@ export function installTableTestHooks(
   };
 }
 
-/** The edges of a target's solids, carried onto the page: the rims of their tops and bases, and their uprights. */
+/**
+ * The edges of a target's shapes, carried onto the page: the rims of a solid's top and base and its
+ * uprights, the sides of a flat shape, and the rims of a disc's two sides.
+ */
 function edgesOf(
   target: PickTarget,
   onPage: (x: number, y: number, z: number) => { x: number; y: number }
 ): [number, number, number, number][] {
   const edges: [number, number, number, number][] = [];
-  for (const shape of target.shapes) {
-    if (shape.kind !== 'prism') continue;
-    const tops = shape.outline.map((point) => onPage(point.x, point.y, shape.top));
-    const bases = shape.outline.map((point) => onPage(point.x, point.y, shape.base));
-    tops.forEach((top, i) => {
-      const next = (i + 1) % tops.length;
-      edges.push([top.x, top.y, tops[next].x, tops[next].y]);
-      edges.push([bases[i].x, bases[i].y, bases[next].x, bases[next].y]);
-      edges.push([top.x, top.y, bases[i].x, bases[i].y]);
+  const round = (points: { x: number; y: number }[]) =>
+    points.forEach((point, i) => {
+      const next = points[(i + 1) % points.length];
+      edges.push([point.x, point.y, next.x, next.y]);
     });
+  for (const shape of target.shapes) {
+    if (shape.kind === 'quad') {
+      round(shape.corners.map((corner) => onPage(corner.x, corner.y, corner.z)));
+    } else if (shape.kind === 'on-face' && shape.shape.kind === 'cylinder') {
+      const disc = shape.shape;
+      for (const height of [disc.base, disc.top]) {
+        round(
+          Array.from({ length: 64 }, (_, i) => {
+            const turn = (i / 64) * Math.PI * 2;
+            const at = pointOnFace(
+              shape.frame,
+              disc.centerX + Math.cos(turn) * disc.radius,
+              disc.centerY + Math.sin(turn) * disc.radius,
+              height
+            );
+            return onPage(at.x, at.y, at.z);
+          })
+        );
+      }
+    } else if (shape.kind === 'prism') {
+      const tops = shape.outline.map((point) => onPage(point.x, point.y, shape.top));
+      const bases = shape.outline.map((point) => onPage(point.x, point.y, shape.base));
+      round(tops);
+      round(bases);
+      tops.forEach((top, i) => edges.push([top.x, top.y, bases[i].x, bases[i].y]));
+    }
   }
   return edges;
 }

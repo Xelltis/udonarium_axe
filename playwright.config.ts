@@ -16,9 +16,9 @@ const PASSING_ON_CANVAS = [
   /webgl\/.*\.spec\.ts/,
   /table-surfaces\.spec\.ts/,
   /table-drop-faces\.spec\.ts/,
-  /card-drop\.spec\.ts/,
   /dice-symbol-flags\.spec\.ts/,
   /coin\.spec\.ts/,
+  /\/card(-[a-z-]+)?\.spec\.ts/,
 ];
 
 export default defineConfig({

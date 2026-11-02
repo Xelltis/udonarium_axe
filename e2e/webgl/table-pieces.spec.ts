@@ -13,6 +13,7 @@ type Box = { x: number; y: number; width: number; height: number };
 
 type Hooks = {
   renderer(): string | null;
+  edgesOnPage(): [number, number, number, number][];
   whenIdle(): Promise<void>;
   pickAt(x: number, y: number): string | null;
   aliasOf(identifier: string): string | null;
@@ -90,11 +91,42 @@ async function createCoin(page: Page) {
   await expect(page.locator('coin').first()).toBeAttached({ timeout: 10000 });
 }
 
-/** The kinds of piece drawn on the canvas, how one is made, what it is drawn with and what its menu holds. */
-const PIECES = [
+async function createDeck(page: Page) {
+  const before = await page.locator('card-stack').count();
+  const menu = await openTableContextMenu(page);
+  await (await revealMenuEntry(page, menu, 'トランプの山札を作成')).click();
+  await expect(page.locator('card-stack')).toHaveCount(before + 1, { timeout: 10000 });
+  await page.mouse.move(5, 400);
+  await expect(page.locator('overview-panel')).toHaveCount(0, { timeout: 5000 });
+}
+
+/** Draws a card off the deck made last, which lays it a little way off the deck. */
+async function drawCard(page: Page) {
+  const before = await page.locator('card').count();
+  await page.locator('card-stack').last().dispatchEvent('contextmenu');
+  await page.locator('context-menu').getByText('１枚引く').click();
+  await expect(page.locator('card')).toHaveCount(before + 1, { timeout: 5000 });
+  await page.mouse.move(5, 400);
+}
+
+/**
+ * The kinds of piece drawn on the canvas: what is set out before one is made, how it is made, how
+ * many shapes it is drawn with and what its menu holds.
+ */
+const PIECES: readonly {
+  name: string;
+  tag: string;
+  prepare?: (page: Page) => Promise<void>;
+  create: (page: Page) => Promise<void>;
+  shapes: number;
+  menuEntry: string;
+}[] = [
   { name: 'die', tag: 'dice-symbol', create: createDiceSymbol, shapes: 2, menuEntry: 'ダイス目を設定' },
   { name: 'coin', tag: 'coin', create: createCoin, shapes: 1, menuEntry: 'コインを投げる' },
-] as const;
+  { name: 'card', tag: 'card', prepare: createDeck, create: drawCard, shapes: 1, menuEntry: '手札に加える' },
+  // A deck stands in 30 layers under its plate and its top card.
+  { name: 'deck', tag: 'card-stack', create: createDeck, shapes: 32, menuEntry: '１枚引く' },
+];
 
 /** Makes a piece and waits until the canvas draws it and its animations are over, and answers its identifier. */
 async function made(page: Page, piece: (typeof PIECES)[number]): Promise<string> {
@@ -160,8 +192,36 @@ test.describe('pieces drawn on a canvas', () => {
     expect(side.width).toBeGreaterThan(laidOut.width * 0.7);
   });
 
+  for (const [piece, part] of [
+    [PIECES[2], 'img'],
+    [PIECES[3], 'img'],
+  ] as const) {
+    test(`lay a ${piece.name}’s picture where the page lays it out`, async ({ page }) => {
+      await piece.prepare?.(page);
+      const id = await made(page, piece);
+
+      const drawn = (await boxesOf(page, id)).at(-1)!;
+      const laidOut = await page.evaluate(
+        ({ tag, identifier, selector }) => {
+          const rect = document
+            .querySelector(`${tag}[data-object-id="${identifier}"] ${selector}`)!
+            .getBoundingClientRect();
+          return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+        },
+        { tag: piece.tag, identifier: id, selector: part }
+      );
+
+      for (const side of ['x', 'y', 'width', 'height'] as const) {
+        expect(Math.abs(drawn[side] - laidOut[side]), `${side}: ${JSON.stringify([drawn, laidOut])}`).toBeLessThan(
+          BOX_SLACK_PX
+        );
+      }
+    });
+  }
+
   for (const piece of PIECES) {
     test(`draw a ${piece.name} where picking finds it, and nothing anywhere else`, async ({ page }) => {
+      await piece.prepare?.(page);
       await idle(page);
       await grabScreen(page);
       const id = await made(page, piece);
@@ -176,26 +236,24 @@ test.describe('pieces drawn on a canvas', () => {
           const top = Math.min(...boxes.map((box) => box.y)) - 40;
           const right = Math.max(...boxes.map((box) => box.x + box.width)) + 40;
           const bottom = Math.max(...boxes.map((box) => box.y + box.height)) + 40;
+          const edges = hooks.edgesOnPage();
           const nearEdge = (x: number, y: number) =>
-            boxes.some(
-              (box) =>
-                (Math.abs(x - box.x) < slack || Math.abs(x - box.x - box.width) < slack) &&
-                y > box.y - slack &&
-                y < box.y + box.height + slack
-            ) ||
-            boxes.some(
-              (box) =>
-                (Math.abs(y - box.y) < slack || Math.abs(y - box.y - box.height) < slack) &&
-                x > box.x - slack &&
-                x < box.x + box.width + slack
-            );
+            edges.some(([x1, y1, x2, y2]) => {
+              const dx = x2 - x1;
+              const dy = y2 - y1;
+              const along = Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy || 1)));
+              return Math.hypot(x - (x1 + along * dx), y - (y1 + along * dy)) < slack;
+            });
           const changed = (x: number, y: number) => {
             const at = (y * before.width + x) * 4;
             return Math.max(...[0, 1, 2].map((c) => Math.abs(before.data[at + c] - after.data[at + c]))) > 6;
           };
-          const clearOrOff = (element: Element | null) => {
+          // A point the page draws a part of the piece over, or where another piece lies, says
+          // nothing of where the canvas draws this one.
+          const tellsOfPiece = (element: Element | null) => {
             const owner = element?.closest('[data-object-id]');
             if (!owner) return true;
+            if (owner.getAttribute('data-object-id') !== identifier) return false;
             for (let at: Element | null = element; at && at !== owner.parentElement; at = at.parentElement) {
               if (getComputedStyle(at).opacity === '0') return true;
             }
@@ -204,7 +262,7 @@ test.describe('pieces drawn on a canvas', () => {
           const result = { piece: 0, pieceChanged: 0, bare: 0, bareChanged: 0 };
           for (let y = Math.max(0, Math.round(top)); y < Math.min(innerHeight, bottom); y += step) {
             for (let x = Math.max(0, Math.round(left)); x < Math.min(innerWidth, right); x += step) {
-              if (nearEdge(x, y) || !clearOrOff(document.elementFromPoint(x, y))) continue;
+              if (nearEdge(x, y) || !tellsOfPiece(document.elementFromPoint(x, y))) continue;
               if (hooks.pickAt(x, y) === identifier) {
                 result.piece++;
                 if (changed(x, y)) result.pieceChanged++;
@@ -224,6 +282,7 @@ test.describe('pieces drawn on a canvas', () => {
     });
 
     test(`open a ${piece.name}’s menu when it is right-clicked where the canvas draws it`, async ({ page }) => {
+      await piece.prepare?.(page);
       const id = await made(page, piece);
       const [shape] = await boxesOf(page, id);
 
@@ -231,10 +290,11 @@ test.describe('pieces drawn on a canvas', () => {
 
       const menu = page.locator('context-menu');
       await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-      await expect(menu.getByText(piece.menuEntry)).toBeVisible();
+      await expect(menu.getByText(piece.menuEntry, { exact: true })).toBeVisible();
     });
 
     test(`draw a ${piece.name} where it is dragged to while it is dragged`, async ({ page }) => {
+      await piece.prepare?.(page);
       const id = await made(page, piece);
       const [shape] = await boxesOf(page, id);
       const grabX = shape.x + shape.width / 2;
