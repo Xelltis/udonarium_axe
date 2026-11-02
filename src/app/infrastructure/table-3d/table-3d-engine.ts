@@ -1,4 +1,5 @@
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
+import type { GroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
 import type {
   TableWorld,
   TableWorldBoard,
@@ -13,6 +14,8 @@ import {
   capGeometry,
   griddedTops,
   gridOverBoard,
+  gridOverGround,
+  groundGeometry,
   mergedFaces,
   wallGeometry,
 } from '@axe/infrastructure/table-3d/face-geometry';
@@ -115,6 +118,7 @@ class ThreeTableEngine implements Table3dEngine {
   private camera: Camera = this.perspective;
   private board: Mesh | null = null;
   private boardShape = '';
+  private boardGround: GroundMesh | null = null;
   private changed = true;
   private lost = false;
   private loading = 0;
@@ -298,8 +302,9 @@ class ThreeTableEngine implements Table3dEngine {
           board.veiled,
         ])
       : '';
-    if (shape === this.boardShape) return;
+    if (shape === this.boardShape && board?.ground === this.boardGround) return;
     this.boardShape = shape;
+    this.boardGround = board?.ground ?? null;
     this.boardHexes = board?.shape.hexes ?? null;
     this.gridDrawn = '';
     if (this.lastGrid) this.setGrid(this.lastGrid);
@@ -311,7 +316,7 @@ class ThreeTableEngine implements Table3dEngine {
     if (!board) return;
     const material = new MeshBasicNodeMaterial({ transparent: true, side: DoubleSide });
     material.colorNode = boardColour(board.pictureUrl ? this.picture(board.pictureUrl) : null, board.veiled);
-    this.board = new Mesh(boardGeometry(board), material);
+    this.board = new Mesh(board.ground ? groundGeometry(board.ground) : boardGeometry(board), material);
     this.board.renderOrder = BOARD_ORDER;
     this.scene.add(this.board);
   }
@@ -338,7 +343,9 @@ class ThreeTableEngine implements Table3dEngine {
       this.gridPicture.colorSpace = SRGBColorSpace;
     }
     this.gridPicture.needsUpdate = true;
-    const geometry = gridOverBoard(this.boardHexes, grid.box, GRID_LIFT_PX);
+    const geometry = this.boardGround
+      ? gridOverGround(this.boardGround, grid.box, GRID_LIFT_PX)
+      : gridOverBoard(this.boardHexes, grid.box, GRID_LIFT_PX);
     const material = new MeshBasicNodeMaterial({
       map: this.gridPicture,
       transparent: true,

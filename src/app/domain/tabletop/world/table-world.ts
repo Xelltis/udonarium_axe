@@ -1,5 +1,6 @@
 import { firstPersonWorldOf } from '@axe/domain/tabletop/first-person/first-person-world';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { FLAT_GROUND, GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
 import {
   hexCellCenter,
   hexCircumradius,
@@ -11,6 +12,7 @@ import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TerrainFogCover } from '@axe/domain/tabletop/terrain-cover';
 import { blockFacesOf } from '@axe/domain/tabletop/world/block-faces';
+import { GroundMesh, hexGroundMesh, squareGroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
 import { TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 
@@ -41,6 +43,8 @@ export interface TableWorldBoard {
   readonly pictureUrl: string;
   /** Whether the board is whitened a little, as it is while nothing is laid under it. */
   readonly veiled: boolean;
+  /** The board laid over the table's raised and sunk ground, or null where the ground is flat. */
+  readonly ground: GroundMesh | null;
 }
 
 /**
@@ -123,10 +127,12 @@ export function tableWorldOf(
   table: GameTable | null | undefined,
   pictureOf: (identifier: string) => string = () => '',
   terrains: readonly Terrain[] = [],
-  coverOf: (terrain: Terrain) => TerrainFogCover | null = () => null
+  coverOf: (terrain: Terrain) => TerrainFogCover | null = () => null,
+  ground: GroundSurface = FLAT_GROUND
 ): TableWorld {
   if (!table) return EMPTY_TABLE_WORLD;
   const gridSize = table.gridSize > 0 ? table.gridSize : 50;
+  const shape = boardShapeOf(table.width, table.height, gridSize, table.gridType);
   const laidUnder = table.backgroundLayers.some(
     (layer) => !layer.placedOver && !layer.placedBackdrop && pictureOf(layer.imageIdentifier) !== ''
   );
@@ -136,9 +142,14 @@ export function tableWorldOf(
       depthPx: table.height * gridSize,
       gridSize,
       gridType: table.gridType,
-      shape: boardShapeOf(table.width, table.height, gridSize, table.gridType),
+      shape,
       pictureUrl: pictureOf(table.imageIdentifier),
       veiled: !laidUnder,
+      ground: ground.isFlat
+        ? null
+        : shape.hexes
+          ? hexGroundMesh(shape.hexes, shape.box, ground, gridSize)
+          : squareGroundMesh(shape.box, ground, gridSize),
     },
     ...facesOf(table, terrains, pictureOf, coverOf),
     sprites: [],

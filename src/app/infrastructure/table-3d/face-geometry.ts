@@ -1,10 +1,18 @@
+import type { GroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
 import type {
   TableWorldBoard,
   TableWorldBoardShape,
   TableWorldCap,
   TableWorldWall,
 } from '@axe/domain/tabletop/world/table-world';
-import { BufferGeometry, Float32BufferAttribute, PlaneGeometry, ShapeUtils, Vector2 } from 'three/webgpu';
+import {
+  BufferAttribute,
+  BufferGeometry,
+  Float32BufferAttribute,
+  PlaneGeometry,
+  ShapeUtils,
+  Vector2,
+} from 'three/webgpu';
 
 /**
  * The board's face, lying on the floor: its whole box on a square board, and each of its cells on a
@@ -34,6 +42,46 @@ export function boardGeometry(board: TableWorldBoard): BufferGeometry {
   const geometry = new BufferGeometry();
   geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
   geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
+  return geometry;
+}
+
+/**
+ * The board laid over raised and sunk ground: each point of the mesh at its height over the board,
+ * the board's picture stretched over it as over the flat board.
+ */
+export function groundGeometry(ground: GroundMesh): BufferGeometry {
+  return overGround(ground, 0, null);
+}
+
+/**
+ * The same mesh lifted a little off the ground, with a picture laid over the box given rather than
+ * the board's: as the grid, drawn over the ground it follows.
+ */
+export function gridOverGround(
+  ground: GroundMesh,
+  box: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+  liftPx: number
+): BufferGeometry {
+  return overGround(ground, liftPx, box);
+}
+
+function overGround(
+  ground: GroundMesh,
+  liftPx: number,
+  box: { readonly x: number; readonly y: number; readonly width: number; readonly height: number } | null
+): BufferGeometry {
+  const count = ground.points.length / 3;
+  const positions = new Float32Array(count * 3);
+  const uvs = box ? new Float32Array(count * 2) : ground.uvs;
+  for (let i = 0; i < count; i++) {
+    const [x, y, z] = [ground.points[i * 3], ground.points[i * 3 + 1], ground.points[i * 3 + 2]];
+    positions.set([x, z + liftPx, y], i * 3);
+    if (box) uvs.set([(x - box.x) / box.width, 1 - (y - box.y) / box.height], i * 2);
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(new BufferAttribute(ground.triangles, 1));
   return geometry;
 }
 
