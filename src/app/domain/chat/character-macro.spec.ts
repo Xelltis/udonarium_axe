@@ -1,6 +1,7 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { buildMacroMessage } from '@axe/domain/chat/character-macro';
-import { DataElement } from '@axe/domain/data/data-element';
+import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
+import { applyBuffEdit } from '@axe/domain/data/resource-edit-helpers';
 
 describe('building a macro message', () => {
   function speaker(name: string, palette?: string): GameCharacter {
@@ -87,6 +88,32 @@ describe('building a macro message', () => {
       const character = withFields(speaker('A', ''), { 項目C: '1+t{項目B}' });
 
       expect(buildMacroMessage(character, '{項目C}', [], '対象がいません').text).toBe('対象がいません');
+    });
+
+    it('reads the line alike for every target, the speaker filled in first', () => {
+      const character = speaker('A', '//命中=2d6+5');
+      const wearing = (name: string) => {
+        const target = speaker(name);
+        target.addBuffDataElement();
+        applyBuffEdit({ command: '&加護/防御+2/3', object: target, targeted: false }, target);
+        return target;
+      };
+
+      const message = buildMacroMessage(character, '{命中}+t{加護}', [wearing('B'), wearing('C')], '対象なし');
+
+      expect(message.text).toBe('2d6+5+2 [B]\n2d6+5+2 [C]');
+    });
+
+    it('sends on the picture a reference of the speaker stands for, in a line aimed at targets', () => {
+      const character = speaker('A', '');
+      character.detailDataElement!.appendChild(
+        DataElement.create('立ち絵', 'portrait-id', { fieldType: DataElementFieldType.IMAGE })
+      );
+
+      const message = buildMacroMessage(character, '{立ち絵}t:HP-1', [speaker('B'), speaker('C')], '対象なし');
+
+      expect(message.attachmentImageIdentifiers).toEqual(['portrait-id']);
+      expect(message.text).toBe('t:HP-1 [B]\nt:HP-1 [C]');
     });
 
     it('acts on the speaker once, though the command doing so came in through a reference', () => {

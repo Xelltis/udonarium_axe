@@ -752,10 +752,12 @@ export class ChatWindowComponent {
         let first = true;
         if (objects.length == 0) {
           outtext += this.t('feature.chat.window.noTarget');
+        } else {
+          appendAttachmentImages(aimed.attachmentImageIdentifiers);
         }
         for (const object of objects) {
           outtext += first ? '' : '\n';
-          const str2 = first ? value.text : aimed.repeated;
+          const str2 = first ? aimed.filled : aimed.repeated;
 
           const filled = fillIn(str2, object);
           outtext += filled;

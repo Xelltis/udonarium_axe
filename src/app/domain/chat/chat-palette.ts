@@ -276,8 +276,8 @@ export function evaluateReferences(
    * What to do with a reference nothing answers. A palette line is written to be filled in, so an
    * empty one is emptied out; a line typed into chat is not, and its braces are left as they were
    * rather than eating the words around them, except where one is added to a roll as a term of its
-   * own (see {@link dropsUnanswered}). `always` leaves every one as it was, for a line that is only
-   * part of the way there (see {@link speakerFilledLine}).
+   * own (see {@link dropsUnanswered}). `always` leaves every one as it was, for a line filled in
+   * from the speaker before it is aimed at anyone, whose `t{}` a target may yet answer.
    */
   keepUnfilled: boolean | 'always' = false
 ): PaletteEvaluationResult {
@@ -449,11 +449,16 @@ function isWornBuff(element: DataElement): boolean {
   return false;
 }
 
-/** The references a piece can fill in, whether or not it keeps a palette of its own to draw variables from. */
+/**
+ * The references a piece can fill in, whether or not it keeps a palette of its own to draw variables
+ * from. One nothing answers is kept as chat keeps it, unless told otherwise (see
+ * {@link evaluateReferences}).
+ */
 export function evaluateCharacterReferences(
   text: string,
   speaker: GameCharacter | null,
-  target?: GameCharacter
+  target?: GameCharacter,
+  keepUnfilled: boolean | 'always' = true
 ): PaletteEvaluationResult {
   return evaluateReferences(
     text,
@@ -461,25 +466,8 @@ export function evaluateCharacterReferences(
     speaker?.rootDataElement ?? undefined,
     target,
     true,
-    true
+    keepUnfilled
   );
-}
-
-/**
- * A line with the speaker's own references filled in and every other one left as typed, a `t{}`
- * among them, so that what it says reads before it is aimed at anyone: a `{name}` of the speaker's
- * can stand for words aimed at the targets, as `{項目C}` does for a field reading
- * `{項目A}+t{項目B}`. A reference standing for an image is taken out, as it is when the line is sent.
- */
-export function speakerFilledLine(line: string, speaker: GameCharacter | null): string {
-  return evaluateReferences(
-    line,
-    speaker?.chatPalette?.paletteVariables ?? [],
-    speaker?.rootDataElement ?? undefined,
-    undefined,
-    true,
-    'always'
-  ).text;
 }
 
 /**
