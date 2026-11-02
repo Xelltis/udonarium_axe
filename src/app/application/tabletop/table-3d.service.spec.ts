@@ -7,7 +7,10 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { TableGraphics } from '@axe/core/util/graphics-acceleration';
+import { DEFAULT_GAME_CLOCK } from '@axe/domain/game-clock/game-clock';
+import { Config } from '@axe/domain/peer/config';
 import { DEFAULT_TABLE_CAMERA_VIEW } from '@axe/domain/tabletop/camera/table-camera';
+import { type SkyLight, skyLightAt } from '@axe/domain/tabletop/world/sky-light';
 import type { TableWorld } from '@axe/domain/tabletop/world/table-world';
 import type {
   Table3dCamera,
@@ -28,6 +31,7 @@ class FakeEngine implements Table3dEngine {
   sizes: [number, number][] = [];
   grids: (Table3dGrid | null)[] = [];
   veils: (Table3dVeil | null)[] = [];
+  skies: SkyLight[] = [];
   drawn = 0;
   disposed = false;
   lose: () => void = () => undefined;
@@ -60,6 +64,12 @@ class FakeEngine implements Table3dEngine {
 
   setVeil(veil: Table3dVeil | null): void {
     this.veils.push(veil);
+    this.changed = true;
+  }
+
+  setSkyLight(light: SkyLight): void {
+    if (JSON.stringify(light) === JSON.stringify(this.skies.at(-1))) return;
+    this.skies.push(light);
     this.changed = true;
   }
 
@@ -367,5 +377,25 @@ describe('Table3dService', () => {
     TestBed.tick();
 
     expect(engine.veils.at(-1)).toBeNull();
+  });
+
+  it('lights the scene as the sky does at the hour the room’s clock tells, and again as the clock moves on', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    TestBed.tick();
+    await scene.whenIdle();
+    const engine = engines[0];
+    const atHour = async (hour: number) => {
+      Config.instance.gameClock = { ...DEFAULT_GAME_CLOCK, mode: 'hours', minutes: hour * 60 };
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      TestBed.tick();
+    };
+
+    await atHour(12);
+    expect(engine.skies.at(-1)).toEqual(skyLightAt(0.5));
+
+    await atHour(0);
+    expect(engine.skies.at(-1)).toEqual(skyLightAt(0));
   });
 });

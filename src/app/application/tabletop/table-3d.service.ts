@@ -9,6 +9,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { GameClockService } from '@axe/application/game-clock/game-clock.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FloorCanvasesService } from '@axe/application/tabletop/floor-canvases.service';
@@ -21,9 +22,11 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { TableGraphics, tableGraphicsOf } from '@axe/core/util/graphics-acceleration';
+import { dayFractionOf } from '@axe/domain/game-clock/game-clock';
 import { matrixColumns, tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { skyLightAt } from '@axe/domain/tabletop/world/sky-light';
 import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
 import { TableWorld, tableWorldOf } from '@axe/domain/tabletop/world/table-world';
 import type {
@@ -77,6 +80,12 @@ export class Table3dService {
   private readonly pieces = inject(TablePiecesService);
   private readonly floorCanvases = inject(FloorCanvasesService);
   private readonly tableVeil = inject(TableVeilService);
+  private readonly gameClock = inject(GameClockService);
+
+  /** The light of the sky over the table at the story's hour, as the room's clock tells it. */
+  readonly skyLight = computed(() =>
+    skyLightAt(dayFractionOf(this.gameClock.clock(), this.gameClock.periods().length, this.gameClock.skies()))
+  );
   private readonly ground = inject(GroundService);
   private readonly loadEngines = inject(TABLE_3D_ENGINES);
   private readonly askGraphics = inject(TABLE_GRAPHICS);
@@ -272,6 +281,13 @@ export class Table3dService {
       effect(
         () => {
           engine.setVeil(this.tableVeil.veil());
+          this.drawSoon(engine);
+        },
+        { injector: this.injector }
+      ),
+      effect(
+        () => {
+          engine.setSkyLight(this.skyLight());
           this.drawSoon(engine);
         },
         { injector: this.injector }

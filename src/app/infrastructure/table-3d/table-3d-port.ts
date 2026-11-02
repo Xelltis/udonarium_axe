@@ -1,3 +1,4 @@
+import type { SkyLight } from '@axe/domain/tabletop/world/sky-light';
 import type { EyeAxes } from '@axe/domain/tabletop/world/table-sprites';
 import type { TableWorld } from '@axe/domain/tabletop/world/table-world';
 
@@ -83,6 +84,8 @@ export interface Table3dEngine {
   setFloorCanvases(canvases: readonly Table3dFloorCanvas[]): void;
   /** Lays the veil over the scene, or takes it away with null. */
   setVeil(veil: Table3dVeil | null): void;
+  /** Lights the scene as the sky does at the story's hour. */
+  setSkyLight(light: SkyLight): void;
   /** Sizes the canvas's drawing to the box it covers, in CSS pixels, at the screen's pixel ratio. */
   resize(width: number, height: number, pixelRatio: number): void;
   /** Draws the scene when anything changed since it was last drawn, and answers whether it drew. */

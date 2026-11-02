@@ -1,5 +1,6 @@
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import type { GroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
+import { type SkyLight, skyLightAt } from '@axe/domain/tabletop/world/sky-light';
 import type {
   TableWorld,
   TableWorldBoard,
@@ -37,11 +38,15 @@ import {
   BufferGeometry,
   Camera,
   CanvasTexture,
+  Color,
+  DirectionalLight,
   DoubleSide,
   Group,
+  HemisphereLight,
   Matrix4,
   Mesh,
   MeshBasicNodeMaterial,
+  MeshLambertNodeMaterial,
   OrthographicCamera,
   PerspectiveCamera,
   RepeatWrapping,
@@ -90,6 +95,19 @@ const GLASS_COLOUR = 0xcfe6ff;
 const GLASS_OPACITY = 0.25;
 
 /**
+ * How much stronger the lights are made than the shares of the sky's light they give: a surface the
+ * library lights takes in its light shared out over the half of the sky it faces, a third of it
+ * straight on, so a light of strength pi lights a white surface facing it white.
+ */
+const LIGHT_SCALE = Math.PI;
+
+/** How dark the ground is that the sky lights a surface facing down with, beside the sky itself. */
+const GROUND_BOUNCE = 0.6;
+
+/** How far off the board the sun and the moon are put, in table pixels: their light falls the same everywhere. */
+const SKY_DISTANCE_PX = 10000;
+
+/**
  * The board's axes as the scene's: the board runs x to the east, y to the south and z up, and the
  * scene x to the east, y up and z to the south, which is the board's space seen in a mirror and so
  * the right-handed space a graphics library works in.
@@ -129,7 +147,7 @@ class ThreeTableEngine implements Table3dEngine {
   private readonly loaded = new Map<string, Texture>();
   private readonly facesRoot = new Group();
   private readonly chunks = new Map<string, { owners: Map<string, string>; meshes: Group }>();
-  private readonly looks = new Map<string, MeshBasicNodeMaterial>();
+  private readonly looks = new Map<string, MeshBasicNodeMaterial | MeshLambertNodeMaterial>();
   private grid: Mesh | null = null;
   private gridPicture: CanvasTexture | null = null;
   private gridDrawn = '';
@@ -140,6 +158,9 @@ class ThreeTableEngine implements Table3dEngine {
   private laidWalls: readonly TableWorldWall[] | null = null;
   private laidCaps: readonly TableWorldCap[] | null = null;
   private readonly veil = new SceneVeil();
+  private readonly sun = new DirectionalLight(0xffffff, 0);
+  private readonly sky = new HemisphereLight(0xffffff, 0xffffff, LIGHT_SCALE);
+  private lastSkyLight = '';
   private readonly sprites = new SpriteLayer(
     (url) => this.spritePicture(url),
     (material) => this.veil.cover(material)
@@ -162,6 +183,22 @@ class ThreeTableEngine implements Table3dEngine {
     this.scene.add(this.sprites.group);
     this.scene.add(this.coins.group);
     this.scene.add(this.floorCanvases.group);
+    this.scene.add(this.sun, this.sun.target, this.sky);
+    this.setSkyLight(skyLightAt(0.5));
+  }
+
+  setSkyLight(light: SkyLight): void {
+    const lit = JSON.stringify(light);
+    if (lit === this.lastSkyLight) return;
+    this.lastSkyLight = lit;
+    const { x, y, z } = light.direction;
+    this.sun.position.set(x * SKY_DISTANCE_PX, z * SKY_DISTANCE_PX, y * SKY_DISTANCE_PX);
+    this.sun.color.set(light.colour);
+    this.sun.intensity = light.strength * LIGHT_SCALE;
+    this.sky.color.set(light.skyColour);
+    this.sky.groundColor.copy(new Color(light.skyColour).multiplyScalar(GROUND_BOUNCE));
+    this.sky.intensity = light.skyStrength * LIGHT_SCALE;
+    this.changed = true;
   }
 
   onNeedsFrame(listener: () => void): void {
@@ -330,7 +367,7 @@ class ThreeTableEngine implements Table3dEngine {
       this.board = null;
     }
     if (!board) return;
-    const material = new MeshBasicNodeMaterial({ transparent: true, side: DoubleSide });
+    const material = new MeshLambertNodeMaterial({ transparent: true, side: DoubleSide });
     material.colorNode = boardColour(
       board.pictureUrl ? this.picture(board.pictureUrl) : null,
       board.veiled,
@@ -427,7 +464,7 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   /** The material every face wearing one picture one way is drawn with, made once. */
-  private sharedLook(look: string, face: FaceLook): MeshBasicNodeMaterial {
+  private sharedLook(look: string, face: FaceLook): MeshBasicNodeMaterial | MeshLambertNodeMaterial {
     let material = this.looks.get(look);
     if (!material) {
       material = this.faceMaterial(face);
@@ -461,7 +498,11 @@ class ThreeTableEngine implements Table3dEngine {
     this.scene.add(this.topsGrid);
   }
 
-  private faceMaterial(face: { pictureUrl: string; tilePx: number; glass: boolean }): MeshBasicNodeMaterial {
+  private faceMaterial(face: {
+    pictureUrl: string;
+    tilePx: number;
+    glass: boolean;
+  }): MeshBasicNodeMaterial | MeshLambertNodeMaterial {
     const material =
       face.glass || !face.pictureUrl
         ? new MeshBasicNodeMaterial({
@@ -471,7 +512,7 @@ class ThreeTableEngine implements Table3dEngine {
             depthWrite: false,
             side: DoubleSide,
           })
-        : new MeshBasicNodeMaterial({ side: DoubleSide, transparent: true, alphaTest: 0.01 });
+        : new MeshLambertNodeMaterial({ side: DoubleSide, transparent: true, alphaTest: 0.01 });
     if (!face.glass && face.pictureUrl) material.map = this.sharedPicture(face.pictureUrl, face.tilePx > 0);
     this.veil.cover(material);
     return material;
