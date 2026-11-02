@@ -22,12 +22,12 @@
         class="absolute box-border size-full rounded-[5px] border-[6px] border-solid border-[rgb(216,139,75)] backface-hidden [&.is-used]:filter-[brightness(0.45)]"
         [class.border-ui-border-panel!]="hasOwner()"
         [class.is-used]="isUsed()"
-        [class.opacity-0]="drawsOnCanvas()"
+        [class.opacity-0]="drawnOnCanvas()"
       ></div>
       <div
         class="absolute box-border size-full rounded-[5px] border-2 border-solid border-[#212121] backface-hidden [&.is-used]:filter-[brightness(0.45)]"
         [class.is-used]="isUsed()"
-        [class.opacity-0]="drawsOnCanvas()"
+        [class.opacity-0]="drawnOnCanvas()"
       ></div>
       @if (!isIconHidden()) {
         @if (!isLock && !mode2dEnabled()) {
@@ -125,7 +125,7 @@
                   [class.is-black-mask]="!isVisible()"
                   [class.is-harf-black-mask]="isMine()"
                   [class.is-used]="isUsed()"
-                  [class.opacity-0]="drawsOnCanvas()"
+                  [class.opacity-0]="drawnOnCanvas()"
                 />
               }
               @if (imageFile().url && !specifyImageFlag()) {
@@ -143,7 +143,7 @@
                   [class.is-black-mask]="!isVisible()"
                   [class.is-harf-black-mask]="isMine()"
                   [class.is-used]="isUsed()"
-                  [class.opacity-0]="drawsOnCanvas()"
+                  [class.opacity-0]="drawnOnCanvas()"
                 />
               }
             </div>

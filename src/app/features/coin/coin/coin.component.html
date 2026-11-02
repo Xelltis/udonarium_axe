@@ -27,14 +27,14 @@
         @for (segment of edgeSegments(); track $index) {
           <div
             class="pointer-events-none absolute top-1/2 left-1/2 backface-visible"
-            [class.opacity-0]="drawsOnCanvas()"
+            [class.opacity-0]="drawnOnCanvas()"
             [ngStyle]="segment"
           ></div>
         }
         <div
           class="absolute inset-0 flex items-center justify-center overflow-hidden rounded-full border-2 border-solid border-[#8a5f18] bg-[radial-gradient(circle_at_30%_28%,#ffeeb4,#e0ac45_58%,#a97c22)] shadow-[inset_0_0_0_3px_rgba(255,240,190,0.35),inset_0_0_10px_rgba(120,80,10,0.55)] backface-hidden"
           [style.transform]="frontFaceTransform()"
-          [class.opacity-0]="drawsOnCanvas()"
+          [class.opacity-0]="drawnOnCanvas()"
         >
           @if (frontImage().url) {
             <img
@@ -67,7 +67,7 @@
         <div
           class="absolute inset-0 flex items-center justify-center overflow-hidden rounded-full border-2 border-solid border-[#6f4a12] bg-[radial-gradient(circle_at_30%_28%,#f3dda0,#c8933a_58%,#8d6519)] shadow-[inset_0_0_0_3px_rgba(240,220,170,0.3),inset_0_0_10px_rgba(90,60,8,0.6)] backface-hidden"
           [style.transform]="backFaceTransform()"
-          [class.opacity-0]="drawsOnCanvas()"
+          [class.opacity-0]="drawnOnCanvas()"
         >
           @if (backImage().url) {
             <img

@@ -49,6 +49,7 @@ import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { makeBillboardTransform } from '@axe/ui/tabletop/billboard-transform';
 import { DoubleTap } from '@axe/ui/tabletop/double-tap';
+import { drawnByPageWhile } from '@axe/ui/tabletop/drawn-by-page-while';
 import { hideIconWhileTouched } from '@axe/ui/tabletop/icon-hiding';
 import { pieceImageView } from '@axe/ui/tabletop/piece-image-view';
 import { pieceLabelFacings } from '@axe/ui/tabletop/piece-label-facings';
@@ -100,6 +101,8 @@ export class DiceSymbolComponent {
    * they still take the presses where the canvas draws them.
    */
   readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
+  /** Whether the die is drawn on the canvas now: not while it tumbles, which the page plays and draws itself. */
+  readonly drawnOnCanvas = computed(() => this.drawsOnCanvas() && !(this.animeState() === 'active'));
 
   readonly isHiddenByFog = computed(() => {
     const piece = this.diceSymbol();
@@ -340,6 +343,10 @@ export class DiceSymbolComponent {
   }
 
   constructor() {
+    drawnByPageWhile(
+      () => this.diceSymbol().identifier,
+      () => this.drawsOnCanvas() && this.animeState() === 'active'
+    );
     this.objectChange.rollDiceSymbol$.subscribe((event) => {
       if (event.identifier === this.diceSymbol().identifier) this.startRoll();
     }, this.destroyRef);

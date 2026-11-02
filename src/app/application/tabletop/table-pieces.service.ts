@@ -3,6 +3,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PageDrawnPiecesService } from '@axe/application/tabletop/page-drawn-pieces.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
@@ -58,8 +59,8 @@ interface DrawnPlace {
 
 /**
  * How the pieces on the table in view are drawn, worked out for this seat: the sprites most are
- * drawn with, and the coins. What the seat may not see is left out, and a piece it is moving is
- * drawn where it is being moved to.
+ * drawn with, and the coins. What the seat may not see is left out, and so is a piece the page
+ * draws itself for a while; a piece the seat is moving is drawn where it is being moved to.
  *
  * Both the canvas that draws the table and the picking that says what a press lands on read them,
  * so a piece is pressed where it is drawn.
@@ -78,18 +79,21 @@ export class TablePiecesService {
   private readonly objectStore = inject(ObjectStore);
   private readonly pagePictures = inject(PiecePicturesService);
   private readonly roomRules = inject(RoomRulesService);
+  private readonly pageDrawn = inject(PageDrawnPiecesService);
 
   /** Every sprite of every piece drawn on the table in view. */
-  readonly sprites = computed<readonly TableWorldSprite[]>(() => [
-    ...this.boardSprites(),
-    ...this.lightSprites(),
-    ...this.maskSprites(),
-    ...this.rangeSprites(),
-    ...this.noteSprites(),
-    ...this.cardSprites(),
-    ...this.diceSprites(),
-    ...this.characterSprites(),
-  ]);
+  readonly sprites = computed<readonly TableWorldSprite[]>(() =>
+    [
+      ...this.boardSprites(),
+      ...this.lightSprites(),
+      ...this.maskSprites(),
+      ...this.rangeSprites(),
+      ...this.noteSprites(),
+      ...this.cardSprites(),
+      ...this.diceSprites(),
+      ...this.characterSprites(),
+    ].filter((sprite) => !this.pageDrawn.drawsItself(sprite.owner))
+  );
 
   /** Every coin on the table in view. */
   readonly coins = computed<readonly TableWorldCoin[]>(() => {
@@ -114,7 +118,7 @@ export class TablePiecesService {
         frontPictureUrl: this.images.getEmptyOr(coin.frontImage).url,
         backPictureUrl: this.images.getEmptyOr(coin.backImage).url,
       });
-      if (drawn) coins.push(drawn);
+      if (drawn && !this.pageDrawn.drawsItself(coin.identifier)) coins.push(drawn);
     }
     return coins;
   });

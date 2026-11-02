@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
+import { PageDrawnPiecesService } from '@axe/application/tabletop/page-drawn-pieces.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
@@ -167,5 +168,16 @@ describe('TablePiecesService', () => {
     TestBed.inject(PiecePicturesService).show(board.identifier, { url: 'blob:board', widthPx: 200, heightPx: 100 });
 
     expect(pieces.sprites()).toMatchObject([{ id: `${board.identifier}#face`, widthPx: 200, heightPx: 100 }]);
+  });
+
+  it('leaves out a piece the page draws itself for a while, and draws it again once handed back', () => {
+    const die = dieAt(100, 200);
+    const pages = TestBed.inject(PageDrawnPiecesService);
+
+    pages.draw(die.identifier, true);
+    expect(pieces.sprites()).toEqual([]);
+
+    pages.draw(die.identifier, false);
+    expect(pieces.sprites().map((sprite) => sprite.owner)).toEqual([die.identifier, die.identifier]);
   });
 });

@@ -37,6 +37,7 @@ import { RotableDirective, RotableOption } from '@axe/ui/directives/rotable.dire
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { DoubleTap } from '@axe/ui/tabletop/double-tap';
+import { drawnByPageWhile } from '@axe/ui/tabletop/drawn-by-page-while';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
 
@@ -80,6 +81,8 @@ export class CoinComponent {
    * still take the presses where the canvas draws them.
    */
   readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
+  /** Whether the coin is drawn on the canvas now: not while it spins, which the page plays and draws itself. */
+  readonly drawnOnCanvas = computed(() => this.drawsOnCanvas() && !this.isSpinning());
 
   readonly isHiddenByFog = computed(() => {
     const piece = this.coin();
@@ -195,6 +198,10 @@ export class CoinComponent {
   }
 
   constructor() {
+    drawnByPageWhile(
+      () => this.coin().identifier,
+      () => this.drawsOnCanvas() && this.isSpinning()
+    );
     this.objectChange.flipCoin$.subscribe((event) => {
       if (event.identifier === this.coin().identifier) this.startSpin(event.face as CoinFace);
     }, this.destroyRef);

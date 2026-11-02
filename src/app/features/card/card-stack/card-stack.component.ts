@@ -48,6 +48,7 @@ import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { DoubleTap } from '@axe/ui/tabletop/double-tap';
+import { drawnByPageWhile } from '@axe/ui/tabletop/drawn-by-page-while';
 import { hideIconWhileTouched } from '@axe/ui/tabletop/icon-hiding';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { supersampleFactor, supersampleInsetPercent, supersampleTransform } from '@axe/ui/tabletop/supersample';
@@ -98,6 +99,8 @@ export class CardStackComponent {
    * card here clear: they still take the presses where the canvas draws them.
    */
   readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
+  /** Whether the stack is drawn on the canvas now: not while it is shuffled, which the page plays and draws itself. */
+  readonly drawnOnCanvas = computed(() => this.drawsOnCanvas() && !(this.animeState() === 'active'));
   private readonly modalService = inject(ModalService);
   private readonly cardDrop = inject(CardDropService);
   private readonly movableRef = viewChild(MovableDirective);
@@ -286,6 +289,10 @@ export class CardStackComponent {
   private readonly doubleTap = new DoubleTap(() => this.input);
 
   constructor() {
+    drawnByPageWhile(
+      () => this.cardStack().identifier,
+      () => this.drawsOnCanvas() && this.animeState() === 'active'
+    );
     this.objectChange.shuffleCardStack$.subscribe((event) => {
       if (event.identifier === this.cardStack().identifier) {
         this.animeState.set('active');
