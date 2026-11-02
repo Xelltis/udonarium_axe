@@ -518,9 +518,7 @@
                             [style.font-size.em]="buffIconScale()"
                           >
                             @for (badge of buffBadges(); track badge.identifier) {
-                              <ng-container
-                                *ngTemplateOutlet="buffBadgeView; context: { $implicit: badge }"
-                              ></ng-container>
+                              <buff-badge [badge]="badge"></buff-badge>
                             }
                           </div>
                         }
@@ -559,9 +557,7 @@
                           [style.font-size.em]="buffIconScale()"
                         >
                           @for (badge of label.badges; track badge.identifier) {
-                            <ng-container
-                              *ngTemplateOutlet="buffBadgeView; context: { $implicit: badge }"
-                            ></ng-container>
+                            <buff-badge [badge]="badge"></buff-badge>
                           }
                         </div>
                       }
@@ -1025,9 +1021,7 @@
                                     [style.font-size.em]="buffIconScale()"
                                   >
                                     @for (badge of buffBadges(); track badge.identifier) {
-                                      <ng-container
-                                        *ngTemplateOutlet="buffBadgeView; context: { $implicit: badge }"
-                                      ></ng-container>
+                                      <buff-badge [badge]="badge"></buff-badge>
                                     }
                                   </div>
                                 }
@@ -1157,9 +1151,7 @@
                                 [style.font-size.em]="buffIconScale()"
                               >
                                 @for (badge of label.badges; track badge.identifier) {
-                                  <ng-container
-                                    *ngTemplateOutlet="buffBadgeView; context: { $implicit: badge }"
-                                  ></ng-container>
+                                  <buff-badge [badge]="badge"></buff-badge>
                                 }
                               </div>
                             }
@@ -1703,42 +1695,6 @@
       row.numbers
     }}</span>
   </div>
-</ng-template>
-
-<ng-template #buffBadgeView let-badge>
-  <span
-    data-testid="buff-badge"
-    class="relative inline-flex"
-    [attr.title]="badge.name + (badge.effect ? ' / ' + badge.effect : '')"
-  >
-    <span
-      class="relative inline-flex size-[1.5em] items-center justify-center rounded-full border border-solid border-white/35 text-[0.95em] leading-none shadow-[0_0.1em_0.25em_rgba(0,0,0,0.6)]"
-      [style.background]="badge.color"
-    >
-      @if (badge.iconUrl) {
-        <img
-          class="pointer-events-none size-[0.9em] object-contain"
-          [src]="badge.iconUrl | safe: 'resourceUrl'"
-          alt=""
-        />
-      } @else {
-        {{ badge.icon }}
-      }
-      @if (badge.strength) {
-        <span
-          class="bg-ui-accent-solid pointer-events-none absolute top-[-0.35em] left-[-0.4em] rounded-[0.3em] px-[0.18em] text-[0.45em] leading-tight font-bold text-white shadow-[0_0.1em_0.2em_rgba(0,0,0,0.7)]"
-          >{{ badge.strength }}</span
-        >
-      }
-    </span>
-    @if (badge.expires) {
-      <span
-        data-testid="buff-rounds"
-        class="pointer-events-none absolute right-[-0.35em] bottom-[-0.3em] rounded-[0.25em] border border-solid border-white/30 bg-black/90 px-[0.2em] text-[0.52em] leading-tight font-bold text-white tabular-nums"
-        >{{ badge.rounds }}</span
-      >
-    }
-  </span>
 </ng-template>
 
 <ng-template #picture let-facing="facing" let-sizing="sizing" let-style="style" let-copyStyle="copyStyle">

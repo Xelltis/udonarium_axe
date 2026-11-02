@@ -46,7 +46,7 @@ describe('GameDataElementBuffComponent', () => {
     fixture.detectChanges();
     const root = fixture.nativeElement as HTMLElement;
 
-    expect(root.querySelector('[data-testid="buff-row-icon-picture"]')?.getAttribute('src')).toBe('blob:poison');
+    expect(root.querySelector('[data-testid="buff-row-mark"] img')?.getAttribute('src')).toBe('blob:poison');
     expect(root.textContent).not.toContain('452c31a22f');
     row.destroy();
   });
@@ -59,10 +59,41 @@ describe('GameDataElementBuffComponent', () => {
     fixture.detectChanges();
     const root = fixture.nativeElement as HTMLElement;
 
-    expect(root.querySelector('[data-testid="buff-row-icon-picture"]')).toBeNull();
+    expect(root.querySelector('[data-testid="buff-row-mark"] img')).toBeNull();
     expect(root.textContent).toContain('☠️');
     row.destroy();
   });
+
+  it('paints the mark on the piece in the colour the buff was given, as its badge is', () => {
+    const row = DataElement.create('石化', 1, { type: 'numberResource', currentValue: 'HP=0' });
+    row.setAttribute(DataElementAttribute.BUFF_COLOR, '#2e7d32');
+    fixture.componentRef.setInput('gameDataElement', row);
+    fixture.componentRef.setInput('isPieceMode', true);
+    fixture.detectChanges();
+    const mark = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      '[data-testid="buff-row-mark"] [data-testid="buff-badge-mark"]'
+    );
+
+    expect(mark?.style.background).toBe('#2e7d32');
+    row.destroy();
+  });
+
+  for (const { timing, shown } of [
+    { timing: 'none', shown: '毒 / 継続2 / ∞R' },
+    { timing: 'roundEnd', shown: '毒 / 継続2 / 3R' },
+  ]) {
+    it(`shows the rounds left on the piece, and ∞ for a buff that never runs out (${timing})`, () => {
+      const row = DataElement.create('毒', 3, { type: 'numberResource', currentValue: '継続2' });
+      row.setAttribute(DataElementAttribute.BUFF_TIMING, timing);
+      fixture.componentRef.setInput('gameDataElement', row);
+      fixture.componentRef.setInput('isPieceMode', true);
+      fixture.detectChanges();
+      const text = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="buff-row-text"]');
+
+      expect(text?.textContent?.trim()).toBe(shown);
+      row.destroy();
+    });
+  }
 
   it('shows the timing and the trigger the buff holds in their dropdowns', async () => {
     const row = DataElement.create('猛攻撃', 3, { type: 'numberResource', currentValue: '筋力+2' });

@@ -98,6 +98,7 @@ import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { PieceWaterLook, pieceWaterLook } from '@axe/domain/tabletop/water/submersion';
 import { PieceMotionKind } from '@axe/domain/tabletop/world/piece-motions';
+import { BuffBadgeComponent } from '@axe/features/character/buff-badge/buff-badge.component';
 import {
   GameCharacterMenuHost,
   GameCharacterMenuService,
@@ -227,6 +228,7 @@ const WATER_RIPPLE_LIFT_PX = 0.5;
   templateUrl: './game-character.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    BuffBadgeComponent,
     BillboardDirective,
     HudPlaceDirective,
     SeeThroughDirective,
