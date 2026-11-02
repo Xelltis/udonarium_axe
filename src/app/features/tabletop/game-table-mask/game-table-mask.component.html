@@ -1,429 +1,480 @@
-@if (gameTableMask()) {
-  <div
-    class="group pointer-events-none absolute size-12.5 select-none [-moz-user-drag:none] [-webkit-user-drag:none] backface-hidden transform-3d"
-    [class.cursor-grab]="!isLock && !isScratching"
-    [class.cursor-pointer]="isScratching && gameTableMask()!.isMine"
-    [attr.data-version]="maskVersion()"
-    [style.width.px]="pixelWidth"
-    [style.height.px]="pixelHeight"
-    appMovable
-    [movable.option]="movableOption()"
-    [movable.disable]="isLock || isScratching"
-    [appSelectable]="gameTableMask()"
-    (movable.ondragstart)="onMove()"
-    (movable.ondragend)="onMoved()"
-  >
+<ng-template #coverContent>
+  @if (scratchedLayerMask; as scratchedMask) {
     <div
-      class="pointer-events-none size-full transform-3d"
-      [class.[transition:transform_132ms_ease-in-out]]="altitude === 0"
-      [ngStyle]="{ transform: 'translateZ(' + altitude * gridSize + 'px)' }"
+      class="pointer-events-none absolute size-full backface-hidden transform-3d"
+      data-scratched-layer
+      [ngStyle]="{
+        opacity: operateOpacity,
+        'background-color': scratchedColor() || null,
+        '-webkit-mask': scratchedMask,
+        mask: scratchedMask,
+      }"
+    >
+      @if (scratchedImageFile().url.length >= 1) {
+        <div class="pointer-events-none absolute isolate size-full">
+          <img
+            class="pointer-events-none absolute size-full"
+            [style.mix-blend-mode]="blendType === 1 ? null : 'hard-light'"
+            [src]="scratchedImageFile().url | safe: 'resourceUrl'"
+          />
+        </div>
+      }
+    </div>
+  }
+  <div
+    class="pointer-events-auto absolute size-full backface-hidden transform-3d"
+    [class.block!]="imageFile().url.length >= 1"
+    [class.box-border]="imageFile().url.length >= 1"
+    [attr.data-table-passthrough]="isLock && !isScratching ? '' : null"
+    (mousedown)="onMaskMouseDown($event)"
+    [ngStyle]="{
+      opacity: operateOpacity,
+      'background-color': imageFile().url.length < 1 ? bgcolor : null,
+      '-webkit-mask': masksCss,
+      mask: masksCss,
+    }"
+  >
+    @if (imageFile().url.length >= 1) {
+      <img
+        class="pointer-events-none absolute size-full transform-3d"
+        [style.mix-blend-mode]="blendType === 1 ? null : 'hard-light'"
+        [src]="imageFile().url | safe: 'resourceUrl'"
+      />
+    }
+    @if (writing(); as words) {
+      <div
+        class="pointer-events-none absolute inset-0 box-border flex items-center justify-center overflow-hidden p-[4%] text-center leading-snug font-bold wrap-anywhere whitespace-pre-wrap"
+        data-mask-text
+        [style.font-size.px]="words.size"
+        [style.color]="words.color"
+        [style.text-shadow]="words.outline ? writingOutline : null"
+        [textContent]="words.text"
+      ></div>
+    }
+  </div>
+  <div
+    class="pointer-events-none size-full overflow-hidden backface-hidden transform-3d"
+    [class.outline-2]="!hexOutlineMask"
+    [class.outline-ui-border-panel]="!hexOutlineMask"
+    [class.-outline-offset-2]="!hexOutlineMask"
+    [class.group-hover:outline]="!hexOutlineMask"
+    [class.group-active:outline]="!hexOutlineMask"
+    [ngStyle]="hexOuterBorder ? { background: hexOuterBorder } : null"
+  >
+    @if (isScratching) {
+      <svg
+        class="animate-fade-in"
+        [attr.width]="pixelWidth"
+        [attr.height]="pixelHeight"
+        [attr.viewBox]="'0, 0, ' + pixelWidth + ', ' + pixelHeight"
+        #elementToDetach
+      >
+        @for (gridInfo of scratchingGridInfos; track gridInfo.x + '_' + gridInfo.y) {
+          <g [style.transform-origin]="gridInfo.cx + 'px ' + gridInfo.cy + 'px'">
+            <desc>{{ gridInfo.state }}</desc>
+            <ng-container>
+              @if (gridInfo.hexPoints) {
+                @switch (gridInfo.state) {
+                  @case ('scrached') {
+                    <ng-container>
+                      <polygon
+                        [attr.points]="gridInfo.hexPoints"
+                        fill="none"
+                        stroke="#22222288"
+                        stroke-width="5"
+                        stroke-linejoin="round"
+                      />
+                      <polygon
+                        [attr.points]="gridInfo.hexPoints"
+                        fill="none"
+                        stroke="#ff3e3e"
+                        stroke-width="4"
+                        stroke-linejoin="round"
+                      />
+                    </ng-container>
+                  }
+                  @case ('scraching') {
+                    <ng-container>
+                      <line
+                        [attr.x1]="gridInfo.cx - hexMarkerR"
+                        [attr.y1]="gridInfo.cy - hexMarkerR"
+                        [attr.x2]="gridInfo.cx + hexMarkerR"
+                        [attr.y2]="gridInfo.cy + hexMarkerR"
+                        stroke="#22222288"
+                        stroke-width="6"
+                        stroke-linecap="round"
+                      />
+                      <line
+                        [attr.x1]="gridInfo.cx + hexMarkerR"
+                        [attr.y1]="gridInfo.cy - hexMarkerR"
+                        [attr.x2]="gridInfo.cx - hexMarkerR"
+                        [attr.y2]="gridInfo.cy + hexMarkerR"
+                        stroke="#22222288"
+                        stroke-width="6"
+                        stroke-linecap="round"
+                      />
+                      <line
+                        [attr.x1]="gridInfo.cx - hexMarkerR"
+                        [attr.y1]="gridInfo.cy - hexMarkerR"
+                        [attr.x2]="gridInfo.cx + hexMarkerR"
+                        [attr.y2]="gridInfo.cy + hexMarkerR"
+                        stroke="#ff3e3e"
+                        stroke-width="4"
+                        stroke-linecap="round"
+                      />
+                      <line
+                        [attr.x1]="gridInfo.cx + hexMarkerR"
+                        [attr.y1]="gridInfo.cy - hexMarkerR"
+                        [attr.x2]="gridInfo.cx - hexMarkerR"
+                        [attr.y2]="gridInfo.cy + hexMarkerR"
+                        stroke="#ff3e3e"
+                        stroke-width="4"
+                        stroke-linecap="round"
+                      />
+                    </ng-container>
+                  }
+                  @case ('restore') {
+                    <ng-container>
+                      <polygon
+                        [attr.points]="gridInfo.hexPoints"
+                        fill="none"
+                        stroke="#22222288"
+                        stroke-width="6"
+                        stroke-linejoin="round"
+                      />
+                      <line
+                        [attr.x1]="gridInfo.cx - hexMarkerR"
+                        [attr.y1]="gridInfo.cy"
+                        [attr.x2]="gridInfo.cx + hexMarkerR"
+                        [attr.y2]="gridInfo.cy"
+                        stroke="#22222288"
+                        stroke-width="6"
+                        stroke-linecap="round"
+                      />
+                      <line
+                        [attr.x1]="gridInfo.cx"
+                        [attr.y1]="gridInfo.cy - hexMarkerR"
+                        [attr.x2]="gridInfo.cx"
+                        [attr.y2]="gridInfo.cy + hexMarkerR"
+                        stroke="#22222288"
+                        stroke-width="6"
+                        stroke-linecap="round"
+                      />
+                      <polygon
+                        [attr.points]="gridInfo.hexPoints"
+                        fill="none"
+                        stroke="#8098ff"
+                        stroke-width="4"
+                        stroke-linejoin="round"
+                      />
+                      <line
+                        [attr.x1]="gridInfo.cx - hexMarkerR"
+                        [attr.y1]="gridInfo.cy"
+                        [attr.x2]="gridInfo.cx + hexMarkerR"
+                        [attr.y2]="gridInfo.cy"
+                        stroke="#8098ff"
+                        stroke-width="4"
+                        stroke-linecap="round"
+                      />
+                      <line
+                        [attr.x1]="gridInfo.cx"
+                        [attr.y1]="gridInfo.cy - hexMarkerR"
+                        [attr.x2]="gridInfo.cx"
+                        [attr.y2]="gridInfo.cy + hexMarkerR"
+                        stroke="#8098ff"
+                        stroke-width="4"
+                        stroke-linecap="round"
+                      />
+                    </ng-container>
+                  }
+                }
+              } @else {
+                @switch (gridInfo.state) {
+                  @case ('scrached') {
+                    <ng-container>
+                      <rect
+                        [attr.x]="gridInfo.x * gridSize + 5"
+                        [attr.y]="gridInfo.y * gridSize + 5"
+                        [attr.width]="gridSize - 10"
+                        [attr.height]="gridSize - 10"
+                        fill="none"
+                        stroke="#22222288"
+                        stroke-width="5"
+                        stroke-linejoin="round"
+                      />
+                      <rect
+                        [attr.x]="gridInfo.x * gridSize + 5"
+                        [attr.y]="gridInfo.y * gridSize + 5"
+                        [attr.width]="gridSize - 10"
+                        [attr.height]="gridSize - 10"
+                        fill="none"
+                        stroke="#ff3e3e"
+                        stroke-width="4"
+                        stroke-linejoin="round"
+                      />
+                    </ng-container>
+                  }
+                  @case ('scraching') {
+                    <ng-container>
+                      <line
+                        [attr.x1]="gridInfo.x * gridSize + 5"
+                        [attr.y1]="gridInfo.y * gridSize + 5"
+                        [attr.x2]="gridInfo.x * gridSize + (gridSize - 5)"
+                        [attr.y2]="gridInfo.y * gridSize + (gridSize - 5)"
+                        stroke="#22222288"
+                        stroke-width="6"
+                        stroke-linecap="round"
+                      />
+                      <line
+                        [attr.x1]="gridInfo.x * gridSize + (gridSize - 5)"
+                        [attr.y1]="gridInfo.y * gridSize + 5"
+                        [attr.x2]="gridInfo.x * gridSize + 5"
+                        [attr.y2]="gridInfo.y * gridSize + (gridSize - 5)"
+                        stroke="#22222288"
+                        stroke-width="6"
+                        stroke-linecap="round"
+                      />
+                      <line
+                        [attr.x1]="gridInfo.x * gridSize + 5"
+                        [attr.y1]="gridInfo.y * gridSize + 5"
+                        [attr.x2]="gridInfo.x * gridSize + (gridSize - 5)"
+                        [attr.y2]="gridInfo.y * gridSize + (gridSize - 5)"
+                        stroke="#ff3e3e"
+                        stroke-width="4"
+                        stroke-linecap="round"
+                      />
+                      <line
+                        [attr.x1]="gridInfo.x * gridSize + (gridSize - 5)"
+                        [attr.y1]="gridInfo.y * gridSize + 5"
+                        [attr.x2]="gridInfo.x * gridSize + 5"
+                        [attr.y2]="gridInfo.y * gridSize + (gridSize - 5)"
+                        stroke="#ff3e3e"
+                        stroke-width="4"
+                        stroke-linecap="round"
+                      />
+                    </ng-container>
+                  }
+                  @case ('restore') {
+                    <ng-container>
+                      <rect
+                        [attr.x]="gridInfo.x * gridSize + 5"
+                        [attr.y]="gridInfo.y * gridSize + 5"
+                        [attr.width]="gridSize - 10"
+                        [attr.height]="gridSize - 10"
+                        fill="none"
+                        stroke="#22222288"
+                        stroke-width="6"
+                        stroke-linejoin="round"
+                      />
+                      <line
+                        [attr.x1]="gridInfo.x * gridSize + 15"
+                        [attr.y1]="gridInfo.y * gridSize + 25"
+                        [attr.x2]="gridInfo.x * gridSize + 35"
+                        [attr.y2]="gridInfo.y * gridSize + 25"
+                        stroke="#22222288"
+                        stroke-width="6"
+                        stroke-linecap="round"
+                      />
+                      <line
+                        [attr.x1]="gridInfo.x * gridSize + 25"
+                        [attr.y1]="gridInfo.y * gridSize + 15"
+                        [attr.x2]="gridInfo.x * gridSize + 25"
+                        [attr.y2]="gridInfo.y * gridSize + 35"
+                        stroke="#22222288"
+                        stroke-width="6"
+                        stroke-linecap="round"
+                      />
+                      <rect
+                        [attr.x]="gridInfo.x * gridSize + 5"
+                        [attr.y]="gridInfo.y * gridSize + 5"
+                        [attr.width]="gridSize - 10"
+                        [attr.height]="gridSize - 10"
+                        fill="none"
+                        stroke="#8098ff"
+                        stroke-width="4"
+                        stroke-linejoin="round"
+                      />
+                      <line
+                        [attr.x1]="gridInfo.x * gridSize + 15"
+                        [attr.y1]="gridInfo.y * gridSize + 25"
+                        [attr.x2]="gridInfo.x * gridSize + 35"
+                        [attr.y2]="gridInfo.y * gridSize + 25"
+                        stroke="#8098ff"
+                        stroke-width="4"
+                        stroke-linecap="round"
+                      />
+                      <line
+                        [attr.x1]="gridInfo.x * gridSize + 25"
+                        [attr.y1]="gridInfo.y * gridSize + 15"
+                        [attr.x2]="gridInfo.x * gridSize + 25"
+                        [attr.y2]="gridInfo.y * gridSize + 35"
+                        stroke="#8098ff"
+                        stroke-width="4"
+                        stroke-linecap="round"
+                      />
+                    </ng-container>
+                  }
+                }
+              }
+            </ng-container>
+          </g>
+        }
+      </svg>
+    }
+  </div>
+</ng-template>
+<ng-template #scratchLabel>
+  <div
+    class="bg-ui-panel text-ui-text pointer-events-none inline-block max-w-[18em] truncate rounded-3xl px-2.25 py-0.75 text-[15px] whitespace-nowrap"
+    [ngStyle]="{ 'background-color': ownerColor + 'E6' }"
+  >
+    <span class="inline-block" [class.transform-[rotateZ(180deg)]]="isInverse"
+      ><b>{{ ownerName }}</b
+      >{{ 'feature.tabletop.mask.operating' | transloco }}
+      @if (gameTableMask()!.isMine) {
+        <button
+          class="pointer-events-auto m-0 mr-px px-1 py-0 align-[10%]"
+          (pointerdown)="onScratchDonePointerDown($event)"
+          (click)="scratchDone($event)"
+          [title]="
+            gameTableMask()!.scratchingGrids
+              ? ('feature.tabletop.mask.confirm' | transloco)
+              : ('feature.tabletop.mask.finish' | transloco)
+          "
+        >
+          <i class="material-icons align-bottom text-[14px]!">done</i>
+        </button>
+      }
+      @if (gameTableMask()!.isMine) {
+        <button
+          class="pointer-events-auto m-0 mr-px px-1 py-0 align-[10%]"
+          (pointerdown)="onScratchCancelPointerDown($event)"
+          (click)="scratchCancel($event)"
+          [title]="'feature.tabletop.mask.cancel' | transloco"
+        >
+          <i class="material-icons align-bottom text-[14px]!">clear</i>
+        </button>
+      }
+    </span>
+  </div>
+</ng-template>
+@if (gameTableMask()) {
+  @if (drawsOnCanvas()) {
+    <!--
+      Over a table drawn on a canvas, the mask is a box on the screen round where the canvas draws
+      it, and what it shows is laid on it in perspective, clear: the canvas draws a picture of it.
+    -->
+    @let id = gameTableMask()!.identifier;
+    <div
+      class="group pointer-events-none size-full select-none [-moz-user-drag:none] [-webkit-user-drag:none]"
+      [class.cursor-grab]="!isLock && !isScratching"
+      [class.cursor-pointer]="isScratching && gameTableMask()!.isMine"
+      [attr.data-version]="maskVersion()"
+      data-hud-box
+      appMovable
+      [movable.option]="movableOption()"
+      [movable.disable]="isLock || isScratching"
+      [appSelectable]="gameTableMask()"
+      (movable.ondragstart)="onMove()"
+      (movable.ondragend)="onMoved()"
+    >
+      <div
+        class="pointer-events-none opacity-0"
+        #visual
+        data-part="cover"
+        [style.width.px]="pixelWidth"
+        [style.height.px]="pixelHeight"
+        [ngStyle]="hexOutlineMask ? { '-webkit-mask': hexOutlineMask, mask: hexOutlineMask } : null"
+        [appHudPlace]="{ owner: id, part: 'picture', place: 'face' }"
+      >
+        <ng-container [ngTemplateOutlet]="coverContent"></ng-container>
+      </div>
+      @if (isLock && dispLockMark) {
+        <div class="pointer-events-none" [appHudPlace]="{ owner: id, part: 'picture' }">
+          <div class="bg-ui-elevated text-ui-muted absolute inset-0 m-auto size-6.25 rounded-full">
+            <i class="material-icons pointer-events-none">lock</i>
+          </div>
+        </div>
+      }
+      @if (isScratching && (gameTableMask()!.isMine || ownerIsOnline)) {
+        <div class="pointer-events-none" [appHudPlace]="{ owner: id, part: 'picture', place: 'above' }">
+          <ng-container [ngTemplateOutlet]="scratchLabel"></ng-container>
+        </div>
+      }
+    </div>
+  } @else {
+    <div
+      class="group pointer-events-none absolute size-12.5 select-none [-moz-user-drag:none] [-webkit-user-drag:none] backface-hidden transform-3d"
+      [class.cursor-grab]="!isLock && !isScratching"
+      [class.cursor-pointer]="isScratching && gameTableMask()!.isMine"
+      [attr.data-version]="maskVersion()"
+      [style.width.px]="pixelWidth"
+      [style.height.px]="pixelHeight"
+      appMovable
+      [movable.option]="movableOption()"
+      [movable.disable]="isLock || isScratching"
+      [appSelectable]="gameTableMask()"
+      (movable.ondragstart)="onMove()"
+      (movable.ondragend)="onMoved()"
     >
       <div
         class="pointer-events-none size-full transform-3d"
-        #visual
-        data-part="cover"
-        [class.opacity-0]="picturedOnCanvas()"
-        [ngStyle]="hexOutlineMask ? { '-webkit-mask': hexOutlineMask, mask: hexOutlineMask } : null"
+        [class.[transition:transform_132ms_ease-in-out]]="altitude === 0"
+        [ngStyle]="{ transform: 'translateZ(' + altitude * gridSize + 'px)' }"
       >
-        @if (scratchedLayerMask; as scratchedMask) {
+        <div
+          class="pointer-events-none size-full transform-3d"
+          #visual
+          data-part="cover"
+          [class.opacity-0]="picturedOnCanvas()"
+          [ngStyle]="hexOutlineMask ? { '-webkit-mask': hexOutlineMask, mask: hexOutlineMask } : null"
+        >
+          <ng-container [ngTemplateOutlet]="coverContent"></ng-container>
+        </div>
+        <div class="pointer-events-none z-10 backface-hidden">
+          @if (isLock && dispLockMark) {
+            <div class="bg-ui-elevated text-ui-muted absolute inset-0 m-auto size-6.25 rounded-full transform-3d">
+              <i class="material-icons pointer-events-none backface-hidden">lock</i>
+            </div>
+          }
+        </div>
+        @if (isScratching && (gameTableMask()!.isMine || ownerIsOnline)) {
           <div
-            class="pointer-events-none absolute size-full backface-hidden transform-3d"
-            data-scratched-layer
-            [ngStyle]="{
-              opacity: operateOpacity,
-              'background-color': scratchedColor() || null,
-              '-webkit-mask': scratchedMask,
-              mask: scratchedMask,
-            }"
+            class="pointer-events-none absolute inset-x-0 -top-2.5 left-px z-10 m-auto translate-z-[0.5px] backface-hidden transform-3d"
           >
-            @if (scratchedImageFile().url.length >= 1) {
-              <div class="pointer-events-none absolute isolate size-full">
-                <img
-                  class="pointer-events-none absolute size-full"
-                  [style.mix-blend-mode]="blendType === 1 ? null : 'hard-light'"
-                  [src]="scratchedImageFile().url | safe: 'resourceUrl'"
-                />
-              </div>
-            }
+            <ng-container [ngTemplateOutlet]="scratchLabel"></ng-container>
           </div>
         }
+      </div>
+      @if (isAltitudeIndicate && math.abs(gameTableMaskAltitude) >= 0.5) {
         <div
-          class="pointer-events-auto absolute size-full backface-hidden transform-3d"
-          [class.block!]="imageFile().url.length >= 1"
-          [class.box-border]="imageFile().url.length >= 1"
-          [attr.data-table-passthrough]="isLock && !isScratching ? '' : null"
-          (mousedown)="onMaskMouseDown($event)"
+          class="pointer-events-none flex origin-top-left items-center border-l-2 border-dashed border-l-[blanchedalmond] transform-3d"
+          [style.height.px]="math.abs(gameTableMaskAltitude * gridSize)"
           [ngStyle]="{
-            opacity: operateOpacity,
-            'background-color': imageFile().url.length < 1 ? bgcolor : null,
-            '-webkit-mask': masksCss,
-            mask: masksCss,
+            transform:
+              'translateX(' +
+              (width * gridSize) / 2 +
+              'px) translateY(' +
+              (-height * gridSize) / 2 +
+              'px) rotateX(-90deg) translateY(' +
+              (altitude > 0 ? -altitude * gridSize : 0) +
+              'px) rotateY(' +
+              viewRotateZ() +
+              'deg)',
           }"
         >
-          @if (imageFile().url.length >= 1) {
-            <img
-              class="pointer-events-none absolute size-full transform-3d"
-              [style.mix-blend-mode]="blendType === 1 ? null : 'hard-light'"
-              [src]="imageFile().url | safe: 'resourceUrl'"
-            />
-          }
-          @if (writing(); as words) {
-            <div
-              class="pointer-events-none absolute inset-0 box-border flex items-center justify-center overflow-hidden p-[4%] text-center leading-snug font-bold wrap-anywhere whitespace-pre-wrap"
-              data-mask-text
-              [style.font-size.px]="words.size"
-              [style.color]="words.color"
-              [style.text-shadow]="words.outline ? writingOutline : null"
-              [textContent]="words.text"
-            ></div>
-          }
-        </div>
-        <div
-          class="pointer-events-none size-full overflow-hidden backface-hidden transform-3d"
-          [class.outline-2]="!hexOutlineMask"
-          [class.outline-ui-border-panel]="!hexOutlineMask"
-          [class.-outline-offset-2]="!hexOutlineMask"
-          [class.group-hover:outline]="!hexOutlineMask"
-          [class.group-active:outline]="!hexOutlineMask"
-          [ngStyle]="hexOuterBorder ? { background: hexOuterBorder } : null"
-        >
-          @if (isScratching) {
-            <svg
-              class="animate-fade-in"
-              [attr.width]="pixelWidth"
-              [attr.height]="pixelHeight"
-              [attr.viewBox]="'0, 0, ' + pixelWidth + ', ' + pixelHeight"
-              #elementToDetach
+          <div class="pointer-events-none transform-3d">
+            <span
+              class="pointer-events-none absolute pl-0.5 text-[11px] font-extrabold text-[blanchedalmond] [text-shadow:var(--ui-elevated)_0px_0px_3px] backface-hidden transform-3d"
+              >{{ math.abs(gameTableMaskAltitude) }}</span
             >
-              @for (gridInfo of scratchingGridInfos; track gridInfo.x + '_' + gridInfo.y) {
-                <g [style.transform-origin]="gridInfo.cx + 'px ' + gridInfo.cy + 'px'">
-                  <desc>{{ gridInfo.state }}</desc>
-                  <ng-container>
-                    @if (gridInfo.hexPoints) {
-                      @switch (gridInfo.state) {
-                        @case ('scrached') {
-                          <ng-container>
-                            <polygon
-                              [attr.points]="gridInfo.hexPoints"
-                              fill="none"
-                              stroke="#22222288"
-                              stroke-width="5"
-                              stroke-linejoin="round"
-                            />
-                            <polygon
-                              [attr.points]="gridInfo.hexPoints"
-                              fill="none"
-                              stroke="#ff3e3e"
-                              stroke-width="4"
-                              stroke-linejoin="round"
-                            />
-                          </ng-container>
-                        }
-                        @case ('scraching') {
-                          <ng-container>
-                            <line
-                              [attr.x1]="gridInfo.cx - hexMarkerR"
-                              [attr.y1]="gridInfo.cy - hexMarkerR"
-                              [attr.x2]="gridInfo.cx + hexMarkerR"
-                              [attr.y2]="gridInfo.cy + hexMarkerR"
-                              stroke="#22222288"
-                              stroke-width="6"
-                              stroke-linecap="round"
-                            />
-                            <line
-                              [attr.x1]="gridInfo.cx + hexMarkerR"
-                              [attr.y1]="gridInfo.cy - hexMarkerR"
-                              [attr.x2]="gridInfo.cx - hexMarkerR"
-                              [attr.y2]="gridInfo.cy + hexMarkerR"
-                              stroke="#22222288"
-                              stroke-width="6"
-                              stroke-linecap="round"
-                            />
-                            <line
-                              [attr.x1]="gridInfo.cx - hexMarkerR"
-                              [attr.y1]="gridInfo.cy - hexMarkerR"
-                              [attr.x2]="gridInfo.cx + hexMarkerR"
-                              [attr.y2]="gridInfo.cy + hexMarkerR"
-                              stroke="#ff3e3e"
-                              stroke-width="4"
-                              stroke-linecap="round"
-                            />
-                            <line
-                              [attr.x1]="gridInfo.cx + hexMarkerR"
-                              [attr.y1]="gridInfo.cy - hexMarkerR"
-                              [attr.x2]="gridInfo.cx - hexMarkerR"
-                              [attr.y2]="gridInfo.cy + hexMarkerR"
-                              stroke="#ff3e3e"
-                              stroke-width="4"
-                              stroke-linecap="round"
-                            />
-                          </ng-container>
-                        }
-                        @case ('restore') {
-                          <ng-container>
-                            <polygon
-                              [attr.points]="gridInfo.hexPoints"
-                              fill="none"
-                              stroke="#22222288"
-                              stroke-width="6"
-                              stroke-linejoin="round"
-                            />
-                            <line
-                              [attr.x1]="gridInfo.cx - hexMarkerR"
-                              [attr.y1]="gridInfo.cy"
-                              [attr.x2]="gridInfo.cx + hexMarkerR"
-                              [attr.y2]="gridInfo.cy"
-                              stroke="#22222288"
-                              stroke-width="6"
-                              stroke-linecap="round"
-                            />
-                            <line
-                              [attr.x1]="gridInfo.cx"
-                              [attr.y1]="gridInfo.cy - hexMarkerR"
-                              [attr.x2]="gridInfo.cx"
-                              [attr.y2]="gridInfo.cy + hexMarkerR"
-                              stroke="#22222288"
-                              stroke-width="6"
-                              stroke-linecap="round"
-                            />
-                            <polygon
-                              [attr.points]="gridInfo.hexPoints"
-                              fill="none"
-                              stroke="#8098ff"
-                              stroke-width="4"
-                              stroke-linejoin="round"
-                            />
-                            <line
-                              [attr.x1]="gridInfo.cx - hexMarkerR"
-                              [attr.y1]="gridInfo.cy"
-                              [attr.x2]="gridInfo.cx + hexMarkerR"
-                              [attr.y2]="gridInfo.cy"
-                              stroke="#8098ff"
-                              stroke-width="4"
-                              stroke-linecap="round"
-                            />
-                            <line
-                              [attr.x1]="gridInfo.cx"
-                              [attr.y1]="gridInfo.cy - hexMarkerR"
-                              [attr.x2]="gridInfo.cx"
-                              [attr.y2]="gridInfo.cy + hexMarkerR"
-                              stroke="#8098ff"
-                              stroke-width="4"
-                              stroke-linecap="round"
-                            />
-                          </ng-container>
-                        }
-                      }
-                    } @else {
-                      @switch (gridInfo.state) {
-                        @case ('scrached') {
-                          <ng-container>
-                            <rect
-                              [attr.x]="gridInfo.x * gridSize + 5"
-                              [attr.y]="gridInfo.y * gridSize + 5"
-                              [attr.width]="gridSize - 10"
-                              [attr.height]="gridSize - 10"
-                              fill="none"
-                              stroke="#22222288"
-                              stroke-width="5"
-                              stroke-linejoin="round"
-                            />
-                            <rect
-                              [attr.x]="gridInfo.x * gridSize + 5"
-                              [attr.y]="gridInfo.y * gridSize + 5"
-                              [attr.width]="gridSize - 10"
-                              [attr.height]="gridSize - 10"
-                              fill="none"
-                              stroke="#ff3e3e"
-                              stroke-width="4"
-                              stroke-linejoin="round"
-                            />
-                          </ng-container>
-                        }
-                        @case ('scraching') {
-                          <ng-container>
-                            <line
-                              [attr.x1]="gridInfo.x * gridSize + 5"
-                              [attr.y1]="gridInfo.y * gridSize + 5"
-                              [attr.x2]="gridInfo.x * gridSize + (gridSize - 5)"
-                              [attr.y2]="gridInfo.y * gridSize + (gridSize - 5)"
-                              stroke="#22222288"
-                              stroke-width="6"
-                              stroke-linecap="round"
-                            />
-                            <line
-                              [attr.x1]="gridInfo.x * gridSize + (gridSize - 5)"
-                              [attr.y1]="gridInfo.y * gridSize + 5"
-                              [attr.x2]="gridInfo.x * gridSize + 5"
-                              [attr.y2]="gridInfo.y * gridSize + (gridSize - 5)"
-                              stroke="#22222288"
-                              stroke-width="6"
-                              stroke-linecap="round"
-                            />
-                            <line
-                              [attr.x1]="gridInfo.x * gridSize + 5"
-                              [attr.y1]="gridInfo.y * gridSize + 5"
-                              [attr.x2]="gridInfo.x * gridSize + (gridSize - 5)"
-                              [attr.y2]="gridInfo.y * gridSize + (gridSize - 5)"
-                              stroke="#ff3e3e"
-                              stroke-width="4"
-                              stroke-linecap="round"
-                            />
-                            <line
-                              [attr.x1]="gridInfo.x * gridSize + (gridSize - 5)"
-                              [attr.y1]="gridInfo.y * gridSize + 5"
-                              [attr.x2]="gridInfo.x * gridSize + 5"
-                              [attr.y2]="gridInfo.y * gridSize + (gridSize - 5)"
-                              stroke="#ff3e3e"
-                              stroke-width="4"
-                              stroke-linecap="round"
-                            />
-                          </ng-container>
-                        }
-                        @case ('restore') {
-                          <ng-container>
-                            <rect
-                              [attr.x]="gridInfo.x * gridSize + 5"
-                              [attr.y]="gridInfo.y * gridSize + 5"
-                              [attr.width]="gridSize - 10"
-                              [attr.height]="gridSize - 10"
-                              fill="none"
-                              stroke="#22222288"
-                              stroke-width="6"
-                              stroke-linejoin="round"
-                            />
-                            <line
-                              [attr.x1]="gridInfo.x * gridSize + 15"
-                              [attr.y1]="gridInfo.y * gridSize + 25"
-                              [attr.x2]="gridInfo.x * gridSize + 35"
-                              [attr.y2]="gridInfo.y * gridSize + 25"
-                              stroke="#22222288"
-                              stroke-width="6"
-                              stroke-linecap="round"
-                            />
-                            <line
-                              [attr.x1]="gridInfo.x * gridSize + 25"
-                              [attr.y1]="gridInfo.y * gridSize + 15"
-                              [attr.x2]="gridInfo.x * gridSize + 25"
-                              [attr.y2]="gridInfo.y * gridSize + 35"
-                              stroke="#22222288"
-                              stroke-width="6"
-                              stroke-linecap="round"
-                            />
-                            <rect
-                              [attr.x]="gridInfo.x * gridSize + 5"
-                              [attr.y]="gridInfo.y * gridSize + 5"
-                              [attr.width]="gridSize - 10"
-                              [attr.height]="gridSize - 10"
-                              fill="none"
-                              stroke="#8098ff"
-                              stroke-width="4"
-                              stroke-linejoin="round"
-                            />
-                            <line
-                              [attr.x1]="gridInfo.x * gridSize + 15"
-                              [attr.y1]="gridInfo.y * gridSize + 25"
-                              [attr.x2]="gridInfo.x * gridSize + 35"
-                              [attr.y2]="gridInfo.y * gridSize + 25"
-                              stroke="#8098ff"
-                              stroke-width="4"
-                              stroke-linecap="round"
-                            />
-                            <line
-                              [attr.x1]="gridInfo.x * gridSize + 25"
-                              [attr.y1]="gridInfo.y * gridSize + 15"
-                              [attr.x2]="gridInfo.x * gridSize + 25"
-                              [attr.y2]="gridInfo.y * gridSize + 35"
-                              stroke="#8098ff"
-                              stroke-width="4"
-                              stroke-linecap="round"
-                            />
-                          </ng-container>
-                        }
-                      }
-                    }
-                  </ng-container>
-                </g>
-              }
-            </svg>
-          }
-        </div>
-      </div>
-      <div class="pointer-events-none z-10 backface-hidden">
-        @if (isLock && dispLockMark) {
-          <div class="bg-ui-elevated text-ui-muted absolute inset-0 m-auto size-6.25 rounded-full transform-3d">
-            <i class="material-icons pointer-events-none backface-hidden">lock</i>
-          </div>
-        }
-      </div>
-      @if (isScratching && (gameTableMask()!.isMine || ownerIsOnline)) {
-        <div
-          class="pointer-events-none absolute inset-x-0 -top-2.5 left-px z-10 m-auto translate-z-[0.5px] backface-hidden transform-3d"
-        >
-          <div
-            class="bg-ui-panel text-ui-text pointer-events-none inline-block max-w-[18em] truncate rounded-3xl px-2.25 py-0.75 text-[15px] whitespace-nowrap"
-            [ngStyle]="{ 'background-color': ownerColor + 'E6' }"
-          >
-            <span class="inline-block" [class.transform-[rotateZ(180deg)]]="isInverse"
-              ><b>{{ ownerName }}</b
-              >{{ 'feature.tabletop.mask.operating' | transloco }}
-              @if (gameTableMask()!.isMine) {
-                <button
-                  class="pointer-events-auto m-0 mr-px px-1 py-0 align-[10%]"
-                  (pointerdown)="onScratchDonePointerDown($event)"
-                  (click)="scratchDone($event)"
-                  [title]="
-                    gameTableMask()!.scratchingGrids
-                      ? ('feature.tabletop.mask.confirm' | transloco)
-                      : ('feature.tabletop.mask.finish' | transloco)
-                  "
-                >
-                  <i class="material-icons align-bottom text-[14px]!">done</i>
-                </button>
-              }
-              @if (gameTableMask()!.isMine) {
-                <button
-                  class="pointer-events-auto m-0 mr-px px-1 py-0 align-[10%]"
-                  (pointerdown)="onScratchCancelPointerDown($event)"
-                  (click)="scratchCancel($event)"
-                  [title]="'feature.tabletop.mask.cancel' | transloco"
-                >
-                  <i class="material-icons align-bottom text-[14px]!">clear</i>
-                </button>
-              }
-            </span>
+            <span
+              class="pointer-events-none absolute transform-[rotateY(-180deg)] pl-0.5 text-[11px] font-extrabold text-[blanchedalmond] [text-shadow:var(--ui-elevated)_0px_0px_3px] backface-hidden transform-3d"
+              >{{ gameTableMaskAltitude }}</span
+            >
           </div>
         </div>
       }
     </div>
-    @if (isAltitudeIndicate && math.abs(gameTableMaskAltitude) >= 0.5) {
-      <div
-        class="pointer-events-none flex origin-top-left items-center border-l-2 border-dashed border-l-[blanchedalmond] transform-3d"
-        [style.height.px]="math.abs(gameTableMaskAltitude * gridSize)"
-        [ngStyle]="{
-          transform:
-            'translateX(' +
-            (width * gridSize) / 2 +
-            'px) translateY(' +
-            (-height * gridSize) / 2 +
-            'px) rotateX(-90deg) translateY(' +
-            (altitude > 0 ? -altitude * gridSize : 0) +
-            'px) rotateY(' +
-            viewRotateZ() +
-            'deg)',
-        }"
-      >
-        <div class="pointer-events-none transform-3d">
-          <span
-            class="pointer-events-none absolute pl-0.5 text-[11px] font-extrabold text-[blanchedalmond] [text-shadow:var(--ui-elevated)_0px_0px_3px] backface-hidden transform-3d"
-            >{{ math.abs(gameTableMaskAltitude) }}</span
-          >
-          <span
-            class="pointer-events-none absolute transform-[rotateY(-180deg)] pl-0.5 text-[11px] font-extrabold text-[blanchedalmond] [text-shadow:var(--ui-elevated)_0px_0px_3px] backface-hidden transform-3d"
-            >{{ gameTableMaskAltitude }}</span
-          >
-        </div>
-      </div>
-    }
-  </div>
+  }
 }

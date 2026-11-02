@@ -379,12 +379,16 @@ test.describe('pieces drawn on a canvas', () => {
           };
           // A point the page draws a part of the piece over, or where another piece lies, says
           // nothing of where the canvas draws this one. The clear boxes of the screen over the
-          // canvas draw nothing.
+          // canvas draw nothing, and nor does what is laid clear on a part of a piece there.
           const tellsOfPiece = (element: Element | null) => {
             const owner = element?.closest('[data-object-id]');
             if (!owner) return true;
             if (owner.getAttribute('data-object-id') !== identifier) return false;
-            if (element!.closest('[data-testid="table-hud"]')) return element!.matches('[data-part], [data-hud-box]');
+            if (element!.closest('[data-testid="table-hud"]')) {
+              if (element!.matches('[data-part], [data-hud-box]')) return true;
+              const part = element!.closest('[data-part]');
+              return !!part && owner.contains(part) && getComputedStyle(part).opacity === '0';
+            }
             for (let at: Element | null = element; at && at !== owner.parentElement; at = at.parentElement) {
               if (getComputedStyle(at).opacity === '0') return true;
             }

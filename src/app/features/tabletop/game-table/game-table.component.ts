@@ -809,7 +809,11 @@ export class GameTableComponent {
   });
   readonly tableMasks = computed(() => {
     this.objectChangeService.collectionOf('table-mask')();
-    return this.tabletopService.tableMasks;
+    return this.table3d.drawsOnCanvas() ? [] : this.tabletopService.tableMasks;
+  });
+  readonly tableMasksOverCanvas = computed(() => {
+    this.objectChangeService.collectionOf('table-mask')();
+    return this.table3d.drawsOnCanvas() ? this.tabletopService.tableMasks : [];
   });
   readonly cards = computed(() => {
     this.objectChangeService.collectionOf('card')();

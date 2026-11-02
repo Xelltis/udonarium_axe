@@ -1,4 +1,4 @@
-import { NgStyle } from '@angular/common';
+import { NgStyle, NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -51,6 +51,7 @@ import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupInputHandler, setupMovableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { translateZCss, Z_OFFSET_MASK_PX } from '@axe/ui/tabletop/z-offset';
@@ -71,7 +72,15 @@ const MASK_WRITING_OUTLINE =
   selector: 'game-table-mask',
   templateUrl: './game-table-mask.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MovableDirective, SelectableDirective, NgStyle, SafePipe, TranslocoModule],
+  imports: [
+    HudPlaceDirective,
+    MovableDirective,
+    SelectableDirective,
+    NgStyle,
+    NgTemplateOutlet,
+    SafePipe,
+    TranslocoModule,
+  ],
   host: {
     class: 'block',
     '[attr.data-object-id]': 'gameTableMask()?.identifier ?? null',
@@ -103,14 +112,14 @@ export class GameTableMaskComponent {
 
   /**
    * Whether the mask is drawn on the table's canvas from a picture of it taken here, which leaves it
-   * clear here, still taking the presses where the canvas draws it. While it is scratched the page
-   * draws it itself, with what the scratch would open.
+   * clear here, still taking the presses where the canvas draws it. While it is scratched the picture
+   * shows what the scratch would open.
    */
   readonly picturedOnCanvas = computed(() => {
     this.maskVersion();
-    return this.drawsOnCanvas() && !!this.gameTableMask() && !this.isScratching;
+    return this.drawsOnCanvas() && !!this.gameTableMask();
   });
-  private readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
+  protected readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
   private readonly visual = viewChild<ElementRef<HTMLElement>>('visual');
 
   constructor() {
@@ -131,6 +140,7 @@ export class GameTableMaskComponent {
       target: this.gameTableMask,
       collideLayers: ['terrain'],
       transformCssOffset: translateZCss(Z_OFFSET_MASK_PX),
+      placedElsewhere: this.drawsOnCanvas,
       snapOrigin: () => {
         const geo = computeHexMaskGeometry(this.width, this.height, this.gridSize, this.gridType());
         return geo ? { x: geo.offsetX, y: geo.offsetY } : undefined;

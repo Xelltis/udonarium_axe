@@ -386,6 +386,13 @@
   @if (table3d.drawsOnCanvas()) {
     <!-- The pieces over a table drawn on a canvas: flat on the screen, each where the canvas draws it. -->
     <div class="pointer-events-none absolute inset-0 isolate overflow-hidden" data-testid="table-hud">
+      @for (mask of tableMasksOverCanvas(); track mask.identifier) {
+        <game-table-mask
+          class="block"
+          [gameTableMask]="mask"
+          [appHudPlace]="{ owner: mask.identifier }"
+        ></game-table-mask>
+      }
       @for (textNote of textNotesOverCanvas(); track textNote.identifier) {
         <text-note
           class="block"
