@@ -128,6 +128,8 @@ test.describe('enlarging a whiteboard', () => {
     await (await revealMenuEntry(page, menu, 'ホワイトボードを作成')).click();
     const surface = page.locator('white-board [data-surface]');
     await expect(surface).toHaveCount(1, { timeout: 10000 });
+    // Over a table drawn on a canvas the face is put once the canvas draws the board.
+    await expect(surface).toBeVisible();
 
     // The new board stands at the back of the table, partly off screen and partly behind panels,
     // so look for a point where the pointer really lands on it.

@@ -1,4 +1,4 @@
-import { NgStyle } from '@angular/common';
+import { NgStyle, NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -14,6 +14,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
@@ -46,6 +47,7 @@ import { RotableDirective, RotableOption } from '@axe/ui/directives/rotable.dire
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 
@@ -55,6 +57,8 @@ import { setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-pie
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     NgStyle,
+    NgTemplateOutlet,
+    HudPlaceDirective,
     MovableDirective,
     RotableDirective,
     SelectableDirective,
@@ -95,9 +99,21 @@ export class WhiteBoardComponent {
    */
   readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
   private readonly face = viewChild<ElementRef<HTMLElement>>('face');
+  private readonly pieces = inject(TablePiecesService);
+  /** The corners of the board's face at its foot, where its handles stand over a canvas: bottom left and bottom right. */
+  protected readonly footCorners = [3, 2] as const;
 
   constructor() {
-    setupMovableRotableForPiece(this, { target: this.whiteBoard });
+    setupMovableRotableForPiece(this, {
+      target: this.whiteBoard,
+      placedElsewhere: this.drawsOnCanvas,
+      turnsAbout: (board) => ({
+        surface: this.pieces.surfaceOf(board),
+        x: board.location.x + this.widthPx() / 2,
+        y: board.location.y + this.heightPx(),
+        height: board.posZ,
+      }),
+    });
     pictureForCanvas({
       identifier: () => this.whiteBoard().identifier,
       element: () => this.face()?.nativeElement,

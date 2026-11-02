@@ -326,9 +326,11 @@
           <range class="absolute will-change-transform backface-visible transform-3d" [range]="range"></range>
         }
       }
-      @for (board of whiteBoards(); track board.identifier) {
-        <white-board class="absolute will-change-transform backface-visible transform-3d" [whiteBoard]="board">
-        </white-board>
+      @if (!table3d.drawsOnCanvas()) {
+        @for (board of whiteBoards(); track board.identifier) {
+          <white-board class="absolute will-change-transform backface-visible transform-3d" [whiteBoard]="board">
+          </white-board>
+        }
       }
       @for (light of lightSources(); track light.identifier) {
         <light-source
@@ -389,6 +391,9 @@
     <!-- The pieces over a table drawn on a canvas: flat on the screen, each where the canvas draws it. -->
     <div class="pointer-events-none absolute inset-0 isolate overflow-hidden" data-testid="table-hud">
       @if (table3d.drawsOnCanvas()) {
+        @for (board of whiteBoards(); track board.identifier) {
+          <white-board class="block" [whiteBoard]="board" [appHudPlace]="{ owner: board.identifier }"></white-board>
+        }
         @for (range of ranges(); track range.identifier) {
           <range class="block" [range]="range" [appHudPlace]="{ owner: range.identifier }"></range>
         }

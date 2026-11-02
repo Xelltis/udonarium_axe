@@ -24,7 +24,8 @@ async function makeBoard(page: Page): Promise<string> {
   const menu = await openTableContextMenu(page, { x: 600, y: 420 });
   await (await revealMenuEntry(page, menu, 'ホワイトボードを作成')).click();
   const face = page.locator('white-board [data-surface]');
-  await expect(face).toBeAttached({ timeout: 10000 });
+  // Over a table drawn on a canvas the face is put once the canvas draws the board.
+  await expect(face).toBeVisible({ timeout: 10000 });
   return (await face.getAttribute('data-surface'))!;
 }
 
