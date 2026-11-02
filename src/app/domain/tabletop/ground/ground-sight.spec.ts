@@ -1,6 +1,7 @@
 import { GROUND_CHUNK_SAMPLE_COUNT, GROUND_CHUNK_SAMPLES } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { groundSightSegments } from '@axe/domain/tabletop/ground/ground-sight';
 import { FLAT_GROUND, groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
+import { segmentClearBetween } from '@axe/domain/tabletop/los/segments';
 
 const GRID = 50;
 
@@ -27,5 +28,12 @@ describe('the raised ground as walls that stop sight and light', () => {
       (wall) => wall.x1 > 7 * 25 && wall.x1 < 9 * 25 && wall.y1 > 7 * 25 && wall.y1 < 9 * 25
     );
     expect(acrossTop).toEqual([]);
+  });
+
+  it('stops a look from the middle of one cell to another along a row, which runs through the joints of the walls', () => {
+    const walls = groundSightSegments(plateau(4, 12), 500, 500, GRID);
+
+    expect(segmentClearBetween(25, 175, 25, 375, 175, 25, walls)).toBe(false);
+    expect(segmentClearBetween(25, 25, 25, 375, 25, 25, walls)).toBe(true);
   });
 });
