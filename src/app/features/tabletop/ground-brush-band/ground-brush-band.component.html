@@ -65,6 +65,11 @@
         (input)="chooseNumber('strength', $event)"
       />
     </label>
+    @if (unaware() > 0) {
+      <span class="text-ui-warning basis-full text-[0.8em]" data-testid="ground-brush-unaware">
+        {{ 'feature.tabletop.groundBrush.unaware' | transloco: { count: unaware() } }}
+      </span>
+    }
     <button
       type="button"
       class="text-ui-muted hover:bg-ui-hover inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-full border-none bg-transparent px-2.5 disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[18px]!"

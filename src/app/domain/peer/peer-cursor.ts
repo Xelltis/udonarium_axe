@@ -74,6 +74,11 @@ export class PeerCursor extends GameObject {
    */
   @SyncVar() zoneProtocol = '';
   /**
+   * `1` once this peer's version draws the raised ground of a table and stands what is on it there.
+   * Empty on a cursor from a version that knows nothing of the ground, to which the table is flat.
+   */
+  @SyncVar() groundProtocol = '';
+  /**
    * `1` once this peer's version counts a turn down again when it comes back to a piece that had the
    * countdown of its opening given back as it waited. Empty on a cursor from a version before that.
    */

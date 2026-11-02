@@ -3018,7 +3018,8 @@
         "radius": "Size",
         "strength": "Strength",
         "undo": "Take back the last stroke",
-        "close": "Stop shaping the ground"
+        "close": "Stop shaping the ground",
+        "unaware": "{{count}} in the room are on a version that knows nothing of the ground; the table stays flat for them."
       },
       "movePlan": {
         "hint": "Click to walk there / right-click to set a corner (again on the same spot takes it back) / Enter to go / Esc to leave it",

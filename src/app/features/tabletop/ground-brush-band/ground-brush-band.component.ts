@@ -36,6 +36,8 @@ export class GroundBrushBandComponent {
   protected readonly zIndex = Z_TABLE_BANDS;
   protected readonly settings = this.brush.settings;
   protected readonly undoable = this.brush.undoable;
+  /** How many in the room see the table flat, their version knowing nothing of the ground. */
+  protected readonly unaware = computed(() => this.ground.unawarePeers().length);
   protected readonly kinds: readonly GroundBrushKind[] = ['raise', 'lower', 'smooth', 'flatten', 'paint'];
   protected readonly layers = GROUND_PAINT_LAYERS;
   /** Whether the band shows: the brush is on, over a table drawn on a canvas, for a master. */

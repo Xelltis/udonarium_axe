@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { GroundService } from '@axe/application/tabletop/ground.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
 import { FLAT_GROUND } from '@axe/domain/tabletop/ground/ground-surface';
@@ -50,5 +51,22 @@ describe('GroundService', () => {
     expect(ground.lowestPxIn(3.5 * GRID, 3.5 * GRID, GRID, GRID)).toBeGreaterThan(0);
     expect(ground.lowestPxIn(3.5 * GRID, 3.5 * GRID, GRID, GRID)).toBeLessThan(GRID);
     expect(ground.lowestPxIn(1 * GRID, 1 * GRID, 6 * GRID, 6 * GRID)).toBe(0);
+  });
+
+  it('says on this peer’s cursor that it knows the ground, and names the others who do not', () => {
+    PeerCursor.createMyCursor();
+    PeerCursor.myCursor.peerId = 'peer-a';
+    const older = new PeerCursor('older-cursor');
+    older.initialize();
+    older.peerId = 'peer-b';
+    const newer = new PeerCursor('newer-cursor');
+    newer.initialize();
+    newer.peerId = 'peer-c';
+    newer.groundProtocol = '1';
+
+    TestBed.tick();
+
+    expect(PeerCursor.myCursor.groundProtocol).toBe('1');
+    expect(ground.unawarePeers()).toEqual([older]);
   });
 });
