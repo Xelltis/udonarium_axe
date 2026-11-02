@@ -1449,8 +1449,8 @@ describe('GameCharacterComponent', () => {
       try {
         fixture.detectChanges();
         const grid = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
-          '[data-testid="buff-badge"]'
-        )?.parentElement;
+          '[data-testid="buff-badge-grid"]'
+        );
 
         expect(grid?.style.gridTemplateColumns).toBe(`repeat(${BUFF_BADGES_PER_ROW}, minmax(0, 1fr))`);
       } finally {
@@ -1684,7 +1684,7 @@ describe('GameCharacterComponent', () => {
 
           switchButton().click();
           fixture.detectChanges();
-          expect(root().querySelector('[data-testid="buff-badge"]')).toBeNull();
+          expect(root().querySelector('[data-testid="buff-badge-grid"]')).toBeNull();
           expect(root().querySelector('[game-data-element-buff]')).not.toBeNull();
 
           switchButton().click();

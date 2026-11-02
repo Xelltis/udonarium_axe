@@ -174,10 +174,11 @@ test.describe('what shows above a piece', () => {
     const before = await movable.evaluate((element) => (element as HTMLElement).style.transform);
 
     await selectBuffView(page, '詳細');
-    await expect(badges).toHaveCount(0, { timeout: 5000 });
+    await expect(piece.locator('[data-testid="buff-badge-grid"]')).toHaveCount(0, { timeout: 5000 });
     await expect(buffRows(piece).first()).toBeVisible({
       timeout: 5000,
     });
+    await expect(buffRows(piece).first().locator('[data-testid="buff-badge"]')).toBeVisible();
 
     await selectBuffView(page, '個数');
     await expect(piece.getByText(/バフ2個/)).toBeVisible({ timeout: 5000 });

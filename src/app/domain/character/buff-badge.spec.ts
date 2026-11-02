@@ -1,6 +1,12 @@
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { buffIconOf, buffIconUrlOf, parseBuffStrength, toBuffBadges } from '@axe/domain/character/buff-badge';
+import {
+  buffBadgeOf,
+  buffIconOf,
+  buffIconUrlOf,
+  parseBuffStrength,
+  toBuffBadges,
+} from '@axe/domain/character/buff-badge';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 
 describe('parseBuffStrength()', () => {
@@ -41,6 +47,22 @@ describe('toBuffBadges()', () => {
 
   afterEach(() => {
     for (const element of created.splice(0)) element.destroy();
+  });
+
+  it('makes the badge of one row in its colour, saying it counts nothing down where it never runs out', () => {
+    const row = buff('石化', 'HP=0', 1, '🪨');
+    row.setAttribute(DataElementAttribute.BUFF_COLOR, '#2e7d32');
+    row.setAttribute(DataElementAttribute.BUFF_TIMING, 'none');
+
+    expect(buffBadgeOf(row)).toMatchObject({
+      icon: '🪨',
+      name: '石化',
+      effect: 'HP=0',
+      strength: '',
+      rounds: 1,
+      expires: false,
+      color: '#2e7d32',
+    });
   });
 
   it('folds a buff into its icon, its strength and the rounds left', () => {

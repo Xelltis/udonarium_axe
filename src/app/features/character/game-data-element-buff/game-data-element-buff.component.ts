@@ -7,11 +7,18 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { BUFF_COLORS, DEFAULT_BUFF_COLOR } from '@axe/domain/character/buff-appearance';
-import { buffColorOf, buffIconOf, buffIconUrlOf, parseBuffStrength } from '@axe/domain/character/buff-badge';
-import { BUFF_TIMINGS, BuffTiming, buffTimingOf, buffTriggerOf } from '@axe/domain/character/buff-timing';
+import {
+  buffBadgeOf,
+  buffColorOf,
+  buffIconOf,
+  buffIconUrlOf,
+  parseBuffStrength,
+} from '@axe/domain/character/buff-badge';
+import { BUFF_TIMINGS, buffExpires, BuffTiming, buffTimingOf, buffTriggerOf } from '@axe/domain/character/buff-timing';
 import { buffTriggerOptions, selectedTriggerValue } from '@axe/domain/character/buff-trigger-options';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
+import { BuffBadgeComponent } from '@axe/features/character/buff-badge/buff-badge.component';
 import { loadFileSelecter } from '@axe/ui/components/file-selecter/file-selecter-loader';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -20,7 +27,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   selector: 'game-data-element-buff, [game-data-element-buff]',
   templateUrl: './game-data-element-buff.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, SafePipe, TranslocoModule],
+  imports: [BuffBadgeComponent, FormsModule, SafePipe, TranslocoModule],
   host: { '[attr.inert]': "isReadOnly() ? '' : null" },
 })
 export class GameDataElementBuffComponent {
@@ -117,6 +124,24 @@ export class GameDataElementBuffComponent {
     const element = this.gameDataElement();
     this.objectChange.versionOf(element.identifier)();
     return buffTimingOf(element);
+  });
+
+  /** The buff as the badge it is shown as over the piece, for the row of its details on the piece. */
+  readonly badge = computed(() => {
+    const element = this.gameDataElement();
+    this.objectChange.versionOf(element.identifier)();
+    this.objectChange.fileVersion();
+    return buffBadgeOf(element);
+  });
+
+  /**
+   * Whether time takes the buff away. A buff that never runs out is shown with ∞ for its rounds left,
+   * since the count it holds never goes down.
+   */
+  readonly expires = computed(() => {
+    const element = this.gameDataElement();
+    this.objectChange.versionOf(element.identifier)();
+    return buffExpires(element);
   });
 
   readonly trigger = computed(() => {
