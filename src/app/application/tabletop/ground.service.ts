@@ -2,6 +2,7 @@ import { computed, inject, Injectable, untracked } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { applyGroundDab, GroundDab } from '@axe/domain/tabletop/ground/ground-brush';
+import { GroundChunkData } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { ensureGroundFieldOn, groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
 import {
   FLAT_GROUND,
@@ -47,12 +48,14 @@ export class GroundService {
 
   /**
    * Lays a dab of the brush on the ground of the table in view, keeping the chunks it changes on the
-   * table. The change syncs to every peer.
+   * table, and hands them back. The change syncs to every peer.
    */
-  dab(dab: GroundDab): void {
+  dab(dab: GroundDab): GroundChunkData[] {
     const table = this.tabletop.currentTable;
-    if (!table.identifier) return;
+    if (!table.identifier) return [];
     const field = ensureGroundFieldOn(table);
-    for (const chunk of applyGroundDab(field.readChunks(), dab)) field.writeChunk(chunk);
+    const changed = applyGroundDab(field.readChunks(), dab);
+    for (const chunk of changed) field.writeChunk(chunk);
+    return changed;
   }
 }
