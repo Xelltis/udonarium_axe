@@ -123,6 +123,17 @@ describe('lintChatSyntax', () => {
     it('finds one from a speaker who is no piece, which is never filled in from chat', () => {
       expect(codes('{HP}', { speaker: null })).toEqual(['ref.noSpeaker']);
     });
+
+    it('finds one that aims the line at targets through what it is filled in with, as sending does', () => {
+      const speakerFilled = (text: string) => text.replace('{攻撃}', '2d6+t{防御}');
+      const answered = { speakerFilled, referenceValue: () => '2d6+t{防御}' };
+
+      expect(codes('{攻撃}', answered)).toEqual(['target.none']);
+      expect(codes('{攻撃}', { ...answered, path: 'palette', sentLater: true })).toEqual([]);
+      expect(codes('{攻撃}', { ...answered, targets: [target] })).toEqual([]);
+      const portraits = () => [{ label: '笑顔', identifier: 'id-smile' }];
+      expect(codes('{攻撃} @笑顔', { ...answered, portraits, targets: [target] })).toEqual(['portrait.lostByTarget']);
+    });
   });
 
   describe('resource commands', () => {
@@ -175,6 +186,10 @@ describe('lintChatSyntax', () => {
 
     it('says rounds that are no number last three', () => {
       expect(codes('&加護/防御+2/ずっと')).toEqual(['buff.roundsDefault']);
+    });
+
+    it('says nothing of three rounds where a timing stands in their place', () => {
+      expect(codes('&加護/防御+2/none')).toEqual([]);
     });
 
     it('says nothing of three rounds for a buff named after a state the room keeps, which lasts the state’s', () => {

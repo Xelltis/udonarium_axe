@@ -23,5 +23,11 @@ export default defineConfig({
     // the next one, rather than trusting each test to put back what it changed.
     restoreMocks: true,
     unstubGlobals: true,
+    // Off CI, two workers rather than one for every core but one. Each worker holds a page and the
+    // whole of Angular, so fifteen of them take over 9GB; beside a dev server and the editor that
+    // ran the machine out of memory and swap, and every worker stalled at once for longer than the
+    // timeout, failing whichever test each was in. Two run the suite about as fast without
+    // weighing on memory. VITEST_MAX_WORKERS still sets the count when given.
+    ...(process.env['CI'] ? {} : { maxWorkers: 2 }),
   },
 });

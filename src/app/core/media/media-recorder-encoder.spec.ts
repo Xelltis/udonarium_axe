@@ -206,22 +206,28 @@ describe('the sound of a recording made in real time', () => {
     FakeMediaRecorder.supported = ['video/webm;codecs=vp9,opus'];
     borrowed.lendOn(HTMLCanvasElement.prototype, 'captureStream', () => fakeStream());
     borrowed.lendOn(HTMLCanvasElement.prototype, 'getContext', () => ({}));
-    // Frames wide enough that a busy machine rarely skips one; a frame skipped is drawn by the clock all the same.
     const fps = 10;
+    const frameCount = 3;
 
-    await recordVideo({
-      width: 16,
-      height: 16,
-      fps,
-      frameCount: 3,
-      audio: slowSound(1, 0),
-      paint: (_ctx, index) => void (paintedAt[index] = performance.now() - recordingFrom),
-    });
+    vi.useFakeTimers();
+    try {
+      const recording = recordVideo({
+        width: 16,
+        height: 16,
+        fps,
+        frameCount,
+        audio: slowSound(1, 0),
+        paint: (_ctx, index) => void (paintedAt[index] = performance.now() - recordingFrom),
+      });
+      await vi.advanceTimersByTimeAsync(SOUND_START_LEAD_SECONDS * 1000 + (frameCount * 1000) / fps + 100);
+      await recording;
+    } finally {
+      vi.useRealTimers();
+    }
 
-    const afterTheFirst = paintedAt.flatMap((at, index) => (index > 0 ? [{ at, index }] : []));
-    expect(afterTheFirst.length).toBeGreaterThan(0);
-    for (const { at, index } of afterTheFirst) {
-      expect(at).toBeGreaterThanOrEqual(SOUND_START_LEAD_SECONDS * 1000 + (index * 1000) / fps - 1);
+    expect(Object.keys(paintedAt).map(Number)).toEqual([0, 1, 2]);
+    for (const index of [1, 2]) {
+      expect(paintedAt[index]).toBeGreaterThanOrEqual(SOUND_START_LEAD_SECONDS * 1000 + (index * 1000) / fps);
     }
   });
 

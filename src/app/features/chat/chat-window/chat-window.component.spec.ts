@@ -1003,6 +1003,31 @@ describe('ChatWindowComponent', () => {
       expect(sent[0].text).toBe('t:HP-7 [対象]');
     });
 
+    it('aims a line at the target when a field of the speaker it names reads the target through t{}', () => {
+      character.rootDataElement?.getFirstElementByName('detail')?.appendChild(DataElement.create('攻撃', '{HP}+t{HP}'));
+      mark = GameCharacter.create('対象', 1, '');
+      mark.status.setValue('HP', 'now', 7);
+      mark.setLocation('table');
+      mark.targeted = true;
+
+      speak('{攻撃}', character.identifier);
+
+      expect(sent[0].text).toBe('13+7 [対象]');
+    });
+
+    it('sends on the picture a reference of the speaker stands for, in a line aimed at a target', () => {
+      character.rootDataElement
+        ?.getFirstElementByName('detail')
+        ?.appendChild(DataElement.create('立ち絵', 'portrait-id', { fieldType: DataElementFieldType.IMAGE }));
+      mark = GameCharacter.create('対象', 1, '');
+      mark.setLocation('table');
+      mark.targeted = true;
+
+      speak('{立ち絵}t:HP-1', character.identifier);
+
+      expect(sent[0]).toEqual({ text: 't:HP-1 [対象]', attachments: ['portrait-id'] });
+    });
+
     it('sends on the picture a reference stands for', () => {
       const detail = character.rootDataElement?.getFirstElementByName('detail');
       detail?.appendChild(DataElement.create('立ち絵', 'portrait-id', { fieldType: DataElementFieldType.IMAGE }));

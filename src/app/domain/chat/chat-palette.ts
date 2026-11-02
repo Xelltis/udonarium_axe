@@ -276,9 +276,10 @@ export function evaluateReferences(
    * What to do with a reference nothing answers. A palette line is written to be filled in, so an
    * empty one is emptied out; a line typed into chat is not, and its braces are left as they were
    * rather than eating the words around them, except where one is added to a roll as a term of its
-   * own (see {@link dropsUnanswered}).
+   * own (see {@link dropsUnanswered}). `always` leaves every one as it was, for a line filled in
+   * from the speaker before it is aimed at anyone, whose `t{}` a target may yet answer.
    */
-  keepUnfilled = false
+  keepUnfilled: boolean | 'always' = false
 ): PaletteEvaluationResult {
   let evaluate = source;
   const attachmentImageIdentifiers: string[] = [];
@@ -342,7 +343,9 @@ export function evaluateReferences(
     evaluate = evaluate.replace(CHARACTER_REFERENCE, (match, raw: string, offset: number) => {
       const { name, useMax } = readReferenceName(raw);
       const filled = fillReference(match, name, useMax, formulaPlace(line, offset));
-      if (filled == null) return keepUnfilled && !dropsUnanswered(line, offset) ? match : '';
+      if (filled == null) {
+        return keepUnfilled === 'always' || (keepUnfilled && !dropsUnanswered(line, offset)) ? match : '';
+      }
       // Only a reference that was answered can bring more of them in, so only that keeps the pass going.
       isContinue = true;
       return filled;
@@ -446,11 +449,16 @@ function isWornBuff(element: DataElement): boolean {
   return false;
 }
 
-/** The references a piece can fill in, whether or not it keeps a palette of its own to draw variables from. */
+/**
+ * The references a piece can fill in, whether or not it keeps a palette of its own to draw variables
+ * from. One nothing answers is kept as chat keeps it, unless told otherwise (see
+ * {@link evaluateReferences}).
+ */
 export function evaluateCharacterReferences(
   text: string,
   speaker: GameCharacter | null,
-  target?: GameCharacter
+  target?: GameCharacter,
+  keepUnfilled: boolean | 'always' = true
 ): PaletteEvaluationResult {
   return evaluateReferences(
     text,
@@ -458,7 +466,7 @@ export function evaluateCharacterReferences(
     speaker?.rootDataElement ?? undefined,
     target,
     true,
-    true
+    keepUnfilled
   );
 }
 
