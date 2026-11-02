@@ -317,6 +317,24 @@ describe('save and load round trip', () => {
       expect(byPlace(restored.readChunks())).toEqual(byPlace(field.readChunks()));
     });
 
+    it('leaves the rest of the table as it was for a build that knows no ground, which reads it flat', () => {
+      const table = new GameTable();
+      table.initialize();
+      const grid = cellGridOf(4, 4, 50, GridType.SQUARE);
+      const bits = new CellBits(cellCount(grid));
+      bits.set(3);
+      ensureFogMemoryOn(table).write(grid, bits);
+      for (const chunk of applyGroundDab([], { kind: 'raise', x: 4, y: 4, radius: 2, strength: 1 })) {
+        ensureGroundFieldOn(table).writeChunk(chunk);
+      }
+
+      const older = serializer.toXml(table).replace(/(<\/?)ground-(field|chunk)\b/g, '$1unknown-$2');
+      const restored = serializer.parseXml(older) as GameTable;
+
+      expect(fogMemoryOn(restored)?.read(grid).equals(bits)).toBe(true);
+      expect(groundFieldOn(restored)).toBeNull();
+    });
+
     it('forgets what it held once the fog is cleared, and says that it has', () => {
       const table = new GameTable();
       table.initialize();
