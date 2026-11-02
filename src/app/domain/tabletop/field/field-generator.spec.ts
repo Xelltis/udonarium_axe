@@ -8,8 +8,8 @@ import {
 import { fieldBoardSize, planField } from '@axe/domain/tabletop/field/field-generator';
 import { propAt } from '@axe/domain/tabletop/field/field-layout';
 import { GridType } from '@axe/domain/tabletop/grid-type';
-import { boardExtentPx } from '@axe/domain/tabletop/map-grid';
 import { MAP_MAX_TERRAINS } from '@axe/domain/tabletop/map-blocks';
+import { boardExtentPx } from '@axe/domain/tabletop/map-grid';
 
 const SEEDS = [1, 7, 42, 1234, 999];
 
