@@ -880,7 +880,10 @@ export class GameTableComponent {
    * rather than in the page's own 3D: wherever they stand, on the floor, a wall or a white board.
    */
   readonly diceSymbolsOverCanvas = computed(() => (this.table3d.drawsOnCanvas() ? this.diceSymbols() : []));
-  readonly coinsBySurface = computed(() => bucketBySurface(this.coins(), this.drawnSurfaces()));
+  readonly coinsOverCanvas = computed(() => (this.table3d.drawsOnCanvas() ? this.coins() : []));
+  readonly coinsBySurface = computed(() =>
+    bucketBySurface(this.table3d.drawsOnCanvas() ? [] : this.coins(), this.drawnSurfaces())
+  );
   readonly terrainsBySurface = computed(() => bucketBySurface(this.terrains(), this.drawnSurfaces()));
 
   /** The terrain on the floor that is not drawn together with the blocks that do not move. */

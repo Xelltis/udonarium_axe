@@ -1,6 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { MotionService } from '@axe/application/ui/motion.service';
-import { MotionPose, motionPoseAt, PieceMotionKind } from '@axe/domain/tabletop/world/piece-motions';
+import { motionLengthMs, MotionPose, motionPoseAt, PieceMotionKind } from '@axe/domain/tabletop/world/piece-motions';
 
 /** What else a move is played with. */
 export interface MotionOptions {
@@ -33,13 +33,17 @@ export class PieceMotionsService {
   private readonly clock = signal(0);
   private frame: number | null = null;
 
-  /** Has a piece play a move from now. */
-  play(owner: string, kind: PieceMotionKind, options: MotionOptions = {}): void {
-    if (!this.motion.enabled()) return;
+  /**
+   * Has a piece play a move from now. Hands back how long it plays for, in milliseconds: nothing
+   * while motion is turned down.
+   */
+  play(owner: string, kind: PieceMotionKind, options: MotionOptions = {}): number {
+    if (!this.motion.enabled()) return 0;
     const now = performance.now();
     this.clock.set(now);
     this.playing.update((playing) => new Map(playing).set(owner, { ...options, kind, startedAt: now }));
     this.tickSoon();
+    return motionLengthMs(kind);
   }
 
   /** Where each piece playing a move is now. Follows the frames as they go by. */

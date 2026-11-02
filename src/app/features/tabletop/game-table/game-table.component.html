@@ -386,6 +386,9 @@
   @if (table3d.drawsOnCanvas()) {
     <!-- The pieces over a table drawn on a canvas: flat on the screen, each where the canvas draws it. -->
     <div class="pointer-events-none absolute inset-0 isolate overflow-hidden" data-testid="table-hud">
+      @for (coin of coinsOverCanvas(); track coin.identifier) {
+        <coin class="block" [coin]="coin" [appTooltip]="coin" [appHudPlace]="{ owner: coin.identifier }"></coin>
+      }
       @for (diceSymbol of diceSymbolsOverCanvas(); track diceSymbol.identifier) {
         <dice-symbol
           class="block"

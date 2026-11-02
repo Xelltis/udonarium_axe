@@ -30,8 +30,8 @@ describe('PieceMotionsService', () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it('has a piece play a move from now, with the parts it moves', () => {
-    motions.play('die', 'dice-tumble-a', { parts: ['picture'] });
+  it('has a piece play a move from now, with the parts it moves, and says how long it plays', () => {
+    expect(motions.play('die', 'dice-tumble-a', { parts: ['picture'] })).toBe(motionLengthMs('dice-tumble-a'));
 
     expect(motions.posesNow().get('die')).toMatchObject({ pose: { scale: 0.85, turnDeg: 0 }, parts: ['picture'] });
     expect(motions.isPlaying('die')).toBe(true);
@@ -51,7 +51,7 @@ describe('PieceMotionsService', () => {
   it('plays nothing while motion is turned down', () => {
     enabled.set(false);
 
-    motions.play('coin', 'coin-flip', { backUp: true });
+    expect(motions.play('coin', 'coin-flip', { backUp: true })).toBe(0);
 
     expect(motions.isPlaying('coin')).toBe(false);
     expect(frames).toEqual([]);

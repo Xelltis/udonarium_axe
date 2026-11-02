@@ -22,8 +22,6 @@ type Hooks = {
 
 /** How far apart the page's box round a part of a piece and the canvas's may lie, in pixels. */
 const BOX_SLACK_PX = 1.5;
-/** How far apart the middles of the boxes round a coin's square and round its disc may lie, in pixels. */
-const SQUARE_AND_DISC_SLACK_PX = 3;
 /** How near an edge of a piece's box a point may lie and be left out, in pixels. */
 const EDGE_SLACK_PX = 3;
 const STEP_PX = 3;
@@ -210,25 +208,22 @@ test.describe('pieces drawn on a canvas', () => {
     }
   });
 
-  test('lay a coin’s side where the page lays it out', async ({ page }) => {
+  test('box a coin on the screen where the canvas draws it', async ({ page }) => {
     const id = await made(page, PIECES[1]);
 
     const [side] = await boxesOf(page, id);
     const laidOut = await page.evaluate((identifier) => {
-      const coin = document.querySelector(`coin[data-object-id="${identifier}"]`)!;
-      const face = [...coin.querySelectorAll('div')].find((div) => div.style.transform.startsWith('translateZ'))!;
-      const rect = face.getBoundingClientRect();
+      const rect = document
+        .querySelector(`coin[data-object-id="${identifier}"] [data-part="coin"]`)!
+        .getBoundingClientRect();
       return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
     }, id);
 
-    // The page's box is round the square the side is cut from, the canvas's round the disc itself.
-    // The perspective draws the near half of each larger than the far, the square's corners the
-    // more, so the middles of the two boxes stand a little apart down the page.
-    const middle = (box: Box) => ({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
-    const off = Math.hypot(middle(side).x - middle(laidOut).x, middle(side).y - middle(laidOut).y);
-    expect(off, JSON.stringify([side, laidOut])).toBeLessThan(SQUARE_AND_DISC_SLACK_PX);
-    expect(side.width).toBeLessThanOrEqual(laidOut.width + BOX_SLACK_PX);
-    expect(side.width).toBeGreaterThan(laidOut.width * 0.7);
+    // The canvas's box is round the disc's top alone, the screen's round its rims top and bottom.
+    for (const edge of ['x', 'y'] as const) {
+      expect(Math.abs(side[edge] - laidOut[edge]), JSON.stringify([side, laidOut])).toBeLessThan(BOX_SLACK_PX);
+    }
+    expect(Math.abs(side.width - laidOut.width), JSON.stringify([side, laidOut])).toBeLessThan(BOX_SLACK_PX);
   });
 
   for (const [piece, part] of [

@@ -415,10 +415,11 @@ export class DiceSymbolComponent {
     this.rollTimers.push(
       setTimeout(() => {
         this.animeState.set('active');
-        if (this.drawnOnCanvas())
-          this.motions.play(this.diceSymbol().identifier, TUMBLES[this.tumble()], {
-            parts: ['picture'],
-          });
+        if (!this.drawnOnCanvas()) return;
+        const playing = this.motions.play(this.diceSymbol().identifier, TUMBLES[this.tumble()], {
+          parts: ['picture'],
+        });
+        this.rollTimers.push(setTimeout(() => this.onDiceRollEnd(), playing));
       })
     );
     this.rollTimers.push(

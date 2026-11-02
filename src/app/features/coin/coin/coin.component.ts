@@ -38,6 +38,7 @@ import { RotableDirective, RotableOption } from '@axe/ui/directives/rotable.dire
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { DoubleTap } from '@axe/ui/tabletop/double-tap';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
 
@@ -50,7 +51,7 @@ const MIN_THICKNESS_PX = 5;
   selector: 'coin',
   templateUrl: './coin.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MovableDirective, RotableDirective, SelectableDirective, NgStyle, SafePipe],
+  imports: [HudPlaceDirective, MovableDirective, RotableDirective, SelectableDirective, NgStyle, SafePipe],
   host: {
     '[style.display]': "isHiddenByFog() ? 'none' : null",
     '[attr.data-object-id]': 'coin().identifier',
@@ -93,6 +94,8 @@ export class CoinComponent {
   readonly coin = input.required<Coin>();
 
   readonly isSpinning = signal(false);
+  /** Ends a flip the canvas plays, where no animation of the page's ends it. */
+  private spinTimer: ReturnType<typeof setTimeout> | undefined;
 
   private readonly spin = signal<{ from: CoinFace; to: CoinFace } | null>(null);
 
@@ -204,8 +207,12 @@ export class CoinComponent {
       target: this.coin,
       collideLayers: ['terrain'],
       transformCssOffset: translateZCss(Z_OFFSET_TABLETOP_OBJECT_PX),
+      placedElsewhere: this.drawnOnCanvas,
     });
-    this.destroyRef.onDestroy(() => this.doubleTap.cancel());
+    this.destroyRef.onDestroy(() => {
+      this.doubleTap.cancel();
+      clearTimeout(this.spinTimer);
+    });
   }
 
   /** Ends the flip animation, after which the coin shows the face it is really on. */
@@ -303,9 +310,11 @@ export class CoinComponent {
     this.isSpinning.set(false);
     setTimeout(() => this.isSpinning.set(true));
     if (this.drawnOnCanvas()) {
-      this.motions.play(this.coin().identifier, from === to ? 'coin-flip' : 'coin-flip-turn', {
+      const playing = this.motions.play(this.coin().identifier, from === to ? 'coin-flip' : 'coin-flip-turn', {
         backUp: from === 'back',
       });
+      clearTimeout(this.spinTimer);
+      this.spinTimer = setTimeout(() => this.onSpinEnd(), playing);
     }
   }
 
