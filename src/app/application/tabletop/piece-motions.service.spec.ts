@@ -48,6 +48,33 @@ describe('PieceMotionsService', () => {
     expect(frames).toEqual([]);
   });
 
+  it('turns a piece on its own round and round, on top of a move it plays, until it stops', () => {
+    const turning = { mode: 'continuous' as const, revolutionSeconds: 60, pauseSeconds: 0, phase: 0 };
+    motions.turnOnItsOwn('piece', turning);
+    nextFrame(15000);
+    expect(motions.posesNow().get('piece')!.pose.turnDeg).toBeCloseTo(90, 6);
+
+    motions.play('piece', 'shuffle');
+    nextFrame(15000 + motionLengthMs('shuffle') / 2);
+    expect(motions.posesNow().get('piece')!.pose.turnDeg).toBeCloseTo(360 + (15.4 / 60) * 360, 6);
+
+    motions.turnOnItsOwn('piece', null);
+    nextFrame(15000 + motionLengthMs('shuffle'));
+    expect(motions.isPlaying('piece')).toBe(false);
+    expect(frames).toEqual([]);
+  });
+
+  it('keeps a piece where a held move leaves it, until it is stopped', () => {
+    motions.play('fallen', 'defeat-dissolve', { holds: true });
+    nextFrame(1000 + motionLengthMs('defeat-dissolve') + 100);
+
+    expect(motions.posesNow().get('fallen')!.pose.shown).toBe(0);
+    expect(frames).toEqual([]);
+
+    motions.stop('fallen');
+    expect(motions.isPlaying('fallen')).toBe(false);
+  });
+
   it('plays nothing while motion is turned down', () => {
     enabled.set(false);
 

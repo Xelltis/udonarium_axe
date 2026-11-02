@@ -1,4 +1,10 @@
-import { eased, motionLengthMs, motionPoseAt, movedSprite } from '@axe/domain/tabletop/world/piece-motions';
+import {
+  eased,
+  motionEndPose,
+  motionLengthMs,
+  motionPoseAt,
+  movedSprite,
+} from '@axe/domain/tabletop/world/piece-motions';
 import { spriteAxes, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 
 const EAST = { x: 1, y: 0, z: 0 };
@@ -51,6 +57,7 @@ describe('motionPoseAt', () => {
       scale: 0.85,
       turnDeg: 0,
       flipDeg: 0,
+      shown: 1,
     });
     const first = motionPoseAt('dice-tumble-a', 0.35 * motionLengthMs('dice-tumble-a'))!;
     expect(first.across).toBeCloseTo(20, 6);
@@ -70,6 +77,27 @@ describe('motionPoseAt', () => {
     expect(pose.flipDeg).toBeCloseTo(720, 6);
   });
 
+  it('shakes a struck piece side to side across its face, and brings it back to rest', () => {
+    expect(motionPoseAt('hit-shake', 0.12 * motionLengthMs('hit-shake'))!.across).toBeCloseTo(-5, 6);
+    expect(motionPoseAt('hit-shake', 0.28 * motionLengthMs('hit-shake'))!.across).toBeCloseTo(4.5, 6);
+    expect(motionPoseAt('hit-shake', motionLengthMs('hit-shake') - 1)!.across).toBeCloseTo(0, 1);
+  });
+
+  it('shows less of a piece as it falls, and nothing of it once it has fallen', () => {
+    expect(motionPoseAt('defeat-bisect', 0.1 * motionLengthMs('defeat-bisect'))!.shown).toBe(1);
+    expect(motionPoseAt('defeat-bisect', 0.5 * motionLengthMs('defeat-bisect'))!.shown).toBe(0);
+    expect(motionEndPose('defeat-dissolve').shown).toBe(0);
+    expect(motionEndPose('shuffle')).toEqual({
+      across: 0,
+      down: 0,
+      out: 0,
+      scale: 1,
+      turnDeg: 720,
+      flipDeg: 0,
+      shown: 1,
+    });
+  });
+
   it('has nothing to say once the move has played through', () => {
     expect(motionPoseAt('shuffle', motionLengthMs('shuffle'))).toBeNull();
   });
@@ -77,7 +105,11 @@ describe('motionPoseAt', () => {
 
 describe('movedSprite', () => {
   it('turns a picture turned to the eye in the face, about the middle of where its piece stands', () => {
-    const moved = movedSprite(sprite(), { across: 0, down: 0, out: 0, scale: 1, turnDeg: 90, flipDeg: 0 }, PIVOT);
+    const moved = movedSprite(
+      sprite(),
+      { across: 0, down: 0, out: 0, scale: 1, turnDeg: 90, flipDeg: 0, shown: 1 },
+      PIVOT
+    );
 
     near(moved.centre, { x: 100, y: 100, z: 25 });
     expect(moved.facing).toBe('eye');
@@ -88,7 +120,11 @@ describe('movedSprite', () => {
 
   it('turns a sprite lying a fixed way with the piece, across towards down', () => {
     const lying = sprite({ centre: { x: 120, y: 100, z: 1 }, facing: { across: EAST, down: SOUTH } });
-    const moved = movedSprite(lying, { across: 0, down: 0, out: 0, scale: 1, turnDeg: 90, flipDeg: 0 }, PIVOT);
+    const moved = movedSprite(
+      lying,
+      { across: 0, down: 0, out: 0, scale: 1, turnDeg: 90, flipDeg: 0, shown: 1 },
+      PIVOT
+    );
 
     near(moved.centre, { x: 100, y: 120, z: 1 });
     expect(moved.facing).not.toBe('eye');
@@ -98,7 +134,11 @@ describe('movedSprite', () => {
   });
 
   it('grows a sprite about the pivot and shifts it across, down and out of the face', () => {
-    const moved = movedSprite(sprite(), { across: 10, down: -5, out: 3, scale: 2, turnDeg: 0, flipDeg: 0 }, PIVOT);
+    const moved = movedSprite(
+      sprite(),
+      { across: 10, down: -5, out: 3, scale: 2, turnDeg: 0, flipDeg: 0, shown: 1 },
+      PIVOT
+    );
 
     near(moved.centre, { x: 110, y: 95, z: 53 });
     expect(moved.widthPx).toBe(100);

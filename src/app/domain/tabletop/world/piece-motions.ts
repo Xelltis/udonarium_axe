@@ -3,12 +3,22 @@ import { TableWorldSprite, turnedAbout } from '@axe/domain/tabletop/world/table-
 
 /** A move a piece plays through once, as the page plays it with a CSS animation of the same name. */
 export type PieceMotionKind =
-  'dice-tumble-a' | 'dice-tumble-b' | 'dice-tumble-c' | 'coin-flip' | 'coin-flip-turn' | 'bounce-in' | 'shuffle';
+  | 'dice-tumble-a'
+  | 'dice-tumble-b'
+  | 'dice-tumble-c'
+  | 'coin-flip'
+  | 'coin-flip-turn'
+  | 'bounce-in'
+  | 'shuffle'
+  | 'hit-shake'
+  | 'defeat-dissolve'
+  | 'defeat-bisect'
+  | 'defeat-flinch';
 
 /**
  * Where a moving piece is at one moment of a move: shifted across, down and out of its face, grown,
  * turned in its face (across towards down), and flipped over the line running down its face, all
- * about the middle of where it stands.
+ * about the middle of where it stands; and how much of it shows, from none at 0 to all of it at 1.
  */
 export interface MotionPose {
   readonly across: number;
@@ -17,6 +27,7 @@ export interface MotionPose {
   readonly scale: number;
   readonly turnDeg: number;
   readonly flipDeg: number;
+  readonly shown: number;
 }
 
 /** A pose at a share of the way through a move. */
@@ -34,6 +45,7 @@ interface Motion {
 const EASE: Motion['easing'] = [0.25, 0.1, 0.25, 1];
 const TUMBLE_EASING: Motion['easing'] = [0.22, 0.9, 0.3, 1];
 const FLIP_EASING: Motion['easing'] = [0.33, 0, 0.35, 1];
+const EASE_IN_OUT: Motion['easing'] = [0.42, 0, 0.58, 1];
 
 function tumble(
   first: [number, number, number, number],
@@ -85,6 +97,41 @@ const MOTIONS: Record<PieceMotionKind, Motion> = {
       { at: 1 },
     ],
   },
+  'hit-shake': {
+    lengthMs: 420,
+    easing: EASE_IN_OUT,
+    keyframes: [
+      { at: 0 },
+      { at: 0.12, across: -5 },
+      { at: 0.28, across: 4.5 },
+      { at: 0.44, across: -3.5 },
+      { at: 0.6, across: 2.5 },
+      { at: 0.78, across: -1.5 },
+      { at: 1 },
+    ],
+  },
+  'defeat-dissolve': {
+    lengthMs: 1900,
+    easing: [0.4, 0, 0.6, 1],
+    keyframes: [{ at: 0 }, { at: 0.1, down: 2 }, { at: 0.22, shown: 0 }, { at: 1, shown: 0 }],
+  },
+  'defeat-bisect': {
+    lengthMs: 1600,
+    easing: [0.3, 0, 0.2, 1],
+    keyframes: [{ at: 0 }, { at: 0.16 }, { at: 0.22, shown: 0 }, { at: 1, shown: 0 }],
+  },
+  'defeat-flinch': {
+    lengthMs: 900,
+    easing: [0.36, 0.07, 0.19, 0.97],
+    keyframes: [
+      { at: 0 },
+      { at: 0.1, across: -9, down: -3, turnDeg: -5 },
+      { at: 0.26, across: 6, down: 2, turnDeg: 3 },
+      { at: 0.46, across: -4, down: 1, turnDeg: -2 },
+      { at: 0.7, across: 2, turnDeg: 1 },
+      { at: 1 },
+    ],
+  },
   shuffle: {
     lengthMs: 800,
     easing: EASE,
@@ -98,7 +145,14 @@ const MOTIONS: Record<PieceMotionKind, Motion> = {
   },
 };
 
-const REST: MotionPose = { across: 0, down: 0, out: 0, scale: 1, turnDeg: 0, flipDeg: 0 };
+const REST: MotionPose = { across: 0, down: 0, out: 0, scale: 1, turnDeg: 0, flipDeg: 0, shown: 1 };
+
+/** Where a move leaves a piece once it has played through, as a CSS animation that fills forwards does. */
+export function motionEndPose(kind: PieceMotionKind): MotionPose {
+  const frames = MOTIONS[kind].keyframes;
+  const { at: _at, ...last } = { ...REST, ...frames[frames.length - 1] };
+  return last;
+}
 
 /** How long a move plays, in milliseconds. */
 export function motionLengthMs(kind: PieceMotionKind): number {
@@ -159,6 +213,7 @@ export function motionPoseAt(kind: PieceMotionKind, elapsedMs: number): MotionPo
     scale: mix('scale'),
     turnDeg: mix('turnDeg'),
     flipDeg: mix('flipDeg'),
+    shown: mix('shown'),
   };
 }
 
@@ -190,6 +245,7 @@ export function movedSprite(sprite: TableWorldSprite, pose: MotionPose, pivot: M
     pivot.point[axis] + across[axis] * pose.across + down[axis] * pose.down + out[axis] * pose.out;
   const moved: TableWorldSprite = {
     ...sprite,
+    ...(pose.shown < 1 ? { opacity: (sprite.opacity ?? 1) * pose.shown } : {}),
     centre: {
       x: shift('x') + fromPivot.x * pose.scale,
       y: shift('y') + fromPivot.y * pose.scale,

@@ -89,6 +89,31 @@ export function multiAngleOrbitAnimation(
   return { durationSeconds, timingFunction: `linear(${stops.join(', ')})` };
 }
 
+/**
+ * How far round a piece turning on its own has come at a moment, in degrees, as the page turns it
+ * with the animation `multiAngleOrbitAnimation` describes: a share of a turn a phase ahead, all the
+ * way round evenly, or a quarter at a time with a pause after each.
+ */
+export function multiAngleTurnAt(
+  mode: MultiAngleOrbitMode,
+  revolutionSeconds: number,
+  pauseSeconds: number,
+  phase: number,
+  atSeconds: number
+): number {
+  const { durationSeconds } = multiAngleOrbitAnimation(mode, revolutionSeconds, pauseSeconds);
+  const share = (((atSeconds / durationSeconds + phase) % 1) + 1) % 1;
+  if (durationSeconds === finiteInRange(revolutionSeconds, DEFAULT_MULTI_ANGLE_REVOLUTION_SECONDS, 1, 120)) {
+    return share * 360;
+  }
+  const turn = finiteInRange(revolutionSeconds, DEFAULT_MULTI_ANGLE_REVOLUTION_SECONDS, 1, 120) / 4;
+  const pause = (durationSeconds - turn * 4) / 4;
+  const at = share * durationSeconds;
+  const quarter = Math.min(3, Math.floor(at / (turn + pause)));
+  const into = at - quarter * (turn + pause);
+  return (quarter + Math.min(1, into / turn)) * 90;
+}
+
 /** A deterministic pseudo-random phase, so every peer sees each piece at the same angle. */
 export function multiAngleRotationPhase(identifier: string): number {
   let hash = 0x811c9dc5;

@@ -1,6 +1,13 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { MotionService } from '@axe/application/ui/motion.service';
-import { motionLengthMs, MotionPose, motionPoseAt, PieceMotionKind } from '@axe/domain/tabletop/world/piece-motions';
+import { MultiAngleOrbitMode, multiAngleTurnAt } from '@axe/domain/tabletop/multi-angle';
+import {
+  motionEndPose,
+  motionLengthMs,
+  MotionPose,
+  motionPoseAt,
+  PieceMotionKind,
+} from '@axe/domain/tabletop/world/piece-motions';
 
 /** What else a move is played with. */
 export interface MotionOptions {
@@ -8,6 +15,8 @@ export interface MotionOptions {
   readonly parts?: readonly string[];
   /** For a piece that turns over, whether it lies back up as it starts, whichever way it is to land. */
   readonly backUp?: boolean;
+  /** Whether the piece stays where the move leaves it once it has played through, until it is stopped. */
+  readonly holds?: boolean;
 }
 
 /** A move a piece is playing, when it started, and what else it is played with. */
@@ -21,6 +30,17 @@ export interface PlayingPose extends MotionOptions {
   readonly pose: MotionPose;
 }
 
+/** How a piece turns on its own, round and round, as a piece on a table seen from straight above does. */
+export interface TurningOnItsOwn {
+  readonly mode: MultiAngleOrbitMode;
+  readonly revolutionSeconds: number;
+  readonly pauseSeconds: number;
+  /** How far round a turn it is ahead of the others, from 0 to 1. */
+  readonly phase: number;
+}
+
+const REST: MotionPose = { across: 0, down: 0, out: 0, scale: 1, turnDeg: 0, flipDeg: 0, shown: 1 };
+
 /**
  * The moves the pieces on the table's canvas are playing, as a die tumbles when it is rolled: the
  * canvas plays them itself, frame by frame, where the page would play a CSS animation. While motion
@@ -30,6 +50,7 @@ export interface PlayingPose extends MotionOptions {
 export class PieceMotionsService {
   private readonly motion = inject(MotionService);
   private readonly playing = signal<ReadonlyMap<string, Playing>>(new Map());
+  private readonly turning = signal<ReadonlyMap<string, TurningOnItsOwn>>(new Map());
   private readonly clock = signal(0);
   private frame: number | null = null;
 
@@ -46,15 +67,62 @@ export class PieceMotionsService {
     return motionLengthMs(kind);
   }
 
-  /** Where each piece playing a move is now. Follows the frames as they go by. */
+  /**
+   * Has a piece turn on its own from now on, round and round, or with null stop. It turns while
+   * motion is turned down too, as the page turns it then.
+   */
+  turnOnItsOwn(owner: string, turning: TurningOnItsOwn | null): void {
+    const was = this.turning().get(owner);
+    if (turning === null ? !was : was && JSON.stringify(was) === JSON.stringify(turning)) return;
+    this.turning.update((all) => {
+      const next = new Map(all);
+      if (turning) next.set(owner, turning);
+      else next.delete(owner);
+      return next;
+    });
+    this.clock.set(performance.now());
+    this.tickSoon();
+  }
+
+  /**
+   * Where each piece playing a move, or turning on its own, is now. Follows the frames as they go
+   * by. A piece turning on its own and playing a move as well turns on top of the move.
+   */
   posesNow(): ReadonlyMap<string, PlayingPose> {
     const now = this.clock();
     const poses = new Map<string, PlayingPose>();
     for (const [owner, playing] of this.playing()) {
-      const pose = motionPoseAt(playing.kind, now - playing.startedAt);
+      const pose =
+        motionPoseAt(playing.kind, now - playing.startedAt) ?? (playing.holds ? motionEndPose(playing.kind) : null);
       if (pose) poses.set(owner, { pose, parts: playing.parts, backUp: playing.backUp });
     }
+    for (const [owner, turning] of this.turning()) {
+      const turnDeg = multiAngleTurnAt(
+        turning.mode,
+        turning.revolutionSeconds,
+        turning.pauseSeconds,
+        turning.phase,
+        now / 1000
+      );
+      const moving = poses.get(owner);
+      poses.set(
+        owner,
+        moving
+          ? { ...moving, pose: { ...moving.pose, turnDeg: moving.pose.turnDeg + turnDeg } }
+          : { pose: { ...REST, turnDeg } }
+      );
+    }
     return poses;
+  }
+
+  /** Stops the move a piece is playing, or lets go of the pose a held move left it in. */
+  stop(owner: string): void {
+    if (!this.playing().has(owner)) return;
+    this.playing.update((playing) => {
+      const next = new Map(playing);
+      next.delete(owner);
+      return next;
+    });
   }
 
   /** Whether a piece is playing a move now. */
@@ -67,10 +135,13 @@ export class PieceMotionsService {
     this.frame = requestAnimationFrame(() => {
       this.frame = null;
       const now = performance.now();
-      const still = [...this.playing()].filter(([, playing]) => motionPoseAt(playing.kind, now - playing.startedAt));
-      if (still.length !== this.playing().size) this.playing.set(new Map(still));
+      const kept = [...this.playing()].filter(
+        ([, playing]) => playing.holds || motionPoseAt(playing.kind, now - playing.startedAt)
+      );
+      if (kept.length !== this.playing().size) this.playing.set(new Map(kept));
       this.clock.set(now);
-      if (still.length) this.tickSoon();
+      const moving = kept.some(([, playing]) => motionPoseAt(playing.kind, now - playing.startedAt));
+      if (moving || this.turning().size) this.tickSoon();
     });
   }
 }

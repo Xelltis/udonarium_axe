@@ -194,7 +194,7 @@ describe('TablePiecesService', () => {
 
   it('moves the parts of a piece a move moves, about the middle of where it stands', () => {
     const die = dieAt(100, 200);
-    const pose = { across: 10, down: 0, out: 0, scale: 2, turnDeg: 90, flipDeg: 0 };
+    const pose = { across: 10, down: 0, out: 0, scale: 2, turnDeg: 90, flipDeg: 0, shown: 1 };
     vi.spyOn(TestBed.inject(PieceMotionsService), 'posesNow').mockReturnValue(
       new Map([[die.identifier, { pose, parts: ['picture'] }]])
     );
@@ -216,7 +216,7 @@ describe('TablePiecesService', () => {
     const coin = Coin.create('coin');
     coin.location = { name: 'table', x: 100, y: 200 };
     coin.face = 'back';
-    const pose = { across: 0, down: 0, out: 90, scale: 1.18, turnDeg: 0, flipDeg: 720 };
+    const pose = { across: 0, down: 0, out: 90, scale: 1.18, turnDeg: 0, flipDeg: 720, shown: 1 };
     vi.spyOn(TestBed.inject(PieceMotionsService), 'posesNow').mockReturnValue(
       new Map([[coin.identifier, { pose, backUp: false }]])
     );
