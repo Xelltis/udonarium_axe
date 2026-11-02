@@ -75,4 +75,50 @@ describe('handing presses on the canvas to the blocks drawn there', () => {
     expect(pressOn(root, 'contextmenu').reached).toEqual([]);
     expect(openMenu).toHaveBeenCalledTimes(1);
   });
+
+  describe('a piece laid over the canvas, boxed on the screen', () => {
+    let hud: HTMLElement;
+    let boxed: HTMLElement;
+    let part: HTMLElement;
+    let label: HTMLElement;
+
+    beforeEach(() => {
+      hud = document.createElement('div');
+      hud.setAttribute('data-testid', 'table-hud');
+      boxed = document.createElement('div');
+      boxed.setAttribute('data-object-id', 'a-die');
+      const box = document.createElement('div');
+      box.setAttribute('data-hud-box', '');
+      part = document.createElement('div');
+      part.setAttribute('data-part', 'picture');
+      label = document.createElement('div');
+      box.append(part, label);
+      boxed.appendChild(box);
+      hud.appendChild(boxed);
+      piece.after(hud);
+    });
+
+    it('keeps a press on its box that picking says lands on it', () => {
+      picked = 'a-die';
+      expect(pressOn(part).reached).toEqual(['root:mousedown']);
+    });
+
+    it('hands a press on its box that lands on something else to that', () => {
+      expect(pressOn(part).reached).toEqual(['block:mousedown', 'root:mousedown']);
+    });
+
+    it('hands a press on its box that lands on nothing to the table', () => {
+      picked = null;
+      const reached: EventTarget[] = [];
+      const onRoot = (event: Event) => reached.push(event.target!);
+      root.addEventListener('mousedown', onRoot);
+      part.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+      root.removeEventListener('mousedown', onRoot);
+      expect(reached).toEqual([root]);
+    });
+
+    it('keeps a press on a label of it, wherever picking says it lands', () => {
+      expect(pressOn(label).reached).toEqual(['root:mousedown']);
+    });
+  });
 });

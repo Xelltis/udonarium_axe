@@ -81,6 +81,11 @@ export interface MovableOption {
    * leaves it to that. A piece moved over squares of several cells is put on a square this way.
    */
   readonly snapToSquare?: (at: { x: number; y: number }) => { x: number; y: number } | null;
+  /**
+   * Whether something else puts the piece's element where the piece is drawn, as the screen over a
+   * table drawn on a canvas puts its pieces; the directive then only marks where the piece stands.
+   */
+  readonly placedElsewhere?: boolean;
 }
 
 @Directive({ selector: '[appMovable]' })
@@ -126,6 +131,7 @@ export class MovableDirective implements MovableInteractionContext {
   layerName: string = '';
   private colideLayers: string[] = [];
   private transformCssOffset: string = '';
+  private placedElsewhere = false;
   private snapOrigin: { x: number; y: number } | undefined;
   private snapStyle: GridSnapStyle | undefined;
   private snapToSquare: MovableOption['snapToSquare'];
@@ -214,6 +220,7 @@ export class MovableDirective implements MovableInteractionContext {
       if (opt.layerName != null) this.layerName = opt.layerName;
       if (opt.colideLayers != null) this.colideLayers = opt.colideLayers;
       if (opt.transformCssOffset != null) this.transformCssOffset = opt.transformCssOffset;
+      this.placedElsewhere = opt.placedElsewhere ?? false;
       this.snapOrigin = opt.snapOrigin;
       this.snapStyle = opt.snapStyle;
       this.snapToSquare = opt.snapToSquare;
@@ -1027,6 +1034,7 @@ export class MovableDirective implements MovableInteractionContext {
 
   /** Turns on the short glide used when the piece is moved from elsewhere; off while it is dragged. */
   setAnimatedTransition(isEnable: boolean) {
+    if (this.placedElsewhere) return;
     this.nativeElement.style.transition = isEnable ? 'transform 132ms linear' : '';
   }
 
@@ -1035,10 +1043,15 @@ export class MovableDirective implements MovableInteractionContext {
   }
 
   private stopTransition() {
+    if (this.placedElsewhere) return;
     this.nativeElement.style.transform = window.getComputedStyle(this.nativeElement).transform;
   }
 
   private updateTransformCss() {
+    if (this.placedElsewhere) {
+      this.nativeElement.dataset['location'] = `${this.posX},${this.posY},${this.posZ}`;
+      return;
+    }
     const onWall = this.isOnWallSurface();
     const offset = onWall ? '' : this.transformCssOffset;
     const posZ = onWall ? -this.posZ - WALL_OCCLUSION_INSET_PX : this.posZ;

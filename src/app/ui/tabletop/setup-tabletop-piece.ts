@@ -14,6 +14,8 @@ export interface MovableSetup<T extends TabletopObject> {
   readonly snapToSquare?: (t: T, at: { x: number; y: number }) => { x: number; y: number } | null;
   readonly transformCssOffset?: string;
   readonly layerName?: string;
+  /** Whether the piece's element is put where it is drawn by something else; see {@link MovableOption}. */
+  readonly placedElsewhere?: Signal<boolean>;
 }
 
 function applyMovableOption<T extends TabletopObject>(
@@ -31,6 +33,7 @@ function applyMovableOption<T extends TabletopObject>(
     snapOrigin,
     snapToSquare: opts.snapToSquare ? (at) => opts.snapToSquare!(piece, at) : undefined,
     layerName: opts.layerName,
+    placedElsewhere: opts.placedElsewhere?.(),
   });
 }
 
