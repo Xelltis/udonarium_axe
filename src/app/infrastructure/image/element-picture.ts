@@ -61,7 +61,8 @@ function fontRuleOf(family: string): Promise<string> {
 /**
  * Copies an element and everything in it with every style the page gives each written on it, so
  * the copy looks the same where no style sheet reaches. The pictures it shows are carried in it,
- * and what is drawn on a canvas in it is carried as a picture.
+ * and what is drawn on a canvas in it is carried as a picture. Everything is copied seen, as the
+ * element may be hidden from the screen while it is pictured.
  */
 async function styledCopyOf(element: Element, families: Set<string>): Promise<Element> {
   const copy =
@@ -78,6 +79,7 @@ async function styledCopyOf(element: Element, families: Set<string>): Promise<El
     const written: string[] = [];
     for (let i = 0; i < style.length; i++) {
       const name = style[i];
+      if (name === 'visibility') continue;
       written.push(`${name}:${style.getPropertyValue(name)}`);
     }
     copy.setAttribute('style', written.join(';'));

@@ -208,9 +208,10 @@ export class WhiteBoardComponent {
     this.surfaceVersion();
     return this.contentsOf(this.tabletopService.tableMasks);
   });
+  /** The notes on the board, which a table drawn on a canvas lays over itself instead. */
   readonly textNotes = computed<TextNote[]>(() => {
     this.surfaceVersion();
-    return this.contentsOf(this.tabletopService.textNotes);
+    return this.drawsOnCanvas() ? [] : this.contentsOf(this.tabletopService.textNotes);
   });
   /** The cards on the board, which a table drawn on a canvas lays over itself instead. */
   readonly cards = computed<Card[]>(() => {

@@ -1,4 +1,4 @@
-import { NgStyle } from '@angular/common';
+import { NgStyle, NgTemplateOutlet } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -44,6 +44,7 @@ import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { LinkifyPipe } from '@axe/ui/pipes/linkify.pipe';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
@@ -54,7 +55,17 @@ import { formatNoteText } from '@axe/ui/text-decoration/format-note-text';
   selector: 'text-note',
   templateUrl: './text-note.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MovableDirective, RotableDirective, SelectableDirective, NgStyle, FormsModule, LinkifyPipe, SafePipe],
+  imports: [
+    HudPlaceDirective,
+    MovableDirective,
+    RotableDirective,
+    SelectableDirective,
+    NgStyle,
+    NgTemplateOutlet,
+    FormsModule,
+    LinkifyPipe,
+    SafePipe,
+  ],
   host: {
     '[style.display]': "isHiddenByFog() ? 'none' : null",
     '[attr.data-object-id]': 'textNote().identifier',
@@ -126,11 +137,12 @@ export class TextNoteComponent {
       target: this.textNote,
       collideLayers: ['terrain'],
       transformCssOffset: translateZCss(Z_OFFSET_TABLETOP_OBJECT_PX),
+      placedElsewhere: this.drawsOnCanvas,
     });
     pictureForCanvas({
       identifier: () => this.textNote().identifier,
       element: () => this.panel()?.nativeElement,
-      pictured: () => this.drawsOnCanvas() && !this.isEditing(),
+      pictured: () => this.drawsOnCanvas(),
       follows: () => {
         this.textNoteVersion();
         this.canView();

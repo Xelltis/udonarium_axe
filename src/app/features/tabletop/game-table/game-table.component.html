@@ -386,6 +386,14 @@
   @if (table3d.drawsOnCanvas()) {
     <!-- The pieces over a table drawn on a canvas: flat on the screen, each where the canvas draws it. -->
     <div class="pointer-events-none absolute inset-0 isolate overflow-hidden" data-testid="table-hud">
+      @for (textNote of textNotesOverCanvas(); track textNote.identifier) {
+        <text-note
+          class="block"
+          [textNote]="textNote"
+          [appTooltip]="textNote"
+          [appHudPlace]="{ owner: textNote.identifier }"
+        ></text-note>
+      }
       @for (cardStack of cardStacksOverCanvas(); track cardStack.identifier) {
         <card-stack
           class="block"
