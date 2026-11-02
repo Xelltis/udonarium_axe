@@ -67,18 +67,22 @@ export function isBuffColorToken(token: string): boolean {
   return DEFAULT_TOKENS.includes(normalized) || resolveBuffColor(normalized).length > 0;
 }
 
-/** Sorts tokens such as a colour name and an icon, in whichever order they come. */
+/**
+ * Sorts tokens such as a colour name and an icon, in whichever order they come. `none` and `なし`,
+ * which could ask for the default colour as well, name the timing that never runs out; the colour
+ * goes back to the default with `既定` or `default`.
+ */
 export function parseBuffAppearance(tokens: readonly string[]): BuffAppearance {
   const appearance: BuffAppearance = {};
   for (const token of tokens) {
     const value = (token ?? '').trim();
     if (value.length < 1) continue;
-    if (isBuffColorToken(value)) {
-      appearance.color = resolveBuffColor(value);
-      continue;
-    }
     if (isBuffTimingToken(value)) {
       appearance.timing = resolveBuffTiming(value)!;
+      continue;
+    }
+    if (isBuffColorToken(value)) {
+      appearance.color = resolveBuffColor(value);
       continue;
     }
     if (value.startsWith('@') && value.length > 1) {

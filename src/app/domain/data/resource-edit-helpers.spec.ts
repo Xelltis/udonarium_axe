@@ -313,6 +313,39 @@ describe('resource-edit-helpers', () => {
       expect(data.getAttribute(DataElementAttribute.BUFF_TRIGGER)).toBe('術者');
     });
 
+    describe('a buff written to stay until it is taken away', () => {
+      const timingOf = (name: string) => character.buffs.find(name)?.getAttribute(DataElementAttribute.BUFF_TIMING);
+
+      it('reads none after the rounds as the timing, rather than as the default colour', () => {
+        applyBuffEdit({ command: '&加護/防御+2/3/none', object: character, targeted: false }, character);
+        applyBuffEdit({ command: '&呪い/攻撃-1/3/なし/red', object: character, targeted: false }, character);
+
+        expect(timingOf('加護')).toBe('none');
+        expect(timingOf('呪い')).toBe('none');
+        expect(character.buffs.find('呪い')!.getAttribute(DataElementAttribute.BUFF_COLOR)).toBe(
+          resolveBuffColor('red')
+        );
+      });
+
+      it('reads a timing where the rounds go as the rounds left out', () => {
+        const told = applyBuffEdit({ command: '&加護/防御+2/none', object: character, targeted: false }, character);
+
+        expect(timingOf('加護')).toBe('none');
+        expect(told).toBe('バフを付与 加護/防御+2/none    ');
+      });
+
+      it('keeps a buff that moves a status, as the buff manager writes one that stays', () => {
+        character.detailDataElement!.appendChild(DataElement.create('命中', 5, {}));
+
+        applyBuffEdit({ command: '&!猛攻撃/命中/+/2/3/none', object: character, targeted: false }, character);
+        applyBuffEdit({ command: '&!集中/命中/+/1/none', object: character, targeted: false }, character);
+
+        expect(timingOf('猛攻撃')).toBe('none');
+        expect(timingOf('集中')).toBe('none');
+        expect(character.status.getValue('命中', 'now')).toBe(8);
+      });
+    });
+
     describe('a buff named after a state the room keeps', () => {
       const edit = (command: string, targeted = false) =>
         applyBuffEdit({ command, object: character, targeted }, character);

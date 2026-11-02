@@ -5,6 +5,7 @@ import {
   readBuffStacking,
   readCalculatedBuff,
   removedBuffName,
+  splitBuffRounds,
 } from '@axe/domain/character/buff-command';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { findStatusAilment } from '@axe/domain/character/status-ailment';
@@ -405,7 +406,8 @@ function lintBuff(source: string, span: TextRange, pieces: readonly GameCharacte
   if (kind === 'plain') {
     const parts = readModifierLayout(command.replace(/^[tTｔＴ]?&/i, '').split('/'));
     const named = findStatusAilment(StatusAilmentCatalog.instance.ailments, parts[0]);
-    if (!named && parts[2] && Number.isNaN(parseInt(parts[2]))) add(span, 'info', 'buff.roundsDefault');
+    const { rounds } = splitBuffRounds(parts.slice(2));
+    if (!named && rounds && Number.isNaN(parseInt(rounds))) add(span, 'info', 'buff.roundsDefault');
   }
 }
 

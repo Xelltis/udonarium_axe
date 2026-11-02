@@ -63,6 +63,11 @@ describe('remote-controller-helpers', () => {
       expect(parseBuffInput('猛攻撃')!.appearance).toEqual({});
     });
 
+    it('reads none as the timing that never runs out, after the rounds or in their place', () => {
+      expect(parseBuffInput('毒 継続2 3 none')!.appearance).toEqual({ timing: 'none' });
+      expect(parseBuffInput('毒 継続2 none')).toMatchObject({ round: 3, appearance: { timing: 'none' } });
+    });
+
     it('reads nothing from an empty line', () => {
       expect(parseBuffInput('')).toBeNull();
     });

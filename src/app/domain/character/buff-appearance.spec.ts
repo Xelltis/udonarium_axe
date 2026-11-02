@@ -55,6 +55,11 @@ describe('parseBuffAppearance()', () => {
     expect(parseBuffAppearance(['既定'])).toEqual({ color: '' });
   });
 
+  it('reads none as the timing that never runs out, not as a reset of the colour', () => {
+    expect(parseBuffAppearance(['none'])).toEqual({ timing: 'none' });
+    expect(parseBuffAppearance(['なし', '既定'])).toEqual({ timing: 'none', color: '' });
+  });
+
   it('returns nothing when neither is given', () => {
     expect(parseBuffAppearance([])).toEqual({});
     expect(parseBuffAppearance(['', '  '])).toEqual({});

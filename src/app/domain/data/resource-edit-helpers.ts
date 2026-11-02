@@ -6,6 +6,7 @@ import {
   readCalculatedBuff,
   readCalculatedBuffLook,
   removedBuffName,
+  splitBuffRounds,
 } from '@axe/domain/character/buff-command';
 import {
   describeBuffModifier,
@@ -333,14 +334,15 @@ function grantCalculatedBuff(
   rest: readonly string[],
   piles: BuffPileOn
 ): string {
-  const roundText = (rest[0] ?? '').trim();
+  const { rounds, look } = splitBuffRounds(rest);
+  const roundText = (rounds ?? '').trim();
   const round = roundText.length > 0 && Number.isFinite(Number(roundText)) ? Number(roundText) : 3;
   const stacking =
     piles !== 'none' && requests.every((request) => request.operator === 'add') && character.buffs.find(name) != null;
   if (!stacking) character.buffs.removeGroupMembers(name);
   const grouped = requests.length > 1;
   const group = grouped ? name : stacking ? undefined : '';
-  const appearance = { ...readCalculatedBuffLook(rest.slice(1)), group };
+  const appearance = { ...readCalculatedBuffLook(look), group };
 
   const missing: string[] = [];
   const effects: string[] = [];
@@ -419,9 +421,10 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
       sub = splittext[1];
       bufftext = `${bufftext}/${splittext[1]}`;
     }
-    if (splittext.length > 2) {
-      if (splittext[2]) {
-        round = parseInt(splittext[2]);
+    const { rounds, look } = splitBuffRounds(splittext.slice(2));
+    if (rounds !== undefined) {
+      if (rounds) {
+        round = parseInt(rounds);
         if (Number.isNaN(round)) {
           round = 3;
         }
@@ -431,8 +434,8 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
       bufftext = `${bufftext}/${round}R`;
     }
 
-    const appearance = parseBuffAppearance(splittext.slice(3));
-    for (const token of splittext.slice(3)) {
+    const appearance = parseBuffAppearance(look);
+    for (const token of look) {
       if (token) bufftext = `${bufftext}/${token}`;
     }
 
@@ -456,15 +459,16 @@ export function applyBuffEdit(buff: BuffEdit, character: GameCharacter): string 
  * piles on as any plain one does instead.
  */
 function plantCommandedState(state: StatusAilment, parts: string[], character: GameCharacter): string {
-  const rounds = parts.length > 2 ? Number.parseInt(parts[2], 10) : Number.NaN;
-  const look = parseBuffAppearance(parts.slice(3));
+  const written = splitBuffRounds(parts.slice(2));
+  const rounds = written.rounds !== undefined ? Number.parseInt(written.rounds, 10) : Number.NaN;
+  const look = parseBuffAppearance(written.look);
   const ailment = statusAilmentAsCommanded(state, {
     note: parts[1] ?? '',
     rounds: Number.isNaN(rounds) ? null : rounds,
     look,
   });
   plantStatusAilment(character, ailment, look.trigger ? { trigger: look.trigger } : {});
-  const told = [ailment.name, ailment.effect, ailment.rounds > 0 ? `${ailment.rounds}R` : '', ...parts.slice(3)];
+  const told = [ailment.name, ailment.effect, ailment.rounds > 0 ? `${ailment.rounds}R` : '', ...written.look];
   return `バフを付与 ${told.filter((part) => part.length > 0).join('/')}    `;
 }
 

@@ -177,6 +177,10 @@ describe('lintChatSyntax', () => {
       expect(codes('&加護/防御+2/ずっと')).toEqual(['buff.roundsDefault']);
     });
 
+    it('says nothing of three rounds where a timing stands in their place', () => {
+      expect(codes('&加護/防御+2/none')).toEqual([]);
+    });
+
     it('says nothing of three rounds for a buff named after a state the room keeps, which lasts the state’s', () => {
       StatusAilmentCatalog.instance.ailments = [{ ...newStatusAilment('毒'), rounds: 5 }];
       try {

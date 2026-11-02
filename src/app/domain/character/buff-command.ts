@@ -79,6 +79,17 @@ export function readCalculatedBuff(command: string): CalculatedBuffCommand {
 }
 
 /**
+ * A buff command's fields from where its rounds go, split into the rounds and the look written after
+ * them. A timing written where the rounds go, `&毒/継続2/none`, reads as the rounds left out and the
+ * timing as the first of the look, so a buff meant to stay is not laid for three rounds instead.
+ */
+export function splitBuffRounds(fields: readonly string[]): { rounds: string | undefined; look: string[] } {
+  const [rounds, ...look] = fields;
+  if (rounds !== undefined && isBuffTimingToken(rounds)) return { rounds: undefined, look: [...fields] };
+  return { rounds, look };
+}
+
+/**
  * The look written after a `&!` command's rounds. A timing, or a blank where it goes, followed by a
  * bare name stands as it always has, the timing and the piece whose turn it waits for; past those,
  * or written any other way, the fields are read as a plain buff's look is: a colour, an icon, a
