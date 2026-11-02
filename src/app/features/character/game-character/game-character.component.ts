@@ -29,6 +29,7 @@ import { PieceLinksService } from '@axe/application/tabletop/piece-links.service
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -117,6 +118,7 @@ import {
   makeMultiAngleResourceGauge,
   MAX_MULTI_ANGLE_RESOURCE_GAUGES,
 } from '@axe/ui/tabletop/multi-angle-orbit-decoration';
+import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { pieceImageView } from '@axe/ui/tabletop/piece-image-view';
 import { pieceLabelFacings } from '@axe/ui/tabletop/piece-label-facings';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
@@ -274,6 +276,30 @@ export class GameCharacterComponent {
     return this.gameCharacter()?.targeted ?? false;
   });
 
+  private readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
+  private readonly pedestal = viewChild<ElementRef<HTMLElement>>('pedestal');
+
+  /**
+   * Whether the table's canvas draws the piece, from its picture and a picture of its pedestal taken
+   * here, which leaves both clear here, still taking the presses where the canvas draws them. The
+   * page draws the piece itself while it is tipped over, turning on its own, standing on a slope or
+   * in water, casting a drop shadow, or being struck, healed or felled.
+   */
+  readonly drawnOnCanvas = computed(() => {
+    const char = this.gameCharacter();
+    if (!char || !this.drawsOnCanvas() || this.isHiddenByVision()) return false;
+    this.objectChange.versionOf(char.identifier)();
+    return (
+      this.rollSignal() === 0 &&
+      !char.isDropShadow &&
+      !this.multiAngleNameOrbitEnabled() &&
+      this.groundLean() === '' &&
+      this.inWater() === null &&
+      this.hitFlash() === null &&
+      this.defeatReaction() === ''
+    );
+  });
+
   readonly isSharedView = computed(() => {
     const char = this.gameCharacter();
     if (!char) return false;
@@ -347,6 +373,18 @@ export class GameCharacterComponent {
       }, 1010);
     });
 
+    pictureForCanvas({
+      identifier: () => this.gameCharacter()?.identifier ?? '',
+      element: () => this.pedestal()?.nativeElement,
+      pictured: () => this.drawnOnCanvas(),
+      follows: () => {
+        this.size();
+        this.isTargeted();
+        this.isSharedView();
+        this.pedestalStyleShown();
+        this.pedestalOuterStyle();
+      },
+    });
     setupMovableRotableForPiece(this, {
       target: this.gameCharacter,
       collideLayers: ['terrain'],

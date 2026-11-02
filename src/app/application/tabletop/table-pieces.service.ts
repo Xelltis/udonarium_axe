@@ -4,6 +4,7 @@ import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
+import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
@@ -12,6 +13,8 @@ import { ThemeService } from '@axe/application/ui/theme.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
+import { GameCharacter } from '@axe/domain/character/game-character';
+import { pieceImageWidthApart } from '@axe/domain/character/piece-image-size';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
@@ -23,6 +26,7 @@ import { boardSurfaceOf, surfaceOf, TabletopObject } from '@axe/domain/tabletop/
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { cardSprites, cardStackSprites, SizedPicture } from '@axe/domain/tabletop/world/card-sprites';
+import { characterSprites } from '@axe/domain/tabletop/world/character-sprites';
 import { DICE_FRAME_COLOUR, diceSymbolSprites } from '@axe/domain/tabletop/world/dice-symbol-sprites';
 import { maskSprites, rangeSprites } from '@axe/domain/tabletop/world/flat-piece-sprites';
 import { lightSourceSprites } from '@axe/domain/tabletop/world/light-source-sprites';
@@ -68,6 +72,7 @@ export class TablePiecesService {
   private readonly theme = inject(ThemeService);
   private readonly objectStore = inject(ObjectStore);
   private readonly pagePictures = inject(PiecePicturesService);
+  private readonly roomRules = inject(RoomRulesService);
 
   /** Every sprite of every piece drawn on the table in view. */
   readonly sprites = computed<readonly TableWorldSprite[]>(() => [
@@ -78,6 +83,7 @@ export class TablePiecesService {
     ...this.noteSprites(),
     ...this.cardSprites(),
     ...this.diceSprites(),
+    ...this.characterSprites(),
   ]);
 
   /** Every coin on the table in view. */
@@ -116,6 +122,48 @@ export class TablePiecesService {
         .filter((wall) => wall.shown && this.images.getEmptyOr(wall.imageIdentifier).url)
         .map((wall) => wall.surface)
     );
+  });
+
+  /**
+   * The characters this seat may see, drawn from their pictures and the pictures the page takes of
+   * their pedestals: a character whose pedestal the page keeps to itself is drawn by the page.
+   */
+  private readonly characterSprites = computed(() => {
+    this.objectChange.collectionOf(GameCharacter.aliasName)();
+    this.objectChange.collectionOf(WhiteBoard.aliasName)();
+    this.objectChange.fileVersion();
+    this.objectChange.networkVersion();
+    this.objectChange.trackMyCursor();
+    this.transient.version();
+    const table = this.tabletop.currentTableVersion();
+    const gridSize = table.gridSize;
+    const mode2d = this.tabletop.mode2d();
+    const facesEye = this.tabletop.imageBillboard() || mode2d;
+    const fitsInCell = mode2d && this.roomRules.rulesFor(table).pieceImageInCell;
+    const sprites: TableWorldSprite[] = [];
+    for (const character of this.tabletop.characters) {
+      this.objectChange.versionOf(character.identifier)();
+      if (!this.vision.isTokenVisible(character)) continue;
+      const place = this.placeOf(character);
+      if (!place) continue;
+      sprites.push(
+        ...characterSprites({
+          id: character.identifier,
+          ...place,
+          sizePx: Math.max(0, character.size) * gridSize,
+          rotateDeg: character.rotate,
+          altitudePx: character.altitude * gridSize,
+          pedestal: this.pagePictures.pictureOf(character.identifier),
+          picture: this.sized(this.images.getEmptyOr(character.imageFile).url),
+          pictureHeightPx: character.specifyKomaImageFlag ? character.komaImageHeight : null,
+          pictureWidthPx: character.specifyKomaImageFlag ? pieceImageWidthApart(character.komaImageWidth) : null,
+          fitsInCell,
+          facesEye,
+          opacity: character.stealth === '1' ? 0.5 : 1,
+        })
+      );
+    }
+    return sprites;
   });
 
   /** The white boards, drawn from the pictures the page takes of their faces. */
