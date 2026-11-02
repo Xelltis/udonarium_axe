@@ -43,7 +43,7 @@
     "base-x": "^5.0.1",
     "bcdice": "4.10.0",
     "cannon-es": "^0.20.0",
-    "entities": "^8.1.0",
+    "entities": "^9.0.0",
     "eventemitter3": "^5.0.4",
     "fflate": "^0.8.3",
     "linkify-html": "^4.4.0",
