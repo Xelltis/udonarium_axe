@@ -104,8 +104,15 @@ const LIGHT_SCALE = Math.PI;
 /** How dark the ground is that the sky lights a surface facing down with, beside the sky itself. */
 const GROUND_BOUNCE = 0.6;
 
-/** How far off the board the sun and the moon are put, in table pixels: their light falls the same everywhere. */
-const SKY_DISTANCE_PX = 10000;
+/**
+ * How far off the board's middle the sun and the moon are put, beside how far across the board is:
+ * their light falls the same everywhere, and the shadows they throw are worked out from there.
+ */
+const SKY_DISTANCE_BOARDS = 1.5;
+/** How many pixels a side the map of the shadows the sun and the moon throw is drawn in. */
+const SKY_SHADOW_PX = 2048;
+/** How high anything on the table is reckoned to stand, for the shadows of the sun and the moon to reach it, in table pixels. */
+const TALLEST_PX = 2000;
 
 /**
  * The board's axes as the scene's: the board runs x to the east, y to the south and z up, and the
@@ -127,6 +134,7 @@ export async function createTable3dEngine(
   const renderer = new WebGPURenderer({ canvas, antialias: true, alpha: true, forceWebGL: options.forceWebGL });
   await renderer.init();
   renderer.setClearColor(0x000000, 0);
+  renderer.shadowMap.enabled = true;
   const backend = (renderer.backend as { isWebGPUBackend?: boolean }).isWebGPUBackend ? 'webgpu' : 'webgl2';
   return new ThreeTableEngine(renderer, backend);
 }
@@ -161,6 +169,8 @@ class ThreeTableEngine implements Table3dEngine {
   private readonly sun = new DirectionalLight(0xffffff, 0);
   private readonly sky = new HemisphereLight(0xffffff, 0xffffff, LIGHT_SCALE);
   private lastSkyLight = '';
+  private lastSkyDirection: SkyLight['direction'] = { x: 0, y: 0, z: 1 };
+  private boardBox = { x: 0, y: 0, width: 0, height: 0 };
   private readonly sprites = new SpriteLayer(
     (url) => this.spritePicture(url),
     (material) => this.veil.cover(material)
@@ -184,15 +194,47 @@ class ThreeTableEngine implements Table3dEngine {
     this.scene.add(this.coins.group);
     this.scene.add(this.floorCanvases.group);
     this.scene.add(this.sun, this.sun.target, this.sky);
+    this.sun.castShadow = true;
+    this.sun.shadow.autoUpdate = false;
+    this.sun.shadow.mapSize.set(SKY_SHADOW_PX, SKY_SHADOW_PX);
+    this.sun.shadow.bias = -0.0005;
+    this.sun.shadow.normalBias = 1;
     this.setSkyLight(skyLightAt(0.5));
+  }
+
+  /**
+   * Puts the sun or the moon off the board's middle the way its light comes from, with the box its
+   * shadows are worked out in round the whole board, and has the shadows drawn again.
+   */
+  private placeSun(): void {
+    const { x, y, z } = this.lastSkyDirection;
+    const box = this.boardBox;
+    const across = Math.max(1, Math.hypot(box.width, box.height));
+    const middle = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    const distance = across * SKY_DISTANCE_BOARDS;
+    this.sun.target.position.set(middle.x, 0, middle.y);
+    this.sun.position.set(middle.x + x * distance, z * distance, middle.y + y * distance);
+    this.sun.target.updateMatrixWorld();
+    this.sun.updateMatrixWorld();
+    const reach = across / 2 + TALLEST_PX;
+    Object.assign(this.sun.shadow.camera, {
+      left: -reach,
+      right: reach,
+      top: reach,
+      bottom: -reach,
+      near: 1,
+      far: distance + reach,
+    });
+    this.sun.shadow.camera.updateProjectionMatrix();
+    this.sun.shadow.needsUpdate = true;
   }
 
   setSkyLight(light: SkyLight): void {
     const lit = JSON.stringify(light);
     if (lit === this.lastSkyLight) return;
     this.lastSkyLight = lit;
-    const { x, y, z } = light.direction;
-    this.sun.position.set(x * SKY_DISTANCE_PX, z * SKY_DISTANCE_PX, y * SKY_DISTANCE_PX);
+    this.lastSkyDirection = light.direction;
+    this.placeSun();
     this.sun.color.set(light.colour);
     this.sun.intensity = light.strength * LIGHT_SCALE;
     this.sky.color.set(light.skyColour);
@@ -375,6 +417,9 @@ class ThreeTableEngine implements Table3dEngine {
     );
     this.veil.cover(material);
     this.board = new Mesh(board.ground ? groundGeometry(board.ground) : boardGeometry(board), material);
+    this.board.receiveShadow = true;
+    this.boardBox = board.shape.box;
+    this.placeSun();
     this.board.renderOrder = BOARD_ORDER;
     this.scene.add(this.board);
   }
@@ -440,6 +485,7 @@ class ThreeTableEngine implements Table3dEngine {
       old.meshes.traverse((object) => (object as Mesh).geometry?.dispose());
       this.chunks.delete(key);
     }
+    this.sun.shadow.needsUpdate = true;
     if (!owners) return;
     const byLook = new Map<string, { face: FaceLook; shapes: BufferGeometry[] }>();
     const add = (face: FaceLook, shape: BufferGeometry) => {
@@ -455,6 +501,8 @@ class ThreeTableEngine implements Table3dEngine {
     const meshes = new Group();
     for (const [look, { face, shapes }] of byLook) {
       const mesh = new Mesh(mergedFaces(shapes), this.sharedLook(look, face));
+      mesh.castShadow = !face.glass;
+      mesh.receiveShadow = true;
       mesh.renderOrder = BLOCKS_ORDER;
       meshes.add(mesh);
       for (const shape of shapes) shape.dispose();
