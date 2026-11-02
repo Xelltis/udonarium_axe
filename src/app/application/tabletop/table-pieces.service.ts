@@ -14,6 +14,7 @@ import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
+import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
 import { boardSurfaceOf, surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
@@ -21,6 +22,7 @@ import { TextNote } from '@axe/domain/tabletop/text-note';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { cardSprites, cardStackSprites, SizedPicture } from '@axe/domain/tabletop/world/card-sprites';
 import { DICE_FRAME_COLOUR, diceSymbolSprites } from '@axe/domain/tabletop/world/dice-symbol-sprites';
+import { maskSprites } from '@axe/domain/tabletop/world/mask-sprites';
 import { tableCoinOf, TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { textNoteSprites } from '@axe/domain/tabletop/world/text-note-sprites';
@@ -65,6 +67,7 @@ export class TablePiecesService {
 
   /** Every sprite of every piece drawn on the table in view. */
   readonly sprites = computed<readonly TableWorldSprite[]>(() => [
+    ...this.maskSprites(),
     ...this.noteSprites(),
     ...this.cardSprites(),
     ...this.diceSprites(),
@@ -106,6 +109,28 @@ export class TablePiecesService {
         .filter((wall) => wall.shown && this.images.getEmptyOr(wall.imageIdentifier).url)
         .map((wall) => wall.surface)
     );
+  });
+
+  /** The map masks, drawn from the pictures the page takes of them cut to their open cells. */
+  private readonly maskSprites = computed(() => {
+    this.objectChange.collectionOf(GameTableMask.aliasName)();
+    this.transient.version();
+    const gridSize = this.tabletop.currentTableVersion().gridSize;
+    const sprites: TableWorldSprite[] = [];
+    for (const mask of this.tabletop.tableMasks) {
+      this.objectChange.versionOf(mask.identifier)();
+      const place = this.placeOf(mask);
+      if (!place) continue;
+      sprites.push(
+        ...maskSprites({
+          id: mask.identifier,
+          ...place,
+          altitudePx: mask.altitude * gridSize,
+          picture: this.pagePictures.pictureOf(mask.identifier),
+        })
+      );
+    }
+    return sprites;
   });
 
   /** The notes, drawn from the pictures the page takes of their panels. */

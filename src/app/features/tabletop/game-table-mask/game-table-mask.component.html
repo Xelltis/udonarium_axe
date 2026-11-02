@@ -20,6 +20,9 @@
     >
       <div
         class="pointer-events-none size-full transform-3d"
+        #visual
+        data-part="cover"
+        [class.opacity-0]="picturedOnCanvas()"
         [ngStyle]="hexOutlineMask ? { '-webkit-mask': hexOutlineMask, mask: hexOutlineMask } : null"
       >
         @if (scratchedLayerMask; as scratchedMask) {

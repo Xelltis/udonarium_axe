@@ -13,6 +13,7 @@ import { CardStack } from '@axe/domain/card/card-stack';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -129,5 +130,15 @@ describe('TablePiecesService', () => {
     TestBed.inject(PiecePicturesService).show(note.identifier, { url: 'blob:panel', widthPx: 100, heightPx: 50 });
 
     expect(pieces.sprites()).toMatchObject([{ id: `${note.identifier}#panel`, look: { url: 'blob:panel' } }]);
+  });
+
+  it('lays a map mask flat over its place from the picture the page takes of it', () => {
+    const mask = GameTableMask.create('mask', 3, 2, 50);
+    mask.location = { name: 'table', x: 100, y: 200 };
+    TestBed.inject(TableSelecter).viewTable!.appendChild(mask);
+
+    TestBed.inject(PiecePicturesService).show(mask.identifier, { url: 'blob:mask', widthPx: 150, heightPx: 100 });
+
+    expect(pieces.sprites()).toMatchObject([{ id: `${mask.identifier}#cover`, centre: { x: 175, y: 250 } }]);
   });
 });

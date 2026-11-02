@@ -8,12 +8,14 @@ import {
   inject,
   input,
   signal,
+  viewChild,
 } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -49,6 +51,7 @@ import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupInputHandler, setupMovableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
 import { translateZCss, Z_OFFSET_MASK_PX } from '@axe/ui/tabletop/z-offset';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -98,7 +101,32 @@ export class GameTableMaskComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly translateFn = inject(TRANSLATE_FN);
 
+  /**
+   * Whether the mask is drawn on the table's canvas from a picture of it taken here, which leaves it
+   * clear here, still taking the presses where the canvas draws it. While it is scratched the page
+   * draws it itself, with what the scratch would open.
+   */
+  readonly picturedOnCanvas = computed(() => {
+    this.maskVersion();
+    return this.drawsOnCanvas() && !!this.gameTableMask() && !this.isScratching;
+  });
+  private readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
+  private readonly visual = viewChild<ElementRef<HTMLElement>>('visual');
+
   constructor() {
+    pictureForCanvas({
+      identifier: () => this.gameTableMask()?.identifier ?? '',
+      element: () => this.visual()?.nativeElement,
+      pictured: () => this.picturedOnCanvas(),
+      follows: () => {
+        this.maskVersion();
+        this.imageFile();
+        this.scratchedImageFile();
+        this.writing();
+        this.masksCssValue();
+        this.scratchedLayerMaskValue();
+      },
+    });
     setupMovableForPiece(this, {
       target: this.gameTableMask,
       collideLayers: ['terrain'],
