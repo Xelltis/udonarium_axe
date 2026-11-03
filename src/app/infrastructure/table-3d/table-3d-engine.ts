@@ -1,5 +1,6 @@
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import { animationIntensity } from '@axe/domain/tabletop/vision-scene/light-flicker';
+import { lightAxis } from '@axe/domain/tabletop/vision-scene/light-shape';
 import type { GroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
 import { type SkyLight, skyLightAt } from '@axe/domain/tabletop/world/sky-light';
 import type {
@@ -55,6 +56,7 @@ import {
   PointLight,
   RepeatWrapping,
   Scene,
+  SpotLight,
   SRGBColorSpace,
   Texture,
   TextureLoader,
@@ -181,6 +183,11 @@ class ThreeTableEngine implements Table3dEngine {
   private laidCaps: readonly TableWorldCap[] | null = null;
   private readonly veil = new SceneVeil(SHADOW_LIGHTS);
   private readonly lamps = Array.from({ length: SHADOW_LIGHTS }, () => new PointLight(0xffffff, 0, 1, 0));
+  /** As many lamps again thrown one way, so a slot can hold either kind and the scene never has to be built again. */
+  private readonly spots = Array.from(
+    { length: SHADOW_LIGHTS },
+    () => new SpotLight(0xffffff, 0, 1, Math.PI / 4, 0.3, 0)
+  );
   private laidLamps: readonly Table3dShadowLight[] = [];
   private flickeredAt = 0;
   private readonly sun = new DirectionalLight(0xffffff, 0);
@@ -217,13 +224,15 @@ class ThreeTableEngine implements Table3dEngine {
     this.sun.shadow.mapSize.set(SKY_SHADOW_PX, SKY_SHADOW_PX);
     this.sun.shadow.bias = -0.0005;
     this.sun.shadow.normalBias = 1;
-    for (const lamp of this.lamps) {
+    for (const lamp of [...this.lamps, ...this.spots]) {
       lamp.castShadow = true;
       lamp.shadow.autoUpdate = false;
       lamp.shadow.mapSize.set(LAMP_SHADOW_PX, LAMP_SHADOW_PX);
       lamp.shadow.bias = -0.002;
+      lamp.visible = false;
       this.scene.add(lamp);
     }
+    for (const spot of this.spots) this.scene.add(spot.target);
     this.setSkyLight(skyLightAt(0.5));
   }
 
@@ -249,28 +258,46 @@ class ThreeTableEngine implements Table3dEngine {
 
   private lightLamps(moved = true): void {
     const room = Math.max(0, 1 - this.veil.ambient);
-    const strengths = this.lamps.map((lamp, index) => {
-      const light = this.laidLamps[index];
-      const strength = light ? room * animationIntensity(light.animation, this.flickeredAt) : 0;
+    const free = { round: [...this.lamps], thrown: [...this.spots] };
+    for (const lamp of [...this.lamps, ...this.spots]) {
+      lamp.intensity = 0;
+      lamp.visible = false;
+    }
+    const strengths = this.laidLamps.map((light) => {
+      const strength = room * animationIntensity(light.animation, this.flickeredAt);
+      const thrown = light.angle < 360;
+      const lamp: PointLight | SpotLight | undefined = thrown ? free.thrown.shift() : free.round.shift();
+      if (!lamp) return lampColour({ r: 0, g: 0, b: 0 }, 0);
       lamp.intensity = strength * LIGHT_SCALE;
-      lamp.visible = !!light;
-      if (light) {
-        lamp.position.set(light.x, light.z, light.y);
-        lamp.distance = Math.max(1, light.dimPx * LAMP_REACH);
-        lamp.color.set(light.color || '#ffffff');
-        lamp.shadow.camera.near = 1;
-        lamp.shadow.camera.far = lamp.distance;
-        if (moved) lamp.shadow.needsUpdate = true;
+      lamp.visible = true;
+      lamp.position.set(light.x, light.z, light.y);
+      lamp.distance = Math.max(1, light.dimPx * LAMP_REACH);
+      lamp.color.set(light.color || '#ffffff');
+      if (lamp instanceof SpotLight) {
+        const axis = lightAxis(light);
+        lamp.target.position.set(light.x + axis.x * 100, light.z + axis.z * 100, light.y + axis.y * 100);
+        lamp.target.updateMatrixWorld();
+        lamp.angle = Math.min(Math.PI / 2, ((light.angle / 2) * Math.PI) / 180);
       }
+      this.placeShadow(lamp, moved);
       return lampColour(lamp.color, strength);
     });
     this.veil.setLamps(this.laidLamps, strengths);
   }
 
+  /** Sets the box a lamp's shadows are worked out in to its reach, and has them drawn again where it moved. */
+  private placeShadow(lamp: PointLight | SpotLight, moved: boolean): void {
+    const camera = lamp.shadow.camera;
+    camera.near = 1;
+    camera.far = lamp.distance;
+    camera.updateProjectionMatrix();
+    if (moved) lamp.shadow.needsUpdate = true;
+  }
+
   /** Has the shadows of the sun, the moon and every lamp drawn again, as what throws them has moved. */
   private shadowsMoved(): void {
     this.sun.shadow.needsUpdate = true;
-    for (const lamp of this.lamps) lamp.shadow.needsUpdate = true;
+    for (const lamp of [...this.lamps, ...this.spots]) lamp.shadow.needsUpdate = true;
   }
 
   /**

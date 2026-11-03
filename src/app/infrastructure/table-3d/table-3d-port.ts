@@ -72,7 +72,10 @@ export interface Table3dLightMap {
 }
 
 /** A light the scene lights itself with, throwing shadows of its own: where it stands, how far it reaches and in what colour. */
-export type Table3dShadowLight = Pick<SceneLight, 'x' | 'y' | 'z' | 'brightPx' | 'dimPx' | 'color' | 'animation'>;
+export type Table3dShadowLight = Pick<
+  SceneLight,
+  'x' | 'y' | 'z' | 'brightPx' | 'dimPx' | 'color' | 'animation' | 'angle' | 'direction' | 'pitch'
+>;
 
 /** What the engine holds, counted. */
 export interface Table3dStats {
