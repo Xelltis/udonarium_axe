@@ -179,12 +179,15 @@ export default defineConfig({
     },
     // A room on the room server, played in several browsers against the backend's Worker. Run on
     // its own and locally, like the visual project: see e2e/server/room-server.ts for what it needs.
+    // Each worker starts a Worker of its own beside its browsers, and six at once leave a seat that
+    // joins a room waiting past its time on a busy machine; three finish sooner than six did.
     {
       name: 'server',
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
       testMatch: /server\/.*\.spec\.ts/,
       retries: 0,
       timeout: 120_000,
+      workers: 3,
     },
     // Firefox and WebKit are only run in CI to reduce local resource usage.
     ...(isCI
