@@ -9,6 +9,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { newStatusAilment } from '@axe/domain/character/status-ailment';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { DiceTable } from '@axe/domain/dice/dice-table';
@@ -65,6 +66,30 @@ describe('ChatLintService', () => {
     const [annotation] = session.annotations();
     expect(annotation).toMatchObject({ kind: 'value', from: 0, to: 4 });
     expect(annotation.label).toBe(String(speaker.status.getValue('HP', 'now')));
+  });
+
+  it('fills in the number to beat from the rolls in the tab, again as one comes in', () => {
+    const tab = new ChatTab();
+    tab.initialize();
+    ObjectStore.instance.add(tab);
+    try {
+      const { session } = watch('2d6>={目標値}', { tabIdentifier: signal(tab.identifier) });
+      expect(codesOf(session)).toEqual(['ref.targetNumberNone']);
+
+      tab.addMessage({
+        from: 'System-BCDice',
+        originFrom: 'gm',
+        name: '<BCDice：ゴブリン>',
+        text: 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [戦士]',
+        tag: 'system',
+        timestamp: 1001,
+      });
+
+      expect(codesOf(session)).toEqual([]);
+      expect(session.annotations()).toEqual([{ kind: 'value', label: '14', from: 5, to: 10 }]);
+    } finally {
+      tab.destroy();
+    }
   });
 
   it('checks a roll once the game system has arrived', async () => {

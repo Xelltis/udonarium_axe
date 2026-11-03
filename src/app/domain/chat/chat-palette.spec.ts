@@ -7,6 +7,7 @@ import {
   evaluateCharacterReferences,
   paletteVariableSite,
   textTargetsCharacter,
+  withoutAimMarks,
 } from '@axe/domain/chat/chat-palette';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { applyBuffEdit } from '@axe/domain/data/resource-edit-helpers';
@@ -171,6 +172,18 @@ describe('ChatPalette', () => {
       palette.setPalette('2d6');
       const result = palette.evaluate('2d6+{UNDEFINED}');
       expect(result).toBe('2d6+');
+    });
+
+    it('keeps the number to beat for the line to fill in as it is sent, unless the palette names it', () => {
+      const palette = new ChatPalette();
+      palette.initialize();
+      palette.setPalette('//生命抵抗=7\n2d+{生命抵抗}>={目標値}');
+
+      expect(palette.evaluate('2d+{生命抵抗}>={目標値}')).toBe('2d+7>={目標値}');
+      expect(palette.evaluate('2d>=t{目標値}')).toBe('2d>=');
+
+      palette.setPalette('//目標値=10');
+      expect(palette.evaluate('2d>={目標値}')).toBe('2d>=10');
     });
 
     it('adds a buff appended to a roll where the sheet wears it, and leaves it out where it does not', () => {
@@ -499,6 +512,20 @@ describe('ChatPalette', () => {
 
     it('leaves a plain roll alone', () => {
       expect(textTargetsCharacter('2d6+3')).toBe(false);
+    });
+
+    it('counts a t: standing as a word of its own as aiming, and one inside a word as nothing', () => {
+      expect(textTargetsCharacter('2d+8 魔法行使 t:')).toBe(true);
+      expect(textTargetsCharacter('ｔ： 2d+8')).toBe(true);
+      expect(textTargetsCharacter('ポイントt: 2d+8')).toBe(false);
+      expect(textTargetsCharacter('2d+8 at:')).toBe(false);
+    });
+
+    it('takes such a t: out of the line with the space beside it, keeping the lines apart', () => {
+      expect(withoutAimMarks('2d+8 魔法行使 t:')).toBe('2d+8 魔法行使');
+      expect(withoutAimMarks('t: 2d+8 魔法行使')).toBe('2d+8 魔法行使');
+      expect(withoutAimMarks('2d+8 t: 魔法行使\nt:\n抵抗せよ')).toBe('2d+8 魔法行使\n\n抵抗せよ');
+      expect(withoutAimMarks('t:HP-3 ポイントt:')).toBe('t:HP-3 ポイントt:');
     });
 
     it('counts a secret command aimed at targets as aiming, as the command is carried out', () => {

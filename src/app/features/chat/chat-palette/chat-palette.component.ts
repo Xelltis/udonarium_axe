@@ -143,6 +143,7 @@ export class ChatPaletteComponent {
     gameType: computed(() => this.rolledGameType()),
     path: 'palette',
     mode: 'palette',
+    tabIdentifier: computed(() => this.chatTabidentifier()),
   });
 
   private readonly paletteEditorApi: ChatEditorHost = {

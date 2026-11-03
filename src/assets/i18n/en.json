@@ -4158,6 +4158,7 @@
           "none": "No target is picked out, so \"No target selected\" is sent in place of this line"
         },
         "ref": {
+          "targetNumberNone": "No roll in this tab yet to fill {目標値} with, so it is sent as typed",
           "unknownKept": "\"{{name}}\" is on neither the sheet nor the palette, so it is sent as typed",
           "unknownEmptied": "\"{{name}}\" is on neither the sheet nor the palette, so it comes out empty",
           "noSpeaker": "The speaker is no piece, so references are not filled in"

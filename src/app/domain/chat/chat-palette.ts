@@ -7,6 +7,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { CHARACTER_REFERENCE, readReferenceName } from '@axe/domain/chat/chat-reference';
 import { withInlineStampsAsSpaces } from '@axe/domain/chat/inline-stamp';
 import { isPaletteTabLine } from '@axe/domain/chat/palette-rows';
+import { isTargetNumberReference } from '@axe/domain/chat/target-number';
 import { DataElement, DataElementFieldType } from '@axe/domain/data/data-element';
 import { createCalcPass, evaluateCalcElement } from '@axe/domain/data/data-element-calc-env';
 import { resourceCommandSites } from '@axe/domain/data/resource-command-words';
@@ -344,6 +345,8 @@ export function evaluateReferences(
       const { name, useMax } = readReferenceName(raw);
       const filled = fillReference(match, name, useMax, formulaPlace(line, offset));
       if (filled == null) {
+        // The number to beat is filled in as the line is sent, from the rolls in its tab.
+        if (!/^[tTｔＴ]/.test(match) && isTargetNumberReference(name)) return match;
         return keepUnfilled === 'always' || (keepUnfilled && !dropsUnanswered(line, offset)) ? match : '';
       }
       // Only a reference that was answered can bring more of them in, so only that keeps the pass going.
@@ -470,13 +473,34 @@ export function evaluateCharacterReferences(
   );
 }
 
+/** A `t:` standing as a word of its own, which aims a line at the pieces marked and does nothing else. */
+const AIM_MARK = /(?<!\S)[tTｔＴ][:：](?!\S)/g;
+
+/** Where each `t:` standing as a word of its own is in a line; see {@link withoutAimMarks}. */
+export function aimMarkSites(line: string): { from: number; to: number }[] {
+  return [...withInlineStampsAsSpaces(line).matchAll(AIM_MARK)].map((mark) => ({
+    from: mark.index,
+    to: mark.index + mark[0].length,
+  }));
+}
+
+/**
+ * The line with every `t:` standing as a word of its own taken out, with the space before it, or
+ * after it where it starts a line. Such a mark only aims the line, as `2d+8 魔法行使 t:` rolls once
+ * for each piece marked, so it is not said.
+ */
+export function withoutAimMarks(line: string): string {
+  return line.replace(/^[tTｔＴ][:：](?:[ \t\u3000]+|$)|[ \t\u3000]+[tTｔＴ][:：](?=\s|$)/gm, '');
+}
+
 /**
  * Whether the line is aimed at the pieces marked on the table: it names a status of theirs with a
- * `t{}` reference, or holds a command aimed at them, read as the commands are carried out, a
- * secret one and one a stamp put right before it starts among them.
+ * `t{}` reference, holds a command aimed at them, read as the commands are carried out, a secret
+ * one and one a stamp put right before it starts among them, or a `t:` standing on its own.
  */
 export function textTargetsCharacter(line: string): boolean {
   if (/[tTｔＴ][{｛]\s*([^{}｛｝]+)\s*[}｝]/.test(withInlineStampsAsSpaces(line))) return true;
+  if (aimMarkSites(line).length > 0) return true;
   const words = resourceCommandSites(line);
   return [...words.resources, ...words.buffs].some((site) => site.command.startsWith('t'));
 }

@@ -19,6 +19,7 @@ import {
 } from '@axe/domain/chat/chat-portrait-command';
 import type { ReferenceSite } from '@axe/domain/chat/chat-reference';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
+import { isTargetNumberReference } from '@axe/domain/chat/target-number';
 import type { ChatSyntaxScan, SyntaxSpan, TextRange } from '@axe/domain/chat-syntax/chat-syntax';
 import { hasSecretEditMark, resourceCommandParts, resourceCommandSites } from '@axe/domain/data/resource-command-words';
 import { parseResourceEditOption, readModifierLayout } from '@axe/domain/data/resource-edit-helpers';
@@ -48,6 +49,7 @@ export const CHAT_LINT_CODES = [
   'dice.tooManyRepeats',
   'target.none',
   'ref.unknownKept',
+  'ref.targetNumberNone',
   'ref.unknownEmptied',
   'ref.noSpeaker',
   'edit.noSpeaker',
@@ -217,12 +219,21 @@ function lintMessage(
           if (!later) add(span, 'error', 'target.none');
         } else if (!span.site.targeted && !context.speaker && !targeting && context.path === 'chatWindow')
           add(span, 'warning', 'ref.noSpeaker');
+        else if (
+          context.referenceValue(span.site) == null &&
+          !span.site.targeted &&
+          isTargetNumberReference(span.site.name)
+        )
+          add(span, 'info', 'ref.targetNumberNone');
         else if (context.referenceValue(span.site) == null) {
           const emptied = context.path === 'palette' || emptiesUnanswered(text, span.site.from - message.from);
           add(span, 'warning', emptied ? 'ref.unknownEmptied' : 'ref.unknownKept', {
             params: { name: span.site.name },
           });
         }
+        break;
+      case 'aim':
+        if (noTarget && !later) add(span, 'error', 'target.none');
         break;
       case 'resource':
       case 'buff':

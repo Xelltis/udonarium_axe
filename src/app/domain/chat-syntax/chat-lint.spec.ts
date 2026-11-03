@@ -91,6 +91,7 @@ describe('lintChatSyntax', () => {
     it('finds a line aimed at targets with none picked out, which is not sent', () => {
       expect(codes('t:HP-1')).toEqual(['target.none']);
       expect(codes('t{HP}')).toEqual(['target.none']);
+      expect(codes('2d6+8 t:')).toEqual(['target.none']);
     });
 
     it('finds nothing in a palette line aimed at targets with none picked out yet, as they are picked as it is sent', () => {
@@ -118,6 +119,12 @@ describe('lintChatSyntax', () => {
       expect(codes('2d6+1{加護}')).toEqual(['ref.unknownEmptied']);
       expect(codes('やった{歓喜}')).toEqual(['ref.unknownKept']);
       expect(codes('{HP}', { referenceValue: () => '10' })).toEqual([]);
+    });
+
+    it('tells of a number to beat with no roll yet to fill it in, which is kept as typed from a palette too', () => {
+      expect(codes('2d6>={目標値}')).toEqual(['ref.targetNumberNone']);
+      expect(codes('2d6>={目標値}', { path: 'palette' })).toEqual(['ref.targetNumberNone']);
+      expect(codes('2d6>={目標値}', { referenceValue: () => '14' })).toEqual([]);
     });
 
     it('finds one from a speaker who is no piece, which is never filled in from chat', () => {

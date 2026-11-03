@@ -393,6 +393,7 @@ export class ChatInputComponent {
     sendFrom: computed(() => this._sendFrom()),
     gameType: computed(() => this.rolledGameType()),
     path: () => this.lintPath(),
+    tabIdentifier: computed(() => this.chatTabidentifier()),
   });
 
   /** The text checked as it will be sent from here, while it is typed into the editor. */
