@@ -109,15 +109,17 @@
   }
   <div class="absolute inset-0 m-auto block size-1500 backface-hidden transform-3d" #gameTable>
     <div id="app-game-table" class="absolute size-full backface-hidden transform-3d" data-surface="floor" #gameObjects>
-      <!-- What drifts under the board. -->
-      <ng-container
-        [ngTemplateOutlet]="tableLayerStack"
-        [ngTemplateOutletContext]="{
-          $implicit: underLayerViews(),
-          kind: 'background',
-          wrapperTransform: backgroundLayerTransform,
-        }"
-      ></ng-container>
+      <!-- What drifts under the board, which a canvas draws itself. -->
+      @if (!table3d.drawsOnCanvas()) {
+        <ng-container
+          [ngTemplateOutlet]="tableLayerStack"
+          [ngTemplateOutletContext]="{
+            $implicit: underLayerViews(),
+            kind: 'background',
+            wrapperTransform: backgroundLayerTransform,
+          }"
+        ></ng-container>
+      }
       <div
         class="pointer-events-none absolute top-0 left-0 size-full overflow-hidden bg-size-[100%_100%] bg-no-repeat backface-hidden transform-3d"
         [class.bg-white/15]="showsTableSurfaceVeil()"
@@ -135,14 +137,16 @@
         ></div>
       </div>
       <!-- What drifts over it, above the board's own picture and still under everything on it. -->
-      <ng-container
-        [ngTemplateOutlet]="tableLayerStack"
-        [ngTemplateOutletContext]="{
-          $implicit: overLayerViews(),
-          kind: 'foreground',
-          wrapperTransform: foregroundLayerTransform,
-        }"
-      ></ng-container>
+      @if (!table3d.drawsOnCanvas()) {
+        <ng-container
+          [ngTemplateOutlet]="tableLayerStack"
+          [ngTemplateOutletContext]="{
+            $implicit: overLayerViews(),
+            kind: 'foreground',
+            wrapperTransform: foregroundLayerTransform,
+          }"
+        ></ng-container>
+      }
       <table-water-floor [surfaceStyle]="tableSurfaceStyle()" />
       @for (view of wallViews(); track view.wall.surface) {
         @let wall = view.wall;

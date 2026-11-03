@@ -40,6 +40,8 @@ class FakeEngine implements Table3dEngine {
   shadowLights: (readonly Table3dShadowLight[])[] = [];
   glows: (Table3dVeil | null)[] = [];
   qualities: Table3dQualityPlan[] = [];
+  moving = false;
+  advanced = 0;
   flickers = 0;
   drawn = 0;
   disposed = false;
@@ -108,6 +110,11 @@ class FakeEngine implements Table3dEngine {
     this.sizes.push([width, height]);
   }
 
+  advance(): boolean {
+    this.advanced++;
+    return this.moving;
+  }
+
   renderIfChanged(): boolean {
     if (!this.changed) return false;
     this.changed = false;
@@ -143,6 +150,7 @@ class FakeEngine implements Table3dEngine {
       sprites: 0,
       coins: 0,
       floorCanvases: 0,
+      layers: 0,
       veilRevision: 0,
       lightMapRevision: 0,
       shadowLights: 0,

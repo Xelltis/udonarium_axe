@@ -14,6 +14,7 @@ import { TerrainFogCover } from '@axe/domain/tabletop/terrain-cover';
 import { blockFacesOf } from '@axe/domain/tabletop/world/block-faces';
 import { GroundMesh, hexGroundMesh, squareGroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
 import { TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
+import type { TableWorldLayer } from '@axe/domain/tabletop/world/table-layers';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 
 /** A point of the board, in table pixels. */
@@ -106,17 +107,20 @@ export interface TableWorld {
   /** The pictures and frames most pieces on the table are drawn with. */
   readonly sprites: readonly TableWorldSprite[];
   readonly coins: readonly TableWorldCoin[];
+  /** The pictures drifting under and over the board, those under first. */
+  readonly layers: readonly TableWorldLayer[];
 }
 
 /** The scene with nothing in it. */
-export const EMPTY_TABLE_WORLD: TableWorld = { board: null, walls: [], caps: [], sprites: [], coins: [] };
+export const EMPTY_TABLE_WORLD: TableWorld = { board: null, walls: [], caps: [], sprites: [], coins: [], layers: [] };
 
 /** How much bigger than a cell each hex a board is cut to is, so the cut leaves no seam between cells. */
 const HEX_CUT_OVERLAP_PX = 1;
 
 /**
  * The scene of a table, or the empty scene where there is none in view, with the blocks given
- * standing on it and no pieces: the sprites the pieces are drawn with are worked out apart.
+ * standing on it and no pieces: the sprites the pieces are drawn with, and the layers drifting past
+ * the board, are worked out apart.
  * `pictureOf` says where the picture an identifier names is to be read from, or nothing for one
  * there is no picture for.
  *
@@ -154,6 +158,7 @@ export function tableWorldOf(
     ...facesOf(table, terrains, pictureOf, coverOf, ground),
     sprites: [],
     coins: [],
+    layers: [],
   };
 }
 

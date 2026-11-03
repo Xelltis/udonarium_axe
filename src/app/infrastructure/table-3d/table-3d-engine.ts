@@ -10,6 +10,7 @@ import type {
   TableWorldCap,
   TableWorldWall,
 } from '@axe/domain/tabletop/world/table-world';
+import { BoardLayers } from '@axe/infrastructure/table-3d/board-layers';
 import { CoinLayer } from '@axe/infrastructure/table-3d/coin-layer';
 import { changedChunks, chunkSignatures, facesByOwner, OwnedFaces } from '@axe/infrastructure/table-3d/face-chunks';
 import {
@@ -164,6 +165,8 @@ class ThreeTableEngine implements Table3dEngine {
   private board: Mesh | null = null;
   private boardShape = '';
   private boardGround: GroundMesh | null = null;
+  /** Goes up each time the ground the board is laid over changes, which what is laid over the board follows. */
+  private groundGeneration = 0;
   private changed = true;
   private lost = false;
   private loading = 0;
@@ -208,6 +211,10 @@ class ThreeTableEngine implements Table3dEngine {
     (material) => this.veil.cover(material)
   );
   private readonly floorCanvases = new FloorCanvasLayer();
+  private readonly layers = new BoardLayers(
+    (url) => this.sharedPicture(url, true),
+    (material) => this.veil.cover(material, 'lit')
+  );
   private readonly coins = new CoinLayer(
     () => {
       this.changed = true;
@@ -225,6 +232,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.scene.add(this.sprites.group);
     this.scene.add(this.coins.group);
     this.scene.add(this.floorCanvases.group);
+    this.scene.add(this.layers.group);
     this.scene.add(this.sun, this.sun.target, this.sky);
     this.sun.castShadow = true;
     this.sun.shadow.autoUpdate = false;
@@ -387,6 +395,7 @@ class ThreeTableEngine implements Table3dEngine {
       sprites: this.sprites.group.children.length,
       coins: this.coins.group.children.length,
       floorCanvases: this.floorCanvases.group.children.length,
+      layers: this.layers.shown,
       veilRevision: this.veil.revision,
       lightMapRevision: this.veil.lightRevision,
       shadowLights: this.laidLamps.length,
@@ -405,6 +414,12 @@ class ThreeTableEngine implements Table3dEngine {
 
   setWorld(world: TableWorld): void {
     this.placeBoard(world.board);
+    this.layers.place(
+      world.layers,
+      world.board,
+      () => (world.board!.ground ? groundGeometry(world.board!.ground) : boardGeometry(world.board!)),
+      `${this.boardShape}|${this.groundGeneration}`
+    );
     if (world.walls !== this.laidWalls || world.caps !== this.laidCaps) {
       this.laidWalls = world.walls;
       this.laidCaps = world.caps;
@@ -428,6 +443,7 @@ class ThreeTableEngine implements Table3dEngine {
     const worn = new Set<string>();
     for (const face of [...world.walls, ...world.caps]) worn.add(face.pictureUrl);
     for (const sprite of world.sprites) if (sprite.look.kind === 'picture') worn.add(sprite.look.url);
+    for (const layer of world.layers) worn.add(layer.pictureUrl);
     for (const [key, picture] of this.loaded) {
       const url = key.slice(0, key.lastIndexOf('|'));
       if (worn.has(url)) continue;
@@ -506,7 +522,14 @@ class ThreeTableEngine implements Table3dEngine {
     this.changed = true;
   }
 
+  advance(timeMs: number): boolean {
+    const drifting = this.layers.advance(timeMs);
+    this.takeChanges();
+    return drifting;
+  }
+
   renderIfChanged(): boolean {
+    this.takeChanges();
     if (!this.changed || this.lost) return false;
     this.changed = false;
     this.renderer.render(this.scene, this.camera);
@@ -514,10 +537,16 @@ class ThreeTableEngine implements Table3dEngine {
     return true;
   }
 
+  /** Takes up what the layers drifting past the board built or moved, which wants drawing. */
+  private takeChanges(): void {
+    if (this.layers.takeChanged()) this.changed = true;
+  }
+
   dispose(): void {
     this.sprites.dispose();
     this.coins.dispose();
     this.floorCanvases.dispose();
+    this.layers.dispose();
     this.veil.dispose();
     disposeObject(this.scene);
     for (const picture of this.loaded.values()) picture.dispose();
@@ -546,6 +575,7 @@ class ThreeTableEngine implements Table3dEngine {
       : '';
     if (shape === this.boardShape && board?.ground === this.boardGround) return;
     this.boardShape = shape;
+    if (this.boardGround !== (board?.ground ?? null)) this.groundGeneration++;
     this.boardGround = board?.ground ?? null;
     this.floorCanvases.setGround(this.boardGround);
     this.boardHexes = board?.shape.hexes ?? null;

@@ -51,6 +51,7 @@ export interface TableTestHooks {
     topsGridTriangles: number;
     sprites: number;
     coins: number;
+    layers: number;
     veilRevision: number;
     lightMapRevision: number;
     shadowCasters: number;

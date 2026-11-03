@@ -21,6 +21,7 @@ import { TablePiecesService } from '@axe/application/tabletop/table-pieces.servi
 import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { MotionService } from '@axe/application/ui/motion.service';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { TableGraphics, tableGraphicsOf } from '@axe/core/util/graphics-acceleration';
@@ -30,6 +31,7 @@ import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-laye
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { flickers } from '@axe/domain/tabletop/vision-scene/light-flicker';
 import { skyLightAt } from '@axe/domain/tabletop/world/sky-light';
+import { tableLayersOf } from '@axe/domain/tabletop/world/table-layers';
 import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
 import { TableWorld, tableWorldOf } from '@axe/domain/tabletop/world/table-world';
 import type {
@@ -89,6 +91,7 @@ export class Table3dService {
   private readonly lightSlots = inject(LightSlotsService);
   private readonly quality = inject(Table3dQualityService);
   private readonly gameClock = inject(GameClockService);
+  private readonly motion = inject(MotionService);
 
   /** The light of the sky over the table at the story's hour, as the room's clock tells it. */
   readonly skyLight = computed(() =>
@@ -144,12 +147,23 @@ export class Table3dService {
     ...this.faces(),
     sprites: this.pieces.sprites(),
     coins: this.pieces.coins(),
+    layers: this.layers(),
   }));
+
+  /** The pictures the table in view lays under and over its board, drifting where things may move. */
+  private readonly layers = computed(() => {
+    this.objectChange.fileVersion();
+    this.objectChange.collectionOf(TableBackgroundLayer.aliasName)();
+    const table = this.tabletop.currentTableVersion();
+    for (const layer of table?.backgroundLayers ?? []) this.objectChange.versionOf(layer.identifier)();
+    return tableLayersOf(table, (identifier) => this.images.getEmptyOr(identifier).url, this.motion.enabled());
+  });
 
   /** Whether the canvas is asked for but not drawing yet, which the table covers until it is. */
   readonly preparing = computed(() => this.drawsOnCanvas() && this.backend() === null && !this.unavailable());
 
   private frame: number | null = null;
+  private frameForMotion = false;
   private engine: Table3dEngine | null = null;
   /** The page's grid, laid over the board on the canvas, or null while the page draws none. */
   private readonly grid = signal<Table3dGrid | null>(null);
@@ -367,17 +381,27 @@ export class Table3dService {
     };
   }
 
-  private drawSoon(engine: Table3dEngine): void {
+  /**
+   * Draws on the next frame whatever changed, and goes on drawing frame after frame while anything
+   * moves by itself. A frame asked for only because something moves by itself is not waited for:
+   * the table is idle once all it was told is drawn.
+   */
+  private drawSoon(engine: Table3dEngine, forMotion = false): void {
+    if (!forMotion) this.frameForMotion = false;
     if (this.frame !== null) return;
-    this.frame = requestAnimationFrame(() => {
+    this.frameForMotion = forMotion;
+    this.frame = requestAnimationFrame((time) => {
       this.frame = null;
+      const moving = engine.advance(time);
       engine.renderIfChanged();
+      if (moving) this.drawSoon(engine, true);
       this.settleIfIdle();
     });
   }
 
   private settleIfIdle(): void {
-    if (this.frame !== null || this.starting !== null || this.engine?.isLoading()) return;
+    const drawing = this.frame !== null && !this.frameForMotion;
+    if (drawing || this.starting !== null || this.engine?.isLoading()) return;
     for (const resolve of this.idleWaiters.splice(0)) resolve();
   }
 }

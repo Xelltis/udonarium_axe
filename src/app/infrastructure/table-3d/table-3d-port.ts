@@ -90,6 +90,8 @@ export interface Table3dStats {
   readonly coins: number;
   /** The canvases the page paints on laid over the board. */
   readonly floorCanvases: number;
+  /** The pictures drawn drifting under and over the board, which is those whose pictures have come. */
+  readonly layers: number;
   /** How many times the veil has been laid anew, 0 while there is none. */
   readonly veilRevision: number;
   /** How many times the light of a dark table has been laid anew, 0 while the table is not dark. */
@@ -135,6 +137,11 @@ export interface Table3dEngine {
   setGlow(glow: Table3dVeil | null): void;
   /** Sizes the canvas's drawing to the box it covers, in CSS pixels, at the screen's pixel ratio. */
   resize(width: number, height: number, pixelRatio: number): void;
+  /**
+   * Moves what moves by itself, as a layer drifting past the board, to where it is at a moment, in
+   * milliseconds; answers whether anything moves by itself, so the next frame is to be drawn too.
+   */
+  advance(timeMs: number): boolean;
   /** Draws the scene when anything changed since it was last drawn, and answers whether it drew. */
   renderIfChanged(): boolean;
   /** Calls back when something the engine was loading, such as a picture, has come and wants drawing. */
