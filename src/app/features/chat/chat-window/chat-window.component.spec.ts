@@ -17,6 +17,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ScenarioText } from '@axe/domain/scenario-text/scenario-text';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
+import { ChatStreamPanelService } from '@axe/features/chat/chat-stream/chat-stream-panel.service';
 import { ChatTabComponent } from '@axe/features/chat/chat-tab/chat-tab.component';
 import { ChatTickerSelectionService } from '@axe/features/chat/chat-ticker-selection.service';
 import { ChatWindowComponent } from '@axe/features/chat/chat-window/chat-window.component';
@@ -801,6 +802,23 @@ describe('ChatWindowComponent', () => {
       button.click();
       await fixture.whenStable();
       expect(searchBox()).toBeNull();
+    });
+  });
+
+  describe('the window that shows the tab going past', () => {
+    it('opens from its button for the tab shown', () => {
+      const tab = ChatTabList.instance.addChatTab('流す卓');
+      component.chatTabidentifier = tab.identifier;
+      fixture.detectChanges();
+      const toggle = vi.spyOn(TestBed.inject(ChatStreamPanelService), 'toggle').mockImplementation(() => {});
+
+      (fixture.nativeElement as HTMLElement)
+        .querySelector<HTMLButtonElement>('[data-testid="chat-stream-toggle"]')!
+        .click();
+
+      expect(toggle).toHaveBeenCalledWith(tab);
+      toggle.mockRestore();
+      tab.destroy();
     });
   });
 

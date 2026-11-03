@@ -3846,11 +3846,13 @@
         "serverRoll": "The room server rolled these dice, so the roller could not change them."
       },
       "stream": {
+        "button": "Stream",
         "title": "Message stream",
         "open": "Watch \"{{name}}\" in its own window",
         "close": "Close that window",
         "gone": "This tab is gone",
-        "followLatest": "Follow the newest"
+        "followLatest": "Follow the newest",
+        "speak": "Speak here"
       },
       "palette": {
         "panelTitle": "Chat palette",

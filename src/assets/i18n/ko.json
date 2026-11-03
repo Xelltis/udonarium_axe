@@ -3846,11 +3846,13 @@
         "serverRoll": "방 서버가 굴린 주사위입니다. 굴린 사람은 눈을 바꿀 수 없습니다."
       },
       "stream": {
+        "button": "별창",
         "title": "발언의 흐름",
         "open": "「{{name}}」을 별창으로 흘리기",
         "close": "별창 닫기",
         "gone": "이 탭은 사라졌습니다",
-        "followLatest": "최신에 따라가기"
+        "followLatest": "최신에 따라가기",
+        "speak": "발언란"
       },
       "palette": {
         "panelTitle": "채팅 팔레트",

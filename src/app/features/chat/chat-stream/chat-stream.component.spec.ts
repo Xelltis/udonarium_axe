@@ -4,8 +4,18 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { ChatSendService } from '@axe/features/chat/chat-send.service';
 import { ChatStreamComponent } from '@axe/features/chat/chat-stream/chat-stream.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+
+/** The button of that icon the window puts in the panel bar. */
+function control(icon: string) {
+  const found = TestBed.inject(PanelService)
+    .headerControls()
+    .find((each) => each.icon === icon);
+  if (!found) throw new Error(`no ${icon} in the panel bar`);
+  return found;
+}
 
 describe('ChatStreamComponent', () => {
   let fixture: ComponentFixture<ChatStreamComponent>;
@@ -26,6 +36,7 @@ describe('ChatStreamComponent', () => {
   afterEach(() => {
     fixture?.destroy();
     tab?.destroy();
+    localStorage.removeItem('chat-stream-speaks');
   });
 
   it('shows the lines of the tab it was opened on', () => {
@@ -54,16 +65,18 @@ describe('ChatStreamComponent', () => {
   });
 
   describe('the buttons it puts in the panel bar', () => {
-    it('offers following the newest line and taking the box off', () => {
+    it('offers speaking here, following the newest line and taking the box off', () => {
       component.tabIdentifier.set(tab.identifier);
       fixture.detectChanges();
 
       const panelService = TestBed.inject(PanelService);
-      expect(panelService.headerControls().map((control) => control.icon)).toEqual([
+      expect(panelService.headerControls().map((each) => each.icon)).toEqual([
+        'edit_note',
         'vertical_align_bottom',
         'opacity',
       ]);
-      expect(panelService.headerControls()[0].active).toBe(true);
+      expect(control('edit_note').active).toBe(false);
+      expect(control('vertical_align_bottom').active).toBe(true);
     });
 
     it('takes the box off the panel and puts it back', () => {
@@ -71,13 +84,13 @@ describe('ChatStreamComponent', () => {
       fixture.detectChanges();
       const panelService = TestBed.inject(PanelService);
 
-      panelService.headerControls()[1].press();
+      control('opacity').press();
       fixture.detectChanges();
 
       expect(panelService.isGhost()).toBe(true);
-      expect(panelService.headerControls()[1].active).toBe(true);
+      expect(control('opacity').active).toBe(true);
 
-      panelService.headerControls()[1].press();
+      control('opacity').press();
       fixture.detectChanges();
 
       expect(panelService.isGhost()).toBe(false);
@@ -101,7 +114,7 @@ describe('ChatStreamComponent', () => {
     it('stays where it was put once following is turned off', () => {
       component.tabIdentifier.set(tab.identifier);
       fixture.detectChanges();
-      TestBed.inject(PanelService).headerControls()[0].press();
+      control('vertical_align_bottom').press();
       fixture.detectChanges();
       const emit = vi.spyOn(TestBed.inject(PanelService).scrollToBottom$, 'emit');
 
@@ -133,13 +146,65 @@ describe('ChatStreamComponent', () => {
     component.tabIdentifier.set(tab.identifier);
     fixture.detectChanges();
 
-    const log = fixture.nativeElement.querySelector('div') as HTMLElement;
+    const log = fixture.nativeElement.querySelector('[data-testid="chat-stream-log"]') as HTMLElement;
     expect(log.className).not.toContain('border-b-0');
 
-    TestBed.inject(PanelService).headerControls()[1].press();
+    control('opacity').press();
     fixture.detectChanges();
 
     expect(log.className).toContain('[&_.message]:border-b-0!');
+  });
+
+  describe('speaking here', () => {
+    it('puts out a tab strip and an input once turned on, and remembers it for the next window', () => {
+      component.tabIdentifier.set(tab.identifier);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('chat-input')).toBeNull();
+
+      control('edit_note').press();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('[data-testid="chat-stream-tabs"] chat-tab-strip')).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('[data-testid="chat-stream-input"]')).not.toBeNull();
+      const next = TestBed.createComponent(ChatStreamComponent);
+      expect(next.componentInstance.speaks()).toBe(true);
+      next.destroy();
+
+      control('edit_note').press();
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('chat-input')).toBeNull();
+      expect(localStorage.getItem('chat-stream-speaks')).toBeNull();
+    });
+
+    it('shows another tab picked from the strip, and is named after it', () => {
+      const other = ChatTabList.instance.addChatTab('雑談');
+      try {
+        other.addMessage({ from: 'bob', name: 'ボブ', text: 'おなかすいた', timestamp: 1000 });
+        component.tabIdentifier.set(tab.identifier);
+        fixture.detectChanges();
+        control('edit_note').press();
+        fixture.detectChanges();
+
+        component.tabIdentifier.set(other.identifier);
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.textContent).toContain('おなかすいた');
+        expect(TestBed.inject(PanelService).title).toBe('雑談');
+      } finally {
+        other.destroy();
+      }
+    });
+
+    it('says a line into the tab shown, as the chat window says one', () => {
+      const send = vi.spyOn(TestBed.inject(ChatSendService), 'send').mockImplementation(() => {});
+      component.tabIdentifier.set(tab.identifier);
+      fixture.detectChanges();
+      const line = { text: 'こんにちは', sendFrom: 'me' } as Parameters<ChatSendService['send']>[1];
+
+      component.send(line);
+
+      expect(send).toHaveBeenCalledWith(tab, line);
+    });
   });
 
   it('says so once the tab it was opened on is gone', () => {

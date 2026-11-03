@@ -36,6 +36,23 @@ test.describe('the chat window', () => {
     await expect(stream.locator('chat-message .material-icons')).toHaveCount(0);
   });
 
+  test('opens the separate window from its button, and speaks into another tab from it', async ({ page }) => {
+    await page.locator('chat-window [data-testid="chat-stream-toggle"]').click();
+    const stream = page.locator('chat-stream');
+    await expect(stream).toBeVisible();
+    await expect(chatInput(stream)).toHaveCount(0);
+
+    await page.locator('ui-panel', { has: stream }).locator('button[title="発言欄"]').click();
+    await stream.locator('.chat-tab-pill', { hasText: 'サブタブ' }).click();
+    const input = chatInput(stream);
+    await input.fill('別窓から話す');
+    await input.press('Enter');
+
+    await expect(stream.locator('chat-message').last()).toContainText('別窓から話す', { timeout: 15000 });
+    await chatTabPill(page, 'サブタブ').click();
+    await expect(page.locator('chat-window chat-message').last()).toContainText('別窓から話す');
+  });
+
   test('closes the separate window from the same right click', async ({ page }) => {
     await chatTabPill(page, 'サブタブ').click({ button: 'right' });
     await page.locator('context-menu').getByText('「サブタブ」を別窓で流す').click();
