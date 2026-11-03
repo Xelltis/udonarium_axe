@@ -55,8 +55,10 @@ export function hasSecretEditMark(text: string): boolean {
  * Full-width marks are read as half-width ones, and the `s` in front of a word's first `:`, `t:`,
  * `&` or `t&` is taken off, the rest of the word then read as any other. Each word is a sweep, or
  * else, when it starts with `:`, `&`, `t:` or `t&`, splits into the commands each mark begins. A
- * word that starts any other way holds no command. A stamp put inside the line ends a word as a
- * space does, so one put right after a command is never read as part of it.
+ * `:` that starts a status in a buff's fields, as in `&!毒/:HP/+/0~-3/3`, marks the status to stay
+ * moved and begins no command of its own. A word that starts any other way holds no command. A stamp
+ * put inside the line ends a word as a space does, so one put right after a command is never read as
+ * part of it.
  */
 export function resourceCommandSites(text: string): ResourceCommandWords {
   const padded = ` ${withInlineStampsAsSpaces(text)}`;
@@ -83,16 +85,43 @@ export function resourceCommandSites(text: string): ResourceCommandWords {
   };
 
   for (const word of normalized.matchAll(/\S+/g)) {
-    const chktxt = word[0];
-    if (parseBuffRemovalCommand(chktxt)) {
-      words.sweeps.push(siteOf(chktxt, word.index));
+    if (parseBuffRemovalCommand(word[0])) {
+      words.sweeps.push(siteOf(word[0], word.index));
       continue;
     }
+    const chktxt = hideLastingMarks(word[0]);
     if (!/^(t?[:&][^:：&＆])+/i.test(chktxt)) continue;
-    for (const res of chktxt.matchAll(/t?:[^:：&＆]+/gi)) words.resources.push(siteOf(res[0], word.index + res.index));
-    for (const buff of chktxt.matchAll(/t?&[^:：&＆]+/gi)) words.buffs.push(siteOf(buff[0], word.index + buff.index));
+    const shown = (command: string) => command.replaceAll(LASTING_MARK_HIDDEN, ':');
+    for (const res of chktxt.matchAll(/t?:[^:：&＆]+/gi)) {
+      words.resources.push(siteOf(shown(res[0]), word.index + res.index));
+    }
+    for (const buff of chktxt.matchAll(/t?&[^:：&＆]+/gi)) {
+      words.buffs.push(siteOf(shown(buff[0]), word.index + buff.index));
+    }
   }
   return words;
+}
+
+/** What stands in for a buff's `:` mark while a word is cut at its commands, one character for one. */
+const LASTING_MARK_HIDDEN = '\u0001';
+
+/**
+ * A word, marks made half-width, with each `:` hidden that starts a status in the fields of a buff
+ * command, right after the `/` or comma before the status. Any other `:` begins a resource command.
+ */
+function hideLastingMarks(word: string): string {
+  let inBuff = false;
+  let hidden = '';
+  for (let index = 0; index < word.length; index++) {
+    const character = word[index];
+    if (character === '&') inBuff = true;
+    else if (character === ':' && inBuff && /[/,，、]/.test(word[index - 1] ?? '')) {
+      hidden += LASTING_MARK_HIDDEN;
+      continue;
+    } else if (character === ':') inBuff = false;
+    hidden += character;
+  }
+  return hidden;
 }
 
 /** Where the parts of one `:` command stand in it, and what they read once full-width marks are made half-width. */

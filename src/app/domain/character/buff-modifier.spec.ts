@@ -144,6 +144,64 @@ describe('buff-modifier', () => {
     });
   });
 
+  describe('a status left moved once the buff goes', () => {
+    it('reads a colon of either width before the status as leaving it moved', () => {
+      expect(parseBuffModifierRequest(':HP', '+', '0~-3')).toEqual({
+        target: 'HP',
+        slot: 'now',
+        operator: 'add',
+        amount: 0,
+        step: -3,
+        lasting: true,
+      });
+      expect(parseBuffModifierRequest('：HP^', '-', '2')).toMatchObject({ target: 'HP', slot: 'max', lasting: true });
+      expect(parseBuffModifierRequest('HP', '+', '0~-3')).not.toHaveProperty('lasting');
+      expect(parseBuffModifierRequest(':', '+', '1')).toBeNull();
+    });
+
+    it('reads it among several statuses written together', () => {
+      expect(parseBuffModifierItems('回避-2,:HP+0~-3')).toEqual([
+        { target: '回避', slot: 'now', operator: 'add', amount: -2 },
+        { target: 'HP', slot: 'now', operator: 'add', amount: 0, step: -3, lasting: true },
+      ]);
+    });
+
+    it('says so on the badge with the colon it was written with', () => {
+      expect(describeBuffModifier(parseBuffModifierRequest(':HP', '+', '0~-3')!)).toBe(':HP+0~-3');
+      expect(describeBuffModifier(parseBuffModifierRequest(':HP^', '=', '0')!)).toBe(':最大HP=0');
+    });
+
+    it('reads back what it moved and moves at every count, kept apart from what an older version gives back', () => {
+      const buff = makeBuff();
+      writeBuffModifier(buff, { target: 'HP', slot: 'now', operator: 'add', applied: -6, step: -3, lasting: true });
+
+      expect(readBuffModifier(buff)).toEqual({
+        target: 'HP',
+        slot: 'now',
+        operator: 'add',
+        applied: -6,
+        step: -3,
+        lasting: true,
+      });
+      // An older version reads a buff that moved nothing and moves nothing, so it gives nothing back.
+      expect(buff.getAttribute('cs-buff-mod-applied')).toBe('0');
+      expect(buff.getAttribute('cs-buff-mod-step')).toBeFalsy();
+    });
+
+    it('wipes what it kept along with the rest, and reads a buff written again to give back as one', () => {
+      const buff = makeBuff();
+      writeBuffModifier(buff, { target: 'HP', slot: 'now', operator: 'add', applied: -6, step: -3, lasting: true });
+      writeBuffModifier(buff, { target: 'HP', slot: 'now', operator: 'add', applied: 2 });
+
+      expect(readBuffModifier(buff)).toEqual({ target: 'HP', slot: 'now', operator: 'add', applied: 2 });
+
+      writeBuffModifier(buff, { target: 'HP', slot: 'now', operator: 'add', applied: -6, step: -3, lasting: true });
+      clearBuffModifier(buff);
+      expect(buff.getAttribute('cs-buff-mod-kept')).toBeFalsy();
+      expect(buff.getAttribute('cs-buff-mod-kept-step')).toBeFalsy();
+    });
+  });
+
   describe('several statuses written together', () => {
     it('reads each with its own operator and amount, parted by commas of either width', () => {
       const requests = parseBuffModifierItems('追D+4,回避-2、器用度+5~-1，HP^-20,命中++1')!;

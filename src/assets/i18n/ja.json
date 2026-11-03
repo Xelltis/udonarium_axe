@@ -5190,6 +5190,8 @@
       "removeStatus": "このステータスを外す",
       "modifierNote": "{{target}} を自動補正中",
       "builderTitle": "自動計算バフの記法を作る",
+      "builderKeeps": "戻さない",
+      "builderKeepsHint": "切れても動かした分を戻さない（毒・リジェネ）",
       "builderStacks": "重ねがけ",
       "builderStacksHint": "同名バフに足す（上書きしない）",
       "builderExtends": "ラウンドも足す",
@@ -5403,7 +5405,7 @@
       "pickIconImage": "画像から選ぶ",
       "stat": "動かす項目",
       "statPlaceholder": "移動",
-      "statHint": "シートの項目名を書くと、付いている間その値を動かし、外すと動かした分だけ戻します。空欄なら何も動かしません"
+      "statHint": "シートの項目名を書くと、付いている間その値を動かし、外すと動かした分だけ戻します。名前の前に:を付けると（:HP）、外しても戻しません。空欄なら何も動かしません"
     },
     "seatDisplay": {
       "title": "この端末の表示",

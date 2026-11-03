@@ -5190,6 +5190,8 @@
       "removeStatus": "Remove this status",
       "modifierNote": "Holding {{target}}",
       "builderTitle": "Build a calculated buff command",
+      "builderKeeps": "Keep",
+      "builderKeepsHint": "Leave the status moved when the buff goes (poison, regeneration)",
       "builderStacks": "Stack",
       "builderStacksHint": "Add to a buff of the same name",
       "builderExtends": "Lengthen too",
@@ -5403,7 +5405,7 @@
       "pickIconImage": "Pick a picture",
       "stat": "Status it moves",
       "statPlaceholder": "Speed",
-      "statHint": "Name a status on the sheet and the state moves it while it is worn, giving back exactly that much when it comes off. Empty moves nothing"
+      "statHint": "Name a status on the sheet and the state moves it while it is worn, giving back exactly that much when it comes off. A : before the name (:HP) leaves it moved when the state comes off. Empty moves nothing"
     },
     "seatDisplay": {
       "title": "Display on this device",

@@ -5192,6 +5192,8 @@
       "removeStatus": "이 스테이터스 빼기",
       "modifierNote": "{{target}}을(를) 자동 보정 중",
       "builderTitle": "자동 계산 버프 표기 만들기",
+      "builderKeeps": "되돌리지 않음",
+      "builderKeepsHint": "끝나도 움직인 만큼 되돌리지 않음(독·재생)",
       "builderStacks": "겹쳐 걸기",
       "builderStacksHint": "같은 이름의 버프에 더하기",
       "builderExtends": "라운드도 더하기",
@@ -5696,7 +5698,7 @@
       "pickIconImage": "이미지에서 고르기",
       "stat": "변경할 항목",
       "statPlaceholder": "이동",
-      "statHint": "시트의 항목 이름을 쓰면 붙어 있는 동안 그 값을 움직이고, 떼면 움직인 만큼 되돌립니다. 비워 두면 아무것도 움직이지 않습니다"
+      "statHint": "시트의 항목 이름을 쓰면 붙어 있는 동안 그 값을 움직이고, 떼면 움직인 만큼 되돌립니다. 이름 앞에 :를 붙이면(:HP) 떼어도 되돌리지 않습니다. 비워 두면 아무것도 움직이지 않습니다"
     },
     "seatDisplay": {
       "title": "이 기기의 표시",
