@@ -140,6 +140,7 @@ class FakeEngine implements Table3dEngine {
       shadowLights: 0,
       glowRevision: 0,
       shadowCasters: 0,
+      draws: this.drawn,
     };
   }
 }

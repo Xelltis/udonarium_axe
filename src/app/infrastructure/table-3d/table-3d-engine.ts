@@ -190,6 +190,7 @@ class ThreeTableEngine implements Table3dEngine {
   );
   private laidLamps: readonly Table3dShadowLight[] = [];
   private flickeredAt = 0;
+  private draws = 0;
   private laidSprites: TableWorld['sprites'] = [];
   private readonly sun = new DirectionalLight(0xffffff, 0);
   private readonly sky = new HemisphereLight(0xffffff, 0xffffff, LIGHT_SCALE);
@@ -373,6 +374,7 @@ class ThreeTableEngine implements Table3dEngine {
       shadowLights: this.laidLamps.length,
       glowRevision: this.veil.glowRevision,
       shadowCasters: this.sprites.casterCount,
+      draws: this.draws,
     };
   }
 
@@ -490,6 +492,7 @@ class ThreeTableEngine implements Table3dEngine {
     if (!this.changed || this.lost) return false;
     this.changed = false;
     this.renderer.render(this.scene, this.camera);
+    this.draws++;
     return true;
   }
 
