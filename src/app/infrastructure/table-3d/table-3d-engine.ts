@@ -225,6 +225,7 @@ class ThreeTableEngine implements Table3dEngine {
   private readonly fogAir = new FogAirLayer();
   private readonly skyDome = new SkyLayer();
   private laidSky: SkyDome | null = null;
+  private laidSkyKey = 'null';
   private readonly water = new WaterLayer((material, taking) => this.veil.cover(material, taking));
   private readonly layers = new BoardLayers(
     (url) => this.sharedPicture(url, true),
@@ -580,6 +581,9 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   setSky(sky: SkyDome | null): void {
+    const laid = JSON.stringify([sky, this.board ? this.boardBox : null]);
+    if (laid === this.laidSkyKey) return;
+    this.laidSkyKey = laid;
     this.laidSky = sky;
     this.scene.fog = this.skyDome.set(sky, this.board ? this.boardBox : null);
     this.changed = true;

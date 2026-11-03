@@ -44,10 +44,12 @@ export class FogAirLayer {
   }
 
   set(sheets: readonly Table3dFogAirSheet[], moving: boolean): void {
-    this.moving = moving;
     const same =
       sheets.length === this.hung.length &&
       sheets.every((sheet, index) => this.hung[index].sheet.canvas === sheet.canvas);
+    const unchanged = same && sheets.every((sheet, index) => this.hung[index].sheet.revision === sheet.revision);
+    if (unchanged && moving === this.moving) return;
+    this.moving = moving;
     if (!same) {
       this.clear();
       sheets.forEach((sheet, index) => this.hang(sheet, index));
