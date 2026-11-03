@@ -19,7 +19,6 @@ export const STORAGE_KEYS = {
   chatLogStyle: 'chat-log-style',
   chatPersonalBookmarks: 'chat-personal-bookmarks',
   chatPreferences: 'chat-preferences',
-  chatStreamSpeaks: 'chat-stream-speaks',
   compassFace: 'axe.compass.face',
   djDeckOpen: 'mini-jukebox-dj-deck',
   effectAutoPlay: 'axe.effect.autoPlay',

@@ -3847,13 +3847,15 @@
         "serverRoll": "部屋のサーバーが振ったダイスです。振った人には出目を変えられません"
       },
       "stream": {
-        "button": "別窓",
-        "title": "発言の流れ",
-        "open": "「{{name}}」を別窓で流す",
-        "close": "別窓を閉じる",
+        "button": "ストリーム",
+        "title": "ストリームチャット",
+        "open": "「{{name}}」をストリームチャットウィジェットで開く",
+        "close": "ストリームチャットウィジェットを閉じる",
         "gone": "このタブは無くなりました",
         "followLatest": "最新に追従",
-        "speak": "発言欄"
+        "speaker": "発言者",
+        "text": "発言",
+        "placeholder": "Enter:送信 Shift+Enter:改行"
       },
       "palette": {
         "panelTitle": "チャットパレット",

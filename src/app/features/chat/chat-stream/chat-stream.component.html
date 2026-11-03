@@ -1,6 +1,6 @@
 <div class="text-ui-text flex size-full min-h-0 flex-col">
-  @if (speaks()) {
-    <div class="flex min-w-0 shrink-0 items-center px-1.5" data-testid="chat-stream-tabs">
+  @if (!isGhost()) {
+    <div class="flex min-w-0 shrink-0 items-center px-1.5 pt-1" data-testid="chat-stream-tabs">
       <chat-tab-strip tone="panel" [tabs]="visibleChatTabs()" [(selected)]="tabIdentifier" />
     </div>
   }
@@ -18,16 +18,7 @@
       </div>
     }
   </div>
-  @if (speaks() && chatTab(); as tab) {
-    <chat-input
-      class="shrink-0"
-      data-testid="chat-stream-input"
-      [dense]="true"
-      [chatTabidentifier]="tab.identifier"
-      [canSpeak]="canSpeak()"
-      [(gameType)]="gameType"
-      [(sendFrom)]="sendFrom"
-      (chat)="send($event)"
-    ></chat-input>
+  @if (!isGhost() && chatTab()) {
+    <chat-stream-input class="shrink-0" [canSpeak]="canSpeak()" (said)="send($event)" />
   }
 </div>

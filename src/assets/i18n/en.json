@@ -3848,12 +3848,14 @@
       },
       "stream": {
         "button": "Stream",
-        "title": "Message stream",
-        "open": "Watch \"{{name}}\" in its own window",
-        "close": "Close that window",
+        "title": "Stream chat",
+        "open": "Open \"{{name}}\" in the stream chat widget",
+        "close": "Close the stream chat widget",
         "gone": "This tab is gone",
         "followLatest": "Follow the newest",
-        "speak": "Speak here"
+        "speaker": "Speaker",
+        "text": "Message",
+        "placeholder": "Enter: send  Shift+Enter: new line"
       },
       "palette": {
         "panelTitle": "Chat palette",
