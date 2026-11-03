@@ -649,6 +649,20 @@ describe('ChatMessageService', () => {
       expect(rolled).toEqual(['2d6+7>=14 抵抗']);
     });
 
+    it('fills it in for a line said under a name of its own, from a roll by somebody else', () => {
+      chatTab.addMessage({ from: 'gm', sendFrom: 'enemy', name: 'ゴブリン', text: '2d6+8', timestamp: 1100 });
+      chatTab.addMessage({
+        from: 'System-BCDice',
+        originFrom: 'gm',
+        name: '<BCDice：ゴブリン>',
+        text: 'DiceBot : (2D6+8) → 7[3,4]+8 → 15',
+        tag: 'system',
+        timestamp: 1101,
+      });
+
+      expect(service.sendAsNamed(chatTab, '2d6>={目標値} 扉の抵抗', null, '扉').text).toBe('2d6>=15 扉の抵抗');
+    });
+
     it('leaves it as typed where nothing has been rolled to beat', () => {
       const other = GameCharacter.create('ミナ', 1, '');
       chatTab.addMessage({

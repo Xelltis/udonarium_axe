@@ -526,6 +526,8 @@ describe('ChatPalette', () => {
       expect(withoutAimMarks('t: 2d+8 魔法行使')).toBe('2d+8 魔法行使');
       expect(withoutAimMarks('2d+8 t: 魔法行使\nt:\n抵抗せよ')).toBe('2d+8 魔法行使\n\n抵抗せよ');
       expect(withoutAimMarks('t:HP-3 ポイントt:')).toBe('t:HP-3 ポイントt:');
+      expect(withoutAimMarks('2d+8 魔法行使［にこ:sfx:smile］t:')).toBe('2d+8 魔法行使［にこ:sfx:smile］');
+      expect(withoutAimMarks('［にこ:sfx:smile］t: 2d+8')).toBe('［にこ:sfx:smile］2d+8');
     });
 
     it('counts a secret command aimed at targets as aiming, as the command is carried out', () => {

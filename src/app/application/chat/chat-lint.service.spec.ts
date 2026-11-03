@@ -92,6 +92,31 @@ describe('ChatLintService', () => {
     }
   });
 
+  it('fills in the number to beat for a line said as no piece, as sending it does', () => {
+    const tab = new ChatTab();
+    tab.initialize();
+    ObjectStore.instance.add(tab);
+    try {
+      tab.addMessage({
+        from: 'System-BCDice',
+        originFrom: 'gm',
+        name: '<BCDice：ゴブリン>',
+        text: 'DiceBot : (2D6+8) → 7[3,4]+8 → 15',
+        tag: 'system',
+        timestamp: 1001,
+      });
+      const { session } = watch('2d6>={目標値}', {
+        sendFrom: signal('someone-else'),
+        tabIdentifier: signal(tab.identifier),
+      });
+
+      expect(codesOf(session)).toEqual([]);
+      expect(session.annotations()).toEqual([{ kind: 'value', label: '15', from: 5, to: 10 }]);
+    } finally {
+      tab.destroy();
+    }
+  });
+
   it('checks a roll once the game system has arrived', async () => {
     const notHereYet = vi.spyOn(DiceBot, 'loadedGameSystem').mockReturnValue(null);
     try {

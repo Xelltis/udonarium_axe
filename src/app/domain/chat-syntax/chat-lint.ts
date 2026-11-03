@@ -217,7 +217,13 @@ function lintMessage(
       case 'reference':
         if (noTarget && (span.site.targeted || aimsThrough(span.site))) {
           if (!later) add(span, 'error', 'target.none');
-        } else if (!span.site.targeted && !context.speaker && !targeting && context.path === 'chatWindow')
+        } else if (
+          !span.site.targeted &&
+          !context.speaker &&
+          !targeting &&
+          context.path === 'chatWindow' &&
+          !isTargetNumberReference(span.site.name)
+        )
           add(span, 'warning', 'ref.noSpeaker');
         else if (
           context.referenceValue(span.site) == null &&

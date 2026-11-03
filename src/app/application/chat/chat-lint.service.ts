@@ -14,7 +14,12 @@ import { evaluateReferences, type PaletteVariable } from '@axe/domain/chat/chat-
 import type { ImageNameEntry } from '@axe/domain/chat/chat-portrait-command';
 import type { ReferenceSite } from '@axe/domain/chat/chat-reference';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { fillTargetNumber, findTargetNumber, holdsTargetNumber } from '@axe/domain/chat/target-number';
+import {
+  fillTargetNumber,
+  findTargetNumber,
+  holdsTargetNumber,
+  isTargetNumberReference,
+} from '@axe/domain/chat/target-number';
 import { type ChatDiagnostic, type ChatLintContext, lintChatSyntax } from '@axe/domain/chat-syntax/chat-lint';
 import {
   type ChatSyntaxMode,
@@ -154,7 +159,8 @@ export class ChatLintService {
     const variables = computed(() => (mode === 'palette' ? this.variablesWritten(scan()) : null), {
       equal: sameVariables,
     });
-    const toBeat = computed(() => this.targetNumberOf(source));
+    const holdsTargetNumberNow = computed(() => holdsTargetNumber(source.text()));
+    const toBeat = computed(() => (holdsTargetNumberNow() ? this.targetNumberOf(source) : null));
     const context = computed(() => this.contextOf(source, scan, variables(), toBeat));
     const diagnostics = computed(() => lintChatSyntax(scan(), context()));
     const annotations = computed(() => this.annotationsOf(scan(), context()));
@@ -203,7 +209,8 @@ export class ChatLintService {
     const path = typeof source.path === 'function' ? source.path() : source.path;
 
     const fill = (text: string, target?: GameCharacter): string => {
-      if (path === 'chatWindow' && !speaker && !target) return text;
+      // A line said as no piece has no sheet to fill in from, but the number to beat is the tab's.
+      if (path === 'chatWindow' && !speaker && !target) return fillTargetNumber(text, () => toBeat());
       return this.filled(text, speaker, target, variables, path === 'chatWindow', toBeat);
     };
     const sent = (message: TextRange): string => {
@@ -225,7 +232,11 @@ export class ChatLintService {
       referenceValue: (site: ReferenceSite) => {
         const typed = scan().text.slice(site.from, site.to);
         if (site.targeted && targets.length < 1) return null;
-        if (!site.targeted && !speaker && path === 'chatWindow') return null;
+        if (!site.targeted && !speaker && path === 'chatWindow') {
+          if (!isTargetNumberReference(site.name)) return null;
+          const filled = fillTargetNumber(typed, () => toBeat());
+          return filled === typed ? null : filled;
+        }
         const value = this.filled(typed, speaker, targets[0], variables, true, toBeat);
         return value === typed ? null : value;
       },
@@ -292,10 +303,11 @@ export class ChatLintService {
 
   /**
    * The number a `{目標値}` in the text would be filled in with as it is sent, from the rolls in its
-   * tab; looked for only while the text holds one, and again as each line comes in.
+   * tab, looked for again as each line comes in. Asked only while the text holds one, so that typing
+   * leaves the log unread.
    */
   private targetNumberOf(source: ChatLintSource): number | null {
-    if (!source.tabIdentifier || !holdsTargetNumber(source.text())) return null;
+    if (!source.tabIdentifier) return null;
     this.linesHeard();
     const tab = this.objectStore.get(source.tabIdentifier());
     if (!(tab instanceof ChatTab)) return null;

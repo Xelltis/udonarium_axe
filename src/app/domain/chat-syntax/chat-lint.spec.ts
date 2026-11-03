@@ -125,6 +125,7 @@ describe('lintChatSyntax', () => {
       expect(codes('2d6>={目標値}')).toEqual(['ref.targetNumberNone']);
       expect(codes('2d6>={目標値}', { path: 'palette' })).toEqual(['ref.targetNumberNone']);
       expect(codes('2d6>={目標値}', { referenceValue: () => '14' })).toEqual([]);
+      expect(codes('2d6>={目標値}', { speaker: null })).toEqual(['ref.targetNumberNone']);
     });
 
     it('finds one from a speaker who is no piece, which is never filled in from chat', () => {

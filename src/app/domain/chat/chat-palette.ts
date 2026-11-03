@@ -486,11 +486,20 @@ export function aimMarkSites(line: string): { from: number; to: number }[] {
 
 /**
  * The line with every `t:` standing as a word of its own taken out, with the space before it, or
- * after it where it starts a line. Such a mark only aims the line, as `2d+8 魔法行使 t:` rolls once
- * for each piece marked, so it is not said.
+ * the space after it where none comes before, as at the start of a line or right after a stamp.
+ * Such a mark only aims the line, as `2d+8 魔法行使 t:` rolls once for each piece marked, so it is
+ * not said.
  */
 export function withoutAimMarks(line: string): string {
-  return line.replace(/^[tTｔＴ][:：](?:[ \t\u3000]+|$)|[ \t\u3000]+[tTｔＴ][:：](?=\s|$)/gm, '');
+  let said = line;
+  for (const site of aimMarkSites(line).reverse()) {
+    let from = site.from;
+    let to = site.to;
+    while (from > 0 && /[ \t\u3000]/.test(said[from - 1])) from--;
+    if (from === site.from) while (to < said.length && /[ \t\u3000]/.test(said[to])) to++;
+    said = said.slice(0, from) + said.slice(to);
+  }
+  return said;
 }
 
 /**

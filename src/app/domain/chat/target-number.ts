@@ -10,6 +10,7 @@ import { rollTargetSuffix } from '@axe/domain/dice/roll-target-suffix';
 export const TARGET_NUMBER_REFERENCE = '目標値';
 
 const TARGET_NUMBER_PATTERN = /(?<![tTｔＴ])[{｛]\s*目標値\s*[}｝]/g;
+const HOLDS_TARGET_NUMBER = new RegExp(TARGET_NUMBER_PATTERN.source);
 
 /** Who speaks a line, as the rolls made against them and by them are told by. */
 export interface TargetNumberSpeaker {
@@ -24,7 +25,7 @@ export function isTargetNumberReference(name: string): boolean {
 
 /** Whether a line holds the reference to the number to beat, waiting to be filled in. */
 export function holdsTargetNumber(text: string): boolean {
-  return new RegExp(TARGET_NUMBER_PATTERN.source).test(text);
+  return HOLDS_TARGET_NUMBER.test(text);
 }
 
 /**

@@ -424,6 +424,7 @@ export class ChatMessageService {
    * are rolled for it, and the result comes back under the same name. It leaves alone who this
    * reader last spoke as, since the reader did not say it, and nothing in the line reaches a
    * piece's resources, since no piece is speaking. Its stamps go out as those of a line said anew.
+   * A `{目標値}` in it is filled in with the number to beat for that name, as for a piece.
    */
   sendAsNamed(
     chatTab: ChatTab,
@@ -432,6 +433,7 @@ export class ChatMessageService {
     name: string,
     color?: string
   ): ChatMessage {
+    text = fillTargetNumber(text, () => findTargetNumber(chatTab, { identifier: '', name }));
     const stamped = this.inlineStampsGoingOut(text);
     text = stamped.text;
     const dicebot = this.objectStore.get<DiceBot>('DiceBot')!;
