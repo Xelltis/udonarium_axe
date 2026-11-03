@@ -11,11 +11,12 @@ import { Logger } from '@axe/core/logging/logger';
 import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
+import { gltfFactsOf, MAX_MODEL_TRIANGLES } from '@axe/core/storage/gltf-facts';
 import type { ImageFile } from '@axe/core/storage/image-file';
 import { imageTypeOf } from '@axe/core/storage/image-sniff';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
-import { isBinaryGltf, MODEL_TYPE } from '@axe/core/storage/model-file';
+import { MODEL_TYPE } from '@axe/core/storage/model-file';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ccfoliaRoomFolderOf } from '@axe/core/storage/room-archive';
 import { createZipBlob, readZipEntries, ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
@@ -331,8 +332,9 @@ export class FileArchiver {
   }
 
   /**
-   * Takes in a binary glTF file as a 3D model: one named `.glb`, or sent as one, that begins as one.
-   * Anything else under the name is left alone.
+   * Takes in a binary glTF file as a 3D model: one named `.glb`, or sent as one, whose JSON can be
+   * read. Anything else under the name is left alone, and a model that draws more triangles than a
+   * model may is left out as one too large.
    */
   private async handleModel(file: File, run: LoadRun) {
     if (file.type !== MODEL_TYPE && !file.name.toLowerCase().endsWith('.glb')) return;
@@ -341,8 +343,13 @@ export class FileArchiver {
       run.tooLarge.push({ name: file.name, kind: 'model', limitBytes: MAX_LOADED_MODEL_BYTES });
       return;
     }
-    const head = new Uint8Array(await FileReaderUtil.readAsArrayBufferAsync(file.slice(0, 8)));
-    if (!isBinaryGltf(head)) return;
+    const facts = gltfFactsOf(await FileReaderUtil.readAsArrayBufferAsync(file));
+    if (!facts) return;
+    if (facts.triangles > MAX_MODEL_TRIANGLES) {
+      Logger.warn(`[FileArchiver] 三角形数の上限超過: ${file.name} (${facts.triangles})`);
+      run.tooLarge.push({ name: file.name, kind: 'model', limitBytes: MAX_LOADED_MODEL_BYTES });
+      return;
+    }
     const model = await ModelStorage.instance.addAsync(file, { putBack: true });
     if (model) run.models.push(model.identifier);
   }

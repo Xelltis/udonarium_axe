@@ -2052,7 +2052,7 @@
         "many": "「{{name}}」ほか{{count}}件は大きすぎるため読み込めませんでした（{{limits}}）",
         "audioLimit": "音源は{{mb}}MBまで",
         "imageLimit": "画像は{{mb}}MBまで",
-        "modelLimit": "3Dモデルは{{mb}}MBまで",
+        "modelLimit": "3Dモデルは{{mb}}MB・三角形{{triangles}}個まで",
         "separator": "、"
       },
       "removal": {

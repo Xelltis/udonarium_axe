@@ -19,6 +19,7 @@ import {
   MAX_LOADED_MODEL_BYTES,
 } from '@axe/core/storage/file-archiver';
 import { calcSHA256Async } from '@axe/core/storage/file-reader-util';
+import { MAX_MODEL_TRIANGLES } from '@axe/core/storage/gltf-facts';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ModelStorage } from '@axe/core/storage/model-storage';
@@ -26,6 +27,22 @@ import { useFflateLoader } from '@axe/core/storage/zip-archive';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { zipSync } from 'fflate';
 import { strToU8, zip } from 'fflate';
+
+/** A binary glTF file of a JSON chunk alone, which is all a model is taken in by. */
+function glbOf(json: unknown): Uint8Array {
+  const text = new TextEncoder().encode(JSON.stringify(json));
+  const padded = new Uint8Array(Math.ceil(text.length / 4) * 4).fill(0x20);
+  padded.set(text);
+  const bytes = new Uint8Array(20 + padded.length);
+  const view = new DataView(bytes.buffer);
+  bytes.set([0x67, 0x6c, 0x54, 0x46], 0);
+  view.setUint32(4, 2, true);
+  view.setUint32(8, bytes.length, true);
+  view.setUint32(12, padded.length, true);
+  view.setUint32(16, 0x4e4f534a, true);
+  bytes.set(padded, 20);
+  return bytes;
+}
 
 describe('isXmlCandidateFile', () => {
   function file(name: string, type: string): File {
@@ -218,14 +235,37 @@ describe('FileArchiver', () => {
 
     it('takes in a binary glTF file as a 3D model, and leaves bytes under the name that are not one', async () => {
       const added = vi.spyOn(ModelStorage.instance, 'addAsync').mockResolvedValue(null);
-      const glb = new Uint8Array([0x67, 0x6c, 0x54, 0x46, 2, 0, 0, 0, 1, 2, 3, 4]);
 
       await FileArchiver.instance.load([
-        new File([glb], 'tree.glb'),
+        new File([glbOf({ asset: { version: '2.0' } })], 'tree.glb'),
+        new File([new Uint8Array([0x67, 0x6c, 0x54, 0x46, 2, 0, 0, 0, 1, 2, 3, 4])], 'cut-short.glb'),
         new File([new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])], 'fake.glb'),
       ]);
 
       expect(added.mock.calls.map(([file]) => (file as File).name)).toEqual(['tree.glb']);
+    });
+
+    it('leaves out a 3D model that draws more triangles than a model may, and says so', async () => {
+      const added = vi.spyOn(ModelStorage.instance, 'addAsync').mockResolvedValue(null);
+      const announced: FilesTooLargeEvent[] = [];
+      const off = filesTooLarge$.subscribe((event) => announced.push(event));
+      const mesh = (corners: number) => ({
+        scenes: [{ nodes: [0] }],
+        nodes: [{ mesh: 0 }],
+        meshes: [{ primitives: [{ attributes: { POSITION: 0 } }] }],
+        accessors: [{ count: corners }],
+      });
+      try {
+        await FileArchiver.instance.load([
+          new File([glbOf(mesh(MAX_MODEL_TRIANGLES * 3))], 'most.glb'),
+          new File([glbOf(mesh(MAX_MODEL_TRIANGLES * 3 + 3))], 'dense.glb'),
+        ]);
+      } finally {
+        off();
+      }
+
+      expect(added.mock.calls.map(([file]) => (file as File).name)).toEqual(['most.glb']);
+      expect(announced[0].files).toEqual([{ name: 'dense.glb', kind: 'model', limitBytes: MAX_LOADED_MODEL_BYTES }]);
     });
 
     it('leaves out a 3D model larger than a model may be, and says so', async () => {
