@@ -39,6 +39,7 @@ describe('the lights that throw shadows of their own', () => {
       light('near', 300),
       light('quiet', 100, { castShadows: false }),
       light('wall', 200, { surface: 'north-wall' }),
+      light('cone', 250, { angle: 60 }),
       light('mid', 900),
     ];
 

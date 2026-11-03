@@ -19,7 +19,8 @@ export function lightSlotScore(
 
 /**
  * The lights that throw shadows of their own, at most `count` of them, chosen among the lights set to
- * throw shadows on the floor by how much each is worth a slot seen from `focus`. A light already
+ * throw shadows on the floor all round them by how much each is worth a slot seen from `focus`; a
+ * light thrown one way is left to the darkness the page draws, which keeps it to its cone. A light already
  * throwing shadows keeps its slot until another is worth a quarter as much again, so two lights worth
  * about the same do not take a slot from each other back and forth as the camera moves.
  *
@@ -33,7 +34,7 @@ export function lightSlotsOf(
 ): string[] {
   if (count < 1) return [];
   const scored = lights
-    .filter((light) => light.castShadows && light.surface === 'floor' && light.dimPx > 0)
+    .filter((light) => light.castShadows && light.surface === 'floor' && light.dimPx > 0 && light.angle >= 360)
     .map((light) => ({ id: light.sourceId, score: lightSlotScore(light, focus) }))
     .sort((a, b) => b.score - a.score || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const kept = scored.filter((light) => held.includes(light.id));
