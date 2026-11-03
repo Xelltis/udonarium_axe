@@ -6,7 +6,8 @@ import { waitAppReady } from '../helpers';
 
 /**
  * The 3D models a table drawn on a canvas draws a piece as, in place of its picture: read from a
- * `.glb` file chosen in the piece's sheet, stood where the piece stands, and taken away again.
+ * `.glb` file chosen in the piece's sheet, stood where the piece stands, and taken away again. A
+ * model that needs no decoder fetches none.
  */
 
 type Box = { x: number; y: number; width: number; height: number };
@@ -63,6 +64,8 @@ test.describe('the 3D models of a table drawn on a canvas', () => {
   test('draws a piece as the model read for it in its sheet, and as its picture again once it has none', async ({
     page,
   }) => {
+    const fetched: string[] = [];
+    page.on('request', (request) => fetched.push(request.url()));
     await waitAppReady(page);
     await closePanels(page);
     await idle(page);
@@ -87,6 +90,7 @@ test.describe('the 3D models of a table drawn on a canvas', () => {
       .setInputFiles({ name: 'red-box.glb', mimeType: 'model/gltf-binary', buffer: boxGlb(1, 2, red) });
     await expect(sheet.getByTestId('piece-model')).not.toHaveValue('');
     await expect.poll(() => models(page)).toBe(1);
+    expect(fetched.filter((url) => url.includes('/assets/decoders/') || /(DRACO|KTX2)Loader/.test(url))).toEqual([]);
     await closePanels(page);
     await idle(page);
     expect(await pointsOfColour(page, box, red)).toBeGreaterThan(before + 10);

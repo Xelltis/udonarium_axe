@@ -33,6 +33,16 @@
                 "glob": "{shippori-mincho,zen-maru-gothic,yomogi,mochiy-pop-one,dotgothic16}/{400.css,LICENSE,files/*-400-normal.woff2}",
                 "input": "node_modules/@fontsource",
                 "output": "assets/fonts/chat"
+              },
+              {
+                "glob": "{draco_wasm_wrapper.js,draco_decoder.wasm}",
+                "input": "node_modules/three/examples/jsm/libs/draco/gltf",
+                "output": "assets/decoders/draco"
+              },
+              {
+                "glob": "basis_transcoder.{js,wasm}",
+                "input": "node_modules/three/examples/jsm/libs/basis",
+                "output": "assets/decoders/basis"
               }
             ],
             "styles": ["src/styles.css"],
@@ -61,6 +71,16 @@
                   "glob": "{shippori-mincho,zen-maru-gothic,yomogi,mochiy-pop-one,dotgothic16}/{400.css,LICENSE,files/*-400-normal.woff2}",
                   "input": "node_modules/@fontsource",
                   "output": "assets/fonts/chat"
+                },
+                {
+                  "glob": "{draco_wasm_wrapper.js,draco_decoder.wasm}",
+                  "input": "node_modules/three/examples/jsm/libs/draco/gltf",
+                  "output": "assets/decoders/draco"
+                },
+                {
+                  "glob": "basis_transcoder.{js,wasm}",
+                  "input": "node_modules/three/examples/jsm/libs/basis",
+                  "output": "assets/decoders/basis"
                 }
               ],
               "optimization": true,

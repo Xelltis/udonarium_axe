@@ -67,6 +67,22 @@ Comment: Kenneyの「Nature Kit」の3Dモデル（glTFのバイナリー）か�
  （コミット3694c6879e487c108f55677be7dd2ca75b07cc3b）。同梱のLICENSE.txtがCC0を示す。
  CC0 1.0 Universal: https://creativecommons.org/publicdomain/zero/1.0/
 
+Files: decoders/draco/*
+Copyright: The Draco Authors
+License: Apache-2.0
+Comment: Dracoのメッシュ復号器（glTF向けのビルド）のWebAssemblyと、それを読み込むJavaScriptです。
+ Dracoで圧縮した3Dモデルを読むときだけ取り寄せます。npmのthreeの
+ examples/jsm/libs/draco/gltfからビルド時に写したもので、手は加えていません。
+ 配布元: https://github.com/google/draco
+
+Files: decoders/basis/*
+Copyright: Binomial LLC
+License: Apache-2.0
+Comment: Basis Universalのテクスチャ変換器のWebAssemblyと、それを読み込むJavaScriptです。
+ KTX2の圧縮テクスチャを使う3Dモデルを読むときだけ取り寄せます。npmのthreeの
+ examples/jsm/libs/basisからビルド時に写したもので、手は加えていません。
+ 配布元: https://github.com/BinomialLLC/basis_universal
+
 Files: images/skeleton.png
 Copyright: 2020 TK11235
 License: MIT

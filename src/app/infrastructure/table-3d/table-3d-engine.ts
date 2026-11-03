@@ -235,7 +235,8 @@ class ThreeTableEngine implements Table3dEngine {
     () => {
       this.piecesMoved();
       this.needsFrame();
-    }
+    },
+    () => this.renderer
   );
   private readonly skyDome = new SkyLayer();
   private readonly backdrops = new BackdropRing((url) => this.sharedPicture(url, true));

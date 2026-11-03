@@ -1,6 +1,9 @@
+import { gltfFactsOf, MAX_MODEL_TRIANGLES } from '@axe/core/storage/gltf-facts';
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import type { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { type GLTF, GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import type { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import {
   AnimationAction,
@@ -15,6 +18,7 @@ import {
   type MeshStandardMaterial,
   type Object3D,
   Vector3,
+  type WebGPURenderer,
 } from 'three/webgpu';
 
 /** What a model is drawn from: its scene once read, and how large it is as it was made. */
@@ -38,16 +42,30 @@ interface StoodModel {
 /** How many radians a degree is. */
 const RADIANS = Math.PI / 180;
 
+/** Where the decoders for compressed meshes and textures are served from, alongside the app. */
+const DECODERS = 'assets/decoders/';
+const DRACO_DECODER = {
+  js: `${DECODERS}draco/draco_wasm_wrapper.js`,
+  wasm: `${DECODERS}draco/draco_decoder.wasm`,
+};
+const BASIS_TRANSCODER = `${DECODERS}basis/`;
+
 /**
  * The pieces and blocks drawn as 3D models: each a binary glTF file read from bytes held here, its
  * materials made over to be lit and veiled as the rest of the scene is, stood with its foot at the
  * piece's, fitted inside the piece's box, and turned as the piece is. A model that plays a walk
  * plays it while its piece is moved, and stands in the first pose of its idle otherwise, so a table
- * standing still is not drawn again. Nothing a model names outside its own bytes is ever fetched.
+ * standing still is not drawn again. Nothing a model names outside its own bytes is ever fetched,
+ * and one that draws more triangles than a model may, or cannot be read, is left drawn as its
+ * picture. The decoders for compressed meshes and textures are fetched, from the app's own assets,
+ * only once a model that needs them comes.
  */
 export class ModelLayer {
   readonly group = new Group();
+  private readonly manager = new LoadingManager();
   private readonly loader: GLTFLoader;
+  private draco: Promise<DRACOLoader> | null = null;
+  private ktx2: Promise<KTX2Loader> | null = null;
   private readonly loaded = new Map<string, LoadedModel | null>();
   private readonly loading = new Set<string>();
   private stood = new Map<string, StoodModel>();
@@ -57,11 +75,13 @@ export class ModelLayer {
 
   constructor(
     private readonly dress: (material: Material) => void,
-    private readonly arrived: () => void
+    private readonly arrived: () => void,
+    private readonly renderer: () => WebGPURenderer
   ) {
-    const manager = new LoadingManager();
-    manager.setURLModifier((url) => (url.startsWith('blob:') || url.startsWith('data:') ? url : 'data:,'));
-    this.loader = new GLTFLoader(manager);
+    this.manager.setURLModifier((url) =>
+      url.startsWith('blob:') || url.startsWith('data:') || url.startsWith(DECODERS) ? url : 'data:,'
+    );
+    this.loader = new GLTFLoader(this.manager);
     this.loader.setMeshoptDecoder(MeshoptDecoder);
   }
 
@@ -116,6 +136,8 @@ export class ModelLayer {
     this.stood.clear();
     for (const loaded of this.loaded.values()) loaded?.gltf.scene.traverse(disposeMesh);
     this.loaded.clear();
+    void this.draco?.then((loader) => loader.dispose());
+    void this.ktx2?.then((loader) => loader.dispose());
   }
 
   /** Stands a model where its piece is, reading it first where it has not been read yet. */
@@ -189,22 +211,46 @@ export class ModelLayer {
   private read(url: string): void {
     if (this.loading.has(url)) return;
     this.loading.add(url);
-    this.loader.load(
-      url,
-      (gltf) => {
-        gltf.scene.traverse((object) => this.makeOver(object));
-        const box = new Box3().setFromObject(gltf.scene);
-        const size = box.getSize(new Vector3());
-        const middle = box.getCenter(new Vector3());
-        this.loaded.set(url, { gltf, size, foot: new Vector3(middle.x, box.min.y, middle.z) });
+    this.parse(url).then(
+      (loaded) => {
+        this.loaded.set(url, loaded);
         this.settle(url);
       },
-      undefined,
       () => {
         this.loaded.set(url, null);
         this.settle(url);
       }
     );
+  }
+
+  /** A model read from bytes held here, or null for one that is not to be drawn. */
+  private async parse(url: string): Promise<LoadedModel | null> {
+    if (!url.startsWith('blob:') && !url.startsWith('data:')) return null;
+    const bytes = await (await fetch(url)).arrayBuffer();
+    const facts = gltfFactsOf(bytes);
+    if (!facts || facts.triangles > MAX_MODEL_TRIANGLES) return null;
+    if (facts.extensions.includes('KHR_draco_mesh_compression')) this.loader.setDRACOLoader(await this.dracoLoader());
+    if (facts.extensions.includes('KHR_texture_basisu')) this.loader.setKTX2Loader(await this.ktx2Loader());
+    const gltf = await this.loader.parseAsync(bytes, '');
+    gltf.scene.traverse((object) => this.makeOver(object));
+    const box = new Box3().setFromObject(gltf.scene);
+    const size = box.getSize(new Vector3());
+    const middle = box.getCenter(new Vector3());
+    return { gltf, size, foot: new Vector3(middle.x, box.min.y, middle.z) };
+  }
+
+  private dracoLoader(): Promise<DRACOLoader> {
+    this.draco ??= import('three/addons/loaders/DRACOLoader.js').then(({ DRACOLoader }) =>
+      new DRACOLoader(this.manager).setDecoderPath(DRACO_DECODER)
+    );
+    return this.draco;
+  }
+
+  private ktx2Loader(): Promise<KTX2Loader> {
+    this.ktx2 ??= import('three/addons/loaders/KTX2Loader.js').then(({ KTX2Loader }) =>
+      new KTX2Loader(this.manager).setTranscoderPath(BASIS_TRANSCODER).detectSupport(this.renderer())
+    );
+    return this.ktx2;
   }
 
   private settle(url: string): void {
