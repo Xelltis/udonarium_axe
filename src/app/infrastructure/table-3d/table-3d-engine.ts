@@ -60,6 +60,7 @@ import {
   Mesh,
   MeshBasicNodeMaterial,
   MeshLambertNodeMaterial,
+  type Node,
   OrthographicCamera,
   PerspectiveCamera,
   PointLight,
@@ -250,7 +251,7 @@ class ThreeTableEngine implements Table3dEngine {
     private readonly renderer: WebGPURenderer,
     readonly backend: 'webgpu' | 'webgl2'
   ) {
-    this.post = new TablePost(renderer);
+    this.post = new TablePost(renderer, this.veil.glowNode as unknown as Node<'vec3'>);
     for (const camera of [this.perspective, this.orthographic]) camera.matrixAutoUpdate = false;
     this.scene.add(this.facesRoot);
     this.scene.add(this.sprites.group);
@@ -619,9 +620,19 @@ class ThreeTableEngine implements Table3dEngine {
     this.takeChanges();
     if (!this.changed || this.lost) return false;
     this.changed = false;
-    this.post.render(this.scene, this.camera, this.plan);
+    this.post.render(this.scene, this.camera, this.finishing());
     this.draws++;
     return true;
+  }
+
+  /**
+   * The finishing the scene is drawn through now: the glow spilled only where anything glows, the
+   * lamps of a dark table, so a table with nothing glowing on it is drawn straight onto the canvas at
+   * any quality short of the one that shades its corners.
+   */
+  private finishing(): Table3dQualityPlan {
+    const glowing = this.veil.glowRevision > 0;
+    return this.plan.bloom && !glowing ? { ...this.plan, bloom: false } : this.plan;
   }
 
   /**

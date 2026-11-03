@@ -2,7 +2,7 @@ import type { Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-q
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { ao } from 'three/addons/tsl/display/GTAONode.js';
 import { directionToColor, mrt, normalView, output, pass, vec4 } from 'three/tsl';
-import { type Camera, RenderPipeline, type Scene, type WebGPURenderer } from 'three/webgpu';
+import { type Camera, type Node, RenderPipeline, type Scene, type WebGPURenderer } from 'three/webgpu';
 
 /** How strongly the light of what glows spills round it, how far, and from how bright on. */
 const BLOOM_STRENGTH = 0.7;
@@ -15,18 +15,18 @@ const AO_SCALE = 0.5;
 
 /**
  * Draws the scene through the finishing the quality the table is drawn at asks for: the light of what
- * glows spilling round it, and at high quality the corners and creases shaded. What glows is what a
- * material says glows, on an output of its own that is nought for everything else, so a white card is
- * never haloed for being white. A quality that asks for neither draws the scene straight onto the canvas.
+ * glows spilling round it, and at high quality the corners and creases shaded. What glows is the glow
+ * given, written on an output of its own for every point of the scene, so a white card is never haloed
+ * for being white. A quality that asks for neither draws the scene straight onto the canvas.
  */
 export class TablePost {
   private pipeline: RenderPipeline | null = null;
   private laidKey = '';
 
-  constructor(private readonly renderer: WebGPURenderer) {}
-
-  /** The glow a material writes where it says nothing of its own: none. */
-  static readonly NO_GLOW = vec4(0, 0, 0, 0);
+  constructor(
+    private readonly renderer: WebGPURenderer,
+    private readonly glow: Node<'vec3'>
+  ) {}
 
   render(scene: Scene, camera: Camera, plan: Table3dQualityPlan): void {
     const key = plan.bloom || plan.ambientOcclusion ? `${camera.uuid}|${plan.bloom}|${plan.ambientOcclusion}` : '';
@@ -49,7 +49,7 @@ export class TablePost {
     scenePass.setMRT(
       mrt({
         output,
-        glow: TablePost.NO_GLOW,
+        glow: vec4(this.glow, output.a),
         ...(plan.ambientOcclusion ? { normal: directionToColor(normalView) } : {}),
       })
     );

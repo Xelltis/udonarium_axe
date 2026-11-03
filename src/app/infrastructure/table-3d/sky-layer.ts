@@ -7,14 +7,12 @@ import {
   hash,
   max,
   mix,
-  mrt,
   normalize,
   positionLocal,
   pow,
   smoothstep,
   uniform,
   vec3,
-  vec4,
 } from 'three/tsl';
 import {
   BackSide,
@@ -81,7 +79,6 @@ export class SkyLayer {
     const material = new MeshBasicNodeMaterial({ side: BackSide, depthWrite: false, depthTest: false });
     material.fog = false;
     material.colorNode = this.skyColour();
-    material.mrtNode = mrt({ glow: vec4(this.bodies(), 1) });
     this.dome = new Mesh(new SphereGeometry(SKY_RADIUS_PX, 48, 24), material);
     this.dome.renderOrder = SKY_ORDER;
     this.dome.frustumCulled = false;
@@ -164,7 +161,7 @@ export class SkyLayer {
     this.group.add(this.ground);
   }
 
-  /** The sun and the moon, which glow, where a point of the dome shows them. */
+  /** The sun and the moon, where a point of the dome shows them. */
   private bodies() {
     const way = normalize(positionLocal);
     const sunShows = smoothstep(-0.03, 0.02, this.sun.y);

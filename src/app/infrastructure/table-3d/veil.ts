@@ -5,7 +5,6 @@ import {
   length,
   max,
   mix,
-  mrt,
   output,
   positionWorld,
   sRGBTransferEOTF,
@@ -91,15 +90,20 @@ export class SceneVeil {
     return this.glow.revision;
   }
 
+  /**
+   * The glow of the lamps at a point of the scene, read straight down onto the board, which is what
+   * glows on a dark table: nothing anywhere else, nor where the table is not dark.
+   */
+  get glowNode() {
+    return this.glowing;
+  }
+
   /** How much light reaches the board where no lamp does, which the sky's light is to be scaled by. */
   get ambient(): number {
     return srgbToLinear(1 - this.darkness.value);
   }
 
-  /**
-   * Lays the veil and the darkness over a material, taken in its light or on its colour, and has it
-   * say the glow of the lamps is what glows on it, for the finishing to spill round.
-   */
+  /** Lays the veil and the darkness over a material, taken in its light or on its colour. */
   cover(material: Material, taking: DarknessTaking = 'unlit'): void {
     const node = material as NodeMaterial;
     if (taking === 'lit') {
@@ -112,7 +116,6 @@ export class SceneVeil {
         vec4(output.rgb.mul(vec3(this.lifted).add(this.lamplit)).add(this.glowing), output.a)
       );
     }
-    node.mrtNode = mrt({ glow: vec4(this.glowing, output.a) });
   }
 
   /** Lays the veil as the page has drawn it now, or takes it away; answers whether anything changed. */
