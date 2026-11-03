@@ -44,8 +44,11 @@ import { SlopeSide } from '@axe/domain/tabletop/terrain-slope';
 import { GameCharacterComponent } from '@axe/features/character/game-character/game-character.component';
 import { GameCharacterMenuService } from '@axe/features/character/game-character/game-character-menu.service';
 import { PieceFigureHeightsService } from '@axe/features/character/game-character/piece-figure-heights.service';
+import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
+
+beforeEach(() => drawTableOnPage());
 
 /** What a facing writes at the turn the table has been given, which is what the frame writes out. */
 function at(facing: BillboardFacing): string {

@@ -27,12 +27,15 @@ import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { GameTableComponent } from '@axe/features/tabletop/game-table/game-table.component';
+import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import {
   Z_OFFSET_BACKGROUND_LAYERS_PX,
   Z_OFFSET_FOREGROUND_LAYERS_PX,
   Z_OFFSET_MASK_PX,
 } from '@axe/ui/tabletop/z-offset';
+
+beforeEach(() => drawTableOnPage());
 
 describe('GameTableComponent', () => {
   let component: GameTableComponent;

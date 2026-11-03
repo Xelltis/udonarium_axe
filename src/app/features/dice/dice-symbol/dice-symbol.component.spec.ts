@@ -16,7 +16,10 @@ import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { DiceSymbolComponent } from '@axe/features/dice/dice-symbol/dice-symbol.component';
 import { beMyself } from '@axe/testing/peer-context-stub';
+import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+
+beforeEach(() => drawTableOnPage());
 
 /** What a facing writes at the turn the table has been given, which is what the frame writes out. */
 function at(facing: BillboardFacing): string {

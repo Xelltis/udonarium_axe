@@ -7,7 +7,10 @@ import { Card, CardState } from '@axe/domain/card/card';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { CardComponent } from '@axe/features/card/card/card.component';
 import { beMyself } from '@axe/testing/peer-context-stub';
+import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+
+beforeEach(() => drawTableOnPage());
 
 describe('CardComponent', () => {
   let component: CardComponent;

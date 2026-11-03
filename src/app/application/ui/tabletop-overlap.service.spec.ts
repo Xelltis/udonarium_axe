@@ -6,7 +6,10 @@ import { footprintOf, OverlapHitSource, TabletopOverlapService } from '@axe/appl
 import { PickHit } from '@axe/domain/tabletop/pick/pick-index';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+
+beforeEach(() => drawTableOnPage());
 
 function makeObject(identifier: string): TabletopObject {
   return { identifier, aliasName: 'character', name: identifier } as unknown as TabletopObject;

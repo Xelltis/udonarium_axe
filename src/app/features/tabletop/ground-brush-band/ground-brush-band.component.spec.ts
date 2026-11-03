@@ -3,8 +3,11 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { GroundBrushService } from '@axe/application/tabletop/ground-brush.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { GroundBrushBandComponent } from '@axe/features/tabletop/ground-brush-band/ground-brush-band.component';
+import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+beforeEach(() => drawTableOnPage());
 
 describe('GroundBrushBandComponent', () => {
   let brush: GroundBrushService;

@@ -91,43 +91,56 @@ test.describe('rolling chat dice in 3D', () => {
     expect(Number(tens) + Number(units) || 100).toBe(total);
   });
 
-  test('draws the dice on the picture laid over the table, with no frame in the line, when set to the table', async ({
-    page,
-  }) => {
-    await chooseStage(page, 'table');
+  // The sheet over the table these read is the page's own table's; the canvas draws its dice in its
+  // own scene, which e2e/webgl/table-dice.spec.ts reads.
+  test.describe('on the page’s own table', () => {
+    test.use({
+      storageState: {
+        cookies: [],
+        origins: [{ origin: 'http://localhost:4300', localStorage: [{ name: 'axe.table.renderer', value: 'css' }] }],
+      },
+    });
 
-    const { answer } = await roll(page, '2d6');
+    test('draws the dice on the picture laid over the table, with no frame in the line, when set to the table', async ({
+      page,
+    }) => {
+      await chooseStage(page, 'table');
 
-    const sheet = page.getByTestId('table-dice-overlay');
-    await expect
-      .poll(
-        () =>
-          sheet.evaluate((canvas: HTMLCanvasElement) => {
-            const context = canvas.getContext('2d');
-            if (!context || canvas.width < 2) return 0;
-            const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
-            let drawn = 0;
-            for (let i = 3; i < data.length; i += 4 * 7) if (data[i] > 250) drawn++;
-            return drawn;
-          }),
-        { timeout: 20000 }
-      )
-      .toBeGreaterThan(20);
-    await expect(answer.getByTestId('dice-roll-stage')).toHaveCount(0);
-  });
+      const { answer } = await roll(page, '2d6');
 
-  test('stops on the same faces in both the frame of the line and on the table when set to both', async ({ page }) => {
-    await chooseStage(page, 'both');
+      const sheet = page.getByTestId('table-dice-overlay');
+      await expect
+        .poll(
+          () =>
+            sheet.evaluate((canvas: HTMLCanvasElement) => {
+              const context = canvas.getContext('2d');
+              if (!context || canvas.width < 2) return 0;
+              const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+              let drawn = 0;
+              for (let i = 3; i < data.length; i += 4 * 7) if (data[i] > 250) drawn++;
+              return drawn;
+            }),
+          { timeout: 20000 }
+        )
+        .toBeGreaterThan(20);
+      await expect(answer.getByTestId('dice-roll-stage')).toHaveCount(0);
+    });
 
-    const { answer, total } = await roll(page, '1d20');
+    test('stops on the same faces in both the frame of the line and on the table when set to both', async ({
+      page,
+    }) => {
+      await chooseStage(page, 'both');
 
-    const stage = answer.getByTestId('dice-roll-stage');
-    await expect(stage).toHaveAttribute('data-state', 'settled', { timeout: 20000 });
-    await expect(stage).toHaveAttribute('data-shown', String(total));
-    const sheet = page.getByTestId('table-dice-overlay');
-    await expect
-      .poll(() => sheet.evaluate((canvas: HTMLCanvasElement) => canvas.width), { timeout: 20000 })
-      .toBeGreaterThan(1);
+      const { answer, total } = await roll(page, '1d20');
+
+      const stage = answer.getByTestId('dice-roll-stage');
+      await expect(stage).toHaveAttribute('data-state', 'settled', { timeout: 20000 });
+      await expect(stage).toHaveAttribute('data-shown', String(total));
+      const sheet = page.getByTestId('table-dice-overlay');
+      await expect
+        .poll(() => sheet.evaluate((canvas: HTMLCanvasElement) => canvas.width), { timeout: 20000 })
+        .toBeGreaterThan(1);
+    });
   });
 
   test('rolls more than 50 dice split evenly over frames of 50 or fewer, with the faces adding up to the result', async ({

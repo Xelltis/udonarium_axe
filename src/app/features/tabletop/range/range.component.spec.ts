@@ -13,8 +13,11 @@ import { GameTable } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { RangeComponent } from '@axe/features/tabletop/range/range.component';
+import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
+
+beforeEach(() => drawTableOnPage());
 
 describe('RangeComponent', () => {
   let component: RangeComponent;

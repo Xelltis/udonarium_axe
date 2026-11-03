@@ -4,17 +4,23 @@ import { defineConfig, devices } from '@playwright/test';
 
 const isCI = !!process.env['CI'];
 
-/** A browser that has asked for the table to be drawn on a canvas through three.js, as a seat does in its settings. */
+/** A browser that has asked for the table to be drawn on a canvas through three.js, as a seat does by default. */
 const drawsOnCanvas = {
   cookies: [],
   origins: [{ origin: 'http://localhost:4300', localStorage: [{ name: 'axe.table.renderer', value: 'three' }] }],
 };
 
+/** A browser that has asked for the table to be drawn by the page itself, as a seat may until the page's table goes. */
+const drawsOnPage = {
+  cookies: [],
+  origins: [{ origin: 'http://localhost:4300', localStorage: [{ name: 'axe.table.renderer', value: 'css' }] }],
+};
+
 /**
- * The specs about the table itself: what is drawn on it, where, and what a press on it does. A table
- * drawn on a canvas is put through these alone; the rest (the chat, the panels, the novel screen and
- * so on) do the same whichever way the table is drawn, and are run once, on the page's own table. A
- * new spec about the table goes on this list.
+ * The specs about the table itself: what is drawn on it, where, and what a press on it does. The
+ * page's own table is put through these alone, besides the canvas every spec runs on; the rest (the
+ * chat, the panels, the novel screen and so on) do the same whichever way the table is drawn. A new
+ * spec about the table goes on this list.
  */
 const ON_THE_TABLE = [
   /e2e\/webgl\/.*\.spec\.ts$/,
@@ -80,6 +86,29 @@ const CANVAS_LAUNCH = existsSync('/usr/share/vulkan/icd.d/lvp_icd.json')
   : {};
 
 /**
+ * How a browser that draws the table through WebGPU is launched: headless Chromium gives SwiftShader's
+ * stand-in adapter with these flags, and Vulkan is what puts a WebGPU canvas on the screen at all.
+ */
+const WEBGPU_LAUNCH = {
+  args: [
+    '--enable-unsafe-webgpu',
+    '--enable-features=Vulkan',
+    '--use-vulkan=swiftshader',
+    '--use-angle=swiftshader',
+    '--enable-unsafe-swiftshader',
+  ],
+};
+
+/** The screen the pictures to compare with are taken on. */
+const VISUAL_USE = {
+  ...devices['Desktop Chrome'],
+  viewport: { width: 1280, height: 800 },
+  deviceScaleFactor: 1,
+  colorScheme: 'light' as const,
+  reducedMotion: 'no-preference' as const,
+};
+
+/**
  * The specs that read how the page itself draws the table, which a canvas draws instead, and so
  * have nothing to read there: what the page's blocks are picked by, how it gathers them, and how it
  * shades them in the dark, which a canvas does with its own lights.
@@ -113,71 +142,45 @@ export default defineConfig({
     toHaveScreenshot: { animations: 'allow', caret: 'hide', scale: 'css' },
   },
   projects: [
+    // Every spec, with the table drawn on a canvas as a seat draws it by default. Headless Chromium
+    // gives no WebGPU adapter without flags, so this goes through WebGL2, drawn in software: a spec
+    // that drags a piece about many times takes some three times as long as on the page's own table,
+    // so each is given twice the time, and fewer run at once.
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-      testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/, /server\/.*\.spec\.ts/, /webgl\/.*\.spec\.ts/],
-    },
-    // The same browser with the table drawn on a canvas, put through the specs about the table. Headless
-    // Chromium gives no WebGPU adapter without flags, so this goes through WebGL2, drawn in software: a
-    // spec that drags a piece about many times takes some three times as long as on the page, so it is
-    // given twice the time.
-    {
-      name: 'chromium-webgl',
-      use: { ...devices['Desktop Chrome'], storageState: drawsOnCanvas, launchOptions: CANVAS_LAUNCH },
-      testMatch: ON_THE_TABLE,
+      use: { ...devices['Desktop Chrome'], launchOptions: CANVAS_LAUNCH },
       testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/, /server\/.*\.spec\.ts/, ...PAGE_DRAWING_ONLY],
       timeout: 60000,
       workers: 4,
     },
-    // The table drawn through WebGPU: headless Chromium gives SwiftShader's stand-in adapter with
-    // these flags, and Vulkan is what puts a WebGPU canvas on the screen at all. SwiftShader draws
-    // WebGPU slower still than WebGL2, so the specs that drag a piece about many times are given the
-    // same time as on WebGL2, and fewer run at once.
+    // The page's own table, put through the specs about the table, until it goes.
+    {
+      name: 'chromium-css',
+      use: { ...devices['Desktop Chrome'], storageState: drawsOnPage },
+      testMatch: [...ON_THE_TABLE, ...PAGE_DRAWING_ONLY],
+      testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/, /server\/.*\.spec\.ts/, /webgl\/.*\.spec\.ts/],
+    },
+    // The table drawn through WebGPU: SwiftShader draws WebGPU slower still than WebGL2, so the specs
+    // that drag a piece about many times are given the same time as on WebGL2, and fewer run at once.
     {
       name: 'chromium-webgpu',
-      use: {
-        ...devices['Desktop Chrome'],
-        storageState: drawsOnCanvas,
-        launchOptions: {
-          args: [
-            '--enable-unsafe-webgpu',
-            '--enable-features=Vulkan',
-            '--use-vulkan=swiftshader',
-            '--use-angle=swiftshader',
-            '--enable-unsafe-swiftshader',
-          ],
-        },
-      },
+      use: { ...devices['Desktop Chrome'], storageState: drawsOnCanvas, launchOptions: WEBGPU_LAUNCH },
       testMatch: [/webgl\/.*\.spec\.ts/],
       timeout: 60000,
       workers: 3,
     },
-    {
-      name: 'mobile-webgl',
-      use: {
-        ...devices['Pixel 7'],
-        reducedMotion: 'reduce',
-        storageState: drawsOnCanvas,
-        launchOptions: CANVAS_LAUNCH,
-      },
-      // A phone has no game master's toolbar, which the specs that build on the table go through.
-      testMatch: [/webgl\/table-scene\.spec\.ts/],
-    },
+    // A phone, with the table on a canvas. Of the specs about the canvas, only the one that does not
+    // build on the table runs here, since a phone has no game master's toolbar to build with.
     {
       name: 'mobile',
-      use: { ...devices['Pixel 7'], reducedMotion: 'reduce' },
-      testMatch: /mobile\/.*\.spec\.ts/,
+      use: { ...devices['Pixel 7'], reducedMotion: 'reduce', launchOptions: CANVAS_LAUNCH },
+      testMatch: [/mobile\/.*\.spec\.ts/, /webgl\/table-scene\.spec\.ts/],
+      timeout: 60000,
     },
+    // The pictures to compare with, of the page's own table until those of the canvas are agreed.
     {
       name: 'visual',
-      use: {
-        ...devices['Desktop Chrome'],
-        viewport: { width: 1280, height: 800 },
-        deviceScaleFactor: 1,
-        colorScheme: 'light',
-        reducedMotion: 'no-preference',
-      },
+      use: { ...VISUAL_USE, storageState: drawsOnPage },
       testMatch: /visual\/.*\.spec\.ts/,
       retries: 0,
     },

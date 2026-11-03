@@ -15,8 +15,11 @@ import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { AnimatedImageService } from '@axe/features/tabletop/white-board/animated-image.service';
 import { WhiteBoardComponent } from '@axe/features/tabletop/white-board/white-board.component';
 import { createBoardScene } from '@axe/features/tabletop/white-board/white-board-scene';
+import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
+
+beforeEach(() => drawTableOnPage());
 
 describe('WhiteBoardComponent', () => {
   let fixture: ComponentFixture<WhiteBoardComponent>;

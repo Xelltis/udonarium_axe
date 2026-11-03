@@ -246,15 +246,15 @@ describe('Table3dService', () => {
     localStorage.removeItem(STORAGE_KEYS.tableQuality);
   });
 
-  it('draws with the page until a seat asks for a canvas, and remembers the choice', () => {
+  it('draws on a canvas until a seat asks for the page, and remembers the choice', () => {
     const scene = service();
-    expect(scene.renderer()).toBe('css');
-    expect(scene.drawsOnCanvas()).toBe(false);
-
-    scene.choose('three');
-
+    expect(scene.renderer()).toBe('three');
     expect(scene.drawsOnCanvas()).toBe(true);
-    expect(localStorage.getItem(STORAGE_KEYS.tableRenderer)).toBe('three');
+
+    scene.choose('css');
+
+    expect(scene.drawsOnCanvas()).toBe(false);
+    expect(localStorage.getItem(STORAGE_KEYS.tableRenderer)).toBe('css');
   });
 
   it('takes up the choice this browser remembers, and leaves one it does not know', () => {
@@ -263,7 +263,7 @@ describe('Table3dService', () => {
 
     TestBed.resetTestingModule();
     localStorage.setItem(STORAGE_KEYS.tableRenderer, 'something else');
-    expect(service().renderer()).toBe('css');
+    expect(service().renderer()).toBe('three');
   });
 
   it('draws the scene and the camera on the frame after it is given a canvas, and once only', async () => {
@@ -440,6 +440,7 @@ describe('Table3dService', () => {
   });
 
   it('loads the engine while the page is idle for a seat that draws on a canvas, and not for one that does not', async () => {
+    localStorage.setItem(STORAGE_KEYS.tableRenderer, 'css');
     service();
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(loaded.count).toBe(0);

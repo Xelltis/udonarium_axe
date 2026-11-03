@@ -6,7 +6,10 @@ import { localDispatch } from '@axe/core/network/network-messaging';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { Coin } from '@axe/domain/coin/coin';
 import { CoinComponent } from '@axe/features/coin/coin/coin.component';
+import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+
+beforeEach(() => drawTableOnPage());
 
 describe('CoinComponent', () => {
   let component: CoinComponent;

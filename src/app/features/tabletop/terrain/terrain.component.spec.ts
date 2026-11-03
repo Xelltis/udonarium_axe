@@ -25,8 +25,11 @@ import { SwitchPressService } from '@axe/features/tabletop/board-switch/switch-p
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
 import { TerrainComponent } from '@axe/features/tabletop/terrain/terrain.component';
 import { TerrainMenuService } from '@axe/features/tabletop/terrain/terrain-menu.service';
+import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
+
+beforeEach(() => drawTableOnPage());
 
 /** happy-dom hands back no drawing context, and the grid render writes to one. */
 function stubCanvasContext(): void {

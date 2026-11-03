@@ -29,9 +29,12 @@ import { Terrain } from '@axe/domain/tabletop/terrain';
 import { FirstPersonLookService, LOOK_RETURN_MS } from '@axe/features/first-person/first-person-look.service';
 import { scaleOf } from '@axe/features/first-person/first-person-style';
 import { FirstPersonViewComponent } from '@axe/features/first-person/first-person-view/first-person-view.component';
+import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MAX_MULTI_ANGLE_RESOURCE_GAUGES } from '@axe/ui/tabletop/multi-angle-orbit-decoration';
 import { vi } from 'vitest';
+
+beforeEach(() => drawTableOnPage());
 
 const GRID = 50;
 

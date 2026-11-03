@@ -602,7 +602,10 @@ export class Table3dService {
 /** How near the camera that follows a piece about still draws, in table pixels: a few cells off it, a wall may stand close. */
 const FOLLOWING_NEAR_PX = 4;
 
-/** The renderer asked for in the address (`?renderer=`), which is then remembered, or the one remembered. */
+/**
+ * The renderer asked for in the address (`?renderer=`), which is then remembered, or the one
+ * remembered, or else the canvas.
+ */
 function chosenRenderer(): TableRenderer {
   const asked = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('renderer');
   if (isRenderer(asked)) {
@@ -610,7 +613,7 @@ function chosenRenderer(): TableRenderer {
     return asked;
   }
   const kept = readLocal(STORAGE_KEYS.tableRenderer);
-  return isRenderer(kept) ? kept : 'css';
+  return isRenderer(kept) ? kept : 'three';
 }
 
 function isRenderer(value: string | null): value is TableRenderer {

@@ -9,8 +9,11 @@ import type { OverlayVision, SceneViewer, VisionScene } from '@axe/domain/tablet
 import { TableVisionOverlayComponent } from '@axe/features/tabletop/table-vision-overlay/table-vision-overlay.component';
 import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
 import { contextThatTakesAnything } from '@axe/testing/fake-canvas-context';
+import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+beforeEach(() => drawTableOnPage());
 
 function hexScene(partial: Partial<VisionScene> = {}): VisionScene {
   return {

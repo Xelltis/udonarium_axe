@@ -19,7 +19,10 @@ import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { DiceMaterial, PLAIN_DICE_LOOK } from '@axe/domain/dice/dice-3d/dice-look';
 import { Config } from '@axe/domain/peer/config';
 import type { PreparedThrow } from '@axe/infrastructure/dice-3d/dice-3d-engine';
+import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+
+beforeEach(() => drawTableOnPage());
 
 const ROLL_SECONDS = 1;
 const FRAMES_PER_SECOND = 60;

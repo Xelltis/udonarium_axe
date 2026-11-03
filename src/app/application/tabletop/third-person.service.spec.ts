@@ -79,6 +79,7 @@ describe('ThirdPersonService', () => {
   }
 
   it('follows a piece only on a table drawn on a canvas, remembers it for this browser, and lets it go', () => {
+    TestBed.inject(Table3dService).choose('css');
     const piece = pieceAt(5, 5);
     const service = TestBed.inject(ThirdPersonService);
     service.follow(piece.identifier);
