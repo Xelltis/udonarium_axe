@@ -53,6 +53,7 @@ export interface TableTestHooks {
     coins: number;
     veilRevision: number;
     lightMapRevision: number;
+    shadowCasters: number;
   } | null;
   /** How wide and deep the board of the scene runs, in table pixels, or null where there is no board. */
   sceneBoard(): { widthPx: number; depthPx: number } | null;

@@ -139,6 +139,7 @@ class FakeEngine implements Table3dEngine {
       lightMapRevision: 0,
       shadowLights: 0,
       glowRevision: 0,
+      shadowCasters: 0,
     };
   }
 }

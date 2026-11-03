@@ -97,6 +97,8 @@ export interface Table3dStats {
   readonly shadowLights: number;
   /** How many times the glow of the lamps has been laid anew, 0 while there is none. */
   readonly glowRevision: number;
+  /** How many standing pictures throw a shadow with boards of their own. */
+  readonly shadowCasters: number;
 }
 
 /** What draws the table on a canvas. It draws only when something it was told has changed. */

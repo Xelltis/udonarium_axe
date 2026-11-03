@@ -33,6 +33,15 @@ const PULLED_FORWARD = { polygonOffset: true, polygonOffsetFactor: -1, polygonOf
  */
 const FIRST_LYING = 10;
 
+/**
+ * The layer the boards a standing picture throws its shadow with are kept on, which the shadows are
+ * drawn from and the camera never looks at.
+ */
+export const SHADOW_CASTERS_LAYER = 1;
+
+/** How far into its picture a board throwing a shadow lets light through, as a share of its opacity. */
+const CASTER_ALPHA_TEST = 0.5;
+
 /** A direction of the board's space as the scene's, whose axes run east, up and south. */
 function sceneDirection(v: { x: number; y: number; z: number }): Vector3 {
   return new Vector3(v.x, v.z, v.y);
@@ -51,6 +60,11 @@ function turnAlong(across: { x: number; y: number; z: number }, down: { x: numbe
 }
 
 /** An eye for working out the way a sprite lies that does not turn to the eye, which never reads it. */
+/** Whether a sprite stands up off what it stands on, turned to the eye or held upright, rather than lying on it. */
+function standsUp(sprite: TableWorldSprite): boolean {
+  return sprite.facing === 'eye' || Math.abs(sprite.facing.down.z) > 0.5;
+}
+
 const UNUSED_EYE: EyeAxes = { right: { x: 1, y: 0, z: 0 }, up: { x: 0, y: 0, z: 1 } };
 
 /** Turns a sprite that faces the eye to an eye looking along these axes, and on by its own turn. */
@@ -75,6 +89,9 @@ export class SpriteLayer {
   private readonly drawn = new Map<string, Drawn>();
   private readonly materials = new Map<string, MeshBasicNodeMaterial>();
   private readonly frames = new Map<string, CanvasTexture>();
+  /** The boards a standing picture throws its shadow with, crossed, so the shadow stays put as the camera turns. */
+  private readonly casters = new Map<string, { readonly group: Group; readonly look: string }>();
+  private readonly casterMaterials = new Map<string, MeshBasicNodeMaterial>();
   private facingEye: readonly { readonly mesh: Mesh; readonly sprite: TableWorldSprite }[] = [];
   private eye: EyeAxes | null = null;
 
@@ -82,6 +99,11 @@ export class SpriteLayer {
     private readonly pictureOf: (url: string) => Texture,
     private readonly dress: (material: MeshBasicNodeMaterial) => void = () => undefined
   ) {}
+
+  /** How many standing pictures throw a shadow with boards of their own. */
+  get casterCount(): number {
+    return this.casters.size;
+  }
 
   /** Lays out the sprites the scene holds now, making only the ones not drawn before. */
   set(sprites: readonly TableWorldSprite[]): void {
@@ -117,6 +139,7 @@ export class SpriteLayer {
       this.group.remove(drawn.mesh);
       this.drawn.delete(id);
     }
+    this.layCasters(sprites);
     this.facingEye = facingEye;
     this.stackLying(sprites);
     this.forgetUnused();
@@ -143,8 +166,69 @@ export class SpriteLayer {
     for (const { mesh, sprite } of this.facingEye) turnToEye(mesh, sprite, axes);
   }
 
+  /**
+   * Stands two boards crossed where each standing picture stands, wearing it, for the shadow it throws:
+   * a picture turned to the eye would throw a shadow that turned with the camera, and its shadows would
+   * have to be drawn again every time the camera moved.
+   */
+  private layCasters(sprites: readonly TableWorldSprite[]): void {
+    const wanted = new Set<string>();
+    for (const sprite of sprites) {
+      if (!standsUp(sprite) || sprite.look.kind !== 'picture') continue;
+      wanted.add(sprite.id);
+      const look = sprite.look.url;
+      let caster = this.casters.get(sprite.id);
+      if (caster && caster.look !== look) {
+        this.group.remove(caster.group);
+        caster = undefined;
+      }
+      if (!caster) {
+        const material = this.casterMaterial(look);
+        const group = new Group();
+        for (const turn of [0, Math.PI / 2]) {
+          const board = new Mesh(this.square, material);
+          board.rotation.y = turn;
+          board.castShadow = true;
+          board.layers.set(SHADOW_CASTERS_LAYER);
+          group.add(board);
+        }
+        caster = { group, look };
+        this.casters.set(sprite.id, caster);
+        this.group.add(group);
+      }
+      caster.group.position.copy(sceneDirection(sprite.centre));
+      caster.group.scale.set(sprite.widthPx, sprite.heightPx, sprite.widthPx);
+    }
+    for (const [id, caster] of this.casters) {
+      if (wanted.has(id)) continue;
+      this.group.remove(caster.group);
+      this.casters.delete(id);
+    }
+    for (const [url, material] of this.casterMaterials) {
+      if ([...this.casters.values()].some((caster) => caster.look === url)) continue;
+      material.dispose();
+      this.casterMaterials.delete(url);
+    }
+  }
+
+  private casterMaterial(url: string): MeshBasicNodeMaterial {
+    let material = this.casterMaterials.get(url);
+    if (!material) {
+      material = new MeshBasicNodeMaterial({
+        map: this.pictureOf(url),
+        alphaTest: CASTER_ALPHA_TEST,
+        side: DoubleSide,
+      });
+      this.casterMaterials.set(url, material);
+    }
+    return material;
+  }
+
   dispose(): void {
     this.square.dispose();
+    for (const material of this.casterMaterials.values()) material.dispose();
+    this.casterMaterials.clear();
+    this.casters.clear();
     for (const material of this.materials.values()) material.dispose();
     for (const frame of this.frames.values()) frame.dispose();
     this.materials.clear();

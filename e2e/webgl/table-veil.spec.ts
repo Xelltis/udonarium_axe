@@ -15,7 +15,7 @@ type Hooks = {
   whenIdle(): Promise<void>;
   project(x: number, y: number, z: number): Point | null;
   pickAt(pageX: number, pageY: number): string | null;
-  sceneStats(): { veilRevision: number } | null;
+  sceneStats(): { veilRevision: number; shadowCasters: number } | null;
 };
 
 async function idle(page: Page) {
@@ -106,5 +106,15 @@ test.describe('the darkness over a table drawn on a canvas', () => {
         return again.filter((value, index) => Math.abs(value - lit[index]) <= 9).length;
       })
       .toBe(points.length);
+  });
+
+  test('stands boards for the shadows the pieces standing on the board throw', async ({ page }) => {
+    const pieces = await page.locator('game-character').count();
+    expect(pieces).toBeGreaterThan(0);
+    await expect
+      .poll(() =>
+        page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.sceneStats()?.shadowCasters)
+      )
+      .toBe(pieces);
   });
 });

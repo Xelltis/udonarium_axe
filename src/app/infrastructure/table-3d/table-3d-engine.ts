@@ -23,7 +23,7 @@ import {
   wallGeometry,
 } from '@axe/infrastructure/table-3d/face-geometry';
 import { FloorCanvasLayer } from '@axe/infrastructure/table-3d/floor-canvas-layer';
-import { SpriteLayer } from '@axe/infrastructure/table-3d/sprite-layer';
+import { SHADOW_CASTERS_LAYER, SpriteLayer } from '@axe/infrastructure/table-3d/sprite-layer';
 import type {
   Table3dCamera,
   Table3dEngine,
@@ -190,6 +190,7 @@ class ThreeTableEngine implements Table3dEngine {
   );
   private laidLamps: readonly Table3dShadowLight[] = [];
   private flickeredAt = 0;
+  private laidSprites: TableWorld['sprites'] = [];
   private readonly sun = new DirectionalLight(0xffffff, 0);
   private readonly sky = new HemisphereLight(0xffffff, 0xffffff, LIGHT_SCALE);
   private lastSkyLight = '';
@@ -224,11 +225,13 @@ class ThreeTableEngine implements Table3dEngine {
     this.sun.shadow.mapSize.set(SKY_SHADOW_PX, SKY_SHADOW_PX);
     this.sun.shadow.bias = -0.0005;
     this.sun.shadow.normalBias = 1;
+    this.sun.shadow.camera.layers.enable(SHADOW_CASTERS_LAYER);
     for (const lamp of [...this.lamps, ...this.spots]) {
       lamp.castShadow = true;
       lamp.shadow.autoUpdate = false;
       lamp.shadow.mapSize.set(LAMP_SHADOW_PX, LAMP_SHADOW_PX);
       lamp.shadow.bias = -0.002;
+      lamp.shadow.camera.layers.enable(SHADOW_CASTERS_LAYER);
       lamp.visible = false;
       this.scene.add(lamp);
     }
@@ -369,6 +372,7 @@ class ThreeTableEngine implements Table3dEngine {
       lightMapRevision: this.veil.lightRevision,
       shadowLights: this.laidLamps.length,
       glowRevision: this.veil.glowRevision,
+      shadowCasters: this.sprites.casterCount,
     };
   }
 
@@ -388,6 +392,10 @@ class ThreeTableEngine implements Table3dEngine {
     }
     this.sprites.set(world.sprites);
     this.coins.set(world.coins);
+    if (world.sprites !== this.laidSprites) {
+      this.laidSprites = world.sprites;
+      this.shadowsMoved();
+    }
     this.forgetPictures(world);
     this.changed = true;
   }
@@ -716,9 +724,11 @@ class ThreeTableEngine implements Table3dEngine {
   /** A picture to draw, which asks for a frame once it has come. */
   private picture(url: string): Texture {
     this.loading++;
+    // A picture a board throws its shadow with is cut out by it, so its shadow waits for it.
     const settle = () => {
       this.loading--;
       this.changed = true;
+      this.shadowsMoved();
       this.needsFrame();
     };
     const picture = this.pictures.load(url, settle, undefined, settle);
