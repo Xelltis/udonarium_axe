@@ -1,3 +1,34 @@
+## [1.76.0](https://github.com/Xelltis/udonarium_axe/compare/v1.75.3...v1.76.0) (2026-11-03)
+
+### ✨ Features
+
+* **buff:** let a status marked with a colon stay moved once the buff goes ([94bb680](https://github.com/Xelltis/udonarium_axe/commit/94bb68084a915774d3de552ddcd761251593e5b8))
+* **chat:** fill {目標値} with the roll made against the speaker, and aim a roll with a t: of its own ([c18c6e2](https://github.com/Xelltis/udonarium_axe/commit/c18c6e2407a8c4eb594cc0cc8f17e78d43db2ba8))
+* **chat:** give the stream chat widget the chat's own input and lines, opened from the title bar ([feb6dfe](https://github.com/Xelltis/udonarium_axe/commit/feb6dfe5f34d43338a3d6e3b1dc693db50df2c47))
+* **chat:** lay the narrow chat input out by what each part is for, its bar on one row ([94d99fd](https://github.com/Xelltis/udonarium_axe/commit/94d99fd01a3ad46a0ca0f7f2c4f03f6eae65d67e))
+* **chat:** make the stream window the stream chat widget, its tabs and a small input always out ([32881e1](https://github.com/Xelltis/udonarium_axe/commit/32881e10568714dc5d15a864a8d1c7058bedff15))
+* **chat:** open a tab's stream from the chat window, and speak in it from a tab strip and input ([b1bf3ad](https://github.com/Xelltis/udonarium_axe/commit/b1bf3adf9a83915cde14bbb0960a87999643697c))
+
+### 🐛 Bug Fixes
+
+* **buff:** give back exactly what a lasting buff's last count moved as it is put back ([b38f9bc](https://github.com/Xelltis/udonarium_axe/commit/b38f9bc5996dc21f86ce4e449d0dc9f16e0ce13f))
+* **chat:** fill {目標値} however a line is said, and leave no t: behind a stamp ([816ac6b](https://github.com/Xelltis/udonarium_axe/commit/816ac6bf765f7326edd92d5657c11c2fc22fdb8e))
+* **chat:** find the stream chat widget by the tab it shows, and raise what it opens over novel mode ([03ef669](https://github.com/Xelltis/udonarium_axe/commit/03ef66978f294906ac6800c0ca6936d92fb8df3c))
+* **hotbar:** move a slot's speaker to its top corner so it stops covering the label ([202d8ff](https://github.com/Xelltis/udonarium_axe/commit/202d8ff89a38d56833506d63b1d048753208b92d))
+* **hotbar:** name in full who a slot acts as when the pointer rests on it ([ea6bfea](https://github.com/Xelltis/udonarium_axe/commit/ea6bfeaa884c525fa9770a02df2b30b2e768996e))
+
+### 📝 Documentation
+
+* **manual:** call the stream window the stream chat widget, with its tab strip and input ([74d2838](https://github.com/Xelltis/udonarium_axe/commit/74d28383d721adaff78c4b338cbd7507ffdb020b))
+* **manual:** say {目標値} tells pieces apart by name, so copies want names of their own ([c6c3987](https://github.com/Xelltis/udonarium_axe/commit/c6c3987a89c54d366c5b93f565cfe07f9881c7bc))
+* **manual:** say how {目標値} takes the roll made against the speaker, and how t: alone aims a roll ([fb49237](https://github.com/Xelltis/udonarium_axe/commit/fb49237eae36a920a91381c06a97e8b29f15d6d2))
+* **manual:** say how a colon before a buff's status leaves it moved, as poison does ([7d58ba1](https://github.com/Xelltis/udonarium_axe/commit/7d58ba13980ca70c99fb0fbba01aa65c38ecd07c))
+* **manual:** say how the stream window opens from the chat window and speaks from its own input ([f8fb455](https://github.com/Xelltis/udonarium_axe/commit/f8fb455feaf75ffdd5f5daee5bf8248791e3d5c4))
+* **manual:** say the stream chat widget does all the chat window does, opened from its title bar ([8e3c4b2](https://github.com/Xelltis/udonarium_axe/commit/8e3c4b2f21062e5a5447625dedcf7bf9143c0d98))
+* **manual:** say where the stream chat widget puts the portraits, stamp and colour ([6b44072](https://github.com/Xelltis/udonarium_axe/commit/6b44072803ef7c4c029dc54b7030b68937adaa1d))
+* **release:** add the notes for v1.76.0 ([91c301c](https://github.com/Xelltis/udonarium_axe/commit/91c301c0ab15943505ec4aabaeff0c19ebb7be37))
+* **release:** date the notes for v1.76.0 to the day it goes out ([b7973d6](https://github.com/Xelltis/udonarium_axe/commit/b7973d6190caa89825fabe368b18ca92ed793349))
+
 ## [1.75.3](https://github.com/Xelltis/udonarium_axe/compare/v1.75.2...v1.75.3) (2026-11-02)
 
 ### 🐛 Bug Fixes
