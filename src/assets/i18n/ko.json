@@ -3847,15 +3847,12 @@
         "serverRoll": "방 서버가 굴린 주사위입니다. 굴린 사람은 눈을 바꿀 수 없습니다."
       },
       "stream": {
-        "button": "스트림",
         "title": "스트림 채팅",
         "open": "\"{{name}}\"을(를) 스트림 채팅 위젯으로 열기",
+        "openWidget": "스트림 채팅 위젯으로 열기",
         "close": "스트림 채팅 위젯 닫기",
         "gone": "이 탭은 사라졌습니다",
-        "followLatest": "최신에 따라가기",
-        "speaker": "발언자",
-        "text": "발언",
-        "placeholder": "Enter: 전송  Shift+Enter: 줄바꿈"
+        "followLatest": "최신에 따라가기"
       },
       "palette": {
         "panelTitle": "채팅 팔레트",

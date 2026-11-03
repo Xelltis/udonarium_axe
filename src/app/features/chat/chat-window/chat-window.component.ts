@@ -66,6 +66,9 @@ const AT_BOTTOM_THRESHOLD_PX = 8;
 import { ScenarioTextService } from '@axe/application/chat/scenario-text.service';
 import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import { ScenarioText, scenarioTextsMatching } from '@axe/domain/scenario-text/scenario-text';
+/** The icon of the title bar's button that opens the stream chat widget, as novel mode's does. */
+const STREAM_CONTROL_ICON = 'forum';
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'chat-window',
@@ -267,15 +270,9 @@ export class ChatWindowComponent {
   }
 
   /** Opens the list of marks from its button, in place of the search, or closes it when it is open. */
-  /** Whether the window that shows this tab's lines going past is open. */
-  readonly streamOpen = computed(() => {
-    const tab = this.chatTab();
-    return tab ? this.chatStreamPanel.isOpen(tab) : false;
-  });
-
   /**
-   * Opens the window that shows this tab's lines going past, at the top right of the screen where it
-   * covers no chat window, or puts it away; the tab's menu does the same.
+   * Opens the stream chat widget on this tab, at the top right of the screen where it covers no
+   * chat window, or puts it away; the tab's menu does the same.
    */
   toggleStream(): void {
     const tab = this.chatTab();
@@ -428,6 +425,23 @@ export class ChatWindowComponent {
     // Opening a window is nobody's choice of speaker: a second one would otherwise put back
     // the reader's own name over the character the first one is speaking as.
     this._sendFrom.set(PeerCursor.myCursor.identifier);
+    // The stream chat widget shows the chat another way, as opening it in a window of its own does,
+    // so its button stands after that one in the title bar. The panel's own buttons are given to it
+    // once it is built, so it goes on after that.
+    afterNextRender(() => {
+      this.panelService.panelControls.update((controls) =>
+        controls.some((control) => control.icon === STREAM_CONTROL_ICON)
+          ? controls
+          : [
+              ...controls,
+              {
+                icon: STREAM_CONTROL_ICON,
+                label: this.t('feature.chat.stream.openWidget'),
+                press: () => this.toggleStream(),
+              },
+            ]
+      );
+    });
     this.chatTabidentifier =
       0 < this.chatMessageService.chatTabs.length ? this.chatMessageService.chatTabs[0].identifier : '';
     this.objectChange.messageAdded$.subscribe((event) => {

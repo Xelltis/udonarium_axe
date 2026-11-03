@@ -1,6 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-import { chatInput, chatTabPill, expectChatText, openChatSettingsMenuItem, waitAppReady } from './helpers';
+import {
+  chatInput,
+  chatInputText,
+  chatTabPill,
+  expectChatText,
+  openChatSettingsMenuItem,
+  waitAppReady,
+} from './helpers';
 
 test.describe('the chat window', () => {
   test.beforeEach(async ({ page }) => {
@@ -20,7 +27,7 @@ test.describe('the chat window', () => {
     await expect(subTabRadio).toBeChecked();
   });
 
-  test('opens a separate window of the lines alone from a right click on a tab', async ({ page }) => {
+  test('opens the stream chat widget from a right click on a tab', async ({ page }) => {
     const input = chatInput(page).first();
     await input.fill('流れを見たい発言');
     await input.press('Enter');
@@ -32,27 +39,52 @@ test.describe('the chat window', () => {
     const stream = page.locator('chat-stream');
     await expect(stream).toBeVisible();
     await expect(stream).toContainText('流れを見たい発言');
-    // The window is for reading, so the buttons for acting on a line do not show.
-    await expect(stream.locator('chat-message .material-icons')).toHaveCount(0);
   });
 
-  test('opens the stream chat widget from its button, and speaks into another tab from it', async ({ page }) => {
-    await page.locator('chat-window [data-testid="chat-stream-toggle"]').click();
+  test('opens the stream chat widget from the title bar, and speaks into another tab from it, decorated', async ({
+    page,
+  }) => {
+    await page
+      .locator('ui-panel', { has: page.locator('chat-window') })
+      .getByTestId('panel-control-forum')
+      .click();
     const stream = page.locator('chat-stream');
     await expect(stream).toBeVisible();
 
     await stream.locator('.chat-tab-pill', { hasText: 'サブタブ' }).click();
-    const input = stream.getByTestId('chat-stream-text');
-    await input.fill('ウィジェットから話す');
-    await input.press('Enter');
+    const input = chatInput(stream);
+    await input.click();
+    await page.keyboard.type('ウィジェットから**話す**');
+    await page.keyboard.press('Enter');
 
-    await expect(stream.locator('chat-message').last()).toContainText('ウィジェットから話す', { timeout: 15000 });
-    await expect(input).toHaveValue('');
+    const line = stream.locator('chat-message').last();
+    await expect(line).toContainText('ウィジェットから話す', { timeout: 15000 });
+    await expect(line.locator('.chat-deco-bold')).toHaveText('話す');
+    await expect.poll(() => chatInputText(input)).toBe('');
     await chatTabPill(page, 'サブタブ').click();
     await expect(page.locator('chat-window chat-message').last()).toContainText('ウィジェットから話す');
   });
 
-  test('closes the separate window from the same right click', async ({ page }) => {
+  test('keeps the tab strip and the input of the stream chat widget to speak in while it is transparent', async ({
+    page,
+  }) => {
+    await page
+      .locator('ui-panel', { has: page.locator('chat-window') })
+      .getByTestId('panel-control-forum')
+      .click();
+    const stream = page.locator('chat-stream');
+    await page.locator('ui-panel', { has: stream }).locator('button[title="透明モード"]').click();
+
+    await expect(stream.getByTestId('chat-stream-tabs')).toBeVisible();
+    const input = chatInput(stream);
+    await input.click();
+    await page.keyboard.type('透けたまま話す');
+    await page.keyboard.press('Enter');
+
+    await expect(stream.locator('chat-message').last()).toContainText('透けたまま話す', { timeout: 15000 });
+  });
+
+  test('closes the stream chat widget from the same right click', async ({ page }) => {
     await chatTabPill(page, 'サブタブ').click({ button: 'right' });
     await page.locator('context-menu').getByText('「サブタブ」をストリームチャットウィジェットで開く').click();
     await expect(page.locator('chat-stream')).toBeVisible();

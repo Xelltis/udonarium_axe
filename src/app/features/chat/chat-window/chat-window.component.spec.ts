@@ -805,16 +805,19 @@ describe('ChatWindowComponent', () => {
     });
   });
 
-  describe('the window that shows the tab going past', () => {
-    it('opens from its button for the tab shown', () => {
+  describe('the stream chat widget', () => {
+    it('opens on the tab shown from a button after the ones the title bar is given', async () => {
       const tab = ChatTabList.instance.addChatTab('流す卓');
       component.chatTabidentifier = tab.identifier;
-      fixture.detectChanges();
       const toggle = vi.spyOn(TestBed.inject(ChatStreamPanelService), 'toggle').mockImplementation(() => {});
+      const panel = fixture.debugElement.injector.get(PanelService);
+      panel.panelControls.set([{ icon: 'open_in_new', label: '別ウィンドウで開く', press: () => {} }]);
+      fixture.detectChanges();
+      await fixture.whenStable();
 
-      (fixture.nativeElement as HTMLElement)
-        .querySelector<HTMLButtonElement>('[data-testid="chat-stream-toggle"]')!
-        .click();
+      const icons = panel.panelControls().map((control) => control.icon);
+      expect(icons).toEqual(['open_in_new', 'forum']);
+      panel.panelControls()[1].press(panel);
 
       expect(toggle).toHaveBeenCalledWith(tab);
       toggle.mockRestore();

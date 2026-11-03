@@ -47,20 +47,12 @@ describe('ChatStreamComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('なんだって！？');
   });
 
-  it('offers none of the buttons that hover over a line', () => {
+  it('offers the buttons that hover over a line, as the chat window does', () => {
     tab.addMessage({ from: 'alice', name: 'アリス', text: 'やあ', timestamp: 1000 });
     component.tabIdentifier.set(tab.identifier);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelectorAll('chat-message .material-icons')).toHaveLength(0);
-  });
-
-  it('stays quiet on a tab with nothing said in it', () => {
-    component.tabIdentifier.set(tab.identifier);
-    fixture.detectChanges();
-
-    // The sample lines are there to show a newcomer what a conversation looks like.
-    expect(fixture.nativeElement.querySelectorAll('chat-message')).toHaveLength(0);
+    expect(fixture.nativeElement.querySelectorAll('chat-message .material-icons').length).toBeGreaterThan(0);
   });
 
   describe('the buttons it puts in the panel bar', () => {
@@ -152,17 +144,17 @@ describe('ChatStreamComponent', () => {
   describe('switching tabs and speaking', () => {
     const byTestId = (id: string) => fixture.nativeElement.querySelector(`[data-testid="${id}"]`);
 
-    it('shows a tab strip and an input, and puts both away once the box is taken off', () => {
+    it('shows a tab strip and an input, and keeps both to speak in once the box is taken off', () => {
       component.tabIdentifier.set(tab.identifier);
       fixture.detectChanges();
       expect(byTestId('chat-stream-tabs')?.querySelector('chat-tab-strip')).not.toBeNull();
-      expect(fixture.nativeElement.querySelector('chat-stream-input')).not.toBeNull();
+      expect(byTestId('chat-stream-input')?.tagName).toBe('CHAT-INPUT');
 
       control('opacity').press();
       fixture.detectChanges();
 
-      expect(byTestId('chat-stream-tabs')).toBeNull();
-      expect(fixture.nativeElement.querySelector('chat-stream-input')).toBeNull();
+      expect(byTestId('chat-stream-tabs')?.querySelector('chat-tab-strip')).not.toBeNull();
+      expect(byTestId('chat-stream-input')).not.toBeNull();
     });
 
     it('shows another tab picked from the strip', () => {
@@ -180,6 +172,22 @@ describe('ChatStreamComponent', () => {
 
         expect(component.tabIdentifier()).toBe(other.identifier);
         expect(fixture.nativeElement.textContent).toContain('おなかすいた');
+      } finally {
+        other.destroy();
+      }
+    });
+
+    it('moves to the tab beside it on Ctrl and an arrow, wrapping round', () => {
+      const other = ChatTabList.instance.addChatTab('雑談');
+      try {
+        component.tabIdentifier.set(tab.identifier);
+        fixture.detectChanges();
+        const tabs = component.visibleChatTabs();
+        const at = tabs.indexOf(tab);
+
+        fixture.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', ctrlKey: true }));
+
+        expect(component.tabIdentifier()).toBe(tabs[(at + 1) % tabs.length].identifier);
       } finally {
         other.destroy();
       }

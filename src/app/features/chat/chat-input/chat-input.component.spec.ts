@@ -409,6 +409,23 @@ describe('ChatInputComponent', () => {
     });
   });
 
+  describe('laid out for a narrow window', () => {
+    const find = (selector: string) => (fixture.nativeElement as HTMLElement).querySelector(selector);
+
+    it('puts a small picture of the speaker before the name in place of the portrait beside the box', () => {
+      fixture.detectChanges();
+      expect(find('[data-testid="chat-input-avatar"]')).toBeNull();
+      expect(find('.aspect-square')).not.toBeNull();
+
+      fixture.componentRef.setInput('narrow', true);
+      fixture.detectChanges();
+
+      expect(find('[data-testid="chat-input-selects"] [data-testid="chat-input-avatar"]')).not.toBeNull();
+      expect(find('.aspect-square')).toBeNull();
+      expect(find('textarea[name="chat-input-text"]')?.getAttribute('rows')).toBe('1');
+    });
+  });
+
   describe('an input with no box to write in', () => {
     it('takes a reply asked of every input without reaching for its missing box', () => {
       fixture.componentRef.setInput('canSpeak', false);

@@ -461,7 +461,9 @@ export class ChatInputComponent {
     const own = this.placeholder();
     if (own) return own;
     return this.t(
-      this.isCompact() ? 'feature.chat.input.textareaPlaceholderShort' : 'feature.chat.input.textareaPlaceholder'
+      this.isCompact() || this.narrow()
+        ? 'feature.chat.input.textareaPlaceholderShort'
+        : 'feature.chat.input.textareaPlaceholder'
     );
   });
 
@@ -582,6 +584,12 @@ export class ChatInputComponent {
    * that starts a line high.
    */
   readonly dense = input(false);
+  /**
+   * Lays the input out for a window too narrow for the portrait beside the box: a small picture of
+   * the speaker before the speaker's name instead, the box the full width under it, and its buttons
+   * from the left, so that nothing in it is pushed out of line.
+   */
+  readonly narrow = input(false);
   /** What the empty box says in place of its keys, for a panel that fills the box its own way. */
   readonly placeholder = input('');
   readonly canSpeak = input(true);

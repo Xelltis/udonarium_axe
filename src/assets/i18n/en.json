@@ -3847,15 +3847,12 @@
         "serverRoll": "The room server rolled these dice, so the roller could not change them."
       },
       "stream": {
-        "button": "Stream",
         "title": "Stream chat",
         "open": "Open \"{{name}}\" in the stream chat widget",
+        "openWidget": "Open in the stream chat widget",
         "close": "Close the stream chat widget",
         "gone": "This tab is gone",
-        "followLatest": "Follow the newest",
-        "speaker": "Speaker",
-        "text": "Message",
-        "placeholder": "Enter: send  Shift+Enter: new line"
+        "followLatest": "Follow the newest"
       },
       "palette": {
         "panelTitle": "Chat palette",
