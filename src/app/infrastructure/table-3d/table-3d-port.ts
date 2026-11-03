@@ -117,6 +117,8 @@ export interface Table3dStats {
   readonly fogAirSheets: number;
   /** Whether a sky is drawn past the board. */
   readonly sky: boolean;
+  /** The pictures stood round the board behind everything, under a sky. */
+  readonly backdrops: number;
   /** How many times the veil has been laid anew, 0 while there is none. */
   readonly veilRevision: number;
   /** How many times the light of a dark table has been laid anew, 0 while the table is not dark. */

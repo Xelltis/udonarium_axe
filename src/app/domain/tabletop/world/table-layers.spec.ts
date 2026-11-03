@@ -1,6 +1,6 @@
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
-import { tableLayersOf } from '@axe/domain/tabletop/world/table-layers';
+import { tableBackdropsOf, tableLayersOf } from '@axe/domain/tabletop/world/table-layers';
 
 describe('the layers a table lays under and over its board', () => {
   let table: GameTable;
@@ -56,5 +56,26 @@ describe('the layers a table lays under and over its board', () => {
 
   it('lays nothing for no table', () => {
     expect(tableLayersOf(null, pictures, true)).toEqual([]);
+    expect(tableBackdropsOf(null, pictures, true)).toEqual([]);
+  });
+
+  it('stands those laid behind everything apart, with how far off and how high each stands', () => {
+    lay();
+    const far = lay({ placement: 'backdrop', speedX: 30 });
+    far.cameraFollow = 0.1;
+    far.backdropHeight = 0.2;
+
+    expect(tableBackdropsOf(table, pictures, true)).toEqual([
+      {
+        id: far.identifier,
+        pictureUrl: `blob:${far.imageIdentifier}`,
+        scale: 1,
+        follow: 0.1,
+        height: 0.2,
+        speedX: 30,
+        opacity: 1,
+      },
+    ]);
+    expect(tableBackdropsOf(table, pictures, false)[0].speedX).toBe(0);
   });
 });

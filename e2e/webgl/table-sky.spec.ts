@@ -2,6 +2,7 @@ import { expect, Page, test } from '@playwright/test';
 
 import { becomeGm, closePanels } from '../dungeon-helpers';
 import { openPanel, waitAppReady } from '../helpers';
+import { solidPng } from '../png-helpers';
 
 /**
  * The sky a table drawn on a canvas draws past its board where the table asks for one, with the
@@ -11,7 +12,7 @@ import { openPanel, waitAppReady } from '../helpers';
 type Hooks = {
   renderer(): string | null;
   whenIdle(): Promise<void>;
-  sceneStats(): { sky: boolean } | null;
+  sceneStats(): { sky: boolean; backdrops: number } | null;
 };
 
 async function idle(page: Page) {
@@ -66,5 +67,34 @@ test.describe('the sky over a table drawn on a canvas', () => {
     await idle(page);
     const after = await colourAt(page, past.x, past.y);
     expect(Math.max(...after.map((value, index) => Math.abs(value - before[index])))).toBeGreaterThan(20);
+  });
+
+  test('stands a picture laid behind everything round the board under the sky, and none without one', async ({
+    page,
+  }) => {
+    await waitAppReady(page);
+    await becomeGm(page);
+    await closePanels(page);
+    await idle(page);
+    await openPanel(page, 'テーブル設定');
+    const settings = page.locator('game-table-setting');
+    await settings.getByTestId('background-layer-add').click();
+    await settings.getByTestId('background-layer-placement').first().selectOption('backdrop');
+    await settings.getByTestId('background-layer-image').first().click();
+    const picker = page.locator('file-selector');
+    await expect(picker).toBeVisible();
+    await picker
+      .locator('input[type="file"]')
+      .setInputFiles([{ name: 'far-hills.png', mimeType: 'image/png', buffer: solidPng(400, 60, [90, 80, 140]) }]);
+    await expect(picker).toHaveCount(0);
+    const backdrops = () =>
+      page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.sceneStats()?.backdrops);
+    await expect.poll(backdrops).toBe(0);
+
+    await page.getByTestId('table-sky-kind').selectOption('clock');
+    await expect.poll(backdrops).toBe(1);
+
+    await page.getByTestId('table-sky-kind').selectOption('');
+    await expect.poll(backdrops).toBe(0);
   });
 });

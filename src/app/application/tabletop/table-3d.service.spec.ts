@@ -167,6 +167,7 @@ class FakeEngine implements Table3dEngine {
       waterParts: 0,
       fogAirSheets: 0,
       sky: false,
+      backdrops: 0,
       veilRevision: 0,
       lightMapRevision: 0,
       shadowLights: 0,

@@ -41,3 +41,42 @@ export function tableLayersOf(
     .filter((layer) => layer.pictureUrl !== '')
     .sort((a, b) => Number(a.over) - Number(b.over));
 }
+
+/**
+ * A picture a table lays behind everything, as a range of hills on the horizon, as a scene with a sky
+ * stands it round the board: how much it follows the camera, from 0 for the furthest off to 1 for the
+ * nearest, and how high it stands, from 0 at the horizon up, drifting across at `speedX` pixels a second.
+ */
+export interface TableWorldBackdrop {
+  readonly id: string;
+  readonly pictureUrl: string;
+  readonly scale: number;
+  readonly follow: number;
+  readonly height: number;
+  readonly speedX: number;
+  readonly opacity: number;
+}
+
+/**
+ * The pictures a table lays behind everything, back to front: those turned off, those seen through
+ * entirely and those with nothing to show are left out. Where things may not move none of them drifts.
+ */
+export function tableBackdropsOf(
+  table: GameTable | null | undefined,
+  pictureOf: (identifier: string) => string,
+  moving: boolean
+): TableWorldBackdrop[] {
+  if (!table) return [];
+  return table.backgroundLayers
+    .filter((layer) => layer.placedBackdrop && layer.enabled && layer.opacity > 0)
+    .map((layer) => ({
+      id: layer.identifier,
+      pictureUrl: pictureOf(layer.imageIdentifier),
+      scale: layer.scale,
+      follow: layer.follow,
+      height: layer.height,
+      speedX: moving && Number.isFinite(layer.speedX) ? layer.speedX : 0,
+      opacity: Math.min(1, layer.opacity),
+    }))
+    .filter((layer) => layer.pictureUrl !== '');
+}

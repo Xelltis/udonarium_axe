@@ -14,7 +14,7 @@ import { TerrainFogCover } from '@axe/domain/tabletop/terrain-cover';
 import { blockFacesOf } from '@axe/domain/tabletop/world/block-faces';
 import { GroundMesh, hexGroundMesh, squareGroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
 import { TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
-import type { TableWorldLayer } from '@axe/domain/tabletop/world/table-layers';
+import type { TableWorldBackdrop, TableWorldLayer } from '@axe/domain/tabletop/world/table-layers';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { NO_WATER, type TableWorldWater } from '@axe/domain/tabletop/world/table-water';
 
@@ -112,6 +112,8 @@ export interface TableWorld {
   readonly layers: readonly TableWorldLayer[];
   /** The water lying on the table. */
   readonly water: TableWorldWater;
+  /** The pictures laid behind everything, which a scene with a sky stands round the board. */
+  readonly backdrops: readonly TableWorldBackdrop[];
 }
 
 /** The scene with nothing in it. */
@@ -123,6 +125,7 @@ export const EMPTY_TABLE_WORLD: TableWorld = {
   coins: [],
   layers: [],
   water: NO_WATER,
+  backdrops: [],
 };
 
 /** How much bigger than a cell each hex a board is cut to is, so the cut leaves no seam between cells. */
@@ -131,7 +134,7 @@ const HEX_CUT_OVERLAP_PX = 1;
 /**
  * The scene of a table, or the empty scene where there is none in view, with the blocks given
  * standing on it and no pieces: the sprites the pieces are drawn with, the layers drifting past the
- * board and the water, are worked out apart.
+ * board and behind it and the water, are worked out apart.
  * `pictureOf` says where the picture an identifier names is to be read from, or nothing for one
  * there is no picture for.
  *
@@ -171,6 +174,7 @@ export function tableWorldOf(
     coins: [],
     layers: [],
     water: NO_WATER,
+    backdrops: [],
   };
 }
 

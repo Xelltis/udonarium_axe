@@ -37,7 +37,7 @@ import { waterShoreOf } from '@axe/domain/tabletop/water/water-shore';
 import { waterSidesOf } from '@axe/domain/tabletop/water/water-sides';
 import { skyDomeAt } from '@axe/domain/tabletop/world/sky-dome';
 import { skyLightAt } from '@axe/domain/tabletop/world/sky-light';
-import { tableLayersOf } from '@axe/domain/tabletop/world/table-layers';
+import { tableBackdropsOf, tableLayersOf } from '@axe/domain/tabletop/world/table-layers';
 import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
 import { tableWaterOf } from '@axe/domain/tabletop/world/table-water';
 import { TableWorld, tableWorldOf } from '@axe/domain/tabletop/world/table-world';
@@ -167,6 +167,7 @@ export class Table3dService {
     coins: this.pieces.coins(),
     layers: this.layers(),
     water: this.water(),
+    backdrops: this.backdrops(),
   }));
 
   /**
@@ -191,13 +192,26 @@ export class Table3dService {
   });
 
   /** The pictures the table in view lays under and over its board, drifting where things may move. */
-  private readonly layers = computed(() => {
-    this.objectChange.fileVersion();
-    this.objectChange.collectionOf(TableBackgroundLayer.aliasName)();
-    const table = this.tabletop.currentTableVersion();
-    for (const layer of table?.backgroundLayers ?? []) this.objectChange.versionOf(layer.identifier)();
-    return tableLayersOf(table, (identifier) => this.images.getEmptyOr(identifier).url, this.motion.enabled());
-  });
+  private readonly layers = computed(() =>
+    tableLayersOf(this.layeredTable(), (identifier) => this.images.getEmptyOr(identifier).url, this.motion.enabled())
+  );
+
+  /** The pictures the table in view lays behind everything, drifting where things may move. */
+  private readonly backdrops = computed(() =>
+    tableBackdropsOf(this.layeredTable(), (identifier) => this.images.getEmptyOr(identifier).url, this.motion.enabled())
+  );
+
+  /** The table in view, read again as its pictures, its layers or what any of them says changes. */
+  private readonly layeredTable = computed(
+    () => {
+      this.objectChange.fileVersion();
+      this.objectChange.collectionOf(TableBackgroundLayer.aliasName)();
+      const table = this.tabletop.currentTableVersion();
+      for (const layer of table?.backgroundLayers ?? []) this.objectChange.versionOf(layer.identifier)();
+      return table;
+    },
+    { equal: () => false }
+  );
 
   /** Whether the canvas is asked for but not drawing yet, which the table covers until it is. */
   readonly preparing = computed(() => this.drawsOnCanvas() && this.backend() === null && !this.unavailable());

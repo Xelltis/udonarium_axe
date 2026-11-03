@@ -11,6 +11,7 @@ import type {
   TableWorldCap,
   TableWorldWall,
 } from '@axe/domain/tabletop/world/table-world';
+import { BackdropRing } from '@axe/infrastructure/table-3d/backdrop-ring';
 import { BoardLayers } from '@axe/infrastructure/table-3d/board-layers';
 import { CoinLayer } from '@axe/infrastructure/table-3d/coin-layer';
 import { changedChunks, chunkSignatures, facesByOwner, OwnedFaces } from '@axe/infrastructure/table-3d/face-chunks';
@@ -228,6 +229,8 @@ class ThreeTableEngine implements Table3dEngine {
   private readonly floorCanvases = new FloorCanvasLayer();
   private readonly fogAir = new FogAirLayer();
   private readonly skyDome = new SkyLayer();
+  private readonly backdrops = new BackdropRing((url) => this.sharedPicture(url, true));
+  private laidBackdrops: TableWorld['backdrops'] = [];
   private laidSky: SkyDome | null = null;
   private laidSkyKey = 'null';
   private readonly water = new WaterLayer((material, taking) => this.veil.cover(material, taking));
@@ -257,6 +260,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.scene.add(this.water.group);
     this.scene.add(this.fogAir.group);
     this.scene.add(this.skyDome.group);
+    this.scene.add(this.backdrops.group);
     this.scene.add(this.sun, this.sun.target, this.sky);
     this.sun.castShadow = true;
     this.sun.shadow.autoUpdate = false;
@@ -445,6 +449,7 @@ class ThreeTableEngine implements Table3dEngine {
       waterParts: this.water.shown,
       fogAirSheets: this.fogAir.shown,
       sky: this.skyDome.shown,
+      backdrops: this.backdrops.shown,
       veilRevision: this.veil.revision,
       lightMapRevision: this.veil.lightRevision,
       shadowLights: this.laidLamps.length,
@@ -476,6 +481,8 @@ class ThreeTableEngine implements Table3dEngine {
     }
     this.sprites.set(world.sprites);
     this.coins.set(world.coins);
+    this.laidBackdrops = world.backdrops;
+    this.standBackdrops();
     this.water.set(
       world.water,
       world.board
@@ -499,7 +506,7 @@ class ThreeTableEngine implements Table3dEngine {
     const worn = new Set<string>();
     for (const face of [...world.walls, ...world.caps]) worn.add(face.pictureUrl);
     for (const sprite of world.sprites) if (sprite.look.kind === 'picture') worn.add(sprite.look.url);
-    for (const layer of world.layers) worn.add(layer.pictureUrl);
+    for (const layer of [...world.layers, ...world.backdrops]) worn.add(layer.pictureUrl);
     for (const [key, picture] of this.loaded) {
       const url = key.slice(0, key.lastIndexOf('|'));
       if (worn.has(url)) continue;
@@ -583,8 +590,9 @@ class ThreeTableEngine implements Table3dEngine {
     const drifting = this.layers.advance(timeMs);
     const flowing = this.water.advance(timeMs);
     const hanging = this.fogAir.advance(timeMs);
+    const passing = this.backdrops.advance(timeMs);
     this.takeChanges();
-    return drifting || flowing || hanging;
+    return drifting || flowing || hanging || passing;
   }
 
   setSky(sky: SkyDome | null): void {
@@ -593,7 +601,13 @@ class ThreeTableEngine implements Table3dEngine {
     this.laidSkyKey = laid;
     this.laidSky = sky;
     this.scene.fog = this.skyDome.set(sky, this.board ? this.boardBox : null);
+    this.standBackdrops();
     this.changed = true;
+  }
+
+  /** Stands the backdrops round the board where a sky is drawn, and takes them away where none is. */
+  private standBackdrops(): void {
+    this.backdrops.place(this.laidSky ? this.laidBackdrops : [], this.laidSky && this.board ? this.boardBox : null);
   }
 
   setFogAir(sheets: readonly Table3dFogAirSheet[], moving: boolean): void {
@@ -610,12 +624,16 @@ class ThreeTableEngine implements Table3dEngine {
     return true;
   }
 
-  /** Takes up what the layers drifting past the board, the water and the fog in the air built or moved, which wants drawing. */
+  /**
+   * Takes up what the layers drifting past the board and behind it, the water and the fog in the air
+   * built or moved, which wants drawing.
+   */
   private takeChanges(): void {
     const drifted = this.layers.takeChanged();
     const flowed = this.water.takeChanged();
     const hung = this.fogAir.takeChanged();
-    if (drifted || flowed || hung) this.changed = true;
+    const stood = this.backdrops.takeChanged();
+    if (drifted || flowed || hung || stood) this.changed = true;
   }
 
   dispose(): void {
@@ -628,6 +646,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.water.dispose();
     this.fogAir.dispose();
     this.skyDome.dispose();
+    this.backdrops.dispose();
     this.veil.dispose();
     disposeObject(this.scene);
     for (const picture of this.loaded.values()) picture.dispose();
