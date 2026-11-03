@@ -4,6 +4,7 @@ import {
   evaluateCharacterReferences,
   PaletteEvaluationResult,
   textTargetsCharacter,
+  withoutAimMarks,
 } from '@axe/domain/chat/chat-palette';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 
@@ -42,10 +43,11 @@ export function aimLine(line: string, speaker: GameCharacter | null): AimedLine 
     ? evaluateCharacterReferences(line, speaker, undefined, 'always')
     : { text: line, attachmentImageIdentifiers: [] };
   const targeted = textTargetsCharacter(line) || textTargetsCharacter(filled.text);
+  const said = targeted ? withoutAimMarks(filled.text) : filled.text;
   return {
     targeted,
-    filled: filled.text,
-    repeated: targeted ? DiceBot.deleteMyselfResourceBuff(filled.text) : filled.text,
+    filled: said,
+    repeated: targeted ? DiceBot.deleteMyselfResourceBuff(said) : said,
     attachmentImageIdentifiers: filled.attachmentImageIdentifiers,
   };
 }

@@ -21,6 +21,7 @@ import { canRoleEdit } from '@axe/domain/peer/peer-role';
 import { TriggerMoment } from '@axe/domain/tabletop/trigger-event';
 import {
   changedBuffs,
+  noteRanOut,
   parseTurnHistory,
   readTurnOpening,
   stringifyTurnHistory,
@@ -95,6 +96,11 @@ export class TurnOrderService {
 
   /** What the turn opened in this press counted down, written down as it goes for a wait to give back. */
   private opening: TurnOpening | null = null;
+  /**
+   * What the step under way has seen run out of the buffs that leave their status moved, by piece
+   * and then by name, with how far their last count moved it; none outside a step.
+   */
+  private ranOut: Map<string, Map<string, number>> | null = null;
 
   constructor() {
     effect(() => {
@@ -546,9 +552,17 @@ export class TurnOrderService {
       buffs: [],
     };
     const buffsBefore = this.captureBuffs();
+    const ranOut = new Map<string, Map<string, number>>();
+    this.ranOut = ranOut;
+    let worked: boolean;
+    try {
+      worked = work();
+    } finally {
+      this.ranOut = null;
+    }
+    if (!worked) return;
 
-    if (!work()) return;
-
+    for (const [identifier, moved] of ranOut) noteRanOut(buffsBefore.get(identifier) ?? [], moved);
     before.buffs = changedBuffs(buffsBefore, this.captureBuffs());
     const steps = parseTurnHistory(this.turnState.history);
     steps.push(before);
@@ -682,11 +696,15 @@ export class TurnOrderService {
     const opening = timing === 'turnStart' ? this.opening : null;
     const entries: ExpiredBuffEntry[] = [];
     for (const character of this.buffCarriers()) {
-      if (opening) {
-        const due = character.buffs.dueAt(timing, acting);
-        if (due.length > 0) opening.buffs.push({ identifier: character.identifier, buffs: due });
+      const due = opening ? character.buffs.dueAt(timing, acting) : [];
+      if (opening && due.length > 0) opening.buffs.push({ identifier: character.identifier, buffs: due });
+      const ranOut = new Map<string, number>();
+      const buffNames = character.buffs.expireAt(timing, acting, ranOut);
+      if (ranOut.size > 0) {
+        noteRanOut(due, ranOut);
+        const step = this.ranOut;
+        if (step) step.set(character.identifier, new Map([...(step.get(character.identifier) ?? []), ...ranOut]));
       }
-      const buffNames = character.buffs.expireAt(timing, acting);
       if (buffNames.length > 0) entries.push({ characterName: character.name, buffNames });
     }
     if (opening) this.turnState.turnOpening = writeTurnOpening(opening);

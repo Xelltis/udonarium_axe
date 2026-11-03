@@ -413,6 +413,7 @@
         "notAllowed": "지금 역할로는 쓸 수 없는 항목입니다",
         "unavailable": "지금은 이 항목을 쓸 수 없습니다"
       },
+      "slotTitleAs": "{{label}} ({{actor}}(으)로)",
       "emptySlot": "빈 칸",
       "pin": "항상 앞에 표시",
       "toggle": "핫바",
@@ -3846,9 +3847,10 @@
         "serverRoll": "방 서버가 굴린 주사위입니다. 굴린 사람은 눈을 바꿀 수 없습니다."
       },
       "stream": {
-        "title": "발언의 흐름",
-        "open": "「{{name}}」을 별창으로 흘리기",
-        "close": "별창 닫기",
+        "title": "스트림 채팅",
+        "open": "\"{{name}}\"을(를) 스트림 채팅 위젯으로 열기",
+        "openWidget": "스트림 채팅 위젯으로 열기",
+        "close": "스트림 채팅 위젯 닫기",
         "gone": "이 탭은 사라졌습니다",
         "followLatest": "최신에 따라가기"
       },
@@ -4158,6 +4160,7 @@
           "none": "타깃이 없으므로 이 줄 대신 \"대상이 선택되지 않았습니다\"가 나옵니다"
         },
         "ref": {
+          "targetNumberNone": "{目標値}에 넣을 주사위 결과가 이 탭에 아직 없어서 그대로 보내집니다",
           "unknownKept": "\"{{name}}\"은(는) 시트에도 팔레트에도 없으므로 그대로 보내집니다",
           "unknownEmptied": "\"{{name}}\"은(는) 시트에도 팔레트에도 없으므로 비게 됩니다",
           "noSpeaker": "발언자가 말이 아니므로 참조가 채워지지 않습니다"
@@ -5192,6 +5195,8 @@
       "removeStatus": "이 스테이터스 빼기",
       "modifierNote": "{{target}}을(를) 자동 보정 중",
       "builderTitle": "자동 계산 버프 표기 만들기",
+      "builderKeeps": "되돌리지 않음",
+      "builderKeepsHint": "끝나도 움직인 만큼 되돌리지 않음(독·재생)",
       "builderStacks": "겹쳐 걸기",
       "builderStacksHint": "같은 이름의 버프에 더하기",
       "builderExtends": "라운드도 더하기",
@@ -5696,7 +5701,7 @@
       "pickIconImage": "이미지에서 고르기",
       "stat": "변경할 항목",
       "statPlaceholder": "이동",
-      "statHint": "시트의 항목 이름을 쓰면 붙어 있는 동안 그 값을 움직이고, 떼면 움직인 만큼 되돌립니다. 비워 두면 아무것도 움직이지 않습니다"
+      "statHint": "시트의 항목 이름을 쓰면 붙어 있는 동안 그 값을 움직이고, 떼면 움직인 만큼 되돌립니다. 이름 앞에 :를 붙이면(:HP) 떼어도 되돌리지 않습니다. 비워 두면 아무것도 움직이지 않습니다"
     },
     "seatDisplay": {
       "title": "이 기기의 표시",

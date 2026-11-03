@@ -283,7 +283,8 @@ describe('ChatInputComponent', () => {
       expect(edits.querySelector('[data-testid="chat-input-stamp"]')).not.toBeNull();
       expect(edits.querySelector('[data-testid="chat-input-color"]')).not.toBeNull();
       expect(edits.querySelector('ng-select')).toBeNull();
-      expect(edits.nextElementSibling?.matches('[data-chat-input-box]')).toBe(true);
+      // What is written in follows the bar, inside a wrapper that lays out no box of its own here.
+      expect(edits.nextElementSibling?.firstElementChild?.matches('[data-chat-input-box]')).toBe(true);
     });
 
     it('leaves the formatting buttons out for a tab the reader may not speak in, keeping the rest', async () => {
@@ -406,6 +407,51 @@ describe('ChatInputComponent', () => {
       fixture.detectChanges();
 
       expect(textBox().placeholder).toBe('行をクリックで入力');
+    });
+  });
+
+  describe('laid out for a narrow window', () => {
+    const find = (selector: string) => (fixture.nativeElement as HTMLElement).querySelector(selector);
+
+    it('puts a small picture of the speaker before the name in place of the portrait beside the box', () => {
+      fixture.detectChanges();
+      expect(find('[data-testid="chat-input-avatar"]')).toBeNull();
+      expect(find('.aspect-square')).not.toBeNull();
+
+      fixture.componentRef.setInput('narrow', true);
+      fixture.detectChanges();
+
+      expect(find('[data-testid="chat-input-selects"] [data-testid="chat-input-avatar"]')).not.toBeNull();
+      expect(find('.aspect-square')).toBeNull();
+      expect(find('textarea[name="chat-input-text"]')?.getAttribute('rows')).toBe('1');
+    });
+
+    it('puts the buttons for how the line goes out by the dice bot, and the send button by the box', () => {
+      fixture.componentRef.setInput('canSpeak', true);
+      fixture.detectChanges();
+      expect(find('[data-testid="chat-input-edits"] [data-testid="chat-input-color"]')).not.toBeNull();
+      expect(find('[data-testid="chat-input-frame"] [data-testid="chat-input-send"]')).toBeNull();
+
+      fixture.componentRef.setInput('narrow', true);
+      fixture.detectChanges();
+
+      expect(find('[data-testid="chat-input-edits"] [data-testid="chat-input-color"]')).toBeNull();
+      expect(find('[data-testid="chat-input-line-tools"] [data-testid="chat-input-color"]')).not.toBeNull();
+      expect(find('[data-testid="chat-input-frame"] [data-testid="chat-input-send"]')).not.toBeNull();
+    });
+
+    it('runs through the portraits by the dice bot rather than along the box', async () => {
+      const character = speaker('役者');
+      character.imageDataElement!.appendChild(DataElement.create('imageIdentifier', 'face-1', { type: 'image' }));
+      fixture.componentRef.setInput('narrow', true);
+      component.sendFrom = character.identifier;
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const slider = find('[data-testid="chat-input-portraits"]');
+      expect(slider?.closest('[data-testid="chat-input-selects"]')).not.toBeNull();
+      expect(slider?.closest('[data-testid="chat-input-edits"]')).toBeNull();
     });
   });
 

@@ -279,6 +279,38 @@ describe('PanelService', () => {
     expect(service.hasSingle('named-panel')).toBe(false);
   });
 
+  it('is found by another name once it takes one, and lets that one go when it is taken away', () => {
+    const { service, childPanelService, parentViewContainerRef, runDestroyCallback } = setupOpenMocks();
+    service.open(DummyBodyComponent, { single: 'shows:main' }, parentViewContainerRef);
+
+    childPanelService.holdAsSingle('shows:sub');
+
+    expect(service.hasSingle('shows:main')).toBe(false);
+    expect(service.hasSingle('shows:sub')).toBe(true);
+    runDestroyCallback();
+    expect(service.hasSingle('shows:sub')).toBe(false);
+  });
+
+  it('closes the panel holding a name another takes', () => {
+    const first = setupOpenMocks();
+    first.service.open(DummyBodyComponent, { single: 'shows:sub' }, first.parentViewContainerRef);
+    const close = vi.spyOn(first.childPanelService, 'close');
+    const other = newPanelService();
+
+    other.holdAsSingle('shows:sub');
+
+    expect(close).toHaveBeenCalled();
+    expect(other.hasSingle('shows:sub')).toBe(true);
+  });
+
+  it('opens a panel on the raised layer of the panel it is opened from, where it names none', () => {
+    const { service, childPanelService, parentViewContainerRef } = setupOpenMocks();
+    service.layer = 260;
+
+    service.open(DummyBodyComponent, undefined, parentViewContainerRef);
+    expect(childPanelService.layer).toBe(260);
+  });
+
   it('closes safely and repeatedly even with no panel', () => {
     const { service, childPanelService, parentViewContainerRef, destroy } = setupOpenMocks();
 

@@ -428,6 +428,28 @@ describe('resource-edit-helpers', () => {
         expect(character.status.getValue('回避', 'now')).toBe(6);
       });
 
+      it('leaves the status a state marks with a colon moved, at every count and once it comes off', () => {
+        StatusAilmentCatalog.instance.ailments = [
+          {
+            ...newStatusAilment('毒'),
+            rounds: 2,
+            timing: 'roundEnd',
+            effect: '毎R2点',
+            stat: ':回避',
+            op: '+',
+            amount: '0~-2',
+          },
+        ];
+
+        edit('&毒');
+        character.buffs.expireOneRound();
+        expect(character.status.getValue('回避', 'now')).toBe(4);
+        character.buffs.expireOneRound();
+
+        expect(character.buffs.find('毒')).toBeNull();
+        expect(character.status.getValue('回避', 'now')).toBe(2);
+      });
+
       it('piles onto the state already worn as any plain buff does', () => {
         edit('&転倒');
 
@@ -520,6 +542,15 @@ describe('resource-edit-helpers', () => {
 
         expect(value('技量')).toBe(16);
         expect(value('回避')).toBe(8);
+      });
+
+      it('leaves a status marked with a colon moved as the buff runs out, beside one it gives back', () => {
+        expect(edit('&!毒/回避-2,:技量+0~-3/2')).toBe('毒を付与 回避-2,:技量+0~-3/2R    ');
+        character.buffs.expireOneRound();
+        character.buffs.expireOneRound();
+
+        expect(character.buffs.list()).toHaveLength(0);
+        expect([value('技量'), value('回避')]).toEqual([6, 10]);
       });
 
       it('reads a single status written in the newer way as the older one', () => {

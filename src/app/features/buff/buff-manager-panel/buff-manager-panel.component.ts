@@ -45,6 +45,8 @@ interface BuilderStatusRow {
   readonly operator: string;
   readonly amount: string;
   readonly step: string;
+  /** Whether the status stays where it is moved once the buff goes, as poison's damage does. */
+  readonly keeps: boolean;
 }
 const COLUMN_WIDTH_MIN_PX = 16;
 const COLUMN_WIDTH_MAX_PX = 112;
@@ -405,6 +407,7 @@ export class BuffManagerPanelComponent {
   readonly builderOperator = signal<string>('+');
   readonly builderAmount = signal('2');
   readonly builderStep = signal('');
+  readonly builderKeeps = signal(false);
   readonly builderRounds = signal('3');
   readonly builderTiming = signal<BuffTiming>('roundEnd');
   readonly builderTrigger = signal('');
@@ -416,7 +419,7 @@ export class BuffManagerPanelComponent {
 
   /** Adds a status for the built buff to move as well. */
   addBuilderStatus(): void {
-    this.builderMore.update((rows) => [...rows, { status: '', operator: '+', amount: '1', step: '' }]);
+    this.builderMore.update((rows) => [...rows, { status: '', operator: '+', amount: '1', step: '', keeps: false }]);
   }
 
   /** Changes one of the further statuses the built buff moves. */
@@ -447,6 +450,7 @@ export class BuffManagerPanelComponent {
       operator: this.builderOperator(),
       amount: this.builderAmount(),
       step: this.builderStep(),
+      keeps: this.builderKeeps(),
     },
     ...this.builderMore(),
   ]);
@@ -460,8 +464,8 @@ export class BuffManagerPanelComponent {
     const rows = this.builderRows();
     const statusParts =
       rows.length > 1
-        ? [rows.map((row) => `${row.status.trim()}${row.operator}${builderAmountText(row)}`).join(',')]
-        : [rows[0].status.trim(), rows[0].operator, builderAmountText(rows[0])];
+        ? [rows.map((row) => `${builderStatusText(row)}${row.operator}${builderAmountText(row)}`).join(',')]
+        : [builderStatusText(rows[0]), rows[0].operator, builderAmountText(rows[0])];
     const parts = [this.builderName().trim() || 'バフ', ...statusParts, this.builderRounds().trim()];
     const timing = this.builderTiming();
     const trigger = this.builderTrigger().trim();
@@ -474,7 +478,7 @@ export class BuffManagerPanelComponent {
 
   readonly builderPreview = computed(() => {
     const requests = this.builderRows().map((row) =>
-      parseBuffModifierRequest(row.status, row.operator, builderAmountText(row).replace(/÷/g, '/'))
+      parseBuffModifierRequest(builderStatusText(row), row.operator, builderAmountText(row).replace(/÷/g, '/'))
     );
     return requests.every((request) => request)
       ? requests.map((request) => describeBuffModifier(request!)).join(',')
@@ -504,6 +508,12 @@ export class BuffManagerPanelComponent {
       /* clipboard unavailable (permission, insecure context) — the text is on screen to copy by hand */
     }
   }
+}
+
+/** The status as the command writes it, marked with a `:` where it is to stay moved once the buff goes. */
+function builderStatusText(row: BuilderStatusRow): string {
+  const status = row.status.trim();
+  return row.keeps && !/^[:：]/.test(status) ? `:${status}` : status;
 }
 
 /**

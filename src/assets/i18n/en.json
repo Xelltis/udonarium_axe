@@ -413,6 +413,7 @@
         "notAllowed": "Your current role may not use this entry",
         "unavailable": "This entry cannot be used just now"
       },
+      "slotTitleAs": "{{label}} (as {{actor}})",
       "emptySlot": "Empty slot",
       "pin": "Keep in front",
       "toggle": "Hotbar",
@@ -3846,9 +3847,10 @@
         "serverRoll": "The room server rolled these dice, so the roller could not change them."
       },
       "stream": {
-        "title": "Message stream",
-        "open": "Watch \"{{name}}\" in its own window",
-        "close": "Close that window",
+        "title": "Stream chat",
+        "open": "Open \"{{name}}\" in the stream chat widget",
+        "openWidget": "Open in the stream chat widget",
+        "close": "Close the stream chat widget",
         "gone": "This tab is gone",
         "followLatest": "Follow the newest"
       },
@@ -4158,6 +4160,7 @@
           "none": "No target is picked out, so \"No target selected\" is sent in place of this line"
         },
         "ref": {
+          "targetNumberNone": "No roll in this tab yet to fill {目標値} with, so it is sent as typed",
           "unknownKept": "\"{{name}}\" is on neither the sheet nor the palette, so it is sent as typed",
           "unknownEmptied": "\"{{name}}\" is on neither the sheet nor the palette, so it comes out empty",
           "noSpeaker": "The speaker is no piece, so references are not filled in"
@@ -5190,6 +5193,8 @@
       "removeStatus": "Remove this status",
       "modifierNote": "Holding {{target}}",
       "builderTitle": "Build a calculated buff command",
+      "builderKeeps": "Keep",
+      "builderKeepsHint": "Leave the status moved when the buff goes (poison, regeneration)",
       "builderStacks": "Stack",
       "builderStacksHint": "Add to a buff of the same name",
       "builderExtends": "Lengthen too",
@@ -5403,7 +5408,7 @@
       "pickIconImage": "Pick a picture",
       "stat": "Status it moves",
       "statPlaceholder": "Speed",
-      "statHint": "Name a status on the sheet and the state moves it while it is worn, giving back exactly that much when it comes off. Empty moves nothing"
+      "statHint": "Name a status on the sheet and the state moves it while it is worn, giving back exactly that much when it comes off. A : before the name (:HP) leaves it moved when the state comes off. Empty moves nothing"
     },
     "seatDisplay": {
       "title": "Display on this device",

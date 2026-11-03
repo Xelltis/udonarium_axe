@@ -17,6 +17,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { ScenarioText } from '@axe/domain/scenario-text/scenario-text';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
+import { ChatStreamPanelService } from '@axe/features/chat/chat-stream/chat-stream-panel.service';
 import { ChatTabComponent } from '@axe/features/chat/chat-tab/chat-tab.component';
 import { ChatTickerSelectionService } from '@axe/features/chat/chat-ticker-selection.service';
 import { ChatWindowComponent } from '@axe/features/chat/chat-window/chat-window.component';
@@ -801,6 +802,28 @@ describe('ChatWindowComponent', () => {
       button.click();
       await fixture.whenStable();
       expect(searchBox()).toBeNull();
+    });
+  });
+
+  describe('the stream chat widget', () => {
+    it('opens on the tab shown from a button after the ones the title bar is given', async () => {
+      const tab = ChatTabList.instance.addChatTab('流す卓');
+      const toggle = vi.spyOn(TestBed.inject(ChatStreamPanelService), 'toggle').mockImplementation(() => {});
+      try {
+        component.chatTabidentifier = tab.identifier;
+        const panel = fixture.debugElement.injector.get(PanelService);
+        panel.panelControls.set([{ icon: 'open_in_new', label: '別ウィンドウで開く', press: () => {} }]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(panel.panelControls().map((control) => control.icon)).toEqual(['open_in_new', 'forum']);
+        panel.panelControls()[1].press(panel);
+
+        expect(toggle).toHaveBeenCalledWith(tab);
+      } finally {
+        toggle.mockRestore();
+        tab.destroy();
+      }
     });
   });
 

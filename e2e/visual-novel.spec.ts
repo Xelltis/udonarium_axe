@@ -479,13 +479,13 @@ test.describe('visual novel mode', () => {
     await input.press('Enter');
     await expect(page.locator('visual-novel-overlay')).toContainText('舞台の台詞', { timeout: 15000 });
 
-    await page.locator('visual-novel-overlay button[title="発言の流れ"]').click();
+    await page.locator('visual-novel-overlay button[title="ストリームチャット"]').click();
 
     const stream = page.locator('chat-stream');
     await expect(stream).toBeVisible();
     await expect(stream).toContainText('舞台の台詞');
 
-    await page.locator('visual-novel-overlay button[title="発言の流れ"]').click();
+    await page.locator('visual-novel-overlay button[title="ストリームチャット"]').click();
     await expect(stream).toHaveCount(0);
   });
 
