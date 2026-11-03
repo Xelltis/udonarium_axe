@@ -721,10 +721,12 @@ class ThreeTableEngine implements Table3dEngine {
     return picture;
   }
 
-  /** A picture to draw, which asks for a frame once it has come. */
+  /**
+   * A picture to draw, which asks for a frame once it has come, and has the shadows drawn again: a
+   * board throwing a piece's shadow is cut to the picture it wears.
+   */
   private picture(url: string): Texture {
     this.loading++;
-    // A picture a board throws its shadow with is cut out by it, so its shadow waits for it.
     const settle = () => {
       this.loading--;
       this.changed = true;

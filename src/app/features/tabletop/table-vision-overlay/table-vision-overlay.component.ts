@@ -137,7 +137,6 @@ export class TableVisionOverlayComponent {
       const vision = this.visionService.overlayVision();
       const plan = computeOverlayPlan(scene, viewer, vision);
       const onCanvas = this.table3d.drawsOnCanvas();
-      // The lights the scene lights itself are left out of the darkness drawn for it.
       const lit = onCanvas ? this.lightSlots.ids() : NO_LIGHTS;
       const darkPlan = lit.size > 0 ? computeOverlayPlan(withoutLights(scene, lit), viewer, vision) : plan;
       const layout = `${pw}x${ph}@${this.scale}:${this.margin}:${this.surfaceOriginX}:${this.surfaceOriginY}:${onCanvas}:${[...lit]}`;
