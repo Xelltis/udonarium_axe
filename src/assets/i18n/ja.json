@@ -6331,6 +6331,17 @@
     }
   },
   "ui": {
+    "pieceModel": {
+      "model": "3Dモデル",
+      "none": "なし（絵で描く）",
+      "read": "ファイルから読む",
+      "scale": "大きさ",
+      "turn": "向き",
+      "motions": "動き",
+      "idle": "止まっているとき",
+      "walk": "歩くとき",
+      "hint": "3Dの卓（canvasで描く卓）で、絵の代わりにglTFのモデル（.glb）で描きます。大きさはコマの幅に合わせた倍率です。動きの名前を空にすると、モデルの中の名前から選びます。"
+    },
     "openUrl": {
       "panelTitle": "外部URLを開く",
       "panelTitleWithTitle": "外部URLを開く〈{{title}}〉",

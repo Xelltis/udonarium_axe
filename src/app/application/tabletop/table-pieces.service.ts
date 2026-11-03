@@ -12,6 +12,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
@@ -25,6 +26,7 @@ import { LightSource } from '@axe/domain/tabletop/light-source';
 import { canBeStoodOn } from '@axe/domain/tabletop/move/landing-height';
 import { landingLeanAt } from '@axe/domain/tabletop/move/landing-height';
 import { pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
+import { pieceModelOf } from '@axe/domain/tabletop/piece-model';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
@@ -43,6 +45,7 @@ import { maskSprites, rangeSprites } from '@axe/domain/tabletop/world/flat-piece
 import { lightSourceSprites } from '@axe/domain/tabletop/world/light-source-sprites';
 import { MotionPivot, movedSprite } from '@axe/domain/tabletop/world/piece-motions';
 import { tableCoinOf, TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
+import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { textNoteSprites } from '@axe/domain/tabletop/world/text-note-sprites';
 import { whiteBoardSprites } from '@axe/domain/tabletop/world/white-board-sprites';
@@ -87,6 +90,45 @@ export class TablePiecesService {
   private readonly pagePictures = inject(PiecePicturesService);
   private readonly roomRules = inject(RoomRulesService);
   private readonly motions = inject(PieceMotionsService);
+  private readonly modelStorage = inject(ModelStorage);
+
+  /**
+   * The characters this seat may see that are drawn as 3D models, held here in full, standing on the
+   * floor: each stood at the middle of its footprint, walking while the seat moves it.
+   */
+  readonly models = computed<readonly TableWorldModel[]>(() => {
+    this.objectChange.collectionOf(GameCharacter.aliasName)();
+    this.objectChange.fileVersion();
+    this.transient.version();
+    const gridSize = this.tabletop.currentTableVersion().gridSize;
+    const models: TableWorldModel[] = [];
+    for (const character of this.tabletop.characters) {
+      this.objectChange.versionOf(character.identifier)();
+      const model = pieceModelOf(character);
+      const url = model ? this.modelUrlOf(model.identifier) : '';
+      if (!model || !url || !this.vision.isTokenVisible(character)) continue;
+      const place = this.placeOf(character);
+      if (!place?.onFloor) continue;
+      const size = Math.max(0, character.size) * gridSize;
+      models.push({
+        owner: character.identifier,
+        kind: GameCharacter.aliasName,
+        url,
+        model,
+        foot: { x: place.x + size / 2, y: place.y + size / 2, z: place.z },
+        footprintPx: size,
+        rotateDeg: character.rotate,
+        walking: this.transient.placementOf(character.identifier) !== null,
+      });
+    }
+    return models;
+  });
+
+  /** Where the bytes of a model held here in full are read from, or nothing for one not held. */
+  modelUrlOf(identifier: string): string {
+    const model = this.modelStorage.get(identifier);
+    return model?.isReady ? model.url : '';
+  }
 
   /** Every sprite of every piece drawn on the table in view, where it stands. */
   private readonly standing = computed<readonly TableWorldSprite[]>(() => [
@@ -186,25 +228,26 @@ export class TablePiecesService {
       if (!this.vision.isTokenVisible(character)) continue;
       const place = this.placeOf(character);
       if (!place) continue;
-      sprites.push(
-        ...characterSprites({
-          id: character.identifier,
-          ...place,
-          sizePx: Math.max(0, character.size) * gridSize,
-          rotateDeg: character.rotate,
-          rollDeg: character.roll,
-          dropShadow: character.isDropShadow,
-          lean: mode2d ? null : this.leanUnder(character, gridSize),
-          altitudePx: character.altitude * gridSize,
-          pedestal: this.pagePictures.pictureOf(character.identifier),
-          picture: this.sized(this.images.getEmptyOr(character.imageFile).url),
-          pictureHeightPx: character.specifyKomaImageFlag ? character.komaImageHeight : null,
-          pictureWidthPx: character.specifyKomaImageFlag ? pieceImageWidthApart(character.komaImageWidth) : null,
-          fitsInCell,
-          facesEye,
-          opacity: character.stealth === '1' ? 0.5 : 1,
-        })
-      );
+      const model = pieceModelOf(character);
+      const modelled = !!model && place.onFloor && this.modelUrlOf(model.identifier) !== '';
+      const drawn = characterSprites({
+        id: character.identifier,
+        ...place,
+        sizePx: Math.max(0, character.size) * gridSize,
+        rotateDeg: character.rotate,
+        rollDeg: character.roll,
+        dropShadow: character.isDropShadow,
+        lean: mode2d ? null : this.leanUnder(character, gridSize),
+        altitudePx: character.altitude * gridSize,
+        pedestal: this.pagePictures.pictureOf(character.identifier),
+        picture: this.sized(this.images.getEmptyOr(character.imageFile).url),
+        pictureHeightPx: character.specifyKomaImageFlag ? character.komaImageHeight : null,
+        pictureWidthPx: character.specifyKomaImageFlag ? pieceImageWidthApart(character.komaImageWidth) : null,
+        fitsInCell,
+        facesEye,
+        opacity: character.stealth === '1' ? 0.5 : 1,
+      });
+      sprites.push(...(modelled ? drawn.map(standInForModel) : drawn));
     }
     return sprites;
   });
@@ -536,4 +579,12 @@ export class TablePiecesService {
     const colour = getComputedStyle(document.documentElement).getPropertyValue(property).trim();
     return colour || otherwise;
   }
+}
+
+/**
+ * A sprite of a character drawn as a 3D model: its picture and its shadow left undrawn, still picked
+ * where they stand, and its pedestal drawn as it is.
+ */
+function standInForModel(sprite: TableWorldSprite): TableWorldSprite {
+  return sprite.id.endsWith('#pedestal') ? sprite : { ...sprite, hidden: true };
 }

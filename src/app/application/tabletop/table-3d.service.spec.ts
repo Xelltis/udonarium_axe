@@ -6,11 +6,15 @@ import { TableCameraService } from '@axe/application/tabletop/table-camera.servi
 import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { TableGraphics } from '@axe/core/util/graphics-acceleration';
 import { DEFAULT_GAME_CLOCK } from '@axe/domain/game-clock/game-clock';
 import { Config } from '@axe/domain/peer/config';
 import { DEFAULT_TABLE_CAMERA_VIEW } from '@axe/domain/tabletop/camera/table-camera';
+import { GameTable } from '@axe/domain/tabletop/game-table';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { Terrain } from '@axe/domain/tabletop/terrain';
 import { type SkyDome, skyDomeAt } from '@axe/domain/tabletop/world/sky-dome';
 import { type SkyLight, skyLightAt } from '@axe/domain/tabletop/world/sky-light';
 import type { TableWorld } from '@axe/domain/tabletop/world/table-world';
@@ -168,6 +172,7 @@ class FakeEngine implements Table3dEngine {
       fogAirSheets: 0,
       sky: false,
       backdrops: 0,
+      models: 0,
       veilRevision: 0,
       lightMapRevision: 0,
       shadowLights: 0,
@@ -473,6 +478,32 @@ describe('Table3dService', () => {
 
     await atHour(0);
     expect(engine.skies.at(-1)).toEqual(skyLightAt(0));
+  });
+
+  it('draws a block given a model held here as the model, in place of its faces', async () => {
+    const scene = service();
+    vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:tree' } as never);
+    const table = new GameTable();
+    table.initialize();
+    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    const block = Terrain.create('木', 1, 1, 2, '', '');
+    block.location = { name: 'table', x: 100, y: 150 };
+    block.modelIdentifier = 'tree';
+    table.appendChild(block);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const world = scene.world();
+
+    expect(world.models).toEqual([
+      expect.objectContaining({
+        owner: block.identifier,
+        url: 'blob:tree',
+        foot: { x: 125, y: 175, z: 0 },
+        footprintPx: 50,
+      }),
+    ]);
+    expect([...world.walls, ...world.caps].filter((face) => face.id.startsWith(block.identifier))).toEqual([]);
+    table.destroy();
   });
 
   it('draws a sky past the board only on a table that asks for one, as it is at the hour the clock tells', async () => {

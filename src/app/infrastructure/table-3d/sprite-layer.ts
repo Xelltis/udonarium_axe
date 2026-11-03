@@ -124,6 +124,7 @@ export class SpriteLayer {
       }
       const mesh = drawn.mesh;
       mesh.renderOrder = 0;
+      mesh.visible = !sprite.hidden;
       mesh.position.copy(sceneDirection(sprite.centre));
       mesh.scale.set(sprite.widthPx, sprite.heightPx, 1);
       if (sprite.facing === 'eye') {
@@ -174,7 +175,7 @@ export class SpriteLayer {
   private layCasters(sprites: readonly TableWorldSprite[]): void {
     const wanted = new Set<string>();
     for (const sprite of sprites) {
-      if (!standsUp(sprite) || sprite.look.kind !== 'picture') continue;
+      if (!standsUp(sprite) || sprite.look.kind !== 'picture' || sprite.hidden) continue;
       wanted.add(sprite.id);
       const look = sprite.look.url;
       let caster = this.casters.get(sprite.id);

@@ -15,6 +15,7 @@ import { blockFacesOf } from '@axe/domain/tabletop/world/block-faces';
 import { GroundMesh, hexGroundMesh, squareGroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
 import { TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import type { TableWorldBackdrop, TableWorldLayer } from '@axe/domain/tabletop/world/table-layers';
+import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { NO_WATER, type TableWorldWater } from '@axe/domain/tabletop/world/table-water';
 
@@ -114,6 +115,8 @@ export interface TableWorld {
   readonly water: TableWorldWater;
   /** The pictures laid behind everything, which a scene with a sky stands round the board. */
   readonly backdrops: readonly TableWorldBackdrop[];
+  /** The pieces and blocks drawn as 3D models. */
+  readonly models: readonly TableWorldModel[];
 }
 
 /** The scene with nothing in it. */
@@ -126,6 +129,7 @@ export const EMPTY_TABLE_WORLD: TableWorld = {
   layers: [],
   water: NO_WATER,
   backdrops: [],
+  models: [],
 };
 
 /** How much bigger than a cell each hex a board is cut to is, so the cut leaves no seam between cells. */
@@ -175,6 +179,7 @@ export function tableWorldOf(
     layers: [],
     water: NO_WATER,
     backdrops: [],
+    models: [],
   };
 }
 

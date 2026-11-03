@@ -119,6 +119,8 @@ export interface Table3dStats {
   readonly sky: boolean;
   /** The pictures stood round the board behind everything, under a sky. */
   readonly backdrops: number;
+  /** The pieces and blocks drawn as 3D models, read and stood. */
+  readonly models: number;
   /** How many times the veil has been laid anew, 0 while there is none. */
   readonly veilRevision: number;
   /** How many times the light of a dark table has been laid anew, 0 while the table is not dark. */

@@ -56,6 +56,7 @@ export interface TableTestHooks {
     fogAirSheets: number;
     sky: boolean;
     backdrops: number;
+    models: number;
     veilRevision: number;
     lightMapRevision: number;
     shadowCasters: number;

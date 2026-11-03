@@ -68,6 +68,7 @@ import { IN_DATA_ELEMENT_SHEET } from '@axe/features/data-element/game-data-elem
 import { GameDataElementComponent } from '@axe/features/data-element/game-data-element/game-data-element.component';
 import { DisclosureControlComponent } from '@axe/features/disclosure/disclosure-control/disclosure-control.component';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
+import { PieceModelFieldsComponent } from '@axe/ui/components/piece-model-fields/piece-model-fields.component';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { formatNoteText } from '@axe/ui/text-decoration/format-note-text';
@@ -95,6 +96,7 @@ const NARROW_SHEET_REM = 36;
     GameDataElementComponent,
     SafePipe,
     TranslocoModule,
+    PieceModelFieldsComponent,
   ],
 })
 export class GameCharacterSheetComponent {

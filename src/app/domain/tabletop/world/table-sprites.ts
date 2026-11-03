@@ -42,6 +42,11 @@ export interface TableWorldSprite {
   readonly opacity?: number;
   /** Whether it shows from behind as well as from in front. */
   readonly twoSided: boolean;
+  /**
+   * Whether it is left undrawn, standing in for a 3D model the piece is drawn as instead: it is still
+   * where the piece is picked, as the model is fitted to it.
+   */
+  readonly hidden?: boolean;
   /** Whether a press on a clear part of its picture passes through it, as through a piece's picture. */
   readonly seeThrough?: boolean;
   /**

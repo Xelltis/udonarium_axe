@@ -6331,6 +6331,17 @@
     }
   },
   "ui": {
+    "pieceModel": {
+      "model": "3D model",
+      "none": "None (draw the picture)",
+      "read": "Read a file",
+      "scale": "Size",
+      "turn": "Turn",
+      "motions": "Motions",
+      "idle": "Standing still",
+      "walk": "Walking",
+      "hint": "On a 3D table (drawn on a canvas), draws a glTF model (.glb) in place of the picture. The size is a multiple of the piece's width. Leave a motion empty to pick one by the names in the model."
+    },
     "openUrl": {
       "panelTitle": "Open external URL",
       "panelTitleWithTitle": "Open external URL <{{title}}>",

@@ -9,9 +9,11 @@ import { TablePiecesService } from '@axe/application/tabletop/table-pieces.servi
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ImageFile } from '@axe/core/storage/image-file';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -247,5 +249,57 @@ describe('TablePiecesService', () => {
     );
 
     expect(pieces.coins()).toMatchObject([{ id: coin.identifier, backUp: false, motion: pose }]);
+  });
+
+  describe('a character drawn as a 3D model', () => {
+    function knightAt(x: number, y: number): GameCharacter {
+      const knight = GameCharacter.create('騎士', 1, '');
+      knight.location = { name: 'table', x, y };
+      knight.modelIdentifier = 'knight-model';
+      knight.modelScale = '2';
+      return knight;
+    }
+
+    it('draws a character whose model is not held here as its picture', () => {
+      const knight = knightAt(100, 200);
+
+      expect(pieces.models()).toEqual([]);
+      expect(pieces.sprites().filter((sprite) => sprite.owner === knight.identifier && sprite.hidden)).toEqual([]);
+    });
+
+    it('stands the model at the middle of the footprint once its bytes are held, and leaves its picture undrawn but its pedestal drawn', () => {
+      vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:knight' } as never);
+      vi.spyOn(TestBed.inject(PiecePicturesService), 'pictureOf').mockReturnValue({
+        url: 'blob:pedestal',
+        widthPx: gridSize,
+        heightPx: gridSize,
+      } as never);
+      const knight = knightAt(100, 200);
+
+      expect(pieces.models()).toEqual([
+        expect.objectContaining({
+          owner: knight.identifier,
+          url: 'blob:knight',
+          foot: { x: 100 + gridSize / 2, y: 200 + gridSize / 2, z: 0 },
+          footprintPx: gridSize,
+          walking: false,
+          model: expect.objectContaining({ identifier: 'knight-model', scale: 2 }),
+        }),
+      ]);
+      const sprites = pieces.sprites().filter((sprite) => sprite.owner === knight.identifier);
+      expect(sprites.filter((sprite) => sprite.hidden).length).toBeGreaterThan(0);
+      expect(sprites.filter((sprite) => !sprite.hidden).map((sprite) => sprite.id)).toEqual([
+        `${knight.identifier}#pedestal`,
+      ]);
+    });
+
+    it('walks while this seat moves it', () => {
+      const knight = knightAt(100, 200);
+      vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:knight' } as never);
+
+      TestBed.inject(TransientPlacementService).place(knight.identifier, { surface: 'floor', x: 150, y: 200, z: 0 });
+
+      expect(pieces.models()[0]).toMatchObject({ walking: true, foot: { x: 150 + gridSize / 2 } });
+    });
   });
 });

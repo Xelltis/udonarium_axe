@@ -61,6 +61,8 @@ export interface LoadResult {
   readonly images: readonly string[];
   /** The identifiers of the sounds the load took in. */
   readonly audios: readonly string[];
+  /** The identifiers of the 3D models the load took in. */
+  readonly models: readonly string[];
 }
 
 /** What one load carries along from file to file. */
@@ -71,6 +73,7 @@ interface LoadRun {
   dataRead: boolean;
   readonly images: string[];
   readonly audios: string[];
+  readonly models: string[];
 }
 
 /** What {@link FileArchiver.loadImages} took in and what it had to leave out. */
@@ -225,10 +228,11 @@ export class FileArchiver {
       dataRead: false,
       images: [],
       audios: [],
+      models: [],
     };
     await this.loadFiles(files, dropPoint, true, run);
     if (run.tooLarge.length > 0) emitFilesTooLarge({ files: run.tooLarge });
-    return { dataRead: run.dataRead, images: run.images, audios: run.audios };
+    return { dataRead: run.dataRead, images: run.images, audios: run.audios, models: run.models };
   }
 
   private async loadFiles(
@@ -339,7 +343,8 @@ export class FileArchiver {
     }
     const head = new Uint8Array(await FileReaderUtil.readAsArrayBufferAsync(file.slice(0, 8)));
     if (!isBinaryGltf(head)) return;
-    await ModelStorage.instance.addAsync(file, { putBack: true });
+    const model = await ModelStorage.instance.addAsync(file, { putBack: true });
+    if (model) run.models.push(model.identifier);
   }
 
   private async handleText(file: File, dropPoint: { x: number; y: number } | undefined, run: LoadRun): Promise<void> {

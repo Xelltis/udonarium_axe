@@ -29,15 +29,19 @@ import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { TableGraphics, tableGraphicsOf } from '@axe/core/util/graphics-acceleration';
 import { dayFractionOf } from '@axe/domain/game-clock/game-clock';
 import { matrixColumns, tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
+import { groundLiftOfBlock } from '@axe/domain/tabletop/ground/ground-surface';
+import { pieceModelOf } from '@axe/domain/tabletop/piece-model';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { tableSkyKindOf } from '@axe/domain/tabletop/table-sky';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { flickers } from '@axe/domain/tabletop/vision-scene/light-flicker';
 import { waterShoreOf } from '@axe/domain/tabletop/water/water-shore';
 import { waterSidesOf } from '@axe/domain/tabletop/water/water-sides';
 import { skyDomeAt } from '@axe/domain/tabletop/world/sky-dome';
 import { skyLightAt } from '@axe/domain/tabletop/world/sky-light';
 import { tableBackdropsOf, tableLayersOf } from '@axe/domain/tabletop/world/table-layers';
+import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
 import { tableWaterOf } from '@axe/domain/tabletop/world/table-water';
 import { TableWorld, tableWorldOf } from '@axe/domain/tabletop/world/table-world';
@@ -137,16 +141,18 @@ export class Table3dService {
   /**
    * The board and the blocks of the table in view, with the pictures they name read from where this
    * browser keeps them. A block the fog lies over entirely is left out, so nothing of it is drawn at
-   * all, and one it lies over in part is cut back to the cells the seat has reached.
+   * all, and one it lies over in part is cut back to the cells the seat has reached. A block drawn as
+   * a 3D model held here is drawn as the model instead of its faces.
    */
   private readonly faces = computed(() => {
     this.objectChange.fileVersion();
     this.objectChange.collectionOf(TableBackgroundLayer.aliasName)();
     this.objectChange.collectionOf(Terrain.aliasName)();
     const table = this.tabletop.currentTableVersion();
+    const modelled = new Set(this.terrainModels().map((model) => model.owner));
     const terrains = this.tabletop.terrains.filter((terrain) => {
       this.objectChange.versionOf(terrain.identifier)();
-      return !this.hiddenByFog(terrain);
+      return !this.hiddenByFog(terrain) && !modelled.has(terrain.identifier);
     });
     return tableWorldOf(
       table,
@@ -168,7 +174,42 @@ export class Table3dService {
     layers: this.layers(),
     water: this.water(),
     backdrops: this.backdrops(),
+    models: [...this.pieces.models(), ...this.terrainModels()],
   }));
+
+  /**
+   * The blocks this seat may see that are drawn as 3D models held here in full: each stood on the
+   * middle of its box, at the foot of the block, as wide as the box is wide or deep.
+   */
+  private readonly terrainModels = computed<readonly TableWorldModel[]>(() => {
+    this.objectChange.fileVersion();
+    this.objectChange.collectionOf(Terrain.aliasName)();
+    const gridSize = this.tabletop.currentTableVersion().gridSize;
+    const ground = this.ground.surface();
+    const models: TableWorldModel[] = [];
+    for (const terrain of this.tabletop.terrains) {
+      this.objectChange.versionOf(terrain.identifier)();
+      const model = pieceModelOf(terrain);
+      const url = model ? this.pieces.modelUrlOf(model.identifier) : '';
+      if (!model || !url || this.hiddenByFog(terrain)) continue;
+      const box = terrainBoxOf(terrain, gridSize);
+      models.push({
+        owner: terrain.identifier,
+        kind: Terrain.aliasName,
+        url,
+        model,
+        foot: {
+          x: (box.minX + box.maxX) / 2,
+          y: (box.minY + box.maxY) / 2,
+          z: terrain.posZ + groundLiftOfBlock(ground, gridSize, terrain),
+        },
+        footprintPx: Math.max(terrain.width, terrain.depth) * gridSize,
+        rotateDeg: terrain.rotate,
+        walking: false,
+      });
+    }
+    return models;
+  });
 
   /**
    * The water on the table in view, as this seat sees it, with the floor of a map the weather puts

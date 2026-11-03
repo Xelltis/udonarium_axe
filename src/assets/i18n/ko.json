@@ -6333,6 +6333,17 @@
     "roomDataDefault": "룸 데이터"
   },
   "ui": {
+    "pieceModel": {
+      "model": "3D 모델",
+      "none": "없음 (그림으로 그리기)",
+      "read": "파일에서 읽기",
+      "scale": "크기",
+      "turn": "방향",
+      "motions": "동작",
+      "idle": "멈춰 있을 때",
+      "walk": "걸을 때",
+      "hint": "3D 테이블(canvas로 그리는 테이블)에서 그림 대신 glTF 모델(.glb)로 그립니다. 크기는 말의 너비에 맞춘 배율입니다. 동작 이름을 비워 두면 모델 안의 이름에서 고릅니다."
+    },
     "openUrl": {
       "panelTitle": "외부 URL 열기",
       "panelTitleWithTitle": "외부 URL 열기〈{{title}}〉",

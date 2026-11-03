@@ -291,6 +291,15 @@
     </div>
   </div>
 
+  <div class="bg-ui-elevated border-ui-border-panel flex flex-col gap-1.5 rounded-sm border border-solid px-3 py-2.5">
+    <div
+      class="border-ui-border-panel text-ui-accent mt-0 mb-2 flex items-center gap-1.25 border-b border-solid pb-1.25 text-[0.72em] font-semibold tracking-[0.06em] uppercase [&_.material-icons]:text-[14px]!"
+    >
+      <i class="material-icons">view_in_ar</i>{{ 'ui.pieceModel.model' | transloco }}
+    </div>
+    <piece-model-fields [target]="character()" />
+  </div>
+
   @if (legacyCheckTableCount() > 0) {
     <div
       class="bg-ui-elevated border-ui-border-panel col-span-2 flex flex-col gap-1.5 rounded-sm border border-solid px-3 py-2.5"

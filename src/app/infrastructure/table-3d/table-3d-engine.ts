@@ -27,6 +27,7 @@ import {
 } from '@axe/infrastructure/table-3d/face-geometry';
 import { FloorCanvasLayer } from '@axe/infrastructure/table-3d/floor-canvas-layer';
 import { FogAirLayer } from '@axe/infrastructure/table-3d/fog-air-layer';
+import { ModelLayer } from '@axe/infrastructure/table-3d/model-layer';
 import { SkyLayer } from '@axe/infrastructure/table-3d/sky-layer';
 import { SHADOW_CASTERS_LAYER, SpriteLayer } from '@axe/infrastructure/table-3d/sprite-layer';
 import type {
@@ -229,10 +230,18 @@ class ThreeTableEngine implements Table3dEngine {
   );
   private readonly floorCanvases = new FloorCanvasLayer();
   private readonly fogAir = new FogAirLayer();
+  private readonly models = new ModelLayer(
+    (material) => this.veil.cover(material, 'lit'),
+    () => {
+      this.piecesMoved();
+      this.needsFrame();
+    }
+  );
   private readonly skyDome = new SkyLayer();
   private readonly backdrops = new BackdropRing((url) => this.sharedPicture(url, true));
   private laidBackdrops: TableWorld['backdrops'] = [];
   private laidSky: SkyDome | null = null;
+  private laidModels: TableWorld['models'] = [];
   private laidSkyKey = 'null';
   private readonly water = new WaterLayer((material, taking) => this.veil.cover(material, taking));
   private readonly layers = new BoardLayers(
@@ -260,6 +269,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.scene.add(this.layers.group);
     this.scene.add(this.water.group);
     this.scene.add(this.fogAir.group);
+    this.scene.add(this.models.group);
     this.scene.add(this.skyDome.group);
     this.scene.add(this.backdrops.group);
     this.scene.add(this.sun, this.sun.target, this.sky);
@@ -434,7 +444,7 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   isLoading(): boolean {
-    return this.loading > 0 || this.shadowTimer !== null;
+    return this.loading > 0 || this.shadowTimer !== null || this.models.isLoading;
   }
 
   stats(): Table3dStats {
@@ -451,6 +461,7 @@ class ThreeTableEngine implements Table3dEngine {
       fogAirSheets: this.fogAir.shown,
       sky: this.skyDome.shown,
       backdrops: this.backdrops.shown,
+      models: this.models.shown,
       veilRevision: this.veil.revision,
       lightMapRevision: this.veil.lightRevision,
       shadowLights: this.laidLamps.length,
@@ -482,6 +493,11 @@ class ThreeTableEngine implements Table3dEngine {
     }
     this.sprites.set(world.sprites);
     this.coins.set(world.coins);
+    if (world.models !== this.laidModels) {
+      this.laidModels = world.models;
+      this.models.set(world.models);
+      this.piecesMoved();
+    }
     this.laidBackdrops = world.backdrops;
     this.standBackdrops();
     this.water.set(
@@ -592,8 +608,9 @@ class ThreeTableEngine implements Table3dEngine {
     const flowing = this.water.advance(timeMs);
     const hanging = this.fogAir.advance(timeMs);
     const passing = this.backdrops.advance(timeMs);
+    const walking = this.models.advance(timeMs);
     this.takeChanges();
-    return drifting || flowing || hanging || passing;
+    return drifting || flowing || hanging || passing || walking;
   }
 
   setSky(sky: SkyDome | null): void {
@@ -636,15 +653,16 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   /**
-   * Takes up what the layers drifting past the board and behind it, the water and the fog in the air
-   * built or moved, which wants drawing.
+   * Takes up what the layers drifting past the board and behind it, the water, the fog in the air and
+   * the models built or moved, which wants drawing.
    */
   private takeChanges(): void {
     const drifted = this.layers.takeChanged();
     const flowed = this.water.takeChanged();
     const hung = this.fogAir.takeChanged();
     const stood = this.backdrops.takeChanged();
-    if (drifted || flowed || hung || stood) this.changed = true;
+    const modelled = this.models.takeChanged();
+    if (drifted || flowed || hung || stood || modelled) this.changed = true;
   }
 
   dispose(): void {
@@ -658,6 +676,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.fogAir.dispose();
     this.skyDome.dispose();
     this.backdrops.dispose();
+    this.models.dispose();
     this.veil.dispose();
     disposeObject(this.scene);
     for (const picture of this.loaded.values()) picture.dispose();
