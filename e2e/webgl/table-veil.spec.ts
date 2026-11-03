@@ -136,6 +136,8 @@ test.describe('the darkness over a table drawn on a canvas', () => {
         { timeout: 15000 }
       )
       .toBe(true);
+    await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
+    settled = await draws();
     await page.waitForTimeout(2000);
 
     expect(await draws()).toBe(settled);
