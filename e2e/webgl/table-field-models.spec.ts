@@ -5,21 +5,25 @@ import { openPanel, waitAppReady } from '../helpers';
 
 /**
  * Open country generated for a table drawn on a canvas, its trees, bushes and rocks stood as the 3D
- * models bundled with the app.
+ * models bundled with the app, the many copies of each drawn together with its few meshes.
  */
 
 type Hooks = {
   renderer(): string | null;
   whenIdle(): Promise<void>;
-  sceneStats(): { models: number } | null;
+  sceneStats(): { models: number; modelMeshes: number } | null;
 };
 
-function models(page: Page): Promise<number> {
-  return page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.sceneStats()?.models ?? -1);
+function stats(page: Page): Promise<{ models: number; modelMeshes: number }> {
+  return page.evaluate(
+    () => (window as unknown as { __axeTable: Hooks }).__axeTable.sceneStats() ?? { models: -1, modelMeshes: -1 }
+  );
 }
 
 test.describe('open country generated for a table drawn on a canvas', () => {
-  test('stands its trees and rocks as the bundled models, offered by default on a canvas', async ({ page }) => {
+  test('stands its trees and rocks as the bundled models, offered by default on a canvas, each model drawn once for all its copies', async ({
+    page,
+  }) => {
     await waitAppReady(page);
     await becomeGm(page);
     await closePanels(page);
@@ -34,6 +38,9 @@ test.describe('open country generated for a table drawn on a canvas', () => {
     if (await later.count()) await later.first().dispatchEvent('click');
     await closePanels(page);
 
-    await expect.poll(() => models(page), { timeout: 30000 }).toBeGreaterThan(0);
+    await expect.poll(async () => (await stats(page)).models, { timeout: 30000 }).toBeGreaterThan(12);
+    const { models, modelMeshes } = await stats(page);
+    expect(modelMeshes).toBeGreaterThan(0);
+    expect(modelMeshes).toBeLessThan(models);
   });
 });

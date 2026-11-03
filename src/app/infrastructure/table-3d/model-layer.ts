@@ -10,13 +10,17 @@ import {
   AnimationClip,
   AnimationMixer,
   Box3,
+  Euler,
   Group,
+  InstancedMesh,
   LoadingManager,
   type Material,
+  Matrix4,
   Mesh,
   MeshLambertNodeMaterial,
   type MeshStandardMaterial,
   type Object3D,
+  Quaternion,
   Vector3,
   type WebGPURenderer,
 } from 'three/webgpu';
@@ -27,13 +31,24 @@ interface LoadedModel {
   readonly size: Vector3;
   /** The middle of its foot, as it was made: its box's middle across and its lowest point. */
   readonly foot: Vector3;
+  /** Whether it plays any motion, which its every copy is then stood on its own to play. */
+  readonly animated: boolean;
+  /** Its meshes, each where it stands within the model measured from the model's foot. */
+  readonly parts: readonly { readonly mesh: Mesh; readonly within: Matrix4 }[];
+}
+
+/** Every copy of a model that plays no motion, drawn together: one instanced mesh for each of its meshes. */
+interface Herd {
+  readonly parts: readonly InstancedMesh[];
+  readonly capacity: number;
+  copies: number;
 }
 
 interface StoodModel {
   readonly owner: string;
   readonly url: string;
   readonly root: Group;
-  readonly mixer: AnimationMixer | null;
+  readonly mixer: AnimationMixer;
   readonly idle: AnimationAction | null;
   readonly walk: AnimationAction | null;
   walking: boolean;
@@ -69,6 +84,7 @@ export class ModelLayer {
   private readonly loaded = new Map<string, LoadedModel | null>();
   private readonly loading = new Set<string>();
   private stood = new Map<string, StoodModel>();
+  private readonly herds = new Map<string, Herd>();
   private laid: readonly TableWorldModel[] = [];
   private changed = false;
   private lastTimeMs: number | null = null;
@@ -85,9 +101,20 @@ export class ModelLayer {
     this.loader.setMeshoptDecoder(MeshoptDecoder);
   }
 
-  /** How many models are read and stood, and how many are still being read. */
+  /** How many models are read and stood. */
   get shown(): number {
-    return this.stood.size;
+    let copies = this.stood.size;
+    for (const herd of this.herds.values()) copies += herd.copies;
+    return copies;
+  }
+
+  /** How many meshes the models are drawn with, each instanced mesh counted once however many copies it draws. */
+  get meshes(): number {
+    let meshes = 0;
+    for (const herd of this.herds.values()) meshes += herd.copies > 0 ? herd.parts.length : 0;
+    for (const stood of this.stood.values())
+      stood.root.traverse((object) => (meshes += object instanceof Mesh ? 1 : 0));
+    return meshes;
   }
 
   get isLoading(): boolean {
@@ -98,15 +125,7 @@ export class ModelLayer {
   set(models: readonly TableWorldModel[]): void {
     if (models === this.laid) return;
     this.laid = models;
-    const wanted = new Set(models.map((model) => model.owner));
-    for (const [owner, stood] of this.stood) {
-      if (wanted.has(owner) && models.find((model) => model.owner === owner)?.url === stood.url) continue;
-      this.group.remove(stood.root);
-      stood.mixer?.stopAllAction();
-      this.stood.delete(owner);
-    }
-    for (const model of models) this.stand(model);
-    this.changed = true;
+    this.lay();
   }
 
   /** Moves the walks on to a moment, in milliseconds; answers whether any model is walking. */
@@ -115,7 +134,7 @@ export class ModelLayer {
     this.lastTimeMs = timeMs;
     let walking = false;
     for (const stood of this.stood.values()) {
-      if (!stood.walking || !stood.mixer) continue;
+      if (!stood.walking) continue;
       stood.mixer.update(step);
       walking = true;
       this.changed = true;
@@ -134,47 +153,104 @@ export class ModelLayer {
   dispose(): void {
     for (const stood of this.stood.values()) this.group.remove(stood.root);
     this.stood.clear();
+    for (const herd of this.herds.values()) this.unherd(herd);
+    this.herds.clear();
     for (const loaded of this.loaded.values()) loaded?.gltf.scene.traverse(disposeMesh);
     this.loaded.clear();
     void this.draco?.then((loader) => loader.dispose());
     void this.ktx2?.then((loader) => loader.dispose());
   }
 
-  /** Stands a model where its piece is, reading it first where it has not been read yet. */
-  private stand(model: TableWorldModel): void {
-    const loaded = this.loaded.get(model.url);
-    if (loaded === undefined) {
-      this.read(model.url);
-      return;
+  /**
+   * Stands every model laid where its piece is, reading first any not read yet: a model that plays a
+   * motion as a copy of its own, and the copies of one that plays none together in its herd.
+   */
+  private lay(): void {
+    const wanted = new Map(this.laid.map((model) => [model.owner, model]));
+    for (const [owner, stood] of this.stood) {
+      if (wanted.get(owner)?.url === stood.url) continue;
+      this.group.remove(stood.root);
+      stood.mixer.stopAllAction();
+      this.stood.delete(owner);
     }
-    if (loaded === null) return;
+    const flocks = new Map<string, TableWorldModel[]>();
+    for (const model of this.laid) {
+      const loaded = this.loaded.get(model.url);
+      if (loaded === undefined) this.read(model.url);
+      if (!loaded) continue;
+      if (loaded.animated) this.stand(model, loaded);
+      else flocks.set(model.url, [...(flocks.get(model.url) ?? []), model]);
+    }
+    for (const [url, herd] of this.herds) {
+      if (flocks.has(url)) continue;
+      this.unherd(herd);
+      this.herds.delete(url);
+    }
+    for (const [url, flock] of flocks) this.herd(url, this.loaded.get(url)!, flock);
+    this.changed = true;
+  }
+
+  /** Stands a model that plays a motion where its piece is, as a copy of its own. */
+  private stand(model: TableWorldModel, loaded: LoadedModel): void {
     let stood = this.stood.get(model.owner);
     if (!stood) {
       stood = this.instanceOf(model, loaded);
       this.stood.set(model.owner, stood);
       this.group.add(stood.root);
     }
-    const across = Math.max(loaded.size.x, loaded.size.z, 1e-6);
-    const tall = Math.max(loaded.size.y, 1e-6);
-    const fitted = Math.min(
-      Math.max(1, model.footprintPx) / across,
-      model.heightPx > 0 ? model.heightPx / tall : Infinity
-    );
-    const scale = fitted * model.model.scale;
     const inner = stood.root.children[0];
     inner.position.set(-loaded.foot.x, -loaded.foot.y, -loaded.foot.z);
-    stood.root.scale.setScalar(scale);
-    stood.root.position.set(model.foot.x, model.foot.z, model.foot.y);
-    stood.root.rotation.set(0, -(model.rotateDeg + model.model.turnDeg) * RADIANS, 0);
+    placementOf(model, loaded).decompose(stood.root.position, stood.root.quaternion, stood.root.scale);
     stood.root.updateMatrixWorld(true);
     this.walk(stood, model.walking);
+  }
+
+  /** Stands the copies of a model that plays no motion where their pieces are, its herd grown where it is too small. */
+  private herd(url: string, loaded: LoadedModel, flock: readonly TableWorldModel[]): void {
+    let herd = this.herds.get(url);
+    if (!herd || herd.capacity < flock.length) {
+      if (herd) this.unherd(herd);
+      const capacity = Math.max(4, 2 ** Math.ceil(Math.log2(flock.length)));
+      herd = {
+        parts: loaded.parts.map(({ mesh }) => {
+          const part = new InstancedMesh(mesh.geometry, mesh.material, capacity);
+          part.castShadow = true;
+          part.receiveShadow = true;
+          part.matrixAutoUpdate = false;
+          this.group.add(part);
+          return part;
+        }),
+        capacity,
+        copies: 0,
+      };
+      this.herds.set(url, herd);
+    }
+    herd.copies = flock.length;
+    const matrix = new Matrix4();
+    flock.forEach((model, index) => {
+      const placement = placementOf(model, loaded);
+      loaded.parts.forEach(({ within }, part) =>
+        herd.parts[part].setMatrixAt(index, matrix.multiplyMatrices(placement, within))
+      );
+    });
+    for (const part of herd.parts) {
+      part.count = flock.length;
+      part.instanceMatrix.needsUpdate = true;
+      part.computeBoundingSphere();
+    }
+  }
+
+  private unherd(herd: Herd): void {
+    for (const part of herd.parts) {
+      this.group.remove(part);
+      part.dispose();
+    }
   }
 
   /** Plays a model's walk while its piece is moved, and holds it in the first pose of its idle otherwise. */
   private walk(stood: StoodModel, walking: boolean): void {
     if (stood.walking === walking) return;
     stood.walking = walking;
-    if (!stood.mixer) return;
     stood.mixer.stopAllAction();
     const action = walking ? (stood.walk ?? stood.idle) : stood.idle;
     action?.reset().play();
@@ -182,12 +258,10 @@ export class ModelLayer {
   }
 
   private instanceOf(model: TableWorldModel, loaded: LoadedModel): StoodModel {
-    const animated = loaded.gltf.animations.length > 0;
-    const inner = (animated ? cloneSkinned(loaded.gltf.scene) : loaded.gltf.scene.clone()) as Object3D;
+    const inner = cloneSkinned(loaded.gltf.scene) as Object3D;
     const root = new Group();
     root.add(inner);
-    root.userData['owner'] = model.owner;
-    const mixer = animated ? new AnimationMixer(inner) : null;
+    const mixer = new AnimationMixer(inner);
     const clip = (name: string, pattern: RegExp) =>
       (name ? AnimationClip.findByName(loaded.gltf.animations, name) : null) ??
       loaded.gltf.animations.find((candidate) => pattern.test(candidate.name)) ??
@@ -199,8 +273,8 @@ export class ModelLayer {
       url: model.url,
       root,
       mixer,
-      idle: mixer && idleClip ? mixer.clipAction(idleClip) : null,
-      walk: mixer && walkClip ? mixer.clipAction(walkClip) : null,
+      idle: idleClip ? mixer.clipAction(idleClip) : null,
+      walk: walkClip ? mixer.clipAction(walkClip) : null,
       walking: true,
     };
     this.walk(stood, false);
@@ -233,10 +307,17 @@ export class ModelLayer {
     if (facts.extensions.includes('KHR_texture_basisu')) this.loader.setKTX2Loader(await this.ktx2Loader());
     const gltf = await this.loader.parseAsync(bytes, '');
     gltf.scene.traverse((object) => this.makeOver(object));
+    gltf.scene.updateMatrixWorld(true);
     const box = new Box3().setFromObject(gltf.scene);
     const size = box.getSize(new Vector3());
     const middle = box.getCenter(new Vector3());
-    return { gltf, size, foot: new Vector3(middle.x, box.min.y, middle.z) };
+    const foot = new Vector3(middle.x, box.min.y, middle.z);
+    const fromFoot = new Matrix4().makeTranslation(-foot.x, -foot.y, -foot.z);
+    const parts: { mesh: Mesh; within: Matrix4 }[] = [];
+    gltf.scene.traverse((object) => {
+      if (object instanceof Mesh) parts.push({ mesh: object, within: fromFoot.clone().multiply(object.matrixWorld) });
+    });
+    return { gltf, size, foot, animated: gltf.animations.length > 0, parts };
   }
 
   private dracoLoader(): Promise<DRACOLoader> {
@@ -255,8 +336,7 @@ export class ModelLayer {
 
   private settle(url: string): void {
     this.loading.delete(url);
-    for (const model of this.laid) if (model.url === url) this.stand(model);
-    this.changed = true;
+    this.lay();
     this.arrived();
   }
 
@@ -282,6 +362,24 @@ export class ModelLayer {
     };
     object.material = Array.isArray(object.material) ? object.material.map(madeOver) : madeOver(object.material);
   }
+}
+
+/**
+ * Where a model stands for its piece, from its foot as it was made: at the piece's foot, fitted inside
+ * the piece's box, and turned as the piece is and by the model's own turn.
+ */
+function placementOf(model: TableWorldModel, loaded: LoadedModel): Matrix4 {
+  const across = Math.max(loaded.size.x, loaded.size.z, 1e-6);
+  const tall = Math.max(loaded.size.y, 1e-6);
+  const fitted = Math.min(
+    Math.max(1, model.footprintPx) / across,
+    model.heightPx > 0 ? model.heightPx / tall : Infinity
+  );
+  return new Matrix4().compose(
+    new Vector3(model.foot.x, model.foot.z, model.foot.y),
+    new Quaternion().setFromEuler(new Euler(0, -(model.rotateDeg + model.model.turnDeg) * RADIANS, 0)),
+    new Vector3().setScalar(fitted * model.model.scale)
+  );
 }
 
 function disposeMesh(object: Object3D): void {

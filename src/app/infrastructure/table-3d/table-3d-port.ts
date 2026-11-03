@@ -121,6 +121,8 @@ export interface Table3dStats {
   readonly backdrops: number;
   /** The pieces and blocks drawn as 3D models, read and stood. */
   readonly models: number;
+  /** How many meshes the models are drawn with, the copies of a model that plays no motion sharing theirs. */
+  readonly modelMeshes: number;
   /** How many times the veil has been laid anew, 0 while there is none. */
   readonly veilRevision: number;
   /** How many times the light of a dark table has been laid anew, 0 while the table is not dark. */
@@ -133,6 +135,8 @@ export interface Table3dStats {
   readonly shadowCasters: number;
   /** How many times the scene has been drawn, which a table nothing changes on leaves where it is. */
   readonly draws: number;
+  /** How many draw calls the last drawing took, its shadows and finishing among them. */
+  readonly drawCalls: number;
 }
 
 /** What draws the table on a canvas. It draws only when something it was told has changed. */

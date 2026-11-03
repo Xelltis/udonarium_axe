@@ -57,10 +57,12 @@ export interface TableTestHooks {
     sky: boolean;
     backdrops: number;
     models: number;
+    modelMeshes: number;
     veilRevision: number;
     lightMapRevision: number;
     shadowCasters: number;
     draws: number;
+    drawCalls: number;
   } | null;
   /** How wide and deep the board of the scene runs, in table pixels, or null where there is no board. */
   sceneBoard(): { widthPx: number; depthPx: number } | null;

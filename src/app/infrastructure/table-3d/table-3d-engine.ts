@@ -217,6 +217,7 @@ class ThreeTableEngine implements Table3dEngine {
   private shadowTimer: ReturnType<typeof setTimeout> | null = null;
   private flickeredAt = 0;
   private draws = 0;
+  private drawCalls = 0;
   private laidSprites: TableWorld['sprites'] = [];
   private readonly sun = new DirectionalLight(0xffffff, 0);
   private readonly sky = new HemisphereLight(0xffffff, 0xffffff, LIGHT_SCALE);
@@ -463,12 +464,14 @@ class ThreeTableEngine implements Table3dEngine {
       sky: this.skyDome.shown,
       backdrops: this.backdrops.shown,
       models: this.models.shown,
+      modelMeshes: this.models.meshes,
       veilRevision: this.veil.revision,
       lightMapRevision: this.veil.lightRevision,
       shadowLights: this.laidLamps.length,
       glowRevision: this.veil.glowRevision,
       shadowCasters: this.sprites.casterCount,
       draws: this.draws,
+      drawCalls: this.drawCalls,
     };
   }
 
@@ -638,7 +641,9 @@ class ThreeTableEngine implements Table3dEngine {
     this.takeChanges();
     if (!this.changed || this.lost) return false;
     this.changed = false;
+    this.renderer.info.reset();
     this.post.render(this.scene, this.camera, this.finishing());
+    this.drawCalls = this.renderer.info.render.drawCalls;
     this.draws++;
     return true;
   }

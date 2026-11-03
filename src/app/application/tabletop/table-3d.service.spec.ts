@@ -173,12 +173,14 @@ class FakeEngine implements Table3dEngine {
       sky: false,
       backdrops: 0,
       models: 0,
+      modelMeshes: 0,
       veilRevision: 0,
       lightMapRevision: 0,
       shadowLights: 0,
       glowRevision: 0,
       shadowCasters: 0,
       draws: this.drawn,
+      drawCalls: 0,
     };
   }
 }
