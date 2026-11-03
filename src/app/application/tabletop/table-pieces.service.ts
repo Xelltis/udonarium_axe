@@ -67,6 +67,9 @@ interface DrawnPlace {
   readonly z: number;
 }
 
+/** How faint the piece the table's camera follows is drawn while the camera stands near enough to look through it. */
+const SEEN_THROUGH = 0.3;
+
 /**
  * How the pieces on the table in view are drawn, worked out for this seat: the sprites most are
  * drawn with, and the coins. What the seat may not see is left out; a piece the seat is moving is
@@ -224,6 +227,8 @@ export class TablePiecesService {
     const mode2d = this.tabletop.mode2d();
     const facesEye = this.tabletop.imageBillboard() || mode2d || this.eyes.scene() !== null;
     const fitsInCell = mode2d && this.roomRules.rulesFor(table).pieceImageInCell;
+    const followed = this.eyes.followed();
+    const lookedThrough = followed?.near ? followed.owner : '';
     this.objectChange.collectionOf(Terrain.aliasName)();
     const sprites: TableWorldSprite[] = [];
     for (const character of this.tabletop.characters) {
@@ -248,7 +253,7 @@ export class TablePiecesService {
         pictureWidthPx: character.specifyKomaImageFlag ? pieceImageWidthApart(character.komaImageWidth) : null,
         fitsInCell,
         facesEye,
-        opacity: character.stealth === '1' ? 0.5 : 1,
+        opacity: (character.stealth === '1' ? 0.5 : 1) * (lookedThrough === character.identifier ? SEEN_THROUGH : 1),
       });
       sprites.push(...(modelled ? drawn.map(standInForModel) : drawn));
     }

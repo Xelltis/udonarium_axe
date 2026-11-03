@@ -15,6 +15,16 @@ export interface TableCameraView {
   readonly rotateZ: number;
   /** Drawn without perspective, the push back standing in as a scale. */
   readonly orthographic: boolean;
+  /**
+   * How far in front of the box the camera looks through the eye stands, in pixels: the table's own
+   * 3000 where none is given, and less for a camera that follows a piece about, which sees wider.
+   */
+  readonly perspectivePx?: number;
+}
+
+/** How far in front of the box the camera looks through a view's eye stands, in pixels. */
+export function perspectiveOf(view: TableCameraView): number {
+  return view.perspectivePx ?? TABLE_PERSPECTIVE_PX;
 }
 
 /** Where the table is laid out on the page and how big its board is, in CSS pixels. */
@@ -145,11 +155,11 @@ export function tableEyeMatrix(view: TableCameraView, layout: TableLayout, out: 
  * the table is drawn in. A point's place on the page is its x and y over its w.
  *
  * The board is seen from in front of the middle of the box the camera looks through, 3000 pixels
- * back (`TABLE_PERSPECTIVE_PX`).
+ * back (`TABLE_PERSPECTIVE_PX`) unless the view says otherwise.
  */
 export function tableSceneMatrix(view: TableCameraView, layout: TableLayout, out: Matrix3D = new Matrix3D()): Matrix3D {
   tableEyeMatrix(view, layout, out);
-  if (!view.orthographic) out.appendPerspective(TABLE_PERSPECTIVE_PX);
+  if (!view.orthographic) out.appendPerspective(perspectiveOf(view));
   out.appendPosition(layout.left + layout.width / 2, layout.top + layout.height / 2, 0);
   return out;
 }

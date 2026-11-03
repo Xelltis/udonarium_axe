@@ -352,6 +352,11 @@
         "clearTargets": "ターゲットを外す"
       }
     },
+    "thirdPerson": {
+      "following": "{{name}} を後ろから追っています",
+      "keysHint": "WASD・↑↓ で移動　Q/E・←→ で向きを変える　ドラッグで回り込む　ホイールで寄る・離れる　Esc でやめる",
+      "stop": "追うのをやめる"
+    },
     "role": {
       "gm": "ゲームマスター",
       "gmShort": "GM",
@@ -2083,6 +2088,8 @@
         "viewFirstPerson": "このコマの視点で見る",
         "shareFirstPerson": "全員をこのコマの視点にする",
         "stopSharingFirstPerson": "全員の共有視点を解除する",
+        "followFromBehind": "このコマを後ろから追う",
+        "stopFollowing": "後ろから追うのをやめる",
         "planMove": "移動",
         "invokeRangeShape": "登録済み射程を出す",
         "hideInventoryOn": "☑ インベントリ非表示",

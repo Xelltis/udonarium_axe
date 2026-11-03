@@ -352,6 +352,11 @@
         "clearTargets": "Clear targets"
       }
     },
+    "thirdPerson": {
+      "following": "Following {{name}} from behind",
+      "keysHint": "WASD/↑↓ to move  Q/E/←→ to turn  drag to go round  wheel to come nearer or go back  Esc to stop",
+      "stop": "Stop following"
+    },
     "role": {
       "gm": "Game Master",
       "gmShort": "GM",
@@ -2083,6 +2088,8 @@
         "viewFirstPerson": "Look out of this piece",
         "shareFirstPerson": "Put everyone in this piece's view",
         "stopSharingFirstPerson": "Release everyone from the shared view",
+        "followFromBehind": "Follow this piece from behind",
+        "stopFollowing": "Stop following from behind",
         "planMove": "Move",
         "invokeRangeShape": "Invoke registered range",
         "hideInventoryOn": "☑ Hide from inventory",

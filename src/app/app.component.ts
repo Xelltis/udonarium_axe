@@ -21,6 +21,7 @@ import { FirstPersonService } from '@axe/application/tabletop/first-person.servi
 import { GravityService } from '@axe/application/tabletop/gravity.service';
 import { LegacyScratchMaskMigrationService } from '@axe/application/tabletop/legacy-scratch-mask-migration.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { MotionService } from '@axe/application/ui/motion.service';
@@ -59,6 +60,7 @@ import { EffectChatEventHandlerService } from '@axe/features/effect/effect-chat-
 import { AssetRemovalEventHandlerService } from '@axe/features/file/asset-removal-event-handler.service';
 import { FilesTooLargeEventHandlerService } from '@axe/features/file/files-too-large/files-too-large-event-handler.service';
 import { FirstPersonViewComponent } from '@axe/features/first-person/first-person-view/first-person-view.component';
+import { ThirdPersonHudComponent } from '@axe/features/first-person/third-person-hud/third-person-hud.component';
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
 import { GpuNoticeComponent } from '@axe/features/gpu-notice/gpu-notice.component';
 import { HotbarBarComponent } from '@axe/features/hotbar/hotbar-bar/hotbar-bar.component';
@@ -112,6 +114,7 @@ import { version as APP_VERSION } from '@pkg';
     BeatLightComponent,
     GameTableComponent,
     FirstPersonViewComponent,
+    ThirdPersonHudComponent,
     NetworkIndicatorComponent,
     MiniJukeboxComponent,
     GmToolbarComponent,
@@ -173,6 +176,7 @@ export class AppComponent {
   readonly mobile = inject(MobileLayoutService);
   readonly overlayMode = inject(OverlayModeService);
   readonly firstPerson = inject(FirstPersonService);
+  readonly thirdPerson = inject(ThirdPersonService);
 
   readonly isTableSplit = computed(() => this.mobile.isActive() && !this.visualNovel.active());
   private readonly roomPanels = inject(RoomPanelService);

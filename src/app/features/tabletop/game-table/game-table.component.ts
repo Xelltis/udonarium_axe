@@ -38,6 +38,7 @@ import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
+import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
@@ -313,6 +314,14 @@ export class GameTableComponent {
   protected readonly isOrthographicProjection = computed(
     () => this.tabletopService.mode2d() && this.tabletopService.orthographicProjection()
   );
+  private readonly thirdPerson = inject(ThirdPersonService);
+
+  /** How the table is drawn in perspective: flat, as the table's own camera sees, or as the camera that follows a piece does. */
+  protected readonly perspective = computed(() => {
+    const followed = this.thirdPerson.view();
+    if (followed?.perspectivePx) return `${followed.perspectivePx}px`;
+    return this.isOrthographicProjection() ? 'none' : null;
+  });
   private _initialized = false;
   /** A resize fires many times over one drag; only the last of them has to reach the camera. */
   private _resizeFrame: number | null = null;
@@ -330,6 +339,12 @@ export class GameTableComponent {
     effect((onCleanup) => {
       const canvas = this.sceneCanvas()?.nativeElement;
       if (canvas) onCleanup(this.table3d.attach(canvas));
+    });
+    effect(() => {
+      this.thirdPerson.view();
+      untracked(() => {
+        if (this._initialized) this.gestureService.refreshView();
+      });
     });
     this.destroyRef.onDestroy(() => {
       if (this.glideTimer !== null) clearTimeout(this.glideTimer);

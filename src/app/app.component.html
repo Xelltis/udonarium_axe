@@ -11,6 +11,15 @@
     [style.height]="isTableSplit() ? mobile.tableRatio() * 100 + '%' : null"
   >
     <game-table></game-table>
+    @if (thirdPerson.following()) {
+      <div class="pointer-events-none absolute inset-x-0 top-16 z-10 flex justify-center px-4">
+        @defer (on immediate) {
+          <third-person-hud />
+        } @error {
+          <ng-container appReloadNotice />
+        }
+      </div>
+    }
   </div>
   @if (firstPerson.showing()) {
     <div

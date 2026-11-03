@@ -1,0 +1,15 @@
+<div
+  class="pointer-events-auto flex flex-wrap items-center justify-center gap-2 rounded-full bg-black/60 px-3 py-1.5 text-xs text-white"
+  data-testid="third-person-hud"
+>
+  <span class="font-bold">{{ 'feature.thirdPerson.following' | transloco: { name: name() } }}</span>
+  <span class="text-white/70">{{ 'feature.thirdPerson.keysHint' | transloco }}</span>
+  <button
+    type="button"
+    class="cursor-pointer rounded-full border-none bg-white/15 px-2.5 py-0.5 text-white hover:bg-white/30"
+    data-testid="third-person-stop"
+    (click)="thirdPerson.stop()"
+  >
+    {{ 'feature.thirdPerson.stop' | transloco }}
+  </button>
+</div>

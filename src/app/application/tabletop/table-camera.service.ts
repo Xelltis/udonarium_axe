@@ -17,9 +17,13 @@ export class TableCameraService {
   private readonly inverse = new Matrix3D();
   private stale = true;
   private readonly changes = signal(0);
+  private readonly layoutChanges = signal(0);
 
   /** Goes up each time the view drawn or the table's place on the page changes. */
   readonly version = this.changes.asReadonly();
+
+  /** Goes up each time the table's place on the page changes, and not when only the view does. */
+  readonly layoutVersion = this.layoutChanges.asReadonly();
 
   /** The view as it was last drawn, or null before the table first draws one. */
   get view(): TableCameraView | null {
@@ -55,6 +59,7 @@ export class TableCameraService {
     this.shownLayout = layout;
     this.stale = true;
     this.changes.update((version) => version + 1);
+    this.layoutChanges.update((version) => version + 1);
   }
 
   /**

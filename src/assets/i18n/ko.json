@@ -352,6 +352,11 @@
         "clearTargets": "타깃 해제"
       }
     },
+    "thirdPerson": {
+      "following": "{{name}}을(를) 뒤에서 따라가는 중",
+      "keysHint": "WASD・↑↓ 이동　Q/E・←→ 방향 전환　드래그로 돌아보기　휠로 다가가기・물러나기　Esc 종료",
+      "stop": "따라가기 그만두기"
+    },
     "role": {
       "gm": "게임 마스터",
       "gmShort": "GM",
@@ -2083,6 +2088,8 @@
         "viewFirstPerson": "이 캐릭터의 시점으로 보기",
         "shareFirstPerson": "모두를 이 캐릭터의 시점으로",
         "stopSharingFirstPerson": "모두의 공유 시점 해제",
+        "followFromBehind": "이 캐릭터를 뒤에서 따라가기",
+        "stopFollowing": "뒤에서 따라가기 그만두기",
         "planMove": "이동",
         "invokeRangeShape": "등록된 사거리 표시",
         "hideInventoryOn": "☑ 인벤토리 숨김",

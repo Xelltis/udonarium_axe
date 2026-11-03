@@ -5,6 +5,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
 import { BillboardFrameService } from '@axe/application/ui/billboard-frame.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -68,6 +69,9 @@ export function touchZoomInLimitZ(gridSize: number): number {
   return Math.max(0, TABLE_PERSPECTIVE_PX * (1 - zoomReachFor(gridSize)));
 }
 
+/** How far a slide of the pointer turns the camera that follows a piece round it, in degrees for each pixel. */
+const ORBIT_DEG_PER_PX = 0.25;
+
 @Injectable()
 export class GameTableGestureService {
   private readonly contextMenuService = inject(ContextMenuService);
@@ -80,6 +84,7 @@ export class GameTableGestureService {
   private readonly coordinateService = inject(CoordinateService);
   private readonly tablePick = inject(TablePickService);
   private readonly tableCamera = inject(TableCameraService);
+  private readonly thirdPerson = inject(ThirdPersonService);
   private readonly switchPresses = inject(SwitchPressService);
   private readonly switchNotices = inject(SwitchNoticeService);
   private readonly t = inject(TRANSLATE_FN);
@@ -243,8 +248,19 @@ export class GameTableGestureService {
     this.uiSignalService.notifyTableViewRotation(rotation.x, rotation.y, rotation.z);
   }
 
-  /** The view as the fields hold it now. */
+  /** Shows the view again on the next frame, as when the camera that follows a piece moves on. */
+  refreshView(): void {
+    if (this.frame !== null) return;
+    this.frame = requestAnimationFrame(() => {
+      this.frame = null;
+      this.showTransform();
+    });
+  }
+
+  /** The view as the fields hold it now, or the camera that follows a piece while one is followed. */
   private currentView(): TableCameraView {
+    const followed = this.thirdPerson.view();
+    if (followed) return followed;
     return {
       positionX: this.viewPositionX,
       positionY: this.viewPositionY,
@@ -337,6 +353,7 @@ export class GameTableGestureService {
     }
 
     if (srcEvent.cancelable) srcEvent.preventDefault();
+    if (this.orbitFollowed(transformX, transformY, transformZ / 100, rotateX, rotateZ)) return;
 
     const scale = (TABLE_PERSPECTIVE_PX + Math.abs(this.viewPositionZ)) / TABLE_PERSPECTIVE_PX;
     transformX *= scale;
@@ -405,6 +422,25 @@ export class GameTableGestureService {
     this.switchNotices.show(this.t(`feature.boardSwitch.refused.${outcome}`), e.clientX, e.clientY);
   }
 
+  /**
+   * While a piece is followed, takes a gesture that would move the table's camera as one that moves
+   * the camera round the piece instead: a turn or a slide across turns it round, a tilt or a slide up
+   * and down tips it, and pulling in brings it nearer, by `nearerCells`. Answers whether it did.
+   */
+  private orbitFollowed(
+    transformX: number,
+    transformY: number,
+    nearerCells: number,
+    rotateX: number,
+    rotateZ: number
+  ): boolean {
+    if (!this.thirdPerson.following()) return false;
+    this.thirdPerson.turnBy(-rotateZ - transformX * ORBIT_DEG_PER_PX, -rotateX + transformY * ORBIT_DEG_PER_PX);
+    if (nearerCells) this.thirdPerson.nearerBy(nearerCells);
+    this.isTableTransformed = true;
+    return true;
+  }
+
   private onTableMouseTransform(
     transformX: number,
     transformY: number,
@@ -412,7 +448,7 @@ export class GameTableGestureService {
     rotateX: number,
     rotateY: number,
     rotateZ: number,
-    _event: TableMouseGestureEvent,
+    event: TableMouseGestureEvent,
     srcEvent: TouchEvent | MouseEvent | PointerEvent | KeyboardEvent
   ): void {
     if (this.marqueeGesture && (this.marqueeGesture.isArmed || this.marqueeGesture.isActive)) {
@@ -438,6 +474,8 @@ export class GameTableGestureService {
     }
 
     if ((srcEvent as Event).cancelable) (srcEvent as Event).preventDefault();
+    if (this.thirdPerson.following() && event === TableMouseGestureEvent.KEYBOARD) return;
+    if (this.orbitFollowed(transformX, transformY, transformZ / 50, rotateX, rotateZ)) return;
 
     const scale = (TABLE_PERSPECTIVE_PX + Math.abs(this.viewPositionZ)) / TABLE_PERSPECTIVE_PX;
     transformX *= scale;

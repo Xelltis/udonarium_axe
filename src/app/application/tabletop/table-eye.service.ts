@@ -13,6 +13,12 @@ export interface TableEye {
   readonly ceilings: readonly TableWorldCap[];
 }
 
+/** The piece a camera follows from behind, and whether the camera has come so near it as to look through it. */
+export interface FollowedPiece {
+  readonly owner: string;
+  readonly near: boolean;
+}
+
 /** What of an eye the scene itself is built from, apart from where the eye stands and looks. */
 export interface TableEyeScene {
   readonly without: string;
@@ -27,8 +33,16 @@ export interface TableEyeScene {
 @Injectable({ providedIn: 'root' })
 export class TableEyeService {
   private readonly shown = signal<TableEye | null>(null);
+  private readonly overheadShown = signal<readonly TableWorldCap[]>([]);
+  private readonly followedShown = signal<FollowedPiece | null>(null);
 
   readonly eye = this.shown.asReadonly();
+
+  /** The ceilings over a camera that follows a piece about indoors, which the table's own camera draws. */
+  readonly overhead = this.overheadShown.asReadonly();
+
+  /** The piece the table's camera follows from behind, and whether it stands so near the piece as to look through it. */
+  readonly followed = this.followedShown.asReadonly();
 
   /** The piece left out and the ceilings put in, unchanged while only the eye's place and look change. */
   readonly scene = computed<TableEyeScene | null>(
@@ -54,5 +68,15 @@ export class TableEyeService {
 
   clear(): void {
     this.shown.set(null);
+  }
+
+  showOverhead(ceilings: readonly TableWorldCap[]): void {
+    this.overheadShown.set(ceilings);
+  }
+
+  showFollowed(followed: FollowedPiece | null): void {
+    const was = this.followedShown();
+    if (was === followed || (was && followed && was.owner === followed.owner && was.near === followed.near)) return;
+    this.followedShown.set(followed);
   }
 }

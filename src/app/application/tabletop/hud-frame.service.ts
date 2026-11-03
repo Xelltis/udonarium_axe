@@ -1,6 +1,7 @@
 import { effect, EffectRef, inject, Injectable, Injector, untracked } from '@angular/core';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TableEyeService } from '@axe/application/tabletop/table-eye.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
@@ -60,17 +61,25 @@ interface Placed {
 }
 
 /**
+ * How much larger than life what is told about a piece may be drawn while the table's camera
+ * follows a piece about, standing near the pieces round it.
+ */
+const FOLLOWING_LARGEST_SCALE = 1.25;
+
+/**
  * Puts the elements of the screen over a table drawn on a canvas where the pieces they go with are
  * drawn, in the frame after the camera or the pieces move, by writing their styles rather than
  * through change detection.
  *
  * The element put against a whole piece is its root, put on the page; it is drawn over the root of
  * a piece drawn further off. Every other element of a piece lies in that root and is put against it.
- * An element whose piece or part is not drawn is hidden.
+ * An element whose piece or part is not drawn is hidden, as is all of the piece the table's camera
+ * follows from behind.
  */
 @Injectable({ providedIn: 'root' })
 export class HudFrameService {
   private readonly camera = inject(TableCameraService);
+  private readonly eyes = inject(TableEyeService);
   private readonly pieces = inject(TablePiecesService);
   private readonly pick = inject(TablePickService);
   private readonly scene = inject(Table3dService);
@@ -155,17 +164,19 @@ export class HudFrameService {
       [...boxes].sort(([, a], [, b]) => a.nearness - b.nearness).map(([owner], rank) => [owner, rank + 1])
     );
     const origin = this.camera.layout ?? { left: 0, top: 0 };
+    const followed = this.eyes.followed()?.owner;
+    const largest = this.camera.view?.perspectivePx ? FOLLOWING_LARGEST_SCALE : Infinity;
     const sizes = new Map<HTMLElement, { width: number; height: number }>();
     for (const [element, placed] of this.placed) {
       if (placed.anchor.place === 'face')
         sizes.set(element, { width: element.offsetWidth, height: element.offsetHeight });
     }
     for (const [element, placed] of this.placed) {
-      const piece = boxes.get(placed.anchor.owner);
+      const piece = placed.anchor.owner === followed ? undefined : boxes.get(placed.anchor.owner);
       const at = placed.anchor.at;
       const point = at ? this.surfaces.pageOf(at.surface, at.x, at.y, at.height) : null;
       const beside = at && placed.anchor.scaled ? this.surfaces.pageOf(at.surface, at.x + 1, at.y, at.height) : null;
-      const scale = point && beside ? Math.hypot(beside.x - point.x, beside.y - point.y) : null;
+      const scale = point && beside ? Math.min(largest, Math.hypot(beside.x - point.x, beside.y - point.y)) : null;
       const reach = placed.anchor.reach;
       const end = point && reach ? this.surfaces.pageOf(reach.surface, reach.x, reach.y, reach.height) : null;
       const style = !piece
@@ -174,7 +185,7 @@ export class HudFrameService {
           ? point && end && laidBetween(point, end, piece)
           : at
             ? point && centredOn(point, piece, scale)
-            : styleOf(placed.anchor, piece, ranks.get(placed.anchor.owner) ?? 0, sizes.get(element), origin);
+            : styleOf(placed.anchor, piece, ranks.get(placed.anchor.owner) ?? 0, sizes.get(element), origin, largest);
       const written = style ? JSON.stringify(style) : '';
       if (written === placed.written) continue;
       placed.written = written;
@@ -237,7 +248,8 @@ function styleOf(
   piece: PiecePageBoxes,
   rank: number,
   size: { width: number; height: number } | undefined,
-  origin: { left: number; top: number }
+  origin: { left: number; top: number },
+  largest = Infinity
 ): HudStyle | null {
   const whole = piece.whole;
   if (anchor.part === undefined) {
@@ -285,7 +297,7 @@ function styleOf(
   const edge = place === 'above' ? within.top : within.top + within.height;
   const shift = place === 'above' ? '-100%' : '0';
   return {
-    transform: `translate(${px(middle)}, ${px(edge)}) scale(${Math.round(part.scale * 1000) / 1000}) translate(-50%, ${shift})`,
+    transform: `translate(${px(middle)}, ${px(edge)}) scale(${Math.round(Math.min(largest, part.scale) * 1000) / 1000}) translate(-50%, ${shift})`,
     width: null,
     height: null,
     zIndex: '',

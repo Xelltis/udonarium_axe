@@ -175,9 +175,10 @@ export class Table3dService {
     const eye = this.eyes.scene();
     const seen = <T extends { readonly owner: string }>(parts: readonly T[]) =>
       eye ? parts.filter((part) => part.owner !== eye.without) : parts;
+    const ceilings = [...(eye?.ceilings ?? []), ...this.eyes.overhead()];
     return {
       ...faces,
-      caps: eye?.ceilings.length ? [...faces.caps, ...eye.ceilings] : faces.caps,
+      caps: ceilings.length ? [...faces.caps, ...ceilings] : faces.caps,
       sprites: seen(this.pieces.sprites()),
       coins: this.pieces.coins(),
       layers: this.layers(),
@@ -540,6 +541,7 @@ export class Table3dService {
       orthographic: view.orthographic,
       width: layout.width,
       height: layout.height,
+      ...(view.perspectivePx ? { focalPx: view.perspectivePx, nearPx: FOLLOWING_NEAR_PX } : {}),
     };
   }
 
@@ -567,6 +569,9 @@ export class Table3dService {
     for (const resolve of this.idleWaiters.splice(0)) resolve();
   }
 }
+
+/** How near the camera that follows a piece about still draws, in table pixels: a few cells off it, a wall may stand close. */
+const FOLLOWING_NEAR_PX = 4;
 
 /** The renderer asked for in the address (`?renderer=`), which is then remembered, or the one remembered. */
 function chosenRenderer(): TableRenderer {
