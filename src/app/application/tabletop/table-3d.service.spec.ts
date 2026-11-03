@@ -19,6 +19,7 @@ import type {
   Table3dFloorCanvas,
   Table3dGrid,
   Table3dLightMap,
+  Table3dShadowLight,
   Table3dVeil,
 } from '@axe/infrastructure/table-3d/table-3d-port';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -34,6 +35,7 @@ class FakeEngine implements Table3dEngine {
   veils: (Table3dVeil | null)[] = [];
   skies: SkyLight[] = [];
   lightMaps: (Table3dLightMap | null)[] = [];
+  shadowLights: (readonly Table3dShadowLight[])[] = [];
   drawn = 0;
   disposed = false;
   lose: () => void = () => undefined;
@@ -72,6 +74,10 @@ class FakeEngine implements Table3dEngine {
   setLightMap(map: Table3dLightMap | null): void {
     this.lightMaps.push(map);
     this.changed = true;
+  }
+
+  setShadowLights(lights: readonly Table3dShadowLight[]): void {
+    this.shadowLights.push(lights);
   }
 
   setSkyLight(light: SkyLight): void {
@@ -121,6 +127,7 @@ class FakeEngine implements Table3dEngine {
       floorCanvases: 0,
       veilRevision: 0,
       lightMapRevision: 0,
+      shadowLights: 0,
     };
   }
 }

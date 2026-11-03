@@ -1,7 +1,8 @@
-import type { Table3dLightMap, Table3dVeil } from '@axe/infrastructure/table-3d/table-3d-port';
+import type { Table3dLightMap, Table3dShadowLight, Table3dVeil } from '@axe/infrastructure/table-3d/table-3d-port';
 import {
   diffuseColor,
   float,
+  length,
   max,
   mix,
   output,
@@ -14,7 +15,15 @@ import {
   vec3,
   vec4,
 } from 'three/tsl';
-import { CanvasTexture, LinearFilter, type Material, NoColorSpace, type NodeMaterial, Vector4 } from 'three/webgpu';
+import {
+  CanvasTexture,
+  LinearFilter,
+  type Material,
+  NoColorSpace,
+  type NodeMaterial,
+  Vector3,
+  Vector4,
+} from 'three/webgpu';
 
 /** How a material takes the darkness: in the light it is lit by, or on the colour it is drawn in. */
 export type DarknessTaking = 'lit' | 'unlit';
@@ -34,8 +43,35 @@ export class SceneVeil {
   private readonly fog = new BoardPicture();
   private readonly light = new BoardPicture();
   private readonly darkness = uniform(0);
+  private readonly lamps: readonly ShadowLamp[];
   private readonly fogged = this.foggedOutput();
   private readonly lifted = this.liftedOut();
+
+  /** As many lamps as the scene has slots for lights of its own, which light what the scene draws unlit. */
+  constructor(slots: number) {
+    this.lamps = Array.from({ length: slots }, () => ({
+      at: vectorUniform(),
+      reach: numberUniform(),
+      colour: vectorUniform(),
+    }));
+    this.lamplit = this.lampLight();
+  }
+
+  private readonly lamplit: ReturnType<typeof vec3>;
+
+  /**
+   * Lights what the scene draws unlit with the lights it lights itself, as their light falls off with
+   * distance alone, in the colour each is, as strong as the dark leaves room for: points are in table
+   * pixels, x to the east, y to the south and z up.
+   */
+  setLamps(lights: readonly Table3dShadowLight[], strengths: readonly ReturnType<typeof lampColour>[]): void {
+    this.lamps.forEach((lamp, index) => {
+      const light = lights[index];
+      lamp.at.value.set(light?.x ?? 0, light?.z ?? 0, light?.y ?? 0);
+      lamp.reach.value = Math.max(1, light?.dimPx ?? 1);
+      lamp.colour.value.copy(strengths[index] ?? new Vector3());
+    });
+  }
 
   /** How many times the veil has been laid anew, 0 while there is none. */
   get revision(): number {
@@ -61,7 +97,7 @@ export class SceneVeil {
       );
       node.outputNode = this.fogged(output);
     } else {
-      node.outputNode = this.fogged(vec4(output.rgb.mul(this.lifted), output.a));
+      node.outputNode = this.fogged(vec4(output.rgb.mul(vec3(this.lifted).add(this.lamplit)), output.a));
     }
   }
 
@@ -91,6 +127,17 @@ export class SceneVeil {
   private liftedOut() {
     const dark = this.light.sampled.a.mul(this.light.strength);
     return max(colourNode(sRGBTransferEOTF(vec3(float(1).sub(dark)))).x, this.ambientNode());
+  }
+
+  /** How much the lamps add to a point the scene draws unlit, as their light falls off with distance. */
+  private lampLight() {
+    let lit = colourNode(vec3(0, 0, 0));
+    for (const lamp of this.lamps) {
+      const away = length(positionWorld.sub(lamp.at)).div(lamp.reach).min(float(1));
+      const fall = float(1).sub(away.pow(4)).pow(2);
+      lit = colourNode(lit.add(lamp.colour.mul(fall)));
+    }
+    return lit;
   }
 
   private foggedOutput() {
@@ -184,4 +231,24 @@ function clearCanvas(): HTMLCanvasElement {
 /** A colour the library's colour-space functions answer, which they do not say is a colour. */
 function colourNode(node: unknown): ReturnType<typeof vec3> {
   return node as ReturnType<typeof vec3>;
+}
+
+/** A lamp lighting what the scene draws unlit: where it stands in the scene, how far it reaches and its strength in colour. */
+interface ShadowLamp {
+  readonly at: ReturnType<typeof vectorUniform>;
+  readonly reach: ReturnType<typeof numberUniform>;
+  readonly colour: ReturnType<typeof vectorUniform>;
+}
+
+function vectorUniform() {
+  return uniform(new Vector3());
+}
+
+function numberUniform() {
+  return uniform(1);
+}
+
+/** A light's colour as strong as a lamp lights with it, in the light the scene is worked out in. */
+export function lampColour(colour: { r: number; g: number; b: number }, strength: number): Vector3 {
+  return new Vector3(colour.r * strength, colour.g * strength, colour.b * strength);
 }

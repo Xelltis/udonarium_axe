@@ -29,10 +29,11 @@ import type {
   Table3dFloorCanvas,
   Table3dGrid,
   Table3dLightMap,
+  Table3dShadowLight,
   Table3dStats,
   Table3dVeil,
 } from '@axe/infrastructure/table-3d/table-3d-port';
-import { SceneVeil } from '@axe/infrastructure/table-3d/veil';
+import { lampColour, SceneVeil } from '@axe/infrastructure/table-3d/veil';
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
 import { attribute, float, max, mix, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
 import {
@@ -50,6 +51,7 @@ import {
   MeshLambertNodeMaterial,
   OrthographicCamera,
   PerspectiveCamera,
+  PointLight,
   RepeatWrapping,
   Scene,
   SRGBColorSpace,
@@ -112,6 +114,16 @@ const GROUND_BOUNCE = 0.6;
 const SKY_DISTANCE_BOARDS = 1.5;
 /** How many pixels a side the map of the shadows the sun and the moon throw is drawn in. */
 const SKY_SHADOW_PX = 2048;
+/** How many lights the scene lights itself with, each throwing shadows of its own. */
+const SHADOW_LIGHTS = 2;
+/** How many pixels a side each face of the map of a lamp's shadows is drawn in. */
+const LAMP_SHADOW_PX = 512;
+/**
+ * How much further than its dim reach a lamp's light is let fall off to nothing: it falls off slowly
+ * at first, so it is still nearly full at its bright reach.
+ */
+const LAMP_REACH = 1.1;
+
 /** How high anything on the table is reckoned to stand, for the shadows of the sun and the moon to reach it, in table pixels. */
 const TALLEST_PX = 2000;
 
@@ -166,7 +178,9 @@ class ThreeTableEngine implements Table3dEngine {
   private topsGrid: Mesh | null = null;
   private laidWalls: readonly TableWorldWall[] | null = null;
   private laidCaps: readonly TableWorldCap[] | null = null;
-  private readonly veil = new SceneVeil();
+  private readonly veil = new SceneVeil(SHADOW_LIGHTS);
+  private readonly lamps = Array.from({ length: SHADOW_LIGHTS }, () => new PointLight(0xffffff, 0, 1, 0));
+  private laidLamps: readonly Table3dShadowLight[] = [];
   private readonly sun = new DirectionalLight(0xffffff, 0);
   private readonly sky = new HemisphereLight(0xffffff, 0xffffff, LIGHT_SCALE);
   private lastSkyLight = '';
@@ -201,7 +215,52 @@ class ThreeTableEngine implements Table3dEngine {
     this.sun.shadow.mapSize.set(SKY_SHADOW_PX, SKY_SHADOW_PX);
     this.sun.shadow.bias = -0.0005;
     this.sun.shadow.normalBias = 1;
+    for (const lamp of this.lamps) {
+      lamp.castShadow = true;
+      lamp.shadow.autoUpdate = false;
+      lamp.shadow.mapSize.set(LAMP_SHADOW_PX, LAMP_SHADOW_PX);
+      lamp.shadow.bias = -0.002;
+      this.scene.add(lamp);
+    }
     this.setSkyLight(skyLightAt(0.5));
+  }
+
+  setShadowLights(lights: readonly Table3dShadowLight[]): void {
+    const laid = JSON.stringify(lights.slice(0, SHADOW_LIGHTS));
+    if (laid === JSON.stringify(this.laidLamps)) return;
+    this.laidLamps = lights.slice(0, SHADOW_LIGHTS);
+    this.lightLamps();
+    this.changed = true;
+  }
+
+  /**
+   * Stands each lamp where its light is and lights it as strong as the dark leaves room for, so a
+   * board lit by one is as bright as the dark would let a lamp make it; a slot with no light in it is
+   * left dark. Has the shadows drawn again.
+   */
+  private lightLamps(): void {
+    const room = Math.max(0, 1 - this.veil.ambient);
+    const strengths = this.lamps.map((lamp, index) => {
+      const light = this.laidLamps[index];
+      lamp.intensity = light ? room * LIGHT_SCALE : 0;
+      lamp.visible = !!light;
+      if (light) {
+        lamp.position.set(light.x, light.z, light.y);
+        lamp.distance = Math.max(1, light.dimPx * LAMP_REACH);
+        lamp.color.set(light.color || '#ffffff');
+        lamp.shadow.camera.near = 1;
+        lamp.shadow.camera.far = lamp.distance;
+        lamp.shadow.needsUpdate = true;
+      }
+      return lampColour(lamp.color, light ? room : 0);
+    });
+    this.veil.setLamps(this.laidLamps, strengths);
+  }
+
+  /** Has the shadows of the sun, the moon and every lamp drawn again, as what throws them has moved. */
+  private shadowsMoved(): void {
+    this.sun.shadow.needsUpdate = true;
+    for (const lamp of this.lamps) lamp.shadow.needsUpdate = true;
   }
 
   /**
@@ -271,6 +330,7 @@ class ThreeTableEngine implements Table3dEngine {
       floorCanvases: this.floorCanvases.group.children.length,
       veilRevision: this.veil.revision,
       lightMapRevision: this.veil.lightRevision,
+      shadowLights: this.laidLamps.length,
     };
   }
 
@@ -366,6 +426,7 @@ class ThreeTableEngine implements Table3dEngine {
   setLightMap(map: Table3dLightMap | null): void {
     if (!this.veil.setLightMap(map)) return;
     this.lightSky();
+    this.lightLamps();
     this.changed = true;
   }
 
@@ -501,7 +562,7 @@ class ThreeTableEngine implements Table3dEngine {
       old.meshes.traverse((object) => (object as Mesh).geometry?.dispose());
       this.chunks.delete(key);
     }
-    this.sun.shadow.needsUpdate = true;
+    this.shadowsMoved();
     if (!owners) return;
     const byLook = new Map<string, { face: FaceLook; shapes: BufferGeometry[] }>();
     const add = (face: FaceLook, shape: BufferGeometry) => {

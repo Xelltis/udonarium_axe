@@ -1,3 +1,4 @@
+import type { SceneLight } from '@axe/domain/tabletop/vision-scene';
 import type { SkyLight } from '@axe/domain/tabletop/world/sky-light';
 import type { EyeAxes } from '@axe/domain/tabletop/world/table-sprites';
 import type { TableWorld } from '@axe/domain/tabletop/world/table-world';
@@ -70,6 +71,9 @@ export interface Table3dLightMap {
   readonly darkness: number;
 }
 
+/** A light the scene lights itself with, throwing shadows of its own: where it stands, how far it reaches and in what colour. */
+export type Table3dShadowLight = Pick<SceneLight, 'x' | 'y' | 'z' | 'brightPx' | 'dimPx' | 'color'>;
+
 /** What the engine holds, counted. */
 export interface Table3dStats {
   readonly chunks: number;
@@ -86,6 +90,8 @@ export interface Table3dStats {
   readonly veilRevision: number;
   /** How many times the light of a dark table has been laid anew, 0 while the table is not dark. */
   readonly lightMapRevision: number;
+  /** How many lights the scene lights itself with now, throwing shadows of their own. */
+  readonly shadowLights: number;
 }
 
 /** What draws the table on a canvas. It draws only when something it was told has changed. */
@@ -103,6 +109,8 @@ export interface Table3dEngine {
   setSkyLight(light: SkyLight): void;
   /** Darkens the scene as the table is dark, lit where the page's lights reach, or lights it whole with null. */
   setLightMap(map: Table3dLightMap | null): void;
+  /** Lights the scene with these lights itself, each throwing shadows of its own, as many as it has slots for. */
+  setShadowLights(lights: readonly Table3dShadowLight[]): void;
   /** Sizes the canvas's drawing to the box it covers, in CSS pixels, at the screen's pixel ratio. */
   resize(width: number, height: number, pixelRatio: number): void;
   /** Draws the scene when anything changed since it was last drawn, and answers whether it drew. */

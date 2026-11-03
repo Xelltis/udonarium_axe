@@ -8,6 +8,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { LightSlotsService } from '@axe/application/tabletop/light-slots.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -16,7 +17,7 @@ import { perfCounters, perfTimed } from '@axe/core/util/perf-counters';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { HEX_SURFACE_INFLATE_PX, hexSurfaceCells, SurfacePoint } from '@axe/domain/tabletop/surface-cells';
-import { computeOverlayPlan, OverlayPlan, sameOverlayPlan } from '@axe/domain/tabletop/vision-scene';
+import { computeOverlayPlan, OverlayPlan, sameOverlayPlan, VisionScene } from '@axe/domain/tabletop/vision-scene';
 import {
   animatedGlowPatches,
   type BakeCanvas,
@@ -32,6 +33,12 @@ import {
 import { translateZCss, Z_OFFSET_DARKNESS_PX } from '@axe/ui/tabletop/z-offset';
 
 const SPILL_MARGIN_CAP_PX = 800;
+const NO_LIGHTS: ReadonlySet<string> = new Set();
+
+/** The scene with some of its lights left out. */
+function withoutLights(scene: VisionScene, left: ReadonlySet<string>): VisionScene {
+  return { ...scene, lights: scene.lights.filter((light) => !left.has(light.sourceId)) };
+}
 /** How often the flicker is redrawn, about twenty times a second. */
 export const VISION_ANIMATION_INTERVAL_MS = 50;
 
@@ -44,6 +51,7 @@ export const VISION_ANIMATION_INTERVAL_MS = 50;
 export class TableVisionOverlayComponent {
   protected readonly visionService = inject(VisionService);
   protected readonly table3d = inject(Table3dService);
+  private readonly lightSlots = inject(LightSlotsService);
   private readonly tableVeil = inject(TableVeilService);
   private readonly renderLite = inject(RenderLiteService);
   private readonly destroyRef = inject(DestroyRef);
@@ -73,6 +81,8 @@ export class TableVisionOverlayComponent {
   private rafId: number | null = null;
   private readonly images = new Map<string, HTMLImageElement>();
   private darkness: HTMLCanvasElement | null = null;
+  /** The plan the darkness a table drawn on a canvas lights itself by is drawn from. */
+  private darkPlan: OverlayPlan | null = null;
 
   constructor() {
     effect(() => {
@@ -121,11 +131,16 @@ export class TableVisionOverlayComponent {
       canvas.style.top = this.surfaceOriginY - this.margin + 'px';
       canvas.style.width = cw + 'px';
       canvas.style.height = ch + 'px';
-      const plan = computeOverlayPlan(scene, viewer, this.visionService.overlayVision());
+      const vision = this.visionService.overlayVision();
+      const plan = computeOverlayPlan(scene, viewer, vision);
       const onCanvas = this.table3d.drawsOnCanvas();
-      const layout = `${pw}x${ph}@${this.scale}:${this.margin}:${this.surfaceOriginX}:${this.surfaceOriginY}:${onCanvas}`;
+      // The lights the scene lights itself are left out of the darkness drawn for it.
+      const lit = onCanvas ? this.lightSlots.ids() : NO_LIGHTS;
+      const darkPlan = lit.size > 0 ? computeOverlayPlan(withoutLights(scene, lit), viewer, vision) : plan;
+      const layout = `${pw}x${ph}@${this.scale}:${this.margin}:${this.surfaceOriginX}:${this.surfaceOriginY}:${onCanvas}:${[...lit]}`;
       if (this.plan && layout === this.drawnLayout && sameOverlayPlan(this.plan, plan)) return;
       this.plan = plan;
+      this.darkPlan = darkPlan;
       this.drawnLayout = layout;
       this.refreshScratch(cw, ch);
       this.ensureImages();
@@ -213,8 +228,9 @@ export class TableVisionOverlayComponent {
     const dark = this.darkCanvas(canvas);
     const darkCtx = dark.getContext('2d');
     if (!darkCtx) return;
-    const vision = plan.vision ? { ...plan.vision, fogEnabled: false } : plan.vision;
-    this.paint(darkCtx, { ...plan, darknessColor: '#000000', glows: [], vision });
+    const darkPlan = this.darkPlan ?? plan;
+    const vision = darkPlan.vision ? { ...darkPlan.vision, fogEnabled: false } : darkPlan.vision;
+    this.paint(darkCtx, { ...darkPlan, darknessColor: '#000000', glows: [], vision });
     this.tableVeil.showDarkness(dark, plan.darknessAlpha * (1 - plan.baseRevealAlpha));
   }
 
