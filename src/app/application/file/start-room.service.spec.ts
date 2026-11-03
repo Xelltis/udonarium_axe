@@ -43,7 +43,9 @@ describe('StartRoomService', () => {
       kept = null;
       return true;
     });
-    load = vi.spyOn(TestBed.inject(FileArchiver), 'load').mockResolvedValue({ dataRead: true, images: [], audios: [] });
+    load = vi
+      .spyOn(TestBed.inject(FileArchiver), 'load')
+      .mockResolvedValue({ dataRead: true, images: [], audios: [], models: [] });
     ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
     shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => undefined as never);
     vi.spyOn(TestBed.inject(SaveDataService), 'createWholeRoomArchiveAsync').mockResolvedValue(new Blob(['room']));

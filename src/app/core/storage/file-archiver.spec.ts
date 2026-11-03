@@ -29,7 +29,7 @@ import { zipSync } from 'fflate';
 import { strToU8, zip } from 'fflate';
 
 /** A binary glTF file of a JSON chunk alone, which is all a model is taken in by. */
-function glbOf(json: unknown): Uint8Array {
+function glbOf(json: unknown): Uint8Array<ArrayBuffer> {
   const text = new TextEncoder().encode(JSON.stringify(json));
   const padded = new Uint8Array(Math.ceil(text.length / 4) * 4).fill(0x20);
   padded.set(text);
