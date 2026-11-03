@@ -96,6 +96,11 @@ export interface TableWorldCap {
   readonly pictureUrl: string;
   readonly tilePx: number;
   readonly glass: boolean;
+  /**
+   * The colour a face with no picture is painted, as a ceiling is, which throws no shadow; one with
+   * neither is drawn as glass.
+   */
+  readonly colour?: string;
 }
 
 /**

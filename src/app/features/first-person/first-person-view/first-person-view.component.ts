@@ -21,6 +21,8 @@ import { AmbienceService, type WeatherAmbience } from '@axe/application/tabletop
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
+import { TableEyeService } from '@axe/application/tabletop/table-eye.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { WaterService } from '@axe/application/tabletop/water.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
@@ -37,6 +39,7 @@ import { gaugeNumbersOf, selectPieceGauges } from '@axe/domain/character/piece-g
 import { pieceImageWidthApart } from '@axe/domain/character/piece-image-size';
 import { DataElement } from '@axe/domain/data/data-element';
 import { collectDataElements } from '@axe/domain/data/data-element-tree';
+import { matrixColumns } from '@axe/domain/tabletop/camera/table-camera';
 import {
   clipBillboardToEye,
   depthOf,
@@ -44,6 +47,7 @@ import {
   FirstPersonCamera,
   lateralOf,
 } from '@axe/domain/tabletop/first-person/first-person-clip';
+import { firstPersonCeilings, firstPersonEyeMatrix } from '@axe/domain/tabletop/first-person/first-person-eye';
 import {
   FirstPersonMove,
   FirstPersonPose,
@@ -67,6 +71,8 @@ import { PieceWaterLook, pieceWaterLook } from '@axe/domain/tabletop/water/subme
 import { murkShade } from '@axe/domain/tabletop/water/water-depth';
 import { currentSeenFrom, flowCellsPerSecond } from '@axe/domain/tabletop/water/water-flow';
 import { deepWaterColor, rgbTripletOf, underwaterDeepColor } from '@axe/domain/tabletop/water/water-look';
+import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
+import type { TableWorldCap } from '@axe/domain/tabletop/world/table-world';
 import { EffectTargetOverlayComponent } from '@axe/features/effect/effect-target-overlay/effect-target-overlay.component';
 import {
   EffectEye,
@@ -86,6 +92,7 @@ import {
   BLACK_VEIL,
   blurFilter,
   cameraTransform,
+  fadeOutPx,
   farBlurPx,
   FIRST_PERSON_UNIT_PX,
   litShade,
@@ -145,6 +152,25 @@ const UNDER_A_POND = 'first-person-under-water';
 const CHROME_TOP_MARGIN_PX = 64;
 /** The width the view is laid out for before it has been measured. */
 const DEFAULT_VIEW_WIDTH_PX = 1280;
+const DEFAULT_VIEW_HEIGHT_PX = 720;
+const NO_CEILINGS: readonly TableWorldCap[] = [];
+
+/** Whether two sets of ceilings are the same faces in the same places, so the canvas's scene is not built anew. */
+function sameCeilings(a: readonly TableWorldCap[], b: readonly TableWorldCap[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((ceiling, index) => {
+      const other = b[index];
+      const [corner] = ceiling.outline;
+      return (
+        ceiling.id === other.id &&
+        ceiling.zPx === other.zPx &&
+        corner.x === other.outline[0].x &&
+        corner.y === other.outline[0].y
+      );
+    })
+  );
+}
 
 /** What the eye is under, where it is under water: the colour of the depths, and the weather it sees. */
 interface UnderWater {
@@ -268,6 +294,28 @@ export class FirstPersonViewComponent {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
   private readonly minimapCanvas = viewChild<ElementRef<HTMLCanvasElement>>('minimap');
+  private readonly canvasHost = viewChild<ElementRef<HTMLElement>>('canvasHost');
+  private readonly table3d = inject(Table3dService);
+  private readonly eyes = inject(TableEyeService);
+
+  /**
+   * Whether the view is drawn on the table's canvas, the table's own scene seen from the eye, rather
+   * than built of CSS faces: wherever the table is drawn on one and this browser can draw it. The
+   * pieces are then left on the page unseen, to be pressed and to carry what is told about them.
+   */
+  protected readonly onCanvas = computed(() => this.table3d.drawsOnCanvas() && !this.table3d.unavailable());
+
+  /** The ceilings over the rooms the eye stands under, for the canvas, unchanged while the roof and the eye's height are. */
+  private readonly ceilings = computed<readonly TableWorldCap[]>(
+    () => {
+      const roof = this.roof();
+      const grid = this.firstPerson.grid();
+      const eyeZ = this.firstPerson.pose()?.z;
+      if (!this.onCanvas() || !roof || !grid || eyeZ === undefined) return NO_CEILINGS;
+      return firstPersonCeilings(roof, grid, eyeZ);
+    },
+    { equal: sameCeilings }
+  );
   protected readonly looking = inject(FirstPersonLookService);
 
   private readonly width = signal(0);
@@ -325,8 +373,38 @@ export class FirstPersonViewComponent {
       const moving = !!this.underWater()?.weather && this.motion.enabled();
       untracked(() => this.playback.setPersistent(UNDER_A_POND, moving));
     });
+    effect((onCleanup) => {
+      const host = this.canvasHost()?.nativeElement;
+      if (host) onCleanup(this.table3d.lend(host));
+    });
+    effect(() => {
+      const camera = this.viewCamera();
+      const viewer = this.firstPerson.piece();
+      if (!this.onCanvas() || !camera || !viewer) {
+        untracked(() => this.eyes.clear());
+        return;
+      }
+      const focalPx = this.perspective();
+      const eye = firstPersonEyeMatrix(camera, focalPx);
+      this.eyes.show({
+        camera: {
+          eye: matrixColumns(eye),
+          axes: eyeAxesOf(firstPersonEyeMatrix({ ...camera, pitch: 0 }, focalPx)),
+          orthographic: false,
+          width: this.width() || DEFAULT_VIEW_WIDTH_PX,
+          height: this.height() || DEFAULT_VIEW_HEIGHT_PX,
+          focalPx,
+          nearPx: this.gridSize() * NEAR_CELLS,
+          fadePx: fadeOutPx(this.firstPerson.depthPx()),
+        },
+        standsAt: { x: camera.x, y: camera.y },
+        without: viewer.identifier,
+        ceilings: this.ceilings(),
+      });
+    });
     this.watchSize();
     this.destroyRef.onDestroy(() => {
+      this.eyes.clear();
       this.stopGlide();
       this.playback.setPersistent(UNDER_A_POND, false);
     });
@@ -482,6 +560,7 @@ export class FirstPersonViewComponent {
    * grey box the table never draws.
    */
   protected readonly quadViews = computed<QuadView[]>(() => {
+    if (this.onCanvas()) return [];
     this.objectChange.fileVersion();
     const scale = this.scale();
     const depth = this.firstPerson.depthPx();
@@ -510,6 +589,7 @@ export class FirstPersonViewComponent {
    * fades with the distance as the water would.
    */
   protected readonly waterViews = computed<WaterQuadView[]>(() => {
+    if (this.onCanvas()) return [];
     const camera = this.viewCamera();
     const sight = this.sight();
     const cells = this.water.cells();
@@ -701,6 +781,7 @@ export class FirstPersonViewComponent {
   private readonly glows = computed(() => this.propsService.glows());
 
   protected readonly propViews = computed<PropView[]>(() => {
+    if (this.onCanvas()) return [];
     const pose = this.viewCamera();
     const sight = this.sight();
     if (!pose || sight.gridSize <= 0) return [];
@@ -714,6 +795,7 @@ export class FirstPersonViewComponent {
    * as wide as its canvases, cut at the eye where it runs under it.
    */
   protected readonly rangeViews = computed<RangeView[]>(() => {
+    if (this.onCanvas()) return [];
     const pose = this.viewCamera();
     const sight = this.sight();
     if (!pose || sight.gridSize <= 0) return [];
@@ -731,6 +813,7 @@ export class FirstPersonViewComponent {
 
   /** The beams the table's cone lights throw, as `beamViewsOf` stands them in the view. */
   protected readonly beamViews = computed<BeamView[]>(() => {
+    if (this.onCanvas()) return [];
     const pose = this.viewCamera();
     const gridSize = this.gridSize();
     if (!pose || gridSize <= 0) return [];
@@ -739,6 +822,7 @@ export class FirstPersonViewComponent {
 
   /** The sheets of fog hanging over ground nobody has walked to, none without fog. */
   protected readonly fogAirViews = computed<FogAirView[]>(() => {
+    if (this.onCanvas()) return [];
     const pose = this.viewCamera();
     const table = this.firstPerson.table();
     const gridSize = this.gridSize();
@@ -805,6 +889,7 @@ export class FirstPersonViewComponent {
   });
 
   protected readonly glowViews = computed<GlowView[]>(() => {
+    if (this.onCanvas()) return [];
     const pose = this.viewCamera();
     if (!pose) return [];
     return glowViewsOf(this.glows(), pose, this.sight(), this.scale());

@@ -1,6 +1,7 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { Table3dQualityService } from '@axe/application/tabletop/table-3d-quality.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TableEyeService } from '@axe/application/tabletop/table-eye.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { tablePointOfPage } from '@axe/domain/tabletop/camera/table-camera';
 import type { SceneLight } from '@axe/domain/tabletop/vision-scene';
@@ -21,6 +22,7 @@ export class LightSlotsService {
   private readonly vision = inject(VisionService);
   private readonly camera = inject(TableCameraService);
   private readonly quality = inject(Table3dQualityService);
+  private readonly eyes = inject(TableEyeService);
   private held: readonly string[] = [];
 
   /** How many lights throw shadows of their own, as the quality the seat draws the table at allows. */
@@ -45,8 +47,13 @@ export class LightSlotsService {
   /** The identifiers of the lights that throw shadows of their own now. */
   readonly ids = computed(() => new Set(this.lights().map((light) => light.sourceId)));
 
-  /** Where the camera looks on the board: the point under the middle of the table's box, or the board's middle. */
+  /**
+   * Where the camera looks on the board: where an eye standing among the pieces stands, or else the
+   * point under the middle of the table's box, or the board's middle.
+   */
   private focus(scene: { widthPx: number; heightPx: number }): { x: number; y: number } {
+    const standing = this.eyes.standsAt();
+    if (standing) return standing;
     const inverse = this.camera.inverseSceneMatrix();
     const layout = this.camera.layout;
     if (inverse && layout) {

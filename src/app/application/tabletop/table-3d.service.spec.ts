@@ -3,6 +3,8 @@ import { ImageService } from '@axe/application/storage/image.service';
 import { TABLE_3D_ENGINES, TABLE_GRAPHICS, Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { Table3dQualityService } from '@axe/application/tabletop/table-3d-quality.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TableEyeService } from '@axe/application/tabletop/table-eye.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
@@ -17,7 +19,8 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { type SkyDome, skyDomeAt } from '@axe/domain/tabletop/world/sky-dome';
 import { type SkyLight, skyLightAt } from '@axe/domain/tabletop/world/sky-light';
-import type { TableWorld } from '@axe/domain/tabletop/world/table-world';
+import type { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
+import type { TableWorld, TableWorldCap } from '@axe/domain/tabletop/world/table-world';
 import type {
   Table3dCamera,
   Table3dEngine,
@@ -299,6 +302,58 @@ describe('Table3dService', () => {
     expect(after).not.toBe(before);
     expect(after.walls).toBe(before.walls);
     expect(after.caps).toBe(before.caps);
+  });
+
+  it('draws for an eye standing among the pieces on the canvas lent to its view, then gives the canvas back', async () => {
+    const scene = service();
+    vi.spyOn(TestBed.inject(TablePiecesService), 'sprites').mockReturnValue([
+      { id: 'viewer#picture', owner: 'viewer' },
+      { id: 'other#picture', owner: 'other' },
+    ] as unknown as TableWorldSprite[]);
+    const home = document.createElement('div');
+    const canvas = document.createElement('canvas');
+    home.append(canvas);
+    scene.attach(canvas);
+    await scene.whenIdle();
+    TestBed.tick();
+    await scene.whenIdle();
+    const engine = engines[0];
+    const host = document.createElement('div');
+    const ceiling = { id: 'ceiling:3', zPx: 100, facing: 'down', colour: '#000000' } as unknown as TableWorldCap;
+    const eyes = TestBed.inject(TableEyeService);
+
+    const giveBack = scene.lend(host);
+    eyes.show({
+      camera: {
+        eye: [],
+        axes: { right: { x: 1, y: 0, z: 0 }, up: { x: 0, y: 0, z: 1 } },
+        orthographic: false,
+        width: 640,
+        height: 360,
+        focalPx: 320,
+      },
+      standsAt: { x: 75, y: 125 },
+      without: 'viewer',
+      ceilings: [ceiling],
+    });
+    TestBed.tick();
+    await scene.whenIdle();
+
+    expect(canvas.parentNode).toBe(host);
+    expect(engine.cameras.at(-1)).toMatchObject({ width: 640, height: 360, focalPx: 320 });
+    expect(engine.sizes.at(-1)).toEqual([640, 360]);
+    expect(engine.worlds.at(-1)!.sprites.map((sprite) => sprite.owner)).toEqual(['other']);
+    expect(engine.worlds.at(-1)!.caps).toContain(ceiling);
+    expect(engine.grids.at(-1)).toBeNull();
+
+    eyes.clear();
+    giveBack();
+    TestBed.tick();
+    await scene.whenIdle();
+
+    expect(canvas.parentNode).toBe(home);
+    expect(engine.cameras.at(-1)).toMatchObject({ width: 1280, height: 800 });
+    expect(engine.worlds.at(-1)!.sprites.map((sprite) => sprite.owner)).toEqual(['viewer', 'other']);
   });
 
   it('draws through WebGL2 where it is asked to, or where WebGPU cannot be had', async () => {

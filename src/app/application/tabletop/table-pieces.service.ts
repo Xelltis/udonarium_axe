@@ -7,6 +7,7 @@ import { GroundService } from '@axe/application/tabletop/ground.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
+import { TableEyeService } from '@axe/application/tabletop/table-eye.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
@@ -82,6 +83,7 @@ export class TablePiecesService {
   private readonly pictureSizes = inject(PictureSizeService);
   private readonly surfaces = inject(TableSurfaceService);
   private readonly vision = inject(VisionService);
+  private readonly eyes = inject(TableEyeService);
   private readonly ground = inject(GroundService);
   private readonly transient = inject(TransientPlacementService);
   private readonly rolePermission = inject(RolePermissionService);
@@ -220,7 +222,7 @@ export class TablePiecesService {
     const table = this.tabletop.currentTableVersion();
     const gridSize = table.gridSize;
     const mode2d = this.tabletop.mode2d();
-    const facesEye = this.tabletop.imageBillboard() || mode2d;
+    const facesEye = this.tabletop.imageBillboard() || mode2d || this.eyes.scene() !== null;
     const fitsInCell = mode2d && this.roomRules.rulesFor(table).pieceImageInCell;
     this.objectChange.collectionOf(Terrain.aliasName)();
     const sprites: TableWorldSprite[] = [];
@@ -473,7 +475,7 @@ export class TablePiecesService {
     this.transient.version();
     this.theme.resolved();
     const gridSize = this.tabletop.currentTableVersion().gridSize;
-    const facesEye = this.tabletop.imageBillboard() || this.tabletop.mode2d();
+    const facesEye = this.tabletop.imageBillboard() || this.tabletop.mode2d() || this.eyes.scene() !== null;
     const owned = this.themeColour(OWNED_FRAME_COLOUR_PROPERTY, DICE_FRAME_COLOUR);
     const sprites: TableWorldSprite[] = [];
     for (const die of this.tabletop.diceSymbols) {

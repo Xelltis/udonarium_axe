@@ -22,6 +22,18 @@ export interface Table3dCamera {
   /** The box the camera looks through, in CSS pixels. */
   readonly width: number;
   readonly height: number;
+  /**
+   * How far out along z the eye stands, in pixels: the table's own 3000 where none is given, and
+   * less for an eye standing among the pieces, which sees wider.
+   */
+  readonly focalPx?: number;
+  /** How near the eye anything is still drawn, in table pixels, for an eye standing among the pieces. */
+  readonly nearPx?: number;
+  /**
+   * How far off, in table pixels, things have faded wholly into the dark, for an eye that sees into
+   * the distance under no sky; none for the table's own camera.
+   */
+  readonly fadePx?: number;
 }
 
 /**

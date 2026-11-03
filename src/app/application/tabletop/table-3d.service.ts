@@ -18,6 +18,7 @@ import { GroundService } from '@axe/application/tabletop/ground.service';
 import { LightSlotsService } from '@axe/application/tabletop/light-slots.service';
 import { Table3dQualityService } from '@axe/application/tabletop/table-3d-quality.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TableEyeService } from '@axe/application/tabletop/table-eye.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -92,6 +93,7 @@ export const TABLE_GRAPHICS = new InjectionToken<() => Promise<TableGraphics>>('
 export class Table3dService {
   private readonly tabletop = inject(TabletopService);
   private readonly camera = inject(TableCameraService);
+  private readonly eyes = inject(TableEyeService);
   private readonly injector = inject(Injector);
   private readonly images = inject(ImageService);
   private readonly objectChange = inject(ObjectChangeService);
@@ -165,17 +167,25 @@ export class Table3dService {
 
   /**
    * The scene of the table in view: its board and blocks, and the pieces on it. A piece being moved
-   * builds the pieces again and leaves the blocks as they were.
+   * builds the pieces again and leaves the blocks as they were. For an eye standing among the pieces,
+   * the piece it looks out of is left out and the ceilings over it put in.
    */
-  readonly world = computed<TableWorld>(() => ({
-    ...this.faces(),
-    sprites: this.pieces.sprites(),
-    coins: this.pieces.coins(),
-    layers: this.layers(),
-    water: this.water(),
-    backdrops: this.backdrops(),
-    models: [...this.pieces.models(), ...this.terrainModels()],
-  }));
+  readonly world = computed<TableWorld>(() => {
+    const faces = this.faces();
+    const eye = this.eyes.scene();
+    const seen = <T extends { readonly owner: string }>(parts: readonly T[]) =>
+      eye ? parts.filter((part) => part.owner !== eye.without) : parts;
+    return {
+      ...faces,
+      caps: eye?.ceilings.length ? [...faces.caps, ...eye.ceilings] : faces.caps,
+      sprites: seen(this.pieces.sprites()),
+      coins: this.pieces.coins(),
+      layers: this.layers(),
+      water: this.water(),
+      backdrops: this.backdrops(),
+      models: seen([...this.pieces.models(), ...this.terrainModels()]),
+    };
+  });
 
   /**
    * The blocks this seat may see that are drawn as 3D models held here in full: each stood on the
@@ -259,6 +269,10 @@ export class Table3dService {
   readonly preparing = computed(() => this.drawsOnCanvas() && this.backend() === null && !this.unavailable());
 
   private frame: number | null = null;
+  private canvas: HTMLCanvasElement | null = null;
+  /** Where the table keeps its canvas, to put it back once a view has done with it. */
+  private canvasHome: { readonly parent: Node; readonly next: Node | null } | null = null;
+  private lentTo: HTMLElement | null = null;
   private frameForMotion = false;
   private engine: Table3dEngine | null = null;
   /** The page's grid, laid over the board on the canvas, or null while the page draws none. */
@@ -296,6 +310,9 @@ export class Table3dService {
   attach(canvas: HTMLCanvasElement): () => void {
     let engine: Table3dEngine | null = null;
     let detached = false;
+    this.canvas = canvas;
+    this.canvasHome = canvas.parentNode ? { parent: canvas.parentNode, next: canvas.nextSibling } : null;
+    this.placeCanvas();
     const effects: EffectRef[] = [];
     const started = this.start(canvas).then((made) => {
       if (detached) {
@@ -316,6 +333,10 @@ export class Table3dService {
     });
     return () => {
       detached = true;
+      if (this.canvas === canvas) {
+        this.canvas = null;
+        this.canvasHome = null;
+      }
       for (const watching of effects) watching.destroy();
       if (this.frame !== null) cancelAnimationFrame(this.frame);
       this.frame = null;
@@ -324,6 +345,34 @@ export class Table3dService {
       this.backend.set(null);
       this.settleIfIdle();
     };
+  }
+
+  /**
+   * Lends the canvas to a view that stands an eye among the pieces and shows the table's scene in
+   * place of the table, until the function answered is called and the canvas goes back to the table.
+   * A canvas made afresh while it is lent is lent as well.
+   */
+  lend(host: HTMLElement): () => void {
+    this.lentTo = host;
+    this.placeCanvas();
+    return () => {
+      if (this.lentTo !== host) return;
+      this.lentTo = null;
+      this.placeCanvas();
+    };
+  }
+
+  /** Puts the canvas where it is shown: in the view it is lent to, or back where the table keeps it. */
+  private placeCanvas(): void {
+    const canvas = this.canvas;
+    if (!canvas) return;
+    if (this.lentTo) {
+      if (canvas.parentNode !== this.lentTo) this.lentTo.appendChild(canvas);
+      return;
+    }
+    const home = this.canvasHome;
+    if (!home || canvas.parentNode === home.parent) return;
+    home.parent.insertBefore(canvas, home.next?.parentNode === home.parent ? home.next : null);
   }
 
   /**
@@ -384,7 +433,7 @@ export class Table3dService {
       ),
       effect(
         () => {
-          engine.setGrid(this.grid());
+          engine.setGrid(this.eyes.scene() ? null : this.grid());
           this.drawSoon(engine);
         },
         { injector: this.injector }
@@ -462,6 +511,7 @@ export class Table3dService {
       effect(
         () => {
           this.camera.version();
+          this.eyes.eye();
           const camera = untracked(() => this.cameraNow());
           if (!camera) return;
           const shown = `${camera.width}x${camera.height}x${devicePixelRatio}`;
@@ -478,6 +528,8 @@ export class Table3dService {
   }
 
   private cameraNow(): Table3dCamera | null {
+    const standing = this.eyes.eye();
+    if (standing) return standing.camera;
     const view = this.camera.view;
     const layout = this.camera.layout;
     if (!view || !layout) return null;

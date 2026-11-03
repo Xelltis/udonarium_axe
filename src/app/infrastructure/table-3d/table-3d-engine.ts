@@ -55,6 +55,8 @@ import {
   Color,
   DirectionalLight,
   DoubleSide,
+  Fog,
+  type FogExp2,
   Group,
   HemisphereLight,
   Matrix4,
@@ -86,11 +88,12 @@ const FAR_PX = 50000;
 /** How much white the board is veiled with while nothing is laid under it, as the page veils it. */
 const BOARD_VEIL = 0.15;
 
-/** What a face wears: the picture, how it is laid, and whether it is glass. */
-type FaceLook = { pictureUrl: string; tilePx: number; glass: boolean };
+/** What a face wears: the picture, how it is laid, and whether it is glass, or else the colour it is painted. */
+type FaceLook = { pictureUrl: string; tilePx: number; glass: boolean; colour?: string };
 
 /** The key faces drawn with one material share. */
 function lookOf(face: FaceLook): string {
+  if (!face.glass && !face.pictureUrl && face.colour) return `colour|${face.colour}`;
   return face.glass || !face.pictureUrl ? 'glass' : `${face.pictureUrl}|${face.tilePx > 0}`;
 }
 
@@ -152,10 +155,10 @@ const TALLEST_PX = 2000;
  */
 const BOARD_TO_SCENE = new Matrix4().set(1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1);
 
-/** The eye's space as the camera's: the eye stands out along z, and the camera's y runs up the page. */
-const EYE_TO_CAMERA = new Matrix4()
-  .makeScale(1, -1, 1)
-  .multiply(new Matrix4().makeTranslation(0, 0, -TABLE_PERSPECTIVE_PX));
+/** The eye's space as the camera's: the eye stands `focalPx` out along z, and the camera's y runs up the page. */
+function eyeToCamera(focalPx: number): Matrix4 {
+  return new Matrix4().makeScale(1, -1, 1).multiply(new Matrix4().makeTranslation(0, 0, -focalPx));
+}
 
 /** Makes the engine that draws the table on a canvas, through WebGPU where it can and WebGL2 elsewhere. */
 export async function createTable3dEngine(
@@ -245,6 +248,9 @@ class ThreeTableEngine implements Table3dEngine {
   private laidSky: SkyDome | null = null;
   private laidModels: TableWorld['models'] = [];
   private laidSkyKey = 'null';
+  private skyFog: FogExp2 | null = null;
+  private readonly darkFog = new Fog(0x000000, 0, 1);
+  private fadePx = 0;
   private readonly water = new WaterLayer((material, taking) => this.veil.cover(material, taking));
   private readonly layers = new BoardLayers(
     (url) => this.sharedPicture(url, true),
@@ -539,8 +545,9 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   setCamera(view: Table3dCamera): void {
+    const focal = view.focalPx ?? TABLE_PERSPECTIVE_PX;
     const eye = new Matrix4().fromArray(view.eye as number[]);
-    const toCamera = EYE_TO_CAMERA.clone().multiply(eye).multiply(BOARD_TO_SCENE);
+    const toCamera = eyeToCamera(focal).multiply(eye).multiply(BOARD_TO_SCENE);
     if (view.orthographic) {
       Object.assign(this.orthographic, {
         left: -view.width / 2,
@@ -551,8 +558,9 @@ class ThreeTableEngine implements Table3dEngine {
       this.orthographic.updateProjectionMatrix();
       this.camera = this.orthographic;
     } else {
-      this.perspective.fov = (2 * Math.atan(view.height / 2 / TABLE_PERSPECTIVE_PX) * 180) / Math.PI;
+      this.perspective.fov = (2 * Math.atan(view.height / 2 / focal) * 180) / Math.PI;
       this.perspective.aspect = view.width / Math.max(1, view.height);
+      this.perspective.near = view.nearPx ?? NEAR_PX;
       this.perspective.updateProjectionMatrix();
       this.camera = this.perspective;
     }
@@ -560,7 +568,27 @@ class ThreeTableEngine implements Table3dEngine {
     this.camera.updateMatrixWorld(true);
     this.skyDome.follow(new Vector3().setFromMatrixPosition(this.camera.matrixWorld));
     this.sprites.face(view.axes);
+    this.fadePx = view.fadePx ?? 0;
+    this.layFog();
     this.changed = true;
+  }
+
+  /**
+   * The fog the scene is drawn in: the sky's haze where there is a sky, a fade into the dark for an
+   * eye that sees into the distance under none, and nothing otherwise. The same fog is kept while it
+   * is wanted, its reach changed, so moving the eye builds no shader anew.
+   */
+  private layFog(): void {
+    if (this.skyFog) {
+      this.scene.fog = this.skyFog;
+      return;
+    }
+    if (this.fadePx <= 0) {
+      this.scene.fog = null;
+      return;
+    }
+    this.darkFog.far = this.fadePx;
+    this.scene.fog = this.darkFog;
   }
 
   setGrid(grid: Table3dGrid | null): void {
@@ -622,7 +650,8 @@ class ThreeTableEngine implements Table3dEngine {
     if (laid === this.laidSkyKey) return;
     this.laidSkyKey = laid;
     this.laidSky = sky;
-    this.scene.fog = this.skyDome.set(sky, this.board ? this.boardBox : null);
+    this.skyFog = this.skyDome.set(sky, this.board ? this.boardBox : null);
+    this.layFog();
     this.standBackdrops();
     this.changed = true;
   }
@@ -816,7 +845,7 @@ class ThreeTableEngine implements Table3dEngine {
     const meshes = new Group();
     for (const [look, { face, shapes }] of byLook) {
       const mesh = new Mesh(mergedFaces(shapes), this.sharedLook(look, face));
-      mesh.castShadow = !face.glass;
+      mesh.castShadow = !face.glass && !face.colour;
       mesh.receiveShadow = true;
       mesh.renderOrder = BLOCKS_ORDER;
       meshes.add(mesh);
@@ -861,11 +890,12 @@ class ThreeTableEngine implements Table3dEngine {
     this.scene.add(this.topsGrid);
   }
 
-  private faceMaterial(face: {
-    pictureUrl: string;
-    tilePx: number;
-    glass: boolean;
-  }): MeshBasicNodeMaterial | MeshLambertNodeMaterial {
+  private faceMaterial(face: FaceLook): MeshBasicNodeMaterial | MeshLambertNodeMaterial {
+    if (!face.glass && !face.pictureUrl && face.colour) {
+      const painted = new MeshLambertNodeMaterial({ color: new Color(face.colour), side: DoubleSide });
+      this.veil.cover(painted, 'lit');
+      return painted;
+    }
     const material =
       face.glass || !face.pictureUrl
         ? new MeshBasicNodeMaterial({

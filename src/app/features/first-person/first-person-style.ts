@@ -100,6 +100,14 @@ export function cameraTransform(
   ].join(' ');
 }
 
+/**
+ * How far off, for a view drawn on a canvas that fades into the dark with distance, things have faded
+ * wholly away: the shade grows as it does for the CSS view, to its most at the farthest drawn.
+ */
+export function fadeOutPx(depthPx: number): number {
+  return depthPx / MAX_SHADE;
+}
+
 export function shadeFor(depth: number, depthPx: number): number {
   if (depthPx <= 0) return 0;
   return round(Math.min(Math.max(depth / depthPx, 0), 1) * MAX_SHADE);
