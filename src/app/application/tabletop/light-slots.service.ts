@@ -1,11 +1,13 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { tablePointOfPage } from '@axe/domain/tabletop/camera/table-camera';
 import type { SceneLight } from '@axe/domain/tabletop/vision-scene';
 import { lightSlotsOf } from '@axe/domain/tabletop/world/light-slots';
+import { TABLE_3D_QUALITY, table3dQualityOf } from '@axe/infrastructure/table-3d/table-3d-quality';
 
-/** How many lights throw shadows of their own on a table drawn on a canvas. */
+/** As many lights as throw shadows of their own on a table drawn on a canvas, as many as the scene keeps slots for. */
 export const SHADOW_LIGHT_SLOTS = 2;
 
 /**
@@ -18,7 +20,13 @@ export const SHADOW_LIGHT_SLOTS = 2;
 export class LightSlotsService {
   private readonly vision = inject(VisionService);
   private readonly camera = inject(TableCameraService);
+  private readonly renderLite = inject(RenderLiteService);
   private held: readonly string[] = [];
+
+  /** How many lights throw shadows of their own, as the quality the seat draws the table at allows. */
+  readonly count = computed(() =>
+    Math.min(SHADOW_LIGHT_SLOTS, TABLE_3D_QUALITY[table3dQualityOf('auto', this.renderLite.active())].shadowedLights)
+  );
 
   /** The lights that throw shadows of their own now, best first; none where the table is not dark. */
   readonly lights = computed<readonly SceneLight[]>(
@@ -29,7 +37,7 @@ export class LightSlotsService {
         this.held = [];
         return [];
       }
-      const chosen = lightSlotsOf(scene.lights, this.focus(scene), SHADOW_LIGHT_SLOTS, this.held);
+      const chosen = lightSlotsOf(scene.lights, this.focus(scene), this.count(), this.held);
       this.held = chosen;
       return chosen.map((id) => scene.lights.find((light) => light.sourceId === id)!);
     },

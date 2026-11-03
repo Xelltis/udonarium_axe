@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { LightSlotsService, SHADOW_LIGHT_SLOTS } from '@axe/application/tabletop/light-slots.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import type { SceneLight, VisionScene } from '@axe/domain/tabletop/vision-scene';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -67,6 +68,15 @@ describe('LightSlotsService', () => {
     const slots = TestBed.inject(LightSlotsService);
     scene.set(sceneOf([lamp('middle', 500)], false));
 
+    expect(slots.lights()).toEqual([]);
+  });
+
+  it('chooses none for a seat that draws the table lightly', () => {
+    TestBed.inject(RenderLiteService).setting.set('on');
+    const slots = TestBed.inject(LightSlotsService);
+    scene.set(sceneOf([lamp('middle', 500)]));
+
+    expect(slots.count()).toBe(0);
     expect(slots.lights()).toEqual([]);
   });
 });
