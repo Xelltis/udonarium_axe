@@ -1,4 +1,4 @@
-import { NgClass, NgStyle } from '@angular/common';
+import { NgClass, NgStyle, NgTemplateOutlet } from '@angular/common';
 import {
   afterEveryRender,
   afterNextRender,
@@ -110,6 +110,7 @@ const LIST_ROOM = 240;
     TextTooltipDirective,
     NgClass,
     NgStyle,
+    NgTemplateOutlet,
     NgSelectComponent,
     FormsModule,
     NgOptionComponent,
@@ -586,8 +587,10 @@ export class ChatInputComponent {
   readonly dense = input(false);
   /**
    * Lays the input out for a window too narrow for the portrait beside the box: a small picture of
-   * the speaker before the speaker's name instead, the box the full width under it, and its buttons
-   * from the left, so that nothing in it is pushed out of line.
+   * the speaker before the speaker's name instead, which takes the room of whom it is said to twice
+   * over; the buttons for how the line goes out - its stamp, colour, dice and ticker - beside the
+   * dice bot; and the box the full width under them, with only the buttons for what it says along
+   * it, from the left, so that nothing in it is pushed out of line.
    */
   readonly narrow = input(false);
   /** What the empty box says in place of its keys, for a panel that fills the box its own way. */
