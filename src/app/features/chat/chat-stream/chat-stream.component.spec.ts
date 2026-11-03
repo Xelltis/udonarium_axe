@@ -47,6 +47,13 @@ describe('ChatStreamComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('なんだって！？');
   });
 
+  it('shows no sample lines on a tab with nothing said in it, which would pass for real ones over the table', () => {
+    component.tabIdentifier.set(tab.identifier);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelectorAll('chat-message')).toHaveLength(0);
+  });
+
   it('offers the buttons that hover over a line, as the chat window does', () => {
     tab.addMessage({ from: 'alice', name: 'アリス', text: 'やあ', timestamp: 1000 });
     component.tabIdentifier.set(tab.identifier);
@@ -172,6 +179,47 @@ describe('ChatStreamComponent', () => {
 
         expect(component.tabIdentifier()).toBe(other.identifier);
         expect(fixture.nativeElement.textContent).toContain('おなかすいた');
+      } finally {
+        other.destroy();
+      }
+    });
+
+    it('is found by the tab it shows, taking that one up as another is picked', () => {
+      const other = ChatTabList.instance.addChatTab('雑談');
+      const panelService = TestBed.inject(PanelService);
+      try {
+        component.tabIdentifier.set(tab.identifier);
+        fixture.detectChanges();
+        expect(panelService.hasSingle(`chat-stream:${tab.identifier}`)).toBe(true);
+
+        component.tabIdentifier.set(other.identifier);
+        fixture.detectChanges();
+
+        expect(panelService.hasSingle(`chat-stream:${tab.identifier}`)).toBe(false);
+        expect(panelService.hasSingle(`chat-stream:${other.identifier}`)).toBe(true);
+      } finally {
+        other.destroy();
+      }
+    });
+
+    it('leaves Ctrl and an arrow to a field that steps over words with them', () => {
+      const other = ChatTabList.instance.addChatTab('雑談');
+      try {
+        component.tabIdentifier.set(tab.identifier);
+        fixture.detectChanges();
+        const field = document.createElement('input');
+        fixture.nativeElement.appendChild(field);
+
+        const event = new KeyboardEvent('keydown', {
+          key: 'ArrowRight',
+          ctrlKey: true,
+          bubbles: true,
+          cancelable: true,
+        });
+        field.dispatchEvent(event);
+
+        expect(event.defaultPrevented).toBe(false);
+        expect(component.tabIdentifier()).toBe(tab.identifier);
       } finally {
         other.destroy();
       }

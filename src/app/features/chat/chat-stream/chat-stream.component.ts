@@ -21,12 +21,15 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { tabBeside } from '@axe/domain/chat/chat-tab-cycle';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
+import { editsTextInPlace } from '@axe/features/chat/chat-input/chat-input-helpers';
 import { ChatSendService } from '@axe/features/chat/chat-send.service';
+import { chatStreamPanelName } from '@axe/features/chat/chat-stream/chat-stream-panel.service';
 import { ChatTabComponent } from '@axe/features/chat/chat-tab/chat-tab.component';
 import { ChatTabStripComponent } from '@axe/features/chat/chat-tab-strip/chat-tab-strip.component';
 import { TranslocoModule } from '@jsverse/transloco';
@@ -153,20 +156,28 @@ export class ChatStreamComponent {
       this.scrollToLatestOnceDrawn();
     }, this.destroyRef);
 
-    // A tab picked from the strip opens at its newest line, as the window itself does.
+    // A tab picked from the strip opens at its newest line, as the window itself does, and the
+    // window is found by that tab from then on, taking it from another window showing it.
     effect(() => {
-      this.tabIdentifier();
-      untracked(() => this.scrollToLatestOnceDrawn());
+      const identifier = this.tabIdentifier();
+      untracked(() => {
+        if (identifier.length > 0) this.panelService.holdAsSingle(chatStreamPanelName(identifier));
+        this.scrollToLatestOnceDrawn();
+      });
     });
   }
 
-  /** Moves to the tab beside the one shown, wrapping round, as Ctrl and an arrow do in the chat window. */
+  /**
+   * Moves to the tab beside the one shown, wrapping round, as Ctrl and an arrow do in the chat
+   * window: from the chat input and the window, but not from a field the keys step over words in,
+   * such as a line being edited.
+   */
   switchTabByKey(event: Event, direction: -1 | 1): void {
-    const tabs = this.visibleChatTabs();
-    if (tabs.length < 2) return;
+    if (editsTextInPlace(event.target)) return;
+    const next = tabBeside(this.visibleChatTabs(), this.tabIdentifier(), direction);
+    if (!next) return;
     event.preventDefault();
-    const at = tabs.findIndex((tab) => tab.identifier === this.tabIdentifier());
-    this.tabIdentifier.set(tabs[(at + direction + tabs.length) % tabs.length].identifier);
+    this.tabIdentifier.set(next.identifier);
   }
 
   /** Says a line into the tab shown, as the chat window says one; see {@link ChatSendService.send}. */

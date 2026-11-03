@@ -210,6 +210,8 @@ export class PanelService {
   cutInIdentifier: string = '';
   /** Zero for a panel that takes its turn among the others, which is nearly all of them. */
   layer: number = 0;
+  /** The single name this panel is found by, as it was opened or as it has taken since; none without one. */
+  private heldSingle: string | null = null;
   invisible: boolean = false;
   /**
    * Whether the title bar's minimise button shrinks this panel to its content rather than folding
@@ -332,6 +334,22 @@ export class PanelService {
    * anything that only wants to know. One still being opened counts as open, for the same
    * reason it does there.
    */
+  /**
+   * Has this panel found by another single name from now on, letting go of the one it held, as a
+   * panel that comes to show something else is then found by that. A panel already holding the name
+   * closes, as one does when another is opened under it.
+   */
+  holdAsSingle(name: string): void {
+    const held = this.heldSingle;
+    if (held === name) return;
+    const other = PanelService.singles.get(name);
+    if (other && other !== this) other.close();
+    if (held && PanelService.singles.get(held) === this) PanelService.singles.delete(held);
+    PanelService.singles.set(name, this);
+    this.heldSingle = name;
+    PanelService.noteSingles();
+  }
+
   hasSingle(name: string): boolean {
     PanelService.singlesVersion();
     return PanelService.opening.has(name) || PanelService.singles.has(name);
@@ -391,14 +409,16 @@ export class PanelService {
     const single = option?.single;
     if (single) {
       PanelService.singles.set(single, childPanelService);
+      childPanelService.heldSingle = single;
       PanelService.noteSingles();
     }
     // Hung on the body rather than on the frame, since a panel may outlive the frame it was
     // opened in without ever having gone away.
     bodyComponentRef.onDestroy(() => {
       childPanelService.frame = null;
-      if (single && PanelService.singles.get(single) === childPanelService) {
-        PanelService.singles.delete(single);
+      const held = childPanelService.heldSingle;
+      if (held && PanelService.singles.get(held) === childPanelService) {
+        PanelService.singles.delete(held);
         PanelService.noteSingles();
       }
     });
@@ -534,8 +554,18 @@ export class PanelService {
     option: PanelOption | undefined,
     rotationDegrees: PanelRotationDegrees
   ): PanelOption | undefined {
-    if (option?.rotationDegrees !== undefined || rotationDegrees === 0) return option;
-    return { ...option, rotationDegrees };
+    const layered = this.withInheritedLayer(option);
+    if (layered?.rotationDegrees !== undefined || rotationDegrees === 0) return layered;
+    return { ...layered, rotationDegrees };
+  }
+
+  /**
+   * A panel opened from one standing on a raised layer, as over novel mode, stands on that layer too
+   * where it names none, or it would open behind what raised the first.
+   */
+  private withInheritedLayer(option: PanelOption | undefined): PanelOption | undefined {
+    if (option?.layer !== undefined || this.layer === 0) return option;
+    return { ...option, layer: this.layer };
   }
 
   /**

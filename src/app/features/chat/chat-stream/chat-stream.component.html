@@ -13,7 +13,7 @@
     #logScroll
   >
     @if (chatTab(); as tab) {
-      <chat-tab [chatTab]="tab"></chat-tab>
+      <chat-tab [chatTab]="tab" [showsSamples]="false"></chat-tab>
     } @else {
       <div class="text-ui-dim flex size-full items-center justify-center p-4 text-center text-xs">
         {{ 'feature.chat.stream.gone' | transloco }}

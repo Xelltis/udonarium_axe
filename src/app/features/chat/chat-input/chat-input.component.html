@@ -281,13 +281,7 @@
                 [ngStyle]="lineLook()"
                 [attr.rows]="dense() || narrow() ? 1 : null"
                 class="chat-input bg-ui-input text-ui-text m-0 box-border block max-h-60 min-h-10 w-full min-w-0 grow resize-y border-none px-2 py-1.5 font-[inherit] text-[13px] leading-[1.4] placeholder:text-current/65 focus:outline-none"
-                [placeholder]="
-                  placeholder() ||
-                  ((isCompact() || narrow()
-                    ? 'feature.chat.input.textareaPlaceholderShort'
-                    : 'feature.chat.input.textareaPlaceholder'
-                  ) | transloco)
-                "
+                [placeholder]="placeholderText()"
                 [(ngModel)]="text"
                 [ngModelOptions]="{ standalone: true }"
                 (input)="onInput()"

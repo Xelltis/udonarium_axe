@@ -456,8 +456,8 @@ export class ChatInputComponent {
     field?.select({ from: found.from, to: found.to });
   }
 
-  /** What the empty box says in place of its keys. */
-  private readonly placeholderText = computed(() => {
+  /** What the empty box says in place of its keys, in the plain box and the editor alike. */
+  protected readonly placeholderText = computed(() => {
     this.language.currentLang();
     const own = this.placeholder();
     if (own) return own;

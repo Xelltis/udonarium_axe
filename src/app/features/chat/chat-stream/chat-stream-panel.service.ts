@@ -5,9 +5,16 @@ import { ChatTab } from '@axe/domain/chat/chat-tab';
 import type { ChatStreamComponent } from '@axe/features/chat/chat-stream/chat-stream.component';
 import { Z_VISUAL_NOVEL_PANEL } from '@axe/ui/z-layers';
 
-/** One window per tab, so several conversations can be watched side by side. */
+/**
+ * What the widget showing a tab is found by: one per tab, so several conversations can be watched
+ * side by side. A widget switched to another tab is found by that one instead.
+ */
+export function chatStreamPanelName(tabIdentifier: string): string {
+  return `chat-stream:${tabIdentifier}`;
+}
+
 function panelNameFor(tab: ChatTab): string {
-  return `chat-stream:${tab.identifier}`;
+  return chatStreamPanelName(tab.identifier);
 }
 
 /**

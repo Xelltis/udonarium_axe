@@ -37,6 +37,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { ChatPalette, PaletteIndex } from '@axe/domain/chat/chat-palette';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { tabBeside } from '@axe/domain/chat/chat-tab-cycle';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { PaletteRow, paletteRowsOf, paletteTabsOf } from '@axe/domain/chat/palette-rows';
@@ -487,21 +488,8 @@ export class ChatPaletteComponent {
    * Does nothing when the current tab is no longer in the list.
    */
   chatTabSwitchRelative(direction: number) {
-    const chatTabs = this.visibleChatTabs();
-    const index = chatTabs.findIndex((elm) => elm.identifier == this.chatTabidentifier());
-    if (index < 0) {
-      return;
-    }
-
-    let nextIndex: number;
-    if (index == chatTabs.length - 1 && direction == 1) {
-      nextIndex = 0;
-    } else if (index == 0 && direction == -1) {
-      nextIndex = chatTabs.length - 1;
-    } else {
-      nextIndex = index + direction;
-    }
-    this.chatTabidentifier.set(chatTabs[nextIndex].identifier);
+    const next = tabBeside(this.visibleChatTabs(), this.chatTabidentifier(), direction);
+    if (next) this.chatTabidentifier.set(next.identifier);
   }
 
   /**

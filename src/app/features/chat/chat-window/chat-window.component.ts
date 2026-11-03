@@ -30,6 +30,7 @@ import { delay } from '@axe/core/util/delay';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { tabBeside } from '@axe/domain/chat/chat-tab-cycle';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -269,7 +270,6 @@ export class ChatWindowComponent {
     else this.openSearch();
   }
 
-  /** Opens the list of marks from its button, in place of the search, or closes it when it is open. */
   /**
    * Opens the stream chat widget on this tab, at the top right of the screen where it covers no
    * chat window, or puts it away; the tab's menu does the same.
@@ -279,6 +279,7 @@ export class ChatWindowComponent {
     if (tab) this.chatStreamPanel.toggle(tab);
   }
 
+  /** Opens the list of marks from its button, in place of the search, or closes it when it is open. */
   toggleBookmarks(): void {
     if (this.bookmarksOpen()) {
       this.closeBookmarks();
@@ -358,21 +359,8 @@ export class ChatWindowComponent {
    * nothing when the current tab is not among them.
    */
   chatTabSwitchRelative(direction: number) {
-    const chatTabs = this.visibleChatTabs();
-    const index = chatTabs.findIndex((elm) => elm.identifier == this.chatTabidentifier);
-    if (index < 0) {
-      return;
-    }
-
-    let nextIndex: number;
-    if (index == chatTabs.length - 1 && direction == 1) {
-      nextIndex = 0;
-    } else if (index == 0 && direction == -1) {
-      nextIndex = chatTabs.length - 1;
-    } else {
-      nextIndex = index + direction;
-    }
-    this.chatTabidentifier = chatTabs[nextIndex].identifier;
+    const next = tabBeside(this.visibleChatTabs(), this.chatTabidentifier, direction);
+    if (next) this.chatTabidentifier = next.identifier;
   }
 
   readonly chatTab = computed(() => {
