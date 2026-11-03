@@ -130,6 +130,9 @@ const LAMP_SHADOW_PX = 512;
  */
 const LAMP_REACH = 1.1;
 
+/** How long at least the shadows are left as they are after they were drawn again for pieces that moved, in milliseconds. */
+const PIECE_SHADOWS_MS = 150;
+
 /** How high anything on the table is reckoned to stand, for the shadows of the sun and the moon to reach it, in table pixels. */
 const TALLEST_PX = 2000;
 
@@ -198,6 +201,8 @@ class ThreeTableEngine implements Table3dEngine {
   /** How many lamps of each kind the quality the table is drawn at lets light the scene. */
   private lampSlots = -1;
   private readonly litLamps = new Set<PointLight | SpotLight>();
+  private shadowsDrawnAt = -Infinity;
+  private shadowTimer: ReturnType<typeof setTimeout> | null = null;
   private flickeredAt = 0;
   private draws = 0;
   private laidSprites: TableWorld['sprites'] = [];
@@ -327,8 +332,28 @@ class ThreeTableEngine implements Table3dEngine {
     if (moved) lamp.shadow.needsUpdate = true;
   }
 
+  /**
+   * Has the shadows drawn again for pieces that moved: at once where they were not drawn a moment
+   * ago, and otherwise once that moment is out, so a piece dragged about has its shadow follow it a
+   * few times a second rather than the whole board's shadows drawn again every frame.
+   */
+  private piecesMoved(): void {
+    const wait = this.shadowsDrawnAt + PIECE_SHADOWS_MS - performance.now();
+    if (wait <= 0) {
+      this.shadowsMoved();
+      return;
+    }
+    this.shadowTimer ??= setTimeout(() => {
+      this.shadowTimer = null;
+      this.shadowsMoved();
+      this.changed = true;
+      this.needsFrame();
+    }, wait);
+  }
+
   /** Has the shadows of the sun, the moon and every lamp drawn again, as what throws them has moved. */
   private shadowsMoved(): void {
+    this.shadowsDrawnAt = performance.now();
     this.sun.shadow.needsUpdate = true;
     for (const lamp of this.litLamps) lamp.shadow.needsUpdate = true;
   }
@@ -386,7 +411,7 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   isLoading(): boolean {
-    return this.loading > 0;
+    return this.loading > 0 || this.shadowTimer !== null;
   }
 
   stats(): Table3dStats {
@@ -434,7 +459,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.water.set(world.water);
     if (world.sprites !== this.laidSprites) {
       this.laidSprites = world.sprites;
-      this.shadowsMoved();
+      this.piecesMoved();
     }
     this.forgetPictures(world);
     this.changed = true;
@@ -551,6 +576,7 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   dispose(): void {
+    if (this.shadowTimer !== null) clearTimeout(this.shadowTimer);
     this.sprites.dispose();
     this.coins.dispose();
     this.floorCanvases.dispose();

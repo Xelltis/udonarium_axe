@@ -148,7 +148,7 @@ export interface Table3dEngine {
   renderIfChanged(): boolean;
   /** Calls back when something the engine was loading, such as a picture, has come and wants drawing. */
   onNeedsFrame(listener: () => void): void;
-  /** Whether the engine is still loading something it was told to draw. */
+  /** Whether the engine is still loading something it was told to draw, or holds something back to draw a moment later. */
   isLoading(): boolean;
   /** What the engine holds, counted, for the end-to-end specs to read. */
   stats(): Table3dStats;
