@@ -1,4 +1,5 @@
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
+import { animationIntensity } from '@axe/domain/tabletop/vision-scene/light-flicker';
 import type { GroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
 import { type SkyLight, skyLightAt } from '@axe/domain/tabletop/world/sky-light';
 import type {
@@ -181,6 +182,7 @@ class ThreeTableEngine implements Table3dEngine {
   private readonly veil = new SceneVeil(SHADOW_LIGHTS);
   private readonly lamps = Array.from({ length: SHADOW_LIGHTS }, () => new PointLight(0xffffff, 0, 1, 0));
   private laidLamps: readonly Table3dShadowLight[] = [];
+  private flickeredAt = 0;
   private readonly sun = new DirectionalLight(0xffffff, 0);
   private readonly sky = new HemisphereLight(0xffffff, 0xffffff, LIGHT_SCALE);
   private lastSkyLight = '';
@@ -238,11 +240,19 @@ class ThreeTableEngine implements Table3dEngine {
    * board lit by one is as bright as the dark would let a lamp make it; a slot with no light in it is
    * left dark. Has the shadows drawn again.
    */
-  private lightLamps(): void {
+  flicker(timeMs: number): void {
+    if (!this.laidLamps.some((light) => light.animation && light.animation !== 'none')) return;
+    this.flickeredAt = timeMs;
+    this.lightLamps(false);
+    this.changed = true;
+  }
+
+  private lightLamps(moved = true): void {
     const room = Math.max(0, 1 - this.veil.ambient);
     const strengths = this.lamps.map((lamp, index) => {
       const light = this.laidLamps[index];
-      lamp.intensity = light ? room * LIGHT_SCALE : 0;
+      const strength = light ? room * animationIntensity(light.animation, this.flickeredAt) : 0;
+      lamp.intensity = strength * LIGHT_SCALE;
       lamp.visible = !!light;
       if (light) {
         lamp.position.set(light.x, light.z, light.y);
@@ -250,9 +260,9 @@ class ThreeTableEngine implements Table3dEngine {
         lamp.color.set(light.color || '#ffffff');
         lamp.shadow.camera.near = 1;
         lamp.shadow.camera.far = lamp.distance;
-        lamp.shadow.needsUpdate = true;
+        if (moved) lamp.shadow.needsUpdate = true;
       }
-      return lampColour(lamp.color, light ? room : 0);
+      return lampColour(lamp.color, strength);
     });
     this.veil.setLamps(this.laidLamps, strengths);
   }

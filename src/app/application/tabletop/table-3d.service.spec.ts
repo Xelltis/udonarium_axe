@@ -37,6 +37,7 @@ class FakeEngine implements Table3dEngine {
   lightMaps: (Table3dLightMap | null)[] = [];
   shadowLights: (readonly Table3dShadowLight[])[] = [];
   glows: (Table3dVeil | null)[] = [];
+  flickers = 0;
   drawn = 0;
   disposed = false;
   lose: () => void = () => undefined;
@@ -79,6 +80,10 @@ class FakeEngine implements Table3dEngine {
 
   setGlow(glow: Table3dVeil | null): void {
     this.glows.push(glow);
+  }
+
+  flicker(): void {
+    this.flickers++;
   }
 
   setShadowLights(lights: readonly Table3dShadowLight[]): void {

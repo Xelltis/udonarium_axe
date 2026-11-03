@@ -2,6 +2,7 @@ import { hexChannels } from '@axe/core/util/hex-color';
 import { CellGrid, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { OverlayPlan, OverlayShape, OverlayVision, ShadowShape } from '@axe/domain/tabletop/vision-scene';
+import { animationIntensity } from '@axe/domain/tabletop/vision-scene/light-flicker';
 import { fogPattern } from '@axe/infrastructure/tabletop/fog/fog-texture';
 
 const TWO_PI = Math.PI * 2;
@@ -26,20 +27,7 @@ export function hexToRgba(color: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-/**
- * How brightly an animated light glows at a moment, as a multiplier: a pulse swells slowly between
- * about half and full, a flicker jitters between 0.6 and full, and anything else stays at 1.
- */
-export function animationIntensity(animation: string | undefined, timeMs: number): number {
-  switch (animation) {
-    case 'pulse':
-      return 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(timeMs / 350));
-    case 'flicker':
-      return 0.6 + 0.4 * Math.abs(Math.sin(timeMs * 0.013) * Math.sin(timeMs * 0.027 + 1.3));
-    default:
-      return 1;
-  }
-}
+export { animationIntensity };
 
 function glowColor(shape: OverlayShape, alpha: number, timeMs: number): string {
   if (shape.animation === 'neon') {

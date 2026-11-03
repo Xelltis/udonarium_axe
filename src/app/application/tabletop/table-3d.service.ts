@@ -27,6 +27,7 @@ import { dayFractionOf } from '@axe/domain/game-clock/game-clock';
 import { matrixColumns, tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { flickers } from '@axe/domain/tabletop/vision-scene/light-flicker';
 import { skyLightAt } from '@axe/domain/tabletop/world/sky-light';
 import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
 import { TableWorld, tableWorldOf } from '@axe/domain/tabletop/world/table-world';
@@ -55,6 +56,9 @@ export const TABLE_3D_ENGINES = new InjectionToken<() => Promise<Table3dEngineMo
 
 /** How many times a canvas whose drawing the graphics card let go is made again, before the table is left alone. */
 const RESTARTS = 3;
+
+/** How often a flickering light the scene lights itself is brightened and dimmed, as the page redraws its own. */
+const FLICKER_INTERVAL_MS = 50;
 
 /** Asks which interfaces this browser can draw the table through. */
 export const TABLE_GRAPHICS = new InjectionToken<() => Promise<TableGraphics>>('table graphics', {
@@ -295,9 +299,16 @@ export class Table3dService {
         { injector: this.injector }
       ),
       effect(
-        () => {
-          engine.setShadowLights(this.lightSlots.lights());
+        (onCleanup) => {
+          const lights = this.lightSlots.lights();
+          engine.setShadowLights(lights);
           this.drawSoon(engine);
+          if (!lights.some((light) => flickers(light.animation))) return;
+          const timer = setInterval(() => {
+            engine.flicker(performance.now());
+            this.drawSoon(engine);
+          }, FLICKER_INTERVAL_MS);
+          onCleanup(() => clearInterval(timer));
         },
         { injector: this.injector }
       ),

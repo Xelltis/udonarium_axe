@@ -72,7 +72,7 @@ export interface Table3dLightMap {
 }
 
 /** A light the scene lights itself with, throwing shadows of its own: where it stands, how far it reaches and in what colour. */
-export type Table3dShadowLight = Pick<SceneLight, 'x' | 'y' | 'z' | 'brightPx' | 'dimPx' | 'color'>;
+export type Table3dShadowLight = Pick<SceneLight, 'x' | 'y' | 'z' | 'brightPx' | 'dimPx' | 'color' | 'animation'>;
 
 /** What the engine holds, counted. */
 export interface Table3dStats {
@@ -113,6 +113,8 @@ export interface Table3dEngine {
   setLightMap(map: Table3dLightMap | null): void;
   /** Lights the scene with these lights itself, each throwing shadows of its own, as many as it has slots for. */
   setShadowLights(lights: readonly Table3dShadowLight[]): void;
+  /** Brightens and dims the lights the scene lights itself with as they flicker at a moment, in milliseconds. */
+  flicker(timeMs: number): void;
   /**
    * Adds the glow of a dark table's lamps, in their colours, as the page draws it on a canvas of its
    * own, or takes it away with null.
