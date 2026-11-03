@@ -452,6 +452,19 @@
           }
         </select>
 
+        <label class="text-ui-muted text-[11px]">{{ 'feature.buffManager.builderKeeps' | transloco }}</label>
+        <label class="text-ui-text flex min-w-0 cursor-pointer items-center gap-1 text-[11px]">
+          <input
+            type="checkbox"
+            class="cursor-pointer"
+            data-testid="buff-builder-keeps"
+            [ngModel]="builderKeeps()"
+            (ngModelChange)="builderKeeps.set($event)"
+            name="builderKeeps"
+          />
+          <span class="text-ui-dim truncate">{{ 'feature.buffManager.builderKeepsHint' | transloco }}</span>
+        </label>
+
         @if (builderCanStack()) {
           <label class="text-ui-muted text-[11px]">{{ 'feature.buffManager.builderStacks' | transloco }}</label>
           <label class="text-ui-text flex min-w-0 cursor-pointer items-center gap-1 text-[11px]">
@@ -513,6 +526,15 @@
             [ngModel]="row.step"
             (ngModelChange)="updateBuilderStatus(index, { step: $event })"
             [name]="'builderMoreStep' + index"
+          />
+          <input
+            type="checkbox"
+            class="cursor-pointer"
+            [title]="'feature.buffManager.builderKeepsHint' | transloco"
+            [attr.aria-label]="'feature.buffManager.builderKeeps' | transloco"
+            [ngModel]="row.keeps"
+            (ngModelChange)="updateBuilderStatus(index, { keeps: $event })"
+            [name]="'builderMoreKeeps' + index"
           />
           <button
             type="button"

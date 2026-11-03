@@ -27,12 +27,10 @@ import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { delay } from '@axe/core/util/delay';
-import { GameCharacter } from '@axe/domain/character/game-character';
-import { aimLine } from '@axe/domain/chat/character-macro';
-import { ChatMessage, ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
-import { evaluateCharacterReferences } from '@axe/domain/chat/chat-palette';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
+import { tabBeside } from '@axe/domain/chat/chat-tab-cycle';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { canRoleSpeakTab, canRoleViewTab } from '@axe/domain/chat/chat-tab-permission';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -46,11 +44,11 @@ import { ChatMessageSettingComponent } from '@axe/features/chat/chat-message-set
 import { ChatPortraitComponent } from '@axe/features/chat/chat-portrait/chat-portrait.component';
 import { isChatSearchShortcut } from '@axe/features/chat/chat-search/chat-search';
 import { ChatSearchBarComponent } from '@axe/features/chat/chat-search/chat-search-bar.component';
+import { ChatSendService } from '@axe/features/chat/chat-send.service';
 import { ChatStreamPanelService } from '@axe/features/chat/chat-stream/chat-stream-panel.service';
 import { ChatTabComponent } from '@axe/features/chat/chat-tab/chat-tab.component';
 import { ChatTabSettingComponent } from '@axe/features/chat/chat-tab-setting/chat-tab-setting.component';
 import { ChatTabStripComponent } from '@axe/features/chat/chat-tab-strip/chat-tab-strip.component';
-import { ChatTickerSelectionService } from '@axe/features/chat/chat-ticker-selection.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
@@ -69,6 +67,9 @@ const AT_BOTTOM_THRESHOLD_PX = 8;
 import { ScenarioTextService } from '@axe/application/chat/scenario-text.service';
 import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import { ScenarioText, scenarioTextsMatching } from '@axe/domain/scenario-text/scenario-text';
+/** The icon of the title bar's button that opens the stream chat widget, as novel mode's does. */
+const STREAM_CONTROL_ICON = 'forum';
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'chat-window',
@@ -111,7 +112,7 @@ export class ChatWindowComponent {
   private readonly chatPrefs = inject(ChatPreferencesService);
   private readonly activeChatTab = inject(ActiveChatTabService);
   private readonly tabletopService = inject(TabletopService);
-  private readonly chatTickerSelection = inject(ChatTickerSelectionService);
+  private readonly chatSend = inject(ChatSendService);
   private readonly chatSpeaker = inject(ChatSpeakerService);
   private readonly chatBookmarks = inject(ChatBookmarkService);
   private readonly t = inject(TRANSLATE_FN);
@@ -269,6 +270,15 @@ export class ChatWindowComponent {
     else this.openSearch();
   }
 
+  /**
+   * Opens the stream chat widget on this tab, at the top right of the screen where it covers no
+   * chat window, or puts it away; the tab's menu does the same.
+   */
+  toggleStream(): void {
+    const tab = this.chatTab();
+    if (tab) this.chatStreamPanel.toggle(tab);
+  }
+
   /** Opens the list of marks from its button, in place of the search, or closes it when it is open. */
   toggleBookmarks(): void {
     if (this.bookmarksOpen()) {
@@ -349,21 +359,8 @@ export class ChatWindowComponent {
    * nothing when the current tab is not among them.
    */
   chatTabSwitchRelative(direction: number) {
-    const chatTabs = this.visibleChatTabs();
-    const index = chatTabs.findIndex((elm) => elm.identifier == this.chatTabidentifier);
-    if (index < 0) {
-      return;
-    }
-
-    let nextIndex: number;
-    if (index == chatTabs.length - 1 && direction == 1) {
-      nextIndex = 0;
-    } else if (index == 0 && direction == -1) {
-      nextIndex = chatTabs.length - 1;
-    } else {
-      nextIndex = index + direction;
-    }
-    this.chatTabidentifier = chatTabs[nextIndex].identifier;
+    const next = tabBeside(this.visibleChatTabs(), this.chatTabidentifier, direction);
+    if (next) this.chatTabidentifier = next.identifier;
   }
 
   readonly chatTab = computed(() => {
@@ -416,6 +413,23 @@ export class ChatWindowComponent {
     // Opening a window is nobody's choice of speaker: a second one would otherwise put back
     // the reader's own name over the character the first one is speaking as.
     this._sendFrom.set(PeerCursor.myCursor.identifier);
+    // The stream chat widget shows the chat another way, as opening it in a window of its own does,
+    // so its button stands after that one in the title bar. The panel's own buttons are given to it
+    // once it is built, so it goes on after that.
+    afterNextRender(() => {
+      this.panelService.panelControls.update((controls) =>
+        controls.some((control) => control.icon === STREAM_CONTROL_ICON)
+          ? controls
+          : [
+              ...controls,
+              {
+                icon: STREAM_CONTROL_ICON,
+                label: this.t('feature.chat.stream.openWidget'),
+                press: () => this.toggleStream(),
+              },
+            ]
+      );
+    });
     this.chatTabidentifier =
       0 < this.chatMessageService.chatTabs.length ? this.chatMessageService.chatTabs[0].identifier : '';
     this.objectChange.messageAdded$.subscribe((event) => {
@@ -693,112 +707,8 @@ export class ChatWindowComponent {
     );
   }
 
-  /** Who the line is spoken as. Speaking as yourself rather than as a piece leaves nothing to read. */
-  private speakingCharacterOf(sendFrom: string): GameCharacter | null {
-    const object = this.objectStore.get(sendFrom);
-    return object instanceof GameCharacter ? object : null;
-  }
-
-  private targeted(gameCharacter: GameCharacter): boolean {
-    if (gameCharacter.location.name != 'table') return false;
-    return gameCharacter.targeted;
-  }
-
-  private targetedGameCharacterList(): GameCharacter[] {
-    const objects = this.objectStore
-      .getObjects<GameCharacter>(GameCharacter)
-      .filter((character) => this.targeted(character));
-    return objects;
-  }
-
-  /**
-   * Sends a line from the chat input to the current tab.
-   *
-   * Character references in the text are filled in from the speaker. A line that targets characters,
-   * as typed or once the speaker's references in it are filled in (see `aimLine`), is sent once for
-   * each targeted piece on the table, filled in against that piece and tagged with
-   * its name, with the parts that change the speaker's own resources or buffs taken out after the
-   * first copy so they apply once; with nothing targeted, the line says so. Nothing is sent when
-   * the reader may not speak in the tab. A line marked for the ticker is also shown there. A stamp
-   * with nothing said goes as a line of its own, with nothing read out of the words standing in for
-   * it; a stamp with words goes under them, the line going through all the rest as any line does.
-   */
+  /** Sends a line from the chat input to the current tab; see {@link ChatSendService.send}. */
   sendChat(value: ChatOutgoing) {
-    const tab = this.chatTab();
-    if (tab && !canRoleSpeakTab(tab, PeerCursor.myRole)) return;
-    if (tab && this.chatMessageService.sendLoneStamp(tab, value)) return;
-    if (tab) {
-      let outtext = '';
-      let objects: GameCharacter[];
-      const messageTargetContext: ChatMessageTargetContext[] = [];
-
-      const speaker = this.speakingCharacterOf(value.sendFrom);
-      const attachmentImageIdentifiers: string[] = [];
-      const appendAttachmentImages = (identifiers: string[]) => {
-        for (const identifier of identifiers) {
-          if (!attachmentImageIdentifiers.includes(identifier)) attachmentImageIdentifiers.push(identifier);
-        }
-      };
-      const fillIn = (text: string, target?: GameCharacter): string => {
-        if (!speaker && !target) return text;
-        const evaluated = evaluateCharacterReferences(text, speaker, target);
-        appendAttachmentImages(evaluated.attachmentImageIdentifiers);
-        return evaluated.text;
-      };
-
-      const aimed = aimLine(value.text, speaker);
-      if (aimed.targeted) {
-        objects = this.targetedGameCharacterList();
-        let first = true;
-        if (objects.length == 0) {
-          outtext += this.t('feature.chat.window.noTarget');
-        } else {
-          appendAttachmentImages(aimed.attachmentImageIdentifiers);
-        }
-        for (const object of objects) {
-          outtext += first ? '' : '\n';
-          const str2 = first ? aimed.filled : aimed.repeated;
-
-          const filled = fillIn(str2, object);
-          outtext += filled;
-          outtext += ' [' + object.name + ']';
-          first = false;
-
-          const targetContext: ChatMessageTargetContext = {
-            text: '',
-            object: null,
-          };
-          targetContext.text = filled;
-          targetContext.object = object;
-          messageTargetContext.push(targetContext);
-        }
-      } else {
-        outtext = fillIn(value.text);
-        const targetContext: ChatMessageTargetContext = {
-          text: '',
-          object: null,
-        };
-        targetContext.text = outtext;
-        targetContext.object = null;
-        messageTargetContext.push(targetContext);
-      }
-      const sent = this.chatMessageService.sendMessage(
-        tab,
-        outtext,
-        value.gameSystem,
-        value.sendFrom,
-        value.sendTo,
-        value.portraitIndex,
-        value.messColor,
-        messageTargetContext,
-        attachmentImageIdentifiers,
-        value.replyTo,
-        value.quoteOf,
-        { light: value.messBubbleLight ?? '', dark: value.messBubbleDark ?? '' },
-        undefined,
-        value.stamp
-      );
-      if (value.toTicker) this.chatTickerSelection.showMessage(sent.identifier);
-    }
+    this.chatSend.send(this.chatTab(), value);
   }
 }

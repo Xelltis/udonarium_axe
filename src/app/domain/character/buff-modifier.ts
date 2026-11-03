@@ -15,10 +15,18 @@ export interface BuffModifier {
   target: string;
   slot: ResourceSlot;
   operator: BuffModifierOperator;
-  /** How far it moved the status, so taking the buff away can move it back. */
+  /**
+   * How far it moved the status, so taking the buff away can move it back. For a buff that moves
+   * its status for good, how far it has moved it in all, which only an undone count gives back.
+   */
   applied: number;
   /** How far it moves the status again each time it is counted down; none where it does not. */
   step?: number;
+  /**
+   * Whether what it moves stays moved once the buff goes, as poison's damage does. Such a buff
+   * moves its status at every count, the last one it runs out at included.
+   */
+  lasting?: true;
 }
 
 const OPERATOR_TOKENS: Record<string, { operator: BuffModifierOperator; sign: number; repeats?: boolean }> = {
@@ -47,7 +55,11 @@ export interface ParsedBuffModifierRequest {
   amount: number;
   /** How far to move it again each time the buff is counted down; none where it is not to be. */
   step?: number;
+  /** Whether it is left where it is moved once the buff goes, asked for by a `:` before the status. */
+  lasting?: true;
 }
+
+const LASTING_MARK = /^[:：]/;
 
 /** Whether a word is one of the operators a `&!` command is written with. */
 export function isBuffModifierOperator(word: string): boolean {
@@ -82,13 +94,18 @@ export function readBuffAmount(words: string): number {
  * `~`: `5~-1` moves it 5 and then back 1 at every count. `++` and `--` move it the amount at every
  * count as well as at first, so a buff builds up turn by turn. Holding a status at a value never
  * moves it again.
+ *
+ * A `:` before the status, as a chat line's `:HP-3` moves it, leaves it moved once the buff goes:
+ * `:HP/+/0~-3` takes 3 at every count and gives none of it back, which is poison.
  */
 export function parseBuffModifierRequest(
   target: string,
   operator: string,
   amount: string
 ): ParsedBuffModifierRequest | null {
-  const name = (target ?? '').trim();
+  const written = (target ?? '').trim();
+  const lasting = LASTING_MARK.test(written);
+  const name = written.replace(LASTING_MARK, '').trim();
   if (name.length < 1) return null;
 
   const resolved = OPERATOR_TOKENS[(operator ?? '').trim()];
@@ -108,6 +125,7 @@ export function parseBuffModifierRequest(
     operator: resolved.operator,
     amount: moved,
     ...(resolved.operator === 'add' && step !== 0 ? { step } : {}),
+    ...(lasting ? { lasting } : {}),
   };
 }
 
@@ -139,9 +157,25 @@ export function parseBuffModifierItems(text: string): ParsedBuffModifierRequest[
  */
 export function holdsRequestedStatus(
   modifier: BuffModifier | null,
-  request: Pick<ParsedBuffModifierRequest, 'target' | 'slot'>
+  request: Pick<ParsedBuffModifierRequest, 'target' | 'slot' | 'lasting'>
 ): boolean {
-  return modifier?.operator === 'set' && modifier.target === request.target && modifier.slot === request.slot;
+  return modifier?.operator === 'set' && movesSameStatus(modifier, request);
+}
+
+/**
+ * Whether a buff moves the very status a request does, the same side of it and in the same way:
+ * one that gives back what it moved and one that leaves it moved have nothing to add up.
+ */
+export function movesSameStatus(
+  modifier: BuffModifier | null,
+  request: Pick<ParsedBuffModifierRequest, 'target' | 'slot' | 'lasting'>
+): boolean {
+  return (
+    modifier != null &&
+    modifier.target === request.target &&
+    modifier.slot === request.slot &&
+    (modifier.lasting ?? false) === (request.lasting ?? false)
+  );
 }
 
 /**
@@ -179,9 +213,9 @@ export function describeBuffModifierTarget(request: Pick<ParsedBuffModifierReque
 
 /** How the buff reads on the badge and in the chat line that granted it. */
 export function describeBuffModifier(request: ParsedBuffModifierRequest): string {
-  const slot = resourceSlotBadgePrefix(request.slot);
-  if (request.operator === 'set') return `${slot}${request.target}=${request.amount}`;
-  return `${slot}${request.target}${signed(request.amount)}${describeStep(request.step)}`;
+  const status = `${request.lasting ? ':' : ''}${resourceSlotBadgePrefix(request.slot)}${request.target}`;
+  if (request.operator === 'set') return `${status}=${request.amount}`;
+  return `${status}${signed(request.amount)}${describeStep(request.step)}`;
 }
 
 /** How a buff that moves its status at every count reads once it has: by how far it stands moved now. */
@@ -209,8 +243,15 @@ export function readBuffModifier(element: DataElement): BuffModifier | null {
   if (!Number.isFinite(applied)) return null;
 
   const operator = element.getAttribute(DataElementAttribute.BUFF_MOD_OPERATOR) === 'set' ? 'set' : 'add';
+  // A buff that leaves its status moved keeps what it moved, and moves at every count, apart from
+  // the fields an older version reads, which it leaves at nothing to give back and nothing to move.
+  const keptText = (element.getAttribute(DataElementAttribute.BUFF_MOD_KEPT) ?? '').trim();
+  const kept = keptText.length > 0 ? Number(keptText) : NaN;
+  const lasting = Number.isFinite(kept);
   // Nothing written, as by a version before a buff could move at every count, moves nothing more.
-  const stepText = (element.getAttribute(DataElementAttribute.BUFF_MOD_STEP) ?? '').trim();
+  const stepText = (
+    element.getAttribute(lasting ? DataElementAttribute.BUFF_MOD_KEPT_STEP : DataElementAttribute.BUFF_MOD_STEP) ?? ''
+  ).trim();
   const step = stepText.length > 0 ? Number(stepText) : 0;
   return {
     target,
@@ -218,22 +259,34 @@ export function readBuffModifier(element: DataElement): BuffModifier | null {
     // by an older one means by writing nothing.
     slot: asResourceSlot(element.getAttribute(DataElementAttribute.BUFF_MOD_SLOT)) ?? 'now',
     operator,
-    applied,
+    applied: lasting ? kept : applied,
     ...(operator === 'add' && Number.isFinite(step) && step !== 0 ? { step } : {}),
+    ...(lasting ? { lasting } : {}),
   };
 }
 
 /**
  * Records on the buff what it moved on the sheet, so taking it away can move the status back by the
  * same amount.
+ *
+ * A buff that leaves its status moved writes what it moved, and what it moves at every count, apart
+ * from where a version that knows no such buff looks: there it reads as a buff that moved nothing and
+ * moves nothing, so such a version neither gives the damage back nor counts it into what it would.
  */
 export function writeBuffModifier(element: DataElement, modifier: BuffModifier): void {
   element.setAttribute(DataElementAttribute.BUFF_MOD_TARGET, modifier.target);
   element.setAttribute(DataElementAttribute.BUFF_MOD_SLOT, modifier.slot);
   element.setAttribute(DataElementAttribute.BUFF_MOD_OPERATOR, modifier.operator);
-  element.setAttribute(DataElementAttribute.BUFF_MOD_APPLIED, String(modifier.applied));
-  if (modifier.step) element.setAttribute(DataElementAttribute.BUFF_MOD_STEP, String(modifier.step));
-  else element.removeAttribute(DataElementAttribute.BUFF_MOD_STEP);
+  element.setAttribute(DataElementAttribute.BUFF_MOD_APPLIED, String(modifier.lasting ? 0 : modifier.applied));
+  writeOrRemove(element, DataElementAttribute.BUFF_MOD_STEP, modifier.lasting ? 0 : modifier.step);
+  if (modifier.lasting) element.setAttribute(DataElementAttribute.BUFF_MOD_KEPT, String(modifier.applied));
+  else element.removeAttribute(DataElementAttribute.BUFF_MOD_KEPT);
+  writeOrRemove(element, DataElementAttribute.BUFF_MOD_KEPT_STEP, modifier.lasting ? modifier.step : 0);
+}
+
+function writeOrRemove(element: DataElement, name: string, amount: number | undefined): void {
+  if (amount) element.setAttribute(name, String(amount));
+  else element.removeAttribute(name);
 }
 
 /**
@@ -245,4 +298,6 @@ export function clearBuffModifier(element: DataElement): void {
   element.removeAttribute(DataElementAttribute.BUFF_MOD_OPERATOR);
   element.removeAttribute(DataElementAttribute.BUFF_MOD_APPLIED);
   element.removeAttribute(DataElementAttribute.BUFF_MOD_STEP);
+  element.removeAttribute(DataElementAttribute.BUFF_MOD_KEPT);
+  element.removeAttribute(DataElementAttribute.BUFF_MOD_KEPT_STEP);
 }

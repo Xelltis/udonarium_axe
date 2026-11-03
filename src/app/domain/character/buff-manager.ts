@@ -6,6 +6,7 @@ import {
   clearBuffModifier,
   describeStandingModifier,
   holdsRequestedStatus,
+  movesSameStatus,
   ParsedBuffModifierRequest,
   readBuffModifier,
   speaksOnlyOfHeldStatus,
@@ -23,6 +24,12 @@ export interface BuffSnapshotEntry {
   info: string;
   appearance: BuffAppearance;
   modifier: BuffModifier | null;
+  /**
+   * For a buff that leaves its status moved and has run out since this was taken: how far the
+   * count it ran out at moved the status, which putting it back gives back. None where nothing says,
+   * which gives back nothing, as a buff gone some other way moved nothing as it went.
+   */
+  lastMoved?: number;
 }
 
 export class BuffManager {
@@ -134,14 +141,15 @@ export class BuffManager {
    * Moves a status again on top of what the standing buff already moved, and remembers the two
    * distances added together, so taking the buff away puts back everything it did in all.
    *
-   * A buff standing on some other status has nothing in common with this one, so what it moved
-   * goes back before the new one is laid, which leaves this the same as applying it fresh. One
+   * A buff standing on some other status, or giving back what this one leaves moved or the other way
+   * about, has nothing in common with this one, so what it moved goes back before the new one is
+   * laid, which leaves this the same as applying it fresh. One
    * holding the same status at a value keeps holding it there, and nothing is moved. Null where the
    * sheet has no such status, as for a buff laid fresh.
    */
   stackModifier(data: DataElement, request: ParsedBuffModifierRequest): BuffModifier | null {
     const standing = readBuffModifier(data);
-    if (!standing || standing.target !== request.target || standing.slot !== request.slot) {
+    if (!standing || !movesSameStatus(standing, request)) {
       this.revertModifier(data);
       return this.applyModifier(data, request);
     }
@@ -174,40 +182,50 @@ export class BuffManager {
       operator: request.operator,
       applied,
       ...(request.step ? { step: request.step } : {}),
+      ...(request.lasting ? { lasting: request.lasting } : {}),
     };
     writeBuffModifier(data, modifier);
     return modifier;
   }
 
   /**
-   * Moves the status again by what the buff moves it at every count, as it is counted down and
-   * stays, and writes down the distance it now stands moved, both on the record and on the badge.
+   * Moves the status again by what the buff moves it at every count, as it is counted down, and
+   * writes down the distance it now stands moved, on the record and, for a buff that gives it back,
+   * on the badge.
+   *
+   * At the count it runs out at, a buff that gives back what it moved is left alone, since all of it
+   * is about to go back; one that leaves its status moved moves it then too, so poison laid for three
+   * rounds bites three times.
    */
-  private stepModifier(data: DataElement): void {
+  private stepModifier(data: DataElement, runsOut = false): number | null {
     const modifier = readBuffModifier(data);
-    if (!modifier?.step || modifier.operator !== 'add') return;
+    if (!modifier?.step || modifier.operator !== 'add') return null;
+    if (runsOut && !modifier.lasting) return null;
     const moved = this.moveStatus({
       target: modifier.target,
       slot: modifier.slot,
       operator: 'add',
       amount: modifier.step,
     });
-    if (moved == null) return;
+    if (moved == null) return null;
     const standing = { ...modifier, applied: modifier.applied + moved };
     writeBuffModifier(data, standing);
-    data.currentValue = describeStandingModifier(standing);
+    if (!modifier.lasting) data.currentValue = describeStandingModifier(standing);
+    return moved;
   }
 
+  /** Lets go of what the buff moved, moving it back unless the buff leaves it moved. */
   private revertModifier(data: DataElement): void {
     const modifier = readBuffModifier(data);
     if (!modifier) return;
-    this.status()?.changeValue(modifier.target, modifier.slot, -modifier.applied);
+    if (!modifier.lasting) this.status()?.changeValue(modifier.target, modifier.slot, -modifier.applied);
     clearBuffModifier(data);
   }
 
   /**
    * Counts every buff that expires down by one round, by hand and whatever its timing, moving the
-   * status of one that moves at every count as the round's own countdown does where it stays.
+   * status of one that moves at every count as the round's own countdown does, down to the count it
+   * runs out at and no further.
    *
    * Nothing is removed here, even at zero; `deleteZeroRound` does that. A buff held until cleared
    * is left alone.
@@ -220,7 +238,7 @@ export class BuffManager {
       if (!buffExpires(data)) continue;
       const sum = parseInt(String(data.value)) - 1;
       data.value = sum;
-      if (sum > 0) this.stepModifier(data);
+      if (sum >= 0) this.stepModifier(data, sum === 0);
     }
   }
 
@@ -264,8 +282,11 @@ export class BuffManager {
    * Counts down the buffs whose moment this is, removes the ones that ran out and returns
    * their names. `acting` is whose turn it is, which a buff pinned to a trigger character
    * waits for; it is unused at the end of a round, where everything counts down.
+   *
+   * A buff that leaves its status moved and runs out here is written into `ranOut`, where given,
+   * with how far its last count moved the status, for a record of the count to give back exactly.
    */
-  expireAt(timing: BuffTiming, acting: BuffTurnActor): string[] {
+  expireAt(timing: BuffTiming, acting: BuffTurnActor, ranOut?: Map<string, number>): string[] {
     this.gather();
     const container = this.container;
     if (!container) return [];
@@ -278,6 +299,9 @@ export class BuffManager {
       data.value = round;
       if (round <= 0) {
         if (!isBuffGroupMember(data)) expired.push(data.name);
+        // Only the count that brings it to nought is its last; one already standing there has had it.
+        const moved = round === 0 ? this.stepModifier(data, true) : null;
+        if (moved != null) ranOut?.set(data.name, moved);
         this.remove(data);
       } else {
         this.stepModifier(data);
@@ -303,12 +327,13 @@ export class BuffManager {
   putBack(entries: readonly BuffSnapshotEntry[]): void {
     this.gather();
     for (const entry of entries) {
-      const data = this.find(entry.name) ?? this.append(entry.name, entry.value, entry.info);
+      const found = this.find(entry.name);
+      const data = found ?? this.append(entry.name, entry.value, entry.info);
       if (!data) continue;
       data.value = entry.value;
       data.currentValue = entry.info;
       applyAppearance(data, entry.appearance);
-      this.restoreModifier(data, entry.modifier);
+      this.restoreModifier(data, entry.modifier, found == null ? (entry.lastMoved ?? 0) : null);
     }
   }
 
@@ -351,12 +376,13 @@ export class BuffManager {
     }
     const restored: DataElement[] = [];
     for (const entry of entries) {
-      const data = this.find(entry.name) ?? this.append(entry.name, entry.value, entry.info);
+      const found = this.find(entry.name);
+      const data = found ?? this.append(entry.name, entry.value, entry.info);
       if (!data) continue;
       data.value = entry.value;
       data.currentValue = entry.info;
       applyAppearance(data, entry.appearance);
-      this.restoreModifier(data, entry.modifier);
+      this.restoreModifier(data, entry.modifier, found == null ? (entry.lastMoved ?? 0) : null);
       restored.push(data);
     }
     this.reorder(restored);
@@ -386,14 +412,21 @@ export class BuffManager {
     return created;
   }
 
-  /** Moves the sheet by what the buff has yet to move, which is nothing when it already stands. */
-  private restoreModifier(data: DataElement, wanted: BuffModifier | null): void {
+  /**
+   * Moves the sheet by what the buff has yet to move, which is nothing when it already stands.
+   *
+   * A buff that leaves its status moved left it moved when it went, so a record of it gone is taken
+   * to stand where it last moved it. One that comes back after going, `cameBackMoving` being how far
+   * the count it ran out at moved the status, has that given back as well.
+   */
+  private restoreModifier(data: DataElement, wanted: BuffModifier | null, cameBackMoving: number | null): void {
     const standing = readBuffModifier(data);
-    if (standing && (!wanted || standing.target !== wanted.target || standing.slot !== wanted.slot)) {
+    if (standing && (!wanted || !movesSameStatus(standing, wanted))) {
       this.revertModifier(data);
     }
     if (!wanted) return;
-    const applied = readBuffModifier(data)?.applied ?? 0;
+    const left = wanted.lasting ? wanted.applied + (cameBackMoving ?? 0) : 0;
+    const applied = readBuffModifier(data)?.applied ?? left;
     if (applied !== wanted.applied) {
       this.status()?.changeValue(wanted.target, wanted.slot, wanted.applied - applied);
     }

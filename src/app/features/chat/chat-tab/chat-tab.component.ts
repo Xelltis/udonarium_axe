@@ -265,6 +265,11 @@ export class ChatTabComponent {
    * should look quiet.
    */
   readonly readOnly = input(false);
+  /**
+   * Whether a tab with nothing said in it shows the sample lines a newcomer reads a conversation by;
+   * not where the lines stand over the table, where they would pass for real ones.
+   */
+  readonly showsSamples = input(true);
   /** The chat tab shown, as bound through the `chatTab` input; null when none is bound. */
   get chatTab(): ChatTab | null {
     return this.chatTabInput();

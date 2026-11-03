@@ -74,6 +74,18 @@ export function stringifyTurnHistory(steps: readonly TurnStep[]): string {
 }
 
 /**
+ * Writes on the buffs as they stood before a count how far the count moved the status of each that
+ * ran out in it while leaving its status moved, by name, so putting them back gives back exactly
+ * that much.
+ */
+export function noteRanOut(entries: readonly BuffSnapshotEntry[], ranOut: ReadonlyMap<string, number>): void {
+  for (const entry of entries) {
+    const moved = ranOut.get(entry.name);
+    if (moved !== undefined) entry.lastMoved = moved;
+  }
+}
+
+/**
  * The buffs a step moved, and only those.
  *
  * A step usually touches one character's buffs or none at all, so keeping the whole table's

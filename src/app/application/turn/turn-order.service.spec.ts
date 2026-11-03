@@ -368,6 +368,29 @@ describe('TurnOrderService', () => {
       expect(buffsOf(buffed[1]).map((buff: DataElement) => buff.name)).toEqual(['猛攻撃']);
     });
 
+    it('gives back what a poison that ran out in the step it undoes took, and no more', () => {
+      const [first] = buffed;
+      first.detailDataElement!.appendChild(DataElement.create('体力', 10, {}));
+      first.buffs.addRound('毒', ':体力+0~-3', 1);
+      first.buffs.applyModifier(first.buffs.find('毒')!, {
+        target: '体力',
+        slot: 'now',
+        operator: 'add',
+        amount: 0,
+        step: -3,
+        lasting: true,
+      });
+      const hp = () => first.detailDataElement!.getFirstElementByName('体力')!.value;
+
+      advanceToRoundEnd();
+      expect(hp()).toBe(7);
+
+      service.prev();
+
+      expect(buffsOf(first).map((buff: DataElement) => buff.name)).toContain('毒');
+      expect(hp()).toBe(10);
+    });
+
     it("counts a buff down as its trigger's turn opens, and leaves the rest alone", () => {
       // A Sword World enhancement runs out as the caster comes round again, not with the round.
       const [caster, target] = buffed;
@@ -429,6 +452,33 @@ describe('TurnOrderService', () => {
         expect(namesOf(first)).toContain('集中');
         expect(roundsOf(first, '集中')).toBe(1);
         expect(hit()).toBe(7);
+      });
+
+      it('gives back exactly what a poison that ran out at the opening took, and takes it again as its turn comes back', () => {
+        const [first] = buffed;
+        first.detailDataElement!.appendChild(DataElement.create('体力', 10, {}));
+        first.buffs.addRound('毒', ':体力+0~-3', 1, { timing: 'turnStart' });
+        first.buffs.applyModifier(first.buffs.find('毒')!, {
+          target: '体力',
+          slot: 'now',
+          operator: 'add',
+          amount: 0,
+          step: -3,
+          lasting: true,
+        });
+        const hp = () => first.detailDataElement!.getFirstElementByName('体力')!.value;
+
+        service.next(); // round 1 begins
+        service.next(); // the first piece's turn opens, and the poison bites as it runs out
+        expect(namesOf(first)).not.toContain('毒');
+        expect(hp()).toBe(7);
+
+        service.hold(first.identifier);
+        expect(roundsOf(first, '毒')).toBe(1);
+        expect(hp()).toBe(10);
+
+        service.next(); // the second piece is done, and the first comes back
+        expect(hp()).toBe(7);
       });
 
       it('leaves the countdown be while a seat at the table runs a version that would not count it again', () => {

@@ -1,4 +1,4 @@
-import { NgClass, NgStyle } from '@angular/common';
+import { NgClass, NgStyle, NgTemplateOutlet } from '@angular/common';
 import {
   afterEveryRender,
   afterNextRender,
@@ -110,6 +110,7 @@ const LIST_ROOM = 240;
     TextTooltipDirective,
     NgClass,
     NgStyle,
+    NgTemplateOutlet,
     NgSelectComponent,
     FormsModule,
     NgOptionComponent,
@@ -393,6 +394,7 @@ export class ChatInputComponent {
     sendFrom: computed(() => this._sendFrom()),
     gameType: computed(() => this.rolledGameType()),
     path: () => this.lintPath(),
+    tabIdentifier: computed(() => this.chatTabidentifier()),
   });
 
   /** The text checked as it will be sent from here, while it is typed into the editor. */
@@ -454,13 +456,15 @@ export class ChatInputComponent {
     field?.select({ from: found.from, to: found.to });
   }
 
-  /** What the empty box says in place of its keys. */
-  private readonly placeholderText = computed(() => {
+  /** What the empty box says in place of its keys, in the plain box and the editor alike. */
+  protected readonly placeholderText = computed(() => {
     this.language.currentLang();
     const own = this.placeholder();
     if (own) return own;
     return this.t(
-      this.isCompact() ? 'feature.chat.input.textareaPlaceholderShort' : 'feature.chat.input.textareaPlaceholder'
+      this.isCompact() || this.narrow()
+        ? 'feature.chat.input.textareaPlaceholderShort'
+        : 'feature.chat.input.textareaPlaceholder'
     );
   });
 
@@ -581,6 +585,14 @@ export class ChatInputComponent {
    * that starts a line high.
    */
   readonly dense = input(false);
+  /**
+   * Lays the input out for a window too narrow for the portrait beside the box: a small picture of
+   * the speaker before the speaker's name instead, which takes the room of whom it is said to twice
+   * over; the buttons for how the line goes out - its stamp, colour, dice and ticker - beside the
+   * dice bot; and the box the full width under them, with only the buttons for what it says along
+   * it, from the left, so that nothing in it is pushed out of line.
+   */
+  readonly narrow = input(false);
   /** What the empty box says in place of its keys, for a panel that fills the box its own way. */
   readonly placeholder = input('');
   readonly canSpeak = input(true);

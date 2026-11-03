@@ -53,9 +53,23 @@
   min-width: 72px;
 }
 
+/* In a narrow chat input the speaker's name takes twice the room of whom it is said to. */
+.chat-selects--narrow > .ng-select.ud-select.chat-select {
+  flex-basis: 0;
+}
+
+.chat-selects--narrow > .ng-select.ud-select.chat-select.chat-select--from {
+  flex-grow: 2;
+}
+
 .ng-select.ud-select.chat-select.chat-select--game-type {
   flex: 0 1 160px;
   min-width: 112px;
+}
+
+/* Beside the portraits and the buttons for how the line goes out, the dice bot keeps to its least width. */
+.chat-line-row--narrow > .ng-select.ud-select.chat-select.chat-select--game-type {
+  flex-basis: 112px;
 }
 
 /* The novel mode toolbar is packed tight across, so the speaker select keeps its width down and shrinks. */

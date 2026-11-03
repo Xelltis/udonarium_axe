@@ -69,12 +69,19 @@
             [class.border-dashed]="!cell.slot"
             [class.border-ui-dim]="!cell.slot"
             [class.bg-transparent]="!cell.slot"
+            [class.pt-2]="cell.slot && cell.actorName"
             [class.opacity-45]="cell.needsCharacter && !cell.actor"
             [class.animate-hit-flash]="isFailing(cell.slotIndex)"
             [class.opacity-50]="isDragging(cell.slotIndex)"
             [class.scale-110]="isDragging(cell.slotIndex)"
             [style.background]="cell.slot ? cell.color : null"
-            [attr.title]="cell.slot ? cell.label : ('feature.hotbar.emptySlot' | transloco)"
+            [attr.title]="
+              !cell.slot
+                ? ('feature.hotbar.emptySlot' | transloco)
+                : cell.actorName
+                  ? ('feature.hotbar.slotTitleAs' | transloco: { label: cell.label, actor: cell.actorName })
+                  : cell.label
+            "
             (click)="press(cell, $event)"
             (pointerdown)="onSlotDown(cell, $event)"
             (pointermove)="onSlotMove($event)"
@@ -96,7 +103,7 @@
             @if (cell.actorName) {
               <span
                 data-testid="hotbar-slot-actor"
-                class="bg-ui-panel text-ui-text pointer-events-none absolute bottom-0 left-0 max-w-full truncate rounded-tr-[3px] px-0.5 text-[8px] leading-tight"
+                class="bg-ui-panel text-ui-text pointer-events-none absolute top-0 left-0 max-w-[calc(100%-0.625rem)] truncate rounded-br-[3px] px-0.5 text-[8px] leading-tight"
                 >{{ cell.actorName }}</span
               >
             }

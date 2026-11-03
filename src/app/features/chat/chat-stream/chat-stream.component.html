@@ -1,13 +1,36 @@
-<div
-  class="text-ui-text size-full overflow-y-auto overscroll-contain p-1"
-  [ngClass]="{ '[&_.message]:border-b-0! [&_.message-small]:border-b-0!': isGhost() }"
-  #logScroll
->
+<div class="text-ui-text flex size-full min-h-0 flex-col gap-1">
+  <div
+    class="flex min-w-0 shrink-0 items-center px-1.5 pt-1"
+    data-testid="chat-stream-tabs"
+    [ngClass]="{ 'rounded-ui shadow-ui-md bg-ui-ghost pb-1': isGhost() }"
+  >
+    <chat-tab-strip tone="panel" [tabs]="visibleChatTabs()" [(selected)]="tabIdentifier" />
+  </div>
+  <div
+    class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1"
+    data-testid="chat-stream-log"
+    [ngClass]="{ '[&_.message]:border-b-0! [&_.message-small]:border-b-0!': isGhost() }"
+    #logScroll
+  >
+    @if (chatTab(); as tab) {
+      <chat-tab [chatTab]="tab" [showsSamples]="false"></chat-tab>
+    } @else {
+      <div class="text-ui-dim flex size-full items-center justify-center p-4 text-center text-xs">
+        {{ 'feature.chat.stream.gone' | transloco }}
+      </div>
+    }
+  </div>
   @if (chatTab(); as tab) {
-    <chat-tab [chatTab]="tab" [readOnly]="true"></chat-tab>
-  } @else {
-    <div class="text-ui-dim flex size-full items-center justify-center p-4 text-center text-xs">
-      {{ 'feature.chat.stream.gone' | transloco }}
-    </div>
+    <chat-input
+      class="shrink-0"
+      data-testid="chat-stream-input"
+      [ngClass]="{ 'rounded-ui shadow-ui-md overflow-hidden': isGhost() }"
+      [narrow]="true"
+      [chatTabidentifier]="tab.identifier"
+      [canSpeak]="canSpeak()"
+      [(gameType)]="gameType"
+      [(sendFrom)]="sendFrom"
+      (chat)="send($event)"
+    ></chat-input>
   }
 </div>

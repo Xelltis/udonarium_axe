@@ -103,6 +103,19 @@ describe('resourceCommandSites', () => {
     expect(words.buffs.map((site) => line.slice(site.from, site.to))).toEqual(['&加護/3']);
   });
 
+  it('keeps a colon that starts a status in a buff inside the buff, and splits at any other', () => {
+    const line = '&!毒/:HP/+/0~-3/3 &!毒/回避-2，：HP+0~-3/3 &毒/3:HP-3';
+    const words = resourceCommandSites(line);
+
+    expect(words.buffs.map((site) => site.command)).toEqual(['&!毒/:HP/+/0~-3/3', '&!毒/回避-2，:HP+0~-3/3', '&毒/3']);
+    expect(words.resources.map((site) => site.command)).toEqual([':HP-3']);
+    expect(words.buffs.map((site) => line.slice(site.from, site.to))).toEqual([
+      '&!毒/:HP/+/0~-3/3',
+      '&!毒/回避-2，：HP+0~-3/3',
+      '&毒/3',
+    ]);
+  });
+
   it('spans a secret command from its s, which is no part of the command carried out', () => {
     const line = 'ｓｔ：ＨＰ－１　ｓ：ＭＰ－１';
     const [first, second] = resourceCommandSites(line).resources;

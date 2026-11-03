@@ -1,4 +1,4 @@
-import { computed, inject, Injectable, type Signal } from '@angular/core';
+import { computed, DestroyRef, inject, Injectable, type Signal, signal } from '@angular/core';
 import { StampRulesService } from '@axe/application/chat/stamp-rules.service';
 import { GameSystemPrefetchService } from '@axe/application/dice/game-system-prefetch.service';
 import { EffectLibraryService } from '@axe/application/effect/effect-library.service';
@@ -13,6 +13,13 @@ import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catal
 import { evaluateReferences, type PaletteVariable } from '@axe/domain/chat/chat-palette';
 import type { ImageNameEntry } from '@axe/domain/chat/chat-portrait-command';
 import type { ReferenceSite } from '@axe/domain/chat/chat-reference';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
+import {
+  fillTargetNumber,
+  findTargetNumber,
+  holdsTargetNumber,
+  isTargetNumberReference,
+} from '@axe/domain/chat/target-number';
 import { type ChatDiagnostic, type ChatLintContext, lintChatSyntax } from '@axe/domain/chat-syntax/chat-lint';
 import {
   type ChatSyntaxMode,
@@ -41,6 +48,8 @@ export interface ChatLintSource {
   readonly path: ChatLintPath | (() => ChatLintPath);
   /** Whether it is one message, or a palette of lines. */
   readonly mode?: ChatSyntaxMode;
+  /** The tab it is said in, whose rolls fill in a `{目標値}` in it; none where that is not told. */
+  readonly tabIdentifier?: Signal<string>;
 }
 
 /** Something shown beside a syntax: what a reference is filled in with, a roll's result, a cut-in it starts. */
@@ -89,6 +98,13 @@ export class ChatLintService {
   private readonly selection = inject(SelectionSignalService);
 
   private readonly systems = inject(GameSystemPrefetchService);
+
+  /** Counts the lines said in any tab, so a `{目標値}` being typed is looked up again as a roll comes in. */
+  private readonly linesHeard = signal(0);
+
+  constructor() {
+    this.objectChange.messageAdded$.subscribe(() => this.linesHeard.update((count) => count + 1), inject(DestroyRef));
+  }
 
   /**
    * Whether this seat is the game master's, read from its cursor: only a change to that makes a text
@@ -143,7 +159,9 @@ export class ChatLintService {
     const variables = computed(() => (mode === 'palette' ? this.variablesWritten(scan()) : null), {
       equal: sameVariables,
     });
-    const context = computed(() => this.contextOf(source, scan, variables()));
+    const holdsTargetNumberNow = computed(() => holdsTargetNumber(source.text()));
+    const toBeat = computed(() => (holdsTargetNumberNow() ? this.targetNumberOf(source) : null));
+    const context = computed(() => this.contextOf(source, scan, variables(), toBeat));
     const diagnostics = computed(() => lintChatSyntax(scan(), context()));
     const annotations = computed(() => this.annotationsOf(scan(), context()));
     const rolls = computed(() => this.rollsOf(scan(), context()));
@@ -162,7 +180,8 @@ export class ChatLintService {
   private contextOf(
     source: ChatLintSource,
     scan: Signal<ChatSyntaxScan>,
-    variables: readonly PaletteVariable[] | null
+    variables: readonly PaletteVariable[] | null,
+    toBeat: Signal<number | null>
   ): ChatLintContext {
     this.systems.arrivals();
     this.objectChange.fileVersion();
@@ -190,8 +209,9 @@ export class ChatLintService {
     const path = typeof source.path === 'function' ? source.path() : source.path;
 
     const fill = (text: string, target?: GameCharacter): string => {
-      if (path === 'chatWindow' && !speaker && !target) return text;
-      return this.filled(text, speaker, target, variables, path === 'chatWindow');
+      // A line said as no piece has no sheet to fill in from, but the number to beat is the tab's.
+      if (path === 'chatWindow' && !speaker && !target) return fillTargetNumber(text, () => toBeat());
+      return this.filled(text, speaker, target, variables, path === 'chatWindow', toBeat);
     };
     const sent = (message: TextRange): string => {
       const line = scan().text.slice(message.from, message.to);
@@ -212,8 +232,12 @@ export class ChatLintService {
       referenceValue: (site: ReferenceSite) => {
         const typed = scan().text.slice(site.from, site.to);
         if (site.targeted && targets.length < 1) return null;
-        if (!site.targeted && !speaker && path === 'chatWindow') return null;
-        const value = this.filled(typed, speaker, targets[0], variables, true);
+        if (!site.targeted && !speaker && path === 'chatWindow') {
+          if (!isTargetNumberReference(site.name)) return null;
+          const filled = fillTargetNumber(typed, () => toBeat());
+          return filled === typed ? null : filled;
+        }
+        const value = this.filled(typed, speaker, targets[0], variables, true, toBeat);
         return value === typed ? null : value;
       },
       speakerFilled: (text: string) => this.filled(text, speaker, undefined, variables, 'always'),
@@ -269,10 +293,27 @@ export class ChatLintService {
     speaker: GameCharacter | null,
     target: GameCharacter | undefined,
     variables: readonly PaletteVariable[] | null,
-    keepUnfilled: boolean | 'always'
+    keepUnfilled: boolean | 'always',
+    toBeat?: Signal<number | null>
   ): string {
     const own = variables ?? speaker?.chatPalette?.paletteVariables ?? [];
-    return evaluateReferences(text, own, speaker?.rootDataElement ?? undefined, target, true, keepUnfilled).text;
+    const evaluated = evaluateReferences(text, own, speaker?.rootDataElement ?? undefined, target, true, keepUnfilled);
+    return toBeat ? fillTargetNumber(evaluated.text, () => toBeat()) : evaluated.text;
+  }
+
+  /**
+   * The number a `{目標値}` in the text would be filled in with as it is sent, from the rolls in its
+   * tab, looked for again as each line comes in. Asked only while the text holds one, so that typing
+   * leaves the log unread.
+   */
+  private targetNumberOf(source: ChatLintSource): number | null {
+    if (!source.tabIdentifier) return null;
+    this.linesHeard();
+    const tab = this.objectStore.get(source.tabIdentifier());
+    if (!(tab instanceof ChatTab)) return null;
+    const sendFrom = source.sendFrom();
+    const speaker = this.objectStore.get(sendFrom);
+    return findTargetNumber(tab, { identifier: sendFrom, name: speaker instanceof GameCharacter ? speaker.name : '' });
   }
 
   /** The variables a palette being written sets, read from what is written rather than what was kept. */

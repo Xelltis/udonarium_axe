@@ -608,6 +608,77 @@ describe('ChatMessageService', () => {
     });
   });
 
+  describe('a line holding the number to beat', () => {
+    let service: ChatMessageService;
+    let chatTab: ChatTab;
+    let hero: GameCharacter;
+
+    beforeEach(() => {
+      service = TestBed.inject(ChatMessageService);
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      chatTab = new ChatTab();
+      chatTab.initialize();
+      ObjectStore.instance.add(chatTab);
+      hero = GameCharacter.create('ヒロ', 1, '');
+      chatTab.addMessage({ from: 'gm', sendFrom: 'enemy', name: 'ゴブリン', text: '2d6+5', timestamp: 1000 });
+      chatTab.addMessage({
+        from: 'System-BCDice',
+        originFrom: 'gm',
+        name: '<BCDice：ゴブリン>',
+        text: 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [ヒロ]',
+        tag: 'system',
+        timestamp: 1001,
+      });
+    });
+
+    afterEach(() => {
+      PeerCursor.myCursor = null!;
+    });
+
+    it('fills it in with the roll aimed at the speaker, in the line and in what is rolled', () => {
+      const rolled: string[] = [];
+      const off = sendMessage$.subscribe((event) => rolled.push(event.messageTarget?.text ?? ''));
+
+      const message = service.sendMessage(chatTab, '2d6+7>={目標値} 抵抗', null, hero.identifier, undefined, 0, '', [
+        { text: '2d6+7>={目標値} 抵抗', object: null },
+      ]);
+      off();
+
+      expect(message.text).toBe('2d6+7>=14 抵抗');
+      expect(rolled).toEqual(['2d6+7>=14 抵抗']);
+    });
+
+    it('fills it in for a line said under a name of its own, from a roll by somebody else', () => {
+      chatTab.addMessage({ from: 'gm', sendFrom: 'enemy', name: 'ゴブリン', text: '2d6+8', timestamp: 1100 });
+      chatTab.addMessage({
+        from: 'System-BCDice',
+        originFrom: 'gm',
+        name: '<BCDice：ゴブリン>',
+        text: 'DiceBot : (2D6+8) → 7[3,4]+8 → 15',
+        tag: 'system',
+        timestamp: 1101,
+      });
+
+      expect(service.sendAsNamed(chatTab, '2d6>={目標値} 扉の抵抗', null, '扉').text).toBe('2d6>=15 扉の抵抗');
+    });
+
+    it('leaves it as typed where nothing has been rolled to beat', () => {
+      const other = GameCharacter.create('ミナ', 1, '');
+      chatTab.addMessage({
+        from: 'System-BCDice',
+        originFrom: 'me',
+        name: '<BCDice：ミナ>',
+        text: 'DiceBot : (2D6) → 7',
+        tag: 'system',
+        timestamp: 1100,
+      });
+      chatTab.addMessage({ from: 'me', sendFrom: other.identifier, name: 'ミナ', text: '2d6', timestamp: 1099 });
+
+      expect(service.sendMessage(chatTab, '2d6>={目標値}', null, other.identifier).text).toBe('2d6>={目標値}');
+    });
+  });
+
   describe('prepared words said as they were written', () => {
     let service: ChatMessageService;
     let chatTab: ChatTab;

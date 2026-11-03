@@ -4,7 +4,7 @@ import {
   type ChatDecorationMark,
   type PlacedChatDecoration,
 } from '@axe/domain/chat/chat-decoration';
-import { paletteVariableSite } from '@axe/domain/chat/chat-palette';
+import { aimMarkSites, paletteVariableSite } from '@axe/domain/chat/chat-palette';
 import { type PortraitCommand, portraitCommandSite } from '@axe/domain/chat/chat-portrait-command';
 import { CHARACTER_REFERENCE, type ReferenceSite, referenceSites } from '@axe/domain/chat/chat-reference';
 import { RUBY_NOTATION } from '@axe/domain/chat/chat-ruby-notation';
@@ -55,6 +55,8 @@ export type SyntaxSpan = TextRange & { readonly parts: readonly SyntaxPart[] } &
     | { readonly kind: 'roll'; readonly message: TextRange }
     | { readonly kind: 'reference'; readonly site: ReferenceSite }
     | { readonly kind: 'resource'; readonly command: string; readonly targeted: boolean }
+    /** A `t:` standing on its own, which aims the line at the targets and is not said. */
+    | { readonly kind: 'aim' }
     | { readonly kind: 'buff'; readonly command: string; readonly targeted: boolean }
     | { readonly kind: 'sweep'; readonly command: string }
     | { readonly kind: 'portrait'; readonly command: PortraitCommand }
@@ -167,6 +169,15 @@ function scanMessage(message: string, offset: number, spans: SyntaxSpan[], decor
         { role: 'name', from: at(site.from + open), to: at(site.to - 1) },
         { role: 'marker', from: at(site.to - 1), to: at(site.to) },
       ],
+    });
+  }
+
+  for (const mark of aimMarkSites(message)) {
+    spans.push({
+      kind: 'aim',
+      from: at(mark.from),
+      to: at(mark.to),
+      parts: [{ role: 'marker', from: at(mark.from), to: at(mark.to) }],
     });
   }
 

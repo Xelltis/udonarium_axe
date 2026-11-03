@@ -15,11 +15,7 @@ import { Logger } from '@axe/core/logging/logger';
 import { isNetworkIsolated, onNetworkIsolationEnded } from '@axe/core/network/network-isolation';
 import { networkMessage$, networkSend } from '@axe/core/network/network-messaging';
 import { getAuthorityPeerId, getMyPeerId, getRoomKey, isAuthorityOpen } from '@axe/core/network/peer-context-source';
-import {
-  AuthorityEvent,
-  MAX_ROLL_COMMAND_LENGTH,
-  MAX_ROLL_TARGET_NAME_LENGTH,
-} from '@axe/core/network/server/server-protocol';
+import { AuthorityEvent, MAX_ROLL_COMMAND_LENGTH } from '@axe/core/network/server/server-protocol';
 import { SyncObject } from '@axe/core/sync/decorator';
 import { GameObject } from '@axe/core/sync/game-object';
 import { objectAdded$ } from '@axe/core/sync/object-event-extension';
@@ -40,6 +36,7 @@ import {
   secretRollMatch,
 } from '@axe/domain/dice/dice-roll-line';
 import { DiceTable } from '@axe/domain/dice/dice-table';
+import { rollTargetSuffix } from '@axe/domain/dice/roll-target-suffix';
 import { ServerRollRequests } from '@axe/domain/dice/server-roll-requests';
 import { GameSystemInfo } from 'bcdice/lib/bcdice/game_system_list.json';
 import GameSystemClass from 'bcdice/lib/game_system';
@@ -84,25 +81,6 @@ function resultMessageContextOf(
     }
   }
   return context;
-}
-
-/**
- * The targeted character's name after a roll's result, as a room server takes it: on one line, with
- * no brackets or arrows that could pass for more of the result, and no longer than it allows. None
- * for a nameless target.
- */
-function rollTargetSuffix(name: string): string | undefined {
-  let line = name
-    .replace(/[\r\n]+/g, ' ')
-    .replace(/\[/g, '［')
-    .replace(/\]/g, '］')
-    .replace(/→/g, '⇒');
-  if (line.length > MAX_ROLL_TARGET_NAME_LENGTH) {
-    line = line.slice(0, MAX_ROLL_TARGET_NAME_LENGTH);
-    // A character cut in half is no character.
-    if (/[\uD800-\uDBFF]$/.test(line)) line = line.slice(0, -1);
-  }
-  return line ? ` [${line}]` : undefined;
 }
 
 @SyncObject('dice-bot')

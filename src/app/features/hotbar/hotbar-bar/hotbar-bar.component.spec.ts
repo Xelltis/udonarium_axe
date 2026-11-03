@@ -312,6 +312,7 @@ describe('HotbarBarComponent', () => {
     fixture.detectChanges();
 
     expect(slots()[8].querySelector('[data-testid="hotbar-slot-actor"]')?.textContent).toContain('術者');
+    expect(slots()[8].getAttribute('title')).toMatch(/術者/);
   });
 
   it('keeps its slots whichever character is taken up', () => {

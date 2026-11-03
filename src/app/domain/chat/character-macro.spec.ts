@@ -39,6 +39,17 @@ describe('building a macro message', () => {
     expect(message.targetContexts.map((context) => context.object?.name)).toEqual(['相手A', '相手B']);
   });
 
+  it('rolls a line marked with a t: of its own once for each marked piece, the mark not said', () => {
+    const character = speaker('術者', '');
+    const first = speaker('相手A');
+    const second = speaker('相手B');
+
+    const message = buildMacroMessage(character, '2d6+8 魔法行使 t:', [first, second], '対象なし');
+
+    expect(message.text).toBe('2d6+8 魔法行使 [相手A]\n2d6+8 魔法行使 [相手B]');
+    expect(message.targetContexts.map((context) => context.text)).toEqual(['2d6+8 魔法行使', '2d6+8 魔法行使']);
+  });
+
   it('takes the commands aimed at the speaker out from the second target onwards', () => {
     const character = speaker('術者', '');
     const first = speaker('相手A');
