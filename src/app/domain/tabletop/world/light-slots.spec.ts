@@ -1,5 +1,5 @@
 import type { SceneLight } from '@axe/domain/tabletop/vision-scene';
-import { lightSlotsOf, lightSlotScore } from '@axe/domain/tabletop/world/light-slots';
+import { lightSlotScore, lightSlotsOf } from '@axe/domain/tabletop/world/light-slots';
 
 function light(id: string, x: number, partial: Partial<SceneLight> = {}): SceneLight {
   return {
