@@ -46,7 +46,7 @@ import { lightSourceSprites } from '@axe/domain/tabletop/world/light-source-spri
 import { MotionPivot, movedSprite } from '@axe/domain/tabletop/world/piece-motions';
 import { tableCoinOf, TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
-import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
+import { type PagePicture, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { textNoteSprites } from '@axe/domain/tabletop/world/text-note-sprites';
 import { whiteBoardSprites } from '@axe/domain/tabletop/world/white-board-sprites';
 
@@ -269,9 +269,14 @@ export class TablePiecesService {
     return sprites;
   });
 
-  /** The light sources, drawn from the pictures the page takes of what marks them. */
+  /**
+   * The light sources, drawn from their own pictures where they have them and otherwise from the
+   * picture the page takes of what marks them. The page shows a light's own picture as a background,
+   * which a picture it takes of itself comes out without.
+   */
   private readonly lightSprites = computed(() => {
     this.objectChange.collectionOf(LightSource.aliasName)();
+    this.objectChange.fileVersion();
     this.transient.version();
     const gridSize = this.tabletop.currentTableVersion().gridSize;
     const sprites: TableWorldSprite[] = [];
@@ -287,7 +292,7 @@ export class TablePiecesService {
           altitudePx: light.altitude * gridSize,
           cellPx: gridSize,
           lit: light.lightEnabled,
-          picture: this.pagePictures.pictureOf(light.identifier),
+          picture: this.ownPicture(light, gridSize) ?? this.pagePictures.pictureOf(light.identifier),
         })
       );
     }
@@ -437,6 +442,14 @@ export class TablePiecesService {
     });
     for (const terrain of standingOn) this.objectChange.versionOf(terrain.identifier)();
     return landingLeanAt(standingOn, gridSize, x, y, this.tabletop.currentTableVersion().gridType);
+  }
+
+  /** A light's own picture, held inside a cell keeping its shape as the page shows it, or null where it has none. */
+  private ownPicture(light: LightSource, cellPx: number): PagePicture | null {
+    const own = this.sized(this.images.getEmptyOr(light.imageFile).url);
+    if (!own || !(own.width > 0) || !(own.height > 0)) return null;
+    const scale = cellPx / Math.max(own.width, own.height);
+    return { url: own.url, widthPx: own.width * scale, heightPx: own.height * scale };
   }
 
   /** A picture with how big it is, or null while that is not known. */

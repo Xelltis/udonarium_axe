@@ -18,6 +18,7 @@ import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
+import { LightSource } from '@axe/domain/tabletop/light-source';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -176,6 +177,29 @@ describe('TablePiecesService', () => {
     TestBed.inject(PiecePicturesService).show(note.identifier, { url: 'blob:panel', widthPx: 100, heightPx: 50 });
 
     expect(pieces.sprites()).toMatchObject([{ id: `${note.identifier}#panel`, look: { url: 'blob:panel' } }]);
+  });
+
+  it('stands a light as its own picture, held in its cell keeping its shape', () => {
+    const light = LightSource.create('L');
+    light.location = { name: 'table', x: 100, y: 200 };
+
+    expect(pieces.sprites()).toMatchObject([
+      {
+        id: `${light.identifier}#mark`,
+        look: { url: 'blob:face' },
+        widthPx: 100 * (gridSize / 120),
+        heightPx: gridSize,
+      },
+    ]);
+  });
+
+  it('stands a light with no picture of its own as the picture the page takes of its mark', () => {
+    vi.spyOn(TestBed.inject(ImageService), 'getEmptyOr').mockReturnValue(ImageFile.Empty);
+    const light = LightSource.create('L');
+    light.location = { name: 'table', x: 100, y: 200 };
+    TestBed.inject(PiecePicturesService).show(light.identifier, { url: 'blob:bulb', widthPx: 36, heightPx: 36 });
+
+    expect(pieces.sprites()).toMatchObject([{ look: { url: 'blob:bulb' }, widthPx: 36, heightPx: 36 }]);
   });
 
   it('lays a map mask flat over its place from the picture the page takes of it', () => {
