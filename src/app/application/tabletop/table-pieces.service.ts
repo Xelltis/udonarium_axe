@@ -117,6 +117,7 @@ export class TablePiecesService {
         model,
         foot: { x: place.x + size / 2, y: place.y + size / 2, z: place.z },
         footprintPx: size,
+        heightPx: size * CHARACTER_MODEL_HEIGHT_CELLS,
         rotateDeg: character.rotate,
         walking: this.transient.placementOf(character.identifier) !== null,
       });
@@ -580,6 +581,9 @@ export class TablePiecesService {
     return colour || otherwise;
   }
 }
+
+/** How many times its footprint a character drawn as a model stands at the most, as a picture of a figure does. */
+const CHARACTER_MODEL_HEIGHT_CELLS = 2;
 
 /**
  * A sprite of a character drawn as a 3D model: its picture and its shadow left undrawn, still picked

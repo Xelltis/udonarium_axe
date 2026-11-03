@@ -6340,7 +6340,7 @@
       "motions": "Motions",
       "idle": "Standing still",
       "walk": "Walking",
-      "hint": "On a 3D table (drawn on a canvas), draws a glTF model (.glb) in place of the picture. The size is a multiple of the piece's width. Leave a motion empty to pick one by the names in the model."
+      "hint": "On a 3D table (drawn on a canvas), draws a glTF model (.glb) in place of the picture. The size multiplies the model as fitted inside the piece's or the block's width and height. Leave a motion empty to pick one by the names in the model."
     },
     "openUrl": {
       "panelTitle": "Open external URL",

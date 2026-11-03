@@ -204,6 +204,7 @@ export class Table3dService {
           z: terrain.posZ + groundLiftOfBlock(ground, gridSize, terrain),
         },
         footprintPx: Math.max(terrain.width, terrain.depth) * gridSize,
+        heightPx: Math.max(0, terrain.height) * gridSize,
         rotateDeg: terrain.rotate,
         walking: false,
       });

@@ -41,7 +41,7 @@ const RADIANS = Math.PI / 180;
 /**
  * The pieces and blocks drawn as 3D models: each a binary glTF file read from bytes held here, its
  * materials made over to be lit and veiled as the rest of the scene is, stood with its foot at the
- * piece's, fitted to the piece's footprint, and turned as the piece is. A model that plays a walk
+ * piece's, fitted inside the piece's box, and turned as the piece is. A model that plays a walk
  * plays it while its piece is moved, and stands in the first pose of its idle otherwise, so a table
  * standing still is not drawn again. Nothing a model names outside its own bytes is ever fetched.
  */
@@ -133,7 +133,12 @@ export class ModelLayer {
       this.group.add(stood.root);
     }
     const across = Math.max(loaded.size.x, loaded.size.z, 1e-6);
-    const scale = (Math.max(1, model.footprintPx) * model.model.scale) / across;
+    const tall = Math.max(loaded.size.y, 1e-6);
+    const fitted = Math.min(
+      Math.max(1, model.footprintPx) / across,
+      model.heightPx > 0 ? model.heightPx / tall : Infinity
+    );
+    const scale = fitted * model.model.scale;
     const inner = stood.root.children[0];
     inner.position.set(-loaded.foot.x, -loaded.foot.y, -loaded.foot.z);
     stood.root.scale.setScalar(scale);
