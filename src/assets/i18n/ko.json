@@ -413,6 +413,7 @@
         "notAllowed": "지금 역할로는 쓸 수 없는 항목입니다",
         "unavailable": "지금은 이 항목을 쓸 수 없습니다"
       },
+      "slotTitleAs": "{{label}} ({{actor}}(으)로)",
       "emptySlot": "빈 칸",
       "pin": "항상 앞에 표시",
       "toggle": "핫바",

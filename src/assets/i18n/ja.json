@@ -413,6 +413,7 @@
         "notAllowed": "今の役割では使えない項目です",
         "unavailable": "今はこの項目を使えません"
       },
+      "slotTitleAs": "{{label}}（{{actor}}として）",
       "emptySlot": "空きスロット",
       "pin": "最前面に固定",
       "toggle": "ホットバー",

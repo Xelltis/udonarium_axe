@@ -75,7 +75,13 @@
             [class.opacity-50]="isDragging(cell.slotIndex)"
             [class.scale-110]="isDragging(cell.slotIndex)"
             [style.background]="cell.slot ? cell.color : null"
-            [attr.title]="cell.slot ? cell.label : ('feature.hotbar.emptySlot' | transloco)"
+            [attr.title]="
+              !cell.slot
+                ? ('feature.hotbar.emptySlot' | transloco)
+                : cell.actorName
+                  ? ('feature.hotbar.slotTitleAs' | transloco: { label: cell.label, actor: cell.actorName })
+                  : cell.label
+            "
             (click)="press(cell, $event)"
             (pointerdown)="onSlotDown(cell, $event)"
             (pointermove)="onSlotMove($event)"

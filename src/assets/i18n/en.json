@@ -413,6 +413,7 @@
         "notAllowed": "Your current role may not use this entry",
         "unavailable": "This entry cannot be used just now"
       },
+      "slotTitleAs": "{{label}} (as {{actor}})",
       "emptySlot": "Empty slot",
       "pin": "Keep in front",
       "toggle": "Hotbar",
