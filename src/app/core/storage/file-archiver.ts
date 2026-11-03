@@ -15,6 +15,8 @@ import type { ImageFile } from '@axe/core/storage/image-file';
 import { imageTypeOf } from '@axe/core/storage/image-sniff';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
+import { isBinaryGltf, MODEL_TYPE } from '@axe/core/storage/model-file';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ccfoliaRoomFolderOf } from '@axe/core/storage/room-archive';
 import { createZipBlob, readZipEntries, ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
 import type { ZipEntry } from '@axe/core/storage/zip-archive-message';
@@ -42,6 +44,8 @@ const MEGA_BYTE = 1024 * 1024;
 export const MAX_LOADED_IMAGE_BYTES = 2 * MEGA_BYTE;
 /** The largest sound a load takes in. */
 export const MAX_LOADED_AUDIO_BYTES = 10 * MEGA_BYTE;
+/** How large a 3D model may be, the same as a sound. */
+export const MAX_LOADED_MODEL_BYTES = 10 * MEGA_BYTE;
 const DROP_STACK_OFFSET = 20;
 const XML_MIME_TYPE = 'text/xml';
 const INTERNAL_DRAG_TYPE = 'application/x-axe-internal-drag';
@@ -242,6 +246,7 @@ export class FileArchiver {
       const isImageDropped = await this.handleImage(file, imageDropPoint, run, placesDroppedImages);
       if (isImageDropped) droppedImageCount++;
       await this.handleAudio(file, run);
+      await this.handleModel(file, run);
       await this.handleText(file, dropPoint, run);
       await this.handleZip(file, dropPoint, run);
       emitFileLoaded();
@@ -319,6 +324,22 @@ export class FileArchiver {
     }
     const audio = await AudioStorage.instance.addAsync(file, { putBack: true });
     if (audio) run.audios.push(audio.identifier);
+  }
+
+  /**
+   * Takes in a binary glTF file as a 3D model: one named `.glb`, or sent as one, that begins as one.
+   * Anything else under the name is left alone.
+   */
+  private async handleModel(file: File, run: LoadRun) {
+    if (file.type !== MODEL_TYPE && !file.name.toLowerCase().endsWith('.glb')) return;
+    if (file.size > MAX_LOADED_MODEL_BYTES) {
+      Logger.warn(`[FileArchiver] ファイルサイズ制限超過: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+      run.tooLarge.push({ name: file.name, kind: 'model', limitBytes: MAX_LOADED_MODEL_BYTES });
+      return;
+    }
+    const head = new Uint8Array(await FileReaderUtil.readAsArrayBufferAsync(file.slice(0, 8)));
+    if (!isBinaryGltf(head)) return;
+    await ModelStorage.instance.addAsync(file, { putBack: true });
   }
 
   private async handleText(file: File, dropPoint: { x: number; y: number } | undefined, run: LoadRun): Promise<void> {

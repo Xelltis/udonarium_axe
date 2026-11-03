@@ -92,9 +92,9 @@ function scheduleAngularTick(): void {
 
 /**
  * The events this device tells only itself, which no peer may send it. A peer's OPEN_NETWORK or
- * PEER_RECONNECT would pass for this device's own network; its UPDATE_FILE_RESOURE or
- * UPDATE_AUDIO_RESOURE would hand in bytes under a picture's or sound's name that no transfer
- * brought; its VN_MODE would turn this screen to novel mode.
+ * PEER_RECONNECT would pass for this device's own network; its UPDATE_FILE_RESOURE,
+ * UPDATE_AUDIO_RESOURE or UPDATE_MODEL_RESOURE would hand in bytes under a picture's, sound's or
+ * model's name that no transfer brought; its VN_MODE would turn this screen to novel mode.
  */
 export const LOCAL_ONLY_EVENTS: ReadonlySet<string> = new Set([
   'OPEN_NETWORK',
@@ -106,6 +106,7 @@ export const LOCAL_ONLY_EVENTS: ReadonlySet<string> = new Set([
   'SERVER_ROLE_CHANGED',
   'UPDATE_FILE_RESOURE',
   'UPDATE_AUDIO_RESOURE',
+  'UPDATE_MODEL_RESOURE',
   'LOCAL_OBJECT_UPDATED',
   'VN_MODE',
 ]);

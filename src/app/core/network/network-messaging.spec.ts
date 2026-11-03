@@ -75,6 +75,7 @@ describe('receiveEvents', () => {
         'SERVER_ROLE_CHANGED',
         'UPDATE_AUDIO_RESOURE',
         'UPDATE_FILE_RESOURE',
+        'UPDATE_MODEL_RESOURE',
         'VN_MODE',
       ].sort()
     );

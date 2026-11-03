@@ -18,6 +18,7 @@ const PRECOMPRESSED_EXTENSIONS = [
   '.oga',
   '.opus',
   '.flac',
+  '.glb',
   '.webm',
   '.mp4',
   '.zip',

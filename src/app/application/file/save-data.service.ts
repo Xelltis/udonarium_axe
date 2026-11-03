@@ -18,6 +18,8 @@ import { downscaleImageBlob } from '@axe/core/storage/image-downscale';
 import { ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
+import { MODEL_TYPE, type ModelFile } from '@axe/core/storage/model-file';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { createZipBlob, ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -76,6 +78,7 @@ const CHAT_LOG_IMAGE_DECODE_LIMIT = 4;
 export class SaveDataService {
   private readonly imageStorage = inject(ImageStorage);
   private readonly audioStorage = inject(AudioStorage);
+  private readonly modelStorage = inject(ModelStorage);
   private readonly fileArchiver = inject(FileArchiver);
   private readonly chatTabList = inject(ChatTabList);
   private readonly appConfig = inject(Config);
@@ -217,9 +220,9 @@ export class SaveDataService {
   }
 
   /**
-   * The files of a room save: the room's XML, the pictures it names and their tags and links, the
-   * list of sounds and the jukebox's playlists. With `everything`, every picture and sound this
-   * browser holds the bytes of goes in as well, named by the room or not.
+   * The files of a room save: the room's XML, the pictures and the 3D models it names, the pictures'
+   * tags and links, the list of sounds and the jukebox's playlists. With `everything`, every picture,
+   * sound and model this browser holds the bytes of goes in as well, named by the room or not.
    */
   private buildRoomFiles(pretty = true, everything = false): File[] {
     const { roomXml, chatXml, files } = this.buildRoomXmlParts(pretty);
@@ -241,6 +244,8 @@ export class SaveDataService {
 
     const audios: AudioFile[] = this.audioStorage.audios.filter((a) => !a.isHidden);
     if (everything) files.push(...audioArchiveFiles(audios, files));
+    const models = everything ? this.modelStorage.models : this.searchModelFiles(roomXml);
+    files.push(...modelArchiveFiles(models, files));
     const audioTagXml = this.convertToXml(AudioTagList.create(audios), pretty);
     files.push(new File([audioTagXml], 'audiotag.xml', { type: 'text/plain' }));
     const playlistXml = this.convertToXml(new PlaylistList(), pretty);
@@ -347,6 +352,12 @@ export class SaveDataService {
       }
     }
     return [...kept.values()];
+  }
+
+  /** The 3D models the pieces and blocks in some room data wear, held here in full. */
+  private searchModelFiles(xml: string): ModelFile[] {
+    const named = new Set([...xml.matchAll(/\bmodelIdentifier="([^"]+)"/g)].map((match) => match[1]));
+    return this.modelStorage.models.filter((model) => named.has(model.identifier));
   }
 
   private searchImageFiles(xml: string): ImageFile[] {
@@ -610,6 +621,24 @@ const AUDIO_EXTENSION_OF_TYPE: Readonly<Record<string, string>> = {
   'audio/flac': 'flac',
   'audio/x-flac': 'flac',
 };
+
+/**
+ * Archive files for the 3D models held here in full, each a `.glb` under the name it was added with,
+ * numbered where the name is taken by another model or a file alongside.
+ */
+function modelArchiveFiles(models: readonly ModelFile[], alongside: readonly File[]): File[] {
+  const taken = new Set(alongside.map((file) => file.name.toLowerCase()));
+  const files: File[] = [];
+  for (const model of models) {
+    if (!model.blob) continue;
+    const stem = model.name.replace(/\.glb$/i, '').trim() || model.identifier;
+    let name = `${stem}.glb`;
+    for (let copy = 2; taken.has(name.toLowerCase()); copy++) name = `${stem} (${copy}).glb`;
+    taken.add(name.toLowerCase());
+    files.push(new File([model.blob], name, { type: MODEL_TYPE }));
+  }
+  return files;
+}
 
 /** Archive files for the sounds held here as files, named apart from each other and from the files alongside. */
 function audioArchiveFiles(audios: readonly AudioFile[], alongside: readonly File[]): File[] {

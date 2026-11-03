@@ -2052,6 +2052,7 @@
         "many": "“{{name}}” and {{count}} more were not loaded because they are too large ({{limits}})",
         "audioLimit": "sounds up to {{mb}} MB",
         "imageLimit": "images up to {{mb}} MB",
+        "modelLimit": "3D models up to {{mb}} MB",
         "separator": ", "
       },
       "removal": {

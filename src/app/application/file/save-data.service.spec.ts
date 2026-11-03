@@ -10,6 +10,8 @@ import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
+import { MODEL_TYPE } from '@axe/core/storage/model-file';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -125,6 +127,32 @@ describe('SaveDataService', () => {
       expect(whole).toEqual(expect.arrayContaining([`${held}.webp`, 'theme.mp3']));
       expect(saved).not.toContain(`${held}.webp`);
       expect(saved).not.toContain('theme.mp3');
+    });
+  });
+
+  describe('the 3D models in a room save', () => {
+    const tree = { identifier: 'f'.repeat(64), name: 'tree.glb', blob: new Blob(['glTF'], { type: MODEL_TYPE }) };
+    const rock = { identifier: 'd'.repeat(64), name: 'rock', blob: new Blob(['glTF'], { type: MODEL_TYPE }) };
+
+    beforeEach(() => {
+      vi.spyOn(TestBed.inject(ModelStorage), 'models', 'get').mockReturnValue([tree, rock] as never);
+    });
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it('carries every model held here with everything, each a .glb under its own name, and none the room does not name otherwise', () => {
+      const privateApi = TestBed.inject(SaveDataService) as unknown as {
+        buildRoomFiles: (pretty: boolean, everything?: boolean) => File[];
+      };
+
+      const whole = privateApi.buildRoomFiles(false, true);
+      const saved = privateApi.buildRoomFiles(false).map((file) => file.name);
+
+      expect(whole.filter((file) => file.type === MODEL_TYPE).map((file) => file.name)).toEqual([
+        'tree.glb',
+        'rock.glb',
+      ]);
+      expect(saved).not.toContain('tree.glb');
     });
   });
 

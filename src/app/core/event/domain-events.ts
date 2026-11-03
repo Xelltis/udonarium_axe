@@ -88,7 +88,7 @@ export interface CcfoliaRoomDroppedEvent {
 /** A file a load left out for being larger than its kind may be, with the limit it went over. */
 export interface FileTooLarge {
   name: string;
-  kind: 'image' | 'audio';
+  kind: 'image' | 'audio' | 'model';
   limitBytes: number;
   /**
    * The picture itself, for one dropped or chosen on its own rather than found inside an archive,

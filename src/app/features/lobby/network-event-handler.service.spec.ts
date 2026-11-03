@@ -26,6 +26,7 @@ import { hasChosenIconByHand, noteIconChosenByHand } from '@axe/core/storage/ico
 import { clearIdentity, loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { ImageSharingSystem } from '@axe/core/storage/image-sharing-system';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ModelSharingSystem } from '@axe/core/storage/model-sharing-system';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { Card } from '@axe/domain/card/card';
@@ -979,10 +980,12 @@ describe('NetworkEventHandlerService', () => {
       vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ peerId: 'p', userId: 'u', isRoom: true } as never);
       const picture = { id: 'a'.repeat(64), type: 'image/png', size: 1, name: 'map.png' };
       const sound = { id: 'b'.repeat(64), type: 'audio/ogg', size: 1, name: 'theme.ogg' };
-      vi.spyOn(AssetHttpStore.instance, 'listRoomAssets').mockResolvedValue([picture, sound]);
+      const model = { id: 'c'.repeat(64), type: 'model/gltf-binary', size: 1, name: 'tree.glb' };
+      vi.spyOn(AssetHttpStore.instance, 'listRoomAssets').mockResolvedValue([picture, sound, model]);
       const forgotPictures = vi.spyOn(ImageSharingSystem.instance, 'forgetMisses');
       const pictures = vi.spyOn(ImageSharingSystem.instance, 'fetchListed').mockImplementation(() => {});
       const sounds = vi.spyOn(AudioSharingSystem.instance, 'fetchListed').mockImplementation(() => {});
+      const models = vi.spyOn(ModelSharingSystem.instance, 'fetchListed').mockImplementation(() => {});
       const upPictures = vi.spyOn(ImageStorage.instance, 'forgetUploaded');
       const upSounds = vi.spyOn(AudioStorage.instance, 'forgetUploaded');
       const takeOut = vi.spyOn(TestBed.inject(AssetRemovalService), 'takeOut').mockImplementation(() => {});
@@ -991,10 +994,11 @@ describe('NetworkEventHandlerService', () => {
 
       await vi.waitFor(() => expect(pictures).toHaveBeenCalledWith([picture]));
       expect(sounds).toHaveBeenCalledWith([sound]);
+      expect(models).toHaveBeenCalledWith([model]);
       expect(forgotPictures).toHaveBeenCalled();
       expect(upPictures).toHaveBeenCalledWith([picture.id]);
       expect(upSounds).toHaveBeenCalledWith([sound.id]);
-      expect(takeOut).toHaveBeenCalledWith([picture.id, sound.id]);
+      expect(takeOut).toHaveBeenCalledWith([picture.id, sound.id, model.id]);
     });
 
     it('fetches nothing from the room while waiting outside one, or when the server cannot say', async () => {

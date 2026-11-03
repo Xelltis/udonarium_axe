@@ -2052,6 +2052,7 @@
         "many": "「{{name}}」 외 {{count}}개는 너무 커서 불러오지 못했습니다({{limits}})",
         "audioLimit": "음원은 {{mb}}MB까지",
         "imageLimit": "이미지는 {{mb}}MB까지",
+        "modelLimit": "3D 모델은 {{mb}}MB까지",
         "separator": ", "
       },
       "removal": {

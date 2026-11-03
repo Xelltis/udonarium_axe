@@ -16,10 +16,12 @@ import {
   isXmlCandidateFile,
   MAX_LOADED_AUDIO_BYTES,
   MAX_LOADED_IMAGE_BYTES,
+  MAX_LOADED_MODEL_BYTES,
 } from '@axe/core/storage/file-archiver';
 import { calcSHA256Async } from '@axe/core/storage/file-reader-util';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { useFflateLoader } from '@axe/core/storage/zip-archive';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { zipSync } from 'fflate';
@@ -212,6 +214,34 @@ describe('FileArchiver', () => {
       } finally {
         off();
       }
+    });
+
+    it('takes in a binary glTF file as a 3D model, and leaves bytes under the name that are not one', async () => {
+      const added = vi.spyOn(ModelStorage.instance, 'addAsync').mockResolvedValue(null);
+      const glb = new Uint8Array([0x67, 0x6c, 0x54, 0x46, 2, 0, 0, 0, 1, 2, 3, 4]);
+
+      await FileArchiver.instance.load([
+        new File([glb], 'tree.glb'),
+        new File([new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])], 'fake.glb'),
+      ]);
+
+      expect(added.mock.calls.map(([file]) => (file as File).name)).toEqual(['tree.glb']);
+    });
+
+    it('leaves out a 3D model larger than a model may be, and says so', async () => {
+      const added = vi.spyOn(ModelStorage.instance, 'addAsync').mockResolvedValue(null);
+      const announced: FilesTooLargeEvent[] = [];
+      const off = filesTooLarge$.subscribe((event) => announced.push(event));
+      const huge = new File([new Uint8Array([0x67, 0x6c, 0x54, 0x46, 2, 0, 0, 0])], 'huge.glb');
+      Object.defineProperty(huge, 'size', { value: MAX_LOADED_MODEL_BYTES + 1 });
+      try {
+        await FileArchiver.instance.load([huge]);
+      } finally {
+        off();
+      }
+
+      expect(added).not.toHaveBeenCalled();
+      expect(announced[0].files).toEqual([{ name: 'huge.glb', kind: 'model', limitBytes: MAX_LOADED_MODEL_BYTES }]);
     });
 
     it('names the pictures and sounds it took in', async () => {

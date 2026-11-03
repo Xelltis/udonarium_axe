@@ -15,6 +15,7 @@ import { loadIdentity } from '@axe/core/storage/identity-storage';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageSharingSystem } from '@axe/core/storage/image-sharing-system';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ModelSharingSystem } from '@axe/core/storage/model-sharing-system';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
 import { keepFocusFromZoomingOnAppleTouch } from '@axe/core/util/apple-input-zoom';
 import { Alarm } from '@axe/domain/alarm/alarm';
@@ -80,6 +81,7 @@ export class AppInitializationService {
     this.fileArchiver.mayLoadDrops = () => this.rolePermission.canEditTabletop();
     ImageSharingSystem.instance.initialize();
     AudioSharingSystem.instance.initialize();
+    ModelSharingSystem.instance.initialize();
     ObjectSynchronizer.instance.initialize();
     this.appConfigService.initialize();
     this.pointerDeviceService.initialize();
