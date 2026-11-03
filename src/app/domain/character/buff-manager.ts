@@ -24,6 +24,12 @@ export interface BuffSnapshotEntry {
   info: string;
   appearance: BuffAppearance;
   modifier: BuffModifier | null;
+  /**
+   * For a buff that leaves its status moved and has run out since this was taken: how far the
+   * count it ran out at moved the status, which putting it back gives back. None where nothing says,
+   * which gives back nothing, as a buff gone some other way moved nothing as it went.
+   */
+  lastMoved?: number;
 }
 
 export class BuffManager {
@@ -191,20 +197,21 @@ export class BuffManager {
    * is about to go back; one that leaves its status moved moves it then too, so poison laid for three
    * rounds bites three times.
    */
-  private stepModifier(data: DataElement, runsOut = false): void {
+  private stepModifier(data: DataElement, runsOut = false): number | null {
     const modifier = readBuffModifier(data);
-    if (!modifier?.step || modifier.operator !== 'add') return;
-    if (runsOut && !modifier.lasting) return;
+    if (!modifier?.step || modifier.operator !== 'add') return null;
+    if (runsOut && !modifier.lasting) return null;
     const moved = this.moveStatus({
       target: modifier.target,
       slot: modifier.slot,
       operator: 'add',
       amount: modifier.step,
     });
-    if (moved == null) return;
+    if (moved == null) return null;
     const standing = { ...modifier, applied: modifier.applied + moved };
     writeBuffModifier(data, standing);
     if (!modifier.lasting) data.currentValue = describeStandingModifier(standing);
+    return moved;
   }
 
   /** Lets go of what the buff moved, moving it back unless the buff leaves it moved. */
@@ -275,8 +282,11 @@ export class BuffManager {
    * Counts down the buffs whose moment this is, removes the ones that ran out and returns
    * their names. `acting` is whose turn it is, which a buff pinned to a trigger character
    * waits for; it is unused at the end of a round, where everything counts down.
+   *
+   * A buff that leaves its status moved and runs out here is written into `ranOut`, where given,
+   * with how far its last count moved the status, for a record of the count to give back exactly.
    */
-  expireAt(timing: BuffTiming, acting: BuffTurnActor): string[] {
+  expireAt(timing: BuffTiming, acting: BuffTurnActor, ranOut?: Map<string, number>): string[] {
     this.gather();
     const container = this.container;
     if (!container) return [];
@@ -290,7 +300,8 @@ export class BuffManager {
       if (round <= 0) {
         if (!isBuffGroupMember(data)) expired.push(data.name);
         // Only the count that brings it to nought is its last; one already standing there has had it.
-        if (round === 0) this.stepModifier(data, true);
+        const moved = round === 0 ? this.stepModifier(data, true) : null;
+        if (moved != null) ranOut?.set(data.name, moved);
         this.remove(data);
       } else {
         this.stepModifier(data);
@@ -322,7 +333,7 @@ export class BuffManager {
       data.value = entry.value;
       data.currentValue = entry.info;
       applyAppearance(data, entry.appearance);
-      this.restoreModifier(data, entry.modifier, found == null);
+      this.restoreModifier(data, entry.modifier, found == null ? (entry.lastMoved ?? 0) : null);
     }
   }
 
@@ -371,7 +382,7 @@ export class BuffManager {
       data.value = entry.value;
       data.currentValue = entry.info;
       applyAppearance(data, entry.appearance);
-      this.restoreModifier(data, entry.modifier, found == null);
+      this.restoreModifier(data, entry.modifier, found == null ? (entry.lastMoved ?? 0) : null);
       restored.push(data);
     }
     this.reorder(restored);
@@ -405,16 +416,16 @@ export class BuffManager {
    * Moves the sheet by what the buff has yet to move, which is nothing when it already stands.
    *
    * A buff that leaves its status moved left it moved when it went, so a record of it gone is taken
-   * to stand where it last moved it; one that comes back after going is taken to have run out, its
-   * last count having moved it once more, as far as can be told without the record.
+   * to stand where it last moved it. One that comes back after going, `cameBackMoving` being how far
+   * the count it ran out at moved the status, has that given back as well.
    */
-  private restoreModifier(data: DataElement, wanted: BuffModifier | null, cameBack = false): void {
+  private restoreModifier(data: DataElement, wanted: BuffModifier | null, cameBackMoving: number | null): void {
     const standing = readBuffModifier(data);
     if (standing && (!wanted || !movesSameStatus(standing, wanted))) {
       this.revertModifier(data);
     }
     if (!wanted) return;
-    const left = wanted.lasting ? wanted.applied + (cameBack ? (wanted.step ?? 0) : 0) : 0;
+    const left = wanted.lasting ? wanted.applied + (cameBackMoving ?? 0) : 0;
     const applied = readBuffModifier(data)?.applied ?? left;
     if (applied !== wanted.applied) {
       this.status()?.changeValue(wanted.target, wanted.slot, wanted.applied - applied);

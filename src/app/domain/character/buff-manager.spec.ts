@@ -666,17 +666,49 @@ describe('BuffManager', () => {
         expect(sheeted.find('毒')!.value).toBe(3);
       });
 
-      it('takes back the count it ran out at, as the buff comes back', () => {
+      it('writes down how far the count it ran out at moved it, and gives exactly that back as it comes back', () => {
         grant('毒', ':命中', '+', '0~-3', 1);
         const owner = { identifier: 'owner', name: 'テストキャラ' };
         const due = sheeted.dueAt('roundEnd', owner);
-        expect(sheeted.expireAt('roundEnd', owner)).toEqual(['毒']);
+        const ranOut = new Map<string, number>();
+        expect(sheeted.expireAt('roundEnd', owner, ranOut)).toEqual(['毒']);
         expect(status.getValue('命中', 'now')).toBe(7);
+        expect(ranOut.get('毒')).toBe(-3);
 
-        sheeted.putBack(due);
+        sheeted.putBack(due.map((entry) => ({ ...entry, lastMoved: ranOut.get(entry.name) })));
 
         expect(status.getValue('命中', 'now')).toBe(10);
         expect(sheeted.find('毒')!.value).toBe(1);
+      });
+
+      it('gives back only as far as the last count moved it, held at a bound', () => {
+        // The sheet caps 命中 at 20, so a count asking for +30 from 10 moves it 10.
+        grant('リジェネ', ':命中', '+', '0~+30', 1);
+        const owner = { identifier: 'owner', name: 'テストキャラ' };
+        const due = sheeted.dueAt('roundEnd', owner);
+        const ranOut = new Map<string, number>();
+        sheeted.expireAt('roundEnd', owner, ranOut);
+        expect(ranOut.get('リジェネ')).toBe(10);
+        expect(status.getValue('命中', 'now')).toBe(20);
+
+        sheeted.putBack(due.map((entry) => ({ ...entry, lastMoved: ranOut.get(entry.name) })));
+
+        expect(status.getValue('命中', 'now')).toBe(10);
+      });
+
+      it('gives nothing back for a buff that went without a last count moving it', () => {
+        grant('毒', ':命中', '+', '0~-3', 1);
+        sheeted.decreaseRound();
+        expect(status.getValue('命中', 'now')).toBe(7);
+        const owner = { identifier: 'owner', name: 'テストキャラ' };
+        const due = sheeted.dueAt('roundEnd', owner);
+        const ranOut = new Map<string, number>();
+
+        expect(sheeted.expireAt('roundEnd', owner, ranOut)).toEqual(['毒']);
+        expect(ranOut.size).toBe(0);
+        sheeted.putBack(due);
+
+        expect(status.getValue('命中', 'now')).toBe(7);
       });
 
       it('moves nothing when a step of the round is put back with the buff standing as it was', () => {
