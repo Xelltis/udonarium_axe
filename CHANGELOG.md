@@ -1,3 +1,13 @@
+## [1.76.1](https://github.com/Xelltis/udonarium_axe/compare/v1.76.0...v1.76.1) (2026-11-03)
+
+### 🐛 Bug Fixes
+
+* **deps:** bump the production-minor-patch group with 7 updates ([498b06a](https://github.com/Xelltis/udonarium_axe/commit/498b06ac2ae463b093bf17f7aafcf9b3c3ca4a74))
+
+### 📝 Documentation
+
+* **release:** add the notes for v1.76.1 ([41dd92f](https://github.com/Xelltis/udonarium_axe/commit/41dd92fc7a77d06f21effdebef8322cbd1634883))
+
 ## [1.76.0](https://github.com/Xelltis/udonarium_axe/compare/v1.75.3...v1.76.0) (2026-11-03)
 
 ### ✨ Features
