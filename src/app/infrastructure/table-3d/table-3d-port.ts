@@ -57,6 +57,19 @@ export interface Table3dVeil {
   readonly revision: number;
 }
 
+/**
+ * How dark the table is where no light reaches, and how much each point of the board is lifted out of
+ * it, drawn by the page on a canvas of its own as a black veil with the light carved out of it: where
+ * that canvas lies on the board, in table pixels, a count that goes up each time it is drawn again,
+ * and how dark the board is with no light at all, from 0 to 1.
+ */
+export interface Table3dLightMap {
+  readonly canvas: HTMLCanvasElement;
+  readonly box: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  readonly revision: number;
+  readonly darkness: number;
+}
+
 /** What the engine holds, counted. */
 export interface Table3dStats {
   readonly chunks: number;
@@ -71,6 +84,8 @@ export interface Table3dStats {
   readonly floorCanvases: number;
   /** How many times the veil has been laid anew, 0 while there is none. */
   readonly veilRevision: number;
+  /** How many times the light of a dark table has been laid anew, 0 while the table is not dark. */
+  readonly lightMapRevision: number;
 }
 
 /** What draws the table on a canvas. It draws only when something it was told has changed. */
@@ -86,6 +101,8 @@ export interface Table3dEngine {
   setVeil(veil: Table3dVeil | null): void;
   /** Lights the scene as the sky does at the story's hour. */
   setSkyLight(light: SkyLight): void;
+  /** Darkens the scene as the table is dark, lit where the page's lights reach, or lights it whole with null. */
+  setLightMap(map: Table3dLightMap | null): void;
   /** Sizes the canvas's drawing to the box it covers, in CSS pixels, at the screen's pixel ratio. */
   resize(width: number, height: number, pixelRatio: number): void;
   /** Draws the scene when anything changed since it was last drawn, and answers whether it drew. */

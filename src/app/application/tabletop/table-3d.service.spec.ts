@@ -18,6 +18,7 @@ import type {
   Table3dEngineOptions,
   Table3dFloorCanvas,
   Table3dGrid,
+  Table3dLightMap,
   Table3dVeil,
 } from '@axe/infrastructure/table-3d/table-3d-port';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -32,6 +33,7 @@ class FakeEngine implements Table3dEngine {
   grids: (Table3dGrid | null)[] = [];
   veils: (Table3dVeil | null)[] = [];
   skies: SkyLight[] = [];
+  lightMaps: (Table3dLightMap | null)[] = [];
   drawn = 0;
   disposed = false;
   lose: () => void = () => undefined;
@@ -64,6 +66,11 @@ class FakeEngine implements Table3dEngine {
 
   setVeil(veil: Table3dVeil | null): void {
     this.veils.push(veil);
+    this.changed = true;
+  }
+
+  setLightMap(map: Table3dLightMap | null): void {
+    this.lightMaps.push(map);
     this.changed = true;
   }
 
@@ -113,6 +120,7 @@ class FakeEngine implements Table3dEngine {
       coins: 0,
       floorCanvases: 0,
       veilRevision: 0,
+      lightMapRevision: 0,
     };
   }
 }
@@ -351,7 +359,7 @@ describe('Table3dService', () => {
     expect(engine.drawn).toBe(2);
   });
 
-  it('hands the engine the veil the page draws each time it is drawn again, and draws it on the next frame', async () => {
+  it('hands the engine the veil and the darkness the page draws each time they are drawn again', async () => {
     const scene = service();
     scene.attach(document.createElement('canvas'));
     await scene.whenIdle();
@@ -373,10 +381,21 @@ describe('Table3dService', () => {
     expect(engine.veils.at(-1)).toEqual({ canvas, box: { x: -40, y: -40, width: 1080, height: 830 }, revision: 2 });
     expect(engine.drawn).toBe(drawn + 2);
 
+    veil.showDarkness(canvas, 0.8);
+    TestBed.tick();
+
+    expect(engine.lightMaps.at(-1)).toEqual({
+      canvas,
+      box: { x: -40, y: -40, width: 1080, height: 830 },
+      revision: 1,
+      darkness: 0.8,
+    });
+
     veil.forget();
     TestBed.tick();
 
     expect(engine.veils.at(-1)).toBeNull();
+    expect(engine.lightMaps.at(-1)).toBeNull();
   });
 
   it('lights the scene as the sky does at the hour the room’s clock tells, and again as the clock moves on', async () => {

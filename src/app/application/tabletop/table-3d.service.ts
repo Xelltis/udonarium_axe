@@ -287,6 +287,13 @@ export class Table3dService {
       ),
       effect(
         () => {
+          engine.setLightMap(this.tableVeil.lightMap());
+          this.drawSoon(engine);
+        },
+        { injector: this.injector }
+      ),
+      effect(
+        () => {
           engine.setSkyLight(this.skyLight());
           this.drawSoon(engine);
         },

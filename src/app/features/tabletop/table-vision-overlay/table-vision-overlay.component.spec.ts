@@ -98,7 +98,7 @@ describe('TableVisionOverlayComponent on a hex table', () => {
     expect(perfCounters.drain().get(PERF_HEX_SURFACE_CELLS)).toBe(2);
   });
 
-  it('keeps its canvas out of sight on a table drawn on a canvas, and hands it over as the veil each time it draws', async () => {
+  it('keeps its canvas out of sight on a table drawn on a canvas, and hands over the fog and the darkness apart', async () => {
     const veil = TestBed.inject(TableVeilService);
     await show(hexScene());
     const canvas = (fixture.nativeElement as HTMLElement).querySelector('canvas')!;
@@ -115,6 +115,13 @@ describe('TableVisionOverlayComponent on a hex table', () => {
     expect(veil.veil()?.canvas).toBe(canvas);
     expect(veil.veil()!.revision).toBeGreaterThan(first);
     expect(veil.veil()!.box.width).toBeGreaterThan(0);
+    expect(veil.lightMap()?.canvas).not.toBe(canvas);
+    expect(veil.lightMap()!.box).toEqual(veil.veil()!.box);
+    expect(veil.lightMap()!.darkness).toBeGreaterThan(0);
+
+    await show(hexScene({ darknessEnabled: false, fogEnabled: true }));
+
+    expect(veil.lightMap()).toBeNull();
 
     TestBed.inject(Table3dService).choose('css');
     fixture.detectChanges();

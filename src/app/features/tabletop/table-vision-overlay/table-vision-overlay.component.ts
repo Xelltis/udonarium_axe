@@ -72,6 +72,7 @@ export class TableVisionOverlayComponent {
   private dirty: DirtyRect[] = [];
   private rafId: number | null = null;
   private readonly images = new Map<string, HTMLImageElement>();
+  private darkness: HTMLCanvasElement | null = null;
 
   constructor() {
     effect(() => {
@@ -121,25 +122,14 @@ export class TableVisionOverlayComponent {
       canvas.style.width = cw + 'px';
       canvas.style.height = ch + 'px';
       const plan = computeOverlayPlan(scene, viewer, this.visionService.overlayVision());
-      const layout = `${pw}x${ph}@${this.scale}:${this.margin}:${this.surfaceOriginX}:${this.surfaceOriginY}`;
+      const onCanvas = this.table3d.drawsOnCanvas();
+      const layout = `${pw}x${ph}@${this.scale}:${this.margin}:${this.surfaceOriginX}:${this.surfaceOriginY}:${onCanvas}`;
       if (this.plan && layout === this.drawnLayout && sameOverlayPlan(this.plan, plan)) return;
       this.plan = plan;
       this.drawnLayout = layout;
       this.refreshScratch(cw, ch);
-      this.animated = scene.lights.some((light) => light.animation && light.animation !== 'none');
       this.ensureImages();
-      this.refreshBake();
-      this.draw(this.now(), null);
-      this.syncLoop();
-    });
-    // A table drawn on a canvas lays the veil over its own scene, from this canvas kept out of sight.
-    effect(() => {
-      const onCanvas = this.table3d.drawsOnCanvas();
-      const canvas = this.canvasRef()?.nativeElement;
-      untracked(() => {
-        if (onCanvas && canvas && this.plan) this.tableVeil.show(canvas);
-        else this.tableVeil.forget();
-      });
+      untracked(() => (onCanvas ? this.drawForCanvas() : this.drawForPage()));
     });
     this.destroyRef.onDestroy(() => {
       this.stopLoop();
@@ -190,6 +180,76 @@ export class TableVisionOverlayComponent {
     return typeof performance !== 'undefined' ? performance.now() : 0;
   }
 
+  /** Draws the darkness and the fog over the page's own table, flickering where a light flickers. */
+  private drawForPage(): void {
+    this.tableVeil.forget();
+    this.animated = !!this.plan?.glows.some((shape) => shape.animation && shape.animation !== 'none');
+    this.refreshBake();
+    this.draw(this.now(), null);
+    this.syncLoop();
+  }
+
+  /**
+   * Draws what a table drawn on a canvas lays over its own scene, out of sight: on this canvas the fog
+   * and what is only remembered, and on another the darkness with the light carved out of it, black,
+   * which the scene takes as light. The glow of the lamps is left to the scene.
+   */
+  private drawForCanvas(): void {
+    this.stopLoop();
+    this.animated = false;
+    this.bake = null;
+    this.dirty = [];
+    const plan = this.plan;
+    const canvas = this.canvasRef()?.nativeElement;
+    const ctx = canvas?.getContext('2d');
+    if (!plan || !canvas || !ctx) return;
+    const fog = { ...plan, darknessAlpha: 0, reveals: [], revealCells: [], glows: [], shadows: [] };
+    this.paint(ctx, fog);
+    this.tableVeil.show(canvas);
+    if (!(plan.darknessAlpha > 0)) {
+      this.tableVeil.forgetDarkness();
+      return;
+    }
+    const dark = this.darkCanvas(canvas);
+    const darkCtx = dark.getContext('2d');
+    if (!darkCtx) return;
+    const vision = plan.vision ? { ...plan.vision, fogEnabled: false } : plan.vision;
+    this.paint(darkCtx, { ...plan, darknessColor: '#000000', glows: [], vision });
+    this.tableVeil.showDarkness(dark, plan.darknessAlpha * (1 - plan.baseRevealAlpha));
+  }
+
+  /** A canvas of the same size and place as the one given, kept off the page, for the darkness to be drawn on. */
+  private darkCanvas(like: HTMLCanvasElement): HTMLCanvasElement {
+    const dark = (this.darkness ??= document.createElement('canvas'));
+    if (dark.width !== like.width) dark.width = like.width;
+    if (dark.height !== like.height) dark.height = like.height;
+    Object.assign(dark.style, {
+      left: like.style.left,
+      top: like.style.top,
+      width: like.style.width,
+      height: like.style.height,
+    });
+    return dark;
+  }
+
+  private paint(ctx: CanvasRenderingContext2D, plan: OverlayPlan): void {
+    perfCounters.bump('overlayDraw');
+    drawOverlayPlan(
+      ctx,
+      plan,
+      this.surfaceWidth,
+      this.surfaceHeight,
+      this.now(),
+      this.images,
+      this.margin,
+      this.surfaceOf(),
+      null,
+      null,
+      this.scale,
+      this.scratch
+    );
+  }
+
   private ensureImages(): void {
     if (!this.plan) return;
     const live = new Set<string>();
@@ -199,6 +259,10 @@ export class TableVisionOverlayComponent {
       if (this.images.has(shadow.imageUrl)) continue;
       const image = new Image();
       image.onload = () => {
+        if (this.table3d.drawsOnCanvas()) {
+          this.drawForCanvas();
+          return;
+        }
         this.refreshBake();
         this.draw(this.now(), null);
       };
@@ -247,9 +311,8 @@ export class TableVisionOverlayComponent {
   }
 
   private drawNow(timeMs: number, dirty: DirtyRect | null): void {
-    const canvas = this.canvasRef()?.nativeElement;
-    const ctx = canvas?.getContext('2d');
-    if (!canvas || !ctx || !this.plan) return;
+    const ctx = this.canvasRef()?.nativeElement.getContext('2d');
+    if (!ctx || !this.plan) return;
     drawOverlayPlan(
       ctx,
       this.plan,
@@ -264,7 +327,6 @@ export class TableVisionOverlayComponent {
       this.scale,
       this.scratch
     );
-    if (this.table3d.drawsOnCanvas()) this.tableVeil.show(canvas);
   }
 
   /**

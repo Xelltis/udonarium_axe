@@ -28,6 +28,7 @@ import type {
   Table3dEngineOptions,
   Table3dFloorCanvas,
   Table3dGrid,
+  Table3dLightMap,
   Table3dStats,
   Table3dVeil,
 } from '@axe/infrastructure/table-3d/table-3d-port';
@@ -170,6 +171,7 @@ class ThreeTableEngine implements Table3dEngine {
   private readonly sky = new HemisphereLight(0xffffff, 0xffffff, LIGHT_SCALE);
   private lastSkyLight = '';
   private lastSkyDirection: SkyLight['direction'] = { x: 0, y: 0, z: 1 };
+  private lastSky: SkyLight = skyLightAt(0.5);
   private boardBox = { x: 0, y: 0, width: 0, height: 0 };
   private readonly sprites = new SpriteLayer(
     (url) => this.spritePicture(url),
@@ -234,13 +236,20 @@ class ThreeTableEngine implements Table3dEngine {
     if (lit === this.lastSkyLight) return;
     this.lastSkyLight = lit;
     this.lastSkyDirection = light.direction;
+    this.lastSky = light;
     this.placeSun();
     this.sun.color.set(light.colour);
-    this.sun.intensity = light.strength * LIGHT_SCALE;
     this.sky.color.set(light.skyColour);
     this.sky.groundColor.copy(new Color(light.skyColour).multiplyScalar(GROUND_BOUNCE));
-    this.sky.intensity = light.skyStrength * LIGHT_SCALE;
+    this.lightSky();
     this.changed = true;
+  }
+
+  /** Sets how strong the sky's light is, as the hour has it, dimmed as the table is dark. */
+  private lightSky(): void {
+    const ambient = this.veil.ambient;
+    this.sun.intensity = this.lastSky.strength * LIGHT_SCALE * ambient;
+    this.sky.intensity = this.lastSky.skyStrength * LIGHT_SCALE * ambient;
   }
 
   onNeedsFrame(listener: () => void): void {
@@ -261,6 +270,7 @@ class ThreeTableEngine implements Table3dEngine {
       coins: this.coins.group.children.length,
       floorCanvases: this.floorCanvases.group.children.length,
       veilRevision: this.veil.revision,
+      lightMapRevision: this.veil.lightRevision,
     };
   }
 
@@ -350,7 +360,13 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   setVeil(veil: Table3dVeil | null): void {
-    if (this.veil.set(veil)) this.changed = true;
+    if (this.veil.setVeil(veil)) this.changed = true;
+  }
+
+  setLightMap(map: Table3dLightMap | null): void {
+    if (!this.veil.setLightMap(map)) return;
+    this.lightSky();
+    this.changed = true;
   }
 
   resize(width: number, height: number, pixelRatio: number): void {
@@ -415,7 +431,7 @@ class ThreeTableEngine implements Table3dEngine {
       board.veiled,
       !!board.ground?.paint
     );
-    this.veil.cover(material);
+    this.veil.cover(material, 'lit');
     this.board = new Mesh(board.ground ? groundGeometry(board.ground) : boardGeometry(board), material);
     this.board.receiveShadow = true;
     this.boardBox = board.shape.box;
@@ -562,7 +578,7 @@ class ThreeTableEngine implements Table3dEngine {
           })
         : new MeshLambertNodeMaterial({ side: DoubleSide, transparent: true, alphaTest: 0.01 });
     if (!face.glass && face.pictureUrl) material.map = this.sharedPicture(face.pictureUrl, face.tilePx > 0);
-    this.veil.cover(material);
+    this.veil.cover(material, face.glass || !face.pictureUrl ? 'unlit' : 'lit');
     return material;
   }
 
