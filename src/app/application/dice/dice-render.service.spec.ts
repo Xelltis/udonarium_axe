@@ -13,6 +13,7 @@ import { DiceThrow, DiceThrowService } from '@axe/application/dice/dice-throw.se
 import { MyDiceService } from '@axe/application/dice/my-dice.service';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { DiceMaterial, PLAIN_DICE_LOOK } from '@axe/domain/dice/dice-3d/dice-look';
@@ -634,6 +635,28 @@ describe('DiceRenderService', () => {
       await nextFrame(100);
 
       expect(engine.drawn.map((d) => d.kind)).toEqual(['table']);
+    });
+
+    it('hands a throw on a table drawn on a canvas to the table’s own scene, and draws nothing over the table for it', async () => {
+      const scene = TestBed.inject(Table3dService);
+      vi.spyOn(scene, 'drawsOnCanvas').mockReturnValue(true);
+      const shown = vi.spyOn(scene, 'showDice');
+      sheet();
+      throws.set(new Map([['a', onTable('a', { startedAt: 0, phase: 'settled' })]]));
+      await nextFrame(0);
+      await nextFrame(100);
+
+      expect(engine.drawn).toEqual([]);
+      expect(shown).toHaveBeenLastCalledWith([
+        expect.objectContaining({ key: 'a', model: onTable('a').placement!.model, opacity: 1 }),
+      ]);
+
+      const end = (ROLL_SECONDS + TABLE_HOLD_SECONDS + TABLE_FADE_SECONDS) * 1000;
+      await nextFrame(end - 200);
+      expect(shown.mock.lastCall![0][0].opacity).toBeGreaterThan(0);
+      expect(shown.mock.lastCall![0][0].opacity).toBeLessThan(1);
+      await nextFrame(end + 10);
+      expect(shown).toHaveBeenLastCalledWith([]);
     });
 
     it('keeps the dice on the table a while after they stop, then lets them fade and stops drawing', async () => {

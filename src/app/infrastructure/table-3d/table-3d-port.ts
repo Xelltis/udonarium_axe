@@ -1,8 +1,10 @@
+import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
 import type { SceneLight } from '@axe/domain/tabletop/vision-scene';
 import type { SkyDome } from '@axe/domain/tabletop/world/sky-dome';
 import type { SkyLight } from '@axe/domain/tabletop/world/sky-light';
 import type { EyeAxes } from '@axe/domain/tabletop/world/table-sprites';
 import type { TableWorld } from '@axe/domain/tabletop/world/table-world';
+import type { ThrowToDraw } from '@axe/infrastructure/dice-3d/dice-3d-engine';
 import type { Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
 
 /** Which of the browser's graphics interfaces the table is drawn through. */
@@ -133,6 +135,8 @@ export interface Table3dStats {
   readonly backdrops: number;
   /** The pieces and blocks drawn as 3D models, read and stood. */
   readonly models: number;
+  /** The rolls whose dice are on the table now. */
+  readonly dice: number;
   /** How many meshes the models are drawn with, the copies of a model that plays no motion sharing theirs. */
   readonly modelMeshes: number;
   /** How many times the veil has been laid anew, 0 while there is none. */
@@ -151,6 +155,19 @@ export interface Table3dStats {
   readonly drawCalls: number;
 }
 
+/**
+ * A roll's dice thrown on the table: the dice and their throw, where the tray lies on the board,
+ * how far into the throw they are, and how far they have faded as they leave.
+ */
+export interface Table3dDiceThrow {
+  readonly key: string;
+  readonly draw: ThrowToDraw;
+  /** From the tray's world to the board's, z up, as sixteen numbers in column order. */
+  readonly model: readonly number[];
+  readonly seconds: number;
+  readonly opacity: number;
+}
+
 /** What draws the table on a canvas. It draws only when something it was told has changed. */
 export interface Table3dEngine {
   readonly backend: Table3dBackend;
@@ -164,6 +181,10 @@ export interface Table3dEngine {
   setVeil(veil: Table3dVeil | null): void;
   /** Hangs the sheets of fog in the air, drifting where things may move, or takes them away with none. */
   setFogAir(sheets: readonly Table3dFogAirSheet[], moving: boolean): void;
+  /** Puts the dice of the rolls thrown on the table where their trays lie, each as far into its throw as given. */
+  setDice(throws: readonly Table3dDiceThrow[]): void;
+  /** Builds the shaders of the dice of these materials ahead, so the first throw that wears one does not wait for them. */
+  warmDice(materials: readonly DiceMaterial[]): void;
   /** Lights the scene as the sky does at the story's hour. */
   setSkyLight(light: SkyLight): void;
   /**

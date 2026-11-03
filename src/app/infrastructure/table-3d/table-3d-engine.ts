@@ -1,3 +1,4 @@
+import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import { animationIntensity } from '@axe/domain/tabletop/vision-scene/light-flicker';
 import { lightAxis } from '@axe/domain/tabletop/vision-scene/light-shape';
@@ -32,6 +33,7 @@ import { SkyLayer } from '@axe/infrastructure/table-3d/sky-layer';
 import { SHADOW_CASTERS_LAYER, SpriteLayer } from '@axe/infrastructure/table-3d/sprite-layer';
 import type {
   Table3dCamera,
+  Table3dDiceThrow,
   Table3dEngine,
   Table3dEngineOptions,
   Table3dFloorCanvas,
@@ -43,6 +45,7 @@ import type {
   Table3dVeil,
 } from '@axe/infrastructure/table-3d/table-3d-port';
 import { TABLE_3D_QUALITY, type Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
+import { TableDiceLayer } from '@axe/infrastructure/table-3d/table-dice-layer';
 import { TablePost } from '@axe/infrastructure/table-3d/table-post';
 import { lampColour, SceneVeil } from '@axe/infrastructure/table-3d/veil';
 import { WaterLayer } from '@axe/infrastructure/table-3d/water-layer';
@@ -242,6 +245,11 @@ class ThreeTableEngine implements Table3dEngine {
     },
     () => this.renderer
   );
+  private readonly dice = new TableDiceLayer(
+    () => this.renderer,
+    (material, lit) => this.veil.cover(material, lit ? 'lit' : 'unlit'),
+    BOARD_TO_SCENE
+  );
   private readonly skyDome = new SkyLayer();
   private readonly backdrops = new BackdropRing((url) => this.sharedPicture(url, true));
   private laidBackdrops: TableWorld['backdrops'] = [];
@@ -278,6 +286,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.scene.add(this.water.group);
     this.scene.add(this.fogAir.group);
     this.scene.add(this.models.group);
+    this.scene.add(this.dice.group);
     this.scene.add(this.skyDome.group);
     this.scene.add(this.backdrops.group);
     this.scene.add(this.sun, this.sun.target, this.sky);
@@ -470,6 +479,7 @@ class ThreeTableEngine implements Table3dEngine {
       sky: this.skyDome.shown,
       backdrops: this.backdrops.shown,
       models: this.models.shown,
+      dice: this.dice.shown,
       modelMeshes: this.models.meshes,
       veilRevision: this.veil.revision,
       lightMapRevision: this.veil.lightRevision,
@@ -661,6 +671,17 @@ class ThreeTableEngine implements Table3dEngine {
     this.backdrops.place(this.laidSky ? this.laidBackdrops : [], this.laidSky && this.board ? this.boardBox : null);
   }
 
+  setDice(throws: readonly Table3dDiceThrow[]): void {
+    this.dice.set(throws);
+    this.takeChanges();
+  }
+
+  warmDice(materials: readonly DiceMaterial[]): void {
+    for (const material of materials) {
+      void this.dice.warm(material, (staging) => this.renderer.compileAsync(staging, this.camera, this.scene));
+    }
+  }
+
   setFogAir(sheets: readonly Table3dFogAirSheet[], moving: boolean): void {
     this.fogAir.set(sheets, moving);
     this.takeChanges();
@@ -697,7 +718,8 @@ class ThreeTableEngine implements Table3dEngine {
     const hung = this.fogAir.takeChanged();
     const stood = this.backdrops.takeChanged();
     const modelled = this.models.takeChanged();
-    if (drifted || flowed || hung || stood || modelled) this.changed = true;
+    const thrown = this.dice.takeChanged();
+    if (drifted || flowed || hung || stood || modelled || thrown) this.changed = true;
   }
 
   dispose(): void {
@@ -712,6 +734,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.skyDome.dispose();
     this.backdrops.dispose();
     this.models.dispose();
+    this.dice.dispose();
     this.veil.dispose();
     disposeObject(this.scene);
     for (const picture of this.loaded.values()) picture.dispose();

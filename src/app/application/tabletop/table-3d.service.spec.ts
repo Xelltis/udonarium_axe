@@ -23,6 +23,7 @@ import type { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites'
 import type { TableWorld, TableWorldCap } from '@axe/domain/tabletop/world/table-world';
 import type {
   Table3dCamera,
+  Table3dDiceThrow,
   Table3dEngine,
   Table3dEngineOptions,
   Table3dFloorCanvas,
@@ -49,6 +50,7 @@ class FakeEngine implements Table3dEngine {
   shadowLights: (readonly Table3dShadowLight[])[] = [];
   glows: (Table3dVeil | null)[] = [];
   fogAirSheets: (readonly Table3dFogAirSheet[])[] = [];
+  diceThrows: (readonly Table3dDiceThrow[])[] = [];
   domes: (SkyDome | null)[] = [];
   qualities: Table3dQualityPlan[] = [];
   moving = false;
@@ -106,6 +108,13 @@ class FakeEngine implements Table3dEngine {
   setFogAir(sheets: readonly Table3dFogAirSheet[]): void {
     this.fogAirSheets.push(sheets);
   }
+
+  setDice(throws: readonly Table3dDiceThrow[]): void {
+    this.diceThrows.push(throws);
+    this.changed = true;
+  }
+
+  warmDice(): void {}
 
   flicker(): void {
     this.flickers++;
@@ -177,6 +186,7 @@ class FakeEngine implements Table3dEngine {
       backdrops: 0,
       models: 0,
       modelMeshes: 0,
+      dice: 0,
       veilRevision: 0,
       lightMapRevision: 0,
       shadowLights: 0,

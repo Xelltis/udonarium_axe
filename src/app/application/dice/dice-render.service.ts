@@ -3,6 +3,7 @@ import { DiceThrow, DiceThrowService, throwKeyOf } from '@axe/application/dice/d
 import { DICE_PICTURE_MAX_SIDE, MyDiceService } from '@axe/application/dice/my-dice.service';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { Logger } from '@axe/core/logging/logger';
 import { ImageState } from '@axe/core/storage/image-file';
@@ -12,7 +13,14 @@ import { clipMatrixOf, columnsOf, eyeOf, multiply, Point3, transform } from '@ax
 import { type DiceMaterial, wornDiceLook } from '@axe/domain/dice/dice-3d/dice-look';
 import type { Tray } from '@axe/domain/dice/dice-3d/throw-validation';
 import { Config } from '@axe/domain/peer/config';
-import type { Dice3dEngine, DicePicture, DrawnRegion, PreparedThrow } from '@axe/infrastructure/dice-3d/dice-3d-engine';
+import type {
+  Dice3dEngine,
+  DicePicture,
+  DrawnRegion,
+  PreparedThrow,
+  ThrowToDraw,
+} from '@axe/infrastructure/dice-3d/dice-3d-engine';
+import { throwSecondsOf } from '@axe/infrastructure/dice-3d/dice-physics-message';
 import type { FacePicture } from '@axe/infrastructure/dice-3d/dice-textures';
 
 /** What the dice are drawn with: the part of the 3D engine the page uses. */
@@ -124,6 +132,7 @@ export class DiceRenderService {
   private readonly renderLite = inject(RenderLiteService);
   private readonly myDice = inject(MyDiceService);
   private readonly coordinates = inject(CoordinateService);
+  private readonly table3d = inject(Table3dService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
   private readonly loadEngine = inject(DICE_ENGINE_LOADER);
@@ -142,6 +151,8 @@ export class DiceRenderService {
     string,
     { result: DiceThrow['result']; picture: string; prepared: PreparedThrow }
   >();
+  /** What each throw is drawn from, kept while it is unchanged so the table's scene does not build it again. */
+  private readonly draws = new Map<string, { result: DiceThrow['result']; picture: string; draw: ThrowToDraw }>();
   /** The throws on the table whose dice have gone from it, which are not looked at again. */
   private readonly offTable = new Set<string>();
   /**
@@ -188,7 +199,11 @@ export class DiceRenderService {
       const throws = this.throws.throws();
       const wanted = [wornDiceLook(this.myDice.look()).material];
       for (const diceThrow of throws.values()) if (diceThrow.phase === 'working') wanted.push(diceThrow.look.material);
-      untracked(() => this.warm(wanted));
+      const inScene = this.table3d.drawsOnCanvas();
+      untracked(() => {
+        this.warm(wanted);
+        if (inScene) this.table3d.warmDice(wanted.map((material) => this.drawnAs(material)));
+      });
     });
     // A picture the dice wear is read once it has arrived whole, and until then they are drawn
     // without it; every throw wearing it is drawn again once it is here.
@@ -279,9 +294,21 @@ export class DiceRenderService {
     this.frame = 0;
     const throws = this.throws.throws();
     const onTable = [...throws.values()].some((t) => t.stage === 'table' && t.result && t.phase !== 'failed');
+    const inScene = this.table3d.drawsOnCanvas();
+    for (const id of this.draws.keys()) if (!throws.has(id)) this.draws.delete(id);
     if (this.stages.size < 1 && !onTable) {
       this.clearTable();
+      if (inScene) this.table3d.showDice([]);
       return;
+    }
+    let moving = false;
+    if (inScene) {
+      this.clearTable();
+      moving = this.showInScene(throws, now);
+      if (this.stages.size < 1) {
+        if (moving) this.wake();
+        return;
+      }
     }
     const engine = this.engine;
     if (!engine) {
@@ -299,7 +326,6 @@ export class DiceRenderService {
     for (const id of this.offTable) if (!throws.has(id)) this.offTable.delete(id);
     const pixelRatio = Math.min(devicePixelRatio || 1, this.renderLite.active() ? LITE_PIXEL_RATIO : MAX_PIXEL_RATIO);
 
-    let moving = false;
     for (const [id, stages] of this.byThrow()) {
       const diceThrow = throws.get(id);
       if (!diceThrow?.result || diceThrow.phase === 'failed' || diceThrow.stage !== 'frame') continue;
@@ -320,8 +346,34 @@ export class DiceRenderService {
       );
       for (const stage of due) copy(engine.canvas, region, stage, pixelRatio);
     }
-    if (this.drawTable(engine, throws, now, pixelRatio)) moving = true;
+    if (!inScene && this.drawTable(engine, throws, now, pixelRatio)) moving = true;
     if (moving) this.wake();
+  }
+
+  /**
+   * Hands the throws on the table to the table's own scene, drawn on a canvas, each as far into its
+   * throw as it has played and as faded as it is, and says whether any is still on show. The scene
+   * hides them behind the walls and pieces in front of them, which a sheet laid over the table
+   * cannot.
+   */
+  private showInScene(throws: ReadonlyMap<string, DiceThrow>, now: number): boolean {
+    const rests = this.restsOnTable(throws, now);
+    const showing = [...throws.values()].filter((diceThrow) => this.isOnTable(diceThrow, rests, now));
+    this.table3d.showDice(
+      showing.map((diceThrow) => {
+        const draw = this.drawOf(diceThrow);
+        const { endSeconds } = throwSecondsOf(draw.result, !!draw.accent);
+        const played = (now - this.playedFrom(diceThrow, now)) / 1000;
+        return {
+          key: diceThrow.key,
+          draw,
+          model: diceThrow.placement!.model,
+          seconds: diceThrow.still ? endSeconds : Math.min(played, endSeconds),
+          opacity: fadeOf((now - rests.get(diceThrow.messageIdentifier)!) / 1000),
+        };
+      })
+    );
+    return showing.length > 0;
   }
 
   /**
@@ -336,7 +388,7 @@ export class DiceRenderService {
   ): boolean {
     const table = this.table;
     if (!table) return false;
-    const rests = this.restsOnTable(engine, throws, now);
+    const rests = this.restsOnTable(throws, now);
     const showing = [...throws.values()].filter((diceThrow) => this.isOnTable(diceThrow, rests, now));
     const context = this.clearTable(showing.length > 0 ? pixelRatio : 0);
     if (!context || showing.length < 1) return false;
@@ -354,9 +406,7 @@ export class DiceRenderService {
         { kind: 'table', projection: shot.clip, eye: shot.eye },
         { width: shot.width, height: shot.height, pixelRatio }
       );
-      const sinceRest = (now - rests.get(diceThrow.messageIdentifier)!) / 1000;
-      context.globalAlpha =
-        sinceRest <= TABLE_HOLD_SECONDS ? 1 : Math.max(0, 1 - (sinceRest - TABLE_HOLD_SECONDS) / TABLE_FADE_SECONDS);
+      context.globalAlpha = fadeOf((now - rests.get(diceThrow.messageIdentifier)!) / 1000);
       context.drawImage(
         engine.canvas,
         region.x,
@@ -378,12 +428,12 @@ export class DiceRenderService {
    * roll stay and fade together, from when the last of them stops. A roll with a tray still being
    * worked out has not come to rest.
    */
-  private restsOnTable(engine: DiceEngine, throws: ReadonlyMap<string, DiceThrow>, now: number): Map<string, number> {
+  private restsOnTable(throws: ReadonlyMap<string, DiceThrow>, now: number): Map<string, number> {
     const rests = new Map<string, number>();
     for (const diceThrow of throws.values()) {
       if (diceThrow.stage !== 'table' || !diceThrow.placement || diceThrow.phase === 'failed') continue;
       if (this.offTable.has(diceThrow.key)) continue;
-      const rest = diceThrow.result ? this.restOf(engine, diceThrow, now) : Infinity;
+      const rest = diceThrow.result ? this.restOf(diceThrow, now) : Infinity;
       const roll = diceThrow.messageIdentifier;
       rests.set(roll, Math.max(rests.get(roll) ?? -Infinity, rest));
     }
@@ -391,10 +441,10 @@ export class DiceRenderService {
   }
 
   /** When a throw on the table came to rest, worked out once from the whole of its recording. */
-  private restOf(engine: DiceEngine, diceThrow: DiceThrow, now: number): number {
+  private restOf(diceThrow: DiceThrow, now: number): number {
     let rest = this.restedAt.get(diceThrow.key);
     if (rest === undefined) {
-      const seconds = diceThrow.still ? 0 : this.preparedFor(engine, diceThrow).endSeconds;
+      const seconds = diceThrow.still ? 0 : throwSecondsOf(diceThrow.result!, accentOf(diceThrow) !== '').endSeconds;
       rest = this.playedFrom(diceThrow, now) + seconds * 1000;
       this.restedAt.set(diceThrow.key, rest);
     }
@@ -522,19 +572,29 @@ export class DiceRenderService {
     const kept = this.prepared.get(diceThrow.key);
     if (kept && kept.result === diceThrow.result && kept.picture === (picture?.key ?? '')) return kept.prepared;
     if (kept) engine.release(kept.prepared);
-    const prepared = engine.prepare({
+    const prepared = engine.prepare(this.drawOf(diceThrow));
+    this.prepared.set(diceThrow.key, { result: diceThrow.result, picture: picture?.key ?? '', prepared });
+    return prepared;
+  }
+
+  /** What a throw is drawn from: its dice, their look, its tray and its recording, the same while none of them changes. */
+  private drawOf(diceThrow: DiceThrow): ThrowToDraw {
+    const picture = this.pictureOf(diceThrow);
+    const kept = this.draws.get(diceThrow.key);
+    if (kept && kept.result === diceThrow.result && kept.picture === (picture?.key ?? '')) return kept.draw;
+    const draw: ThrowToDraw = {
       dice: diceThrow.dice,
       color: diceThrow.color,
       ink: diceThrow.look.ink,
       material: this.drawnAs(diceThrow.look.material),
       ...(picture ? { picture } : {}),
-      accent: diceThrow.outcome === 'critical' || diceThrow.outcome === 'fumble' ? diceThrow.outcome : '',
+      accent: accentOf(diceThrow),
       seedKey: throwKeyOf(diceThrow.messageIdentifier, diceThrow.part, 'frame'),
       tray: diceThrow.tray,
       result: diceThrow.result!,
-    });
-    this.prepared.set(diceThrow.key, { result: diceThrow.result, picture: picture?.key ?? '', prepared });
-    return prepared;
+    };
+    this.draws.set(diceThrow.key, { result: diceThrow.result, picture: picture?.key ?? '', draw });
+    return draw;
   }
 
   /** What a material is drawn as here: glass, which costs a second drawing of the scene, is resin on a device drawn lightly. */
@@ -615,6 +675,16 @@ export class DiceRenderService {
     }
     return grouped;
   }
+}
+
+/** A critical or a fumble, which the dice flash as they come to rest; empty for neither. */
+function accentOf(diceThrow: DiceThrow): 'critical' | 'fumble' | '' {
+  return diceThrow.outcome === 'critical' || diceThrow.outcome === 'fumble' ? diceThrow.outcome : '';
+}
+
+/** How opaque dice on the table are some seconds after their roll came to rest: whole while they stay, then fading. */
+function fadeOf(sinceRest: number): number {
+  return sinceRest <= TABLE_HOLD_SECONDS ? 1 : Math.max(0, 1 - (sinceRest - TABLE_HOLD_SECONDS) / TABLE_FADE_SECONDS);
 }
 
 /** Copies the engine's picture onto a stage's canvas, sized to the stage. */

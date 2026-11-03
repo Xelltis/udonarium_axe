@@ -28,6 +28,7 @@ import { MotionService } from '@axe/application/ui/motion.service';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { TableGraphics, tableGraphicsOf } from '@axe/core/util/graphics-acceleration';
+import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
 import { dayFractionOf } from '@axe/domain/game-clock/game-clock';
 import { matrixColumns, tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
 import { groundLiftOfBlock } from '@axe/domain/tabletop/ground/ground-surface';
@@ -49,6 +50,7 @@ import { TableWorld, tableWorldOf } from '@axe/domain/tabletop/world/table-world
 import type {
   Table3dBackend,
   Table3dCamera,
+  Table3dDiceThrow,
   Table3dEngine,
   Table3dEngineModule,
   Table3dGrid,
@@ -274,6 +276,8 @@ export class Table3dService {
   /** Where the table keeps its canvas, to put it back once a view has done with it. */
   private canvasHome: { readonly parent: Node; readonly next: Node | null } | null = null;
   private lentTo: HTMLElement | null = null;
+  private diceThrows: readonly Table3dDiceThrow[] = [];
+  private readonly diceWarmed = new Set<DiceMaterial>();
   private frameForMotion = false;
   private engine: Table3dEngine | null = null;
   /** The page's grid, laid over the board on the canvas, or null while the page draws none. */
@@ -323,6 +327,8 @@ export class Table3dService {
       engine = made;
       if (!made) return;
       this.engine = made;
+      made.setDice(this.diceThrows);
+      made.warmDice([...this.diceWarmed]);
       made.onNeedsFrame(() => this.drawSoon(made));
       effects.push(...this.follow(made));
       made.onLost(() => this.restart());
@@ -346,6 +352,26 @@ export class Table3dService {
       this.backend.set(null);
       this.settleIfIdle();
     };
+  }
+
+  /**
+   * Puts the dice of the rolls thrown on the table into the scene, each as far into its throw as
+   * given, to be drawn on the next frame; an engine started later is handed them too.
+   */
+  showDice(throws: readonly Table3dDiceThrow[]): void {
+    this.diceThrows = throws;
+    const engine = this.engine;
+    if (!engine) return;
+    engine.setDice(throws);
+    this.drawSoon(engine);
+  }
+
+  /** Has the shaders of the dice of these materials built ahead, now or once the engine has started. */
+  warmDice(materials: readonly DiceMaterial[]): void {
+    const fresh = materials.filter((material) => !this.diceWarmed.has(material));
+    if (fresh.length < 1) return;
+    for (const material of fresh) this.diceWarmed.add(material);
+    this.engine?.warmDice(fresh);
   }
 
   /**
