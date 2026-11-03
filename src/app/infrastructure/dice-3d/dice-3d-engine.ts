@@ -2,17 +2,17 @@ import type { DiceMaterial, DicePictureFit } from '@axe/domain/dice/dice-3d/dice
 import { DieLabels } from '@axe/domain/dice/dice-3d/dice-throw-plan';
 import { dieRadiusOf, DieShape, polyhedronOf } from '@axe/domain/dice/dice-3d/polyhedra';
 import { Tray } from '@axe/domain/dice/dice-3d/throw-validation';
-import {
-  DiceDressing,
-  DiceDressingKind,
-  dressDie,
-  faceColorsOf,
-  FINISHES,
-  swirlSeedOf,
-  veinOf,
-} from '@axe/infrastructure/dice-3d/dice-finish';
+import { DiceDressing, DiceDressingKind, dressDie } from '@axe/infrastructure/dice-3d/dice-finish';
+import { faceColorsOf, FINISHES, swirlSeedOf, veinOf } from '@axe/infrastructure/dice-3d/dice-finishes';
 import { diceMeshOf } from '@axe/infrastructure/dice-3d/dice-geometry';
-import { DiceThrowResult, FRAME_STRIDE, FRAMES_PER_SECOND } from '@axe/infrastructure/dice-3d/dice-physics-message';
+import { DiceThrowResult, throwSecondsOf } from '@axe/infrastructure/dice-3d/dice-physics-message';
+import {
+  ACCENT_COLORS,
+  contactTexture,
+  haloTexture,
+  type PosedThrow,
+  poseThrow,
+} from '@axe/infrastructure/dice-3d/dice-pose';
 import { diceStudio } from '@axe/infrastructure/dice-3d/dice-studio';
 import {
   averageColorOf,
@@ -40,7 +40,6 @@ import {
   PerspectiveCamera,
   PlaneGeometry,
   PMREMGenerator,
-  Quaternion,
   RepeatWrapping,
   Scene,
   ShadowMaterial,
@@ -117,7 +116,7 @@ export interface DrawSize {
 }
 
 /** A throw set up to be drawn, frame after frame. */
-export interface PreparedThrow {
+export interface PreparedThrow extends PosedThrow {
   readonly root: Group;
   readonly bodies: readonly Group[];
   /** The soft dark patch under each die where it meets the floor. */
@@ -139,23 +138,6 @@ export interface PreparedThrow {
   readonly owned: readonly MeshPhysicalMaterial[];
 }
 
-/**
- * How dark the patch under a die is where it touches the floor, how wide beside the die, and how
- * high the die rises before the patch is gone: the light's shadow alone leaves a die looking stuck
- * on rather than standing on a busy table.
- */
-const CONTACT_OPACITY = 0.55;
-const CONTACT_SPREAD = 2.3;
-const CONTACT_FADE_HEIGHT = 3;
-/** How far above the floor the patch lies, so it is drawn over the floor and not into it. */
-const CONTACT_LIFT = 0.02;
-/**
- * The ring of light a critical or a fumble flashes under each die as it comes to rest: its colour,
- * how wide beside the die, and how long it swells and fades, in seconds.
- */
-const ACCENT_COLORS = { critical: 0xffc53d, fumble: 0xff3344 } as const;
-const HALO_SPREAD = 3.4;
-const ACCENT_SECONDS = 1.1;
 const TEXTURE_CACHE_SIZE = 24;
 /** Every shape and way of numbering it a roll can throw, whose engravings are cut ahead. */
 const ENGRAVINGS: readonly (readonly [DieShape, DieLabels])[] = [
@@ -374,14 +356,13 @@ export class Dice3dEngine {
           return halo;
         })
       : [];
-    const restSeconds = draw.result.restFrame / FRAMES_PER_SECOND;
-    const totalSeconds = (draw.result.frameCount - 1) / FRAMES_PER_SECOND;
+    const { restSeconds, totalSeconds, endSeconds } = throwSecondsOf(draw.result, accent !== null);
     return {
       root,
       bodies,
       halos,
       owned,
-      endSeconds: accent ? Math.max(totalSeconds, restSeconds + ACCENT_SECONDS) : totalSeconds,
+      endSeconds,
       contacts,
       radii: draw.dice.map((die) => dieRadiusOf(die.shape)),
       restHeights: draw.dice.map((die) => polyhedronOf(die.shape).inradius * dieRadiusOf(die.shape)),
@@ -402,7 +383,7 @@ export class Dice3dEngine {
   render(prepared: PreparedThrow, seconds: number, view: ThrowView, size: DrawSize): DrawnRegion {
     const region = this.fit(size);
     if (this.lost) return region;
-    pose(prepared, seconds);
+    poseThrow(prepared, seconds);
     this.scene.add(prepared.root);
     const camera = this.layOut(prepared.tray, view, size.width / size.height);
     this.renderer.render(this.scene, camera);
@@ -708,48 +689,6 @@ const STILL_D6: DiceThrowResult = {
   fault: null,
 };
 
-/** Sets every die where the recording has it some seconds in, between the two frames about that moment. */
-function pose(prepared: PreparedThrow, seconds: number): void {
-  const { result, bodies } = prepared;
-  const count = bodies.length;
-  const at = Math.min(Math.max(seconds * FRAMES_PER_SECOND, 0), result.frameCount - 1);
-  const before = Math.floor(at);
-  const after = Math.min(before + 1, result.frameCount - 1);
-  const t = at - before;
-  const q0 = new Quaternion();
-  const q1 = new Quaternion();
-  bodies.forEach((body, index) => {
-    const a = (before * count + index) * FRAME_STRIDE;
-    const b = (after * count + index) * FRAME_STRIDE;
-    const f = result.frames;
-    body.position.set(
-      f[a] + (f[b] - f[a]) * t,
-      f[a + 1] + (f[b + 1] - f[a + 1]) * t,
-      f[a + 2] + (f[b + 2] - f[a + 2]) * t
-    );
-    q0.set(f[a + 3], f[a + 4], f[a + 5], f[a + 6]);
-    q1.set(f[b + 3], f[b + 4], f[b + 5], f[b + 6]);
-    body.quaternion.slerpQuaternions(q0, q1, t);
-
-    // The patch under the die spreads and fades as the die leaves the floor.
-    const lift = Math.max(0, body.position.z - prepared.restHeights[index]);
-    const contact = prepared.contacts[index];
-    contact.position.set(body.position.x, body.position.y, CONTACT_LIFT);
-    contact.scale.setScalar(prepared.radii[index] * CONTACT_SPREAD * (1 + lift * 0.12));
-    contact.material.opacity = CONTACT_OPACITY * Math.max(0, 1 - lift / CONTACT_FADE_HEIGHT);
-
-    // A critical or a fumble swells a ring of light under the die as it stops, and lets it go.
-    const halo = prepared.halos[index];
-    if (halo) {
-      const since = (seconds - prepared.restSeconds) / ACCENT_SECONDS;
-      const swell = since > 0 && since < 1 ? Math.sin(Math.PI * since) : 0;
-      halo.position.set(body.position.x, body.position.y, CONTACT_LIFT * 2);
-      halo.scale.setScalar(prepared.radii[index] * HALO_SPREAD * (0.85 + 0.25 * since));
-      halo.material.opacity = swell;
-    }
-  });
-}
-
 /**
  * Sets the frame's camera high above the tray and a little in front of it, looking down at it, as
  * far back as it needs to be for the whole floor and the dice resting against its walls to fit the frame.
@@ -783,38 +722,6 @@ function fitFrameCamera(camera: PerspectiveCamera, tray: Tray, aspect: number): 
   camera.far = far * 3;
   camera.updateMatrixWorld();
   camera.updateProjectionMatrix();
-}
-
-/** A ring, bright a little in from its edge and fading softly to nothing inside and out. */
-function haloTexture(): CanvasTexture {
-  const size = 128;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  gradient.addColorStop(0, 'rgba(255,255,255,0)');
-  gradient.addColorStop(0.42, 'rgba(255,255,255,0.08)');
-  gradient.addColorStop(0.72, 'rgba(255,255,255,1)');
-  gradient.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-  return new CanvasTexture(canvas);
-}
-
-/** A round patch, darkest in the middle and fading out softly to nothing at its edge. */
-function contactTexture(): CanvasTexture {
-  const size = 128;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  gradient.addColorStop(0, 'rgba(255,255,255,1)');
-  gradient.addColorStop(0.35, 'rgba(255,255,255,0.62)');
-  gradient.addColorStop(0.7, 'rgba(255,255,255,0.16)');
-  gradient.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-  return new CanvasTexture(canvas);
 }
 
 /** Lets a die's material go with its faces' picture; its engraving is shared, and kept. */
