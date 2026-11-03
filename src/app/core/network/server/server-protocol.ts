@@ -11,7 +11,7 @@
  */
 
 /** Raised whenever an envelope changes; a hello at another version is refused with protocol-mismatch. */
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 
 /** The room server's own peer id, a shape no client id can take. */
 export const AUTHORITY_PEER_ID = '@authority';
