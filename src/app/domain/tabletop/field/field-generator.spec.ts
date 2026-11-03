@@ -7,6 +7,7 @@ import {
 } from '@axe/domain/tabletop/field/field-atmosphere';
 import { fieldBoardSize, planField } from '@axe/domain/tabletop/field/field-generator';
 import { propAt } from '@axe/domain/tabletop/field/field-layout';
+import { FIELD_MODEL_IDS, type FieldModelId } from '@axe/domain/tabletop/field/field-models';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { MAP_MAX_TERRAINS } from '@axe/domain/tabletop/map-blocks';
 import { boardExtentPx } from '@axe/domain/tabletop/map-grid';
@@ -26,6 +27,20 @@ describe('fieldBoardSize()', () => {
 });
 
 describe('planField()', () => {
+  it('stands each tree, bush and rock as one block drawn as a bundled model when asked, the rest as ever', () => {
+    const built = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7 });
+    const modelled = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7, models: true });
+
+    expect(built.blocks.blocks.some((block) => block.model)).toBe(false);
+    const dressed = modelled.blocks.blocks.filter((block) => block.model);
+    expect(dressed.length).toBeGreaterThan(0);
+    expect(dressed.every((block) => FIELD_MODEL_IDS.includes(block.model as FieldModelId))).toBe(true);
+    const trees = modelled.layout.objects.filter((object) => object.prop === 'tree');
+    expect(dressed.filter((block) => block.thing === 'tree')).toHaveLength(trees.length);
+    expect(modelled.blocks.blocks.length).toBeLessThan(built.blocks.blocks.length);
+    expect(modelled.blocks.blocks.filter((block) => block.thing === 'tree').every((block) => block.model)).toBe(true);
+  });
+
   it('lays out the same field twice for one seed, and another for another', () => {
     const first = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7 });
     const again = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7 });

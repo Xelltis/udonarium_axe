@@ -2936,6 +2936,7 @@
           "fieldSize": "Map size",
           "density": "Undergrowth",
           "relief": "Ground relief (cells)",
+          "models": "Stand trees and rocks as 3D models (seen on a 3D table)",
           "gridType": "Cell shape",
           "hexNote": "Hexes cannot be gathered up, so a block is placed per cell and the board is made smaller to pay for it.",
           "corridorWidth": "Passage width",

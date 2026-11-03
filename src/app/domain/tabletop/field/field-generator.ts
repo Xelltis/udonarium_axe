@@ -22,6 +22,8 @@ export interface FieldRequest {
   seed: number;
   /** How high open ground is raised from its lowest to its highest, in cells. Left out, it lies flat. */
   relief?: number;
+  /** Whether trees, bushes and rocks are stood as the bundled 3D models. Left out, they are built of blocks. */
+  models?: boolean;
 }
 
 export interface FieldPlan {
@@ -52,5 +54,5 @@ export function planField(request: FieldRequest): FieldPlan {
   const relief = clampFieldRelief(request.relief ?? 0);
   const layout = generateField(atmosphere, width, height, request.seed, density, relief, grid.type);
   const span = mergeSpanFor(grid, FIELD_MERGE_SPAN);
-  return { atmosphere, layout, blocks: fieldToBlocks(layout, atmosphere, request.seed, span) };
+  return { atmosphere, layout, blocks: fieldToBlocks(layout, atmosphere, request.seed, span, request.models === true) };
 }

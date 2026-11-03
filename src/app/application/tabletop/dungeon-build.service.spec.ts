@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { DungeonBuildService } from '@axe/application/tabletop/dungeon-build.service';
 import { wallLightInset, wallLightPitch } from '@axe/application/tabletop/dungeon-build.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ImageTag } from '@axe/domain/media/image-tag';
@@ -225,6 +226,30 @@ describe('DungeonBuildService', () => {
 
     expect(store.getObjects(GameTable).length).toBe(1);
     expect(store.getObjects(GameTable)[0]).toBe(result.table);
+  });
+
+  it('gives each tree and rock of a field stood as models the bundled model it is drawn as, read once for the build', async () => {
+    const plan = planField({ atmosphere: 'woodland', size: 20, density: 50, seed: 3, models: true });
+    const fetched = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async () => new Response(new Blob([new Uint8Array(8)])));
+    const added = vi
+      .spyOn(TestBed.inject(ModelStorage), 'addAsync')
+      .mockImplementation(async (file) => ({ identifier: `held-${(file as File).name}` }) as never);
+
+    const { table } = await service.build(plan.layout, plan.atmosphere, plan.blocks, options());
+
+    const dressed = plan.blocks.blocks.filter((block) => block.model);
+    expect(table.terrains.filter((terrain) => terrain.modelIdentifier).length).toBe(dressed.length);
+    expect(
+      table.terrains
+        .filter((terrain) => terrain.modelIdentifier)
+        .every((terrain) => terrain.modelIdentifier.startsWith('held-'))
+    ).toBe(true);
+    const kinds = new Set(dressed.map((block) => block.model));
+    expect(fetched).toHaveBeenCalledTimes(kinds.size);
+    expect(added).toHaveBeenCalledTimes(kinds.size);
+    fetched.mockRestore();
   });
 
   it('raises the ground of a field as its layout raises it, and leaves a flat one with none kept', async () => {

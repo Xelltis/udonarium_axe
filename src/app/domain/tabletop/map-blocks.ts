@@ -81,6 +81,11 @@ export interface MapBlock {
    * Left out, it is called after its kind: a wall, a door, a stair.
    */
   thing?: string;
+  /**
+   * A bundled 3D model it is drawn as, on a table drawn on a canvas, in place of its faces: a tree, a
+   * rock. Left out, it is drawn as its faces.
+   */
+  model?: string;
 }
 
 /**

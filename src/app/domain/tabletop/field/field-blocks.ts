@@ -8,6 +8,7 @@ import {
   TownPlan,
 } from '@axe/domain/tabletop/field/field-atmosphere';
 import { FieldLayout } from '@axe/domain/tabletop/field/field-layout';
+import { fieldModelAt } from '@axe/domain/tabletop/field/field-models';
 import { FieldBuilding } from '@axe/domain/tabletop/field/town-layout';
 import { MapBlock, MapBlocks, MapLight, MapLightKind, MapPaint } from '@axe/domain/tabletop/map-blocks';
 
@@ -30,6 +31,35 @@ export const TOWN_PIECE_IDS = ['building', 'roofUnit'] as const;
  * town leaves it alone.
  */
 const ROOF_PLANT = { side: 'metal_grate', top: 'metal_grate', height: 0.5, fill: 0.7 } as const;
+
+/**
+ * A standing thing drawn as a bundled 3D model: one block as wide as the thing spreads and as tall as
+ * it stands from the ground to its crown, stopping sight where the thing does, which the model is drawn
+ * in place of. Its blocks laid course on course are what draw it on a table the page draws itself.
+ */
+function modelledThing(
+  object: FieldLayout['objects'][number],
+  shape: (typeof FIELD_PROP_SHAPES)[FieldPropId],
+  skin: { side: string; top: string },
+  rect: { x: number; y: number; w: number; h: number },
+  model: string
+): MapBlock {
+  const layers = shape.layers ?? [{ spread: object.span, height: shape.height }];
+  const crown = (shape.altitude ?? 0) + object.lift + layers.reduce((total, layer) => total + layer.height, 0);
+  const height = Math.max(crown, shape.trunk ? shape.trunk.height + object.lift : 0, shape.height);
+  return {
+    kind: 'prop',
+    rect,
+    blocksSight: shape.blocksSight,
+    locked: false,
+    rooms: [],
+    skin: { side: { kind: 'texture', id: skin.side }, top: { kind: 'texture', id: skin.top } },
+    height,
+    rotate: object.spin,
+    thing: object.prop,
+    model,
+  };
+}
 
 function maskOfBand(layout: FieldLayout, band: number): Uint8Array {
   const mask = new Uint8Array(layout.width * layout.height);
@@ -149,7 +179,8 @@ export function fieldToBlocks(
   layout: FieldLayout,
   atmosphere: FieldAtmosphere,
   seed: number,
-  mergeSpan: number = FIELD_MERGE_SPAN
+  mergeSpan: number = FIELD_MERGE_SPAN,
+  models = false
 ): MapBlocks {
   const blocks: MapBlock[] = [];
   const paint: MapPaint[] = [];
@@ -204,6 +235,12 @@ export function fieldToBlocks(
     const skin = object.skin ?? { side: shape.side, top: shape.top };
     const reach = (object.span - 1) / 2;
     const rect = { x: object.x - reach, y: object.y - reach, w: object.span, h: object.span };
+    const model = models ? fieldModelAt(object.prop, object.x, object.y, seed) : null;
+
+    if (model) {
+      blocks.push(modelledThing(object, shape, skin, rect, model));
+      continue;
+    }
 
     if (shape.trunk) {
       const trunk = shape.trunk;

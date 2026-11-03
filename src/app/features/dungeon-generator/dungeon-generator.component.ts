@@ -8,6 +8,7 @@ import {
   DungeonBuildService,
   DungeonMaterial,
 } from '@axe/application/tabletop/dungeon-build.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { emitSelectGameTable } from '@axe/core/event/domain-events';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -141,6 +142,11 @@ export class DungeonGeneratorComponent {
   /** How high the ground of open country is raised, in cells; a town is never raised. */
   protected readonly fieldRelief = signal(0);
   protected readonly fieldRaises = computed(() => !fieldAtmosphereById(this.fieldAtmosphere()).town);
+  /**
+   * Whether the trees, bushes and rocks of open country are stood as the bundled 3D models, as a table
+   * drawn on a canvas draws them; a seat whose table the page draws itself builds them of blocks.
+   */
+  protected readonly fieldModels = signal(inject(Table3dService).drawsOnCanvas());
   protected readonly roomCount = signal(8);
   protected readonly trapCount = signal(0);
   protected readonly seed = signal(Math.floor(Math.random() * SEED_LIMIT));
@@ -250,6 +256,7 @@ export class DungeonGeneratorComponent {
       seed: this.seed(),
       gridType: this.gridType(),
       relief: this.fieldRelief(),
+      models: this.fieldModels(),
     })
   );
 
