@@ -46,6 +46,12 @@
       "on": "렌더링: 가볍게",
       "off": "렌더링: 기본"
     },
+    "tableQuality": {
+      "auto": "테이블 화질: 자동",
+      "high": "테이블 화질: 높음",
+      "standard": "테이블 화질: 표준",
+      "light": "테이블 화질: 가벼움"
+    },
     "panel": {
       "peerMenu": "접속 정보",
       "chatWindow": "채팅 창",

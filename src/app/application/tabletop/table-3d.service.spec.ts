@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ImageService } from '@axe/application/storage/image.service';
 import { TABLE_3D_ENGINES, TABLE_GRAPHICS, Table3dService } from '@axe/application/tabletop/table-3d.service';
+import { Table3dQualityService } from '@axe/application/tabletop/table-3d-quality.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -22,6 +23,7 @@ import type {
   Table3dShadowLight,
   Table3dVeil,
 } from '@axe/infrastructure/table-3d/table-3d-port';
+import { TABLE_3D_QUALITY, type Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 /** An engine that keeps what it is told and counts what it draws. */
@@ -37,6 +39,7 @@ class FakeEngine implements Table3dEngine {
   lightMaps: (Table3dLightMap | null)[] = [];
   shadowLights: (readonly Table3dShadowLight[])[] = [];
   glows: (Table3dVeil | null)[] = [];
+  qualities: Table3dQualityPlan[] = [];
   flickers = 0;
   drawn = 0;
   disposed = false;
@@ -88,6 +91,11 @@ class FakeEngine implements Table3dEngine {
 
   setShadowLights(lights: readonly Table3dShadowLight[]): void {
     this.shadowLights.push(lights);
+  }
+
+  setQuality(plan: Table3dQualityPlan): void {
+    this.qualities.push(plan);
+    this.changed = true;
   }
 
   setSkyLight(light: SkyLight): void {
@@ -183,9 +191,13 @@ describe('Table3dService', () => {
   beforeEach(() => {
     graphics = { webgpu: true, webgl2: true };
     localStorage.removeItem(STORAGE_KEYS.tableRenderer);
+    localStorage.removeItem(STORAGE_KEYS.tableQuality);
   });
 
-  afterEach(() => localStorage.removeItem(STORAGE_KEYS.tableRenderer));
+  afterEach(() => {
+    localStorage.removeItem(STORAGE_KEYS.tableRenderer);
+    localStorage.removeItem(STORAGE_KEYS.tableQuality);
+  });
 
   it('draws with the page until a seat asks for a canvas, and remembers the choice', () => {
     const scene = service();
@@ -436,5 +448,22 @@ describe('Table3dService', () => {
 
     await atHour(0);
     expect(engine.skies.at(-1)).toEqual(skyLightAt(0));
+  });
+
+  it('draws at the quality the seat chose, and again at another once it chooses that', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    TestBed.tick();
+    await scene.whenIdle();
+    const engine = engines[0];
+    expect(engine.qualities.at(-1)).toEqual(TABLE_3D_QUALITY.standard);
+
+    TestBed.inject(Table3dQualityService).set('high');
+    TestBed.tick();
+    await scene.whenIdle();
+
+    expect(engine.qualities.at(-1)).toEqual(TABLE_3D_QUALITY.high);
+    expect(engine.drawn).toBe(2);
   });
 });

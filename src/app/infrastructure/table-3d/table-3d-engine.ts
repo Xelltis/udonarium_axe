@@ -35,6 +35,7 @@ import type {
   Table3dStats,
   Table3dVeil,
 } from '@axe/infrastructure/table-3d/table-3d-port';
+import { TABLE_3D_QUALITY, type Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
 import { lampColour, SceneVeil } from '@axe/infrastructure/table-3d/veil';
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
 import { attribute, float, max, mix, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
@@ -117,8 +118,8 @@ const GROUND_BOUNCE = 0.6;
 const SKY_DISTANCE_BOARDS = 1.5;
 /** How many pixels a side the map of the shadows the sun and the moon throw is drawn in. */
 const SKY_SHADOW_PX = 2048;
-/** How many lights the scene lights itself with, each throwing shadows of its own. */
-const SHADOW_LIGHTS = 2;
+/** How many lights the scene lights itself with at the most, each throwing shadows of its own. */
+const SHADOW_LIGHTS = TABLE_3D_QUALITY.high.shadowedLights;
 /** How many pixels a side each face of the map of a lamp's shadows is drawn in. */
 const LAMP_SHADOW_PX = 512;
 /**
@@ -189,6 +190,10 @@ class ThreeTableEngine implements Table3dEngine {
     () => new SpotLight(0xffffff, 0, 1, Math.PI / 4, 0.3, 0)
   );
   private laidLamps: readonly Table3dShadowLight[] = [];
+  private askedLamps: readonly Table3dShadowLight[] = [];
+  /** How many lamps of each kind the quality the table is drawn at lets light the scene. */
+  private lampSlots = -1;
+  private readonly litLamps = new Set<PointLight | SpotLight>();
   private flickeredAt = 0;
   private draws = 0;
   private laidSprites: TableWorld['sprites'] = [];
@@ -233,26 +238,35 @@ class ThreeTableEngine implements Table3dEngine {
       lamp.shadow.mapSize.set(LAMP_SHADOW_PX, LAMP_SHADOW_PX);
       lamp.shadow.bias = -0.002;
       lamp.shadow.camera.layers.enable(SHADOW_CASTERS_LAYER);
-      lamp.visible = false;
       this.scene.add(lamp);
     }
     for (const spot of this.spots) this.scene.add(spot.target);
+    this.setQuality(TABLE_3D_QUALITY.standard);
     this.setSkyLight(skyLightAt(0.5));
   }
 
-  setShadowLights(lights: readonly Table3dShadowLight[]): void {
-    const laid = JSON.stringify(lights.slice(0, SHADOW_LIGHTS));
-    if (laid === JSON.stringify(this.laidLamps)) return;
-    this.laidLamps = lights.slice(0, SHADOW_LIGHTS);
+  setQuality(plan: Table3dQualityPlan): void {
+    const slots = Math.min(SHADOW_LIGHTS, plan.shadowedLights);
+    if (slots === this.lampSlots && this.sun.castShadow === plan.skyShadows) return;
+    this.lampSlots = slots;
+    this.lamps.forEach((lamp, index) => (lamp.visible = index < slots));
+    this.spots.forEach((spot, index) => (spot.visible = index < slots));
+    this.sun.castShadow = plan.skyShadows;
+    this.sun.shadow.needsUpdate = true;
+    this.laidLamps = this.askedLamps.slice(0, slots);
     this.lightLamps();
     this.changed = true;
   }
 
-  /**
-   * Stands each lamp where its light is and lights it as strong as the dark leaves room for, so a
-   * board lit by one is as bright as the dark would let a lamp make it; a slot with no light in it is
-   * left dark. Has the shadows drawn again.
-   */
+  setShadowLights(lights: readonly Table3dShadowLight[]): void {
+    this.askedLamps = lights;
+    const laid = JSON.stringify(lights.slice(0, this.lampSlots));
+    if (laid === JSON.stringify(this.laidLamps)) return;
+    this.laidLamps = lights.slice(0, this.lampSlots);
+    this.lightLamps();
+    this.changed = true;
+  }
+
   flicker(timeMs: number): void {
     if (!this.laidLamps.some((light) => light.animation && light.animation !== 'none')) return;
     this.flickeredAt = timeMs;
@@ -260,20 +274,24 @@ class ThreeTableEngine implements Table3dEngine {
     this.changed = true;
   }
 
+  /**
+   * Stands each lamp where its light is and lights it as strong as the dark leaves room for, so a
+   * board lit by one is as bright as the dark would let a lamp make it; a slot with no light in it is
+   * left dark, still in the scene, so the scene is not built again as lamps come and go. Has the
+   * shadows of a lamp that moved drawn again.
+   */
   private lightLamps(moved = true): void {
     const room = Math.max(0, 1 - this.veil.ambient);
-    const free = { round: [...this.lamps], thrown: [...this.spots] };
-    for (const lamp of [...this.lamps, ...this.spots]) {
-      lamp.intensity = 0;
-      lamp.visible = false;
-    }
+    const free = { round: this.lamps.slice(0, this.lampSlots), thrown: this.spots.slice(0, this.lampSlots) };
+    for (const lamp of [...this.lamps, ...this.spots]) lamp.intensity = 0;
+    this.litLamps.clear();
     const strengths = this.laidLamps.map((light) => {
       const strength = room * animationIntensity(light.animation, this.flickeredAt);
       const thrown = light.angle < 360;
       const lamp: PointLight | SpotLight | undefined = thrown ? free.thrown.shift() : free.round.shift();
       if (!lamp) return lampColour({ r: 0, g: 0, b: 0 }, 0);
       lamp.intensity = strength * LIGHT_SCALE;
-      lamp.visible = true;
+      this.litLamps.add(lamp);
       lamp.position.set(light.x, light.z, light.y);
       lamp.distance = Math.max(1, light.dimPx * LAMP_REACH);
       lamp.color.set(light.color || '#ffffff');
@@ -301,7 +319,7 @@ class ThreeTableEngine implements Table3dEngine {
   /** Has the shadows of the sun, the moon and every lamp drawn again, as what throws them has moved. */
   private shadowsMoved(): void {
     this.sun.shadow.needsUpdate = true;
-    for (const lamp of [...this.lamps, ...this.spots]) lamp.shadow.needsUpdate = true;
+    for (const lamp of this.litLamps) lamp.shadow.needsUpdate = true;
   }
 
   /**

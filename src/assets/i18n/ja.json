@@ -46,6 +46,12 @@
       "on": "描画: 軽くする",
       "off": "描画: 通常"
     },
+    "tableQuality": {
+      "auto": "卓の画質: 自動",
+      "high": "卓の画質: 高",
+      "standard": "卓の画質: 標準",
+      "light": "卓の画質: 軽"
+    },
     "panel": {
       "peerMenu": "接続情報",
       "chatWindow": "チャットウィンドウ",

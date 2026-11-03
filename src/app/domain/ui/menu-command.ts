@@ -55,6 +55,7 @@ export const MENU_CYCLES = [
   'theme',
   'motion',
   'renderLite',
+  'tableQuality',
   'language',
   'buffView',
   'buffIconSize',
@@ -271,6 +272,7 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
   cycle('theme', 'brightness_auto', 'common.theme.auto', { testId: 'seat-theme' }),
   cycle('motion', 'motion_photos_auto', 'common.motion.auto', { testId: 'seat-motion' }),
   cycle('renderLite', 'blur_circular', 'common.renderLite.auto', { testId: 'seat-render-lite' }),
+  cycle('tableQuality', 'hdr_auto', 'common.tableQuality.auto', { testId: 'seat-table-quality' }),
   cycle('language', 'translate', 'common.language.switchTooltip', { testId: 'seat-lang' }),
   cycle('buffView', 'auto_fix_high', 'feature.plTools.buffView', {
     audience: 'playing',

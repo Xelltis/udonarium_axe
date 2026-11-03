@@ -15,6 +15,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { FloorCanvasesService } from '@axe/application/tabletop/floor-canvases.service';
 import { GroundService } from '@axe/application/tabletop/ground.service';
 import { LightSlotsService } from '@axe/application/tabletop/light-slots.service';
+import { Table3dQualityService } from '@axe/application/tabletop/table-3d-quality.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
@@ -86,6 +87,7 @@ export class Table3dService {
   private readonly floorCanvases = inject(FloorCanvasesService);
   private readonly tableVeil = inject(TableVeilService);
   private readonly lightSlots = inject(LightSlotsService);
+  private readonly quality = inject(Table3dQualityService);
   private readonly gameClock = inject(GameClockService);
 
   /** The light of the sky over the table at the story's hour, as the room's clock tells it. */
@@ -294,6 +296,13 @@ export class Table3dService {
       effect(
         () => {
           engine.setLightMap(this.tableVeil.lightMap());
+          this.drawSoon(engine);
+        },
+        { injector: this.injector }
+      ),
+      effect(
+        () => {
+          engine.setQuality(this.quality.plan());
           this.drawSoon(engine);
         },
         { injector: this.injector }

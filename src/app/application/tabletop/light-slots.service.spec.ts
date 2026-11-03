@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { LightSlotsService, SHADOW_LIGHT_SLOTS } from '@axe/application/tabletop/light-slots.service';
+import { Table3dQualityService } from '@axe/application/tabletop/table-3d-quality.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { GridType } from '@axe/domain/tabletop/game-table';
@@ -69,6 +70,15 @@ describe('LightSlotsService', () => {
     scene.set(sceneOf([lamp('middle', 500)], false));
 
     expect(slots.lights()).toEqual([]);
+  });
+
+  it('chooses as many as four for a seat that draws the table at high quality', () => {
+    TestBed.inject(Table3dQualityService).setting.set('high');
+    const slots = TestBed.inject(LightSlotsService);
+    scene.set(sceneOf([lamp('a', 100), lamp('b', 300), lamp('c', 500), lamp('d', 700), lamp('e', 900)]));
+
+    expect(slots.count()).toBe(4);
+    expect(slots.lights().map((light) => light.sourceId)).toEqual(['c', 'b', 'd', 'a']);
   });
 
   it('chooses none for a seat that draws the table lightly', () => {

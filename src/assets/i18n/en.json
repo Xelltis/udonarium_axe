@@ -46,6 +46,12 @@
       "on": "Rendering: Lighter",
       "off": "Rendering: Full"
     },
+    "tableQuality": {
+      "auto": "Table quality: auto",
+      "high": "Table quality: high",
+      "standard": "Table quality: standard",
+      "light": "Table quality: light"
+    },
     "panel": {
       "peerMenu": "Connection",
       "chatWindow": "Chat",

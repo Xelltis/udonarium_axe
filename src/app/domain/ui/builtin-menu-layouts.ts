@@ -90,6 +90,7 @@ const FAB: MenuLayout = {
         'soundSettings',
         'motion',
         'renderLite',
+        'tableQuality',
         'language',
         'menuEditor',
         'useMobileLayout',

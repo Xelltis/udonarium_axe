@@ -10,6 +10,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { GroundBrushService } from '@axe/application/tabletop/ground-brush.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
+import { Table3dQualityService } from '@axe/application/tabletop/table-3d-quality.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
@@ -44,6 +45,7 @@ import {
 import { isMenuGroup, MenuLayout, MenuNode } from '@axe/domain/ui/menu-layout';
 import { nextViewMode, viewModeIcon, viewModeLabelKey } from '@axe/domain/ui/view-mode';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
+import type { Table3dQualitySetting } from '@axe/infrastructure/table-3d/table-3d-quality';
 
 const THEME_ICONS: Readonly<Record<Theme, string>> = {
   auto: 'brightness_auto',
@@ -59,6 +61,12 @@ const RENDER_LITE_ICONS: Readonly<Record<RenderLiteSetting, string>> = {
   auto: 'blur_circular',
   on: 'blur_off',
   off: 'blur_on',
+};
+const TABLE_QUALITY_ICONS: Readonly<Record<Table3dQualitySetting, string>> = {
+  auto: 'hdr_auto',
+  high: 'high_quality',
+  standard: 'hd',
+  light: 'sd',
 };
 const BUFF_VIEW_ICONS: Readonly<Record<BuffViewMode, string>> = {
   icon: 'bubble_chart',
@@ -138,6 +146,7 @@ export class MenuCommandService {
   private readonly theme = inject(ThemeService);
   private readonly motion = inject(MotionService);
   private readonly renderLite = inject(RenderLiteService);
+  private readonly tableQuality = inject(Table3dQualityService);
   private readonly language = inject(LanguageService);
   private readonly buffView = inject(BuffViewPreferenceService);
   private readonly mobile = inject(MobileLayoutService);
@@ -253,6 +262,9 @@ export class MenuCommandService {
     if (command.action.kind === 'toggle' && command.action.toggle === 'groundBrush') {
       return this.table3d.drawsOnCanvas();
     }
+    if (command.action.kind === 'cycle' && command.action.cycle === 'tableQuality') {
+      return this.table3d.drawsOnCanvas();
+    }
     return true;
   }
 
@@ -269,6 +281,8 @@ export class MenuCommandService {
           return MOTION_ICONS[this.motion.setting()];
         case 'renderLite':
           return RENDER_LITE_ICONS[this.renderLite.setting()];
+        case 'tableQuality':
+          return TABLE_QUALITY_ICONS[this.tableQuality.setting()];
         case 'buffView':
           return BUFF_VIEW_ICONS[this.buffView.mode()];
         case 'buffIconSize':
@@ -310,6 +324,8 @@ export class MenuCommandService {
           return `common.motion.${this.motion.setting()}`;
         case 'renderLite':
           return `common.renderLite.${this.renderLite.setting()}`;
+        case 'tableQuality':
+          return `common.tableQuality.${this.tableQuality.setting()}`;
         case 'buffView':
           return BUFF_VIEW_LABEL_KEYS[this.buffView.mode()];
         case 'buffIconSize':
@@ -555,6 +571,9 @@ export class MenuCommandService {
         return;
       case 'renderLite':
         this.renderLite.cycle();
+        return;
+      case 'tableQuality':
+        this.tableQuality.cycle();
         return;
       case 'language':
         void this.language.toggle();

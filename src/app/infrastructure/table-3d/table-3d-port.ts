@@ -2,6 +2,7 @@ import type { SceneLight } from '@axe/domain/tabletop/vision-scene';
 import type { SkyLight } from '@axe/domain/tabletop/world/sky-light';
 import type { EyeAxes } from '@axe/domain/tabletop/world/table-sprites';
 import type { TableWorld } from '@axe/domain/tabletop/world/table-world';
+import type { Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
 
 /** Which of the browser's graphics interfaces the table is drawn through. */
 export type Table3dBackend = 'webgpu' | 'webgl2';
@@ -118,6 +119,11 @@ export interface Table3dEngine {
   setSkyLight(light: SkyLight): void;
   /** Darkens the scene as the table is dark, lit where the page's lights reach, or lights it whole with null. */
   setLightMap(map: Table3dLightMap | null): void;
+  /**
+   * Draws the scene at a quality: as many lamps throwing shadows of their own as it allows, and the
+   * sun's and the moon's shadows or none. Changing it has the scene built again once.
+   */
+  setQuality(plan: Table3dQualityPlan): void;
   /** Lights the scene with these lights itself, each throwing shadows of its own, as many as it has slots for. */
   setShadowLights(lights: readonly Table3dShadowLight[]): void;
   /** Brightens and dims the lights the scene lights itself with as they flicker at a moment, in milliseconds. */
