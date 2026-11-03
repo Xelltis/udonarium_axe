@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
+import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableFogAirOverlayComponent } from '@axe/features/tabletop/fog-of-war/table-fog-air-overlay.component';
@@ -35,6 +37,23 @@ describe('TableFogAirOverlayComponent', () => {
     const fixture = TestBed.createComponent(TableFogAirOverlayComponent);
     fixture.detectChanges();
     expect(fixture.componentInstance.sheets()).toHaveLength(0);
+  });
+
+  it('hands the sheets it paints over to a table drawn on a canvas, out of sight, and takes them back when it goes', () => {
+    table(true);
+    TestBed.inject(Table3dService).renderer.set('three');
+    const fixture = TestBed.createComponent(TableFogAirOverlayComponent);
+    fixture.detectChanges();
+    TestBed.tick();
+    const veil = TestBed.inject(TableVeilService);
+
+    expect(veil.fogAir()).toHaveLength(FOG_AIR_LAYER_COUNT);
+    expect(veil.fogAir()[0].heightPx).toBeLessThan(veil.fogAir()[1].heightPx);
+    const canvas = (fixture.nativeElement as HTMLElement).querySelector('canvas')!;
+    expect(canvas.classList.contains('invisible')).toBe(true);
+
+    fixture.destroy();
+    expect(veil.fogAir()).toHaveLength(0);
   });
 
   it('hangs a sheet for each layer once the fog is on', () => {

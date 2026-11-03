@@ -53,6 +53,7 @@ export interface TableTestHooks {
     coins: number;
     layers: number;
     waterParts: number;
+    fogAirSheets: number;
     veilRevision: number;
     lightMapRevision: number;
     shadowCasters: number;

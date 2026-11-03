@@ -18,6 +18,7 @@ import type {
   Table3dEngine,
   Table3dEngineOptions,
   Table3dFloorCanvas,
+  Table3dFogAirSheet,
   Table3dGrid,
   Table3dLightMap,
   Table3dShadowLight,
@@ -39,6 +40,7 @@ class FakeEngine implements Table3dEngine {
   lightMaps: (Table3dLightMap | null)[] = [];
   shadowLights: (readonly Table3dShadowLight[])[] = [];
   glows: (Table3dVeil | null)[] = [];
+  fogAirSheets: (readonly Table3dFogAirSheet[])[] = [];
   qualities: Table3dQualityPlan[] = [];
   moving = false;
   advanced = 0;
@@ -85,6 +87,10 @@ class FakeEngine implements Table3dEngine {
 
   setGlow(glow: Table3dVeil | null): void {
     this.glows.push(glow);
+  }
+
+  setFogAir(sheets: readonly Table3dFogAirSheet[]): void {
+    this.fogAirSheets.push(sheets);
   }
 
   flicker(): void {
@@ -152,6 +158,7 @@ class FakeEngine implements Table3dEngine {
       floorCanvases: 0,
       layers: 0,
       waterParts: 0,
+      fogAirSheets: 0,
       veilRevision: 0,
       lightMapRevision: 0,
       shadowLights: 0,

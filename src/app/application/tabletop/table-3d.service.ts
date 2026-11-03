@@ -373,6 +373,13 @@ export class Table3dService {
       ),
       effect(
         () => {
+          engine.setFogAir(this.tableVeil.fogAir(), this.motion.enabled());
+          this.drawSoon(engine);
+        },
+        { injector: this.injector }
+      ),
+      effect(
+        () => {
           engine.setSkyLight(this.skyLight());
           this.drawSoon(engine);
         },

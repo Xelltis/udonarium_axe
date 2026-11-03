@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import type { Table3dLightMap, Table3dVeil } from '@axe/infrastructure/table-3d/table-3d-port';
+import type { Table3dFogAirSheet, Table3dLightMap, Table3dVeil } from '@axe/infrastructure/table-3d/table-3d-port';
 
 /**
  * What the page draws over what this seat cannot see well, which a table drawn on a canvas lays over
@@ -12,6 +12,7 @@ export class TableVeilService {
   private readonly laid = signal<Table3dVeil | null>(null);
   private readonly darkened = signal<Table3dLightMap | null>(null);
   private readonly glowing = signal<Table3dVeil | null>(null);
+  private readonly hanging = signal<readonly Table3dFogAirSheet[]>([]);
 
   /** The veil laid now, or none. */
   readonly veil = this.laid.asReadonly();
@@ -21,6 +22,9 @@ export class TableVeilService {
 
   /** The glow of the lamps laid now, or none. */
   readonly glow = this.glowing.asReadonly();
+
+  /** The sheets of fog hanging in the air now, none where there is no fog. */
+  readonly fogAir = this.hanging.asReadonly();
 
   /** Lays the canvas the veil is drawn on, or lays it again with what the page has just drawn on it. */
   show(canvas: HTMLCanvasElement): void {
@@ -38,6 +42,20 @@ export class TableVeilService {
   /** Lays the canvas the glow of the lamps is drawn on, or lays it again with what the page has just drawn on it. */
   showGlow(canvas: HTMLCanvasElement): void {
     this.glowing.set({ canvas, box: boxOf(canvas), revision: (this.glowing()?.revision ?? 0) + 1 });
+  }
+
+  /**
+   * Hangs the canvases the sheets of fog in the air are painted on, each at its height and drifting
+   * as the page drifts it, or hangs them again with what the page has just painted on them.
+   */
+  showFogAir(sheets: readonly Omit<Table3dFogAirSheet, 'box' | 'revision'>[]): void {
+    const revision = (this.hanging()[0]?.revision ?? 0) + 1;
+    this.hanging.set(sheets.map((sheet) => ({ ...sheet, box: boxOf(sheet.canvas), revision })));
+  }
+
+  /** Takes the sheets of fog in the air away. */
+  forgetFogAir(): void {
+    if (this.hanging().length > 0) this.hanging.set([]);
   }
 
   /** Takes the veil, the darkness and the glow away. */

@@ -24,12 +24,14 @@ import {
   wallGeometry,
 } from '@axe/infrastructure/table-3d/face-geometry';
 import { FloorCanvasLayer } from '@axe/infrastructure/table-3d/floor-canvas-layer';
+import { FogAirLayer } from '@axe/infrastructure/table-3d/fog-air-layer';
 import { SHADOW_CASTERS_LAYER, SpriteLayer } from '@axe/infrastructure/table-3d/sprite-layer';
 import type {
   Table3dCamera,
   Table3dEngine,
   Table3dEngineOptions,
   Table3dFloorCanvas,
+  Table3dFogAirSheet,
   Table3dGrid,
   Table3dLightMap,
   Table3dShadowLight,
@@ -217,6 +219,7 @@ class ThreeTableEngine implements Table3dEngine {
     (material) => this.veil.cover(material)
   );
   private readonly floorCanvases = new FloorCanvasLayer();
+  private readonly fogAir = new FogAirLayer();
   private readonly water = new WaterLayer((material, taking) => this.veil.cover(material, taking));
   private readonly layers = new BoardLayers(
     (url) => this.sharedPicture(url, true),
@@ -241,6 +244,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.scene.add(this.floorCanvases.group);
     this.scene.add(this.layers.group);
     this.scene.add(this.water.group);
+    this.scene.add(this.fogAir.group);
     this.scene.add(this.sun, this.sun.target, this.sky);
     this.sun.castShadow = true;
     this.sun.shadow.autoUpdate = false;
@@ -425,6 +429,7 @@ class ThreeTableEngine implements Table3dEngine {
       floorCanvases: this.floorCanvases.group.children.length,
       layers: this.layers.shown,
       waterParts: this.water.shown,
+      fogAirSheets: this.fogAir.shown,
       veilRevision: this.veil.revision,
       lightMapRevision: this.veil.lightRevision,
       shadowLights: this.laidLamps.length,
@@ -561,8 +566,14 @@ class ThreeTableEngine implements Table3dEngine {
   advance(timeMs: number): boolean {
     const drifting = this.layers.advance(timeMs);
     const flowing = this.water.advance(timeMs);
+    const hanging = this.fogAir.advance(timeMs);
     this.takeChanges();
-    return drifting || flowing;
+    return drifting || flowing || hanging;
+  }
+
+  setFogAir(sheets: readonly Table3dFogAirSheet[], moving: boolean): void {
+    this.fogAir.set(sheets, moving);
+    this.takeChanges();
   }
 
   renderIfChanged(): boolean {
@@ -574,11 +585,12 @@ class ThreeTableEngine implements Table3dEngine {
     return true;
   }
 
-  /** Takes up what the layers drifting past the board and the water built or moved, which wants drawing. */
+  /** Takes up what the layers drifting past the board, the water and the fog in the air built or moved, which wants drawing. */
   private takeChanges(): void {
     const drifted = this.layers.takeChanged();
     const flowed = this.water.takeChanged();
-    if (drifted || flowed) this.changed = true;
+    const hung = this.fogAir.takeChanged();
+    if (drifted || flowed || hung) this.changed = true;
   }
 
   dispose(): void {
@@ -588,6 +600,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.floorCanvases.dispose();
     this.layers.dispose();
     this.water.dispose();
+    this.fogAir.dispose();
     this.veil.dispose();
     disposeObject(this.scene);
     for (const picture of this.loaded.values()) picture.dispose();

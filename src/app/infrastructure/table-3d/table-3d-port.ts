@@ -78,6 +78,24 @@ export type Table3dShadowLight = Pick<
   'x' | 'y' | 'z' | 'brightPx' | 'dimPx' | 'color' | 'animation' | 'angle' | 'direction' | 'pitch'
 >;
 
+/**
+ * A sheet of the fog hanging in the air over ground nobody has walked to, as the page paints it on a
+ * canvas: where the canvas lies over the board, in table pixels, how high it hangs and how thick it
+ * is, and how it drifts to and fro, as the page drifts it.
+ */
+export interface Table3dFogAirSheet {
+  readonly canvas: HTMLCanvasElement;
+  readonly box: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  readonly heightPx: number;
+  readonly alpha: number;
+  /** Seconds one drift takes, one way. */
+  readonly durationSec: number;
+  /** Where in its drift the sheet starts, as a negative delay, in seconds. */
+  readonly delaySec: number;
+  /** Goes up each time the page paints the sheets again. */
+  readonly revision: number;
+}
+
 /** What the engine holds, counted. */
 export interface Table3dStats {
   readonly chunks: number;
@@ -94,6 +112,8 @@ export interface Table3dStats {
   readonly layers: number;
   /** The parts of the water drawn: its surfaces, floors, sides and shore, each where there is any. */
   readonly waterParts: number;
+  /** The sheets of fog hanging in the air. */
+  readonly fogAirSheets: number;
   /** How many times the veil has been laid anew, 0 while there is none. */
   readonly veilRevision: number;
   /** How many times the light of a dark table has been laid anew, 0 while the table is not dark. */
@@ -119,6 +139,8 @@ export interface Table3dEngine {
   setFloorCanvases(canvases: readonly Table3dFloorCanvas[]): void;
   /** Lays the veil over the scene, or takes it away with null. */
   setVeil(veil: Table3dVeil | null): void;
+  /** Hangs the sheets of fog in the air, drifting where things may move, or takes them away with none. */
+  setFogAir(sheets: readonly Table3dFogAirSheet[], moving: boolean): void;
   /** Lights the scene as the sky does at the story's hour. */
   setSkyLight(light: SkyLight): void;
   /** Darkens the scene as the table is dark, lit where the page's lights reach, or lights it whole with null. */

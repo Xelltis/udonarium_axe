@@ -1,5 +1,5 @@
 @for (sheet of sheets(); track $index) {
   <div [ngStyle]="wrapperStyle(sheet.layer)">
-    <canvas #sheet class="backface-visible" [ngStyle]="sheet.style"></canvas>
+    <canvas #sheet class="backface-visible" [class.invisible]="drawsOnCanvas()" [ngStyle]="sheet.style"></canvas>
   </div>
 }
