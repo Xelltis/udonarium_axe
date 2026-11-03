@@ -145,6 +145,20 @@ export class GameCharacter extends OwnedTabletopObject {
    * or anything but a positive number, keeps the picture's own proportions.
    */
   @SyncVar() komaImageWidth: number = 0;
+  /**
+   * The 3D model the piece is drawn as on a table drawn on a canvas, in place of its picture, by the
+   * identifier it is kept under; empty for none. Read it, with the four after it, through
+   * `pieceModelOf`, as a peer that has never heard of models sends none of the five.
+   */
+  @SyncVar() modelIdentifier: string = '';
+  /** How many times larger than the piece's footprint its model is drawn; empty for the footprint itself. */
+  @SyncVar() modelScale: string = '';
+  /** How far its model is turned from the way the piece faces, in degrees clockwise; empty for not at all. */
+  @SyncVar() modelTurn: string = '';
+  /** The motion its model plays standing still, by name; empty for the model's own. */
+  @SyncVar() modelIdle: string = '';
+  /** The motion its model plays walking, by name; empty for the model's own. */
+  @SyncVar() modelWalk: string = '';
 
   @SyncVar() chatColorCode: string[] = [...DEFAULT_CHAT_COLOR_CODES];
   /** The bubble each colour is shown on, per theme. An empty entry is worked out instead. */
