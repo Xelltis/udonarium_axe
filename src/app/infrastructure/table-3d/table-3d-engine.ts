@@ -331,6 +331,7 @@ class ThreeTableEngine implements Table3dEngine {
       veilRevision: this.veil.revision,
       lightMapRevision: this.veil.lightRevision,
       shadowLights: this.laidLamps.length,
+      glowRevision: this.veil.glowRevision,
     };
   }
 
@@ -421,6 +422,10 @@ class ThreeTableEngine implements Table3dEngine {
 
   setVeil(veil: Table3dVeil | null): void {
     if (this.veil.setVeil(veil)) this.changed = true;
+  }
+
+  setGlow(glow: Table3dVeil | null): void {
+    if (this.veil.setGlow(glow)) this.changed = true;
   }
 
   setLightMap(map: Table3dLightMap | null): void {

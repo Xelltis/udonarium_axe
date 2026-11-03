@@ -36,6 +36,7 @@ class FakeEngine implements Table3dEngine {
   skies: SkyLight[] = [];
   lightMaps: (Table3dLightMap | null)[] = [];
   shadowLights: (readonly Table3dShadowLight[])[] = [];
+  glows: (Table3dVeil | null)[] = [];
   drawn = 0;
   disposed = false;
   lose: () => void = () => undefined;
@@ -74,6 +75,10 @@ class FakeEngine implements Table3dEngine {
   setLightMap(map: Table3dLightMap | null): void {
     this.lightMaps.push(map);
     this.changed = true;
+  }
+
+  setGlow(glow: Table3dVeil | null): void {
+    this.glows.push(glow);
   }
 
   setShadowLights(lights: readonly Table3dShadowLight[]): void {
@@ -128,6 +133,7 @@ class FakeEngine implements Table3dEngine {
       veilRevision: 0,
       lightMapRevision: 0,
       shadowLights: 0,
+      glowRevision: 0,
     };
   }
 }

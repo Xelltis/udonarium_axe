@@ -92,6 +92,8 @@ export interface Table3dStats {
   readonly lightMapRevision: number;
   /** How many lights the scene lights itself with now, throwing shadows of their own. */
   readonly shadowLights: number;
+  /** How many times the glow of the lamps has been laid anew, 0 while there is none. */
+  readonly glowRevision: number;
 }
 
 /** What draws the table on a canvas. It draws only when something it was told has changed. */
@@ -111,6 +113,11 @@ export interface Table3dEngine {
   setLightMap(map: Table3dLightMap | null): void;
   /** Lights the scene with these lights itself, each throwing shadows of its own, as many as it has slots for. */
   setShadowLights(lights: readonly Table3dShadowLight[]): void;
+  /**
+   * Adds the glow of a dark table's lamps, in their colours, as the page draws it on a canvas of its
+   * own, or takes it away with null.
+   */
+  setGlow(glow: Table3dVeil | null): void;
   /** Sizes the canvas's drawing to the box it covers, in CSS pixels, at the screen's pixel ratio. */
   resize(width: number, height: number, pixelRatio: number): void;
   /** Draws the scene when anything changed since it was last drawn, and answers whether it drew. */

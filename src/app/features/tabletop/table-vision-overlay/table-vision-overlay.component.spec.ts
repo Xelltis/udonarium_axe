@@ -129,4 +129,36 @@ describe('TableVisionOverlayComponent on a hex table', () => {
 
     expect(veil.veil()).toBeNull();
   });
+
+  it('hands over the glow of a lamp the scene does not light itself, apart from the darkness', async () => {
+    const veil = TestBed.inject(TableVeilService);
+    TestBed.inject(Table3dService).choose('three');
+    const lamp = {
+      x: 200,
+      y: 200,
+      z: 25,
+      brightPx: 100,
+      dimPx: 200,
+      color: '#ffaa55',
+      angle: 360,
+      direction: 0,
+      pitch: 0,
+      revealToAll: false,
+      castShadows: false,
+      ignoreOcclusion: false,
+      animation: 'none',
+      sourceId: 'lamp',
+      surface: 'floor' as const,
+    };
+
+    await show(hexScene({ lights: [lamp] }));
+
+    expect(veil.glow()?.canvas).not.toBe(veil.lightMap()?.canvas);
+    expect(veil.glow()!.box).toEqual(veil.veil()!.box);
+
+    await show(hexScene());
+
+    expect(veil.glow()).toBeNull();
+    TestBed.inject(Table3dService).choose('css');
+  });
 });

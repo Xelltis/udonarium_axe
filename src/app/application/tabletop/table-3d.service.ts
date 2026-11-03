@@ -303,6 +303,13 @@ export class Table3dService {
       ),
       effect(
         () => {
+          engine.setGlow(this.tableVeil.glow());
+          this.drawSoon(engine);
+        },
+        { injector: this.injector }
+      ),
+      effect(
+        () => {
           engine.setSkyLight(this.skyLight());
           this.drawSoon(engine);
         },

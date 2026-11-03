@@ -42,10 +42,12 @@ export type DarknessTaking = 'lit' | 'unlit';
 export class SceneVeil {
   private readonly fog = new BoardPicture();
   private readonly light = new BoardPicture();
+  private readonly glow = new BoardPicture();
   private readonly darkness = uniform(0);
   private readonly lamps: readonly ShadowLamp[];
   private readonly fogged = this.foggedOutput();
   private readonly lifted = this.liftedOut();
+  private readonly glowing = this.glowLight();
 
   /** As many lamps as the scene has slots for lights of its own, which light what the scene draws unlit. */
   constructor(slots: number) {
@@ -83,6 +85,11 @@ export class SceneVeil {
     return this.light.revision;
   }
 
+  /** How many times the glow of the lamps has been laid anew, 0 while there is none. */
+  get glowRevision(): number {
+    return this.glow.revision;
+  }
+
   /** How much light reaches the board where no lamp does, which the sky's light is to be scaled by. */
   get ambient(): number {
     return srgbToLinear(1 - this.darkness.value);
@@ -95,15 +102,22 @@ export class SceneVeil {
       (material as unknown as { emissiveNode: unknown }).emissiveNode = diffuseColor.rgb.mul(
         this.lifted.sub(this.ambientNode())
       );
-      node.outputNode = this.fogged(output);
+      node.outputNode = this.fogged(vec4(output.rgb.add(this.glowing), output.a));
     } else {
-      node.outputNode = this.fogged(vec4(output.rgb.mul(vec3(this.lifted).add(this.lamplit)), output.a));
+      node.outputNode = this.fogged(
+        vec4(output.rgb.mul(vec3(this.lifted).add(this.lamplit)).add(this.glowing), output.a)
+      );
     }
   }
 
   /** Lays the veil as the page has drawn it now, or takes it away; answers whether anything changed. */
   setVeil(veil: Table3dVeil | null): boolean {
     return this.fog.set(veil);
+  }
+
+  /** Lays the glow of the lamps as the page has drawn it now, or takes it away; answers whether anything changed. */
+  setGlow(glow: Table3dVeil | null): boolean {
+    return this.glow.set(glow);
   }
 
   /** Lays the darkness as the page has drawn it now, or lights the scene whole; answers whether anything changed. */
@@ -117,6 +131,7 @@ export class SceneVeil {
   dispose(): void {
     this.fog.dispose();
     this.light.dispose();
+    this.glow.dispose();
   }
 
   private ambientNode() {
@@ -127,6 +142,15 @@ export class SceneVeil {
   private liftedOut() {
     const dark = this.light.sampled.a.mul(this.light.strength);
     return max(colourNode(sRGBTransferEOTF(vec3(float(1).sub(dark)))).x, this.ambientNode());
+  }
+
+  /**
+   * The glow the page draws round its lamps, added over what the scene draws as the page adds it over
+   * its own drawing, taken back to the light the scene is worked out in.
+   */
+  private glowLight() {
+    const glow = this.glow.sampled;
+    return colourNode(sRGBTransferEOTF(glow.rgb.mul(glow.a).mul(this.glow.strength)));
   }
 
   /** How much the lamps add to a point the scene draws unlit, as their light falls off with distance. */

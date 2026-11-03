@@ -81,6 +81,9 @@ export class TableVisionOverlayComponent {
   private rafId: number | null = null;
   private readonly images = new Map<string, HTMLImageElement>();
   private darkness: HTMLCanvasElement | null = null;
+  private glowing: HTMLCanvasElement | null = null;
+  /** The plan the glow of the lamps a table drawn on a canvas adds is drawn from, or none. */
+  private glowPlan: OverlayPlan | null = null;
   /** The plan the darkness a table drawn on a canvas lights itself by is drawn from. */
   private darkPlan: OverlayPlan | null = null;
 
@@ -197,6 +200,7 @@ export class TableVisionOverlayComponent {
 
   /** Draws the darkness and the fog over the page's own table, flickering where a light flickers. */
   private drawForPage(): void {
+    this.glowPlan = null;
     this.tableVeil.forget();
     this.animated = !!this.plan?.glows.some((shape) => shape.animation && shape.animation !== 'none');
     this.refreshBake();
@@ -211,6 +215,7 @@ export class TableVisionOverlayComponent {
    */
   private drawForCanvas(): void {
     this.stopLoop();
+    this.glowPlan = null;
     this.animated = false;
     this.bake = null;
     this.dirty = [];
@@ -232,20 +237,47 @@ export class TableVisionOverlayComponent {
     const vision = darkPlan.vision ? { ...darkPlan.vision, fogEnabled: false } : darkPlan.vision;
     this.paint(darkCtx, { ...darkPlan, darknessColor: '#000000', glows: [], vision });
     this.tableVeil.showDarkness(dark, plan.darknessAlpha * (1 - plan.baseRevealAlpha));
+    this.glowPlan =
+      darkPlan.glows.length > 0
+        ? { ...darkPlan, darknessAlpha: 0, reveals: [], revealCells: [], shadows: [], vision }
+        : null;
+    this.drawGlow();
+    this.animated = !!this.glowPlan?.glows.some((shape) => shape.animation && shape.animation !== 'none');
+    this.syncLoop();
+  }
+
+  /** Draws the glow of the lamps the scene does not light itself, out of sight, for the scene to add. */
+  private drawGlow(): void {
+    const canvas = this.canvasRef()?.nativeElement;
+    if (!this.glowPlan || !canvas) {
+      this.tableVeil.forgetGlow();
+      return;
+    }
+    const glow = (this.glowing ??= document.createElement('canvas'));
+    this.sizeLike(glow, canvas);
+    const ctx = glow.getContext('2d');
+    if (!ctx) return;
+    this.paint(ctx, this.glowPlan);
+    this.tableVeil.showGlow(glow);
   }
 
   /** A canvas of the same size and place as the one given, kept off the page, for the darkness to be drawn on. */
   private darkCanvas(like: HTMLCanvasElement): HTMLCanvasElement {
     const dark = (this.darkness ??= document.createElement('canvas'));
-    if (dark.width !== like.width) dark.width = like.width;
-    if (dark.height !== like.height) dark.height = like.height;
-    Object.assign(dark.style, {
+    this.sizeLike(dark, like);
+    return dark;
+  }
+
+  /** Sizes and places a canvas kept off the page as the one given lies on the board. */
+  private sizeLike(canvas: HTMLCanvasElement, like: HTMLCanvasElement): void {
+    if (canvas.width !== like.width) canvas.width = like.width;
+    if (canvas.height !== like.height) canvas.height = like.height;
+    Object.assign(canvas.style, {
       left: like.style.left,
       top: like.style.top,
       width: like.style.width,
       height: like.style.height,
     });
-    return dark;
   }
 
   private paint(ctx: CanvasRenderingContext2D, plan: OverlayPlan): void {
@@ -359,7 +391,8 @@ export class TableVisionOverlayComponent {
       this.lastFrameAt = now;
       // Only the ground the flickering lights cover; the rest was laid down once. With nothing
       // laid down, the whole board is drawn.
-      if (!this.bake) this.draw(now, null);
+      if (this.glowPlan && this.table3d.drawsOnCanvas()) this.drawGlow();
+      else if (!this.bake) this.draw(now, null);
       else for (const patch of this.dirty) this.draw(now, patch);
     }
     this.rafId = requestAnimationFrame(this.loop);

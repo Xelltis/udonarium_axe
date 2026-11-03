@@ -11,12 +11,16 @@ import type { Table3dLightMap, Table3dVeil } from '@axe/infrastructure/table-3d/
 export class TableVeilService {
   private readonly laid = signal<Table3dVeil | null>(null);
   private readonly darkened = signal<Table3dLightMap | null>(null);
+  private readonly glowing = signal<Table3dVeil | null>(null);
 
   /** The veil laid now, or none. */
   readonly veil = this.laid.asReadonly();
 
   /** The darkness laid now, or none where the table is not dark. */
   readonly lightMap = this.darkened.asReadonly();
+
+  /** The glow of the lamps laid now, or none. */
+  readonly glow = this.glowing.asReadonly();
 
   /** Lays the canvas the veil is drawn on, or lays it again with what the page has just drawn on it. */
   show(canvas: HTMLCanvasElement): void {
@@ -31,15 +35,26 @@ export class TableVeilService {
     this.darkened.set({ canvas, box: boxOf(canvas), revision: (this.darkened()?.revision ?? 0) + 1, darkness });
   }
 
-  /** Takes the veil and the darkness away. */
+  /** Lays the canvas the glow of the lamps is drawn on, or lays it again with what the page has just drawn on it. */
+  showGlow(canvas: HTMLCanvasElement): void {
+    this.glowing.set({ canvas, box: boxOf(canvas), revision: (this.glowing()?.revision ?? 0) + 1 });
+  }
+
+  /** Takes the veil, the darkness and the glow away. */
   forget(): void {
     if (this.laid()) this.laid.set(null);
     this.forgetDarkness();
   }
 
-  /** Takes the darkness away, leaving the table lit whole. */
+  /** Takes the darkness and the glow away, leaving the table lit whole. */
   forgetDarkness(): void {
     if (this.darkened()) this.darkened.set(null);
+    this.forgetGlow();
+  }
+
+  /** Takes the glow of the lamps away. */
+  forgetGlow(): void {
+    if (this.glowing()) this.glowing.set(null);
   }
 }
 
