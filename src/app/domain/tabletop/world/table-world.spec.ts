@@ -1,7 +1,13 @@
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { Terrain } from '@axe/domain/tabletop/terrain';
-import { boardShapeOf, EMPTY_TABLE_WORLD, tableWorldOf } from '@axe/domain/tabletop/world/table-world';
+import {
+  boardShapeOf,
+  EMPTY_TABLE_WORLD,
+  sameTableWorld,
+  type TableWorld,
+  tableWorldOf,
+} from '@axe/domain/tabletop/world/table-world';
 
 describe('the table world', () => {
   function table(gridType = GridType.SQUARE): GameTable {
@@ -95,6 +101,27 @@ describe('the table world', () => {
 
       expect(tableWalls.map((wall) => wall.id)).toEqual(['table:north']);
       expect(tableWalls[0]).toMatchObject({ topPx: 240, pictureUrl: 'blob:brick' });
+    });
+  });
+
+  describe('whether two scenes draw the same', () => {
+    const wall = { id: 'w:1' } as unknown as TableWorld['walls'][number];
+    const sprite = {
+      id: 'a#picture',
+      owner: 'a',
+      centre: { x: 1, y: 2, z: 0 },
+    } as unknown as TableWorld['sprites'][number];
+    const scene: TableWorld = { ...EMPTY_TABLE_WORLD, walls: [wall], sprites: [sprite] };
+
+    it('takes a scene built again with the same faces and pieces of the same values for the same', () => {
+      expect(
+        sameTableWorld(scene, { ...scene, walls: [wall], sprites: [{ ...sprite, centre: { x: 1, y: 2, z: 0 } }] })
+      ).toBe(true);
+    });
+
+    it('tells apart a piece moved, and faces built afresh, though they read the same', () => {
+      expect(sameTableWorld(scene, { ...scene, sprites: [{ ...sprite, centre: { x: 1, y: 3, z: 0 } }] })).toBe(false);
+      expect(sameTableWorld(scene, { ...scene, walls: [{ ...wall }] })).toBe(false);
     });
   });
 });

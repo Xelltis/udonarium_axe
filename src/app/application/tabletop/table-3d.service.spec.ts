@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ImageService } from '@axe/application/storage/image.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TABLE_3D_ENGINES, TABLE_GRAPHICS, Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { Table3dQualityService } from '@axe/application/tabletop/table-3d-quality.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
@@ -11,6 +12,7 @@ import { TransientPlacementService } from '@axe/application/tabletop/transient-p
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { TableGraphics } from '@axe/core/util/graphics-acceleration';
+import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { DEFAULT_GAME_CLOCK } from '@axe/domain/game-clock/game-clock';
 import { Config } from '@axe/domain/peer/config';
 import { DEFAULT_TABLE_CAMERA_VIEW } from '@axe/domain/tabletop/camera/table-camera';
@@ -298,13 +300,19 @@ describe('Table3dService', () => {
 
   it('hands the engine the pieces again as one is moved, with the blocks’ faces as they were', async () => {
     const scene = service();
+    const table = new GameTable();
+    table.initialize();
+    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    const die = DiceSymbol.create('D6', DiceType.D6, 1);
+    die.location = { name: 'table', x: 100, y: 100 };
+    await new Promise((resolve) => setTimeout(resolve, 0));
     scene.attach(document.createElement('canvas'));
     await scene.whenIdle();
     TestBed.tick();
     await scene.whenIdle();
     const before = engines[0].worlds.at(-1)!;
 
-    TestBed.inject(TransientPlacementService).place('a-piece', { surface: 'floor', x: 10, y: 20, z: 0 });
+    TestBed.inject(TransientPlacementService).place(die.identifier, { surface: 'floor', x: 10, y: 20, z: 0 });
     TestBed.tick();
     await scene.whenIdle();
 
@@ -364,6 +372,21 @@ describe('Table3dService', () => {
     expect(canvas.parentNode).toBe(home);
     expect(engine.cameras.at(-1)).toMatchObject({ width: 1280, height: 800 });
     expect(engine.worlds.at(-1)!.sprites.map((sprite) => sprite.owner)).toEqual(['viewer', 'other']);
+  });
+
+  it('hands the engine no scene again when the pieces are worked out afresh with nothing in them changed', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    TestBed.tick();
+    await scene.whenIdle();
+    const handed = engines[0].worlds.length;
+
+    TestBed.inject(ObjectChangeService).networkVersion.update((version) => version + 1);
+    TestBed.tick();
+    await scene.whenIdle();
+
+    expect(engines[0].worlds).toHaveLength(handed);
   });
 
   it('draws through WebGL2 where it is asked to, or where WebGPU cannot be had', async () => {

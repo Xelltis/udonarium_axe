@@ -124,6 +124,34 @@ export interface TableWorld {
   readonly models: readonly TableWorldModel[];
 }
 
+/**
+ * Whether two scenes draw the same: the faces of the board and the blocks the very same, and the
+ * rest the same in every value. A scene built again with nothing in it changed, as when the room's
+ * connections change and the pieces are worked out afresh, is then not handed to a renderer again.
+ */
+export function sameTableWorld(a: TableWorld, b: TableWorld): boolean {
+  return (
+    a === b ||
+    (sameParts(a.walls, b.walls) &&
+      sameParts(a.caps, b.caps) &&
+      sameValue(a.board, b.board) &&
+      sameValue(a.sprites, b.sprites) &&
+      sameValue(a.coins, b.coins) &&
+      sameValue(a.models, b.models) &&
+      sameValue(a.layers, b.layers) &&
+      sameValue(a.backdrops, b.backdrops) &&
+      sameValue(a.water, b.water))
+  );
+}
+
+function sameParts<T>(a: readonly T[], b: readonly T[]): boolean {
+  return a === b || (a.length === b.length && a.every((part, index) => part === b[index]));
+}
+
+function sameValue(a: unknown, b: unknown): boolean {
+  return a === b || JSON.stringify(a) === JSON.stringify(b);
+}
+
 /** The scene with nothing in it. */
 export const EMPTY_TABLE_WORLD: TableWorld = {
   board: null,

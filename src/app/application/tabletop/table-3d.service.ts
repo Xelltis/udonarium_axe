@@ -46,7 +46,7 @@ import { tableBackdropsOf, tableLayersOf } from '@axe/domain/tabletop/world/tabl
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
 import { tableWaterOf } from '@axe/domain/tabletop/world/table-water';
-import { TableWorld, tableWorldOf } from '@axe/domain/tabletop/world/table-world';
+import { sameTableWorld, TableWorld, tableWorldOf } from '@axe/domain/tabletop/world/table-world';
 import type {
   Table3dBackend,
   Table3dCamera,
@@ -172,23 +172,26 @@ export class Table3dService {
    * builds the pieces again and leaves the blocks as they were. For an eye standing among the pieces,
    * the piece it looks out of is left out and the ceilings over it put in.
    */
-  readonly world = computed<TableWorld>(() => {
-    const faces = this.faces();
-    const eye = this.eyes.scene();
-    const seen = <T extends { readonly owner: string }>(parts: readonly T[]) =>
-      eye ? parts.filter((part) => part.owner !== eye.without) : parts;
-    const ceilings = [...(eye?.ceilings ?? []), ...this.eyes.overhead()];
-    return {
-      ...faces,
-      caps: ceilings.length ? [...faces.caps, ...ceilings] : faces.caps,
-      sprites: seen(this.pieces.sprites()),
-      coins: this.pieces.coins(),
-      layers: this.layers(),
-      water: this.water(),
-      backdrops: this.backdrops(),
-      models: seen([...this.pieces.models(), ...this.terrainModels()]),
-    };
-  });
+  readonly world = computed<TableWorld>(
+    () => {
+      const faces = this.faces();
+      const eye = this.eyes.scene();
+      const seen = <T extends { readonly owner: string }>(parts: readonly T[]) =>
+        eye ? parts.filter((part) => part.owner !== eye.without) : parts;
+      const ceilings = [...(eye?.ceilings ?? []), ...this.eyes.overhead()];
+      return {
+        ...faces,
+        caps: ceilings.length ? [...faces.caps, ...ceilings] : faces.caps,
+        sprites: seen(this.pieces.sprites()),
+        coins: this.pieces.coins(),
+        layers: this.layers(),
+        water: this.water(),
+        backdrops: this.backdrops(),
+        models: seen([...this.pieces.models(), ...this.terrainModels()]),
+      };
+    },
+    { equal: sameTableWorld }
+  );
 
   /**
    * The blocks this seat may see that are drawn as 3D models held here in full: each stood on the
