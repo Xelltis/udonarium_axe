@@ -54,6 +54,7 @@ export interface TableTestHooks {
     layers: number;
     waterParts: number;
     fogAirSheets: number;
+    sky: boolean;
     veilRevision: number;
     lightMapRevision: number;
     shadowCasters: number;

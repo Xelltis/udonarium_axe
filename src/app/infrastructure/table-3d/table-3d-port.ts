@@ -1,4 +1,5 @@
 import type { SceneLight } from '@axe/domain/tabletop/vision-scene';
+import type { SkyDome } from '@axe/domain/tabletop/world/sky-dome';
 import type { SkyLight } from '@axe/domain/tabletop/world/sky-light';
 import type { EyeAxes } from '@axe/domain/tabletop/world/table-sprites';
 import type { TableWorld } from '@axe/domain/tabletop/world/table-world';
@@ -114,6 +115,8 @@ export interface Table3dStats {
   readonly waterParts: number;
   /** The sheets of fog hanging in the air. */
   readonly fogAirSheets: number;
+  /** Whether a sky is drawn past the board. */
+  readonly sky: boolean;
   /** How many times the veil has been laid anew, 0 while there is none. */
   readonly veilRevision: number;
   /** How many times the light of a dark table has been laid anew, 0 while the table is not dark. */
@@ -143,6 +146,11 @@ export interface Table3dEngine {
   setFogAir(sheets: readonly Table3dFogAirSheet[], moving: boolean): void;
   /** Lights the scene as the sky does at the story's hour. */
   setSkyLight(light: SkyLight): void;
+  /**
+   * Draws a sky past the board as it is at the story's hour, with the ground running out to the
+   * horizon and a haze over what is far off, or none with null.
+   */
+  setSky(sky: SkyDome | null): void;
   /** Darkens the scene as the table is dark, lit where the page's lights reach, or lights it whole with null. */
   setLightMap(map: Table3dLightMap | null): void;
   /**

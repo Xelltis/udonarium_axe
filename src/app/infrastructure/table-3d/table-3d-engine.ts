@@ -2,6 +2,7 @@ import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import { animationIntensity } from '@axe/domain/tabletop/vision-scene/light-flicker';
 import { lightAxis } from '@axe/domain/tabletop/vision-scene/light-shape';
 import type { GroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
+import type { SkyDome } from '@axe/domain/tabletop/world/sky-dome';
 import { type SkyLight, skyLightAt } from '@axe/domain/tabletop/world/sky-light';
 import type {
   TableWorld,
@@ -25,6 +26,7 @@ import {
 } from '@axe/infrastructure/table-3d/face-geometry';
 import { FloorCanvasLayer } from '@axe/infrastructure/table-3d/floor-canvas-layer';
 import { FogAirLayer } from '@axe/infrastructure/table-3d/fog-air-layer';
+import { SkyLayer } from '@axe/infrastructure/table-3d/sky-layer';
 import { SHADOW_CASTERS_LAYER, SpriteLayer } from '@axe/infrastructure/table-3d/sprite-layer';
 import type {
   Table3dCamera,
@@ -65,6 +67,7 @@ import {
   SRGBColorSpace,
   Texture,
   TextureLoader,
+  Vector3,
   WebGPURenderer,
 } from 'three/webgpu';
 
@@ -220,6 +223,8 @@ class ThreeTableEngine implements Table3dEngine {
   );
   private readonly floorCanvases = new FloorCanvasLayer();
   private readonly fogAir = new FogAirLayer();
+  private readonly skyDome = new SkyLayer();
+  private laidSky: SkyDome | null = null;
   private readonly water = new WaterLayer((material, taking) => this.veil.cover(material, taking));
   private readonly layers = new BoardLayers(
     (url) => this.sharedPicture(url, true),
@@ -245,6 +250,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.scene.add(this.layers.group);
     this.scene.add(this.water.group);
     this.scene.add(this.fogAir.group);
+    this.scene.add(this.skyDome.group);
     this.scene.add(this.sun, this.sun.target, this.sky);
     this.sun.castShadow = true;
     this.sun.shadow.autoUpdate = false;
@@ -430,6 +436,7 @@ class ThreeTableEngine implements Table3dEngine {
       layers: this.layers.shown,
       waterParts: this.water.shown,
       fogAirSheets: this.fogAir.shown,
+      sky: this.skyDome.shown,
       veilRevision: this.veil.revision,
       lightMapRevision: this.veil.lightRevision,
       shadowLights: this.laidLamps.length,
@@ -515,6 +522,7 @@ class ThreeTableEngine implements Table3dEngine {
     }
     this.camera.matrix.copy(toCamera).invert();
     this.camera.updateMatrixWorld(true);
+    this.skyDome.follow(new Vector3().setFromMatrixPosition(this.camera.matrixWorld));
     this.sprites.face(view.axes);
     this.changed = true;
   }
@@ -571,6 +579,12 @@ class ThreeTableEngine implements Table3dEngine {
     return drifting || flowing || hanging;
   }
 
+  setSky(sky: SkyDome | null): void {
+    this.laidSky = sky;
+    this.scene.fog = this.skyDome.set(sky, this.board ? this.boardBox : null);
+    this.changed = true;
+  }
+
   setFogAir(sheets: readonly Table3dFogAirSheet[], moving: boolean): void {
     this.fogAir.set(sheets, moving);
     this.takeChanges();
@@ -601,6 +615,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.layers.dispose();
     this.water.dispose();
     this.fogAir.dispose();
+    this.skyDome.dispose();
     this.veil.dispose();
     disposeObject(this.scene);
     for (const picture of this.loaded.values()) picture.dispose();
@@ -654,6 +669,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.placeSun();
     this.board.renderOrder = BOARD_ORDER;
     this.scene.add(this.board);
+    if (this.laidSky) this.setSky(this.laidSky);
   }
 
   /**

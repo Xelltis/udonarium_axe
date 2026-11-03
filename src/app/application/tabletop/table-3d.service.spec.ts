@@ -11,6 +11,7 @@ import { TableGraphics } from '@axe/core/util/graphics-acceleration';
 import { DEFAULT_GAME_CLOCK } from '@axe/domain/game-clock/game-clock';
 import { Config } from '@axe/domain/peer/config';
 import { DEFAULT_TABLE_CAMERA_VIEW } from '@axe/domain/tabletop/camera/table-camera';
+import { type SkyDome, skyDomeAt } from '@axe/domain/tabletop/world/sky-dome';
 import { type SkyLight, skyLightAt } from '@axe/domain/tabletop/world/sky-light';
 import type { TableWorld } from '@axe/domain/tabletop/world/table-world';
 import type {
@@ -41,6 +42,7 @@ class FakeEngine implements Table3dEngine {
   shadowLights: (readonly Table3dShadowLight[])[] = [];
   glows: (Table3dVeil | null)[] = [];
   fogAirSheets: (readonly Table3dFogAirSheet[])[] = [];
+  domes: (SkyDome | null)[] = [];
   qualities: Table3dQualityPlan[] = [];
   moving = false;
   advanced = 0;
@@ -87,6 +89,11 @@ class FakeEngine implements Table3dEngine {
 
   setGlow(glow: Table3dVeil | null): void {
     this.glows.push(glow);
+  }
+
+  setSky(sky: SkyDome | null): void {
+    this.domes.push(sky);
+    this.changed = true;
   }
 
   setFogAir(sheets: readonly Table3dFogAirSheet[]): void {
@@ -159,6 +166,7 @@ class FakeEngine implements Table3dEngine {
       layers: 0,
       waterParts: 0,
       fogAirSheets: 0,
+      sky: false,
       veilRevision: 0,
       lightMapRevision: 0,
       shadowLights: 0,
@@ -464,6 +472,23 @@ describe('Table3dService', () => {
 
     await atHour(0);
     expect(engine.skies.at(-1)).toEqual(skyLightAt(0));
+  });
+
+  it('draws a sky past the board only on a table that asks for one, as it is at the hour the clock tells', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    TestBed.tick();
+    await scene.whenIdle();
+    const engine = engines[0];
+    expect(engine.domes.at(-1)).toBeNull();
+
+    Config.instance.gameClock = { ...DEFAULT_GAME_CLOCK, mode: 'hours', minutes: 0 };
+    TestBed.inject(TabletopService).currentTable.skyKind = 'clock';
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    TestBed.tick();
+
+    expect(engine.domes.at(-1)).toEqual(skyDomeAt(0));
   });
 
   it('draws at the quality the seat chose, and again at another once it chooses that', async () => {

@@ -30,10 +30,12 @@ import { TableGraphics, tableGraphicsOf } from '@axe/core/util/graphics-accelera
 import { dayFractionOf } from '@axe/domain/game-clock/game-clock';
 import { matrixColumns, tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
+import { tableSkyKindOf } from '@axe/domain/tabletop/table-sky';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { flickers } from '@axe/domain/tabletop/vision-scene/light-flicker';
 import { waterShoreOf } from '@axe/domain/tabletop/water/water-shore';
 import { waterSidesOf } from '@axe/domain/tabletop/water/water-sides';
+import { skyDomeAt } from '@axe/domain/tabletop/world/sky-dome';
 import { skyLightAt } from '@axe/domain/tabletop/world/sky-light';
 import { tableLayersOf } from '@axe/domain/tabletop/world/table-layers';
 import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
@@ -101,8 +103,17 @@ export class Table3dService {
   private readonly ambience = inject(AmbienceService);
 
   /** The light of the sky over the table at the story's hour, as the room's clock tells it. */
-  readonly skyLight = computed(() =>
-    skyLightAt(dayFractionOf(this.gameClock.clock(), this.gameClock.periods().length, this.gameClock.skies()))
+  readonly skyLight = computed(() => skyLightAt(this.dayFraction()));
+
+  /** The sky drawn past the board of the table in view, as it is at the story's hour, or none where the table shows its background picture. */
+  readonly sky = computed(() => {
+    const table = this.tabletop.currentTableVersion();
+    return tableSkyKindOf(table?.skyKind) === 'clock' ? skyDomeAt(this.dayFraction()) : null;
+  });
+
+  /** How far through the story's day it is, from 0 at midnight to 1. */
+  private readonly dayFraction = computed(() =>
+    dayFractionOf(this.gameClock.clock(), this.gameClock.periods().length, this.gameClock.skies())
   );
   private readonly ground = inject(GroundService);
   private readonly loadEngines = inject(TABLE_3D_ENGINES);
@@ -381,6 +392,13 @@ export class Table3dService {
       effect(
         () => {
           engine.setSkyLight(this.skyLight());
+          this.drawSoon(engine);
+        },
+        { injector: this.injector }
+      ),
+      effect(
+        () => {
+          engine.setSky(this.sky());
           this.drawSoon(engine);
         },
         { injector: this.injector }
