@@ -58,8 +58,12 @@ export function waterFloorWash(color: string, density: number): string {
 
 /** The colour of the depths laid over the floor, given the colour of the depths itself. */
 export function depthsWash(deepColor: string, density: number): string {
-  const alpha = 0.22 + 0.38 * clamp01(density);
-  return withAlpha(deepColor, round(alpha));
+  return withAlpha(deepColor, floorWashAlpha(density));
+}
+
+/** How thick the colour of the depths is laid over the floor under water, thicker the thicker the water is drawn. */
+export function floorWashAlpha(density: number): number {
+  return round(0.22 + 0.38 * clamp01(density));
 }
 
 /**
@@ -92,8 +96,13 @@ export function siltColorOf(color: string): string {
  * would show every join; the light moving on the water is the glints laid over it.
  */
 export function waterSurfaceWash(color: string, density: number): string {
-  const paint = withAlpha(color, round(0.16 + 0.26 * clamp01(density)));
+  const paint = withAlpha(color, surfaceWashAlpha(density));
   return `linear-gradient(${paint}, ${paint})`;
+}
+
+/** How thick the colour of the surface itself is laid: light enough to see the floor through. */
+export function surfaceWashAlpha(density: number): number {
+  return round(0.16 + 0.26 * clamp01(density));
 }
 
 /**
@@ -111,8 +120,13 @@ export function murkAlpha(turbidity: number): number {
 export function waterMurkLayer(color: string, turbidity: number): string {
   const alpha = murkAlpha(turbidity);
   if (alpha < 0.005) return '';
-  const paint = withAlpha(mixColors(color, '#000000', 0.12), alpha);
+  const paint = withAlpha(murkColorOf(color), alpha);
   return `linear-gradient(${paint}, ${paint})`;
+}
+
+/** The colour the murk is laid in: the water's own colour, darkened a little. */
+export function murkColorOf(color: string): string {
+  return mixColors(color, '#000000', 0.12);
 }
 
 /** How strongly the clouds of silt show on the surface: not at all in water clearer than a quarter murky. */
@@ -130,14 +144,21 @@ export function scumOpacity(dirt: number): number {
  * opaque as the water is murky, so murky water is a solid wall of its colour from the side too.
  */
 export function waterSideWash(color: string, density: number, turbidity = 0): string {
+  const { bottom, top } = waterSideAlphas(density, turbidity);
+  return `linear-gradient(to top, ${withAlpha(deepWaterColor(color), bottom)} 0%, ${withAlpha(color, top)} 100%)`;
+}
+
+/**
+ * How opaque a side of the water is at the water's floor, in the colour of the depths, and at the
+ * surface, in the water's own colour.
+ */
+export function waterSideAlphas(density: number, turbidity = 0): { bottom: number; top: number } {
   const level = clamp01(density);
   const murk = murkAlpha(turbidity);
-  const bottom = Math.max(Math.min(0.45 + 0.3 * level, 0.95), murk);
-  const top = Math.max(0.18 + 0.22 * level, murk * 0.95);
-  return (
-    `linear-gradient(to top, ${withAlpha(deepWaterColor(color), round(bottom))} 0%,` +
-    ` ${withAlpha(color, round(top))} 100%)`
-  );
+  return {
+    bottom: round(Math.max(Math.min(0.45 + 0.3 * level, 0.95), murk)),
+    top: round(Math.max(0.18 + 0.22 * level, murk * 0.95)),
+  };
 }
 
 /**

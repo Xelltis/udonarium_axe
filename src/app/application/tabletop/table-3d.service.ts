@@ -21,6 +21,7 @@ import { TablePiecesService } from '@axe/application/tabletop/table-pieces.servi
 import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { WaterService } from '@axe/application/tabletop/water.service';
 import { MotionService } from '@axe/application/ui/motion.service';
 import { readLocal, writeLocal } from '@axe/core/storage/local-preference';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
@@ -30,9 +31,12 @@ import { matrixColumns, tableEyeMatrix } from '@axe/domain/tabletop/camera/table
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { flickers } from '@axe/domain/tabletop/vision-scene/light-flicker';
+import { waterShoreOf } from '@axe/domain/tabletop/water/water-shore';
+import { waterSidesOf } from '@axe/domain/tabletop/water/water-sides';
 import { skyLightAt } from '@axe/domain/tabletop/world/sky-light';
 import { tableLayersOf } from '@axe/domain/tabletop/world/table-layers';
 import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
+import { tableWaterOf } from '@axe/domain/tabletop/world/table-water';
 import { TableWorld, tableWorldOf } from '@axe/domain/tabletop/world/table-world';
 import type {
   Table3dBackend,
@@ -92,6 +96,7 @@ export class Table3dService {
   private readonly quality = inject(Table3dQualityService);
   private readonly gameClock = inject(GameClockService);
   private readonly motion = inject(MotionService);
+  private readonly waterCells = inject(WaterService);
 
   /** The light of the sky over the table at the story's hour, as the room's clock tells it. */
   readonly skyLight = computed(() =>
@@ -148,7 +153,22 @@ export class Table3dService {
     sprites: this.pieces.sprites(),
     coins: this.pieces.coins(),
     layers: this.layers(),
+    water: this.water(),
   }));
+
+  /** The water on the table in view, as this seat sees it, moving where things may move. */
+  private readonly water = computed(() => {
+    const grid = this.waterCells.grid();
+    const cells = this.waterCells.cells();
+    if (!grid || cells.size < 1) return tableWaterOf(null, cells, [], [], this.motion.enabled());
+    return tableWaterOf(
+      grid,
+      cells,
+      waterSidesOf(grid, cells, this.waterCells.groundAt),
+      waterShoreOf(grid, cells, this.waterCells.groundOf),
+      this.motion.enabled()
+    );
+  });
 
   /** The pictures the table in view lays under and over its board, drifting where things may move. */
   private readonly layers = computed(() => {

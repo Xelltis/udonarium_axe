@@ -52,6 +52,7 @@ export interface TableTestHooks {
     sprites: number;
     coins: number;
     layers: number;
+    waterParts: number;
     veilRevision: number;
     lightMapRevision: number;
     shadowCasters: number;

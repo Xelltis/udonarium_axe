@@ -92,6 +92,8 @@ export interface Table3dStats {
   readonly floorCanvases: number;
   /** The pictures drawn drifting under and over the board, which is those whose pictures have come. */
   readonly layers: number;
+  /** The parts of the water drawn: its surfaces, floors, sides and shore, each where there is any. */
+  readonly waterParts: number;
   /** How many times the veil has been laid anew, 0 while there is none. */
   readonly veilRevision: number;
   /** How many times the light of a dark table has been laid anew, 0 while the table is not dark. */

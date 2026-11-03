@@ -38,6 +38,7 @@ import type {
 } from '@axe/infrastructure/table-3d/table-3d-port';
 import { TABLE_3D_QUALITY, type Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
 import { lampColour, SceneVeil } from '@axe/infrastructure/table-3d/veil';
+import { WaterLayer } from '@axe/infrastructure/table-3d/water-layer';
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
 import { attribute, float, max, mix, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
 import {
@@ -211,6 +212,7 @@ class ThreeTableEngine implements Table3dEngine {
     (material) => this.veil.cover(material)
   );
   private readonly floorCanvases = new FloorCanvasLayer();
+  private readonly water = new WaterLayer((material, taking) => this.veil.cover(material, taking));
   private readonly layers = new BoardLayers(
     (url) => this.sharedPicture(url, true),
     (material) => this.veil.cover(material, 'lit')
@@ -233,6 +235,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.scene.add(this.coins.group);
     this.scene.add(this.floorCanvases.group);
     this.scene.add(this.layers.group);
+    this.scene.add(this.water.group);
     this.scene.add(this.sun, this.sun.target, this.sky);
     this.sun.castShadow = true;
     this.sun.shadow.autoUpdate = false;
@@ -396,6 +399,7 @@ class ThreeTableEngine implements Table3dEngine {
       coins: this.coins.group.children.length,
       floorCanvases: this.floorCanvases.group.children.length,
       layers: this.layers.shown,
+      waterParts: this.water.shown,
       veilRevision: this.veil.revision,
       lightMapRevision: this.veil.lightRevision,
       shadowLights: this.laidLamps.length,
@@ -427,6 +431,7 @@ class ThreeTableEngine implements Table3dEngine {
     }
     this.sprites.set(world.sprites);
     this.coins.set(world.coins);
+    this.water.set(world.water);
     if (world.sprites !== this.laidSprites) {
       this.laidSprites = world.sprites;
       this.shadowsMoved();
@@ -524,8 +529,9 @@ class ThreeTableEngine implements Table3dEngine {
 
   advance(timeMs: number): boolean {
     const drifting = this.layers.advance(timeMs);
+    const flowing = this.water.advance(timeMs);
     this.takeChanges();
-    return drifting;
+    return drifting || flowing;
   }
 
   renderIfChanged(): boolean {
@@ -537,9 +543,11 @@ class ThreeTableEngine implements Table3dEngine {
     return true;
   }
 
-  /** Takes up what the layers drifting past the board built or moved, which wants drawing. */
+  /** Takes up what the layers drifting past the board and the water built or moved, which wants drawing. */
   private takeChanges(): void {
-    if (this.layers.takeChanged()) this.changed = true;
+    const drifted = this.layers.takeChanged();
+    const flowed = this.water.takeChanged();
+    if (drifted || flowed) this.changed = true;
   }
 
   dispose(): void {
@@ -547,6 +555,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.coins.dispose();
     this.floorCanvases.dispose();
     this.layers.dispose();
+    this.water.dispose();
     this.veil.dispose();
     disposeObject(this.scene);
     for (const picture of this.loaded.values()) picture.dispose();
