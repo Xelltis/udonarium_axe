@@ -7,12 +7,14 @@ import {
   hash,
   max,
   mix,
+  mrt,
   normalize,
   positionLocal,
   pow,
   smoothstep,
   uniform,
   vec3,
+  vec4,
 } from 'three/tsl';
 import {
   BackSide,
@@ -79,6 +81,7 @@ export class SkyLayer {
     const material = new MeshBasicNodeMaterial({ side: BackSide, depthWrite: false, depthTest: false });
     material.fog = false;
     material.colorNode = this.skyColour();
+    material.mrtNode = mrt({ glow: vec4(this.bodies(), 1) });
     this.dome = new Mesh(new SphereGeometry(SKY_RADIUS_PX, 48, 24), material);
     this.dome.renderOrder = SKY_ORDER;
     this.dome.frustumCulled = false;
@@ -161,6 +164,16 @@ export class SkyLayer {
     this.group.add(this.ground);
   }
 
+  /** The sun and the moon, which glow, where a point of the dome shows them. */
+  private bodies() {
+    const way = normalize(positionLocal);
+    const sunShows = smoothstep(-0.03, 0.02, this.sun.y);
+    const sunDisc = smoothstep(SUN_DISC, SUN_DISC + 0.00005, max(dot(way, this.sun), 0)).mul(sunShows);
+    const moonShows = smoothstep(-0.03, 0.02, this.moon.y).mul(this.stars.mul(0.7).add(0.3));
+    const moonDisc = smoothstep(MOON_DISC, MOON_DISC + 0.0001, max(dot(way, this.moon), 0)).mul(moonShows);
+    return this.sunColour.mul(sunDisc).add(this.moonColour.mul(moonDisc.mul(0.5)));
+  }
+
   /** The colour of the sky the way a point of the dome lies from its middle. */
   private skyColour() {
     const way = normalize(positionLocal);
@@ -171,10 +184,6 @@ export class SkyLayer {
     const base = mix(below, above, smoothstep(-0.02, 0.02, up));
     const towardsSun = max(dot(way, this.sun), 0);
     const glow = this.glow.mul(this.glowStrength.mul(pow(towardsSun, 6)).mul(float(1).sub(height)));
-    const sunShows = smoothstep(-0.03, 0.02, this.sun.y);
-    const sunDisc = smoothstep(SUN_DISC, SUN_DISC + 0.00005, towardsSun).mul(sunShows);
-    const moonShows = smoothstep(-0.03, 0.02, this.moon.y).mul(this.stars.mul(0.7).add(0.3));
-    const moonDisc = smoothstep(MOON_DISC, MOON_DISC + 0.0001, max(dot(way, this.moon), 0)).mul(moonShows);
     const cell = floor(way.mul(STAR_CELLS)).add(STAR_CELLS + 1);
     const seed = cell.x.add(cell.y.mul(STAR_CELLS * 2 + 3)).add(cell.z.mul((STAR_CELLS * 2 + 3) ** 2));
     const star = smoothstep(1 - STAR_SHARE, 1, hash(seed) as Node<'float'>)
@@ -182,8 +191,7 @@ export class SkyLayer {
       .mul(clamp(up.mul(3), 0, 1));
     return base
       .add(glow)
-      .add(this.sunColour.mul(sunDisc))
-      .add(this.moonColour.mul(moonDisc))
+      .add(this.bodies())
       .add(vec3(star, star, star));
   }
 }

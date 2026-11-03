@@ -41,6 +41,7 @@ import type {
   Table3dVeil,
 } from '@axe/infrastructure/table-3d/table-3d-port';
 import { TABLE_3D_QUALITY, type Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
+import { TablePost } from '@axe/infrastructure/table-3d/table-post';
 import { lampColour, SceneVeil } from '@axe/infrastructure/table-3d/veil';
 import { WaterLayer } from '@axe/infrastructure/table-3d/water-layer';
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
@@ -205,6 +206,9 @@ class ThreeTableEngine implements Table3dEngine {
   private askedLamps: readonly Table3dShadowLight[] = [];
   /** How many lamps of each kind the quality the table is drawn at lets light the scene. */
   private lampSlots = -1;
+  /** What the quality the table is drawn at draws. */
+  private plan: Table3dQualityPlan = TABLE_3D_QUALITY.standard;
+  private readonly post: TablePost;
   private readonly litLamps = new Set<PointLight | SpotLight>();
   private shadowsDrawnAt = -Infinity;
   private shadowTimer: ReturnType<typeof setTimeout> | null = null;
@@ -243,6 +247,7 @@ class ThreeTableEngine implements Table3dEngine {
     private readonly renderer: WebGPURenderer,
     readonly backend: 'webgpu' | 'webgl2'
   ) {
+    this.post = new TablePost(renderer);
     for (const camera of [this.perspective, this.orthographic]) camera.matrixAutoUpdate = false;
     this.scene.add(this.facesRoot);
     this.scene.add(this.sprites.group);
@@ -273,6 +278,8 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   setQuality(plan: Table3dQualityPlan): void {
+    if (plan !== this.plan) this.changed = true;
+    this.plan = plan;
     const slots = Math.min(SHADOW_LIGHTS, plan.shadowedLights);
     if (slots === this.lampSlots && this.sun.castShadow === plan.skyShadows) return;
     this.lampSlots = slots;
@@ -598,7 +605,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.takeChanges();
     if (!this.changed || this.lost) return false;
     this.changed = false;
-    this.renderer.render(this.scene, this.camera);
+    this.post.render(this.scene, this.camera, this.plan);
     this.draws++;
     return true;
   }
@@ -613,6 +620,7 @@ class ThreeTableEngine implements Table3dEngine {
 
   dispose(): void {
     if (this.shadowTimer !== null) clearTimeout(this.shadowTimer);
+    this.post.dispose();
     this.sprites.dispose();
     this.coins.dispose();
     this.floorCanvases.dispose();

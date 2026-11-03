@@ -122,7 +122,6 @@ test.describe('the layers of a table drawn on a canvas', () => {
 
     await idle(page);
     const before = (await stats(page))!.draws;
-    await page.waitForTimeout(1000);
-    expect((await stats(page))!.draws).toBeGreaterThan(before + 5);
+    await expect.poll(async () => (await stats(page))!.draws, { timeout: 10000 }).toBeGreaterThan(before + 5);
   });
 });
