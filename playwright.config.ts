@@ -131,7 +131,9 @@ export default defineConfig({
       workers: 4,
     },
     // The table drawn through WebGPU: headless Chromium gives SwiftShader's stand-in adapter with
-    // these flags, and Vulkan is what puts a WebGPU canvas on the screen at all.
+    // these flags, and Vulkan is what puts a WebGPU canvas on the screen at all. SwiftShader draws
+    // WebGPU slower still than WebGL2, so the specs that drag a piece about many times are given the
+    // same time as on WebGL2, and fewer run at once.
     {
       name: 'chromium-webgpu',
       use: {
@@ -148,6 +150,8 @@ export default defineConfig({
         },
       },
       testMatch: [/webgl\/.*\.spec\.ts/],
+      timeout: 60000,
+      workers: 3,
     },
     {
       name: 'mobile-webgl',
