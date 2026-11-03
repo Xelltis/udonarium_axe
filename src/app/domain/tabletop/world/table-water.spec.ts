@@ -100,6 +100,17 @@ describe('the water on a table as the scene draws it', () => {
     expect(water.flow[1]).toBeCloseTo(0);
   });
 
+  it('lays the floor of a map under water over the whole board, in the colour of the depths, with or without ponds', () => {
+    const sea = tableWaterOf(grid, new Map(), [], [], true, { color: '#2a6f9e', density: 0.5 }).seaFloor!;
+
+    expect(sea.colour[3]).toBeCloseTo(floorWashAlpha(0.5));
+    expect(sea.net).toBeGreaterThan(0);
+    expect(
+      tableWaterOf(grid, waterCellsOf(grid, [area()]), [], [], true, { color: '#2a6f9e', density: 0.5 }).seaFloor
+    ).toEqual(sea);
+    expect(tableWaterOf(grid, new Map(), [], [], true).seaFloor).toBeNull();
+  });
+
   it('draws nothing where there is no water, and holds the water still for a reader who asks for less motion', () => {
     const none = tableWaterOf(grid, new Map(), [], [], false);
 

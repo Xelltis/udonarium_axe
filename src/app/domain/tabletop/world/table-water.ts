@@ -12,6 +12,7 @@ import {
   murkAlpha,
   murkColorOf,
   surfaceWashAlpha,
+  underwaterDeepColor,
   waterSideAlphas,
 } from '@axe/domain/tabletop/water/water-look';
 import type { WaterShore } from '@axe/domain/tabletop/water/water-shore';
@@ -45,10 +46,23 @@ export interface TableWorldWater {
   readonly sides: WaterPart;
   /** The strips along the shore the waves break on, reaching out into the water. */
   readonly shore: WaterPart;
+  /**
+   * The floor of a table whose whole map is under water, laid over the whole board, or null where
+   * the map is not under water.
+   */
+  readonly seaFloor: TableWorldSeaFloor | null;
   /** How big a cell is, which the waves and the net of light are measured by. */
   readonly cellPx: number;
   /** Whether the water moves, which it does not for a reader who asks for less motion. */
   readonly moving: boolean;
+}
+
+/** The floor of a table whose whole map is under water: darkened, and crossed by the net of light the surface far overhead throws. */
+export interface TableWorldSeaFloor {
+  /** The colour of the depths laid over it, red, green, blue and alpha from 0 to 1, in sRGB. */
+  readonly colour: readonly [number, number, number, number];
+  /** How strongly the net of light shows on it. */
+  readonly net: number;
 }
 
 /** No water at all. */
@@ -58,6 +72,7 @@ export const NO_WATER: TableWorldWater = {
   floor: emptyPart(),
   sides: emptyPart(),
   shore: emptyPart(),
+  seaFloor: null,
   cellPx: 50,
   moving: false,
 };
@@ -70,6 +85,8 @@ const FLAT_SURFACE_LIFT_PX = 0.17;
 const SHORE_LIFT_PX = 0.4;
 /** How far out from the shore the waves run in from, in cells. */
 const SHORE_REACH_CELLS = 0.7;
+/** How much fainter the net is on the floor of a map under water than under a pond, laid over every cell of the board at once. */
+const SEA_FLOOR_NET_SHARE = 0.7;
 
 /**
  * The water on a table, made into triangles for the scene from the cells under water and the sides
@@ -82,9 +99,11 @@ export function tableWaterOf(
   cells: ReadonlyMap<number, WaterCell>,
   sides: readonly WaterSide[],
   shores: readonly WaterShore[],
-  moving: boolean
+  moving: boolean,
+  underwater: { readonly color: string; readonly density: number } | null = null
 ): TableWorldWater {
-  if (!grid || cells.size < 1) return { ...NO_WATER, moving };
+  const seaFloor = underwater ? seaFloorOf(underwater.color, underwater.density) : null;
+  if (!grid || cells.size < 1) return { ...NO_WATER, seaFloor, cellPx: grid?.sizePx || NO_WATER.cellPx, moving };
   const cellPx = Math.max(grid.sizePx, 1);
   const depthAt = depthsAtCorners(grid, cells, cellPx);
   const surface = new PartBuilder();
@@ -123,12 +142,21 @@ export function tableWaterOf(
     floor: floor.part(),
     sides: sidesOf(sides, cells),
     shore: shoreOf(shores, cellPx),
+    seaFloor,
     cellPx,
     moving,
   };
 }
 
 type Rgba = [number, number, number, number];
+
+/** The floor of a map under water, from the colour chosen for the light coming down and how thick the water is drawn. */
+function seaFloorOf(color: string, density: number): TableWorldSeaFloor {
+  return {
+    colour: [...channelsOf(underwaterDeepColor(color)), floorWashAlpha(density)],
+    net: Math.round(causticOpacity(density) * SEA_FLOOR_NET_SHARE * 1000) / 1000,
+  };
+}
 
 /**
  * How deep the water is at each corner of the cells, in cells, the mean of the cells of water that

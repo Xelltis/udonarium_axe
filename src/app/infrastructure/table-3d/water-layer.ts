@@ -1,4 +1,4 @@
-import type { TableWorldWater, WaterPart } from '@axe/domain/tabletop/world/table-water';
+import type { TableWorldSeaFloor, TableWorldWater, WaterPart } from '@axe/domain/tabletop/world/table-water';
 import {
   abs,
   attribute,
@@ -40,6 +40,11 @@ const PULLED_FORWARD = { polygonOffset: true, polygonOffsetFactor: -1, polygonOf
 
 /** How many cells one repeat of the net of light spans on the floor, as the page draws it. */
 const CAUSTIC_CELLS = 2.6;
+/**
+ * The same over the floor of a map under water, larger: the surface is far overhead, and over a
+ * whole board a fine net reads as a pattern printed on it.
+ */
+const SEA_CAUSTIC_CELLS = 3.4;
 /** How many cells one repeat of the glints spans on the surface. */
 const GLINT_CELLS = 5.7;
 /** How many seconds a wave takes to run in to the shore. */
@@ -58,6 +63,7 @@ export class WaterLayer {
   private readonly seconds = uniform(0);
   private readonly cellPx = uniform(50);
   private laid: TableWorldWater | null = null;
+  private laidBoard = '';
   private meshes: Mesh[] = [];
   private changed = false;
 
@@ -68,15 +74,21 @@ export class WaterLayer {
     return this.meshes.length;
   }
 
-  set(water: TableWorldWater): void {
-    if (water === this.laid) return;
+  /**
+   * Lays the water out, the floor of a map under water over the board's shape, made anew when it is
+   * asked for; builds it again only when the water or the board changed.
+   */
+  set(water: TableWorldWater, board: (() => BufferGeometry) | null, boardKey: string): void {
+    if (water === this.laid && boardKey === this.laidBoard) return;
     this.laid = water;
+    this.laidBoard = boardKey;
     this.clear();
     this.cellPx.value = water.cellPx;
     this.add(water.surface, this.surfaceMaterial(), SURFACE_ORDER, (geometry) =>
       geometry.setAttribute('flow', new Float32BufferAttribute(water.flow, 2))
     );
-    this.add(water.floor, this.floorMaterial(), FLOOR_ORDER);
+    this.add(water.floor, this.floorMaterial(CAUSTIC_CELLS), FLOOR_ORDER);
+    if (water.seaFloor && board) this.addSeaFloor(water.seaFloor, board());
     this.add(water.sides, this.sideMaterial(), SURFACE_ORDER);
     this.add(water.shore, this.shoreMaterial(), SHORE_ORDER);
     this.changed = true;
@@ -130,6 +142,24 @@ export class WaterLayer {
     this.meshes.push(mesh);
   }
 
+  /** Lays the floor of a map under water over the board's shape, one colour all over. */
+  private addSeaFloor(floor: TableWorldSeaFloor, geometry: BufferGeometry): void {
+    const count = geometry.getAttribute('position').count;
+    geometry.setAttribute(
+      'color',
+      new Float32BufferAttribute(
+        new Float32Array(count * 4).map((_, i) => floor.colour[i % 4]),
+        4
+      )
+    );
+    geometry.setAttribute('extra', new Float32BufferAttribute(new Float32Array(count).fill(floor.net), 1));
+    const mesh = new Mesh(geometry, this.floorMaterial(SEA_CAUSTIC_CELLS));
+    mesh.renderOrder = FLOOR_ORDER;
+    mesh.receiveShadow = true;
+    this.group.add(mesh);
+    this.meshes.push(mesh);
+  }
+
   private clear(): void {
     for (const mesh of this.meshes) {
       this.group.remove(mesh);
@@ -160,11 +190,11 @@ export class WaterLayer {
   }
 
   /** The floor: the colour of the depths, crossed by the net of light the surface throws down. */
-  private floorMaterial(): MeshLambertNodeMaterial {
+  private floorMaterial(netCells: number): MeshLambertNodeMaterial {
     const material = this.material(false);
     Object.assign(material, PULLED_FORWARD);
     const { rgb, a } = this.colour();
-    const at = vec2(positionWorld.x, positionWorld.z).div(this.cellPx.mul(CAUSTIC_CELLS));
+    const at = vec2(positionWorld.x, positionWorld.z).div(this.cellPx.mul(netCells));
     const net = ripples(at, this.seconds).pow(4).mul(attribute('extra', 'float'));
     material.colorNode = vec4(mix(rgb, vec3(1, 1, 1), net), max(a, net));
     this.dress(material, 'lit');

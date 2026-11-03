@@ -456,7 +456,13 @@ class ThreeTableEngine implements Table3dEngine {
     }
     this.sprites.set(world.sprites);
     this.coins.set(world.coins);
-    this.water.set(world.water);
+    this.water.set(
+      world.water,
+      world.board
+        ? () => (world.board!.ground ? groundGeometry(world.board!.ground) : boardGeometry(world.board!))
+        : null,
+      `${this.boardShape}|${this.groundGeneration}`
+    );
     if (world.sprites !== this.laidSprites) {
       this.laidSprites = world.sprites;
       this.piecesMoved();

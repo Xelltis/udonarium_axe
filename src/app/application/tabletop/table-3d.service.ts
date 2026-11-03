@@ -12,6 +12,7 @@ import {
 import { GameClockService } from '@axe/application/game-clock/game-clock.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { AmbienceService } from '@axe/application/tabletop/ambience.service';
 import { FloorCanvasesService } from '@axe/application/tabletop/floor-canvases.service';
 import { GroundService } from '@axe/application/tabletop/ground.service';
 import { LightSlotsService } from '@axe/application/tabletop/light-slots.service';
@@ -97,6 +98,7 @@ export class Table3dService {
   private readonly gameClock = inject(GameClockService);
   private readonly motion = inject(MotionService);
   private readonly waterCells = inject(WaterService);
+  private readonly ambience = inject(AmbienceService);
 
   /** The light of the sky over the table at the story's hour, as the room's clock tells it. */
   readonly skyLight = computed(() =>
@@ -156,17 +158,24 @@ export class Table3dService {
     water: this.water(),
   }));
 
-  /** The water on the table in view, as this seat sees it, moving where things may move. */
+  /**
+   * The water on the table in view, as this seat sees it, with the floor of a map the weather puts
+   * under water, moving where things may move.
+   */
   private readonly water = computed(() => {
     const grid = this.waterCells.grid();
     const cells = this.waterCells.cells();
-    if (!grid || cells.size < 1) return tableWaterOf(null, cells, [], [], this.motion.enabled());
+    const weather = this.ambience.weather();
+    const underwater = weather?.kind === 'underwater' ? weather : null;
+    const moving = this.motion.enabled();
+    if (!grid || cells.size < 1) return tableWaterOf(grid, cells, [], [], moving, underwater);
     return tableWaterOf(
       grid,
       cells,
       waterSidesOf(grid, cells, this.waterCells.groundAt),
       waterShoreOf(grid, cells, this.waterCells.groundOf),
-      this.motion.enabled()
+      moving,
+      underwater
     );
   });
 

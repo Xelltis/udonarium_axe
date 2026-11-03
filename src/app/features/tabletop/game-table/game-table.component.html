@@ -147,7 +147,9 @@
           }"
         ></ng-container>
       }
-      <table-water-floor [surfaceStyle]="tableSurfaceStyle()" />
+      @if (!table3d.drawsOnCanvas()) {
+        <table-water-floor [surfaceStyle]="tableSurfaceStyle()" />
+      }
       @for (view of wallViews(); track view.wall.surface) {
         @let wall = view.wall;
         <div
