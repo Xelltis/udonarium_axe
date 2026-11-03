@@ -145,6 +145,8 @@ function shadowOf(character: CharacterLayout, width: number, height: number) {
  * and tipped over sideways as far as the piece is, about the middle of its cell's height; on a wall
  * or a board it lies on the face inside the pedestal, as a poster does. Nothing is drawn of a
  * character whose pedestal the page does not hand over, as while the page draws the piece itself.
+ * A picture of the pedestal reaching past the cell, as for the mark of which way the piece faces,
+ * lies as far off the cell's middle as it reaches, turned with the piece.
  */
 export function characterSprites(character: CharacterLayout): TableWorldSprite[] {
   const pedestal = character.pedestal;
@@ -155,6 +157,13 @@ export function characterSprites(character: CharacterLayout): TableWorldSprite[]
   const middleAcross = character.x + size / 2;
   const middleDown = character.y + size / 2;
   const out = character.z + LIFT_PX;
+  const middle = pointOnFace(character.frame, middleAcross, middleDown, out);
+  const off = along(
+    { ...ground, out: character.frame.normal },
+    (pedestal.offsetX ?? 0) + pedestal.widthPx / 2 - size / 2,
+    (pedestal.offsetY ?? 0) + pedestal.heightPx / 2 - size / 2,
+    0
+  );
   const sprites: TableWorldSprite[] = [
     {
       ...lyingPicture(
@@ -163,7 +172,7 @@ export function characterSprites(character: CharacterLayout): TableWorldSprite[]
         pedestal
       ),
       id: `${character.id}#pedestal`,
-      centre: pointOnFace(character.frame, middleAcross, middleDown, out),
+      centre: { x: middle.x + off.x, y: middle.y + off.y, z: middle.z + off.z },
       facing: { across: ground.across, down: ground.down },
     },
   ];

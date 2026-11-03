@@ -57,6 +57,20 @@ describe('the sprites a character is drawn with', () => {
     expect(picture).toMatchObject({ widthPx: 25, heightPx: 50, centre: { z: 1 + 25 } });
   });
 
+  it('lays a picture of the pedestal reaching past the cell off its middle, turned with the piece', () => {
+    const reaching = { url: 'blob:pedestal', widthPx: 50, heightPx: 70, offsetX: 0, offsetY: -20 };
+
+    const [square] = characterSprites({ ...character, pedestal: reaching });
+    const [turned] = characterSprites({ ...character, pedestal: reaching, rotateDeg: 90 });
+    const [plain] = characterSprites(character);
+
+    expect(square.heightPx).toBe(70);
+    expect(square.centre.x).toBeCloseTo(plain.centre.x, 6);
+    expect(square.centre.y).toBeCloseTo(plain.centre.y - 10, 6);
+    expect(Math.hypot(turned.centre.x - plain.centre.x, turned.centre.y - plain.centre.y)).toBeCloseTo(10, 6);
+    expect(turned.centre.y).toBeCloseTo(plain.centre.y, 6);
+  });
+
   it('lays the picture inside the pedestal on a wall, as a poster', () => {
     const north = surfaceFrame('north-wall', dims);
 

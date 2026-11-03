@@ -97,24 +97,6 @@
               </div>
             </div>
           }
-          <svg
-            data-testid="facing-arrow"
-            class="pointer-events-none absolute left-1/2 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]"
-            [style.width.px]="facingArrowSizePx()"
-            [style.height.px]="facingArrowSizePx()"
-            [style.top.px]="-(facingArrowSizePx() / 2 + facingArrowOffsetPx())"
-            [style.margin-left.px]="-facingArrowSizePx() / 2"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <path
-              d="M12 1.5 L22.5 22.5 L12 17 L1.5 22.5 Z"
-              fill="#00e5ff"
-              stroke="#ffffff"
-              stroke-width="2.6"
-              stroke-linejoin="round"
-            />
-          </svg>
         </div>
         @if (multiAngleOrbitVisible()) {
           <div
@@ -663,6 +645,28 @@
       [style.height.px]="size() * gridSize"
     >
       <div class="absolute inset-0 backface-hidden" #pedestal data-part="pedestal">
+        @if (showFacingArrow()) {
+          <!-- Pictured with the pedestal, so the canvas lays it on the floor and a picture standing
+               in front of it hides it, as it hides a mark painted on the floor. -->
+          <svg
+            data-testid="facing-arrow"
+            class="pointer-events-none absolute left-1/2 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]"
+            [style.width.px]="facingArrowSizePx()"
+            [style.height.px]="facingArrowSizePx()"
+            [style.top.px]="-(facingArrowSizePx() / 2 + facingArrowOffsetPx())"
+            [style.margin-left.px]="-facingArrowSizePx() / 2"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              d="M12 1.5 L22.5 22.5 L12 17 L1.5 22.5 Z"
+              fill="#00e5ff"
+              stroke="#ffffff"
+              stroke-width="2.6"
+              stroke-linejoin="round"
+            />
+          </svg>
+        }
         @if (!this.gameCharacter()!.hideInventory) {
           <div
             class="absolute box-border size-full rounded-[25px] border-[6px] border-solid border-[#ffcc80] backface-hidden"

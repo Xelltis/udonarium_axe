@@ -455,7 +455,11 @@ export class GameCharacterComponent {
         this.isSharedView();
         this.pedestalStyleShown();
         this.pedestalOuterStyle();
+        this.showFacingArrow();
+        this.facingArrowSizePx();
+        this.facingArrowOffsetPx();
       },
+      region: (element) => this.pedestalRegion(element),
     });
     setupMovableRotableForPiece(this, {
       target: this.gameCharacter,
@@ -1065,6 +1069,18 @@ export class GameCharacterComponent {
    * the whole table, and a faint mark on a painted floor is read at none.
    */
   readonly facingArrowSizePx = computed(() => Math.max(16, Math.round(this.gridSize * 0.44)));
+
+  /**
+   * The part of the pedestal the canvas is handed a picture of: the cell, and above it the mark of
+   * which way the piece faces where one is shown, which stands half out past the cell's edge.
+   */
+  private pedestalRegion(element: HTMLElement) {
+    const width = element.offsetWidth;
+    const height = element.offsetHeight;
+    if (!this.showFacingArrow()) return { left: 0, top: 0, width, height };
+    const above = this.facingArrowSizePx() / 2 + this.facingArrowOffsetPx();
+    return { left: 0, top: -above, width, height: height + above };
+  }
 
   readonly facingArrowOffsetPx = computed(() => {
     const baseOffset = Math.round(this.gridSize * 0.06);
