@@ -6,6 +6,7 @@ import { ɵgetCleanupHook as getCleanupHook, TestBed, TestModuleMetadata } from 
 import { BrowserDynamicTestingModule, platformBrowserDynamicTesting } from '@angular/platform-browser-dynamic/testing';
 import { loadConfig$ } from '@axe/core/event/domain-events';
 import { Logger, LogLevel } from '@axe/core/logging/logger';
+import { Network } from '@axe/core/network/network';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { resetPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -388,11 +389,13 @@ function stopSynchronizing(): void {
   ObjectSynchronizer.instance.destroy();
 }
 
-// What the page holds outside any object: whether it is cut off from the room, whether the table it
-// holds came withheld, and the tone the chat's bubbles are measured against. A worker runs file
-// after file in one page, so each starts from a page just opened.
+// What the page holds outside any object: whether it is cut off from the room, whether it plays
+// alone as somebody, whether the table it holds came withheld, and the tone the chat's bubbles are
+// measured against. A worker runs file after file in one page, so each starts from a page just
+// opened.
 function forgetPageState(): void {
   setNetworkIsolated(false);
+  Network.playAlone(null);
   forgetWithheldTable();
   resetChatBubbleBaseTone();
 }

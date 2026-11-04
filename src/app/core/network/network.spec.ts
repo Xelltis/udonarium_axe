@@ -50,6 +50,27 @@ describe('Network', () => {
     });
   });
 
+  describe('playing alone', () => {
+    afterEach(() => Network.playAlone(null));
+
+    it('reports the user it plays as for its own peer while no session is open', () => {
+      Network.playAlone('alone-user');
+
+      expect(Network.peerContext.userId).toBe('alone-user');
+      expect(Network.peerId).toBe(Network.peer.peerId);
+      expect(Network.instance.isOpen).toBe(false);
+    });
+
+    it('plays as nobody again once it is given no user', () => {
+      const nobody = Network.peer;
+      Network.playAlone('alone-user');
+
+      Network.playAlone(null);
+
+      expect(Network.peer).toBe(nobody);
+    });
+  });
+
   describe('the older names', () => {
     it('the old peer name matches the new one', () => {
       expect(Network.instance.peerContext).toBe(Network.instance.peer);
