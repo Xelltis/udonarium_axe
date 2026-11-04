@@ -365,7 +365,7 @@ export class ModelLayer {
 /**
  * Where a model stands for its piece, from its foot as it was made: at the piece's foot and as high
  * as it floats, fitted inside the piece's box, turned by the model's own turn and as the piece is,
- * and tipped over as the piece's picture is, about the middle of the box's width over its foot: its
+ * and tipped over as the piece's picture is, about the point its picture is tipped over about: its
  * head to the east for a piece not turned, tipped over by a right angle.
  */
 export function placementOf(model: TableWorldModel, loaded: Pick<LoadedModel, 'size'>): Matrix4 {
@@ -376,7 +376,7 @@ export function placementOf(model: TableWorldModel, loaded: Pick<LoadedModel, 's
     model.heightPx > 0 ? model.heightPx / tall : Infinity
   );
   const scale = fitted * model.model.scale;
-  const pivot = model.footprintPx / 2;
+  const pivot = model.pivotPx;
   return new Matrix4()
     .makeTranslation(model.foot.x, model.foot.z + model.altitudePx + pivot, model.foot.y)
     .multiply(new Matrix4().makeRotationY(-model.rotateDeg * RADIANS))

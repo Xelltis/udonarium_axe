@@ -227,6 +227,7 @@ export class Table3dService {
         heightPx: Math.max(0, terrain.height) * gridSize,
         rotateDeg: terrain.rotate,
         rollDeg: 0,
+        pivotPx: 0,
         altitudePx: 0,
         walking: false,
       });

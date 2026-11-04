@@ -317,6 +317,23 @@ describe('TablePiecesService', () => {
       ]);
     });
 
+    it('fits the model inside the size asked for its picture, tipped over and lifted as the picture is', () => {
+      vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:knight' } as never);
+      const knight = knightAt(100, 200);
+      knight.specifyKomaImageFlag = true;
+      knight.komaImageHeight = 250;
+      knight.roll = 90;
+      knight.altitude = 1;
+
+      expect(pieces.models()[0]).toMatchObject({
+        footprintPx: 125,
+        heightPx: 250,
+        rollDeg: 90,
+        pivotPx: gridSize / 2,
+        altitudePx: gridSize,
+      });
+    });
+
     it('walks while this seat moves it', () => {
       const knight = knightAt(100, 200);
       vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:knight' } as never);

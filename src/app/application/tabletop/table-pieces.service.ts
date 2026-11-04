@@ -46,7 +46,7 @@ import { maskSprites, rangeSprites } from '@axe/domain/tabletop/world/flat-piece
 import { lightSourceSprites } from '@axe/domain/tabletop/world/light-source-sprites';
 import { MotionPivot, movedSprite } from '@axe/domain/tabletop/world/piece-motions';
 import { tableCoinOf, TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
-import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
+import { characterModelBox, type TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import { type PagePicture, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { textNoteSprites } from '@axe/domain/tabletop/world/text-note-sprites';
 import { whiteBoardSprites } from '@axe/domain/tabletop/world/white-board-sprites';
@@ -115,16 +115,22 @@ export class TablePiecesService {
       const place = this.placeOf(character);
       if (!place?.onFloor) continue;
       const size = Math.max(0, character.size) * gridSize;
+      const box = characterModelBox(
+        size,
+        character.specifyKomaImageFlag ? character.komaImageHeight : null,
+        character.specifyKomaImageFlag ? pieceImageWidthApart(character.komaImageWidth) : null
+      );
       models.push({
         owner: character.identifier,
         kind: GameCharacter.aliasName,
         url,
         model,
         foot: { x: place.x + size / 2, y: place.y + size / 2, z: place.z },
-        footprintPx: size,
-        heightPx: size * CHARACTER_MODEL_HEIGHT_CELLS,
+        footprintPx: box.widthPx,
+        heightPx: box.heightPx,
         rotateDeg: character.rotate,
         rollDeg: character.roll,
+        pivotPx: size / 2,
         altitudePx: character.altitude * gridSize,
         walking: this.transient.placementOf(character.identifier) !== null,
       });
@@ -619,9 +625,6 @@ export class TablePiecesService {
     return colour || otherwise;
   }
 }
-
-/** How many times its footprint a character drawn as a model stands at the most, as a picture of a figure does. */
-const CHARACTER_MODEL_HEIGHT_CELLS = 2;
 
 /**
  * A sprite of a character drawn as a 3D model: its picture and its shadow left undrawn, still picked

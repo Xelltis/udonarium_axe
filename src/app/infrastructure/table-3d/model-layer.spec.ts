@@ -16,6 +16,7 @@ function knight(fields: Partial<TableWorldModel> = {}): TableWorldModel {
     heightPx: 100,
     rotateDeg: 0,
     rollDeg: 0,
+    pivotPx: 25,
     altitudePx: 0,
     walking: false,
     ...fields,
@@ -38,7 +39,7 @@ describe('placementOf', () => {
     expect(drawnAt(knight({ altitudePx: 30 }), 0, 0, 0)).toEqual([100, 30, 200]);
   });
 
-  it('tips a model over as its piece’s picture is tipped, about the middle of the cell’s width over the foot', () => {
+  it('tips a model over as its piece’s picture is tipped, about the point its picture is tipped over about', () => {
     const tipped = knight({ rollDeg: 90 });
 
     expect(drawnAt(tipped, 0, 0, 0)).toEqual([75, 25, 200]);

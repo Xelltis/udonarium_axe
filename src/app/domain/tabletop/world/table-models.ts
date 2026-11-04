@@ -20,13 +20,29 @@ export interface TableWorldModel {
   readonly heightPx: number;
   /** How far the piece is turned, in degrees clockwise. */
   readonly rotateDeg: number;
-  /**
-   * How far the piece is tipped over sideways, in degrees, about the middle of its box's width over
-   * its foot, at its altitude: where its picture is tipped over about.
-   */
+  /** How far the piece is tipped over sideways, in degrees, as its picture is. */
   readonly rollDeg: number;
+  /** How high over its foot, at its altitude, the piece is tipped over about, as its picture is, in table pixels. */
+  readonly pivotPx: number;
   /** How high the piece floats over its foot, in table pixels. */
   readonly altitudePx: number;
   /** Whether the piece is being moved now, which plays its walk. */
   readonly walking: boolean;
+}
+
+/** How many times its width the box a character's model is fitted inside stands, as a picture of a figure does. */
+const CHARACTER_MODEL_HEIGHT_CELLS = 2;
+
+/**
+ * The box a character's model is fitted inside: as wide as its cell and twice as tall, or as tall as
+ * its picture is asked to be, and as wide as that is asked to be apart from it or else keeping the
+ * box's own shape.
+ */
+export function characterModelBox(
+  sizePx: number,
+  pictureHeightPx: number | null,
+  pictureWidthPx: number | null
+): { readonly widthPx: number; readonly heightPx: number } {
+  if (pictureHeightPx === null) return { widthPx: sizePx, heightPx: sizePx * CHARACTER_MODEL_HEIGHT_CELLS };
+  return { widthPx: pictureWidthPx ?? pictureHeightPx / CHARACTER_MODEL_HEIGHT_CELLS, heightPx: pictureHeightPx };
 }
