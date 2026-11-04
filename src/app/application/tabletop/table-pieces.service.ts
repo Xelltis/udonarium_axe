@@ -124,6 +124,8 @@ export class TablePiecesService {
         footprintPx: size,
         heightPx: size * CHARACTER_MODEL_HEIGHT_CELLS,
         rotateDeg: character.rotate,
+        rollDeg: character.roll,
+        altitudePx: character.altitude * gridSize,
         walking: this.transient.placementOf(character.identifier) !== null,
       });
     }

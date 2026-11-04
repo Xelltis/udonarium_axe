@@ -226,6 +226,8 @@ export class Table3dService {
         footprintPx: Math.max(terrain.width, terrain.depth) * gridSize,
         heightPx: Math.max(0, terrain.height) * gridSize,
         rotateDeg: terrain.rotate,
+        rollDeg: 0,
+        altitudePx: 0,
         walking: false,
       });
     }

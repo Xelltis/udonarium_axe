@@ -10,7 +10,6 @@ import {
   AnimationClip,
   AnimationMixer,
   Box3,
-  Euler,
   Group,
   InstancedMesh,
   LoadingManager,
@@ -20,7 +19,6 @@ import {
   MeshLambertNodeMaterial,
   type MeshStandardMaterial,
   type Object3D,
-  Quaternion,
   Vector3,
   type WebGPURenderer,
 } from 'three/webgpu';
@@ -365,21 +363,27 @@ export class ModelLayer {
 }
 
 /**
- * Where a model stands for its piece, from its foot as it was made: at the piece's foot, fitted inside
- * the piece's box, and turned as the piece is and by the model's own turn.
+ * Where a model stands for its piece, from its foot as it was made: at the piece's foot and as high
+ * as it floats, fitted inside the piece's box, turned by the model's own turn and as the piece is,
+ * and tipped over as the piece's picture is, about the middle of the box's width over its foot: its
+ * head to the east for a piece not turned, tipped over by a right angle.
  */
-function placementOf(model: TableWorldModel, loaded: LoadedModel): Matrix4 {
+export function placementOf(model: TableWorldModel, loaded: Pick<LoadedModel, 'size'>): Matrix4 {
   const across = Math.max(loaded.size.x, loaded.size.z, 1e-6);
   const tall = Math.max(loaded.size.y, 1e-6);
   const fitted = Math.min(
     Math.max(1, model.footprintPx) / across,
     model.heightPx > 0 ? model.heightPx / tall : Infinity
   );
-  return new Matrix4().compose(
-    new Vector3(model.foot.x, model.foot.z, model.foot.y),
-    new Quaternion().setFromEuler(new Euler(0, -(model.rotateDeg + model.model.turnDeg) * RADIANS, 0)),
-    new Vector3().setScalar(fitted * model.model.scale)
-  );
+  const scale = fitted * model.model.scale;
+  const pivot = model.footprintPx / 2;
+  return new Matrix4()
+    .makeTranslation(model.foot.x, model.foot.z + model.altitudePx + pivot, model.foot.y)
+    .multiply(new Matrix4().makeRotationY(-model.rotateDeg * RADIANS))
+    .multiply(new Matrix4().makeRotationZ(-model.rollDeg * RADIANS))
+    .multiply(new Matrix4().makeTranslation(0, -pivot, 0))
+    .multiply(new Matrix4().makeRotationY(-model.model.turnDeg * RADIANS))
+    .multiply(new Matrix4().makeScale(scale, scale, scale));
 }
 
 function disposeMesh(object: Object3D): void {
