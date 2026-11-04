@@ -28,9 +28,9 @@ interface Changes {
 
 /** Points of the table, where the blocks are set down, as offsets into the table's layer. */
 const BLOCK_SPOTS = [
-  { x: 1104, y: 242 },
-  { x: 1062, y: 396 },
-  { x: 1119, y: 561 },
+  { x: 1010, y: 420 },
+  { x: 1030, y: 250 },
+  { x: 990, y: 560 },
   { x: 370, y: 508 },
   { x: 765, y: 553 },
 ];
@@ -39,6 +39,11 @@ const BLOCK_SPOTS = [
 const EDGE_SLACK_PX = 3;
 const STEP_PX = 9;
 
+/**
+ * Waits for the table to be drawn and to have nothing left to draw, with the pointer off the table.
+ * A piece's detail that came up where a menu entry was pressed takes a moment to go once the pointer
+ * has left, and is waited out too, as a picture would take it for blocks drawn or hidden under it.
+ */
 async function idle(page: Page) {
   await expect
     .poll(() => page.evaluate(() => (window as unknown as { __axeTable?: Hooks }).__axeTable?.renderer() ?? null), {
@@ -46,6 +51,7 @@ async function idle(page: Page) {
     })
     .not.toBeNull();
   await page.mouse.move(5, 400);
+  await expect(page.locator('overview-panel')).toHaveCount(0, { timeout: 5000 });
   await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
 }
 
@@ -151,8 +157,18 @@ async function pointOnBlock(page: Page): Promise<{ x: number; y: number; id: str
   return found!;
 }
 
+/**
+ * Has the table drawn lightly, with no shadows: a block throws the sun's shadow over the board and
+ * the blocks beside it, which the pictures here, of where the blocks and the grid are drawn, would
+ * take for a block drawn where none stands. Call before the page is opened.
+ */
+async function drawWithoutShadows(page: Page) {
+  await page.addInitScript(() => localStorage.setItem('axe.table.quality', 'light'));
+}
+
 test.describe('blocks drawn on a canvas', () => {
   test.beforeEach(async ({ page }) => {
+    await drawWithoutShadows(page);
     await waitAppReady(page);
     await becomeGm(page);
     await closePanels(page);

@@ -29,12 +29,11 @@ const EDGE_SLACK_PX = 3;
 
 /** Points of the table, where the blocks are set down, as offsets into the table's layer. */
 const BLOCK_SPOTS = [
-  { x: 1104, y: 242 },
-  { x: 1062, y: 396 },
-  { x: 1119, y: 561 },
+  { x: 1010, y: 420 },
+  { x: 1030, y: 250 },
+  { x: 990, y: 560 },
   { x: 370, y: 508 },
   { x: 765, y: 553 },
-  { x: 913, y: 570 },
 ];
 
 async function useGrid(page: Page, gridType: string) {
