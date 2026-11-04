@@ -15,8 +15,14 @@ type Hooks = {
   whenIdle(): Promise<void>;
   pieceBoxesOnPage(identifier: string): Box[];
   groundAt(x: number, y: number): number;
+  paintAt(x: number, y: number): number[] | null;
+  sceneBoard(): { widthPx: number; depthPx: number } | null;
 };
 
+/**
+ * Waits for the table to be drawn and to have nothing left to draw, with the pointer off the table
+ * and the detail of any piece it passed over gone.
+ */
 async function idle(page: Page) {
   await expect
     .poll(() => page.evaluate(() => (window as unknown as { __axeTable?: Hooks }).__axeTable?.renderer() ?? null), {
@@ -24,7 +30,23 @@ async function idle(page: Page) {
     })
     .not.toBeNull();
   await page.mouse.move(5, 400);
+  await expect(page.locator('overview-panel')).toHaveCount(0, { timeout: 5000 });
   await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
+}
+
+/** The most of each kind of ground painted anywhere on the board, grass, dirt, rock and sand in turn, each out of fifteen. */
+function mostPainted(page: Page): Promise<number[]> {
+  return page.evaluate(() => {
+    const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+    const board = hooks.sceneBoard();
+    const most = [0, 0, 0, 0];
+    for (let y = 0; y < (board?.depthPx ?? 0); y += 25) {
+      for (let x = 0; x < (board?.widthPx ?? 0); x += 25) {
+        hooks.paintAt(x, y)?.forEach((share, kind) => (most[kind] = Math.max(most[kind], share)));
+      }
+    }
+    return most;
+  });
 }
 
 async function pedestalOf(page: Page, identifier: string): Promise<Box> {
@@ -90,19 +112,23 @@ test.describe('the ground of a table drawn on a canvas', () => {
   });
 
   test('paints the ground the kind of ground chosen, where the brush is laid', async ({ page }) => {
-    const spot = { x: 640, y: 200 };
+    const spot = { x: 1040, y: 560 };
     const clip = { x: spot.x - 6, y: spot.y - 6, width: 12, height: 12 };
     const bare = await page.screenshot({ clip });
 
     await page.getByTestId('toolbar-ground-brush').click();
     await page.getByTestId('ground-brush-paint').click();
     await page.getByTestId('ground-brush-layer-rock').click();
-    await page.mouse.move(spot.x - 30, spot.y);
+    await page.mouse.move(spot.x - 60, spot.y);
     await page.mouse.down();
-    await page.mouse.move(spot.x + 30, spot.y, { steps: 6 });
+    await page.mouse.move(spot.x + 60, spot.y, { steps: 8 });
     await page.mouse.up();
+    await page.getByTestId('ground-brush-close').click();
     await idle(page);
 
+    const [grass, dirt, rock, sand] = await mostPainted(page);
+    expect({ grass, dirt, sand }).toEqual({ grass: 0, dirt: 0, sand: 0 });
+    expect(rock).toBeGreaterThan(0);
     expect(await page.screenshot({ clip })).not.toEqual(bare);
   });
 

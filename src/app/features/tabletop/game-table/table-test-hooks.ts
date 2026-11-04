@@ -59,6 +59,11 @@ export interface TableTestHooks {
   moving(identifier: string): boolean;
   /** How high the raised ground of the table in view stands at a point of the board, in table pixels. */
   groundAt(x: number, y: number): number;
+  /**
+   * The shares of paint the ground of the table in view wears at a point of the board, in table pixels:
+   * grass, dirt, rock and sand, each out of fifteen, or null where it wears none.
+   */
+  paintAt(x: number, y: number): number[] | null;
   /** What the canvas's engine holds, counted, or null while there is none. */
   sceneStats(): {
     chunks: number;
@@ -137,6 +142,10 @@ export function installTableTestHooks(
     holdMovesAt: (ms) => motions.holdAt(ms),
     moving: (identifier) => motions.isPlaying(identifier),
     groundAt: (x, y) => ground.heightPxAt(x, y),
+    paintAt: (x, y) => {
+      const shares = ground.paintPxAt(x, y);
+      return shares ? Array.from(shares) : null;
+    },
     sceneStats: () => scene.stats(),
     spritesOf: (identifier) =>
       scene

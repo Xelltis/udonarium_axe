@@ -4,7 +4,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { applyGroundDab, GroundDab } from '@axe/domain/tabletop/ground/ground-brush';
-import { GroundChunkData } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { GROUND_SAMPLES_PER_CELL, GroundChunkData } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { ensureGroundFieldOn, groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
 import {
   FLAT_GROUND,
@@ -64,6 +64,19 @@ export class GroundService {
     const gridSize = untracked(this.tabletop.currentTableVersion).gridSize;
     if (!(gridSize > 0)) return 0;
     return untracked(this.surface).heightAt(x / gridSize, y / gridSize) * gridSize;
+  }
+
+  /**
+   * The shares of paint the sample nearest a point of the board wears, the point in table pixels, four
+   * of them in the order of `GROUND_PAINT_LAYERS`, or null where it wears none.
+   */
+  paintPxAt(x: number, y: number): Uint8Array | null {
+    const gridSize = untracked(this.tabletop.currentTableVersion).gridSize;
+    if (!(gridSize > 0)) return null;
+    return untracked(this.surface).paintAt(
+      Math.round((x / gridSize) * GROUND_SAMPLES_PER_CELL),
+      Math.round((y / gridSize) * GROUND_SAMPLES_PER_CELL)
+    );
   }
 
   /** How far the ground under a box of the board lifts what stands on it, in table pixels (`lowestGroundPxIn`). */
