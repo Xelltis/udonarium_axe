@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openTableContextMenu } from '../helpers';
+import { drawSampleModels, openTableContextMenu } from '../helpers';
 import { closePanels, prepare, snap } from './fixtures';
 
 async function createCharacterAt(page: Page, position: { x: number; y: number }) {
@@ -11,6 +11,7 @@ async function createCharacterAt(page: Page, position: { x: number; y: number })
 }
 
 test('two new pieces on the square grid look the same', async ({ page }) => {
+  await drawSampleModels(page);
   await prepare(page);
   await closePanels(page);
   await createCharacterAt(page, { x: 900, y: 250 });

@@ -1,14 +1,33 @@
 import { expect, test } from '@playwright/test';
 
-import { chooseMenu, closePanels, freeze, prepare, rightClickTable, settle, settleLazy, snap } from './fixtures';
+import {
+  chooseMenu,
+  closePanels,
+  drawsOnCanvas,
+  freeze,
+  prepare,
+  rightClickTable,
+  settle,
+  settleLazy,
+  snap,
+} from './fixtures';
+
+/** The shelf the pictures the tool is built with are filed on, which the picker shows them under. */
+const MATERIALS_TAG = 'テクスチャ';
+
+/** The pictures the tool is built with that the block is dressed in, a floor on its slope and a wall on its sides. */
+const FACE_MATERIALS = [
+  ['床画像', 'tiles/stone_paving_big.webp'],
+  ['壁画像', 'walls/wall_brick.webp'],
+] as const;
 
 /**
  * The slope of a block, which is built from the sides it runs down to.
  *
  * One side is a ramp up to the side across from it, the way a slope has always read; every side
- * raises a pyramid over the middle. The block is four cells across and two tall, with a picture
- * from the room on it, so the shape of each flat piece of the slope and the walls left standing
- * under it are all in the picture.
+ * raises a pyramid over the middle. The block is four cells across and two tall, dressed in a
+ * floor and a wall the tool is built with, so the shape of each flat piece of the slope and the
+ * walls left standing under it are all in the picture.
  */
 test('a block slopes to one side as a ramp and to every side as a pyramid', async ({ page }) => {
   await prepare(page);
@@ -27,11 +46,15 @@ test('a block slopes to one side as a ramp and to every side as a pyramid', asyn
   await page.locator('context-menu').getByText('地形設定を編集', { exact: true }).dispatchEvent('click');
   const sheet = page.locator('ui-panel').first();
   await settleLazy(page, sheet.locator('button', { hasText: '床画像' }));
-  for (const face of ['床画像', '壁画像']) {
+  for (const [face, material] of FACE_MATERIALS) {
     await sheet.locator('button', { hasText: face }).first().dispatchEvent('click');
-    await settleLazy(page, page.locator('modal img').nth(1));
-    // The knight, which is opaque: the default avatar is a translucent ring and shows nothing.
-    await page.locator('modal img').nth(1).dispatchEvent('click');
+    const shelf = page.locator('modal label', { hasText: MATERIALS_TAG }).first();
+    await settleLazy(page, shelf);
+    await shelf.click();
+    await settle(page, 100);
+    const picture = page.locator(`modal img[src$="${material}"]`).first();
+    await settleLazy(page, picture);
+    await picture.dispatchEvent('click');
     await settle(page, 300);
   }
   const sizes = sheet.locator('input[name="data-value"]');
@@ -51,11 +74,11 @@ test('a block slopes to one side as a ramp and to every side as a pyramid', asyn
   await settle(page, 400);
 
   await slopeTo(page, '南');
-  await expect(page.locator('[data-testid="terrain-slope-face"]')).toHaveCount(1);
+  if (!drawsOnCanvas()) await expect(page.locator('[data-testid="terrain-slope-face"]')).toHaveCount(1);
   await snap(page, 'terrain-slope-ramp');
 
   for (const side of ['北', '東', '西']) await slopeTo(page, side);
-  await expect(page.locator('[data-testid="terrain-slope-face"]')).toHaveCount(4);
+  if (!drawsOnCanvas()) await expect(page.locator('[data-testid="terrain-slope-face"]')).toHaveCount(4);
   await snap(page, 'terrain-slope-pyramid');
 });
 
@@ -64,7 +87,7 @@ async function slopeTo(page: import('@playwright/test').Page, side: string) {
   await page.locator('terrain').last().dispatchEvent('contextmenu');
   await settle(page, 300);
   const menu = page.locator('context-menu');
-  await menu.getByText('傾斜', { exact: true }).hover();
+  await menu.getByText('傾斜', { exact: true }).first().hover();
   await settle(page, 300);
   await menu.getByText(side, { exact: true }).dispatchEvent('click');
   await settle(page, 300);

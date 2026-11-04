@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels, freeze, prepare, settle, settleLazy, snap } from './fixtures';
+import { becomeGm, closePanels, freeze, holdFlicker, prepare, settle, settleLazy, snap } from './fixtures';
 
 /** The same dungeon every run: the generator lays rooms and walls out from the seed alone. */
 const SEED = '1278372739';
@@ -69,6 +69,18 @@ async function hideFloorLight(page: Page) {
   });
 }
 
+/**
+ * Holds the generated torches of a table drawn on a canvas as they flicker at one moment. The
+ * canvas lights the blocks with them too, and the clock stands wherever building the dungeon left
+ * it, which it does on real time, by the time the shot is taken.
+ */
+async function holdTorches(page: Page) {
+  await holdFlicker(page, TORCHES_HELD_AT_MS);
+}
+
+/** The moment the torches are held at, any one, so long as it is the same every run. */
+const TORCHES_HELD_AT_MS = 2000;
+
 /** Gives textures fetched on real time a moment to arrive. */
 async function letImagesArrive(page: Page) {
   await page.waitForTimeout(1000);
@@ -110,6 +122,7 @@ for (const grid of GRIDS) {
     await freeze(page);
     await buildDungeon(page, grid.label);
     await hideFloorLight(page);
+    await holdTorches(page);
     await hidePieces(page);
     await hideRestoreOffer(page);
     await closePanels(page);

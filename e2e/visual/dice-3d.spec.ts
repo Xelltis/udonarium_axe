@@ -1,7 +1,7 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
 import { chatInput, openPanel } from '../helpers';
-import { becomeGm, closePanels, prepare, reseedRandom, waitChatEditor } from './fixtures';
+import { becomeGm, closePanels, drawsOnCanvas, prepare, reseedRandom, waitChatEditor } from './fixtures';
 
 // The dice are drawn with WebGL, which headless Chromium gives through SwiftShader.
 test.use({ launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } });
@@ -149,6 +149,7 @@ test('the dice of a chat roll come to rest in the frame of its answer', async ({
 });
 
 test('the dice of a chat roll come to rest on the table', async ({ page }) => {
+  test.skip(drawsOnCanvas(), 'the sheet laid over the table is the page’s own table’s');
   test.setTimeout(120_000);
   await prepare(page);
   await chooseStage(page, 'table');
@@ -165,4 +166,79 @@ test('the dice of a chat roll come to rest on the table', async ({ page }) => {
   await keptAtRest(page);
   await page.mouse.move(1279, 799);
   await expect(page).toHaveScreenshot('dice-3d-table.png', { maxDiffPixels: 60 });
+});
+
+/**
+ * Writes a roll and sends it in the same moment as the dice bot and the page's randomness are
+ * started over, with no frame between: the table drawn on a canvas makes its parts afresh as it
+ * draws, and each takes a number from the page's randomness, so a frame drawn in between would
+ * change the roll's identifier, and with it how its dice are thrown.
+ */
+async function rollSeededAtOnce(page: Page, command: string) {
+  await waitChatEditor(page);
+  await chatInput(page).fill(command);
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+  await page.evaluate(() => {
+    (globalThis as unknown as { Opal: { Random: { $srand(seed: number): void } } }).Opal.Random.$srand(0x2f6e2b1);
+    (window as unknown as { reseedRandom(seed: number): void }).reseedRandom(0x2f6e2b1);
+    document.querySelector<HTMLButtonElement>('chat-input button[aria-label="送信"]')!.click();
+  });
+}
+
+/** Has the chat speak as a piece, so a roll's dice are thrown in front of it, out in the open, rather than in the middle of the screen. */
+async function speakAs(page: Page, name: string) {
+  const from = page.locator('chat-window .chat-select--from');
+  const search = from.locator('input[role="combobox"]');
+  await search.fill(name);
+  await expect(page.locator('.ng-dropdown-panel').getByRole('option', { name, exact: true })).toBeVisible();
+  await search.press('Enter');
+  await expect(from.locator('.ng-value-label')).toHaveText(name);
+}
+
+/** How many rolls have dice in the scene of the table drawn on a canvas. */
+function diceInScene(page: Page): Promise<number> {
+  return page.evaluate(
+    () =>
+      (window as unknown as { __axeTable?: { sceneStats(): { dice: number } | null } }).__axeTable?.sceneStats()
+        ?.dice ?? 0
+  );
+}
+
+/**
+ * Holds the moment the page draws at once the dice of a roll have been in the scene of a canvas
+ * table for a while, long enough for them to come to rest and short of their fading, so they lie at
+ * rest for as long as the shot takes.
+ */
+async function holdDiceInScene(page: Page, ms: number) {
+  await page.evaluate((after) => {
+    const requestFrame = window.requestAnimationFrame.bind(window);
+    const kept = { first: -1, held: -1 };
+    Object.assign(window, { diceKept: kept });
+    window.requestAnimationFrame = (callback) =>
+      requestFrame((now) => {
+        const scene = (window as unknown as { __axeTable?: { sceneStats(): { dice: number } | null } }).__axeTable;
+        if (kept.first < 0 && (scene?.sceneStats()?.dice ?? 0) > 0) kept.first = now;
+        if (kept.first >= 0 && kept.held < 0 && now - kept.first >= after) kept.held = now;
+        callback(kept.held >= 0 ? kept.held : now);
+      });
+  }, ms);
+}
+
+test('the dice of a chat roll come to rest in the scene of a table drawn on a canvas', async ({ page }) => {
+  test.skip(!drawsOnCanvas(), 'the page’s own table lays its dice on a sheet over it');
+  test.setTimeout(120_000);
+  await prepare(page);
+  await chooseStage(page, 'table');
+  await speakAs(page, 'キャラクターB');
+  await roll(page, '1d6');
+  await expect.poll(() => diceInScene(page), { timeout: 30_000 }).toBe(1);
+  await expect.poll(() => diceInScene(page), { timeout: 30_000 }).toBe(0);
+  await holdDiceInScene(page, 3000);
+  await rollSeededAtOnce(page, '2d6+1d20');
+  await closePanels(page);
+  await page.waitForFunction(() => (window as unknown as { diceKept: { held: number } }).diceKept.held >= 0, null, {
+    timeout: 30_000,
+  });
+  await page.mouse.move(1279, 799);
+  await expect(page).toHaveScreenshot('dice-3d-table.png', { maxDiffPixels: 60, timeout: 30_000 });
 });

@@ -46,6 +46,12 @@ test('the room settings look the same on the part another panel sits in', async 
   await snap(page, 'panels-room-settings-archive', { maxDiffPixelRatio: 0.001, threshold: 0.1 });
 });
 
+/**
+ * How wide the new cut-in's picture is of itself, which the editor shows once the picture has come:
+ * a table drawn on a canvas has no picture of the board on the page, so it comes later there.
+ */
+const PICTURE_WIDTH = '1600';
+
 test('the cut-in editor looks the same', async ({ page }) => {
   await prepare(page);
   await closePanels(page);
@@ -53,5 +59,6 @@ test('the cut-in editor looks the same', async ({ page }) => {
   await expect(page.locator('app-cut-in-list')).toBeVisible({ timeout: 10000 });
   await page.locator('app-cut-in-list button[title="新しいカットインを作る"]').click();
   await expect(page.locator('app-cut-in-list cut-in-editor')).toBeVisible({ timeout: 5000 });
+  await expect(page.locator('cut-in-editor input[name="cut-in-width"]')).toHaveValue(PICTURE_WIDTH, { timeout: 10000 });
   await snap(page, 'panels-cut-in-editor', { maxDiffPixelRatio: 0.001, threshold: 0.1 });
 });

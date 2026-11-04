@@ -28,6 +28,15 @@ const drawsOnCanvas = {
   origins: [{ origin: 'http://localhost:4300', localStorage: [{ name: 'axe.table.renderer', value: 'three' }] }],
 };
 
+/**
+ * A browser that has asked for the table to be drawn on a canvas through WebGL2, though it could draw
+ * through WebGPU, with the sample room's pieces drawn as their pictures.
+ */
+const drawsThroughWebGl2 = {
+  cookies: [withoutSampleModels],
+  origins: [{ origin: 'http://localhost:4300', localStorage: [{ name: 'axe.table.renderer', value: 'three-webgl2' }] }],
+};
+
 /** A browser that has asked for the table to be drawn by the page itself, as a seat may until the page's table goes. */
 const drawsOnPage = {
   cookies: [],
@@ -210,6 +219,30 @@ export default defineConfig({
       use: { ...VISUAL_USE, storageState: drawsOnPage },
       testMatch: /visual\/.*\.spec\.ts/,
       retries: 0,
+    },
+    // The same pictures of the table drawn on a canvas, through WebGL2 and through WebGPU, each kept
+    // in a folder of its own. SwiftShader draws WebGPU some three times slower than WebGL2, so a press
+    // there is given longer to land.
+    {
+      name: 'visual-webgl2',
+      use: { ...VISUAL_USE, storageState: drawsThroughWebGl2, launchOptions: CANVAS_LAUNCH },
+      testMatch: /visual\/.*\.spec\.ts/,
+      retries: 0,
+      timeout: 60000,
+      snapshotPathTemplate: '{testDir}/visual/__screenshots__/webgl2/{arg}{ext}',
+    },
+    {
+      name: 'visual-webgpu',
+      use: {
+        ...VISUAL_USE,
+        storageState: { ...drawsOnCanvas, cookies: [withoutSampleModels] },
+        launchOptions: WEBGPU_LAUNCH,
+        actionTimeout: 30000,
+      },
+      testMatch: /visual\/.*\.spec\.ts/,
+      retries: 0,
+      timeout: 120000,
+      snapshotPathTemplate: '{testDir}/visual/__screenshots__/webgpu/{arg}{ext}',
     },
     // A room on the room server, played in several browsers against the backend's Worker. Run on
     // its own and locally, like the visual project: see e2e/server/room-server.ts for what it needs.

@@ -1,4 +1,4 @@
-import { expect, Locator, Page } from '@playwright/test';
+import { expect, Locator, Page, test } from '@playwright/test';
 
 import { MENU_GROUP_OF, waitAppReady } from '../helpers';
 
@@ -28,7 +28,16 @@ export async function prepare(page: Page) {
     localStorage.removeItem('ui-widget-layout');
   });
   await waitAppReady(page);
+  if (drawsOnCanvas()) await page.addStyleTag({ content: NO_TRANSITIONS });
 }
+
+/**
+ * Has every change of style take effect at once on a table drawn on a canvas. The canvas draws a
+ * piece the page lays out from a picture of it taken as the page lays it out, and a transition runs
+ * on real time, so a picture taken partway through one would catch it at a different stage each run.
+ */
+const NO_TRANSITIONS =
+  '*, *::before, *::after { transition-duration: 0s !important; transition-delay: 0s !important; }';
 
 /**
  * Starts the page's randomness over from a seed. Every change to a synced object draws on it, so
@@ -67,11 +76,17 @@ const frozen = new WeakSet<Page>();
 const CLOCK_ORIGIN = new Date('2026-09-03T00:00:00Z');
 const FROZEN_AT_MS = 2000;
 
+/**
+ * Stops the page's clock at a moment of its own. A table drawn on a canvas then draws what moves by
+ * itself only as a shot is taken, at the moment the clock stands at, rather than the whole scene
+ * again for every frame the clock is run through.
+ */
 export async function freeze(page: Page) {
   await page.clock.install({ time: CLOCK_ORIGIN });
   await page.clock.pauseAt(CLOCK_ORIGIN.getTime() + 1000);
   const drift = await page.evaluate(() => performance.now());
   await page.clock.runFor(Math.max(0, Math.round(FROZEN_AT_MS - drift)));
+  await page.evaluate(() => (window as unknown as CanvasHooks).__axeTable?.holdMotion(true));
   frozen.add(page);
 }
 
@@ -167,6 +182,55 @@ export async function holdAnimationsAt(page: Page, ms: number) {
   }, ms);
 }
 
+type CanvasHooks = {
+  __axeTable?: {
+    drawDueNow(): boolean;
+    holdFlicker(timeMs: number | null): void;
+    holdMotion(held: boolean): void;
+    holdMovesAt(ms: number | null): void;
+  };
+};
+
+/**
+ * Has the table drawn on a canvas draw through what it was told, with the marks over its pieces laid
+ * where it draws them: before a shot, or before where a piece stands on the page is read. The
+ * pictures the page takes of pieces for it, and what it loads, arrive on real time, while each frame
+ * they need comes only as a held clock moves on: so what has fallen due is run, and the frame waited
+ * for is drawn at once, again and again, without moving the clock on.
+ */
+export async function drawCanvasThrough(page: Page) {
+  await expect
+    .poll(
+      async () => {
+        if (frozen.has(page)) await page.clock.runFor(0);
+        return page.evaluate(() => (window as unknown as CanvasHooks).__axeTable?.drawDueNow() ?? true);
+      },
+      { timeout: 30_000, intervals: [50] }
+    )
+    .toBe(true);
+}
+
+/**
+ * Holds the flickering lights of a table drawn on a canvas as they are at a moment, for a scene
+ * whose clock stands at a different moment each run by the time it is shot.
+ */
+export async function holdFlicker(page: Page, timeMs: number) {
+  await page.evaluate((at) => (window as unknown as CanvasHooks).__axeTable?.holdFlicker(at), timeMs);
+}
+
+/** How long a shot may take: a table drawn on a canvas in software takes seconds to bring to the screen. */
+function shotTimeout(): number {
+  return drawsOnCanvas() ? 30_000 : 5_000;
+}
+
+/**
+ * Holds the pieces playing a move on a canvas as far into it as the page's own animations are held
+ * for a shot: a move starts whenever what it plays for arrives, which a held clock does not hold.
+ */
+async function holdMovesAt(page: Page, ms: number) {
+  await page.evaluate((at) => (window as unknown as CanvasHooks).__axeTable?.holdMovesAt(at), ms);
+}
+
 export interface SnapOptions {
   maxDiffPixels?: number;
   maxDiffPixelRatio?: number;
@@ -184,6 +248,14 @@ export async function snap(page: Page, name: string, options: SnapOptions = {}) 
   await page.waitForTimeout(100);
   if (frozen.has(page)) await page.clock.runFor(16);
   await holdAnimationsAt(page, options.animationAt ?? 0);
+  if (drawsOnCanvas() && options.animationAt !== undefined) await holdMovesAt(page, options.animationAt);
+  if (drawsOnCanvas()) await drawCanvasThrough(page);
   const { animationAt: _at, ...compare } = options;
-  await expect(page).toHaveScreenshot(`${name}.png`, { maxDiffPixels: 4, ...compare });
+  await expect(page).toHaveScreenshot(`${name}.png`, { maxDiffPixels: 4, timeout: shotTimeout(), ...compare });
+} /**
+ * Whether the scene is shot with the table drawn on a canvas, as every project shoots it but the
+ * one that keeps the pictures of the page's own table.
+ */
+export function drawsOnCanvas(): boolean {
+  return test.info().project.name !== 'visual';
 }
