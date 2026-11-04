@@ -140,6 +140,12 @@ const SHADOW_LIGHTS = TABLE_3D_QUALITY.high.shadowedLights;
 /** How many pixels a side each face of the map of a lamp's shadows is drawn in. */
 const LAMP_SHADOW_PX = 512;
 /**
+ * How many samples a picture laid on a face is read with along the way the face runs off from the
+ * eye: the board and the blocks are seen aslant, and read with one they blur ever more towards the
+ * far side, where the page draws them sharp.
+ */
+const PICTURE_ANISOTROPY = 8;
+/**
  * How much further than its dim reach a lamp's light is let fall off to nothing: it falls off slowly
  * at first, so it is still nearly full at its bright reach.
  */
@@ -984,6 +990,7 @@ class ThreeTableEngine implements Table3dEngine {
     };
     const picture = this.pictures.load(url, settle, undefined, settle);
     picture.colorSpace = SRGBColorSpace;
+    picture.anisotropy = Math.min(PICTURE_ANISOTROPY, this.renderer.getMaxAnisotropy());
     return picture;
   }
 }

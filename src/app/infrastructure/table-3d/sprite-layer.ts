@@ -288,6 +288,14 @@ export class SpriteLayer {
   }
 }
 
+/**
+ * How many steps finer than the graphics card would pick a sprite's picture is read at as it is
+ * drawn smaller than it is. The card blends two smaller copies of the picture, each made by
+ * averaging, which comes out softer than the page draws a picture shrunk, and a piece's picture,
+ * stood up to face the camera, is read at that size all over.
+ */
+const PICTURE_SHARPNESS = -1;
+
 /** A colour the library's colour-space functions answer, which they do not say is a colour. */
 function colourNode(node: unknown): ReturnType<typeof vec3> {
   return node as ReturnType<typeof vec3>;
@@ -298,7 +306,7 @@ function colourNode(node: unknown): ReturnType<typeof vec3> {
  * shows it: its colours taken back apart from its clearness, and dimmed as the page dims one.
  */
 function shown(picture: Texture, brightness: number) {
-  const sampled = texture(picture);
+  const sampled = texture(picture).bias(float(PICTURE_SHARPNESS));
   const colour = colourNode(sampled.rgb.div(max(sampled.a, float(0.0001))));
   if (brightness === 1) return vec4(colour, sampled.a);
   const scaled = colourNode(sRGBTransferOETF(colour)).mul(float(brightness));
@@ -307,7 +315,7 @@ function shown(picture: Texture, brightness: number) {
 
 /** A picture dimmed as the page dims one, by scaling its colours as they are written, in sRGB. */
 function dimmed(picture: Texture, brightness: number) {
-  const sampled = texture(picture);
+  const sampled = texture(picture).bias(float(PICTURE_SHARPNESS));
   const scaled = colourNode(sRGBTransferOETF(sampled.rgb)).mul(float(brightness));
   return vec4(colourNode(sRGBTransferEOTF(scaled)), sampled.a);
 }
