@@ -70,6 +70,15 @@ Comment: Kenneyの「Nature Kit」の3Dモデル（glTFのバイナリー）か�
  （コミット3694c6879e487c108f55677be7dd2ca75b07cc3b）。同梱のLICENSE.txtがCC0を示す。
  CC0 1.0 Universal: https://creativecommons.org/publicdomain/zero/1.0/
 
+Files: images/ground/*
+Copyright: ambientCG (ambientcg.com)
+License: CC0-1.0
+Comment: ambientCGのマテリアルの色の画像（1K-JPGの_Color.jpg）を、512×512に縮めてWebPにしたもの。
+ grass.webpはGrass004、dirt.webpはGround103、rock.webpはRock030、sand.webpはGround079Sから。
+ 配布元: https://ambientcg.com/ 。ライセンスのページ https://docs.ambientcg.com/license/ が、
+ ambientCGのすべての素材をCC0 1.0 Universalで提供すると示す。
+ CC0 1.0 Universal: https://creativecommons.org/publicdomain/zero/1.0/
+
 Files: decoders/draco/*
 Copyright: The Draco Authors
 License: Apache-2.0

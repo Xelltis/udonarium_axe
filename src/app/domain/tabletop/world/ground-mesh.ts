@@ -11,26 +11,17 @@ export interface GroundMesh {
   readonly uvs: Float32Array;
   readonly triangles: Uint32Array;
   /**
-   * The paint at each point, four to a point: its colour, in sRGB, and how much of it covers the
-   * board's picture there. Null where nothing is painted.
+   * How much of each kind of ground covers the board's picture at each point, four to a point in the
+   * order of `GROUND_PAINT_LAYERS`, each out of one and no more than one together. Null where nothing
+   * is painted.
    */
   readonly paint: Float32Array | null;
 }
 
-/** The colour each kind of ground is painted in, in sRGB, in the order of `GROUND_PAINT_LAYERS`. */
-const PAINT_COLOURS: readonly (readonly [number, number, number])[] = [
-  [0.36, 0.54, 0.23],
-  [0.48, 0.35, 0.23],
-  [0.5, 0.5, 0.5],
-  [0.85, 0.76, 0.55],
-];
-
-/** How much of the board's picture the fullest paint covers. */
-const PAINT_COVER = 0.85;
-
 /**
  * The paint at every point of a mesh, read off the sample nearest each, or null where nothing is
- * painted anywhere.
+ * painted anywhere. A sample whose shares come to more than full is read as full, in the same
+ * proportions.
  */
 function paintOf(points: Float32Array, ground: GroundSurface, gridSize: number): Float32Array | null {
   const count = points.length / 3;
@@ -42,16 +33,12 @@ function paintOf(points: Float32Array, ground: GroundSurface, gridSize: number):
       Math.round((points[point * 3 + 1] / gridSize) * GROUND_SAMPLES_PER_CELL)
     );
     if (!shares) continue;
-    let total = 0;
-    const colour = [0, 0, 0];
-    shares.forEach((share, layer) => {
-      total += share;
-      for (let channel = 0; channel < 3; channel++) colour[channel] += PAINT_COLOURS[layer][channel] * share;
-    });
+    const total = shares.reduce((sum, share) => sum + share, 0);
     if (total <= 0) continue;
     painted = true;
+    const out = Math.max(total, GROUND_PAINT_FULL);
     paint.set(
-      [...colour.map((value) => value / total), Math.min(1, total / GROUND_PAINT_FULL) * PAINT_COVER],
+      Array.from(shares, (share) => share / out),
       point * 4
     );
   }

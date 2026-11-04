@@ -50,19 +50,34 @@ describe('the board laid over raised ground', () => {
     }
   });
 
-  it('colours the points over painted samples, and leaves the mesh unpainted where nothing is', () => {
+  it('says how much of each kind of ground covers the points over painted samples, and leaves the mesh unpainted where nothing is', () => {
     const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT);
     const paint = new Uint8Array(GROUND_CHUNK_SAMPLE_COUNT * 4);
     paint.set([0, 0, 15, 0], (1 * GROUND_CHUNK_SAMPLES + 1) * 4);
+    paint.set([5, 0, 0, 5], (1 * GROUND_CHUNK_SAMPLES + 2) * 4);
     const painted = groundSurfaceOf([{ cx: 0, cy: 0, heights, paint }]);
 
     expect(painted.isFlat).toBe(false);
     const mesh = squareGroundMesh({ x: 0, y: 0, width: 100, height: 50 }, painted, GRID);
-    const rock = 1 * 5 + 1;
-    expect([...mesh.paint!.subarray(rock * 4, rock * 4 + 4)].map((value) => Math.round(value * 100) / 100)).toEqual([
-      0.5, 0.5, 0.5, 0.85,
-    ]);
-    expect(mesh.paint![3]).toBe(0);
+    const shares = (point: number) =>
+      [...mesh.paint!.subarray(point * 4, point * 4 + 4)].map((value) => Math.round(value * 100) / 100);
+    expect(shares(1 * 5 + 1)).toEqual([0, 0, 1, 0]);
+    expect(shares(1 * 5 + 2)).toEqual([0.33, 0, 0, 0.33]);
+    expect(shares(0)).toEqual([0, 0, 0, 0]);
     expect(squareGroundMesh({ x: 0, y: 0, width: 100, height: 50 }, hill(), GRID).paint).toBeNull();
+  });
+
+  it('reads a sample painted past full as full, in the same proportions', () => {
+    const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT);
+    const paint = new Uint8Array(GROUND_CHUNK_SAMPLE_COUNT * 4);
+    paint.set([30, 10, 0, 0], 0);
+
+    const mesh = squareGroundMesh(
+      { x: 0, y: 0, width: 100, height: 50 },
+      groundSurfaceOf([{ cx: 0, cy: 0, heights, paint }]),
+      GRID
+    );
+
+    expect([...mesh.paint!.subarray(0, 4)]).toEqual([0.75, 0.25, 0, 0]);
   });
 });

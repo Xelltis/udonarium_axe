@@ -1,4 +1,5 @@
 import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
+import { GROUND_PAINT_LAYERS } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import { animationIntensity } from '@axe/domain/tabletop/vision-scene/light-flicker';
 import { lightAxis } from '@axe/domain/tabletop/vision-scene/light-shape';
@@ -50,7 +51,19 @@ import { TablePost } from '@axe/infrastructure/table-3d/table-post';
 import { lampColour, SceneVeil } from '@axe/infrastructure/table-3d/veil';
 import { WaterLayer } from '@axe/infrastructure/table-3d/water-layer';
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
-import { attribute, float, max, mix, sRGBTransferEOTF, sRGBTransferOETF, texture, type vec3, vec4 } from 'three/tsl';
+import {
+  attribute,
+  float,
+  max,
+  mix,
+  positionLocal,
+  sRGBTransferEOTF,
+  sRGBTransferOETF,
+  texture,
+  vec2,
+  type vec3,
+  vec4,
+} from 'three/tsl';
 import {
   BufferGeometry,
   Camera,
@@ -128,6 +141,12 @@ const LIGHT_SCALE = Math.PI;
 /** How dark the ground is that the sky lights a surface facing down with, beside the sky itself. */
 const GROUND_BOUNCE = 0.6;
 
+/** The pictures the kinds of ground are painted with, in the order of `GROUND_PAINT_LAYERS`. */
+const GROUND_PAINT_PICTURES = GROUND_PAINT_LAYERS.map((kind) => `assets/images/ground/${kind}.webp`);
+
+/** How many cells across a tile of a painted kind of ground runs, so its pattern is not seen to repeat cell by cell. */
+const GROUND_PAINT_TILE_CELLS = 2;
+
 /**
  * How far off the board's middle the sun and the moon are put, beside how far across the board is:
  * their light falls the same everywhere, and the shadows they throw are worked out from there.
@@ -197,6 +216,8 @@ class ThreeTableEngine implements Table3dEngine {
   private loading = 0;
   private needsFrame: () => void = () => undefined;
   private readonly pictures = new TextureLoader();
+  /** The pictures painted ground is drawn with, read the first time any ground is painted. */
+  private groundPictures: Texture[] | null = null;
   private readonly loaded = new Map<string, Texture>();
   private readonly facesRoot = new Group();
   private readonly chunks = new Map<string, { owners: Map<string, string>; meshes: Group }>();
@@ -752,6 +773,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.veil.dispose();
     disposeObject(this.scene);
     for (const picture of this.loaded.values()) picture.dispose();
+    for (const picture of this.groundPictures ?? []) picture.dispose();
     for (const material of this.looks.values()) material.dispose();
     try {
       this.renderer.dispose();
@@ -793,7 +815,7 @@ class ThreeTableEngine implements Table3dEngine {
     material.colorNode = boardColour(
       board.pictureUrl ? this.picture(board.pictureUrl) : null,
       board.veiled,
-      !!board.ground?.paint
+      board.ground?.paint ? { pictures: this.paintedGround(), tilePx: board.gridSize * GROUND_PAINT_TILE_CELLS } : null
     );
     this.veil.cover(material, 'lit');
     this.board = new Mesh(board.ground ? groundGeometry(board.ground) : boardGeometry(board), material);
@@ -976,6 +998,17 @@ class ThreeTableEngine implements Table3dEngine {
     return picture;
   }
 
+  /** The pictures of the kinds of ground, tiled across the board, read once and kept until the engine goes. */
+  private paintedGround(): Texture[] {
+    this.groundPictures ??= GROUND_PAINT_PICTURES.map((url) => {
+      const picture = this.picture(url);
+      picture.wrapS = RepeatWrapping;
+      picture.wrapT = RepeatWrapping;
+      return picture;
+    });
+    return this.groundPictures;
+  }
+
   /**
    * A picture to draw, which asks for a frame once it has come, and has the shadows drawn again: a
    * board throwing a piece's shadow is cut to the picture it wears.
@@ -1000,11 +1033,19 @@ function colourNode(node: unknown): ReturnType<typeof vec3> {
   return node as ReturnType<typeof vec3>;
 }
 
+/** The pictures painted ground is drawn with, in the order of `GROUND_PAINT_LAYERS`, and how wide a tile of them is. */
+interface PaintedGroundLook {
+  readonly pictures: readonly Texture[];
+  readonly tilePx: number;
+}
+
 /**
  * The board's picture as the page draws it, in sRGB: over a little white where nothing is laid
- * under the board, which shows through where the picture is clear, and over what lies behind.
+ * under the board, which shows through where the picture is clear, and over what lies behind. Where
+ * the ground is painted, the pictures of its kinds are tiled across the board and laid over it in
+ * the shares the ground is painted in.
  */
-function boardColour(picture: Texture | null, veiled: boolean, painted = false) {
+function boardColour(picture: Texture | null, veiled: boolean, painted: PaintedGroundLook | null = null) {
   const veil = float(veiled ? BOARD_VEIL : 0);
   const sampled = picture ? texture(picture) : vec4(0, 0, 0, 0);
   const clear = float(1).sub(sampled.a);
@@ -1014,8 +1055,16 @@ function boardColour(picture: Texture | null, veiled: boolean, painted = false) 
     .add(veil.mul(clear))
     .div(max(alpha, float(0.0001)));
   if (!painted) return vec4(colourNode(sRGBTransferEOTF(shown)), alpha);
-  // The paint is laid over the board in sRGB, as the page would lay one picture over another.
-  const paint = attribute('color', 'vec4');
-  const over = colourNode(mix(shown, paint.rgb, paint.a));
-  return vec4(colourNode(sRGBTransferEOTF(over)), max(alpha, paint.a));
+  const shares = attribute('paint', 'vec4');
+  const at = vec2(positionLocal.x, positionLocal.z).div(painted.tilePx);
+  const [grass, dirt, rock, sand] = painted.pictures.map((kind) => colourNode(sRGBTransferOETF(texture(kind, at).rgb)));
+  const covered = shares.x.add(shares.y).add(shares.z).add(shares.w);
+  const laid = grass
+    .mul(shares.x)
+    .add(dirt.mul(shares.y))
+    .add(rock.mul(shares.z))
+    .add(sand.mul(shares.w))
+    .div(max(covered, float(0.0001)));
+  const over = colourNode(mix(shown, laid, covered));
+  return vec4(colourNode(sRGBTransferEOTF(over)), max(alpha, covered));
 }

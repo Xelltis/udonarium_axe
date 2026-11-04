@@ -1,10 +1,14 @@
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { GROUND_CHUNK_SAMPLE_COUNT } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
+import { squareGroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
 import { boardShapeOf } from '@axe/domain/tabletop/world/table-world';
 import {
   boardGeometry,
   capGeometry,
   griddedTops,
   gridOverBoard,
+  groundGeometry,
   mergedFaces,
   wallGeometry,
 } from '@axe/infrastructure/table-3d/face-geometry';
@@ -137,5 +141,18 @@ describe('the shapes of the faces drawn on the canvas', () => {
         .every((y) => Math.abs(y - 0.15) < 1e-6)
     ).toBe(true);
     expect(square.getAttribute('position').count).toBe(4);
+  });
+
+  it('carries how much of each kind of ground covers each point of painted ground, and nothing on ground that is not', () => {
+    const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT);
+    const paint = new Uint8Array(GROUND_CHUNK_SAMPLE_COUNT * 4);
+    paint.set([0, 15, 0, 0], 0);
+    const box = { x: 0, y: 0, width: 100, height: 50 };
+
+    const painted = groundGeometry(squareGroundMesh(box, groundSurfaceOf([{ cx: 0, cy: 0, heights, paint }]), 50));
+    const bare = groundGeometry(squareGroundMesh(box, groundSurfaceOf([{ cx: 0, cy: 0, heights, paint: null }]), 50));
+
+    expect(Array.from(painted.getAttribute('paint').array.slice(0, 4))).toEqual([0, 1, 0, 0]);
+    expect(bare.getAttribute('paint')).toBeUndefined();
   });
 });

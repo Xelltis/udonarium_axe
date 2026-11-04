@@ -51,7 +51,7 @@ export function boardGeometry(board: TableWorldBoard): BufferGeometry {
  */
 export function groundGeometry(ground: GroundMesh): BufferGeometry {
   const geometry = overGround(ground, 0, null);
-  if (ground.paint) geometry.setAttribute('color', new Float32BufferAttribute(ground.paint, 4));
+  if (ground.paint) geometry.setAttribute('paint', new Float32BufferAttribute(ground.paint, 4));
   return geometry;
 }
 
