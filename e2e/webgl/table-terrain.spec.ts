@@ -28,11 +28,11 @@ interface Changes {
 
 /** Points of the table, where the blocks are set down, as offsets into the table's layer. */
 const BLOCK_SPOTS = [
-  { x: 330, y: 300 },
-  { x: 560, y: 330 },
-  { x: 780, y: 290 },
-  { x: 420, y: 470 },
-  { x: 930, y: 430 },
+  { x: 1104, y: 242 },
+  { x: 1062, y: 396 },
+  { x: 1119, y: 561 },
+  { x: 370, y: 508 },
+  { x: 765, y: 553 },
 ];
 
 /** How near an edge of a block a point may lie and be left out, in pixels. */

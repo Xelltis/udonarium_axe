@@ -1,7 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
 import { becomeGm, closePanels } from './dungeon-helpers';
-import { openTableContextMenu, revealMenuEntry, turnByHandle, waitAppReady } from './helpers';
+import { openTableContextMenu, revealMenuEntry, TABLE_MENU_AT, turnByHandle, waitAppReady } from './helpers';
 
 /**
  * The table works out what a press lands on by running the line of sight against the shapes of
@@ -29,16 +29,16 @@ const EDGE_SLACK_PX = 3;
 
 /** Points of the table, where the blocks are set down, as offsets into the table's layer. */
 const BLOCK_SPOTS = [
-  { x: 330, y: 300 },
-  { x: 560, y: 330 },
-  { x: 780, y: 290 },
-  { x: 420, y: 470 },
-  { x: 700, y: 480 },
-  { x: 930, y: 430 },
+  { x: 1104, y: 242 },
+  { x: 1062, y: 396 },
+  { x: 1119, y: 561 },
+  { x: 370, y: 508 },
+  { x: 765, y: 553 },
+  { x: 913, y: 570 },
 ];
 
 async function useGrid(page: Page, gridType: string) {
-  await page.locator('#app-table-layer').click({ button: 'right', position: { x: 900, y: 250 } });
+  await page.locator('#app-table-layer').click({ button: 'right', position: TABLE_MENU_AT });
   const entry = page.locator('context-menu').getByText('テーブル設定', { exact: true });
   await expect(entry).toBeVisible({ timeout: 15000 });
   await entry.click();

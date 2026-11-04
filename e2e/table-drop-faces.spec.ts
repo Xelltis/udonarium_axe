@@ -1,7 +1,7 @@
-import { expect, Locator, Page, test } from '@playwright/test';
+import { expect, Page, test } from '@playwright/test';
 
 import { becomeGm, closePanels } from './dungeon-helpers';
-import { openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
+import { openTableContextMenu, revealMenuEntry, spotOnPiece, waitAppReady } from './helpers';
 import { piece, placeOf, Point, settle } from './see-through-helpers';
 import { FaceHooks, faceOf, pageOfFace, showWall, whenDrawn } from './table-face-helpers';
 
@@ -20,8 +20,20 @@ async function drag(page: Page, from: Point, to: Point) {
   await page.mouse.up();
 }
 
+/**
+ * Where the board is made, on the right of the table, clear of the sample room's pieces in the
+ * middle of it.
+ */
+const BOARD_AT = { x: 1040, y: 440 };
+
+/**
+ * The sample piece carried from face to face: one with nothing standing in front of it, whose picture
+ * is pressed where it is drawn rather than where a piece before it is.
+ */
+const CARRIED = '魔法使い';
+
 async function makeBoard(page: Page): Promise<string> {
-  const menu = await openTableContextMenu(page, { x: 600, y: 420 });
+  const menu = await openTableContextMenu(page, BOARD_AT);
   await (await revealMenuEntry(page, menu, 'ホワイトボードを作成')).click();
   const face = page.locator('white-board [data-surface]');
   // Over a table drawn on a canvas the face is put once the canvas draws the board.
@@ -84,27 +96,6 @@ async function standBack(page: Page) {
     .toBe(true);
 }
 
-/**
- * A point of the page where the page draws a piece itself, for a press to take hold of it by: the
- * middle of the base it stands on, or where that is hidden, as a piece hung on a standing board's
- * base is behind the board, a point of its picture.
- */
-async function grabSpotOf(of: Locator): Promise<Point> {
-  const spot = await of.evaluate((element) => {
-    const drawsIt = (x: number, y: number) => document.elementFromPoint(x, y)?.closest('game-character') === element;
-    const base = element.querySelector('[data-testid="multi-angle-piece-motion-source"]')!.getBoundingClientRect();
-    const middle = { x: base.left + base.width / 2, y: base.top + base.height / 2 };
-    if (drawsIt(middle.x, middle.y)) return middle;
-    const picture = element.querySelector('[data-part="picture"]')!.getBoundingClientRect();
-    for (let y = picture.top + picture.height / 2; y < picture.bottom; y += 3) {
-      for (let x = picture.left + 2; x < picture.right; x += 3) if (drawsIt(x, y)) return { x, y };
-    }
-    return null;
-  });
-  expect(spot, 'a point the piece is drawn at').not.toBeNull();
-  return spot!;
-}
-
 test.describe('dropping a piece on another face', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
@@ -115,18 +106,18 @@ test.describe('dropping a piece on another face', () => {
   test('puts a piece let go of over a white board on the board, and back on the floor off it', async ({ page }) => {
     const board = await makeBoard(page);
     await standBack(page);
-    const character = piece(page, 'キャラクターA');
+    const character = piece(page, CARRIED);
     await settle(character);
     expect(await faceOf(character)).toBe('floor');
 
-    await drag(page, await grabSpotOf(character), (await bareSpotOf(page, board)).onPage);
+    await drag(page, await spotOnPiece(character), (await bareSpotOf(page, board)).onPage);
     await expect.poll(() => faceOf(character)).toBe(board);
 
     // The board is not fixed in place, and a press on the piece stuck to it still takes up the piece
     // alone.
     await settle(character);
     const boardPlace = await placeOf(page.locator('white-board'));
-    await drag(page, await grabSpotOf(character), (await bareSpotOf(page, 'floor')).onPage);
+    await drag(page, await spotOnPiece(character), (await bareSpotOf(page, 'floor')).onPage);
     await expect.poll(() => faceOf(character)).toBe('floor');
     expect(await placeOf(page.locator('white-board'))).toBe(boardPlace);
   });
@@ -134,10 +125,10 @@ test.describe('dropping a piece on another face', () => {
   test('puts a piece let go of over a wall drawn with a picture on the wall', async ({ page }) => {
     await showWall(page, '北壁', 'north');
     await expect(page.locator('[data-surface="north-wall"]')).toBeAttached({ timeout: 10000 });
-    const character = piece(page, 'キャラクターA');
+    const character = piece(page, CARRIED);
     await settle(character);
 
-    await drag(page, await grabSpotOf(character), (await bareSpotOf(page, 'north-wall')).onPage);
+    await drag(page, await spotOnPiece(character), (await bareSpotOf(page, 'north-wall')).onPage);
     await expect.poll(() => faceOf(character)).toBe('north-wall');
   });
 

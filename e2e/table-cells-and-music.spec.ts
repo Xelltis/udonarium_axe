@@ -1,7 +1,7 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { openPanel, waitAppReady } from './helpers';
-import { centreOf, pedestal, piece } from './see-through-helpers';
+import { openPanel, spotOnPiece, waitAppReady } from './helpers';
+import { piece } from './see-through-helpers';
 
 /** Where a piece stands on the table, as the table last drew it. */
 async function placeOf(of: Locator): Promise<{ x: number; y: number }> {
@@ -53,7 +53,7 @@ test.describe('the cells and the music of a table', () => {
     await closePanels(page);
 
     const hero = piece(page, 'キャラクターA');
-    const from = await centreOf(pedestal(hero));
+    const from = await spotOnPiece(hero);
     await page.mouse.move(from.x, from.y);
     await page.mouse.down();
     await page.mouse.move(from.x + 60, from.y + 40, { steps: 6 });

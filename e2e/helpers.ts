@@ -58,6 +58,49 @@ export async function drawSampleModels(page: Page) {
   await page.context().clearCookies({ name: 'axe-e2e-sample-models' });
 }
 
+/**
+ * A point of the page where the page draws a piece itself, for a press to take hold of it by or the
+ * pointer to rest on it at: the middle of the base it stands on, or where that is hidden, as by a
+ * piece in front of it or a standing board, a point of its picture. On a canvas the table's line of
+ * sight picks what a press takes, and a point it picks the piece at is taken only where no panel lies
+ * over the table, and once the pointer resting there reaches the piece too, rather than another
+ * piece's mark or a card over it. Leaves the pointer on the point.
+ */
+export async function spotOnPiece(of: Locator): Promise<{ x: number; y: number }> {
+  const candidates = await of.evaluate((element) => {
+    const table = (
+      window as { __axeTable?: { renderer(): string | null; pickAt(x: number, y: number): string | null } }
+    ).__axeTable;
+    const id = element.getAttribute('data-object-id');
+    const takesIt = (x: number, y: number) => {
+      const hit = document.elementFromPoint(x, y);
+      if (!table?.renderer()) return hit?.closest('game-character') === element;
+      return !!hit?.closest('#app-table-layer') && table.pickAt(x, y) === id;
+    };
+    const found: { x: number; y: number }[] = [];
+    const base = element.querySelector('[data-testid="multi-angle-piece-motion-source"]')!.getBoundingClientRect();
+    const middle = { x: base.left + base.width / 2, y: base.top + base.height / 2 };
+    if (takesIt(middle.x, middle.y)) found.push(middle);
+    const picture = element.querySelector('[data-part="picture"]')!.getBoundingClientRect();
+    for (let y = picture.top + picture.height / 2; y < picture.bottom && found.length < 12; y += 6) {
+      for (let x = picture.left + 2; x < picture.right && found.length < 12; x += 6) {
+        if (takesIt(x, y)) found.push({ x, y });
+      }
+    }
+    return found;
+  });
+  for (const spot of candidates) {
+    await of.page().mouse.move(spot.x, spot.y);
+    const reached = await of.evaluate(
+      (element, [x, y]) => document.elementFromPoint(x, y)?.closest('game-character') === element,
+      [spot.x, spot.y]
+    );
+    if (reached) return spot;
+  }
+  expect(null, 'a point the piece takes a press at').not.toBeNull();
+  return candidates[0];
+}
+
 export async function waitAppReady(page: Page) {
   await avoidWebKitBackdropStall(page);
   // A load off the build takes well under a second, but with three browsers running the suite at
@@ -161,15 +204,28 @@ export function chatTabPill(page: Page, name: string): Locator {
 }
 
 /**
+ * Where a right click on the table lands on the bare board, clear of the sample room's pieces and
+ * the marks over them, on the right of the board, clear of the panels too.
+ */
+export const TABLE_MENU_AT = { x: 1120, y: 340 };
+
+/**
+ * A point of the sample room's board, as the page first shows it, on the open ground at its lower
+ * right: far enough from every piece that pieces brought here meet, move and ride with none of the
+ * others in reach, and with room on every side for a move of a few cells.
+ */
+export const OPEN_GROUND_AT = { x: 920, y: 540 };
+
+/**
  * Right-clicks the table to bring up context-menu.
  *
  * At start-up PeerMenu (left=80, width=460) and ChatWindow (left=80, width=660) open on their own,
  * and a click from the left to the middle of the viewport is taken by the resize handler of a
- * ui-panel. The right side (x≈1100, y≈250) is the default as a safe area. PointerDeviceService
+ * ui-panel. The right side (`TABLE_MENU_AT`) is the default as a safe area. PointerDeviceService
  * raises its flag allowing contextmenu only on a click that goes through mousedown, so a real
  * `.click()` is used rather than dispatchEvent.
  */
-export async function openTableContextMenu(page: Page, position = { x: 900, y: 250 }) {
+export async function openTableContextMenu(page: Page, position = TABLE_MENU_AT) {
   const table = page.locator('#app-table-layer');
   await table.click({ button: 'right', position });
   // context-menu is made with createComponent by ContextMenuService.open() and destroyed by

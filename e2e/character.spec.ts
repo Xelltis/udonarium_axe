@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { createCharacter, revealMenuEntry, waitAppReady } from './helpers';
+import { createCharacter, revealMenuEntry, spotOnPiece, waitAppReady } from './helpers';
 
 test.describe('the context menu of a character', () => {
   test.beforeEach(async ({ page }) => {
@@ -100,9 +100,9 @@ test.describe('resources shown as sliders', () => {
       .last()
       .dispatchEvent('click');
     await expect(sheet).toHaveCount(0);
-    const picture = (await piece.locator('[data-part="picture"]').first().boundingBox())!;
-    await page.mouse.move(picture.x + picture.width / 2, picture.y + picture.height / 2);
-    await page.mouse.move(picture.x + picture.width / 2 + 2, picture.y + picture.height / 2 + 2);
+    const over = await spotOnPiece(piece);
+    await page.mouse.move(over.x, over.y);
+    await page.mouse.move(over.x + 2, over.y + 2);
 
     const popupSlider = page.getByTestId('overview-resource-slider').first();
     await expect(popupSlider).toBeVisible({ timeout: 5000 });

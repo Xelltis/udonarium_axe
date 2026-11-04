@@ -88,6 +88,12 @@ async function newest(page: Page, tag: string): Promise<string> {
   return (await piece.getAttribute('data-object-id'))!;
 }
 
+/**
+ * A point of the bare board left of where the table's menu opens by default, with room to its
+ * right for a card drawn off a deck and for a white board to lie on the screen whole.
+ */
+const OPEN_BOARD_AT = { x: 1000, y: 420 };
+
 async function createCoin(page: Page) {
   const menu = await openTableContextMenu(page);
   await (await revealMenuEntry(page, menu, 'コインを作成')).click();
@@ -96,7 +102,7 @@ async function createCoin(page: Page) {
 
 async function createDeck(page: Page) {
   const before = await page.locator('card-stack').count();
-  const menu = await openTableContextMenu(page);
+  const menu = await openTableContextMenu(page, OPEN_BOARD_AT);
   await (await revealMenuEntry(page, menu, 'トランプの山札を作成')).click();
   await expect(page.locator('card-stack')).toHaveCount(before + 1, { timeout: 10000 });
   await page.mouse.move(5, 400);
@@ -264,7 +270,7 @@ test.describe('pieces drawn on a canvas', () => {
   }
 
   test('lay a white board’s face where the page lays it out', async ({ page }) => {
-    const menu = await openTableContextMenu(page, { x: 600, y: 420 });
+    const menu = await openTableContextMenu(page, OPEN_BOARD_AT);
     await (await revealMenuEntry(page, menu, 'ホワイトボードを作成')).click();
     const face = page.locator('white-board [data-surface]').last();
     await expect(face).toBeAttached({ timeout: 10000 });
@@ -533,13 +539,13 @@ test.describe('pieces drawn on a canvas', () => {
 
       await page.mouse.move(grabX, grabY);
       await page.mouse.down();
-      await page.mouse.move(grabX + 60, grabY + 20, { steps: 6 });
-      await page.mouse.move(grabX + 120, grabY + 40, { steps: 6 });
+      await page.mouse.move(grabX - 60, grabY + 20, { steps: 6 });
+      await page.mouse.move(grabX - 120, grabY + 40, { steps: 6 });
       let moved = shape;
       await expect
         .poll(async () => {
           [moved] = await boxesOf(page, id);
-          return moved.x - shape.x;
+          return shape.x - moved.x;
         })
         .toBeGreaterThan(60);
       await page.mouse.up();
@@ -551,7 +557,7 @@ test.describe('pieces drawn on a canvas', () => {
       const [dropped] = await boxesOf(page, id);
       const off = Math.hypot(dropped.x - moved.x, dropped.y - moved.y);
       expect(off, JSON.stringify([shape, moved, dropped])).toBeLessThan(45);
-      expect(dropped.x - shape.x, JSON.stringify([shape, dropped])).toBeGreaterThan(60);
+      expect(shape.x - dropped.x, JSON.stringify([shape, dropped])).toBeGreaterThan(60);
     });
   }
 });

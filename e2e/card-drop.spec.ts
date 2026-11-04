@@ -39,8 +39,8 @@ async function bareSpots(page: Page, count: number, cardDrawn = false): Promise<
         }
       ).__axeTable;
       const found: { x: number; y: number }[] = [];
-      for (let y = 200; y < innerHeight - 200 && found.length < count; y += 40) {
-        for (let x = 300; x < innerWidth - 300 && found.length < count; x += 40) {
+      for (let y = 140; y < innerHeight - 100 && found.length < count; y += 40) {
+        for (let x = 120; x < innerWidth - 60 && found.length < count; x += 40) {
           const table = document.querySelector('#app-table-layer')!;
           // A card drawn from a deck is laid down and to the right of it, so that ground is clear too.
           const across = cardDrawn ? [-60, 0, 60, 120, 180, 240] : [-60, 0, 60];

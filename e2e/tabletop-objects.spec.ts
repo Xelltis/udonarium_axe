@@ -1,8 +1,8 @@
 import { expect, Page, test } from '@playwright/test';
 
 import { closePanels } from './dungeon-helpers';
-import { openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
-import { centreOf, pedestal, piece, settle } from './see-through-helpers';
+import { openTableContextMenu, revealMenuEntry, spotOnPiece, TABLE_MENU_AT, waitAppReady } from './helpers';
+import { piece, settle } from './see-through-helpers';
 
 async function createObject(page: Page, menuName: string, selector: string) {
   const menu = await openTableContextMenu(page);
@@ -117,10 +117,10 @@ test.describe('pieces under the pointer', () => {
     await closePanels(page);
     await createObject(page, '地形を作成', 'terrain');
     const layer = (await page.locator('#app-table-layer').boundingBox())!;
-    const terrain = { x: layer.x + 900, y: layer.y + 250 };
+    const terrain = { x: layer.x + TABLE_MENU_AT.x, y: layer.y + TABLE_MENU_AT.y };
     const monster = piece(page, 'キャラクターB');
     await settle(monster);
-    const from = await centreOf(pedestal(monster));
+    const from = await spotOnPiece(monster);
     await page.mouse.move(from.x, from.y);
     await page.mouse.down();
     await page.mouse.move((from.x + terrain.x) / 2, (from.y + terrain.y) / 2, { steps: 6 });
@@ -128,7 +128,8 @@ test.describe('pieces under the pointer', () => {
     await page.mouse.up();
     await settle(monster);
 
-    const at = await centreOf(pedestal(monster));
+    await page.mouse.move(5, 400);
+    const at = await spotOnPiece(monster);
     await page.mouse.click(at.x, at.y, { button: 'right' });
     const menu = page.locator('context-menu');
     const below = menu.getByText(/^重なっているオブジェクト \(\d+\)$/);
