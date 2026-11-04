@@ -7,6 +7,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { loadConfig$ } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { localDispatch } from '@axe/core/network/network-messaging';
@@ -515,7 +516,7 @@ describe('PeerMenuComponent', () => {
       const root = fixture.nativeElement as HTMLElement;
       expect(root.querySelector('[data-testid="peer-menu-server-role"]')).toBeNull();
 
-      TestBed.inject(ObjectChangeService).loadConfig$.emit({ config: { transport: 'server' } });
+      loadConfig$.emit({ config: { transport: 'server' } });
       fixture.detectChanges();
 
       expect(root.querySelector('[data-testid="peer-menu-server-role"]')).not.toBeNull();

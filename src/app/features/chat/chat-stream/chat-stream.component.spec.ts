@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PanelService } from '@axe/application/ui/panel.service';
+import { messageAdded$ } from '@axe/core/event/domain-events';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -96,7 +96,7 @@ describe('ChatStreamComponent', () => {
       fixture.detectChanges();
       const emit = vi.spyOn(TestBed.inject(PanelService).scrollToBottom$, 'emit');
 
-      TestBed.inject(ObjectChangeService).messageAdded$.emit({
+      messageAdded$.emit({
         tabIdentifier: tab.identifier,
         messageIdentifier: 'message-1',
       });
@@ -111,7 +111,7 @@ describe('ChatStreamComponent', () => {
       fixture.detectChanges();
       const emit = vi.spyOn(TestBed.inject(PanelService).scrollToBottom$, 'emit');
 
-      TestBed.inject(ObjectChangeService).messageAdded$.emit({
+      messageAdded$.emit({
         tabIdentifier: tab.identifier,
         messageIdentifier: 'message-1',
       });
@@ -125,7 +125,7 @@ describe('ChatStreamComponent', () => {
       fixture.detectChanges();
       const emit = vi.spyOn(TestBed.inject(PanelService).scrollToBottom$, 'emit');
 
-      TestBed.inject(ObjectChangeService).messageAdded$.emit({
+      messageAdded$.emit({
         tabIdentifier: 'another-tab',
         messageIdentifier: 'message-1',
       });

@@ -81,3 +81,29 @@ export class StickyEventChannel<T = void> extends EventChannel<T> {
     this.lastEvent = undefined as T;
   }
 }
+
+/**
+ * A view of a channel that lets go of every listener subscribed through it once its owner is
+ * destroyed, as well as when the listener is removed by hand or its own destroy handle goes.
+ *
+ * For a service that hands on a channel kept for the whole page, so that what is subscribed through
+ * the service goes with the service rather than staying on the page's channel. A listener that goes
+ * first takes its entry off the owner too, so a long-lived owner gathers nothing.
+ */
+export function heldBy<T>(channel: ReadableChannel<T>, owner: DestroyHandle): ReadableChannel<T> {
+  return {
+    subscribe(listener: (event: T) => void, destroyRef?: DestroyHandle): () => void {
+      const remove = channel.subscribe(listener);
+      let offOwner = (): void => {};
+      let offCaller = (): void => {};
+      const letGo = (): void => {
+        remove();
+        offOwner();
+        offCaller();
+      };
+      offOwner = owner.onDestroy(letGo);
+      if (destroyRef) offCaller = destroyRef.onDestroy(letGo);
+      return letGo;
+    },
+  };
+}
