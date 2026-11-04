@@ -362,6 +362,26 @@ describe('Table3dService', () => {
     expect(engine.advanced).toBeGreaterThan(advanced + 2);
   });
 
+  it('stops drawing and lets its engine go once it goes itself, with its canvas still held', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    const engine = engines[0];
+    engine.moving = true;
+    TestBed.inject(TableCameraService).showView({ ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: 30 });
+    TestBed.tick();
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+    TestBed.resetTestingModule();
+    const advanced = engine.advanced;
+    await new Promise((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    );
+
+    expect(engine.disposed).toBe(true);
+    expect(engine.advanced).toBe(advanced);
+  });
+
   it('lights a flickering light as it was at the moment held, however the clock runs on, until let go', async () => {
     const scene = service();
     const torch = { sourceId: 'torch', animation: 'flicker' } as SceneLight;

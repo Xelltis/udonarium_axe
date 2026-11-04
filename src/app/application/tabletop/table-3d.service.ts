@@ -1,5 +1,6 @@
 import {
   computed,
+  DestroyRef,
   effect,
   EffectRef,
   inject,
@@ -283,6 +284,8 @@ export class Table3dService {
 
   private frame: number | null = null;
   private canvas: HTMLCanvasElement | null = null;
+  /** How to let go each canvas the table draws on now, as its handle would. */
+  private readonly attached = new Set<() => void>();
   /** Where the table keeps its canvas, to put it back once a view has done with it. */
   private canvasHome: { readonly parent: Node; readonly next: Node | null } | null = null;
   private lentTo: HTMLElement | null = null;
@@ -299,6 +302,9 @@ export class Table3dService {
 
   constructor() {
     if (untracked(this.drawsOnCanvas)) this.loadSoon();
+    inject(DestroyRef).onDestroy(() => {
+      for (const letGo of [...this.attached]) letGo();
+    });
   }
 
   private hiddenByFog(terrain: Terrain): boolean {
@@ -321,8 +327,9 @@ export class Table3dService {
   }
 
   /**
-   * Draws the table on a canvas until the function answered is called, which lets the canvas go. A
-   * browser that can draw it through neither interface is left alone and said to be so.
+   * Draws the table on a canvas until the function answered is called, which lets the canvas go, or
+   * until the table itself goes. A browser that can draw it through neither interface is left alone
+   * and said to be so.
    */
   attach(canvas: HTMLCanvasElement): () => void {
     let engine: Table3dEngine | null = null;
@@ -350,8 +357,10 @@ export class Table3dService {
       if (this.starting === started) this.starting = null;
       this.settleIfIdle();
     });
-    return () => {
+    const letGo = () => {
+      if (detached) return;
       detached = true;
+      this.attached.delete(letGo);
       if (this.canvas === canvas) {
         this.canvas = null;
         this.canvasHome = null;
@@ -364,6 +373,8 @@ export class Table3dService {
       this.backend.set(null);
       this.settleIfIdle();
     };
+    this.attached.add(letGo);
+    return letGo;
   }
 
   /**
