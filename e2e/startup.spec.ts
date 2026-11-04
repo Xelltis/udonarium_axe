@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { chatInput, openFabMenu, waitAppReady } from './helpers';
+import { chatInput, openFabMenu, triesToConnect, waitAppReady } from './helpers';
 
 test.describe('starting the application', () => {
   test('starts the app', async ({ page }) => {
@@ -43,6 +43,7 @@ test.describe('panels shown at start', () => {
 
 test.describe('the connection panel (PeerMenu)', () => {
   test.beforeEach(async ({ page }) => {
+    await triesToConnect(page);
     await page.goto('/');
     await expect(page.locator('input[placeholder="ニックネーム"]')).toBeVisible({ timeout: 20000 });
   });
@@ -82,6 +83,7 @@ test.describe('the connection panel (PeerMenu)', () => {
 
 test.describe('the network indicator', () => {
   test('puts the network indicator in the DOM', async ({ page }) => {
+    await triesToConnect(page);
     await page.goto('/');
     // It carries the hidden class by default, so it is checked with isAttached.
     await expect(page.locator('network-indicator')).toBeAttached({ timeout: 20000 });

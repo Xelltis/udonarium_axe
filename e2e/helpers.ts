@@ -101,6 +101,15 @@ export async function spotOnPiece(of: Locator): Promise<{ x: number; y: number }
   return candidates[0];
 }
 
+/**
+ * Has the page try to connect as a seat does that is not set to play alone, for a spec about the
+ * connection itself: the suite's backend answers nothing, so the seat waits outside any room, failing
+ * and trying again. Call before the page is opened.
+ */
+export async function triesToConnect(page: Page) {
+  await page.addInitScript(() => localStorage.removeItem('ui-local-mode'));
+}
+
 export async function waitAppReady(page: Page) {
   await avoidWebKitBackdropStall(page);
   // A load off the build takes well under a second, but with three browsers running the suite at

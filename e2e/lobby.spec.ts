@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { waitAppReady } from './helpers';
+import { triesToConnect, waitAppReady } from './helpers';
 
 /**
  * The connection panel is where every session starts, and it had no coverage.
@@ -10,6 +10,7 @@ import { waitAppReady } from './helpers';
  */
 test.describe('the connection panel and the lobby', () => {
   test.beforeEach(async ({ page }) => {
+    await triesToConnect(page);
     await waitAppReady(page);
     await expect(page.locator('peer-menu')).toBeVisible({ timeout: 10000 });
   });

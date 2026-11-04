@@ -19,13 +19,29 @@ const withoutSampleModels = {
   sameSite: 'Lax' as const,
 };
 
+/**
+ * A browser set to play alone, which the connection panel calls offline: the page tries no connection
+ * and the seat is who it is from the start. The suite has no backend to connect to, and a seat left
+ * to try would fail and try again all through a spec, its user id new each time. A spec about the
+ * connection itself takes this off again.
+ */
+const playsAlone = { name: 'ui-local-mode', value: '1' };
+
+/** A browser set to play alone and nothing else. */
+const alone = { cookies: [], origins: [{ origin: 'http://localhost:4300', localStorage: [playsAlone] }] };
+
 /** A browser that draws the table on a canvas as a seat does by default, with the sample room's pieces drawn as their pictures. */
-const drawsOnCanvasPictures = { cookies: [withoutSampleModels], origins: [] };
+const drawsOnCanvasPictures = {
+  cookies: [withoutSampleModels],
+  origins: [{ origin: 'http://localhost:4300', localStorage: [playsAlone] }],
+};
 
 /** A browser that has asked for the table to be drawn on a canvas through three.js, as a seat does by default. */
 const drawsOnCanvas = {
   cookies: [],
-  origins: [{ origin: 'http://localhost:4300', localStorage: [{ name: 'axe.table.renderer', value: 'three' }] }],
+  origins: [
+    { origin: 'http://localhost:4300', localStorage: [playsAlone, { name: 'axe.table.renderer', value: 'three' }] },
+  ],
 };
 
 /**
@@ -34,13 +50,20 @@ const drawsOnCanvas = {
  */
 const drawsThroughWebGl2 = {
   cookies: [withoutSampleModels],
-  origins: [{ origin: 'http://localhost:4300', localStorage: [{ name: 'axe.table.renderer', value: 'three-webgl2' }] }],
+  origins: [
+    {
+      origin: 'http://localhost:4300',
+      localStorage: [playsAlone, { name: 'axe.table.renderer', value: 'three-webgl2' }],
+    },
+  ],
 };
 
 /** A browser that has asked for the table to be drawn by the page itself, as a seat may until the page's table goes. */
 const drawsOnPage = {
   cookies: [],
-  origins: [{ origin: 'http://localhost:4300', localStorage: [{ name: 'axe.table.renderer', value: 'css' }] }],
+  origins: [
+    { origin: 'http://localhost:4300', localStorage: [playsAlone, { name: 'axe.table.renderer', value: 'css' }] },
+  ],
 };
 
 /**
@@ -261,17 +284,17 @@ export default defineConfig({
       ? [
           {
             name: 'firefox',
-            use: { ...devices['Desktop Firefox'] },
+            use: { ...devices['Desktop Firefox'], storageState: alone },
             testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/, /server\/.*\.spec\.ts/],
           },
           {
             name: 'webkit',
-            use: { ...devices['Desktop Safari'] },
+            use: { ...devices['Desktop Safari'], storageState: alone },
             testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/, /server\/.*\.spec\.ts/],
           },
           {
             name: 'mobile-safari',
-            use: { ...devices['iPhone 14'], reducedMotion: 'reduce' },
+            use: { ...devices['iPhone 14'], reducedMotion: 'reduce', storageState: alone },
             testMatch: /mobile\/.*\.spec\.ts/,
           },
         ]
