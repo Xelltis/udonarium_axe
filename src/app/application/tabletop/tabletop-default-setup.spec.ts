@@ -111,38 +111,57 @@ describe('the pieces a first table is set out with', () => {
   });
 
   describe('the pieces drawn as the models the app bundles', () => {
-    it('dresses the first table’s pieces in the bundled model each picture was made into, and leaves the scout its picture', () => {
-      expect(sample('モンスターA').modelIdentifier).toBe(BUNDLED_PIECE_MODELS.goblin);
-      expect(sample('モンスターB').modelIdentifier).toBe(BUNDLED_PIECE_MODELS.goblin);
-      expect(sample('モンスターC').modelIdentifier).toBe(BUNDLED_PIECE_MODELS.golem);
-      expect(sample('キャラクターA').modelIdentifier).toBe(BUNDLED_PIECE_MODELS.knight);
-      expect(sample('キャラクターB').modelIdentifier).toBe(BUNDLED_PIECE_MODELS.wizard);
-      expect(sample('キャラクターC').modelIdentifier).toBe('');
+    it('leaves the first table’s pieces drawn as their pictures, so a room opens with pictures to try too', () => {
+      for (const name of [
+        'キャラクターA',
+        'キャラクターB',
+        'キャラクターC',
+        'モンスターA',
+        'モンスターB',
+        'モンスターC',
+      ]) {
+        expect(sample(name).modelIdentifier, name).toBe('');
+      }
     });
 
-    it('sets out a piece named for what it is for each of the rest, the orc among the monsters and the others in the party', () => {
+    it('sets out a piece named for what it is for each bundled model, the monsters among the monsters and the rest in the party', () => {
       const players = sample('キャラクターA').partyIdentifier;
       const monsters = sample('モンスターA').partyIdentifier;
-      for (const [name, model, party] of [
-        ['オーク', 'orc', monsters],
-        ['弓使い', 'archer', players],
-        ['盗賊', 'thief', players],
-        ['戦士', 'warrior', players],
+      for (const [name, model, party, size] of [
+        ['オーク', 'orc', monsters, 2],
+        ['ゴブリン', 'goblin', monsters, 1],
+        ['ゴーレム', 'golem', monsters, 3],
+        ['ドラゴン', 'dragon', monsters, 3],
+        ['弓使い', 'archer', players, 1],
+        ['盗賊', 'thief', players, 1],
+        ['戦士', 'warrior', players, 1],
+        ['騎士', 'knight', players, 1],
+        ['魔法使い', 'wizard', players, 1],
       ] as const) {
         const piece = sample(name);
         expect(piece.modelIdentifier, name).toBe(BUNDLED_PIECE_MODELS[model]);
         expect(piece.partyIdentifier, name).toBe(party);
         expect(piece.isNpc, name).toBe(party === monsters);
         expect(piece.visionRange, name).toBe(party === monsters ? 0 : 2);
+        expect(piece.size, name).toBe(size);
         expect(statOf(piece, 'HP'), name).toBeGreaterThan(0);
       }
+      expect(statOf(sample('オーク'), '人数')).toBe(2);
+      expect(statOf(sample('ゴーレム'), '人数')).toBe(3);
+      expect(statOf(sample('ドラゴン'), '人数')).toBe(3);
     });
 
-    it('stands each of them on a cell of its own, clear of every other sample', () => {
-      const cells = ObjectStore.instance
-        .getObjects<GameCharacter>(GameCharacter)
-        .map((piece) => `${piece.location.x / 50},${piece.location.y / 50}`);
-      expect(new Set(cells).size).toBe(cells.length);
+    it('stands every sample on ground of its own, however many cells across it is', () => {
+      const taken = new Set<string>();
+      for (const piece of ObjectStore.instance.getObjects<GameCharacter>(GameCharacter)) {
+        for (let dx = 0; dx < piece.size; dx++) {
+          for (let dy = 0; dy < piece.size; dy++) {
+            const cell = `${piece.location.x / 50 + dx},${piece.location.y / 50 + dy}`;
+            expect(taken.has(cell), `${piece.name} at ${cell}`).toBe(false);
+            taken.add(cell);
+          }
+        }
+      }
     });
   });
 

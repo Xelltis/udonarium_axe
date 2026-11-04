@@ -6,6 +6,7 @@
  */
 export const BUNDLED_PIECE_MODELS = {
   archer: '042c3c29c0a06d57320b124b7eee418ed0b6d8bb9fe3c85fd912ffb7670f9b33',
+  dragon: 'ecbf0a148d84f43031502689ca8f28df2159a5be1c376f697c0c6c930805d72a',
   goblin: '97d3d57f20f20e5ef3c4993c5d68b5c4ad5fb594373567536bf459b7706daeca',
   golem: '1e60d58f3b80a89fa6f4f601d60b0a1470b54c4189cea5e08eaaf13a727ce69a',
   knight: '442259934e6edc4b52d1a3e57b1670e04439a6cfa8d3363bc6e3e9476bde46f1',
