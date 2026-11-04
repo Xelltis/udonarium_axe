@@ -15,7 +15,7 @@ import {
 } from '@axe/domain/map-editor/scene';
 import { normalizeTextureId } from '@axe/domain/map-editor/textures';
 import { GridType } from '@axe/domain/tabletop/game-table';
-import { decodeGroundHeights } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { decodeGroundHeights, decodeGroundPaint } from '@axe/domain/tabletop/ground/ground-chunk-data';
 
 /**
  * The JSON text of a scene, stamped with the current scene version, as map files and whiteboards
@@ -173,12 +173,15 @@ function sanitizeFunctionCells(value: unknown): Record<string, true> {
   return cells;
 }
 
-/** The chunks of a relief layer that read as chunks: a place of two whole numbers, and heights that decode. */
-function sanitizeReliefChunks(value: unknown): Record<string, string> {
+/**
+ * The chunks of a relief layer that read as chunks: a place of two whole numbers, and text that
+ * decodes as what the chunk keeps, its heights or its paint.
+ */
+function sanitizeReliefChunks(value: unknown, decodes: (text: string) => unknown): Record<string, string> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return {};
   const chunks: Record<string, string> = {};
   for (const [key, held] of Object.entries(value as Record<string, unknown>)) {
-    if (!/^\d+,\d+$/.test(key) || typeof held !== 'string' || !decodeGroundHeights(held)) continue;
+    if (!/^\d+,\d+$/.test(key) || typeof held !== 'string' || !decodes(held)) continue;
     chunks[key] = held;
   }
   return chunks;
@@ -215,7 +218,12 @@ function sanitizeLayer(raw: Record<string, unknown>): MapLayer {
       };
     }
     case 'relief':
-      return { ...base, kind: 'relief', chunks: sanitizeReliefChunks(raw['chunks']) };
+      return {
+        ...base,
+        kind: 'relief',
+        chunks: sanitizeReliefChunks(raw['chunks'], decodeGroundHeights),
+        paint: sanitizeReliefChunks(raw['paint'], decodeGroundPaint),
+      };
     case 'shape':
       return {
         ...base,

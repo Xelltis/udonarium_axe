@@ -162,14 +162,17 @@ export interface FunctionLayer extends BaseLayer {
 }
 
 /**
- * How high the ground of the table stands, kept the way the table keeps it: the heights of the
- * ground's samples, every half cell from the scene's top left, a chunk at a time, each chunk's as
- * text under the key `cx,cy`. A chunk not kept is flat. Several relief layers add up, and like a
+ * How high the ground of the table stands and what it is painted with, kept the way the table keeps
+ * it: the heights of the ground's samples, every half cell from the scene's top left, a chunk at a
+ * time, each chunk's as text under the key `cx,cy`, and the paint of each chunk a stroke has painted
+ * or erased in the same way. A chunk not kept is flat, and one not painted leaves the table's paint
+ * as it is. Several relief layers add up, the paint of a later one over an earlier one's, and like a
  * layer of functions it never reaches the picture the map is exported as.
  */
 export interface ReliefLayer extends BaseLayer {
   kind: 'relief';
   chunks: Record<string, string>;
+  paint?: Record<string, string>;
 }
 
 export type MapLayer =

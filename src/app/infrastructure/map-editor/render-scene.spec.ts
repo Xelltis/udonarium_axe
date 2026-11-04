@@ -214,6 +214,23 @@ describe('renderScene', () => {
       expect(stepFills(ctx)).toBe(0);
     });
 
+    it('paints every sample it paints in the colour of its kind of ground', () => {
+      const ctx = createMockCtx();
+      const styles: string[] = [];
+      const fill = ctx.fillRect.bind(ctx);
+      ctx.fillRect = (...args: Parameters<CanvasRenderingContext2D['fillRect']>) => {
+        styles.push(String(ctx.fillStyle));
+        fill(...args);
+      };
+      const layer = createLayer('relief', 'relief') as ReliefLayer;
+      dabRelief(layer, { kind: 'paint', x: 1, y: 1, radius: 1, strength: 1, layer: 'sand' });
+
+      renderScene(ctx, sceneWith(layer), helpers, { drawGrid: false, drawFunctionLayers: true });
+
+      expect(styles).toContain('rgba(217, 194, 140, 0.7)');
+      expect(stepFills(ctx)).toBeGreaterThan(0);
+    });
+
     it('tints every sample it raises, and lines where it crosses a whole cell', () => {
       const ctx = createMockCtx();
 

@@ -43,6 +43,7 @@ import { guessLineWidth, useTextMeasurer } from '@axe/domain/map-editor/scene-ge
 import { removeText, updateText } from '@axe/domain/map-editor/scene-ops';
 import { generateShapePoints, regularPolygonPoints, starPoints } from '@axe/domain/map-editor/shape-points';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { GROUND_PAINT_LAYERS } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { FunctionApplyResult, MapEditorFilesService } from '@axe/features/map-editor/editor/map-editor-files.service';
 import { MapEditorFunctionPaintComponent } from '@axe/features/map-editor/editor/map-editor-function-paint.component';
 import { GestureKind, MapEditorGesture } from '@axe/features/map-editor/editor/map-editor-gesture';
@@ -196,6 +197,7 @@ export class MapEditorPanelComponent {
   ];
 
   protected readonly reliefKinds = RELIEF_BRUSH_KINDS;
+  protected readonly reliefPaintLayers = GROUND_PAINT_LAYERS;
 
   protected toolLabelKey(def: ToolDef): string {
     return def.label ?? 'feature.mapEditor.tools.' + def.tool;

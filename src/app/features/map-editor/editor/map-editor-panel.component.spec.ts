@@ -436,7 +436,7 @@ describe('MapEditorPanelComponent', () => {
 
   it('raises the ground under a press and a drag of the relief brush, and keeps the stroke as one step', () => {
     component['state'].tool.set('relief');
-    component['state'].reliefBrush.set({ kind: 'raise', radius: 1, strength: 0.5 });
+    component['state'].reliefBrush.set({ kind: 'raise', radius: 1, strength: 0.5, layer: 'grass' });
     const c = component as unknown as {
       onPointerDown: (e: PointerEvent) => void;
       onPointerMove: (e: PointerEvent) => void;

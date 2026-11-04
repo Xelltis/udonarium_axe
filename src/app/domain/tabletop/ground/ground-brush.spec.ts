@@ -53,6 +53,18 @@ describe('a dab of the brush on the ground', () => {
     expect(after).toBeGreaterThan(0);
   });
 
+  it('takes the paint off the samples under it when erasing, every kind alike, leaving the heights alone', () => {
+    const [painted] = applyGroundDab([], { kind: 'paint', x: 4, y: 4, radius: 1, strength: 1, layer: 'sand' });
+    const raised = { ...painted, heights: painted.heights.map(() => 64) };
+
+    const [erased] = applyGroundDab([raised], { kind: 'erase', x: 4, y: 4, radius: 1, strength: 1 });
+
+    const middle = 8 * GROUND_CHUNK_SAMPLES + 8;
+    expect([...erased.paint!.subarray(middle * 4, middle * 4 + 4)]).toEqual([0, 0, 0, 0]);
+    expect(erased.heights.every((height) => height === 64)).toBe(true);
+    expect(groundSurfaceOf([erased]).paintAt(8, 8)).toBeNull();
+  });
+
   it('lays a kind of ground on the samples under it when painting, leaving the heights alone', () => {
     const [painted] = applyGroundDab([], { kind: 'paint', x: 4, y: 4, radius: 1, strength: 1, layer: 'rock' });
     const middle = 8 * GROUND_CHUNK_SAMPLES + 8;

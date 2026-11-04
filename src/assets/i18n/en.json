@@ -3032,6 +3032,7 @@
         "kind_smooth": "Smooth",
         "kind_flatten": "Flatten",
         "kind_paint": "Paint",
+        "kind_erase": "Erase paint",
         "layer_grass": "Grass",
         "layer_dirt": "Dirt",
         "layer_rock": "Rock",
@@ -4508,7 +4509,7 @@
         "relief": "Relief"
       },
       "relief": {
-        "hint": "Raise, lower, smooth and flatten the ground of the table. It stays out of the exported picture, and becomes the table’s ground when you lay the functions."
+        "hint": "Raise, lower, smooth and flatten the ground of the table, and paint it with grass, dirt, rock and sand. It stays out of the exported picture, and becomes the table’s ground when you lay the functions. The paint is written to the table in the blocks of 16 by 16 cells the brush has touched, and the table keeps its own paint everywhere else."
       },
       "function": {
         "title": "Function paint",

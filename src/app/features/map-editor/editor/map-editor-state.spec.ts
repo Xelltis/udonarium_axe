@@ -121,7 +121,7 @@ describe('MapEditorState', () => {
 
     it('raises the ground on a relief layer of its own along a stroke, and takes the stroke back as one step', () => {
       const cellPx = state.current.cellPx;
-      state.reliefBrush.set({ kind: 'raise', radius: 1, strength: 0.5 });
+      state.reliefBrush.set({ kind: 'raise', radius: 1, strength: 0.5, layer: 'grass' });
       state.beginGesture();
       state.beginReliefStroke(4 * cellPx, 4 * cellPx);
       state.dabReliefAt(5 * cellPx, 4 * cellPx);
@@ -138,9 +138,9 @@ describe('MapEditorState', () => {
 
     it('flattens the layer towards the height it stood at where the stroke began', () => {
       const cellPx = state.current.cellPx;
-      state.reliefBrush.set({ kind: 'raise', radius: 1, strength: 1 });
+      state.reliefBrush.set({ kind: 'raise', radius: 1, strength: 1, layer: 'grass' });
       state.beginReliefStroke(4 * cellPx, 4 * cellPx);
-      state.reliefBrush.set({ kind: 'flatten', radius: 2, strength: 1 });
+      state.reliefBrush.set({ kind: 'flatten', radius: 2, strength: 1, layer: 'grass' });
 
       state.beginReliefStroke(8 * cellPx, 4 * cellPx);
       state.dabReliefAt(4 * cellPx, 4 * cellPx);

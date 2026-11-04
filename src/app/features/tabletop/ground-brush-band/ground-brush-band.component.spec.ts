@@ -49,6 +49,20 @@ describe('GroundBrushBandComponent', () => {
     expect(brush.settings()).toMatchObject({ kind: 'paint', layer: 'rock' });
   });
 
+  it('erases the paint with a brush of its own, offering no kind of ground for it', () => {
+    TestBed.inject(Table3dService).renderer.set('three');
+    brush.active.set(true);
+    const fixture = TestBed.createComponent(GroundBrushBandComponent);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+
+    root.querySelector<HTMLButtonElement>('[data-testid="ground-brush-erase"]')!.click();
+    fixture.detectChanges();
+
+    expect(brush.settings().kind).toBe('erase');
+    expect(root.querySelector('[data-testid="ground-brush-layer-rock"]')).toBeNull();
+  });
+
   it('turns the brush off when closed', () => {
     TestBed.inject(Table3dService).renderer.set('three');
     brush.active.set(true);

@@ -132,8 +132,8 @@ export class MapEditorState {
 
   readonly eraserSize = signal(16);
 
-  /** How the relief brush shapes the ground: what it does, how far it reaches and how hard, in cells. */
-  readonly reliefBrush = signal<ReliefBrush>({ kind: 'raise', radius: 2, strength: 0.25 });
+  /** How the relief brush works the ground: what it does, how far it reaches and how hard, in cells, and what it paints. */
+  readonly reliefBrush = signal<ReliefBrush>({ kind: 'raise', radius: 2, strength: 0.25, layer: 'grass' });
   private reliefLevel = 0;
 
   readonly fontSize = signal(20);
@@ -433,9 +433,9 @@ export class MapEditorState {
   /** Lays a dab of the stroke under way at a point of the scene, in pixels. */
   dabReliefAt(x: number, y: number): void {
     const layer = this.ensureLayerFor('relief') as ReliefLayer;
-    const { kind, radius, strength } = this.reliefBrush();
+    const { kind, radius, strength, layer: paint } = this.reliefBrush();
     const cellPx = this.scene.cellPx;
-    dabRelief(layer, { kind, x: x / cellPx, y: y / cellPx, radius, strength, level: this.reliefLevel });
+    dabRelief(layer, { kind, x: x / cellPx, y: y / cellPx, radius, strength, layer: paint, level: this.reliefLevel });
     this.bump();
   }
 

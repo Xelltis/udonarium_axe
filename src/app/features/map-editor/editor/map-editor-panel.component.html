@@ -446,6 +446,22 @@
               </button>
             }
           </div>
+          @if (state.reliefBrush().kind === 'paint') {
+            <div class="flex flex-wrap gap-1" role="group">
+              @for (paint of reliefPaintLayers; track paint) {
+                <button
+                  type="button"
+                  class="border-ui-border-panel cursor-pointer rounded-full border border-solid px-2.5 py-1 text-[0.86em]"
+                  [class.bg-ui-accent-bg]="state.reliefBrush().layer === paint"
+                  [attr.aria-pressed]="state.reliefBrush().layer === paint"
+                  [attr.data-testid]="'map-editor-relief-layer-' + paint"
+                  (click)="setReliefBrush({ layer: paint })"
+                >
+                  {{ 'feature.tabletop.groundBrush.layer_' + paint | transloco }}
+                </button>
+              }
+            </div>
+          }
           <label class="flex items-center justify-between gap-2">
             <span class="text-ui-muted">{{ 'feature.tabletop.groundBrush.radius' | transloco }}</span>
             <input

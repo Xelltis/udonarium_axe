@@ -22,6 +22,7 @@ import { GridType } from '@axe/domain/tabletop/game-table';
 import {
   GROUND_CHUNK_SAMPLES,
   GROUND_HEIGHT_STEP,
+  GROUND_PAINT_FULL,
   GROUND_SAMPLES_PER_CELL,
 } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import {
@@ -422,20 +423,57 @@ function drawGridLines(ctx: CanvasRenderingContext2D, scene: MapScene, width: nu
  */
 /** How high ground has to stand for its tint to be at its deepest, in cells. */
 const RELIEF_FULL_CELLS = 4;
+/** The colour each kind of ground is painted in on the editor's map, in the order of `GROUND_PAINT_LAYERS`. */
+const RELIEF_PAINT_COLOURS: readonly (readonly [number, number, number])[] = [
+  [92, 138, 59],
+  [122, 89, 59],
+  [128, 128, 128],
+  [217, 194, 140],
+];
+/** How much of the map the fullest paint covers, so what lies under it still shows. */
+const RELIEF_PAINT_COVER = 0.7;
 const RELIEF_RAISED = '140, 92, 44';
 const RELIEF_SUNK = '44, 96, 168';
 const RELIEF_CONTOUR = 'rgba(60, 36, 16, 0.75)';
 
 /**
- * Draws a relief layer as a map of heights: a square round every sample, tinted brown the higher it
- * stands and blue the deeper it is dug, and a line wherever the ground crosses a whole cell of
- * height between one sample and the next.
+ * Draws the paint of a chunk of relief: a square round every painted sample in the colours of the
+ * kinds of ground it is painted with, mixed in their shares.
+ */
+function drawReliefPaint(
+  ctx: CanvasRenderingContext2D,
+  paint: Uint8Array,
+  left: number,
+  top: number,
+  step: number
+): void {
+  const kinds = RELIEF_PAINT_COLOURS.length;
+  for (let j = 0; j < GROUND_CHUNK_SAMPLES; j++) {
+    for (let i = 0; i < GROUND_CHUNK_SAMPLES; i++) {
+      const shares = paint.subarray((j * GROUND_CHUNK_SAMPLES + i) * kinds, (j * GROUND_CHUNK_SAMPLES + i + 1) * kinds);
+      const total = shares.reduce((sum, share) => sum + share, 0);
+      if (total <= 0) continue;
+      const colour = [0, 1, 2].map((channel) =>
+        Math.round(shares.reduce((sum, share, kind) => sum + RELIEF_PAINT_COLOURS[kind][channel] * share, 0) / total)
+      );
+      const cover = (Math.min(total, GROUND_PAINT_FULL) / GROUND_PAINT_FULL) * RELIEF_PAINT_COVER;
+      ctx.fillStyle = `rgba(${colour.join(', ')}, ${cover})`;
+      ctx.fillRect((left + i - 0.5) * step, (top + j - 0.5) * step, step, step);
+    }
+  }
+}
+
+/**
+ * Draws a relief layer as a map of heights over the paint it lays: a square round every sample,
+ * tinted brown the higher it stands and blue the deeper it is dug, and a line wherever the ground
+ * crosses a whole cell of height between one sample and the next.
  */
 function drawReliefLayer(ctx: CanvasRenderingContext2D, layer: ReliefLayer, cellPx: number): void {
   const step = cellPx / GROUND_SAMPLES_PER_CELL;
   for (const chunk of reliefChunksOf(layer)) {
     const left = chunk.cx * GROUND_CHUNK_SAMPLES;
     const top = chunk.cy * GROUND_CHUNK_SAMPLES;
+    if (chunk.paint) drawReliefPaint(ctx, chunk.paint, left, top, step);
     const cells = (i: number, j: number) => chunk.heights[j * GROUND_CHUNK_SAMPLES + i] * GROUND_HEIGHT_STEP;
     for (let j = 0; j < GROUND_CHUNK_SAMPLES; j++) {
       for (let i = 0; i < GROUND_CHUNK_SAMPLES; i++) {

@@ -10,12 +10,13 @@ import {
 } from '@axe/domain/tabletop/ground/ground-chunk-data';
 
 /** What a stroke of the brush does to the ground under it. */
-export type GroundBrushKind = 'raise' | 'lower' | 'smooth' | 'flatten' | 'paint';
+export type GroundBrushKind = 'raise' | 'lower' | 'smooth' | 'flatten' | 'paint' | 'erase';
 
 /**
  * One dab of the brush: where it falls and how wide it is, in cells, and how hard it presses. Raising
  * and lowering move the ground by up to the strength, in cells, at the middle of the dab; smoothing,
- * flattening and painting take the ground that share of the way to where they lead it.
+ * flattening, painting and erasing take the ground that share of the way to where they lead it,
+ * erasing taking every kind of paint toward none.
  */
 export interface GroundDab {
   readonly kind: GroundBrushKind;
@@ -80,9 +81,10 @@ export function applyGroundDab(chunks: readonly GroundChunkData[], dab: GroundDa
       if (weight <= 0) continue;
       const chunk = workOn(Math.floor(i / GROUND_CHUNK_SAMPLES), Math.floor(j / GROUND_CHUNK_SAMPLES));
       const at = (j % GROUND_CHUNK_SAMPLES) * GROUND_CHUNK_SAMPLES + (i % GROUND_CHUNK_SAMPLES);
-      if (dab.kind === 'paint') {
+      if (dab.kind === 'paint' || dab.kind === 'erase') {
         chunk.paint ??= new Uint8Array(GROUND_CHUNK_SAMPLE_COUNT * GROUND_PAINT_LAYERS.length);
-        paintSample(chunk.paint, at, dab.layer ?? 'grass', Math.min(1, dab.strength * weight));
+        const layer = dab.kind === 'erase' ? null : (dab.layer ?? 'grass');
+        paintSample(chunk.paint, at, layer, Math.min(1, dab.strength * weight));
         continue;
       }
       const height = sampleAt(i, j);
@@ -112,9 +114,10 @@ function neighbourhoodOf(sampleAt: (i: number, j: number) => number, i: number, 
 
 /**
  * Lays a share of a kind of ground on a sample: the kind is taken that share of the way to full and
- * every other the same share of the way to none.
+ * every other the same share of the way to none. Given no kind, every kind goes that share of the way
+ * to none.
  */
-function paintSample(paint: Uint8Array, sample: number, layer: GroundPaintLayer, share: number): void {
+function paintSample(paint: Uint8Array, sample: number, layer: GroundPaintLayer | null, share: number): void {
   const base = sample * GROUND_PAINT_LAYERS.length;
   GROUND_PAINT_LAYERS.forEach((kind, index) => {
     const now = paint[base + index];
