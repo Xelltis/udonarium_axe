@@ -71,9 +71,11 @@ test.describe('the chat palette', () => {
     await expect(thumbs).toHaveCount(3);
     for (const [index, name] of ['通常', '怒り', 'ひらめき'].entries()) {
       await thumbs.nth(index).click();
+      await expect(thumbs.nth(index).getByText('person_pin')).toBeVisible();
       const nameInput = sheet.getByPlaceholder(/立ち絵名/);
       await nameInput.fill(name);
       await nameInput.press('Enter');
+      await expect(thumbs.nth(index)).toHaveAttribute('title', name);
     }
 
     const picker = page.locator('chat-palette portrait-picker');
