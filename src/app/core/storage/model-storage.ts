@@ -10,6 +10,7 @@ import {
   receivedUploadTurnMs,
 } from '@axe/core/storage/asset-retries';
 import type { CatalogItem } from '@axe/core/storage/audio-storage';
+import { isBundledModel } from '@axe/core/storage/bundled-models';
 import { CatalogSendSchedule } from '@axe/core/storage/catalog-send-schedule';
 import { ModelFile, ModelFileContext, ModelState } from '@axe/core/storage/model-file';
 
@@ -238,12 +239,13 @@ export class ModelStorage {
    * One turned away for the room being out of reach, as while the link is down, goes up once the
    * seat is back rather than spend its tries meanwhile. One the operator stopped for a while waits
    * here for the stop to be over, and one the operator barred stays here; neither is named to peers,
-   * who would pass it on regardless. One kept anew shows a stop is over.
+   * who would pass it on regardless. One kept anew shows a stop is over. One bundled with the app
+   * never goes up, as every seat has it beside its own page.
    */
   private uploadToAssetStore(model: ModelFile, first = false, probe = false): void {
     const store = AssetHttpStore.instance;
     const blob = model.blob;
-    if (model.state !== ModelState.COMPLETE || !blob) return;
+    if (model.state !== ModelState.COMPLETE || !blob || isBundledModel(model.identifier)) return;
     if (!store.isEnabled) {
       if (store.isConfigured && AssetHttpStore.isAssetId(model.identifier)) this.missedUploads.add(model.identifier);
       return;
@@ -539,7 +541,8 @@ export class ModelStorage {
 
   /**
    * The models this seat holds in full, which is what it advertises so that peers can request what
-   * they lack. Those still going up to the asset server are left out.
+   * they lack. Those still going up to the asset server are left out, and so are those bundled with
+   * the app, which every peer reads from beside its own page.
    */
   getCatalog(): CatalogItem[] {
     const catalog: CatalogItem[] = [];
@@ -547,7 +550,8 @@ export class ModelStorage {
       if (
         ModelState.COMPLETE <= model.state &&
         !this.isOnItsWayUp(model.identifier) &&
-        !this.barred.has(model.identifier)
+        !this.barred.has(model.identifier) &&
+        !isBundledModel(model.identifier)
       ) {
         catalog.push({ identifier: model.identifier, state: model.state, name: model.name });
       }

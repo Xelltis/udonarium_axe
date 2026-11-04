@@ -1,3 +1,4 @@
+import { BUNDLED_PIECE_MODELS, type BundledPieceModel } from '@axe/core/storage/bundled-models';
 import { ImageContext, ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -63,6 +64,10 @@ const SAMPLE_STATS: Record<string, SampleStats> = {
   ゴブリン: { hp: 90, mp: 20, 器用度: 14, 敏捷度: 22, 筋力: 12, 生命力: 12, 知力: 8, 精神力: 6, 移動: 6 },
   手負いのゴブリン: { hp: 76, mp: 20, 器用度: 14, 敏捷度: 22, 筋力: 10, 生命力: 10, 知力: 8, 精神力: 6, 移動: 4 },
   ゴーレム: { hp: 400, mp: 20, 器用度: 8, 敏捷度: 6, 筋力: 40, 生命力: 45, 知力: 4, 精神力: 30, 移動: 3 },
+  弓使い: { hp: 170, mp: 60, 器用度: 32, 敏捷度: 26, 筋力: 18, 生命力: 16, 知力: 16, 精神力: 16, 移動: 6 },
+  盗賊: { hp: 160, mp: 50, 器用度: 34, 敏捷度: 30, 筋力: 14, 生命力: 15, 知力: 18, 精神力: 14, 移動: 7 },
+  戦士: { hp: 240, mp: 30, 器用度: 20, 敏捷度: 18, 筋力: 32, 生命力: 26, 知力: 10, 精神力: 14, 移動: 5 },
+  オーク: { hp: 150, mp: 10, 器用度: 12, 敏捷度: 16, 筋力: 28, 生命力: 22, 知力: 6, 精神力: 8, 移動: 5 },
 };
 
 /** Writes a sample's numbers over the ones every new piece is made with. */
@@ -196,7 +201,55 @@ function makeSampleSummaryItems(): void {
 }
 
 /**
- * Sets out the sample pieces a new room opens with: three monsters and a party of three characters.
+ * A sample piece the room opens with that the app bundles a 3D model for, which is all there is
+ * to it: its picture is the model drawn, and it is named for what it is.
+ */
+interface ModelledSample {
+  readonly identifier: string;
+  readonly name: string;
+  readonly model: BundledPieceModel;
+  readonly cell: { readonly x: number; readonly y: number };
+  /** Whether it is one of the monsters rather than one of the players' party. */
+  readonly monster: boolean;
+}
+
+/** The sample pieces made for the bundled models no first-table piece is drawn as, on the right of the board, clear of the rest. */
+const MODELLED_SAMPLES: readonly ModelledSample[] = [
+  { identifier: 'testCharacter_7', name: 'オーク', model: 'orc', cell: { x: 16, y: 2 }, monster: true },
+  { identifier: 'testCharacter_8', name: '弓使い', model: 'archer', cell: { x: 19, y: 5 }, monster: false },
+  { identifier: 'testCharacter_9', name: '盗賊', model: 'thief', cell: { x: 18, y: 9 }, monster: false },
+  { identifier: 'testCharacter_10', name: '戦士', model: 'warrior', cell: { x: 19, y: 13 }, monster: false },
+];
+
+/** Has a sample piece drawn as one of the bundled models on a table drawn on a canvas; the page's own table goes on drawing its picture. */
+function wearBundledModel(character: GameCharacter, model: BundledPieceModel): void {
+  character.modelIdentifier = BUNDLED_PIECE_MODELS[model];
+}
+
+/** Sets out a sample piece made for a bundled model: in the players' party, or among the monsters. */
+function makeModelledSample(sample: ModelledSample, imageStorage: ImageStorage, party: Party, monsters: Party): void {
+  const character = new GameCharacter(sample.identifier);
+  const context = ImageFile.createEmpty(`${sample.identifier}_image`).toContext();
+  context.url = `./assets/images/piece_${sample.model}.webp`;
+  const picture = imageStorage.add(context);
+  ImageTag.create(picture.identifier).tag = sample.monster ? 'モンスター' : '';
+  character.location.x = sample.cell.x * 50;
+  character.location.y = sample.cell.y * 50;
+  character.initialize();
+  CharacterTemplateFactory.createDefault(character, sample.name, 1, picture.identifier);
+  if (sample.monster) {
+    character.isNpc = true;
+    character.partyIdentifier = monsters.identifier;
+  } else {
+    joinSampleParty(character, party);
+  }
+  applySampleStats(character, sample.name);
+  wearBundledModel(character, sample.model);
+}
+
+/**
+ * Sets out the sample pieces a new room opens with: monsters and a party of characters, drawn as
+ * the models the app bundles on a table drawn on a canvas.
  *
  * The room's display items are set to the samples' stats, and the characters are given a little
  * sight and joined to one party so the fog and the dark can be tried at once. The monsters stand in
@@ -223,6 +276,7 @@ export function makeDefaultTabletopObjects(imageStorage: ImageStorage): void {
   testCharacter.isNpc = true;
   testCharacter.partyIdentifier = monsters.identifier;
   applySampleStats(testCharacter, 'ゴブリン');
+  wearBundledModel(testCharacter, 'goblin');
   addBuffRound(testCharacter, 'テストバフ1', '防+1', 3);
 
   testCharacter = new GameCharacter('testCharacter_2');
@@ -233,6 +287,7 @@ export function makeDefaultTabletopObjects(imageStorage: ImageStorage): void {
   testCharacter.isNpc = true;
   testCharacter.partyIdentifier = monsters.identifier;
   applySampleStats(testCharacter, '手負いのゴブリン');
+  wearBundledModel(testCharacter, 'goblin');
 
   testCharacter = new GameCharacter('testCharacter_3');
   fileContext = ImageFile.createEmpty('testCharacter_3_image').toContext();
@@ -247,6 +302,7 @@ export function makeDefaultTabletopObjects(imageStorage: ImageStorage): void {
   testCharacter.isNpc = true;
   testCharacter.partyIdentifier = monsters.identifier;
   applySampleStats(testCharacter, 'ゴーレム');
+  wearBundledModel(testCharacter, 'golem');
   addSampleBodyCount(testCharacter, 3);
 
   testCharacter = new GameCharacter('testCharacter_4');
@@ -262,6 +318,7 @@ export function makeDefaultTabletopObjects(imageStorage: ImageStorage): void {
   CharacterTemplateFactory.createDefault(testCharacter, 'キャラクターA', 1, testFile.identifier);
   joinSampleParty(testCharacter, party);
   applySampleStats(testCharacter, '騎士');
+  wearBundledModel(testCharacter, 'knight');
   addBuffRound(testCharacter, 'テストバフ2', '攻撃+10', 1);
 
   testCharacter = new GameCharacter('testCharacter_5');
@@ -274,6 +331,7 @@ export function makeDefaultTabletopObjects(imageStorage: ImageStorage): void {
   CharacterTemplateFactory.createDefault(testCharacter, 'キャラクターB', 1, testFile.identifier);
   joinSampleParty(testCharacter, party);
   applySampleStats(testCharacter, '魔法使い');
+  wearBundledModel(testCharacter, 'wizard');
   addBuffRound(testCharacter, 'テストバフ2', '攻撃+10', 1);
 
   testCharacter = new GameCharacter('testCharacter_6');
@@ -291,4 +349,6 @@ export function makeDefaultTabletopObjects(imageStorage: ImageStorage): void {
   joinSampleParty(testCharacter, party);
   applySampleStats(testCharacter, '斥候');
   addBuffRound(testCharacter, 'テストバフ3', '', 3);
+
+  for (const sample of MODELLED_SAMPLES) makeModelledSample(sample, imageStorage, party, monsters);
 }

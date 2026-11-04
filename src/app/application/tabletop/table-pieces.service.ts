@@ -130,6 +130,22 @@ export class TablePiecesService {
     return models;
   });
 
+  /** The models the characters on the table in view are drawn as that are not held here in full yet. */
+  readonly missingModels = computed<readonly string[]>(
+    () => {
+      this.objectChange.collectionOf(GameCharacter.aliasName)();
+      this.objectChange.fileVersion();
+      const missing = new Set<string>();
+      for (const character of this.tabletop.characters) {
+        this.objectChange.versionOf(character.identifier)();
+        const model = pieceModelOf(character);
+        if (model && !this.modelUrlOf(model.identifier)) missing.add(model.identifier);
+      }
+      return [...missing];
+    },
+    { equal: (a, b) => a.length === b.length && a.every((identifier, i) => identifier === b[i]) }
+  );
+
   /** Where the bytes of a model held here in full are read from, or nothing for one not held. */
   modelUrlOf(identifier: string): string {
     const model = this.modelStorage.get(identifier);

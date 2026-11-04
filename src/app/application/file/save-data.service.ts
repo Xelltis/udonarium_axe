@@ -12,6 +12,7 @@ import { isNetworkIsolated } from '@axe/core/network/network-isolation';
 import { getAuthorityPeerId } from '@axe/core/network/peer-context-source';
 import { AudioFile } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { isBundledModel } from '@axe/core/storage/bundled-models';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import * as FileReaderUtil from '@axe/core/storage/file-reader-util';
 import { downscaleImageBlob } from '@axe/core/storage/image-downscale';
@@ -244,7 +245,9 @@ export class SaveDataService {
 
     const audios: AudioFile[] = this.audioStorage.audios.filter((a) => !a.isHidden);
     if (everything) files.push(...audioArchiveFiles(audios, files));
-    const models = everything ? this.modelStorage.models : this.searchModelFiles(roomXml);
+    const models = (everything ? this.modelStorage.models : this.searchModelFiles(roomXml)).filter(
+      (model) => !isBundledModel(model.identifier)
+    );
     files.push(...modelArchiveFiles(models, files));
     const audioTagXml = this.convertToXml(AudioTagList.create(audios), pretty);
     files.push(new File([audioTagXml], 'audiotag.xml', { type: 'text/plain' }));

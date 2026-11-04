@@ -13,6 +13,7 @@ import { GameClockService } from '@axe/application/game-clock/game-clock.service
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AmbienceService } from '@axe/application/tabletop/ambience.service';
+import { BundledModelsService } from '@axe/application/tabletop/bundled-models.service';
 import { FloorCanvasesService } from '@axe/application/tabletop/floor-canvases.service';
 import { GroundService } from '@axe/application/tabletop/ground.service';
 import { LightFlickerClockService } from '@axe/application/tabletop/light-flicker-clock.service';
@@ -106,6 +107,7 @@ export class Table3dService {
   private readonly tableVeil = inject(TableVeilService);
   private readonly lightSlots = inject(LightSlotsService);
   private readonly flickerClock = inject(LightFlickerClockService);
+  private readonly bundledModels = inject(BundledModelsService);
   private readonly quality = inject(Table3dQualityService);
   private readonly gameClock = inject(GameClockService);
   private readonly motion = inject(MotionService);
@@ -557,6 +559,12 @@ export class Table3dService {
             this.drawSoon(engine);
           }, FLICKER_INTERVAL_MS);
           onCleanup(() => clearInterval(timer));
+        },
+        { injector: this.injector }
+      ),
+      effect(
+        () => {
+          for (const identifier of this.pieces.missingModels()) this.bundledModels.read(identifier);
         },
         { injector: this.injector }
       ),

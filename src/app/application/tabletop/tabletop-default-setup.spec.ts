@@ -1,4 +1,5 @@
 import { makeDefaultTabletopObjects } from '@axe/application/tabletop/tabletop-default-setup';
+import { BUNDLED_PIECE_MODELS } from '@axe/core/storage/bundled-models';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -107,6 +108,42 @@ describe('the pieces a first table is set out with', () => {
     ]) {
       expect(sample(name)).toBeTruthy();
     }
+  });
+
+  describe('the pieces drawn as the models the app bundles', () => {
+    it('dresses the first table’s pieces in the bundled model each picture was made into, and leaves the scout its picture', () => {
+      expect(sample('モンスターA').modelIdentifier).toBe(BUNDLED_PIECE_MODELS.goblin);
+      expect(sample('モンスターB').modelIdentifier).toBe(BUNDLED_PIECE_MODELS.goblin);
+      expect(sample('モンスターC').modelIdentifier).toBe(BUNDLED_PIECE_MODELS.golem);
+      expect(sample('キャラクターA').modelIdentifier).toBe(BUNDLED_PIECE_MODELS.knight);
+      expect(sample('キャラクターB').modelIdentifier).toBe(BUNDLED_PIECE_MODELS.wizard);
+      expect(sample('キャラクターC').modelIdentifier).toBe('');
+    });
+
+    it('sets out a piece named for what it is for each of the rest, the orc among the monsters and the others in the party', () => {
+      const players = sample('キャラクターA').partyIdentifier;
+      const monsters = sample('モンスターA').partyIdentifier;
+      for (const [name, model, party] of [
+        ['オーク', 'orc', monsters],
+        ['弓使い', 'archer', players],
+        ['盗賊', 'thief', players],
+        ['戦士', 'warrior', players],
+      ] as const) {
+        const piece = sample(name);
+        expect(piece.modelIdentifier, name).toBe(BUNDLED_PIECE_MODELS[model]);
+        expect(piece.partyIdentifier, name).toBe(party);
+        expect(piece.isNpc, name).toBe(party === monsters);
+        expect(piece.visionRange, name).toBe(party === monsters ? 0 : 2);
+        expect(statOf(piece, 'HP'), name).toBeGreaterThan(0);
+      }
+    });
+
+    it('stands each of them on a cell of its own, clear of every other sample', () => {
+      const cells = ObjectStore.instance
+        .getObjects<GameCharacter>(GameCharacter)
+        .map((piece) => `${piece.location.x / 50},${piece.location.y / 50}`);
+      expect(new Set(cells).size).toBe(cells.length);
+    });
   });
 
   it('builds each one to its picture rather than to the same numbers', () => {

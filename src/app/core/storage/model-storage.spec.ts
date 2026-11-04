@@ -10,6 +10,7 @@ import {
   RECEIVED_UPLOAD_TURN_MS,
   receivedUploadTurnMs,
 } from '@axe/core/storage/asset-retries';
+import { BUNDLED_PIECE_MODELS } from '@axe/core/storage/bundled-models';
 import { MODEL_TYPE, ModelFile, ModelFileContext } from '@axe/core/storage/model-file';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import type { MockInstance } from 'vitest';
@@ -294,6 +295,19 @@ describe('ModelStorage', () => {
       (storage as unknown as { barred: Set<string> }).barred.clear();
       (storage as unknown as { stopPausedRetry(): void }).stopPausedRetry();
       vi.useRealTimers();
+    });
+
+    it('never puts up a model bundled with the app, nor names it to peers, as every seat has it beside its own page', async () => {
+      vi.spyOn(Network.instance, 'serverRole', 'get').mockReturnValue('gm');
+      storage.add(ModelFile.create(contextOf(BUNDLED_PIECE_MODELS.goblin)));
+      storage.add(ModelFile.create(contextOf(trackId)));
+
+      storage.uploadAllToAssetStore();
+      await Promise.resolve();
+
+      expect(upload.mock.calls.map(([identifier]) => identifier)).not.toContain(BUNDLED_PIECE_MODELS.goblin);
+      expect(upload.mock.calls.map(([identifier]) => identifier)).toContain(trackId);
+      expect(catalogued(BUNDLED_PIECE_MODELS.goblin)).toBe(false);
     });
 
     describe('one the room removed while it was going up', () => {

@@ -1,0 +1,48 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { TestBed } from '@angular/core/testing';
+import { BundledModelsService } from '@axe/application/tabletop/bundled-models.service';
+import { BUNDLED_PIECE_MODELS } from '@axe/core/storage/bundled-models';
+import { ModelStorage } from '@axe/core/storage/model-storage';
+import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const GOBLIN = BUNDLED_PIECE_MODELS.goblin;
+const goblinBytes = () => readFileSync(join(process.cwd(), 'src/assets/models/pieces/goblin.glb'));
+
+describe('BundledModelsService', () => {
+  beforeEach(() => TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] }));
+
+  afterEach(() => {
+    ModelStorage.instance.delete(GOBLIN);
+    vi.restoreAllMocks();
+  });
+
+  it('reads a bundled model from beside the page once, and holds it as the identifier names it', async () => {
+    const fetched = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(goblinBytes()));
+    const bundled = TestBed.inject(BundledModelsService);
+
+    bundled.read(GOBLIN);
+    bundled.read(GOBLIN);
+    await vi.waitFor(() => expect(ModelStorage.instance.get(GOBLIN)?.isReady).toBe(true));
+
+    expect(fetched).toHaveBeenCalledTimes(1);
+    expect(String(fetched.mock.calls[0][0])).toBe('assets/models/pieces/goblin.glb');
+    expect(ModelStorage.instance.get(GOBLIN)?.name).toBe('goblin.glb');
+  });
+
+  it('takes in no bytes that are not what the identifier names, and reads no model that is not bundled', async () => {
+    const fetched = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async () => new Response(new Uint8Array([1, 2, 3])));
+    const bundled = TestBed.inject(BundledModelsService);
+
+    bundled.read('0'.repeat(64));
+    bundled.read(GOBLIN);
+    await vi.waitFor(() => expect(fetched).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(ModelStorage.instance.get(GOBLIN)).toBeNull();
+  });
+});

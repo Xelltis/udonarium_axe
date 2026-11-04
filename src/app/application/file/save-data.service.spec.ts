@@ -6,6 +6,7 @@ import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { BUNDLED_PIECE_MODELS } from '@axe/core/storage/bundled-models';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -133,9 +134,14 @@ describe('SaveDataService', () => {
   describe('the 3D models in a room save', () => {
     const tree = { identifier: 'f'.repeat(64), name: 'tree.glb', blob: new Blob(['glTF'], { type: MODEL_TYPE }) };
     const rock = { identifier: 'd'.repeat(64), name: 'rock', blob: new Blob(['glTF'], { type: MODEL_TYPE }) };
+    const bundled = {
+      identifier: BUNDLED_PIECE_MODELS.goblin,
+      name: 'goblin.glb',
+      blob: new Blob(['glTF'], { type: MODEL_TYPE }),
+    };
 
     beforeEach(() => {
-      vi.spyOn(TestBed.inject(ModelStorage), 'models', 'get').mockReturnValue([tree, rock] as never);
+      vi.spyOn(TestBed.inject(ModelStorage), 'models', 'get').mockReturnValue([tree, rock, bundled] as never);
     });
 
     afterEach(() => vi.restoreAllMocks());
@@ -153,6 +159,17 @@ describe('SaveDataService', () => {
         'rock.glb',
       ]);
       expect(saved).not.toContain('tree.glb');
+    });
+
+    it('leaves out a model bundled with the app, which the app that opens the save has beside its page', () => {
+      const privateApi = TestBed.inject(SaveDataService) as unknown as {
+        buildRoomFiles: (pretty: boolean, everything?: boolean) => File[];
+        searchModelFiles: (xml: string) => unknown[];
+      };
+      vi.spyOn(privateApi, 'searchModelFiles').mockReturnValue([bundled]);
+
+      expect(privateApi.buildRoomFiles(false, true).map((file) => file.name)).not.toContain('goblin.glb');
+      expect(privateApi.buildRoomFiles(false).map((file) => file.name)).not.toContain('goblin.glb');
     });
   });
 
