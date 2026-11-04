@@ -8,6 +8,7 @@ import {
   effect,
   ElementRef,
   inject,
+  Injector,
   Signal,
   signal,
   untracked,
@@ -281,6 +282,7 @@ export class GameTableComponent {
   private readonly pieceMotions = inject(PieceMotionsService);
   private readonly ground = inject(GroundService);
   private readonly piecePictures = inject(PiecePicturesService);
+  private readonly injector = inject(Injector);
   private readonly imageService = inject(ImageService);
   private readonly motion = inject(MotionService);
   private readonly tabletopService = inject(TabletopService);
@@ -1389,6 +1391,7 @@ export class GameTableComponent {
       }
       this.gridRevision++;
       this.shareGrid();
+      afterNextRender(() => this.shareGrid(), { injector: this.injector });
     }
 
     setTimeout(() => {
