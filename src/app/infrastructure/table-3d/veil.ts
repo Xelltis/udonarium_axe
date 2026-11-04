@@ -1,3 +1,4 @@
+import { litByLamps } from '@axe/infrastructure/table-3d/lamp-lighting';
 import type { Table3dLightMap, Table3dShadowLight, Table3dVeil } from '@axe/infrastructure/table-3d/table-3d-port';
 import {
   diffuseColor,
@@ -107,6 +108,7 @@ export class SceneVeil {
   cover(material: Material, taking: DarknessTaking = 'unlit'): void {
     const node = material as NodeMaterial;
     if (taking === 'lit') {
+      litByLamps(material);
       (material as unknown as { emissiveNode: unknown }).emissiveNode = diffuseColor.rgb.mul(
         this.lifted.sub(this.ambientNode())
       );
