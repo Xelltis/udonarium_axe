@@ -27,9 +27,18 @@ const FRAME_MAX_PX = 1024;
 const PULLED_FORWARD = { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 };
 
 /**
+ * Where the sprites standing up come in the order things are drawn: after all that is laid over
+ * the board, its layers, the grid and the canvases the page paints on it, such as where a piece
+ * dragged may go. A standing picture writes depth even where its edge lets the board show through
+ * it, and what lies under that edge drawn after it would leave the board unchanged there, as a rim
+ * round the picture.
+ */
+const STANDING_ORDER = 3;
+
+/**
  * Where the sprites lying flat on a face come in the order things are drawn: after the board, the
- * blocks and the grid, one after another from the lowest, so a card laid over another is drawn
- * over it however close the two lie.
+ * blocks, the grid and the standing sprites, one after another from the lowest, so a card laid over
+ * another is drawn over it however close the two lie.
  */
 const FIRST_LYING = 10;
 
@@ -123,7 +132,7 @@ export class SpriteLayer {
         this.group.add(drawn.mesh);
       }
       const mesh = drawn.mesh;
-      mesh.renderOrder = 0;
+      mesh.renderOrder = STANDING_ORDER;
       mesh.visible = !sprite.hidden;
       mesh.position.copy(sceneDirection(sprite.centre));
       mesh.scale.set(sprite.widthPx, sprite.heightPx, 1);

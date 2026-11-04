@@ -13,7 +13,7 @@ import {
 
 /**
  * Where what the page paints on the floor comes in the order things are drawn: after the board,
- * the blocks and the grid, and before the sprites lying flat on a face, which lie over it.
+ * the blocks and the grid, and before the sprites, which stand and lie over it.
  */
 const FLOOR_CANVAS_ORDER = 2;
 
