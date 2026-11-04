@@ -50,6 +50,8 @@ interface ShownThrow extends PosedThrow {
   readonly materials: readonly Material[];
   /** What it was built from, so a throw handed over again unchanged is not built again. */
   readonly draw: ThrowToDraw;
+  /** Where it was last set, so a throw handed over again just where it lay is left as it is. */
+  laid: string;
 }
 
 /** How many faces' pictures are kept for dice to come, the oldest let go first. */
@@ -117,13 +119,16 @@ export class TableDiceLayer {
         this.shownThrows.set(diceThrow.key, shown);
         this.group.add(shown.root);
       }
+      const laid = JSON.stringify([diceThrow.model, diceThrow.seconds, diceThrow.opacity]);
+      if (laid === shown.laid) continue;
+      shown.laid = laid;
       shown.root.matrix.copy(this.boardToScene).multiply(new Matrix4().fromArray(diceThrow.model as number[]));
       shown.root.matrixWorldNeedsUpdate = true;
       for (const material of shown.materials) material.opacity = diceThrow.opacity;
       poseThrow(shown, diceThrow.seconds, diceThrow.opacity);
       shown.root.updateMatrixWorld(true);
+      this.changed = true;
     }
-    this.changed ||= throws.length > 0 || wanted.size !== this.shownThrows.size;
   }
 
   /**
@@ -232,6 +237,7 @@ export class TableDiceLayer {
       halos,
       materials,
       draw,
+      laid: '',
       radii: draw.dice.map((die) => dieRadiusOf(die.shape)),
       restHeights: draw.dice.map((die) => polyhedronOf(die.shape).inradius * dieRadiusOf(die.shape)),
       result: draw.result,
