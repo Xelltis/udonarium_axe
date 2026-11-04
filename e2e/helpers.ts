@@ -49,6 +49,15 @@ export async function expectChatText(input: Locator, text: string): Promise<void
   await expect.poll(() => chatInputText(input)).toBe(text);
 }
 
+/**
+ * Has the sample room's pieces drawn as the models the app bundles for them, which the suite's
+ * server holds back from the projects that draw the table on a canvas (see e2e/serve-dist.mjs).
+ * Call before the page is opened.
+ */
+export async function drawSampleModels(page: Page) {
+  await page.context().clearCookies({ name: 'axe-e2e-sample-models' });
+}
+
 export async function waitAppReady(page: Page) {
   await avoidWebKitBackdropStall(page);
   // A load off the build takes well under a second, but with three browsers running the suite at

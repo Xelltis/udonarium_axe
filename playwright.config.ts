@@ -4,6 +4,24 @@ import { defineConfig, devices } from '@playwright/test';
 
 const isCI = !!process.env['CI'];
 
+/**
+ * The cookie that has the server hold back the models the sample room's pieces are drawn as, so they
+ * are drawn as their pictures: see e2e/serve-dist.mjs. A spec about the models takes it off again.
+ */
+const withoutSampleModels = {
+  name: 'axe-e2e-sample-models',
+  value: 'off',
+  domain: 'localhost',
+  path: '/',
+  expires: -1,
+  httpOnly: false,
+  secure: false,
+  sameSite: 'Lax' as const,
+};
+
+/** A browser that draws the table on a canvas as a seat does by default, with the sample room's pieces drawn as their pictures. */
+const drawsOnCanvasPictures = { cookies: [withoutSampleModels], origins: [] };
+
 /** A browser that has asked for the table to be drawn on a canvas through three.js, as a seat does by default. */
 const drawsOnCanvas = {
   cookies: [],
@@ -148,7 +166,7 @@ export default defineConfig({
     // so each is given twice the time, and fewer run at once.
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'], launchOptions: CANVAS_LAUNCH },
+      use: { ...devices['Desktop Chrome'], launchOptions: CANVAS_LAUNCH, storageState: drawsOnCanvasPictures },
       testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/, /server\/.*\.spec\.ts/, ...PAGE_DRAWING_ONLY],
       timeout: 60000,
       workers: 4,
@@ -164,7 +182,11 @@ export default defineConfig({
     // that drag a piece about many times are given the same time as on WebGL2, and fewer run at once.
     {
       name: 'chromium-webgpu',
-      use: { ...devices['Desktop Chrome'], storageState: drawsOnCanvas, launchOptions: WEBGPU_LAUNCH },
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: { ...drawsOnCanvas, cookies: [withoutSampleModels] },
+        launchOptions: WEBGPU_LAUNCH,
+      },
       testMatch: [/webgl\/.*\.spec\.ts/],
       timeout: 60000,
       workers: 3,
@@ -173,7 +195,12 @@ export default defineConfig({
     // build on the table runs here, since a phone has no game master's toolbar to build with.
     {
       name: 'mobile',
-      use: { ...devices['Pixel 7'], reducedMotion: 'reduce', launchOptions: CANVAS_LAUNCH },
+      use: {
+        ...devices['Pixel 7'],
+        reducedMotion: 'reduce',
+        launchOptions: CANVAS_LAUNCH,
+        storageState: drawsOnCanvasPictures,
+      },
       testMatch: [/mobile\/.*\.spec\.ts/, /webgl\/table-scene\.spec\.ts/],
       timeout: 60000,
     },
