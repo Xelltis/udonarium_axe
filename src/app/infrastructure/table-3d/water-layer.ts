@@ -1,15 +1,15 @@
+import { CAUSTIC_SEED, CAUSTIC_TILE_PX, causticAlpha, causticFieldOf } from '@axe/domain/effect/ambience/caustics';
 import type { TableWorldSeaFloor, TableWorldWater, WaterPart } from '@axe/domain/tabletop/world/table-water';
 import {
-  abs,
   attribute,
   float,
   fract,
   max,
   mix,
   positionWorld,
-  sin,
   smoothstep,
   sRGBTransferEOTF,
+  texture,
   uniform,
   vec2,
   vec3,
@@ -17,6 +17,7 @@ import {
 } from 'three/tsl';
 import {
   BufferGeometry,
+  DataTexture,
   DoubleSide,
   Float32BufferAttribute,
   Group,
@@ -24,6 +25,8 @@ import {
   Mesh,
   MeshLambertNodeMaterial,
   type Node,
+  RepeatWrapping,
+  type Texture,
 } from 'three/webgpu';
 
 /**
@@ -49,6 +52,16 @@ const SEA_CAUSTIC_CELLS = 3.4;
 const GLINT_CELLS = 5.7;
 /** How many seconds a wave takes to run in to the shore. */
 const WAVE_SECONDS = 4;
+/**
+ * How the two nets of light drift, as the page's do: the first moves one repeat down and across in
+ * so many seconds, the second, larger and fainter, the other way across; the glints drift the second
+ * way backwards, slower.
+ */
+const FIRST_NET_SECONDS = 26;
+const SECOND_NET_SECONDS = 39;
+const SECOND_NET_SCALE = 1.45;
+const SECOND_NET_SHARE = 0.75;
+const GLINT_SECONDS = 57;
 
 type Taking = 'lit' | 'unlit';
 
@@ -62,6 +75,7 @@ export class WaterLayer {
   readonly group = new Group();
   private readonly seconds = uniform(0);
   private readonly cellPx = uniform(50);
+  private netTile: Texture | null = null;
   private laid: TableWorldWater | null = null;
   private laidBoard = '';
   private meshes: Mesh[] = [];
@@ -111,6 +125,36 @@ export class WaterLayer {
 
   dispose(): void {
     this.clear();
+    this.netTile?.dispose();
+    this.netTile = null;
+  }
+
+  /** The net of light the page draws its water with, one tile of it to repeat, made once. */
+  private tile(): Texture {
+    if (this.netTile) return this.netTile;
+    const alpha = causticAlpha(causticFieldOf(CAUSTIC_SEED));
+    const data = new Uint8Array(alpha.length * 4);
+    for (let i = 0; i < alpha.length; i++) data.fill(alpha[i], i * 4, i * 4 + 4);
+    const tile = new DataTexture(data, CAUSTIC_TILE_PX, CAUSTIC_TILE_PX);
+    tile.wrapS = RepeatWrapping;
+    tile.wrapT = RepeatWrapping;
+    tile.generateMipmaps = true;
+    tile.needsUpdate = true;
+    this.netTile = tile;
+    return tile;
+  }
+
+  /**
+   * How much of a point the net of light covers, from 0 to 1, as the page lays it: the net drifting
+   * down and across, and a larger, fainter one drifting the other way across over it, each as bright
+   * as the share given of it.
+   */
+  private nets(at: Node<'vec2'>, share: Node<'float'>): { first: Node<'float'>; second: Node<'float'> } {
+    const tile = this.tile();
+    const first = texture(tile, at.sub(vec2(this.seconds, this.seconds).div(FIRST_NET_SECONDS))).r.mul(share);
+    const across = vec2(this.seconds.negate(), this.seconds).div(SECOND_NET_SECONDS);
+    const second = texture(tile, at.div(SECOND_NET_SCALE).sub(across)).r.mul(share).mul(SECOND_NET_SHARE);
+    return { first, second };
   }
 
   private add(
@@ -183,7 +227,8 @@ export class WaterLayer {
     const at = vec2(positionWorld.x, positionWorld.z)
       .div(this.cellPx.mul(GLINT_CELLS))
       .sub(flow.mul(this.seconds).div(GLINT_CELLS));
-    const glint = ripples(at, this.seconds).pow(6).mul(attribute('extra', 'float'));
+    const drift = vec2(this.seconds.negate(), this.seconds).div(GLINT_SECONDS);
+    const glint = texture(this.tile(), at.add(drift)).r.mul(attribute('extra', 'float'));
     material.colorNode = vec4(mix(rgb, vec3(1, 1, 1), glint), max(a, glint));
     this.dress(material, 'lit');
     return material;
@@ -195,8 +240,11 @@ export class WaterLayer {
     Object.assign(material, PULLED_FORWARD);
     const { rgb, a } = this.colour();
     const at = vec2(positionWorld.x, positionWorld.z).div(this.cellPx.mul(netCells));
-    const net = ripples(at, this.seconds).pow(4).mul(attribute('extra', 'float'));
-    material.colorNode = vec4(mix(rgb, vec3(1, 1, 1), net), max(a, net));
+    const { first, second } = this.nets(at, attribute('extra', 'float'));
+    const clear = float(1).sub(first).mul(float(1).sub(second));
+    const alpha = float(1).sub(float(1).sub(a).mul(clear));
+    const colour = rgb.mul(a).mul(clear).add(float(1).sub(clear)).div(max(alpha, 0.0001));
+    material.colorNode = vec4(colour, alpha);
     this.dress(material, 'lit');
     return material;
   }
@@ -232,23 +280,4 @@ export class WaterLayer {
       ...(pulled ? PULLED_FORWARD : {}),
     });
   }
-}
-
-/**
- * A net of bright lines over the water, from 0 to 1, that wanders as time goes on: two waves running
- * across each other, bent by a third, brightest where they cancel out.
- */
-function ripples(at: Node<'vec2'>, seconds: Node<'float'>) {
-  const turn = Math.PI * 2;
-  const bend = sin(at.y.mul(turn * 1.3).add(seconds.mul(0.4)));
-  const one = sin(at.x.mul(turn).add(bend).add(seconds.mul(0.6)));
-  const two = sin(
-    at.y
-      .mul(turn)
-      .add(sin(at.x.mul(turn * 1.7).sub(seconds.mul(0.3))))
-      .add(seconds.mul(0.5))
-  );
-  return float(1)
-    .sub(abs(one.add(two)).mul(0.5))
-    .clamp(0, 1);
 }

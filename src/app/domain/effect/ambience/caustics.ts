@@ -3,6 +3,9 @@ import { seededRandom } from '@axe/domain/effect/particles/shared';
 /** How many pixels a side of the light-net tile is drawn at. */
 export const CAUSTIC_TILE_PX = 192;
 
+/** The seed the net of light is drawn from, the same wherever the table is drawn. */
+export const CAUSTIC_SEED = 20261013;
+
 /** The cells the net is drawn from: how many bright knots there are across one tile. */
 const FEATURE_COUNT = 11;
 /** How wide a bright line is, against the tile. */

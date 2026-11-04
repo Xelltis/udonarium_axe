@@ -1,4 +1,4 @@
-import { CAUSTIC_TILE_PX, causticAlpha, causticFieldOf } from '@axe/domain/effect/ambience/caustics';
+import { CAUSTIC_SEED, CAUSTIC_TILE_PX, causticAlpha, causticFieldOf } from '@axe/domain/effect/ambience/caustics';
 import {
   cloudAlpha,
   scumAlpha,
@@ -9,7 +9,7 @@ import {
 } from '@axe/domain/effect/ambience/water-patterns';
 import type { WaterLightMask } from '@axe/domain/tabletop/water/water-light-mask';
 
-const SEED = 20261013;
+const SEED = CAUSTIC_SEED;
 /** How many waves the silt is drawn from, and how fine the finest of them runs. */
 const CLOUD_WAVES = 16;
 const CLOUD_FINEST = 3;
