@@ -51,6 +51,8 @@ export interface TableTestHooks {
   holdFlicker(timeMs: number | null): void;
   /** Has what moves by itself on the canvas drawn only by `drawDueNow`, or by the clock again given false. */
   holdMotion(held: boolean): void;
+  /** Has the lights that throw shadows of their own chosen from where the camera looks now, as though none did yet. */
+  chooseLightsAfresh(): void;
   /** Holds every piece playing a move as far into it as asked, in milliseconds, or lets them play by the clock again given null. */
   holdMovesAt(ms: number | null): void;
   /** Whether a piece is playing a move on the canvas now, as a die tumbling or coming into view. */
@@ -131,6 +133,7 @@ export function installTableTestHooks(
     },
     holdFlicker: (timeMs) => scene.holdFlicker(timeMs),
     holdMotion: (held) => scene.holdMotion(held),
+    chooseLightsAfresh: () => scene.chooseLightsAfresh(),
     holdMovesAt: (ms) => motions.holdAt(ms),
     moving: (identifier) => motions.isPlaying(identifier),
     groundAt: (x, y) => ground.heightPxAt(x, y),

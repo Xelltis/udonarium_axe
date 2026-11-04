@@ -65,6 +65,18 @@ describe('LightSlotsService', () => {
     expect([...slots.ids()]).toEqual(['middle', 'beside'].slice(0, SHADOW_LIGHT_SLOTS));
   });
 
+  it('keeps the lights it chose while another is worth less than a quarter more, and chooses afresh when asked', () => {
+    const slots = TestBed.inject(LightSlotsService);
+    scene.set(sceneOf([lamp('middle', 500), lamp('beside', 650)]));
+    expect(slots.lights().map((light) => light.sourceId)).toEqual(['middle', 'beside']);
+
+    scene.set(sceneOf([lamp('middle', 500), lamp('beside', 650), lamp('nearer', 636)]));
+    expect(slots.lights().map((light) => light.sourceId)).toEqual(['middle', 'beside']);
+
+    slots.chooseAfresh();
+    expect(slots.lights().map((light) => light.sourceId)).toEqual(['middle', 'nearer']);
+  });
+
   it('chooses none on a table that is not dark', () => {
     const slots = TestBed.inject(LightSlotsService);
     scene.set(sceneOf([lamp('middle', 500)], false));

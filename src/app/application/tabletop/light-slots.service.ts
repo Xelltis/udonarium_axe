@@ -1,4 +1,4 @@
-import { computed, inject, Injectable } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
 import { Table3dQualityService } from '@axe/application/tabletop/table-3d-quality.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TableEyeService } from '@axe/application/tabletop/table-eye.service';
@@ -24,6 +24,7 @@ export class LightSlotsService {
   private readonly quality = inject(Table3dQualityService);
   private readonly eyes = inject(TableEyeService);
   private held: readonly string[] = [];
+  private readonly afresh = signal(0);
 
   /** How many lights throw shadows of their own, as the quality the seat draws the table at allows. */
   readonly count = computed(() => Math.min(SHADOW_LIGHT_SLOTS, this.quality.plan().shadowedLights));
@@ -33,6 +34,7 @@ export class LightSlotsService {
     () => {
       const scene = this.vision.scene();
       this.camera.version();
+      this.afresh();
       if (!scene?.darknessEnabled) {
         this.held = [];
         return [];
@@ -43,6 +45,16 @@ export class LightSlotsService {
     },
     { equal: sameLights }
   );
+
+  /**
+   * Has the lights chosen again as though none threw shadows yet: the best from where the camera
+   * looks now, rather than those kept on the way the camera came, which the frames drawn on the way
+   * decide. For pictures of the table that must come out the same however the page got there.
+   */
+  chooseAfresh(): void {
+    this.held = [];
+    this.afresh.update((times) => times + 1);
+  }
 
   /** The identifiers of the lights that throw shadows of their own now. */
   readonly ids = computed(() => new Set(this.lights().map((light) => light.sourceId)));

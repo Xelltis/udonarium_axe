@@ -448,6 +448,15 @@ export class Table3dService {
   }
 
   /**
+   * Has the lights that throw shadows of their own chosen again from where the camera looks now, as
+   * though none did yet, rather than kept on the way the camera came: for pictures of the table that
+   * must come out the same however the page got there.
+   */
+  chooseLightsAfresh(): void {
+    this.lightSlots.chooseAfresh();
+  }
+
+  /**
    * Draws at once the frame the canvas waits for to draw what it was told, with what the engine
    * holds back to draw a moment later, and answers whether it has drawn everything: nothing left to
    * draw, nothing loading, not starting, and none of the pictures the page draws the darkness with
