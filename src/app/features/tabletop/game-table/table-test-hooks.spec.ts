@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { GroundService } from '@axe/application/tabletop/ground.service';
 import { HudFrameService } from '@axe/application/tabletop/hud-frame.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
+import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
@@ -25,7 +26,8 @@ describe('table test hooks', () => {
       TestBed.inject(Table3dService),
       TestBed.inject(HudFrameService),
       TestBed.inject(PieceMotionsService),
-      TestBed.inject(GroundService)
+      TestBed.inject(GroundService),
+      TestBed.inject(PiecePicturesService)
     );
     return { win, remove };
   }

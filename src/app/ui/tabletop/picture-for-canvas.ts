@@ -54,7 +54,7 @@ export function pictureForCanvas(part: PictureForCanvas): void {
         : { left: 0, top: 0, width: element.offsetWidth, height: element.offsetHeight };
       if (!region) return;
       const ask = ++asked;
-      void pictureOfElement(element, region).then((picture) => {
+      void pictures.whileTaking(pictureOfElement(element, region)).then((picture) => {
         if (ask !== asked || !picture) return;
         if (handed && handed !== identifier) pictures.forget(handed);
         handed = identifier;

@@ -15,6 +15,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { AmbienceService } from '@axe/application/tabletop/ambience.service';
 import { FloorCanvasesService } from '@axe/application/tabletop/floor-canvases.service';
 import { GroundService } from '@axe/application/tabletop/ground.service';
+import { LightFlickerClockService } from '@axe/application/tabletop/light-flicker-clock.service';
 import { LightSlotsService } from '@axe/application/tabletop/light-slots.service';
 import { Table3dQualityService } from '@axe/application/tabletop/table-3d-quality.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
@@ -104,6 +105,7 @@ export class Table3dService {
   private readonly floorCanvases = inject(FloorCanvasesService);
   private readonly tableVeil = inject(TableVeilService);
   private readonly lightSlots = inject(LightSlotsService);
+  private readonly flickerClock = inject(LightFlickerClockService);
   private readonly quality = inject(Table3dQualityService);
   private readonly gameClock = inject(GameClockService);
   private readonly motion = inject(MotionService);
@@ -287,6 +289,8 @@ export class Table3dService {
   private readonly grid = signal<Table3dGrid | null>(null);
   private starting: Promise<unknown> | null = null;
   private readonly idleWaiters: (() => void)[] = [];
+  /** Whether what moves by itself is drawn only as the frame waited for is drawn at once. */
+  private motionHeld = false;
 
   constructor() {
     if (untracked(this.drawsOnCanvas)) this.loadSoon();
@@ -428,6 +432,52 @@ export class Table3dService {
     return this.engine?.stats() ?? null;
   }
 
+  /**
+   * Holds every flickering light of the table as it is at one moment, those the scene lights itself
+   * and those the page's darkness adds the glow of, or lets them flicker by the clock again given
+   * null: for pictures of the table that must come out the same however long the page took to get
+   * there.
+   */
+  holdFlicker(timeMs: number | null): void {
+    this.flickerClock.hold(timeMs);
+  }
+
+  /**
+   * Draws at once the frame the canvas waits for to draw what it was told, with what the engine
+   * holds back to draw a moment later, and answers whether it has drawn everything: nothing left to
+   * draw, nothing loading, not starting, and none of the pictures the page draws the darkness with
+   * still to come. What moves by itself is drawn too, at the moment the clock stands at, but not
+   * waited for: a frame asked for only for it, and every time while motion is held. For a page whose
+   * clock is held, where no frame comes until the clock is moved on, so what moves is drawn as it
+   * stands at that moment however late the rest arrived.
+   */
+  drawDueNow(): boolean {
+    const engine = this.engine;
+    if (engine?.isLoading()) {
+      engine.stopHoldingBack();
+      this.drawSoon(engine);
+    }
+    if (engine && (this.frame !== null || this.motionHeld)) {
+      if (this.frame !== null) cancelAnimationFrame(this.frame);
+      this.drawFrame(engine, performance.now());
+    }
+    return (
+      !(this.frame !== null && !this.frameForMotion) &&
+      this.starting === null &&
+      !this.engine?.isLoading() &&
+      this.tableVeil.loadingPictures() === 0
+    );
+  }
+
+  /**
+   * Has what moves by itself, as water and a tumbling die, drawn only as the frame waited for is
+   * drawn at once, or by the clock again given false: for a page whose clock is held, which would
+   * otherwise draw the whole scene again for every frame the clock is run through.
+   */
+  holdMotion(held: boolean): void {
+    this.motionHeld = held;
+  }
+
   /** Settles once the canvas has drawn everything it was told, or at once while it has nothing to draw. */
   whenIdle(): Promise<void> {
     return new Promise((resolve) => {
@@ -503,10 +553,18 @@ export class Table3dService {
           this.drawSoon(engine);
           if (!lights.some((light) => flickers(light.animation))) return;
           const timer = setInterval(() => {
-            engine.flicker(performance.now());
+            engine.flicker(this.flickerClock.now());
             this.drawSoon(engine);
           }, FLICKER_INTERVAL_MS);
           onCleanup(() => clearInterval(timer));
+        },
+        { injector: this.injector }
+      ),
+      effect(
+        () => {
+          this.flickerClock.held();
+          engine.flicker(untracked(() => this.flickerClock.now()));
+          this.drawSoon(engine);
         },
         { injector: this.injector }
       ),
@@ -583,13 +641,15 @@ export class Table3dService {
     if (!forMotion) this.frameForMotion = false;
     if (this.frame !== null) return;
     this.frameForMotion = forMotion;
-    this.frame = requestAnimationFrame((time) => {
-      this.frame = null;
-      const moving = engine.advance(time);
-      engine.renderIfChanged();
-      if (moving) this.drawSoon(engine, true);
-      this.settleIfIdle();
-    });
+    this.frame = requestAnimationFrame((time) => this.drawFrame(engine, time));
+  }
+
+  private drawFrame(engine: Table3dEngine, time: number): void {
+    this.frame = null;
+    const moving = engine.advance(time);
+    engine.renderIfChanged();
+    if (moving && !this.motionHeld) this.drawSoon(engine, true);
+    this.settleIfIdle();
   }
 
   private settleIfIdle(): void {

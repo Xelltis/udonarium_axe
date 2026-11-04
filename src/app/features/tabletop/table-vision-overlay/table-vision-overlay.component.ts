@@ -8,6 +8,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { LightFlickerClockService } from '@axe/application/tabletop/light-flicker-clock.service';
 import { LightSlotsService } from '@axe/application/tabletop/light-slots.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
@@ -52,6 +53,7 @@ export class TableVisionOverlayComponent {
   protected readonly visionService = inject(VisionService);
   protected readonly table3d = inject(Table3dService);
   private readonly lightSlots = inject(LightSlotsService);
+  private readonly flickerClock = inject(LightFlickerClockService);
   private readonly tableVeil = inject(TableVeilService);
   private readonly renderLite = inject(RenderLiteService);
   private readonly destroyRef = inject(DestroyRef);
@@ -148,6 +150,10 @@ export class TableVisionOverlayComponent {
       this.ensureImages();
       untracked(() => (onCanvas ? this.drawForCanvas() : this.drawForPage()));
     });
+    effect(() => {
+      this.flickerClock.held();
+      untracked(() => this.drawFlicker());
+    });
     this.destroyRef.onDestroy(() => {
       this.stopLoop();
       this.tableVeil.forget();
@@ -203,7 +209,7 @@ export class TableVisionOverlayComponent {
     this.tableVeil.forget();
     this.animated = !!this.plan?.glows.some((shape) => shape.animation && shape.animation !== 'none');
     this.refreshBake();
-    this.draw(this.now(), null);
+    this.draw(this.flickerClock.now(), null);
     this.syncLoop();
   }
 
@@ -286,7 +292,7 @@ export class TableVisionOverlayComponent {
       plan,
       this.surfaceWidth,
       this.surfaceHeight,
-      this.now(),
+      this.flickerClock.now(),
       this.images,
       this.margin,
       this.surfaceOf(),
@@ -305,14 +311,17 @@ export class TableVisionOverlayComponent {
       live.add(shadow.imageUrl);
       if (this.images.has(shadow.imageUrl)) continue;
       const image = new Image();
+      const loaded = this.tableVeil.pictureLoading();
       image.onload = () => {
         if (this.table3d.drawsOnCanvas()) {
           this.drawForCanvas();
-          return;
+        } else {
+          this.refreshBake();
+          this.draw(this.flickerClock.now(), null);
         }
-        this.refreshBake();
-        this.draw(this.now(), null);
+        loaded();
       };
+      image.onerror = loaded;
       image.src = shadow.imageUrl;
       this.images.set(shadow.imageUrl, image);
     }
@@ -388,14 +397,21 @@ export class TableVisionOverlayComponent {
     const now = this.now();
     if (now - this.lastFrameAt >= VISION_ANIMATION_INTERVAL_MS) {
       this.lastFrameAt = now;
-      // Only the ground the flickering lights cover; the rest was laid down once. With nothing
-      // laid down, the whole board is drawn.
-      if (this.glowPlan && this.table3d.drawsOnCanvas()) this.drawGlow();
-      else if (!this.bake) this.draw(now, null);
-      else for (const patch of this.dirty) this.draw(now, patch);
+      this.drawFlicker();
     }
     this.rafId = requestAnimationFrame(this.loop);
   };
+
+  /** Draws again what the flickering lights light, as they are at the moment they are drawn at. */
+  private drawFlicker(): void {
+    if (!this.animated) return;
+    const at = this.flickerClock.now();
+    // Only the ground the flickering lights cover; the rest was laid down once. With nothing
+    // laid down, the whole board is drawn.
+    if (this.glowPlan && this.table3d.drawsOnCanvas()) this.drawGlow();
+    else if (!this.bake) this.draw(at, null);
+    else for (const patch of this.dirty) this.draw(at, patch);
+  }
 
   private syncLoop(): void {
     if (this.animated) {

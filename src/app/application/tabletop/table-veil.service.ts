@@ -13,6 +13,7 @@ export class TableVeilService {
   private readonly darkened = signal<Table3dLightMap | null>(null);
   private readonly glowing = signal<Table3dVeil | null>(null);
   private readonly hanging = signal<readonly Table3dFogAirSheet[]>([]);
+  private pictures = 0;
 
   /** The veil laid now, or none. */
   readonly veil = this.laid.asReadonly();
@@ -25,6 +26,22 @@ export class TableVeilService {
 
   /** The sheets of fog hanging in the air now, none where there is no fog. */
   readonly fogAir = this.hanging.asReadonly();
+
+  /** How many pictures the page is loading to draw the veil and the darkness with, as the shadows things throw. */
+  loadingPictures(): number {
+    return this.pictures;
+  }
+
+  /** Counts a picture the veil or the darkness is drawn with as loading, until the answer given is called. */
+  pictureLoading(): () => void {
+    this.pictures++;
+    let done = false;
+    return () => {
+      if (done) return;
+      done = true;
+      this.pictures--;
+    };
+  }
 
   /** Lays the canvas the veil is drawn on, or lays it again with what the page has just drawn on it. */
   show(canvas: HTMLCanvasElement): void {

@@ -1,6 +1,7 @@
 import { GroundService } from '@axe/application/tabletop/ground.service';
 import { HudFrameService } from '@axe/application/tabletop/hud-frame.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
+import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
@@ -40,6 +41,18 @@ export interface TableTestHooks {
    * where the canvas draws it, or at once while there is no canvas.
    */
   whenIdle(): Promise<void>;
+  /**
+   * Draws at once whatever the canvas waits on a frame to draw, and answers whether it is drawn
+   * through: no picture of a piece being taken for it, nothing loading, nothing left to draw. For a
+   * page whose clock is held, where no frame comes until the clock is moved on.
+   */
+  drawDueNow(): boolean;
+  /** Holds the flickering lights of the canvas as they are at a moment, or lets them flicker by the clock again given null. */
+  holdFlicker(timeMs: number | null): void;
+  /** Has what moves by itself on the canvas drawn only by `drawDueNow`, or by the clock again given false. */
+  holdMotion(held: boolean): void;
+  /** Holds every piece playing a move as far into it as asked, in milliseconds, or lets them play by the clock again given null. */
+  holdMovesAt(ms: number | null): void;
   /** Whether a piece is playing a move on the canvas now, as a die tumbling or coming into view. */
   moving(identifier: string): boolean;
   /** How high the raised ground of the table in view stands at a point of the board, in table pixels. */
@@ -92,7 +105,8 @@ export function installTableTestHooks(
   scene: Table3dService,
   hud: HudFrameService,
   motions: PieceMotionsService,
-  ground: GroundService
+  ground: GroundService,
+  pictures: PiecePicturesService
 ): () => void {
   if (!win.navigator.webdriver) return () => undefined;
   const hooked = win as HookedWindow;
@@ -110,6 +124,14 @@ export function installTableTestHooks(
     aliasOf: (identifier) => ObjectStore.instance.get(identifier)?.aliasName ?? null,
     renderer: () => scene.backend(),
     whenIdle: () => scene.whenIdle().then(() => hud.writeNow()),
+    drawDueNow: () => {
+      const drawn = pictures.taking() === 0 && scene.drawDueNow();
+      hud.writeNow();
+      return drawn;
+    },
+    holdFlicker: (timeMs) => scene.holdFlicker(timeMs),
+    holdMotion: (held) => scene.holdMotion(held),
+    holdMovesAt: (ms) => motions.holdAt(ms),
     moving: (identifier) => motions.isPlaying(identifier),
     groundAt: (x, y) => ground.heightPxAt(x, y),
     sceneStats: () => scene.stats(),

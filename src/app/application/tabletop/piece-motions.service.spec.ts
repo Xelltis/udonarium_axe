@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { MotionService } from '@axe/application/ui/motion.service';
-import { motionLengthMs } from '@axe/domain/tabletop/world/piece-motions';
+import { motionLengthMs, motionPoseAt } from '@axe/domain/tabletop/world/piece-motions';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('PieceMotionsService', () => {
@@ -73,6 +73,22 @@ describe('PieceMotionsService', () => {
 
     motions.stop('fallen');
     expect(motions.isPlaying('fallen')).toBe(false);
+  });
+
+  it('holds every move as far into it as asked, however the clock runs on, and plays it by the clock once let go', () => {
+    motions.play('die', 'dice-tumble-a');
+    nextFrame(1100);
+    motions.play('coin', 'shuffle');
+    const at250 = (kind: 'dice-tumble-a' | 'shuffle') => motionPoseAt(kind, 250);
+
+    motions.holdAt(250);
+    nextFrame(1000 + motionLengthMs('dice-tumble-a') * 4);
+    expect(motions.posesNow().get('die')!.pose).toEqual(at250('dice-tumble-a'));
+    expect(motions.posesNow().get('coin')!.pose).toEqual(at250('shuffle'));
+
+    motions.holdAt(null);
+    nextFrame(1000 + motionLengthMs('dice-tumble-a') * 5);
+    expect(motions.isPlaying('die')).toBe(false);
   });
 
   it('plays nothing while motion is turned down', () => {

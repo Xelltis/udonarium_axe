@@ -30,4 +30,17 @@ describe('PiecePicturesService', () => {
     expect(pictures.pictureOf('note')).toBeNull();
     expect(revoked).toEqual(['blob:first']);
   });
+
+  it('counts a picture as being taken until it is, or until taking it fails', async () => {
+    let finish!: (picture: Blob) => void;
+    const taken = pictures.whileTaking(new Promise<Blob>((resolve) => (finish = resolve)));
+    const failed = pictures.whileTaking(Promise.reject(new Error('no picture')));
+    expect(pictures.taking()).toBe(2);
+
+    await failed.catch(() => undefined);
+    expect(pictures.taking()).toBe(1);
+    finish(new Blob());
+    await taken;
+    expect(pictures.taking()).toBe(0);
+  });
 });

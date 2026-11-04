@@ -31,6 +31,7 @@ import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { HudFrameService } from '@axe/application/tabletop/hud-frame.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
+import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
@@ -279,6 +280,7 @@ export class GameTableComponent {
   private readonly hudFrame = inject(HudFrameService);
   private readonly pieceMotions = inject(PieceMotionsService);
   private readonly ground = inject(GroundService);
+  private readonly piecePictures = inject(PiecePicturesService);
   private readonly imageService = inject(ImageService);
   private readonly motion = inject(MotionService);
   private readonly tabletopService = inject(TabletopService);
@@ -498,7 +500,8 @@ export class GameTableComponent {
           this.table3d,
           this.hudFrame,
           this.pieceMotions,
-          this.ground
+          this.ground,
+          this.piecePictures
         )
       );
       this.syncMode2d();

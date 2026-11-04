@@ -20,10 +20,26 @@ export interface PiecePicture {
 @Injectable({ providedIn: 'root' })
 export class PiecePicturesService {
   private readonly pictures = signal<ReadonlyMap<string, PiecePicture>>(new Map());
+  private pending = 0;
 
   /** The picture of a piece, or null while there is none. Follows the pictures handed over. */
   pictureOf(identifier: string): PiecePicture | null {
     return this.pictures().get(identifier) ?? null;
+  }
+
+  /** How many pictures of pieces are being taken now, each to be handed over once it is. */
+  taking(): number {
+    return this.pending;
+  }
+
+  /** Counts a picture as being taken until it is, or until taking it fails. */
+  async whileTaking<T>(picture: Promise<T>): Promise<T> {
+    this.pending++;
+    try {
+      return await picture;
+    } finally {
+      this.pending--;
+    }
   }
 
   /** Takes the picture of a piece, letting go of the one it had. */

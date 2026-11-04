@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { LightSlotsService } from '@axe/application/tabletop/light-slots.service';
 import { TABLE_3D_ENGINES, TABLE_GRAPHICS, Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { Table3dQualityService } from '@axe/application/tabletop/table-3d-quality.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
@@ -19,6 +20,7 @@ import { DEFAULT_TABLE_CAMERA_VIEW } from '@axe/domain/tabletop/camera/table-cam
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import type { SceneLight } from '@axe/domain/tabletop/vision-scene';
 import { type SkyDome, skyDomeAt } from '@axe/domain/tabletop/world/sky-dome';
 import { type SkyLight, skyLightAt } from '@axe/domain/tabletop/world/sky-light';
 import type { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
@@ -57,12 +59,14 @@ class FakeEngine implements Table3dEngine {
   qualities: Table3dQualityPlan[] = [];
   moving = false;
   advanced = 0;
-  flickers = 0;
+  flickeredAt: number[] = [];
   drawn = 0;
   disposed = false;
   lose: () => void = () => undefined;
   arrive: () => void = () => undefined;
   loading = false;
+  /** Whether what keeps it loading is only held back a moment, which it can draw at once. */
+  heldBack = false;
   private changed = false;
 
   constructor(readonly options: Table3dEngineOptions) {
@@ -118,8 +122,8 @@ class FakeEngine implements Table3dEngine {
 
   warmDice(): void {}
 
-  flicker(): void {
-    this.flickers++;
+  flicker(timeMs: number): void {
+    this.flickeredAt.push(timeMs);
   }
 
   setShadowLights(lights: readonly Table3dShadowLight[]): void {
@@ -171,6 +175,13 @@ class FakeEngine implements Table3dEngine {
 
   isLoading(): boolean {
     return this.loading;
+  }
+
+  stopHoldingBack(): void {
+    if (!this.heldBack) return;
+    this.heldBack = false;
+    this.loading = false;
+    this.changed = true;
   }
 
   stats() {
@@ -296,6 +307,81 @@ describe('Table3dService', () => {
     await scene.whenIdle();
 
     expect(engines[0].drawn).toBe(2);
+  });
+
+  it('draws at once what it waits on a frame to draw, for a page whose clock is held, and says when it is drawn through', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    TestBed.tick();
+    await scene.whenIdle();
+    const engine = engines[0];
+
+    TestBed.inject(TableCameraService).showView({ ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: 40 });
+    TestBed.tick();
+    expect(engine.drawn).toBe(1);
+
+    expect(scene.drawDueNow()).toBe(true);
+    expect(engine.drawn).toBe(2);
+    engine.loading = true;
+    expect(scene.drawDueNow()).toBe(false);
+    engine.heldBack = true;
+    expect(scene.drawDueNow()).toBe(true);
+    expect(engine.drawn).toBe(3);
+    const loaded = TestBed.inject(TableVeilService).pictureLoading();
+    expect(scene.drawDueNow()).toBe(false);
+    loaded();
+    expect(scene.drawDueNow()).toBe(true);
+  });
+
+  it('draws what moves by itself only as it is asked to draw at once while motion is held, and frame after frame again once let go', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    TestBed.tick();
+    await scene.whenIdle();
+    const engine = engines[0];
+    engine.moving = true;
+
+    scene.holdMotion(true);
+    TestBed.inject(TableCameraService).showView({ ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: 40 });
+    TestBed.tick();
+    await scene.whenIdle();
+    const advanced = engine.advanced;
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    expect(engine.advanced).toBe(advanced);
+
+    expect(scene.drawDueNow()).toBe(true);
+    expect(engine.advanced).toBe(advanced + 1);
+    scene.holdMotion(false);
+    TestBed.inject(TableCameraService).showView({ ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: 60 });
+    TestBed.tick();
+    await new Promise((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    );
+    expect(engine.advanced).toBeGreaterThan(advanced + 2);
+  });
+
+  it('lights a flickering light as it was at the moment held, however the clock runs on, until let go', async () => {
+    const scene = service();
+    const torch = { sourceId: 'torch', animation: 'flicker' } as SceneLight;
+    vi.spyOn(TestBed.inject(LightSlotsService), 'lights').mockReturnValue([torch]);
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    TestBed.tick();
+    await scene.whenIdle();
+    const engine = engines[0];
+
+    scene.holdFlicker(2000);
+    TestBed.tick();
+    const held = engine.flickeredAt.length;
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
+    expect(engine.flickeredAt.length).toBeGreaterThan(held);
+    expect(new Set(engine.flickeredAt.slice(held - 1))).toEqual(new Set([2000]));
+    scene.holdFlicker(null);
+    TestBed.tick();
+    expect(engine.flickeredAt.at(-1)).not.toBe(2000);
   });
 
   it('hands the engine the pieces again as one is moved, with the blocks’ faces as they were', async () => {

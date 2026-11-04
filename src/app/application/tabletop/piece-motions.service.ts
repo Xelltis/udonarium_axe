@@ -52,6 +52,8 @@ export class PieceMotionsService {
   private readonly playing = signal<ReadonlyMap<string, Playing>>(new Map());
   private readonly turning = signal<ReadonlyMap<string, TurningOnItsOwn>>(new Map());
   private readonly clock = signal(0);
+  /** How far into its move every piece is held, in milliseconds, or null while the moves play by the clock. */
+  private readonly heldAt = signal<number | null>(null);
   private frame: number | null = null;
 
   /**
@@ -90,10 +92,12 @@ export class PieceMotionsService {
    */
   posesNow(): ReadonlyMap<string, PlayingPose> {
     const now = this.clock();
+    const held = this.heldAt();
     const poses = new Map<string, PlayingPose>();
     for (const [owner, playing] of this.playing()) {
       const pose =
-        motionPoseAt(playing.kind, now - playing.startedAt) ?? (playing.holds ? motionEndPose(playing.kind) : null);
+        motionPoseAt(playing.kind, held ?? now - playing.startedAt) ??
+        (playing.holds ? motionEndPose(playing.kind) : null);
       if (pose) poses.set(owner, { pose, parts: playing.parts, backUp: playing.backUp });
     }
     for (const [owner, turning] of this.turning()) {
@@ -113,6 +117,15 @@ export class PieceMotionsService {
       );
     }
     return poses;
+  }
+
+  /**
+   * Holds every piece playing a move as far into it as asked, in milliseconds, however long ago it
+   * started, or lets the moves play by the clock again given null: for pictures of the table that
+   * must come out the same, as the page holds its animations at a moment for them.
+   */
+  holdAt(ms: number | null): void {
+    this.heldAt.set(ms);
   }
 
   /** Stops the move a piece is playing, or lets go of the pose a held move left it in. */
@@ -135,8 +148,9 @@ export class PieceMotionsService {
     this.frame = requestAnimationFrame(() => {
       this.frame = null;
       const now = performance.now();
+      const held = this.heldAt();
       const kept = [...this.playing()].filter(
-        ([, playing]) => playing.holds || motionPoseAt(playing.kind, now - playing.startedAt)
+        ([, playing]) => playing.holds || held !== null || motionPoseAt(playing.kind, now - playing.startedAt)
       );
       if (kept.length !== this.playing().size) this.playing.set(new Map(kept));
       this.clock.set(now);

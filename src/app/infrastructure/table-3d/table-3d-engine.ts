@@ -464,6 +464,14 @@ class ThreeTableEngine implements Table3dEngine {
     return this.loading > 0 || this.shadowTimer !== null || this.models.isLoading;
   }
 
+  stopHoldingBack(): void {
+    if (this.shadowTimer === null) return;
+    clearTimeout(this.shadowTimer);
+    this.shadowTimer = null;
+    this.shadowsMoved();
+    this.changed = true;
+  }
+
   stats(): Table3dStats {
     const shown = (mesh: Mesh | null) => (mesh?.visible ? mesh.geometry.getAttribute('position').count / 3 : 0);
     return {
