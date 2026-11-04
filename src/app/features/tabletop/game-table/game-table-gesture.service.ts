@@ -384,7 +384,7 @@ export class GameTableGestureService {
     this.groundPress = isEmptyTablePress && me.button === 0 && target.closest('[data-switch-host]') == null;
     if (isEmptyTablePress) {
       this.isTableTransformMode = true;
-      this.marqueeGesture?.arm(e as PointerEvent);
+      if (!this.thirdPerson.following()) this.marqueeGesture?.arm(e as PointerEvent);
     } else {
       this.isTableTransformMode = false;
       this.pointerDeviceService.isDragging = true;

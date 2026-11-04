@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
+import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -445,6 +446,24 @@ describe('GameTableGestureService', () => {
       click(floor, 2);
 
       expect(press).not.toHaveBeenCalled();
+    });
+
+    it('holds no marquee ready on a press on the bare table while a piece is followed, as a drag then turns the camera round it', () => {
+      const arm = vi.fn(() => true);
+      (gestures as unknown as { marqueeGesture: unknown }).marqueeGesture = {
+        arm,
+        release: () => false,
+        cancel: () => undefined,
+        isActive: false,
+        isArmed: false,
+      };
+      const following = vi.spyOn(TestBed.inject(ThirdPersonService), 'following').mockReturnValue(true);
+
+      click(floor);
+      expect(arm).not.toHaveBeenCalled();
+      following.mockReturnValue(false);
+      click(floor);
+      expect(arm).toHaveBeenCalledTimes(1);
     });
 
     it('says beside the pointer why a press on the ground came to nothing', async () => {
