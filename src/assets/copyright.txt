@@ -65,7 +65,8 @@ Files: models/nature/*
 Copyright: Kenney (www.kenney.nl)
 License: CC0-1.0
 Comment: Kenneyの「Nature Kit」の3Dモデル（glTFのバイナリー）から、木・茂み・草・岩の12点を
- 選んだもの。手は加えていない。配布元: https://kenney.nl/assets/nature-kit
+ 選んだもの。材質だけを書き換えた（金属を0、粗さを0.9にし、葉・幹・岩の色を自然な緑・茶・灰に
+ した）。形は手を加えていない。配布元: https://kenney.nl/assets/nature-kit
  取り出したのは、GitHubの写し https://github.com/shorepine/kenney の3d/nature
  （コミット3694c6879e487c108f55677be7dd2ca75b07cc3b）。同梱のLICENSE.txtがCC0を示す。
  CC0 1.0 Universal: https://creativecommons.org/publicdomain/zero/1.0/
