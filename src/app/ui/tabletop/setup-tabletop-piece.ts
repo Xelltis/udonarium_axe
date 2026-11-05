@@ -1,5 +1,6 @@
 import { afterNextRender, DestroyRef, effect, ElementRef, inject, Signal, WritableSignal } from '@angular/core';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
+import { PieceFootprint } from '@axe/application/ui/tabletop-overlap.service';
 import { GridSnapStyle } from '@axe/domain/tabletop/game-table';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { InputHandler } from '@axe/ui/directives/input-handler';
@@ -17,6 +18,8 @@ export interface MovableSetup<T extends TabletopObject> {
   readonly layerName?: string;
   /** Whether the piece's element is put where it is drawn by something else; see {@link MovableOption}. */
   readonly placedElsewhere?: Signal<boolean>;
+  /** How much of its face the piece covers while it is placed elsewhere; see {@link MovableOption}. */
+  readonly footprint?: (t: T) => PieceFootprint;
   /**
    * Where a piece put by something else turns about, for one that does not turn about its middle;
    * see {@link RotableOption}.
@@ -40,6 +43,7 @@ function applyMovableOption<T extends TabletopObject>(
     snapToSquare: opts.snapToSquare ? (at) => opts.snapToSquare!(piece, at) : undefined,
     layerName: opts.layerName,
     placedElsewhere: opts.placedElsewhere?.(),
+    footprint: opts.footprint ? () => opts.footprint!(piece) : undefined,
   });
 }
 

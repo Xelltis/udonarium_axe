@@ -367,6 +367,7 @@ export class DiceSymbolComponent {
       collideLayers: ['terrain'],
       transformCssOffset: translateZCss(Z_OFFSET_TALL_OBJECT_PX),
       placedElsewhere: this.drawnOnCanvas,
+      footprint: () => ({ width: this.size() * this.gridSize, height: this.size() * this.gridSize }),
     });
     this.destroyRef.onDestroy(() => {
       this.doubleTap.cancel();

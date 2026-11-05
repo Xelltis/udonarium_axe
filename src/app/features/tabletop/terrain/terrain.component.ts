@@ -194,6 +194,7 @@ export class TerrainComponent {
       target: this.terrain,
       collideLayers: ['terrain'],
       placedElsewhere: this.drawsOnCanvas,
+      footprint: () => ({ width: this.width() * this.gridSize, height: this.depth() * this.gridSize }),
       turnsAbout: (terrain) => ({
         surface: this.pieces.surfaceOf(terrain),
         x: terrain.location.x + (this.width() * this.gridSize) / 2,

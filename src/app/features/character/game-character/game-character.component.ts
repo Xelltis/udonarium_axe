@@ -468,6 +468,7 @@ export class GameCharacterComponent {
       snapStyle: (char) => (char.size % 1 !== 0 ? GridSnapStyle.VERTEX : undefined),
       snapToSquare: (char, at) => pieceCornerOnSquare(this.tabletopService.currentTable, char, at),
       placedElsewhere: this.drawsOnCanvas,
+      footprint: () => ({ width: this.size() * this.gridSize, height: this.size() * this.gridSize }),
     });
     effect(() => {
       const char = this.gameCharacter();

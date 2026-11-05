@@ -293,6 +293,7 @@ export class RangeComponent {
         return { x: snapXY, y: snapXY };
       },
       placedElsewhere: this.drawsOnCanvas,
+      footprint: () => ({ width: this.gridSize, height: this.gridSize }),
       turnsAbout: () => this.turnPoint(),
     });
     afterNextRender(() => {

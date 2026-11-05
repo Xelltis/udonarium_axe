@@ -1,7 +1,14 @@
 import { expect, Page, test } from '@playwright/test';
 
 import { closePanels } from '../dungeon-helpers';
-import { createCharacter, createDiceSymbol, openTableContextMenu, revealMenuEntry, waitAppReady } from '../helpers';
+import {
+  createCharacter,
+  createDiceSymbol,
+  openPanel,
+  openTableContextMenu,
+  revealMenuEntry,
+  waitAppReady,
+} from '../helpers';
 
 /**
  * Pieces drawn on the canvas. The page still lays each piece out, clear, to take its presses, so
@@ -590,4 +597,39 @@ test.describe('pieces drawn on a canvas', () => {
       expect(shape.x - dropped.x, JSON.stringify([shape, dropped])).toBeGreaterThan(60);
     });
   }
+
+  test('put a character dragged about a hex table at the middle of a cell, as the cell it stands on is wide, not as the screen draws it', async ({
+    page,
+  }) => {
+    await openPanel(page, 'テーブル設定');
+    await page.locator('select[name="tableGridType"]').selectOption('1');
+    await closePanels(page);
+    const id = await made(
+      page,
+      PIECES.find((piece) => piece.name === 'character')!
+    );
+    const [shape] = await boxesOf(page, id);
+    const grabX = shape.x + shape.width / 2;
+    const grabY = shape.y + shape.height / 2;
+    const placed = page.locator(`[data-object-id="${id}"] [data-location]`).first();
+    const before = await placed.getAttribute('data-location');
+
+    await page.mouse.move(grabX, grabY);
+    await page.mouse.down();
+    await page.mouse.move(grabX - 60, grabY + 20, { steps: 6 });
+    await page.mouse.move(grabX - 130, grabY + 47, { steps: 6 });
+    await page.mouse.up();
+    await idle(page);
+    await expect(placed).not.toHaveAttribute('data-location', before!);
+
+    // The hexes of the grid stand flat at the top, a cell of fifty pixels from one flat side to the
+    // other: their columns stand a corner and a half apart, every other one half a cell down.
+    const [x, y] = (await placed.getAttribute('data-location'))!.split(',').map(Number);
+    const middle = { x: x + 25, y: y + 25 };
+    const across = (1.5 * 50) / Math.sqrt(3);
+    const column = Math.round(middle.x / across);
+    const down = Math.abs(column % 2) === 1 ? 25 : 0;
+    const centre = { x: column * across, y: Math.round((middle.y - down) / 50) * 50 + down };
+    expect(Math.hypot(middle.x - centre.x, middle.y - centre.y), JSON.stringify({ x, y, centre })).toBeLessThan(1.5);
+  });
 });

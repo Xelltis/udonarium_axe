@@ -53,6 +53,9 @@ import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop
 import { supersampleFactor, supersampleInsetPercent, supersampleTransform } from '@axe/ui/tabletop/supersample';
 import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
 
+/** The least a card covers either way, in px, however small its size or its picture. */
+const CARD_SMALLEST_PX = 25;
+
 @Component({
   selector: 'card',
   templateUrl: './card.component.html',
@@ -384,6 +387,10 @@ export class CardComponent {
       collideLayers: ['terrain'],
       transformCssOffset: translateZCss(Z_OFFSET_TABLETOP_OBJECT_PX),
       placedElsewhere: this.drawsOnCanvas,
+      footprint: () => ({
+        width: Math.max(CARD_SMALLEST_PX, this.size * this.gridSize),
+        height: Math.max(CARD_SMALLEST_PX, this.pictured()?.nativeElement.offsetHeight ?? 0),
+      }),
     });
     pictureForCanvas({
       identifier: () => this.card().identifier,

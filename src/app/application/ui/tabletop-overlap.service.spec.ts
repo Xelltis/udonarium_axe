@@ -270,4 +270,20 @@ describe('footprintOf', () => {
     expect(footprintOf({ object: makeObject('piece'), element }, 50)).toEqual({ width: 40, height: 30 });
     expect(footprintOf({ object: makeObject('piece'), element: null }, 50)).toEqual({ width: 0, height: 0 });
   });
+
+  it('reads a piece registered with its footprint from that, rather than from its element', () => {
+    const element = document.createElement('div');
+    const width = vi.fn(() => 267);
+    Object.defineProperty(element, 'offsetWidth', { get: width });
+    TestBed.configureTestingModule({ providers: TEST_PROVIDERS });
+    const service = TestBed.inject(TabletopOverlapService);
+    const piece = makeObject('piece');
+    service.register(piece, element, () => ({ width: 50, height: 50 }));
+
+    const [entry] = service.entries().filter((each) => each.object === piece);
+
+    expect(footprintOf(entry, 50)).toEqual({ width: 50, height: 50 });
+    expect(width).not.toHaveBeenCalled();
+    service.unregister(piece.identifier);
+  });
 });

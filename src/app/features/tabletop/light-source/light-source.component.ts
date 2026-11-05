@@ -94,6 +94,7 @@ export class LightSourceComponent {
       target: this.lightSource,
       transformCssOffset: translateZCss(Z_OFFSET_RANGE_PX),
       placedElsewhere: this.drawsOnCanvas,
+      footprint: () => ({ width: this.gridSize, height: this.gridSize }),
       turnsAbout: () => this.turnPoint(),
     });
     pictureForCanvas({

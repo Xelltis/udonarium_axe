@@ -11,7 +11,7 @@ import { TransientPlacementService } from '@axe/application/tabletop/transient-p
 import { BatchService } from '@axe/application/ui/batch.service';
 import { MultiMovableService } from '@axe/application/ui/multi-movable.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
-import { footprintOf, TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
+import { footprintOf, PieceFootprint, TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { perfCounters, perfTimed } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ALTITUDE_STEP_CELLS, steppedAltitude } from '@axe/domain/tabletop/altitude-step';
@@ -87,6 +87,12 @@ export interface MovableOption {
    * and on which face, as no face of the page holds it.
    */
   readonly placedElsewhere?: boolean;
+  /**
+   * How much of its face a piece placed elsewhere covers, in the face's own pixels, as its element
+   * covers it on the page's own table. Its element is then a box of the screen, whose size is the
+   * size it is drawn at rather than the size it is. Read each time the piece is pressed.
+   */
+  readonly footprint?: () => PieceFootprint;
 }
 
 @Directive({ selector: '[appMovable]' })
@@ -133,6 +139,7 @@ export class MovableDirective implements MovableInteractionContext {
   private colideLayers: string[] = [];
   private transformCssOffset: string = '';
   private placedElsewhere = false;
+  private footprint: (() => PieceFootprint) | undefined = undefined;
   private snapOrigin: { x: number; y: number } | undefined;
   private snapStyle: GridSnapStyle | undefined;
   private snapToSquare: MovableOption['snapToSquare'];
@@ -222,6 +229,7 @@ export class MovableDirective implements MovableInteractionContext {
       if (opt.colideLayers != null) this.colideLayers = opt.colideLayers;
       if (opt.transformCssOffset != null) this.transformCssOffset = opt.transformCssOffset;
       this.placedElsewhere = opt.placedElsewhere ?? false;
+      this.footprint = opt.footprint;
       this.snapOrigin = opt.snapOrigin;
       this.snapStyle = opt.snapStyle;
       this.snapToSquare = opt.snapToSquare;
@@ -340,7 +348,7 @@ export class MovableDirective implements MovableInteractionContext {
     if (this.registeredOverlapId && this.registeredOverlapId !== obj.identifier) {
       this.tabletopOverlap.unregister(this.registeredOverlapId, this.nativeElement);
     }
-    this.tabletopOverlap.register(obj, this.nativeElement);
+    this.tabletopOverlap.register(obj, this.nativeElement, this.placedElsewhere ? this.footprint : undefined);
     this.registeredOverlapId = obj.identifier;
   }
 
@@ -723,6 +731,11 @@ export class MovableDirective implements MovableInteractionContext {
   /** The face this piece stands on, named as its location names it. */
   currentSurface(): string {
     return this.tabletopObject?.location ? surfaceKeyOf(this.tabletopObject) : 'floor';
+  }
+
+  /** How much of its face the piece covers, where its element does not say; see {@link MovableOption}. */
+  footprintNow(): PieceFootprint | null {
+    return this.placedElsewhere && this.footprint ? this.footprint() : null;
   }
 
   /**

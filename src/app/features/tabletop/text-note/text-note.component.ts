@@ -51,6 +51,12 @@ import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-o
 import { decorateChatStyleText } from '@axe/ui/text-decoration/decorate-chat-text';
 import { formatNoteText } from '@axe/ui/text-decoration/format-note-text';
 
+/**
+ * How much of its face a note covers as it is moved: a point at its top left corner, as the page's
+ * own table hangs its panel from an element one pixel across and none deep.
+ */
+const NOTE_FOOTPRINT = { width: 1, height: 0 } as const;
+
 @Component({
   selector: 'text-note',
   templateUrl: './text-note.component.html',
@@ -138,6 +144,7 @@ export class TextNoteComponent {
       collideLayers: ['terrain'],
       transformCssOffset: translateZCss(Z_OFFSET_TABLETOP_OBJECT_PX),
       placedElsewhere: this.drawsOnCanvas,
+      footprint: () => NOTE_FOOTPRINT,
     });
     pictureForCanvas({
       identifier: () => this.textNote().identifier,

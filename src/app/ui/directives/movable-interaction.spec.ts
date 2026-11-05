@@ -1,6 +1,13 @@
-import { handleInputMove, MovableInteractionContext } from '@axe/ui/directives/movable-interaction';
+import { handleInputMove, handleInputStart, MovableInteractionContext } from '@axe/ui/directives/movable-interaction';
 
 describe('movable interaction', () => {
+  /** An element laid out at a size. */
+  function elementOf(width: number, height: number): HTMLElement {
+    const element = document.createElement('div');
+    Object.defineProperty(element, 'clientWidth', { value: width });
+    Object.defineProperty(element, 'clientHeight', { value: height });
+    return element;
+  }
   /** A piece held on the floor, whose camera draws it at `scale` wherever it is. */
   function heldPiece(scale: (y: number) => number | null, startDrawnScale: number | null) {
     const emit = () => undefined;
@@ -14,8 +21,11 @@ describe('movable interaction', () => {
       coordinateService: {
         convertToFace: (pointer: { x: number; y: number }) => ({ x: pointer.x, y: pointer.y, z: 0 }),
         drawnScaleOnFace: (point: { y: number }) => scale(point.y),
+        convertFromFace: (point: { x: number; y: number; z: number }) => point,
       },
+      nativeElement: elementOf(80, 37),
       currentSurface: () => 'floor',
+      footprintNow: () => null,
       contactSupportZ: () => 0,
       posX: 100,
       posY: 100,
@@ -63,5 +73,22 @@ describe('movable interaction', () => {
 
     expect(piece.ratio).toBe(1);
     expect(piece.posX).toBe(395);
+  });
+
+  it('takes the size of a piece from its element when it is pressed', () => {
+    const piece = heldPiece(() => 1, 1);
+
+    handleInputStart(piece, new MouseEvent('mousedown'));
+
+    expect([piece.width, piece.height]).toEqual([80, 37]);
+  });
+
+  it('takes the size of a piece from its footprint where it has one, as a box of the screen says nothing of it', () => {
+    const piece = { ...heldPiece(() => 1, 1), footprintNow: () => ({ width: 50, height: 50 }) };
+
+    handleInputStart(piece, new MouseEvent('mousedown'));
+
+    expect([piece.width, piece.height]).toEqual([50, 50]);
+    expect(piece.pointerStart3d).toEqual({ x: 125, y: 125, z: 0 });
   });
 });

@@ -141,6 +141,7 @@ export class GameTableMaskComponent {
       collideLayers: ['terrain'],
       transformCssOffset: translateZCss(Z_OFFSET_MASK_PX),
       placedElsewhere: this.drawsOnCanvas,
+      footprint: () => ({ width: this.pixelWidth, height: this.pixelHeight }),
       snapOrigin: () => {
         const geo = computeHexMaskGeometry(this.width, this.height, this.gridSize, this.gridType());
         return geo ? { x: geo.offsetX, y: geo.offsetY } : undefined;

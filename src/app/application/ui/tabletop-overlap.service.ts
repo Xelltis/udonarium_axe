@@ -5,12 +5,23 @@ import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 
+/** How much of the face a piece lies on it covers, in the face's own pixels. */
+export interface PieceFootprint {
+  readonly width: number;
+  readonly height: number;
+}
+
 export interface TabletopOverlapRegistryEntry {
   readonly object: TabletopObject;
   /** The element the piece is drawn in, or null for a piece drawn together with others in none of its own. */
   readonly element: HTMLElement | null;
   /** Opens the right-click menu of a piece with no element to right-click, at the pointer. */
   readonly openMenu?: () => void;
+  /**
+   * How much of its face the piece covers, for one whose element says nothing of it: over a table
+   * drawn on a canvas, a piece's element is a box of the screen round where the canvas draws it.
+   */
+  readonly footprint?: () => PieceFootprint;
 }
 
 /**
@@ -23,17 +34,16 @@ export type OverlapHitSource = (hits: readonly Element[], x: number, y: number) 
  * How much of its surface a registered piece covers, in pixels.
  *
  * A terrain is laid out from its own size, so the numbers are already known, and asking an
- * element for them makes the browser lay the page out to answer. Anything else is as big as the
- * element it is drawn in, and nothing at all without one.
+ * element for them makes the browser lay the page out to answer. A piece registered with its
+ * footprint covers that. Anything else is as big as the element it is drawn in, and nothing at
+ * all without one.
  */
-export function footprintOf(
-  entry: TabletopOverlapRegistryEntry,
-  gridSizePx: number
-): { width: number; height: number } {
+export function footprintOf(entry: TabletopOverlapRegistryEntry, gridSizePx: number): PieceFootprint {
   const obj = entry.object;
   if (obj instanceof Terrain) {
     return { width: Math.max(0, obj.width) * gridSizePx, height: Math.max(0, obj.depth) * gridSizePx };
   }
+  if (entry.footprint) return entry.footprint();
   return { width: entry.element?.offsetWidth ?? 0, height: entry.element?.offsetHeight ?? 0 };
 }
 
@@ -46,10 +56,13 @@ export class TabletopOverlapService {
   private readonly registry = new Map<string, TabletopOverlapRegistryEntry>();
   private readonly hitSources = new Set<OverlapHitSource>();
 
-  /** Records the element a tabletop piece is drawn in, so the pieces under a point can be found. */
-  register(object: TabletopObject, element: HTMLElement) {
+  /**
+   * Records the element a tabletop piece is drawn in, so the pieces under a point can be found, and
+   * how much of its face it covers where the element does not say.
+   */
+  register(object: TabletopObject, element: HTMLElement, footprint?: () => PieceFootprint) {
     if (!object) return;
-    this.registry.set(object.identifier, { object, element });
+    this.registry.set(object.identifier, footprint ? { object, element, footprint } : { object, element });
   }
 
   /**

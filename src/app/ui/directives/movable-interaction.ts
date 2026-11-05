@@ -19,6 +19,8 @@ export interface MovableInteractionContext {
   nativeElement: HTMLElement;
   /** The face the piece stands on, named as its location names it. */
   currentSurface(): string;
+  /** How much of its face the piece covers, or null where its element is as large as that. */
+  footprintNow(): { width: number; height: number } | null;
   contactSupportZ(centerX: number, centerY: number): number;
   posX: number;
   posY: number;
@@ -64,8 +66,9 @@ export function takePress(e: Event): void {
  *
  * A locked piece (disabled for anyone but its scratch owner, or on a read-only role) and a
  * middle or right press cancel instead; a right press on an unlocked piece also stops the
- * table's own gesture from starting under it. Otherwise it records the piece's size and how
- * far its middle sits from the pointer, so the drag keeps that offset.
+ * table's own gesture from starting under it. Otherwise it records the piece's size, as its
+ * element is laid out or as its footprint says, and how far its middle sits from the pointer, so
+ * the drag keeps that offset.
  */
 export function handleInputStart(context: MovableInteractionContext, e: MouseEvent | TouchEvent): void {
   const input = context.input;
@@ -83,8 +86,9 @@ export function handleInputStart(context: MovableInteractionContext, e: MouseEve
   context.setAnimatedTransition(false);
   context.setCollidableLayer(true);
 
-  context.width = context.nativeElement.clientWidth;
-  context.height = context.nativeElement.clientHeight;
+  const footprint = context.footprintNow();
+  context.width = footprint ? footprint.width : context.nativeElement.clientWidth;
+  context.height = footprint ? footprint.height : context.nativeElement.clientHeight;
 
   const target3d = {
     x: context.posX + context.width / 2,

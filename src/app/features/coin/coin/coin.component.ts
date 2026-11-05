@@ -208,6 +208,7 @@ export class CoinComponent {
       collideLayers: ['terrain'],
       transformCssOffset: translateZCss(Z_OFFSET_TABLETOP_OBJECT_PX),
       placedElsewhere: this.drawnOnCanvas,
+      footprint: () => ({ width: this.diameter(), height: this.diameter() }),
     });
     this.destroyRef.onDestroy(() => {
       this.doubleTap.cancel();

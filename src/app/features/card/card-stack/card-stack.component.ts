@@ -60,6 +60,12 @@ import { TranslocoModule } from '@jsverse/transloco';
 /** The cell, in px, that the offsets for drawn and scattered cards were laid out for. */
 const LAID_OUT_FOR_CELL_PX = 50;
 
+/** How wide the edge of the plate a stack's top card lies in is, round the picture, in px. */
+const STACK_PLATE_BORDER_PX = 5;
+
+/** How deep the plate of a stack with no cards is, in px. */
+const EMPTY_STACK_PX = 100;
+
 @Component({
   selector: 'card-stack',
   templateUrl: './card-stack.component.html',
@@ -316,6 +322,12 @@ export class CardStackComponent {
       collideLayers: ['terrain'],
       transformCssOffset: translateZCss(Z_OFFSET_TABLETOP_OBJECT_PX),
       placedElsewhere: this.drawnOnCanvas,
+      footprint: () => ({
+        width: this.size * this.gridSize,
+        height: this.isEmpty
+          ? EMPTY_STACK_PX
+          : (this.pictured()?.nativeElement.offsetHeight ?? 0) + 2 * STACK_PLATE_BORDER_PX,
+      }),
     });
     pictureForCanvas({
       identifier: () => this.cardStack().identifier,
