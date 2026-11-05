@@ -396,7 +396,9 @@
           ></peer-cursor>
         }
       </div>
-      <table-marquee-overlay class="contents"></table-marquee-overlay>
+      @if (!table3d.drawsOnCanvas()) {
+        <table-marquee-overlay class="contents"></table-marquee-overlay>
+      }
       <table-vision-overlay class="contents"></table-vision-overlay>
       <table-beam-overlay class="contents"></table-beam-overlay>
       <table-fog-air-overlay class="contents"></table-fog-air-overlay>
@@ -420,6 +422,7 @@
     <div class="pointer-events-none absolute inset-0 isolate overflow-hidden" data-testid="table-hud">
       <div class="pointer-events-none" data-testid="table-floor-plane" appFloorPlane>
         <ng-container [ngTemplateOutlet]="floorMarks"></ng-container>
+        <table-marquee-overlay class="contents"></table-marquee-overlay>
       </div>
       @if (table3d.drawsOnCanvas()) {
         @for (terrain of terrainsOverCanvas(); track terrain.identifier) {
