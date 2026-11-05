@@ -9,8 +9,10 @@ import {
   isFlatTopGrid,
 } from '@axe/domain/tabletop/hex-geometry';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
+import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TerrainFogCover } from '@axe/domain/tabletop/terrain-cover';
+import { beamFacesOf } from '@axe/domain/tabletop/world/beam-faces';
 import { blockFacesOf } from '@axe/domain/tabletop/world/block-faces';
 import { GroundMesh, hexGroundMesh, squareGroundMesh } from '@axe/domain/tabletop/world/ground-mesh';
 import { TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
@@ -79,6 +81,13 @@ export interface TableWorldWall {
    */
   readonly uFrom?: number;
   readonly uTo?: number;
+  /**
+   * Where on its picture the face's corners stand, across and up, for a face whose picture is turned
+   * on it, as one side of a beam standing out from a wall wears its picture on its side: its first
+   * point at its foot and its second, then its second point at its top and its first. A face with a
+   * profile does not take them.
+   */
+  readonly uvs?: readonly [TableWorldPoint, TableWorldPoint, TableWorldPoint, TableWorldPoint];
 }
 
 /** A flat face lying at a height, facing up or down: the top or the underside of a block. */
@@ -217,8 +226,9 @@ export function tableWorldOf(
 }
 
 /**
- * The faces of the blocks on the floor and of the table's own walls. A wall of the table is drawn
- * only with a picture, as the page draws it.
+ * The faces of the blocks on the floor, of the blocks put on the table's own walls, and of those
+ * walls. A wall of the table is drawn only with a picture, as the page draws it, and so are the
+ * blocks put on it.
  */
 function facesOf(
   table: GameTable,
@@ -230,6 +240,18 @@ function facesOf(
   const gridSize = table.gridSize > 0 ? table.gridSize : 50;
   const blocks = blockFacesOf(terrains, gridSize, table.gridType, pictureOf, coverOf, (terrain) =>
     groundLiftOfBlock(ground, gridSize, terrain)
+  );
+  const drawnWalls = new Set(
+    tableWallSettings(table)
+      .filter((wall) => wall.shown && wall.imageIdentifier && pictureOf(wall.imageIdentifier))
+      .map((wall) => wall.surface as string)
+  );
+  const beams = beamFacesOf(
+    terrains,
+    gridSize,
+    { widthPx: table.width * gridSize, depthPx: table.height * gridSize, wallHeightPx: table.wallHeight * gridSize },
+    (surface) => drawnWalls.has(surface),
+    pictureOf
   );
   const tableWalls = firstPersonWorldOf(table, [])
     .walls.map((wall): TableWorldWall => ({
@@ -245,7 +267,7 @@ function facesOf(
       glass: wall.glass,
     }))
     .filter((wall) => wall.pictureUrl !== '');
-  return { walls: [...blocks.walls, ...tableWalls], caps: blocks.caps };
+  return { walls: [...blocks.walls, ...beams.walls, ...tableWalls], caps: [...blocks.caps, ...beams.caps] };
 }
 
 /** The box a board's picture is stretched over, and the hexes it is cut to where its cells are hexes. */

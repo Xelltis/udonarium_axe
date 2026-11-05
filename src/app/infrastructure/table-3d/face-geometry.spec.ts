@@ -55,6 +55,37 @@ describe('the shapes of the faces drawn on the canvas', () => {
     ]);
   });
 
+  it('wears its picture turned on it where the places of its corners are given', () => {
+    const wall = wallGeometry({
+      ...face,
+      ax: 0,
+      ay: 0,
+      bx: 50,
+      by: 0,
+      basePx: 10,
+      topPx: 60,
+      uvs: [
+        { x: 0, y: 1 },
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 1, y: 1 },
+      ],
+    });
+
+    const positions = wall.getAttribute('position').array;
+    const uvs = wall.getAttribute('uv').array;
+    const placeOf = (x: number, height: number) => {
+      for (let i = 0; i < positions.length / 3; i++) {
+        if (positions[i * 3] === x && positions[i * 3 + 1] === height) return [uvs[i * 2], uvs[i * 2 + 1]];
+      }
+      return null;
+    };
+    expect(placeOf(0, 10)).toEqual([0, 1]);
+    expect(placeOf(50, 10)).toEqual([0, 0]);
+    expect(placeOf(50, 60)).toEqual([1, 0]);
+    expect(placeOf(0, 60)).toEqual([1, 1]);
+  });
+
   it('puts each corner of a piece of a slope at its own height', () => {
     const cap = capGeometry({
       ...face,

@@ -109,9 +109,15 @@ export function wallGeometry(wall: TableWorldWall): BufferGeometry {
     wall.tilePx > 0 ? (height - wall.basePx) / wall.tilePx : (height - wall.basePx) / (highest - wall.basePx || 1);
   const positions: number[] = [];
   const uvs: number[] = [];
+  const turned = wall.profile?.length ? undefined : wall.uvs;
   const corner = (at: number, height: number) => {
     positions.push(wall.ax + (wall.bx - wall.ax) * at, height, wall.ay + (wall.by - wall.ay) * at);
-    uvs.push(across(at), up(height));
+    if (!turned) {
+      uvs.push(across(at), up(height));
+      return;
+    }
+    const placed = turned[at === 0 ? (height === wall.basePx ? 0 : 3) : height === wall.basePx ? 1 : 2];
+    uvs.push(placed.x, placed.y);
   };
   for (let i = 0; i < stops.length - 1; i++) {
     const from = stops[i];

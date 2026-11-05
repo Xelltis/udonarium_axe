@@ -2,6 +2,7 @@ import { expect, Page, test } from '@playwright/test';
 
 import { becomeGm, closePanels } from '../dungeon-helpers';
 import { openPanel, openTableContextMenu, revealMenuEntry, waitAppReady } from '../helpers';
+import { showWall } from '../table-face-helpers';
 
 /**
  * Blocks drawn on the canvas. The table picks a block by the shape the scene is built from, so the
@@ -16,6 +17,7 @@ type Hooks = {
   aliasOf(identifier: string): string | null;
   edgesOnPage(): [number, number, number, number][];
   drawnAt(x: number, y: number): string | null;
+  surfacePageOf(surface: string, localX: number, localY: number): { x: number; y: number } | null;
 };
 
 /** What changed on the screen between two pictures of it, on blocks and off them. */
@@ -222,6 +224,65 @@ test.describe('blocks drawn on a canvas', () => {
     const menu = page.locator('context-menu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     await expect(menu.getByText('傾斜')).toBeVisible();
+  });
+
+  test('draw a block put on a wall where picking says it stands out from the wall', async ({ page }) => {
+    await showWall(page, '北壁', 'north');
+    await idle(page);
+    await grabScreen(page);
+    const menu = await openTableContextMenu(page, BLOCK_SPOTS[0]);
+    await (await revealMenuEntry(page, menu, '地形を作成')).click();
+    await expect(page.locator('terrain')).toHaveCount(1, { timeout: 10000 });
+    await idle(page);
+    const from = await pointOnBlock(page);
+    const onWall = await page.evaluate(() => {
+      const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+      for (let down = 400; down > 0; down -= 25) {
+        const onPage = hooks.surfacePageOf('north-wall', 550, down);
+        if (onPage && onPage.y > 30 && onPage.y < innerHeight - 100) return onPage;
+      }
+      return null;
+    });
+    expect(onWall, 'a point of the north wall on the screen').not.toBeNull();
+
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move((from.x + onWall!.x) / 2, (from.y + onWall!.y) / 2, { steps: 6 });
+    await page.mouse.move(onWall!.x, onWall!.y, { steps: 8 });
+    await page.mouse.up();
+    await idle(page);
+    await grabScreen(page);
+
+    const drawn = await page.evaluate(
+      ({ id, step }) => {
+        const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+        const [before, after] = (window as unknown as { __shots: ImageData[] }).__shots.slice(-2);
+        const edges = hooks.edgesOnPage();
+        const layer = document.querySelector('#app-table-layer')!;
+        const result = { beam: 0, changed: 0 };
+        for (let y = 30; y < innerHeight / 2; y += step) {
+          for (let x = 140; x < innerWidth - 60; x += step) {
+            if (hooks.pickAt(x, y) !== id || !layer.contains(document.elementFromPoint(x, y))) continue;
+            const nearEdge = edges.some(([x1, y1, x2, y2]) => {
+              const dx = x2 - x1;
+              const dy = y2 - y1;
+              const along = Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy || 1)));
+              return Math.hypot(x - (x1 + along * dx), y - (y1 + along * dy)) < 3;
+            });
+            if (nearEdge) continue;
+            const at = (y * before.width + x) * 4;
+            result.beam++;
+            if (Math.max(...[0, 1, 2].map((c) => Math.abs(before.data[at + c] - after.data[at + c]))) > 6) {
+              result.changed++;
+            }
+          }
+        }
+        return result;
+      },
+      { id: from.id, step: 4 }
+    );
+    expect(drawn.beam, 'points the block is picked at on the wall').toBeGreaterThan(30);
+    expect(drawn.changed / drawn.beam, JSON.stringify(drawn)).toBeGreaterThan(0.8);
   });
 
   test('move a block dragged on the canvas', async ({ page }) => {
