@@ -1,5 +1,5 @@
 import { Terrain } from '@axe/domain/tabletop/terrain';
-import { BlockSide } from '@axe/domain/tabletop/terrain-shade';
+import { BlockSide } from '@axe/domain/tabletop/terrain-wall-face';
 
 /**
  * One upright face of a block on a square board, drawn as a surface of its own.

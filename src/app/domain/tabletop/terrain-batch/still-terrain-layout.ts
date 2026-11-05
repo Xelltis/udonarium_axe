@@ -7,7 +7,7 @@ import { SquareCap, squareCapsOf } from '@axe/domain/tabletop/terrain-batch/squa
 import { SquareWall, squareWallOf } from '@axe/domain/tabletop/terrain-batch/square-walls';
 import { hiddenFacesByTerrain, hiddenFacesOf } from '@axe/domain/tabletop/terrain-occlusion/hidden-faces';
 import { OcclusionShape, occlusionShapeOf } from '@axe/domain/tabletop/terrain-occlusion/occlusion-shape';
-import { BlockSide } from '@axe/domain/tabletop/terrain-shade';
+import { BlockSide } from '@axe/domain/tabletop/terrain-wall-face';
 
 /** A block on the table, with what decides whether it is drawn together with others. */
 export interface StillTerrainInput {

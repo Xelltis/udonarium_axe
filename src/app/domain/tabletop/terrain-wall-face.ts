@@ -1,5 +1,7 @@
-import { BlockSide } from '@axe/domain/tabletop/terrain-shade';
 import { WallFace } from '@axe/domain/tabletop/vision-scene';
+
+/** The four upright sides of a square block. */
+export type BlockSide = 'north' | 'south' | 'west' | 'east';
 
 export type WallSide = BlockSide;
 
