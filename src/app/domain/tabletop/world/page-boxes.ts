@@ -2,7 +2,7 @@ import type { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { pageOfTablePoint, TablePoint } from '@axe/domain/tabletop/camera/table-camera';
 import { PickTarget } from '@axe/domain/tabletop/pick/pick-index';
 import { TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
-import { EyeAxes, pointOnFace, spriteCorners, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
+import { EyeAxes, pointOnFace, spriteBoxCorners, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 
 /** The part a coin is drawn as, among the parts a piece's boxes are named by. */
 export const COIN_PART = 'coin';
@@ -95,7 +95,10 @@ export function piecePageBoxes(
     } else parts.set(part, { points: [...points], middle, sprites });
     corners.set(owner, parts);
   };
-  for (const sprite of sprites) add(sprite.owner, partOf(sprite), spriteCorners(sprite, eye), sprite.centre, 1);
+  for (const sprite of sprites) {
+    const corners = spriteBoxCorners(sprite, eye);
+    add(sprite.owner, partOf(sprite), corners, sprite.box ? middleOf(corners) : sprite.centre, 1);
+  }
   for (const coin of coins) {
     const rim: TablePoint[] = [];
     for (let i = 0; i < RIM_POINTS; i++) {
@@ -206,4 +209,14 @@ export function quadMatrix(
   const e = p3.y - p0.y + h * p3.y;
   const f = p0.y;
   return [a / width, d / width, 0, g / width, b / height, e / height, 0, h / height, 0, 0, 1, 0, c, f, 0, 1];
+}
+
+/** The middle of four corners. */
+function middleOf(corners: readonly TablePoint[]): TablePoint {
+  const sum = corners.reduce((total, point) => ({ x: total.x + point.x, y: total.y + point.y, z: total.z + point.z }), {
+    x: 0,
+    y: 0,
+    z: 0,
+  });
+  return { x: sum.x / corners.length, y: sum.y / corners.length, z: sum.z / corners.length };
 }

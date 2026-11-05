@@ -838,6 +838,35 @@ describe('GameCharacterComponent', () => {
       table.gridType = GridType.SQUARE;
     });
 
+    it('hands the canvas a picture of the whole outline a piece of three cells stands on, past its own box', async () => {
+      type Region = { left: number; top: number; width: number; height: number };
+      type Pictured = Pedestals & { pedestalRegion(element: HTMLElement): Region; gridSize: number };
+      fixture.componentRef.setInput('gameCharacter', GameCharacter.create('コマ', 3, ''));
+      fixture.detectChanges();
+      const pictured = component as unknown as Pictured;
+      const box = 3 * pictured.gridSize;
+      const element = { offsetWidth: box, offsetHeight: box } as HTMLElement;
+      expect(pictured.pedestalRegion(element)).toEqual({ left: 0, top: 0, width: box, height: box });
+
+      const table = TestBed.inject(TabletopService).currentTable;
+      table.gridType = GridType.HEX_VERTICAL;
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      try {
+        const ring = pictured.pedestalStyleShown();
+        const region = pictured.pedestalRegion(element);
+        const [left, top, width, height] = ['left', 'top', 'width', 'height'].map((key) => parseFloat(ring[key]));
+        expect(region.left).toBeLessThanOrEqual(left);
+        expect(region.top).toBeLessThanOrEqual(top);
+        expect(region.left + region.width).toBeGreaterThanOrEqual(left + width);
+        expect(region.top + region.height).toBeGreaterThanOrEqual(top + height);
+        expect(region.left).toBeLessThan(0);
+      } finally {
+        table.gridType = GridType.SQUARE;
+      }
+    });
+
     it('cuts the hex pedestal out of the handle that turns the piece, and nothing out of the square one', async () => {
       type Grab = { pedestalGrabStyle(): Record<string, string> };
       fixture.componentRef.setInput('gameCharacter', GameCharacter.create('コマ', 1, ''));

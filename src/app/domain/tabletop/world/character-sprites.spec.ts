@@ -69,6 +69,17 @@ describe('the sprites a character is drawn with', () => {
     expect(square.centre.y).toBeCloseTo(plain.centre.y - 10, 6);
     expect(Math.hypot(turned.centre.x - plain.centre.x, turned.centre.y - plain.centre.y)).toBeCloseTo(10, 6);
     expect(turned.centre.y).toBeCloseTo(plain.centre.y, 6);
+    expect(square.box).toEqual({ left: 0, top: 20, width: 50, height: 50 });
+    expect(plain.box).toBeUndefined();
+  });
+
+  it('keeps to the cell what lays itself over a pedestal and what picks it, where its picture takes in the outline round the cell', () => {
+    const outlined = { url: 'blob:pedestal', widthPx: 90, heightPx: 80, offsetX: -20, offsetY: -15 };
+
+    const [pedestal] = characterSprites({ ...character, pedestal: outlined });
+
+    expect(pedestal.widthPx).toBe(90);
+    expect(pedestal.box).toEqual({ left: 20, top: 15, width: 50, height: 50 });
   });
 
   it('lays the picture inside the pedestal on a wall, as a poster', () => {

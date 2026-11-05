@@ -1071,15 +1071,24 @@ export class GameCharacterComponent {
   readonly facingArrowSizePx = computed(() => Math.max(16, Math.round(this.gridSize * 0.44)));
 
   /**
-   * The part of the pedestal the canvas is handed a picture of: the cell, and above it the mark of
-   * which way the piece faces where one is shown, which stands half out past the cell's edge.
+   * The part of the pedestal the canvas is handed a picture of: the cell, above it the mark of which
+   * way the piece faces where one is shown, which stands half out past the cell's edge, and on a hex
+   * grid the whole outline of the cells the piece stands on, which reaches past the cell's box for a
+   * piece of more than one cell.
    */
   private pedestalRegion(element: HTMLElement) {
-    const width = element.offsetWidth;
-    const height = element.offsetHeight;
-    if (!this.showFacingArrow()) return { left: 0, top: 0, width, height };
-    const above = this.facingArrowSizePx() / 2 + this.facingArrowOffsetPx();
-    return { left: 0, top: -above, width, height: height + above };
+    let left = 0;
+    let top = this.showFacingArrow() ? -(this.facingArrowSizePx() / 2 + this.facingArrowOffsetPx()) : 0;
+    let right = element.offsetWidth;
+    let bottom = element.offsetHeight;
+    const hex = this.pedestalHexParams();
+    if (hex) {
+      left = Math.min(left, Math.floor(hex.bbox.minX + hex.L / 2));
+      top = Math.min(top, Math.floor(hex.bbox.minY + hex.L / 2));
+      right = Math.max(right, Math.ceil(hex.bbox.maxX + hex.L / 2));
+      bottom = Math.max(bottom, Math.ceil(hex.bbox.maxY + hex.L / 2));
+    }
+    return { left, top, width: right - left, height: bottom - top };
   }
 
   readonly facingArrowOffsetPx = computed(() => {

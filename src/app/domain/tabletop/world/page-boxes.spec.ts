@@ -59,6 +59,25 @@ describe('piecePageBoxes', () => {
     expect(die.nearness).toBe(25);
   });
 
+  it('boxes a part by the box of the piece its picture stands for, where the picture reaches past it', () => {
+    const boxes = piecePageBoxes(
+      [
+        sprite('hero#pedestal', {
+          centre: { x: 100, y: 100, z: 1 },
+          widthPx: 90,
+          heightPx: 80,
+          facing: { across: FLOOR.u, down: FLOOR.v },
+          box: { left: 20, top: 15, width: 50, height: 50 },
+        }),
+      ],
+      [],
+      scene,
+      EYE
+    );
+
+    expect(boxes.get('hero')!.parts.get('pedestal')).toMatchObject({ left: 75, top: 75, width: 50, height: 50 });
+  });
+
   it('boxes a part made of more than one sprite whole', () => {
     const boxes = piecePageBoxes(
       [sprite('deck#top', { centre: { x: 0, y: 0, z: 0 } }), sprite('deck#top', { centre: { x: 30, y: 0, z: 0 } })],

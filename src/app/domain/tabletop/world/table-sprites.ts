@@ -60,6 +60,13 @@ export interface TableWorldSprite {
    * it lies: as a picture turned to the eye is turned again while the piece it stands on spins.
    */
   readonly turn?: { readonly axis: Vec3; readonly deg: number };
+  /**
+   * Where its picture reaches past the box of the piece it stands for, as a pedestal's picture takes
+   * in the mark of which way the piece faces or the outline of the cells it stands on: that box, off
+   * the picture's top left corner, in pixels. What lays itself over the piece and what picks it keep
+   * to the box; the whole picture is drawn. The whole sprite where not given.
+   */
+  readonly box?: { readonly left: number; readonly top: number; readonly width: number; readonly height: number };
 }
 
 /** Which way the eye's right and the eye's up run in the board's space. */
@@ -129,6 +136,32 @@ export function spriteCorners(
     corner(halfWidth, -halfHeight),
     corner(halfWidth, halfHeight),
     corner(-halfWidth, halfHeight),
+  ];
+}
+
+/**
+ * The corners of the box of the piece a sprite stands for, round in order from the top left as
+ * `spriteCorners` gives them: its `box` where its picture reaches past it, or the whole sprite.
+ */
+export function spriteBoxCorners(
+  sprite: TableWorldSprite,
+  eye: EyeAxes
+): [TablePoint, TablePoint, TablePoint, TablePoint] {
+  const box = sprite.box;
+  if (!box) return spriteCorners(sprite, eye);
+  const { across, down } = spriteAxes(sprite, eye);
+  const left = box.left - sprite.widthPx / 2;
+  const top = box.top - sprite.heightPx / 2;
+  const corner = (a: number, d: number): TablePoint => ({
+    x: sprite.centre.x + across.x * a + down.x * d,
+    y: sprite.centre.y + across.y * a + down.y * d,
+    z: sprite.centre.z + across.z * a + down.z * d,
+  });
+  return [
+    corner(left, top),
+    corner(left + box.width, top),
+    corner(left + box.width, top + box.height),
+    corner(left, top + box.height),
   ];
 }
 

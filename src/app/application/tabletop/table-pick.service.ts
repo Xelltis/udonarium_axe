@@ -20,7 +20,7 @@ import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
 import { boardSurfaceOf, surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { COIN_KIND, TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
-import { eyeAxesOf, spriteCorners, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
+import { eyeAxesOf, spriteBoxCorners, spriteCorners, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { AlphaMask, seesThroughAt } from '@axe/domain/ui/see-through';
 
 /**
@@ -160,7 +160,10 @@ export class TablePickService {
       const byOwner = new Map<string, { kind: string; shapes: PickShape[]; masks: (AlphaMask | null)[] }>();
       for (const sprite of sprites) {
         const owner = byOwner.get(sprite.owner) ?? { kind: sprite.kind, shapes: [], masks: [] };
-        owner.shapes.push({ kind: 'quad', corners: spriteCorners(sprite, eye) });
+        owner.shapes.push({
+          kind: 'quad',
+          corners: sprite.seeThrough ? spriteCorners(sprite, eye) : spriteBoxCorners(sprite, eye),
+        });
         owner.masks.push(
           sprite.seeThrough && sprite.look.kind === 'picture' ? this.pictures.maskOf(sprite.look.url) : null
         );

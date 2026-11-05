@@ -138,6 +138,16 @@ function shadowOf(character: CharacterLayout, width: number, height: number) {
   return { across: size / 2, down: size / 2 - tall / 4, w: size, h: tall / 2, box: tall };
 }
 
+/** Whether the picture of a pedestal reaches past the cell the piece stands on. */
+function reachesPast(pedestal: PagePicture, size: number): boolean {
+  return (
+    (pedestal.offsetX ?? 0) !== 0 ||
+    (pedestal.offsetY ?? 0) !== 0 ||
+    pedestal.widthPx !== size ||
+    pedestal.heightPx !== size
+  );
+}
+
 /**
  * The sprites a character is drawn with: the pedestal lying on its face, turned as the piece is,
  * the shadow of its picture where it casts one, and its picture. On the floor the picture stands
@@ -174,6 +184,9 @@ export function characterSprites(character: CharacterLayout): TableWorldSprite[]
       id: `${character.id}#pedestal`,
       centre: { x: middle.x + off.x, y: middle.y + off.y, z: middle.z + off.z },
       facing: { across: ground.across, down: ground.down },
+      ...(reachesPast(pedestal, size)
+        ? { box: { left: 0 - (pedestal.offsetX ?? 0), top: 0 - (pedestal.offsetY ?? 0), width: size, height: size } }
+        : {}),
     },
   ];
   const picture = character.picture;
