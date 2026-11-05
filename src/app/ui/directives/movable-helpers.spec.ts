@@ -4,9 +4,9 @@ import {
   collectCollidableElements,
   MovableCoordinateResolver,
   MovableLayerItem,
+  movedElsewhere,
   resolveMovableLocalCoordinate,
   setLayerCollidable,
-  movedElsewhere,
 } from '@axe/ui/directives/movable-helpers';
 
 describe('movable-helpers', () => {

@@ -45,9 +45,9 @@ import {
   applyPointerEvents,
   collectCollidableElements,
   MovableLayerItem,
+  movedElsewhere,
   registerLayer,
   setLayerCollidable,
-  movedElsewhere,
   unregisterLayer,
   wheelSpin,
 } from '@axe/ui/directives/movable-helpers';
