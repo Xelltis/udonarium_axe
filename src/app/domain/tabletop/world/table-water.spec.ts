@@ -1,7 +1,13 @@
 import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { type WaterArea, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
-import { floorWashAlpha, scumOpacity, surfaceWashAlpha } from '@axe/domain/tabletop/water/water-look';
+import {
+  floorWashAlpha,
+  flowStreakOpacity,
+  scumOpacity,
+  siltOpacity,
+  surfaceWashAlpha,
+} from '@axe/domain/tabletop/water/water-look';
 import { waterShoreOf } from '@axe/domain/tabletop/water/water-shore';
 import { waterSidesOf } from '@axe/domain/tabletop/water/water-sides';
 import { tableWaterOf } from '@axe/domain/tabletop/world/table-water';
@@ -108,6 +114,25 @@ describe('the water on a table as the scene draws it', () => {
     expect(dirty.scum[3]).toBeCloseTo(scumOpacity(0.8));
     expect(dirty.scum[7]).toBeCloseTo(scumOpacity(0.8) * 0.8);
     expect(clean.scum[3]).toBe(0);
+  });
+
+  it('clouds murky water with silt and streaks flowing water, as strongly as the page drew them, and clear still water with neither', () => {
+    const murky = tableWaterOf(
+      grid,
+      waterCellsOf(grid, [area({ turbidity: 0.8, flowSpeed: 0.6, flowDirection: 90 })]),
+      [],
+      [],
+      true
+    );
+    const clear = tableWaterOf(grid, waterCellsOf(grid, [area()]), [], [], true);
+    const points = murky.surface.points.length / 3;
+
+    expect(murky.silt.length).toBe(points * 4);
+    expect(murky.silt[3]).toBeCloseTo(siltOpacity(0.8));
+    expect(murky.streaks.length).toBe(points);
+    expect(murky.streaks[0]).toBeCloseTo(flowStreakOpacity(0.6, 0.8));
+    expect(clear.silt[3]).toBe(0);
+    expect(clear.streaks[0]).toBe(0);
   });
 
   it('floats leaves a hair over the surface of the cells that carry them, a part for each amount, and none elsewhere', () => {

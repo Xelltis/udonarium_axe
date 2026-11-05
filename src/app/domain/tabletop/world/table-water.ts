@@ -8,12 +8,15 @@ import {
   deepWaterColor,
   dirtyWaterColor,
   floorWashAlpha,
+  flowStreakOpacity,
   glintOpacity,
   murkAlpha,
   murkColorOf,
   scumColorOf,
   scumOpacity,
   scumRimColorOf,
+  siltColorOf,
+  siltOpacity,
   surfaceWashAlpha,
   underwaterDeepColor,
   waterSideAlphas,
@@ -48,6 +51,13 @@ export interface TableWorldWater {
    * and how thick it floats, then the colour of the rim along its patches and how strongly it shows.
    */
   readonly scum: Float32Array;
+  /**
+   * The clouds of silt in murky water at each point, four to a point: their colour in sRGB and how
+   * strongly they show.
+   */
+  readonly silt: Float32Array;
+  /** How strongly the streaks of a current show at each point, one to a point: none on still water. */
+  readonly streaks: Float32Array;
   /** The leaves floating on the surface, a part for each amount of the water they cover. */
   readonly leaves: readonly TableWorldLeaves[];
   /** The floors under water lying on its own level floor, darkened, which the net of light crosses. */
@@ -91,6 +101,8 @@ export const NO_WATER: TableWorldWater = {
   surface: emptyPart(),
   flow: new Float32Array(0),
   scum: new Float32Array(0),
+  silt: new Float32Array(0),
+  streaks: new Float32Array(0),
   leaves: [],
   floor: emptyPart(),
   sides: emptyPart(),
@@ -140,6 +152,8 @@ export function tableWaterOf(
   const surface = new PartBuilder();
   const flow: number[] = [];
   const scum: number[] = [];
+  const silt: number[] = [];
+  const streaks: number[] = [];
   const leaves = new Map<number, { part: PartBuilder; flow: number[] }>();
   const floor = new PartBuilder();
   for (const cell of cells.values()) {
@@ -167,10 +181,14 @@ export function tableWaterOf(
       ...channelsOf(scumRimColorOf(cell.color)),
       thick * SCUM_RIM_SHARE,
     ];
+    const siltOf = [...channelsOf(siltColorOf(tone)), siltOpacity(cell.turbidity)];
+    const streak = speed > 0 ? flowStreakOpacity(cell.flowSpeed, cell.turbidity) : 0;
     fan(outline, (point) => {
       surface.add(point.x, point.y, surfaceZ, shade(point.x, point.y), glint);
       flow.push(stream.x * speed, stream.y * speed);
       scum.push(...scumOf);
+      silt.push(...siltOf);
+      streaks.push(streak);
     });
     if (cell.leaves > 0) {
       const floating = leaves.get(cell.leaves) ?? { part: new PartBuilder(), flow: [] };
@@ -189,6 +207,8 @@ export function tableWaterOf(
     surface: surface.part(),
     flow: new Float32Array(flow),
     scum: new Float32Array(scum),
+    silt: new Float32Array(silt),
+    streaks: new Float32Array(streaks),
     leaves: [...leaves].map(([amount, floating]) => ({
       amount,
       part: floating.part.part(),

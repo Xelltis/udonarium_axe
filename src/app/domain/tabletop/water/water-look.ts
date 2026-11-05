@@ -77,6 +77,26 @@ export function scumOpacity(dirt: number): number {
   return round(0.68 * clamp01(dirt));
 }
 
+/** The colour of the clouds of silt in murky water: the water's own colour, darkened. */
+export function siltColorOf(color: string): string {
+  return mixColors(color, '#000000', 0.38);
+}
+
+/** How strongly the clouds of silt show on the surface: not at all in water clearer than a quarter murky. */
+export function siltOpacity(turbidity: number): number {
+  return round((0.55 * Math.max(clamp01(turbidity) - 0.25, 0)) / 0.75);
+}
+
+/**
+ * How strongly the streaks of a current show on water flowing as fast as given, from still to the
+ * fastest: stronger the faster it runs, and fainter the murkier it is. Still water shows none.
+ */
+export function flowStreakOpacity(flowSpeed: number, turbidity: number): number {
+  const speed = clamp01(flowSpeed);
+  if (!(speed > 0)) return 0;
+  return round((0.16 + 0.34 * speed) * (1 - 0.5 * clamp01(turbidity)));
+}
+
 /**
  * How opaque a side of the water is at the water's floor, in the colour of the depths, and at the
  * surface, in the water's own colour.

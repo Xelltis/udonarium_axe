@@ -2,9 +2,12 @@ import {
   causticOpacity,
   deepWaterColor,
   dirtyWaterColor,
+  flowStreakOpacity,
   glintOpacity,
   murkAlpha,
   scumOpacity,
+  siltColorOf,
+  siltOpacity,
   underwaterDeepColor,
 } from '@axe/domain/tabletop/water/water-look';
 
@@ -35,6 +38,18 @@ describe('the look of water', () => {
     expect(scumOpacity(0)).toBe(0);
     expect(scumOpacity(1)).toBeGreaterThan(0.5);
     expect(glintOpacity(0.6, 0, 1)).toBeLessThan(glintOpacity(0.6, 0, 0) * 0.2);
+  });
+
+  it('clouds murky water with silt darker than the water, and none in water clearer than a quarter murky', () => {
+    expect(siltOpacity(0.25)).toBe(0);
+    expect(siltOpacity(1)).toBeCloseTo(0.55, 6);
+    expect(siltColorOf('#3399cc')).not.toBe('#3399cc');
+  });
+
+  it('streaks flowing water the more the faster it runs, fainter in murky water, and still water not at all', () => {
+    expect(flowStreakOpacity(0, 0)).toBe(0);
+    expect(flowStreakOpacity(1, 0)).toBeGreaterThan(flowStreakOpacity(0.2, 0));
+    expect(flowStreakOpacity(1, 1)).toBeCloseTo(flowStreakOpacity(1, 0) / 2, 2);
   });
 
   it('makes murk opaque at the top of the scale', () => {

@@ -1,5 +1,12 @@
 import { CAUSTIC_SEED, CAUSTIC_TILE_PX, causticAlpha, causticFieldOf } from '@axe/domain/effect/ambience/caustics';
-import { scumRimTileAlpha, scumTileAlpha, WATER_PATTERN_TILE_PX } from '@axe/domain/effect/ambience/water-patterns';
+import {
+  cloudAlpha,
+  scumRimTileAlpha,
+  scumTileAlpha,
+  smoothFieldOf,
+  streakAlpha,
+  WATER_PATTERN_TILE_PX,
+} from '@axe/domain/effect/ambience/water-patterns';
 import type {
   TableWorldLeaves,
   TableWorldSeaFloor,
@@ -11,6 +18,7 @@ import {
   attribute,
   float,
   fract,
+  length,
   max,
   mix,
   positionWorld,
@@ -64,6 +72,14 @@ const GLINT_CELLS = 5.7;
 /** How many cells one repeat of the scum and of the floating leaves spans, as the page draws them. */
 const SCUM_CELLS = 2.1;
 const LEAF_CELLS = 3.6;
+/** How many cells one repeat of the clouds of silt spans, and of the streaks of a current, as the page drew them. */
+const SILT_CELLS = 4.2;
+const STREAK_CELLS = 3;
+/** How many seconds the clouds of silt take to drift one repeat across and down, slower than the scum. */
+const SILT_SECONDS = 180;
+/** How many waves the clouds of silt are drawn from, and how fine the finest of them runs, as the page drew them. */
+const SILT_WAVES = 16;
+const SILT_FINEST = 3;
 /** How many seconds the scum on still water takes to drift one repeat across and down, as the page's does. */
 const SCUM_SECONDS = 120;
 /** How many seconds a wave takes to run in to the shore. */
@@ -98,6 +114,7 @@ export class WaterLayer {
   private sides: MeshLambertNodeMaterial | null = null;
   private netTile: Texture | null = null;
   private scumTiles: { readonly scum: Texture; readonly rim: Texture } | null = null;
+  private currentTiles: { readonly silt: Texture; readonly streaks: Texture } | null = null;
   /** The pictures of the floating leaves, by the picture, read once each and kept until the layer goes. */
   private readonly leafPictures = new Map<string, Texture>();
   private laid: TableWorldWater | null = null;
@@ -129,6 +146,8 @@ export class WaterLayer {
       geometry.setAttribute('flow', new Float32BufferAttribute(water.flow, 2));
       geometry.setAttribute('scum', new Float32BufferAttribute(everyOther(water.scum, 0), 4));
       geometry.setAttribute('scumRim', new Float32BufferAttribute(everyOther(water.scum, 4), 4));
+      geometry.setAttribute('silt', new Float32BufferAttribute(water.silt, 4));
+      geometry.setAttribute('extra', new Float32BufferAttribute(pairedWith(water.surface.extra, water.streaks), 2));
     });
     for (const floating of water.leaves) this.addLeaves(floating);
     this.add(water.floor, this.floorMaterial(CAUSTIC_CELLS), FLOOR_ORDER);
@@ -176,6 +195,9 @@ export class WaterLayer {
     this.scumTiles?.scum.dispose();
     this.scumTiles?.rim.dispose();
     this.scumTiles = null;
+    this.currentTiles?.silt.dispose();
+    this.currentTiles?.streaks.dispose();
+    this.currentTiles = null;
     for (const picture of this.leafPictures.values()) picture.dispose();
     this.leafPictures.clear();
   }
@@ -197,6 +219,18 @@ export class WaterLayer {
       rim: repeatingTile(scumRimTileAlpha(), WATER_PATTERN_TILE_PX),
     };
     return this.scumTiles;
+  }
+
+  /** The clouds of silt in murky water and the streaks of a current, a tile of each to repeat, made once. */
+  private currentTile(): { readonly silt: Texture; readonly streaks: Texture } {
+    this.currentTiles ??= {
+      silt: repeatingTile(
+        cloudAlpha(smoothFieldOf(CAUSTIC_SEED + 1, WATER_PATTERN_TILE_PX, SILT_WAVES, SILT_FINEST)),
+        WATER_PATTERN_TILE_PX
+      ),
+      streaks: repeatingTile(streakAlpha(CAUSTIC_SEED + 3), WATER_PATTERN_TILE_PX),
+    };
+    return this.currentTiles;
   }
 
   /**
@@ -310,18 +344,34 @@ export class WaterLayer {
       .div(this.cellPx.mul(GLINT_CELLS))
       .sub(flow.mul(this.seconds).div(GLINT_CELLS));
     const drift = vec2(this.seconds.negate(), this.seconds).div(GLINT_SECONDS);
-    const glint = texture(this.tile(), at.add(drift)).r.mul(attribute('extra', 'float'));
+    const extra = attribute('extra', 'vec2');
+    const glint = texture(this.tile(), at.add(drift)).r.mul(extra.x);
     const glinted = { colour: mix(rgb, vec3(1, 1, 1), glint), alpha: max(a, glint) };
     const scumAt = vec2(positionWorld.x, positionWorld.z)
       .div(this.cellPx.mul(SCUM_CELLS))
       .sub(flow.mul(this.seconds).div(SCUM_CELLS))
       .sub(vec2(this.seconds.negate(), this.seconds).div(SCUM_SECONDS));
+    const currents = this.currentTile();
+    const silt = attribute('silt', 'vec4');
+    const siltAt = vec2(positionWorld.x, positionWorld.z)
+      .div(this.cellPx.mul(SILT_CELLS))
+      .sub(flow.mul(this.seconds).div(SILT_CELLS))
+      .add(vec2(this.seconds, this.seconds.negate()).div(SILT_SECONDS));
+    const silted = laidOver(glinted, linearOf(silt.rgb), texture(currents.silt, siltAt).r.mul(silt.a));
     const tiles = this.scumTile();
     const scum = attribute('scum', 'vec4');
     const rim = attribute('scumRim', 'vec4');
-    const scummed = laidOver(glinted, linearOf(scum.rgb), texture(tiles.scum, scumAt).r.mul(scum.a));
+    const scummed = laidOver(silted, linearOf(scum.rgb), texture(tiles.scum, scumAt).r.mul(scum.a));
     const rimmed = laidOver(scummed, linearOf(rim.rgb), texture(tiles.rim, scumAt).r.mul(rim.a));
-    material.colorNode = vec4(rimmed.colour, rimmed.alpha);
+    const speed = length(flow);
+    const along = flow.div(max(speed, 0.0001));
+    const ground = vec2(positionWorld.x, positionWorld.z).div(this.cellPx);
+    const streakAt = vec2(
+      ground.dot(along).sub(speed.mul(this.seconds)),
+      ground.dot(vec2(along.y.negate(), along.x))
+    ).div(STREAK_CELLS);
+    const streaked = laidOver(rimmed, vec3(1, 1, 1), texture(currents.streaks, streakAt).r.mul(extra.y));
+    material.colorNode = vec4(streaked.colour, streaked.alpha);
     this.dress(material, 'lit');
     return material;
   }
@@ -399,6 +449,19 @@ function repeatingTile(alpha: Uint8ClampedArray, size: number): Texture {
 }
 
 /** Four figures of every eight, from the one given, as one attribute of a point carries them. */
+/**
+ * Two figures to a point, the first from each list: the surface carries how strongly it glints and
+ * how strongly a current streaks it in one attribute, as a graphics card draws from eight at most.
+ */
+function pairedWith(first: Float32Array, second: Float32Array): Float32Array {
+  const paired = new Float32Array(first.length * 2);
+  for (let i = 0; i < first.length; i++) {
+    paired[i * 2] = first[i];
+    paired[i * 2 + 1] = second[i] ?? 0;
+  }
+  return paired;
+}
+
 function everyOther(values: Float32Array, from: number): Float32Array {
   const picked = new Float32Array(values.length / 2);
   for (let i = 0, j = 0; i < values.length; i += 8, j += 4) picked.set(values.subarray(i + from, i + from + 4), j);
