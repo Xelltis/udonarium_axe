@@ -1,5 +1,12 @@
 import { CAUSTIC_SEED, CAUSTIC_TILE_PX, causticAlpha, causticFieldOf } from '@axe/domain/effect/ambience/caustics';
-import type { TableWorldSeaFloor, TableWorldWater, WaterPart } from '@axe/domain/tabletop/world/table-water';
+import { scumRimTileAlpha, scumTileAlpha, WATER_PATTERN_TILE_PX } from '@axe/domain/effect/ambience/water-patterns';
+import type {
+  TableWorldLeaves,
+  TableWorldSeaFloor,
+  TableWorldWater,
+  WaterPart,
+} from '@axe/domain/tabletop/world/table-water';
+import { lotusTileUrl } from '@axe/infrastructure/tabletop/water/lotus-texture';
 import {
   attribute,
   float,
@@ -39,6 +46,7 @@ import {
  */
 const FLOOR_ORDER = 0.5;
 const SURFACE_ORDER = 1000;
+const LEAF_ORDER = 1000.5;
 const SHORE_ORDER = 1001;
 
 /** Draws a face laid over another in front of it, past the depth's rounding. */
@@ -53,6 +61,11 @@ const CAUSTIC_CELLS = 2.6;
 const SEA_CAUSTIC_CELLS = 3.4;
 /** How many cells one repeat of the glints spans on the surface. */
 const GLINT_CELLS = 5.7;
+/** How many cells one repeat of the scum and of the floating leaves spans, as the page draws them. */
+const SCUM_CELLS = 2.1;
+const LEAF_CELLS = 3.6;
+/** How many seconds the scum on still water takes to drift one repeat across and down, as the page's does. */
+const SCUM_SECONDS = 120;
 /** How many seconds a wave takes to run in to the shore. */
 const WAVE_SECONDS = 4;
 /**
@@ -84,12 +97,18 @@ export class WaterLayer {
   private amongPieces = false;
   private sides: MeshLambertNodeMaterial | null = null;
   private netTile: Texture | null = null;
+  private scumTiles: { readonly scum: Texture; readonly rim: Texture } | null = null;
+  /** The pictures of the floating leaves, by the picture, read once each and kept until the layer goes. */
+  private readonly leafPictures = new Map<string, Texture>();
   private laid: TableWorldWater | null = null;
   private laidBoard = '';
   private meshes: Mesh[] = [];
   private changed = false;
 
-  constructor(private readonly dress: (material: Material, taking: Taking) => void) {}
+  constructor(
+    private readonly dress: (material: Material, taking: Taking) => void,
+    private readonly picture: (url: string) => Texture
+  ) {}
 
   /** How many parts of the water are drawn. */
   get shown(): number {
@@ -106,9 +125,12 @@ export class WaterLayer {
     this.laidBoard = boardKey;
     this.clear();
     this.cellPx.value = water.cellPx;
-    this.add(water.surface, this.surfaceMaterial(), SURFACE_ORDER, (geometry) =>
-      geometry.setAttribute('flow', new Float32BufferAttribute(water.flow, 2))
-    );
+    this.add(water.surface, this.surfaceMaterial(), SURFACE_ORDER, (geometry) => {
+      geometry.setAttribute('flow', new Float32BufferAttribute(water.flow, 2));
+      geometry.setAttribute('scum', new Float32BufferAttribute(everyOther(water.scum, 0), 4));
+      geometry.setAttribute('scumRim', new Float32BufferAttribute(everyOther(water.scum, 4), 4));
+    });
+    for (const floating of water.leaves) this.addLeaves(floating);
     this.add(water.floor, this.floorMaterial(CAUSTIC_CELLS), FLOOR_ORDER);
     if (water.seaFloor && board) this.addSeaFloor(water.seaFloor, board());
     this.add(water.sides, this.sideMaterial(), SURFACE_ORDER);
@@ -151,6 +173,11 @@ export class WaterLayer {
     this.clear();
     this.netTile?.dispose();
     this.netTile = null;
+    this.scumTiles?.scum.dispose();
+    this.scumTiles?.rim.dispose();
+    this.scumTiles = null;
+    for (const picture of this.leafPictures.values()) picture.dispose();
+    this.leafPictures.clear();
   }
 
   /**
@@ -159,19 +186,43 @@ export class WaterLayer {
    * its lines are drawn neither in squares close by nor broken up into dots far off.
    */
   private tile(): Texture {
-    if (this.netTile) return this.netTile;
-    const alpha = causticAlpha(causticFieldOf(CAUSTIC_SEED));
-    const data = new Uint8Array(alpha.length * 4);
-    for (let i = 0; i < alpha.length; i++) data.fill(alpha[i], i * 4, i * 4 + 4);
-    const tile = new DataTexture(data, CAUSTIC_TILE_PX, CAUSTIC_TILE_PX);
-    tile.wrapS = RepeatWrapping;
-    tile.wrapT = RepeatWrapping;
-    tile.magFilter = LinearFilter;
-    tile.minFilter = LinearMipmapLinearFilter;
-    tile.generateMipmaps = true;
-    tile.needsUpdate = true;
-    this.netTile = tile;
-    return tile;
+    this.netTile ??= repeatingTile(causticAlpha(causticFieldOf(CAUSTIC_SEED)), CAUSTIC_TILE_PX);
+    return this.netTile;
+  }
+
+  /** The scum the page floats on dirty water and the rim along its patches, a tile of each to repeat, made once. */
+  private scumTile(): { readonly scum: Texture; readonly rim: Texture } {
+    this.scumTiles ??= {
+      scum: repeatingTile(scumTileAlpha(), WATER_PATTERN_TILE_PX),
+      rim: repeatingTile(scumRimTileAlpha(), WATER_PATTERN_TILE_PX),
+    };
+    return this.scumTiles;
+  }
+
+  /**
+   * Lays the leaves floating over the cells that carry so much of them, in the page's own picture of
+   * them, carried along with the water where it flows; none where the page cannot draw the picture.
+   */
+  private addLeaves(floating: TableWorldLeaves): void {
+    const url = lotusTileUrl(floating.amount);
+    if (!url) return;
+    let picture = this.leafPictures.get(url);
+    if (!picture) {
+      picture = this.picture(url);
+      picture.wrapS = RepeatWrapping;
+      picture.wrapT = RepeatWrapping;
+      this.leafPictures.set(url, picture);
+    }
+    const material = this.material(true);
+    const flow = attribute('flow', 'vec2');
+    const at = vec2(positionWorld.x, positionWorld.z)
+      .div(this.cellPx.mul(LEAF_CELLS))
+      .sub(flow.mul(this.seconds).div(LEAF_CELLS));
+    material.colorNode = texture(picture, at);
+    this.dress(material, 'lit');
+    this.add(floating.part, material, LEAF_ORDER, (geometry) =>
+      geometry.setAttribute('flow', new Float32BufferAttribute(floating.flow, 2))
+    );
   }
 
   /**
@@ -260,7 +311,17 @@ export class WaterLayer {
       .sub(flow.mul(this.seconds).div(GLINT_CELLS));
     const drift = vec2(this.seconds.negate(), this.seconds).div(GLINT_SECONDS);
     const glint = texture(this.tile(), at.add(drift)).r.mul(attribute('extra', 'float'));
-    material.colorNode = vec4(mix(rgb, vec3(1, 1, 1), glint), max(a, glint));
+    const glinted = { colour: mix(rgb, vec3(1, 1, 1), glint), alpha: max(a, glint) };
+    const scumAt = vec2(positionWorld.x, positionWorld.z)
+      .div(this.cellPx.mul(SCUM_CELLS))
+      .sub(flow.mul(this.seconds).div(SCUM_CELLS))
+      .sub(vec2(this.seconds.negate(), this.seconds).div(SCUM_SECONDS));
+    const tiles = this.scumTile();
+    const scum = attribute('scum', 'vec4');
+    const rim = attribute('scumRim', 'vec4');
+    const scummed = laidOver(glinted, linearOf(scum.rgb), texture(tiles.scum, scumAt).r.mul(scum.a));
+    const rimmed = laidOver(scummed, linearOf(rim.rgb), texture(tiles.rim, scumAt).r.mul(rim.a));
+    material.colorNode = vec4(rimmed.colour, rimmed.alpha);
     this.dress(material, 'lit');
     return material;
   }
@@ -321,4 +382,46 @@ export class WaterLayer {
       ...(pulled ? PULLED_FORWARD : {}),
     });
   }
+}
+
+/** A tile of white as opaque as the alpha given, to repeat, read between its pixels and from smaller copies of itself far off. */
+function repeatingTile(alpha: Uint8ClampedArray, size: number): Texture {
+  const data = new Uint8Array(alpha.length * 4);
+  for (let i = 0; i < alpha.length; i++) data.fill(alpha[i], i * 4, i * 4 + 4);
+  const tile = new DataTexture(data, size, size);
+  tile.wrapS = RepeatWrapping;
+  tile.wrapT = RepeatWrapping;
+  tile.magFilter = LinearFilter;
+  tile.minFilter = LinearMipmapLinearFilter;
+  tile.generateMipmaps = true;
+  tile.needsUpdate = true;
+  return tile;
+}
+
+/** Four figures of every eight, from the one given, as one attribute of a point carries them. */
+function everyOther(values: Float32Array, from: number): Float32Array {
+  const picked = new Float32Array(values.length / 2);
+  for (let i = 0, j = 0; i < values.length; i += 8, j += 4) picked.set(values.subarray(i + from, i + from + 4), j);
+  return picked;
+}
+
+/** A colour from sRGB into the light the scene is lit in. */
+function linearOf(colour: Node<'vec3'>): Node<'vec3'> {
+  return sRGBTransferEOTF(colour) as unknown as Node<'vec3'>;
+}
+
+/** A colour laid over another as opaque as it is, as the page lays one picture over another. */
+function laidOver(
+  under: { readonly colour: Node<'vec3'>; readonly alpha: Node<'float'> },
+  colour: Node<'vec3'>,
+  alpha: Node<'float'>
+): { colour: Node<'vec3'>; alpha: Node<'float'> } {
+  const laid = alpha.add(under.alpha.mul(float(1).sub(alpha)));
+  return {
+    colour: colour
+      .mul(alpha)
+      .add(under.colour.mul(under.alpha).mul(float(1).sub(alpha)))
+      .div(max(laid, 0.0001)),
+    alpha: laid,
+  };
 }

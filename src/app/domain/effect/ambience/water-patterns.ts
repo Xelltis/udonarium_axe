@@ -1,3 +1,4 @@
+import { CAUSTIC_SEED } from '@axe/domain/effect/ambience/caustics';
 import { seededRandom } from '@axe/domain/effect/particles/shared';
 
 /** How many pixels a side of a water pattern tile is drawn at. */
@@ -88,6 +89,28 @@ export function scumRimAlpha(field: SmoothField, coverage = 0.35): Uint8ClampedA
   const values = spreadOf(field);
   const edge = quantileOf(values, 1 - coverage);
   return toAlpha(values, (value) => smoothstep(edge - 0.035, edge, value) * (1 - smoothstep(edge, edge + 0.02, value)));
+}
+
+/** The seed the scum is drawn from, the same wherever the water is drawn. */
+const SCUM_SEED = CAUSTIC_SEED + 2;
+/** How many waves the scum is drawn from, and how fine the finest of them runs. */
+const SCUM_WAVES = 34;
+const SCUM_FINEST = 8;
+/** How much of the surface the scum covers at its thickest. */
+const SCUM_COVERAGE = 0.3;
+
+/** The scum floating on dirty water over one tile, as the page and the canvas both draw it. */
+export function scumTileAlpha(): Uint8ClampedArray {
+  return scumAlpha(scumField(), SCUM_COVERAGE);
+}
+
+/** The rim along the edge of every patch of scum over one tile, in step with `scumTileAlpha`. */
+export function scumRimTileAlpha(): Uint8ClampedArray {
+  return scumRimAlpha(scumField(), SCUM_COVERAGE);
+}
+
+function scumField(): SmoothField {
+  return smoothFieldOf(SCUM_SEED, WATER_PATTERN_TILE_PX, SCUM_WAVES, SCUM_FINEST);
 }
 
 function quantileOf(values: Float32Array, share: number): number {

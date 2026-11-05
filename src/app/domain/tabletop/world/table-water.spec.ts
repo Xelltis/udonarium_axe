@@ -1,7 +1,7 @@
 import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { type WaterArea, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
-import { floorWashAlpha, surfaceWashAlpha } from '@axe/domain/tabletop/water/water-look';
+import { floorWashAlpha, scumOpacity, surfaceWashAlpha } from '@axe/domain/tabletop/water/water-look';
 import { waterShoreOf } from '@axe/domain/tabletop/water/water-shore';
 import { waterSidesOf } from '@axe/domain/tabletop/water/water-sides';
 import { tableWaterOf } from '@axe/domain/tabletop/world/table-water';
@@ -98,6 +98,27 @@ describe('the water on a table as the scene draws it', () => {
 
     expect(water.flow[0]).toBeGreaterThan(0);
     expect(water.flow[1]).toBeCloseTo(0);
+  });
+
+  it('floats scum on dirty water as thick as the page floats it, its rim fainter, and none on clean water', () => {
+    const dirty = tableWaterOf(grid, waterCellsOf(grid, [area({ dirt: 0.8 })]), [], [], true);
+    const clean = tableWaterOf(grid, waterCellsOf(grid, [area()]), [], [], true);
+
+    expect(dirty.scum.length).toBe((dirty.surface.points.length / 3) * 8);
+    expect(dirty.scum[3]).toBeCloseTo(scumOpacity(0.8));
+    expect(dirty.scum[7]).toBeCloseTo(scumOpacity(0.8) * 0.8);
+    expect(clean.scum[3]).toBe(0);
+  });
+
+  it('floats leaves a hair over the surface of the cells that carry them, a part for each amount, and none elsewhere', () => {
+    const water = tableWaterOf(grid, waterCellsOf(grid, [area({ leaves: 0.6 })]), [], [], true);
+
+    expect(water.leaves.map((floating) => floating.amount)).toEqual([0.6]);
+    const [floating] = water.leaves;
+    expect(floating.part.points.length).toBe(water.surface.points.length);
+    expect(floating.part.points[2]).toBeGreaterThan(water.surface.points[2]);
+    expect(floating.flow.length).toBe((floating.part.points.length / 3) * 2);
+    expect(tableWaterOf(grid, waterCellsOf(grid, [area()]), [], [], true).leaves).toEqual([]);
   });
 
   it('lays the floor of a map under water over the whole board, in the colour of the depths, with or without ponds', () => {

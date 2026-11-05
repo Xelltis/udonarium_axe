@@ -1,8 +1,8 @@
 import { CAUSTIC_SEED, CAUSTIC_TILE_PX, causticAlpha, causticFieldOf } from '@axe/domain/effect/ambience/caustics';
 import {
   cloudAlpha,
-  scumAlpha,
-  scumRimAlpha,
+  scumRimTileAlpha,
+  scumTileAlpha,
   smoothFieldOf,
   streakAlpha,
   WATER_PATTERN_TILE_PX,
@@ -13,11 +13,6 @@ const SEED = CAUSTIC_SEED;
 /** How many waves the silt is drawn from, and how fine the finest of them runs. */
 const CLOUD_WAVES = 16;
 const CLOUD_FINEST = 3;
-/** How many waves the scum is drawn from, and how fine the finest of them runs. */
-const SCUM_WAVES = 34;
-const SCUM_FINEST = 8;
-/** How much of the surface the scum covers at its thickest. */
-const SCUM_COVERAGE = 0.3;
 
 let tileUrl: string | null = null;
 let cloudUrl: string | null = null;
@@ -60,7 +55,7 @@ export function cloudTileUrl(): string {
  */
 export function scumTileUrl(): string {
   if (scumUrl !== null) return scumUrl;
-  const url = alphaImageUrl(WATER_PATTERN_TILE_PX, WATER_PATTERN_TILE_PX, scumAlpha(scumField(), SCUM_COVERAGE));
+  const url = alphaImageUrl(WATER_PATTERN_TILE_PX, WATER_PATTERN_TILE_PX, scumTileAlpha());
   if (url) scumUrl = url;
   return url ?? '';
 }
@@ -71,7 +66,7 @@ export function scumTileUrl(): string {
  */
 export function scumRimTileUrl(): string {
   if (scumRimUrl !== null) return scumRimUrl;
-  const url = alphaImageUrl(WATER_PATTERN_TILE_PX, WATER_PATTERN_TILE_PX, scumRimAlpha(scumField(), SCUM_COVERAGE));
+  const url = alphaImageUrl(WATER_PATTERN_TILE_PX, WATER_PATTERN_TILE_PX, scumRimTileAlpha());
   if (url) scumRimUrl = url;
   return url ?? '';
 }
@@ -85,10 +80,6 @@ export function streakTileUrl(): string {
   const url = alphaImageUrl(WATER_PATTERN_TILE_PX, WATER_PATTERN_TILE_PX, streakAlpha(SEED + 3));
   if (url) streakUrl = url;
   return url ?? '';
-}
-
-function scumField() {
-  return smoothFieldOf(SEED + 2, WATER_PATTERN_TILE_PX, SCUM_WAVES, SCUM_FINEST);
 }
 
 /** How much of a sheet of water shows in the dark, as a picture to mask it with, or null where none can be drawn. */

@@ -11,6 +11,9 @@ import {
   glintOpacity,
   murkAlpha,
   murkColorOf,
+  scumColorOf,
+  scumOpacity,
+  scumRimColorOf,
   surfaceWashAlpha,
   underwaterDeepColor,
   waterSideAlphas,
@@ -40,6 +43,13 @@ export interface TableWorldWater {
   readonly surface: WaterPart;
   /** Which way and how fast the surface flows at each point, in cells a second, two to a point. */
   readonly flow: Float32Array;
+  /**
+   * The scum floating on the surface at each point, eight to a point: the colour of the scum in sRGB
+   * and how thick it floats, then the colour of the rim along its patches and how strongly it shows.
+   */
+  readonly scum: Float32Array;
+  /** The leaves floating on the surface, a part for each amount of the water they cover. */
+  readonly leaves: readonly TableWorldLeaves[];
   /** The floors under water lying on its own level floor, darkened, which the net of light crosses. */
   readonly floor: WaterPart;
   /** The sides that show where the water stands over lower ground or the board's edge. */
@@ -57,6 +67,17 @@ export interface TableWorldWater {
   readonly moving: boolean;
 }
 
+/**
+ * The leaves floating over the cells of water that carry so much of them, from 0 to 1, laid a hair
+ * over the surface, and which way and how fast they are carried along, in cells a second, two to a
+ * point.
+ */
+export interface TableWorldLeaves {
+  readonly amount: number;
+  readonly part: WaterPart;
+  readonly flow: Float32Array;
+}
+
 /** The floor of a table whose whole map is under water: darkened, and crossed by the net of light the surface far overhead throws. */
 export interface TableWorldSeaFloor {
   /** The colour of the depths laid over it, red, green, blue and alpha from 0 to 1, in sRGB. */
@@ -69,6 +90,8 @@ export interface TableWorldSeaFloor {
 export const NO_WATER: TableWorldWater = {
   surface: emptyPart(),
   flow: new Float32Array(0),
+  scum: new Float32Array(0),
+  leaves: [],
   floor: emptyPart(),
   sides: emptyPart(),
   shore: emptyPart(),
@@ -83,6 +106,10 @@ const FLOOR_LIFT_PX = 0.13;
 const FLAT_SURFACE_LIFT_PX = 0.17;
 /** How far over the surface the waves breaking on the shore are laid. */
 const SHORE_LIFT_PX = 0.4;
+/** How far over the surface the floating leaves are laid. */
+const LEAF_LIFT_PX = 0.2;
+/** How strongly the rim of the scum shows beside the scum itself, as the page lays it. */
+const SCUM_RIM_SHARE = 0.8;
 /** How far out from the shore the waves run in from, in cells. */
 const SHORE_REACH_CELLS = 0.7;
 /**
@@ -112,6 +139,8 @@ export function tableWaterOf(
   const depthAt = depthsAtCorners(grid, cells, cellPx);
   const surface = new PartBuilder();
   const flow: number[] = [];
+  const scum: number[] = [];
+  const leaves = new Map<number, { part: PartBuilder; flow: number[] }>();
   const floor = new PartBuilder();
   for (const cell of cells.values()) {
     const outline = cellPolygonOf(grid, cell.index);
@@ -131,10 +160,26 @@ export function tableWaterOf(
           [...deep, depthShadeAlpha(depthAt(x, y) ?? (cell.surfacePx - cell.floorPx) / cellPx, cell.turbidity)]
         )
       );
+    const thick = scumOpacity(cell.dirt);
+    const scumOf = [
+      ...channelsOf(scumColorOf(cell.color)),
+      thick,
+      ...channelsOf(scumRimColorOf(cell.color)),
+      thick * SCUM_RIM_SHARE,
+    ];
     fan(outline, (point) => {
       surface.add(point.x, point.y, surfaceZ, shade(point.x, point.y), glint);
       flow.push(stream.x * speed, stream.y * speed);
+      scum.push(...scumOf);
     });
+    if (cell.leaves > 0) {
+      const floating = leaves.get(cell.leaves) ?? { part: new PartBuilder(), flow: [] };
+      leaves.set(cell.leaves, floating);
+      fan(outline, (point) => {
+        floating.part.add(point.x, point.y, surfaceZ + LEAF_LIFT_PX, WHITE, 0);
+        floating.flow.push(stream.x * speed, stream.y * speed);
+      });
+    }
     if (!cell.flat) continue;
     const floorColour = [...deep, floorWashAlpha(cell.density)] as Rgba;
     const net = causticOpacity(cell.density, cell.turbidity, (cell.surfacePx - cell.floorPx) / cellPx);
@@ -143,6 +188,12 @@ export function tableWaterOf(
   return {
     surface: surface.part(),
     flow: new Float32Array(flow),
+    scum: new Float32Array(scum),
+    leaves: [...leaves].map(([amount, floating]) => ({
+      amount,
+      part: floating.part.part(),
+      flow: new Float32Array(floating.flow),
+    })),
     floor: floor.part(),
     sides: sidesOf(sides, cells),
     shore: shoreOf(shores, cellPx),
@@ -153,6 +204,8 @@ export function tableWaterOf(
 }
 
 type Rgba = [number, number, number, number];
+
+const WHITE: Rgba = [1, 1, 1, 1];
 
 /** The floor of a map under water, from the colour chosen for the light coming down and how thick the water is drawn. */
 function seaFloorOf(color: string, density: number): TableWorldSeaFloor {
@@ -223,7 +276,6 @@ function sidesOf(sides: readonly WaterSide[], cells: ReadonlyMap<number, WaterCe
  */
 function shoreOf(shores: readonly WaterShore[], cellPx: number): WaterPart {
   const part = new PartBuilder();
-  const white: Rgba = [1, 1, 1, 1];
   for (const shore of shores) {
     const length = Math.hypot(shore.x1 - shore.x0, shore.y1 - shore.y0);
     if (length <= 0) continue;
@@ -240,7 +292,7 @@ function shoreOf(shores: readonly WaterShore[], cellPx: number): WaterPart {
     ];
     for (const index of [0, 1, 2, 0, 2, 3]) {
       const corner = corners[index];
-      part.add(corner.x, corner.y, z, white, corner.away);
+      part.add(corner.x, corner.y, z, WHITE, corner.away);
     }
   }
   return part.part();

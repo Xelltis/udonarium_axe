@@ -286,7 +286,10 @@ class ThreeTableEngine implements Table3dEngine {
   private skyFog: FogExp2 | null = null;
   private readonly darkFog = new Fog(0x000000, 0, 1);
   private fadePx = 0;
-  private readonly water = new WaterLayer((material, taking) => this.veil.cover(material, taking));
+  private readonly water = new WaterLayer(
+    (material, taking) => this.veil.cover(material, taking),
+    (url) => this.picture(url)
+  );
   private readonly layers = new BoardLayers(
     (url) => this.sharedPicture(url, true),
     (material) => this.veil.cover(material, 'lit')
