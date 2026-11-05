@@ -180,12 +180,8 @@ export class RangeComponent {
   readonly turnPoint = computed(() => {
     const range = this.range();
     this.rangeVersion();
-    return {
-      surface: this.pieces.surfaceOf(range),
-      x: range.location.x,
-      y: range.location.y,
-      height: range.posZ + this.altitude() * this.gridSize,
-    };
+    const foot = this.pieces.footOf(range);
+    return { ...foot, height: foot.height + this.altitude() * this.gridSize };
   });
 
   /** Where the range's handle stands over a table drawn on a canvas: off its point, turned as it is. */

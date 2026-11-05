@@ -78,12 +78,15 @@ export class TerrainComponent {
       target: this.terrain,
       collideLayers: ['terrain'],
       footprint: () => ({ width: this.width() * this.gridSize, height: this.depth() * this.gridSize }),
-      turnsAbout: (terrain) => ({
-        surface: this.pieces.surfaceOf(terrain),
-        x: terrain.location.x + (this.width() * this.gridSize) / 2,
-        y: terrain.location.y + (this.depth() * this.gridSize) / 2,
-        height: terrain.posZ + (this.altitude() + this.height()) * this.gridSize,
-      }),
+      turnsAbout: (terrain) => {
+        const foot = this.pieces.footOf(terrain);
+        return {
+          ...foot,
+          x: foot.x + (this.width() * this.gridSize) / 2,
+          y: foot.y + (this.depth() * this.gridSize) / 2,
+          height: foot.height + (this.altitude() + this.height()) * this.gridSize,
+        };
+      },
     });
   }
 
@@ -266,7 +269,7 @@ export class TerrainComponent {
     const through = (this.isSlope() || this.isWallExist()) && -this.height() < this.altitude() && this.altitude() < 0;
     if (through) return null;
     const foot = this.pieces.footOf(this.terrain());
-    const middle = foot && {
+    const middle = {
       ...foot,
       x: foot.x + (this.width() * this.gridSize) / 2,
       y: foot.y + (this.depth() * this.gridSize) / 2,

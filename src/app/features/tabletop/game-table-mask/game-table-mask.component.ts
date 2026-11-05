@@ -284,7 +284,7 @@ export class GameTableMaskComponent {
     this.maskVersion();
     if (!mask.isAltitudeIndicate) return null;
     const foot = this.pieces.footOf(mask);
-    const middle = foot && { ...foot, x: foot.x + this.pixelWidth / 2, y: foot.y + this.pixelHeight / 2 };
+    const middle = { ...foot, x: foot.x + this.pixelWidth / 2, y: foot.y + this.pixelHeight / 2 };
     return altitudeGuideOf(middle, this.gameTableMaskAltitude, this.gridSize);
   });
 

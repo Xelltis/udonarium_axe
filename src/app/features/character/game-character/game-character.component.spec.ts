@@ -6,10 +6,12 @@ import { SPEECH_BUBBLE_WAIT_MS, SpeechBubbleService } from '@axe/application/cha
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { GroundService } from '@axe/application/tabletop/ground.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { BillboardFacing, BillboardFrameService } from '@axe/application/ui/billboard-frame.service';
@@ -3203,6 +3205,32 @@ describe('GameCharacterComponent', () => {
       expect(() => fixture.detectChanges()).not.toThrow();
       expect(() => fixture.destroy()).not.toThrow();
     });
+  });
+
+  it('stands its guide to how high it floats on the raised ground the canvas draws it on', () => {
+    const table = new GameTable();
+    table.width = 20;
+    table.height = 20;
+    table.initialize();
+    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    TestBed.inject(GroundService).dab({ kind: 'raise', x: 2.5, y: 4.5, radius: 3, strength: 1 });
+    const character = GameCharacter.create('浮く人', 1, '');
+    character.location = { name: 'table', x: 100, y: 200 };
+    character.isAltitudeIndicate = true;
+    fixture.componentRef.setInput('gameCharacter', character);
+    component.setAltitude(2);
+    type Guide = { lifted: { height: number }; ground: { height: number } } | null;
+
+    try {
+      const lift = TestBed.inject(TablePiecesService).footOf(character).height;
+      const guide = (component as unknown as { altitudeGuide(): Guide }).altitudeGuide()!;
+      expect(lift).toBeGreaterThan(0);
+      expect(guide.ground.height).toBeCloseTo(lift, 6);
+      expect(guide.lifted.height).toBeCloseTo(lift + 2 * component.gridSize, 6);
+    } finally {
+      character.destroy();
+      table.destroy();
+    }
   });
 
   it('collapses the piece itself while an effect knocks it down', () => {

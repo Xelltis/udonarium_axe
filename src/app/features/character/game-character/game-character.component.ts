@@ -340,12 +340,8 @@ export class GameCharacterComponent {
     if (!char) return undefined;
     this.objectChange.versionOf(char.identifier)();
     const middle = (this.size() * this.gridSize) / 2;
-    return {
-      surface: this.pieces.surfaceOf(char),
-      x: char.location.x + middle,
-      y: char.location.y + middle,
-      height: char.posZ + this.altitude() * this.gridSize,
-    };
+    const foot = this.pieces.footOf(char);
+    return { ...foot, x: foot.x + middle, y: foot.y + middle, height: foot.height + this.altitude() * this.gridSize };
   });
 
   /**
@@ -358,7 +354,7 @@ export class GameCharacterComponent {
     const lifted = this.pedestalMiddle();
     const altitude = this.altitude();
     if (!char || !lifted || !char.isAltitudeIndicate || Math.abs(altitude) < 0.5) return null;
-    const ground = { ...lifted, height: char.posZ };
+    const ground = { ...lifted, height: lifted.height - altitude * this.gridSize };
     return {
       lifted,
       ground,

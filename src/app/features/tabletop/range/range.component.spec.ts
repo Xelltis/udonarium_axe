@@ -2,6 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { GroundService } from '@axe/application/tabletop/ground.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -75,6 +77,16 @@ describe('RangeComponent', () => {
         '[data-testid="altitude-guide"]'
       ) as HTMLElement;
       expect(line.style.borderLeftColor).toBe('#ff0000');
+    });
+
+    it('stands its handle and its guide on the raised ground the canvas draws it on', () => {
+      TestBed.inject(GroundService).dab({ kind: 'raise', x: 6, y: 5, radius: 3, strength: 1 });
+      range.altitude = 2;
+
+      const lift = TestBed.inject(TablePiecesService).footOf(range).height;
+      expect(lift).toBeGreaterThan(0);
+      expect(component.turnPoint().height).toBeCloseTo(lift + 2 * component.gridSize, 6);
+      expect(guide()?.lifted.height).toBeCloseTo(lift + 2 * component.gridSize, 6);
     });
 
     it('is left out within half a cell of the face, or where the range is set not to show it', () => {

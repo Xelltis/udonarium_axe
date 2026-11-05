@@ -92,12 +92,10 @@ export class WhiteBoardComponent {
     setupMovableRotableForPiece(this, {
       target: this.whiteBoard,
       footprint: () => ({ width: this.widthPx(), height: this.heightPx() }),
-      turnsAbout: (board) => ({
-        surface: this.pieces.surfaceOf(board),
-        x: board.location.x + this.widthPx() / 2,
-        y: board.location.y + this.heightPx(),
-        height: board.posZ,
-      }),
+      turnsAbout: (board) => {
+        const foot = this.pieces.footOf(board);
+        return { ...foot, x: foot.x + this.widthPx() / 2, y: foot.y + this.heightPx() };
+      },
     });
     pictureForCanvas({
       identifier: () => this.whiteBoard().identifier,

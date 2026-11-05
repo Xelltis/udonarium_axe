@@ -184,12 +184,8 @@ export class LightSourceComponent {
   readonly turnPoint = computed(() => {
     const light = this.lightSource();
     this.objectChange.versionOf(light.identifier)();
-    return {
-      surface: this.pieces.surfaceOf(light),
-      x: light.location.x + this.gridSize / 2,
-      y: light.location.y + this.gridSize / 2,
-      height: light.posZ,
-    };
+    const foot = this.pieces.footOf(light);
+    return { ...foot, x: foot.x + this.gridSize / 2, y: foot.y + this.gridSize / 2 };
   });
 
   /** Where a cone's handle stands over a table drawn on a canvas: off its point, the way it shines. */
