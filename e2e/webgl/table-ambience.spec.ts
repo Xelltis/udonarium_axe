@@ -127,9 +127,14 @@ test.describe('a look laid over the ground on a table drawn on a canvas', () => 
     await idle(page);
 
     await expect.poll(() => placeOf(page, id)).not.toBe(before);
-    const laid = (await page.locator('table-ambience [data-part="area"]').boundingBox())!;
-    const drawn = await groundBoxOf(page, id);
-    expect(Math.abs(laid.x - drawn.x), JSON.stringify({ laid, drawn })).toBeLessThan(BOX_SLACK_PX);
-    expect(Math.abs(laid.y - drawn.y), JSON.stringify({ laid, drawn })).toBeLessThan(BOX_SLACK_PX);
+    // A drag writes where the look has got to now and then, and where it is let go a moment after
+    // the pointer lets go of it: read the two once the look holds still where it was let go.
+    await expect
+      .poll(async () => {
+        const laid = (await page.locator('table-ambience [data-part="area"]').boundingBox())!;
+        const drawn = await groundBoxOf(page, id);
+        return Math.max(Math.abs(laid.x - drawn.x), Math.abs(laid.y - drawn.y));
+      })
+      .toBeLessThan(BOX_SLACK_PX);
   });
 });
