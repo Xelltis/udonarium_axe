@@ -1,1680 +1,702 @@
 @if (gameCharacter()) {
-  @if (drawsOnCanvas()) {
-    <!--
-      Over a table drawn on a canvas, the piece is a box on the screen round where the canvas draws it.
-      Its pedestal is laid on the pedestal the canvas draws, in perspective, with what marks it; its labels
-      hang over its picture, one over another. Its pedestal is drawn here, out of sight, for the canvas to
-      draw a picture of.
-    -->
-    @let id = gameCharacter()!.identifier;
+  <!--
+    The piece is a box on the screen round where the table's canvas draws it. Its pedestal is laid on
+    the pedestal the canvas draws, in perspective, with what marks it; its labels hang over its
+    picture, one over another. Its pedestal is drawn here, out of sight, for the canvas to draw a
+    picture of.
+  -->
+  @let id = gameCharacter()!.identifier;
+  <div
+    class="group pointer-events-none size-full cursor-grab select-none [-moz-user-drag:none] [-webkit-user-drag:none]"
+    #root
+    data-hud-box
+    appMovable
+    [movable.option]="movableOption()"
+    [movable.disable]="isLock || isPlanningMove()"
+    [appSelectable]="gameCharacter()"
+    (movable.onstart)="onGrab($event)"
+    (movable.ondragstart)="onPickUp()"
+    (movable.ondragend)="onPutDown()"
+    (movable.onend)="onLetGo()"
+    (pointerdown)="onPiecePointerDown($event)"
+    (pointermove)="onPiecePointerMove($event)"
+    (pointerup)="onPiecePointerUp($event)"
+    (pointercancel)="onPiecePointerCancel($event)"
+  >
     <div
-      class="group pointer-events-none size-full cursor-grab select-none [-moz-user-drag:none] [-webkit-user-drag:none]"
-      #root
-      data-hud-box
-      appMovable
-      [movable.option]="movableOption()"
-      [movable.disable]="isLock || isPlanningMove()"
-      [appSelectable]="gameCharacter()"
-      (movable.onstart)="onGrab($event)"
-      (movable.ondragstart)="onPickUp()"
-      (movable.ondragend)="onPutDown()"
-      (movable.onend)="onLetGo()"
-      (pointerdown)="onPiecePointerDown($event)"
-      (pointermove)="onPiecePointerMove($event)"
-      (pointerup)="onPiecePointerUp($event)"
-      (pointercancel)="onPiecePointerCancel($event)"
+      class="pointer-events-none size-full"
+      appRotable
+      [rotable.option]="rotableOption()"
+      [rotable.disable]="!canTurn()"
+      (rotable.ondragstart)="onMove()"
+      (rotable.ondragend)="onMoved()"
     >
       <div
-        class="pointer-events-none size-full"
-        appRotable
-        [rotable.option]="rotableOption()"
-        [rotable.disable]="!canTurn()"
-        (rotable.ondragstart)="onMove()"
-        (rotable.ondragend)="onMoved()"
+        class="pointer-events-auto"
+        data-part="pedestal"
+        data-testid="multi-angle-piece-motion-source"
+        [style.width.px]="size() * gridSize"
+        [style.height.px]="size() * gridSize"
+        [appHudPlace]="{ owner: id, part: 'pedestal', place: 'face' }"
       >
-        <div
-          class="pointer-events-auto"
-          data-part="pedestal"
-          data-testid="multi-angle-piece-motion-source"
-          [style.width.px]="size() * gridSize"
-          [style.height.px]="size() * gridSize"
-          [appHudPlace]="{ owner: id, part: 'pedestal', place: 'face' }"
-        >
-          <!-- Over the handle round it, so a press on the pedestal itself takes hold of the piece. -->
-          <div class="absolute inset-0" data-hud-box></div>
-          @if (inStealth()) {
-            <!-- Drawn only for the few who see a piece in stealth, to tell them the others do not. -->
-            <div
-              data-testid="stealth-mark"
-              class="border-ui-accent/70 pointer-events-none absolute inset-[-6%] rounded-full border-2 border-dashed"
+        <!-- Over the handle round it, so a press on the pedestal itself takes hold of the piece. -->
+        <div class="absolute inset-0" data-hud-box></div>
+        @if (inStealth()) {
+          <!-- Drawn only for the few who see a piece in stealth, to tell them the others do not. -->
+          <div
+            data-testid="stealth-mark"
+            class="border-ui-accent/70 pointer-events-none absolute inset-[-6%] rounded-full border-2 border-dashed"
+          >
+            <i
+              class="material-icons bg-ui-panel text-ui-accent shadow-ui-sm absolute -top-1.5 -right-1.5 rounded-full p-0.5 text-[13px]! leading-none"
+              aria-hidden="true"
+              >visibility_off</i
             >
-              <i
-                class="material-icons bg-ui-panel text-ui-accent shadow-ui-sm absolute -top-1.5 -right-1.5 rounded-full p-0.5 text-[13px]! leading-none"
-                aria-hidden="true"
-                >visibility_off</i
-              >
-            </div>
-          }
-          @if (hitFlash() === 'damage') {
+          </div>
+        }
+        @if (hitFlash() === 'damage') {
+          <div
+            data-testid="hit-flash"
+            class="animate-hit-flash pointer-events-none absolute inset-0 rounded-full"
+            [ngStyle]="{ background: 'radial-gradient(circle, rgba(255,60,60,0.85) 0%, rgba(255,60,60,0) 70%)' }"
+          ></div>
+        }
+        @if (hitFlash() === 'heal') {
+          <div
+            data-testid="heal-aura"
+            class="animate-heal-rise pointer-events-none absolute inset-0 rounded-full"
+            [ngStyle]="{
+              background:
+                'radial-gradient(circle, rgba(120,255,170,0) 42%, rgba(120,255,170,0.9) 60%, rgba(120,255,170,0) 76%)',
+            }"
+          ></div>
+          <div
+            class="animate-heal-glow pointer-events-none absolute inset-0 rounded-full"
+            [ngStyle]="{ background: 'radial-gradient(circle, rgba(90,230,120,0.7) 0%, rgba(90,230,120,0) 70%)' }"
+          ></div>
+        }
+        @if (!isLock && canTurn()) {
+          <div
+            class="rotate-grab absolute -top-5.5 -left-1.5 z-[-1] h-[calc(100%+44px)] w-[calc(100%+12px)] cursor-default rounded-[37px] opacity-0 group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
+            [ngStyle]="pedestalGrabStyle()"
+          >
             <div
-              data-testid="hit-flash"
-              class="animate-hit-flash pointer-events-none absolute inset-0 rounded-full"
-              [ngStyle]="{ background: 'radial-gradient(circle, rgba(255,60,60,0.85) 0%, rgba(255,60,60,0) 70%)' }"
-            ></div>
-          }
-          @if (hitFlash() === 'heal') {
-            <div
-              data-testid="heal-aura"
-              class="animate-heal-rise pointer-events-none absolute inset-0 rounded-full"
-              [ngStyle]="{
-                background:
-                  'radial-gradient(circle, rgba(120,255,170,0) 42%, rgba(120,255,170,0.9) 60%, rgba(120,255,170,0) 76%)',
-              }"
-            ></div>
-            <div
-              class="animate-heal-glow pointer-events-none absolute inset-0 rounded-full"
-              [ngStyle]="{ background: 'radial-gradient(circle, rgba(90,230,120,0.7) 0%, rgba(90,230,120,0) 70%)' }"
-            ></div>
-          }
-          @if (!isLock && canTurn()) {
-            <div
-              class="rotate-grab absolute -top-5.5 -left-1.5 z-[-1] h-[calc(100%+44px)] w-[calc(100%+12px)] cursor-default rounded-[37px] opacity-0 group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
-              [ngStyle]="pedestalGrabStyle()"
+              class="pointer-events-none box-border size-full rounded-[37px] border-x-12 border-y-28 border-solid border-t-[#999] border-r-[#ccc] border-b-[#ccc] border-l-[#999]"
+              [ngStyle]="pedestalGrabBorderStyle()"
             >
               <div
-                class="pointer-events-none box-border size-full rounded-[37px] border-x-12 border-y-28 border-solid border-t-[#999] border-r-[#ccc] border-b-[#ccc] border-l-[#999]"
-                [ngStyle]="pedestalGrabBorderStyle()"
+                class="material-icons text-ui-muted absolute inset-x-0 bottom-0 m-auto hidden w-6 group-hover:inline group-active:inline"
               >
-                <div
-                  class="material-icons text-ui-muted absolute inset-x-0 bottom-0 m-auto hidden w-6 group-hover:inline group-active:inline"
-                >
-                  autorenew
-                </div>
-                <div
-                  class="material-icons text-ui-muted absolute inset-x-0 top-0 m-auto hidden w-6 group-hover:inline group-active:inline"
-                >
-                  autorenew
-                </div>
+                autorenew
+              </div>
+              <div
+                class="material-icons text-ui-muted absolute inset-x-0 top-0 m-auto hidden w-6 group-hover:inline group-active:inline"
+              >
+                autorenew
               </div>
             </div>
-          }
-        </div>
-        @if (multiAngleOrbitVisible()) {
-          <div
-            class="pointer-events-none"
-            [style.width.px]="size() * gridSize"
-            [style.height.px]="size() * gridSize"
-            [appHudPlace]="{ owner: id, at: pedestalMiddle(), scaled: true }"
-          >
-            <div class="pointer-events-none absolute inset-0 z-20">
-              @if (multiAngleResourceBuffOrbitEnabled()) {
-                <div
-                  data-testid="multi-angle-resource-buff-orbit"
-                  data-orbit-direction="clockwise"
-                  class="animate-multi-angle-name-orbit absolute inset-0 origin-center"
-                  [style.animation-duration.s]="multiAngleResourceBuffOrbitAnimation().durationSeconds"
-                  [style.animation-timing-function]="multiAngleResourceBuffOrbitAnimation().timingFunction"
-                  [style.animation-delay.s]="multiAngleResourceBuffOrbitDelaySeconds()"
-                >
-                  @let gaugeLayout = multiAngleResourceGaugeLayout();
-                  @if (gaugeLayout.segments.length > 0) {
-                    <svg
-                      data-testid="multi-angle-resource-gauge"
-                      class="absolute overflow-visible"
-                      [style.top.px]="gaugeLayout.offset"
-                      [style.left.px]="gaugeLayout.offset"
-                      [style.width.px]="gaugeLayout.svgSize"
-                      [style.height.px]="gaugeLayout.svgSize"
-                      [attr.viewBox]="'0 0 ' + gaugeLayout.svgSize + ' ' + gaugeLayout.svgSize"
-                      aria-hidden="true"
-                    >
-                      @for (segment of gaugeLayout.segments; track segment.gauge.identifier) {
-                        <circle
-                          class="stroke-black/65"
-                          [attr.cx]="gaugeLayout.center"
-                          [attr.cy]="gaugeLayout.center"
-                          [attr.r]="gaugeLayout.radius"
-                          fill="none"
-                          [attr.stroke-width]="gaugeLayout.strokeWidth"
-                          pathLength="360"
-                          [attr.stroke-dasharray]="segment.trackDashArray"
-                          [attr.transform]="
-                            'rotate(' +
-                            segment.rotationDegrees +
-                            ' ' +
-                            gaugeLayout.center +
-                            ' ' +
-                            gaugeLayout.center +
-                            ')'
-                          "
-                        ></circle>
-                        <circle
-                          data-testid="multi-angle-resource-segment"
-                          [attr.data-resource-name]="segment.gauge.name"
-                          [attr.data-segment-degrees]="segment.segmentDegrees"
-                          [attr.cx]="gaugeLayout.center"
-                          [attr.cy]="gaugeLayout.center"
-                          [attr.r]="gaugeLayout.radius"
-                          fill="none"
-                          [attr.stroke]="segment.gauge.color"
-                          [attr.stroke-width]="gaugeLayout.strokeWidth"
-                          pathLength="360"
-                          [attr.stroke-dasharray]="segment.fillDashArray"
-                          [attr.transform]="
-                            'rotate(' +
-                            segment.rotationDegrees +
-                            ' ' +
-                            gaugeLayout.center +
-                            ' ' +
-                            gaugeLayout.center +
-                            ')'
-                          "
-                        >
-                          <title>{{ segment.gauge.name }}</title>
-                        </circle>
-                        <text
-                          data-testid="multi-angle-resource-label"
-                          class="font-sans font-bold"
-                          [attr.x]="segment.labelX"
-                          [attr.y]="segment.labelY"
-                          [attr.font-size]="gaugeLayout.fontSize"
-                          fill="#ffffff"
-                          stroke="rgba(0,0,0,0.9)"
-                          stroke-width="2"
-                          stroke-linejoin="round"
-                          paint-order="stroke fill"
-                          text-anchor="middle"
-                          dominant-baseline="central"
-                          [attr.transform]="
-                            'rotate(' + segment.labelRotationDegrees + ' ' + segment.labelX + ' ' + segment.labelY + ')'
-                          "
-                        >
-                          {{ segment.gauge.initial }}
-                        </text>
-                      }
-                      @for (separator of gaugeLayout.separators; track separator.angleDegrees) {
-                        <line
-                          data-testid="multi-angle-resource-separator"
-                          [attr.data-separator-angle]="separator.angleDegrees"
-                          [attr.x1]="separator.x1"
-                          [attr.y1]="separator.y1"
-                          [attr.x2]="separator.x2"
-                          [attr.y2]="separator.y2"
-                          stroke="rgba(0,0,0,0.95)"
-                          [attr.stroke-width]="gaugeLayout.separatorStrokeWidth"
-                          stroke-linecap="round"
-                        ></line>
-                      }
-                    </svg>
-                  }
-
-                  @if (!hideBuff() && buffBadges().length > 0) {
-                    @let buffOrbit = multiAngleBuffOrbitLayout();
-                    @for (badge of buffBadges(); track badge.identifier; let index = $index) {
-                      <div
-                        data-testid="multi-angle-buff-position"
-                        class="absolute top-1/2 left-1/2 size-0"
-                        [style.transform]="multiAngleBuffOrbitTransform(buffOrbit.angles[index] ?? 0, buffOrbit.radius)"
-                      >
-                        <span
-                          data-testid="multi-angle-buff-icon"
-                          class="absolute flex -translate-1/2 items-center justify-center rounded-full border border-solid border-white/35 leading-none shadow-[0_1px_3px_rgba(0,0,0,0.75)]"
-                          [style.width.px]="buffOrbit.iconSize"
-                          [style.height.px]="buffOrbit.iconSize"
-                          [style.font-size.px]="buffOrbit.iconSize * 0.68"
-                          [style.background]="badge.color"
-                          [title]="badge.name"
-                        >
-                          @if (badge.iconUrl) {
-                            <img
-                              class="pointer-events-none size-[0.9em] object-contain"
-                              [src]="badge.iconUrl | safe: 'resourceUrl'"
-                              alt=""
-                            />
-                          } @else {
-                            {{ badge.icon }}
-                          }
-                        </span>
-                      </div>
-                    }
-                  }
-                </div>
-              }
-
-              @if (name() && !hideName()) {
-                <div
-                  data-testid="multi-angle-name-orbit"
-                  data-orbit-direction="clockwise"
-                  class="animate-multi-angle-name-orbit absolute inset-0 origin-center"
-                  [style.animation-duration.s]="multiAngleNameOrbitAnimation().durationSeconds"
-                  [style.animation-timing-function]="multiAngleNameOrbitAnimation().timingFunction"
-                  [style.animation-delay.s]="multiAngleNameOrbitDelaySeconds()"
-                >
-                  @let curvedName = multiAngleCurvedNameLayout();
+          </div>
+        }
+      </div>
+      @if (multiAngleOrbitVisible()) {
+        <div
+          class="pointer-events-none"
+          [style.width.px]="size() * gridSize"
+          [style.height.px]="size() * gridSize"
+          [appHudPlace]="{ owner: id, at: pedestalMiddle(), scaled: true }"
+        >
+          <div class="pointer-events-none absolute inset-0 z-20">
+            @if (multiAngleResourceBuffOrbitEnabled()) {
+              <div
+                data-testid="multi-angle-resource-buff-orbit"
+                data-orbit-direction="clockwise"
+                class="animate-multi-angle-name-orbit absolute inset-0 origin-center"
+                [style.animation-duration.s]="multiAngleResourceBuffOrbitAnimation().durationSeconds"
+                [style.animation-timing-function]="multiAngleResourceBuffOrbitAnimation().timingFunction"
+                [style.animation-delay.s]="multiAngleResourceBuffOrbitDelaySeconds()"
+              >
+                @let gaugeLayout = multiAngleResourceGaugeLayout();
+                @if (gaugeLayout.segments.length > 0) {
                   <svg
-                    data-testid="piece-name"
+                    data-testid="multi-angle-resource-gauge"
                     class="absolute overflow-visible"
-                    [style.top.px]="curvedName.offset"
-                    [style.left.px]="curvedName.offset"
-                    [style.width.px]="curvedName.svgSize"
-                    [style.height.px]="curvedName.svgSize"
-                    [attr.viewBox]="'0 0 ' + curvedName.svgSize + ' ' + curvedName.svgSize"
+                    [style.top.px]="gaugeLayout.offset"
+                    [style.left.px]="gaugeLayout.offset"
+                    [style.width.px]="gaugeLayout.svgSize"
+                    [style.height.px]="gaugeLayout.svgSize"
+                    [attr.viewBox]="'0 0 ' + gaugeLayout.svgSize + ' ' + gaugeLayout.svgSize"
                     aria-hidden="true"
                   >
-                    <defs>
-                      <path [attr.id]="multiAngleCurvedNamePathId()" [attr.d]="curvedName.path"></path>
-                    </defs>
-                    <text
-                      class="font-sans font-bold"
-                      [attr.fill]="this.gameCharacter()!.nonTalkFlag ? '#333' : '#fff'"
-                      [attr.stroke]="this.gameCharacter()!.nonTalkFlag ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.88)'"
-                      [attr.stroke-width]="curvedName.strokeWidth"
-                      [attr.font-size]="curvedName.fontSize"
-                      [attr.letter-spacing]="curvedName.letterSpacing"
-                      stroke-linejoin="round"
-                      paint-order="stroke fill"
+                    @for (segment of gaugeLayout.segments; track segment.gauge.identifier) {
+                      <circle
+                        class="stroke-black/65"
+                        [attr.cx]="gaugeLayout.center"
+                        [attr.cy]="gaugeLayout.center"
+                        [attr.r]="gaugeLayout.radius"
+                        fill="none"
+                        [attr.stroke-width]="gaugeLayout.strokeWidth"
+                        pathLength="360"
+                        [attr.stroke-dasharray]="segment.trackDashArray"
+                        [attr.transform]="
+                          'rotate(' +
+                          segment.rotationDegrees +
+                          ' ' +
+                          gaugeLayout.center +
+                          ' ' +
+                          gaugeLayout.center +
+                          ')'
+                        "
+                      ></circle>
+                      <circle
+                        data-testid="multi-angle-resource-segment"
+                        [attr.data-resource-name]="segment.gauge.name"
+                        [attr.data-segment-degrees]="segment.segmentDegrees"
+                        [attr.cx]="gaugeLayout.center"
+                        [attr.cy]="gaugeLayout.center"
+                        [attr.r]="gaugeLayout.radius"
+                        fill="none"
+                        [attr.stroke]="segment.gauge.color"
+                        [attr.stroke-width]="gaugeLayout.strokeWidth"
+                        pathLength="360"
+                        [attr.stroke-dasharray]="segment.fillDashArray"
+                        [attr.transform]="
+                          'rotate(' +
+                          segment.rotationDegrees +
+                          ' ' +
+                          gaugeLayout.center +
+                          ' ' +
+                          gaugeLayout.center +
+                          ')'
+                        "
+                      >
+                        <title>{{ segment.gauge.name }}</title>
+                      </circle>
+                      <text
+                        data-testid="multi-angle-resource-label"
+                        class="font-sans font-bold"
+                        [attr.x]="segment.labelX"
+                        [attr.y]="segment.labelY"
+                        [attr.font-size]="gaugeLayout.fontSize"
+                        fill="#ffffff"
+                        stroke="rgba(0,0,0,0.9)"
+                        stroke-width="2"
+                        stroke-linejoin="round"
+                        paint-order="stroke fill"
+                        text-anchor="middle"
+                        dominant-baseline="central"
+                        [attr.transform]="
+                          'rotate(' + segment.labelRotationDegrees + ' ' + segment.labelX + ' ' + segment.labelY + ')'
+                        "
+                      >
+                        {{ segment.gauge.initial }}
+                      </text>
+                    }
+                    @for (separator of gaugeLayout.separators; track separator.angleDegrees) {
+                      <line
+                        data-testid="multi-angle-resource-separator"
+                        [attr.data-separator-angle]="separator.angleDegrees"
+                        [attr.x1]="separator.x1"
+                        [attr.y1]="separator.y1"
+                        [attr.x2]="separator.x2"
+                        [attr.y2]="separator.y2"
+                        stroke="rgba(0,0,0,0.95)"
+                        [attr.stroke-width]="gaugeLayout.separatorStrokeWidth"
+                        stroke-linecap="round"
+                      ></line>
+                    }
+                  </svg>
+                }
+
+                @if (!hideBuff() && buffBadges().length > 0) {
+                  @let buffOrbit = multiAngleBuffOrbitLayout();
+                  @for (badge of buffBadges(); track badge.identifier; let index = $index) {
+                    <div
+                      data-testid="multi-angle-buff-position"
+                      class="absolute top-1/2 left-1/2 size-0"
+                      [style.transform]="multiAngleBuffOrbitTransform(buffOrbit.angles[index] ?? 0, buffOrbit.radius)"
                     >
-                      @for (startOffset of curvedName.startOffsets; track startOffset) {
+                      <span
+                        data-testid="multi-angle-buff-icon"
+                        class="absolute flex -translate-1/2 items-center justify-center rounded-full border border-solid border-white/35 leading-none shadow-[0_1px_3px_rgba(0,0,0,0.75)]"
+                        [style.width.px]="buffOrbit.iconSize"
+                        [style.height.px]="buffOrbit.iconSize"
+                        [style.font-size.px]="buffOrbit.iconSize * 0.68"
+                        [style.background]="badge.color"
+                        [title]="badge.name"
+                      >
+                        @if (badge.iconUrl) {
+                          <img
+                            class="pointer-events-none size-[0.9em] object-contain"
+                            [src]="badge.iconUrl | safe: 'resourceUrl'"
+                            alt=""
+                          />
+                        } @else {
+                          {{ badge.icon }}
+                        }
+                      </span>
+                    </div>
+                  }
+                }
+              </div>
+            }
+
+            @if (name() && !hideName()) {
+              <div
+                data-testid="multi-angle-name-orbit"
+                data-orbit-direction="clockwise"
+                class="animate-multi-angle-name-orbit absolute inset-0 origin-center"
+                [style.animation-duration.s]="multiAngleNameOrbitAnimation().durationSeconds"
+                [style.animation-timing-function]="multiAngleNameOrbitAnimation().timingFunction"
+                [style.animation-delay.s]="multiAngleNameOrbitDelaySeconds()"
+              >
+                @let curvedName = multiAngleCurvedNameLayout();
+                <svg
+                  data-testid="piece-name"
+                  class="absolute overflow-visible"
+                  [style.top.px]="curvedName.offset"
+                  [style.left.px]="curvedName.offset"
+                  [style.width.px]="curvedName.svgSize"
+                  [style.height.px]="curvedName.svgSize"
+                  [attr.viewBox]="'0 0 ' + curvedName.svgSize + ' ' + curvedName.svgSize"
+                  aria-hidden="true"
+                >
+                  <defs>
+                    <path [attr.id]="multiAngleCurvedNamePathId()" [attr.d]="curvedName.path"></path>
+                  </defs>
+                  <text
+                    class="font-sans font-bold"
+                    [attr.fill]="this.gameCharacter()!.nonTalkFlag ? '#333' : '#fff'"
+                    [attr.stroke]="this.gameCharacter()!.nonTalkFlag ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.88)'"
+                    [attr.stroke-width]="curvedName.strokeWidth"
+                    [attr.font-size]="curvedName.fontSize"
+                    [attr.letter-spacing]="curvedName.letterSpacing"
+                    stroke-linejoin="round"
+                    paint-order="stroke fill"
+                  >
+                    @for (startOffset of curvedName.startOffsets; track startOffset) {
+                      <textPath
+                        data-testid="multi-angle-name-text-path"
+                        [attr.data-label-copy]="$index + 1"
+                        [attr.href]="'#' + multiAngleCurvedNamePathId()"
+                        [attr.startOffset]="startOffset"
+                        text-anchor="middle"
+                      >
+                        {{ curvedName.paddedText }}{{ isLock ? ' 🔒' : '' }}
+                      </textPath>
+                      @if (startOffset === '0%') {
                         <textPath
-                          data-testid="multi-angle-name-text-path"
+                          data-testid="multi-angle-name-seam-continuation"
                           [attr.data-label-copy]="$index + 1"
                           [attr.href]="'#' + multiAngleCurvedNamePathId()"
-                          [attr.startOffset]="startOffset"
+                          startOffset="100%"
                           text-anchor="middle"
                         >
                           {{ curvedName.paddedText }}{{ isLock ? ' 🔒' : '' }}
                         </textPath>
-                        @if (startOffset === '0%') {
-                          <textPath
-                            data-testid="multi-angle-name-seam-continuation"
-                            [attr.data-label-copy]="$index + 1"
-                            [attr.href]="'#' + multiAngleCurvedNamePathId()"
-                            startOffset="100%"
-                            text-anchor="middle"
-                          >
-                            {{ curvedName.paddedText }}{{ isLock ? ' 🔒' : '' }}
-                          </textPath>
-                        }
                       }
-                      @for (separatorOffset of curvedName.separatorOffsets; track separatorOffset) {
-                        <textPath
-                          data-testid="multi-angle-name-separator"
-                          [attr.href]="'#' + multiAngleCurvedNamePathId()"
-                          [attr.startOffset]="separatorOffset"
-                          text-anchor="middle"
-                          opacity="0.82"
-                        >
-                          ◆
-                        </textPath>
-                      }
-                    </text>
-                  </svg>
-                </div>
-              }
-            </div>
-          </div>
-        }
-        @if (altitudeGuide(); as guide) {
-          <!-- The guide from the height the piece floats at to the face it stands on. -->
-          <div
-            data-testid="altitude-guide"
-            class="pointer-events-none w-0 border-l-2 border-dashed border-l-black"
-            [appHudPlace]="{ owner: id, at: guide.lifted, reach: guide.ground }"
-          ></div>
-          <div class="pointer-events-none size-0" [appHudPlace]="{ owner: id, at: guide.lifted }">
-            <span
-              data-testid="altitude-guide-elevation"
-              class="text-ui-text absolute left-1 -translate-y-1/2 text-[12px] font-extrabold whitespace-nowrap italic [text-shadow:var(--ui-panel-bg)_0px_0px_3px]"
-              >{{ elevation }}</span
-            >
-          </div>
-          <div class="pointer-events-none size-0" [appHudPlace]="{ owner: id, at: guide.middle }">
-            <span
-              data-testid="altitude-guide-altitude"
-              class="text-ui-text absolute left-1 -translate-y-1/2 text-[10px] whitespace-nowrap [text-shadow:var(--ui-panel-bg)_0px_0px_3px]"
-              >{{ guide.altitude }}</span
-            >
-          </div>
-        }
-        @if (imageFile().url.length > 0) {
-          <img
-            data-part="picture"
-            class="pointer-events-auto block size-25 max-w-none opacity-0"
-            alt=""
-            draggable="false"
-            [src]="imageFile().url | safe: 'resourceUrl'"
-            [appHudPlace]="{ owner: id, part: 'picture', place: 'face' }"
-          />
-          @if (!isLock && !mode2dEnabled()) {
-            <!-- The handles that tip the piece over, either side of its picture. -->
-            <div
-              class="contents"
-              appRotable
-              [rotable.option]="rollOption"
-              [rotable.value]="rollSignal()"
-              (rotable.valueChange)="roll = $event"
-              (rotable.ondragstart)="onMove()"
-              (rotable.ondragend)="onMoved()"
-            >
-              @for (handle of rollHandles(); track handle.testId) {
-                <div
-                  class="pointer-events-none size-0"
-                  [appHudPlace]="{ owner: id, part: 'picture', edge: handle.edge }"
-                >
-                  <div
-                    class="rotate-grab bg-ui-elevated text-ui-muted pointer-events-auto absolute flex cursor-default items-center justify-center rounded-full opacity-0 group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
-                    [attr.data-testid]="handle.testId"
-                    [style.width.px]="rollHandleSizePx()"
-                    [style.height.px]="rollHandleSizePx()"
-                    [style.left.px]="handle.dx - rollHandleSizePx() / 2"
-                    [style.top.px]="-rollHandleSizePx() / 2"
-                  >
-                    <i
-                      class="material-icons hidden group-hover:inline group-active:inline"
-                      [style.font-size.px]="rollHandleIconSizePx()"
-                      >autorenew</i
-                    >
-                  </div>
-                </div>
-              }
-            </div>
-          }
-        }
-        <div
-          class="pointer-events-none whitespace-nowrap"
-          [style.font-size.px]="hudDecorFontSizePx"
-          [appHudPlace]="{ owner: id, part: labelledPart(), place: 'above' }"
-        >
-          <div
-            data-testid="piece-body"
-            class="flex flex-col items-center gap-[0.3em]"
-            [class.animate-hit-shake]="hitFlash() === 'damage' && !defeatReaction()"
-          >
-            @if (speechBubble(); as bubble) {
-              @for (shown of [bubble]; track shown.key) {
-                <div
-                  data-testid="speech-bubble"
-                  class="animate-speech-pop relative mb-[0.7em] flex w-max max-w-[16em] origin-bottom flex-col items-center gap-[0.3em] rounded-[0.8em] border-[0.1em] border-solid border-[#333] bg-white px-[0.7em] py-[0.45em] text-[1.3em] leading-snug text-[#222]"
-                  [ngClass]="speechShadow()"
-                >
-                  @if (shown.stamp) {
-                    @defer (on immediate) {
-                      <ui-stamp [stampId]="shown.stamp" [size]="hudSpeechStampPx" />
                     }
-                  }
-                  @if (shown.text) {
-                    <span class="text-center wrap-anywhere whitespace-pre-wrap">{{ shown.text }}</span>
-                  }
-                  <span
-                    class="absolute top-full left-1/2 size-0 -translate-x-1/2 border-x-[0.55em] border-t-[0.7em] border-solid border-x-transparent border-t-[#333]"
-                  ></span>
-                  <span
-                    class="absolute top-full left-1/2 mt-[-0.14em] size-0 -translate-x-1/2 border-x-[0.42em] border-t-[0.55em] border-solid border-x-transparent border-t-white"
-                  ></span>
-                </div>
-              }
-            }
-            @if (isTargeted()) {
-              <div data-testid="target-marker">
-                <svg
-                  class="animate-target-bob relative block w-[4.2em] drop-shadow-[0_0.08em_0.16em_rgba(0,0,0,0.85)]"
-                  viewBox="0 0 64 44"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M7.5 2 H56.5 A5.5 5.5 0 0 1 62 7.5 V15.5 A5.5 5.5 0 0 1 56.5 21 H39 L32 41 L25 21 H7.5 A5.5 5.5 0 0 1 2 15.5 V7.5 A5.5 5.5 0 0 1 7.5 2 Z"
-                    fill="#ff3b30"
-                    stroke="#ffffff"
-                    stroke-width="2.6"
-                    stroke-linejoin="round"
-                  />
-                  <text
-                    x="32"
-                    y="15.4"
-                    text-anchor="middle"
-                    textLength="42"
-                    lengthAdjust="spacingAndGlyphs"
-                    font-size="11.5"
-                    font-weight="700"
-                    fill="#ffffff"
-                  >
-                    TARGET
+                    @for (separatorOffset of curvedName.separatorOffsets; track separatorOffset) {
+                      <textPath
+                        data-testid="multi-angle-name-separator"
+                        [attr.href]="'#' + multiAngleCurvedNamePathId()"
+                        [attr.startOffset]="separatorOffset"
+                        text-anchor="middle"
+                        opacity="0.82"
+                      >
+                        ◆
+                      </textPath>
+                    }
                   </text>
                 </svg>
               </div>
             }
-            <div class="flex flex-col items-start gap-[0.3em]">
-              @let buffEl = this.gameCharacter()!.buffDataElement;
-              @if (
-                buffEl &&
-                buffNum() > 0 &&
-                !hideBuff() &&
-                !multiAngleResourceBuffOrbitEnabled() &&
-                !ridingMount() &&
-                !labelsInRidingCard()
-              ) {
-                <div data-testid="buff-plate" class="text-ui-text pointer-events-auto">
-                  <div class="ml-[-0.6em] flex w-full items-end justify-start">
-                    <button
-                      type="button"
-                      data-testid="buff-view-switch"
-                      class="flex w-max flex-none cursor-pointer justify-start rounded-[1.2em] border border-solid px-[0.5em] py-[0.15em] transition-colors duration-150 hover:border-white/45 hover:bg-black/45"
-                      [ngClass]="
-                        buffViewMode() === 'detail'
-                          ? 'border-ui-border-panel bg-ui-panel'
-                          : 'border-transparent bg-transparent'
-                      "
-                      [attr.title]="
-                        ('feature.character.contextMenu.buffView' | transloco) + ': ' + (buffViewLabelKey() | transloco)
-                      "
-                      (click)="cycleBuffView($event)"
-                      (mousedown)="cycleBuffView($event)"
-                      (touchstart)="$event.stopPropagation()"
-                    >
-                      @switch (buffViewMode()) {
-                        @case ('detail') {
-                          <div
-                            class="animate-buff-swap flex w-max flex-col items-start justify-end whitespace-nowrap [-webkit-font-smoothing:antialiased] [text-rendering:optimizeLegibility]"
-                          >
-                            @for (childElement of buffChildren(); track childElement.identifier) {
-                              <div
-                                class="block w-max whitespace-nowrap"
-                                game-data-element-buff
-                                [gameDataElement]="childElement"
-                                [isEdit]="false"
-                                [isPieceMode]="true"
-                              ></div>
-                            }
-                          </div>
-                        }
-                        @case ('count') {
-                          <span
-                            class="animate-buff-swap bg-ui-panel text-ui-text rounded-full px-[0.6em] py-[0.15em] text-[1.1em] leading-normal whitespace-nowrap"
-                            >{{ 'feature.character.buff.count' | transloco: { count: buffNum() } }}</span
-                          >
-                        }
-                        @default {
-                          <div
-                            class="animate-buff-swap grid w-max items-end gap-[0.8em]"
-                            data-testid="buff-badge-grid"
-                            [style.grid-template-columns]="buffBadgeColumns"
-                            [style.font-size.em]="buffIconScale()"
-                          >
-                            @for (badge of buffBadges(); track badge.identifier) {
-                              <buff-badge [badge]="badge"></buff-badge>
-                            }
-                          </div>
-                        }
-                      }
-                    </button>
-                  </div>
-                </div>
-              }
-              @if (floatingChanges().length > 0) {
-                <div class="flex flex-col items-center gap-[0.1em]">
-                  @for (change of floatingChanges(); track change.key) {
-                    <span
-                      data-testid="resource-change"
-                      class="animate-float-change text-[1.6em] leading-none font-bold tabular-nums [text-shadow:0_0.06em_0_#000,0_-0.06em_0_#000,0.06em_0_0_#000,-0.06em_0_0_#000,0_0.12em_0.18em_rgba(0,0,0,0.65)]"
-                      [ngClass]="change.kind === 'damage' ? 'text-[#ff5a5a]' : 'text-[#5ce07a]'"
-                      [attr.data-kind]="change.kind"
-                      >{{ change.label }}</span
-                    >
-                  }
-                </div>
-              }
-              @if (labelsInRidingCard()) {
-                <div
-                  data-testid="riding-label"
-                  class="box-border flex flex-col items-center rounded-[0.9em] bg-black/35 px-[0.6em] py-[0.35em]"
-                >
-                  @for (label of ridingCard(); track label.identifier; let first = $first) {
-                    @if (!first) {
-                      <div class="my-[0.35em] h-[0.1em] w-full shrink-0 bg-white/40"></div>
-                    }
-                    <div class="flex flex-col items-center gap-[0.15em]" data-testid="riding-label-piece">
-                      @if (label.badges.length > 0) {
-                        <div
-                          class="grid w-max items-end gap-[0.8em]"
-                          [style.grid-template-columns]="buffBadgeColumns"
-                          [style.font-size.em]="buffIconScale()"
-                        >
-                          @for (badge of label.badges; track badge.identifier) {
-                            <buff-badge [badge]="badge"></buff-badge>
-                          }
-                        </div>
-                      }
-                      @for (row of label.gauges; track row.gauge.identifier) {
-                        <ng-container *ngTemplateOutlet="gaugeRowView; context: { $implicit: row }"></ng-container>
-                      }
-                      @if (label.name && label.icon) {
-                        <div
-                          class="bg-ui-panel text-ui-text box-border max-w-[24em] truncate rounded-[1.6em] px-[0.6em] py-[0.2em]"
-                          data-testid="riding-label-name"
-                          [style.font-size.em]="ridingNameEm"
-                        >
-                          <i class="material-icons text-ui-muted inline align-middle text-[1em]!">{{ label.icon }}</i>
-                          {{ label.name }}
-                        </div>
-                      } @else if (label.name) {
-                        <div
-                          class="bg-ui-panel text-ui-text pointer-events-auto box-border rounded-[1.6em] px-[0.6em] py-[0.2em]"
-                          data-testid="piece-name"
-                          [style.font-size.em]="ridingNameEm"
-                        >
-                          <div class="max-w-[24em] truncate">
-                            {{ label.name }}
-                            @if (isLock) {
-                              <i class="material-icons inline align-middle text-[1em]!">lock</i>
-                            }
-                            <span class="text-ui-muted whitespace-nowrap" data-testid="piece-riders"
-                              ><i class="material-icons inline align-middle text-[1em]!">person</i
-                              >{{ label.aboard }}</span
-                            >
-                          </div>
-                        </div>
-                      }
-                    </div>
-                  }
-                </div>
-              }
-              @if (
-                pieceGauges().length > 0 &&
-                !multiAngleResourceBuffOrbitEnabled() &&
-                !ridingMount() &&
-                !labelsInRidingCard()
-              ) {
-                <div class="pointer-events-auto flex flex-col items-center gap-[0.15em]">
-                  @for (row of gaugeRows(); track row.gauge.identifier) {
-                    <ng-container *ngTemplateOutlet="gaugeRowView; context: { $implicit: row }"></ng-container>
-                  }
-                </div>
-              }
-            </div>
-            @if (name() && !hideName() && !multiAngleNameOrbitEnabled() && !ridingMount() && !labelsInRidingCard()) {
-              <div class="pointer-events-auto" [style.font-size.px]="hudNameFontSizePx">
-                @if (this.gameCharacter()!.nonTalkFlag) {
-                  <div
-                    class="box-border rounded-[1.6em] px-[0.6em] py-[0.2em]"
-                    [ngStyle]="{
-                      'background-color': 'rgba(255,255,255, 0.6)',
-                      color: '#333',
-                      border: 'solid 0.07em #555',
-                    }"
-                  >
-                    <div class="max-w-[24em] truncate">
-                      {{ name() }}
-                      @if (isLock) {
-                        <i class="material-icons inline align-middle text-[1em]!">lock</i>
-                      }
-                      @if (ridersAboard() > 0) {
-                        <span class="text-ui-muted whitespace-nowrap" data-testid="piece-riders"
-                          ><i class="material-icons inline align-middle text-[1em]!">person</i
-                          >{{ ridersAboard() }}</span
-                        >
-                      }
-                    </div>
-                  </div>
-                } @else {
-                  <div
-                    class="bg-ui-panel text-ui-text box-border rounded-[1.6em] px-[0.6em] py-[0.2em]"
-                    data-testid="piece-name"
-                  >
-                    <div class="max-w-[24em] truncate">
-                      {{ name() }}
-                      @if (isLock) {
-                        <i class="material-icons inline align-middle text-[1em]!">lock</i>
-                      }
-                      @if (ridersAboard() > 0) {
-                        <span class="text-ui-muted whitespace-nowrap" data-testid="piece-riders"
-                          ><i class="material-icons inline align-middle text-[1em]!">person</i
-                          >{{ ridersAboard() }}</span
-                        >
-                      }
-                    </div>
-                  </div>
-                }
-              </div>
-            }
           </div>
         </div>
-      </div>
-    </div>
-    <div
-      class="pointer-events-none fixed top-0 left-0 opacity-0"
-      [style.width.px]="size() * gridSize"
-      [style.height.px]="size() * gridSize"
-    >
-      <div class="absolute inset-0 backface-hidden" #pedestal data-part="pedestal">
-        @if (showFacingArrow()) {
-          <!-- Pictured with the pedestal, so the canvas lays it on the floor and a picture standing
-               in front of it hides it, as it hides a mark painted on the floor. -->
-          <svg
-            data-testid="facing-arrow"
-            class="pointer-events-none absolute left-1/2 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]"
-            [style.width.px]="facingArrowSizePx()"
-            [style.height.px]="facingArrowSizePx()"
-            [style.top.px]="-(facingArrowSizePx() / 2 + facingArrowOffsetPx())"
-            [style.margin-left.px]="-facingArrowSizePx() / 2"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <path
-              d="M12 1.5 L22.5 22.5 L12 17 L1.5 22.5 Z"
-              fill="#00e5ff"
-              stroke="#ffffff"
-              stroke-width="2.6"
-              stroke-linejoin="round"
-            />
-          </svg>
-        }
-        @if (!this.gameCharacter()!.hideInventory) {
-          <div
-            class="absolute box-border size-full rounded-[25px] border-[6px] border-solid border-[#ffcc80] backface-hidden"
-            [ngStyle]="pedestalStyleShown()"
-            [style.transform]="drawnOnCanvas() ? null : multiAnglePiecePedestalRotation()"
-          ></div>
-        }
-        @if (this.gameCharacter()!.hideInventory) {
-          <div
-            class="absolute box-border size-full rounded-[25px] border-[6px] border-solid border-[#A0E0FF] backface-hidden"
-            [ngStyle]="pedestalStyleHidden()"
-            [style.transform]="drawnOnCanvas() ? null : multiAnglePiecePedestalRotation()"
-          ></div>
-        }
-        <div
-          data-testid="multi-angle-rotating-pedestal"
-          class="absolute box-border size-full rounded-[25px] border-2 border-solid border-[#212121] backface-hidden"
-          [ngStyle]="pedestalOuterStyle()"
-          [style.transform]="drawnOnCanvas() ? null : multiAnglePiecePedestalRotation()"
-        ></div>
-        @if (isTargeted()) {
-          <div
-            data-testid="target-ring"
-            class="animate-target-ring pointer-events-none absolute box-border size-full rounded-[25px] border-[6px] border-solid border-[#ff3b30] filter-[drop-shadow(0_0_5px_rgba(255,59,48,0.95))] backface-hidden"
-            [ngStyle]="pedestalStyleTargeted()"
-          ></div>
-        }
-        @if (isSharedView()) {
-          <div
-            data-testid="shared-view-ring"
-            class="pointer-events-none absolute box-border size-full rounded-[25px] border-4 border-solid border-[#ffd54f] filter-[drop-shadow(0_0_6px_rgba(255,213,79,0.95))] backface-hidden"
-            [ngStyle]="pedestalStyleSharedView()"
-            [title]="'feature.firstPerson.sharedBadge' | transloco"
-          ></div>
-        }
-      </div>
-    </div>
-  } @else {
-    <div
-      class="group h-12.5-[50px] pointer-events-none absolute cursor-grab select-none [-moz-user-drag:none] [-webkit-transform-style:preserve-3d] [-webkit-user-drag:none] transform-3d"
-      [style.width.px]="size() * gridSize"
-      [style.height.px]="size() * gridSize"
-      appMovable
-      [movable.option]="movableOption()"
-      [movable.disable]="isLock || isPlanningMove()"
-      [appSelectable]="gameCharacter()"
-      (movable.onstart)="onGrab($event)"
-      (movable.ondragstart)="onPickUp()"
-      (movable.ondragend)="onPutDown()"
-      (movable.onend)="onLetGo()"
-      (pointerdown)="onPiecePointerDown($event)"
-      (pointermove)="onPiecePointerMove($event)"
-      (pointerup)="onPiecePointerUp($event)"
-      (pointercancel)="onPiecePointerCancel($event)"
-      #root
-    >
-      @if (inWater()?.ripple; as ripple) {
-        <div
-          data-water-ripple
-          class="pointer-events-none absolute inset-0 [-webkit-transform-style:preserve-3d] transform-3d"
-          [style.transform]="ripple"
-        >
-          <div class="water-ripple absolute inset-[-15%] rounded-full border-2 border-solid border-white/80"></div>
-          <div
-            class="water-ripple water-ripple-late absolute inset-[-15%] rounded-full border-2 border-solid border-white/80"
-          ></div>
-        </div>
       }
-      @if (inStealth()) {
-        <!-- Drawn only for the few who see a piece in stealth, to tell them the others do not. -->
+      @if (altitudeGuide(); as guide) {
+        <!-- The guide from the height the piece floats at to the face it stands on. -->
         <div
-          data-testid="stealth-mark"
-          class="border-ui-accent/70 pointer-events-none absolute inset-[-6%] rounded-full border-2 border-dashed [-webkit-transform-style:preserve-3d] transform-3d"
-        >
-          <i
-            class="material-icons bg-ui-panel text-ui-accent shadow-ui-sm absolute -top-1.5 -right-1.5 rounded-full p-0.5 text-[13px]! leading-none"
-            aria-hidden="true"
-            >visibility_off</i
+          data-testid="altitude-guide"
+          class="pointer-events-none w-0 border-l-2 border-dashed border-l-black"
+          [appHudPlace]="{ owner: id, at: guide.lifted, reach: guide.ground }"
+        ></div>
+        <div class="pointer-events-none size-0" [appHudPlace]="{ owner: id, at: guide.lifted }">
+          <span
+            data-testid="altitude-guide-elevation"
+            class="text-ui-text absolute left-1 -translate-y-1/2 text-[12px] font-extrabold whitespace-nowrap italic [text-shadow:var(--ui-panel-bg)_0px_0px_3px]"
+            >{{ elevation }}</span
+          >
+        </div>
+        <div class="pointer-events-none size-0" [appHudPlace]="{ owner: id, at: guide.middle }">
+          <span
+            data-testid="altitude-guide-altitude"
+            class="text-ui-text absolute left-1 -translate-y-1/2 text-[10px] whitespace-nowrap [text-shadow:var(--ui-panel-bg)_0px_0px_3px]"
+            >{{ guide.altitude }}</span
           >
         </div>
       }
-      @if (hitFlash() === 'damage') {
-        <div
-          data-testid="hit-flash"
-          class="animate-hit-flash pointer-events-none absolute inset-0 rounded-full [-webkit-transform-style:preserve-3d] transform-3d"
-          [ngStyle]="{ background: 'radial-gradient(circle, rgba(255,60,60,0.85) 0%, rgba(255,60,60,0) 70%)' }"
-        ></div>
-      }
-      @if (hitFlash() === 'heal') {
-        <div
-          data-testid="heal-aura"
-          class="animate-heal-rise pointer-events-none absolute inset-0 rounded-full [-webkit-transform-style:preserve-3d] transform-3d"
-          [ngStyle]="{
-            background:
-              'radial-gradient(circle, rgba(120,255,170,0) 42%, rgba(120,255,170,0.9) 60%, rgba(120,255,170,0) 76%)',
-          }"
-        ></div>
-        <div
-          class="animate-heal-glow pointer-events-none absolute inset-0 rounded-full [-webkit-transform-style:preserve-3d] transform-3d"
-          [ngStyle]="{ background: 'radial-gradient(circle, rgba(90,230,120,0.7) 0%, rgba(90,230,120,0) 70%)' }"
-        ></div>
-      }
-      <div
-        data-testid="piece-entry-bounce"
-        class="size-full [-webkit-transform-style:preserve-3d] transform-3d"
-        [class.animate-bounce-in]="entryBounce()"
-        (animationend)="onEntryBounceEnd($event)"
-      >
-        <div
-          data-testid="piece-body"
-          class="size-full [-webkit-transform-style:preserve-3d] transform-3d"
-          [class.animate-hit-shake]="hitFlash() === 'damage' && !defeatReaction()"
-          [class.animate-defeat-dissolve]="defeatReaction() === 'dissolve'"
-          [class.animate-defeat-bisect]="defeatReaction() === 'bisect'"
-          [class.animate-defeat-flinch]="defeatReaction() === 'flinch'"
-        >
+      @if (imageFile().url.length > 0) {
+        <img
+          data-part="picture"
+          class="pointer-events-auto block size-25 max-w-none opacity-0"
+          alt=""
+          draggable="false"
+          [src]="imageFile().url | safe: 'resourceUrl'"
+          [appHudPlace]="{ owner: id, part: 'picture', place: 'face' }"
+        />
+        @if (!isLock && !mode2dEnabled()) {
+          <!-- The handles that tip the piece over, either side of its picture. -->
           <div
-            data-testid="multi-angle-piece-motion-source"
-            class="pointer-events-auto size-full [-webkit-transform-style:preserve-3d] transform-3d"
-            [class.animate-multi-angle-piece-spin]="multiAngleNameOrbitEnabled()"
-            [style.animation-duration.s]="multiAnglePieceRotationAnimation().durationSeconds"
-            [style.animation-timing-function]="multiAnglePieceRotationAnimation().timingFunction"
-            [style.animation-delay.s]="multiAnglePieceRotationDelaySeconds()"
+            class="contents"
             appRotable
-            [rotable.option]="rotableOption()"
-            [rotable.disable]="!canTurn()"
+            [rotable.option]="rollOption"
+            [rotable.value]="rollSignal()"
+            (rotable.valueChange)="roll = $event"
             (rotable.ondragstart)="onMove()"
             (rotable.ondragend)="onMoved()"
           >
-            <!-- The rings the piece stands in, which a seat drawing the table on a canvas pictures for it. -->
-            <div
-              class="absolute inset-0 [-webkit-transform-style:preserve-3d] backface-hidden transform-3d"
-              #pedestal
-              data-part="pedestal"
-              [class.opacity-0]="drawnOnCanvas()"
-            >
-              @if (!this.gameCharacter()!.hideInventory) {
+            @for (handle of rollHandles(); track handle.testId) {
+              <div class="pointer-events-none size-0" [appHudPlace]="{ owner: id, part: 'picture', edge: handle.edge }">
                 <div
-                  class="absolute box-border size-full rounded-[25px] border-[6px] border-solid border-[#ffcc80] backface-hidden"
-                  [ngStyle]="pedestalStyleShown()"
-                  [style.transform]="drawnOnCanvas() ? null : multiAnglePiecePedestalRotation()"
-                ></div>
-              }
-              @if (this.gameCharacter()!.hideInventory) {
-                <div
-                  class="absolute box-border size-full rounded-[25px] border-[6px] border-solid border-[#A0E0FF] backface-hidden"
-                  [ngStyle]="pedestalStyleHidden()"
-                  [style.transform]="drawnOnCanvas() ? null : multiAnglePiecePedestalRotation()"
-                ></div>
-              }
-              <div
-                data-testid="multi-angle-rotating-pedestal"
-                class="absolute box-border size-full rounded-[25px] border-2 border-solid border-[#212121] backface-hidden"
-                [ngStyle]="pedestalOuterStyle()"
-                [style.transform]="drawnOnCanvas() ? null : multiAnglePiecePedestalRotation()"
-              ></div>
-              @if (isTargeted()) {
-                <div
-                  data-testid="target-ring"
-                  class="animate-target-ring pointer-events-none absolute box-border size-full rounded-[25px] border-[6px] border-solid border-[#ff3b30] filter-[drop-shadow(0_0_5px_rgba(255,59,48,0.95))] backface-hidden"
-                  [ngStyle]="pedestalStyleTargeted()"
-                ></div>
-              }
-              @if (isSharedView()) {
-                <div
-                  data-testid="shared-view-ring"
-                  class="pointer-events-none absolute box-border size-full rounded-[25px] border-4 border-solid border-[#ffd54f] filter-[drop-shadow(0_0_6px_rgba(255,213,79,0.95))] backface-hidden"
-                  [ngStyle]="pedestalStyleSharedView()"
-                  [title]="'feature.firstPerson.sharedBadge' | transloco"
-                ></div>
-              }
-            </div>
-            @if (!isLock && canTurn()) {
-              <div
-                class="rotate-grab absolute -top-5.5 -left-1.5 z-[-1] h-[calc(100%+44px)] w-[calc(100%+12px)] cursor-default rounded-[37px] opacity-0 backface-hidden group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
-                [ngStyle]="pedestalGrabStyle()"
-              >
-                <div
-                  class="pointer-events-none box-border size-full rounded-[37px] border-x-12 border-y-28 border-solid border-t-[#999] border-r-[#ccc] border-b-[#ccc] border-l-[#999]"
-                  [ngStyle]="pedestalGrabBorderStyle()"
+                  class="rotate-grab bg-ui-elevated text-ui-muted pointer-events-auto absolute flex cursor-default items-center justify-center rounded-full opacity-0 group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
+                  [attr.data-testid]="handle.testId"
+                  [style.width.px]="rollHandleSizePx()"
+                  [style.height.px]="rollHandleSizePx()"
+                  [style.left.px]="handle.dx - rollHandleSizePx() / 2"
+                  [style.top.px]="-rollHandleSizePx() / 2"
                 >
-                  <div
-                    class="material-icons text-ui-muted absolute inset-x-0 bottom-0 m-auto hidden w-6 group-hover:inline group-active:inline"
+                  <i
+                    class="material-icons hidden group-hover:inline group-active:inline"
+                    [style.font-size.px]="rollHandleIconSizePx()"
+                    >autorenew</i
                   >
-                    autorenew
-                  </div>
-                  <div
-                    class="material-icons text-ui-muted absolute inset-x-0 top-0 m-auto hidden w-6 group-hover:inline group-active:inline"
-                  >
-                    autorenew
-                  </div>
                 </div>
               </div>
             }
-            @if (isDropShadow && 0 < imageFile().url.length && specifyKomaImageFlag() && !imageView.fitsInCell()) {
-              @let shadowWidth = komaImageWidthApart();
-              <img
-                class="chrome-smooth-image-trick pointer-events-none filter-[brightness(0)_opacity(0.7)_blur(1px)]"
-                [style.opacity]="drawnOnCanvas() ? 0 : null"
-                [ngStyle]="{
-                  position: 'absolute',
-                  bottom: '0',
-                  left: '50%',
-                  height: komaImageHeightSignal() + 'px',
-                  width: shadowWidth === null ? 'auto' : shadowWidth + 'px',
-                  maxWidth: 'none',
-                  transform:
-                    'translateX(-50%) ' +
-                    multiAnglePiecePedestalRotation() +
-                    ' scaleY(0.5) translateY(-150%) translateY(' +
-                    size() * gridSize +
-                    'px)',
-                }"
-                [src]="imageFile().url | safe: 'resourceUrl'"
-              />
-            }
-            @if (isDropShadow && 0 < imageFile().url.length && !specifyKomaImageFlag() && !imageView.fitsInCell()) {
-              <img
-                class="chrome-smooth-image-trick pointer-events-none inset-x-0 bottom-0 m-auto h-auto align-bottom filter-[brightness(0)_opacity(0.7)_blur(1px)]"
-                [style.opacity]="drawnOnCanvas() ? 0 : null"
-                [ngStyle]="{
-                  width: '100%',
-                  transform:
-                    'translateX(-50%) translateX(' +
-                    (size() * gridSize) / 2 +
-                    'px) ' +
-                    multiAnglePiecePedestalRotation() +
-                    ' scaleY(0.5) translateY(-150%) translateY(' +
-                    size() * gridSize +
-                    'px)',
-                }"
-                [src]="imageFile().url | safe: 'resourceUrl'"
-              />
-            }
-            @if (isDropShadow && 0 < imageFile().url.length && imageView.fitsInCell()) {
-              <img
-                class="chrome-smooth-image-trick pointer-events-none inset-x-0 bottom-0 m-auto block object-contain align-bottom filter-[brightness(0)_opacity(0.7)_blur(1px)]"
-                [style.opacity]="drawnOnCanvas() ? 0 : null"
-                [ngStyle]="{
-                  width: '100%',
-                  height: size() * gridSize + 'px',
-                  transform:
-                    'translateX(-50%) translateX(' +
-                    (size() * gridSize) / 2 +
-                    'px) ' +
-                    multiAnglePiecePedestalRotation() +
-                    ' scaleY(0.5) translateY(-150%) translateY(' +
-                    size() * gridSize +
-                    'px)',
-                }"
-                [src]="imageFile().url | safe: 'resourceUrl'"
-              />
-            }
-            @if (isPoster() && 0 < imageFile().url.length) {
-              <img
-                data-part="picture"
-                class="image chrome-smooth-image-trick pointer-events-none absolute inset-0 m-auto block size-full object-contain"
-                [class.opacity-50]="inStealth()"
-                [style.opacity]="drawnOnCanvas() ? 0 : null"
-                [ngStyle]="{
-                  width: imageView.supersamplePercent(),
-                  height: imageView.supersamplePercent(),
-                  maxWidth: 'none',
-                  margin: imageView.supersampleInset(),
-                  transform: groundLean() + ' ' + imageView.posterTransform(),
-                }"
-                (load)="imageView.onImageLoad($event)"
-                [src]="imageFile().url | safe: 'resourceUrl'"
-              />
-            }
-            <div
-              class="pointer-events-none absolute inset-x-0 bottom-0 h-auto w-full [-webkit-transform-style:preserve-3d] transform-3d"
-              [ngStyle]="{ transform: standTransform() }"
-            >
+          </div>
+        }
+      }
+      <div
+        class="pointer-events-none whitespace-nowrap"
+        [style.font-size.px]="hudDecorFontSizePx"
+        [appHudPlace]="{ owner: id, part: labelledPart(), place: 'above' }"
+      >
+        <div
+          data-testid="piece-body"
+          class="flex flex-col items-center gap-[0.3em]"
+          [class.animate-hit-shake]="hitFlash() === 'damage' && !defeatReaction()"
+        >
+          @if (speechBubble(); as bubble) {
+            @for (shown of [bubble]; track shown.key) {
               <div
-                class="pointer-events-none inset-x-0 bottom-0 [-webkit-transform-style:preserve-3d] transform-3d"
-                [style.width.px]="size() * gridSize"
-                [style.height.px]="size() * gridSize"
-                appRotable
-                [rotable.value]="rollSignal()"
-                [rotable.disable]="mode2dEnabled()"
-                (rotable.valueChange)="roll = $event"
-                (rotable.ondragstart)="onMove()"
-                (rotable.ondragend)="onMoved()"
+                data-testid="speech-bubble"
+                aria-hidden="true"
+                class="animate-speech-pop relative mb-[0.7em] flex w-max max-w-[16em] origin-bottom flex-col items-center gap-[0.3em] rounded-[0.8em] border-[0.1em] border-solid border-[#333] bg-white px-[0.7em] py-[0.45em] text-[1.3em] leading-snug text-[#222]"
+                [ngClass]="speechShadow()"
               >
-                <div
-                  class="pointer-events-none absolute inset-x-0 bottom-0 h-auto w-full [-webkit-transform-style:preserve-3d] transform-3d"
-                  [style.height.px]="imageView.boxHeightPx()"
-                >
-                  @let buffEl = this.gameCharacter()!.buffDataElement;
-                  @if (
-                    buffEl &&
-                    buffNum() > 0 &&
-                    !hideBuff() &&
-                    !multiAngleResourceBuffOrbitEnabled() &&
-                    !ridingMount() &&
-                    !labelsInRidingCard()
-                  ) {
-                    <div class="pointer-events-auto [-webkit-transform-style:preserve-3d] transform-3d">
-                      <div
-                        class="absolute m-auto [-webkit-transform-style:preserve-3d] transform-3d"
-                        [appBillboard]="buffOrbitFacing()"
-                      >
-                        <div
-                          data-testid="buff-plate"
-                          class="text-ui-text absolute bottom-0 left-0 box-border w-[18em] origin-bottom-left whitespace-nowrap [-webkit-transform-style:preserve-3d] transform-3d"
-                          [style.font-size.px]="decorFontSizePx"
-                          [appBillboard]="buffStackFacing()"
-                        >
-                          <div class="flex w-full items-end justify-start pl-[1.5em]">
-                            <button
-                              type="button"
-                              data-testid="buff-view-switch"
-                              class="flex w-max flex-none cursor-pointer justify-start rounded-[1.2em] border border-solid px-[0.5em] py-[0.15em] transition-colors duration-150 hover:border-white/45 hover:bg-black/45"
-                              [ngClass]="
-                                buffViewMode() === 'detail'
-                                  ? 'border-ui-border-panel bg-ui-panel'
-                                  : 'border-transparent bg-transparent'
-                              "
-                              [attr.title]="
-                                ('feature.character.contextMenu.buffView' | transloco) +
-                                ': ' +
-                                (buffViewLabelKey() | transloco)
-                              "
-                              (click)="cycleBuffView($event)"
-                              (mousedown)="cycleBuffView($event)"
-                              (touchstart)="$event.stopPropagation()"
-                            >
-                              @switch (buffViewMode()) {
-                                @case ('detail') {
-                                  <div
-                                    class="animate-buff-swap flex w-max flex-col items-start justify-end whitespace-nowrap [-webkit-font-smoothing:antialiased] [text-rendering:optimizeLegibility]"
-                                  >
-                                    @for (childElement of buffChildren(); track childElement.identifier) {
-                                      <div
-                                        class="block w-max whitespace-nowrap"
-                                        game-data-element-buff
-                                        [gameDataElement]="childElement"
-                                        [isEdit]="false"
-                                        [isPieceMode]="true"
-                                      ></div>
-                                    }
-                                  </div>
-                                }
-                                @case ('count') {
-                                  <span
-                                    class="animate-buff-swap bg-ui-panel text-ui-text rounded-full px-[0.6em] py-[0.15em] text-[1.1em] leading-normal whitespace-nowrap"
-                                    >{{ 'feature.character.buff.count' | transloco: { count: buffNum() } }}</span
-                                  >
-                                }
-                                @default {
-                                  <div
-                                    class="animate-buff-swap grid w-max items-end gap-[0.8em]"
-                                    data-testid="buff-badge-grid"
-                                    [style.grid-template-columns]="buffBadgeColumns"
-                                    [style.font-size.em]="buffIconScale()"
-                                  >
-                                    @for (badge of buffBadges(); track badge.identifier) {
-                                      <buff-badge [badge]="badge"></buff-badge>
-                                    }
-                                  </div>
-                                }
-                              }
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                @if (shown.stamp) {
+                  @defer (on immediate) {
+                    <ui-stamp [stampId]="shown.stamp" [size]="hudSpeechStampPx" />
                   }
-                  @if (floatingChanges().length > 0) {
-                    <div
-                      class="pointer-events-none absolute [-webkit-transform-style:preserve-3d] transform-3d"
-                      [appBillboard]="floatOrbitFacing()"
-                    >
-                      <div
-                        class="absolute bottom-0 left-0 flex origin-bottom-left flex-col items-center gap-[0.1em] whitespace-nowrap [-webkit-transform-style:preserve-3d] transform-3d"
-                        [style.font-size.px]="decorFontSizePx"
-                        [appBillboard]="floatStackFacing()"
-                      >
-                        @for (change of floatingChanges(); track change.key) {
-                          <span
-                            data-testid="resource-change"
-                            class="animate-float-change text-[1.6em] leading-none font-bold tabular-nums [text-shadow:0_0.06em_0_#000,0_-0.06em_0_#000,0.06em_0_0_#000,-0.06em_0_0_#000,0_0.12em_0.18em_rgba(0,0,0,0.65)]"
-                            [ngClass]="change.kind === 'damage' ? 'text-[#ff5a5a]' : 'text-[#5ce07a]'"
-                            [attr.data-kind]="change.kind"
-                            >{{ change.label }}</span
-                          >
-                        }
-                      </div>
-                    </div>
-                  }
-                  @if (
-                    pieceGauges().length > 0 &&
-                    !multiAngleResourceBuffOrbitEnabled() &&
-                    !ridingMount() &&
-                    !labelsInRidingCard()
-                  ) {
-                    <div
-                      class="pointer-events-auto absolute [-webkit-transform-style:preserve-3d] transform-3d"
-                      [appBillboard]="gaugeOrbitFacing()"
-                    >
-                      <div
-                        class="absolute top-0 left-0 flex origin-top-left flex-col items-center gap-[0.15em] whitespace-nowrap [-webkit-transform-style:preserve-3d] transform-3d"
-                        [style.font-size.px]="decorFontSizePx"
-                        [appBillboard]="gaugeStackFacing()"
-                      >
-                        @for (row of gaugeRows(); track row.gauge.identifier) {
-                          <ng-container *ngTemplateOutlet="gaugeRowView; context: { $implicit: row }"></ng-container>
-                        }
-                      </div>
-                    </div>
-                  }
-                  @if (
-                    name() && !hideName() && !multiAngleNameOrbitEnabled() && !ridingMount() && !labelsInRidingCard()
-                  ) {
-                    <div
-                      class="pointer-events-auto absolute [-webkit-transform-style:preserve-3d] transform-3d"
-                      [style.font-size.px]="nameFontSizePx"
-                      [appBillboard]="nameOrbitFacing()"
-                    >
-                      @if (this.gameCharacter()!.nonTalkFlag) {
-                        <div
-                          class="absolute top-0 left-0 box-border origin-top-left rounded-[1.6em] px-[0.6em] py-[0.2em] whitespace-nowrap [-webkit-transform-style:preserve-3d] transform-3d"
-                          [appBillboard]="nameStackFacing()"
-                          [ngStyle]="{
-                            'background-color': 'rgba(255,255,255, 0.6)',
-                            color: '#333',
-                            border: 'solid 0.07em #555',
-                          }"
-                        >
-                          <div class="max-w-[24em] truncate">
-                            {{ name() }}
-                            @if (isLock) {
-                              <i class="material-icons inline align-middle text-[1em]!">lock</i>
-                            }
-                            @if (ridersAboard() > 0) {
-                              <span class="text-ui-muted whitespace-nowrap" data-testid="piece-riders"
-                                ><i class="material-icons inline align-middle text-[1em]!">person</i
-                                >{{ ridersAboard() }}</span
-                              >
-                            }
-                          </div>
-                        </div>
-                      } @else {
-                        <div
-                          class="bg-ui-panel text-ui-text absolute top-0 left-0 box-border origin-top-left rounded-[1.6em] px-[0.6em] py-[0.2em] whitespace-nowrap [-webkit-transform-style:preserve-3d] transform-3d"
-                          data-testid="piece-name"
-                          [appBillboard]="nameStackFacing()"
-                        >
-                          <div class="max-w-[24em] truncate">
-                            {{ name() }}
-                            @if (isLock) {
-                              <i class="material-icons inline align-middle text-[1em]!">lock</i>
-                            }
-                            @if (ridersAboard() > 0) {
-                              <span class="text-ui-muted whitespace-nowrap" data-testid="piece-riders"
-                                ><i class="material-icons inline align-middle text-[1em]!">person</i
-                                >{{ ridersAboard() }}</span
-                              >
-                            }
-                          </div>
-                        </div>
-                      }
-                    </div>
-                  }
-                  @if (labelsInRidingCard()) {
-                    <div
-                      class="pointer-events-none absolute [-webkit-transform-style:preserve-3d] transform-3d"
-                      [appBillboard]="ridingOrbitFacing()"
-                    >
-                      <div
-                        data-testid="riding-label"
-                        class="absolute bottom-0 left-0 box-border flex origin-bottom-left flex-col items-center rounded-[0.9em] bg-black/35 px-[0.6em] py-[0.35em] whitespace-nowrap [-webkit-transform-style:preserve-3d] transform-3d"
-                        [style.font-size.px]="decorFontSizePx"
-                        [appBillboard]="ridingStackFacing()"
-                      >
-                        @for (label of ridingCard(); track label.identifier; let first = $first) {
-                          @if (!first) {
-                            <div class="my-[0.35em] h-[0.1em] w-full shrink-0 bg-white/40"></div>
-                          }
-                          <div class="flex flex-col items-center gap-[0.15em]" data-testid="riding-label-piece">
-                            @if (label.badges.length > 0) {
-                              <div
-                                class="grid w-max items-end gap-[0.8em]"
-                                [style.grid-template-columns]="buffBadgeColumns"
-                                [style.font-size.em]="buffIconScale()"
-                              >
-                                @for (badge of label.badges; track badge.identifier) {
-                                  <buff-badge [badge]="badge"></buff-badge>
-                                }
-                              </div>
-                            }
-                            @for (row of label.gauges; track row.gauge.identifier) {
-                              <ng-container
-                                *ngTemplateOutlet="gaugeRowView; context: { $implicit: row }"
-                              ></ng-container>
-                            }
-                            @if (label.name && label.icon) {
-                              <div
-                                class="bg-ui-panel text-ui-text box-border max-w-[24em] truncate rounded-[1.6em] px-[0.6em] py-[0.2em]"
-                                data-testid="riding-label-name"
-                                [style.font-size.em]="ridingNameEm"
-                              >
-                                <i class="material-icons text-ui-muted inline align-middle text-[1em]!">{{
-                                  label.icon
-                                }}</i>
-                                {{ label.name }}
-                              </div>
-                            } @else if (label.name) {
-                              <div
-                                class="bg-ui-panel text-ui-text pointer-events-auto box-border rounded-[1.6em] px-[0.6em] py-[0.2em]"
-                                data-testid="piece-name"
-                                [style.font-size.em]="ridingNameEm"
-                              >
-                                <div class="max-w-[24em] truncate">
-                                  {{ label.name }}
-                                  @if (isLock) {
-                                    <i class="material-icons inline align-middle text-[1em]!">lock</i>
-                                  }
-                                  <span class="text-ui-muted whitespace-nowrap" data-testid="piece-riders"
-                                    ><i class="material-icons inline align-middle text-[1em]!">person</i
-                                    >{{ label.aboard }}</span
-                                  >
-                                </div>
-                              </div>
-                            }
-                          </div>
-                        }
-                      </div>
-                    </div>
-                  }
-                  @if (!isLock && !mode2dEnabled()) {
-                    <div
-                      data-testid="roll-grab-head"
-                      class="rotate-grab bg-ui-elevated text-ui-muted pointer-events-auto absolute top-0 left-0 z-1 flex cursor-default items-center justify-center rounded-full opacity-0 [-webkit-transform-style:preserve-3d] transform-3d group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
-                      [style.width.px]="rollHandleSizePx()"
-                      [style.height.px]="rollHandleSizePx()"
-                      [style.top]="rollHandlesBeside() ? '50%' : null"
-                      [ngStyle]="{ transform: rollHandleHeadTransform() }"
-                    >
-                      <i
-                        class="material-icons hidden group-hover:inline group-active:inline"
-                        [style.font-size.px]="rollHandleIconSizePx()"
-                        >autorenew</i
-                      >
-                    </div>
-                    <div
-                      data-testid="roll-grab-foot"
-                      class="rotate-grab bg-ui-elevated text-ui-muted pointer-events-auto absolute bottom-0 left-0 z-1 flex cursor-default items-center justify-center rounded-full opacity-0 [-webkit-transform-style:preserve-3d] transform-3d group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
-                      [style.width.px]="rollHandleSizePx()"
-                      [style.height.px]="rollHandleSizePx()"
-                      [style.top]="rollHandlesBeside() ? '50%' : null"
-                      [style.bottom]="rollHandlesBeside() ? 'auto' : null"
-                      [ngStyle]="{ transform: rollHandleFootTransform() }"
-                    >
-                      <i
-                        class="material-icons hidden group-hover:inline group-active:inline"
-                        [style.font-size.px]="rollHandleIconSizePx()"
-                        >autorenew</i
-                      >
-                    </div>
-                  }
-                  @if (!isPoster() && 0 < imageFile().url.length && specifyKomaImageFlag() && !imageView.fitsInCell()) {
-                    @let pictureWidth = komaImageWidthApart();
-                    @let komaHeight = komaImageHeightSignal() * imageView.supersample() + 'px';
-                    @let komaWidth = pictureWidth === null ? 'auto' : pictureWidth * imageView.supersample() + 'px';
-                    <ng-container
-                      *ngTemplateOutlet="
-                        picture;
-                        context: {
-                          facing: imageView.komaFacing(),
-                          sizing: 'h-auto',
-                          style: {
-                            height: komaHeight,
-                            width: komaWidth,
-                            maxWidth: 'none',
-                            display: 'inline-block',
-                            left: 'auto',
-                            right: 'auto',
-                          },
-                          copyStyle: {
-                            height: komaHeight,
-                            width: komaWidth,
-                            maxWidth: 'none',
-                            display: 'inline-block',
-                          },
-                        }
-                      "
-                    />
-                  }
-                  @if (
-                    !isPoster() && 0 < imageFile().url.length && !specifyKomaImageFlag() && !imageView.fitsInCell()
-                  ) {
-                    @let naturalStyle =
-                      {
-                        width: imageView.supersamplePercent(),
-                        maxWidth: 'none',
-                        marginLeft: imageView.supersampleInset(),
-                        marginRight: imageView.supersampleInset(),
-                      };
-                    <ng-container
-                      *ngTemplateOutlet="
-                        picture;
-                        context: {
-                          facing: imageView.pieceFacing(),
-                          sizing: 'h-auto',
-                          style: naturalStyle,
-                          copyStyle: naturalStyle,
-                        }
-                      "
-                    />
-                  }
-                  @if (!isPoster() && 0 < imageFile().url.length && imageView.fitsInCell()) {
-                    @let cellStyle =
-                      {
-                        width: imageView.supersamplePercent(),
-                        height: size() * gridSize * imageView.supersample() + 'px',
-                        maxWidth: 'none',
-                        marginLeft: imageView.supersampleInset(),
-                        marginRight: imageView.supersampleInset(),
-                      };
-                    <ng-container
-                      *ngTemplateOutlet="
-                        picture;
-                        context: {
-                          facing: imageView.pieceFacing(),
-                          sizing: 'block object-contain',
-                          style: cellStyle,
-                          copyStyle: cellStyle,
-                        }
-                      "
-                    />
-                  }
-                  @if (isTargeted()) {
-                    <div
-                      class="pointer-events-none absolute bottom-0 left-0 [-webkit-transform-style:preserve-3d] transform-3d"
-                      [appBillboard]="targetOrbitFacing()"
-                    >
-                      <div
-                        data-testid="target-marker"
-                        class="absolute bottom-0 left-0 origin-bottom-left [-webkit-transform-style:preserve-3d] transform-3d"
-                        [style.font-size.px]="decorFontSizePx"
-                        [appBillboard]="targetStackFacing()"
-                      >
-                        <svg
-                          class="animate-target-bob relative block w-[4.2em] drop-shadow-[0_0.08em_0.16em_rgba(0,0,0,0.85)]"
-                          viewBox="0 0 64 44"
-                          aria-hidden="true"
-                        >
-                          <path
-                            d="M7.5 2 H56.5 A5.5 5.5 0 0 1 62 7.5 V15.5 A5.5 5.5 0 0 1 56.5 21 H39 L32 41 L25 21 H7.5 A5.5 5.5 0 0 1 2 15.5 V7.5 A5.5 5.5 0 0 1 7.5 2 Z"
-                            fill="#ff3b30"
-                            stroke="#ffffff"
-                            stroke-width="2.6"
-                            stroke-linejoin="round"
-                          />
-                          <text
-                            x="32"
-                            y="15.4"
-                            text-anchor="middle"
-                            textLength="42"
-                            lengthAdjust="spacingAndGlyphs"
-                            font-size="11.5"
-                            font-weight="700"
-                            fill="#ffffff"
-                          >
-                            TARGET
-                          </text>
-                        </svg>
-                      </div>
-                    </div>
-                  }
-                  @if (speechBubble(); as bubble) {
-                    <div
-                      class="pointer-events-none absolute top-0 left-0 [-webkit-transform-style:preserve-3d] transform-3d"
-                      aria-hidden="true"
-                      [appBillboard]="speechOrbitFacing()"
-                    >
-                      <div
-                        class="absolute bottom-0 left-0 origin-bottom-left [-webkit-transform-style:preserve-3d] transform-3d"
-                        [style.font-size.px]="decorFontSizePx"
-                        [appBillboard]="speechStackFacing()"
-                      >
-                        @for (shown of [bubble]; track shown.key) {
-                          <div
-                            data-testid="speech-bubble"
-                            class="animate-speech-pop relative mb-[0.7em] flex w-max max-w-[16em] origin-bottom flex-col items-center gap-[0.3em] rounded-[0.8em] border-[0.1em] border-solid border-[#333] bg-white px-[0.7em] py-[0.45em] text-[1.3em] leading-snug text-[#222]"
-                            [ngClass]="speechShadow()"
-                          >
-                            @if (shown.stamp) {
-                              @defer (on immediate) {
-                                <ui-stamp [stampId]="shown.stamp" [size]="speechStampPx" />
-                              }
-                            }
-                            @if (shown.text) {
-                              <span class="text-center wrap-anywhere whitespace-pre-wrap">{{ shown.text }}</span>
-                            }
-                            <span
-                              class="absolute top-full left-1/2 size-0 -translate-x-1/2 border-x-[0.55em] border-t-[0.7em] border-solid border-x-transparent border-t-[#333]"
-                            ></span>
-                            <span
-                              class="absolute top-full left-1/2 mt-[-0.14em] size-0 -translate-x-1/2 border-x-[0.42em] border-t-[0.55em] border-solid border-x-transparent border-t-white"
-                            ></span>
-                          </div>
-                        }
-                      </div>
-                    </div>
-                  }
-                </div>
+                }
+                @if (shown.text) {
+                  <span class="text-center wrap-anywhere whitespace-pre-wrap">{{ shown.text }}</span>
+                }
+                <span
+                  class="absolute top-full left-1/2 size-0 -translate-x-1/2 border-x-[0.55em] border-t-[0.7em] border-solid border-x-transparent border-t-[#333]"
+                ></span>
+                <span
+                  class="absolute top-full left-1/2 mt-[-0.14em] size-0 -translate-x-1/2 border-x-[0.42em] border-t-[0.55em] border-solid border-x-transparent border-t-white"
+                ></span>
               </div>
-            </div>
-            @if (showFacingArrow()) {
-              <!-- Lying on the same plane as the pedestal, so it turns with the piece and is seen
-                   foreshortened from a tilted table, the way a mark painted on the floor would be.
-                   It is drawn after the picture and the labels, and straddles the edge of the piece,
-                   so that from above it is never buried under the name plate. -->
+            }
+          }
+          @if (isTargeted()) {
+            <div data-testid="target-marker">
               <svg
-                data-testid="facing-arrow"
-                class="pointer-events-none absolute left-1/2 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] backface-hidden"
-                [style.width.px]="facingArrowSizePx()"
-                [style.height.px]="facingArrowSizePx()"
-                [style.top.px]="-(facingArrowSizePx() / 2 + facingArrowOffsetPx())"
-                [style.margin-left.px]="-facingArrowSizePx() / 2"
-                viewBox="0 0 24 24"
+                class="animate-target-bob relative block w-[4.2em] drop-shadow-[0_0.08em_0.16em_rgba(0,0,0,0.85)]"
+                viewBox="0 0 64 44"
                 aria-hidden="true"
               >
                 <path
-                  d="M12 1.5 L22.5 22.5 L12 17 L1.5 22.5 Z"
-                  fill="#00e5ff"
+                  d="M7.5 2 H56.5 A5.5 5.5 0 0 1 62 7.5 V15.5 A5.5 5.5 0 0 1 56.5 21 H39 L32 41 L25 21 H7.5 A5.5 5.5 0 0 1 2 15.5 V7.5 A5.5 5.5 0 0 1 7.5 2 Z"
+                  fill="#ff3b30"
                   stroke="#ffffff"
                   stroke-width="2.6"
                   stroke-linejoin="round"
                 />
+                <text
+                  x="32"
+                  y="15.4"
+                  text-anchor="middle"
+                  textLength="42"
+                  lengthAdjust="spacingAndGlyphs"
+                  font-size="11.5"
+                  font-weight="700"
+                  fill="#ffffff"
+                >
+                  TARGET
+                </text>
               </svg>
-            }
-          </div>
-          @if (multiAngleOrbitVisible()) {
-            <div
-              class="pointer-events-none absolute inset-0 z-20 [-webkit-transform-style:preserve-3d] transform-3d"
-              [style.transform]="'translateZ(4px)'"
-            >
-              @if (multiAngleResourceBuffOrbitEnabled()) {
-                <div
-                  data-testid="multi-angle-resource-buff-orbit"
-                  data-orbit-direction="clockwise"
-                  class="animate-multi-angle-name-orbit absolute inset-0 origin-center"
-                  [style.animation-duration.s]="multiAngleResourceBuffOrbitAnimation().durationSeconds"
-                  [style.animation-timing-function]="multiAngleResourceBuffOrbitAnimation().timingFunction"
-                  [style.animation-delay.s]="multiAngleResourceBuffOrbitDelaySeconds()"
-                >
-                  @let gaugeLayout = multiAngleResourceGaugeLayout();
-                  @if (gaugeLayout.segments.length > 0) {
-                    <svg
-                      data-testid="multi-angle-resource-gauge"
-                      class="absolute overflow-visible"
-                      [style.top.px]="gaugeLayout.offset"
-                      [style.left.px]="gaugeLayout.offset"
-                      [style.width.px]="gaugeLayout.svgSize"
-                      [style.height.px]="gaugeLayout.svgSize"
-                      [attr.viewBox]="'0 0 ' + gaugeLayout.svgSize + ' ' + gaugeLayout.svgSize"
-                      aria-hidden="true"
-                    >
-                      @for (segment of gaugeLayout.segments; track segment.gauge.identifier) {
-                        <circle
-                          class="stroke-black/65"
-                          [attr.cx]="gaugeLayout.center"
-                          [attr.cy]="gaugeLayout.center"
-                          [attr.r]="gaugeLayout.radius"
-                          fill="none"
-                          [attr.stroke-width]="gaugeLayout.strokeWidth"
-                          pathLength="360"
-                          [attr.stroke-dasharray]="segment.trackDashArray"
-                          [attr.transform]="
-                            'rotate(' +
-                            segment.rotationDegrees +
-                            ' ' +
-                            gaugeLayout.center +
-                            ' ' +
-                            gaugeLayout.center +
-                            ')'
-                          "
-                        ></circle>
-                        <circle
-                          data-testid="multi-angle-resource-segment"
-                          [attr.data-resource-name]="segment.gauge.name"
-                          [attr.data-segment-degrees]="segment.segmentDegrees"
-                          [attr.cx]="gaugeLayout.center"
-                          [attr.cy]="gaugeLayout.center"
-                          [attr.r]="gaugeLayout.radius"
-                          fill="none"
-                          [attr.stroke]="segment.gauge.color"
-                          [attr.stroke-width]="gaugeLayout.strokeWidth"
-                          pathLength="360"
-                          [attr.stroke-dasharray]="segment.fillDashArray"
-                          [attr.transform]="
-                            'rotate(' +
-                            segment.rotationDegrees +
-                            ' ' +
-                            gaugeLayout.center +
-                            ' ' +
-                            gaugeLayout.center +
-                            ')'
-                          "
-                        >
-                          <title>{{ segment.gauge.name }}</title>
-                        </circle>
-                        <text
-                          data-testid="multi-angle-resource-label"
-                          class="font-sans font-bold"
-                          [attr.x]="segment.labelX"
-                          [attr.y]="segment.labelY"
-                          [attr.font-size]="gaugeLayout.fontSize"
-                          fill="#ffffff"
-                          stroke="rgba(0,0,0,0.9)"
-                          stroke-width="2"
-                          stroke-linejoin="round"
-                          paint-order="stroke fill"
-                          text-anchor="middle"
-                          dominant-baseline="central"
-                          [attr.transform]="
-                            'rotate(' + segment.labelRotationDegrees + ' ' + segment.labelX + ' ' + segment.labelY + ')'
-                          "
-                        >
-                          {{ segment.gauge.initial }}
-                        </text>
-                      }
-                      @for (separator of gaugeLayout.separators; track separator.angleDegrees) {
-                        <line
-                          data-testid="multi-angle-resource-separator"
-                          [attr.data-separator-angle]="separator.angleDegrees"
-                          [attr.x1]="separator.x1"
-                          [attr.y1]="separator.y1"
-                          [attr.x2]="separator.x2"
-                          [attr.y2]="separator.y2"
-                          stroke="rgba(0,0,0,0.95)"
-                          [attr.stroke-width]="gaugeLayout.separatorStrokeWidth"
-                          stroke-linecap="round"
-                        ></line>
-                      }
-                    </svg>
-                  }
-
-                  @if (!hideBuff() && buffBadges().length > 0) {
-                    @let buffOrbit = multiAngleBuffOrbitLayout();
-                    @for (badge of buffBadges(); track badge.identifier; let index = $index) {
-                      <div
-                        data-testid="multi-angle-buff-position"
-                        class="absolute top-1/2 left-1/2 size-0"
-                        [style.transform]="multiAngleBuffOrbitTransform(buffOrbit.angles[index] ?? 0, buffOrbit.radius)"
-                      >
-                        <span
-                          data-testid="multi-angle-buff-icon"
-                          class="absolute flex -translate-1/2 items-center justify-center rounded-full border border-solid border-white/35 leading-none shadow-[0_1px_3px_rgba(0,0,0,0.75)]"
-                          [style.width.px]="buffOrbit.iconSize"
-                          [style.height.px]="buffOrbit.iconSize"
-                          [style.font-size.px]="buffOrbit.iconSize * 0.68"
-                          [style.background]="badge.color"
-                          [title]="badge.name"
-                        >
-                          @if (badge.iconUrl) {
-                            <img
-                              class="pointer-events-none size-[0.9em] object-contain"
-                              [src]="badge.iconUrl | safe: 'resourceUrl'"
-                              alt=""
-                            />
-                          } @else {
-                            {{ badge.icon }}
-                          }
-                        </span>
-                      </div>
-                    }
-                  }
-                </div>
-              }
-
-              @if (name() && !hideName()) {
-                <div
-                  data-testid="multi-angle-name-orbit"
-                  data-orbit-direction="clockwise"
-                  class="animate-multi-angle-name-orbit absolute inset-0 origin-center"
-                  [style.animation-duration.s]="multiAngleNameOrbitAnimation().durationSeconds"
-                  [style.animation-timing-function]="multiAngleNameOrbitAnimation().timingFunction"
-                  [style.animation-delay.s]="multiAngleNameOrbitDelaySeconds()"
-                >
-                  @let curvedName = multiAngleCurvedNameLayout();
-                  <svg
-                    data-testid="piece-name"
-                    class="absolute overflow-visible"
-                    [style.top.px]="curvedName.offset"
-                    [style.left.px]="curvedName.offset"
-                    [style.width.px]="curvedName.svgSize"
-                    [style.height.px]="curvedName.svgSize"
-                    [attr.viewBox]="'0 0 ' + curvedName.svgSize + ' ' + curvedName.svgSize"
-                    aria-hidden="true"
-                  >
-                    <defs>
-                      <path [attr.id]="multiAngleCurvedNamePathId()" [attr.d]="curvedName.path"></path>
-                    </defs>
-                    <text
-                      class="font-sans font-bold"
-                      [attr.fill]="this.gameCharacter()!.nonTalkFlag ? '#333' : '#fff'"
-                      [attr.stroke]="this.gameCharacter()!.nonTalkFlag ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.88)'"
-                      [attr.stroke-width]="curvedName.strokeWidth"
-                      [attr.font-size]="curvedName.fontSize"
-                      [attr.letter-spacing]="curvedName.letterSpacing"
-                      stroke-linejoin="round"
-                      paint-order="stroke fill"
-                    >
-                      @for (startOffset of curvedName.startOffsets; track startOffset) {
-                        <textPath
-                          data-testid="multi-angle-name-text-path"
-                          [attr.data-label-copy]="$index + 1"
-                          [attr.href]="'#' + multiAngleCurvedNamePathId()"
-                          [attr.startOffset]="startOffset"
-                          text-anchor="middle"
-                        >
-                          {{ curvedName.paddedText }}{{ isLock ? ' 🔒' : '' }}
-                        </textPath>
-                        @if (startOffset === '0%') {
-                          <textPath
-                            data-testid="multi-angle-name-seam-continuation"
-                            [attr.data-label-copy]="$index + 1"
-                            [attr.href]="'#' + multiAngleCurvedNamePathId()"
-                            startOffset="100%"
-                            text-anchor="middle"
-                          >
-                            {{ curvedName.paddedText }}{{ isLock ? ' 🔒' : '' }}
-                          </textPath>
-                        }
-                      }
-                      @for (separatorOffset of curvedName.separatorOffsets; track separatorOffset) {
-                        <textPath
-                          data-testid="multi-angle-name-separator"
-                          [attr.href]="'#' + multiAngleCurvedNamePathId()"
-                          [attr.startOffset]="separatorOffset"
-                          text-anchor="middle"
-                          opacity="0.82"
-                        >
-                          ◆
-                        </textPath>
-                      }
-                    </text>
-                  </svg>
-                </div>
-              }
             </div>
           }
-          @if (isAltitudeIndicate && (altitude() <= -0.5 || 0.5 <= altitude())) {
-            <div
-              class="flex origin-top-left flex-col justify-between border-l-2 border-dashed border-l-black [-webkit-transform-style:preserve-3d] transform-3d"
-              [style.height.px]="math.abs(altitude() * gridSize) - (altitude() > 0 ? 0 : 0)"
-              [ngStyle]="{
-                transform:
-                  'translateX(' +
-                  (size() * gridSize) / 2 +
-                  'px) translateY(' +
-                  (-size() * gridSize) / 2 +
-                  'px) rotateX(-90deg) translateY(' +
-                  (altitude() > 0 ? -altitude() * gridSize : 0) +
-                  'px) rotateY(' +
-                  viewRotateZ() +
-                  'deg)',
-              }"
-            >
+          <div class="flex flex-col items-start gap-[0.3em]">
+            @let buffEl = this.gameCharacter()!.buffDataElement;
+            @if (
+              buffEl &&
+              buffNum() > 0 &&
+              !hideBuff() &&
+              !multiAngleResourceBuffOrbitEnabled() &&
+              !ridingMount() &&
+              !labelsInRidingCard()
+            ) {
+              <div data-testid="buff-plate" class="text-ui-text pointer-events-auto">
+                <div class="ml-[-0.6em] flex w-full items-end justify-start">
+                  <button
+                    type="button"
+                    data-testid="buff-view-switch"
+                    class="flex w-max flex-none cursor-pointer justify-start rounded-[1.2em] border border-solid px-[0.5em] py-[0.15em] transition-colors duration-150 hover:border-white/45 hover:bg-black/45"
+                    [ngClass]="
+                      buffViewMode() === 'detail'
+                        ? 'border-ui-border-panel bg-ui-panel'
+                        : 'border-transparent bg-transparent'
+                    "
+                    [attr.title]="
+                      ('feature.character.contextMenu.buffView' | transloco) + ': ' + (buffViewLabelKey() | transloco)
+                    "
+                    (click)="cycleBuffView($event)"
+                    (mousedown)="cycleBuffView($event)"
+                    (touchstart)="$event.stopPropagation()"
+                  >
+                    @switch (buffViewMode()) {
+                      @case ('detail') {
+                        <div
+                          class="animate-buff-swap flex w-max flex-col items-start justify-end whitespace-nowrap [-webkit-font-smoothing:antialiased] [text-rendering:optimizeLegibility]"
+                        >
+                          @for (childElement of buffChildren(); track childElement.identifier) {
+                            <div
+                              class="block w-max whitespace-nowrap"
+                              game-data-element-buff
+                              [gameDataElement]="childElement"
+                              [isEdit]="false"
+                              [isPieceMode]="true"
+                            ></div>
+                          }
+                        </div>
+                      }
+                      @case ('count') {
+                        <span
+                          class="animate-buff-swap bg-ui-panel text-ui-text rounded-full px-[0.6em] py-[0.15em] text-[1.1em] leading-normal whitespace-nowrap"
+                          >{{ 'feature.character.buff.count' | transloco: { count: buffNum() } }}</span
+                        >
+                      }
+                      @default {
+                        <div
+                          class="animate-buff-swap grid w-max items-end gap-[0.8em]"
+                          data-testid="buff-badge-grid"
+                          [style.grid-template-columns]="buffBadgeColumns"
+                          [style.font-size.em]="buffIconScale()"
+                        >
+                          @for (badge of buffBadges(); track badge.identifier) {
+                            <buff-badge [badge]="badge"></buff-badge>
+                          }
+                        </div>
+                      }
+                    }
+                  </button>
+                </div>
+              </div>
+            }
+            @if (floatingChanges().length > 0) {
+              <div class="flex flex-col items-center gap-[0.1em]">
+                @for (change of floatingChanges(); track change.key) {
+                  <span
+                    data-testid="resource-change"
+                    class="animate-float-change text-[1.6em] leading-none font-bold tabular-nums [text-shadow:0_0.06em_0_#000,0_-0.06em_0_#000,0.06em_0_0_#000,-0.06em_0_0_#000,0_0.12em_0.18em_rgba(0,0,0,0.65)]"
+                    [ngClass]="change.kind === 'damage' ? 'text-[#ff5a5a]' : 'text-[#5ce07a]'"
+                    [attr.data-kind]="change.kind"
+                    >{{ change.label }}</span
+                  >
+                }
+              </div>
+            }
+            @if (labelsInRidingCard()) {
               <div
-                class="[-webkit-transform-style:preserve-3d] transform-3d"
-                [style.visibility]="altitude() > 0 ? 'visible' : 'hidden'"
+                data-testid="riding-label"
+                class="box-border flex flex-col items-center rounded-[0.9em] bg-black/35 px-[0.6em] py-[0.35em]"
               >
-                <span
-                  class="text-ui-text absolute pl-0.5 text-[12px] font-extrabold [-webkit-transform-style:preserve-3d] [text-shadow:var(--ui-panel-bg)_0px_0px_3px] backface-hidden transform-3d"
-                  ><i>{{ elevation }}</i></span
-                >
-                <span
-                  class="text-ui-text absolute transform-[rotateY(-180deg)] pl-0.5 text-[12px] font-extrabold [-webkit-transform-style:preserve-3d] [text-shadow:var(--ui-panel-bg)_0px_0px_3px] backface-hidden transform-3d"
-                  ><i>{{ elevation }}</i></span
-                >
+                @for (label of ridingCard(); track label.identifier; let first = $first) {
+                  @if (!first) {
+                    <div class="my-[0.35em] h-[0.1em] w-full shrink-0 bg-white/40"></div>
+                  }
+                  <div class="flex flex-col items-center gap-[0.15em]" data-testid="riding-label-piece">
+                    @if (label.badges.length > 0) {
+                      <div
+                        class="grid w-max items-end gap-[0.8em]"
+                        [style.grid-template-columns]="buffBadgeColumns"
+                        [style.font-size.em]="buffIconScale()"
+                      >
+                        @for (badge of label.badges; track badge.identifier) {
+                          <buff-badge [badge]="badge"></buff-badge>
+                        }
+                      </div>
+                    }
+                    @for (row of label.gauges; track row.gauge.identifier) {
+                      <ng-container *ngTemplateOutlet="gaugeRowView; context: { $implicit: row }"></ng-container>
+                    }
+                    @if (label.name && label.icon) {
+                      <div
+                        class="bg-ui-panel text-ui-text box-border max-w-[24em] truncate rounded-[1.6em] px-[0.6em] py-[0.2em]"
+                        data-testid="riding-label-name"
+                        [style.font-size.em]="ridingNameEm"
+                      >
+                        <i class="material-icons text-ui-muted inline align-middle text-[1em]!">{{ label.icon }}</i>
+                        {{ label.name }}
+                      </div>
+                    } @else if (label.name) {
+                      <div
+                        class="bg-ui-panel text-ui-text pointer-events-auto box-border rounded-[1.6em] px-[0.6em] py-[0.2em]"
+                        data-testid="piece-name"
+                        [style.font-size.em]="ridingNameEm"
+                      >
+                        <div class="max-w-[24em] truncate">
+                          {{ label.name }}
+                          @if (isLock) {
+                            <i class="material-icons inline align-middle text-[1em]!">lock</i>
+                          }
+                          <span class="text-ui-muted whitespace-nowrap" data-testid="piece-riders"
+                            ><i class="material-icons inline align-middle text-[1em]!">person</i
+                            >{{ label.aboard }}</span
+                          >
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
               </div>
-              <div class="[-webkit-transform-style:preserve-3d] transform-3d">
-                <span
-                  class="text-ui-text absolute pl-0.5 text-[10px] [-webkit-transform-style:preserve-3d] [text-shadow:var(--ui-panel-bg)_0px_0px_3px] backface-hidden transform-3d"
-                  >{{ math.abs(altitude()) }}</span
-                >
-                <span
-                  class="text-ui-text absolute transform-[rotateY(-180deg)] pl-0.5 text-[10px] [-webkit-transform-style:preserve-3d] [text-shadow:var(--ui-panel-bg)_0px_0px_3px] backface-hidden transform-3d"
-                  >{{ math.abs(altitude()) }}</span
-                >
+            }
+            @if (
+              pieceGauges().length > 0 &&
+              !multiAngleResourceBuffOrbitEnabled() &&
+              !ridingMount() &&
+              !labelsInRidingCard()
+            ) {
+              <div class="pointer-events-auto flex flex-col items-center gap-[0.15em]">
+                @for (row of gaugeRows(); track row.gauge.identifier) {
+                  <ng-container *ngTemplateOutlet="gaugeRowView; context: { $implicit: row }"></ng-container>
+                }
               </div>
-              <div
-                class="[-webkit-transform-style:preserve-3d] transform-3d"
-                [style.visibility]="altitude() < 0 ? 'visible' : 'hidden'"
-                [ngStyle]="{ transform: 'translateY(' + (chatBubbleAltitude + 4) + 'px)' }"
-              >
-                <span
-                  class="text-ui-text absolute pl-0.5 text-[12px] font-extrabold [-webkit-transform-style:preserve-3d] [text-shadow:var(--ui-panel-bg)_0px_0px_3px] backface-hidden transform-3d"
-                  ><i>{{ elevation }}</i></span
+            }
+          </div>
+          @if (name() && !hideName() && !multiAngleNameOrbitEnabled() && !ridingMount() && !labelsInRidingCard()) {
+            <div class="pointer-events-auto" [style.font-size.px]="hudNameFontSizePx">
+              @if (this.gameCharacter()!.nonTalkFlag) {
+                <div
+                  class="box-border rounded-[1.6em] px-[0.6em] py-[0.2em]"
+                  [ngStyle]="{
+                    'background-color': 'rgba(255,255,255, 0.6)',
+                    color: '#333',
+                    border: 'solid 0.07em #555',
+                  }"
                 >
-                <span
-                  class="text-ui-text absolute transform-[rotateY(-180deg)] pl-0.5 text-[12px] font-extrabold [-webkit-transform-style:preserve-3d] [text-shadow:var(--ui-panel-bg)_0px_0px_3px] backface-hidden transform-3d"
-                  ><i>{{ elevation }}</i></span
+                  <div class="max-w-[24em] truncate">
+                    {{ name() }}
+                    @if (isLock) {
+                      <i class="material-icons inline align-middle text-[1em]!">lock</i>
+                    }
+                    @if (ridersAboard() > 0) {
+                      <span class="text-ui-muted whitespace-nowrap" data-testid="piece-riders"
+                        ><i class="material-icons inline align-middle text-[1em]!">person</i>{{ ridersAboard() }}</span
+                      >
+                    }
+                  </div>
+                </div>
+              } @else {
+                <div
+                  class="bg-ui-panel text-ui-text box-border rounded-[1.6em] px-[0.6em] py-[0.2em]"
+                  data-testid="piece-name"
                 >
-              </div>
+                  <div class="max-w-[24em] truncate">
+                    {{ name() }}
+                    @if (isLock) {
+                      <i class="material-icons inline align-middle text-[1em]!">lock</i>
+                    }
+                    @if (ridersAboard() > 0) {
+                      <span class="text-ui-muted whitespace-nowrap" data-testid="piece-riders"
+                        ><i class="material-icons inline align-middle text-[1em]!">person</i>{{ ridersAboard() }}</span
+                      >
+                    }
+                  </div>
+                </div>
+              }
             </div>
           }
         </div>
       </div>
     </div>
-  }
+  </div>
+  <div
+    class="pointer-events-none fixed top-0 left-0 opacity-0"
+    [style.width.px]="size() * gridSize"
+    [style.height.px]="size() * gridSize"
+  >
+    <div class="absolute inset-0 backface-hidden" #pedestal data-part="pedestal">
+      @if (showFacingArrow()) {
+        <!-- Pictured with the pedestal, so the canvas lays it on the floor and a picture standing
+             in front of it hides it, as it hides a mark painted on the floor. -->
+        <svg
+          data-testid="facing-arrow"
+          class="pointer-events-none absolute left-1/2 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]"
+          [style.width.px]="facingArrowSizePx()"
+          [style.height.px]="facingArrowSizePx()"
+          [style.top.px]="-(facingArrowSizePx() / 2 + facingArrowOffsetPx())"
+          [style.margin-left.px]="-facingArrowSizePx() / 2"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            d="M12 1.5 L22.5 22.5 L12 17 L1.5 22.5 Z"
+            fill="#00e5ff"
+            stroke="#ffffff"
+            stroke-width="2.6"
+            stroke-linejoin="round"
+          />
+        </svg>
+      }
+      @if (!this.gameCharacter()!.hideInventory) {
+        <div
+          class="absolute box-border size-full rounded-[25px] border-[6px] border-solid border-[#ffcc80] backface-hidden"
+          [ngStyle]="pedestalStyleShown()"
+        ></div>
+      }
+      @if (this.gameCharacter()!.hideInventory) {
+        <div
+          class="absolute box-border size-full rounded-[25px] border-[6px] border-solid border-[#A0E0FF] backface-hidden"
+          [ngStyle]="pedestalStyleHidden()"
+        ></div>
+      }
+      <div
+        data-testid="multi-angle-rotating-pedestal"
+        class="absolute box-border size-full rounded-[25px] border-2 border-solid border-[#212121] backface-hidden"
+        [ngStyle]="pedestalOuterStyle()"
+      ></div>
+      @if (isTargeted()) {
+        <div
+          data-testid="target-ring"
+          class="animate-target-ring pointer-events-none absolute box-border size-full rounded-[25px] border-[6px] border-solid border-[#ff3b30] filter-[drop-shadow(0_0_5px_rgba(255,59,48,0.95))] backface-hidden"
+          [ngStyle]="pedestalStyleTargeted()"
+        ></div>
+      }
+      @if (isSharedView()) {
+        <div
+          data-testid="shared-view-ring"
+          class="pointer-events-none absolute box-border size-full rounded-[25px] border-4 border-solid border-[#ffd54f] filter-[drop-shadow(0_0_6px_rgba(255,213,79,0.95))] backface-hidden"
+          [ngStyle]="pedestalStyleSharedView()"
+          [title]="'feature.firstPerson.sharedBadge' | transloco"
+        ></div>
+      }
+    </div>
+  </div>
 }
 
 <ng-template #gaugeRowView let-row>
@@ -1700,34 +722,4 @@
       row.numbers
     }}</span>
   </div>
-</ng-template>
-
-<ng-template #picture let-facing="facing" let-sizing="sizing" let-style="style" let-copyStyle="copyStyle">
-  <img
-    appSeeThrough
-    data-part="picture"
-    class="image chrome-smooth-image-trick pointer-events-auto inset-x-0 bottom-0 m-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
-    [class]="sizing"
-    [class.opacity-50]="inStealth()"
-    [style.opacity]="drawnOnCanvas() ? 0 : null"
-    [appBillboard]="facing"
-    [ngStyle]="style"
-    [style.mask-image]="inWater()?.mask ?? null"
-    (load)="imageView.onImageLoad($event)"
-    [src]="imageFile().url | safe: 'resourceUrl'"
-  />
-  @if (inWater(); as water) {
-    <img
-      data-water-copy
-      class="chrome-smooth-image-trick pointer-events-none absolute top-0 left-0 align-bottom [-webkit-transform-style:preserve-3d] transform-3d"
-      [class]="sizing"
-      [appBillboard]="facing"
-      [ngStyle]="copyStyle"
-      [style.clip-path]="water.clip"
-      [style.filter]="water.tint"
-      [style.opacity]="water.tintOpacity"
-      [style.mask-image]="water.fade"
-      [src]="imageFile().url | safe: 'resourceUrl'"
-    />
-  }
 </ng-template>

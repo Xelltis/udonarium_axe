@@ -10,14 +10,11 @@ import { GroundService } from '@axe/application/tabletop/ground.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
-import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
-import { BillboardFacing, BillboardFrameService } from '@axe/application/ui/billboard-frame.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
-import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
@@ -40,28 +37,11 @@ import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
-import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { Terrain } from '@axe/domain/tabletop/terrain';
-import { SlopeSide } from '@axe/domain/tabletop/terrain-slope';
 import { GameCharacterComponent } from '@axe/features/character/game-character/game-character.component';
 import { GameCharacterMenuService } from '@axe/features/character/game-character/game-character-menu.service';
-import { PieceFigureHeightsService } from '@axe/features/character/game-character/piece-figure-heights.service';
-import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
-
-beforeEach(() => drawTableOnPage());
-
-/** What a facing writes at the turn the table has been given, which is what the frame writes out. */
-function at(facing: BillboardFacing): string {
-  return facing(TestBed.inject(UiSignalService).tableViewRotation());
-}
-
-/** The part of a label's transform the camera decides, after the stand that holds it out from the piece. */
-function orbitOf(facing: BillboardFacing): string {
-  return at(facing).replace(/^(translateX\(-50%\) )?translateX\(-?[\d.]+px\) /, '');
-}
 
 describe('GameCharacterComponent', () => {
   let component: GameCharacterComponent;
@@ -237,25 +217,6 @@ describe('GameCharacterComponent', () => {
       );
     });
 
-    it('stands the card over the tallest picture on the mount, and draws a rider in front of its mount', async () => {
-      const { horse, knight } = ride();
-      fixture.componentRef.setInput('gameCharacter', horse);
-      await draw(fixture);
-      type Riding = { ridingCardRise(): number; figureHeightPx(): number };
-      const riding = component as unknown as Riding;
-      expect(riding.ridingCardRise()).toBe(0);
-
-      knight.posZ = horse.posZ + 50;
-      TestBed.inject(PieceFigureHeightsService).set(knight.identifier, riding.figureHeightPx() + 20);
-      await draw(fixture);
-      expect(riding.ridingCardRise()).toBe(70);
-
-      fixture.componentRef.setInput('gameCharacter', knight);
-      await draw(fixture);
-      const facing = (component as unknown as { pieceImageFacing(): (rotation: null) => string }).pieceImageFacing();
-      expect(facing(null)).toContain('translateZ(3px)');
-    });
-
     it('draws no labels of its own over a piece riding a mount, and its labels again once it is off', async () => {
       const { knight } = ride();
       fixture.componentRef.setInput('gameCharacter', knight);
@@ -306,198 +267,6 @@ describe('GameCharacterComponent', () => {
       knight.hideBuff = true;
       element = await draw(fixture);
       expect(element.querySelectorAll('[data-testid="riding-label-piece"] [data-testid="buff-badge"]').length).toBe(0);
-    });
-  });
-
-  describe('standing on a slope', () => {
-    let table: GameTable;
-    const blocks: Terrain[] = [];
-
-    beforeEach(() => {
-      table = new GameTable();
-      table.width = 20;
-      table.height = 20;
-      table.gridSize = 50;
-      table.initialize();
-    });
-
-    afterEach(() => {
-      for (const terrain of blocks) ObjectStore.instance.remove(terrain);
-      blocks.length = 0;
-      ObjectStore.instance.remove(table);
-    });
-
-    function ramp(sides: SlopeSide[]): Terrain {
-      const terrain = Terrain.create('ramp', 4, 4, 2, '', '');
-      terrain.location.x = 0;
-      terrain.location.y = 0;
-      terrain.slopeSides = sides;
-      table.appendChild(terrain);
-      blocks.push(terrain);
-      return terrain;
-    }
-
-    function standOn(at: { x: number; y: number }): void {
-      const character = GameCharacter.create('コマ', 1, '');
-      character.location.x = at.x;
-      character.location.y = at.y;
-      fixture.componentRef.setInput('gameCharacter', character);
-      fixture.detectChanges();
-    }
-
-    it('lies level on level ground', () => {
-      ramp([]);
-      standOn({ x: 75, y: 75 });
-
-      expect(component.groundLean()).toBe('');
-    });
-
-    it('leans the ground under it with the ramp', () => {
-      ramp(['s']);
-
-      standOn({ x: 75, y: 75 });
-
-      // Two cells tall over four cells: the ground drops half a pixel for each pixel south.
-      expect(component.groundLean()).toBe(`rotateY(0rad) rotateX(${(-Math.atan(0.5)).toFixed(4)}rad)`);
-    });
-
-    it('leans nothing on the table seen from straight above, where a lean would only squash it', () => {
-      ramp(['s']);
-      table.mode2d = true;
-
-      standOn({ x: 75, y: 75 });
-
-      expect(component.groundLean()).toBe('');
-    });
-
-    it('leans each way on the sides of a pyramid', () => {
-      ramp(['n', 'e', 's', 'w']);
-
-      standOn({ x: 75, y: 25 });
-      const northSide = component.groundLean();
-      standOn({ x: 75, y: 125 });
-      const southSide = component.groundLean();
-
-      // A pyramid over four cells rises a cell for each cell in, which is a lean of 45°.
-      expect(northSide).toContain(`rotateX(${Math.atan(1).toFixed(4)}rad)`);
-      expect(southSide).toContain(`rotateX(${(-Math.atan(1)).toFixed(4)}rad)`);
-    });
-
-    it('takes the lean into the pedestal and leaves the piece itself standing upright', () => {
-      ramp(['s']);
-
-      standOn({ x: 75, y: 75 });
-
-      expect(component.multiAnglePiecePedestalRotation()).toBe(component.groundLean());
-      expect(component.standTransform()).not.toContain('rotateX(-0.4');
-    });
-  });
-
-  describe('standing in water', () => {
-    const URL = 'wading-url';
-    let table: GameTable;
-    let pond: TableAmbience | null = null;
-    let char: GameCharacter | null = null;
-
-    beforeEach(() => {
-      table = new GameTable();
-      table.width = 20;
-      table.height = 20;
-      table.gridSize = 50;
-      table.initialize();
-      TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
-    });
-
-    afterEach(() => {
-      pond?.destroy();
-      char?.destroy();
-      pond = null;
-      char = null;
-      ImageStorage.instance.delete(URL);
-      TestBed.inject(TableSelecter).viewTableIdentifier = '';
-      ObjectStore.instance.remove(table);
-    });
-
-    /** A pond four cells a side in the corner of the table, and a piece with a picture two cells tall in it. */
-    async function wade(surfaceCells: number, at = { x: 50, y: 50 }, altitude = 0): Promise<void> {
-      const grid = component.gridSize;
-      pond = TableAmbience.create('池', 'water', 4, 4);
-      pond.location = { name: 'table', x: 0, y: 0 };
-      pond.surfaceHeight = surfaceCells;
-      table.appendChild(pond);
-      ImageStorage.instance.add(URL);
-      char = GameCharacter.create('wading', 1, URL);
-      char.location.x = at.x;
-      char.location.y = at.y;
-      char.altitude = altitude;
-      char.specifyKomaImageFlag = true;
-      char.komaImageHeight = 2 * grid;
-      fixture.componentRef.setInput('gameCharacter', char);
-      await Promise.resolve();
-      await Promise.resolve();
-      fixture.detectChanges();
-    }
-
-    function picture(): HTMLElement {
-      return fixture.nativeElement.querySelector('img.image') as HTMLElement;
-    }
-
-    function copy(): HTMLElement | null {
-      return fixture.nativeElement.querySelector('[data-water-copy]');
-    }
-
-    function ripple(): HTMLElement | null {
-      return fixture.nativeElement.querySelector('[data-water-ripple]');
-    }
-
-    it('lets the part under the surface show through in the colour of the water, and rings the surface', async () => {
-      await wade(1);
-
-      expect(picture().getAttribute('style')).toContain('mask-image: linear-gradient');
-      expect(copy()?.style.clipPath).toBe('inset(50% 0 0 0)');
-      expect(copy()?.style.filter).toContain('hue-rotate(');
-      expect(copy()?.classList.contains('pointer-events-none')).toBe(true);
-      expect(ripple()?.style.transform).toBe(`translateZ(${component.gridSize - 0.5}px)`);
-    });
-
-    it('fades what is under murky water out towards the feet', async () => {
-      const feetOf = (element: HTMLElement | null) =>
-        Number(
-          /mask-image: linear-gradient\(to top, rgba\(0, 0, 0, ([\d.]+)\)/.exec(
-            element?.getAttribute('style') ?? ''
-          )?.[1]
-        );
-      await wade(1);
-      const clear = feetOf(copy());
-
-      pond!.turbidity = 0.9;
-      await Promise.resolve();
-      fixture.detectChanges();
-
-      expect(feetOf(copy())).toBeLessThan(clear / 3);
-      expect(feetOf(picture())).toBeLessThan(0.1);
-    });
-
-    it('leaves a piece outside the water dry', async () => {
-      await wade(1, { x: 400, y: 400 });
-
-      expect(picture().getAttribute('style') ?? '').not.toContain('mask-image');
-      expect(copy()).toBeNull();
-      expect(ripple()).toBeNull();
-    });
-
-    it('leaves a piece flying over the water dry', async () => {
-      await wade(1, { x: 50, y: 50 }, 2);
-
-      expect(copy()).toBeNull();
-      expect(ripple()).toBeNull();
-    });
-
-    it('rings no surface over a piece sunk over its head', async () => {
-      await wade(3);
-
-      expect(copy()?.style.clipPath).toBe('inset(0% 0 0 0)');
-      expect(ripple()).toBeNull();
     });
   });
 
@@ -1271,67 +1040,6 @@ describe('GameCharacterComponent', () => {
       expect(table.facingMark).toBe('turn');
     });
 
-    it('turns the picture with the piece from above', () => {
-      tableShowing('turn', true);
-      place(90);
-
-      expect(component.imageTurnsWithPiece()).toBe(true);
-      // The shared frame stays compatible with the multi-angle renderer, and this picture alone
-      // declines to cancel the turn supplied by the piece.
-      expect(component.standTransform().startsWith('rotateY(90deg)')).toBe(true);
-      expect(at(component.imageFacing())).toContain('rotateZ(0deg)');
-    });
-
-    it('leaves the picture square to the reader where a mark shows the facing instead', () => {
-      tableShowing('arrow', true);
-      place(90);
-
-      expect(component.imageTurnsWithPiece()).toBe(false);
-      expect(component.standTransform().startsWith('rotateY(90deg)')).toBe(true);
-      expect(at(component.imageFacing())).toContain('rotateZ(-90deg)');
-      expect(arrow()).not.toBeNull();
-    });
-
-    it('keeps the name and the bars on the side of the piece they were on', () => {
-      tableShowing('turn', true);
-      place(180);
-
-      // Each billboard cancels the piece turn, keeping everything above it on the same side.
-      expect(component.standTransform().startsWith('rotateY(90deg)')).toBe(true);
-      expect(at(component.nameFacing())).toContain('rotateZ(-180deg)');
-    });
-
-    it('is turned by the frame without the piece working its labels out again', async () => {
-      tableShowing('turn', true);
-      const character = place();
-      await fixture.whenStable();
-      const frame = TestBed.inject(BillboardFrameService);
-      const ui = TestBed.inject(UiSignalService);
-      const facing = component.nameStackFacing();
-      const plate = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-testid="piece-name"]')!;
-
-      try {
-        for (let turn = 0; turn < 10; turn++) {
-          ui.notifyTableViewRotation(50, 0, turn * 12);
-          frame.apply({ x: 50, y: 0, z: turn * 12 });
-        }
-
-        // The same function as before: what the label is turned by does not depend on the camera.
-        expect(component.nameStackFacing()).toBe(facing);
-        expect(plate.style.transform).toBe(facing({ x: 50, y: 0, z: 108 }));
-      } finally {
-        character.destroy();
-      }
-    });
-
-    it('leaves a table seen from the side to turn its pieces as it always did', () => {
-      tableShowing('arrow', false);
-      place(90);
-
-      expect(component.standTransform().startsWith('rotateY(90deg)')).toBe(true);
-      expect(at(component.nameFacing())).toContain('rotateZ(-90deg)');
-    });
-
     it('shows the same mark on a table seen from the side', () => {
       tableShowing('arrow', false);
       place(45);
@@ -1352,13 +1060,6 @@ describe('GameCharacterComponent', () => {
       const gauge = component.multiAngleResourceGaugeLayout();
       expect(gauge.segments.length).toBeGreaterThan(0);
       expect(component.facingArrowOffsetPx()).toBe(baseOffset + gauge.strokeWidth);
-    });
-
-    it('turns the picture only from above, a turned billboard being no help from the side', () => {
-      tableShowing('turn', false);
-      place(90);
-
-      expect(component.imageTurnsWithPiece()).toBe(false);
     });
   });
 
@@ -2041,18 +1742,6 @@ describe('GameCharacterComponent', () => {
     });
   });
 
-  describe('viewRotateZ computed signal', () => {
-    it('starts at ten', () => {
-      expect(component.viewRotateZ()).toBe(10);
-    });
-
-    it('turns with the table view', () => {
-      const uiSignalService = TestBed.inject(UiSignalService);
-      uiSignalService.notifyTableViewRotation(50, 20, 120);
-      expect(component.viewRotateZ()).toBe(120);
-    });
-  });
-
   it('asks for no change detector', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((component as any).changeDetector).toBeUndefined();
@@ -2225,323 +1914,35 @@ describe('GameCharacterComponent', () => {
         character.destroy();
       }
     });
-
-    const wrapperTransform = () => (markerOf().parentElement as HTMLElement).style.transform;
-
-    const axisValues = (transform: string, axis: 'X' | 'Y' | 'Z') =>
-      [...transform.matchAll(new RegExp(`translate${axis}\\((-?[\\d.]+)px\\)`, 'g'))].map((match) => Number(match[1]));
-
-    const markerLift = () => {
-      const transform = wrapperTransform();
-      const x = axisValues(transform, 'X');
-      const y = axisValues(transform, 'Y');
-      const z = axisValues(transform, 'Z');
-      return Math.hypot(x[x.length - 1], y[0], z[0]);
-    };
-
-    it('sits directly above the centre of the piece', () => {
-      const character = GameCharacter.create('marker-center', 1, '');
-      fixture.componentRef.setInput('gameCharacter', character);
-      TestBed.inject(UiSignalService).notifyTableViewRotation(50, 0, 10);
-
-      try {
-        setTargeted(character, true);
-
-        expect(axisValues(wrapperTransform(), 'X')[0]).toBe((component.size() * component.gridSize) / 2);
-        expect(at(component.targetStackFacing())).toContain('translateZ(0.00px)');
-      } finally {
-        character.destroy();
-      }
-    });
-
-    it('keeps its distance as the camera turns', () => {
-      const character = GameCharacter.create('marker-rotated-view', 1, '');
-      fixture.componentRef.setInput('gameCharacter', character);
-      const uiSignalService = TestBed.inject(UiSignalService);
-
-      try {
-        uiSignalService.notifyTableViewRotation(50, 0, 10);
-        setTargeted(character, true);
-        const straight = markerLift();
-
-        uiSignalService.notifyTableViewRotation(35, 0, 70);
-        fixture.detectChanges();
-
-        expect(markerLift()).toBeCloseTo(straight, 1);
-      } finally {
-        character.destroy();
-      }
-    });
-
-    it('sits above the buffs', () => {
-      const character = GameCharacter.create('marker-above-buff', 1, '');
-      character.addExtendData();
-      fixture.componentRef.setInput('gameCharacter', character);
-      const objectChange = TestBed.inject(ObjectChangeService);
-      const buffRoot = character.buffDataElement!;
-      const container = DataElement.create('バフ', '', {});
-      buffRoot.appendChild(container);
-      const buff = DataElement.create('毒', 3, { type: DataElementType.NUMBER_RESOURCE, currentValue: 'ダメージ2' });
-      buff.setAttribute(DataElementAttribute.BUFF_ICON, '☠️');
-      container.appendChild(buff);
-      objectChange.notifyChanged(buffRoot.identifier);
-      TestBed.inject(UiSignalService).notifyTableViewRotation(50, 0, 10);
-
-      try {
-        setTargeted(character, true);
-        const buffDistance = -Number(/translateY\((-?[\d.]+)px\)/.exec(orbitOf(component.buffOrbitFacing()))![1]);
-
-        expect(markerLift()).toBeGreaterThan(buffDistance);
-      } finally {
-        character.destroy();
-      }
-    });
-  });
-
-  it('computes whether the height is set by hand', async () => {
-    const char = GameCharacter.create('height-flag-test', 1, '');
-    fixture.componentRef.setInput('gameCharacter', char);
-
-    try {
-      expect(component.specifyKomaImageFlag()).toBe(false);
-
-      char.specifyKomaImageFlag = true;
-      await new Promise<void>((resolve) => queueMicrotask(resolve));
-
-      expect(component.specifyKomaImageFlag()).toBe(true);
-    } finally {
-      char.destroy();
-    }
-  });
-
-  it('keeps a hand-set image in the layout, so the name and the buffs still measure from it', () => {
-    ImageStorage.instance.add('piece-height-url');
-    const char = GameCharacter.create('height-layout-test', 1, 'piece-height-url');
-    char.specifyKomaImageFlag = true;
-    char.komaImageHeight = 240;
-    fixture.componentRef.setInput('gameCharacter', char);
-
-    try {
-      fixture.detectChanges();
-
-      const pieceImage = fixture.nativeElement.querySelector('img.image.chrome-smooth-image-trick') as HTMLImageElement;
-      expect(pieceImage).toBeTruthy();
-      expect(pieceImage.style.position).toBe('');
-      expect(pieceImage.style.display).toBe('inline-block');
-      expect(pieceImage.style.height).toBe('240px');
-    } finally {
-      char.destroy();
-      ImageStorage.instance.delete('piece-height-url');
-    }
-  });
-
-  it('draws a picture given a width apart from its height at that width, and in proportion without one', () => {
-    ImageStorage.instance.add('piece-width-url');
-    const char = GameCharacter.create('width-layout-test', 1, 'piece-width-url');
-    char.specifyKomaImageFlag = true;
-    char.komaImageHeight = 240;
-    char.komaImageWidth = 400;
-    fixture.componentRef.setInput('gameCharacter', char);
-
-    try {
-      fixture.detectChanges();
-      const stretched = fixture.nativeElement.querySelector('img.image.chrome-smooth-image-trick') as HTMLImageElement;
-      expect(stretched.style.width).toBe('400px');
-      expect(stretched.style.height).toBe('240px');
-
-      char.komaImageWidth = 0;
-      TestBed.inject(ObjectChangeService).notifyChanged(char.identifier);
-      fixture.detectChanges();
-      const kept = fixture.nativeElement.querySelector('img.image.chrome-smooth-image-trick') as HTMLImageElement;
-      expect(kept.style.width).toBe('auto');
-      expect(kept.style.height).toBe('240px');
-    } finally {
-      char.destroy();
-      ImageStorage.instance.delete('piece-width-url');
-    }
-  });
-
-  it('holds a tall picture to the ground its piece stands on when this screen asks for it', () => {
-    ImageStorage.instance.add('in-cell-url');
-    const char = GameCharacter.create('in-cell-test', 1, 'in-cell-url');
-    fixture.componentRef.setInput('gameCharacter', char);
-
-    try {
-      fixture.detectChanges();
-      const before = fixture.nativeElement.querySelector('img.image.chrome-smooth-image-trick') as HTMLImageElement;
-      expect(before.style.height).toBe('');
-
-      const flat = TestBed.inject(TabletopService).currentTable;
-      flat.mode2d = true;
-      Config.instance.pieceImageInCell = true;
-      TestBed.inject(ObjectChangeService).notifyChanged(flat.identifier);
-      TestBed.inject(ObjectChangeService).notifyChanged('Config');
-      fixture.detectChanges();
-
-      const fitted = fixture.nativeElement.querySelector('img.image.chrome-smooth-image-trick') as HTMLImageElement;
-      expect(fitted.classList.contains('object-contain')).toBe(true);
-      expect(fitted.style.height).toBe(`${component.size() * component.gridSize}px`);
-    } finally {
-      Config.instance.pieceImageInCell = null;
-      TestBed.inject(TabletopService).currentTable.mode2d = false;
-      char.destroy();
-      ImageStorage.instance.delete('in-cell-url');
-    }
-  });
-
-  it('lets a tall picture out of its cell again while the table is seen along', () => {
-    ImageStorage.instance.add('in-cell-upright-url');
-    const char = GameCharacter.create('in-cell-upright', 1, 'in-cell-upright-url');
-    fixture.componentRef.setInput('gameCharacter', char);
-
-    try {
-      Config.instance.pieceImageInCell = true;
-      TestBed.inject(ObjectChangeService).notifyChanged('Config');
-      fixture.detectChanges();
-
-      expect(component.fitsImageInCell()).toBe(false);
-    } finally {
-      Config.instance.pieceImageInCell = null;
-      char.destroy();
-      ImageStorage.instance.delete('in-cell-upright-url');
-    }
-  });
-
-  it('holds a hand-set height to the cell too, rather than letting it out again', () => {
-    ImageStorage.instance.add('in-cell-tall-url');
-    const char = GameCharacter.create('in-cell-tall', 1, 'in-cell-tall-url');
-    char.specifyKomaImageFlag = true;
-    char.komaImageHeight = 240;
-    fixture.componentRef.setInput('gameCharacter', char);
-
-    try {
-      const flat = TestBed.inject(TabletopService).currentTable;
-      flat.mode2d = true;
-      Config.instance.pieceImageInCell = true;
-      TestBed.inject(ObjectChangeService).notifyChanged(flat.identifier);
-      TestBed.inject(ObjectChangeService).notifyChanged('Config');
-      fixture.detectChanges();
-
-      const fitted = fixture.nativeElement.querySelector('img.image.chrome-smooth-image-trick') as HTMLImageElement;
-      expect(fitted.style.height).toBe(`${component.size() * component.gridSize}px`);
-    } finally {
-      Config.instance.pieceImageInCell = null;
-      TestBed.inject(TabletopService).currentTable.mode2d = false;
-      char.destroy();
-      ImageStorage.instance.delete('in-cell-tall-url');
-    }
   });
 
   describe('the handles that tip a piece over', () => {
     const headOf = () => fixture.nativeElement.querySelector('[data-testid="roll-grab-head"]') as HTMLElement | null;
     const footOf = () => fixture.nativeElement.querySelector('[data-testid="roll-grab-foot"]') as HTMLElement | null;
 
-    it('hangs both handles off the picture box instead of off what the layout leaves behind', () => {
+    afterEach(() => ImageStorage.instance.delete('roll-grab-url'));
+
+    function withPicture(name: string, size = 1): GameCharacter {
       ImageStorage.instance.add('roll-grab-url');
-      const character = GameCharacter.create('roll-grab', 1, 'roll-grab-url');
+      const character = GameCharacter.create(name, size, 'roll-grab-url');
       fixture.componentRef.setInput('gameCharacter', character);
+      return character;
+    }
+
+    it('stands either side of the picture halfway up, each clear of it by half its size and a gap', () => {
+      const character = withPicture('roll-grab');
 
       try {
         fixture.detectChanges();
-        const pictureBox = (fixture.nativeElement.querySelector('img.image.chrome-smooth-image-trick') as HTMLElement)
-          .parentElement;
-
-        expect(headOf()?.parentElement).toBe(pictureBox);
-        expect(footOf()?.parentElement).toBe(pictureBox);
-        expect(headOf()?.className).toContain('top-0');
-        expect(footOf()?.className).toContain('bottom-0');
+        // Half the handle (14), then the gap (7).
+        expect((component as unknown as { rollHandles(): unknown }).rollHandles()).toEqual([
+          { testId: 'roll-grab-head', edge: 'right', dx: 21 },
+          { testId: 'roll-grab-foot', edge: 'left', dx: -21 },
+        ]);
+        expect(headOf()).not.toBeNull();
+        expect(footOf()?.style.left).toBe(`${-21 - 14}px`);
       } finally {
         character.destroy();
-        ImageStorage.instance.delete('roll-grab-url');
-      }
-    });
-
-    it('holds the head handle inside the top edge and hangs the foot one clear below', () => {
-      const character = GameCharacter.create('roll-grab-offset', 1, '');
-      fixture.componentRef.setInput('gameCharacter', character);
-
-      try {
-        expect(component.rollHandleHeadTransform()).toBe('translateX(-50%) translateX(25px)');
-        expect(component.rollHandleFootTransform()).toBe(
-          'translateX(-50%) translateX(25px) translateY(100%) translateY(7px)'
-        );
-      } finally {
-        character.destroy();
-      }
-    });
-
-    describe('on a phone', () => {
-      beforeEach(() => {
-        Object.defineProperty(TestBed.inject(MobileLayoutService), 'isActive', {
-          value: signal(true),
-          configurable: true,
-        });
-      });
-
-      it('stands the head handle off to the right of the picture and the foot one off to its left, halfway up', () => {
-        const character = GameCharacter.create('roll-grab-phone', 1, '');
-        fixture.componentRef.setInput('gameCharacter', character);
-
-        try {
-          fixture.detectChanges();
-          // Half the picture (25) and half the handle (14), then the gap (7).
-          expect(component.rollHandleHeadTransform()).toBe(
-            'translateX(-50%) translateX(25px) translateX(46px) translateY(-50%)'
-          );
-          expect(component.rollHandleFootTransform()).toBe(
-            'translateX(-50%) translateX(25px) translateX(-46px) translateY(-50%)'
-          );
-          expect(headOf()?.style.top).toBe('50%');
-          expect(footOf()?.style.top).toBe('50%');
-          expect(footOf()?.style.bottom).toBe('auto');
-        } finally {
-          character.destroy();
-        }
-      });
-
-      it('stands them clear of a picture whose height was set apart from the ground, however wide that is', async () => {
-        const character = GameCharacter.create('roll-grab-phone-tall', 1, '');
-        character.specifyKomaImageFlag = true;
-        character.komaImageHeight = 100;
-        fixture.componentRef.setInput('gameCharacter', character);
-
-        try {
-          component.imageView.onImageLoad({ target: { naturalWidth: 200, naturalHeight: 100 } } as unknown as Event);
-          await fixture.whenStable();
-
-          // The picture stands 100 high and so 200 wide: half of it (100), half the handle (14), the gap (7).
-          expect(component.rollHandleHeadTransform()).toContain('translateX(121px)');
-          expect(component.rollHandleFootTransform()).toContain('translateX(-121px)');
-        } finally {
-          character.destroy();
-        }
-      });
-    });
-
-    it('stands the handles at the head and feet off a phone', () => {
-      const character = GameCharacter.create('roll-grab-desk', 1, '');
-      fixture.componentRef.setInput('gameCharacter', character);
-
-      try {
-        fixture.detectChanges();
-        expect(component.rollHandlesBeside()).toBe(false);
-        expect(headOf()?.style.top).toBe('');
-        expect(footOf()?.style.bottom).toBe('');
-      } finally {
-        character.destroy();
-      }
-    });
-
-    it('keeps the head handle out of the band the name hangs in, however big the piece grows', () => {
-      for (const pieceSize of [0.5, 1, 4]) {
-        const character = GameCharacter.create('roll-grab-name-clear', pieceSize, '');
-        fixture.componentRef.setInput('gameCharacter', character);
-
-        try {
-          expect(component.rollHandleHeadTransform()).not.toContain('translateY');
-        } finally {
-          character.destroy();
-        }
       }
     });
 
@@ -2562,20 +1963,8 @@ describe('GameCharacterComponent', () => {
       expect(sizeOf(0.5).handle).toBe(20);
     });
 
-    it('centres the handle on a piece of any width', () => {
-      const character = GameCharacter.create('roll-grab-wide', 4, '');
-      fixture.componentRef.setInput('gameCharacter', character);
-
-      try {
-        expect(component.rollHandleFootTransform()).toContain('translateX(-50%) translateX(100px)');
-      } finally {
-        character.destroy();
-      }
-    });
-
-    it('takes the handles away once the table lies flat', async () => {
-      const character = GameCharacter.create('roll-grab-hidden', 1, '');
-      fixture.componentRef.setInput('gameCharacter', character);
+    it('takes the handles away once the table lies flat, and from a piece with no picture to tip', async () => {
+      const character = withPicture('roll-grab-hidden');
 
       try {
         fixture.detectChanges();
@@ -2590,110 +1979,17 @@ describe('GameCharacterComponent', () => {
       } finally {
         character.destroy();
       }
+
+      const bare = GameCharacter.create('roll-grab-bare', 1, '');
+      fixture.componentRef.setInput('gameCharacter', bare);
+      TestBed.inject(ViewModePreferenceService).choose('auto');
+      fixture.detectChanges();
+      expect(footOf()).toBeNull();
+      bare.destroy();
     });
-  });
-
-  describe('following the table setting for facing the camera', () => {
-    it('takes the setting from the table', async () => {
-      const tabletopService = TestBed.inject(TabletopService);
-      tabletopService.currentTable.imageBillboard = false;
-      expect(component.imageBillboardEnabled()).toBe(false);
-
-      tabletopService.currentTable.imageBillboard = true;
-      await new Promise<void>((resolve) => queueMicrotask(resolve));
-      expect(component.imageBillboardEnabled()).toBe(true);
-    });
-
-    it('faces the picture at the camera without raising it', () => {
-      TestBed.inject(UiSignalService).notifyTableViewRotation(50, 0, 10);
-      expect(at(component.imageFacing())).toContain('translateZ(0.00px)');
-    });
-
-    it('faces it anyway in the flat mode', async () => {
-      const tabletopService = TestBed.inject(TabletopService);
-      tabletopService.currentTable.imageBillboard = false;
-      TestBed.inject(ViewModePreferenceService).choose('flat');
-      await new Promise<void>((resolve) => queueMicrotask(resolve));
-      expect(component.imageBillboardEnabled()).toBe(true);
-    });
-
-    it('faces it in flat mode when only this browser enables tabletop display mode', () => {
-      const tabletopService = TestBed.inject(TabletopService);
-      tabletopService.currentTable.mode2d = false;
-      tabletopService.currentTable.imageBillboard = false;
-      TestBed.inject(ViewModePreferenceService).choose('flat');
-
-      expect(component.mode2dEnabled()).toBe(true);
-      expect(component.imageBillboardEnabled()).toBe(true);
-    });
-
-    it.each(['none', 'turn', 'arrow'] as const)(
-      'keeps the character image renderable in 2D multi-angle mode with facing mark %s',
-      (facingMark) => {
-        const imageUrl = `2d-facing-${facingMark}.png`;
-        ImageStorage.instance.add(imageUrl);
-        const character = GameCharacter.create('2D image', 1, imageUrl);
-        character.rotate = 90;
-        fixture.componentRef.setInput('gameCharacter', character);
-        const table = TestBed.inject(TabletopService).currentTable;
-        table.mode2d = true;
-        table.multiAngleEnabled = true;
-        table.facingMark = facingMark;
-
-        try {
-          fixture.detectChanges();
-          const image = (fixture.nativeElement as HTMLElement).querySelector<HTMLImageElement>(
-            'img.image.chrome-smooth-image-trick'
-          );
-
-          expect(image).not.toBeNull();
-          expect(image?.style.transform).not.toBe('');
-          expect(component.standTransform().startsWith('rotateY(90deg)')).toBe(true);
-          expect(at(component.imageFacing())).toContain(facingMark === 'turn' ? 'rotateZ(0deg)' : 'rotateZ(-90deg)');
-          expect(at(component.imageView.pieceFacing())).toContain('rotateZ(var(--multi-angle-piece-angle, 0deg))');
-        } finally {
-          character.destroy();
-          ImageStorage.instance.delete(imageUrl);
-        }
-      }
-    );
   });
 
   describe('keeping the name above the piece on the screen in the flat mode', () => {
-    it('raises the name straight up in three dimensions', async () => {
-      TestBed.inject(ViewModePreferenceService).choose('auto');
-      await new Promise<void>((resolve) => queueMicrotask(resolve));
-      expect(orbitOf(component.nameOrbitFacing())).toBe('translateY(-30px)');
-    });
-
-    it('puts it up the screen in the flat mode', async () => {
-      TestBed.inject(ViewModePreferenceService).choose('flat');
-      TestBed.inject(UiSignalService).notifyTableViewRotation(0, 0, 0);
-      await new Promise<void>((resolve) => queueMicrotask(resolve));
-      const transform = orbitOf(component.nameOrbitFacing());
-      const x = Number(transform.match(/translateX\((-?[\d.]+)px\)/)?.[1] ?? NaN);
-      expect(x).toBeCloseTo(0, 5);
-      expect(transform).toContain('translateZ(-60.00px)');
-    });
-
-    it('puts it across as the view turns a quarter', async () => {
-      TestBed.inject(ViewModePreferenceService).choose('flat');
-      TestBed.inject(UiSignalService).notifyTableViewRotation(0, 0, 90);
-      await new Promise<void>((resolve) => queueMicrotask(resolve));
-      const transform = orbitOf(component.nameOrbitFacing());
-      expect(transform).toContain('translateX(-60.00px)');
-      const z = Number(transform.match(/translateZ\((-?[\d.]+)px\)/)?.[1] ?? NaN);
-      expect(z).toBeCloseTo(0, 5);
-    });
-
-    it('compensates nothing along the depth in the flat mode', async () => {
-      TestBed.inject(ViewModePreferenceService).choose('flat');
-      TestBed.inject(UiSignalService).notifyTableViewRotation(50, 0, 10);
-      await new Promise<void>((resolve) => queueMicrotask(resolve));
-      expect(at(component.nameFacing())).toContain('translateZ(0.00px)');
-      expect(at(component.buffFacing())).toContain('translateZ(0.00px)');
-    });
-
     it('keeps the stationary name while the clockwise orbit is disabled', async () => {
       const tabletopService = TestBed.inject(TabletopService);
       tabletopService.currentTable.mode2d = true;
@@ -2793,25 +2089,6 @@ describe('GameCharacterComponent', () => {
           durationSeconds: 12,
           timingFunction: 'linear',
         });
-
-        const pieceRotation = root.querySelector<HTMLElement>('[data-testid="multi-angle-piece-motion-source"]');
-        expect(pieceRotation?.classList.contains('animate-multi-angle-piece-spin')).toBe(true);
-        expect(pieceRotation?.style.animationDuration).toBe('60s');
-        expect(pieceRotation?.style.animationTimingFunction).toBe('linear');
-        expect(component.multiAnglePieceRotationAnimation()).toEqual({
-          durationSeconds: 60,
-          timingFunction: 'linear',
-        });
-        expect(component.multiAnglePieceRotationDelaySeconds()).toBeLessThanOrEqual(0);
-        expect(root.querySelector<HTMLElement>('[data-testid="multi-angle-rotating-pedestal"]')?.style.transform).toBe(
-          'rotateZ(var(--multi-angle-piece-angle, 0deg))'
-        );
-        expect(component.multiAnglePieceImageRotation()).toBe('rotateZ(var(--multi-angle-piece-angle, 0deg))');
-        expect(at(component.imageView.pieceFacing())).toMatch(
-          /rotateY\(90deg\).*rotateZ\(var\(--multi-angle-piece-angle, 0deg\)\)$/
-        );
-        expect(at(component.imageView.pieceFacing())).not.toContain('rotateX(var(--multi-angle-piece-angle');
-        expect(at(component.imageView.pieceFacing())).not.toContain('rotateY(var(--multi-angle-piece-angle');
         expect(root.querySelector<HTMLElement>('[data-testid="piece-gauge"]')?.style.transform ?? '').not.toContain(
           '--multi-angle-piece-angle'
         );
@@ -2998,25 +2275,24 @@ describe('GameCharacterComponent', () => {
       table.multiAngleRevolutionSeconds = 8;
       table.multiAnglePauseSeconds = 2;
       table.multiAnglePieceRevolutionSeconds = 90;
+      const turn = vi.spyOn(TestBed.inject(PieceMotionsService), 'turnOnItsOwn');
       const character = GameCharacter.create('間欠回転', 1, '');
       fixture.componentRef.setInput('gameCharacter', character);
 
       try {
         fixture.detectChanges();
+        TestBed.tick();
         const root = fixture.nativeElement as HTMLElement;
         const orbit = root.querySelector<HTMLElement>('[data-testid="multi-angle-name-orbit"]');
-        const pieceRotation = root.querySelector<HTMLElement>('[data-testid="multi-angle-piece-motion-source"]');
 
         expect(component.multiAngleNameOrbitAnimation().durationSeconds).toBe(16);
         expect(component.multiAngleNameOrbitAnimation().timingFunction).toContain('0.25 12.5%');
         expect(orbit?.style.animationDuration).toBe('16s');
         expect(orbit?.style.animationTimingFunction).toContain('linear(');
-        expect(component.multiAnglePieceRotationAnimation().durationSeconds).toBe(98);
-        expect(component.multiAnglePieceRotationAnimation().timingFunction).toContain('0.25 22.9592%');
-        expect(component.multiAnglePieceRotationAnimation().timingFunction).toContain('0.25 25%');
-        expect(pieceRotation?.style.animationDuration).toBe('98s');
-        expect(pieceRotation?.style.animationTimingFunction).toContain('linear(');
-        expect(pieceRotation?.style.animationDelay).toBe(`${component.multiAnglePieceRotationDelaySeconds()}s`);
+        expect(turn).toHaveBeenLastCalledWith(
+          character.identifier,
+          expect.objectContaining({ mode: 'quarter-turn', revolutionSeconds: 90, pauseSeconds: 2 })
+        );
       } finally {
         character.destroy();
       }
@@ -3030,14 +2306,15 @@ describe('GameCharacterComponent', () => {
       table.multiAngleRevolutionSeconds = 8;
       table.multiAnglePauseSeconds = 2;
       table.multiAnglePieceRevolutionSeconds = 90;
+      const turn = vi.spyOn(TestBed.inject(PieceMotionsService), 'turnOnItsOwn');
       const character = GameCharacter.create('コマだけ間欠回転', 1, '');
       fixture.componentRef.setInput('gameCharacter', character);
 
       try {
         fixture.detectChanges();
+        TestBed.tick();
         const root = fixture.nativeElement as HTMLElement;
         const orbit = root.querySelector<HTMLElement>('[data-testid="multi-angle-name-orbit"]');
-        const pieceRotation = root.querySelector<HTMLElement>('[data-testid="multi-angle-piece-motion-source"]');
 
         expect(component.multiAngleNameOrbitAnimation()).toEqual({
           durationSeconds: 8,
@@ -3045,10 +2322,10 @@ describe('GameCharacterComponent', () => {
         });
         expect(orbit?.style.animationDuration).toBe('8s');
         expect(orbit?.style.animationTimingFunction).toBe('linear');
-        expect(component.multiAnglePieceRotationAnimation().durationSeconds).toBe(98);
-        expect(component.multiAnglePieceRotationAnimation().timingFunction).toContain('0.25 22.9592%');
-        expect(pieceRotation?.style.animationDuration).toBe('98s');
-        expect(pieceRotation?.style.animationTimingFunction).toContain('linear(');
+        expect(turn).toHaveBeenLastCalledWith(
+          character.identifier,
+          expect.objectContaining({ mode: 'quarter-turn', revolutionSeconds: 90, pauseSeconds: 2 })
+        );
       } finally {
         character.destroy();
       }
@@ -3125,36 +2402,38 @@ describe('GameCharacterComponent', () => {
   });
 
   describe('the hop a piece makes when it arrives', () => {
-    const bodyWrapper = () => fixture.nativeElement.querySelector('[data-testid="piece-entry-bounce"]') as HTMLElement;
-
-    it('hops once and then stays put, so re-ordering the table does not set it off again', () => {
+    it('hops on the canvas once, as it comes onto the table', () => {
+      const play = vi.spyOn(TestBed.inject(PieceMotionsService), 'play');
       const character = GameCharacter.create('bounce', 1, '');
       fixture.componentRef.setInput('gameCharacter', character);
 
       try {
         fixture.detectChanges();
-        expect(bodyWrapper().className).toContain('animate-bounce-in');
-
-        bodyWrapper().dispatchEvent(new AnimationEvent('animationend', { animationName: 'bounceIn' }));
+        TestBed.tick();
         fixture.detectChanges();
+        TestBed.tick();
 
-        expect(bodyWrapper().className).not.toContain('animate-bounce-in');
+        expect(play.mock.calls.filter(([, kind]) => kind === 'bounce-in')).toEqual([
+          [character.identifier, 'bounce-in'],
+        ]);
       } finally {
         character.destroy();
       }
     });
 
-    it('keeps hopping while another animation on the piece finishes', () => {
-      const character = GameCharacter.create('bounce-other', 1, '');
+    it('stops hopping once it is taken off the table', () => {
+      const motions = TestBed.inject(PieceMotionsService);
+      const character = GameCharacter.create('bounce-gone', 1, '');
       fixture.componentRef.setInput('gameCharacter', character);
 
       try {
         fixture.detectChanges();
+        TestBed.tick();
+        expect(motions.isPlaying(character.identifier)).toBe(true);
 
-        bodyWrapper().dispatchEvent(new AnimationEvent('animationend', { animationName: 'hitShake' }));
-        fixture.detectChanges();
+        fixture.destroy();
 
-        expect(bodyWrapper().className).toContain('animate-bounce-in');
+        expect(motions.isPlaying(character.identifier)).toBe(false);
       } finally {
         character.destroy();
       }
@@ -3235,6 +2514,7 @@ describe('GameCharacterComponent', () => {
   });
 
   it('collapses the piece itself while an effect knocks it down', () => {
+    const play = vi.spyOn(TestBed.inject(PieceMotionsService), 'play');
     const character = GameCharacter.create('斬られ役', 1, '');
     fixture.componentRef.setInput('gameCharacter', character);
     const preset = new EffectPreset();
@@ -3252,8 +2532,8 @@ describe('GameCharacterComponent', () => {
       fixture.detectChanges();
 
       // An effect around it does not read as falling; the piece has to go down with it.
-      const body = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="piece-body"]')!;
-      expect(body.classList.contains('animate-defeat-dissolve')).toBe(true);
+      TestBed.tick();
+      expect(play).toHaveBeenCalledWith(character.identifier, 'defeat-dissolve', { holds: true });
     } finally {
       ObjectStore.instance.remove(preset);
       character.destroy();
@@ -3262,12 +2542,9 @@ describe('GameCharacterComponent', () => {
 
   describe('over a table drawn on a canvas', () => {
     beforeEach(() => {
-      TestBed.inject(Table3dService).renderer.set('three');
       fixture = TestBed.createComponent(GameCharacterComponent);
       component = fixture.componentInstance;
     });
-
-    afterEach(() => TestBed.inject(Table3dService).renderer.set('css'));
 
     it('lays its pedestal and its labels out on the screen, and draws its pedestal out of sight for the canvas', () => {
       const character = GameCharacter.create('コマ', 1, '');
