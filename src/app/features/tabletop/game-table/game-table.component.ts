@@ -19,7 +19,6 @@ import { EffectPlaybackService } from '@axe/application/effect/effect-playback.s
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { StartRoomService } from '@axe/application/file/start-room.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ImageService } from '@axe/application/storage/image.service';
@@ -246,7 +245,6 @@ export class GameTableComponent {
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly createMenu = inject(CreateObjectMenuService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
-  private readonly coordinateService = inject(CoordinateService);
   private readonly tableCamera = inject(TableCameraService);
   private readonly tablePick = inject(TablePickService);
   private readonly tableSurfaces = inject(TableSurfaceService);
@@ -456,8 +454,8 @@ export class GameTableComponent {
 
       this.redrawTableGrid();
       this.gestureService.setTransform(0, 0, 0, 0, 0, 0);
-      this.coordinateService.tabletopOriginElement = this.gameObjects().nativeElement;
       this.updateCameraLayout();
+      this.destroyRef.onDestroy(() => this.tableCamera.forget());
       this.destroyRef.onDestroy(observeSize(this.rootElementRef().nativeElement, () => this.updateCameraLayout()));
       this.followGridShown();
       this.followFaceGrids();

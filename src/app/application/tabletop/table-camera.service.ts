@@ -88,6 +88,16 @@ export class TableCameraService implements TableScreen {
     this.changes.update((version) => version + 1);
   }
 
+  /** Called when the table goes from the page, which then has no camera until a table draws one again. */
+  forget(): void {
+    if (!this.shownView && !this.shownLayout) return;
+    this.shownView = null;
+    this.shownLayout = null;
+    this.stale = true;
+    this.changes.update((version) => version + 1);
+    this.layoutChanges.update((version) => version + 1);
+  }
+
   /** Called when the table is laid out again, or its board changes size. */
   setLayout(layout: TableLayout): void {
     const was = this.shownLayout;

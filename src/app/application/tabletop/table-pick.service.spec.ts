@@ -1,5 +1,4 @@
 import { TestBed } from '@angular/core/testing';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
@@ -163,14 +162,10 @@ describe('TablePickService', () => {
       expect(landed.z).toBeCloseTo(expected.z, 6);
     });
 
-    it('is read off the element at the point before the table has a camera', () => {
+    it('takes the point of the page as the point of the floor before the table has a camera', () => {
       TestBed.resetTestingModule();
       TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
-      const read = vi
-        .spyOn(TestBed.inject(CoordinateService), 'calcTabletopLocalCoordinate')
-        .mockReturnValue({ x: 1, y: 2, z: 3 });
-      expect(TestBed.inject(TablePickService).landingAt(40, 50)).toEqual({ x: 1, y: 2, z: 3 });
-      expect(read.mock.calls[0][0]).toEqual({ x: 40, y: 50, z: 0 });
+      expect(TestBed.inject(TablePickService).landingAt(40, 50)).toEqual({ x: 40, y: 50, z: 0 });
     });
   });
 

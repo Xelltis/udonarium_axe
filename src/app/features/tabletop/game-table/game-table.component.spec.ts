@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CardTargetService } from '@axe/application/card/card-target.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
+import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
@@ -1117,7 +1118,7 @@ describe('GameTableComponent', () => {
     it('tells whatever reads the view about each step of the glide', () => {
       vi.useFakeTimers({ toFake: [...FRAME_TIMERS] });
       fixture.detectChanges();
-      const coordinates = component['coordinateService'];
+      const coordinates = TestBed.inject(CoordinateService);
       vi.advanceTimersByTime(50);
 
       TestBed.inject(SelectionSignalService).focusCoordinate.set({ x: 100, y: 100, timestamp: 3 });

@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -45,6 +46,7 @@ const D6_EDGE = (2 * dieRadiusOf('d6')) / Math.sqrt(3);
 @Injectable({ providedIn: 'root' })
 export class DiceTrayPlacementService {
   private readonly coordinates = inject(CoordinateService);
+  private readonly tableCamera = inject(TableCameraService);
   private readonly tabletop = inject(TabletopService);
   private readonly vision = inject(VisionService);
   private readonly concealment = inject(ConcealmentService);
@@ -55,8 +57,7 @@ export class DiceTrayPlacementService {
    * the screen, the row kept whole on the board. Null when no table is on show.
    */
   placementsFor(speakerIdentifier: string, counts: readonly number[]): TablePlacement[] | null {
-    const origin = this.coordinates.tabletopOriginElement;
-    if (!origin || origin === document.body || !origin.isConnected) return null;
+    if (!this.tableCamera.sceneMatrix()) return null;
     const table = this.tabletop.currentTable;
     const grid = table.gridSize;
     if (!(grid > 0)) return null;
@@ -128,18 +129,14 @@ export class DiceTrayPlacementService {
 
   /** The point of the table under the middle of the screen. */
   private middleOfScreen(): [number, number, number] {
-    const local = this.coordinates.convertToLocal(
-      { x: window.innerWidth / 2, y: window.innerHeight / 2, z: 0 },
-      this.coordinates.tabletopOriginElement
-    );
+    const local = this.coordinates.floorPointOf(window.innerWidth / 2, window.innerHeight / 2);
     return [local.x, local.y, 0];
   }
 
   /** Which way across the table runs up the reader's screen at a point, as a unit length. */
   private upTheScreenAt([x, y]: readonly number[]): [number, number] {
-    const origin = this.coordinates.tabletopOriginElement;
-    const page = this.coordinates.convertToGlobal({ x, y, z: 0 }, origin);
-    const above = this.coordinates.convertToLocal({ x: page.x, y: page.y - UP_PROBE_PX, z: 0 }, origin);
+    const page = this.coordinates.pageOfFloorPoint(x, y);
+    const above = this.coordinates.floorPointOf(page.x, page.y - UP_PROBE_PX);
     const [dx, dy] = [above.x - x, above.y - y];
     const length = Math.hypot(dx, dy);
     return length > 1e-6 && Number.isFinite(length) ? [dx / length, dy / length] : [0, -1];

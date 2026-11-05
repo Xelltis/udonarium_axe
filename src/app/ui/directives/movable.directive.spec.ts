@@ -546,7 +546,7 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
       cancel: () => undefined,
       destroy: () => undefined,
     };
-    vi.spyOn(directive['coordinateService'], 'convertToLocal').mockReturnValue({ ...atLocal, z: 0 });
+    vi.spyOn(directive['coordinateService'], 'convertToFace').mockReturnValue({ ...atLocal, z: 0 });
   }
 
   it('a turn of the wheel lifts the piece onto a rock hanging above it', () => {
@@ -671,7 +671,7 @@ describe('MovableDirective where a dragged piece comes to rest', () => {
       shiftWheel(directive, true);
       const before = { x: guides.held()?.x, y: guides.held()?.y };
 
-      vi.spyOn(directive['coordinateService'], 'convertToLocal').mockReturnValue({ x: 400, y: 500, z: 0 });
+      vi.spyOn(directive['coordinateService'], 'convertToFace').mockReturnValue({ x: 400, y: 500, z: 0 });
       directive['onInputMoveNow'](new MouseEvent('mousemove'));
 
       const after = { x: guides.held()?.x, y: guides.held()?.y };

@@ -90,18 +90,11 @@ export class TablePickService {
    * Where a point of the page lands on the table, in the board's space and never below the floor:
    * on the first thing the line of sight meets that a piece can be put on (a block, a wall drawn
    * with a picture, a white board or the floor), or on the floor's plane where it meets none of
-   * them. Before the table has a camera it is read off the element at the point, as the table drawn
-   * in the page always did.
+   * them. Before the table has a camera, the point of the page is taken as the point of the floor.
    */
   landingAt(pageX: number, pageY: number): PointerCoordinate {
     const ray = this.rayAt(pageX, pageY);
-    if (!ray) {
-      const under = document.elementFromPoint(pageX, pageY);
-      return this.coordinates.calcTabletopLocalCoordinate(
-        { x: pageX, y: pageY, z: 0 },
-        under instanceof HTMLElement ? under : undefined
-      );
-    }
+    if (!ray) return { ...this.coordinates.floorPointOf(pageX, pageY), z: 0 };
     const hit = pickFirst([...this.faceTargets(), ...this.targets()], ray);
     if (hit) return { x: hit.point.x, y: hit.point.y, z: Math.max(0, hit.point.z) };
     const along = ray.direction.z !== 0 ? -ray.origin.z / ray.direction.z : 0;

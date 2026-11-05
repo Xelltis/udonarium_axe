@@ -1,6 +1,17 @@
 import { Logger } from '@axe/core/logging/logger';
 import { CSSNumber } from '@axe/core/transform/css-number';
-import { IPoint2D, IPoint3D } from '@axe/core/transform/transform';
+
+/** A point of a plane. */
+export interface IPoint2D {
+  x: number;
+  y: number;
+}
+
+/** A point of space, with the weight it is divided by once it has been carried through a perspective. */
+export interface IPoint3D extends IPoint2D {
+  z: number;
+  w: number;
+}
 
 export interface IMatrix3D {
   m11: number;

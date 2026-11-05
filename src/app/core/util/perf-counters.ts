@@ -7,7 +7,6 @@ export const PERF_PARTICLES = 'particles';
 export const PERF_TO_DATA_URL = 'toDataUrl';
 export const PERF_ROTATION_NOTIFY = 'rotationNotify';
 export const PERF_SVG_BUILD = 'svgBuild';
-export const PERF_TRANSFORM_INIT = 'transformInit';
 export const PERF_AMBIENCE_LAYER = 'ambienceLayer';
 export const PERF_DESERIALIZE_SCENE = 'deserializeScene';
 export const PERF_EFFECT_RENDERABLES = 'effectRenderables';

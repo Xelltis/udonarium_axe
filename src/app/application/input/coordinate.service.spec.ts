@@ -2,8 +2,6 @@ import { TestBed } from '@angular/core/testing';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
-import { Transform } from '@axe/core/transform/transform';
-import { PERF_TRANSFORM_INIT, perfCounters } from '@axe/core/util/perf-counters';
 import {
   DEFAULT_TABLE_CAMERA_VIEW,
   pageOfTablePoint,
@@ -15,19 +13,8 @@ describe('CoordinateService', () => {
   let service: CoordinateService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     service = TestBed.inject(CoordinateService);
-    perfCounters.enabled = true;
-    perfCounters.drain();
-  });
-
-  afterEach(() => {
-    perfCounters.enabled = false;
-    perfCounters.drain();
-  });
-
-  it('should be created', () => {
-    expect(service).toBeTruthy();
   });
 
   it('counts each time the view is written out', () => {
@@ -41,86 +28,50 @@ describe('CoordinateService', () => {
 
   describe('points on the table’s floor', () => {
     const layout = { left: 8, top: 40, width: 1280, height: 760, boardWidth: 1000, boardHeight: 750 };
+    const view = { ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: 30, positionZ: -500 };
 
-    function tableDrawn(): HTMLElement {
-      const table = document.createElement('div');
-      document.body.appendChild(table);
-      service.tabletopOriginElement = table;
+    function tableDrawn(): void {
       const camera = TestBed.inject(TableCameraService);
       camera.setLayout(layout);
-      camera.showView({ ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: 30, positionZ: -500 });
-      return table;
+      camera.showView(view);
     }
 
-    it('are worked out from the camera, without reading the page’s styles back', () => {
-      const table = tableDrawn();
-      perfCounters.drain();
-      const scene = tableSceneMatrix({ ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: 30, positionZ: -500 }, layout);
-      const expected = pageOfTablePoint(scene, 300, 200, 0);
+    it('are carried onto the page through the camera', () => {
+      tableDrawn();
+      const expected = pageOfTablePoint(tableSceneMatrix(view, layout), 300, 200, 0);
 
-      const onPage = service.convertToGlobal({ x: 300, y: 200, z: 0 }, table);
-      const many = service.convertManyToGlobal([{ x: 300, y: 200, z: 0 }], table);
+      const onPage = service.pageOfFloorPoint(300, 200);
 
       expect(onPage.x).toBeCloseTo(expected.x, 9);
       expect(onPage.y).toBeCloseTo(expected.y, 9);
-      expect(many[0].x).toBeCloseTo(expected.x, 9);
-      expect(service.tabletopSceneMatrix().m41).toBe(scene.m41);
-      expect(perfCounters.drain().get(PERF_TRANSFORM_INIT)).toBeUndefined();
-      table.remove();
     });
 
     it('come back from the page to where they were on the board', () => {
-      const table = tableDrawn();
-      const onPage = service.convertToGlobal({ x: 640, y: 120, z: 0 }, table);
+      tableDrawn();
+      const onPage = service.pageOfFloorPoint(640, 120);
 
-      const back = service.convertToLocal({ x: onPage.x, y: onPage.y, z: 0 }, table);
+      const back = service.floorPointOf(onPage.x, onPage.y);
 
       expect(back.x).toBeCloseTo(640, 6);
       expect(back.y).toBeCloseTo(120, 6);
-      table.remove();
     });
-  });
 
-  describe('points on a wall or a white board', () => {
-    it('are worked out from the face the element is, by its data-surface', () => {
-      TestBed.resetTestingModule();
-      TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
-      service = TestBed.inject(CoordinateService);
-      const camera = TestBed.inject(TableCameraService);
-      camera.setLayout({ left: 0, top: 0, width: 1280, height: 800, boardWidth: 1000, boardHeight: 750 });
-      camera.showView(DEFAULT_TABLE_CAMERA_VIEW);
-      const surfaces = TestBed.inject(TableSurfaceService);
-      const frame = {
-        origin: { x: 0, y: 0, z: 300 },
-        u: { x: 1, y: 0, z: 0 },
-        v: { x: 0, y: 0, z: -1 },
-        normal: { x: 0, y: 1, z: 0 },
-      };
-      vi.spyOn(surfaces, 'frameOf').mockReturnValue(frame);
-      const wall = document.createElement('div');
-      wall.setAttribute('data-surface', 'north-wall');
-      document.body.appendChild(wall);
-      perfCounters.drain();
+    it('are the points of the page themselves before the table has a camera', () => {
+      expect(service.floorPointOf(30, 40)).toEqual({ x: 30, y: 40, z: 0 });
+      expect(service.pageOfFloorPoint(30, 40, 5)).toEqual({ x: 30, y: 40, z: 5 });
+    });
 
-      const onPage = service.convertToGlobal({ x: 120, y: 60, z: 0 }, wall);
-      const back = service.convertToLocal({ x: onPage.x, y: onPage.y, z: 0 }, wall);
+    it('are the points of the page again once the table has gone', () => {
+      tableDrawn();
 
-      expect(onPage).toMatchObject(surfaces.pageOf('north-wall', 120, 60)!);
-      expect(back.x).toBeCloseTo(120, 6);
-      expect(back.y).toBeCloseTo(60, 6);
-      expect(perfCounters.drain().get(PERF_TRANSFORM_INIT)).toBeUndefined();
-      wall.remove();
+      TestBed.inject(TableCameraService).forget();
+
+      expect(service.floorPointOf(30, 40)).toEqual({ x: 30, y: 40, z: 0 });
     });
   });
 
   describe('points on a face named as a location names it', () => {
-    beforeEach(() => {
-      TestBed.resetTestingModule();
-      TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
-      service = TestBed.inject(CoordinateService);
-    });
-
-    it('are worked out from the face’s frame once the table has a camera, with no element for it', () => {
+    it('are worked out from the face’s frame once the table has a camera', () => {
       const camera = TestBed.inject(TableCameraService);
       camera.setLayout({ left: 0, top: 0, width: 1280, height: 800, boardWidth: 1000, boardHeight: 750 });
       camera.showView(DEFAULT_TABLE_CAMERA_VIEW);
@@ -131,7 +82,6 @@ describe('CoordinateService', () => {
         v: { x: 0, y: 0, z: -1 },
         normal: { x: 0, y: 1, z: 0 },
       });
-      const walk = vi.spyOn(service, 'convertToLocal');
 
       const onPage = service.convertFromFace({ x: 120, y: 60, z: 0 }, 'north-wall');
       const back = service.convertToFace(onPage, 'north-wall');
@@ -139,135 +89,12 @@ describe('CoordinateService', () => {
       expect(onPage).toMatchObject(surfaces.pageOf('north-wall', 120, 60)!);
       expect(back.x).toBeCloseTo(120, 6);
       expect(back.y).toBeCloseTo(60, 6);
-      expect(walk).not.toHaveBeenCalled();
     });
 
-    it('are read back from the element the face is drawn with before then, or from the table', () => {
-      const table = document.createElement('div');
-      const wall = document.createElement('div');
-      wall.setAttribute('data-surface', 'east-wall');
-      document.body.append(table, wall);
-      service.tabletopOriginElement = table;
-      const walk = vi.spyOn(service, 'convertToLocal').mockReturnValue({ x: 1, y: 2, z: 0 });
-
-      service.convertToFace({ x: 10, y: 10, z: 0 }, 'east-wall');
-      service.convertToFace({ x: 10, y: 10, z: 0 }, 'floor');
-      service.convertToFace({ x: 10, y: 10, z: 0 }, 'a-board-not-drawn');
-
-      expect(walk.mock.calls.map((call) => call[1])).toEqual([wall, table, table]);
-      expect(service.faceElement('a-board-not-drawn')).toBeNull();
-      table.remove();
-      wall.remove();
-    });
-  });
-
-  describe('the transform pool', () => {
-    it('reuses its transforms across repeated conversions', () => {
-      const internal = service as unknown as { _transformA: Transform; _transformB: Transform };
-      const a1 = internal._transformA;
-      const b1 = internal._transformB;
-
-      const el = document.createElement('div');
-      document.body.appendChild(el);
-      service.convertToLocal({ x: 10, y: 10, z: 0 }, el);
-      service.convertToLocal({ x: 20, y: 20, z: 0 }, el);
-      service.convertToGlobal({ x: 30, y: 30, z: 0 }, el);
-      service.convertLocalToLocal({ x: 40, y: 40, z: 0 }, el, document.body);
-      document.body.removeChild(el);
-
-      // the pooled reference surviving the call proves nothing was allocated
-      expect(internal._transformA).toBe(a1);
-      expect(internal._transformB).toBe(b1);
-    });
-
-    it('gives the same answer as a fresh transform would', () => {
-      const el = document.createElement('div');
-      document.body.appendChild(el);
-
-      const pooled = service.convertToLocal({ x: 50, y: 60, z: 0 }, el);
-
-      const transformer = new Transform(el);
-      const expected = transformer.globalToLocal(50, 60, 0);
-      transformer.clear();
-
-      expect(pooled.x).toBeCloseTo(expected.x);
-      expect(pooled.y).toBeCloseTo(expected.y);
-      expect(pooled.z).toBeCloseTo(expected.z);
-
-      document.body.removeChild(el);
-    });
-
-    it('walks the table ancestors once for a run of conversions in the same frame', () => {
-      const table = document.createElement('div');
-      document.body.appendChild(table);
-      service.tabletopOriginElement = table;
-      perfCounters.drain();
-
-      service.convertToLocal({ x: 10, y: 10, z: 0 }, table);
-      service.convertToLocal({ x: 20, y: 20, z: 0 }, table);
-      service.convertToGlobal({ x: 30, y: 30, z: 0 }, table);
-
-      expect(perfCounters.drain().get(PERF_TRANSFORM_INIT)).toBe(1);
-
-      service.invalidateTabletopTransform();
-      service.convertToLocal({ x: 40, y: 40, z: 0 }, table);
-
-      expect(perfCounters.drain().get(PERF_TRANSFORM_INIT)).toBe(1);
-      document.body.removeChild(table);
-    });
-
-    it('walks it again for the next frame', async () => {
-      const table = document.createElement('div');
-      document.body.appendChild(table);
-      service.tabletopOriginElement = table;
-
-      service.convertToLocal({ x: 10, y: 10, z: 0 }, table);
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-      perfCounters.drain();
-
-      service.convertToLocal({ x: 20, y: 20, z: 0 }, table);
-
-      expect(perfCounters.drain().get(PERF_TRANSFORM_INIT)).toBe(1);
-      document.body.removeChild(table);
-    });
-
-    it('keeps nothing for an element that is not the table', () => {
-      const el = document.createElement('div');
-      document.body.appendChild(el);
-      perfCounters.drain();
-
-      service.convertToLocal({ x: 10, y: 10, z: 0 }, el);
-      service.convertToLocal({ x: 20, y: 20, z: 0 }, el);
-
-      expect(perfCounters.drain().get(PERF_TRANSFORM_INIT)).toBe(2);
-      document.body.removeChild(el);
-    });
-
-    it('gives the same answer kept as freshly walked', () => {
-      const table = document.createElement('div');
-      document.body.appendChild(table);
-      service.tabletopOriginElement = table;
-
-      const first = service.convertToLocal({ x: 50, y: 60, z: 0 }, table);
-      const kept = service.convertToLocal({ x: 50, y: 60, z: 0 }, table);
-
-      expect(kept).toEqual(first);
-      document.body.removeChild(table);
-    });
-
-    it('uses one pooled transform for each end and no more', () => {
-      const a = document.createElement('div');
-      const b = document.createElement('div');
-      document.body.appendChild(a);
-      document.body.appendChild(b);
-
-      const result = service.convertLocalToLocal({ x: 10, y: 10, z: 0 }, a, b);
-      expect(typeof result.x).toBe('number');
-      expect(typeof result.y).toBe('number');
-      expect(typeof result.z).toBe('number');
-
-      document.body.removeChild(a);
-      document.body.removeChild(b);
+    it('are the points of the page themselves before then', () => {
+      expect(service.convertToFace({ x: 10, y: 20, z: 0 }, 'east-wall')).toEqual({ x: 10, y: 20, z: 0 });
+      expect(service.convertFromFace({ x: 10, y: 20, z: 3 }, 'floor')).toEqual({ x: 10, y: 20, z: 3 });
+      expect(service.drawnScaleOnFace({ x: 10, y: 20, z: 0 }, 'floor')).toBeNull();
     });
   });
 });

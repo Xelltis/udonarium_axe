@@ -1,5 +1,4 @@
-import { IMatrix3D, Matrix3D } from '@axe/core/transform/matrix-3d';
-import type { IPoint3D } from '@axe/core/transform/transform';
+import { IMatrix3D, type IPoint3D, Matrix3D } from '@axe/core/transform/matrix-3d';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 
 /**

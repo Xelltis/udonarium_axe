@@ -3,8 +3,10 @@ import { DiceTrayPlacementService, DIE_CELLS, IN_FRONT_CELLS } from '@axe/applic
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { dieRadiusOf } from '@axe/domain/dice/dice-3d/polyhedra';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -23,7 +25,8 @@ describe('DiceTrayPlacementService', () => {
   let view = viewTurnedBy(0);
   let visible = true;
   let concealed = false;
-  let origin: HTMLElement;
+  /** Whether a table is on show, with a camera of its own. */
+  let shown: boolean;
   /** The cell of the table on show, which the setup of every test gives. */
   let grid: number;
   const made: { destroy(): void }[] = [];
@@ -54,31 +57,29 @@ describe('DiceTrayPlacementService', () => {
     view = viewTurnedBy(0);
     visible = true;
     concealed = false;
-    origin = document.createElement('div');
-    document.body.appendChild(origin);
+    shown = true;
     TestBed.configureTestingModule({
       providers: [
         ...TEST_PROVIDERS,
         {
           provide: CoordinateService,
           useValue: {
-            get tabletopOriginElement() {
-              return origin;
-            },
-            convertToGlobal: (p: PointerCoordinate) => view.toPage(p),
-            convertToLocal: (p: PointerCoordinate) => view.toTable(p),
+            pageOfFloorPoint: (x: number, y: number) => view.toPage({ x, y, z: 0 }),
+            floorPointOf: (x: number, y: number) => view.toTable({ x, y, z: 0 }),
           },
         },
         { provide: VisionService, useValue: { isTokenVisible: () => visible } },
         { provide: ConcealmentService, useValue: { isConcealed: () => concealed } },
       ],
     });
+    vi.spyOn(TestBed.inject(TableCameraService), 'sceneMatrix').mockImplementation(() =>
+      shown ? new Matrix3D() : null
+    );
     service = TestBed.inject(DiceTrayPlacementService);
     grid = TestBed.inject(TabletopService).currentTable.gridSize;
   });
 
   afterEach(() => {
-    origin.remove();
     for (const object of made.splice(0)) object.destroy();
   });
 
@@ -190,7 +191,7 @@ describe('DiceTrayPlacementService', () => {
   });
 
   it('places nothing while no table is on show', () => {
-    origin.remove();
+    shown = false;
 
     expect(service.placementsFor(lineFrom(null), [2])).toBeNull();
   });
