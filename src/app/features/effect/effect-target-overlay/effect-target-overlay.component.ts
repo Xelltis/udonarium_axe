@@ -5,12 +5,22 @@ import {
   EffectTargetLink,
   EffectTargetMark,
 } from '@axe/application/effect/effect-targeting.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { pageOfTablePoint, tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
+import { quadMatrix } from '@axe/domain/tabletop/world/page-boxes';
+import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
 
 const LINK_THICKNESS = 5;
 const LINK_LIFT = 6;
 const MARK_SIZE = 56;
 const BADGE_SIZE = 26;
+
+/** A point of the floor, in table pixels. */
+interface FloorPoint {
+  readonly x: number;
+  readonly y: number;
+}
 
 /**
  * What shows while targets are being chosen: the marks in order, and a line from the caster to each.
@@ -34,6 +44,43 @@ export class EffectTargetOverlayComponent {
    * pieces carry their own numbers.
    */
   readonly badges = input(true);
+  /**
+   * Whether the marks are laid over a table drawn on a canvas: what lies flat laid on the screen where
+   * the canvas draws it at its height, and the numbers stood where the canvas draws the point they
+   * stand at, rather than among the page's own pieces.
+   */
+  readonly overCanvas = input(false);
+
+  private readonly camera = inject(TableCameraService);
+
+  /**
+   * How to lay an element over a canvas: one lying flat, from its corners on the floor at a height,
+   * and one standing at a point, facing the screen. Follows the camera; null before it is set.
+   */
+  private readonly screen = computed(() => {
+    this.camera.version();
+    const scene = this.camera.sceneMatrix();
+    const view = this.camera.view;
+    const layout = this.camera.layout;
+    if (!scene || !view || !layout) return null;
+    const right = eyeAxesOf(tableEyeMatrix(view, layout)).right;
+    const onScreen = (x: number, y: number, z: number) => {
+      const at = pageOfTablePoint(scene, x, y, z);
+      return { x: at.x - layout.left, y: at.y - layout.top };
+    };
+    return {
+      flat: (corners: readonly FloorPoint[], z: number, width: number, height: number): string | null => {
+        const [a, b, c, d] = corners.map((corner) => onScreen(corner.x, corner.y, z));
+        const matrix = quadMatrix(width, height, [a, b, c, d]);
+        return matrix ? `matrix3d(${matrix.map((value) => Math.round(value * 1e6) / 1e6).join(', ')})` : null;
+      },
+      standing: (x: number, y: number, z: number): string => {
+        const at = onScreen(x, y, z);
+        const beside = onScreen(x + right.x, y + right.y, z + right.z);
+        return `translate(${at.x}px, ${at.y}px) scale(${Math.hypot(beside.x - at.x, beside.y - at.y)}) translate(-50%, -50%)`;
+      },
+    };
+  });
 
   readonly marks = computed<EffectTargetMark[]>(() => this.targeting.marks());
 
@@ -48,7 +95,32 @@ export class EffectTargetOverlayComponent {
   protected readonly color = computed<string>(() => this.targeting.preset()?.colorPrimary ?? '#ffd27f');
   protected readonly accent = computed<string>(() => this.targeting.preset()?.colorSecondary ?? '#ff5a33');
 
+  /** The corners of a square lying flat round a middle, round from its top left. */
+  private squareRound(x: number, y: number, size: number): FloorPoint[] {
+    const half = size / 2;
+    return [
+      { x: x - half, y: y - half },
+      { x: x + half, y: y - half },
+      { x: x + half, y: y + half },
+      { x: x - half, y: y + half },
+    ];
+  }
+
+  /** A style laid over a canvas in place of the page's, or the page's own where it is not over one or cannot be laid. */
+  private overCanvasOr(style: Record<string, string>, transform: () => string | null): Record<string, string> {
+    if (!this.overCanvas()) return style;
+    const laid = transform();
+    return laid ? { ...style, transform: laid } : { ...style, display: 'none' };
+  }
+
   protected areaStyle(area: { x: number; y: number; z: number; size: number }): Record<string, string> {
+    return this.overCanvasOr(
+      this.areaPageStyle(area),
+      () => this.screen()?.flat(this.squareRound(area.x, area.y, area.size), area.z + 1, area.size, area.size) ?? null
+    );
+  }
+
+  private areaPageStyle(area: { x: number; y: number; z: number; size: number }): Record<string, string> {
     return {
       position: 'absolute',
       left: '0px',
@@ -65,6 +137,29 @@ export class EffectTargetOverlayComponent {
   }
 
   protected linkStyle(link: EffectTargetLink): Record<string, string> {
+    return this.overCanvasOr(this.linkPageStyle(link), () => {
+      const turn = (link.angle * Math.PI) / 180;
+      const along = { x: Math.cos(turn), y: Math.sin(turn) };
+      const across = { x: -along.y * (LINK_THICKNESS / 2), y: along.x * (LINK_THICKNESS / 2) };
+      const length = Math.max(link.length, 1);
+      const end = { x: link.x + along.x * length, y: link.y + along.y * length };
+      return (
+        this.screen()?.flat(
+          [
+            { x: link.x - across.x, y: link.y - across.y },
+            { x: end.x - across.x, y: end.y - across.y },
+            { x: end.x + across.x, y: end.y + across.y },
+            { x: link.x + across.x, y: link.y + across.y },
+          ],
+          link.z + LINK_LIFT,
+          length,
+          LINK_THICKNESS
+        ) ?? null
+      );
+    });
+  }
+
+  private linkPageStyle(link: EffectTargetLink): Record<string, string> {
     return {
       position: 'absolute',
       left: '0px',
@@ -83,6 +178,13 @@ export class EffectTargetOverlayComponent {
   }
 
   protected markStyle(mark: EffectTargetMark): Record<string, string> {
+    return this.overCanvasOr(
+      this.markPageStyle(mark),
+      () => this.screen()?.flat(this.squareRound(mark.x, mark.y, MARK_SIZE), mark.z + 1, MARK_SIZE, MARK_SIZE) ?? null
+    );
+  }
+
+  private markPageStyle(mark: EffectTargetMark): Record<string, string> {
     return {
       position: 'absolute',
       left: '0px',
@@ -99,6 +201,13 @@ export class EffectTargetOverlayComponent {
   }
 
   protected badgeStyle(mark: EffectTargetMark): Record<string, string> {
+    return this.overCanvasOr(
+      this.badgePageStyle(mark),
+      () => this.screen()?.standing(mark.x, mark.y, mark.z + MARK_SIZE) ?? null
+    );
+  }
+
+  private badgePageStyle(mark: EffectTargetMark): Record<string, string> {
     const rotation = this.uiSignalService.tableViewRotation();
     return {
       position: 'absolute',

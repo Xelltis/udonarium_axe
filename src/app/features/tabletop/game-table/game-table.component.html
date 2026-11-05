@@ -415,8 +415,12 @@
       @if (!table3d.drawsOnCanvas()) {
         <table-altitude-guide-overlay class="contents"></table-altitude-guide-overlay>
       }
-      <table-effect-overlay class="contents"></table-effect-overlay>
-      <effect-target-overlay class="contents"></effect-target-overlay>
+      @if (!table3d.drawsOnCanvas()) {
+        <table-effect-overlay class="contents"></table-effect-overlay>
+      }
+      @if (!table3d.drawsOnCanvas()) {
+        <effect-target-overlay class="contents"></effect-target-overlay>
+      }
     </div>
   </div>
   @if (table3d.drawsOnCanvas()) {
@@ -488,6 +492,8 @@
       @for (cursor of peerCursors(); track cursor.identifier) {
         <peer-cursor class="absolute top-0 left-0" [cursor]="cursor" [overCanvas]="true"></peer-cursor>
       }
+      <table-effect-overlay class="contents" [overCanvas]="true"></table-effect-overlay>
+      <effect-target-overlay class="contents" [overCanvas]="true"></effect-target-overlay>
       <table-drop-preview></table-drop-preview>
       <table-altitude-guide-overlay class="contents" [overCanvas]="true"></table-altitude-guide-overlay>
     </div>

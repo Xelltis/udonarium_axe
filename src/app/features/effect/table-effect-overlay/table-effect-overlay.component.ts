@@ -4,6 +4,7 @@ import { EffectFieldRenderable, EffectFieldService } from '@axe/application/effe
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -13,7 +14,9 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { effectParticlePlacements } from '@axe/domain/effect/effect-particle-placements';
 import { EffectSprite, effectSprites } from '@axe/domain/effect/effect-timeline';
 import { ViewRotation } from '@axe/domain/effect/effect-view';
+import { pageOfTablePoint, tableEyeMatrix, tableRayOfPage } from '@axe/domain/tabletop/camera/table-camera';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
+import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import {
   EFFECT_CAMERA_LIFT_PX,
@@ -26,6 +29,7 @@ import {
   hasEffectPaintLayer,
 } from '@axe/features/effect/effect-sprite-style';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { FloorPlaneDirective } from '@axe/ui/tabletop/floor-plane.directive';
 
 export interface EffectEye {
   rotation: ViewRotation;
@@ -44,7 +48,7 @@ const MAX_CANVASES = 24;
   templateUrl: './table-effect-overlay.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'contents' },
-  imports: [NgStyle, SafePipe, EffectCanvasComponent],
+  imports: [NgStyle, SafePipe, EffectCanvasComponent, FloorPlaneDirective],
 })
 export class TableEffectOverlayComponent {
   private readonly playback = inject(EffectPlaybackService);
@@ -57,6 +61,14 @@ export class TableEffectOverlayComponent {
   private readonly firstPerson = inject(FirstPersonService);
 
   readonly eye = input<EffectEye | null>(null);
+  /**
+   * Whether the effects are laid over a table drawn on a canvas: what stands up on the screen where
+   * the canvas draws the point it stands at, as large as the canvas draws that point, and what lies
+   * flat on the floor where the canvas draws the floor, rather than among the page's own pieces.
+   */
+  readonly overCanvas = input(false);
+
+  private readonly camera = inject(TableCameraService);
 
   private readonly rotation = computed(() => this.eye()?.rotation ?? this.uiSignalService.tableViewRotation());
 
@@ -134,11 +146,10 @@ export class TableEffectOverlayComponent {
     return sprites.length > MAX_SPRITES ? sprites.slice(0, MAX_SPRITES) : sprites;
   });
 
-  /** The glowing particles go onto one canvas per target, where the additive blending stays and does not flatten the depth. */
-  readonly canvases = computed<EffectCanvasPlacement[]>(() => {
+  /** The canvases of particles to draw, one per target, with the point of the board each stands at. */
+  private readonly placed = computed(() => {
     const gridSize = this.tabletopService.gridSize();
-    const viewpoint = this.viewpoint();
-    const placements: EffectCanvasPlacement[] = [];
+    const placements: { placement: EffectCanvasPlacement; center: { x: number; y: number; z: number } }[] = [];
 
     for (const active of this.renderables()) {
       if (placements.length >= MAX_CANVASES) break;
@@ -155,15 +166,86 @@ export class TableEffectOverlayComponent {
       );
       for (const placement of placed) {
         placements.push({
-          key: `${active.key}-${placement.key}`,
-          layer: placement.layer,
-          width: placement.layer.width,
-          height: placement.layer.height,
-          transform: effectBillboardTransform(placement.center, placement.layer, viewpoint),
+          center: placement.center,
+          placement: {
+            key: `${active.key}-${placement.key}`,
+            layer: placement.layer,
+            width: placement.layer.width,
+            height: placement.layer.height,
+            transform: '',
+          },
         });
       }
     }
     return placements.length > MAX_CANVASES ? placements.slice(0, MAX_CANVASES) : placements;
+  });
+
+  /** The glowing particles go onto one canvas per target, where the additive blending stays and does not flatten the depth. */
+  readonly canvases = computed<EffectCanvasPlacement[]>(() => {
+    const viewpoint = this.viewpoint();
+    return this.placed().map(({ placement, center }) => ({
+      ...placement,
+      transform: effectBillboardTransform(center, placement.layer, viewpoint),
+    }));
+  });
+
+  /** The sprites that lie flat on the floor, laid over a canvas on the plane of the floor. */
+  protected readonly flatSprites = computed(() => this.sprites().filter((sprite) => sprite.flat));
+
+  /**
+   * Where a point of the board, brought the given way towards the eye along the way the camera looks,
+   * as a picture turned to the eye is, is drawn on the screen over a canvas, against the corner of the table's screen, and how many
+   * pixels of the screen a pixel of the board facing the eye there is drawn across. Follows the
+   * camera; null before it is set.
+   */
+  private readonly screen = computed(() => {
+    this.camera.version();
+    const scene = this.camera.sceneMatrix();
+    const inverse = this.camera.inverseSceneMatrix();
+    const view = this.camera.view;
+    const layout = this.camera.layout;
+    if (!scene || !inverse || !view || !layout) return null;
+    const right = eyeAxesOf(tableEyeMatrix(view, layout)).right;
+    const away = tableRayOfPage(inverse, layout.left + layout.width / 2, layout.top + layout.height / 2).direction;
+    return (x: number, y: number, z: number, towardsEyePx: number) => {
+      const near = { x: x - away.x * towardsEyePx, y: y - away.y * towardsEyePx, z: z - away.z * towardsEyePx };
+      const at = pageOfTablePoint(scene, near.x, near.y, near.z);
+      const beside = pageOfTablePoint(scene, near.x + right.x, near.y + right.y, near.z + right.z);
+      return { x: at.x - layout.left, y: at.y - layout.top, scale: Math.hypot(beside.x - at.x, beside.y - at.y) };
+    };
+  });
+
+  /** The sprites that stand up, each with the style that lays it on the screen over a canvas. */
+  protected readonly standingOnScreen = computed(() => {
+    const screen = this.screen();
+    if (!screen) return [];
+    const viewpoint = this.viewpoint();
+    return this.sprites()
+      .filter((sprite) => !sprite.flat)
+      .map((sprite) => {
+        const at = screen(sprite.x, sprite.y, sprite.z + viewpoint.risePx, viewpoint.liftPx);
+        const parts = [`translate(${at.x}px, ${at.y}px)`, `scale(${at.scale})`];
+        if (sprite.offsetX !== 0 || sprite.offsetY !== 0) {
+          parts.push(`translate(${sprite.offsetX.toFixed(2)}px, ${sprite.offsetY.toFixed(2)}px)`);
+        }
+        if (sprite.rotate !== 0) parts.push(`rotateZ(${sprite.rotate.toFixed(2)}deg)`);
+        parts.push('translate(-50%, -50%)');
+        return { sprite, style: { ...effectSpriteStyle(sprite, viewpoint), transform: parts.join(' ') } };
+      });
+  });
+
+  /** The canvases of particles, each laid on the screen over a canvas where the point it stands at is drawn. */
+  protected readonly canvasesOnScreen = computed<EffectCanvasPlacement[]>(() => {
+    const screen = this.screen();
+    if (!screen) return [];
+    const viewpoint = this.viewpoint();
+    return this.placed().map(({ placement, center }) => {
+      const at = screen(center.x, center.y, center.z + viewpoint.risePx, viewpoint.liftPx);
+      return {
+        ...placement,
+        transform: `translate(${at.x}px, ${at.y}px) scale(${at.scale}) translate(${-placement.layer.originX}px, ${-placement.layer.originY}px)`,
+      };
+    });
   });
 
   protected canvasStyle(placement: EffectCanvasPlacement): Record<string, string> {
