@@ -5,6 +5,7 @@ import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GroundService } from '@axe/application/tabletop/ground.service';
+import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
@@ -12,6 +13,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { tableEyeMatrix, TableRay, tableRayOfPage } from '@axe/domain/tabletop/camera/table-camera';
 import { groundLiftOfBlock } from '@axe/domain/tabletop/ground/ground-surface';
+import { ambiencePickTarget } from '@axe/domain/tabletop/pick/ambience-pick';
 import { faceTarget } from '@axe/domain/tabletop/pick/face-pick';
 import { PickCylinder, PickShape } from '@axe/domain/tabletop/pick/pick-geometry';
 import { pickAll, pickFirst, PickHit, PickTarget } from '@axe/domain/tabletop/pick/pick-index';
@@ -29,7 +31,8 @@ import { AlphaMask, seesThroughAt } from '@axe/domain/ui/see-through';
  * drawn there.
  *
  * Terrain on the floor and on the white boards and the beams put on the walls are picked, and so
- * are the faces things are put on and the pieces, by the shapes the canvas draws them with.
+ * are the faces things are put on and the pieces, by the shapes the canvas draws them with, and the
+ * looks laid over the ground, by the part of the floor each covers.
  */
 @Injectable({
   providedIn: 'root',
@@ -46,6 +49,7 @@ export class TablePickService {
   private readonly pointerDevice = inject(PointerDeviceService);
   private readonly pieces = inject(TablePiecesService);
   private readonly pictures = inject(PictureSizeService);
+  private readonly looks = inject(TableAmbienceService);
 
   /** Each object's target, kept until the object or the table's grid changes. */
   private readonly made = new Map<string, { key: string; target: PickTarget }>();
@@ -63,16 +67,23 @@ export class TablePickService {
     return inverse ? tableRayOfPage(inverse, pageX, pageY) : null;
   }
 
-  /** What a point of the page lands on first, a block or a piece, or null where it lands on nothing. */
+  /**
+   * What a point of the page lands on first, a block, a piece or a look laid over the ground, or null
+   * where it lands on nothing.
+   */
   pickAt(pageX: number, pageY: number, accepts?: (target: PickTarget) => boolean): PickHit | null {
     const ray = this.rayAt(pageX, pageY);
-    return ray ? pickFirst([...this.targets(), ...this.pieceTargets()], ray, accepts) : null;
+    return ray ? pickFirst(this.everyTarget(), ray, accepts) : null;
   }
 
-  /** Everything a point of the page lands on, blocks and pieces, nearest the eye first. */
+  /** Everything a point of the page lands on, blocks, pieces and looks laid over the ground, nearest the eye first. */
   allAt(pageX: number, pageY: number, accepts?: (target: PickTarget) => boolean): PickHit[] {
     const ray = this.rayAt(pageX, pageY);
-    return ray ? pickAll([...this.targets(), ...this.pieceTargets()], ray, accepts) : [];
+    return ray ? pickAll(this.everyTarget(), ray, accepts) : [];
+  }
+
+  private everyTarget(): PickTarget[] {
+    return [...this.targets(), ...this.pieceTargets(), ...this.ambienceTargets()];
   }
 
   /**
@@ -198,6 +209,24 @@ export class TablePickService {
       });
       this.pieceTargetsMade = { sprites, coins, camera, targets };
       return targets;
+    });
+  }
+
+  /** The looks laid over the ground this seat is shown, each by the part of the floor it covers. */
+  ambienceTargets(): PickTarget[] {
+    return untracked(() => {
+      const gridSize = this.tabletop.currentTable.gridSize;
+      return this.looks
+        .shown()
+        .map((look) =>
+          ambiencePickTarget(
+            look.identifier,
+            look.location.x,
+            look.location.y,
+            Math.max(look.width, 1) * gridSize,
+            Math.max(look.height, 1) * gridSize
+          )
+        );
     });
   }
 

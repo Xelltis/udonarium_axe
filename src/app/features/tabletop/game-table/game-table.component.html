@@ -293,11 +293,13 @@
         <game-table-mask class="absolute will-change-transform backface-visible transform-3d" [gameTableMask]="mask">
         </game-table-mask>
       }
-      @for (ambience of ambiences(); track ambience.identifier) {
-        <table-ambience
-          class="absolute will-change-transform backface-visible transform-3d"
-          [ambience]="ambience"
-        ></table-ambience>
+      @if (!table3d.drawsOnCanvas()) {
+        @for (ambience of ambiences(); track ambience.identifier) {
+          <table-ambience
+            class="absolute will-change-transform backface-visible transform-3d"
+            [ambience]="ambience"
+          ></table-ambience>
+        }
       }
       @if (!table3d.drawsOnCanvas()) {
         <table-water-layer />
@@ -426,6 +428,9 @@
   @if (table3d.drawsOnCanvas()) {
     <!-- The pieces over a table drawn on a canvas: flat on the screen, each where the canvas draws it. -->
     <div class="pointer-events-none absolute inset-0 isolate overflow-hidden" data-testid="table-hud">
+      @for (ambience of ambiences(); track ambience.identifier) {
+        <table-ambience [ambience]="ambience" [overCanvas]="true"></table-ambience>
+      }
       <div class="pointer-events-none" data-testid="table-floor-plane" appFloorPlane>
         <ng-container [ngTemplateOutlet]="floorMarks"></ng-container>
         <table-marquee-overlay class="contents"></table-marquee-overlay>

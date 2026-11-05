@@ -4,7 +4,9 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AmbienceService } from '@axe/application/tabletop/ambience.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
@@ -21,6 +23,7 @@ import { EffectParticleLayer } from '@axe/domain/effect/effect-particles';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
+import { quadMatrix } from '@axe/domain/tabletop/world/page-boxes';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import { buildTableAmbienceContextMenuModel } from '@axe/features/tabletop/table-ambience/table-ambience-context-menu';
 import { MovableDirective, MovableOption } from '@axe/ui/directives/movable.directive';
@@ -44,6 +47,12 @@ export interface ShownVaporSheet extends VaporSheet {
   key: number;
 }
 
+/** A sheet of the rise drawn over a canvas, with the style that stands it on the screen. */
+export interface VaporSheetOnScreen {
+  readonly sheet: ShownVaporSheet;
+  readonly style: Record<string, string>;
+}
+
 @Component({
   selector: 'table-ambience',
   templateUrl: './table-ambience.component.html',
@@ -51,6 +60,7 @@ export interface ShownVaporSheet extends VaporSheet {
   imports: [NgStyle, MovableDirective, SelectableDirective, TooltipDirective, EffectCanvasComponent],
   host: {
     class: 'block',
+    '[attr.data-object-id]': 'ambience().identifier',
     '(dragstart)': 'onDragstart($event)',
     '(contextmenu)': 'onContextMenu($event)',
   },
@@ -64,16 +74,29 @@ export class TableAmbienceComponent {
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly panelService = inject(PanelService);
+  private readonly camera = inject(TableCameraService);
+  private readonly transient = inject(TransientPlacementService);
   private readonly t = inject(TRANSLATE_FN);
 
   readonly ambience = input.required<TableAmbience>();
+  /**
+   * Whether the look is laid over a table drawn on a canvas: what lies on the ground on the screen
+   * where the canvas draws the ground it covers, and what rises from it standing on the screen there,
+   * rather than among the page's own pieces.
+   */
+  readonly overCanvas = input(false);
   readonly movableOption = signal<MovableOption>({});
 
   /** At the depth of the board picture the fill is eaten by the floor, so it sits one layer above the mask. */
   protected readonly surfaceTransform = translateZCss(Z_OFFSET_AMBIENCE_PX);
 
   constructor() {
-    setupMovableForPiece(this, { target: this.ambience, transformCssOffset: this.surfaceTransform });
+    setupMovableForPiece(this, {
+      target: this.ambience,
+      transformCssOffset: this.surfaceTransform,
+      placedElsewhere: this.overCanvas,
+      footprint: () => ({ width: this.pixelWidth(), height: this.pixelHeight() }),
+    });
   }
 
   /**
@@ -136,6 +159,62 @@ export class TableAmbienceComponent {
       unit: this.gridSize(),
     };
   }
+
+  /** Where the top left corner of the area is on the board now: where it is held while it is dragged. */
+  private readonly topLeft = computed(() => {
+    this.transient.version();
+    const area = this.area();
+    const held = this.transient.placementOf(area.identifier);
+    return held ? { x: held.x, y: held.y } : { x: area.location.x, y: area.location.y };
+  });
+
+  /**
+   * The style that lays the area flat on the screen over a canvas, its corners where the canvas
+   * draws the corners of the ground it covers. Follows the camera; null before it is set.
+   */
+  protected readonly laidOnScreen = computed<Record<string, string> | null>(() => {
+    const screen = this.camera.screenOf();
+    if (!this.overCanvas() || !screen) return null;
+    const { x, y } = this.topLeft();
+    const width = this.pixelWidth();
+    const height = this.pixelHeight();
+    const matrix = quadMatrix(width, height, [
+      screen(x, y, 0),
+      screen(x + width, y, 0),
+      screen(x + width, y + height, 0),
+      screen(x, y + height, 0),
+    ]);
+    if (!matrix) return null;
+    return {
+      width: width + 'px',
+      height: height + 'px',
+      transform: `matrix3d(${matrix.map((value) => Math.round(value * 1e6) / 1e6).join(', ')})`,
+    };
+  });
+
+  /** The sheets of the rise, each stood on the screen over a canvas where the canvas draws the ground it rises from. */
+  protected readonly vaporSheetsOnScreen = computed<VaporSheetOnScreen[]>(() => {
+    const screen = this.camera.screenOf();
+    if (!this.overCanvas() || !screen) return [];
+    const { x, y } = this.topLeft();
+    return this.vaporSheets().map((sheet) => {
+      const layer = sheet.layer;
+      const at = screen(x + sheet.groundX, y + sheet.groundY, 0, CAMERA_LIFT_PX);
+      return {
+        sheet,
+        style: {
+          position: 'absolute',
+          left: '0px',
+          top: '0px',
+          width: layer.width + 'px',
+          height: layer.height + 'px',
+          'transform-origin': '0 0',
+          transform: `translate(${at.x}px, ${at.y}px) scale(${at.scale}) translate(${-layer.originX}px, ${-layer.originY}px)`,
+          'pointer-events': 'none',
+        },
+      };
+    });
+  });
 
   /** The canvas is larger than the area, and is offset by that margin so the particles are not cut by its edge. */
   protected canvasStyle(layer: EffectParticleLayer): Record<string, string> {

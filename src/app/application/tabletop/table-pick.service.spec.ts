@@ -14,6 +14,7 @@ import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { DEFAULT_TABLE_CAMERA_VIEW, pageOfTablePoint, TableLayout } from '@axe/domain/tabletop/camera/table-camera';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TerrainFogCover } from '@axe/domain/tabletop/terrain-cover';
@@ -258,6 +259,22 @@ describe('TablePickService', () => {
     expect(service.pickAt(frame.x, frame.y)?.target).toMatchObject({ id: die.identifier, layer: 'dice-symbol' });
     expect(service.targets()).toEqual([]);
     expect(service.landingAt(frame.x, frame.y).z).toBe(0);
+  });
+
+  it('lands on a look laid over the ground where it covers the floor, behind a die lying in it, and beside it on nothing', async () => {
+    const look = TableAmbience.create('marsh', 'swamp', 4, 4);
+    look.location = { name: 'table', x: 4 * GRID, y: 4 * GRID };
+    table.appendChild(look);
+    const die = DiceSymbol.create('D6', DiceType.D6, 1);
+    die.location = { name: 'table', x: 5 * GRID, y: 5 * GRID };
+    await settled();
+
+    const inside = onPage(7, 7, 0);
+    expect(service.pickAt(inside.x, inside.y)?.target).toMatchObject({ id: look.identifier, layer: 'table-ambience' });
+    const frame = onPage(5, 5, 1);
+    expect(service.allAt(frame.x, frame.y).map((hit) => hit.target.id)).toEqual([die.identifier, look.identifier]);
+    const beside = onPage(9, 6, 0);
+    expect(service.pickAt(beside.x, beside.y)).toBeNull();
   });
 
   it('lands on a coin where its disc lies, and beside it on nothing', async () => {
