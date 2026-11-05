@@ -22,6 +22,8 @@ import {
   DoubleSide,
   Float32BufferAttribute,
   Group,
+  LinearFilter,
+  LinearMipmapLinearFilter,
   type Material,
   Mesh,
   MeshLambertNodeMaterial,
@@ -151,7 +153,11 @@ export class WaterLayer {
     this.netTile = null;
   }
 
-  /** The net of light the page draws its water with, one tile of it to repeat, made once. */
+  /**
+   * The net of light the page draws its water with, one tile of it to repeat, made once. It is read
+   * between its pixels and from smaller copies of itself far off, as the page's picture of it is, so
+   * its lines are drawn neither in squares close by nor broken up into dots far off.
+   */
   private tile(): Texture {
     if (this.netTile) return this.netTile;
     const alpha = causticAlpha(causticFieldOf(CAUSTIC_SEED));
@@ -160,6 +166,8 @@ export class WaterLayer {
     const tile = new DataTexture(data, CAUSTIC_TILE_PX, CAUSTIC_TILE_PX);
     tile.wrapS = RepeatWrapping;
     tile.wrapT = RepeatWrapping;
+    tile.magFilter = LinearFilter;
+    tile.minFilter = LinearMipmapLinearFilter;
     tile.generateMipmaps = true;
     tile.needsUpdate = true;
     this.netTile = tile;

@@ -85,8 +85,12 @@ const FLAT_SURFACE_LIFT_PX = 0.17;
 const SHORE_LIFT_PX = 0.4;
 /** How far out from the shore the waves run in from, in cells. */
 const SHORE_REACH_CELLS = 0.7;
-/** How much fainter the net is on the floor of a map under water than under a pond, laid over every cell of the board at once. */
-const SEA_FLOOR_NET_SHARE = 0.7;
+/**
+ * How much fainter the net is on the floor of a map under water than under a pond, laid over every
+ * cell of the board at once: half what the page lays, so that it reads as faintly as the page's net
+ * does under the tint the page lays over the whole table.
+ */
+const SEA_FLOOR_NET_SHARE = 0.35;
 
 /**
  * The water on a table, made into triangles for the scene from the cells under water and the sides
