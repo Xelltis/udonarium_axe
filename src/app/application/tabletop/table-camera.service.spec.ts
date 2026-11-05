@@ -1,7 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
-import { DEFAULT_TABLE_CAMERA_VIEW, TableLayout, tableSceneMatrix } from '@axe/domain/tabletop/camera/table-camera';
+import {
+  DEFAULT_TABLE_CAMERA_VIEW,
+  pageOfTablePoint,
+  TableLayout,
+  tableSceneMatrix,
+} from '@axe/domain/tabletop/camera/table-camera';
 
 const layout: TableLayout = { left: 0, top: 30, width: 1280, height: 770, boardWidth: 1000, boardHeight: 750 };
 
@@ -50,5 +55,39 @@ describe('TableCameraService', () => {
     expect(camera.version()).toBe(start + 2);
     camera.setLayout({ ...layout, height: 400 });
     expect(camera.version()).toBe(start + 3);
+  });
+
+  it('carries a point of the board onto the screen of the table, against its corner, at the scale the board is drawn there', () => {
+    expect(camera.screenOf()).toBeNull();
+    camera.setLayout(layout);
+    camera.showView(DEFAULT_TABLE_CAMERA_VIEW);
+
+    const at = camera.screenOf()!(500, 375, 0);
+
+    const page = pageOfTablePoint(tableSceneMatrix(DEFAULT_TABLE_CAMERA_VIEW, layout), 500, 375, 0);
+    expect(at.x).toBeCloseTo(page.x - layout.left, 6);
+    expect(at.y).toBeCloseTo(page.y - layout.top, 6);
+    expect(at.scale).toBeGreaterThan(0);
+  });
+
+  it('brings a point towards the eye before carrying it onto the screen, so it is drawn larger', () => {
+    camera.setLayout(layout);
+    camera.showView(DEFAULT_TABLE_CAMERA_VIEW);
+
+    const on = camera.screenOf()!(500, 375, 0);
+    const lifted = camera.screenOf()!(500, 375, 0, 200);
+
+    expect(lifted.scale).toBeGreaterThan(on.scale);
+  });
+
+  it('follows the camera to a new view', () => {
+    camera.setLayout(layout);
+    camera.showView(DEFAULT_TABLE_CAMERA_VIEW);
+    const before = camera.screenOf()!(100, 100, 0);
+
+    camera.showView({ ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: 75 });
+    const after = camera.screenOf()!(100, 100, 0);
+
+    expect(Math.hypot(after.x - before.x, after.y - before.y)).toBeGreaterThan(1);
   });
 });

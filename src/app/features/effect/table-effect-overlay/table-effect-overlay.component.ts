@@ -14,9 +14,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { effectParticlePlacements } from '@axe/domain/effect/effect-particle-placements';
 import { EffectSprite, effectSprites } from '@axe/domain/effect/effect-timeline';
 import { ViewRotation } from '@axe/domain/effect/effect-view';
-import { pageOfTablePoint, tableEyeMatrix, tableRayOfPage } from '@axe/domain/tabletop/camera/table-camera';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
-import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import {
   EFFECT_CAMERA_LIFT_PX,
@@ -192,32 +190,9 @@ export class TableEffectOverlayComponent {
   /** The sprites that lie flat on the floor, laid over a canvas on the plane of the floor. */
   protected readonly flatSprites = computed(() => this.sprites().filter((sprite) => sprite.flat));
 
-  /**
-   * Where a point of the board, brought the given way towards the eye along the way the camera looks,
-   * as a picture turned to the eye is, is drawn on the screen over a canvas, against the corner of the table's screen, and how many
-   * pixels of the screen a pixel of the board facing the eye there is drawn across. Follows the
-   * camera; null before it is set.
-   */
-  private readonly screen = computed(() => {
-    this.camera.version();
-    const scene = this.camera.sceneMatrix();
-    const inverse = this.camera.inverseSceneMatrix();
-    const view = this.camera.view;
-    const layout = this.camera.layout;
-    if (!scene || !inverse || !view || !layout) return null;
-    const right = eyeAxesOf(tableEyeMatrix(view, layout)).right;
-    const away = tableRayOfPage(inverse, layout.left + layout.width / 2, layout.top + layout.height / 2).direction;
-    return (x: number, y: number, z: number, towardsEyePx: number) => {
-      const near = { x: x - away.x * towardsEyePx, y: y - away.y * towardsEyePx, z: z - away.z * towardsEyePx };
-      const at = pageOfTablePoint(scene, near.x, near.y, near.z);
-      const beside = pageOfTablePoint(scene, near.x + right.x, near.y + right.y, near.z + right.z);
-      return { x: at.x - layout.left, y: at.y - layout.top, scale: Math.hypot(beside.x - at.x, beside.y - at.y) };
-    };
-  });
-
   /** The sprites that stand up, each with the style that lays it on the screen over a canvas. */
   protected readonly standingOnScreen = computed(() => {
-    const screen = this.screen();
+    const screen = this.camera.screenOf();
     if (!screen) return [];
     const viewpoint = this.viewpoint();
     return this.sprites()
@@ -236,7 +211,7 @@ export class TableEffectOverlayComponent {
 
   /** The canvases of particles, each laid on the screen over a canvas where the point it stands at is drawn. */
   protected readonly canvasesOnScreen = computed<EffectCanvasPlacement[]>(() => {
-    const screen = this.screen();
+    const screen = this.camera.screenOf();
     if (!screen) return [];
     const viewpoint = this.viewpoint();
     return this.placed().map(({ placement, center }) => {

@@ -7,9 +7,7 @@ import {
 } from '@axe/application/effect/effect-targeting.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
-import { pageOfTablePoint, tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
 import { quadMatrix } from '@axe/domain/tabletop/world/page-boxes';
-import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
 
 const LINK_THICKNESS = 5;
 const LINK_LIFT = 6;
@@ -58,16 +56,8 @@ export class EffectTargetOverlayComponent {
    * and one standing at a point, facing the screen. Follows the camera; null before it is set.
    */
   private readonly screen = computed(() => {
-    this.camera.version();
-    const scene = this.camera.sceneMatrix();
-    const view = this.camera.view;
-    const layout = this.camera.layout;
-    if (!scene || !view || !layout) return null;
-    const right = eyeAxesOf(tableEyeMatrix(view, layout)).right;
-    const onScreen = (x: number, y: number, z: number) => {
-      const at = pageOfTablePoint(scene, x, y, z);
-      return { x: at.x - layout.left, y: at.y - layout.top };
-    };
+    const onScreen = this.camera.screenOf();
+    if (!onScreen) return null;
     return {
       flat: (corners: readonly FloorPoint[], z: number, width: number, height: number): string | null => {
         const [a, b, c, d] = corners.map((corner) => onScreen(corner.x, corner.y, z));
@@ -76,8 +66,7 @@ export class EffectTargetOverlayComponent {
       },
       standing: (x: number, y: number, z: number): string => {
         const at = onScreen(x, y, z);
-        const beside = onScreen(x + right.x, y + right.y, z + right.z);
-        return `translate(${at.x}px, ${at.y}px) scale(${Math.hypot(beside.x - at.x, beside.y - at.y)}) translate(-50%, -50%)`;
+        return `translate(${at.x}px, ${at.y}px) scale(${at.scale}) translate(-50%, -50%)`;
       },
     };
   });
