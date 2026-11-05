@@ -16,7 +16,10 @@ export interface MovableSetup<T extends TabletopObject> {
   readonly snapToSquare?: (t: T, at: { x: number; y: number }) => { x: number; y: number } | null;
   readonly transformCssOffset?: string;
   readonly layerName?: string;
-  /** Whether the piece's element is put where it is drawn by something else; see {@link MovableOption}. */
+  /**
+   * Whether the piece's element is put where it is drawn by something else, as the screen over a
+   * canvas puts it, which it is where this is not given; see {@link MovableOption}.
+   */
   readonly placedElsewhere?: Signal<boolean>;
   /** How much of its face the piece covers while it is placed elsewhere; see {@link MovableOption}. */
   readonly footprint?: (t: T) => PieceFootprint;
@@ -42,7 +45,7 @@ function applyMovableOption<T extends TabletopObject>(
     snapOrigin,
     snapToSquare: opts.snapToSquare ? (at) => opts.snapToSquare!(piece, at) : undefined,
     layerName: opts.layerName,
-    placedElsewhere: opts.placedElsewhere?.(),
+    placedElsewhere: opts.placedElsewhere?.() ?? true,
     footprint: opts.footprint ? () => opts.footprint!(piece) : undefined,
   });
 }
@@ -84,9 +87,10 @@ export function setupMovableRotableForPiece<T extends RotableTabletopObject>(
     applyMovableOption(ctx.movableOption, piece, opts);
     ctx.rotableOption.set({
       tabletopObject: piece,
-      turnsAbout: opts.placedElsewhere?.()
-        ? () => (opts.turnsAbout ? opts.turnsAbout(piece) : pieces.turnAboutOf(piece))
-        : undefined,
+      turnsAbout:
+        (opts.placedElsewhere?.() ?? true)
+          ? () => (opts.turnsAbout ? opts.turnsAbout(piece) : pieces.turnAboutOf(piece))
+          : undefined,
     });
   });
 }
