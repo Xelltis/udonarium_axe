@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GroundService } from '@axe/application/tabletop/ground.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
@@ -114,6 +115,26 @@ describe('TablePiecesService', () => {
     die.owner = 'somebody-else';
 
     expect(pieces.sprites()[1].brightness).toBe(0);
+  });
+
+  it('blacks a die out the moment it is kept back, and dims one marked as spent, as the die says so', () => {
+    const die = dieAt(100, 200);
+    const change = TestBed.inject(ObjectChangeService);
+    const brightness = () => pieces.sprites().map((sprite) => sprite.brightness);
+    expect(brightness()).toEqual([1, 1]);
+
+    die.owner = 'somebody-else';
+    change.notifyChanged(die.identifier);
+    expect(brightness()[1]).toBe(0);
+
+    die.owner = '';
+    die.isUsed = true;
+    change.notifyChanged(die.identifier);
+    expect(brightness()).toEqual([0.45, 0.45]);
+
+    die.isUsed = false;
+    change.notifyChanged(die.identifier);
+    expect(brightness()).toEqual([1, 1]);
   });
 
   it('draws a die standing on a wall the table does not draw on the floor', () => {

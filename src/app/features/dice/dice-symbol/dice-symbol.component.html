@@ -1,235 +1,77 @@
-@if (drawnOnCanvas()) {
-  <!--
-    Over a table drawn on a canvas, the die is a box on the screen round where the canvas draws it,
-    with its parts boxed where they are drawn and its labels hung over its picture.
-  -->
+<!--
+  The die is a box on the screen round where the table's canvas draws it, with its parts boxed where
+  they are drawn and its labels hung over its picture.
+-->
+<div
+  class="group pointer-events-auto size-full cursor-grab select-none [-moz-user-drag:none] [-webkit-user-drag:none]"
+  data-hud-box
+  appMovable
+  [movable.option]="movableOption()"
+  [movable.disable]="isLock"
+  [appSelectable]="diceSymbol()"
+  (movable.ondragstart)="onMove()"
+  (movable.ondragend)="onMoved()"
+>
+  @let id = diceSymbol().identifier;
   <div
-    class="group pointer-events-auto size-full cursor-grab select-none [-moz-user-drag:none] [-webkit-user-drag:none]"
-    data-hud-box
-    appMovable
-    [movable.option]="movableOption()"
-    [movable.disable]="isLock"
-    [appSelectable]="diceSymbol()"
-    (movable.ondragstart)="onMove()"
-    (movable.ondragend)="onMoved()"
+    class="size-full"
+    appRotable
+    [rotable.option]="rotableOption()"
+    [rotable.disable]="mode2dEnabled()"
+    (rotable.ondragstart)="onMove()"
+    (rotable.ondragend)="onMoved()"
   >
-    @let id = diceSymbol().identifier;
-    <div
-      class="size-full"
-      appRotable
-      [rotable.option]="rotableOption()"
-      [rotable.disable]="mode2dEnabled()"
-      (rotable.ondragstart)="onMove()"
-      (rotable.ondragend)="onMoved()"
-    >
-      @if (!isIconHidden() && !isLock && !mode2dEnabled()) {
-        <div [appHudPlace]="{ owner: id, part: 'frame' }">
-          <div
-            class="rotate-grab absolute -top-5.5 -left-1.5 -z-1 h-[calc(100%+44px)] w-[calc(100%+12px)] cursor-default rounded-[37px] opacity-0 group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
-          >
-            <div
-              class="pointer-events-none box-border size-full rounded-[22px] border-x-12 border-y-28 border-solid border-t-[#999] border-r-[#ccc] border-b-[#ccc] border-l-[#999]"
-            >
-              <div class="material-icons text-ui-muted absolute inset-x-0 bottom-0 m-auto w-6">autorenew</div>
-              <div class="material-icons text-ui-muted absolute inset-x-0 top-0 m-auto w-6">autorenew</div>
-            </div>
-          </div>
-        </div>
-      }
-      <div data-part="frame" [appHudPlace]="{ owner: id, part: 'frame' }"></div>
-      <div data-part="picture" [appHudPlace]="{ owner: id, part: 'picture' }"></div>
-    </div>
-    <div
-      class="pointer-events-none flex flex-col items-center gap-1 whitespace-nowrap"
-      [appHudPlace]="{ owner: id, part: 'picture', place: 'above' }"
-    >
-      @if (rollResult(); as rolled) {
+    @if (!isIconHidden() && !isLock && !mode2dEnabled()) {
+      <div [appHudPlace]="{ owner: id, part: 'frame' }">
         <div
-          class="animate-dice-pop text-[28px] font-bold text-white [text-shadow:0_0_6px_rgba(0,0,0,0.9),0_2px_4px_rgba(0,0,0,0.8)]"
-        >
-          {{ rolled }}
-        </div>
-      }
-      @if (hasOwner() && ownerName()) {
-        <div class="bg-ui-panel text-ui-text box-border rounded-md px-2.25 py-0.75 text-[12px] whitespace-nowrap">
-          <div class="max-w-72 truncate">{{ ownerName() }}</div>
-        </div>
-      }
-      @if (name() && !hideName()) {
-        <div
-          data-testid="dice-name"
-          class="bg-ui-panel text-ui-text pointer-events-auto box-border rounded-md px-2.25 py-0.75 text-[15px] whitespace-nowrap"
-        >
-          <div>
-            {{ name() }}:
-            @if (isVisible()) {
-              <span>{{ face }}</span>
-            }
-            @if (!isVisible()) {
-              <span>???</span>
-            }
-            @if (isLock) {
-              <i class="material-icons! inline! align-middle text-[15px]!">lock</i>
-            }
-          </div>
-        </div>
-      }
-    </div>
-  </div>
-} @else {
-  <div
-    class="group pointer-events-none absolute cursor-grab select-none [-moz-user-drag:none] [-webkit-user-drag:none] transform-3d [&_.material-icons]:hidden group-active:[&_.material-icons]:inline hover:[&_.material-icons]:inline"
-    [style.width.px]="size() * gridSize"
-    [style.height.px]="size() * gridSize"
-    appMovable
-    [movable.option]="movableOption()"
-    [movable.disable]="isLock"
-    [appSelectable]="diceSymbol()"
-    (movable.ondragstart)="onMove()"
-    (movable.ondragend)="onMoved()"
-  >
-    <div class="animate-bounce-in size-full transform-3d">
-      <div
-        class="pointer-events-auto size-full transform-3d"
-        appRotable
-        [rotable.option]="rotableOption()"
-        [rotable.disable]="mode2dEnabled()"
-        (rotable.ondragstart)="onMove()"
-        (rotable.ondragend)="onMoved()"
-      >
-        <div
-          class="absolute box-border size-full rounded-[5px] border-[6px] border-solid border-[rgb(216,139,75)] backface-hidden [&.is-used]:filter-[brightness(0.45)]"
-          [class.border-ui-border-panel!]="hasOwner()"
-          [class.is-used]="isUsed()"
-          [class.opacity-0]="drawnOnCanvas()"
-        ></div>
-        <div
-          class="absolute box-border size-full rounded-[5px] border-2 border-solid border-[#212121] backface-hidden [&.is-used]:filter-[brightness(0.45)]"
-          [class.is-used]="isUsed()"
-          [class.opacity-0]="drawnOnCanvas()"
-        ></div>
-        @if (!isIconHidden()) {
-          @if (!isLock && !mode2dEnabled()) {
-            <div
-              class="rotate-grab absolute -top-5.5 -left-1.5 -z-1 h-[calc(100%+44px)] w-[calc(100%+12px)] cursor-default rounded-[37px] opacity-0 will-change-[opacity] backface-hidden transform-3d group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
-            >
-              <div
-                class="pointer-events-none box-border size-full rounded-[22px] border-x-12 border-y-28 border-solid border-t-[#999] border-r-[#ccc] border-b-[#ccc] border-l-[#999]"
-              >
-                <div class="material-icons text-ui-muted absolute inset-x-0 bottom-0 m-auto w-6">autorenew</div>
-                <div class="material-icons text-ui-muted absolute inset-x-0 top-0 m-auto w-6">autorenew</div>
-              </div>
-            </div>
-          }
-        }
-        <div
-          class="size-full transform-3d"
-          [class.animate-dice-tumble-a]="animeState() === 'active' && tumble() === 0"
-          [class.animate-dice-tumble-b]="animeState() === 'active' && tumble() === 1"
-          [class.animate-dice-tumble-c]="animeState() === 'active' && tumble() === 2"
-          (animationend)="onDiceRollEnd()"
+          class="rotate-grab absolute -top-5.5 -left-1.5 -z-1 h-[calc(100%+44px)] w-[calc(100%+12px)] cursor-default rounded-[37px] opacity-0 group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100!"
         >
           <div
-            class="absolute inset-x-0 bottom-0 h-auto w-full transform-3d"
-            [ngStyle]="{ transform: isPoster() ? 'translateY(-50%)' : 'rotateX(-90deg) translateY(-50%)' }"
+            class="pointer-events-none box-border size-full rounded-[22px] border-x-12 border-y-28 border-solid border-t-[#999] border-r-[#ccc] border-b-[#ccc] border-l-[#999]"
           >
-            <div
-              class="inset-x-0 bottom-0 transform-3d"
-              [style.width.px]="size() * gridSize"
-              [style.height.px]="size() * gridSize"
-            >
-              <div
-                class="absolute inset-x-0 bottom-0 h-auto w-full transform-3d"
-                [style.height.px]="imageView.boxHeightPx()"
-              >
-                @if (name() && !hideName()) {
-                  <div class="absolute whitespace-nowrap transform-3d" [appBillboard]="nameOrbitFacing()">
-                    <div
-                      data-testid="dice-name"
-                      class="bg-ui-panel text-ui-text box-border rounded-md px-2.25 py-0.75 text-[15px] whitespace-nowrap transform-3d"
-                      [appBillboard]="nameFacing()"
-                    >
-                      <div>
-                        {{ name() }}:
-                        @if (isVisible()) {
-                          <span>{{ face }}</span>
-                        }
-                        @if (!isVisible()) {
-                          <span>???</span>
-                        }
-                        @if (isLock) {
-                          <i class="material-icons! inline! align-middle text-[15px]!">lock</i>
-                        }
-                      </div>
-                    </div>
-                  </div>
-                }
-                @if (rollResult(); as rolled) {
-                  <div
-                    class="pointer-events-none absolute whitespace-nowrap transform-3d"
-                    [appBillboard]="nameOrbitFacing()"
-                  >
-                    <div class="transform-3d" [appBillboard]="nameFacing()">
-                      <div
-                        class="animate-dice-pop text-[28px] font-bold text-white [text-shadow:0_0_6px_rgba(0,0,0,0.9),0_2px_4px_rgba(0,0,0,0.8)]"
-                      >
-                        {{ rolled }}
-                      </div>
-                    </div>
-                  </div>
-                }
-                @if (hasOwner() && ownerName()) {
-                  <div class="absolute whitespace-nowrap transform-3d" [appBillboard]="ownerOrbitFacing()">
-                    <div
-                      class="bg-ui-panel text-ui-text box-border rounded-md px-2.25 py-0.75 text-[12px] whitespace-nowrap transform-3d"
-                      [appBillboard]="ownerFacing()"
-                    >
-                      <div class="max-w-72 truncate">{{ ownerName() }}</div>
-                    </div>
-                  </div>
-                }
-                @if (imageFile().url && specifyImageFlag()) {
-                  <img
-                    class="chrome-smooth-image-trick bottom-0 inline-block h-auto align-bottom filter-[none!] [-webkit-transform-style:preserve-3d] transform-3d [&.is-black-mask]:filter-[brightness(0)]! [&.is-harf-black-mask]:filter-[brightness(0.5)]! [&.is-used]:filter-[brightness(0.45)]"
-                    [appBillboard]="imageView.komaFacing()"
-                    [ngStyle]="{
-                      height: +imageHeignt() * imageView.supersample() + 'px',
-                      width: 'auto',
-                      maxWidth: 'none',
-                      left: 'auto',
-                      right: 'auto',
-                    }"
-                    (load)="imageView.onImageLoad($event)"
-                    [src]="imageFile().url | safe: 'resourceUrl'"
-                    [class.is-black-mask]="!isVisible()"
-                    [class.is-harf-black-mask]="isMine()"
-                    [class.is-used]="isUsed()"
-                    [class.opacity-0]="drawnOnCanvas()"
-                  />
-                }
-                @if (imageFile().url && !specifyImageFlag()) {
-                  <img
-                    class="chrome-smooth-image-trick bottom-0 m-auto h-auto align-bottom [-webkit-transform-style:preserve-3d] transform-3d [&.is-black-mask]:filter-[brightness(0)]! [&.is-harf-black-mask]:filter-[brightness(0.5)]! [&.is-used]:filter-[brightness(0.45)]"
-                    [appBillboard]="imageView.pieceFacing()"
-                    [ngStyle]="{
-                      width: imageView.supersamplePercent(),
-                      maxWidth: 'none',
-                      marginLeft: imageView.supersampleInset(),
-                      marginRight: imageView.supersampleInset(),
-                    }"
-                    (load)="imageView.onImageLoad($event)"
-                    [src]="imageFile().url | safe: 'resourceUrl'"
-                    [class.is-black-mask]="!isVisible()"
-                    [class.is-harf-black-mask]="isMine()"
-                    [class.is-used]="isUsed()"
-                    [class.opacity-0]="drawnOnCanvas()"
-                  />
-                }
-              </div>
-            </div>
+            <div class="material-icons text-ui-muted absolute inset-x-0 bottom-0 m-auto w-6">autorenew</div>
+            <div class="material-icons text-ui-muted absolute inset-x-0 top-0 m-auto w-6">autorenew</div>
           </div>
         </div>
       </div>
-    </div>
+    }
+    <div data-part="frame" [appHudPlace]="{ owner: id, part: 'frame' }"></div>
+    <div data-part="picture" [appHudPlace]="{ owner: id, part: 'picture' }"></div>
   </div>
-}
+  <div
+    class="pointer-events-none flex flex-col items-center gap-1 whitespace-nowrap"
+    [appHudPlace]="{ owner: id, part: 'picture', place: 'above' }"
+  >
+    @if (rollResult(); as rolled) {
+      <div
+        class="animate-dice-pop text-[28px] font-bold text-white [text-shadow:0_0_6px_rgba(0,0,0,0.9),0_2px_4px_rgba(0,0,0,0.8)]"
+      >
+        {{ rolled }}
+      </div>
+    }
+    @if (hasOwner() && ownerName()) {
+      <div class="bg-ui-panel text-ui-text box-border rounded-md px-2.25 py-0.75 text-[12px] whitespace-nowrap">
+        <div class="max-w-72 truncate">{{ ownerName() }}</div>
+      </div>
+    }
+    @if (name() && !hideName()) {
+      <div
+        data-testid="dice-name"
+        class="bg-ui-panel text-ui-text pointer-events-auto box-border rounded-md px-2.25 py-0.75 text-[15px] whitespace-nowrap"
+      >
+        <div>
+          {{ name() }}:
+          @if (isVisible()) {
+            <span>{{ face }}</span>
+          }
+          @if (!isVisible()) {
+            <span>???</span>
+          }
+          @if (isLock) {
+            <i class="material-icons! inline! align-middle text-[15px]!">lock</i>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</div>
