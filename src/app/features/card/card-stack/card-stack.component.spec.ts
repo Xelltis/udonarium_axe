@@ -1,8 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { Network } from '@axe/core/network/network';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -13,6 +15,7 @@ import { markLoadedWithheld } from '@axe/domain/peer/withheld-table';
 import { CardGameService } from '@axe/features/card/card-game.service';
 import { CardStackComponent } from '@axe/features/card/card-stack/card-stack.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { MovableDirective } from '@axe/ui/directives/movable.directive';
 
 describe('CardStackComponent', () => {
   let component: CardStackComponent;
@@ -147,11 +150,6 @@ describe('CardStackComponent', () => {
   });
 
   describe('signal-driven CD', () => {
-    it('holds the animation state in a signal', () => {
-      expect(typeof component.animeState).toBe('function');
-      expect(component.animeState()).toBe('inactive');
-    });
-
     it('reads the name through the network version', () => {
       const cardStack = CardStack.create('テストスタック');
       fixture.componentRef.setInput('cardStack', cardStack);
@@ -284,131 +282,66 @@ describe('CardStackComponent', () => {
     });
   });
 
-  describe('how a deck looks in three dimensions', () => {
-    function makeStackWithCards(count: number): CardStack {
-      const stack = CardStack.create(`stack-${count}`);
-      for (let i = 0; i < count; i++) stack.putOnBottom(Card.create(`c${i}`, '', '', 2));
-      return stack;
+  describe('what the stack covers', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    function movable(): MovableDirective {
+      return fixture.debugElement.query(By.directive(MovableDirective)).injector.get(MovableDirective);
     }
 
-    function readThickness(): number {
-      return (component as unknown as { stackThicknessPx(): number }).stackThicknessPx();
+    it('moves as wide as its top card and as deep as the plate round its top card’s picture runs', () => {
+      vi.spyOn(TestBed.inject(PictureSizeService), 'sizeOf').mockReturnValue({ width: 200, height: 300 });
+      const deck = CardStack.create('山札');
+      deck.putOnBottom(Card.create('A', 'front.png', 'back.png', 2));
+      fixture.componentRef.setInput('cardStack', deck);
+      fixture.detectChanges();
+      TestBed.tick();
+
+      try {
+        expect(movable().footprintNow()).toEqual({ width: 100, height: 90 * 1.5 + 10 });
+      } finally {
+        deck.destroy();
+      }
+    });
+
+    it('moves an empty stack as its bare plate', () => {
+      const deck = CardStack.create('山札');
+      fixture.componentRef.setInput('cardStack', deck);
+      fixture.detectChanges();
+      TestBed.tick();
+
+      try {
+        expect(movable().footprintNow()).toEqual({ width: 100, height: 100 });
+      } finally {
+        deck.destroy();
+      }
+    });
+  });
+
+  it('shuffles its top card on the canvas when the stack is shuffled, and not for another stack', () => {
+    const play = vi.spyOn(TestBed.inject(PieceMotionsService), 'play');
+    const deck = CardStack.create('山札');
+    const other = CardStack.create('別の山札');
+    fixture.componentRef.setInput('cardStack', deck);
+    fixture.detectChanges();
+
+    const shuffled = (identifier: string) =>
+      (
+        TestBed.inject(ObjectChangeService) as unknown as {
+          _shuffleCardStack$: { emit(event: { identifier: string }): void };
+        }
+      )._shuffleCardStack$.emit({ identifier });
+
+    try {
+      shuffled(other.identifier);
+      expect(play).not.toHaveBeenCalled();
+      shuffled(deck.identifier);
+      expect(play).toHaveBeenCalledWith(deck.identifier, 'shuffle', { parts: ['top'] });
+    } finally {
+      vi.restoreAllMocks();
+      deck.destroy();
+      other.destroy();
     }
-
-    function readLayers(): readonly { z: number; bg: string }[] {
-      return (component as unknown as { stackLayers(): readonly { z: number; bg: string }[] }).stackLayers();
-    }
-
-    it('gives a single card no thickness and no layers', () => {
-      const stack0 = makeStackWithCards(0);
-      fixture.componentRef.setInput('cardStack', stack0);
-      try {
-        expect(readThickness()).toBe(0);
-        expect(readLayers()).toEqual([]);
-      } finally {
-        stack0.destroy();
-      }
-
-      const stack1 = makeStackWithCards(1);
-      fixture.componentRef.setInput('cardStack', stack1);
-      try {
-        expect(readThickness()).toBe(0);
-        expect(readLayers()).toEqual([]);
-      } finally {
-        stack1.destroy();
-      }
-    });
-
-    it('thickens with the cards up to a limit', () => {
-      const stack10 = makeStackWithCards(10);
-      fixture.componentRef.setInput('cardStack', stack10);
-      try {
-        expect(readThickness()).toBeCloseTo(10);
-      } finally {
-        stack10.destroy();
-      }
-
-      const stack200 = makeStackWithCards(200);
-      fixture.componentRef.setInput('cardStack', stack200);
-      try {
-        expect(readThickness()).toBe(60);
-      } finally {
-        stack200.destroy();
-      }
-    });
-
-    it('puts a layer between each pair of cards, up to a limit', () => {
-      const stack5 = makeStackWithCards(5);
-      fixture.componentRef.setInput('cardStack', stack5);
-      try {
-        expect(readLayers()).toHaveLength(4);
-      } finally {
-        stack5.destroy();
-      }
-
-      const stack200 = makeStackWithCards(200);
-      fixture.componentRef.setInput('cardStack', stack200);
-      try {
-        expect(readLayers()).toHaveLength(30);
-      } finally {
-        stack200.destroy();
-      }
-    });
-
-    it('alternates two contrasting colours and spaces the layers evenly through the thickness', () => {
-      const stack = makeStackWithCards(10);
-      fixture.componentRef.setInput('cardStack', stack);
-      try {
-        const layers = readLayers();
-        const thickness = readThickness();
-        expect(layers[0].bg).toBe('#f5efe2');
-        expect(layers[1].bg).toBe('#2a1f0d');
-        expect(layers[0].z).toBe(0);
-        expect(layers[layers.length - 1].z).toBeCloseTo(thickness * ((layers.length - 1) / layers.length));
-      } finally {
-        stack.destroy();
-      }
-    });
-
-    it('follows a card put onto the stack and one drawn off it', async () => {
-      const stack = makeStackWithCards(3);
-      fixture.componentRef.setInput('cardStack', stack);
-      try {
-        expect(component.cardCount()).toBe(3);
-        expect(readThickness()).toBeCloseTo(3);
-        expect(readLayers()).toHaveLength(2);
-
-        stack.putOnTop(Card.create('joined', '', '', 2));
-        await fixture.whenStable();
-        expect(component.cardCount()).toBe(4);
-        expect(readThickness()).toBeCloseTo(4);
-        expect(readLayers()).toHaveLength(3);
-
-        stack.drawCard()?.destroy();
-        stack.drawCard()?.destroy();
-        await fixture.whenStable();
-        expect(component.cardCount()).toBe(2);
-        expect(readThickness()).toBeCloseTo(2);
-        expect(readLayers()).toHaveLength(1);
-      } finally {
-        stack.destroy();
-      }
-    });
-
-    it('leaves out both in the flat mode', () => {
-      const stack = makeStackWithCards(20);
-      fixture.componentRef.setInput('cardStack', stack);
-      const tabletop = TestBed.inject(TabletopService);
-      const original = tabletop.mode2d;
-      Object.defineProperty(tabletop, 'mode2d', { value: () => true, configurable: true });
-      try {
-        expect(readThickness()).toBe(0);
-        expect(readLayers()).toEqual([]);
-      } finally {
-        Object.defineProperty(tabletop, 'mode2d', { value: original, configurable: true });
-        stack.destroy();
-      }
-    });
   });
 
   describe('drawing several', () => {

@@ -1,4 +1,4 @@
-import { NgClass, NgStyle } from '@angular/common';
+import { NgClass } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -7,7 +7,6 @@ import {
   ElementRef,
   inject,
   input,
-  linkedSignal,
   signal,
   viewChild,
 } from '@angular/core';
@@ -15,9 +14,9 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
+import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
-import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
@@ -35,7 +34,6 @@ import { CardStack } from '@axe/domain/card/card-stack';
 import { copyDetailSchema } from '@axe/domain/card/deck-builder';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { CardDrawCountDialogComponent } from '@axe/features/card/card-draw-count-dialog/card-draw-count-dialog.component';
 import { CardDropService } from '@axe/features/card/card-drop.service';
 import { CardGameService } from '@axe/features/card/card-game.service';
@@ -53,8 +51,6 @@ import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { hideIconWhileTouched } from '@axe/ui/tabletop/icon-hiding';
 import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
-import { supersampleFactor, supersampleInsetPercent, supersampleTransform } from '@axe/ui/tabletop/supersample';
-import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** The cell, in px, that the offsets for drawn and scattered cards were laid out for. */
@@ -76,7 +72,6 @@ const EMPTY_STACK_PX = 100;
     NgClass,
     RotableDirective,
     SelectableDirective,
-    NgStyle,
     SafePipe,
     TranslocoModule,
     CardFaceTextComponent,
@@ -97,18 +92,13 @@ export class CardStackComponent {
   private readonly objectPanels = inject(ObjectPanelService);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly imageService = inject(ImageService);
+  private readonly pictureSizes = inject(PictureSizeService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly visionService = inject(VisionService);
   protected readonly tabletopService = inject(TabletopService);
 
-  /**
-   * Whether the stack is drawn on the table's canvas, which leaves its layers, its plate and its top
-   * card here clear: they still take the presses where the canvas draws them. The canvas plays its
-   * shuffle too.
-   */
-  readonly drawnOnCanvas = inject(Table3dService).drawsOnCanvas;
   private readonly motions = inject(PieceMotionsService);
   private readonly modalService = inject(ModalService);
   private readonly cardDrop = inject(CardDropService);
@@ -135,7 +125,7 @@ export class CardStackComponent {
     this.objectChange.networkVersion();
     const top = this.cardStack().topCard;
     if (top) this.objectChange.versionOf(top.identifier)();
-    return this.drawnOnCanvas() && !!top && top.isVisible && top.faceText.length > 0;
+    return !!top && top.isVisible && top.faceText.length > 0;
   });
   private readonly pictured = viewChild<ElementRef<HTMLElement>>('pictured');
 
@@ -213,35 +203,6 @@ export class CardStackComponent {
     return this.cardStack().topCard;
   }
 
-  private static readonly STACK_PIXELS_PER_CARD = 1.0;
-  private static readonly STACK_MAX_THICKNESS_PX = 60;
-  private static readonly STACK_MAX_LAYERS = 30;
-
-  readonly isPoster = computed(() => {
-    this.objectChange.versionOf(this.cardStack().identifier)();
-    return surfaceOf(this.cardStack()) !== 'floor';
-  });
-
-  protected readonly stackThicknessPx = computed<number>(() => {
-    if (this.tabletopService.mode2d() || this.isPoster()) return 0;
-    const count = this.cardCount();
-    if (count <= 1) return 0;
-    return Math.min(CardStackComponent.STACK_MAX_THICKNESS_PX, count * CardStackComponent.STACK_PIXELS_PER_CARD);
-  });
-
-  protected readonly stackLayers = computed<readonly { z: number; bg: string }[]>(() => {
-    if (this.tabletopService.mode2d() || this.isPoster()) return [];
-    const count = this.cardCount();
-    if (count <= 1) return [];
-    const thickness = this.stackThicknessPx();
-    const layerCount = Math.min(count - 1, CardStackComponent.STACK_MAX_LAYERS);
-    const spacing = thickness / layerCount;
-    return Array.from({ length: layerCount }, (_, i) => ({
-      z: i * spacing,
-      bg: i % 2 === 0 ? '#f5efe2' : '#2a1f0d',
-    }));
-  });
-
   readonly imageFile = computed(
     () => {
       this.objectChange.fileVersion();
@@ -252,57 +213,31 @@ export class CardStackComponent {
     { equal: imageFileEqual() }
   );
 
-  private readonly imageNaturalSize = linkedSignal<string, { width: number; height: number } | null>({
-    source: () => this.imageFile().url,
-    computation: () => null,
-  });
-
-  /**
-   * Records the natural size of the top card's picture once it loads, which the face's
-   * supersampling is worked out from. A picture that reports no size is ignored.
-   */
-  onImageLoad(event: Event): void {
-    const img = event.target as HTMLImageElement;
-    if (img.naturalWidth <= 0 || img.naturalHeight <= 0) return;
-    this.imageNaturalSize.set({ width: img.naturalWidth, height: img.naturalHeight });
-  }
-
-  private static readonly FRAME_BORDER_PX = 5;
-
-  private readonly imageBoxWidthPx = computed(() => this.size * this.gridSize - CardStackComponent.FRAME_BORDER_PX * 2);
-
-  readonly imageSupersample = computed(() => {
-    const natural = this.imageNaturalSize();
-    if (!natural) return 1;
-    return supersampleFactor(natural.width, this.imageBoxWidthPx());
-  });
-
-  readonly imageSupersamplePercent = computed(() => this.imageSupersample() * 100 + '%');
-
-  readonly imageSupersampleInset = computed(() => supersampleInsetPercent(this.imageSupersample()) + '%');
-
-  readonly imageBoxHeightPx = computed(() => {
-    const natural = this.imageNaturalSize();
-    if (!natural || this.imageSupersample() <= 1) return null;
-    return (this.imageBoxWidthPx() * natural.height) / natural.width;
-  });
-
-  /**
-   * The CSS transform for the top card's picture: the given inner transform wrapped in the
-   * supersampling scale.
-   */
-  imageTransform(inner: string): string {
-    return supersampleTransform({ factor: this.imageSupersample(), anchor: 'top', inner });
-  }
-
-  readonly animeState = signal<'active' | 'inactive'>('inactive');
-
   private readonly iconHiding = hideIconWhileTouched(this.destroyRef);
   readonly isIconHidden = this.iconHiding.isHidden;
 
   /** The size of one grid cell on the current table, in pixels. */
   get gridSize(): number {
     return this.tabletopService.gridSize();
+  }
+
+  /**
+   * How much of its face the stack covers: as wide as its top card, and as deep as the plate the
+   * canvas draws it on runs, a rim round the picture the canvas draws its top card with, the one
+   * taken of a face that carries words or else the card's own. An empty stack is a bare plate.
+   */
+  private footprint(): { width: number; height: number } {
+    const width = this.size * this.gridSize;
+    if (this.isEmpty) return { width, height: EMPTY_STACK_PX };
+    const pictureWidth = width - 2 * STACK_PLATE_BORDER_PX;
+    const taken = this.pictured()?.nativeElement;
+    const own = this.pictureSizes.sizeOf(this.imageFile().url);
+    const pictureHeight = taken
+      ? taken.offsetHeight
+      : own && own.width > 0
+        ? (pictureWidth * own.height) / own.width
+        : 0;
+    return { width, height: pictureHeight + 2 * STACK_PLATE_BORDER_PX };
   }
 
   readonly movableOption = signal<MovableOption>({});
@@ -313,21 +248,13 @@ export class CardStackComponent {
   constructor() {
     this.objectChange.shuffleCardStack$.subscribe((event) => {
       if (event.identifier === this.cardStack().identifier) {
-        this.animeState.set('active');
-        if (this.drawnOnCanvas()) this.motions.play(event.identifier, 'shuffle', { parts: ['top'] });
+        this.motions.play(event.identifier, 'shuffle', { parts: ['top'] });
       }
     }, this.destroyRef);
     setupMovableRotableForPiece(this, {
       target: this.cardStack,
       collideLayers: ['terrain'],
-      transformCssOffset: translateZCss(Z_OFFSET_TABLETOP_OBJECT_PX),
-      placedElsewhere: this.drawnOnCanvas,
-      footprint: () => ({
-        width: this.size * this.gridSize,
-        height: this.isEmpty
-          ? EMPTY_STACK_PX
-          : (this.pictured()?.nativeElement.offsetHeight ?? 0) + 2 * STACK_PLATE_BORDER_PX,
-      }),
+      footprint: () => this.footprint(),
     });
     pictureForCanvas({
       identifier: () => this.cardStack().identifier,
@@ -351,11 +278,6 @@ export class CardStackComponent {
 
   private get input() {
     return this.inputRef.current;
-  }
-
-  /** Ends the shuffle animation once it has played, so the next shuffle can play it again. */
-  onShuffleDone() {
-    this.animeState.set('inactive');
   }
 
   /** Feeds a press into the double-tap detector, which draws a card when a second press lands in place. */

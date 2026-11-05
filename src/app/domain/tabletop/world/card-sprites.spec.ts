@@ -76,6 +76,26 @@ describe('the sprites cards are drawn with', () => {
     expect(top.facing).not.toEqual(plate.facing);
   });
 
+  it('thickens a stack with its cards up to a limit, in layers of two colours in turn spaced evenly through it', () => {
+    const thick = cardStackSprites({ ...stack, cardCount: 200 });
+    const layers = thick.filter((sprite) => sprite.id.includes('#layer-'));
+    const base = 0.15 + 0.002;
+
+    expect(layers).toHaveLength(30);
+    expect(thick.find((sprite) => sprite.id === 'stack#plate')!.centre.z).toBeCloseTo(base + 60, 9);
+    expect(layers.slice(0, 3).map((layer) => layer.look)).toEqual(
+      ['#f5efe2', '#2a1f0d', '#f5efe2'].map((colour) => ({
+        kind: 'frame',
+        bands: [{ widthPx: Number.MAX_SAFE_INTEGER, colour }],
+        radiusPx: 5,
+      }))
+    );
+    expect(layers[29].centre.z).toBeCloseTo(base + (60 * 29) / 30, 9);
+    const ten = cardStackSprites({ ...stack, cardCount: 10 });
+    expect(ten.filter((sprite) => sprite.id.includes('#layer-'))).toHaveLength(9);
+    expect(ten.find((sprite) => sprite.id === 'stack#plate')!.centre.z).toBeCloseTo(base + 10, 9);
+  });
+
   it('lays a stack on a wall, or of one card, as a bare plate with its top card', () => {
     expect(cardStackSprites({ ...stack, thick: false }).map((sprite) => sprite.id)).toEqual([
       'stack#plate',
