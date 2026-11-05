@@ -1,4 +1,3 @@
-import { NgStyle } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -7,7 +6,6 @@ import {
   ElementRef,
   inject,
   input,
-  linkedSignal,
   signal,
   viewChild,
 } from '@angular/core';
@@ -17,15 +15,14 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
+import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ContextMenuSeparator, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
-import { ImageFile, imageFileEqual } from '@axe/core/storage/image-file';
 import { Card, CardState } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -44,14 +41,11 @@ import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
-import { containedImageRect } from '@axe/ui/tabletop/contained-image-rect';
 import { DoubleTap } from '@axe/ui/tabletop/double-tap';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { hideIconWhileTouched } from '@axe/ui/tabletop/icon-hiding';
 import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
-import { supersampleFactor, supersampleInsetPercent, supersampleTransform } from '@axe/ui/tabletop/supersample';
-import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
 
 /** The least a card covers either way, in px, however small its size or its picture. */
 const CARD_SMALLEST_PX = 25;
@@ -65,7 +59,6 @@ const CARD_SMALLEST_PX = 25;
     MovableDirective,
     RotableDirective,
     SelectableDirective,
-    NgStyle,
     SafePipe,
     CardFaceTextComponent,
   ],
@@ -88,12 +81,8 @@ export class CardComponent {
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   protected readonly tabletopService = inject(TabletopService);
 
-  /**
-   * Whether the card is drawn on the table's canvas, which leaves its pictures here clear: they
-   * still take the presses where the canvas draws them.
-   */
-  readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
   private readonly imageService = inject(ImageService);
+  private readonly pictureSizes = inject(PictureSizeService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly visionService = inject(VisionService);
@@ -204,24 +193,6 @@ export class CardComponent {
     return this.card().ownerIsOnline;
   }
 
-  readonly imageFile = computed(
-    () => {
-      this.objectChange.fileVersion();
-      const card = this.card();
-      this.objectChange.versionOf(card.identifier)();
-      return this.imageService.getSkeletonOr(card.imageFile);
-    },
-    { equal: imageFileEqual() }
-  );
-  /** The card's front picture, or a placeholder while it is missing or still loading. */
-  get frontImage(): ImageFile {
-    return this.imageService.getSkeletonOr(this.card().frontImage);
-  }
-  /** The card's back picture, or a placeholder while it is missing or still loading. */
-  get backImage(): ImageFile {
-    return this.imageService.getSkeletonOr(this.card().backImage);
-  }
-
   /**
    * The face the table sees, read through the signals rather than off the card.
    *
@@ -260,7 +231,7 @@ export class CardComponent {
     const card = this.card();
     this.objectChange.versionOf(card.identifier)();
     this.objectChange.networkVersion();
-    return this.drawsOnCanvas() && card.isVisible && card.faceText.length > 0;
+    return card.isVisible && card.faceText.length > 0;
   });
   private readonly pictured = viewChild<ElementRef<HTMLElement>>('pictured');
 
@@ -269,93 +240,6 @@ export class CardComponent {
     this.objectChange.versionOf(card.identifier)();
     this.objectChange.networkVersion();
     return card.isPeeking;
-  });
-
-  private readonly imageNaturalSize = linkedSignal<string, { width: number; height: number } | null>({
-    source: () => this.displayedImageUrl(),
-    computation: () => null,
-  });
-
-  /**
-   * Notes the natural size of the face picture once it loads, so it can be drawn sharper than its
-   * box.
-   */
-  onImageLoad(event: Event): void {
-    const img = event.target as HTMLImageElement;
-    if (img.naturalWidth <= 0 || img.naturalHeight <= 0) return;
-    this.imageNaturalSize.set({ width: img.naturalWidth, height: img.naturalHeight });
-  }
-
-  readonly imageSupersample = computed(() => {
-    const natural = this.imageNaturalSize();
-    if (!natural) return 1;
-    return supersampleFactor(natural.width, this.size * this.gridSize);
-  });
-
-  readonly imageSupersamplePercent = computed(() => this.imageSupersample() * 100 + '%');
-
-  readonly imageSupersampleInset = computed(() => supersampleInsetPercent(this.imageSupersample()) + '%');
-
-  readonly imageBoxHeightPx = computed(() => {
-    const natural = this.imageNaturalSize();
-    if (!natural || this.imageSupersample() <= 1) return null;
-    return (this.size * this.gridSize * natural.height) / natural.width;
-  });
-
-  readonly imageTransform = computed(() => supersampleTransform({ factor: this.imageSupersample(), anchor: 'top' }));
-
-  private readonly peekNaturalSize = linkedSignal<string, { width: number; height: number } | null>({
-    source: () => this.frontImage.url,
-    computation: () => null,
-  });
-
-  /**
-   * Notes the natural size of the peeked front picture once it loads, for the same sharper drawing.
-   */
-  onPeekImageLoad(event: Event): void {
-    const img = event.target as HTMLImageElement;
-    if (img.naturalWidth <= 0 || img.naturalHeight <= 0) return;
-    this.peekNaturalSize.set({ width: img.naturalWidth, height: img.naturalHeight });
-  }
-
-  readonly peekSupersample = computed(() => {
-    const natural = this.peekNaturalSize();
-    if (!natural) return 1;
-    return supersampleFactor(Math.min(natural.width, natural.height), this.size * this.gridSize);
-  });
-
-  /** A peeked card is held a little smaller than the one it is drawn over. */
-  protected readonly peekScale = 'scale(0.9)';
-
-  readonly peekTransform = computed(() =>
-    supersampleTransform({ factor: this.peekSupersample(), anchor: 'center', inner: this.peekScale })
-  );
-
-  private readonly peekFrameRect = computed(() => {
-    const frameWidth = this.size * this.gridSize;
-    const back = this.imageNaturalSize();
-    const frameHeight = back && back.width > 0 ? (frameWidth * back.height) / back.width : frameWidth;
-    return { width: frameWidth, height: frameHeight };
-  });
-
-  readonly peekImageLayout = computed(() => {
-    const frame = this.peekFrameRect();
-    const factor = this.peekSupersample();
-    const width = frame.width * factor;
-    const height = frame.height * factor;
-    return {
-      left: (frame.width - width) / 2,
-      top: (frame.height - height) / 2,
-      width,
-      height,
-    };
-  });
-
-  readonly peekFaceRect = computed(() => {
-    const frame = this.peekFrameRect();
-    const front = this.peekNaturalSize();
-    if (!front) return { left: 0, top: 0, ...frame };
-    return containedImageRect(frame.width, frame.height, front.width, front.height) ?? { left: 0, top: 0, ...frame };
   });
 
   private readonly handDrag = inject(HandDragService);
@@ -376,6 +260,18 @@ export class CardComponent {
     return this.tabletopService.gridSize();
   }
 
+  /**
+   * How much of its face the card covers: as wide as its size, and as deep as the picture the canvas
+   * draws it with runs, the one taken of a face that carries words or else its own.
+   */
+  private footprint(): { width: number; height: number } {
+    const width = Math.max(CARD_SMALLEST_PX, this.size * this.gridSize);
+    const taken = this.pictured()?.nativeElement;
+    const own = this.pictureSizes.sizeOf(this.displayedImageUrl());
+    const height = taken ? taken.offsetHeight : own && own.width > 0 ? (width * own.height) / own.width : 0;
+    return { width, height: Math.max(CARD_SMALLEST_PX, height) };
+  }
+
   readonly movableOption = signal<MovableOption>({});
   readonly rotableOption = signal<RotableOption>({});
 
@@ -385,12 +281,7 @@ export class CardComponent {
     setupMovableRotableForPiece(this, {
       target: this.card,
       collideLayers: ['terrain'],
-      transformCssOffset: translateZCss(Z_OFFSET_TABLETOP_OBJECT_PX),
-      placedElsewhere: this.drawsOnCanvas,
-      footprint: () => ({
-        width: Math.max(CARD_SMALLEST_PX, this.size * this.gridSize),
-        height: Math.max(CARD_SMALLEST_PX, this.pictured()?.nativeElement.offsetHeight ?? 0),
-      }),
+      footprint: () => this.footprint(),
     });
     pictureForCanvas({
       identifier: () => this.card().identifier,
