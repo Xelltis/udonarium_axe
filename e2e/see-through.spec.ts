@@ -49,22 +49,15 @@ test.describe('the see-through parts of a piece’s picture', () => {
     const frontBefore = await placeOf(front);
 
     await hoverOnto(page, at);
-    // The page lets the pointer through to the piece behind; a table drawn on a canvas picks it there.
+    // The table's line of sight passes the clear part of the picture and picks the piece behind.
     const backId = await back.getAttribute('data-object-id');
     await expect
       .poll(() =>
         page.evaluate(
           ([x, y, id]) => {
-            const hooks = (
-              window as unknown as {
-                __axeTable?: { renderer(): string | null; pickAt(x: number, y: number): string | null };
-              }
-            ).__axeTable;
-            if (hooks?.renderer()) return hooks.pickAt(x as number, y as number) === id;
-            return document
-              .elementFromPoint(x as number, y as number)
-              ?.closest('game-character')
-              ?.textContent?.includes('モンスターB');
+            const hooks = (window as unknown as { __axeTable?: { pickAt(x: number, y: number): string | null } })
+              .__axeTable;
+            return hooks?.pickAt(x as number, y as number) === id;
           },
           [at.x, at.y, backId] as const
         )

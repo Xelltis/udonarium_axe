@@ -59,24 +59,19 @@ export async function drawSampleModels(page: Page) {
 }
 
 /**
- * A point of the page where the page draws a piece itself, for a press to take hold of it by or the
+ * A point of the page where the canvas draws a piece, for a press to take hold of it by or the
  * pointer to rest on it at: the middle of the base it stands on, or where that is hidden, as by a
- * piece in front of it or a standing board, a point of its picture. On a canvas the table's line of
- * sight picks what a press takes, and a point it picks the piece at is taken only where no panel lies
- * over the table, and once the pointer resting there reaches the piece too, rather than another
- * piece's mark or a card over it. Leaves the pointer on the point.
+ * piece in front of it or a standing board, a point of its picture. The table's line of sight picks
+ * what a press takes, and a point it picks the piece at is taken only where no panel lies over the
+ * table, and once the pointer resting there reaches the piece too, rather than another piece's mark
+ * or a card over it. Leaves the pointer on the point.
  */
 export async function spotOnPiece(of: Locator): Promise<{ x: number; y: number }> {
   const candidates = await of.evaluate((element) => {
-    const table = (
-      window as { __axeTable?: { renderer(): string | null; pickAt(x: number, y: number): string | null } }
-    ).__axeTable;
+    const table = (window as { __axeTable?: { pickAt(x: number, y: number): string | null } }).__axeTable;
     const id = element.getAttribute('data-object-id');
-    const takesIt = (x: number, y: number) => {
-      const hit = document.elementFromPoint(x, y);
-      if (!table?.renderer()) return hit?.closest('game-character') === element;
-      return !!hit?.closest('#app-table-layer') && table.pickAt(x, y) === id;
-    };
+    const takesIt = (x: number, y: number) =>
+      !!table && !!document.elementFromPoint(x, y)?.closest('#app-table-layer') && table.pickAt(x, y) === id;
     const found: { x: number; y: number }[] = [];
     const base = element.querySelector('[data-testid="multi-angle-piece-motion-source"]')!.getBoundingClientRect();
     const middle = { x: base.left + base.width / 2, y: base.top + base.height / 2 };
