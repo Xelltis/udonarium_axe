@@ -5,7 +5,7 @@ import {
   EffectTargetLink,
   EffectTargetMark,
 } from '@axe/application/effect/effect-targeting.service';
-import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TABLE_SCREEN } from '@axe/application/tabletop/table-screen';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { quadMatrix } from '@axe/domain/tabletop/world/page-boxes';
 
@@ -49,7 +49,7 @@ export class EffectTargetOverlayComponent {
    */
   readonly overCanvas = input(false);
 
-  private readonly camera = inject(TableCameraService);
+  private readonly camera = inject(TABLE_SCREEN);
 
   /**
    * How to lay an element over a canvas: one lying flat, from its corners on the floor at a height,

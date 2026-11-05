@@ -4,7 +4,7 @@ import { EffectFieldRenderable, EffectFieldService } from '@axe/application/effe
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
-import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TABLE_SCREEN } from '@axe/application/tabletop/table-screen';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -66,7 +66,7 @@ export class TableEffectOverlayComponent {
    */
   readonly overCanvas = input(false);
 
-  private readonly camera = inject(TableCameraService);
+  private readonly camera = inject(TABLE_SCREEN);
 
   private readonly rotation = computed(() => this.eye()?.rotation ?? this.uiSignalService.tableViewRotation());
 

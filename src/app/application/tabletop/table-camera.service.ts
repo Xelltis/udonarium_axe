@@ -1,30 +1,17 @@
 import { computed, Injectable, signal } from '@angular/core';
-import { IMatrix3D, Matrix3D } from '@axe/core/transform/matrix-3d';
+import type { TableScreen } from '@axe/application/tabletop/table-screen';
+import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import {
-  pageOfTablePoint,
+  screenMatrixOfScene,
+  screenOfScene,
   TableCameraView,
   tableEyeMatrix,
   TableLayout,
-  tableRayOfPage,
   tableSceneMatrix,
+  TableScreenMatrixOf,
+  TableScreenOf,
 } from '@axe/domain/tabletop/camera/table-camera';
 import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
-
-/**
- * Where a point of the board is drawn on the screen of the table, against the screen's top left
- * corner, and how many pixels of the screen a pixel of the board facing the eye is drawn across there.
- */
-export interface TableScreenPoint {
-  readonly x: number;
-  readonly y: number;
-  readonly scale: number;
-}
-
-/**
- * Carries a point of the board onto the screen of the table, brought first the given way towards the
- * eye along the way the camera looks, as a picture turned to the eye is brought off what it stands on.
- */
-export type TableScreenOf = (x: number, y: number, z: number, towardsEyePx?: number) => TableScreenPoint;
 
 /**
  * Where the table's camera stands as it was last drawn, and where the table sits on the page, so
@@ -34,7 +21,7 @@ export type TableScreenOf = (x: number, y: number, z: number, towardsEyePx?: num
 @Injectable({
   providedIn: 'root',
 })
-export class TableCameraService {
+export class TableCameraService implements TableScreen {
   private shownView: TableCameraView | null = null;
   private shownLayout: TableLayout | null = null;
   private readonly scene = new Matrix3D();
@@ -61,14 +48,13 @@ export class TableCameraService {
     const view = this.shownView;
     const layout = this.shownLayout;
     if (!scene || !inverse || !view || !layout) return null;
-    const right = eyeAxesOf(tableEyeMatrix(view, layout)).right;
-    const away = tableRayOfPage(inverse, layout.left + layout.width / 2, layout.top + layout.height / 2).direction;
-    return (x, y, z, towardsEyePx = 0) => {
-      const near = { x: x - away.x * towardsEyePx, y: y - away.y * towardsEyePx, z: z - away.z * towardsEyePx };
-      const at = pageOfTablePoint(scene, near.x, near.y, near.z);
-      const beside = pageOfTablePoint(scene, near.x + right.x, near.y + right.y, near.z + right.z);
-      return { x: at.x - layout.left, y: at.y - layout.top, scale: Math.hypot(beside.x - at.x, beside.y - at.y) };
-    };
+    return screenOfScene(
+      scene,
+      inverse,
+      eyeAxesOf(tableEyeMatrix(view, layout)).right,
+      { x: layout.left, y: layout.top },
+      { x: layout.left + layout.width / 2, y: layout.top + layout.height / 2 }
+    );
   });
 
   /** The view as it was last drawn, or null before the table first draws one. */
@@ -88,14 +74,11 @@ export class TableCameraService {
    * comes behind the eye. Follows the camera; null until both a view has been drawn and the table has
    * been laid out.
    */
-  readonly screenMatrixOf = computed<((placed: IMatrix3D) => string) | null>(() => {
+  readonly screenMatrixOf = computed<TableScreenMatrixOf | null>(() => {
     this.version();
     const scene = this.sceneMatrix();
     const layout = this.shownLayout;
-    if (!scene || !layout) return null;
-    const toScreen = Matrix3D.multiply(scene, Matrix3D.makePosition({ x: -layout.left, y: -layout.top, z: 0, w: 1 }));
-    const laid = new Matrix3D();
-    return (placed) => Matrix3D.multiply(placed, toScreen, laid).toCss();
+    return scene && layout ? screenMatrixOfScene(scene, { x: layout.left, y: layout.top }) : null;
   });
 
   /** Called in the frame the table draws a view. */

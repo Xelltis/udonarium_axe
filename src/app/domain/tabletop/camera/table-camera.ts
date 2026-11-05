@@ -1,4 +1,4 @@
-import { Matrix3D } from '@axe/core/transform/matrix-3d';
+import { IMatrix3D, Matrix3D } from '@axe/core/transform/matrix-3d';
 import type { IPoint3D } from '@axe/core/transform/transform';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 
@@ -253,4 +253,59 @@ export function tableRayOfPage(inverseScene: Matrix3D, pageX: number, pageY: num
  */
 export function tablePointOfPage(inverseScene: Matrix3D, pageX: number, pageY: number): IPoint3D {
   return inverseScene.unproject({ x: pageX, y: pageY });
+}
+
+/**
+ * Where a point of the board is drawn on a screen laid over the page, against the screen's top left
+ * corner, and how many pixels of the screen a pixel of the board facing the eye is drawn across there.
+ */
+export interface TableScreenPoint {
+  readonly x: number;
+  readonly y: number;
+  readonly scale: number;
+}
+
+/**
+ * Carries a point of the board onto a screen, brought first the given way towards the eye along the
+ * way the camera looks, as a picture turned to the eye is brought off what it stands on.
+ */
+export type TableScreenOf = (x: number, y: number, z: number, towardsEyePx?: number) => TableScreenPoint;
+
+/** How an element placed on the board by a transform of its own, from its top left corner, is laid on a screen. */
+export type TableScreenMatrixOf = (placed: IMatrix3D) => string;
+
+/**
+ * How a scene matrix, which takes the board onto the page, carries points of the board onto a screen
+ * whose top left corner stands at `corner` on the page: `right` is the way the eye's right runs on
+ * the board, and the way the camera looks is the line of sight through `middle`, a point of the page.
+ * The matrix is read as it stands when a point is carried, so one changed in place is followed.
+ */
+export function screenOfScene(
+  scene: Matrix3D,
+  inverse: Matrix3D,
+  right: { readonly x: number; readonly y: number; readonly z: number },
+  corner: { readonly x: number; readonly y: number },
+  middle: { readonly x: number; readonly y: number }
+): TableScreenOf {
+  const away = tableRayOfPage(inverse, middle.x, middle.y).direction;
+  return (x, y, z, towardsEyePx = 0) => {
+    const near = { x: x - away.x * towardsEyePx, y: y - away.y * towardsEyePx, z: z - away.z * towardsEyePx };
+    const at = pageOfTablePoint(scene, near.x, near.y, near.z);
+    const beside = pageOfTablePoint(scene, near.x + right.x, near.y + right.y, near.z + right.z);
+    return { x: at.x - corner.x, y: at.y - corner.y, scale: Math.hypot(beside.x - at.x, beside.y - at.y) };
+  };
+}
+
+/**
+ * How an element placed on the board is laid on a screen whose top left corner stands at `corner` on
+ * the page: as a CSS transform carrying its placement on through the scene matrix, the camera's
+ * perspective kept in it, so the page cuts away what comes behind the eye.
+ */
+export function screenMatrixOfScene(
+  scene: Matrix3D,
+  corner: { readonly x: number; readonly y: number }
+): TableScreenMatrixOf {
+  const toScreen = Matrix3D.multiply(scene, Matrix3D.makePosition({ x: -corner.x, y: -corner.y, z: 0, w: 1 }));
+  const laid = new Matrix3D();
+  return (placed) => Matrix3D.multiply(placed, toScreen, laid).toCss();
 }
