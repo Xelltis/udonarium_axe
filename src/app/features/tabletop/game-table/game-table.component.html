@@ -410,9 +410,6 @@
       @if (!table3d.drawsOnCanvas()) {
         <ng-container [ngTemplateOutlet]="floorMarks"></ng-container>
       }
-      @if (!table3d.drawsOnCanvas()) {
-        <table-altitude-guide-overlay class="contents"></table-altitude-guide-overlay>
-      }
     </div>
   </div>
   @if (table3d.drawsOnCanvas()) {
@@ -492,7 +489,7 @@
       <table-effect-overlay class="contents"></table-effect-overlay>
       <effect-target-overlay class="contents"></effect-target-overlay>
       <table-drop-preview></table-drop-preview>
-      <table-altitude-guide-overlay class="contents" [overCanvas]="true"></table-altitude-guide-overlay>
+      <table-altitude-guide-overlay class="contents"></table-altitude-guide-overlay>
     </div>
   }
 </div>

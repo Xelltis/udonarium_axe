@@ -412,6 +412,10 @@ test.describe('pieces drawn on a canvas', () => {
     const report = JSON.stringify([pole, pedestal]);
     expect(Math.abs(pole.x + pole.width / 2 - (grab.x + 4)), report).toBeLessThan(pedestal.width / 2);
     expect(pole.y + pole.height, report).toBeGreaterThan(pedestal.y);
+    const ground = (await hud.locator('[data-altitude-guide-ground]').boundingBox())!;
+    const onGround = JSON.stringify([ground, pedestal]);
+    expect(Math.abs(ground.x + ground.width / 2 - (pedestal.x + pedestal.width / 2 + 4)), onGround).toBeLessThan(8);
+    expect(Math.abs(ground.y + ground.height / 2 - (pedestal.y + pedestal.height / 2 + 4)), onGround).toBeLessThan(8);
 
     await page.keyboard.up('Shift');
     await page.mouse.up();

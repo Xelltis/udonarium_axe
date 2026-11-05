@@ -1,81 +1,45 @@
-@if (overCanvas()) {
-  @if (onCanvas(); as laid) {
-    <div class="pointer-events-none" data-altitude-guide [appHudPlace]="{ owner: laid.owner }">
-      <div
-        data-altitude-guide-pole
-        class="pointer-events-none w-0 border-l-2 border-dashed"
-        [style.border-left-color]="stroke"
-        [appHudPlace]="{ owner: laid.owner, at: laid.lifted, reach: laid.ground }"
-      ></div>
-      @for (rung of laid.rungs; track rung.height) {
-        <div class="pointer-events-none size-0" [appHudPlace]="{ owner: laid.owner, at: rung }">
-          <div
-            data-altitude-guide-rung
-            class="absolute top-0 left-0 border-t-2 border-solid"
-            [style.width.px]="rungWidthPx"
-            [style.border-top-color]="stroke"
-          ></div>
-        </div>
-      }
-      <div class="pointer-events-none size-0" [appHudPlace]="{ owner: laid.owner, at: laid.lifted }">
-        <span
-          data-altitude-guide-reading
-          class="absolute left-0 -translate-y-1/2 pl-2.5 text-[12px] font-extrabold whitespace-nowrap"
-          [style.color]="stroke"
-          [style.text-shadow]="'0 0 3px ' + shadow"
-          >{{ reading() }}</span
-        >
-      </div>
-    </div>
-  }
-} @else if (guide()) {
-  <div
-    data-altitude-guide
-    class="pointer-events-none absolute top-0 left-0 transform-3d"
-    [style.transform]="anchorCss()"
-  >
+<!--
+  The guide is laid on the screen where the table's canvas draws the piece held: a pole from the
+  height it is held at down to the face, a rung a cell, its height at the top, and a mark on the
+  ground under it where it lands.
+-->
+@if (laid(); as laid) {
+  @if (groundOnScreen(); as ground) {
     <div
       data-altitude-guide-ground
-      class="absolute top-0 left-0 rounded-xs border border-dashed"
-      [style.width.px]="groundMarkWidthPx()"
-      [style.height.px]="groundMarkHeightPx()"
-      [style.transform]="groundMarkCss()"
+      class="pointer-events-none absolute top-0 left-0 origin-top-left rounded-xs border border-dashed"
+      [style.width.px]="laid.groundWidthPx"
+      [style.height.px]="laid.groundHeightPx"
+      [style.transform]="ground"
       [style.border-color]="stroke"
       [style.box-shadow]="'0 0 3px ' + shadow"
     ></div>
-
+  }
+  <div class="pointer-events-none" data-altitude-guide [appHudPlace]="{ owner: laid.owner }">
     <div
       data-altitude-guide-pole
-      class="absolute top-0 left-0 origin-top-left border-l-2 border-dashed transform-3d"
-      [style.height.px]="poleHeightPx()"
-      [style.transform]="poleCss()"
+      class="pointer-events-none w-0 border-l-2 border-dashed"
       [style.border-left-color]="stroke"
-    >
-      @for (offset of rungOffsetsPx(); track offset) {
+      [appHudPlace]="{ owner: laid.owner, at: laid.lifted, reach: laid.ground }"
+    ></div>
+    @for (rung of laid.rungs; track rung.height) {
+      <div class="pointer-events-none size-0" [appHudPlace]="{ owner: laid.owner, at: rung }">
         <div
           data-altitude-guide-rung
-          class="absolute left-0 border-t-2 border-solid"
+          class="absolute top-0 left-0 border-t-2 border-solid"
           [style.width.px]="rungWidthPx"
-          [style.top.px]="offset"
           [style.border-top-color]="stroke"
         ></div>
-      }
-
-      <div class="absolute top-0 left-0 transform-3d">
-        <span
-          data-altitude-guide-reading
-          class="absolute pl-2.5 text-[12px] font-extrabold whitespace-nowrap backface-hidden transform-3d"
-          [style.color]="stroke"
-          [style.text-shadow]="'0 0 3px ' + shadow"
-          >{{ reading() }}</span
-        >
-        <span
-          class="absolute transform-[rotateY(-180deg)] pl-2.5 text-[12px] font-extrabold whitespace-nowrap backface-hidden transform-3d"
-          [style.color]="stroke"
-          [style.text-shadow]="'0 0 3px ' + shadow"
-          >{{ reading() }}</span
-        >
       </div>
+    }
+    <div class="pointer-events-none size-0" [appHudPlace]="{ owner: laid.owner, at: laid.lifted }">
+      <span
+        data-altitude-guide-reading
+        class="absolute left-0 -translate-y-1/2 pl-2.5 text-[12px] font-extrabold whitespace-nowrap"
+        [style.color]="stroke"
+        [style.text-shadow]="'0 0 3px ' + shadow"
+        >{{ reading() }}</span
+      >
     </div>
   </div>
 }
