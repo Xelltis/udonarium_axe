@@ -1,7 +1,7 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
 import { chatInput, openPanel } from '../helpers';
-import { becomeGm, closePanels, drawsOnCanvas, prepare, reseedRandom, waitChatEditor } from './fixtures';
+import { becomeGm, closePanels, prepare, reseedRandom, waitChatEditor } from './fixtures';
 
 // The dice are drawn with WebGL, which headless Chromium gives through SwiftShader.
 test.use({ launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } });
@@ -87,42 +87,6 @@ async function seedDiceBot(page: Page) {
   });
 }
 
-/**
- * Keeps the dice on the table from fading. The page draws as it would until a frame would draw them
- * fading, a few seconds after they come to rest; every frame from then on is drawn at the moment of
- * the last one that showed them in full, so they lie at rest for as long as the shot takes.
- */
-async function keepFromFading(page: Page) {
-  await page.evaluate(() => {
-    const overlay = document.querySelector('[data-testid="table-dice-overlay"]');
-    const requestFrame = window.requestAnimationFrame.bind(window);
-    const drawImage = CanvasRenderingContext2D.prototype.drawImage;
-    const kept = { at: 0, inFull: 0, held: -1, redrawn: false };
-    Object.assign(window, { diceKept: kept });
-    window.requestAnimationFrame = (callback) =>
-      requestFrame((now) => {
-        kept.at = kept.held < 0 ? now : kept.held;
-        callback(kept.at);
-      });
-    CanvasRenderingContext2D.prototype.drawImage = function (this: CanvasRenderingContext2D, ...args: unknown[]) {
-      if (this.canvas === overlay && this.globalAlpha < 1 && kept.held < 0) {
-        kept.held = kept.inFull;
-      } else if (this.canvas === overlay) {
-        kept.inFull = kept.at;
-        kept.redrawn ||= kept.held >= 0;
-      }
-      return Reflect.apply(drawImage, this, args);
-    } as typeof drawImage;
-  });
-}
-
-/** Waits until the dice on the table have come to rest and are kept there in full. */
-async function keptAtRest(page: Page) {
-  await page.waitForFunction(() => (window as unknown as { diceKept: { redrawn: boolean } }).diceKept.redrawn, null, {
-    timeout: 30_000,
-  });
-}
-
 /*
  * Each scene first throws a die it does not shoot. Starting the dice engine draws on the page's
  * randomness, in a quiet moment that could come before the roll or between the roll and its
@@ -146,26 +110,6 @@ test('the dice of a chat roll come to rest in the frame of its answer', async ({
   await expect(stage).toHaveAttribute('data-state', 'settled', { timeout: 30_000 });
   await atRest(stage.locator('canvas'));
   await expect(stage).toHaveScreenshot('dice-3d-frame.png');
-});
-
-test('the dice of a chat roll come to rest on the table', async ({ page }) => {
-  test.skip(drawsOnCanvas(), 'the sheet laid over the table is the page’s own table’s');
-  test.setTimeout(120_000);
-  await prepare(page);
-  await chooseStage(page, 'table');
-  const overlay = page.getByTestId('table-dice-overlay');
-  await roll(page, '1d6');
-  await expect.poll(() => diceOn(overlay), { timeout: 30_000 }).not.toBe('');
-  await expect.poll(() => overlay.evaluate((canvas: HTMLCanvasElement) => canvas.width), { timeout: 30_000 }).toBe(1);
-
-  await keepFromFading(page);
-  await rollSeeded(page, '2d6+1d20');
-  // The dice come down in the middle of the screen, under the windows, which also tell the time.
-  await closePanels(page);
-
-  await keptAtRest(page);
-  await page.mouse.move(1279, 799);
-  await expect(page).toHaveScreenshot('dice-3d-table.png');
 });
 
 /**
@@ -225,7 +169,6 @@ async function holdDiceInScene(page: Page, ms: number) {
 }
 
 test('the dice of a chat roll come to rest in the scene of a table drawn on a canvas', async ({ page }) => {
-  test.skip(!drawsOnCanvas(), 'the page’s own table lays its dice on a sheet over it');
   test.setTimeout(120_000);
   await prepare(page);
   await chooseStage(page, 'table');

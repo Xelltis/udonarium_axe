@@ -125,7 +125,6 @@ test.describe('dropping a piece on another face', () => {
   test('outlines where a piece held over a white board would land on it, on a table drawn on a canvas', async ({
     page,
   }) => {
-    test.skip(test.info().project.name === 'chromium-css', 'the page’s own table lays the outline in the board itself');
     const board = await makeBoard(page);
     await standBack(page);
     const character = piece(page, CARRIED);

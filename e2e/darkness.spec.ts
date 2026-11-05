@@ -9,23 +9,13 @@ import { waitAppReady } from './helpers';
  * a game master would.
  */
 test.describe('darkness (a stage effect)', () => {
-  /**
-   * How much of the darkness has been painted: on the overlay canvas of the page's own table, or, on
-   * a table drawn on a canvas, how many times the scene has been handed the darkness to light itself by.
-   */
+  /** How many times the scene of the table has been handed the darkness to light itself by. */
   const paintedPixels = (page: import('@playwright/test').Page) =>
     page.evaluate(() => {
       const scene = (
         window as unknown as { __axeTable?: { sceneStats(): { lightMapRevision: number } | null } }
       ).__axeTable?.sceneStats();
-      if (scene) return scene.lightMapRevision;
-      const canvas = document.querySelector('table-vision-overlay canvas') as HTMLCanvasElement | null;
-      const context = canvas?.getContext('2d');
-      if (!canvas || !context || !canvas.width || !canvas.height) return 0;
-      const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
-      let painted = 0;
-      for (let i = 3; i < data.length; i += 4) if (data[i] > 0) painted++;
-      return painted;
+      return scene?.lightMapRevision ?? 0;
     });
 
   test('draws the overlay from the darkness button of the GM toolbar', async ({ page }) => {

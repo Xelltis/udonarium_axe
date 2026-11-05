@@ -1,4 +1,4 @@
-import { expect, Locator, Page, test } from '@playwright/test';
+import { expect, Locator, Page } from '@playwright/test';
 
 import { MENU_GROUP_OF, waitAppReady } from '../helpers';
 
@@ -29,7 +29,7 @@ export async function prepare(page: Page) {
   });
   await waitAppReady(page);
   await page.addStyleTag({ content: NO_RESTORE_OFFER });
-  if (drawsOnCanvas()) await page.addStyleTag({ content: NO_TRANSITIONS });
+  await page.addStyleTag({ content: NO_TRANSITIONS });
 }
 
 /**
@@ -234,9 +234,7 @@ export async function holdFlicker(page: Page, timeMs: number) {
 }
 
 /** How long a shot may take: a table drawn on a canvas in software takes seconds to bring to the screen. */
-function shotTimeout(): number {
-  return drawsOnCanvas() ? 30_000 : 5_000;
-}
+const SHOT_TIMEOUT_MS = 30_000;
 
 /**
  * Holds the pieces playing a move on a canvas as far into it as the page's own animations are held
@@ -256,19 +254,13 @@ export async function snap(page: Page, name: string, options: SnapOptions = {}) 
   await page.evaluate(() => document.fonts.ready);
   await page.mouse.move(1279, 799);
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-  if (drawsOnCanvas()) await page.evaluate(() => (window as unknown as CanvasHooks).__axeTable?.chooseLightsAfresh());
+  await page.evaluate(() => (window as unknown as CanvasHooks).__axeTable?.chooseLightsAfresh());
   await holdAnimationsAt(page, options.animationAt ?? 0);
   await page.waitForTimeout(100);
   if (frozen.has(page)) await page.clock.runFor(16);
   await holdAnimationsAt(page, options.animationAt ?? 0);
-  if (drawsOnCanvas() && options.animationAt !== undefined) await holdMovesAt(page, options.animationAt);
-  if (drawsOnCanvas()) await drawCanvasThrough(page);
+  if (options.animationAt !== undefined) await holdMovesAt(page, options.animationAt);
+  await drawCanvasThrough(page);
   const { animationAt: _at, ...compare } = options;
-  await expect(page).toHaveScreenshot(`${name}.png`, { timeout: shotTimeout(), ...compare });
-} /**
- * Whether the scene is shot with the table drawn on a canvas, as every project shoots it but the
- * one that keeps the pictures of the page's own table.
- */
-export function drawsOnCanvas(): boolean {
-  return test.info().project.name !== 'visual';
+  await expect(page).toHaveScreenshot(`${name}.png`, { timeout: SHOT_TIMEOUT_MS, ...compare });
 }

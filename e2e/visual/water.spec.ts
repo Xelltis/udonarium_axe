@@ -6,7 +6,6 @@ import {
   closeModal,
   closePanels,
   drawCanvasThrough,
-  drawsOnCanvas,
   freeze,
   hoverMenu,
   menuEntry,
@@ -25,9 +24,9 @@ const POND_AT = { x: 1070, y: 525 };
 
 /** Where a piece of the starting table stands on the screen: the middle of the ground it stands on. */
 async function feetOf(page: Page, name: string): Promise<{ x: number; y: number }> {
-  if (drawsOnCanvas()) await drawCanvasThrough(page);
+  await drawCanvasThrough(page);
   const piece = page.locator('game-character').filter({ hasText: name });
-  const ground = drawsOnCanvas() ? piece.locator('[data-location]').first() : piece.locator('div').first();
+  const ground = piece.locator('[data-location]').first();
   const box = await ground.boundingBox();
   if (!box) throw new Error(`${name} is not on the screen`);
   const table = await page.locator('#app-table-layer').boundingBox();
@@ -40,11 +39,10 @@ const WATER_SNAP = { animationAt: 1200 };
 /**
  * Where a press near a point of the table lands on the table itself rather than on the marks over a
  * piece or on a piece the canvas draws there, as the outline of the cells a piece stands on: the
- * point itself, or the nearest of a few around it. On a canvas the names and gauges stand over the
- * pieces on the screen, where the page's own table has the board.
+ * point itself, or the nearest of a few around it, the names and gauges standing over the pieces on
+ * the screen.
  */
 async function clearOfMarks(page: Page, at: { x: number; y: number }): Promise<{ x: number; y: number }> {
-  if (!drawsOnCanvas()) return at;
   const table = (await page.locator('#app-table-layer').boundingBox())!;
   const tries = [
     [0, 0],
@@ -74,12 +72,8 @@ async function clearOfMarks(page: Page, at: { x: number; y: number }): Promise<{
   throw new Error('every point near the pond is under the marks over a piece');
 }
 
-/** Waits for the water to be built: in the page's own marks, or in the scene of a canvas. */
-async function waterBuilt(page: Page, mark: string) {
-  if (!drawsOnCanvas()) {
-    await expect(page.locator(mark).first()).toBeAttached();
-    return;
-  }
+/** Waits for the water to be built in the scene of the canvas. */
+async function waterBuilt(page: Page) {
   await expect
     .poll(() =>
       page.evaluate(
@@ -115,10 +109,6 @@ async function layPond(page: Page, position: { x: number; y: number }) {
 }
 
 /**
- * Opens the pond's own menu: from its element on the page's own table, and by a press in the middle
- * of it where a canvas draws it, which is where a canvas takes the pond's presses.
- */
-/**
  * Takes the pointer off the pond once its settings are made, which it was left over when the pond
  * was laid: left over it, the pond's name comes up over the table, and goes again only as the clock
  * runs on.
@@ -128,8 +118,12 @@ async function leavePond(page: Page) {
   await settle(page, 400);
 }
 
+/**
+ * Opens the pond's own menu by a press in the middle of it where the canvas draws it, which is where
+ * the canvas takes the pond's presses, or from its element before that has been found.
+ */
 async function openPondMenu(page: Page): Promise<Locator> {
-  if (drawsOnCanvas() && pondAt) {
+  if (pondAt) {
     await page.locator('#app-table-layer').click({ button: 'right', position: pondAt });
   } else {
     await page.locator('table-ambience').first().dispatchEvent('contextmenu');
@@ -198,7 +192,7 @@ async function wadeIn(page: Page) {
   const feet = await feetOf(page, 'キャラクターB');
   await layPond(page, { x: feet.x + 40, y: feet.y + 30 });
   await setWaterLevel(page, '1');
-  await waterBuilt(page, '[data-water-copy]');
+  await waterBuilt(page);
 }
 
 test('a piece wades into a pond on the square grid', async ({ page }) => {
@@ -231,7 +225,7 @@ test('waves break on a block standing out of the water', async ({ page }) => {
   await settle(page, 400);
   await layPond(page, { x: 980, y: 565 });
   await setWaterLevel(page, '1');
-  await waterBuilt(page, '[data-water-shore]');
+  await waterBuilt(page);
   await settle(page, 400);
   await snap(page, 'water-shore', { ...WATER_SNAP, animationAt: 900 });
 });
@@ -252,7 +246,7 @@ test('scum floats on stagnant water and hides what stands in it', async ({ page 
   await freeze(page);
   await wadeIn(page);
   await setWaterLook(page, 'よどんだ水');
-  await waterBuilt(page, '[data-water-layer="scum"]');
+  await waterBuilt(page);
   await settle(page, 400);
   await snap(page, 'water-stagnant', WATER_SNAP);
 });
@@ -263,7 +257,7 @@ test('lotus leaves and flowers float on a lotus pond', async ({ page }) => {
   await freeze(page);
   await wadeIn(page);
   await setWaterLook(page, '蓮池');
-  await waterBuilt(page, '[data-water-layer="leaves"]');
+  await waterBuilt(page);
   await settle(page, 400);
   await snap(page, 'water-lotus', WATER_SNAP);
 });
@@ -275,7 +269,7 @@ test('murky water flows past a piece, carrying its silt and streaked by the curr
   await wadeIn(page);
   await setMurkiness(page, '55');
   await setFlow(page, '70', '↘ 右下');
-  await waterBuilt(page, '[data-water-layer="flow"]');
+  await waterBuilt(page);
   await settle(page, 400);
   await snap(page, 'water-river', WATER_SNAP);
 });

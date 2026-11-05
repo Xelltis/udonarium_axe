@@ -1,16 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import {
-  chooseMenu,
-  closePanels,
-  drawsOnCanvas,
-  freeze,
-  prepare,
-  rightClickTable,
-  settle,
-  settleLazy,
-  snap,
-} from './fixtures';
+import { chooseMenu, closePanels, freeze, prepare, rightClickTable, settle, settleLazy, snap } from './fixtures';
 
 /** The shelf the pictures the tool is built with are filed on, which the picker shows them under. */
 const MATERIALS_TAG = 'テクスチャ';
@@ -74,11 +64,9 @@ test('a block slopes to one side as a ramp and to every side as a pyramid', asyn
   await settle(page, 400);
 
   await slopeTo(page, '南');
-  if (!drawsOnCanvas()) await expect(page.locator('[data-testid="terrain-slope-face"]')).toHaveCount(1);
   await snap(page, 'terrain-slope-ramp');
 
   for (const side of ['北', '東', '西']) await slopeTo(page, side);
-  if (!drawsOnCanvas()) await expect(page.locator('[data-testid="terrain-slope-face"]')).toHaveCount(4);
   await snap(page, 'terrain-slope-pyramid');
 });
 

@@ -2,23 +2,13 @@ import { expect, type Page, test } from '@playwright/test';
 
 import { chatInputText, openPanel, waitAppReady } from './helpers';
 
-/**
- * How dark the table has been drawn: on a canvas, how many times its scene has laid the light of a
- * dark table; on the page's own table, how much of the darkness drawn over it has been painted.
- */
+/** How dark the table has been drawn: how many times its scene has laid the light of a dark table. */
 const paintedPixels = (page: Page) =>
   page.evaluate(() => {
     const scene = (
       window as unknown as { __axeTable?: { sceneStats(): { lightMapRevision: number } | null } }
     ).__axeTable?.sceneStats();
-    if (scene) return scene.lightMapRevision;
-    const canvas = document.querySelector('table-vision-overlay canvas') as HTMLCanvasElement | null;
-    const context = canvas?.getContext('2d');
-    if (!canvas || !context || !canvas.width || !canvas.height) return 0;
-    const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
-    let painted = 0;
-    for (let i = 3; i < data.length; i += 4) if (data[i] > 0) painted++;
-    return painted;
+    return scene?.lightMapRevision ?? 0;
   });
 
 async function becomeGameMaster(page: Page) {

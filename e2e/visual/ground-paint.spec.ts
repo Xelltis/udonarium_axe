@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels, drawsOnCanvas, freeze, prepare, settle, snap } from './fixtures';
+import { becomeGm, closePanels, freeze, prepare, settle, snap } from './fixtures';
 
 type Hooks = {
   whenIdle(): Promise<void>;
@@ -34,12 +34,10 @@ function kindsPainted(page: Page): Promise<boolean[]> {
 /**
  * Ground painted with each of its four kinds, a band of each across the board, which the canvas draws
  * with the pictures of grass, dirt, rock and sand tiled across it and blended at the edges of a band.
- * The page's own table draws no paint, so only the canvas is pictured. The brush is laid with the
- * page's clock running, as the band it is chosen on comes in on demand, and the clock is held once the
+ * The brush is laid with the page's clock running, as the band it is chosen on comes in on demand, and the clock is held once the
  * table has drawn what was painted.
  */
 test('painted ground wears the picture of each kind of ground', async ({ page }) => {
-  test.skip(!drawsOnCanvas(), 'the page’s own table draws no paint');
   await prepare(page);
   await becomeGm(page);
   await closePanels(page);
