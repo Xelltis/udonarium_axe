@@ -114,36 +114,61 @@ export class TablePickService {
    */
   targets(): PickTarget[] {
     return untracked(() => {
-      const table = this.tabletop.currentTable;
-      const ground = this.ground.surface();
-      const grid = `${table.gridSize}|${table.gridType}`;
+      const make = this.blockTargetMaker();
       const live = new Set<string>();
       const targets: PickTarget[] = [];
-      const dims = {
-        widthPx: table.width * table.gridSize,
-        depthPx: table.height * table.gridSize,
-        wallHeightPx: table.wallHeight * table.gridSize,
-      };
       for (const terrain of this.tabletop.terrains) {
-        const onFloor = surfaceOf(terrain) === 'floor';
-        if (onFloor && this.hiddenByFog(terrain)) continue;
-        const board = boardSurfaceOf(terrain);
-        const boardFrame = board ? this.surfaces.frameOf(board) : null;
-        if (board && !boardFrame) continue;
+        const target = make(terrain);
+        if (!target) continue;
         live.add(terrain.identifier);
-        const boardVersion = board ? this.objectChange.versionOf(board)() : '';
-        const lift = onFloor && !board ? groundLiftOfBlock(ground, table.gridSize, terrain) : 0;
-        targets.push(
-          this.keep(terrain.identifier, `${grid}|${table.wallHeight}|${boardVersion}|${lift}`, () =>
-            onFloor
-              ? terrainPickTarget(terrain, table.gridSize, table.gridType, boardFrame ?? undefined, lift)
-              : beamPickTarget(terrain, table.gridSize, dims)
-          )
-        );
+        targets.push(target);
       }
       for (const identifier of this.made.keys()) if (!live.has(identifier)) this.made.delete(identifier);
       return targets;
     });
+  }
+
+  /**
+   * The targets of those of the blocks named that {@link targets} has, without making the rest: for
+   * what goes with a few blocks, on a table of a great many.
+   */
+  targetsOf(identifiers: ReadonlySet<string>): PickTarget[] {
+    return untracked(() => {
+      const make = this.blockTargetMaker();
+      const targets: PickTarget[] = [];
+      for (const terrain of this.tabletop.terrains) {
+        if (!identifiers.has(terrain.identifier)) continue;
+        const target = make(terrain);
+        if (target) targets.push(target);
+      }
+      return targets;
+    });
+  }
+
+  /** Makes the target of a block as the table stands now, or null for one not drawn for this seat. */
+  private blockTargetMaker(): (terrain: Terrain) => PickTarget | null {
+    const table = this.tabletop.currentTable;
+    const ground = this.ground.surface();
+    const grid = `${table.gridSize}|${table.gridType}`;
+    const dims = {
+      widthPx: table.width * table.gridSize,
+      depthPx: table.height * table.gridSize,
+      wallHeightPx: table.wallHeight * table.gridSize,
+    };
+    return (terrain) => {
+      const onFloor = surfaceOf(terrain) === 'floor';
+      if (onFloor && this.hiddenByFog(terrain)) return null;
+      const board = boardSurfaceOf(terrain);
+      const boardFrame = board ? this.surfaces.frameOf(board) : null;
+      if (board && !boardFrame) return null;
+      const boardVersion = board ? this.objectChange.versionOf(board)() : '';
+      const lift = onFloor && !board ? groundLiftOfBlock(ground, table.gridSize, terrain) : 0;
+      return this.keep(terrain.identifier, `${grid}|${table.wallHeight}|${boardVersion}|${lift}`, () =>
+        onFloor
+          ? terrainPickTarget(terrain, table.gridSize, table.gridType, boardFrame ?? undefined, lift)
+          : beamPickTarget(terrain, table.gridSize, dims)
+      );
+    };
   }
 
   /**

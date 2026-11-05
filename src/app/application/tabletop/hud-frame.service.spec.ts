@@ -44,7 +44,7 @@ describe('HudFrameService', () => {
     TestBed.configureTestingModule({
       providers: [
         { provide: TablePiecesService, useValue: { sprites, coins: signal([]) } },
-        { provide: TablePickService, useValue: { targets: () => [] } },
+        { provide: TablePickService, useValue: { targets: () => [], targetsOf: () => [] } },
         { provide: Table3dService, useValue: { world: sprites } },
         {
           provide: TableCameraService,
@@ -222,7 +222,7 @@ describe('HudFrameService', () => {
   });
 
   it('puts what goes with a block against the block, by the shapes it is picked by', () => {
-    vi.spyOn(TestBed.inject(TablePickService), 'targets').mockReturnValue([
+    const targetsOf = vi.spyOn(TestBed.inject(TablePickService), 'targetsOf').mockReturnValue([
       {
         id: 'block',
         layer: 'terrain',
@@ -250,6 +250,7 @@ describe('HudFrameService', () => {
 
     expect(root.style.transform).toBe('translate(200px, 200px)');
     expect(handle.style.transform).toBe('translate(60px, 40px) translate(-50%, -50%)');
+    expect(targetsOf).toHaveBeenLastCalledWith(new Set(['block']));
   });
 
   it('draws the root of a nearer piece over the root of one further off', () => {

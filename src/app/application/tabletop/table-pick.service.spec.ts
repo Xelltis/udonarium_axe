@@ -85,6 +85,17 @@ describe('TablePickService', () => {
     expect(service.allAt(hidden.x, hidden.y).map((hit) => hit.target.id)).toEqual([near.identifier, far.identifier]);
   });
 
+  it('makes the targets of the blocks named alone, as it makes them all', async () => {
+    const named = blockAt(2, 3);
+    blockAt(5, 5);
+    await settled();
+
+    const all = service.targets();
+    const some = service.targetsOf(new Set([named.identifier, 'not-a-block']));
+
+    expect(some).toEqual([all.find((target) => target.id === named.identifier)]);
+  });
+
   it('builds a block over again once it has moved', async () => {
     const block = blockAt(5, 5);
     await settled();

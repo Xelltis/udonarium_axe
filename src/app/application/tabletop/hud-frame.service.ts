@@ -112,8 +112,9 @@ export class HudFrameService {
   }
 
   /**
-   * Where every piece and every block drawn on the table shows on the page now, or null before the
-   * camera is set.
+   * Where every piece drawn on the table, and every block something is put against, shows on the
+   * page now, or null before the camera is set. The other blocks, which a table of a great many
+   * has, are left out.
    */
   boxesNow(): Map<string, PiecePageBoxes> | null {
     const scene = this.camera.sceneMatrix();
@@ -122,7 +123,9 @@ export class HudFrameService {
     if (!scene || !view || !layout) return null;
     const eye = eyeAxesOf(tableEyeMatrix(view, layout));
     const boxes = piecePageBoxes(untracked(this.pieces.sprites), untracked(this.pieces.coins), scene, eye);
-    for (const [id, block] of blockPageBoxes(this.pick.targets(), scene, eye)) boxes.set(id, block);
+    const owners = new Set<string>();
+    for (const { anchor } of this.placed.values()) if (!boxes.has(anchor.owner)) owners.add(anchor.owner);
+    for (const [id, block] of blockPageBoxes(this.pick.targetsOf(owners), scene, eye)) boxes.set(id, block);
     return boxes;
   }
 
