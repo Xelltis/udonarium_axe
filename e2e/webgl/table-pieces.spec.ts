@@ -405,11 +405,13 @@ test.describe('pieces drawn on a canvas', () => {
 
     await expect(hud.locator('[data-altitude-guide-rung]')).toHaveCount(2, { timeout: 5000 });
     await expect(hud.locator('[data-altitude-guide-reading]')).toHaveText('+2');
-    const pole = (await hud.locator('[data-altitude-guide-pole]').boundingBox())!;
+    // The screen over the canvas lays the pole on the frame after it is told how high it is.
+    const poleBox = async () => (await hud.locator('[data-altitude-guide-pole]').boundingBox())!;
+    await expect.poll(async () => (await poleBox()).height, { timeout: 5000 }).toBeGreaterThan(pedestal.height);
+    const pole = await poleBox();
     const report = JSON.stringify([pole, pedestal]);
     expect(Math.abs(pole.x + pole.width / 2 - (grab.x + 4)), report).toBeLessThan(pedestal.width / 2);
     expect(pole.y + pole.height, report).toBeGreaterThan(pedestal.y);
-    expect(pole.height, report).toBeGreaterThan(pedestal.height);
 
     await page.keyboard.up('Shift');
     await page.mouse.up();
