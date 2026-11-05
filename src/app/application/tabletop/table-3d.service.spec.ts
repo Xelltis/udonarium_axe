@@ -37,6 +37,7 @@ import type {
   Table3dLightMap,
   Table3dShadowLight,
   Table3dVeil,
+  Table3dWeatherFall,
 } from '@axe/infrastructure/table-3d/table-3d-port';
 import { TABLE_3D_QUALITY, type Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -55,6 +56,7 @@ class FakeEngine implements Table3dEngine {
   shadowLights: (readonly Table3dShadowLight[])[] = [];
   glows: (Table3dVeil | null)[] = [];
   fogAirSheets: (readonly Table3dFogAirSheet[])[] = [];
+  weathers: (Table3dWeatherFall | null)[] = [];
   diceThrows: (readonly Table3dDiceThrow[])[] = [];
   domes: (SkyDome | null)[] = [];
   qualities: Table3dQualityPlan[] = [];
@@ -114,6 +116,10 @@ class FakeEngine implements Table3dEngine {
 
   setFogAir(sheets: readonly Table3dFogAirSheet[]): void {
     this.fogAirSheets.push(sheets);
+  }
+
+  setWeather(weather: Table3dWeatherFall | null): void {
+    this.weathers.push(weather);
   }
 
   setDice(throws: readonly Table3dDiceThrow[]): void {
@@ -202,6 +208,7 @@ class FakeEngine implements Table3dEngine {
       layers: 0,
       waterParts: 0,
       fogAirSheets: 0,
+      weatherDrops: 0,
       sky: false,
       backdrops: 0,
       models: 0,
@@ -787,6 +794,39 @@ describe('Table3dService', () => {
     TestBed.tick();
 
     expect(engine.domes.at(-1)).toEqual(skyDomeAt(0));
+  });
+
+  it('lets rain fall over the board as high as its walls or ten cells, and stops it once the sky clears', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    TestBed.tick();
+    const engine = engines[0];
+    expect(engine.weathers.at(-1)).toBeNull();
+
+    const table = TestBed.inject(TabletopService).currentTable;
+    Object.assign(table, {
+      width: 20,
+      height: 10,
+      gridSize: 50,
+      wallHeight: 3,
+      weatherKind: 'rain',
+      weatherDensity: 0.5,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    TestBed.tick();
+
+    expect(engine.weathers.at(-1)).toMatchObject({
+      fall: { shape: 'streak', density: 0.5 },
+      board: { width: 1000, depth: 500 },
+      ceilingPx: 500,
+    });
+
+    table.weatherKind = '';
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    TestBed.tick();
+
+    expect(engine.weathers.at(-1)).toBeNull();
   });
 
   it('draws at the quality the seat chose, and again at another once it chooses that', async () => {

@@ -1,4 +1,5 @@
 import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
+import { skyAmbienceFlash } from '@axe/domain/effect/ambience/ambience-sky';
 import { GROUND_PAINT_LAYERS } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import { animationIntensity } from '@axe/domain/tabletop/vision-scene/light-flicker';
@@ -45,12 +46,14 @@ import type {
   Table3dShadowLight,
   Table3dStats,
   Table3dVeil,
+  Table3dWeatherFall,
 } from '@axe/infrastructure/table-3d/table-3d-port';
 import { TABLE_3D_QUALITY, type Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
 import { TableDiceLayer } from '@axe/infrastructure/table-3d/table-dice-layer';
 import { TablePost } from '@axe/infrastructure/table-3d/table-post';
 import { lampColour, SceneVeil } from '@axe/infrastructure/table-3d/veil';
 import { WaterLayer } from '@axe/infrastructure/table-3d/water-layer';
+import { WeatherLayer } from '@axe/infrastructure/table-3d/weather-layer';
 import { disposeObject } from '@axe/infrastructure/three-kit/dispose';
 import {
   attribute,
@@ -139,6 +142,15 @@ const GLASS_OPACITY = 0.25;
  * straight on, so a light of strength pi lights a white surface facing it white.
  */
 const LIGHT_SCALE = Math.PI;
+
+/** How much harder the sun or the moon and the sky light the scene at the height of a lightning strike, over what they light it. */
+const FLASH_BOOST = 3;
+
+/** How much the sky lights the scene at the height of a strike besides, under a sky lighting it with nothing. */
+const FLASH_SKY = 0.8;
+
+/** How far the light of a strike has to have changed before the scene is drawn again for it. */
+const FLASH_STEP = 0.004;
 
 /** How dark the ground is that the sky lights a surface facing down with, beside the sky itself. */
 const GROUND_BOUNCE = 0.6;
@@ -272,6 +284,9 @@ class ThreeTableEngine implements Table3dEngine {
   );
   private readonly floorCanvases = new FloorCanvasLayer();
   private readonly fogAir = new FogAirLayer();
+  private readonly weather = new WeatherLayer();
+  /** How hard lightning lights the scene now, from 0 to 1. */
+  private flash = 0;
   private readonly models = new ModelLayer(
     (material) => this.veil.cover(material, 'lit'),
     () => {
@@ -289,6 +304,7 @@ class ThreeTableEngine implements Table3dEngine {
   private readonly backdrops = new BackdropRing((url) => this.sharedPicture(url, true));
   private laidBackdrops: TableWorld['backdrops'] = [];
   private laidSky: SkyDome | null = null;
+  private laidWeather: Table3dWeatherFall | null = null;
   private laidModels: TableWorld['models'] = [];
   private laidSkyKey = 'null';
   private skyFog: FogExp2 | null = null;
@@ -323,6 +339,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.scene.add(this.layers.group);
     this.scene.add(this.water.group);
     this.scene.add(this.fogAir.group);
+    this.scene.add(this.weather.group);
     this.scene.add(this.models.group);
     this.scene.add(this.dice.group);
     this.scene.add(this.skyDome.group);
@@ -490,8 +507,9 @@ class ThreeTableEngine implements Table3dEngine {
   /** Sets how strong the sky's light is, as the hour has it, dimmed as the table is dark. */
   private lightSky(): void {
     const ambient = this.veil.ambient;
-    this.sun.intensity = this.lastSky.strength * LIGHT_SCALE * ambient;
-    this.sky.intensity = this.lastSky.skyStrength * LIGHT_SCALE * ambient;
+    const struck = 1 + this.flash * FLASH_BOOST;
+    this.sun.intensity = this.lastSky.strength * LIGHT_SCALE * ambient * struck;
+    this.sky.intensity = (this.lastSky.skyStrength * ambient * struck + this.flash * FLASH_SKY) * LIGHT_SCALE;
   }
 
   onNeedsFrame(listener: () => void): void {
@@ -526,6 +544,7 @@ class ThreeTableEngine implements Table3dEngine {
       layers: this.layers.shown,
       waterParts: this.water.shown,
       fogAirSheets: this.fogAir.shown,
+      weatherDrops: this.weather.shown,
       sky: this.skyDome.shown,
       backdrops: this.backdrops.shown,
       models: this.models.shown,
@@ -702,8 +721,10 @@ class ThreeTableEngine implements Table3dEngine {
     const hanging = this.fogAir.advance(timeMs);
     const passing = this.backdrops.advance(timeMs);
     const walking = this.models.advance(timeMs);
+    const falling = this.weather.advance(timeMs, this.camera);
+    this.strike(timeMs);
     this.takeChanges();
-    return drifting || flowing || hanging || passing || walking;
+    return drifting || flowing || hanging || passing || walking || falling;
   }
 
   setSky(sky: SkyDome | null): void {
@@ -736,6 +757,26 @@ class ThreeTableEngine implements Table3dEngine {
   setFogAir(sheets: readonly Table3dFogAirSheet[], moving: boolean): void {
     this.fogAir.set(sheets, moving);
     this.takeChanges();
+  }
+
+  setWeather(weather: Table3dWeatherFall | null): void {
+    this.laidWeather = weather;
+    this.weather.set(weather);
+    if (!weather?.fall.flashes && this.flash !== 0) {
+      this.flash = 0;
+      this.lightSky();
+    }
+    this.takeChanges();
+  }
+
+  /** Lights the scene as hard as the lightning of a storm strikes at a moment, in milliseconds. */
+  private strike(timeMs: number): void {
+    const fall = this.laidWeather?.fall;
+    const power = fall?.flashes ? skyAmbienceFlash('storm', timeMs, fall.density) : 0;
+    if (Math.abs(power - this.flash) < FLASH_STEP && !(power === 0 && this.flash !== 0)) return;
+    this.flash = power;
+    this.lightSky();
+    this.changed = true;
   }
 
   renderIfChanged(): boolean {
@@ -787,7 +828,7 @@ class ThreeTableEngine implements Table3dEngine {
   private takeChanges(): void {
     const drifted = this.layers.takeChanged();
     const flowed = this.water.takeChanged();
-    const hung = this.fogAir.takeChanged();
+    const hung = this.fogAir.takeChanged() || this.weather.takeChanged();
     const stood = this.backdrops.takeChanged();
     const modelled = this.models.takeChanged();
     const thrown = this.dice.takeChanged();
@@ -803,6 +844,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.layers.dispose();
     this.water.dispose();
     this.fogAir.dispose();
+    this.weather.dispose();
     this.skyDome.dispose();
     this.backdrops.dispose();
     this.models.dispose();

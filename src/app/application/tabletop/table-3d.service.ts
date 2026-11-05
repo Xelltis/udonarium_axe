@@ -51,6 +51,7 @@ import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
 import { tableWaterOf } from '@axe/domain/tabletop/world/table-water';
 import { sameTableWorld, TableWorld, tableWorldOf } from '@axe/domain/tabletop/world/table-world';
+import { weatherFallOf } from '@axe/domain/tabletop/world/weather-fall';
 import type {
   Table3dBackend,
   Table3dCamera,
@@ -59,6 +60,7 @@ import type {
   Table3dEngineModule,
   Table3dGrid,
   Table3dStats,
+  Table3dWeatherFall,
 } from '@axe/infrastructure/table-3d/table-3d-port';
 
 /**
@@ -282,6 +284,26 @@ export class Table3dService {
       underwater
     );
   });
+
+  /**
+   * The rain, storm or snow falling through the air over the table in view, up to its walls or ten
+   * cells, whichever is higher, where things may move.
+   */
+  private readonly weatherFall = computed<Table3dWeatherFall | null>(
+    () => {
+      const weather = this.ambience.weather();
+      if (!weather || !this.motion.enabled()) return null;
+      const fall = weatherFallOf(weather.kind, weather.color, weather.density);
+      if (!fall) return null;
+      const table = this.tabletop.currentTableVersion();
+      return {
+        fall,
+        board: { width: table.width * table.gridSize, depth: table.height * table.gridSize },
+        ceilingPx: Math.max(table.wallHeight, WEATHER_CEILING_CELLS) * table.gridSize,
+      };
+    },
+    { equal: (a, b) => JSON.stringify(a) === JSON.stringify(b) }
+  );
 
   /** The pictures the table in view lays under and over its board, drifting where things may move. */
   private readonly layers = computed(() =>
@@ -663,6 +685,13 @@ export class Table3dService {
       ),
       effect(
         () => {
+          engine.setWeather(this.weatherFall());
+          this.drawSoon(engine);
+        },
+        { injector: this.injector }
+      ),
+      effect(
+        () => {
           engine.setSkyLight(this.skyLight());
           this.drawSoon(engine);
         },
@@ -737,6 +766,9 @@ export class Table3dService {
     for (const resolve of this.idleWaiters.splice(0)) resolve();
   }
 }
+
+/** How high the weather falls from over a table with lower walls or none, in cells, so that it still has a sky. */
+const WEATHER_CEILING_CELLS = 10;
 
 /** How near the camera that follows a piece about still draws, in table pixels: a few cells off it, a wall may stand close. */
 const FOLLOWING_NEAR_PX = 4;

@@ -13,12 +13,12 @@ import { AmbienceService, type WeatherAmbience } from '@axe/application/tabletop
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
-import { withAlpha } from '@axe/core/util/hex-color';
 import { observeSize } from '@axe/core/util/observe-size';
-import { skyAmbienceFlash, skyAmbienceLayer, skyAmbienceWash } from '@axe/domain/effect/ambience/ambience-sky';
+import { skyAmbienceLayer, skyAmbienceWash } from '@axe/domain/effect/ambience/ambience-sky';
 import { CurrentCarry } from '@axe/domain/effect/ambience/current-carry';
 import { EffectParticleLayer } from '@axe/domain/effect/effect-particles';
 import { pageOfTablePoint } from '@axe/domain/tabletop/camera/table-camera';
+import { fallsInScene } from '@axe/domain/tabletop/world/weather-fall';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import {
   type ScreenPoint,
@@ -48,10 +48,9 @@ const STILL_REPROJECT_INTERVAL_MS = 1000;
 const LIGHT_MASK_STEP_PX = 8;
 
 /**
- * The weather over the whole map.
- *
- * Rain and snow laid flat on the board crawl along the ground as the camera tips.
- * They are drawn as one sheet across the screen, outside the 3D transform of the board.
+ * The weather over the whole map that the table's scene does not draw: the colour of the air, and
+ * what fills it but falls through the scene, as ash, embers and sand, drawn as one sheet across the
+ * screen over where the board lies.
  */
 @Component({
   selector: 'table-weather-overlay',
@@ -160,18 +159,13 @@ export class TableWeatherOverlayComponent {
     return skyAmbienceWash(weather.kind, weather.color, weather.density, direction);
   });
 
-  /** Lightning. It lights only what is over the board, so it is struck inside the mask. */
-  readonly flash = computed<string>(() => {
-    const weather = this.shownWeather();
-    if (!weather || !this.ambienceService.motionEnabled()) return '';
-
-    const power = skyAmbienceFlash(weather.kind, this.ambienceService.now(), weather.density);
-    return power > 0.01 ? withAlpha(weather.color, Math.round(power * 850) / 1000) : '';
-  });
-
+  /**
+   * What fills the air over the board, drawn across the screen: all but rain, a storm and snow, which
+   * fall through the table's scene itself, the storm's lightning lighting it there.
+   */
   readonly layer = computed<EffectParticleLayer | null>(() => {
     const weather = this.shownWeather();
-    if (!weather || !this.ambienceService.motionEnabled()) return null;
+    if (!weather || !this.ambienceService.motionEnabled() || fallsInScene(weather.kind)) return null;
 
     const { width, height } = this.size();
     if (width < 1 || height < 1) return null;

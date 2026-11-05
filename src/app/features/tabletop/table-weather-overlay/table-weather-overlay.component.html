@@ -4,6 +4,3 @@
 @if (layer(); as layer) {
   <effect-canvas class="pointer-events-none absolute inset-0" [layer]="layer"></effect-canvas>
 }
-@if (flash().length > 0) {
-  <div class="pointer-events-none absolute inset-0" [style.background]="flash()"></div>
-}

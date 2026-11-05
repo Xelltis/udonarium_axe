@@ -68,18 +68,32 @@ describe('TableWeatherOverlayComponent', () => {
 
   it('draws no particles before it knows its size', () => {
     // Drawing before the observer has run would make a canvas no pixels wide.
-    table.weatherKind = 'rain';
+    table.weatherKind = 'ash';
     fixture.detectChanges();
 
     expect(element().querySelectorAll('effect-canvas')).toHaveLength(0);
   });
 
   it('draws them once the size is known', () => {
-    table.weatherKind = 'rain';
+    table.weatherKind = 'ash';
     fixture.componentInstance['size'].set({ width: 1280, height: 720 });
     fixture.detectChanges();
 
     expect(element().querySelectorAll('effect-canvas')).toHaveLength(1);
+  });
+
+  it('leaves rain, a storm and snow to the scene, which lets them fall itself, and draws only the colour of their air', () => {
+    for (const kind of ['rain', 'storm', 'snow']) {
+      table.weatherKind = kind;
+      const made = TestBed.createComponent(TableWeatherOverlayComponent);
+      made.componentInstance['size'].set({ width: 1280, height: 720 });
+      made.detectChanges();
+
+      expect(made.componentInstance.layer(), kind).toBeNull();
+      expect((made.nativeElement as HTMLElement).querySelectorAll('effect-canvas'), kind).toHaveLength(0);
+      expect(made.componentInstance.wash().length, kind).toBeGreaterThan(0);
+      made.destroy();
+    }
   });
 
   it('takes a change of weather after it has drawn', async () => {

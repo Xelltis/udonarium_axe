@@ -4,6 +4,7 @@ import type { SkyDome } from '@axe/domain/tabletop/world/sky-dome';
 import type { SkyLight } from '@axe/domain/tabletop/world/sky-light';
 import type { EyeAxes } from '@axe/domain/tabletop/world/table-sprites';
 import type { TableWorld } from '@axe/domain/tabletop/world/table-world';
+import type { WeatherFall } from '@axe/domain/tabletop/world/weather-fall';
 import type { ThrowToDraw } from '@axe/infrastructure/dice-3d/dice-3d-engine';
 import type { Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
 
@@ -111,6 +112,13 @@ export interface Table3dFogAirSheet {
   readonly revision: number;
 }
 
+/** What the scene lets fall through the air, laid over a board of a size, up to a height over its floor, in table pixels. */
+export interface Table3dWeatherFall {
+  readonly fall: WeatherFall;
+  readonly board: { readonly width: number; readonly depth: number };
+  readonly ceilingPx: number;
+}
+
 /** What the engine holds, counted. */
 export interface Table3dStats {
   readonly chunks: number;
@@ -129,6 +137,8 @@ export interface Table3dStats {
   readonly waterParts: number;
   /** The sheets of fog hanging in the air. */
   readonly fogAirSheets: number;
+  /** The drops or flakes of the weather falling through the air now. */
+  readonly weatherDrops: number;
   /** Whether a sky is drawn past the board. */
   readonly sky: boolean;
   /** The pictures stood round the board behind everything, under a sky. */
@@ -181,6 +191,11 @@ export interface Table3dEngine {
   setVeil(veil: Table3dVeil | null): void;
   /** Hangs the sheets of fog in the air, drifting where things may move, or takes them away with none. */
   setFogAir(sheets: readonly Table3dFogAirSheet[], moving: boolean): void;
+  /**
+   * Lets rain, a storm or snow fall through the air round where the camera looks, lightning lighting
+   * the scene in a storm, or stops it with null.
+   */
+  setWeather(weather: Table3dWeatherFall | null): void;
   /** Puts the dice of the rolls thrown on the table where their trays lie, each as far into its throw as given. */
   setDice(throws: readonly Table3dDiceThrow[]): void;
   /** Builds the shaders of the dice of these materials ahead, so the first throw that wears one does not wait for them. */
