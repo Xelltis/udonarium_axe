@@ -1,5 +1,5 @@
 import { computed, Injectable, signal } from '@angular/core';
-import { Matrix3D } from '@axe/core/transform/matrix-3d';
+import { IMatrix3D, Matrix3D } from '@axe/core/transform/matrix-3d';
 import {
   pageOfTablePoint,
   TableCameraView,
@@ -80,6 +80,23 @@ export class TableCameraService {
   get layout(): TableLayout | null {
     return this.shownLayout;
   }
+
+  /**
+   * How an element placed on the board by a transform of its own, from its top left corner, is laid
+   * on the screen of the table: as a CSS transform carrying it on through the camera, the camera's
+   * perspective kept in it, so the page draws the element as its own table did and cuts away what
+   * comes behind the eye. Follows the camera; null until both a view has been drawn and the table has
+   * been laid out.
+   */
+  readonly screenMatrixOf = computed<((placed: IMatrix3D) => string) | null>(() => {
+    this.version();
+    const scene = this.sceneMatrix();
+    const layout = this.shownLayout;
+    if (!scene || !layout) return null;
+    const toScreen = Matrix3D.multiply(scene, Matrix3D.makePosition({ x: -layout.left, y: -layout.top, z: 0, w: 1 }));
+    const laid = new Matrix3D();
+    return (placed) => Matrix3D.multiply(placed, toScreen, laid).toCss();
+  });
 
   /** Called in the frame the table draws a view. */
   showView(view: TableCameraView): void {

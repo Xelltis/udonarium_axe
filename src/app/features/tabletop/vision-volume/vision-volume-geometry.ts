@@ -14,6 +14,8 @@ export interface VolumeRing {
   radius: number;
   height: number;
   size: number;
+  /** Where the top left corner of the square the ring is drawn in lies on the board, in table pixels. */
+  corner: { x: number; y: number; z: number };
   transform: string;
   clipPath: string | null;
 }
@@ -59,11 +61,13 @@ export function visionVolumeShape(input: VisionVolumeInput): VolumeShape {
       const radius = reach * Math.cos(tilt);
       if (radius < 1) continue;
       const height = reach * Math.sin(tilt);
+      const corner = { x: input.x - radius, y: input.y - radius, z: input.z + height };
       rings.push({
         radius,
         height,
         size: radius * 2,
-        transform: `translate3d(${input.x - radius}px, ${input.y - radius}px, ${input.z + height}px)`,
+        corner,
+        transform: `translate3d(${corner.x}px, ${corner.y}px, ${corner.z}px)`,
         clipPath,
       });
     }

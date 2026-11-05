@@ -90,4 +90,24 @@ describe('TableCameraService', () => {
 
     expect(Math.hypot(after.x - before.x, after.y - before.y)).toBeGreaterThan(1);
   });
+
+  it('lays an element placed on the board on the screen of the table, through the camera, from its top left corner', () => {
+    expect(camera.screenMatrixOf()).toBeNull();
+    camera.setLayout(layout);
+    camera.showView(DEFAULT_TABLE_CAMERA_VIEW);
+    const placed = new Matrix3D().setCSS('matrix3d(0, 1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 300, 200, 40, 1)');
+
+    const laid = new Matrix3D().setCSS(camera.screenMatrixOf()!(placed));
+
+    const screen = camera.screenOf()!;
+    for (const [x, y, expected] of [
+      [0, 0, screen(300, 200, 40)],
+      [50, 0, screen(300, 250, 40)],
+      [0, 30, screen(300, 200, 10)],
+    ] as const) {
+      const at = laid.project({ x, y, z: 0, w: 1 });
+      expect(at.x).toBeCloseTo(expected.x, 4);
+      expect(at.y).toBeCloseTo(expected.y, 4);
+    }
+  });
 });

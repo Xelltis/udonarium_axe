@@ -1,8 +1,19 @@
 import { NgStyle } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  input,
+  viewChild,
+} from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { PERF_VISION_VOLUME_PAINT, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -34,6 +45,12 @@ interface VisionVolume {
   cells: CellBits | null;
 }
 
+/** A piece's vision laid on the screen over a canvas, with the style that lays each of its lines there. */
+interface VisionVolumeOnScreen {
+  readonly identifier: string;
+  readonly lines: readonly Record<string, string>[];
+}
+
 /**
  * How far a piece can see, drawn where it stands.
  *
@@ -53,9 +70,27 @@ export class TableVisionVolumeOverlayComponent {
   private readonly visionService = inject(VisionService);
   private readonly tabletopService = inject(TabletopService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly camera = inject(TableCameraService);
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('floorCanvas');
 
+  /**
+   * Whether the shapes are laid over a table drawn on a canvas: each ring and rib, and the tint of
+   * the floor, on the screen where the canvas draws the place they stand, rather than among the
+   * page's own pieces.
+   */
+  readonly overCanvas = input(false);
+
   protected readonly zTransform = translateZCss(Z_OFFSET_VISION_VOLUME_PX);
+
+  /**
+   * The transform that lays the tint of the floor where it lies: on the screen where the canvas
+   * draws the floor over a canvas, null there before the camera is set.
+   */
+  protected readonly floorTransform = computed<string | null>(() => {
+    if (!this.overCanvas()) return this.zTransform;
+    const laid = this.camera.screenMatrixOf();
+    return laid ? laid(Matrix3D.makePosition({ x: 0, y: 0, z: Z_OFFSET_VISION_VOLUME_PX, w: 1 })) : null;
+  });
 
   /** Whether the table is dark, which is what tells a piece's own light from what it can see by. */
   private readonly darknessEnabled = computed(() => this.tabletopService.currentTableVersion().darknessEnabled);
@@ -107,6 +142,25 @@ export class TableVisionVolumeOverlayComponent {
       });
     }
     return volumes;
+  });
+
+  /** The shapes laid on the screen over a canvas. Follows the camera; none before it is set. */
+  protected readonly volumesOnScreen = computed<VisionVolumeOnScreen[]>(() => {
+    const laid = this.camera.screenMatrixOf();
+    if (!this.overCanvas() || !laid) return [];
+    return this.volumes().map((volume) => ({
+      identifier: volume.identifier,
+      lines: [
+        ...volume.rings.map((ring) => ({
+          ...this.ringStyle(volume, ring),
+          transform: laid(Matrix3D.makePosition({ ...ring.corner, w: 1 })),
+        })),
+        ...volume.ribs.map((rib) => ({
+          ...this.ribStyle(volume, rib),
+          transform: laid(new Matrix3D().setCSS(rib.transform)),
+        })),
+      ],
+    }));
   });
 
   constructor() {

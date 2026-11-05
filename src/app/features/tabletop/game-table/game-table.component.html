@@ -404,9 +404,13 @@
         <table-marquee-overlay class="contents"></table-marquee-overlay>
       }
       <table-vision-overlay class="contents"></table-vision-overlay>
-      <table-beam-overlay class="contents"></table-beam-overlay>
+      @if (!table3d.drawsOnCanvas()) {
+        <table-beam-overlay class="contents"></table-beam-overlay>
+      }
       <table-fog-air-overlay class="contents"></table-fog-air-overlay>
-      <table-vision-volume-overlay class="contents"></table-vision-volume-overlay>
+      @if (!table3d.drawsOnCanvas()) {
+        <table-vision-volume-overlay class="contents"></table-vision-volume-overlay>
+      }
       <table-move-block-overlay class="contents"></table-move-block-overlay>
       <table-move-cost-overlay class="contents"></table-move-cost-overlay>
       <table-trigger-overlay class="contents"></table-trigger-overlay>
@@ -435,6 +439,8 @@
         <ng-container [ngTemplateOutlet]="floorMarks"></ng-container>
         <table-marquee-overlay class="contents"></table-marquee-overlay>
       </div>
+      <table-beam-overlay [overCanvas]="true"></table-beam-overlay>
+      <table-vision-volume-overlay [overCanvas]="true"></table-vision-volume-overlay>
       @if (table3d.drawsOnCanvas()) {
         @for (terrain of terrainsOverCanvas(); track terrain.identifier) {
           <terrain class="block" [terrain]="terrain" [appHudPlace]="{ owner: terrain.identifier }"></terrain>

@@ -1,9 +1,12 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { PERF_VISION_VOLUME_PAINT, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { DEFAULT_TABLE_CAMERA_VIEW, TableLayout } from '@axe/domain/tabletop/camera/table-camera';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCount, CellGrid, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
@@ -66,6 +69,62 @@ describe('TableVisionVolumeOverlayComponent', () => {
     expect(volumes[0].rings.length).toBeGreaterThan(0);
     expect(volumes[0].ribs.length).toBeGreaterThan(0);
     expect(volumes[0].rings[0].clipPath).not.toBeNull();
+  });
+
+  describe('over a table drawn on a canvas', () => {
+    const layout: TableLayout = { left: 0, top: 30, width: 1280, height: 770, boardWidth: 1000, boardHeight: 1000 };
+
+    function watcher(): GameCharacter {
+      darkTable();
+      const character = GameCharacter.create('見張り', 1, '');
+      character.lightEnabled = true;
+      character.lightDimRadius = 6;
+      character.showVisionRange = true;
+      return character;
+    }
+
+    function laidOverCanvas(withCamera = true) {
+      if (withCamera) {
+        const camera = TestBed.inject(TableCameraService);
+        camera.setLayout(layout);
+        camera.showView(DEFAULT_TABLE_CAMERA_VIEW);
+      }
+      const fixture = TestBed.createComponent(TableVisionVolumeOverlayComponent);
+      fixture.componentRef.setInput('overCanvas', true);
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    it('lays every ring and rib on the screen where the canvas draws the place it stands', () => {
+      watcher();
+      const fixture = laidOverCanvas();
+      const [volume] = fixture.componentInstance.volumes();
+      const laid = TestBed.inject(TableCameraService).screenMatrixOf()!;
+
+      const lines = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('div'));
+      expect(lines).toHaveLength(volume.rings.length + volume.ribs.length);
+      const ring = volume.rings[0];
+      expect(lines[0].style.transform).toBe(laid(Matrix3D.makePosition({ ...ring.corner, w: 1 })));
+      const rib = volume.ribs[0];
+      expect(lines[volume.rings.length].style.transform).toBe(laid(new Matrix3D().setCSS(rib.transform)));
+    });
+
+    it('lays the tint of the floor where the canvas draws the floor', () => {
+      watcher();
+      const fixture = laidOverCanvas();
+
+      const floor = (fixture.nativeElement as HTMLElement).querySelector<HTMLCanvasElement>('canvas')!;
+      expect(floor.style.transform).toContain('matrix3d(');
+      expect(floor.classList).not.toContain('invisible');
+    });
+
+    it('lays nothing before the camera is set', () => {
+      watcher();
+      const fixture = laidOverCanvas(false);
+
+      expect((fixture.nativeElement as HTMLElement).querySelectorAll('div')).toHaveLength(0);
+      expect((fixture.nativeElement as HTMLElement).querySelector('canvas')!.classList).toContain('invisible');
+    });
   });
 
   describe('the tint on the floor', () => {

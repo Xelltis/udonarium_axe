@@ -1,16 +1,30 @@
-@for (beam of beams(); track $index) {
-  @for (fin of beam.fins; track $index) {
+@if (overCanvas()) {
+  @for (placed of beamsOnScreen(); track $index) {
+    @for (fin of placed.fins; track $index) {
+      <div
+        [style.background]="beamBackground(placed.beam) | safe: 'style'"
+        [ngStyle]="finStyle(placed.beam, fin)"
+      ></div>
+    }
+  }
+  @for (placed of glowsOnScreen(); track $index) {
+    <div [style.background]="glowBackground(placed.glow) | safe: 'style'" [ngStyle]="placed.style"></div>
+  }
+} @else {
+  @for (beam of beams(); track $index) {
+    @for (fin of beam.fins; track $index) {
+      <div
+        class="backface-visible"
+        [style.background]="beamBackground(beam) | safe: 'style'"
+        [ngStyle]="finStyle(beam, fin)"
+      ></div>
+    }
+  }
+  @for (glow of glows(); track $index) {
     <div
       class="backface-visible"
-      [style.background]="beamBackground(beam) | safe: 'style'"
-      [ngStyle]="finStyle(beam, fin)"
+      [style.background]="glowBackground(glow) | safe: 'style'"
+      [ngStyle]="glowStyle(glow)"
     ></div>
   }
-}
-@for (glow of glows(); track $index) {
-  <div
-    class="backface-visible"
-    [style.background]="glowBackground(glow) | safe: 'style'"
-    [ngStyle]="glowStyle(glow)"
-  ></div>
 }

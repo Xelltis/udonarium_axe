@@ -1,13 +1,25 @@
 <canvas
   #floorCanvas
-  class="pointer-events-none absolute top-0 left-0 backface-hidden transform-3d"
-  [style.transform]="zTransform"
+  class="pointer-events-none absolute top-0 left-0"
+  [class.backface-hidden]="!overCanvas()"
+  [class.transform-3d]="!overCanvas()"
+  [class.origin-top-left]="overCanvas()"
+  [class.invisible]="!floorTransform()"
+  [style.transform]="floorTransform()"
 ></canvas>
-@for (volume of volumes(); track volume.identifier) {
-  @for (ring of volume.rings; track $index) {
-    <div class="backface-visible" [ngStyle]="ringStyle(volume, ring)"></div>
+@if (overCanvas()) {
+  @for (placed of volumesOnScreen(); track placed.identifier) {
+    @for (line of placed.lines; track $index) {
+      <div [ngStyle]="line"></div>
+    }
   }
-  @for (rib of volume.ribs; track $index) {
-    <div class="backface-visible" [ngStyle]="ribStyle(volume, rib)"></div>
+} @else {
+  @for (volume of volumes(); track volume.identifier) {
+    @for (ring of volume.rings; track $index) {
+      <div class="backface-visible" [ngStyle]="ringStyle(volume, ring)"></div>
+    }
+    @for (rib of volume.ribs; track $index) {
+      <div class="backface-visible" [ngStyle]="ribStyle(volume, rib)"></div>
+    }
   }
 }
