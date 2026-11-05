@@ -45,33 +45,51 @@ describe('TableAmbienceComponent', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  it('sizes itself by the cells it covers', () => {
+  const layout: TableLayout = { left: 0, top: 30, width: 1280, height: 770, boardWidth: 1000, boardHeight: 750 };
+  /** How far apart where the area is laid and where the canvas draws it may be, as the matrix is written rounded. */
+  const SCREEN_SLACK_PX = 0.25;
+
+  function laidOverCanvas(withCamera = true): void {
+    if (withCamera) {
+      const camera = TestBed.inject(TableCameraService);
+      camera.setLayout(layout);
+      camera.showView(DEFAULT_TABLE_CAMERA_VIEW);
+    }
+    ambience.location = { name: 'table', x: 200, y: 150 };
+    fixture.detectChanges();
+  }
+
+  /** Where a point of the area is drawn on the screen, as the matrix it is laid with carries it. */
+  function onScreenOf(laid: HTMLElement, x: number, y: number): { x: number; y: number } {
+    const m = /matrix3d\((.*)\)/.exec(laid.style.transform)![1].split(',').map(Number);
+    const w = m[3] * x + m[7] * y + m[15];
+    return { x: (m[0] * x + m[4] * y + m[12]) / w, y: (m[1] * x + m[5] * y + m[13]) / w };
+  }
+
+  function area(): HTMLElement {
+    return element().querySelector<HTMLElement>('[data-part="area"]')!;
+  }
+
+  function laidArea(): HTMLElement {
+    return area().parentElement!;
+  }
+
+  it('lays itself as large as the cells it covers', () => {
+    laidOverCanvas();
     const gridSize = TestBed.inject(TabletopService).gridSize();
-    fixture.detectChanges();
 
-    const root = element().querySelector<HTMLElement>('div')!;
-    expect(root.style.width).toBe(`${4 * gridSize}px`);
-    expect(root.style.height).toBe(`${4 * gridSize}px`);
+    expect(laidArea().style.width).toBe(`${4 * gridSize}px`);
+    expect(laidArea().style.height).toBe(`${4 * gridSize}px`);
   });
 
-  it('lays the surface down', () => {
-    fixture.detectChanges();
+  it('draws the flat surface on the area, and the upright part on canvases of their own', () => {
+    laidOverCanvas();
 
-    const surface = element().querySelectorAll<HTMLElement>('div')[1];
-    expect(surface.style.background.length).toBeGreaterThan(0);
-  });
-
-  it('draws the flat surface and the upright part on separate canvases', () => {
-    fixture.detectChanges();
-
-    const canvases = Array.from(element().querySelectorAll<HTMLElement>('effect-canvas'));
-    expect(canvases.length).toBeGreaterThanOrEqual(2);
-
-    const [surface, ...vapors] = canvases;
-    // The surface stays flat on the board while only the upright part faces the camera.
-    expect(surface.style.transform).toBe('');
+    expect(laidArea().querySelectorAll('effect-canvas')).toHaveLength(1);
+    const vapors = Array.from(element().querySelectorAll<HTMLElement>('effect-canvas')).filter(
+      (canvas) => !laidArea().contains(canvas)
+    );
     expect(vapors.length).toBeGreaterThan(0);
-    for (const vapor of vapors) expect(vapor.style.transform).toContain('rotateX(');
   });
 
   it('layers the upright part deeper over a wider area', async () => {
@@ -109,16 +127,13 @@ describe('TableAmbienceComponent', () => {
     expect(sheets.length).toBeGreaterThan(1);
     const gridSize = TestBed.inject(TabletopService).gridSize();
     for (const sheet of sheets) expect(sheet.groundY).toBeCloseTo(2 * gridSize);
-    const canvas = element().querySelectorAll<HTMLElement>('effect-canvas')[1];
-    expect(canvas.style.transform).toContain(`translate3d(${sheets[0].groundX}px`);
   });
 
   it('lets the board take the pointer while it is locked', () => {
     ambience.isLock = true;
-    fixture.detectChanges();
+    laidOverCanvas();
 
-    const surface = element().querySelectorAll<HTMLElement>('div')[1];
-    expect(surface.hasAttribute('data-table-passthrough')).toBe(true);
+    expect(area().hasAttribute('data-table-passthrough')).toBe(true);
   });
 
   describe('context menu display', () => {
@@ -209,98 +224,70 @@ describe('TableAmbienceComponent', () => {
     });
   });
 
-  describe('over a table drawn on a canvas', () => {
-    const layout: TableLayout = { left: 0, top: 30, width: 1280, height: 770, boardWidth: 1000, boardHeight: 750 };
-    /** How far apart where the area is laid and where the canvas draws it may be, as the matrix is written rounded. */
-    const SCREEN_SLACK_PX = 0.25;
+  it('lays the area on the screen where the canvas draws the corners of the ground it covers', () => {
+    laidOverCanvas();
+    const screen = TestBed.inject(TableCameraService).screenOf()!;
+    const size = 4 * TestBed.inject(TabletopService).gridSize();
 
-    function laidOverCanvas(withCamera = true): void {
-      if (withCamera) {
-        const camera = TestBed.inject(TableCameraService);
-        camera.setLayout(layout);
-        camera.showView(DEFAULT_TABLE_CAMERA_VIEW);
-      }
-      ambience.location = { name: 'table', x: 200, y: 150 };
-      fixture.componentRef.setInput('overCanvas', true);
-      fixture.detectChanges();
-    }
-
-    /** Where a point of the area is drawn on the screen, as the matrix it is laid with carries it. */
-    function onScreenOf(laid: HTMLElement, x: number, y: number): { x: number; y: number } {
-      const m = /matrix3d\((.*)\)/.exec(laid.style.transform)![1].split(',').map(Number);
-      const w = m[3] * x + m[7] * y + m[15];
-      return { x: (m[0] * x + m[4] * y + m[12]) / w, y: (m[1] * x + m[5] * y + m[13]) / w };
-    }
-
-    function laidArea(): HTMLElement {
-      return element().querySelector<HTMLElement>('[data-part="area"]')!.parentElement!;
-    }
-
-    it('lays the area on the screen where the canvas draws the corners of the ground it covers', () => {
-      laidOverCanvas();
-      const screen = TestBed.inject(TableCameraService).screenOf()!;
-      const size = 4 * TestBed.inject(TabletopService).gridSize();
-
-      for (const [x, y] of [
-        [0, 0],
-        [size, 0],
-        [size, size],
-        [0, size],
-      ]) {
-        const drawn = screen(200 + x, 150 + y, 0);
-        const laid = onScreenOf(laidArea(), x, y);
-        expect(Math.hypot(laid.x - drawn.x, laid.y - drawn.y)).toBeLessThan(SCREEN_SLACK_PX);
-      }
-    });
-
-    it('lays the area where it is held while it is dragged', () => {
-      laidOverCanvas();
-      const transient = TestBed.inject(TransientPlacementService);
-      transient.place(ambience.identifier, { surface: 'floor', x: 300, y: 150, z: 0 });
-      fixture.detectChanges();
-
-      const drawn = TestBed.inject(TableCameraService).screenOf()!(300, 150, 0);
-      const laid = onScreenOf(laidArea(), 0, 0);
+    for (const [x, y] of [
+      [0, 0],
+      [size, 0],
+      [size, size],
+      [0, size],
+    ]) {
+      const drawn = screen(200 + x, 150 + y, 0);
+      const laid = onScreenOf(laidArea(), x, y);
       expect(Math.hypot(laid.x - drawn.x, laid.y - drawn.y)).toBeLessThan(SCREEN_SLACK_PX);
-      transient.release(ambience.identifier);
-    });
+    }
+  });
 
-    it('stands what rises from it on the screen, facing it, where the canvas draws the ground it rises from', () => {
-      laidOverCanvas();
-      const sheets = fixture.componentInstance.vaporSheets();
-      expect(sheets.length).toBeGreaterThan(0);
+  it('lays the area where it is held while it is dragged', () => {
+    laidOverCanvas();
+    const transient = TestBed.inject(TransientPlacementService);
+    transient.place(ambience.identifier, { surface: 'floor', x: 300, y: 150, z: 0 });
+    fixture.detectChanges();
 
-      const canvases = Array.from(element().querySelectorAll<HTMLElement>('effect-canvas')).filter(
-        (canvas) => !laidArea().contains(canvas)
-      );
-      expect(canvases.length).toBe(sheets.length);
-      const at = TestBed.inject(TableCameraService).screenOf()!(200 + sheets[0].groundX, 150 + sheets[0].groundY, 0, 8);
-      expect(canvases[0].style.transform).toContain(`translate(${at.x}px, ${at.y}px) scale(${at.scale})`);
-      for (const canvas of canvases) expect(canvas.style.transform).not.toContain('rotateX(');
-    });
+    const drawn = TestBed.inject(TableCameraService).screenOf()!(300, 150, 0);
+    const laid = onScreenOf(laidArea(), 0, 0);
+    expect(Math.hypot(laid.x - drawn.x, laid.y - drawn.y)).toBeLessThan(SCREEN_SLACK_PX);
+    transient.release(ambience.identifier);
+  });
 
-    it('is pressed where it lies, and says which look it is', () => {
-      laidOverCanvas();
+  it('stands what rises from it on the screen, facing it, where the canvas draws the ground it rises from', () => {
+    laidOverCanvas();
+    const sheets = fixture.componentInstance.vaporSheets();
+    expect(sheets.length).toBeGreaterThan(0);
 
-      expect(element().getAttribute('data-object-id')).toBe(ambience.identifier);
-      const area = element().querySelector<HTMLElement>('[data-part="area"]')!;
-      expect(area.classList).toContain('pointer-events-auto');
-      expect(area.style.background.length).toBeGreaterThan(0);
-    });
+    const canvases = Array.from(element().querySelectorAll<HTMLElement>('effect-canvas')).filter(
+      (canvas) => !laidArea().contains(canvas)
+    );
+    expect(canvases.length).toBe(sheets.length);
+    const at = TestBed.inject(TableCameraService).screenOf()!(200 + sheets[0].groundX, 150 + sheets[0].groundY, 0, 8);
+    expect(canvases[0].style.transform).toContain(`translate(${at.x}px, ${at.y}px) scale(${at.scale})`);
+    for (const canvas of canvases) expect(canvas.style.transform).not.toContain('rotateX(');
+  });
 
-    it('moves by the cells it covers, not by the box it is drawn in', () => {
-      laidOverCanvas();
-      const movable = fixture.debugElement.query(By.directive(MovableDirective)).injector.get(MovableDirective);
-      const size = 4 * TestBed.inject(TabletopService).gridSize();
+  it('is pressed where it lies, and says which look it is', () => {
+    laidOverCanvas();
 
-      expect(movable.footprintNow()).toEqual({ width: size, height: size });
-    });
+    expect(element().getAttribute('data-object-id')).toBe(ambience.identifier);
+    const area = element().querySelector<HTMLElement>('[data-part="area"]')!;
+    expect(area.classList).toContain('pointer-events-auto');
+    expect(area.style.background.length).toBeGreaterThan(0);
+  });
 
-    it('lays nothing before the camera is set', () => {
-      laidOverCanvas(false);
+  it('moves by the cells it covers, not by the box it is drawn in', () => {
+    laidOverCanvas();
+    const movable = fixture.debugElement.query(By.directive(MovableDirective)).injector.get(MovableDirective);
+    const size = 4 * TestBed.inject(TabletopService).gridSize();
 
-      expect(element().querySelector('[data-part="area"]')).toBeNull();
-      expect(element().querySelectorAll('effect-canvas').length).toBe(0);
-    });
+    expect(movable.footprintNow()).toEqual({ width: size, height: size });
+  });
+
+  it('lays nothing before the camera is set', () => {
+    laidOverCanvas(false);
+
+    expect(element().querySelector('[data-part="area"]')).toBeNull();
+    expect(element().querySelectorAll('effect-canvas').length).toBe(0);
   });
 });

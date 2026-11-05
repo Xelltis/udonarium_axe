@@ -1,70 +1,36 @@
-@if (overCanvas()) {
-  <!--
-    Over a table drawn on a canvas, the look lies on the screen where the canvas draws the ground it
-    covers, and what rises from it stands on the screen there. The area is pressed where it lies; a
-    press on it that lands on something the canvas draws in front reaches that through picking.
-  -->
-  <div
-    class="group pointer-events-none absolute top-0 left-0 select-none"
-    [class.cursor-grab]="!isLock()"
-    appMovable
-    [movable.option]="movableOption()"
-    [movable.disable]="isLock()"
-    [appSelectable]="ambience()"
-    (movable.ondragstart)="onMove()"
-    (movable.ondragend)="onMoved()"
-  >
-    @if (laidOnScreen(); as laid) {
-      <div class="pointer-events-none absolute top-0 left-0 origin-top-left" [ngStyle]="laid">
-        <div
-          class="pointer-events-auto absolute inset-0"
-          data-part="area"
-          [attr.data-table-passthrough]="isLock() ? '' : null"
-          [style.background]="surfaceWash()"
-          [appTooltip]="ambience()"
-        ></div>
-        @if (surfaceLayer(); as layer) {
-          <effect-canvas [ngStyle]="canvasStyle(layer)" [layer]="layer"></effect-canvas>
-        }
-        <div
-          class="outline-ui-border-panel pointer-events-none absolute inset-0 -outline-offset-2 group-hover:outline-2"
-        ></div>
-      </div>
-      @for (placed of vaporSheetsOnScreen(); track placed.sheet.key) {
-        <effect-canvas [ngStyle]="placed.style" [layer]="placed.sheet.layer"></effect-canvas>
+<!--
+  The look lies on the screen where the table's canvas draws the ground it covers, and what rises
+  from it stands on the screen there. The area is pressed where it lies; a press on it that lands on
+  something the canvas draws in front reaches that through picking.
+-->
+<div
+  class="group pointer-events-none absolute top-0 left-0 select-none"
+  [class.cursor-grab]="!isLock()"
+  appMovable
+  [movable.option]="movableOption()"
+  [movable.disable]="isLock()"
+  [appSelectable]="ambience()"
+  (movable.ondragstart)="onMove()"
+  (movable.ondragend)="onMoved()"
+>
+  @if (laidOnScreen(); as laid) {
+    <div class="pointer-events-none absolute top-0 left-0 origin-top-left" [ngStyle]="laid">
+      <div
+        class="pointer-events-auto absolute inset-0"
+        data-part="area"
+        [attr.data-table-passthrough]="isLock() ? '' : null"
+        [style.background]="surfaceWash()"
+        [appTooltip]="ambience()"
+      ></div>
+      @if (surfaceLayer(); as layer) {
+        <effect-canvas [ngStyle]="canvasStyle(layer)" [layer]="layer"></effect-canvas>
       }
+      <div
+        class="outline-ui-border-panel pointer-events-none absolute inset-0 -outline-offset-2 group-hover:outline-2"
+      ></div>
+    </div>
+    @for (placed of vaporSheetsOnScreen(); track placed.sheet.key) {
+      <effect-canvas [ngStyle]="placed.style" [layer]="placed.sheet.layer"></effect-canvas>
     }
-  </div>
-} @else {
-  <div
-    class="group pointer-events-none absolute select-none backface-hidden transform-3d"
-    [class.cursor-grab]="!isLock()"
-    [style.width.px]="pixelWidth()"
-    [style.height.px]="pixelHeight()"
-    appMovable
-    [movable.option]="movableOption()"
-    [movable.disable]="isLock()"
-    [appSelectable]="ambience()"
-    (movable.ondragstart)="onMove()"
-    (movable.ondragend)="onMoved()"
-  >
-    <div
-      class="pointer-events-auto absolute inset-0 backface-hidden"
-      [attr.data-table-passthrough]="isLock() ? '' : null"
-      [style.background]="surfaceWash()"
-      [appTooltip]="ambience()"
-    ></div>
-
-    @if (surfaceLayer(); as layer) {
-      <effect-canvas class="backface-hidden" [ngStyle]="canvasStyle(layer)" [layer]="layer"></effect-canvas>
-    }
-
-    @for (sheet of vaporSheets(); track sheet.key) {
-      <effect-canvas class="backface-visible" [ngStyle]="vaporStyle(sheet)" [layer]="sheet.layer"></effect-canvas>
-    }
-
-    <div
-      class="outline-ui-border-panel pointer-events-none absolute inset-0 -outline-offset-2 group-hover:outline-2"
-    ></div>
-  </div>
-}
+  }
+</div>

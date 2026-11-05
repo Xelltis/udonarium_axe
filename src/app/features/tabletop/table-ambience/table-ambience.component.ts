@@ -30,7 +30,6 @@ import { MovableDirective, MovableOption } from '@axe/ui/directives/movable.dire
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { setupMovableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
-import { translateZCss, Z_OFFSET_AMBIENCE_PX } from '@axe/ui/tabletop/z-offset';
 
 /**
  * How far towards the camera the effect sits, in pixels.
@@ -79,22 +78,11 @@ export class TableAmbienceComponent {
   private readonly t = inject(TRANSLATE_FN);
 
   readonly ambience = input.required<TableAmbience>();
-  /**
-   * Whether the look is laid over a table drawn on a canvas: what lies on the ground on the screen
-   * where the canvas draws the ground it covers, and what rises from it standing on the screen there,
-   * rather than among the page's own pieces.
-   */
-  readonly overCanvas = input(false);
   readonly movableOption = signal<MovableOption>({});
-
-  /** At the depth of the board picture the fill is eaten by the floor, so it sits one layer above the mask. */
-  protected readonly surfaceTransform = translateZCss(Z_OFFSET_AMBIENCE_PX);
 
   constructor() {
     setupMovableForPiece(this, {
       target: this.ambience,
-      transformCssOffset: this.surfaceTransform,
-      placedElsewhere: this.overCanvas,
       footprint: () => ({ width: this.pixelWidth(), height: this.pixelHeight() }),
     });
   }
@@ -169,12 +157,12 @@ export class TableAmbienceComponent {
   });
 
   /**
-   * The style that lays the area flat on the screen over a canvas, its corners where the canvas
-   * draws the corners of the ground it covers. Follows the camera; null before it is set.
+   * The style that lays the area flat on the screen, its corners where the table's canvas draws the
+   * corners of the ground it covers. Follows the camera; null before it is set.
    */
   protected readonly laidOnScreen = computed<Record<string, string> | null>(() => {
     const screen = this.camera.screenOf();
-    if (!this.overCanvas() || !screen) return null;
+    if (!screen) return null;
     const { x, y } = this.topLeft();
     const width = this.pixelWidth();
     const height = this.pixelHeight();
@@ -192,10 +180,10 @@ export class TableAmbienceComponent {
     };
   });
 
-  /** The sheets of the rise, each stood on the screen over a canvas where the canvas draws the ground it rises from. */
+  /** The sheets of the rise, each stood on the screen where the table's canvas draws the ground it rises from. */
   protected readonly vaporSheetsOnScreen = computed<VaporSheetOnScreen[]>(() => {
     const screen = this.camera.screenOf();
-    if (!this.overCanvas() || !screen) return [];
+    if (!screen) return [];
     const { x, y } = this.topLeft();
     return this.vaporSheets().map((sheet) => {
       const layer = sheet.layer;
@@ -224,27 +212,6 @@ export class TableAmbienceComponent {
       top: -layer.originY + 'px',
       width: layer.width + 'px',
       height: layer.height + 'px',
-      'pointer-events': 'none',
-    };
-  }
-
-  /** What rises faces the camera; left flat it would spread sideways. */
-  protected vaporStyle(sheet: VaporSheet): Record<string, string> {
-    const rotation = this.uiSignalService.tableViewRotation();
-    const layer = sheet.layer;
-    const transform =
-      `translate3d(${sheet.groundX}px, ${sheet.groundY}px, 0px)` +
-      ` rotateZ(${-(rotation?.z ?? DEFAULT_TURN)}deg) rotateX(${-(rotation?.x ?? DEFAULT_TILT)}deg) rotateY(${-(rotation?.y ?? 0)}deg)` +
-      ` translateZ(${CAMERA_LIFT_PX}px) translate(${-layer.originX}px, ${-layer.originY}px)`;
-
-    return {
-      position: 'absolute',
-      left: '0px',
-      top: '0px',
-      width: layer.width + 'px',
-      height: layer.height + 'px',
-      'transform-origin': '0 0',
-      transform,
       'pointer-events': 'none',
     };
   }
