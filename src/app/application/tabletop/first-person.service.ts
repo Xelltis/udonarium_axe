@@ -16,6 +16,7 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Party } from '@axe/domain/party/party';
 import { partyIdsOwnedBy } from '@axe/domain/party/party-membership';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { FIRST_PERSON_FOV_DEG } from '@axe/domain/tabletop/first-person/first-person-eye';
 import {
   directionOf,
   eyePoseAt,
@@ -31,7 +32,6 @@ import {
   turnedRotate,
 } from '@axe/domain/tabletop/first-person/first-person-lattice';
 import { FirstPersonRoof, firstPersonRoofOf } from '@axe/domain/tabletop/first-person/first-person-roof';
-import { FIRST_PERSON_FOV_DEG } from '@axe/domain/tabletop/first-person/first-person-scene';
 import { FirstPersonSeat, firstPersonSeats } from '@axe/domain/tabletop/first-person/first-person-seats';
 import {
   FirstPersonTarget,

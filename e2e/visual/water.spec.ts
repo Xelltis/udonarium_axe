@@ -300,10 +300,7 @@ test('a piece looks out from under the surface of a pond', async ({ page }) => {
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 7000 });
   await (await menuEntry(page, menu, 'このコマの視点で見る')).dispatchEvent('click');
-  await settleLazy(
-    page,
-    page.locator('first-person-view [data-water-quad], first-person-view [data-testid="first-person-canvas"]')
-  );
+  await settleLazy(page, page.locator('first-person-view [data-testid="first-person-canvas"]'));
   await expect(page.locator('first-person-view [data-sky-gradient]')).toBeAttached();
   await settle(page, 400);
   await snap(page, 'first-person-underwater', WATER_SNAP);

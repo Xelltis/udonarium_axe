@@ -34,10 +34,7 @@ async function lookOutOf(page: Page, piece: ReturnType<Page['locator']>) {
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 7000 });
   await (await menuEntry(page, menu, 'このコマの視点で見る')).dispatchEvent('click');
-  await settleLazy(
-    page,
-    page.locator('first-person-view [data-quad="wall"], first-person-view [data-testid="first-person-canvas"]')
-  );
+  await settleLazy(page, page.locator('first-person-view [data-testid="first-person-canvas"]'));
   await settle(page, 400);
 }
 

@@ -4,7 +4,9 @@ import { type FirstPersonRoof, roofHeightAt } from '@axe/domain/tabletop/first-p
 import { cellCount, type CellGrid, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
 import type { TableWorldCap } from '@axe/domain/tabletop/world/table-world';
 
-/** The colour a ceiling is painted, as dark as the CSS view's. */
+/** How wide the first-person view sees from side to side, in degrees. */
+export const FIRST_PERSON_FOV_DEG = 90;
+/** The colour a ceiling is painted. */
 export const CEILING_COLOUR = '#0c0a09';
 
 const scratch = new Matrix3D();

@@ -69,7 +69,6 @@ test.describe('Dungeondry Master mode on a table drawn on a canvas', () => {
     await page.locator('context-menu').last().locator('li').first().click();
     const view = page.locator('first-person-view');
     await expect(view.getByTestId('first-person-canvas').getByTestId('table-scene')).toBeAttached({ timeout: 10000 });
-    await expect(view.locator('[data-quad]')).toHaveCount(0);
     await idle(page);
     const fromTheEye = (await stats(page)).sprites;
     expect(await drawnPoints(page)).toBeGreaterThan(50);
