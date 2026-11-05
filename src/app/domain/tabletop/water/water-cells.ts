@@ -117,20 +117,3 @@ export function waterCellsOf(
   }
   return cells;
 }
-
-/** What the floor under a cell of water looks like; floors that look alike are drawn as one piece. */
-export function waterFloorLookOf(cell: WaterCell): string {
-  return `${round(cell.floorPx)}|${waterSurfaceLookOf(cell)}`;
-}
-
-/**
- * What the surface over a cell of water looks like; surfaces that look alike are drawn as one
- * piece however deep the water under them, the depth being painted onto the piece cell by cell.
- */
-export function waterSurfaceLookOf(cell: WaterCell): string {
-  return `${round(cell.surfacePx)}|${cell.color}|${round(cell.density)}|${round(cell.turbidity)}|${round(cell.dirt)}|${round(cell.leaves)}|${round(cell.flowSpeed)}|${round(cell.flowDirection)}`;
-}
-
-function round(value: number): number {
-  return Math.round(value * 1000) / 1000;
-}

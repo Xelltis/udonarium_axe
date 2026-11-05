@@ -1,6 +1,6 @@
 import { cellCenterOf, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/grid-type';
-import { type WaterArea, waterCellsOf, waterSurfaceLookOf } from '@axe/domain/tabletop/water/water-cells';
+import { type WaterArea, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
 
 const G = 50;
 
@@ -97,16 +97,5 @@ describe('waterCellsOf()', () => {
   it('leaves out what lies off the board', () => {
     const grid = cellGridOf(2, 2, G, GridType.SQUARE);
     expect(waterCellsOf(grid, [area({ left: 5 * G })]).size).toBe(0);
-  });
-});
-
-describe('waterSurfaceLookOf()', () => {
-  it('tells water of another height or colour apart', () => {
-    const grid = cellGridOf(2, 2, G, GridType.SQUARE);
-    const [a] = waterCellsOf(grid, [area({})]).values();
-    const [b] = waterCellsOf(grid, [area({ surfacePx: 30 })]).values();
-    const [c] = waterCellsOf(grid, [area({ color: '#000000' })]).values();
-    expect(waterSurfaceLookOf(a)).not.toBe(waterSurfaceLookOf(b));
-    expect(waterSurfaceLookOf(a)).not.toBe(waterSurfaceLookOf(c));
   });
 });
