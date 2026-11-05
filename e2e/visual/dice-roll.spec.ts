@@ -6,7 +6,7 @@ test('a rolling die looks the same a quarter second in', async ({ page }) => {
   await prepare(page);
   await closePanels(page);
   await freeze(page);
-  const menu = await rightClickTable(page, { x: 700, y: 450 });
+  const menu = await rightClickTable(page, { x: 1040, y: 500 });
   await hoverMenu(page, menu, 'ダイスを作成');
   await chooseMenu(page, menu, 'D6');
   await expect(page.locator('dice-symbol')).toHaveCount(1);

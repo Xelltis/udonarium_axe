@@ -25,12 +25,12 @@ test('a light beside a wall on a dark hex table', async ({ page }) => {
   await freeze(page);
   await useHexGrid(page);
 
-  const terrainMenu = await rightClickTable(page, { x: 980, y: 600 });
+  const terrainMenu = await rightClickTable(page, { x: 1120, y: 648 });
   await chooseMenu(page, terrainMenu, '地形を作成');
   await expect(page.locator('terrain').last()).toBeAttached();
   await settle(page, 400);
 
-  const lightMenu = await rightClickTable(page, { x: 880, y: 400 });
+  const lightMenu = await rightClickTable(page, { x: 1020, y: 448 });
   await chooseMenu(page, lightMenu, '光源を作成');
   await expect(page.locator('light-source')).toHaveCount(1);
 

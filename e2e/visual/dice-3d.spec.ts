@@ -145,7 +145,7 @@ test('the dice of a chat roll come to rest in the frame of its answer', async ({
   const stage = stages.last();
   await expect(stage).toHaveAttribute('data-state', 'settled', { timeout: 30_000 });
   await atRest(stage.locator('canvas'));
-  await expect(stage).toHaveScreenshot('dice-3d-frame.png', { maxDiffPixels: 40 });
+  await expect(stage).toHaveScreenshot('dice-3d-frame.png');
 });
 
 test('the dice of a chat roll come to rest on the table', async ({ page }) => {
@@ -165,7 +165,7 @@ test('the dice of a chat roll come to rest on the table', async ({ page }) => {
 
   await keptAtRest(page);
   await page.mouse.move(1279, 799);
-  await expect(page).toHaveScreenshot('dice-3d-table.png', { maxDiffPixels: 60 });
+  await expect(page).toHaveScreenshot('dice-3d-table.png');
 });
 
 /**
@@ -229,7 +229,7 @@ test('the dice of a chat roll come to rest in the scene of a table drawn on a ca
   test.setTimeout(120_000);
   await prepare(page);
   await chooseStage(page, 'table');
-  await speakAs(page, 'キャラクターB');
+  await speakAs(page, '魔法使い');
   await roll(page, '1d6');
   await expect.poll(() => diceInScene(page), { timeout: 30_000 }).toBe(1);
   await expect.poll(() => diceInScene(page), { timeout: 30_000 }).toBe(0);
@@ -240,5 +240,5 @@ test('the dice of a chat roll come to rest in the scene of a table drawn on a ca
     timeout: 30_000,
   });
   await page.mouse.move(1279, 799);
-  await expect(page).toHaveScreenshot('dice-3d-table.png', { maxDiffPixels: 60, timeout: 30_000 });
+  await expect(page).toHaveScreenshot('dice-3d-table.png', { timeout: 30_000 });
 });

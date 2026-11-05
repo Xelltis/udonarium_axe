@@ -14,7 +14,7 @@ test('a hex mask covers its cells and opens the ones scratched', async ({ page }
   await freeze(page);
   await useHexGrid(page);
 
-  const tableMenu = await rightClickTable(page, { x: 700, y: 450 });
+  const tableMenu = await rightClickTable(page, { x: 947, y: 486 });
   await chooseMenu(page, tableMenu, 'マップマスクを作成');
   const mask = page.locator('game-table-mask').last();
   await expect(mask).toBeAttached();
@@ -31,7 +31,6 @@ test('a hex mask covers its cells and opens the ones scratched', async ({ page }
   const surface = mask.locator('div.pointer-events-auto').first();
   const box = await surface.boundingBox();
   expect(box).not.toBeNull();
-  // Kept to the left half of the mask, clear of the piece standing under its right side.
   for (const [fx, fy] of [
     [0.2, 0.35],
     [0.3, 0.6],

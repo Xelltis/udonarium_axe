@@ -7,7 +7,7 @@ test('a light in the dark looks the same at a fixed flicker phase', async ({ pag
   await becomeGm(page);
   await closePanels(page);
   await freeze(page);
-  const menu = await rightClickTable(page, { x: 700, y: 450 });
+  const menu = await rightClickTable(page, { x: 1040, y: 500 });
   await chooseMenu(page, menu, '光源を作成');
   await expect(page.locator('light-source')).toHaveCount(1);
   await page.locator('app-gm-toolbar [title^="暗闇"]').click();

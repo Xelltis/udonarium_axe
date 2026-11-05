@@ -14,8 +14,8 @@ test('two new pieces on the square grid look the same', async ({ page }) => {
   await drawSampleModels(page);
   await prepare(page);
   await closePanels(page);
-  await createCharacterAt(page, { x: 900, y: 250 });
-  await createCharacterAt(page, { x: 700, y: 450 });
+  await createCharacterAt(page, { x: 1046, y: 307 });
+  await createCharacterAt(page, { x: 1037, y: 528 });
   await closePanels(page);
   await snap(page, 'table-square');
 });

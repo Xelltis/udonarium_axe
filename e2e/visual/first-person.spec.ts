@@ -15,11 +15,16 @@ import {
   snap,
 } from './fixtures';
 
+/**
+ * Makes something from the table's menu at a point, and leaves the pointer off the table, where the
+ * card of a piece made under it would cover the next menu.
+ */
 async function createAt(page: Page, position: { x: number; y: number }, entry: string, selector: string) {
   const before = await page.locator(selector).count();
   const menu = await rightClickTable(page, position);
   await chooseMenu(page, menu, entry);
   await expect(page.locator(selector)).toHaveCount(before + 1, { timeout: 10000 });
+  await page.mouse.move(1279, 799);
   await settle(page, 400);
 }
 
@@ -37,9 +42,9 @@ async function lookOutOf(page: Page, piece: ReturnType<Page['locator']>) {
 }
 
 async function standBeforeABlockAndLook(page: Page) {
-  await createAt(page, { x: 700, y: 450 }, 'キャラクターを作成', 'game-character');
+  await createAt(page, { x: 1010, y: 530 }, 'キャラクターを作成', 'game-character');
   const piece = page.locator('game-character').last();
-  await createAt(page, { x: 800, y: 380 }, '地形を作成', 'terrain');
+  await createAt(page, { x: 1138, y: 450 }, '地形を作成', 'terrain');
   await lookOutOf(page, piece);
 }
 

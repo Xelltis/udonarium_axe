@@ -34,7 +34,7 @@ test('a block slopes to one side as a ramp and to every side as a pyramid', asyn
   await closePanels(page);
   await freeze(page);
 
-  const tableMenu = await rightClickTable(page, { x: 900, y: 250 });
+  const tableMenu = await rightClickTable(page, { x: 1054, y: 276 });
   await chooseMenu(page, tableMenu, '地形を作成');
   const terrain = page.locator('terrain').last();
   await expect(terrain).toBeAttached();

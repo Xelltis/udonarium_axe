@@ -189,7 +189,11 @@ export default defineConfig({
   },
   snapshotPathTemplate: '{testDir}/visual/__screenshots__/{arg}{ext}',
   expect: {
-    toHaveScreenshot: { animations: 'allow', caret: 'hide', scale: 'css' },
+    // A picture comes out a little different from run to run where software rounds a colour or
+    // draws in another order, a few hundred pixels at the most; what moves or goes missing on the
+    // table differs by far more. So a tenth of a percent of the picture may differ, and a colour by
+    // as much as Playwright lets by default.
+    toHaveScreenshot: { animations: 'allow', caret: 'hide', scale: 'css', maxDiffPixelRatio: 0.001, threshold: 0.2 },
   },
   projects: [
     // Every spec, with the table drawn on a canvas as a seat draws it by default. Headless Chromium

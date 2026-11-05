@@ -28,8 +28,16 @@ export async function prepare(page: Page) {
     localStorage.removeItem('ui-widget-layout');
   });
   await waitAppReady(page);
+  await page.addStyleTag({ content: NO_RESTORE_OFFER });
   if (drawsOnCanvas()) await page.addStyleTag({ content: NO_TRANSITIONS });
 }
+
+/**
+ * Keeps the offer to restore a table kept in this browser off the shots. The page keeps the table
+ * in the browser a little while after it changes, and the offer comes up once it has, at a moment
+ * set by how fast the run goes.
+ */
+const NO_RESTORE_OFFER = 'app-room-restore-banner { display: none !important; }';
 
 /**
  * Has every change of style take effect at once on a table drawn on a canvas. The canvas draws a
@@ -153,8 +161,14 @@ export async function closeModal(page: Page) {
   await expect(page.locator('modal')).toHaveCount(0);
 }
 
+/**
+ * Where a right click lands on the bare board, clear of the sample room's pieces and the marks over
+ * them, on the right of the board.
+ */
+export const BARE_BOARD_AT = { x: 1120, y: 380 };
+
 export async function openTableSetting(page: Page) {
-  const menu = await rightClickTable(page, { x: 900, y: 250 });
+  const menu = await rightClickTable(page, BARE_BOARD_AT);
   await chooseMenu(page, menu, 'テーブル設定');
   await settleLazy(page, page.locator('modal select[name="tableGridType"]'));
   await expect(page.locator('modal select[name="tableGridType"]')).toBeVisible();
@@ -188,6 +202,7 @@ type CanvasHooks = {
     holdFlicker(timeMs: number | null): void;
     holdMotion(held: boolean): void;
     holdMovesAt(ms: number | null): void;
+    chooseLightsAfresh(): void;
   };
 };
 
@@ -232,9 +247,6 @@ async function holdMovesAt(page: Page, ms: number) {
 }
 
 export interface SnapOptions {
-  maxDiffPixels?: number;
-  maxDiffPixelRatio?: number;
-  threshold?: number;
   animationAt?: number;
   /** How long a picture may take to settle; a large 3D board rasterised in software takes seconds per shot. */
   timeout?: number;
@@ -244,6 +256,7 @@ export async function snap(page: Page, name: string, options: SnapOptions = {}) 
   await page.evaluate(() => document.fonts.ready);
   await page.mouse.move(1279, 799);
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  if (drawsOnCanvas()) await page.evaluate(() => (window as unknown as CanvasHooks).__axeTable?.chooseLightsAfresh());
   await holdAnimationsAt(page, options.animationAt ?? 0);
   await page.waitForTimeout(100);
   if (frozen.has(page)) await page.clock.runFor(16);
@@ -251,7 +264,7 @@ export async function snap(page: Page, name: string, options: SnapOptions = {}) 
   if (drawsOnCanvas() && options.animationAt !== undefined) await holdMovesAt(page, options.animationAt);
   if (drawsOnCanvas()) await drawCanvasThrough(page);
   const { animationAt: _at, ...compare } = options;
-  await expect(page).toHaveScreenshot(`${name}.png`, { maxDiffPixels: 4, timeout: shotTimeout(), ...compare });
+  await expect(page).toHaveScreenshot(`${name}.png`, { timeout: shotTimeout(), ...compare });
 } /**
  * Whether the scene is shot with the table drawn on a canvas, as every project shoots it but the
  * one that keeps the pictures of the page's own table.

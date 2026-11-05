@@ -20,8 +20,8 @@ import {
 } from './fixtures';
 
 /** Where a new piece is put for the view from under the water, and the pond a little off it. */
-const PIECE_AT = { x: 760, y: 400 };
-const POND_AT = { x: 790, y: 430 };
+const PIECE_AT = { x: 1040, y: 495 };
+const POND_AT = { x: 1070, y: 525 };
 
 /** Where a piece of the starting table stands on the screen: the middle of the ground it stands on. */
 async function feetOf(page: Page, name: string): Promise<{ x: number; y: number }> {
@@ -34,16 +34,14 @@ async function feetOf(page: Page, name: string): Promise<{ x: number; y: number 
   return { x: box.x + box.width / 2 - (table?.x ?? 0), y: box.y + box.height / 2 - (table?.y ?? 0) };
 }
 
-/**
- * The net of light drifts for as long as the page is open, so every shot holds it at one moment.
- * A few pixels of its soft lines come out differently from run to run.
- */
-const WATER_SNAP = { animationAt: 1200, maxDiffPixels: 48 };
+/** The net of light drifts for as long as the page is open, so every shot holds it at one moment. */
+const WATER_SNAP = { animationAt: 1200 };
 
 /**
  * Where a press near a point of the table lands on the table itself rather than on the marks over a
- * piece: the point itself, or the nearest of a few around it. On a canvas the names and gauges stand
- * over the pieces on the screen, where the page's own table has the board.
+ * piece or on a piece the canvas draws there, as the outline of the cells a piece stands on: the
+ * point itself, or the nearest of a few around it. On a canvas the names and gauges stand over the
+ * pieces on the screen, where the page's own table has the board.
  */
 async function clearOfMarks(page: Page, at: { x: number; y: number }): Promise<{ x: number; y: number }> {
   if (!drawsOnCanvas()) return at;
@@ -64,7 +62,11 @@ async function clearOfMarks(page: Page, at: { x: number; y: number }): Promise<{
       ({ x, y }) =>
         !document
           .elementFromPoint(x, y)
-          ?.closest('game-character, terrain, table-ambience, dice-symbol, card, card-stack, light-source, ui-panel'),
+          ?.closest('game-character, terrain, table-ambience, dice-symbol, card, card-stack, light-source, ui-panel') &&
+        (window as unknown as { __axeTable: { pickAt(x: number, y: number): string | null } }).__axeTable.pickAt(
+          x,
+          y
+        ) === null,
       { x: table.x + point.x, y: table.y + point.y }
     );
     if (clear) return point;
@@ -89,11 +91,13 @@ async function waterBuilt(page: Page, mark: string) {
     .toBeGreaterThan(0);
 }
 
+/** Makes a piece at a point, and leaves the pointer off the table, where its card would cover the pond laid beside it. */
 async function createPiece(page: Page, position: { x: number; y: number }) {
   const before = await page.locator('game-character').count();
   const menu = await rightClickTable(page, position);
   await chooseMenu(page, menu, 'キャラクターを作成');
   await expect(page.locator('game-character')).toHaveCount(before + 1, { timeout: 10000 });
+  await page.mouse.move(1279, 799);
   await settle(page, 400);
 }
 
@@ -115,12 +119,11 @@ async function layPond(page: Page, position: { x: number; y: number }) {
  * of it where a canvas draws it, which is where a canvas takes the pond's presses.
  */
 /**
- * Takes the pointer off the pond once its settings are made, on a canvas, where its menu was opened
- * by a press on it: left over it, the pond's name comes up over the table, and goes again only as
- * the clock runs on.
+ * Takes the pointer off the pond once its settings are made, which it was left over when the pond
+ * was laid: left over it, the pond's name comes up over the table, and goes again only as the clock
+ * runs on.
  */
 async function leavePond(page: Page) {
-  if (!drawsOnCanvas()) return;
   await page.mouse.move(1279, 799);
   await settle(page, 400);
 }
@@ -152,7 +155,6 @@ async function setWaterLevel(page: Page, cells: string) {
   await leavePond(page);
 }
 
-/** Lays a pond round a piece of the starting table, which has a picture to wade with. */
 /** Sets how murky the water is from the pond's own settings, as a percentage. */
 async function setMurkiness(page: Page, percent: string) {
   const menu = await openPondMenu(page);
@@ -191,8 +193,9 @@ async function setFlow(page: Page, percent: string, direction: string) {
   await leavePond(page);
 }
 
+/** Lays a pond round a piece of the starting table, which has a picture to wade with. */
 async function wadeIn(page: Page) {
-  const feet = await feetOf(page, 'キャラクターA');
+  const feet = await feetOf(page, 'キャラクターB');
   await layPond(page, { x: feet.x + 40, y: feet.y + 30 });
   await setWaterLevel(page, '1');
   await waterBuilt(page, '[data-water-copy]');
@@ -222,11 +225,11 @@ test('waves break on a block standing out of the water', async ({ page }) => {
   await becomeGm(page);
   await closePanels(page);
   await freeze(page);
-  const menu = await rightClickTable(page, { x: 780, y: 400 });
+  const menu = await rightClickTable(page, { x: 1060, y: 495 });
   await chooseMenu(page, menu, '地形を作成');
   await expect(page.locator('terrain')).toHaveCount(1, { timeout: 10000 });
   await settle(page, 400);
-  await layPond(page, { x: 700, y: 470 });
+  await layPond(page, { x: 980, y: 565 });
   await setWaterLevel(page, '1');
   await waterBuilt(page, '[data-water-shore]');
   await settle(page, 400);
