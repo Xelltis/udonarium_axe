@@ -79,7 +79,7 @@ function flip(turns: [number, number, number]): Motion {
   };
 }
 
-/** The moves, keyframe for keyframe as `src/styles/animations.css` writes them. */
+/** The moves, keyframe for keyframe. */
 const MOTIONS: Record<PieceMotionKind, Motion> = {
   'dice-tumble-a': tumble([20, -16, 1.18, 240], [-12, 9, 1.02, 470], [4, -3, 1.08, 640], 720),
   'dice-tumble-b': tumble([-22, -10, 1.2, -260], [11, 12, 1.03, -500], [-5, -4, 1.09, -660], -720),

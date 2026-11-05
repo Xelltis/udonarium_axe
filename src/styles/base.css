@@ -340,12 +340,3 @@ body {
     transform: scale(0, 0);
   }
 }
-
-/*
- * A definition that improves rendering in desktop Chrome 102-103 on Windows.
- * Giving this CSS class to an image shown in 3D keeps its resolution sharp when seen up close.
- * Consider removing it once a later Chrome update improves the rendering speed.
- */
-.chrome-smooth-image-trick {
-  transform-style: inherit;
-}
