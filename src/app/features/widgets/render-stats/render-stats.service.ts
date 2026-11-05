@@ -11,6 +11,7 @@ type WatchedComponent = 'TerrainComponent' | 'GameTableComponent';
 export interface RenderStats {
   /** Terrain drawn as a box of its own. */
   readonly terrains: number;
+  /** The elements laid over the table's canvas. */
   readonly tableElements: number;
   readonly elementsPerTerrain: number;
   readonly updates: Readonly<Record<WatchedComponent, number>>;
@@ -161,7 +162,7 @@ export class RenderStatsService {
 
   private sample(): void {
     const terrains = document.querySelectorAll('terrain').length;
-    const table = document.getElementById('app-game-table');
+    const table = document.querySelector('[data-testid="table-hud"]');
     const tableElements = table ? table.querySelectorAll('*').length : 0;
     const sorted = [...this.frames].sort((a, b) => a - b);
     const counters = perfCounters.drain();

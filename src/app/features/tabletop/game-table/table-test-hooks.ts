@@ -93,6 +93,8 @@ export interface TableTestHooks {
   pieceBoxesOnPage(identifier: string): { x: number; y: number; width: number; height: number }[];
   /** Where a point of a face (the floor, a wall or a board), lifted some way off it, is drawn on the page. */
   surfacePageOf(surface: string, localX: number, localY: number, height?: number): { x: number; y: number } | null;
+  /** How wide and how tall a face is, in its own pixels, or null for a face the table does not have. */
+  surfaceSizeOf(surface: string): { width: number; height: number } | null;
   /** The sprites a piece is drawn with, each named as its part and as large as it is drawn, in table pixels. */
   spritesOf(identifier: string): { part: string; widthPx: number; heightPx: number }[];
 }
@@ -158,6 +160,7 @@ export function installTableTestHooks(
     },
     faceAt: (pageX, pageY) => pick.faceAt(pageX, pageY, { stopsAt: () => true }),
     surfacePageOf: (surface, localX, localY, height) => surfaces.pageOf(surface, localX, localY, height),
+    surfaceSizeOf: (surface) => surfaces.sizeOf(surface),
     pieceBoxesOnPage: (identifier) => {
       const scene = camera.sceneMatrix();
       const target = pick.pieceTargets().find((candidate) => candidate.id === identifier);

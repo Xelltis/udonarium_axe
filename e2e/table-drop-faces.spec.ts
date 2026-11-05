@@ -43,21 +43,27 @@ async function makeBoard(page: Page): Promise<string> {
 }
 
 /**
- * A point of a face, across and down it, that is on the screen and where the page draws the face
+ * A point of a face, across and down it, that is on the screen and where the table draws the face
  * itself rather than something standing on it, and where that point is drawn.
  */
 async function bareSpotOf(page: Page, surface: string): Promise<{ local: Point; onPage: Point }> {
   const spot = await page.evaluate((surface) => {
     const hooks = (window as unknown as { __axeTable: FaceHooks }).__axeTable;
-    const face = document.querySelector<HTMLElement>(`[data-surface="${surface}"]`)!;
+    const size = hooks.surfaceSizeOf(surface);
+    if (!size) return null;
+    // A white board's face is laid on the screen; a wall of the table has no element of its own.
+    const face = document.querySelector(`[data-surface="${surface}"]`);
     const margin = 100;
-    for (let y = face.offsetHeight * 0.98; y > 0; y -= face.offsetHeight / 40) {
-      for (let x = face.offsetWidth * 0.02; x < face.offsetWidth; x += face.offsetWidth / 40) {
+    for (let y = size.height * 0.98; y > 0; y -= size.height / 40) {
+      for (let x = size.width * 0.02; x < size.width; x += size.width / 40) {
         const onPage = hooks.surfacePageOf(surface, x, y);
         if (!onPage || onPage.x < margin || onPage.y < margin) continue;
         if (onPage.x > innerWidth - margin || onPage.y > innerHeight - margin) continue;
         const top = document.elementFromPoint(onPage.x, onPage.y);
-        if (top?.closest('[data-surface]') === face && !top.closest('[data-object-id]')) {
+        if (!top || top.closest('[data-object-id]') || (face && top.closest('[data-surface]') !== face)) continue;
+        // A white board is picked by its own name, which is the name of its face.
+        const hit = hooks.pickAt(onPage.x, onPage.y);
+        if (hooks.faceAt(onPage.x, onPage.y) === surface && (hit === null || hit === surface)) {
           return { local: { x, y }, onPage };
         }
       }
@@ -149,7 +155,7 @@ test.describe('dropping a piece on another face', () => {
 
   test('puts a piece let go of over a wall drawn with a picture on the wall', async ({ page }) => {
     await showWall(page, '北壁', 'north');
-    await expect(page.locator('[data-surface="north-wall"]')).toBeAttached({ timeout: 10000 });
+    await whenDrawn(page);
     const character = piece(page, CARRIED);
     await settle(character);
 

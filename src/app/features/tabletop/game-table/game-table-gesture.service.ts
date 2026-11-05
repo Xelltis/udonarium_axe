@@ -11,7 +11,7 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { CAMERA_GLIDE_MS, easeOut } from '@axe/domain/tabletop/camera/camera-glide';
-import { tableCameraAttribute, tableCameraTransform, TableCameraView } from '@axe/domain/tabletop/camera/table-camera';
+import { tableCameraAttribute, TableCameraView } from '@axe/domain/tabletop/camera/table-camera';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { SwitchNoticeService } from '@axe/features/tabletop/board-switch/switch-notice.service';
@@ -118,8 +118,7 @@ export class GameTableGestureService {
   private touchGesture: TableTouchGesture | null = null;
   private marqueeGesture: TableMarqueeGesture | null = null;
 
-  private gameTableEl!: HTMLElement;
-  private gameObjectsEl!: HTMLElement;
+  private rootEl: HTMLElement | null = null;
   private getGridShow: (() => boolean) | null = null;
 
   /**
@@ -134,14 +133,8 @@ export class GameTableGestureService {
    * `getGridShow` says whether the grid stays visible, since the grid is shown while a piece is
    * dragged and put back to that afterwards.
    */
-  initialize(
-    rootEl: HTMLElement,
-    gameTableEl: HTMLElement,
-    gameObjectsEl: HTMLElement,
-    getGridShow: () => boolean
-  ): void {
-    this.gameTableEl = gameTableEl;
-    this.gameObjectsEl = gameObjectsEl;
+  initialize(rootEl: HTMLElement, getGridShow: () => boolean): void {
+    this.rootEl = rootEl;
     this.getGridShow = getGridShow;
 
     this.touchGesture = new TableTouchGesture(rootEl);
@@ -226,8 +219,7 @@ export class GameTableGestureService {
   /** Writes the view out and tells the table which way it faces, both in the one frame. */
   private showTransform(): void {
     const view = this.currentView();
-    this.gameTableEl.style.transform = tableCameraTransform(view);
-    this.gameTableEl.dataset['camera'] = tableCameraAttribute(view);
+    if (this.rootEl) this.rootEl.dataset['camera'] = tableCameraAttribute(view);
     this.tableCamera.showView(view);
 
     this.coordinateService.invalidateTabletopTransform();
@@ -374,7 +366,7 @@ export class GameTableGestureService {
     const me = e as MouseEvent;
     const target = me.target as HTMLElement;
     const isEmptyTablePress =
-      target.contains(this.gameObjectsEl) ||
+      (this.rootEl !== null && target.contains(this.rootEl)) ||
       me.button === 1 ||
       me.button === 2 ||
       target.closest('[data-table-passthrough]') != null;

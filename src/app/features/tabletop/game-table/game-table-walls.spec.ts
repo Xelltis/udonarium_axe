@@ -1,5 +1,5 @@
 import { GameTable } from '@axe/domain/tabletop/game-table';
-import { WALL_SIDES, wallBackground } from '@axe/features/tabletop/game-table/game-table-walls';
+import { WALL_SIDES } from '@axe/features/tabletop/game-table/game-table-walls';
 
 describe('game table walls', () => {
   it('lists the four walls north, south, west, east, with their labels', () => {
@@ -21,14 +21,5 @@ describe('game table walls', () => {
     } as GameTable;
     expect(WALL_SIDES.map((side) => side.shown(table))).toEqual([true, false, true, false]);
     expect(WALL_SIDES.map((side) => side.imageIdentifier(table))).toEqual(['n', 's', 'w', 'e']);
-  });
-
-  it('lays the grid over the picture only when there is one', () => {
-    expect(wallBackground('a.png', '')).toEqual({
-      surfaceBackground: 'url(a.png)',
-      surfaceBackgroundSize: '100% 100%',
-      surfaceBackgroundRepeat: 'no-repeat',
-    });
-    expect(wallBackground('a.png', 'data:g').surfaceBackground).toBe('url(data:g), url(a.png)');
   });
 });

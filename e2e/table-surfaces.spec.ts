@@ -2,13 +2,12 @@ import { expect, Locator, Page, test } from '@playwright/test';
 
 import { becomeGm, closePanels } from './dungeon-helpers';
 import { openTableContextMenu, revealMenuEntry, turnByHandle, waitAppReady } from './helpers';
-import { showWall } from './table-face-helpers';
 
 /**
- * Things are put on five faces of the table and on white boards. A canvas has no elements for those
- * faces, so the table works out where a point of each lands from its camera and the face's frame.
- * Here a small box is put at points of each face the page draws, and where the page draws it is
- * held against where the frame says that point is drawn.
+ * A white board's face is laid on the screen over the canvas, where the table works out from its
+ * camera and the face's frame that the face is drawn. Here a small box is put at points of the face
+ * the screen lays, and where the page draws it is held against where the frame says that point is
+ * drawn.
  */
 
 type Hooks = {
@@ -61,20 +60,6 @@ test.describe('the faces things are put on', () => {
     await waitAppReady(page);
     await becomeGm(page);
     await closePanels(page);
-  });
-
-  test('puts a point of the floor where the page draws it', async ({ page }) => {
-    expect(await farthestApart(page.locator('#app-game-table'), 'floor')).toBeLessThan(SLACK_PX);
-  });
-
-  test('puts a point of a wall where the page draws it', async ({ page }) => {
-    await showWall(page, '北壁', 'north');
-    await showWall(page, '東壁', 'east');
-    for (const surface of ['north-wall', 'east-wall']) {
-      const face = page.locator(`[data-surface="${surface}"]`);
-      await expect(face).toBeAttached({ timeout: 10000 });
-      expect(await farthestApart(face, surface), surface).toBeLessThan(SLACK_PX);
-    }
   });
 
   test('puts a point of a white board where the page draws it, lying, leaning and standing', async ({ page }) => {

@@ -6,7 +6,6 @@ import {
   matrixColumns,
   pageOfTablePoint,
   tableCameraAttribute,
-  tableCameraTransform,
   tableEyeMatrix,
   TableLayout,
   tablePointOfPage,
@@ -31,15 +30,6 @@ describe('table camera', () => {
     }
     expect(MEASURED_CAMERA_CASES.length).toBeGreaterThan(20);
     expect(worst).toBeLessThan(0.02);
-  });
-
-  it('writes the transform the board has always been drawn with', () => {
-    expect(tableCameraTransform(DEFAULT_TABLE_CAMERA_VIEW)).toBe(
-      'translateZ(0.0000px) translateY(0.0000px) translateX(100.0000px) rotateY(0.0000deg) rotateX(50.0000deg) rotateZ(10.0000deg)'
-    );
-    expect(tableCameraTransform({ ...DEFAULT_TABLE_CAMERA_VIEW, positionZ: -3000, orthographic: true })).toBe(
-      'scale(0.500000) translateZ(-3000.0000px) translateY(0.0000px) translateX(100.0000px) rotateY(0.0000deg) rotateX(50.0000deg) rotateZ(10.0000deg)'
-    );
   });
 
   it('writes the view for tests to read, as position, turn and projection', () => {

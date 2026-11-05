@@ -68,16 +68,6 @@ export function orthographicScale(positionZ: number): number {
   return Number((TABLE_PERSPECTIVE_PX / cameraDepth(positionZ)).toFixed(6));
 }
 
-/** The CSS transform the board is drawn with for a view. */
-export function tableCameraTransform(view: TableCameraView): string {
-  const scale = view.orthographic ? `scale(${orthographicScale(view.positionZ).toFixed(6)}) ` : '';
-  return (
-    `${scale}translateZ(${view.positionZ.toFixed(4)}px) translateY(${view.positionY.toFixed(4)}px) ` +
-    `translateX(${view.positionX.toFixed(4)}px) rotateY(${view.rotateY.toFixed(4)}deg) ` +
-    `rotateX(${view.rotateX.toFixed(4)}deg) rotateZ(${view.rotateZ.toFixed(4)}deg)`
-  );
-}
-
 /** The view written as `x,y,z,rx,ry,rz,orthographic`, which the table puts on itself for tests to read. */
 export function tableCameraAttribute(view: TableCameraView): string {
   return [

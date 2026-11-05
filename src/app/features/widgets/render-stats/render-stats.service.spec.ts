@@ -79,9 +79,9 @@ describe('RenderStatsService', () => {
     expect(service.watching()).toBe(false);
   });
 
-  it('counts the terrain the table is showing', () => {
+  it('counts the terrain the table is showing, and the elements over its canvas', () => {
     const table = document.createElement('div');
-    table.id = 'app-game-table';
+    table.dataset['testid'] = 'table-hud';
     table.innerHTML = '<terrain><div><canvas></canvas></div></terrain><terrain><div></div></terrain>';
     document.body.appendChild(table);
 
@@ -89,6 +89,7 @@ describe('RenderStatsService', () => {
     vi.advanceTimersByTime(1000);
 
     expect(service.stats().terrains).toBe(2);
+    expect(service.stats().tableElements).toBe(5);
 
     table.remove();
   });

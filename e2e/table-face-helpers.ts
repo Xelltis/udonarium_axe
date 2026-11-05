@@ -6,6 +6,9 @@ import { solidPng } from './png-helpers';
 
 export type FaceHooks = {
   surfacePageOf(surface: string, x: number, y: number): { x: number; y: number } | null;
+  surfaceSizeOf(surface: string): { width: number; height: number } | null;
+  faceAt(pageX: number, pageY: number): string | null;
+  pickAt(pageX: number, pageY: number): string | null;
   whenIdle(): Promise<void>;
 };
 

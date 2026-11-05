@@ -95,22 +95,13 @@ import { handCanvasPressesOn } from '@axe/features/tabletop/game-table/canvas-pr
 import { glideTransform } from '@axe/features/tabletop/game-table/game-table-camera';
 import { buildGameTableContextMenu, GameTableMenu } from '@axe/features/tabletop/game-table/game-table-context-menu';
 import { GameTableGestureService } from '@axe/features/tabletop/game-table/game-table-gesture.service';
-import {
-  WALL_SIDES,
-  WallBackground,
-  wallBackground,
-  WallSurface,
-} from '@axe/features/tabletop/game-table/game-table-walls';
+import { WALL_SIDES, WallSurface } from '@axe/features/tabletop/game-table/game-table-walls';
 import { GridFaceCache } from '@axe/features/tabletop/game-table/grid-face-cache';
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
 import { TableDropPreviewComponent } from '@axe/features/tabletop/game-table/table-drop-preview/table-drop-preview.component';
 import { TableMarqueeOverlayComponent } from '@axe/features/tabletop/game-table/table-marquee-overlay/table-marquee-overlay.component';
 import { installTableTestHooks } from '@axe/features/tabletop/game-table/table-test-hooks';
 import { GameTableMaskComponent } from '@axe/features/tabletop/game-table-mask/game-table-mask.component';
-import {
-  buildHexOuterBorderSvg,
-  buildHexOutlineMask,
-} from '@axe/features/tabletop/game-table-mask/game-table-mask-helpers';
 import { TableInterruptOverlayComponent } from '@axe/features/tabletop/interrupt-prompt/table-interrupt-overlay.component';
 import { LightSourceComponent } from '@axe/features/tabletop/light-source/light-source.component';
 import { RangeComponent } from '@axe/features/tabletop/range/range.component';
@@ -148,24 +139,11 @@ import { FloorPlaneDirective } from '@axe/ui/tabletop/floor-plane.directive';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
-/** A wall standing round the table. */
-interface WallView {
-  readonly wall: ActiveWall;
-}
-
 interface ActiveWall {
   surface: TableSurface;
   image: ImageFile;
   /** The picture of the table's grid laid over the wall, or empty where the grid is not shown. */
   gridUrl: string;
-  containerClass: string;
-  containerTransform: string;
-  containerOrigin: string;
-  widthPx: number;
-  heightPx: number;
-  surfaceBackground: string;
-  surfaceBackgroundSize: string;
-  surfaceBackgroundRepeat: string;
 }
 
 interface BeamWallGrid {
@@ -288,17 +266,8 @@ export class GameTableComponent {
   private readonly t = inject(TRANSLATE_FN);
   private readonly displayCalibration = inject(DisplayCalibrationService);
   private readonly viewLock = inject(ViewLockService);
-  protected readonly isOrthographicProjection = computed(
-    () => this.tabletopService.mode2d() && this.tabletopService.orthographicProjection()
-  );
   private readonly thirdPerson = inject(ThirdPersonService);
 
-  /** How the table is drawn in perspective: flat, as the table's own camera sees, or as the camera that follows a piece does. */
-  protected readonly perspective = computed(() => {
-    const followed = this.thirdPerson.view();
-    if (followed?.perspectivePx) return `${followed.perspectivePx}px`;
-    return this.isOrthographicProjection() ? 'none' : null;
-  });
   private _initialized = false;
   /** A resize fires many times over one drag; only the last of them has to reach the camera. */
   private _resizeFrame: number | null = null;
@@ -377,7 +346,7 @@ export class GameTableComponent {
     });
     effect(() => {
       const focus = this.selectionSignalService.focusCoordinate();
-      if (!focus || !this.gameTable) return;
+      if (!focus) return;
       this.glideTimer = setTimeout(() => {
         this.glideTimer = null;
         const moved = glideTransform(focus, this.tableVisualCenter(), {
@@ -444,12 +413,7 @@ export class GameTableComponent {
         });
       }
       this._initialized = true;
-      this.gestureService.initialize(
-        this.rootElementRef().nativeElement,
-        this.gameTable().nativeElement,
-        this.gameObjects().nativeElement,
-        () => this.currentTable.gridShow
-      );
+      this.gestureService.initialize(this.rootElementRef().nativeElement, () => this.currentTable.gridShow);
       this.gestureService.cancelInput();
 
       this.redrawTableGrid();
@@ -549,8 +513,6 @@ export class GameTableComponent {
   }
 
   readonly rootElementRef = viewChild.required<ElementRef<HTMLElement>>('root');
-  readonly gameTable = viewChild.required<ElementRef<HTMLElement>>('gameTable');
-  readonly gameObjects = viewChild.required<ElementRef<HTMLElement>>('gameObjects');
   readonly gridCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('gridCanvas');
   /** The canvas the table is drawn on through three.js, there only while a seat asks for it. */
   private readonly sceneCanvas = viewChild<ElementRef<HTMLCanvasElement>>('sceneCanvas');
@@ -563,16 +525,6 @@ export class GameTableComponent {
   get currentTable(): GameTable {
     return this.tabletopService.currentTable;
   }
-
-  readonly tableImage = computed(
-    () => {
-      this.objectChangeService.fileVersion();
-      this.objectChangeService.versionOf(this.currentTable.identifier)();
-      this.objectChangeService.versionOf(this.tableSelecter.identifier)();
-      return this.imageService.getEmptyOr(this.currentTable.imageIdentifier);
-    },
-    { equal: imageFileEqual() }
-  );
 
   private wallImageFor(getter: () => string) {
     return computed(
@@ -623,17 +575,7 @@ export class GameTableComponent {
       const gridUrl = state.gridShow
         ? this.gridFaces.dataUrl(table, widthPx, state.heightPx, 0, 0, side.labelPrefix, side.labelMatrix)
         : '';
-      walls.push({
-        surface: side.surface,
-        image,
-        gridUrl,
-        containerClass: side.containerClass,
-        containerTransform: side.containerTransform,
-        containerOrigin: side.containerOrigin,
-        widthPx,
-        heightPx: state.heightPx,
-        ...wallBackground(image.url, gridUrl),
-      });
+      walls.push({ surface: side.surface, image, gridUrl });
     }
     return walls;
   });
@@ -642,14 +584,6 @@ export class GameTableComponent {
   private glideTimer: ReturnType<typeof setTimeout> | null = null;
   /** The board as wide and deep as its cells run, as last written to the table's box. */
   private boardPx = { width: 0, height: 0 };
-
-  /**
-   * The CSS background for a wall: its picture, with the grid picture laid over it when there is
-   * one.
-   */
-  wallBackground(imageUrl: string, gridUrl: string): WallBackground {
-    return wallBackground(imageUrl, gridUrl);
-  }
 
   /**
    * What each layer's picture measures, once the browser has loaded it.
@@ -691,24 +625,6 @@ export class GameTableComponent {
     });
   });
 
-  /**
-   * What the board's outline is built from, compared field by field, so that a change to something
-   * standing on the table does not build the outline again.
-   */
-  private readonly surfaceShape = computed(
-    () => {
-      const table = this.watchCurrentTable();
-      return { width: table.width, height: table.height, gridSize: table.gridSize, gridType: table.gridType };
-    },
-    {
-      equal: (a, b) =>
-        a.width === b.width && a.height === b.height && a.gridSize === b.gridSize && a.gridType === b.gridType,
-    }
-  );
-
-  readonly underLayers = computed(() =>
-    this.laidLayers().filter((layer) => !layer.placedOver && !layer.placedBackdrop)
-  );
   readonly backdropLayers = computed(() => this.laidLayers().filter((layer) => layer.placedBackdrop));
 
   /** What the backdrops behind the table are drawn as, back to front, as `backdropLayerViews` lays them out. */
@@ -724,39 +640,6 @@ export class GameTableComponent {
       moving: this.motion.enabled(),
     };
   }
-
-  /** A board drawn on a transparent picture must not be washed out by the veil over it. */
-  readonly showsTableSurfaceVeil = computed(() => this.underLayers().length === 0);
-
-  readonly tableSurfaceStyle = computed<Record<string, string>>(() => {
-    const { width, height, gridSize, gridType } = this.surfaceShape();
-    const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
-    if (!geo) {
-      return {
-        width: '100%',
-        height: '100%',
-        left: '0px',
-        top: '0px',
-        '-webkit-mask': 'none',
-        mask: 'none',
-      };
-    }
-    const mask = buildHexOutlineMask(gridSize, gridType, width, height);
-    return {
-      width: `${geo.pixelW}px`,
-      height: `${geo.pixelH}px`,
-      left: `${-geo.offsetX}px`,
-      top: `${-geo.offsetY}px`,
-      '-webkit-mask': mask,
-      mask,
-    };
-  });
-
-  readonly tableSurfaceBorderStyle = computed<Record<string, string>>(() => {
-    const { width, height, gridSize, gridType } = this.surfaceShape();
-    const background = buildHexOuterBorderSvg(gridSize, gridType, width, height);
-    return { background: background || 'none' };
-  });
 
   /** The picture laid behind the table, or the empty image when the table has none. */
   get backgroundImage(): ImageFile {
@@ -960,7 +843,7 @@ export class GameTableComponent {
    * focus and the pointer allows a menu.
    */
   onContextMenu(e: MouseEvent) {
-    if (!document.activeElement?.contains(this.gameObjects().nativeElement)) return;
+    if (!document.activeElement?.contains(this.rootElementRef().nativeElement)) return;
     e.preventDefault();
 
     if (!this.pointerDeviceService.isAllowedToOpenContextMenu) return;
@@ -1071,8 +954,6 @@ export class GameTableComponent {
     this.effectTargetingService.confirm();
   }
 
-  protected readonly wallViews = computed<readonly WallView[]>(() => this.activeWalls().map((wall) => ({ wall })));
-
   private watchCurrentTable(): GameTable {
     const table = this.currentTable;
     this.objectChangeService.versionOf(table.identifier)();
@@ -1181,10 +1062,7 @@ export class GameTableComponent {
         y: -geo.offsetY + geo.pixelH / 2,
       };
     }
-    return {
-      x: this.gridCanvas().nativeElement.clientWidth / 2,
-      y: this.gridCanvas().nativeElement.clientHeight / 2,
-    };
+    return { x: (table.width * table.gridSize) / 2, y: (table.height * table.gridSize) / 2 };
   }
 
   /** Draws the grid from the table as it stands now. */
@@ -1228,8 +1106,6 @@ export class GameTableComponent {
     if (drawnFrom !== this._gridDrawnFrom) {
       this._gridDrawnFrom = drawnFrom;
       const canvas = this.gridCanvas().nativeElement;
-      this.gameTable().nativeElement.style.width = width * gridSize + 'px';
-      this.gameTable().nativeElement.style.height = height * gridSize + 'px';
       this.boardPx = { width: width * gridSize, height: height * gridSize };
       this.updateCameraLayout();
       canvas.style.width = scale === 1 ? '' : `${boardWidthPx}px`;

@@ -1,8 +1,10 @@
 import { TestBed } from '@angular/core/testing';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { orthographicScale } from '@axe/domain/tabletop/camera/table-camera';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -21,7 +23,10 @@ import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('GameTableGestureService', () => {
   let service: GameTableGestureService;
-  let gameTableEl: HTMLElement;
+  let rootEl: HTMLElement;
+
+  /** The view the table was last drawn with. */
+  const shown = () => TestBed.inject(TableCameraService).view;
 
   const callSetTransform = (rX: number, rY: number, rZ: number): void => {
     service.setTransform(0, 0, 0, rX, rY, rZ);
@@ -35,8 +40,8 @@ describe('GameTableGestureService', () => {
       providers: [...TEST_PROVIDERS, GameTableGestureService],
     });
     service = TestBed.inject(GameTableGestureService);
-    gameTableEl = document.createElement('div');
-    (service as unknown as { gameTableEl: HTMLElement }).gameTableEl = gameTableEl;
+    rootEl = document.createElement('div');
+    (service as unknown as { rootEl: HTMLElement }).rootEl = rootEl;
   });
 
   describe('tiltLocked', () => {
@@ -72,23 +77,22 @@ describe('GameTableGestureService', () => {
   });
 
   describe('orthographicProjection', () => {
-    it('keeps the perspective transform unchanged by default', async () => {
+    it('draws the table in perspective by default', async () => {
       service.viewPositionZ = -3000;
       callSetTransform(0, 0, 0);
       await nextFrame();
 
-      expect(gameTableEl.style.transform).not.toContain('scale(');
-      expect(gameTableEl.style.transform).toContain('translateZ(-3000.0000px)');
+      expect(shown()).toMatchObject({ positionZ: -3000, orthographic: false });
     });
 
-    it('replaces perspective zoom with an equivalent scale', async () => {
+    it('draws it without perspective once asked, the push back standing in as a scale', async () => {
       service.viewPositionZ = -3000;
       service.orthographicProjection = true;
       callSetTransform(0, 0, 0);
       await nextFrame();
 
-      expect(gameTableEl.style.transform).toContain('scale(0.500000)');
-      expect(gameTableEl.style.transform).toContain('translateZ(-3000.0000px)');
+      expect(shown()).toMatchObject({ positionZ: -3000, orthographic: true });
+      expect(orthographicScale(shown()!.positionZ)).toBe(0.5);
     });
   });
 
@@ -97,12 +101,12 @@ describe('GameTableGestureService', () => {
       callSetTransform(0, 0, 10);
       callSetTransform(0, 0, 10);
       callSetTransform(0, 0, 10);
-      expect(gameTableEl.style.transform).toBe('');
+      expect(shown()).toBeNull();
 
       await nextFrame();
 
       expect(service.viewRotateZ).toBe(40);
-      expect(gameTableEl.style.transform).toContain('rotateZ(40.0000deg)');
+      expect(shown()?.rotateZ).toBe(40);
     });
 
     it('tells the table which way it faces once for that run', async () => {
@@ -116,11 +120,11 @@ describe('GameTableGestureService', () => {
 
     it('writes where the camera stands to the table, in the frame the table moves in', async () => {
       service.setTransform(40, 0, 0, 0, 0, 0);
-      expect(gameTableEl.dataset['camera']).toBeUndefined();
+      expect(rootEl.dataset['camera']).toBeUndefined();
 
       await nextFrame();
 
-      expect(gameTableEl.dataset['camera']).toBe('140.0000,0.0000,0.0000,50.0000,0.0000,10.0000,0');
+      expect(rootEl.dataset['camera']).toBe('140.0000,0.0000,0.0000,50.0000,0.0000,10.0000,0');
     });
 
     it('says nothing about the way it faces when the view was only slid', async () => {
@@ -128,7 +132,7 @@ describe('GameTableGestureService', () => {
       service.setTransform(40, 0, 0, 0, 0, 0);
       await nextFrame();
 
-      expect(gameTableEl.style.transform).toContain('translateX(140.0000px)');
+      expect(shown()?.positionX).toBe(140);
       expect(rotation()).toBeNull();
     });
 
@@ -143,7 +147,7 @@ describe('GameTableGestureService', () => {
     it('lets go of the gestures it listens with when the table goes', () => {
       const root = document.createElement('div');
       document.body.appendChild(root);
-      service.initialize(root, gameTableEl, document.createElement('div'), () => true);
+      service.initialize(root, () => true);
       service.isTableTransformMode = true;
       expect(root.style.touchAction).toBe('none');
 
@@ -164,7 +168,7 @@ describe('GameTableGestureService', () => {
       service.destroy();
       await nextFrame();
 
-      expect(gameTableEl.style.transform).toBe('');
+      expect(shown()).toBeNull();
     });
   });
 
@@ -380,13 +384,13 @@ describe('GameTableGestureService', () => {
       service.snapToViewPositionZ(1155.0);
       await nextFrame();
 
-      expect(gameTableEl.style.transform).toContain('scale(1.626016)');
+      expect(orthographicScale(shown()!.positionZ)).toBeCloseTo(1.626016, 6);
     });
   });
 
   describe('pressing painted ground', () => {
     type Gestures = {
-      gameObjectsEl: HTMLElement;
+      rootEl: HTMLElement;
       getGridShow: () => boolean;
       onTableMouseStart(e: MouseEvent): void;
       onTableMouseEnd(e: MouseEvent): void;
@@ -398,7 +402,7 @@ describe('GameTableGestureService', () => {
     beforeEach(() => {
       gestures = service as unknown as Gestures;
       floor = document.createElement('div');
-      gestures.gameObjectsEl = floor;
+      gestures.rootEl = floor;
       gestures.getGridShow = () => false;
       vi.spyOn(TestBed.inject(TablePickService), 'landingAt').mockReturnValue({ x: 125, y: 75, z: 0 });
       press = vi.spyOn(TestBed.inject(SwitchPressService), 'pressGroundAt').mockResolvedValue('pressed');
