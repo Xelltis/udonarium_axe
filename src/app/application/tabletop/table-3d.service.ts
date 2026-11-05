@@ -11,6 +11,7 @@ import {
   untracked,
 } from '@angular/core';
 import { GameClockService } from '@axe/application/game-clock/game-clock.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AmbienceService } from '@axe/application/tabletop/ambience.service';
@@ -103,6 +104,7 @@ export class Table3dService {
   private readonly images = inject(ImageService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly vision = inject(VisionService);
+  private readonly rolePermission = inject(RolePermissionService);
   private readonly pieces = inject(TablePiecesService);
   private readonly floorCanvases = inject(FloorCanvasesService);
   private readonly tableVeil = inject(TableVeilService);
@@ -172,14 +174,21 @@ export class Table3dService {
     equal: (a, b) => a.size === b.size && [...a].every(([id, url]) => b.get(id) === url),
   });
 
+  /**
+   * The faces of the board and of the blocks this seat may see. A block nobody gave a picture to
+   * stops what it stops but is shown only to a seat that sees what is hidden, as glass.
+   */
   private readonly builtFaces = computed(() => {
     this.objectChange.fileVersion();
     this.objectChange.collectionOf(TableBackgroundLayer.aliasName)();
     this.objectChange.collectionOf(Terrain.aliasName)();
+    this.objectChange.trackMyCursor();
     const table = this.tabletop.currentTableVersion();
     const modelled = new Set(this.terrainModels().map((model) => model.owner));
+    const seesGlass = this.rolePermission.canSeeHidden();
     const terrains = this.tabletop.terrains.filter((terrain) => {
       this.objectChange.versionOf(terrain.identifier)();
+      if (!seesGlass && !terrain.hasFaceImage) return false;
       return !this.hiddenByFog(terrain) && !modelled.has(terrain.identifier);
     });
     return tableWorldOf(

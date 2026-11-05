@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { LightSlotsService } from '@axe/application/tabletop/light-slots.service';
@@ -682,7 +683,7 @@ describe('Table3dService', () => {
     const table = new GameTable();
     table.initialize();
     TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
-    const block = Terrain.create('箱', 1, 1, 2, '', '');
+    const block = Terrain.create('箱', 1, 1, 2, 'wall-picture', 'floor-picture');
     block.location = { name: 'table', x: 100, y: 150 };
     table.appendChild(block);
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -694,6 +695,31 @@ describe('Table3dService', () => {
     expect(walls.find((wall) => wall.id === side.id)?.gridUrl).toBe('data:image/png;base64,GRID');
     expect(walls.filter((wall) => wall.gridUrl)).toHaveLength(1);
     table.destroy();
+  });
+
+  it('shows a block nobody gave a picture to only to a seat that sees what is hidden, as glass', () => {
+    const scene = service();
+    const table = new GameTable();
+    table.initialize();
+    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    const blank = Terrain.create('見えない壁', 1, 1, 2, '', '');
+    table.appendChild(blank);
+    const sees = vi.spyOn(TestBed.inject(RolePermissionService), 'canSeeHidden').mockReturnValue(false);
+    const blankFaces = () => scene.world().walls.filter((wall) => wall.id.startsWith(blank.identifier));
+
+    try {
+      expect(blankFaces()).toEqual([]);
+
+      sees.mockReturnValue(true);
+      TestBed.inject(ObjectChangeService).notifyChanged(blank.identifier);
+
+      expect(blankFaces().length).toBeGreaterThan(0);
+      expect(blankFaces().every((wall) => wall.glass)).toBe(true);
+    } finally {
+      vi.restoreAllMocks();
+      blank.destroy();
+      table.destroy();
+    }
   });
 
   it('draws a block given a model held here as the model, in place of its faces', async () => {
