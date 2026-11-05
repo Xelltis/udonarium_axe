@@ -11,17 +11,11 @@ export type MovableLayerItem = {
   setPointerEvents(isEnable: boolean): void;
 };
 
-/** The CSS transform that places a piece at a position on its surface, followed by its own offset. */
-export function toTransformCss(posX: number, posY: number, posZ: number, transformCssOffset: string): string {
-  return 'translate3d(' + posX + 'px,' + posY + 'px,' + posZ + 'px) ' + transformCssOffset;
-}
-
 /**
- * Whether a piece's synced position differs from the one it is shown at.
- *
- * False for a missing object or one without a location, so there is nothing to animate.
+ * Whether a piece's synced position differs from the one it is shown at, as when a change elsewhere
+ * moved it. False for a missing object or one without a location.
  */
-export function shouldTransitionTo(
+export function movedElsewhere(
   object: TabletopObject | null | undefined,
   posX: number,
   posY: number,

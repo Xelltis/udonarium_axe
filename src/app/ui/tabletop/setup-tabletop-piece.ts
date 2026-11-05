@@ -14,19 +14,10 @@ export interface MovableSetup<T extends TabletopObject> {
   readonly snapOrigin?: (t: T) => { x: number; y: number } | undefined;
   /** Where the piece goes when snapped from a place, ahead of the table's own snap; see {@link MovableOption}. */
   readonly snapToSquare?: (t: T, at: { x: number; y: number }) => { x: number; y: number } | null;
-  readonly transformCssOffset?: string;
   readonly layerName?: string;
-  /**
-   * Whether the piece's element is put where it is drawn by something else, as the screen over a
-   * canvas puts it, which it is where this is not given; see {@link MovableOption}.
-   */
-  readonly placedElsewhere?: Signal<boolean>;
-  /** How much of its face the piece covers while it is placed elsewhere; see {@link MovableOption}. */
+  /** How much of its face the piece covers; see {@link MovableOption}. */
   readonly footprint?: (t: T) => PieceFootprint;
-  /**
-   * Where a piece put by something else turns about, for one that does not turn about its middle;
-   * see {@link RotableOption}.
-   */
+  /** Where the piece turns about, for one that does not turn about its middle; see {@link RotableOption}. */
   readonly turnsAbout?: (t: T) => TurnAbout | null;
 }
 
@@ -39,13 +30,11 @@ function applyMovableOption<T extends TabletopObject>(
   const snapOrigin = opts.snapOrigin?.(piece);
   signal.set({
     tabletopObject: piece,
-    transformCssOffset: opts.transformCssOffset,
     colideLayers: opts.collideLayers ? [...opts.collideLayers] : undefined,
     snapStyle,
     snapOrigin,
     snapToSquare: opts.snapToSquare ? (at) => opts.snapToSquare!(piece, at) : undefined,
     layerName: opts.layerName,
-    placedElsewhere: opts.placedElsewhere?.() ?? true,
     footprint: opts.footprint ? () => opts.footprint!(piece) : undefined,
   });
 }
@@ -87,10 +76,7 @@ export function setupMovableRotableForPiece<T extends RotableTabletopObject>(
     applyMovableOption(ctx.movableOption, piece, opts);
     ctx.rotableOption.set({
       tabletopObject: piece,
-      turnsAbout:
-        (opts.placedElsewhere?.() ?? true)
-          ? () => (opts.turnsAbout ? opts.turnsAbout(piece) : pieces.turnAboutOf(piece))
-          : undefined,
+      turnsAbout: () => (opts.turnsAbout ? opts.turnsAbout(piece) : pieces.turnAboutOf(piece)),
     });
   });
 }

@@ -42,7 +42,6 @@ describe('movable interaction', () => {
       ondragend: { emit },
       onend: { emit },
       setPointerEvents: () => undefined,
-      setAnimatedTransition: () => undefined,
       setCollidableLayer: () => undefined,
       cancel: () => undefined,
       cancelTableGesture: () => undefined,

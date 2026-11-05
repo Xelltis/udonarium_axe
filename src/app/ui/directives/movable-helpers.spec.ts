@@ -6,21 +6,14 @@ import {
   MovableLayerItem,
   resolveMovableLocalCoordinate,
   setLayerCollidable,
-  shouldTransitionTo,
-  toTransformCss,
+  movedElsewhere,
 } from '@axe/ui/directives/movable-helpers';
 
 describe('movable-helpers', () => {
-  describe('toTransformCss', () => {
-    it('returns a translate3d string', () => {
-      expect(toTransformCss(1, 2, 3, 'scale(2)')).toBe('translate3d(1px,2px,3px) scale(2)');
-    });
-  });
-
-  describe('shouldTransitionTo', () => {
+  describe('movedElsewhere', () => {
     it('is false without an object or a location', () => {
-      expect(shouldTransitionTo(null, 0, 0, 0)).toBe(false);
-      expect(shouldTransitionTo({} as TabletopObject, 0, 0, 0)).toBe(false);
+      expect(movedElsewhere(null, 0, 0, 0)).toBe(false);
+      expect(movedElsewhere({} as TabletopObject, 0, 0, 0)).toBe(false);
     });
 
     it('is true when the positions differ', () => {
@@ -28,7 +21,7 @@ describe('movable-helpers', () => {
         location: { x: 1, y: 2 },
         posZ: 3,
       } as TabletopObject;
-      expect(shouldTransitionTo(object, 0, 0, 0)).toBe(true);
+      expect(movedElsewhere(object, 0, 0, 0)).toBe(true);
     });
 
     it('is false when the positions match', () => {
@@ -36,7 +29,7 @@ describe('movable-helpers', () => {
         location: { x: 1, y: 2 },
         posZ: 3,
       } as TabletopObject;
-      expect(shouldTransitionTo(object, 1, 2, 3)).toBe(false);
+      expect(movedElsewhere(object, 1, 2, 3)).toBe(false);
     });
   });
 

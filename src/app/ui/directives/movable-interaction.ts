@@ -38,7 +38,6 @@ export interface MovableInteractionContext {
   ondragend: { emit(e: PointerEvent): void };
   onend: { emit(e: PointerEvent): void };
   setPointerEvents(isEnable: boolean): void;
-  setAnimatedTransition(isEnable: boolean): void;
   setCollidableLayer(isCollidable: boolean): void;
   cancel(): void;
   cancelTableGesture(): void;
@@ -83,7 +82,6 @@ export function handleInputStart(context: MovableInteractionContext, e: MouseEve
   context.onstart.emit(e as PointerEvent);
 
   context.setPointerEvents(false);
-  context.setAnimatedTransition(false);
   context.setCollidableLayer(true);
 
   const footprint = context.footprintNow();

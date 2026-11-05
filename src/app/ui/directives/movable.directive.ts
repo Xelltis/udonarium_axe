@@ -33,7 +33,6 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { isTableWall } from '@axe/domain/tabletop/table-walls';
 import {
   boardSurfaceOf,
-  isOffTheFloor,
   surfaceKeyOf,
   surfaceOf,
   TableSurface,
@@ -48,8 +47,7 @@ import {
   MovableLayerItem,
   registerLayer,
   setLayerCollidable,
-  shouldTransitionTo,
-  toTransformCss,
+  movedElsewhere,
   unregisterLayer,
   wheelSpin,
 } from '@axe/ui/directives/movable-helpers';
@@ -64,7 +62,6 @@ import {
   takePress,
 } from '@axe/ui/directives/movable-interaction';
 
-const WALL_OCCLUSION_INSET_PX = 2;
 /** How far short of a sheer face a piece is put down, so whole pixels keep it on the outside. */
 const BLOCK_GAP_PX = 1;
 const GRID_PX = 50;
@@ -73,7 +70,6 @@ export interface MovableOption {
   readonly tabletopObject?: TabletopObject;
   readonly layerName?: string;
   readonly colideLayers?: string[];
-  readonly transformCssOffset?: string;
   readonly snapOrigin?: { x: number; y: number };
   readonly snapStyle?: GridSnapStyle;
   /**
@@ -82,15 +78,9 @@ export interface MovableOption {
    */
   readonly snapToSquare?: (at: { x: number; y: number }) => { x: number; y: number } | null;
   /**
-   * Whether something else puts the piece's element where the piece is drawn, as the screen over a
-   * table drawn on a canvas puts its pieces; the directive then only marks where the piece stands,
-   * and on which face, as no face of the page holds it.
-   */
-  readonly placedElsewhere?: boolean;
-  /**
-   * How much of its face a piece placed elsewhere covers, in the face's own pixels, as its element
-   * covers it on the page's own table. Its element is then a box of the screen, whose size is the
-   * size it is drawn at rather than the size it is. Read each time the piece is pressed.
+   * How much of its face the piece covers, in the face's own pixels. Its element is a box of the
+   * screen over the table's canvas, whose size is the size it is drawn at rather than the size it
+   * is. Read each time the piece is pressed.
    */
   readonly footprint?: () => PieceFootprint;
 }
@@ -137,8 +127,6 @@ export class MovableDirective implements MovableInteractionContext {
   private tabletopObject!: TabletopObject;
   layerName: string = '';
   private colideLayers: string[] = [];
-  private transformCssOffset: string = '';
-  private placedElsewhere = false;
   private footprint: (() => PieceFootprint) | undefined = undefined;
   private snapOrigin: { x: number; y: number } | undefined;
   private snapStyle: GridSnapStyle | undefined;
@@ -227,8 +215,6 @@ export class MovableDirective implements MovableInteractionContext {
       if (opt.tabletopObject != null) this.tabletopObject = opt.tabletopObject;
       if (opt.layerName != null) this.layerName = opt.layerName;
       if (opt.colideLayers != null) this.colideLayers = opt.colideLayers;
-      if (opt.transformCssOffset != null) this.transformCssOffset = opt.transformCssOffset;
-      this.placedElsewhere = opt.placedElsewhere ?? false;
       this.footprint = opt.footprint;
       this.snapOrigin = opt.snapOrigin;
       this.snapStyle = opt.snapStyle;
@@ -326,15 +312,10 @@ export class MovableDirective implements MovableInteractionContext {
     if (!this.tabletopObject) return;
     if (!this.input) return;
     if (event.isSendFromSelf && this.input.isGrabbing) return;
-    if (!this.shouldTransition(this.tabletopObject)) return;
+    if (!movedElsewhere(this.tabletopObject, this.posX, this.posY, this.posZ)) return;
     this.batchService.add(() => {
       if (event.isSendFromSelf && this.input?.isGrabbing) return;
-      if (this.input!.isGrabbing) {
-        this.cancel();
-      } else {
-        this.setAnimatedTransition(true);
-      }
-      this.stopTransition();
+      if (this.input!.isGrabbing) this.cancel();
       this.setPosition(this.tabletopObject);
     }, this);
   }
@@ -348,7 +329,7 @@ export class MovableDirective implements MovableInteractionContext {
     if (this.registeredOverlapId && this.registeredOverlapId !== obj.identifier) {
       this.tabletopOverlap.unregister(this.registeredOverlapId, this.nativeElement);
     }
-    this.tabletopOverlap.register(obj, this.nativeElement, this.placedElsewhere ? this.footprint : undefined);
+    this.tabletopOverlap.register(obj, this.nativeElement, this.footprint);
     this.registeredOverlapId = obj.identifier;
   }
 
@@ -618,7 +599,6 @@ export class MovableDirective implements MovableInteractionContext {
     if (this.input) this.input.cancel();
     this.promoteWhileMoving(false);
     this.setPointerEvents(true);
-    this.setAnimatedTransition(true);
     this.setCollidableLayer(false);
     this.clearContactProbe();
     if (this.updateTimer === null) this.releasePlacement();
@@ -733,9 +713,9 @@ export class MovableDirective implements MovableInteractionContext {
     return this.tabletopObject?.location ? surfaceKeyOf(this.tabletopObject) : 'floor';
   }
 
-  /** How much of its face the piece covers, where its element does not say; see {@link MovableOption}. */
+  /** How much of its face the piece covers; see {@link MovableOption}. */
   footprintNow(): PieceFootprint | null {
-    return this.placedElsewhere && this.footprint ? this.footprint() : null;
+    return this.footprint ? this.footprint() : null;
   }
 
   /**
@@ -759,8 +739,6 @@ export class MovableDirective implements MovableInteractionContext {
     };
   }
 
-  private dragPreviewElement: HTMLElement | null = null;
-  private dragPreviewSurface: string | null = null;
   private showsDropPreview = false;
 
   private updateDragPreview(targetSurface: string | null): void {
@@ -782,54 +760,12 @@ export class MovableDirective implements MovableInteractionContext {
     const y = Math.floor(placed.y);
     this.transient.showDropPreview({ surface: targetSurface, x, y, width: this.width, height: this.height });
     this.showsDropPreview = true;
-    if (!this.placedElsewhere) this.drawDropPreviewElement(targetSurface, x, y);
-  }
-
-  /** Draws the outline in the element of the face, while the table is drawn in the page. */
-  private drawDropPreviewElement(surface: string, x: number, y: number): void {
-    if (this.dragPreviewSurface !== surface) {
-      this.removeDropPreviewElement();
-      const faceElement = this.coordinateService.faceElement(surface);
-      if (!faceElement) return;
-      this.dragPreviewSurface = surface;
-      this.dragPreviewElement = this.createDragPreviewElement();
-      faceElement.appendChild(this.dragPreviewElement);
-    }
-    this.dragPreviewElement!.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-  }
-
-  private createDragPreviewElement(): HTMLElement {
-    const el = document.createElement('div');
-    el.style.position = 'absolute';
-    el.style.left = '0';
-    el.style.top = '0';
-    el.style.width = `${this.width}px`;
-    el.style.height = `${this.height}px`;
-    el.style.pointerEvents = 'none';
-    el.style.boxSizing = 'border-box';
-    el.style.borderRadius = '12px';
-    el.style.outline = '3px dashed rgba(80, 200, 255, 0.95)';
-    el.style.outlineOffset = '-3px';
-    el.style.backgroundColor = 'rgba(80, 200, 255, 0.18)';
-    el.style.willChange = 'transform';
-    el.style.transformStyle = 'preserve-3d';
-    el.dataset.dragPreview = '';
-    return el;
   }
 
   private clearDragPreview(): void {
-    this.removeDropPreviewElement();
     if (!this.showsDropPreview) return;
     this.showsDropPreview = false;
     this.transient.showDropPreview(null);
-  }
-
-  private removeDropPreviewElement(): void {
-    if (this.dragPreviewElement) {
-      this.dragPreviewElement.remove();
-      this.dragPreviewElement = null;
-      this.dragPreviewSurface = null;
-    }
   }
 
   /**
@@ -869,7 +805,7 @@ export class MovableDirective implements MovableInteractionContext {
     this.tabletopObject.location.y = newY;
     this.tabletopObject.location.surface = targetSurface === 'floor' ? undefined : targetSurface;
     this.tabletopObject.posZ = 0;
-    this.updateTransformCss();
+    this.markLocation();
   }
 
   private restOnBeamUnderPointer(pointer: PointerCoordinate): boolean {
@@ -886,7 +822,7 @@ export class MovableDirective implements MovableInteractionContext {
     this.tabletopObject.location.y = rest.y;
     this.tabletopObject.location.surface = undefined;
     this.tabletopObject.posZ = rest.z;
-    this.updateTransformCss();
+    this.markLocation();
     return true;
   }
 
@@ -975,19 +911,13 @@ export class MovableDirective implements MovableInteractionContext {
     this.posY = snapped.y;
   }
 
-  private isOnWallSurface(): boolean {
-    const object = this.tabletopObject;
-    if (!object?.location) return false;
-    return isOffTheFloor(object);
-  }
-
   private setPosition(object: TabletopObject) {
     if (!object?.location) return;
     this._posX = this.mathFloor ? Math.floor(object.location.x) : object.location.x;
     this._posY = this.mathFloor ? Math.floor(object.location.y) : object.location.y;
     this._posZ = this.mathFloor ? Math.floor(object.posZ * 8) / 8 : object.posZ;
 
-    this.updateTransformCss();
+    this.markLocation();
   }
 
   /**
@@ -1022,7 +952,7 @@ export class MovableDirective implements MovableInteractionContext {
         z: this.posZ,
       });
     }
-    this.updateTransformCss();
+    this.markLocation();
     if (this.input?.isGrabbing && this._multiAdapter) {
       this.multiMovableService.applyLeaderDelta(this._multiAdapter);
     }
@@ -1046,32 +976,10 @@ export class MovableDirective implements MovableInteractionContext {
     applyPointerEvents(this.collidableElements, isEnable);
   }
 
-  /** Turns on the short glide used when the piece is moved from elsewhere; off while it is dragged. */
-  setAnimatedTransition(isEnable: boolean) {
-    if (this.placedElsewhere) return;
-    this.nativeElement.style.transition = isEnable ? 'transform 132ms linear' : '';
-  }
-
-  private shouldTransition(object: TabletopObject): boolean {
-    return shouldTransitionTo(object, this.posX, this.posY, this.posZ);
-  }
-
-  private stopTransition() {
-    if (this.placedElsewhere) return;
-    this.nativeElement.style.transform = window.getComputedStyle(this.nativeElement).transform;
-  }
-
-  private updateTransformCss() {
-    if (this.placedElsewhere) {
-      this.nativeElement.dataset['location'] = `${this.posX},${this.posY},${this.posZ}`;
-      this.nativeElement.dataset['onSurface'] = this.currentSurface();
-      return;
-    }
-    const onWall = this.isOnWallSurface();
-    const offset = onWall ? '' : this.transformCssOffset;
-    const posZ = onWall ? -this.posZ - WALL_OCCLUSION_INSET_PX : this.posZ;
-    this.nativeElement.style.transform = toTransformCss(this.posX, this.posY, posZ, offset);
+  /** Marks on the element where the piece stands, and on which face, for the tests and the tools that read it. */
+  private markLocation() {
     this.nativeElement.dataset['location'] = `${this.posX},${this.posY},${this.posZ}`;
+    this.nativeElement.dataset['onSurface'] = this.currentSurface();
   }
 
   /** Makes the other pieces hittable or not according to the layers this piece collides with. */

@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
@@ -90,8 +89,7 @@ describe('RotableDirective', () => {
       fixture.detectChanges();
       directive = fixture.debugElement.children[0].injector.get(RotableDirective);
       const writable = directive as unknown as Record<string, unknown>;
-      writable['tabletopObject'] = { identifier: 'piece', rotate: 0 };
-      vi.spyOn(directive as unknown as { shouldTransition(): boolean }, 'shouldTransition').mockReturnValue(true);
+      writable['tabletopObject'] = { identifier: 'piece', rotate: 30 };
       vi.spyOn(directive as unknown as { setRotate(): void }, 'setRotate').mockImplementation(() => {});
       cancelled = vi.spyOn(directive, 'cancel').mockImplementation(() => {}) as unknown as ReturnType<typeof vi.fn>;
       queued = [];
@@ -137,15 +135,17 @@ describe('RotableDirective', () => {
       directive = fixture.debugElement.children[0].injector.get(RotableDirective);
       element = fixture.nativeElement.querySelector('div') as HTMLElement;
       pointer = { x: 10, y: 0, z: 0 };
-      vi.spyOn(TestBed.inject(CoordinateService), 'convertLocalToLocal').mockImplementation(() => ({ ...pointer }));
       vi.spyOn(TestBed.inject(PointerDeviceService), 'isDragging', 'get').mockReturnValue(true);
       vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(true);
       const writable = directive as unknown as Record<string, unknown>;
       writable['grabbingElement'] = element;
+      writable['turnsOnScreenAbout'] = () => ({ x: 0, y: 0 });
       writable['input'] = {
         isGrabbing: true,
         isDragging: false,
-        pointer: { x: 0, y: 0, z: 0 },
+        get pointer() {
+          return pointer;
+        },
         cancel: vi.fn(),
         destroy: vi.fn(),
       };
@@ -172,6 +172,7 @@ describe('RotableDirective', () => {
         .spyOn(TestBed.inject(TableSurfaceService), 'pointOn')
         .mockImplementation((surface, x, y) => ({ localX: 100 + x, localY: 200 + y }) as never);
       const writable = directive as unknown as Record<string, unknown>;
+      writable['turnsOnScreenAbout'] = null;
       writable['turnsAbout'] = () => ({ surface: 'north-wall', x: 100, y: 200, height: 30 });
       writable['input'] = { ...(writable['input'] as object), pointer: { x: 0, y: 50, z: 0 } };
       const laidOut = element.style.transform;

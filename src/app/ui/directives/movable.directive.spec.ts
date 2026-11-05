@@ -93,18 +93,6 @@ describe('MovableDirective', () => {
 
       expect([directive.posX, directive.posY]).toEqual([50, 100]);
     });
-
-    it('does not transition without a tabletop object', () => {
-      fixture.detectChanges();
-      const directive = fixture.debugElement.children[0].injector.get(MovableDirective);
-      expect(directive['shouldTransition'](null as unknown as TabletopObject)).toBe(false);
-    });
-
-    it('does not transition for an object with no location', () => {
-      fixture.detectChanges();
-      const directive = fixture.debugElement.children[0].injector.get(MovableDirective);
-      expect(directive['shouldTransition']({} as unknown as TabletopObject)).toBe(false);
-    });
   });
 
   describe('a change to its piece while it is picked up', () => {
@@ -121,7 +109,7 @@ describe('MovableDirective', () => {
       fixture.detectChanges();
       directive = fixture.debugElement.children[0].injector.get(MovableDirective);
       (directive as unknown as { tabletopObject: TabletopObject }).tabletopObject = new GameCharacter('piece');
-      vi.spyOn(directive as unknown as { shouldTransition(): boolean }, 'shouldTransition').mockReturnValue(true);
+      directive.posX = 1;
       vi.spyOn(directive as unknown as { setPosition(): void }, 'setPosition').mockImplementation(() => {});
       cancelled = vi.spyOn(directive, 'cancel').mockImplementation(() => {}) as unknown as ReturnType<typeof vi.fn>;
       queued = [];
@@ -204,21 +192,15 @@ describe('MovableDirective', () => {
       directive.posX = x;
       directive.posY = y;
       directive.posZ = z;
-      directive['updateTransformCss']();
+      directive['markLocation']();
       return fixture.debugElement.children[0].nativeElement as HTMLElement;
     }
 
-    it('writes where it stands on its surface beside the transform it is drawn with', () => {
+    it('writes where it stands on its surface', () => {
       expect(drawnAt(undefined, 120, 80, 25).dataset['location']).toBe('120,80,25');
     });
 
-    it('writes its height off a wall as it is, though the wall draws it turned the other way', () => {
-      expect(drawnAt('north-wall', 50, 60, 10).dataset['location']).toBe('50,60,10');
-    });
-
-    it('leaves a piece put by something else where it is put, marking where and on which face it stands', () => {
-      const directive = fixture.debugElement.children[0].injector.get(MovableDirective);
-      directive['placedElsewhere'] = true;
+    it('leaves its element where the screen puts it, marking where and on which face it stands', () => {
       const element = drawnAt('north-wall', 50, 60, 10);
 
       expect(element.style.transform).toBe('');
@@ -325,7 +307,6 @@ describe('MovableDirective drop preview', () => {
     width: number;
     height: number;
     tableSurfaces: TableSurfaceService;
-    dragPreviewElement: HTMLElement | null;
     onInputMoveNow(e: MouseEvent): void;
     surfaceUnderPointer(): string | null;
     currentSurface(): string;
@@ -358,10 +339,7 @@ describe('MovableDirective drop preview', () => {
   }
 
   /** A wall a thousand pixels long and three hundred high, with the pointer at a point of it. */
-  function overWall(directive: Internals, localX: number, localY: number): HTMLElement {
-    const wall = document.createElement('div');
-    wall.setAttribute('data-surface', 'north-wall');
-    document.body.appendChild(wall);
+  function overWall(directive: Internals, localX: number, localY: number): void {
     vi.spyOn(directive.tableSurfaces, 'pointOn').mockReturnValue({
       t: 1,
       point: { x: localX, y: 0, z: localY },
@@ -369,12 +347,15 @@ describe('MovableDirective drop preview', () => {
       localY,
     });
     vi.spyOn(directive.tableSurfaces, 'sizeOf').mockReturnValue({ width: 1000, height: 300 });
-    return wall;
+  }
+
+  /** Where the drop preview is drawn now, as the canvas is told. */
+  function preview() {
+    return TestBed.inject(TransientPlacementService).dropPreview();
   }
 
   afterEach(() => {
     vi.restoreAllMocks();
-    document.querySelectorAll('[data-surface]').forEach((element) => element.remove());
   });
 
   it('looks for the face under the pointer once per move', () => {
@@ -405,12 +386,11 @@ describe('MovableDirective drop preview', () => {
     const directive = mount(true);
     directive.width = 40;
     directive.height = 60;
-    const wall = overWall(directive, 500, 100);
+    overWall(directive, 500, 100);
 
     directive.updateDragPreview('north-wall');
 
-    expect(directive.dragPreviewElement?.parentElement).toBe(wall);
-    expect(directive.dragPreviewElement?.style.transform).toBe('translate3d(480px, 70px, 0)');
+    expect(preview()).toEqual({ surface: 'north-wall', x: 480, y: 70, width: 40, height: 60 });
   });
 
   it('keeps it inside a face of the table, which nothing hangs over the edge of', () => {
@@ -422,7 +402,7 @@ describe('MovableDirective drop preview', () => {
 
     directive.updateDragPreview('north-wall');
 
-    expect(directive.dragPreviewElement?.style.transform).toBe('translate3d(960px, 0px, 0)');
+    expect(preview()).toMatchObject({ x: 960, y: 0 });
   });
 
   it('lets it hang over the edge of a face that allows it', () => {
@@ -434,7 +414,7 @@ describe('MovableDirective drop preview', () => {
 
     directive.updateDragPreview('north-wall');
 
-    expect(directive.dragPreviewElement?.style.transform).toBe('translate3d(975px, -25px, 0)');
+    expect(preview()).toMatchObject({ x: 975, y: -25 });
   });
 
   it('draws nothing where the pointer is off the face altogether', () => {
@@ -443,7 +423,7 @@ describe('MovableDirective drop preview', () => {
 
     directive.updateDragPreview('north-wall');
 
-    expect(directive.dragPreviewElement).toBeNull();
+    expect(preview()).toBeNull();
   });
 });
 
