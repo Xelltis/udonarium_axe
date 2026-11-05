@@ -11,11 +11,9 @@ import {
 } from '@axe/application/dice/dice-render.service';
 import { DiceThrow, DiceThrowService } from '@axe/application/dice/dice-throw.service';
 import { MyDiceService } from '@axe/application/dice/my-dice.service';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
-import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { DiceMaterial, PLAIN_DICE_LOOK } from '@axe/domain/dice/dice-3d/dice-look';
 import { Config } from '@axe/domain/peer/config';
 import type { PreparedThrow } from '@axe/infrastructure/dice-3d/dice-3d-engine';
@@ -162,10 +160,6 @@ describe('DiceRenderService', () => {
             fail: (id: string) => failed.push(id),
             played: (id: string, at: number) => played.push([id, at]),
           },
-        },
-        {
-          provide: CoordinateService,
-          useValue: { tabletopTransformVersion: signal(0), tabletopSceneMatrix: () => new Matrix3D() },
         },
         { provide: DICE_PICTURE_LOADER, useValue: (identifier: string) => readPicture(identifier) },
         {
@@ -603,18 +597,6 @@ describe('DiceRenderService', () => {
   });
 
   describe('on the table', () => {
-    /** The sheet over the table, as large as the screen of the test. */
-    function sheet(): HTMLCanvasElement {
-      const canvas = document.createElement('canvas');
-      canvas.getBoundingClientRect = () =>
-        ({ left: 0, top: 0, right: 800, bottom: 600, width: 800, height: 600, x: 0, y: 0 }) as DOMRect;
-      // The test's document draws nothing on a canvas; this one takes the strokes and keeps none.
-      const context = { clearRect: () => undefined, drawImage: () => undefined, globalAlpha: 1 };
-      canvas.getContext = (() => context) as unknown as HTMLCanvasElement['getContext'];
-      service.registerTable(canvas).resize(800, 600);
-      return canvas;
-    }
-
     function onTable(id: string, change: Partial<DiceThrow> = {}): DiceThrow {
       return throwOf(id, {
         stage: 'table',
@@ -630,7 +612,6 @@ describe('DiceRenderService', () => {
     it('hands a throw on a table drawn on a canvas to the table’s own scene, and draws nothing over the table for it', async () => {
       const scene = TestBed.inject(Table3dService);
       const shown = vi.spyOn(scene, 'showDice');
-      sheet();
       throws.set(new Map([['a', onTable('a', { startedAt: 0, phase: 'settled' })]]));
       await nextFrame(0);
       await nextFrame(100);
@@ -650,7 +631,6 @@ describe('DiceRenderService', () => {
 
     it('keeps the trays of one roll on the table together, fading them from when the last comes to rest', async () => {
       const shown = vi.spyOn(TestBed.inject(Table3dService), 'showDice');
-      sheet();
       const first = onTable('a', { messageIdentifier: 'roll', startedAt: 0, phase: 'settled' });
       throws.set(new Map([['a', first]]));
       await nextFrame(0);

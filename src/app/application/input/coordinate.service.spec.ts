@@ -17,15 +17,6 @@ describe('CoordinateService', () => {
     service = TestBed.inject(CoordinateService);
   });
 
-  it('counts each time the view is written out', () => {
-    const before = service.tabletopTransformVersion();
-
-    service.invalidateTabletopTransform();
-    service.invalidateTabletopTransform();
-
-    expect(service.tabletopTransformVersion()).toBe(before + 2);
-  });
-
   describe('points on the table’s floor', () => {
     const layout = { left: 8, top: 40, width: 1280, height: 760, boardWidth: 1000, boardHeight: 750 };
     const view = { ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: 30, positionZ: -500 };

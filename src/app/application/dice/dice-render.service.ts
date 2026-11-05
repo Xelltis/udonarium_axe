@@ -1,7 +1,6 @@
 import { DestroyRef, effect, inject, Injectable, InjectionToken, untracked } from '@angular/core';
 import { DiceThrow, DiceThrowService, throwKeyOf } from '@axe/application/dice/dice-throw.service';
 import { DICE_PICTURE_MAX_SIDE, MyDiceService } from '@axe/application/dice/my-dice.service';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
@@ -100,12 +99,6 @@ interface Stage {
   drawn: boolean;
 }
 
-interface TableStage {
-  readonly canvas: HTMLCanvasElement;
-  width: number;
-  height: number;
-}
-
 /**
  * Draws the dice of every throw on show.
  *
@@ -120,7 +113,6 @@ export class DiceRenderService {
   private readonly throws = inject(DiceThrowService);
   private readonly renderLite = inject(RenderLiteService);
   private readonly myDice = inject(MyDiceService);
-  private readonly coordinates = inject(CoordinateService);
   private readonly table3d = inject(Table3dService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
@@ -135,7 +127,8 @@ export class DiceRenderService {
    */
   private readonly unreadablePictures = new Set<string>();
   private readonly stages = new Set<Stage>();
-  private table: TableStage | null = null;
+  /** Whether the table's scene was last handed any dice, which it is to be told once they are gone. */
+  private sceneHoldsDice = false;
   private readonly prepared = new Map<
     string,
     { result: DiceThrow['result']; picture: string; prepared: PreparedThrow }
@@ -199,11 +192,6 @@ export class DiceRenderService {
       const throws = this.throws.throws();
       untracked(() => this.readPictures(throws));
     });
-    // So is the table's sheet when the table is turned or moved under it.
-    effect(() => {
-      this.coordinates.tabletopTransformVersion();
-      this.wake();
-    });
     inject(DestroyRef).onDestroy(() => {
       if (this.frame) cancelAnimationFrame(this.frame);
       this.engine?.dispose();
@@ -233,26 +221,13 @@ export class DiceRenderService {
     };
   }
 
-  /** Shows the throws on the table on a canvas laid over it, until the handle is released. */
-  registerTable(canvas: HTMLCanvasElement): DiceStageHandle {
-    const stage: TableStage = { canvas, width: 0, height: 0 };
-    this.table = stage;
-    this.wake();
-    return {
-      resize: (width, height) => {
-        stage.width = width;
-        stage.height = height;
-        this.wake();
-      },
-      release: () => {
-        if (this.table === stage) this.table = null;
-      },
-    };
-  }
-
-  /** Has the stages drawn again on the next frame, as when a throw on show has moved on. */
+  /**
+   * Has the stages and the table's scene drawn again on the next frame, as when a throw on show has
+   * moved on; nothing while no stage is on show and the table has no dice to show or to take away.
+   */
   wake(): void {
-    if (this.frame || this.broken || (this.stages.size < 1 && !this.table)) return;
+    if (this.frame || this.broken) return;
+    if (this.stages.size < 1 && !this.sceneHoldsDice && !onTableOf(this.throws.throws())) return;
     this.frame = requestAnimationFrame((now) => this.draw(now));
   }
 
@@ -280,14 +255,12 @@ export class DiceRenderService {
   private drawFrame(now: number): void {
     this.frame = 0;
     const throws = this.throws.throws();
-    const onTable = [...throws.values()].some((t) => t.stage === 'table' && t.result && t.phase !== 'failed');
     for (const id of this.draws.keys()) if (!throws.has(id)) this.draws.delete(id);
-    if (this.stages.size < 1 && !onTable) {
-      this.clearTable();
+    if (this.stages.size < 1 && !onTableOf(throws)) {
       this.table3d.showDice([]);
+      this.sceneHoldsDice = false;
       return;
     }
-    this.clearTable();
     let moving = this.showInScene(throws, now);
     if (this.stages.size < 1) {
       if (moving) this.wake();
@@ -355,6 +328,7 @@ export class DiceRenderService {
         };
       })
     );
+    this.sceneHoldsDice = showing.length > 0;
     return showing.length > 0;
   }
 
@@ -414,22 +388,6 @@ export class DiceRenderService {
     return from;
   }
 
-  /**
-   * Empties the table's sheet and sizes it to its stage, or with no pixel ratio shrinks it to
-   * nothing, so a sheet with no dice on it holds no picture the size of the screen.
-   */
-  private clearTable(pixelRatio = 0): CanvasRenderingContext2D | null {
-    const table = this.table;
-    if (!table) return null;
-    const width = pixelRatio > 0 ? Math.max(1, Math.round(table.width * pixelRatio)) : 1;
-    const height = pixelRatio > 0 ? Math.max(1, Math.round(table.height * pixelRatio)) : 1;
-    if (table.canvas.width !== width) table.canvas.width = width;
-    if (table.canvas.height !== height) table.canvas.height = height;
-    const context = table.canvas.getContext('2d');
-    context?.clearRect(0, 0, width, height);
-    return context;
-  }
-
   private warmUp(): void {
     if (this.engine || this.starting || this.broken) return;
     const idle = globalThis.requestIdleCallback;
@@ -456,7 +414,6 @@ export class DiceRenderService {
   /** Stops drawing for good, and has every throw on show put away. */
   private giveUp(): void {
     this.broken = true;
-    this.clearTable();
     this.failAll(this.throws.throws());
   }
 
@@ -595,4 +552,9 @@ function copy(source: HTMLCanvasElement, region: DrawnRegion, stage: Stage, pixe
   context.clearRect(0, 0, width, height);
   context.drawImage(source, region.x, region.y, region.width, region.height, 0, 0, width, height);
   stage.drawn = true;
+}
+
+/** Whether any throw is to be shown on the table, worked out and not given up. */
+function onTableOf(throws: ReadonlyMap<string, DiceThrow>): boolean {
+  return [...throws.values()].some((t) => t.stage === 'table' && t.result && t.phase !== 'failed');
 }

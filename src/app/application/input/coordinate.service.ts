@@ -1,4 +1,4 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
@@ -14,21 +14,6 @@ import { pageOfTablePoint, tablePointOfPage } from '@axe/domain/tabletop/camera/
 export class CoordinateService {
   private readonly tableCamera = inject(TableCameraService);
   private readonly tableSurfaces = inject(TableSurfaceService);
-
-  private readonly transformVersion = signal(0);
-
-  /**
-   * Goes up each time the view is written out.
-   *
-   * What is projected from the table onto the screen only moves when this does, or when the
-   * page moves under a table that stands still.
-   */
-  readonly tabletopTransformVersion = this.transformVersion.asReadonly();
-
-  /** Called when the view has been written out. */
-  invalidateTabletopTransform(): void {
-    this.transformVersion.update((version) => version + 1);
-  }
 
   /**
    * Converts a point on the page onto a face, named as a location names it (the floor, a wall or a

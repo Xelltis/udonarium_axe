@@ -15,6 +15,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { CardTargetService } from '@axe/application/card/card-target.service';
+import { DiceRenderService } from '@axe/application/dice/dice-render.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { StartRoomService } from '@axe/application/file/start-room.service';
@@ -109,7 +110,6 @@ import { SceneFadeOverlayComponent } from '@axe/features/tabletop/scene-fade-ove
 import { TableAltitudeGuideOverlayComponent } from '@axe/features/tabletop/table-altitude-guide-overlay/table-altitude-guide-overlay.component';
 import { TableAmbienceComponent } from '@axe/features/tabletop/table-ambience/table-ambience.component';
 import { TableBeamOverlayComponent } from '@axe/features/tabletop/table-beam-overlay/table-beam-overlay.component';
-import { TableDiceOverlayComponent } from '@axe/features/tabletop/table-dice-overlay/table-dice-overlay.component';
 import { TableForegroundOverlayComponent } from '@axe/features/tabletop/table-foreground-overlay/table-foreground-overlay.component';
 import { TableFreePathOverlayComponent } from '@axe/features/tabletop/table-free-path-overlay/table-free-path-overlay.component';
 import { TableMoveBlockOverlayComponent } from '@axe/features/tabletop/table-move-block-overlay/table-move-block-overlay.component';
@@ -206,7 +206,6 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
     TableForegroundOverlayComponent,
     ReloadNoticeDirective,
     SceneFadeOverlayComponent,
-    TableDiceOverlayComponent,
   ],
   host: {
     class: 'block',
@@ -245,6 +244,8 @@ export class GameTableComponent {
   );
   private readonly ambienceService = inject(TableAmbienceService);
   private readonly terrainBatch = inject(TerrainBatchService);
+  /** What hands the dice thrown on the table to its scene, which nothing else on the table asks for. */
+  private readonly diceRender = inject(DiceRenderService);
   private readonly terrainMenu = inject(TerrainMenuService);
   private readonly tabletopActionService = inject(TabletopActionService);
   private readonly startRoom = inject(StartRoomService);

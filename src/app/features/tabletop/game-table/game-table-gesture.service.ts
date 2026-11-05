@@ -222,7 +222,6 @@ export class GameTableGestureService {
     if (this.rootEl) this.rootEl.dataset['camera'] = tableCameraAttribute(view);
     this.tableCamera.showView(view);
 
-    this.coordinateService.invalidateTabletopTransform();
     // The backdrops follow a move of the view as well as a turn, so they are told every frame.
     this.backdropFrame.apply({
       rotateX: this.viewRotateX,

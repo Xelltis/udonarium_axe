@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CardTargetService } from '@axe/application/card/card-target.service';
+import { DiceRenderService } from '@axe/application/dice/dice-render.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
@@ -990,15 +990,15 @@ describe('GameTableComponent', () => {
     it('tells whatever reads the view about each step of the glide', () => {
       vi.useFakeTimers({ toFake: [...FRAME_TIMERS] });
       fixture.detectChanges();
-      const coordinates = TestBed.inject(CoordinateService);
+      const camera = TestBed.inject(TableCameraService);
       vi.advanceTimersByTime(50);
 
       TestBed.inject(SelectionSignalService).focusCoordinate.set({ x: 100, y: 100, timestamp: 3 });
       fixture.detectChanges();
       vi.advanceTimersByTime(50);
-      const atStart = coordinates.tabletopTransformVersion();
+      const atStart = camera.version();
       vi.advanceTimersByTime(16 * 4);
-      expect(coordinates.tabletopTransformVersion()).toBeGreaterThanOrEqual(atStart + 3);
+      expect(camera.version()).toBeGreaterThanOrEqual(atStart + 3);
       vi.useRealTimers();
     });
 
@@ -1014,5 +1014,28 @@ describe('GameTableComponent', () => {
       expect(vi.getTimerCount()).toBe(0);
       vi.useRealTimers();
     });
+  });
+});
+
+describe('GameTableComponent and the dice thrown on it', () => {
+  it('starts what draws the dice, which hands those thrown on the table to its scene', () => {
+    let started = 0;
+    TestBed.configureTestingModule({
+      imports: [GameTableComponent],
+      providers: [
+        ...TEST_PROVIDERS,
+        {
+          provide: DiceRenderService,
+          useFactory: () => {
+            started++;
+            return {};
+          },
+        },
+      ],
+    });
+
+    TestBed.createComponent(GameTableComponent);
+
+    expect(started).toBe(1);
   });
 });

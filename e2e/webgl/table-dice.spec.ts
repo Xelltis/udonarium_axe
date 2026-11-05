@@ -88,7 +88,6 @@ test.describe('chat dice thrown on a table drawn on a canvas', () => {
       .boundingBox())!;
     const around = { x: piece.x - 50, y: piece.y - 150, width: piece.width + 200, height: piece.height + 300 };
     const picture = () => page.screenshot({ clip: around });
-    const overlay = page.getByTestId('table-dice-overlay');
     const roll = async () => {
       await chatInput(page).fill('4d6');
       await page.locator('chat-input').getByRole('button', { name: '送信' }).click();
@@ -104,7 +103,6 @@ test.describe('chat dice thrown on a table drawn on a canvas', () => {
 
     await roll();
     await expect.poll(async () => differing(page, bare, await picture()), { timeout: 5000 }).toBeGreaterThan(20);
-    expect(await overlay.evaluate((canvas: HTMLCanvasElement) => canvas.width)).toBe(1);
     expect(await differing(page, bare, await gone())).toBeLessThan(5);
   });
 });
