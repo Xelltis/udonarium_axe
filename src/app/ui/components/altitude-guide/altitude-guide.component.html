@@ -1,0 +1,14 @@
+<div
+  data-testid="altitude-guide"
+  class="pointer-events-none w-0 border-l-2 border-dashed"
+  [style.border-left-color]="colour()"
+  [appHudPlace]="{ owner: owner(), at: guide().lifted, reach: guide().ground }"
+></div>
+<div class="pointer-events-none size-0" [appHudPlace]="{ owner: owner(), at: guide().lifted }">
+  <span
+    data-testid="altitude-guide-altitude"
+    class="absolute left-1 -translate-y-1/2 text-[11px] font-extrabold whitespace-nowrap [text-shadow:var(--ui-elevated)_0px_0px_3px]"
+    [style.color]="colour()"
+    >{{ guide().altitude }}</span
+  >
+</div>

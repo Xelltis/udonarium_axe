@@ -6,10 +6,11 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
-import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { GameTable } from '@axe/domain/tabletop/game-table';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { TextNoteComponent } from '@axe/features/tabletop/text-note/text-note.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -78,15 +79,73 @@ describe('TextNoteComponent', () => {
     note.destroy();
   });
 
-  describe('viewRotateZ computed signal', () => {
-    it('starts at ten', () => {
-      expect(component.viewRotateZ()).toBe(10);
+  describe('the guide to how high it floats', () => {
+    let note: TextNote;
+
+    let table: GameTable;
+
+    beforeEach(() => {
+      table = new GameTable();
+      table.width = 20;
+      table.height = 20;
+      table.initialize();
+      TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+      note = TextNote.create('浮くメモ', '本文', 5, 4, 3);
+      note.location = { name: 'table', x: 120, y: 80 };
+      note.posZ = 10;
+      note.isAltitudeIndicate = true;
+      fixture.componentRef.setInput('textNote', note);
     });
 
-    it('turns with the table view', () => {
-      const uiSignalService = TestBed.inject(UiSignalService);
-      uiSignalService.notifyTableViewRotation(50, 20, 60);
-      expect(component.viewRotateZ()).toBe(60);
+    afterEach(() => {
+      note.destroy();
+      table.destroy();
+    });
+
+    type Guide = {
+      lifted: { surface: string; x: number; y: number; height: number };
+      ground: { surface: string; x: number; y: number; height: number };
+      altitude: number;
+    } | null;
+    const guide = () => (component as unknown as { altitudeGuide(): Guide }).altitudeGuide();
+    const drawn = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="altitude-guide"]');
+
+    it('runs from the point the note hangs from down to the face, and says how high', async () => {
+      note.altitude = 2;
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const grid = component.gridSize;
+      expect(guide()).toEqual({
+        lifted: { surface: 'floor', x: 120, y: 80, height: 10 + 2 * grid },
+        ground: { surface: 'floor', x: 120, y: 80, height: 10 },
+        altitude: 2,
+      });
+      expect(drawn()).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('[data-testid="altitude-guide-altitude"]').textContent.trim()).toBe(
+        '2'
+      );
+    });
+
+    it('runs down to the top of a standing note sunk under the face', () => {
+      note.isUpright = true;
+      note.altitude = -4;
+
+      expect(guide()?.lifted.height).toBe(10 - component.gridSize);
+      expect(guide()?.altitude).toBe(1);
+    });
+
+    it('is left out within half a cell of the face, or where the note is set not to show it', async () => {
+      note.altitude = 0.4;
+      expect(guide()).toBeNull();
+
+      note.altitude = 2;
+      note.isAltitudeIndicate = false;
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(guide()).toBeNull();
+      expect(drawn()).toBeNull();
     });
   });
 

@@ -49,148 +49,59 @@
     ></div>
   }
 </ng-template>
-@if (drawsOnCanvas()) {
-  <!--
-    Over a table drawn on a canvas, the note is a box on the screen round where the canvas draws it,
-    and its panel is laid on the note in perspective: clear, as the canvas draws a picture of it,
-    until it is written in.
-  -->
-  @let id = textNote().identifier;
+<!--
+  The note is a box on the screen round where the table's canvas draws it, and its panel is laid on
+  the note in perspective: clear, as the canvas draws a picture of it, until it is written in.
+-->
+@let id = textNote().identifier;
+<div
+  class="group pointer-events-auto size-full cursor-default select-none [-moz-user-drag:none] [-webkit-user-drag:none]"
+  data-hud-box
+  appMovable
+  [movable.option]="movableOption()"
+  [movable.disable]="isSelected || isLock"
+  (movable.ondragstart)="onMove()"
+  (movable.ondragend)="onMoved()"
+>
   <div
-    class="group pointer-events-auto size-full cursor-default select-none [-moz-user-drag:none] [-webkit-user-drag:none]"
-    data-hud-box
-    appMovable
-    [movable.option]="movableOption()"
-    [movable.disable]="isSelected || isLock"
-    (movable.ondragstart)="onMove()"
-    (movable.ondragend)="onMoved()"
+    class="size-full"
+    appRotable
+    [rotable.option]="rotableOption()"
+    [rotable.disable]="tabletopService.mode2d() && isUpright"
+    (rotable.ondragstart)="onMove()"
+    (rotable.ondragend)="onMoved()"
   >
-    <div
-      class="size-full"
-      appRotable
-      [rotable.option]="rotableOption()"
-      [rotable.disable]="tabletopService.mode2d() && isUpright"
-      (rotable.ondragstart)="onMove()"
-      (rotable.ondragend)="onMoved()"
-    >
-      <div class="size-full" [appSelectable]="textNote()">
-        <div
-          class="bg-ui-panel border-ui-border-panel text-ui-text rounded-b-ui-sm shadow-ui-md box-border flex flex-col overflow-hidden border border-solid bg-size-[100%_100%] bg-no-repeat"
-          #panel
-          data-part="panel"
-          [class.opacity-0]="!isEditing()"
-          [appHudPlace]="{ owner: id, part: 'panel', place: 'face' }"
-          [style.background-image]="'url(' + imageFile().url + ')' | safe: 'style'"
-          [style.width.px]="width * gridSize"
-          [style.min-height.px]="height * gridSize"
-          [style.max-height.px]="limitHeight() ? height * gridSize : null"
-        >
-          <ng-container [ngTemplateOutlet]="panelContent"></ng-container>
-        </div>
-        @if (!isLock) {
-          <div class="pointer-events-none" [appHudPlace]="{ owner: id, part: 'panel' }">
-            <div
-              class="rotate-grab bg-ui-elevated text-ui-muted pointer-events-auto absolute -top-3.5 -left-5.25 z-1 box-border h-7 w-10.5 cursor-default rounded-[28px] p-0.5 text-center text-[8px] opacity-0 group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100! [&_.material-icons]:hidden group-hover:[&_.material-icons]:inline group-active:[&_.material-icons]:inline pointer-coarse:[&_.material-icons]:inline"
-            >
-              <i class="material-icons">autorenew</i>
-            </div>
-            <div
-              class="rotate-grab bg-ui-elevated text-ui-muted pointer-events-auto absolute -top-3.5 -right-5.25 z-1 box-border h-7 w-10.5 cursor-default rounded-[28px] p-0.5 text-center text-[8px] opacity-0 group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100! [&_.material-icons]:hidden group-hover:[&_.material-icons]:inline group-active:[&_.material-icons]:inline pointer-coarse:[&_.material-icons]:inline"
-            >
-              <i class="material-icons">autorenew</i>
-            </div>
-          </div>
-        }
-      </div>
-    </div>
-  </div>
-} @else {
-  <div
-    class="group pointer-events-none absolute h-0 w-px cursor-default select-none [-moz-user-drag:none] [-webkit-transform-style:preserve-3d] [-webkit-user-drag:none] backface-hidden transform-3d"
-    appMovable
-    [movable.option]="movableOption()"
-    [movable.disable]="isSelected || isLock"
-    (movable.ondragstart)="onMove()"
-    (movable.ondragend)="onMoved()"
-  >
-    <div
-      class="[-webkit-transform-style:preserve-3d] transform-3d"
-      appRotable
-      [rotable.option]="rotableOption()"
-      [rotable.disable]="tabletopService.mode2d() && isUpright"
-      (rotable.ondragstart)="onMove()"
-      (rotable.ondragend)="onMoved()"
-    >
+    <div class="size-full" [appSelectable]="textNote()">
       <div
-        class="pointer-events-auto size-full transform-[translateX(-50%)] [-webkit-transform-style:preserve-3d] transform-3d"
+        class="bg-ui-panel border-ui-border-panel text-ui-text rounded-b-ui-sm shadow-ui-md box-border flex flex-col overflow-hidden border border-solid bg-size-[100%_100%] bg-no-repeat"
+        #panel
+        data-part="panel"
+        [class.opacity-0]="!isEditing()"
+        [appHudPlace]="{ owner: id, part: 'panel', place: 'face' }"
+        [style.background-image]="'url(' + imageFile().url + ')' | safe: 'style'"
         [style.width.px]="width * gridSize"
-        [appSelectable]="textNote()"
+        [style.min-height.px]="height * gridSize"
+        [style.max-height.px]="limitHeight() ? height * gridSize : null"
       >
-        <div
-          class="[-webkit-transform-style:preserve-3d] transform-3d"
-          [class.[transition:transform_132ms_linear]]="transition"
-          [class.[transition:transform_132ms_cubic-bezier(0.21,0.97,0.75,1.25)]]="fall"
-          [ngStyle]="{
-            transform:
-              'translateZ(' +
-              altitude * gridSize +
-              'px) rotateY(90deg) rotateZ(' +
-              (isUpright ? 0 : 90) +
-              'deg) rotateY(-90deg)',
-          }"
-        >
+        <ng-container [ngTemplateOutlet]="panelContent"></ng-container>
+      </div>
+      @if (!isLock) {
+        <div class="pointer-events-none" [appHudPlace]="{ owner: id, part: 'panel' }">
           <div
-            class="bg-ui-panel border-ui-border-panel text-ui-text rounded-b-ui-sm shadow-ui-md transform-style-flat absolute inset-x-0 bottom-0 box-border flex origin-[50%_100%] transform-[rotateX(-90deg)] flex-col overflow-hidden border border-solid bg-size-[100%_100%] bg-no-repeat [-webkit-transform-style:preserve-3d] transform-3d"
-            #panel
-            [class.opacity-0]="drawsOnCanvas() && !isEditing()"
-            [style.background-image]="'url(' + imageFile().url + ')' | safe: 'style'"
-            [style.width.px]="width * gridSize"
-            [style.min-height.px]="height * gridSize"
-            [style.max-height.px]="limitHeight() ? height * gridSize : null"
+            class="rotate-grab bg-ui-elevated text-ui-muted pointer-events-auto absolute -top-3.5 -left-5.25 z-1 box-border h-7 w-10.5 cursor-default rounded-[28px] p-0.5 text-center text-[8px] opacity-0 group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100! [&_.material-icons]:hidden group-hover:[&_.material-icons]:inline group-active:[&_.material-icons]:inline pointer-coarse:[&_.material-icons]:inline"
           >
-            <ng-container [ngTemplateOutlet]="panelContent"></ng-container>
+            <i class="material-icons">autorenew</i>
+          </div>
+          <div
+            class="rotate-grab bg-ui-elevated text-ui-muted pointer-events-auto absolute -top-3.5 -right-5.25 z-1 box-border h-7 w-10.5 cursor-default rounded-[28px] p-0.5 text-center text-[8px] opacity-0 group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100! [&_.material-icons]:hidden group-hover:[&_.material-icons]:inline group-active:[&_.material-icons]:inline pointer-coarse:[&_.material-icons]:inline"
+          >
+            <i class="material-icons">autorenew</i>
           </div>
         </div>
-        @if (!isLock) {
-          <div [ngStyle]="{ transform: 'translateZ(' + altitude * gridSize + 'px)' }">
-            <div
-              class="rotate-grab bg-ui-elevated text-ui-muted absolute -top-3.5 -left-5.25 z-1 box-border h-7 w-10.5 cursor-default rounded-[28px] p-0.5 text-center text-[8px] opacity-0 group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100! [&_.material-icons]:hidden group-hover:[&_.material-icons]:inline group-active:[&_.material-icons]:inline pointer-coarse:[&_.material-icons]:inline"
-            >
-              <i class="material-icons">autorenew</i>
-            </div>
-            <div
-              class="rotate-grab bg-ui-elevated text-ui-muted absolute -top-3.5 -right-5.25 z-1 box-border h-7 w-10.5 cursor-default rounded-[28px] p-0.5 text-center text-[8px] opacity-0 group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100! [&_.material-icons]:hidden group-hover:[&_.material-icons]:inline group-active:[&_.material-icons]:inline pointer-coarse:[&_.material-icons]:inline"
-            >
-              <i class="material-icons">autorenew</i>
-            </div>
-          </div>
-        }
-      </div>
+      }
     </div>
-    @if (isAltitudeIndicate && math.abs(textNoteAltitude) >= 0.5) {
-      <div
-        class="flex origin-[top_left] items-center [-webkit-transform-style:preserve-3d] [border-left:2px_dashed_blanchedalmond] transform-3d"
-        [style.height.px]="math.abs(textNoteAltitude * gridSize)"
-        [ngStyle]="{
-          transform:
-            'rotateX(-90deg) translateY(' +
-            (altitude > 0 ? -altitude * gridSize : 0) +
-            'px) rotateY(' +
-            viewRotateZ() +
-            'deg)',
-        }"
-      >
-        <div class="[-webkit-transform-style:preserve-3d] transform-3d">
-          <span
-            class="absolute pl-0.5 text-[11px] font-extrabold text-[blanchedalmond] [-webkit-transform-style:preserve-3d] [text-shadow:var(--ui-elevated)_0px_0px_3px] backface-hidden transform-3d"
-            >{{ math.abs(textNoteAltitude) }}</span
-          >
-          <span
-            class="absolute transform-[rotateY(-180deg)] pl-0.5 text-[11px] font-extrabold text-[blanchedalmond] [-webkit-transform-style:preserve-3d] [text-shadow:var(--ui-elevated)_0px_0px_3px] backface-hidden transform-3d"
-            >{{ textNoteAltitude }}</span
-          >
-        </div>
-      </div>
-    }
   </div>
-}
+  @if (altitudeGuide(); as guide) {
+    <altitude-guide [owner]="id" [guide]="guide" />
+  }
+</div>

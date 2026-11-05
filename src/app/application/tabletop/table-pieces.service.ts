@@ -583,6 +583,16 @@ export class TablePiecesService {
   }
 
   /**
+   * Where a piece drawn on the table stands: the point of the face it is drawn on that its place
+   * is at, in the face's own pixels, and how far off the face that is, lifted onto the ground under
+   * it on the floor. Null for a piece on no face the table draws.
+   */
+  footOf(piece: TabletopObject): { surface: string; x: number; y: number; height: number } | null {
+    const place = this.placeOf(piece);
+    return place ? { surface: this.surfaceOf(piece), x: place.x, y: place.y, height: place.z } : null;
+  }
+
+  /**
    * Where a piece drawn on the table turns about: the middle of the first of its sprites lying on
    * its face, on the face it is drawn on, in the face's own pixels, and how far off the face that
    * lies. Null for a piece not drawn, or drawn with nothing lying on its face.

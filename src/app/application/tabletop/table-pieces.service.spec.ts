@@ -94,6 +94,17 @@ describe('TablePiecesService', () => {
     expect(frame.centre.z).toBeCloseTo(1 + gridSize + ground.lowestPxIn(100, 200, gridSize, gridSize), 6);
   });
 
+  it('stands a piece on the floor where its place is, lifted onto the ground under it, and one on a board on the board', () => {
+    const ground = TestBed.inject(GroundService);
+    ground.dab({ kind: 'raise', x: 2.5, y: 4.5, radius: 3, strength: 1 });
+    const die = dieAt(100, 200);
+    die.posZ = 7;
+
+    expect(pieces.footOf(die)).toEqual({ surface: 'floor', x: 100, y: 200, height: 7 + gridSize });
+    TestBed.inject(TransientPlacementService).place(die.identifier, { surface: 'floor', x: 600, y: 700, z: 0 });
+    expect(pieces.footOf(die)).toEqual({ surface: 'floor', x: 600, y: 700, height: 0 });
+  });
+
   it('draws a die this seat is moving where it is being moved to', () => {
     const die = dieAt(100, 200);
     pieces.sprites();
