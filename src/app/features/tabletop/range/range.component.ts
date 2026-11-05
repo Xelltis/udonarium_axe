@@ -1,4 +1,3 @@
-import { NgStyle } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -17,7 +16,6 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
-import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -27,7 +25,6 @@ import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
-import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_RANGE_RENDER, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -51,6 +48,7 @@ import {
   rangeClipPathCss,
   rangeQuadrantCells,
 } from '@axe/infrastructure/tabletop/range/range-paint';
+import { AltitudeGuideComponent, altitudeGuideOf } from '@axe/ui/components/altitude-guide/altitude-guide.component';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { RotableOption } from '@axe/ui/directives/rotable.directive';
@@ -60,13 +58,19 @@ import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
-import { translateZCss, Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
 
 @Component({
   selector: 'range',
   templateUrl: './range.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [HudPlaceDirective, MovableDirective, TooltipDirective, RotableDirective, SelectableDirective, NgStyle],
+  imports: [
+    AltitudeGuideComponent,
+    HudPlaceDirective,
+    MovableDirective,
+    TooltipDirective,
+    RotableDirective,
+    SelectableDirective,
+  ],
   host: {
     '[attr.data-object-id]': 'range().identifier',
     '(dragstart)': 'onDragstart($event)',
@@ -85,7 +89,6 @@ export class RangeComponent {
   protected readonly tabletopService = inject(TabletopService);
   private readonly objectStore = inject(ObjectStore);
   private readonly inventoryService = inject(GameObjectInventoryService);
-  private readonly uiSignalService = inject(UiSignalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly translateFn = inject(TRANSLATE_FN);
@@ -99,11 +102,6 @@ export class RangeComponent {
   readonly rangeCanvas = viewChild<ElementRef<HTMLCanvasElement>>('rangeCanvas');
   private readonly cells = viewChild<ElementRef<HTMLElement>>('cells');
 
-  /**
-   * Whether the range is drawn on the table's canvas from a picture of its cells taken here, which
-   * leaves them clear here, still taking the presses where the canvas draws them.
-   */
-  readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
   private readonly pieces = inject(TablePiecesService);
 
   readonly clipPath = computed<string>(() => {
@@ -210,21 +208,18 @@ export class RangeComponent {
     return this.range().altitude;
   });
 
-  readonly isFollowed = computed(() => {
-    this.rangeVersion();
-    return this.objectStore.get(this.range().followingCharacterIdentifier) != null;
-  });
-  readonly followingCharacter = computed(() => {
-    this.rangeVersion();
-    const obj = this.objectStore.get(this.range().followingCharacterIdentifier);
-    return obj instanceof GameCharacter ? obj : null;
-  });
-  readonly elevation = this.altitude;
-  readonly textShadowCss = '0px 0px 2px #fff, 0px 0px 2px #fff, 0px 0px 2px #fff';
-
   readonly isAltitudeIndicate = computed(() => {
     this.rangeVersion();
     return this.range().isAltitudeIndicate;
+  });
+
+  /**
+   * The guide from the height the range floats at down to the face under its point, or up to one
+   * sunk under it. Nothing for a range within half a cell of the face, or one set not to show it.
+   */
+  protected readonly altitudeGuide = computed(() => {
+    if (!this.isAltitudeIndicate()) return null;
+    return altitudeGuideOf(this.pieces.footOf(this.range()), this.altitude(), this.gridSize);
   });
 
   private readonly _clipVersion = signal(0);
@@ -241,10 +236,6 @@ export class RangeComponent {
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
-  math = Math;
-
-  viewRotateX = 50;
-  readonly viewRotateZ = this.uiSignalService.tableViewRotationZ;
 
   readonly movableOption = signal<MovableOption>({});
   readonly rotableOption = signal<RotableOption>({});
@@ -270,7 +261,7 @@ export class RangeComponent {
     pictureForCanvas({
       identifier: () => this.range().identifier,
       element: () => this.cells()?.nativeElement,
-      pictured: () => this.drawsOnCanvas(),
+      pictured: () => true,
       follows: () => {
         this.rangeVersion();
         this.clipPath();
@@ -285,14 +276,12 @@ export class RangeComponent {
     setupMovableRotableForPiece(this, {
       target: this.range,
       collideLayers: ['terrain'],
-      transformCssOffset: translateZCss(Z_OFFSET_RANGE_PX),
       snapToSquare: (_, at) => squareCentreAt(this.currentTable, at),
       snapOrigin: () => {
         const half = this.gridSize / 2;
         const snapXY = isHexGrid(this.currentTable.gridType) ? 0 : half;
         return { x: snapXY, y: snapXY };
       },
-      placedElsewhere: this.drawsOnCanvas,
       footprint: () => ({ width: this.gridSize, height: this.gridSize }),
       turnsAbout: () => this.turnPoint(),
     });

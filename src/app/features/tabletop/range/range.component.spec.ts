@@ -6,18 +6,14 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
-import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { RangeComponent } from '@axe/features/tabletop/range/range.component';
-import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
-
-beforeEach(() => drawTableOnPage());
 
 describe('RangeComponent', () => {
   let component: RangeComponent;
@@ -49,15 +45,45 @@ describe('RangeComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  describe('viewRotateZ computed signal', () => {
-    it('starts at ten', () => {
-      expect(component.viewRotateZ()).toBe(10);
+  describe('the guide to how high it floats', () => {
+    let table: GameTable;
+    let range: RangeArea;
+
+    beforeEach(() => {
+      table = new GameTable();
+      table.width = 20;
+      table.height = 20;
+      table.initialize();
+      TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+      range = RangeArea.create('浮く範囲', 3, 3, 1);
+      range.location = { name: 'table', x: 300, y: 250 };
+      range.isAltitudeIndicate = true;
+      fixture.componentRef.setInput('range', range);
     });
 
-    it('turns with the table view', () => {
-      const uiSignalService = TestBed.inject(UiSignalService);
-      uiSignalService.notifyTableViewRotation(50, 20, 90);
-      expect(component.viewRotateZ()).toBe(90);
+    type Guide = { lifted: { x: number; y: number; height: number }; altitude: number } | null;
+    const guide = () => (component as unknown as { altitudeGuide(): Guide }).altitudeGuide();
+
+    it('runs from the point of a range raised off the face down to the face, in the range’s colour', async () => {
+      range.altitude = 2;
+      range.rangeColor = '#ff0000';
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(guide()).toMatchObject({ lifted: { x: 300, y: 250, height: 2 * component.gridSize }, altitude: 2 });
+      const line = (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-testid="altitude-guide"]'
+      ) as HTMLElement;
+      expect(line.style.borderLeftColor).toBe('#ff0000');
+    });
+
+    it('is left out within half a cell of the face, or where the range is set not to show it', () => {
+      range.altitude = -0.4;
+      expect(guide()).toBeNull();
+
+      range.altitude = -2;
+      range.isAltitudeIndicate = false;
+      expect(guide()).toBeNull();
     });
   });
 
@@ -174,8 +200,8 @@ describe('RangeComponent', () => {
 
         expect(handle).toBeTruthy();
         expect(handle.closest('.range-clip-layer')).toBeNull();
-        expect(handle.style.left).toBe('0px');
-        expect(handle.style.top).toBe('-150px');
+        const about = component.turnPoint();
+        expect(component.grabPoint()).toMatchObject({ x: about.x, y: about.y - 150 });
       }
     );
   });
