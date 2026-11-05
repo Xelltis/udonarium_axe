@@ -796,32 +796,6 @@ describe('FirstPersonViewComponent', () => {
     expect(view.querySelector('[data-prop="card"]')).not.toBeNull();
   });
 
-  it('plays an effect inside the view, turned to face the eye', () => {
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null as never);
-    const preset = new EffectPreset();
-    preset.kind = 'burst';
-    preset.durationMs = 5000;
-    preset.staggerMs = 0;
-    ObjectStore.instance.add(preset, false);
-    const enemy = pieceAt(4, 4);
-    lookOutOf(pieceAt(4, 7, 90));
-    const fixture = mount();
-
-    TestBed.inject(EffectPlaybackService).play({
-      presetIdentifier: preset.identifier,
-      targets: [{ identifier: enemy.identifier, x: 4.5 * GRID, y: 4.5 * GRID, z: 0 }],
-      seed: 3,
-    });
-    fixture.detectChanges();
-
-    const sprites = Array.from(
-      element(fixture).querySelectorAll<HTMLElement>('[data-testid="first-person-effects"] table-effect-overlay > div')
-    );
-    expect(sprites.length).toBeGreaterThan(0);
-    expect(sprites.some((sprite) => sprite.style.transform.includes('rotateZ(90deg) rotateX(-90deg)'))).toBe(true);
-    ObjectStore.instance.remove(preset);
-  });
-
   it('shakes and burns the view as it would the table', () => {
     const preset = new EffectPreset();
     preset.kind = 'nova';

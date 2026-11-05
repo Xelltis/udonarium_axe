@@ -289,8 +289,8 @@
     @if (effectEye(); as eye) {
       @if (onCanvas()) {
         <div class="pointer-events-none absolute top-0 left-0" data-testid="first-person-effects">
-          <table-effect-overlay class="contents" [eye]="eye" [overCanvas]="true" />
-          <effect-target-overlay class="contents" [badges]="false" [overCanvas]="true" />
+          <table-effect-overlay class="contents" [eye]="eye" />
+          <effect-target-overlay class="contents" [badges]="false" />
         </div>
       } @else {
         <div

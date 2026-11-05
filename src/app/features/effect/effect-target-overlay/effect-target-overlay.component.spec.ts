@@ -72,11 +72,10 @@ describe('EffectTargetOverlayComponent', () => {
     expect(elements().filter((element) => element.textContent?.trim().length)).toEqual([]);
   });
 
-  it('lays a mark over a canvas flat where the canvas draws the floor, and stands its number facing the screen', () => {
+  it('lays a mark flat where the canvas draws the floor, and stands its number facing the screen', () => {
     const camera = TestBed.inject(TableCameraService);
     camera.setLayout({ left: 0, top: 30, width: 1280, height: 770, boardWidth: 1000, boardHeight: 750 });
     camera.showView(DEFAULT_TABLE_CAMERA_VIEW);
-    fixture.componentRef.setInput('overCanvas', true);
     targeting.begin(preset);
     targeting.pick(characters[1].identifier);
     fixture.detectChanges();
@@ -89,8 +88,7 @@ describe('EffectTargetOverlayComponent', () => {
     expect(badge.textContent?.trim()).toBe('1');
   });
 
-  it('hides what it cannot lay over a canvas before the camera is set', () => {
-    fixture.componentRef.setInput('overCanvas', true);
+  it('hides what it cannot lay before the camera is set', () => {
     targeting.begin(preset);
     targeting.pick(characters[1].identifier);
     fixture.detectChanges();

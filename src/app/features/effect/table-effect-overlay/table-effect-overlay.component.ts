@@ -18,7 +18,6 @@ import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import {
   EFFECT_CAMERA_LIFT_PX,
-  effectBillboardTransform,
   EffectCanvasPlacement,
   effectCanvasStyle,
   effectPaintStyle,
@@ -59,12 +58,6 @@ export class TableEffectOverlayComponent {
   private readonly firstPerson = inject(FirstPersonService);
 
   readonly eye = input<EffectEye | null>(null);
-  /**
-   * Whether the effects are laid over a table drawn on a canvas: what stands up on the screen where
-   * the canvas draws the point it stands at, as large as the canvas draws that point, and what lies
-   * flat on the floor where the canvas draws the floor, rather than among the page's own pieces.
-   */
-  readonly overCanvas = input(false);
 
   private readonly camera = inject(TABLE_SCREEN);
 
@@ -178,19 +171,10 @@ export class TableEffectOverlayComponent {
     return placements.length > MAX_CANVASES ? placements.slice(0, MAX_CANVASES) : placements;
   });
 
-  /** The glowing particles go onto one canvas per target, where the additive blending stays and does not flatten the depth. */
-  readonly canvases = computed<EffectCanvasPlacement[]>(() => {
-    const viewpoint = this.viewpoint();
-    return this.placed().map(({ placement, center }) => ({
-      ...placement,
-      transform: effectBillboardTransform(center, placement.layer, viewpoint),
-    }));
-  });
-
-  /** The sprites that lie flat on the floor, laid over a canvas on the plane of the floor. */
+  /** The sprites that lie flat on the floor, laid on the plane of the floor on the screen. */
   protected readonly flatSprites = computed(() => this.sprites().filter((sprite) => sprite.flat));
 
-  /** The sprites that stand up, each with the style that lays it on the screen over a canvas. */
+  /** The sprites that stand up, each with the style that lays it on the screen where the point it stands at is drawn. */
   protected readonly standingOnScreen = computed(() => {
     const screen = this.camera.screenOf();
     if (!screen) return [];
@@ -209,7 +193,10 @@ export class TableEffectOverlayComponent {
       });
   });
 
-  /** The canvases of particles, each laid on the screen over a canvas where the point it stands at is drawn. */
+  /**
+   * The canvases of particles, one per target, where the additive blending stays, each laid on the
+   * screen where the point it stands at is drawn.
+   */
   protected readonly canvasesOnScreen = computed<EffectCanvasPlacement[]>(() => {
     const screen = this.camera.screenOf();
     if (!screen) return [];
