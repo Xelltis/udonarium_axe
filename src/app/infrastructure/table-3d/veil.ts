@@ -254,11 +254,15 @@ function canvasPicture(canvas: HTMLCanvasElement): CanvasTexture {
   return picture;
 }
 
-/** A clear canvas of a pixel, which a picture is drawn from while nothing is laid. */
+/**
+ * A clear canvas of a pixel, which a picture is drawn from while nothing is laid. It is given a
+ * context to hold that pixel, as WebGPU cannot copy a canvas that has never had one.
+ */
 function clearCanvas(): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = 1;
   canvas.height = 1;
+  canvas.getContext('2d')?.clearRect(0, 0, 1, 1);
   return canvas;
 }
 
