@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
@@ -8,6 +9,7 @@ import { TableSurfaceService } from '@axe/application/tabletop/table-surface.ser
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { Card } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
@@ -270,6 +272,24 @@ describe('TablePickService', () => {
     expect(service.allAt(frame.x, frame.y).map((hit) => hit.target.id)).toEqual([die.identifier, look.identifier]);
     const beside = onPage(9, 6, 0);
     expect(service.pickAt(beside.x, beside.y)).toBeNull();
+  });
+
+  it('lands on the card drawn over another where they overlap: the higher, and of two as high the later', async () => {
+    vi.spyOn(TestBed.inject(PictureSizeService), 'sizeOf').mockReturnValue({ width: 2, height: 3 });
+    const first = Card.create('first', 'front', 'back');
+    first.location = { name: 'table', x: 5 * GRID, y: 5 * GRID };
+    const second = Card.create('second', 'front', 'back');
+    second.location = { name: 'table', x: 5 * GRID + 20, y: 5 * GRID + 20 };
+    await settled();
+    const overlap = pageOfTablePoint(camera.sceneMatrix()!, 5 * GRID + 60, 5 * GRID + 60, 0.15);
+
+    expect(service.pickAt(overlap.x, overlap.y)?.target.id).toBe(second.identifier);
+
+    first.zindex = 1;
+    TestBed.inject(ObjectChangeService).notifyChanged(first.identifier);
+    await settled();
+
+    expect(service.pickAt(overlap.x, overlap.y)?.target.id).toBe(first.identifier);
   });
 
   it('lands on a coin where its disc lies, and beside it on nothing', async () => {

@@ -170,8 +170,12 @@ describe('drawnRanks', () => {
     return scene;
   })();
 
-  function ranksOf(sprites: TableWorldSprite[], coins: TableWorldCoin[] = []): Record<string, number> {
-    return Object.fromEntries(drawnRanks(piecePageBoxes(sprites, coins, tilted, EYE)));
+  function ranksOf(sprites: TableWorldSprite[]): Record<string, number> {
+    return Object.fromEntries(drawnRanks(piecePageBoxes(sprites, [], tilted, EYE)));
+  }
+
+  function lyingAt(id: string, y: number, order: number, facing = ON_FLOOR): TableWorldSprite {
+    return sprite(id, { centre: { x: 100, y, z: order }, widthPx: 60, heightPx: 90, facing, order });
   }
 
   it('draws the nearer of two pieces over the other', () => {
@@ -184,37 +188,39 @@ describe('drawnRanks', () => {
   });
 
   it('draws a card lying over another over it, however much nearer the eye the one under it reaches', () => {
+    expect(ranksOf([lyingAt('under#face', 200, 0.15), lyingAt('over#face', 150, 0.151)])).toEqual({
+      under: 1,
+      over: 2,
+    });
+  });
+
+  it('draws the later of two cards lying as high over the earlier, as the canvas draws them', () => {
+    expect(ranksOf([lyingAt('earlier#face', 200, 0.15), lyingAt('later#face', 150, 0.15)])).toEqual({
+      earlier: 1,
+      later: 2,
+    });
+  });
+
+  it('takes a stack by the last drawn of the things it lies in', () => {
     const ranks = ranksOf([
-      sprite('under#face', { centre: { x: 100, y: 200, z: 0.15 }, widthPx: 60, heightPx: 90, facing: ON_FLOOR }),
-      sprite('over#face', { centre: { x: 110, y: 150, z: 0.151 }, widthPx: 60, heightPx: 90, facing: ON_FLOOR }),
+      lyingAt('deck#layer-0', 200, 1),
+      lyingAt('card#face', 300, 2),
+      lyingAt('deck#plate', 200, 3),
     ]);
 
-    expect(ranks).toEqual({ under: 1, over: 2 });
+    expect(ranks).toEqual({ card: 1, deck: 2 });
   });
 
-  it('takes a stack by the highest of the things it lies in, and a coin by its top', () => {
-    const ranks = ranksOf(
-      [
-        sprite('deck#layer-0', { centre: { x: 100, y: 260, z: 1 }, facing: ON_FLOOR }),
-        sprite('deck#plate', { centre: { x: 100, y: 260, z: 3 }, facing: ON_FLOOR }),
-        sprite('card#face', { centre: { x: 100, y: 200, z: 2 }, facing: ON_FLOOR }),
-      ],
-      [{ id: 'coin', face: FLOOR, x: 100, y: 100, base: 0, radiusPx: 10, thicknessPx: 4 } as TableWorldCoin]
-    );
-
-    expect(ranks).toEqual({ card: 1, deck: 2, coin: 3 });
-  });
-
-  it('leaves where it was a piece standing among cards, and cards lying another way', () => {
+  it('leaves where it was a piece standing among cards, and stacks the cards among the places left', () => {
     const ranks = ranksOf([
-      sprite('under#face', { centre: { x: 100, y: 400, z: 0.15 }, facing: ON_FLOOR }),
-      sprite('hero#pedestal', { centre: { x: 100, y: 300, z: 0.5 }, facing: ON_FLOOR }),
+      lyingAt('under#face', 400, 0.15),
+      sprite('hero#pedestal', { centre: { x: 100, y: 300, z: 0.5 }, facing: ON_FLOOR, order: 0.5 }),
       sprite('hero#picture', { centre: { x: 100, y: 300, z: 30 } }),
-      sprite('posted#face', { centre: { x: 100, y: 100, z: 50 }, facing: WALL }),
-      sprite('over#face', { centre: { x: 100, y: 50, z: 0.16 }, facing: ON_FLOOR }),
+      lyingAt('posted#face', 100, 0.2, WALL),
+      lyingAt('over#face', 50, 0.16),
     ]);
 
-    expect(ranks).toEqual({ posted: 2, hero: 3, over: 4, under: 1 });
+    expect(ranks).toEqual({ under: 1, over: 2, hero: 3, posted: 4 });
   });
 });
 

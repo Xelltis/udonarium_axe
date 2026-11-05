@@ -1,3 +1,4 @@
+import { lyingDrawOrder } from '@axe/domain/tabletop/world/lying-order';
 import {
   type EyeAxes,
   spriteAxes,
@@ -155,19 +156,12 @@ export class SpriteLayer {
     this.forgetUnused();
   }
 
-  /**
-   * Draws the sprites lying flat on a face one after another, from the lowest off its face, and
-   * the earlier of two as low first. They write no depth, so the order alone says which is over which.
-   */
+  /** Draws the sprites lying flat on a face one after another, in the order {@link lyingDrawOrder} gives. */
   private stackLying(sprites: readonly TableWorldSprite[]): void {
-    const lying = sprites
-      .map((sprite, index) => ({ sprite, index }))
-      .filter(({ sprite }) => sprite.order !== undefined)
-      .sort((a, b) => a.sprite.order! - b.sprite.order! || a.index - b.index);
-    lying.forEach(({ sprite }, rank) => {
-      const drawn = this.drawn.get(sprite.id);
-      if (drawn) drawn.mesh.renderOrder = FIRST_LYING + rank;
-    });
+    for (const [index, place] of lyingDrawOrder(sprites)) {
+      const drawn = this.drawn.get(sprites[index].id);
+      if (drawn) drawn.mesh.renderOrder = FIRST_LYING + place;
+    }
   }
 
   /** Turns the sprites that face the eye to an eye that now looks along these axes. */

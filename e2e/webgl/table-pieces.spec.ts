@@ -302,6 +302,47 @@ test.describe('pieces drawn on a canvas', () => {
     }
   });
 
+  test('point at the card lying over another where they overlap, though the one under reaches nearer the eye', async ({
+    page,
+  }) => {
+    const card = PIECES.find((piece) => piece.name === 'card')!;
+    await card.prepare!(page);
+    const under = await made(page, card);
+    const over = await made(page, card);
+    const [lying] = await boxesOf(page, under);
+    const [drawn] = await boxesOf(page, over);
+    const grabX = drawn.x + drawn.width / 2;
+    const grabY = drawn.y + drawn.height / 2;
+    // Onto the card under it, a cell or so up the screen, so that the one under reaches further down.
+    const toX = lying.x + lying.width / 2;
+    const toY = lying.y + lying.height / 2 - 60;
+    await page.mouse.move(grabX, grabY);
+    await page.mouse.down();
+    await page.mouse.move((grabX + toX) / 2, (grabY + toY) / 2, { steps: 4 });
+    await page.mouse.move(toX, toY, { steps: 4 });
+    await page.mouse.up();
+    await idle(page);
+    await settled(page, over);
+    await idle(page);
+
+    const [lower] = await boxesOf(page, under);
+    const [upper] = await boxesOf(page, over);
+    expect(lower.y + lower.height, JSON.stringify([lower, upper])).toBeGreaterThan(upper.y + upper.height + 20);
+    const at = {
+      x: (Math.max(lower.x, upper.x) + Math.min(lower.x + lower.width, upper.x + upper.width)) / 2,
+      y: upper.y + upper.height - 10,
+    };
+    const found = await page.evaluate(
+      ({ x, y }) => ({
+        picked: (window as unknown as { __axeTable: Hooks }).__axeTable.pickAt(x, y),
+        pointed: document.elementFromPoint(x, y)?.closest('card')?.getAttribute('data-object-id') ?? null,
+      }),
+      at
+    );
+
+    expect(found).toEqual({ picked: over, pointed: over });
+  });
+
   test('stand a character’s picture where the page stands it', async ({ page }) => {
     const character = page.locator('game-character', { has: page.getByText('キャラクターB', { exact: true }) });
     const id = (await character.getAttribute('data-object-id'))!;

@@ -21,6 +21,7 @@ import { beamPickTarget, terrainPickTarget } from '@axe/domain/tabletop/pick/ter
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
 import { boardSurfaceOf, surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
+import { lyingPlaceOfOwners } from '@axe/domain/tabletop/world/lying-order';
 import { COIN_KIND, TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import { eyeAxesOf, spriteBoxCorners, spriteCorners, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { AlphaMask, seesThroughAt } from '@axe/domain/ui/see-through';
@@ -148,7 +149,9 @@ export class TablePickService {
   /**
    * The targets of the pieces drawn on the table in view, as the canvas lays them out for this
    * seat: a piece drawn from sprites is made of a flat shape for each, a sprite turned to the eye
-   * picked where it is turned to now, and a coin is a disc on the face it lies on.
+   * picked where it is turned to now, and a coin is a disc on the face it lies on. Of two pieces lying
+   * flat the same distance off, as cards one on another, the one the canvas draws over the other is
+   * in front.
    */
   pieceTargets(): readonly PickTarget[] {
     return untracked(() => {
@@ -188,12 +191,13 @@ export class TablePickService {
           masks: [null],
         });
       }
+      const places = lyingPlaceOfOwners(sprites);
       const targets = [...byOwner].map(([id, owner]): PickTarget => {
         const masks = owner.masks;
         return {
           id,
           layer: owner.kind,
-          order: 0,
+          order: (places.get(id) ?? -1) + 1,
           shapes: owner.shapes,
           ...(masks.some((mask) => mask !== null)
             ? { opaqueAt: (shape, u, v) => !masks[shape] || !seesThroughAt(masks[shape]!, { u, v }) }

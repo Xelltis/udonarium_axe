@@ -1,6 +1,7 @@
 import type { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { pageOfTablePoint, TablePoint } from '@axe/domain/tabletop/camera/table-camera';
 import { PickTarget } from '@axe/domain/tabletop/pick/pick-index';
+import { lyingPlaceOfOwners } from '@axe/domain/tabletop/world/lying-order';
 import { TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import { EyeAxes, pointOnFace, spriteBoxCorners, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 
@@ -37,22 +38,17 @@ export interface PagePart extends PageBox {
   readonly size?: { readonly width: number; readonly height: number };
 }
 
-/** Which way a piece drawn only lying flat faces, as a card lies on the table, and how far that way it lies. */
-export interface PieceLying {
-  /** The way its sprites face, turned towards the eye. */
-  readonly normal: TablePoint;
-  /** How far along that way its furthest sprite lies, from the table's origin. */
-  readonly height: number;
-}
-
 /** A piece as it is drawn on the page: the box round all of it, and its parts by name. */
 export interface PiecePageBoxes {
   readonly whole: PageBox;
   readonly parts: ReadonlyMap<string, PagePart>;
   /** How near the eye its nearest point is drawn: of two pieces, the nearer is drawn over the other. */
   readonly nearness: number;
-  /** For a piece drawn only lying flat, which way it faces and how far that way it lies. */
-  readonly lying?: PieceLying;
+  /**
+   * For a piece drawn only with sprites lying flat on a face, as a card, the place of the last of them
+   * drawn in the order the canvas draws such sprites in, one over another.
+   */
+  readonly lyingPlace?: number;
 }
 
 /** The name of the part of a piece a sprite draws, as its identifier names it after its `#`. */
@@ -72,44 +68,6 @@ function boxRound(points: readonly { x: number; y: number }[]): PageBox {
     bottom = Math.max(bottom, point.y);
   }
   return { left, top, width: right - left, height: bottom - top };
-}
-
-/** The way a sprite lying flat faces, turned towards the eye, or null for one turned to face the eye itself. */
-function lyingNormalOf(sprite: TableWorldSprite, towards: TablePoint): TablePoint | null {
-  if (sprite.facing === 'eye') return null;
-  const { across, down } = sprite.facing;
-  return turnedTowards(
-    {
-      x: across.y * down.z - across.z * down.y,
-      y: across.z * down.x - across.x * down.z,
-      z: across.x * down.y - across.y * down.x,
-    },
-    towards
-  );
-}
-
-/** A direction made a unit long and turned to the side of the direction given, or null for none. */
-function turnedTowards(direction: TablePoint, towards: TablePoint): TablePoint | null {
-  const length = Math.hypot(direction.x, direction.y, direction.z);
-  if (!(length > 0)) return null;
-  const side = direction.x * towards.x + direction.y * towards.y + direction.z * towards.z < 0 ? -1 : 1;
-  return { x: (direction.x * side) / length, y: (direction.y * side) / length, z: (direction.z * side) / length };
-}
-
-function along(normal: TablePoint, point: TablePoint): number {
-  return normal.x * point.x + normal.y * point.y + normal.z * point.z;
-}
-
-/** How a piece lies with one more flat thing of it taken in, or null where they do not lie the same way. */
-function lyingWith(
-  kept: PieceLying | null | undefined,
-  normal: TablePoint | null,
-  point: TablePoint
-): PieceLying | null {
-  if (kept === null || !normal) return null;
-  if (kept === undefined) return { normal, height: along(normal, point) };
-  if (along(kept.normal, normal) < 1 - 1e-6) return null;
-  return { normal: kept.normal, height: Math.max(kept.height, along(kept.normal, point)) };
 }
 
 function nearnessOf(scene: Matrix3D, point: TablePoint): number {
@@ -159,10 +117,10 @@ export function piecePageBoxes(
     } else parts.set(part, { points: [...points], middle, sprites, size });
     corners.set(owner, parts);
   };
-  const towards = { x: scene.m13, y: scene.m23, z: scene.m33 };
-  const lyings = new Map<string, PieceLying | null>();
+  const places = lyingPlaceOfOwners(sprites);
+  const standing = new Set<string>();
   for (const sprite of sprites) {
-    lyings.set(sprite.owner, lyingWith(lyings.get(sprite.owner), lyingNormalOf(sprite, towards), sprite.centre));
+    if (sprite.order === undefined) standing.add(sprite.owner);
     const corners = spriteBoxCorners(sprite, eye);
     const size = sprite.box
       ? { width: sprite.box.width, height: sprite.box.height }
@@ -181,8 +139,6 @@ export function piecePageBoxes(
       );
     }
     add(coin.id, COIN_PART, rim, pointOnFace(coin.face, coin.x, coin.y, coin.base + coin.thicknessPx / 2), 0);
-    const top = pointOnFace(coin.face, coin.x, coin.y, coin.base + coin.thicknessPx);
-    lyings.set(coin.id, lyingWith(lyings.get(coin.id), turnedTowards(coin.face.normal, towards), top));
   }
   const boxes = new Map<string, PiecePageBoxes>();
   for (const [owner, parts] of corners) {
@@ -200,35 +156,31 @@ export function piecePageBoxes(
         pageParts.set(part, { ...box, corners: [a, b, c, d], ...(size ? { size } : {}) });
       }
     }
-    const lying = lyings.get(owner);
-    boxes.set(owner, { whole: boxRound(onPage), parts: pageParts, nearness, ...(lying ? { lying } : {}) });
+    const lyingPlace = standing.has(owner) ? undefined : places.get(owner);
+    boxes.set(owner, {
+      whole: boxRound(onPage),
+      parts: pageParts,
+      nearness,
+      ...(lyingPlace === undefined ? {} : { lyingPlace }),
+    });
   }
   return boxes;
 }
 
 /**
  * The order the pieces are drawn over each other in on the page, from 1 for the one under all the
- * rest. Of two pieces, the nearer the eye is drawn over the other; but of pieces lying flat the same
- * way, as cards on the table, the one lying further towards the eye is drawn over the others, as the
- * canvas draws it over them wherever they overlap, however near the eye the rest of it reaches.
+ * rest. Of two pieces, the nearer the eye is drawn over the other; but pieces drawn only lying flat,
+ * as cards on the table, are drawn over each other in the order the canvas draws them in, wherever
+ * they overlap and however near the eye the rest of them reaches, and are stacked so among the places
+ * their nearness gives them.
  */
 export function drawnRanks(boxes: ReadonlyMap<string, PiecePageBoxes>): Map<string, number> {
   const order = [...boxes].sort(([, a], [, b]) => a.nearness - b.nearness);
   const ranks = new Map(order.map(([owner], rank) => [owner, rank + 1]));
-  const ways = new Map<string, [string, PieceLying][]>();
-  for (const [owner, { lying }] of order) {
-    if (!lying) continue;
-    const way = [lying.normal.x, lying.normal.y, lying.normal.z].map((value) => Math.round(value * 1000)).join(':');
-    const same = ways.get(way) ?? [];
-    same.push([owner, lying]);
-    ways.set(way, same);
-  }
-  for (const same of ways.values()) {
-    if (same.length < 2) continue;
-    const slots = same.map(([owner]) => ranks.get(owner)!);
-    const byHeight = [...same].sort(([, a], [, b]) => a.height - b.height);
-    byHeight.forEach(([owner], index) => ranks.set(owner, slots[index]));
-  }
+  const lying = order.filter(([, piece]) => piece.lyingPlace !== undefined);
+  const slots = lying.map(([owner]) => ranks.get(owner)!);
+  const byPlace = [...lying].sort(([, a], [, b]) => a.lyingPlace! - b.lyingPlace!);
+  byPlace.forEach(([owner], index) => ranks.set(owner, slots[index]));
   return ranks;
 }
 
