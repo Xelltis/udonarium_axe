@@ -73,6 +73,7 @@ import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
 import { WallFace, WallLight, WallSilhouette } from '@axe/domain/tabletop/vision-scene';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
+import { boardShapeOf } from '@axe/domain/tabletop/world/table-world';
 import { CardComponent } from '@axe/features/card/card/card.component';
 import { CardStackComponent } from '@axe/features/card/card-stack/card-stack.component';
 import type { DeckBuilderResult } from '@axe/features/card/deck-builder-dialog/deck-builder-dialog.component';
@@ -476,7 +477,6 @@ export class GameTableComponent {
         this.rootElementRef().nativeElement,
         this.gameTable().nativeElement,
         this.gameObjects().nativeElement,
-        this.gridCanvas().nativeElement,
         () => this.currentTable.gridShow
       );
       this.gestureService.cancelInput();
@@ -486,7 +486,7 @@ export class GameTableComponent {
       this.coordinateService.tabletopOriginElement = this.gameObjects().nativeElement;
       this.updateCameraLayout();
       this.destroyRef.onDestroy(observeSize(this.rootElementRef().nativeElement, () => this.updateCameraLayout()));
-      this.destroyRef.onDestroy(this.followGridShown());
+      this.followGridShown();
       this.destroyRef.onDestroy(
         handCanvasPressesOn(this.rootElementRef().nativeElement, {
           drawsOnCanvas: () => this.table3d.drawsOnCanvas(),
@@ -1266,36 +1266,30 @@ export class GameTableComponent {
    * Tells the camera where the table sits on the page and how big its board is, once the table has
    * been set up, whenever the box it is seen through changes size, and whenever the board does.
    */
-  /**
-   * Hands the canvas the grid again whenever the page shows or hides its own, which it does by
-   * writing the grid's opacity from more than one place. Answers what stops following it.
-   */
-  private followGridShown(): () => void {
-    const shown = new MutationObserver(() => this.shareGrid());
-    shown.observe(this.gridCanvas().nativeElement, { attributes: true, attributeFilter: ['style'] });
-    return () => shown.disconnect();
+  /** Hands the canvas the grid again whenever the grid is shown or hidden. */
+  private followGridShown(): void {
+    effect(
+      () => {
+        this.gestureService.gridOpacity();
+        untracked(() => this.shareGrid());
+      },
+      { injector: this.injector }
+    );
   }
 
   /** How many times the page has drawn its grid, so the canvas draws it again from the page's. */
   private gridRevision = 0;
 
   /**
-   * Hands the canvas the page's grid: the canvas it is drawn on, where that lies on the board, and
-   * how opaque the page shows it.
+   * Hands the canvas the grid: the canvas it is drawn on, where that lies on the board, which is the
+   * box the board's picture is stretched over, and how opaque it is shown.
    */
   private shareGrid(): void {
-    const canvas = this.gridCanvas().nativeElement;
-    const board = this.gameObjects().nativeElement;
-    let x = 0;
-    let y = 0;
-    for (let at: HTMLElement | null = canvas; at && at !== board; at = at.offsetParent as HTMLElement | null) {
-      x += at.offsetLeft;
-      y += at.offsetTop;
-    }
+    const table = this.currentTable;
     this.table3d.showGrid({
-      canvas,
-      box: { x, y, width: canvas.offsetWidth, height: canvas.offsetHeight },
-      opacity: Number(canvas.style.opacity || 0),
+      canvas: this.gridCanvas().nativeElement,
+      box: boardShapeOf(table.width, table.height, table.gridSize, table.gridType).box,
+      opacity: this.gestureService.gridOpacity(),
       revision: this.gridRevision,
     });
   }
@@ -1398,8 +1392,7 @@ export class GameTableComponent {
 
     setTimeout(() => {
       // So the update runs after the information has caught up with another player's change.
-      const opacity: number = this.currentTable.gridShow ? 1.0 : 0.0;
-      this.gridCanvas().nativeElement.style.opacity = opacity + '';
+      this.gestureService.gridOpacity.set(this.currentTable.gridShow ? 1 : 0);
     });
   }
 }

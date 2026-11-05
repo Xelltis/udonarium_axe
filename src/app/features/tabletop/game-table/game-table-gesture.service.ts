@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
@@ -122,25 +122,28 @@ export class GameTableGestureService {
 
   private gameTableEl!: HTMLElement;
   private gameObjectsEl!: HTMLElement;
-  private gridCanvasEl!: HTMLCanvasElement;
-  private getGridShow!: () => boolean;
+  private getGridShow: (() => boolean) | null = null;
+
+  /**
+   * How opaque the board's grid is shown, from 0 to 1: as the table has it, and wholly while a piece
+   * is pressed.
+   */
+  readonly gridOpacity = signal(0);
 
   /**
    * Wires the mouse, touch and marquee gestures to the table's elements, once the view is built.
    *
-   * `getGridShow` says whether the grid stays visible, since the grid canvas is shown while a piece
-   * is dragged and put back to that afterwards.
+   * `getGridShow` says whether the grid stays visible, since the grid is shown while a piece is
+   * dragged and put back to that afterwards.
    */
   initialize(
     rootEl: HTMLElement,
     gameTableEl: HTMLElement,
     gameObjectsEl: HTMLElement,
-    gridCanvasEl: HTMLCanvasElement,
     getGridShow: () => boolean
   ): void {
     this.gameTableEl = gameTableEl;
     this.gameObjectsEl = gameObjectsEl;
-    this.gridCanvasEl = gridCanvasEl;
     this.getGridShow = getGridShow;
 
     this.touchGesture = new TableTouchGesture(rootEl);
@@ -184,14 +187,13 @@ export class GameTableGestureService {
    * Does nothing before `initialize`.
    */
   cancelInput(): void {
-    if (!this.gridCanvasEl) return;
+    if (!this.getGridShow) return;
     this.mouseGesture?.cancel();
     this.marqueeGesture?.cancel();
     this.selectionSignalService.marqueeState.set(null);
     this.isTableTransformMode = true;
     this.pointerDeviceService.isDragging = false;
-    const opacity = this.getGridShow() ? 1.0 : 0.0;
-    this.gridCanvasEl.style.opacity = opacity + '';
+    this.gridOpacity.set(this.getGridShow() ? 1 : 0);
   }
 
   /**
@@ -388,7 +390,7 @@ export class GameTableGestureService {
     } else {
       this.isTableTransformMode = false;
       this.pointerDeviceService.isDragging = true;
-      this.gridCanvasEl.style.opacity = 1.0 + '';
+      this.gridOpacity.set(1);
       this.uiSignalService.notifyTerrainGridShow();
     }
     if (!document.activeElement?.contains(me.target as Node)) {

@@ -143,13 +143,7 @@ describe('GameTableGestureService', () => {
     it('lets go of the gestures it listens with when the table goes', () => {
       const root = document.createElement('div');
       document.body.appendChild(root);
-      service.initialize(
-        root,
-        gameTableEl,
-        document.createElement('div'),
-        document.createElement('canvas'),
-        () => true
-      );
+      service.initialize(root, gameTableEl, document.createElement('div'), () => true);
       service.isTableTransformMode = true;
       expect(root.style.touchAction).toBe('none');
 
@@ -393,7 +387,6 @@ describe('GameTableGestureService', () => {
   describe('pressing painted ground', () => {
     type Gestures = {
       gameObjectsEl: HTMLElement;
-      gridCanvasEl: HTMLCanvasElement;
       getGridShow: () => boolean;
       onTableMouseStart(e: MouseEvent): void;
       onTableMouseEnd(e: MouseEvent): void;
@@ -406,7 +399,6 @@ describe('GameTableGestureService', () => {
       gestures = service as unknown as Gestures;
       floor = document.createElement('div');
       gestures.gameObjectsEl = floor;
-      gestures.gridCanvasEl = document.createElement('canvas');
       gestures.getGridShow = () => false;
       vi.spyOn(TestBed.inject(TablePickService), 'landingAt').mockReturnValue({ x: 125, y: 75, z: 0 });
       press = vi.spyOn(TestBed.inject(SwitchPressService), 'pressGroundAt').mockResolvedValue('pressed');

@@ -128,7 +128,8 @@
         [style.background-image]="'url(' + tableImage().url + ')' | safe: 'style'"
       >
         <canvas
-          class="pointer-events-none absolute inset-0 m-auto block transform-[translateZ(0.15px)] opacity-0 transition-[0.3s_ease-out] backface-hidden"
+          class="pointer-events-none absolute inset-0 m-auto block transform-[translateZ(0.15px)] transition-[0.3s_ease-out] backface-hidden"
+          [style.opacity]="gestureService.gridOpacity()"
           #gridCanvas
         ></canvas>
         <div

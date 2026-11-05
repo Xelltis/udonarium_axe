@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { boardShapeOf } from '@axe/domain/tabletop/world/table-world';
 import { GameTableComponent } from '@axe/features/tabletop/game-table/game-table.component';
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -115,14 +117,31 @@ describe('drawing the grid over the board', () => {
       component.currentTable.gridShow = false;
       await Promise.resolve();
       vi.runAllTimers();
-      expect(component.gridCanvas().nativeElement.style.opacity).toBe('0');
+      expect(component.gestureService.gridOpacity()).toBe(0);
 
       component.currentTable.gridShow = true;
       await Promise.resolve();
       vi.runAllTimers();
-      expect(component.gridCanvas().nativeElement.style.opacity).toBe('1');
+      expect(component.gestureService.gridOpacity()).toBe(1);
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('hands the canvas the grid where the board’s picture is stretched, as opaque as it is shown', async () => {
+    const handed = vi.spyOn(TestBed.inject(Table3dService), 'showGrid');
+    const table = component.currentTable;
+    table.gridType = GridType.HEX_VERTICAL;
+    await Promise.resolve();
+    await fixture.whenStable();
+
+    component.gestureService.gridOpacity.set(1);
+    TestBed.tick();
+
+    const grid = handed.mock.calls.at(-1)![0]!;
+    expect(grid.box).toEqual(boardShapeOf(table.width, table.height, table.gridSize, table.gridType).box);
+    expect(grid.box.x).toBeLessThan(0);
+    expect(grid.opacity).toBe(1);
+    expect(grid.canvas).toBe(component.gridCanvas().nativeElement);
   });
 });
