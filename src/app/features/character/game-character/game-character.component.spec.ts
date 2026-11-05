@@ -20,6 +20,7 @@ import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
+import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
@@ -3281,6 +3282,27 @@ describe('GameCharacterComponent', () => {
       expect(element.querySelector('[appbillboard]')).toBeNull();
       expect(element.querySelector('.fixed [data-part="pedestal"]')).not.toBeNull();
       character.destroy();
+    });
+
+    it('flashes its box on the screen when it is asked to be found, and opens its menu round that box', () => {
+      vi.useFakeTimers();
+      const character = GameCharacter.create('コマ', 1, '');
+      character.location.name = 'table';
+      fixture.componentRef.setInput('gameCharacter', character);
+      fixture.detectChanges();
+      const box = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-hud-box]')!;
+
+      try {
+        expect(component.rootElementRef()?.nativeElement).toBe(box);
+        TestBed.inject(SelectionSignalService).highlightObject(character.identifier);
+        TestBed.tick();
+        vi.advanceTimersByTime(1);
+
+        expect(box.classList).toContain('animate-focused');
+      } finally {
+        vi.useRealTimers();
+        character.destroy();
+      }
     });
 
     it('turns on its own while the table is seen from straight above with its pieces turning', async () => {
