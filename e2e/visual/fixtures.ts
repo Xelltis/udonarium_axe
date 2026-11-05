@@ -103,6 +103,28 @@ export async function settle(page: Page, ms = 40) {
 }
 
 /**
+ * Waits for every piece on the table to come to rest from what it does by itself, as a character
+ * hops in when it is made: with the clock held, by running it on a little at a time.
+ */
+export async function untilStill(page: Page) {
+  await expect
+    .poll(
+      async () => {
+        const moving = await page.evaluate(() => {
+          const hooks = (window as unknown as CanvasHooks).__axeTable;
+          return [...document.querySelectorAll('[data-object-id]')].some((element) =>
+            hooks?.moving(element.getAttribute('data-object-id') ?? '')
+          );
+        });
+        if (moving && frozen.has(page)) await page.clock.runFor(50);
+        return moving;
+      },
+      { timeout: 10_000, intervals: [50] }
+    )
+    .toBe(false);
+}
+
+/**
  * Waits for a part of the page loaded on demand, such as a panel, to come in and be drawn, which
  * shows as `arrived` being on the page. The clock is held and the page draws only as it is run, so
  * a part that comes in late on a busy machine is drawn by running what has fallen due, again and
@@ -203,6 +225,7 @@ type CanvasHooks = {
     holdMotion(held: boolean): void;
     holdMovesAt(ms: number | null): void;
     chooseLightsAfresh(): void;
+    moving(identifier: string): boolean;
   };
 };
 

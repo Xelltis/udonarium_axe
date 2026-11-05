@@ -10,6 +10,7 @@ import {
   rightClickTable,
   settle,
   snap,
+  untilStill,
 } from './fixtures';
 
 test('a piece on a hex grid wears the hex pedestal', async ({ page }) => {
@@ -25,6 +26,7 @@ test('a piece on a hex grid wears the hex pedestal', async ({ page }) => {
   await chooseMenu(page, menu, 'キャラクターを作成');
   await page.mouse.move(1279, 799);
   await expect(page.locator('game-character')).toHaveCount(samples + 1);
+  await untilStill(page);
   await settle(page, 400);
   await snap(page, 'hex-pedestal');
 });
