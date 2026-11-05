@@ -170,22 +170,25 @@
             [style.background-repeat]="wall.surfaceBackgroundRepeat"
             [style.filter]="wallBaseFilter()"
           ></div>
-          <div class="pointer-events-none absolute inset-0 overflow-hidden backface-visible">
-            @for (pool of view.pools; track $index) {
-              <div
-                class="pointer-events-none absolute backface-visible"
-                [style.background-image]="'url(' + wall.image.url + ')' | safe: 'style'"
-                [ngStyle]="pool.style"
-              ></div>
-            }
-            @for (sil of view.silhouettes; track $index) {
-              <div
-                class="pointer-events-none absolute backface-visible"
-                [style.background-image]="sil.background | safe: 'style'"
-                [ngStyle]="sil.style"
-              ></div>
-            }
-          </div>
+          <!-- A canvas lights the wall and throws the shadows on it itself. -->
+          @if (!table3d.drawsOnCanvas()) {
+            <div class="pointer-events-none absolute inset-0 overflow-hidden backface-visible">
+              @for (pool of view.pools; track $index) {
+                <div
+                  class="pointer-events-none absolute backface-visible"
+                  [style.background-image]="'url(' + wall.image.url + ')' | safe: 'style'"
+                  [ngStyle]="pool.style"
+                ></div>
+              }
+              @for (sil of view.silhouettes; track $index) {
+                <div
+                  class="pointer-events-none absolute backface-visible"
+                  [style.background-image]="sil.background | safe: 'style'"
+                  [ngStyle]="sil.style"
+                ></div>
+              }
+            </div>
+          }
           @for (textNote of textNotesBySurface()[wall.surface]; track textNote.identifier) {
             <text-note
               class="absolute will-change-transform backface-visible transform-3d"
