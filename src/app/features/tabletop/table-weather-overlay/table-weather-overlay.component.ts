@@ -9,8 +9,8 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { AmbienceService, type WeatherAmbience } from '@axe/application/tabletop/ambience.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { withAlpha } from '@axe/core/util/hex-color';
@@ -18,6 +18,7 @@ import { observeSize } from '@axe/core/util/observe-size';
 import { skyAmbienceFlash, skyAmbienceLayer, skyAmbienceWash } from '@axe/domain/effect/ambience/ambience-sky';
 import { CurrentCarry } from '@axe/domain/effect/ambience/current-carry';
 import { EffectParticleLayer } from '@axe/domain/effect/effect-particles';
+import { pageOfTablePoint } from '@axe/domain/tabletop/camera/table-camera';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import {
   type ScreenPoint,
@@ -68,7 +69,7 @@ const LIGHT_MASK_STEP_PX = 8;
 export class TableWeatherOverlayComponent {
   private readonly ambienceService = inject(AmbienceService);
   private readonly tabletopService = inject(TabletopService);
-  private readonly coordinateService = inject(CoordinateService);
+  private readonly camera = inject(TableCameraService);
   private readonly renderLite = inject(RenderLiteService);
   private readonly elementRef: ElementRef<HTMLElement> = inject(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
@@ -110,9 +111,7 @@ export class TableWeatherOverlayComponent {
   private readonly viewEpoch = computed<string>(() => {
     this.reprojectTick();
     return untracked(
-      () =>
-        `${this.coordinateService.tabletopTransformVersion()}:` +
-        `${Math.floor(this.ambienceService.now() / STILL_REPROJECT_INTERVAL_MS)}`
+      () => `${this.camera.version()}:` + `${Math.floor(this.ambienceService.now() / STILL_REPROJECT_INTERVAL_MS)}`
     );
   });
 
@@ -124,9 +123,6 @@ export class TableWeatherOverlayComponent {
   private readonly projected = computed<ScreenPoint[]>(() => {
     if (!this.shownWeather() || this.fromInside()) return [];
 
-    const origin = this.coordinateService.tabletopOriginElement;
-    if (!origin || origin === document.body) return [];
-
     const table = this.tabletopService.currentTableVersion();
     const width = table.width * table.gridSize;
     const depth = table.height * table.gridSize;
@@ -134,6 +130,8 @@ export class TableWeatherOverlayComponent {
 
     this.viewEpoch();
     this.size();
+    const scene = untracked(() => this.camera.sceneMatrix());
+    if (!scene) return [];
 
     const ceiling = Math.max(table.wallHeight, MIN_SKY_CELLS) * table.gridSize;
     const box = [0, ceiling].flatMap((z) => [
@@ -144,9 +142,10 @@ export class TableWeatherOverlayComponent {
     ]);
 
     const host = this.elementRef.nativeElement.getBoundingClientRect();
-    return this.coordinateService
-      .convertManyToGlobal(box, origin)
-      .map((corner) => ({ x: corner.x - host.left, y: corner.y - host.top }));
+    return box.map((corner) => {
+      const onPage = pageOfTablePoint(scene, corner.x, corner.y, corner.z);
+      return { x: onPage.x - host.left, y: onPage.y - host.top };
+    });
   });
 
   /** It does not reach past the board. Cut by a polygon it would show an edge in mid-air, so it fades out instead. */

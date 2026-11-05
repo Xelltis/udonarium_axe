@@ -1,9 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { DEFAULT_TABLE_CAMERA_VIEW, TableLayout } from '@axe/domain/tabletop/camera/table-camera';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableWeatherOverlayComponent } from '@axe/features/tabletop/table-weather-overlay/table-weather-overlay.component';
@@ -106,48 +107,51 @@ describe('TableWeatherOverlayComponent', () => {
     });
   });
 
+  /** Where the table is laid out on the page, for the camera that carries the board onto it. */
+  const LAYOUT: TableLayout = { left: 0, top: 0, width: 1280, height: 800, boardWidth: 1000, boardHeight: 1000 };
+
+  function cameraOverTheBoard(): TableCameraService {
+    const camera = TestBed.inject(TableCameraService);
+    camera.setLayout(LAYOUT);
+    camera.showView(DEFAULT_TABLE_CAMERA_VIEW);
+    return camera;
+  }
+
   describe('seen from inside the room', () => {
     it('falls over the whole screen, with no mask cut to where the table camera puts the board', () => {
-      const coordinates = TestBed.inject(CoordinateService);
-      coordinates.tabletopOriginElement = document.createElement('div');
-      vi.spyOn(coordinates, 'convertManyToGlobal').mockImplementation((points) =>
-        points.map((point) => ({ x: point.x, y: point.y, z: 0 }))
-      );
+      cameraOverTheBoard();
       table.weatherKind = 'rain';
       TestBed.inject(EffectPlaybackService).now.set(0);
-      try {
-        expect(fixture.componentInstance.maskImage()).not.toBe('none');
 
-        fixture.componentRef.setInput('fromInside', true);
+      expect(fixture.componentInstance.maskImage()).not.toBe('none');
 
-        expect(fixture.componentInstance.maskImage()).toBe('none');
-        expect(fixture.componentInstance.wash()).toContain('to bottom');
-      } finally {
-        coordinates.tabletopOriginElement = document.body;
-      }
+      fixture.componentRef.setInput('fromInside', true);
+
+      expect(fixture.componentInstance.maskImage()).toBe('none');
+      expect(fixture.componentInstance.wash()).toContain('to bottom');
     });
   });
 
   describe('how often it looks at the view again', () => {
     let playback: EffectPlaybackService;
-    let coordinates: CoordinateService;
-    let project: MockInstance<CoordinateService['convertManyToGlobal']>;
+    let camera: TableCameraService;
+    let project: MockInstance<TableCameraService['sceneMatrix']>;
 
     beforeEach(() => {
       playback = TestBed.inject(EffectPlaybackService);
-      coordinates = TestBed.inject(CoordinateService);
       TestBed.inject(RenderLiteService).setting.set('off');
-      coordinates.tabletopOriginElement = document.createElement('div');
-      project = vi
-        .spyOn(coordinates, 'convertManyToGlobal')
-        .mockImplementation((points) => points.map((point) => ({ x: point.x, y: point.y, z: 0 })));
+      camera = cameraOverTheBoard();
+      project = vi.spyOn(camera, 'sceneMatrix');
       table.weatherKind = 'rain';
     });
 
     afterEach(() => {
-      coordinates.tabletopOriginElement = document.body;
       document.documentElement.classList.remove('render-lite');
     });
+
+    function turnTheCamera(by: number): void {
+      camera.showView({ ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: DEFAULT_TABLE_CAMERA_VIEW.rotateZ + by });
+    }
 
     function runTo(ms: number): string {
       playback.now.set(ms);
@@ -165,7 +169,7 @@ describe('TableWeatherOverlayComponent', () => {
 
     it('projects a view that has been written out at the next tick', () => {
       runTo(0);
-      coordinates.invalidateTabletopTransform();
+      turnTheCamera(5);
 
       runTo(50);
       expect(project).toHaveBeenCalledTimes(1);
@@ -178,7 +182,7 @@ describe('TableWeatherOverlayComponent', () => {
       TestBed.inject(RenderLiteService).setting.set('on');
 
       for (let ms = 0; ms < 1200; ms += 16) {
-        coordinates.invalidateTabletopTransform();
+        turnTheCamera(ms / 100);
         runTo(ms);
       }
 
