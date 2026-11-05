@@ -1,4 +1,4 @@
-import { capCellAt, SquareBlock, squareCapsOf } from '@axe/domain/tabletop/terrain-batch/square-caps';
+import { SquareBlock, squareCapsOf } from '@axe/domain/tabletop/terrain-batch/square-caps';
 import { describe, expect, it } from 'vitest';
 
 const GRID = 50;
@@ -55,20 +55,11 @@ describe('the tops of blocks on a square board, gathered into caps', () => {
     expect(rest).toHaveLength(0);
     expect(cap.cells[4]).toBeNull();
     expect(cap.path).toBe('M1 1H151V51H1ZM1 51H51V101H1ZM101 51H151V101H101ZM1 101H151V151H1Z');
-    expect(capCellAt(cap, 76, 76, GRID)).toBeNull();
-    expect(capCellAt(cap, 126, 76, GRID)).toEqual({ identifier: '21', index: 0, cols: 1 });
   });
 
   it('reaches over a join above or below only along the part of a row that has one', () => {
     const caps = squareCapsOf([block('a', 0, 0), block('b', 1, 0), block('under', 1, 1, { look: 'wood' })], GRID);
 
     expect(caps[0].path).toBe('M1 1H51V51H1ZM51 1H101V52H51Z');
-  });
-
-  it('answers nothing past the edge of a cap', () => {
-    const [cap] = squareCapsOf([block('a', 0, 0)], GRID);
-
-    expect(capCellAt(cap, -5, 10, GRID)).toBeNull();
-    expect(capCellAt(cap, 60, 10, GRID)).toBeNull();
   });
 });

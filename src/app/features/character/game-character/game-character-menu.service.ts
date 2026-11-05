@@ -19,7 +19,6 @@ import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { RangeShapeInvokeService } from '@axe/application/tabletop/range-shape-invoke.service';
 import { RideMenuModel, RideService } from '@axe/application/tabletop/ride.service';
-import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
 import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -102,7 +101,6 @@ export class GameCharacterMenuService {
   private readonly movePlan = inject(MovePlannerService);
   private readonly firstPerson = inject(FirstPersonService);
   private readonly thirdPerson = inject(ThirdPersonService);
-  private readonly table3d = inject(Table3dService);
   private readonly effectLibrary = inject(EffectLibraryService);
   private readonly effectCast = inject(EffectCastService);
   private readonly rolePermission = inject(RolePermissionService);

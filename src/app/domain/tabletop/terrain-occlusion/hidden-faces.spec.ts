@@ -5,12 +5,7 @@ import { hexCircumradius, hexCornerOffsets } from '@axe/domain/tabletop/hex-geom
 import { blockOrigin } from '@axe/domain/tabletop/map-grid';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { hiddenFacesByTerrain, hiddenFacesOf } from '@axe/domain/tabletop/terrain-occlusion/hidden-faces';
-import {
-  hexFaceKey,
-  hexFaceMidpointOf,
-  OcclusionShape,
-  occlusionShapeOf,
-} from '@axe/domain/tabletop/terrain-occlusion/occlusion-shape';
+import { hexFaceKey, OcclusionShape, occlusionShapeOf } from '@axe/domain/tabletop/terrain-occlusion/occlusion-shape';
 import { afterEach, describe, expect, it } from 'vitest';
 
 const GRID = 50;
@@ -212,14 +207,3 @@ for (const isFlatTop of [true, false]) {
     });
   });
 }
-
-describe('the middle of a hex side, read back from its name', () => {
-  it('reads back where the middle lies, to a tenth of a pixel', () => {
-    expect(hexFaceMidpointOf(hexFaceKey(13.44, -7.72))).toEqual({ x: 13.4, y: -7.7 });
-    expect(hexFaceMidpointOf(hexFaceKey(0, 25))).toEqual({ x: 0, y: 25 });
-  });
-
-  it('reads nothing from the name of a square side', () => {
-    expect(hexFaceMidpointOf('north')).toBeNull();
-  });
-});

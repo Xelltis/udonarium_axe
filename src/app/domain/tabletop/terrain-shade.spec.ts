@@ -1,6 +1,5 @@
 import {
   faceShadeOf,
-  hexWallShadeOf,
   sideCellIndexes,
   sideShadeLine,
   TopLight,
@@ -24,7 +23,6 @@ describe('how much light each face of a block keeps', () => {
       expect(faceShadeOf(face, false)).toBe(1);
     }
     expect(topShadeOf(SlopeDirection.TOP, false)).toBe(1);
-    expect(hexWallShadeOf(0, false)).toBe(1);
   });
 
   it('darkens the top of a slope by the way it leans', () => {
@@ -33,14 +31,6 @@ describe('how much light each face of a block keeps', () => {
     expect(topShadeOf(SlopeDirection.RIGHT, true)).toBe(0.9);
     expect(topShadeOf(SlopeDirection.BOTTOM, true)).toBe(1);
     expect(topShadeOf(SlopeDirection.NONE, true)).toBe(1);
-  });
-
-  it('keeps a hex wall between a third of the light and all of it', () => {
-    for (let side = 0; side < 12; side++) {
-      const shade = hexWallShadeOf((side * Math.PI) / 6, true);
-      expect(shade).toBeGreaterThanOrEqual(0.3);
-      expect(shade).toBeLessThanOrEqual(1);
-    }
   });
 });
 

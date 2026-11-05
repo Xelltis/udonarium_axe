@@ -1,6 +1,5 @@
 import {
   backgroundScrollAnimation,
-  backgroundScrollMargin,
   backgroundTileSize,
   MAX_BACKGROUND_SCROLL_SPEED,
   MIN_BACKGROUND_SCROLL_SECONDS,
@@ -115,33 +114,5 @@ describe('backgroundTileSize()', () => {
       width: 2000,
       height: 2000,
     });
-  });
-});
-
-describe('backgroundScrollMargin()', () => {
-  it('gives a drifting axis one tile of spare cloth, on the side it is heading for', () => {
-    expect(backgroundScrollMargin({ width: 256, height: 128 }, true, true)).toEqual({ x: 256, y: 128 });
-  });
-
-  it('gives a still axis none, since the tiles already reach the edge', () => {
-    expect(backgroundScrollMargin({ width: 256, height: 128 }, true, false)).toEqual({ x: 256, y: 0 });
-    expect(backgroundScrollMargin({ width: 256, height: 128 }, false, false)).toEqual({ x: 0, y: 0 });
-  });
-
-  it('gives none at all until the picture has been measured', () => {
-    expect(backgroundScrollMargin(null, true, true)).toEqual({ x: 0, y: 0 });
-  });
-
-  it('keeps the board covered the whole drift through, by a tile larger than the board itself', () => {
-    // The sheet spans [0, board + margin] and slides anywhere within [-tile, 0]. Cover the board
-    // at both ends of that and it is covered throughout, whatever the tile measures.
-    const board = 800;
-    const tile = { width: 2000, height: 2000 };
-    const margin = backgroundScrollMargin(tile, true, true);
-
-    for (const slid of [0, -tile.width]) {
-      expect(slid).toBeLessThanOrEqual(0);
-      expect(board + margin.x + slid).toBeGreaterThanOrEqual(board);
-    }
   });
 });

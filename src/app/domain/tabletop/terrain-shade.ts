@@ -63,13 +63,6 @@ const LEANS: Record<number, number> = {
   [SlopeDirection.LEFT]: (3 * Math.PI) / 2,
 };
 
-/** How much of the light a wall of a hex block keeps for the way the edge it stands on runs. */
-export function hexWallShadeOf(edgeAngle: number, surfaceShading: boolean): number {
-  return surfaceShading
-    ? Math.max(0.3, Math.min(1.0, 0.65 - 0.35 * Math.cos(edgeAngle) + 0.15 * Math.sin(edgeAngle)))
-    : 1.0;
-}
-
 /**
  * The cells along one side of a block, as indices into its readings, from the end the side is
  * drawn from: the west one first along the north and south sides, the south one first along the

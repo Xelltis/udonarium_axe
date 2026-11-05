@@ -196,11 +196,3 @@ export function squareCapsOf(blocks: readonly SquareBlock[], gridSize: number): 
   }
   return caps;
 }
-
-/** The block under a point on a cap, measured from the corner of the cap's box; null off its cells. */
-export function capCellAt(cap: SquareCap, x: number, y: number, gridSize: number): CapCell | null {
-  const col = Math.floor((x - CAP_BLEED) / gridSize);
-  const row = Math.floor((y - CAP_BLEED) / gridSize);
-  if (col < 0 || row < 0 || col >= cap.cols || row >= cap.rows) return null;
-  return cap.cells[row * cap.cols + col];
-}

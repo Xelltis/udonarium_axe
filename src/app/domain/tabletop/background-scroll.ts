@@ -88,25 +88,3 @@ function holdingRatio(wide: number, tall: number, board: { width: number; height
   const down = Number.isFinite(board.height) && board.height >= 1 ? board.height / tall : 1;
   return Math.min(1, across, down);
 }
-
-/**
- * How far the tiled sheet reaches past the board, in pixels on the side it is heading for.
- *
- * The sheet slides by one tile and springs back, so its offset never leaves `[-tile, 0]`. Cover
- * `[0, board + tile]` and the board stays covered at every point of that: at rest the sheet
- * reaches a tile beyond the far edge, and at the end of a run it has pulled that spare into
- * view. The near side needs nothing, which halves what the machine has to keep in memory.
- *
- * A still axis needs no spare at all: tiles already reach both edges.
- */
-export function backgroundScrollMargin(
-  tile: { width: number; height: number } | null,
-  scrollsX: boolean,
-  scrollsY: boolean
-): { x: number; y: number } {
-  if (!tile) return { x: 0, y: 0 };
-  return {
-    x: scrollsX ? tile.width : 0,
-    y: scrollsY ? tile.height : 0,
-  };
-}
