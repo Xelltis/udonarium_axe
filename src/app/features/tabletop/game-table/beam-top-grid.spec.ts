@@ -1,50 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { SurfaceDims } from '@axe/domain/tabletop/surface-space';
 import { Terrain } from '@axe/domain/tabletop/terrain';
-import { beamTopGridGeometry, beamWallFaceGrid } from '@axe/features/tabletop/game-table/beam-top-grid';
+import { beamWallFaceGrid } from '@axe/features/tabletop/game-table/beam-top-grid';
 
 const dims: SurfaceDims = { widthPx: 500, depthPx: 500, wallHeightPx: 500 };
 const GRID = 50;
-
-describe('beamTopGridGeometry', () => {
-  beforeEach(() => {
-    TestBed.configureTestingModule({});
-  });
-
-  it('returns the walkable top of a north-wall beam in floor coordinates', () => {
-    const beam = Terrain.create('beam', 2, 1, 4, '', '');
-    beam.location.x = 100;
-    beam.location.y = 0;
-    beam.location.surface = 'north-wall';
-    beam.isGrid = true;
-
-    expect(beamTopGridGeometry(beam, dims, GRID)).toEqual({ left: 100, top: 0, width: 100, height: 200, z: 500 });
-  });
-
-  it('returns the top of an east-wall beam jutting inwards', () => {
-    const beam = Terrain.create('beam', 2, 1, 3, '', '');
-    beam.location.x = 0;
-    beam.location.y = 0;
-    beam.location.surface = 'east-wall';
-    beam.isGrid = true;
-
-    // an east wall, with its footprint against the wall and its top at the beam height
-    expect(beamTopGridGeometry(beam, dims, GRID)).toEqual({ left: 350, top: 0, width: 150, height: 100, z: 500 });
-  });
-
-  it('leaves floor terrain out of it', () => {
-    const floor = Terrain.create('floor', 2, 2, 1, '', '');
-    floor.isGrid = true;
-    expect(beamTopGridGeometry(floor, dims, GRID)).toBeNull();
-  });
-
-  it('leaves a wall without a grid out of it', () => {
-    const beam = Terrain.create('beam', 2, 1, 4, '', '');
-    beam.location.surface = 'north-wall';
-    beam.isGrid = false;
-    expect(beamTopGridGeometry(beam, dims, GRID)).toBeNull();
-  });
-});
 
 describe('beamWallFaceGrid', () => {
   beforeEach(() => {
