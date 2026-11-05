@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HeldPiece, HeldPieceService } from '@axe/application/tabletop/held-piece.service';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { TableAltitudeGuideOverlayComponent } from '@axe/features/tabletop/table-altitude-guide-overlay/table-altitude-guide-overlay.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -101,5 +102,27 @@ describe('TableAltitudeGuideOverlayComponent', () => {
     guides.letGo('somebody-else');
 
     expect((await drawn()).querySelector('[data-altitude-guide]')).not.toBeNull();
+  });
+
+  describe('over a table drawn on a canvas', () => {
+    it('lays a pole over the piece held, a rung a cell and its height at the top, and nothing among the page’s own pieces', async () => {
+      const piece = GameCharacter.create('walker', 1, '');
+      fixture.componentRef.setInput('overCanvas', true);
+      guides.take({ ...aloft(2), identifier: piece.identifier });
+
+      const root = await drawn();
+
+      expect(root.querySelector('[data-altitude-guide-pole]')).not.toBeNull();
+      expect(root.querySelectorAll('[data-altitude-guide-rung]')).toHaveLength(2);
+      expect(root.querySelector('[data-altitude-guide-reading]')?.textContent?.trim()).toBe('+2');
+      expect(root.querySelector('.transform-3d')).toBeNull();
+    });
+
+    it('draws nothing for a piece no longer on the table', async () => {
+      fixture.componentRef.setInput('overCanvas', true);
+      guides.take(aloft(2));
+
+      expect((await drawn()).querySelector('[data-altitude-guide]')).toBeNull();
+    });
   });
 });

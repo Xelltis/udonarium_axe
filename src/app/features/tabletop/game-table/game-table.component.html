@@ -408,7 +408,9 @@
       @if (!table3d.drawsOnCanvas()) {
         <ng-container [ngTemplateOutlet]="floorMarks"></ng-container>
       }
-      <table-altitude-guide-overlay class="contents"></table-altitude-guide-overlay>
+      @if (!table3d.drawsOnCanvas()) {
+        <table-altitude-guide-overlay class="contents"></table-altitude-guide-overlay>
+      }
       <table-effect-overlay class="contents"></table-effect-overlay>
       <effect-target-overlay class="contents"></effect-target-overlay>
     </div>
@@ -478,6 +480,7 @@
           [appHudPlace]="{ owner: diceSymbol.identifier }"
         ></dice-symbol>
       }
+      <table-altitude-guide-overlay class="contents" [overCanvas]="true"></table-altitude-guide-overlay>
     </div>
   }
 </div>

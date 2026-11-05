@@ -379,6 +379,36 @@ test.describe('pieces drawn on a canvas', () => {
     await expect(character.getByTestId('altitude-guide-elevation')).toHaveText('2');
   });
 
+  test('stand a pole over a character held up off the floor, a rung a cell, for as long as it is held', async ({
+    page,
+  }) => {
+    const character = page.locator('game-character', { has: page.getByText('キャラクターB', { exact: true }) });
+    const id = (await character.getAttribute('data-object-id'))!;
+    await idle(page);
+    const [pedestal] = await boxesOf(page, id);
+    const grab = { x: pedestal.x + pedestal.width / 2, y: pedestal.y + pedestal.height / 2 };
+    const hud = page.getByTestId('table-hud');
+
+    await page.mouse.move(grab.x, grab.y);
+    await page.mouse.down();
+    await page.mouse.move(grab.x + 4, grab.y + 4, { steps: 3 });
+    await page.keyboard.down('Shift');
+    await page.mouse.wheel(0, -100);
+    await page.mouse.wheel(0, -100);
+
+    await expect(hud.locator('[data-altitude-guide-rung]')).toHaveCount(2, { timeout: 5000 });
+    await expect(hud.locator('[data-altitude-guide-reading]')).toHaveText('+2');
+    const pole = (await hud.locator('[data-altitude-guide-pole]').boundingBox())!;
+    const report = JSON.stringify([pole, pedestal]);
+    expect(Math.abs(pole.x + pole.width / 2 - (grab.x + 4)), report).toBeLessThan(pedestal.width / 2);
+    expect(pole.y + pole.height, report).toBeGreaterThan(pedestal.y);
+    expect(pole.height, report).toBeGreaterThan(pedestal.height);
+
+    await page.keyboard.up('Shift');
+    await page.mouse.up();
+    await expect(hud.locator('[data-altitude-guide]')).toHaveCount(0);
+  });
+
   test('tumble a die on the canvas, its picture moving and its frame staying, and bring it to rest', async ({
     page,
   }) => {
