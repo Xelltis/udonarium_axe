@@ -135,6 +135,7 @@ import { TableWeatherOverlayComponent } from '@axe/features/tabletop/table-weath
 import { TableZoneOverlayComponent } from '@axe/features/tabletop/table-zone-overlay/table-zone-overlay.component';
 import { TerrainComponent } from '@axe/features/tabletop/terrain/terrain.component';
 import { TerrainBatchService } from '@axe/features/tabletop/terrain-batch/terrain-batch.service';
+import { TerrainMenuService } from '@axe/features/tabletop/terrain/terrain-menu.service';
 import { TextNoteComponent } from '@axe/features/tabletop/text-note/text-note.component';
 import { TableVisionVolumeOverlayComponent } from '@axe/features/tabletop/vision-volume/table-vision-volume-overlay.component';
 import {
@@ -278,6 +279,7 @@ export class GameTableComponent {
   );
   private readonly ambienceService = inject(TableAmbienceService);
   private readonly terrainBatch = inject(TerrainBatchService);
+  private readonly terrainMenu = inject(TerrainMenuService);
   private readonly tabletopActionService = inject(TabletopActionService);
   private readonly startRoom = inject(StartRoomService);
   protected readonly visionService = inject(VisionService);
@@ -327,6 +329,7 @@ export class GameTableComponent {
       const canvas = this.sceneCanvas()?.nativeElement;
       if (canvas) onCleanup(this.table3d.attach(canvas));
     });
+    this.keepMergedTerrainsKnown();
     effect(() => {
       this.thirdPerson.view();
       untracked(() => {
@@ -852,7 +855,6 @@ export class GameTableComponent {
   readonly textNotesOverCanvas = computed(() => (this.table3d.drawsOnCanvas() ? this.textNotes() : []));
   readonly cardsOverCanvas = computed(() => (this.table3d.drawsOnCanvas() ? this.cards() : []));
   readonly cardStacksOverCanvas = computed(() => (this.table3d.drawsOnCanvas() ? this.cardStacks() : []));
-  /** The terrain on the floor that is not drawn together with the blocks that do not move. */
   /**
    * The blocks laid over a table drawn on a canvas, on the screen where the canvas draws them: all but
    * the ones drawn together, which have no element of their own.
@@ -1168,6 +1170,35 @@ export class GameTableComponent {
       },
       { injector: this.injector }
     );
+  }
+
+  /**
+   * Keeps the blocks the canvas draws together, which have no element of their own on the screen,
+   * known to what finds the pieces under a point and rests a piece on what is under it, each with its
+   * menu for a right click on it.
+   */
+  private keepMergedTerrainsKnown(): void {
+    const known = new Set<string>();
+    effect(() => {
+      const merged = this.terrainBatch.mergedTerrains();
+      untracked(() => {
+        for (const identifier of [...known]) {
+          if (merged.has(identifier)) continue;
+          known.delete(identifier);
+          this.tabletopOverlap.unregister(identifier, null);
+        }
+        for (const identifier of merged) {
+          if (known.has(identifier) && this.tabletopOverlap.get(identifier)?.element === null) continue;
+          const terrain = this.terrainBatch.terrainOf(identifier);
+          if (!terrain) continue;
+          this.tabletopOverlap.registerWithoutElement(terrain, () => this.terrainMenu.open(terrain));
+          known.add(identifier);
+        }
+      });
+    });
+    this.destroyRef.onDestroy(() => {
+      for (const identifier of known) this.tabletopOverlap.unregister(identifier, null);
+    });
   }
 
   /** Hands the canvas the grid again whenever the grid is shown or hidden. */

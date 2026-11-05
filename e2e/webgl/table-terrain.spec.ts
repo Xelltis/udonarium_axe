@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels } from '../dungeon-helpers';
+import { becomeGm, buildDungeon, closePanels } from '../dungeon-helpers';
 import { openPanel, openTableContextMenu, revealMenuEntry, waitAppReady } from '../helpers';
 import { showWall } from '../table-face-helpers';
 
@@ -218,6 +218,19 @@ test.describe('blocks drawn on a canvas', () => {
     expect(await setBlocksDown(page)).toBeGreaterThanOrEqual(3);
     await idle(page);
     const spot = await pointOnBlock(page);
+
+    await page.mouse.click(spot.x, spot.y, { button: 'right' });
+
+    const menu = page.locator('context-menu');
+    await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
+    await expect(menu.getByText('傾斜')).toBeVisible();
+  });
+
+  test('open the menu of a block fixed in place, which the canvas draws together with others', async ({ page }) => {
+    await buildDungeon(page, '四角');
+    await idle(page);
+    const spot = await pointOnBlock(page);
+    expect(await page.locator(`terrain[data-object-id="${spot.id}"]`).count(), 'a block drawn together').toBe(0);
 
     await page.mouse.click(spot.x, spot.y, { button: 'right' });
 

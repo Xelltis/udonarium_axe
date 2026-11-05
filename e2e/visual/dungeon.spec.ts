@@ -52,7 +52,15 @@ async function buildDungeon(page: Page, gridLabel: string) {
   await settleUntilVisible(page, goTo, 120000);
   await goTo.click();
   await settle(page, 400);
-  await expect(page.locator('terrain-batch-layer [data-terrain]').first()).toBeAttached();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { __axeTable?: { sceneStats(): { chunks: number } | null } }).__axeTable?.sceneStats()
+            ?.chunks ?? 0
+      )
+    )
+    .toBeGreaterThan(0);
 }
 
 /**

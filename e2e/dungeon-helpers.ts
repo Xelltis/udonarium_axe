@@ -27,7 +27,17 @@ export async function buildDungeon(page: Page, gridLabel: string) {
   await typeInto(panel.locator('#seed'), '1278372739');
   await panel.getByRole('button', { name: '生成する' }).click();
   await panel.getByRole('button', { name: 'このテーブルへ移動' }).click({ timeout: 120000 });
-  await expect(page.locator('terrain-batch-layer [data-terrain]').first()).toBeAttached({ timeout: 20000 });
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () =>
+            (window as unknown as { __axeTable?: { sceneStats(): { chunks: number } | null } }).__axeTable?.sceneStats()
+              ?.chunks ?? 0
+        ),
+      { timeout: 20000 }
+    )
+    .toBeGreaterThan(0);
   const later = page.locator('app-room-restore-banner button', { hasText: 'あとで' });
   if (await later.count()) await later.first().dispatchEvent('click');
   await closePanels(page);

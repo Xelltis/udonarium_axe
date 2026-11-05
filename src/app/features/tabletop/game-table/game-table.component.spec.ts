@@ -12,6 +12,7 @@ import { DisplayCalibrationService } from '@axe/application/ui/display-calibrati
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { ViewLockService } from '@axe/application/ui/view-lock.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
@@ -27,6 +28,7 @@ import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { GameTableComponent } from '@axe/features/tabletop/game-table/game-table.component';
 import { GridFaceCache } from '@axe/features/tabletop/game-table/grid-face-cache';
+import { TerrainMenuService } from '@axe/features/tabletop/terrain/terrain-menu.service';
 import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -1084,6 +1086,34 @@ describe('GameTableComponent', () => {
       component['gridFaces'].dataUrl(table, 500, 200, 0, 0, 'N', null);
 
       expect(encode).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('blocks the canvas draws together', () => {
+    it('keeps each known to what finds the pieces under a point, with its menu, and lets go of one moved again', async () => {
+      const open = vi.spyOn(TestBed.inject(TerrainMenuService), 'open').mockImplementation(() => undefined);
+      const block = Terrain.create('壁', 1, 1, 2, 'wall.png', 'floor.png');
+      block.location = { name: 'table', x: 100, y: 100 };
+      block.isLocked = true;
+      component.currentTable.appendChild(block);
+      const overlap = TestBed.inject(TabletopOverlapService);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      try {
+        const entry = overlap.get(block.identifier);
+        expect(entry?.element).toBeNull();
+        entry?.openMenu?.();
+        expect(open).toHaveBeenCalledWith(block);
+
+        block.isLocked = false;
+        await fixture.whenStable();
+        TestBed.tick();
+        expect(overlap.get(block.identifier)?.element ?? null).toBeNull();
+        expect(overlap.get(block.identifier)?.openMenu).toBeUndefined();
+      } finally {
+        block.destroy();
+      }
     });
   });
 
