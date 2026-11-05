@@ -144,7 +144,7 @@ describe('PeerCursorComponent', () => {
       expect(addSpy).not.toHaveBeenCalled();
     });
 
-    it('lays a cursor over a canvas on the screen where the point it is at is drawn, and again as the camera moves', async () => {
+    it('lays a cursor on the screen where the point it is at is drawn, and again as the camera moves', async () => {
       const myCursor = PeerCursor.createMyCursor();
       myCursor.peerId = 'my-peer';
       const remoteCursor = new PeerCursor();
@@ -160,7 +160,6 @@ describe('PeerCursorComponent', () => {
       }));
       vi.spyOn(batchService, 'add').mockImplementation((work) => work());
       fixture.componentRef.setInput('cursor', remoteCursor);
-      fixture.componentRef.setInput('overCanvas', true);
       fixture.detectChanges();
       await fixture.whenStable();
       const element = (component as unknown as { cursorElement: HTMLElement }).cursorElement;

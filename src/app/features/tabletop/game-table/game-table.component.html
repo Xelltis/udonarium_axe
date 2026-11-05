@@ -388,19 +388,6 @@
           }
         </div>
       }
-      @if (!table3d.drawsOnCanvas()) {
-        <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
-          @for (cursor of peerCursors(); track cursor.identifier) {
-            <peer-cursor
-              class="absolute will-change-transform backface-visible transform-3d"
-              [cursor]="cursor"
-            ></peer-cursor>
-          }
-        </div>
-      }
-      @if (!table3d.drawsOnCanvas()) {
-        <table-marquee-overlay class="contents"></table-marquee-overlay>
-      }
       <table-vision-overlay class="contents"></table-vision-overlay>
       <table-fog-air-overlay class="contents"></table-fog-air-overlay>
       <table-move-block-overlay class="contents"></table-move-block-overlay>
@@ -484,7 +471,7 @@
         ></dice-symbol>
       }
       @for (cursor of peerCursors(); track cursor.identifier) {
-        <peer-cursor class="absolute top-0 left-0" [cursor]="cursor" [overCanvas]="true"></peer-cursor>
+        <peer-cursor class="absolute top-0 left-0" [cursor]="cursor"></peer-cursor>
       }
       <table-effect-overlay class="contents"></table-effect-overlay>
       <effect-target-overlay class="contents"></effect-target-overlay>

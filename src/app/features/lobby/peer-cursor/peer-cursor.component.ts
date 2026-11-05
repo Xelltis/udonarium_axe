@@ -1,4 +1,3 @@
-import { NgClass } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -28,7 +27,6 @@ import { ResettableTimeout } from '@axe/core/util/resettable-timeout';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole, roleShortLabelKey, roleTagClass } from '@axe/domain/peer/peer-role';
-import { toTransformCss } from '@axe/ui/directives/movable-helpers';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 
 @Component({
@@ -36,7 +34,7 @@ import { SafePipe } from '@axe/ui/pipes/safe.pipe';
   selector: 'peer-cursor, [peer-cursor]',
   templateUrl: './peer-cursor.component.html',
   host: { class: 'block' },
-  imports: [NgClass, SafePipe],
+  imports: [SafePipe],
 })
 export class PeerCursorComponent {
   private static readonly _sentLogoutIdentifiers = new Set<string>();
@@ -55,11 +53,6 @@ export class PeerCursorComponent {
   readonly cursorElementRef = viewChild<ElementRef>('cursor');
   readonly opacityElementRef = viewChild<ElementRef>('opacity');
   readonly cursor = input(PeerCursor.myCursor);
-  /**
-   * Whether the cursor is laid over a table drawn on a canvas, on the screen where the canvas draws
-   * the point it is at, rather than stood among the page's own pieces.
-   */
-  readonly overCanvas = input(false);
 
   readonly iconUrl = computed(() => {
     this.objectChange.fileVersion();
@@ -179,7 +172,7 @@ export class PeerCursorComponent {
     effect(() => {
       this.camera.version();
       untracked(() => {
-        if (!this.overCanvas() || !this.at || !this.cursorElement) return;
+        if (!this.at || !this.cursorElement) return;
         this.cursorElement.style.transition = 'opacity 0.5s ease-out';
         this.layOnScreen();
       });
@@ -357,12 +350,8 @@ export class PeerCursorComponent {
   }
 
   private setPosition(x: number, y: number, z: number) {
-    if (this.overCanvas()) {
-      this.at = { x, y, z };
-      this.layOnScreen();
-      return;
-    }
-    this.cursorElement!.style.transform = toTransformCss(x, y, z, '');
+    this.at = { x, y, z };
+    this.layOnScreen();
   }
 
   /** Lays the cursor on the screen where the canvas draws the point of the floor it was last put at. */
