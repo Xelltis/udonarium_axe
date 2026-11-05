@@ -1,4 +1,4 @@
-import { NgStyle, NgTemplateOutlet } from '@angular/common';
+import { NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -13,7 +13,6 @@ import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -32,12 +31,6 @@ import { boardSurfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-ob
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
-import { CardComponent } from '@axe/features/card/card/card.component';
-import { GameCharacterComponent } from '@axe/features/character/game-character/game-character.component';
-import { DiceSymbolComponent } from '@axe/features/dice/dice-symbol/dice-symbol.component';
-import { GameTableMaskComponent } from '@axe/features/tabletop/game-table-mask/game-table-mask.component';
-import { TerrainComponent } from '@axe/features/tabletop/terrain/terrain.component';
-import { TextNoteComponent } from '@axe/features/tabletop/text-note/text-note.component';
 import { AnimatedImageService } from '@axe/features/tabletop/white-board/animated-image.service';
 import { detachAllFrom } from '@axe/features/tabletop/white-board/white-board-contents';
 import { buildWhiteBoardContextMenu } from '@axe/features/tabletop/white-board/white-board-context-menu';
@@ -56,7 +49,6 @@ import { setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-pie
   templateUrl: './white-board.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    NgStyle,
     NgTemplateOutlet,
     HudPlaceDirective,
     MovableDirective,
@@ -64,12 +56,6 @@ import { setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-pie
     SelectableDirective,
     TooltipDirective,
     SafePipe,
-    GameCharacterComponent,
-    TerrainComponent,
-    GameTableMaskComponent,
-    TextNoteComponent,
-    CardComponent,
-    DiceSymbolComponent,
   ],
   host: {
     class: 'block',
@@ -94,10 +80,9 @@ export class WhiteBoardComponent {
   readonly rotableOption = signal<RotableOption>({});
 
   /**
-   * Whether the board is drawn on the table's canvas from a picture of what it wears taken here,
-   * which leaves its face here clear, still taking the presses where the canvas draws it.
+   * What the board wears, laid out here for the table's canvas to draw the board from a picture of
+   * it: left clear, still taking the presses where the canvas draws it.
    */
-  readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
   private readonly face = viewChild<ElementRef<HTMLElement>>('face');
   private readonly pieces = inject(TablePiecesService);
   /** The corners of the board's face at its foot, where its handles stand over a canvas: bottom left and bottom right. */
@@ -106,7 +91,6 @@ export class WhiteBoardComponent {
   constructor() {
     setupMovableRotableForPiece(this, {
       target: this.whiteBoard,
-      placedElsewhere: this.drawsOnCanvas,
       footprint: () => ({ width: this.widthPx(), height: this.heightPx() }),
       turnsAbout: (board) => ({
         surface: this.pieces.surfaceOf(board),
@@ -118,7 +102,7 @@ export class WhiteBoardComponent {
     pictureForCanvas({
       identifier: () => this.whiteBoard().identifier,
       element: () => this.face()?.nativeElement,
-      pictured: () => this.drawsOnCanvas(),
+      pictured: () => true,
       follows: () => {
         this.widthPx();
         this.heightPx();
@@ -183,14 +167,6 @@ export class WhiteBoardComponent {
       .filter((picture) => picture.url.length > 0);
   });
 
-  /**
-   * Tilted about its lower edge, so that standing it up does not sink it into the table.
-   *
-   * Hinging on the middle would bury the near half of the board and lift the far half off
-   * the ground, which is not what standing a board up looks like.
-   */
-  readonly pitchTransform = computed(() => `rotateX(${-this.version().pitch}deg)`);
-
   private readonly contentsOf = <T extends TabletopObject>(list: readonly T[]): T[] => {
     const identifier = this.whiteBoard().identifier;
     return list.filter((object) => boardSurfaceOf(object) === identifier);
@@ -213,35 +189,35 @@ export class WhiteBoardComponent {
     { equal: () => false }
   );
 
-  /** The characters on the board, which a table drawn on a canvas lays over itself instead. */
+  /** The characters on the board, which its menu counts and takes off it; the table draws them over it. */
   readonly characters = computed<GameCharacter[]>(() => {
     this.surfaceVersion();
-    return this.drawsOnCanvas() ? [] : this.contentsOf(this.tabletopService.characters);
+    return this.contentsOf(this.tabletopService.characters);
   });
-  /** The blocks on the board, which a table drawn on a canvas lays over itself instead. */
+  /** The blocks on the board, which its menu counts and takes off it; the table draws them over it. */
   readonly terrains = computed<Terrain[]>(() => {
     this.surfaceVersion();
-    return this.drawsOnCanvas() ? [] : this.contentsOf(this.tabletopService.terrains);
+    return this.contentsOf(this.tabletopService.terrains);
   });
-  /** The masks on the board, which a table drawn on a canvas lays over itself instead. */
+  /** The masks on the board, which its menu counts and takes off it; the table draws them over it. */
   readonly masks = computed<GameTableMask[]>(() => {
     this.surfaceVersion();
-    return this.drawsOnCanvas() ? [] : this.contentsOf(this.tabletopService.tableMasks);
+    return this.contentsOf(this.tabletopService.tableMasks);
   });
-  /** The notes on the board, which a table drawn on a canvas lays over itself instead. */
+  /** The notes on the board, which its menu counts and takes off it; the table draws them over it. */
   readonly textNotes = computed<TextNote[]>(() => {
     this.surfaceVersion();
-    return this.drawsOnCanvas() ? [] : this.contentsOf(this.tabletopService.textNotes);
+    return this.contentsOf(this.tabletopService.textNotes);
   });
-  /** The cards on the board, which a table drawn on a canvas lays over itself instead. */
+  /** The cards on the board, which its menu counts and takes off it; the table draws them over it. */
   readonly cards = computed<Card[]>(() => {
     this.surfaceVersion();
-    return this.drawsOnCanvas() ? [] : this.contentsOf(this.tabletopService.cards);
+    return this.contentsOf(this.tabletopService.cards);
   });
-  /** The dice on the board, which a table drawn on a canvas lays over itself instead. */
+  /** The dice on the board, which its menu counts and takes off it; the table draws them over it. */
   readonly diceSymbols = computed<DiceSymbol[]>(() => {
     this.surfaceVersion();
-    return this.drawsOnCanvas() ? [] : this.contentsOf(this.tabletopService.diceSymbols);
+    return this.contentsOf(this.tabletopService.diceSymbols);
   });
 
   readonly standingCount = computed(

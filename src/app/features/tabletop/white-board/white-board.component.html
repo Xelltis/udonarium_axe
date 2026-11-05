@@ -29,159 +29,54 @@
     />
   }
 </ng-template>
-<ng-template #piecesOnFace>
-  @for (mask of masks(); track mask.identifier) {
-    <game-table-mask
-      class="absolute will-change-transform backface-visible transform-3d"
-      [gameTableMask]="mask"
-    ></game-table-mask>
-  }
-  @for (terrain of terrains(); track terrain.identifier) {
-    <terrain class="absolute will-change-transform backface-visible transform-3d" [terrain]="terrain"></terrain>
-  }
-  @for (card of cards(); track card.identifier) {
-    <card
-      class="absolute will-change-transform backface-visible transform-3d"
-      [card]="card"
-      [appTooltip]="card"
-      [ngStyle]="{ 'z-index': card.zindex }"
-    ></card>
-  }
-  @for (textNote of textNotes(); track textNote.identifier) {
-    <text-note
-      class="absolute will-change-transform backface-visible transform-3d"
-      [textNote]="textNote"
-      [appTooltip]="textNote"
-      [ngStyle]="{ 'z-index': textNote.zindex }"
-    ></text-note>
-  }
-  @for (diceSymbol of diceSymbols(); track diceSymbol.identifier) {
-    <dice-symbol
-      class="absolute will-change-transform backface-visible transform-3d"
-      [diceSymbol]="diceSymbol"
-      [appTooltip]="diceSymbol"
-    ></dice-symbol>
-  }
-  @for (character of characters(); track character.identifier) {
-    <game-character
-      class="absolute will-change-transform backface-visible transform-3d"
-      [gameCharacter]="character"
-      [appTooltip]="character"
-    ></game-character>
-  }
-</ng-template>
-@if (drawsOnCanvas()) {
-  <!--
-    Over a table drawn on a canvas, the board is a box on the screen round where the canvas draws it,
-    and its face is laid on it in perspective, clear as the canvas draws a picture of it, with what
-    hangs on the face and the pieces on it; its handles stand at the corners of its foot.
-  -->
-  @let id = whiteBoard().identifier;
+<!--
+  The board is a box on the screen round where the table's canvas draws it, and its face is laid on
+  it in perspective, clear as the canvas draws a picture of it, with what hangs on the face; the
+  table lays the pieces on the board over it, and its handles stand at the corners of its foot.
+-->
+@let id = whiteBoard().identifier;
+<div
+  class="group pointer-events-none size-full select-none"
+  [class.cursor-grab]="!isLock()"
+  data-hud-box
+  appMovable
+  [movable.option]="movableOption()"
+  [movable.disable]="isLock()"
+  [appSelectable]="whiteBoard()"
+  (movable.ondragstart)="onMove()"
+  (movable.ondragend)="onMoved()"
+>
   <div
-    class="group pointer-events-none size-full select-none"
-    [class.cursor-grab]="!isLock()"
-    data-hud-box
-    appMovable
-    [movable.option]="movableOption()"
-    [movable.disable]="isLock()"
-    [appSelectable]="whiteBoard()"
-    (movable.ondragstart)="onMove()"
-    (movable.ondragend)="onMoved()"
+    class="pointer-events-none size-full"
+    appRotable
+    [rotable.option]="rotableOption()"
+    [rotable.disable]="isLock()"
+    (rotable.ondragstart)="onMove()"
+    (rotable.valueChange)="onRotated($event)"
+    (rotable.ondragend)="onMoved()"
   >
     <div
-      class="pointer-events-none size-full"
-      appRotable
-      [rotable.option]="rotableOption()"
-      [rotable.disable]="isLock()"
-      (rotable.ondragstart)="onMove()"
-      (rotable.valueChange)="onRotated($event)"
-      (rotable.ondragend)="onMoved()"
+      class="pointer-events-auto"
+      [attr.data-surface]="id"
+      [appTooltip]="whiteBoard()"
+      [style.width.px]="widthPx()"
+      [style.height.px]="heightPx()"
+      [appHudPlace]="{ owner: id, part: 'face', place: 'face' }"
     >
-      <div
-        class="pointer-events-auto"
-        [attr.data-surface]="id"
-        [appTooltip]="whiteBoard()"
-        [style.width.px]="widthPx()"
-        [style.height.px]="heightPx()"
-        [appHudPlace]="{ owner: id, part: 'face', place: 'face' }"
-      >
-        <div class="absolute inset-0 opacity-0" #face data-part="face">
-          <ng-container [ngTemplateOutlet]="faceLook"></ng-container>
-        </div>
-        <ng-container [ngTemplateOutlet]="livePictureLayer"></ng-container>
-        <ng-container [ngTemplateOutlet]="piecesOnFace"></ng-container>
+      <div class="absolute inset-0 opacity-0" #face data-part="face">
+        <ng-container [ngTemplateOutlet]="faceLook"></ng-container>
       </div>
-      @if (!isLock()) {
-        @for (corner of footCorners; track corner) {
-          <div
-            class="rotate-grab pointer-events-auto box-border size-7 cursor-default rounded-[14px] border-2 border-solid border-(--ui-panel-border) bg-(--ui-elevated) p-0 text-(--ui-text-muted) opacity-0 group-hover:opacity-100 group-active:opacity-100"
-            [appHudPlace]="{ owner: id, part: 'face', corner }"
-          >
-            <i class="material-icons text-[20px]!">autorenew</i>
-          </div>
-        }
-      }
+      <ng-container [ngTemplateOutlet]="livePictureLayer"></ng-container>
     </div>
-  </div>
-} @else {
-  <div
-    class="group absolute select-none backface-visible transform-3d"
-    [style.width.px]="widthPx()"
-    [style.height.px]="heightPx()"
-    [class.cursor-grab]="!isLock()"
-    appMovable
-    [movable.option]="movableOption()"
-    [movable.disable]="isLock()"
-    [appSelectable]="whiteBoard()"
-    (movable.ondragstart)="onMove()"
-    (movable.ondragend)="onMoved()"
-  >
-    <!-- The board turns about its upright axis, the way a terrain block does, and is taken hold
-         of at its foot, which is the only part of it that touches the table. -->
-    <div
-      class="size-full origin-bottom transform-3d"
-      appRotable
-      [rotable.option]="rotableOption()"
-      [rotable.disable]="isLock()"
-      (rotable.ondragstart)="onMove()"
-      (rotable.valueChange)="onRotated($event)"
-      (rotable.ondragend)="onMoved()"
-    >
-      @if (!isLock()) {
-        <div class="pointer-events-none absolute inset-x-0 bottom-0 h-0 transform-3d">
-          <div
-            class="rotate-grab pointer-events-auto absolute -inset-x-3.5 -top-3.5 box-border h-7 cursor-default rounded-[14px] border-2 border-solid border-(--ui-panel-border) opacity-0 will-change-[opacity] transform-3d group-hover:opacity-100 group-active:opacity-100"
-          ></div>
-          <div
-            class="rotate-grab pointer-events-auto absolute -top-3.5 -left-3.5 box-border size-7 cursor-default rounded-[14px_7px_14px_7px] border-2 border-solid border-(--ui-panel-border) bg-(--ui-elevated) p-0 text-(--ui-text-muted) opacity-0 will-change-[opacity] transform-3d group-hover:opacity-100 group-active:opacity-100"
-          >
-            <i class="material-icons text-[20px]!">autorenew</i>
-          </div>
-          <div
-            class="rotate-grab pointer-events-auto absolute -top-3.5 -right-3.5 box-border size-7 cursor-default rounded-[7px_14px_7px_14px] border-2 border-solid border-(--ui-panel-border) bg-(--ui-elevated) p-0 text-(--ui-text-muted) opacity-0 will-change-[opacity] transform-3d group-hover:opacity-100 group-active:opacity-100"
-          >
-            <i class="material-icons text-[20px]!">autorenew</i>
-          </div>
-        </div>
-      }
-      <div class="size-full origin-bottom transform-3d" [style.transform]="pitchTransform()">
-        <!-- What the board wears, which a seat drawing the table on a canvas pictures for it. -->
-        <div class="absolute inset-0 backface-visible" #face data-part="face" [class.opacity-0]="drawsOnCanvas()">
-          <ng-container [ngTemplateOutlet]="faceLook"></ng-container>
-        </div>
-
-        <ng-container [ngTemplateOutlet]="livePictureLayer"></ng-container>
-
-        <!-- The face that carries the pieces lies over the whole board, so it is what a pointer
-             resting on the board is over, and where the board's details open from. -->
+    @if (!isLock()) {
+      @for (corner of footCorners; track corner) {
         <div
-          class="absolute inset-0 transform-3d"
-          [attr.data-surface]="whiteBoard().identifier"
-          [appTooltip]="whiteBoard()"
+          class="rotate-grab pointer-events-auto box-border size-7 cursor-default rounded-[14px] border-2 border-solid border-(--ui-panel-border) bg-(--ui-elevated) p-0 text-(--ui-text-muted) opacity-0 group-hover:opacity-100 group-active:opacity-100"
+          [appHudPlace]="{ owner: id, part: 'face', corner }"
         >
-          <ng-container [ngTemplateOutlet]="piecesOnFace"></ng-container>
+          <i class="material-icons text-[20px]!">autorenew</i>
         </div>
-      </div>
-    </div>
+      }
+    }
   </div>
-}
+</div>

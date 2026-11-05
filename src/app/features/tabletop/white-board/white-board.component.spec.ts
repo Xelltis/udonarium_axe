@@ -15,11 +15,8 @@ import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { AnimatedImageService } from '@axe/features/tabletop/white-board/animated-image.service';
 import { WhiteBoardComponent } from '@axe/features/tabletop/white-board/white-board.component';
 import { createBoardScene } from '@axe/features/tabletop/white-board/white-board-scene';
-import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
-
-beforeEach(() => drawTableOnPage());
 
 describe('WhiteBoardComponent', () => {
   let fixture: ComponentFixture<WhiteBoardComponent>;
@@ -148,22 +145,13 @@ describe('WhiteBoardComponent', () => {
     expect(component.heightPx()).toBe(4 * 50);
   });
 
-  it('lies flat until it is tilted, and hinges rather than sinking', async () => {
-    expect(component.pitchTransform()).toBe('rotateX(0deg)');
-
-    board.pitch = 90;
-    await new Promise((resolve) => setTimeout(resolve, 20));
-
-    expect(component.pitchTransform()).toBe('rotateX(-90deg)');
-  });
-
   it('takes the turn it was dragged to, so the board keeps facing where it was left', () => {
     component.onRotated(30);
 
     expect(board.rotate).toBe(30);
   });
 
-  it('shows only what names it as the face it stands on', () => {
+  it('counts only what names it as the face it stands on, for its menu to take off it', () => {
     const mine = place(10, 10, board.identifier);
     const theirs = place(10, 10);
 
