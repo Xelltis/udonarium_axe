@@ -614,6 +614,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.skyDome.follow(new Vector3().setFromMatrixPosition(this.camera.matrixWorld));
     this.sprites.face(view.axes);
     this.fadePx = view.fadePx ?? 0;
+    this.water.lookFromAmongPieces(view.nearPx !== undefined);
     this.layFog();
     this.changed = true;
   }

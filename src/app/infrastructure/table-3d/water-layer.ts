@@ -16,6 +16,7 @@ import {
   vec4,
 } from 'three/tsl';
 import {
+  BackSide,
   BufferGeometry,
   DataTexture,
   DoubleSide,
@@ -75,6 +76,11 @@ export class WaterLayer {
   readonly group = new Group();
   private readonly seconds = uniform(0);
   private readonly cellPx = uniform(50);
+  /** How much of the net of light the floors wear: all of it from above, none for an eye among the pieces. */
+  private readonly floorNet = uniform(1);
+  /** Whether the eye stands among the pieces, which sees the sides of the water from outside alone. */
+  private amongPieces = false;
+  private sides: MeshLambertNodeMaterial | null = null;
   private netTile: Texture | null = null;
   private laid: TableWorldWater | null = null;
   private laidBoard = '';
@@ -105,6 +111,22 @@ export class WaterLayer {
     if (water.seaFloor && board) this.addSeaFloor(water.seaFloor, board());
     this.add(water.sides, this.sideMaterial(), SURFACE_ORDER);
     this.add(water.shore, this.shoreMaterial(), SHORE_ORDER);
+    this.changed = true;
+  }
+
+  /**
+   * Has the water drawn for an eye standing among the pieces, as the page draws it for one: the floors
+   * bare of the net of light, and each side seen from outside the water alone, so an eye under the
+   * surface looks out past the sides round it.
+   */
+  lookFromAmongPieces(among: boolean): void {
+    if (among === this.amongPieces) return;
+    this.amongPieces = among;
+    this.floorNet.value = among ? 0 : 1;
+    if (this.sides) {
+      this.sides.side = this.sideFacing();
+      this.sides.needsUpdate = true;
+    }
     this.changed = true;
   }
 
@@ -205,6 +227,7 @@ export class WaterLayer {
   }
 
   private clear(): void {
+    this.sides = null;
     for (const mesh of this.meshes) {
       this.group.remove(mesh);
       mesh.geometry.dispose();
@@ -240,7 +263,7 @@ export class WaterLayer {
     Object.assign(material, PULLED_FORWARD);
     const { rgb, a } = this.colour();
     const at = vec2(positionWorld.x, positionWorld.z).div(this.cellPx.mul(netCells));
-    const { first, second } = this.nets(at, attribute('extra', 'float'));
+    const { first, second } = this.nets(at, attribute('extra', 'float').mul(this.floorNet));
     const clear = float(1).sub(first).mul(float(1).sub(second));
     const alpha = float(1).sub(float(1).sub(a).mul(clear));
     const colour = rgb.mul(a).mul(clear).add(float(1).sub(clear)).div(max(alpha, 0.0001));
@@ -251,10 +274,20 @@ export class WaterLayer {
 
   private sideMaterial(): MeshLambertNodeMaterial {
     const material = this.material(true);
+    material.side = this.sideFacing();
     const { rgb, a } = this.colour();
     material.colorNode = vec4(rgb, a);
     this.dress(material, 'lit');
+    this.sides = material;
     return material;
+  }
+
+  /**
+   * Which faces of a side are drawn: both from above, and from among the pieces only the one turned
+   * out of the water, a side's front being the one turned into the cell it goes round.
+   */
+  private sideFacing(): typeof DoubleSide | typeof BackSide {
+    return this.amongPieces ? BackSide : DoubleSide;
   }
 
   /** The shore: foam at the land, and waves running in to it from the open water and dying on it. */
