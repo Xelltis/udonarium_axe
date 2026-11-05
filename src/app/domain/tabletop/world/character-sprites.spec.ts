@@ -51,6 +51,17 @@ describe('the sprites a character is drawn with', () => {
     expect(picture).toMatchObject({ widthPx: 30, heightPx: 80, centre: { z: 1 + 50 + 40 } });
   });
 
+  it('turns the picture turned to the reader again as far as the piece is turned, where it is asked to', () => {
+    const turned = { ...character, rotateDeg: 90 };
+
+    const [, plain] = characterSprites(turned);
+    const [, turning] = characterSprites({ ...turned, turnsWithPiece: true });
+
+    expect(plain.turn).toBeUndefined();
+    expect(turning).toMatchObject({ facing: 'eye', turn: { axis: { x: 0, y: 0, z: 1 }, deg: 90 } });
+    expect(characterSprites({ ...turned, facesEye: false, turnsWithPiece: true })[1].turn).toBeUndefined();
+  });
+
   it('holds the picture inside the cell on a table seen from above', () => {
     const [, picture] = characterSprites({ ...character, fitsInCell: true });
 

@@ -118,6 +118,16 @@ describe('movedSprite', () => {
     near(axes.down, { x: 0, y: 0, z: -1 });
   });
 
+  it('turns a picture turned to the eye on top of the turn it already has in the face', () => {
+    const moved = movedSprite(
+      sprite({ turn: { axis: { x: 0, y: 0, z: 1 }, deg: 30 } }),
+      { across: 0, down: 0, out: 0, scale: 1, turnDeg: 15, flipDeg: 0, shown: 1 },
+      PIVOT
+    );
+
+    expect(moved.turn?.deg).toBe(45);
+  });
+
   it('turns a sprite lying a fixed way with the piece, across towards down', () => {
     const lying = sprite({ centre: { x: 120, y: 100, z: 1 }, facing: { across: EAST, down: SOUTH } });
     const moved = movedSprite(

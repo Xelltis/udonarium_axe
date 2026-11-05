@@ -307,6 +307,26 @@ describe('TablePiecesService', () => {
     expect(pieces.coins()).toMatchObject([{ id: coin.identifier, backUp: false, motion: pose }]);
   });
 
+  it('turns a character’s picture with the piece on a table seen from above that shows facing by turning it', () => {
+    const table = TestBed.inject(TableSelecter).viewTable!;
+    table.mode2d = true;
+    const hero = GameCharacter.create('hero', 1, 'hero.png');
+    hero.location = { name: 'table', x: 100, y: 200 };
+    hero.rotate = 90;
+    vi.spyOn(TestBed.inject(PiecePicturesService), 'pictureOf').mockReturnValue({
+      url: 'blob:pedestal',
+      widthPx: gridSize,
+      heightPx: gridSize,
+    });
+    const picture = () => pieces.sprites().find((sprite) => sprite.id === `${hero.identifier}#picture`)!;
+    expect(picture().turn).toBeUndefined();
+
+    table.facingMark = 'turn';
+    TestBed.inject(ObjectChangeService).notifyChanged(table.identifier);
+
+    expect(picture()).toMatchObject({ facing: 'eye', turn: { deg: 90 } });
+  });
+
   describe('a character drawn as a 3D model', () => {
     function knightAt(x: number, y: number): GameCharacter {
       const knight = GameCharacter.create('騎士', 1, '');

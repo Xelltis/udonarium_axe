@@ -226,7 +226,8 @@ export interface MotionPivot {
 
 /**
  * A sprite of a moving piece where the pose puts it: shifted, grown and turned about the pivot. A
- * sprite turned to the eye keeps turning to it and is turned in the face on top of that.
+ * sprite turned to the eye keeps turning to it and is turned in the face on top of that, and of
+ * whatever turn it already had in the face.
  */
 export function movedSprite(sprite: TableWorldSprite, pose: MotionPose, pivot: MotionPivot): TableWorldSprite {
   const { across, down } = pivot;
@@ -255,7 +256,7 @@ export function movedSprite(sprite: TableWorldSprite, pose: MotionPose, pivot: M
     heightPx: sprite.heightPx * pose.scale,
   };
   if (sprite.facing === 'eye') {
-    return pose.turnDeg ? { ...moved, turn: { axis: out, deg: pose.turnDeg } } : moved;
+    return pose.turnDeg ? { ...moved, turn: { axis: out, deg: (sprite.turn?.deg ?? 0) + pose.turnDeg } } : moved;
   }
   return { ...moved, facing: { across: turn(sprite.facing.across), down: turn(sprite.facing.down) } };
 }

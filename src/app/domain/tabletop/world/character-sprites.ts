@@ -52,6 +52,11 @@ export interface CharacterLayout {
   readonly fitsInCell: boolean;
   /** Whether its picture turns to face the reader, where it stands up. */
   readonly facesEye: boolean;
+  /**
+   * Whether its picture, turned to face the reader, is turned again as far as the piece is turned,
+   * as on a table seen from above that shows which way a piece faces by turning its picture.
+   */
+  readonly turnsWithPiece?: boolean;
   /** How opaque its picture is drawn, as less for a piece in stealth. */
   readonly opacity: number;
 }
@@ -252,6 +257,7 @@ export function characterSprites(character: CharacterLayout): TableWorldSprite[]
       ...base,
       centre: { x: pivot.x + down.x * below, y: pivot.y + down.y * below, z: pivot.z + down.z * below },
       facing: character.facesEye ? 'eye' : { across, down },
+      ...(character.facesEye && character.turnsWithPiece ? { turn: { axis: normal, deg: character.rotateDeg } } : {}),
     });
   } else {
     sprites.push({

@@ -30,6 +30,7 @@ import { pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import { pieceModelOf } from '@axe/domain/tabletop/piece-model';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { SurfaceFrame } from '@axe/domain/tabletop/surface-space';
+import { asTableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
 import { boardSurfaceOf, surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -250,7 +251,11 @@ export class TablePiecesService {
     const gridSize = table.gridSize;
     const mode2d = this.tabletop.mode2d();
     const facesEye = this.tabletop.imageBillboard() || mode2d || this.eyes.scene() !== null;
-    const fitsInCell = mode2d && this.roomRules.rulesFor(table).pieceImageInCell;
+    this.objectChange.versionOf('Config')();
+    const rules = this.roomRules.rulesFor(table);
+    const fitsInCell = mode2d && rules.pieceImageInCell;
+    const turnsWithPiece =
+      mode2d && !this.tabletop.display().multiAngleEnabled && asTableFacingMark(rules.facingMark) === 'turn';
     const followed = this.eyes.followed();
     const lookedThrough = followed?.near ? followed.owner : '';
     this.objectChange.collectionOf(Terrain.aliasName)();
@@ -277,6 +282,7 @@ export class TablePiecesService {
         pictureWidthPx: character.specifyKomaImageFlag ? pieceImageWidthApart(character.komaImageWidth) : null,
         fitsInCell,
         facesEye,
+        turnsWithPiece,
         opacity: (character.stealth === '1' ? 0.5 : 1) * (lookedThrough === character.identifier ? SEEN_THROUGH : 1),
       });
       sprites.push(...(modelled ? drawn.map(standInForModel) : drawn));
