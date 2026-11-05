@@ -68,10 +68,10 @@ export async function drawSampleModels(page: Page) {
  */
 export async function spotOnPiece(of: Locator): Promise<{ x: number; y: number }> {
   const candidates = await of.evaluate((element) => {
-    const table = (window as { __axeTable?: { pickAt(x: number, y: number): string | null } }).__axeTable;
+    const table = (window as { __axeTable?: { pressedAt(x: number, y: number): string | null } }).__axeTable;
     const id = element.getAttribute('data-object-id');
     const takesIt = (x: number, y: number) =>
-      !!table && !!document.elementFromPoint(x, y)?.closest('#app-table-layer') && table.pickAt(x, y) === id;
+      !!table && !!document.elementFromPoint(x, y)?.closest('#app-table-layer') && table.pressedAt(x, y) === id;
     const found: { x: number; y: number }[] = [];
     const base = element.querySelector('[data-testid="multi-angle-piece-motion-source"]')!.getBoundingClientRect();
     const middle = { x: base.left + base.width / 2, y: base.top + base.height / 2 };

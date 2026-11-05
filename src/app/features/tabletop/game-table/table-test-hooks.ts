@@ -17,6 +17,8 @@ import { pointOnFace } from '@axe/domain/tabletop/world/table-sprites';
 export interface TableTestHooks {
   /** The identifier of what a point of the page lands on, or null. */
   pickAt(pageX: number, pageY: number): string | null;
+  /** The identifier of what a press at a point of the page is handed to, past blocks locked in front of a piece, or null. */
+  pressedAt(pageX: number, pageY: number): string | null;
   /** The identifiers of everything the line of sight through a point of the page meets, nearest first. */
   pickAllAt(pageX: number, pageY: number): string[];
   /** The identifier of the piece the page draws in front at a point, or null, while the table is drawn in the page. */
@@ -123,6 +125,7 @@ export function installTableTestHooks(
   const hooked = win as HookedWindow;
   hooked.__axeTable = {
     pickAt: (pageX, pageY) => pick.pickAt(pageX, pageY)?.target.id ?? null,
+    pressedAt: (pageX, pageY) => pick.pressedAt(pageX, pageY)?.target.id ?? null,
     pickAllAt: (pageX, pageY) => pick.allAt(pageX, pageY).map((hit) => hit.target.id),
     drawnAt: (pageX, pageY) => overlap.drawnAt(pageX, pageY)?.identifier ?? null,
     project: (x, y, z) => {

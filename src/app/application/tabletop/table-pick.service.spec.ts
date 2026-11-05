@@ -303,6 +303,30 @@ describe('TablePickService', () => {
     expect(service.pickAt(overlap.x, overlap.y)?.target.id).toBe(first.identifier);
   });
 
+  it('hands a press on a block locked in place to a piece behind it on the same line of sight, but keeps one on a block not locked', async () => {
+    const block = blockAt(5, 5);
+    block.isLocked = true;
+    const die = DiceSymbol.create('D6', DiceType.D6, 1);
+    die.location = { name: 'table', x: 5 * GRID, y: 5 * GRID };
+    await settled();
+    const frame = onPage(5, 5, 1);
+
+    expect(service.pickAt(frame.x, frame.y)?.target.id).toBe(block.identifier);
+    expect(service.pressedAt(frame.x, frame.y)?.target.id).toBe(die.identifier);
+
+    block.isLocked = false;
+    expect(service.pressedAt(frame.x, frame.y)?.target.id).toBe(block.identifier);
+  });
+
+  it('keeps a press on a block locked in place with no piece behind it, for its menu and its door', async () => {
+    const block = blockAt(5, 5);
+    block.isLocked = true;
+    await settled();
+    const top = onPage(5, 5, 2 * GRID);
+
+    expect(service.pressedAt(top.x, top.y)?.target.id).toBe(block.identifier);
+  });
+
   it('lands on a coin where its disc lies, and beside it on nothing', async () => {
     const coin = Coin.create('coin');
     coin.location = { name: 'table', x: 5 * GRID, y: 5 * GRID };

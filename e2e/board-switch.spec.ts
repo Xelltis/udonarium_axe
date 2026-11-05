@@ -13,7 +13,7 @@ test.describe('switches', () => {
   }
 
   async function terrainMenu(page: Page, item: string) {
-    await page.locator('terrain').last().locator('.pointer-events-auto').first().dispatchEvent('contextmenu');
+    await page.locator('terrain').last().locator('[data-hud-box]').dispatchEvent('contextmenu');
     await page.locator('context-menu li').filter({ hasText: item }).first().click();
   }
 
@@ -81,7 +81,7 @@ test.describe('switches', () => {
     await setUpChest(page);
     await becomeRole(page, 'PL');
 
-    await page.locator('terrain').last().locator('.pointer-events-auto').first().dispatchEvent('contextmenu');
+    await page.locator('terrain').last().locator('[data-hud-box]').dispatchEvent('contextmenu');
 
     await expect(page.locator('context-menu li').first()).toBeVisible();
     await expect(page.locator('context-menu')).not.toContainText('スイッチ');

@@ -426,7 +426,7 @@ export class GameTableComponent {
       this.followFaceGrids();
       this.destroyRef.onDestroy(
         handCanvasPressesOn(this.rootElementRef().nativeElement, {
-          pickAt: (x, y) => this.tablePick.pickAt(x, y)?.target.id ?? null,
+          pickAt: (x, y) => this.tablePick.pressedAt(x, y)?.target.id ?? null,
           entryOf: (identifier) => this.tabletopOverlap.get(identifier),
         })
       );

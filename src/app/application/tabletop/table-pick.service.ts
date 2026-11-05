@@ -11,13 +11,14 @@ import { TablePiecesService } from '@axe/application/tabletop/table-pieces.servi
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { tableEyeMatrix, TableRay, tableRayOfPage } from '@axe/domain/tabletop/camera/table-camera';
 import { groundLiftOfBlock } from '@axe/domain/tabletop/ground/ground-surface';
-import { ambiencePickTarget } from '@axe/domain/tabletop/pick/ambience-pick';
+import { AMBIENCE_PICK_LAYER, ambiencePickTarget } from '@axe/domain/tabletop/pick/ambience-pick';
 import { faceTarget } from '@axe/domain/tabletop/pick/face-pick';
 import { PickCylinder, PickShape } from '@axe/domain/tabletop/pick/pick-geometry';
 import { pickAll, pickFirst, PickHit, PickTarget } from '@axe/domain/tabletop/pick/pick-index';
-import { beamPickTarget, terrainPickTarget } from '@axe/domain/tabletop/pick/terrain-pick';
+import { beamPickTarget, TERRAIN_PICK_LAYER, terrainPickTarget } from '@axe/domain/tabletop/pick/terrain-pick';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
 import { boardSurfaceOf, surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -51,6 +52,7 @@ export class TablePickService {
   private readonly pieces = inject(TablePiecesService);
   private readonly pictures = inject(PictureSizeService);
   private readonly looks = inject(TableAmbienceService);
+  private readonly objectStore = inject(ObjectStore);
 
   /** Each object's target, kept until the object or the table's grid changes. */
   private readonly made = new Map<string, { key: string; target: PickTarget }>();
@@ -75,6 +77,31 @@ export class TablePickService {
   pickAt(pageX: number, pageY: number, accepts?: (target: PickTarget) => boolean): PickHit | null {
     const ray = this.rayAt(pageX, pageY);
     return ray ? pickFirst(this.everyTarget(), ray, accepts) : null;
+  }
+
+  /**
+   * What a press at a point of the page is for: what it lands on first, but past the blocks locked in
+   * place to a piece standing behind them on the same line of sight, as the page let a press on a
+   * locked block pass through to what lay under it. A piece standing in a wood is pressed, not the
+   * tree in front of it; a locked block with no piece behind it is pressed itself, for its menu, its
+   * door and its switch.
+   */
+  pressedAt(pageX: number, pageY: number): PickHit | null {
+    const hits = this.allAt(pageX, pageY);
+    const first = hits[0];
+    if (!first || !this.lockedBlock(first.target)) return first ?? null;
+    for (const hit of hits) {
+      if (this.lockedBlock(hit.target)) continue;
+      return hit.target.layer === TERRAIN_PICK_LAYER || hit.target.layer === AMBIENCE_PICK_LAYER ? first : hit;
+    }
+    return first;
+  }
+
+  /** Whether a target is a block locked in place. */
+  private lockedBlock(target: PickTarget): boolean {
+    if (target.layer !== TERRAIN_PICK_LAYER) return false;
+    const block = this.objectStore.get(target.id);
+    return block instanceof Terrain && block.isLocked;
   }
 
   /** Everything a point of the page lands on, blocks, pieces and looks laid over the ground, nearest the eye first. */

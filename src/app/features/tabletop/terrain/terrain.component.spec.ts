@@ -41,6 +41,25 @@ describe('TerrainComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('lets the pointer through the top of a block locked in place, but not of one free to move, nor of a door', () => {
+    const block = Terrain.create('wall', 1, 1, 2, '', '');
+    fixture.componentRef.setInput('terrain', block);
+    fixture.detectChanges();
+    const top = () => (fixture.nativeElement as HTMLElement).querySelector('[data-part="top"]')!;
+    expect(top().classList).toContain('pointer-events-auto');
+
+    block.isLocked = true;
+    TestBed.inject(ObjectChangeServiceForSpec).notifyChanged(block.identifier);
+    fixture.detectChanges();
+    expect(top().classList).not.toContain('pointer-events-auto');
+
+    block.doorStyle = DoorStyle.SWING;
+    TestBed.inject(ObjectChangeServiceForSpec).notifyChanged(block.identifier);
+    fixture.detectChanges();
+    expect(top().classList).toContain('pointer-events-auto');
+    block.destroy();
+  });
+
   describe('doors', () => {
     it('opens and shuts for a seat that may change the table, and not for a guest', () => {
       PeerCursor.createMyCursor();

@@ -1,7 +1,9 @@
 <!--
   The block is a box on the screen round where the table's canvas draws it, with its top laid there
   to be pointed at, its handles at the corners of its top, and the label of its switch over it. A
-  press elsewhere on the block reaches it through picking.
+  press elsewhere on the block reaches it through picking. The top of a block locked in place lets
+  the pointer through, as the block lets a press through to a piece behind it, unless it is a door
+  to open or a switch to press.
 -->
 @let id = terrain().identifier;
 <div
@@ -28,7 +30,7 @@
   >
     <div
       data-part="top"
-      class="pointer-events-auto"
+      [class.pointer-events-auto]="!isLocked() || (isDoor() && mayOpenDoor()) || pressable()"
       [class.cursor-grab]="!isLocked()"
       [class.cursor-pointer]="((isDoor() && mayOpenDoor()) || pressable()) && isLocked()"
       [appHudPlace]="{ owner: id, part: 'top' }"
