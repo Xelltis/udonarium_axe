@@ -2,7 +2,6 @@ import { CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { calcHexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
-import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainTopPx } from '@axe/domain/tabletop/terrain-height';
@@ -27,30 +26,8 @@ export interface FirstPersonWall {
   door: boolean;
 }
 
-export interface FirstPersonCap {
-  id: string;
-  terrain: string;
-  outline: CellPoint[];
-  zPx: number;
-  facing: 'up' | 'down';
-  image: string;
-  /** The side of one tile of the picture, in pixels: a cell where the block tiles its picture, 0 where it stretches it over the face. */
-  tilePx: number;
-  glass: boolean;
-}
-
-export interface FirstPersonFloor {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  image: string;
-}
-
 export interface FirstPersonWorld {
   walls: FirstPersonWall[];
-  caps: FirstPersonCap[];
-  floor: FirstPersonFloor;
 }
 
 export interface FirstPersonTableShape {
@@ -74,7 +51,6 @@ const SIDES: readonly WallSide[] = ['north', 'east', 'south', 'west'];
 
 export function firstPersonWorldOf(table: FirstPersonTableShape, terrains: readonly Terrain[]): FirstPersonWorld {
   const walls: FirstPersonWall[] = [];
-  const caps: FirstPersonCap[] = [];
   const gridSize = table.gridSize;
   for (const terrain of terrains) {
     if (surfaceOf(terrain) !== 'floor') continue;
@@ -132,33 +108,9 @@ export function firstPersonWorldOf(table: FirstPersonTableShape, terrains: reado
         });
       }
     }
-    if (terrain.hasFloor || terrain.hasWall) {
-      caps.push({
-        id: `${terrain.identifier}:top`,
-        terrain: terrain.identifier,
-        outline,
-        zPx: topPx,
-        facing: 'up',
-        image: terrain.faceImageIdentifier('top') || terrain.faceImageIdentifier('floor'),
-        tilePx,
-        glass,
-      });
-      if (basePx > 0) {
-        caps.push({
-          id: `${terrain.identifier}:bottom`,
-          terrain: terrain.identifier,
-          outline,
-          zPx: basePx,
-          facing: 'down',
-          image: terrain.faceImageIdentifier('bottom') || terrain.faceImageIdentifier('floor'),
-          tilePx,
-          glass,
-        });
-      }
-    }
   }
   walls.push(...perimeterWallsOf(table));
-  return { walls, caps, floor: floorOf(table) };
+  return { walls };
 }
 
 function perimeterWallsOf(table: FirstPersonTableShape): FirstPersonWall[] {
@@ -281,18 +233,4 @@ function oriented(wall: FirstPersonWall): FirstPersonWall {
   const rightY = -wall.nx;
   if ((wall.bx - wall.ax) * rightX + (wall.by - wall.ay) * rightY >= 0) return wall;
   return { ...wall, ax: wall.bx, ay: wall.by, bx: wall.ax, by: wall.ay };
-}
-
-function floorOf(table: FirstPersonTableShape): FirstPersonFloor {
-  const hex = computeHexMaskGeometry(table.width, table.height, table.gridSize, table.gridType);
-  if (hex) {
-    return { x: -hex.offsetX, y: -hex.offsetY, width: hex.pixelW, height: hex.pixelH, image: table.imageIdentifier };
-  }
-  return {
-    x: 0,
-    y: 0,
-    width: table.width * table.gridSize,
-    height: table.height * table.gridSize,
-    image: table.imageIdentifier,
-  };
 }
