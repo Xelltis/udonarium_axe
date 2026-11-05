@@ -88,6 +88,17 @@ export interface TableWorldWall {
    * profile does not take them.
    */
   readonly uvs?: readonly [TableWorldPoint, TableWorldPoint, TableWorldPoint, TableWorldPoint];
+  /**
+   * The picture of the table's grid laid over the face's own, as the page lays it over a wall of the
+   * table and over the front of a beam standing out from one, or none.
+   */
+  readonly gridUrl?: string;
+  /**
+   * Where on the grid's picture the face's corners stand, in the order `uvs` gives them, for a face
+   * whose own picture runs otherwise than the wall's grid does; the grid is otherwise laid as its own
+   * picture is.
+   */
+  readonly gridUvs?: readonly [TableWorldPoint, TableWorldPoint, TableWorldPoint, TableWorldPoint];
 }
 
 /** A flat face lying at a height, facing up or down: the top or the underside of a block. */

@@ -174,6 +174,8 @@ interface WallView {
 interface ActiveWall {
   surface: TableSurface;
   image: ImageFile;
+  /** The picture of the table's grid laid over the wall, or empty where the grid is not shown. */
+  gridUrl: string;
   containerClass: string;
   containerTransform: string;
   containerOrigin: string;
@@ -487,6 +489,7 @@ export class GameTableComponent {
       this.updateCameraLayout();
       this.destroyRef.onDestroy(observeSize(this.rootElementRef().nativeElement, () => this.updateCameraLayout()));
       this.followGridShown();
+      this.followFaceGrids();
       this.destroyRef.onDestroy(
         handCanvasPressesOn(this.rootElementRef().nativeElement, {
           drawsOnCanvas: () => this.table3d.drawsOnCanvas(),
@@ -655,6 +658,7 @@ export class GameTableComponent {
       walls.push({
         surface: side.surface,
         image,
+        gridUrl,
         containerClass: side.containerClass,
         containerTransform: side.containerTransform,
         containerOrigin: side.containerOrigin,
@@ -1266,6 +1270,24 @@ export class GameTableComponent {
    * Tells the camera where the table sits on the page and how big its board is, once the table has
    * been set up, whenever the box it is seen through changes size, and whenever the board does.
    */
+  /**
+   * Hands the canvas the pictures of the grid laid over the walls of the table and over the fronts of
+   * the beams standing out from them, by the faces of the scene they go on, whenever they change.
+   */
+  private followFaceGrids(): void {
+    effect(
+      () => {
+        const grids = new Map<string, string>();
+        for (const wall of this.activeWalls()) {
+          if (wall.gridUrl) grids.set(`table:${wall.surface.replace(/-wall$/, '')}`, wall.gridUrl);
+        }
+        for (const beam of this.beamWallGrids()) grids.set(`${beam.identifier}:beam-top`, beam.dataUrl);
+        untracked(() => this.table3d.showFaceGrids(grids));
+      },
+      { injector: this.injector }
+    );
+  }
+
   /** Hands the canvas the grid again whenever the grid is shown or hidden. */
   private followGridShown(): void {
     effect(

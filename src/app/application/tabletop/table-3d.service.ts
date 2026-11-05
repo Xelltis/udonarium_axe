@@ -151,9 +151,28 @@ export class Table3dService {
    * The board and the blocks of the table in view, with the pictures they name read from where this
    * browser keeps them. A block the fog lies over entirely is left out, so nothing of it is drawn at
    * all, and one it lies over in part is cut back to the cells the seat has reached. A block drawn as
-   * a 3D model held here is drawn as the model instead of its faces.
+   * a 3D model held here is drawn as the model instead of its faces. The faces the page lays the
+   * table's grid over wear it as the page has drawn it.
    */
   private readonly faces = computed(() => {
+    const built = this.builtFaces();
+    const grids = this.faceGrids();
+    if (grids.size === 0) return built;
+    return {
+      ...built,
+      walls: built.walls.map((wall) => {
+        const gridUrl = grids.get(wall.id);
+        return gridUrl ? { ...wall, gridUrl } : wall;
+      }),
+    };
+  });
+
+  /** The pictures of the table's grid the page lays over faces of the table, by the face each goes on. */
+  private readonly faceGrids = signal<ReadonlyMap<string, string>>(new Map(), {
+    equal: (a, b) => a.size === b.size && [...a].every(([id, url]) => b.get(id) === url),
+  });
+
+  private readonly builtFaces = computed(() => {
     this.objectChange.fileVersion();
     this.objectChange.collectionOf(TableBackgroundLayer.aliasName)();
     this.objectChange.collectionOf(Terrain.aliasName)();
@@ -318,6 +337,15 @@ export class Table3dService {
    */
   showGrid(grid: Table3dGrid | null): void {
     this.grid.set(grid);
+  }
+
+  /**
+   * Hands the canvas the pictures of the table's grid the page lays over faces of the table, as over
+   * its walls and the fronts of the beams standing out from them, each by the face it goes on as the
+   * scene names it.
+   */
+  showFaceGrids(grids: ReadonlyMap<string, string>): void {
+    this.faceGrids.set(grids);
   }
 
   /** Draws on a canvas from now on, or goes back to the page, and remembers which in this browser. */

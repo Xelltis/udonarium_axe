@@ -56,6 +56,16 @@ describe('the faces of the blocks put on the walls', () => {
     ]);
   });
 
+  it('lays the wall’s grid over its front the way it runs along the wall, not the way the front’s picture does', () => {
+    const top = faces(beam()).walls.find((wall) => wall.id.endsWith(':beam-top'))!;
+
+    const footAt = (x: number) => (top.ax === x ? 0 : 1);
+    expect(top.gridUvs![footAt(350)]).toEqual({ x: 0, y: 0 });
+    expect(top.gridUvs![footAt(450)]).toEqual({ x: 1, y: 0 });
+    expect(top.gridUvs![3 - footAt(350)]).toEqual({ x: 0, y: 1 });
+    expect(faces(beam()).walls.find((wall) => wall.id.endsWith(':beam-east'))!.gridUvs).toBeUndefined();
+  });
+
   it('lays the table’s grid over the face above, where the block asks for one', () => {
     const asks = beam();
     asks.isGrid = true;

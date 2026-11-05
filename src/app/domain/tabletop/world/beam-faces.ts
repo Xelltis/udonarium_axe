@@ -159,10 +159,40 @@ export function beamFacesOf(
         });
         continue;
       }
-      walls.push(uprightOf(id, laid, url, look));
+      const upright = uprightOf(id, laid, url, look);
+      walls.push(face.slot === 'top' ? { ...upright, gridUvs: gridUvsOf(upright, corner) } : upright);
     }
   }
   return { walls, caps };
+}
+
+/**
+ * Where the corners of a beam's front stand on the grid of its wall laid over it, as the page lays
+ * the wall's grid there: across along the wall and down it, from the beam's corner nearest the
+ * wall's own, rather than the way the beam's picture runs.
+ */
+function gridUvsOf(
+  upright: TableWorldWall,
+  corner: (at: BeamCorner) => Vec3
+): [TableWorldPoint, TableWorldPoint, TableWorldPoint, TableWorldPoint] {
+  const first = corner([0, 0, 1]);
+  const across = corner([1, 0, 1]);
+  const down = corner([0, 1, 1]);
+  const along = { x: across.x - first.x, y: across.y - first.y, z: across.z - first.z };
+  const downward = { x: down.x - first.x, y: down.y - first.y, z: down.z - first.z };
+  const share = (point: Vec3, axis: Vec3) =>
+    ((point.x - first.x) * axis.x + (point.y - first.y) * axis.y + (point.z - first.z) * axis.z) /
+    (axis.x * axis.x + axis.y * axis.y + axis.z * axis.z);
+  const uvOf = (x: number, y: number, z: number): TableWorldPoint => {
+    const point = { x, y, z };
+    return { x: share(point, along), y: 1 - share(point, downward) };
+  };
+  return [
+    uvOf(upright.ax, upright.ay, upright.basePx),
+    uvOf(upright.bx, upright.by, upright.basePx),
+    uvOf(upright.bx, upright.by, upright.topPx),
+    uvOf(upright.ax, upright.ay, upright.topPx),
+  ];
 }
 
 /** An upright face from its four corners: the two lower and the two upper, each with the place on its picture it wears. */

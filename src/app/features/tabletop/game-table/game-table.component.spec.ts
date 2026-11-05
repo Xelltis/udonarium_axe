@@ -3,6 +3,7 @@ import { CardTargetService } from '@axe/application/card/card-target.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
@@ -27,6 +28,7 @@ import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { GameTableComponent } from '@axe/features/tabletop/game-table/game-table.component';
+import { GridFaceCache } from '@axe/features/tabletop/game-table/grid-face-cache';
 import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import {
@@ -1404,6 +1406,23 @@ describe('GameTableComponent', () => {
       expect(views[0].pools).toEqual([]);
       expect(views[0].silhouettes).toEqual([]);
       expect(component['wallViews']()).toBe(views);
+    });
+
+    it('hands the canvas the grid laid over a wall, by the wall of the scene it goes on', async () => {
+      vi.spyOn(GridFaceCache.prototype, 'dataUrl').mockReturnValue('data:image/png;base64,GRID');
+      const handed = vi.spyOn(TestBed.inject(Table3dService), 'showFaceGrids');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const table = component.currentTable;
+      table.gridShow = true;
+      table.showNorthWall = true;
+      table.northWallImageIdentifier = picture('blob:north');
+      await Promise.resolve();
+      TestBed.tick();
+
+      const grids = handed.mock.calls.at(-1)![0];
+      expect(grids.get('table:north')).toBe('data:image/png;base64,GRID');
+      expect(grids.size).toBe(1);
     });
 
     it('has no pools or silhouettes on a wall while nothing is lit', () => {

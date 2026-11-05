@@ -677,6 +677,25 @@ describe('Table3dService', () => {
     expect(engine.skies.at(-1)).toEqual(skyLightAt(0));
   });
 
+  it('lays the pictures of the grid the page hands it over the faces they are named for', async () => {
+    const scene = service();
+    const table = new GameTable();
+    table.initialize();
+    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    const block = Terrain.create('箱', 1, 1, 2, '', '');
+    block.location = { name: 'table', x: 100, y: 150 };
+    table.appendChild(block);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const side = scene.world().walls.find((wall) => wall.id.startsWith(block.identifier))!;
+
+    scene.showFaceGrids(new Map([[side.id, 'data:image/png;base64,GRID']]));
+
+    const walls = scene.world().walls;
+    expect(walls.find((wall) => wall.id === side.id)?.gridUrl).toBe('data:image/png;base64,GRID');
+    expect(walls.filter((wall) => wall.gridUrl)).toHaveLength(1);
+    table.destroy();
+  });
+
   it('draws a block given a model held here as the model, in place of its faces', async () => {
     const scene = service();
     vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:tree' } as never);

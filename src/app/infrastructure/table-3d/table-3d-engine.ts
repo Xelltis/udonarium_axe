@@ -105,10 +105,11 @@ const FAR_PX = 50000;
 const BOARD_VEIL = 0.15;
 
 /** What a face wears: the picture, how it is laid, and whether it is glass, or else the colour it is painted. */
-type FaceLook = { pictureUrl: string; tilePx: number; glass: boolean; colour?: string };
+type FaceLook = { pictureUrl: string; tilePx: number; glass: boolean; colour?: string; laidOver?: boolean };
 
 /** The key faces drawn with one material share. */
 function lookOf(face: FaceLook): string {
+  if (face.laidOver) return `over|${face.pictureUrl}`;
   if (!face.glass && !face.pictureUrl && face.colour) return `colour|${face.colour}`;
   return face.glass || !face.pictureUrl ? 'glass' : `${face.pictureUrl}|${face.tilePx > 0}`;
 }
@@ -902,13 +903,22 @@ class ThreeTableEngine implements Table3dEngine {
     };
     for (const owner of owners.keys()) {
       const entry = owned.get(owner)!;
-      for (const wall of entry.walls) add(wall, wallGeometry(wall));
+      for (const wall of entry.walls) {
+        add(wall, wallGeometry(wall));
+        if (wall.gridUrl) {
+          const grid = { pictureUrl: wall.gridUrl, tilePx: 0, glass: false, laidOver: true };
+          add(
+            grid,
+            wallGeometry({ ...wall, tilePx: 0, uvs: wall.gridUvs ?? (wall.tilePx > 0 ? undefined : wall.uvs) })
+          );
+        }
+      }
       for (const cap of entry.caps) add(cap, capGeometry(cap));
     }
     const meshes = new Group();
     for (const [look, { face, shapes }] of byLook) {
       const mesh = new Mesh(mergedFaces(shapes), this.sharedLook(look, face));
-      mesh.castShadow = !face.glass && !face.colour;
+      mesh.castShadow = !face.glass && !face.colour && !face.laidOver;
       mesh.receiveShadow = true;
       mesh.renderOrder = BLOCKS_ORDER;
       meshes.add(mesh);
@@ -954,6 +964,17 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   private faceMaterial(face: FaceLook): MeshBasicNodeMaterial | MeshLambertNodeMaterial {
+    if (face.laidOver) {
+      const over = new MeshBasicNodeMaterial({
+        map: this.sharedPicture(face.pictureUrl, false),
+        transparent: true,
+        depthWrite: false,
+        side: DoubleSide,
+        ...PULLED_FORWARD,
+      });
+      this.veil.cover(over);
+      return over;
+    }
     if (!face.glass && !face.pictureUrl && face.colour) {
       const painted = new MeshLambertNodeMaterial({ color: new Color(face.colour), side: DoubleSide });
       this.veil.cover(painted, 'lit');

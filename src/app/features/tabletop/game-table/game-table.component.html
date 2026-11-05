@@ -275,23 +275,25 @@
           <terrain-batch-layer />
         </div>
       }
-      @for (beamGrid of beamTopGrids(); track beamGrid.identifier) {
-        <div
-          class="pointer-events-none absolute top-0 left-0 bg-size-[100%_100%] bg-no-repeat backface-hidden transform-3d"
-          [style.width.px]="beamGrid.width"
-          [style.height.px]="beamGrid.height"
-          [style.transform]="'translate3d(' + beamGrid.left + 'px,' + beamGrid.top + 'px,' + beamGrid.z + 'px)'"
-          [style.background-image]="'url(' + beamGrid.dataUrl + ')' | safe: 'style'"
-        ></div>
-      }
-      @for (wallGrid of beamWallGrids(); track wallGrid.identifier) {
-        <div
-          class="pointer-events-none absolute top-0 left-0 origin-top-left bg-size-[100%_100%] bg-no-repeat backface-visible transform-3d"
-          [style.width.px]="wallGrid.width"
-          [style.height.px]="wallGrid.height"
-          [style.transform]="wallGrid.matrix3d"
-          [style.background-image]="'url(' + wallGrid.dataUrl + ')' | safe: 'style'"
-        ></div>
+      @if (!table3d.drawsOnCanvas()) {
+        @for (beamGrid of beamTopGrids(); track beamGrid.identifier) {
+          <div
+            class="pointer-events-none absolute top-0 left-0 bg-size-[100%_100%] bg-no-repeat backface-hidden transform-3d"
+            [style.width.px]="beamGrid.width"
+            [style.height.px]="beamGrid.height"
+            [style.transform]="'translate3d(' + beamGrid.left + 'px,' + beamGrid.top + 'px,' + beamGrid.z + 'px)'"
+            [style.background-image]="'url(' + beamGrid.dataUrl + ')' | safe: 'style'"
+          ></div>
+        }
+        @for (wallGrid of beamWallGrids(); track wallGrid.identifier) {
+          <div
+            class="pointer-events-none absolute top-0 left-0 origin-top-left bg-size-[100%_100%] bg-no-repeat backface-visible transform-3d"
+            [style.width.px]="wallGrid.width"
+            [style.height.px]="wallGrid.height"
+            [style.transform]="wallGrid.matrix3d"
+            [style.background-image]="'url(' + wallGrid.dataUrl + ')' | safe: 'style'"
+          ></div>
+        }
       }
       @for (mask of tableMasks(); track mask.identifier) {
         <game-table-mask class="absolute will-change-transform backface-visible transform-3d" [gameTableMask]="mask">
