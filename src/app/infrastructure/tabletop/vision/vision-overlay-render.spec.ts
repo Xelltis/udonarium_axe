@@ -3,9 +3,7 @@ import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { OverlayPlan, OverlayShape, OverlayVision } from '@axe/domain/tabletop/vision-scene';
 import {
-  animatedGlowPatches,
   animationIntensity,
-  bakeOverlayPlan,
   drawOverlayPlan,
   fillUnwalkedCells,
   hexToRgba,
@@ -14,7 +12,6 @@ import {
   MIN_OVERLAY_SCALE,
   OVERLAY_PIXEL_BUDGET,
   overlayScale,
-  overlayScratch,
 } from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
 import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
 
@@ -486,7 +483,7 @@ describe('vision-overlay-render', () => {
       const images = new Map<string, HTMLImageElement>([['token.png', img]]);
       const { ctx, ops } = fakeContext();
 
-      drawOverlayPlan(ctx, plan, 1000, 1000, 0, images, 0, undefined, null, null, 0.5);
+      drawOverlayPlan(ctx, plan, 1000, 1000, 0, images, 0, undefined, 0.5);
 
       const laid = ops.findIndex((o) => o.name === 'transform');
       expect(laid).toBeGreaterThan(-1);
@@ -632,61 +629,6 @@ describe('how big a surface the overlay is allowed', () => {
   });
 });
 
-describe('the ground a pass has to cover', () => {
-  function planWith(glows: OverlayShape[]): OverlayPlan {
-    return {
-      darknessAlpha: 0.9,
-      darknessColor: '#05060a',
-      baseRevealAlpha: 0,
-      reveals: [],
-      glows,
-      shadows: [],
-    };
-  }
-
-  it('has none to cover where nothing moves', () => {
-    expect(animatedGlowPatches(planWith([shape()]), 800, 600)).toEqual([]);
-  });
-
-  it('takes in the light that moves and leaves out the one that does not', () => {
-    const plan = planWith([
-      shape({ x: 700, y: 500, dimPx: 50 }),
-      shape({ x: 100, y: 100, dimPx: 30, animation: 'flicker' }),
-    ]);
-
-    expect(animatedGlowPatches(plan, 800, 600)).toEqual([{ x: 70, y: 70, width: 60, height: 60 }]);
-  });
-
-  it('gives lights far apart a corner each rather than the ground between them', () => {
-    const plan = planWith([
-      shape({ x: 100, y: 100, dimPx: 30, animation: 'flicker' }),
-      shape({ x: 300, y: 200, dimPx: 40, animation: 'pulse' }),
-    ]);
-
-    expect(animatedGlowPatches(plan, 800, 600)).toEqual([
-      { x: 70, y: 70, width: 60, height: 60 },
-      { x: 260, y: 160, width: 80, height: 80 },
-    ]);
-  });
-
-  it('redraws lights whose reach meets in one corner', () => {
-    const plan = planWith([
-      shape({ x: 100, y: 100, dimPx: 30, animation: 'flicker' }),
-      shape({ x: 140, y: 100, dimPx: 30, animation: 'pulse' }),
-      shape({ x: 190, y: 100, dimPx: 30, animation: 'flicker' }),
-    ]);
-
-    expect(animatedGlowPatches(plan, 800, 600)).toEqual([{ x: 70, y: 70, width: 150, height: 60 }]);
-  });
-
-  it('carries the margin, and stops at the edge of the surface', () => {
-    const plan = planWith([shape({ x: 0, y: 0, dimPx: 200, animation: 'flicker' })]);
-
-    // The light reaches 200px past a 10px margin, so it is cut off where the canvas ends.
-    expect(animatedGlowPatches(plan, 800, 600, 10)).toEqual([{ x: 0, y: 0, width: 210, height: 210 }]);
-  });
-});
-
 describe('the baked surfaces', () => {
   afterEach(() => vi.restoreAllMocks());
 
@@ -710,272 +652,16 @@ describe('the baked surfaces', () => {
     return ops;
   }
 
-  it('paints the darkness and what is cut out of it onto a surface', () => {
-    const baked = stubCanvas();
-    const bake = bakeOverlayPlan(planWithDarkness(), 800, 600, undefined, 10);
-
-    expect(bake).not.toBeNull();
-    expect(baked.some((o) => o.name === 'fillRect' && o.composite === 'source-over')).toBe(true);
-    expect(baked.some((o) => o.name === 'fill' && o.composite === 'destination-out')).toBe(true);
-  });
-
-  it('bakes a light that stays put, so it is not laid down again every pass', () => {
-    const baked = stubCanvas();
-
-    bakeOverlayPlan(planWithDarkness(), 800, 600, undefined, 10);
-
-    expect(baked.some((o) => o.name === 'fill' && o.composite === 'lighter')).toBe(true);
-  });
-
-  it('leaves a light that moves out of the baking, or it would stop moving', () => {
-    const baked = stubCanvas();
-
-    bakeOverlayPlan(planWithDarkness('flicker'), 800, 600, undefined, 10);
-
-    expect(baked.some((o) => o.name === 'fill' && o.composite === 'lighter')).toBe(false);
-  });
-
-  it('puts the baked surfaces down and draws nothing over them where no light moves', () => {
-    stubCanvas();
-    const plan = planWithDarkness();
-    const bake = bakeOverlayPlan(plan, 800, 600, undefined, 10);
-
-    const { ctx, ops } = fakeContext();
-    drawOverlayPlan(ctx, plan, 800, 600, 1000, undefined, 10, undefined, bake);
-
-    expect(ops.filter((o) => o.name === 'drawImage')).toHaveLength(1);
-    expect(ops.some((o) => o.name === 'fillRect')).toBe(false);
-    expect(ops.some((o) => o.name === 'fill' && o.composite === 'destination-out')).toBe(false);
-    expect(ops.some((o) => o.name === 'fill' && o.composite === 'lighter')).toBe(false);
-  });
-
-  it('draws the light that moves over the baked surfaces', () => {
-    stubCanvas();
-    const plan = planWithDarkness('flicker');
-    const bake = bakeOverlayPlan(plan, 800, 600, undefined, 10);
-
-    const { ctx, ops } = fakeContext();
-    drawOverlayPlan(ctx, plan, 800, 600, 1000, undefined, 10, undefined, bake);
-
-    expect(ops.filter((o) => o.name === 'drawImage')).toHaveLength(1);
-    expect(ops.some((o) => o.name === 'fill' && o.composite === 'lighter')).toBe(true);
-  });
-
-  it('redraws only the corner asked for, and leaves the rest of the board alone', () => {
-    stubCanvas();
-    const plan = planWithDarkness('flicker');
-    const bake = bakeOverlayPlan(plan, 800, 600, undefined, 10);
-
-    const { ctx, ops } = fakeContext();
-    const dirty = { x: 20, y: 30, width: 120, height: 140 };
-    drawOverlayPlan(ctx, plan, 800, 600, 1000, undefined, 10, undefined, bake, dirty);
-
-    // Cleared over the corner rather than the whole of it.
-    expect(ops.find((o) => o.name === 'clearRect')?.args).toEqual([20, 30, 120, 140]);
-    // And the baked surface is taken from that corner and put back in the same place.
-    expect(ops.find((o) => o.name === 'drawImage')?.args.slice(1)).toEqual([20, 30, 120, 140, 20, 30, 120, 140]);
-  });
-
-  it('keeps a pass inside its corner, and leaves out the lights that do not reach it', () => {
-    stubCanvas();
-    const plan: OverlayPlan = {
-      ...planWithDarkness(),
-      reveals: [],
-      glows: [
-        shape({ x: 100, y: 100, dimPx: 30, animation: 'flicker' }),
-        shape({ x: 700, y: 500, dimPx: 30, animation: 'flicker' }),
-      ],
-    };
-    const bake = bakeOverlayPlan(plan, 800, 600);
-    const [corner] = animatedGlowPatches(plan, 800, 600);
-
-    const { ctx, ops } = fakeContext();
-    drawOverlayPlan(ctx, plan, 800, 600, 1000, undefined, 0, undefined, bake, corner);
-
-    const clipAt = ops.findIndex((o) => o.name === 'clip');
-    expect(ops[clipAt - 1]).toMatchObject({ name: 'rect', args: [70, 70, 60, 60] });
-    expect(ops.filter((o) => o.name === 'fill' && o.composite === 'lighter')).toHaveLength(1);
-    expect(ops.map((o) => o.name).lastIndexOf('restore')).toBeGreaterThan(clipAt);
-  });
-
-  it('covers the whole board where there is nothing baked to keep', () => {
-    stubCanvas();
-    const plan = planWithDarkness('flicker');
-
-    const { ctx, ops } = fakeContext();
-    drawOverlayPlan(ctx, plan, 800, 600, 1000, undefined, 10, undefined, null, {
-      x: 20,
-      y: 30,
-      width: 120,
-      height: 140,
-    });
-
-    expect(ops.find((o) => o.name === 'clearRect')?.args).toEqual([0, 0, 820, 620]);
-  });
-
   it('draws in board coordinates however small the surface it draws on', () => {
     stubCanvas();
     const plan = planWithDarkness('flicker');
-    const bake = bakeOverlayPlan(plan, 800, 600, undefined, 10, undefined, null, 0.5);
 
     const { ctx, ops } = fakeContext();
-    drawOverlayPlan(ctx, plan, 800, 600, 1000, undefined, 10, undefined, bake, null, 0.5);
+    drawOverlayPlan(ctx, plan, 800, 600, 1000, undefined, 10, undefined, 0.5);
 
     // Half a canvas pixel to the board pixel, said once, at the top.
     expect(ops.find((o) => o.name === 'setTransform')?.args).toEqual([0.5, 0, 0, 0.5, 0, 0]);
-    // Cleared and laid down over the board, not over the canvas.
+    // Cleared over the board, not over the canvas.
     expect(ops.find((o) => o.name === 'clearRect')?.args).toEqual([0, 0, 820, 620]);
-    expect(ops.find((o) => o.name === 'drawImage')?.args.slice(1)).toEqual([0, 0, 820, 620]);
-  });
-
-  it('takes a corner off a smaller surface where it lands on the board', () => {
-    stubCanvas();
-    const plan = planWithDarkness('flicker');
-    const bake = bakeOverlayPlan(plan, 800, 600, undefined, 10, undefined, null, 0.5);
-
-    const { ctx, ops } = fakeContext();
-    const dirty = { x: 20, y: 30, width: 120, height: 140 };
-    drawOverlayPlan(ctx, plan, 800, 600, 1000, undefined, 10, undefined, bake, dirty, 0.5);
-
-    // Taken from half-size canvas coordinates, put back in board coordinates.
-    expect(ops.find((o) => o.name === 'drawImage')?.args.slice(1)).toEqual([10, 15, 60, 70, 20, 30, 120, 140]);
-  });
-
-  it('throws a baked surface away once it was drawn at another size', () => {
-    stubCanvas();
-    const plan = planWithDarkness('flicker');
-    const bake = bakeOverlayPlan(plan, 800, 600, undefined, 10, undefined, null, 0.5);
-
-    const { ctx, ops } = fakeContext();
-    drawOverlayPlan(ctx, plan, 800, 600, 1000, undefined, 10, undefined, bake, null, 1);
-
-    expect(ops.some((o) => o.name === 'drawImage')).toBe(false);
-    expect(ops.some((o) => o.name === 'fillRect')).toBe(true);
-  });
-
-  it('throws a baked surface away once the size changes', () => {
-    stubCanvas();
-    const plan = planWithDarkness();
-    const bake = bakeOverlayPlan(plan, 800, 600, undefined, 10);
-
-    const { ctx, ops } = fakeContext();
-    drawOverlayPlan(ctx, plan, 400, 300, 1000, undefined, 10, undefined, bake);
-
-    expect(ops.some((o) => o.name === 'drawImage')).toBe(false);
-    expect(ops.some((o) => o.name === 'fillRect')).toBe(true);
-  });
-
-  describe.each([
-    ['square', GridType.SQUARE],
-    ['hex', GridType.HEX_VERTICAL],
-  ])('the soft edge of what can be seen on a %s board', (_, type) => {
-    function seenVision(): OverlayVision {
-      const grid = cellGridOf(16, 12, 50, type);
-      const visible = new CellBits(16 * 12);
-      const explored = new CellBits(16 * 12);
-      for (const cell of [0, 1, 16, 17]) {
-        visible.set(cell);
-        explored.set(cell);
-      }
-      return {
-        grid,
-        visible,
-        explored,
-        clipReveals: true,
-        fogEnabled: false,
-        fogColor: '#aeb9c4',
-        veilColor: '#000000',
-        veilAlpha: 0,
-        unexploredAlpha: 0,
-        blurPx: 6,
-        rememberSeen: true,
-        clearedStaysLit: false,
-      };
-    }
-
-    /** Every surface the renderer makes, recording what it draws and each blur it is given. */
-    function stubSurfaces(): { ops: Op[]; blurs: string[] } {
-      const { ctx, ops } = fakeContext();
-      const blurs: string[] = [];
-      const surface = new Proxy(ctx, {
-        set(target, key, value) {
-          if (key === 'filter' && String(value).startsWith('blur')) blurs.push(String(value));
-          return Reflect.set(target, key, value);
-        },
-      });
-      vi.spyOn(document, 'createElement').mockImplementation(((tag: string) => {
-        if (tag !== 'canvas') return document.createElementNS('http://www.w3.org/1999/xhtml', tag);
-        return { width: 0, height: 0, getContext: () => surface } as unknown as HTMLElement;
-      }) as typeof document.createElement);
-      return { ops, blurs };
-    }
-
-    function flickering() {
-      const plan: OverlayPlan = { ...planWithDarkness('flicker'), vision: seenVision() };
-      const scratch = overlayScratch(820, 620, 1);
-      const bake = bakeOverlayPlan(plan, 800, 600, undefined, 10, undefined, null, 1, scratch);
-      const dirty = animatedGlowPatches(plan, 800, 600, 10)[0];
-      const pass = (time: number, drawn = plan) =>
-        drawOverlayPlan(fakeContext().ctx, drawn, 800, 600, time, undefined, 10, undefined, bake, dirty, 1, scratch);
-      return { plan, dirty, pass };
-    }
-
-    it('softens it once for a light that flickers, not on every pass', () => {
-      const { blurs } = stubSurfaces();
-      const { dirty, pass } = flickering();
-      blurs.length = 0;
-
-      for (const time of [1000, 1050, 1100]) pass(time);
-
-      expect(dirty).not.toBeNull();
-      expect(blurs).toHaveLength(1);
-    });
-
-    it('cuts a pass back to the corner it redraws', () => {
-      // The stub hands every surface one shared state, so the corner is baked on a pass of its own first.
-      const { ops } = stubSurfaces();
-      const { dirty, pass } = flickering();
-      pass(1000);
-      ops.length = 0;
-
-      pass(1050);
-
-      const cuts = ops.filter((o) => o.composite === 'destination-in' && ['fill', 'drawImage'].includes(o.name));
-      expect(cuts.map((o) => o.name)).toEqual(['drawImage']);
-      expect(cuts[0].args.slice(5)).toEqual([dirty.x, dirty.y, dirty.width, dirty.height]);
-    });
-
-    it('keeps the softened edge of every corner it redraws, not only the last', () => {
-      const { blurs } = stubSurfaces();
-      const plan: OverlayPlan = {
-        ...planWithDarkness('flicker'),
-        glows: [shape({ animation: 'flicker' }), shape({ x: 600, y: 450, animation: 'flicker' })],
-        vision: seenVision(),
-      };
-      const scratch = overlayScratch(820, 620, 1);
-      const bake = bakeOverlayPlan(plan, 800, 600, undefined, 10, undefined, null, 1, scratch);
-      const corners = animatedGlowPatches(plan, 800, 600, 10);
-      blurs.length = 0;
-
-      for (const time of [1000, 1050, 1100]) {
-        for (const corner of corners) {
-          drawOverlayPlan(fakeContext().ctx, plan, 800, 600, time, undefined, 10, undefined, bake, corner, 1, scratch);
-        }
-      }
-
-      expect(corners).toHaveLength(2);
-      expect(blurs).toHaveLength(2);
-    });
-
-    it('softens it again for the next scene', () => {
-      const { blurs } = stubSurfaces();
-      const { plan, pass } = flickering();
-      pass(1000);
-      blurs.length = 0;
-
-      pass(1050, { ...plan, vision: seenVision() });
-
-      expect(blurs).toHaveLength(1);
-    });
   });
 });

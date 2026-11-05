@@ -21,11 +21,9 @@ import { HEX_SURFACE_INFLATE_PX, hexSurfaceCells, SurfacePoint } from '@axe/doma
 import { computeOverlayPlan, OverlayPlan, sameOverlayPlan, VisionScene } from '@axe/domain/tabletop/vision-scene';
 import {
   type BakeCanvas,
-  type DirtyRect,
   drawOverlayPlan,
   LIGHT_MIN_OVERLAY_SCALE,
   LIGHT_OVERLAY_PIXEL_BUDGET,
-  type OverlayBake,
   overlayScale,
   overlayScratch,
 } from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
@@ -73,10 +71,8 @@ export class TableVisionOverlayComponent {
   private margin = 0;
   private scale = 1;
   private animated = false;
-  private bake: OverlayBake | null = null;
   private scratch: BakeCanvas | null = null;
   private scratchSize = '';
-  private dirty: DirtyRect[] = [];
   private rafId: number | null = null;
   private readonly images = new Map<string, HTMLImageElement>();
   private darkness: HTMLCanvasElement | null = null;
@@ -167,10 +163,8 @@ export class TableVisionOverlayComponent {
     this.plan = null;
     this.drawnLayout = '';
     this.animated = false;
-    this.bake = null;
     this.scratch = null;
     this.scratchSize = '';
-    this.dirty = [];
     this.margin = 0;
     this.scale = 1;
     this.surfaceCells = undefined;
@@ -208,8 +202,6 @@ export class TableVisionOverlayComponent {
     this.stopLoop();
     this.glowPlan = null;
     this.animated = false;
-    this.bake = null;
-    this.dirty = [];
     const plan = this.plan;
     const canvas = this.canvasRef()?.nativeElement;
     const ctx = canvas?.getContext('2d');
@@ -273,19 +265,19 @@ export class TableVisionOverlayComponent {
 
   private paint(ctx: CanvasRenderingContext2D, plan: OverlayPlan): void {
     perfCounters.bump('overlayDraw');
-    drawOverlayPlan(
-      ctx,
-      plan,
-      this.surfaceWidth,
-      this.surfaceHeight,
-      this.flickerClock.now(),
-      this.images,
-      this.margin,
-      this.surfaceOf(),
-      null,
-      null,
-      this.scale,
-      this.scratch
+    perfTimed('overlay', () =>
+      drawOverlayPlan(
+        ctx,
+        plan,
+        this.surfaceWidth,
+        this.surfaceHeight,
+        this.flickerClock.now(),
+        this.images,
+        this.margin,
+        this.surfaceOf(),
+        this.scale,
+        this.scratch
+      )
     );
   }
 
@@ -316,30 +308,6 @@ export class TableVisionOverlayComponent {
     return { originX: this.surfaceOriginX, originY: this.surfaceOriginY, cells: this.surfaceCells };
   }
 
-  private draw(timeMs: number, dirty: DirtyRect | null): void {
-    perfCounters.bump('overlayDraw');
-    perfTimed('overlay', () => this.drawNow(timeMs, dirty));
-  }
-
-  private drawNow(timeMs: number, dirty: DirtyRect | null): void {
-    const ctx = this.canvasRef()?.nativeElement.getContext('2d');
-    if (!ctx || !this.plan) return;
-    drawOverlayPlan(
-      ctx,
-      this.plan,
-      this.surfaceWidth,
-      this.surfaceHeight,
-      timeMs,
-      this.images,
-      this.margin,
-      this.surfaceOf(),
-      this.bake,
-      dirty,
-      this.scale,
-      this.scratch
-    );
-  }
-
   /**
    * The flicker does not need redrawing every frame.
    *
@@ -359,13 +327,7 @@ export class TableVisionOverlayComponent {
 
   /** Draws again what the flickering lights light, as they are at the moment they are drawn at. */
   private drawFlicker(): void {
-    if (!this.animated) return;
-    const at = this.flickerClock.now();
-    // Only the ground the flickering lights cover; the rest was laid down once. With nothing
-    // laid down, the whole board is drawn.
-    if (this.glowPlan) this.drawGlow();
-    else if (!this.bake) this.draw(at, null);
-    else for (const patch of this.dirty) this.draw(at, patch);
+    if (this.animated) this.drawGlow();
   }
 
   private syncLoop(): void {
