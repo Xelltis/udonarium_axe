@@ -31,6 +31,7 @@ describe('the parts of a scene', () => {
         tableName: '村',
         floorImageIdentifier: 'none',
         backgroundFilter: 'black',
+        skyKind: 'clock',
         wallsShown: '{"north":true}',
         foregroundImageIdentifier: 'mist',
         weather: '{"kind":"rain"}',
@@ -45,6 +46,13 @@ describe('the parts of a scene', () => {
       });
 
       expect(scenePartsOf(every)).toEqual([...BOARD_SCENE_PARTS]);
+    });
+
+    it('reads a sky it does not know, or none sent, as leaving the sky alone, and `none` as the background picture', () => {
+      expect(scenePartsOf(scene({ skyKind: 'aurora' }))).toEqual([]);
+      expect(scenePartsOf(Object.assign(new BoardScene(), { skyKind: undefined }))).toEqual([]);
+      expect(scenePartsOf(scene({ skyKind: 'none' }))).toEqual(['sky']);
+      expect(scenePartsOf(scene({ skyKind: 'clock' }))).toEqual(['sky']);
     });
 
     it('reads the first part of the day as a part of the day, and an empty one as leaving the clock', () => {
@@ -140,6 +148,13 @@ describe('the parts of a scene', () => {
       );
     });
 
+    it('turns the sky past the board to the clock’s, or back to the background picture where the scene says none', () => {
+      expect(sceneTableWrites(scene({ skyKind: 'clock' }), table())).toEqual({ skyKind: 'clock' });
+      expect(sceneTableWrites(scene({ skyKind: 'none' }), table({ skyKind: 'clock' }))).toEqual({ skyKind: '' });
+      expect(sceneTableWrites(scene({ skyKind: 'none' }), table())).toEqual({});
+      expect(sceneTableWrites(scene({ skyKind: 'aurora' }), table({ skyKind: 'clock' }))).toEqual({});
+    });
+
     it('clears the sky for a scene whose weather has no kind', () => {
       expect(
         sceneTableWrites(scene({ weather: '{"kind":"","color":"","density":0.5}' }), table({ weatherKind: 'rain' }))
@@ -163,6 +178,7 @@ describe('the parts of a scene', () => {
         weatherDensity: 0.7,
         darknessEnabled: true,
         fogEnabled: false,
+        skyKind: 'clock',
       });
       const other = table({
         imageIdentifier: 'day',
@@ -187,6 +203,15 @@ describe('the parts of a scene', () => {
       ]);
       expect([other.weatherKind, other.weatherColor, other.weatherDensity]).toEqual(['rain', '#88aaff', 0.7]);
       expect([other.darknessEnabled, other.fogEnabled]).toEqual([true, false]);
+      expect(other.skyKind).toBe('clock');
+    });
+
+    it('puts the background picture back past the board of a table it is put on, when the table caught showed no sky', () => {
+      const other = table({ skyKind: 'clock' });
+
+      Object.assign(other, sceneTableWrites(captureTableLook(table()), other));
+
+      expect(other.skyKind).toBe('');
     });
 
     it('takes the picture in front away from a table it is put on, when the table caught had none', () => {

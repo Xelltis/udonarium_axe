@@ -4,6 +4,7 @@ import { parseCutInIdentifiers } from '@axe/domain/media/table-cut-in';
 import { type BoardScene } from '@axe/domain/scene/board-scene';
 import { FilterType, type GameTable } from '@axe/domain/tabletop/game-table';
 import { foregroundFitOf, foregroundOpacityOf } from '@axe/domain/tabletop/table-foreground';
+import { TableSkyKind, tableSkyKindOf } from '@axe/domain/tabletop/table-sky';
 
 /** What a scene writes in a picture's place to take the picture away. */
 export const SCENE_NO_PICTURE = 'none';
@@ -16,6 +17,7 @@ export const BOARD_SCENE_PARTS = [
   'table',
   'floor',
   'background',
+  'sky',
   'walls',
   'foreground',
   'weather',
@@ -40,6 +42,7 @@ export const BOARD_SCENE_FIELDS = [
   'floorImageIdentifier',
   'backgroundImageIdentifier',
   'backgroundFilter',
+  'skyKind',
   'northWallImageIdentifier',
   'eastWallImageIdentifier',
   'southWallImageIdentifier',
@@ -73,6 +76,7 @@ export const BOARD_SCENE_PART_FIELDS: Readonly<Record<BoardScenePart, readonly (
   table: ['tableIdentifier', 'tableName'],
   floor: ['floorImageIdentifier'],
   background: ['backgroundImageIdentifier', 'backgroundFilter'],
+  sky: ['skyKind'],
   walls: [
     'northWallImageIdentifier',
     'eastWallImageIdentifier',
@@ -101,6 +105,7 @@ export type BoardSceneLookFields = Pick<
   | 'floorImageIdentifier'
   | 'backgroundImageIdentifier'
   | 'backgroundFilter'
+  | 'skyKind'
   | 'northWallImageIdentifier'
   | 'eastWallImageIdentifier'
   | 'southWallImageIdentifier'
@@ -120,6 +125,7 @@ export type SceneTableFields = Pick<
   | 'imageIdentifier'
   | 'backgroundImageIdentifier'
   | 'backgroundFilterType'
+  | 'skyKind'
   | 'northWallImageIdentifier'
   | 'eastWallImageIdentifier'
   | 'southWallImageIdentifier'
@@ -202,6 +208,18 @@ export function sceneBackgroundFilterOf(value: unknown): FilterType | undefined 
   return undefined;
 }
 
+/**
+ * The sky a scene puts past the table's board, as a table holds it: empty for the table's background
+ * picture, which a scene writes as `none`. Undefined where it leaves the sky alone, as it does for a
+ * kind of sky it does not know.
+ */
+export function sceneSkyKindOf(value: unknown): TableSkyKind | undefined {
+  const held = text(value);
+  if (held === SCENE_NO_PICTURE) return '';
+  const kind = tableSkyKindOf(held);
+  return kind.length > 0 ? kind : undefined;
+}
+
 /** Which walls a scene stands or takes down, by side, the sides it leaves alone left out. */
 export function sceneWallsShownOf(value: unknown): Partial<Record<SceneWallSide, boolean>> {
   const parsed = parseJsonObject(value);
@@ -249,6 +267,7 @@ export function scenePartsOf(scene: BoardSceneFields): BoardScenePart[] {
     background:
       scenePictureIn(scene.backgroundImageIdentifier) !== undefined ||
       sceneBackgroundFilterOf(scene.backgroundFilter) !== undefined,
+    sky: sceneSkyKindOf(scene.skyKind) !== undefined,
     walls:
       SCENE_WALL_SIDES.some((side) => scenePictureIn(scene[WALL_IMAGE_FIELD[side]]) !== undefined) ||
       Object.keys(sceneWallsShownOf(scene.wallsShown)).length > 0,
@@ -286,6 +305,8 @@ export function sceneTableWrites(scene: BoardSceneLookFields, table: SceneTableF
   putPicture('backgroundImageIdentifier', scene.backgroundImageIdentifier, ImageFile.Empty.identifier);
   const filter = sceneBackgroundFilterOf(scene.backgroundFilter);
   if (filter !== undefined) put('backgroundFilterType', filter);
+  const sky = sceneSkyKindOf(scene.skyKind);
+  if (sky !== undefined && tableSkyKindOf(table.skyKind) !== sky) writes.skyKind = sky;
   for (const side of SCENE_WALL_SIDES) {
     putPicture(WALL_IMAGE_FIELD[side], scene[WALL_IMAGE_FIELD[side]], ImageFile.Empty.identifier);
   }
@@ -331,6 +352,7 @@ export function captureTableLook(table: SceneTableFields): BoardSceneLookFields 
     floorImageIdentifier: scenePictureOf(table.imageIdentifier),
     backgroundImageIdentifier: scenePictureOf(table.backgroundImageIdentifier),
     backgroundFilter: text(table.backgroundFilterType) || 'none',
+    skyKind: tableSkyKindOf(table.skyKind) || SCENE_NO_PICTURE,
     northWallImageIdentifier: scenePictureOf(table.northWallImageIdentifier),
     eastWallImageIdentifier: scenePictureOf(table.eastWallImageIdentifier),
     southWallImageIdentifier: scenePictureOf(table.southWallImageIdentifier),

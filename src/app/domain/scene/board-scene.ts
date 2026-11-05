@@ -46,6 +46,11 @@ export class BoardScene extends GameObject {
   @SyncVar() foregroundFit = '';
   /** The weather, as JSON of its kind, colour and density; an empty kind clears the sky. */
   @SyncVar() weather = '';
+  /**
+   * What the table shows past its board: `clock` for a sky that turns with the story's clock, or
+   * `none` for the table's background picture.
+   */
+  @SyncVar() skyKind = '';
   /** `on` or `off`. */
   @SyncVar() darkness = '';
   /** `on` or `off`. */

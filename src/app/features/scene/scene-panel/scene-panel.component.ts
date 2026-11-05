@@ -29,6 +29,7 @@ export const SCENE_PART_ICONS: Readonly<Record<BoardScenePart, string>> = {
   table: 'table_view',
   floor: 'grid_on',
   background: 'landscape',
+  sky: 'wb_twilight',
   walls: 'fence',
   foreground: 'filter_frames',
   weather: 'cloud',

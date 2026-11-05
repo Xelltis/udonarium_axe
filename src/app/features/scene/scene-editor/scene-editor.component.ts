@@ -32,6 +32,7 @@ import {
   scenePartsOf,
   scenePeriodOf,
   scenePictureIn,
+  sceneSkyKindOf,
   sceneToggleOf,
   type SceneWallSide,
   sceneWallsShownOf,
@@ -39,6 +40,7 @@ import {
 } from '@axe/domain/scene/board-scene-parts';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { foregroundFitOf, foregroundOpacityOf, TABLE_FOREGROUND_FITS } from '@axe/domain/tabletop/table-foreground';
+import { TABLE_SKY_KINDS, tableSkyKindOf } from '@axe/domain/tabletop/table-sky';
 import { ChatLineEditorComponent } from '@axe/features/chat/chat-line-editor/chat-line-editor.component';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
 import { NgSelectWindowDirective } from '@axe/ui/directives/ng-select-window.directive';
@@ -71,6 +73,7 @@ const SWITCHED_PARTS: readonly BoardScenePart[] = [
   'table',
   'floor',
   'background',
+  'sky',
   'walls',
   'foreground',
   'weather',
@@ -128,6 +131,7 @@ export class SceneEditorComponent {
   protected readonly wallSides = SCENE_WALL_SIDES;
   protected readonly wallPictureField = WALL_PICTURE_FIELD;
   protected readonly foregroundFits = TABLE_FOREGROUND_FITS;
+  protected readonly skyKinds = TABLE_SKY_KINDS;
   protected readonly weatherKinds = SKY_AMBIENCE_KINDS;
   protected readonly noPicture = SCENE_NO_PICTURE;
 
@@ -303,6 +307,15 @@ export class SceneEditorComponent {
 
   protected weatherKindLabel(kind: AmbienceKind): string {
     return this.t(`feature.ambience.kind.${kind}`);
+  }
+
+  /** The sky the scene puts past the board, as the table's settings name it: empty for the background picture. */
+  protected skyKind(): string {
+    return sceneSkyKindOf(this.current().skyKind) ?? '';
+  }
+
+  protected setSkyKind(kind: string): void {
+    this.write({ skyKind: tableSkyKindOf(kind) || SCENE_NO_PICTURE });
   }
 
   protected toggleOf(part: 'darkness' | 'fog'): string {

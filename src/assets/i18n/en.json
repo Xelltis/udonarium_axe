@@ -5891,6 +5891,7 @@
         "table": "Table shown",
         "floor": "Floor",
         "background": "Background",
+        "sky": "Sky",
         "walls": "Walls",
         "foreground": "Foreground",
         "weather": "Weather",
