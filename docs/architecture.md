@@ -56,7 +56,7 @@ composition → features → ui → application → infrastructure → domain �
 
 domain ↔ DOM/Webを橋渡しするアダプタ層。
 
-- **配下**: `dice-3d`, `first-person`, `image`, `map-editor`, `media`, `replay`, `tabletop`
+- **配下**: `dice-3d`, `first-person`, `image`, `map-editor`, `media`, `replay`, `table-3d`, `tabletop`, `three-kit`
 - **依存可能**: `core`, `domain`
 - **入れる**: domain ↔ 外部世界（Canvas, Audio, IndexedDB, MediaSession等）のアダプタ、domainが宣言したinterfaceの実装
 - **入れない**: `application` / `ui` / `features`への参照、Angularの`@Injectable` / `inject`
@@ -199,6 +199,25 @@ export function buildXxxContextMenu(
   callbacks: { onShowDetail: () => void; ... }
 ): ContextMenuAction[] { ... }
 ```
+
+## 卓の描き方
+
+卓はthree.jsで1枚のcanvasに描く。GPUのAPIはWebGPUを主にし、使えない端末では自動でWebGL2に切り替わる。どちらも作れないブラウザでは、卓の場所に描けない理由と設定の場所を出す。名札・ゲージ・吹き出しのように文字や押し所の要る物は、canvasの上のDOM（HUD）に置く。
+
+| 置き場                                      | 受け持ち                                                                                                      |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `domain/tabletop/world/`                    | 卓の場面の型（`TableWorld`）と、地形の面・コマの板・水・空などを組む純関数                                    |
+| `domain/tabletop/camera/`                   | カメラの式。盤の点と画面の点を行き来する行列を出す                                                            |
+| `domain/tabletop/pick/`                     | 当たり判定の形と、画面の点から伸びる視線との交わり                                                            |
+| `infrastructure/table-3d/`                  | three.jsのengine。遅延で読むチャンクで、場面の差分を受けて描く                                                |
+| `application/tabletop/table-3d.service`     | 場面を`computed`で組み、`effect`でengineに渡す                                                                |
+| `application/tabletop/table-camera.service` | 描いた視点と、卓がページのどこにあるかを持つ。`CoordinateService`と`TablePickService`はこれと式で点を変換する |
+| `features/tabletop/game-table`              | canvasと、コマごとのHUDの部品を並べる                                                                         |
+
+- **three.jsの囲い**: `three`・`three/webgpu`・`three/tsl`・`three/addons/*`を読めるのは、`infrastructure/table-3d`と`infrastructure/dice-3d`、その2つが共有する`infrastructure/three-kit`だけにする。外からは型と、ライブラリを読まない入口（`table-3d-port`・`table-3d-quality`など）だけをimportする。engineは`import()`で読むので、最初の画面がライブラリを待たない。この決まりは`infrastructure/three-fence.spec.ts`で固定している
+- **秘匿**: 場面を組む関数は、`VisionService`が通した物だけを受け取る。見えない物は、メッシュにも影にも当たり判定にも出ない
+- **HUD**: コマのタグ名と`data-testid`は、CSSで描いていたころと同じにしてある。各部品は自分の箱をcanvasが描く位置に置き（`HudFrameService`）、押す・右クリック・ツールチップを本物のイベントで受ける
+- **新しい種類の物**: engineは、場面に初めて入った種類の物の描き方を先に組み（`compileAsync`）、組み上がってから描く。そのフレームの中で組むと、ページが1秒近く止まるためである
 
 ## 横断の部品
 
