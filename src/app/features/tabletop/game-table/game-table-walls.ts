@@ -1,6 +1,4 @@
 import { GameTable } from '@axe/domain/tabletop/game-table';
-import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
-import { WallFace } from '@axe/domain/tabletop/vision-scene';
 
 export type WallSurface = 'north-wall' | 'south-wall' | 'west-wall' | 'east-wall';
 
@@ -67,39 +65,6 @@ export const WALL_SIDES: readonly WallSide[] = [
     imageIdentifier: (table) => table.eastWallImageIdentifier,
   },
 ];
-
-/**
- * Whether the wall on this surface is drawn mirrored, which the light and silhouettes laid on it
- * have to follow. False for anything that is not a wall.
- */
-export function wallIsMirrored(surface: TableSurface): boolean {
-  return WALL_SIDES.some((side) => side.surface === surface && side.mirrored);
-}
-
-/**
- * The wall on a surface as a line along the table's edge, the way it faces into the table and its
- * height, for working out the light and shadow that fall on it. Null for anything that is not a
- * wall.
- */
-export function wallFaceFor(
-  surface: TableSurface,
-  widthPx: number,
-  depthPx: number,
-  heightPx: number
-): WallFace | null {
-  switch (surface) {
-    case 'north-wall':
-      return { ax: 0, ay: 0, bx: widthPx, by: 0, nx: 0, ny: 1, heightPx };
-    case 'south-wall':
-      return { ax: 0, ay: depthPx, bx: widthPx, by: depthPx, nx: 0, ny: -1, heightPx };
-    case 'west-wall':
-      return { ax: 0, ay: 0, bx: 0, by: depthPx, nx: 1, ny: 0, heightPx };
-    case 'east-wall':
-      return { ax: widthPx, ay: 0, bx: widthPx, by: depthPx, nx: -1, ny: 0, heightPx };
-    default:
-      return null;
-  }
-}
 
 export interface WallBackground {
   surfaceBackground: string;

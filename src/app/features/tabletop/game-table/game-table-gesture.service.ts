@@ -7,7 +7,6 @@ import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
-import { BillboardFrameService } from '@axe/application/ui/billboard-frame.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -77,7 +76,6 @@ export class GameTableGestureService {
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly uiSignalService = inject(UiSignalService);
-  private readonly billboardFrame = inject(BillboardFrameService);
   private readonly backdropFrame = inject(BackdropFrameService);
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly tabletopService = inject(TabletopService);
@@ -244,9 +242,6 @@ export class GameTableGestureService {
     if (!this.turned) return;
     this.turned = false;
     const rotation = { x: this.viewRotateX, y: this.viewRotateY, z: this.viewRotateZ };
-    // Written here rather than through a signal, so what faces the camera turns in the frame the
-    // table turns in rather than in the one after it.
-    this.billboardFrame.apply(rotation);
     this.uiSignalService.notifyTableViewRotation(rotation.x, rotation.y, rotation.z);
   }
 

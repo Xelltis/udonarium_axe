@@ -24,7 +24,6 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
-import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { GameTableComponent } from '@axe/features/tabletop/game-table/game-table.component';
 import { GridFaceCache } from '@axe/features/tabletop/game-table/grid-face-cache';
@@ -884,18 +883,6 @@ describe('GameTableComponent', () => {
     });
   });
 
-  describe('the pools on its walls', () => {
-    it('measures a pool from the end each wall is drawn from', () => {
-      const pool = { localX: 100, localY: 40, radiusX: 80, radiusY: 80, color: '#ffffff', intensity: 1 };
-      const at = (surface: TableSurface) => component['wallPoolStyleFor'](pool, surface, 1000)['mask-image'];
-
-      expect(at('north-wall')).toContain('at 100px');
-      expect(at('east-wall')).toContain('at 100px');
-      expect(at('south-wall')).toContain('at 900px');
-      expect(at('west-wall')).toContain('at 900px');
-    });
-  });
-
   describe('wallBackground', () => {
     it('backs a wall with the picture alone when no grid is asked for', () => {
       const bg = component.wallBackground('blob:wall', '');
@@ -966,52 +953,6 @@ describe('GameTableComponent', () => {
       expect(south.surfaceBackgroundSize).toBe('100% 100%, 100% 100%');
     });
 
-    it('describes each face by the edge it runs along and the way it looks', () => {
-      const table = component.currentTable;
-      table.width = 20;
-      table.height = 10;
-      table.gridSize = 50;
-      table.wallHeight = 4;
-
-      expect(component['wallFaceFor']('north-wall')).toEqual({
-        ax: 0,
-        ay: 0,
-        bx: 1000,
-        by: 0,
-        nx: 0,
-        ny: 1,
-        heightPx: 200,
-      });
-      expect(component['wallFaceFor']('south-wall')).toEqual({
-        ax: 0,
-        ay: 500,
-        bx: 1000,
-        by: 500,
-        nx: 0,
-        ny: -1,
-        heightPx: 200,
-      });
-      expect(component['wallFaceFor']('west-wall')).toEqual({
-        ax: 0,
-        ay: 0,
-        bx: 0,
-        by: 500,
-        nx: 1,
-        ny: 0,
-        heightPx: 200,
-      });
-      expect(component['wallFaceFor']('east-wall')).toEqual({
-        ax: 1000,
-        ay: 0,
-        bx: 1000,
-        by: 500,
-        nx: -1,
-        ny: 0,
-        heightPx: 200,
-      });
-      expect(component['wallFaceFor']('floor')).toBeNull();
-    });
-
     it('hands the same wall views back while nothing changes', async () => {
       const table = component.currentTable;
       table.showNorthWall = true;
@@ -1021,8 +962,6 @@ describe('GameTableComponent', () => {
       const views = component['wallViews']();
 
       expect(views.map((view) => view.wall.surface)).toEqual(['north-wall']);
-      expect(views[0].pools).toEqual([]);
-      expect(views[0].silhouettes).toEqual([]);
       expect(component['wallViews']()).toBe(views);
     });
 
@@ -1041,12 +980,6 @@ describe('GameTableComponent', () => {
       const grids = handed.mock.calls.at(-1)![0];
       expect(grids.get('table:north')).toBe('data:image/png;base64,GRID');
       expect(grids.size).toBe(1);
-    });
-
-    it('has no pools or silhouettes on a wall while nothing is lit', () => {
-      expect(component['wallPoolsFor']('north-wall')).toEqual([]);
-      expect(component['wallSilhouettesFor']('east-wall')).toEqual([]);
-      expect(component['wallBaseFilter']()).toBeNull();
     });
   });
 

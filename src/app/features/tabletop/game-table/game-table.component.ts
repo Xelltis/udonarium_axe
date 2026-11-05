@@ -71,7 +71,6 @@ import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-laye
 import { tableForegroundOf } from '@axe/domain/tabletop/table-foreground';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
-import { WallFace, WallLight, WallSilhouette } from '@axe/domain/tabletop/vision-scene';
 import { boardShapeOf } from '@axe/domain/tabletop/world/table-world';
 import { CardComponent } from '@axe/features/card/card/card.component';
 import { CardStackComponent } from '@axe/features/card/card-stack/card-stack.component';
@@ -101,8 +100,6 @@ import {
   WALL_SIDES,
   WallBackground,
   wallBackground,
-  wallFaceFor,
-  wallIsMirrored,
   WallSurface,
 } from '@axe/features/tabletop/game-table/game-table-walls';
 import { GridFaceCache } from '@axe/features/tabletop/game-table/grid-face-cache';
@@ -138,11 +135,6 @@ import { TerrainMenuService } from '@axe/features/tabletop/terrain/terrain-menu.
 import { TerrainBatchService } from '@axe/features/tabletop/terrain-batch/terrain-batch.service';
 import { TextNoteComponent } from '@axe/features/tabletop/text-note/text-note.component';
 import { TableVisionVolumeOverlayComponent } from '@axe/features/tabletop/vision-volume/table-vision-volume-overlay.component';
-import {
-  wallLightLayerStyle,
-  wallSilhouetteBackground,
-  wallSilhouetteStyle,
-} from '@axe/features/tabletop/wall-projection';
 import { WhiteBoardComponent } from '@axe/features/tabletop/white-board/white-board.component';
 import {
   LIGHT_MIN_OVERLAY_SCALE,
@@ -157,11 +149,9 @@ import { FloorPlaneDirective } from '@axe/ui/tabletop/floor-plane.directive';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
-/** A wall standing round the table, with the pools of light and the shadows cast on it. */
+/** A wall standing round the table. */
 interface WallView {
   readonly wall: ActiveWall;
-  readonly pools: readonly { readonly style: Record<string, string> }[];
-  readonly silhouettes: readonly { readonly background: string; readonly style: Record<string, string> }[];
 }
 
 interface ActiveWall {
@@ -1083,59 +1073,7 @@ export class GameTableComponent {
     this.effectTargetingService.confirm();
   }
 
-  private wallFaceFor(surface: TableSurface): WallFace | null {
-    const table = this.watchCurrentTable();
-    return wallFaceFor(
-      surface,
-      table.width * table.gridSize,
-      table.height * table.gridSize,
-      table.wallHeight * table.gridSize
-    );
-  }
-
-  protected readonly wallBaseFilter = computed<string | null>(() => {
-    const brightness = this.visionService.ambientBrightness();
-    return brightness < 1 ? 'brightness(' + brightness.toFixed(3) + ')' : null;
-  });
-
-  protected readonly wallViews = computed<readonly WallView[]>(() =>
-    this.activeWalls().map((wall) => ({
-      wall,
-      pools: this.wallPoolsFor(wall.surface).map((pool) => ({
-        style: this.wallPoolStyleFor(pool, wall.surface, wall.widthPx),
-      })),
-      silhouettes: this.wallSilhouettesFor(wall.surface).map((silhouette) => ({
-        background: this.wallSilhouetteBg(silhouette),
-        style: this.wallSilhouetteStyleFor(silhouette, wall.surface, wall.widthPx),
-      })),
-    }))
-  );
-
-  protected wallSilhouettesFor(surface: TableSurface): WallSilhouette[] {
-    const face = this.wallFaceFor(surface);
-    return face ? this.visionService.wallSilhouettes(face) : [];
-  }
-
-  protected wallPoolsFor(surface: TableSurface): WallLight[] {
-    const face = this.wallFaceFor(surface);
-    return face ? this.visionService.wallLights(face) : [];
-  }
-
-  protected wallPoolStyleFor(pool: WallLight, surface: TableSurface, faceLen: number): Record<string, string> {
-    return wallLightLayerStyle(pool, wallIsMirrored(surface), faceLen);
-  }
-
-  protected wallSilhouetteBg(silhouette: WallSilhouette): string {
-    return wallSilhouetteBackground(silhouette);
-  }
-
-  protected wallSilhouetteStyleFor(
-    silhouette: WallSilhouette,
-    surface: TableSurface,
-    faceLen: number
-  ): Record<string, string> {
-    return wallSilhouetteStyle(silhouette, wallIsMirrored(surface), faceLen);
-  }
+  protected readonly wallViews = computed<readonly WallView[]>(() => this.activeWalls().map((wall) => ({ wall })));
 
   private watchCurrentTable(): GameTable {
     const table = this.currentTable;
