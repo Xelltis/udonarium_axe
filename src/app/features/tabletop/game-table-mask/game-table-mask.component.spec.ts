@@ -35,28 +35,65 @@ describe('GameTableMaskComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  describe('viewRotateZ computed signal', () => {
-    it('starts at ten', () => {
-      expect(component.viewRotateZ()).toBe(10);
+  describe('the guide to how high it floats', () => {
+    let table: GameTable;
+    let mask: GameTableMask;
+
+    beforeEach(() => {
+      table = new GameTable();
+      table.width = 20;
+      table.height = 20;
+      table.initialize();
+      TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+      mask = GameTableMask.create('浮くマスク', 4, 2, 1);
+      mask.location = { name: 'table', x: 100, y: 200 };
+      mask.isAltitudeIndicate = true;
+      fixture.componentRef.setInput('gameTableMask', mask);
     });
 
-    it('turns with the table view', () => {
-      const uiSignalService = TestBed.inject(UiSignalService);
-      uiSignalService.notifyTableViewRotation(50, 20, 180);
-      expect(component.viewRotateZ()).toBe(180);
+    afterEach(() => {
+      mask.destroy();
+      table.destroy();
     });
 
-    it('reads the flip from the angle the view is turned to', () => {
-      const uiSignalService = TestBed.inject(UiSignalService);
-      uiSignalService.notifyTableViewRotation(0, 0, 10);
-      expect(component.isInverse).toBe(false);
+    type Guide = { lifted: { x: number; y: number; height: number }; altitude: number } | null;
+    const guide = () => (component as unknown as { altitudeGuide(): Guide }).altitudeGuide();
 
-      uiSignalService.notifyTableViewRotation(0, 0, 180);
-      expect(component.isInverse).toBe(true);
+    it('runs from the middle of a mask raised off the face down to the face, and is drawn', async () => {
+      mask.altitude = 1.5;
+      fixture.detectChanges();
+      await fixture.whenStable();
 
-      uiSignalService.notifyTableViewRotation(0, 0, 270);
-      expect(component.isInverse).toBe(false);
+      const grid = component.gridSize;
+      expect(guide()).toMatchObject({
+        lifted: { x: 100 + 2 * grid, y: 200 + grid, height: 1.5 * grid },
+        altitude: 1.5,
+      });
+      expect((fixture.nativeElement as HTMLElement).querySelector('altitude-guide')).not.toBeNull();
     });
+
+    it('is left out within half a cell of the face, or where the mask is set not to show it', () => {
+      mask.altitude = 0.4;
+      expect(guide()).toBeNull();
+
+      mask.altitude = 2;
+      mask.isAltitudeIndicate = false;
+      expect(guide()).toBeNull();
+    });
+  });
+
+  it('keeps the name of whoever scratches it upright on the screen, however the table is turned', () => {
+    vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ userId: 'my-user', isOpen: true } as IPeerContext);
+    const mask = GameTableMask.create('testMask', 10, 10, 1);
+    mask.owner = 'my-user';
+    fixture.componentRef.setInput('gameTableMask', mask);
+    TestBed.inject(UiSignalService).notifyTableViewRotation(0, 0, 180);
+    fixture.detectChanges();
+
+    const name = (fixture.nativeElement as HTMLElement).querySelector('b')!.parentElement!;
+    expect(name.className).not.toContain('rotateZ');
+    vi.restoreAllMocks();
+    mask.destroy();
   });
 
   describe('setting up and tearing down', () => {

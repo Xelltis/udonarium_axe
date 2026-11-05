@@ -328,7 +328,7 @@
     class="bg-ui-panel text-ui-text pointer-events-none inline-block max-w-[18em] truncate rounded-3xl px-2.25 py-0.75 text-[15px] whitespace-nowrap"
     [ngStyle]="{ 'background-color': ownerColor + 'E6' }"
   >
-    <span class="inline-block" [class.transform-[rotateZ(180deg)]]="isInverse"
+    <span class="inline-block"
       ><b>{{ ownerName }}</b
       >{{ 'feature.tabletop.mask.operating' | transloco }}
       @if (gameTableMask()!.isMine) {
@@ -359,122 +359,49 @@
   </div>
 </ng-template>
 @if (gameTableMask()) {
-  @if (drawsOnCanvas()) {
-    <!--
-      Over a table drawn on a canvas, the mask is a box on the screen round where the canvas draws
-      it, and what it shows is laid on it in perspective, clear: the canvas draws a picture of it.
-    -->
-    @let id = gameTableMask()!.identifier;
+  <!--
+    The mask is a box on the screen round where the table's canvas draws it, and what it shows is
+    laid on it in perspective, clear: the canvas draws a picture of it.
+  -->
+  @let id = gameTableMask()!.identifier;
+  <div
+    class="group pointer-events-none size-full select-none [-moz-user-drag:none] [-webkit-user-drag:none]"
+    [class.cursor-grab]="!isLock && !isScratching"
+    [class.cursor-pointer]="isScratching && gameTableMask()!.isMine"
+    [attr.data-version]="maskVersion()"
+    data-hud-box
+    appMovable
+    [movable.option]="movableOption()"
+    [movable.disable]="isLock || isScratching"
+    [appSelectable]="gameTableMask()"
+    (movable.ondragstart)="onMove()"
+    (movable.ondragend)="onMoved()"
+  >
     <div
-      class="group pointer-events-none size-full select-none [-moz-user-drag:none] [-webkit-user-drag:none]"
-      [class.cursor-grab]="!isLock && !isScratching"
-      [class.cursor-pointer]="isScratching && gameTableMask()!.isMine"
-      [attr.data-version]="maskVersion()"
-      data-hud-box
-      appMovable
-      [movable.option]="movableOption()"
-      [movable.disable]="isLock || isScratching"
-      [appSelectable]="gameTableMask()"
-      (movable.ondragstart)="onMove()"
-      (movable.ondragend)="onMoved()"
-    >
-      <div
-        class="pointer-events-none opacity-0"
-        #visual
-        data-part="cover"
-        [style.width.px]="pixelWidth"
-        [style.height.px]="pixelHeight"
-        [ngStyle]="hexOutlineMask ? { '-webkit-mask': hexOutlineMask, mask: hexOutlineMask } : null"
-        [appHudPlace]="{ owner: id, part: 'picture', place: 'face' }"
-      >
-        <ng-container [ngTemplateOutlet]="coverContent"></ng-container>
-      </div>
-      @if (isLock && dispLockMark) {
-        <div class="pointer-events-none" [appHudPlace]="{ owner: id, part: 'picture' }">
-          <div class="bg-ui-elevated text-ui-muted absolute inset-0 m-auto size-6.25 rounded-full">
-            <i class="material-icons pointer-events-none">lock</i>
-          </div>
-        </div>
-      }
-      @if (isScratching && (gameTableMask()!.isMine || ownerIsOnline)) {
-        <div class="pointer-events-none" [appHudPlace]="{ owner: id, part: 'picture', place: 'above' }">
-          <ng-container [ngTemplateOutlet]="scratchLabel"></ng-container>
-        </div>
-      }
-    </div>
-  } @else {
-    <div
-      class="group pointer-events-none absolute size-12.5 select-none [-moz-user-drag:none] [-webkit-user-drag:none] backface-hidden transform-3d"
-      [class.cursor-grab]="!isLock && !isScratching"
-      [class.cursor-pointer]="isScratching && gameTableMask()!.isMine"
-      [attr.data-version]="maskVersion()"
+      class="pointer-events-none opacity-0"
+      #visual
+      data-part="cover"
       [style.width.px]="pixelWidth"
       [style.height.px]="pixelHeight"
-      appMovable
-      [movable.option]="movableOption()"
-      [movable.disable]="isLock || isScratching"
-      [appSelectable]="gameTableMask()"
-      (movable.ondragstart)="onMove()"
-      (movable.ondragend)="onMoved()"
+      [ngStyle]="hexOutlineMask ? { '-webkit-mask': hexOutlineMask, mask: hexOutlineMask } : null"
+      [appHudPlace]="{ owner: id, part: 'picture', place: 'face' }"
     >
-      <div
-        class="pointer-events-none size-full transform-3d"
-        [class.[transition:transform_132ms_ease-in-out]]="altitude === 0"
-        [ngStyle]="{ transform: 'translateZ(' + altitude * gridSize + 'px)' }"
-      >
-        <div
-          class="pointer-events-none size-full transform-3d"
-          #visual
-          data-part="cover"
-          [class.opacity-0]="picturedOnCanvas()"
-          [ngStyle]="hexOutlineMask ? { '-webkit-mask': hexOutlineMask, mask: hexOutlineMask } : null"
-        >
-          <ng-container [ngTemplateOutlet]="coverContent"></ng-container>
-        </div>
-        <div class="pointer-events-none z-10 backface-hidden">
-          @if (isLock && dispLockMark) {
-            <div class="bg-ui-elevated text-ui-muted absolute inset-0 m-auto size-6.25 rounded-full transform-3d">
-              <i class="material-icons pointer-events-none backface-hidden">lock</i>
-            </div>
-          }
-        </div>
-        @if (isScratching && (gameTableMask()!.isMine || ownerIsOnline)) {
-          <div
-            class="pointer-events-none absolute inset-x-0 -top-2.5 left-px z-10 m-auto translate-z-[0.5px] backface-hidden transform-3d"
-          >
-            <ng-container [ngTemplateOutlet]="scratchLabel"></ng-container>
-          </div>
-        }
-      </div>
-      @if (isAltitudeIndicate && math.abs(gameTableMaskAltitude) >= 0.5) {
-        <div
-          class="pointer-events-none flex origin-top-left items-center border-l-2 border-dashed border-l-[blanchedalmond] transform-3d"
-          [style.height.px]="math.abs(gameTableMaskAltitude * gridSize)"
-          [ngStyle]="{
-            transform:
-              'translateX(' +
-              (width * gridSize) / 2 +
-              'px) translateY(' +
-              (-height * gridSize) / 2 +
-              'px) rotateX(-90deg) translateY(' +
-              (altitude > 0 ? -altitude * gridSize : 0) +
-              'px) rotateY(' +
-              viewRotateZ() +
-              'deg)',
-          }"
-        >
-          <div class="pointer-events-none transform-3d">
-            <span
-              class="pointer-events-none absolute pl-0.5 text-[11px] font-extrabold text-[blanchedalmond] [text-shadow:var(--ui-elevated)_0px_0px_3px] backface-hidden transform-3d"
-              >{{ math.abs(gameTableMaskAltitude) }}</span
-            >
-            <span
-              class="pointer-events-none absolute transform-[rotateY(-180deg)] pl-0.5 text-[11px] font-extrabold text-[blanchedalmond] [text-shadow:var(--ui-elevated)_0px_0px_3px] backface-hidden transform-3d"
-              >{{ gameTableMaskAltitude }}</span
-            >
-          </div>
-        </div>
-      }
+      <ng-container [ngTemplateOutlet]="coverContent"></ng-container>
     </div>
-  }
+    @if (isLock && dispLockMark) {
+      <div class="pointer-events-none" [appHudPlace]="{ owner: id, part: 'picture' }">
+        <div class="bg-ui-elevated text-ui-muted absolute inset-0 m-auto size-6.25 rounded-full">
+          <i class="material-icons pointer-events-none">lock</i>
+        </div>
+      </div>
+    }
+    @if (isScratching && (gameTableMask()!.isMine || ownerIsOnline)) {
+      <div class="pointer-events-none" [appHudPlace]="{ owner: id, part: 'picture', place: 'above' }">
+        <ng-container [ngTemplateOutlet]="scratchLabel"></ng-container>
+      </div>
+    }
+    @if (altitudeGuide(); as guide) {
+      <altitude-guide [owner]="id" [guide]="guide" />
+    }
+  </div>
 }

@@ -15,8 +15,8 @@ import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { GameObjectInventoryService } from '@axe/application/inventory/game-object-inventory.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
@@ -24,7 +24,6 @@ import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { sheetPanelBox, sheetPanelTitle } from '@axe/application/ui/sheet-panel';
-import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ImageFile, imageFileEqual } from '@axe/core/storage/image-file';
 import { isInStore } from '@axe/core/sync/object-store';
 import { debounce } from '@axe/core/util/debounce';
@@ -47,6 +46,7 @@ import {
   buildScratchingGridInfos,
   type ScratchGridInfo,
 } from '@axe/features/tabletop/game-table-mask/game-table-mask-helpers';
+import { AltitudeGuideComponent, altitudeGuideOf } from '@axe/ui/components/altitude-guide/altitude-guide.component';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
@@ -54,7 +54,6 @@ import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupInputHandler, setupMovableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
-import { translateZCss, Z_OFFSET_MASK_PX } from '@axe/ui/tabletop/z-offset';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** Words written across a mask, as they are drawn. */
@@ -73,6 +72,7 @@ const MASK_WRITING_OUTLINE =
   templateUrl: './game-table-mask.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AltitudeGuideComponent,
     HudPlaceDirective,
     MovableDirective,
     SelectableDirective,
@@ -105,28 +105,23 @@ export class GameTableMaskComponent {
   private readonly tablePick = inject(TablePickService);
   private readonly tableSelecter = inject(TableSelecter);
   private readonly inventoryService = inject(GameObjectInventoryService);
-  private readonly uiSignalService = inject(UiSignalService);
+  private readonly pieces = inject(TablePiecesService);
   private readonly tabletopService = inject(TabletopService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly translateFn = inject(TRANSLATE_FN);
 
   /**
-   * Whether the mask is drawn on the table's canvas from a picture of it taken here, which leaves it
-   * clear here, still taking the presses where the canvas draws it. While it is scratched the picture
-   * shows what the scratch would open.
+   * What the mask shows, laid out here for the table's canvas to draw the mask from a picture of it:
+   * left clear, still taking the presses where the canvas draws it. While it is scratched the
+   * picture shows what the scratch would open.
    */
-  readonly picturedOnCanvas = computed(() => {
-    this.maskVersion();
-    return this.drawsOnCanvas() && !!this.gameTableMask();
-  });
-  protected readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
   private readonly visual = viewChild<ElementRef<HTMLElement>>('visual');
 
   constructor() {
     pictureForCanvas({
       identifier: () => this.gameTableMask()?.identifier ?? '',
       element: () => this.visual()?.nativeElement,
-      pictured: () => this.picturedOnCanvas(),
+      pictured: () => !!this.gameTableMask(),
       follows: () => {
         this.maskVersion();
         this.imageFile();
@@ -139,8 +134,6 @@ export class GameTableMaskComponent {
     setupMovableForPiece(this, {
       target: this.gameTableMask,
       collideLayers: ['terrain'],
-      transformCssOffset: translateZCss(Z_OFFSET_MASK_PX),
-      placedElsewhere: this.drawsOnCanvas,
       footprint: () => ({ width: this.pixelWidth, height: this.pixelHeight }),
       snapOrigin: () => {
         const geo = computeHexMaskGeometry(this.width, this.height, this.gridSize, this.gridType());
@@ -279,6 +272,21 @@ export class GameTableMaskComponent {
   get gameTableMaskAltitude(): number {
     return +this.altitude.toFixed(1);
   }
+
+  /**
+   * The guide from the height the mask floats at down to the face it lies on, or up to one sunk
+   * under it, from its middle. Nothing for a mask within half a cell of the face, or one set not to
+   * show it.
+   */
+  protected readonly altitudeGuide = computed(() => {
+    const mask = this.gameTableMask();
+    if (!mask) return null;
+    this.maskVersion();
+    if (!mask.isAltitudeIndicate) return null;
+    const foot = this.pieces.footOf(mask);
+    const middle = foot && { ...foot, x: foot.x + this.pixelWidth / 2, y: foot.y + this.pixelHeight / 2 };
+    return altitudeGuideOf(middle, this.gameTableMaskAltitude, this.gridSize);
+  });
 
   /**
    * The cells scratched open, as a comma-separated list of `col:row`; setting it writes straight to
@@ -459,13 +467,6 @@ export class GameTableMaskComponent {
     if (mask) mask.isAltitudeIndicate = isAltitudeIndicate;
   }
 
-  /**
-   * Whether the table is turned more than a quarter either way, so the scratcher's name is turned
-   * over to stay readable.
-   */
-  get isInverse(): boolean {
-    return Math.abs(this.viewRotateZ()) % 360 > 90 && Math.abs(this.viewRotateZ()) % 360 < 270;
-  }
   /** Whether someone is scratching the mask, which is whenever it has an owner. */
   get isScratching(): boolean {
     const mask = this.gameTableMask();
@@ -500,8 +501,6 @@ export class GameTableMaskComponent {
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
-  math = Math;
-  readonly viewRotateZ = this.uiSignalService.tableViewRotationZ;
 
   readonly gridType = computed(() => {
     const table = this.tableSelecter.viewTable;
