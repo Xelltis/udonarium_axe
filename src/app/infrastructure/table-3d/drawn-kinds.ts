@@ -28,21 +28,29 @@ export class DrawnKinds {
   private readonly seen = new WeakMap<Object3D, Seen[]>();
   private readonly readied = new Set<string>();
 
-  /** The kinds the visible things of the scene are drawn as that have not been marked readied. */
-  unreadied(scene: Object3D): string[] {
+  /**
+   * The kinds the visible things of the scene are drawn as that have not been marked readied, and the
+   * things drawn as them.
+   */
+  unreadied(scene: Object3D): { readonly kinds: string[]; readonly things: Object3D[] } {
     const fresh = new Set<string>();
+    const things: Object3D[] = [];
     scene.traverseVisible((object) => {
       const drawn = object as Drawable;
       if (!(drawn.isMesh || drawn.isSprite || drawn.isPoints || drawn.isLine)) return;
       const { material, geometry } = drawn;
       if (!material || !geometry) return;
       const materials = Array.isArray(material) ? material : [material];
+      let isNew = false;
       materials.forEach((one, index) => {
         const kind = this.kindOf(object, one, geometry, index);
-        if (!this.readied.has(kind)) fresh.add(kind);
+        if (this.readied.has(kind)) return;
+        fresh.add(kind);
+        isNew = true;
       });
+      if (isNew) things.push(object);
     });
-    return [...fresh];
+    return { kinds: [...fresh], things };
   }
 
   /** Marks kinds as readied, so they are not handed back again. */

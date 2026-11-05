@@ -757,12 +757,12 @@ class ThreeTableEngine implements Table3dEngine {
    */
   private readyForNewKinds(): boolean {
     const fresh = this.kinds.unreadied(this.scene);
-    if (fresh.length === 0) return false;
+    if (fresh.kinds.length === 0) return false;
     const readying = this.post
-      .compileAsync(this.scene, this.camera, this.finishing())
+      .compileAsync(this.scene, this.camera, this.finishing(), fresh.things)
       .catch(() => undefined)
       .then(() => {
-        this.kinds.markReadied(fresh);
+        this.kinds.markReadied(fresh.kinds);
         if (this.readying === readying) this.readying = null;
         this.needsFrame();
       });

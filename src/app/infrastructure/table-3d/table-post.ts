@@ -2,7 +2,16 @@ import type { Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-q
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { ao } from 'three/addons/tsl/display/GTAONode.js';
 import { directionToColor, mrt, normalView, output, pass, vec4 } from 'three/tsl';
-import { type Camera, type Node, type PassNode, RenderPipeline, type Scene, type WebGPURenderer } from 'three/webgpu';
+import {
+  type Camera,
+  type Node,
+  type Object3D,
+  type PassNode,
+  RenderPipeline,
+  type Scene,
+  Vector2,
+  type WebGPURenderer,
+} from 'three/webgpu';
 
 /** How strongly the light of what glows spills round it, how far, and from how bright on. */
 const BLOOM_STRENGTH = 0.7;
@@ -12,6 +21,10 @@ const BLOOM_THRESHOLD = 0;
 const SAMPLES = 4;
 /** How large the shading of corners and creases is worked out, beside the screen. */
 const AO_SCALE = 0.5;
+/** How many new things are readied one by one; more than that, and the whole scene is readied at once. */
+const READIED_ONE_BY_ONE = 24;
+
+const drawingSize = new Vector2();
 
 /**
  * Draws the scene through the finishing the quality the table is drawn at asks for: the light of what
@@ -37,12 +50,39 @@ export class TablePost {
   }
 
   /**
-   * Readies the graphics card to draw the scene through the finishing, drawing nothing, so the frame
-   * that first draws something new does not stop to build what drawing it asks for.
+   * Readies the graphics card to draw things new to the scene through the finishing, drawing nothing,
+   * so the frame that first draws them does not stop to build what drawing them asks for. A few are
+   * readied one by one, as the dice of a roll, rather than the whole scene with them: readying gives
+   * way to the frames being drawn, and on a slow machine a whole scene takes many of them.
    */
-  compileAsync(scene: Scene, camera: Camera, plan: Table3dQualityPlan): Promise<void> {
+  async compileAsync(
+    scene: Scene,
+    camera: Camera,
+    plan: Table3dQualityPlan,
+    things: readonly Object3D[]
+  ): Promise<void> {
     this.lay(scene, camera, plan);
-    return this.scenePass ? this.scenePass.compileAsync(this.renderer) : this.renderer.compileAsync(scene, camera);
+    const renderer = this.renderer;
+    const pass = this.scenePass;
+    if (things.length > READIED_ONE_BY_ONE) {
+      await (pass ? pass.compileAsync(renderer) : renderer.compileAsync(scene, camera));
+      return;
+    }
+    const target = renderer.getRenderTarget();
+    const mrt = renderer.getMRT();
+    if (pass) {
+      pass.renderTarget.samples = SAMPLES;
+      renderer.getDrawingBufferSize(drawingSize);
+      pass.setSize(drawingSize.width, drawingSize.height);
+      renderer.setRenderTarget(pass.renderTarget);
+      renderer.setMRT(pass.getMRT());
+    }
+    try {
+      for (const thing of things) await renderer.compileAsync(thing, camera, scene);
+    } finally {
+      renderer.setRenderTarget(target);
+      renderer.setMRT(mrt);
+    }
   }
 
   dispose(): void {
