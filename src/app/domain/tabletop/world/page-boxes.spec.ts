@@ -1,5 +1,12 @@
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
-import { blockPageBoxes, COIN_PART, piecePageBoxes, quadMatrix, TOP_PART } from '@axe/domain/tabletop/world/page-boxes';
+import {
+  blockPageBoxes,
+  COIN_PART,
+  drawnRanks,
+  piecePageBoxes,
+  quadMatrix,
+  TOP_PART,
+} from '@axe/domain/tabletop/world/page-boxes';
 import { TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 
@@ -150,6 +157,64 @@ describe('piecePageBoxes', () => {
       height: 20,
       scale: 0.5,
     });
+  });
+});
+
+describe('drawnRanks', () => {
+  const ON_FLOOR = { across: FLOOR.u, down: FLOOR.v };
+  const WALL = { across: { x: 1, y: 0, z: 0 }, down: { x: 0, y: 0, z: -1 } };
+  /** A table seen tilted, so that the further down the board a point lies the nearer the eye it is. */
+  const tilted = (() => {
+    const scene = new Matrix3D().identity();
+    scene.m23 = 0.5;
+    return scene;
+  })();
+
+  function ranksOf(sprites: TableWorldSprite[], coins: TableWorldCoin[] = []): Record<string, number> {
+    return Object.fromEntries(drawnRanks(piecePageBoxes(sprites, coins, tilted, EYE)));
+  }
+
+  it('draws the nearer of two pieces over the other', () => {
+    const ranks = ranksOf([
+      sprite('far#picture', { centre: { x: 100, y: 100, z: 20 } }),
+      sprite('near#picture', { centre: { x: 100, y: 300, z: 20 } }),
+    ]);
+
+    expect(ranks).toEqual({ far: 1, near: 2 });
+  });
+
+  it('draws a card lying over another over it, however much nearer the eye the one under it reaches', () => {
+    const ranks = ranksOf([
+      sprite('under#face', { centre: { x: 100, y: 200, z: 0.15 }, widthPx: 60, heightPx: 90, facing: ON_FLOOR }),
+      sprite('over#face', { centre: { x: 110, y: 150, z: 0.151 }, widthPx: 60, heightPx: 90, facing: ON_FLOOR }),
+    ]);
+
+    expect(ranks).toEqual({ under: 1, over: 2 });
+  });
+
+  it('takes a stack by the highest of the things it lies in, and a coin by its top', () => {
+    const ranks = ranksOf(
+      [
+        sprite('deck#layer-0', { centre: { x: 100, y: 260, z: 1 }, facing: ON_FLOOR }),
+        sprite('deck#plate', { centre: { x: 100, y: 260, z: 3 }, facing: ON_FLOOR }),
+        sprite('card#face', { centre: { x: 100, y: 200, z: 2 }, facing: ON_FLOOR }),
+      ],
+      [{ id: 'coin', face: FLOOR, x: 100, y: 100, base: 0, radiusPx: 10, thicknessPx: 4 } as TableWorldCoin]
+    );
+
+    expect(ranks).toEqual({ card: 1, deck: 2, coin: 3 });
+  });
+
+  it('leaves where it was a piece standing among cards, and cards lying another way', () => {
+    const ranks = ranksOf([
+      sprite('under#face', { centre: { x: 100, y: 400, z: 0.15 }, facing: ON_FLOOR }),
+      sprite('hero#pedestal', { centre: { x: 100, y: 300, z: 0.5 }, facing: ON_FLOOR }),
+      sprite('hero#picture', { centre: { x: 100, y: 300, z: 30 } }),
+      sprite('posted#face', { centre: { x: 100, y: 100, z: 50 }, facing: WALL }),
+      sprite('over#face', { centre: { x: 100, y: 50, z: 0.16 }, facing: ON_FLOOR }),
+    ]);
+
+    expect(ranks).toEqual({ posted: 2, hero: 3, over: 4, under: 1 });
   });
 });
 

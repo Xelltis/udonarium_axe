@@ -8,6 +8,7 @@ import { TableSurfaceService } from '@axe/application/tabletop/table-surface.ser
 import { tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
 import {
   blockPageBoxes,
+  drawnRanks,
   PageBox,
   PiecePageBoxes,
   piecePageBoxes,
@@ -161,9 +162,7 @@ export class HudFrameService {
   private write(): void {
     const boxes = this.boxesNow();
     if (!boxes) return;
-    const ranks = new Map(
-      [...boxes].sort(([, a], [, b]) => a.nearness - b.nearness).map(([owner], rank) => [owner, rank + 1])
-    );
+    const ranks = drawnRanks(boxes);
     const origin = this.camera.layout ?? { left: 0, top: 0 };
     const followed = this.eyes.followed()?.owner;
     const largest = this.camera.view?.perspectivePx ? FOLLOWING_LARGEST_SCALE : Infinity;
