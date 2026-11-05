@@ -1,7 +1,16 @@
-import { expect, test } from '@playwright/test';
+import { expect, Page, test } from '@playwright/test';
 
 import { openPanel } from '../helpers';
 import { closePanels, freeze, openTableSetting, prepare, settle, snap } from './fixtures';
+
+/**
+ * Opens a part of the room settings by its tab, the click sent to the tab itself. A click made the
+ * usual way first scrolls the tab into view, and on a busy page that catches the panel still settling
+ * and scrolls what it holds up by the gap above the tabs.
+ */
+async function openPart(page: Page, part: string) {
+  await page.locator(`[data-testid="room-settings-tab-${part}"]`).dispatchEvent('click');
+}
 
 test('the table setting looks the same', async ({ page }) => {
   await prepare(page);
@@ -29,7 +38,7 @@ test('the room settings look the same on a part with a form in it', async ({ pag
   await openPanel(page, '部屋設定');
   await expect(page.locator('room-settings-panel')).toBeVisible({ timeout: 10000 });
   await settle(page, 400);
-  await page.locator('[data-testid="room-settings-tab-move"]').click();
+  await openPart(page, 'move');
   await settle(page, 400);
   await snap(page, 'panels-room-settings-move');
 });
@@ -41,7 +50,7 @@ test('the room settings look the same on the part another panel sits in', async 
   await openPanel(page, '部屋設定');
   await expect(page.locator('room-settings-panel')).toBeVisible({ timeout: 10000 });
   await settle(page, 400);
-  await page.locator('[data-testid="room-settings-tab-archive"]').click();
+  await openPart(page, 'archive');
   await settle(page, 400);
   await snap(page, 'panels-room-settings-archive');
 });
