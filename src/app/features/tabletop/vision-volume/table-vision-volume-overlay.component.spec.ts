@@ -71,7 +71,7 @@ describe('TableVisionVolumeOverlayComponent', () => {
     expect(volumes[0].rings[0].clipPath).not.toBeNull();
   });
 
-  describe('over a table drawn on a canvas', () => {
+  describe('on the screen over the canvas', () => {
     const layout: TableLayout = { left: 0, top: 30, width: 1280, height: 770, boardWidth: 1000, boardHeight: 1000 };
 
     function watcher(): GameCharacter {
@@ -90,7 +90,6 @@ describe('TableVisionVolumeOverlayComponent', () => {
         camera.showView(DEFAULT_TABLE_CAMERA_VIEW);
       }
       const fixture = TestBed.createComponent(TableVisionVolumeOverlayComponent);
-      fixture.componentRef.setInput('overCanvas', true);
       fixture.detectChanges();
       return fixture;
     }

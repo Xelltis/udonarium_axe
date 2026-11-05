@@ -42,30 +42,20 @@ describe('TableBeamOverlayComponent', () => {
     vi.restoreAllMocks();
   });
 
-  function overlay(overCanvas: boolean, withCamera = true): HTMLElement {
+  function overlay(withCamera = true): HTMLElement {
     if (withCamera) {
       const camera = TestBed.inject(TableCameraService);
       camera.setLayout(layout);
       camera.showView(DEFAULT_TABLE_CAMERA_VIEW);
     }
     const fixture = TestBed.createComponent(TableBeamOverlayComponent);
-    fixture.componentRef.setInput('overCanvas', overCanvas);
     fixture.detectChanges();
     return fixture.nativeElement as HTMLElement;
   }
 
-  it('places the fins of a beam and the glows on the board among the page’s own pieces', () => {
-    const [first, second, floor, wall] = Array.from(overlay(false).querySelectorAll<HTMLElement>('div'));
-
-    expect(first.style.transform).toBe(beam.fins[0]);
-    expect(second.style.transform).toBe(beam.fins[1]);
-    expect(floor.style.transform).toContain('translate3d(500px, 400px, 60px)');
-    expect(wall.style.transform).toBe(wallGlow.transform);
-  });
-
-  it('lays the fins of a beam on the screen over a canvas, carried through the camera from where they hang', () => {
+  it('lays the fins of a beam on the screen, carried through the camera from where they hang', () => {
     const laid = TestBed.inject(TableCameraService);
-    const [first, second] = Array.from(overlay(true).querySelectorAll<HTMLElement>('div'));
+    const [first, second] = Array.from(overlay().querySelectorAll<HTMLElement>('div'));
 
     const onScreen = laid.screenMatrixOf()!;
     expect(first.style.transform).toBe(onScreen(new Matrix3D().setCSS(beam.fins[0])));
@@ -73,16 +63,16 @@ describe('TableBeamOverlayComponent', () => {
     expect(first.style.clipPath).toBe(beam.clip);
   });
 
-  it('stands a glow facing the screen over a canvas where the canvas draws its light, and lays one on a wall flat against it', () => {
+  it('stands a glow facing the screen where the canvas draws its light, and lays one on a wall flat against it', () => {
     const camera = TestBed.inject(TableCameraService);
-    const [, , floor, wall] = Array.from(overlay(true).querySelectorAll<HTMLElement>('div'));
+    const [, , floor, wall] = Array.from(overlay().querySelectorAll<HTMLElement>('div'));
 
     const at = camera.screenOf()!(floorGlow.x, floorGlow.y, floorGlow.z);
     expect(floor.style.transform).toBe(`translate(${at.x}px, ${at.y}px) scale(${at.scale}) translate(-50%, -50%)`);
     expect(wall.style.transform).toBe(camera.screenMatrixOf()!(new Matrix3D().setCSS(wallGlow.transform!)));
   });
 
-  it('lays nothing over a canvas before the camera is set', () => {
-    expect(overlay(true, false).querySelectorAll('div')).toHaveLength(0);
+  it('lays nothing before the camera is set', () => {
+    expect(overlay(false).querySelectorAll('div')).toHaveLength(0);
   });
 });
