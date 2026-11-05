@@ -28,8 +28,23 @@ export async function prepare(page: Page) {
     localStorage.removeItem('ui-widget-layout');
   });
   await waitAppReady(page);
+  await drawWhileClockHeld(page);
   await page.addStyleTag({ content: NO_RESTORE_OFFER });
   await page.addStyleTag({ content: NO_TRANSITIONS });
+}
+
+/**
+ * Has the canvas build what drawing a new kind of thing asks of the graphics card on the frame that
+ * draws it, as it did before it learnt to ready the card first: readying yields to the frames of a
+ * clock the shots hold, and a scene drawn meanwhile leaves out what is still being readied. What is
+ * being readied as the page opens is waited for here, while the clock still runs.
+ */
+async function drawWhileClockHeld(page: Page) {
+  await expect
+    .poll(() => page.evaluate(() => !!(window as unknown as CanvasHooks).__axeTable), { timeout: 30_000 })
+    .toBe(true);
+  await page.evaluate(() => (window as unknown as CanvasHooks).__axeTable?.readyBeforeDrawing(false));
+  await drawCanvasThrough(page);
 }
 
 /**
@@ -223,6 +238,7 @@ type CanvasHooks = {
     drawDueNow(): boolean;
     holdFlicker(timeMs: number | null): void;
     holdMotion(held: boolean): void;
+    readyBeforeDrawing(on: boolean): void;
     holdMovesAt(ms: number | null): void;
     chooseLightsAfresh(): void;
     moving(identifier: string): boolean;

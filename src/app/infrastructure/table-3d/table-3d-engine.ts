@@ -16,6 +16,7 @@ import type {
 import { BackdropRing } from '@axe/infrastructure/table-3d/backdrop-ring';
 import { BoardLayers } from '@axe/infrastructure/table-3d/board-layers';
 import { CoinLayer } from '@axe/infrastructure/table-3d/coin-layer';
+import { DrawnKinds } from '@axe/infrastructure/table-3d/drawn-kinds';
 import { changedChunks, chunkSignatures, facesByOwner, OwnedFaces } from '@axe/infrastructure/table-3d/face-chunks';
 import {
   boardGeometry,
@@ -215,6 +216,12 @@ class ThreeTableEngine implements Table3dEngine {
   private changed = true;
   private lost = false;
   private loading = 0;
+  /** The kinds of thing the scene draws, and which the graphics card has been readied for. */
+  private readonly kinds = new DrawnKinds();
+  /** The graphics card being readied for kinds of thing it has not drawn, which nothing is drawn during. */
+  private readying: Promise<void> | null = null;
+  /** Whether the graphics card is readied for a new kind of thing before the frame that first draws it. */
+  private readiesFirst = true;
   private needsFrame: () => void = () => undefined;
   private readonly pictures = new TextureLoader();
   /** The pictures painted ground is drawn with, read the first time any ground is painted. */
@@ -492,7 +499,11 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   isLoading(): boolean {
-    return this.loading > 0 || this.shadowTimer !== null || this.models.isLoading;
+    return this.loading > 0 || this.shadowTimer !== null || this.models.isLoading || this.readying !== null;
+  }
+
+  readyBeforeDrawing(on: boolean): void {
+    this.readiesFirst = on;
   }
 
   stopHoldingBack(): void {
@@ -730,11 +741,32 @@ class ThreeTableEngine implements Table3dEngine {
   renderIfChanged(): boolean {
     this.takeChanges();
     if (!this.changed || this.lost) return false;
+    if (this.readying !== null || (this.readiesFirst && this.readyForNewKinds())) return false;
     this.changed = false;
     this.renderer.info.reset();
     this.post.render(this.scene, this.camera, this.finishing());
     this.drawCalls = this.renderer.info.render.drawCalls;
     this.draws++;
+    return true;
+  }
+
+  /**
+   * Starts readying the graphics card for the kinds of thing in the scene it has not drawn yet, and
+   * answers whether it did; the scene is drawn once that is done. Built on the frame that first draws
+   * them, they hold the page up for as long as that takes, most of a second on first opening a table.
+   */
+  private readyForNewKinds(): boolean {
+    const fresh = this.kinds.unreadied(this.scene);
+    if (fresh.length === 0) return false;
+    const readying = this.post
+      .compileAsync(this.scene, this.camera, this.finishing())
+      .catch(() => undefined)
+      .then(() => {
+        this.kinds.markReadied(fresh);
+        if (this.readying === readying) this.readying = null;
+        this.needsFrame();
+      });
+    this.readying = readying;
     return true;
   }
 

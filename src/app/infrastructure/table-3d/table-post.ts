@@ -2,7 +2,7 @@ import type { Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-q
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { ao } from 'three/addons/tsl/display/GTAONode.js';
 import { directionToColor, mrt, normalView, output, pass, vec4 } from 'three/tsl';
-import { type Camera, type Node, RenderPipeline, type Scene, type WebGPURenderer } from 'three/webgpu';
+import { type Camera, type Node, type PassNode, RenderPipeline, type Scene, type WebGPURenderer } from 'three/webgpu';
 
 /** How strongly the light of what glows spills round it, how far, and from how bright on. */
 const BLOOM_STRENGTH = 0.7;
@@ -21,6 +21,8 @@ const AO_SCALE = 0.5;
  */
 export class TablePost {
   private pipeline: RenderPipeline | null = null;
+  /** The pass the scene is drawn in through the finishing, while there is any. */
+  private scenePass: PassNode | null = null;
   private laidKey = '';
 
   constructor(
@@ -29,23 +31,39 @@ export class TablePost {
   ) {}
 
   render(scene: Scene, camera: Camera, plan: Table3dQualityPlan): void {
-    const key = plan.bloom || plan.ambientOcclusion ? `${camera.uuid}|${plan.bloom}|${plan.ambientOcclusion}` : '';
-    if (key !== this.laidKey) {
-      this.laidKey = key;
-      this.pipeline?.dispose();
-      this.pipeline = key ? this.build(scene, camera, plan) : null;
-    }
+    this.lay(scene, camera, plan);
     if (this.pipeline) this.pipeline.render();
     else this.renderer.render(scene, camera);
+  }
+
+  /**
+   * Readies the graphics card to draw the scene through the finishing, drawing nothing, so the frame
+   * that first draws something new does not stop to build what drawing it asks for.
+   */
+  compileAsync(scene: Scene, camera: Camera, plan: Table3dQualityPlan): Promise<void> {
+    this.lay(scene, camera, plan);
+    return this.scenePass ? this.scenePass.compileAsync(this.renderer) : this.renderer.compileAsync(scene, camera);
   }
 
   dispose(): void {
     this.pipeline?.dispose();
     this.pipeline = null;
+    this.scenePass = null;
+  }
+
+  /** Builds the finishing again where the camera or the quality asks for another. */
+  private lay(scene: Scene, camera: Camera, plan: Table3dQualityPlan): void {
+    const key = plan.bloom || plan.ambientOcclusion ? `${camera.uuid}|${plan.bloom}|${plan.ambientOcclusion}` : '';
+    if (key === this.laidKey) return;
+    this.laidKey = key;
+    this.pipeline?.dispose();
+    this.scenePass = null;
+    this.pipeline = key ? this.build(scene, camera, plan) : null;
   }
 
   private build(scene: Scene, camera: Camera, plan: Table3dQualityPlan): RenderPipeline {
     const scenePass = pass(scene, camera, { samples: SAMPLES });
+    this.scenePass = scenePass;
     scenePass.setMRT(
       mrt({
         output,

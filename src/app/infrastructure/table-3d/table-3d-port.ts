@@ -223,6 +223,12 @@ export interface Table3dEngine {
   isLoading(): boolean;
   /** Draws at once on the next frame what it holds back to draw a moment later, as the shadows of pieces that moved. */
   stopHoldingBack(): void;
+  /**
+   * Whether the graphics card is readied for a new kind of thing before the frame that first draws it,
+   * the scene being drawn once that is done, rather than built on that frame. On unless asked otherwise,
+   * as the end-to-end pictures ask, whose clock is held and would hold the readying up with it.
+   */
+  readyBeforeDrawing(on: boolean): void;
   /** What the engine holds, counted, for the end-to-end specs to read. */
   stats(): Table3dStats;
   /**

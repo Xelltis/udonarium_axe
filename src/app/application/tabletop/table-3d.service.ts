@@ -325,6 +325,8 @@ export class Table3dService {
   private readonly idleWaiters: (() => void)[] = [];
   /** Whether what moves by itself is drawn only as the frame waited for is drawn at once. */
   private motionHeld = false;
+  /** Whether the engine readies the graphics card for a new kind of thing before drawing it; see {@link readyBeforeDrawing}. */
+  private readiesFirst = true;
 
   constructor() {
     this.loadSoon();
@@ -383,6 +385,7 @@ export class Table3dService {
       this.engine = made;
       made.setDice(this.diceThrows);
       made.warmDice([...this.diceWarmed]);
+      made.readyBeforeDrawing(this.readiesFirst);
       made.onNeedsFrame(() => this.drawSoon(made));
       effects.push(...this.follow(made));
       made.onLost(() => this.restart());
@@ -534,6 +537,16 @@ export class Table3dService {
    * drawn at once, or by the clock again given false: for a page whose clock is held, which would
    * otherwise draw the whole scene again for every frame the clock is run through.
    */
+  /**
+   * Has the engine ready the graphics card for a new kind of thing before drawing it, as it does unless
+   * told otherwise, or build it on the frame that draws it: for a page whose clock is held, which holds
+   * the readying up with it.
+   */
+  readyBeforeDrawing(on: boolean): void {
+    this.readiesFirst = on;
+    this.engine?.readyBeforeDrawing(on);
+  }
+
   holdMotion(held: boolean): void {
     this.motionHeld = held;
   }

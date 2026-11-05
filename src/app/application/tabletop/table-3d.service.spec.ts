@@ -178,6 +178,12 @@ class FakeEngine implements Table3dEngine {
     return this.loading;
   }
 
+  readiesFirst: boolean[] = [];
+
+  readyBeforeDrawing(on: boolean): void {
+    this.readiesFirst.push(on);
+  }
+
   stopHoldingBack(): void {
     if (!this.heldBack) return;
     this.heldBack = false;
@@ -281,6 +287,26 @@ describe('Table3dService', () => {
     TestBed.resetTestingModule();
     localStorage.setItem(STORAGE_KEYS.tableRenderer, 'something else');
     expect(service().renderer()).toBe('three');
+  });
+
+  it('has an engine ready the graphics card before drawing, and tells one made later what it was last told', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    expect(engines[0].readiesFirst).toEqual([true]);
+
+    scene.readyBeforeDrawing(false);
+    expect(engines[0].readiesFirst).toEqual([true, false]);
+  });
+
+  it('tells an engine made after it was asked not to ready the graphics card first', async () => {
+    const scene = service();
+    scene.readyBeforeDrawing(false);
+
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+
+    expect(engines[0].readiesFirst).toEqual([false]);
   });
 
   it('draws the scene and the camera on the frame after it is given a canvas, and once only', async () => {
