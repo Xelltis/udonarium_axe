@@ -10,7 +10,6 @@ import {
   untracked,
   viewChildren,
 } from '@angular/core';
-import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -48,11 +47,7 @@ export class TableFogAirOverlayComponent {
   private readonly visionService = inject(VisionService);
   private readonly tabletopService = inject(TabletopService);
   private readonly canvasRefs = viewChildren<ElementRef<HTMLCanvasElement>>('sheet');
-  private readonly table3d = inject(Table3dService);
   private readonly tableVeil = inject(TableVeilService);
-
-  /** Whether the canvas hangs the sheets rather than the page. */
-  protected readonly drawsOnCanvas = this.table3d.drawsOnCanvas;
 
   readonly sheets = computed<Sheet[]>(() => {
     const vision = this.visionService.overlayVision();
@@ -91,7 +86,6 @@ export class TableFogAirOverlayComponent {
       for (let i = 0; i < canvases.length && i < sheets.length; i++) {
         paintFogAirSheet(canvases[i].nativeElement, vision, table.gridSize, i);
       }
-      if (!this.drawsOnCanvas()) return;
       const hung = sheets.slice(0, canvases.length).map((sheet, index) => ({
         canvas: canvases[index].nativeElement,
         heightPx: sheet.layer.heightPx,

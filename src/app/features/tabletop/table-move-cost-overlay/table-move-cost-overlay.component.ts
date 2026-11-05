@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, viewChild } from '@angular/core';
-import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { CellGrid, cellGridOf, cellIndexOf, gridExtentPx } from '@axe/domain/tabletop/fog/cell-grid';
@@ -40,8 +39,6 @@ export class TableMoveCostOverlayComponent {
   private readonly areas = inject(TableMoveCostService);
   private readonly tabletopService = inject(TabletopService);
   private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('moveCostCanvas');
-  /** Whether the table is drawn on a canvas, which lays this canvas over its board instead. */
-  protected readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
   private readonly painted = laidOnCanvasFloor({
     id: () => 'move-cost',
     canvas: () => this.canvasRef()?.nativeElement,

@@ -1,8 +1,7 @@
 @if (visionService.scene()) {
   <canvas
     #overlayCanvas
-    class="pointer-events-none absolute top-0 left-0 backface-hidden transform-3d"
-    [class.invisible]="table3d.drawsOnCanvas()"
+    class="pointer-events-none invisible absolute top-0 left-0 backface-hidden transform-3d"
     [style.transform]="zTransform"
   ></canvas>
 }

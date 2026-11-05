@@ -258,15 +258,20 @@ describe('Table3dService', () => {
     localStorage.removeItem(STORAGE_KEYS.tableQuality);
   });
 
-  it('draws on a canvas until a seat asks for the page, and remembers the choice', () => {
+  it('draws through WebGPU until a seat asks for WebGL2 alone, and remembers the choice', () => {
     const scene = service();
     expect(scene.renderer()).toBe('three');
-    expect(scene.drawsOnCanvas()).toBe(true);
 
-    scene.choose('css');
+    scene.choose('three-webgl2');
 
-    expect(scene.drawsOnCanvas()).toBe(false);
-    expect(localStorage.getItem(STORAGE_KEYS.tableRenderer)).toBe('css');
+    expect(scene.renderer()).toBe('three-webgl2');
+    expect(localStorage.getItem(STORAGE_KEYS.tableRenderer)).toBe('three-webgl2');
+  });
+
+  it('lets go of the page’s own table that a browser remembers asking for, and draws on the canvas', () => {
+    localStorage.setItem(STORAGE_KEYS.tableRenderer, 'css');
+
+    expect(service().renderer()).toBe('three');
   });
 
   it('takes up the choice this browser remembers, and leaves one it does not know', () => {
@@ -546,14 +551,7 @@ describe('Table3dService', () => {
     expect(scene.canvasGeneration()).toBe(3);
   });
 
-  it('loads the engine while the page is idle for a seat that draws on a canvas, and not for one that does not', async () => {
-    localStorage.setItem(STORAGE_KEYS.tableRenderer, 'css');
-    service();
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(loaded.count).toBe(0);
-
-    TestBed.resetTestingModule();
-    localStorage.setItem(STORAGE_KEYS.tableRenderer, 'three');
+  it('loads the engine while the page is idle', async () => {
     service();
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(loaded.count).toBe(1);

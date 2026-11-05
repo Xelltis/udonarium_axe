@@ -8,7 +8,6 @@ import {
   DungeonBuildService,
   DungeonMaterial,
 } from '@axe/application/tabletop/dungeon-build.service';
-import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { emitSelectGameTable } from '@axe/core/event/domain-events';
 import { ImageStorage } from '@axe/core/storage/image-storage';
@@ -146,7 +145,7 @@ export class DungeonGeneratorComponent {
    * Whether the trees, bushes and rocks of open country are stood as the bundled 3D models, as a table
    * drawn on a canvas draws them; a seat whose table the page draws itself builds them of blocks.
    */
-  protected readonly fieldModels = signal(inject(Table3dService).drawsOnCanvas());
+  protected readonly fieldModels = signal(true);
   protected readonly roomCount = signal(8);
   protected readonly trapCount = signal(0);
   protected readonly seed = signal(Math.floor(Math.random() * SEED_LIMIT));

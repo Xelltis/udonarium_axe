@@ -1,8 +1,7 @@
 @if (view().length > 0) {
   <canvas
     #triggerCanvas
-    [class.opacity-0]="drawsOnCanvas()"
-    class="pointer-events-none absolute top-0 left-0 backface-hidden transform-3d"
+    class="pointer-events-none absolute top-0 left-0 opacity-0 backface-hidden transform-3d"
     [style.transform]="zTransform()"
   ></canvas>
 }

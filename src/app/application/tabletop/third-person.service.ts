@@ -1,7 +1,6 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { GroundService } from '@axe/application/tabletop/ground.service';
-import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TableEyeService } from '@axe/application/tabletop/table-eye.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
@@ -61,7 +60,6 @@ interface Aim {
 @Injectable({ providedIn: 'root' })
 export class ThirdPersonService {
   private readonly firstPerson = inject(FirstPersonService);
-  private readonly table3d = inject(Table3dService);
   private readonly camera = inject(TableCameraService);
   private readonly eyes = inject(TableEyeService);
   private readonly pick = inject(TablePickService);
@@ -79,7 +77,7 @@ export class ThirdPersonService {
   readonly piece = computed<GameCharacter | null>(
     () => {
       const identifier = this.followed();
-      if (!identifier || !this.table3d.drawsOnCanvas() || this.firstPerson.showing()) return null;
+      if (!identifier || this.firstPerson.showing()) return null;
       const piece = this.firstPerson.usablePiece(identifier);
       return piece && this.firstPerson.canLookOutOf(piece) ? piece : null;
     },

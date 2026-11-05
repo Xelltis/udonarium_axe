@@ -1,13 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { GroundBrushService } from '@axe/application/tabletop/ground-brush.service';
-import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { GroundBrushBandComponent } from '@axe/features/tabletop/ground-brush-band/ground-brush-band.component';
-import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-beforeEach(() => drawTableOnPage());
 
 describe('GroundBrushBandComponent', () => {
   let brush: GroundBrushService;
@@ -26,16 +22,14 @@ describe('GroundBrushBandComponent', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  it('shows over a table drawn on a canvas while the brush is on, and not over the page’s own table', () => {
-    brush.active.set(true);
+  it('shows while the brush is on, and not while it is off', () => {
     expect(render().querySelector('[data-testid="ground-brush-band"]')).toBeNull();
 
-    TestBed.inject(Table3dService).renderer.set('three');
+    brush.active.set(true);
     expect(render().querySelector('[data-testid="ground-brush-band"]')).not.toBeNull();
   });
 
   it('chooses what the brush does, and offers the kinds of ground only for painting', () => {
-    TestBed.inject(Table3dService).renderer.set('three');
     brush.active.set(true);
     const fixture = TestBed.createComponent(GroundBrushBandComponent);
     fixture.detectChanges();
@@ -50,7 +44,6 @@ describe('GroundBrushBandComponent', () => {
   });
 
   it('erases the paint with a brush of its own, offering no kind of ground for it', () => {
-    TestBed.inject(Table3dService).renderer.set('three');
     brush.active.set(true);
     const fixture = TestBed.createComponent(GroundBrushBandComponent);
     fixture.detectChanges();
@@ -64,7 +57,6 @@ describe('GroundBrushBandComponent', () => {
   });
 
   it('turns the brush off when closed', () => {
-    TestBed.inject(Table3dService).renderer.set('three');
     brush.active.set(true);
 
     render().querySelector<HTMLButtonElement>('[data-testid="ground-brush-close"]')!.click();

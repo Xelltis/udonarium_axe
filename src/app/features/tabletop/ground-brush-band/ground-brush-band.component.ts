@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, injec
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { GroundService } from '@axe/application/tabletop/ground.service';
 import { GroundBrushService, GroundBrushSettings } from '@axe/application/tabletop/ground-brush.service';
-import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { GroundBrushKind } from '@axe/domain/tabletop/ground/ground-brush';
@@ -31,7 +30,6 @@ export class GroundBrushBandComponent {
   private readonly surfaces = inject(TableSurfaceService);
   private readonly tabletop = inject(TabletopService);
   private readonly rolePermission = inject(RolePermissionService);
-  private readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
 
   protected readonly zIndex = Z_TABLE_BANDS;
   protected readonly settings = this.brush.settings;
@@ -40,10 +38,8 @@ export class GroundBrushBandComponent {
   protected readonly unaware = computed(() => this.ground.unawarePeers().length);
   protected readonly kinds: readonly GroundBrushKind[] = ['raise', 'lower', 'smooth', 'flatten', 'paint', 'erase'];
   protected readonly layers = GROUND_PAINT_LAYERS;
-  /** Whether the band shows: the brush is on, over a table drawn on a canvas, for a master. */
-  protected readonly shown = computed(
-    () => this.brush.active() && this.drawsOnCanvas() && this.rolePermission.canEditShared()
-  );
+  /** Whether the band shows: the brush is on, for a master. */
+  protected readonly shown = computed(() => this.brush.active() && this.rolePermission.canEditShared());
 
   private pressed: number | null = null;
   private last: { x: number; y: number } | null = null;

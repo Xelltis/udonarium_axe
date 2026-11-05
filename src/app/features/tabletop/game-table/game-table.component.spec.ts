@@ -29,10 +29,7 @@ import { Terrain } from '@axe/domain/tabletop/terrain';
 import { GameTableComponent } from '@axe/features/tabletop/game-table/game-table.component';
 import { GridFaceCache } from '@axe/features/tabletop/game-table/grid-face-cache';
 import { TerrainMenuService } from '@axe/features/tabletop/terrain/terrain-menu.service';
-import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
-
-beforeEach(() => drawTableOnPage());
 
 describe('GameTableComponent', () => {
   let component: GameTableComponent;
@@ -1109,7 +1106,7 @@ describe('GameTableComponent', () => {
         block.isLocked = false;
         await fixture.whenStable();
         TestBed.tick();
-        expect(overlap.get(block.identifier)?.element ?? null).toBeNull();
+        fixture.detectChanges();
         expect(overlap.get(block.identifier)?.openMenu).toBeUndefined();
       } finally {
         block.destroy();

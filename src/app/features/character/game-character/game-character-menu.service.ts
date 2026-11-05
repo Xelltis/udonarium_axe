@@ -185,9 +185,7 @@ export class GameCharacterMenuService {
             ? () => this.firstPerson.share(null)
             : undefined,
         onFollowFromBehind:
-          this.table3d.drawsOnCanvas() &&
-          this.firstPerson.canLookOutOf(char) &&
-          !this.thirdPerson.isFollowing(char.identifier)
+          this.firstPerson.canLookOutOf(char) && !this.thirdPerson.isFollowing(char.identifier)
             ? () => this.thirdPerson.follow(char.identifier)
             : undefined,
         onStopFollowing: this.thirdPerson.isFollowing(char.identifier) ? () => this.thirdPerson.stop() : undefined,

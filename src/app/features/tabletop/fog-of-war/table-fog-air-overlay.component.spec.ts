@@ -1,5 +1,4 @@
 import { TestBed } from '@angular/core/testing';
-import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -41,7 +40,6 @@ describe('TableFogAirOverlayComponent', () => {
 
   it('hands the sheets it paints over to a table drawn on a canvas, out of sight, and takes them back when it goes', () => {
     table(true);
-    TestBed.inject(Table3dService).renderer.set('three');
     const fixture = TestBed.createComponent(TableFogAirOverlayComponent);
     fixture.detectChanges();
     TestBed.tick();

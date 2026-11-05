@@ -78,16 +78,10 @@ describe('ThirdPersonService', () => {
     return { service, piece };
   }
 
-  it('follows a piece only on a table drawn on a canvas, remembers it for this browser, and lets it go', () => {
-    TestBed.inject(Table3dService).choose('css');
+  it('follows a piece, remembers it for this browser, and lets it go', () => {
     const piece = pieceAt(5, 5);
     const service = TestBed.inject(ThirdPersonService);
     service.follow(piece.identifier);
-    TestBed.tick();
-    expect(service.following()).toBe(false);
-    expect(service.view()).toBeNull();
-
-    TestBed.inject(Table3dService).choose('three');
     TestBed.tick();
     expect(service.following()).toBe(true);
     expect(localStorage.getItem(STORAGE_KEYS.tableFollow)).toBe(piece.identifier);

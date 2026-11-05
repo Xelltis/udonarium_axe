@@ -51,30 +51,27 @@
   [class.animate-effect-shake-hard]="screenShake() === 'hard'"
   #root
 >
-  <!-- The table drawn through three.js, under the page's own 3D, for a seat that has asked for it. -->
-  @if (table3d.drawsOnCanvas()) {
-    @for (generation of [table3d.canvasGeneration()]; track generation) {
-      <canvas class="pointer-events-none absolute inset-0 size-full" data-testid="table-scene" #sceneCanvas></canvas>
-    }
-    @if (table3d.preparing()) {
-      <div class="bg-ui-surface pointer-events-none absolute inset-0 z-10" data-testid="table-scene-cover"></div>
-    }
-    @if (table3d.unavailable()) {
-      <p
-        class="bg-ui-panel text-ui-text pointer-events-auto absolute top-1/2 left-1/2 z-10 max-w-[32em] -translate-1/2 rounded-lg p-4 text-sm"
-        data-testid="table-scene-unavailable"
-      >
-        {{ 'feature.tabletop.scene.unavailable' | transloco }}
-      </p>
-    }
+  <!-- The table, drawn through three.js. -->
+  @for (generation of [table3d.canvasGeneration()]; track generation) {
+    <canvas class="pointer-events-none absolute inset-0 size-full" data-testid="table-scene" #sceneCanvas></canvas>
+  }
+  @if (table3d.preparing()) {
+    <div class="bg-ui-surface pointer-events-none absolute inset-0 z-10" data-testid="table-scene-cover"></div>
+  }
+  @if (table3d.unavailable()) {
+    <p
+      class="bg-ui-panel text-ui-text pointer-events-auto absolute top-1/2 left-1/2 z-10 max-w-[32em] -translate-1/2 rounded-lg p-4 text-sm"
+      data-testid="table-scene-unavailable"
+    >
+      {{ 'feature.tabletop.scene.unavailable' | transloco }}
+    </p>
   }
   <div class="absolute inset-0 m-auto block size-1500 backface-hidden transform-3d" #gameTable>
     <div id="app-game-table" class="absolute size-full backface-hidden transform-3d" data-surface="floor" #gameObjects>
-      <!-- What drifts under the board, which a canvas draws itself. -->
+      <!-- The board's own surface, unseen, holding the grid the canvas draws the board's grid from. -->
       <div
-        class="pointer-events-none absolute top-0 left-0 size-full overflow-hidden bg-size-[100%_100%] bg-no-repeat backface-hidden transform-3d"
+        class="pointer-events-none invisible absolute top-0 left-0 size-full overflow-hidden bg-size-[100%_100%] bg-no-repeat backface-hidden transform-3d"
         [class.bg-white/15]="showsTableSurfaceVeil()"
-        [class.invisible]="table3d.drawsOnCanvas()"
         [ngStyle]="tableSurfaceStyle()"
         [style.background-image]="'url(' + tableImage().url + ')' | safe: 'style'"
       >
@@ -101,9 +98,8 @@
           [style.height.px]="wall.heightPx"
         >
           <div
-            class="pointer-events-auto absolute inset-0 backface-visible"
+            class="pointer-events-auto absolute inset-0 opacity-0 backface-visible"
             data-table-passthrough
-            [class.opacity-0]="table3d.drawsOnCanvas()"
             [style.background-image]="wall.surfaceBackground | safe: 'style'"
             [style.background-size]="wall.surfaceBackgroundSize"
             [style.background-repeat]="wall.surfaceBackgroundRepeat"
@@ -120,86 +116,82 @@
       <table-move-range-overlay class="contents"></table-move-range-overlay>
     </div>
   </div>
-  @if (table3d.drawsOnCanvas()) {
-    <!-- The pieces over a table drawn on a canvas: flat on the screen, each where the canvas draws it. -->
-    <div class="pointer-events-none absolute inset-0 isolate overflow-hidden" data-testid="table-hud">
-      @for (ambience of ambiences(); track ambience.identifier) {
-        <table-ambience [ambience]="ambience"></table-ambience>
-      }
-      <div class="pointer-events-none" data-testid="table-floor-plane" appFloorPlane>
-        <ng-container [ngTemplateOutlet]="floorMarks"></ng-container>
-        <table-marquee-overlay class="contents"></table-marquee-overlay>
-      </div>
-      <table-beam-overlay></table-beam-overlay>
-      <table-vision-volume-overlay></table-vision-volume-overlay>
-      @if (table3d.drawsOnCanvas()) {
-        @for (terrain of terrainsOverCanvas(); track terrain.identifier) {
-          <terrain class="block" [terrain]="terrain" [appHudPlace]="{ owner: terrain.identifier }"></terrain>
-        }
-        @for (board of whiteBoards(); track board.identifier) {
-          <white-board class="block" [whiteBoard]="board" [appHudPlace]="{ owner: board.identifier }"></white-board>
-        }
-        @for (range of ranges(); track range.identifier) {
-          <range class="block" [range]="range" [appHudPlace]="{ owner: range.identifier }"></range>
-        }
-        @for (light of lightSources(); track light.identifier) {
-          <light-source class="block" [lightSource]="light" [appHudPlace]="{ owner: light.identifier }"></light-source>
-        }
-      }
-      @for (mask of tableMasksOverCanvas(); track mask.identifier) {
-        <game-table-mask
-          class="block"
-          [gameTableMask]="mask"
-          [appHudPlace]="{ owner: mask.identifier }"
-        ></game-table-mask>
-      }
-      @for (textNote of textNotesOverCanvas(); track textNote.identifier) {
-        <text-note
-          class="block"
-          [textNote]="textNote"
-          [appTooltip]="textNote"
-          [appHudPlace]="{ owner: textNote.identifier }"
-        ></text-note>
-      }
-      @for (cardStack of cardStacksOverCanvas(); track cardStack.identifier) {
-        <card-stack
-          class="block"
-          [cardStack]="cardStack"
-          [appTooltip]="cardStack"
-          [appHudPlace]="{ owner: cardStack.identifier }"
-        ></card-stack>
-      }
-      @for (card of cardsOverCanvas(); track card.identifier) {
-        <card class="block" [card]="card" [appTooltip]="card" [appHudPlace]="{ owner: card.identifier }"></card>
-      }
-      @for (coin of coinsOverCanvas(); track coin.identifier) {
-        <coin class="block" [coin]="coin" [appTooltip]="coin" [appHudPlace]="{ owner: coin.identifier }"></coin>
-      }
-      @for (character of charactersOverCanvas(); track character.identifier) {
-        <game-character
-          class="block"
-          [gameCharacter]="character"
-          [appTooltip]="character"
-          [appHudPlace]="{ owner: character.identifier }"
-        ></game-character>
-      }
-      @for (diceSymbol of diceSymbolsOverCanvas(); track diceSymbol.identifier) {
-        <dice-symbol
-          class="block"
-          [diceSymbol]="diceSymbol"
-          [appTooltip]="diceSymbol"
-          [appHudPlace]="{ owner: diceSymbol.identifier }"
-        ></dice-symbol>
-      }
-      @for (cursor of peerCursors(); track cursor.identifier) {
-        <peer-cursor class="absolute top-0 left-0" [cursor]="cursor"></peer-cursor>
-      }
-      <table-effect-overlay class="contents"></table-effect-overlay>
-      <effect-target-overlay class="contents"></effect-target-overlay>
-      <table-drop-preview></table-drop-preview>
-      <table-altitude-guide-overlay class="contents"></table-altitude-guide-overlay>
+  <!-- The pieces over a table drawn on a canvas: flat on the screen, each where the canvas draws it. -->
+  <div class="pointer-events-none absolute inset-0 isolate overflow-hidden" data-testid="table-hud">
+    @for (ambience of ambiences(); track ambience.identifier) {
+      <table-ambience [ambience]="ambience"></table-ambience>
+    }
+    <div class="pointer-events-none" data-testid="table-floor-plane" appFloorPlane>
+      <ng-container [ngTemplateOutlet]="floorMarks"></ng-container>
+      <table-marquee-overlay class="contents"></table-marquee-overlay>
     </div>
-  }
+    <table-beam-overlay></table-beam-overlay>
+    <table-vision-volume-overlay></table-vision-volume-overlay>
+    @for (terrain of terrainsOverCanvas(); track terrain.identifier) {
+      <terrain class="block" [terrain]="terrain" [appHudPlace]="{ owner: terrain.identifier }"></terrain>
+    }
+    @for (board of whiteBoards(); track board.identifier) {
+      <white-board class="block" [whiteBoard]="board" [appHudPlace]="{ owner: board.identifier }"></white-board>
+    }
+    @for (range of ranges(); track range.identifier) {
+      <range class="block" [range]="range" [appHudPlace]="{ owner: range.identifier }"></range>
+    }
+    @for (light of lightSources(); track light.identifier) {
+      <light-source class="block" [lightSource]="light" [appHudPlace]="{ owner: light.identifier }"></light-source>
+    }
+    @for (mask of tableMasksOverCanvas(); track mask.identifier) {
+      <game-table-mask
+        class="block"
+        [gameTableMask]="mask"
+        [appHudPlace]="{ owner: mask.identifier }"
+      ></game-table-mask>
+    }
+    @for (textNote of textNotesOverCanvas(); track textNote.identifier) {
+      <text-note
+        class="block"
+        [textNote]="textNote"
+        [appTooltip]="textNote"
+        [appHudPlace]="{ owner: textNote.identifier }"
+      ></text-note>
+    }
+    @for (cardStack of cardStacksOverCanvas(); track cardStack.identifier) {
+      <card-stack
+        class="block"
+        [cardStack]="cardStack"
+        [appTooltip]="cardStack"
+        [appHudPlace]="{ owner: cardStack.identifier }"
+      ></card-stack>
+    }
+    @for (card of cardsOverCanvas(); track card.identifier) {
+      <card class="block" [card]="card" [appTooltip]="card" [appHudPlace]="{ owner: card.identifier }"></card>
+    }
+    @for (coin of coinsOverCanvas(); track coin.identifier) {
+      <coin class="block" [coin]="coin" [appTooltip]="coin" [appHudPlace]="{ owner: coin.identifier }"></coin>
+    }
+    @for (character of charactersOverCanvas(); track character.identifier) {
+      <game-character
+        class="block"
+        [gameCharacter]="character"
+        [appTooltip]="character"
+        [appHudPlace]="{ owner: character.identifier }"
+      ></game-character>
+    }
+    @for (diceSymbol of diceSymbolsOverCanvas(); track diceSymbol.identifier) {
+      <dice-symbol
+        class="block"
+        [diceSymbol]="diceSymbol"
+        [appTooltip]="diceSymbol"
+        [appHudPlace]="{ owner: diceSymbol.identifier }"
+      ></dice-symbol>
+    }
+    @for (cursor of peerCursors(); track cursor.identifier) {
+      <peer-cursor class="absolute top-0 left-0" [cursor]="cursor"></peer-cursor>
+    }
+    <table-effect-overlay class="contents"></table-effect-overlay>
+    <effect-target-overlay class="contents"></effect-target-overlay>
+    <table-drop-preview></table-drop-preview>
+    <table-altitude-guide-overlay class="contents"></table-altitude-guide-overlay>
+  </div>
 </div>
 <table-weather-overlay></table-weather-overlay>
 @defer (when laysForeground()) {

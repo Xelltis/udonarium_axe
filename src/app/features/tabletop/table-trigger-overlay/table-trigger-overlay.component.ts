@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, viewChild } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableTriggerService } from '@axe/application/tabletop/table-trigger.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
@@ -45,8 +44,6 @@ export class TableTriggerOverlayComponent {
   private readonly t = inject(TRANSLATE_FN);
   private readonly tabletopService = inject(TabletopService);
   private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('triggerCanvas');
-  /** Whether the table is drawn on a canvas, which lays this canvas over its board instead. */
-  protected readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
   private readonly painted = laidOnCanvasFloor({
     id: () => 'trigger',
     canvas: () => this.canvasRef()?.nativeElement,

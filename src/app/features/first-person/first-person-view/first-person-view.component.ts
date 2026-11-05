@@ -312,7 +312,7 @@ export class FirstPersonViewComponent {
    * than built of CSS faces: wherever the table is drawn on one and this browser can draw it. The
    * pieces are then left on the page unseen, to be pressed and to carry what is told about them.
    */
-  protected readonly onCanvas = computed(() => this.table3d.drawsOnCanvas() && !this.table3d.unavailable());
+  protected readonly onCanvas = computed(() => !this.table3d.unavailable());
 
   /** The ceilings over the rooms the eye stands under, for the canvas, unchanged while the roof and the eye's height are. */
   private readonly ceilings = computed<readonly TableWorldCap[]>(

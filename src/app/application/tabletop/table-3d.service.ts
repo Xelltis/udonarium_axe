@@ -62,12 +62,12 @@ import type {
 } from '@axe/infrastructure/table-3d/table-3d-port';
 
 /**
- * What draws the table: the page's own 3D, or a canvas through three.js, made to go through WebGL2
- * alone where WebGPU could be had, for holding the two side by side.
+ * How the canvas draws the table through three.js: through WebGPU where it can be had, or through
+ * WebGL2 alone even then, for holding the two side by side.
  */
-export type TableRenderer = 'css' | 'three' | 'three-webgl2';
+export type TableRenderer = 'three' | 'three-webgl2';
 
-const RENDERERS: readonly TableRenderer[] = ['css', 'three', 'three-webgl2'];
+const RENDERERS: readonly TableRenderer[] = ['three', 'three-webgl2'];
 
 /** Loads the module the engine is made in, which holds three.js and so is loaded only when it is wanted. */
 export const TABLE_3D_ENGINES = new InjectionToken<() => Promise<Table3dEngineModule>>('table 3d engines', {
@@ -136,8 +136,6 @@ export class Table3dService {
 
   /** What this seat draws the table with. */
   readonly renderer = signal<TableRenderer>(chosenRenderer());
-  /** Whether the table is drawn on a canvas. */
-  readonly drawsOnCanvas = computed(() => this.renderer() !== 'css');
   /** Whether a canvas was asked for in a browser that can make neither WebGPU nor WebGL2. */
   readonly unavailable = signal(false);
   /** The interface the canvas draws through, once it draws. */
@@ -308,7 +306,7 @@ export class Table3dService {
   );
 
   /** Whether the canvas is asked for but not drawing yet, which the table covers until it is. */
-  readonly preparing = computed(() => this.drawsOnCanvas() && this.backend() === null && !this.unavailable());
+  readonly preparing = computed(() => this.backend() === null && !this.unavailable());
 
   private frame: number | null = null;
   private canvas: HTMLCanvasElement | null = null;
@@ -329,7 +327,7 @@ export class Table3dService {
   private motionHeld = false;
 
   constructor() {
-    if (untracked(this.drawsOnCanvas)) this.loadSoon();
+    this.loadSoon();
     inject(DestroyRef).onDestroy(() => {
       for (const letGo of [...this.attached]) letGo();
     });
@@ -357,7 +355,7 @@ export class Table3dService {
     this.faceGrids.set(grids);
   }
 
-  /** Draws on a canvas from now on, or goes back to the page, and remembers which in this browser. */
+  /** Draws the table the way given from now on, and remembers it in this browser. */
   choose(renderer: TableRenderer): void {
     this.renderer.set(renderer);
     writeLocal(STORAGE_KEYS.tableRenderer, renderer);
@@ -731,8 +729,9 @@ export class Table3dService {
 const FOLLOWING_NEAR_PX = 4;
 
 /**
- * The renderer asked for in the address (`?renderer=`), which is then remembered, or the one
- * remembered, or else the canvas.
+ * The way of drawing asked for in the address (`?renderer=`), which is then remembered, or the one
+ * remembered, or else through WebGPU where it can be had. A way no longer offered, as the page's own
+ * table once was, is let go of.
  */
 function chosenRenderer(): TableRenderer {
   const asked = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('renderer');

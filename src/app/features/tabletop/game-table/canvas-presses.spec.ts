@@ -6,7 +6,6 @@ describe('handing presses on the canvas to the blocks drawn there', () => {
   let root: HTMLElement;
   let block: HTMLElement;
   let piece: HTMLElement;
-  let onCanvas: boolean;
   let picked: string | null;
   let entries: Record<string, TabletopOverlapRegistryEntry>;
   let aimed: boolean;
@@ -19,12 +18,10 @@ describe('handing presses on the canvas to the blocks drawn there', () => {
     piece.setAttribute('data-object-id', 'a-piece');
     root.append(block, piece);
     document.body.appendChild(root);
-    onCanvas = true;
     picked = 'a-block';
     aimed = false;
     entries = { 'a-block': { object: {} as TabletopObject, element: block } };
     remove = handCanvasPressesOn(root, {
-      drawsOnCanvas: () => onCanvas,
       pickAt: () => picked,
       entryOf: (identifier) => entries[identifier],
       aimedAtTarget: () => aimed,
@@ -65,11 +62,6 @@ describe('handing presses on the canvas to the blocks drawn there', () => {
   it('leaves a press alone where it lands on a piece the page still draws, or on nothing picked', () => {
     expect(pressOn(piece).reached).toEqual(['root:mousedown']);
     picked = null;
-    expect(pressOn(root).reached).toEqual(['root:mousedown']);
-  });
-
-  it('leaves every press alone while the table is drawn in the page', () => {
-    onCanvas = false;
     expect(pressOn(root).reached).toEqual(['root:mousedown']);
   });
 

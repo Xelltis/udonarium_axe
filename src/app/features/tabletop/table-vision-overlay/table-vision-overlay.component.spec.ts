@@ -1,6 +1,5 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { PERF_HEX_SURFACE_CELLS, perfCounters } from '@axe/core/util/perf-counters';
@@ -9,11 +8,8 @@ import type { OverlayVision, SceneViewer, VisionScene } from '@axe/domain/tablet
 import { TableVisionOverlayComponent } from '@axe/features/tabletop/table-vision-overlay/table-vision-overlay.component';
 import { BorrowedGlobals } from '@axe/testing/borrowed-globals';
 import { contextThatTakesAnything } from '@axe/testing/fake-canvas-context';
-import { drawTableOnPage } from '@axe/testing/table-on-page';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-
-beforeEach(() => drawTableOnPage());
 
 function hexScene(partial: Partial<VisionScene> = {}): VisionScene {
   return {
@@ -101,16 +97,10 @@ describe('TableVisionOverlayComponent on a hex table', () => {
     expect(perfCounters.drain().get(PERF_HEX_SURFACE_CELLS)).toBe(2);
   });
 
-  it('keeps its canvas out of sight on a table drawn on a canvas, and hands over the fog and the darkness apart', async () => {
+  it('keeps its canvas out of sight, and hands the table’s canvas the fog and the darkness apart', async () => {
     const veil = TestBed.inject(TableVeilService);
     await show(hexScene());
     const canvas = (fixture.nativeElement as HTMLElement).querySelector('canvas')!;
-    expect(canvas.classList.contains('invisible')).toBe(false);
-    expect(veil.veil()).toBeNull();
-
-    TestBed.inject(Table3dService).choose('three');
-    fixture.detectChanges();
-    await fixture.whenStable();
     const first = veil.veil()?.revision ?? 0;
     await show(hexScene({ darknessLevel: 0.5 }));
 
@@ -125,17 +115,10 @@ describe('TableVisionOverlayComponent on a hex table', () => {
     await show(hexScene({ darknessEnabled: false, fogEnabled: true }));
 
     expect(veil.lightMap()).toBeNull();
-
-    TestBed.inject(Table3dService).choose('css');
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(veil.veil()).toBeNull();
   });
 
   it('hands over the glow of a lamp the scene does not light itself, apart from the darkness', async () => {
     const veil = TestBed.inject(TableVeilService);
-    TestBed.inject(Table3dService).choose('three');
     const lamp = {
       x: 200,
       y: 200,
@@ -162,6 +145,5 @@ describe('TableVisionOverlayComponent on a hex table', () => {
     await show(hexScene());
 
     expect(veil.glow()).toBeNull();
-    TestBed.inject(Table3dService).choose('css');
   });
 });

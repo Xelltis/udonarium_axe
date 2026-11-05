@@ -15,8 +15,6 @@ const HANDED_ON = ['pointerdown', 'mousedown', 'touchstart', 'click', 'contextme
 
 /** What handing presses on needs of the table. */
 export interface CanvasPressRoutes {
-  /** Whether the table is drawn on a canvas, which is the only time presses are handed on. */
-  drawsOnCanvas(): boolean;
   /** The identifier of what a point of the page lands on first, or null. */
   pickAt(pageX: number, pageY: number): string | null;
   /** What the table knows of a piece: the element it listens for presses on, or how to open its menu. */
@@ -47,7 +45,7 @@ export interface CanvasPressRoutes {
 export function handCanvasPressesOn(root: HTMLElement, routes: CanvasPressRoutes): () => void {
   const handed = new WeakSet<Event>();
   const handOn = (event: Event) => {
-    if (handed.has(event) || !routes.drawsOnCanvas()) return;
+    if (handed.has(event)) return;
     const target = event.target instanceof Element ? event.target : null;
     const aimed = routes.aimedAtTarget ? routes.aimedAtTarget(event) : !event.isTrusted;
     const onScreen = !aimed && target?.closest(HUD) ? target : null;

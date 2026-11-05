@@ -9,7 +9,6 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { GroundBrushService } from '@axe/application/tabletop/ground-brush.service';
-import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { Table3dQualityService } from '@axe/application/tabletop/table-3d-quality.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
@@ -152,7 +151,6 @@ export class MenuCommandService {
   private readonly mobile = inject(MobileLayoutService);
   private readonly viewport = inject(ViewportService);
   private readonly groundBrush = inject(GroundBrushService);
-  private readonly table3d = inject(Table3dService);
 
   private readonly roomFiles = inject(RoomFilesService);
   private filePicker: (() => void) | null = null;
@@ -252,18 +250,11 @@ export class MenuCommandService {
    * Whether the command is worth drawing now.
    *
    * The switch to the small-screen layout answers no on a screen wide enough for the desktop one,
-   * or on a screen already using it, and the ground brush on a table the page draws itself, which
-   * does not draw raised ground.
+   * or on a screen already using it.
    */
   isAvailable(command: MenuCommand): boolean {
     if (command.action.kind === 'act' && command.action.act === 'useMobileLayout') {
       return this.viewport.isCompact() && this.mobile.prefersDesktop();
-    }
-    if (command.action.kind === 'toggle' && command.action.toggle === 'groundBrush') {
-      return this.table3d.drawsOnCanvas();
-    }
-    if (command.action.kind === 'cycle' && command.action.cycle === 'tableQuality') {
-      return this.table3d.drawsOnCanvas();
     }
     return true;
   }

@@ -14,7 +14,6 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { FloorCanvasesService } from '@axe/application/tabletop/floor-canvases.service';
 import { MoveLanding, MovePlan, MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
-import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PERF_MOVE_RANGE_PAINT, perfCounters } from '@axe/core/util/perf-counters';
@@ -165,8 +164,6 @@ export class TableMoveRangeOverlayComponent {
   private readonly vision = inject(VisionService);
   private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('rangeCanvas');
   private readonly raisedCanvasRefs = viewChildren<ElementRef<HTMLCanvasElement>>('raisedCanvas');
-  /** Whether the table is drawn on a canvas, which lays these canvases over its board instead. */
-  protected readonly drawsOnCanvas = inject(Table3dService).drawsOnCanvas;
   private readonly floors = inject(FloorCanvasesService);
   /** How many raised layers are laid over the board of a table drawn on a canvas now. */
   private raisedLaid = 0;
@@ -312,7 +309,6 @@ export class TableMoveRangeOverlayComponent {
     layers: readonly RaisedLayer[],
     aloft: readonly ElementRef<HTMLCanvasElement>[]
   ): void {
-    if (!this.drawsOnCanvas()) return this.takeUpFloors();
     this.floors.show(FLOOR_ID, canvas, Z_OFFSET_RANGE_PX);
     layers.forEach((layer, at) => {
       const element = aloft[at]?.nativeElement;

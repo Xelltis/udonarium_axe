@@ -20,9 +20,7 @@ import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
 import { HEX_SURFACE_INFLATE_PX, hexSurfaceCells, SurfacePoint } from '@axe/domain/tabletop/surface-cells';
 import { computeOverlayPlan, OverlayPlan, sameOverlayPlan, VisionScene } from '@axe/domain/tabletop/vision-scene';
 import {
-  animatedGlowPatches,
   type BakeCanvas,
-  bakeOverlayPlan,
   type DirtyRect,
   drawOverlayPlan,
   LIGHT_MIN_OVERLAY_SCALE,
@@ -34,7 +32,6 @@ import {
 import { translateZCss, Z_OFFSET_DARKNESS_PX } from '@axe/ui/tabletop/z-offset';
 
 const SPILL_MARGIN_CAP_PX = 800;
-const NO_LIGHTS: ReadonlySet<string> = new Set();
 
 /** The scene with some of its lights left out. */
 function withoutLights(scene: VisionScene, left: ReadonlySet<string>): VisionScene {
@@ -138,17 +135,16 @@ export class TableVisionOverlayComponent {
       canvas.style.height = ch + 'px';
       const vision = this.visionService.overlayVision();
       const plan = computeOverlayPlan(scene, viewer, vision);
-      const onCanvas = this.table3d.drawsOnCanvas();
-      const lit = onCanvas ? this.lightSlots.ids() : NO_LIGHTS;
+      const lit = this.lightSlots.ids();
       const darkPlan = lit.size > 0 ? computeOverlayPlan(withoutLights(scene, lit), viewer, vision) : plan;
-      const layout = `${pw}x${ph}@${this.scale}:${this.margin}:${this.surfaceOriginX}:${this.surfaceOriginY}:${onCanvas}:${[...lit]}`;
+      const layout = `${pw}x${ph}@${this.scale}:${this.margin}:${this.surfaceOriginX}:${this.surfaceOriginY}:${[...lit]}`;
       if (this.plan && layout === this.drawnLayout && sameOverlayPlan(this.plan, plan)) return;
       this.plan = plan;
       this.darkPlan = darkPlan;
       this.drawnLayout = layout;
       this.refreshScratch(cw, ch);
       this.ensureImages();
-      untracked(() => (onCanvas ? this.drawForCanvas() : this.drawForPage()));
+      untracked(() => this.drawForCanvas());
     });
     effect(() => {
       this.flickerClock.held();
@@ -201,16 +197,6 @@ export class TableVisionOverlayComponent {
 
   private now(): number {
     return typeof performance !== 'undefined' ? performance.now() : 0;
-  }
-
-  /** Draws the darkness and the fog over the page's own table, flickering where a light flickers. */
-  private drawForPage(): void {
-    this.glowPlan = null;
-    this.tableVeil.forget();
-    this.animated = !!this.plan?.glows.some((shape) => shape.animation && shape.animation !== 'none');
-    this.refreshBake();
-    this.draw(this.flickerClock.now(), null);
-    this.syncLoop();
   }
 
   /**
@@ -313,12 +299,7 @@ export class TableVisionOverlayComponent {
       const image = new Image();
       const loaded = this.tableVeil.pictureLoading();
       image.onload = () => {
-        if (this.table3d.drawsOnCanvas()) {
-          this.drawForCanvas();
-        } else {
-          this.refreshBake();
-          this.draw(this.flickerClock.now(), null);
-        }
+        this.drawForCanvas();
         loaded();
       };
       image.onerror = loaded;
@@ -329,32 +310,6 @@ export class TableVisionOverlayComponent {
     for (const url of this.images.keys()) {
       if (!live.has(url)) this.images.delete(url);
     }
-  }
-
-  /**
-   * Only a table with a flickering light bakes the part that does not change.
-   *
-   * A baked surface holds as many pixels as the board. A table without a flicker never
-   * redraws at all, so holding one would be waste.
-   */
-  private refreshBake(): void {
-    if (!this.plan || !this.animated) {
-      this.bake = null;
-      this.dirty = [];
-      return;
-    }
-    this.bake = bakeOverlayPlan(
-      this.plan,
-      this.surfaceWidth,
-      this.surfaceHeight,
-      this.images,
-      this.margin,
-      this.surfaceOf(),
-      this.bake,
-      this.scale,
-      this.scratch
-    );
-    this.dirty = animatedGlowPatches(this.plan, this.surfaceWidth, this.surfaceHeight, this.margin, this.surfaceOf());
   }
 
   private surfaceOf() {
@@ -408,7 +363,7 @@ export class TableVisionOverlayComponent {
     const at = this.flickerClock.now();
     // Only the ground the flickering lights cover; the rest was laid down once. With nothing
     // laid down, the whole board is drawn.
-    if (this.glowPlan && this.table3d.drawsOnCanvas()) this.drawGlow();
+    if (this.glowPlan) this.drawGlow();
     else if (!this.bake) this.draw(at, null);
     else for (const patch of this.dirty) this.draw(at, patch);
   }

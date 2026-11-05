@@ -473,7 +473,6 @@ export class GameTableComponent {
       this.followFaceGrids();
       this.destroyRef.onDestroy(
         handCanvasPressesOn(this.rootElementRef().nativeElement, {
-          drawsOnCanvas: () => this.table3d.drawsOnCanvas(),
           pickAt: (x, y) => this.tablePick.pickAt(x, y)?.target.id ?? null,
           entryOf: (identifier) => this.tabletopOverlap.get(identifier),
         })
@@ -795,13 +794,9 @@ export class GameTableComponent {
     // Siblings that sit on the same spot are painted in the order they are laid out.
     return [...this.tabletopService.characters].sort((a, b) => a.zindex - b.zindex);
   });
-  readonly tableMasks = computed(() => {
-    this.objectChangeService.collectionOf('table-mask')();
-    return this.table3d.drawsOnCanvas() ? [] : this.tabletopService.tableMasks;
-  });
   readonly tableMasksOverCanvas = computed(() => {
     this.objectChangeService.collectionOf('table-mask')();
-    return this.table3d.drawsOnCanvas() ? this.tabletopService.tableMasks : [];
+    return this.tabletopService.tableMasks;
   });
   readonly cards = computed(() => {
     this.objectChangeService.collectionOf('card')();
@@ -849,18 +844,17 @@ export class GameTableComponent {
    * The pieces laid over a table drawn on a canvas, flat on the screen where the canvas draws them,
    * rather than in the page's own 3D: wherever they stand, on the floor, a wall or a white board.
    */
-  readonly diceSymbolsOverCanvas = computed(() => (this.table3d.drawsOnCanvas() ? this.diceSymbols() : []));
-  readonly coinsOverCanvas = computed(() => (this.table3d.drawsOnCanvas() ? this.coins() : []));
-  readonly charactersOverCanvas = computed(() => (this.table3d.drawsOnCanvas() ? this.characters() : []));
-  readonly textNotesOverCanvas = computed(() => (this.table3d.drawsOnCanvas() ? this.textNotes() : []));
-  readonly cardsOverCanvas = computed(() => (this.table3d.drawsOnCanvas() ? this.cards() : []));
-  readonly cardStacksOverCanvas = computed(() => (this.table3d.drawsOnCanvas() ? this.cardStacks() : []));
+  readonly diceSymbolsOverCanvas = computed(() => this.diceSymbols());
+  readonly coinsOverCanvas = computed(() => this.coins());
+  readonly charactersOverCanvas = computed(() => this.characters());
+  readonly textNotesOverCanvas = computed(() => this.textNotes());
+  readonly cardsOverCanvas = computed(() => this.cards());
+  readonly cardStacksOverCanvas = computed(() => this.cardStacks());
   /**
    * The blocks laid over a table drawn on a canvas, on the screen where the canvas draws them: all but
    * the ones drawn together, which have no element of their own.
    */
   readonly terrainsOverCanvas = computed(() => {
-    if (!this.table3d.drawsOnCanvas()) return [];
     const merged = this.terrainBatch.mergedTerrains();
     return this.terrains().filter((terrain) => !merged.has(terrain.identifier));
   });
