@@ -2,8 +2,10 @@ import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TABLE_SCREEN } from '@axe/application/tabletop/table-screen';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { IMatrix3D, Matrix3D } from '@axe/core/transform/matrix-3d';
 import { DEFAULT_TABLE_CAMERA_VIEW, TableLayout } from '@axe/domain/tabletop/camera/table-camera';
+import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { FloorPlaneDirective } from '@axe/ui/tabletop/floor-plane.directive';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -27,6 +29,14 @@ describe('FloorPlaneDirective', () => {
 
   afterEach(() => vi.restoreAllMocks());
 
+  /** Makes the table in view a board eight cells wide and four deep, of fifty pixels a cell. */
+  function boardOfEightByFour(): void {
+    const table = TestBed.inject(TabletopService).currentTable;
+    table.width = 8;
+    table.height = 4;
+    table.gridSize = 50;
+  }
+
   function laidPlane(): HTMLElement {
     const fixture = TestBed.createComponent(TestHostComponent);
     fixture.detectChanges();
@@ -40,7 +50,7 @@ describe('FloorPlaneDirective', () => {
     TestBed.configureTestingModule({
       imports: [TestHostComponent],
       providers: [
-        { provide: TableCameraService, useValue: { layout: LAYOUT, layoutVersion: signal(0) } },
+        ...TEST_PROVIDERS,
         {
           provide: TABLE_SCREEN,
           useValue: {
@@ -55,6 +65,8 @@ describe('FloorPlaneDirective', () => {
       ],
     });
 
+    boardOfEightByFour();
+
     const plane = laidPlane();
 
     expect(plane.style.width).toBe('400px');
@@ -64,7 +76,8 @@ describe('FloorPlaneDirective', () => {
   });
 
   it('lays the board’s corners where the table’s camera draws them, by default', () => {
-    TestBed.configureTestingModule({ imports: [TestHostComponent] });
+    TestBed.configureTestingModule({ imports: [TestHostComponent], providers: [...TEST_PROVIDERS] });
+    boardOfEightByFour();
     const camera = TestBed.inject(TableCameraService);
     camera.setLayout(LAYOUT);
     camera.showView(DEFAULT_TABLE_CAMERA_VIEW);

@@ -1,6 +1,6 @@
 import { DestroyRef, Directive, effect, ElementRef, inject, untracked } from '@angular/core';
-import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TABLE_SCREEN } from '@axe/application/tabletop/table-screen';
+import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
 
 /**
@@ -23,22 +23,22 @@ import { Matrix3D } from '@axe/core/transform/matrix-3d';
 export class FloorPlaneDirective {
   constructor() {
     const element = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
-    const board = inject(TableCameraService);
+    const tabletop = inject(TabletopService);
     const screen = inject(TABLE_SCREEN);
     const onBoard = new Matrix3D();
     let frame: number | null = null;
     const lay = () => {
       frame = null;
-      const layout = board.layout;
+      const table = tabletop.currentTable;
       const laid = screen.screenMatrixOf();
-      if (!layout || !laid) return;
-      element.style.width = `${layout.boardWidth}px`;
-      element.style.height = `${layout.boardHeight}px`;
+      if (!laid) return;
+      element.style.width = `${table.width * table.gridSize}px`;
+      element.style.height = `${table.height * table.gridSize}px`;
       element.style.transform = laid(onBoard);
     };
     effect(() => {
       screen.version();
-      board.layoutVersion();
+      tabletop.currentTableVersion();
       untracked(() => {
         if (frame === null) frame = requestAnimationFrame(lay);
       });

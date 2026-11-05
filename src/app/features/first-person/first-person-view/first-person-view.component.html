@@ -4,7 +4,7 @@
   [class.cursor-grabbing]="looking.dragging()"
   [class.animate-effect-shake-soft]="shake() === 'soft'"
   [class.animate-effect-shake-hard]="shake() === 'hard'"
-  [style.perspective.px]="perspective()"
+  [style.perspective.px]="onCanvas() ? null : perspective()"
   (pointerdown)="looking.press($event)"
   (pointermove)="dragLook($event)"
   (pointerup)="looking.letGo($event)"
@@ -37,10 +37,19 @@
   @if (onCanvas()) {
     <div class="pointer-events-none absolute inset-0" data-testid="first-person-canvas" #canvasHost></div>
   }
+  <!--
+    Over a canvas what is laid on the view is laid flat, each with the transform that carries it on
+    through the eye onto the view; the page's own view lays it out through a camera of its own.
+  -->
   <div
-    class="absolute top-1/2 left-1/2 size-0 transform-3d"
+    class="absolute size-0"
     data-testid="first-person-camera"
-    [style.transform]="camera()"
+    [class.top-1/2]="!onCanvas()"
+    [class.left-1/2]="!onCanvas()"
+    [class.top-0]="onCanvas()"
+    [class.left-0]="onCanvas()"
+    [class.transform-3d]="!onCanvas()"
+    [style.transform]="onCanvas() ? null : camera()"
   >
     @for (quad of quadViews(); track quad.id) {
       <div
@@ -278,14 +287,21 @@
       <div class="pointer-events-none absolute top-0 left-0 rounded-full" data-glow [style]="glow.style"></div>
     }
     @if (effectEye(); as eye) {
-      <div
-        class="pointer-events-none absolute top-0 left-0 transform-3d"
-        data-testid="first-person-effects"
-        [style.transform]="effectScale()"
-      >
-        <table-effect-overlay [eye]="eye" />
-        <effect-target-overlay [badges]="false" />
-      </div>
+      @if (onCanvas()) {
+        <div class="pointer-events-none absolute top-0 left-0" data-testid="first-person-effects">
+          <table-effect-overlay class="contents" [eye]="eye" [overCanvas]="true" />
+          <effect-target-overlay class="contents" [badges]="false" [overCanvas]="true" />
+        </div>
+      } @else {
+        <div
+          class="pointer-events-none absolute top-0 left-0 transform-3d"
+          data-testid="first-person-effects"
+          [style.transform]="effectScale()"
+        >
+          <table-effect-overlay [eye]="eye" />
+          <effect-target-overlay [badges]="false" />
+        </div>
+      }
     }
   </div>
 </div>

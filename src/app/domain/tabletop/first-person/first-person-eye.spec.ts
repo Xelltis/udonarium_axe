@@ -1,8 +1,11 @@
 import type { Matrix3D } from '@axe/core/transform/matrix-3d';
 import {
   CEILING_COLOUR,
+  firstPersonBillboardMatrix,
+  firstPersonBoardScreenMatrix,
   firstPersonCeilings,
   firstPersonEyeMatrix,
+  firstPersonScreenMatrix,
 } from '@axe/domain/tabletop/first-person/first-person-eye';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
@@ -93,5 +96,50 @@ describe('firstPersonCeilings', () => {
   it('puts none where the roof stands no higher than the eye', () => {
     expect(firstPersonCeilings(roof, grid, 120).map((ceiling) => ceiling.id)).toEqual(['ceiling:10']);
     expect(firstPersonCeilings(roof, grid, 150)).toEqual([]);
+  });
+});
+
+describe('firstPersonScreenMatrix', () => {
+  const focal = 640;
+  const eye = { x: 200, y: 300, z: 40, yaw: 30, pitch: -10 };
+
+  it('carries a point onto the view, from its top left, where the eye sees it from the middle', () => {
+    const screen = firstPersonScreenMatrix(eye, focal, 1280, 720);
+
+    const at = screen.project({ x: 230, y: 180, z: 70, w: 1 });
+
+    const expected = seen(firstPersonEyeMatrix(eye, focal), focal, 230, 180, 70);
+    expect(at.x).toBeCloseTo(640 + expected.x, 6);
+    expect(at.y).toBeCloseTo(360 + expected.y, 6);
+  });
+
+  it('carries a point of the board where the view’s own pixels, scaled up, put it', () => {
+    const scale = 3;
+    const laidOut = firstPersonScreenMatrix(eye, focal, 1280, 720, scale).project({
+      x: 230 * scale,
+      y: 180 * scale,
+      z: 70 * scale,
+      w: 1,
+    });
+
+    const onBoard = firstPersonBoardScreenMatrix(eye, focal, 1280, 720, scale).project({ x: 230, y: 180, z: 70, w: 1 });
+
+    expect(onBoard.x).toBeCloseTo(laidOut.x, 6);
+    expect(onBoard.y).toBeCloseTo(laidOut.y, 6);
+  });
+});
+
+describe('firstPersonBillboardMatrix', () => {
+  it('stands a board with its foot’s middle at the point, its top over it, facing the way the yaw looks', () => {
+    const scale = 2;
+    const board = firstPersonBillboardMatrix({ x: 100, y: 50, z: 10 }, 40, 60, 0, scale);
+
+    const foot = carried(board, 40, 120, 0);
+    const crown = carried(board, 40, 0, 0);
+    const right = carried(board, 80, 120, 0);
+
+    expect([foot.x, foot.y, foot.z]).toEqual([200, 100, 20].map((value) => expect.closeTo(value, 6)));
+    expect(crown.z - foot.z).toBeCloseTo(120, 6);
+    expect(right.x - foot.x).toBeCloseTo(40, 6);
   });
 });

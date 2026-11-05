@@ -23,6 +23,7 @@ import { MovePlannerService } from '@axe/application/tabletop/move-planner.servi
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { TableEyeService } from '@axe/application/tabletop/table-eye.service';
+import { TABLE_SCREEN } from '@axe/application/tabletop/table-screen';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { WaterService } from '@axe/application/tabletop/water.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
@@ -33,6 +34,7 @@ import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { gaugeNumbersOf, selectPieceGauges } from '@axe/domain/character/piece-gauge';
@@ -47,7 +49,12 @@ import {
   FirstPersonCamera,
   lateralOf,
 } from '@axe/domain/tabletop/first-person/first-person-clip';
-import { firstPersonCeilings, firstPersonEyeMatrix } from '@axe/domain/tabletop/first-person/first-person-eye';
+import {
+  firstPersonBillboardMatrix,
+  firstPersonCeilings,
+  firstPersonEyeMatrix,
+  firstPersonScreenMatrix,
+} from '@axe/domain/tabletop/first-person/first-person-eye';
 import {
   FirstPersonMove,
   FirstPersonPose,
@@ -84,6 +91,7 @@ import { FirstPersonCommand, firstPersonKeyDown } from '@axe/features/first-pers
 import { FirstPersonLookService } from '@axe/features/first-person/first-person-look.service';
 import { FirstPersonPropsService } from '@axe/features/first-person/first-person-props.service';
 import { FirstPersonRangeComponent } from '@axe/features/first-person/first-person-range/first-person-range.component';
+import { FirstPersonScreen } from '@axe/features/first-person/first-person-screen';
 import {
   billboardHudTransform,
   billboardLiftPx,
@@ -268,7 +276,7 @@ interface SkyView {
     TableEffectOverlayComponent,
     TableWeatherOverlayComponent,
   ],
-  providers: [FirstPersonLookService],
+  providers: [FirstPersonLookService, FirstPersonScreen, { provide: TABLE_SCREEN, useExisting: FirstPersonScreen }],
 })
 export class FirstPersonViewComponent {
   protected readonly firstPerson = inject(FirstPersonService);
@@ -297,6 +305,7 @@ export class FirstPersonViewComponent {
   private readonly canvasHost = viewChild<ElementRef<HTMLElement>>('canvasHost');
   private readonly table3d = inject(Table3dService);
   private readonly eyes = inject(TableEyeService);
+  private readonly screen = inject(FirstPersonScreen);
 
   /**
    * Whether the view is drawn on the table's canvas, the table's own scene seen from the eye, rather
@@ -381,11 +390,22 @@ export class FirstPersonViewComponent {
       const camera = this.viewCamera();
       const viewer = this.firstPerson.piece();
       if (!this.onCanvas() || !camera || !viewer) {
-        untracked(() => this.eyes.clear());
+        untracked(() => {
+          this.eyes.clear();
+          this.screen.show(null);
+        });
         return;
       }
       const focalPx = this.perspective();
       const eye = firstPersonEyeMatrix(camera, focalPx);
+      const screen = {
+        camera,
+        focalPx,
+        widthPx: this.width() || DEFAULT_VIEW_WIDTH_PX,
+        heightPx: this.height() || DEFAULT_VIEW_HEIGHT_PX,
+        scale: this.scale(),
+      };
+      untracked(() => this.screen.show(screen));
       this.eyes.show({
         camera: {
           eye: matrixColumns(eye),
@@ -681,6 +701,16 @@ export class FirstPersonViewComponent {
     const sight = this.sight();
     const grid = sight.grid;
     const under = this.murk() !== null;
+    const flat = this.onCanvas()
+      ? firstPersonScreenMatrix(
+          camera,
+          perspective,
+          this.width() || DEFAULT_VIEW_WIDTH_PX,
+          viewHeight || DEFAULT_VIEW_HEIGHT_PX,
+          scale
+        )
+      : null;
+    const standing = new Matrix3D();
     const views: PieceView[] = [];
     for (const { piece, size, centre, stand, stretched, basePx: base } of this.standing()) {
       if (!pieceInSight(sight, eye, piece.location, size, centre)) continue;
@@ -690,6 +720,24 @@ export class FirstPersonViewComponent {
       const kept = clipBillboardToEye(eye, centre, lifted, lifted + stand.heightPx, nearPx);
       if (!kept) continue;
       const textScale = billboardTextScale(depth, scale, perspective);
+      const board = billboardStyle({ ...centre, z: lifted }, stand.widthPx, stand.heightPx, camera.yaw, scale);
+      const laid = flat
+        ? {
+            ...board,
+            transform: Matrix3D.multiply(
+              firstPersonBillboardMatrix(
+                { ...centre, z: lifted },
+                stand.widthPx,
+                stand.heightPx,
+                camera.yaw,
+                scale,
+                standing
+              ),
+              flat,
+              standing
+            ).toCss(),
+          }
+        : board;
       const gauges = this.gaugesOf(piece);
       const label = piece.hideName && !master ? '' : piece.name;
       const pick = picks.indexOf(piece.identifier) + 1;
@@ -706,15 +754,7 @@ export class FirstPersonViewComponent {
         gauges,
         badges: badges.slice(0, BUFF_BADGES_PER_ROW),
         moreBadges: Math.max(0, badges.length - BUFF_BADGES_PER_ROW),
-        style: inTheMurk(
-          withBillboardCut(
-            billboardStyle({ ...centre, z: lifted }, stand.widthPx, stand.heightPx, camera.yaw, scale),
-            kept,
-            lifted,
-            stand.heightPx
-          ),
-          under ? this.shadeAt(depth, reach) : 0
-        ),
+        style: inTheMurk(withBillboardCut(laid, kept, lifted, stand.heightPx), under ? this.shadeAt(depth, reach) : 0),
         hud: billboardHudTransform(textScale),
         chromeBottom: pieceChromeBottomPercent({
           heightPx: stand.heightPx,

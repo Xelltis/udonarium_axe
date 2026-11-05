@@ -43,6 +43,62 @@ export function firstPersonEyeMatrix(
 }
 
 /**
+ * The matrix that takes a point laid out in the view's own pixels, `scale` of them to a pixel of the
+ * board, onto the screen of a first-person view `widthPx` by `heightPx` across, against its top left
+ * corner: into the eye's space as `firstPersonEyeMatrix` takes the board there, then through the
+ * eye's perspective from the middle of the view, as the page lays the view's own scene out.
+ */
+export function firstPersonScreenMatrix(
+  camera: FirstPersonCamera,
+  focalPx: number,
+  widthPx: number,
+  heightPx: number,
+  scale = 1,
+  out: Matrix3D = new Matrix3D()
+): Matrix3D {
+  firstPersonEyeMatrix({ ...camera, x: camera.x * scale, y: camera.y * scale, z: camera.z * scale }, focalPx, out);
+  out.appendPerspective(focalPx);
+  out.appendPosition(widthPx / 2, heightPx / 2, 0);
+  return out;
+}
+
+/**
+ * The matrix that takes a point of the board onto the screen of a first-person view, as
+ * `firstPersonScreenMatrix` takes a point laid out in the view's own pixels there.
+ */
+export function firstPersonBoardScreenMatrix(
+  camera: FirstPersonCamera,
+  focalPx: number,
+  widthPx: number,
+  heightPx: number,
+  scale = 1
+): Matrix3D {
+  const enlarge = new Matrix3D().setData([scale, 0, 0, 0, 0, scale, 0, 0, 0, 0, scale, 0, 0, 0, 0, 1]);
+  return Matrix3D.multiply(enlarge, firstPersonScreenMatrix(camera, focalPx, widthPx, heightPx, scale));
+}
+
+/**
+ * The matrix that stands a board `widthPx` by `heightPx` up at a point of the board, in the view's
+ * own pixels, `scale` of them to a pixel of the board: its foot's middle at the point and its face
+ * turned to the way `yawDeg` looks, as the view stands a piece's picture up.
+ */
+export function firstPersonBillboardMatrix(
+  point: { readonly x: number; readonly y: number; readonly z: number },
+  widthPx: number,
+  heightPx: number,
+  yawDeg: number,
+  scale: number,
+  out: Matrix3D = new Matrix3D()
+): Matrix3D {
+  out.identity();
+  out.appendPosition(-(widthPx * scale) / 2, -(heightPx * scale), 0);
+  appendTurn(out, 'x', -90);
+  appendTurn(out, 'z', yawDeg);
+  out.appendPosition(point.x * scale, point.y * scale, point.z * scale);
+  return out;
+}
+
+/**
  * The ceilings over the rooms of a roof that stand over the eye, a face turned down over each cell
  * under the roof at its room's height. A roof the eye stands at or over has none it could look up
  * at, and a cell outside every room has none.
