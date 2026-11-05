@@ -7,13 +7,16 @@
       #opacity
       class="absolute inset-x-0 bottom-0 [-webkit-transform-style:preserve-3d] [transition:transform_133ms_linear,opacity_0.5s_ease-out] transform-3d"
     >
-      @for (cssClass of ['is-front', 'is-back']; track cssClass) {
+      @for (cssClass of overCanvas() ? ['is-flat'] : ['is-front', 'is-back']; track cssClass) {
         <div
           class="animate-cursor-ping border-ui-accent bg-ui-panel absolute top-0 left-0 box-border size-11.25 origin-bottom-right rounded-[50%_50%_5%_50%] border-2 border-solid shadow-[0_0_0_0_var(--ui-accent-glow),0_2px_10px_rgba(0,0,0,0.45)] backface-hidden"
+          [attr.data-cursor-face]="cssClass"
           [ngClass]="
-            cssClass === 'is-front'
-              ? 'transform-[translateX(-100%)_translateY(-100%)_rotateX(-90deg)_rotateZ(45deg)]'
-              : 'transform-[translateX(-100%)_translateY(-100%)_rotateX(-90deg)_rotateY(180deg)_rotateZ(45deg)]'
+            cssClass === 'is-flat'
+              ? 'transform-[translateX(-100%)_translateY(-100%)_rotateZ(45deg)]'
+              : cssClass === 'is-front'
+                ? 'transform-[translateX(-100%)_translateY(-100%)_rotateX(-90deg)_rotateZ(45deg)]'
+                : 'transform-[translateX(-100%)_translateY(-100%)_rotateX(-90deg)_rotateY(180deg)_rotateZ(45deg)]'
           "
         >
           <div

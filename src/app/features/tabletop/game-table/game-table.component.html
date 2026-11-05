@@ -388,14 +388,16 @@
           }
         </div>
       }
-      <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
-        @for (cursor of peerCursors(); track cursor.identifier) {
-          <peer-cursor
-            class="absolute will-change-transform backface-visible transform-3d"
-            [cursor]="cursor"
-          ></peer-cursor>
-        }
-      </div>
+      @if (!table3d.drawsOnCanvas()) {
+        <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
+          @for (cursor of peerCursors(); track cursor.identifier) {
+            <peer-cursor
+              class="absolute will-change-transform backface-visible transform-3d"
+              [cursor]="cursor"
+            ></peer-cursor>
+          }
+        </div>
+      }
       @if (!table3d.drawsOnCanvas()) {
         <table-marquee-overlay class="contents"></table-marquee-overlay>
       }
@@ -482,6 +484,9 @@
           [appTooltip]="diceSymbol"
           [appHudPlace]="{ owner: diceSymbol.identifier }"
         ></dice-symbol>
+      }
+      @for (cursor of peerCursors(); track cursor.identifier) {
+        <peer-cursor class="absolute top-0 left-0" [cursor]="cursor" [overCanvas]="true"></peer-cursor>
       }
       <table-drop-preview></table-drop-preview>
       <table-altitude-guide-overlay class="contents" [overCanvas]="true"></table-altitude-guide-overlay>

@@ -5,16 +5,20 @@ import {
   Component,
   computed,
   DestroyRef,
+  effect,
   ElementRef,
   inject,
   input,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { callCursorMove, callHeartBeat } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
@@ -45,9 +49,17 @@ export class PeerCursorComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly t = inject(TRANSLATE_FN);
 
+  private readonly camera = inject(TableCameraService);
+  private readonly surfaces = inject(TableSurfaceService);
+
   readonly cursorElementRef = viewChild<ElementRef>('cursor');
   readonly opacityElementRef = viewChild<ElementRef>('opacity');
   readonly cursor = input(PeerCursor.myCursor);
+  /**
+   * Whether the cursor is laid over a table drawn on a canvas, on the screen where the canvas draws
+   * the point it is at, rather than stood among the page's own pieces.
+   */
+  readonly overCanvas = input(false);
 
   readonly iconUrl = computed(() => {
     this.objectChange.fileVersion();
@@ -95,6 +107,8 @@ export class PeerCursorComponent {
   private _x = 0;
   private _y = 0;
   private _target!: HTMLElement;
+  /** The point of the floor the cursor was last put at, laid on the screen again as the camera moves over a canvas. */
+  private at: { x: number; y: number; z: number } | null = null;
 
   /**
    * How long cursor movement is held back before being sent or animated, in milliseconds: 16.6 per
@@ -161,6 +175,15 @@ export class PeerCursorComponent {
         }
       }, this);
     }, this.destroyRef);
+
+    effect(() => {
+      this.camera.version();
+      untracked(() => {
+        if (!this.overCanvas() || !this.at || !this.cursorElement) return;
+        this.cursorElement.style.transition = 'opacity 0.5s ease-out';
+        this.layOnScreen();
+      });
+    });
 
     afterNextRender(() => {
       if (this.isMine()) {
@@ -334,6 +357,20 @@ export class PeerCursorComponent {
   }
 
   private setPosition(x: number, y: number, z: number) {
+    if (this.overCanvas()) {
+      this.at = { x, y, z };
+      this.layOnScreen();
+      return;
+    }
     this.cursorElement!.style.transform = toTransformCss(x, y, z, '');
+  }
+
+  /** Lays the cursor on the screen where the canvas draws the point of the floor it was last put at. */
+  private layOnScreen() {
+    const at = this.at;
+    const layout = this.camera.layout;
+    const onPage = at && layout ? this.surfaces.pageOf('floor', at.x, at.y, at.z) : null;
+    if (!onPage || !layout) return;
+    this.cursorElement!.style.transform = `translate(${onPage.x - layout.left}px, ${onPage.y - layout.top}px)`;
   }
 }
