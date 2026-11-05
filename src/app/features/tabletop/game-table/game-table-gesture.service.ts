@@ -452,7 +452,10 @@ export class GameTableGestureService {
     srcEvent: TouchEvent | MouseEvent | PointerEvent | KeyboardEvent
   ): void {
     if (this.marqueeGesture && (this.marqueeGesture.isArmed || this.marqueeGesture.isActive)) {
-      const pointer = this.pointerDeviceService.pointers[0];
+      const pointer =
+        srcEvent instanceof MouseEvent
+          ? { x: srcEvent.pageX, y: srcEvent.pageY }
+          : this.pointerDeviceService.pointers[0];
       this.marqueeGesture.updatePointer(pointer.x, pointer.y);
       if (this.marqueeGesture.isActive) {
         if ((srcEvent as Event).cancelable) (srcEvent as Event).preventDefault();

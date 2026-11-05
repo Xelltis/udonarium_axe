@@ -466,6 +466,25 @@ describe('GameTableGestureService', () => {
       expect(arm).toHaveBeenCalledTimes(1);
     });
 
+    it('stretches an open marquee to where the move is, rather than where the pointer was last kept', () => {
+      const updatePointer = vi.fn();
+      (gestures as unknown as { marqueeGesture: unknown }).marqueeGesture = {
+        updatePointer,
+        isActive: true,
+        isArmed: false,
+      };
+      const move = new MouseEvent('mousemove', { cancelable: true });
+      Object.defineProperties(move, { pageX: { value: 140 }, pageY: { value: 90 } });
+
+      (
+        gestures as unknown as {
+          onTableMouseTransform(...args: unknown[]): void;
+        }
+      ).onTableMouseTransform(0, 0, 0, 0, 0, 0, {}, move);
+
+      expect(updatePointer).toHaveBeenCalledWith(140, 90);
+    });
+
     it('says beside the pointer why a press on the ground came to nothing', async () => {
       press.mockResolvedValue('tooFar');
       const show = vi.spyOn(TestBed.inject(SwitchNoticeService), 'show');
