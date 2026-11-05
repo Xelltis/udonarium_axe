@@ -769,7 +769,7 @@ export class MovableDirective implements MovableInteractionContext {
     const y = Math.floor(placed.y);
     this.transient.showDropPreview({ surface: targetSurface, x, y, width: this.width, height: this.height });
     this.showsDropPreview = true;
-    this.drawDropPreviewElement(targetSurface, x, y);
+    if (!this.placedElsewhere) this.drawDropPreviewElement(targetSurface, x, y);
   }
 
   /** Draws the outline in the element of the face, while the table is drawn in the page. */

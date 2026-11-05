@@ -122,6 +122,32 @@ test.describe('dropping a piece on another face', () => {
     expect(await placeOf(page.locator('white-board'))).toBe(boardPlace);
   });
 
+  test('outlines where a piece held over a white board would land on it, on a table drawn on a canvas', async ({
+    page,
+  }) => {
+    test.skip(test.info().project.name === 'chromium-css', 'the page’s own table lays the outline in the board itself');
+    const board = await makeBoard(page);
+    await standBack(page);
+    const character = piece(page, CARRIED);
+    await settle(character);
+    const from = await spotOnPiece(character);
+    const to = (await bareSpotOf(page, board)).onPage;
+    const outline = page.getByTestId('table-hud').getByTestId('drop-preview');
+
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 6 });
+    await page.mouse.move(to.x, to.y, { steps: 8 });
+
+    await expect(outline).toBeVisible({ timeout: 5000 });
+    const box = (await outline.boundingBox())!;
+    const report = JSON.stringify([box, to]);
+    expect(Math.abs(box.x + box.width / 2 - to.x), report).toBeLessThan(box.width);
+    expect(Math.abs(box.y + box.height / 2 - to.y), report).toBeLessThan(box.height);
+    await page.mouse.up();
+    await expect(outline).toHaveCount(0);
+  });
+
   test('puts a piece let go of over a wall drawn with a picture on the wall', async ({ page }) => {
     await showWall(page, '北壁', 'north');
     await expect(page.locator('[data-surface="north-wall"]')).toBeAttached({ timeout: 10000 });
