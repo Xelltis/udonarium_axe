@@ -94,7 +94,7 @@ describe('TablePiecesService', () => {
     expect(frame.centre.z).toBeCloseTo(1 + gridSize + ground.lowestPxIn(100, 200, gridSize, gridSize), 6);
   });
 
-  it('stands a piece on the floor where its place is, lifted onto the ground under it, and one on a board on the board', () => {
+  it('stands a piece on the floor where its place is, lifted onto the ground under it, and where it is being moved to', () => {
     const ground = TestBed.inject(GroundService);
     ground.dab({ kind: 'raise', x: 2.5, y: 4.5, radius: 3, strength: 1 });
     const die = dieAt(100, 200);
@@ -146,6 +146,14 @@ describe('TablePiecesService', () => {
     die.isUsed = false;
     change.notifyChanged(die.identifier);
     expect(brightness()).toEqual([1, 1]);
+  });
+
+  it('draws a die standing on a board no longer on the table on the floor', () => {
+    const die = dieAt(100, 200);
+    die.location = { name: 'table', x: 100, y: 200, surface: 'a-board-that-went-away' };
+
+    expect(pieces.sprites()[0].centre).toEqual({ x: 100 + gridSize / 2, y: 200 + gridSize / 2, z: 1 });
+    expect(pieces.footOf(die).surface).toBe('floor');
   });
 
   it('draws a die standing on a wall the table does not draw on the floor', () => {

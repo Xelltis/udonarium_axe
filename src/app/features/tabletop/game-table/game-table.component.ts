@@ -72,7 +72,6 @@ import { tableForegroundOf } from '@axe/domain/tabletop/table-foreground';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
 import { WallFace, WallLight, WallSilhouette } from '@axe/domain/tabletop/vision-scene';
-import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { boardShapeOf } from '@axe/domain/tabletop/world/table-world';
 import { CardComponent } from '@axe/features/card/card/card.component';
 import { CardStackComponent } from '@axe/features/card/card-stack/card-stack.component';
@@ -91,11 +90,9 @@ import { TableFogAirOverlayComponent } from '@axe/features/tabletop/fog-of-war/t
 import {
   BackdropLayerView,
   backdropLayerViews,
-  BackgroundLayerView,
-  backgroundLayerViews,
   LayerDrawing,
 } from '@axe/features/tabletop/game-table/background-layer-views';
-import { beamTopGridGeometry, beamWallFaceGrid } from '@axe/features/tabletop/game-table/beam-top-grid';
+import { beamWallFaceGrid } from '@axe/features/tabletop/game-table/beam-top-grid';
 import { handCanvasPressesOn } from '@axe/features/tabletop/game-table/canvas-presses';
 import { glideTransform } from '@axe/features/tabletop/game-table/game-table-camera';
 import { buildGameTableContextMenu, GameTableMenu } from '@axe/features/tabletop/game-table/game-table-context-menu';
@@ -110,7 +107,6 @@ import {
 } from '@axe/features/tabletop/game-table/game-table-walls';
 import { GridFaceCache } from '@axe/features/tabletop/game-table/grid-face-cache';
 import { GridLineRender } from '@axe/features/tabletop/game-table/grid-line-render';
-import { bucketBySurface, DrawnSurfaces } from '@axe/features/tabletop/game-table/surface-buckets';
 import { TableDropPreviewComponent } from '@axe/features/tabletop/game-table/table-drop-preview/table-drop-preview.component';
 import { TableMarqueeOverlayComponent } from '@axe/features/tabletop/game-table/table-marquee-overlay/table-marquee-overlay.component';
 import { installTableTestHooks } from '@axe/features/tabletop/game-table/table-test-hooks';
@@ -135,13 +131,10 @@ import { TableMoveRangeOverlayComponent } from '@axe/features/tabletop/table-mov
 import { TableTargetOverlayComponent } from '@axe/features/tabletop/table-target-overlay/table-target-overlay.component';
 import { TableTriggerOverlayComponent } from '@axe/features/tabletop/table-trigger-overlay/table-trigger-overlay.component';
 import { TableVisionOverlayComponent } from '@axe/features/tabletop/table-vision-overlay/table-vision-overlay.component';
-import { TableWaterFloorComponent } from '@axe/features/tabletop/table-water-layer/table-water-floor.component';
-import { TableWaterLayerComponent } from '@axe/features/tabletop/table-water-layer/table-water-layer.component';
 import { TableWeatherOverlayComponent } from '@axe/features/tabletop/table-weather-overlay/table-weather-overlay.component';
 import { TableZoneOverlayComponent } from '@axe/features/tabletop/table-zone-overlay/table-zone-overlay.component';
 import { TerrainComponent } from '@axe/features/tabletop/terrain/terrain.component';
 import { TerrainBatchService } from '@axe/features/tabletop/terrain-batch/terrain-batch.service';
-import { TerrainBatchLayerComponent } from '@axe/features/tabletop/terrain-batch/terrain-batch-layer.component';
 import { TextNoteComponent } from '@axe/features/tabletop/text-note/text-note.component';
 import { TableVisionVolumeOverlayComponent } from '@axe/features/tabletop/vision-volume/table-vision-volume-overlay.component';
 import {
@@ -161,7 +154,6 @@ import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { FloorPlaneDirective } from '@axe/ui/tabletop/floor-plane.directive';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
-import { translateZCss, Z_OFFSET_BACKGROUND_LAYERS_PX, Z_OFFSET_FOREGROUND_LAYERS_PX } from '@axe/ui/tabletop/z-offset';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** A wall standing round the table, with the pools of light and the shadows cast on it. */
@@ -186,16 +178,6 @@ interface ActiveWall {
   surfaceBackgroundRepeat: string;
 }
 
-interface BeamTopGrid {
-  identifier: string;
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-  z: number;
-  dataUrl: string;
-}
-
 interface BeamWallGrid {
   identifier: string;
   matrix3d: string;
@@ -204,7 +186,6 @@ interface BeamWallGrid {
   dataUrl: string;
 }
 
-const NO_BEAM_TOP_GRIDS: readonly BeamTopGrid[] = [];
 const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
 
 @Component({
@@ -219,7 +200,6 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
     NgClass,
     NgTemplateOutlet,
     TerrainComponent,
-    TerrainBatchLayerComponent,
     WhiteBoardComponent,
     GameTableMaskComponent,
     TextNoteComponent,
@@ -254,8 +234,6 @@ const NO_BEAM_WALL_GRIDS: readonly BeamWallGrid[] = [];
     TranslocoModule,
     LightSourceComponent,
     TableAmbienceComponent,
-    TableWaterLayerComponent,
-    TableWaterFloorComponent,
     TableWeatherOverlayComponent,
     TableForegroundOverlayComponent,
     ReloadNoticeDirective,
@@ -724,18 +702,6 @@ export class GameTableComponent {
   });
 
   /**
-   * How large the board is drawn, which is as large as a tile of a layer is ever worth drawing.
-   *
-   * The same measure the run's wrapper wears, so a tile held to it is held to what can be seen.
-   */
-  private readonly boardPixelSize = computed<{ width: number; height: number }>(() => {
-    const { width, height, gridSize, gridType } = this.surfaceShape();
-    const geo = computeHexMaskGeometry(width, height, gridSize, gridType);
-    if (geo) return { width: geo.pixelW, height: geo.pixelH };
-    return { width: width * gridSize, height: height * gridSize };
-  });
-
-  /**
    * What the board's outline is built from, compared field by field, so that a change to something
    * standing on the table does not build the outline again.
    */
@@ -759,15 +725,6 @@ export class GameTableComponent {
   readonly backdropLayerViews = computed<readonly BackdropLayerView[]>(() =>
     backdropLayerViews(this.backdropLayers(), this.layerDrawing())
   );
-  readonly overLayers = computed(() => this.laidLayers().filter((layer) => layer.placedOver));
-
-  readonly underLayerViews = computed<readonly BackgroundLayerView[]>(() =>
-    backgroundLayerViews(this.underLayers(), this.layerDrawing(), this.boardPixelSize())
-  );
-  readonly overLayerViews = computed<readonly BackgroundLayerView[]>(() =>
-    backgroundLayerViews(this.overLayers(), this.layerDrawing(), this.boardPixelSize())
-  );
-
   /** What drawing the layers reads: the pictures, what each measures, and whether things may move. */
   private layerDrawing(): LayerDrawing {
     this.objectChangeService.fileVersion();
@@ -777,15 +734,6 @@ export class GameTableComponent {
       moving: this.motion.enabled(),
     };
   }
-
-  /**
-   * Where each run sits as a whole.
-   *
-   * The wrapper hides what overflows it, which flattens the layers inside; so a run needs a
-   * depth of its own rather than leaning on document order to clear the board.
-   */
-  protected readonly backgroundLayerTransform = translateZCss(-Z_OFFSET_BACKGROUND_LAYERS_PX);
-  protected readonly foregroundLayerTransform = translateZCss(Z_OFFSET_FOREGROUND_LAYERS_PX);
 
   /** A board drawn on a transparent picture must not be washed out by the veil over it. */
   readonly showsTableSurfaceVeil = computed(() => this.underLayers().length === 0);
@@ -895,36 +843,6 @@ export class GameTableComponent {
   });
 
   /**
-   * The faces there are to stand on: the walls this table draws, and every board in the room.
-   *
-   * Every board rather than this table's alone, since a piece on another table's board is that
-   * board's to draw and is only passing through here.
-   */
-  private readonly drawnSurfaces = computed<DrawnSurfaces>(() => {
-    this.objectChangeService.collectionOf('white-board')();
-    return {
-      walls: new Set(this.activeWalls().map((wall) => wall.surface)),
-      boards: new Set(this.objectStore.getObjects(WhiteBoard).map((board) => board.identifier)),
-    };
-  });
-
-  readonly charactersBySurface = computed(() =>
-    bucketBySurface(this.table3d.drawsOnCanvas() ? [] : this.characters(), this.drawnSurfaces())
-  );
-  readonly cardsBySurface = computed(() =>
-    bucketBySurface(this.table3d.drawsOnCanvas() ? [] : this.cards(), this.drawnSurfaces())
-  );
-  readonly cardStacksBySurface = computed(() =>
-    bucketBySurface(this.table3d.drawsOnCanvas() ? [] : this.cardStacks(), this.drawnSurfaces())
-  );
-  readonly rangesBySurface = computed(() => bucketBySurface(this.ranges(), this.drawnSurfaces()));
-  readonly textNotesBySurface = computed(() =>
-    bucketBySurface(this.table3d.drawsOnCanvas() ? [] : this.textNotes(), this.drawnSurfaces())
-  );
-  readonly diceSymbolsBySurface = computed(() =>
-    bucketBySurface(this.table3d.drawsOnCanvas() ? [] : this.diceSymbols(), this.drawnSurfaces())
-  );
-  /**
    * The pieces laid over a table drawn on a canvas, flat on the screen where the canvas draws them,
    * rather than in the page's own 3D: wherever they stand, on the floor, a wall or a white board.
    */
@@ -934,11 +852,6 @@ export class GameTableComponent {
   readonly textNotesOverCanvas = computed(() => (this.table3d.drawsOnCanvas() ? this.textNotes() : []));
   readonly cardsOverCanvas = computed(() => (this.table3d.drawsOnCanvas() ? this.cards() : []));
   readonly cardStacksOverCanvas = computed(() => (this.table3d.drawsOnCanvas() ? this.cardStacks() : []));
-  readonly coinsBySurface = computed(() =>
-    bucketBySurface(this.table3d.drawsOnCanvas() ? [] : this.coins(), this.drawnSurfaces())
-  );
-  readonly terrainsBySurface = computed(() => bucketBySurface(this.terrains(), this.drawnSurfaces()));
-
   /** The terrain on the floor that is not drawn together with the blocks that do not move. */
   /**
    * The blocks laid over a table drawn on a canvas, on the screen where the canvas draws them: all but
@@ -948,37 +861,6 @@ export class GameTableComponent {
     if (!this.table3d.drawsOnCanvas()) return [];
     const merged = this.terrainBatch.mergedTerrains();
     return this.terrains().filter((terrain) => !merged.has(terrain.identifier));
-  });
-
-  readonly floorTerrainsDrawnAlone = computed(() => {
-    const merged = this.terrainBatch.mergedTerrains();
-    const floor = this.terrainsBySurface().floor;
-    return merged.size === 0 ? floor : floor.filter((terrain) => !merged.has(terrain.identifier));
-  });
-
-  readonly beamTopGrids = computed<readonly BeamTopGrid[]>(() => {
-    const table = this.currentTable;
-    this.objectChangeService.versionOf(table.identifier)();
-    this.objectChangeService.versionOf(this.tableSelecter.identifier)();
-    if (!table.gridShow) return NO_BEAM_TOP_GRIDS;
-    const grid = table.gridSize;
-    const dims: SurfaceDims = {
-      widthPx: table.width * grid,
-      depthPx: table.height * grid,
-      wallHeightPx: table.wallHeight * grid,
-    };
-    const result: BeamTopGrid[] = [];
-    for (const terrain of this.terrains()) {
-      this.objectChangeService.versionOf(terrain.identifier)();
-      const geo = beamTopGridGeometry(terrain, dims, grid);
-      if (!geo) continue;
-      result.push({
-        identifier: terrain.identifier,
-        ...geo,
-        dataUrl: this.gridFaces.dataUrl(table, geo.width, geo.height, geo.top, geo.left, '', null),
-      });
-    }
-    return result.length > 0 ? result : NO_BEAM_TOP_GRIDS;
   });
 
   readonly beamWallGrids = computed<readonly BeamWallGrid[]>(() => {

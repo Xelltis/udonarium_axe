@@ -6,45 +6,6 @@
   <table-target-overlay class="contents"></table-target-overlay>
   <replay-route-overlay class="contents"></replay-route-overlay>
 </ng-template>
-<!--
-  One run of drifting pictures. The wrapper wears the same shape as the board, so a hex table
-  keeps its outline, and it carries the depth for the whole run: hiding what overflows flattens
-  everything inside into one plane, where document order — already back to front — decides.
--->
-<ng-template #tableLayerStack let-views let-kind="kind" let-wrapperTransform="wrapperTransform">
-  @if (views.length) {
-    <div
-      class="pointer-events-none absolute top-0 left-0 size-full overflow-hidden backface-hidden"
-      [attr.data-testid]="kind + '-layers'"
-      [attr.data-layer-depth]="wrapperTransform"
-      [style.transform]="wrapperTransform"
-      [ngStyle]="tableSurfaceStyle()"
-    >
-      @for (layer of views; track layer.identifier) {
-        <div class="absolute inset-0" [attr.data-testid]="kind + '-layer'">
-          <!--
-            One box, both ways. No `will-change`: a drift that never ends is promoted by the
-            browser on its own, and saying it again would promote the box that stands still too.
-          -->
-          <div
-            class="absolute"
-            [attr.data-testid]="kind + '-layer-sheet'"
-            [class.bg-layer-drift]="layer.drifts"
-            [ngStyle]="layer.style"
-          ></div>
-          <!-- Loaded only to be measured: the drift is one tile, and a tile has to have a size. -->
-          <img
-            class="pointer-events-none absolute size-0 opacity-0"
-            alt=""
-            [attr.data-testid]="kind + '-layer-probe'"
-            [src]="layer.imageUrl | safe: 'resourceUrl'"
-            (load)="onBackgroundLayerImageLoad(layer.imageIdentifier, $event)"
-          />
-        </div>
-      }
-    </div>
-  }
-</ng-template>
 <div
   class="pointer-events-none absolute inset-0 -m-1.25 bg-cover bg-center bg-no-repeat [&.is-filter]:filter-[blur(5px)] [&.is-filter]:will-change-[filter] [&.is-filter]:after:block [&.is-filter]:after:size-full [&.is-filter]:after:content-[''] [&.is-filter.black]:after:bg-[hsl(0,0%,10%)] [&.is-filter.black]:after:opacity-30 [&.is-filter.white]:after:bg-[hsl(0,0%,97%)] [&.is-filter.white]:after:opacity-20"
   [ngClass]="[backgroundFilterType ? 'is-filter' : '', backgroundFilterType]"
@@ -110,16 +71,6 @@
   <div class="absolute inset-0 m-auto block size-1500 backface-hidden transform-3d" #gameTable>
     <div id="app-game-table" class="absolute size-full backface-hidden transform-3d" data-surface="floor" #gameObjects>
       <!-- What drifts under the board, which a canvas draws itself. -->
-      @if (!table3d.drawsOnCanvas()) {
-        <ng-container
-          [ngTemplateOutlet]="tableLayerStack"
-          [ngTemplateOutletContext]="{
-            $implicit: underLayerViews(),
-            kind: 'background',
-            wrapperTransform: backgroundLayerTransform,
-          }"
-        ></ng-container>
-      }
       <div
         class="pointer-events-none absolute top-0 left-0 size-full overflow-hidden bg-size-[100%_100%] bg-no-repeat backface-hidden transform-3d"
         [class.bg-white/15]="showsTableSurfaceVeil()"
@@ -138,19 +89,6 @@
         ></div>
       </div>
       <!-- What drifts over it, above the board's own picture and still under everything on it. -->
-      @if (!table3d.drawsOnCanvas()) {
-        <ng-container
-          [ngTemplateOutlet]="tableLayerStack"
-          [ngTemplateOutletContext]="{
-            $implicit: overLayerViews(),
-            kind: 'foreground',
-            wrapperTransform: foregroundLayerTransform,
-          }"
-        ></ng-container>
-      }
-      @if (!table3d.drawsOnCanvas()) {
-        <table-water-floor [surfaceStyle]="tableSurfaceStyle()" />
-      }
       @for (view of wallViews(); track view.wall.surface) {
         @let wall = view.wall;
         <div
@@ -172,220 +110,6 @@
             [style.filter]="wallBaseFilter()"
           ></div>
           <!-- A canvas lights the wall and throws the shadows on it itself. -->
-          @if (!table3d.drawsOnCanvas()) {
-            <div class="pointer-events-none absolute inset-0 overflow-hidden backface-visible">
-              @for (pool of view.pools; track $index) {
-                <div
-                  class="pointer-events-none absolute backface-visible"
-                  [style.background-image]="'url(' + wall.image.url + ')' | safe: 'style'"
-                  [ngStyle]="pool.style"
-                ></div>
-              }
-              @for (sil of view.silhouettes; track $index) {
-                <div
-                  class="pointer-events-none absolute backface-visible"
-                  [style.background-image]="sil.background | safe: 'style'"
-                  [ngStyle]="sil.style"
-                ></div>
-              }
-            </div>
-          }
-          @for (textNote of textNotesBySurface()[wall.surface]; track textNote.identifier) {
-            <text-note
-              class="absolute will-change-transform backface-visible transform-3d"
-              [textNote]="textNote"
-              [appTooltip]="textNote"
-              [ngStyle]="{ 'z-index': textNote.zindex }"
-            ></text-note>
-          }
-          @for (cardStack of cardStacksBySurface()[wall.surface]; track cardStack.identifier) {
-            <card-stack
-              class="absolute will-change-transform backface-visible transform-3d"
-              [cardStack]="cardStack"
-              [appTooltip]="cardStack"
-              [ngStyle]="{
-                'z-index': cardStack.zindex,
-                transform: 'translateZ(' + cardStack.zindex * 0.001 + 'px)',
-              }"
-            ></card-stack>
-          }
-          @for (card of cardsBySurface()[wall.surface]; track card.identifier) {
-            <card
-              class="absolute will-change-transform backface-visible transform-3d"
-              [card]="card"
-              [appTooltip]="card"
-              [ngStyle]="{
-                'z-index': card.zindex,
-                transform: 'translateZ(' + card.zindex * 0.001 + 'px)',
-              }"
-            ></card>
-          }
-          @for (character of charactersBySurface()[wall.surface]; track character.identifier) {
-            <game-character
-              class="absolute will-change-transform backface-visible transform-3d"
-              [gameCharacter]="character"
-              [appTooltip]="character"
-            ></game-character>
-          }
-          @for (coin of coinsBySurface()[wall.surface]; track coin.identifier) {
-            <coin
-              class="absolute will-change-transform backface-visible transform-3d"
-              [coin]="coin"
-              [appTooltip]="coin"
-              [ngStyle]="{
-                'z-index': coin.zindex,
-                transform: 'translateZ(' + coin.zindex * 0.001 + 'px)',
-              }"
-            ></coin>
-          }
-          @for (diceSymbol of diceSymbolsBySurface()[wall.surface]; track diceSymbol.identifier) {
-            <dice-symbol
-              class="absolute will-change-transform backface-visible transform-3d"
-              [diceSymbol]="diceSymbol"
-              [appTooltip]="diceSymbol"
-            ></dice-symbol>
-          }
-          @if (!table3d.drawsOnCanvas()) {
-            @for (terrain of terrainsBySurface()[wall.surface]; track terrain.identifier) {
-              <terrain
-                class="absolute will-change-transform backface-visible transform-3d"
-                [terrain]="terrain"
-              ></terrain>
-            }
-          }
-        </div>
-      }
-      @if (terrainsBySurface().floor.length) {
-        <!--
-          Drawn on the canvas instead for a seat that asks for it. Hidden rather than faded: a faded
-          box draws what is in it flat, which would move where its blocks are pressed.
-        -->
-        <div
-          class="pointer-events-none absolute inset-0 m-auto transform-3d"
-          [class.invisible]="table3d.drawsOnCanvas()"
-        >
-          @if (!table3d.drawsOnCanvas()) {
-            @for (terrain of floorTerrainsDrawnAlone(); track terrain.identifier) {
-              <terrain
-                class="absolute will-change-transform backface-visible transform-3d"
-                [terrain]="terrain"
-              ></terrain>
-            }
-          }
-          <terrain-batch-layer />
-        </div>
-      }
-      @if (!table3d.drawsOnCanvas()) {
-        @for (beamGrid of beamTopGrids(); track beamGrid.identifier) {
-          <div
-            class="pointer-events-none absolute top-0 left-0 bg-size-[100%_100%] bg-no-repeat backface-hidden transform-3d"
-            [style.width.px]="beamGrid.width"
-            [style.height.px]="beamGrid.height"
-            [style.transform]="'translate3d(' + beamGrid.left + 'px,' + beamGrid.top + 'px,' + beamGrid.z + 'px)'"
-            [style.background-image]="'url(' + beamGrid.dataUrl + ')' | safe: 'style'"
-          ></div>
-        }
-        @for (wallGrid of beamWallGrids(); track wallGrid.identifier) {
-          <div
-            class="pointer-events-none absolute top-0 left-0 origin-top-left bg-size-[100%_100%] bg-no-repeat backface-visible transform-3d"
-            [style.width.px]="wallGrid.width"
-            [style.height.px]="wallGrid.height"
-            [style.transform]="wallGrid.matrix3d"
-            [style.background-image]="'url(' + wallGrid.dataUrl + ')' | safe: 'style'"
-          ></div>
-        }
-      }
-      @for (mask of tableMasks(); track mask.identifier) {
-        <game-table-mask class="absolute will-change-transform backface-visible transform-3d" [gameTableMask]="mask">
-        </game-table-mask>
-      }
-      @if (!table3d.drawsOnCanvas()) {
-        <table-water-layer />
-      }
-      @if (textNotesBySurface().floor.length) {
-        <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
-          @for (textNote of textNotesBySurface().floor; track textNote.identifier) {
-            <text-note
-              class="absolute will-change-transform backface-visible transform-3d"
-              [textNote]="textNote"
-              [appTooltip]="textNote"
-              [ngStyle]="{ 'z-index': textNote.zindex }"
-            ></text-note>
-          }
-        </div>
-      }
-      @for (cardStack of cardStacksBySurface().floor; track cardStack.identifier) {
-        <card-stack
-          class="absolute will-change-transform backface-visible transform-3d"
-          [cardStack]="cardStack"
-          [appTooltip]="cardStack"
-          [ngStyle]="{
-            'z-index': cardStack.zindex,
-            transform: 'translateZ(' + cardStack.zindex * 0.001 + 'px)',
-          }"
-        ></card-stack>
-      }
-      @for (card of cardsBySurface().floor; track card.identifier) {
-        <card
-          class="absolute will-change-transform backface-visible transform-3d"
-          [card]="card"
-          [appTooltip]="card"
-          [ngStyle]="{
-            'z-index': card.zindex,
-            transform: 'translateZ(' + card.zindex * 0.001 + 'px)',
-          }"
-        ></card>
-      }
-      @for (coin of coinsBySurface().floor; track coin.identifier) {
-        <coin
-          class="absolute will-change-transform backface-visible transform-3d"
-          [coin]="coin"
-          [appTooltip]="coin"
-          [ngStyle]="{
-            'z-index': coin.zindex,
-            transform: 'translateZ(' + coin.zindex * 0.001 + 'px)',
-          }"
-        ></coin>
-      }
-      @if (!table3d.drawsOnCanvas()) {
-        @for (range of ranges(); track range.identifier) {
-          <range class="absolute will-change-transform backface-visible transform-3d" [range]="range"></range>
-        }
-      }
-      @if (!table3d.drawsOnCanvas()) {
-        @for (board of whiteBoards(); track board.identifier) {
-          <white-board class="absolute will-change-transform backface-visible transform-3d" [whiteBoard]="board">
-          </white-board>
-        }
-      }
-      @if (!table3d.drawsOnCanvas()) {
-        @for (light of lightSources(); track light.identifier) {
-          <light-source
-            class="absolute will-change-transform backface-visible transform-3d"
-            [lightSource]="light"
-          ></light-source>
-        }
-      }
-      @if (diceSymbolsBySurface().floor.length) {
-        <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
-          @for (diceSymbol of diceSymbolsBySurface().floor; track diceSymbol.identifier) {
-            <dice-symbol
-              class="absolute will-change-transform backface-visible transform-3d"
-              [diceSymbol]="diceSymbol"
-              [appTooltip]="diceSymbol"
-            ></dice-symbol>
-          }
-        </div>
-      }
-      @if (charactersBySurface().floor.length) {
-        <div class="pointer-events-none absolute inset-0 m-auto transform-3d">
-          @for (character of charactersBySurface().floor; track character.identifier) {
-            <game-character
-              class="absolute will-change-transform backface-visible transform-3d"
-              [gameCharacter]="character"
-              [appTooltip]="character"
-            ></game-character>
-          }
         </div>
       }
       <table-vision-overlay class="contents"></table-vision-overlay>
@@ -394,9 +118,6 @@
       <table-move-cost-overlay class="contents"></table-move-cost-overlay>
       <table-trigger-overlay class="contents"></table-trigger-overlay>
       <table-move-range-overlay class="contents"></table-move-range-overlay>
-      @if (!table3d.drawsOnCanvas()) {
-        <ng-container [ngTemplateOutlet]="floorMarks"></ng-container>
-      }
     </div>
   </div>
   @if (table3d.drawsOnCanvas()) {
