@@ -288,6 +288,11 @@ describe('DungeonBuildService', () => {
     expect(result.table.fogEnabled).toBe(true);
   });
 
+  it('shows the background picture past the board unless the sky that turns with the clock was asked for', async () => {
+    expect((await build()).result.table.skyKind).toBe('');
+    expect((await build({ skyKind: 'clock' })).result.table.skyKind).toBe('clock');
+  });
+
   it('stands a party where it was told to, on the table and on the floor', async () => {
     const hero = GameCharacter.create('英雄', 1, '');
     hero.location = { name: 'graveyard', x: 0, y: 0 };

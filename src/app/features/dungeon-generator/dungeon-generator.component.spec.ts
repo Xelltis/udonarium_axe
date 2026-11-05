@@ -289,13 +289,14 @@ describe('DungeonGeneratorComponent', () => {
       expect(before).toBeGreaterThan(0);
     });
 
-    it('builds a table of open ground with notes to match', async () => {
+    it('builds a table of open ground with notes to match, and the sky that turns with the clock over it', async () => {
       (component as unknown as { exportFn: unknown }).exportFn = stubPainting();
       component.fieldSize.set(20);
 
       await component.generate();
 
       expect(component.builtTable()).not.toBeNull();
+      expect(component.builtTable()!.skyKind).toBe('clock');
       expect(component.builtTable()!.terrains.length).toBe(component.terrainCount());
       expect(component.summary()).toContain('20x15');
     });
@@ -466,12 +467,13 @@ describe('DungeonGeneratorComponent and what a dungeon is asked for', () => {
     expect(component.doubleDoors()).toBe(50);
   });
 
-  it('leaves the table uncovered until the fog is asked for', async () => {
+  it('leaves the table uncovered until the fog is asked for, and its background picture past the board', async () => {
     component.roomCount.set(3);
 
     await component.generate();
 
     expect(component.builtTable()!.fogEnabled).toBe(false);
+    expect(component.builtTable()!.skyKind).toBe('');
   });
 
   it('draws the fog over the table it builds when it is asked to', async () => {

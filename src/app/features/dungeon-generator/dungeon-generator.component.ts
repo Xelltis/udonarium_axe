@@ -423,6 +423,7 @@ export class DungeonGeneratorComponent {
           fogEnabled: this.fogEnabled(),
           muster: this.musterStands(plan),
           ground: this.field() ? (plan as FieldPlan).layout.relief : null,
+          skyKind: this.field() ? 'clock' : '',
         },
         // A map with nothing standing on it is finished the moment it starts, not NaN done.
         (done, total) => this.progress.set(total > 0 ? Math.round((done / total) * 100) : 100)

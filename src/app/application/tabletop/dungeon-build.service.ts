@@ -39,6 +39,7 @@ import { blockOrigin, MapGrid, tableSizeFor } from '@axe/domain/tabletop/map-gri
 import { cornerShiftOf } from '@axe/domain/tabletop/move/piece-on-grid';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableMoveCost } from '@axe/domain/tabletop/table-move-cost';
+import { TableSkyKind } from '@axe/domain/tabletop/table-sky';
 import { TableTrigger } from '@axe/domain/tabletop/table-trigger';
 import { DoorStyle, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { trapPresetOf } from '@axe/domain/tabletop/trap-presets';
@@ -150,6 +151,11 @@ export interface DungeonBuildOptions {
   muster?: readonly MusterStand[];
   /** How high the ground of the table is raised, where the map raises it. Left out, it lies flat. */
   ground?: GroundRaster | null;
+  /**
+   * What the table shows past its board where the camera looks over it: the sky that turns with the
+   * story's clock over open country. Left out, the table's background picture, as under a roof of rock.
+   */
+  skyKind?: TableSkyKind;
 }
 
 /** One piece and the cell of the finished map it is to be standing on. */
@@ -261,6 +267,7 @@ export class DungeonBuildService {
     table.weatherKind = mood.weatherKind;
     table.weatherDensity = mood.weatherDensity;
     table.fogEnabled = options.fogEnabled ?? false;
+    table.skyKind = options.skyKind ?? '';
     table.initialize();
     return table;
   }
