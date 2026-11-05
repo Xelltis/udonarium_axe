@@ -4,6 +4,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { HudAnchor } from '@axe/application/tabletop/hud-frame.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { Network } from '@axe/core/network/network';
@@ -16,6 +17,7 @@ import { CardGameService } from '@axe/features/card/card-game.service';
 import { CardStackComponent } from '@axe/features/card/card-stack/card-stack.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 
 describe('CardStackComponent', () => {
   let component: CardStackComponent;
@@ -258,6 +260,30 @@ describe('CardStackComponent', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect((component as any).changeDetector).toBeUndefined();
     });
+  });
+
+  it('is pointed at by its plate laid on the stack, its handles at the corners of the plate, and not round it', () => {
+    const cardStack = CardStack.create('テストスタック');
+    fixture.componentRef.setInput('cardStack', cardStack);
+    fixture.detectChanges();
+    const placed = fixture.debugElement.queryAll(By.directive(HudPlaceDirective)).map((found) => ({
+      element: found.nativeElement as HTMLElement,
+      anchor: found.injector.get(HudPlaceDirective).anchor() as HudAnchor,
+    }));
+
+    const root = (fixture.nativeElement as HTMLElement).querySelector('[data-hud-box]')!;
+    expect(root.classList).toContain('pointer-events-none');
+    const plate = placed.find(({ element }) => element.matches('[data-part="plate"]'))!;
+    expect(plate.anchor).toEqual({ owner: cardStack.identifier, part: 'plate', place: 'cover' });
+    expect(plate.element.classList).toContain('pointer-events-auto');
+    const handles = placed.filter(({ element }) => element.matches('.rotate-grab'));
+    expect(handles.map(({ anchor }) => [anchor.part, anchor.corner])).toEqual([
+      ['plate', 0],
+      ['plate', 1],
+      ['plate', 2],
+      ['plate', 3],
+    ]);
+    cardStack.destroy();
   });
 
   describe('timer cleanup on destroy', () => {

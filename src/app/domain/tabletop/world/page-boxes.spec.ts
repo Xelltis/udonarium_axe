@@ -78,6 +78,29 @@ describe('piecePageBoxes', () => {
     expect(boxes.get('hero')!.parts.get('pedestal')).toMatchObject({ left: 75, top: 75, width: 50, height: 50 });
   });
 
+  it('keeps how large a part drawn with one sprite is on the table, by the box of the piece where it has one', () => {
+    const boxes = piecePageBoxes(
+      [
+        sprite('card#face', { widthPx: 60, heightPx: 90, facing: { across: FLOOR.u, down: FLOOR.v } }),
+        sprite('hero#pedestal', {
+          widthPx: 90,
+          heightPx: 80,
+          facing: { across: FLOOR.u, down: FLOOR.v },
+          box: { left: 20, top: 15, width: 50, height: 40 },
+        }),
+        sprite('deck#top', {}),
+        sprite('deck#top', { centre: { x: 30, y: 0, z: 0 } }),
+      ],
+      [],
+      scene,
+      EYE
+    );
+
+    expect(boxes.get('card')!.parts.get('face')!.size).toEqual({ width: 60, height: 90 });
+    expect(boxes.get('hero')!.parts.get('pedestal')!.size).toEqual({ width: 50, height: 40 });
+    expect(boxes.get('deck')!.parts.get('top')!.size).toBeUndefined();
+  });
+
   it('boxes a part made of more than one sprite whole', () => {
     const boxes = piecePageBoxes(
       [sprite('deck#top', { centre: { x: 0, y: 0, z: 0 } }), sprite('deck#top', { centre: { x: 30, y: 0, z: 0 } })],

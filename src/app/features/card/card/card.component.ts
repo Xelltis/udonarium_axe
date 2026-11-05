@@ -149,6 +149,9 @@ export class CardComponent {
   get zindex(): number {
     return this.card().zindex;
   }
+  /** The corners of the card's face, round from its top left, where its handles stand. */
+  protected readonly faceCorners = [0, 1, 2, 3] as const;
+
   /** The card's width in grid squares, never below zero. */
   get size(): number {
     return Math.max(0, this.card().size);

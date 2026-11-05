@@ -51,11 +51,12 @@
 </ng-template>
 <!--
   The note is a box on the screen round where the table's canvas draws it, and its panel is laid on
-  the note in perspective: clear, as the canvas draws a picture of it, until it is written in.
+  the note in perspective to be pointed at: clear, as the canvas draws a picture of it, until it is
+  written in. Its handles stand at the top corners of its panel.
 -->
 @let id = textNote().identifier;
 <div
-  class="group pointer-events-auto size-full cursor-default select-none [-moz-user-drag:none] [-webkit-user-drag:none]"
+  class="group pointer-events-none size-full cursor-default select-none [-moz-user-drag:none] [-webkit-user-drag:none]"
   data-hud-box
   appMovable
   [movable.option]="movableOption()"
@@ -64,16 +65,16 @@
   (movable.ondragend)="onMoved()"
 >
   <div
-    class="size-full"
+    class="pointer-events-none size-full"
     appRotable
     [rotable.option]="rotableOption()"
     [rotable.disable]="tabletopService.mode2d() && isUpright"
     (rotable.ondragstart)="onMove()"
     (rotable.ondragend)="onMoved()"
   >
-    <div class="size-full" [appSelectable]="textNote()">
+    <div class="pointer-events-none size-full" [appSelectable]="textNote()">
       <div
-        class="bg-ui-panel border-ui-border-panel text-ui-text rounded-b-ui-sm shadow-ui-md box-border flex flex-col overflow-hidden border border-solid bg-size-[100%_100%] bg-no-repeat"
+        class="bg-ui-panel border-ui-border-panel text-ui-text rounded-b-ui-sm shadow-ui-md pointer-events-auto box-border flex flex-col overflow-hidden border border-solid bg-size-[100%_100%] bg-no-repeat"
         #panel
         data-part="panel"
         [class.opacity-0]="!isEditing()"
@@ -86,18 +87,14 @@
         <ng-container [ngTemplateOutlet]="panelContent"></ng-container>
       </div>
       @if (!isLock) {
-        <div class="pointer-events-none" [appHudPlace]="{ owner: id, part: 'panel' }">
+        @for (corner of handleCorners; track corner) {
           <div
-            class="rotate-grab bg-ui-elevated text-ui-muted pointer-events-auto absolute -top-3.5 -left-5.25 z-1 box-border h-7 w-10.5 cursor-default rounded-[28px] p-0.5 text-center text-[8px] opacity-0 group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100! [&_.material-icons]:hidden group-hover:[&_.material-icons]:inline group-active:[&_.material-icons]:inline pointer-coarse:[&_.material-icons]:inline"
+            class="rotate-grab bg-ui-elevated text-ui-muted pointer-events-auto z-1 box-border h-7 w-10.5 cursor-default rounded-[28px] p-0.5 text-center text-[8px] opacity-0 group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100! [&_.material-icons]:hidden group-hover:[&_.material-icons]:inline group-active:[&_.material-icons]:inline pointer-coarse:[&_.material-icons]:inline"
+            [appHudPlace]="{ owner: id, part: 'panel', corner }"
           >
             <i class="material-icons">autorenew</i>
           </div>
-          <div
-            class="rotate-grab bg-ui-elevated text-ui-muted pointer-events-auto absolute -top-3.5 -right-5.25 z-1 box-border h-7 w-10.5 cursor-default rounded-[28px] p-0.5 text-center text-[8px] opacity-0 group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100! [&_.material-icons]:hidden group-hover:[&_.material-icons]:inline group-active:[&_.material-icons]:inline pointer-coarse:[&_.material-icons]:inline"
-          >
-            <i class="material-icons">autorenew</i>
-          </div>
-        </div>
+        }
       }
     </div>
   </div>

@@ -3,6 +3,7 @@ import { By } from '@angular/platform-browser';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { HudAnchor } from '@axe/application/tabletop/hud-frame.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
@@ -15,6 +16,7 @@ import { TextNote } from '@axe/domain/tabletop/text-note';
 import { TextNoteComponent } from '@axe/features/tabletop/text-note/text-note.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 
 describe('TextNoteComponent', () => {
   let component: TextNoteComponent;
@@ -58,6 +60,28 @@ describe('TextNoteComponent', () => {
     canEdit.mockReturnValue(true);
     component.onMouseDown(new MouseEvent('mousedown', { button: 2 }));
     expect(topmost).toHaveBeenCalledTimes(1);
+    note.destroy();
+  });
+
+  it('is pointed at by its panel laid on the note, its handles at the top corners of the panel, and not round it', () => {
+    const note = TextNote.create('メモ', '本文');
+    fixture.componentRef.setInput('textNote', note);
+    fixture.detectChanges();
+    const placed = fixture.debugElement.queryAll(By.directive(HudPlaceDirective)).map((found) => ({
+      element: found.nativeElement as HTMLElement,
+      anchor: found.injector.get(HudPlaceDirective).anchor() as HudAnchor,
+    }));
+
+    const root = (fixture.nativeElement as HTMLElement).querySelector('[data-hud-box]')!;
+    expect(root.classList).toContain('pointer-events-none');
+    const panel = placed.find(({ element }) => element.matches('[data-part="panel"]'))!;
+    expect(panel.anchor).toEqual({ owner: note.identifier, part: 'panel', place: 'face' });
+    expect(panel.element.classList).toContain('pointer-events-auto');
+    const handles = placed.filter(({ element }) => element.matches('.rotate-grab'));
+    expect(handles.map(({ anchor }) => [anchor.part, anchor.corner])).toEqual([
+      ['panel', 0],
+      ['panel', 1],
+    ]);
     note.destroy();
   });
 

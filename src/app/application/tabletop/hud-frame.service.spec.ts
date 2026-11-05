@@ -150,6 +150,19 @@ describe('HudFrameService', () => {
     expect(laid.style.width).toBe('20px');
   });
 
+  it('covers a part with an element laid on its corners at the size the part is on the table', () => {
+    sprites.set([{ ...lying('card#face', 100, 100, 0, 40), heightPx: 20 }]);
+    const cover = element();
+    Object.defineProperty(cover, 'offsetWidth', { value: 10 });
+    Object.defineProperty(cover, 'offsetHeight', { value: 10 });
+    frame.place(cover, { owner: 'card', part: 'face', place: 'cover' });
+    frame.writeNow();
+
+    expect(cover.style.transform).toBe('matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)');
+    expect(cover.style.width).toBe('40px');
+    expect(cover.style.height).toBe('20px');
+  });
+
   it('puts the middle of an element on a point of a face, within the root', () => {
     vi.spyOn(TestBed.inject(TableSurfaceService), 'pageOf').mockReturnValue({ x: 100, y: 80 });
     const handle = element();

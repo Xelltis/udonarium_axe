@@ -33,6 +33,8 @@ export interface PagePart extends PageBox {
    * picture on it is read.
    */
   readonly corners?: readonly [PagePoint, PagePoint, PagePoint, PagePoint];
+  /** For a part drawn with one sprite, how large it is on the table, in table pixels across and down. */
+  readonly size?: { readonly width: number; readonly height: number };
 }
 
 /** A piece as it is drawn on the page: the box round all of it, and its parts by name. */
@@ -73,6 +75,14 @@ function scaleAt(scene: Matrix3D, eye: EyeAxes, point: TablePoint): number {
   return Math.hypot(to.x - from.x, to.y - from.y);
 }
 
+/** The points a part of a piece is drawn round, gathered from its sprites, and its size where it has one sprite. */
+interface GatheredPart {
+  readonly points: TablePoint[];
+  readonly middle: TablePoint;
+  sprites: number;
+  readonly size: { readonly width: number; readonly height: number } | null;
+}
+
 /**
  * Where the pieces drawn on the table show on the page, through a matrix from `tableSceneMatrix`: for
  * each piece, the box round all of it and a box round each of its parts, a part made of more than one
@@ -84,20 +94,29 @@ export function piecePageBoxes(
   scene: Matrix3D,
   eye: EyeAxes
 ): Map<string, PiecePageBoxes> {
-  const corners = new Map<string, Map<string, { points: TablePoint[]; middle: TablePoint; sprites: number }>>();
-  const add = (owner: string, part: string, points: TablePoint[], middle: TablePoint, sprites: number) => {
-    const parts =
-      corners.get(owner) ?? new Map<string, { points: TablePoint[]; middle: TablePoint; sprites: number }>();
+  const corners = new Map<string, Map<string, GatheredPart>>();
+  const add = (
+    owner: string,
+    part: string,
+    points: TablePoint[],
+    middle: TablePoint,
+    sprites: number,
+    size: GatheredPart['size'] = null
+  ) => {
+    const parts = corners.get(owner) ?? new Map<string, GatheredPart>();
     const kept = parts.get(part);
     if (kept) {
       kept.points.push(...points);
       kept.sprites += sprites;
-    } else parts.set(part, { points: [...points], middle, sprites });
+    } else parts.set(part, { points: [...points], middle, sprites, size });
     corners.set(owner, parts);
   };
   for (const sprite of sprites) {
     const corners = spriteBoxCorners(sprite, eye);
-    add(sprite.owner, partOf(sprite), corners, sprite.box ? middleOf(corners) : sprite.centre, 1);
+    const size = sprite.box
+      ? { width: sprite.box.width, height: sprite.box.height }
+      : { width: sprite.widthPx, height: sprite.heightPx };
+    add(sprite.owner, partOf(sprite), corners, sprite.box ? middleOf(corners) : sprite.centre, 1, size);
   }
   for (const coin of coins) {
     const rim: TablePoint[] = [];
@@ -117,7 +136,7 @@ export function piecePageBoxes(
     const onPage: { x: number; y: number }[] = [];
     let nearness = -Infinity;
     const pageParts = new Map<string, PagePart>();
-    for (const [part, { points, middle, sprites }] of parts) {
+    for (const [part, { points, middle, sprites, size }] of parts) {
       const projected = points.map((point) => pageOfTablePoint(scene, point.x, point.y, point.z));
       onPage.push(...projected);
       for (const point of points) nearness = Math.max(nearness, nearnessOf(scene, point));
@@ -125,7 +144,7 @@ export function piecePageBoxes(
       if (sprites !== 1) pageParts.set(part, box);
       else {
         const [a, b, c, d] = projected.map((point) => ({ x: point.x, y: point.y }));
-        pageParts.set(part, { ...box, corners: [a, b, c, d] });
+        pageParts.set(part, { ...box, corners: [a, b, c, d], ...(size ? { size } : {}) });
       }
     }
     boxes.set(owner, { whole: boxRound(onPage), parts: pageParts, nearness });

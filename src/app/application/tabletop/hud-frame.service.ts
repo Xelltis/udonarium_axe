@@ -18,10 +18,11 @@ import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
 /**
  * Where an element of the screen over a table drawn on a canvas is put against the part of the piece
  * it goes with: over the part, stretched to its box; above or below its middle, at the size the part
- * is drawn at, as a name hangs over a piece; or laid on the part itself, its own box drawn onto the
- * part's corners in perspective, as a note's text is laid on the note while it is written.
+ * is drawn at, as a name hangs over a piece; laid on the part itself, its own box drawn onto the
+ * part's corners in perspective, as a note's text is laid on the note while it is written; or laid
+ * so at the size the part is on the table, to cover the part, as a card is pointed at by its face.
  */
-export type HudPlace = 'box' | 'above' | 'below' | 'face';
+export type HudPlace = 'box' | 'above' | 'below' | 'face' | 'cover';
 
 /** What an element is put against: a piece, and a part of it, or the whole piece where none is named. */
 export interface HudAnchor {
@@ -281,15 +282,16 @@ function styleOf(
       zIndex: '',
     };
   }
-  if (place === 'face') {
-    if (!part.corners || !size) return null;
+  if (place === 'face' || place === 'cover') {
+    const laid = place === 'cover' ? part.size : size;
+    if (!part.corners || !laid) return null;
     const [a, b, c, d] = part.corners.map((corner) => ({ x: corner.x - whole.left, y: corner.y - whole.top }));
-    const matrix = quadMatrix(size.width, size.height, [a, b, c, d]);
+    const matrix = quadMatrix(laid.width, laid.height, [a, b, c, d]);
     if (!matrix) return null;
     return {
       transform: `matrix3d(${matrix.map((value) => Math.round(value * 1e6) / 1e6).join(', ')})`,
-      width: null,
-      height: null,
+      width: place === 'cover' ? px(laid.width) : null,
+      height: place === 'cover' ? px(laid.height) : null,
       zIndex: '',
     };
   }

@@ -3,6 +3,7 @@ import { By } from '@angular/platform-browser';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { HudAnchor } from '@axe/application/tabletop/hud-frame.service';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { Card, CardState } from '@axe/domain/card/card';
@@ -11,6 +12,7 @@ import { CardComponent } from '@axe/features/card/card/card.component';
 import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 
 describe('CardComponent', () => {
   let component: CardComponent;
@@ -164,6 +166,30 @@ describe('CardComponent', () => {
     const movable = fixture.debugElement.query(By.directive(MovableDirective)).injector.get(MovableDirective);
     const width = card.size * 50;
     expect(movable.footprintNow()).toEqual({ width, height: width * 1.5 });
+    card.destroy();
+  });
+
+  it('is pointed at by its face laid on the card, its handles at the corners of the face, and not round it', () => {
+    const card = Card.create('テストカード', 'front', 'back');
+    fixture.componentRef.setInput('card', card);
+    fixture.detectChanges();
+    const placed = fixture.debugElement.queryAll(By.directive(HudPlaceDirective)).map((found) => ({
+      element: found.nativeElement as HTMLElement,
+      anchor: found.injector.get(HudPlaceDirective).anchor() as HudAnchor,
+    }));
+
+    const root = (fixture.nativeElement as HTMLElement).querySelector('[data-hud-box]')!;
+    expect(root.classList).toContain('pointer-events-none');
+    const face = placed.find(({ element }) => element.matches('[data-part="face"]'))!;
+    expect(face.anchor).toEqual({ owner: card.identifier, part: 'face', place: 'cover' });
+    expect(face.element.classList).toContain('pointer-events-auto');
+    const handles = placed.filter(({ element }) => element.matches('.rotate-grab'));
+    expect(handles.map(({ anchor }) => [anchor.part, anchor.corner])).toEqual([
+      ['face', 0],
+      ['face', 1],
+      ['face', 2],
+      ['face', 3],
+    ]);
     card.destroy();
   });
 

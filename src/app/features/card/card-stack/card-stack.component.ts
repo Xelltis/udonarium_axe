@@ -1,4 +1,3 @@
-import { NgClass } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -69,7 +68,6 @@ const EMPTY_STACK_PX = 100;
   imports: [
     HudPlaceDirective,
     MovableDirective,
-    NgClass,
     RotableDirective,
     SelectableDirective,
     SafePipe,
@@ -172,6 +170,9 @@ export class CardStackComponent {
   get isEmpty(): boolean {
     return this.cardStack().isEmpty;
   }
+  /** The corners of the stack's plate, round from its top left, where its handles stand. */
+  protected readonly plateCorners = [0, 1, 2, 3] as const;
+
   /** The stack's width in grid cells, taken from its top card; 2 when the stack is empty. */
   get size(): number {
     const card = this.cardStack().topCard;

@@ -114,6 +114,8 @@ export class TextNoteComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly translateFn = inject(TRANSLATE_FN);
+  /** The corners of the note's panel, round from its top left, where its handles stand: the top two. */
+  protected readonly handleCorners = [0, 1] as const;
 
   private readonly pieces = inject(TablePiecesService);
   /**
