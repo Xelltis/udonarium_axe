@@ -24,12 +24,15 @@
         var nav = (navigator.language || '').toLowerCase();
         var lang =
           langs.indexOf(stored) >= 0 ? stored : nav.indexOf('ja') === 0 ? 'ja' : nav.indexOf('ko') === 0 ? 'ko' : 'en';
+        // The build writes the app's version in, as the app asks for the file under it. The
+        // development server leaves the mark as it is, so nothing is asked ahead for there.
+        var version = '__APP_VERSION__';
+        if (/^__/.test(version)) return;
         var link = document.createElement('link');
         link.rel = 'preload';
         link.as = 'fetch';
         link.crossOrigin = 'anonymous';
-        // The build writes the app's version in, as the app asks for the file under it.
-        link.href = 'assets/i18n/' + lang + '.json?v=__APP_VERSION__';
+        link.href = 'assets/i18n/' + lang + '.json?v=' + version;
         document.head.appendChild(link);
       })();
     </script>
