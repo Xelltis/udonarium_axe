@@ -466,7 +466,7 @@
                     "
                     (click)="cycleBuffView($event)"
                     (mousedown)="cycleBuffView($event)"
-                    (touchstart)="$event.stopPropagation()"
+                    appKeepTouch
                   >
                     @switch (buffViewMode()) {
                       @case ('detail') {

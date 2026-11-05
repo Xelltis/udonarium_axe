@@ -99,6 +99,7 @@ import {
 import { PieceRightDrag } from '@axe/features/character/game-character/piece-right-drag';
 import { GameDataElementBuffComponent } from '@axe/features/character/game-data-element-buff/game-data-element-buff.component';
 import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
+import { KeepTouchDirective } from '@axe/ui/directives/keep-touch.directive';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { RotableOption } from '@axe/ui/directives/rotable.directive';
@@ -184,6 +185,7 @@ const ROLL_HANDLE_ICON_RATIO = 24 / 28;
   templateUrl: './game-character.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    KeepTouchDirective,
     BuffBadgeComponent,
     HudPlaceDirective,
     MovableDirective,

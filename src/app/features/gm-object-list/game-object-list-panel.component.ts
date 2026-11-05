@@ -27,6 +27,7 @@ import {
   ObjectRow,
 } from '@axe/features/gm-object-list/game-object-list-row';
 import { LightSettingsComponent } from '@axe/features/light-settings/light-settings.component';
+import { KeepTouchDirective } from '@axe/ui/directives/keep-touch.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -37,7 +38,7 @@ type DisclosableArg = Parameters<typeof buildDisclosureContextMenu>[0];
   selector: 'game-object-list-panel',
   templateUrl: './game-object-list-panel.component.html',
   host: { class: 'block h-full' },
-  imports: [FormsModule, TranslocoModule, SafePipe],
+  imports: [FormsModule, TranslocoModule, SafePipe, KeepTouchDirective],
 })
 export class GameObjectListPanelComponent {
   private readonly panelService = inject(PanelService);

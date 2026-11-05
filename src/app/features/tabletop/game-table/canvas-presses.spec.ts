@@ -47,6 +47,16 @@ describe('handing presses on the canvas to the blocks drawn there', () => {
     return { reached };
   }
 
+  it('listens for the presses as ones it may cancel, saying so', () => {
+    const other = document.createElement('div');
+    const added = vi.spyOn(other, 'addEventListener');
+
+    const stop = handCanvasPressesOn(other, { pickAt: () => null, entryOf: () => undefined });
+
+    expect(added).toHaveBeenCalledWith('touchstart', expect.any(Function), { capture: true, passive: false });
+    stop();
+  });
+
   it('hands a press on the table to the block picking says it lands on, and stops it there', () => {
     const { reached } = pressOn(root);
     expect(reached).toEqual(['block:mousedown', 'root:mousedown']);

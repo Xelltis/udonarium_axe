@@ -149,6 +149,7 @@ import { BoardKeyAction, boardKeyDown } from '@axe/features/tabletop/white-board
 import { getRasterImage, warmRasterImages } from '@axe/infrastructure/map-editor/raster-image';
 import { renderScene } from '@axe/infrastructure/map-editor/render-scene';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
+import { KeepTouchDirective } from '@axe/ui/directives/keep-touch.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /** How long the drawing has to settle before the board keeps a picture of it. */
@@ -194,7 +195,7 @@ const MAX_SIDE = 40;
   selector: 'white-board-editor',
   templateUrl: './white-board-editor.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, TranslocoModule, NgClass, WhiteBoardLayerDrawerComponent],
+  imports: [FormsModule, TranslocoModule, NgClass, WhiteBoardLayerDrawerComponent, KeepTouchDirective],
 })
 export class WhiteBoardEditorComponent {
   private readonly modalService = inject(ModalService);

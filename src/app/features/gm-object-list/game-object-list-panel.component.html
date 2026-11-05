@@ -79,7 +79,7 @@
             (pointercancel)="onRowPointerCancel()"
             (lostpointercapture)="onRowPointerCancel()"
             (mousedown)="onRowDragBlock($event, row)"
-            (touchstart)="onRowDragBlock($event, row)"
+            [appKeepTouch]="row.typeKey === 'character'"
           >
             @if (row.typeKey === 'character') {
               <input

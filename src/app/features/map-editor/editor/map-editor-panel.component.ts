@@ -68,6 +68,7 @@ import {
 } from '@axe/infrastructure/map-editor/render-overlay';
 import { renderScene } from '@axe/infrastructure/map-editor/render-scene';
 import { FileSelecterComponent } from '@axe/ui/components/file-selecter/file-selecter.component';
+import { KeepTouchDirective } from '@axe/ui/directives/keep-touch.directive';
 import { TranslocoModule } from '@jsverse/transloco';
 
 /**
@@ -133,6 +134,7 @@ interface ToolDef {
   },
   providers: [MapEditorState, MapEditorFilesService],
   imports: [
+    KeepTouchDirective,
     FormsModule,
     NgClass,
     TranslocoModule,

@@ -549,7 +549,7 @@
       class="bg-ui-elevated relative overflow-auto"
       (wheel)="onWheel($event)"
       (mousedown)="$event.stopPropagation()"
-      (touchstart)="$event.stopPropagation()"
+      appKeepTouch
     >
       <div class="grid size-max min-h-full min-w-full place-items-center p-10">
         <div class="relative">

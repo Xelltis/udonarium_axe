@@ -35,6 +35,9 @@ export interface CanvasPressRoutes {
  * block drawn together with others has no element and is handed only its right click, as its menu.
  * A press on something the page still draws itself, a piece or a white board, is its own.
  *
+ * A press the block cancels is cancelled on its way down too, so the presses are listened for as
+ * ones that may be.
+ *
  * A piece laid over the canvas is a box on the screen round where it is drawn, and its box and the
  * boxes of its parts take in more than the piece: a press on one is picked too, and handed to what
  * it lands on, or to the table where it lands on nothing. A press on a label of the piece that lands
@@ -78,7 +81,7 @@ export function handCanvasPressesOn(root: HTMLElement, routes: CanvasPressRoutes
     handed.add(copy);
     if (!element.dispatchEvent(copy)) event.preventDefault();
   };
-  for (const type of HANDED_ON) root.addEventListener(type, handOn, { capture: true });
+  for (const type of HANDED_ON) root.addEventListener(type, handOn, { capture: true, passive: false });
   return () => {
     for (const type of HANDED_ON) root.removeEventListener(type, handOn, { capture: true });
   };
