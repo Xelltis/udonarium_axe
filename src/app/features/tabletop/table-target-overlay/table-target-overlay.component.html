@@ -1,4 +1,15 @@
-@for (arrow of arrows(); track arrow.identifier) {
-  <div class="backface-visible" [ngStyle]="shaftStyle(arrow)"></div>
-  <div class="backface-visible" [ngStyle]="headStyle(arrow)"></div>
+@if (arrows().length > 0) {
+  <ul hidden data-testid="target-overlay">
+    @for (arrow of arrows(); track arrow.identifier) {
+      @let tip = tipOf(arrow);
+      <li
+        data-testid="target-arrow"
+        [attr.data-from-x]="arrow.x"
+        [attr.data-from-y]="arrow.y"
+        [attr.data-to-x]="tip.x"
+        [attr.data-to-y]="tip.y"
+        [attr.data-height]="arrow.z"
+      ></li>
+    }
+  </ul>
 }

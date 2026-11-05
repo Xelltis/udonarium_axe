@@ -72,10 +72,10 @@ test.describe('card handling for trading card games', () => {
 
     await page.locator('card-stack').first().dispatchEvent('mousedown');
     await page.locator('card-stack').first().dispatchEvent('mouseup');
-    await expect(page.locator('table-target-overlay div')).toHaveCount(2, { timeout: 5000 });
+    await expect(page.getByTestId('target-arrow')).toHaveCount(1, { timeout: 5000 });
 
     const cardMenu = await openCardMenu(page);
     await cardMenu.getByText('ターゲットを解除').click();
-    await expect(page.locator('table-target-overlay div')).toHaveCount(0, { timeout: 5000 });
+    await expect(page.getByTestId('target-arrow')).toHaveCount(0, { timeout: 5000 });
   });
 });

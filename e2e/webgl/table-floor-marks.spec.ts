@@ -6,9 +6,8 @@ import { askForStrictMoves, openMove } from '../move-helpers';
 
 /**
  * What the page draws on the floor of a table drawn on a canvas. What it paints on canvases, as the
- * reach of a move, the canvas lays over its board, and takes up again when the page stops; the marks
- * it lays out, as an arrow to a target, are laid over the screen in the perspective the floor is
- * drawn in.
+ * reach of a move and an arrow to a target, the canvas lays over its board, and takes up again when
+ * the page stops.
  */
 
 type Box = { x: number; y: number; width: number; height: number };
@@ -66,56 +65,40 @@ async function drawnBox(page: Page, identifier: string): Promise<Box> {
 }
 
 test.describe('an arrow to a target over a table drawn on a canvas', () => {
-  test('is laid where the canvas draws the floor, from the piece to its target', async ({ page }) => {
+  test('is laid on the floor from the piece to its target, and taken up once the target is let go', async ({
+    page,
+  }) => {
     await waitAppReady(page);
     await closePanels(page);
     await createCardStack(page);
     await drawOne(page);
+    await idle(page);
+    const before = await floorCanvases(page);
     const menu = await openCardMenu(page);
     await menu.getByText('ターゲットを指定').click();
     await expect(page.locator('context-menu')).toHaveCount(0, { timeout: 5000 });
     await page.locator('card-stack').first().dispatchEvent('mousedown');
     await page.locator('card-stack').first().dispatchEvent('mouseup');
-    const parts = page.locator('table-target-overlay div');
-    await expect(parts).toHaveCount(2, { timeout: 5000 });
+    const arrow = page.getByTestId('target-arrow');
+    await expect(arrow).toHaveCount(1, { timeout: 5000 });
+    await expect.poll(() => floorCanvases(page)).toBe(before + 1);
     await idle(page);
 
-    const arrow = await parts.evaluateAll((elements) => {
-      const [shaft, head] = elements as HTMLElement[];
-      const placed =
-        /translate3d\(([-\d.]+)px, ([-\d.]+)px, [-\d.]+px\) rotateZ\(([-\d.e]+)deg\) translateX\(([-\d.]+)px\)/;
-      const [, x, y, angle, offset] = placed.exec(head.style.transform)!.map(Number);
-      const reach = offset + parseFloat(head.style.width);
-      const radians = (angle * Math.PI) / 180;
-      const rects = [shaft, head].map((element) => element.getBoundingClientRect());
-      return {
-        from: { x, y },
-        to: { x: x + Math.cos(radians) * reach, y: y + Math.sin(radians) * reach },
-        drawn: {
-          left: Math.min(...rects.map((rect) => rect.left)),
-          top: Math.min(...rects.map((rect) => rect.top)),
-          right: Math.max(...rects.map((rect) => rect.right)),
-          bottom: Math.max(...rects.map((rect) => rect.bottom)),
-        },
-      };
+    const ends = await arrow.evaluate((element) => {
+      const read = (name: string) => Number((element as HTMLElement).dataset[name]);
+      return [
+        { x: read('fromX'), y: read('fromY') },
+        { x: read('toX'), y: read('toY') },
+      ];
     });
     const [from, to] = await page.evaluate(
-      (ends) => ends.map((end) => (window as unknown as { __axeTable: Hooks }).__axeTable.project(end.x, end.y, 0)!),
-      [arrow.from, arrow.to]
+      (points) =>
+        points.map((point) => (window as unknown as { __axeTable: Hooks }).__axeTable.project(point.x, point.y, 0)!),
+      ends
     );
     const card = await drawnBox(page, (await page.locator('card').first().getAttribute('data-object-id'))!);
     const deck = await drawnBox(page, (await page.locator('card-stack').first().getAttribute('data-object-id'))!);
-    const report = JSON.stringify({ arrow, from, to, card, deck });
-
-    const offDrawn = (point: { x: number; y: number }) =>
-      Math.hypot(
-        Math.max(arrow.drawn.left - point.x, 0, point.x - arrow.drawn.right),
-        Math.max(arrow.drawn.top - point.y, 0, point.y - arrow.drawn.bottom)
-      );
-    expect(offDrawn(from), report).toBeLessThan(3);
-    expect(offDrawn(to), report).toBeLessThan(3);
-    expect(arrow.drawn.right - arrow.drawn.left, report).toBeLessThan(Math.abs(to.x - from.x) + 30);
-    expect(arrow.drawn.bottom - arrow.drawn.top, report).toBeLessThan(Math.abs(to.y - from.y) + 30);
+    const report = JSON.stringify({ ends, from, to, card, deck });
     const within = (point: { x: number; y: number }, box: Box) =>
       point.x >= box.x && point.x <= box.x + box.width && point.y >= box.y && point.y <= box.y + box.height;
     expect(within(from, card), report).toBe(true);

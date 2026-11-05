@@ -5,15 +5,17 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { zoneOverlayModelOf } from '@axe/features/tabletop/table-zone-overlay/zone-overlay-model';
-import { translateZCss, Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
+import { zoneFloorMarksOf, zoneOverlayModelOf } from '@axe/features/tabletop/table-zone-overlay/zone-overlay-model';
+import { layFloorMarks } from '@axe/ui/tabletop/floor-marks';
+import { Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
 
 /**
- * Draws the engagement zones on the floor of the table: each zone's circle or square, its count
- * against its limit for the master, a warmer colour while it holds more than its limit and a dashed
- * edge while it is declared but not yet in force, and a ring about every piece standing in a zone
- * without being in it. A zone of none but pieces the reader does not see, and a piece the reader does
- * not see, are not drawn.
+ * Draws the engagement zones on the floor of the table, over the ground's rise and fall: each zone's
+ * circle or square, its count against its limit for the master, a warmer colour while it holds more
+ * than its limit and a dashed edge while it is declared but not yet in force, and a ring about every
+ * piece standing in a zone without being in it. A zone of none but pieces the reader does not see,
+ * and a piece the reader does not see, are not drawn. What is drawn is listed on the page as well,
+ * unseen, a zone to an item with its count.
  */
 @Component({
   selector: 'table-zone-overlay',
@@ -28,13 +30,6 @@ export class TableZoneOverlayComponent {
   private readonly vision = inject(VisionService);
   private readonly objectStore = inject(ObjectStore);
 
-  protected readonly zTransform = translateZCss(Z_OFFSET_RANGE_PX);
-
-  protected readonly extent = computed(() => {
-    const table = this.tabletopService.currentTableVersion();
-    return { width: Math.max(0, table.width * table.gridSize), height: Math.max(0, table.height * table.gridSize) };
-  });
-
   protected readonly ringPx = computed(() => this.tabletopService.currentTableVersion().gridSize * 0.55);
 
   protected readonly model = computed(() =>
@@ -43,4 +38,10 @@ export class TableZoneOverlayComponent {
       return piece instanceof GameCharacter && this.vision.isTokenVisible(piece);
     })
   );
+
+  constructor() {
+    layFloorMarks('zones', () => [
+      { heightPx: Z_OFFSET_RANGE_PX, marks: zoneFloorMarksOf(this.model(), this.ringPx()) },
+    ]);
+  }
 }

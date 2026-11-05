@@ -125,7 +125,7 @@ test.describe('interrupting a move', () => {
     await snackbar.getByTestId('snackbar-action').click();
     const zones = page.getByTestId('zone-mark');
     await expect(zones).toHaveCount(1, { timeout: 5000 });
-    await expect(zones.first().locator('text')).toHaveText('2/20');
+    await expect(zones.first()).toHaveText('2/20');
 
     await hero.dispatchEvent('contextmenu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
@@ -145,6 +145,6 @@ test.describe('interrupting a move', () => {
 
     await expect(prompt).toHaveCount(0, { timeout: 10000 });
     await expect(zones).toHaveCount(1);
-    await expect(zones.first().locator('text')).toHaveText('3/20', { timeout: 10000 });
+    await expect(zones.first()).toHaveText('3/20', { timeout: 10000 });
   });
 });

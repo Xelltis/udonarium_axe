@@ -1,4 +1,5 @@
 import { ZoneState } from '@axe/domain/tabletop/zone/zone-state';
+import type { FloorMark } from '@axe/ui/tabletop/floor-marks';
 
 /** One zone as it is drawn on the table, in table pixels. */
 export interface ZoneMark {
@@ -62,4 +63,67 @@ export function zoneOverlayModelOf(
     }
   }
   return { zones, inside };
+}
+
+/** The colour of a zone holding more than its limit, and of one within it, as the page drew them. */
+export const ZONE_OVER_COLOUR = '#fb2c36';
+export const ZONE_COLOUR = '#ffb900';
+/** The colour of the ring about a piece standing in a zone without being in it. */
+export const ZONE_INSIDE_COLOUR = '#38bdf8';
+
+/**
+ * The marks the zones are drawn with on the floor: each zone's circle or square, faintly filled and
+ * outlined in its colour, dashed while it is declared but not yet in force, a dot at its centre and
+ * its count over it; and a dashed ring of the size given about every piece standing in a zone
+ * without being in it.
+ */
+export function zoneFloorMarksOf(model: ZoneOverlayModel, ringPx: number): FloorMark[] {
+  const marks: FloorMark[] = [];
+  for (const zone of model.zones) {
+    const colour = zone.overflowing ? ZONE_OVER_COLOUR : ZONE_COLOUR;
+    const fill = { colour, opacity: 0.12 };
+    const stroke = { colour, widthPx: 3, ...(zone.forming ? { dash: [12, 8] } : {}) };
+    const { cx, cy, reach } = zone;
+    marks.push(
+      zone.square
+        ? {
+            kind: 'line',
+            closed: true,
+            points: [
+              { x: cx - reach, y: cy - reach },
+              { x: cx + reach, y: cy - reach },
+              { x: cx + reach, y: cy + reach },
+              { x: cx - reach, y: cy + reach },
+            ],
+            fill,
+            stroke,
+          }
+        : { kind: 'circle', x: cx, y: cy, r: reach, fill, stroke },
+      { kind: 'circle', x: cx, y: cy, r: 4, fill: { colour } }
+    );
+    if (zone.label) {
+      marks.push({
+        kind: 'text',
+        x: cx,
+        y: cy - reach - 8,
+        text: zone.label,
+        sizePx: 18,
+        colour,
+        outline: '#000000',
+        outlinePx: 3,
+      });
+    }
+  }
+  if (model.zones.length > 0) {
+    for (const mark of model.inside) {
+      marks.push({
+        kind: 'circle',
+        x: mark.x,
+        y: mark.y,
+        r: ringPx,
+        stroke: { colour: ZONE_INSIDE_COLOUR, widthPx: 2, dash: [6, 5] },
+      });
+    }
+  }
+  return marks;
 }

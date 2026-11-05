@@ -6,13 +6,18 @@ import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
-import { freePathOverlayModelOf } from '@axe/features/tabletop/table-free-path-overlay/free-path-overlay-model';
-import { translateZCss, Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
+import {
+  freePathFloorMarksOf,
+  freePathOverlayModelOf,
+} from '@axe/features/tabletop/table-free-path-overlay/free-path-overlay-model';
+import { layFloorMarks } from '@axe/ui/tabletop/floor-marks';
+import { Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
 
 /**
- * Draws a move on a table with no grid as it is worked out: the settled legs, the leg running ahead
- * of the pointer, and how far the move still reaches from the last corner; and, thinner, the ways the
- * rest of the room are drawing for pieces this reader can see.
+ * Draws a move on a table with no grid as it is worked out, on the floor over the ground's rise and
+ * fall: the settled legs, the leg running ahead of the pointer, and how far the move still reaches
+ * from the last corner; and, thinner, the ways the rest of the room are drawing for pieces this reader
+ * can see. What is drawn is listed on the page as well, unseen.
  */
 @Component({
   selector: 'table-free-path-overlay',
@@ -26,13 +31,6 @@ export class TableFreePathOverlayComponent {
   private readonly objectStore = inject(ObjectStore);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly vision = inject(VisionService);
-
-  protected readonly zTransform = translateZCss(Z_OFFSET_RANGE_PX);
-
-  protected readonly extent = computed(() => {
-    const table = this.tabletopService.currentTableVersion();
-    return { width: Math.max(0, table.width * table.gridSize), height: Math.max(0, table.height * table.gridSize) };
-  });
 
   /** The ways the other peers are drawing on the table in view, for pieces this reader can see. */
   private readonly sent = computed<string[]>(() => {
@@ -53,4 +51,8 @@ export class TableFreePathOverlayComponent {
   });
 
   protected readonly model = computed(() => freePathOverlayModelOf(this.freePlan.plan(), this.sent()));
+
+  constructor() {
+    layFloorMarks('free-paths', () => [{ heightPx: Z_OFFSET_RANGE_PX, marks: freePathFloorMarksOf(this.model()) }]);
+  }
 }

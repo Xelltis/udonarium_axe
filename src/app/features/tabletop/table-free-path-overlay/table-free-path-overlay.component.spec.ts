@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { FloorCanvasesService } from '@axe/application/tabletop/floor-canvases.service';
 import { FreeMovePlanService } from '@axe/application/tabletop/free-move-plan.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -42,6 +43,7 @@ describe('TableFreePathOverlayComponent', () => {
     await fixture.whenStable();
 
     expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="free-path-overlay"]')).toBeNull();
+    expect(TestBed.inject(FloorCanvasesService).all()).toEqual([]);
   });
 
   it('draws the way being worked out here, and what the move still reaches', async () => {
@@ -52,8 +54,11 @@ describe('TableFreePathOverlayComponent', () => {
     await fixture.whenStable();
 
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector('[data-testid="free-path-ahead"]')!.getAttribute('points')).toBe('125,125 225,125');
-    expect(host.querySelector('[data-testid="free-path-reach"]')!.getAttribute('r')).toBe(`${4 * GRID}`);
+    expect(host.querySelector('[data-testid="free-path-ahead"]')!.getAttribute('data-points')).toBe('125,125 225,125');
+    expect(host.querySelector('[data-testid="free-path-reach"]')!.getAttribute('data-reach')).toBe(`${4 * GRID}`);
+    const [laid] = TestBed.inject(FloorCanvasesService).all();
+    expect(laid.id).toBe('free-paths-0');
+    expect(laid.box.x).toBeLessThan(125);
   });
 
   it('draws the way another peer is drawing for a piece on this table', async () => {
@@ -67,6 +72,6 @@ describe('TableFreePathOverlayComponent', () => {
     await fixture.whenStable();
 
     const way = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="free-path-other"]');
-    expect(way!.getAttribute('points')).toBe('125,125 225,125');
+    expect(way!.getAttribute('data-points')).toBe('125,125 225,125');
   });
 });

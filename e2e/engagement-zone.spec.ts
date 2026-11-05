@@ -88,7 +88,7 @@ test.describe('engagement zones', () => {
 
     const zones = page.getByTestId('zone-mark');
     await expect(zones).toHaveCount(1, { timeout: 5000 });
-    await expect(zones.first().locator('text')).toHaveText('2/20');
+    await expect(zones.first()).toHaveText('2/20');
 
     expect(await menuOffers(page, 'キャラクターA', '移動')).toBe(false);
     await choose(page, 'キャラクターA', '次の手番で離れると予告する', '交戦エリア');

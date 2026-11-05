@@ -1,33 +1,10 @@
 @if (model(); as model) {
-  <svg
-    class="pointer-events-none absolute top-0 left-0 overflow-visible backface-hidden transform-3d"
-    data-testid="interrupt-overlay"
-    [attr.width]="extent().width"
-    [attr.height]="extent().height"
-    [style.transform]="zTransform"
-  >
+  <ul hidden data-testid="interrupt-overlay">
     @for (lit of model.lit; track $index) {
-      <polyline
-        data-testid="interrupt-lit"
-        [attr.points]="lit"
-        fill="none"
-        stroke="#f97316"
-        stroke-width="8"
-        stroke-opacity="0.75"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      />
+      <li data-testid="interrupt-lit" [attr.data-points]="lit.text"></li>
     }
     @if (model.point; as point) {
-      <circle
-        data-testid="interrupt-point"
-        [attr.cx]="point.x"
-        [attr.cy]="point.y"
-        r="10"
-        fill="#f97316"
-        stroke="white"
-        stroke-width="3"
-      />
+      <li data-testid="interrupt-point" [attr.data-x]="point.x" [attr.data-y]="point.y"></li>
     }
-  </svg>
+  </ul>
 }
