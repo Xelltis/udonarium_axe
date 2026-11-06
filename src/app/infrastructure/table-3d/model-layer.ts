@@ -1,5 +1,6 @@
 import { gltfFactsOf, MAX_MODEL_TRIANGLES } from '@axe/core/storage/gltf-facts';
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
+import type { WallJoinCell } from '@axe/domain/tabletop/world/wall-joins';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import type { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { type GLTF, GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -54,6 +55,14 @@ interface LoadedModel {
    * thin enough to walk over.
    */
   readonly madeHeight?: boolean;
+  /**
+   * Whether it is one cell of a wall that joins the walls beside it, its scene saying `{ "fit": "joined" }`
+   * in its extras: an arm made from the middle of a cell out to its east side, and a hub that stands in
+   * the middle, each made one cell across and of a height of one. The hub stands in the middle of every
+   * cell of the block and an arm reaches out from it to each wall and door beside it, all stretched to
+   * the block's height.
+   */
+  readonly joined?: boolean;
   /** Its meshes, each where it stands within the model measured from the model's foot. */
   readonly parts: readonly ModelPart[];
 }
@@ -69,6 +78,8 @@ interface ModelPart {
   readonly swing?: { readonly hinge: Vector3; readonly deg: number };
   /** Which part of a building's kit it is, as its node says in its extras as `{ "part": ... }`; a wall if it says none. */
   readonly role?: KitRole;
+  /** Whether it is the hub of a joined wall, as its node says in its extras as `{ "part": "hub" }`, rather than its arm. */
+  readonly hub?: boolean;
 }
 
 /** The parts of a building's kit: its wall, its roof and its parapet. */
@@ -80,7 +91,8 @@ type ModelMeasure = Pick<LoadedModel, 'size'> & {
   readonly facade?: boolean;
   readonly tile?: boolean;
   readonly madeHeight?: boolean;
-  readonly parts?: readonly Pick<ModelPart, 'within' | 'swing' | 'role'>[];
+  readonly joined?: boolean;
+  readonly parts?: readonly Pick<ModelPart, 'within' | 'swing' | 'role' | 'hub'>[];
 };
 
 /**
@@ -364,14 +376,16 @@ export class ModelLayer {
     const facade = fit === 'facade';
     const tile = fit === 'tile';
     const madeHeight = tile && extras.height === 'made';
+    const joined = fit === 'joined';
     const parts: ModelPart[] = [];
     gltf.scene.traverse((object) => {
       if (!(object instanceof Mesh)) return;
-      if (facade || tile) {
+      if (facade || tile || joined) {
         parts.push({
           mesh: object,
           within: object.matrixWorld.clone(),
           ...(facade ? { role: kitRoleOf(object) } : {}),
+          ...(joined && isHub(object) ? { hub: true } : {}),
         });
         return;
       }
@@ -383,7 +397,7 @@ export class ModelLayer {
       });
     });
     const stretch = fit === 'stretch';
-    return { gltf, size, foot, animated: gltf.animations.length > 0, parts, stretch, facade, tile, madeHeight };
+    return { gltf, size, foot, animated: gltf.animations.length > 0, parts, stretch, facade, tile, madeHeight, joined };
   }
 
   private dracoLoader(): Promise<DRACOLoader> {
@@ -478,6 +492,7 @@ function placementPartsOf(model: TableWorldModel, loaded: ModelMeasure): { frame
 export function partPlacementsOf(model: TableWorldModel, loaded: ModelMeasure): Matrix4[][] {
   if (loaded.facade && model.boxPx) return facadePlacementsOf(model, loaded);
   if (loaded.tile && model.boxPx) return tilePlacementsOf(model, loaded);
+  if (loaded.joined && model.boxPx) return joinedPlacementsOf(model, loaded);
   const { frame, scaling } = placementPartsOf(model, loaded);
   const placement = frame.clone().multiply(scaling);
   const open = model.door?.open === true;
@@ -588,6 +603,65 @@ function tilePlacementsOf(model: TableWorldModel, loaded: ModelMeasure): Matrix4
   });
 }
 
+/**
+ * Where a joined wall stands on every cell of a block: its hub in the middle of each cell, and its arm
+ * from there out to each side the cell reaches out to, as far as that side and turned to it, all
+ * stretched to the block's height. A block that reaches out to nothing runs along its longer side, as
+ * a tile does, from one end of each cell to the other.
+ */
+function joinedPlacementsOf(model: TableWorldModel, loaded: ModelMeasure): Matrix4[][] {
+  const box = model.boxPx!;
+  const cell = Math.max(1, box.cellPx ?? box.widthPx);
+  const height = Math.max(1e-6, model.heightPx);
+  const base = model.foot.z + model.altitudePx;
+  const cells = model.joins ?? runningCellsOf(model, cell);
+  return (loaded.parts ?? []).map(({ within, hub }) => {
+    const matrices: Matrix4[] = [];
+    for (const { x, y, arms } of cells) {
+      const middle = new Matrix4().makeTranslation(x, base, y);
+      if (hub) {
+        matrices.push(middle.multiply(new Matrix4().makeScale(cell, height, cell)).multiply(within));
+        continue;
+      }
+      for (const arm of arms)
+        matrices.push(
+          middle
+            .clone()
+            .multiply(new Matrix4().makeRotationY(-arm.deg * RADIANS))
+            .multiply(new Matrix4().makeScale(arm.lengthPx * 2, height, cell))
+            .multiply(within)
+        );
+    }
+    return matrices;
+  });
+}
+
+/** The cells of a block that reaches out to no wall beside it, each running from end to end along the block's longer side, as it is turned. */
+function runningCellsOf(model: TableWorldModel, cell: number): WallJoinCell[] {
+  const box = model.boxPx!;
+  const across = Math.max(1, Math.round(box.widthPx / cell));
+  const deep = Math.max(1, Math.round(box.depthPx / cell));
+  const turn = model.rotateDeg * RADIANS;
+  const along = model.rotateDeg + (box.depthPx > box.widthPx ? 90 : 0);
+  const arms = [
+    { deg: along, lengthPx: cell / 2 },
+    { deg: along + 180, lengthPx: cell / 2 },
+  ];
+  const cells: WallJoinCell[] = [];
+  for (let i = 0; i < across; i++) {
+    for (let j = 0; j < deep; j++) {
+      const dx = -box.widthPx / 2 + (box.widthPx / across) * (i + 0.5);
+      const dy = -box.depthPx / 2 + (box.depthPx / deep) * (j + 0.5);
+      cells.push({
+        x: model.foot.x + dx * Math.cos(turn) - dy * Math.sin(turn),
+        y: model.foot.y + dx * Math.sin(turn) + dy * Math.cos(turn),
+        arms,
+      });
+    }
+  }
+  return cells;
+}
+
 /** The turn a leaf swings open by, about its hinge where the scaling puts it, so that it swings unstretched. */
 function swungAbout(scaling: Matrix4, swing: NonNullable<ModelPart['swing']>): Matrix4 {
   const hinge = swing.hinge.clone().applyMatrix4(scaling);
@@ -604,6 +678,14 @@ function kitRoleOf(object: Object3D): KitRole {
     if (part === 'roof' || part === 'cap' || part === 'wall') return part;
   }
   return 'wall';
+}
+
+/** Whether a mesh is the hub of a joined wall, as its node (or one it hangs from) says. */
+function isHub(object: Object3D): boolean {
+  for (let node: Object3D | null = object; node; node = node.parent) {
+    if ((node.userData as { part?: unknown }).part === 'hub') return true;
+  }
+  return false;
 }
 
 /**

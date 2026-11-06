@@ -1,4 +1,5 @@
 import type { PieceModel } from '@axe/domain/tabletop/piece-model';
+import type { WallJoinCell } from '@axe/domain/tabletop/world/wall-joins';
 
 /**
  * A piece or a block drawn as a 3D model: the model, from where its bytes are read, stood with its
@@ -44,6 +45,11 @@ export interface TableWorldModel {
    * them instead.
    */
   readonly door?: TableWorldModelDoor;
+  /**
+   * For a block drawn as a wall that joins the walls beside it: the middle of each of its cells and the
+   * arms it reaches out to them with. Left out for a block that reaches out to nothing.
+   */
+  readonly joins?: readonly WallJoinCell[];
 }
 
 /** Where an open door has gone from where it stands shut, on the board. */

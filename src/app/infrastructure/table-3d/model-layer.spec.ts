@@ -165,6 +165,49 @@ describe('placementOf', () => {
     expect([top.x, top.y].map((value) => Math.round(value * 1000) / 1000)).toEqual([100, 35]);
   });
 
+  it('joins a wall to the walls beside it: its hub in the middle of each cell and an arm out to each side it reaches to', () => {
+    const wall = {
+      size: new Vector3(1, 1, 1),
+      joined: true,
+      parts: [{ within: new Matrix4() }, { within: new Matrix4(), hub: true }],
+    };
+    const where = (matrix: Matrix4, x: number, y: number, z: number) => {
+      const point = new Vector3(x, y, z).applyMatrix4(matrix);
+      return [point.x, point.y, point.z].map((value) => Math.round(value * 1000) / 1000 + 0);
+    };
+    const corner = knight({
+      heightPx: 100,
+      pivotPx: 0,
+      boxPx: { widthPx: 50, depthPx: 50, cellPx: 50 },
+      joins: [
+        {
+          x: 100,
+          y: 200,
+          arms: [
+            { deg: 0, lengthPx: 25 },
+            { deg: 90, lengthPx: 25 },
+          ],
+        },
+      ],
+    });
+
+    const [arms, hubs] = partPlacementsOf(corner, wall);
+    expect(arms.map((matrix) => where(matrix, 0.5, 1, 0))).toEqual([
+      [125, 100, 200],
+      [100, 100, 225],
+    ]);
+    expect(hubs.map((matrix) => where(matrix, 0.5, 0, 0.5))).toEqual([[125, 0, 225]]);
+
+    const lone = knight({ heightPx: 100, pivotPx: 0, boxPx: { widthPx: 50, depthPx: 100, cellPx: 50 } });
+    const [runs] = partPlacementsOf(lone, wall);
+    expect(runs.map((matrix) => where(matrix, 0.5, 0, 0))).toEqual([
+      [100, 0, 200],
+      [100, 0, 150],
+      [100, 0, 250],
+      [100, 0, 200],
+    ]);
+  });
+
   it('lifts a model as high as its piece floats', () => {
     expect(drawnAt(knight({ altitudePx: 30 }), 0, 0, 0)).toEqual([100, 30, 200]);
   });

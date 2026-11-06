@@ -850,6 +850,43 @@ describe('Table3dService', () => {
     table.destroy();
   });
 
+  it('tells a block drawn as a wall the arms it reaches out to the walls and the door beside it with', async () => {
+    const scene = service();
+    vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:wall' } as never);
+    const table = new GameTable();
+    table.initialize();
+    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    const row = Terrain.create('壁', 2, 1, 2, '', '');
+    row.location = { name: 'table', x: 50, y: 50 };
+    row.modelIdentifier = 'timber_frame_wall';
+    const column = Terrain.create('壁', 1, 1, 2, '', '');
+    column.location = { name: 'table', x: 50, y: 100 };
+    column.modelIdentifier = 'timber_frame_wall';
+    const door = Terrain.create('扉', 1, 1, 2, '', '');
+    door.location = { name: 'table', x: 150, y: 50 };
+    door.doorStyle = DoorStyle.SWING;
+    const tree = Terrain.create('木', 1, 1, 3, '', '');
+    tree.location = { name: 'table', x: 100, y: 100 };
+    tree.modelIdentifier = 'tree';
+    for (const block of [row, column, door, tree]) table.appendChild(block);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const models = new Map(scene.world().models.map((model) => [model.owner, model]));
+    const turns = (owner: string) => models.get(owner)!.joins!.map((cell) => cell.arms.map((arm) => arm.deg));
+
+    expect(models.get(row.identifier)!.joins!.map((cell) => [cell.x, cell.y])).toEqual([
+      [75, 75],
+      [125, 75],
+    ]);
+    expect(turns(row.identifier)).toEqual([
+      [0, 90],
+      [0, 180],
+    ]);
+    expect(turns(column.identifier)).toEqual([[270]]);
+    expect(models.get(tree.identifier)!.joins).toBeUndefined();
+    table.destroy();
+  });
+
   it('lifts a block’s model as high as the block floats, as a container stacked on another is', async () => {
     const scene = service();
     vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:container' } as never);

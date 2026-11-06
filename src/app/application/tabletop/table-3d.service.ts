@@ -37,12 +37,13 @@ import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
 import { dayFractionOf } from '@axe/domain/game-clock/game-clock';
 import { matrixColumns, tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
 import { type DoorMotion, movedByDoor, openDoorMotion } from '@axe/domain/tabletop/door-motion';
+import { type CellGrid, cellGridOf, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
 import { groundLiftOfBlock } from '@axe/domain/tabletop/ground/ground-surface';
 import { pieceModelOf } from '@axe/domain/tabletop/piece-model';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { tableSkyKindOf } from '@axe/domain/tabletop/table-sky';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
-import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
+import { terrainBoxOf, terrainCovers } from '@axe/domain/tabletop/terrain-box';
 import { flickers } from '@axe/domain/tabletop/vision-scene/light-flicker';
 import { waterShoreOf } from '@axe/domain/tabletop/water/water-shore';
 import { waterSidesOf } from '@axe/domain/tabletop/water/water-sides';
@@ -53,6 +54,7 @@ import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
 import { tableWaterOf } from '@axe/domain/tabletop/world/table-water';
 import { sameTableWorld, TableWorld, tableWorldOf } from '@axe/domain/tabletop/world/table-world';
+import { type JoinableBlock, wallJoinsOf } from '@axe/domain/tabletop/world/wall-joins';
 import { weatherFallOf } from '@axe/domain/tabletop/world/weather-fall';
 import type {
   Table3dBackend,
@@ -247,19 +249,27 @@ export class Table3dService {
 
   /**
    * The blocks this seat may see that are drawn as 3D models held here in full: each stood on the
-   * middle of its box, at the foot of the block, as wide as the box is wide or deep.
+   * middle of its box, at the foot of the block, as wide as the box is wide or deep, and a block drawn
+   * as a wall with the arms it reaches out to the walls and doors beside it with.
    */
   private readonly terrainModels = computed<readonly TableWorldModel[]>(() => {
     this.objectChange.fileVersion();
     this.objectChange.collectionOf(Terrain.aliasName)();
-    const gridSize = this.tabletop.currentTableVersion().gridSize;
+    const table = this.tabletop.currentTableVersion();
+    const gridSize = table.gridSize;
     const ground = this.standing.surface();
     const models: TableWorldModel[] = [];
-    for (const terrain of this.tabletop.terrains) {
+    const seen = this.tabletop.terrains.filter((terrain) => {
       this.objectChange.versionOf(terrain.identifier)();
+      return !this.hiddenByFog(terrain);
+    });
+    const grid = cellGridOf(table.width, table.height, gridSize, table.gridType);
+    const joins = wallJoinsOf(grid, joinableBlocksOf(seen, grid));
+    for (const terrain of seen) {
       const model = pieceModelOf(terrain);
       const url = model ? this.pieces.modelUrlOf(model.identifier) : '';
-      if (!model || !url || this.hiddenByFog(terrain)) continue;
+      if (!model || !url) continue;
+      const joined = joins.get(terrain.identifier);
       const box = terrainBoxOf(terrain, gridSize);
       const door = openDoorMotion(terrain, gridSize);
       const swung = doorSwungMiddle(terrain, gridSize, door);
@@ -281,6 +291,7 @@ export class Table3dService {
         pivotPx: 0,
         altitudePx: terrain.altitude * gridSize,
         walking: false,
+        ...(joined ? { joins: joined } : {}),
         ...(terrain.doorStyle !== DoorStyle.NONE
           ? {
               door: {
@@ -869,4 +880,25 @@ function chosenRenderer(): TableRenderer {
 
 function isRenderer(value: string | null): value is TableRenderer {
   return value !== null && (RENDERERS as readonly string[]).includes(value);
+}
+
+/**
+ * The blocks a wall may be joined to, with the cells each stands on: those drawn as a model, and the
+ * doors whether drawn as one or not. A block turned off the grid's own lines stands on no cells a wall
+ * runs along, and is left out.
+ */
+function joinableBlocksOf(terrains: readonly Terrain[], grid: CellGrid): JoinableBlock[] {
+  const blocks: JoinableBlock[] = [];
+  for (const terrain of terrains) {
+    const model = pieceModelOf(terrain);
+    if ((!model && !terrain.isDoor) || terrain.rotate % 90 !== 0) continue;
+    const box = terrainBoxOf(terrain, grid.sizePx);
+    const cells: number[] = [];
+    forEachCellInBox(grid, box.minX, box.minY, box.maxX, box.maxY, (index, cx, cy) => {
+      if (terrainCovers(terrain, grid.sizePx, cx, cy)) cells.push(index);
+    });
+    if (cells.length > 0)
+      blocks.push({ owner: terrain.identifier, model: model?.identifier ?? '', door: terrain.isDoor, cells });
+  }
+  return blocks;
 }
