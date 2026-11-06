@@ -1,9 +1,6 @@
 import { Injectable, signal } from '@angular/core';
-import { gltfFactsOf } from '@axe/core/storage/gltf-facts';
+import { gltfFactsOfBlob } from '@axe/core/storage/gltf-facts';
 import { isHeldModelUrl } from '@axe/core/storage/model-file';
-
-/** How many bytes open a binary glTF file before its JSON: its header and the JSON chunk's own. */
-const GLB_HEAD_BYTES = 20;
 
 /**
  * How the 3D models held here say they are laid on the blocks drawn as them, read from each file's
@@ -54,10 +51,7 @@ export class ModelFitService {
     await Promise.resolve();
     let fit: string;
     try {
-      const blob = await (await fetch(url)).blob();
-      const head = new DataView(await blob.slice(0, GLB_HEAD_BYTES).arrayBuffer());
-      const length = head.byteLength >= GLB_HEAD_BYTES ? head.getUint32(12, true) : 0;
-      fit = gltfFactsOf(await blob.slice(0, GLB_HEAD_BYTES + length).arrayBuffer())?.fit ?? '';
+      fit = (await gltfFactsOfBlob(await (await fetch(url)).blob()))?.fit ?? '';
     } catch {
       fit = '';
     }

@@ -1,20 +1,8 @@
-import { gltfFactsOf } from '@axe/core/storage/gltf-facts';
+import { gltfFactsOf, gltfFactsOfBlob } from '@axe/core/storage/gltf-facts';
+import { binaryGltf } from '@axe/testing/binary-gltf';
 
 /** A binary glTF file of a JSON chunk alone, which is all the facts are read from. */
-function glb(json: unknown): ArrayBuffer {
-  const text = new TextEncoder().encode(JSON.stringify(json));
-  const padded = new Uint8Array(Math.ceil(text.length / 4) * 4).fill(0x20);
-  padded.set(text);
-  const bytes = new Uint8Array(20 + padded.length);
-  const view = new DataView(bytes.buffer);
-  bytes.set([0x67, 0x6c, 0x54, 0x46], 0);
-  view.setUint32(4, 2, true);
-  view.setUint32(8, bytes.length, true);
-  view.setUint32(12, padded.length, true);
-  view.setUint32(16, 0x4e4f534a, true);
-  bytes.set(padded, 20);
-  return bytes.buffer;
-}
+const glb = binaryGltf;
 
 /** One mesh of one primitive with `corners` indices, placed by the nodes given. */
 function scene(nodes: unknown[], roots: number[], primitive: Record<string, unknown> = { indices: 0 }) {
@@ -73,6 +61,16 @@ describe('gltfFactsOf', () => {
     expect(gltfFactsOf(glb(scene([{ mesh: 0 }], [0])))?.fit).toBe('');
     const odd = { ...scene([{ mesh: 0 }], [0]), scenes: [{ nodes: [0], extras: { fit: 3 } }] };
     expect(gltfFactsOf(glb(odd))?.fit).toBe('');
+  });
+
+  it('reads the same from a file held as a blob, from its head and its JSON alone, and nothing from a blob too short', async () => {
+    const joined = { ...scene([{ mesh: 0 }], [0]), scenes: [{ nodes: [0], extras: { fit: 'joined' } }] };
+    const bytes = new Uint8Array(glb(joined));
+    const whole = new Uint8Array(bytes.length + 64);
+    whole.set(bytes);
+
+    expect(await gltfFactsOfBlob(new Blob([whole]))).toEqual(gltfFactsOf(glb(joined)));
+    expect(await gltfFactsOfBlob(new Blob([bytes.slice(0, 12)]))).toBeNull();
   });
 
   it('reads nothing from bytes that are not a binary glTF file or whose JSON is cut short or unreadable', () => {

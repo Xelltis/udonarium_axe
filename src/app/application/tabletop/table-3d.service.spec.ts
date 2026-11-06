@@ -42,6 +42,7 @@ import type {
   Table3dWeatherFall,
 } from '@axe/infrastructure/table-3d/table-3d-port';
 import { TABLE_3D_QUALITY, type Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
+import { binaryGltf } from '@axe/testing/binary-gltf';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 /** An engine that keeps what it is told and counts what it draws. */
@@ -1104,18 +1105,5 @@ describe('Table3dService', () => {
 
 /** A binary glTF file of a JSON chunk alone, its scene made as a wall joined to the walls beside it. */
 function joinedGlb(): ArrayBuffer {
-  const text = new TextEncoder().encode(
-    JSON.stringify({ scenes: [{ nodes: [], extras: { fit: 'joined' } }], scene: 0 })
-  );
-  const padded = new Uint8Array(Math.ceil(text.length / 4) * 4).fill(0x20);
-  padded.set(text);
-  const bytes = new Uint8Array(20 + padded.length);
-  const view = new DataView(bytes.buffer);
-  bytes.set([0x67, 0x6c, 0x54, 0x46], 0);
-  view.setUint32(4, 2, true);
-  view.setUint32(8, bytes.length, true);
-  view.setUint32(12, padded.length, true);
-  view.setUint32(16, 0x4e4f534a, true);
-  bytes.set(padded, 20);
-  return bytes.buffer;
+  return binaryGltf({ scenes: [{ nodes: [], extras: { fit: 'joined' } }], scene: 0 });
 }

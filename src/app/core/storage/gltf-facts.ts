@@ -45,18 +45,32 @@ const TRIANGLES = 4;
 const TRIANGLE_STRIP = 5;
 const TRIANGLE_FAN = 6;
 
+/** How many bytes open a binary glTF file before its JSON: its header and the JSON chunk's own. */
+const GLB_HEAD_BYTES = 20;
+
+/**
+ * What a binary glTF file held as a blob says of itself, read from its head and its JSON alone rather
+ * than from the whole of it; null as {@link gltfFactsOf} has it.
+ */
+export async function gltfFactsOfBlob(blob: Blob): Promise<GltfFacts | null> {
+  const head = await blob.slice(0, GLB_HEAD_BYTES).arrayBuffer();
+  if (head.byteLength < GLB_HEAD_BYTES) return null;
+  const length = new DataView(head).getUint32(12, true);
+  return gltfFactsOf(await blob.slice(0, GLB_HEAD_BYTES + length).arrayBuffer());
+}
+
 /**
  * What a binary glTF file says of itself, or null for bytes that are not one or whose JSON cannot
  * be read. Only the scene a loader shows is counted, the one the file names or else its first, and
  * a node placed twice is counted twice, as a loader draws it.
  */
 export function gltfFactsOf(bytes: ArrayBuffer): GltfFacts | null {
-  if (bytes.byteLength < 20 || !isBinaryGltf(new Uint8Array(bytes, 0, 8))) return null;
+  if (bytes.byteLength < GLB_HEAD_BYTES || !isBinaryGltf(new Uint8Array(bytes, 0, 8))) return null;
   const view = new DataView(bytes);
   const length = view.getUint32(12, true);
-  if (view.getUint32(16, true) !== JSON_CHUNK || 20 + length > bytes.byteLength) return null;
+  if (view.getUint32(16, true) !== JSON_CHUNK || GLB_HEAD_BYTES + length > bytes.byteLength) return null;
   try {
-    const json = JSON.parse(new TextDecoder().decode(new Uint8Array(bytes, 20, length))) as GltfJson;
+    const json = JSON.parse(new TextDecoder().decode(new Uint8Array(bytes, GLB_HEAD_BYTES, length))) as GltfJson;
     const scene = json.scenes?.[json.scene ?? 0];
     const counted = new Map<number, number>();
     const counting = new Set<number>();
