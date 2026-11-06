@@ -91,7 +91,11 @@ async function dragTo(page: Page, from: { x: number; y: number }, to: { x: numbe
 test.describe('pieces on a field just generated, on a table drawn on a canvas', () => {
   test('are taken up through the trees locked in front of them, and moved on again and again over the raised ground', async ({
     page,
-  }) => {
+  }, testInfo) => {
+    test.slow(
+      testInfo.project.name === 'chromium-webgpu',
+      'SwiftShader draws a frame of a field through WebGPU in over a second, and every move of a drag draws one'
+    );
     await waitAppReady(page);
     await becomeGm(page);
     await closePanels(page);
