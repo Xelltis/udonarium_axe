@@ -45,6 +45,7 @@ import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-laye
 import { tableSkyKindOf } from '@axe/domain/tabletop/table-sky';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { forEachCellUnder, terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
+import { occlusionShapeOf } from '@axe/domain/tabletop/terrain-occlusion/occlusion-shape';
 import { flickers } from '@axe/domain/tabletop/vision-scene/light-flicker';
 import { waterShoreOf } from '@axe/domain/tabletop/water/water-shore';
 import { waterSidesOf } from '@axe/domain/tabletop/water/water-sides';
@@ -891,49 +892,60 @@ function isRenderer(value: string | null): value is TableRenderer {
 
 /**
  * How far inside a block's edges the middle of a cell has to stand, in table pixels, to be one of the
- * cells the block stands on, and how far the middle of the block may stand from the middle of those.
+ * cells a block narrower than a cell stands on, and how far the middle of the block may stand from the
+ * middle of those.
  */
 const ON_CELLS_PX = 1;
 
 /**
  * The blocks a wall may be joined to, with the cells each stands on: the walls drawn as a joined
- * model, and the doors whether drawn as one or not. A wall is drawn on the middles of its cells,
- * so a block that does not stand on them, turned off the grid's lines or set off its cells, is left
- * out and drawn where it stands: a cell is one of its own only where its middle stands well inside
- * the block, not on an edge the block was set down along, and the block stands over the middle of
- * those cells.
+ * model, and the doors whether drawn as one or not. A wall is drawn on the middles of its cells, so
+ * only a block lying square on the grid is joined: one whole cells across with its corners on cell
+ * corners, or on a board of hexes its middle on a hex's and turned by whole steps of it, stands on
+ * the cells of its footprint; one narrower than a cell, as a fence or a door is, on the cells whose
+ * middles stand well inside it, so long as it stands over the middle of those. Any other block, set
+ * off its cells or turned off the grid's lines, is left out and drawn where it stands.
  */
 function joinableBlocksOf(terrains: readonly Terrain[], grid: CellGrid): JoinableBlock[] {
   const blocks: JoinableBlock[] = [];
   for (const terrain of terrains) {
-    if (terrain.rotate % 90 !== 0) continue;
-    const box = terrainBoxOf(terrain, grid.sizePx);
-    const cells: number[] = [];
-    let sumX = 0;
-    let sumY = 0;
-    forEachCellUnder(grid, terrain, (index, cx, cy) => {
-      const inside =
-        cx > box.minX + ON_CELLS_PX &&
-        cx < box.maxX - ON_CELLS_PX &&
-        cy > box.minY + ON_CELLS_PX &&
-        cy < box.maxY - ON_CELLS_PX;
-      if (!inside) return;
-      cells.push(index);
-      sumX += cx;
-      sumY += cy;
-    });
+    const cells = occlusionShapeOf(terrain, grid, true)?.cells ?? narrowCellsOf(terrain, grid);
     if (cells.length < 1) continue;
-    const off = Math.hypot(
-      sumX / cells.length - (box.minX + box.maxX) / 2,
-      sumY / cells.length - (box.minY + box.maxY) / 2
-    );
-    if (off > ON_CELLS_PX) continue;
     blocks.push({
       owner: terrain.identifier,
       model: pieceModelOf(terrain)?.identifier ?? '',
       door: terrain.isDoor,
-      cells,
+      cells: [...cells],
     });
   }
   return blocks;
+}
+
+/**
+ * The cells a block not whole cells across stands on, as {@link joinableBlocksOf} has them: those whose
+ * middles stand well inside it, none for a block turned off the grid's lines or not over their middle.
+ */
+function narrowCellsOf(terrain: Terrain, grid: CellGrid): number[] {
+  if (terrain.rotate % 90 !== 0) return [];
+  const box = terrainBoxOf(terrain, grid.sizePx);
+  const cells: number[] = [];
+  let sumX = 0;
+  let sumY = 0;
+  forEachCellUnder(grid, terrain, (index, cx, cy) => {
+    const inside =
+      cx > box.minX + ON_CELLS_PX &&
+      cx < box.maxX - ON_CELLS_PX &&
+      cy > box.minY + ON_CELLS_PX &&
+      cy < box.maxY - ON_CELLS_PX;
+    if (!inside) return;
+    cells.push(index);
+    sumX += cx;
+    sumY += cy;
+  });
+  if (cells.length < 1) return [];
+  const off = Math.hypot(
+    sumX / cells.length - (box.minX + box.maxX) / 2,
+    sumY / cells.length - (box.minY + box.maxY) / 2
+  );
+  return off > ON_CELLS_PX ? [] : cells;
 }

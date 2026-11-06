@@ -19,7 +19,8 @@ import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { DEFAULT_GAME_CLOCK } from '@axe/domain/game-clock/game-clock';
 import { Config } from '@axe/domain/peer/config';
 import { DEFAULT_TABLE_CAMERA_VIEW } from '@axe/domain/tabletop/camera/table-camera';
-import { GameTable } from '@axe/domain/tabletop/game-table';
+import { cellCenterOf, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import type { SceneLight } from '@axe/domain/tabletop/vision-scene';
@@ -908,6 +909,39 @@ describe('Table3dService', () => {
       undefined,
       undefined,
     ]);
+    table.destroy();
+  });
+
+  it('joins a hex wall of seven cells on every one of them, and one turned by a step of the hexes', async () => {
+    const scene = service();
+    vi.spyOn(TestBed.inject(ModelFitService), 'isJoined').mockReturnValue(true);
+    vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:wall' } as never);
+    const table = new GameTable();
+    table.gridType = GridType.HEX_VERTICAL;
+    table.initialize();
+    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+    const standOn = (terrain: Terrain, col: number, row: number) => {
+      const middle = cellCenterOf(grid, cellIndexOf(grid, col, row));
+      terrain.location = {
+        name: 'table',
+        x: middle.x - (terrain.width * table.gridSize) / 2,
+        y: middle.y - (terrain.depth * table.gridSize) / 2,
+      };
+      terrain.modelIdentifier = 'timber_frame_wall';
+      table.appendChild(terrain);
+      return terrain;
+    };
+    const flower = standOn(Terrain.create('壁', 2, 2, 2, '', ''), 4, 4);
+    const turned = Terrain.create('壁', 1, 1, 2, '', '');
+    turned.rotate = 60;
+    standOn(turned, 10, 4);
+    standOn(Terrain.create('壁', 1, 1, 2, '', ''), 11, 4);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const models = new Map(scene.world().models.map((model) => [model.owner, model]));
+    expect(models.get(flower.identifier)!.joins).toHaveLength(7);
+    expect(models.get(turned.identifier)!.joins![0].arms).toHaveLength(1);
     table.destroy();
   });
 
