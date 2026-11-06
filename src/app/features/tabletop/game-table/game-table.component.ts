@@ -441,7 +441,8 @@ export class GameTableComponent {
           this.hudFrame,
           this.pieceMotions,
           this.ground,
-          this.piecePictures
+          this.piecePictures,
+          this.diceRender
         )
       );
       this.syncMode2d();

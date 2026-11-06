@@ -7,10 +7,22 @@ import { chatInput, openPanel, waitAppReady } from '../helpers';
  * A chat roll's dice thrown on a table drawn on a canvas: drawn in the table's own scene rather than
  * on the sheet laid over the table, and gone from it once they have stayed a while and faded. The
  * chat speaks as a piece, so the dice land in front of it rather than in the middle of the screen,
- * under the chat; the first roll builds the dice's shaders and leaves the bare table to compare with.
+ * under the chat; a piece standing clear of the chat window, since dice thrown in front of one at its
+ * edge come to rest under it as often as not. The first roll builds the dice's shaders and leaves the
+ * bare table to compare with; the second roll's dice are kept on show at rest until compared, as a
+ * browser drawing in software alongside others can take longer to draw a frame than dice stay.
  */
 
-type Hooks = { whenIdle(): Promise<void>; sceneStats(): { dice: number } | null };
+type Hooks = {
+  whenIdle(): Promise<void>;
+  sceneStats(): { dice: number } | null;
+  keepDiceResting(on: boolean): void;
+};
+
+/** Keeps the dice at rest on the table on show, or lets them stay their while and fade. */
+function keepResting(page: Page, on: boolean): Promise<void> {
+  return page.evaluate((keep) => (window as unknown as { __axeTable: Hooks }).__axeTable.keepDiceResting(keep), on);
+}
 
 function dice(page: Page): Promise<number> {
   return page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.sceneStats()?.dice ?? -1);
@@ -79,10 +91,10 @@ test.describe('chat dice thrown on a table drawn on a canvas', () => {
     await page.getByTestId('dice-stage').selectOption('table');
     await closeThe(page, '部屋設定');
     await closeThe(page, '接続情報');
-    await speakAs(page, 'キャラクターB');
+    await speakAs(page, '魔法使い');
     const piece = (await page
       .locator('game-character')
-      .filter({ hasText: 'キャラクターB' })
+      .filter({ hasText: '魔法使い' })
       .locator('[data-location]')
       .first()
       .boundingBox())!;
@@ -101,8 +113,10 @@ test.describe('chat dice thrown on a table drawn on a canvas', () => {
     await roll();
     const bare = await gone();
 
+    await keepResting(page, true);
     await roll();
-    await expect.poll(async () => differing(page, bare, await picture()), { timeout: 5000 }).toBeGreaterThan(20);
+    await expect.poll(async () => differing(page, bare, await picture()), { timeout: 20000 }).toBeGreaterThan(20);
+    await keepResting(page, false);
     expect(await differing(page, bare, await gone())).toBeLessThan(5);
   });
 });

@@ -1,3 +1,4 @@
+import { DiceRenderService } from '@axe/application/dice/dice-render.service';
 import { GroundService } from '@axe/application/tabletop/ground.service';
 import { HudFrameService } from '@axe/application/tabletop/hud-frame.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
@@ -101,6 +102,8 @@ export interface TableTestHooks {
   surfaceSizeOf(surface: string): { width: number; height: number } | null;
   /** The sprites a piece is drawn with, each named as its part and as large as it is drawn, in table pixels. */
   spritesOf(identifier: string): { part: string; widthPx: number; heightPx: number }[];
+  /** Keeps the dice at rest on the table on show until let go, however slowly frames are drawn. */
+  keepDiceResting(on: boolean): void;
 }
 
 type HookedWindow = Window & { __axeTable?: TableTestHooks };
@@ -119,7 +122,8 @@ export function installTableTestHooks(
   hud: HudFrameService,
   motions: PieceMotionsService,
   ground: GroundService,
-  pictures: PiecePicturesService
+  pictures: PiecePicturesService,
+  dice: DiceRenderService
 ): () => void {
   if (!win.navigator.webdriver) return () => undefined;
   const hooked = win as HookedWindow;
@@ -155,6 +159,7 @@ export function installTableTestHooks(
       return shares ? Array.from(shares) : null;
     },
     sceneStats: () => scene.stats(),
+    keepDiceResting: (on) => dice.keepResting(on),
     spritesOf: (identifier) =>
       scene
         .world()

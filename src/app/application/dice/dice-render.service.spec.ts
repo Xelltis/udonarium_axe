@@ -629,6 +629,26 @@ describe('DiceRenderService', () => {
       expect(shown).toHaveBeenLastCalledWith([]);
     });
 
+    it('keeps dice at rest on the table on show while asked to, and has them stay their while and fade once let go', async () => {
+      const shown = vi.spyOn(TestBed.inject(Table3dService), 'showDice');
+      throws.set(new Map([['a', onTable('a', { startedAt: 0, phase: 'settled' })]]));
+      service.keepResting(true);
+      await nextFrame(0);
+      await nextFrame(100);
+      const end = (ROLL_SECONDS + TABLE_HOLD_SECONDS + TABLE_FADE_SECONDS) * 1000;
+      await nextFrame(ROLL_SECONDS * 1000 + 50);
+
+      await nextFrame(end + 10);
+      await nextFrame(end * 3);
+      expect(shown).toHaveBeenLastCalledWith([expect.objectContaining({ key: 'a', opacity: 1 })]);
+
+      service.keepResting(false);
+      await nextFrame(end * 3 + 100);
+      expect(shown.mock.lastCall![0][0].opacity).toBe(1);
+      await nextFrame(end * 3 + (TABLE_HOLD_SECONDS + TABLE_FADE_SECONDS) * 1000 + 10);
+      expect(shown).toHaveBeenLastCalledWith([]);
+    });
+
     it('keeps the trays of one roll on the table together, fading them from when the last comes to rest', async () => {
       const shown = vi.spyOn(TestBed.inject(Table3dService), 'showDice');
       const first = onTable('a', { messageIdentifier: 'roll', startedAt: 0, phase: 'settled' });

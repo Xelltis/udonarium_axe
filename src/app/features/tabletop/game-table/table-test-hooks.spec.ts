@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { DiceRenderService } from '@axe/application/dice/dice-render.service';
 import { GroundService } from '@axe/application/tabletop/ground.service';
 import { HudFrameService } from '@axe/application/tabletop/hud-frame.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
@@ -27,7 +28,8 @@ describe('table test hooks', () => {
       TestBed.inject(HudFrameService),
       TestBed.inject(PieceMotionsService),
       TestBed.inject(GroundService),
-      TestBed.inject(PiecePicturesService)
+      TestBed.inject(PiecePicturesService),
+      TestBed.inject(DiceRenderService)
     );
     return { win, remove };
   }

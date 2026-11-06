@@ -150,6 +150,8 @@ export class DiceRenderService {
   private seen: ReadonlyMap<string, DiceThrow> = new Map();
   /** When each throw began to play here, on the clock frames are drawn by. */
   private readonly playFrom = new Map<string, number>();
+  /** Whether dice at rest on the table are kept on show for as long as asked. */
+  private keepsResting = false;
 
   constructor() {
     // A throw worked out, come to rest or dropped is drawn afresh wherever it is on show, and one
@@ -231,8 +233,19 @@ export class DiceRenderService {
     this.frame = requestAnimationFrame((now) => this.draw(now));
   }
 
+  /**
+   * Keeps the dice that have come to rest on the table on show, neither staying out their while nor
+   * fading, or given false lets them stay their while and fade from then; the dice still tumbling play
+   * on. For the end-to-end suite, whose browsers can take longer over a frame than dice stay.
+   */
+  keepResting(on: boolean): void {
+    this.keepsResting = on;
+    this.wake();
+  }
+
   /** Draws a frame, holding the dice on show back by the time it took where that was long. */
   private draw(now: number): void {
+    if (this.keepsResting) this.holdRests(now);
     const began = performance.now();
     this.drawFrame(now);
     const spent = performance.now() - began;
@@ -250,6 +263,11 @@ export class DiceRenderService {
       this.throws.played(key, from + ms);
     }
     for (const [key, rest] of this.restedAt) this.restedAt.set(key, rest + ms);
+  }
+
+  /** Has the throws on the table that came to rest by the moment given seem to have come to rest just then. */
+  private holdRests(now: number): void {
+    for (const [key, rest] of this.restedAt) if (rest < now) this.restedAt.set(key, now);
   }
 
   private drawFrame(now: number): void {
