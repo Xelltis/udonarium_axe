@@ -4,11 +4,12 @@ import { GroundService } from '@axe/application/tabletop/ground.service';
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { type CellGrid, cellIndexAt, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
+import { type CellGrid, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { ICE_BEARS_AT } from '@axe/domain/tabletop/ground/ground-over-ice';
 import { canBeStoodOn, landingHeightsOn } from '@axe/domain/tabletop/move/landing-height';
+import { pieceModelOf } from '@axe/domain/tabletop/piece-model';
 import { Terrain } from '@axe/domain/tabletop/terrain';
-import { terrainBoxOf, terrainCovers } from '@axe/domain/tabletop/terrain-box';
+import { forEachCellUnder, terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { terrainTopPxAt } from '@axe/domain/tabletop/terrain-slope-surface';
 import { type WaterArea, type WaterCell, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
 import { sameWaterGrid, waterGridOver } from '@axe/domain/tabletop/water/water-grid';
@@ -20,7 +21,7 @@ const FILLING_CELLS = 0.9;
 
 /** Whether a block is drawn as a box filling the cells it stands on, not as a model or a narrow post. */
 function fillsItsCells(terrain: Terrain): boolean {
-  return !terrain.modelIdentifier && Math.min(terrain.width, terrain.depth) >= FILLING_CELLS;
+  return !pieceModelOf(terrain) && Math.min(terrain.width, terrain.depth) >= FILLING_CELLS;
 }
 
 /**
@@ -91,13 +92,22 @@ export class WaterService {
   });
 
   /**
+   * How high the ground stands in every cell as the water's banks show it: the ground, without the
+   * blocks drawn as models or narrower than a cell. Such a block keeps the water out of its cell, but
+   * nothing drawn fills the cell round it, so the waves running on over the land beside the water
+   * would lie on the floor round it rather than under ground rising through them; the water stands
+   * against it as it stands against lower ground.
+   */
+  readonly bankGround = computed<Float64Array | null>(() => {
+    const grid = this.grid();
+    if (!grid || this.areas().length < 1) return null;
+    return landingHeightsOn(grid, this.terrainsByWater().filter(fillsItsCells), this.raisedGround.surface());
+  });
+
+  /**
    * The blocks standing in or beside the water, which are all the ground the water and its banks
    * stand on. A board of a dungeon holds thousands of blocks, and the water asks about the ground
    * point by point; only the few near it are worth asking.
-   *
-   * A block drawn as a model or narrower than a cell is no ground to the water: it stands in the
-   * water, which runs round it, and the waves running on over the land beside the water would lie
-   * on the floor around it rather than under ground rising through them.
    */
   private readonly terrainsByWater = computed<Terrain[]>(() => {
     const areas = this.areas();
@@ -106,7 +116,6 @@ export class WaterService {
     this.objectChange.collectionOf(Terrain.aliasName)();
     return this.tabletopService.terrains.filter((terrain) => {
       this.objectChange.versionOf(terrain.identifier)();
-      if (!fillsItsCells(terrain)) return false;
       const box = terrainBoxOf(terrain, gridSize);
       return areas.some(
         (area) =>
@@ -118,16 +127,17 @@ export class WaterService {
     });
   });
 
-  /** The blocks standing on each cell by the water, counted by the middle of the cell as the ground is. */
+  /**
+   * The blocks standing on each cell by the water as its banks show them, counted by the middle of the
+   * cell as the ground is: those filling their cells, as {@link bankGround} has them.
+   */
   private readonly terrainsByCell = computed<Map<number, Terrain[]>>(() => {
     const grid = this.grid();
     const byCell = new Map<number, Terrain[]>();
     if (!grid || grid.sizePx <= 0) return byCell;
     for (const terrain of this.terrainsByWater()) {
-      if (!canBeStoodOn(terrain)) continue;
-      const box = terrainBoxOf(terrain, grid.sizePx);
-      forEachCellInBox(grid, box.minX, box.minY, box.maxX, box.maxY, (index, cx, cy) => {
-        if (!terrainCovers(terrain, grid.sizePx, cx, cy)) return;
+      if (!canBeStoodOn(terrain) || !fillsItsCells(terrain)) continue;
+      forEachCellUnder(grid, terrain, (index) => {
         const held = byCell.get(index);
         if (held) held.push(terrain);
         else byCell.set(index, [terrain]);
@@ -137,7 +147,8 @@ export class WaterService {
   });
 
   /**
-   * How high the ground of one cell stands at a point of it, the floor where nothing stands there.
+   * How high the ground of one cell stands at a point of it as the water's banks show it, the floor
+   * where nothing filling the cell stands there.
    *
    * It is the ground standing on that cell read at the point, which follows a slope across the cell
    * rather than holding to its middle; that is what lets the bank of the water follow it. A block is
@@ -156,6 +167,12 @@ export class WaterService {
   /** How high the ground stands in a cell, the floor where nothing stands there. */
   readonly groundOf = (index: number): number => {
     const ground = this.ground();
+    return ground && index >= 0 && index < ground.length ? ground[index] : 0;
+  };
+
+  /** How high the ground stands in a cell as the water's banks show it; see {@link bankGround}. */
+  readonly bankGroundOf = (index: number): number => {
+    const ground = this.bankGround();
     return ground && index >= 0 && index < ground.length ? ground[index] : 0;
   };
 

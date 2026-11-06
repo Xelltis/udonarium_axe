@@ -323,7 +323,7 @@ export class Table3dService {
       grid,
       cells,
       waterSidesOf(grid, cells, this.waterCells.groundAt),
-      waterShoreOf(grid, cells, this.waterCells.groundOf),
+      waterShoreOf(grid, cells, this.waterCells.bankGroundOf),
       moving,
       underwater
     );

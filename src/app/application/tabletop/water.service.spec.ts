@@ -112,7 +112,7 @@ describe('WaterService', () => {
     expect(service.groundOf(2)).toBe(3 * gridSize);
   });
 
-  it('runs the water round a block drawn as a model or narrower than a cell, which leaves no shore beside the water', async () => {
+  it('keeps the water out of a block drawn as a model or narrower than a cell, but shows no bank of it beside the water', async () => {
     const pond = await lay('water', 0, 0, 3, 1);
     pond.surfaceHeight = 0.1;
     const tree = Terrain.create('木', 1, 1, 3, '', '');
@@ -128,12 +128,11 @@ describe('WaterService', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    const cells = service.cells();
-
-    expect([...cells.keys()].sort((a, b) => a - b)).toEqual([0, 1, 2]);
-    expect(service.groundOf(1)).toBe(0);
-    expect(service.groundOf(2)).toBe(0);
-    expect(service.groundOf(3)).toBe(gridSize);
+    expect([...service.cells().keys()]).toEqual([0]);
+    expect([service.groundOf(1), service.groundOf(2), service.groundOf(3)]).toEqual([3 * gridSize, gridSize, gridSize]);
+    expect([service.bankGroundOf(1), service.bankGroundOf(2), service.bankGroundOf(3)]).toEqual([0, 0, gridSize]);
+    expect(service.groundAt(1, 1.5 * gridSize, 0.5 * gridSize)).toBe(0);
+    expect(service.groundAt(3, 3.5 * gridSize, 0.5 * gridSize)).toBe(gridSize);
   });
 
   it('hands on the same water while what changed leaves it as it was', async () => {
