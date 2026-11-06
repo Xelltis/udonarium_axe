@@ -38,6 +38,10 @@ export class TableMarqueeGesture {
   private dragged = false;
   private startScreenX = 0;
   private startScreenY = 0;
+  /** When the press waiting to open a marquee was made, on the clock events are stamped by, and how long it waits. */
+  private armedAt = 0;
+  private armedFor = 0;
+  private armedModifiers: MarqueeModifiers = { shift: false, ctrl: false, touch: false };
   private startTablePoint: MarqueePoint | null = null;
   private currentTablePoint: MarqueePoint | null = null;
 
@@ -68,10 +72,12 @@ export class TableMarqueeGesture {
     const delay = isTouchLike ? MARQUEE_TOUCH_LONG_PRESS_MS : MARQUEE_MOUSE_LONG_PRESS_MS;
     this.startScreenX = event.pageX;
     this.startScreenY = event.pageY;
-    const modifiers: MarqueeModifiers = { shift: event.shiftKey, ctrl: event.ctrlKey, touch: isTouchLike };
+    this.armedAt = event.timeStamp;
+    this.armedFor = delay;
+    this.armedModifiers = { shift: event.shiftKey, ctrl: event.ctrlKey, touch: isTouchLike };
     this.timer = setTimeout(() => {
       this.timer = null;
-      this.fire(modifiers);
+      this.fire(this.armedModifiers);
     }, delay);
     return true;
   }
@@ -86,9 +92,16 @@ export class TableMarqueeGesture {
 
   /**
    * Follows the pointer: before the marquee opens, straying too far calls the long press off, and
-   * once it is open the marquee is stretched to the pointer.
+   * once it is open the marquee is stretched to the pointer. A move made once the press had been
+   * held long enough opens the marquee first, by when the move was made, on the clock events are
+   * stamped by: a page too busy to see the wait was up sees the move before it sees that.
    */
-  updatePointer(screenX: number, screenY: number): void {
+  updatePointer(screenX: number, screenY: number, at?: number): void {
+    if (!this.active && this.timer != null && at !== undefined && at - this.armedAt >= this.armedFor) {
+      clearTimeout(this.timer);
+      this.timer = null;
+      this.fire(this.armedModifiers);
+    }
     if (!this.active) {
       if (this.timer != null) {
         const dx = screenX - this.startScreenX;

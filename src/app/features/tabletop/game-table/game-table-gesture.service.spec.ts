@@ -462,7 +462,7 @@ describe('GameTableGestureService', () => {
       expect(arm).toHaveBeenCalledTimes(1);
     });
 
-    it('stretches an open marquee to where the move is, rather than where the pointer was last kept', () => {
+    it('stretches an open marquee to where the move is, rather than where the pointer was last kept, and says when it was made', () => {
       const updatePointer = vi.fn();
       (gestures as unknown as { marqueeGesture: unknown }).marqueeGesture = {
         updatePointer,
@@ -478,7 +478,7 @@ describe('GameTableGestureService', () => {
         }
       ).onTableMouseTransform(0, 0, 0, 0, 0, 0, {}, move);
 
-      expect(updatePointer).toHaveBeenCalledWith(140, 90);
+      expect(updatePointer).toHaveBeenCalledWith(140, 90, move.timeStamp);
     });
 
     it('says beside the pointer why a press on the ground came to nothing', async () => {

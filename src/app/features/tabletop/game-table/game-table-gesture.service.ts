@@ -444,7 +444,7 @@ export class GameTableGestureService {
         srcEvent instanceof MouseEvent
           ? { x: srcEvent.pageX, y: srcEvent.pageY }
           : this.pointerDeviceService.pointers[0];
-      this.marqueeGesture.updatePointer(pointer.x, pointer.y);
+      this.marqueeGesture.updatePointer(pointer.x, pointer.y, (srcEvent as Event).timeStamp);
       if (this.marqueeGesture.isActive) {
         if ((srcEvent as Event).cancelable) (srcEvent as Event).preventDefault();
         return;
