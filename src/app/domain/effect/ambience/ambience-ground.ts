@@ -143,6 +143,14 @@ const VAPOR_PER_CELL: Record<AmbienceKind, number> = {
 };
 
 /**
+ * Whether a kind of look on the ground draws any particles of its own on the page, flat or rising:
+ * water draws none, its surface being drawn in the table's own scene.
+ */
+export function groundAmbienceHasParticles(kind: AmbienceKind): boolean {
+  return SURFACE_PER_CELL[kind] > 0 || VAPOR_PER_CELL[kind] > 0;
+}
+
+/**
  * The margin taken outside the canvas, against one cell.
  *
  * The particles are cut to the canvas. One as wide as the area is cut at its skirt even

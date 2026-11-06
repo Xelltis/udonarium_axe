@@ -13,6 +13,7 @@ import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { isInStore } from '@axe/core/sync/object-store';
 import {
+  groundAmbienceHasParticles,
   groundSurfaceLayer,
   groundSurfaceWash,
   groundVaporSheets,
@@ -110,8 +111,11 @@ export class TableAmbienceComponent {
     return groundSurfaceWash(area.kind, area.ambienceColor, area.density);
   });
 
+  /** Whether this kind draws any particles on the page at all, so the clock they move by is read only where they do. */
+  private readonly hasParticles = computed(() => groundAmbienceHasParticles(this.area().kind));
+
   readonly surfaceLayer = computed<EffectParticleLayer | null>(() => {
-    if (!this.ambienceService.motionEnabled()) return null;
+    if (!this.ambienceService.motionEnabled() || !this.hasParticles()) return null;
     return nonEmpty(groundSurfaceLayer(this.specOf(this.pixelWidth(), this.pixelHeight())));
   });
 
@@ -120,7 +124,7 @@ export class TableAmbienceComponent {
    * One sheet over a wide area puts the far and the near at the same depth and reads as a band.
    */
   readonly vaporSheets = computed<ShownVaporSheet[]>(() => {
-    if (!this.ambienceService.motionEnabled()) return [];
+    if (!this.ambienceService.motionEnabled() || !this.hasParticles()) return [];
 
     const rotation = this.uiSignalService.tableViewRotation();
     const height = this.gridSize() * vaporCellsOf(this.area().kind);

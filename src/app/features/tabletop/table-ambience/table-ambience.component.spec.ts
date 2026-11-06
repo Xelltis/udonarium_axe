@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { AmbienceService } from '@axe/application/tabletop/ambience.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
@@ -91,6 +92,23 @@ describe('TableAmbienceComponent', () => {
       (canvas) => !laidArea().contains(canvas)
     );
     expect(vapors.length).toBeGreaterThan(0);
+  });
+
+  it('reads no clock for water, which draws no particles on the page, and does for a marsh that does', () => {
+    const clock = vi.spyOn(TestBed.inject(AmbienceService), 'now');
+    const water = TableAmbience.create('池', 'water', 4, 4);
+    const pond = TestBed.createComponent(TableAmbienceComponent);
+    pond.componentRef.setInput('ambience', water);
+    try {
+      expect(pond.componentInstance.surfaceLayer()).toBeNull();
+      expect(pond.componentInstance.vaporSheets()).toEqual([]);
+      expect(clock).not.toHaveBeenCalled();
+
+      expect(fixture.componentInstance.surfaceLayer()).not.toBeNull();
+      expect(clock).toHaveBeenCalled();
+    } finally {
+      ObjectStore.instance.remove(water);
+    }
   });
 
   it('layers the upright part deeper over a wider area', async () => {
