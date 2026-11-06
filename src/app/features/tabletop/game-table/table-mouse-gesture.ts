@@ -232,7 +232,7 @@ export class TableMouseGesture {
   }
 
   private addEventListeners() {
-    this.targetElement.addEventListener('wheel', this.callbackOnWheel, { passive: true });
+    this.targetElement.addEventListener('wheel', this.callbackOnWheel, { passive: false });
     document.body.addEventListener('keydown', this.callbackOnKeydown, false);
   }
 
