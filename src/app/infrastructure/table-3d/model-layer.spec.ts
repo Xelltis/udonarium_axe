@@ -155,6 +155,16 @@ describe('placementOf', () => {
     expect(middles.map(([, , z]) => z).sort((a, b) => a - b)).toEqual([150, 200, 250]);
   });
 
+  it('stands a tile that keeps the height it was made at as tall as it was made in cells, on a block however thin', () => {
+    const crop = { size: new Vector3(1, 0.7, 1), tile: true, madeHeight: true, parts: [{ within: new Matrix4() }] };
+    const field = knight({ heightPx: 1, pivotPx: 0, boxPx: { widthPx: 100, depthPx: 50, cellPx: 50 } });
+
+    const [cells] = partPlacementsOf(field, crop);
+    const top = new Vector3(0.5, 0.7, 0).applyMatrix4(cells[0]);
+    expect(cells).toHaveLength(2);
+    expect([top.x, top.y].map((value) => Math.round(value * 1000) / 1000)).toEqual([100, 35]);
+  });
+
   it('lifts a model as high as its piece floats', () => {
     expect(drawnAt(knight({ altitudePx: 30 }), 0, 0, 0)).toEqual([100, 30, 200]);
   });

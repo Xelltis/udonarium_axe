@@ -48,6 +48,12 @@ interface LoadedModel {
    * and stretched to the block's height, as a palisade is along its run.
    */
   readonly tile?: boolean;
+  /**
+   * Whether a tile keeps the height it was made at, in cells, whatever the height of its block, its
+   * scene saying `{ "fit": "tile", "height": "made" }`: a crop stands as tall as it grows on a block
+   * thin enough to walk over.
+   */
+  readonly madeHeight?: boolean;
   /** Its meshes, each where it stands within the model measured from the model's foot. */
   readonly parts: readonly ModelPart[];
 }
@@ -73,6 +79,7 @@ type ModelMeasure = Pick<LoadedModel, 'size'> & {
   readonly stretch?: boolean;
   readonly facade?: boolean;
   readonly tile?: boolean;
+  readonly madeHeight?: boolean;
   readonly parts?: readonly Pick<ModelPart, 'within' | 'swing' | 'role'>[];
 };
 
@@ -352,9 +359,11 @@ export class ModelLayer {
     const middle = box.getCenter(new Vector3());
     const foot = new Vector3(middle.x, box.min.y, middle.z);
     const fromFoot = new Matrix4().makeTranslation(-foot.x, -foot.y, -foot.z);
-    const fit = (gltf.scene.userData as { fit?: unknown })['fit'];
+    const extras = gltf.scene.userData as { fit?: unknown; height?: unknown };
+    const fit = extras.fit;
     const facade = fit === 'facade';
     const tile = fit === 'tile';
+    const madeHeight = tile && extras.height === 'made';
     const parts: ModelPart[] = [];
     gltf.scene.traverse((object) => {
       if (!(object instanceof Mesh)) return;
@@ -374,7 +383,7 @@ export class ModelLayer {
       });
     });
     const stretch = fit === 'stretch';
-    return { gltf, size, foot, animated: gltf.animations.length > 0, parts, stretch, facade, tile };
+    return { gltf, size, foot, animated: gltf.animations.length > 0, parts, stretch, facade, tile, madeHeight };
   }
 
   private dracoLoader(): Promise<DRACOLoader> {
@@ -547,7 +556,8 @@ function facadePlacementsOf(model: TableWorldModel, loaded: ModelMeasure): Matri
 
 /**
  * Where a tile stands on every cell of a block: one to each whole cell it is across and deep, as the
- * block is turned, each stretched to its cell across and to the block's height up.
+ * block is turned, each stretched to its cell across and to the block's height up, or for a tile that
+ * keeps the height it was made at, as tall as it was made in cells.
  */
 function tilePlacementsOf(model: TableWorldModel, loaded: ModelMeasure): Matrix4[][] {
   const box = model.boxPx!;
@@ -558,7 +568,7 @@ function tilePlacementsOf(model: TableWorldModel, loaded: ModelMeasure): Matrix4
   const depth = turned ? box.widthPx : box.depthPx;
   const across = Math.max(1, Math.round(width / cell));
   const deep = Math.max(1, Math.round(depth / cell));
-  const height = Math.max(1e-6, model.heightPx);
+  const height = loaded.madeHeight ? cell : Math.max(1e-6, model.heightPx);
   return (loaded.parts ?? []).map(({ within }) => {
     const matrices: Matrix4[] = [];
     for (let i = 0; i < across; i++) {
