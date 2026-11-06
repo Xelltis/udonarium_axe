@@ -2910,7 +2910,22 @@
           "containerRed": "컨테이너",
           "containerBlue": "컨테이너",
           "containerGreen": "컨테이너",
-          "hiddenDoor": "비밀 문"
+          "hiddenDoor": "비밀 문",
+          "palisade": "통나무 울타리",
+          "watchtower": "망루",
+          "stoneWall": "성벽",
+          "tower": "탑",
+          "fence": "울타리",
+          "gate": "문",
+          "barn": "헛간",
+          "tent": "천막",
+          "barracks": "병영",
+          "stable": "마구간",
+          "well": "우물",
+          "hay": "건초",
+          "cart": "수레",
+          "totem": "토템",
+          "hearth": "화덕"
         },
         "summary": {
           "title": "던전 개요",
@@ -3013,7 +3028,10 @@
           "city": "빌딩 숲",
           "sfCity": "빌딩 숲(SF)",
           "slum": "슬럼가",
-          "dump": "쓰레기 처리장"
+          "dump": "쓰레기 처리장",
+          "village": "농촌",
+          "barbarianFort": "야만족의 요새",
+          "stoneFort": "돌로 지은 요새"
         },
         "season": {
           "none": "지정 안 함",

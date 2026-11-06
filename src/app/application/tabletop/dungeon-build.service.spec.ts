@@ -254,6 +254,29 @@ describe('DungeonBuildService', () => {
     fetched.mockRestore();
   });
 
+  it('builds a village with fields slow to cross, paddies under water, and doors as tall as their walls', async () => {
+    const plan = planField({ atmosphere: 'village', size: 40, density: 50, seed: 3 });
+    const { table } = await service.build(plan.layout, plan.atmosphere, plan.blocks, options());
+
+    const dear = table.children.filter((child): child is TableMoveCost => child instanceof TableMoveCost);
+    expect(dear.map((cost) => [cost.col, cost.row, cost.width, cost.height])).toEqual(
+      plan.blocks.slows!.map((patch) => [patch.rect.x, patch.rect.y, patch.rect.w, patch.rect.h])
+    );
+    expect(dear.every((cost) => cost.charge === 1)).toBe(true);
+    const doors = table.terrains.filter((terrain) => terrain.isDoor);
+    expect(doors.length).toBe(plan.blocks.blocks.filter((block) => block.kind === 'door').length);
+    expect(doors.every((door) => door.height === 2)).toBe(true);
+    const waters = table.children.filter(
+      (child): child is TableAmbience => child instanceof TableAmbience && child.kind === 'water'
+    );
+    expect(waters.length).toBe(plan.layout.settlement!.crops.filter((crop) => crop.crop === 'rice').length);
+
+    const fort = planField({ atmosphere: 'stoneFort', size: 40, density: 50, seed: 3 });
+    const built = await service.build(fort.layout, fort.atmosphere, fort.blocks, options());
+    const heights = built.table.terrains.filter((terrain) => terrain.isDoor).map((door) => door.height);
+    expect(new Set(heights)).toEqual(new Set([3, 3.5]));
+  });
+
   it('lays the water of a field as water, looking as the field asks, and digs the ground under it', async () => {
     const plan = planField({ atmosphere: 'snowfield', size: 20, density: 50, seed: 3, relief: 2 });
 

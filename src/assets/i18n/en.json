@@ -2910,7 +2910,22 @@
           "containerRed": "Container",
           "containerBlue": "Container",
           "containerGreen": "Container",
-          "hiddenDoor": "Hidden door"
+          "hiddenDoor": "Hidden door",
+          "palisade": "Palisade",
+          "watchtower": "Watchtower",
+          "stoneWall": "Curtain wall",
+          "tower": "Tower",
+          "fence": "Fence",
+          "gate": "Gate",
+          "barn": "Barn",
+          "tent": "Tent",
+          "barracks": "Barracks",
+          "stable": "Stable",
+          "well": "Well",
+          "hay": "Hay",
+          "cart": "Cart",
+          "totem": "Totem",
+          "hearth": "Hearth"
         },
         "summary": {
           "title": "Dungeon notes",
@@ -3013,7 +3028,10 @@
           "city": "City blocks",
           "sfCity": "City blocks (SF)",
           "slum": "Slum",
-          "dump": "Garbage dump"
+          "dump": "Garbage dump",
+          "village": "Farming village",
+          "barbarianFort": "Barbarian fort",
+          "stoneFort": "Stone fort"
         },
         "season": {
           "none": "Any",

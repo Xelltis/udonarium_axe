@@ -1,5 +1,6 @@
 import { TextureId, WallTextureId } from '@axe/domain/media/texture-catalog';
 import { HazardKind } from '@axe/domain/tabletop/hazard-presets';
+import { type SettlementKind } from '@axe/domain/tabletop/field/settlement-layout';
 import { MapLightKind, MapMood } from '@axe/domain/tabletop/map-blocks';
 
 export const FIELD_ATMOSPHERE_IDS = [
@@ -13,6 +14,9 @@ export const FIELD_ATMOSPHERE_IDS = [
   'sfCity',
   'slum',
   'dump',
+  'village',
+  'barbarianFort',
+  'stoneFort',
 ] as const;
 
 export type FieldAtmosphereId = (typeof FIELD_ATMOSPHERE_IDS)[number];
@@ -398,6 +402,11 @@ export interface FieldAtmosphere extends MapMood {
   gradient?: number;
   /** How the place is built up, where it is a town rather than open country. */
   town?: TownPlan;
+  /**
+   * The settlement laid out on it, where it is a village or a fort rather than open country: its
+   * bands are then the ground of each part of it, in the order of `SETTLEMENT_ZONES`.
+   */
+  settlement?: SettlementKind;
   /** What it is lit by and where. Left out, fires anywhere on open ground. */
   fires?: FieldFirePlan;
 }
@@ -786,6 +795,98 @@ export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {
     weatherDensity: 0.3,
     gridShow: true,
     torches: 6,
+  },
+  /**
+   * A farming village: a road across open grassland with houses along it, fields of vegetables, wheat,
+   * maize and rice behind them, and trees here and there.
+   */
+  village: {
+    id: 'village',
+    defaultGround: 'steppe',
+    defaultProp: 'wall_timber',
+    relief: 12,
+    damp: 0.45,
+    bands: [
+      { upTo: 1, texture: 'steppe' },
+      { upTo: 1, texture: 'desert' },
+      { upTo: 1, texture: 'desert' },
+      { upTo: 1, texture: 'wood_plank' },
+      { upTo: 1, texture: 'black_soil' },
+      { upTo: 1, texture: 'black_soil' },
+    ],
+    props: [
+      { prop: 'tree', chance: 0.05, bands: [0] },
+      { prop: 'bush', chance: 0.04, bands: [0] },
+    ],
+    settlement: 'village',
+    darkness: 0,
+    ambientColor: '#141a10',
+    weatherKind: '',
+    weatherDensity: 0,
+    gridShow: true,
+    torches: 0,
+  },
+  /**
+   * The fort of a people who build in wood: a ring of sharpened logs on the steppe with watchtowers
+   * and a gate, the chief's hall and tents round a great fire inside, woods round it.
+   */
+  barbarianFort: {
+    id: 'barbarianFort',
+    defaultGround: 'steppe',
+    defaultProp: 'wall_timber',
+    relief: 12,
+    damp: 0.45,
+    bands: [
+      { upTo: 1, texture: 'steppe' },
+      { upTo: 1, texture: 'desert' },
+      { upTo: 1, texture: 'desert' },
+      { upTo: 1, texture: 'wood_plank' },
+      { upTo: 1, texture: 'black_soil' },
+      { upTo: 1, texture: 'black_soil' },
+    ],
+    props: [
+      { prop: 'tree', chance: 0.1, bands: [0] },
+      { prop: 'bush', chance: 0.06, bands: [0] },
+      { prop: 'boulder', chance: 0.02, bands: [0] },
+    ],
+    settlement: 'barbarianFort',
+    darkness: 0.3,
+    ambientColor: '#1a120c',
+    weatherKind: '',
+    weatherDensity: 0,
+    gridShow: true,
+    torches: 0,
+  },
+  /**
+   * A fort of stone: a square curtain wall with towers on its corners and either side of its gate, a
+   * paved courtyard, the keep with its rooms, barracks and stables, on grassland strewn with rock.
+   */
+  stoneFort: {
+    id: 'stoneFort',
+    defaultGround: 'steppe',
+    defaultProp: 'wall_ashlar',
+    relief: 12,
+    damp: 0.45,
+    bands: [
+      { upTo: 1, texture: 'steppe' },
+      { upTo: 1, texture: 'gravel' },
+      { upTo: 1, texture: 'stone_paving_big' },
+      { upTo: 1, texture: 'stone_tile' },
+      { upTo: 1, texture: 'black_soil' },
+      { upTo: 1, texture: 'black_soil' },
+    ],
+    props: [
+      { prop: 'bush', chance: 0.04, bands: [0] },
+      { prop: 'boulder', chance: 0.03, bands: [0] },
+      { prop: 'tree', chance: 0.03, bands: [0] },
+    ],
+    settlement: 'stoneFort',
+    darkness: 0,
+    ambientColor: '#141a10',
+    weatherKind: '',
+    weatherDensity: 0,
+    gridShow: true,
+    torches: 0,
   },
 };
 

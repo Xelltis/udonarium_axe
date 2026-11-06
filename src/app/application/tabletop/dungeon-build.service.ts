@@ -33,6 +33,7 @@ import {
   MapMood,
   MapPaint,
   MapSize,
+  MapSlowGround,
   MapTrap,
 } from '@axe/domain/tabletop/map-blocks';
 import { blockOrigin, MapGrid, tableSizeFor } from '@axe/domain/tabletop/map-grid';
@@ -244,6 +245,7 @@ export class DungeonBuildService {
 
     this.layAmbiences(table, blocks.ambiences, grid);
     this.layHazards(table, blocks.paint);
+    this.laySlowGround(table, blocks.slows ?? []);
     this.setTraps(table, blocks.traps);
     this.standLights(table, blocks.lights, options.wallHeight, grid);
     this.musterParty(table, options.muster ?? []);
@@ -387,7 +389,14 @@ export class DungeonBuildService {
         const acrossX = block.across === 'x';
         const width = acrossX ? DOOR_THICKNESS : rect.w;
         const depth = acrossX ? rect.h : DOOR_THICKNESS;
-        const terrain = Terrain.create(name, width, depth, wallHeight, door, block.disguised ? images.wallTop : door);
+        const terrain = Terrain.create(
+          name,
+          width,
+          depth,
+          block.height ?? wallHeight,
+          door,
+          block.disguised ? images.wallTop : door
+        );
         terrain.mode = TerrainViewState.ALL;
         terrain.doorStyle = block.doorStyle ?? DoorStyle.SWING;
         if (block.doorMirrored) terrain.doorMirrored = true;
@@ -470,6 +479,21 @@ export class DungeonBuildService {
    * into the floor; what is left is the going and the harm, which is what tells a pool of
    * lava from a red patch of floor.
    */
+  /** Ground slow to cross and nothing worse, as a field of wheat: dear to walk, which the table shows. */
+  private laySlowGround(table: GameTable, slows: readonly MapSlowGround[]): void {
+    for (const patch of slows) {
+      const dear = new TableMoveCost();
+      dear.col = patch.rect.x;
+      dear.row = patch.rect.y;
+      dear.width = patch.rect.w;
+      dear.height = patch.rect.h;
+      dear.extraCost = patch.extraCost;
+      dear.color = patch.color;
+      dear.initialize();
+      table.appendChild(dear);
+    }
+  }
+
   private layHazards(table: GameTable, paint: readonly MapPaint[]): void {
     for (const patch of paint) {
       if (patch.kind !== 'hazard' || !patch.hazard) continue;

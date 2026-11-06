@@ -2910,7 +2910,22 @@
           "containerRed": "コンテナ",
           "containerBlue": "コンテナ",
           "containerGreen": "コンテナ",
-          "hiddenDoor": "隠し扉"
+          "hiddenDoor": "隠し扉",
+          "palisade": "丸太の柵",
+          "watchtower": "見張り塔",
+          "stoneWall": "石垣",
+          "tower": "塔",
+          "fence": "柵",
+          "gate": "門",
+          "barn": "納屋",
+          "tent": "天幕",
+          "barracks": "兵舎",
+          "stable": "厩",
+          "well": "井戸",
+          "hay": "干し草",
+          "cart": "荷車",
+          "totem": "トーテム",
+          "hearth": "炉"
         },
         "summary": {
           "title": "ダンジョン概要",
@@ -3013,7 +3028,10 @@
           "city": "ビル群",
           "sfCity": "ビル群(SF)",
           "slum": "スラム街",
-          "dump": "ゴミ処理場"
+          "dump": "ゴミ処理場",
+          "village": "農村",
+          "barbarianFort": "蛮族の砦",
+          "stoneFort": "石造りの砦"
         },
         "season": {
           "none": "指定なし",

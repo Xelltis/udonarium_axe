@@ -165,10 +165,21 @@ export interface MapWater {
   ice: number;
 }
 
+/** Ground that is slow to cross and nothing worse: a field of wheat, a flooded paddy. */
+export interface MapSlowGround {
+  rect: MapRect;
+  /** What crossing it costs over plain footing. */
+  extraCost: number;
+  /** The colour the dear ground is drawn in on the table. */
+  color: string;
+}
+
 export interface MapBlocks {
   blocks: MapBlock[];
   paint: MapPaint[];
   ambiences: MapAmbience[];
+  /** Ground slow to cross, as a field of tall crops is. Left out, there is none. */
+  slows?: MapSlowGround[];
   traps: MapTrap[];
   torchRooms: number[];
   torchSpots: MapPoint[];

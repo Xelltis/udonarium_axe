@@ -142,11 +142,21 @@ describe('planField()', () => {
   });
 
   it('grows every band of ground it was given, on a board big enough to hold them', () => {
-    for (const id of FIELD_ATMOSPHERE_IDS) {
+    for (const id of FIELD_ATMOSPHERE_IDS.filter((each) => !fieldAtmosphereById(each).settlement)) {
       const plan = planField({ atmosphere: id, size: 50, density: 50, seed: 7 });
       const found = new Set(plan.layout.ground);
 
       expect(found.size).toBe(fieldAtmosphereById(id).bands.length);
+    }
+  });
+
+  it('paints a village or a fort with the band of each part of it, and every part it laid', () => {
+    for (const id of FIELD_ATMOSPHERE_IDS.filter((each) => fieldAtmosphereById(each).settlement)) {
+      const plan = planField({ atmosphere: id, size: 50, density: 50, seed: 7 });
+
+      expect(plan.layout.settlement, id).toBeTruthy();
+      expect([...plan.layout.ground]).toEqual([...plan.layout.settlement!.zones]);
+      expect(Math.max(...plan.layout.ground)).toBeLessThan(fieldAtmosphereById(id).bands.length);
     }
   });
 
@@ -403,7 +413,7 @@ describe('planField()', () => {
   });
 
   it('stands its fires apart, out in the open', () => {
-    for (const id of FIELD_ATMOSPHERE_IDS) {
+    for (const id of FIELD_ATMOSPHERE_IDS.filter((each) => !fieldAtmosphereById(each).settlement)) {
       const plan = planField({ atmosphere: id, size: 40, density: 50, seed: 7 });
       const atmosphere = fieldAtmosphereById(id);
 
@@ -413,6 +423,17 @@ describe('planField()', () => {
         expect(propAt(plan.layout, light.x, light.y)).toBe('');
         expect(atmosphere.bands[plan.layout.ground[light.y * plan.layout.width + light.x]].bare).toBeFalsy();
       }
+    }
+  });
+
+  it('lights a village or a fort where it laid its lamps and fires, every one of them', () => {
+    for (const id of FIELD_ATMOSPHERE_IDS.filter((each) => fieldAtmosphereById(each).settlement)) {
+      const plan = planField({ atmosphere: id, size: 40, density: 50, seed: 7 });
+
+      expect(plan.blocks.lights.map(({ x, y, kind }) => ({ x, y, kind }))).toEqual(
+        plan.layout.settlement!.fires.map(({ x, y, kind }) => ({ x, y, kind }))
+      );
+      expect(plan.blocks.lights.length, id).toBeGreaterThan(0);
     }
   });
 

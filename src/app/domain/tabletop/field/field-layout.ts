@@ -1,6 +1,7 @@
 import { seededRandom } from '@axe/core/util/seeded-random';
 import { FIELD_PROP_SHAPES, FieldAtmosphere, FieldPropId } from '@axe/domain/tabletop/field/field-atmosphere';
 import { makeValueNoise, ValueNoise, warpedFbm } from '@axe/domain/tabletop/field/field-noise';
+import { laySettlement, type SettlementLayout } from '@axe/domain/tabletop/field/settlement-layout';
 import { FieldBuilding, layTown } from '@axe/domain/tabletop/field/town-layout';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { GROUND_SAMPLES_PER_CELL } from '@axe/domain/tabletop/ground/ground-chunk-data';
@@ -24,6 +25,8 @@ export interface FieldLayout {
   buildings: FieldBuilding[];
   /** How high the ground stands over the board, where it was raised at all. */
   relief?: GroundRaster | null;
+  /** The village or fort laid out on it, where it is one. */
+  settlement?: SettlementLayout | null;
 }
 
 /** What a cell is taken up by: something standing on it, a patch poured over it, a building, or nothing. */
@@ -338,7 +341,14 @@ export function generateField(
 
   const buildings: FieldBuilding[] = [];
   let raster: GroundRaster | null = null;
-  if (atmosphere.town) {
+  let settlement: SettlementLayout | null = null;
+  if (atmosphere.settlement) {
+    settlement = laySettlement(atmosphere.settlement, width, height, seed, density);
+    ground.set(settlement.zones);
+    for (let index = 0; index < settlement.taken.length; index++) {
+      if (settlement.taken[index]) props[index] = 'building';
+    }
+  } else if (atmosphere.town) {
     const town = layTown(atmosphere.town, width, height, seed, density);
     ground.set(town.ground);
     buildings.push(...town.buildings);
@@ -403,7 +413,7 @@ export function generateField(
   }
   pourPools(atmosphere, ground, props, pools, width, height, rng);
 
-  return { width, height, ground, props, objects, pools, buildings, relief: raster };
+  return { width, height, ground, props, objects, pools, buildings, relief: raster, settlement };
 }
 
 /**

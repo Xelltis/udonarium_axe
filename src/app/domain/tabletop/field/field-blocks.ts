@@ -15,6 +15,7 @@ import {
   type FieldModelId,
   type FieldSeason,
 } from '@axe/domain/tabletop/field/field-models';
+import { settlementBlocks } from '@axe/domain/tabletop/field/settlement-blocks';
 import { FieldBuilding } from '@axe/domain/tabletop/field/town-layout';
 import { roofUnitModelOf, TOWN_KITS } from '@axe/domain/tabletop/field/town-models';
 import { GridType } from '@axe/domain/tabletop/grid-type';
@@ -316,6 +317,14 @@ export function fieldToBlocks(
     for (const building of layout.buildings) blocks.push(...buildingBlocks(building, atmosphere.town, span, models));
   }
 
+  const settled = layout.settlement
+    ? settlementBlocks(layout.settlement, layout.width, layout.height, span, models)
+    : null;
+  if (settled) {
+    blocks.push(...settled.blocks);
+    paint.push(...settled.paint);
+  }
+
   // Last laid wins where two patches cover one cell, so a pool goes down over the band it lies in.
   for (const pool of layout.pools) {
     paint.push({
@@ -398,7 +407,10 @@ export function fieldToBlocks(
     }
   }
 
-  const lights = findFires(layout, atmosphere, seed);
+  const lights = [...findFires(layout, atmosphere, seed), ...(settled?.lights ?? [])].map((light, room) => ({
+    ...light,
+    room,
+  }));
 
   return {
     blocks,
@@ -411,7 +423,9 @@ export function fieldToBlocks(
         density: pool.density,
         name: pool.name,
       })),
+      ...(settled?.ambiences ?? []),
     ],
+    ...(settled && settled.slows.length > 0 ? { slows: settled.slows } : {}),
     traps: [],
     torchRooms: lights.map((light) => light.room),
     torchSpots: lights.map((light) => ({ x: light.x, y: light.y })),
