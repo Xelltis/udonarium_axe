@@ -459,6 +459,17 @@ describe('planField()', () => {
 });
 
 describe('the ground of a field raised as high as asked', () => {
+  it('lays murky water over the ground of the land beside it, which shows where the ground comes up through the water', () => {
+    const murky = FIELD_ATMOSPHERE_IDS.flatMap((id) =>
+      FIELD_ATMOSPHERES[id].bands.flatMap((band, index, bands) =>
+        (band.water?.turbidity ?? 0) >= 0.5 ? [{ id, under: band.texture, beside: bands[index + 1]?.texture }] : []
+      )
+    );
+
+    expect(murky.length).toBeGreaterThan(0);
+    for (const { id, under, beside } of murky) expect(under, id).toBe(beside);
+  });
+
   it('raises nothing where no height is asked for', () => {
     expect(planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7 }).layout.relief ?? null).toBeNull();
     expect(

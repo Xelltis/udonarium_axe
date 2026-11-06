@@ -545,7 +545,7 @@ export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {
     bands: [
       {
         upTo: 0.4,
-        texture: 'shallows',
+        texture: 'swamp_mud',
         bare: true,
         water: { depth: 0.4, color: '#5f6b4a', turbidity: 0.8, dirt: 0.6, leaves: 0.25, ice: 0 },
       },
