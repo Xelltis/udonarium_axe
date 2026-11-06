@@ -182,6 +182,11 @@ export class ModelLayer {
     return this.loading.size > 0;
   }
 
+  /** Where the models read so far that are made as walls joined to the walls beside them are read from. */
+  joinedUrls(): string[] {
+    return [...this.loaded].flatMap(([url, loaded]) => (loaded?.joined ? [url] : []));
+  }
+
   /** The pieces and blocks drawn as models now, which a frame of their shadows follows. */
   set(models: readonly TableWorldModel[]): void {
     if (models === this.laid) return;
@@ -636,13 +641,18 @@ function joinedPlacementsOf(model: TableWorldModel, loaded: ModelMeasure): Matri
   });
 }
 
-/** The cells of a block that reaches out to no wall beside it, each running from end to end along the block's longer side, as it is turned. */
+/**
+ * The cells of a block that reaches out to no wall beside it, each running from end to end along the
+ * block's longer side, as it is turned, or for a block as deep as it is wide, the way its model is
+ * turned.
+ */
 function runningCellsOf(model: TableWorldModel, cell: number): WallJoinCell[] {
   const box = model.boxPx!;
   const across = Math.max(1, Math.round(box.widthPx / cell));
   const deep = Math.max(1, Math.round(box.depthPx / cell));
   const turn = model.rotateDeg * RADIANS;
-  const along = model.rotateDeg + (box.depthPx > box.widthPx ? 90 : 0);
+  const along =
+    model.rotateDeg + (box.depthPx > box.widthPx ? 90 : box.depthPx < box.widthPx ? 0 : model.model.turnDeg);
   const arms = [
     { deg: along, lengthPx: cell / 2 },
     { deg: along + 180, lengthPx: cell / 2 },
@@ -673,19 +683,22 @@ function swungAbout(scaling: Matrix4, swing: NonNullable<ModelPart['swing']>): M
 
 /** Which part of a building's kit a mesh is, as its node (or one it hangs from) says: a wall if none says. */
 function kitRoleOf(object: Object3D): KitRole {
+  const part = partOf(object);
+  return part === 'roof' || part === 'cap' ? part : 'wall';
+}
+
+/** What part of its model a mesh is, as the nearest of its node and those it hangs from that says so says. */
+function partOf(object: Object3D): unknown {
   for (let node: Object3D | null = object; node; node = node.parent) {
     const part = (node.userData as { part?: unknown }).part;
-    if (part === 'roof' || part === 'cap' || part === 'wall') return part;
+    if (part !== undefined) return part;
   }
-  return 'wall';
+  return undefined;
 }
 
 /** Whether a mesh is the hub of a joined wall, as its node (or one it hangs from) says. */
 function isHub(object: Object3D): boolean {
-  for (let node: Object3D | null = object; node; node = node.parent) {
-    if ((node.userData as { part?: unknown }).part === 'hub') return true;
-  }
-  return false;
+  return partOf(object) === 'hub';
 }
 
 /**

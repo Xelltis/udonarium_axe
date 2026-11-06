@@ -236,6 +236,12 @@ export interface Table3dEngine {
   renderIfChanged(): boolean;
   /** Calls back when something the engine was loading, such as a picture, has come and wants drawing. */
   onNeedsFrame(listener: () => void): void;
+  /**
+   * Calls back with the models made as walls joined to the walls beside them, by where their bytes
+   * are read from, each time a model has been read: a block drawn as one of them is to be told the
+   * arms it reaches out with.
+   */
+  onJoinedModels(listener: (urls: readonly string[]) => void): void;
   /** Whether the engine is still loading something it was told to draw, or holds something back to draw a moment later. */
   isLoading(): boolean;
   /** Draws at once on the next frame what it holds back to draw a moment later, as the shadows of pieces that moved. */

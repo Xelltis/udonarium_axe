@@ -37,13 +37,13 @@ import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
 import { dayFractionOf } from '@axe/domain/game-clock/game-clock';
 import { matrixColumns, tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
 import { type DoorMotion, movedByDoor, openDoorMotion } from '@axe/domain/tabletop/door-motion';
-import { type CellGrid, cellGridOf, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
+import { type CellGrid, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { groundLiftOfBlock } from '@axe/domain/tabletop/ground/ground-surface';
-import { pieceModelOf } from '@axe/domain/tabletop/piece-model';
+import { type PieceModel, pieceModelOf } from '@axe/domain/tabletop/piece-model';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { tableSkyKindOf } from '@axe/domain/tabletop/table-sky';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
-import { terrainBoxOf, terrainCovers } from '@axe/domain/tabletop/terrain-box';
+import { forEachCellUnder, terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { flickers } from '@axe/domain/tabletop/vision-scene/light-flicker';
 import { waterShoreOf } from '@axe/domain/tabletop/water/water-shore';
 import { waterSidesOf } from '@axe/domain/tabletop/water/water-sides';
@@ -54,7 +54,7 @@ import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import { eyeAxesOf } from '@axe/domain/tabletop/world/table-sprites';
 import { tableWaterOf } from '@axe/domain/tabletop/world/table-water';
 import { sameTableWorld, TableWorld, tableWorldOf } from '@axe/domain/tabletop/world/table-world';
-import { type JoinableBlock, wallJoinsOf } from '@axe/domain/tabletop/world/wall-joins';
+import { type JoinableBlock, type WallJoinCell, wallJoinsOf } from '@axe/domain/tabletop/world/wall-joins';
 import { weatherFallOf } from '@axe/domain/tabletop/world/weather-fall';
 import type {
   Table3dBackend,
@@ -250,7 +250,7 @@ export class Table3dService {
   /**
    * The blocks this seat may see that are drawn as 3D models held here in full: each stood on the
    * middle of its box, at the foot of the block, as wide as the box is wide or deep, and a block drawn
-   * as a wall with the arms it reaches out to the walls and doors beside it with.
+   * as a model made as a joined wall with the arms it reaches out to the walls and doors beside it with.
    */
   private readonly terrainModels = computed<readonly TableWorldModel[]>(() => {
     this.objectChange.fileVersion();
@@ -258,17 +258,23 @@ export class Table3dService {
     const table = this.tabletop.currentTableVersion();
     const gridSize = table.gridSize;
     const ground = this.standing.surface();
-    const models: TableWorldModel[] = [];
-    const seen = this.tabletop.terrains.filter((terrain) => {
+    const joinedUrls = this.joinedModelUrls();
+    const drawn: { terrain: Terrain; model: PieceModel; url: string }[] = [];
+    for (const terrain of this.tabletop.terrains) {
       this.objectChange.versionOf(terrain.identifier)();
-      return !this.hiddenByFog(terrain);
-    });
-    const grid = cellGridOf(table.width, table.height, gridSize, table.gridType);
-    const joins = wallJoinsOf(grid, joinableBlocksOf(seen, grid));
-    for (const terrain of seen) {
       const model = pieceModelOf(terrain);
       const url = model ? this.pieces.modelUrlOf(model.identifier) : '';
-      if (!model || !url) continue;
+      if (model && url && !this.hiddenByFog(terrain)) drawn.push({ terrain, model, url });
+    }
+    const walls = drawn.filter(({ url }) => joinedUrls.has(url)).map(({ terrain }) => terrain);
+    let joins = new Map<string, WallJoinCell[]>();
+    if (walls.length > 0) {
+      const doors = this.tabletop.terrains.filter((terrain) => terrain.isDoor && !this.hiddenByFog(terrain));
+      const grid = cellGridOf(table.width, table.height, gridSize, table.gridType);
+      joins = wallJoinsOf(grid, joinableBlocksOf([...walls, ...doors], grid));
+    }
+    const models: TableWorldModel[] = [];
+    for (const { terrain, model, url } of drawn) {
       const joined = joins.get(terrain.identifier);
       const box = terrainBoxOf(terrain, gridSize);
       const door = openDoorMotion(terrain, gridSize);
@@ -389,6 +395,10 @@ export class Table3dService {
   private engine: Table3dEngine | null = null;
   /** The page's grid, laid over the board on the canvas, or null while the page draws none. */
   private readonly grid = signal<Table3dGrid | null>(null);
+  /** Where the models read so far that are made as walls joined to the walls beside them are read from, as the engine tells. */
+  private readonly joinedModelUrls = signal<ReadonlySet<string>>(new Set(), {
+    equal: (a, b) => a.size === b.size && [...a].every((url) => b.has(url)),
+  });
   private starting: Promise<unknown> | null = null;
   private readonly idleWaiters: (() => void)[] = [];
   /** Whether what moves by itself is drawn only as the frame waited for is drawn at once. */
@@ -455,6 +465,7 @@ export class Table3dService {
       made.warmDice([...this.diceWarmed]);
       made.readyBeforeDrawing(this.readiesFirst);
       made.onNeedsFrame(() => this.drawSoon(made));
+      made.onJoinedModels((urls) => this.joinedModelUrls.set(new Set(urls)));
       effects.push(...this.follow(made));
       made.onLost(() => this.restart());
     });
@@ -882,23 +893,40 @@ function isRenderer(value: string | null): value is TableRenderer {
   return value !== null && (RENDERERS as readonly string[]).includes(value);
 }
 
+/** How far the middle of a block may stand from the middle of the cells it covers, in table pixels, and still be on them. */
+const ON_CELLS_PX = 1;
+
 /**
- * The blocks a wall may be joined to, with the cells each stands on: those drawn as a model, and the
- * doors whether drawn as one or not. A block turned off the grid's own lines stands on no cells a wall
- * runs along, and is left out.
+ * The blocks a wall may be joined to, with the cells each stands on: the walls drawn as a joined
+ * model, and the doors whether drawn as a model or not. A wall is drawn on the middles of its cells,
+ * so a block that does not stand on them, turned off the grid's lines or set off its cells, is left
+ * out and drawn where it stands.
  */
 function joinableBlocksOf(terrains: readonly Terrain[], grid: CellGrid): JoinableBlock[] {
   const blocks: JoinableBlock[] = [];
   for (const terrain of terrains) {
-    const model = pieceModelOf(terrain);
-    if ((!model && !terrain.isDoor) || terrain.rotate % 90 !== 0) continue;
-    const box = terrainBoxOf(terrain, grid.sizePx);
+    if (terrain.rotate % 90 !== 0) continue;
     const cells: number[] = [];
-    forEachCellInBox(grid, box.minX, box.minY, box.maxX, box.maxY, (index, cx, cy) => {
-      if (terrainCovers(terrain, grid.sizePx, cx, cy)) cells.push(index);
+    let sumX = 0;
+    let sumY = 0;
+    forEachCellUnder(grid, terrain, (index, cx, cy) => {
+      cells.push(index);
+      sumX += cx;
+      sumY += cy;
     });
-    if (cells.length > 0)
-      blocks.push({ owner: terrain.identifier, model: model?.identifier ?? '', door: terrain.isDoor, cells });
+    if (cells.length < 1) continue;
+    const box = terrainBoxOf(terrain, grid.sizePx);
+    const off = Math.hypot(
+      sumX / cells.length - (box.minX + box.maxX) / 2,
+      sumY / cells.length - (box.minY + box.maxY) / 2
+    );
+    if (off > ON_CELLS_PX) continue;
+    blocks.push({
+      owner: terrain.identifier,
+      model: pieceModelOf(terrain)?.identifier ?? '',
+      door: terrain.isDoor,
+      cells,
+    });
   }
   return blocks;
 }

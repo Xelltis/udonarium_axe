@@ -198,6 +198,17 @@ describe('placementOf', () => {
     ]);
     expect(hubs.map((matrix) => where(matrix, 0.5, 0, 0.5))).toEqual([[125, 0, 225]]);
 
+    const square = knight({
+      heightPx: 100,
+      pivotPx: 0,
+      model: { identifier: 'wall', scale: 1, turnDeg: 90, idle: '', walk: '' },
+      boxPx: { widthPx: 50, depthPx: 50, cellPx: 50 },
+    });
+    expect(partPlacementsOf(square, wall)[0].map((matrix) => where(matrix, 0.5, 0, 0))).toEqual([
+      [100, 0, 225],
+      [100, 0, 175],
+    ]);
+
     const lone = knight({ heightPx: 100, pivotPx: 0, boxPx: { widthPx: 50, depthPx: 100, cellPx: 50 } });
     const [runs] = partPlacementsOf(lone, wall);
     expect(runs.map((matrix) => where(matrix, 0.5, 0, 0))).toEqual([

@@ -1,4 +1,4 @@
-import { hexSideStepsAt } from '@axe/domain/tabletop/cell-steps';
+import { hexSideStepsAt, ORTHOGONAL_STEPS } from '@axe/domain/tabletop/cell-steps';
 import { cellCenterOf, cellColRow, type CellGrid, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 
@@ -23,14 +23,6 @@ export interface WallJoinCell {
   readonly arms: readonly WallArm[];
 }
 
-/** The four sides of a square, east first and on round clockwise. */
-const SQUARE_SIDES: readonly (readonly [number, number])[] = [
-  [1, 0],
-  [0, 1],
-  [-1, 0],
-  [0, -1],
-];
-
 /** How finely the way an arm turns is kept, so that a scene worked out again compares the same. */
 const DEG_PLACES = 1000;
 
@@ -38,8 +30,9 @@ const DEG_PLACES = 1000;
  * How each block drawn as a wall reaches out to the walls beside it: from the middle of every cell it
  * stands on, an arm to each side of the cell where a block drawn as the same model stands, or a door,
  * as far as the side, so that its runs meet at their corners and at their junctions and run on into
- * the doors hung in them, on squares and on hexes alike. A block that reaches out to nothing is left
- * out, as are the doors, which are drawn as they hang.
+ * the doors hung in them, on squares and on hexes alike, each cell's arms in the order they turn to
+ * from east. A block that reaches out to nothing is left out, as are the doors, which are drawn as
+ * they hang.
  */
 export function wallJoinsOf(grid: CellGrid, blocks: readonly JoinableBlock[]): Map<string, WallJoinCell[]> {
   const joins = new Map<string, WallJoinCell[]>();
@@ -61,7 +54,7 @@ export function wallJoinsOf(grid: CellGrid, blocks: readonly JoinableBlock[]): M
       const middle = cellCenterOf(grid, index);
       const { col, row } = cellColRow(grid, index);
       const arms: WallArm[] = [];
-      for (const [dx, dy] of hex ? hexSideStepsAt(flatTop, col, row) : SQUARE_SIDES) {
+      for (const [dx, dy] of hex ? hexSideStepsAt(flatTop, col, row) : ORTHOGONAL_STEPS) {
         const next = cellIndexOf(grid, col + dx, row + dy);
         if (next < 0) continue;
         if (!(byCell.get(next) ?? []).some((other) => other.door || other.model === block.model)) continue;
@@ -73,7 +66,7 @@ export function wallJoinsOf(grid: CellGrid, blocks: readonly JoinableBlock[]): M
         });
       }
       reaches ||= arms.length > 0;
-      return { x: middle.x, y: middle.y, arms };
+      return { x: middle.x, y: middle.y, arms: arms.sort((a, b) => a.deg - b.deg) };
     });
     if (reaches) joins.set(block.owner, cells);
   }

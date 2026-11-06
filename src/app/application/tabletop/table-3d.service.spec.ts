@@ -172,6 +172,12 @@ class FakeEngine implements Table3dEngine {
     this.lose = listener;
   }
 
+  onJoinedModels(listener: (urls: readonly string[]) => void): void {
+    this.joined = listener;
+  }
+
+  joined: (urls: readonly string[]) => void = () => undefined;
+
   onNeedsFrame(listener: () => void): void {
     this.arrive = () => {
       this.loading = false;
@@ -850,9 +856,13 @@ describe('Table3dService', () => {
     table.destroy();
   });
 
-  it('tells a block drawn as a wall the arms it reaches out to the walls and the door beside it with', async () => {
+  it('tells a block drawn as a joined wall the arms it reaches out to the walls and the door beside it with', async () => {
     const scene = service();
-    vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:wall' } as never);
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    vi.spyOn(TestBed.inject(ModelStorage), 'get').mockImplementation(
+      (identifier: string) => ({ isReady: true, url: `blob:${identifier}` }) as never
+    );
     const table = new GameTable();
     table.initialize();
     TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
@@ -868,9 +878,17 @@ describe('Table3dService', () => {
     const tree = Terrain.create('木', 1, 1, 3, '', '');
     tree.location = { name: 'table', x: 100, y: 100 };
     tree.modelIdentifier = 'tree';
-    for (const block of [row, column, door, tree]) table.appendChild(block);
+    const strays = [210, 260].map((x) => {
+      const stray = Terrain.create('壁', 1, 1, 2, '', '');
+      stray.location = { name: 'table', x, y: 260 };
+      stray.modelIdentifier = 'timber_frame_wall';
+      return stray;
+    });
+    for (const block of [row, column, door, tree, ...strays]) table.appendChild(block);
     await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(scene.world().models.filter((model) => model.joins)).toEqual([]);
 
+    engines[0].joined(['blob:timber_frame_wall']);
     const models = new Map(scene.world().models.map((model) => [model.owner, model]));
     const turns = (owner: string) => models.get(owner)!.joins!.map((cell) => cell.arms.map((arm) => arm.deg));
 
@@ -884,6 +902,7 @@ describe('Table3dService', () => {
     ]);
     expect(turns(column.identifier)).toEqual([[270]]);
     expect(models.get(tree.identifier)!.joins).toBeUndefined();
+    expect(strays.map((stray) => models.get(stray.identifier)!.joins)).toEqual([undefined, undefined]);
     table.destroy();
   });
 
