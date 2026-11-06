@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { TestBed } from '@angular/core/testing';
-import { BundledModelsService } from '@axe/application/tabletop/bundled-models.service';
+import { BUNDLED_MODEL_RETRY_MS, BundledModelsService } from '@axe/application/tabletop/bundled-models.service';
 import { BUNDLED_PIECE_MODELS } from '@axe/core/storage/bundled-models';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -44,5 +44,26 @@ describe('BundledModelsService', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(ModelStorage.instance.get(GOBLIN)).toBeNull();
+  });
+
+  it('asks again for a model that could not be read, once a while has passed, and not before', async () => {
+    let now = 1000;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+    const fetched = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(async () => new Response('', { status: 404 }))
+      .mockImplementation(async () => new Response(goblinBytes()));
+    const bundled = TestBed.inject(BundledModelsService);
+
+    bundled.read(GOBLIN);
+    await vi.waitFor(() => expect(fetched).toHaveBeenCalledTimes(1));
+    now += 1000;
+    bundled.read(GOBLIN);
+    expect(fetched).toHaveBeenCalledTimes(1);
+
+    now += BUNDLED_MODEL_RETRY_MS;
+    bundled.read(GOBLIN);
+    await vi.waitFor(() => expect(ModelStorage.instance.get(GOBLIN)?.isReady).toBe(true));
+    expect(fetched).toHaveBeenCalledTimes(2);
   });
 });
