@@ -31,6 +31,23 @@ describe('pick index', () => {
     expect(pickFirst([card('under', 1), card('over', 2)], down)?.target.id).toBe('over');
   });
 
+  it('orders a chain of things nearly the same distance off the same whatever order they come in', () => {
+    const layer = (id: string, z: number, order: number): PickTarget => ({
+      id,
+      layer: 'card',
+      order,
+      shapes: [{ kind: 'floor', outline: square(0, 0, 100), z }],
+    });
+    const things = [layer('top', 0.8, 1), layer('middle', 0.4, 2), layer('bottom', 0, 0)];
+    const orders = [things, [...things].reverse(), [things[1], things[2], things[0]]].map((order) =>
+      pickAll(order, down).map((hit) => hit.target.id)
+    );
+
+    expect(orders[1]).toEqual(orders[0]);
+    expect(orders[2]).toEqual(orders[0]);
+    expect(orders[0]).toEqual(['middle', 'top', 'bottom']);
+  });
+
   it('looks through the see-through part of a picture to what is behind it', () => {
     const picture: PickTarget = {
       id: 'picture',

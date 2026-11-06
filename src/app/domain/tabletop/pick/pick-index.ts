@@ -65,7 +65,25 @@ export function pickAll(
     const hit = pickTarget(target, ray);
     if (hit) hits.push(hit);
   }
-  return hits.sort((a, b) => (Math.abs(a.t - b.t) <= SAME_DISTANCE_PX ? b.target.order - a.target.order : a.t - b.t));
+  return inFrontFirst(hits);
+}
+
+/**
+ * Hits put nearest the eye first, and of those that count as the same distance off as the nearest of
+ * them, the one drawn in front first: sorted by distance, then each run of hits within the distance
+ * that counts as the same of the first of the run sorted by which is drawn in front, so the order is
+ * the same whatever order the hits came in.
+ */
+function inFrontFirst(hits: PickHit[]): PickHit[] {
+  hits.sort((a, b) => a.t - b.t);
+  const sorted: PickHit[] = [];
+  for (let start = 0; start < hits.length;) {
+    let end = start + 1;
+    while (end < hits.length && hits[end].t - hits[start].t <= SAME_DISTANCE_PX) end++;
+    sorted.push(...hits.slice(start, end).sort((a, b) => b.target.order - a.target.order || a.t - b.t));
+    start = end;
+  }
+  return sorted;
 }
 
 /** The target nearest the eye along a line of sight, or null where the line meets none. */
