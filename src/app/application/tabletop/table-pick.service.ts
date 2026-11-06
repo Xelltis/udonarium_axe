@@ -21,7 +21,7 @@ import { pickAll, pickFirst, PickHit, PickTarget } from '@axe/domain/tabletop/pi
 import { beamPickTarget, TERRAIN_PICK_LAYER, terrainPickTarget } from '@axe/domain/tabletop/pick/terrain-pick';
 import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
 import { boardSurfaceOf, surfaceOf } from '@axe/domain/tabletop/tabletop-object';
-import { Terrain } from '@axe/domain/tabletop/terrain';
+import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { lyingPlaceOfOwners } from '@axe/domain/tabletop/world/lying-order';
 import { COIN_KIND, TableWorldCoin } from '@axe/domain/tabletop/world/table-coins';
 import { eyeAxesOf, spriteBoxCorners, spriteCorners, TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
@@ -83,8 +83,8 @@ export class TablePickService {
    * What a press at a point of the page is for: what it lands on first, but past the blocks locked in
    * place to a piece standing behind them on the same line of sight, as the page let a press on a
    * locked block pass through to what lay under it. A piece standing in a wood is pressed, not the
-   * tree in front of it; a locked block with no piece behind it is pressed itself, for its menu, its
-   * door and its switch.
+   * tree in front of it; a locked block with no piece behind it is pressed itself, for its menu. A
+   * door and a switch are pressed themselves whatever stands behind them, as they are there to be.
    */
   pressedAt(pageX: number, pageY: number): PickHit | null {
     const hits = this.allAt(pageX, pageY);
@@ -97,11 +97,13 @@ export class TablePickService {
     return first;
   }
 
-  /** Whether a target is a block locked in place. */
+  /** Whether a target is a block locked in place a press passes through: not a door, nor a switch. */
   private lockedBlock(target: PickTarget): boolean {
     if (target.layer !== TERRAIN_PICK_LAYER) return false;
     const block = this.objectStore.get(target.id);
-    return block instanceof Terrain && block.isLocked;
+    if (!(block instanceof Terrain) || !block.isLocked || block.doorStyle !== DoorStyle.NONE) return false;
+    const held = block.boardSwitch;
+    return !held || held.retired;
   }
 
   /** Everything a point of the page lands on, blocks, pieces and looks laid over the ground, nearest the eye first. */

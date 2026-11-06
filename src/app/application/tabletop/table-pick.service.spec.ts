@@ -13,11 +13,12 @@ import { Card } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
+import { BoardSwitch } from '@axe/domain/tabletop/board-switch/board-switch';
 import { DEFAULT_TABLE_CAMERA_VIEW, pageOfTablePoint, TableLayout } from '@axe/domain/tabletop/camera/table-camera';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { Terrain } from '@axe/domain/tabletop/terrain';
+import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { TerrainFogCover } from '@axe/domain/tabletop/terrain-cover';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -316,6 +317,25 @@ describe('TablePickService', () => {
 
     block.isLocked = false;
     expect(service.pressedAt(frame.x, frame.y)?.target.id).toBe(block.identifier);
+  });
+
+  it('keeps a press on a locked door, and on a locked switch, with a piece behind it', async () => {
+    const door = blockAt(5, 5);
+    door.isLocked = true;
+    door.doorStyle = DoorStyle.SWING;
+    const die = DiceSymbol.create('D6', DiceType.D6, 1);
+    die.location = { name: 'table', x: 5 * GRID, y: 5 * GRID };
+    await settled();
+    const frame = onPage(5, 5, 1);
+
+    expect(service.pressedAt(frame.x, frame.y)?.target.id).toBe(door.identifier);
+
+    door.doorStyle = DoorStyle.NONE;
+    expect(service.pressedAt(frame.x, frame.y)?.target.id).toBe(die.identifier);
+    const held = new BoardSwitch();
+    held.initialize();
+    door.appendChild(held);
+    expect(service.pressedAt(frame.x, frame.y)?.target.id).toBe(door.identifier);
   });
 
   it('keeps a press on a block locked in place with no piece behind it, for its menu and its door', async () => {
