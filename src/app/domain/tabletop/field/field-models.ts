@@ -30,6 +30,10 @@ export const FIELD_MODEL_IDS = [
   'rock_angular',
   'rock_slab',
   'rock_outcrop',
+  'cactus_saguaro',
+  'cactus_tall',
+  'junk_heap',
+  'junk_drums',
 ] as const;
 
 export type FieldModelId = (typeof FIELD_MODEL_IDS)[number];
@@ -50,6 +54,8 @@ export const FIELD_PROP_MODELS: Readonly<Partial<Record<FieldPropId, readonly Fi
   boulder: ['rock_boulder', 'rock_angular', 'rock_slab'],
   outcrop: ['rock_outcrop'],
   giantTree: ['tree_giant'],
+  cactus: ['cactus_saguaro', 'cactus_tall'],
+  junk: ['junk_heap', 'junk_drums'],
 };
 
 /**
@@ -143,6 +149,10 @@ export const FIELD_MODEL_SIZES: Readonly<Record<FieldModelId, { readonly across:
   rock_boulder: { across: 1.3556, tall: 0.7302 },
   rock_angular: { across: 1.1457, tall: 0.6974 },
   rock_slab: { across: 1.3424, tall: 0.5183 },
+  cactus_saguaro: { across: 0.7548, tall: 1.4975 },
+  cactus_tall: { across: 0.458, tall: 1.5975 },
+  junk_heap: { across: 1.233, tall: 0.3567 },
+  junk_drums: { across: 1.0751, tall: 0.5683 },
   rock_outcrop: { across: 1.2821, tall: 1.064 },
 };
 

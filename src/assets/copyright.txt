@@ -63,17 +63,19 @@ Comment: 効果音提供 OtoLogic (https://otologic.jp) / CC BY 4.0
 
 Files: models/nature/*
 Copyright: 2026 SavageChieftain / Xelltis（形）
- ambientCG (ambientcg.com)（樹皮・葉・岩の写真）
+ ambientCG (ambientcg.com)（樹皮・葉・岩・板・鉄の写真）
 License: MIT and CC0-1.0
-Comment: 野外の木・茂み・岩の3Dモデル。木と茂みは幹と枝を枝分かれさせて組み立てて葉の板を
- 付け、岩は球を凹凸に押し出して割れ口と段を付けたもので、形は本プロジェクトで作成した（MIT）。
+Comment: 野外の木・茂み・岩・サボテン・廃材の3Dモデル。木と茂みは幹と枝を枝分かれさせて組み立てて
+ 葉の板を付け、岩は球を凹凸に押し出して割れ口と段を付け、サボテンは稜のある柱を組み、廃材は板・
+ 鉄板・ドラム缶・タイヤを積んだもので、形は本プロジェクトで作成した（MIT）。
  樹皮・葉・岩の絵は、ambientCGの素材の色と不透明度の画像（1K-JPG）を縮め、葉は1枚ずつ
  切り出して小枝の絵に並べ直したもの（CC0）。樹皮はBark001・Bark002・Bark004・Bark010・
  Bark012・Bark014、葉はLeafSet002・LeafSet007・LeafSet008・LeafSet009・LeafSet011・
  LeafSet012・LeafSet013・LeafSet014・LeafSet016・LeafSet019・LeafSet022・LeafSet024・
- LeafSet028、松葉はPineNeedles001、岩はRock022・Rock028・Rock048・Rock051から。
- シラカバの樹皮・桜の花・針葉樹の枝に積もった雪は作図。銀杏の葉は、LeafSet007の黄葉の写真を
- 扇の形に切り抜いたもの。
+ LeafSet028、松葉はPineNeedles001、岩はRock022・Rock028・Rock048・Rock051、廃材の板・鉄板・
+ ドラム缶はPlanks037A・Rust009・PaintedMetal004・PaintedMetal006から。
+ シラカバの樹皮・桜の花・針葉樹の枝に積もった雪・サボテンの肌・タイヤは作図。銀杏の葉は、
+ LeafSet007の黄葉の写真を扇の形に切り抜いたもの。
  ライセンスのページ https://docs.ambientcg.com/license/ が、ambientCGのすべての素材を
  CC0 1.0 Universalで提供すると示す。
 

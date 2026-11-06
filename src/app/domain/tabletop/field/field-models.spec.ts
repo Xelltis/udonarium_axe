@@ -86,9 +86,10 @@ describe('the bundled models of open country', () => {
     expect(grown('autumn', 'snowfield')).not.toContain('tree_maple');
   });
 
-  it('stands none for a thing with no model of its own', () => {
+  it('stands none for a thing with no model of its own, and its own for a cactus or a heap of junk', () => {
     expect(fieldModelAt('hill', 1, 1, 1)).toBeNull();
-    expect(fieldModelAt('junk', 1, 1, 1)).toBeNull();
+    expect(FIELD_PROP_MODELS.junk).toContain(fieldModelAt('junk', 1, 1, 1));
+    expect(FIELD_PROP_MODELS.cactus).toContain(fieldModelAt('cactus', 1, 1, 1));
   });
 
   it('knows how large each model is as it was made, as its file has it', () => {
