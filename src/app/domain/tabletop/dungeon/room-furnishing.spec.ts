@@ -9,8 +9,10 @@ import {
   DungeonPoint,
   DungeonRect,
   DungeonRoomRole,
+  FurnishingId,
 } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { musterCells } from '@axe/domain/tabletop/dungeon/entrance-muster';
+import { FURNISHING_MODELS } from '@axe/domain/tabletop/dungeon/furnishing-models';
 import {
   CONTAINER_LENGTH,
   CONTAINER_WIDTH,
@@ -407,6 +409,35 @@ describe('a furnished place on the table', () => {
       expect(block.blocksSight).toBe(true);
       expect(block.rect).toEqual({ x: stacked.x, y: stacked.y, w: stacked.w, h: stacked.h });
     }
+  });
+
+  it('stands each piece of furniture that has a model as it, turned a quarter where it lies north to south', () => {
+    const options = { placeDoors: true, placeStairs: true, models: true };
+    const warehouse = planDungeon({ atmosphere: 'containerWarehouse', roomCount: 8, seed: 42 }, options);
+    const containers = warehouse.blocks.blocks.filter((block) => block.thing?.startsWith('container'));
+
+    expect(containers.length).toBeGreaterThan(0);
+    for (const block of containers) {
+      expect(block.model).toBe(FURNISHING_MODELS[block.thing as FurnishingId]);
+      expect(block.modelTurn).toBe(block.rect.h > block.rect.w ? 90 : undefined);
+    }
+    const building = planDungeon({ atmosphere: 'abandonedBuilding', roomCount: 12, seed: 7 }, options);
+    const pieces = building.blocks.blocks.filter((block) => block.thing);
+    expect(pieces.filter((block) => block.thing === 'pillar').every((block) => block.model === undefined)).toBe(true);
+    expect(pieces.filter((block) => block.thing === 'desk').every((block) => block.model === 'prop_desk')).toBe(true);
+  });
+
+  it('builds furniture of its blocks where models are not asked for, or where it takes a block a cell', () => {
+    const built = planDungeon({ atmosphere: 'containerWarehouse', roomCount: 8, seed: 42 });
+    expect(built.blocks.blocks.some((block) => block.model)).toBe(false);
+
+    const hexed = planDungeon(
+      { atmosphere: 'containerWarehouse', roomCount: 8, seed: 42, gridType: GridType.HEX_VERTICAL },
+      { placeDoors: true, placeStairs: true, models: true }
+    );
+    expect(
+      hexed.blocks.blocks.filter((block) => block.thing?.startsWith('container')).some((block) => block.model)
+    ).toBe(false);
   });
 
   it('dresses a hidden door as the wall it stands in', () => {

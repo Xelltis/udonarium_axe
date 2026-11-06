@@ -144,10 +144,11 @@ export class DungeonGeneratorComponent {
   protected readonly fieldRelief = signal(DEFAULT_FIELD_RELIEF);
   protected readonly fieldRaises = computed(() => !fieldAtmosphereById(this.fieldAtmosphere()).town);
   /**
-   * Whether the trees, bushes and rocks of open country are stood as the bundled 3D models, as a table
-   * drawn on a canvas draws them; a seat whose table the page draws itself builds them of blocks.
+   * Whether the trees, bushes and rocks of open country and the furniture of a dungeon are stood as the
+   * bundled 3D models, as a table drawn on a canvas draws them; a seat whose table the page draws
+   * itself builds them of blocks.
    */
-  protected readonly fieldModels = signal(true);
+  protected readonly models = signal(true);
   protected readonly fieldSeasons = FIELD_SEASONS;
   /** The season the trees of open country are grown in; none in particular grows them as in summer. */
   protected readonly fieldSeason = signal<FieldSeason>('');
@@ -247,7 +248,12 @@ export class DungeonGeneratorComponent {
         trapCount: this.trapCount(),
         gridType: this.gridType(),
       },
-      { placeDoors: this.placeDoors(), placeStairs: this.placeStairs(), sheerWalls: this.sheerWalls() }
+      {
+        placeDoors: this.placeDoors(),
+        placeStairs: this.placeStairs(),
+        sheerWalls: this.sheerWalls(),
+        models: this.models(),
+      }
     )
   );
 
@@ -260,7 +266,7 @@ export class DungeonGeneratorComponent {
       seed: this.seed(),
       gridType: this.gridType(),
       relief: this.fieldRelief(),
-      models: this.fieldModels(),
+      models: this.models(),
       season: this.fieldSeason(),
     })
   );

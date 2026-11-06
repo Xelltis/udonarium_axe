@@ -16,6 +16,7 @@ import {
   WallTextureId,
 } from '@axe/domain/media/texture-catalog';
 import { DungeonPoint } from '@axe/domain/tabletop/dungeon/dungeon-layout';
+import { furnishingModelUrl, isFurnishingModel } from '@axe/domain/tabletop/dungeon/furnishing-models';
 import { type FieldModelId, fieldModelUrl } from '@axe/domain/tabletop/field/field-models';
 import { cellCenterOf, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
@@ -232,7 +233,8 @@ export class DungeonBuildService {
     for (const block of blocks.blocks) {
       const terrain = this.createTerrain(block, { wallSide, wallTop }, options.wallHeight, grid);
       table.appendChild(terrain);
-      if (block.model) await this.dressAsModel(terrain, block.model as FieldModelId, models);
+      if (block.model) await this.dressAsModel(terrain, block.model, models);
+      if (block.modelTurn) terrain.modelTurn = String(block.modelTurn);
       done++;
       if (done % CHUNK_SIZE === 0) {
         onProgress?.(done, blocks.blocks.length);
@@ -303,7 +305,7 @@ export class DungeonBuildService {
    * here the first time one is asked for in a build. A model that cannot be read leaves the block
    * drawn as its faces.
    */
-  private async dressAsModel(terrain: Terrain, model: FieldModelId, read: Map<string, Promise<string>>): Promise<void> {
+  private async dressAsModel(terrain: Terrain, model: string, read: Map<string, Promise<string>>): Promise<void> {
     let identifier = read.get(model);
     if (!identifier) {
       identifier = this.readModel(model);
@@ -313,9 +315,11 @@ export class DungeonBuildService {
     if (held) terrain.modelIdentifier = held;
   }
 
-  private async readModel(model: FieldModelId): Promise<string> {
+  private async readModel(model: string): Promise<string> {
     try {
-      const response = await fetch(fieldModelUrl(model));
+      const response = await fetch(
+        isFurnishingModel(model) ? furnishingModelUrl(model) : fieldModelUrl(model as FieldModelId)
+      );
       if (!response.ok) return '';
       const blob = await response.blob();
       const file = new File([blob], `${model}.glb`, { type: MODEL_TYPE });

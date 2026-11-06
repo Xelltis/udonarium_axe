@@ -83,9 +83,11 @@ export interface MapBlock {
   thing?: string;
   /**
    * A bundled 3D model it is drawn as, on a table drawn on a canvas, in place of its faces: a tree, a
-   * rock. Left out, it is drawn as its faces.
+   * rock, a piece of furniture. Left out, it is drawn as its faces.
    */
   model?: string;
+  /** How far its model is turned from the way it was made, in degrees clockwise: a quarter for one lying north to south. */
+  modelTurn?: number;
 }
 
 /**

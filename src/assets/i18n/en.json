@@ -2946,6 +2946,7 @@
           "density": "Undergrowth",
           "relief": "Ground relief (cells)",
           "models": "Stand trees, rocks, cacti and junk as 3D models (seen on a 3D table)",
+          "furnishingModels": "Stand furniture, crates and containers as 3D models (seen on a 3D table)",
           "season": "Season",
           "gridType": "Cell shape",
           "hexNote": "Hexes cannot be gathered up, so a block is placed per cell and the board is made smaller to pay for it.",

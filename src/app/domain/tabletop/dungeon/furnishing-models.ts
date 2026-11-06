@@ -1,0 +1,41 @@
+import type { FurnishingId } from '@axe/domain/tabletop/dungeon/dungeon-layout';
+
+/** The 3D models bundled with the app that the furniture of a dungeon can be stood as. */
+export const FURNISHING_MODEL_IDS = [
+  'prop_crate',
+  'prop_stool',
+  'prop_desk',
+  'prop_gamingTable',
+  'prop_rubble',
+  'prop_containerRed',
+  'prop_containerBlue',
+  'prop_containerGreen',
+] as const;
+
+export type FurnishingModelId = (typeof FURNISHING_MODEL_IDS)[number];
+
+/** Whether a bundled model's name is one of the furniture's. */
+export function isFurnishingModel(id: string): id is FurnishingModelId {
+  return (FURNISHING_MODEL_IDS as readonly string[]).includes(id);
+}
+
+/** Where a bundled piece of furniture's bytes are served from, beside the page. */
+export function furnishingModelUrl(id: FurnishingModelId): string {
+  return `assets/models/props/${id}.glb`;
+}
+
+/**
+ * The model each piece of furniture is stood as. A piece with none, such as a counter run along a
+ * wall or a pillar of the walls' own stone, is built of its blocks as ever, and so is the lit table
+ * of a bar, whose glow a model would put out.
+ */
+export const FURNISHING_MODELS: Readonly<Partial<Record<FurnishingId, FurnishingModelId>>> = {
+  crate: 'prop_crate',
+  stool: 'prop_stool',
+  desk: 'prop_desk',
+  gamingTable: 'prop_gamingTable',
+  rubble: 'prop_rubble',
+  containerRed: 'prop_containerRed',
+  containerBlue: 'prop_containerBlue',
+  containerGreen: 'prop_containerGreen',
+};

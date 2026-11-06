@@ -10,6 +10,7 @@ import {
   maskOfKind,
 } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { mergeMaskToRects } from '@axe/domain/tabletop/dungeon/rect-merge';
+import { FURNISHING_MODELS } from '@axe/domain/tabletop/dungeon/furnishing-models';
 import { furnishedCells, FURNISHING_SHAPES } from '@axe/domain/tabletop/dungeon/room-furnishing';
 import { HAZARD_PRESETS } from '@axe/domain/tabletop/hazard-presets';
 import {
@@ -40,6 +41,11 @@ export interface DungeonBlockOptions {
   sheerWalls?: boolean;
   /** How many cells one block may stand for. Hexes take one each; see mergeSpanFor. */
   mergeSpan?: number;
+  /**
+   * Whether the furniture is stood as the bundled 3D models, as a table drawn on a canvas draws them.
+   * A piece built of one block a cell, as on a board of hexes, is built of its blocks all the same.
+   */
+  models?: boolean;
 }
 
 export const DEFAULT_BLOCK_OPTIONS: DungeonBlockOptions = { placeDoors: true, placeStairs: true };
@@ -169,6 +175,7 @@ function furnishingBlocks(piece: DungeonFurnishing, span: number, options: Dunge
   let altitude = 0;
   for (const level of [piece.piece, ...(piece.stack ?? [])]) {
     const shape = FURNISHING_SHAPES[level];
+    const model = options.models && rects.length === 1 ? FURNISHING_MODELS[level] : undefined;
     for (const rect of rects) {
       blocks.push({
         kind: shape.skin ? 'prop' : 'wall',
@@ -193,6 +200,7 @@ function furnishingBlocks(piece: DungeonFurnishing, span: number, options: Dunge
         altitude: altitude || undefined,
         rotate: piece.spin || undefined,
         thing: level,
+        ...(model ? { model, ...(rect.h > rect.w ? { modelTurn: 90 } : {}) } : {}),
       });
     }
     altitude += shape.height ?? 0;
