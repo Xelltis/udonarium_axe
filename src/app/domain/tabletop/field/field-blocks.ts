@@ -318,7 +318,7 @@ export function fieldToBlocks(
   }
 
   const settled = layout.settlement
-    ? settlementBlocks(layout.settlement, layout.width, layout.height, span, models)
+    ? settlementBlocks(layout.settlement, layout.width, layout.height, span, models, gridType)
     : null;
   if (settled) {
     blocks.push(...settled.blocks);

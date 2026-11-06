@@ -17,6 +17,8 @@ import {
   SLOWING_CROPS,
 } from '@axe/domain/tabletop/field/settlement-layout';
 import { alongTurn, outwardTurn, type SettlementModelId } from '@axe/domain/tabletop/field/settlement-models';
+import { GridType } from '@axe/domain/tabletop/grid-type';
+import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import type {
   MapAmbience,
   MapBlock,
@@ -198,6 +200,18 @@ function fenceRuns(
 }
 
 /**
+ * The areas of water that cover the cells of a rectangle and no others, on a board of the grid given:
+ * the rectangle itself on squares, and on hexes, which line up a cell apart only one way, one run of
+ * cells along that way to each of its rows of pointy-topped hexes or its columns of flat-topped ones.
+ */
+function waterAreasOf(rect: MapRect, gridType: GridType): MapRect[] {
+  if (!isHexGrid(gridType)) return [rect];
+  if (isFlatTopGrid(gridType))
+    return Array.from({ length: rect.w }, (_, i) => ({ x: rect.x + i, y: rect.y, w: 1, h: rect.h }));
+  return Array.from({ length: rect.h }, (_, j) => ({ x: rect.x, y: rect.y + j, w: rect.w, h: 1 }));
+}
+
+/**
  * A rectangle cut into rectangles no more than `span` cells across either way, each a block of its
  * own, as the walls are gathered: a cell each on a board of hexes.
  */
@@ -223,7 +237,8 @@ export function settlementBlocks(
   width: number,
   height: number,
   span: number,
-  models: boolean
+  models: boolean,
+  gridType: GridType = GridType.SQUARE
 ): SettlementBlocks {
   const blocks: MapBlock[] = [];
   SETTLEMENT_WALL_KINDS.forEach((kind, index) => {
@@ -314,8 +329,10 @@ export function settlementBlocks(
       }
     }
     if (SLOWING_CROPS.includes(crop)) slows.push({ rect, extraCost: CROP_COST, color: CROP_COLOURS[crop] });
-    if (crop === 'rice')
-      ambiences.push({ rect, kind: 'water', density: 0.6, name: 'water', water: { ...PADDY_WATER } });
+    if (crop === 'rice') {
+      for (const area of waterAreasOf(rect, gridType))
+        ambiences.push({ rect: area, kind: 'water', density: 0.6, name: 'water', water: { ...PADDY_WATER } });
+    }
   }
 
   const lights: MapLight[] = settlement.fires.map((fire, room) => ({

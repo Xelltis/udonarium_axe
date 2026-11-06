@@ -348,6 +348,26 @@ describe('settlementBlocks()', () => {
     expect(onHexes).toHaveLength(cells);
   });
 
+  it('floods a paddy on hexes a run of cells to a row or a column, so its water covers its own cells and no others', () => {
+    const village = laySettlement('village', W, H, 3);
+    const paddies = village.crops.filter((crop) => crop.crop === 'rice');
+    expect(paddies.length).toBeGreaterThan(0);
+    const cellsOf = (rects: readonly { x: number; y: number; w: number; h: number }[]) =>
+      rects.flatMap((rect) =>
+        Array.from({ length: rect.w * rect.h }, (_, i) => `${rect.x + (i % rect.w)},${rect.y + Math.floor(i / rect.w)}`)
+      );
+    for (const gridType of [GridType.HEX_HORIZONTAL, GridType.HEX_VERTICAL]) {
+      const flat = isFlatTopGrid(gridType);
+      const waters = settlementBlocks(village, W, H, 1, false, gridType).ambiences.filter(
+        (ambience) => ambience.kind === 'water'
+      );
+      expect(waters.every((water) => (flat ? water.rect.w : water.rect.h) === 1)).toBe(true);
+      expect(new Set(cellsOf(waters.map((water) => water.rect)))).toEqual(
+        new Set(cellsOf(paddies.map((crop) => crop.rect)))
+      );
+    }
+  });
+
   it('stands every block on a cell of its own on hexes, as a hex board takes them', () => {
     const fort = settlementBlocks(laySettlement('barbarianFort', W, H, 3), W, H, 1, false);
     expect(fort.blocks.every((block) => block.rect.w === 1 && block.rect.h === 1)).toBe(true);
