@@ -101,7 +101,10 @@ export class WaterService {
   readonly bankGround = computed<Float64Array | null>(() => {
     const grid = this.grid();
     if (!grid || this.areas().length < 1) return null;
-    return landingHeightsOn(grid, this.terrainsByWater().filter(fillsItsCells), this.raisedGround.surface());
+    const terrains = this.terrainsByWater();
+    const filling = terrains.filter(fillsItsCells);
+    if (filling.length === terrains.length) return this.ground();
+    return landingHeightsOn(grid, filling, this.raisedGround.surface());
   });
 
   /**
