@@ -253,6 +253,7 @@ export async function holdAnimationsAt(page: Page, ms: number) {
 type CanvasHooks = {
   __axeTable?: {
     drawDueNow(): boolean;
+    busy(): string[];
     holdFlicker(timeMs: number | null): void;
     holdMotion(held: boolean): void;
     readyBeforeDrawing(on: boolean): void;
@@ -274,11 +275,16 @@ export async function drawCanvasThrough(page: Page) {
     .poll(
       async () => {
         if (frozen.has(page)) await page.clock.runFor(0);
-        return page.evaluate(() => (window as unknown as CanvasHooks).__axeTable?.drawDueNow() ?? true);
+        return page.evaluate(() => {
+          const table = (window as unknown as CanvasHooks).__axeTable;
+          if (!table || table.drawDueNow()) return [];
+          const busy = table.busy();
+          return busy.length > 0 ? busy : ['nothing it names'];
+        });
       },
-      { timeout: 30_000, intervals: [50] }
+      { message: 'what the canvas still waits for before it shows all it was told', timeout: 30_000, intervals: [50] }
     )
-    .toBe(true);
+    .toEqual([]);
 }
 
 /**

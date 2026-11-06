@@ -860,17 +860,39 @@ export class Table3dService {
   }
 
   /**
-   * Whether the canvas has drawn everything it was told, but for what moves by itself: no frame left to
-   * draw, nothing loading, not starting, no model's file still being read, no model bundled with the app
-   * that a piece is drawn as still to come from beside the page, and the engine told the scene as it now
-   * stands, so a model read to be a joined wall has been laid joined.
+   * What a frame drawn at once, as {@link drawDueNow} draws one, still waits for before it shows all the
+   * canvas was told, each by what it is, none once it shows it all: what keeps the canvas from being
+   * idle, and the pictures the page draws the darkness with still to come.
    */
+  busyWith(): string[] {
+    const busy = this.settlingWith();
+    const veil = this.tableVeil.loadingPictures();
+    if (veil > 0) busy.push(`${veil} pictures of the darkness to come`);
+    return busy;
+  }
+
+  /** Whether the canvas has drawn everything it was told, but for what moves by itself; see {@link settlingWith}. */
   private isSettled(): boolean {
-    const drawing = this.frame !== null && !this.frameForMotion;
-    if (drawing || this.starting !== null || this.engine?.isLoading() || this.modelFits.isReading) return false;
-    if (this.engine === null) return true;
-    const coming = untracked(() => this.pieces.missingModels()).some((model) => this.bundledModels.isComing(model));
-    return !coming && untracked(() => this.world()) === this.laidWorld;
+    return this.settlingWith().length === 0;
+  }
+
+  /**
+   * What keeps the canvas from having drawn everything it was told, but for what moves by itself: a
+   * frame left to draw, something loading, starting, a model's file still being read, a model bundled
+   * with the app that a piece is drawn as still to come from beside the page, or the engine not told
+   * the scene as it now stands, so a model read to be a joined wall has not been laid joined yet.
+   */
+  private settlingWith(): string[] {
+    const busy: string[] = [];
+    if (this.frame !== null && !this.frameForMotion) busy.push('a frame to draw');
+    if (this.starting !== null) busy.push('starting');
+    if (this.engine?.isLoading()) busy.push('the engine loading, or holding something back');
+    if (this.modelFits.isReading) busy.push("models' files being read");
+    if (this.engine === null) return busy;
+    const coming = untracked(() => this.pieces.missingModels()).filter((model) => this.bundledModels.isComing(model));
+    if (coming.length > 0) busy.push(`bundled models to come: ${coming.join(', ')}`);
+    if (untracked(() => this.world()) !== this.laidWorld) busy.push('the scene not laid yet');
+    return busy;
   }
 }
 

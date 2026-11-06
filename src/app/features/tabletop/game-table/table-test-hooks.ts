@@ -50,6 +50,8 @@ export interface TableTestHooks {
    * page whose clock is held, where no frame comes until the clock is moved on.
    */
   drawDueNow(): boolean;
+  /** What a frame drawn at once still waits for before it shows all the canvas was told, none once it shows it all. */
+  busy(): string[];
   /** Holds the flickering lights of the canvas as they are at a moment, or lets them flicker by the clock again given null. */
   holdFlicker(timeMs: number | null): void;
   /** Has what moves by itself on the canvas drawn only by `drawDueNow`, or by the clock again given false. */
@@ -142,6 +144,10 @@ export function installTableTestHooks(
     aliasOf: (identifier) => ObjectStore.instance.get(identifier)?.aliasName ?? null,
     renderer: () => scene.backend(),
     whenIdle: () => scene.whenIdle().then(() => hud.writeNow()),
+    busy: () => [
+      ...(pictures.taking() > 0 ? [`${pictures.taking()} pictures of pieces being taken`] : []),
+      ...scene.busyWith(),
+    ],
     drawDueNow: () => {
       const drawn = pictures.taking() === 0 && scene.drawDueNow();
       hud.writeNow();

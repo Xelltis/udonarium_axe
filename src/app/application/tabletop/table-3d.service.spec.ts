@@ -964,9 +964,11 @@ describe('Table3dService', () => {
     void scene.whenIdle().then(() => (idle = true));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(idle).toBe(false);
+    expect(scene.busyWith()).toEqual([`bundled models to come: ${BUNDLED_PIECE_MODELS.goblin}`]);
 
     answer(new Response('', { status: 404 }));
     await vi.waitFor(() => expect(idle).toBe(true));
+    expect(scene.busyWith()).toEqual([]);
     table.destroy();
   });
 
