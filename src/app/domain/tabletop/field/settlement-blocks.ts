@@ -141,6 +141,21 @@ const CROP_COLOURS: Readonly<Record<CropKind, string>> = {
   rice: '#5f8a6a',
 };
 
+/** The model each crop grows as, one cell of it to every cell of its field, its rows along the field. */
+const CROP_MODELS: Readonly<Record<CropKind, SettlementModelId>> = {
+  vegetable: 'crop_vegetable',
+  wheat: 'crop_wheat',
+  corn: 'crop_corn',
+  rice: 'crop_rice',
+};
+
+/**
+ * How thick the block a crop is drawn on stands, in cells: thin enough that whoever walks into the
+ * field stands on the ground, and that it hides nothing and stops nobody, as the crop drawn on it
+ * stands as tall as it grows.
+ */
+const CROP_BLOCK_CELLS = 0.02;
+
 /** What a paddy's water is: shallow over its mud, murky and green. */
 const PADDY_WATER = { surface: 0.08, color: '#6e7448', turbidity: 0.8, dirt: 0.35, leaves: 0, ice: 0 } as const;
 
@@ -180,6 +195,14 @@ function fenceRuns(
     }
   }
   return runs;
+}
+
+/** The cells of a rectangle, each a rectangle of its own, as a board of hexes builds a block a cell. */
+function cellsOf(rect: MapRect): MapRect[] {
+  const cells: MapRect[] = [];
+  for (let y = rect.y; y < rect.y + rect.h; y++)
+    for (let x = rect.x; x < rect.x + rect.w; x++) cells.push({ x, y, w: 1, h: 1 });
+  return cells;
 }
 
 /**
@@ -266,6 +289,22 @@ export function settlementBlocks(
   const ambiences: MapAmbience[] = [];
   for (const { rect, crop } of settlement.crops) {
     paint.push({ kind: 'floor', rect, material: { kind: 'texture', id: CROP_GROUND[crop] } });
+    if (models) {
+      for (const field of span > 1 ? [rect] : cellsOf(rect)) {
+        blocks.push({
+          kind: 'prop',
+          rect: field,
+          blocksSight: false,
+          locked: false,
+          rooms: [],
+          skin: { side: { kind: 'texture', id: CROP_GROUND[crop] }, top: { kind: 'texture', id: CROP_GROUND[crop] } },
+          height: CROP_BLOCK_CELLS,
+          thing: crop,
+          model: CROP_MODELS[crop],
+          modelTurn: alongTurn(rect) || undefined,
+        });
+      }
+    }
     if (SLOWING_CROPS.includes(crop)) slows.push({ rect, extraCost: CROP_COST, color: CROP_COLOURS[crop] });
     if (crop === 'rice')
       ambiences.push({ rect, kind: 'water', density: 0.6, name: 'water', water: { ...PADDY_WATER } });

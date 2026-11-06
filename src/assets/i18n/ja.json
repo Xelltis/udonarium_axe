@@ -2923,7 +2923,11 @@
           "hay": "干し草",
           "cart": "荷車",
           "totem": "トーテム",
-          "hearth": "炉"
+          "hearth": "炉",
+          "wheat": "麦",
+          "corn": "とうもろこし",
+          "rice": "稲",
+          "vegetable": "野菜"
         },
         "summary": {
           "title": "ダンジョン概要",

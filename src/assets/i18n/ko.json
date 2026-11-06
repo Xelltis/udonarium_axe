@@ -2923,7 +2923,11 @@
           "hay": "건초",
           "cart": "수레",
           "totem": "토템",
-          "hearth": "화덕"
+          "hearth": "화덕",
+          "wheat": "밀",
+          "corn": "옥수수",
+          "rice": "벼",
+          "vegetable": "채소"
         },
         "summary": {
           "title": "던전 개요",

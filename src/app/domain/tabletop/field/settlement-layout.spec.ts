@@ -238,6 +238,23 @@ describe('settlementBlocks()', () => {
     }
   });
 
+  it('grows each field’s crop as a model on a block thin enough to walk through, hiding nothing and stopping nobody', () => {
+    const village = laySettlement('village', W, H, 3);
+    const drawn = settlementBlocks(village, W, H, 12, true);
+    const crops = drawn.blocks.filter((block) => block.model?.startsWith('crop_'));
+    expect(crops.map((block) => block.rect)).toEqual(village.crops.map((crop) => crop.rect));
+    expect(crops.map((block) => block.model)).toEqual(village.crops.map((crop) => `crop_${crop.crop}`));
+    for (const block of crops) {
+      expect(block.height).toBeLessThan(0.05);
+      expect(block.blocksSight || block.blocksClimb).toBeFalsy();
+      expect(block.modelTurn ?? 0).toBe(block.rect.h > block.rect.w ? 90 : 0);
+    }
+
+    const onHexes = settlementBlocks(village, W, H, 1, true).blocks.filter((block) => block.model?.startsWith('crop_'));
+    const cells = village.crops.reduce((sum, crop) => sum + crop.rect.w * crop.rect.h, 0);
+    expect(onHexes).toHaveLength(cells);
+  });
+
   it('stands every block on a cell of its own on hexes, as a hex board takes them', () => {
     const fort = settlementBlocks(laySettlement('barbarianFort', W, H, 3), W, H, 1, false);
     expect(fort.blocks.every((block) => block.rect.w === 1 && block.rect.h === 1)).toBe(true);

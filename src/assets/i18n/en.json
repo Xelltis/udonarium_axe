@@ -2923,7 +2923,11 @@
           "hay": "Hay",
           "cart": "Cart",
           "totem": "Totem",
-          "hearth": "Hearth"
+          "hearth": "Hearth",
+          "wheat": "Wheat",
+          "corn": "Maize",
+          "rice": "Rice",
+          "vegetable": "Vegetables"
         },
         "summary": {
           "title": "Dungeon notes",
