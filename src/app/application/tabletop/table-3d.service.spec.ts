@@ -942,7 +942,7 @@ describe('Table3dService', () => {
     table.destroy();
   });
 
-  it('joins a hex wall of seven cells on every one of them, and one turned by a step of the hexes', async () => {
+  it('joins a hex wall on every cell of its flower or its run, and a wall or a door turned by a step of the hexes', async () => {
     const scene = service();
     vi.spyOn(TestBed.inject(ModelFitService), 'isJoined').mockReturnValue(true);
     vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:wall' } as never);
@@ -967,11 +967,20 @@ describe('Table3dService', () => {
     turned.rotate = 60;
     standOn(turned, 10, 4);
     standOn(Terrain.create('壁', 1, 1, 2, '', ''), 11, 4);
+    const column = standOn(Terrain.create('壁', 1, 3, 2, '', ''), 14, 5);
+    standOn(Terrain.create('壁', 1, 1, 2, '', ''), 14, 7);
+    const door = Terrain.create('扉', 1, 0.2, 2, '', '');
+    door.rotate = 60;
+    door.doorStyle = DoorStyle.SWING;
+    standOn(door, 4, 9);
+    const byDoor = standOn(Terrain.create('壁', 1, 1, 2, '', ''), 4, 8);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     const models = new Map(scene.world().models.map((model) => [model.owner, model]));
     expect(models.get(flower.identifier)!.joins).toHaveLength(7);
     expect(models.get(turned.identifier)!.joins![0].arms).toHaveLength(1);
+    expect(models.get(column.identifier)!.joins).toHaveLength(3);
+    expect(models.get(byDoor.identifier)!.joins![0].arms).toHaveLength(1);
     table.destroy();
   });
 

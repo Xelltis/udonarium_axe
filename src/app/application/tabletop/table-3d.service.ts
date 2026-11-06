@@ -40,6 +40,7 @@ import { matrixColumns, tableEyeMatrix } from '@axe/domain/tabletop/camera/table
 import { type DoorMotion, movedByDoor, openDoorMotion } from '@axe/domain/tabletop/door-motion';
 import { type CellGrid, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { groundLiftOfBlock } from '@axe/domain/tabletop/ground/ground-surface';
+import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { type PieceModel, pieceModelOf } from '@axe/domain/tabletop/piece-model';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { tableSkyKindOf } from '@axe/domain/tabletop/table-sky';
@@ -911,13 +912,14 @@ const ON_CELLS_PX = 1;
 function joinableBlocksOf(terrains: readonly Terrain[], grid: CellGrid): JoinableBlock[] {
   const blocks: JoinableBlock[] = [];
   for (const terrain of terrains) {
-    const cells = occlusionShapeOf(terrain, grid, true)?.cells ?? narrowCellsOf(terrain, grid);
+    const flower = !isHexGrid(grid.type) || terrain.width === terrain.depth;
+    const cells = (flower ? occlusionShapeOf(terrain, grid, true)?.cells : null) ?? narrowCellsOf(terrain, grid);
     if (cells.length < 1) continue;
     blocks.push({
       owner: terrain.identifier,
       model: pieceModelOf(terrain)?.identifier ?? '',
       door: terrain.isDoor,
-      cells: [...cells],
+      cells,
     });
   }
   return blocks;
@@ -928,7 +930,8 @@ function joinableBlocksOf(terrains: readonly Terrain[], grid: CellGrid): Joinabl
  * middles stand well inside it, none for a block turned off the grid's lines or not over their middle.
  */
 function narrowCellsOf(terrain: Terrain, grid: CellGrid): number[] {
-  if (terrain.rotate % 90 !== 0) return [];
+  const step = isHexGrid(grid.type) ? 60 : 90;
+  if (terrain.rotate % step !== 0) return [];
   const box = terrainBoxOf(terrain, grid.sizePx);
   const cells: number[] = [];
   let sumX = 0;
