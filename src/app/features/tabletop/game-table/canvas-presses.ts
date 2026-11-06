@@ -47,15 +47,17 @@ export interface CanvasPressRoutes {
  */
 export function handCanvasPressesOn(root: HTMLElement, routes: CanvasPressRoutes): () => void {
   const handed = new WeakSet<Event>();
+  let pressedAt: { x: number; y: number } | null = null;
   const handOn = (event: Event) => {
     if (handed.has(event)) return;
+    if (event.type === 'pointerdown') pressedAt = pointOf(event as MouseEvent);
     const target = event.target instanceof Element ? event.target : null;
     const aimed = routes.aimedAtTarget ? routes.aimedAtTarget(event) : !event.isTrusted;
     const onScreen = !aimed && target?.closest(HUD) ? target : null;
     const boxed = onScreen?.matches('[data-part], [data-hud-box]') ? onScreen : null;
     const label = !boxed && onScreen && !onScreen.closest(CONTROLS) ? onScreen : null;
     if (!boxed && !label && target?.closest('[data-object-id], white-board')) return;
-    const point = pointOf(event as MouseEvent | TouchEvent);
+    const point = samePress(pointOf(event as MouseEvent | TouchEvent), event.type, pressedAt);
     if (!point) return;
     const picked = routes.pickAt(point.x, point.y);
     const own = (boxed ?? label)?.closest('[data-object-id]')?.getAttribute('data-object-id');
@@ -85,6 +87,20 @@ export function handCanvasPressesOn(root: HTMLElement, routes: CanvasPressRoutes
   return () => {
     for (const type of HANDED_ON) root.removeEventListener(type, handOn, { capture: true });
   };
+}
+
+/**
+ * The point a press is picked at: the point the pointer went down at, for the mouse press the browser
+ * sends after it, which it rounds to whole pixels, so that both are handed to the same thing even at
+ * the edge of a piece.
+ */
+function samePress(
+  point: { x: number; y: number } | null,
+  type: string,
+  pointerDown: { x: number; y: number } | null
+): { x: number; y: number } | null {
+  if (!point || type !== 'mousedown' || !pointerDown) return point;
+  return Math.abs(point.x - pointerDown.x) < 1 && Math.abs(point.y - pointerDown.y) < 1 ? pointerDown : point;
 }
 
 function pointOf(event: MouseEvent | TouchEvent): { x: number; y: number } | null {

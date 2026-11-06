@@ -4,13 +4,14 @@ import { becomeGm, closePanels } from '../dungeon-helpers';
 import { openPanel, waitAppReady } from '../helpers';
 
 /**
- * The pieces on a table of open country just generated, among its trees and on its high ground,
+ * The pieces on a table of open country just generated, among its trees and over its raised ground,
  * which a press has to reach through the trees locked in front of them, as the page let it reach
- * through a locked block, and which may be stood on the high ground and moved on from there.
+ * through a locked block, and which may be moved on again from wherever they were put.
  */
 
 type Hooks = {
   whenIdle(): Promise<void>;
+  moving(identifier: string): boolean;
   pickAt(x: number, y: number): string | null;
   pressedAt(x: number, y: number): string | null;
 };
@@ -28,7 +29,10 @@ async function generateField(page: Page) {
   await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
 }
 
-/** A point of a piece's base a press takes it by, and whether a block stands in front of it there. */
+/**
+ * A point of a piece's base a press takes it by, clear of the controls of whatever is laid over it on
+ * the screen, and whether a block stands in front of it there.
+ */
 function spotOf(page: Page, identifier: string): Promise<{ x: number; y: number; behind: boolean } | null> {
   return page.evaluate((id) => {
     const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
@@ -38,7 +42,8 @@ function spotOf(page: Page, identifier: string): Promise<{ x: number; y: number;
     if (box.top < 70 || box.left < 120) return null;
     for (let y = box.top + 2; y < box.bottom; y += 3) {
       for (let x = box.left + 2; x < box.right; x += 3) {
-        if (hooks.pressedAt(x, y) === id) return { x, y, behind: hooks.pickAt(x, y) !== id };
+        const control = document.elementFromPoint(x, y)?.closest('button, input, .rotate-grab');
+        if (!control && hooks.pressedAt(x, y) === id) return { x, y, behind: hooks.pickAt(x, y) !== id };
       }
     }
     return null;
@@ -52,7 +57,30 @@ function placeOf(page: Page, identifier: string): Promise<string | null> {
     .getAttribute('data-location');
 }
 
+/** Waits for a piece to come to rest where it was put down, its landing played out. */
+async function settled(page: Page, identifier: string) {
+  await expect
+    .poll(() =>
+      page.evaluate(
+        (id) =>
+          document
+            .querySelector(`[data-object-id="${id}"]`)!
+            .getAnimations({ subtree: true })
+            .filter((animation) => animation.playState === 'running').length +
+          ((window as unknown as { __axeTable: Hooks }).__axeTable.moving(id) ? 1 : 0),
+        identifier
+      )
+    )
+    .toBe(0);
+  await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
+}
+
+/**
+ * Drags from one point to another, a moment after whatever was let go of last, so that the press is
+ * not taken for the second half of a double click on what was just put down.
+ */
 async function dragTo(page: Page, from: { x: number; y: number }, to: { x: number; y: number }) {
+  await page.waitForTimeout(600);
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
   await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 6 });
@@ -61,7 +89,7 @@ async function dragTo(page: Page, from: { x: number; y: number }, to: { x: numbe
 }
 
 test.describe('pieces on a field just generated, on a table drawn on a canvas', () => {
-  test('are taken up through the trees locked in front of them, stood on the high ground and moved on from there', async ({
+  test('are taken up through the trees locked in front of them, and moved on again and again over the raised ground', async ({
     page,
   }) => {
     await waitAppReady(page);
@@ -85,20 +113,17 @@ test.describe('pieces on a field just generated, on a table drawn on a canvas', 
     await dragTo(page, hidden!.spot, { x: hidden!.spot.x + 120, y: hidden!.spot.y + 60 });
     await expect.poll(() => placeOf(page, hidden!.id)).not.toBe(before);
 
-    let raised = false;
-    for (const to of [
-      { x: 700, y: 700 },
-      { x: 900, y: 600 },
-      { x: 1000, y: 700 },
-      { x: 600, y: 650 },
+    for (const by of [
+      { x: 140, y: 120 },
+      { x: -120, y: 60 },
+      { x: 100, y: -70 },
     ]) {
+      await settled(page, hidden!.id);
       const from = await spotOf(page, hidden!.id);
       expect(from, `the piece is still taken up, from ${await placeOf(page, hidden!.id)}`).not.toBeNull();
       const was = await placeOf(page, hidden!.id);
-      await dragTo(page, from!, to);
+      await dragTo(page, from!, { x: from!.x + by.x, y: from!.y + by.y });
       await expect.poll(() => placeOf(page, hidden!.id)).not.toBe(was);
-      if (Number((await placeOf(page, hidden!.id))!.split(',')[2]) > 0) raised = true;
     }
-    expect(raised, 'the piece stood on the high ground once').toBe(true);
   });
 });

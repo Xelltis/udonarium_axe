@@ -57,6 +57,27 @@ describe('handing presses on the canvas to the blocks drawn there', () => {
     stop();
   });
 
+  it('picks the mouse press the browser sends after the pointer goes down at the point the pointer went down at', () => {
+    const at: { x: number; y: number }[] = [];
+    remove();
+    remove = handCanvasPressesOn(root, {
+      pickAt: (x, y) => {
+        at.push({ x, y });
+        return x > 30 ? 'a-block' : null;
+      },
+      entryOf: (identifier) => entries[identifier],
+      aimedAtTarget: () => aimed,
+    });
+
+    const placedAt = (event: MouseEvent, x: number, y: number) =>
+      Object.defineProperties(event, { pageX: { value: x }, pageY: { value: y } });
+    root.dispatchEvent(placedAt(new PointerEvent('pointerdown', { bubbles: true }), 30.4, 40.6));
+    root.dispatchEvent(placedAt(new MouseEvent('mousedown', { bubbles: true }), 30, 40));
+
+    expect(at[1]).toEqual(at[0]);
+    expect(at[0].x).toBeCloseTo(30.4, 6);
+  });
+
   it('hands a press on the table to the block picking says it lands on, and stops it there', () => {
     const { reached } = pressOn(root);
     expect(reached).toEqual(['block:mousedown', 'root:mousedown']);
