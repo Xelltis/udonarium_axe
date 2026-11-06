@@ -1,6 +1,7 @@
+import type { DungeonPropId } from '@axe/domain/media/texture-catalog';
 import type { FurnishingId } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 
-/** The 3D models bundled with the app that the furniture of a dungeon can be stood as. */
+/** The 3D models bundled with the app that the furniture and the doors of a dungeon can be stood as. */
 export const FURNISHING_MODEL_IDS = [
   'prop_crate',
   'prop_stool',
@@ -13,6 +14,11 @@ export const FURNISHING_MODEL_IDS = [
   'prop_counter',
   'prop_shopCounter',
   'prop_barTable',
+  'door_wood',
+  'door_steel',
+  'door_iron_grate',
+  'door_stone',
+  'door_shutter',
 ] as const;
 
 export type FurnishingModelId = (typeof FURNISHING_MODEL_IDS)[number];
@@ -47,3 +53,24 @@ export const FURNISHING_MODELS: Readonly<Partial<Record<FurnishingId, Furnishing
 
 /** The pieces whose model is one cell of a run: a counter of any length is a row of them, ends meeting. */
 export const FURNISHING_SEGMENT_MODELS: readonly FurnishingId[] = ['counter', 'shopCounter'];
+
+/**
+ * The model each kind of door is stood as: a leaf one wide, two tall and a quarter deep, hinged at
+ * its west end, which the table stretches to the door's own size and swings, slides or lifts with it.
+ */
+export const DOOR_MODELS: Readonly<Partial<Record<DungeonPropId, FurnishingModelId>>> = {
+  door_wood: 'door_wood',
+  door_steel: 'door_steel',
+  door_iron_grate: 'door_iron_grate',
+  door_stone: 'door_stone',
+  door_shutter: 'door_shutter',
+};
+
+/**
+ * How far a door's model is turned to stand in its leaf: along the leaf, its hinge at the end the
+ * door turns on, the other end for a leaf hung the other way round.
+ */
+export function doorModelTurn(across: 'x' | 'y', mirrored: boolean): number {
+  if (across === 'x') return mirrored ? 270 : 90;
+  return mirrored ? 180 : 0;
+}

@@ -9,7 +9,12 @@ import {
   DungeonRect,
   maskOfKind,
 } from '@axe/domain/tabletop/dungeon/dungeon-layout';
-import { FURNISHING_MODELS, FURNISHING_SEGMENT_MODELS } from '@axe/domain/tabletop/dungeon/furnishing-models';
+import {
+  DOOR_MODELS,
+  doorModelTurn,
+  FURNISHING_MODELS,
+  FURNISHING_SEGMENT_MODELS,
+} from '@axe/domain/tabletop/dungeon/furnishing-models';
 import { mergeMaskToRects } from '@axe/domain/tabletop/dungeon/rect-merge';
 import { furnishedCells, FURNISHING_SHAPES } from '@axe/domain/tabletop/dungeon/room-furnishing';
 import { HAZARD_PRESETS } from '@axe/domain/tabletop/hazard-presets';
@@ -272,8 +277,11 @@ export function layoutToBlocks(
   }
 
   if (options.placeDoors) {
+    const prop = doorPropFor(atmosphere);
     for (const leaf of layout.doorLeaves) {
       const hung = { x: leaf.x, y: leaf.y, w: leaf.w, h: leaf.h };
+      // A door dressed as its wall stays its wall's faces: a model of a door would give it away.
+      const model = options.models && !leaf.hidden ? DOOR_MODELS[prop] : undefined;
       for (const rect of span > 1 ? [hung] : cellsOf(leaf)) {
         blocks.push({
           kind: 'door',
@@ -283,10 +291,11 @@ export function layoutToBlocks(
           locked: leaf.locked,
           rooms: leaf.rooms,
           across: leaf.across,
-          prop: doorPropFor(atmosphere),
+          prop,
           doorStyle: atmosphere.doorStyle,
           doorMirrored: leaf.mirrored,
           disguised: leaf.hidden || undefined,
+          ...(model ? { model, modelTurn: doorModelTurn(leaf.across, leaf.mirrored) || undefined } : {}),
         });
       }
     }

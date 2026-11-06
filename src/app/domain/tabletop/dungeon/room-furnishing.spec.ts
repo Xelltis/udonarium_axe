@@ -12,7 +12,7 @@ import {
   FurnishingId,
 } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { musterCells } from '@axe/domain/tabletop/dungeon/entrance-muster';
-import { FURNISHING_MODELS } from '@axe/domain/tabletop/dungeon/furnishing-models';
+import { DOOR_MODELS, doorModelTurn, FURNISHING_MODELS } from '@axe/domain/tabletop/dungeon/furnishing-models';
 import {
   CONTAINER_LENGTH,
   CONTAINER_WIDTH,
@@ -468,6 +468,26 @@ describe('a furnished place on the table', () => {
     expect(
       hexed.blocks.blocks.filter((block) => block.thing?.startsWith('container')).some((block) => block.model)
     ).toBe(false);
+  });
+
+  it('stands every door as the model of its kind, hinged where the door turns, but no door dressed as its wall', () => {
+    const options = { placeDoors: true, placeStairs: true, models: true };
+    const plans = ['stoneDungeon', 'illegalBar', 'containerWarehouse'].flatMap((atmosphere) =>
+      SEEDS.map((seed) => planDungeon({ atmosphere: atmosphere as never, roomCount: 8, seed }, options))
+    );
+    const doors = plans.flatMap((plan) => plan.blocks.blocks.filter((block) => block.kind === 'door'));
+    const hidden = doors.filter((door) => door.disguised);
+    const shown = doors.filter((door) => !door.disguised);
+
+    expect(hidden.length).toBeGreaterThan(0);
+    expect(hidden.every((door) => door.model === undefined)).toBe(true);
+    expect(new Set(shown.map((door) => door.model))).toEqual(new Set(['door_wood', 'door_steel', 'door_shutter']));
+    for (const door of shown) {
+      expect(door.model).toBe(DOOR_MODELS[door.prop!]);
+      expect(door.modelTurn ?? 0).toBe(doorModelTurn(door.across!, door.doorMirrored === true));
+    }
+    expect(shown.some((door) => door.doorMirrored)).toBe(true);
+    expect(shown.some((door) => door.across === 'x') && shown.some((door) => door.across === 'y')).toBe(true);
   });
 
   it('dresses a hidden door as the wall it stands in', () => {

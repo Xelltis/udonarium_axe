@@ -1,6 +1,7 @@
 import { existsSync, readdirSync } from 'node:fs';
 
 import {
+  doorModelTurn,
   FURNISHING_MODEL_IDS,
   FURNISHING_MODELS,
   furnishingModelUrl,
@@ -16,6 +17,11 @@ describe('the bundled models of the furniture of a dungeon', () => {
 
   it('stands each piece only as a model it has', () => {
     for (const model of Object.values(FURNISHING_MODELS)) expect(FURNISHING_MODEL_IDS).toContain(model);
+  });
+
+  it('turns a door’s model along its leaf, its hinge at the end the door turns on', () => {
+    expect([doorModelTurn('y', false), doorModelTurn('y', true)]).toEqual([0, 180]);
+    expect([doorModelTurn('x', false), doorModelTurn('x', true)]).toEqual([90, 270]);
   });
 
   it('tells its own models from those of open country, and serves them from beside the page', () => {
