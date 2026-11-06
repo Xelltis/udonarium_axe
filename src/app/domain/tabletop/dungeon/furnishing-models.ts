@@ -10,6 +10,9 @@ export const FURNISHING_MODEL_IDS = [
   'prop_containerRed',
   'prop_containerBlue',
   'prop_containerGreen',
+  'prop_counter',
+  'prop_shopCounter',
+  'prop_barTable',
 ] as const;
 
 export type FurnishingModelId = (typeof FURNISHING_MODEL_IDS)[number];
@@ -25,11 +28,13 @@ export function furnishingModelUrl(id: FurnishingModelId): string {
 }
 
 /**
- * The model each piece of furniture is stood as. A piece with none, such as a counter run along a
- * wall or a pillar of the walls' own stone, is built of its blocks as ever, and so is the lit table
- * of a bar, whose glow a model would put out.
+ * The model each piece of furniture is stood as. A pillar has none: it is of the walls' own stone and
+ * as tall as they are, both of which the generator lets be chosen, so it is built of its blocks as ever.
  */
 export const FURNISHING_MODELS: Readonly<Partial<Record<FurnishingId, FurnishingModelId>>> = {
+  counter: 'prop_counter',
+  shopCounter: 'prop_shopCounter',
+  table: 'prop_barTable',
   crate: 'prop_crate',
   stool: 'prop_stool',
   desk: 'prop_desk',
@@ -39,3 +44,6 @@ export const FURNISHING_MODELS: Readonly<Partial<Record<FurnishingId, Furnishing
   containerBlue: 'prop_containerBlue',
   containerGreen: 'prop_containerGreen',
 };
+
+/** The pieces whose model is one cell of a run: a counter of any length is a row of them, ends meeting. */
+export const FURNISHING_SEGMENT_MODELS: readonly FurnishingId[] = ['counter', 'shopCounter'];

@@ -427,6 +427,36 @@ describe('a furnished place on the table', () => {
     expect(pieces.filter((block) => block.thing === 'desk').every((block) => block.model === 'prop_desk')).toBe(true);
   });
 
+  it('stands a counter run along a wall as a row of its one-cell model, one block a cell over the run', () => {
+    const options = { placeDoors: true, placeStairs: true, models: true };
+    const built = planDungeon({ atmosphere: 'illegalBar', roomCount: 8, seed: 7 });
+    const modelled = planDungeon({ atmosphere: 'illegalBar', roomCount: 8, seed: 7 }, options);
+    const runs = built.layout.furnishings!.filter(
+      (piece) => piece.piece === 'counter' || piece.piece === 'shopCounter'
+    );
+    const counters = modelled.blocks.blocks.filter(
+      (block) => block.thing === 'counter' || block.thing === 'shopCounter'
+    );
+
+    expect(runs.length).toBeGreaterThan(0);
+    expect(counters.length).toBe(runs.reduce((cells, run) => cells + run.w * run.h, 0));
+    for (const block of counters) {
+      expect(block.rect.w * block.rect.h).toBe(1);
+      expect(block.model).toBe(FURNISHING_MODELS[block.thing as FurnishingId]);
+    }
+    const upright = SEEDS.concat([2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16])
+      .map((seed) => planDungeon({ atmosphere: 'illegalBar', roomCount: 10, seed }, options))
+      .find((plan) => plan.layout.furnishings!.some((piece) => piece.piece === 'counter' && piece.h > piece.w))!;
+    expect(upright).toBeDefined();
+    const run = upright.layout.furnishings!.find((piece) => piece.piece === 'counter' && piece.h > piece.w)!;
+    const cells = upright.blocks.blocks.filter(
+      (block) =>
+        block.thing === 'counter' && block.rect.x === run.x && block.rect.y >= run.y && block.rect.y < run.y + run.h
+    );
+    expect(cells.length).toBe(run.h);
+    expect(cells.every((block) => block.modelTurn === 90 && block.footprint!.d === 1)).toBe(true);
+  });
+
   it('builds furniture of its blocks where models are not asked for, or where it takes a block a cell', () => {
     const built = planDungeon({ atmosphere: 'containerWarehouse', roomCount: 8, seed: 42 });
     expect(built.blocks.blocks.some((block) => block.model)).toBe(false);

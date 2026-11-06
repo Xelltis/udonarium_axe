@@ -9,7 +9,7 @@ import {
   DungeonRect,
   maskOfKind,
 } from '@axe/domain/tabletop/dungeon/dungeon-layout';
-import { FURNISHING_MODELS } from '@axe/domain/tabletop/dungeon/furnishing-models';
+import { FURNISHING_MODELS, FURNISHING_SEGMENT_MODELS } from '@axe/domain/tabletop/dungeon/furnishing-models';
 import { mergeMaskToRects } from '@axe/domain/tabletop/dungeon/rect-merge';
 import { furnishedCells, FURNISHING_SHAPES } from '@axe/domain/tabletop/dungeon/room-furnishing';
 import { HAZARD_PRESETS } from '@axe/domain/tabletop/hazard-presets';
@@ -166,16 +166,20 @@ function findLights(
  *
  * A run is as long as the cells it covers and as deep as its shape fills; a piece that fills its
  * cells whole takes all of them; anything else fills the same share of its cell both ways.
+ *
+ * Where models are asked for, a piece stands as its model when it is one block; a run whose model is
+ * one cell of it, as a counter's is, is built of a block to a cell, each standing as that model.
  */
 function furnishingBlocks(piece: DungeonFurnishing, span: number, options: DungeonBlockOptions): MapBlock[] {
   const run = piece.w > 1 || piece.h > 1;
   const lying = piece.w >= piece.h;
-  const rects = span > 1 ? [piece] : cellsOf(piece);
+  const segmented = options.models === true && span > 1 && run && FURNISHING_SEGMENT_MODELS.includes(piece.piece);
+  const rects = span > 1 && !segmented ? [piece] : cellsOf(piece);
   const blocks: MapBlock[] = [];
   let altitude = 0;
   for (const level of [piece.piece, ...(piece.stack ?? [])]) {
     const shape = FURNISHING_SHAPES[level];
-    const model = options.models && rects.length === 1 ? FURNISHING_MODELS[level] : undefined;
+    const model = options.models && (rects.length === 1 || segmented) ? FURNISHING_MODELS[level] : undefined;
     for (const rect of rects) {
       blocks.push({
         kind: shape.skin ? 'prop' : 'wall',
@@ -200,7 +204,7 @@ function furnishingBlocks(piece: DungeonFurnishing, span: number, options: Dunge
         altitude: altitude || undefined,
         rotate: piece.spin || undefined,
         thing: level,
-        ...(model ? { model, ...(rect.h > rect.w ? { modelTurn: 90 } : {}) } : {}),
+        ...(model ? { model, ...((segmented ? !lying : rect.h > rect.w) ? { modelTurn: 90 } : {}) } : {}),
       });
     }
     altitude += shape.height ?? 0;

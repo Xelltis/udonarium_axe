@@ -83,10 +83,12 @@ Files: models/props/*
 Copyright: 2026 SavageChieftain / Xelltis（形）
  ambientCG (ambientcg.com)（木・金属・革・布・コンクリートの写真）
 License: MIT and CC0-1.0
-Comment: ダンジョンの家具（木箱・スツール・事務机・賭博台・瓦礫・コンテナ）の3Dモデル。角を
- 丸めた箱・円柱・波板を組んだもので、形は本プロジェクトで作成した（MIT）。絵はambientCGの
- 素材の色の画像（1K-JPG）を縮めたもの（CC0）。Planks021・Planks037A・CorrugatedSteel005・
- Metal029・Metal063・Leather037・Fabric030・Concrete042A・Rust009から。
+Comment: ダンジョンの家具（木箱・スツール・事務机・賭博台・瓦礫・コンテナ・カウンター・売り台・
+ バーのテーブル）の3Dモデル。角を丸めた箱・円柱・波板を組んだもので、形は本プロジェクトで作成
+ した（MIT）。絵はambientCGの素材の色の画像（1K-JPG）を縮めたもの（CC0）。Planks021・
+ Planks037A・CorrugatedSteel005・Metal029・Metal063・Leather037・Fabric030・Concrete042A・
+ Rust009から。カウンター・売り台・バーのテーブルの天板と側面は、本プロジェクトの
+ images/tiles/marble.webp・wood_plank.webp・neon_floor.webpとimages/walls/wall_neon.webpを使う。
  ライセンスのページ https://docs.ambientcg.com/license/ が、ambientCGのすべての素材を
  CC0 1.0 Universalで提供すると示す。
 
