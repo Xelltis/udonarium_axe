@@ -2,7 +2,24 @@ import { expect, Locator, Page } from '@playwright/test';
 
 import { MENU_GROUP_OF, waitAppReady } from '../helpers';
 
+/** What the graphics card refused to draw on each page made ready for shots, as the page logged it. */
+const refused = new WeakMap<Page, string[]>();
+
+/**
+ * Whether a message the page logged says the graphics card refused something it was asked to draw:
+ * a shader asking for more than the card lets it have, as more pictures than one stage of it may
+ * read, leaves out everything drawn with that shader, and the shot is taken without it.
+ */
+function isRefusal(text: string): boolean {
+  return /GPUValidationError|pipeline creation failed|Shader Error|exceeds the maximum/i.test(text);
+}
+
 export async function prepare(page: Page) {
+  const refusals: string[] = [];
+  refused.set(page, refusals);
+  page.on('console', (message) => {
+    if (message.type() === 'error' && isRefusal(message.text())) refusals.push(message.text());
+  });
   await page.addInitScript(() => {
     let seed = 0x2f6e2b1;
     Object.assign(window, {
@@ -300,6 +317,7 @@ export async function snap(page: Page, name: string, options: SnapOptions = {}) 
   await holdAnimationsAt(page, options.animationAt ?? 0);
   if (options.animationAt !== undefined) await holdMovesAt(page, options.animationAt);
   await drawCanvasThrough(page);
+  expect(refused.get(page) ?? [], 'what the graphics card refused to draw').toEqual([]);
   const { animationAt: _at, ...compare } = options;
   await expect(page).toHaveScreenshot(`${name}.png`, { timeout: SHOT_TIMEOUT_MS, ...compare });
 }
