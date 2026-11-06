@@ -15,6 +15,14 @@ import { sameWaterGrid, waterGridOver } from '@axe/domain/tabletop/water/water-g
 
 const NO_CELLS: ReadonlyMap<number, WaterCell> = new Map();
 
+/** How narrow a block may be, in cells, and still fill the cells it stands on as ground to the water. */
+const FILLING_CELLS = 0.9;
+
+/** Whether a block is drawn as a box filling the cells it stands on, not as a model or a narrow post. */
+function fillsItsCells(terrain: Terrain): boolean {
+  return !terrain.modelIdentifier && Math.min(terrain.width, terrain.depth) >= FILLING_CELLS;
+}
+
 /**
  * The water on the table in view, as this seat sees it.
  *
@@ -86,6 +94,10 @@ export class WaterService {
    * The blocks standing in or beside the water, which are all the ground the water and its banks
    * stand on. A board of a dungeon holds thousands of blocks, and the water asks about the ground
    * point by point; only the few near it are worth asking.
+   *
+   * A block drawn as a model or narrower than a cell is no ground to the water: it stands in the
+   * water, which runs round it, and the waves running on over the land beside the water would lie
+   * on the floor around it rather than under ground rising through them.
    */
   private readonly terrainsByWater = computed<Terrain[]>(() => {
     const areas = this.areas();
@@ -94,6 +106,7 @@ export class WaterService {
     this.objectChange.collectionOf(Terrain.aliasName)();
     return this.tabletopService.terrains.filter((terrain) => {
       this.objectChange.versionOf(terrain.identifier)();
+      if (!fillsItsCells(terrain)) return false;
       const box = terrainBoxOf(terrain, gridSize);
       return areas.some(
         (area) =>
