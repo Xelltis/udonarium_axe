@@ -331,6 +331,7 @@ describe('DungeonGeneratorComponent', () => {
     });
 
     it('grows the trees of the season chosen, the broadleaves turning in autumn and standing bare in winter', () => {
+      component.seed.set(1278372739);
       fixture.detectChanges();
       const models = () => new Set(component.fieldPlan().blocks.blocks.map((block) => block.model ?? ''));
       const season = (name: string) => {
