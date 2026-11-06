@@ -120,7 +120,7 @@ export class WeatherLayer {
     this.lengthPx.value = fall.lengthPx;
     this.swayPx.value = fall.swayPx;
     this.opacity.value = fall.opacity;
-    this.colour.value.set(fall.colour.slice(0, 7));
+    this.colour.value.setStyle(opaqueColourOf(fall.colour));
     this.boardSize.value.set(board.width, ceilingPx, board.depth);
     this.boxSize.value.y = Math.max(1, ceilingPx);
   }
@@ -229,6 +229,15 @@ export class WeatherLayer {
     this.materials.set(shape, material);
     return material;
   }
+}
+
+/**
+ * A colour as written, its alpha left off where it is written as eight hex digits, which a colour
+ * read for the drops takes no alpha from; any other way of writing one is read as it is.
+ */
+export function opaqueColourOf(colour: string): string {
+  const hex = /^#([0-9a-f]{6})[0-9a-f]{2}$/i.exec(colour.trim());
+  return hex ? `#${hex[1]}` : colour.trim();
 }
 
 /** Where the line through a point of the view, from -1 to 1 either way, meets the floor in front of the camera, or null. */

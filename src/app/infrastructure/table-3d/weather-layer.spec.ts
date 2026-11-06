@@ -1,5 +1,5 @@
 import { weatherFallCount, weatherFallOf } from '@axe/domain/tabletop/world/weather-fall';
-import { WeatherLayer } from '@axe/infrastructure/table-3d/weather-layer';
+import { opaqueColourOf, WeatherLayer } from '@axe/infrastructure/table-3d/weather-layer';
 import { PerspectiveCamera } from 'three/webgpu';
 
 const rain = weatherFallOf('rain', '#aabbcc', 1)!;
@@ -51,5 +51,12 @@ describe('the weather falling through the scene of a table drawn on a canvas', (
     layer.advance(16, lookingDown(500, 400, 800));
     expect(layer.takeChanged()).toBe(true);
     layer.dispose();
+  });
+
+  it('reads the colour of the drops however it is written, leaving off an alpha written as hex', () => {
+    expect(opaqueColourOf('#aabbccdd')).toBe('#aabbcc');
+    expect(opaqueColourOf(' #aabbcc ')).toBe('#aabbcc');
+    expect(opaqueColourOf('rgb(200, 220, 255)')).toBe('rgb(200, 220, 255)');
+    expect(opaqueColourOf('white')).toBe('white');
   });
 });
