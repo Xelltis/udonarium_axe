@@ -404,7 +404,7 @@ export class GameTableGestureService {
    * the top of a locked block reaches the ground it stands on.
    */
   private async pressGround(e: MouseEvent): Promise<void> {
-    const at = this.tablePick.landingAt(e.clientX, e.clientY);
+    const at = this.tablePick.landingAt(e.pageX, e.pageY);
     const outcome = await this.switchPresses.pressGroundAt(at.x, at.y);
     if (!outcome || outcome === 'pressed' || outcome === 'busy') return;
     this.switchNotices.show(this.t(`feature.boardSwitch.refused.${outcome}`), e.clientX, e.clientY);
