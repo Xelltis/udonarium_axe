@@ -118,6 +118,7 @@
       "wall_timber": "목재 벽",
       "door_wood": "나무 문",
       "door_iron_grate": "쇠창살 문",
+      "door_saloon": "스윙도어",
       "door_stone": "돌문",
       "stair_up": "올라가는 계단",
       "stair_down": "내려가는 계단",
@@ -2939,6 +2940,7 @@
           "sheerWalls": "벽을 오를 수 없게 함(열린 문은 통과 가능)",
           "wallHeight": "벽 높이(칸)",
           "entrance": "입구",
+          "doorKind": "문 종류",
           "kind": "종류",
           "prop": "장애물 재질",
           "ground": "지면 재질",
@@ -2987,6 +2989,15 @@
         "entrance": {
           "stair": "계단(지하로)",
           "tunnel": "갱도 입구(밖으로)"
+        },
+        "doorKind": {
+          "default": "분위기 기본값",
+          "door_wood": "판자문",
+          "door_steel": "철문",
+          "door_iron_grate": "쇠창살",
+          "door_stone": "돌문",
+          "door_shutter": "셔터",
+          "door_saloon": "스윙도어"
         },
         "kind": {
           "dungeon": "던전",

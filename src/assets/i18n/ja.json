@@ -118,6 +118,7 @@
       "wall_timber": "木の壁",
       "door_wood": "木の扉",
       "door_iron_grate": "鉄格子",
+      "door_saloon": "サルーンの扉",
       "door_stone": "石の扉",
       "stair_up": "上り階段",
       "stair_down": "下り階段",
@@ -2939,6 +2940,7 @@
           "sheerWalls": "壁を登れなくする（開いた扉は通れる）",
           "wallHeight": "壁の高さ（マス）",
           "entrance": "入口",
+          "doorKind": "扉の種類",
           "kind": "種類",
           "prop": "障害物の素材",
           "ground": "地面素材",
@@ -2987,6 +2989,15 @@
         "entrance": {
           "stair": "階段（地下へ降りる）",
           "tunnel": "坑道口（外へ通じる）"
+        },
+        "doorKind": {
+          "default": "雰囲気の既定",
+          "door_wood": "板戸",
+          "door_steel": "鉄の扉",
+          "door_iron_grate": "鉄格子",
+          "door_stone": "石の扉",
+          "door_shutter": "シャッター",
+          "door_saloon": "サルーンの扉"
         },
         "kind": {
           "dungeon": "ダンジョン",

@@ -55,6 +55,7 @@ import {
   MIN_CORRIDOR_WIDTH,
 } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { musterCells } from '@axe/domain/tabletop/dungeon/entrance-muster';
+import { DOOR_KINDS, type DoorKind } from '@axe/domain/tabletop/dungeon/furnishing-models';
 import { MAX_DUNGEON_TRAPS } from '@axe/domain/tabletop/dungeon/trap-placing';
 import {
   clampFieldDensity,
@@ -165,6 +166,9 @@ export class DungeonGeneratorComponent {
   private readonly floorOverride = signal<DungeonMaterial | null>(null);
   private readonly heightOverride = signal<number | null>(null);
   private readonly entranceOverride = signal<DungeonEntranceStyle | null>(null);
+  /** The kind of door hung in every doorway, or null for the one the place hangs. */
+  protected readonly doorKind = signal<DoorKind | null>(null);
+  protected readonly doorKinds = DOOR_KINDS;
   private readonly corridorOverride = signal<CorridorWidths | null>(null);
   private readonly doorOverride = signal<DoorWidths | null>(null);
   private readonly doubleDoorOverride = signal<number | null>(null);
@@ -219,6 +223,7 @@ export class DungeonGeneratorComponent {
       this.floorOverride() === null &&
       this.heightOverride() === null &&
       this.entranceOverride() === null &&
+      this.doorKind() === null &&
       this.corridorOverride() === null &&
       this.doorOverride() === null &&
       this.doubleDoorOverride() === null
@@ -253,6 +258,7 @@ export class DungeonGeneratorComponent {
         placeStairs: this.placeStairs(),
         sheerWalls: this.sheerWalls(),
         models: this.models(),
+        ...(this.doorKind() ? { door: this.doorKind()! } : {}),
       }
     )
   );
@@ -386,6 +392,7 @@ export class DungeonGeneratorComponent {
     this.floorOverride.set(null);
     this.heightOverride.set(null);
     this.entranceOverride.set(null);
+    this.doorKind.set(null);
     this.corridorOverride.set(null);
     this.doorOverride.set(null);
     this.doubleDoorOverride.set(null);

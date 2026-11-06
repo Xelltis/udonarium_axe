@@ -291,6 +291,7 @@ export function isPropOwnWallTextureId(value: string): boolean {
 
 export const DUNGEON_PROP_IDS = [
   'door_iron_grate',
+  'door_saloon',
   'door_shutter',
   'door_steel',
   'door_stone',
@@ -304,6 +305,7 @@ export type DungeonPropId = (typeof DUNGEON_PROP_IDS)[number];
 
 export const DUNGEON_PROP_ASSET_URLS: Record<DungeonPropId, string> = {
   door_iron_grate: 'assets/images/dungeon/door_iron_grate.webp',
+  door_saloon: 'assets/images/dungeon/door_saloon.webp',
   door_shutter: 'assets/images/dungeon/door_shutter.webp',
   door_steel: 'assets/images/dungeon/door_steel.webp',
   door_stone: 'assets/images/dungeon/door_stone.webp',
@@ -315,6 +317,7 @@ export const DUNGEON_PROP_ASSET_URLS: Record<DungeonPropId, string> = {
 
 export const DUNGEON_PROP_BASE_COLOR: Record<DungeonPropId, string> = {
   door_iron_grate: '#323336',
+  door_saloon: '#5a3c25',
   door_shutter: '#636567',
   door_steel: '#4a4d51',
   door_stone: '#4f4e4c',

@@ -490,6 +490,31 @@ describe('a furnished place on the table', () => {
     expect(shown.some((door) => door.across === 'x') && shown.some((door) => door.across === 'y')).toBe(true);
   });
 
+  it('hangs the kind of door chosen in every doorway, opening as that kind opens, and sees over a saloon’s', () => {
+    const doors = SEEDS.flatMap((seed) =>
+      planDungeon(
+        { atmosphere: 'illegalBar', roomCount: 8, seed },
+        { placeDoors: true, placeStairs: true, models: true, door: 'door_saloon' }
+      ).blocks.blocks.filter((block) => block.kind === 'door')
+    );
+    expect(doors.some((door) => door.disguised) && doors.some((door) => !door.disguised)).toBe(true);
+    expect(doors.every((door) => door.prop === 'door_saloon' && door.doorStyle === 'swing')).toBe(true);
+    expect(
+      doors.filter((door) => !door.disguised).every((door) => !door.blocksSight && door.model === 'door_saloon')
+    ).toBe(true);
+    expect(doors.filter((door) => door.disguised).every((door) => door.blocksSight)).toBe(true);
+
+    const grates = planDungeon(
+      { atmosphere: 'illegalBar', roomCount: 8, seed: 42 },
+      { placeDoors: true, placeStairs: true, door: 'door_iron_grate' }
+    );
+    const barred = grates.blocks.blocks.filter((block) => block.kind === 'door');
+    expect(
+      barred.every((door) => door.prop === 'door_iron_grate' && door.doorStyle === 'lift' && door.blocksSight)
+    ).toBe(true);
+    expect(barred.some((door) => door.model)).toBe(false);
+  });
+
   it('dresses a hidden door as the wall it stands in', () => {
     const plan = planDungeon({ atmosphere: 'illegalBar', roomCount: 8, seed: 42 });
     const doors = plan.blocks.blocks.filter((block) => block.kind === 'door');

@@ -54,7 +54,9 @@ type Panel = DungeonGeneratorComponent & {
       mouth: { x: number; y: number } | null;
       doorLeaves: { w: number; h: number; mirrored: boolean }[];
     };
+    blocks: { blocks: { kind: string; prop?: string; doorStyle?: string }[] };
   };
+  doorKind(): string | null;
   generate(): Promise<void>;
   discardPrevious(): void;
   corridorWidth(): { least: number; most: number };
@@ -125,6 +127,26 @@ describe('DungeonGeneratorComponent', () => {
 
     expect(component.wall()).toEqual({ kind: 'texture', id: 'wall_metal' });
     expect(component.usingDefaults()).toBe(false);
+  });
+
+  it('hangs the kind of door chosen in every doorway until the defaults are restored', () => {
+    fixture.detectChanges();
+    const doors = () => component.plan().blocks.blocks.filter((block) => block.kind === 'door');
+    const press = (id: string) => {
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(`[data-testid="${id}"]`)!.click();
+      fixture.detectChanges();
+    };
+    expect(doors().every((door) => door.prop === 'door_wood')).toBe(true);
+
+    press('door-kind-door_saloon');
+    expect(doors().length).toBeGreaterThan(0);
+    expect(doors().every((door) => door.prop === 'door_saloon' && door.doorStyle === 'swing')).toBe(true);
+    expect(component.usingDefaults()).toBe(false);
+
+    component.resetMaterials();
+    expect(component.doorKind()).toBeNull();
+    expect(doors().every((door) => door.prop === 'door_wood')).toBe(true);
+    expect(component.usingDefaults()).toBe(true);
   });
 
   it('follows the atmosphere again once the materials are reset', () => {

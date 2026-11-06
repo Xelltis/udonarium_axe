@@ -1,4 +1,5 @@
 import type { DungeonPropId } from '@axe/domain/media/texture-catalog';
+import type { DungeonDoorStyle } from '@axe/domain/tabletop/dungeon/dungeon-atmosphere';
 import type { FurnishingId } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 
 /** The 3D models bundled with the app that the furniture and the doors of a dungeon can be stood as. */
@@ -19,6 +20,7 @@ export const FURNISHING_MODEL_IDS = [
   'door_iron_grate',
   'door_stone',
   'door_shutter',
+  'door_saloon',
 ] as const;
 
 export type FurnishingModelId = (typeof FURNISHING_MODEL_IDS)[number];
@@ -64,6 +66,7 @@ export const DOOR_MODELS: Readonly<Partial<Record<DungeonPropId, FurnishingModel
   door_iron_grate: 'door_iron_grate',
   door_stone: 'door_stone',
   door_shutter: 'door_shutter',
+  door_saloon: 'door_saloon',
 };
 
 /**
@@ -74,3 +77,28 @@ export function doorModelTurn(across: 'x' | 'y', mirrored: boolean): number {
   if (across === 'x') return mirrored ? 270 : 90;
   return mirrored ? 180 : 0;
 }
+
+/** The kinds of door the generator lets be hung in place of the one a place hangs. */
+export const DOOR_KINDS = [
+  'door_wood',
+  'door_steel',
+  'door_iron_grate',
+  'door_stone',
+  'door_shutter',
+  'door_saloon',
+] as const;
+
+export type DoorKind = (typeof DOOR_KINDS)[number];
+
+/** How each kind of door opens when it is chosen: a grate and a shutter go up, a slab of stone sinks, the rest swing. */
+export const DOOR_KIND_STYLES: Readonly<Record<DoorKind, DungeonDoorStyle>> = {
+  door_wood: 'swing',
+  door_steel: 'swing',
+  door_iron_grate: 'lift',
+  door_stone: 'sink',
+  door_shutter: 'lift',
+  door_saloon: 'swing',
+};
+
+/** The doors that hang at waist height, which what stands on either side sees over. */
+export const DOORS_SEEN_OVER: readonly DungeonPropId[] = ['door_saloon'];

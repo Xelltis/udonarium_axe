@@ -500,6 +500,36 @@
     </div>
 
     <div>
+      <label class="text-ui-muted mb-1.25 block text-[0.78rem] font-semibold tracking-[0.04em] uppercase">
+        {{ 'feature.tabletop.dungeonGenerator.props.doorKind' | transloco }}
+      </label>
+      <div class="grid grid-cols-2 gap-1.5">
+        <button
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text cursor-pointer border border-solid px-2 py-1.5 text-[0.82rem]"
+          type="button"
+          data-testid="door-kind-default"
+          [attr.aria-pressed]="doorKind() === null"
+          [class.border-ui-accent]="doorKind() === null"
+          (click)="doorKind.set(null)"
+        >
+          {{ 'feature.tabletop.dungeonGenerator.doorKind.default' | transloco }}
+        </button>
+        @for (kind of doorKinds; track kind) {
+          <button
+            class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text cursor-pointer border border-solid px-2 py-1.5 text-[0.82rem]"
+            type="button"
+            [attr.data-testid]="'door-kind-' + kind"
+            [attr.aria-pressed]="doorKind() === kind"
+            [class.border-ui-accent]="doorKind() === kind"
+            (click)="doorKind.set(kind)"
+          >
+            {{ 'feature.tabletop.dungeonGenerator.doorKind.' + kind | transloco }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <div>
       <label
         class="text-ui-muted mb-1.25 block text-[0.78rem] font-semibold tracking-[0.04em] uppercase"
         for="wall-height"

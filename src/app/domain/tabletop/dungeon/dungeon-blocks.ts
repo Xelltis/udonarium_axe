@@ -10,8 +10,11 @@ import {
   maskOfKind,
 } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import {
+  DOOR_KIND_STYLES,
   DOOR_MODELS,
+  type DoorKind,
   doorModelTurn,
+  DOORS_SEEN_OVER,
   FURNISHING_MODELS,
   FURNISHING_SEGMENT_MODELS,
 } from '@axe/domain/tabletop/dungeon/furnishing-models';
@@ -51,6 +54,8 @@ export interface DungeonBlockOptions {
    * A piece built of one block a cell, as on a board of hexes, is built of its blocks all the same.
    */
   models?: boolean;
+  /** The kind of door hung in every doorway, in place of the one the place hangs. Left out, the place's own. */
+  door?: DoorKind;
 }
 
 export const DEFAULT_BLOCK_OPTIONS: DungeonBlockOptions = { placeDoors: true, placeStairs: true };
@@ -277,7 +282,8 @@ export function layoutToBlocks(
   }
 
   if (options.placeDoors) {
-    const prop = doorPropFor(atmosphere);
+    const prop = options.door ?? doorPropFor(atmosphere);
+    const doorStyle = options.door ? DOOR_KIND_STYLES[options.door] : atmosphere.doorStyle;
     for (const leaf of layout.doorLeaves) {
       const hung = { x: leaf.x, y: leaf.y, w: leaf.w, h: leaf.h };
       // A door dressed as its wall stays its wall's faces: a model of a door would give it away.
@@ -286,13 +292,13 @@ export function layoutToBlocks(
         blocks.push({
           kind: 'door',
           rect,
-          blocksSight: true,
+          blocksSight: leaf.hidden || !DOORS_SEEN_OVER.includes(prop),
           blocksClimb: options.sheerWalls === true,
           locked: leaf.locked,
           rooms: leaf.rooms,
           across: leaf.across,
           prop,
-          doorStyle: atmosphere.doorStyle,
+          doorStyle,
           doorMirrored: leaf.mirrored,
           disguised: leaf.hidden || undefined,
           ...(model ? { model, modelTurn: doorModelTurn(leaf.across, leaf.mirrored) || undefined } : {}),
