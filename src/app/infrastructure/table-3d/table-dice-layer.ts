@@ -134,7 +134,8 @@ export class TableDiceLayer {
   /**
    * Builds the shaders of a material ahead of the first die on the table that wears it, with a die
    * of its own standing in a scene of its own, so no throw drawn meanwhile shows it. A critical's
-   * ring is built along with the first.
+   * ring is built along with the first. A material the graphics card would not build is left to be
+   * built ahead the next time it is asked for.
    */
   async warm(material: DiceMaterial, compile: (staging: Scene) => Promise<unknown>): Promise<void> {
     if (this.warmed.has(material)) return;
@@ -151,6 +152,8 @@ export class TableDiceLayer {
     staging.add(warm.root);
     try {
       await compile(staging);
+    } catch {
+      this.warmed.delete(material);
     } finally {
       staging.remove(warm.root);
       for (const made of warm.materials) made.dispose();
