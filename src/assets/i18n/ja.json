@@ -2894,6 +2894,7 @@
           "cactus": "サボテン",
           "junk": "廃材の山",
           "streetTree": "街路樹",
+          "giantTree": "巨木",
           "building": "建物",
           "roofUnit": "屋上設備",
           "counter": "カウンター",
@@ -3018,6 +3019,7 @@
           "cactus": "サボテン",
           "junk": "廃材の山",
           "streetTree": "街路樹",
+          "giantTree": "巨木",
           "building": "建物"
         },
         "grid": {

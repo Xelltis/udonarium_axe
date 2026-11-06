@@ -2894,6 +2894,7 @@
           "cactus": "Cactus",
           "junk": "Junk heap",
           "streetTree": "Street tree",
+          "giantTree": "Giant tree",
           "building": "Building",
           "roofUnit": "Rooftop unit",
           "counter": "Counter",
@@ -3018,6 +3019,7 @@
           "cactus": "Cacti",
           "junk": "Junk heaps",
           "streetTree": "Street trees",
+          "giantTree": "Giant trees",
           "building": "Buildings"
         },
         "grid": {

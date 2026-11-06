@@ -2894,6 +2894,7 @@
           "cactus": "선인장",
           "junk": "고철 더미",
           "streetTree": "가로수",
+          "giantTree": "거목",
           "building": "건물",
           "roofUnit": "옥상 설비",
           "counter": "카운터",
@@ -3018,6 +3019,7 @@
           "cactus": "선인장",
           "junk": "고철 더미",
           "streetTree": "가로수",
+          "giantTree": "거목",
           "building": "건물"
         },
         "grid": {

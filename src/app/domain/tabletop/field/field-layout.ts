@@ -103,7 +103,16 @@ const WARP = 0.6;
 const POOL_SPACING = 8;
 
 /** What is put down as a whole thing rather than as a cell of ground cover. */
-const STANDING_PROPS: readonly FieldPropId[] = ['hill', 'tree', 'boulder', 'outcrop', 'cactus', 'junk', 'streetTree'];
+const STANDING_PROPS: readonly FieldPropId[] = [
+  'hill',
+  'giantTree',
+  'tree',
+  'boulder',
+  'outcrop',
+  'cactus',
+  'junk',
+  'streetTree',
+];
 
 /** Below this share of the growth field nothing grows, and above it the stand thickens. */
 const GROWTH_FLOOR = 0.3;
@@ -181,7 +190,7 @@ function plant(
       };
       objects.push(object);
       standing.push(object);
-      if (shape.claimsGround) {
+      if (shape.claimsGround || shape.covers) {
         for (let dy = -reach; dy <= reach; dy++) {
           for (let dx = -reach; dx <= reach; dx++) props[(y + dy) * width + x + dx] = prop;
         }

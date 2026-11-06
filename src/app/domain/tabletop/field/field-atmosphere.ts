@@ -17,7 +17,17 @@ export const FIELD_ATMOSPHERE_IDS = [
 
 export type FieldAtmosphereId = (typeof FIELD_ATMOSPHERE_IDS)[number];
 
-export const FIELD_PROP_IDS = ['tree', 'bush', 'boulder', 'outcrop', 'hill', 'cactus', 'junk', 'streetTree'] as const;
+export const FIELD_PROP_IDS = [
+  'tree',
+  'bush',
+  'boulder',
+  'outcrop',
+  'hill',
+  'cactus',
+  'junk',
+  'streetTree',
+  'giantTree',
+] as const;
 
 export type FieldPropId = (typeof FIELD_PROP_IDS)[number];
 
@@ -58,6 +68,11 @@ export interface FieldPropShape {
   spacing?: number;
   /** Whether it takes the ground it covers, so that nothing else is put down on top of it. */
   claimsGround?: boolean;
+  /**
+   * Whether nothing else stands on the ground under it, as nothing grows in the shade of a giant
+   * tree. Unlike ground it claims, it is still stood where the ground is raised in hills.
+   */
+  covers?: boolean;
   /** Stubs set out on its flanks, which is what tells a cactus from a post. */
   arms?: readonly { at: number; reach: number; size: number; height: number }[];
 }
@@ -176,6 +191,29 @@ export const FIELD_PROP_SHAPES: Record<FieldPropId, FieldPropShape> = {
     squash: 0.3,
     drift: 0.12,
     spacing: 2,
+  },
+  /**
+   * A tree grown huge with age, standing alone with nothing under it.
+   *
+   * Its crown is as wide as a stand of ordinary trees, and it is found once or twice on a
+   * board, far from another of its kind.
+   */
+  giantTree: {
+    side: 'forest',
+    top: 'forest',
+    height: 1.2,
+    span: 7,
+    blocksSight: true,
+    altitude: 2.0,
+    trunk: { side: 'wall_timber', top: 'black_soil', width: 1.0, height: 2.6 },
+    layers: [
+      { spread: 6.6, height: 0.8 },
+      { spread: 5.0, height: 0.7 },
+      { spread: 3.0, height: 0.6 },
+    ],
+    drift: 0.4,
+    spacing: 14,
+    covers: true,
   },
   /**
    * A tree planted in the pavement.
@@ -397,6 +435,7 @@ export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {
       { upTo: 1, texture: 'black_soil' },
     ],
     props: [
+      { prop: 'giantTree', chance: 0.02, bands: [1, 2] },
       { prop: 'tree', chance: 0.85, bands: [2] },
       { prop: 'tree', chance: 0.14, bands: [1] },
       { prop: 'bush', chance: 0.05, bands: [0, 1] },
@@ -424,6 +463,7 @@ export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {
       { prop: 'hill', chance: 0.08, bands: [1] },
       { prop: 'bush', chance: 0.06, bands: [1] },
       { prop: 'tree', chance: 0.09, bands: [1] },
+      { prop: 'giantTree', chance: 0.012, bands: [1] },
       { prop: 'boulder', chance: 0.06, bands: [2] },
     ],
     darkness: 0,

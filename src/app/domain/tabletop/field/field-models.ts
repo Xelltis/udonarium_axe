@@ -22,6 +22,7 @@ export const FIELD_MODEL_IDS = [
   'tree_mangrove',
   'tree_snowFir',
   'tree_snowSpruce',
+  'tree_giant',
   'bush_round',
   'bush_wide',
   'bush_leafy',
@@ -48,6 +49,7 @@ export const FIELD_PROP_MODELS: Readonly<Partial<Record<FieldPropId, readonly Fi
   bush: ['bush_round', 'bush_wide', 'bush_leafy'],
   boulder: ['rock_boulder', 'rock_angular', 'rock_slab'],
   outcrop: ['rock_outcrop'],
+  giantTree: ['tree_giant'],
 };
 
 /**
@@ -134,6 +136,7 @@ export const FIELD_MODEL_SIZES: Readonly<Record<FieldModelId, { readonly across:
   tree_mangrove: { across: 7.4, tall: 9.3479 },
   tree_snowFir: { across: 8.226, tall: 13.998 },
   tree_snowSpruce: { across: 7.3256, tall: 12.995 },
+  tree_giant: { across: 22.9355, tall: 21.3551 },
   bush_round: { across: 1.848, tall: 1.0804 },
   bush_wide: { across: 2.3952, tall: 1.6323 },
   bush_leafy: { across: 2.1843, tall: 1.2968 },

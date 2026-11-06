@@ -52,6 +52,31 @@ describe('planField()', () => {
     }
   });
 
+  it('grows a giant tree now and then, on raised ground too, with nothing else standing in its shade', () => {
+    const plans = [1, 2, 3, 4, 5, 6, 7, 8].map((seed) =>
+      planField({ atmosphere: 'woodland', size: 60, density: 70, seed, relief: 2, models: true })
+    );
+    const giants = plans.flatMap((plan) =>
+      plan.layout.objects.filter((object) => object.prop === 'giantTree').map((giant) => ({ giant, plan }))
+    );
+
+    expect(giants.length).toBeGreaterThan(0);
+    for (const { giant, plan } of giants) {
+      const reach = (giant.span - 1) / 2;
+      const shaded = plan.layout.objects.filter(
+        (other) => other !== giant && Math.abs(other.x - giant.x) <= reach && Math.abs(other.y - giant.y) <= reach
+      );
+      expect(shaded).toEqual([]);
+      const others = plan.layout.objects.filter((other) => other !== giant && other.prop === 'giantTree');
+      expect(others.every((other) => Math.max(Math.abs(other.x - giant.x), Math.abs(other.y - giant.y)) >= 14)).toBe(
+        true
+      );
+    }
+    const stood = plans.flatMap((plan) => plan.blocks.blocks.filter((block) => block.thing === 'giantTree'));
+    expect(stood.length).toBe(giants.length);
+    expect(stood.every((block) => block.model === 'tree_giant' && block.footprint!.w < block.rect.w)).toBe(true);
+  });
+
   it('stands each bush as a model of its own, as wide as it is drawn, where models are asked for', () => {
     const built = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7 });
     const modelled = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7, models: true });
@@ -296,7 +321,9 @@ describe('planField()', () => {
     const canopy = FIELD_PROP_SHAPES.tree;
     const trees = plan.layout.objects.filter((object) => object.prop === 'tree');
     const posts = plan.blocks.blocks.filter((block) => block.footprint?.w === canopy.trunk!.width);
-    const crowns = plan.blocks.blocks.filter((block) => block.altitude !== undefined && block.rect.w === canopy.span);
+    const crowns = plan.blocks.blocks.filter(
+      (block) => block.thing === 'tree' && block.altitude !== undefined && block.rect.w === canopy.span
+    );
 
     expect(trees.length).toBeGreaterThan(0);
     expect(posts.length).toBe(trees.length);
