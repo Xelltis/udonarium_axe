@@ -22,7 +22,12 @@ export interface TableWorldModel {
    * How wide and deep a block's own box is, in table pixels, before it is turned: what a model made to
    * be stretched to its box, as a door or a stair is, fills. Left out for a piece.
    */
-  readonly boxPx?: { readonly widthPx: number; readonly depthPx: number };
+  readonly boxPx?: {
+    readonly widthPx: number;
+    readonly depthPx: number;
+    /** How wide a cell of the table is: what a building's kit, made a cell to a piece, is repeated by. */
+    readonly cellPx?: number;
+  };
   /** How far the piece is turned, in degrees clockwise. */
   readonly rotateDeg: number;
   /** How far the piece is tipped over sideways, in degrees, as its picture is. */

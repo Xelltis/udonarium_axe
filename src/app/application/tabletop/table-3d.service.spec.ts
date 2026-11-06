@@ -845,7 +845,7 @@ describe('Table3dService', () => {
     expect(scene.world().models).toEqual([
       expect.objectContaining({
         foot: { x: 125, y: 155, z: 0 },
-        boxPx: { widthPx: 50, depthPx: 10 },
+        boxPx: { widthPx: 50, depthPx: 10, cellPx: 50 },
         rotateDeg: 0,
         door: { open: false, shiftX: 0, shiftY: 0, turnDeg: 0, liftPx: 0 },
       }),

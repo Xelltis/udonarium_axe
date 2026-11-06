@@ -37,6 +37,11 @@ interface LoadedModel {
    * extras, as `{ "fit": "stretch" }`.
    */
   readonly stretch?: boolean;
+  /**
+   * Whether it is the kit a building is made of, its scene saying `{ "fit": "facade" }` in its extras:
+   * a wall, a roof and a parapet, each one cell across, which are repeated to fill the block.
+   */
+  readonly facade?: boolean;
   /** Its meshes, each where it stands within the model measured from the model's foot. */
   readonly parts: readonly ModelPart[];
 }
@@ -50,18 +55,27 @@ interface ModelPart {
   readonly mesh: Mesh;
   readonly within: Matrix4;
   readonly swing?: { readonly hinge: Vector3; readonly deg: number };
+  /** Which part of a building's kit it is, as its node says in its extras as `{ "part": ... }`; a wall if it says none. */
+  readonly role?: KitRole;
 }
+
+/** The parts of a building's kit: its wall, its roof and its parapet. */
+type KitRole = 'wall' | 'roof' | 'cap';
 
 /** What a model's placement is worked out from: its size as made, whether it is stretched, and its leaves. */
 type ModelMeasure = Pick<LoadedModel, 'size'> & {
   readonly stretch?: boolean;
-  readonly parts?: readonly Pick<ModelPart, 'within' | 'swing'>[];
+  readonly facade?: boolean;
+  readonly parts?: readonly Pick<ModelPart, 'within' | 'swing' | 'role'>[];
 };
 
-/** Every copy of a model that plays no motion, drawn together: one instanced mesh for each of its meshes. */
+/**
+ * Every copy of a model that plays no motion, drawn together: one instanced mesh for each of its meshes,
+ * each as large as the copies of that mesh it may draw, which for a building's parts is many to a copy.
+ */
 interface Herd {
   readonly parts: readonly InstancedMesh[];
-  readonly capacity: number;
+  readonly capacities: readonly number[];
   copies: number;
 }
 
@@ -228,33 +242,34 @@ export class ModelLayer {
 
   /** Stands the copies of a model that plays no motion where their pieces are, its herd grown where it is too small. */
   private herd(url: string, loaded: LoadedModel, flock: readonly TableWorldModel[]): void {
+    const placements = flock.map((model) => partPlacementsOf(model, loaded));
+    const counts = loaded.parts.map((_, part) => placements.reduce((sum, each) => sum + each[part].length, 0));
     let herd = this.herds.get(url);
-    if (!herd || herd.capacity < flock.length) {
+    if (!herd || counts.some((count, part) => herd!.capacities[part] < count)) {
       if (herd) this.unherd(herd);
-      const capacity = Math.max(4, 2 ** Math.ceil(Math.log2(flock.length)));
+      const capacities = counts.map((count) => Math.max(4, 2 ** Math.ceil(Math.log2(Math.max(1, count)))));
       herd = {
-        parts: loaded.parts.map(({ mesh }) => {
-          const part = new InstancedMesh(mesh.geometry, mesh.material, capacity);
+        parts: loaded.parts.map(({ mesh }, index) => {
+          const part = new InstancedMesh(mesh.geometry, mesh.material, capacities[index]);
           part.castShadow = true;
           part.receiveShadow = true;
           part.matrixAutoUpdate = false;
           this.group.add(part);
           return part;
         }),
-        capacity,
+        capacities,
         copies: 0,
       };
       this.herds.set(url, herd);
     }
     herd.copies = flock.length;
-    flock.forEach((model, index) => {
-      partPlacementsOf(model, loaded).forEach((matrix, part) => herd.parts[part].setMatrixAt(index, matrix));
-    });
-    for (const part of herd.parts) {
-      part.count = flock.length;
+    herd.parts.forEach((part, index) => {
+      let at = 0;
+      for (const each of placements) for (const matrix of each[index]) part.setMatrixAt(at++, matrix);
+      part.count = at;
       part.instanceMatrix.needsUpdate = true;
       part.computeBoundingSphere();
-    }
+    });
   }
 
   private unherd(herd: Herd): void {
@@ -330,9 +345,14 @@ export class ModelLayer {
     const middle = box.getCenter(new Vector3());
     const foot = new Vector3(middle.x, box.min.y, middle.z);
     const fromFoot = new Matrix4().makeTranslation(-foot.x, -foot.y, -foot.z);
+    const facade = (gltf.scene.userData as { fit?: unknown })['fit'] === 'facade';
     const parts: ModelPart[] = [];
     gltf.scene.traverse((object) => {
       if (!(object instanceof Mesh)) return;
+      if (facade) {
+        parts.push({ mesh: object, within: object.matrixWorld.clone(), role: kitRoleOf(object) });
+        return;
+      }
       const swing = swingOf(object);
       parts.push({
         mesh: object,
@@ -341,7 +361,7 @@ export class ModelLayer {
       });
     });
     const stretch = (gltf.scene.userData as { fit?: unknown })['fit'] === 'stretch';
-    return { gltf, size, foot, animated: gltf.animations.length > 0, parts, stretch };
+    return { gltf, size, foot, animated: gltf.animations.length > 0, parts, stretch, facade };
   }
 
   private dracoLoader(): Promise<DRACOLoader> {
@@ -433,15 +453,82 @@ function placementPartsOf(model: TableWorldModel, loaded: ModelMeasure): { frame
  * Where each mesh of a model is drawn for a piece or block: placed with the model, and a leaf that swings
  * on a hinge of its own swung open about it while its door stands open.
  */
-export function partPlacementsOf(model: TableWorldModel, loaded: ModelMeasure): Matrix4[] {
+export function partPlacementsOf(model: TableWorldModel, loaded: ModelMeasure): Matrix4[][] {
+  if (loaded.facade && model.boxPx) return facadePlacementsOf(model, loaded);
   const { frame, scaling } = placementPartsOf(model, loaded);
   const placement = frame.clone().multiply(scaling);
   const open = model.door?.open === true;
-  return (loaded.parts ?? []).map(({ within, swing }) =>
+  return (loaded.parts ?? []).map(({ within, swing }) => [
     open && swing
       ? frame.clone().multiply(swungAbout(scaling, swing)).multiply(scaling).multiply(within)
-      : placement.clone().multiply(within)
-  );
+      : placement.clone().multiply(within),
+  ]);
+}
+
+/** The four sides of a block, each as the turn that faces a part made facing south out of it. */
+const SIDES = [
+  { turn: 0, along: 'x', out: [0, 1] },
+  { turn: Math.PI, along: 'x', out: [0, -1] },
+  { turn: Math.PI / 2, along: 'z', out: [1, 0] },
+  { turn: -Math.PI / 2, along: 'z', out: [-1, 0] },
+] as const;
+
+/**
+ * Where the parts of a building's kit stand to make the building of a block: its wall, one cell wide
+ * and one storey tall facing out, repeated round all four sides and up every storey; its roof, one
+ * cell square, laid over the top; its parapet, one cell long, along every edge of the roof. Each side
+ * takes as many whole cells as fit it and each storey as much of the height as its share, so the kit
+ * fills the block however many cells it is and however tall.
+ */
+function facadePlacementsOf(model: TableWorldModel, loaded: ModelMeasure): Matrix4[][] {
+  const box = model.boxPx!;
+  const cell = Math.max(1, box.cellPx ?? box.widthPx);
+  const { frame } = placementPartsOf(model, loaded);
+  const width = box.widthPx;
+  const depth = box.depthPx;
+  const height = Math.max(1e-6, model.heightPx);
+  const storeys = Math.max(1, Math.round(height / cell));
+  const storey = height / storeys;
+  const along = (length: number) => Math.max(1, Math.round(length / cell));
+  const placed = (x: number, y: number, z: number, turn: number, sx: number, sy: number, sz: number, within: Matrix4) =>
+    frame
+      .clone()
+      .multiply(new Matrix4().makeTranslation(x, y, z))
+      .multiply(new Matrix4().makeRotationY(turn))
+      .multiply(new Matrix4().makeScale(sx, sy, sz))
+      .multiply(within);
+  return (loaded.parts ?? []).map(({ within, role }) => {
+    const matrices: Matrix4[] = [];
+    if (role === 'roof') {
+      const across = along(width);
+      const deep = along(depth);
+      for (let i = 0; i < across; i++) {
+        for (let j = 0; j < deep; j++) {
+          const x = -width / 2 + (width / across) * (i + 0.5);
+          const z = -depth / 2 + (depth / deep) * (j + 0.5);
+          matrices.push(placed(x, height, z, 0, width / across, cell, depth / deep, within));
+        }
+      }
+      return matrices;
+    }
+    for (const side of SIDES) {
+      const length = side.along === 'x' ? width : depth;
+      const count = along(length);
+      const step = length / count;
+      const outX = (side.out[0] * width) / 2;
+      const outZ = (side.out[1] * depth) / 2;
+      for (let i = 0; i < count; i++) {
+        const offset = -length / 2 + step * (i + 0.5);
+        const x = side.along === 'x' ? (side.out[1] > 0 ? offset : -offset) : outX;
+        const z = side.along === 'z' ? (side.out[0] > 0 ? -offset : offset) : outZ;
+        if (role === 'cap') matrices.push(placed(x, height, z, side.turn, step, cell, cell, within));
+        else
+          for (let k = 0; k < storeys; k++)
+            matrices.push(placed(x, storey * k, z, side.turn, step, storey, cell, within));
+      }
+    }
+    return matrices;
+  });
 }
 
 /** The turn a leaf swings open by, about its hinge where the scaling puts it, so that it swings unstretched. */
@@ -451,6 +538,15 @@ function swungAbout(scaling: Matrix4, swing: NonNullable<ModelPart['swing']>): M
     .makeTranslation(hinge.x, hinge.y, hinge.z)
     .multiply(new Matrix4().makeRotationY(swing.deg * RADIANS))
     .multiply(new Matrix4().makeTranslation(-hinge.x, -hinge.y, -hinge.z));
+}
+
+/** Which part of a building's kit a mesh is, as its node (or one it hangs from) says: a wall if none says. */
+function kitRoleOf(object: Object3D): KitRole {
+  for (let node: Object3D | null = object; node; node = node.parent) {
+    const part = (node.userData as { part?: unknown }).part;
+    if (part === 'roof' || part === 'cap' || part === 'wall') return part;
+  }
+  return 'wall';
 }
 
 /**

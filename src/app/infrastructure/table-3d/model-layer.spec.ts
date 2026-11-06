@@ -75,8 +75,8 @@ describe('placementOf', () => {
       boxPx: { widthPx: 100, depthPx: 25 },
       door: { open: true, shiftX: 40, shiftY: 0, turnDeg: 95, liftPx: 0 },
     });
-    const at = (matrices: Matrix4[], part: number, x: number) => {
-      const point = new Vector3(x, 0, 0).applyMatrix4(matrices[part]);
+    const at = (matrices: Matrix4[][], part: number, x: number) => {
+      const point = new Vector3(x, 0, 0).applyMatrix4(matrices[part][0]);
       return [point.x, point.y, point.z].map((value) => Math.round(value * 1000) / 1000 + 0);
     };
 
@@ -87,6 +87,43 @@ describe('placementOf', () => {
     expect(at(open, 2, 0)).toEqual([100, 0, 200]);
     const shut = partPlacementsOf({ ...door, door: { ...door.door!, open: false } }, saloon);
     expect(at(shut, 0, 0)).toEqual([100, 0, 200]);
+  });
+
+  it('builds a building of its kit: walls round every side and up every storey, the roof over it, a parapet round that', () => {
+    const kit = {
+      size: new Vector3(1, 1, 1),
+      facade: true,
+      parts: [
+        { within: new Matrix4(), role: 'wall' as const },
+        { within: new Matrix4(), role: 'roof' as const },
+        { within: new Matrix4(), role: 'cap' as const },
+      ],
+    };
+    const building = knight({
+      footprintPx: 100,
+      heightPx: 120,
+      pivotPx: 0,
+      boxPx: { widthPx: 100, depthPx: 50, cellPx: 50 },
+    });
+    const [walls, roofs, caps] = partPlacementsOf(building, kit);
+    const where = (matrix: Matrix4, x: number, y: number, z: number) => {
+      const point = new Vector3(x, y, z).applyMatrix4(matrix);
+      return [point.x, point.y, point.z].map((value) => Math.round(value * 1000) / 1000 + 0);
+    };
+
+    expect([walls.length, roofs.length, caps.length]).toEqual([12, 2, 6]);
+    expect(where(walls[0], -0.5, 0, 0)).toEqual([50, 0, 225]);
+    expect(where(walls[1], 0.5, 1, 0)).toEqual([100, 120, 225]);
+    expect(where(walls[0], 0, 0, 1)).toEqual([75, 0, 275]);
+    const sides = walls.map((matrix) => where(matrix, 0, 0, 0));
+    expect(sides.filter(([, , z]) => z === 175).length).toBe(4);
+    expect(sides.filter(([x]) => x === 150).length).toBe(2);
+    expect(sides.filter(([x]) => x === 50).length).toBe(2);
+    expect(roofs.map((matrix) => where(matrix, 0, 0, 0))).toEqual([
+      [75, 120, 200],
+      [125, 120, 200],
+    ]);
+    expect(caps.every((matrix) => where(matrix, 0, 0, 0)[1] === 120)).toBe(true);
   });
 
   it('lifts a model as high as its piece floats', () => {

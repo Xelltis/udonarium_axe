@@ -272,7 +272,7 @@ export class Table3dService {
         },
         footprintPx: Math.max(terrain.width, terrain.depth) * gridSize,
         heightPx: Math.max(0, terrain.height) * gridSize,
-        boxPx: { widthPx: terrain.width * gridSize, depthPx: terrain.depth * gridSize },
+        boxPx: { widthPx: terrain.width * gridSize, depthPx: terrain.depth * gridSize, cellPx: gridSize },
         rotateDeg: terrain.rotate,
         rollDeg: 0,
         pivotPx: 0,
