@@ -105,6 +105,14 @@ export const SETTLEMENT_WALL_HEIGHTS: Readonly<Record<SettlementWallKind, number
 /** The fewest cells a room is across inside its walls, so a piece and a table fit in it. */
 const LEAST_ROOM = 3;
 
+/**
+ * How many times a barbarian fort tries to pitch a tent four cells across, and then one three across
+ * where none of those has room, so that a large fort is pitched with large tents and a small one still
+ * with small ones.
+ */
+const LARGE_TENT_TRIES = 300;
+const SMALL_TENT_TRIES = 450;
+
 /** A board of cells being laid out: the zone of each and what stands on it. */
 class Plot {
   readonly zones: Uint8Array;
@@ -501,8 +509,8 @@ function layBarbarianFort(plot: Plot, rng: () => number, fill: number): void {
   plot.take({ x: Math.floor(cx) - 1, y: Math.floor(cy), w: 3, h: 3 });
 
   const tents = Math.max(2, Math.round(between(3, 5, rng) * fill));
-  for (let tries = 0, laid = 0; tries < 750 && laid < tents; tries++) {
-    const size = tries < 300 ? 4 : 3;
+  for (let tries = 0, laid = 0; tries < LARGE_TENT_TRIES + SMALL_TENT_TRIES && laid < tents; tries++) {
+    const size = tries < LARGE_TENT_TRIES ? 4 : 3;
     const x = between(1, plot.width - size - 1, rng);
     const y = between(1, plot.height - size - 1, rng);
     const rect = { x, y, w: size, h: size };
