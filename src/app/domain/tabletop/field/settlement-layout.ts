@@ -20,7 +20,10 @@ export type CropKind = (typeof CROP_KINDS)[number];
 /** The crops that slow whoever crosses them: tall stalks and a flooded paddy. Vegetables are walked between. */
 export const SLOWING_CROPS: readonly CropKind[] = ['wheat', 'corn', 'rice'];
 
-/** What a wall is: the wall round a fort, a tower on it, the wall of a room, or a low fence. */
+/**
+ * What a wall is: the wall round a fort, a tower on it, the wall of a room, a low fence, the boards of a
+ * barn or the hides of a tent.
+ */
 export const SETTLEMENT_WALL_KINDS = [
   'palisade',
   'watchtower',
@@ -29,6 +32,8 @@ export const SETTLEMENT_WALL_KINDS = [
   'timberWall',
   'stoneRoomWall',
   'fence',
+  'boardWall',
+  'hideWall',
 ] as const;
 
 export type SettlementWallKind = (typeof SETTLEMENT_WALL_KINDS)[number];
@@ -48,13 +53,6 @@ export interface SettlementDoor {
   readonly kind: 'gate' | 'door';
   /** What the wall it hangs in is, which it is as tall as and made to match. */
   readonly wall: SettlementWallKind;
-}
-
-/** A building standing as a whole block, which nobody goes into: a barn, a tent, barracks. */
-export interface SettlementSolid {
-  readonly rect: MapRect;
-  readonly thing: 'barn' | 'tent' | 'barracks' | 'stable';
-  readonly height: number;
 }
 
 /** A field of one crop, inside its fence where it has one. */
@@ -81,7 +79,6 @@ export interface SettlementLayout {
   /** The wall standing on each cell, as one more than its place in `SETTLEMENT_WALL_KINDS`, or 0 for none. */
   readonly walls: Uint8Array;
   readonly doors: readonly SettlementDoor[];
-  readonly solids: readonly SettlementSolid[];
   readonly crops: readonly SettlementCrop[];
   readonly things: readonly SettlementThing[];
   /** Where a fire burns or a lamp stands, a cell each. */
@@ -101,6 +98,8 @@ export const SETTLEMENT_WALL_HEIGHTS: Readonly<Record<SettlementWallKind, number
   timberWall: 2,
   stoneRoomWall: 3,
   fence: 0.6,
+  boardWall: 2.5,
+  hideWall: 2,
 };
 
 /** The fewest cells a room is across inside its walls, so a piece and a table fit in it. */
@@ -112,7 +111,6 @@ class Plot {
   readonly taken: Uint8Array;
   readonly walls: Uint8Array;
   readonly doors: SettlementDoor[] = [];
-  readonly solids: SettlementSolid[] = [];
   readonly crops: SettlementCrop[] = [];
   readonly things: SettlementThing[] = [];
   readonly fires: SettlementFire[] = [];
@@ -173,7 +171,6 @@ class Plot {
       zones: this.zones,
       walls: this.walls,
       doors: this.doors,
-      solids: this.solids,
       crops: this.crops,
       things: this.things,
       fires: this.fires,
@@ -210,8 +207,10 @@ function between(least: number, most: number, rng: () => number): number {
 
 /**
  * A building with rooms in it: walls round the edge of its footprint, the inside cut into rooms by
- * walls with a door in each, a floor under them, and a door out of the side named. The rooms are cut
- * one at a time, the largest across its longer way, so none is less than `LEAST_ROOM` across.
+ * walls with a door in each, a floor under them, and a door out of the side named, or for a tent a way
+ * in left open. The rooms are cut one at a time, the largest across its longer way, so none is less
+ * than `LEAST_ROOM` across. Its floor is the floor of a house unless another zone is asked for, as the
+ * trodden earth of a barn or a tent is.
  */
 function houseWithRooms(
   plot: Plot,
@@ -219,11 +218,12 @@ function houseWithRooms(
   rooms: number,
   wall: SettlementWallKind,
   facing: 'n' | 's' | 'e' | 'w',
-  rng: () => number
+  rng: () => number,
+  { floor = SETTLEMENT_ZONES.floor, open = false }: { readonly floor?: number; readonly open?: boolean } = {}
 ): void {
   plot.take(rect);
   const inner = { x: rect.x + 1, y: rect.y + 1, w: rect.w - 2, h: rect.h - 2 };
-  plot.paint(inner, SETTLEMENT_ZONES.floor);
+  plot.paint(inner, floor);
   const walls: MapPoint[] = [];
   for (let x = rect.x; x < rect.x + rect.w; x++) walls.push({ x, y: rect.y }, { x, y: rect.y + rect.h - 1 });
   for (let y = rect.y + 1; y < rect.y + rect.h - 1; y++) walls.push({ x: rect.x, y }, { x: rect.x + rect.w - 1, y });
@@ -265,16 +265,18 @@ function houseWithRooms(
           y: rect.y + 1 + i,
         }));
   const inward = { n: { x: 0, y: 1 }, s: { x: 0, y: -1 }, e: { x: -1, y: 0 }, w: { x: 1, y: 0 } }[facing];
-  const open = sideCells.filter(({ x, y }) => !blocked.has(`${x + inward.x},${y + inward.y}`));
-  const entrance = open[Math.floor(open.length / 2)] ?? sideCells[Math.floor(sideCells.length / 2)];
-  plot.doors.push({
-    x: entrance.x,
-    y: entrance.y,
-    across: facing === 'n' || facing === 's' ? 'y' : 'x',
-    mirrored: rng() < 0.5,
-    kind: 'door',
-    wall,
-  });
+  const clear = sideCells.filter(({ x, y }) => !blocked.has(`${x + inward.x},${y + inward.y}`));
+  const entrance = clear[Math.floor(clear.length / 2)] ?? sideCells[Math.floor(sideCells.length / 2)];
+  if (open) plot.paint({ ...entrance, w: 1, h: 1 }, floor);
+  else
+    plot.doors.push({
+      x: entrance.x,
+      y: entrance.y,
+      across: facing === 'n' || facing === 's' ? 'y' : 'x',
+      mirrored: rng() < 0.5,
+      kind: 'door',
+      wall,
+    });
   plot.wall(
     [...walls, ...partitions].filter(({ x, y }) => x !== entrance.x || y !== entrance.y),
     wall
@@ -331,11 +333,17 @@ function layVillage(plot: Plot, rng: () => number, fill: number): void {
       plot.take({ ...lamp, w: 1, h: 1 });
       plot.fires.push({ ...lamp, kind: 'lantern' });
     }
-    const barn = { x: rect.x + rect.w + 1, y: north ? rect.y : rect.y + rect.h - 3, w: 3, h: 3 };
-    if (rng() < 0.5 && plot.free(barn, 1)) {
-      plot.take(barn);
-      plot.solids.push({ rect: barn, thing: 'barn', height: 2.5 });
-      const hay = { x: barn.x + 3, y: barn.y + 1 };
+    const beside = { x: rect.x + rect.w + 1, y: north ? rect.y + rect.h - 4 : rect.y, w: 5, h: 4 };
+    const behind = {
+      x: rect.x + Math.floor((rect.w - 5) / 2),
+      y: north ? rect.y - 5 : rect.y + rect.h + 1,
+      w: 5,
+      h: 4,
+    };
+    const barn = [beside, behind].find((spot) => plot.free(spot, 1));
+    if (rng() < 0.5 && barn) {
+      houseWithRooms(plot, barn, 1, 'boardWall', north ? 's' : 'n', rng, { floor: SETTLEMENT_ZONES.yard });
+      const hay = { x: barn.x + barn.w, y: barn.y + 1 };
       if (plot.inside(hay.x, hay.y) && plot.free({ ...hay, w: 1, h: 1 })) {
         plot.take({ ...hay, w: 1, h: 1 });
         plot.things.push({ ...hay, thing: 'hay' });
@@ -475,14 +483,17 @@ function layBarbarianFort(plot: Plot, rng: () => number, fill: number): void {
   plot.fires.push({ x: Math.floor(cx), y: Math.floor(cy) + 1, kind: 'campfire' });
   plot.take({ x: Math.floor(cx) - 1, y: Math.floor(cy), w: 3, h: 3 });
 
-  const tents = Math.max(2, Math.round(between(4, 7, rng) * fill));
+  const tents = Math.max(2, Math.round(between(3, 5, rng) * fill));
   for (let tries = 0, laid = 0; tries < 300 && laid < tents; tries++) {
-    const x = between(1, plot.width - 3, rng);
-    const y = between(1, plot.height - 3, rng);
-    const rect = { x, y, w: 2, h: 2 };
-    if (!inside(x, y) || !inside(x + 1, y + 1) || !plot.free(rect, 1)) continue;
-    plot.take(rect);
-    plot.solids.push({ rect, thing: 'tent', height: 1.6 });
+    const x = between(1, plot.width - 5, rng);
+    const y = between(1, plot.height - 5, rng);
+    const rect = { x, y, w: 4, h: 4 };
+    const corners = [inside(x, y), inside(x + 3, y), inside(x, y + 3), inside(x + 3, y + 3)];
+    if (corners.includes(false) || !plot.free(rect, 1)) continue;
+    const dx = cx - (x + 2);
+    const dy = cy - (y + 2);
+    const facing = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'e' : 'w') : dy > 0 ? 's' : 'n';
+    houseWithRooms(plot, rect, 1, 'hideWall', facing, rng, { floor: SETTLEMENT_ZONES.yard, open: true });
     laid++;
   }
   for (let tries = 0, laid = 0; tries < 100 && laid < 3; tries++) {
@@ -563,14 +574,14 @@ function layStoneFort(plot: Plot, rng: () => number, fill: number): void {
   for (let i = 0; i < buildings; i++) {
     const west = i % 2 === 0;
     const rect = {
-      x: west ? x0 + 1 : x1 - 3,
-      y: y0 + Math.round(innerH * 0.55),
-      w: 3,
-      h: Math.max(3, Math.round(innerH * 0.3)),
+      x: west ? x0 + 1 : x1 - 5,
+      y: y0 + Math.round(innerH * 0.5),
+      w: 5,
+      h: Math.max(5, Math.round(innerH * 0.4)),
     };
     if (!plot.free(rect)) continue;
-    plot.take(rect);
-    plot.solids.push({ rect, thing: west ? 'barracks' : 'stable', height: 2.5 });
+    if (west) houseWithRooms(plot, rect, between(1, 2, rng), 'stoneRoomWall', 'e', rng);
+    else houseWithRooms(plot, rect, between(2, 3, rng), 'stoneRoomWall', 'w', rng, { floor: SETTLEMENT_ZONES.yard });
   }
   const well = { x: gateX + 3, y: y1 - 3 };
   if (plot.free({ ...well, w: 1, h: 1 }, 1)) {

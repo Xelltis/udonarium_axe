@@ -12,6 +12,7 @@ import { planDungeon } from '@axe/domain/tabletop/dungeon/dungeon-generator';
 import { FURNISHING_SHAPES } from '@axe/domain/tabletop/dungeon/room-furnishing';
 import { MAX_DUNGEON_TRAPS } from '@axe/domain/tabletop/dungeon/trap-placing';
 import { planField } from '@axe/domain/tabletop/field/field-generator';
+import { SETTLEMENT_WALL_HEIGHTS } from '@axe/domain/tabletop/field/settlement-layout';
 import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
@@ -265,7 +266,9 @@ describe('DungeonBuildService', () => {
     expect(dear.every((cost) => cost.charge === 1)).toBe(true);
     const doors = table.terrains.filter((terrain) => terrain.isDoor);
     expect(doors.length).toBe(plan.blocks.blocks.filter((block) => block.kind === 'door').length);
-    expect(doors.every((door) => door.height === 2)).toBe(true);
+    expect(new Set(doors.map((door) => door.height))).toEqual(
+      new Set(plan.layout.settlement!.doors.map((door) => SETTLEMENT_WALL_HEIGHTS[door.wall]))
+    );
     const waters = table.children.filter(
       (child): child is TableAmbience => child instanceof TableAmbience && child.kind === 'water'
     );

@@ -8,6 +8,16 @@ export const SETTLEMENT_MODEL_IDS = [
   'stone_tower_round',
   'stone_tower_square',
   'stone_room_wall',
+  'log_wall',
+  'timber_frame_wall',
+  'rail_fence',
+  'plank_wall',
+  'hide_wall',
+  'totem',
+  'hearth',
+  'well',
+  'cart',
+  'hay',
 ] as const;
 
 export type SettlementModelId = (typeof SETTLEMENT_MODEL_IDS)[number];

@@ -12,7 +12,6 @@ import {
   SETTLEMENT_WALL_HEIGHTS,
   SETTLEMENT_WALL_KINDS,
   type SettlementLayout,
-  type SettlementSolid,
   type SettlementThing,
   type SettlementWallKind,
   SLOWING_CROPS,
@@ -47,6 +46,8 @@ const WALLS: Readonly<Record<SettlementWallKind, { readonly skin: Skin; readonly
   timberWall: { skin: { side: 'wall_timber', top: 'wall_timber' }, thing: 'wall' },
   stoneRoomWall: { skin: { side: 'wall_ashlar', top: 'stone_tile' }, thing: 'wall' },
   fence: { skin: { side: 'wall_timber', top: 'wall_timber' }, thing: 'fence' },
+  boardWall: { skin: { side: 'wall_timber', top: 'wall_timber' }, thing: 'barn' },
+  hideWall: { skin: { side: 'wall_earth', top: 'wall_earth' }, thing: 'tent' },
 };
 
 /**
@@ -58,9 +59,10 @@ const WALLS: Readonly<Record<SettlementWallKind, { readonly skin: Skin; readonly
 function wallModelOf(
   kind: SettlementWallKind,
   rect: MapRect,
-  ring: SettlementLayout['ring'],
+  settlement: SettlementLayout,
   span: number
 ): { model: SettlementModelId; turn: number } | null {
+  const ring = settlement.ring;
   const outward = () => (ring ? outwardTurn(rect, ring.middle, ring.reach) : alongTurn(rect));
   switch (kind) {
     case 'palisade':
@@ -75,10 +77,27 @@ function wallModelOf(
       return { model: 'stone_tower_square', turn: rect.w > rect.h ? 90 : 0 };
     case 'watchtower':
       return span > 1 && rect.w === 2 && rect.h === 2 ? { model: 'watchtower_wood', turn: 0 } : null;
+    case 'timberWall':
+      return { model: settlement.kind === 'village' ? 'timber_frame_wall' : 'log_wall', turn: alongTurn(rect) };
+    case 'fence':
+      return { model: 'rail_fence', turn: alongTurn(rect) };
+    case 'boardWall':
+      return { model: 'plank_wall', turn: alongTurn(rect) };
+    case 'hideWall':
+      return { model: 'hide_wall', turn: alongTurn(rect) };
     default:
       return null;
   }
 }
+
+/** The model each small thing is drawn as, kept to its own shape within its cell. */
+const THING_MODELS: Readonly<Record<SettlementThing['thing'], SettlementModelId>> = {
+  well: 'well',
+  hay: 'hay',
+  cart: 'cart',
+  totem: 'totem',
+  hearth: 'hearth',
+};
 
 /**
  * The door each wall is hung with: a fort of logs a gate of planks, a fort of stone a portcullis that
@@ -86,15 +105,7 @@ function wallModelOf(
  */
 const DOORS: Readonly<Record<'gate' | 'door', Partial<Record<SettlementWallKind, DoorKind>>>> = {
   gate: { palisade: 'door_wood', stoneWall: 'door_iron_grate' },
-  door: { timberWall: 'door_wood', stoneRoomWall: 'door_wood' },
-};
-
-/** What each building nobody goes into is built of. */
-const SOLIDS: Readonly<Record<SettlementSolid['thing'], Skin>> = {
-  barn: { side: 'wall_timber', top: 'tar_roof' },
-  tent: { side: 'wall_earth', top: 'wall_earth' },
-  barracks: { side: 'wall_ashlar', top: 'tar_roof' },
-  stable: { side: 'wall_timber', top: 'tar_roof' },
+  door: { timberWall: 'door_wood', stoneRoomWall: 'door_wood', boardWall: 'door_wood' },
 };
 
 /** What each small thing standing on a cell is built of, how tall it is and how much of the cell it fills. */
@@ -171,14 +182,6 @@ function fenceRuns(
   return runs;
 }
 
-/** The cells of a rectangle, each a rectangle of its own, as a board of hexes builds a block a cell. */
-function cellsOf(rect: MapRect): MapRect[] {
-  const cells: MapRect[] = [];
-  for (let y = rect.y; y < rect.y + rect.h; y++)
-    for (let x = rect.x; x < rect.x + rect.w; x++) cells.push({ x, y, w: 1, h: 1 });
-  return cells;
-}
-
 /**
  * The blocks, paint, slow ground, water and lights a settlement is built of on the table. Its walls are
  * gathered into as few blocks as `span` lets, every one of them standing on its whole cells; its doors
@@ -203,7 +206,7 @@ export function settlementBlocks(
         ? fenceRuns(mask, width, height, span)
         : mergeMaskToRects(mask, width, height, span).map((rect) => ({ rect, footprint: undefined }));
     for (const { rect, footprint } of runs) {
-      const drawn = models ? wallModelOf(kind, rect, settlement.ring, span) : null;
+      const drawn = models ? wallModelOf(kind, rect, settlement, span) : null;
       blocks.push({
         kind: 'prop',
         rect,
@@ -240,25 +243,10 @@ export function settlementBlocks(
     });
   }
 
-  for (const solid of settlement.solids) {
-    const skin = SOLIDS[solid.thing];
-    for (const rect of span > 1 ? [solid.rect] : cellsOf(solid.rect)) {
-      blocks.push({
-        kind: 'prop',
-        rect,
-        blocksSight: true,
-        blocksClimb: true,
-        locked: false,
-        rooms: [],
-        skin: { side: { kind: 'texture', id: skin.side }, top: { kind: 'texture', id: skin.top } },
-        height: solid.height,
-        thing: solid.thing,
-      });
-    }
-  }
-
   for (const item of settlement.things) {
     const { skin, height: tall, fill, blocksSight } = THINGS[item.thing];
+    const model = models ? THING_MODELS[item.thing] : undefined;
+    const filled = model ? 1 : fill;
     blocks.push({
       kind: 'prop',
       rect: { x: item.x, y: item.y, w: 1, h: 1 },
@@ -267,8 +255,9 @@ export function settlementBlocks(
       rooms: [],
       skin: { side: { kind: 'texture', id: skin.side }, top: { kind: 'texture', id: skin.top } },
       height: tall,
-      footprint: { w: fill, d: fill },
+      ...(filled < 1 ? { footprint: { w: filled, d: filled } } : {}),
       thing: item.thing,
+      ...(model ? { model } : {}),
     });
   }
 
