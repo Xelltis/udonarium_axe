@@ -396,6 +396,8 @@ export class Table3dService {
   /** The moment before which the frame asked for is not drawn, while only slow motion asked for it. */
   private notBefore = 0;
   private engine: Table3dEngine | null = null;
+  /** The scene the engine was last told, which the table is not settled until it stands as. */
+  private laidWorld: TableWorld | null = null;
   /** The page's grid, laid over the board on the canvas, or null while the page draws none. */
   private readonly grid = signal<Table3dGrid | null>(null);
   private starting: Promise<unknown> | null = null;
@@ -602,13 +604,7 @@ export class Table3dService {
       if (this.frame !== null) cancelAnimationFrame(this.frame);
       this.drawFrame(engine, performance.now());
     }
-    return (
-      !(this.frame !== null && !this.frameForMotion) &&
-      this.starting === null &&
-      !this.engine?.isLoading() &&
-      !this.modelFits.isReading &&
-      this.tableVeil.loadingPictures() === 0
-    );
+    return this.isSettled() && this.tableVeil.loadingPictures() === 0;
   }
 
   /**
@@ -678,7 +674,9 @@ export class Table3dService {
     return [
       effect(
         () => {
-          engine.setWorld(this.world());
+          const world = this.world();
+          engine.setWorld(world);
+          this.laidWorld = world;
           this.drawSoon(engine);
         },
         { injector: this.injector }
@@ -856,9 +854,19 @@ export class Table3dService {
   }
 
   private settleIfIdle(): void {
-    const drawing = this.frame !== null && !this.frameForMotion;
-    if (drawing || this.starting !== null || this.engine?.isLoading() || this.modelFits.isReading) return;
+    if (!this.isSettled()) return;
     for (const resolve of this.idleWaiters.splice(0)) resolve();
+  }
+
+  /**
+   * Whether the canvas has drawn everything it was told, but for what moves by itself: no frame left to
+   * draw, nothing loading, not starting, no model's file still being read, and the engine told the
+   * scene as it now stands, so a model read to be a joined wall has been laid joined.
+   */
+  private isSettled(): boolean {
+    const drawing = this.frame !== null && !this.frameForMotion;
+    if (drawing || this.starting !== null || this.engine?.isLoading() || this.modelFits.isReading) return false;
+    return this.engine === null || untracked(() => this.world()) === this.laidWorld;
   }
 }
 
