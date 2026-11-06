@@ -17,7 +17,17 @@ import {
 } from '@axe/domain/tabletop/field/field-models';
 import { FieldBuilding } from '@axe/domain/tabletop/field/town-layout';
 import { roofUnitModelOf, TOWN_KITS } from '@axe/domain/tabletop/field/town-models';
-import { MapBlock, MapBlocks, MapLight, MapLightKind, MapPaint } from '@axe/domain/tabletop/map-blocks';
+import { GridType } from '@axe/domain/tabletop/grid-type';
+import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
+import {
+  MapAmbience,
+  MapBlock,
+  MapBlocks,
+  MapLight,
+  MapLightKind,
+  MapPaint,
+  MapRect,
+} from '@axe/domain/tabletop/map-blocks';
 
 /**
  * How wide a clump of the same thing is allowed to grow before it is broken in two.
@@ -121,6 +131,57 @@ function findFires(layout: FieldLayout, atmosphere: FieldAtmosphere, seed: numbe
   return lights;
 }
 
+/** How thick the water over a band is laid: as the settings of water lay a pond. */
+const FIELD_WATER_DENSITY = 0.6;
+
+/**
+ * The water lying over the bands that have any, as few areas as cover each band: the surface at the
+ * board, which on raised ground is dug down under it.
+ */
+function watersOf(layout: FieldLayout, atmosphere: FieldAtmosphere, gridType: GridType): MapAmbience[] {
+  const waters: MapAmbience[] = [];
+  atmosphere.bands.forEach((band, index) => {
+    if (!band.water) return;
+    const { color, turbidity, dirt, leaves, ice } = band.water;
+    for (const rect of areasOver(maskOfBand(layout, index), layout.width, layout.height, gridType)) {
+      waters.push({
+        rect,
+        kind: 'water',
+        density: FIELD_WATER_DENSITY,
+        name: 'water',
+        water: { surface: 0, color, turbidity, dirt, leaves, ice },
+      });
+    }
+  });
+  return waters;
+}
+
+/**
+ * The fewest areas that cover the cells of a mask and no others, on a board of the grid given. An
+ * area is laid a cell's width to each cell along both ways, which on squares fits any rectangle; hexes
+ * line up a cell apart only one way, along rows of pointy-topped ones and columns of flat-topped
+ * ones, so there an area is one run of cells along that way.
+ */
+function areasOver(mask: Uint8Array, width: number, height: number, gridType: GridType): MapRect[] {
+  if (!isHexGrid(gridType)) return mergeMaskToRects(mask, width, height, Math.max(width, height));
+  const down = isFlatTopGrid(gridType);
+  const runs: MapRect[] = [];
+  const lines = down ? width : height;
+  const length = down ? height : width;
+  for (let line = 0; line < lines; line++) {
+    let start = -1;
+    for (let at = 0; at <= length; at++) {
+      const wet = at < length && mask[down ? at * width + line : line * width + at] === 1;
+      if (wet && start < 0) start = at;
+      if (wet || start < 0) continue;
+      const run = at - start;
+      runs.push(down ? { x: line, y: start, w: 1, h: run } : { x: start, y: line, w: run, h: 1 });
+      start = -1;
+    }
+  }
+  return runs;
+}
+
 /**
  * The blocks one building is built of.
  *
@@ -203,7 +264,8 @@ export function fieldToBlocks(
   seed: number,
   mergeSpan: number = FIELD_MERGE_SPAN,
   models = false,
-  season: FieldSeason = ''
+  season: FieldSeason = '',
+  gridType: GridType = GridType.SQUARE
 ): MapBlocks {
   const blocks: MapBlock[] = [];
   const paint: MapPaint[] = [];
@@ -341,12 +403,15 @@ export function fieldToBlocks(
   return {
     blocks,
     paint,
-    ambiences: layout.pools.map((pool) => ({
-      rect: { x: pool.x, y: pool.y, w: pool.w, h: pool.h },
-      kind: pool.kind,
-      density: pool.density,
-      name: pool.name,
-    })),
+    ambiences: [
+      ...watersOf(layout, atmosphere, gridType),
+      ...layout.pools.map((pool) => ({
+        rect: { x: pool.x, y: pool.y, w: pool.w, h: pool.h },
+        kind: pool.kind,
+        density: pool.density,
+        name: pool.name,
+      })),
+    ],
     traps: [],
     torchRooms: lights.map((light) => light.room),
     torchSpots: lights.map((light) => ({ x: light.x, y: light.y })),

@@ -460,11 +460,17 @@ function raisedAt(
   return height01 + (wetness - 0.5) * atmosphere.damp;
 }
 
+/** How far over the surface of the water beside it the land of a field with water starts, in cells. */
+const SHORE_RISE_CELLS = 0.1;
+
 /**
  * The ground of open country raised along the height its bands were cut from, at every sample of the
  * ground over the board: as high as `reliefCells` where the board stands highest, and at the board
- * where it stands lowest, or along the shore of the open water its lowest bands are, which is left
- * level.
+ * where it stands lowest, or along the shore of the open water its lowest bands are. Under that water
+ * the ground is dug down from the shore, as deep as the deepest of its bands asks where the board lies
+ * lowest and never deeper than the ground is raised, so the water's surface lies at the board and the
+ * shore runs wherever the ground comes up through it; water that asks for no depth is left level. The
+ * land beside dug water starts a little over the surface, so the shore is a line, not sand awash.
  */
 function reliefOf(
   atmosphere: FieldAtmosphere,
@@ -474,16 +480,20 @@ function reliefOf(
   { raised, cuts }: { raised: Float64Array; cuts: number[] },
   heightAt: (x: number, y: number) => number
 ): GroundRaster {
-  let shore = Infinity;
+  let lowest = Infinity;
   let top = -Infinity;
   for (const value of raised) {
-    shore = Math.min(shore, value);
+    lowest = Math.min(lowest, value);
     top = Math.max(top, value);
   }
+  let shore = lowest;
   for (let band = 0; band < atmosphere.bands.length - 1 && atmosphere.bands[band].bare; band++) {
     shore = cuts[band];
   }
   const span = top - shore || 1;
+  const dug = Math.min(reliefCells, Math.max(0, ...atmosphere.bands.map((band) => band.water?.depth ?? 0)));
+  const fall = shore - lowest || 1;
+  const rise = dug > 0 ? Math.min(SHORE_RISE_CELLS, reliefCells) : 0;
   const extent = boardExtentPx(size, { type: gridType, sizePx: 1 });
   const columns = Math.ceil(extent.widthPx * GROUND_SAMPLES_PER_CELL) + 1;
   const rows = Math.ceil(extent.heightPx * GROUND_SAMPLES_PER_CELL) + 1;
@@ -491,7 +501,11 @@ function reliefOf(
   for (let j = 0; j < rows; j++) {
     for (let i = 0; i < columns; i++) {
       const at = layoutPointOf(gridType, i / GROUND_SAMPLES_PER_CELL, j / GROUND_SAMPLES_PER_CELL);
-      heights[j * columns + i] = reliefCells * Math.min(1, Math.max(0, (heightAt(at.x, at.y) - shore) / span));
+      const raisedTo = heightAt(at.x, at.y);
+      heights[j * columns + i] =
+        dug > 0 && raisedTo <= shore
+          ? 0 - dug * Math.min(1, (shore - raisedTo) / fall)
+          : rise + (reliefCells - rise) * Math.min(1, Math.max(0, (raisedTo - shore) / span));
     }
   }
   return { columns, rows, heights };

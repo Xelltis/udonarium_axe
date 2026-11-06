@@ -446,6 +446,14 @@ export class DungeonBuildService {
         patch.rect.h
       );
       ambience.ambienceDensity = patch.density;
+      if (patch.water) {
+        ambience.surfaceHeight = patch.water.surface;
+        ambience.ambienceColor = patch.water.color;
+        ambience.turbidity = patch.water.turbidity;
+        ambience.dirtiness = patch.water.dirt;
+        ambience.floatingLeaves = patch.water.leaves;
+        ambience.iceCover = patch.water.ice;
+      }
       ambience.isLock = true;
       const at = blockOrigin(patch.rect, grid);
       ambience.location = { name: 'table', x: at.x, y: at.y };

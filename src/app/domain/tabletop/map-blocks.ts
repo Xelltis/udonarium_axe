@@ -148,6 +148,21 @@ export interface MapAmbience {
   kind: string;
   density: number;
   name: string;
+  /** How the water looks, for an effect that is water. */
+  water?: MapWater;
+}
+
+/** How a body of water laid by a generator looks: the settings of water, as its settings name them. */
+export interface MapWater {
+  /** How many cells the surface stands over the floor it lies on. */
+  surface: number;
+  /** Empty for the colour of water itself. */
+  color: string;
+  turbidity: number;
+  dirt: number;
+  leaves: number;
+  /** How much of it is frozen over, from 0 for open water to 1 for ice. */
+  ice: number;
 }
 
 export interface MapBlocks {

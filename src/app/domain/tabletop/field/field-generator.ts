@@ -60,6 +60,14 @@ export function planField(request: FieldRequest): FieldPlan {
   return {
     atmosphere,
     layout,
-    blocks: fieldToBlocks(layout, atmosphere, request.seed, span, request.models === true, request.season ?? ''),
+    blocks: fieldToBlocks(
+      layout,
+      atmosphere,
+      request.seed,
+      span,
+      request.models === true,
+      request.season ?? '',
+      grid.type
+    ),
   };
 }

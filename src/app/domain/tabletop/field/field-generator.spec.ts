@@ -239,6 +239,33 @@ describe('planField()', () => {
     }
   });
 
+  it('lays water over the bands of a coast, a marsh and a snowfield, every cell of them and no more, frozen on the snowfield', () => {
+    const watersOf = (atmosphere: 'coast' | 'marsh' | 'snowfield' | 'woodland') => {
+      const plan = planField({ atmosphere, size: 40, density: 50, seed: 7 });
+      const covered = new Uint8Array(plan.layout.width * plan.layout.height);
+      const waters = plan.blocks.ambiences.filter((ambience) => ambience.kind === 'water');
+      for (const { rect } of waters) {
+        for (let y = rect.y; y < rect.y + rect.h; y++) {
+          for (let x = rect.x; x < rect.x + rect.w; x++) covered[y * plan.layout.width + x]++;
+        }
+      }
+      const wet = [...plan.layout.ground].map((band) => (plan.atmosphere.bands[band].water ? 1 : 0));
+      return { plan, waters, covered: [...covered], wet };
+    };
+
+    for (const atmosphere of ['coast', 'marsh', 'snowfield'] as const) {
+      const { plan, waters, covered, wet } = watersOf(atmosphere);
+      expect(waters.length).toBeGreaterThan(0);
+      expect(covered).toEqual(wet);
+      for (const water of waters) {
+        expect(water.water!.surface).toBe(0);
+        expect(water.water!.ice).toBe(atmosphere === 'snowfield' ? 1 : 0);
+      }
+      expect(plan.blocks.ambiences.length).toBe(waters.length + plan.layout.pools.length);
+    }
+    expect(watersOf('woodland').waters).toEqual([]);
+  });
+
   it('pours a poisoned pool into a marsh now and then, with something in the air over it', () => {
     const found = [1, 7, 42, 1234, 999].map((seed) => planField({ atmosphere: 'marsh', size: 40, density: 50, seed }));
     const withPools = found.filter((plan) => plan.layout.pools.length > 0);
@@ -247,7 +274,7 @@ describe('planField()', () => {
     expect(withPools.length).toBeGreaterThan(0);
     expect(withPools.length).toBeLessThan(found.length);
     for (const plan of withPools) {
-      for (const pool of plan.blocks.ambiences) {
+      for (const pool of plan.blocks.ambiences.filter((ambience) => ambience.kind !== 'water')) {
         expect(pool.kind).toBe('miasma');
         expect(pool.density).toBeGreaterThan(0);
         // The bed of it is painted, so the ground reads as water rather than as marsh.
@@ -445,21 +472,31 @@ describe('the ground of a field raised as high as asked', () => {
     expect(raised.layout.relief).not.toBeNull();
   });
 
-  it('leaves open water level, at the board', () => {
+  it('digs the ground under open water down from the shore, no deeper than the water asks, and raises the land from over its surface', () => {
     const plan = planField({ atmosphere: 'coast', size: 40, density: 50, seed: 7, relief: 3 });
     const relief = plan.layout.relief!;
-    const water = plan.atmosphere.bands.map((band) => band.bare === true);
+    const water = plan.atmosphere.bands.map((band) => !!band.water);
+    const deepest = Math.max(...plan.atmosphere.bands.map((band) => band.water?.depth ?? 0));
 
-    let wet = 0;
+    const wet: number[] = [];
+    const dry: number[] = [];
     for (let y = 0; y < plan.layout.height; y++) {
       for (let x = 0; x < plan.layout.width; x++) {
-        if (!water[plan.layout.ground[y * plan.layout.width + x]]) continue;
-        wet++;
-        expect(relief.heights[(y * 2 + 1) * relief.columns + x * 2 + 1]).toBe(0);
+        const height = relief.heights[(y * 2 + 1) * relief.columns + x * 2 + 1];
+        (water[plan.layout.ground[y * plan.layout.width + x]] ? wet : dry).push(height);
       }
     }
-    expect(wet).toBeGreaterThan(0);
+    expect(wet.length).toBeGreaterThan(0);
+    expect(Math.max(...wet)).toBeLessThanOrEqual(0);
+    expect(Math.min(...wet)).toBeCloseTo(-deepest, 1);
+    expect(Math.min(...dry)).toBeGreaterThanOrEqual(0.1 - 1e-6);
     expect(Math.max(...relief.heights)).toBe(3);
+  });
+
+  it('digs water no deeper than the ground is raised', () => {
+    const plan = planField({ atmosphere: 'coast', size: 40, density: 50, seed: 7, relief: 0.5 });
+
+    expect(Math.min(...plan.layout.relief!.heights)).toBeCloseTo(-0.5, 5);
   });
 
   it('holds the height asked for between none and six cells, in half cells', () => {

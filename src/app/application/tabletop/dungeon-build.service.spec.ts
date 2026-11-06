@@ -12,6 +12,7 @@ import { planDungeon } from '@axe/domain/tabletop/dungeon/dungeon-generator';
 import { FURNISHING_SHAPES } from '@axe/domain/tabletop/dungeon/room-furnishing';
 import { MAX_DUNGEON_TRAPS } from '@axe/domain/tabletop/dungeon/trap-placing';
 import { planField } from '@axe/domain/tabletop/field/field-generator';
+import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
 import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
@@ -23,6 +24,7 @@ import { TableMoveCost } from '@axe/domain/tabletop/table-move-cost';
 import { TableTrigger } from '@axe/domain/tabletop/table-trigger';
 import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
+import { type WaterArea, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
 import { terrainCostOf } from '@axe/testing/terrain-cost';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
@@ -250,6 +252,34 @@ describe('DungeonBuildService', () => {
     expect(fetched).toHaveBeenCalledTimes(kinds.size);
     expect(added).toHaveBeenCalledTimes(kinds.size);
     fetched.mockRestore();
+  });
+
+  it('lays the water of a field as water, looking as the field asks, and digs the ground under it', async () => {
+    const plan = planField({ atmosphere: 'snowfield', size: 20, density: 50, seed: 3, relief: 2 });
+
+    const { table } = await service.build(
+      plan.layout,
+      plan.atmosphere,
+      plan.blocks,
+      options({ ground: plan.layout.relief })
+    );
+
+    const waters = table.children.filter(
+      (child): child is TableAmbience => child instanceof TableAmbience && child.kind === 'water'
+    );
+    const asked = plan.blocks.ambiences.filter((ambience) => ambience.kind === 'water');
+    expect(waters.length).toBe(asked.length);
+    expect(waters.length).toBeGreaterThan(0);
+    for (const water of waters) {
+      expect(water.surface).toBe(0);
+      expect(water.ice).toBe(1);
+      expect(water.murk).toBeCloseTo(asked[0].water!.turbidity);
+      expect(water.isLock).toBe(true);
+    }
+    const ground = groundSurfaceOf(groundFieldOn(table)!.readChunks());
+    const relief = plan.layout.relief!;
+    const deepest = relief.heights.indexOf(Math.min(...relief.heights));
+    expect(ground.sampleAt(deepest % relief.columns, Math.floor(deepest / relief.columns))).toBeLessThan(0);
   });
 
   it('raises the ground of a field as its layout raises it, and leaves a flat one with none kept', async () => {
@@ -809,6 +839,38 @@ describe('DungeonBuildService', () => {
       const plan = planDungeon({ atmosphere: 'stoneDungeon', roomCount: 8, seed: 7, gridType });
       return service.build(plan.layout, plan.atmosphere, plan.blocks, { ...options(), gridType });
     }
+
+    it('lays the water of a field over every hex of its water and no other, either way the hexes stand', async () => {
+      for (const gridType of [GridType.HEX_HORIZONTAL, GridType.HEX_VERTICAL]) {
+        const plan = planField({ atmosphere: 'coast', size: 30, density: 50, seed: 7, gridType });
+        const { table } = await service.build(plan.layout, plan.atmosphere, plan.blocks, { ...options(), gridType });
+        const grid = cellGridOf(plan.layout.width, plan.layout.height, table.gridSize, gridType);
+        const areas: WaterArea[] = table.children
+          .filter((child): child is TableAmbience => child instanceof TableAmbience && child.kind === 'water')
+          .map((water) => ({
+            identifier: water.identifier,
+            left: water.location.x,
+            top: water.location.y,
+            width: water.width * table.gridSize,
+            height: water.height * table.gridSize,
+            floorPx: 0,
+            surfacePx: 0,
+            color: '',
+            density: 1,
+            turbidity: 0,
+            dirt: 0,
+            leaves: 0,
+            flowSpeed: 0,
+            flowDirection: 0,
+            ice: 0,
+          }));
+
+        const wet = [...plan.layout.ground]
+          .map((band, index) => (plan.atmosphere.bands[band].water ? index : -1))
+          .filter((index) => index >= 0);
+        expect([...waterCellsOf(grid, areas).keys()].sort((a, b) => a - b)).toEqual(wet);
+      }
+    });
 
     it('gives the table the grid it was asked for', async () => {
       const result = await buildOn(GridType.HEX_VERTICAL);

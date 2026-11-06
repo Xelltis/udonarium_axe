@@ -275,6 +275,24 @@ export interface GroundBand {
   texture: TextureId;
   /** Whether a piece can be put down here at all. Nothing grows out of open water. */
   bare?: boolean;
+  /** The water lying over the band, its surface at the board, on one of the lowest bands. */
+  water?: FieldWater;
+}
+
+/**
+ * A body of water lying over a band of ground, its surface at the board. On a field whose ground is
+ * raised, the ground under it is dug down from the shore, deepest where the board lies lowest.
+ */
+export interface FieldWater {
+  /** How far the ground is dug under the water where the board lies lowest, in cells. */
+  depth: number;
+  /** Empty for the colour of water itself. */
+  color: string;
+  turbidity: number;
+  dirt: number;
+  leaves: number;
+  /** How much of it is frozen over, from 0 for open water to 1 for ice. */
+  ice: number;
 }
 
 export interface FieldPropPlan {
@@ -481,8 +499,18 @@ export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {
     damp: 0.45,
     gradient: 0.6,
     bands: [
-      { upTo: 0.34, texture: 'sea', bare: true },
-      { upTo: 0.46, texture: 'shallows', bare: true },
+      {
+        upTo: 0.34,
+        texture: 'sea',
+        bare: true,
+        water: { depth: 1.5, color: '#2f6f8f', turbidity: 0.2, dirt: 0, leaves: 0, ice: 0 },
+      },
+      {
+        upTo: 0.46,
+        texture: 'shallows',
+        bare: true,
+        water: { depth: 1.5, color: '#4f9fb0', turbidity: 0.15, dirt: 0, leaves: 0, ice: 0 },
+      },
       { upTo: 0.68, texture: 'sand' },
       { upTo: 1, texture: 'steppe' },
     ],
@@ -506,7 +534,12 @@ export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {
     damp: 0.45,
     gradient: 0.15,
     bands: [
-      { upTo: 0.4, texture: 'shallows', bare: true },
+      {
+        upTo: 0.4,
+        texture: 'shallows',
+        bare: true,
+        water: { depth: 0.4, color: '#5f6b4a', turbidity: 0.8, dirt: 0.6, leaves: 0.25, ice: 0 },
+      },
       { upTo: 0.74, texture: 'swamp_mud' },
       { upTo: 1, texture: 'moss_stone_floor' },
     ],
@@ -531,7 +564,12 @@ export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {
     relief: 12,
     damp: 0.45,
     bands: [
-      { upTo: 0.4, texture: 'ice' },
+      {
+        upTo: 0.4,
+        texture: 'gravel',
+        bare: true,
+        water: { depth: 0.5, color: '', turbidity: 0.3, dirt: 0, leaves: 0, ice: 1 },
+      },
       { upTo: 0.85, texture: 'gravel' },
       { upTo: 1, texture: 'rock' },
     ],
