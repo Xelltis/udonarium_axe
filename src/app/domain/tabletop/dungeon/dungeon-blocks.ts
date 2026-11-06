@@ -9,8 +9,8 @@ import {
   DungeonRect,
   maskOfKind,
 } from '@axe/domain/tabletop/dungeon/dungeon-layout';
-import { mergeMaskToRects } from '@axe/domain/tabletop/dungeon/rect-merge';
 import { FURNISHING_MODELS } from '@axe/domain/tabletop/dungeon/furnishing-models';
+import { mergeMaskToRects } from '@axe/domain/tabletop/dungeon/rect-merge';
 import { furnishedCells, FURNISHING_SHAPES } from '@axe/domain/tabletop/dungeon/room-furnishing';
 import { HAZARD_PRESETS } from '@axe/domain/tabletop/hazard-presets';
 import {
