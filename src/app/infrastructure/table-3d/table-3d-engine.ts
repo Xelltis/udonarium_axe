@@ -611,6 +611,7 @@ class ThreeTableEngine implements Table3dEngine {
   private forgetPictures(world: TableWorld): void {
     const worn = new Set<string>();
     for (const face of [...world.walls, ...world.caps]) worn.add(face.pictureUrl);
+    for (const wall of world.walls) if (wall.gridUrl) worn.add(wall.gridUrl);
     for (const sprite of world.sprites) if (sprite.look.kind === 'picture') worn.add(sprite.look.url);
     for (const layer of [...world.layers, ...world.backdrops]) worn.add(layer.pictureUrl);
     for (const [key, picture] of this.loaded) {
