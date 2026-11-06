@@ -18,6 +18,11 @@ export interface TableWorldModel {
   readonly footprintPx: number;
   /** How tall the box is that the model is fitted inside, in table pixels. */
   readonly heightPx: number;
+  /**
+   * How wide and deep a block's own box is, in table pixels, before it is turned: what a model made to
+   * be stretched to its box, as a door or a stair is, fills. Left out for a piece.
+   */
+  readonly boxPx?: { readonly widthPx: number; readonly depthPx: number };
   /** How far the piece is turned, in degrees clockwise. */
   readonly rotateDeg: number;
   /** How far the piece is tipped over sideways, in degrees, as its picture is. */
@@ -28,6 +33,22 @@ export interface TableWorldModel {
   readonly altitudePx: number;
   /** Whether the piece is being moved now, which plays its walk. */
   readonly walking: boolean;
+  /**
+   * For a door: whether it stands open, and where its opening has taken it from where it stands shut,
+   * on the board, as its faces are taken. A model whose leaves swing on hinges of their own opens by
+   * them instead.
+   */
+  readonly door?: TableWorldModelDoor;
+}
+
+/** Where an open door has gone from where it stands shut, on the board. */
+export interface TableWorldModelDoor {
+  readonly open: boolean;
+  readonly shiftX: number;
+  readonly shiftY: number;
+  /** How far it has turned, in degrees clockwise. */
+  readonly turnDeg: number;
+  readonly liftPx: number;
 }
 
 /** How many times its width the box a character's model is fitted inside stands, as a picture of a figure does. */

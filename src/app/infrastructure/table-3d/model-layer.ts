@@ -31,9 +31,32 @@ interface LoadedModel {
   readonly foot: Vector3;
   /** Whether it plays any motion, which its every copy is then stood on its own to play. */
   readonly animated: boolean;
+  /**
+   * Whether it is made to be stretched to the box it stands in, each way on its own, as a door or a
+   * stair of any size is, rather than fitted inside it keeping its shape. Its scene says so in its
+   * extras, as `{ "fit": "stretch" }`.
+   */
+  readonly stretch?: boolean;
   /** Its meshes, each where it stands within the model measured from the model's foot. */
-  readonly parts: readonly { readonly mesh: Mesh; readonly within: Matrix4 }[];
+  readonly parts: readonly ModelPart[];
 }
+
+/**
+ * One mesh of a model, where it stands within the model measured from the model's foot, and for a leaf
+ * of a door that swings on a hinge of its own, as a saloon's do, the point it turns about, measured the
+ * same way, and how far it turns open, in degrees about the upright as the model was made.
+ */
+interface ModelPart {
+  readonly mesh: Mesh;
+  readonly within: Matrix4;
+  readonly swing?: { readonly hinge: Vector3; readonly deg: number };
+}
+
+/** What a model's placement is worked out from: its size as made, whether it is stretched, and its leaves. */
+type ModelMeasure = Pick<LoadedModel, 'size'> & {
+  readonly stretch?: boolean;
+  readonly parts?: readonly Pick<ModelPart, 'within' | 'swing'>[];
+};
 
 /** Every copy of a model that plays no motion, drawn together: one instanced mesh for each of its meshes. */
 interface Herd {
@@ -224,12 +247,8 @@ export class ModelLayer {
       this.herds.set(url, herd);
     }
     herd.copies = flock.length;
-    const matrix = new Matrix4();
     flock.forEach((model, index) => {
-      const placement = placementOf(model, loaded);
-      loaded.parts.forEach(({ within }, part) =>
-        herd.parts[part].setMatrixAt(index, matrix.multiplyMatrices(placement, within))
-      );
+      partPlacementsOf(model, loaded).forEach((matrix, part) => herd.parts[part].setMatrixAt(index, matrix));
     });
     for (const part of herd.parts) {
       part.count = flock.length;
@@ -311,11 +330,18 @@ export class ModelLayer {
     const middle = box.getCenter(new Vector3());
     const foot = new Vector3(middle.x, box.min.y, middle.z);
     const fromFoot = new Matrix4().makeTranslation(-foot.x, -foot.y, -foot.z);
-    const parts: { mesh: Mesh; within: Matrix4 }[] = [];
+    const parts: ModelPart[] = [];
     gltf.scene.traverse((object) => {
-      if (object instanceof Mesh) parts.push({ mesh: object, within: fromFoot.clone().multiply(object.matrixWorld) });
+      if (!(object instanceof Mesh)) return;
+      const swing = swingOf(object);
+      parts.push({
+        mesh: object,
+        within: fromFoot.clone().multiply(object.matrixWorld),
+        ...(swing ? { swing: { hinge: swing.hinge.applyMatrix4(fromFoot), deg: swing.deg } } : {}),
+      });
     });
-    return { gltf, size, foot, animated: gltf.animations.length > 0, parts };
+    const stretch = (gltf.scene.userData as { fit?: unknown })['fit'] === 'stretch';
+    return { gltf, size, foot, animated: gltf.animations.length > 0, parts, stretch };
   }
 
   private dracoLoader(): Promise<DRACOLoader> {
@@ -368,7 +394,88 @@ export class ModelLayer {
  * and tipped over as the piece's picture is, about the point its picture is tipped over about: its
  * head to the east for a piece not turned, tipped over by a right angle.
  */
-export function placementOf(model: TableWorldModel, loaded: Pick<LoadedModel, 'size'>): Matrix4 {
+export function placementOf(model: TableWorldModel, loaded: ModelMeasure): Matrix4 {
+  const { frame, scaling } = placementPartsOf(model, loaded);
+  return frame.multiply(scaling);
+}
+
+/**
+ * A model's placement in two: where it stands, turned and tipped, and how it is scaled as it was made;
+ * a leaf that swings on a hinge of its own is swung between the two. An open door whose model has no
+ * such leaves is moved whole, as its faces are.
+ */
+function placementPartsOf(model: TableWorldModel, loaded: ModelMeasure): { frame: Matrix4; scaling: Matrix4 } {
+  const pivot = model.pivotPx;
+  const turned = Math.round(model.model.turnDeg / 90) % 2 !== 0;
+  const scaling =
+    loaded.stretch && model.boxPx && model.heightPx > 0
+      ? new Matrix4().makeScale(
+          (turned ? model.boxPx.depthPx : model.boxPx.widthPx) / Math.max(loaded.size.x, 1e-6),
+          model.heightPx / Math.max(loaded.size.y, 1e-6),
+          (turned ? model.boxPx.widthPx : model.boxPx.depthPx) / Math.max(loaded.size.z, 1e-6)
+        )
+      : uniformScale(model, loaded);
+  const door = model.door?.open && !(loaded.parts ?? []).some((part) => part.swing) ? model.door : null;
+  const frame = new Matrix4()
+    .makeTranslation(
+      model.foot.x + (door?.shiftX ?? 0),
+      model.foot.z + model.altitudePx + pivot + (door?.liftPx ?? 0),
+      model.foot.y + (door?.shiftY ?? 0)
+    )
+    .multiply(new Matrix4().makeRotationY(-(model.rotateDeg + (door?.turnDeg ?? 0)) * RADIANS))
+    .multiply(new Matrix4().makeRotationZ(-model.rollDeg * RADIANS))
+    .multiply(new Matrix4().makeTranslation(0, -pivot, 0))
+    .multiply(new Matrix4().makeRotationY(-model.model.turnDeg * RADIANS));
+  return { frame, scaling };
+}
+
+/**
+ * Where each mesh of a model is drawn for a piece or block: placed with the model, and a leaf that swings
+ * on a hinge of its own swung open about it while its door stands open.
+ */
+export function partPlacementsOf(model: TableWorldModel, loaded: ModelMeasure): Matrix4[] {
+  const { frame, scaling } = placementPartsOf(model, loaded);
+  const placement = frame.clone().multiply(scaling);
+  const open = model.door?.open === true;
+  return (loaded.parts ?? []).map(({ within, swing }) =>
+    open && swing
+      ? frame.clone().multiply(swungAbout(scaling, swing)).multiply(scaling).multiply(within)
+      : placement.clone().multiply(within)
+  );
+}
+
+/** The turn a leaf swings open by, about its hinge where the scaling puts it, so that it swings unstretched. */
+function swungAbout(scaling: Matrix4, swing: NonNullable<ModelPart['swing']>): Matrix4 {
+  const hinge = swing.hinge.clone().applyMatrix4(scaling);
+  return new Matrix4()
+    .makeTranslation(hinge.x, hinge.y, hinge.z)
+    .multiply(new Matrix4().makeRotationY(swing.deg * RADIANS))
+    .multiply(new Matrix4().makeTranslation(-hinge.x, -hinge.y, -hinge.z));
+}
+
+/**
+ * The hinge a mesh of a door swings on and how far, as its node (or one it hangs from) says in its
+ * extras: `{ "hinge": [x, y, z], "swing": degrees }`, the hinge where it stands in the model as made.
+ */
+function swingOf(object: Object3D): { hinge: Vector3; deg: number } | null {
+  for (let node: Object3D | null = object; node; node = node.parent) {
+    const data = node.userData as { hinge?: unknown; swing?: unknown };
+    const hinge = data.hinge;
+    if (
+      Array.isArray(hinge) &&
+      hinge.length === 3 &&
+      hinge.every((value) => typeof value === 'number' && Number.isFinite(value)) &&
+      typeof data.swing === 'number' &&
+      Number.isFinite(data.swing)
+    ) {
+      return { hinge: new Vector3(hinge[0], hinge[1], hinge[2]), deg: data.swing };
+    }
+  }
+  return null;
+}
+
+/** The scale a model is drawn at to stand as large as it may inside its box, keeping its shape. */
+function uniformScale(model: TableWorldModel, loaded: Pick<LoadedModel, 'size'>): Matrix4 {
   const across = Math.max(loaded.size.x, loaded.size.z, 1e-6);
   const tall = Math.max(loaded.size.y, 1e-6);
   const fitted = Math.min(
@@ -376,14 +483,7 @@ export function placementOf(model: TableWorldModel, loaded: Pick<LoadedModel, 's
     model.heightPx > 0 ? model.heightPx / tall : Infinity
   );
   const scale = fitted * model.model.scale;
-  const pivot = model.pivotPx;
-  return new Matrix4()
-    .makeTranslation(model.foot.x, model.foot.z + model.altitudePx + pivot, model.foot.y)
-    .multiply(new Matrix4().makeRotationY(-model.rotateDeg * RADIANS))
-    .multiply(new Matrix4().makeRotationZ(-model.rollDeg * RADIANS))
-    .multiply(new Matrix4().makeTranslation(0, -pivot, 0))
-    .multiply(new Matrix4().makeRotationY(-model.model.turnDeg * RADIANS))
-    .multiply(new Matrix4().makeScale(scale, scale, scale));
+  return new Matrix4().makeScale(scale, scale, scale);
 }
 
 function disposeMesh(object: Object3D): void {

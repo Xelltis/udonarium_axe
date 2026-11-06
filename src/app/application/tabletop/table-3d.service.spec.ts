@@ -20,7 +20,7 @@ import { Config } from '@axe/domain/peer/config';
 import { DEFAULT_TABLE_CAMERA_VIEW } from '@axe/domain/tabletop/camera/table-camera';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { Terrain } from '@axe/domain/tabletop/terrain';
+import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import type { SceneLight } from '@axe/domain/tabletop/vision-scene';
 import { type SkyDome, skyDomeAt } from '@axe/domain/tabletop/world/sky-dome';
 import { type SkyLight, skyLightAt } from '@axe/domain/tabletop/world/sky-light';
@@ -809,6 +809,39 @@ describe('Table3dService', () => {
       }),
     ]);
     expect([...world.walls, ...world.caps].filter((face) => face.id.startsWith(block.identifier))).toEqual([]);
+    table.destroy();
+  });
+
+  it('stands a door’s model in its box, and tells it how far the door’s opening has taken it', async () => {
+    const scene = service();
+    vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:door' } as never);
+    const table = new GameTable();
+    table.initialize();
+    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    const door = Terrain.create('扉', 1, 0.2, 2, '', '');
+    door.location = { name: 'table', x: 100, y: 150 };
+    door.doorStyle = DoorStyle.SWING;
+    door.modelIdentifier = 'door';
+    table.appendChild(door);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(scene.world().models).toEqual([
+      expect.objectContaining({
+        foot: { x: 125, y: 155, z: 0 },
+        boxPx: { widthPx: 50, depthPx: 10 },
+        rotateDeg: 0,
+        door: { open: false, shiftX: 0, shiftY: 0, turnDeg: 0, liftPx: 0 },
+      }),
+    ]);
+
+    door.isDoorOpen = true;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const open = scene.world().models[0];
+    expect(open.foot).toEqual({ x: 125, y: 155, z: 0 });
+    expect(open.door!.open).toBe(true);
+    expect(open.door!.turnDeg).toBe(95);
+    expect(125 + open.door!.shiftX).toBeCloseTo(100 + 25 * Math.cos((95 * Math.PI) / 180), 6);
+    expect(155 + open.door!.shiftY).toBeCloseTo(155 + 25 * Math.sin((95 * Math.PI) / 180), 6);
     table.destroy();
   });
 

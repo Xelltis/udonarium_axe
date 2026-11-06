@@ -35,11 +35,12 @@ import { TableGraphics, tableGraphicsOf } from '@axe/core/util/graphics-accelera
 import type { DiceMaterial } from '@axe/domain/dice/dice-3d/dice-look';
 import { dayFractionOf } from '@axe/domain/game-clock/game-clock';
 import { matrixColumns, tableEyeMatrix } from '@axe/domain/tabletop/camera/table-camera';
+import { type DoorMotion, movedByDoor, openDoorMotion } from '@axe/domain/tabletop/door-motion';
 import { groundLiftOfBlock } from '@axe/domain/tabletop/ground/ground-surface';
 import { pieceModelOf } from '@axe/domain/tabletop/piece-model';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { tableSkyKindOf } from '@axe/domain/tabletop/table-sky';
-import { Terrain } from '@axe/domain/tabletop/terrain';
+import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { flickers } from '@axe/domain/tabletop/vision-scene/light-flicker';
 import { waterShoreOf } from '@axe/domain/tabletop/water/water-shore';
@@ -97,6 +98,21 @@ export const TABLE_GRAPHICS = new InjectionToken<() => Promise<TableGraphics>>('
  * canvas is given. The engine draws on the next frame after anything it was told changes, and not
  * otherwise.
  */
+/**
+ * How far an open door's middle has gone from where it stands shut, on the board: moved as the door's
+ * own frame is moved by its opening, then turned with the block, as the faces of the door are.
+ */
+function doorSwungMiddle(terrain: Terrain, gridSize: number, door: DoorMotion | null): { x: number; y: number } {
+  if (!door) return { x: 0, y: 0 };
+  const width = terrain.width * gridSize;
+  const depth = terrain.depth * gridSize;
+  const moved = movedByDoor(door, width / 2, depth / 2);
+  const dx = moved.x - width / 2;
+  const dy = moved.y - depth / 2;
+  const turn = (terrain.rotate * Math.PI) / 180;
+  return { x: dx * Math.cos(turn) - dy * Math.sin(turn), y: dx * Math.sin(turn) + dy * Math.cos(turn) };
+}
+
 @Injectable({ providedIn: 'root' })
 export class Table3dService {
   private readonly tabletop = inject(TabletopService);
@@ -242,6 +258,8 @@ export class Table3dService {
       const url = model ? this.pieces.modelUrlOf(model.identifier) : '';
       if (!model || !url || this.hiddenByFog(terrain)) continue;
       const box = terrainBoxOf(terrain, gridSize);
+      const door = openDoorMotion(terrain, gridSize);
+      const swung = doorSwungMiddle(terrain, gridSize, door);
       models.push({
         owner: terrain.identifier,
         kind: Terrain.aliasName,
@@ -254,11 +272,23 @@ export class Table3dService {
         },
         footprintPx: Math.max(terrain.width, terrain.depth) * gridSize,
         heightPx: Math.max(0, terrain.height) * gridSize,
+        boxPx: { widthPx: terrain.width * gridSize, depthPx: terrain.depth * gridSize },
         rotateDeg: terrain.rotate,
         rollDeg: 0,
         pivotPx: 0,
         altitudePx: 0,
         walking: false,
+        ...(terrain.doorStyle !== DoorStyle.NONE
+          ? {
+              door: {
+                open: door !== null,
+                shiftX: swung.x,
+                shiftY: swung.y,
+                turnDeg: door?.turnDeg ?? 0,
+                liftPx: door?.lift ?? 0,
+              },
+            }
+          : {}),
       });
     }
     return models;
