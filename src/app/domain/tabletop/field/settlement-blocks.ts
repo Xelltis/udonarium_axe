@@ -17,8 +17,8 @@ import {
   SLOWING_CROPS,
 } from '@axe/domain/tabletop/field/settlement-layout';
 import { alongTurn, outwardTurn, type SettlementModelId } from '@axe/domain/tabletop/field/settlement-models';
+import { areasOver } from '@axe/domain/tabletop/field/water-areas';
 import { GridType } from '@axe/domain/tabletop/grid-type';
-import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import type {
   MapAmbience,
   MapBlock,
@@ -200,18 +200,6 @@ function fenceRuns(
 }
 
 /**
- * The areas of water that cover the cells of a rectangle and no others, on a board of the grid given:
- * the rectangle itself on squares, and on hexes, which line up a cell apart only one way, one run of
- * cells along that way to each of its rows of pointy-topped hexes or its columns of flat-topped ones.
- */
-function waterAreasOf(rect: MapRect, gridType: GridType): MapRect[] {
-  if (!isHexGrid(gridType)) return [rect];
-  if (isFlatTopGrid(gridType))
-    return Array.from({ length: rect.w }, (_, i) => ({ x: rect.x + i, y: rect.y, w: 1, h: rect.h }));
-  return Array.from({ length: rect.h }, (_, j) => ({ x: rect.x, y: rect.y + j, w: rect.w, h: 1 }));
-}
-
-/**
  * A rectangle cut into rectangles no more than `span` cells across either way, each a block of its
  * own, as the walls are gathered: a cell each on a board of hexes.
  */
@@ -330,7 +318,9 @@ export function settlementBlocks(
     }
     if (SLOWING_CROPS.includes(crop)) slows.push({ rect, extraCost: CROP_COST, color: CROP_COLOURS[crop] });
     if (crop === 'rice') {
-      for (const area of waterAreasOf(rect, gridType))
+      const paddy = new Uint8Array(width * height);
+      for (let y = rect.y; y < rect.y + rect.h; y++) paddy.fill(1, y * width + rect.x, y * width + rect.x + rect.w);
+      for (const area of areasOver(paddy, width, height, gridType))
         ambiences.push({ rect: area, kind: 'water', density: 0.6, name: 'water', water: { ...PADDY_WATER } });
     }
   }
