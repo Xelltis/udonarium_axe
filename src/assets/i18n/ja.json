@@ -5182,6 +5182,7 @@
       "dirtLabel": "汚れ",
       "leavesLabel": "浮き葉",
       "flowSpeedLabel": "流れの速さ",
+      "iceLabel": "凍結",
       "flowDirectionLabel": "流れの向き",
       "flowDirection_0": "↑ 上",
       "flowDirection_45": "↗ 右上",

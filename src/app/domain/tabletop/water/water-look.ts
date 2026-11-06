@@ -153,3 +153,26 @@ function hex2(value: number): string {
 function round(value: number): number {
   return Math.round(value * 1000) / 1000;
 }
+
+/** The colour of ice over water, in sRGB from 0 to 1: pale, a little blue, as a frozen pond is seen from above. */
+export const ICE_COLOUR: readonly [number, number, number] = [0.8, 0.88, 0.93];
+
+/** How opaque ice is drawn: enough to hide what is under it but for a shadow of the depths. */
+export const ICE_ALPHA = 0.9;
+
+/**
+ * The colour a point of the surface is drawn in where so much of it is frozen, from 0 to 1: the water's
+ * own colour, red, green, blue and alpha in sRGB, laid under the ice as far as it is frozen.
+ */
+export function frozenOver(
+  colour: readonly [number, number, number, number],
+  ice: number
+): [number, number, number, number] {
+  const share = clamp01(ice);
+  return [
+    round(colour[0] + (ICE_COLOUR[0] - colour[0]) * share),
+    round(colour[1] + (ICE_COLOUR[1] - colour[1]) * share),
+    round(colour[2] + (ICE_COLOUR[2] - colour[2]) * share),
+    round(colour[3] + (ICE_ALPHA - colour[3]) * share),
+  ];
+}

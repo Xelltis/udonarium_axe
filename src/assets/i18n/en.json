@@ -5182,6 +5182,7 @@
       "dirtLabel": "Dirt",
       "leavesLabel": "Floating leaves",
       "flowSpeedLabel": "Flow speed",
+      "iceLabel": "Frozen over",
       "flowDirectionLabel": "Flow direction",
       "flowDirection_0": "↑ Up",
       "flowDirection_45": "↗ Up-right",

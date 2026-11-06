@@ -23,6 +23,7 @@ function area(partial: Partial<WaterArea>): WaterArea {
     leaves: 0,
     flowSpeed: 0,
     flowDirection: 0,
+    ice: 0,
     ...partial,
   };
 }

@@ -9,6 +9,7 @@ import {
   dirtyWaterColor,
   floorWashAlpha,
   flowStreakOpacity,
+  frozenOver,
   glintOpacity,
   murkAlpha,
   murkColorOf,
@@ -58,6 +59,8 @@ export interface TableWorldWater {
   readonly silt: Float32Array;
   /** How strongly the streaks of a current show at each point, one to a point: none on still water. */
   readonly streaks: Float32Array;
+  /** How much of the surface is frozen at each point, one to a point, from 0 for open water to 1 for ice. */
+  readonly ice: Float32Array;
   /** The leaves floating on the surface, a part for each amount of the water they cover. */
   readonly leaves: readonly TableWorldLeaves[];
   /** The floors under water lying on its own level floor, darkened, which the net of light crosses. */
@@ -103,6 +106,7 @@ export const NO_WATER: TableWorldWater = {
   scum: new Float32Array(0),
   silt: new Float32Array(0),
   streaks: new Float32Array(0),
+  ice: new Float32Array(0),
   leaves: [],
   floor: emptyPart(),
   sides: emptyPart(),
@@ -154,6 +158,7 @@ export function tableWaterOf(
   const scum: number[] = [];
   const silt: number[] = [];
   const streaks: number[] = [];
+  const ice: number[] = [];
   const leaves = new Map<number, { part: PartBuilder; flow: number[] }>();
   const floor = new PartBuilder();
   for (const cell of cells.values()) {
@@ -163,16 +168,21 @@ export function tableWaterOf(
     const wash = channelsOf(tone);
     const murk = channelsOf(murkColorOf(tone));
     const surfaceZ = cell.surfacePx > cell.floorPx ? cell.surfacePx : cell.floorPx + FLAT_SURFACE_LIFT_PX;
-    const glint = glintOpacity(cell.density, cell.turbidity, cell.dirt);
+    const frozen = Math.min(Math.max(cell.ice ?? 0, 0), 1);
+    const open = 1 - frozen;
+    const glint = glintOpacity(cell.density, cell.turbidity, cell.dirt) * open;
     const stream = flowVectorOf(cell.flowDirection);
-    const speed = cell.flowSpeed > 0 ? flowCellsPerSecond(cell.flowSpeed) : 0;
+    const speed = cell.flowSpeed > 0 ? flowCellsPerSecond(cell.flowSpeed) * open : 0;
     const shade = (x: number, y: number) =>
-      over(
-        [...wash, surfaceWashAlpha(cell.density)],
+      frozenOver(
         over(
-          [...murk, murkAlpha(cell.turbidity)],
-          [...deep, depthShadeAlpha(depthAt(x, y) ?? (cell.surfacePx - cell.floorPx) / cellPx, cell.turbidity)]
-        )
+          [...wash, surfaceWashAlpha(cell.density)],
+          over(
+            [...murk, murkAlpha(cell.turbidity)],
+            [...deep, depthShadeAlpha(depthAt(x, y) ?? (cell.surfacePx - cell.floorPx) / cellPx, cell.turbidity)]
+          )
+        ),
+        frozen
       );
     const thick = scumOpacity(cell.dirt);
     const scumOf = [
@@ -182,13 +192,14 @@ export function tableWaterOf(
       thick * SCUM_RIM_SHARE,
     ];
     const siltOf = [...channelsOf(siltColorOf(tone)), siltOpacity(cell.turbidity)];
-    const streak = speed > 0 ? flowStreakOpacity(cell.flowSpeed, cell.turbidity) : 0;
+    const streak = speed > 0 ? flowStreakOpacity(cell.flowSpeed, cell.turbidity) * open : 0;
     fan(outline, (point) => {
       surface.add(point.x, point.y, surfaceZ, shade(point.x, point.y), glint);
       flow.push(stream.x * speed, stream.y * speed);
       scum.push(...scumOf);
       silt.push(...siltOf);
       streaks.push(streak);
+      ice.push(frozen);
     });
     if (cell.leaves > 0) {
       const floating = leaves.get(cell.leaves) ?? { part: new PartBuilder(), flow: [] };
@@ -200,7 +211,7 @@ export function tableWaterOf(
     }
     if (!cell.flat) continue;
     const floorColour = [...deep, floorWashAlpha(cell.density)] as Rgba;
-    const net = causticOpacity(cell.density, cell.turbidity, (cell.surfacePx - cell.floorPx) / cellPx);
+    const net = causticOpacity(cell.density, cell.turbidity, (cell.surfacePx - cell.floorPx) / cellPx) * open;
     fan(outline, (point) => floor.add(point.x, point.y, cell.floorPx + FLOOR_LIFT_PX, floorColour, net));
   }
   return {
@@ -209,6 +220,7 @@ export function tableWaterOf(
     scum: new Float32Array(scum),
     silt: new Float32Array(silt),
     streaks: new Float32Array(streaks),
+    ice: new Float32Array(ice),
     leaves: [...leaves].map(([amount, floating]) => ({
       amount,
       part: floating.part.part(),
@@ -216,7 +228,10 @@ export function tableWaterOf(
     })),
     floor: floor.part(),
     sides: sidesOf(sides, cells),
-    shore: shoreOf(shores, cellPx),
+    shore: shoreOf(
+      shores.filter((shore) => (cells.get(shore.index)?.ice ?? 0) < 0.5),
+      cellPx
+    ),
     seaFloor,
     cellPx,
     moving,
@@ -272,8 +287,9 @@ function sidesOf(sides: readonly WaterSide[], cells: ReadonlyMap<number, WaterCe
     const cell = cells.get(side.index);
     const tone = dirtyWaterColor(side.color, cell?.dirt ?? 0);
     const alphas = waterSideAlphas(side.density, cell?.turbidity ?? 0);
-    const bottom = [...channelsOf(deepWaterColor(tone)), alphas.bottom] as Rgba;
-    const top = [...channelsOf(tone), alphas.top] as Rgba;
+    const frozen = cell?.ice ?? 0;
+    const bottom = frozenOver([...channelsOf(deepWaterColor(tone)), alphas.bottom], frozen * 0.5);
+    const top = frozenOver([...channelsOf(tone), alphas.top], frozen);
     const reach = Math.max(side.topPx - side.floorPx, side.topPx - side.bottomPx, 1);
     const at = (heightPx: number) => blend(bottom, top, 1 - (side.topPx - heightPx) / reach);
     const corners = [

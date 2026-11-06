@@ -194,3 +194,44 @@ function smoothstep(from: number, to: number, value: number): number {
   const t = Math.min(Math.max((value - from) / (to - from), 0), 1);
   return t * t * (3 - 2 * t);
 }
+
+/** How many plates a tile of ice is broken into, and how wide the cracks between them run, in pixels of a tile. */
+const ICE_PLATES = 11;
+const ICE_CRACK_PX = 1.3;
+
+/**
+ * The cracks across a sheet of ice, one tile of them that repeats without a seam: the ice broken into
+ * plates round points scattered over the tile, a crack drawn wherever two plates meet, as strong as
+ * the fainter of the two, so that some cracks show faintly.
+ */
+export function iceCrackAlpha(seed: number, size = WATER_PATTERN_TILE_PX): Uint8ClampedArray {
+  const random = seededRandom(seed);
+  const plates = Array.from({ length: ICE_PLATES }, () => ({
+    x: random() * size,
+    y: random() * size,
+    strength: 0.45 + random() * 0.55,
+  }));
+  const alpha = new Uint8ClampedArray(size * size);
+  const width = ICE_CRACK_PX * (size / 192);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      let first = { distance: Infinity, strength: 0 };
+      let second = first;
+      for (const plate of plates) {
+        const near = { distance: tiledDistance(x + 0.5, y + 0.5, plate, size), strength: plate.strength };
+        if (near.distance < first.distance) [first, second] = [near, first];
+        else if (near.distance < second.distance) second = near;
+      }
+      const off = (second.distance - first.distance) / width;
+      alpha[y * size + x] = Math.round(Math.min(first.strength, second.strength) * Math.exp(-off * off) * 255);
+    }
+  }
+  return alpha;
+}
+
+/** How far a point is from the nearest of a point's copies on the tiles round the one it lies on. */
+function tiledDistance(x: number, y: number, to: { readonly x: number; readonly y: number }, size: number): number {
+  const dx = Math.abs(x - to.x) % size;
+  const dy = Math.abs(y - to.y) % size;
+  return Math.hypot(Math.min(dx, size - dx), Math.min(dy, size - dy));
+}

@@ -3,7 +3,10 @@ import {
   deepWaterColor,
   dirtyWaterColor,
   flowStreakOpacity,
+  frozenOver,
   glintOpacity,
+  ICE_ALPHA,
+  ICE_COLOUR,
   murkAlpha,
   scumOpacity,
   siltColorOf,
@@ -56,5 +59,16 @@ describe('the look of water', () => {
     expect(murkAlpha(1)).toBe(1);
     expect(murkAlpha(0.5)).toBeGreaterThan(0.3);
     expect(murkAlpha(0.5)).toBeLessThan(0.6);
+  });
+
+  it('lays ice over the colour of the water as far as it is frozen, keeping open water as it was', () => {
+    const water = [0.2, 0.4, 0.6, 0.5] as const;
+
+    expect(frozenOver(water, 0)).toEqual([0.2, 0.4, 0.6, 0.5]);
+    expect(frozenOver(water, 1)).toEqual([...ICE_COLOUR, ICE_ALPHA]);
+    expect(frozenOver(water, 2)).toEqual([...ICE_COLOUR, ICE_ALPHA]);
+    const half = frozenOver(water, 0.5);
+    expect(half[0]).toBeCloseTo((0.2 + ICE_COLOUR[0]) / 2, 3);
+    expect(half[3]).toBeCloseTo((0.5 + ICE_ALPHA) / 2, 3);
   });
 });

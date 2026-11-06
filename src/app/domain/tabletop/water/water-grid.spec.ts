@@ -28,6 +28,7 @@ function area(col: number, row: number, cols: number, rows: number): WaterArea {
     leaves: 0,
     flowSpeed: 0,
     flowDirection: 0,
+    ice: 0,
   };
 }
 

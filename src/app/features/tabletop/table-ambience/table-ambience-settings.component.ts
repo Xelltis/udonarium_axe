@@ -150,6 +150,19 @@ export class TableAmbienceSettingsComponent {
     this.target.update();
   }
 
+  /**
+   * How much of the water is frozen over, as a percentage; a change is sent to the room. Only water
+   * shows it: frozen, it is drawn as ice, still and pale.
+   */
+  get icePercent(): number {
+    return Math.round((this.target?.ice ?? 0) * 100);
+  }
+  set icePercent(value: number) {
+    if (!this.target) return;
+    this.target.iceCover = Math.min(Math.max(Math.round(Number(value)), 0), 100) / 100;
+    this.target.update();
+  }
+
   /** Which way the water flows, in degrees clockwise from the top of the table; a change is sent to the room. */
   get flowDirection(): number {
     return this.target?.flowHeading ?? 0;

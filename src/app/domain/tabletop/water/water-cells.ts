@@ -23,6 +23,8 @@ export interface WaterArea {
   /** How fast it flows, from 0 for still to 1, and which way, in degrees clockwise from the top. */
   readonly flowSpeed: number;
   readonly flowDirection: number;
+  /** How much of its surface is frozen, from 0 for open water to 1 for ice. */
+  readonly ice: number;
 }
 
 /** One cell under water. */
@@ -44,6 +46,7 @@ export interface WaterCell {
   readonly leaves: number;
   readonly flowSpeed: number;
   readonly flowDirection: number;
+  readonly ice: number;
   /** The area it belongs to. */
   readonly area: string;
 }
@@ -110,6 +113,7 @@ export function waterCellsOf(
           leaves: area.leaves,
           flowSpeed: area.flowSpeed,
           flowDirection: area.flowDirection,
+          ice: area.ice,
           area: area.identifier,
         });
       }

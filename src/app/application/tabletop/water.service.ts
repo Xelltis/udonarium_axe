@@ -52,6 +52,7 @@ export class WaterService {
           leaves: area.leaves,
           flowSpeed: area.flow,
           flowDirection: area.flowHeading,
+          ice: area.ice,
         };
       });
   });

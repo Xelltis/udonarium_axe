@@ -1,6 +1,7 @@
 import { CAUSTIC_SEED, CAUSTIC_TILE_PX, causticAlpha, causticFieldOf } from '@axe/domain/effect/ambience/caustics';
 import {
   cloudAlpha,
+  iceCrackAlpha,
   scumRimTileAlpha,
   scumTileAlpha,
   smoothFieldOf,
@@ -75,6 +76,12 @@ const LEAF_CELLS = 3.6;
 /** How many cells one repeat of the clouds of silt spans, and of the streaks of a current, as the page drew them. */
 const SILT_CELLS = 4.2;
 const STREAK_CELLS = 3;
+/** How many cells the frost on ice spreads over before it repeats, and how strongly it whitens the ice. */
+const FROST_CELLS = 2.7;
+const FROST_SHOWS = 0.45;
+/** How many cells the cracks across ice run over before they repeat, and the colour they are drawn in, in sRGB. */
+const ICE_CRACK_CELLS = 3.3;
+const ICE_CRACK_COLOUR = [0.5, 0.6, 0.68] as const;
 /** How many seconds the clouds of silt take to drift one repeat across and down, slower than the scum. */
 const SILT_SECONDS = 180;
 /** How many waves the clouds of silt are drawn from, and how fine the finest of them runs, as the page drew them. */
@@ -115,6 +122,7 @@ export class WaterLayer {
   private netTile: Texture | null = null;
   private scumTiles: { readonly scum: Texture; readonly rim: Texture } | null = null;
   private currentTiles: { readonly silt: Texture; readonly streaks: Texture } | null = null;
+  private iceCracks: Texture | null = null;
   /** The pictures of the floating leaves, by the picture, read once each and kept until the layer goes. */
   private readonly leafPictures = new Map<string, Texture>();
   private laid: TableWorldWater | null = null;
@@ -147,7 +155,10 @@ export class WaterLayer {
       geometry.setAttribute('scum', new Float32BufferAttribute(everyOther(water.scum, 0), 4));
       geometry.setAttribute('scumRim', new Float32BufferAttribute(everyOther(water.scum, 4), 4));
       geometry.setAttribute('silt', new Float32BufferAttribute(water.silt, 4));
-      geometry.setAttribute('extra', new Float32BufferAttribute(pairedWith(water.surface.extra, water.streaks), 2));
+      geometry.setAttribute(
+        'extra',
+        new Float32BufferAttribute(tripledWith(water.surface.extra, water.streaks, water.ice), 3)
+      );
     });
     for (const floating of water.leaves) this.addLeaves(floating);
     this.add(water.floor, this.floorMaterial(CAUSTIC_CELLS), FLOOR_ORDER);
@@ -219,6 +230,12 @@ export class WaterLayer {
       rim: repeatingTile(scumRimTileAlpha(), WATER_PATTERN_TILE_PX),
     };
     return this.scumTiles;
+  }
+
+  /** The cracks across a sheet of ice, a tile of them to repeat, made once. */
+  private crackTile(): Texture {
+    this.iceCracks ??= repeatingTile(iceCrackAlpha(CAUSTIC_SEED + 5), WATER_PATTERN_TILE_PX);
+    return this.iceCracks;
   }
 
   /** The clouds of silt in murky water and the streaks of a current, a tile of each to repeat, made once. */
@@ -344,7 +361,7 @@ export class WaterLayer {
       .div(this.cellPx.mul(GLINT_CELLS))
       .sub(flow.mul(this.seconds).div(GLINT_CELLS));
     const drift = vec2(this.seconds.negate(), this.seconds).div(GLINT_SECONDS);
-    const extra = attribute('extra', 'vec2');
+    const extra = attribute('extra', 'vec3');
     const glint = texture(this.tile(), at.add(drift)).r.mul(extra.x);
     const glinted = { colour: mix(rgb, vec3(1, 1, 1), glint), alpha: max(a, glint) };
     const scumAt = vec2(positionWorld.x, positionWorld.z)
@@ -371,7 +388,15 @@ export class WaterLayer {
       ground.dot(vec2(along.y.negate(), along.x))
     ).div(STREAK_CELLS);
     const streaked = laidOver(rimmed, vec3(1, 1, 1), texture(currents.streaks, streakAt).r.mul(extra.y));
-    material.colorNode = vec4(streaked.colour, streaked.alpha);
+    const ice = extra.z;
+    const frostAt = ground.div(FROST_CELLS);
+    const frosted = laidOver(streaked, vec3(1, 1, 1), texture(tiles.scum, frostAt).r.mul(ice).mul(FROST_SHOWS));
+    const cracked = laidOver(
+      frosted,
+      linearOf(vec3(...ICE_CRACK_COLOUR)),
+      texture(this.crackTile(), ground.div(ICE_CRACK_CELLS)).r.mul(ice)
+    );
+    material.colorNode = vec4(cracked.colour, cracked.alpha);
     this.dress(material, 'lit');
     return material;
   }
@@ -450,16 +475,18 @@ function repeatingTile(alpha: Uint8ClampedArray, size: number): Texture {
 
 /** Four figures of every eight, from the one given, as one attribute of a point carries them. */
 /**
- * Two figures to a point, the first from each list: the surface carries how strongly it glints and
- * how strongly a current streaks it in one attribute, as a graphics card draws from eight at most.
+ * Three figures to a point, the first from each list: the surface carries how strongly it glints, how
+ * strongly a current streaks it and how much of it is frozen in one attribute, as a graphics card
+ * draws from eight at most.
  */
-function pairedWith(first: Float32Array, second: Float32Array): Float32Array {
-  const paired = new Float32Array(first.length * 2);
+function tripledWith(first: Float32Array, second: Float32Array, third: Float32Array): Float32Array {
+  const tripled = new Float32Array(first.length * 3);
   for (let i = 0; i < first.length; i++) {
-    paired[i * 2] = first[i];
-    paired[i * 2 + 1] = second[i] ?? 0;
+    tripled[i * 3] = first[i];
+    tripled[i * 3 + 1] = second[i] ?? 0;
+    tripled[i * 3 + 2] = third[i] ?? 0;
   }
-  return paired;
+  return tripled;
 }
 
 function everyOther(values: Float32Array, from: number): Float32Array {

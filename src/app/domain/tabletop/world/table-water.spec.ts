@@ -3,6 +3,7 @@ import { GridType } from '@axe/domain/tabletop/grid-type';
 import { type WaterArea, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
 import {
   floorWashAlpha,
+  ICE_ALPHA,
   flowStreakOpacity,
   scumOpacity,
   siltOpacity,
@@ -30,6 +31,7 @@ function area(partial: Partial<WaterArea> = {}): WaterArea {
     leaves: 0,
     flowSpeed: 0,
     flowDirection: 0,
+    ice: 0,
     ...partial,
   };
 }
@@ -155,6 +157,42 @@ describe('the water on a table as the scene draws it', () => {
       tableWaterOf(grid, waterCellsOf(grid, [area()]), [], [], true, { color: '#2a6f9e', density: 0.5 }).seaFloor
     ).toEqual(sea);
     expect(tableWaterOf(grid, new Map(), [], [], true).seaFloor).toBeNull();
+  });
+
+  it('draws frozen water as still, pale ice without a glint, a current, a net of light or waves on its shore', () => {
+    const cells = (ice: number) =>
+      waterCellsOf(grid, [
+        area({ ice, flowSpeed: 0.8, flowDirection: 90, turbidity: 0.6, floorPx: 10, surfacePx: 35 }),
+      ]);
+    const frozen = tableWaterOf(
+      grid,
+      cells(1),
+      [],
+      waterShoreOf(grid, cells(1), () => 35),
+      true
+    );
+    const open = tableWaterOf(
+      grid,
+      cells(0),
+      [],
+      waterShoreOf(grid, cells(0), () => 35),
+      true
+    );
+    const points = frozen.surface.points.length / 3;
+
+    expect(frozen.ice.length).toBe(points);
+    expect(new Set(frozen.ice)).toEqual(new Set([1]));
+    expect(new Set(open.ice)).toEqual(new Set([0]));
+    expect(frozen.surface.colours[3]).toBeCloseTo(ICE_ALPHA);
+    expect(frozen.surface.colours[3]).toBeGreaterThan(open.surface.colours[3]);
+    expect(Math.max(...frozen.surface.extra)).toBe(0);
+    expect(Math.max(...open.surface.extra)).toBeGreaterThan(0);
+    expect(Math.max(...frozen.flow.map(Math.abs))).toBe(0);
+    expect(Math.max(...frozen.streaks)).toBe(0);
+    expect(Math.max(...open.streaks)).toBeGreaterThan(0);
+    expect(Math.max(...frozen.floor.extra)).toBe(0);
+    expect(frozen.shore.points.length).toBe(0);
+    expect(open.shore.points.length).toBeGreaterThan(0);
   });
 
   it('draws nothing where there is no water, and holds the water still for a reader who asks for less motion', () => {

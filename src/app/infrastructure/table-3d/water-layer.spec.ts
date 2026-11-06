@@ -23,6 +23,7 @@ function area(partial: Partial<WaterArea> = {}): WaterArea {
     leaves: 0,
     flowSpeed: 0.6,
     flowDirection: 90,
+    ice: 0,
     ...partial,
   };
 }
@@ -31,19 +32,21 @@ function area(partial: Partial<WaterArea> = {}): WaterArea {
 const MOST_ATTRIBUTES = 8;
 
 describe('the water on a table drawn on a canvas', () => {
-  it('draws the surface from no more attributes than a graphics card takes, silt and streaks and all', () => {
+  it('draws the surface from no more attributes than a graphics card takes, silt, streaks and ice and all', () => {
     const layer = new WaterLayer(
       () => undefined,
       () => new Texture()
     );
     const grid = cellGridOf(4, 4, G, GridType.SQUARE);
 
-    layer.set(tableWaterOf(grid, waterCellsOf(grid, [area()]), [], [], true), null, '');
+    layer.set(tableWaterOf(grid, waterCellsOf(grid, [area({ ice: 0.7 })]), [], [], true), null, '');
 
     const surface = layer.group.children[0] as Mesh;
     const names = Object.keys(surface.geometry.attributes);
     expect(names).toEqual(expect.arrayContaining(['silt', 'scum', 'scumRim', 'flow', 'extra']));
-    expect(surface.geometry.getAttribute('extra').itemSize).toBe(2);
+    const extra = surface.geometry.getAttribute('extra');
+    expect(extra.itemSize).toBe(3);
+    expect(extra.getZ(0)).toBeCloseTo(0.7);
     expect(names.length).toBeLessThanOrEqual(MOST_ATTRIBUTES);
     layer.dispose();
   });
