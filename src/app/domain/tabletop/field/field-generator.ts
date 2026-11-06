@@ -7,8 +7,8 @@ import {
   FieldAtmosphereId,
 } from '@axe/domain/tabletop/field/field-atmosphere';
 import { FIELD_MERGE_SPAN, fieldToBlocks } from '@axe/domain/tabletop/field/field-blocks';
-import type { FieldSeason } from '@axe/domain/tabletop/field/field-models';
 import { FieldLayout, generateField } from '@axe/domain/tabletop/field/field-layout';
+import type { FieldSeason } from '@axe/domain/tabletop/field/field-models';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { MapBlocks } from '@axe/domain/tabletop/map-blocks';
 import { boardSizeOn, MapGrid, mergeSpanFor } from '@axe/domain/tabletop/map-grid';

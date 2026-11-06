@@ -10,10 +10,10 @@ import {
 import { FieldLayout } from '@axe/domain/tabletop/field/field-layout';
 import {
   FIELD_PROP_MODELS,
-  type FieldSeason,
   fieldModelAt,
   fieldModelDrawnSize,
   type FieldModelId,
+  type FieldSeason,
 } from '@axe/domain/tabletop/field/field-models';
 import { FieldBuilding } from '@axe/domain/tabletop/field/town-layout';
 import { MapBlock, MapBlocks, MapLight, MapLightKind, MapPaint } from '@axe/domain/tabletop/map-blocks';
