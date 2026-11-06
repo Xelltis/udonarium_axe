@@ -15,9 +15,8 @@ import {
   WALL_TOP_TEXTURE,
   WallTextureId,
 } from '@axe/domain/media/texture-catalog';
+import { bundledModelUrl } from '@axe/domain/tabletop/bundled-model-url';
 import { DungeonPoint } from '@axe/domain/tabletop/dungeon/dungeon-layout';
-import { furnishingModelUrl, isFurnishingModel } from '@axe/domain/tabletop/dungeon/furnishing-models';
-import { type FieldModelId, fieldModelUrl } from '@axe/domain/tabletop/field/field-models';
 import { cellCenterOf, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { ensureGroundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
@@ -317,9 +316,9 @@ export class DungeonBuildService {
 
   private async readModel(model: string): Promise<string> {
     try {
-      const response = await fetch(
-        isFurnishingModel(model) ? furnishingModelUrl(model) : fieldModelUrl(model as FieldModelId)
-      );
+      const url = bundledModelUrl(model);
+      if (!url) return '';
+      const response = await fetch(url);
       if (!response.ok) return '';
       const blob = await response.blob();
       const file = new File([blob], `${model}.glb`, { type: MODEL_TYPE });

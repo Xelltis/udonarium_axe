@@ -16,6 +16,7 @@ import {
   type FieldSeason,
 } from '@axe/domain/tabletop/field/field-models';
 import { FieldBuilding } from '@axe/domain/tabletop/field/town-layout';
+import { roofUnitModelOf, TOWN_KITS } from '@axe/domain/tabletop/field/town-models';
 import { MapBlock, MapBlocks, MapLight, MapLightKind, MapPaint } from '@axe/domain/tabletop/map-blocks';
 
 /**
@@ -127,8 +128,10 @@ function findFires(layout: FieldLayout, atmosphere: FieldAtmosphere, seed: numbe
  * cell in from its edge on top of it. On a board whose cells will not gather into rectangles it
  * is a column to a cell, those round the edge of a podium standing only as tall as the podium.
  */
-function buildingBlocks(building: FieldBuilding, plan: TownPlan, span: number): MapBlock[] {
+function buildingBlocks(building: FieldBuilding, plan: TownPlan, span: number, models: boolean): MapBlock[] {
   const skin = plan.skins[building.skin] ?? plan.skins[0];
+  // A building built of a block a cell, as on a board of hexes, is built of its blocks all the same.
+  const kit = models && span > 1 ? TOWN_KITS[skin.side] : undefined;
   const standing = (): Omit<MapBlock, 'rect'> => ({
     kind: 'prop',
     blocksSight: true,
@@ -136,6 +139,7 @@ function buildingBlocks(building: FieldBuilding, plan: TownPlan, span: number): 
     rooms: [],
     skin: { side: { kind: 'texture', id: skin.side }, top: { kind: 'texture', id: skin.top } },
     thing: 'building',
+    ...(kit ? { model: kit } : {}),
   });
   const { x, y, w, h, podium } = building;
   const blocks: MapBlock[] = [];
@@ -179,6 +183,7 @@ function buildingBlocks(building: FieldBuilding, plan: TownPlan, span: number): 
       footprint: { w: ROOF_PLANT.fill, d: ROOF_PLANT.fill },
       altitude: building.height,
       thing: 'roofUnit',
+      ...(models ? { model: roofUnitModelOf(plan) } : {}),
     });
   }
   return blocks;
@@ -246,7 +251,7 @@ export function fieldToBlocks(
   }
 
   if (atmosphere.town) {
-    for (const building of layout.buildings) blocks.push(...buildingBlocks(building, atmosphere.town, span));
+    for (const building of layout.buildings) blocks.push(...buildingBlocks(building, atmosphere.town, span, models));
   }
 
   // Last laid wins where two patches cover one cell, so a pool goes down over the band it lies in.

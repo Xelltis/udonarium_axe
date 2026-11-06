@@ -1,3 +1,4 @@
+import type { WallTextureId } from '@axe/domain/media/texture-catalog';
 import {
   FIELD_ATMOSPHERE_IDS,
   FIELD_ATMOSPHERES,
@@ -8,6 +9,7 @@ import {
 import { fieldBoardSize, planField } from '@axe/domain/tabletop/field/field-generator';
 import { propAt } from '@axe/domain/tabletop/field/field-layout';
 import { FIELD_MODEL_IDS, fieldModelDrawnSize, type FieldModelId } from '@axe/domain/tabletop/field/field-models';
+import { TOWN_KITS } from '@axe/domain/tabletop/field/town-models';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { MAP_MAX_TERRAINS } from '@axe/domain/tabletop/map-blocks';
 import { boardExtentPx } from '@axe/domain/tabletop/map-grid';
@@ -75,6 +77,30 @@ describe('planField()', () => {
     const stood = plans.flatMap((plan) => plan.blocks.blocks.filter((block) => block.thing === 'giantTree'));
     expect(stood.length).toBe(giants.length);
     expect(stood.every((block) => block.model === 'tree_giant' && block.footprint!.w < block.rect.w)).toBe(true);
+  });
+
+  it('builds a town’s buildings of the kit for their facade, and their roofs’ plant, where models are asked for', () => {
+    const built = planField({ atmosphere: 'city', size: 40, density: 60, seed: 7 });
+    const modelled = planField({ atmosphere: 'city', size: 40, density: 60, seed: 7, models: true });
+    const hexed = planField({
+      atmosphere: 'slum',
+      size: 40,
+      density: 60,
+      seed: 7,
+      models: true,
+      gridType: GridType.HEX_VERTICAL,
+    });
+
+    const buildings = modelled.blocks.blocks.filter((block) => block.thing === 'building');
+    expect(buildings.length).toBeGreaterThan(0);
+    for (const block of buildings) {
+      expect(block.model).toBe(TOWN_KITS[(block.skin!.side as { id: WallTextureId }).id]);
+    }
+    const plant = modelled.blocks.blocks.filter((block) => block.thing === 'roofUnit');
+    expect(plant.length).toBeGreaterThan(0);
+    expect(plant.every((block) => block.model === 'roof_plant')).toBe(true);
+    expect(built.blocks.blocks.some((block) => block.model)).toBe(false);
+    expect(hexed.blocks.blocks.filter((block) => block.thing === 'building').some((block) => block.model)).toBe(false);
   });
 
   it('stands each bush as a model of its own, as wide as it is drawn, where models are asked for', () => {

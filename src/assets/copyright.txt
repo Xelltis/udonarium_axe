@@ -92,6 +92,18 @@ Comment: ダンジョンの家具（木箱・スツール・事務机・賭博�
  ライセンスのページ https://docs.ambientcg.com/license/ が、ambientCGのすべての素材を
  CC0 1.0 Universalで提供すると示す。
 
+Files: models/town/*
+Copyright: 2026 SavageChieftain / Xelltis（形・外壁と屋上の絵）
+ ambientCG (ambientcg.com)（金属・木・コンクリートの写真）
+License: MIT and CC0-1.0
+Comment: 町の建物を組む部品（1マス幅・1階分の外壁、1マス四方の屋上、屋上の縁）と屋上の設備
+ （機械室・木の給水槽）の3Dモデル。形は本プロジェクトで作成した（MIT）。外壁と屋上の絵は、
+ 本プロジェクトのimages/walls/とimages/tiles/の同じ名前の絵を使う。窓台・まぐさ・非常階段・
+ 屋上の縁・設備の絵はambientCGの素材の色の画像（1K-JPG）を縮めたもの（CC0）。Metal029・
+ Metal063・Planks037A・Concrete042A・Rust009から。
+ ライセンスのページ https://docs.ambientcg.com/license/ が、ambientCGのすべての素材を
+ CC0 1.0 Universalで提供すると示す。
+
 Files: images/ground/*
 Copyright: ambientCG (ambientcg.com)
 License: CC0-1.0
