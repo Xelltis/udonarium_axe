@@ -26,10 +26,15 @@ export const TABLE_3D_QUALITY: Readonly<Record<Table3dQuality, Table3dQualityPla
 
 /**
  * The quality a seat's table is drawn at: the one chosen, or left to the screen, light where the
- * seat has asked the table to be drawn lightly and standard elsewhere. A screen found to have no
- * graphics card is not turned down by itself.
+ * seat has asked the table to be drawn lightly, high where a graphics card draws it, and standard
+ * elsewhere. A screen found to have no graphics card is not turned down below standard by itself.
  */
-export function table3dQualityOf(setting: Table3dQualitySetting, drawnLightly: boolean): Table3dQuality {
+export function table3dQualityOf(
+  setting: Table3dQualitySetting,
+  drawnLightly: boolean,
+  graphicsCard = false
+): Table3dQuality {
   if (setting !== 'auto') return setting;
-  return drawnLightly ? 'light' : 'standard';
+  if (drawnLightly) return 'light';
+  return graphicsCard ? 'high' : 'standard';
 }

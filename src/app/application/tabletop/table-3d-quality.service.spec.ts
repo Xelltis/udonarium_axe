@@ -22,6 +22,18 @@ describe('Table3dQualityService', () => {
     expect(quality.plan()).toBe(TABLE_3D_QUALITY.standard);
   });
 
+  it('left to the screen, draws at its best once a graphics card is found to draw it, and lightly still where asked', () => {
+    const lite = TestBed.inject(RenderLiteService);
+    lite.setting.set('off');
+    const quality = TestBed.inject(Table3dQualityService);
+
+    quality.knowGraphicsCard(true);
+    expect(quality.quality()).toBe('high');
+
+    lite.setting.set('on');
+    expect(quality.quality()).toBe('light');
+  });
+
   it('left to the screen, draws lightly where the seat asked for the table to be drawn lightly', () => {
     TestBed.inject(RenderLiteService).setting.set('on');
 

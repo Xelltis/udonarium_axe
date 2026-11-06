@@ -6,8 +6,10 @@ describe('the qualities the table is drawn at', () => {
     expect(table3dQualityOf('light', false)).toBe('light');
   });
 
-  it('left to the screen, draws lightly where the seat asked for it and at standard elsewhere', () => {
+  it('left to the screen, draws lightly where the seat asked for it, high where a graphics card draws, and at standard elsewhere', () => {
     expect(table3dQualityOf('auto', true)).toBe('light');
+    expect(table3dQualityOf('auto', true, true)).toBe('light');
+    expect(table3dQualityOf('auto', false, true)).toBe('high');
     expect(table3dQualityOf('auto', false)).toBe('standard');
   });
 

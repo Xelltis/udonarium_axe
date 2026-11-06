@@ -13,7 +13,8 @@ import {
 
 /**
  * The quality this seat draws a table on a canvas at: its own choice, kept in the browser, or left to
- * the screen, which draws lightly where the seat asked for the table to be drawn lightly.
+ * the screen, which draws lightly where the seat asked for the table to be drawn lightly, and at its
+ * best where a graphics card draws it.
  */
 @Injectable({ providedIn: 'root' })
 export class Table3dQualityService {
@@ -22,8 +23,18 @@ export class Table3dQualityService {
   /** The seat's own choice, auto until it makes one. */
   readonly setting = signal<Table3dQualitySetting>(storedSetting());
 
+  /** Whether a graphics card draws the table on this screen, once that is known. */
+  private readonly graphicsCard = signal(false);
+
   /** The quality the table is drawn at now. */
-  readonly quality = computed<Table3dQuality>(() => table3dQualityOf(this.setting(), this.renderLite.active()));
+  readonly quality = computed<Table3dQuality>(() =>
+    table3dQualityOf(this.setting(), this.renderLite.active(), this.graphicsCard())
+  );
+
+  /** Takes in whether a graphics card draws the table on this screen, as asking the browser found. */
+  knowGraphicsCard(drawn: boolean): void {
+    this.graphicsCard.set(drawn);
+  }
 
   /** What the table draws at that quality. */
   readonly plan = computed<Table3dQualityPlan>(() => TABLE_3D_QUALITY[this.quality()]);

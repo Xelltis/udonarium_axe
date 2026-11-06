@@ -583,6 +583,7 @@ export class Table3dService {
 
   private async start(canvas: HTMLCanvasElement): Promise<Table3dEngine | null> {
     const graphics = await this.askGraphics();
+    this.quality.knowGraphicsCard(graphics.hardware === true);
     if (!graphics.webgpu && !graphics.webgl2) {
       this.unavailable.set(true);
       return null;

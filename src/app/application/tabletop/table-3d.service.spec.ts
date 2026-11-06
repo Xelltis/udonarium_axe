@@ -574,6 +574,15 @@ describe('Table3dService', () => {
     expect(none.preparing()).toBe(false);
   });
 
+  it('tells the quality whether a graphics card draws the table, as asking the browser found', async () => {
+    graphics = { webgpu: true, webgl2: true, hardware: true };
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+
+    expect(TestBed.inject(Table3dQualityService).quality()).toBe('high');
+  });
+
   it('says so, and makes no engine, where neither interface can be had', async () => {
     graphics = { webgpu: false, webgl2: false };
     const scene = service();
