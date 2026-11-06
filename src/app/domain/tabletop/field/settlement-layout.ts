@@ -143,6 +143,23 @@ class Plot {
     return true;
   }
 
+  /**
+   * Whether the cells round a rectangle are free but for a wall of one kind, which a small building
+   * may stand against.
+   */
+  clearBut(rect: MapRect, kind: SettlementWallKind): boolean {
+    const mark = SETTLEMENT_WALL_KINDS.indexOf(kind) + 1;
+    for (let y = rect.y - 1; y <= rect.y + rect.h; y++) {
+      for (let x = rect.x - 1; x <= rect.x + rect.w; x++) {
+        const edge = x < rect.x || y < rect.y || x >= rect.x + rect.w || y >= rect.y + rect.h;
+        if (!edge || !this.inside(x, y)) continue;
+        const cell = y * this.width + x;
+        if (this.taken[cell] && this.walls[cell] !== mark) return false;
+      }
+    }
+    return true;
+  }
+
   take(rect: MapRect): void {
     for (let y = rect.y; y < rect.y + rect.h; y++) {
       for (let x = rect.x; x < rect.x + rect.w; x++) if (this.inside(x, y)) this.taken[y * this.width + x] = 1;
@@ -333,7 +350,7 @@ function layVillage(plot: Plot, rng: () => number, fill: number): void {
       plot.take({ ...lamp, w: 1, h: 1 });
       plot.fires.push({ ...lamp, kind: 'lantern' });
     }
-    const beside = { x: rect.x + rect.w + 1, y: north ? rect.y + rect.h - 4 : rect.y, w: 5, h: 4 };
+    const beside = { x: rect.x + rect.w + 1, y: north ? rect.y : rect.y + rect.h - 4, w: 5, h: 4 };
     const behind = {
       x: rect.x + Math.floor((rect.w - 5) / 2),
       y: north ? rect.y - 5 : rect.y + rect.h + 1,
@@ -484,14 +501,19 @@ function layBarbarianFort(plot: Plot, rng: () => number, fill: number): void {
   plot.take({ x: Math.floor(cx) - 1, y: Math.floor(cy), w: 3, h: 3 });
 
   const tents = Math.max(2, Math.round(between(3, 5, rng) * fill));
-  for (let tries = 0, laid = 0; tries < 300 && laid < tents; tries++) {
-    const x = between(1, plot.width - 5, rng);
-    const y = between(1, plot.height - 5, rng);
-    const rect = { x, y, w: 4, h: 4 };
-    const corners = [inside(x, y), inside(x + 3, y), inside(x, y + 3), inside(x + 3, y + 3)];
-    if (corners.includes(false) || !plot.free(rect, 1)) continue;
-    const dx = cx - (x + 2);
-    const dy = cy - (y + 2);
+  for (let tries = 0, laid = 0; tries < 600 && laid < tents; tries++) {
+    const size = tries < 150 ? 4 : 3;
+    const x = between(1, plot.width - size - 1, rng);
+    const y = between(1, plot.height - size - 1, rng);
+    const rect = { x, y, w: size, h: size };
+    const far = size - 1;
+    const within =
+      size > 3
+        ? [inside(x, y), inside(x + far, y), inside(x, y + far), inside(x + far, y + far)].every(Boolean)
+        : inside(x + 1, y + 1);
+    if (!within || !(size > 3 ? plot.free(rect, 1) : plot.free(rect) && plot.clearBut(rect, 'palisade'))) continue;
+    const dx = cx - (x + size / 2);
+    const dy = cy - (y + size / 2);
     const facing = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'e' : 'w') : dy > 0 ? 's' : 'n';
     houseWithRooms(plot, rect, 1, 'hideWall', facing, rng, { floor: SETTLEMENT_ZONES.yard, open: true });
     laid++;
@@ -571,17 +593,27 @@ function layStoneFort(plot: Plot, rng: () => number, fill: number): void {
     houseWithRooms(plot, keep, between(3, 5, rng), 'stoneRoomWall', 's', rng);
   }
   const buildings = Math.max(1, Math.round(2 * fill));
+  const below = keep.y + keep.h + 1;
   for (let i = 0; i < buildings; i++) {
     const west = i % 2 === 0;
-    const rect = {
-      x: west ? x0 + 1 : x1 - 5,
-      y: y0 + Math.round(innerH * 0.5),
-      w: 5,
-      h: Math.max(5, Math.round(innerH * 0.4)),
-    };
-    if (!plot.free(rect)) continue;
-    if (west) houseWithRooms(plot, rect, between(1, 2, rng), 'stoneRoomWall', 'e', rng);
-    else houseWithRooms(plot, rect, between(2, 3, rng), 'stoneRoomWall', 'w', rng, { floor: SETTLEMENT_ZONES.yard });
+    const narrow = Math.max(3, Math.min(5, Math.round(innerH * 0.3)));
+    const spots = [
+      {
+        rect: {
+          x: west ? x0 + 1 : x1 - 5,
+          y: below,
+          w: 5,
+          h: Math.min(Math.max(5, Math.round(innerH * 0.4)), y1 - 3 - below),
+        },
+        facing: west ? 'e' : 'w',
+      },
+      { rect: { x: west ? x0 + 1 : x1 - 3, y: y1 - 3 - narrow, w: 3, h: narrow }, facing: 's' },
+    ] as const;
+    const spot = spots.find(({ rect }) => rect.h >= 3 && plot.free(rect));
+    if (!spot) continue;
+    const { rect, facing } = spot;
+    if (west) houseWithRooms(plot, rect, between(1, 2, rng), 'stoneRoomWall', facing, rng);
+    else houseWithRooms(plot, rect, between(2, 3, rng), 'stoneRoomWall', facing, rng, { floor: SETTLEMENT_ZONES.yard });
   }
   const well = { x: gateX + 3, y: y1 - 3 };
   if (plot.free({ ...well, w: 1, h: 1 }, 1)) {

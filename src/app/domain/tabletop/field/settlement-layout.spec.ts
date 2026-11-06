@@ -71,6 +71,67 @@ function cellsOf(layout: SettlementLayout, zone: number): number[] {
   );
 }
 
+/** How many buildings walled with one kind of wall stand apart from each other, their doors counted as their walls. */
+function buildingsOf(layout: SettlementLayout, width: number, wall: string): number {
+  const mark = SETTLEMENT_WALL_KINDS.indexOf(wall as never) + 1;
+  const walled = new Set<number>();
+  for (let cell = 0; cell < layout.walls.length; cell++) if (layout.walls[cell] === mark) walled.add(cell);
+  for (const door of layout.doors) if (door.wall === wall) walled.add(door.y * width + door.x);
+  const seen = new Set<number>();
+  let count = 0;
+  for (const start of walled) {
+    if (seen.has(start)) continue;
+    count++;
+    const queue = [start];
+    seen.add(start);
+    while (queue.length > 0) {
+      const cell = queue.pop()!;
+      const x = cell % width;
+      for (const next of [x > 0 ? cell - 1 : -1, x < width - 1 ? cell + 1 : -1, cell - width, cell + width]) {
+        if (next < 0 || !walled.has(next) || seen.has(next)) continue;
+        seen.add(next);
+        queue.push(next);
+      }
+    }
+  }
+  return count;
+}
+
+/**
+ * How many doors lead into a building from outside it: from the edge of the board, through the gates
+ * but through no other door, walking side to side, the doors reached on either side.
+ */
+function entrancesOf(layout: SettlementLayout, width: number, height: number): number {
+  const blocked = new Uint8Array(width * height);
+  for (let cell = 0; cell < blocked.length; cell++) if (layout.walls[cell]) blocked[cell] = 1;
+  const doors = layout.doors.filter((door) => door.kind === 'door');
+  for (const door of doors) blocked[door.y * width + door.x] = 1;
+  const seen = new Uint8Array(width * height);
+  const queue: number[] = [];
+  for (let cell = 0; cell < blocked.length; cell++) {
+    const x = cell % width;
+    const y = Math.floor(cell / width);
+    if ((x === 0 || y === 0 || x === width - 1 || y === height - 1) && !blocked[cell]) {
+      seen[cell] = 1;
+      queue.push(cell);
+    }
+  }
+  const sides = (cell: number) => {
+    const x = cell % width;
+    return [x > 0 ? cell - 1 : -1, x < width - 1 ? cell + 1 : -1, cell - width, cell + width].filter(
+      (next) => next >= 0 && next < width * height
+    );
+  };
+  while (queue.length > 0) {
+    for (const next of sides(queue.pop()!)) {
+      if (seen[next] || blocked[next]) continue;
+      seen[next] = 1;
+      queue.push(next);
+    }
+  }
+  return doors.filter((door) => sides(door.y * width + door.x).some((next) => seen[next])).length;
+}
+
 describe('laySettlement()', () => {
   it('lays out the same settlement from the same seed, and another from another', () => {
     for (const kind of SETTLEMENT_KINDS) {
@@ -129,6 +190,31 @@ describe('laySettlement()', () => {
         const shut = [...place.walls].flatMap((wall, cell) => (wall === 0 && !open[cell] ? [cell] : []));
         expect(shut, `${kind} ${seed}`).toEqual([]);
       }
+    }
+  });
+
+  it('builds the barracks and the stable, the tents and the barns on a small board and on hexes as on a large one', () => {
+    for (const [width, height] of [
+      [20, 15],
+      [24, 18],
+      [30, 23],
+      [40, 30],
+    ]) {
+      for (const seed of [1, 7, 42]) {
+        const at = `${width}x${height} ${seed}`;
+        expect(entrancesOf(laySettlement('stoneFort', width, height, seed), width, height), at).toBe(3);
+        expect(
+          buildingsOf(laySettlement('barbarianFort', width, height, seed), width, 'hideWall'),
+          at
+        ).toBeGreaterThanOrEqual(2);
+      }
+      const barns = [1, 2, 3, 4, 5, 6].map((seed) =>
+        buildingsOf(laySettlement('village', width, height, seed), width, 'boardWall')
+      );
+      expect(
+        barns.some((count) => count > 0),
+        `${width}x${height}`
+      ).toBe(true);
     }
   });
 
