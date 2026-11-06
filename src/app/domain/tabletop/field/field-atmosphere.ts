@@ -1,6 +1,6 @@
 import { TextureId, WallTextureId } from '@axe/domain/media/texture-catalog';
-import { HazardKind } from '@axe/domain/tabletop/hazard-presets';
 import { type SettlementKind } from '@axe/domain/tabletop/field/settlement-layout';
+import { HazardKind } from '@axe/domain/tabletop/hazard-presets';
 import { MapLightKind, MapMood } from '@axe/domain/tabletop/map-blocks';
 
 export const FIELD_ATMOSPHERE_IDS = [
