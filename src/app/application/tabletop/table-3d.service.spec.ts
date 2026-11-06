@@ -878,6 +878,14 @@ describe('Table3dService', () => {
       stray.modelIdentifier = 'timber_frame_wall';
       return stray;
     });
+    const halfway = Terrain.create('壁', 1, 1, 2, '', '');
+    halfway.location = { name: 'table', x: 325, y: 325 };
+    halfway.modelIdentifier = 'timber_frame_wall';
+    const turned = Terrain.create('壁', 2, 1, 2, '', '');
+    turned.location = { name: 'table', x: 400, y: 400 };
+    turned.rotate = 90;
+    turned.modelIdentifier = 'timber_frame_wall';
+    strays.push(halfway, turned);
     for (const block of [row, column, door, tree, ...strays]) table.appendChild(block);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -894,7 +902,12 @@ describe('Table3dService', () => {
     ]);
     expect(turns(column.identifier)).toEqual([[270]]);
     expect(models.get(tree.identifier)!.joins).toBeUndefined();
-    expect(strays.map((stray) => models.get(stray.identifier)!.joins)).toEqual([undefined, undefined]);
+    expect(strays.map((stray) => models.get(stray.identifier)!.joins)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
     table.destroy();
   });
 

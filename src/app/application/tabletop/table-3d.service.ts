@@ -889,29 +889,40 @@ function isRenderer(value: string | null): value is TableRenderer {
   return value !== null && (RENDERERS as readonly string[]).includes(value);
 }
 
-/** How far the middle of a block may stand from the middle of the cells it covers, in table pixels, and still be on them. */
+/**
+ * How far inside a block's edges the middle of a cell has to stand, in table pixels, to be one of the
+ * cells the block stands on, and how far the middle of the block may stand from the middle of those.
+ */
 const ON_CELLS_PX = 1;
 
 /**
  * The blocks a wall may be joined to, with the cells each stands on: the walls drawn as a joined
- * model, and the doors whether drawn as a model or not. A wall is drawn on the middles of its cells,
+ * model, and the doors whether drawn as one or not. A wall is drawn on the middles of its cells,
  * so a block that does not stand on them, turned off the grid's lines or set off its cells, is left
- * out and drawn where it stands.
+ * out and drawn where it stands: a cell is one of its own only where its middle stands well inside
+ * the block, not on an edge the block was set down along, and the block stands over the middle of
+ * those cells.
  */
 function joinableBlocksOf(terrains: readonly Terrain[], grid: CellGrid): JoinableBlock[] {
   const blocks: JoinableBlock[] = [];
   for (const terrain of terrains) {
     if (terrain.rotate % 90 !== 0) continue;
+    const box = terrainBoxOf(terrain, grid.sizePx);
     const cells: number[] = [];
     let sumX = 0;
     let sumY = 0;
     forEachCellUnder(grid, terrain, (index, cx, cy) => {
+      const inside =
+        cx > box.minX + ON_CELLS_PX &&
+        cx < box.maxX - ON_CELLS_PX &&
+        cy > box.minY + ON_CELLS_PX &&
+        cy < box.maxY - ON_CELLS_PX;
+      if (!inside) return;
       cells.push(index);
       sumX += cx;
       sumY += cy;
     });
     if (cells.length < 1) continue;
-    const box = terrainBoxOf(terrain, grid.sizePx);
     const off = Math.hypot(
       sumX / cells.length - (box.minX + box.maxX) / 2,
       sumY / cells.length - (box.minY + box.maxY) / 2
