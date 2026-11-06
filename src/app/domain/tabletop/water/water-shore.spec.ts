@@ -37,7 +37,13 @@ describe('waterShoreOf()', () => {
     const shores = waterShoreOf(grid, cells, groundOf);
 
     expect(shores).toHaveLength(1);
-    expect(shores[0]).toMatchObject({ index: cellIndexOf(grid, 2, 0), x0: 3 * G, x1: 3 * G, surfacePx: 50 });
+    expect(shores[0]).toMatchObject({
+      index: cellIndexOf(grid, 2, 0),
+      across: cellIndexOf(grid, 3, 0),
+      x0: 3 * G,
+      x1: 3 * G,
+      surfacePx: 50,
+    });
   });
 
   it('breaks no waves against lower ground, water, or the edge of the board', () => {
@@ -70,6 +76,7 @@ describe('waterShoreOf()', () => {
       const shores = waterShoreOf(grid, cells, (at) => (at === land ? 60 : 0));
 
       expect(shores).toHaveLength(1);
+      expect(shores[0].across).toBe(land);
       const across = cellCenterOf(grid, land);
       expect((shores[0].x0 + shores[0].x1) / 2).toBeCloseTo((centre.x + across.x) / 2, 3);
       expect((shores[0].y0 + shores[0].y1) / 2).toBeCloseTo((centre.y + across.y) / 2, 3);

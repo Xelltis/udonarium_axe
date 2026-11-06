@@ -129,6 +129,11 @@ const SCUM_RIM_SHARE = 0.8;
 /** How far out from the shore the waves run in from, in cells. */
 const SHORE_REACH_CELLS = 0.7;
 /**
+ * How far over the land the waves run on, in cells: over the cell of land the surface is carried on
+ * over, so they break where its ground comes up through the surface and hides them.
+ */
+const SHORE_LAND_CELLS = 1;
+/**
  * How much fainter the net is on the floor of a map under water than under a pond, laid over every
  * cell of the board at once: half what the page lays, so that it reads as faintly as the page's net
  * does under the tint the page lays over the whole table.
@@ -161,7 +166,9 @@ export function tableWaterOf(
   const ice: number[] = [];
   const leaves = new Map<number, { part: PartBuilder; flow: number[] }>();
   const floor = new PartBuilder();
-  for (const cell of cells.values()) {
+  const ashore = shorelandOf(shores, cells);
+  for (const cell of [...cells.values(), ...ashore.values()]) {
+    const land = ashore.get(cell.index) === cell;
     const outline = cellPolygonOf(grid, cell.index);
     const tone = dirtyWaterColor(cell.color, cell.dirt);
     const deep = channelsOf(deepWaterColor(tone));
@@ -179,7 +186,10 @@ export function tableWaterOf(
           [...wash, surfaceWashAlpha(cell.density)],
           over(
             [...murk, murkAlpha(cell.turbidity)],
-            [...deep, depthShadeAlpha(depthAt(x, y) ?? (cell.surfacePx - cell.floorPx) / cellPx, cell.turbidity)]
+            [
+              ...deep,
+              depthShadeAlpha(depthAt(x, y) ?? (land ? 0 : (cell.surfacePx - cell.floorPx) / cellPx), cell.turbidity),
+            ]
           )
         ),
         frozen
@@ -201,6 +211,7 @@ export function tableWaterOf(
       streaks.push(streak);
       ice.push(frozen);
     });
+    if (land) continue;
     if (cell.leaves > 0) {
       const floating = leaves.get(cell.leaves) ?? { part: new PartBuilder(), flow: [] };
       leaves.set(cell.leaves, floating);
@@ -280,6 +291,25 @@ function cornerKey(x: number, y: number): string {
   return `${Math.round(x * 10)},${Math.round(y * 10)}`;
 }
 
+/**
+ * The land along the shore, which the surface of the water beside it is carried on over, as that
+ * water: the ground hides the surface wherever it stands above it, so the water ends where the ground
+ * comes up through the surface rather than square along the side of a cell, and where the ground of a
+ * cell of land dips below the surface, the water fills the dip. The surface stands no depth of water
+ * on it but where it meets the water's own cells, and takes the highest water beside it.
+ */
+function shorelandOf(shores: readonly WaterShore[], cells: ReadonlyMap<number, WaterCell>): Map<number, WaterCell> {
+  const land = new Map<number, WaterCell>();
+  for (const shore of shores) {
+    const water = cells.get(shore.index);
+    if (!water || cells.has(shore.across)) continue;
+    const held = land.get(shore.across);
+    if (held && held.surfacePx >= water.surfacePx) continue;
+    land.set(shore.across, { ...water, index: shore.across });
+  }
+  return land;
+}
+
 /** The sides as upright faces, each from its bottom to the surface, its colour laid down from the surface to the water's floor. */
 function sidesOf(sides: readonly WaterSide[], cells: ReadonlyMap<number, WaterCell>): WaterPart {
   const part = new PartBuilder();
@@ -307,22 +337,23 @@ function sidesOf(sides: readonly WaterSide[], cells: ReadonlyMap<number, WaterCe
 }
 
 /**
- * The strips along the shore, each lying on the surface along one side of a cell and reaching out
- * into the water, which lies to the right of the way the side runs.
+ * The strips along the shore, each lying on the surface along one side of a cell, reaching out into
+ * the water, which lies to the right of the way the side runs, and back over the land the surface is
+ * carried on over: the waves run in over the strip until the ground rising through the surface hides
+ * them.
  */
 function shoreOf(shores: readonly WaterShore[], cellPx: number): WaterPart {
   const part = new PartBuilder();
   for (const shore of shores) {
     const length = Math.hypot(shore.x1 - shore.x0, shore.y1 - shore.y0);
     if (length <= 0) continue;
-    const out = {
-      x: (-(shore.y1 - shore.y0) / length) * cellPx * SHORE_REACH_CELLS,
-      y: ((shore.x1 - shore.x0) / length) * cellPx * SHORE_REACH_CELLS,
-    };
+    const inward = { x: -(shore.y1 - shore.y0) / length, y: (shore.x1 - shore.x0) / length };
+    const out = { x: inward.x * cellPx * SHORE_REACH_CELLS, y: inward.y * cellPx * SHORE_REACH_CELLS };
+    const on = { x: -inward.x * cellPx * SHORE_LAND_CELLS, y: -inward.y * cellPx * SHORE_LAND_CELLS };
     const z = shore.surfacePx + SHORE_LIFT_PX;
     const corners = [
-      { x: shore.x0, y: shore.y0, away: 0 },
-      { x: shore.x1, y: shore.y1, away: 0 },
+      { x: shore.x0 + on.x, y: shore.y0 + on.y, away: 0 },
+      { x: shore.x1 + on.x, y: shore.y1 + on.y, away: 0 },
       { x: shore.x1 + out.x, y: shore.y1 + out.y, away: 1 },
       { x: shore.x0 + out.x, y: shore.y0 + out.y, away: 1 },
     ];

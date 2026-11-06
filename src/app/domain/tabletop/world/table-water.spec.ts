@@ -159,6 +159,26 @@ describe('the water on a table as the scene draws it', () => {
     expect(tableWaterOf(grid, new Map(), [], [], true).seaFloor).toBeNull();
   });
 
+  it('carries the surface on over the land at the shore, for the ground to hide where it rises, and stands no water there', () => {
+    const land = grid.cols * 1 + 2;
+    const groundOf = (index: number) => (index === land ? 30 : 0);
+    const cells = waterCellsOf(grid, [area()], groundOf);
+    const water = tableWaterOf(grid, cells, [], waterShoreOf(grid, cells, groundOf), true);
+    const points = water.surface.points.length / 3;
+
+    expect(cells.size).toBe(1);
+    expect(points).toBe(2 * 2 * 3);
+    expect(new Set(heightsOf(water.surface.points))).toEqual(new Set([25]));
+    expect(water.flow.length).toBe(points * 2);
+    expect(water.ice.length).toBe(points);
+    expect(water.floor.points.length).toBe(2 * 3 * 3);
+    const alphaAt = (x: number) => {
+      for (let i = 0; i < points; i++) if (water.surface.points[i * 3] === x) return water.surface.colours[i * 4 + 3];
+      return null;
+    };
+    expect(alphaAt(3 * G)!).toBeLessThan(alphaAt(G)!);
+  });
+
   it('draws frozen water as still, pale ice without a glint, a current, a net of light or waves on its shore', () => {
     const cells = (ice: number) =>
       waterCellsOf(grid, [
