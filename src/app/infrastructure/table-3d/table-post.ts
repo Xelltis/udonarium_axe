@@ -26,6 +26,22 @@ const READIED_ONE_BY_ONE = 24;
 
 const drawingSize = new Vector2();
 
+/** The count of the frames it draws a renderer keeps to itself, which it may not have yet. */
+interface FrameCount {
+  readonly _nodes?: { readonly nodeFrame?: { update(): void } } | null;
+}
+
+/**
+ * Has the renderer take what is drawn next for a frame of its own. The renderer draws the scene's pass
+ * of the finishing, and the glow spilled from it, once in a frame, and counts its frames by the page's
+ * own; a canvas drawn at once, as for a page whose clock is held, may be drawn more than once before
+ * the page's next frame, and a scene drawn again in the same frame would show through the finishing
+ * as it was drawn before.
+ */
+function beginFrame(renderer: WebGPURenderer): void {
+  (renderer as unknown as FrameCount)._nodes?.nodeFrame?.update();
+}
+
 /**
  * Draws the scene through the finishing the quality the table is drawn at asks for: the light of what
  * glows spilling round it, and at high quality the corners and creases shaded. What glows is the glow
@@ -45,6 +61,7 @@ export class TablePost {
 
   render(scene: Scene, camera: Camera, plan: Table3dQualityPlan): void {
     this.lay(scene, camera, plan);
+    beginFrame(this.renderer);
     if (this.pipeline) this.pipeline.render();
     else this.renderer.render(scene, camera);
   }
