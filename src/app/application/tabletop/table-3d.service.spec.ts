@@ -60,7 +60,7 @@ class FakeEngine implements Table3dEngine {
   diceThrows: (readonly Table3dDiceThrow[])[] = [];
   domes: (SkyDome | null)[] = [];
   qualities: Table3dQualityPlan[] = [];
-  moving = false;
+  moving: boolean | 'slowly' = false;
   advanced = 0;
   flickeredAt: number[] = [];
   drawn = 0;
@@ -152,7 +152,7 @@ class FakeEngine implements Table3dEngine {
     this.sizes.push([width, height]);
   }
 
-  advance(): boolean {
+  advance(): boolean | 'slowly' {
     this.advanced++;
     return this.moving;
   }
@@ -403,6 +403,44 @@ describe('Table3dService', () => {
       requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(resolve)))
     );
     expect(engine.advanced).toBeGreaterThan(advanced + 2);
+  });
+
+  it('draws frame after frame while something moves fast, and every other frame while all that moves drifts slowly', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    TestBed.tick();
+    await scene.whenIdle();
+    const engine = engines[0];
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => frames.push(callback));
+    const runFrames = (from: number, count: number) => {
+      for (let i = 0; i < count; i++) for (const callback of frames.splice(0)) callback(from + i * (1000 / 60));
+    };
+    try {
+      engine.moving = true;
+      TestBed.inject(TableCameraService).showView({ ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: 20 });
+      TestBed.tick();
+      let advanced = engine.advanced;
+      runFrames(0, 12);
+      expect(engine.advanced - advanced).toBe(12);
+
+      engine.moving = 'slowly';
+      runFrames(1000, 1);
+      advanced = engine.advanced;
+      runFrames(1000 + 1000 / 60, 12);
+      expect(engine.advanced - advanced).toBe(6);
+
+      advanced = engine.advanced;
+      TestBed.inject(TableCameraService).showView({ ...DEFAULT_TABLE_CAMERA_VIEW, rotateZ: 25 });
+      TestBed.tick();
+      runFrames(2000, 1);
+      expect(engine.advanced - advanced).toBe(1);
+    } finally {
+      engine.moving = false;
+      runFrames(3000, 4);
+      vi.unstubAllGlobals();
+    }
   });
 
   it('stops drawing and lets its engine go once it goes itself, with its canvas still held', async () => {

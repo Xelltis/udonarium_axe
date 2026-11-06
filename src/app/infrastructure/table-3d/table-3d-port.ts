@@ -227,9 +227,11 @@ export interface Table3dEngine {
   resize(width: number, height: number, pixelRatio: number): void;
   /**
    * Moves what moves by itself, as a layer drifting past the board, to where it is at a moment, in
-   * milliseconds; answers whether anything moves by itself, so the next frame is to be drawn too.
+   * milliseconds; answers whether anything moves by itself, so the next frame is to be drawn too:
+   * true for what moves fast, as a figure walking or rain falling, `'slowly'` where all that moves
+   * drifts slowly, as water and fog do, which a frame now and then shows as well as every frame.
    */
-  advance(timeMs: number): boolean;
+  advance(timeMs: number): boolean | 'slowly';
   /** Draws the scene when anything changed since it was last drawn, and answers whether it drew. */
   renderIfChanged(): boolean;
   /** Calls back when something the engine was loading, such as a picture, has come and wants drawing. */

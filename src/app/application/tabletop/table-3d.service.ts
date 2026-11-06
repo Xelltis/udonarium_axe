@@ -373,6 +373,8 @@ export class Table3dService {
   private diceThrows: readonly Table3dDiceThrow[] = [];
   private readonly diceWarmed = new Set<DiceMaterial>();
   private frameForMotion = false;
+  /** The moment before which the frame asked for is not drawn, while only slow motion asked for it. */
+  private notBefore = 0;
   private engine: Table3dEngine | null = null;
   /** The page's grid, laid over the board on the canvas, or null while the page draws none. */
   private readonly grid = signal<Table3dGrid | null>(null);
@@ -798,18 +800,36 @@ export class Table3dService {
    * moves by itself. A frame asked for only because something moves by itself is not waited for:
    * the table is idle once all it was told is drawn.
    */
-  private drawSoon(engine: Table3dEngine, forMotion = false): void {
-    if (!forMotion) this.frameForMotion = false;
+  private drawSoon(engine: Table3dEngine, forMotion = false, notBefore = 0): void {
+    if (!forMotion) {
+      this.frameForMotion = false;
+      this.notBefore = 0;
+    }
     if (this.frame !== null) return;
     this.frameForMotion = forMotion;
-    this.frame = requestAnimationFrame((time) => this.drawFrame(engine, time));
+    this.notBefore = notBefore;
+    this.frame = requestAnimationFrame((time) => this.onFrame(engine, time));
   }
 
+  /** Draws on a frame, or waits for a later one where only slow motion asked for it and its moment is not come. */
+  private onFrame(engine: Table3dEngine, time: number): void {
+    if (time < this.notBefore - FRAME_SLACK_MS) {
+      this.frame = requestAnimationFrame((later) => this.onFrame(engine, later));
+      return;
+    }
+    this.drawFrame(engine, time);
+  }
+
+  /**
+   * Draws a frame, and asks for the next where anything moves by itself: at once for what moves fast,
+   * and a while on where all that moves drifts slowly, as water does, so a table with nothing else
+   * moving on it is drawn thirty times a second rather than as often as the screen shows.
+   */
   private drawFrame(engine: Table3dEngine, time: number): void {
     this.frame = null;
     const moving = engine.advance(time);
     engine.renderIfChanged();
-    if (moving && !this.motionHeld) this.drawSoon(engine, true);
+    if (moving && !this.motionHeld) this.drawSoon(engine, true, moving === 'slowly' ? time + SLOW_MOTION_FRAME_MS : 0);
     this.settleIfIdle();
   }
 
@@ -819,6 +839,12 @@ export class Table3dService {
     for (const resolve of this.idleWaiters.splice(0)) resolve();
   }
 }
+
+/** How far apart frames are drawn while all that moves on the table by itself drifts slowly, in milliseconds. */
+const SLOW_MOTION_FRAME_MS = 1000 / 30;
+
+/** How much sooner than asked a frame may come and still be drawn, against the clock the screen keeps. */
+const FRAME_SLACK_MS = 4;
 
 /** How high the weather falls from over a table with lower walls or none, in cells, so that it still has a sky. */
 const WEATHER_CEILING_CELLS = 10;

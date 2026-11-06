@@ -716,7 +716,7 @@ class ThreeTableEngine implements Table3dEngine {
     this.changed = true;
   }
 
-  advance(timeMs: number): boolean {
+  advance(timeMs: number): boolean | 'slowly' {
     const drifting = this.layers.advance(timeMs);
     const flowing = this.water.advance(timeMs);
     const hanging = this.fogAir.advance(timeMs);
@@ -725,7 +725,8 @@ class ThreeTableEngine implements Table3dEngine {
     const falling = this.weather.advance(timeMs, this.camera);
     this.strike(timeMs);
     this.takeChanges();
-    return drifting || flowing || hanging || passing || walking || falling;
+    if (walking || falling) return true;
+    return drifting || flowing || hanging || passing ? 'slowly' : false;
   }
 
   setSky(sky: SkyDome | null): void {

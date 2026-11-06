@@ -76,7 +76,7 @@ export interface TableWorldWater {
   readonly seaFloor: TableWorldSeaFloor | null;
   /** How big a cell is, which the waves and the net of light are measured by. */
   readonly cellPx: number;
-  /** Whether the water moves, which it does not for a reader who asks for less motion. */
+  /** Whether the water moves, which it does not for a reader who asks for less motion, nor where it is all frozen over. */
   readonly moving: boolean;
 }
 
@@ -156,6 +156,7 @@ export function tableWaterOf(
 ): TableWorldWater {
   const seaFloor = underwater ? seaFloorOf(underwater.color, underwater.density) : null;
   if (!grid || cells.size < 1) return { ...NO_WATER, seaFloor, cellPx: grid?.sizePx || NO_WATER.cellPx, moving };
+  const stillAsIce = !underwater && [...cells.values()].every((cell) => (cell.ice ?? 0) >= 1);
   const cellPx = Math.max(grid.sizePx, 1);
   const depthAt = depthsAtCorners(grid, cells, cellPx);
   const surface = new PartBuilder();
@@ -245,7 +246,7 @@ export function tableWaterOf(
     ),
     seaFloor,
     cellPx,
-    moving,
+    moving: moving && !stillAsIce,
   };
 }
 

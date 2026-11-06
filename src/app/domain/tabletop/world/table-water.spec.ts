@@ -215,6 +215,22 @@ describe('the water on a table as the scene draws it', () => {
     expect(open.shore.points.length).toBeGreaterThan(0);
   });
 
+  it('holds water frozen over from shore to shore still, and lets water with any of it open move', () => {
+    const frozen = tableWaterOf(grid, waterCellsOf(grid, [area({ ice: 1 })]), [], [], true);
+    const half = tableWaterOf(grid, waterCellsOf(grid, [area({ ice: 0.6 })]), [], [], true);
+    const both = tableWaterOf(
+      grid,
+      waterCellsOf(grid, [area({ ice: 1 }), area({ identifier: 'pool', left: 3 * G, width: G })]),
+      [],
+      [],
+      true
+    );
+
+    expect(frozen.moving).toBe(false);
+    expect(half.moving).toBe(true);
+    expect(both.moving).toBe(true);
+  });
+
   it('draws nothing where there is no water, and holds the water still for a reader who asks for less motion', () => {
     const none = tableWaterOf(grid, new Map(), [], [], false);
 
