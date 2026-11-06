@@ -59,12 +59,20 @@ describe('gltfFactsOf', () => {
   it('comes to an end on nodes that hold each other, and counts nothing it cannot find', () => {
     expect(gltfFactsOf(glb(scene([{ mesh: 0, children: [1] }, { children: [0] }], [0])))?.triangles).toBe(12);
     expect(gltfFactsOf(glb(scene([{ mesh: 3 }, { children: [9] }], [0, 1, 7])))?.triangles).toBe(0);
-    expect(gltfFactsOf(glb({ asset: { version: '2.0' } }))).toEqual({ triangles: 0, extensions: [] });
+    expect(gltfFactsOf(glb({ asset: { version: '2.0' } }))).toEqual({ triangles: 0, extensions: [], fit: '' });
   });
 
   it('names the extensions the file uses', () => {
     const used = { ...scene([{ mesh: 0 }], [0]), extensionsUsed: ['KHR_draco_mesh_compression', 'KHR_texture_basisu'] };
     expect(gltfFactsOf(glb(used))?.extensions).toEqual(['KHR_draco_mesh_compression', 'KHR_texture_basisu']);
+  });
+
+  it('names how the scene a loader shows says it is laid, and nothing where it says nothing', () => {
+    const joined = { ...scene([{ mesh: 0 }], [0]), scenes: [{ nodes: [0], extras: { fit: 'joined' } }] };
+    expect(gltfFactsOf(glb(joined))?.fit).toBe('joined');
+    expect(gltfFactsOf(glb(scene([{ mesh: 0 }], [0])))?.fit).toBe('');
+    const odd = { ...scene([{ mesh: 0 }], [0]), scenes: [{ nodes: [0], extras: { fit: 3 } }] };
+    expect(gltfFactsOf(glb(odd))?.fit).toBe('');
   });
 
   it('reads nothing from bytes that are not a binary glTF file or whose JSON is cut short or unreadable', () => {

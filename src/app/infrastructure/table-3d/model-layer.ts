@@ -182,11 +182,6 @@ export class ModelLayer {
     return this.loading.size > 0;
   }
 
-  /** Where the models read so far that are made as walls joined to the walls beside them are read from. */
-  joinedUrls(): string[] {
-    return [...this.loaded].flatMap(([url, loaded]) => (loaded?.joined ? [url] : []));
-  }
-
   /** The pieces and blocks drawn as models now, which a frame of their shadows follows. */
   set(models: readonly TableWorldModel[]): void {
     if (models === this.laid) return;

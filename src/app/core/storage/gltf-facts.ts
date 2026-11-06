@@ -9,11 +9,16 @@ export interface GltfFacts {
   readonly triangles: number;
   /** The extensions it uses, such as the compressions it needs decoders for. */
   readonly extensions: readonly string[];
+  /**
+   * How the scene a loader shows says it is laid on what it is drawn for, as its extras name it in
+   * `{ "fit": ... }`, such as a wall joined to the walls beside it; empty where it says nothing.
+   */
+  readonly fit: string;
 }
 
 interface GltfJson {
   scene?: number;
-  scenes?: { nodes?: number[] }[];
+  scenes?: { nodes?: number[]; extras?: { fit?: unknown } }[];
   nodes?: GltfNode[];
   meshes?: { primitives?: GltfPrimitive[] }[];
   accessors?: { count?: number }[];
@@ -68,7 +73,12 @@ export function gltfFactsOf(bytes: ArrayBuffer): GltfFacts | null {
       return triangles;
     };
     const triangles = (scene?.nodes ?? []).reduce((sum, index) => sum + trianglesUnder(index), 0);
-    return { triangles, extensions: Array.isArray(json.extensionsUsed) ? json.extensionsUsed : [] };
+    const fit = scene?.extras?.fit;
+    return {
+      triangles,
+      extensions: Array.isArray(json.extensionsUsed) ? json.extensionsUsed : [],
+      fit: typeof fit === 'string' ? fit : '',
+    };
   } catch {
     return null;
   }

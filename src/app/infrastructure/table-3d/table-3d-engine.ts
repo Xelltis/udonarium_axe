@@ -235,7 +235,6 @@ class ThreeTableEngine implements Table3dEngine {
   /** Whether the graphics card is readied for a new kind of thing before the frame that first draws it. */
   private readiesFirst = true;
   private needsFrame: () => void = () => undefined;
-  private joinedModels: (urls: readonly string[]) => void = () => undefined;
   private readonly pictures = new TextureLoader();
   /** The pictures painted ground is drawn with, read the first time any ground is painted. */
   private groundPictures: Texture[] | null = null;
@@ -293,7 +292,6 @@ class ThreeTableEngine implements Table3dEngine {
     () => {
       this.piecesMoved();
       this.needsFrame();
-      this.joinedModels(this.models.joinedUrls());
     },
     () => this.renderer
   );
@@ -516,10 +514,6 @@ class ThreeTableEngine implements Table3dEngine {
 
   onNeedsFrame(listener: () => void): void {
     this.needsFrame = listener;
-  }
-
-  onJoinedModels(listener: (urls: readonly string[]) => void): void {
-    this.joinedModels = listener;
   }
 
   isLoading(): boolean {

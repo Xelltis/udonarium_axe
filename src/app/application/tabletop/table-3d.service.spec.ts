@@ -3,6 +3,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { LightSlotsService } from '@axe/application/tabletop/light-slots.service';
+import { ModelFitService } from '@axe/application/tabletop/model-fit.service';
 import { TABLE_3D_ENGINES, TABLE_GRAPHICS, Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { Table3dQualityService } from '@axe/application/tabletop/table-3d-quality.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
@@ -171,12 +172,6 @@ class FakeEngine implements Table3dEngine {
   onLost(listener: () => void): void {
     this.lose = listener;
   }
-
-  onJoinedModels(listener: (urls: readonly string[]) => void): void {
-    this.joined = listener;
-  }
-
-  joined: (urls: readonly string[]) => void = () => undefined;
 
   onNeedsFrame(listener: () => void): void {
     this.arrive = () => {
@@ -858,8 +853,7 @@ describe('Table3dService', () => {
 
   it('tells a block drawn as a joined wall the arms it reaches out to the walls and the door beside it with', async () => {
     const scene = service();
-    scene.attach(document.createElement('canvas'));
-    await scene.whenIdle();
+    vi.spyOn(TestBed.inject(ModelFitService), 'isJoined').mockImplementation((url) => url === 'blob:timber_frame_wall');
     vi.spyOn(TestBed.inject(ModelStorage), 'get').mockImplementation(
       (identifier: string) => ({ isReady: true, url: `blob:${identifier}` }) as never
     );
@@ -886,9 +880,7 @@ describe('Table3dService', () => {
     });
     for (const block of [row, column, door, tree, ...strays]) table.appendChild(block);
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(scene.world().models.filter((model) => model.joins)).toEqual([]);
 
-    engines[0].joined(['blob:timber_frame_wall']);
     const models = new Map(scene.world().models.map((model) => [model.owner, model]));
     const turns = (owner: string) => models.get(owner)!.joins!.map((cell) => cell.arms.map((arm) => arm.deg));
 

@@ -20,6 +20,7 @@ import { FloorCanvasesService } from '@axe/application/tabletop/floor-canvases.s
 import { GroundService } from '@axe/application/tabletop/ground.service';
 import { LightFlickerClockService } from '@axe/application/tabletop/light-flicker-clock.service';
 import { LightSlotsService } from '@axe/application/tabletop/light-slots.service';
+import { ModelFitService } from '@axe/application/tabletop/model-fit.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { Table3dQualityService } from '@axe/application/tabletop/table-3d-quality.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
@@ -127,6 +128,7 @@ export class Table3dService {
   private readonly vision = inject(VisionService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly pieces = inject(TablePiecesService);
+  private readonly modelFits = inject(ModelFitService);
   private readonly floorCanvases = inject(FloorCanvasesService);
   private readonly tableVeil = inject(TableVeilService);
   private readonly lightSlots = inject(LightSlotsService);
@@ -258,7 +260,6 @@ export class Table3dService {
     const table = this.tabletop.currentTableVersion();
     const gridSize = table.gridSize;
     const ground = this.standing.surface();
-    const joinedUrls = this.joinedModelUrls();
     const drawn: { terrain: Terrain; model: PieceModel; url: string }[] = [];
     for (const terrain of this.tabletop.terrains) {
       this.objectChange.versionOf(terrain.identifier)();
@@ -266,7 +267,7 @@ export class Table3dService {
       const url = model ? this.pieces.modelUrlOf(model.identifier) : '';
       if (model && url && !this.hiddenByFog(terrain)) drawn.push({ terrain, model, url });
     }
-    const walls = drawn.filter(({ url }) => joinedUrls.has(url)).map(({ terrain }) => terrain);
+    const walls = drawn.filter(({ url }) => this.modelFits.isJoined(url)).map(({ terrain }) => terrain);
     let joins = new Map<string, WallJoinCell[]>();
     if (walls.length > 0) {
       const doors = this.tabletop.terrains.filter((terrain) => terrain.isDoor && !this.hiddenByFog(terrain));
@@ -395,10 +396,6 @@ export class Table3dService {
   private engine: Table3dEngine | null = null;
   /** The page's grid, laid over the board on the canvas, or null while the page draws none. */
   private readonly grid = signal<Table3dGrid | null>(null);
-  /** Where the models read so far that are made as walls joined to the walls beside them are read from, as the engine tells. */
-  private readonly joinedModelUrls = signal<ReadonlySet<string>>(new Set(), {
-    equal: (a, b) => a.size === b.size && [...a].every((url) => b.has(url)),
-  });
   private starting: Promise<unknown> | null = null;
   private readonly idleWaiters: (() => void)[] = [];
   /** Whether what moves by itself is drawn only as the frame waited for is drawn at once. */
@@ -465,7 +462,6 @@ export class Table3dService {
       made.warmDice([...this.diceWarmed]);
       made.readyBeforeDrawing(this.readiesFirst);
       made.onNeedsFrame(() => this.drawSoon(made));
-      made.onJoinedModels((urls) => this.joinedModelUrls.set(new Set(urls)));
       effects.push(...this.follow(made));
       made.onLost(() => this.restart());
     });
