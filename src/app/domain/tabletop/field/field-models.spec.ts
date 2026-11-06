@@ -84,7 +84,7 @@ describe('the bundled models of open country', () => {
   it('draws a model as large as it may within a box, the narrower measure of the box setting how large', () => {
     const tall = fieldModelDrawnSize('tree_oak', 5, 3.3);
     expect(tall.tall).toBeCloseTo(3.3, 6);
-    expect(tall.across).toBeCloseTo((3.3 * 4.551) / 6.9122, 6);
+    expect(tall.across).toBeCloseTo((3.3 * 11.1336) / 15.1729, 6);
     const flat = fieldModelDrawnSize('rock_slab', 1, 3);
     expect(flat.across).toBeCloseTo(1, 6);
   });
