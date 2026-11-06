@@ -92,6 +92,7 @@ import {
   SRGBColorSpace,
   Texture,
   TextureLoader,
+  Vector2,
   Vector3,
   WebGPURenderer,
 } from 'three/webgpu';
@@ -182,6 +183,9 @@ const PICTURE_ANISOTROPY = 8;
  * at first, so it is still nearly full at its bright reach.
  */
 const LAMP_REACH = 1.1;
+
+/** The room the canvas has to draw in, read afresh each time it is asked. */
+const drawingRoom = new Vector2();
 
 /** How much of the cone of a lamp thrown one way, from its edge in, its light fades over. */
 const THROWN_LAMP_PENUMBRA = 0.3;
@@ -782,7 +786,7 @@ class ThreeTableEngine implements Table3dEngine {
 
   renderIfChanged(): boolean {
     this.takeChanges();
-    if (!this.changed || this.lost) return false;
+    if (!this.changed || this.lost || !this.hasRoom()) return false;
     if (this.readying !== null || (this.readiesFirst && this.readyForNewKinds())) return false;
     this.changed = false;
     this.renderer.info.reset();
@@ -790,6 +794,16 @@ class ThreeTableEngine implements Table3dEngine {
     this.drawCalls = this.renderer.info.render.drawCalls;
     this.draws++;
     return true;
+  }
+
+  /**
+   * Whether the canvas has any room to draw in. One laid out with none, as for a moment while the
+   * view it stands in is laid out, is drawn once it has: the graphics card refuses a picture of no
+   * size to keep how near what is drawn lies, and nothing would show anyway.
+   */
+  private hasRoom(): boolean {
+    this.renderer.getDrawingBufferSize(drawingRoom);
+    return drawingRoom.x > 0 && drawingRoom.y > 0;
   }
 
   /**
