@@ -17,6 +17,7 @@ import type {
 import { BackdropRing } from '@axe/infrastructure/table-3d/backdrop-ring';
 import { BoardLayers } from '@axe/infrastructure/table-3d/board-layers';
 import { CoinLayer } from '@axe/infrastructure/table-3d/coin-layer';
+import { ConeLamp } from '@axe/infrastructure/table-3d/cone-lamp';
 import { DrawnKinds } from '@axe/infrastructure/table-3d/drawn-kinds';
 import { changedChunks, chunkSignatures, facesByOwner, OwnedFaces } from '@axe/infrastructure/table-3d/face-chunks';
 import {
@@ -86,10 +87,8 @@ import {
   type Node,
   OrthographicCamera,
   PerspectiveCamera,
-  PointLight,
   RepeatWrapping,
   Scene,
-  SpotLight,
   SRGBColorSpace,
   Texture,
   TextureLoader,
@@ -184,6 +183,9 @@ const PICTURE_ANISOTROPY = 8;
  */
 const LAMP_REACH = 1.1;
 
+/** How much of the cone of a lamp thrown one way, from its edge in, its light fades over. */
+const THROWN_LAMP_PENUMBRA = 0.3;
+
 /** How long at least the shadows are left as they are after they were drawn again for pieces that moved, in milliseconds. */
 const PIECE_SHADOWS_MS = 150;
 
@@ -252,12 +254,8 @@ class ThreeTableEngine implements Table3dEngine {
   private laidWalls: readonly TableWorldWall[] | null = null;
   private laidCaps: readonly TableWorldCap[] | null = null;
   private readonly veil = new SceneVeil(SHADOW_LIGHTS);
-  private readonly lamps = Array.from({ length: SHADOW_LIGHTS }, () => new PointLight(0xffffff, 0, 1, 0));
-  /** As many lamps again thrown one way, so a slot can hold either kind and the scene never has to be built again. */
-  private readonly spots = Array.from(
-    { length: SHADOW_LIGHTS },
-    () => new SpotLight(0xffffff, 0, 1, Math.PI / 4, 0.3, 0)
-  );
+  /** The lamps of the slots, each throwing its light all round or one way, so the scene never has to be built again as lamps change. */
+  private readonly lamps = Array.from({ length: SHADOW_LIGHTS }, () => new ConeLamp(0xffffff, 0, 1, 0));
   private laidLamps: readonly Table3dShadowLight[] = [];
   private askedLamps: readonly Table3dShadowLight[] = [];
   /** How many lamps of each kind the quality the table is drawn at lets light the scene. */
@@ -265,7 +263,7 @@ class ThreeTableEngine implements Table3dEngine {
   /** What the quality the table is drawn at draws. */
   private plan: Table3dQualityPlan = TABLE_3D_QUALITY.standard;
   private readonly post: TablePost;
-  private readonly litLamps = new Set<PointLight | SpotLight>();
+  private readonly litLamps = new Set<ConeLamp>();
   private shadowsDrawnAt = -Infinity;
   private shadowTimer: ReturnType<typeof setTimeout> | null = null;
   private flickeredAt = 0;
@@ -351,15 +349,14 @@ class ThreeTableEngine implements Table3dEngine {
     this.sun.shadow.bias = -0.0005;
     this.sun.shadow.normalBias = 1;
     this.sun.shadow.camera.layers.enable(SHADOW_CASTERS_LAYER);
-    for (const lamp of [...this.lamps, ...this.spots]) {
+    for (const lamp of this.lamps) {
       lamp.castShadow = true;
       lamp.shadow.autoUpdate = false;
       lamp.shadow.mapSize.set(LAMP_SHADOW_PX, LAMP_SHADOW_PX);
       lamp.shadow.bias = -0.002;
       lamp.shadow.camera.layers.enable(SHADOW_CASTERS_LAYER);
-      this.scene.add(lamp);
+      this.scene.add(lamp, lamp.target);
     }
-    for (const spot of this.spots) this.scene.add(spot.target);
     this.setQuality(TABLE_3D_QUALITY.standard);
     this.setSkyLight(skyLightAt(0.5));
   }
@@ -371,7 +368,6 @@ class ThreeTableEngine implements Table3dEngine {
     if (slots === this.lampSlots && this.sun.castShadow === plan.skyShadows) return;
     this.lampSlots = slots;
     this.lamps.forEach((lamp, index) => (lamp.visible = index < slots));
-    this.spots.forEach((spot, index) => (spot.visible = index < slots));
     this.sun.castShadow = plan.skyShadows;
     this.sun.shadow.needsUpdate = true;
     this.laidLamps = this.askedLamps.slice(0, slots);
@@ -403,24 +399,27 @@ class ThreeTableEngine implements Table3dEngine {
    */
   private lightLamps(moved = true): void {
     const room = Math.max(0, 1 - this.veil.ambient);
-    const free = { round: this.lamps.slice(0, this.lampSlots), thrown: this.spots.slice(0, this.lampSlots) };
-    for (const lamp of [...this.lamps, ...this.spots]) lamp.intensity = 0;
+    const free = this.lamps.slice(0, this.lampSlots);
+    for (const lamp of this.lamps) lamp.intensity = 0;
     this.litLamps.clear();
     const strengths = this.laidLamps.map((light) => {
       const strength = room * animationIntensity(light.animation, this.flickeredAt);
-      const thrown = light.angle < 360;
-      const lamp: PointLight | SpotLight | undefined = thrown ? free.thrown.shift() : free.round.shift();
+      const lamp = free.shift();
       if (!lamp) return lampColour({ r: 0, g: 0, b: 0 }, 0);
       lamp.intensity = strength * LIGHT_SCALE;
       this.litLamps.add(lamp);
       lamp.position.set(light.x, light.z, light.y);
       lamp.distance = Math.max(1, light.dimPx * LAMP_REACH);
       lamp.color.set(light.color || '#ffffff');
-      if (lamp instanceof SpotLight) {
+      if (light.angle < 360) {
         const axis = lightAxis(light);
         lamp.target.position.set(light.x + axis.x * 100, light.z + axis.z * 100, light.y + axis.y * 100);
         lamp.target.updateMatrixWorld();
-        lamp.angle = Math.min(Math.PI / 2, ((light.angle / 2) * Math.PI) / 180);
+        lamp.angle = ((light.angle / 2) * Math.PI) / 180;
+        lamp.penumbra = THROWN_LAMP_PENUMBRA;
+      } else {
+        lamp.angle = Math.PI;
+        lamp.penumbra = 0;
       }
       this.placeShadow(lamp, moved);
       return lampColour(lamp.color, strength);
@@ -429,7 +428,7 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   /** Sets the box a lamp's shadows are worked out in to its reach, and has them drawn again where it moved. */
-  private placeShadow(lamp: PointLight | SpotLight, moved: boolean): void {
+  private placeShadow(lamp: ConeLamp, moved: boolean): void {
     const camera = lamp.shadow.camera;
     camera.near = 1;
     camera.far = lamp.distance;
