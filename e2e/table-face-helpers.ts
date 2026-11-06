@@ -32,8 +32,10 @@ export async function showWall(page: Page, wallName: string, key: string) {
   await picker
     .locator('input[type="file"]')
     .setInputFiles({ name: `${key}.png`, mimeType: 'image/png', buffer: solidPng(200, 100, [120, 110, 90]) });
-  // The picker takes a picture just added as the one chosen, and closes by itself.
-  await expect(picker).toHaveCount(0);
+  // The picker takes a picture just added as the one chosen, and closes by itself once the picture has
+  // gone into the room: two to four seconds beside a table drawn in software through WebGPU, longer
+  // while other specs run beside it.
+  await expect(picker).toHaveCount(0, { timeout: 15000 });
   await settings
     .locator('div')
     .filter({ has: page.getByRole('img', { name: `${wallName}画像`, exact: true }) })
