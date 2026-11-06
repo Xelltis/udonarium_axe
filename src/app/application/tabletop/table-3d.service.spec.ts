@@ -12,9 +12,11 @@ import { TablePiecesService } from '@axe/application/tabletop/table-pieces.servi
 import { TableVeilService } from '@axe/application/tabletop/table-veil.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
+import { BUNDLED_PIECE_MODELS } from '@axe/core/storage/bundled-models';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { STORAGE_KEYS } from '@axe/core/storage/storage-keys';
 import { TableGraphics } from '@axe/core/util/graphics-acceleration';
+import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
 import { DEFAULT_GAME_CLOCK } from '@axe/domain/game-clock/game-clock';
 import { Config } from '@axe/domain/peer/config';
@@ -939,6 +941,31 @@ describe('Table3dService', () => {
 
     answer(new Response(joinedGlb()));
     await vi.waitFor(() => expect(scene.world().models.filter((model) => model.joins)).toHaveLength(2));
+    await vi.waitFor(() => expect(idle).toBe(true));
+    table.destroy();
+  });
+
+  it('is not idle while a model bundled with the app that a piece is drawn as is still to come from beside the page', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    let answer: (response: Response) => void = () => undefined;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>((resolve) => (answer = resolve)));
+    const table = new GameTable();
+    table.initialize();
+    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    const piece = GameCharacter.create('ゴブリン', 1, '');
+    piece.location.name = 'table';
+    piece.modelIdentifier = BUNDLED_PIECE_MODELS.goblin;
+    table.appendChild(piece);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    let idle = false;
+    void scene.whenIdle().then(() => (idle = true));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(idle).toBe(false);
+
+    answer(new Response('', { status: 404 }));
     await vi.waitFor(() => expect(idle).toBe(true));
     table.destroy();
   });

@@ -410,6 +410,7 @@ export class Table3dService {
   constructor() {
     this.loadSoon();
     this.modelFits.onRead(() => setTimeout(() => this.settleIfIdle(), 0));
+    this.bundledModels.onRead(() => setTimeout(() => this.settleIfIdle(), 0));
     inject(DestroyRef).onDestroy(() => {
       for (const letGo of [...this.attached]) letGo();
     });
@@ -860,13 +861,16 @@ export class Table3dService {
 
   /**
    * Whether the canvas has drawn everything it was told, but for what moves by itself: no frame left to
-   * draw, nothing loading, not starting, no model's file still being read, and the engine told the
-   * scene as it now stands, so a model read to be a joined wall has been laid joined.
+   * draw, nothing loading, not starting, no model's file still being read, no model bundled with the app
+   * that a piece is drawn as still to come from beside the page, and the engine told the scene as it now
+   * stands, so a model read to be a joined wall has been laid joined.
    */
   private isSettled(): boolean {
     const drawing = this.frame !== null && !this.frameForMotion;
     if (drawing || this.starting !== null || this.engine?.isLoading() || this.modelFits.isReading) return false;
-    return this.engine === null || untracked(() => this.world()) === this.laidWorld;
+    if (this.engine === null) return true;
+    const coming = untracked(() => this.pieces.missingModels()).some((model) => this.bundledModels.isComing(model));
+    return !coming && untracked(() => this.world()) === this.laidWorld;
   }
 }
 

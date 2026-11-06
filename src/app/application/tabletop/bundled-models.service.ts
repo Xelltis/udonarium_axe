@@ -18,6 +18,22 @@ export class BundledModelsService {
   private readonly modelStorage = inject(ModelStorage);
   /** When each model was last asked for, in milliseconds of the page's clock. */
   private readonly askedAt = new Map<string, number>();
+  private readonly reading = new Set<string>();
+  private readonly settled: (() => void)[] = [];
+
+  /**
+   * Whether a model is bundled, not held here yet and still to come: not asked for yet, or being read
+   * now. One that could not be read is not, until it is asked for again.
+   */
+  isComing(identifier: string): boolean {
+    if (!bundledModelName(identifier) || this.modelStorage.get(identifier)?.isReady) return false;
+    return !this.askedAt.has(identifier) || this.reading.has(identifier);
+  }
+
+  /** Calls back each time a model has been read in, or could not be. */
+  onRead(listener: () => void): void {
+    this.settled.push(listener);
+  }
 
   /**
    * Reads a bundled model in, unless it is held here already or was asked for a moment ago; a model
@@ -31,6 +47,7 @@ export class BundledModelsService {
     const asked = this.askedAt.get(identifier);
     if (asked !== undefined && performance.now() - asked < BUNDLED_MODEL_RETRY_MS) return;
     this.askedAt.set(identifier, performance.now());
+    this.reading.add(identifier);
     void (async () => {
       try {
         const response = await fetch(bundledModelUrl(name));
@@ -48,6 +65,9 @@ export class BundledModelsService {
         localDispatch('UPDATE_MODEL_RESOURE', [context]);
       } catch {
         return;
+      } finally {
+        this.reading.delete(identifier);
+        for (const listener of this.settled) listener();
       }
     })();
   }

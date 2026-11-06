@@ -66,4 +66,29 @@ describe('BundledModelsService', () => {
     await vi.waitFor(() => expect(ModelStorage.instance.get(GOBLIN)?.isReady).toBe(true));
     expect(fetched).toHaveBeenCalledTimes(2);
   });
+
+  it('tells a bundled model still to come, until it is held, or could not be read, and calls back as it is read', async () => {
+    let answer: (response: Response) => void = () => undefined;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>((resolve) => (answer = resolve)));
+    const bundled = TestBed.inject(BundledModelsService);
+    const read = vi.fn();
+    bundled.onRead(read);
+
+    expect(bundled.isComing(GOBLIN)).toBe(true);
+    expect(bundled.isComing('0'.repeat(64))).toBe(false);
+    bundled.read(GOBLIN);
+    expect(bundled.isComing(GOBLIN)).toBe(true);
+    answer(new Response('', { status: 404 }));
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(1));
+    expect(bundled.isComing(GOBLIN)).toBe(false);
+  });
+
+  it('tells a bundled model no longer to come once it is held', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(goblinBytes()));
+    const bundled = TestBed.inject(BundledModelsService);
+
+    bundled.read(GOBLIN);
+    await vi.waitFor(() => expect(ModelStorage.instance.get(GOBLIN)?.isReady).toBe(true));
+    expect(bundled.isComing(GOBLIN)).toBe(false);
+  });
 });
