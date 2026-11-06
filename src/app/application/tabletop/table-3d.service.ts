@@ -20,6 +20,7 @@ import { FloorCanvasesService } from '@axe/application/tabletop/floor-canvases.s
 import { GroundService } from '@axe/application/tabletop/ground.service';
 import { LightFlickerClockService } from '@axe/application/tabletop/light-flicker-clock.service';
 import { LightSlotsService } from '@axe/application/tabletop/light-slots.service';
+import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { Table3dQualityService } from '@axe/application/tabletop/table-3d-quality.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TableEyeService } from '@axe/application/tabletop/table-eye.service';
@@ -149,6 +150,7 @@ export class Table3dService {
     dayFractionOf(this.gameClock.clock(), this.gameClock.periods().length, this.gameClock.skies())
   );
   private readonly ground = inject(GroundService);
+  private readonly standing = inject(StandingGroundService);
   private readonly loadEngines = inject(TABLE_3D_ENGINES);
   private readonly askGraphics = inject(TABLE_GRAPHICS);
 
@@ -212,7 +214,8 @@ export class Table3dService {
       (identifier) => this.images.getEmptyOr(identifier).url,
       terrains,
       (terrain) => this.vision.terrainFogCover(terrain),
-      this.ground.surface()
+      this.ground.surface(),
+      this.standing.surface()
     );
   });
 
@@ -250,7 +253,7 @@ export class Table3dService {
     this.objectChange.fileVersion();
     this.objectChange.collectionOf(Terrain.aliasName)();
     const gridSize = this.tabletop.currentTableVersion().gridSize;
-    const ground = this.ground.surface();
+    const ground = this.standing.surface();
     const models: TableWorldModel[] = [];
     for (const terrain of this.tabletop.terrains) {
       this.objectChange.versionOf(terrain.identifier)();

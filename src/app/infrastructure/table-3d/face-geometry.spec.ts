@@ -116,6 +116,7 @@ describe('the shapes of the faces drawn on the canvas', () => {
       pictureUrl: '',
       veiled: true,
       ground: null,
+      floorGround: null,
     });
 
     expect(board.getAttribute('position').count).toBe(6 * 4 * 3);

@@ -50,4 +50,25 @@ describe('the water on a table drawn on a canvas', () => {
     expect(names.length).toBeLessThanOrEqual(MOST_ATTRIBUTES);
     layer.dispose();
   });
+
+  it('draws ice before what is painted on the floor and the sprites, which stand on it, and open water after them', () => {
+    const layer = new WaterLayer(
+      () => undefined,
+      () => new Texture()
+    );
+    const grid = cellGridOf(6, 4, G, GridType.SQUARE);
+    const cells = waterCellsOf(grid, [area({ ice: 1 }), area({ identifier: 'pool', left: 4 * G, width: G })]);
+
+    layer.set(tableWaterOf(grid, cells, [], [], true), null, '');
+
+    const surfaces = (layer.group.children as Mesh[]).filter((mesh) => mesh.geometry.getAttribute('scum'));
+    const frozen = surfaces.find((mesh) => mesh.geometry.getAttribute('extra').getZ(0) === 1)!;
+    const open = surfaces.find((mesh) => mesh.geometry.getAttribute('extra').getZ(0) === 0)!;
+    expect(surfaces).toHaveLength(2);
+    expect(frozen.geometry.getAttribute('position').count).toBe(2 * 2 * 3);
+    expect(open.geometry.getAttribute('position').count).toBe(2 * 3);
+    expect(frozen.renderOrder).toBeLessThan(2);
+    expect(open.renderOrder).toBeGreaterThan(3);
+    layer.dispose();
+  });
 });

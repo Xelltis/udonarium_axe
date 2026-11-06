@@ -3,10 +3,10 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { GroundService } from '@axe/application/tabletop/ground.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
+import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TableEyeService } from '@axe/application/tabletop/table-eye.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -88,7 +88,7 @@ export class TablePiecesService {
   private readonly surfaces = inject(TableSurfaceService);
   private readonly vision = inject(VisionService);
   private readonly eyes = inject(TableEyeService);
-  private readonly ground = inject(GroundService);
+  private readonly ground = inject(StandingGroundService);
   private readonly transient = inject(TransientPlacementService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly theme = inject(ThemeService);

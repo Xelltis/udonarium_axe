@@ -1,6 +1,6 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
-import { GroundService } from '@axe/application/tabletop/ground.service';
+import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TableEyeService } from '@axe/application/tabletop/table-eye.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
@@ -63,7 +63,7 @@ export class ThirdPersonService {
   private readonly camera = inject(TableCameraService);
   private readonly eyes = inject(TableEyeService);
   private readonly pick = inject(TablePickService);
-  private readonly ground = inject(GroundService);
+  private readonly ground = inject(StandingGroundService);
   private readonly motion = inject(MotionService);
 
   private readonly followed = signal(readLocal(STORAGE_KEYS.tableFollow) ?? '');

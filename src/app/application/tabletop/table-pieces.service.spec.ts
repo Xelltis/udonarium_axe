@@ -21,6 +21,7 @@ import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { RangeArea } from '@axe/domain/tabletop/range';
+import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
@@ -103,6 +104,22 @@ describe('TablePiecesService', () => {
     expect(pieces.footOf(die)).toEqual({ surface: 'floor', x: 100, y: 200, height: 7 + gridSize });
     TestBed.inject(TransientPlacementService).place(die.identifier, { surface: 'floor', x: 600, y: 700, z: 0 });
     expect(pieces.footOf(die)).toEqual({ surface: 'floor', x: 600, y: 700, height: 0 });
+  });
+
+  it('stands a piece on frozen water on the ice, and one on open water on the floor under it', async () => {
+    const pond = TableAmbience.create('池', 'water', 2, 2);
+    pond.location = { name: 'table', x: 100, y: 200 };
+    pond.surfaceHeight = 0.5;
+    pond.iceCover = 1;
+    TestBed.inject(TableSelecter).viewTable!.appendChild(pond);
+    await Promise.resolve();
+    await Promise.resolve();
+    const die = dieAt(100, 200);
+
+    expect(pieces.footOf(die)).toEqual({ surface: 'floor', x: 100, y: 200, height: gridSize / 2 });
+    pond.iceCover = 0;
+    await Promise.resolve();
+    expect(pieces.footOf(die)).toEqual({ surface: 'floor', x: 100, y: 200, height: 0 });
   });
 
   it('draws a die this seat is moving where it is being moved to', () => {

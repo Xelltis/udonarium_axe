@@ -1,8 +1,8 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
-import { GroundService } from '@axe/application/tabletop/ground.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
+import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -76,7 +76,7 @@ export class MoveRangeService {
   private readonly tableSelecter = inject(TableSelecter);
   private readonly roomRules = inject(RoomRulesService);
   private readonly objectStore = inject(ObjectStore);
-  private readonly ground = inject(GroundService);
+  private readonly ground = inject(StandingGroundService);
   private readonly vision = inject(VisionService);
   private readonly selection = inject(SelectionSignalService);
   private readonly objectChange = inject(ObjectChangeService);

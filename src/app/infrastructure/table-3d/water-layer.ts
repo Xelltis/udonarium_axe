@@ -8,6 +8,7 @@ import {
   streakAlpha,
   WATER_PATTERN_TILE_PX,
 } from '@axe/domain/effect/ambience/water-patterns';
+import { ICE_BEARS_AT } from '@axe/domain/tabletop/ground/ground-over-ice';
 import type {
   TableWorldLeaves,
   TableWorldSeaFloor,
@@ -55,6 +56,12 @@ import {
  */
 const FLOOR_ORDER = 0.5;
 const SURFACE_ORDER = 1000;
+/**
+ * Where ice comes: after the board, the grid and the board's layers laid over it, and before what the
+ * page paints on the floor, as where a piece may move, and before the sprites, which stand on the ice
+ * rather than in water to be seen through it.
+ */
+const ICE_ORDER = 1.75;
 const LEAF_ORDER = 1000.5;
 const SHORE_ORDER = 1001;
 
@@ -150,16 +157,9 @@ export class WaterLayer {
     this.laidBoard = boardKey;
     this.clear();
     this.cellPx.value = water.cellPx;
-    this.add(water.surface, this.surfaceMaterial(), SURFACE_ORDER, (geometry) => {
-      geometry.setAttribute('flow', new Float32BufferAttribute(water.flow, 2));
-      geometry.setAttribute('scum', new Float32BufferAttribute(everyOther(water.scum, 0), 4));
-      geometry.setAttribute('scumRim', new Float32BufferAttribute(everyOther(water.scum, 4), 4));
-      geometry.setAttribute('silt', new Float32BufferAttribute(water.silt, 4));
-      geometry.setAttribute(
-        'extra',
-        new Float32BufferAttribute(tripledWith(water.surface.extra, water.streaks, water.ice), 3)
-      );
-    });
+    const { open, frozen } = surfacesOf(water);
+    this.addSurface(open, SURFACE_ORDER);
+    this.addSurface(frozen, ICE_ORDER);
     for (const floating of water.leaves) this.addLeaves(floating);
     this.add(water.floor, this.floorMaterial(CAUSTIC_CELLS), FLOOR_ORDER);
     if (water.seaFloor && board) this.addSeaFloor(water.seaFloor, board());
@@ -287,6 +287,20 @@ export class WaterLayer {
     const across = vec2(this.seconds.negate(), this.seconds).div(SECOND_NET_SECONDS);
     const second = texture(tile, at.div(SECOND_NET_SCALE).sub(across)).r.mul(share).mul(SECOND_NET_SHARE);
     return { first, second };
+  }
+
+  /** Lays a part of the surface of the water, with what each of its points carries. */
+  private addSurface(surface: Surface, order: number): void {
+    this.add(surface.part, this.surfaceMaterial(), order, (geometry) => {
+      geometry.setAttribute('flow', new Float32BufferAttribute(surface.flow, 2));
+      geometry.setAttribute('scum', new Float32BufferAttribute(everyOther(surface.scum, 0), 4));
+      geometry.setAttribute('scumRim', new Float32BufferAttribute(everyOther(surface.scum, 4), 4));
+      geometry.setAttribute('silt', new Float32BufferAttribute(surface.silt, 4));
+      geometry.setAttribute(
+        'extra',
+        new Float32BufferAttribute(tripledWith(surface.part.extra, surface.streaks, surface.ice), 3)
+      );
+    });
   }
 
   private add(
@@ -487,6 +501,52 @@ function tripledWith(first: Float32Array, second: Float32Array, third: Float32Ar
     tripled[i * 3 + 2] = third[i] ?? 0;
   }
   return tripled;
+}
+
+/** A part of the surface of the water and what each of its points carries, as the scene's water holds them. */
+interface Surface {
+  readonly part: WaterPart;
+  readonly flow: Float32Array;
+  readonly scum: Float32Array;
+  readonly silt: Float32Array;
+  readonly streaks: Float32Array;
+  readonly ice: Float32Array;
+}
+
+/**
+ * The surface of the water parted into the open water and the ice hard enough to stand on, a
+ * triangle at a time, as the cell it belongs to is frozen; each is drawn in its own place in the order.
+ */
+function surfacesOf(water: TableWorldWater): { open: Surface; frozen: Surface } {
+  const sizes = { points: 3, colours: 4, extra: 1, flow: 2, scum: 8, silt: 4, streaks: 1, ice: 1 } as const;
+  const kept = (frozen: boolean) => {
+    const picked: number[] = [];
+    for (let first = 0; first < water.ice.length; first += 3) {
+      if (water.ice[first] >= ICE_BEARS_AT === frozen) picked.push(first, first + 1, first + 2);
+    }
+    const of = (values: Float32Array, size: number) => {
+      const out = new Float32Array(picked.length * size);
+      picked.forEach((point, at) => out.set(values.subarray(point * size, point * size + size), at * size));
+      return out;
+    };
+    return {
+      part: {
+        points: of(water.surface.points, sizes.points),
+        colours: of(water.surface.colours, sizes.colours),
+        extra: of(water.surface.extra, sizes.extra),
+      },
+      flow: of(water.flow, sizes.flow),
+      scum: of(water.scum, sizes.scum),
+      silt: of(water.silt, sizes.silt),
+      streaks: of(water.streaks, sizes.streaks),
+      ice: of(water.ice, sizes.ice),
+    };
+  };
+  if (!water.ice.some((ice) => ice >= ICE_BEARS_AT)) {
+    const { surface, flow, scum, silt, streaks, ice } = water;
+    return { open: { part: surface, flow, scum, silt, streaks, ice }, frozen: kept(true) };
+  }
+  return { open: kept(false), frozen: kept(true) };
 }
 
 function everyOther(values: Float32Array, from: number): Float32Array {

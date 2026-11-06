@@ -2,11 +2,11 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { GroundService } from '@axe/application/tabletop/ground.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
+import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { FirstPersonPreferenceService } from '@axe/application/ui/first-person-preference.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -88,7 +88,7 @@ export class FirstPersonService {
   private readonly movePlan = inject(MovePlannerService);
   private readonly pieceStep = inject(PieceStepService);
   private readonly replay = inject(ReplayPlaybackService);
-  private readonly raisedGround = inject(GroundService);
+  private readonly raisedGround = inject(StandingGroundService);
 
   private readonly worldEpoch = signal(0);
 

@@ -2,7 +2,6 @@ import { computed, effect, inject, Injectable, signal, untracked } from '@angula
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
-import { GroundService } from '@axe/application/tabletop/ground.service';
 import { InterruptOutcome, MoveInterruptService } from '@axe/application/tabletop/move-interrupt.service';
 import {
   kindToChangeTo,
@@ -18,6 +17,7 @@ import { PieceLinksService } from '@axe/application/tabletop/piece-links.service
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
+import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -90,7 +90,7 @@ export class FreeMovePlanService {
   private readonly ride = inject(RideService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
-  private readonly ground = inject(GroundService);
+  private readonly ground = inject(StandingGroundService);
 
   private readonly held = signal<FreePlan | null>(null);
   private readonly opened = signal(0);

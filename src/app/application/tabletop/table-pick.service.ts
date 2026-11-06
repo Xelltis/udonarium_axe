@@ -4,7 +4,7 @@ import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { GroundService } from '@axe/application/tabletop/ground.service';
+import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
@@ -40,7 +40,7 @@ import { AlphaMask, seesThroughAt } from '@axe/domain/ui/see-through';
   providedIn: 'root',
 })
 export class TablePickService {
-  private readonly ground = inject(GroundService);
+  private readonly ground = inject(StandingGroundService);
   private readonly tabletop = inject(TabletopService);
   private readonly vision = inject(VisionService);
   private readonly objectChange = inject(ObjectChangeService);

@@ -1,5 +1,6 @@
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { computeHexMaskGeometry } from '@axe/domain/tabletop/hex-mask-geometry';
+import { FLAT_GROUND, type GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import {
   boardShapeOf,
@@ -31,6 +32,31 @@ describe('the table world', () => {
       pictureUrl: 'blob:board-picture',
       veiled: true,
     });
+  });
+
+  it('lays the board over the ground, and what is laid on the floor over the ground as it is stood on, over the ice', () => {
+    const ice: GroundSurface = { isFlat: false, sampleAt: () => 0.5, paintAt: () => null, heightAt: () => 0.5 };
+
+    const frozen = tableWorldOf(
+      table(),
+      () => '',
+      [],
+      () => null,
+      FLAT_GROUND,
+      ice
+    ).board!;
+    expect(frozen.ground).toBeNull();
+    expect(Math.min(...heightsOf(frozen.floorGround!.points))).toBeCloseTo(30);
+
+    const open = tableWorldOf(
+      table(),
+      () => '',
+      [],
+      () => null,
+      ice
+    ).board!;
+    expect(open.floorGround).toBe(open.ground);
+    expect(tableWorldOf(table()).board!.floorGround).toBeNull();
   });
 
   it('gives a board no picture where its picture cannot be read', () => {
@@ -125,3 +151,8 @@ describe('the table world', () => {
     });
   });
 });
+
+/** The heights of the points of a mesh, every third figure from the third. */
+function heightsOf(points: Float32Array): number[] {
+  return [...points].filter((_, index) => index % 3 === 2);
+}

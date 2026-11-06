@@ -5,6 +5,7 @@ import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.s
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { type CellGrid, cellIndexAt, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
+import { ICE_BEARS_AT } from '@axe/domain/tabletop/ground/ground-over-ice';
 import { canBeStoodOn, landingHeightsOn } from '@axe/domain/tabletop/move/landing-height';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainBoxOf, terrainCovers } from '@axe/domain/tabletop/terrain-box';
@@ -162,6 +163,20 @@ export class WaterService {
         if (this.vision.isHiddenByFog(cell.cx, cell.cy)) cells.delete(index);
       }
       return cells;
+    },
+    { equal: sameWaterCells }
+  );
+
+  /**
+   * The cells of water frozen hard enough to stand on, fog or no fog: what stands on the floor there
+   * stands on the ice, whether or not this seat has seen the shore.
+   */
+  readonly frozen = computed<ReadonlyMap<number, WaterCell>>(
+    () => {
+      const grid = this.grid();
+      const areas = this.areas().filter((area) => area.ice >= ICE_BEARS_AT);
+      if (!grid || areas.length < 1) return NO_CELLS;
+      return waterCellsOf(grid, areas, this.groundOf);
     },
     { equal: sameWaterCells }
   );

@@ -50,6 +50,11 @@ export interface TableWorldBoard {
   readonly veiled: boolean;
   /** The board laid over the table's raised and sunk ground, or null where the ground is flat. */
   readonly ground: GroundMesh | null;
+  /**
+   * The ground what is laid on the floor lies over, as where a piece may move: the board's own ground,
+   * lifted to the ice wherever water is frozen over it; null where that is flat.
+   */
+  readonly floorGround: GroundMesh | null;
 }
 
 /**
@@ -195,6 +200,9 @@ const HEX_CUT_OVERLAP_PX = 1;
  * `pictureOf` says where the picture an identifier names is to be read from, or nothing for one
  * there is no picture for.
  *
+ * The board lies over `ground`, and the blocks on the floor stand on `standing`, which is the ground
+ * as it is stood on, lifted to the ice over frozen water, as what is laid on the floor lies over it.
+ *
  * Only what the seat may see is to be given: a block left out is not in the scene at all, and of a
  * block the fog lies over in part, `coverOf` says which of its cells the seat has reached.
  */
@@ -203,11 +211,19 @@ export function tableWorldOf(
   pictureOf: (identifier: string) => string = () => '',
   terrains: readonly Terrain[] = [],
   coverOf: (terrain: Terrain) => TerrainFogCover | null = () => null,
-  ground: GroundSurface = FLAT_GROUND
+  ground: GroundSurface = FLAT_GROUND,
+  standing: GroundSurface = ground
 ): TableWorld {
   if (!table) return EMPTY_TABLE_WORLD;
   const gridSize = table.gridSize > 0 ? table.gridSize : 50;
   const shape = boardShapeOf(table.width, table.height, gridSize, table.gridType);
+  const meshOf = (surface: GroundSurface) =>
+    surface.isFlat
+      ? null
+      : shape.hexes
+        ? hexGroundMesh(shape.hexes, shape.box, surface, gridSize)
+        : squareGroundMesh(shape.box, surface, gridSize);
+  const groundMesh = meshOf(ground);
   const laidUnder = table.backgroundLayers.some(
     (layer) => !layer.placedOver && !layer.placedBackdrop && pictureOf(layer.imageIdentifier) !== ''
   );
@@ -220,13 +236,10 @@ export function tableWorldOf(
       shape,
       pictureUrl: pictureOf(table.imageIdentifier),
       veiled: !laidUnder,
-      ground: ground.isFlat
-        ? null
-        : shape.hexes
-          ? hexGroundMesh(shape.hexes, shape.box, ground, gridSize)
-          : squareGroundMesh(shape.box, ground, gridSize),
+      ground: groundMesh,
+      floorGround: standing === ground ? groundMesh : meshOf(standing),
     },
-    ...facesOf(table, terrains, pictureOf, coverOf, ground),
+    ...facesOf(table, terrains, pictureOf, coverOf, standing),
     sprites: [],
     coins: [],
     layers: [],
