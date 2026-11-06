@@ -83,6 +83,8 @@ export class TooltipDirective {
   private static activeOwner: TooltipDirective | null = null;
 
   readonly tabletopObject = input.required<TabletopObject>({ alias: 'appTooltip' });
+  /** Whether no tooltip opens for now, as over a look on the ground locked in place; one open closes. */
+  readonly off = input(false, { alias: 'appTooltipOff' });
 
   private callbackOnMouseEnter = (e: Event) => this.onMouseEnter(e as MouseEvent);
   private callbackOnMouseLeave = (e: Event) => this.onMouseLeave(e as MouseEvent);
@@ -251,7 +253,7 @@ export class TooltipDirective {
 
   private open() {
     this.closeAll();
-    if (this.pointerDeviceService.isDragging) return;
+    if (this.pointerDeviceService.isDragging || this.off()) return;
     const panelClass = this.panels.panel;
     if (!panelClass) {
       this.fetchPanelThenOpen();

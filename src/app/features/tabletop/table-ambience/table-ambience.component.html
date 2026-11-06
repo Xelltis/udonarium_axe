@@ -21,13 +21,17 @@
         [attr.data-table-passthrough]="isLock() ? '' : null"
         [style.background]="surfaceWash()"
         [appTooltip]="ambience()"
+        [appTooltipOff]="isLock()"
       ></div>
       @if (surfaceLayer(); as layer) {
         <effect-canvas [ngStyle]="canvasStyle(layer)" [layer]="layer"></effect-canvas>
       }
-      <div
-        class="outline-ui-border-panel pointer-events-none absolute inset-0 -outline-offset-2 group-hover:outline-2"
-      ></div>
+      @if (!isLock()) {
+        <div
+          class="outline-ui-border-panel pointer-events-none absolute inset-0 -outline-offset-2 group-hover:outline-2"
+          data-part="hover-outline"
+        ></div>
+      }
     </div>
     @for (placed of vaporSheetsOnScreen(); track placed.sheet.key) {
       <effect-canvas [ngStyle]="placed.style" [layer]="placed.sheet.layer"></effect-canvas>

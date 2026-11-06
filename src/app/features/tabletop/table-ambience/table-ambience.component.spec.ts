@@ -13,6 +13,7 @@ import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableAmbienceComponent } from '@axe/features/tabletop/table-ambience/table-ambience.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
+import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 
 describe('TableAmbienceComponent', () => {
   let fixture: ComponentFixture<TableAmbienceComponent>;
@@ -192,6 +193,30 @@ describe('TableAmbienceComponent', () => {
       await new Promise((resolve) => setTimeout(resolve, 20));
       fixture.detectChanges();
     }
+
+    it('opens no tooltip of its name while it is locked, and opens one again once let go', async () => {
+      laidOverCanvas();
+      const tooltip = fixture.debugElement.query(By.directive(TooltipDirective)).injector.get(TooltipDirective);
+      expect(tooltip.off()).toBe(false);
+
+      await applyChange(() => (ambience.isLock = true));
+      expect(tooltip.off()).toBe(true);
+
+      await applyChange(() => (ambience.isLock = false));
+      expect(tooltip.off()).toBe(false);
+    });
+
+    it('draws no outline of its area under the pointer while it is locked, and draws one again once let go', async () => {
+      laidOverCanvas();
+      const outline = () => (fixture.nativeElement as HTMLElement).querySelector('[data-part="hover-outline"]');
+      expect(outline()).not.toBeNull();
+
+      await applyChange(() => (ambience.isLock = true));
+      expect(outline()).toBeNull();
+
+      await applyChange(() => (ambience.isLock = false));
+      expect(outline()).not.toBeNull();
+    });
 
     it('cannot be moved once locked', async () => {
       fixture.detectChanges();
