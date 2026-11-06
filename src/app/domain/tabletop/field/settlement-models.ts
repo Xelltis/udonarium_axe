@@ -1,7 +1,14 @@
 import type { MapRect } from '@axe/domain/tabletop/map-blocks';
 
 /** The 3D models bundled with the app that the walls and things of a village or a fort are drawn as. */
-export const SETTLEMENT_MODEL_IDS = ['palisade_spikes'] as const;
+export const SETTLEMENT_MODEL_IDS = [
+  'palisade_spikes',
+  'watchtower_wood',
+  'stone_wall_battlement',
+  'stone_tower_round',
+  'stone_tower_square',
+  'stone_room_wall',
+] as const;
 
 export type SettlementModelId = (typeof SETTLEMENT_MODEL_IDS)[number];
 
@@ -13,6 +20,11 @@ export function isSettlementModel(id: string): id is SettlementModelId {
 /** Where a bundled model of a settlement is served from, beside the page. */
 export function settlementModelUrl(id: SettlementModelId): string {
   return `assets/models/settlement/${id}.glb`;
+}
+
+/** How far a run of wall made of tiles alike on both sides is turned, in degrees: along a row as made, down a column a quarter round. */
+export function alongTurn(rect: MapRect): number {
+  return rect.h > rect.w ? 90 : 0;
 }
 
 /**

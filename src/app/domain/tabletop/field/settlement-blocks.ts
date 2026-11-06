@@ -17,7 +17,7 @@ import {
   type SettlementWallKind,
   SLOWING_CROPS,
 } from '@axe/domain/tabletop/field/settlement-layout';
-import { outwardTurn, type SettlementModelId } from '@axe/domain/tabletop/field/settlement-models';
+import { alongTurn, outwardTurn, type SettlementModelId } from '@axe/domain/tabletop/field/settlement-models';
 import type {
   MapAmbience,
   MapBlock,
@@ -49,10 +49,36 @@ const WALLS: Readonly<Record<SettlementWallKind, { readonly skin: Skin; readonly
   fence: { skin: { side: 'wall_timber', top: 'wall_timber' }, thing: 'fence' },
 };
 
-/** The model a run of each kind of wall is drawn as, a tile to a cell, where it has one. */
-const WALL_MODELS: Readonly<Partial<Record<SettlementWallKind, SettlementModelId>>> = {
-  palisade: 'palisade_spikes',
-};
+/**
+ * The model a block of wall is drawn as and how far it is turned, or null for one built of its blocks:
+ * a run of the wall round a fort a tile to a cell, facing out, a wall of the keep's rooms the same alike
+ * on both sides, and a tower or a watchtower whole, fitted to its block, where it is a block of its own
+ * rather than one of the cells of a board of hexes.
+ */
+function wallModelOf(
+  kind: SettlementWallKind,
+  rect: MapRect,
+  ring: SettlementLayout['ring'],
+  span: number
+): { model: SettlementModelId; turn: number } | null {
+  const outward = () => (ring ? outwardTurn(rect, ring.middle, ring.reach) : alongTurn(rect));
+  switch (kind) {
+    case 'palisade':
+      return { model: 'palisade_spikes', turn: outward() };
+    case 'stoneWall':
+      return { model: 'stone_wall_battlement', turn: outward() };
+    case 'stoneRoomWall':
+      return { model: 'stone_room_wall', turn: alongTurn(rect) };
+    case 'tower':
+      if (span <= 1) return null;
+      if (rect.w === rect.h) return { model: 'stone_tower_round', turn: 0 };
+      return { model: 'stone_tower_square', turn: rect.w > rect.h ? 90 : 0 };
+    case 'watchtower':
+      return span > 1 && rect.w === 2 && rect.h === 2 ? { model: 'watchtower_wood', turn: 0 } : null;
+    default:
+      return null;
+  }
+}
 
 /**
  * The door each wall is hung with: a fort of logs a gate of planks, a fort of stone a portcullis that
@@ -176,9 +202,8 @@ export function settlementBlocks(
       kind === 'fence'
         ? fenceRuns(mask, width, height, span)
         : mergeMaskToRects(mask, width, height, span).map((rect) => ({ rect, footprint: undefined }));
-    const model = models ? WALL_MODELS[kind] : undefined;
     for (const { rect, footprint } of runs) {
-      const ring = settlement.ring;
+      const drawn = models ? wallModelOf(kind, rect, settlement.ring, span) : null;
       blocks.push({
         kind: 'prop',
         rect,
@@ -190,9 +215,7 @@ export function settlementBlocks(
         height: SETTLEMENT_WALL_HEIGHTS[kind],
         ...(footprint ? { footprint } : {}),
         thing,
-        ...(model
-          ? { model, modelTurn: ring ? outwardTurn(rect, ring.middle, ring.reach) || undefined : undefined }
-          : {}),
+        ...(drawn ? { model: drawn.model, modelTurn: drawn.turn || undefined } : {}),
       });
     }
   });

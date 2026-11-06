@@ -38,4 +38,37 @@ describe('the models of a settlement', () => {
     const plain = settlementBlocks(fort, 40, 30, 12, false).blocks.filter((block) => block.thing === 'palisade');
     expect(plain.every((block) => block.model === undefined)).toBe(true);
   });
+
+  it('draws a stone fort of battlements facing out, round towers on its corners and square ones by its gate', () => {
+    const fort = laySettlement('stoneFort', 40, 30, 7);
+    const blocks = settlementBlocks(fort, 40, 30, 12, true).blocks;
+    const towers = blocks.filter((block) => block.thing === 'tower');
+    expect(towers.filter((tower) => tower.model === 'stone_tower_round')).toHaveLength(4);
+    expect(towers.filter((tower) => tower.model === 'stone_tower_square')).toHaveLength(2);
+    const walls = blocks.filter((block) => block.thing === 'stoneWall');
+    expect(walls.every((wall) => wall.model === 'stone_wall_battlement')).toBe(true);
+    const south = walls.filter((wall) => wall.rect.y > 20 && wall.rect.w > wall.rect.h);
+    expect(south.length).toBeGreaterThan(0);
+    expect(south.every((wall) => (wall.modelTurn ?? 0) === 0)).toBe(true);
+    const keep = blocks.filter((block) => block.thing === 'wall');
+    expect(keep.every((wall) => wall.model === 'stone_room_wall')).toBe(true);
+    expect(keep.filter((wall) => wall.rect.h > wall.rect.w).every((wall) => wall.modelTurn === 90)).toBe(true);
+
+    const barbarian = settlementBlocks(laySettlement('barbarianFort', 40, 30, 7), 40, 30, 12, true).blocks;
+    const watchtowers = barbarian.filter((block) => block.thing === 'watchtower');
+    expect(watchtowers.length).toBeGreaterThan(0);
+    expect(
+      watchtowers
+        .filter((tower) => tower.rect.w === 2 && tower.rect.h === 2)
+        .every((tower) => tower.model === 'watchtower_wood')
+    ).toBe(true);
+  });
+
+  it('keeps a tower of a board of hexes built of its blocks, a cell each, and still draws the runs of wall', () => {
+    const blocks = settlementBlocks(laySettlement('stoneFort', 40, 30, 7), 40, 30, 1, true).blocks;
+    expect(blocks.filter((block) => block.thing === 'tower').every((tower) => tower.model === undefined)).toBe(true);
+    expect(
+      blocks.filter((block) => block.thing === 'stoneWall').every((wall) => wall.model === 'stone_wall_battlement')
+    ).toBe(true);
+  });
 });
