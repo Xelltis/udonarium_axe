@@ -411,7 +411,7 @@ export class DungeonBuildService {
         const width = block.footprint?.w ?? rect.w;
         const depth = block.footprint?.d ?? rect.h;
         const terrain = Terrain.create(name, width, depth, block.height ?? 1, side, top);
-        terrain.mode = TerrainViewState.ALL;
+        terrain.mode = block.floorOnly ? TerrainViewState.FLOOR : TerrainViewState.ALL;
         if (block.altitude) terrain.altitude = block.altitude;
         if (block.rotate) terrain.rotate = block.rotate;
         return terrain;

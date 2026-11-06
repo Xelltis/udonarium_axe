@@ -197,12 +197,19 @@ function fenceRuns(
   return runs;
 }
 
-/** The cells of a rectangle, each a rectangle of its own, as a board of hexes builds a block a cell. */
-function cellsOf(rect: MapRect): MapRect[] {
-  const cells: MapRect[] = [];
-  for (let y = rect.y; y < rect.y + rect.h; y++)
-    for (let x = rect.x; x < rect.x + rect.w; x++) cells.push({ x, y, w: 1, h: 1 });
-  return cells;
+/**
+ * A rectangle cut into rectangles no more than `span` cells across either way, each a block of its
+ * own, as the walls are gathered: a cell each on a board of hexes.
+ */
+function cutUp(rect: MapRect, span: number): MapRect[] {
+  const step = Math.max(1, Math.floor(span));
+  const parts: MapRect[] = [];
+  for (let y = rect.y; y < rect.y + rect.h; y += step) {
+    for (let x = rect.x; x < rect.x + rect.w; x += step) {
+      parts.push({ x, y, w: Math.min(step, rect.x + rect.w - x), h: Math.min(step, rect.y + rect.h - y) });
+    }
+  }
+  return parts;
 }
 
 /**
@@ -290,7 +297,7 @@ export function settlementBlocks(
   for (const { rect, crop } of settlement.crops) {
     paint.push({ kind: 'floor', rect, material: { kind: 'texture', id: CROP_GROUND[crop] } });
     if (models) {
-      for (const field of span > 1 ? [rect] : cellsOf(rect)) {
+      for (const field of cutUp(rect, span)) {
         blocks.push({
           kind: 'prop',
           rect: field,
@@ -299,6 +306,7 @@ export function settlementBlocks(
           rooms: [],
           skin: { side: { kind: 'texture', id: CROP_GROUND[crop] }, top: { kind: 'texture', id: CROP_GROUND[crop] } },
           height: CROP_BLOCK_CELLS,
+          floorOnly: true,
           thing: crop,
           model: CROP_MODELS[crop],
           modelTurn: alongTurn(rect) || undefined,

@@ -255,7 +255,7 @@ describe('DungeonBuildService', () => {
     fetched.mockRestore();
   });
 
-  it('builds a village with fields slow to cross, paddies under water, and doors as tall as their walls', async () => {
+  it('builds a village with fields slow to cross but walked through, paddies under water, and doors as tall as their walls', async () => {
     const plan = planField({ atmosphere: 'village', size: 40, density: 50, seed: 3 });
     const { table } = await service.build(plan.layout, plan.atmosphere, plan.blocks, options());
 
@@ -273,6 +273,13 @@ describe('DungeonBuildService', () => {
       (child): child is TableAmbience => child instanceof TableAmbience && child.kind === 'water'
     );
     expect(waters.length).toBe(plan.layout.settlement!.crops.filter((crop) => crop.crop === 'rice').length);
+
+    const grown = planField({ atmosphere: 'village', size: 40, density: 50, seed: 3, models: true });
+    const fields = (await service.build(grown.layout, grown.atmosphere, grown.blocks, options())).table.terrains.filter(
+      (terrain) => terrain.height < 0.05
+    );
+    expect(fields.length).toBeGreaterThan(0);
+    expect(fields.some((terrain) => terrainBlocksMovement(terrain))).toBe(false);
 
     const fort = planField({ atmosphere: 'stoneFort', size: 40, density: 50, seed: 3 });
     const built = await service.build(fort.layout, fort.atmosphere, fort.blocks, options());

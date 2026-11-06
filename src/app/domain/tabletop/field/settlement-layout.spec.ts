@@ -333,8 +333,15 @@ describe('settlementBlocks()', () => {
     for (const block of crops) {
       expect(block.height).toBeLessThan(0.05);
       expect(block.blocksSight || block.blocksClimb).toBeFalsy();
+      expect(block.floorOnly).toBe(true);
       expect(block.modelTurn ?? 0).toBe(block.rect.h > block.rect.w ? 90 : 0);
     }
+
+    const cut = settlementBlocks(village, W, H, 4, true).blocks.filter((block) => block.model?.startsWith('crop_'));
+    expect(cut.every((block) => block.rect.w <= 4 && block.rect.h <= 4)).toBe(true);
+    expect(cut.reduce((sum, block) => sum + block.rect.w * block.rect.h, 0)).toBe(
+      village.crops.reduce((sum, crop) => sum + crop.rect.w * crop.rect.h, 0)
+    );
 
     const onHexes = settlementBlocks(village, W, H, 1, true).blocks.filter((block) => block.model?.startsWith('crop_'));
     const cells = village.crops.reduce((sum, crop) => sum + crop.rect.w * crop.rect.h, 0);

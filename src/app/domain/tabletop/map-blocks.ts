@@ -88,6 +88,11 @@ export interface MapBlock {
   model?: string;
   /** How far its model is turned from the way it was made, in degrees clockwise: a quarter for one lying north to south. */
   modelTurn?: number;
+  /**
+   * Whether it is built as its top alone, ground a piece walks onto and on over rather than a thing
+   * standing in its way, as a field's crop is: its model drawn over a floor with no walls.
+   */
+  floorOnly?: boolean;
 }
 
 /**
