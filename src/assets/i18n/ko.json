@@ -2945,6 +2945,7 @@
           "density": "초목 밀도",
           "relief": "지면 기복(칸)",
           "models": "나무와 바위를 3D 모델로 놓기 (3D 테이블에서 보입니다)",
+          "season": "계절",
           "gridType": "칸 모양",
           "hexNote": "헥스는 하나로 묶을 수 없어 칸마다 지형을 놓습니다. 그만큼 판이 작아집니다.",
           "corridorWidth": "통로의 폭",
@@ -3000,6 +3001,13 @@
           "sfCity": "빌딩 숲(SF)",
           "slum": "슬럼가",
           "dump": "쓰레기 처리장"
+        },
+        "season": {
+          "none": "지정 안 함",
+          "spring": "봄",
+          "summer": "여름",
+          "autumn": "가을",
+          "winter": "겨울"
         },
         "prop": {
           "tree": "나무",

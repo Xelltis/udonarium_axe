@@ -29,7 +29,10 @@ type Panel = DungeonGeneratorComponent & {
   field(): boolean;
   chooseKind(kind: 'dungeon' | 'field'): void;
   chooseFieldAtmosphere(id: string): void;
-  fieldPlan(): { blocks: { blocks: { thing?: string; skin?: { side: { kind: string; id?: string } } }[] } };
+  fieldPlan(): {
+    blocks: { blocks: { thing?: string; model?: string; skin?: { side: { kind: string; id?: string } } }[] };
+  };
+  fieldSeason(): string;
   fieldSize: { set(value: number): void; (): number };
   fieldDensity: { set(value: number): void; (): number };
   setFieldRelief(relief: number): void;
@@ -278,6 +281,30 @@ describe('DungeonGeneratorComponent', () => {
 
       expect(bare).toBe(0);
       expect(component.terrainCount()).toBeGreaterThan(0);
+    });
+
+    it('grows the trees of the season chosen, the broadleaves turning in autumn and standing bare in winter', () => {
+      fixture.detectChanges();
+      const models = () => new Set(component.fieldPlan().blocks.blocks.map((block) => block.model ?? ''));
+      const season = (name: string) => {
+        (fixture.nativeElement as HTMLElement)
+          .querySelector<HTMLButtonElement>(`[data-testid="field-season-${name}"]`)!
+          .click();
+        fixture.detectChanges();
+      };
+      expect(component.fieldSeason()).toBe('');
+      expect(models().has('tree_oak')).toBe(true);
+
+      season('autumn');
+      expect(models().has('tree_oak')).toBe(false);
+      expect(models().has('tree_oakAutumn')).toBe(true);
+
+      season('winter');
+      expect(models().has('tree_oakBare')).toBe(true);
+      expect(models().has('tree_snowFir')).toBe(true);
+
+      season('none');
+      expect(models().has('tree_oak')).toBe(true);
     });
 
     it('changes what it is made of without rolling a new board', () => {

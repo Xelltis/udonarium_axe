@@ -71,6 +71,7 @@ import {
   MIN_FIELD_SIZE,
 } from '@axe/domain/tabletop/field/field-atmosphere';
 import { FieldPlan, planField } from '@axe/domain/tabletop/field/field-generator';
+import { FIELD_SEASONS, type FieldSeason } from '@axe/domain/tabletop/field/field-models';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { MAP_HEAVY_TERRAINS, MAP_MAX_TERRAINS, syncObjectCount } from '@axe/domain/tabletop/map-blocks';
@@ -147,6 +148,9 @@ export class DungeonGeneratorComponent {
    * drawn on a canvas draws them; a seat whose table the page draws itself builds them of blocks.
    */
   protected readonly fieldModels = signal(true);
+  protected readonly fieldSeasons = FIELD_SEASONS;
+  /** The season the trees of open country are grown in; none in particular grows them as in summer. */
+  protected readonly fieldSeason = signal<FieldSeason>('');
   protected readonly roomCount = signal(8);
   protected readonly trapCount = signal(0);
   protected readonly seed = signal(Math.floor(Math.random() * SEED_LIMIT));
@@ -257,6 +261,7 @@ export class DungeonGeneratorComponent {
       gridType: this.gridType(),
       relief: this.fieldRelief(),
       models: this.fieldModels(),
+      season: this.fieldSeason(),
     })
   );
 

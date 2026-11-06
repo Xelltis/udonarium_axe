@@ -11,6 +11,17 @@ export const FIELD_MODEL_IDS = [
   'tree_dead',
   'tree_fir',
   'tree_spruce',
+  'tree_oakAutumn',
+  'tree_beechAutumn',
+  'tree_birchAutumn',
+  'tree_oakBare',
+  'tree_birchBare',
+  'tree_cherry',
+  'tree_maple',
+  'tree_ginkgo',
+  'tree_mangrove',
+  'tree_snowFir',
+  'tree_snowSpruce',
   'bush_round',
   'bush_wide',
   'bush_leafy',
@@ -47,9 +58,53 @@ export const FIELD_MOOD_PROP_MODELS: Readonly<
   Partial<Record<FieldAtmosphereId, Readonly<Partial<Record<FieldPropId, readonly FieldModelId[]>>>>>
 > = {
   meadow: { tree: ['tree_oak', 'tree_beech', 'tree_poplar', 'tree_birch'] },
-  marsh: { tree: ['tree_willow', 'tree_birch', 'tree_dead'] },
-  snowfield: { tree: ['tree_fir', 'tree_spruce', 'tree_pine', 'tree_dead'] },
+  marsh: { tree: ['tree_willow', 'tree_mangrove', 'tree_birch', 'tree_dead'] },
+  snowfield: { tree: ['tree_snowFir', 'tree_snowSpruce', 'tree_snowFir', 'tree_birchBare', 'tree_dead'] },
 };
+
+/** The seasons open country may be grown in; the first, none in particular, grows it as in summer. */
+export const FIELD_SEASONS = ['', 'spring', 'summer', 'autumn', 'winter'] as const;
+
+export type FieldSeason = (typeof FIELD_SEASONS)[number];
+
+/**
+ * How a season changes the trees: those it turns into others, and those it grows among them where
+ * there are trees it turns. Spring brings the cherries into flower; autumn turns the broadleaves and
+ * grows maples and ginkgoes; winter strips the broadleaves bare and lays snow on the evergreens.
+ */
+const SEASON_TREES: Readonly<
+  Partial<Record<FieldSeason, { turns: Partial<Record<FieldModelId, FieldModelId>>; joins: readonly FieldModelId[] }>>
+> = {
+  spring: { turns: {}, joins: ['tree_cherry', 'tree_cherry'] },
+  autumn: {
+    turns: { tree_oak: 'tree_oakAutumn', tree_beech: 'tree_beechAutumn', tree_birch: 'tree_birchAutumn' },
+    joins: ['tree_maple', 'tree_ginkgo'],
+  },
+  winter: {
+    turns: {
+      tree_oak: 'tree_oakBare',
+      tree_beech: 'tree_oakBare',
+      tree_birch: 'tree_birchBare',
+      tree_poplar: 'tree_birchBare',
+      tree_willow: 'tree_dead',
+      tree_mangrove: 'tree_dead',
+      tree_fir: 'tree_snowFir',
+      tree_spruce: 'tree_snowSpruce',
+    },
+    joins: [],
+  },
+};
+
+/** The broadleaves a season turns or grows among: what spring's cherries and autumn's maples grow among. */
+const BROADLEAVES: readonly FieldModelId[] = ['tree_oak', 'tree_beech', 'tree_birch', 'tree_poplar'];
+
+/** The models a thing is drawn as in a season: as listed, turned by it, with what it grows among broadleaves. */
+export function seasonModels(models: readonly FieldModelId[], season: FieldSeason): readonly FieldModelId[] {
+  const change = SEASON_TREES[season];
+  if (!change) return models;
+  const turned = models.map((model) => change.turns[model] ?? model);
+  return models.some((model) => BROADLEAVES.includes(model)) ? [...turned, ...change.joins] : turned;
+}
 
 /** How many cells across a stand of one kind of tree grows, before the next may be of another kind. */
 const GROVE_CELLS = 6;
@@ -68,6 +123,17 @@ export const FIELD_MODEL_SIZES: Readonly<Record<FieldModelId, { readonly across:
   tree_dead: { across: 8.3995, tall: 11.1466 },
   tree_fir: { across: 8.226, tall: 13.998 },
   tree_spruce: { across: 7.3256, tall: 12.995 },
+  tree_oakAutumn: { across: 11.1336, tall: 15.1729 },
+  tree_beechAutumn: { across: 10.1713, tall: 16.6659 },
+  tree_birchAutumn: { across: 8.6392, tall: 15.4307 },
+  tree_oakBare: { across: 8.6863, tall: 14.346 },
+  tree_birchBare: { across: 6.1403, tall: 14.6008 },
+  tree_cherry: { across: 8.2252, tall: 11.6052 },
+  tree_maple: { across: 7.6517, tall: 9.416 },
+  tree_ginkgo: { across: 10.6732, tall: 17.2179 },
+  tree_mangrove: { across: 7.4, tall: 9.3479 },
+  tree_snowFir: { across: 8.226, tall: 13.998 },
+  tree_snowSpruce: { across: 7.3256, tall: 12.995 },
   bush_round: { across: 1.848, tall: 1.0804 },
   bush_wide: { across: 2.3952, tall: 1.6323 },
   bush_leafy: { across: 2.1843, tall: 1.2968 },
@@ -94,7 +160,7 @@ export function fieldModelDrawnSize(
 
 /**
  * Which of a thing's models stands at a cell, the same for the same field each time: those its mood
- * grows, or else those of a wood. Most cells take the kind of the stand they lie in, so that trees of
+ * grows, or else those of a wood, as the season has them. Most cells take the kind of the stand they lie in, so that trees of
  * a kind grow together; one in four takes a kind of its own.
  */
 export function fieldModelAt(
@@ -102,10 +168,12 @@ export function fieldModelAt(
   x: number,
   y: number,
   seed: number,
-  mood?: FieldAtmosphereId
+  mood?: FieldAtmosphereId,
+  season: FieldSeason = ''
 ): FieldModelId | null {
-  const models = (mood && FIELD_MOOD_PROP_MODELS[mood]?.[prop]) || FIELD_PROP_MODELS[prop];
-  if (!models?.length) return null;
+  const listed = (mood && FIELD_MOOD_PROP_MODELS[mood]?.[prop]) || FIELD_PROP_MODELS[prop];
+  if (!listed?.length) return null;
+  const models = seasonModels(listed, season);
   const own = mixed(x, y, seed);
   const stand = mixed(Math.floor(x / GROVE_CELLS), Math.floor(y / GROVE_CELLS), seed + 1);
   return models[(own % 4 === 0 ? own >>> 2 : stand) % models.length];

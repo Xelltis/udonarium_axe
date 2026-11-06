@@ -7,6 +7,7 @@ import {
   FieldAtmosphereId,
 } from '@axe/domain/tabletop/field/field-atmosphere';
 import { FIELD_MERGE_SPAN, fieldToBlocks } from '@axe/domain/tabletop/field/field-blocks';
+import type { FieldSeason } from '@axe/domain/tabletop/field/field-models';
 import { FieldLayout, generateField } from '@axe/domain/tabletop/field/field-layout';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { MapBlocks } from '@axe/domain/tabletop/map-blocks';
@@ -24,6 +25,8 @@ export interface FieldRequest {
   relief?: number;
   /** Whether trees, bushes and rocks are stood as the bundled 3D models. Left out, they are built of blocks. */
   models?: boolean;
+  /** The season the trees are grown in. Left out, none in particular, which grows them as in summer. */
+  season?: FieldSeason;
 }
 
 export interface FieldPlan {
@@ -54,5 +57,9 @@ export function planField(request: FieldRequest): FieldPlan {
   const relief = clampFieldRelief(request.relief ?? 0);
   const layout = generateField(atmosphere, width, height, request.seed, density, relief, grid.type);
   const span = mergeSpanFor(grid, FIELD_MERGE_SPAN);
-  return { atmosphere, layout, blocks: fieldToBlocks(layout, atmosphere, request.seed, span, request.models === true) };
+  return {
+    atmosphere,
+    layout,
+    blocks: fieldToBlocks(layout, atmosphere, request.seed, span, request.models === true, request.season ?? ''),
+  };
 }

@@ -193,6 +193,27 @@
       />
       {{ 'feature.tabletop.dungeonGenerator.props.models' | transloco }}
     </label>
+    @if (fieldModels()) {
+      <div>
+        <label class="text-ui-muted mb-1.25 block text-[0.78rem] font-semibold tracking-[0.04em] uppercase">
+          {{ 'feature.tabletop.dungeonGenerator.props.season' | transloco }}
+        </label>
+        <div class="grid grid-cols-5 gap-1.5">
+          @for (season of fieldSeasons; track season) {
+            <button
+              class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text cursor-pointer border border-solid px-1 py-1.5 text-center text-[0.82rem]"
+              type="button"
+              [attr.data-testid]="'field-season-' + (season || 'none')"
+              [attr.aria-pressed]="fieldSeason() === season"
+              [class.border-ui-accent]="fieldSeason() === season"
+              (click)="fieldSeason.set(season)"
+            >
+              {{ 'feature.tabletop.dungeonGenerator.season.' + (season || 'none') | transloco }}
+            </button>
+          }
+        </div>
+      </div>
+    }
   } @else {
     <div>
       <label

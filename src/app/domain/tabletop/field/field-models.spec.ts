@@ -5,6 +5,7 @@ import {
   FIELD_MODEL_SIZES,
   FIELD_MOOD_PROP_MODELS,
   FIELD_PROP_MODELS,
+  FIELD_SEASONS,
   fieldModelAt,
   fieldModelDrawnSize,
   fieldModelUrl,
@@ -66,6 +67,23 @@ describe('the bundled models of open country', () => {
     expect(new Set(square(30, 'snowfield'))).toEqual(new Set(FIELD_MOOD_PROP_MODELS.snowfield!.tree));
     expect(square(30, 'woodland')).toEqual(square(30));
     expect(fieldModelAt('bush', 4, 4, 7, 'marsh')).toBe(fieldModelAt('bush', 4, 4, 7));
+  });
+
+  it('grows trees as in summer in no season in particular, and turns them with the season chosen', () => {
+    const grown = (season: (typeof FIELD_SEASONS)[number], mood?: Parameters<typeof fieldModelAt>[4]) =>
+      new Set(
+        Array.from({ length: 900 }, (_, index) =>
+          fieldModelAt('tree', index % 30, Math.floor(index / 30), 7, mood, season)
+        )
+      );
+    expect(grown('')).toEqual(grown('summer'));
+    expect(grown('spring')).toContain('tree_cherry');
+    expect([...grown('autumn')]).toEqual(expect.arrayContaining(['tree_oakAutumn', 'tree_maple', 'tree_ginkgo']));
+    expect(grown('autumn')).not.toContain('tree_oak');
+    expect([...grown('winter')]).toEqual(expect.arrayContaining(['tree_oakBare', 'tree_birchBare', 'tree_snowFir']));
+    expect(grown('winter')).not.toContain('tree_fir');
+    expect(grown('spring', 'snowfield')).toEqual(grown('', 'snowfield'));
+    expect(grown('autumn', 'snowfield')).not.toContain('tree_maple');
   });
 
   it('stands none for a thing with no model of its own', () => {
