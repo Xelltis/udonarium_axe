@@ -812,6 +812,23 @@ describe('Table3dService', () => {
     table.destroy();
   });
 
+  it('lifts a block’s model as high as the block floats, as a container stacked on another is', async () => {
+    const scene = service();
+    vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:container' } as never);
+    const table = new GameTable();
+    table.initialize();
+    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    const upper = Terrain.create('コンテナ', 4, 2, 1.7, '', '');
+    upper.location = { name: 'table', x: 0, y: 0 };
+    upper.altitude = 1.7;
+    upper.modelIdentifier = 'container';
+    table.appendChild(upper);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(scene.world().models).toEqual([expect.objectContaining({ altitudePx: 85 })]);
+    table.destroy();
+  });
+
   it('stands a door’s model in its box, and tells it how far the door’s opening has taken it', async () => {
     const scene = service();
     vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:door' } as never);

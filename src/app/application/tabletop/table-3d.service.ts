@@ -276,7 +276,7 @@ export class Table3dService {
         rotateDeg: terrain.rotate,
         rollDeg: 0,
         pivotPx: 0,
-        altitudePx: 0,
+        altitudePx: terrain.altitude * gridSize,
         walking: false,
         ...(terrain.doorStyle !== DoorStyle.NONE
           ? {
