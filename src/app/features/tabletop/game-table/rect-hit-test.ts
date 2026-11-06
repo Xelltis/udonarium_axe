@@ -1,3 +1,4 @@
+import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 export interface TableRect {
@@ -55,7 +56,8 @@ function getObjectExtent(obj: TabletopObject, gridSize: number): { width: number
  *
  * A piece's extent comes from its `width` and `height`, or its `size`, in grid cells, and is one
  * cell otherwise. Pieces off the table and the excluded aliases, ranges by default, are never
- * caught.
+ * caught, and nor is a look on the ground locked in place, as the water a generator lays, which
+ * nothing on the table is to move.
  */
 export function selectByRect(
   objects: readonly TabletopObject[],
@@ -71,6 +73,7 @@ export function selectByRect(
     if (!obj) continue;
     if (obj.location?.name !== 'table') continue;
     if (excludes.has(obj.aliasName)) continue;
+    if (obj.aliasName === TableAmbience.aliasName && (obj as { isLock?: unknown }).isLock === true) continue;
     const { width, height } = getObjectExtent(obj, gridSize);
     const centerX = obj.location.x + width / 2;
     const centerY = obj.location.y + height / 2;

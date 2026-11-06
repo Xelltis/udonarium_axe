@@ -31,6 +31,17 @@ describe('normalizeRect', () => {
 });
 
 describe('selectByRect', () => {
+  it('leaves out a look on the ground locked in place, and catches one free to move', () => {
+    const locked = Object.assign(makeObject({ id: 'lake', alias: 'table-ambience', x: 0, y: 0, width: 1, height: 1 }), {
+      isLock: true,
+    });
+    const free = Object.assign(makeObject({ id: 'pond', alias: 'table-ambience', x: 10, y: 10, width: 1, height: 1 }), {
+      isLock: false,
+    });
+
+    expect(selectByRect([locked, free], { x1: 0, y1: 0, x2: 100, y2: 100 })).toEqual(['pond']);
+  });
+
   it('returns the objects on the table whose centres fall inside the rectangle', () => {
     const objects: TabletopObject[] = [
       makeObject({ id: 'a', alias: 'character', x: 0, y: 0, size: 1 }),
