@@ -1321,4 +1321,22 @@ describe('MovableDirective showing a dragged piece ahead of its object', () => {
     directive.clearDragPreview();
     expect(transient.dropPreview()).toBeNull();
   });
+
+  it('takes the outline of where the piece would land away when the drag is called off', () => {
+    const piece = GameCharacter.create('called off', 1, '');
+    const directive = mount(piece);
+    vi.spyOn(directive.tableSurfaces, 'pointOn').mockReturnValue({
+      t: 1,
+      point: { x: 0, y: 0, z: 0 },
+      localX: 500,
+      localY: 100,
+    });
+    vi.spyOn(directive.tableSurfaces, 'sizeOf').mockReturnValue({ width: 1000, height: 300 });
+    directive.updateDragPreview('north-wall');
+    expect(transient.dropPreview()).not.toBeNull();
+
+    directive.cancel();
+
+    expect(transient.dropPreview()).toBeNull();
+  });
 });

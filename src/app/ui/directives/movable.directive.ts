@@ -591,7 +591,8 @@ export class MovableDirective implements MovableInteractionContext {
    * Ends whatever drag is in progress and puts the piece back to its resting state.
    *
    * Pointer hits, the move animation and the other layers are restored, the held-piece readout
-   * is cleared, and what the piece could stand on is forgotten until the next drag.
+   * and the outline of where it would be put down are cleared, and what the piece could stand on is
+   * forgotten until the next drag.
    */
   cancel() {
     window.removeEventListener('wheel', this.onWheelWhileGrabbed, { capture: true });
@@ -601,6 +602,7 @@ export class MovableDirective implements MovableInteractionContext {
     this.setPointerEvents(true);
     this.setCollidableLayer(false);
     this.clearContactProbe();
+    this.clearDragPreview();
     if (this.updateTimer === null) this.releasePlacement();
   }
 
