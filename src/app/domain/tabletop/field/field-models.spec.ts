@@ -39,10 +39,13 @@ function boxOfGlb(path: string): { across: number; tall: number } {
 }
 
 describe('the bundled models of open country', () => {
+  /** The models stood over a square of cells so many across, row by row. */
+  const square = (size: number) =>
+    Array.from({ length: size * size }, (_, index) => fieldModelAt('tree', index % size, Math.floor(index / size), 7));
+
   it('stands the same model at the same cell of the same field, and spreads them over a wood', () => {
     expect(fieldModelAt('tree', 3, 4, 7)).toBe(fieldModelAt('tree', 3, 4, 7));
-    const chosen = new Set(Array.from({ length: 40 }, (_, x) => fieldModelAt('tree', x, 2, 7)));
-    expect(chosen.size).toBe(FIELD_PROP_MODELS.tree!.length);
+    expect(new Set(square(30)).size).toBe(FIELD_PROP_MODELS.tree!.length);
   });
 
   it('stands none for a thing with no model of its own', () => {
@@ -61,13 +64,13 @@ describe('the bundled models of open country', () => {
   it('draws a model as large as it may within a box, the narrower measure of the box setting how large', () => {
     const tall = fieldModelDrawnSize('tree_oak', 5, 3.3);
     expect(tall.tall).toBeCloseTo(3.3, 6);
-    expect(tall.across).toBeCloseTo((3.3 * 0.7396) / 1.2262, 6);
+    expect(tall.across).toBeCloseTo((3.3 * 4.551) / 6.9122, 6);
     const flat = fieldModelDrawnSize('rock_largeA', 1, 3);
     expect(flat.across).toBeCloseTo(1, 6);
   });
 
   it('serves each from beside the page', () => {
-    expect(fieldModelUrl('tree_oak')).toBe('assets/models/nature/tree_oak.glb');
+    expect(fieldModelUrl('tree_fir')).toBe('assets/models/nature/tree_fir.glb');
   });
 
   it('has every model it names bundled, and nothing bundled it does not name', () => {
