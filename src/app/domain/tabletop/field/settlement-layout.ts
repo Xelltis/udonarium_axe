@@ -501,7 +501,7 @@ function layBarbarianFort(plot: Plot, rng: () => number, fill: number): void {
   plot.take({ x: Math.floor(cx) - 1, y: Math.floor(cy), w: 3, h: 3 });
 
   const tents = Math.max(2, Math.round(between(3, 5, rng) * fill));
-  for (let tries = 0, laid = 0; tries < 600 && laid < tents; tries++) {
+  for (let tries = 0, laid = 0; tries < 750 && laid < tents; tries++) {
     const size = tries < 300 ? 4 : 3;
     const x = between(1, plot.width - size - 1, rng);
     const y = between(1, plot.height - size - 1, rng);
