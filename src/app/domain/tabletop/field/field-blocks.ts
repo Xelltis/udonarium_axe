@@ -8,7 +8,12 @@ import {
   TownPlan,
 } from '@axe/domain/tabletop/field/field-atmosphere';
 import { FieldLayout } from '@axe/domain/tabletop/field/field-layout';
-import { fieldModelAt } from '@axe/domain/tabletop/field/field-models';
+import {
+  FIELD_PROP_MODELS,
+  fieldModelAt,
+  fieldModelDrawnSize,
+  type FieldModelId,
+} from '@axe/domain/tabletop/field/field-models';
 import { FieldBuilding } from '@axe/domain/tabletop/field/town-layout';
 import { MapBlock, MapBlocks, MapLight, MapLightKind, MapPaint } from '@axe/domain/tabletop/map-blocks';
 
@@ -33,20 +38,30 @@ export const TOWN_PIECE_IDS = ['building', 'roofUnit'] as const;
 const ROOF_PLANT = { side: 'metal_grate', top: 'metal_grate', height: 0.5, fill: 0.7 } as const;
 
 /**
- * A standing thing drawn as a bundled 3D model: one block as wide as the thing spreads and as tall as
- * it stands from the ground to its crown, stopping sight where the thing does, which the model is drawn
- * in place of. Its blocks laid course on course are what draw it on a table the page draws itself.
+ * A standing thing drawn as a bundled 3D model: one block as wide and as tall as the model is drawn
+ * standing as large as it may within the cells the thing spreads over and the height it reaches from
+ * the ground to its crown, in the middle of those cells. It stops sight, takes a piece put on it and
+ * stands in the way where the model does, rather than over all the ground its crown would cover; the
+ * model is drawn in place of it.
  */
 function modelledThing(
-  object: FieldLayout['objects'][number],
+  object: {
+    readonly x: number;
+    readonly y: number;
+    readonly span: number;
+    readonly lift: number;
+    readonly spin: number;
+    readonly prop: FieldPropId;
+  },
   shape: (typeof FIELD_PROP_SHAPES)[FieldPropId],
   skin: { side: string; top: string },
   rect: { x: number; y: number; w: number; h: number },
-  model: string
+  model: FieldModelId
 ): MapBlock {
   const layers = shape.layers ?? [{ spread: object.span, height: shape.height }];
   const crown = (shape.altitude ?? 0) + object.lift + layers.reduce((total, layer) => total + layer.height, 0);
   const height = Math.max(crown, shape.trunk ? shape.trunk.height + object.lift : 0, shape.height);
+  const drawn = fieldModelDrawnSize(model, Math.min(rect.w, rect.h), height);
   return {
     kind: 'prop',
     rect,
@@ -54,7 +69,8 @@ function modelledThing(
     locked: false,
     rooms: [],
     skin: { side: { kind: 'texture', id: skin.side }, top: { kind: 'texture', id: skin.top } },
-    height,
+    height: drawn.tall,
+    footprint: { w: drawn.across, d: drawn.across },
     rotate: object.spin,
     thing: object.prop,
     model,
@@ -202,6 +218,17 @@ export function fieldToBlocks(
     const side = asked?.side ?? shape.side;
     const top = asked?.top ?? shape.top;
     const mask = maskOfProp(layout, prop);
+    if (models && FIELD_PROP_MODELS[prop]?.length) {
+      for (let index = 0; index < mask.length; index++) {
+        if (!mask[index]) continue;
+        const x = index % layout.width;
+        const y = Math.floor(index / layout.width);
+        const model = fieldModelAt(prop, x, y, seed)!;
+        const cell = { x, y, span: 1, lift: 0, spin: 0, prop };
+        blocks.push(modelledThing(cell, shape, { side, top }, { x, y, w: 1, h: 1 }, model));
+      }
+      continue;
+    }
     for (const rect of mergeMaskToRects(mask, layout.width, layout.height, span)) {
       blocks.push({
         kind: 'prop',

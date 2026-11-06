@@ -60,6 +60,7 @@ import {
   clampFieldDensity,
   clampFieldRelief,
   clampFieldSize,
+  DEFAULT_FIELD_RELIEF,
   FIELD_ATMOSPHERE_IDS,
   fieldAtmosphereById,
   FieldAtmosphereId,
@@ -139,7 +140,7 @@ export class DungeonGeneratorComponent {
   protected readonly fieldSize = signal(40);
   protected readonly fieldDensity = signal(50);
   /** How high the ground of open country is raised, in cells; a town is never raised. */
-  protected readonly fieldRelief = signal(0);
+  protected readonly fieldRelief = signal(DEFAULT_FIELD_RELIEF);
   protected readonly fieldRaises = computed(() => !fieldAtmosphereById(this.fieldAtmosphere()).town);
   /**
    * Whether the trees, bushes and rocks of open country are stood as the bundled 3D models, as a table

@@ -352,6 +352,8 @@ export const MIN_FIELD_DENSITY = 0;
 export const MAX_FIELD_DENSITY = 100;
 /** How high the ground of a field may be raised from its lowest to its highest, in cells. */
 export const MAX_FIELD_RELIEF = 6;
+/** How high it is raised unless asked otherwise: hills a piece walks up, rather than steps of blocks. */
+export const DEFAULT_FIELD_RELIEF = 2;
 
 /**
  * A requested board width held between 20 and 60 cells and rounded; the smallest for anything that

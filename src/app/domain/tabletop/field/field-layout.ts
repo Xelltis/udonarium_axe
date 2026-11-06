@@ -303,6 +303,7 @@ function crowded(props: FieldGroundMark[], width: number, height: number, x: num
  *
  * Open country is raised as high as `reliefCells` from its lowest ground to its highest, along the
  * same height the bands are cut from, with open water left level; nothing is raised where it is 0.
+ * Raised so, the ground makes its own hills, and none is built of steps of blocks on it.
  */
 export function generateField(
   atmosphere: FieldAtmosphere,
@@ -388,6 +389,7 @@ export function generateField(
   }
 
   for (const prop of STANDING_PROPS) {
+    if (raster && FIELD_PROP_SHAPES[prop].claimsGround) continue;
     plant(prop, atmosphere, ground, props, objects, width, height, growthField, thinnest, growthSpan, rng, scale);
   }
   pourPools(atmosphere, ground, props, pools, width, height, rng);

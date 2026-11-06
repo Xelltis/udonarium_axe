@@ -7,7 +7,7 @@ import {
 } from '@axe/domain/tabletop/field/field-atmosphere';
 import { fieldBoardSize, planField } from '@axe/domain/tabletop/field/field-generator';
 import { propAt } from '@axe/domain/tabletop/field/field-layout';
-import { FIELD_MODEL_IDS, type FieldModelId } from '@axe/domain/tabletop/field/field-models';
+import { FIELD_MODEL_IDS, fieldModelDrawnSize, type FieldModelId } from '@axe/domain/tabletop/field/field-models';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { MAP_MAX_TERRAINS } from '@axe/domain/tabletop/map-blocks';
 import { boardExtentPx } from '@axe/domain/tabletop/map-grid';
@@ -39,6 +39,27 @@ describe('planField()', () => {
     expect(dressed.filter((block) => block.thing === 'tree')).toHaveLength(trees.length);
     expect(modelled.blocks.blocks.length).toBeLessThan(built.blocks.blocks.length);
     expect(modelled.blocks.blocks.filter((block) => block.thing === 'tree').every((block) => block.model)).toBe(true);
+  });
+
+  it('stands a thing drawn as a model in a block as large as the model is drawn, not over all its crown spreads to', () => {
+    const modelled = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7, models: true });
+
+    const trees = modelled.blocks.blocks.filter((block) => block.thing === 'tree');
+    for (const tree of trees) {
+      const drawn = fieldModelDrawnSize(tree.model as FieldModelId, Math.min(tree.rect.w, tree.rect.h), 99);
+      expect(tree.footprint!.w, JSON.stringify(tree)).toBeLessThan(tree.rect.w);
+      expect(tree.footprint!.w / tree.height!).toBeCloseTo(drawn.across / drawn.tall, 6);
+    }
+  });
+
+  it('stands each bush as a model of its own, as wide as it is drawn, where models are asked for', () => {
+    const built = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7 });
+    const modelled = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7, models: true });
+
+    const bushes = modelled.blocks.blocks.filter((block) => block.thing === 'bush');
+    expect(bushes.length).toBeGreaterThan(0);
+    expect(bushes.every((bush) => bush.model && bush.rect.w === 1 && bush.footprint!.w < 1)).toBe(true);
+    expect(built.blocks.blocks.filter((block) => block.thing === 'bush').some((bush) => bush.model)).toBe(false);
   });
 
   it('lays out the same field twice for one seed, and another for another', () => {
@@ -360,6 +381,15 @@ describe('the ground of a field raised as high as asked', () => {
     expect(raised.layout.ground).toEqual(flat.layout.ground);
     expect(raised.layout.props).toEqual(flat.layout.props);
     expect(raised.blocks).toEqual(flat.blocks);
+  });
+
+  it('builds no hills of steps of blocks where the ground itself is raised, as it does on flat ground', () => {
+    const flat = planField({ atmosphere: 'meadow', size: 40, density: 50, seed: 7 });
+    const raised = planField({ atmosphere: 'meadow', size: 40, density: 50, seed: 7, relief: 2 });
+
+    expect(flat.layout.objects.some((object) => object.prop === 'hill')).toBe(true);
+    expect(raised.layout.objects.some((object) => object.prop === 'hill')).toBe(false);
+    expect(raised.layout.relief).not.toBeNull();
   });
 
   it('leaves open water level, at the board', () => {
