@@ -129,6 +129,31 @@ describe('DungeonGeneratorComponent', () => {
     expect(component.usingDefaults()).toBe(false);
   });
 
+  it('marks the kind of map and the atmosphere chosen, and only those, moving the mark as another is chosen', () => {
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const chosen = (prefix: string) =>
+      [...element.querySelectorAll<HTMLButtonElement>(`[data-testid^="${prefix}"]`)]
+        .filter((button) => button.getAttribute('aria-pressed') === 'true')
+        .map((button) => [button.dataset['testid'], button.querySelector('.material-icons')?.textContent]);
+    const press = (id: string) => {
+      element.querySelector<HTMLButtonElement>(`[data-testid="${id}"]`)!.click();
+      fixture.detectChanges();
+    };
+
+    expect(chosen('map-kind-')).toEqual([['map-kind-dungeon', 'check']]);
+    expect(chosen('atmosphere-')).toEqual([['atmosphere-stoneDungeon', 'check']]);
+
+    press('atmosphere-crypt');
+    expect(chosen('atmosphere-')).toEqual([['atmosphere-crypt', 'check']]);
+
+    press('map-kind-field');
+    expect(chosen('map-kind-')).toEqual([['map-kind-field', 'check']]);
+    expect(chosen('atmosphere-')).toEqual([['atmosphere-woodland', 'check']]);
+    press('atmosphere-snowfield');
+    expect(chosen('atmosphere-')).toEqual([['atmosphere-snowfield', 'check']]);
+  });
+
   it('hangs the kind of door chosen in every doorway until the defaults are restored', () => {
     fixture.detectChanges();
     const doors = () => component.plan().blocks.blocks.filter((block) => block.kind === 'door');
