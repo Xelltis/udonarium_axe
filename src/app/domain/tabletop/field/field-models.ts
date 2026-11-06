@@ -14,12 +14,10 @@ export const FIELD_MODEL_IDS = [
   'bush_round',
   'bush_wide',
   'bush_leafy',
-  'grass',
-  'grass_large',
-  'rock_largeA',
-  'rock_smallA',
-  'rock_tallA',
-  'stone_largeA',
+  'rock_boulder',
+  'rock_angular',
+  'rock_slab',
+  'rock_outcrop',
 ] as const;
 
 export type FieldModelId = (typeof FIELD_MODEL_IDS)[number];
@@ -37,8 +35,8 @@ export const FIELD_PROP_MODELS: Readonly<Partial<Record<FieldPropId, readonly Fi
   tree: ['tree_oak', 'tree_beech', 'tree_birch', 'tree_fir', 'tree_spruce'],
   streetTree: ['tree_beech', 'tree_poplar', 'tree_birch'],
   bush: ['bush_round', 'bush_wide', 'bush_leafy'],
-  boulder: ['rock_largeA', 'rock_smallA', 'stone_largeA'],
-  outcrop: ['rock_tallA'],
+  boulder: ['rock_boulder', 'rock_angular', 'rock_slab'],
+  outcrop: ['rock_outcrop'],
 };
 
 /**
@@ -73,12 +71,10 @@ export const FIELD_MODEL_SIZES: Readonly<Record<FieldModelId, { readonly across:
   bush_round: { across: 1.848, tall: 1.0804 },
   bush_wide: { across: 2.3952, tall: 1.6323 },
   bush_leafy: { across: 2.1843, tall: 1.2968 },
-  grass: { across: 0.3922, tall: 0.254 },
-  grass_large: { across: 0.409, tall: 0.254 },
-  rock_largeA: { across: 1.0155, tall: 0.2598 },
-  rock_smallA: { across: 0.3608, tall: 0.1912 },
-  rock_tallA: { across: 0.9831, tall: 0.9959 },
-  stone_largeA: { across: 1.0155, tall: 0.2598 },
+  rock_boulder: { across: 1.3556, tall: 0.7302 },
+  rock_angular: { across: 1.1457, tall: 0.6974 },
+  rock_slab: { across: 1.3424, tall: 0.5183 },
+  rock_outcrop: { across: 1.2821, tall: 1.064 },
 };
 
 /**
