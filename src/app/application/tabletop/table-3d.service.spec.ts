@@ -230,6 +230,8 @@ describe('Table3dService', () => {
   let graphics: TableGraphics;
   /** How many times the engine was loaded for the service made last; each service counts its own. */
   let loaded: { count: number };
+  /** Whether the graphics card refuses an engine asked for so, once it is asked; none is refused unless set. */
+  let refused: (options: Table3dEngineOptions) => boolean = () => false;
 
   function service(): Table3dService {
     engines = [];
@@ -244,6 +246,7 @@ describe('Table3dService', () => {
             counted.count++;
             return Promise.resolve({
               createTable3dEngine: (_canvas: HTMLCanvasElement, options: Table3dEngineOptions) => {
+                if (refused(options)) return Promise.reject(new Error('the graphics card refused'));
                 const engine = new FakeEngine(options);
                 engines.push(engine);
                 return Promise.resolve(engine);
@@ -269,6 +272,7 @@ describe('Table3dService', () => {
   afterEach(() => {
     localStorage.removeItem(STORAGE_KEYS.tableRenderer);
     localStorage.removeItem(STORAGE_KEYS.tableQuality);
+    refused = () => false;
   });
 
   it('draws through WebGPU until a seat asks for WebGL2 alone, and remembers the choice', () => {
@@ -548,6 +552,26 @@ describe('Table3dService', () => {
     without.attach(document.createElement('canvas'));
     await without.whenIdle();
     expect(engines[0].options.forceWebGL).toBe(true);
+  });
+
+  it('draws through WebGL2 where WebGPU was offered but refused once asked, and says so where both are refused', async () => {
+    graphics = { webgpu: true, webgl2: true };
+    refused = (options) => !options.forceWebGL;
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+
+    expect(engines.map((engine) => engine.options.forceWebGL)).toEqual([true]);
+    expect(scene.preparing()).toBe(false);
+
+    TestBed.resetTestingModule();
+    refused = () => true;
+    const none = service();
+    none.attach(document.createElement('canvas'));
+    await none.whenIdle();
+
+    expect(none.unavailable()).toBe(true);
+    expect(none.preparing()).toBe(false);
   });
 
   it('says so, and makes no engine, where neither interface can be had', async () => {

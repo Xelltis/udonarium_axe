@@ -588,11 +588,30 @@ export class Table3dService {
       return null;
     }
     this.unavailable.set(false);
-    const engines = await this.loadEngines();
     const forceWebGL = untracked(this.renderer) === 'three-webgl2' || !graphics.webgpu;
-    const engine = await engines.createTable3dEngine(canvas, { forceWebGL });
+    const engine =
+      (await this.makeEngine(canvas, forceWebGL)) ??
+      (!forceWebGL && graphics.webgl2 ? await this.makeEngine(canvas, true) : null);
+    if (!engine) {
+      this.unavailable.set(true);
+      return null;
+    }
     this.backend.set(engine.backend);
     return engine;
+  }
+
+  /**
+   * Makes the engine for a canvas, through WebGL2 alone where asked, or answers null where it cannot be
+   * made: a graphics card that offered an interface can still refuse it once asked, and the engine's
+   * own code can fail to come.
+   */
+  private async makeEngine(canvas: HTMLCanvasElement, forceWebGL: boolean): Promise<Table3dEngine | null> {
+    try {
+      const engines = await this.loadEngines();
+      return await engines.createTable3dEngine(canvas, { forceWebGL });
+    } catch {
+      return null;
+    }
   }
 
   /** Tells the engine the scene and the camera whenever either changes. */
