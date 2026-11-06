@@ -67,8 +67,12 @@ describe('which blocks may be drawn together with others', () => {
   it('draws the top of a block alone together, as a field’s crop is built, which nothing draws the walls of', () => {
     const floorOnly = wall();
     floorOnly.mode = TerrainViewState.FLOOR;
+    const bare = wall();
+    bare.mode = TerrainViewState.FLOOR;
+    bare.setFaceImage('wall', '');
 
     expect(isBatchable(floorOnly, square)).toBe(true);
+    expect(isBatchable(bare, square)).toBe(true);
   });
 
   it('draws alone a glass block, which has no picture to draw', () => {

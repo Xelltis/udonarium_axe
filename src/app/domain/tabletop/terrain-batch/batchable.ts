@@ -25,7 +25,7 @@ function drawn(terrain: Terrain, face: TerrainFace, shared: 'wall' | 'floor'): b
  *
  * Only a block nobody will move, open, press, climb or look at by itself, and one that looks the same
  * drawn either way: locked in place on the floor, a plain box standing on the ground, or the top of
- * one alone, square to the grid, and with a picture on every face. Its picture has to lie the same
+ * one alone, square to the grid, and with a picture on every face it shows. Its picture has to lie the same
  * way too, which a tiled picture does on any block and a stretched one only on a block one cell
  * across; a hex picture is laid from the corner of the block's own outline either way.
  *
@@ -45,9 +45,13 @@ export function isBatchable(terrain: Terrain, grid: CellGrid): boolean {
   if (!drawn(terrain, 'top', 'floor')) return false;
 
   if (isHexGrid(grid.type)) {
-    return width === depth && width <= LARGEST_HEX_BLOCK && terrain.faceImageIdentifier('wall').length > 0;
+    return (
+      width === depth &&
+      width <= LARGEST_HEX_BLOCK &&
+      (!terrain.hasWall || terrain.faceImageIdentifier('wall').length > 0)
+    );
   }
   const sides = ['north', 'south', 'west', 'east'] as const;
-  if (!sides.every((side) => drawn(terrain, side, 'wall'))) return false;
+  if (terrain.hasWall && !sides.every((side) => drawn(terrain, side, 'wall'))) return false;
   return terrain.isTiledTexture || (width === 1 && depth === 1);
 }
