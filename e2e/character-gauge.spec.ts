@@ -337,6 +337,7 @@ test.describe('what shows above a piece', () => {
 
   test('pops out a red number when a resource goes down', async ({ page }) => {
     const piece = newCharacterPiece(page);
+    await expect(piece.locator('[data-testid="piece-gauge"]').first()).toBeVisible({ timeout: 10000 });
     const sheet = await openSheet(page);
     // The piece shakes and flashes for 420ms, which a slow browser can spend before the number
     // below shows; the page notes both as they start, so neither is missed.
