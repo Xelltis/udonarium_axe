@@ -248,11 +248,16 @@ html[data-overlay] .sk-cube-grid {
   display: none;
 }
 
+/* The body clips what reaches past the screen rather than hiding it. A box that only hides it can still
+   be scrolled, as a text editor scrolls every box round its caret to bring it into view, and the whole
+   page moved up under the bars held to the screen. */
 body {
   font-family:
     -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Verdana, Meiryo, 'M+ 1p', 'Apple SD Gothic Neo',
     'Malgun Gothic', 'Noto Sans KR', sans-serif;
   position: relative;
+  display: flow-root;
+  overflow: clip;
   color: var(--ui-text);
   line-break: strict;
   word-break: auto-phrase;
