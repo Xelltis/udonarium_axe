@@ -4631,6 +4631,7 @@
         "hazardDirt": "Dirt",
         "hazardLeaves": "Floating leaves",
         "hazardFlowSpeed": "Flow speed",
+        "hazardIce": "Frozen over",
         "hazardFlowDirection": "Flow direction",
         "hazardWaterLook": "Look",
         "hazardColor": "Color",

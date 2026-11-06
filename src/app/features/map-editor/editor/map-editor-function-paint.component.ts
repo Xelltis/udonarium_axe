@@ -53,6 +53,7 @@ import {
   waterDirtOf,
   waterFlowDirectionOf,
   waterFlowSpeedOf,
+  waterIceOf,
   waterLeavesOf,
   waterTurbidityOf,
 } from '@axe/domain/tabletop/function-paint';
@@ -192,6 +193,14 @@ export class MapEditorFunctionPaintComponent {
   /** Sets how fast the water brush paints the water flowing, from a percentage. */
   protected setWaterFlowSpeed(percent: unknown): void {
     this.setHazardPaint({ flowSpeed: waterFlowSpeedOf(Number(percent) / 100) });
+  }
+
+  /** How much of the water the water brush paints frozen over, as a percentage. */
+  protected readonly waterIcePercent = computed(() => Math.round(this.state.functionSpec().hazard.ice * 100));
+
+  /** Sets how much of the water the water brush paints frozen over, from a percentage. */
+  protected setWaterIce(percent: unknown): void {
+    this.setHazardPaint({ ice: waterIceOf(Number(percent) / 100) });
   }
 
   /** The ways the water brush can paint the water flowing. */

@@ -18,6 +18,7 @@ import {
   waterDirtOf,
   waterFlowDirectionOf,
   waterFlowSpeedOf,
+  waterIceOf,
   waterLeavesOf,
   waterTurbidityOf,
 } from '@axe/domain/tabletop/function-paint';
@@ -26,6 +27,7 @@ import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
 import {
   DEFAULT_DIRT,
+  DEFAULT_ICE,
   DEFAULT_LEAVES,
   DEFAULT_SURFACE_CELLS,
   DEFAULT_TURBIDITY,
@@ -160,6 +162,7 @@ function hazardBlocksOf(
     const leaves = water ? waterLeavesOf(spec.leaves) : DEFAULT_LEAVES;
     const flowSpeed = water ? waterFlowSpeedOf(spec.flowSpeed) : 0;
     const flowDirection = water ? waterFlowDirectionOf(spec.flowDirection) : 0;
+    const ice = water ? waterIceOf(spec.ice) : DEFAULT_ICE;
     const color = water ? (spec.color ?? '').trim() : '';
     for (const rect of blockRectsOf(Object.keys(layer.cells), hex)) {
       ambience.push({
@@ -175,6 +178,7 @@ function hazardBlocksOf(
           leaves,
           flowSpeed,
           flowDirection,
+          ice,
         },
       });
       // Dangerous ground is dear to cross rather than shut: what nobody gets through at all is

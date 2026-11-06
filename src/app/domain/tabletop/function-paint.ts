@@ -24,12 +24,14 @@ import {
 } from '@axe/domain/tabletop/trigger-event';
 import {
   DEFAULT_DIRT,
+  DEFAULT_ICE,
   DEFAULT_LEAVES,
   DEFAULT_SURFACE_CELLS,
   DEFAULT_TURBIDITY,
   dirtOf,
   flowDirectionOf,
   flowSpeedOf,
+  iceOf,
   leavesOf,
   surfaceCellsOf,
   turbidityOf,
@@ -284,6 +286,8 @@ export interface HazardPaintSpec {
   flowSpeed: number;
   /** Which way the water flows, in degrees clockwise from the top of the table. Only water reads it. */
   flowDirection: number;
+  /** How much of the water is frozen over, from 0 for open water to 1 for ice. Only water reads it. */
+  ice: number;
   /** What crossing it costs over plain footing, nought laying no move cost at all; null leaves it to the kind. */
   extraCost: number | null;
 }
@@ -336,6 +340,7 @@ export const DEFAULT_FUNCTION_SPEC: FunctionSpec = {
     leaves: DEFAULT_LEAVES,
     flowSpeed: 0,
     flowDirection: 0,
+    ice: DEFAULT_ICE,
     extraCost: null,
   },
   terrain: {
@@ -508,6 +513,7 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
       leaves: waterLeavesOf(hazard['leaves']),
       flowSpeed: waterFlowSpeedOf(hazard['flowSpeed']),
       flowDirection: waterFlowDirectionOf(hazard['flowDirection']),
+      ice: waterIceOf(hazard['ice']),
       extraCost: asHazardExtraCost(hazard['extraCost']),
     },
     moveCost: {
@@ -643,6 +649,8 @@ export interface AmbiencePaintSpec {
   flowSpeed: number;
   /** Which way water flows, held at the top of the table for every other kind. */
   flowDirection: number;
+  /** How much of the water is frozen over, held at open water for every other kind. */
+  ice: number;
 }
 
 /**
@@ -671,6 +679,11 @@ export function waterLeavesOf(value: unknown): number {
 /** How fast water is painted to flow, in hundredths, as the brush and the table both read it. */
 export function waterFlowSpeedOf(value: unknown): number {
   return Math.round(flowSpeedOf(value) * 100) / 100;
+}
+
+/** How much of the water is painted frozen over, in hundredths, as the brush and the table both read it. */
+export function waterIceOf(value: unknown): number {
+  return Math.round(iceOf(value) * 100) / 100;
 }
 
 /** Which way water is painted to flow, in whole degrees, as the brush and the table both read it. */

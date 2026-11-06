@@ -485,6 +485,7 @@ describe('painting dangerous ground', () => {
       leaves?: number;
       flowSpeed?: number;
       flowDirection?: number;
+      ice?: number;
       extraCost?: number | null;
     } = {}
   ): FunctionLayer {
@@ -531,6 +532,14 @@ describe('painting dangerous ground', () => {
 
     expect(river.ambience.add[0].spec).toMatchObject({ flowSpeed: 0.4, flowDirection: 225 });
     expect(bog.ambience.add[0].spec).toMatchObject({ flowSpeed: 0, flowDirection: 0 });
+  });
+
+  it('lays water frozen over as far as it was painted, and other ground open', () => {
+    const lake = planFunctionPaint(sceneWith(hazardLayer(['1,1'], 'water', 'HP', { ice: 0.9 })), snapshot())!;
+    const bog = planFunctionPaint(sceneWith(hazardLayer(['1,1'], 'bog', 'HP', { ice: 0.9 })), snapshot())!;
+
+    expect(lake.ambience.add[0].spec.ice).toBe(0.9);
+    expect(bog.ambience.add[0].spec.ice).toBe(0);
   });
 
   it('lays water as murky as it was painted', () => {
@@ -622,6 +631,7 @@ describe('painting dangerous ground', () => {
             leaves: 0,
             flowSpeed: 0,
             flowDirection: 0,
+            ice: 0,
           },
         },
       ],

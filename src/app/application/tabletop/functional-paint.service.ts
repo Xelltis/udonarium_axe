@@ -26,6 +26,7 @@ import {
   waterDirtOf,
   waterFlowDirectionOf,
   waterFlowSpeedOf,
+  waterIceOf,
   waterLeavesOf,
   waterTurbidityOf,
 } from '@axe/domain/tabletop/function-paint';
@@ -388,6 +389,7 @@ function ambienceSpecOf(area: TableAmbience): AmbiencePaintSpec {
     leaves: waterLeavesOf(area.floatingLeaves),
     flowSpeed: waterFlowSpeedOf(area.flowSpeed),
     flowDirection: waterFlowDirectionOf(area.flowDirection),
+    ice: waterIceOf(area.iceCover),
   };
 }
 
@@ -611,6 +613,7 @@ export class FunctionalPaintService {
       area.floatingLeaves = block.spec.leaves;
       area.flowSpeed = block.spec.flowSpeed;
       area.flowDirection = block.spec.flowDirection;
+      area.iceCover = block.spec.ice;
       area.location = blockOrigin(null, block, grid);
       table.appendChild(area);
     }

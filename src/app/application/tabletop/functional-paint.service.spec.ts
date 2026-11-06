@@ -506,6 +506,7 @@ describe('FunctionalPaintService', () => {
           leaves: 0,
           flowSpeed: 0,
           flowDirection: 0,
+          ice: 0,
         },
       };
 
@@ -531,6 +532,7 @@ describe('FunctionalPaintService', () => {
           leaves: 0,
           flowSpeed: 0,
           flowDirection: 0,
+          ice: 0,
         },
       };
       service.apply(plan({ ambience: { add: [look], remove: [] } }));
@@ -558,6 +560,7 @@ describe('FunctionalPaintService', () => {
           leaves: 0.6,
           flowSpeed: 0.5,
           flowDirection: 135,
+          ice: 0.8,
         },
       };
       service.apply(plan({ ambience: { add: [pond], remove: [] } }));
@@ -569,6 +572,7 @@ describe('FunctionalPaintService', () => {
       expect(laid.leaves).toBe(0.6);
       expect(laid.flow).toBe(0.5);
       expect(laid.flowHeading).toBe(135);
+      expect(laid.ice).toBe(0.8);
       expect(laid.ambienceColor).toBe('#5f6b4a');
       expect(service.snapshot()!.ambienceBlocks).toEqual([pond]);
     });
@@ -591,6 +595,7 @@ describe('FunctionalPaintService', () => {
           leaves: 0,
           flowSpeed: 0,
           flowDirection: 0,
+          ice: 0,
         },
       };
 
@@ -624,6 +629,7 @@ describe('FunctionalPaintService', () => {
           leaves: 0,
           flowSpeed: 0,
           flowDirection: 0,
+          ice: 0,
         },
       };
 
@@ -652,6 +658,7 @@ describe('FunctionalPaintService', () => {
           leaves: 0,
           flowSpeed: 0,
           flowDirection: 0,
+          ice: 0,
         },
       };
       service.apply(plan({ ambience: { add: [look], remove: [] } }));

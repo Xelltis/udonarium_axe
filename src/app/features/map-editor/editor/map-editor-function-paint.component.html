@@ -369,6 +369,22 @@
           }
         </select>
       </label>
+      <label class="flex items-center justify-between gap-2">
+        <span class="text-ui-muted">{{ 'feature.mapEditor.function.hazardIce' | transloco }}</span>
+        <span class="flex items-center gap-1">
+          <input
+            type="range"
+            min="0"
+            max="100"
+            class="w-24 cursor-pointer [accent-color:var(--ui-accent)]"
+            data-testid="hazard-ice"
+            [ngModel]="waterIcePercent()"
+            (ngModelChange)="setWaterIce($event)"
+            name="hazardIce"
+          />
+          <span class="text-ui-muted w-8 text-right">{{ waterIcePercent() }}%</span>
+        </span>
+      </label>
     }
     <label class="flex items-center justify-between gap-2">
       <span class="text-ui-muted">{{ 'feature.mapEditor.function.moveCostCharge' | transloco }}</span>

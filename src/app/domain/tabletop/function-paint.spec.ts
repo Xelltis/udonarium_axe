@@ -54,7 +54,15 @@ describe('sanitizeFunctionSpec()', () => {
     expect(spec.hazard.leaves).toBe(0);
     expect(spec.hazard.flowSpeed).toBe(0);
     expect(spec.hazard.flowDirection).toBe(0);
+    expect(spec.hazard.ice).toBe(0);
     expect(spec.hazard.extraCost).toBeNull();
+  });
+
+  it('keeps how much of the water was painted frozen over, reading empty or unreadable as open water', () => {
+    expect(sanitizeFunctionSpec({ hazard: { kind: 'water', ice: '0.456' } }).hazard.ice).toBe(0.46);
+    expect(sanitizeFunctionSpec({ hazard: { kind: 'water', ice: 4 } }).hazard.ice).toBe(1);
+    expect(sanitizeFunctionSpec({ hazard: { kind: 'water', ice: '' } }).hazard.ice).toBe(0);
+    expect(sanitizeFunctionSpec({ hazard: { kind: 'water', ice: 'thick' } }).hazard.ice).toBe(0);
   });
 
   it('keeps the way water was painted to flow, turned back within one round', () => {
