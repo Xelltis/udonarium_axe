@@ -683,22 +683,24 @@ function swungAbout(scaling: Matrix4, swing: NonNullable<ModelPart['swing']>): M
 
 /** Which part of a building's kit a mesh is, as its node (or one it hangs from) says: a wall if none says. */
 function kitRoleOf(object: Object3D): KitRole {
-  const part = partOf(object);
-  return part === 'roof' || part === 'cap' ? part : 'wall';
+  return partOf(object, ['roof', 'cap', 'wall']) ?? 'wall';
 }
 
-/** What part of its model a mesh is, as the nearest of its node and those it hangs from that says so says. */
-function partOf(object: Object3D): unknown {
+/**
+ * Which of the parts asked about a mesh is, as the nearest of its node and those it hangs from that
+ * names one of them says, passing over any that names another; null where none does.
+ */
+function partOf<Part extends string>(object: Object3D, parts: readonly Part[]): Part | null {
   for (let node: Object3D | null = object; node; node = node.parent) {
     const part = (node.userData as { part?: unknown }).part;
-    if (part !== undefined) return part;
+    if ((parts as readonly unknown[]).includes(part)) return part as Part;
   }
-  return undefined;
+  return null;
 }
 
 /** Whether a mesh is the hub of a joined wall, as its node (or one it hangs from) says. */
 function isHub(object: Object3D): boolean {
-  return partOf(object) === 'hub';
+  return partOf(object, ['hub']) === 'hub';
 }
 
 /**
