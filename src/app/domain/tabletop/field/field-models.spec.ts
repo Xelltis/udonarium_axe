@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import {
   FIELD_MODEL_IDS,
   FIELD_MODEL_SIZES,
+  FIELD_MOOD_PROP_MODELS,
   FIELD_PROP_MODELS,
   fieldModelAt,
   fieldModelDrawnSize,
@@ -40,12 +41,31 @@ function boxOfGlb(path: string): { across: number; tall: number } {
 
 describe('the bundled models of open country', () => {
   /** The models stood over a square of cells so many across, row by row. */
-  const square = (size: number) =>
-    Array.from({ length: size * size }, (_, index) => fieldModelAt('tree', index % size, Math.floor(index / size), 7));
+  const square = (size: number, mood?: Parameters<typeof fieldModelAt>[4]) =>
+    Array.from({ length: size * size }, (_, index) =>
+      fieldModelAt('tree', index % size, Math.floor(index / size), 7, mood)
+    );
 
   it('stands the same model at the same cell of the same field, and spreads them over a wood', () => {
     expect(fieldModelAt('tree', 3, 4, 7)).toBe(fieldModelAt('tree', 3, 4, 7));
     expect(new Set(square(30)).size).toBe(FIELD_PROP_MODELS.tree!.length);
+  });
+
+  it('grows trees of a kind together, a cell more often of the kind of the one beside it than not', () => {
+    const size = 30;
+    const trees = square(size);
+    let alike = 0;
+    for (let index = 0; index < trees.length; index++) {
+      if (index % size < size - 1 && trees[index] === trees[index + 1]) alike++;
+    }
+    expect(alike / (size * (size - 1))).toBeGreaterThan(0.5);
+  });
+
+  it('grows the trees of its mood where it has its own, and those of a wood where it has none', () => {
+    expect(new Set(square(30, 'marsh'))).toEqual(new Set(FIELD_MOOD_PROP_MODELS.marsh!.tree));
+    expect(new Set(square(30, 'snowfield'))).toEqual(new Set(FIELD_MOOD_PROP_MODELS.snowfield!.tree));
+    expect(square(30, 'woodland')).toEqual(square(30));
+    expect(fieldModelAt('bush', 4, 4, 7, 'marsh')).toBe(fieldModelAt('bush', 4, 4, 7));
   });
 
   it('stands none for a thing with no model of its own', () => {

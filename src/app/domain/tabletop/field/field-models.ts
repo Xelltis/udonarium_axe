@@ -1,4 +1,4 @@
-import type { FieldPropId } from '@axe/domain/tabletop/field/field-atmosphere';
+import type { FieldAtmosphereId, FieldPropId } from '@axe/domain/tabletop/field/field-atmosphere';
 
 /** The 3D models bundled with the app that open country can be stood with. */
 export const FIELD_MODEL_IDS = [
@@ -42,6 +42,21 @@ export const FIELD_PROP_MODELS: Readonly<Partial<Record<FieldPropId, readonly Fi
 };
 
 /**
+ * The trees a mood of open country grows in place of those of a wood: the broadleaves of open
+ * grassland, the willows and dead trees of a marsh, the evergreens of snow.
+ */
+export const FIELD_MOOD_PROP_MODELS: Readonly<
+  Partial<Record<FieldAtmosphereId, Readonly<Partial<Record<FieldPropId, readonly FieldModelId[]>>>>>
+> = {
+  meadow: { tree: ['tree_oak', 'tree_beech', 'tree_poplar', 'tree_birch'] },
+  marsh: { tree: ['tree_willow', 'tree_birch', 'tree_dead'] },
+  snowfield: { tree: ['tree_fir', 'tree_spruce', 'tree_pine', 'tree_dead'] },
+};
+
+/** How many cells across a stand of one kind of tree grows, before the next may be of another kind. */
+const GROVE_CELLS = 6;
+
+/**
  * How large each bundled model is as it was made, the box round it, in its own units: across, the
  * wider of its two sides, and tall. Read once off the files, which a spec holds them to.
  */
@@ -81,10 +96,25 @@ export function fieldModelDrawnSize(
   return { across: fitted * size.across, tall: fitted * size.tall };
 }
 
-/** Which of a thing's models stands at a cell, the same for the same field each time. */
-export function fieldModelAt(prop: FieldPropId, x: number, y: number, seed: number): FieldModelId | null {
-  const models = FIELD_PROP_MODELS[prop];
+/**
+ * Which of a thing's models stands at a cell, the same for the same field each time: those its mood
+ * grows, or else those of a wood. Most cells take the kind of the stand they lie in, so that trees of
+ * a kind grow together; one in four takes a kind of its own.
+ */
+export function fieldModelAt(
+  prop: FieldPropId,
+  x: number,
+  y: number,
+  seed: number,
+  mood?: FieldAtmosphereId
+): FieldModelId | null {
+  const models = (mood && FIELD_MOOD_PROP_MODELS[mood]?.[prop]) || FIELD_PROP_MODELS[prop];
   if (!models?.length) return null;
-  const mixed = Math.imul(x * 73856093 + y * 19349663 + seed, 2654435761) >>> 0;
-  return models[mixed % models.length];
+  const own = mixed(x, y, seed);
+  const stand = mixed(Math.floor(x / GROVE_CELLS), Math.floor(y / GROVE_CELLS), seed + 1);
+  return models[(own % 4 === 0 ? own >>> 2 : stand) % models.length];
+}
+
+function mixed(x: number, y: number, seed: number): number {
+  return Math.imul(x * 73856093 + y * 19349663 + seed, 2654435761) >>> 0;
 }

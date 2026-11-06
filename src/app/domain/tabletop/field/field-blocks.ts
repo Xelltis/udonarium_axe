@@ -223,7 +223,7 @@ export function fieldToBlocks(
         if (!mask[index]) continue;
         const x = index % layout.width;
         const y = Math.floor(index / layout.width);
-        const model = fieldModelAt(prop, x, y, seed)!;
+        const model = fieldModelAt(prop, x, y, seed, atmosphere.id)!;
         const cell = { x, y, span: 1, lift: 0, spin: 0, prop };
         blocks.push(modelledThing(cell, shape, { side, top }, { x, y, w: 1, h: 1 }, model));
       }
@@ -262,7 +262,7 @@ export function fieldToBlocks(
     const skin = object.skin ?? { side: shape.side, top: shape.top };
     const reach = (object.span - 1) / 2;
     const rect = { x: object.x - reach, y: object.y - reach, w: object.span, h: object.span };
-    const model = models ? fieldModelAt(object.prop, object.x, object.y, seed) : null;
+    const model = models ? fieldModelAt(object.prop, object.x, object.y, seed, atmosphere.id) : null;
 
     if (model) {
       blocks.push(modelledThing(object, shape, skin, rect, model));
