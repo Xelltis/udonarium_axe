@@ -1,10 +1,10 @@
-import { cellCenterOf, cellCount, CellGrid, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, cellCount, CellGrid } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { FLAT_GROUND, groundLiftOfBlock, GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
 import { isSquareGrid } from '@axe/domain/tabletop/move/move-grid';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
-import { terrainBoxOf, terrainCovers } from '@axe/domain/tabletop/terrain-box';
+import { forEachCellUnder, terrainCovers } from '@axe/domain/tabletop/terrain-box';
 import { SurfaceLean, terrainLeanAt, terrainTopPxAt } from '@axe/domain/tabletop/terrain-slope-surface';
 
 /** Whether a block is something a piece walked at ends up standing on top of. */
@@ -73,10 +73,8 @@ export function landingHeightsOn(
   }
   for (const terrain of terrains) {
     if (!canBeStoodOn(terrain)) continue;
-    const box = terrainBoxOf(terrain, grid.sizePx);
     const lift = groundLiftOfBlock(ground, grid.sizePx, terrain);
-    forEachCellInBox(grid, box.minX, box.minY, box.maxX, box.maxY, (cell, cx, cy) => {
-      if (!terrainCovers(terrain, grid.sizePx, cx, cy)) return;
+    forEachCellUnder(grid, terrain, (cell, cx, cy) => {
       const top = terrainTopPxAt(terrain, grid.sizePx, grid.type, cx, cy) + lift;
       if (top > heights[cell]) heights[cell] = top;
     });
