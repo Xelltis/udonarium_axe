@@ -104,6 +104,7 @@ export class SpriteLayer {
   private readonly casterMaterials = new Map<string, MeshBasicNodeMaterial>();
   private facingEye: readonly { readonly mesh: Mesh; readonly sprite: TableWorldSprite }[] = [];
   private eye: EyeAxes | null = null;
+  private laid: readonly TableWorldSprite[] = [];
 
   constructor(
     private readonly pictureOf: (url: string) => Texture,
@@ -115,8 +116,18 @@ export class SpriteLayer {
     return this.casters.size;
   }
 
-  /** Lays out the sprites the scene holds now, making only the ones not drawn before. */
+  /** Shows the sprites laid out last whose pictures have come since, with the shadows they throw. */
+  picturesCame(): void {
+    this.set(this.laid);
+  }
+
+  /**
+   * Lays out the sprites the scene holds now, making only the ones not drawn before. A sprite whose
+   * picture has not come yet is left out until it has, as the page leaves out a picture it has not
+   * read: the graphics card would draw it in the meanwhile as a black board, or as nothing at all.
+   */
   set(sprites: readonly TableWorldSprite[]): void {
+    this.laid = sprites;
     const wanted = new Set<string>();
     const facingEye: { mesh: Mesh; sprite: TableWorldSprite }[] = [];
     for (const sprite of sprites) {
@@ -134,7 +145,7 @@ export class SpriteLayer {
       }
       const mesh = drawn.mesh;
       mesh.renderOrder = STANDING_ORDER;
-      mesh.visible = !sprite.hidden;
+      mesh.visible = !sprite.hidden && this.hasCome(sprite);
       mesh.position.copy(sceneDirection(sprite.centre));
       mesh.scale.set(sprite.widthPx, sprite.heightPx, 1);
       if (sprite.facing === 'eye') {
@@ -178,7 +189,7 @@ export class SpriteLayer {
   private layCasters(sprites: readonly TableWorldSprite[]): void {
     const wanted = new Set<string>();
     for (const sprite of sprites) {
-      if (!standsUp(sprite) || sprite.look.kind !== 'picture' || sprite.hidden) continue;
+      if (!standsUp(sprite) || sprite.look.kind !== 'picture' || sprite.hidden || !this.hasCome(sprite)) continue;
       wanted.add(sprite.id);
       const look = sprite.look.url;
       let caster = this.casters.get(sprite.id);
@@ -238,6 +249,11 @@ export class SpriteLayer {
     this.materials.clear();
     this.frames.clear();
     this.drawn.clear();
+  }
+
+  /** Whether what a sprite shows is there to draw: a frame always is, a picture once it has come. */
+  private hasCome(sprite: TableWorldSprite): boolean {
+    return sprite.look.kind !== 'picture' || this.pictureOf(sprite.look.url).image != null;
   }
 
   private material(key: string, sprite: TableWorldSprite): MeshBasicNodeMaterial {
