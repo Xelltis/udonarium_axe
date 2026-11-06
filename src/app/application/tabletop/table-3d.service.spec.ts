@@ -912,6 +912,36 @@ describe('Table3dService', () => {
     table.destroy();
   });
 
+  it('joins walls once their model is read to be a joined wall, and is not idle until it has read', async () => {
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    let answer: (response: Response) => void = () => undefined;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>((resolve) => (answer = resolve)));
+    vi.spyOn(TestBed.inject(ModelStorage), 'get').mockReturnValue({ isReady: true, url: 'blob:wall' } as never);
+    const table = new GameTable();
+    table.initialize();
+    TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+    for (const x of [50, 100]) {
+      const wall = Terrain.create('壁', 1, 1, 2, '', '');
+      wall.location = { name: 'table', x, y: 50 };
+      wall.modelIdentifier = 'timber_frame_wall';
+      table.appendChild(wall);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(scene.world().models.filter((model) => model.joins)).toEqual([]);
+    let idle = false;
+    void scene.whenIdle().then(() => (idle = true));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(idle).toBe(false);
+
+    answer(new Response(joinedGlb()));
+    await vi.waitFor(() => expect(scene.world().models.filter((model) => model.joins)).toHaveLength(2));
+    await vi.waitFor(() => expect(idle).toBe(true));
+    table.destroy();
+  });
+
   it('joins a hex wall of seven cells on every one of them, and one turned by a step of the hexes', async () => {
     const scene = service();
     vi.spyOn(TestBed.inject(ModelFitService), 'isJoined').mockReturnValue(true);
@@ -1062,3 +1092,21 @@ describe('Table3dService', () => {
     expect(engine.drawn).toBe(2);
   });
 });
+
+/** A binary glTF file of a JSON chunk alone, its scene made as a wall joined to the walls beside it. */
+function joinedGlb(): ArrayBuffer {
+  const text = new TextEncoder().encode(
+    JSON.stringify({ scenes: [{ nodes: [], extras: { fit: 'joined' } }], scene: 0 })
+  );
+  const padded = new Uint8Array(Math.ceil(text.length / 4) * 4).fill(0x20);
+  padded.set(text);
+  const bytes = new Uint8Array(20 + padded.length);
+  const view = new DataView(bytes.buffer);
+  bytes.set([0x67, 0x6c, 0x54, 0x46], 0);
+  view.setUint32(4, 2, true);
+  view.setUint32(8, bytes.length, true);
+  view.setUint32(12, padded.length, true);
+  view.setUint32(16, 0x4e4f534a, true);
+  bytes.set(padded, 20);
+  return bytes.buffer;
+}

@@ -115,6 +115,14 @@ export class ModelFile {
   }
 }
 
+/**
+ * Whether a model's bytes are read from where they are held here, an object URL or a data URL, rather
+ * than from anywhere else, which nothing is ever fetched from.
+ */
+export function isHeldModelUrl(url: string): boolean {
+  return url.startsWith('blob:') || url.startsWith('data:');
+}
+
 /** Whether bytes are a binary glTF file, which begins with `glTF` and its version, 2. */
 export function isBinaryGltf(head: Uint8Array): boolean {
   return (

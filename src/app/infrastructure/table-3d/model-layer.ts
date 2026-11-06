@@ -1,4 +1,5 @@
 import { gltfFactsOf, MAX_MODEL_TRIANGLES } from '@axe/core/storage/gltf-facts';
+import { isHeldModelUrl } from '@axe/core/storage/model-file';
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import type { WallJoinCell } from '@axe/domain/tabletop/world/wall-joins';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
@@ -155,9 +156,7 @@ export class ModelLayer {
     private readonly arrived: () => void,
     private readonly renderer: () => WebGPURenderer
   ) {
-    this.manager.setURLModifier((url) =>
-      url.startsWith('blob:') || url.startsWith('data:') || url.startsWith(DECODERS) ? url : 'data:,'
-    );
+    this.manager.setURLModifier((url) => (isHeldModelUrl(url) || url.startsWith(DECODERS) ? url : 'data:,'));
     this.loader = new GLTFLoader(this.manager);
     this.loader.setMeshoptDecoder(MeshoptDecoder);
   }
@@ -357,7 +356,7 @@ export class ModelLayer {
 
   /** A model read from bytes held here, or null for one that is not to be drawn. */
   private async parse(url: string): Promise<LoadedModel | null> {
-    if (!url.startsWith('blob:') && !url.startsWith('data:')) return null;
+    if (!isHeldModelUrl(url)) return null;
     const bytes = await (await fetch(url)).arrayBuffer();
     const facts = gltfFactsOf(bytes);
     if (!facts || facts.triangles > MAX_MODEL_TRIANGLES) return null;

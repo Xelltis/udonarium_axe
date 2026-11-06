@@ -406,6 +406,7 @@ export class Table3dService {
 
   constructor() {
     this.loadSoon();
+    this.modelFits.onRead(() => setTimeout(() => this.settleIfIdle(), 0));
     inject(DestroyRef).onDestroy(() => {
       for (const letGo of [...this.attached]) letGo();
     });
@@ -604,6 +605,7 @@ export class Table3dService {
       !(this.frame !== null && !this.frameForMotion) &&
       this.starting === null &&
       !this.engine?.isLoading() &&
+      !this.modelFits.isReading &&
       this.tableVeil.loadingPictures() === 0
     );
   }
@@ -854,7 +856,7 @@ export class Table3dService {
 
   private settleIfIdle(): void {
     const drawing = this.frame !== null && !this.frameForMotion;
-    if (drawing || this.starting !== null || this.engine?.isLoading()) return;
+    if (drawing || this.starting !== null || this.engine?.isLoading() || this.modelFits.isReading) return;
     for (const resolve of this.idleWaiters.splice(0)) resolve();
   }
 }
