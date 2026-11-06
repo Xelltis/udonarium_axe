@@ -73,6 +73,7 @@ describe('which blocks may be drawn together with others', () => {
 
     expect(isBatchable(floorOnly, square)).toBe(true);
     expect(isBatchable(bare, square)).toBe(true);
+    expect(isBatchable(bare, flat)).toBe(true);
   });
 
   it('draws alone a glass block, which has no picture to draw', () => {

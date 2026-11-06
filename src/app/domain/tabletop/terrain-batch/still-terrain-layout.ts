@@ -46,7 +46,8 @@ function topLook(terrain: Terrain): string {
 }
 
 /**
- * Works out which blocks are drawn together, and the caps, walls and sheets they are drawn as.
+ * Works out which blocks are drawn together, and the caps, walls and sheets they are drawn as: the
+ * walls only of those that show them.
  *
  * A block is drawn together with others when {@link isBatchable} allows it, it is not selected,
  * the fog leaves all of it drawn and every cell it covers is on the board and its own. A side of
@@ -93,10 +94,12 @@ export function stillTerrainLayoutOf(inputs: readonly StillTerrainInput[], grid:
       gridSize,
       isFlatTopGrid(grid.type)
     );
-    const hexWalls = chosen.map(({ terrain }) => ({
-      identifier: terrain.identifier,
-      hidden: hiddenFacesOf(hidden, terrain.identifier),
-    }));
+    const hexWalls = chosen
+      .filter(({ terrain }) => terrain.hasWall)
+      .map(({ terrain }) => ({
+        identifier: terrain.identifier,
+        hidden: hiddenFacesOf(hidden, terrain.identifier),
+      }));
     return { merged, squareCaps: [], squareWalls: [], hexCaps, hexWalls };
   }
 
@@ -114,6 +117,7 @@ export function stillTerrainLayoutOf(inputs: readonly StillTerrainInput[], grid:
   );
   const squareWalls: SquareWall[] = [];
   for (const { terrain } of chosen) {
+    if (!terrain.hasWall) continue;
     const covered = hiddenFacesOf(hidden, terrain.identifier);
     for (const side of SIDES) {
       if (!covered.has(side)) squareWalls.push(squareWallOf(terrain, side, gridSize));
