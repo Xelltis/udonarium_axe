@@ -17,6 +17,7 @@ import {
   type SettlementWallKind,
   SLOWING_CROPS,
 } from '@axe/domain/tabletop/field/settlement-layout';
+import { outwardTurn, type SettlementModelId } from '@axe/domain/tabletop/field/settlement-models';
 import type {
   MapAmbience,
   MapBlock,
@@ -46,6 +47,11 @@ const WALLS: Readonly<Record<SettlementWallKind, { readonly skin: Skin; readonly
   timberWall: { skin: { side: 'wall_timber', top: 'wall_timber' }, thing: 'wall' },
   stoneRoomWall: { skin: { side: 'wall_ashlar', top: 'stone_tile' }, thing: 'wall' },
   fence: { skin: { side: 'wall_timber', top: 'wall_timber' }, thing: 'fence' },
+};
+
+/** The model a run of each kind of wall is drawn as, a tile to a cell, where it has one. */
+const WALL_MODELS: Readonly<Partial<Record<SettlementWallKind, SettlementModelId>>> = {
+  palisade: 'palisade_spikes',
 };
 
 /**
@@ -170,7 +176,9 @@ export function settlementBlocks(
       kind === 'fence'
         ? fenceRuns(mask, width, height, span)
         : mergeMaskToRects(mask, width, height, span).map((rect) => ({ rect, footprint: undefined }));
+    const model = models ? WALL_MODELS[kind] : undefined;
     for (const { rect, footprint } of runs) {
+      const ring = settlement.ring;
       blocks.push({
         kind: 'prop',
         rect,
@@ -182,6 +190,9 @@ export function settlementBlocks(
         height: SETTLEMENT_WALL_HEIGHTS[kind],
         ...(footprint ? { footprint } : {}),
         thing,
+        ...(model
+          ? { model, modelTurn: ring ? outwardTurn(rect, ring.middle, ring.reach) || undefined : undefined }
+          : {}),
       });
     }
   });

@@ -42,6 +42,12 @@ interface LoadedModel {
    * a wall, a roof and a parapet, each one cell across, which are repeated to fill the block.
    */
   readonly facade?: boolean;
+  /**
+   * Whether it is one cell of something that runs along a block, its scene saying `{ "fit": "tile" }` in
+   * its extras: made one cell square and of a height of one, it is repeated on every cell of the block
+   * and stretched to the block's height, as a palisade is along its run.
+   */
+  readonly tile?: boolean;
   /** Its meshes, each where it stands within the model measured from the model's foot. */
   readonly parts: readonly ModelPart[];
 }
@@ -66,6 +72,7 @@ type KitRole = 'wall' | 'roof' | 'cap';
 type ModelMeasure = Pick<LoadedModel, 'size'> & {
   readonly stretch?: boolean;
   readonly facade?: boolean;
+  readonly tile?: boolean;
   readonly parts?: readonly Pick<ModelPart, 'within' | 'swing' | 'role'>[];
 };
 
@@ -345,12 +352,18 @@ export class ModelLayer {
     const middle = box.getCenter(new Vector3());
     const foot = new Vector3(middle.x, box.min.y, middle.z);
     const fromFoot = new Matrix4().makeTranslation(-foot.x, -foot.y, -foot.z);
-    const facade = (gltf.scene.userData as { fit?: unknown })['fit'] === 'facade';
+    const fit = (gltf.scene.userData as { fit?: unknown })['fit'];
+    const facade = fit === 'facade';
+    const tile = fit === 'tile';
     const parts: ModelPart[] = [];
     gltf.scene.traverse((object) => {
       if (!(object instanceof Mesh)) return;
-      if (facade) {
-        parts.push({ mesh: object, within: object.matrixWorld.clone(), role: kitRoleOf(object) });
+      if (facade || tile) {
+        parts.push({
+          mesh: object,
+          within: object.matrixWorld.clone(),
+          ...(facade ? { role: kitRoleOf(object) } : {}),
+        });
         return;
       }
       const swing = swingOf(object);
@@ -360,8 +373,8 @@ export class ModelLayer {
         ...(swing ? { swing: { hinge: swing.hinge.applyMatrix4(fromFoot), deg: swing.deg } } : {}),
       });
     });
-    const stretch = (gltf.scene.userData as { fit?: unknown })['fit'] === 'stretch';
-    return { gltf, size, foot, animated: gltf.animations.length > 0, parts, stretch, facade };
+    const stretch = fit === 'stretch';
+    return { gltf, size, foot, animated: gltf.animations.length > 0, parts, stretch, facade, tile };
   }
 
   private dracoLoader(): Promise<DRACOLoader> {
@@ -455,6 +468,7 @@ function placementPartsOf(model: TableWorldModel, loaded: ModelMeasure): { frame
  */
 export function partPlacementsOf(model: TableWorldModel, loaded: ModelMeasure): Matrix4[][] {
   if (loaded.facade && model.boxPx) return facadePlacementsOf(model, loaded);
+  if (loaded.tile && model.boxPx) return tilePlacementsOf(model, loaded);
   const { frame, scaling } = placementPartsOf(model, loaded);
   const placement = frame.clone().multiply(scaling);
   const open = model.door?.open === true;
@@ -525,6 +539,39 @@ function facadePlacementsOf(model: TableWorldModel, loaded: ModelMeasure): Matri
         else
           for (let k = 0; k < storeys; k++)
             matrices.push(placed(x, storey * k, z, side.turn, step, storey, cell, within));
+      }
+    }
+    return matrices;
+  });
+}
+
+/**
+ * Where a tile stands on every cell of a block: one to each whole cell it is across and deep, as the
+ * block is turned, each stretched to its cell across and to the block's height up.
+ */
+function tilePlacementsOf(model: TableWorldModel, loaded: ModelMeasure): Matrix4[][] {
+  const box = model.boxPx!;
+  const cell = Math.max(1, box.cellPx ?? box.widthPx);
+  const { frame } = placementPartsOf(model, loaded);
+  const turned = Math.round(model.model.turnDeg / 90) % 2 !== 0;
+  const width = turned ? box.depthPx : box.widthPx;
+  const depth = turned ? box.widthPx : box.depthPx;
+  const across = Math.max(1, Math.round(width / cell));
+  const deep = Math.max(1, Math.round(depth / cell));
+  const height = Math.max(1e-6, model.heightPx);
+  return (loaded.parts ?? []).map(({ within }) => {
+    const matrices: Matrix4[] = [];
+    for (let i = 0; i < across; i++) {
+      for (let j = 0; j < deep; j++) {
+        const x = -width / 2 + (width / across) * (i + 0.5);
+        const z = -depth / 2 + (depth / deep) * (j + 0.5);
+        matrices.push(
+          frame
+            .clone()
+            .multiply(new Matrix4().makeTranslation(x, 0, z))
+            .multiply(new Matrix4().makeScale(width / across, height, depth / deep))
+            .multiply(within)
+        );
       }
     }
     return matrices;

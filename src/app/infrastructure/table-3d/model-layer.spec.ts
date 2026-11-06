@@ -126,6 +126,35 @@ describe('placementOf', () => {
     expect(caps.every((matrix) => where(matrix, 0, 0, 0)[1] === 120)).toBe(true);
   });
 
+  it('lays a tile on every cell of a block, as tall as the block, along the way the block is turned', () => {
+    const tile = { size: new Vector3(1, 1, 1), tile: true, parts: [{ within: new Matrix4() }] };
+    const where = (matrix: Matrix4, x: number, y: number, z: number) => {
+      const point = new Vector3(x, y, z).applyMatrix4(matrix);
+      return [point.x, point.y, point.z].map((value) => Math.round(value * 1000) / 1000 + 0);
+    };
+    const run = knight({ heightPx: 125, pivotPx: 0, boxPx: { widthPx: 150, depthPx: 50, cellPx: 50 } });
+
+    const [along] = partPlacementsOf(run, tile);
+    expect(along.map((matrix) => where(matrix, 0, 0, 0))).toEqual([
+      [50, 0, 200],
+      [100, 0, 200],
+      [150, 0, 200],
+    ]);
+    expect(where(along[0], 0, 1, 0.5)).toEqual([50, 125, 225]);
+    expect(where(along[0], 0.5, 0, 0)).toEqual([75, 0, 200]);
+
+    const down = knight({
+      heightPx: 125,
+      pivotPx: 0,
+      model: { identifier: 'wall', scale: 1, turnDeg: 90, idle: '', walk: '' },
+      boxPx: { widthPx: 50, depthPx: 150, cellPx: 50 },
+    });
+    const [turned] = partPlacementsOf(down, tile);
+    const middles = turned.map((matrix) => where(matrix, 0, 0, 0));
+    expect(middles.map(([x]) => x)).toEqual([100, 100, 100]);
+    expect(middles.map(([, , z]) => z).sort((a, b) => a - b)).toEqual([150, 200, 250]);
+  });
+
   it('lifts a model as high as its piece floats', () => {
     expect(drawnAt(knight({ altitudePx: 30 }), 0, 0, 0)).toEqual([100, 30, 200]);
   });

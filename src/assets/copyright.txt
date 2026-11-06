@@ -92,6 +92,16 @@ Comment: ダンジョンの家具（木箱・スツール・事務机・賭博�
  ライセンスのページ https://docs.ambientcg.com/license/ が、ambientCGのすべての素材を
  CC0 1.0 Universalで提供すると示す。
 
+Files: models/settlement/*
+Copyright: 2026 SavageChieftain / Xelltis（形）
+ ambientCG (ambientcg.com)（樹皮・板の写真）
+License: MIT and CC0-1.0
+Comment: 村と砦の3Dモデル。蛮族の砦の丸太の柵（先を尖らせた丸太の壁と、その外に交差させて
+ 立てた尖った杭の1マス分）。円柱と円錐を組んだもので、形は本プロジェクトで作成した（MIT）。
+ 絵はambientCGの素材の色の画像（1K-JPG）を縮めて色を寄せたもの（CC0）。Bark001・Planks021から。
+ ライセンスのページ https://docs.ambientcg.com/license/ が、ambientCGのすべての素材を
+ CC0 1.0 Universalで提供すると示す。
+
 Files: models/town/*
 Copyright: 2026 SavageChieftain / Xelltis（形・外壁と屋上の絵）
  ambientCG (ambientcg.com)（金属・木・コンクリートの写真）

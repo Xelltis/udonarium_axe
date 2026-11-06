@@ -88,6 +88,8 @@ export interface SettlementLayout {
   readonly fires: readonly SettlementFire[];
   /** Every cell anything of the settlement stands on, which nothing else is grown or put on. */
   readonly taken: Uint8Array;
+  /** The middle of what a fort's wall rings round and how far the wall reaches from it each way, or null for a village. */
+  readonly ring: { readonly middle: MapPoint; readonly reach: MapPoint } | null;
 }
 
 /** How tall each kind of wall stands, in cells. */
@@ -114,6 +116,7 @@ class Plot {
   readonly crops: SettlementCrop[] = [];
   readonly things: SettlementThing[] = [];
   readonly fires: SettlementFire[] = [];
+  ring: { readonly middle: MapPoint; readonly reach: MapPoint } | null = null;
 
   constructor(
     readonly width: number,
@@ -175,6 +178,7 @@ class Plot {
       things: this.things,
       fires: this.fires,
       taken: this.taken,
+      ring: this.ring,
     };
   }
 }
@@ -422,6 +426,7 @@ function layBarbarianFort(plot: Plot, rng: () => number, fill: number): void {
   const rx = Math.max(6, plot.width * 0.36);
   const ry = Math.max(5, plot.height * 0.36);
   let ring = ellipseRing(cx, cy, rx, ry, plot.width, plot.height);
+  plot.ring = { middle: { x: cx, y: cy }, reach: { x: rx, y: ry } };
   const bottom = Math.max(...ring.map((cell) => cell.y));
   const gateX = Math.floor(cx) - 1;
   ring = hangGate(plot, ring, { x: gateX, y: bottom }, 'x', 'palisade');
@@ -502,6 +507,10 @@ function layStoneFort(plot: Plot, rng: () => number, fill: number): void {
   const y0 = Math.max(2, Math.round(plot.height * 0.14));
   const y1 = plot.height - 1 - y0;
   const gateX = Math.floor((x0 + x1) / 2);
+  plot.ring = {
+    middle: { x: (x0 + x1 + 1) / 2, y: (y0 + y1 + 1) / 2 },
+    reach: { x: (x1 - x0 + 1) / 2, y: (y1 - y0 + 1) / 2 },
+  };
   plot.paint({ x: x0 + 1, y: y0 + 1, w: x1 - x0 - 1, h: y1 - y0 - 1 }, SETTLEMENT_ZONES.yard);
   for (let y = y1 + 1; y < plot.height; y++) plot.paint({ x: gateX, y, w: 2, h: 1 }, SETTLEMENT_ZONES.road);
 
