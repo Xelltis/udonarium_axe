@@ -94,7 +94,12 @@ export class ImageSharingSystem {
             for (const item of data.identifiers) {
               const image = ImageStorage.instance.get(item.identifier);
               // What this seat holds back for the room server's operator is not sent when asked for either.
-              if (image && item.state < image.state && !ImageStorage.instance.isHeldBack(item.identifier))
+              if (
+                image &&
+                item.state < image.state &&
+                !ImageStorage.instance.isHeldBack(item.identifier) &&
+                !this.sendTaskMap.has(item.identifier)
+              )
                 randomRequest.push({ identifier: item.identifier, state: item.state });
             }
             if (!this.isLimitSendTask() && 0 < randomRequest.length && !this.existsSendTask(data.receiver)) {
