@@ -339,7 +339,6 @@ describe('RotableDirective', () => {
     });
 
     it('takes a finger’s press on its handle as a mouse’s, and leaves one elsewhere to what it stands in', () => {
-      const writable = directive as unknown as Record<string, unknown>;
       const handle = document.createElement('div');
       handle.className = 'rotate-grab';
       element.appendChild(handle);
@@ -356,7 +355,6 @@ describe('RotableDirective', () => {
       expect(started).toHaveBeenCalledTimes(1);
       expect(stopped).toHaveBeenCalled();
 
-      writable['input'] = { ...(writable['input'] as object), isGrabbing: true };
       const beside = fingerOn(element);
       const passedOn = vi.spyOn(beside, 'stopPropagation');
       directive.onInputStart(beside);
