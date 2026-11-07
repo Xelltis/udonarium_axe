@@ -12,6 +12,8 @@ export const SEEN_ASK_INTERVAL_MS = 10_000;
  * nobody at it, or hidden, asks nothing, so that the room may sleep while everybody is away.
  */
 export const LOOKED_AT_MS = 60_000;
+/** How long after asking again the server's last answer is weighed as it was, for a fresh one to come. */
+export const RESUME_GRACE_MS = 2 * SEEN_ASK_INTERVAL_MS;
 
 /**
  * Watches the link to the room server closely for as long as anybody looks at how the links are
@@ -19,7 +21,8 @@ export const LOOKED_AT_MS = 60_000;
  * tell how long its answers take, and asked every SEEN_ASK_INTERVAL_MS when it last heard from each of
  * the others. A panel open behind others still counts, so the page must also be shown, and used or
  * shown again within LOOKED_AT_MS; using or showing it again asks at once. Nothing is asked
- * otherwise, nor with SkyWay, where the peers' own links are measured, so that the room may sleep.
+ * otherwise, nor while the link to the server is down, nor with SkyWay, where the peers' own links
+ * are measured, so that the room may sleep.
  */
 @Injectable({ providedIn: 'root' })
 export class LinkWatchService {
@@ -36,16 +39,32 @@ export class LinkWatchService {
    */
   readonly asked = signal(0);
   /**
-   * Whether the links are watched but nobody looks, so that nothing is asked: how long each seat
-   * had gone unheard from is to be weighed as the server last said, not against the time now.
+   * Whether the links are watched but nothing is asked, as nobody looks or the link to the server is
+   * down: how long each seat had gone unheard from is to be weighed as the server last said, not
+   * against the time now.
    */
   readonly paused = this.isPaused.asReadonly();
   private readonly resumed = signal(-Infinity);
   /**
-   * When the server was last asked again after nobody had looked, or first asked: what it said
+   * When the server was last asked again after nothing had been asked, or first asked: what it said
    * before then is weighed as it was for a while, until a fresh answer has had time to come.
    */
   readonly resumedAt = this.resumed.asReadonly();
+
+  /**
+   * The time each seat's silence is weighed to, against when the server last heard from it: now
+   * while the server is asked; what it last said while nothing is asked; and just after asking
+   * again, what it last said, gone stale only once a fresh answer has had RESUME_GRACE_MS to come,
+   * so that every seat does not read as gone meanwhile. Null before the server has said anything.
+   */
+  weighedAt(): number | null {
+    const answeredAt = Network.seenAnsweredAt;
+    if (this.paused()) return answeredAt;
+    const resumedAt = this.resumedAt();
+    const now = Date.now();
+    if (answeredAt === null || answeredAt >= resumedAt) return now;
+    return answeredAt + Math.max(0, now - resumedAt - RESUME_GRACE_MS);
+  }
 
   /**
    * Watches the links closely until the function given back is called. What it reads and writes as it
@@ -105,6 +124,7 @@ export class LinkWatchService {
   private ask(): void {
     if (Network.authorityPeerId === null) return;
     const lookedAt =
+      Network.isAuthorityOpen &&
       typeof document !== 'undefined' &&
       document.visibilityState === 'visible' &&
       Date.now() - Math.max(pageActivity.lastInputAt, this.shownAt) < LOOKED_AT_MS;

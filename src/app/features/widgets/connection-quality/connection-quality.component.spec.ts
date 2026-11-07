@@ -1,14 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { RESUME_GRACE_MS } from '@axe/application/lobby/link-watch.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { Network } from '@axe/core/index';
 import { PeerSessionGrade } from '@axe/core/network/peer-session-state';
 import { pageActivity } from '@axe/core/network/server/page-activity';
 import { PeerLinkQuality, POOR_SILENCE_MS } from '@axe/domain/peer/peer-link-quality';
-import {
-  ConnectionQualityComponent,
-  RESUME_GRACE_MS,
-} from '@axe/features/widgets/connection-quality/connection-quality.component';
+import { ConnectionQualityComponent } from '@axe/features/widgets/connection-quality/connection-quality.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 interface ComponentInternals {
@@ -229,6 +227,7 @@ describe('ConnectionQualityComponent', () => {
   it('watches the links closely only while it is shown', () => {
     vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([] as never);
     vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
     pageActivity.noteInput();
     const watch = vi.spyOn(Network, 'watchLink');
     const ask = vi.spyOn(Network, 'askSeen');

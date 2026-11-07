@@ -753,6 +753,7 @@ describe('PeerMenuComponent', () => {
 
     it('asks the server while the panel is open, and stops once it closes', () => {
       vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      vi.spyOn(Network.instance, 'isAuthorityOpen', 'get').mockReturnValue(true);
       vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
       pageActivity.noteInput();
       const ask = vi.spyOn(Network.instance, 'askSeen');

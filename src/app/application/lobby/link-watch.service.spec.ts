@@ -1,5 +1,10 @@
 import { TestBed } from '@angular/core/testing';
-import { LinkWatchService, LOOKED_AT_MS, SEEN_ASK_INTERVAL_MS } from '@axe/application/lobby/link-watch.service';
+import {
+  LinkWatchService,
+  LOOKED_AT_MS,
+  RESUME_GRACE_MS,
+  SEEN_ASK_INTERVAL_MS,
+} from '@axe/application/lobby/link-watch.service';
 import { Network } from '@axe/core/network/network';
 import { pageActivity } from '@axe/core/network/server/page-activity';
 
@@ -8,6 +13,7 @@ describe('LinkWatchService', () => {
   let watched: boolean[];
   let asks: number;
   let authority: string | null;
+  let linked: boolean;
   let visibility: DocumentVisibilityState;
   let released: (() => void)[];
 
@@ -22,9 +28,11 @@ describe('LinkWatchService', () => {
     watched = [];
     asks = 0;
     authority = '@authority';
+    linked = true;
     visibility = 'visible';
     released = [];
     vi.spyOn(Network, 'authorityPeerId', 'get').mockImplementation(() => authority);
+    vi.spyOn(Network, 'isAuthorityOpen', 'get').mockImplementation(() => linked);
     vi.spyOn(Network, 'watchLink').mockImplementation((closely) => void watched.push(closely));
     vi.spyOn(Network, 'askSeen').mockImplementation(() => void asks++);
     vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility);
@@ -133,5 +141,32 @@ describe('LinkWatchService', () => {
     expect(asks).toBe(0);
     expect(watched).toEqual([]);
     expect(service.asked()).toBe(0);
+  });
+
+  it('asks nothing while the link to the server is down, and weighs every seat as last told until a while after it is back', () => {
+    let answeredAt: number | null = Date.now();
+    vi.spyOn(Network, 'seenAnsweredAt', 'get').mockImplementation(() => answeredAt);
+    watch();
+    expect(service.weighedAt()).toBe(Date.now());
+
+    linked = false;
+    vi.advanceTimersByTime(SEEN_ASK_INTERVAL_MS);
+    const before = asks;
+    vi.advanceTimersByTime(SEEN_ASK_INTERVAL_MS * 4);
+    pageActivity.noteInput();
+    expect(asks).toBe(before);
+    expect(service.paused()).toBe(true);
+    expect(service.weighedAt()).toBe(answeredAt);
+
+    linked = true;
+    vi.advanceTimersByTime(SEEN_ASK_INTERVAL_MS);
+    expect(asks).toBe(before + 1);
+    expect(service.paused()).toBe(false);
+    expect(service.weighedAt()).toBe(answeredAt);
+
+    vi.advanceTimersByTime(RESUME_GRACE_MS + 5_000);
+    expect(service.weighedAt()).toBe(answeredAt + 5_000);
+    answeredAt = Date.now();
+    expect(service.weighedAt()).toBe(Date.now());
   });
 });
