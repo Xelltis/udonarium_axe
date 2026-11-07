@@ -35,7 +35,13 @@ describe('the table world', () => {
   });
 
   it('lays the board over the ground, and what is laid on the floor over the ground as it is stood on, over the ice', () => {
-    const ice: GroundSurface = { isFlat: false, sampleAt: () => 0.5, paintAt: () => null, heightAt: () => 0.5 };
+    const ice: GroundSurface = {
+      isFlat: false,
+      sampleAt: () => 0.5,
+      paintAt: () => null,
+      heightAt: () => 0.5,
+      extent: { i0: 0, j0: 0, i1: 1000, j1: 1000 },
+    };
 
     const frozen = tableWorldOf(
       table(),

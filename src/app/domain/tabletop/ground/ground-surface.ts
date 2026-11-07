@@ -35,9 +35,9 @@ export interface GroundSurface {
   heightAt(x: number, y: number): number;
   /**
    * The samples the ground may stand off the board at, every sample outside standing at 0, or null
-   * where it stands on the board everywhere. Missing where the surface does not know.
+   * where it stands on the board everywhere.
    */
-  readonly extent?: SampleBox | null;
+  readonly extent: SampleBox | null;
   /**
    * How high the lowest of the samples in a box stands, in cells, or Infinity for a box of none.
    * Missing where it is to be found sample by sample.
@@ -249,43 +249,13 @@ function visitEdgePoints(
 }
 
 /**
- * How many points along a side of a box a surface that cannot say where it stands off the board is
- * read at, at most, so that a vast block is weighed in a moment on it too.
- */
-const MOST_POINTS_ALONG = 512;
-
-/**
- * The lowest the ground stands in a box, in cells, read at its corners and points every sample apart
- * or fewer, a point no number can be read at, as one an endless side reaches, left out.
- */
-function lowestSampledIn(ground: GroundSurface, i0: number, j0: number, i1: number, j1: number): number {
-  const along = (from: number, to: number): number[] => {
-    const length = to - from;
-    if (!(length > 0)) return [from];
-    const step = Math.max(1, length / MOST_POINTS_ALONG);
-    const at: number[] = [];
-    for (let d = 0; d < length; d += step) at.push(from + d);
-    return [...at, to];
-  };
-  let lowest = Infinity;
-  for (const si of along(i0, i1)) {
-    for (const sj of along(j0, j1)) {
-      const height = heightBetweenSamples(ground.sampleAt, si, sj);
-      if (!Number.isNaN(height)) lowest = Math.min(lowest, height);
-    }
-  }
-  return lowest === Infinity ? 0 : lowest;
-}
-
-/**
  * How far the ground under a box of the board lifts what stands on it, in table pixels: the lowest the
  * ground stands anywhere in the box, so that a block stood on uneven ground sinks into the rise rather
  * than hanging over the dip. The ground is flat across each triangle of samples, so the lowest is at a
  * sample inside the box or at a point where its edges cross the triangles. Beyond the samples the
  * ground may stand off the board at, and the sample on from them where it slopes back to the board,
  * it stands at 0, so only the part of the box over them is read, and a block reaching past them is
- * weighed in a moment however vast it is. A surface that cannot say where it stands off the board
- * is read at points every sample apart, or fewer along a long side.
+ * weighed in a moment however vast it is.
  */
 export function lowestGroundPxIn(
   ground: GroundSurface,
@@ -304,7 +274,6 @@ export function lowestGroundPxIn(
   if ([i0, j0, i1, j1].some(Number.isNaN)) return 0;
   const extent = ground.extent;
   if (extent === null) return 0;
-  if (extent === undefined) return lowestSampledIn(ground, i0, j0, i1, j1) * gridSize;
   const reach = { i0: extent.i0 - 1, j0: extent.j0 - 1, i1: extent.i1 + 1, j1: extent.j1 + 1 };
   let lowest = i0 < reach.i0 || j0 < reach.j0 || i1 > reach.i1 || j1 > reach.j1 ? 0 : Infinity;
   const box: SampleBox = {
@@ -329,7 +298,12 @@ export function lowestGroundPxIn(
   return lowest * gridSize;
 }
 
-/** How far the ground lifts a block on the floor, in table pixels: the lowest it stands under the block's box. */
+/**
+ * How far the ground lifts a block on the floor, in table pixels: the lowest it stands under the box
+ * the block's footprint covers as it is turned about its middle. A block turned a quarter is read
+ * over its footprint exactly; one turned off the square over the box squared up round it, so that it
+ * sinks a little into a rise beside it rather than hanging over a dip under it.
+ */
 export function groundLiftOfBlock(
   ground: GroundSurface,
   gridSize: number,
@@ -337,14 +311,19 @@ export function groundLiftOfBlock(
     readonly location: { readonly x: number; readonly y: number };
     readonly width: number;
     readonly depth: number;
+    readonly rotate?: number;
   }
 ): number {
-  return lowestGroundPxIn(
-    ground,
-    gridSize,
-    block.location.x,
-    block.location.y,
-    block.width * gridSize,
-    block.depth * gridSize
-  );
+  const width = block.width * gridSize;
+  const depth = block.depth * gridSize;
+  const turn = (((block.rotate ?? 0) % 180) + 180) % 180;
+  if (turn === 0 || !Number.isFinite(turn)) {
+    return lowestGroundPxIn(ground, gridSize, block.location.x, block.location.y, width, depth);
+  }
+  const radians = (turn * Math.PI) / 180;
+  const across = Math.abs(width * Math.cos(radians)) + Math.abs(depth * Math.sin(radians));
+  const down = Math.abs(width * Math.sin(radians)) + Math.abs(depth * Math.cos(radians));
+  const middleX = block.location.x + width / 2;
+  const middleY = block.location.y + depth / 2;
+  return lowestGroundPxIn(ground, gridSize, middleX - across / 2, middleY - down / 2, across, down);
 }

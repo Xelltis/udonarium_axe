@@ -97,23 +97,20 @@ describe('the ground of a table', () => {
     expect(groundLiftOfBlock(dipped, 50, { location: { x: 750, y: 262.5 }, width: 5, depth: 2 })).toBeCloseTo(-25, 9);
   });
 
-  it('reads a surface that cannot say where it stands off the board at a bounded number of points, however vast the block', () => {
-    let read = 0;
-    const dug: GroundSurface = {
-      isFlat: false,
-      sampleAt: () => {
-        read++;
-        return -0.5;
-      },
-      paintAt: () => null,
-      heightAt: () => -0.5,
-    };
+  it('reads a block turned a quarter over the footprint it covers, and one turned off the square over the box round it', () => {
+    const ground = groundSurfaceOf([
+      chunk(0, 0, [
+        [0, 3, -64],
+        [6, 6, -32],
+      ]),
+    ]);
+    const wall = { location: { x: 0, y: 0 }, width: 1, depth: 6 };
 
-    expect(groundLiftOfBlock(dug, 50, { location: { x: 0, y: 0 }, width: Number.POSITIVE_INFINITY, depth: 1 })).toBe(
-      -25
-    );
-    expect(groundLiftOfBlock(dug, 50, { location: { x: 0, y: 0 }, width: 2000, depth: 2000 })).toBe(-25);
-    expect(read).toBeLessThan(4 * 514 * 514);
+    expect(groundLiftOfBlock(ground, 50, wall)).toBe(-50);
+    expect(groundLiftOfBlock(ground, 50, { ...wall, rotate: 90 })).toBe(-25);
+    expect(groundLiftOfBlock(ground, 50, { ...wall, rotate: 270 })).toBe(-25);
+    expect(groundLiftOfBlock(ground, 50, { ...wall, rotate: 180 })).toBe(-50);
+    expect(groundLiftOfBlock(ground, 50, { ...wall, rotate: 45 })).toBe(-50);
   });
 
   it('takes no ground under a block of no size or of no place, nor any off the board', () => {

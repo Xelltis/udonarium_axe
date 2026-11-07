@@ -34,7 +34,13 @@ function iceOver(index: number, surfacePx: number, ice = 1): WaterCell {
 }
 
 /** Ground dug half a cell down everywhere, as the bed of a lake is. */
-const DUG: GroundSurface = { isFlat: false, sampleAt: () => -0.5, paintAt: () => null, heightAt: () => -0.5 };
+const DUG: GroundSurface = {
+  isFlat: false,
+  sampleAt: () => -0.5,
+  paintAt: () => null,
+  heightAt: () => -0.5,
+  extent: { i0: 0, j0: 0, i1: 8, j1: 8 },
+};
 
 describe('the ground as what stands on the floor stands on it, over ice', () => {
   const grid = cellGridOf(4, 4, G, GridType.SQUARE);
@@ -54,7 +60,13 @@ describe('the ground as what stands on the floor stands on it, over ice', () => 
     expect(raised.heightAt(1.5, 1.5)).toBe(0.5);
     expect(raised.heightAt(3.5, 0.5)).toBe(0);
 
-    const high: GroundSurface = { isFlat: false, sampleAt: () => 2, paintAt: () => null, heightAt: () => 2 };
+    const high: GroundSurface = {
+      isFlat: false,
+      sampleAt: () => 2,
+      paintAt: () => null,
+      heightAt: () => 2,
+      extent: { i0: 0, j0: 0, i1: 8, j1: 8 },
+    };
     expect(groundOverIce(high, new Map([[index, iceOver(index, 0)]]), grid).heightAt(1.5, 1.5)).toBe(2);
   });
 

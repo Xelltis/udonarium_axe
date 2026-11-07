@@ -68,7 +68,13 @@ export function groundOverIce(
     return ice === undefined ? own : Math.max(own, ice);
   };
   const iced = [...lifted.keys()].map((key) => key.split(',').map(Number) as [number, number]);
+  const icedBounds = extentWithIce(null, iced);
   const icedIn = (box: SampleBox): boolean =>
+    icedBounds !== null &&
+    box.i0 <= icedBounds.i1 &&
+    box.i1 >= icedBounds.i0 &&
+    box.j0 <= icedBounds.j1 &&
+    box.j1 >= icedBounds.j0 &&
     iced.some(([i, j]) => i >= box.i0 && i <= box.i1 && j >= box.j0 && j <= box.j1);
   return {
     isFlat: false,
@@ -83,15 +89,8 @@ export function groundOverIce(
   };
 }
 
-/**
- * The samples a ground with ice laid over it may stand off the board at: those of the ground and those
- * the ice lifts. Unknown where the ground's own are.
- */
-function extentWithIce(
-  extent: SampleBox | null | undefined,
-  iced: readonly (readonly [number, number])[]
-): SampleBox | null | undefined {
-  if (extent === undefined) return undefined;
+/** The samples a ground with ice laid over it may stand off the board at: those of the ground and those the ice lifts. */
+function extentWithIce(extent: SampleBox | null, iced: readonly (readonly [number, number])[]): SampleBox | null {
   let box: SampleBox | null = extent;
   for (const [i, j] of iced) {
     box = box
