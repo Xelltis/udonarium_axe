@@ -309,17 +309,14 @@ export class GameCharacterComponent {
   });
 
   /**
-   * Whether this is the piece last touched on a touch screen and not in hand, which has its handles
-   * out as one the pointer is over does, there being no pointer to pass over pieces.
+   * Whether this is the piece last touched on the table on a touch screen and not in hand, which has
+   * its handles out as one the pointer is over does, there being no pointer to pass over pieces. Only
+   * that piece follows whether it is in hand, which changes with each step of a drag.
    */
   protected readonly touchChosen = computed(() => {
+    if (!this.viewport.isTouch()) return false;
     const id = this.gameCharacter()?.identifier;
-    return (
-      !!id &&
-      this.viewport.isTouch() &&
-      !this.carried() &&
-      this.selectionSignalService.selectedObject()?.identifier === id
-    );
+    return !!id && this.selectionSignalService.pressedObject() === id && !this.carried();
   });
 
   /** The way the piece faces while it is turned, in whole degrees, as the turn under way reads it out. */

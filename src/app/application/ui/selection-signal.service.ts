@@ -38,12 +38,26 @@ export class SelectionSignalService {
 
   readonly marqueeState = signal<MarqueeRect | null>(null);
 
+  private readonly _pressedObject = signal<string | null>(null);
+  /**
+   * The identifier of the piece last pressed on the table, until the selection is emptied, as a press
+   * on the table itself or Escape does. Choosing a piece anywhere else, in a list or by its sheet,
+   * leaves it alone.
+   */
+  readonly pressedObject = this._pressedObject.asReadonly();
+
   /**
    * Records a piece as the one last selected, which inventories, effect targeting and move ranges
    * follow. The multi-selection is left alone.
    */
   selectObject(identifier: string, className: string): void {
     this.selectedObject.set({ identifier, className });
+  }
+
+  /** Records a piece pressed on the table, which also becomes the piece last selected. */
+  pressObject(identifier: string, className: string): void {
+    this._pressedObject.set(identifier);
+    this.selectObject(identifier, className);
   }
 
   /** Asks the piece with this identifier to flash on the table, so the reader can find it. */
@@ -133,8 +147,9 @@ export class SelectionSignalService {
     return false;
   }
 
-  /** Empties the multi-selection. The piece last selected is left as it was. */
+  /** Empties the multi-selection and forgets the piece last pressed. The piece last selected is left as it was. */
   clearSelection(): void {
+    this._pressedObject.set(null);
     if (this._selectedObjects().size === 0) return;
     this._selectedObjects.set(new Set());
   }

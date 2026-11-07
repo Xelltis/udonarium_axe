@@ -67,6 +67,21 @@ describe('SelectionSignalService', () => {
     expect(result).toEqual({ identifier: 'second-id', className: 'ClassB' });
   });
 
+  it('records the piece last pressed on the table, which is selected too, until the selection is emptied', () => {
+    expect(service.pressedObject()).toBeNull();
+
+    service.pressObject('pressed', 'GameCharacter');
+    expect(service.pressedObject()).toBe('pressed');
+    expect(service.selectedObject()).toEqual({ identifier: 'pressed', className: 'GameCharacter' });
+
+    service.selectObject('listed', 'GameCharacter');
+    expect(service.pressedObject()).toBe('pressed');
+
+    service.clearSelection();
+    expect(service.pressedObject()).toBeNull();
+    expect(service.selectedObject()?.identifier).toBe('listed');
+  });
+
   it('bumps the version when a table gesture is cancelled', () => {
     const initial = service.cancelTableGestureVersion();
     service.cancelTableGesture();

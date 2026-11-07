@@ -873,7 +873,7 @@ export class MovableDirective implements MovableInteractionContext {
 
   private callSelectedEvent() {
     if (this.tabletopObject)
-      this.selectionSignalService.selectObject(this.tabletopObject.identifier, this.tabletopObject.aliasName);
+      this.selectionSignalService.pressObject(this.tabletopObject.identifier, this.tabletopObject.aliasName);
   }
 
   /**

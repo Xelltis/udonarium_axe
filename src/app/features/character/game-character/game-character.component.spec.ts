@@ -2258,7 +2258,7 @@ describe('GameCharacterComponent', () => {
       }
     });
 
-    it('brings out the handles of the piece last touched on a touch screen, and weighs what its picture hides, until it is in hand', () => {
+    it('brings out the handles of the piece last touched on the table on a touch screen, and weighs what its picture hides, until it is in hand', () => {
       const character = withPicture('turn-touch');
       drawPicture(character);
       const touch = (TestBed.inject(ViewportService) as unknown as { _isTouch: WritableSignal<boolean> })._isTouch;
@@ -2273,12 +2273,18 @@ describe('GameCharacterComponent', () => {
 
       try {
         choose(character);
-        selection.selectObject(character.identifier, 'character');
+        selection.pressObject(character.identifier, 'character');
         fixture.detectChanges();
         expect(shownAtFull()).toBe(false);
         expect(sightOf).not.toHaveBeenCalled();
 
         touch.set(true);
+        selection.clearSelection();
+        selection.selectObject(character.identifier, 'character');
+        fixture.detectChanges();
+        expect(shownAtFull()).toBe(false);
+
+        selection.pressObject(character.identifier, 'character');
         fixture.detectChanges();
         expect(shownAtFull()).toBe(true);
         expect(headOf()?.classList.contains('opacity-100!')).toBe(true);
@@ -2296,8 +2302,16 @@ describe('GameCharacterComponent', () => {
         });
         fixture.detectChanges();
         expect(shownAtFull()).toBe(false);
+        heldPiece.letGo(character.identifier);
+        fixture.detectChanges();
+        expect(shownAtFull()).toBe(true);
+
+        selection.clearSelection();
+        fixture.detectChanges();
+        expect(shownAtFull()).toBe(false);
       } finally {
         heldPiece.letGo(character.identifier);
+        selection.clearSelection();
         selection.selectedObject.set(null);
         touch.set(wasTouch);
         character.destroy();
