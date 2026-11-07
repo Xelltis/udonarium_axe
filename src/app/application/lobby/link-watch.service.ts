@@ -55,7 +55,8 @@ export class LinkWatchService {
    * The time each seat's silence is weighed to, against when the server last heard from it: now
    * while the server is asked; what it last said while nothing is asked; and just after asking
    * again, what it last said, gone stale only once a fresh answer has had RESUME_GRACE_MS to come,
-   * so that every seat does not read as gone meanwhile. Null before the server has said anything.
+   * so that every seat does not read as gone meanwhile. Null only while nothing is asked and the
+   * server has not said anything yet.
    */
   weighedAt(): number | null {
     const answeredAt = Network.seenAnsweredAt;
