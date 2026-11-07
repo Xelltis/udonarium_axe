@@ -1,3 +1,4 @@
+import { computed } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -29,6 +30,25 @@ describe('PiecePicturesService', () => {
 
     expect(pictures.pictureOf('note')).toBeNull();
     expect(revoked).toEqual(['blob:first']);
+  });
+
+  it('wakes only what reads the piece whose picture is taken, from before it has one', () => {
+    let runs = 0;
+    const note = computed(() => {
+      runs++;
+      return pictures.pictureOf('note')?.url ?? null;
+    });
+    expect(note()).toBeNull();
+
+    pictures.show('mask', { url: 'blob:mask', widthPx: 10, heightPx: 10 });
+    expect(note()).toBeNull();
+    expect(runs).toBe(1);
+
+    pictures.show('note', { url: 'blob:note', widthPx: 10, heightPx: 10 });
+    expect(note()).toBe('blob:note');
+    pictures.forget('note');
+    expect(note()).toBeNull();
+    expect(runs).toBe(3);
   });
 
   it('counts a picture as being taken until it is, or until taking it fails', async () => {

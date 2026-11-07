@@ -17,6 +17,7 @@ import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Coin } from '@axe/domain/coin/coin';
 import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
+import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { LightSource } from '@axe/domain/tabletop/light-source';
@@ -160,6 +161,68 @@ describe('TablePiecesService', () => {
     expect(pieces.sprites().filter((sprite) => sprite.owner === changed.identifier)[0].brightness).toBe(0.45);
     expect(stillParts()).toHaveLength(2);
     stillParts().forEach((part, index) => expect(part).toBe(before[index]));
+  });
+
+  it('draws no piece again as the table changes otherwise than in its shape, as when something on it moves', () => {
+    const die = dieAt(100, 200);
+    const parts = () => pieces.sprites().filter((sprite) => sprite.owner === die.identifier);
+    const before = parts();
+
+    TestBed.inject(ObjectChangeService).notifyChanged(TestBed.inject(TableSelecter).viewTable!.identifier);
+
+    parts().forEach((part, index) => expect(part).toBe(before[index]));
+    TestBed.inject(TableSelecter).viewTable!.gridSize = gridSize * 2;
+    TestBed.inject(ObjectChangeService).notifyChanged(TestBed.inject(TableSelecter).viewTable!.identifier);
+    expect(parts()[0].widthPx).toBe(gridSize * 2);
+  });
+
+  it('draws a piece on the board it stands on once the board comes, and on the floor once it goes', async () => {
+    vi.spyOn(TestBed.inject(ImageService), 'getEmptyOr').mockReturnValue(ImageFile.Empty);
+    const light = LightSource.create('L');
+    light.location = { name: 'table', x: 10, y: 10, surface: 'late-board' };
+    TestBed.inject(PiecePicturesService).show(light.identifier, { url: 'blob:bulb', widthPx: 36, heightPx: 36 });
+    const centre = () => pieces.sprites().find((sprite) => sprite.owner === light.identifier)!.centre;
+    const onFloor = centre();
+
+    const board = WhiteBoard.create('board', 4, 2, 1, 'late-board');
+    board.location = { name: 'table', x: 400, y: 600 };
+    TestBed.inject(TableSelecter).viewTable!.appendChild(board);
+    await Promise.resolve();
+    expect(centre()).not.toEqual(onFloor);
+
+    ObjectStore.instance.remove(board);
+    await Promise.resolve();
+    expect(centre()).toEqual(onFloor);
+  });
+
+  it('draws no piece again as this seat’s cursor changes, but follows who this seat is', () => {
+    PeerCursor.createMyCursor();
+    const change = TestBed.inject(ObjectChangeService);
+    const die = dieAt(100, 200);
+    const parts = () => pieces.sprites().filter((sprite) => sprite.owner === die.identifier);
+    const before = parts();
+
+    PeerCursor.myCursor.name = 'moving about';
+    change.notifyChanged(PeerCursor.myCursor.identifier);
+
+    parts().forEach((part, index) => expect(part).toBe(before[index]));
+    die.owner = 'somebody-else';
+    change.notifyChanged(die.identifier);
+    expect(parts()[1].brightness).toBe(0);
+  });
+
+  it('draws no coin again while another piece plays a move', () => {
+    const coin = Coin.create('coin');
+    coin.location = { name: 'table', x: 100, y: 200 };
+    const die = dieAt(300, 200);
+    const playing = signal(new Map<string, never>());
+    vi.spyOn(TestBed.inject(PieceMotionsService), 'posesNow').mockImplementation(() => playing());
+    const [before] = pieces.coins();
+
+    const pose = { across: 10, down: 0, out: 0, scale: 1, turnDeg: 0, flipDeg: 0, shown: 1 };
+    playing.set(new Map([[die.identifier, { pose } as never]]));
+
+    expect(pieces.coins()[0]).toBe(before);
   });
 
   it('carries the pieces standing on a white board this seat moves along with it', () => {

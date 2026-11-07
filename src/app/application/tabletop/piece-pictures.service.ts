@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, type WritableSignal } from '@angular/core';
 
 /**
  * A part of a piece as a picture: where the picture is, how big the page lays the part out, and
@@ -19,12 +19,22 @@ export interface PiecePicture {
  */
 @Injectable({ providedIn: 'root' })
 export class PiecePicturesService {
-  private readonly pictures = signal<ReadonlyMap<string, PiecePicture>>(new Map());
+  private readonly held = new Map<string, PiecePicture>();
+  /**
+   * The picture of each piece something has read, followed piece by piece, so that taking one
+   * piece's picture again wakes only what reads that piece's.
+   */
+  private readonly followed = new Map<string, WritableSignal<PiecePicture | null>>();
   private pending = 0;
 
-  /** The picture of a piece, or null while there is none. Follows the pictures handed over. */
+  /** The picture of a piece, or null while there is none. Follows the pictures handed over for that piece. */
   pictureOf(identifier: string): PiecePicture | null {
-    return this.pictures().get(identifier) ?? null;
+    let one = this.followed.get(identifier);
+    if (!one) {
+      one = signal(this.held.get(identifier) ?? null);
+      this.followed.set(identifier, one);
+    }
+    return one();
   }
 
   /** How many pictures of pieces are being taken now, each to be handed over once it is. */
@@ -44,21 +54,19 @@ export class PiecePicturesService {
 
   /** Takes the picture of a piece, letting go of the one it had. */
   show(identifier: string, picture: PiecePicture): void {
-    const before = this.pictures().get(identifier);
+    const before = this.held.get(identifier);
     if (before?.url === picture.url) return;
-    const next = new Map(this.pictures());
-    next.set(identifier, picture);
-    this.pictures.set(next);
+    this.held.set(identifier, picture);
+    this.followed.get(identifier)?.set(picture);
     if (before) URL.revokeObjectURL(before.url);
   }
 
   /** Lets go of the picture of a piece, as once the piece is gone or the page draws it itself again. */
   forget(identifier: string): void {
-    const before = this.pictures().get(identifier);
+    const before = this.held.get(identifier);
     if (!before) return;
-    const next = new Map(this.pictures());
-    next.delete(identifier);
-    this.pictures.set(next);
+    this.held.delete(identifier);
+    this.followed.get(identifier)?.set(null);
     URL.revokeObjectURL(before.url);
   }
 }
