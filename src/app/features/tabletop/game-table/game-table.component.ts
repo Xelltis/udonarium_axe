@@ -403,9 +403,10 @@ export class GameTableComponent {
     });
     this.tabletopActionService.makeDefaultTable();
     // A browser that keeps a room to start on sets it out in place of the sample pieces, and the
-    // sample comes back only where that room cannot be read.
+    // sample comes back only where that room cannot be read. A page opened with an invitation waits
+    // on the room's own pieces, and is given the sample only if it goes into no room.
     const startsOnOwnRoom = this.startRoom.hasPending;
-    if (!startsOnOwnRoom) this.tabletopActionService.makeDefaultTabletopObjects();
+    if (!startsOnOwnRoom && !this.startRoom.waitsOnInvite) this.tabletopActionService.makeDefaultTabletopObjects();
 
     afterNextRender(() => {
       if (startsOnOwnRoom) {

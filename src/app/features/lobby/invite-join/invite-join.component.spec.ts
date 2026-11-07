@@ -1,5 +1,6 @@
 import { signal, type WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { StartRoomService } from '@axe/application/file/start-room.service';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
@@ -158,6 +159,24 @@ describe('InviteJoinComponent', () => {
       expect(join).not.toHaveBeenCalled();
     } finally {
       markLoadedWithheld(false, false);
+    }
+  });
+
+  it('tells the table the invitation is over once it is in, or once a browser set to play offline cannot go', async () => {
+    const over = vi.spyOn(StartRoomService.prototype, 'inviteEnded').mockImplementation(() => undefined);
+    await setup('#join?r=a1b&n=room');
+    await eventually(() => expect(join).toHaveBeenCalledOnce());
+    await eventually(() => expect(over).toHaveBeenCalledOnce());
+
+    TestBed.resetTestingModule();
+    over.mockClear();
+    localStorage.setItem(STORAGE_KEYS.localMode, '1');
+    try {
+      await setup('#join?r=a1b&n=room');
+      await flush();
+      expect(over).toHaveBeenCalledOnce();
+    } finally {
+      localStorage.removeItem(STORAGE_KEYS.localMode);
     }
   });
 

@@ -8,6 +8,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { StartRoomService } from '@axe/application/file/start-room.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -35,6 +36,9 @@ import { TranslocoModule } from '@jsverse/transloco';
 
 type InviteJoinState = 'idle' | 'joining' | 'askLogin' | 'offline' | 'notFound' | 'failed' | 'banned' | 'done';
 
+/** The states an invitation is over in, gone into its room or not, which the table waits on to be set out. */
+const INVITATION_OVER: ReadonlySet<InviteJoinState> = new Set(['offline', 'notFound', 'failed', 'banned', 'done']);
+
 /** Where a tab keeps the rooms its reader chose to watch rather than log in for, so a reload does not ask again. */
 const WATCHED_WITHOUT_LOGIN_KEY = 'udonarium-axe.watched-without-login';
 
@@ -57,6 +61,7 @@ export class InviteJoinComponent {
   private readonly reach = inject(NetworkReachService);
   private readonly withheldEntry = inject(WithheldEntryService);
   private readonly auth = inject(ServerAuthService);
+  private readonly startRoom = inject(StartRoomService);
 
   private readonly state = signal<InviteJoinState>('idle');
   private readonly roomName = signal('');
@@ -120,6 +125,9 @@ export class InviteJoinComponent {
     }, this.destroyRef);
 
     this.roomName.set(params.roomName);
+    effect(() => {
+      if (INVITATION_OVER.has(this.state())) untracked(() => this.startRoom.inviteEnded());
+    });
     if (this.localModePreference.enabled()) {
       this.state.set('offline');
       return;

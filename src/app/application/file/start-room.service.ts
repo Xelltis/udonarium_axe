@@ -18,6 +18,7 @@ import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { isOrSitsUnder, restoreStore, snapshotStore, StoreSnapshot } from '@axe/core/sync/store-snapshot';
 import { Jukebox } from '@axe/domain/media/jukebox';
+import { parseInviteLink } from '@axe/domain/peer/invite-link';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { ReloadCheck } from '@axe/domain/peer/reload-check';
 
@@ -117,6 +118,29 @@ export class StartRoomService {
     return this.pending !== null;
   }
 
+  private invited = false;
+
+  /**
+   * Whether the page opened with an invitation into a room, which the table waits on in place of the
+   * sample pieces: they would be on show until the room's own pieces came, as if brought into it.
+   * See {@link inviteEnded}.
+   */
+  get waitsOnInvite(): boolean {
+    return this.invited;
+  }
+
+  /**
+   * Hears that the invitation the page opened with has come to an end. One that leaves the seat
+   * outside any room, as for a room not found, a join refused or a browser set to play offline, has
+   * the sample pieces set out, as on a page opened with none; one that took it into a room leaves the
+   * table to the room.
+   */
+  inviteEnded(): void {
+    if (!this.invited) return;
+    this.invited = false;
+    if (!isInOrGoingIntoRoom()) this.tabletopAction.makeDefaultTabletopObjects();
+  }
+
   /** Whether the room to start on found at launch is being set out just now. */
   get isSettling(): boolean {
     return this.loading !== null;
@@ -171,10 +195,12 @@ export class StartRoomService {
    * browser that will not be asked holds nothing up at all.
    *
    * A page opened with anything after its `#`, such as an invitation or the way back from a login,
-   * is going somewhere of its own and is left the sample as before. A browser too slow to answer
-   * starts on the sample too, and is told whether it keeps a room once the answer comes.
+   * is going somewhere of its own and is left the sample as before, but for one opened with an
+   * invitation, which waits on the room it goes into (see {@link waitsOnInvite}). A browser too slow
+   * to answer starts on the sample too, and is told whether it keeps a room once the answer comes.
    */
   async prepare(hash: string = window.location.hash): Promise<void> {
+    this.invited = parseInviteLink(hash) !== null;
     try {
       if (!this.store.isAvailable()) return;
       const asked = this.store.has(StartRoomStore.KEY).catch(() => null);
