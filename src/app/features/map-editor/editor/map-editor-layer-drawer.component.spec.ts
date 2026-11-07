@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { MapLayer } from '@axe/domain/map-editor/scene';
-import { addLayer } from '@axe/domain/map-editor/scene-ops';
+import { addLayer, removeLayer } from '@axe/domain/map-editor/scene-ops';
 import { MapEditorLayerDrawerComponent } from '@axe/features/map-editor/editor/map-editor-layer-drawer.component';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -119,6 +119,17 @@ describe('MapEditorLayerDrawerComponent', () => {
     } finally {
       fixture.nativeElement.remove();
     }
+  });
+
+  it('tells that drawing makes a layer while there is none, and stops once there is one', () => {
+    for (const layer of [...state.current.layers]) state.applyCommitted(() => removeLayer(state.current, layer.id));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="map-layers-empty"]')?.textContent).toContain('自動');
+
+    state.applyCommitted(() => addLayer(state.current, shapeLayer('layer-8')));
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="map-layers-empty"]')).toBeNull();
   });
 
   it('offers a pencil on the layer in hand, for a screen that cannot double-click its name', () => {

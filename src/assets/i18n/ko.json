@@ -4787,7 +4787,8 @@
           "text": "텍스트",
           "image": "이미지",
           "relief": "기복"
-        }
+        },
+        "empty": "아직 레이어가 없습니다. 그리기 시작하면 도구에 맞는 레이어가 자동으로 생깁니다. ＋에서 종류를 골라 추가할 수도 있습니다."
       },
       "actions": {
         "undo": "실행 취소",
@@ -4828,6 +4829,19 @@
       "measure": {
         "cells": "{{n}}칸",
         "angle": "∠{{deg}}°"
+      },
+      "select": {
+        "guide": "도형・스탬프・이미지・텍스트・자유선을 클릭해 고르고, 드래그해 옮깁니다. 숨긴 레이어와 잠근 레이어의 것은 고를 수 없습니다.",
+        "keysDoubleClick": "더블 클릭",
+        "doubleClick": "텍스트 다시 쓰기",
+        "keysDelete": "Delete",
+        "delete": "고른 것 지우기",
+        "keysUndo": "Ctrl+Z / Ctrl+Y",
+        "undo": "실행 취소／다시 실행",
+        "keysPan": "Space＋드래그",
+        "pan": "지도 옮기기",
+        "keysZoom": "Ctrl＋휠",
+        "zoom": "확대・축소"
       }
     },
     "roomArchive": {

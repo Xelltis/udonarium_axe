@@ -36,6 +36,11 @@
     </div>
   </div>
 
+  @if (layers().length === 0) {
+    <p class="text-ui-muted m-0 leading-relaxed" data-testid="map-layers-empty">
+      {{ 'feature.mapEditor.layers.empty' | transloco }}
+    </p>
+  }
   @for (layer of layers(); track layer.id) {
     <div
       class="rounded-ui cursor-move border border-solid p-1.5"

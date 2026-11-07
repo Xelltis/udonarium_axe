@@ -4787,7 +4787,8 @@
           "text": "Text",
           "image": "Image",
           "relief": "Relief"
-        }
+        },
+        "empty": "No layers yet. Drawing makes one that suits the tool. You can also add one of any kind from +."
       },
       "actions": {
         "undo": "Undo",
@@ -4828,6 +4829,19 @@
       "measure": {
         "cells": "{{n}} cells",
         "angle": "∠{{deg}}°"
+      },
+      "select": {
+        "guide": "Click a shape, stamp, picture, text or freehand line to pick it, and drag to move it. Nothing on a hidden or locked layer can be picked.",
+        "keysDoubleClick": "Double-click",
+        "doubleClick": "Rewrite a text",
+        "keysDelete": "Delete",
+        "delete": "Delete what is picked",
+        "keysUndo": "Ctrl+Z / Ctrl+Y",
+        "undo": "Undo / redo",
+        "keysPan": "Space + drag",
+        "pan": "Move the map",
+        "keysZoom": "Ctrl + wheel",
+        "zoom": "Zoom in and out"
       }
     },
     "roomArchive": {

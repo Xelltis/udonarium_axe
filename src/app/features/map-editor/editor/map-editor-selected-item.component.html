@@ -143,4 +143,15 @@
       {{ 'feature.mapEditor.layers.delete' | transloco }}
     </button>
   </div>
+} @else {
+  <div class="flex flex-col gap-2" data-testid="map-editor-select-guide">
+    <div class="font-semibold">{{ 'feature.mapEditor.tools.select' | transloco }}</div>
+    <p class="text-ui-muted m-0 leading-relaxed">{{ 'feature.mapEditor.select.guide' | transloco }}</p>
+    <dl class="m-0 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
+      @for (key of selectKeys; track key.keys) {
+        <dt class="text-ui-text font-semibold whitespace-nowrap">{{ key.keys | transloco }}</dt>
+        <dd class="text-ui-muted m-0">{{ key.what | transloco }}</dd>
+      }
+    </dl>
+  </div>
 }

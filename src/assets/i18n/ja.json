@@ -4787,7 +4787,8 @@
           "text": "テキスト",
           "image": "画像",
           "relief": "起伏"
-        }
+        },
+        "empty": "レイヤーはまだありません。描き始めると、道具に合ったレイヤーが自動でできます。＋から種類を選んで足すこともできます。"
       },
       "actions": {
         "undo": "元に戻す",
@@ -4828,6 +4829,19 @@
       "measure": {
         "cells": "{{n}}マス",
         "angle": "∠{{deg}}°"
+      },
+      "select": {
+        "guide": "図形・スタンプ・画像・テキスト・フリーハンドの線をクリックで選び、ドラッグで動かします。隠したレイヤーとロックしたレイヤーのものは選べません。",
+        "keysDoubleClick": "ダブルクリック",
+        "doubleClick": "テキストを書き直す",
+        "keysDelete": "Delete",
+        "delete": "選んだものを消す",
+        "keysUndo": "Ctrl+Z / Ctrl+Y",
+        "undo": "元に戻す／やり直す",
+        "keysPan": "Space＋ドラッグ",
+        "pan": "地図を動かす",
+        "keysZoom": "Ctrl＋ホイール",
+        "zoom": "拡大・縮小"
       }
     },
     "roomArchive": {
