@@ -454,6 +454,14 @@
 
 <!-- The marks the line carries, the room's and the reader's own, beside the speaker's name. -->
 <ng-template #bookmarkMarks>
+  @if (isPinnedTargetNumber()) {
+    <span
+      data-testid="chat-message-target-number-mark"
+      class="rounded-ui-sm border-ui-accent text-ui-accent ml-1 inline-block border border-solid px-1 align-middle text-[10px]/tight font-semibold"
+      [title]="'feature.chat.message.pinnedTargetNumberTitle' | transloco"
+      >{{ 'feature.chat.message.pinnedTargetNumber' | transloco }}</span
+    >
+  }
   @if (bookmarks().shared; as mark) {
     <i
       data-testid="chat-message-bookmark-mark"

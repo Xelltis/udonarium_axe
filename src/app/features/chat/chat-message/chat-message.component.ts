@@ -50,6 +50,7 @@ import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
 import { inlineStampsAlone, inlineStampSites } from '@axe/domain/chat/inline-stamp';
 import { IMAGE_STAMP_PREFIX, isPictureStamp, stampOf } from '@axe/domain/chat/stamp-catalog';
 import { saidWithStamp } from '@axe/domain/chat/stamp-line';
+import { canPinAsTargetNumber } from '@axe/domain/chat/target-number';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { encodeVnEmote, vnBodyOf, vnEmoteOf } from '@axe/domain/visual-novel/vn-emote';
@@ -433,6 +434,7 @@ export class ChatMessageComponent {
         text: this.readableText(message),
         selectedText,
         isTouch: this.viewport.isTouch(),
+        targetNumberPin: this.targetNumberPin(),
       },
       {
         reply: () => this.clickReply(),
@@ -456,10 +458,42 @@ export class ChatMessageComponent {
         jumpToOriginal: () => (this.replyPreview() ? this.jumpToReplyTarget() : this.jumpToQuoteTarget()),
         copyText: (text) => this.copyText(text),
         selectText: () => this.selectText(),
+        toggleTargetNumberPin: () => this.toggleTargetNumberPin(),
       },
       this.t
     );
   }
+
+  /**
+   * Whether the reader may set the line as its tab's number to beat, or take it off as that: a roll
+   * shown to all that comes to a number, to a reader who may change what the room shares, as the
+   * tab is changed for everyone; null where neither.
+   */
+  private targetNumberPin(): 'pin' | 'unpin' | null {
+    const message = this.chatMessage;
+    if (this.readOnly() || !this.rolePermission.canEditTabletop() || !canPinAsTargetNumber(message)) return null;
+    const tab = this.objectStore.get<ChatTab>(message.tabIdentifier);
+    if (!tab) return null;
+    return tab.pinnedTargetNumber === message.identifier ? 'unpin' : 'pin';
+  }
+
+  /** Sets the line as its tab's number to beat, or takes it off as that where it is already. */
+  private toggleTargetNumberPin(): void {
+    const message = this.chatMessage;
+    const tab = this.objectStore.get<ChatTab>(message.tabIdentifier);
+    if (!tab) return;
+    tab.pinnedTargetNumber = tab.pinnedTargetNumber === message.identifier ? '' : message.identifier;
+  }
+
+  /** Whether the line is set as its tab's number to beat, which it shows beside it. */
+  readonly isPinnedTargetNumber = computed(() => {
+    const message = this.chatMessageInput();
+    if (!message) return false;
+    const tab = this.objectStore.get<ChatTab>(message.tabIdentifier);
+    if (!tab) return false;
+    this.objectChange.versionOf(tab.identifier)();
+    return tab.pinnedTargetNumber === message.identifier;
+  });
 
   /** The kinds of mark the reader may put on the line or take off, with whether it carries each. */
   private bookmarkKinds(): { kind: ChatBookmarkKind; isBookmarked: boolean }[] {

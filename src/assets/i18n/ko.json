@@ -3926,7 +3926,11 @@
         "actions": "발언 조작",
         "more": "그 밖의 조작",
         "edit": "편집",
-        "serverRoll": "방 서버가 굴린 주사위입니다. 굴린 사람은 눈을 바꿀 수 없습니다."
+        "serverRoll": "방 서버가 굴린 주사위입니다. 굴린 사람은 눈을 바꿀 수 없습니다.",
+        "pinTargetNumber": "이 결과를 목표값으로 하기",
+        "unpinTargetNumber": "목표값 고정 해제",
+        "pinnedTargetNumber": "목표값",
+        "pinnedTargetNumberTitle": "이 탭의 {目標値}는 해제할 때까지 이 결과가 됩니다"
       },
       "stream": {
         "title": "스트림 채팅",

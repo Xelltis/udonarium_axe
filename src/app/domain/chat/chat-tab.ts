@@ -50,6 +50,14 @@ export class ChatTab extends ObjectNode implements InnerXml {
    * for. See `toStageResetAt`.
    */
   @SyncVar() vnPortraitResetAt: number;
+  /**
+   * The answer of a roll somebody set as the number to beat for every `{目標値}` said in the tab, by
+   * identifier, until it is taken off or another is set: as the one roll of a spell cast at everyone
+   * it reaches, which each of them resists in turn. Empty for none. See `findTargetNumber`.
+   *
+   * Left without an initialiser, as `vnPortraitResetAt` is: only a tab given one writes it.
+   */
+  @SyncVar() pinnedTargetNumber: string;
 
   @SyncVar() count = 0;
   @SyncVar() imageIdentifierDummy = 'test';

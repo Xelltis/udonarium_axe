@@ -1,6 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { fillTargetNumber, findTargetNumber, holdsTargetNumber, rollTotalOf } from '@axe/domain/chat/target-number';
+import {
+  fillTargetNumber,
+  findTargetNumber,
+  findTargetNumberSource,
+  holdsTargetNumber,
+  rollTotalOf,
+} from '@axe/domain/chat/target-number';
 
 describe('target-number', () => {
   describe('rollTotalOf()', () => {
@@ -136,6 +142,34 @@ describe('target-number', () => {
       roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [PC1]', { answers: true });
 
       expect(findTargetNumber(tab, speaker)).toBe(14);
+    });
+
+    /** The answer last added to the tab. */
+    const lastAnswer = () => tab.chatMessages[tab.chatMessages.length - 1];
+
+    it("takes the answer set as the tab's number to beat over any newer roll at nobody and any older one at the speaker", () => {
+      roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [PC1]');
+      roll(enemy, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15');
+      tab.pinnedTargetNumber = lastAnswer().identifier;
+      roll(enemy, 'DiceBot : (1D6) → 3');
+
+      expect(findTargetNumber(tab, speaker)).toBe(15);
+      expect(findTargetNumberSource(tab, speaker)?.from).toBe('pinned');
+    });
+
+    it("still takes a roll at the speaker newer than the answer set as the tab's number to beat", () => {
+      roll(enemy, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15');
+      tab.pinnedTargetNumber = lastAnswer().identifier;
+      roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [PC1]');
+
+      expect(findTargetNumber(tab, speaker)).toBe(14);
+    });
+
+    it("goes on as before where the answer set as the tab's number to beat is not in it", () => {
+      roll(enemy, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15');
+      tab.pinnedTargetNumber = 'gone';
+
+      expect(findTargetNumberSource(tab, speaker)).toMatchObject({ total: 15, from: 'byOthers' });
     });
 
     it('passes over a secret roll, and answers null where nothing is left', () => {

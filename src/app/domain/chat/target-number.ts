@@ -53,27 +53,52 @@ export function rollTotalOf(text: string): number | null {
 
 /**
  * The number to beat for a speaker in a tab: the newest answer rolled at them with `t:`, or else
- * the newest one rolled at nobody by someone else. An answer kept secret, or one they may not see,
- * is passed over, and so is one rolled at somebody else, which is that one's number to beat, and one
- * to a line that beat a number of its own, as a resistance does, which is nobody's number to beat.
- * Null where none is found.
+ * the answer set as the tab's number to beat where it is newer, or else the newest one rolled at
+ * nobody by someone else. An answer kept secret, or one they may not see, is passed over, and so is
+ * one rolled at somebody else, which is that one's number to beat, and one to a line that beat a
+ * number of its own, as a resistance does, which is nobody's number to beat. Null where none is
+ * found.
  */
 export function findTargetNumber(tab: ChatTab, speaker: TargetNumberSpeaker): number | null {
+  return findTargetNumberSource(tab, speaker)?.total ?? null;
+}
+
+/** Where the number to beat was found: rolled at the speaker, set as the tab's, or rolled at nobody by someone else. */
+export type TargetNumberFrom = 'aimed' | 'pinned' | 'byOthers';
+
+/** The number to beat for a speaker, with the answer it was read from and how that answer was found. */
+export interface TargetNumberSource {
+  readonly total: number;
+  readonly answer: ChatMessage;
+  readonly from: TargetNumberFrom;
+}
+
+/** The number to beat for a speaker in a tab, with where it was found; see {@link findTargetNumber}. */
+export function findTargetNumberSource(tab: ChatTab, speaker: TargetNumberSpeaker): TargetNumberSource | null {
   const aims = aimsAt(speaker.name);
+  const pinned = `${tab.pinnedTargetNumber ?? ''}`;
   const messages = tab.chatMessages;
-  let byOthers: number | null = null;
+  let byOthers: TargetNumberSource | null = null;
   for (let index = messages.length - 1; index >= 0; index--) {
     const message = messages[index];
     if (!message.isDicebot || message.isSecret || !message.isDisplayable) continue;
     const text = `${message.text ?? ''}`.trimEnd();
     const total = rollTotalOf(text);
     if (total == null) continue;
-    if (aims.some((aim) => text.endsWith(aim)) || aimedAmong(text, speaker.name)) return total;
+    if (aims.some((aim) => text.endsWith(aim)) || aimedAmong(text, speaker.name)) {
+      return { total, answer: message, from: 'aimed' };
+    }
+    if (pinned.length > 0 && message.identifier === pinned) return { total, answer: message, from: 'pinned' };
     if (byOthers == null && aimOf(text) == null && !rolledBy(tab, message, speaker) && !answeredOne(tab, message)) {
-      byOthers = total;
+      byOthers = { total, answer: message, from: 'byOthers' };
     }
   }
   return byOthers;
+}
+
+/** Whether a line is an answer that may be set as its tab's number to beat: a roll shown to all that comes to a number. */
+export function canPinAsTargetNumber(message: ChatMessage): boolean {
+  return message.isDicebot && !message.isSecret && rollTotalOf(`${message.text ?? ''}`) != null;
 }
 
 /**

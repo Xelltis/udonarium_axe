@@ -3926,7 +3926,11 @@
         "actions": "Line actions",
         "more": "More actions",
         "edit": "Edit",
-        "serverRoll": "The room server rolled these dice, so the roller could not change them."
+        "serverRoll": "The room server rolled these dice, so the roller could not change them.",
+        "pinTargetNumber": "Use this result as the target number",
+        "unpinTargetNumber": "Stop using it as the target number",
+        "pinnedTargetNumber": "Target",
+        "pinnedTargetNumberTitle": "Every {目標値} in this tab takes this result until it is taken off"
       },
       "stream": {
         "title": "Stream chat",

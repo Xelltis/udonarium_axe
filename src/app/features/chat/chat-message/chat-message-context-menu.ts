@@ -31,6 +31,11 @@ export interface ChatMessageMenuState {
   selectedText: string;
   /** Whether the pointer is a touch, under which the words of a line are picked out only on asking. */
   isTouch: boolean;
+  /**
+   * Whether the reader may set the line as its tab's number to beat, or take it off as that, as a roll
+   * it is; null where neither, as for a line that is no such roll or a reader who may not.
+   */
+  targetNumberPin: 'pin' | 'unpin' | null;
 }
 
 export interface ChatMessageMenuCallbacks {
@@ -49,6 +54,7 @@ export interface ChatMessageMenuCallbacks {
   jumpToOriginal: () => void;
   copyText: (text: string) => void;
   selectText: () => void;
+  toggleTargetNumberPin: () => void;
 }
 
 /**
@@ -84,6 +90,13 @@ export function buildChatMessageContextMenu(
     if (state.isTouch) {
       words.push({ name: t('feature.chat.message.selectText'), action: () => callbacks.selectText() });
     }
+  }
+
+  if (state.targetNumberPin) {
+    answer.push({
+      name: t(`feature.chat.message.${state.targetNumberPin === 'pin' ? 'pinTargetNumber' : 'unpinTargetNumber'}`),
+      action: () => callbacks.toggleTargetNumberPin(),
+    });
   }
 
   const keep: ContextMenuAction[] = [...buildChatBookmarkMenu(state.bookmarkKinds, callbacks.toggleBookmark, t)];
