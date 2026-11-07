@@ -14,7 +14,6 @@ interface FakeMediaQueryList {
 }
 
 describe('ViewportService', () => {
-  let mql: FakeMediaQueryList;
   let listeners: Map<string, (event: MediaQueryListEvent) => void>;
   let listener: ((event: MediaQueryListEvent) => void) | null;
   let made: FakeMediaQueryList[];
@@ -28,7 +27,6 @@ describe('ViewportService', () => {
         addEventListener: vi.fn((_: string, fn: (event: MediaQueryListEvent) => void) => listeners.set(query, fn)),
         removeEventListener: vi.fn(),
       };
-      mql = fake;
       made.push(fake);
       return fake as unknown as MediaQueryList;
     });
@@ -117,6 +115,15 @@ describe('ViewportService', () => {
     expect(service.canHover()).toBe(false);
   });
 
+  it('takes a query answered with no yes or no as no', () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      () => ({ addEventListener: vi.fn(), removeEventListener: vi.fn() }) as unknown as MediaQueryList
+    );
+    TestBed.configureTestingModule({ providers: [ViewportService] });
+
+    expect(TestBed.inject(ViewportService).canHover()).toBe(false);
+  });
+
   it('counts a phone held sideways as compact too', () => {
     setup(false);
     expect(COMPACT_VIEWPORT_QUERY).toContain('(max-height: 500px) and (pointer: coarse)');
@@ -126,8 +133,9 @@ describe('ViewportService', () => {
     setup(false);
     TestBed.resetTestingModule();
 
-    expect(mql.removeEventListener).toHaveBeenCalled();
     expect(made.length).toBeGreaterThanOrEqual(4);
-    for (const one of made) expect(one.removeEventListener).toHaveBeenCalled();
+    for (const one of made) {
+      expect(one.removeEventListener).toHaveBeenCalledWith('change', one.addEventListener.mock.calls[0]![1]);
+    }
   });
 });

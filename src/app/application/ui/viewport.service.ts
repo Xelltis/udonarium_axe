@@ -61,9 +61,9 @@ export class ViewportService {
   }
 
   private watch(query: string, target: WritableSignal<boolean>): void {
-    const mql = typeof window === 'undefined' ? undefined : window.matchMedia?.(query);
+    const mql = window.matchMedia?.(query);
     if (!mql) return;
-    target.set(mql.matches);
+    target.set(mql.matches === true);
 
     const listener = (event: MediaQueryListEvent) => target.set(event.matches);
     mql.addEventListener('change', listener);
