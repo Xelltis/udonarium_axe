@@ -83,6 +83,18 @@ describe('LinkWatchService', () => {
     expect(asks).toBe(before + 1);
   });
 
+  it('asks a full while after asking again on the page being used, not straight after', () => {
+    watch();
+    vi.advanceTimersByTime(LOOKED_AT_MS + SEEN_ASK_INTERVAL_MS / 2);
+    const before = asks;
+
+    pageActivity.noteInput();
+    vi.advanceTimersByTime(SEEN_ASK_INTERVAL_MS - 1);
+    expect(asks).toBe(before + 1);
+    vi.advanceTimersByTime(1);
+    expect(asks).toBe(before + 2);
+  });
+
   it('asks nothing while the page is hidden, and asks at once when it is shown again', () => {
     visibility = 'hidden';
     watch();

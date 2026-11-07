@@ -154,15 +154,16 @@ describe('ConnectionQualityComponent', () => {
     expect(internals.worst()).toBe(PeerLinkQuality.Lost);
   });
 
-  it('gives each of the others on a room server a row, graded by how long the server had not heard from them', () => {
+  it('gives each of the others on a room server a row, graded by how long the server has not heard from them', () => {
     vi.useFakeTimers({ now: new Date('2026-11-07T12:00:00') });
+    pageActivity.noteInput();
     vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a'), peerContext('peer-b')] as never);
     vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
     vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
     vi.spyOn(Network, 'roundTripMs', 'get').mockReturnValue(40);
+    vi.spyOn(Network, 'askSeen').mockImplementation(() => undefined);
     const heardA = Date.now() - 5_000;
-    let answeredAt: number | null = Date.now();
-    vi.spyOn(Network, 'seenAnsweredAt', 'get').mockImplementation(() => answeredAt);
+    vi.spyOn(Network, 'seenAnsweredAt', 'get').mockReturnValue(Date.now());
     vi.spyOn(Network, 'heardAt').mockImplementation((peerId) => (peerId === 'peer-a' ? heardA : null));
     create();
 
@@ -174,19 +175,31 @@ describe('ConnectionQualityComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('11:59:55');
     expect(fixture.nativeElement.textContent).toContain('--:--:--');
 
-    vi.advanceTimersByTime(POOR_SILENCE_MS);
-    objectChange.peerStatsVersion.update((v) => v + 1);
-    expect(internals.links()[1]?.quality).toBe(PeerLinkQuality.Good);
-
-    answeredAt = heardA + POOR_SILENCE_MS;
-    objectChange.peerStatsVersion.update((v) => v + 1);
+    for (let waited = 0; waited < POOR_SILENCE_MS; waited += 15_000) {
+      vi.advanceTimersByTime(15_000);
+      pageActivity.noteInput();
+    }
     fixture.detectChanges();
     expect(internals.links()[1]?.quality).toBe(PeerLinkQuality.Poor);
     expect(internals.worst()).toBe(PeerLinkQuality.Poor);
+  });
 
-    answeredAt = null;
+  it('holds how the others are graded as the server last said while nobody looks and nothing is asked', () => {
+    vi.useFakeTimers({ now: new Date('2026-11-07T12:00:00') });
+    pageActivity.noteInput();
+    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a')] as never);
+    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
+    vi.spyOn(Network, 'askSeen').mockImplementation(() => undefined);
+    const heardA = Date.now() - 5_000;
+    vi.spyOn(Network, 'seenAnsweredAt', 'get').mockReturnValue(Date.now());
+    vi.spyOn(Network, 'heardAt').mockReturnValue(heardA);
+    create();
+
+    vi.advanceTimersByTime(POOR_SILENCE_MS * 2);
     objectChange.peerStatsVersion.update((v) => v + 1);
-    expect(internals.links()[1]?.quality).toBe(PeerLinkQuality.Unknown);
+
+    expect(internals.links()[1]?.quality).toBe(PeerLinkQuality.Good);
   });
 
   it('watches the links closely only while it is shown', () => {
