@@ -9,6 +9,7 @@ import { GameCharacter } from '@axe/domain/character/game-character';
 import { ModelTag } from '@axe/domain/media/model-tag';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { Terrain } from '@axe/domain/tabletop/terrain';
 import { ModelLibraryComponent } from '@axe/features/media/model-library/model-library.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -110,6 +111,30 @@ describe('ModelLibraryComponent', () => {
 
     expect(piece.modelIdentifier).toBe(oakId);
     expect(shown).toHaveLength(1);
+  });
+
+  it('puts the model on no block locked in place, which stays as it is drawn', () => {
+    const wall = Terrain.create('wall', 1, 1, 2, '', '');
+    wall.isLocked = true;
+    TestBed.inject(SelectionSignalService).replaceSelection([wall.identifier]);
+    const host = open();
+    press(host, 'model-library-show');
+
+    expect((host.querySelector('[data-testid="model-library-put-on"]') as HTMLButtonElement).disabled).toBe(true);
+    ObjectStore.instance.remove(wall);
+  });
+
+  it('acts on a model no more once it is gone from the room', () => {
+    const host = open();
+    press(host, 'model-library-show');
+    expect((host.querySelector('[data-testid="model-library-tag-checked"]') as HTMLButtonElement).disabled).toBe(false);
+
+    TestBed.inject(ModelStorage).delete(chairId);
+    TestBed.inject(ObjectChangeService).fileVersion.update((version) => version + 1);
+    fixture.detectChanges();
+
+    expect((host.querySelector('[data-testid="model-library-tag-checked"]') as HTMLButtonElement).disabled).toBe(true);
+    expect(host.querySelector('[data-testid="model-library-chosen"]')).toBeNull();
   });
 
   it('offers to put the model on nothing while nothing is chosen on the table', () => {

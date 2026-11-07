@@ -6,6 +6,7 @@ import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { MODEL_DRAG_TYPE } from '@axe/features/media/model-library/attach-model';
 import { ModelDropEventHandlerService } from '@axe/features/media/model-library/model-drop-event-handler.service';
@@ -16,6 +17,8 @@ describe('ModelDropEventHandlerService', () => {
   let canEditTabletop: boolean;
   let pressed: { target: { id: string } } | null;
   let made: GameCharacter[];
+  let madeAt: { x: number; y: number; z: number }[];
+  let landing: { x: number; y: number; z: number };
 
   /** Lets a model dragged from the list of models go at a point of the page. */
   function drop(identifier = modelId): DragEvent {
@@ -33,6 +36,8 @@ describe('ModelDropEventHandlerService', () => {
     canEditTabletop = true;
     pressed = null;
     made = [];
+    madeAt = [];
+    landing = { x: 100, y: 200, z: 0 };
     document.body.innerHTML = '<div id="app-table-layer"></div>';
     vi.spyOn(document, 'elementFromPoint').mockImplementation(() => document.querySelector('#app-table-layer'));
     TestBed.configureTestingModule({
@@ -41,14 +46,16 @@ describe('ModelDropEventHandlerService', () => {
         { provide: SnackbarService, useValue: { show: () => {} } },
         {
           provide: TablePickService,
-          useValue: { pressedAt: () => pressed, landingAt: () => ({ x: 100, y: 200, z: 0 }) },
+          useValue: { pressedAt: () => pressed, landingAt: () => landing },
         },
+        { provide: TableSelecter, useValue: { viewTable: { width: 10, height: 10, gridSize: 50 } } },
         {
           provide: TabletopActionService,
           useValue: {
-            createGameCharacterWith: (_at: unknown, name: string) => {
+            createGameCharacterWith: (at: { x: number; y: number; z: number }, name: string) => {
               const piece = GameCharacter.create(name, 1, '');
               made.push(piece);
+              madeAt.push(at);
               return piece;
             },
           },
@@ -71,6 +78,7 @@ describe('ModelDropEventHandlerService', () => {
     TestBed.resetTestingModule();
     vi.restoreAllMocks();
     for (const object of ObjectStore.instance.getObjects(GameCharacter)) ObjectStore.instance.remove(object);
+    for (const object of ObjectStore.instance.getObjects(Terrain)) ObjectStore.instance.remove(object);
     document.body.innerHTML = '';
   });
 
@@ -93,13 +101,20 @@ describe('ModelDropEventHandlerService', () => {
 
     expect(wall.modelIdentifier).toBe('');
     expect(made.map((piece) => piece.modelIdentifier)).toEqual([modelId]);
-    ObjectStore.instance.remove(wall);
   });
 
   it('makes a piece drawn as the model, named after it, where it lands on nothing', () => {
     drop();
 
     expect(made.map((piece) => [piece.name, piece.modelIdentifier])).toEqual([['statue', modelId]]);
+  });
+
+  it('makes the piece on the table, half a cell in from its edge, where it lands off the table', () => {
+    landing = { x: -40, y: 900, z: -3 };
+
+    drop();
+
+    expect(madeAt).toEqual([{ x: 25, y: 475, z: 0 }]);
   });
 
   it('puts nothing anywhere for a seat that may not change the table, or for a model not held here', () => {

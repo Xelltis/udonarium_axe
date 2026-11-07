@@ -52,12 +52,13 @@ export class ModelLibraryComponent {
   protected readonly checked = signal<ReadonlySet<string>>(new Set());
   /** The model shown turning, the last one pressed. */
   protected readonly chosen = signal<string | null>(null);
-  /** What tagging and removing act on: the models ticked, or the one shown while none is. */
+  /** What tagging and removing act on: the models ticked that are held here, or the one shown while none is. */
   protected readonly acted = computed<readonly string[]>(() => {
-    const checked = this.checked();
-    if (checked.size > 0) return [...checked];
-    const chosen = this.chosen();
-    return chosen ? [chosen] : [];
+    this.objectChange.fileVersion();
+    const checked = [...this.checked()].filter((identifier) => this.modelStorage.get(identifier) !== null);
+    if (checked.length > 0) return checked;
+    const chosen = this.chosenModel();
+    return chosen ? [chosen.identifier] : [];
   });
   protected readonly newTag = signal('');
 
@@ -98,6 +99,7 @@ export class ModelLibraryComponent {
   /** Which of the models acted on this seat may remove from the room. */
   protected readonly removable = computed(() => {
     this.ownership.track();
+    this.objectChange.fileVersion();
     this.rolePermission.canEditTabletop();
     return this.assetRemoval.removable('model', this.acted());
   });

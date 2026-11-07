@@ -178,6 +178,21 @@ describe('SaveDataService', () => {
       ObjectStore.instance.remove(AssetOwner.get(tree.identifier)!);
     });
 
+    it('writes the tags of the bundled models the room’s pieces wear, though it leaves out their bytes', async () => {
+      const privateApi = TestBed.inject(SaveDataService) as unknown as {
+        buildRoomFiles: (pretty: boolean, everything?: boolean) => File[];
+        searchModelFiles: (xml: string) => unknown[];
+      };
+      vi.spyOn(privateApi, 'searchModelFiles').mockReturnValue([bundled]);
+      ModelTag.tagWith(bundled.identifier, '敵');
+
+      const files = privateApi.buildRoomFiles(false);
+
+      expect(await files.find((file) => file.name === 'modeltag.xml')?.text()).toContain('敵');
+      expect(files.map((file) => file.name)).not.toContain('goblin.glb');
+      ObjectStore.instance.remove(ModelTag.get(bundled.identifier)!);
+    });
+
     it('leaves out a model bundled with the app, which the app that opens the save has beside its page', () => {
       const privateApi = TestBed.inject(SaveDataService) as unknown as {
         buildRoomFiles: (pretty: boolean, everything?: boolean) => File[];

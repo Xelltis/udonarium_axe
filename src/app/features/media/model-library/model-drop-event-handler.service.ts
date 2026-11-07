@@ -9,7 +9,6 @@ import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import { Terrain } from '@axe/domain/tabletop/terrain';
 import { attachModel, MODEL_DRAG_TYPE, takesModel } from '@axe/features/media/model-library/attach-model';
 import { clampToTable, isTabletopDropTarget } from '@axe/ui/tabletop/table-drop-target';
 
@@ -52,7 +51,7 @@ export class ModelDropEventHandlerService {
     const name = modelNameOf(model.name);
     const hit = this.tablePick.pressedAt(event.clientX, event.clientY);
     const target = hit ? this.objectStore.get(hit.target.id) : null;
-    if (takesModel(target) && !(target instanceof Terrain && target.isLocked)) {
+    if (takesModel(target)) {
       attachModel(target, identifier);
       this.snackbar.show(this.t('feature.media.modelLibrary.attached', { count: 1, name }));
       return;

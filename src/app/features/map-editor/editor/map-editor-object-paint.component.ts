@@ -88,7 +88,8 @@ export class MapEditorObjectPaintComponent {
   protected readonly modelName = computed(() => {
     const model = this.spec().model;
     if (placeableModelOf(model)) return this.t(placeableModelLabelKey(model));
-    return this.roomModels().find((held) => held.identifier === model)?.name ?? model;
+    const held = this.roomModels().find((one) => one.identifier === model);
+    return held ? modelNameOf(held.name) : model;
   });
 
   /** Whether the brush's model is a bundled one, whose proportions decide how tall it stands. */

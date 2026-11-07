@@ -53,7 +53,10 @@ export class ModelStageComponent {
     effect(() => {
       const stage = this.stage();
       const url = this.url();
-      if (stage) void stage.show(url).then((shown) => this.settled.set({ url, shown }));
+      if (!stage) return;
+      void stage.show(url).then((shown) => {
+        if (untracked(this.url) === url) this.settled.set({ url, shown });
+      });
     });
     destroyRef.onDestroy(() => untracked(this.stage)?.dispose());
   }
