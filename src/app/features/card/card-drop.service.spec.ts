@@ -95,6 +95,30 @@ describe('CardDropService', () => {
     expect(ObjectStore.instance.get(upper.identifier)).toBeNull();
   });
 
+  it('merges a stack let go of between two others with the first alone, leaving the second as it was', () => {
+    const first = stack(100, 100, undefined, 2);
+    const second = stack(110, 100, undefined, 3);
+    const dropped = stack(105, 100, undefined, 1);
+    const secondId = second.identifier;
+
+    service.drop(dropped);
+
+    expect(ObjectStore.instance.get(secondId)).toBe(second);
+    expect(second.cards).toHaveLength(3);
+    expect(first.isVisibleOnTable && ObjectStore.instance.get(first.identifier)).toBeFalsy();
+  });
+
+  it('puts a card let go of between two stacks on the first alone', () => {
+    const first = stack(100, 100);
+    const second = stack(130, 100);
+    const dropped = card(115, 100);
+
+    service.drop(dropped);
+
+    expect(first.cards).toEqual([dropped]);
+    expect(second.cards).toEqual([]);
+  });
+
   it('keeps a stack merged on a wall on that wall', () => {
     stack(300, 300, 'east-wall', 1);
     const upper = stack(305, 300, 'east-wall', 1);

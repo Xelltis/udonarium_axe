@@ -12,7 +12,8 @@ import { surfaceKeyOf, TabletopObject } from '@axe/domain/tabletop/tabletop-obje
  * that card. A stack dropped within half a cell of a card takes the card in at its bottom, and one
  * dropped within half a cell of another stack is merged with it into a new stack that replaces
  * both. Only what stands on the same face is asked, the stacks first and then the cards, the order
- * the table draws them in.
+ * the table draws them in, and the first stack to take what was dropped in is the only one: it is no
+ * longer there to be taken in again.
  */
 @Injectable({ providedIn: 'root' })
 export class CardDropService {
@@ -22,7 +23,9 @@ export class CardDropService {
   /** Lets what a card or a stack was dropped on take it in. */
   drop(dropped: Card | CardStack): void {
     const gridSize = this.tabletop.gridSize();
-    for (const stack of this.onFaceOf(dropped, this.tabletop.cardStacks)) this.dropOnStack(stack, dropped, gridSize);
+    for (const stack of this.onFaceOf(dropped, this.tabletop.cardStacks)) {
+      if (this.dropOnStack(stack, dropped, gridSize)) return;
+    }
     for (const card of this.onFaceOf(dropped, this.tabletop.cards)) this.dropOnCard(card, dropped, gridSize);
   }
 
@@ -31,16 +34,19 @@ export class CardDropService {
     return list.filter((object) => object !== dropped && surfaceKeyOf(object) === face);
   }
 
-  private dropOnStack(stack: CardStack, dropped: Card | CardStack, gridSize: number): void {
+  /** Whether a stack took what was dropped in, on itself or merged with it. */
+  private dropOnStack(stack: CardStack, dropped: Card | CardStack, gridSize: number): boolean {
     if (dropped instanceof Card) {
-      if (distanceSquared(dropped, stack) >= gridSize ** 2) return;
+      if (distanceSquared(dropped, stack) >= gridSize ** 2) return false;
       stack.putOnTop(dropped);
       for (const follower of this.multiMovable.followerTabletopObjectsFor(dropped.identifier)) {
         if (follower instanceof Card) stack.putOnTop(follower);
       }
-    } else if (distanceSquared(dropped, stack) < (gridSize / 2) ** 2) {
-      mergeStacks(dropped, stack);
+      return true;
     }
+    if (distanceSquared(dropped, stack) >= (gridSize / 2) ** 2) return false;
+    mergeStacks(dropped, stack);
+    return true;
   }
 
   private dropOnCard(card: Card, dropped: Card | CardStack, gridSize: number): void {
