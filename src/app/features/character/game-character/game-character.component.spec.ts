@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { signal, WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ChatClockService } from '@axe/application/chat/chat-clock.service';
@@ -26,6 +26,7 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { VolumeType } from '@axe/core/storage/audio-output';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -2240,6 +2241,51 @@ describe('GameCharacterComponent', () => {
         (component as unknown as { standUpright(event: MouseEvent): void }).standUpright(new MouseEvent('dblclick'));
         expect(character.roll).toBe(30);
       } finally {
+        character.destroy();
+      }
+    });
+
+    it('brings out the handles of the piece last touched on a touch screen, and weighs what its picture hides, until it is in hand', () => {
+      const character = withPicture('turn-touch');
+      const touch = (TestBed.inject(ViewportService) as unknown as { _isTouch: WritableSignal<boolean> })._isTouch;
+      const wasTouch = touch();
+      touch.set(false);
+      const selection = TestBed.inject(SelectionSignalService);
+      const sightOf = vi
+        .spyOn(TestBed.inject(TablePickService), 'pictureSightOf')
+        .mockReturnValue({ hides: () => false, cornerOnPage: () => ({ x: -1000, y: -1000 }) });
+      const heldPiece = TestBed.inject(HeldPieceService);
+      const shownAtFull = () => testOf('turn-grab')?.classList.contains('opacity-100!');
+
+      try {
+        choose(character);
+        selection.selectObject(character.identifier, 'character');
+        fixture.detectChanges();
+        expect(shownAtFull()).toBe(false);
+        expect(sightOf).not.toHaveBeenCalled();
+
+        touch.set(true);
+        fixture.detectChanges();
+        expect(shownAtFull()).toBe(true);
+        expect(headOf()?.classList.contains('opacity-100!')).toBe(true);
+        expect(sightOf).toHaveBeenCalled();
+
+        heldPiece.take({
+          identifier: character.identifier,
+          x: 0,
+          y: 0,
+          widthPx: 50,
+          heightPx: 50,
+          altitude: 0,
+          gridSize: 50,
+          liftable: true,
+        });
+        fixture.detectChanges();
+        expect(shownAtFull()).toBe(false);
+      } finally {
+        heldPiece.letGo(character.identifier);
+        selection.selectedObject.set(null);
+        touch.set(wasTouch);
         character.destroy();
       }
     });

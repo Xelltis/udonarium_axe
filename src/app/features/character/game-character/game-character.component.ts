@@ -48,6 +48,7 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { callResourceChange, resourceChange$ } from '@axe/core/event/domain-events';
 import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { VolumeType } from '@axe/core/storage/audio-output';
@@ -265,6 +266,7 @@ export class GameCharacterComponent {
   private readonly tableCamera = inject(TableCameraService);
   private readonly pick = inject(TablePickService);
   private readonly heldPiece = inject(HeldPieceService);
+  private readonly viewport = inject(ViewportService);
   private readonly surfaces = inject(TableSurfaceService);
   private readonly pedestal = viewChild<ElementRef<HTMLElement>>('pedestal');
 
@@ -316,6 +318,20 @@ export class GameCharacterComponent {
     this.onMoved();
   }
 
+  /**
+   * Whether this is the piece last touched on a touch screen and not in hand, which has its handles
+   * out as one the pointer is over does, there being no pointer to pass over pieces.
+   */
+  protected readonly touchChosen = computed(() => {
+    const id = this.gameCharacter()?.identifier;
+    return (
+      !!id &&
+      this.viewport.isTouch() &&
+      !this.carried() &&
+      this.selectionSignalService.selectedObject()?.identifier === id
+    );
+  });
+
   /** The way the piece faces while it is turned, in whole degrees, as the turn under way reads it out. */
   protected readonly turnAngle = computed(() => this.rotationGuide.turn()?.angle ?? shownAngle(this.rotate));
 
@@ -363,7 +379,7 @@ export class GameCharacterComponent {
    */
   private readonly pictureSight = computed(() => {
     const id = this.gameCharacter()?.identifier;
-    const looked = (this.hovered() && !this.carried()) || this.turning() === 'turn';
+    const looked = (this.hovered() && !this.carried()) || this.touchChosen() || this.turning() === 'turn';
     if (!looked || !id || this.mode2dEnabled()) return null;
     this.tableCamera.version();
     this.pieces.sprites();

@@ -1,5 +1,7 @@
 import { expect, Locator, test } from '@playwright/test';
 
+import { closePanels } from '../dungeon-helpers';
+
 type Box = { x: number; y: number; width: number; height: number };
 
 function overlaps(a: Box, b: Box): boolean {
@@ -50,5 +52,43 @@ test.describe('character pieces seen on a phone', () => {
       return 'clear';
     };
     await expect.poll(clear, { timeout: 5000 }).toBe('clear');
+  });
+
+  test('brings out the handles of the piece last touched, and only of that one', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('app-mobile-shell nav')).toBeVisible({ timeout: 20000 });
+    await closePanels(page);
+
+    const pieces = page
+      .locator('game-character')
+      .filter({ has: page.locator('[data-part="picture"]') })
+      .filter({ has: page.getByTestId('roll-grab-head') });
+    await expect(pieces.nth(1)).toBeAttached({ timeout: 10000 });
+    const view = page.viewportSize()!;
+    let touched: Locator | null = null;
+    let other: Locator | null = null;
+    let middle = { x: 0, y: 0 };
+    for (const piece of await pieces.all()) {
+      const box = await piece.locator('[data-part="picture"]').boundingBox();
+      const at = box ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : null;
+      const inView = !!at && at.x > 40 && at.x < view.width - 40 && at.y > 120 && at.y < view.height - 120;
+      if (inView && !touched) {
+        touched = piece;
+        middle = at!;
+      } else if (!other) {
+        other = piece;
+      }
+    }
+    expect(touched, 'a piece with a picture to tip in view').not.toBeNull();
+    const opacityOf = (piece: Locator) =>
+      piece
+        .getByTestId('roll-grab-head')
+        .evaluate((handle) => getComputedStyle(handle).opacity)
+        .catch(() => 'gone');
+    await expect.poll(() => opacityOf(touched!), { timeout: 5000 }).toBe('0');
+
+    await page.touchscreen.tap(middle.x, middle.y);
+    await expect.poll(() => opacityOf(touched!), { timeout: 5000 }).toBe('1');
+    expect(await opacityOf(other!)).toBe('0');
   });
 });
