@@ -2261,8 +2261,13 @@ describe('GameCharacterComponent', () => {
     it('brings out the handles of the piece a finger last pressed on the table, and where the main pointer cannot hover lets only them be pressed, until it is in hand', () => {
       const character = withPicture('turn-touch');
       drawPicture(character);
-      const hover = (TestBed.inject(ViewportService) as unknown as { _canHover: WritableSignal<boolean> })._canHover;
+      const viewport = TestBed.inject(ViewportService) as unknown as {
+        _canHover: WritableSignal<boolean>;
+        _isTouch: WritableSignal<boolean>;
+      };
+      const hover = viewport._canHover;
       const couldHover = hover();
+      const wasTouch = viewport._isTouch();
       hover.set(true);
       const pressable = () =>
         ['turn-ring', 'turn-grab', 'roll-grab-head'].map((testId) => {
@@ -2291,11 +2296,25 @@ describe('GameCharacterComponent', () => {
         selection.clearSelection();
         fixture.detectChanges();
 
+        viewport._isTouch.set(true);
+        selection.pressObject(character.identifier, 'character');
+        fixture.detectChanges();
+        expect(shownAtFull()).toBe(false);
+        expect(pressable()).toEqual([true, true, true]);
+        selection.clearSelection();
+
         hover.set(false);
+        viewport._isTouch.set(false);
         selection.selectObject(character.identifier, 'character');
         fixture.detectChanges();
         expect(shownAtFull()).toBe(false);
         expect(pressable()).toEqual([false, false, false]);
+        const passed = component as unknown as { hovered: { set(value: boolean): void }; turnRingSeen(): unknown };
+        sightOf.mockClear();
+        passed.hovered.set(true);
+        passed.turnRingSeen();
+        expect(sightOf).not.toHaveBeenCalled();
+        passed.hovered.set(false);
 
         selection.pressObject(character.identifier, 'character');
         fixture.detectChanges();
@@ -2336,6 +2355,7 @@ describe('GameCharacterComponent', () => {
         selection.clearSelection();
         selection.selectedObject.set(null);
         hover.set(couldHover);
+        viewport._isTouch.set(wasTouch);
         character.destroy();
       }
     });

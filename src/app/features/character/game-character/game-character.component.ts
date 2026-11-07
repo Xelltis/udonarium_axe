@@ -386,7 +386,10 @@ export class GameCharacterComponent {
    * are out and the piece is not being carried: followed as the camera moves and the picture changes.
    */
   private readonly pictureSight = computed(() => {
-    const looked = (this.hovered() && !this.carried()) || this.pressChosen() || this.turning() === 'turn';
+    const looked =
+      (this.viewport.canHover() && this.hovered() && !this.carried()) ||
+      this.pressChosen() ||
+      this.turning() === 'turn';
     const picture = looked ? this.ownPicture() : null;
     if (!picture) return null;
     this.tableCamera.version();
