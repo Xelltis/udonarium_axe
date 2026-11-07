@@ -168,24 +168,32 @@ function lowestKeptSampleIn(
   const cx1 = Math.floor(inside.i1 / GROUND_CHUNK_SAMPLES);
   const cy1 = Math.floor(inside.j1 / GROUND_CHUNK_SAMPLES);
   const reached = (cx1 - cx0 + 1) * (cy1 - cy0 + 1);
-  let found = 0;
-  if (reached > onBoard.length) {
-    for (const kept of onBoard) {
-      if (kept.cx < cx0 || kept.cx > cx1 || kept.cy < cy0 || kept.cy > cy1) continue;
-      found++;
-      lowest = Math.min(lowest, lowestOfChunkIn(kept, inside) * GROUND_HEIGHT_STEP);
-    }
-  } else {
-    for (let cy = cy0; cy <= cy1; cy++) {
-      for (let cx = cx0; cx <= cx1; cx++) {
-        const kept = byKey.get(chunkKey(cx, cy));
-        if (!kept) continue;
-        found++;
-        lowest = Math.min(lowest, lowestOfChunkIn(kept, inside) * GROUND_HEIGHT_STEP);
-      }
+  const found = reached > onBoard.length ? keptAmong(onBoard, cx0, cy0, cx1, cy1) : keptAt(byKey, cx0, cy0, cx1, cy1);
+  for (const kept of found) lowest = Math.min(lowest, lowestOfChunkIn(kept, inside) * GROUND_HEIGHT_STEP);
+  return found.length < reached ? Math.min(lowest, 0) : lowest;
+}
+
+/** The chunks kept from one corner chunk to another, gone over one by one. */
+function keptAmong(onBoard: readonly KeptHeights[], cx0: number, cy0: number, cx1: number, cy1: number): KeptHeights[] {
+  return onBoard.filter((kept) => kept.cx >= cx0 && kept.cx <= cx1 && kept.cy >= cy0 && kept.cy <= cy1);
+}
+
+/** The chunks kept from one corner chunk to another, looked up by place. */
+function keptAt(
+  byKey: ReadonlyMap<string, KeptHeights>,
+  cx0: number,
+  cy0: number,
+  cx1: number,
+  cy1: number
+): KeptHeights[] {
+  const found: KeptHeights[] = [];
+  for (let cy = cy0; cy <= cy1; cy++) {
+    for (let cx = cx0; cx <= cx1; cx++) {
+      const kept = byKey.get(chunkKey(cx, cy));
+      if (kept) found.push(kept);
     }
   }
-  return found < reached ? Math.min(lowest, 0) : lowest;
+  return found;
 }
 
 /**
@@ -208,31 +216,65 @@ export function heightBetweenSamples(sampleAt: (i: number, j: number) => number,
 }
 
 /** The lowest of the samples in a box read one by one, for a surface that cannot tell it otherwise. */
-function lowestSampleOneByOne(ground: GroundSurface, box: SampleBox): number {
+export function lowestSampleOneByOne(sampleAt: (i: number, j: number) => number, box: SampleBox): number {
   let lowest = Infinity;
   for (let j = box.j0; j <= box.j1; j++) {
-    for (let i = box.i0; i <= box.i1; i++) lowest = Math.min(lowest, ground.sampleAt(i, j));
+    for (let i = box.i0; i <= box.i1; i++) lowest = Math.min(lowest, sampleAt(i, j));
   }
   return lowest;
 }
 
 /**
- * The points on the edges of a box, counted in samples, at which the ground can turn: its corners,
- * where each edge crosses a line between samples, and where it crosses the diagonal each square of
- * samples is split along. Between them the ground along an edge runs straight.
+ * Visits the points on the edges of a box, counted in samples, at which the ground can turn: its
+ * corners, where each edge crosses a line between samples, and where it crosses the diagonal each
+ * square of samples is split along. Between them the ground along an edge runs straight.
  */
-function edgePointsOf(i0: number, j0: number, i1: number, j1: number): [number, number][] {
-  const points: [number, number][] = [];
+function visitEdgePoints(
+  i0: number,
+  j0: number,
+  i1: number,
+  j1: number,
+  visit: (si: number, sj: number) => void
+): void {
   for (const j of [j0, j1]) {
-    points.push([i0, j], [i1, j]);
-    for (let i = Math.ceil(i0); i <= i1; i++) points.push([i, j]);
-    for (let k = Math.ceil(i0 - j); k <= i1 - j; k++) points.push([j + k, j]);
+    visit(i0, j);
+    visit(i1, j);
+    for (let i = Math.ceil(i0); i <= i1; i++) visit(i, j);
+    for (let k = Math.ceil(i0 - j); k <= i1 - j; k++) visit(j + k, j);
   }
   for (const i of [i0, i1]) {
-    for (let j = Math.ceil(j0); j <= j1; j++) points.push([i, j]);
-    for (let k = Math.ceil(i - j1); k <= i - j0; k++) points.push([i, i - k]);
+    for (let j = Math.ceil(j0); j <= j1; j++) visit(i, j);
+    for (let k = Math.ceil(i - j1); k <= i - j0; k++) visit(i, i - k);
   }
-  return points;
+}
+
+/**
+ * How many points along a side of a box a surface that cannot say where it stands off the board is
+ * read at, at most, so that a vast block is weighed in a moment on it too.
+ */
+const MOST_POINTS_ALONG = 512;
+
+/**
+ * The lowest the ground stands in a box, in cells, read at its corners and points every sample apart
+ * or fewer, a point no number can be read at, as one an endless side reaches, left out.
+ */
+function lowestSampledIn(ground: GroundSurface, i0: number, j0: number, i1: number, j1: number): number {
+  const along = (from: number, to: number): number[] => {
+    const length = to - from;
+    if (!(length > 0)) return [from];
+    const step = Math.max(1, length / MOST_POINTS_ALONG);
+    const at: number[] = [];
+    for (let d = 0; d < length; d += step) at.push(from + d);
+    return [...at, to];
+  };
+  let lowest = Infinity;
+  for (const si of along(i0, i1)) {
+    for (const sj of along(j0, j1)) {
+      const height = heightBetweenSamples(ground.sampleAt, si, sj);
+      if (!Number.isNaN(height)) lowest = Math.min(lowest, height);
+    }
+  }
+  return lowest === Infinity ? 0 : lowest;
 }
 
 /**
@@ -240,8 +282,10 @@ function edgePointsOf(i0: number, j0: number, i1: number, j1: number): [number, 
  * ground stands anywhere in the box, so that a block stood on uneven ground sinks into the rise rather
  * than hanging over the dip. The ground is flat across each triangle of samples, so the lowest is at a
  * sample inside the box or at a point where its edges cross the triangles. Beyond the samples the
- * ground may stand off the board at, it stands at 0, so only the part of the box over them is read,
- * and a block reaching past them is weighed in a moment however vast it is.
+ * ground may stand off the board at, and the sample on from them where it slopes back to the board,
+ * it stands at 0, so only the part of the box over them is read, and a block reaching past them is
+ * weighed in a moment however vast it is. A surface that cannot say where it stands off the board
+ * is read at points every sample apart, or fewer along a long side.
  */
 export function lowestGroundPxIn(
   ground: GroundSurface,
@@ -260,18 +304,16 @@ export function lowestGroundPxIn(
   if ([i0, j0, i1, j1].some(Number.isNaN)) return 0;
   const extent = ground.extent;
   if (extent === null) return 0;
-  let lowest = Infinity;
-  let box: SampleBox = { i0, j0, i1, j1 };
-  if (extent !== undefined) {
-    if (i0 < extent.i0 || j0 < extent.j0 || i1 > extent.i1 || j1 > extent.j1) lowest = 0;
-    box = {
-      i0: Math.max(i0, extent.i0),
-      j0: Math.max(j0, extent.j0),
-      i1: Math.min(i1, extent.i1),
-      j1: Math.min(j1, extent.j1),
-    };
-    if (!(box.i0 <= box.i1 && box.j0 <= box.j1)) return lowest * gridSize;
-  }
+  if (extent === undefined) return lowestSampledIn(ground, i0, j0, i1, j1) * gridSize;
+  const reach = { i0: extent.i0 - 1, j0: extent.j0 - 1, i1: extent.i1 + 1, j1: extent.j1 + 1 };
+  let lowest = i0 < reach.i0 || j0 < reach.j0 || i1 > reach.i1 || j1 > reach.j1 ? 0 : Infinity;
+  const box: SampleBox = {
+    i0: Math.max(i0, reach.i0),
+    j0: Math.max(j0, reach.j0),
+    i1: Math.min(i1, reach.i1),
+    j1: Math.min(j1, reach.j1),
+  };
+  if (!(box.i0 <= box.i1 && box.j0 <= box.j1)) return lowest * gridSize;
   const samples: SampleBox = {
     i0: Math.ceil(box.i0),
     j0: Math.ceil(box.j0),
@@ -279,11 +321,11 @@ export function lowestGroundPxIn(
     j1: Math.floor(box.j1),
   };
   if (samples.i0 <= samples.i1 && samples.j0 <= samples.j1) {
-    lowest = Math.min(lowest, ground.lowestSampleIn?.(samples) ?? lowestSampleOneByOne(ground, samples));
+    lowest = Math.min(lowest, ground.lowestSampleIn?.(samples) ?? lowestSampleOneByOne(ground.sampleAt, samples));
   }
-  for (const [si, sj] of edgePointsOf(box.i0, box.j0, box.i1, box.j1)) {
+  visitEdgePoints(box.i0, box.j0, box.i1, box.j1, (si, sj) => {
     lowest = Math.min(lowest, heightBetweenSamples(ground.sampleAt, si, sj));
-  }
+  });
   return lowest * gridSize;
 }
 

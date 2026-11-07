@@ -1,7 +1,13 @@
 import { cellCenterOf, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/grid-type';
 import { groundOverIce, ICE_BEARS_AT } from '@axe/domain/tabletop/ground/ground-over-ice';
-import { FLAT_GROUND, type GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
+import { GROUND_CHUNK_SAMPLE_COUNT, GROUND_CHUNK_SAMPLES } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import {
+  FLAT_GROUND,
+  groundLiftOfBlock,
+  type GroundSurface,
+  groundSurfaceOf,
+} from '@axe/domain/tabletop/ground/ground-surface';
 import type { WaterCell } from '@axe/domain/tabletop/water/water-cells';
 
 const G = 50;
@@ -50,6 +56,25 @@ describe('the ground as what stands on the floor stands on it, over ice', () => 
 
     const high: GroundSurface = { isFlat: false, sampleAt: () => 2, paintAt: () => null, heightAt: () => 2 };
     expect(groundOverIce(high, new Map([[index, iceOver(index, 0)]]), grid).heightAt(1.5, 1.5)).toBe(2);
+  });
+
+  it('lifts a block on a frozen pond onto the ice, one reaching off it onto the shore included', () => {
+    const iced = groundOverIce(FLAT_GROUND, new Map([[index, iceOver(index, 0.5 * G)]]), grid);
+
+    expect(iced.extent).toEqual({ i0: 2, j0: 2, i1: 4, j1: 4 });
+    expect(groundLiftOfBlock(iced, G, { location: { x: G, y: G }, width: 1, depth: 1 })).toBe(0.5 * G);
+    expect(groundLiftOfBlock(iced, G, { location: { x: G, y: G }, width: 1.2, depth: 1 })).toBeCloseTo(0.3 * G, 9);
+    expect(groundLiftOfBlock(iced, G, { location: { x: 0, y: 0 }, width: 4, depth: 4 })).toBe(0);
+  });
+
+  it('weighs a block away from the ice by the ground under it, as the ground tells it', () => {
+    const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT);
+    heights[6 * GROUND_CHUNK_SAMPLES + 6] = -64;
+    const ground = groundSurfaceOf([{ cx: 0, cy: 0, heights, paint: null }]);
+    const iced = groundOverIce(ground, new Map([[index, iceOver(index, 0.5 * G)]]), grid);
+
+    expect(groundLiftOfBlock(iced, G, { location: { x: 2.5 * G, y: 2.5 * G }, width: 1, depth: 1 })).toBe(-G);
+    expect(groundLiftOfBlock(iced, G, { location: { x: G, y: G }, width: 1, depth: 1 })).toBe(0.5 * G);
   });
 
   it('leaves water not frozen hard enough to bear, and a table with no ice, as the ground was', () => {

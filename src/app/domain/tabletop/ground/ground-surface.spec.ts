@@ -74,6 +74,48 @@ describe('the ground of a table', () => {
     expect(groundLiftOfBlock(ground, 50, { location: { x: 50, y: 50 }, width: 0.5, depth: 0.5 })).toBe(-25);
   });
 
+  it('reads the ground sloping from the last sample kept back down to the board beside it', () => {
+    const plateau = groundSurfaceOf([
+      chunk(
+        0,
+        0,
+        Array.from({ length: GROUND_CHUNK_SAMPLE_COUNT }, (_, at): [number, number, number] => [
+          at % GROUND_CHUNK_SAMPLES,
+          Math.floor(at / GROUND_CHUNK_SAMPLES),
+          64,
+        ])
+      ),
+    ]);
+    const dipped = groundSurfaceOf([
+      chunk(0, 0, [
+        [31, 10, -64],
+        [31, 11, 64],
+      ]),
+    ]);
+
+    expect(groundLiftOfBlock(plateau, 50, { location: { x: 760, y: 0 }, width: 0.6, depth: 1 })).toBeCloseTo(20, 9);
+    expect(groundLiftOfBlock(dipped, 50, { location: { x: 750, y: 262.5 }, width: 5, depth: 2 })).toBeCloseTo(-25, 9);
+  });
+
+  it('reads a surface that cannot say where it stands off the board at a bounded number of points, however vast the block', () => {
+    let read = 0;
+    const dug: GroundSurface = {
+      isFlat: false,
+      sampleAt: () => {
+        read++;
+        return -0.5;
+      },
+      paintAt: () => null,
+      heightAt: () => -0.5,
+    };
+
+    expect(groundLiftOfBlock(dug, 50, { location: { x: 0, y: 0 }, width: Number.POSITIVE_INFINITY, depth: 1 })).toBe(
+      -25
+    );
+    expect(groundLiftOfBlock(dug, 50, { location: { x: 0, y: 0 }, width: 2000, depth: 2000 })).toBe(-25);
+    expect(read).toBeLessThan(4 * 514 * 514);
+  });
+
   it('takes no ground under a block of no size or of no place, nor any off the board', () => {
     const ground = groundSurfaceOf([chunk(0, 0, [[0, 0, 64]])]);
 
@@ -89,8 +131,5 @@ describe('the ground of a table', () => {
     const { lowestSampleIn: _lowest, ...ground } = kept;
 
     expect(groundLiftOfBlock(ground, 50, { location: { x: 0, y: 0 }, width: 3, depth: 3 })).toBe(-50);
-    expect(
-      groundLiftOfBlock({ ...ground, extent: undefined }, 50, { location: { x: 0, y: 0 }, width: 3, depth: 3 })
-    ).toBe(-50);
   });
 });
