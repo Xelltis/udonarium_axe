@@ -174,7 +174,11 @@ export class TablePickService {
     });
   }
 
-  /** Makes the target of a block as the table stands now, or null for one not drawn for this seat. */
+  /**
+   * Makes the target of a block as the table stands now, or null for one not drawn for this seat:
+   * made anew as the block changes, and as the table's grid, its size and its walls do, which say
+   * where a block put on a wall stands.
+   */
   private blockTargetMaker(): (terrain: Terrain) => PickTarget | null {
     const table = this.tabletop.currentTable;
     const ground = this.ground.surface();
@@ -192,7 +196,8 @@ export class TablePickService {
       if (board && !boardFrame) return null;
       const boardVersion = board ? this.objectChange.versionOf(board)() : '';
       const lift = onFloor && !board ? groundLiftOfBlock(ground, table.gridSize, terrain) : 0;
-      return this.keep(terrain.identifier, `${grid}|${table.wallHeight}|${boardVersion}|${lift}`, () =>
+      const size = `${table.width}|${table.height}|${table.wallHeight}`;
+      return this.keep(terrain.identifier, `${grid}|${size}|${boardVersion}|${lift}`, () =>
         onFloor
           ? terrainPickTarget(terrain, table.gridSize, table.gridType, boardFrame ?? undefined, lift)
           : beamPickTarget(terrain, table.gridSize, dims)

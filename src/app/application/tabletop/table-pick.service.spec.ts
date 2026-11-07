@@ -259,6 +259,20 @@ describe('TablePickService', () => {
     expect(service.pickAt(front.x, front.y)?.target).toMatchObject({ id: beam.identifier, surface: 'north-wall' });
   });
 
+  it('moves a block put on a wall with the wall, once the table is made larger', async () => {
+    const beam = Terrain.create('beam', 4, 1, 1, '', '');
+    beam.location = { name: 'table', x: 100, y: 100, surface: 'south-wall' };
+    table.appendChild(beam);
+    await settled();
+    const before = JSON.stringify(service.targets().find((target) => target.id === beam.identifier)!.shapes);
+
+    table.height += 4;
+    await settled();
+
+    const after = JSON.stringify(service.targets().find((target) => target.id === beam.identifier)!.shapes);
+    expect(after).not.toBe(before);
+  });
+
   it('lands on a die where its frame lies, and lets the blocks a piece lands on be picked apart from it', async () => {
     const die = DiceSymbol.create('D6', DiceType.D6, 1);
     die.location = { name: 'table', x: 5 * GRID, y: 5 * GRID };
