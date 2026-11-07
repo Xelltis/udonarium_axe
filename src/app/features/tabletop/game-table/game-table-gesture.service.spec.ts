@@ -3,8 +3,7 @@ import { TableCameraService } from '@axe/application/tabletop/table-camera.servi
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
-import type { MarqueeRect } from '@axe/application/ui/selection-signal.service';
-import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { type MarqueeRect, SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { orthographicScale } from '@axe/domain/tabletop/camera/table-camera';
 import { GameTable } from '@axe/domain/tabletop/game-table';

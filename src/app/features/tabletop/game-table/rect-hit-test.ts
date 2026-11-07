@@ -1,12 +1,9 @@
+import type { MarqueeRect } from '@axe/application/ui/selection-signal.service';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
-export interface TableRect {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-}
+/** A rectangle over the table between two corners, as a marquee draws it. */
+export type TableRect = MarqueeRect;
 
 export interface RectHitTestOptions {
   gridSize?: number;
