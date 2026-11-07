@@ -32,7 +32,7 @@ export function bundledModelName(identifier: string): BundledPieceModel | null {
   return BUNDLED_BY_IDENTIFIER.get(identifier) ?? null;
 }
 
-/** Where a bundled model's bytes are served from, beside the page. */
-export function bundledModelUrl(name: BundledPieceModel): string {
+/** Where the bytes of a model bundled for pieces are served from, beside the page. */
+export function bundledPieceModelUrl(name: BundledPieceModel): string {
   return `assets/models/pieces/${name}.glb`;
 }

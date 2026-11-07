@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import {
   BUNDLED_PIECE_MODELS,
   bundledModelName,
-  bundledModelUrl,
+  bundledPieceModelUrl,
   isBundledModel,
 } from '@axe/core/storage/bundled-models';
 import { describe, expect, it } from 'vitest';
@@ -18,7 +18,7 @@ describe('bundled piece models', () => {
     expect(files.map((file) => file.replace(/\.glb$/, '')).sort()).toEqual(Object.keys(BUNDLED_PIECE_MODELS).sort());
     for (const [name, identifier] of Object.entries(BUNDLED_PIECE_MODELS)) {
       const bytes = readFileSync(
-        join(ASSETS, bundledModelUrl(name as keyof typeof BUNDLED_PIECE_MODELS).replace(/^assets\//, ''))
+        join(ASSETS, bundledPieceModelUrl(name as keyof typeof BUNDLED_PIECE_MODELS).replace(/^assets\//, ''))
       );
       expect(createHash('sha256').update(bytes).digest('hex'), name).toBe(identifier);
     }

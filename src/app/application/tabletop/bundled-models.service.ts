@@ -1,6 +1,6 @@
 import { inject, Injectable, OnDestroy } from '@angular/core';
 import { localDispatch } from '@axe/core/network/network-messaging';
-import { bundledModelName, bundledModelUrl } from '@axe/core/storage/bundled-models';
+import { bundledModelName, bundledPieceModelUrl } from '@axe/core/storage/bundled-models';
 import { calcSHA256Async } from '@axe/core/storage/file-reader-util';
 import { MODEL_TYPE } from '@axe/core/storage/model-file';
 import { ModelStorage } from '@axe/core/storage/model-storage';
@@ -53,7 +53,7 @@ export class BundledModelsService implements OnDestroy {
     void (async () => {
       let unread = true;
       try {
-        const response = await fetch(bundledModelUrl(name));
+        const response = await fetch(bundledPieceModelUrl(name));
         if (!response.ok) return;
         unread = false;
         const bytes = await response.arrayBuffer();

@@ -1,8 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { BundledModelIntakeService } from '@axe/application/tabletop/bundled-model-intake.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { MODEL_TYPE } from '@axe/core/storage/model-file';
-import { ModelStorage } from '@axe/core/storage/model-storage';
 import { delay } from '@axe/core/util/delay';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { AmbienceKind } from '@axe/domain/effect/ambience/ambience-kind';
@@ -15,7 +14,6 @@ import {
   WALL_TOP_TEXTURE,
   WallTextureId,
 } from '@axe/domain/media/texture-catalog';
-import { bundledModelUrl } from '@axe/domain/tabletop/bundled-model-url';
 import { DungeonPoint } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { cellCenterOf, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
@@ -180,7 +178,7 @@ export interface DungeonBuildResult {
 @Injectable({ providedIn: 'root' })
 export class DungeonBuildService {
   private readonly imageStorage = inject(ImageStorage);
-  private readonly modelStorage = inject(ModelStorage);
+  private readonly bundledModels = inject(BundledModelIntakeService);
   private readonly t = inject(TRANSLATE_FN);
 
   /** Register a bundled picture once and hand back the identifier a terrain stores. */
@@ -228,12 +226,13 @@ export class DungeonBuildService {
     const table = this.createTable(size, mood, options, grid);
     if (options.ground) this.raiseGround(table, options.ground);
 
+    const models = await this.bundledModels.identifiersOf(blocks.blocks.flatMap((block) => block.model || []));
     let done = 0;
-    const models = new Map<string, Promise<string>>();
     for (const block of blocks.blocks) {
       const terrain = this.createTerrain(block, { wallSide, wallTop }, options.wallHeight, grid);
       table.appendChild(terrain);
-      if (block.model) await this.dressAsModel(terrain, block.model, models);
+      const model = block.model ? models.get(block.model) : '';
+      if (model) terrain.modelIdentifier = model;
       if (block.modelTurn) terrain.modelTurn = String(block.modelTurn);
       done++;
       if (done % CHUNK_SIZE === 0) {
@@ -298,35 +297,6 @@ export class DungeonBuildService {
       piece.location = { name: 'table', x: centre.x - corner, y: centre.y - corner };
       piece.posZ = 0;
       piece.update();
-    }
-  }
-
-  /**
-   * Gives a block the bundled model it is drawn as, reading the model's bytes into the models held
-   * here the first time one is asked for in a build. A model that cannot be read leaves the block
-   * drawn as its faces.
-   */
-  private async dressAsModel(terrain: Terrain, model: string, read: Map<string, Promise<string>>): Promise<void> {
-    let identifier = read.get(model);
-    if (!identifier) {
-      identifier = this.readModel(model);
-      read.set(model, identifier);
-    }
-    const held = await identifier;
-    if (held) terrain.modelIdentifier = held;
-  }
-
-  private async readModel(model: string): Promise<string> {
-    try {
-      const url = bundledModelUrl(model);
-      if (!url) return '';
-      const response = await fetch(url);
-      if (!response.ok) return '';
-      const blob = await response.blob();
-      const file = new File([blob], `${model}.glb`, { type: MODEL_TYPE });
-      return (await this.modelStorage.addAsync(file))?.identifier ?? '';
-    } catch {
-      return '';
     }
   }
 

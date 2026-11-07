@@ -236,9 +236,13 @@ describe('DungeonBuildService', () => {
     const fetched = vi
       .spyOn(globalThis, 'fetch')
       .mockImplementation(async () => new Response(new Blob([new Uint8Array(8)])));
+    const storage = TestBed.inject(ModelStorage);
     const added = vi
-      .spyOn(TestBed.inject(ModelStorage), 'addAsync')
+      .spyOn(storage, 'addAsync')
       .mockImplementation(async (file) => ({ identifier: `held-${(file as File).name}` }) as never);
+    vi.spyOn(storage, 'get').mockImplementation((identifier) =>
+      identifier.startsWith('held-') ? ({ identifier } as never) : null
+    );
 
     const { table } = await service.build(plan.layout, plan.atmosphere, plan.blocks, options());
 
@@ -252,6 +256,19 @@ describe('DungeonBuildService', () => {
     const kinds = new Set(dressed.map((block) => block.model));
     expect(fetched).toHaveBeenCalledTimes(kinds.size);
     expect(added).toHaveBeenCalledTimes(kinds.size);
+    fetched.mockRestore();
+  });
+
+  it('asks once for each model it cannot read, and leaves the blocks drawn as their faces', async () => {
+    const plan = planField({ atmosphere: 'woodland', size: 20, density: 50, seed: 3, models: true });
+    const fetched = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(null, { status: 404 }));
+
+    const { table } = await service.build(plan.layout, plan.atmosphere, plan.blocks, options());
+
+    const kinds = new Set(plan.blocks.blocks.flatMap((block) => block.model || []));
+    expect(plan.blocks.blocks.filter((block) => block.model).length).toBeGreaterThan(kinds.size);
+    expect(fetched).toHaveBeenCalledTimes(kinds.size);
+    expect(table.terrains.some((terrain) => terrain.modelIdentifier)).toBe(false);
     fetched.mockRestore();
   });
 
