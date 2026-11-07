@@ -3831,11 +3831,11 @@
         "colorSlot": "持ち色{{n}}",
         "colors": "発言の色",
         "targetNumber": "目標値",
-        "targetNumberHint": "この発言の {目標値} に入れる数です。選び直した結果は、この1回の送信にだけ使います",
-        "targetNumberAimed": "自動: {{total}}（{{speaker}} に振った結果: {{by}}）",
+        "targetNumberHint": "この発言の{目標値}に入れる数です。選び直した結果は、この1回の送信にだけ使います",
+        "targetNumberAimed": "自動: {{total}}（{{speaker}}に振った結果: {{by}}）",
         "targetNumberPinned": "自動: {{total}}（このタブに固定した結果: {{by}}）",
         "targetNumberByOthers": "自動: {{total}}（直前の結果: {{by}}）",
-        "targetNumberNotFound": "自動: 見つかりません（{目標値} のまま送ります）",
+        "targetNumberNotFound": "自動: 見つかりません（{目標値}のまま送ります）",
         "targetNumberChoice": "{{total}}（{{by}}）"
       },
       "decoration": {
@@ -3937,7 +3937,7 @@
         "pinTargetNumber": "この結果を目標値にする",
         "unpinTargetNumber": "目標値の固定を外す",
         "pinnedTargetNumber": "目標値",
-        "pinnedTargetNumberTitle": "このタブの {目標値} は、外すまでこの結果になります"
+        "pinnedTargetNumberTitle": "このタブの{目標値}は、外すまでこの結果になります"
       },
       "stream": {
         "title": "ストリームチャット",

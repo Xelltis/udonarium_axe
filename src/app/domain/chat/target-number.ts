@@ -1,6 +1,8 @@
 import type { ChatMessage } from '@axe/domain/chat/chat-message';
 import type { ChatTab } from '@axe/domain/chat/chat-tab';
+import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
 import { rollTargetSuffix } from '@axe/domain/dice/roll-target-suffix';
+import { canRoleEdit, type PeerRole } from '@axe/domain/peer/peer-role';
 
 /**
  * The reference a line fills in with the number it has to beat: what was last rolled against the
@@ -96,9 +98,20 @@ export function findTargetNumberSource(tab: ChatTab, speaker: TargetNumberSpeake
   return byOthers;
 }
 
-/** Whether a line is an answer that may be set as its tab's number to beat: a roll shown to all that comes to a number. */
+/**
+ * Whether a line is an answer that may be set as its tab's number to beat: a roll shown to all,
+ * neither kept secret nor whispered, that comes to a number.
+ */
 export function canPinAsTargetNumber(message: ChatMessage): boolean {
-  return message.isDicebot && !message.isSecret && rollTotalOf(`${message.text ?? ''}`) != null;
+  return message.isDicebot && !message.isSecret && !message.isDirect && rollTotalOf(`${message.text ?? ''}`) != null;
+}
+
+/**
+ * Whether a reader of a role may set a tab's number to beat or take it off, which changes the tab
+ * for everyone: anyone but a guest, in a tab they may speak in.
+ */
+export function mayPinTargetNumber(tab: ChatTab, role: PeerRole): boolean {
+  return canRoleEdit(role) && canRoleSpeakTab(tab, role);
 }
 
 /** An answer a reader may pick as the number to beat for a line they are about to send, with what it came to. */

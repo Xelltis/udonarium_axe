@@ -23,6 +23,8 @@ export interface TargetNumberBar {
   /** The answer picked instead, by its identifier; empty while the one found is used. */
   readonly chosen: string;
   readonly choices: readonly TargetNumberBarChoice[];
+  /** Whether the number found is the tab's own, set from an answer, which the reader may take off from here. */
+  readonly unpinnable: boolean;
 }
 
 const FOUND_KEYS: Readonly<Record<TargetNumberFrom, string>> = {
@@ -33,11 +35,13 @@ const FOUND_KEYS: Readonly<Record<TargetNumberFrom, string>> = {
 
 /**
  * The bar for a `{目標値}` left in a line: the number found and where it came from, which a line
- * aimed at the speaker names them for, and each answer that may be picked instead.
+ * aimed at the speaker names them for, and each answer that may be picked instead. The tab's own
+ * number to beat may be taken off from it by a reader who may set it.
  */
-export function targetNumberBarOf(number: ChatLintTargetNumber, speaker: string): TargetNumberBar {
+export function targetNumberBarOf(number: ChatLintTargetNumber, speaker: string, mayPin: boolean): TargetNumberBar {
   const found = number.found;
   return {
+    unpinnable: mayPin && found?.from === 'pinned',
     found: found
       ? { key: FOUND_KEYS[found.from], params: { total: found.total, by: rolledBy(found.answer), speaker } }
       : { key: 'feature.chat.input.targetNumberNotFound', params: {} },

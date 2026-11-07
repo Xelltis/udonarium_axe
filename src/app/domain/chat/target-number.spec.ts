@@ -1,15 +1,18 @@
 import { TestBed } from '@angular/core/testing';
+import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import {
   fillTargetNumber,
   findTargetNumber,
   findTargetNumberSource,
   holdsTargetNumber,
+  mayPinTargetNumber,
   rolledOf,
   rollerOf,
   rollTotalOf,
   targetNumberChoices,
 } from '@axe/domain/chat/target-number';
+import { PeerRole } from '@axe/domain/peer/peer-role';
 
 describe('target-number', () => {
   describe('rollTotalOf()', () => {
@@ -212,6 +215,28 @@ describe('target-number', () => {
         roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14', { tag: 'system secret' });
 
         expect(targetNumberChoices(tab, 5)).toEqual([]);
+      });
+
+      it('passes over a roll whispered, even one the reader rolled, which is not for everyone to beat', () => {
+        roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14');
+        lastAnswer().to = 'someone-else';
+        lastAnswer().originFrom = getPeerContext().userId;
+
+        expect(lastAnswer().isDirect && lastAnswer().isDisplayable).toBe(true);
+        expect(targetNumberChoices(tab, 5)).toEqual([]);
+      });
+    });
+
+    describe('mayPinTargetNumber()', () => {
+      it('lets anyone but a guest set it, in a tab they may speak in', () => {
+        expect(mayPinTargetNumber(tab, PeerRole.GameMaster)).toBe(true);
+        expect(mayPinTargetNumber(tab, PeerRole.Player)).toBe(true);
+        expect(mayPinTargetNumber(tab, PeerRole.Guest)).toBe(false);
+
+        tab.plCanSpeak = false;
+
+        expect(mayPinTargetNumber(tab, PeerRole.Player)).toBe(false);
+        expect(mayPinTargetNumber(tab, PeerRole.GameMaster)).toBe(true);
       });
     });
 

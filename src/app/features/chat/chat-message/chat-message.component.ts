@@ -50,7 +50,7 @@ import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
 import { inlineStampsAlone, inlineStampSites } from '@axe/domain/chat/inline-stamp';
 import { IMAGE_STAMP_PREFIX, isPictureStamp, stampOf } from '@axe/domain/chat/stamp-catalog';
 import { saidWithStamp } from '@axe/domain/chat/stamp-line';
-import { canPinAsTargetNumber } from '@axe/domain/chat/target-number';
+import { canPinAsTargetNumber, mayPinTargetNumber } from '@axe/domain/chat/target-number';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { encodeVnEmote, vnBodyOf, vnEmoteOf } from '@axe/domain/visual-novel/vn-emote';
@@ -466,14 +466,14 @@ export class ChatMessageComponent {
 
   /**
    * Whether the reader may set the line as its tab's number to beat, or take it off as that: a roll
-   * shown to all that comes to a number, to a reader who may change what the room shares, as the
-   * tab is changed for everyone; null where neither.
+   * shown to all that comes to a number, to a reader who may do so in its tab (see
+   * {@link mayPinTargetNumber}); null where neither.
    */
   private targetNumberPin(): 'pin' | 'unpin' | null {
     const message = this.chatMessage;
-    if (this.readOnly() || !this.rolePermission.canEditTabletop() || !canPinAsTargetNumber(message)) return null;
+    if (this.readOnly() || !canPinAsTargetNumber(message)) return null;
     const tab = this.objectStore.get<ChatTab>(message.tabIdentifier);
-    if (!tab) return null;
+    if (!tab || !mayPinTargetNumber(tab, PeerCursor.myRole)) return null;
     return tab.pinnedTargetNumber === message.identifier ? 'unpin' : 'pin';
   }
 
@@ -485,10 +485,13 @@ export class ChatMessageComponent {
     tab.pinnedTargetNumber = tab.pinnedTargetNumber === message.identifier ? '' : message.identifier;
   }
 
-  /** Whether the line is set as its tab's number to beat, which it shows beside it. */
+  /**
+   * Whether the line is set as its tab's number to beat, which it shows beside it. Only a dice bot's
+   * answer can be, so no other line follows its tab.
+   */
   readonly isPinnedTargetNumber = computed(() => {
     const message = this.chatMessageInput();
-    if (!message) return false;
+    if (!message?.isDicebot) return false;
     const tab = this.objectStore.get<ChatTab>(message.tabIdentifier);
     if (!tab) return false;
     this.objectChange.versionOf(tab.identifier)();

@@ -206,6 +206,7 @@ export class ChatLintService {
     const rolls = computed(() => this.rollsOf(scan(), context()));
     const targetNumber = computed(() => {
       const found = lookup();
+      this.objectChange.versionOf(source.sendFrom())();
       if (!found || !this.leavesTargetNumber(source, variables())) return null;
       const choices = targetNumberChoices(found.tab, TARGET_NUMBER_CHOICES);
       const chosen = found.chosen;

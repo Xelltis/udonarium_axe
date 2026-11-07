@@ -684,6 +684,45 @@ describe('ChatInputComponent', () => {
         expect(bar()).toBeNull();
       });
 
+      it("takes the tab's own number to beat off from the bar, for a seat that may set it", async () => {
+        PeerCursor.myCursor.role = PeerRole.Player;
+        tab.pinnedTargetNumber = tab.chatMessages[0].identifier;
+        component.text = '2d6>={目標値}';
+        fixture.detectChanges();
+        await vi.waitFor(() => {
+          fixture.detectChanges();
+          expect(bar()!.querySelector('[data-testid="chat-input-target-number-unpin"]')).not.toBeNull();
+        });
+
+        (bar()!.querySelector('[data-testid="chat-input-target-number-unpin"]') as HTMLButtonElement).click();
+
+        expect(tab.pinnedTargetNumber).toBe('');
+        PeerCursor.myCursor.role = PeerRole.Guest;
+        tab.pinnedTargetNumber = tab.chatMessages[0].identifier;
+        TestBed.inject(ObjectChangeService).notifyChanged(PeerCursor.myCursor.identifier);
+        await vi.waitFor(() => {
+          fixture.detectChanges();
+          expect(choicesOf(bar()!.querySelector('select')!)[0]).toContain('固定した結果');
+        });
+        expect(bar()!.querySelector('[data-testid="chat-input-target-number-unpin"]')).toBeNull();
+      });
+
+      it('goes back to the box once an answer is picked, so that Enter sends the line', () => {
+        document.body.appendChild(fixture.nativeElement);
+        try {
+          component.text = '2d6>={目標値}';
+          fixture.detectChanges();
+          const select = bar()!.querySelector('select')!;
+          select.focus();
+          select.selectedIndex = 1;
+          select.dispatchEvent(new Event('change'));
+
+          expect(document.activeElement).toBe(fixture.nativeElement.querySelector('[data-chat-input]'));
+        } finally {
+          fixture.nativeElement.remove();
+        }
+      });
+
       it('sends the answer picked for that one line, and fills the next one in with the one found', async () => {
         component.text = '2d6>={目標値}';
         fixture.detectChanges();

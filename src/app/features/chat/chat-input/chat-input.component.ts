@@ -51,9 +51,10 @@ import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { composeChatOutgoing, composeStampOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { inlineStampsAlone, inlineStampToken, isInlineStampId } from '@axe/domain/chat/inline-stamp';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
-import { holdsTargetNumber } from '@axe/domain/chat/target-number';
+import { holdsTargetNumber, mayPinTargetNumber } from '@axe/domain/chat/target-number';
 import type { ChatDiagnostic } from '@axe/domain/chat-syntax/chat-lint';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
@@ -417,8 +418,24 @@ export class ChatInputComponent {
     const number = this.lintSession.targetNumber();
     if (!number || !this.canSpeak()) return null;
     const speaker = this.objectStore.get(this._sendFrom());
-    return targetNumberBarOf(number, speaker instanceof GameCharacter ? speaker.name : '');
+    this.objectChange.trackMyCursor();
+    const tab = this.objectStore.get(this.chatTabidentifier());
+    const mayPin = tab instanceof ChatTab && mayPinTargetNumber(tab, PeerCursor.myRole);
+    return targetNumberBarOf(number, speaker instanceof GameCharacter ? speaker.name : '', mayPin);
   });
+
+  /** Picks the answer to fill the line's `{目標値}` with, and goes back to the box to send it. */
+  protected pickTargetNumber(identifier: string): void {
+    this.chosenTargetNumber.set(identifier);
+    this.textField()?.focus();
+  }
+
+  /** Takes the tab's own number to beat off, from the bar that shows it, and goes back to the box. */
+  protected unpinTargetNumber(): void {
+    const tab = this.objectStore.get(this.chatTabidentifier());
+    if (tab instanceof ChatTab && mayPinTargetNumber(tab, PeerCursor.myRole)) tab.pinnedTargetNumber = '';
+    this.textField()?.focus();
+  }
 
   /** The text checked as it will be sent from here, while it is typed into the editor. */
   private readonly activeSession = computed(() => (this.inputMode() === 'rich' ? this.lintSession : null));

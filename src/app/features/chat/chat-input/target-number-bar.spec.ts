@@ -31,7 +31,8 @@ describe('targetNumberBarOf()', () => {
         chosen: { total: 15, answer: older },
         choices: targetNumberChoices(tab, 8),
       },
-      'ヒロ'
+      'ヒロ',
+      true
     );
 
     expect(bar.found).toEqual({
@@ -39,6 +40,7 @@ describe('targetNumberBarOf()', () => {
       params: { total: 14, by: 'ゴブリン 2D6+5', speaker: 'ヒロ' },
     });
     expect(bar.chosen).toBe(older.identifier);
+    expect(bar.unpinnable).toBe(false);
     expect(bar.choices.map((choice) => choice.label.params)).toEqual([
       { total: 14, by: 'ゴブリン 2D6+5' },
       { total: 15, by: 'ゴブリン 2D6+8' },
@@ -51,11 +53,15 @@ describe('targetNumberBarOf()', () => {
     tab.pinnedTargetNumber = pinned.identifier;
     const speaker = { identifier: 'hero', name: 'ヒロ' };
 
-    const found = targetNumberBarOf({ found: findTargetNumberSource(tab, speaker), chosen: null, choices: [] }, 'ヒロ');
-    const none = targetNumberBarOf({ found: null, chosen: null, choices: [] }, 'ヒロ');
+    const number = { found: findTargetNumberSource(tab, speaker), chosen: null, choices: [] };
+    const found = targetNumberBarOf(number, 'ヒロ', true);
+    const none = targetNumberBarOf({ found: null, chosen: null, choices: [] }, 'ヒロ', true);
 
     expect(found.found.key).toBe('feature.chat.input.targetNumberPinned');
     expect(found.chosen).toBe('');
+    expect(found.unpinnable).toBe(true);
+    expect(targetNumberBarOf(number, 'ヒロ', false).unpinnable).toBe(false);
     expect(none.found).toEqual({ key: 'feature.chat.input.targetNumberNotFound', params: {} });
+    expect(none.unpinnable).toBe(false);
   });
 });
