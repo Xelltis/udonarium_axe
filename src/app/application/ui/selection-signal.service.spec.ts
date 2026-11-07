@@ -82,6 +82,27 @@ describe('SelectionSignalService', () => {
     expect(service.selectedObject()?.identifier).toBe('listed');
   });
 
+  it('forgets the piece last pressed once the selection leaves it out, and keeps it while the selection holds it', () => {
+    service.pressObject('pressed', 'GameCharacter');
+    service.replaceSelection(['pressed', 'other']);
+    expect(service.pressedObject()).toBe('pressed');
+    service.removeSelection('other');
+    expect(service.pressedObject()).toBe('pressed');
+
+    service.toggleSelection('pressed');
+    expect(service.pressedObject()).toBeNull();
+
+    service.pressObject('pressed', 'GameCharacter');
+    service.removeSelection('pressed');
+    service.addSelection('pressed');
+    service.removeSelection('pressed');
+    expect(service.pressedObject()).toBeNull();
+
+    service.pressObject('pressed', 'GameCharacter');
+    service.replaceSelection(['boxed']);
+    expect(service.pressedObject()).toBeNull();
+  });
+
   it('bumps the version when a table gesture is cancelled', () => {
     const initial = service.cancelTableGestureVersion();
     service.cancelTableGesture();

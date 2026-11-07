@@ -100,6 +100,7 @@ export class SelectionSignalService {
     const next = new Set(current);
     next.delete(identifier);
     this._selectedObjects.set(next);
+    this.forgetPressed(identifier);
   }
 
   /**
@@ -111,6 +112,7 @@ export class SelectionSignalService {
     const next = new Set(current);
     if (next.has(identifier)) {
       next.delete(identifier);
+      this.forgetPressed(identifier);
     } else {
       next.add(identifier);
       if (className) this.selectObject(identifier, className);
@@ -123,8 +125,16 @@ export class SelectionSignalService {
    * last.
    */
   replaceSelection(ids: Iterable<string>, lastTouched?: TabletopObjectSelection): void {
-    this._selectedObjects.set(new Set(ids));
+    const next = new Set(ids);
+    this._selectedObjects.set(next);
+    const pressed = this._pressedObject();
+    if (pressed !== null && !next.has(pressed)) this._pressedObject.set(null);
     if (lastTouched) this.selectObject(lastTouched.identifier, lastTouched.className);
+  }
+
+  /** Forgets the piece last pressed if it is this one, as it is taken out of the selection. */
+  private forgetPressed(identifier: string): void {
+    if (this._pressedObject() === identifier) this._pressedObject.set(null);
   }
 
   /**
