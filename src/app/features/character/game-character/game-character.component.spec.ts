@@ -10,7 +10,9 @@ import { GroundService } from '@axe/application/tabletop/ground.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
@@ -639,11 +641,11 @@ describe('GameCharacterComponent', () => {
       }
     });
 
-    it('cuts the hex pedestal out of the handle that turns the piece, and nothing out of the square one', async () => {
-      type Grab = { pedestalGrabStyle(): Record<string, string> };
+    it('cuts the hex pedestal out of the ring that turns the piece, and nothing out of the square one', async () => {
+      type Grab = { turnRing(): { grab: Record<string, string> } };
       fixture.componentRef.setInput('gameCharacter', GameCharacter.create('コマ', 1, ''));
       fixture.detectChanges();
-      expect((component as unknown as Grab).pedestalGrabStyle()['clipPath']).toBeUndefined();
+      expect((component as unknown as Grab).turnRing().grab['clipPath']).toBeUndefined();
 
       const table = TestBed.inject(TabletopService).currentTable;
       table.gridType = GridType.HEX_VERTICAL;
@@ -651,7 +653,7 @@ describe('GameCharacterComponent', () => {
       fixture.detectChanges();
 
       try {
-        const clipPath = (component as unknown as Grab).pedestalGrabStyle()['clipPath'];
+        const clipPath = (component as unknown as Grab).turnRing().grab['clipPath'];
         expect(clipPath).toMatch(/^path\(evenodd, "M 0 [\d.]+ A /);
         expect(clipPath.match(/ Z/g)).toHaveLength(2);
       } finally {
@@ -1916,9 +1918,18 @@ describe('GameCharacterComponent', () => {
     });
   });
 
-  describe('the handles that tip a piece over', () => {
+  describe('the handles that turn and tip a piece over', () => {
     const headOf = () => fixture.nativeElement.querySelector('[data-testid="roll-grab-head"]') as HTMLElement | null;
     const footOf = () => fixture.nativeElement.querySelector('[data-testid="roll-grab-foot"]') as HTMLElement | null;
+    const testOf = (testId: string) =>
+      fixture.nativeElement.querySelector(`[data-testid="${testId}"]`) as HTMLElement | null;
+    type Handles = {
+      onTurnStart(kind: 'turn' | 'roll'): void;
+      onTurnEnd(): void;
+      turnTicks(): { x: number; y: number }[];
+      rollGauge(): { degrees: number; wedge: string };
+    };
+    const handles = () => component as unknown as Handles;
 
     afterEach(() => ImageStorage.instance.delete('roll-grab-url'));
 
@@ -1929,24 +1940,115 @@ describe('GameCharacterComponent', () => {
       return character;
     }
 
-    it('stands either side of the picture halfway up, each clear of it by half its size and a gap', () => {
-      const character = withPicture('roll-grab');
+    function choose(_character: GameCharacter): void {
+      fixture.detectChanges();
+    }
+
+    it('lays the ring, its knob and the handle that tips the piece by it, for the pointer to bring out, and none on a piece locked', () => {
+      const character = withPicture('roll-grab-shown');
 
       try {
+        choose(character);
+        expect(testOf('turn-ring')).not.toBeNull();
+        expect(testOf('turn-grab')?.className).toContain('group-hover:opacity-85');
+        expect(headOf()?.className).toContain('group-hover:opacity-85');
+        expect(footOf()).toBeNull();
+
+        character.isLock = true;
+        TestBed.inject(ObjectChangeService).notifyChanged(character.identifier);
         fixture.detectChanges();
-        // Half the handle (14), then the gap (7).
-        expect((component as unknown as { rollHandles(): unknown }).rollHandles()).toEqual([
-          { testId: 'roll-grab-head', edge: 'right', dx: 21 },
-          { testId: 'roll-grab-foot', edge: 'left', dx: -21 },
-        ]);
-        expect(headOf()).not.toBeNull();
-        expect(footOf()?.style.left).toBe(`${-21 - 14}px`);
+        expect(testOf('turn-grab')).toBeNull();
+        expect(headOf()).toBeNull();
       } finally {
         character.destroy();
       }
     });
 
-    it('sizes the handle off the piece and still leaves the biggest and the smallest grabbable', () => {
+    it('stands the one that tips it beside the top of the picture, clear of it by half its size and a gap', () => {
+      const character = withPicture('roll-grab');
+
+      try {
+        choose(character);
+        // Half the handle (14), then the gap (7).
+        expect((component as unknown as { rollHandles(): unknown }).rollHandles()).toEqual([
+          { testId: 'roll-grab-head', corner: 1, dx: 21, dy: 14 },
+        ]);
+        expect(headOf()?.style.left).toBe(`${21 - 14}px`);
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('reads the angle out under the pedestal while it is turned', () => {
+      const character = withPicture('turn-readout');
+      character.rotate = 90;
+
+      try {
+        choose(character);
+        expect(fixture.nativeElement.querySelectorAll('[data-testid="turn-tick"]')).toHaveLength(0);
+        expect(testOf('turn-readout')).toBeNull();
+
+        handles().onTurnStart('turn');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelectorAll('[data-testid="turn-tick"]').length).toBeGreaterThan(0);
+        expect(testOf('turn-readout')?.textContent?.trim()).toBe('90°');
+
+        handles().onTurnEnd();
+        fixture.detectChanges();
+        expect(testOf('turn-readout')).toBeNull();
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('keeps the knob it is turned by and the handle it is tipped by drawn while either is held', () => {
+      const character = withPicture('handles-held');
+
+      try {
+        choose(character);
+        handles().onTurnStart('turn');
+        fixture.detectChanges();
+        expect(testOf('turn-grab')?.classList.contains('opacity-100!')).toBe(true);
+        expect(headOf()?.classList.contains('opacity-100!')).toBe(false);
+        handles().onTurnEnd();
+        handles().onTurnStart('roll');
+        fixture.detectChanges();
+        expect(testOf('turn-grab')?.classList.contains('opacity-100!')).toBe(false);
+        expect(headOf()?.classList.contains('opacity-100!')).toBe(true);
+        handles().onTurnEnd();
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('reads how far the piece leans either way of upright while it is tipped, and stands it upright on a double click', () => {
+      const character = withPicture('roll-gauge');
+
+      try {
+        choose(character);
+        character.roll = 330;
+        TestBed.inject(ObjectChangeService).notifyChanged(character.identifier);
+        expect(handles().rollGauge().degrees).toBe(-30);
+        expect(handles().rollGauge().wedge).toMatch(/ 0 0 0 /);
+
+        character.roll = 30;
+        TestBed.inject(ObjectChangeService).notifyChanged(character.identifier);
+        expect(handles().rollGauge().degrees).toBe(30);
+        expect(handles().rollGauge().wedge).toMatch(/ 0 0 1 /);
+        handles().onTurnStart('roll');
+        fixture.detectChanges();
+        expect(testOf('roll-readout')?.textContent?.trim()).toBe('30°');
+
+        headOf()!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+        expect(character.roll).toBe(0);
+        TestBed.inject(ObjectChangeService).notifyChanged(character.identifier);
+        expect(handles().rollGauge().wedge).toBe('');
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('draws the handles one size whatever the size of the piece', () => {
       const sizeOf = (pieceSize: number) => {
         const character = GameCharacter.create('roll-grab-size', pieceSize, '');
         fixture.componentRef.setInput('gameCharacter', character);
@@ -1957,25 +2059,106 @@ describe('GameCharacterComponent', () => {
         }
       };
 
-      expect(sizeOf(1)).toEqual({ handle: 28, icon: 24 });
-      expect(sizeOf(2).handle).toBe(56);
-      expect(sizeOf(4).handle).toBe(56);
-      expect(sizeOf(0.5).handle).toBe(20);
+      for (const pieceSize of [0.5, 1, 2, 4]) expect(sizeOf(pieceSize)).toEqual({ handle: 28, icon: 24 });
     });
 
-    it('takes the handles away once the table lies flat, and from a piece with no picture to tip', async () => {
+    it('puts a knob on the side of the ring the piece faces and one behind it, which turn with the piece and tell which way it faces', () => {
+      const character = withPicture('turn-knob');
+      type Knob = { turnRing(): { knobs: { x: number; y: number; facing: boolean }[]; radius: number } };
+      const knob = () => component as unknown as Knob;
+
+      try {
+        choose(character);
+        const [front, back] = knob().turnRing().knobs;
+        const radius = knob().turnRing().radius;
+        expect(front).toMatchObject({ facing: true });
+        expect(front!.y).toBeCloseTo(25 - radius, 6);
+        expect(back).toMatchObject({ facing: false });
+        expect(back!.y).toBeCloseTo(25 + radius, 6);
+        const shown = fixture.nativeElement.querySelectorAll('[data-testid="turn-grab"]');
+        expect(shown).toHaveLength(2);
+        expect(shown[0].getAttribute('data-facing')).toBe('true');
+        expect(shown[0].classList.contains('bg-ui-accent-solid')).toBe(true);
+        expect(shown[1].hasAttribute('data-facing')).toBe(false);
+
+        character.rotate = 90;
+        TestBed.inject(ObjectChangeService).notifyChanged(character.identifier);
+        expect(knob().turnRing().knobs[0]!.y).toBeCloseTo(25 - radius, 6);
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('draws the ring and its knobs round the piece, leaving out what the piece hides while the handles are out', () => {
+      const character = withPicture('turn-ring-hidden');
+      type Ring = { hovered: { set(value: boolean): void }; turnRing(): { arc: string; radius: number } };
+      const ring = () => component as unknown as Ring;
+      const hiddenBy = vi
+        .spyOn(TestBed.inject(TablePickService), 'hiddenBy')
+        .mockImplementation((_id, _surface, _x, y) => y < 24.5);
+
+      try {
+        choose(character);
+        expect(ring().turnRing().arc).toMatch(/ A/);
+        expect(hiddenBy).not.toHaveBeenCalled();
+
+        expect(fixture.nativeElement.querySelectorAll('[data-testid="turn-grab"]')).toHaveLength(2);
+        ring().hovered.set(true);
+        const arc = ring().turnRing().arc;
+        expect(arc).not.toMatch(/A/);
+        expect(arc.match(/M/g)).toHaveLength(1);
+        expect(hiddenBy).toHaveBeenCalled();
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelectorAll('[data-testid="turn-grab"]')).toHaveLength(1);
+
+        handles().onTurnStart('turn');
+        fixture.detectChanges();
+        expect(handles().turnTicks()).toHaveLength(5);
+        handles().onTurnEnd();
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('lets a knob give way where the handle that tips the piece is drawn, but keeps both while the piece is turned', () => {
+      const character = withPicture('knob-gives-way');
+      const pick = TestBed.inject(TablePickService);
+      vi.spyOn(pick, 'hiddenBy').mockReturnValue(false);
+      vi.spyOn(pick, 'pictureCornerOnPage').mockReturnValue({ x: 100, y: 100 });
+      vi.spyOn(TestBed.inject(TableSurfaceService), 'pageOf').mockImplementation((_surface, _x, y) =>
+        y < 25 ? { x: 118, y: 112 } : { x: 0, y: 300 }
+      );
+      const knobs = () => [...fixture.nativeElement.querySelectorAll('[data-testid="turn-grab"]')] as HTMLElement[];
+
+      try {
+        choose(character);
+        expect(knobs()).toHaveLength(2);
+        (component as unknown as { hovered: { set(value: boolean): void } }).hovered.set(true);
+        fixture.detectChanges();
+        expect(knobs()).toHaveLength(1);
+        expect(knobs()[0]!.hasAttribute('data-facing')).toBe(false);
+
+        handles().onTurnStart('turn');
+        fixture.detectChanges();
+        expect(knobs()).toHaveLength(2);
+        handles().onTurnEnd();
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('takes the handle that tips it away once the table lies flat, and from a piece with no picture to tip', async () => {
       const character = withPicture('roll-grab-hidden');
 
       try {
-        fixture.detectChanges();
-        expect(footOf()).toBeTruthy();
+        choose(character);
+        expect(headOf()).toBeTruthy();
 
         TestBed.inject(ViewModePreferenceService).choose('flat');
         await new Promise<void>((resolve) => queueMicrotask(resolve));
         fixture.detectChanges();
 
         expect(headOf()).toBeNull();
-        expect(footOf()).toBeNull();
       } finally {
         character.destroy();
       }
@@ -1983,8 +2166,9 @@ describe('GameCharacterComponent', () => {
       const bare = GameCharacter.create('roll-grab-bare', 1, '');
       fixture.componentRef.setInput('gameCharacter', bare);
       TestBed.inject(ViewModePreferenceService).choose('auto');
-      fixture.detectChanges();
-      expect(footOf()).toBeNull();
+      choose(bare);
+      expect(headOf()).toBeNull();
+      expect(testOf('turn-grab')).not.toBeNull();
       bare.destroy();
     });
   });

@@ -42,6 +42,7 @@ test.describe('hex pedestals', () => {
     await settle(character);
     const before = await placeOf(character);
     const from = await centreOf(pedestal(character));
+    await expect(character.getByTestId('turn-ring')).toBeAttached();
 
     const hit = await page.evaluate(
       ({ x, y }) => (document.elementFromPoint(x, y) as HTMLElement | null)?.classList.contains('rotate-grab') ?? false,

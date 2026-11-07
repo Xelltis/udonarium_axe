@@ -363,23 +363,21 @@ test.describe('pieces drawn on a canvas', () => {
     }
   });
 
-  test('tip a character’s picture over by a handle beside it, about the middle of its cell', async ({ page }) => {
+  test('tip a character’s picture over by a handle beside its top, about the middle of its cell', async ({ page }) => {
     const character = page.locator('game-character', { has: page.getByText('キャラクターB', { exact: true }) });
     const id = (await character.getAttribute('data-object-id'))!;
     await idle(page);
     await expect.poll(async () => (await boxesOf(page, id)).length, { timeout: 10000 }).toBe(2);
     await settled(page, id);
     const [, upright] = await boxesOf(page, id);
+    const middleOf = (box: Box) => ({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
 
     const headBox = (await character.getByTestId('roll-grab-head').boundingBox())!;
-    const footBox = (await character.getByTestId('roll-grab-foot').boundingBox())!;
-    const middleOf = (box: Box) => ({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
-    // Either side of the picture halfway up, clear of it, so a press on the picture takes hold of the piece.
-    const report = JSON.stringify([headBox, footBox, upright]);
-    expect(Math.abs(middleOf(headBox).y - middleOf(upright).y), report).toBeLessThan(6);
-    expect(Math.abs(middleOf(footBox).y - middleOf(upright).y), report).toBeLessThan(6);
+    // Beside the top of the picture, clear of it, so a press on the picture takes hold of the piece.
+    const report = JSON.stringify([headBox, upright]);
+    expect(Math.abs(headBox.y - upright.y), report).toBeLessThan(10);
     expect(headBox.x, report).toBeGreaterThan(upright.x + upright.width - 6);
-    expect(footBox.x + footBox.width, report).toBeLessThan(upright.x + 6);
+    expect(character.getByTestId('roll-grab-foot')).toHaveCount(0);
 
     const grab = middleOf(headBox);
     await page.mouse.move(grab.x, grab.y);

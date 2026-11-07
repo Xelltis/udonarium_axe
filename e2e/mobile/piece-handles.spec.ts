@@ -20,7 +20,7 @@ async function boxRound(locator: Locator): Promise<Box | null> {
 }
 
 test.describe('character pieces seen on a phone', () => {
-  test('puts the tilt handles left and right of the picture, clear of the picture, the name, the HP bar and the buffs', async ({
+  test('puts the tilt handle right of the picture, clear of the picture, the name, the HP bar and the buffs', async ({
     page,
   }) => {
     await page.goto('/');
@@ -36,21 +36,17 @@ test.describe('character pieces seen on a phone', () => {
     // The labels turn to face the viewer a frame after they are drawn, so the check waits for them to settle.
     const clear = async (): Promise<string> => {
       const head = await boxRound(piece.getByTestId('roll-grab-head'));
-      const foot = await boxRound(piece.getByTestId('roll-grab-foot'));
-      const picture = await boxRound(piece.locator('[data-part="picture"]'));
+      const shown = await boxRound(piece.locator('[data-part="picture"]'));
       const labels = [
-        picture,
+        shown,
         await boxRound(piece.getByTestId('piece-name')),
         await boxRound(piece.getByTestId('piece-gauge')),
         await boxRound(piece.getByTestId('buff-plate')),
       ];
-      if (!head || !foot || labels.some((label) => label === null)) return 'not drawn yet';
+      if (!head || labels.some((label) => label === null)) return 'not drawn yet';
       const drawn = labels as Box[];
-      if (drawn.some((label) => overlaps(head, label) || overlaps(foot, label))) {
-        return 'a handle lies over the picture or a label';
-      }
-      if (head.x < picture!.x + picture!.width) return 'the head handle is not right of the picture';
-      if (foot.x + foot.width > picture!.x) return 'the foot handle is not left of the picture';
+      if (drawn.some((label) => overlaps(head, label))) return 'the handle lies over the picture or a label';
+      if (head.x < shown!.x + shown!.width) return 'the handle is not right of the picture';
       return 'clear';
     };
     await expect.poll(clear, { timeout: 5000 }).toBe('clear');

@@ -18,7 +18,7 @@ export const SHORTCUT_SCOPES = [
 export type ShortcutScope = (typeof SHORTCUT_SCOPES)[number];
 
 /** The pointer action a key goes with, as Alt goes with a click to aim at a piece. */
-export type ShortcutPointer = 'click' | 'drag';
+export type ShortcutPointer = 'click' | 'drag' | 'doubleClick';
 
 /**
  * A key press that should do what a line of the list says, for the test that holds the list to the
@@ -114,6 +114,9 @@ export const KEYBOARD_SHORTCUTS: readonly KeyboardShortcut[] = [
   line('selection', 'aim', [['Alt']], { pointer: 'click' }),
   line('selection', 'clearAims', [['Shift', 'Alt']], { pointer: 'click' }),
   line('selection', 'snap', [['Alt']], { audience: 'playing', pointer: 'drag' }),
+  line('selection', 'turnHandle', [], { audience: 'playing', pointer: 'drag' }),
+  line('selection', 'rollHandle', [], { audience: 'playing', pointer: 'drag' }),
+  line('selection', 'standUpright', [], { audience: 'playing', pointer: 'doubleClick' }),
 
   line('hotbar', 'fire', [['1〜0']], {
     audience: 'playing',

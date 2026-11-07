@@ -12,7 +12,7 @@ import { TableSurfaceService } from '@axe/application/tabletop/table-surface.ser
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { tableEyeMatrix, TableRay, tableRayOfPage } from '@axe/domain/tabletop/camera/table-camera';
+import { pageOfTablePoint, tableEyeMatrix, TableRay, tableRayOfPage } from '@axe/domain/tabletop/camera/table-camera';
 import { groundLiftOfBlock } from '@axe/domain/tabletop/ground/ground-surface';
 import { AMBIENCE_PICK_LAYER, ambiencePickTarget } from '@axe/domain/tabletop/pick/ambience-pick';
 import { faceTarget } from '@axe/domain/tabletop/pick/face-pick';
@@ -36,6 +36,9 @@ import { AlphaMask, seesThroughAt } from '@axe/domain/ui/see-through';
  * are the faces things are put on and the pieces, by the shapes the canvas draws them with, and the
  * looks laid over the ground, by the part of the floor each covers.
  */
+/** How much nearer the eye than a point a piece must stand to hide it, in table pixels, so that one lying on it does not. */
+const HIDDEN_SLACK_PX = 1;
+
 @Injectable({
   providedIn: 'root',
 })
@@ -104,6 +107,50 @@ export class TablePickService {
     if (!(block instanceof Terrain) || !block.isLocked || block.doorStyle !== DoorStyle.NONE) return false;
     const held = block.boardSwitch;
     return !held || held.retired;
+  }
+
+  /**
+   * Whether a point of a face, lifted some way off it, is hidden from the eye by the piece of that
+   * identifier: by its picture, where it is solid, or its pedestal, standing between the point and
+   * the eye, as the ring that turns a piece passes behind the piece's own picture.
+   */
+  hiddenBy(identifier: string, surface: string, x: number, y: number, height = 0): boolean {
+    const point = this.surfaces.boardPointOf(surface, x, y, height);
+    const page = this.surfaces.pageOf(surface, x, y, height);
+    const ray = page ? this.rayAt(page.x, page.y) : null;
+    if (!point || !ray) return false;
+    const hit = pickFirst(
+      this.pieceTargets().filter((target) => target.id === identifier),
+      ray
+    );
+    if (!hit) return false;
+    const along =
+      (point.x - ray.origin.x) * ray.direction.x +
+      (point.y - ray.origin.y) * ray.direction.y +
+      (point.z - ray.origin.z) * ray.direction.z;
+    return hit.t < along - HIDDEN_SLACK_PX;
+  }
+
+  /**
+   * Where a corner of the picture of the piece of that identifier lies on the page, round from its
+   * top left as the picture is read, or null where the piece has no picture drawn: the picture is the
+   * quad of the piece standing tallest off the face, the top of its pedestal lying flat.
+   */
+  pictureCornerOnPage(identifier: string, corner: 0 | 1 | 2 | 3): { x: number; y: number } | null {
+    const scene = this.camera.sceneMatrix();
+    const target = this.pieceTargets().find((candidate) => candidate.id === identifier);
+    const standing = (shape: PickShape) =>
+      shape.kind === 'quad'
+        ? Math.max(...shape.corners.map((at) => at.z)) - Math.min(...shape.corners.map((at) => at.z))
+        : -1;
+    const quad = target?.shapes.reduce<PickShape | null>(
+      (tallest, shape) => (standing(shape) > (tallest ? standing(tallest) : 0) ? shape : tallest),
+      null
+    );
+    if (!scene || !quad || quad.kind !== 'quad') return null;
+    const point = quad.corners[corner];
+    const page = pageOfTablePoint(scene, point.x, point.y, point.z);
+    return { x: page.x, y: page.y };
   }
 
   /** Everything a point of the page lands on, blocks, pieces and looks laid over the ground, nearest the eye first. */

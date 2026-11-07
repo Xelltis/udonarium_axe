@@ -1950,7 +1950,8 @@
       },
       "pointer": {
         "click": "Click",
-        "drag": "Drag"
+        "drag": "Drag",
+        "doubleClick": "Double-click"
       },
       "sheet": {
         "title": "Keys",
@@ -1978,7 +1979,10 @@
           "boxToggle": "Flip whether the pieces inside are picked",
           "aim": "Aim at a piece, or stop",
           "clearAims": "Stop aiming at everything",
-          "snap": "While turning a piece, snap to 45° (30° on hexes)"
+          "snap": "While turning a piece, snap to 45° (30° on hexes)",
+          "turnHandle": "Turn a piece by the knob on the ring round its pedestal, shown while the pointer is over the piece",
+          "rollHandle": "Tip a piece forward or back by the handle right of its picture, shown while the pointer is over the piece",
+          "standUpright": "Stand a tipped piece upright by its tipping handle"
         },
         "hotbar": {
           "fire": "Fire the slot with that number",
@@ -2106,6 +2110,8 @@
       }
     },
     "character": {
+      "turnHandle": { "name": "Turn", "hint": "Turn the piece (hold Alt to turn by {{step}}°)" },
+      "rollHandle": { "name": "Tip", "hint": "Tip the piece forward or back (double-click to stand it upright)" },
       "contextMenu": {
         "showDetail": "Show details",
         "memo": "Memo",

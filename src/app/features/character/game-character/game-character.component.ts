@@ -32,7 +32,9 @@ import { PieceTargetService } from '@axe/application/tabletop/piece-target.servi
 import { RideService } from '@axe/application/tabletop/ride.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -40,6 +42,7 @@ import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-prefere
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
+import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
@@ -88,6 +91,7 @@ import {
   multiAngleRotationPhase,
 } from '@axe/domain/tabletop/multi-angle';
 import { RideSeat, seatOf } from '@axe/domain/tabletop/ride/ride-rules';
+import { rotationSnapStep, shownAngle } from '@axe/domain/tabletop/rotation-snap';
 import { asTableFacingMark, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
 import { PieceMotionKind } from '@axe/domain/tabletop/world/piece-motions';
@@ -106,6 +110,7 @@ import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { hexPedestalGrabStyle, hexPedestalRingStyle } from '@axe/ui/tabletop/hex-pedestal-style';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
@@ -175,11 +180,20 @@ interface RidingLabel {
   readonly gauges: readonly { readonly gauge: PieceGauge; readonly numbers: string }[];
   readonly badges: readonly BuffBadge[];
 }
-const ROLL_HANDLE_MIN_PX = 20;
-const ROLL_HANDLE_MAX_PX = 56;
-const ROLL_HANDLE_SIZE_RATIO = 0.56;
-const ROLL_HANDLE_GAP_RATIO = 0.25;
-const ROLL_HANDLE_ICON_RATIO = 24 / 28;
+/** How large the handles that turn and tip a piece are drawn, whatever the size of the piece. */
+const HANDLE_PX = 28;
+const HANDLE_ICON_PX = 24;
+/** How far the handle that tips a piece stands clear of its picture. */
+const ROLL_HANDLE_GAP_PX = 7;
+/** How far the ring that turns a piece reaches past its pedestal, whatever the size of the piece. */
+const TURN_RING_REACH_PX = 14;
+/** Where the knobs stand round the ring, clockwise from the side the piece faces: there, and behind it. */
+const TURN_KNOB_ANGLES = [0, 180] as const;
+/** How many points round the ring are looked at to leave out of it what the piece hides. */
+const TURN_RING_SAMPLES = 48;
+
+/** The marks round the ring a turn shows while it is under way: every eighth of a turn. */
+const TURN_TICK_COUNT = 8;
 
 @Component({
   selector: 'game-character',
@@ -198,6 +212,7 @@ const ROLL_HANDLE_ICON_RATIO = 24 / 28;
     NgTemplateOutlet,
     SafePipe,
     StampComponent,
+    TextTooltipDirective,
     TranslocoModule,
   ],
   host: {
@@ -217,6 +232,7 @@ export class GameCharacterComponent {
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly objectStore = inject(ObjectStore);
   private readonly selectionSignalService = inject(SelectionSignalService);
+  private readonly rotationGuide = inject(RotationGuideService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly pieceTarget = inject(PieceTargetService);
   private readonly buffViewPreference = inject(BuffViewPreferenceService);
@@ -249,6 +265,8 @@ export class GameCharacterComponent {
   private readonly motions = inject(PieceMotionsService);
   private readonly pieces = inject(TablePiecesService);
   private readonly tableCamera = inject(TableCameraService);
+  private readonly pick = inject(TablePickService);
+  private readonly surfaces = inject(TableSurfaceService);
   private readonly pedestal = viewChild<ElementRef<HTMLElement>>('pedestal');
 
   /**
@@ -266,18 +284,148 @@ export class GameCharacterComponent {
   }
 
   /**
-   * The handles that tip the piece over, over a table drawn on a canvas: the edge of the picture each
-   * stands against, and how far off the middle of that edge its middle lies, on the screen. They stand
-   * either side of the picture halfway up, as on a phone, since the screen puts them over the picture
-   * and one at the head covered the middle of a short picture, where a press takes hold of the piece.
+   * The handle that tips the piece over, over a table drawn on a canvas: the corner of the picture it
+   * stands against, its top right, and how far off that corner its middle lies, on the screen. It
+   * stands beside the top of the picture, clear of it, so that a press on the picture takes hold of
+   * the piece, and clear of the knobs on the ring round the pedestal below it.
    */
   protected readonly rollHandles = computed(() => {
     const clear = this.rollHandleSizePx() / 2 + this.rollHandleGapPx();
-    return [
-      { testId: 'roll-grab-head', edge: 'right' as const, dx: clear },
-      { testId: 'roll-grab-foot', edge: 'left' as const, dx: -clear },
-    ];
+    return [{ testId: 'roll-grab-head', corner: 1 as const, dx: clear, dy: this.rollHandleSizePx() / 2 }];
   });
+
+  /** Which handle of the piece is held just now: the ring that turns it, the one that tips it, or none. */
+  protected readonly turning = signal<'turn' | 'roll' | null>(null);
+
+  /** Starts a turn or a tip by a handle: brings the piece to the top and says which is held. */
+  protected onTurnStart(kind: 'turn' | 'roll'): void {
+    this.turning.set(kind);
+    this.onMove();
+  }
+
+  /** Ends a turn or a tip by a handle. */
+  protected onTurnEnd(): void {
+    this.turning.set(null);
+    this.onMoved();
+  }
+
+  /** The way the piece faces while it is turned, in whole degrees, as the turn under way reads it out. */
+  protected readonly turnAngle = computed(() => this.rotationGuide.turn()?.angle ?? shownAngle(this.rotate));
+
+  /** The step a held Alt turns the piece by on the table in view. */
+  protected readonly turnSnapStep = computed(() => rotationSnapStep(this.tabletopService.gridType()));
+
+  /**
+   * The ring round the pedestal that turns the piece, in the pedestal's own pixels: where a press
+   * takes hold of it, the pedestal cut out of a hex one, as the rim of a hex pedestal is the
+   * pedestal; the ring drawn, but for what the piece hides of it; and the middles of the knobs on the
+   * side the piece faces and behind it, which turn with it and so tell which way it faces, each with
+   * whether it is shown: a knob behind the picture is hidden by it as the ring is, and one standing
+   * where the handle that tips the piece is drawn gives way to it. Both stay while the piece is turned,
+   * so that the one in hand is never taken away.
+   */
+  protected readonly turnRing = computed(() => {
+    const { grab, middle, radius } = this.turnRingShape();
+    const point = (angle: number, about: number, reach: number) => {
+      const radians = (angle * Math.PI) / 180;
+      return { x: about + reach * Math.sin(radians), y: about - reach * Math.cos(radians) };
+    };
+    const seen = this.turnRingSeen();
+    const clear = this.knobsClearOfRoll();
+    const turning = this.turning() === 'turn';
+    const knobs = TURN_KNOB_ANGLES.map((angle, at) => ({
+      ...point(angle, middle, radius),
+      facing: angle === 0,
+      seen: turning || (seen[Math.round(angle / (360 / TURN_RING_SAMPLES)) % TURN_RING_SAMPLES] && clear[at]),
+    }));
+    return { grab, ring: ringBoxStyle(middle, radius), knobs, arc: ringPathOf(seen, radius), radius };
+  });
+
+  /**
+   * Whether each knob round the ring stands clear, on the screen, of the handle that tips the piece,
+   * beside the top of its picture; looked at only while the handles are out.
+   */
+  private readonly knobsClearOfRoll = computed<readonly boolean[]>(() => {
+    const id = this.gameCharacter()?.identifier;
+    const middle = this.pedestalMiddle();
+    const looked = this.hovered() && !this.mode2dEnabled() && this.imageFile().url.length > 0;
+    const corner = looked && id ? this.pick.pictureCornerOnPage(id, 1) : null;
+    if (!corner || !middle) return TURN_KNOB_ANGLES.map(() => true);
+    const [handle] = this.rollHandles();
+    const roll = { x: corner.x + handle!.dx, y: corner.y + handle!.dy };
+    const radius = this.turnRingShape().radius;
+    return TURN_KNOB_ANGLES.map((angle) => {
+      const radians = ((this.rotate + angle) * Math.PI) / 180;
+      const x = middle.x + radius * Math.sin(radians);
+      const y = middle.y - radius * Math.cos(radians);
+      const page = this.surfaces.pageOf(middle.surface, x, y, middle.height);
+      return !page || Math.hypot(page.x - roll.x, page.y - roll.y) >= this.rollHandleSizePx();
+    });
+  });
+
+  /** Whether the pointer is over the piece, which brings its handles out. */
+  protected readonly hovered = signal(false);
+
+  /**
+   * Which of the points round the ring, clockwise from the side the piece faces, the eye sees: those
+   * the piece's own picture and pedestal stand in front of are left out, so that the ring is drawn
+   * round the piece and behind it rather than over it. Looked at only while the handles are out.
+   */
+  protected readonly turnRingSeen = computed<readonly boolean[]>(() => {
+    const id = this.gameCharacter()?.identifier;
+    const middle = this.pedestalMiddle();
+    const looked = this.hovered() || this.turning() === 'turn';
+    const radius = this.turnRingShape().radius;
+    return Array.from({ length: TURN_RING_SAMPLES }, (_, at) => {
+      if (!looked || !id || !middle) return true;
+      const angle = ((this.rotate + (at * 360) / TURN_RING_SAMPLES) * Math.PI) / 180;
+      const x = middle.x + radius * Math.sin(angle);
+      const y = middle.y - radius * Math.cos(angle);
+      return !this.pick.hiddenBy(id, middle.surface, x, y, middle.height);
+    });
+  });
+
+  /** Where the ring round the pedestal lies, in the pedestal's own pixels: a hex one's round the hex. */
+  private readonly turnRingShape = computed(() => {
+    const width = this.size() * this.gridSize;
+    const hex = this.pedestalHexParams();
+    const grab = hex
+      ? hexPedestalGrabStyle(hex, { reachPx: TURN_RING_REACH_PX, pedestalCutOut: true })
+      : ringBoxStyle(width / 2, width / 2 + TURN_RING_REACH_PX);
+    return { grab, middle: hex ? hex.L / 2 : width / 2, radius: parseFloat(grab['width']) / 2 };
+  });
+
+  /** The marks round the ring every eighth of a turn, on what the eye sees of it, in the ring's own pixels. */
+  protected readonly turnTicks = computed(() => {
+    const radius = this.turnRing().radius;
+    const seen = this.turnRingSeen();
+    const marks: { x: number; y: number }[] = [];
+    for (let at = 0; at < TURN_TICK_COUNT; at++) {
+      if (!seen[Math.round((at * TURN_RING_SAMPLES) / TURN_TICK_COUNT) % TURN_RING_SAMPLES]) continue;
+      const radians = (at * 2 * Math.PI) / TURN_TICK_COUNT;
+      marks.push({ x: radius + radius * Math.sin(radians), y: radius - radius * Math.cos(radians) });
+    }
+    return marks;
+  });
+
+  /**
+   * How far the piece leans, read out while it is tipped: in degrees either way of upright, and a
+   * wedge from upright to it round a dial 20 across, with the point it reaches.
+   */
+  protected readonly rollGauge = computed(() => {
+    const degrees = Math.round(((((this.rollSignal() % 360) + 540) % 360) - 180) * 10) / 10;
+    const radians = (degrees * Math.PI) / 180;
+    const tip = { x: 10 + 7.5 * Math.sin(radians), y: 10 - 7.5 * Math.cos(radians) };
+    const sweep = degrees >= 0 ? 1 : 0;
+    const wedge = degrees === 0 ? '' : `M10 10 L10 2.5 A7.5 7.5 0 0 ${sweep} ${tip.x} ${tip.y} Z`;
+    return { degrees: Math.round(degrees), wedge, tip };
+  });
+
+  /** Stands the piece upright again, as a double click on the handle that tips it asks. */
+  protected standUpright(event: MouseEvent): void {
+    event.stopPropagation();
+    this.roll = 0;
+  }
 
   /**
    * Whether the table's canvas draws the piece, from its picture and a picture of its pedestal taken
@@ -697,14 +845,12 @@ export class GameCharacterComponent {
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
-  readonly rollHandleSizePx = computed(() => {
-    const scaled = this.size() * this.gridSize * ROLL_HANDLE_SIZE_RATIO;
-    return Math.round(Math.min(ROLL_HANDLE_MAX_PX, Math.max(ROLL_HANDLE_MIN_PX, scaled)));
-  });
+  /** How large the handles are drawn: one size for every piece, so a big one's are not in the way and a small one's are not lost. */
+  readonly rollHandleSizePx = computed(() => HANDLE_PX);
 
-  readonly rollHandleIconSizePx = computed(() => Math.round(this.rollHandleSizePx() * ROLL_HANDLE_ICON_RATIO));
+  readonly rollHandleIconSizePx = computed(() => HANDLE_ICON_PX);
 
-  private readonly rollHandleGapPx = computed(() => Math.round(this.rollHandleSizePx() * ROLL_HANDLE_GAP_RATIO));
+  private readonly rollHandleGapPx = computed(() => ROLL_HANDLE_GAP_PX);
 
   readonly mode2dEnabled = computed(() => {
     if (this.isPoster()) return true;
@@ -1022,27 +1168,6 @@ export class GameCharacterComponent {
   protected readonly pedestalOuterStyle = computed<Record<string, string>>(() => {
     const params = this.pedestalHexParams();
     return params ? hexPedestalRingStyle(params, 2, '#212121') : {};
-  });
-
-  /**
-   * The handle round a pedestal on a hex grid that turns the piece. The hex pedestal is only a rim,
-   * so the pedestal is cut out of the handle: a press inside the rim moves the piece, as one on the
-   * square pedestal standing over its handle does.
-   */
-  protected readonly pedestalGrabStyle = computed<Record<string, string>>(() => {
-    const params = this.pedestalHexParams();
-    return params ? hexPedestalGrabStyle(params, { reachPx: 12, pedestalCutOut: true }) : {};
-  });
-
-  protected readonly pedestalGrabBorderStyle = computed<Record<string, string>>(() => {
-    if (!this.pedestalHexParams()) return {} as Record<string, string>;
-    return {
-      borderTop: 'solid 16px #999',
-      borderLeft: 'solid 16px #999',
-      borderRight: 'solid 16px #ccc',
-      borderBottom: 'solid 16px #ccc',
-      borderRadius: '50%',
-    };
   });
 
   private highlightTimer: ReturnType<typeof setTimeout> | undefined;
@@ -1429,4 +1554,43 @@ function sameRidingLabels(a: readonly RidingLabel[], b: readonly RidingLabel[]):
       sameEntries(label.badges, other.badges)
     );
   });
+}
+
+/** The box of a circle round a middle of a pedestal, in the pedestal's own pixels, as a style. */
+function ringBoxStyle(middle: number, radius: number): Record<string, string> {
+  return {
+    width: `${radius * 2}px`,
+    height: `${radius * 2}px`,
+    left: `${middle - radius}px`,
+    top: `${middle - radius}px`,
+    borderRadius: '50%',
+  };
+}
+
+/**
+ * The ring round a pedestal as a path, in the ring's own pixels: the whole circle where every point
+ * round it is seen, or else each run of points seen, round from where one is not.
+ */
+function ringPathOf(seen: readonly boolean[], radius: number): string {
+  const count = seen.length;
+  if (seen.every(Boolean)) {
+    return `M${radius} 0 A${radius} ${radius} 0 1 1 ${radius} ${radius * 2} A${radius} ${radius} 0 1 1 ${radius} 0`;
+  }
+  const pointAt = (at: number) => {
+    const radians = (at * 2 * Math.PI) / count;
+    return `${radius + radius * Math.sin(radians)} ${radius - radius * Math.cos(radians)}`;
+  };
+  const hidden = seen.indexOf(false);
+  let path = '';
+  let drawing = false;
+  for (let step = 1; step <= count; step++) {
+    const at = (hidden + step) % count;
+    if (!seen[at]) {
+      drawing = false;
+      continue;
+    }
+    path += `${drawing ? 'L' : 'M'}${pointAt(at)} `;
+    drawing = true;
+  }
+  return path.trim();
 }
