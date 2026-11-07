@@ -49,9 +49,10 @@ export function paintedBlockFootprintOf(
 /**
  * The cell a block stands on, on a board of hexes.
  *
- * A hex board has no corner to divide by: a block sits in the middle of its cell, and every
- * other column is dropped half a row. One that is not a single cell standing squarely in the
- * middle of one keeps its exact placement, as a turned or half-placed block does on squares.
+ * A hex board has no corner to divide by: a block sits in the middle of its cell, read from the
+ * middle of its box, and every other column is dropped half a row. One that is not a single cell
+ * standing squarely in the middle of one keeps its exact placement, as a turned or half-placed block
+ * does on squares.
  */
 function hexFootprintOf(
   object: { location: { x: number; y: number } },
@@ -60,9 +61,8 @@ function hexFootprintOf(
   grid: CellGrid,
   rotate: number
 ): { rect: CellRect; placement: BlockPlacement | null } | null {
-  const half = grid.sizePx / 2;
-  const centreX = object.location.x + half;
-  const centreY = object.location.y + half;
+  const centreX = object.location.x + (width * grid.sizePx) / 2;
+  const centreY = object.location.y + (depth * grid.sizePx) / 2;
   const index = cellIndexAt(grid, centreX, centreY);
   if (index < 0) return null;
   const { col, row } = cellColRow(grid, index);

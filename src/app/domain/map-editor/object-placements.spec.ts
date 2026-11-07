@@ -105,6 +105,17 @@ describe('objectPlacementsOf()', () => {
   });
 });
 
+describe('objectBlocksOf() on a board of hexes', () => {
+  it('lays a model wider than a cell on the first column and row, known by the cell it was painted in', () => {
+    const hex = cellGridOf(10, 8, 60, GridType.HEX_VERTICAL);
+    const spec = brush({ arrangement: 'cell', model: 'tree_oak', size: 2.5 });
+
+    const blocks = objectBlocksOf(['0,0', '4,3'], spec, hex, 'held-oak');
+
+    expect(blocks.map((block) => `${block.col},${block.row}`)).toEqual(['0,0', '4,3']);
+  });
+});
+
 describe('objectBlocksOf()', () => {
   it('lays each as a box drawn as its model, known by the cells a block read back off the table is', () => {
     const spec = brush({ density: 1, name: 'オーク' });
