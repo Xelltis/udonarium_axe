@@ -1297,6 +1297,7 @@ describe('ServerConnection', () => {
     await vi.waitFor(() => expect(told).toBe(1));
     stop();
 
+    expect(connection.seenAnsweredAt! - connection.heardAt(OTHER.peerId)!).toBe(3_000);
     expect(Date.now() - connection.heardAt(OTHER.peerId)!).toBeGreaterThanOrEqual(3_000);
     expect(Date.now() - connection.heardAt(OTHER.peerId)!).toBeLessThan(4_000);
     expect(connection.heardAt('somebody-else')).toBeNull();
@@ -1323,6 +1324,7 @@ describe('ServerConnection', () => {
 
     connection.close();
     expect(connection.heardAt(third.peerId)).toBeNull();
+    expect(connection.seenAnsweredAt).toBeNull();
   });
 
   it('leaves without a word when closed, and sends nothing after', async () => {

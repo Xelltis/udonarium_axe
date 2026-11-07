@@ -144,6 +144,10 @@ export class Network {
   static heardAt(peerId: string): number | null {
     return Network.instance.heardAt(peerId);
   }
+  /** When the room server last said when it heard from the others, by this clock; null with SkyWay or before it has. */
+  static get seenAnsweredAt(): number | null {
+    return Network.instance.seenAnsweredAt;
+  }
   /**
    * Opens a network session in no room, closing any session first.
    *
@@ -334,6 +338,10 @@ export class Network {
 
   heardAt(peerId: string): number | null {
     return this.connection?.heardAt?.(peerId) ?? null;
+  }
+
+  get seenAnsweredAt(): number | null {
+    return this.connection?.seenAnsweredAt ?? null;
   }
 
   requestInvite(role: ServerRole): Promise<InviteMessage> {

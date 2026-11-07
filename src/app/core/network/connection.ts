@@ -130,4 +130,6 @@ export interface Connection {
   askSeen?(): void;
   /** When the room server last heard from that member, by this clock, or null before it has said. */
   heardAt?(peerId: string): number | null;
+  /** When the room server last said when it heard from the others, by this clock, or null before it has. */
+  readonly seenAnsweredAt?: number | null;
 }

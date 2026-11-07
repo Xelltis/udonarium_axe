@@ -187,6 +187,8 @@ export class ServerConnection implements Connection {
   private inviteWaiters: InviteWaiter[] = [];
   /** When the room server last heard from each of the others, by this clock, as it last answered seen. */
   private readonly heard = new Map<string, number>();
+  /** When the room server last answered seen, by this clock, or null before it has. */
+  private heardAnsweredAt: number | null = null;
 
   private socket: WebSocket | null = null;
   private welcomed = false;
@@ -254,6 +256,7 @@ export class ServerConnection implements Connection {
   /** Opens a session in no room. Nothing connects; the lobby lists the rooms over HTTP. */
   openStandby(userId?: string): void {
     this.stopped = false;
+    pageActivity.watch();
     void PeerContext.create(userId ?? PeerContext.generateUserId()).then((peer) => {
       if (this.stopped) return;
       this.me = peer;
@@ -321,6 +324,7 @@ export class ServerConnection implements Connection {
     this.me.isOpen = false;
     this.members.clear();
     this.heard.clear();
+    this.heardAnsweredAt = null;
     this.authority = null;
     this.rejectInviteWaiters('the connection closed');
   }
@@ -626,6 +630,7 @@ export class ServerConnection implements Connection {
   /** Keeps when the server last heard from each of the others, as a while before now by this clock. */
   private takeSeen(message: SeenMessage): void {
     const now = Date.now();
+    this.heardAnsweredAt = now;
     this.heard.clear();
     for (const member of message.members) {
       this.heard.set(member.peerId, now - Math.max(0, message.serverTime - member.heardAt));
@@ -1030,6 +1035,11 @@ export class ServerConnection implements Connection {
   /** When the server last heard from that member, by this clock, or null before it has said. */
   heardAt(peerId: string): number | null {
     return this.heard.get(peerId) ?? null;
+  }
+
+  /** When the server last said when it heard from the others, by this clock, or null before it has. */
+  get seenAnsweredAt(): number | null {
+    return this.heardAnsweredAt;
   }
 
   /**
