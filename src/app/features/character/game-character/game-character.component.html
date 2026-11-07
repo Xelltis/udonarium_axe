@@ -90,7 +90,7 @@
           ></div>
           <div
             class="pointer-events-none absolute z-[-1] opacity-0 transition-opacity group-hover:opacity-85 group-active:opacity-0"
-            [class.opacity-100!]="turning() === 'turn' || touchChosen()"
+            [class.opacity-100!]="turning() === 'turn' || pressChosen()"
             [ngStyle]="turnRing().ring"
           >
             <svg
@@ -135,7 +135,7 @@
                 [class.text-white]="knob.facing"
                 [class.bg-ui-elevated]="!knob.facing"
                 [class.text-ui-text]="!knob.facing"
-                [class.opacity-100!]="turning() === 'turn' || touchChosen()"
+                [class.opacity-100!]="turning() === 'turn' || pressChosen()"
                 [style.left.px]="knob.x"
                 [style.top.px]="knob.y"
                 [style.width.px]="rollHandleSizePx()"
@@ -451,7 +451,7 @@
                   class="rotate-grab bg-ui-elevated border-ui-accent text-ui-text pointer-events-auto absolute flex cursor-grab items-center justify-center rounded-full border-2 border-solid opacity-0 shadow-[0_1px_4px_rgba(0,0,0,0.6)] transition-opacity group-hover:opacity-85 group-active:opacity-0 hover:opacity-100! active:cursor-grabbing active:opacity-100!"
                   [attr.data-testid]="handle.testId"
                   [class.pointer-events-none!]="!handlesPressable()"
-                  [class.opacity-100!]="turning() === 'roll' || touchChosen()"
+                  [class.opacity-100!]="turning() === 'roll' || pressChosen()"
                   [attr.aria-label]="'feature.character.rollHandle.name' | transloco"
                   [appTextTooltip]="'feature.character.rollHandle.hint' | transloco"
                   [style.width.px]="rollHandleSizePx()"

@@ -315,7 +315,7 @@ export class GameCharacterComponent {
    * anything, a pen's or a trackpad's press there being taken as a finger's.
    * Only that piece follows whether it is in hand, which changes with each step of a drag.
    */
-  protected readonly touchChosen = computed(() => {
+  protected readonly pressChosen = computed(() => {
     const id = this.gameCharacter()?.identifier;
     if (!id) return false;
     const selection = this.selectionSignalService;
@@ -331,7 +331,7 @@ export class GameCharacterComponent {
    * them is taken as any other.
    */
   protected readonly handlesPressable = computed(
-    () => this.viewport.canHover() || this.touchChosen() || this.turning() !== null
+    () => this.viewport.canHover() || this.pressChosen() || this.turning() !== null
   );
 
   /** The way the piece faces while it is turned, in whole degrees, as the turn under way reads it out. */
@@ -386,7 +386,7 @@ export class GameCharacterComponent {
    * are out and the piece is not being carried: followed as the camera moves and the picture changes.
    */
   private readonly pictureSight = computed(() => {
-    const looked = (this.hovered() && !this.carried()) || this.touchChosen() || this.turning() === 'turn';
+    const looked = (this.hovered() && !this.carried()) || this.pressChosen() || this.turning() === 'turn';
     const picture = looked ? this.ownPicture() : null;
     if (!picture) return null;
     this.tableCamera.version();
