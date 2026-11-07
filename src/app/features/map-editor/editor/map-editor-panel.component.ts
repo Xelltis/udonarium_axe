@@ -1,4 +1,4 @@
-import { NgClass } from '@angular/common';
+import { NgClass, PercentPipe } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -144,6 +144,7 @@ interface ToolDef {
     KeepTouchDirective,
     FormsModule,
     NgClass,
+    PercentPipe,
     TranslocoModule,
     MapEditorLayerDrawerComponent,
     MapEditorStampPickerComponent,

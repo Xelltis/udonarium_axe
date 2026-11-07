@@ -469,14 +469,20 @@
     </label>
     <label class="flex items-center justify-between gap-2">
       <span class="text-ui-muted">{{ 'feature.mapEditor.function.maskOpacity' | transloco }}</span>
-      <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.05"
-        [ngModel]="state.functionSpec().mask.opacity"
-        (ngModelChange)="setMaskPaint({ opacity: $event })"
-      />
+      <span class="flex items-center gap-1">
+        <input
+          class="w-24"
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          [ngModel]="state.functionSpec().mask.opacity"
+          (ngModelChange)="setMaskPaint({ opacity: $event })"
+        />
+        <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums">{{
+          state.functionSpec().mask.opacity | percent
+        }}</span>
+      </span>
     </label>
   }
 

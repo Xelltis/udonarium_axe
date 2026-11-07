@@ -1,3 +1,4 @@
+import { PercentPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
@@ -12,7 +13,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   selector: 'map-editor-selected-item',
   templateUrl: './map-editor-selected-item.component.html',
   host: { class: 'contents' },
-  imports: [FormsModule, TranslocoModule],
+  imports: [FormsModule, PercentPipe, TranslocoModule],
 })
 export class MapEditorSelectedItemComponent {
   protected readonly state = inject(MapEditorState);

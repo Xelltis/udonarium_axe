@@ -50,6 +50,7 @@ describe('MapEditorSelectedItemComponent', () => {
 
     const element = await drawn();
     expect((element.querySelector('input[type="range"]') as HTMLInputElement).value).toBe('64');
+    expect(element.querySelector('input[type="range"] + span')?.textContent?.trim()).toBe('64px');
 
     (element.querySelector('button') as HTMLButtonElement).click();
 

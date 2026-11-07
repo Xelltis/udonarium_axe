@@ -1,3 +1,4 @@
+import { PercentPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -96,7 +97,7 @@ const MOVE_COST_ROAD = -1;
   selector: 'map-editor-function-paint',
   templateUrl: './map-editor-function-paint.component.html',
   host: { class: 'contents' },
-  imports: [FormsModule, TranslocoModule, SwitchDefinitionFieldsComponent],
+  imports: [FormsModule, PercentPipe, TranslocoModule, SwitchDefinitionFieldsComponent],
 })
 export class MapEditorFunctionPaintComponent {
   protected readonly state = inject(MapEditorState);

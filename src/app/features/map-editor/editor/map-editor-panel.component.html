@@ -200,25 +200,37 @@
             <map-editor-texture-picker />
             <label class="flex items-center justify-between gap-2">
               <span class="text-ui-muted">{{ 'feature.mapEditor.props.textureScale' | transloco }}</span>
-              <input
-                type="range"
-                min="0.25"
-                max="3"
-                step="0.25"
-                [ngModel]="state.textureScale()"
-                (ngModelChange)="state.textureScale.set($event)"
-              />
+              <span class="flex items-center gap-1">
+                <input
+                  class="w-24"
+                  type="range"
+                  min="0.25"
+                  max="3"
+                  step="0.25"
+                  [ngModel]="state.textureScale()"
+                  (ngModelChange)="state.textureScale.set($event)"
+                />
+                <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums"
+                  >{{ state.textureScale() }}×</span
+                >
+              </span>
             </label>
             <label class="flex items-center justify-between gap-2">
               <span class="text-ui-muted">{{ 'feature.mapEditor.props.textureRotation' | transloco }}</span>
-              <input
-                type="range"
-                min="0"
-                max="360"
-                step="15"
-                [ngModel]="state.textureRotation()"
-                (ngModelChange)="state.textureRotation.set($event)"
-              />
+              <span class="flex items-center gap-1">
+                <input
+                  class="w-24"
+                  type="range"
+                  min="0"
+                  max="360"
+                  step="15"
+                  [ngModel]="state.textureRotation()"
+                  (ngModelChange)="state.textureRotation.set($event)"
+                />
+                <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums"
+                  >{{ state.textureRotation() }}°</span
+                >
+              </span>
             </label>
           }
         </div>
@@ -274,37 +286,55 @@
             <map-editor-texture-picker />
             <label class="flex items-center justify-between gap-2">
               <span class="text-ui-muted">{{ 'feature.mapEditor.props.textureScale' | transloco }}</span>
-              <input
-                type="range"
-                min="0.25"
-                max="3"
-                step="0.25"
-                [ngModel]="state.textureScale()"
-                (ngModelChange)="state.textureScale.set($event)"
-              />
+              <span class="flex items-center gap-1">
+                <input
+                  class="w-24"
+                  type="range"
+                  min="0.25"
+                  max="3"
+                  step="0.25"
+                  [ngModel]="state.textureScale()"
+                  (ngModelChange)="state.textureScale.set($event)"
+                />
+                <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums"
+                  >{{ state.textureScale() }}×</span
+                >
+              </span>
             </label>
             <label class="flex items-center justify-between gap-2">
               <span class="text-ui-muted">{{ 'feature.mapEditor.props.textureRotation' | transloco }}</span>
-              <input
-                type="range"
-                min="0"
-                max="360"
-                step="15"
-                [ngModel]="state.textureRotation()"
-                (ngModelChange)="state.textureRotation.set($event)"
-              />
+              <span class="flex items-center gap-1">
+                <input
+                  class="w-24"
+                  type="range"
+                  min="0"
+                  max="360"
+                  step="15"
+                  [ngModel]="state.textureRotation()"
+                  (ngModelChange)="state.textureRotation.set($event)"
+                />
+                <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums"
+                  >{{ state.textureRotation() }}°</span
+                >
+              </span>
             </label>
           }
           <label class="flex items-center justify-between gap-2">
             <span class="text-ui-muted">{{ 'feature.mapEditor.props.strokeWidth' | transloco }}</span>
-            <input
-              type="range"
-              min="1"
-              max="30"
-              step="1"
-              [ngModel]="state.strokeWidth()"
-              (ngModelChange)="state.strokeWidth.set($event)"
-            />
+            <span class="flex items-center gap-1">
+              <input
+                class="w-24"
+                type="range"
+                min="1"
+                max="30"
+                step="1"
+                [ngModel]="state.strokeWidth()"
+                (ngModelChange)="state.strokeWidth.set($event)"
+              />
+              <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums"
+                >{{ state.strokeWidth() }}px</span
+              >
+            </span>
           </label>
           <div class="flex flex-col gap-1">
             <span class="text-ui-muted">{{ 'feature.mapEditor.props.dash' | transloco }}</span>
@@ -344,36 +374,54 @@
             </label>
             <label class="flex items-center justify-between gap-2">
               <span class="text-ui-muted">{{ 'feature.mapEditor.props.shadowBlur' | transloco }}</span>
-              <input
-                type="range"
-                min="0"
-                max="24"
-                step="1"
-                [ngModel]="state.shadowBlur()"
-                (ngModelChange)="state.shadowBlur.set($event)"
-              />
+              <span class="flex items-center gap-1">
+                <input
+                  class="w-24"
+                  type="range"
+                  min="0"
+                  max="24"
+                  step="1"
+                  [ngModel]="state.shadowBlur()"
+                  (ngModelChange)="state.shadowBlur.set($event)"
+                />
+                <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums"
+                  >{{ state.shadowBlur() }}px</span
+                >
+              </span>
             </label>
             <label class="flex items-center justify-between gap-2">
               <span class="text-ui-muted">{{ 'feature.mapEditor.props.shadowOffsetX' | transloco }}</span>
-              <input
-                type="range"
-                min="-12"
-                max="12"
-                step="1"
-                [ngModel]="state.shadowOffsetX()"
-                (ngModelChange)="state.shadowOffsetX.set($event)"
-              />
+              <span class="flex items-center gap-1">
+                <input
+                  class="w-24"
+                  type="range"
+                  min="-12"
+                  max="12"
+                  step="1"
+                  [ngModel]="state.shadowOffsetX()"
+                  (ngModelChange)="state.shadowOffsetX.set($event)"
+                />
+                <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums"
+                  >{{ state.shadowOffsetX() }}px</span
+                >
+              </span>
             </label>
             <label class="flex items-center justify-between gap-2">
               <span class="text-ui-muted">{{ 'feature.mapEditor.props.shadowOffsetY' | transloco }}</span>
-              <input
-                type="range"
-                min="-12"
-                max="12"
-                step="1"
-                [ngModel]="state.shadowOffsetY()"
-                (ngModelChange)="state.shadowOffsetY.set($event)"
-              />
+              <span class="flex items-center gap-1">
+                <input
+                  class="w-24"
+                  type="range"
+                  min="-12"
+                  max="12"
+                  step="1"
+                  [ngModel]="state.shadowOffsetY()"
+                  (ngModelChange)="state.shadowOffsetY.set($event)"
+                />
+                <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums"
+                  >{{ state.shadowOffsetY() }}px</span
+                >
+              </span>
             </label>
           }
         </div>
@@ -412,14 +460,20 @@
           </label>
           <label class="flex items-center justify-between gap-2">
             <span class="text-ui-muted">{{ 'feature.mapEditor.props.strokeWidth' | transloco }}</span>
-            <input
-              type="range"
-              min="1"
-              max="30"
-              step="1"
-              [ngModel]="state.freehandWidth()"
-              (ngModelChange)="state.freehandWidth.set($event)"
-            />
+            <span class="flex items-center gap-1">
+              <input
+                class="w-24"
+                type="range"
+                min="1"
+                max="30"
+                step="1"
+                [ngModel]="state.freehandWidth()"
+                (ngModelChange)="state.freehandWidth.set($event)"
+              />
+              <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums"
+                >{{ state.freehandWidth() }}px</span
+              >
+            </span>
           </label>
         </div>
       }
@@ -464,25 +518,37 @@
           }
           <label class="flex items-center justify-between gap-2">
             <span class="text-ui-muted">{{ 'feature.tabletop.groundBrush.radius' | transloco }}</span>
-            <input
-              type="range"
-              min="0.5"
-              max="8"
-              step="0.5"
-              [ngModel]="state.reliefBrush().radius"
-              (ngModelChange)="setReliefBrush({ radius: +$event })"
-            />
+            <span class="flex items-center gap-1">
+              <input
+                class="w-24"
+                type="range"
+                min="0.5"
+                max="8"
+                step="0.5"
+                [ngModel]="state.reliefBrush().radius"
+                (ngModelChange)="setReliefBrush({ radius: +$event })"
+              />
+              <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums">{{
+                state.reliefBrush().radius
+              }}</span>
+            </span>
           </label>
           <label class="flex items-center justify-between gap-2">
             <span class="text-ui-muted">{{ 'feature.tabletop.groundBrush.strength' | transloco }}</span>
-            <input
-              type="range"
-              min="0.05"
-              max="1"
-              step="0.05"
-              [ngModel]="state.reliefBrush().strength"
-              (ngModelChange)="setReliefBrush({ strength: +$event })"
-            />
+            <span class="flex items-center gap-1">
+              <input
+                class="w-24"
+                type="range"
+                min="0.05"
+                max="1"
+                step="0.05"
+                [ngModel]="state.reliefBrush().strength"
+                (ngModelChange)="setReliefBrush({ strength: +$event })"
+              />
+              <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums">{{
+                state.reliefBrush().strength | percent
+              }}</span>
+            </span>
           </label>
         </div>
       }
@@ -492,14 +558,20 @@
           <div class="font-semibold">{{ 'feature.mapEditor.tools.cellErase' | transloco }}</div>
           <label class="flex items-center justify-between gap-2">
             <span class="text-ui-muted">{{ 'feature.mapEditor.props.eraserSize' | transloco }}</span>
-            <input
-              type="range"
-              min="4"
-              max="128"
-              step="2"
-              [ngModel]="state.eraserSize()"
-              (ngModelChange)="state.eraserSize.set($event)"
-            />
+            <span class="flex items-center gap-1">
+              <input
+                class="w-24"
+                type="range"
+                min="4"
+                max="128"
+                step="2"
+                [ngModel]="state.eraserSize()"
+                (ngModelChange)="state.eraserSize.set($event)"
+              />
+              <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums"
+                >{{ state.eraserSize() }}px</span
+              >
+            </span>
           </label>
           <p class="text-ui-muted text-[10px] leading-snug">
             {{ 'feature.mapEditor.props.eraserHint' | transloco }}
