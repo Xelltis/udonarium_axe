@@ -9,6 +9,7 @@ import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { isPressTaken } from '@axe/ui/directives/movable-interaction';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { vi } from 'vitest';
 
@@ -310,7 +311,7 @@ describe('RotableDirective', () => {
       expect(directive.rotate).toBe(45);
     });
 
-    it('leaves a finger’s press to what it stands in while told to, and takes a mouse’s all the same', () => {
+    it('leaves a finger’s press to the table beneath while told to, and takes a mouse’s all the same', () => {
       (directive as unknown as Record<string, unknown>)['grabbingSelecter'] = '';
       fixture.componentInstance.refuseTouch.set(true);
       fixture.detectChanges();
@@ -322,16 +323,29 @@ describe('RotableDirective', () => {
       directive.onInputStart(finger);
       expect(started).not.toHaveBeenCalled();
       expect(passedOn).not.toHaveBeenCalled();
+      expect(isPressTaken(finger)).toBe(true);
 
       const mouse = new MouseEvent('mousedown', { bubbles: true, button: 0 });
       Object.defineProperty(mouse, 'target', { value: element });
       directive.onInputStart(mouse);
       expect(started).toHaveBeenCalledTimes(1);
+      expect(isPressTaken(mouse)).toBe(false);
 
       fixture.componentInstance.refuseTouch.set(false);
       fixture.detectChanges();
       directive.onInputStart(finger);
       expect(started).toHaveBeenCalledTimes(2);
+    });
+
+    it('leaves a finger’s press beside its handles to the piece, not the table, while told to refuse it', () => {
+      fixture.componentInstance.refuseTouch.set(true);
+      fixture.detectChanges();
+      const finger = new TouchEvent('touchstart', { bubbles: true, cancelable: true });
+      Object.defineProperty(finger, 'target', { value: element });
+
+      directive.onInputStart(finger);
+
+      expect(isPressTaken(finger)).toBe(false);
     });
 
     it('says nothing more once the turn is let go', () => {
