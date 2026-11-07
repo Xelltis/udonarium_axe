@@ -1,5 +1,4 @@
 import { TestBed } from '@angular/core/testing';
-import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import {
   fillTargetNumber,
@@ -13,6 +12,7 @@ import {
   targetNumberChoices,
 } from '@axe/domain/chat/target-number';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { beMyself } from '@axe/testing/peer-context-stub';
 
 describe('target-number', () => {
   describe('rollTotalOf()', () => {
@@ -218,9 +218,10 @@ describe('target-number', () => {
       });
 
       it('passes over a roll whispered, even one the reader rolled, which is not for everyone to beat', () => {
+        const me = beMyself();
         roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14');
         lastAnswer().to = 'someone-else';
-        lastAnswer().originFrom = getPeerContext().userId;
+        lastAnswer().originFrom = me.userId;
 
         expect(lastAnswer().isDirect && lastAnswer().isDisplayable).toBe(true);
         expect(targetNumberChoices(tab, 5)).toEqual([]);
