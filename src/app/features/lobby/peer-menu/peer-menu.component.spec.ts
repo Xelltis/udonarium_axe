@@ -11,6 +11,7 @@ import { loadConfig$ } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { localDispatch } from '@axe/core/network/network-messaging';
+import { pageActivity } from '@axe/core/network/server/page-activity';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { hasChosenIconByHand, noteIconChosenByHand } from '@axe/core/storage/icon-chosen-by-hand';
 import { loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
@@ -751,6 +752,9 @@ describe('PeerMenuComponent', () => {
     });
 
     it('asks the server while the panel is open, and stops once it closes', () => {
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+      pageActivity.noteInput();
       const ask = vi.spyOn(Network.instance, 'askSeen');
       const watch = vi.spyOn(Network.instance, 'watchLink');
       fixture = TestBed.createComponent(PeerMenuComponent);

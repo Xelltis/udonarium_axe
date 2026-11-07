@@ -1,8 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { SEEN_ASK_INTERVAL_MS } from '@axe/application/lobby/link-watch.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { Network } from '@axe/core/index';
 import { PeerSessionGrade } from '@axe/core/network/peer-session-state';
+import { pageActivity } from '@axe/core/network/server/page-activity';
 import { PeerLinkQuality, POOR_SILENCE_MS } from '@axe/domain/peer/peer-link-quality';
 import { ConnectionQualityComponent } from '@axe/features/widgets/connection-quality/connection-quality.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -58,6 +60,7 @@ describe('ConnectionQualityComponent', () => {
 
   beforeEach(async () => {
     localStorage.clear();
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
     await TestBed.configureTestingModule({
       imports: [ConnectionQualityComponent],
       providers: [...TEST_PROVIDERS],
@@ -65,6 +68,7 @@ describe('ConnectionQualityComponent', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -153,6 +157,7 @@ describe('ConnectionQualityComponent', () => {
 
   it('gives each of the others on a room server a row, graded by how long ago the server last heard from them', () => {
     vi.useFakeTimers({ now: new Date('2026-11-07T12:00:00') });
+    pageActivity.noteInput();
     vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a'), peerContext('peer-b')] as never);
     vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
     vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
@@ -170,14 +175,17 @@ describe('ConnectionQualityComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('--:--:--');
 
     vi.advanceTimersByTime(POOR_SILENCE_MS);
+    pageActivity.noteInput();
+    vi.advanceTimersByTime(SEEN_ASK_INTERVAL_MS);
     fixture.detectChanges();
     expect(internals.links()[1]?.quality).toBe(PeerLinkQuality.Poor);
     expect(internals.worst()).toBe(PeerLinkQuality.Poor);
-    vi.useRealTimers();
   });
 
   it('watches the links closely only while it is shown', () => {
     vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([] as never);
+    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    pageActivity.noteInput();
     const watch = vi.spyOn(Network, 'watchLink');
     const ask = vi.spyOn(Network, 'askSeen');
     create(false);
