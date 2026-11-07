@@ -1,10 +1,10 @@
+import type { MarqueeRect } from '@axe/application/ui/selection-signal.service';
 import {
   MARQUEE_MOUSE_LONG_PRESS_MS,
   MARQUEE_MOVE_CANCEL_THRESHOLD_PX,
   MARQUEE_TOUCH_LONG_PRESS_MS,
   MarqueeModifiers,
   MarqueePoint,
-  MarqueeRect,
   TableMarqueeGesture,
 } from '@axe/features/tabletop/game-table/table-marquee-gesture';
 

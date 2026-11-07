@@ -3,6 +3,7 @@ import { TableCameraService } from '@axe/application/tabletop/table-camera.servi
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
+import type { MarqueeRect } from '@axe/application/ui/selection-signal.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { orthographicScale } from '@axe/domain/tabletop/camera/table-camera';
@@ -21,7 +22,6 @@ import {
   zoomOutLimitZ,
   zoomReachFor,
 } from '@axe/features/tabletop/game-table/game-table-gesture.service';
-import type { MarqueeRect } from '@axe/features/tabletop/game-table/table-marquee-gesture';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('GameTableGestureService', () => {

@@ -8,6 +8,7 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
+import type { MarqueeRect } from '@axe/application/ui/selection-signal.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { CAMERA_GLIDE_MS, easeOut } from '@axe/domain/tabletop/camera/camera-glide';
@@ -20,7 +21,6 @@ import { marqueeApply, selectByRect } from '@axe/features/tabletop/game-table/re
 import {
   MarqueeModifiers,
   MarqueePoint,
-  MarqueeRect,
   TableMarqueeGesture,
 } from '@axe/features/tabletop/game-table/table-marquee-gesture';
 import { TableMouseGesture, TableMouseGestureEvent } from '@axe/features/tabletop/game-table/table-mouse-gesture';

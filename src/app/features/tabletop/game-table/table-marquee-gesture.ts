@@ -5,8 +5,6 @@ export interface MarqueePoint {
   y: number;
 }
 
-export type { MarqueeRect };
-
 export interface MarqueeModifiers {
   shift: boolean;
   ctrl: boolean;
