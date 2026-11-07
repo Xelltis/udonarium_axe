@@ -1,16 +1,16 @@
 import { TestBed } from '@angular/core/testing';
-import { BundledModelService } from '@axe/application/tabletop/bundled-model.service';
+import { BundledModelIntakeService } from '@axe/application/tabletop/bundled-model-intake.service';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
-describe('BundledModelService', () => {
-  let service: BundledModelService;
+describe('BundledModelIntakeService', () => {
+  let service: BundledModelIntakeService;
   let storage: ModelStorage;
   let fetched: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
-    service = TestBed.inject(BundledModelService);
+    service = TestBed.inject(BundledModelIntakeService);
     storage = TestBed.inject(ModelStorage);
     fetched = vi.fn(async () => new Response(new Blob([new Uint8Array([1, 2, 3])]), { status: 200 }));
     vi.stubGlobal('fetch', fetched);

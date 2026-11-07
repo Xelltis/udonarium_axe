@@ -9,7 +9,7 @@ import { bundledModelUrl } from '@axe/domain/tabletop/bundled-model-url';
  * piece or a block drawn as it carries, which every peer can fetch.
  */
 @Injectable({ providedIn: 'root' })
-export class BundledModelService {
+export class BundledModelIntakeService {
   private readonly modelStorage = inject(ModelStorage);
   private readonly asked = new Map<string, Promise<string>>();
 

@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { BundledModelService } from '@axe/application/tabletop/bundled-model.service';
+import { BundledModelIntakeService } from '@axe/application/tabletop/bundled-model-intake.service';
 import { FunctionalPaintService } from '@axe/application/tabletop/functional-paint.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -31,7 +31,7 @@ export class MapEditorFilesService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tabletopService = inject(TabletopService);
   private readonly functionalPaint = inject(FunctionalPaintService);
-  private readonly bundledModels = inject(BundledModelService);
+  private readonly bundledModels = inject(BundledModelIntakeService);
 
   private readonly exportFn = exportSceneToBlob;
 
