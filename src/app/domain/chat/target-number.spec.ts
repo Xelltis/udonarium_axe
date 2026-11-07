@@ -59,7 +59,11 @@ describe('target-number', () => {
       tab.destroy();
     });
 
-    function roll(by: { identifier: string; name: string }, result: string, extra: { tag?: string } = {}): void {
+    function roll(
+      by: { identifier: string; name: string },
+      result: string,
+      extra: { tag?: string; answers?: boolean } = {}
+    ): void {
       at += 10;
       tab.addMessage({
         from: `user-${by.identifier}`,
@@ -67,6 +71,7 @@ describe('target-number', () => {
         name: by.name,
         text: '2d6',
         timestamp: at,
+        ...(extra.answers ? { answersTargetNumber: '1' } : {}),
       });
       tab.addMessage({
         from: 'System-BCDice',
@@ -107,6 +112,21 @@ describe('target-number', () => {
       roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [騎士［見習い］]');
 
       expect(findTargetNumber(tab, { identifier: 'pc3', name: '騎士[見習い]' })).toBe(14);
+    });
+
+    it('passes over a roll made to beat a number of its own, as one resisting what was cast at everyone does', () => {
+      const caster = { identifier: 'caster', name: '魔法使い' };
+      const first = { identifier: 'goblin1', name: 'ゴブリンA' };
+      roll(caster, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15');
+      roll(first, 'DiceBot : (2D6+3>=15) → 9[4,5]+3 → 12 → 失敗', { answers: true });
+
+      expect(findTargetNumber(tab, { identifier: 'goblin2', name: 'ゴブリンB' })).toBe(15);
+    });
+
+    it('still takes a roll aimed at the speaker, made to beat a number of its own', () => {
+      roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [PC1]', { answers: true });
+
+      expect(findTargetNumber(tab, speaker)).toBe(14);
     });
 
     it('passes over a secret roll, and answers null where nothing is left', () => {

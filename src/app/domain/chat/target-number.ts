@@ -54,8 +54,9 @@ export function rollTotalOf(text: string): number | null {
 /**
  * The number to beat for a speaker in a tab: the newest answer rolled at them with `t:`, or else
  * the newest one rolled at nobody by someone else. An answer kept secret, or one they may not see,
- * is passed over, and so is one rolled at somebody else, which is that one's number to beat. Null
- * where none is found.
+ * is passed over, and so is one rolled at somebody else, which is that one's number to beat, and one
+ * to a line that beat a number of its own, as a resistance does, which is nobody's number to beat.
+ * Null where none is found.
  */
 export function findTargetNumber(tab: ChatTab, speaker: TargetNumberSpeaker): number | null {
   const aims = aimsAt(speaker.name);
@@ -68,9 +69,23 @@ export function findTargetNumber(tab: ChatTab, speaker: TargetNumberSpeaker): nu
     const total = rollTotalOf(text);
     if (total == null) continue;
     if (aims.some((aim) => text.endsWith(aim))) return total;
-    if (byOthers == null && aimOf(text) == null && !rolledBy(tab, message, speaker)) byOthers = total;
+    if (byOthers == null && aimOf(text) == null && !rolledBy(tab, message, speaker) && !answeredOne(tab, message)) {
+      byOthers = total;
+    }
   }
   return byOthers;
+}
+
+/**
+ * The number to beat for a speaker in a tab, looked for the first time it is asked for and kept: a
+ * line and every copy of it aimed at a target are filled in with the same number.
+ */
+export function targetNumberOnce(tab: ChatTab, speaker: TargetNumberSpeaker): () => number | null {
+  let found: number | null | undefined;
+  return () => {
+    if (found === undefined) found = findTargetNumber(tab, speaker);
+    return found;
+  };
 }
 
 /** The ways the name of somebody rolled at stands after an answer: as it is, or as a room server takes it. */
@@ -88,6 +103,11 @@ function withoutAim(text: string): string {
   const trimmed = text.trimEnd();
   const aim = aimOf(trimmed);
   return aim == null ? trimmed : trimmed.slice(0, -(aim.length + 3));
+}
+
+/** Whether the line an answer answers was said to beat a number of its own, filled in for its `{目標値}`. */
+function answeredOne(tab: ChatTab, answer: ChatMessage): boolean {
+  return tab.findRollSource(answer)?.answersTargetNumber === '1';
 }
 
 /** Whether the speaker said the line an answer answers. */
