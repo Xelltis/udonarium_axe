@@ -276,6 +276,23 @@ describe('RotableDirective', () => {
       expect(directive.turning()).toBe(false);
     });
 
+    it('says it is turning from a first step that finds no point to turn about, and turns on the next', () => {
+      const writable = directive as unknown as Record<string, unknown>;
+      writable['turnsOnScreenAbout'] = () => null;
+      const started = vi.spyOn(directive.ondragstart, 'emit');
+
+      moveTo(31, false);
+      expect(directive.turning()).toBe(true);
+      expect(started).toHaveBeenCalledTimes(1);
+      expect(guide()).toBeNull();
+
+      writable['turnsOnScreenAbout'] = () => ({ x: 0, y: 0 });
+      (writable['input'] as { isDragging: boolean }).isDragging = true;
+      moveTo(31, false);
+      expect(started).toHaveBeenCalledTimes(1);
+      expect(guide()?.angle).toBe(31);
+    });
+
     it('says nothing more once the turn is let go', () => {
       moveTo(31, true);
 

@@ -262,16 +262,16 @@ export class RotableDirective {
 
     if (e.cancelable) e.preventDefault();
     e.stopPropagation();
+    if (!input.isDragging) {
+      this.inTurn.set(true);
+      this.ondragstart.emit(e as PointerEvent);
+      this.listenForSnap();
+    }
     const pointer3d = this.pointerAround(input.pointer);
     if (!pointer3d) return;
     this.freeAngle = this.calcRotate(pointer3d, this.rotateOffset);
     this.snapping = (e as MouseEvent).altKey === true;
 
-    if (!this.input?.isDragging) {
-      this.inTurn.set(true);
-      this.ondragstart.emit(e as PointerEvent);
-      this.listenForSnap();
-    }
     this.ondrag.emit(e as PointerEvent);
     this.turnTo();
   }
