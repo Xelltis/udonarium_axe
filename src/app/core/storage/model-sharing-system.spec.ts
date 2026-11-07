@@ -170,6 +170,22 @@ describe('ModelSharingSystem', () => {
       expect(ModelStorageMock.add).toHaveBeenCalled();
     });
 
+    it('names every other peer to pass its request on to, though the list of peers leaves this seat out', () => {
+      Object.defineProperty(Network, 'peerIds', { get: () => ['peer-a', 'peer-b'], configurable: true });
+      const model = makeModelFile({ identifier: 'partial-model' });
+      ModelStorageMock.get.mockReturnValue(model);
+
+      emit('SYNCHRONIZE_MODEL_LIST', [{ identifier: 'partial-model', state: model.state }]);
+
+      expect(sendSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventName: 'REQUEST_MODEL_RESOURE',
+          data: expect.objectContaining({ candidatePeers: ['peer-a', 'peer-b'] }),
+        }),
+        'peer-a'
+      );
+    });
+
     it('asks for model it does not yet hold', () => {
       const model = makeModelFile({ identifier: 'partial-model' });
       ModelStorageMock.get.mockReturnValue(model);
@@ -564,6 +580,24 @@ describe('ModelSharingSystem', () => {
       expect(sendSpy).toHaveBeenCalledWith(expect.objectContaining({ eventName: 'REQUEST_MODEL_RESOURE' }), 'peer-b');
     });
 
+    it('sends one it is sending to another peer to nobody else meanwhile, and relays the request', () => {
+      const model = makeModelFile({ identifier: 'busy', blob: new Blob(['x']) });
+      ModelStorageMock.get.mockReturnValue(model);
+      asModelSharingPrivate(ModelSharingSystem.instance).sendTaskMap.set(
+        'busy',
+        makeTask({ identifier: 'busy', sendTo: 'peer-a' })
+      );
+
+      emit('REQUEST_MODEL_RESOURE', {
+        identifiers: [{ identifier: 'busy', state: ModelState.NULL }],
+        receiver: 'peer-r',
+        candidatePeers: ['peer-b'],
+      });
+
+      expect(BufferSharingTaskMock.createSendTask).not.toHaveBeenCalled();
+      expect(sendSpy).toHaveBeenCalledWith(expect.objectContaining({ eventName: 'REQUEST_MODEL_RESOURE' }), 'peer-b');
+    });
+
     it('relays rather than sending again', () => {
       const model = makeModelFile({ identifier: 'exist-send', blob: new Blob(['x']) });
       ModelStorageMock.get.mockReturnValue(model);
@@ -697,6 +731,18 @@ describe('ModelSharingSystem', () => {
   // --- sending what it holds in full ---
 
   describe('startSendTask (via REQUEST_MODEL_RESOURE)', () => {
+    it('calls a transfer off, telling the peer, where the bytes cannot be read', async () => {
+      const model = makeModelFile({ identifier: 'unreadable', blob: {} as Blob });
+      const task = makeTask({ identifier: 'unreadable', sendTo: 'peer-r' });
+      BufferSharingTaskMock.createSendTask.mockReturnValue(task);
+
+      await asModelSharingPrivate(ModelSharingSystem.instance).startSendTask(model, 'peer-r');
+
+      expect(task.cancel).toHaveBeenCalled();
+      expect(task.start).not.toHaveBeenCalled();
+      expect(asModelSharingPrivate(ModelSharingSystem.instance).sendTaskMap.has('unreadable')).toBe(false);
+    });
+
     beforeEach(() => ModelSharingSystem.instance.initialize());
 
     it('drops the task and synchronises when sending finishes', async () => {

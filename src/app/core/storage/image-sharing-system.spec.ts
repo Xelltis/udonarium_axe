@@ -312,6 +312,14 @@ describe('ImageSharingSystem', () => {
       expect(requestsSent()).toHaveLength(1);
     });
 
+    it('names every other peer to pass its request on to, though the list of peers leaves this seat out', () => {
+      Object.defineProperty(Network, 'peerIds', { get: () => ['peer-a', 'peer-b'], configurable: true });
+
+      receiveCatalogue([{ identifier: 'none_icon', state: ImageState.COMPLETE }]);
+
+      expect(requestsSent()[0]).toMatchObject({ data: { candidatePeers: ['peer-a', 'peer-b'] } });
+    });
+
     it('takes a picture the room lists, though no catalogue names it, keeping the name it was listed under', async () => {
       ImageSharingSystem.instance.fetchListed([{ id: pictureId, name: 'map.png' }]);
 

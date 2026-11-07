@@ -144,7 +144,8 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
   /**
    * Sends one asked for that this seat holds more of, picked at random, or passes the request on to
    * another candidate where this seat is sending enough already. What this seat holds back for the
-   * room server's operator is not sent when asked for either.
+   * room server's operator is not sent when asked for either, nor one it is sending to another peer
+   * just then, as a transfer is known by the file alone.
    */
   private answerRequest(
     data: { identifiers: CatalogItem[]; receiver: string; candidatePeers: string[] },
@@ -152,7 +153,12 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
   ): void {
     const randomRequest: CatalogItem[] = data.identifiers.filter((item) => {
       const file = this.storage.get(item.identifier);
-      return file && item.state < file.state && !this.storage.isHeldBack(item.identifier);
+      return (
+        file &&
+        item.state < file.state &&
+        !this.storage.isHeldBack(item.identifier) &&
+        !this.sendTaskMap.has(item.identifier)
+      );
     });
     if (!this.isLimitSendTask() && 0 < randomRequest.length && !this.existsSendTask(data.receiver)) {
       const item = randomRequest[Math.floor(Math.random() * randomRequest.length)];
@@ -317,7 +323,10 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
     return wanted ?? request[Math.floor(Math.random() * request.length)];
   }
 
-  /** Sends one to a peer: its bytes where this seat holds them, or else the link it is held by. */
+  /**
+   * Sends one to a peer: its bytes where this seat holds them, or else the link it is held by. Where
+   * the bytes cannot be read, the transfer is called off, and the peer told so.
+   */
   private async startSendTask(file: F, sendTo: string): Promise<void> {
     const task = BufferSharingTask.createSendTask<C>(file.identifier, sendTo);
     this.sendTaskMap.set(file.identifier, task);
@@ -326,7 +335,11 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
 
     const context = { identifier: file.identifier, name: file.name, blob: null, type: '', url: '' } as C;
     if (file.blob) {
-      const buf = await FileReaderUtil.readAsArrayBufferAsync(file.blob);
+      const buf = await FileReaderUtil.readAsArrayBufferAsync(file.blob).catch(() => null);
+      if (!buf) {
+        this.stopSendTask(file.identifier);
+        return;
+      }
       context.blob = new Uint8Array(buf) as unknown as Blob;
       context.type = file.blob.type;
     } else {
@@ -382,9 +395,9 @@ export class SharedAssetSharingSystem<F extends SharedAssetFile<C>, C extends Sh
     this.receiveTaskMap.delete(identifier);
   }
 
+  /** Asks a peer for one, naming every other peer as one to pass the request on to. */
   private request(request: CatalogItem[], peerId: string): void {
-    const peerIds = Network.peerIds;
-    peerIds.splice(peerIds.indexOf(Network.peerId), 1);
+    const peerIds = Network.peerIds.filter((id) => id !== Network.peerId);
     networkSend(
       this.trade.messages.request,
       {

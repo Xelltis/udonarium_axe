@@ -323,8 +323,7 @@ export class ImageSharingSystem {
   }
 
   private request(request: CatalogItem[], peerId: string) {
-    const peerIds = Network.peerIds;
-    peerIds.splice(peerIds.indexOf(Network.peerId), 1);
+    const peerIds = Network.peerIds.filter((id) => id !== Network.peerId);
     networkSend(
       'REQUEST_FILE_RESOURE',
       {

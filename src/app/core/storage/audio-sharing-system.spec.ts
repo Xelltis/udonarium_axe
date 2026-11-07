@@ -170,6 +170,22 @@ describe('AudioSharingSystem', () => {
       expect(AudioStorageMock.add).toHaveBeenCalled();
     });
 
+    it('names every other peer to pass its request on to, though the list of peers leaves this seat out', () => {
+      Object.defineProperty(Network, 'peerIds', { get: () => ['peer-a', 'peer-b'], configurable: true });
+      const audio = makeAudioFile({ identifier: 'partial-audio' });
+      AudioStorageMock.get.mockReturnValue(audio);
+
+      emit('SYNCHRONIZE_AUDIO_LIST', [{ identifier: 'partial-audio', state: audio.state }]);
+
+      expect(sendSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventName: 'REQUEST_AUDIO_RESOURE',
+          data: expect.objectContaining({ candidatePeers: ['peer-a', 'peer-b'] }),
+        }),
+        'peer-a'
+      );
+    });
+
     it('asks for audio it does not yet hold', () => {
       const audio = makeAudioFile({ identifier: 'partial-audio' });
       AudioStorageMock.get.mockReturnValue(audio);
@@ -564,6 +580,24 @@ describe('AudioSharingSystem', () => {
       expect(sendSpy).toHaveBeenCalledWith(expect.objectContaining({ eventName: 'REQUEST_AUDIO_RESOURE' }), 'peer-b');
     });
 
+    it('sends one it is sending to another peer to nobody else meanwhile, and relays the request', () => {
+      const audio = makeAudioFile({ identifier: 'busy', blob: new Blob(['x']) });
+      AudioStorageMock.get.mockReturnValue(audio);
+      asAudioSharingPrivate(AudioSharingSystem.instance).sendTaskMap.set(
+        'busy',
+        makeTask({ identifier: 'busy', sendTo: 'peer-a' })
+      );
+
+      emit('REQUEST_AUDIO_RESOURE', {
+        identifiers: [{ identifier: 'busy', state: AudioState.NULL }],
+        receiver: 'peer-r',
+        candidatePeers: ['peer-b'],
+      });
+
+      expect(BufferSharingTaskMock.createSendTask).not.toHaveBeenCalled();
+      expect(sendSpy).toHaveBeenCalledWith(expect.objectContaining({ eventName: 'REQUEST_AUDIO_RESOURE' }), 'peer-b');
+    });
+
     it('relays rather than sending again', () => {
       const audio = makeAudioFile({ identifier: 'exist-send', blob: new Blob(['x']) });
       AudioStorageMock.get.mockReturnValue(audio);
@@ -697,6 +731,18 @@ describe('AudioSharingSystem', () => {
   // --- sending what it holds in full ---
 
   describe('startSendTask (via REQUEST_AUDIO_RESOURE)', () => {
+    it('calls a transfer off, telling the peer, where the bytes cannot be read', async () => {
+      const audio = makeAudioFile({ identifier: 'unreadable', blob: {} as Blob });
+      const task = makeTask({ identifier: 'unreadable', sendTo: 'peer-r' });
+      BufferSharingTaskMock.createSendTask.mockReturnValue(task);
+
+      await asAudioSharingPrivate(AudioSharingSystem.instance).startSendTask(audio, 'peer-r');
+
+      expect(task.cancel).toHaveBeenCalled();
+      expect(task.start).not.toHaveBeenCalled();
+      expect(asAudioSharingPrivate(AudioSharingSystem.instance).sendTaskMap.has('unreadable')).toBe(false);
+    });
+
     beforeEach(() => AudioSharingSystem.instance.initialize());
 
     it('sends the url for audio it holds only by url', async () => {
