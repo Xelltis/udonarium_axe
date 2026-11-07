@@ -354,6 +354,8 @@ class ThreeTableEngine implements Table3dEngine {
     this.sun.shadow.normalBias = 1;
     this.sun.shadow.camera.layers.enable(SHADOW_CASTERS_LAYER);
     for (const lamp of this.lamps) {
+      lamp.target.position.set(0, -1, 0);
+      lamp.target.updateMatrixWorld();
       lamp.castShadow = true;
       lamp.shadow.autoUpdate = false;
       lamp.shadow.mapSize.set(LAMP_SHADOW_PX, LAMP_SHADOW_PX);
