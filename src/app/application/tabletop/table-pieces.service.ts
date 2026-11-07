@@ -131,6 +131,16 @@ interface PlacedBlock {
   readonly box: TerrainBox;
 }
 
+/** The box of a block's footprint as it was worked out, at the version of the block and the size of a cell it was. */
+interface BoxAt {
+  readonly version: number;
+  readonly gridSize: number;
+  readonly box: TerrainBox;
+}
+
+/** How far past the box of a block's footprint a point may lie and still be asked of the block itself. */
+const BOX_SLACK_PX = 1;
+
 /** What most kinds of piece are drawn with alike: how big a cell is. */
 interface GridLook {
   readonly gridSize: number;
@@ -272,6 +282,9 @@ export class TablePiecesService {
   /** Which table is in view, by its identifier, for the pieces of each kind to be listed afresh on another. */
   private readonly tableInView = computed(() => this.tabletop.currentTableVersion().identifier);
 
+  /** The box of each block's footprint, kept while the block does not change. */
+  private boxes = new Map<Terrain, BoxAt>();
+
   /**
    * The blocks on the table in view, each with the box its footprint fills, kept as they were while
    * no block comes, goes or moves its footprint: a door opening changes none of it. What stands on a
@@ -282,10 +295,17 @@ export class TablePiecesService {
       this.tableInView();
       this.objectChange.collectionOf(Terrain.aliasName)();
       const gridSize = this.tableShape().gridSize;
-      return this.tabletop.terrains.map((terrain) => {
-        this.objectChange.versionOf(terrain.identifier)();
-        return { terrain, box: terrainBoxOf(terrain, gridSize) };
+      const kept = new Map<Terrain, BoxAt>();
+      const placed = this.tabletop.terrains.map((terrain) => {
+        const version = this.objectChange.versionOf(terrain.identifier)();
+        const held = this.boxes.get(terrain);
+        const box =
+          held && held.version === version && held.gridSize === gridSize ? held.box : terrainBoxOf(terrain, gridSize);
+        kept.set(terrain, { version, gridSize, box });
+        return { terrain, box };
       });
+      this.boxes = kept;
+      return placed;
     },
     {
       equal: (a, b) =>
@@ -294,11 +314,15 @@ export class TablePiecesService {
     }
   );
 
-  /** The blocks whose footprint's box holds a point of the floor, each followed from then on. */
+  /**
+   * The blocks whose footprint's box holds a point of the floor, a pixel's slack each way for the
+   * edges of a turned footprint, each followed from then on.
+   */
   private blocksOver(x: number, y: number): Terrain[] {
     const over: Terrain[] = [];
     for (const { terrain, box } of this.blocks()) {
-      if (box.minX > x || x > box.maxX || box.minY > y || y > box.maxY) continue;
+      if (box.minX - BOX_SLACK_PX > x || x > box.maxX + BOX_SLACK_PX) continue;
+      if (box.minY - BOX_SLACK_PX > y || y > box.maxY + BOX_SLACK_PX) continue;
       this.objectChange.versionOf(terrain.identifier)();
       over.push(terrain);
     }
@@ -488,7 +512,7 @@ export class TablePiecesService {
         rotateDeg: character.rotate,
         rollDeg: character.roll,
         dropShadow: character.isDropShadow,
-        lean: look.mode2d ? null : this.leanUnder(character, look.gridSize),
+        lean: look.mode2d || !place.onFloor ? null : this.leanUnder(character, look.gridSize, place),
         altitudePx: character.altitude * look.gridSize,
         pedestal: this.pagePictures.pictureOf(character.identifier),
         picture: this.sized(this.images.getEmptyOr(character.imageFile).url),
@@ -689,11 +713,14 @@ export class TablePiecesService {
     return this.cardLook();
   }
 
-  /** How the ground under the middle of a piece leans, as the blocks it stands over lean, or null where it is level. */
-  private leanUnder(piece: GameCharacter, gridSize: number): SurfaceLean | null {
+  /**
+   * How the ground under the middle of a piece on the floor leans, where it is drawn, as the blocks it
+   * stands over lean, or null where it is level.
+   */
+  private leanUnder(piece: GameCharacter, gridSize: number, place: DrawnPlace): SurfaceLean | null {
     const middle = pieceCentreOffsetPx(piece, gridSize);
-    const x = piece.location.x + middle;
-    const y = piece.location.y + middle;
+    const x = place.x + middle;
+    const y = place.y + middle;
     return landingLeanAt(this.blocksOver(x, y), gridSize, x, y, this.tableShape().gridType);
   }
 
