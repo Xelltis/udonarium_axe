@@ -52,7 +52,10 @@ export class ModelLibraryComponent {
   protected readonly checked = signal<ReadonlySet<string>>(new Set());
   /** The model shown turning, the last one pressed. */
   protected readonly chosen = signal<string | null>(null);
-  /** What tagging and removing act on: the models ticked that are held here, or the one shown while none is. */
+  /**
+   * What tagging and removing act on: the models ticked that are held here, or, while none is, the
+   * one chosen in the list, still coming or not.
+   */
   protected readonly acted = computed<readonly string[]>(() => {
     this.objectChange.fileVersion();
     const held = (identifier: string | null): identifier is string =>
