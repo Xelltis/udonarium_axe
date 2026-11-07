@@ -74,10 +74,7 @@ describe('PointerDeviceService', () => {
 
   it('stops dragging when the page is hidden', () => {
     service.isDragging = true;
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      value: 'hidden',
-    });
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
 
     document.dispatchEvent(new Event('visibilitychange'));
 
