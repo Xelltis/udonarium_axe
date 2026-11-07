@@ -1,5 +1,3 @@
-import { ModelFile } from '@axe/core/storage/model-file';
-import { ModelStorage } from '@axe/core/storage/model-storage';
 import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -18,19 +16,6 @@ export const MODEL_TAG_ALIAS = 'model-tag';
 export class ModelTag extends ObjectNode {
   @SyncVar() modelIdentifier: string = '';
   @SyncVar() tag: string = '';
-
-  /** Whether every one of the words appears somewhere in the tag. No words at all matches every tag. */
-  containsWords(words: readonly string[]): boolean {
-    return words.every((word) => this.tag.includes(word));
-  }
-
-  /** The models held here whose tag contains every search word, a model with no tag only for no words. */
-  static searchModels(searchWords: readonly string[]): ModelFile[] {
-    return ModelStorage.instance.models.filter((model) => {
-      const tag = ModelTag.get(model.identifier);
-      return tag ? tag.containsWords(searchWords) : searchWords.length === 0;
-    });
-  }
 
   /** The tag of a model, or null when the model has never been tagged. */
   static get(modelIdentifier: string): ModelTag | null {

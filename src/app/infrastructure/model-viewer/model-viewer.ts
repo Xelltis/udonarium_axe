@@ -96,6 +96,7 @@ class Stage implements ModelStage {
   private frame: number | null = null;
   private lastMs: number | null = null;
   private shown = 0;
+  private disposed = false;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -108,7 +109,7 @@ class Stage implements ModelStage {
   async show(url: string): Promise<boolean> {
     const asked = ++this.shown;
     const gltf = await this.reader.read(url).catch(() => null);
-    if (asked !== this.shown) {
+    if (asked !== this.shown || this.disposed) {
       if (gltf) disposeObject(gltf.scene);
       return false;
     }
@@ -145,16 +146,23 @@ class Stage implements ModelStage {
     this.draw();
   }
 
+  /**
+   * Lets go of the model and of the canvas's drawing, the browser's hold on it as well, so that stages
+   * opened and closed one after another do not use up the drawings a page may hold. A model still
+   * coming is let go of as it comes.
+   */
   dispose(): void {
+    this.disposed = true;
     if (this.frame !== null) cancelAnimationFrame(this.frame);
     this.frame = null;
     this.showcase.letGo();
     this.reader.dispose();
     this.renderer.dispose();
+    this.renderer.forceContextLoss();
   }
 
   private loop(): void {
-    if (this.frame !== null || !this.turning) return;
+    if (this.frame !== null || !this.turning || this.disposed) return;
     this.lastMs = null;
     const step = (nowMs: number) => {
       this.frame = null;
@@ -170,7 +178,7 @@ class Stage implements ModelStage {
   }
 
   private draw(): void {
-    this.renderer.render(this.showcase.scene, this.showcase.camera);
+    if (!this.disposed) this.renderer.render(this.showcase.scene, this.showcase.camera);
   }
 }
 
@@ -194,6 +202,7 @@ class Painter implements ModelPainter {
   dispose(): void {
     this.reader.dispose();
     this.renderer.dispose();
+    this.renderer.forceContextLoss();
   }
 
   private async paintNow(url: string, sizePx: number): Promise<Blob | null> {

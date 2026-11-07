@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
+import { modelNameOf } from '@axe/core/storage/model-file';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { type ObjectArrangement, type ObjectPaintSpec } from '@axe/domain/tabletop/function-paint';
 import {
@@ -120,7 +121,7 @@ export class MapEditorObjectPaintComponent {
     const held = this.modelStorage.get(model);
     this.setObjectPaint({
       model,
-      name: (held?.name ?? '').replace(/\.glb$/i, ''),
+      name: modelNameOf(held?.name ?? ''),
       size: 1,
       height: 1,
       blocksMove: true,

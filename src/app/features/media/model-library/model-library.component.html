@@ -87,21 +87,21 @@
         type="button"
         class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-text hover:border-ui-accent inline-flex cursor-pointer items-center gap-1 border border-solid px-2.5 py-1 text-[12px] whitespace-nowrap disabled:cursor-default disabled:opacity-40 [&_.material-icons]:text-[14px]!"
         data-testid="model-library-tag-checked"
-        [disabled]="checked().size === 0"
-        (click)="tagChecked()"
+        [disabled]="acted().length === 0"
+        (click)="tagActed()"
       >
         <i class="material-icons">label</i>
-        {{ 'feature.media.modelLibrary.tagChecked' | transloco }}
+        {{ 'feature.media.modelLibrary.tagActed' | transloco: { count: acted().length } }}
       </button>
       @if (removable().length > 0) {
         <button
           type="button"
           class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:text-ui-danger hover:border-ui-danger inline-flex cursor-pointer items-center gap-1 border border-solid px-2.5 py-1 text-[12px] whitespace-nowrap [&_.material-icons]:text-[14px]!"
           data-testid="model-library-remove"
-          (click)="removeChecked()"
+          (click)="removeActed()"
         >
           <i class="material-icons">delete</i>
-          {{ 'feature.media.modelLibrary.remove' | transloco }}
+          {{ 'feature.media.modelLibrary.remove' | transloco: { count: removable().length } }}
         </button>
       }
     </div>
@@ -112,35 +112,52 @@
     data-testid="model-library-list"
   >
     @for (entry of models(); track entry.model.identifier) {
-      <button
-        type="button"
-        class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:border-ui-accent relative flex min-w-0 cursor-pointer flex-col items-center gap-1 border border-solid p-1.5 select-none"
-        [class.border-ui-accent!]="checked().has(entry.model.identifier)"
-        [class.bg-ui-accent-bg!]="checked().has(entry.model.identifier)"
-        [attr.aria-pressed]="checked().has(entry.model.identifier)"
-        [attr.aria-label]="nameOf(entry.model)"
-        [draggable]="canEdit() && entry.model.isReady"
+      <div
+        class="relative min-w-0"
         data-testid="model-library-model"
         [attr.data-model-id]="entry.model.identifier"
-        (dragstart)="startDrag($event, entry.model)"
-        (click)="toggle(entry.model.identifier)"
+        [attr.aria-label]="nameOf(entry.model)"
+        role="group"
       >
-        @if (pictureOf(entry.model); as picture) {
-          <img class="block size-22 rounded-xs object-contain" [src]="picture" alt="" draggable="false" />
-        } @else {
-          <span class="flex size-22 items-center justify-center opacity-45" aria-hidden="true">
-            <i class="material-icons text-[30px]!">{{ entry.model.isReady ? 'view_in_ar' : 'hourglass_empty' }}</i>
-          </span>
-        }
-        <span
-          class="block max-w-full truncate text-center text-[11px] leading-[1.3]"
-          [appTextTooltip]="nameOf(entry.model)"
-          >{{ nameOf(entry.model) }}</span
+        <button
+          type="button"
+          class="bg-ui-elevated border-ui-border-panel text-ui-muted rounded-ui-sm hover:bg-ui-hover hover:border-ui-accent flex w-full min-w-0 cursor-pointer flex-col items-center gap-1 border border-solid p-1.5 select-none"
+          [class.border-ui-accent!]="chosen() === entry.model.identifier || checked().has(entry.model.identifier)"
+          [class.bg-ui-accent-bg!]="checked().has(entry.model.identifier)"
+          [attr.aria-pressed]="chosen() === entry.model.identifier"
+          [attr.aria-label]="'feature.media.modelLibrary.show' | transloco: { name: nameOf(entry.model) }"
+          [draggable]="canEdit() && entry.model.isReady"
+          data-testid="model-library-show"
+          (dragstart)="startDrag($event, entry.model)"
+          (click)="choose(entry.model.identifier)"
         >
-        @if (entry.tag) {
-          <span class="text-ui-dim max-w-full truncate text-[10px]">{{ entry.tag }}</span>
+          @if (pictureOf(entry.model); as picture) {
+            <img class="block size-22 rounded-xs object-contain" [src]="picture" alt="" draggable="false" />
+          } @else {
+            <span class="flex size-22 items-center justify-center opacity-45" aria-hidden="true">
+              <i class="material-icons text-[30px]!">{{ entry.model.isReady ? 'view_in_ar' : 'hourglass_empty' }}</i>
+            </span>
+          }
+          <span
+            class="block max-w-full truncate text-center text-[11px] leading-[1.3]"
+            [appTextTooltip]="nameOf(entry.model)"
+            >{{ nameOf(entry.model) }}</span
+          >
+          @if (entry.tag) {
+            <span class="text-ui-dim max-w-full truncate text-[10px]">{{ entry.tag }}</span>
+          }
+        </button>
+        @if (canEdit()) {
+          <input
+            type="checkbox"
+            class="absolute top-1.5 left-1.5 size-3.5 cursor-pointer [accent-color:var(--ui-accent)]"
+            data-testid="model-library-tick"
+            [attr.aria-label]="'feature.media.modelLibrary.tick' | transloco: { name: nameOf(entry.model) }"
+            [checked]="checked().has(entry.model.identifier)"
+            (change)="toggle(entry.model.identifier)"
+          />
         }
-      </button>
+      </div>
     }
     @if (models().length === 0) {
       <div class="text-ui-dim col-span-full flex flex-col items-center justify-center gap-2 px-5 py-8 text-center">

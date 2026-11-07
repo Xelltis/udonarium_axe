@@ -6,6 +6,7 @@ import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { Terrain } from '@axe/domain/tabletop/terrain';
 import { MODEL_DRAG_TYPE } from '@axe/features/media/model-library/attach-model';
 import { ModelDropEventHandlerService } from '@axe/features/media/model-library/model-drop-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -81,6 +82,18 @@ describe('ModelDropEventHandlerService', () => {
 
     expect(piece.modelIdentifier).toBe(modelId);
     expect(made).toEqual([]);
+  });
+
+  it('leaves a block locked in place as it is, and makes a piece drawn as the model on it', () => {
+    const wall = Terrain.create('wall', 1, 1, 2, '', '');
+    wall.isLocked = true;
+    pressed = { target: { id: wall.identifier } };
+
+    drop();
+
+    expect(wall.modelIdentifier).toBe('');
+    expect(made.map((piece) => piece.modelIdentifier)).toEqual([modelId]);
+    ObjectStore.instance.remove(wall);
   });
 
   it('makes a piece drawn as the model, named after it, where it lands on nothing', () => {

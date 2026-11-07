@@ -1055,11 +1055,13 @@
         "dropHere": "Drop .glb files here (or click to choose)",
         "maxSize": "Up to 10 MB a file",
         "newTag": "Tag name",
-        "tagChecked": "Tag the ticked ones",
-        "remove": "Delete from the room",
+        "remove": "Delete {{count}} from the room",
         "none": "The room has no 3D models",
         "dragHint": "Drag a model onto a piece or a block on the table to draw it as the model. Drop it where there is nothing to make a piece of it.",
-        "made": "Made a piece of “{{name}}”"
+        "made": "Made a piece of “{{name}}”",
+        "show": "Show “{{name}}”",
+        "tick": "Tick “{{name}}”",
+        "tagActed": "Tag {{count}}"
       }
     },
     "card": {

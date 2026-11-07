@@ -8,7 +8,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
-import { type ModelFile } from '@axe/core/storage/model-file';
+import { type ModelFile, modelNameOf } from '@axe/core/storage/model-file';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { MODEL_TAG_ALIAS, ModelTag } from '@axe/domain/media/model-tag';
@@ -46,13 +46,19 @@ export class ModelLibraryComponent {
   private readonly pictures = inject(ModelPictureService);
   private readonly t = inject(TRANSLATE_FN);
 
-  protected readonly dragType = MODEL_DRAG_TYPE;
   /** The tag the list shows the models of, or every model for none. */
   protected readonly shownTag = signal(EVERY_TAG);
-  /** The models ticked for what is done to several at once. */
+  /** The models ticked, for what is done to several at once. */
   protected readonly checked = signal<ReadonlySet<string>>(new Set());
   /** The model shown turning, the last one pressed. */
   protected readonly chosen = signal<string | null>(null);
+  /** What tagging and removing act on: the models ticked, or the one shown while none is. */
+  protected readonly acted = computed<readonly string[]>(() => {
+    const checked = this.checked();
+    if (checked.size > 0) return [...checked];
+    const chosen = this.chosen();
+    return chosen ? [chosen] : [];
+  });
   protected readonly newTag = signal('');
 
   protected readonly canEdit = computed(() => this.rolePermission.canEditTabletop());
@@ -62,7 +68,11 @@ export class ModelLibraryComponent {
     this.objectChange.fileVersion();
     this.objectChange.collectionOf(MODEL_TAG_ALIAS)();
     return this.modelStorage.models
-      .map((model) => ({ model, tag: ModelTag.get(model.identifier)?.tag ?? '' }))
+      .map((model) => {
+        const tag = ModelTag.get(model.identifier);
+        if (tag) this.objectChange.versionOf(tag.identifier)();
+        return { model, tag: tag?.tag ?? '' };
+      })
       .sort((a, b) => a.model.name.localeCompare(b.model.name));
   });
 
@@ -85,11 +95,11 @@ export class ModelLibraryComponent {
     return model?.isReady ? model : null;
   });
 
-  /** Which of the ticked models this seat may remove from the room. */
+  /** Which of the models acted on this seat may remove from the room. */
   protected readonly removable = computed(() => {
     this.ownership.track();
     this.rolePermission.canEditTabletop();
-    return this.assetRemoval.removable('model', [...this.checked()]);
+    return this.assetRemoval.removable('model', this.acted());
   });
 
   /** The pieces and blocks chosen on the table that a model can be put on. */
@@ -106,15 +116,20 @@ export class ModelLibraryComponent {
   }
 
   protected nameOf(model: ModelFile): string {
-    return model.name.replace(/\.glb$/i, '');
+    return modelNameOf(model.name);
   }
 
+  /** Shows a model turning, ticking nothing. */
+  protected choose(identifier: string): void {
+    this.chosen.set(identifier);
+  }
+
+  /** Ticks a model, or unticks it, for what is done to several at once. */
   protected toggle(identifier: string): void {
     const next = new Set(this.checked());
     if (next.has(identifier)) next.delete(identifier);
     else next.add(identifier);
     this.checked.set(next);
-    this.chosen.set(identifier);
   }
 
   protected startDrag(event: DragEvent, model: ModelFile): void {
@@ -132,10 +147,10 @@ export class ModelLibraryComponent {
     if (models.length > 0) this.chosen.set(models[0]);
   }
 
-  /** Tags the ticked models with the tag typed, or untags them for an empty one. */
-  protected tagChecked(): void {
+  /** Tags the models acted on with the tag typed, or untags them for an empty one. */
+  protected tagActed(): void {
     const tag = this.newTag().trim();
-    for (const identifier of this.checked()) ModelTag.tagWith(identifier, tag);
+    for (const identifier of this.acted()) ModelTag.tagWith(identifier, tag);
   }
 
   /** Puts the model shown on every piece and block chosen on the table. */
@@ -149,9 +164,9 @@ export class ModelLibraryComponent {
     );
   }
 
-  /** Removes the ticked models from the room, after asking. */
-  protected async removeChecked(): Promise<void> {
-    const removed = await this.assetRemoval.removeAfterAsking('model', [...this.checked()]);
+  /** Removes the models acted on from the room, after asking. */
+  protected async removeActed(): Promise<void> {
+    const removed = await this.assetRemoval.removeAfterAsking('model', this.acted());
     if (removed > 0) this.checked.set(new Set());
   }
 }

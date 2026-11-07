@@ -115,6 +115,11 @@ export class ModelFile {
   }
 }
 
+/** The name a model is shown by: the file name it was added with, without its `.glb`. */
+export function modelNameOf(fileName: string): string {
+  return fileName.replace(/\.glb$/i, '');
+}
+
 /**
  * Whether a model's bytes are read from where they are held here, an object URL or a data URL, rather
  * than from anywhere else, which nothing is ever fetched from.

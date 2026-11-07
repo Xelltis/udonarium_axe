@@ -4,16 +4,20 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
+import { modelNameOf } from '@axe/core/storage/model-file';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
+import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { Terrain } from '@axe/domain/tabletop/terrain';
 import { attachModel, MODEL_DRAG_TYPE, takesModel } from '@axe/features/media/model-library/attach-model';
-import { isTabletopDropTarget } from '@axe/ui/tabletop/table-drop-target';
+import { clampToTable, isTabletopDropTarget } from '@axe/ui/tabletop/table-drop-target';
 
 /**
  * Puts a model dragged from the list of models where it is let go of on the table: on the piece or
- * block it lands on, drawn as the model from then on, or, where it lands on neither, as a new piece
- * drawn as it. A seat that may not change the table puts it nowhere.
+ * the block it lands on, drawn as the model from then on, or, where it lands on neither or on a block
+ * locked in place, as a new piece drawn as it, made on the table. A seat that may not change the
+ * table puts it nowhere.
  */
 @Injectable({ providedIn: 'root' })
 export class ModelDropEventHandlerService {
@@ -22,6 +26,7 @@ export class ModelDropEventHandlerService {
   private readonly tabletopAction = inject(TabletopActionService);
   private readonly objectStore = inject(ObjectStore);
   private readonly modelStorage = inject(ModelStorage);
+  private readonly tableSelecter = inject(TableSelecter);
   private readonly snackbar = inject(SnackbarService);
   private readonly t = inject(TRANSLATE_FN);
 
@@ -44,19 +49,16 @@ export class ModelDropEventHandlerService {
     const model = this.modelStorage.get(identifier);
     if (!model?.isReady || !isTabletopDropTarget(document.elementFromPoint(event.clientX, event.clientY))) return;
     event.preventDefault();
-    const name = model.name.replace(/\.glb$/i, '');
+    const name = modelNameOf(model.name);
     const hit = this.tablePick.pressedAt(event.clientX, event.clientY);
     const target = hit ? this.objectStore.get(hit.target.id) : null;
-    if (takesModel(target)) {
+    if (takesModel(target) && !(target instanceof Terrain && target.isLocked)) {
       attachModel(target, identifier);
       this.snackbar.show(this.t('feature.media.modelLibrary.attached', { count: 1, name }));
       return;
     }
-    const piece = this.tabletopAction.createGameCharacterWith(
-      this.tablePick.landingAt(event.clientX, event.clientY),
-      name,
-      ''
-    );
+    const at = clampToTable(this.tablePick.landingAt(event.clientX, event.clientY), this.tableSelecter.viewTable);
+    const piece = this.tabletopAction.createGameCharacterWith(at, name, '');
     attachModel(piece, identifier);
     SoundEffect.play(PresetSound.piecePut);
     this.snackbar.show(this.t('feature.media.modelLibrary.made', { name }));

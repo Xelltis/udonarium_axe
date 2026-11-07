@@ -75,16 +75,18 @@ test.describe('the 3D models of the room as media', () => {
     await expect(library.getByTestId('model-library-chosen')).toBeVisible();
     await expect(library.getByTestId('model-stage-state')).toHaveCount(0, { timeout: 20000 });
 
-    await statue.click();
+    await statue.getByTestId('model-library-show').click();
     await library.getByTestId('model-library-new-tag').fill('石像');
     await library.getByTestId('model-library-tag-checked').click();
     await library.getByTestId('model-library-tag').filter({ hasText: '石像' }).click();
     await expect(library.getByTestId('model-library-model')).toHaveCount(1);
 
     const before = await modelsDrawn(page);
+    const pieces = await page.locator('game-character').count();
     const modelId = (await statue.getAttribute('data-model-id'))!;
     await dropOnPiece(page, modelId, 'キャラクターB');
     await expect.poll(() => modelsDrawn(page), { timeout: 20000 }).toBeGreaterThan(before);
+    await expect(page.locator('game-character')).toHaveCount(pieces);
 
     await library.getByTestId('model-library-remove').click();
     await page.locator('confirm-dialog').getByRole('button', { name: '削除する' }).click();

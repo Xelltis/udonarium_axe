@@ -19,7 +19,7 @@ import { downscaleImageBlob } from '@axe/core/storage/image-downscale';
 import { ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
-import { MODEL_TYPE, type ModelFile } from '@axe/core/storage/model-file';
+import { MODEL_TYPE, type ModelFile, modelNameOf } from '@axe/core/storage/model-file';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { createZipBlob, ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -247,11 +247,10 @@ export class SaveDataService {
 
     const audios: AudioFile[] = this.audioStorage.audios.filter((a) => !a.isHidden);
     if (everything) files.push(...audioArchiveFiles(audios, files));
-    const models = (everything ? this.modelStorage.models : this.searchModelFiles(roomXml)).filter(
-      (model) => !isBundledModel(model.identifier)
-    );
+    const namedModels = everything ? this.modelStorage.models : this.searchModelFiles(roomXml);
+    const models = namedModels.filter((model) => !isBundledModel(model.identifier));
     files.push(...modelArchiveFiles(models, files));
-    const modelTagXml = this.convertToXml(ModelTagList.create(models), pretty);
+    const modelTagXml = this.convertToXml(ModelTagList.create(namedModels), pretty);
     files.push(new File([modelTagXml], 'modeltag.xml', { type: 'text/plain' }));
     const audioTagXml = this.convertToXml(AudioTagList.create(audios), pretty);
     files.push(new File([audioTagXml], 'audiotag.xml', { type: 'text/plain' }));
@@ -638,7 +637,7 @@ function modelArchiveFiles(models: readonly ModelFile[], alongside: readonly Fil
   const files: File[] = [];
   for (const model of models) {
     if (!model.blob) continue;
-    const stem = model.name.replace(/\.glb$/i, '').trim() || model.identifier;
+    const stem = modelNameOf(model.name).trim() || model.identifier;
     let name = `${stem}.glb`;
     for (let copy = 2; taken.has(name.toLowerCase()); copy++) name = `${stem} (${copy}).glb`;
     taken.add(name.toLowerCase());

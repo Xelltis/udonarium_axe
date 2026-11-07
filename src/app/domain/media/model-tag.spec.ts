@@ -36,21 +36,6 @@ describe('ModelTag', () => {
     expect(made.tag).toBe('彫像');
   });
 
-  it('finds the models held here by every word of their tag, and the untagged ones only for no words', () => {
-    held('oak');
-    held('chair');
-    held('rock');
-    ModelTag.tagWith('oak', '自然 木');
-    ModelTag.tagWith('chair', '家具');
-
-    const names = (words: string[]) => ModelTag.searchModels(words).map((model) => model.identifier);
-
-    expect(names(['木'])).toEqual(['oak']);
-    expect(names(['自然', '木'])).toEqual(['oak']);
-    expect(names(['家具', '木'])).toEqual([]);
-    expect(names([]).sort()).toEqual(['chair', 'oak', 'rock']);
-  });
-
   it('comes back from a saved room onto the model’s own tag, the copy read let go of', () => {
     const oak = held('oak');
     ModelTag.tagWith('oak', '自然');

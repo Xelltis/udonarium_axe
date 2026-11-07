@@ -2,6 +2,7 @@ import {
   afterNextRender,
   ChangeDetectionStrategy,
   Component,
+  computed,
   DestroyRef,
   effect,
   ElementRef,
@@ -30,7 +31,17 @@ import { TranslocoModule } from '@jsverse/transloco';
 export class ModelStageComponent {
   /** The URL of the model's bytes held here, or empty for none. */
   readonly url = input('');
-  protected readonly state = signal<'loading' | 'shown' | 'failed'>('loading');
+  /** Whether nothing can draw the model here, as where the browser cannot draw on the canvas. */
+  private readonly cannotDraw = signal(false);
+  /** The model last shown, and whether it could be. */
+  private readonly settled = signal<{ readonly url: string; readonly shown: boolean } | null>(null);
+  /** Whether the model asked for is still coming, is shown, or cannot be shown. */
+  protected readonly state = computed<'loading' | 'shown' | 'failed'>(() => {
+    if (this.cannotDraw()) return 'failed';
+    const settled = this.settled();
+    if (settled?.url !== this.url()) return 'loading';
+    return settled.shown ? 'shown' : 'failed';
+  });
   private readonly canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
   private readonly stage = signal<ModelStage | null>(null);
   private readonly loadViewer = inject(MODEL_VIEWER_LOADER);
@@ -42,11 +53,7 @@ export class ModelStageComponent {
     effect(() => {
       const stage = this.stage();
       const url = this.url();
-      if (!stage) return;
-      untracked(() => this.state.set('loading'));
-      void stage.show(url).then((shown) => {
-        if (untracked(this.url) === url) this.state.set(shown ? 'shown' : 'failed');
-      });
+      if (stage) void stage.show(url).then((shown) => this.settled.set({ url, shown }));
     });
     destroyRef.onDestroy(() => untracked(this.stage)?.dispose());
   }
@@ -58,7 +65,7 @@ export class ModelStageComponent {
     const canvas = this.canvas().nativeElement;
     const stage = viewer?.createModelStage(canvas) ?? null;
     if (!stage) {
-      this.state.set('failed');
+      this.cannotDraw.set(true);
       return;
     }
     stage.setTurning(!(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false));
