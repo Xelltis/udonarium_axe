@@ -121,6 +121,14 @@ Comment: 町の建物を組む部品（1マス幅・1階分の外壁、1マス�
  ライセンスのページ https://docs.ambientcg.com/license/ が、ambientCGのすべての素材を
  CC0 1.0 Universalで提供すると示す。
 
+Files: images/model-pictures/*
+Copyright: 2026 SavageChieftain / Xelltis（形）
+ ambientCG (ambientcg.com)（樹皮・葉・岩・板・金属・革・布・漆喰・コンクリートの写真）
+License: MIT and CC0-1.0
+Comment: models/nature/・models/props/・models/settlement/・models/town/の同じ名前のモデルを、
+ three.jsで真上（*.top.webp）と斜め上（*.icon.webp）から背景なしに描いたもの。マップエディターで
+ モデルを示すのに使う。帰属と許諾はもとのモデルと同じ（各モデルの項を参照）。
+
 Files: images/ground/*
 Copyright: ambientCG (ambientcg.com)
 License: CC0-1.0

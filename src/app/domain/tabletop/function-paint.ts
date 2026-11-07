@@ -6,6 +6,7 @@ import {
   DEFAULT_HAZARD_ELEMENT,
   DEFAULT_HAZARD_KIND,
 } from '@axe/domain/tabletop/hazard-presets';
+import { placeableModelOf } from '@axe/domain/tabletop/placeable-models';
 import {
   asMoveCostExtra,
   DEFAULT_MOVE_COST_COLOR,
@@ -44,7 +45,7 @@ import {
  * editor: a cell closed to walking is closed however it came to be.
  */
 
-export const MAP_FUNCTION_ROLES = ['moveCost', 'hazard', 'terrain', 'mask', 'trigger'] as const;
+export const MAP_FUNCTION_ROLES = ['moveCost', 'hazard', 'terrain', 'object', 'mask', 'trigger'] as const;
 
 export type MapFunctionRole = (typeof MAP_FUNCTION_ROLES)[number];
 
@@ -154,6 +155,43 @@ export interface TerrainPaintSpec {
   modelTurn: string;
   /** Null where the block sits square on its cells, which is where the brush put it. */
   placement: BlockPlacement | null;
+}
+
+/** How the 3D objects of a brush are set out over the cells it paints. */
+export const OBJECT_ARRANGEMENTS = ['scatter', 'cell'] as const;
+
+/**
+ * One in the middle of every cell, all turned alike, as furniture, fences and crops stand; or
+ * scattered, a share of the cells taking one each, a little off the middle and turned and sized a
+ * little apart, as trees and rocks stand.
+ */
+export type ObjectArrangement = (typeof OBJECT_ARRANGEMENTS)[number];
+
+/** Everything a brush that sets 3D objects out is: one model, and how it stands wherever it is painted. */
+export interface ObjectPaintSpec {
+  /** A bundled model's name, or the identifier of one held in the room; empty lays nothing. */
+  model: string;
+  /** What each is called on the table. */
+  name: string;
+  arrangement: ObjectArrangement;
+  /** The share of the cells painted that take a scattered one. */
+  density: number;
+  /** How many cells across each stands. */
+  size: number;
+  /** How tall each stands, in cells, for a model held in the room, whose proportions are not known here. */
+  height: number;
+  /** How far a scattered one's size strays either way, as a share of it. */
+  sizeJitter: number;
+  /** How far each is turned, in degrees clockwise. */
+  turn: number;
+  /** Whether each scattered one is turned any way at all, rather than as `turn` says. */
+  turnRandom: boolean;
+  /** Whether a piece walks round each rather than over it. */
+  blocksMove: boolean;
+  /** Whether nobody sees past one; only one that stands in the way can. */
+  blocksSight: boolean;
+  /** What the scattering is drawn from, so that the same cells painted set them out the same way. */
+  seed: number;
 }
 
 export interface TerrainLightSpec {
@@ -303,9 +341,13 @@ export interface FunctionSpec {
   moveCost: MoveCostPaintSpec;
   hazard: HazardPaintSpec;
   terrain: TerrainPaintSpec;
+  object: ObjectPaintSpec;
   mask: MaskPaintSpec;
   trigger: TriggerPaintSpec;
 }
+
+/** The model a brush that sets 3D objects out starts with. */
+const DEFAULT_OBJECT_MODEL = 'tree_oak';
 
 export const NO_FACE_IMAGES: TerrainFaceImages = {
   wall: '',
@@ -387,6 +429,20 @@ export const DEFAULT_FUNCTION_SPEC: FunctionSpec = {
     modelTurn: '',
     placement: null,
   },
+  object: {
+    model: DEFAULT_OBJECT_MODEL,
+    name: '',
+    arrangement: 'scatter',
+    density: 0.5,
+    size: placeableModelOf(DEFAULT_OBJECT_MODEL)?.size ?? 1,
+    height: 1,
+    sizeJitter: 0.2,
+    turn: 0,
+    turnRandom: true,
+    blocksMove: true,
+    blocksSight: true,
+    seed: 1,
+  },
   mask: {
     name: '',
     color: '#555555',
@@ -461,6 +517,21 @@ function textIn(held: Record<string, unknown>, key: string, fallback: string): s
   return typeof held[key] === 'string' ? (held[key] as string) : fallback;
 }
 
+/** Reads how a brush's 3D objects are set out, scattering them for anything unknown. */
+export function asObjectArrangement(value: unknown): ObjectArrangement {
+  return (OBJECT_ARRANGEMENTS as readonly unknown[]).includes(value) ? (value as ObjectArrangement) : 'scatter';
+}
+
+/**
+ * A number read from loose saved data, or the fallback where there is none: nothing written and an
+ * empty text are no number, which reading them as nought would make one.
+ */
+function amountIn(held: Record<string, unknown>, key: string, fallback: number, least: number, most: number): number {
+  const raw = held[key];
+  if (raw === null || raw === undefined || (typeof raw === 'string' && raw.trim() === '')) return fallback;
+  return countIn(held, key, fallback, least, most);
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
@@ -507,6 +578,7 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
   const moveCost = asRecord(held['moveCost']);
   const hazard = asRecord(held['hazard']);
   const terrain = asRecord(held['terrain']);
+  const object = asRecord(held['object']);
   const mask = asRecord(held['mask']);
   const trigger = asRecord(held['trigger']);
   const fallback = DEFAULT_FUNCTION_SPEC;
@@ -558,6 +630,20 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
       modelScale: textIn(terrain, 'modelScale', fallback.terrain.modelScale),
       modelTurn: textIn(terrain, 'modelTurn', fallback.terrain.modelTurn),
       placement: sanitizePlacement(terrain['placement']),
+    },
+    object: {
+      model: textIn(object, 'model', fallback.object.model),
+      name: textIn(object, 'name', fallback.object.name),
+      arrangement: asObjectArrangement(object['arrangement']),
+      density: amountIn(object, 'density', fallback.object.density, 0.05, 1),
+      size: amountIn(object, 'size', fallback.object.size, 0.1, 20),
+      height: amountIn(object, 'height', fallback.object.height, 0, 20),
+      sizeJitter: amountIn(object, 'sizeJitter', fallback.object.sizeJitter, 0, 0.5),
+      turn: amountIn(object, 'turn', fallback.object.turn, 0, 359),
+      turnRandom: flagIn(object, 'turnRandom', fallback.object.turnRandom),
+      blocksMove: flagIn(object, 'blocksMove', fallback.object.blocksMove),
+      blocksSight: flagIn(object, 'blocksSight', fallback.object.blocksSight),
+      seed: Math.round(amountIn(object, 'seed', fallback.object.seed, 0, 2 ** 31 - 1)),
     },
     mask: {
       name: textIn(mask, 'name', fallback.mask.name),

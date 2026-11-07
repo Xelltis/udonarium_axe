@@ -62,14 +62,14 @@ describe('MapEditorFilesService', () => {
     vi.spyOn(paint, 'snapshot').mockReturnValue(null);
 
     expect(await files.bringInTable(() => Promise.resolve(true))).toBe('noTable');
-    expect(files.applyFunctions()).toBe('noTable');
+    await expect(files.applyFunctions()).resolves.toBe('noTable');
   });
 
-  it('lays nothing painted on a table of another size or grid', () => {
+  it('lays nothing painted on a table of another size or grid', async () => {
     vi.spyOn(paint, 'snapshot').mockReturnValue(table({ cols: 12 }));
     const apply = vi.spyOn(paint, 'apply');
 
-    expect(files.applyFunctions()).toBe('gridMismatch');
+    await expect(files.applyFunctions()).resolves.toBe('gridMismatch');
     expect(apply).not.toHaveBeenCalled();
   });
 });

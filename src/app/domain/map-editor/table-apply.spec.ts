@@ -667,3 +667,56 @@ describe('painting dangerous ground', () => {
     expect(again.trigger).toEqual({ add: [], remove: [] });
   });
 });
+
+describe('painting 3D objects', () => {
+  /** A layer of objects of a model, set out one to a cell so that each cell painted takes one. */
+  function objectLayer(cells: string[], model = 'prop_crate'): FunctionLayer {
+    return layerOf('object', cells, {
+      spec: {
+        ...DEFAULT_FUNCTION_SPEC,
+        object: { ...DEFAULT_FUNCTION_SPEC.object, model, arrangement: 'cell', size: 1, turn: 0 },
+      },
+    });
+  }
+
+  const held = (model: string) => `held-${model}`;
+
+  it('lays one object for each cell, drawn as the model the room holds it under', () => {
+    const plan = planFunctionPaint(sceneWith(objectLayer(['1,1', '2,1'])), snapshot(), held)!;
+
+    expect(plan.terrain.add).toHaveLength(2);
+    expect(plan.terrain.add.map((block) => block.spec.model)).toEqual(['held-prop_crate', 'held-prop_crate']);
+    expect(plan.terrain.remove).toEqual([]);
+  });
+
+  it('leaves the walls of a table standing where the scene paints objects alone, and takes away objects no longer painted', () => {
+    const wall = terrainBlock({ col: 5, row: 5, width: 2, height: 1 });
+    const scene = sceneWith(objectLayer(['1,1']));
+    const laid = planFunctionPaint(scene, snapshot(), held)!.terrain.add;
+    const stray = { ...laid[0], col: 8, row: 6, spec: { ...laid[0].spec, placement: null } };
+
+    const plan = planFunctionPaint(scene, snapshot({ terrainBlocks: [wall, ...laid, stray] }), held)!;
+
+    expect(plan.terrain.add).toEqual([]);
+    expect(plan.terrain.remove).toEqual([stray]);
+  });
+
+  it('answers for every block on the table where it paints walls as well', () => {
+    const wall = terrainBlock({ col: 5, row: 5, width: 2, height: 1 });
+
+    const plan = planFunctionPaint(
+      sceneWith(layerOf('terrain', []), objectLayer(['1,1'])),
+      snapshot({ terrainBlocks: [wall] }),
+      held
+    )!;
+
+    expect(plan.terrain.remove).toEqual([wall]);
+    expect(plan.terrain.add).toHaveLength(1);
+  });
+
+  it('lays nothing for a model the room does not hold', () => {
+    const plan = planFunctionPaint(sceneWith(objectLayer(['1,1'])), snapshot(), () => '')!;
+
+    expect(plan.terrain).toEqual({ add: [], remove: [] });
+  });
+});

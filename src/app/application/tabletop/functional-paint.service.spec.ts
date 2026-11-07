@@ -2,10 +2,12 @@ import { TestBed } from '@angular/core/testing';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
 import { blockedCellKeysOn, FunctionalPaintService } from '@axe/application/tabletop/functional-paint.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { objectBlocksOf } from '@axe/domain/map-editor/object-placements';
 import { CellRect, rectKey } from '@axe/domain/tabletop/cell-rectangles';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import {
+  blockChange,
   DEFAULT_FUNCTION_SPEC,
   FunctionPaintPlan,
   MaskBlock,
@@ -300,6 +302,23 @@ describe('FunctionalPaintService', () => {
       expect(laid.location.x).toBeCloseTo(middle.x - table.gridSize / 2, 5);
       expect(laid.location.y).toBeCloseTo(middle.y - table.gridSize / 2, 5);
       expect(service.snapshot()!.terrainBlocks.map(rectKey)).toEqual(['0,3,1,1']);
+    });
+
+    it('lays the 3D objects a brush sets out drawn as their model, and finds them already there when laid again', () => {
+      for (const gridType of [GridType.SQUARE, GridType.HEX_VERTICAL]) {
+        for (const object of terrainOn()) object.destroy();
+        table.gridType = gridType;
+        const painted = ['1,1', '2,1', '3,2', '4,4', '5,5'];
+        const scatter = { ...DEFAULT_FUNCTION_SPEC.object, density: 1, seed: 9 };
+        const blocks = objectBlocksOf(painted, scatter, grid(), 'held-oak');
+
+        service.apply(plan({ terrain: { add: blocks, remove: [] } }));
+
+        const laid = terrainOn();
+        expect(laid).toHaveLength(painted.length);
+        expect(laid.map((object) => object.modelIdentifier)).toEqual(new Array(painted.length).fill('held-oak'));
+        expect(blockChange(blocks, service.snapshot()!.terrainBlocks)).toEqual({ add: [], remove: [] });
+      }
     });
 
     it('reads the model a wall is drawn as back with it, so laying it again keeps it', () => {

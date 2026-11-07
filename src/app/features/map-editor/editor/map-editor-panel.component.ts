@@ -1414,10 +1414,15 @@ export class MapEditorPanelComponent {
     return result === 'done';
   }
 
-  protected applyFunctionsOnly(): void {
+  protected async applyFunctionsOnly(): Promise<void> {
     if (this.busy()) return;
-    if (this.reportFunctionApply(this.files.applyFunctions())) {
-      this.notice.show(this.t('feature.mapEditor.actions.applyFunctionsDone'));
+    this.busy.set(true);
+    try {
+      if (this.reportFunctionApply(await this.files.applyFunctions())) {
+        this.notice.show(this.t('feature.mapEditor.actions.applyFunctionsDone'));
+      }
+    } finally {
+      this.busy.set(false);
     }
   }
 

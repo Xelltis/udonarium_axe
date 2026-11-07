@@ -195,6 +195,65 @@ describe('renderScene', () => {
     });
   });
 
+  describe('the 3D objects painted', () => {
+    function objects(model: string, name = ''): FunctionLayer {
+      return {
+        id: 'objects',
+        kind: 'function',
+        name: 'objects',
+        visible: true,
+        locked: false,
+        opacity: 1,
+        role: 'object',
+        cells: { '0,0': true, '1,1': true },
+        spec: {
+          ...DEFAULT_FUNCTION_SPEC,
+          object: { ...DEFAULT_FUNCTION_SPEC.object, model, name, arrangement: 'cell', size: 1, turn: 0 },
+        },
+      };
+    }
+
+    it('draws a bundled model as it is seen from above, once where each comes to stand', () => {
+      const ctx = createMockCtx();
+      const top = { width: 64, height: 64 } as unknown as CanvasImageSource;
+      const asked: string[] = [];
+
+      renderScene(
+        ctx,
+        sceneWith(objects('prop_crate')),
+        {
+          ...helpers,
+          modelTop: (model) => {
+            asked.push(model);
+            return top;
+          },
+        },
+        { drawGrid: false, drawFunctionLayers: true }
+      );
+
+      const drawn = ctx.calls.filter((c) => c.method === 'drawImage' && c.args[0] === top);
+      expect(drawn).toHaveLength(2);
+      expect(asked).toContain('prop_crate');
+    });
+
+    it('outlines one held in the room, which has no picture, with its name', () => {
+      const ctx = createMockCtx();
+
+      renderScene(ctx, sceneWith(objects('held-statue', '像')), helpers, { drawGrid: false, drawFunctionLayers: true });
+
+      expect(ctx.counts('strokeRect')).toBe(2);
+      expect(ctx.calls.filter((c) => c.method === 'fillText' && c.args[0] === '像')).toHaveLength(2);
+    });
+
+    it('leaves them out of the picture unless the editor asks to see its workings', () => {
+      const ctx = createMockCtx();
+
+      renderScene(ctx, sceneWith(objects('held-statue', '像')), helpers, { drawGrid: false });
+
+      expect(ctx.counts('strokeRect')).toBe(0);
+    });
+  });
+
   describe('the relief of the ground', () => {
     function relief(): ReliefLayer {
       const layer = createLayer('relief', 'relief') as ReliefLayer;

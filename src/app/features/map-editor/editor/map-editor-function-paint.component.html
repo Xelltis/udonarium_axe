@@ -29,6 +29,18 @@
   </label>
 
   @if (state.functionRole() === 'terrain') {
+    @if (state.functionSpec().terrain.model) {
+      <div class="flex items-center justify-between gap-2" data-testid="terrain-model">
+        <span class="text-ui-muted text-[11px]">{{ 'feature.mapEditor.function.terrainModel' | transloco }}</span>
+        <button
+          type="button"
+          class="bg-ui-input hover:bg-ui-hover rounded-ui-sm px-2 py-0.5 text-[11px]"
+          (click)="setTerrainPaint({ model: '', modelScale: '', modelTurn: '' })"
+        >
+          {{ 'feature.mapEditor.function.terrainModelClear' | transloco }}
+        </button>
+      </div>
+    }
     <label class="flex items-center justify-between gap-2">
       <span class="text-ui-muted">{{ 'feature.mapEditor.function.terrainMode' | transloco }}</span>
       <select
@@ -216,6 +228,10 @@
       />
       {{ 'feature.mapEditor.function.terrainShading' | transloco }}
     </label>
+  }
+
+  @if (state.functionRole() === 'object') {
+    <map-editor-object-paint />
   }
 
   @if (state.functionRole() === 'hazard') {

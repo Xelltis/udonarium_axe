@@ -74,6 +74,7 @@ import {
   waterPresetOf,
 } from '@axe/domain/tabletop/water/water-presets';
 import { MAX_SURFACE_CELLS } from '@axe/domain/tabletop/water/water-surface';
+import { MapEditorObjectPaintComponent } from '@axe/features/map-editor/editor/map-editor-object-paint.component';
 import { EditorTool, MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 import { TextureIntakeService } from '@axe/features/map-editor/editor/texture-intake.service';
 import { SwitchDefinitionFieldsComponent } from '@axe/features/tabletop/board-switch/switch-definition-fields.component';
@@ -97,7 +98,7 @@ const MOVE_COST_ROAD = -1;
   selector: 'map-editor-function-paint',
   templateUrl: './map-editor-function-paint.component.html',
   host: { class: 'contents' },
-  imports: [FormsModule, PercentPipe, TranslocoModule, SwitchDefinitionFieldsComponent],
+  imports: [FormsModule, PercentPipe, TranslocoModule, SwitchDefinitionFieldsComponent, MapEditorObjectPaintComponent],
 })
 export class MapEditorFunctionPaintComponent {
   protected readonly state = inject(MapEditorState);

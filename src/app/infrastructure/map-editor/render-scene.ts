@@ -1,10 +1,12 @@
 import { catmullRomSegments } from '@axe/domain/map-editor/curve-geometry';
 import { functionInkOf } from '@axe/domain/map-editor/function-layer';
 import { cellCenter, pointToCell } from '@axe/domain/map-editor/grid-cells';
+import { objectPlacementsOf } from '@axe/domain/map-editor/object-placements';
 import { reliefChunksOf } from '@axe/domain/map-editor/relief';
 import {
   FillStyle,
   FreehandStroke,
+  FunctionLayer,
   ImageItem,
   MapScene,
   parseCellKey,
@@ -18,6 +20,7 @@ import {
   StrokeStyle,
   TextItem,
 } from '@axe/domain/map-editor/scene';
+import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import {
   GROUND_CHUNK_SAMPLES,
@@ -41,6 +44,8 @@ export interface RenderHelpers {
   ): CanvasPattern | string | null;
   stampImage(item: StampItem): CanvasImageSource | null;
   rasterImage?(item: ImageItem): CanvasImageSource | null;
+  /** A bundled model seen from straight above, as wide and deep as it stands, or null where there is none to hand. */
+  modelTop?(model: string): CanvasImageSource | null;
 }
 
 export interface RenderOptions {
@@ -578,6 +583,7 @@ export function renderScene(
             ctx.fillRect(col * scene.cellPx, row * scene.cellPx, scene.cellPx, scene.cellPx);
           }
         }
+        if (layer.role === 'object') drawObjectPlacements(ctx, layer, scene, helpers);
         break;
       }
     }
@@ -588,4 +594,46 @@ export function renderScene(
   if (options?.drawGrid ?? scene.gridVisible) {
     drawGridLines(ctx, scene, width, height);
   }
+}
+
+/** What the boxes the 3D objects of a layer stand in are outlined in while the layer is worked on. */
+const OBJECT_OUTLINE = 'rgba(20, 90, 75, 0.9)';
+
+/**
+ * Draws each 3D object a layer sets out where it comes to stand, as its box would stand on the table:
+ * a bundled model as it is seen from straight above, and one held in the room, which has no such
+ * picture, as the outline of its box with its name in the middle. The cells say where the brush
+ * went, and these what comes to stand there.
+ */
+function drawObjectPlacements(
+  ctx: CanvasRenderingContext2D,
+  layer: FunctionLayer,
+  scene: MapScene,
+  helpers: RenderHelpers
+): void {
+  const grid = cellGridOf(scene.cols, scene.rows, scene.cellPx, scene.gridType);
+  const spec = layer.spec.object;
+  const top = helpers.modelTop?.(spec.model) ?? null;
+  ctx.save();
+  ctx.strokeStyle = OBJECT_OUTLINE;
+  ctx.fillStyle = OBJECT_OUTLINE;
+  ctx.lineWidth = Math.max(1, scene.cellPx / 40);
+  ctx.font = `${Math.max(8, Math.round(scene.cellPx / 5))}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const placed of objectPlacementsOf(Object.keys(layer.cells), spec, grid)) {
+    const width = placed.width * scene.cellPx;
+    const depth = placed.depth * scene.cellPx;
+    ctx.save();
+    ctx.translate(placed.x + width / 2, placed.y + depth / 2);
+    ctx.rotate((placed.rotate * Math.PI) / 180);
+    if (top) {
+      ctx.drawImage(top, -width / 2, -depth / 2, width, depth);
+    } else {
+      ctx.strokeRect(-width / 2, -depth / 2, width, depth);
+      if (spec.name) ctx.fillText(spec.name, 0, 0, Math.max(width, scene.cellPx) * 0.9);
+    }
+    ctx.restore();
+  }
+  ctx.restore();
 }

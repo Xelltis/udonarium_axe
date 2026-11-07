@@ -21,6 +21,7 @@ export const FUNCTION_ROLE_INK: Record<MapFunctionRole, string> = {
   moveCost: 'rgba(110, 155, 90, 0.42)',
   hazard: 'rgba(150, 90, 150, 0.42)',
   terrain: 'rgba(120, 100, 80, 0.45)',
+  object: 'rgba(60, 140, 120, 0.42)',
   mask: 'rgba(70, 70, 90, 0.45)',
   trigger: 'rgba(200, 80, 40, 0.42)',
 };
