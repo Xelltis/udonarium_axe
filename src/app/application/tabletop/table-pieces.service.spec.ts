@@ -249,6 +249,8 @@ describe('TablePiecesService', () => {
 
     TestBed.inject(ObjectChangeService).notifyChanged(endless.identifier);
 
+    expect(before.length).toBeGreaterThan(0);
+    expect(parts()).toHaveLength(before.length);
     parts().forEach((part, index) => expect(part).toBe(before[index]));
   });
 
