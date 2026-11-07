@@ -4,6 +4,8 @@ describe('sameSet', () => {
   it('holds two sets of the same members the same, whatever their order', () => {
     expect(sameSet(new Set(['a', 'b']), new Set(['b', 'a']))).toBe(true);
     expect(sameSet(new Set(), new Set())).toBe(true);
+    const one = new Set(['a']);
+    expect(sameSet(one, one)).toBe(true);
   });
 
   it('holds two sets apart by a member or by their size', () => {

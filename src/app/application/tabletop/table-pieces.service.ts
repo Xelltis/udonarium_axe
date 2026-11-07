@@ -19,6 +19,7 @@ import { ThemeService } from '@axe/application/ui/theme.service';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { sameFields } from '@axe/core/util/same-fields';
+import { sameSet } from '@axe/core/util/same-set';
 import { Card } from '@axe/domain/card/card';
 import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -482,7 +483,7 @@ export class TablePiecesService {
           .map((wall) => wall.surface)
       );
     },
-    { equal: (a, b) => a.size === b.size && [...a].every((wall) => b.has(wall)) }
+    { equal: sameSet }
   );
 
   /**

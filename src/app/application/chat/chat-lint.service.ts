@@ -7,6 +7,7 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { sameSet } from '@axe/core/util/same-set';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
@@ -167,7 +168,7 @@ export class ChatLintService {
       const pieces = this.trackedPieces();
       return new Set(pieces.map((piece) => piece.name.trim()));
     },
-    { equal: (a, b) => a.size === b.size && [...a].every((name) => b.has(name)) }
+    { equal: sameSet }
   );
 
   /**
