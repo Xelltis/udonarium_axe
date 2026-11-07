@@ -48,7 +48,7 @@ describe('GameCharacterComponent', () => {
   let fixture: ComponentFixture<GameCharacterComponent>;
 
   beforeEach(async () => {
-    TestBed.configureTestingModule({
+    await TestBed.configureTestingModule({
       imports: [GameCharacterComponent],
       providers: [...TEST_PROVIDERS],
     }).compileComponents();

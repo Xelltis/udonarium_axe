@@ -34,7 +34,7 @@ describe('GameTableComponent', () => {
   let fixture: ComponentFixture<GameTableComponent>;
 
   beforeEach(async () => {
-    TestBed.configureTestingModule({
+    await TestBed.configureTestingModule({
       imports: [GameTableComponent],
       providers: [...TEST_PROVIDERS],
     }).compileComponents();

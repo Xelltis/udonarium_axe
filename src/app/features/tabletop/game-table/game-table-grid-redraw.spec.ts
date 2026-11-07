@@ -15,7 +15,7 @@ describe('drawing the grid over the board', () => {
   let drawnInPart: ReturnType<typeof vi.spyOn>;
 
   beforeEach(async () => {
-    TestBed.configureTestingModule({
+    await TestBed.configureTestingModule({
       imports: [GameTableComponent],
       providers: [...TEST_PROVIDERS],
     }).compileComponents();

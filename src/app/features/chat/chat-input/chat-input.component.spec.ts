@@ -46,7 +46,7 @@ describe('ChatInputComponent', () => {
 
   beforeEach(async () => {
     PeerCursor.createMyCursor();
-    TestBed.configureTestingModule({
+    await TestBed.configureTestingModule({
       imports: [ChatInputComponent],
       providers: [...TEST_PROVIDERS],
     }).compileComponents();
