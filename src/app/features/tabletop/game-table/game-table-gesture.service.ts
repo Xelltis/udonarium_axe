@@ -339,13 +339,13 @@ export class GameTableGestureService {
    * away; the selection is left as it was, as a tap has always left it.
    */
   private onTableTap(pressedOn: EventTarget | null): void {
-    if (pressedOn instanceof HTMLElement && this.isBareTable(pressedOn)) {
+    if (pressedOn instanceof Element && this.isBareTable(pressedOn)) {
       this.selectionSignalService.forgetPressedObject();
     }
   }
 
   /** Whether a press on this element is one on the table itself rather than on anything on it. */
-  private isBareTable(target: HTMLElement): boolean {
+  private isBareTable(target: Element): boolean {
     return (this.rootEl !== null && target.contains(this.rootEl)) || target.closest('[data-table-passthrough]') != null;
   }
 

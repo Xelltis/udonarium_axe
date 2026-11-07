@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
+import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { orthographicScale } from '@axe/domain/tabletop/camera/table-camera';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -183,6 +183,13 @@ describe('GameTableGestureService', () => {
         expect(selection.touchedObject()).toBe('touched');
 
         tap(root, 2);
+        expect(selection.touchedObject()).toBeNull();
+
+        const passthrough = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        passthrough.setAttribute('data-table-passthrough', '');
+        piece.appendChild(passthrough);
+        selection.pressObject('touched', 'GameCharacter', true);
+        tap(passthrough as unknown as HTMLElement, 3);
         expect(selection.touchedObject()).toBeNull();
       } finally {
         service.destroy();
