@@ -310,26 +310,28 @@ export class GameCharacterComponent {
 
   /**
    * Whether this is the piece a finger last pressed on the table and not in hand, which has its
-   * handles out as one the pointer is over does, there being no pointer to pass over pieces; where a
-   * finger is all there is to point with, any press counts as one, as a pen's may come as a mouse's.
+   * handles out as one the pointer is over does. Where the main pointer is a finger, any press counts
+   * as one, as nothing there brings handles out by passing over a piece, and a pen's or a mouse's
+   * press may come there too.
    * Only that piece follows whether it is in hand, which changes with each step of a drag.
    */
   protected readonly touchChosen = computed(() => {
     const id = this.gameCharacter()?.identifier;
     if (!id) return false;
     const selection = this.selectionSignalService;
-    const chosen = selection.touchedObject() === id || (this.viewport.touchOnly() && selection.pressedObject() === id);
+    const chosen = selection.touchedObject() === id || (this.viewport.isTouch() && selection.pressedObject() === id);
     return chosen && !this.carried();
   });
 
   /**
-   * Whether the handles take a press at all. Where a finger is all there is to point with, only those
-   * of the piece last touched do, as no other piece's are drawn, so that a tap beside a piece reaches
-   * the table. Where something finer can point, every piece's do, brought out by it over the piece,
-   * and a finger's press on them is taken as any other.
+   * Whether the handles take a press at all. Where the main pointer is a finger, as on a phone or a
+   * tablet with a pen or a trackpad beside it, nothing brings handles out by passing over a piece, so
+   * only those of the piece last pressed do, as no other's are drawn; a tap beside a piece then
+   * reaches the table. Where it is a mouse or a touchpad, every piece's do, brought out by it over
+   * the piece, and a finger's press on them is taken as any other.
    */
   protected readonly handlesPressable = computed(
-    () => !this.viewport.touchOnly() || this.touchChosen() || this.turning() !== null
+    () => !this.viewport.isTouch() || this.touchChosen() || this.turning() !== null
   );
 
   /** The way the piece faces while it is turned, in whole degrees, as the turn under way reads it out. */

@@ -2258,7 +2258,7 @@ describe('GameCharacterComponent', () => {
       }
     });
 
-    it('brings out the handles of the piece a finger last pressed on the table, and where a finger is all there is lets only them be pressed, until it is in hand', () => {
+    it('brings out the handles of the piece a finger last pressed on the table, and where the main pointer is a finger lets only them be pressed, until it is in hand', () => {
       const character = withPicture('turn-touch');
       drawPicture(character);
       const viewport = TestBed.inject(ViewportService) as unknown as {
@@ -2290,24 +2290,28 @@ describe('GameCharacterComponent', () => {
         expect(sightOf).not.toHaveBeenCalled();
         expect(pressable()).toEqual([true, true, true]);
 
-        touch.set(true);
+        selection.pressObject(character.identifier, 'character', true);
+        fixture.detectChanges();
+        expect(shownAtFull()).toBe(true);
+        expect(pressable()).toEqual([true, true, true]);
         selection.clearSelection();
+        fixture.detectChanges();
+
+        touch.set(true);
+        viewport._hasFinePointer.set(true);
         selection.selectObject(character.identifier, 'character');
         fixture.detectChanges();
         expect(shownAtFull()).toBe(false);
         expect(pressable()).toEqual([false, false, false]);
 
-        viewport._hasFinePointer.set(true);
         selection.pressObject(character.identifier, 'character');
         fixture.detectChanges();
-        expect(pressable()).toEqual([true, true, true]);
-        expect(shownAtFull()).toBe(false);
-
-        viewport._hasFinePointer.set(false);
-        fixture.detectChanges();
         expect(shownAtFull()).toBe(true);
+        expect(pressable()).toEqual([true, true, true]);
+        viewport._hasFinePointer.set(false);
         selection.clearSelection();
         fixture.detectChanges();
+        expect(pressable()).toEqual([false, false, false]);
 
         selection.pressObject(character.identifier, 'character', true);
         fixture.detectChanges();
