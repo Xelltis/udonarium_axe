@@ -88,9 +88,10 @@ export class LinkHeartbeat {
 
   /**
    * The answer to a ping came, which tells how long it took, timed from the last ping. A ping goes
-   * every while though one waits for its answer, so that one left unanswered does not end a link
-   * that is still there; which ping an answer is to cannot be told, so one slower than the pings are
-   * apart reads as the time since the last ping, and one left unanswered does not stretch the next.
+   * every while though one waits for its answer, so that, while the link is watched closely, one left
+   * unanswered is followed by another within PONG_TIMEOUT_MS and does not end a link still there.
+   * Which ping an answer is to cannot be told, so one slower than the pings are apart reads as the
+   * time since the last ping, and one left unanswered does not stretch the next.
    */
   answered(): void {
     if (this.askedAt !== null) this.answerMs = Date.now() - this.askedAt;
