@@ -422,6 +422,8 @@ class ThreeTableEngine implements Table3dEngine {
         lamp.angle = ((light.angle / 2) * Math.PI) / 180;
         lamp.penumbra = THROWN_LAMP_PENUMBRA;
       } else {
+        lamp.target.position.set(light.x, light.z - 1, light.y);
+        lamp.target.updateMatrixWorld();
         lamp.angle = Math.PI;
         lamp.penumbra = 0;
       }
