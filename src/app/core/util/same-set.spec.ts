@@ -5,7 +5,9 @@ describe('sameSet', () => {
     expect(sameSet(new Set(['a', 'b']), new Set(['b', 'a']))).toBe(true);
     expect(sameSet(new Set(), new Set())).toBe(true);
     const one = new Set(['a']);
+    const looked = vi.spyOn(one, 'has');
     expect(sameSet(one, one)).toBe(true);
+    expect(looked).not.toHaveBeenCalled();
   });
 
   it('holds two sets apart by a member or by their size', () => {
