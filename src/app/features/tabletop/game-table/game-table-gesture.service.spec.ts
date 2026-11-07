@@ -172,9 +172,10 @@ describe('GameTableGestureService', () => {
       Object.defineProperty(marquee, 'isArmed', { get: () => true });
       marquee.follow = follow;
 
-      document.dispatchEvent(new PointerEvent('pointermove', { clientX: 30, clientY: 40 }));
+      document.dispatchEvent(new PointerEvent('pointermove', { clientX: 30, clientY: 40, pointerType: 'pen' }));
       expect(follow).toHaveBeenCalledTimes(1);
       expect(follow.mock.calls[0][0]).toHaveLength(1);
+      expect(follow.mock.calls[0][1]).toEqual({ pointerType: 'pen', whole: false });
 
       service.destroy();
       document.dispatchEvent(new PointerEvent('pointermove', { clientX: 30, clientY: 40 }));

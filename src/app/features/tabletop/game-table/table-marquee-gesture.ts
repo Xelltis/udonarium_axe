@@ -29,6 +29,12 @@ export interface MarqueeSample {
   readonly at: number;
 }
 
+/** What the places a marquee is handed came from: the kind of pointer, and whether they are all it went to since the last. */
+export interface MarqueeSamplesFrom {
+  readonly pointerType: string;
+  readonly whole: boolean;
+}
+
 export const MARQUEE_MOUSE_LONG_PRESS_MS = 350;
 export const MARQUEE_TOUCH_LONG_PRESS_MS = 300;
 export const MARQUEE_MOVE_CANCEL_THRESHOLD_PX = 6;
@@ -48,11 +54,17 @@ export class TableMarqueeGesture {
   /** When the press waiting to open a marquee was made, on the clock events are stamped by, and how long it waits. */
   private armedAt = 0;
   private armedFor = 0;
+  /** When the press was taken up, on the page's own clock, and the kind of pointer it was made with. */
+  private armedClock = 0;
+  private armedPointer = 'mouse';
   private armedModifiers: MarqueeModifiers = { shift: false, ctrl: false, touch: false };
   private startTablePoint: MarqueePoint | null = null;
   private currentTablePoint: MarqueePoint | null = null;
 
-  constructor(private readonly toTablePoint: ScreenToTablePoint) {}
+  constructor(
+    private readonly toTablePoint: ScreenToTablePoint,
+    private readonly now: () => number = () => performance.now()
+  ) {}
 
   /**
    * Whether a marquee is open and the pointer has gone far enough to be dragging it out, rather
@@ -81,6 +93,8 @@ export class TableMarqueeGesture {
     this.startScreenY = event.pageY;
     this.armedAt = event.timeStamp;
     this.armedFor = delay;
+    this.armedClock = this.now();
+    this.armedPointer = pointerType;
     this.armedModifiers = { shift: event.shiftKey, ctrl: event.ctrlKey, touch: isTouchLike };
     this.timer = setTimeout(() => {
       this.timer = null;
@@ -98,19 +112,24 @@ export class TableMarqueeGesture {
   }
 
   /**
-   * Follows the places the pointer went while the press waits to open a marquee, in the order it went
-   * to them, as the page would have seen them had it not been too busy: one to see the wait was up
-   * sees the moves made since all at once, before it sees that. The wait up by the time the pointer
-   * was at a place opens the marquee, and straying too far before it calls the long press off.
+   * Follows the places the pointer the press was made with went while the press waits to open a
+   * marquee, in the order it went to them, as the page would have seen them had it not been too busy:
+   * one to see the wait was up sees the moves made since all at once, before it sees that. The wait
+   * up by the time the pointer was at a place opens the marquee, and straying too far before it calls
+   * the long press off. Where only the last of the places is known, one too far off calls it off, as
+   * it may have strayed before the wait was up; and the wait is up only once the page's own clock
+   * says so as well, which a clock held still, as the shots hold one, does not.
    */
-  follow(samples: readonly MarqueeSample[]): void {
+  follow(samples: readonly MarqueeSample[], from: MarqueeSamplesFrom): void {
+    if (from.pointerType !== this.armedPointer) return;
     for (const sample of samples) {
       if (this.active || this.timer == null) return;
-      if (sample.at - this.armedAt >= this.armedFor) {
+      const strayed = this.strayed(sample.x, sample.y);
+      if (this.waitWasUp(sample.at) && (from.whole || !strayed)) {
         this.openNow();
         return;
       }
-      if (this.strayed(sample.x, sample.y)) {
+      if (strayed) {
         this.cancel();
         return;
       }
@@ -141,7 +160,7 @@ export class TableMarqueeGesture {
    * Says whether a marquee was open; a press let go before it opened is simply called off.
    */
   release(event?: PointerEvent | MouseEvent): boolean {
-    if (!this.active && this.timer != null && event && event.timeStamp - this.armedAt >= this.armedFor) this.openNow();
+    if (!this.active && this.timer != null && event && this.waitWasUp(event.timeStamp)) this.openNow();
     if (!this.active) {
       this.cancel();
       return false;
@@ -168,6 +187,11 @@ export class TableMarqueeGesture {
     if (this.timer != null) clearTimeout(this.timer);
     this.timer = null;
     this.fire(this.armedModifiers);
+  }
+
+  /** Whether the press had been held long enough by a moment on the clock events are stamped by, by the page's own clock too. */
+  private waitWasUp(at: number): boolean {
+    return at - this.armedAt >= this.armedFor && this.now() - this.armedClock >= this.armedFor;
   }
 
   /** Whether a place lies too far off where the press was made for the press to be held still. */

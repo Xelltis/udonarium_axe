@@ -130,19 +130,32 @@ describe('TableMarqueeGesture', () => {
     expect(start).not.toHaveBeenCalled();
   });
 
+  /** A gesture on a page whose own clock reads what is set on it. */
+  function onClock(): { gesture: TableMarqueeGesture; clock: { now: number } } {
+    const clock = { now: 1000 };
+    return { gesture: new TableMarqueeGesture(identityScreenToTable, () => clock.now), clock };
+  }
+
+  const WHOLE = { pointerType: 'mouse', whole: true };
+  const LAST_ONLY = { pointerType: 'mouse', whole: false };
+
   it('opens at a place the pointer was at once the press had been held long enough, seen only after the wait was up', () => {
-    const gesture = new TableMarqueeGesture(identityScreenToTable);
+    const { gesture, clock } = onClock();
     const start = vi.fn<(p: MarqueePoint, m: MarqueeModifiers) => void>();
     const update = vi.fn<(p: MarqueePoint) => void>();
     gesture.onMarqueeStart = start;
     gesture.onMarqueeUpdate = update;
     gesture.arm(makeEvent({ clientX: 10, clientY: 20, timeStamp: 1000 }));
+    clock.now = 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 100;
 
-    gesture.follow([
-      { x: 12, y: 21, at: 1100 },
-      { x: 13, y: 22, at: 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 10 },
-      { x: 110, y: 80, at: 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 50 },
-    ]);
+    gesture.follow(
+      [
+        { x: 12, y: 21, at: 1100 },
+        { x: 13, y: 22, at: 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 10 },
+        { x: 110, y: 80, at: 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 50 },
+      ],
+      WHOLE
+    );
     gesture.updatePointer(110, 80);
 
     expect(gesture.isActive).toBe(true);
@@ -153,15 +166,19 @@ describe('TableMarqueeGesture', () => {
   });
 
   it('is called off by the pointer straying before the wait was up, seen only after it was', () => {
-    const gesture = new TableMarqueeGesture(identityScreenToTable);
+    const { gesture, clock } = onClock();
     const start = vi.fn();
     gesture.onMarqueeStart = start;
     gesture.arm(makeEvent({ clientX: 10, clientY: 20, timeStamp: 1000 }));
+    clock.now = 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 100;
 
-    gesture.follow([
-      { x: 10 + MARQUEE_MOVE_CANCEL_THRESHOLD_PX + 4, y: 20, at: 1080 },
-      { x: 110, y: 80, at: 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 50 },
-    ]);
+    gesture.follow(
+      [
+        { x: 10 + MARQUEE_MOVE_CANCEL_THRESHOLD_PX + 4, y: 20, at: 1080 },
+        { x: 110, y: 80, at: 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 50 },
+      ],
+      WHOLE
+    );
     gesture.updatePointer(110, 80);
     vi.advanceTimersByTime(MARQUEE_MOUSE_LONG_PRESS_MS);
 
@@ -170,11 +187,56 @@ describe('TableMarqueeGesture', () => {
     expect(start).not.toHaveBeenCalled();
   });
 
+  it('takes a far place for a stray where it is the only one known, though it came after the wait was up', () => {
+    const { gesture, clock } = onClock();
+    gesture.arm(makeEvent({ clientX: 10, clientY: 20, timeStamp: 1000 }));
+    clock.now = 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 100;
+
+    gesture.follow([{ x: 110, y: 80, at: 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 50 }], LAST_ONLY);
+
+    expect(gesture.isArmed).toBe(false);
+    expect(gesture.isActive).toBe(false);
+  });
+
+  it('opens on the only place known where it is still close, once the wait was up', () => {
+    const { gesture, clock } = onClock();
+    gesture.arm(makeEvent({ clientX: 10, clientY: 20, timeStamp: 1000 }));
+    clock.now = 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 100;
+
+    gesture.follow([{ x: 12, y: 21, at: 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 50 }], LAST_ONLY);
+
+    expect(gesture.isActive).toBe(true);
+  });
+
+  it('heeds only the kind of pointer the press was made with', () => {
+    const { gesture, clock } = onClock();
+    gesture.arm(makeEvent({ clientX: 10, clientY: 20, timeStamp: 1000 }));
+    clock.now = 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 100;
+
+    gesture.follow([{ x: 400, y: 300, at: 1100 }], { pointerType: 'touch', whole: true });
+
+    expect(gesture.isArmed).toBe(true);
+  });
+
+  it("waits on the page's own clock too, which a clock held still does not move on", () => {
+    const { gesture } = onClock();
+    gesture.arm(makeEvent({ clientX: 10, clientY: 20, timeStamp: 1000 }));
+
+    gesture.follow([{ x: 12, y: 21, at: 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 50 }], WHOLE);
+    const released = gesture.release(
+      makeEvent({ clientX: 12, clientY: 21, timeStamp: 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 80 })
+    );
+
+    expect(gesture.isActive).toBe(false);
+    expect(released).toBe(false);
+  });
+
   it('opens and closes on a press let go where it was made once it had been held long enough, seen only after the wait was up', () => {
-    const gesture = new TableMarqueeGesture(identityScreenToTable);
+    const { gesture, clock } = onClock();
     const end = vi.fn<(r: MarqueeRect, m: MarqueeModifiers) => void>();
     gesture.onMarqueeEnd = end;
     gesture.arm(makeEvent({ clientX: 10, clientY: 20, timeStamp: 1000 }));
+    clock.now = 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 100;
 
     const released = gesture.release(
       makeEvent({ clientX: 10, clientY: 20, timeStamp: 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 50 })
@@ -185,10 +247,11 @@ describe('TableMarqueeGesture', () => {
   });
 
   it('takes a press let go before it had been held long enough for no marquee', () => {
-    const gesture = new TableMarqueeGesture(identityScreenToTable);
+    const { gesture, clock } = onClock();
     const end = vi.fn();
     gesture.onMarqueeEnd = end;
     gesture.arm(makeEvent({ clientX: 10, clientY: 20, timeStamp: 1000 }));
+    clock.now = 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 100;
 
     expect(gesture.release(makeEvent({ timeStamp: 1000 + MARQUEE_MOUSE_LONG_PRESS_MS - 50 }))).toBe(false);
     expect(end).not.toHaveBeenCalled();

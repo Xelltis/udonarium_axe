@@ -168,7 +168,10 @@ export class GameTableGestureService {
     if (!marquee?.isArmed) return;
     const coalesced = event.getCoalescedEvents?.() ?? [];
     const places = coalesced.length > 0 ? coalesced : [event];
-    marquee.follow(places.map((place) => ({ x: place.pageX, y: place.pageY, at: place.timeStamp })));
+    marquee.follow(
+      places.map((place) => ({ x: place.pageX, y: place.pageY, at: place.timeStamp })),
+      { pointerType: event.pointerType || 'mouse', whole: coalesced.length > 0 }
+    );
   };
 
   /** Takes the gestures off the table, and drops a view update still waiting for its frame. */
