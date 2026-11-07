@@ -550,3 +550,19 @@ describe('taking a layer of functions in hand', () => {
     expect(state.tool()).toBe('functionErase');
   });
 });
+
+describe('the names of the layers made for new work', () => {
+  it('names one after its kind and the count, and never after a layer still there', () => {
+    const state = new MapEditorState();
+    state.newScene(10, 8, 50, 'transparent');
+    const first = state.ensureLayerFor('cell');
+    state.applyCommitted(() => (first.locked = true));
+    const second = state.ensureLayerFor('cell');
+    state.applyCommitted(() => (second.locked = true));
+    state.applyCommitted(() => (state.current.layers = state.current.layers.filter((layer) => layer !== first)));
+
+    const third = state.ensureLayerFor('cell');
+
+    expect([first.name, second.name, third.name]).toEqual(['cell 1', 'cell 2', 'cell 3']);
+  });
+});

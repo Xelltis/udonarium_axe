@@ -326,12 +326,19 @@ export class MapEditorState {
     }
   }
 
-  /** The name of a layer made for new work: what it is, and how many such layers there are with it. */
+  /**
+   * The name of a layer made for new work: what it is, and a count past the layers of the kind there
+   * are, raised further where a layer already goes by that name, as one may once another is deleted.
+   */
   private autoLayerName(kind: LayerKind, role?: MapFunctionRole): string {
     const alike = this.scene.layers.filter(
       (layer) => layer.kind === kind && (role === undefined || (layer.kind === 'function' && layer.role === role))
     );
-    return `${this.layerNameOf(kind, role)} ${alike.length + 1}`;
+    const taken = new Set(this.scene.layers.map((layer) => layer.name));
+    const label = this.layerNameOf(kind, role);
+    let count = alike.length + 1;
+    while (taken.has(`${label} ${count}`)) count += 1;
+    return `${label} ${count}`;
   }
 
   /**
