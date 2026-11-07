@@ -9,10 +9,10 @@ export const HOVER_QUERY = '(hover: hover)';
 export class ViewportService {
   private readonly destroyRef = inject(DestroyRef);
 
-  private readonly _isCompact = signal(matchQuery(COMPACT_VIEWPORT_QUERY));
-  private readonly _isTouch = signal(matchQuery(TOUCH_POINTER_QUERY));
-  private readonly _hasFinePointer = signal(matchQuery(FINE_POINTER_QUERY));
-  private readonly _canHover = signal(matchQuery(HOVER_QUERY));
+  private readonly _isCompact = signal(false);
+  private readonly _isTouch = signal(false);
+  private readonly _hasFinePointer = signal(false);
+  private readonly _canHover = signal(false);
   private readonly _sawMouse = signal(false);
 
   readonly isCompact = this._isCompact.asReadonly();
@@ -61,15 +61,12 @@ export class ViewportService {
   }
 
   private watch(query: string, target: WritableSignal<boolean>): void {
-    const mql = window.matchMedia?.(query);
+    const mql = typeof window === 'undefined' ? undefined : window.matchMedia?.(query);
     if (!mql) return;
+    target.set(mql.matches);
 
     const listener = (event: MediaQueryListEvent) => target.set(event.matches);
     mql.addEventListener('change', listener);
     this.destroyRef.onDestroy(() => mql.removeEventListener('change', listener));
   }
-}
-
-function matchQuery(query: string): boolean {
-  return window.matchMedia?.(query).matches ?? false;
 }

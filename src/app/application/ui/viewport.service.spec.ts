@@ -17,9 +17,11 @@ describe('ViewportService', () => {
   let mql: FakeMediaQueryList;
   let listeners: Map<string, (event: MediaQueryListEvent) => void>;
   let listener: ((event: MediaQueryListEvent) => void) | null;
+  let made: FakeMediaQueryList[];
 
   function setup(matches: boolean): ViewportService {
     listeners = new Map();
+    made = [];
     vi.spyOn(window, 'matchMedia').mockImplementation((query: string) => {
       const fake: FakeMediaQueryList = {
         matches,
@@ -27,6 +29,7 @@ describe('ViewportService', () => {
         removeEventListener: vi.fn(),
       };
       mql = fake;
+      made.push(fake);
       return fake as unknown as MediaQueryList;
     });
 
@@ -124,5 +127,7 @@ describe('ViewportService', () => {
     TestBed.resetTestingModule();
 
     expect(mql.removeEventListener).toHaveBeenCalled();
+    expect(made.length).toBeGreaterThanOrEqual(4);
+    for (const one of made) expect(one.removeEventListener).toHaveBeenCalled();
   });
 });
