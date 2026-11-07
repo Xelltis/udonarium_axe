@@ -309,23 +309,23 @@ export class GameCharacterComponent {
   });
 
   /**
-   * Whether this is the piece last touched on the table on a touch screen and not in hand, which has
-   * its handles out as one the pointer is over does, there being no pointer to pass over pieces. Only
+   * Whether this is the piece a finger last pressed on the table and not in hand, which has its
+   * handles out as one the pointer is over does, there being no pointer to pass over pieces. Only
    * that piece follows whether it is in hand, which changes with each step of a drag.
    */
   protected readonly touchChosen = computed(() => {
-    if (!this.viewport.isTouch()) return false;
     const id = this.gameCharacter()?.identifier;
-    return !!id && this.selectionSignalService.pressedObject() === id && !this.carried();
+    return !!id && this.selectionSignalService.touchedObject() === id && !this.carried();
   });
 
   /**
-   * Whether the handles take a press. On a screen touched with nothing finer to point with, only those
-   * of the piece last touched do, as no other piece's are drawn, so that a press beside a piece does
-   * not turn it unseen; elsewhere every piece's do, brought out by the pointer over the piece.
+   * Whether the handles take a press at all. Where a finger is all there is to point with, only those
+   * of the piece last touched do, as no other piece's are drawn, so that a tap beside a piece reaches
+   * the table; elsewhere every piece's do, brought out by the pointer over the piece, and a finger's
+   * press on those of a piece not touched is left to the piece by the directive that turns it.
    */
   protected readonly handlesPressable = computed(
-    () => !this.viewport.isTouch() || this.viewport.hasFinePointer() || this.touchChosen() || this.turning() !== null
+    () => !this.viewport.touchOnly() || this.touchChosen() || this.turning() !== null
   );
 
   /** The way the piece faces while it is turned, in whole degrees, as the turn under way reads it out. */

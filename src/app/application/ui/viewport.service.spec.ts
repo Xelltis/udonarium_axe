@@ -91,6 +91,19 @@ describe('ViewportService', () => {
     expect(service.hasFinePointer()).toBe(true);
   });
 
+  it('takes a coarse pointer with nothing fine beside it as a finger alone, and no longer once a mouse is seen', () => {
+    const service = setup(true);
+    listeners.get(FINE_POINTER_QUERY)?.({ matches: false } as MediaQueryListEvent);
+    expect(service.touchOnly()).toBe(true);
+
+    listeners.get(TOUCH_POINTER_QUERY)?.({ matches: false } as MediaQueryListEvent);
+    expect(service.touchOnly()).toBe(false);
+
+    listeners.get(TOUCH_POINTER_QUERY)?.({ matches: true } as MediaQueryListEvent);
+    window.dispatchEvent(new PointerEvent('pointermove', { pointerType: 'mouse' }));
+    expect(service.touchOnly()).toBe(false);
+  });
+
   it('counts a phone held sideways as compact too', () => {
     setup(false);
     expect(COMPACT_VIEWPORT_QUERY).toContain('(max-height: 500px) and (pointer: coarse)');

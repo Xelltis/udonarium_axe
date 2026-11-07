@@ -40,7 +40,7 @@ import {
 } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainSlopeRoofOf, terrainTopPxAt } from '@axe/domain/tabletop/terrain-slope-surface';
-import { InputHandler } from '@axe/ui/directives/input-handler';
+import { InputHandler, isTouchPress } from '@axe/ui/directives/input-handler';
 import {
   applyPointerEvents,
   collectCollidableElements,
@@ -639,7 +639,7 @@ export class MovableDirective implements MovableInteractionContext {
       this.input?.cancel();
       return;
     }
-    this.callSelectedEvent();
+    this.callSelectedEvent(e);
     this.promoteWhileMoving(true);
     if (this.collidableElements.length < 1) this.findCollidableElements();
 
@@ -871,9 +871,13 @@ export class MovableDirective implements MovableInteractionContext {
     handleContextMenu(this, e);
   }
 
-  private callSelectedEvent() {
+  private callSelectedEvent(e: MouseEvent | TouchEvent) {
     if (this.tabletopObject)
-      this.selectionSignalService.pressObject(this.tabletopObject.identifier, this.tabletopObject.aliasName);
+      this.selectionSignalService.pressObject(
+        this.tabletopObject.identifier,
+        this.tabletopObject.aliasName,
+        isTouchPress(e)
+      );
   }
 
   /**

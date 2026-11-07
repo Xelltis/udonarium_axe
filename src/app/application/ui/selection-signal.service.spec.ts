@@ -103,6 +103,18 @@ describe('SelectionSignalService', () => {
     expect(service.pressedObject()).toBeNull();
   });
 
+  it('tells the piece a finger last pressed apart from one pressed otherwise, as the selection is emptied', () => {
+    service.pressObject('clicked', 'GameCharacter');
+    expect(service.pressedObject()).toBe('clicked');
+    expect(service.touchedObject()).toBeNull();
+
+    service.pressObject('touched', 'GameCharacter', true);
+    expect(service.touchedObject()).toBe('touched');
+
+    service.clearSelection();
+    expect(service.touchedObject()).toBeNull();
+  });
+
   it('bumps the version when a table gesture is cancelled', () => {
     const initial = service.cancelTableGestureVersion();
     service.cancelTableGesture();

@@ -194,3 +194,8 @@ export class InputHandler {
     this.target.ownerDocument.removeEventListener('drop', this.callbackOnMouse, option);
   }
 }
+
+/** Whether a press came from a finger on a touch screen, rather than from a mouse or a touchpad. */
+export function isTouchPress(e: Event): boolean {
+  return e.type.startsWith('touch');
+}

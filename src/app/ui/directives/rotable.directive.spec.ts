@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -14,12 +14,13 @@ import { vi } from 'vitest';
 
 @Component({
   selector: 'test-host',
-  template: `<div appRotable [rotable.option]="rotableOption"></div>`,
+  template: `<div appRotable [rotable.option]="rotableOption" [rotable.refuseTouch]="refuseTouch()"></div>`,
   changeDetection: ChangeDetectionStrategy.Eager,
   imports: [RotableDirective],
 })
 class TestHostComponent {
   rotableOption = {};
+  readonly refuseTouch = signal(false);
 }
 
 describe('RotableDirective', () => {
@@ -307,6 +308,30 @@ describe('RotableDirective', () => {
       moveTo(31, false);
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Alt', cancelable: true }));
       expect(directive.rotate).toBe(45);
+    });
+
+    it('leaves a finger’s press to what it stands in while told to, and takes a mouse’s all the same', () => {
+      (directive as unknown as Record<string, unknown>)['grabbingSelecter'] = '';
+      fixture.componentInstance.refuseTouch.set(true);
+      fixture.detectChanges();
+      const started = vi.spyOn(directive.onstart, 'emit');
+
+      const finger = new TouchEvent('touchstart', { bubbles: true, cancelable: true });
+      Object.defineProperty(finger, 'target', { value: element });
+      const passedOn = vi.spyOn(finger, 'stopPropagation');
+      directive.onInputStart(finger);
+      expect(started).not.toHaveBeenCalled();
+      expect(passedOn).not.toHaveBeenCalled();
+
+      const mouse = new MouseEvent('mousedown', { bubbles: true, button: 0 });
+      Object.defineProperty(mouse, 'target', { value: element });
+      directive.onInputStart(mouse);
+      expect(started).toHaveBeenCalledTimes(1);
+
+      fixture.componentInstance.refuseTouch.set(false);
+      fixture.detectChanges();
+      directive.onInputStart(finger);
+      expect(started).toHaveBeenCalledTimes(2);
     });
 
     it('says nothing more once the turn is let go', () => {

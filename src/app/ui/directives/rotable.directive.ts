@@ -20,7 +20,7 @@ import { RangeArea } from '@axe/domain/tabletop/range';
 import { QUARTER_TURN_DEGREES, rotationSnapStep, shownAngle, snapAngle } from '@axe/domain/tabletop/rotation-snap';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
-import { InputHandler } from '@axe/ui/directives/input-handler';
+import { InputHandler, isTouchPress } from '@axe/ui/directives/input-handler';
 
 export interface RotableTabletopObject extends TabletopObject {
   rotate: number;
@@ -72,6 +72,11 @@ export class RotableDirective {
   private grabbingSelecter: string = '.rotate-grab';
   readonly option = input<RotableOption | undefined>(undefined, { alias: 'rotable.option' });
   readonly isDisable = input(false, { alias: 'rotable.disable' });
+  /**
+   * Whether a finger's press is left to whatever the element stands in, as for a handle a touch
+   * screen does not show, so that a finger beside a piece takes hold of the piece and not the handle.
+   */
+  readonly refuseTouch = input(false, { alias: 'rotable.refuseTouch' });
   readonly onstart = output<PointerEvent>({ alias: 'rotable.onstart' });
   readonly ondragstart = output<PointerEvent>({ alias: 'rotable.ondragstart' });
   readonly ondrag = output<PointerEvent>({ alias: 'rotable.ondrag' });
@@ -229,6 +234,7 @@ export class RotableDirective {
     this.grabbingElement = e.target as HTMLElement;
     if (
       this.isDisable() ||
+      (this.refuseTouch() && isTouchPress(e)) ||
       this.isReadOnly ||
       !this.isAllowedToRotate ||
       (e as MouseEvent).button === 1 ||

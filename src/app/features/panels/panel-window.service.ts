@@ -127,7 +127,7 @@ export class PanelWindowService {
    * has its mouse or touchpad and opens a window of its own.
    */
   get isSupported(): boolean {
-    if (this.viewport.isTouch() && !this.viewport.hasFinePointer()) return false;
+    if (this.viewport.touchOnly()) return false;
     return typeof this.document.defaultView?.open === 'function';
   }
 

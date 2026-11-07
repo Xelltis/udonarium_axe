@@ -38,13 +38,18 @@ export class SelectionSignalService {
 
   readonly marqueeState = signal<MarqueeRect | null>(null);
 
-  private readonly _pressedObject = signal<string | null>(null);
+  private readonly pressed = signal<{ readonly identifier: string; readonly byTouch: boolean } | null>(null);
   /**
    * The identifier of the piece last pressed on the table, until the selection is emptied, as a press
-   * on the table itself or Escape does. Choosing a piece anywhere else, in a list or by its sheet,
-   * leaves it alone.
+   * on the table itself or Escape does. Choosing a piece anywhere else, in a list
+   * or by its sheet, leaves it alone.
    */
-  readonly pressedObject = this._pressedObject.asReadonly();
+  readonly pressedObject = computed(() => this.pressed()?.identifier ?? null);
+  /** The identifier of the piece last pressed on the table, if a finger pressed it. */
+  readonly touchedObject = computed(() => {
+    const pressed = this.pressed();
+    return pressed?.byTouch ? pressed.identifier : null;
+  });
 
   /**
    * Records a piece as the one last selected, which inventories, effect targeting and move ranges
@@ -54,9 +59,9 @@ export class SelectionSignalService {
     this.selectedObject.set({ identifier, className });
   }
 
-  /** Records a piece pressed on the table, which also becomes the piece last selected. */
-  pressObject(identifier: string, className: string): void {
-    this._pressedObject.set(identifier);
+  /** Records a piece pressed on the table, by a finger or not, which also becomes the piece last selected. */
+  pressObject(identifier: string, className: string, byTouch = false): void {
+    this.pressed.set({ identifier, byTouch });
     this.selectObject(identifier, className);
   }
 
@@ -127,14 +132,14 @@ export class SelectionSignalService {
   replaceSelection(ids: Iterable<string>, lastTouched?: TabletopObjectSelection): void {
     const next = new Set(ids);
     this._selectedObjects.set(next);
-    const pressed = this._pressedObject();
-    if (pressed !== null && !next.has(pressed)) this._pressedObject.set(null);
+    const pressed = this.pressedObject();
+    if (pressed !== null && !next.has(pressed)) this.pressed.set(null);
     if (lastTouched) this.selectObject(lastTouched.identifier, lastTouched.className);
   }
 
   /** Forgets the piece last pressed if it is this one, as it is taken out of the selection. */
   private forgetPressed(identifier: string): void {
-    if (this._pressedObject() === identifier) this._pressedObject.set(null);
+    if (this.pressedObject() === identifier) this.pressed.set(null);
   }
 
   /**
@@ -159,7 +164,7 @@ export class SelectionSignalService {
 
   /** Empties the multi-selection and forgets the piece last pressed. The piece last selected is left as it was. */
   clearSelection(): void {
-    this._pressedObject.set(null);
+    this.pressed.set(null);
     if (this._selectedObjects().size === 0) return;
     this._selectedObjects.set(new Set());
   }

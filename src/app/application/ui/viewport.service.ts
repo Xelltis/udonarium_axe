@@ -25,6 +25,9 @@ export class ViewportService {
    */
   readonly hasFinePointer = computed(() => this._hasFinePointer() || this._sawMouse());
 
+  /** Whether a finger is all there is to point with, as on a phone or a tablet with nothing beside it. */
+  readonly touchOnly = computed(() => this._isTouch() && !this.hasFinePointer());
+
   constructor() {
     this.watch(COMPACT_VIEWPORT_QUERY, this._isCompact);
     this.watch(TOUCH_POINTER_QUERY, this._isTouch);

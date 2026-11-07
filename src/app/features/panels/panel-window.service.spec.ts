@@ -65,6 +65,7 @@ describe('PanelWindowService', () => {
               isCompact: signal(screen.isCompact),
               isTouch: signal(screen.isTouch),
               hasFinePointer: signal(screen.hasFinePointer),
+              touchOnly: signal(screen.isTouch && !screen.hasFinePointer),
             },
           },
         ],
