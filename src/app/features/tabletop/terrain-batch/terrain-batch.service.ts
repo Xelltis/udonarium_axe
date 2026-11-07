@@ -3,6 +3,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { sameSet } from '@axe/core/util/same-set';
 import { CellGrid, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -10,10 +11,6 @@ import { stillBlocksDrawnTogether } from '@axe/domain/tabletop/terrain-batch/sti
 
 function sameElements<T>(a: readonly T[], b: readonly T[]): boolean {
   return a.length === b.length && a.every((item, index) => item === b[index]);
-}
-
-function sameSet<T>(a: ReadonlySet<T>, b: ReadonlySet<T>): boolean {
-  return a.size === b.size && [...a].every((item) => b.has(item));
 }
 
 function sameGrid(a: CellGrid, b: CellGrid): boolean {
