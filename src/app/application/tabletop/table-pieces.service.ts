@@ -41,7 +41,7 @@ import { tableWallSettings } from '@axe/domain/tabletop/table-walls';
 import { boardSurfaceOf, surfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { terrainCovers } from '@axe/domain/tabletop/terrain-box';
-import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
+import { type TerrainBox, terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { terrainTopPxAt } from '@axe/domain/tabletop/terrain-slope-surface';
 import { SurfaceLean } from '@axe/domain/tabletop/terrain-slope-surface';
 import { TextNote } from '@axe/domain/tabletop/text-note';
@@ -125,10 +125,10 @@ interface TableShape {
   readonly wallHeight: number;
 }
 
-/** The blocks on the table in view, with the version each was at, for what stands on them. */
-interface StandingBlocks {
-  readonly terrains: readonly Terrain[];
-  readonly versions: readonly number[];
+/** A block on the table in view with the box its footprint fills, as the floor's axes have it. */
+interface PlacedBlock {
+  readonly terrain: Terrain;
+  readonly box: TerrainBox;
 }
 
 /** What most kinds of piece are drawn with alike: how big a cell is. */
@@ -272,20 +272,38 @@ export class TablePiecesService {
   /** Which table is in view, by its identifier, for the pieces of each kind to be listed afresh on another. */
   private readonly tableInView = computed(() => this.tabletop.currentTableVersion().identifier);
 
-  /** The blocks on the table in view, followed block by block, for what stands on them and leans with them. */
-  private readonly blocks = computed<StandingBlocks>(
+  /**
+   * The blocks on the table in view, each with the box its footprint fills, kept as they were while
+   * no block comes, goes or moves its footprint: a door opening changes none of it. What stands on a
+   * block follows that block itself for the rest.
+   */
+  private readonly blocks = computed<readonly PlacedBlock[]>(
     () => {
       this.tableInView();
       this.objectChange.collectionOf(Terrain.aliasName)();
-      const terrains = this.tabletop.terrains;
-      return { terrains, versions: terrains.map((terrain) => this.objectChange.versionOf(terrain.identifier)()) };
+      const gridSize = this.tableShape().gridSize;
+      return this.tabletop.terrains.map((terrain) => {
+        this.objectChange.versionOf(terrain.identifier)();
+        return { terrain, box: terrainBoxOf(terrain, gridSize) };
+      });
     },
     {
       equal: (a, b) =>
-        a.terrains.length === b.terrains.length &&
-        a.terrains.every((terrain, at) => terrain === b.terrains[at] && a.versions[at] === b.versions[at]),
+        a.length === b.length &&
+        a.every((placed, at) => placed.terrain === b[at].terrain && sameFields(placed.box, b[at].box)),
     }
   );
+
+  /** The blocks whose footprint's box holds a point of the floor, each followed from then on. */
+  private blocksOver(x: number, y: number): Terrain[] {
+    const over: Terrain[] = [];
+    for (const { terrain, box } of this.blocks()) {
+      if (box.minX > x || x > box.maxX || box.minY > y || y > box.maxY) continue;
+      this.objectChange.versionOf(terrain.identifier)();
+      over.push(terrain);
+    }
+    return over;
+  }
 
   /** Who this seat is, by its user's identifier, which the pieces it owns or holds are told by. */
   private readonly myUserId = computed(() => {
@@ -676,11 +694,7 @@ export class TablePiecesService {
     const middle = pieceCentreOffsetPx(piece, gridSize);
     const x = piece.location.x + middle;
     const y = piece.location.y + middle;
-    const standingOn = this.blocks().terrains.filter((terrain) => {
-      const box = terrainBoxOf(terrain, gridSize);
-      return box.minX <= x && x <= box.maxX && box.minY <= y && y <= box.maxY;
-    });
-    return landingLeanAt(standingOn, gridSize, x, y, this.tableShape().gridType);
+    return landingLeanAt(this.blocksOver(x, y), gridSize, x, y, this.tableShape().gridType);
   }
 
   /** A light's own picture, held inside a cell keeping its shape as the page shows it, or null where it has none. */
@@ -884,7 +898,7 @@ export class TablePiecesService {
     const size = Number((piece as { size?: unknown }).size);
     const half = size > 0 ? (size * gridSize) / 2 : 0;
     const [middleX, middleY] = [x + half, y + half];
-    for (const terrain of this.blocks().terrains) {
+    for (const terrain of this.blocksOver(middleX, middleY)) {
       if (!canBeStoodOn(terrain) || !terrainCovers(terrain, gridSize, middleX, middleY)) continue;
       const top = terrainTopPxAt(terrain, gridSize, table.gridType, middleX, middleY);
       if (Math.abs(top - z) < 1) return groundLiftOfBlock(ground, gridSize, terrain);

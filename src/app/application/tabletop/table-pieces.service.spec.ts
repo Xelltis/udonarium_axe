@@ -176,6 +176,31 @@ describe('TablePiecesService', () => {
     expect(parts()[0].widthPx).toBe(gridSize * 2);
   });
 
+  it('draws a character again for a change to the block it stands on, and not for one to a block elsewhere', () => {
+    const character = GameCharacter.create('騎士', 1, '');
+    character.location = { name: 'table', x: 100, y: 200 };
+    TestBed.inject(PiecePicturesService).show(character.identifier, {
+      url: 'blob:pedestal',
+      widthPx: 50,
+      heightPx: 50,
+    });
+    const under = Terrain.create('under', 1, 1, 1, '', '');
+    under.location = { name: 'table', x: 100, y: 200 };
+    const elsewhere = Terrain.create('elsewhere', 1, 1, 1, '', '');
+    elsewhere.location = { name: 'table', x: 600, y: 600 };
+    TestBed.inject(TableSelecter).viewTable!.appendChild(under);
+    TestBed.inject(TableSelecter).viewTable!.appendChild(elsewhere);
+    const change = TestBed.inject(ObjectChangeService);
+    const parts = () => pieces.sprites().filter((sprite) => sprite.owner === character.identifier);
+    const before = parts();
+
+    change.notifyChanged(elsewhere.identifier);
+    parts().forEach((part, index) => expect(part).toBe(before[index]));
+
+    change.notifyChanged(under.identifier);
+    expect(parts()[0]).not.toBe(before[0]);
+  });
+
   it('draws a piece on the board it stands on once the board comes, and on the floor once it goes', async () => {
     vi.spyOn(TestBed.inject(ImageService), 'getEmptyOr').mockReturnValue(ImageFile.Empty);
     const light = LightSource.create('L');
