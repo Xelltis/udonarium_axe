@@ -10,6 +10,7 @@ import { ASSET_LAST_TRY_DELAY_MS, AssetRetries } from '@axe/core/storage/asset-r
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { isBundledModel } from '@axe/core/storage/bundled-models';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { modelNameOf } from '@axe/core/storage/model-file';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -25,6 +26,7 @@ import { mentionsAnyOf } from '@axe/domain/media/image-reference';
 import { ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { ModelTag } from '@axe/domain/media/model-tag';
+import { isBundledModelName } from '@axe/domain/tabletop/placeable-models';
 
 /** The words for asking and telling, for each kind removed. */
 const WORDS: Readonly<Record<AssetRemovalKind, { title: string; confirm: string; removed: string }>> = {
@@ -85,15 +87,22 @@ export class AssetRemovalService {
 
   /**
    * Which of these anyone at all may remove, the GM if nobody else: whatever the room did not bring
-   * itself, nor a model every seat reads from beside its own page.
+   * itself, nor a model bundled with the app, which every seat reads from beside its own page or the
+   * map editor and the map generator read in again.
    */
   private removableByAnyone(kind: AssetRemovalKind, identifiers: readonly string[]): string[] {
     return [...new Set(identifiers)].filter(
       (identifier) =>
         AssetHttpStore.isAssetId(identifier) &&
         (kind === 'audio' ||
-          (kind === 'model' ? !isBundledModel(identifier) : ImageTag.get(identifier)?.tag !== SYSTEM_RESERVED_TAG))
+          (kind === 'model' ? !this.isBundled(identifier) : ImageTag.get(identifier)?.tag !== SYSTEM_RESERVED_TAG))
     );
+  }
+
+  /** Whether a model is one bundled with the app, by its identifier or by the name of its file. */
+  private isBundled(identifier: string): boolean {
+    const model = this.modelStorage.get(identifier);
+    return isBundledModel(identifier) || (model !== null && isBundledModelName(modelNameOf(model.name)));
   }
 
   /**

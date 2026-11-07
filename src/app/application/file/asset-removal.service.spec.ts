@@ -85,10 +85,20 @@ describe('AssetRemovalService', () => {
     expect(service.removable('audio', [trackId, 'https://example.com/a.mp3'])).toEqual([trackId]);
   });
 
-  it('removes a 3D model a person added, and none bundled with the app, which every seat reads from beside its page', () => {
+  it('removes a 3D model a person added, and none bundled with the app, for pieces or for the map editor and the generator', () => {
     const modelId = 'd'.repeat(64);
 
-    expect(service.removable('model', [modelId, BUNDLED_PIECE_MODELS.knight])).toEqual([modelId]);
+    const forest = 'f'.repeat(64);
+    TestBed.inject(ModelStorage).add({
+      identifier: forest,
+      name: 'tree_oak.glb',
+      type: 'model/gltf-binary',
+      blob: new Blob([new Uint8Array([1])]),
+      url: '',
+    });
+
+    expect(service.removable('model', [modelId, BUNDLED_PIECE_MODELS.knight, forest])).toEqual([modelId]);
+    TestBed.inject(ModelStorage).delete(forest);
     expect(service.remove('model', [modelId])).toBe(1);
     expect(AssetRemoval.get(modelId)?.kind).toBe('model');
   });
