@@ -44,6 +44,7 @@ import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { GameTable, GridSnapStyle, GridType } from '@axe/domain/tabletop/game-table';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import type { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
 import { GameCharacterComponent } from '@axe/features/character/game-character/game-character.component';
 import { GameCharacterMenuService } from '@axe/features/character/game-character/game-character-menu.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -1942,6 +1943,12 @@ describe('GameCharacterComponent', () => {
       TestBed.inject(RotationGuideService).report(directive!, { angle, step: 45, snapping: false });
     }
 
+    /** Has the table draw the piece's picture standing, as a sprite of its own. */
+    function drawPicture(character: GameCharacter): void {
+      const picture = { id: `${character.identifier}#picture`, owner: character.identifier, hidden: false };
+      vi.spyOn(TestBed.inject(TablePiecesService), 'sprites').mockReturnValue([picture as unknown as TableWorldSprite]);
+    }
+
     /** Ends whatever turn either handle has under way. */
     function letGo(): void {
       for (const directive of [handles().turnRotable(), handles().rollRotable()]) {
@@ -2111,6 +2118,7 @@ describe('GameCharacterComponent', () => {
 
     it('draws the ring and its knobs round the piece, leaving out what the piece hides while the handles are out', () => {
       const character = withPicture('turn-ring-hidden');
+      drawPicture(character);
       type Ring = { hovered: { set(value: boolean): void }; turnRing(): { arc: string; radius: number } };
       const ring = () => component as unknown as Ring;
       const hides = vi.fn((_surface: string, _x: number, y: number) => y < 24.5);
@@ -2143,6 +2151,7 @@ describe('GameCharacterComponent', () => {
 
     it('lets a knob give way where the handle that tips the piece is drawn, but keeps both while the piece is turned', () => {
       const character = withPicture('knob-gives-way');
+      drawPicture(character);
       const pick = TestBed.inject(TablePickService);
       vi.spyOn(pick, 'pictureSightOf').mockReturnValue({
         hides: () => false,
@@ -2195,6 +2204,7 @@ describe('GameCharacterComponent', () => {
 
     it('weighs nothing round the pedestal while the piece is carried, and the ring at the pedestal of a piece raised off it', () => {
       const character = withPicture('turn-carried');
+      drawPicture(character);
       character.altitude = 2;
       const hides = vi.fn((_surface: string, _x: number, _y: number, _height?: number) => false);
       const sightOf = vi
@@ -2247,6 +2257,7 @@ describe('GameCharacterComponent', () => {
 
     it('brings out the handles of the piece last touched on a touch screen, and weighs what its picture hides, until it is in hand', () => {
       const character = withPicture('turn-touch');
+      drawPicture(character);
       const touch = (TestBed.inject(ViewportService) as unknown as { _isTouch: WritableSignal<boolean> })._isTouch;
       const wasTouch = touch();
       touch.set(false);

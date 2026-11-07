@@ -121,21 +121,20 @@ export class TablePickService {
   }
 
   /**
-   * How the picture of the character of that identifier stands before the eye, as it is drawn now, or
-   * null where none is drawn standing: a piece drawn as a model, whose picture is not shown, has none.
-   * Only the picture is weighed, as the pedestal and the shadow lie on the face rather than stand.
+   * How a character's picture stands before the eye as it is drawn now: whether it hides a point of a
+   * face behind it, and where its corners lie. A picture not shown, as for a piece drawn as a model,
+   * hides nothing, though its corners are where the screen puts the handles that go with it.
    */
-  pictureSightOf(identifier: string): PictureSight | null {
+  pictureSightOf(sprite: TableWorldSprite): PictureSight | null {
     const view = this.camera.view;
     const layout = this.camera.layout;
     const scene = this.camera.sceneMatrix();
-    const sprite = this.pieces.sprites().find((one) => one.id === `${identifier}#picture`);
-    if (!view || !layout || !scene || !sprite || sprite.hidden) return null;
+    if (!view || !layout || !scene) return null;
     const eye = eyeAxesOf(tableEyeMatrix(view, layout));
-    const corners = sprite.seeThrough ? spriteCorners(sprite, eye) : spriteBoxCorners(sprite, eye);
-    const mask = sprite.seeThrough && sprite.look.kind === 'picture' ? this.pictures.maskOf(sprite.look.url) : null;
+    const corners = spritePickCorners(sprite, eye);
+    const mask = this.spritePickMask(sprite);
     const target: PickTarget = {
-      id: identifier,
+      id: sprite.owner,
       layer: sprite.kind,
       order: 0,
       shapes: [{ kind: 'quad', corners }],
@@ -143,6 +142,7 @@ export class TablePickService {
     };
     return {
       hides: (surface, x, y, height = 0) => {
+        if (sprite.hidden) return false;
         const point = this.surfaces.boardPointOf(surface, x, y, height);
         const page = this.surfaces.pageOf(surface, x, y, height);
         const ray = page ? this.rayAt(page.x, page.y) : null;
@@ -281,13 +281,8 @@ export class TablePickService {
       const byOwner = new Map<string, { kind: string; shapes: PickShape[]; masks: (AlphaMask | null)[] }>();
       for (const sprite of sprites) {
         const owner = byOwner.get(sprite.owner) ?? { kind: sprite.kind, shapes: [], masks: [] };
-        owner.shapes.push({
-          kind: 'quad',
-          corners: sprite.seeThrough ? spriteCorners(sprite, eye) : spriteBoxCorners(sprite, eye),
-        });
-        owner.masks.push(
-          sprite.seeThrough && sprite.look.kind === 'picture' ? this.pictures.maskOf(sprite.look.url) : null
-        );
+        owner.shapes.push({ kind: 'quad', corners: spritePickCorners(sprite, eye) });
+        owner.masks.push(this.spritePickMask(sprite));
         byOwner.set(sprite.owner, owner);
       }
       for (const coin of coins) {
@@ -321,6 +316,11 @@ export class TablePickService {
       this.pieceTargetsMade = { sprites, coins, camera, targets };
       return targets;
     });
+  }
+
+  /** The mask a sprite is picked through where it is see-through, or null where every part of it is solid. */
+  private spritePickMask(sprite: TableWorldSprite): AlphaMask | null {
+    return sprite.seeThrough && sprite.look.kind === 'picture' ? this.pictures.maskOf(sprite.look.url) : null;
   }
 
   /** The looks laid over the ground this seat is shown, each by the part of the floor it covers. */
@@ -398,4 +398,9 @@ export class TablePickService {
     const cover = this.vision.terrainFogCover(terrain);
     return cover !== null && !cover.cleared.some((cell) => cell);
   }
+}
+
+/** The corners a sprite is picked by: its own shape where it is see-through, the box round it otherwise. */
+function spritePickCorners(sprite: TableWorldSprite, eye: ReturnType<typeof eyeAxesOf>) {
+  return sprite.seeThrough ? spriteCorners(sprite, eye) : spriteBoxCorners(sprite, eye);
 }

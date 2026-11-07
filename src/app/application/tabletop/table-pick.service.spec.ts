@@ -5,6 +5,7 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -372,7 +373,8 @@ describe('TablePickService', () => {
     expect(service.pickAt(corner.x, corner.y)).toBeNull();
   });
 
-  it('passes a press through the clear parts of a character’s picture, and lands on it where it is drawn', async () => {
+  /** Stands a character a cell tall in cell (5, 5), its picture solid along its left half and clear along its right. */
+  async function standHero(): Promise<GameCharacter> {
     const character = GameCharacter.create('hero', 1, 'hero-picture');
     character.location = { name: 'table', x: 5 * GRID, y: 5 * GRID };
     table.appendChild(character);
@@ -390,8 +392,11 @@ describe('TablePickService', () => {
       heightPx: GRID,
     });
     await settled();
+    return character;
+  }
 
-    // The picture stands a cell tall over the middle of its cell, turned to the reader.
+  /** Where the left and the right half of the hero's picture are drawn on the page, a quarter from its top. */
+  function heroHalves(): { solid: { x: number; y: number }; clear: { x: number; y: number } } {
     const solid = pageOfTablePoint(
       camera.sceneMatrix()!,
       5 * GRID + GRID / 2 - 10,
@@ -404,7 +409,33 @@ describe('TablePickService', () => {
       5 * GRID + GRID / 2,
       1 + GRID * 0.75
     );
+    return { solid, clear };
+  }
+
+  it('passes a press through the clear parts of a character’s picture, and lands on it where it is drawn', async () => {
+    const character = await standHero();
+    const { solid, clear } = heroHalves();
+
     expect(service.pickAt(solid.x, solid.y)?.target.id).toBe(character.identifier);
     expect(service.pickAt(clear.x, clear.y)).toBeNull();
+  });
+
+  it('tells what of the floor a character’s picture hides and where its corners lie, and a picture not shown hides nothing', async () => {
+    const character = await standHero();
+    const { solid, clear } = heroHalves();
+    const picture = TestBed.inject(TablePiecesService)
+      .sprites()
+      .find((sprite) => sprite.id === `${character.identifier}#picture`)!;
+    const behindSolid = service.landingAt(solid.x, solid.y);
+    const behindClear = service.landingAt(clear.x, clear.y);
+    expect(behindSolid.z).toBe(0);
+
+    const sight = service.pictureSightOf(picture)!;
+    expect(sight.hides('floor', behindSolid.x, behindSolid.y)).toBe(true);
+    expect(sight.hides('floor', behindClear.x, behindClear.y)).toBe(false);
+
+    const unseen = service.pictureSightOf({ ...picture, hidden: true })!;
+    expect(unseen.hides('floor', behindSolid.x, behindSolid.y)).toBe(false);
+    expect(unseen.cornerOnPage(1)).toEqual(sight.cornerOnPage(1));
   });
 });

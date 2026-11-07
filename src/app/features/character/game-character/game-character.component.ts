@@ -373,17 +373,22 @@ export class GameCharacterComponent {
     return !!id && this.heldPiece.held()?.identifier === id;
   });
 
+  /** The piece's picture as it is drawn now, kept as long as it is drawn the same, or null where none is. */
+  private readonly ownPicture = computed(() => {
+    const id = this.gameCharacter()?.identifier;
+    return id ? (this.pieces.sprites().find((sprite) => sprite.id === `${id}#picture`) ?? null) : null;
+  });
+
   /**
    * How the piece's picture stands before the eye as it is drawn now, weighed only while the handles
    * are out and the piece is not being carried: followed as the camera moves and the picture changes.
    */
   private readonly pictureSight = computed(() => {
-    const id = this.gameCharacter()?.identifier;
     const looked = (this.hovered() && !this.carried()) || this.touchChosen() || this.turning() === 'turn';
-    if (!looked || !id || this.mode2dEnabled()) return null;
+    const picture = looked ? this.ownPicture() : null;
+    if (!picture) return null;
     this.tableCamera.version();
-    this.pieces.sprites();
-    return this.pick.pictureSightOf(id);
+    return this.pick.pictureSightOf(picture);
   });
 
   /** The middle of the pedestal on the face it stands on, at the height the ring round it is drawn at. */
@@ -403,7 +408,9 @@ export class GameCharacterComponent {
   private readonly knobsClearOfRoll = computed<readonly boolean[]>(() => {
     const sight = this.pictureSight();
     const middle = this.ringMiddle();
-    if (!sight || !middle || this.imageFile().url.length < 1) return TURN_KNOB_ANGLES.map(() => true);
+    if (!sight || !middle || this.mode2dEnabled() || this.imageFile().url.length < 1) {
+      return TURN_KNOB_ANGLES.map(() => true);
+    }
     const corner = sight.cornerOnPage(1);
     const [handle] = this.rollHandles();
     const roll = { x: corner.x + handle!.dx, y: corner.y + handle!.dy };
@@ -499,12 +506,8 @@ export class GameCharacterComponent {
   protected readonly labelledPart = computed(() => (this.imageFile().url.length > 0 ? 'picture' : 'pedestal'));
   /** The middle of the piece's pedestal over a canvas, which its labels round it, seen from above, circle. */
   protected readonly pedestalMiddle = computed(() => {
-    const char = this.gameCharacter();
-    if (!char) return undefined;
-    this.objectChange.versionOf(char.identifier)();
-    const middle = (this.size() * this.gridSize) / 2;
-    const foot = this.pieces.footOf(char);
-    return { ...foot, x: foot.x + middle, y: foot.y + middle, height: foot.height + this.altitude() * this.gridSize };
+    const ring = this.ringMiddle();
+    return ring ? { ...ring, height: ring.height + this.altitude() * this.gridSize } : undefined;
   });
 
   /**
