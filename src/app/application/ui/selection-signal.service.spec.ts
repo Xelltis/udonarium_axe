@@ -1,3 +1,4 @@
+import { effect } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 
@@ -104,6 +105,23 @@ describe('SelectionSignalService', () => {
     service.pressObject('pressed', 'GameCharacter');
     service.replaceSelection(['boxed']);
     expect(service.pressedObject()).toBeNull();
+  });
+
+  it('follows nothing for an effect that sets the selection, so that pressing a piece does not run it again', () => {
+    const runs = vi.fn();
+    TestBed.runInInjectionContext(() =>
+      effect(() => {
+        runs();
+        service.replaceSelection(['kept']);
+      })
+    );
+    TestBed.tick();
+    expect(runs).toHaveBeenCalledTimes(1);
+
+    service.pressObject('kept', 'GameCharacter');
+    service.toggleSelection('other');
+    TestBed.tick();
+    expect(runs).toHaveBeenCalledTimes(1);
   });
 
   it('tells nobody of a selection made anew with the pieces it already holds', () => {
