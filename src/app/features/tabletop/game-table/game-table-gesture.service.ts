@@ -537,13 +537,12 @@ export class GameTableGestureService {
     const candidates = this.collectSelectableObjects();
     const hits = selectByRect(candidates, rect, { gridSize: this.tabletopService.gridSize() });
     const joins = marqueeApply(modifiers, this.selectionSignalService.selectionSize() > 0);
-    if (joins === 'add') {
-      for (const id of hits) this.selectionSignalService.addSelection(id);
-    } else if (joins === 'toggle') {
-      for (const id of hits) this.selectionSignalService.toggleSelection(id);
-    } else {
-      this.selectionSignalService.replaceSelection(hits);
+    const next = joins === 'replace' ? new Set<string>() : new Set(this.selectionSignalService.selectedObjects());
+    for (const id of hits) {
+      if (joins === 'toggle' && next.has(id)) next.delete(id);
+      else next.add(id);
     }
+    this.selectionSignalService.replaceSelection(next);
   }
 
   private collectSelectableObjects(): TabletopObject[] {

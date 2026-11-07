@@ -3,12 +3,14 @@ import { TableCameraService } from '@axe/application/tabletop/table-camera.servi
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
+import type { MarqueeRect } from '@axe/application/ui/selection-signal.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { orthographicScale } from '@axe/domain/tabletop/camera/table-camera';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import type { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { SwitchNoticeService } from '@axe/features/tabletop/board-switch/switch-notice.service';
 import { SwitchPressService } from '@axe/features/tabletop/board-switch/switch-press.service';
 import {
@@ -195,6 +197,34 @@ describe('GameTableGestureService', () => {
         service.destroy();
         root.remove();
       }
+    });
+
+    it('keeps the piece a finger last pressed once a marquee adding to the selection takes it in, whichever it meets first', () => {
+      const selection = TestBed.inject(SelectionSignalService);
+      const pieceAt = (name: string, x: number) =>
+        ({
+          identifier: name,
+          aliasName: 'character',
+          location: { name: 'table', x, y: 0 },
+        }) as unknown as TabletopObject;
+      vi.spyOn(
+        service as unknown as { collectSelectableObjects(): TabletopObject[] },
+        'collectSelectableObjects'
+      ).mockReturnValue([pieceAt('other', 0), pieceAt('touched', 100)]);
+      const end = (modifiers: { shift: boolean; ctrl: boolean; touch: boolean }) =>
+        (service as unknown as { onMarqueeEnd(rect: MarqueeRect, modifiers: unknown): void }).onMarqueeEnd(
+          { x1: -10, y1: -10, x2: 300, y2: 300 },
+          modifiers
+        );
+
+      selection.pressObject('touched', 'character', true);
+      end({ shift: true, ctrl: false, touch: false });
+      expect([...selection.selectedObjects()]).toEqual(['other', 'touched']);
+      expect(selection.touchedObject()).toBe('touched');
+
+      end({ shift: false, ctrl: true, touch: false });
+      expect(selection.selectedObjects().size).toBe(0);
+      expect(selection.touchedObject()).toBeNull();
     });
 
     it('hands a marquee waiting on a press where the pointer went, and stops once the table goes', () => {
