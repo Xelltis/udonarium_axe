@@ -331,9 +331,9 @@
           >
         }
         @if (findPeerTimeReceive(context.peerId) <= 0) {
-          <span class="shrink-0 text-(--ui-text-dim)">[-:--:--]</span>
+          <span class="shrink-0 text-(--ui-text-dim)" data-testid="peer-menu-last-answer">[-:--:--]</span>
         } @else {
-          <span class="shrink-0 text-(--ui-text-dim)">{{
+          <span class="shrink-0 text-(--ui-text-dim)" data-testid="peer-menu-last-answer">{{
             findPeerTimeReceive(context.peerId) | date: 'HH:mm:ss'
           }}</span>
         }
@@ -341,7 +341,7 @@
       <div class="text-[0.65rem] text-(--ui-text-dim)" [title]="findUserId(context.peerId)">
         {{ shortId(context.peerId) }}
       </div>
-      @if (dispDetailFlag() && findPeerTimeReceive(context.peerId) > 0) {
+      @if (dispDetailFlag() && !isServerTransport() && findPeerTimeReceive(context.peerId) > 0) {
         <span class="text-(--ui-text-dim)"
           >{{ 'feature.lobby.peerMenu.latency' | transloco }}{{ findPeerTimeLatency(context.peerId)
           }}{{ 'feature.lobby.peerMenu.latencyUnit' | transloco }}</span

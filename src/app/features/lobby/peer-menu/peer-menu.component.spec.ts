@@ -698,6 +698,71 @@ describe('PeerMenuComponent', () => {
     });
   });
 
+  describe('when each of the others last answered, in a room on a room server', () => {
+    let other: PeerCursor;
+
+    beforeEach(() => {
+      vi.useFakeTimers({ now: new Date('2026-11-07T21:30:00'), toFake: ['Date', 'setInterval', 'clearInterval'] });
+      vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+        peerId: 'my-peer-id',
+        userId: 'my-user',
+        roomId: 'Ab3',
+        roomName: '卓',
+        isRoom: true,
+        isOpen: true,
+        password: '',
+        hasPassword: false,
+      } as never);
+      vi.spyOn(Network.instance, 'isOpen', 'get').mockReturnValue(true);
+      vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([
+        { peerId: 'other-peer', isOpen: true },
+      ] as never);
+      PeerCursor.createMyCursor();
+      other = new PeerCursor();
+      other.peerId = 'other-peer';
+      other.name = '葵';
+      other.initialize();
+      other.timestampReceive = 1;
+      other.timeLatency = 99999;
+    });
+
+    afterEach(() => {
+      fixture.destroy();
+      other.destroy();
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
+    it('shows when the server last heard from them, and no round trip of the heartbeats it does not send', () => {
+      vi.spyOn(Network.instance, 'heardAt').mockImplementation((peerId) =>
+        peerId === 'other-peer' ? new Date('2026-11-07T21:29:48').getTime() : null
+      );
+      fixture = TestBed.createComponent(PeerMenuComponent);
+      component = fixture.componentInstance;
+      component.dispDetailFlag.set(true);
+      fixture.detectChanges();
+
+      const root = fixture.nativeElement as HTMLElement;
+      expect(root.textContent).toContain('21:29:48');
+      expect(root.textContent).not.toContain('[-:--:--]');
+      expect(root.textContent).not.toContain('99.999');
+      expect(component.findPeerTimeReceive('nobody')).toBe(0);
+    });
+
+    it('asks the server while the panel is open, and stops once it closes', () => {
+      const ask = vi.spyOn(Network.instance, 'askSeen');
+      const watch = vi.spyOn(Network.instance, 'watchLink');
+      fixture = TestBed.createComponent(PeerMenuComponent);
+      fixture.detectChanges();
+      expect(ask).toHaveBeenCalledTimes(1);
+      expect(watch).toHaveBeenLastCalledWith(true);
+
+      fixture.destroy();
+      expect(watch).toHaveBeenLastCalledWith(false);
+    });
+  });
+
   describe('findPeerTimeLatency', () => {
     it('returns the latency of a peer in seconds', () => {
       const cursor = new PeerCursor();

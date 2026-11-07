@@ -1,5 +1,6 @@
 import { PeerSessionGrade, PeerSessionState } from '@axe/core/network/peer-session-state';
 import {
+  FAIR_SILENCE_MS,
   isMeasured,
   isRelayedLink,
   linkQualityColorClass,
@@ -7,6 +8,9 @@ import {
   linkQualityLabelKey,
   linkQualityOf,
   PeerLinkQuality,
+  POOR_SILENCE_MS,
+  roundTripQualityOf,
+  silenceQualityOf,
   worstLinkQuality,
 } from '@axe/domain/peer/peer-link-quality';
 
@@ -20,6 +24,35 @@ function session(overrides: Partial<PeerSessionState> = {}): PeerSessionState {
     ...overrides,
   };
 }
+
+describe('roundTripQualityOf', () => {
+  it('counts the link to the room server lost while it is down, and unknown before an answer has come', () => {
+    expect(roundTripQualityOf(40, false)).toBe(PeerLinkQuality.Lost);
+    expect(roundTripQualityOf(0, true)).toBe(PeerLinkQuality.Unknown);
+    expect(roundTripQualityOf(Number.NaN, true)).toBe(PeerLinkQuality.Unknown);
+  });
+
+  it('grades it by how long the answer took, as a peer’s ping is', () => {
+    expect(roundTripQualityOf(199, true)).toBe(PeerLinkQuality.Good);
+    expect(roundTripQualityOf(200, true)).toBe(PeerLinkQuality.Fair);
+    expect(roundTripQualityOf(499, true)).toBe(PeerLinkQuality.Fair);
+    expect(roundTripQualityOf(500, true)).toBe(PeerLinkQuality.Poor);
+  });
+});
+
+describe('silenceQualityOf', () => {
+  it('counts someone the room server has said nothing of as unknown', () => {
+    expect(silenceQualityOf(null)).toBe(PeerLinkQuality.Unknown);
+  });
+
+  it('grades someone by how long the room server has gone without hearing from them', () => {
+    expect(silenceQualityOf(0)).toBe(PeerLinkQuality.Good);
+    expect(silenceQualityOf(FAIR_SILENCE_MS - 1)).toBe(PeerLinkQuality.Good);
+    expect(silenceQualityOf(FAIR_SILENCE_MS)).toBe(PeerLinkQuality.Fair);
+    expect(silenceQualityOf(POOR_SILENCE_MS - 1)).toBe(PeerLinkQuality.Fair);
+    expect(silenceQualityOf(POOR_SILENCE_MS)).toBe(PeerLinkQuality.Poor);
+  });
+});
 
 describe('linkQualityOf', () => {
   it('counts a closed link as lost', () => {

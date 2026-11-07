@@ -14,6 +14,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { leavingLoss, leavingLossText } from '@axe/application/lobby/leaving-loss';
+import { LinkWatchService } from '@axe/application/lobby/link-watch.service';
 import { ServerAuthService } from '@axe/application/lobby/server-auth.service';
 import { ReportService } from '@axe/application/moderation/report.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -86,6 +87,7 @@ export class PeerMenuComponent {
   /** Whether the page is on its way to reloading into the mode chosen, which takes no second choice. */
   private switchingMode = false;
   private readonly roomDeletion = inject(RoomDeletionService);
+  private readonly linkWatch = inject(LinkWatchService);
 
   /** Whether the room is being deleted from here, which holds the button back. */
   protected readonly isDeletingRoom = signal(false);
@@ -437,6 +439,9 @@ export class PeerMenuComponent {
     queueMicrotask(() => (this.panelService.title = this.t('common.panel.peerMenu')));
     const timer = setInterval(() => this.dispInfo(), 1000);
     this.destroyRef.onDestroy(() => clearInterval(timer));
+    effect((onCleanup) => {
+      if (this.isServerTransport()) onCleanup(this.linkWatch.watch());
+    });
   }
 
   /**
@@ -534,8 +539,12 @@ export class PeerMenuComponent {
     return peerCursor ? peerCursor.timestampSend : 0;
   }
 
-  /** When the peer's last heartbeat arrived here; zero or less while none has. */
+  /**
+   * When the peer last answered: its last heartbeat to arrive here, or in a room on a room server,
+   * which sends none, when the server last heard from it. Zero or less while neither is known.
+   */
   findPeerTimeReceive(peerId: string) {
+    if (this.isServerTransport()) return Network.heardAt(peerId) ?? 0;
     const peerCursor = PeerCursor.findByPeerId(peerId);
     return peerCursor ? peerCursor.timestampReceive : 0;
   }

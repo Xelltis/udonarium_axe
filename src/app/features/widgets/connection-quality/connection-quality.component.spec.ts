@@ -3,12 +3,19 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { Network } from '@axe/core/index';
 import { PeerSessionGrade } from '@axe/core/network/peer-session-state';
-import { PeerLinkQuality } from '@axe/domain/peer/peer-link-quality';
+import { PeerLinkQuality, POOR_SILENCE_MS } from '@axe/domain/peer/peer-link-quality';
 import { ConnectionQualityComponent } from '@axe/features/widgets/connection-quality/connection-quality.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 interface ComponentInternals {
-  links: () => { peerId: string; name: string; quality: PeerLinkQuality; ping: number; isRelayed: boolean }[];
+  links: () => {
+    peerId: string;
+    name: string;
+    quality: PeerLinkQuality;
+    ping: number;
+    isRelayed: boolean;
+    heardAt?: number | null;
+  }[];
   worst: () => PeerLinkQuality;
   hasRelayedLink: () => boolean;
   close: () => void;
@@ -121,20 +128,69 @@ describe('ConnectionQualityComponent', () => {
     expect(internals.links()[0].isRelayed).toBe(true);
   });
 
-  it('shows the link to the room server alone on one, as down while it is being tried again', () => {
-    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a')] as never);
+  it('grades the link to the room server by how long its answers take, as down while it is being tried again', () => {
+    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([] as never);
     vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
     const open = vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
+    const roundTrip = vi.spyOn(Network, 'roundTripMs', 'get').mockReturnValue(0);
     create();
 
-    expect(internals.links().map((link) => [link.peerId, link.quality])).toEqual([
-      ['@authority', PeerLinkQuality.Good],
+    expect(internals.links().map((link) => [link.peerId, link.quality, link.ping])).toEqual([
+      ['@authority', PeerLinkQuality.Unknown, 0],
     ]);
     expect(fixture.nativeElement.textContent).toContain('部屋のサーバー');
+
+    roundTrip.mockReturnValue(230.4);
+    objectChange.peerStatsVersion.update((v) => v + 1);
+    fixture.detectChanges();
+    expect(internals.links()[0]).toMatchObject({ quality: PeerLinkQuality.Fair, ping: 230 });
+    expect(fixture.nativeElement.textContent).toContain('230ms');
 
     open.mockReturnValue(false);
     objectChange.networkVersion.update((v) => v + 1);
     expect(internals.worst()).toBe(PeerLinkQuality.Lost);
+  });
+
+  it('gives each of the others on a room server a row, graded by how long ago the server last heard from them', () => {
+    vi.useFakeTimers({ now: new Date('2026-11-07T12:00:00') });
+    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a'), peerContext('peer-b')] as never);
+    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
+    vi.spyOn(Network, 'roundTripMs', 'get').mockReturnValue(40);
+    const heard = new Map<string, number>([['peer-a', Date.now() - 5_000]]);
+    vi.spyOn(Network, 'heardAt').mockImplementation((peerId) => heard.get(peerId) ?? null);
+    create();
+
+    expect(internals.links().map((link) => [link.peerId, link.quality])).toEqual([
+      ['@authority', PeerLinkQuality.Good],
+      ['peer-a', PeerLinkQuality.Good],
+      ['peer-b', PeerLinkQuality.Unknown],
+    ]);
+    expect(fixture.nativeElement.textContent).toContain('11:59:55');
+    expect(fixture.nativeElement.textContent).toContain('--:--:--');
+
+    vi.advanceTimersByTime(POOR_SILENCE_MS);
+    fixture.detectChanges();
+    expect(internals.links()[1]?.quality).toBe(PeerLinkQuality.Poor);
+    expect(internals.worst()).toBe(PeerLinkQuality.Poor);
+    vi.useRealTimers();
+  });
+
+  it('watches the links closely only while it is shown', () => {
+    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([] as never);
+    const watch = vi.spyOn(Network, 'watchLink');
+    const ask = vi.spyOn(Network, 'askSeen');
+    create(false);
+    expect(ask).not.toHaveBeenCalled();
+
+    widgets.connectionQuality.set(true);
+    fixture.detectChanges();
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect(watch).toHaveBeenLastCalledWith(true);
+
+    widgets.connectionQuality.set(false);
+    fixture.detectChanges();
+    expect(watch).toHaveBeenLastCalledWith(false);
   });
 
   it('falls back to the head of the peer id when the name is unknown', () => {

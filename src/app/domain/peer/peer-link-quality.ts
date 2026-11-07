@@ -40,6 +40,39 @@ export function linkQualityOf(session: PeerSessionState, isOpen: boolean): PeerL
   return PeerLinkQuality.Good;
 }
 
+/**
+ * Grades the link to the room server by how long its last answer to a ping took: lost when the link
+ * is down, unknown before any answer, and then as a peer's ping is graded.
+ */
+export function roundTripQualityOf(roundTripMs: number, isOpen: boolean): PeerLinkQuality {
+  if (!isOpen) return PeerLinkQuality.Lost;
+  if (!(roundTripMs > 0)) return PeerLinkQuality.Unknown;
+  if (POOR_PING_MS <= roundTripMs) return PeerLinkQuality.Poor;
+  if (FAIR_PING_MS <= roundTripMs) return PeerLinkQuality.Fair;
+  return PeerLinkQuality.Good;
+}
+
+/**
+ * How long a room server may go without hearing from a seat before its link is graded fair: each
+ * seat pings every 25 seconds, and the server is asked only every 10, so a sound link can be up to
+ * twice the pinging apart.
+ */
+export const FAIR_SILENCE_MS = 50_000;
+/** How long before the link is graded poor: a ping more has gone missing. */
+export const POOR_SILENCE_MS = 75_000;
+
+/**
+ * Grades someone's link through a room server by how long ago the server last heard from them:
+ * unknown before the server has said, poor once POOR_SILENCE_MS have gone by, fair once
+ * FAIR_SILENCE_MS have, and good otherwise.
+ */
+export function silenceQualityOf(silentMs: number | null): PeerLinkQuality {
+  if (silentMs === null) return PeerLinkQuality.Unknown;
+  if (POOR_SILENCE_MS <= silentMs) return PeerLinkQuality.Poor;
+  if (FAIR_SILENCE_MS <= silentMs) return PeerLinkQuality.Fair;
+  return PeerLinkQuality.Good;
+}
+
 /** The worst of several connection grades, for a summary of every peer; unknown when given none. */
 export function worstLinkQuality(qualities: Iterable<PeerLinkQuality>): PeerLinkQuality {
   let worst = PeerLinkQuality.Unknown;
