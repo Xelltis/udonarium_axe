@@ -10,7 +10,7 @@ import { Network } from '@axe/core/network/network';
 import { AssetHttpStore, AssetRemovalResult } from '@axe/core/storage/asset-http-store';
 import { ASSET_LAST_TRY_DELAY_MS, ASSET_RETRY_DELAY_MS, ASSET_RETRY_LIMIT } from '@axe/core/storage/asset-retries';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
-import { BUNDLED_PIECE_MODELS } from '@axe/core/storage/bundled-models';
+import { BUNDLED_PIECE_MODELS, bundledMapModels } from '@axe/core/storage/bundled-models';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -70,7 +70,20 @@ describe('AssetRemovalService', () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
     for (const record of AssetOwner.all()) ObjectStore.instance.remove(record);
+    const models = TestBed.inject(ModelStorage);
+    for (const model of models.models) models.delete(model.identifier);
   });
+
+  /** Holds a model here in full, under an identifier and a file name. */
+  function held(identifier: string, name: string): void {
+    TestBed.inject(ModelStorage).add({
+      identifier,
+      name,
+      type: 'model/gltf-binary',
+      blob: new Blob([new Uint8Array([1])]),
+      url: '',
+    });
+  }
 
   /** Names this seat as the one who added each, as a picture made here does. */
   function addedHere(...identifiers: string[]): void {
@@ -88,17 +101,15 @@ describe('AssetRemovalService', () => {
   it('removes a 3D model a person added, and none bundled with the app, for pieces or for the map editor and the generator', () => {
     const modelId = 'd'.repeat(64);
 
-    const forest = 'f'.repeat(64);
-    TestBed.inject(ModelStorage).add({
-      identifier: forest,
-      name: 'tree_oak.glb',
-      type: 'model/gltf-binary',
-      blob: new Blob([new Uint8Array([1])]),
-      url: '',
-    });
+    const oak = bundledMapModels()['tree_oak'];
+    const ownWell = 'f'.repeat(64);
+    held(oak, 'statue.glb');
+    held(ownWell, 'well.glb');
 
-    expect(service.removable('model', [modelId, BUNDLED_PIECE_MODELS.knight, forest])).toEqual([modelId]);
-    TestBed.inject(ModelStorage).delete(forest);
+    expect(service.removable('model', [modelId, BUNDLED_PIECE_MODELS.knight, oak, ownWell])).toEqual([
+      modelId,
+      ownWell,
+    ]);
     expect(service.remove('model', [modelId])).toBe(1);
     expect(AssetRemoval.get(modelId)?.kind).toBe('model');
   });

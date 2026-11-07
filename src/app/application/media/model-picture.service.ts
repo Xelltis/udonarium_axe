@@ -1,6 +1,7 @@
 import { inject, Injectable, signal, type WritableSignal } from '@angular/core';
 import { MODEL_VIEWER_LOADER } from '@axe/application/media/model-viewer-loader';
-import { type ModelFile, modelNameOf } from '@axe/core/storage/model-file';
+import { bundledMapModelName } from '@axe/core/storage/bundled-models';
+import type { ModelFile } from '@axe/core/storage/model-file';
 import { placeableModelIconUrl } from '@axe/domain/tabletop/placeable-models';
 import type { ModelPainter } from '@axe/infrastructure/model-viewer/model-viewer-port';
 
@@ -24,7 +25,8 @@ export class ModelPictureService {
 
   /** The picture of a model, or null while it is being drawn, before its bytes come, or where none can be. */
   pictureOf(model: ModelFile): string | null {
-    const bundled = placeableModelIconUrl(modelNameOf(model.name));
+    const name = bundledMapModelName(model.identifier);
+    const bundled = name ? placeableModelIconUrl(name) : null;
     if (bundled) return bundled;
     let taken = this.pictures.get(model.identifier);
     if (!taken) {

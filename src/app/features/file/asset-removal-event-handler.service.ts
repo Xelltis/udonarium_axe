@@ -5,6 +5,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { isBundledMapModel, isBundledModel } from '@axe/core/storage/bundled-models';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -69,6 +70,16 @@ export class AssetRemovalEventHandlerService {
     for (const record of AssetRemoval.all()) this.follow(record.identifier);
   }
 
+  /**
+   * Whether a record removes a model bundled with the app, which the room cannot remove: one written
+   * before that was so is passed over, so that the map editor and the generator may read it in.
+   */
+  private isBundledModel(record: AssetRemoval): boolean {
+    return (
+      record.kind === 'model' && (isBundledModel(record.assetIdentifier) || isBundledMapModel(record.assetIdentifier))
+    );
+  }
+
   /** Brings this seat in step with one record, as it stands or gone from the room. */
   private follow(recordIdentifier: string): void {
     const found = this.objectStore.get(recordIdentifier);
@@ -81,7 +92,7 @@ export class AssetRemovalEventHandlerService {
       this.modelStorage.unmarkRemoved(was);
       this.marked.delete(recordIdentifier);
     }
-    if (!removing) return;
+    if (!removing || this.isBundledModel(removing)) return;
     if (removing.kind === 'audio') this.audioStorage.markRemoved(removing.assetIdentifier);
     else if (removing.kind === 'model') this.modelStorage.markRemoved(removing.assetIdentifier);
     else this.imageStorage.markRemoved(removing.assetIdentifier);

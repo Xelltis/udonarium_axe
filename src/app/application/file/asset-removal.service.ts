@@ -8,9 +8,8 @@ import { Network } from '@axe/core/network/network';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { ASSET_LAST_TRY_DELAY_MS, AssetRetries } from '@axe/core/storage/asset-retries';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
-import { isBundledModel } from '@axe/core/storage/bundled-models';
+import { isBundledMapModel, isBundledModel } from '@axe/core/storage/bundled-models';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { modelNameOf } from '@axe/core/storage/model-file';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -26,7 +25,6 @@ import { mentionsAnyOf } from '@axe/domain/media/image-reference';
 import { ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
 import { ModelTag } from '@axe/domain/media/model-tag';
-import { isBundledModelName } from '@axe/domain/tabletop/placeable-models';
 
 /** The words for asking and telling, for each kind removed. */
 const WORDS: Readonly<Record<AssetRemovalKind, { title: string; confirm: string; removed: string }>> = {
@@ -99,10 +97,9 @@ export class AssetRemovalService {
     );
   }
 
-  /** Whether a model is one bundled with the app, by its identifier or by the name of its file. */
+  /** Whether a model is one bundled with the app, by its identifier: the SHA-256 of its bytes, whatever its name. */
   private isBundled(identifier: string): boolean {
-    const model = this.modelStorage.get(identifier);
-    return isBundledModel(identifier) || (model !== null && isBundledModelName(modelNameOf(model.name)));
+    return isBundledModel(identifier) || isBundledMapModel(identifier);
   }
 
   /**

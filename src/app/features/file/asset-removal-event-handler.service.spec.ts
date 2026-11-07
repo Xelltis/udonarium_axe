@@ -4,6 +4,7 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { bundledMapModels } from '@axe/core/storage/bundled-models';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ModelStorage } from '@axe/core/storage/model-storage';
@@ -75,6 +76,16 @@ describe('AssetRemovalEventHandlerService', () => {
     expect(ModelStorage.instance.get(modelId)).toBeNull();
     expect(ModelStorage.instance.isRemoved(modelId)).toBe(true);
     expect(ImageStorage.instance.isRemoved(modelId)).toBe(false);
+  });
+
+  it('passes over a removal of a model bundled with the app, which the room cannot remove', () => {
+    const oak = bundledMapModels()['tree_oak'];
+    AssetRemoval.remove(oak, 'model');
+
+    start();
+
+    expect(ModelStorage.instance.isRemoved(oak)).toBe(false);
+    ObjectStore.instance.remove(AssetRemoval.get(oak)!);
   });
 
   it('tells the room who added a 3D model made on this seat', () => {

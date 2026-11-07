@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { bundledMapModels } from '@axe/core/storage/bundled-models';
 import { bundledModelUrl } from '@axe/domain/tabletop/bundled-model-url';
 import {
   isBundledModelName,
@@ -21,6 +22,10 @@ describe('placeable-models', () => {
       expect(url, id).not.toBeNull();
       expect(existsSync(join(process.cwd(), 'src', url!)), url!).toBe(true);
     }
+  });
+
+  it('knows each model it offers by the SHA-256 the room holds it under', () => {
+    for (const model of PLACEABLE_MODELS) expect(bundledMapModels()[model.id], model.id).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it('shows each model by pictures of it from above and aside, bundled beside it', () => {

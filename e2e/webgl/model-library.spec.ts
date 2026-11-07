@@ -17,12 +17,26 @@ type Hooks = {
   sceneStats(): { models: number };
 };
 
-/** A bundled model's bytes under a name the map editor does not know, so its picture is drawn. */
+/**
+ * A model of the room's own: a bundled model's bytes with a letter of the name of what made it
+ * changed, so it is none of the app's, and its picture is drawn and it may be removed.
+ */
 const STATUE = {
   name: 'statue.glb',
   mimeType: 'model/gltf-binary',
-  buffer: readFileSync(join(process.cwd(), 'src/assets/models/nature/tree_oak.glb')),
+  buffer: ownCopy(readFileSync(join(process.cwd(), 'src/assets/models/nature/tree_oak.glb'))),
 };
+
+/** The bytes of a binary glTF file with the first letter of its generator's name made a capital. */
+function ownCopy(bytes: Buffer): Buffer {
+  const copy = Buffer.from(bytes);
+  const at = copy.indexOf('"generator":"') + '"generator":"'.length;
+  copy[at] = copy
+    .toString('latin1', at, at + 1)
+    .toUpperCase()
+    .charCodeAt(0);
+  return copy;
+}
 
 async function modelsDrawn(page: Page): Promise<number> {
   return page.evaluate(async () => {

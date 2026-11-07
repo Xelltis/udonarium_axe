@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ModelPictureService } from '@axe/application/media/model-picture.service';
 import { MODEL_VIEWER_LOADER } from '@axe/application/media/model-viewer-loader';
+import { bundledMapModels } from '@axe/core/storage/bundled-models';
 import { ModelFile } from '@axe/core/storage/model-file';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -29,11 +30,14 @@ describe('ModelPictureService', () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it('shows a model the map editor offers by the picture bundled with it, drawing nothing', () => {
-    expect(TestBed.inject(ModelPictureService).pictureOf(model('tree_oak'))).toBe(
-      'assets/images/model-pictures/tree_oak.icon.webp'
-    );
+  it('shows a model the map editor offers by the picture bundled with it, by its bytes and not its name', async () => {
+    const pictures = TestBed.inject(ModelPictureService);
+    const oak = { ...model('statue'), identifier: bundledMapModels()['tree_oak'] } as ModelFile;
+
+    expect(pictures.pictureOf(oak)).toBe('assets/images/model-pictures/tree_oak.icon.webp');
     expect(paint).not.toHaveBeenCalled();
+    pictures.pictureOf(model('tree_oak'));
+    await vi.waitFor(() => expect(paint).toHaveBeenCalledTimes(1));
   });
 
   it('draws a picture of any other model once, the first time it is asked for, and none before its bytes come', async () => {
