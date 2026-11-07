@@ -32,6 +32,7 @@ import { windowRendererFactory } from '@axe/features/panels/window-renderer';
  */
 const WINDOW_SHEET = `
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: var(--ui-bg); }
+  body { display: flow-root; overflow: clip; }
   [data-panel-window-frame] [data-panel-frame-controls] { display: none !important; }
   [data-panel-window-frame] .draggable-panel {
     position: static !important;
