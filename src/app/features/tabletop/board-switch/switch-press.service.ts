@@ -7,7 +7,6 @@ import { NamedCueService } from '@axe/application/media/named-cue.service';
 import { TableBgmService } from '@axe/application/media/table-bgm.service';
 import { BoardSceneLoader } from '@axe/application/tabletop/board-scene-loader';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
-import { blockFootprintOf } from '@axe/application/tabletop/functional-paint.service';
 import { TableTriggerService } from '@axe/application/tabletop/table-trigger.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
@@ -43,6 +42,7 @@ import { groundInSight } from '@axe/domain/tabletop/ground-in-sight';
 import { gatherSpotsAround } from '@axe/domain/tabletop/move/gather-cells';
 import { occupiedCells } from '@axe/domain/tabletop/move/occupied-cells';
 import { pieceCellOf } from '@axe/domain/tabletop/move/piece-on-grid';
+import { paintedBlockFootprintOf } from '@axe/domain/tabletop/painted-block-footprint';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { TableTrigger } from '@axe/domain/tabletop/table-trigger';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -119,7 +119,7 @@ export class SwitchPressService {
     const host: ObjectNode | null = target.parent;
     const grid = this.grid();
     if (host instanceof Terrain) {
-      const rect = grid ? (blockFootprintOf(host, host.width, host.depth, grid)?.rect ?? null) : null;
+      const rect = grid ? (paintedBlockFootprintOf(host, host.width, host.depth, grid)?.rect ?? null) : null;
       return { name: host.name, rect };
     }
     if (host instanceof TableTrigger) return { name: host.name, rect: host.rect };
