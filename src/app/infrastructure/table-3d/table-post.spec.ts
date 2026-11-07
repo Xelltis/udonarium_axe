@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
+
 import { TABLE_3D_QUALITY } from '@axe/infrastructure/table-3d/table-3d-quality';
 import { TablePost } from '@axe/infrastructure/table-3d/table-post';
-import { type Node, PerspectiveCamera, Scene, type WebGPURenderer } from 'three/webgpu';
+import { type Node, NodeFrame, PerspectiveCamera, Scene, type WebGPURenderer } from 'three/webgpu';
 
 /** A renderer that only notes what it is asked to do, keeping its count of frames as the library's does. */
 function notingRenderer(frames: { update(): void } | null) {
@@ -26,6 +28,17 @@ describe('TablePost', () => {
     expect(render).toHaveBeenCalledTimes(2);
     expect(update.mock.invocationCallOrder[1]).toBeLessThan(render.mock.invocationCallOrder[1]);
     expect(update.mock.invocationCallOrder[1]).toBeGreaterThan(render.mock.invocationCallOrder[0]);
+  });
+
+  it('reaches for the count of frames where the library keeps it, which counts on as asked', () => {
+    const library = readFileSync('node_modules/three/build/three.webgpu.js', 'utf8');
+    const frames = new NodeFrame();
+    const before = frames.frameId;
+    frames.update();
+
+    expect(library).toMatch(/this\._nodes = new NodeManager\(/);
+    expect(library).toMatch(/this\.nodeFrame = new NodeFrame\(\)/);
+    expect(frames.frameId).toBe(before + 1);
   });
 
   it('draws all the same with a renderer that keeps no count of frames yet', () => {
