@@ -1,14 +1,11 @@
+import type { MarqueeRect } from '@axe/application/ui/selection-signal.service';
+
 export interface MarqueePoint {
   x: number;
   y: number;
 }
 
-export interface MarqueeRect {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-}
+export type { MarqueeRect };
 
 export interface MarqueeModifiers {
   shift: boolean;
