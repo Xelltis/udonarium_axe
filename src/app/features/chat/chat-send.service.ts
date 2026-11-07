@@ -3,7 +3,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { aimLine } from '@axe/domain/chat/character-macro';
+import { aimedAt, aimLine } from '@axe/domain/chat/character-macro';
 import { ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { evaluateCharacterReferences } from '@axe/domain/chat/chat-palette';
@@ -49,7 +49,8 @@ export class ChatSendService {
    * as typed or once the speaker's references in it are filled in (see `aimLine`), is sent once for
    * each targeted piece on the table, filled in against that piece and tagged with
    * its name, with the parts that change the speaker's own resources or buffs taken out after the
-   * first copy so they apply once; with nothing targeted, the line says so. Nothing is sent when
+   * first copy so they apply once, or once for them all where it is aimed at them all at once, as
+   * `t:範囲` aims it (see `aimedAt`); with nothing targeted, the line says so. Nothing is sent when
    * the reader may not speak in the tab. A line marked for the ticker is also shown there. A stamp
    * with nothing said goes as a line of its own, with nothing read out of the words standing in for
    * it; a stamp with words goes under them, the line going through all the rest as any line does.
@@ -79,28 +80,13 @@ export class ChatSendService {
       const aimed = aimLine(value.text, speaker);
       if (aimed.targeted) {
         objects = this.targetedGameCharacterList();
-        let first = true;
         if (objects.length == 0) {
           outtext += this.t('feature.chat.window.noTarget');
         } else {
           appendAttachmentImages(aimed.attachmentImageIdentifiers);
-        }
-        for (const object of objects) {
-          outtext += first ? '' : '\n';
-          const str2 = first ? aimed.filled : aimed.repeated;
-
-          const filled = fillIn(str2, object);
-          outtext += filled;
-          outtext += ' [' + object.name + ']';
-          first = false;
-
-          const targetContext: ChatMessageTargetContext = {
-            text: '',
-            object: null,
-          };
-          targetContext.text = filled;
-          targetContext.object = object;
-          messageTargetContext.push(targetContext);
+          const sent = aimedAt(aimed, objects, fillIn);
+          outtext = sent.text;
+          messageTargetContext.push(...sent.contexts);
         }
       } else {
         outtext = fillIn(value.text);

@@ -1,5 +1,8 @@
 import { MAX_ROLL_TARGET_NAME_LENGTH } from '@axe/core/network/server/server-protocol';
 
+/** What stands between the names of everyone a line is aimed at all at once, after its answer. */
+export const TOGETHER_SEPARATOR = '、';
+
 /**
  * The targeted character's name after a roll's result, as a room server takes it: on one line, with
  * no brackets or arrows that could pass for more of the result, and no longer than it allows. None

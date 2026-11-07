@@ -1,6 +1,6 @@
 import type { ChatMessage } from '@axe/domain/chat/chat-message';
 import type { ChatTab } from '@axe/domain/chat/chat-tab';
-import { rollTargetSuffix } from '@axe/domain/dice/roll-target-suffix';
+import { rollTargetSuffix, TOGETHER_SEPARATOR } from '@axe/domain/dice/roll-target-suffix';
 
 /**
  * The reference a line fills in with the number it has to beat: what was last rolled against the
@@ -68,7 +68,7 @@ export function findTargetNumber(tab: ChatTab, speaker: TargetNumberSpeaker): nu
     const text = `${message.text ?? ''}`.trimEnd();
     const total = rollTotalOf(text);
     if (total == null) continue;
-    if (aims.some((aim) => text.endsWith(aim))) return total;
+    if (aims.some((aim) => text.endsWith(aim)) || aimedAmong(text, speaker.name)) return total;
     if (byOthers == null && aimOf(text) == null && !rolledBy(tab, message, speaker) && !answeredOne(tab, message)) {
       byOthers = total;
     }
@@ -92,6 +92,17 @@ export function targetNumberOnce(tab: ChatTab, speaker: TargetNumberSpeaker): ()
 function aimsAt(name: string): string[] {
   if (name.length < 1) return [];
   return [...new Set([` [${name}]`, rollTargetSuffix(name) ?? ''])].filter((aim) => aim.length > 0);
+}
+
+/**
+ * Whether an answer was rolled at the speaker among everyone a line was aimed at all at once, as
+ * `t:範囲` aims it: their names stand in the brackets after it one after another.
+ */
+function aimedAmong(text: string, name: string): boolean {
+  const aim = aimOf(text);
+  if (aim == null || !aim.includes(TOGETHER_SEPARATOR) || name.length < 1) return false;
+  const asTaken = rollTargetSuffix(name)?.slice(2, -1);
+  return aim.split(TOGETHER_SEPARATOR).some((one) => one === name || one === asTaken);
 }
 
 /** The name of whoever an answer was rolled at, from the brackets after it; null for an answer rolled at nobody. */

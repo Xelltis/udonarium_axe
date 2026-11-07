@@ -473,15 +473,25 @@ export function evaluateCharacterReferences(
   );
 }
 
-/** A `t:` standing as a word of its own, which aims a line at the pieces marked and does nothing else. */
-const AIM_MARK = /(?<!\S)[tTｔＴ][:：](?!\S)/g;
+/**
+ * A `t:` standing as a word of its own, which aims a line at the pieces marked and does nothing else:
+ * once at each of them, or at them all at once where `範囲` or `area` follows it, as an area spell
+ * is cast once at everyone it reaches.
+ */
+const AIM_MARK = /(?<!\S)[tTｔＴ][:：](?:範囲|[Aa][Rr][Ee][Aa])?(?!\S)/g;
+const AT_ONCE_MARK = /(?<!\S)[tTｔＴ][:：](?:範囲|[Aa][Rr][Ee][Aa])(?!\S)/;
 
-/** Where each `t:` standing as a word of its own is in a line; see {@link withoutAimMarks}. */
+/** Where each `t:` standing as a word of its own is in a line, `t:範囲` among them; see {@link withoutAimMarks}. */
 export function aimMarkSites(line: string): { from: number; to: number }[] {
   return [...withInlineStampsAsSpaces(line).matchAll(AIM_MARK)].map((mark) => ({
     from: mark.index,
     to: mark.index + mark[0].length,
   }));
+}
+
+/** Whether a line is aimed at the pieces marked all at once, with a `t:範囲` standing as a word of its own. */
+export function aimsAtOnce(line: string): boolean {
+  return AT_ONCE_MARK.test(withInlineStampsAsSpaces(line));
 }
 
 /**

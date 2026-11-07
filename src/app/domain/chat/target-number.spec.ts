@@ -108,6 +108,15 @@ describe('target-number', () => {
       expect(findTargetNumber(tab, speaker)).toBe(12);
     });
 
+    it('takes a roll aimed at the speaker among everyone it was aimed at all at once', () => {
+      roll(enemy, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15 [PC2、PC1、騎士［見習い］]');
+      roll(enemy, 'DiceBot : (1D6) → 3');
+
+      expect(findTargetNumber(tab, speaker)).toBe(15);
+      expect(findTargetNumber(tab, { identifier: 'pc3', name: '騎士[見習い]' })).toBe(15);
+      expect(findTargetNumber(tab, { identifier: 'pc4', name: 'PC' })).toBe(3);
+    });
+
     it('finds the speaker by the name a room server writes after its answer', () => {
       roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [騎士［見習い］]');
 

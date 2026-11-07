@@ -215,6 +215,21 @@ describe('DiceBot', () => {
       tab.destroy();
     });
 
+    it('names everyone a line is aimed at all at once after its one answer', async () => {
+      const bot = new DiceBot();
+      bot.initialize();
+      const { tab, asked, requests } = await askedRoll(bot);
+
+      await bot['handleSendMessage']({
+        messageIdentifier: asked.identifier,
+        messageTarget: { text: '2d6', object: null, together: ['ゴブリンA', 'ゴブリンB'] },
+      });
+
+      expect(requests()[1]['suffix']).toBe(' [ゴブリンA、ゴブリンB]');
+      bot.destroy();
+      tab.destroy();
+    });
+
     it('asks for the answers to a line aimed at several targets in their order', async () => {
       const bot = new DiceBot();
       bot.initialize();

@@ -30,6 +30,11 @@ function isPositiveTime(value: unknown): boolean {
 export interface ChatMessageTargetContext {
   text: string;
   object: GameCharacter | null;
+  /**
+   * The names of everyone a line is aimed at all at once, as `t:範囲` aims it, who share the one roll
+   * made for it; none for a line aimed at each target in turn, or at nobody.
+   */
+  together?: readonly string[];
 }
 
 export interface ChatMessageContext {

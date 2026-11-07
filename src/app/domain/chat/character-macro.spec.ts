@@ -50,6 +50,22 @@ describe('building a macro message', () => {
     expect(message.targetContexts.map((context) => context.text)).toEqual(['2d6+8 魔法行使', '2d6+8 魔法行使']);
   });
 
+  it('rolls a line marked with a t:範囲 once for every marked piece at once, their names after it', () => {
+    const character = speaker('術者', '');
+    const first = speaker('相手A');
+    const second = speaker('相手B');
+
+    const message = buildMacroMessage(character, '2d6+8 魔法行使 t:範囲 :MP-3', [first, second], '対象なし');
+
+    expect(message.text).toBe('2d6+8 魔法行使 :MP-3 [相手A、相手B]');
+    expect(message.targetContexts.map((context) => context.object?.name)).toEqual(['相手A', '相手B']);
+    expect(message.targetContexts.map((context) => context.together)).toEqual([
+      ['相手A', '相手B'],
+      ['相手A', '相手B'],
+    ]);
+    expect(message.targetContexts[1].text).not.toContain(':MP-3');
+  });
+
   it('takes the commands aimed at the speaker out from the second target onwards', () => {
     const character = speaker('術者', '');
     const first = speaker('相手A');

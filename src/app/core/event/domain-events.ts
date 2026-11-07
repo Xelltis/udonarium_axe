@@ -5,7 +5,7 @@ import { ArchiveEntries } from '@axe/core/storage/room-archive';
 
 export interface SendMessageEvent {
   messageIdentifier: string;
-  messageTarget: { text: string; object: { name: string } | null } | null;
+  messageTarget: { text: string; object: { name: string } | null; together?: readonly string[] } | null;
 }
 
 export interface DiceTableMessageEvent {
