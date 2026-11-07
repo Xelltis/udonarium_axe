@@ -315,12 +315,37 @@ export class TablePiecesService {
   );
 
   /**
+   * The blocks by the cells of the floor their footprint's box reaches, a pixel's slack each way
+   * included, so that a point is asked of the few blocks about it rather than of every block. It is
+   * laid out afresh only as the blocks come, go or move their footprints.
+   */
+  private readonly blockCells = computed(() => {
+    const cellPx = Math.max(1, this.tableShape().gridSize);
+    const cells = new Map<number, PlacedBlock[]>();
+    for (const placed of this.blocks()) {
+      const { box } = placed;
+      const [left, right] = [cellOf(box.minX - BOX_SLACK_PX, cellPx), cellOf(box.maxX + BOX_SLACK_PX, cellPx)];
+      const [top, bottom] = [cellOf(box.minY - BOX_SLACK_PX, cellPx), cellOf(box.maxY + BOX_SLACK_PX, cellPx)];
+      for (let across = left; across <= right; across++) {
+        for (let down = top; down <= bottom; down++) {
+          const key = cellKey(across, down);
+          const held = cells.get(key);
+          if (held) held.push(placed);
+          else cells.set(key, [placed]);
+        }
+      }
+    }
+    return { cellPx, cells };
+  });
+
+  /**
    * The blocks whose footprint's box holds a point of the floor, a pixel's slack each way for the
    * edges of a turned footprint, each followed from then on.
    */
   private blocksOver(x: number, y: number): Terrain[] {
     const over: Terrain[] = [];
-    for (const { terrain, box } of this.blocks()) {
+    const { cellPx, cells } = this.blockCells();
+    for (const { terrain, box } of cells.get(cellKey(cellOf(x, cellPx), cellOf(y, cellPx))) ?? []) {
       if (box.minX - BOX_SLACK_PX > x || x > box.maxX + BOX_SLACK_PX) continue;
       if (box.minY - BOX_SLACK_PX > y || y > box.maxY + BOX_SLACK_PX) continue;
       this.objectChange.versionOf(terrain.identifier)();
@@ -1027,4 +1052,14 @@ function coinSizeOf(coin: Coin): number {
 /** How many cells across a stack of cards is drawn, as its top card is, or two while it has none. */
 function stackSizeOf(stack: CardStack): number {
   return stack.topCard?.size ?? 2;
+}
+
+/** The column or row of the floor's cells a point lies in. */
+function cellOf(position: number, cellPx: number): number {
+  return Math.floor(position / cellPx);
+}
+
+/** One number for a cell of the floor, for cells on and some way off the table alike. */
+function cellKey(across: number, down: number): number {
+  return (across + 0x8000) * 0x10000 + (down + 0x8000);
 }

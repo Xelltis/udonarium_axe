@@ -96,6 +96,23 @@ describe('TablePiecesService', () => {
     expect(frame.centre.z).toBeCloseTo(1 + gridSize + ground.lowestPxIn(100, 200, gridSize, gridSize), 6);
   });
 
+  it('keeps a die on a block that reaches over many cells, wherever on the block it stands', () => {
+    const ground = TestBed.inject(GroundService);
+    ground.dab({ kind: 'raise', x: 4, y: 6, radius: 4, strength: 1 });
+    const block = Terrain.create('block', 4, 4, 1, '', '');
+    block.location = { name: 'table', x: 100, y: 200 };
+    TestBed.inject(TableSelecter).viewTable!.appendChild(block);
+    const lift = ground.lowestPxIn(100, 200, 4 * gridSize, 4 * gridSize);
+    const heights = [100, 230].map((x) => {
+      const die = dieAt(x, 330);
+      die.posZ = gridSize;
+      return pieces.sprites().find((sprite) => sprite.owner === die.identifier)!.centre.z;
+    });
+
+    expect(lift).toBeGreaterThan(0);
+    for (const height of heights) expect(height).toBeCloseTo(1 + gridSize + lift, 6);
+  });
+
   it('stands a piece on the floor where its place is, lifted onto the ground under it, and where it is being moved to', () => {
     const ground = TestBed.inject(GroundService);
     ground.dab({ kind: 'raise', x: 2.5, y: 4.5, radius: 3, strength: 1 });
