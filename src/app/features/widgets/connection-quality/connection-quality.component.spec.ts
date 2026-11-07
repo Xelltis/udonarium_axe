@@ -1,5 +1,4 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { SEEN_ASK_INTERVAL_MS } from '@axe/application/lobby/link-watch.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { Network } from '@axe/core/index';
@@ -155,15 +154,16 @@ describe('ConnectionQualityComponent', () => {
     expect(internals.worst()).toBe(PeerLinkQuality.Lost);
   });
 
-  it('gives each of the others on a room server a row, graded by how long ago the server last heard from them', () => {
+  it('gives each of the others on a room server a row, graded by how long the server had not heard from them', () => {
     vi.useFakeTimers({ now: new Date('2026-11-07T12:00:00') });
-    pageActivity.noteInput();
     vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a'), peerContext('peer-b')] as never);
     vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
     vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
     vi.spyOn(Network, 'roundTripMs', 'get').mockReturnValue(40);
-    const heard = new Map<string, number>([['peer-a', Date.now() - 5_000]]);
-    vi.spyOn(Network, 'heardAt').mockImplementation((peerId) => heard.get(peerId) ?? null);
+    const heardA = Date.now() - 5_000;
+    let answeredAt: number | null = Date.now();
+    vi.spyOn(Network, 'seenAnsweredAt', 'get').mockImplementation(() => answeredAt);
+    vi.spyOn(Network, 'heardAt').mockImplementation((peerId) => (peerId === 'peer-a' ? heardA : null));
     create();
 
     expect(internals.links().map((link) => [link.peerId, link.quality])).toEqual([
@@ -175,11 +175,18 @@ describe('ConnectionQualityComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('--:--:--');
 
     vi.advanceTimersByTime(POOR_SILENCE_MS);
-    pageActivity.noteInput();
-    vi.advanceTimersByTime(SEEN_ASK_INTERVAL_MS);
+    objectChange.peerStatsVersion.update((v) => v + 1);
+    expect(internals.links()[1]?.quality).toBe(PeerLinkQuality.Good);
+
+    answeredAt = heardA + POOR_SILENCE_MS;
+    objectChange.peerStatsVersion.update((v) => v + 1);
     fixture.detectChanges();
     expect(internals.links()[1]?.quality).toBe(PeerLinkQuality.Poor);
     expect(internals.worst()).toBe(PeerLinkQuality.Poor);
+
+    answeredAt = null;
+    objectChange.peerStatsVersion.update((v) => v + 1);
+    expect(internals.links()[1]?.quality).toBe(PeerLinkQuality.Unknown);
   });
 
   it('watches the links closely only while it is shown', () => {

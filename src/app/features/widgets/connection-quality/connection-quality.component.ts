@@ -61,8 +61,8 @@ export class ConnectionQualityComponent {
 
   /**
    * Each link this seat holds and how it is doing. On a room server the seat holds one, to the
-   * server, graded by how long its answers take; each of the others is graded by how long ago the
-   * server last heard from them.
+   * server, graded by how long its answers take; each of the others is graded by how long the server
+   * had gone without hearing from them when it last said, which holds while nobody asks it.
    */
   protected readonly links = computed<PeerLinkView[]>(() => {
     this.objectChange.peerStatsVersion();
@@ -71,7 +71,7 @@ export class ConnectionQualityComponent {
     const authority = Network.authorityPeerId;
     if (authority !== null) {
       const roundTripMs = Network.roundTripMs;
-      const now = Date.now();
+      const answeredAt = Network.seenAnsweredAt;
       return [
         {
           peerId: authority,
@@ -86,7 +86,9 @@ export class ConnectionQualityComponent {
           return {
             peerId: peer.peerId,
             name: PeerCursor.findByPeerId(peer.peerId)?.name || peer.peerId.slice(0, 6),
-            quality: silenceQualityOf(heardAt === null ? null : Math.max(0, now - heardAt)),
+            quality: silenceQualityOf(
+              heardAt === null || answeredAt === null ? null : Math.max(0, answeredAt - heardAt)
+            ),
             ping: 0,
             isRelayed: false,
             heardAt,

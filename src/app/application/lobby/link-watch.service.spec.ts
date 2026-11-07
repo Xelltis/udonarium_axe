@@ -8,27 +8,38 @@ describe('LinkWatchService', () => {
   let watched: boolean[];
   let asks: number;
   let authority: string | null;
+  let visibility: DocumentVisibilityState;
+  let released: (() => void)[];
+
+  const watch = (): (() => void) => {
+    const release = service.watch();
+    released.push(release);
+    return release;
+  };
 
   beforeEach(() => {
     vi.useFakeTimers();
     watched = [];
     asks = 0;
     authority = '@authority';
+    visibility = 'visible';
+    released = [];
     vi.spyOn(Network, 'authorityPeerId', 'get').mockImplementation(() => authority);
     vi.spyOn(Network, 'watchLink').mockImplementation((closely) => void watched.push(closely));
     vi.spyOn(Network, 'askSeen').mockImplementation(() => void asks++);
-    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility);
     pageActivity.noteInput();
     service = TestBed.inject(LinkWatchService);
   });
 
   afterEach(() => {
+    for (const release of released) release();
     vi.useRealTimers();
   });
 
   it('asks at once and every while for as long as anybody watches, and stops once the last lets go', () => {
-    const panel = service.watch();
-    const widget = service.watch();
+    const panel = watch();
+    const widget = watch();
     expect(asks).toBe(1);
     expect(watched).toEqual([true]);
 
@@ -44,20 +55,21 @@ describe('LinkWatchService', () => {
 
     widget();
     vi.advanceTimersByTime(SEEN_ASK_INTERVAL_MS * 3);
+    pageActivity.noteInput();
     expect(asks).toBe(3);
     expect(watched.at(-1)).toBe(false);
   });
 
   it('starts asking again for whoever watches after everybody let go', () => {
-    service.watch()();
-    service.watch();
+    watch()();
+    watch();
 
     expect(asks).toBe(2);
     expect(watched).toEqual([true, false, true]);
   });
 
-  it('asks nothing while nobody has used the page for a while, and asks again once somebody does', () => {
-    service.watch();
+  it('asks nothing while nobody has used the page for a while, and asks at once when somebody does', () => {
+    watch();
     vi.advanceTimersByTime(LOOKED_AT_MS);
     const before = asks;
     vi.advanceTimersByTime(SEEN_ASK_INTERVAL_MS * 3);
@@ -65,24 +77,30 @@ describe('LinkWatchService', () => {
     expect(watched.at(-1)).toBe(false);
 
     pageActivity.noteInput();
-    vi.advanceTimersByTime(SEEN_ASK_INTERVAL_MS);
     expect(asks).toBe(before + 1);
     expect(watched.at(-1)).toBe(true);
+    pageActivity.noteInput();
+    expect(asks).toBe(before + 1);
   });
 
-  it('asks nothing while the page is hidden', () => {
-    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
-
-    service.watch();
-
+  it('asks nothing while the page is hidden, and asks at once when it is shown again', () => {
+    visibility = 'hidden';
+    watch();
+    vi.advanceTimersByTime(LOOKED_AT_MS * 2);
     expect(asks).toBe(0);
-    expect(watched).toEqual([false]);
+    expect(watched.at(-1)).toBe(false);
+
+    visibility = 'visible';
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    expect(asks).toBe(1);
+    expect(watched.at(-1)).toBe(true);
   });
 
   it('asks nothing outside a room on a room server, and moves nothing on', () => {
     authority = null;
 
-    service.watch();
+    watch();
     vi.advanceTimersByTime(SEEN_ASK_INTERVAL_MS);
 
     expect(asks).toBe(0);
