@@ -89,6 +89,8 @@ export interface Connection {
   readonly keptRole?: ServerRole;
   /** Whether a room server connection is holding sends back for seconds, to keep inside the server's limits. */
   readonly sendsPending?: boolean;
+  /** How long the room server took to answer the last ping, in milliseconds; 0 before any answer. */
+  readonly roundTripMs?: number;
 
   configure(config: Record<string, unknown>): void;
   openStandby(userId?: string): void;
@@ -122,4 +124,10 @@ export interface Connection {
   useInvite?(invite: string): void;
   /** Asks the room server for an invitation in a role. */
   requestInvite?(role: ServerRole): Promise<InviteMessage>;
+  /** Pings the room server more often while somebody looks at how the link is doing, or as before. */
+  watchLink?(closely: boolean): void;
+  /** Asks the room server when it last heard from each of the others. */
+  askSeen?(): void;
+  /** When the room server last heard from that member, by this clock, or null before it has said. */
+  heardAt?(peerId: string): number | null;
 }

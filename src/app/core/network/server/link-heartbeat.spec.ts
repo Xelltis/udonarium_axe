@@ -3,6 +3,7 @@ import {
   PING_INTERVAL_MS,
   PONG_TIMEOUT_MS,
   SOCKET_OPEN,
+  WATCHED_PING_INTERVAL_MS,
   WELCOME_TIMEOUT_MS,
 } from '@axe/core/network/server/link-heartbeat';
 import { PING } from '@axe/core/network/server/server-protocol';
@@ -98,6 +99,74 @@ describe('LinkHeartbeat', () => {
 
     expect(socket.sent).toEqual([PING]);
     expect(lost).toEqual([]);
+  });
+
+  it('tells how long the answer to a ping took, and nothing before one comes or on a link started afresh', () => {
+    welcomed = true;
+    const socket = openSocket();
+    current = socket;
+    heartbeat.start(socket);
+    heartbeat.answered();
+    expect(heartbeat.roundTripMs).toBe(0);
+
+    vi.advanceTimersByTime(PING_INTERVAL_MS);
+    vi.advanceTimersByTime(120);
+    heartbeat.answered();
+    expect(heartbeat.roundTripMs).toBe(120);
+
+    heartbeat.start(socket);
+    expect(heartbeat.roundTripMs).toBe(0);
+  });
+
+  it('times an answer from the ping still waiting for one, unless that has waited past giving up', () => {
+    welcomed = true;
+    const socket = openSocket();
+    current = socket;
+    heartbeat.start(socket);
+    heartbeat.watch(true);
+
+    vi.advanceTimersByTime(WATCHED_PING_INTERVAL_MS);
+    vi.advanceTimersByTime(300);
+    heartbeat.answered();
+    expect(heartbeat.roundTripMs).toBe(WATCHED_PING_INTERVAL_MS + 300);
+
+    vi.advanceTimersByTime(WATCHED_PING_INTERVAL_MS - 300);
+    heartbeat.heard();
+    vi.advanceTimersByTime(WATCHED_PING_INTERVAL_MS);
+    heartbeat.heard();
+    vi.advanceTimersByTime(WATCHED_PING_INTERVAL_MS);
+    vi.advanceTimersByTime(80);
+    heartbeat.answered();
+    expect(heartbeat.roundTripMs).toBe(80);
+    expect(socket.sent).toEqual([PING, PING, PING, PING, PING]);
+    expect(lost).toEqual([]);
+  });
+
+  it('asks more often while somebody looks, at once unless it asked a moment ago, and as before once nobody does', () => {
+    welcomed = true;
+    const socket = openSocket();
+    current = socket;
+    heartbeat.watch(true);
+    heartbeat.watch(false);
+    heartbeat.start(socket);
+
+    heartbeat.watch(true);
+    expect(socket.sent).toEqual([PING]);
+    heartbeat.answered();
+    heartbeat.watch(false);
+    heartbeat.watch(true);
+    expect(socket.sent).toEqual([PING]);
+    heartbeat.watch(true);
+
+    vi.advanceTimersByTime(WATCHED_PING_INTERVAL_MS);
+    expect(socket.sent).toEqual([PING, PING]);
+    heartbeat.answered();
+
+    heartbeat.watch(false);
+    vi.advanceTimersByTime(PING_INTERVAL_MS - 1);
+    expect(socket.sent).toEqual([PING, PING]);
+    vi.advanceTimersByTime(1);
+    expect(socket.sent).toEqual([PING, PING, PING]);
   });
 
   it('watches nothing once stopped', () => {

@@ -8,6 +8,7 @@ import {
 } from '@axe/core/network/connection';
 import { IPeerContext, PeerContext } from '@axe/core/network/peer-context';
 import { PeerReconnectScheduler } from '@axe/core/network/peer-reconnect-scheduler';
+import { peerStatsUpdated$ } from '@axe/core/network/peer-stats-events';
 import { IRoomInfo } from '@axe/core/network/room-info';
 import { IdleWatch } from '@axe/core/network/server/idle-watch';
 import { LinkHeartbeat, SOCKET_OPEN } from '@axe/core/network/server/link-heartbeat';
@@ -47,6 +48,8 @@ import {
   Member,
   readAssetUploadPolicy,
   readServerMessage,
+  SeenMessage,
+  seenRequest,
   ServerMessage,
   ServerRole,
   WelcomeMessage,
@@ -152,6 +155,10 @@ export class ServerConnection implements Connection {
   get keptRole(): ServerRole | undefined {
     return this.keptServerRole ?? undefined;
   }
+  /** How long the room server took to answer the last ping, in milliseconds; 0 before any answer on this link. */
+  get roundTripMs(): number {
+    return this.heartbeat.roundTripMs;
+  }
 
   private baseUrl = '';
   private me: PeerContext = PeerContext.parse('???');
@@ -177,6 +184,8 @@ export class ServerConnection implements Connection {
   private clockOffset = 0;
   private retriedUnauthorized = false;
   private inviteWaiters: InviteWaiter[] = [];
+  /** When the room server last heard from each of the others, by this clock, as it last answered seen. */
+  private readonly heard = new Map<string, number>();
 
   private socket: WebSocket | null = null;
   private welcomed = false;
@@ -310,6 +319,7 @@ export class ServerConnection implements Connection {
     this.teardown();
     this.me.isOpen = false;
     this.members.clear();
+    this.heard.clear();
     this.authority = null;
     this.rejectInviteWaiters('the connection closed');
   }
@@ -502,8 +512,13 @@ export class ServerConnection implements Connection {
     };
     socket.onmessage = (event: MessageEvent) => {
       if (socket !== this.socket) return;
-      this.heartbeat.heard();
-      if (typeof event.data !== 'string') this.receive(new Uint8Array(event.data as ArrayBuffer));
+      if (typeof event.data !== 'string') {
+        this.heartbeat.heard();
+        this.receive(new Uint8Array(event.data as ArrayBuffer));
+        return;
+      }
+      this.heartbeat.answered();
+      peerStatsUpdated$.emit();
     };
     socket.onclose = (event: CloseEvent) => {
       if (socket !== this.socket) return;
@@ -594,10 +609,23 @@ export class ServerConnection implements Connection {
         this.assetTokenRenewal.take(message.assetToken, message.expiresAt);
         this.takeRole(message.role, message.keptRole);
         return;
+      case 'seen':
+        this.takeSeen(message);
+        return;
       case 'error':
         this.refusal = message.code;
         return;
     }
+  }
+
+  /** Keeps when the server last heard from each of the others, as a while before now by this clock. */
+  private takeSeen(message: SeenMessage): void {
+    const now = Date.now();
+    this.heard.clear();
+    for (const member of message.members) {
+      this.heard.set(member.peerId, now - Math.max(0, message.serverTime - member.heardAt));
+    }
+    peerStatsUpdated$.emit();
   }
 
   private welcome(message: WelcomeMessage): void {
@@ -700,6 +728,7 @@ export class ServerConnection implements Connection {
     const peer = this.members.get(peerId);
     if (!peer) return;
     this.members.delete(peerId);
+    this.heard.delete(peerId);
     peer.isOpen = false;
     this.callback.onDisconnect?.(peer);
   }
@@ -981,6 +1010,21 @@ export class ServerConnection implements Connection {
         if (socket != null && socket === this.socket && socket.readyState === SOCKET_OPEN) socket.send(frame);
       })
       .catch((e) => Logger.warn('[ServerConnection] a send failed', e));
+  }
+
+  /** Asks the server for its pings more often while somebody looks at how the link is doing, or as before. */
+  watchLink(closely: boolean): void {
+    this.heartbeat.watch(closely);
+  }
+
+  /** Asks the server when it last heard from each of the others, once the seat is in the room. */
+  askSeen(): void {
+    if (this.welcomed) this.post(seenRequest());
+  }
+
+  /** When the server last heard from that member, by this clock, or null before it has said. */
+  heardAt(peerId: string): number | null {
+    return this.heard.get(peerId) ?? null;
   }
 
   /**

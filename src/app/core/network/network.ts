@@ -128,6 +128,22 @@ export class Network {
   static comeBackFromIdle(): void {
     Network.instance.comeBackFromIdle();
   }
+  /** How long the room server took to answer the last ping, in milliseconds; 0 with SkyWay or before any answer. */
+  static get roundTripMs(): number {
+    return Network.instance.roundTripMs;
+  }
+  /** Pings the room server more often while somebody looks at how the link is doing, or as before; nothing with SkyWay. */
+  static watchLink(closely: boolean): void {
+    Network.instance.watchLink(closely);
+  }
+  /** Asks the room server when it last heard from each of the others; nothing with SkyWay. */
+  static askSeen(): void {
+    Network.instance.askSeen();
+  }
+  /** When the room server last heard from that member, by this clock; null with SkyWay or before it has said. */
+  static heardAt(peerId: string): number | null {
+    return Network.instance.heardAt(peerId);
+  }
   /**
    * Opens a network session in no room, closing any session first.
    *
@@ -302,6 +318,22 @@ export class Network {
 
   comeBackFromIdle(): void {
     this.connection?.comeBackFromIdle?.();
+  }
+
+  get roundTripMs(): number {
+    return this.connection?.roundTripMs ?? 0;
+  }
+
+  watchLink(closely: boolean): void {
+    this.connection?.watchLink?.(closely);
+  }
+
+  askSeen(): void {
+    this.connection?.askSeen?.();
+  }
+
+  heardAt(peerId: string): number | null {
+    return this.connection?.heardAt?.(peerId) ?? null;
   }
 
   requestInvite(role: ServerRole): Promise<InviteMessage> {

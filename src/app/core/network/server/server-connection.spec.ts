@@ -1,6 +1,12 @@
 import { IPeerContext } from '@axe/core/network/peer-context';
+import { peerStatsUpdated$ } from '@axe/core/network/peer-stats-events';
 import { IDLE_WARNING_MS } from '@axe/core/network/server/idle-watch';
-import { PING_INTERVAL_MS, PONG_TIMEOUT_MS, WELCOME_TIMEOUT_MS } from '@axe/core/network/server/link-heartbeat';
+import {
+  PING_INTERVAL_MS,
+  PONG_TIMEOUT_MS,
+  WATCHED_PING_INTERVAL_MS,
+  WELCOME_TIMEOUT_MS,
+} from '@axe/core/network/server/link-heartbeat';
 import { MAX_HELD_BROADCASTS } from '@axe/core/network/server/outbound-events';
 import { pageActivity } from '@axe/core/network/server/page-activity';
 import {
@@ -1240,6 +1246,81 @@ describe('ServerConnection', () => {
     vi.advanceTimersByTime(PONG_TIMEOUT_MS);
 
     expect(socket.readyState).toBe(1);
+  });
+
+  it('tells how long the server took to answer its last ping, and that the links were measured again', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
+    const socket = await enterRoom();
+    let measured = 0;
+    const stop = peerStatsUpdated$.subscribe(() => measured++);
+    expect(connection.roundTripMs).toBe(0);
+
+    connection.watchLink(true);
+    vi.advanceTimersByTime(150);
+    socket.onmessage?.({ data: 'pong' });
+    stop();
+
+    expect(connection.roundTripMs).toBe(150);
+    expect(measured).toBe(1);
+  });
+
+  it('pings more often while somebody looks at how the link is doing, and as before once nobody does', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
+    const socket = await enterRoom();
+    const pings = () => socket.sent.filter((frame) => frame === 'ping').length;
+
+    connection.watchLink(true);
+    expect(pings()).toBe(1);
+    socket.onmessage?.({ data: 'pong' });
+    vi.advanceTimersByTime(WATCHED_PING_INTERVAL_MS);
+    expect(pings()).toBe(2);
+    socket.onmessage?.({ data: 'pong' });
+
+    connection.watchLink(false);
+    vi.advanceTimersByTime(PING_INTERVAL_MS - 1);
+    expect(pings()).toBe(2);
+  });
+
+  it('asks when the others were last heard from only once in the room, and keeps the answer by this clock', async () => {
+    connection.askSeen();
+    expect(FakeWebSocket.instances).toEqual([]);
+    const socket = await enterRoom([OTHER]);
+    let told = 0;
+    const stop = peerStatsUpdated$.subscribe(() => told++);
+
+    connection.askSeen();
+    await vi.waitFor(async () => expect(await socket.frames()).toContainEqual({ type: 'seen' }));
+    const serverTime = Date.now() + 60_000;
+    socket.deliver({ type: 'seen', serverTime, members: [{ peerId: OTHER.peerId, heardAt: serverTime - 3_000 }] });
+    await vi.waitFor(() => expect(told).toBe(1));
+    stop();
+
+    expect(Date.now() - connection.heardAt(OTHER.peerId)!).toBeGreaterThanOrEqual(3_000);
+    expect(Date.now() - connection.heardAt(OTHER.peerId)!).toBeLessThan(4_000);
+    expect(connection.heardAt('somebody-else')).toBeNull();
+  });
+
+  it('forgets when a member was last heard from once they leave, and everybody once it closes', async () => {
+    const third: Member = { peerId: 'Qq1Ww2Ab3e7r6q5W-', userId: 'third-user', role: 'pl' };
+    const socket = await enterRoom([OTHER, third]);
+    const serverTime = Date.now();
+    socket.deliver({
+      type: 'seen',
+      serverTime,
+      members: [
+        { peerId: OTHER.peerId, heardAt: serverTime },
+        { peerId: third.peerId, heardAt: serverTime + 500 },
+      ],
+    });
+    await vi.waitFor(() => expect(connection.heardAt(OTHER.peerId)).not.toBeNull());
+    expect(connection.heardAt(third.peerId)! - connection.heardAt(OTHER.peerId)!).toBeLessThan(100);
+
+    socket.deliver({ type: 'leave', peerId: OTHER.peerId });
+    await vi.waitFor(() => expect(connection.heardAt(OTHER.peerId)).toBeNull());
+    expect(connection.heardAt(third.peerId)).not.toBeNull();
+
+    connection.close();
+    expect(connection.heardAt(third.peerId)).toBeNull();
   });
 
   it('leaves without a word when closed, and sends nothing after', async () => {

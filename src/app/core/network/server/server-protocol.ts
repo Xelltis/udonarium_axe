@@ -11,7 +11,7 @@
  */
 
 /** Raised whenever an envelope changes; a hello at another version is refused with protocol-mismatch. */
-export const PROTOCOL_VERSION = 5;
+export const PROTOCOL_VERSION = 6;
 
 /** The room server's own peer id, a shape no client id can take. */
 export const AUTHORITY_PEER_ID = '@authority';
@@ -157,8 +157,23 @@ export interface ActiveMessage {
   type: 'active';
 }
 
+/**
+ * Asks when the server last heard from each of the others in the room; the answer comes as seen.
+ * Each ask wakes the room, so it is asked only while somebody looks at how the links are doing.
+ */
+export interface SeenRequest {
+  type: 'seen';
+}
+
 export type ClientMessage =
-  HelloMessage | SendMessage | TimeRequest | InviteRequest | AuthMessage | AssetTokenRequest | ActiveMessage;
+  | HelloMessage
+  | SendMessage
+  | TimeRequest
+  | InviteRequest
+  | AuthMessage
+  | AssetTokenRequest
+  | ActiveMessage
+  | SeenRequest;
 
 // ---- server to client ----
 
@@ -224,6 +239,19 @@ export interface DataMessage {
 export interface TimeMessage {
   type: 'time';
   serverTime: number;
+}
+
+/** When the server last heard anything from someone in the room, a ping included, by its clock (Unix milliseconds). */
+export interface MemberSeen {
+  peerId: string;
+  heardAt: number;
+}
+
+/** The answer to seen: when the server last heard from each of the others, and its time as it answered. */
+export interface SeenMessage {
+  type: 'seen';
+  serverTime: number;
+  members: MemberSeen[];
 }
 
 /** The answer to an invite request: the invitation and when it runs out, both null for a non-GM. */
@@ -299,6 +327,7 @@ export type ServerMessage =
   | TimeMessage
   | InviteMessage
   | AssetTokenMessage
+  | SeenMessage
   | ErrorMessage;
 
 // ---- events with the server ----
@@ -565,6 +594,11 @@ export function assetTokenRequest(): AssetTokenRequest {
   return { type: 'asset-token' };
 }
 
+/** Asks when the server last heard from each of the others. */
+export function seenRequest(): SeenRequest {
+  return { type: 'seen' };
+}
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -578,6 +612,9 @@ const isStringOrNull = (value: unknown): boolean => value === null || typeof val
 const isNumberOrNull = (value: unknown): boolean => value === null || typeof value === 'number';
 
 const isEvent = (value: unknown): value is EventContext => isRecord(value) && typeof value['eventName'] === 'string';
+
+const isMemberSeen = (value: unknown): value is MemberSeen =>
+  isRecord(value) && typeof value['peerId'] === 'string' && typeof value['heardAt'] === 'number';
 
 /**
  * A decoded frame from the server as a message, or null when it has a shape no message has.
@@ -620,6 +657,12 @@ export function readServerMessage(value: unknown): ServerMessage | null {
         isOptionalServerRole(value['role']) &&
         isOptionalServerRole(value['keptRole'])
         ? (value as unknown as AssetTokenMessage)
+        : null;
+    case 'seen':
+      return typeof value['serverTime'] === 'number' &&
+        Array.isArray(value['members']) &&
+        value['members'].every(isMemberSeen)
+        ? (value as unknown as SeenMessage)
         : null;
     case 'error':
       return typeof value['code'] === 'string' ? (value as unknown as ErrorMessage) : null;
