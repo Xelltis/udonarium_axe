@@ -124,6 +124,27 @@ describe('ModelLibraryComponent', () => {
     ObjectStore.instance.remove(wall);
   });
 
+  it('follows a block chosen on the table as it is locked in place, and says only what it put the model on', () => {
+    const block = Terrain.create('block', 1, 1, 1, '', '');
+    const piece = GameCharacter.create('騎士', 1, '');
+    TestBed.inject(SelectionSignalService).replaceSelection([block.identifier, piece.identifier]);
+    const host = open();
+    press(host, 'model-library-show');
+    const putOn = () => host.querySelector('[data-testid="model-library-put-on"]') as HTMLButtonElement;
+    expect(putOn().textContent).toContain('2');
+
+    block.isLocked = true;
+    TestBed.inject(ObjectChangeService).notifyChanged(block.identifier);
+    fixture.detectChanges();
+    expect(putOn().textContent).toContain('1');
+    press(host, 'model-library-put-on');
+
+    expect(block.modelIdentifier).toBe('');
+    expect(piece.modelIdentifier).toBe(chairId);
+    expect(shown).toHaveLength(1);
+    ObjectStore.instance.remove(block);
+  });
+
   it('acts on a model no more once it is gone from the room', () => {
     const host = open();
     press(host, 'model-library-show');

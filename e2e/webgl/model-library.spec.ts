@@ -30,11 +30,15 @@ const STATUE = {
 /** The bytes of a binary glTF file with the first letter of its generator's name made a capital. */
 function ownCopy(bytes: Buffer): Buffer {
   const copy = Buffer.from(bytes);
-  const at = copy.indexOf('"generator":"') + '"generator":"'.length;
-  copy[at] = copy
+  const key = copy.indexOf('"generator":"');
+  if (key < 0) throw new Error('the bundled model names no generator to change');
+  const at = key + '"generator":"'.length;
+  const capital = copy
     .toString('latin1', at, at + 1)
     .toUpperCase()
     .charCodeAt(0);
+  if (capital === copy[at]) throw new Error('the generator’s name starts with a capital already');
+  copy[at] = capital;
   return copy;
 }
 

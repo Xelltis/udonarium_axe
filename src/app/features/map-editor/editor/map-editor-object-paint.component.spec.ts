@@ -76,7 +76,7 @@ describe('MapEditorObjectPaintComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    pick('部屋のモデル', 'statue.glb');
+    pick('部屋のモデル', 'statue');
 
     expect(state.functionSpec().object).toMatchObject({ model: 'held-statue', name: 'statue', size: 1, height: 1 });
     expect(host().querySelector('[data-testid="object-height"]')).not.toBeNull();

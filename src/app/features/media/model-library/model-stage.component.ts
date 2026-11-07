@@ -46,6 +46,8 @@ export class ModelStageComponent {
   private readonly stage = signal<ModelStage | null>(null);
   private readonly loadViewer = inject(MODEL_VIEWER_LOADER);
   private dragFrom: { x: number; y: number } | null = null;
+  /** How many models were asked to be shown, so that only the last one asked for settles the stage. */
+  private asked = 0;
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -54,8 +56,9 @@ export class ModelStageComponent {
       const stage = this.stage();
       const url = this.url();
       if (!stage) return;
+      const asking = ++this.asked;
       void stage.show(url).then((shown) => {
-        if (untracked(this.url) === url) this.settled.set({ url, shown });
+        if (asking === this.asked) this.settled.set({ url, shown });
       });
     });
     destroyRef.onDestroy(() => untracked(this.stage)?.dispose());

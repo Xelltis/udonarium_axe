@@ -55,10 +55,12 @@ export class ModelLibraryComponent {
   /** What tagging and removing act on: the models ticked that are held here, or the one shown while none is. */
   protected readonly acted = computed<readonly string[]>(() => {
     this.objectChange.fileVersion();
-    const checked = [...this.checked()].filter((identifier) => this.modelStorage.get(identifier) !== null);
+    const held = (identifier: string | null): identifier is string =>
+      identifier !== null && this.modelStorage.get(identifier) !== null;
+    const checked = [...this.checked()].filter(held);
     if (checked.length > 0) return checked;
-    const chosen = this.chosenModel();
-    return chosen ? [chosen.identifier] : [];
+    const chosen = this.chosen();
+    return held(chosen) ? [chosen] : [];
   });
   protected readonly newTag = signal('');
 
@@ -99,7 +101,6 @@ export class ModelLibraryComponent {
   /** Which of the models acted on this seat may remove from the room. */
   protected readonly removable = computed(() => {
     this.ownership.track();
-    this.objectChange.fileVersion();
     this.rolePermission.canEditTabletop();
     return this.assetRemoval.removable('model', this.acted());
   });
@@ -109,6 +110,7 @@ export class ModelLibraryComponent {
     const chosen = this.selection.selectedObjects();
     const last = this.selection.selectedObject()?.identifier;
     const identifiers = chosen.size > 0 ? [...chosen] : last ? [last] : [];
+    for (const identifier of identifiers) this.objectChange.versionOf(identifier)();
     return identifiers.map((identifier) => this.objectStore.get(identifier)).filter(takesModel);
   });
 
@@ -159,11 +161,9 @@ export class ModelLibraryComponent {
   protected putOnChosen(): void {
     const model = this.chosenModel();
     if (!model) return;
-    const targets = this.targets();
-    for (const target of targets) attachModel(target, model.identifier);
-    this.snackbar.show(
-      this.t('feature.media.modelLibrary.attached', { count: targets.length, name: this.nameOf(model) })
-    );
+    const put = this.targets().filter((target) => attachModel(target, model.identifier)).length;
+    if (put > 0)
+      this.snackbar.show(this.t('feature.media.modelLibrary.attached', { count: put, name: this.nameOf(model) }));
   }
 
   /** Removes the models acted on from the room, after asking. */
