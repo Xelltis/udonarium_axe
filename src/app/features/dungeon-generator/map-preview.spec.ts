@@ -3,7 +3,7 @@ import { planDungeon } from '@axe/domain/tabletop/dungeon/dungeon-generator';
 import { planField } from '@axe/domain/tabletop/field/field-generator';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { MapBlocks } from '@axe/domain/tabletop/map-blocks';
-import { buildMapPreview, previewColors, TORCH_FILL } from '@axe/features/dungeon-generator/map-preview';
+import { buildMapPreview, ICE_FILL, previewColors, TORCH_FILL } from '@axe/features/dungeon-generator/map-preview';
 
 const colors = previewColors('wall_ashlar', 'stone_paving_big', 'lava');
 
@@ -67,6 +67,22 @@ describe('buildMapPreview()', () => {
     blocks.blocks.forEach((block, index) => {
       if (block.kind === 'wall') expect(preview.rects[blocks.paint.length + index].fill).toBe(colors.wall);
     });
+  });
+
+  it('shows the water laid over the ground in its own colour, and frozen water as ice, under the blocks', () => {
+    for (const atmosphere of ['marsh', 'snowfield'] as const) {
+      const { layout, blocks } = planField({ atmosphere, size: 40, density: 50, seed: 7 });
+      const preview = buildMapPreview(layout, blocks, colors);
+      const waters = blocks.ambiences.filter((ambience) => ambience.water);
+      const drawn = preview.rects.slice(blocks.paint.length, blocks.paint.length + waters.length);
+
+      expect(waters.length).toBeGreaterThan(0);
+      expect(preview.rects).toHaveLength(
+        blocks.paint.length + waters.length + blocks.blocks.length + blocks.torchSpots.length
+      );
+      waters.forEach((water, index) => expect(drawn[index]).toMatchObject(water.rect));
+      for (const rect of drawn) expect(rect.fill).toBe(atmosphere === 'marsh' ? '#5f6b4a' : ICE_FILL);
+    }
   });
 
   it('marks where each torch stands', () => {
