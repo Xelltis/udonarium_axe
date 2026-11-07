@@ -77,7 +77,7 @@
             [ngStyle]="{ background: 'radial-gradient(circle, rgba(90,230,120,0.7) 0%, rgba(90,230,120,0) 70%)' }"
           ></div>
         }
-        @if (!isLock && canTurn()) {
+        @if (!isLock && canTurn() && canHandle()) {
           <!-- The ring round the pedestal that turns the piece, pressed anywhere on it or by its knob on the
                side the piece faces; the pedestal itself is cut out of it, so a press on it moves the piece. -->
           <div
@@ -426,7 +426,7 @@
           [src]="imageFile().url | safe: 'resourceUrl'"
           [appHudPlace]="{ owner: id, part: 'picture', place: 'face' }"
         />
-        @if (!isLock && !mode2dEnabled()) {
+        @if (!isLock && !mode2dEnabled() && canHandle()) {
           <!-- The handle that tips the piece over, beside its picture; held, it shows how far the
                piece leans, and a double click stands it upright again. -->
           <div

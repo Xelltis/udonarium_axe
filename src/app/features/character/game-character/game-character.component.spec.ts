@@ -5,6 +5,7 @@ import { ChatClockService } from '@axe/application/chat/chat-clock.service';
 import { SPEECH_BUBBLE_WAIT_MS, SpeechBubbleService } from '@axe/application/chat/speech-bubble.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GroundService } from '@axe/application/tabletop/ground.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
@@ -2093,21 +2094,22 @@ describe('GameCharacterComponent', () => {
       const character = withPicture('turn-ring-hidden');
       type Ring = { hovered: { set(value: boolean): void }; turnRing(): { arc: string; radius: number } };
       const ring = () => component as unknown as Ring;
-      const hiddenBy = vi
-        .spyOn(TestBed.inject(TablePickService), 'hiddenBy')
-        .mockImplementation((_id, _surface, _x, y) => y < 24.5);
+      const hides = vi.fn((_surface: string, _x: number, y: number) => y < 24.5);
+      const sightOf = vi
+        .spyOn(TestBed.inject(TablePickService), 'pictureSightOf')
+        .mockReturnValue({ hides, cornerOnPage: () => ({ x: -1000, y: -1000 }) });
 
       try {
         choose(character);
         expect(ring().turnRing().arc).toMatch(/ A/);
-        expect(hiddenBy).not.toHaveBeenCalled();
+        expect(sightOf).not.toHaveBeenCalled();
 
         expect(fixture.nativeElement.querySelectorAll('[data-testid="turn-grab"]')).toHaveLength(2);
         ring().hovered.set(true);
         const arc = ring().turnRing().arc;
         expect(arc).not.toMatch(/A/);
         expect(arc.match(/M/g)).toHaveLength(1);
-        expect(hiddenBy).toHaveBeenCalled();
+        expect(hides).toHaveBeenCalled();
         fixture.detectChanges();
         expect(fixture.nativeElement.querySelectorAll('[data-testid="turn-grab"]')).toHaveLength(1);
 
@@ -2123,8 +2125,10 @@ describe('GameCharacterComponent', () => {
     it('lets a knob give way where the handle that tips the piece is drawn, but keeps both while the piece is turned', () => {
       const character = withPicture('knob-gives-way');
       const pick = TestBed.inject(TablePickService);
-      vi.spyOn(pick, 'hiddenBy').mockReturnValue(false);
-      vi.spyOn(pick, 'pictureCornerOnPage').mockReturnValue({ x: 100, y: 100 });
+      vi.spyOn(pick, 'pictureSightOf').mockReturnValue({
+        hides: () => false,
+        cornerOnPage: () => ({ x: 100, y: 100 }),
+      });
       vi.spyOn(TestBed.inject(TableSurfaceService), 'pageOf').mockImplementation((_surface, _x, y) =>
         y < 25 ? { x: 118, y: 112 } : { x: 0, y: 300 }
       );
@@ -2142,6 +2146,76 @@ describe('GameCharacterComponent', () => {
         fixture.detectChanges();
         expect(knobs()).toHaveLength(2);
         handles().onTurnEnd();
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('marks the ring at the table’s own directions a held Alt turns the piece to, by its grid', async () => {
+      const character = withPicture('turn-steps');
+      character.rotate = 10;
+      TestBed.inject(ObjectChangeService).notifyChanged(character.identifier);
+
+      try {
+        choose(character);
+        const radius = (component as unknown as { turnRing(): { radius: number } }).turnRing().radius;
+        const [first] = handles().turnTicks();
+        expect(handles().turnTicks()).toHaveLength(8);
+        expect(first!.x).toBeCloseTo(radius + radius * Math.sin((-10 * Math.PI) / 180), 6);
+
+        const table = TestBed.inject(TabletopService).currentTable;
+        table.gridType = GridType.HEX_VERTICAL;
+        await Promise.resolve();
+        fixture.detectChanges();
+        expect(handles().turnTicks()).toHaveLength(12);
+        table.gridType = GridType.SQUARE;
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('weighs nothing round the pedestal while the piece is carried, and the ring at the pedestal of a piece raised off it', () => {
+      const character = withPicture('turn-carried');
+      character.altitude = 2;
+      const hides = vi.fn((_surface: string, _x: number, _y: number, _height?: number) => false);
+      const sightOf = vi
+        .spyOn(TestBed.inject(TablePickService), 'pictureSightOf')
+        .mockReturnValue({ hides, cornerOnPage: () => ({ x: -1000, y: -1000 }) });
+      type Carry = {
+        hovered: { set(value: boolean): void };
+        onPickUp(): void;
+        onPutDown(): void;
+        turnRingSeen(): unknown;
+      };
+      const carry = () => component as unknown as Carry;
+
+      try {
+        choose(character);
+        carry().hovered.set(true);
+        carry().onPickUp();
+        carry().turnRingSeen();
+        expect(sightOf).not.toHaveBeenCalled();
+
+        carry().onPutDown();
+        carry().turnRingSeen();
+        expect(sightOf).toHaveBeenCalled();
+        expect(hides.mock.calls[0]![3]).toBe(TestBed.inject(TablePiecesService).footOf(character).height);
+      } finally {
+        character.destroy();
+      }
+    });
+
+    it('shows a seat only watching no handles, and lets no double click of it stand the piece upright', () => {
+      const character = withPicture('turn-watching');
+      character.roll = 30;
+      vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(false);
+
+      try {
+        choose(character);
+        expect(testOf('turn-grab')).toBeNull();
+        expect(headOf()).toBeNull();
+        (component as unknown as { standUpright(event: MouseEvent): void }).standUpright(new MouseEvent('dblclick'));
+        expect(character.roll).toBe(30);
       } finally {
         character.destroy();
       }

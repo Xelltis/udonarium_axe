@@ -377,7 +377,7 @@ test.describe('pieces drawn on a canvas', () => {
     const report = JSON.stringify([headBox, upright]);
     expect(Math.abs(headBox.y - upright.y), report).toBeLessThan(10);
     expect(headBox.x, report).toBeGreaterThan(upright.x + upright.width - 6);
-    expect(character.getByTestId('roll-grab-foot')).toHaveCount(0);
+    await expect(character.getByTestId('roll-grab-foot')).toHaveCount(0);
 
     const grab = middleOf(headBox);
     await page.mouse.move(grab.x, grab.y);

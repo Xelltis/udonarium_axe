@@ -192,9 +192,6 @@ const TURN_KNOB_ANGLES = [0, 180] as const;
 /** How many points round the ring are looked at to leave out of it what the piece hides. */
 const TURN_RING_SAMPLES = 48;
 
-/** The marks round the ring a turn shows while it is under way: every eighth of a turn. */
-const TURN_TICK_COUNT = 8;
-
 @Component({
   selector: 'game-character',
   templateUrl: './game-character.component.html',
@@ -341,16 +338,41 @@ export class GameCharacterComponent {
     return { grab, ring: ringBoxStyle(middle, radius), knobs, arc: ringPathOf(seen, radius), radius };
   });
 
+  /** Whether the piece is being carried, while which nothing round its pedestal is weighed. */
+  private readonly carried = signal(false);
+
+  /**
+   * How the piece's picture stands before the eye as it is drawn now, weighed only while the handles
+   * are out and the piece is not being carried: followed as the camera moves and the picture changes.
+   */
+  private readonly pictureSight = computed(() => {
+    const id = this.gameCharacter()?.identifier;
+    const looked = (this.hovered() && !this.carried()) || this.turning() === 'turn';
+    if (!looked || !id || this.mode2dEnabled()) return null;
+    this.tableCamera.version();
+    this.pieces.sprites();
+    return this.pick.pictureSightOf(id);
+  });
+
+  /** The middle of the pedestal on the face it stands on, at the height the ring round it is drawn at. */
+  private readonly ringMiddle = computed(() => {
+    const char = this.gameCharacter();
+    if (!char) return null;
+    this.objectChange.versionOf(char.identifier)();
+    const middle = (this.size() * this.gridSize) / 2;
+    const foot = this.pieces.footOf(char);
+    return { ...foot, x: foot.x + middle, y: foot.y + middle };
+  });
+
   /**
    * Whether each knob round the ring stands clear, on the screen, of the handle that tips the piece,
-   * beside the top of its picture; looked at only while the handles are out.
+   * beside the top of its picture.
    */
   private readonly knobsClearOfRoll = computed<readonly boolean[]>(() => {
-    const id = this.gameCharacter()?.identifier;
-    const middle = this.pedestalMiddle();
-    const looked = this.hovered() && !this.mode2dEnabled() && this.imageFile().url.length > 0;
-    const corner = looked && id ? this.pick.pictureCornerOnPage(id, 1) : null;
-    if (!corner || !middle) return TURN_KNOB_ANGLES.map(() => true);
+    const sight = this.pictureSight();
+    const middle = this.ringMiddle();
+    if (!sight || !middle || this.imageFile().url.length < 1) return TURN_KNOB_ANGLES.map(() => true);
+    const corner = sight.cornerOnPage(1);
     const [handle] = this.rollHandles();
     const roll = { x: corner.x + handle!.dx, y: corner.y + handle!.dy };
     const radius = this.turnRingShape().radius;
@@ -368,20 +390,19 @@ export class GameCharacterComponent {
 
   /**
    * Which of the points round the ring, clockwise from the side the piece faces, the eye sees: those
-   * the piece's own picture and pedestal stand in front of are left out, so that the ring is drawn
-   * round the piece and behind it rather than over it. Looked at only while the handles are out.
+   * the piece's own picture stands in front of are left out, so that the ring is drawn round the
+   * piece and behind it rather than over it.
    */
   protected readonly turnRingSeen = computed<readonly boolean[]>(() => {
-    const id = this.gameCharacter()?.identifier;
-    const middle = this.pedestalMiddle();
-    const looked = this.hovered() || this.turning() === 'turn';
+    const sight = this.pictureSight();
+    const middle = this.ringMiddle();
     const radius = this.turnRingShape().radius;
     return Array.from({ length: TURN_RING_SAMPLES }, (_, at) => {
-      if (!looked || !id || !middle) return true;
+      if (!sight || !middle) return true;
       const angle = ((this.rotate + (at * 360) / TURN_RING_SAMPLES) * Math.PI) / 180;
       const x = middle.x + radius * Math.sin(angle);
       const y = middle.y - radius * Math.cos(angle);
-      return !this.pick.hiddenBy(id, middle.surface, x, y, middle.height);
+      return !sight.hides(middle.surface, x, y, middle.height);
     });
   });
 
@@ -395,14 +416,20 @@ export class GameCharacterComponent {
     return { grab, middle: hex ? hex.L / 2 : width / 2, radius: parseFloat(grab['width']) / 2 };
   });
 
-  /** The marks round the ring every eighth of a turn, on what the eye sees of it, in the ring's own pixels. */
+  /**
+   * The marks round the ring at every step a held Alt turns the piece to, the table's own directions
+   * that stay put as the ring turns with the piece, on what the eye sees of the ring, in its own
+   * pixels.
+   */
   protected readonly turnTicks = computed(() => {
     const radius = this.turnRing().radius;
     const seen = this.turnRingSeen();
+    const step = this.turnSnapStep();
     const marks: { x: number; y: number }[] = [];
-    for (let at = 0; at < TURN_TICK_COUNT; at++) {
-      if (!seen[Math.round((at * TURN_RING_SAMPLES) / TURN_TICK_COUNT) % TURN_RING_SAMPLES]) continue;
-      const radians = (at * 2 * Math.PI) / TURN_TICK_COUNT;
+    for (let table = 0; table < 360; table += step) {
+      const angle = (((table - this.rotate) % 360) + 360) % 360;
+      if (!seen[Math.round(angle / (360 / TURN_RING_SAMPLES)) % TURN_RING_SAMPLES]) continue;
+      const radians = (angle * Math.PI) / 180;
       marks.push({ x: radius + radius * Math.sin(radians), y: radius - radius * Math.cos(radians) });
     }
     return marks;
@@ -424,8 +451,11 @@ export class GameCharacterComponent {
   /** Stands the piece upright again, as a double click on the handle that tips it asks. */
   protected standUpright(event: MouseEvent): void {
     event.stopPropagation();
-    this.roll = 0;
+    if (this.canHandle()) this.roll = 0;
   }
+
+  /** Whether this seat may turn and tip pieces, as one only watching may not, and so is shown no handles for it. */
+  protected readonly canHandle = computed(() => this.rolePermission.canEditTabletop());
 
   /**
    * Whether the table's canvas draws the piece, from its picture and a picture of its pedestal taken
@@ -1418,6 +1448,7 @@ export class GameCharacterComponent {
 
   /** Starts carrying the piece: raises it, shows how far it may move and fires its pick-up triggers. */
   onPickUp() {
+    this.carried.set(true);
     this.onMove();
     const character = this.gameCharacter();
     if (!character) return;
@@ -1430,6 +1461,7 @@ export class GameCharacterComponent {
    * from where it was put down waits for the press to end, when it stands where it snapped to.
    */
   onPutDown() {
+    this.carried.set(false);
     this.onMoved();
     this.moveRangeService.hide();
     this.putDownPending = true;
