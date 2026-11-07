@@ -124,6 +124,22 @@ describe('SelectionSignalService', () => {
     expect(runs).toHaveBeenCalledTimes(1);
   });
 
+  it('follows nothing for an effect that adds to the selection, so that another change does not run it again', () => {
+    const runs = vi.fn();
+    TestBed.runInInjectionContext(() =>
+      effect(() => {
+        runs();
+        service.addSelection('kept');
+      })
+    );
+    TestBed.tick();
+
+    service.toggleSelection('other');
+    service.removeSelection('other');
+    TestBed.tick();
+    expect(runs).toHaveBeenCalledTimes(1);
+  });
+
   it('tells nobody of a selection made anew with the pieces it already holds', () => {
     service.replaceSelection(['a', 'b']);
     const held = service.selectedObjects();

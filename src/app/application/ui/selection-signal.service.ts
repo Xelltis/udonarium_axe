@@ -96,7 +96,7 @@ export class SelectionSignalService {
    * selected. A piece already in is left as it is.
    */
   addSelection(identifier: string, className?: string): void {
-    const current = this._selectedObjects();
+    const current = untracked(() => this._selectedObjects());
     if (current.has(identifier)) return;
     const next = new Set(current);
     next.add(identifier);
@@ -106,7 +106,7 @@ export class SelectionSignalService {
 
   /** Takes a piece out of the multi-selection, if it is in it. */
   removeSelection(identifier: string): void {
-    const current = this._selectedObjects();
+    const current = untracked(() => this._selectedObjects());
     if (!current.has(identifier)) return;
     const next = new Set(current);
     next.delete(identifier);
@@ -118,7 +118,7 @@ export class SelectionSignalService {
    * becomes the piece last selected.
    */
   toggleSelection(identifier: string, className?: string): void {
-    const current = this._selectedObjects();
+    const current = untracked(() => this._selectedObjects());
     const next = new Set(current);
     if (next.has(identifier)) {
       next.delete(identifier);
@@ -164,7 +164,7 @@ export class SelectionSignalService {
       this.toggleSelection(identifier, className);
       return true;
     }
-    const selected = this._selectedObjects();
+    const selected = untracked(() => this._selectedObjects());
     if (selected.size === 0 || selected.has(identifier)) return false;
     this.replaceSelection([identifier], { identifier, className });
     return false;
