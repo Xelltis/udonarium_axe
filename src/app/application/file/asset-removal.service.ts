@@ -8,7 +8,7 @@ import { Network } from '@axe/core/network/network';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { ASSET_LAST_TRY_DELAY_MS, AssetRetries } from '@axe/core/storage/asset-retries';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
-import { isBundledMapModel, isBundledModel } from '@axe/core/storage/bundled-models';
+import { isAppModel } from '@axe/core/storage/bundled-models';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ModelStorage } from '@axe/core/storage/model-storage';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -93,13 +93,8 @@ export class AssetRemovalService {
       (identifier) =>
         AssetHttpStore.isAssetId(identifier) &&
         (kind === 'audio' ||
-          (kind === 'model' ? !this.isBundled(identifier) : ImageTag.get(identifier)?.tag !== SYSTEM_RESERVED_TAG))
+          (kind === 'model' ? !isAppModel(identifier) : ImageTag.get(identifier)?.tag !== SYSTEM_RESERVED_TAG))
     );
-  }
-
-  /** Whether a model is one bundled with the app, by its identifier: the SHA-256 of its bytes, whatever its name. */
-  private isBundled(identifier: string): boolean {
-    return isBundledModel(identifier) || isBundledMapModel(identifier);
   }
 
   /**
@@ -238,12 +233,13 @@ export class AssetRemovalService {
   /**
    * Asks the room server to take it out of the store of the room it was removed in, again a few times
    * when it could not be asked just then, while the seat is still in that room and the room still keeps
-   * it removed. Left there, it is still fetched by nobody, each seat following the removal; the next
+   * it removed; never a model of the app's own, which a record written before the room could not
+   * remove one may name. Left there, it is still fetched by nobody, each seat following the removal; the next
    * removal or reading of the room's list asks afresh.
    */
   private takeOutOfStore(identifier: string, roomKey: string | null): void {
     if (Network.transport !== 'server' || !this.assetHttpStore.isEnabled) return;
-    if (Network.roomKey !== roomKey || !AssetRemoval.get(identifier)?.isRemoved) {
+    if (Network.roomKey !== roomKey || !AssetRemoval.get(identifier)?.isRemoved || isAppModel(identifier)) {
       this.storeRetries.forget(identifier);
       return;
     }

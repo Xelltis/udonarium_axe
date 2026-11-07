@@ -7,6 +7,7 @@ import {
   bundledMapModels,
   bundledModelName,
   bundledPieceModelUrl,
+  isAppModel,
   isBundledMapModel,
   isBundledModel,
 } from '@axe/core/storage/bundled-models';
@@ -54,6 +55,13 @@ describe('bundled map models', () => {
     );
 
     expect(hashes).toEqual(bundledMapModels());
+  });
+
+  it('know a map model by the bytes it was bundled with before as well, which a room saved then holds', () => {
+    expect(isBundledMapModel('59e81a5a0dbf5933537ca0338160826fd1fbf75b4820fc70ac6d18015d9f23c3')).toBe(true);
+    expect(isAppModel('59e81a5a0dbf5933537ca0338160826fd1fbf75b4820fc70ac6d18015d9f23c3')).toBe(true);
+    expect(isAppModel(BUNDLED_PIECE_MODELS.goblin)).toBe(true);
+    expect(isAppModel('0'.repeat(64))).toBe(false);
   });
 
   it('tell a map model by its identifier alone, whatever name it was added under', () => {

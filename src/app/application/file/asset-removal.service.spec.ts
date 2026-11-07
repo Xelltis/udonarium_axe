@@ -386,6 +386,17 @@ describe('AssetRemovalService', () => {
       expect(putUpPicture).not.toHaveBeenCalled();
     });
 
+    it('takes no model of the app’s own out of the store, though a record written before names it', async () => {
+      remove.mockResolvedValue('removed');
+      const oak = bundledMapModels()['tree_oak'];
+      AssetRemoval.remove(oak, 'model');
+
+      service.takeOut([oak]);
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(remove).not.toHaveBeenCalled();
+    });
+
     it('takes out of the store again, as the GM, what the room keeps removed, whoever removed it', async () => {
       remove.mockResolvedValue('removed');
       AssetRemoval.remove(pictureId, 'image');
