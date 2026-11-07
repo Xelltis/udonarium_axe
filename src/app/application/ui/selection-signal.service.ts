@@ -40,9 +40,9 @@ export class SelectionSignalService {
 
   private readonly pressed = signal<{ readonly identifier: string; readonly byTouch: boolean } | null>(null);
   /**
-   * The identifier of the piece last pressed on the table, until the bare table is pressed or the
-   * selection changes to leave it out, as emptying it does. Choosing a piece anywhere else, in a list
-   * or by its sheet, leaves it alone.
+   * The identifier of the piece last pressed on the table, until the bare table is clicked or tapped
+   * without the view being moved, or the selection changes to leave it out, as emptying it does.
+   * Choosing a piece anywhere else, in a list or by its sheet, leaves it alone.
    */
   readonly pressedObject = computed(() => this.pressed()?.identifier ?? null);
   /** The identifier of the piece last pressed on the table, if a finger pressed it. */
