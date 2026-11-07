@@ -67,7 +67,7 @@ export class TablePickService {
   /** The line of sight through a point of the page, or null before the table has a camera. */
   rayAt(pageX: number, pageY: number): TableRay | null {
     const inverse = this.camera.inverseSceneMatrix();
-    return inverse ? tableRayOfPage(inverse, pageX, pageY) : null;
+    return inverse ? tableRayOfPage(inverse, pageX, pageY, this.camera.eyeDepth()) : null;
   }
 
   /**

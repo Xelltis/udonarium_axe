@@ -118,6 +118,15 @@ describe('ThirdPersonService', () => {
     expect(service.view()!.rotateZ).toBeCloseTo(before.rotateZ - 90, 3);
   });
 
+  it('leaves the camera out where a block stands ahead of the piece rather than behind it', () => {
+    const wall = Terrain.create('壁', 12, 1, 3, 'stone', 'slab');
+    wall.location = { name: 'table', x: 0, y: 3 * GRID };
+    table.appendChild(wall);
+    const { service } = following();
+
+    expect(aheadOf(service.view()!, 5.5 * GRID, 5.5 * GRID, 0.8 * GRID).ahead).toBeCloseTo(4 * GRID, 1);
+  });
+
   it('brings the camera in short of a block standing behind the piece, and draws the piece faint once it is near', () => {
     const wall = Terrain.create('壁', 12, 1, 3, 'stone', 'slab');
     wall.location = { name: 'table', x: 0, y: 7 * GRID };

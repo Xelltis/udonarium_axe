@@ -216,7 +216,7 @@ export class ThirdPersonService {
     const back = { x: -way.x, y: -way.y, z: -way.z };
     const nearest = NEAREST_CELLS * g;
     let boom = orbit.boomCells * g;
-    const hit = pickFirst(this.pick.targets(), { origin: aim.point, direction: back });
+    const hit = pickFirst(this.pick.targets(), { origin: aim.point, direction: back, from: 0 });
     if (hit && hit.t < boom) boom = Math.max(nearest, hit.t - CLEARANCE_CELLS * g);
     for (let along = GROUND_STEP_CELLS * g; along <= boom; along += GROUND_STEP_CELLS * g) {
       const x = aim.point.x + back.x * along;

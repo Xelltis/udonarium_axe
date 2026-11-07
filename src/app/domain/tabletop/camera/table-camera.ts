@@ -206,6 +206,12 @@ export interface TableRay {
   readonly origin: TablePoint;
   /** A unit vector, pointing away from the eye. */
   readonly direction: TablePoint;
+  /**
+   * How far along the line, measured as the hits are, the nearest thing it may meet stands: the eye's
+   * own place, or for a line cast from a point outward, the point. None for a line seen from
+   * infinitely far, which meets all along it.
+   */
+  readonly from?: number;
 }
 
 /** A point given in the page's own depth, carried back through the inverse scene matrix. */
@@ -223,16 +229,26 @@ function intoBoard(inverseScene: Matrix3D, pageX: number, pageY: number, depth: 
  * `tableSceneMatrix`.
  *
  * The page keeps a depth of its own through the matrix, which grows towards the eye; two depths
- * at the same page point give two points of the board's space on the one line of sight.
+ * at the same page point give two points of the board's space on the one line of sight. Seen in
+ * perspective, the eye stands `eyeDepthPx` up that depth, and the line meets nothing behind it.
  */
-export function tableRayOfPage(inverseScene: Matrix3D, pageX: number, pageY: number): TableRay {
+export function tableRayOfPage(
+  inverseScene: Matrix3D,
+  pageX: number,
+  pageY: number,
+  eyeDepthPx: number | null = null
+): TableRay {
   const near = intoBoard(inverseScene, pageX, pageY, 0);
   const far = intoBoard(inverseScene, pageX, pageY, -1000);
   const dx = far.x - near.x;
   const dy = far.y - near.y;
   const dz = far.z - near.z;
   const length = Math.hypot(dx, dy, dz);
-  return { origin: near, direction: { x: dx / length, y: dy / length, z: dz / length } };
+  const direction = { x: dx / length, y: dy / length, z: dz / length };
+  if (eyeDepthPx === null || !(eyeDepthPx > 1)) return { origin: near, direction };
+  const eye = intoBoard(inverseScene, pageX, pageY, eyeDepthPx - 1);
+  const from = (eye.x - near.x) * direction.x + (eye.y - near.y) * direction.y + (eye.z - near.z) * direction.z;
+  return Number.isFinite(from) ? { origin: near, direction, from } : { origin: near, direction };
 }
 
 /**

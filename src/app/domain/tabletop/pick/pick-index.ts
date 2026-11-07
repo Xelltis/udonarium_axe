@@ -36,12 +36,16 @@ export interface PickHit {
  */
 const SAME_DISTANCE_PX = 0.5;
 
-/** Where a line of sight meets one target, its nearest solid point, or null where it misses. */
+/**
+ * Where a line of sight meets one target, its nearest solid point, or null where it misses; a point
+ * nearer than the line reaches, behind the eye it is seen from, is no hit.
+ */
 export function pickTarget(target: PickTarget, ray: TableRay): PickHit | null {
   let best: PickHit | null = null;
+  const from = ray.from ?? -Infinity;
   target.shapes.forEach((shape, shapeIndex) => {
     const hit = hitShape(ray, shape);
-    if (!hit || (best !== null && best.t <= hit.t)) return;
+    if (!hit || hit.t < from || (best !== null && best.t <= hit.t)) return;
     if (hit.u !== undefined && hit.v !== undefined && target.opaqueAt && !target.opaqueAt(shapeIndex, hit.u, hit.v)) {
       return;
     }

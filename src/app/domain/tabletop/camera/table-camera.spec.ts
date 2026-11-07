@@ -103,6 +103,32 @@ describe('table camera', () => {
     expect(columns).toHaveLength(16);
   });
 
+  it('reaches no nearer than the eye on a view in perspective, and all along on one without', () => {
+    for (const orthographic of [false, true]) {
+      const view = { ...DEFAULT_TABLE_CAMERA_VIEW, positionZ: -600, rotateZ: 37, orthographic };
+      const scene = tableSceneMatrix(view, screen);
+      const inverse = new Matrix3D();
+      scene.invert(inverse);
+      const raised = pageOfTablePoint(scene, 420, 260, 120);
+
+      const ray = tableRayOfPage(inverse, raised.x, raised.y, orthographic ? null : 3000);
+
+      if (orthographic) {
+        expect(ray.from).toBeUndefined();
+      } else {
+        const along = (raised.z - ray.origin.z) / ray.direction.z;
+        expect(ray.from).toBeLessThan(0);
+        expect(ray.from).toBeLessThan(along);
+        const eye = {
+          x: ray.origin.x + ray.direction.x * ray.from!,
+          y: ray.origin.y + ray.direction.y * ray.from!,
+          z: ray.origin.z + ray.direction.z * ray.from!,
+        };
+        expect(Math.hypot(eye.x - 420, eye.y - 260, eye.z - 120)).toBeGreaterThan(1000);
+      }
+    }
+  });
+
   it('runs the line of sight through a page point from the eye into the board', () => {
     for (const orthographic of [false, true]) {
       const view = { ...DEFAULT_TABLE_CAMERA_VIEW, positionZ: -600, rotateZ: 37, orthographic };

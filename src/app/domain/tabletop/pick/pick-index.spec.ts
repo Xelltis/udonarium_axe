@@ -21,6 +21,13 @@ describe('pick index', () => {
     expect(hits.map((hit) => hit.target.id)).toEqual(['high', 'low']);
   });
 
+  it('meets nothing nearer than the line reaches, behind the eye it is seen from', () => {
+    const fromBelow: TableRay = { ...down, from: 1000 - 50 };
+
+    expect(pickAll([block('low', 20), block('high', 80)], fromBelow).map((hit) => hit.target.id)).toEqual(['low']);
+    expect(pickFirst([block('high', 80)], { ...down, from: 0 })?.target.id).toBe('high');
+  });
+
   it('puts what is drawn in front first among things the same distance off', () => {
     const card = (id: string, order: number): PickTarget => ({
       id,

@@ -2,6 +2,7 @@ import { computed, Injectable, signal } from '@angular/core';
 import type { TableScreen } from '@axe/application/tabletop/table-screen';
 import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import {
+  perspectiveOf,
   screenMatrixOfScene,
   screenOfScene,
   TableCameraView,
@@ -60,6 +61,15 @@ export class TableCameraService implements TableScreen {
   /** The view as it was last drawn, or null before the table first draws one. */
   get view(): TableCameraView | null {
     return this.shownView;
+  }
+
+  /**
+   * How far up the page's depth the eye stands, which nothing nearer than can be seen; null for a
+   * view drawn without perspective, or before the table first draws one.
+   */
+  eyeDepth(): number | null {
+    const view = this.shownView;
+    return view && !view.orthographic ? perspectiveOf(view) : null;
   }
 
   /** Where the table sits on the page, or null before it is laid out. */
