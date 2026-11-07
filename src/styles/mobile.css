@@ -103,6 +103,9 @@ body.mobile-layout ui-panel [class*='ui-resize-handler'] {
   display: none;
 }
 
+/* Keeps a drag past the end of what scrolls from pulling the page down to reload it or bouncing it.
+   It is the root that the page as a whole would scroll by, the body being one that never scrolls. */
+html:has(> body.mobile-layout),
 body.mobile-layout {
   overscroll-behavior: none;
 }
