@@ -113,6 +113,20 @@ describe('TablePiecesService', () => {
     for (const height of heights) expect(height).toBeCloseTo(1 + gridSize + lift, 6);
   });
 
+  it('keeps a die on a block too vast to lay out cell by cell, anywhere on the block', () => {
+    const ground = TestBed.inject(GroundService);
+    ground.dab({ kind: 'raise', x: 10, y: 10, radius: 3, strength: 1 });
+    const vast = Terrain.create('vast', 20, 20, 1, '', '');
+    vast.location = { name: 'table', x: 0, y: 0 };
+    TestBed.inject(TableSelecter).viewTable!.appendChild(vast);
+    const die = dieAt(480, 480);
+    die.posZ = gridSize;
+
+    const centre = pieces.sprites().find((sprite) => sprite.owner === die.identifier)!.centre;
+
+    expect(centre.z).toBeCloseTo(1 + gridSize + ground.lowestPxIn(0, 0, 20 * gridSize, 20 * gridSize), 6);
+  });
+
   it('stands a piece on the floor where its place is, lifted onto the ground under it, and where it is being moved to', () => {
     const ground = TestBed.inject(GroundService);
     ground.dab({ kind: 'raise', x: 2.5, y: 4.5, radius: 3, strength: 1 });
@@ -216,6 +230,28 @@ describe('TablePiecesService', () => {
 
     change.notifyChanged(under.identifier);
     expect(parts()[0]).not.toBe(before[0]);
+  });
+
+  it('leans a character this seat drags as the ground leans where it is drawn, not where it was let go of', () => {
+    const character = GameCharacter.create('騎士', 1, '');
+    character.location = { name: 'table', x: 100, y: 200 };
+    TestBed.inject(PiecePicturesService).show(character.identifier, {
+      url: 'blob:pedestal',
+      widthPx: 50,
+      heightPx: 50,
+    });
+    const slope = Terrain.create('slope', 2, 2, 1, '', '');
+    slope.location = { name: 'table', x: 500, y: 500 };
+    slope.isSlope = true;
+    TestBed.inject(TableSelecter).viewTable!.appendChild(slope);
+    const transient = TestBed.inject(TransientPlacementService);
+    const facing = () => pieces.sprites().find((sprite) => sprite.owner === character.identifier)!.facing;
+
+    transient.place(character.identifier, { surface: 'floor', x: 300, y: 200, z: 0 });
+    const onFlat = facing();
+    transient.place(character.identifier, { surface: 'floor', x: 520, y: 520, z: 25 });
+
+    expect(facing()).not.toEqual(onFlat);
   });
 
   it('draws a piece on the board it stands on once the board comes, and on the floor once it goes', async () => {

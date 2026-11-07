@@ -131,15 +131,14 @@ interface PlacedBlock {
   readonly box: TerrainBox;
 }
 
-/** The box of a block's footprint as it was worked out, at the version of the block and the size of a cell it was. */
-interface BoxAt {
-  readonly version: number;
-  readonly gridSize: number;
-  readonly box: TerrainBox;
-}
-
 /** How far past the box of a block's footprint a point may lie and still be asked of the block itself. */
 const BOX_SLACK_PX = 1;
+
+/**
+ * How many cells of the floor a block's box may reach and still be laid out cell by cell; a block
+ * reaching over more is asked of by every point, so one vast block never fills the layout.
+ */
+const MOST_CELLS_LAID_OUT = 256;
 
 /** What most kinds of piece are drawn with alike: how big a cell is. */
 interface GridLook {
@@ -282,9 +281,6 @@ export class TablePiecesService {
   /** Which table is in view, by its identifier, for the pieces of each kind to be listed afresh on another. */
   private readonly tableInView = computed(() => this.tabletop.currentTableVersion().identifier);
 
-  /** The box of each block's footprint, kept while the block does not change. */
-  private boxes = new Map<Terrain, BoxAt>();
-
   /**
    * The blocks on the table in view, each with the box its footprint fills, kept as they were while
    * no block comes, goes or moves its footprint: a door opening changes none of it. What stands on a
@@ -295,17 +291,10 @@ export class TablePiecesService {
       this.tableInView();
       this.objectChange.collectionOf(Terrain.aliasName)();
       const gridSize = this.tableShape().gridSize;
-      const kept = new Map<Terrain, BoxAt>();
-      const placed = this.tabletop.terrains.map((terrain) => {
-        const version = this.objectChange.versionOf(terrain.identifier)();
-        const held = this.boxes.get(terrain);
-        const box =
-          held && held.version === version && held.gridSize === gridSize ? held.box : terrainBoxOf(terrain, gridSize);
-        kept.set(terrain, { version, gridSize, box });
-        return { terrain, box };
+      return this.tabletop.terrains.map((terrain) => {
+        this.objectChange.versionOf(terrain.identifier)();
+        return { terrain, box: terrainBoxOf(terrain, gridSize) };
       });
-      this.boxes = kept;
-      return placed;
     },
     {
       equal: (a, b) =>
@@ -316,16 +305,22 @@ export class TablePiecesService {
 
   /**
    * The blocks by the cells of the floor their footprint's box reaches, a pixel's slack each way
-   * included, so that a point is asked of the few blocks about it rather than of every block. It is
-   * laid out afresh only as the blocks come, go or move their footprints.
+   * included, so that a point is asked of the few blocks about it rather than of every block, and
+   * the blocks too vast to lay out so, which every point is asked of. It is laid out afresh only as
+   * the blocks come, go or move their footprints.
    */
   private readonly blockCells = computed(() => {
     const cellPx = Math.max(1, this.tableShape().gridSize);
     const cells = new Map<number, PlacedBlock[]>();
+    const vast: PlacedBlock[] = [];
     for (const placed of this.blocks()) {
       const { box } = placed;
       const [left, right] = [cellOf(box.minX - BOX_SLACK_PX, cellPx), cellOf(box.maxX + BOX_SLACK_PX, cellPx)];
       const [top, bottom] = [cellOf(box.minY - BOX_SLACK_PX, cellPx), cellOf(box.maxY + BOX_SLACK_PX, cellPx)];
+      if (!((right - left + 1) * (bottom - top + 1) <= MOST_CELLS_LAID_OUT)) {
+        vast.push(placed);
+        continue;
+      }
       for (let across = left; across <= right; across++) {
         for (let down = top; down <= bottom; down++) {
           const key = cellKey(across, down);
@@ -335,7 +330,7 @@ export class TablePiecesService {
         }
       }
     }
-    return { cellPx, cells };
+    return { cellPx, cells, vast };
   });
 
   /**
@@ -344,8 +339,9 @@ export class TablePiecesService {
    */
   private blocksOver(x: number, y: number): Terrain[] {
     const over: Terrain[] = [];
-    const { cellPx, cells } = this.blockCells();
-    for (const { terrain, box } of cells.get(cellKey(cellOf(x, cellPx), cellOf(y, cellPx))) ?? []) {
+    const { cellPx, cells, vast } = this.blockCells();
+    const near = cells.get(cellKey(cellOf(x, cellPx), cellOf(y, cellPx))) ?? [];
+    for (const { terrain, box } of vast.length > 0 ? [...near, ...vast] : near) {
       if (box.minX - BOX_SLACK_PX > x || x > box.maxX + BOX_SLACK_PX) continue;
       if (box.minY - BOX_SLACK_PX > y || y > box.maxY + BOX_SLACK_PX) continue;
       this.objectChange.versionOf(terrain.identifier)();
