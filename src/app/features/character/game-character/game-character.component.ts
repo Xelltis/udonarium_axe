@@ -319,6 +319,15 @@ export class GameCharacterComponent {
     return !!id && this.selectionSignalService.pressedObject() === id && !this.carried();
   });
 
+  /**
+   * Whether the handles take a press. On a screen touched with nothing finer to point with, only those
+   * of the piece last touched do, as no other piece's are drawn, so that a press beside a piece does
+   * not turn it unseen; elsewhere every piece's do, brought out by the pointer over the piece.
+   */
+  protected readonly handlesPressable = computed(
+    () => !this.viewport.isTouch() || this.viewport.hasFinePointer() || this.touchChosen() || this.turning() !== null
+  );
+
   /** The way the piece faces while it is turned, in whole degrees, as the turn under way reads it out. */
   protected readonly turnAngle = computed(() => this.rotationGuide.turn()?.angle ?? shownAngle(this.rotate));
 

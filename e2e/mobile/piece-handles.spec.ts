@@ -54,7 +54,9 @@ test.describe('character pieces seen on a phone', () => {
     await expect.poll(clear, { timeout: 5000 }).toBe('clear');
   });
 
-  test('brings out the handles of the piece last touched, and only of that one', async ({ page }) => {
+  test('brings out the handles of the piece last touched, and only of that one, and lets no other be pressed', async ({
+    page,
+  }) => {
     await page.goto('/');
     await expect(page.locator('app-mobile-shell nav')).toBeVisible({ timeout: 20000 });
     await closePanels(page);
@@ -80,15 +82,15 @@ test.describe('character pieces seen on a phone', () => {
       }
     }
     expect(touched, 'a piece with a picture to tip in view').not.toBeNull();
-    const opacityOf = (piece: Locator) =>
+    const lookOf = (piece: Locator) =>
       piece
         .getByTestId('roll-grab-head')
-        .evaluate((handle) => getComputedStyle(handle).opacity)
+        .evaluate((handle) => `${getComputedStyle(handle).opacity} ${getComputedStyle(handle).pointerEvents}`)
         .catch(() => 'gone');
-    await expect.poll(() => opacityOf(touched!), { timeout: 5000 }).toBe('0');
+    await expect.poll(() => lookOf(touched!), { timeout: 5000 }).toBe('0 none');
 
     await page.touchscreen.tap(middle.x, middle.y);
-    await expect.poll(() => opacityOf(touched!), { timeout: 5000 }).toBe('1');
-    expect(await opacityOf(other!)).toBe('0');
+    await expect.poll(() => lookOf(touched!), { timeout: 5000 }).toBe('1 auto');
+    expect(await lookOf(other!)).toBe('0 none');
   });
 });

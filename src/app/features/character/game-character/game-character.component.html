@@ -84,6 +84,7 @@
           <div
             class="rotate-grab absolute z-[-1] cursor-grab active:cursor-grabbing"
             data-testid="turn-ring"
+            [class.pointer-events-none!]="!handlesPressable()"
             [ngStyle]="turnRing().grab"
             [appTextTooltip]="'feature.character.turnHandle.hint' | transloco: { step: turnSnapStep() }"
           ></div>
@@ -128,6 +129,7 @@
               <div
                 class="rotate-grab border-ui-accent absolute flex -translate-1/2 cursor-grab items-center justify-center rounded-full border-2 border-solid opacity-0 shadow-[0_1px_4px_rgba(0,0,0,0.6)] transition-opacity group-hover:opacity-85 group-active:opacity-0 hover:opacity-100! active:cursor-grabbing active:opacity-100!"
                 data-testid="turn-grab"
+                [class.pointer-events-none!]="!handlesPressable()"
                 [attr.data-facing]="knob.facing || null"
                 [class.bg-ui-accent-solid]="knob.facing"
                 [class.text-white]="knob.facing"
@@ -448,6 +450,7 @@
                 <div
                   class="rotate-grab bg-ui-elevated border-ui-accent text-ui-text pointer-events-auto absolute flex cursor-grab items-center justify-center rounded-full border-2 border-solid opacity-0 shadow-[0_1px_4px_rgba(0,0,0,0.6)] transition-opacity group-hover:opacity-85 group-active:opacity-0 hover:opacity-100! active:cursor-grabbing active:opacity-100!"
                   [attr.data-testid]="handle.testId"
+                  [class.pointer-events-none!]="!handlesPressable()"
                   [class.opacity-100!]="turning() === 'roll' || touchChosen()"
                   [attr.aria-label]="'feature.character.rollHandle.name' | transloco"
                   [appTextTooltip]="'feature.character.rollHandle.hint' | transloco"
