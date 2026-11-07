@@ -2258,7 +2258,7 @@ describe('GameCharacterComponent', () => {
       }
     });
 
-    it('brings out the handles of the piece a finger last pressed on the table, and lets a finger press only them, until it is in hand', () => {
+    it('brings out the handles of the piece a finger last pressed on the table, and where a finger is all there is lets only them be pressed, until it is in hand', () => {
       const character = withPicture('turn-touch');
       drawPicture(character);
       const viewport = TestBed.inject(ViewportService) as unknown as {
@@ -2275,7 +2275,6 @@ describe('GameCharacterComponent', () => {
           const handle = testOf(testId);
           return handle === null ? 'missing' : !handle.classList.contains('pointer-events-none!');
         });
-      const fingerRefused = () => [handles().turnRotable()!.refuseTouch(), handles().rollRotable()!.refuseTouch()];
       const selection = TestBed.inject(SelectionSignalService);
       const sightOf = vi
         .spyOn(TestBed.inject(TablePickService), 'pictureSightOf')
@@ -2297,7 +2296,6 @@ describe('GameCharacterComponent', () => {
         fixture.detectChanges();
         expect(shownAtFull()).toBe(false);
         expect(pressable()).toEqual([false, false, false]);
-        expect(fingerRefused()).toEqual([true, true]);
 
         viewport._hasFinePointer.set(true);
         selection.pressObject(character.identifier, 'character');
@@ -2314,7 +2312,6 @@ describe('GameCharacterComponent', () => {
         selection.pressObject(character.identifier, 'character', true);
         fixture.detectChanges();
         expect(pressable()).toEqual([true, true, true]);
-        expect(fingerRefused()).toEqual([false, false]);
         expect(shownAtFull()).toBe(true);
         expect(headOf()?.classList.contains('opacity-100!')).toBe(true);
         expect(sightOf).toHaveBeenCalled();

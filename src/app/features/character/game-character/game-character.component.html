@@ -31,7 +31,6 @@
       appRotable
       [rotable.option]="rotableOption()"
       [rotable.disable]="!canTurn()"
-      [rotable.refuseTouch]="!touchChosen()"
       (rotable.ondragstart)="onMove()"
       (rotable.ondragend)="onMoved()"
     >
@@ -439,7 +438,6 @@
             appRotable
             [rotable.option]="rollOption"
             [rotable.value]="rollSignal()"
-            [rotable.refuseTouch]="!touchChosen()"
             (rotable.valueChange)="roll = $event"
             (rotable.ondragstart)="onMove()"
             (rotable.ondragend)="onMoved()"

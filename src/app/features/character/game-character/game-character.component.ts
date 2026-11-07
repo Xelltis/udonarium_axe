@@ -325,8 +325,8 @@ export class GameCharacterComponent {
   /**
    * Whether the handles take a press at all. Where a finger is all there is to point with, only those
    * of the piece last touched do, as no other piece's are drawn, so that a tap beside a piece reaches
-   * the table; elsewhere every piece's do, brought out by the pointer over the piece, and a finger's
-   * press on those of a piece not touched is left to the piece by the directive that turns it.
+   * the table. Where something finer can point, every piece's do, brought out by it over the piece,
+   * and a finger's press on them is taken as any other.
    */
   protected readonly handlesPressable = computed(
     () => !this.viewport.touchOnly() || this.touchChosen() || this.turning() !== null
