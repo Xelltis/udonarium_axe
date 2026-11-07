@@ -65,6 +65,7 @@ export interface ChatMessageContext {
   diceLook?: string;
   diceImageIdentifier?: string;
   answersTargetNumber?: string;
+  aimedTogether?: string;
 }
 
 @SyncObject('chat')
@@ -121,6 +122,14 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
    * or a version that never wrote one reads back empty, which is no such line.
    */
   @SyncVar() answersTargetNumber: string;
+  /**
+   * The identifiers of the pieces the line was aimed at all at once, as `t:範囲` aims it, written as a
+   * JSON list: whoever its one answer was rolled at, however many names its brackets could hold.
+   *
+   * Left without an initialiser, as `answersTargetNumber` is: a line aimed at each target in turn,
+   * or at nobody, and a line of a room or a version that never wrote one, read back empty.
+   */
+  @SyncVar() aimedTogether: string;
   @SyncVar() messColor: string;
   /** The bubble the sender asked for on each theme. Empty is worked out from the colour. */
   @SyncVar() messBubbleLight: string = '';

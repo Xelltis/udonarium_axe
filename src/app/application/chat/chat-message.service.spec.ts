@@ -678,6 +678,31 @@ describe('ChatMessageService', () => {
       expect(message.answersTargetNumber).toBe('1');
     });
 
+    it('keeps who a line aimed at them all at once was aimed at, and nothing for a line aimed at each in turn', () => {
+      const other = GameCharacter.create('ミナ', 1, '');
+
+      const atOnce = service.sendMessage(chatTab, '2d6+8 [ヒロ、ミナ]', null, hero.identifier, undefined, 0, '', [
+        { text: '2d6+8', object: hero, together: ['ヒロ', 'ミナ'] },
+        { text: '2d6+8', object: other, together: ['ヒロ', 'ミナ'] },
+      ]);
+      const inTurn = service.sendMessage(
+        chatTab,
+        '2d6+8 [ヒロ]\n2d6+8 [ミナ]',
+        null,
+        hero.identifier,
+        undefined,
+        0,
+        '',
+        [
+          { text: '2d6+8', object: hero },
+          { text: '2d6+8', object: other },
+        ]
+      );
+
+      expect(JSON.parse(atOnce.aimedTogether)).toEqual([hero.identifier, other.identifier]);
+      expect(inTurn.aimedTogether ?? '').toBe('');
+    });
+
     it('fills it in for a line said under a name of its own, from a roll by somebody else', () => {
       chatTab.addMessage({ from: 'gm', sendFrom: 'enemy', name: 'ゴブリン', text: '2d6+8', timestamp: 1100 });
       chatTab.addMessage({

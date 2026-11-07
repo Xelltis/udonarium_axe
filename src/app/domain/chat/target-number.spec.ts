@@ -71,7 +71,7 @@ describe('target-number', () => {
     function roll(
       by: { identifier: string; name: string },
       result: string,
-      extra: { tag?: string; answers?: boolean } = {}
+      extra: { tag?: string; answers?: boolean; together?: string[] } = {}
     ): void {
       at += 10;
       tab.addMessage({
@@ -81,6 +81,7 @@ describe('target-number', () => {
         text: '2d6',
         timestamp: at,
         ...(extra.answers ? { answersTargetNumber: '1' } : {}),
+        ...(extra.together ? { aimedTogether: JSON.stringify(extra.together) } : {}),
       });
       tab.addMessage({
         from: 'System-BCDice',
@@ -117,13 +118,28 @@ describe('target-number', () => {
       expect(findTargetNumber(tab, speaker)).toBe(12);
     });
 
-    it('takes a roll aimed at the speaker among everyone it was aimed at all at once', () => {
-      roll(enemy, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15 [PC2、PC1、騎士［見習い］]');
+    it('takes a roll aimed at the speaker among everyone it was aimed at all at once, whatever names fitted after it', () => {
+      roll(enemy, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15 [PC2、…]', { together: ['pc2', 'pc1', 'pc3'] });
       roll(enemy, 'DiceBot : (1D6) → 3');
 
       expect(findTargetNumber(tab, speaker)).toBe(15);
-      expect(findTargetNumber(tab, { identifier: 'pc3', name: '騎士[見習い]' })).toBe(15);
-      expect(findTargetNumber(tab, { identifier: 'pc4', name: 'PC' })).toBe(3);
+      expect(findTargetNumber(tab, { identifier: 'pc3', name: 'ゴブリン、弓兵' })).toBe(15);
+      expect(findTargetNumber(tab, { identifier: 'pc4', name: 'PC2' })).toBe(3);
+    });
+
+    it('reads a roll at a piece whose name holds a comma as rolled at that piece alone', () => {
+      roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [ゴブリン、弓兵]');
+      roll(enemy, 'DiceBot : (1D6) → 3');
+
+      expect(findTargetNumber(tab, { identifier: 'archer', name: '弓兵' })).toBe(3);
+      expect(findTargetNumber(tab, { identifier: 'goblin-archer', name: 'ゴブリン、弓兵' })).toBe(14);
+    });
+
+    it('reads a list of those aimed at all at once that cannot be read as aimed at nobody in it', () => {
+      roll(enemy, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15 [PC1、PC2]');
+      tab.chatMessages[tab.chatMessages.length - 2].aimedTogether = '{broken';
+
+      expect(findTargetNumber(tab, { identifier: 'pc2', name: 'PC2' })).toBeNull();
     });
 
     it('finds the speaker by the name a room server writes after its answer', () => {

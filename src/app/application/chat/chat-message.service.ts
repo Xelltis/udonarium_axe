@@ -389,6 +389,10 @@ export class ChatMessageService {
     if (bubbles?.dark) chatMessage.messBubbleDark = bubbles.dark;
     if (vnEmote) chatMessage.vnEmote = vnEmote;
     if (answers && toBeat() != null) chatMessage.answersTargetNumber = '1';
+    const together = (messageTargetContext ?? []).filter((context) => context.together && context.object);
+    if (together.length > 0) {
+      chatMessage.aimedTogether = JSON.stringify(together.map((context) => context.object!.identifier));
+    }
     const look = this.myDice.look();
     const diceLook = encodeDiceLook(look);
     if (diceLook) chatMessage.diceLook = diceLook;

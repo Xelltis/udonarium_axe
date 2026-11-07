@@ -230,6 +230,22 @@ describe('DiceBot', () => {
       tab.destroy();
     });
 
+    it('names as many of them as the room server takes, whole, where they do not all fit', async () => {
+      const bot = new DiceBot();
+      bot.initialize();
+      const { tab, asked, requests } = await askedRoll(bot);
+      const together = Array.from({ length: 12 }, (_, index) => `ゴブリンシャーマン${index + 10}`);
+
+      await bot['handleSendMessage']({
+        messageIdentifier: asked.identifier,
+        messageTarget: { text: '2d6', object: null, together },
+      });
+
+      expect(requests()[1]['suffix']).toBe(` [${together.slice(0, 10).join('、')}、…]`);
+      bot.destroy();
+      tab.destroy();
+    });
+
     it('asks for the answers to a line aimed at several targets in their order', async () => {
       const bot = new DiceBot();
       bot.initialize();

@@ -1,6 +1,6 @@
 import type { ChatMessage } from '@axe/domain/chat/chat-message';
 import type { ChatTab } from '@axe/domain/chat/chat-tab';
-import { rollTargetSuffix, TOGETHER_SEPARATOR } from '@axe/domain/dice/roll-target-suffix';
+import { rollTargetSuffix } from '@axe/domain/dice/roll-target-suffix';
 
 /**
  * The reference a line fills in with the number it has to beat: what was last rolled against the
@@ -85,7 +85,7 @@ export function findTargetNumberSource(tab: ChatTab, speaker: TargetNumberSpeake
     const text = `${message.text ?? ''}`.trimEnd();
     const total = rollTotalOf(text);
     if (total == null) continue;
-    if (aims.some((aim) => text.endsWith(aim)) || aimedAmong(text, speaker.name)) {
+    if (aims.some((aim) => text.endsWith(aim)) || aimedAmong(tab, message, speaker)) {
       return { total, answer: message, from: 'aimed' };
     }
     if (pinned.length > 0 && message.identifier === pinned) return { total, answer: message, from: 'pinned' };
@@ -163,13 +163,25 @@ function aimsAt(name: string): string[] {
 
 /**
  * Whether an answer was rolled at the speaker among everyone a line was aimed at all at once, as
- * `t:範囲` aims it: their names stand in the brackets after it one after another.
+ * `t:範囲` aims it: the line it answers keeps who they were, the names after the answer being only
+ * what fitted in its brackets.
  */
-function aimedAmong(text: string, name: string): boolean {
-  const aim = aimOf(text);
-  if (aim == null || !aim.includes(TOGETHER_SEPARATOR) || name.length < 1) return false;
-  const asTaken = rollTargetSuffix(name)?.slice(2, -1);
-  return aim.split(TOGETHER_SEPARATOR).some((one) => one === name || one === asTaken);
+function aimedAmong(tab: ChatTab, answer: ChatMessage, speaker: TargetNumberSpeaker): boolean {
+  if (speaker.identifier.length < 1) return false;
+  const line = tab.findRollSource(answer);
+  return line != null && aimedTogetherAt(line).includes(speaker.identifier);
+}
+
+/** The identifiers of the pieces a line was aimed at all at once; none for any other line, or a list that cannot be read. */
+function aimedTogetherAt(line: ChatMessage): string[] {
+  const written = `${line.aimedTogether ?? ''}`;
+  if (written.length < 1) return [];
+  try {
+    const read: unknown = JSON.parse(written);
+    return Array.isArray(read) ? read.filter((one): one is string => typeof one === 'string') : [];
+  } catch {
+    return [];
+  }
 }
 
 /** The name of whoever an answer was rolled at, from the brackets after it; null for an answer rolled at nobody. */

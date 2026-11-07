@@ -36,7 +36,7 @@ import {
   secretRollMatch,
 } from '@axe/domain/dice/dice-roll-line';
 import { DiceTable } from '@axe/domain/dice/dice-table';
-import { rollTargetSuffix, TOGETHER_SEPARATOR } from '@axe/domain/dice/roll-target-suffix';
+import { rollTargetSuffix, rollTogetherSuffix, TOGETHER_SEPARATOR } from '@axe/domain/dice/roll-target-suffix';
 import { ServerRollRequests } from '@axe/domain/dice/server-roll-requests';
 import { GameSystemInfo } from 'bcdice/lib/bcdice/game_system_list.json';
 import GameSystemClass from 'bcdice/lib/game_system';
@@ -526,7 +526,7 @@ export class DiceBot extends GameObject {
       // from the room, as while a replay's board is shown, where the server's answer would never come.
       const aimedAt = rolledAt(data.messageTarget);
       if (getAuthorityPeerId() && !isNetworkIsolated() && text.length <= MAX_ROLL_COMMAND_LENGTH) {
-        this.askServerToRoll(text, gameSystem.ID, chatMessage, aimedAt ? rollTargetSuffix(aimedAt) : undefined);
+        this.askServerToRoll(text, gameSystem.ID, chatMessage, serverSuffixOf(data.messageTarget));
         return;
       }
 
@@ -688,6 +688,15 @@ export class DiceBot extends GameObject {
     this.cleanups = [];
     this.serverRolls.clear();
   }
+}
+
+/**
+ * Who a roll is made at, as a room server writes it after its answer: the target's name, or as many
+ * of the names of everyone a line is aimed at all at once as it takes; none for a roll made at nobody.
+ */
+function serverSuffixOf(target: SendMessageEvent['messageTarget'] | undefined): string | undefined {
+  if (target?.together && target.together.length > 0) return rollTogetherSuffix(target.together);
+  return target?.object ? rollTargetSuffix(target.object.name) : undefined;
 }
 
 /**
