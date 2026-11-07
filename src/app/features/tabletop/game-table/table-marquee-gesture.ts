@@ -22,6 +22,13 @@ export type MarqueeEndHandler = (rect: MarqueeRect, modifiers: MarqueeModifiers)
 
 type ScreenToTablePoint = (screenX: number, screenY: number) => MarqueePoint;
 
+/** A place the pointer was at, on the page, and when it was there, on the clock events are stamped by. */
+export interface MarqueeSample {
+  readonly x: number;
+  readonly y: number;
+  readonly at: number;
+}
+
 export const MARQUEE_MOUSE_LONG_PRESS_MS = 350;
 export const MARQUEE_TOUCH_LONG_PRESS_MS = 300;
 export const MARQUEE_MOVE_CANCEL_THRESHOLD_PX = 6;
@@ -91,25 +98,32 @@ export class TableMarqueeGesture {
   }
 
   /**
-   * Follows the pointer: before the marquee opens, straying too far calls the long press off, and
-   * once it is open the marquee is stretched to the pointer. A move made once the press had been
-   * held long enough opens the marquee first, by when the move was made, on the clock events are
-   * stamped by: a page too busy to see the wait was up sees the move before it sees that.
+   * Follows the places the pointer went while the press waits to open a marquee, in the order it went
+   * to them, as the page would have seen them had it not been too busy: one to see the wait was up
+   * sees the moves made since all at once, before it sees that. The wait up by the time the pointer
+   * was at a place opens the marquee, and straying too far before it calls the long press off.
    */
-  updatePointer(screenX: number, screenY: number, at?: number): void {
-    if (!this.active && this.timer != null && at !== undefined && at - this.armedAt >= this.armedFor) {
-      clearTimeout(this.timer);
-      this.timer = null;
-      this.fire(this.armedModifiers);
-    }
-    if (!this.active) {
-      if (this.timer != null) {
-        const dx = screenX - this.startScreenX;
-        const dy = screenY - this.startScreenY;
-        if (dx * dx + dy * dy > MARQUEE_MOVE_CANCEL_THRESHOLD_PX ** 2) {
-          this.cancel();
-        }
+  follow(samples: readonly MarqueeSample[]): void {
+    for (const sample of samples) {
+      if (this.active || this.timer == null) return;
+      if (sample.at - this.armedAt >= this.armedFor) {
+        this.openNow();
+        return;
       }
+      if (this.strayed(sample.x, sample.y)) {
+        this.cancel();
+        return;
+      }
+    }
+  }
+
+  /**
+   * Follows the pointer: before the marquee opens, straying too far calls the long press off, and
+   * once it is open the marquee is stretched to the pointer.
+   */
+  updatePointer(screenX: number, screenY: number): void {
+    if (!this.active) {
+      if (this.timer != null && this.strayed(screenX, screenY)) this.cancel();
       return;
     }
     const dx = screenX - this.startScreenX;
@@ -127,6 +141,7 @@ export class TableMarqueeGesture {
    * Says whether a marquee was open; a press let go before it opened is simply called off.
    */
   release(event?: PointerEvent | MouseEvent): boolean {
+    if (!this.active && this.timer != null && event && event.timeStamp - this.armedAt >= this.armedFor) this.openNow();
     if (!this.active) {
       this.cancel();
       return false;
@@ -146,6 +161,20 @@ export class TableMarqueeGesture {
     this.reset();
     this.onMarqueeEnd?.(rect, modifiers);
     return true;
+  }
+
+  /** Opens the marquee at once, for a press found to have been held long enough before its wait was seen to be up. */
+  private openNow(): void {
+    if (this.timer != null) clearTimeout(this.timer);
+    this.timer = null;
+    this.fire(this.armedModifiers);
+  }
+
+  /** Whether a place lies too far off where the press was made for the press to be held still. */
+  private strayed(screenX: number, screenY: number): boolean {
+    const dx = screenX - this.startScreenX;
+    const dy = screenY - this.startScreenY;
+    return dx * dx + dy * dy > MARQUEE_MOVE_CANCEL_THRESHOLD_PX ** 2;
   }
 
   /** Calls off the marquee, or the long press waiting to open one, without selecting anything. */

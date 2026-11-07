@@ -130,7 +130,7 @@ describe('TableMarqueeGesture', () => {
     expect(start).not.toHaveBeenCalled();
   });
 
-  it('opens on a move made once the press was held long enough, though the wait was not seen to be up', () => {
+  it('opens at a place the pointer was at once the press had been held long enough, seen only after the wait was up', () => {
     const gesture = new TableMarqueeGesture(identityScreenToTable);
     const start = vi.fn<(p: MarqueePoint, m: MarqueeModifiers) => void>();
     const update = vi.fn<(p: MarqueePoint) => void>();
@@ -138,7 +138,12 @@ describe('TableMarqueeGesture', () => {
     gesture.onMarqueeUpdate = update;
     gesture.arm(makeEvent({ clientX: 10, clientY: 20, timeStamp: 1000 }));
 
-    gesture.updatePointer(110, 80, 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 150);
+    gesture.follow([
+      { x: 12, y: 21, at: 1100 },
+      { x: 13, y: 22, at: 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 10 },
+      { x: 110, y: 80, at: 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 50 },
+    ]);
+    gesture.updatePointer(110, 80);
 
     expect(gesture.isActive).toBe(true);
     expect(start).toHaveBeenCalledWith({ x: 10, y: 20 }, { shift: false, ctrl: false, touch: false });
@@ -147,15 +152,46 @@ describe('TableMarqueeGesture', () => {
     expect(start).toHaveBeenCalledTimes(1);
   });
 
-  it('is still called off by a move made before the press was held long enough', () => {
+  it('is called off by the pointer straying before the wait was up, seen only after it was', () => {
     const gesture = new TableMarqueeGesture(identityScreenToTable);
+    const start = vi.fn();
+    gesture.onMarqueeStart = start;
     gesture.arm(makeEvent({ clientX: 10, clientY: 20, timeStamp: 1000 }));
 
-    gesture.updatePointer(110, 80, 1000 + MARQUEE_MOUSE_LONG_PRESS_MS - 50);
+    gesture.follow([
+      { x: 10 + MARQUEE_MOVE_CANCEL_THRESHOLD_PX + 4, y: 20, at: 1080 },
+      { x: 110, y: 80, at: 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 50 },
+    ]);
+    gesture.updatePointer(110, 80);
     vi.advanceTimersByTime(MARQUEE_MOUSE_LONG_PRESS_MS);
 
     expect(gesture.isArmed).toBe(false);
     expect(gesture.isActive).toBe(false);
+    expect(start).not.toHaveBeenCalled();
+  });
+
+  it('opens and closes on a press let go where it was made once it had been held long enough, seen only after the wait was up', () => {
+    const gesture = new TableMarqueeGesture(identityScreenToTable);
+    const end = vi.fn<(r: MarqueeRect, m: MarqueeModifiers) => void>();
+    gesture.onMarqueeEnd = end;
+    gesture.arm(makeEvent({ clientX: 10, clientY: 20, timeStamp: 1000 }));
+
+    const released = gesture.release(
+      makeEvent({ clientX: 10, clientY: 20, timeStamp: 1000 + MARQUEE_MOUSE_LONG_PRESS_MS + 50 })
+    );
+
+    expect(released).toBe(true);
+    expect(end).toHaveBeenCalledWith({ x1: 10, y1: 20, x2: 10, y2: 20 }, { shift: false, ctrl: false, touch: false });
+  });
+
+  it('takes a press let go before it had been held long enough for no marquee', () => {
+    const gesture = new TableMarqueeGesture(identityScreenToTable);
+    const end = vi.fn();
+    gesture.onMarqueeEnd = end;
+    gesture.arm(makeEvent({ clientX: 10, clientY: 20, timeStamp: 1000 }));
+
+    expect(gesture.release(makeEvent({ timeStamp: 1000 + MARQUEE_MOUSE_LONG_PRESS_MS - 50 }))).toBe(false);
+    expect(end).not.toHaveBeenCalled();
   });
 
   it('reports each move once it has started', () => {

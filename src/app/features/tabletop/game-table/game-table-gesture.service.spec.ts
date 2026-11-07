@@ -163,6 +163,25 @@ describe('GameTableGestureService', () => {
       root.remove();
     });
 
+    it('hands a marquee waiting on a press where the pointer went, and stops once the table goes', () => {
+      const root = document.createElement('div');
+      document.body.appendChild(root);
+      service.initialize(root, () => true);
+      const follow = vi.fn();
+      const marquee = (service as unknown as { marqueeGesture: { isArmed: boolean; follow: unknown } }).marqueeGesture;
+      Object.defineProperty(marquee, 'isArmed', { get: () => true });
+      marquee.follow = follow;
+
+      document.dispatchEvent(new PointerEvent('pointermove', { clientX: 30, clientY: 40 }));
+      expect(follow).toHaveBeenCalledTimes(1);
+      expect(follow.mock.calls[0][0]).toHaveLength(1);
+
+      service.destroy();
+      document.dispatchEvent(new PointerEvent('pointermove', { clientX: 30, clientY: 40 }));
+      expect(follow).toHaveBeenCalledTimes(1);
+      root.remove();
+    });
+
     it('drops a frame it was still waiting for when the table goes', async () => {
       callSetTransform(0, 0, 10);
       service.destroy();
@@ -462,7 +481,7 @@ describe('GameTableGestureService', () => {
       expect(arm).toHaveBeenCalledTimes(1);
     });
 
-    it('stretches an open marquee to where the move is, rather than where the pointer was last kept, and says when it was made', () => {
+    it('stretches an open marquee to where the move is, rather than where the pointer was last kept', () => {
       const updatePointer = vi.fn();
       (gestures as unknown as { marqueeGesture: unknown }).marqueeGesture = {
         updatePointer,
@@ -478,7 +497,7 @@ describe('GameTableGestureService', () => {
         }
       ).onTableMouseTransform(0, 0, 0, 0, 0, 0, {}, move);
 
-      expect(updatePointer).toHaveBeenCalledWith(140, 90, move.timeStamp);
+      expect(updatePointer).toHaveBeenCalledWith(140, 90);
     });
 
     it('says beside the pointer why a press on the ground came to nothing', async () => {

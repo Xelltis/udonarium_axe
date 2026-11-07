@@ -156,7 +156,20 @@ export class GameTableGestureService {
     this.marqueeGesture.onMarqueeEnd = (rect, mods) => this.onMarqueeEnd(rect, mods);
     this.touchGesture.shouldSynthesizeContextMenu = () => !(this.marqueeGesture?.isDragging ?? false);
     this.touchGesture.onSynthesizeContextMenu = () => this.pointerDeviceService.cancelPendingContextMenu();
+    rootEl.ownerDocument.addEventListener('pointermove', this.followPress, { capture: true, passive: true });
   }
+
+  /**
+   * Hands the marquee waiting on a press every place the pointer went since the last move the page
+   * saw, with when it was there, ahead of the move the table follows the pointer by.
+   */
+  private readonly followPress = (event: PointerEvent): void => {
+    const marquee = this.marqueeGesture;
+    if (!marquee?.isArmed) return;
+    const coalesced = event.getCoalescedEvents?.() ?? [];
+    const places = coalesced.length > 0 ? coalesced : [event];
+    marquee.follow(places.map((place) => ({ x: place.pageX, y: place.pageY, at: place.timeStamp })));
+  };
 
   /** Takes the gestures off the table, and drops a view update still waiting for its frame. */
   destroy(): void {
@@ -169,6 +182,7 @@ export class GameTableGestureService {
     this.touchGesture = null;
     this.marqueeGesture?.cancel();
     this.marqueeGesture = null;
+    this.rootEl?.ownerDocument.removeEventListener('pointermove', this.followPress, { capture: true });
   }
 
   /**
@@ -444,7 +458,7 @@ export class GameTableGestureService {
         srcEvent instanceof MouseEvent
           ? { x: srcEvent.pageX, y: srcEvent.pageY }
           : this.pointerDeviceService.pointers[0];
-      this.marqueeGesture.updatePointer(pointer.x, pointer.y, (srcEvent as Event).timeStamp);
+      this.marqueeGesture.updatePointer(pointer.x, pointer.y);
       if (this.marqueeGesture.isActive) {
         if ((srcEvent as Event).cancelable) (srcEvent as Event).preventDefault();
         return;
