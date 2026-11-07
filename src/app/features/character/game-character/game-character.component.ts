@@ -402,10 +402,10 @@ export class GameCharacterComponent {
    * beside the top of its picture.
    */
   private readonly knobsClearOfRoll = computed<readonly boolean[]>(() => {
-    if (this.turning() === 'turn') return TURN_KNOB_ANGLES.map(() => true);
+    if (this.turning() === 'turn' || this.mode2dEnabled()) return TURN_KNOB_ANGLES.map(() => true);
     const sight = this.pictureSight();
     const middle = this.ringMiddle();
-    if (!sight || !middle || this.mode2dEnabled() || this.imageFile().url.length < 1) {
+    if (!sight || !middle || this.imageFile().url.length < 1) {
       return TURN_KNOB_ANGLES.map(() => true);
     }
     const corner = sight.cornerOnPage(1);
