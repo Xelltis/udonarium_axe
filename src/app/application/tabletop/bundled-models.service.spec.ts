@@ -67,6 +67,30 @@ describe('BundledModelsService', () => {
     expect(fetched).toHaveBeenCalledTimes(2);
   });
 
+  it('asks again of itself for a model that could not be read, once a while has passed', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'performance'] });
+    try {
+      const fetched = vi
+        .spyOn(globalThis, 'fetch')
+        .mockImplementationOnce(async () => {
+          throw new TypeError('offline');
+        })
+        .mockImplementation(async () => new Response(goblinBytes()));
+      const bundled = TestBed.inject(BundledModelsService);
+
+      bundled.read(GOBLIN);
+      await vi.advanceTimersByTimeAsync(BUNDLED_MODEL_RETRY_MS - 1);
+      expect(fetched).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      vi.useRealTimers();
+      await vi.waitFor(() => expect(ModelStorage.instance.get(GOBLIN)?.isReady).toBe(true));
+      expect(fetched).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('tells a bundled model still to come, until it is held, or could not be read, and calls back as it is read', async () => {
     let answer: (response: Response) => void = () => undefined;
     vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>((resolve) => (answer = resolve)));
