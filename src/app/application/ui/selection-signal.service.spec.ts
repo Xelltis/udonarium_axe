@@ -140,6 +140,32 @@ describe('SelectionSignalService', () => {
     expect(runs).toHaveBeenCalledTimes(1);
   });
 
+  it('follows nothing for an effect that toggles, takes out of or presses into the selection', () => {
+    const runs = { toggle: vi.fn(), remove: vi.fn(), press: vi.fn() };
+    TestBed.runInInjectionContext(() => {
+      effect(() => {
+        runs.toggle();
+        if (runs.toggle.mock.calls.length <= 2) service.toggleSelection('toggled');
+      });
+      effect(() => {
+        runs.remove();
+        if (runs.remove.mock.calls.length <= 2) service.removeSelection('gone');
+      });
+      effect(() => {
+        runs.press();
+        if (runs.press.mock.calls.length <= 2) service.press('pressed', 'GameCharacter', false);
+      });
+    });
+    TestBed.tick();
+
+    service.addSelection('other');
+    service.addSelection('gone');
+    TestBed.tick();
+    expect(runs.toggle).toHaveBeenCalledTimes(1);
+    expect(runs.remove).toHaveBeenCalledTimes(1);
+    expect(runs.press).toHaveBeenCalledTimes(1);
+  });
+
   it('tells nobody of a selection made anew with the pieces it already holds', () => {
     service.replaceSelection(['a', 'b']);
     const held = service.selectedObjects();
