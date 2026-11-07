@@ -276,7 +276,14 @@ export const FIELD_PROP_SHAPES: Record<FieldPropId, FieldPropShape> = {
 export interface GroundBand {
   /** How much of the board this band covers by the time it ends, counting from the lowest. */
   upTo: number;
+  /** What the band is, which names it and shows it on a plan of the field, and is laid on its floor. */
   texture: TextureId;
+  /**
+   * The picture laid on its floor instead, where that is not what the band is: under water too
+   * murky to show its bottom, what shows of the floor is where the ground comes up through the
+   * water at its shore, which is the ground of the land beside it.
+   */
+  floor?: TextureId;
   /** Whether a piece can be put down here at all. Nothing grows out of open water. */
   bare?: boolean;
   /** The water lying over the band, its surface at the board, on one of the lowest bands. */
@@ -545,7 +552,8 @@ export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {
     bands: [
       {
         upTo: 0.4,
-        texture: 'swamp_mud',
+        texture: 'shallows',
+        floor: 'swamp_mud',
         bare: true,
         water: { depth: 0.4, color: '#5f6b4a', turbidity: 0.8, dirt: 0.6, leaves: 0.25, ice: 0 },
       },

@@ -462,7 +462,9 @@ describe('the ground of a field raised as high as asked', () => {
   it('lays murky water over the ground of the land beside it, which shows where the ground comes up through the water', () => {
     const murky = FIELD_ATMOSPHERE_IDS.flatMap((id) =>
       FIELD_ATMOSPHERES[id].bands.flatMap((band, index, bands) =>
-        (band.water?.turbidity ?? 0) >= 0.5 ? [{ id, under: band.texture, beside: bands[index + 1]?.texture }] : []
+        (band.water?.turbidity ?? 0) >= 0.5
+          ? [{ id, under: band.floor ?? band.texture, beside: bands[index + 1]?.floor ?? bands[index + 1]?.texture }]
+          : []
       )
     );
 

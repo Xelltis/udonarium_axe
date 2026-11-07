@@ -241,7 +241,7 @@ export function fieldToBlocks(
   atmosphere.bands.forEach((band, index) => {
     const mask = maskOfBand(layout, index);
     for (const rect of mergeMaskToRects(mask, layout.width, layout.height, span)) {
-      paint.push({ kind: 'floor', rect, material: { kind: 'texture', id: band.texture } });
+      paint.push({ kind: 'floor', rect, material: { kind: 'texture', id: band.floor ?? band.texture } });
     }
   });
 
