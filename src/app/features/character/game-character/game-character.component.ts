@@ -430,7 +430,11 @@ export class GameCharacterComponent {
     });
   });
 
-  /** Whether the pointer is over the piece, which brings its handles out. */
+  /**
+   * Whether the pointer is over the piece, which brings its handles out where the main pointer can
+   * hover; where it cannot, a finger's or a pen's passing over a piece says so too, and brings
+   * nothing out, so a reader weighs it only where the viewport says the main pointer can hover.
+   */
   protected readonly hovered = signal(false);
 
   /**
