@@ -153,7 +153,10 @@ describe('LinkWatchService', () => {
     vi.advanceTimersByTime(SEEN_ASK_INTERVAL_MS);
     const before = asks;
     vi.advanceTimersByTime(SEEN_ASK_INTERVAL_MS * 4);
+    const toldBefore = watched.length;
     pageActivity.noteInput();
+    pageActivity.noteInput();
+    expect(watched.length).toBe(toldBefore);
     expect(asks).toBe(before);
     expect(service.paused()).toBe(true);
     expect(service.weighedAt()).toBe(answeredAt);

@@ -116,9 +116,12 @@ export class LinkWatchService {
     this.timer = setInterval(() => this.ask(), SEEN_ASK_INTERVAL_MS);
   }
 
-  /** Asks at once on the page being used or shown again after nobody looked, and every while from then. */
+  /**
+   * Asks at once on the page being used or shown again after nobody looked, and every while from
+   * then; while the link to the server is down, the next ask after it is back tells it.
+   */
   private resume(): void {
-    if (this.isPaused()) this.keepAsking();
+    if (this.isPaused() && Network.isAuthorityOpen) this.keepAsking();
   }
 
   private ask(): void {
