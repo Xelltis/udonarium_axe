@@ -118,33 +118,18 @@ describe('LinkHeartbeat', () => {
     expect(heartbeat.roundTripMs).toBe(0);
   });
 
-  it('sends no ping while one waits for its answer, so a slow answer is timed from its own ping', () => {
+  it('keeps pinging while one ping waits, so one left unanswered ends no link, and times an answer from the last', () => {
     welcomed = true;
     const socket = openSocket();
     current = socket;
     heartbeat.start(socket);
     heartbeat.watch(true);
 
-    vi.advanceTimersByTime(WATCHED_PING_INTERVAL_MS + 100);
+    vi.advanceTimersByTime(300);
     heartbeat.answered();
+    expect(heartbeat.roundTripMs).toBe(300);
 
-    expect(heartbeat.roundTripMs).toBe(WATCHED_PING_INTERVAL_MS + 100);
-    expect(socket.sent).toEqual([PING]);
-  });
-
-  it('gives up a ping left unanswered, and times the next one afresh', () => {
-    welcomed = true;
-    const socket = openSocket();
-    current = socket;
-    heartbeat.start(socket);
-    heartbeat.watch(true);
-    heartbeat.answered();
-
-    vi.advanceTimersByTime(WATCHED_PING_INTERVAL_MS);
-    heartbeat.heard();
-    vi.advanceTimersByTime(WATCHED_PING_INTERVAL_MS);
-    heartbeat.heard();
-    expect(socket.sent).toEqual([PING, PING]);
+    vi.advanceTimersByTime(WATCHED_PING_INTERVAL_MS - 300);
     vi.advanceTimersByTime(WATCHED_PING_INTERVAL_MS);
     vi.advanceTimersByTime(80);
     heartbeat.answered();

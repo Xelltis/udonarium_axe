@@ -87,9 +87,10 @@ export class LinkHeartbeat {
   }
 
   /**
-   * The answer to a ping came, which tells how long it took. No ping goes while one waits for its
-   * answer, so the answer is to the ping it is timed from, however slow; one left unanswered for
-   * PONG_TIMEOUT_MS is given up, and the next ping is timed afresh.
+   * The answer to a ping came, which tells how long it took, timed from the last ping. A ping goes
+   * every while though one waits for its answer, so that one left unanswered does not end a link
+   * that is still there; which ping an answer is to cannot be told, so one slower than the pings are
+   * apart reads as the time since the last ping, and one left unanswered does not stretch the next.
    */
   answered(): void {
     if (this.askedAt !== null) this.answerMs = Date.now() - this.askedAt;
@@ -117,11 +118,9 @@ export class LinkHeartbeat {
   private ask(): void {
     const socket = this.socket;
     if (!socket || !this.host.isCurrent(socket) || socket.readyState !== SOCKET_OPEN) return;
-    const now = Date.now();
-    if (this.askedAt !== null && now - this.askedAt < PONG_TIMEOUT_MS) return;
     socket.send(PING);
-    this.lastAskedAt = now;
-    this.askedAt = now;
+    this.lastAskedAt = Date.now();
+    this.askedAt = this.lastAskedAt;
     if (this.pongTimer == null) {
       this.pongTimer = setTimeout(() => {
         this.pongTimer = null;
