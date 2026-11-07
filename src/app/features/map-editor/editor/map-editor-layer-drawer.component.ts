@@ -1,5 +1,15 @@
 import { NgClass } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  input,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
@@ -42,9 +52,32 @@ export class MapEditorLayerDrawerComponent {
   protected readonly layerKinds: LayerKind[] = ['cell', 'shape', 'stamp', 'freehand', 'text', 'image', 'relief'];
   protected readonly functionRoles = everyFunctionRole();
   protected readonly functionRoleLabelKey = functionRoleLabelKey;
+  /** Whether the menu of layers to add is open; a press anywhere else, or Escape, closes it. */
   protected readonly addLayerMenuOpen = signal(false);
   protected readonly renamingLayerId = signal<string | null>(null);
   protected readonly layerDrag = new RowReorder<string>();
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly addLayerMenu = viewChild<ElementRef<HTMLElement>>('addLayerMenu');
+
+  constructor() {
+    effect((onCleanup) => {
+      if (!this.addLayerMenuOpen()) return;
+      // The panel may stand in a window of its own, so the presses are heard in the document it is in.
+      const page = this.host.nativeElement.ownerDocument;
+      const press = (event: Event) => {
+        if (!this.addLayerMenu()?.nativeElement.contains(event.target as Node | null)) this.addLayerMenuOpen.set(false);
+      };
+      const key = (event: KeyboardEvent) => {
+        if (event.key === 'Escape') this.addLayerMenuOpen.set(false);
+      };
+      page.addEventListener('pointerdown', press, true);
+      page.addEventListener('keydown', key, true);
+      onCleanup(() => {
+        page.removeEventListener('pointerdown', press, true);
+        page.removeEventListener('keydown', key, true);
+      });
+    });
+  }
 
   protected readonly layers = computed(() => {
     this.state.sceneTick();

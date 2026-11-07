@@ -93,6 +93,34 @@ describe('MapEditorLayerDrawerComponent', () => {
     expect(drawer.addLayerMenuOpen()).toBe(false);
   });
 
+  it('closes the menu of layers to add on a press anywhere else, or on Escape, and not on a press inside it', () => {
+    document.body.appendChild(fixture.nativeElement);
+    try {
+      const add = () => fixture.nativeElement.querySelector('[title="レイヤーを追加"]') as HTMLButtonElement;
+      fixture.detectChanges();
+      add().click();
+      fixture.detectChanges();
+      const press = (target: Element) =>
+        target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+
+      press(add());
+      fixture.detectChanges();
+      expect(drawer.addLayerMenuOpen()).toBe(true);
+
+      press(document.body);
+      fixture.detectChanges();
+      expect(drawer.addLayerMenuOpen()).toBe(false);
+
+      add().click();
+      fixture.detectChanges();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      fixture.detectChanges();
+      expect(drawer.addLayerMenuOpen()).toBe(false);
+    } finally {
+      fixture.nativeElement.remove();
+    }
+  });
+
   it('offers a pencil on the layer in hand, for a screen that cannot double-click its name', () => {
     state.applyCommitted(() => addLayer(state.current, shapeLayer('layer-6')));
     state.applyCommitted(() => addLayer(state.current, shapeLayer('layer-7')));
