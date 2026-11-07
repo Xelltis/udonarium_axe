@@ -61,6 +61,8 @@ export class TableTouchGesture {
   onstart: Callback | null = null;
   onend: Callback | null = null;
   ongesture: OnGestureCallback | null = null;
+  /** Called on a single finger's tap, with what the finger came down on. */
+  ontap: ((ev: PointerEvent, pressedOn: EventTarget | null) => void) | null = null;
   ontransform: OnTransformCallback | null = null;
   constructor(readonly targetElement: Element) {
     this.originalTouchAction = (this.targetElement as HTMLElement).style.touchAction;
@@ -200,7 +202,7 @@ export class TableTouchGesture {
     this.activePointers.delete(ev.pointerId);
     this.clearLongPressTimer();
 
-    if (isTap) this.onTap(ev);
+    if (isTap) this.onTap(ev, pointer.target);
 
     if (this.activePointers.size === 0) {
       this.resetTouchState();
@@ -225,12 +227,13 @@ export class TableTouchGesture {
     }
   }
 
-  private onTap(ev: PointerEvent) {
+  private onTap(ev: PointerEvent, pressedOn: EventTarget | null) {
     this.tappedPanCenter = { x: ev.clientX, y: ev.clientY };
     this.tappedPanTimer = setTimeout(() => {
       this.tappedPanTimer = null;
     }, 400);
     if (this.ongesture) this.ongesture(ev);
+    if (this.ontap) this.ontap(ev, pressedOn);
   }
 
   private resetTouchState() {

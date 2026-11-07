@@ -54,7 +54,7 @@ test.describe('character pieces seen on a phone', () => {
     await expect.poll(clear, { timeout: 5000 }).toBe('clear');
   });
 
-  test('brings out the handles of the piece last touched, and only of that one, and lets no other be pressed', async ({
+  test('brings out the handles of the piece last touched, and only of that one, and puts them away on a tap on the table', async ({
     page,
   }) => {
     await page.goto('/');
@@ -92,5 +92,26 @@ test.describe('character pieces seen on a phone', () => {
     await page.touchscreen.tap(middle.x, middle.y);
     await expect.poll(() => lookOf(touched!), { timeout: 5000 }).toBe('1 auto');
     expect(await lookOf(other!)).toBe('0 none');
+
+    const bare = await page.evaluate(() => {
+      const hooks = (
+        window as unknown as {
+          __axeTable: { drawnAt(x: number, y: number): string | null; pickAt(x: number, y: number): string | null };
+        }
+      ).__axeTable;
+      const table = document.querySelector('#app-table-layer')!;
+      for (let y = 140; y < innerHeight - 140; y += 30) {
+        for (let x = 40; x < innerWidth - 40; x += 30) {
+          const front = document.elementFromPoint(x, y);
+          if (front && table.contains(front) && hooks.drawnAt(x, y) === null && hooks.pickAt(x, y) === null) {
+            return { x, y };
+          }
+        }
+      }
+      return null;
+    });
+    expect(bare, 'a bare spot of the table in view').not.toBeNull();
+    await page.touchscreen.tap(bare!.x, bare!.y);
+    await expect.poll(() => lookOf(touched!), { timeout: 5000 }).toBe('0 none');
   });
 });

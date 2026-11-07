@@ -141,6 +141,7 @@ export class GameTableGestureService {
     this.touchGesture.onstart = () => this.onTableTouchStart();
     this.touchGesture.onend = () => this.onTableTouchEnd();
     this.touchGesture.ongesture = () => this.onTableTouchGesture();
+    this.touchGesture.ontap = (_ev, pressedOn) => this.onTableTap(pressedOn);
     this.touchGesture.ontransform = (tX, tY, tZ, rX, rY, rZ, ev, src) =>
       this.onTableTouchTransform(tX, tY, tZ, rX, rY, rZ, ev, src);
 
@@ -333,6 +334,21 @@ export class GameTableGestureService {
     this.cancelInput();
   }
 
+  /**
+   * A finger's tap on the bare table forgets the piece a finger last pressed, which puts its handles
+   * away; the selection is left as it was, as a tap has always left it.
+   */
+  private onTableTap(pressedOn: EventTarget | null): void {
+    if (pressedOn instanceof HTMLElement && this.isBareTable(pressedOn)) {
+      this.selectionSignalService.forgetPressedObject();
+    }
+  }
+
+  /** Whether a press on this element is one on the table itself rather than on anything on it. */
+  private isBareTable(target: HTMLElement): boolean {
+    return (this.rootEl !== null && target.contains(this.rootEl)) || target.closest('[data-table-passthrough]') != null;
+  }
+
   private onTableTouchTransform(
     transformX: number,
     transformY: number,
@@ -381,11 +397,7 @@ export class GameTableGestureService {
   private onTableMouseStart(e: TouchEvent | MouseEvent | PointerEvent): void {
     const me = e as MouseEvent;
     const target = me.target as HTMLElement;
-    const isEmptyTablePress =
-      (this.rootEl !== null && target.contains(this.rootEl)) ||
-      me.button === 1 ||
-      me.button === 2 ||
-      target.closest('[data-table-passthrough]') != null;
+    const isEmptyTablePress = this.isBareTable(target) || me.button === 1 || me.button === 2;
     this.groundPress = isEmptyTablePress && me.button === 0 && target.closest('[data-switch-host]') == null;
     if (isEmptyTablePress) {
       this.isTableTransformMode = true;

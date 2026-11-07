@@ -82,28 +82,31 @@ describe('SelectionSignalService', () => {
     expect(service.selectedObject()?.identifier).toBe('listed');
   });
 
-  it('forgets the piece last pressed once the selection leaves it out, and keeps it while the selection holds it', () => {
+  it('forgets the piece last pressed once the selection is made to leave it out, and keeps it while it holds it', () => {
     service.pressObject('pressed', 'GameCharacter');
     service.replaceSelection(['pressed', 'other']);
     expect(service.pressedObject()).toBe('pressed');
     service.removeSelection('other');
     expect(service.pressedObject()).toBe('pressed');
-
     service.toggleSelection('pressed');
     expect(service.pressedObject()).toBeNull();
 
     service.pressObject('pressed', 'GameCharacter');
-    service.removeSelection('pressed');
-    service.addSelection('pressed');
-    service.removeSelection('pressed');
+    service.addSelection('added');
     expect(service.pressedObject()).toBeNull();
 
+    service.clearSelection();
+    service.pressObject('pressed', 'GameCharacter');
+    service.toggleSelection('toggled');
+    expect(service.pressedObject()).toBeNull();
+
+    service.clearSelection();
     service.pressObject('pressed', 'GameCharacter');
     service.replaceSelection(['boxed']);
     expect(service.pressedObject()).toBeNull();
   });
 
-  it('tells the piece a finger last pressed apart from one pressed otherwise, as the selection is emptied', () => {
+  it('tells the piece a finger last pressed apart from one pressed otherwise, and forgets it on being told to', () => {
     service.pressObject('clicked', 'GameCharacter');
     expect(service.pressedObject()).toBe('clicked');
     expect(service.touchedObject()).toBeNull();
@@ -111,8 +114,10 @@ describe('SelectionSignalService', () => {
     service.pressObject('touched', 'GameCharacter', true);
     expect(service.touchedObject()).toBe('touched');
 
-    service.clearSelection();
+    service.forgetPressedObject();
+    expect(service.pressedObject()).toBeNull();
     expect(service.touchedObject()).toBeNull();
+    expect(service.selectedObject()?.identifier).toBe('touched');
   });
 
   it('bumps the version when a table gesture is cancelled', () => {

@@ -40,8 +40,8 @@ export class SelectionSignalService {
 
   private readonly pressed = signal<{ readonly identifier: string; readonly byTouch: boolean } | null>(null);
   /**
-   * The identifier of the piece last pressed on the table, until the selection is emptied, as a press
-   * on the table itself or Escape does. Choosing a piece anywhere else, in a list
+   * The identifier of the piece last pressed on the table, until the bare table is pressed or the
+   * selection changes to leave it out, as emptying it does. Choosing a piece anywhere else, in a list
    * or by its sheet, leaves it alone.
    */
   readonly pressedObject = computed(() => this.pressed()?.identifier ?? null);
@@ -63,6 +63,11 @@ export class SelectionSignalService {
   pressObject(identifier: string, className: string, byTouch = false): void {
     this.pressed.set({ identifier, byTouch });
     this.selectObject(identifier, className);
+  }
+
+  /** Forgets the piece last pressed, as a press on the bare table does. */
+  forgetPressedObject(): void {
+    this.pressed.set(null);
   }
 
   /** Asks the piece with this identifier to flash on the table, so the reader can find it. */
@@ -94,7 +99,7 @@ export class SelectionSignalService {
     if (current.has(identifier)) return;
     const next = new Set(current);
     next.add(identifier);
-    this._selectedObjects.set(next);
+    this.setSelection(next);
     if (className) this.selectObject(identifier, className);
   }
 
@@ -104,8 +109,7 @@ export class SelectionSignalService {
     if (!current.has(identifier)) return;
     const next = new Set(current);
     next.delete(identifier);
-    this._selectedObjects.set(next);
-    this.forgetPressed(identifier);
+    this.setSelection(next);
   }
 
   /**
@@ -117,12 +121,11 @@ export class SelectionSignalService {
     const next = new Set(current);
     if (next.has(identifier)) {
       next.delete(identifier);
-      this.forgetPressed(identifier);
     } else {
       next.add(identifier);
       if (className) this.selectObject(identifier, className);
     }
-    this._selectedObjects.set(next);
+    this.setSelection(next);
   }
 
   /**
@@ -130,16 +133,18 @@ export class SelectionSignalService {
    * last.
    */
   replaceSelection(ids: Iterable<string>, lastTouched?: TabletopObjectSelection): void {
-    const next = new Set(ids);
-    this._selectedObjects.set(next);
-    const pressed = this.pressedObject();
-    if (pressed !== null && !next.has(pressed)) this.pressed.set(null);
+    this.setSelection(new Set(ids));
     if (lastTouched) this.selectObject(lastTouched.identifier, lastTouched.className);
   }
 
-  /** Forgets the piece last pressed if it is this one, as it is taken out of the selection. */
-  private forgetPressed(identifier: string): void {
-    if (this.pressedObject() === identifier) this.pressed.set(null);
+  /**
+   * Makes the multi-selection these pieces, and forgets the piece last pressed if they leave it out:
+   * a press on a piece that leaves the selection alone keeps it, but no change to the selection does.
+   */
+  private setSelection(next: ReadonlySet<string>): void {
+    this._selectedObjects.set(next);
+    const pressed = this.pressedObject();
+    if (pressed !== null && !next.has(pressed)) this.pressed.set(null);
   }
 
   /**
@@ -166,6 +171,6 @@ export class SelectionSignalService {
   clearSelection(): void {
     this.pressed.set(null);
     if (this._selectedObjects().size === 0) return;
-    this._selectedObjects.set(new Set());
+    this.setSelection(new Set());
   }
 }

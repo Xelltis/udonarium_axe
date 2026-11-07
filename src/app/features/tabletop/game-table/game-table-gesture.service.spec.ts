@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
@@ -161,6 +162,32 @@ describe('GameTableGestureService', () => {
       expect(service.viewPositionZ).toBe(zoomed);
       expect(root.style.touchAction).toBe('');
       root.remove();
+    });
+
+    it('forgets the piece a finger last pressed on a tap on the bare table, and not on one on a piece', () => {
+      const root = document.createElement('div');
+      const piece = document.createElement('div');
+      root.appendChild(piece);
+      document.body.appendChild(root);
+      service.initialize(root, () => true);
+      const selection = TestBed.inject(SelectionSignalService);
+      const tap = (on: HTMLElement, pointerId: number) => {
+        const at = { bubbles: true, pointerId, pointerType: 'touch', clientX: 10, clientY: 10 };
+        on.dispatchEvent(new PointerEvent('pointerdown', at));
+        on.dispatchEvent(new PointerEvent('pointerup', at));
+      };
+
+      try {
+        selection.pressObject('touched', 'GameCharacter', true);
+        tap(piece, 1);
+        expect(selection.touchedObject()).toBe('touched');
+
+        tap(root, 2);
+        expect(selection.touchedObject()).toBeNull();
+      } finally {
+        service.destroy();
+        root.remove();
+      }
     });
 
     it('hands a marquee waiting on a press where the pointer went, and stops once the table goes', () => {
