@@ -266,6 +266,16 @@ describe('RotableDirective', () => {
       expect(directive.rotate).toBeCloseTo(31);
     });
 
+    it('says it is turning from the first step of a turn until the turn is broken off', () => {
+      expect(directive.turning()).toBe(false);
+
+      moveTo(31, false);
+      expect(directive.turning()).toBe(true);
+
+      directive.cancel();
+      expect(directive.turning()).toBe(false);
+    });
+
     it('says nothing more once the turn is let go', () => {
       moveTo(31, true);
 

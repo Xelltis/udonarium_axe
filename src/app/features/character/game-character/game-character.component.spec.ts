@@ -1939,8 +1939,9 @@ describe('GameCharacterComponent', () => {
 
     /** Has the handle of that kind turn the piece, as its directive reports a turn under way. */
     function hold(kind: 'turn' | 'roll', angle = 0): void {
-      const directive = kind === 'turn' ? handles().turnRotable() : handles().rollRotable();
-      TestBed.inject(RotationGuideService).report(directive!, { angle, step: 45, snapping: false });
+      const directive = (kind === 'turn' ? handles().turnRotable() : handles().rollRotable())!;
+      (directive as unknown as { inTurn: WritableSignal<boolean> }).inTurn.set(true);
+      TestBed.inject(RotationGuideService).report(directive, { angle, step: 45, snapping: false });
     }
 
     /** Has the table draw the piece's picture standing, as a sprite of its own. */
@@ -1951,9 +1952,7 @@ describe('GameCharacterComponent', () => {
 
     /** Ends whatever turn either handle has under way. */
     function letGo(): void {
-      for (const directive of [handles().turnRotable(), handles().rollRotable()]) {
-        if (directive) TestBed.inject(RotationGuideService).end(directive);
-      }
+      for (const directive of [handles().turnRotable(), handles().rollRotable()]) directive?.cancel();
     }
 
     afterEach(() => ImageStorage.instance.delete('roll-grab-url'));
@@ -2149,14 +2148,12 @@ describe('GameCharacterComponent', () => {
       }
     });
 
-    it('lets a knob give way where the handle that tips the piece is drawn, but keeps both while the piece is turned', () => {
+    it('lets a knob give way where the handle that tips the piece is drawn, but keeps both, unweighed, while the piece is turned', () => {
       const character = withPicture('knob-gives-way');
       drawPicture(character);
       const pick = TestBed.inject(TablePickService);
-      vi.spyOn(pick, 'pictureSightOf').mockReturnValue({
-        hides: () => false,
-        cornerOnPage: () => ({ x: 100, y: 100 }),
-      });
+      const cornerOnPage = vi.fn(() => ({ x: 100, y: 100 }));
+      vi.spyOn(pick, 'pictureSightOf').mockReturnValue({ hides: () => false, cornerOnPage });
       vi.spyOn(TestBed.inject(TableSurfaceService), 'pageOf').mockImplementation((_surface, _x, y) =>
         y < 25 ? { x: 118, y: 112 } : { x: 0, y: 300 }
       );
@@ -2173,6 +2170,12 @@ describe('GameCharacterComponent', () => {
         hold('turn');
         fixture.detectChanges();
         expect(knobs()).toHaveLength(2);
+        cornerOnPage.mockClear();
+        character.rotate = 45;
+        TestBed.inject(ObjectChangeService).notifyChanged(character.identifier);
+        fixture.detectChanges();
+        expect(knobs()).toHaveLength(2);
+        expect(cornerOnPage).not.toHaveBeenCalled();
         letGo();
       } finally {
         character.destroy();

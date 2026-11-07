@@ -300,23 +300,13 @@ export class GameCharacterComponent {
 
   /**
    * Which handle of the piece is held just now: the ring that turns it, the one that tips it, or
-   * none; as the turn under way says, from its first step until it ends, however it ends.
+   * none; from the first step of a turn by it until the turn ends, however it ends.
    */
   protected readonly turning = computed<'turn' | 'roll' | null>(() => {
-    if (this.rotationGuide.isTurnedBy(this.turnRotable())) return 'turn';
-    if (this.rotationGuide.isTurnedBy(this.rollRotable())) return 'roll';
+    if (this.turnRotable()?.turning()) return 'turn';
+    if (this.rollRotable()?.turning()) return 'roll';
     return null;
   });
-
-  /** Starts a turn or a tip by a handle: brings the piece to the top. */
-  protected onTurnStart(): void {
-    this.onMove();
-  }
-
-  /** Ends a turn or a tip by a handle. */
-  protected onTurnEnd(): void {
-    this.onMoved();
-  }
 
   /**
    * Whether this is the piece last touched on a touch screen and not in hand, which has its handles
@@ -406,6 +396,7 @@ export class GameCharacterComponent {
    * beside the top of its picture.
    */
   private readonly knobsClearOfRoll = computed<readonly boolean[]>(() => {
+    if (this.turning() === 'turn') return TURN_KNOB_ANGLES.map(() => true);
     const sight = this.pictureSight();
     const middle = this.ringMiddle();
     if (!sight || !middle || this.mode2dEnabled() || this.imageFile().url.length < 1) {

@@ -1,4 +1,14 @@
-import { afterNextRender, DestroyRef, Directive, effect, ElementRef, inject, input, output } from '@angular/core';
+import {
+  afterNextRender,
+  DestroyRef,
+  Directive,
+  effect,
+  ElementRef,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeEvent, ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -67,6 +77,13 @@ export class RotableDirective {
   readonly ondrag = output<PointerEvent>({ alias: 'rotable.ondrag' });
   readonly ondragend = output<PointerEvent>({ alias: 'rotable.ondragend' });
   readonly onend = output<PointerEvent>({ alias: 'rotable.onend' });
+
+  private readonly inTurn = signal(false);
+  /**
+   * Whether a turn by this element is under way: from its first step until it is let go, broken
+   * off or the element goes, however it ends. Only what this element turns reads it again.
+   */
+  readonly turning = this.inTurn.asReadonly();
 
   private get nativeElement(): HTMLElement {
     return this.elementRef.nativeElement;
@@ -194,6 +211,7 @@ export class RotableDirective {
     this.grabbingElement = null;
     this.stopListeningForSnap();
     this.rotationGuide.end(this);
+    this.inTurn.set(false);
   }
 
   private get isReadOnly(): boolean {
@@ -250,6 +268,7 @@ export class RotableDirective {
     this.snapping = (e as MouseEvent).altKey === true;
 
     if (!this.input?.isDragging) {
+      this.inTurn.set(true);
       this.ondragstart.emit(e as PointerEvent);
       this.listenForSnap();
     }

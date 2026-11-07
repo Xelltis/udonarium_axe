@@ -31,8 +31,8 @@
       appRotable
       [rotable.option]="rotableOption()"
       [rotable.disable]="!canTurn()"
-      (rotable.ondragstart)="onTurnStart()"
-      (rotable.ondragend)="onTurnEnd()"
+      (rotable.ondragstart)="onMove()"
+      (rotable.ondragend)="onMoved()"
     >
       <div
         class="pointer-events-auto"
@@ -437,8 +437,8 @@
             [rotable.option]="rollOption"
             [rotable.value]="rollSignal()"
             (rotable.valueChange)="roll = $event"
-            (rotable.ondragstart)="onTurnStart()"
-            (rotable.ondragend)="onTurnEnd()"
+            (rotable.ondragstart)="onMove()"
+            (rotable.ondragend)="onMoved()"
           >
             @for (handle of rollHandles(); track handle.testId) {
               <div
