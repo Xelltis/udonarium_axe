@@ -5,7 +5,10 @@ import { Network } from '@axe/core/index';
 import { PeerSessionGrade } from '@axe/core/network/peer-session-state';
 import { pageActivity } from '@axe/core/network/server/page-activity';
 import { PeerLinkQuality, POOR_SILENCE_MS } from '@axe/domain/peer/peer-link-quality';
-import { ConnectionQualityComponent } from '@axe/features/widgets/connection-quality/connection-quality.component';
+import {
+  ConnectionQualityComponent,
+  RESUME_GRACE_MS,
+} from '@axe/features/widgets/connection-quality/connection-quality.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 interface ComponentInternals {
@@ -200,6 +203,27 @@ describe('ConnectionQualityComponent', () => {
     objectChange.peerStatsVersion.update((v) => v + 1);
 
     expect(internals.links()[1]?.quality).toBe(PeerLinkQuality.Good);
+  });
+
+  it('weighs the others as the server last said for a while after asking again, rather than every seat reading as gone', () => {
+    vi.useFakeTimers({ now: new Date('2026-11-08T12:00:00') });
+    pageActivity.noteInput();
+    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a')] as never);
+    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
+    vi.spyOn(Network, 'askSeen').mockImplementation(() => undefined);
+    const answeredAt = Date.now() - 3_600_000;
+    vi.spyOn(Network, 'seenAnsweredAt', 'get').mockReturnValue(answeredAt);
+    vi.spyOn(Network, 'heardAt').mockReturnValue(answeredAt - 5_000);
+    create();
+
+    expect(internals.links()[1]?.quality).toBe(PeerLinkQuality.Good);
+    for (let waited = 0; waited < RESUME_GRACE_MS + POOR_SILENCE_MS; waited += 10_000) {
+      vi.advanceTimersByTime(10_000);
+      pageActivity.noteInput();
+    }
+    objectChange.peerStatsVersion.update((v) => v + 1);
+    expect(internals.links()[1]?.quality).toBe(PeerLinkQuality.Poor);
   });
 
   it('watches the links closely only while it is shown', () => {

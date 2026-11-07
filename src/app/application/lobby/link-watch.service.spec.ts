@@ -95,6 +95,21 @@ describe('LinkWatchService', () => {
     expect(asks).toBe(before + 2);
   });
 
+  it('notes when it began asking, and again when it asks after nobody looked, and forgets once nobody watches', () => {
+    const release = watch();
+    const began = service.resumedAt();
+    expect(began).toBe(Date.now());
+
+    vi.advanceTimersByTime(SEEN_ASK_INTERVAL_MS);
+    expect(service.resumedAt()).toBe(began);
+    vi.advanceTimersByTime(LOOKED_AT_MS);
+    pageActivity.noteInput();
+    expect(service.resumedAt()).toBe(Date.now());
+
+    release();
+    expect(service.resumedAt()).toBe(-Infinity);
+  });
+
   it('asks nothing while the page is hidden, and asks at once when it is shown again', () => {
     visibility = 'hidden';
     watch();

@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, untracked } from '@angular/core';
 import { Network } from '@axe/core/network/network';
 import { pageActivity } from '@axe/core/network/server/page-activity';
 
@@ -40,17 +40,27 @@ export class LinkWatchService {
    * had gone unheard from is to be weighed as the server last said, not against the time now.
    */
   readonly paused = this.isPaused.asReadonly();
+  private readonly resumed = signal(-Infinity);
+  /**
+   * When the server was last asked again after nobody had looked, or first asked: what it said
+   * before then is weighed as it was for a while, until a fresh answer has had time to come.
+   */
+  readonly resumedAt = this.resumed.asReadonly();
 
-  /** Watches the links closely until the function given back is called. */
+  /**
+   * Watches the links closely until the function given back is called. What it reads and writes as it
+   * begins is kept from whoever calls it, so that an effect watching while a widget is shown does not
+   * come to follow the asking it set going.
+   */
   watch(): () => void {
     this.watchers++;
-    if (this.watchers === 1) this.begin();
+    if (this.watchers === 1) untracked(() => this.begin());
     let released = false;
     return () => {
       if (released) return;
       released = true;
       this.watchers--;
-      if (this.watchers === 0) this.end();
+      if (this.watchers === 0) untracked(() => this.end());
     };
   }
 
@@ -73,6 +83,7 @@ export class LinkWatchService {
   private end(): void {
     if (this.timer !== null) clearInterval(this.timer);
     this.timer = null;
+    this.resumed.set(-Infinity);
     this.stopHearing?.();
     this.stopHearing = null;
     this.isPaused.set(false);
@@ -98,6 +109,7 @@ export class LinkWatchService {
       document.visibilityState === 'visible' &&
       Date.now() - Math.max(pageActivity.lastInputAt, this.shownAt) < LOOKED_AT_MS;
     Network.watchLink(lookedAt);
+    if (lookedAt && (this.isPaused() || this.resumed() === -Infinity)) this.resumed.set(Date.now());
     this.isPaused.set(!lookedAt);
     if (!lookedAt) return;
     Network.askSeen();
