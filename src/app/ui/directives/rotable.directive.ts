@@ -116,10 +116,10 @@ export class RotableDirective {
     if (!this.grabbingElement || !this.nativeElement) return false;
     if (this.grabbingSelecter.length < 1) return true;
     const elements = this.nativeElement.querySelectorAll(this.grabbingSelecter);
-    let macth: boolean;
     for (let i = 0; i < elements.length; i++) {
-      macth = elements[i].contains(this.grabbingElement);
-      if (macth) return true;
+      if (elements[i].contains(this.grabbingElement) && elements[i].closest('[appRotable]') === this.nativeElement) {
+        return true;
+      }
     }
     return false;
   }

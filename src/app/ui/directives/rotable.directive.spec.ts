@@ -24,7 +24,33 @@ class TestHostComponent {
   readonly refuseTouch = signal(false);
 }
 
+@Component({
+  selector: 'test-nested-host',
+  template: `<div appRotable class="outer">
+    <div class="rotate-grab own"></div>
+    <div appRotable class="inner"><div class="rotate-grab inner-grab"></div></div>
+  </div>`,
+  changeDetection: ChangeDetectionStrategy.Eager,
+  imports: [RotableDirective],
+})
+class NestedHostComponent {}
+
 describe('RotableDirective', () => {
+  it('takes no press on a handle of a directive standing inside it, which is that one’s to take', () => {
+    TestBed.configureTestingModule({ imports: [NestedHostComponent], providers: [...TEST_PROVIDERS] });
+    const fixture = TestBed.createComponent(NestedHostComponent);
+    fixture.detectChanges();
+    const outer = fixture.debugElement.children[0].injector.get(RotableDirective);
+    const root = fixture.nativeElement as HTMLElement;
+    const allowed = (grab: string) => {
+      (outer as unknown as Record<string, unknown>)['grabbingElement'] = root.querySelector(grab);
+      return (outer as unknown as { isAllowedToRotate: boolean }).isAllowedToRotate;
+    };
+
+    expect(allowed('.own')).toBe(true);
+    expect(allowed('.inner-grab')).toBe(false);
+  });
+
   it('should be defined', () => {
     expect(RotableDirective).toBeDefined();
   });
