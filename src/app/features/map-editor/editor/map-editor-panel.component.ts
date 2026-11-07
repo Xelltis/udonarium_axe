@@ -26,6 +26,7 @@ import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { PERF_MAP_EDITOR_DRAW, perfCounters } from '@axe/core/util/perf-counters';
 import { curveAnchorAt, fitImageSize, imageCorners, imageHandleAt } from '@axe/domain/map-editor/editor-hit-test';
+import { functionRoleLabelKey } from '@axe/domain/map-editor/function-layer';
 import { cellCenter, pointToCell } from '@axe/domain/map-editor/grid-cells';
 import { RELIEF_BRUSH_KINDS, ReliefBrush } from '@axe/domain/map-editor/relief';
 import {
@@ -319,6 +320,8 @@ export class MapEditorPanelComponent {
 
   constructor() {
     inject(ShortcutScopeService).hold('mapEditor', inject(DestroyRef));
+    this.state.layerNameOf = (kind, role) =>
+      this.t(role === undefined ? `feature.mapEditor.layers.kinds.${kind}` : functionRoleLabelKey(role));
     afterNextRender(() => {
       this.fitToView(1);
       this.draw();

@@ -86,7 +86,11 @@ export interface Selection {
 export class MapEditorState {
   private scene: MapScene = createScene();
   private history = new SceneHistory(this.scene);
-  private layerCounter = 0;
+  /**
+   * What a layer made for new work is called, by its kind and, for a function layer, its role: the
+   * panel names them in the reader's language. The count of such layers follows the name.
+   */
+  layerNameOf: (kind: LayerKind, role?: MapFunctionRole) => string = (kind, role) => role ?? kind;
 
   private readonly tick = signal(0);
   readonly sceneTick = this.tick.asReadonly();
@@ -322,9 +326,12 @@ export class MapEditorState {
     }
   }
 
-  private autoLayerName(kind: LayerKind): string {
-    this.layerCounter += 1;
-    return kind + ' ' + this.layerCounter;
+  /** The name of a layer made for new work: what it is, and how many such layers there are with it. */
+  private autoLayerName(kind: LayerKind, role?: MapFunctionRole): string {
+    const alike = this.scene.layers.filter(
+      (layer) => layer.kind === kind && (role === undefined || (layer.kind === 'function' && layer.role === role))
+    );
+    return `${this.layerNameOf(kind, role)} ${alike.length + 1}`;
   }
 
   /**
@@ -385,7 +392,7 @@ export class MapEditorState {
       if (lookKey(layer.spec) === look) return layer;
     }
 
-    const created = createLayer('function', this.autoLayerName('function')) as FunctionLayer;
+    const created = createLayer('function', this.autoLayerName('function', role)) as FunctionLayer;
     created.role = role;
     created.spec = { ...this.functionSpec() };
     addLayer(this.scene, created);

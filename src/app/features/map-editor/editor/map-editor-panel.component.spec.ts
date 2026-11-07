@@ -539,6 +539,16 @@ describe('MapEditorPanelComponent', () => {
       expect(component['state'].zoom()).toBeCloseTo(2, 5);
     });
 
+    it('names a layer made for new work after its kind, or its role, in the reader language', async () => {
+      await openedIn(800, 600);
+      const state = component['state'];
+
+      state.ensureLayerFor('cell');
+      state.ensureFunctionLayerFor('moveCost');
+
+      expect(state.current.layers.map((layer) => layer.name)).toEqual(['セル 1', '移動コスト 1']);
+    });
+
     it('draws a map zoomed out at the size it is shown, and one zoomed in at its own size', async () => {
       const host = await openedIn(800, 600);
       const scene = component['state'].current;
