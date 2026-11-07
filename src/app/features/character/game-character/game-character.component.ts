@@ -49,6 +49,7 @@ import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { VolumeType } from '@axe/core/storage/audio-output';
 import { imageFileEqual } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { sameFields } from '@axe/core/util/same-fields';
 import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { BUFF_VIEW_LABEL_KEYS, type BuffViewMode, nextBuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -1428,11 +1429,4 @@ function sameRidingLabels(a: readonly RidingLabel[], b: readonly RidingLabel[]):
       sameEntries(label.badges, other.badges)
     );
   });
-}
-
-/** Whether two flat records hold the same keys with the same values. */
-function sameFields(a: object, b: object): boolean {
-  const keys = Object.keys(a);
-  if (keys.length !== Object.keys(b).length) return false;
-  return keys.every((key) => Object.is((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
 }
