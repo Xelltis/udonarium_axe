@@ -242,10 +242,9 @@ if (typeof (globalThis as unknown as Record<string, unknown>)['YT'] === 'undefin
 
 type GlobalTestProviders = (Provider | EnvironmentProviders)[];
 
-// The services every TestBed module is given reach most of the app, and loading them costs a file
-// close to half a second. More than half the specs never build a module, so the spec about to run
-// is read for the word first. A path that is not a spec source, as under the bundling `ng test`
-// runner, gets them regardless.
+// The providers every TestBed module is given cost a file a while to load, and more than half the
+// specs never build a module, so the spec about to run is read for the word first. A path that is
+// not a spec source, as under the bundling `ng test` runner, gets them regardless.
 function specUsesTestBed(): boolean {
   const testPath = expect.getState().testPath;
   if (!testPath?.endsWith('.spec.ts')) return true;
@@ -256,30 +255,18 @@ function specUsesTestBed(): boolean {
   }
 }
 
+/**
+ * The providers every TestBed module is given: only what the app provides outside the root
+ * injector, and the logger quietened. A service provided in the root is found by any module that
+ * asks for it, so naming it here would only load it, and all it reaches, into every spec.
+ */
 async function loadGlobalTestProviders(): Promise<GlobalTestProviders> {
-  const [
-    { ChatMessageService },
-    { LoggerService },
-    { TabletopService },
-    { ContextMenuService },
-    { ModalService },
-    { PanelService },
-    { AppConfigService },
-    { provideTranslocoTesting },
-  ] = await Promise.all([
-    import('@axe/application/chat/chat-message.service'),
+  const [{ LoggerService }, { PanelService }, { provideTranslocoTesting }] = await Promise.all([
     import('@axe/application/logging/logger.service'),
-    import('@axe/application/tabletop/tabletop.service'),
-    import('@axe/application/ui/context-menu.service'),
-    import('@axe/application/ui/modal.service'),
     import('@axe/application/ui/panel.service'),
-    import('@axe/composition/app-config.service'),
     import('@axe/testing/transloco-testing'),
   ]);
   return [
-    AppConfigService,
-    ChatMessageService,
-    ContextMenuService,
     // The service turns logging up to what the build calls for as it is made, which outside
     // production is everything. Made for a test, it leaves the level where the setup put it.
     {
@@ -290,9 +277,7 @@ async function loadGlobalTestProviders(): Promise<GlobalTestProviders> {
         return service;
       },
     },
-    ModalService,
     PanelService,
-    TabletopService,
     ...provideTranslocoTesting(),
   ];
 }
