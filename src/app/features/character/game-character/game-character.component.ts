@@ -310,12 +310,16 @@ export class GameCharacterComponent {
 
   /**
    * Whether this is the piece a finger last pressed on the table and not in hand, which has its
-   * handles out as one the pointer is over does, there being no pointer to pass over pieces. Only
-   * that piece follows whether it is in hand, which changes with each step of a drag.
+   * handles out as one the pointer is over does, there being no pointer to pass over pieces; where a
+   * finger is all there is to point with, any press counts as one, as a pen's may come as a mouse's.
+   * Only that piece follows whether it is in hand, which changes with each step of a drag.
    */
   protected readonly touchChosen = computed(() => {
     const id = this.gameCharacter()?.identifier;
-    return !!id && this.selectionSignalService.touchedObject() === id && !this.carried();
+    if (!id) return false;
+    const selection = this.selectionSignalService;
+    const chosen = selection.touchedObject() === id || (this.viewport.touchOnly() && selection.pressedObject() === id);
+    return chosen && !this.carried();
   });
 
   /**

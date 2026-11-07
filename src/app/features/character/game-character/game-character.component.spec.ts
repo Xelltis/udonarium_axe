@@ -2299,14 +2299,17 @@ describe('GameCharacterComponent', () => {
         expect(pressable()).toEqual([false, false, false]);
         expect(fingerRefused()).toEqual([true, true]);
 
+        viewport._hasFinePointer.set(true);
         selection.pressObject(character.identifier, 'character');
         fixture.detectChanges();
+        expect(pressable()).toEqual([true, true, true]);
         expect(shownAtFull()).toBe(false);
 
-        viewport._hasFinePointer.set(true);
-        fixture.detectChanges();
-        expect(pressable()).toEqual([true, true, true]);
         viewport._hasFinePointer.set(false);
+        fixture.detectChanges();
+        expect(shownAtFull()).toBe(true);
+        selection.clearSelection();
+        fixture.detectChanges();
 
         selection.pressObject(character.identifier, 'character', true);
         fixture.detectChanges();
