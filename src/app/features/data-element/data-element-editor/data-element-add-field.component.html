@@ -2,5 +2,65 @@
   <p class="text-ui-muted m-0 text-[13px]" [id]="headingId">
     {{ 'feature.dataElement.editor.addFieldHint' | transloco: { name: container().name } }}
   </p>
-  <data-element-type-grid [labelledBy]="headingId" (picked)="add($event)" />
+  <div class="grid grid-cols-1 gap-1.5 sm:grid-cols-2" role="radiogroup" [attr.aria-labelledby]="headingId">
+    @for (kind of types; track kind.type) {
+      <button
+        type="button"
+        role="radio"
+        class="border-ui-border-panel bg-ui-elevated hover:border-ui-accent hover:bg-ui-hover focus-visible:border-ui-accent flex min-w-0 cursor-pointer flex-col items-stretch gap-1 rounded-lg border border-solid px-2 py-1.5 text-left"
+        aria-checked="false"
+        [attr.data-type]="kind.type"
+        [attr.aria-describedby]="headingId + '-' + kind.type"
+        (click)="add(kind.type)"
+      >
+        <span class="text-ui-text flex items-center gap-1.5 text-[13px] font-semibold">
+          <i class="material-icons text-ui-accent text-[18px]!" aria-hidden="true">{{ kind.icon }}</i>
+          {{ kind.labelKey | transloco }}
+        </span>
+        <span class="text-ui-muted text-[11px] leading-snug" [id]="headingId + '-' + kind.type">{{
+          kind.hintKey | transloco
+        }}</span>
+        <span
+          class="bg-ui-input text-ui-text rounded-ui-sm flex min-h-6 items-center gap-2 px-1.5 py-0.5 text-[11px]"
+          aria-hidden="true"
+          data-testid="add-field-sample"
+        >
+          @switch (kind.type) {
+            @case ('resource') {
+              <span class="text-ui-muted shrink-0">{{
+                'feature.dataElement.fieldTypeSample.resourceLabel' | transloco
+              }}</span>
+              <span class="tabular-nums">18 / 20</span>
+              <span class="bg-ui-border-panel relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full">
+                <span class="bg-ui-success absolute inset-y-0 left-0 w-[90%]"></span>
+              </span>
+            }
+            @case ('check') {
+              <i class="material-icons text-ui-accent text-[15px]!">check_box</i>
+              <span>{{ 'feature.dataElement.fieldTypeSample.check' | transloco }}</span>
+            }
+            @case ('select') {
+              <span class="text-ui-muted shrink-0">{{
+                'feature.dataElement.fieldTypeSample.selectLabel' | transloco
+              }}</span>
+              <span class="border-ui-border-panel inline-flex items-center rounded-xs border border-solid pr-0.5 pl-1"
+                >{{ 'feature.dataElement.fieldTypeSample.select' | transloco
+                }}<i class="material-icons text-[14px]!">arrow_drop_down</i></span
+              >
+            }
+            @case ('image') {
+              <i class="material-icons text-ui-muted text-[18px]!">image</i>
+              <span class="text-ui-muted">{{ 'feature.dataElement.fieldTypeSample.image' | transloco }}</span>
+            }
+            @default {
+              <span class="text-ui-muted shrink-0">{{
+                'feature.dataElement.fieldTypeSample.' + kind.type + 'Label' | transloco
+              }}</span>
+              <span class="min-w-0 truncate">{{ 'feature.dataElement.fieldTypeSample.' + kind.type | transloco }}</span>
+            }
+          }
+        </span>
+      </button>
+    }
+  </div>
 </div>

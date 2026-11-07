@@ -49,7 +49,7 @@ test.describe('card handling for trading card games', () => {
     const sheet = page.locator('game-character-sheet');
     await expect(sheet).toBeVisible({ timeout: 5000 });
     await sheet.getByRole('button', { name: '編集切り替え', exact: true }).dispatchEvent('click');
-    await expect(sheet.getByText('新しい項目を追加').first()).toBeVisible({ timeout: 5000 });
+    await expect(sheet.getByText('見出しを追加').first()).toBeVisible({ timeout: 5000 });
   });
 
   test('lists the cut-in for when a card is turned over in the card menu', async ({ page }) => {

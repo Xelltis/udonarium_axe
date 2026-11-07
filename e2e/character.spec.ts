@@ -78,7 +78,7 @@ test.describe('resources shown as sliders', () => {
 
     // The HP row is the first resource of the first section, whose settings open from its tune button.
     await sheet.getByRole('button', { name: 'edit', exact: true }).first().click();
-    await sheet.getByRole('button', { name: 'tune', exact: true }).first().click();
+    await sheet.getByRole('button', { name: '詳細設定', exact: true }).first().click();
     await sheet.locator('input[name="data-resource-slider"]').first().check();
     await sheet.getByRole('button', { name: 'edit_off', exact: true }).first().click();
 

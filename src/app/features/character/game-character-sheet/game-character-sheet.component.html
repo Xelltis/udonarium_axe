@@ -302,6 +302,7 @@
                           [gameDataElement]="childElement"
                           [isEdit]="isElementEditing(childElement.identifier)"
                           [hideSectionTitle]="!isElementEditing(childElement.identifier)"
+                          [addsInView]="!isReadOnly()"
                         ></div>
                       </div>
                     }
@@ -316,6 +317,7 @@
                   data-testid="sheet-add-section"
                   (click)="addDataElement()"
                 >
+                  <i class="material-icons">add</i>
                   {{ 'feature.inventory.sheet.addNewItem' | transloco }}
                 </button>
               </div>
@@ -1324,7 +1326,11 @@
           <div
             class="bg-ui-elevated border-ui-border-panel text-ui-text rounded-ui-sm m-1 box-border min-w-50 flex-[1_0_auto] border border-solid px-2.5 py-2"
           >
-            <button class="text-ui-muted hover:text-ui-text w-full transition-colors" (click)="addDataElement()">
+            <button
+              class="text-ui-muted hover:text-ui-text inline-flex w-full items-center justify-center gap-0.75 transition-colors [&_.material-icons]:text-[13px]!"
+              (click)="addDataElement()"
+            >
+              <i class="material-icons">add</i>
               {{ 'feature.inventory.sheet.addNewItem' | transloco }}
             </button>
           </div>
