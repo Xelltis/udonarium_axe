@@ -46,7 +46,7 @@ import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-laye
 import { tableSkyKindOf } from '@axe/domain/tabletop/table-sky';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { forEachCellUnder, terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
-import { occlusionShapeOf } from '@axe/domain/tabletop/terrain-occlusion/occlusion-shape';
+import { blockFootprintOf } from '@axe/domain/tabletop/terrain-footprint';
 import { flickers } from '@axe/domain/tabletop/vision-scene/light-flicker';
 import { waterShoreOf } from '@axe/domain/tabletop/water/water-shore';
 import { waterSidesOf } from '@axe/domain/tabletop/water/water-sides';
@@ -947,7 +947,7 @@ function joinableBlocksOf(terrains: readonly Terrain[], grid: CellGrid): Joinabl
   const blocks: JoinableBlock[] = [];
   for (const terrain of terrains) {
     const flower = !isHexGrid(grid.type) || terrain.width === terrain.depth;
-    const cells = (flower ? occlusionShapeOf(terrain, grid, true)?.cells : null) ?? narrowCellsOf(terrain, grid);
+    const cells = (flower ? blockFootprintOf(terrain, grid) : null) ?? narrowCellsOf(terrain, grid);
     if (cells.length < 1) continue;
     blocks.push({
       owner: terrain.identifier,

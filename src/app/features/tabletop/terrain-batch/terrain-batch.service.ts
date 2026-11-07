@@ -6,7 +6,7 @@ import { SelectionSignalService } from '@axe/application/ui/selection-signal.ser
 import { CellGrid, cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { Terrain } from '@axe/domain/tabletop/terrain';
-import { StillTerrainLayout, stillTerrainLayoutOf } from '@axe/domain/tabletop/terrain-batch/still-terrain-layout';
+import { stillBlocksDrawnTogether } from '@axe/domain/tabletop/terrain-batch/still-terrain-layout';
 
 function sameElements<T>(a: readonly T[], b: readonly T[]): boolean {
   return a.length === b.length && a.every((item, index) => item === b[index]);
@@ -82,23 +82,24 @@ export class TerrainBatchService {
     { equal: sameElements }
   );
 
-  private readonly worked = computed<StillTerrainLayout>(() => {
-    const terrains = this.terrains();
-    for (const terrain of terrains) this.objectChange.versionOf(terrain.identifier)();
-    const shown = this.shownWhole();
-    const selected = this.selectedTerrains();
-    return stillTerrainLayoutOf(
-      terrains.map((terrain, index) => ({
-        terrain,
-        shownWhole: shown[index] ?? false,
-        selected: selected.has(terrain.identifier),
-      })),
-      this.grid()
-    );
-  });
-
   /** The identifiers of the blocks drawn together, which the table is not to draw alone as well. */
-  readonly mergedTerrains: Signal<ReadonlySet<string>> = computed(() => this.worked().merged, { equal: sameSet });
+  readonly mergedTerrains: Signal<ReadonlySet<string>> = computed(
+    () => {
+      const terrains = this.terrains();
+      for (const terrain of terrains) this.objectChange.versionOf(terrain.identifier)();
+      const shown = this.shownWhole();
+      const selected = this.selectedTerrains();
+      return stillBlocksDrawnTogether(
+        terrains.map((terrain, index) => ({
+          terrain,
+          shownWhole: shown[index] ?? false,
+          selected: selected.has(terrain.identifier),
+        })),
+        this.grid()
+      );
+    },
+    { equal: sameSet }
+  );
 
   /** A block on the table in view, by identifier; null for one that is not there. */
   terrainOf(identifier: string): Terrain | null {
