@@ -1925,6 +1925,17 @@ describe('GameCharacterComponent', () => {
   });
 
   describe('the handles that turn and tip a piece over', () => {
+    const hoverOf = () =>
+      (TestBed.inject(ViewportService) as unknown as { _canHover: WritableSignal<boolean> })._canHover;
+    let couldHover = true;
+
+    beforeEach(() => {
+      couldHover = hoverOf()();
+      hoverOf().set(true);
+    });
+
+    afterEach(() => hoverOf().set(couldHover));
+
     const headOf = () => fixture.nativeElement.querySelector('[data-testid="roll-grab-head"]') as HTMLElement | null;
     const footOf = () => fixture.nativeElement.querySelector('[data-testid="roll-grab-foot"]') as HTMLElement | null;
     const testOf = (testId: string) =>
