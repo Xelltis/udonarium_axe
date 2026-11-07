@@ -54,12 +54,12 @@ export function roundTripQualityOf(roundTripMs: number, isOpen: boolean): PeerLi
 
 /**
  * How long a room server may go without hearing from a seat before its link is graded fair: each
- * seat pings every 25 seconds, and the server is asked only every 10, so a sound link can be up to
- * twice the pinging apart.
+ * seat pings every 25 seconds, but a page in the background has its timers held back by the browser
+ * to about once a minute, and the server is asked only every 10 seconds.
  */
-export const FAIR_SILENCE_MS = 50_000;
-/** How long before the link is graded poor: a ping more has gone missing. */
-export const POOR_SILENCE_MS = 75_000;
+export const FAIR_SILENCE_MS = 75_000;
+/** How long before the link is graded poor: a ping more has gone missing even so. */
+export const POOR_SILENCE_MS = 135_000;
 
 /**
  * Grades someone's link through a room server by how long ago the server last heard from them:
