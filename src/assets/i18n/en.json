@@ -4816,7 +4816,8 @@
         "applyFunctionsHint": "Lays the painted no-entry, terrain, masks and relief on the table, leaving the floor as it is",
         "applyFunctionsDone": "Laid the painted functions on the table",
         "applyFunctionsGridMismatch": "The grid does not match the table. Read the table in first",
-        "zoomFit": "Fit to view"
+        "zoomFit": "Fit to view",
+        "setAsTableHint": "Makes the map the table's floor picture and fits the table's size and grid to it. What was painted for its workings is laid on it as well"
       },
       "status": {
         "cell": "Col {{col}}, row {{row}}"

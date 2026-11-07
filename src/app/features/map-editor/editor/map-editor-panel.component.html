@@ -9,7 +9,7 @@
   >
     <div class="bg-ui-panel border-ui-border-panel row-span-2 flex flex-col gap-1 border-r border-solid p-1">
       <button
-        class="hover:bg-ui-hover rounded-ui-sm flex w-full flex-col items-center gap-0.5 border border-solid py-1"
+        class="hover:bg-ui-hover rounded-ui-sm flex w-full flex-col items-center gap-0.5 border border-solid px-0 py-1"
         [class.bg-ui-accent-bg]="state.tool() === settingsTool.tool"
         [class.text-ui-accent]="state.tool() === settingsTool.tool"
         [class.border-ui-accent]="state.tool() === settingsTool.tool"
@@ -25,7 +25,7 @@
       <div class="bg-ui-border-panel mx-1 my-0.5 h-px"></div>
       @for (def of tools; track def.tool) {
         <button
-          class="hover:bg-ui-hover rounded-ui-sm flex w-full flex-col items-center gap-0.5 border border-solid py-1"
+          class="hover:bg-ui-hover rounded-ui-sm flex w-full flex-col items-center gap-0.5 border border-solid px-0 py-1"
           [class.bg-ui-accent-bg]="isToolInHand(def)"
           [class.text-ui-accent]="isToolInHand(def)"
           [class.border-ui-accent]="isToolInHand(def)"
@@ -712,8 +712,8 @@
     />
 
     <div
-      class="bg-ui-panel border-ui-border-panel col-span-3 flex items-center gap-2 border-t border-solid px-2 py-1"
-      [ngClass]="isCompact() ? 'col-span-1! overflow-x-auto' : ''"
+      class="bg-ui-panel border-ui-border-panel col-span-3 flex items-center gap-x-2 gap-y-1 border-t border-solid px-2 py-1"
+      [ngClass]="isCompact() ? 'col-span-1! overflow-x-auto' : 'flex-wrap'"
     >
       @if (isCompact()) {
         <button
@@ -801,7 +801,10 @@
         }}</span>
       }
 
-      <div class="ml-auto flex items-center gap-2">
+      <div
+        class="ml-auto flex items-center justify-end gap-1.5 [&>button]:whitespace-nowrap"
+        [class.flex-wrap]="!isCompact()"
+      >
         <button class="bg-ui-input hover:bg-ui-hover rounded-ui-sm px-2 py-1" (click)="save()">
           {{ 'feature.mapEditor.actions.save' | transloco }}
         </button>
@@ -830,7 +833,7 @@
           <option [ngValue]="2">2x</option>
         </select>
         <button
-          class="bg-ui-accent-bg text-ui-accent rounded-ui-sm px-2 py-1 disabled:opacity-40"
+          class="bg-ui-input hover:bg-ui-hover rounded-ui-sm px-2 py-1 disabled:opacity-40"
           [disabled]="busy()"
           (click)="saveImage()"
         >
@@ -851,6 +854,7 @@
         <button
           class="bg-ui-accent-bg text-ui-accent rounded-ui-sm px-2 py-1 disabled:opacity-40"
           [disabled]="busy()"
+          [title]="'feature.mapEditor.actions.setAsTableHint' | transloco"
           (click)="setAsTable()"
         >
           {{ 'feature.mapEditor.actions.setAsTable' | transloco }}

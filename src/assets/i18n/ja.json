@@ -4816,7 +4816,8 @@
         "applyFunctionsHint": "床画像はそのままに、塗った立入禁止・地形・マスク・起伏だけをテーブルへ反映します",
         "applyFunctionsDone": "塗った機能をテーブルへ反映しました",
         "applyFunctionsGridMismatch": "テーブルとマス目が合いません。先にテーブルを取り込んでください",
-        "zoomFit": "全体を表示"
+        "zoomFit": "全体を表示",
+        "setAsTableHint": "描いた地図を床画像にし、テーブルの大きさとマス目をこの地図に合わせます。塗った機能も反映します"
       },
       "status": {
         "cell": "列{{col}}・行{{row}}"
