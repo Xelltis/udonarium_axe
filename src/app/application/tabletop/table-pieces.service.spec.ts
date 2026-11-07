@@ -232,6 +232,26 @@ describe('TablePiecesService', () => {
     expect(parts()[0]).not.toBe(before[0]);
   });
 
+  it('draws a character no more for a block whose box is no box, as one typed endlessly wide', () => {
+    const character = GameCharacter.create('騎士', 1, '');
+    character.location = { name: 'table', x: 100, y: 200 };
+    TestBed.inject(PiecePicturesService).show(character.identifier, {
+      url: 'blob:pedestal',
+      widthPx: 50,
+      heightPx: 50,
+    });
+    const endless = Terrain.create('endless', 1, 1, 1, '', '');
+    endless.location = { name: 'table', x: 0, y: 0 };
+    endless.width = Number.POSITIVE_INFINITY;
+    TestBed.inject(TableSelecter).viewTable!.appendChild(endless);
+    const parts = () => pieces.sprites().filter((sprite) => sprite.owner === character.identifier);
+    const before = parts();
+
+    TestBed.inject(ObjectChangeService).notifyChanged(endless.identifier);
+
+    parts().forEach((part, index) => expect(part).toBe(before[index]));
+  });
+
   it('leans a character this seat drags as the ground leans where it is drawn, not where it was let go of', () => {
     const character = GameCharacter.create('騎士', 1, '');
     character.location = { name: 'table', x: 100, y: 200 };

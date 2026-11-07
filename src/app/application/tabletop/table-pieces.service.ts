@@ -317,6 +317,7 @@ export class TablePiecesService {
       const { box } = placed;
       const [left, right] = [cellOf(box.minX - BOX_SLACK_PX, cellPx), cellOf(box.maxX + BOX_SLACK_PX, cellPx)];
       const [top, bottom] = [cellOf(box.minY - BOX_SLACK_PX, cellPx), cellOf(box.maxY + BOX_SLACK_PX, cellPx)];
+      if (!(left <= right && top <= bottom)) continue;
       if (!((right - left + 1) * (bottom - top + 1) <= MOST_CELLS_LAID_OUT)) {
         vast.push(placed);
         continue;
@@ -335,17 +336,20 @@ export class TablePiecesService {
 
   /**
    * The blocks whose footprint's box holds a point of the floor, a pixel's slack each way for the
-   * edges of a turned footprint, each followed from then on.
+   * edges of a turned footprint, each followed from then on. A block whose box is no box, as one of
+   * no size that can be told, holds no point.
    */
   private blocksOver(x: number, y: number): Terrain[] {
     const over: Terrain[] = [];
     const { cellPx, cells, vast } = this.blockCells();
     const near = cells.get(cellKey(cellOf(x, cellPx), cellOf(y, cellPx))) ?? [];
-    for (const { terrain, box } of vast.length > 0 ? [...near, ...vast] : near) {
-      if (box.minX - BOX_SLACK_PX > x || x > box.maxX + BOX_SLACK_PX) continue;
-      if (box.minY - BOX_SLACK_PX > y || y > box.maxY + BOX_SLACK_PX) continue;
-      this.objectChange.versionOf(terrain.identifier)();
-      over.push(terrain);
+    for (const placed of [near, vast]) {
+      for (const { terrain, box } of placed) {
+        if (box.minX - BOX_SLACK_PX > x || x > box.maxX + BOX_SLACK_PX) continue;
+        if (box.minY - BOX_SLACK_PX > y || y > box.maxY + BOX_SLACK_PX) continue;
+        this.objectChange.versionOf(terrain.identifier)();
+        over.push(terrain);
+      }
     }
     return over;
   }
