@@ -46,6 +46,7 @@ import {
   inviteRequest,
   isRetryableError,
   Member,
+  PONG,
   readAssetUploadPolicy,
   readServerMessage,
   SeenMessage,
@@ -515,6 +516,10 @@ export class ServerConnection implements Connection {
       if (typeof event.data !== 'string') {
         this.heartbeat.heard();
         this.receive(new Uint8Array(event.data as ArrayBuffer));
+        return;
+      }
+      if (event.data !== PONG) {
+        this.heartbeat.heard();
         return;
       }
       this.heartbeat.answered();

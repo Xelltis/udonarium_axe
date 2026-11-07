@@ -42,7 +42,7 @@ export class LinkHeartbeat {
   private welcomeTimer: ReturnType<typeof setTimeout> | null = null;
   private socket: WebSocket | null = null;
   private interval = PING_INTERVAL_MS;
-  /** When the ask that waits for its answer went, or null while none waits. */
+  /** When the last ask that waits for its answer went, or null while none waits. */
   private askedAt: number | null = null;
   /** When the last ask went, so that looking closely does not ask again sooner than a while after. */
   private lastAskedAt = -Infinity;
@@ -86,7 +86,10 @@ export class LinkHeartbeat {
     this.pongTimer = null;
   }
 
-  /** The answer to a ping came, which tells how long it took. */
+  /**
+   * The answer to a ping came, which tells how long it took, timed from the last ping: one the server
+   * left unanswered, as one passing another instance too soon after the last, does not stretch it.
+   */
   answered(): void {
     if (this.askedAt !== null) this.answerMs = Date.now() - this.askedAt;
     this.askedAt = null;
@@ -114,9 +117,8 @@ export class LinkHeartbeat {
     const socket = this.socket;
     if (!socket || !this.host.isCurrent(socket) || socket.readyState !== SOCKET_OPEN) return;
     socket.send(PING);
-    const now = Date.now();
-    this.lastAskedAt = now;
-    if (this.askedAt === null || now - this.askedAt >= PONG_TIMEOUT_MS) this.askedAt = now;
+    this.lastAskedAt = Date.now();
+    this.askedAt = this.lastAskedAt;
     if (this.pongTimer == null) {
       this.pongTimer = setTimeout(() => {
         this.pongTimer = null;

@@ -1256,7 +1256,9 @@ describe('ServerConnection', () => {
     expect(connection.roundTripMs).toBe(0);
 
     connection.watchLink(true);
-    vi.advanceTimersByTime(150);
+    vi.advanceTimersByTime(40);
+    socket.onmessage?.({ data: 'something else' });
+    vi.advanceTimersByTime(110);
     socket.onmessage?.({ data: 'pong' });
     stop();
 
