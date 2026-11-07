@@ -57,6 +57,12 @@ export class TransientPlacementService {
     if (this.placements.delete(identifier)) this.changes.update((version) => version + 1);
   }
 
+  /** Every piece this seat shows ahead of its object, by its identifier; read it to follow the places. */
+  placed(): ReadonlyMap<string, TransientPlacement> {
+    this.changes();
+    return this.placements;
+  }
+
   /** Where this seat shows a piece ahead of its object, or null where it is shown where its object says. */
   placementOf(identifier: string): TransientPlacement | null {
     return this.placements.get(identifier) ?? null;

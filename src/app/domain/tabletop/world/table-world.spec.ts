@@ -149,6 +149,18 @@ describe('the table world', () => {
       expect(sameTableWorld(scene, { ...scene, sprites: [{ ...sprite, centre: { x: 1, y: 3, z: 0 } }] })).toBe(false);
       expect(sameTableWorld(scene, { ...scene, walls: [{ ...wall }] })).toBe(false);
     });
+
+    it('weighs the pieces one at a time, telling apart one more or fewer, or one of many moved', () => {
+      const other = { ...sprite, id: 'b#picture', owner: 'b' };
+      const many: TableWorld = { ...scene, sprites: [sprite, other] };
+
+      expect(sameTableWorld(scene, many)).toBe(false);
+      expect(sameTableWorld(many, scene)).toBe(false);
+      expect(sameTableWorld(many, { ...many, sprites: [sprite, { ...other, centre: { x: 9, y: 2, z: 0 } }] })).toBe(
+        false
+      );
+      expect(sameTableWorld(many, { ...many, sprites: [sprite, { ...other }] })).toBe(true);
+    });
   });
 });
 

@@ -131,6 +131,52 @@ describe('TablePiecesService', () => {
     expect(pieces.sprites()[0].centre).toEqual({ x: 300 + gridSize / 2, y: 400 + gridSize / 2, z: 1 });
   });
 
+  it('draws again only the piece this seat moves, keeping the parts of the rest as they were', () => {
+    const moved = dieAt(100, 200);
+    const still = dieAt(300, 200);
+    const stillParts = () => pieces.sprites().filter((sprite) => sprite.owner === still.identifier);
+    const before = stillParts();
+
+    TestBed.inject(TransientPlacementService).place(moved.identifier, { surface: 'floor', x: 500, y: 400, z: 0 });
+
+    expect(pieces.sprites().find((sprite) => sprite.owner === moved.identifier)?.centre).toEqual({
+      x: 500 + gridSize / 2,
+      y: 400 + gridSize / 2,
+      z: 1,
+    });
+    expect(stillParts()).toHaveLength(2);
+    stillParts().forEach((part, index) => expect(part).toBe(before[index]));
+  });
+
+  it('draws again only the piece that changes, keeping the parts of the rest as they were', () => {
+    const changed = dieAt(100, 200);
+    const still = dieAt(300, 200);
+    const stillParts = () => pieces.sprites().filter((sprite) => sprite.owner === still.identifier);
+    const before = stillParts();
+
+    changed.isUsed = true;
+    TestBed.inject(ObjectChangeService).notifyChanged(changed.identifier);
+
+    expect(pieces.sprites().filter((sprite) => sprite.owner === changed.identifier)[0].brightness).toBe(0.45);
+    expect(stillParts()).toHaveLength(2);
+    stillParts().forEach((part, index) => expect(part).toBe(before[index]));
+  });
+
+  it('carries the pieces standing on a white board this seat moves along with it', () => {
+    const board = WhiteBoard.create('board', 4, 2, 1);
+    board.location = { name: 'table', x: 100, y: 200 };
+    TestBed.inject(TableSelecter).viewTable!.appendChild(board);
+    const die = dieAt(0, 0);
+    die.location = { name: 'table', x: 10, y: 10, surface: board.identifier };
+    const centre = () => pieces.sprites().find((sprite) => sprite.id === `${die.identifier}#frame`)!.centre;
+    const before = centre();
+
+    TestBed.inject(TransientPlacementService).place(board.identifier, { surface: 'floor', x: 400, y: 600, z: 0 });
+
+    expect(centre().x - before.x).toBeCloseTo(300);
+    expect(centre().y - before.y).toBeCloseTo(400);
+  });
+
   it('leaves out a die the fog hides from this seat', () => {
     dieAt(100, 200);
     vi.spyOn(TestBed.inject(VisionService), 'isPieceHiddenByFog').mockReturnValue(true);

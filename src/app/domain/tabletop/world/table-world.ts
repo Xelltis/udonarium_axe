@@ -173,8 +173,16 @@ function sameParts<T>(a: readonly T[], b: readonly T[]): boolean {
   return a === b || (a.length === b.length && a.every((part, index) => part === b[index]));
 }
 
+/**
+ * Whether two values are the same in every value. A list is weighed one entry at a time, so that the
+ * entries a scene built again carries over as they were are passed over without being written out.
+ */
 function sameValue(a: unknown, b: unknown): boolean {
-  return a === b || JSON.stringify(a) === JSON.stringify(b);
+  if (a === b) return true;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((value, index) => sameValue(value, b[index]));
+  }
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 /** The scene with nothing in it. */

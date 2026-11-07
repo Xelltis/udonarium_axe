@@ -1,16 +1,19 @@
-import { computed, inject, Injectable, untracked } from '@angular/core';
+import { computed, inject, Injectable, type Signal, untracked } from '@angular/core';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ImageService } from '@axe/application/storage/image.service';
 import { PictureSizeService } from '@axe/application/storage/picture-size.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
+import { PieceMotionsService, type PlayingPose } from '@axe/application/tabletop/piece-motions.service';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
 import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { TableEyeService } from '@axe/application/tabletop/table-eye.service';
 import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
+import {
+  type TransientPlacement,
+  TransientPlacementService,
+} from '@axe/application/tabletop/transient-placement.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { ModelStorage } from '@axe/core/storage/model-storage';
@@ -68,6 +71,78 @@ interface DrawnPlace {
   readonly z: number;
 }
 
+/** A piece drawn where it stands, on the face it stands on, with how to draw it again elsewhere. */
+interface StandingPiece<T> {
+  /** The face it is drawn on, as a location names it. */
+  readonly surface: string;
+  readonly parts: readonly T[];
+  /**
+   * Draws the piece again where this seat moves it, or, given null, where it stands on a board this
+   * seat moves, which takes it along.
+   */
+  readonly again: (moving: TransientPlacement | null) => readonly T[];
+}
+
+/**
+ * The pieces of a kind drawn where each stands, in the order they are drawn in, with which of them
+ * stand on each face other than the floor.
+ */
+interface StandingParts<T> {
+  readonly owners: readonly string[];
+  readonly pieces: ReadonlyMap<string, StandingPiece<T>>;
+  /** The pieces standing on each face other than the floor, by the face's name. */
+  readonly riders: ReadonlyMap<string, readonly string[]>;
+  /** Every part, in order, as the pieces stand. */
+  readonly all: readonly T[];
+}
+
+/**
+ * How each piece of a kind is drawn: what all of them are drawn with alike, whether one is drawn at
+ * all, and its parts at a place.
+ */
+interface PieceDrawing<P extends TabletopObject, T, L> {
+  /**
+   * What every piece of the kind is drawn with, read for each piece on its own, so that each is drawn
+   * again when what it reads changes.
+   */
+  readonly look: () => L;
+  readonly shown: (piece: P, look: L) => boolean;
+  readonly draw: (piece: P, place: DrawnPlace, moving: boolean, look: L) => readonly T[];
+}
+
+/** What most kinds of piece are drawn with alike: how big a cell is. */
+interface GridLook {
+  readonly gridSize: number;
+}
+
+/** What every coin is drawn with alike: how big a cell is, and how the coins playing a move lie now. */
+interface CoinLook extends GridLook {
+  readonly poses: ReadonlyMap<string, PlayingPose>;
+}
+
+/** What every character is drawn with alike, as the table in view shows the pictures of pieces. */
+interface CharacterLook extends GridLook {
+  readonly mode2d: boolean;
+  readonly facesEye: boolean;
+  readonly fitsInCell: boolean;
+  readonly turnsWithPiece: boolean;
+  /** The character the table's camera looks through, or nothing. */
+  readonly lookedThrough: string;
+}
+
+/** What every card and stack of cards is drawn with alike. */
+interface CardLook extends GridLook {
+  readonly thick: boolean;
+  readonly plate: string;
+}
+
+/** What every die is drawn with alike. */
+interface DiceLook extends GridLook {
+  readonly facesEye: boolean;
+  /** The colour of the frame of a die that is somebody's. */
+  readonly owned: string;
+}
+
 /** How faint the piece the table's camera follows is drawn while the camera stands near enough to look through it. */
 const SEEN_THROUGH = 0.3;
 
@@ -102,41 +177,54 @@ export class TablePiecesService {
    * The characters this seat may see that are drawn as 3D models, held here in full, standing on the
    * floor: each stood at the middle of its footprint, walking while the seat moves it.
    */
-  readonly models = computed<readonly TableWorldModel[]>(() => {
+  readonly models = computed<readonly TableWorldModel[]>(() => this.drawnNow(this.standingModels()));
+
+  private readonly standingModels = computed<StandingParts<TableWorldModel>>(() => {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
-    this.objectChange.fileVersion();
-    this.transient.version();
-    const gridSize = this.tabletop.currentTableVersion().gridSize;
-    const models: TableWorldModel[] = [];
-    for (const character of this.tabletop.characters) {
-      this.objectChange.versionOf(character.identifier)();
+    return this.modelDrawing(this.tabletop.characters);
+  });
+
+  private readonly modelDrawing = this.drawingOf<GameCharacter, TableWorldModel, GridLook>({
+    look: () => {
+      this.objectChange.fileVersion();
+      return this.gridLook();
+    },
+    shown: (character) => {
+      const model = pieceModelOf(character);
+      return !!model && this.modelUrlOf(model.identifier) !== '' && this.vision.isTokenVisible(character);
+    },
+    draw: (character, place, moving, { gridSize }) => {
       const model = pieceModelOf(character);
       const url = model ? this.modelUrlOf(model.identifier) : '';
-      if (!model || !url || !this.vision.isTokenVisible(character)) continue;
-      const place = this.placeOf(character);
-      if (!place?.onFloor) continue;
+      if (!model || !url || !place.onFloor) return [];
       const size = Math.max(0, character.size) * gridSize;
       const box = characterModelBox(
         size,
         character.specifyKomaImageFlag ? character.komaImageHeight : null,
         character.specifyKomaImageFlag ? pieceImageWidthApart(character.komaImageWidth) : null
       );
-      models.push({
-        owner: character.identifier,
-        kind: GameCharacter.aliasName,
-        url,
-        model,
-        foot: { x: place.x + size / 2, y: place.y + size / 2, z: place.z },
-        footprintPx: box.widthPx,
-        heightPx: box.heightPx,
-        rotateDeg: character.rotate,
-        rollDeg: character.roll,
-        pivotPx: size / 2,
-        altitudePx: character.altitude * gridSize,
-        walking: this.transient.placementOf(character.identifier) !== null,
-      });
-    }
-    return models;
+      return [
+        {
+          owner: character.identifier,
+          kind: GameCharacter.aliasName,
+          url,
+          model,
+          foot: { x: place.x + size / 2, y: place.y + size / 2, z: place.z },
+          footprintPx: box.widthPx,
+          heightPx: box.heightPx,
+          rotateDeg: character.rotate,
+          rollDeg: character.roll,
+          pivotPx: size / 2,
+          altitudePx: character.altitude * gridSize,
+          walking: moving,
+        },
+      ];
+    },
+  });
+
+  /** How big a cell of the table in view is, which most kinds of piece are drawn with alike. */
+  private readonly gridLook = computed<GridLook>(() => ({ gridSize: this.tabletop.currentTableVersion().gridSize }), {
+    equal: sameLook,
   });
 
   /** The models the characters on the table in view are drawn as that are not held here in full yet. */
@@ -197,33 +285,39 @@ export class TablePiecesService {
   });
 
   /** Every coin on the table in view, a coin flipping where its flip has it now. */
-  readonly coins = computed<readonly TableWorldCoin[]>(() => {
+  readonly coins = computed<readonly TableWorldCoin[]>(() => this.drawnNow(this.standingCoins()));
+
+  private readonly standingCoins = computed<StandingParts<TableWorldCoin>>(() => {
     this.objectChange.collectionOf(Coin.aliasName)();
-    this.objectChange.collectionOf(WhiteBoard.aliasName)();
-    this.objectChange.fileVersion();
-    this.transient.version();
-    const gridSize = this.tabletop.currentTableVersion().gridSize;
-    const poses = this.motions.posesNow();
-    const coins: TableWorldCoin[] = [];
-    for (const coin of this.tabletop.coins) {
-      this.objectChange.versionOf(coin.identifier)();
-      const size = coin.size > 0 ? coin.size : 1;
-      if (this.vision.isPieceHiddenByFog(coin, size)) continue;
-      const place = this.placeOf(coin);
-      if (!place) continue;
+    return this.coinDrawing(this.tabletop.coins);
+  });
+
+  private readonly coinLook = computed<CoinLook>(
+    () => ({ gridSize: this.tabletop.currentTableVersion().gridSize, poses: this.motions.posesNow() }),
+    { equal: sameLook }
+  );
+
+  private readonly coinDrawing = this.drawingOf<Coin, TableWorldCoin, CoinLook>({
+    look: () => {
+      this.objectChange.collectionOf(WhiteBoard.aliasName)();
+      this.objectChange.fileVersion();
+      return this.coinLook();
+    },
+    shown: (coin) => !this.vision.isPieceHiddenByFog(coin, coinSizeOf(coin)),
+    draw: (coin, place, _moving, { gridSize, poses }) => {
       const drawn = tableCoinOf({
         id: coin.identifier,
         ...place,
-        sizePx: size * gridSize,
+        sizePx: coinSizeOf(coin) * gridSize,
         rotateDeg: coin.rotate,
         backUp: poses.get(coin.identifier)?.backUp ?? coin.face === 'back',
         frontPictureUrl: this.images.getEmptyOr(coin.frontImage).url,
         backPictureUrl: this.images.getEmptyOr(coin.backImage).url,
       });
       const playing = poses.get(coin.identifier);
-      if (drawn) coins.push(playing ? { ...drawn, motion: playing.pose } : drawn);
-    }
-    return coins;
+      if (!drawn) return [];
+      return [playing ? { ...drawn, motion: playing.pose } : drawn];
+    },
   });
 
   /** The walls drawn on the table in view, which are drawn only with a picture. */
@@ -240,54 +334,67 @@ export class TablePiecesService {
    * The characters this seat may see, drawn from their pictures and the pictures the page takes of
    * their pedestals: a character whose pedestal the page keeps to itself is drawn by the page.
    */
-  private readonly characterSprites = computed(() => {
+  private readonly characterSprites = computed(() => this.drawnNow(this.standingCharacters()));
+
+  private readonly standingCharacters = computed<StandingParts<TableWorldSprite>>(() => {
     this.objectChange.collectionOf(GameCharacter.aliasName)();
-    this.objectChange.collectionOf(WhiteBoard.aliasName)();
-    this.objectChange.fileVersion();
-    this.objectChange.networkVersion();
-    this.objectChange.trackMyCursor();
-    this.transient.version();
-    const table = this.tabletop.currentTableVersion();
-    const gridSize = table.gridSize;
-    const mode2d = this.tabletop.mode2d();
-    const facesEye = this.tabletop.imageBillboard() || mode2d || this.eyes.scene() !== null;
-    this.objectChange.versionOf('Config')();
-    const rules = this.roomRules.rulesFor(table);
-    const fitsInCell = mode2d && rules.pieceImageInCell;
-    const turnsWithPiece =
-      mode2d && !this.tabletop.display().multiAngleEnabled && asTableFacingMark(rules.facingMark) === 'turn';
-    const followed = this.eyes.followed();
-    const lookedThrough = followed?.near ? followed.owner : '';
-    this.objectChange.collectionOf(Terrain.aliasName)();
-    const sprites: TableWorldSprite[] = [];
-    for (const character of this.tabletop.characters) {
-      this.objectChange.versionOf(character.identifier)();
-      if (!this.vision.isTokenVisible(character)) continue;
-      const place = this.placeOf(character);
-      if (!place) continue;
+    return this.characterDrawing(this.tabletop.characters);
+  });
+
+  private readonly characterLook = computed<CharacterLook>(
+    () => {
+      const table = this.tabletop.currentTableVersion();
+      const mode2d = this.tabletop.mode2d();
+      this.objectChange.versionOf('Config')();
+      const rules = this.roomRules.rulesFor(table);
+      const followed = this.eyes.followed();
+      return {
+        gridSize: table.gridSize,
+        mode2d,
+        facesEye: this.tabletop.imageBillboard() || mode2d || this.eyes.scene() !== null,
+        fitsInCell: mode2d && rules.pieceImageInCell,
+        turnsWithPiece:
+          mode2d && !this.tabletop.display().multiAngleEnabled && asTableFacingMark(rules.facingMark) === 'turn',
+        lookedThrough: followed?.near ? followed.owner : '',
+      };
+    },
+    { equal: sameLook }
+  );
+
+  private readonly characterDrawing = this.drawingOf<GameCharacter, TableWorldSprite, CharacterLook>({
+    look: () => {
+      this.objectChange.collectionOf(WhiteBoard.aliasName)();
+      this.objectChange.collectionOf(Terrain.aliasName)();
+      this.objectChange.fileVersion();
+      this.objectChange.networkVersion();
+      this.objectChange.trackMyCursor();
+      return this.characterLook();
+    },
+    shown: (character) => this.vision.isTokenVisible(character),
+    draw: (character, place, _moving, look) => {
       const model = pieceModelOf(character);
       const modelled = !!model && place.onFloor && this.modelUrlOf(model.identifier) !== '';
       const drawn = characterSprites({
         id: character.identifier,
         ...place,
-        sizePx: Math.max(0, character.size) * gridSize,
+        sizePx: Math.max(0, character.size) * look.gridSize,
         rotateDeg: character.rotate,
         rollDeg: character.roll,
         dropShadow: character.isDropShadow,
-        lean: mode2d ? null : this.leanUnder(character, gridSize),
-        altitudePx: character.altitude * gridSize,
+        lean: look.mode2d ? null : this.leanUnder(character, look.gridSize),
+        altitudePx: character.altitude * look.gridSize,
         pedestal: this.pagePictures.pictureOf(character.identifier),
         picture: this.sized(this.images.getEmptyOr(character.imageFile).url),
         pictureHeightPx: character.specifyKomaImageFlag ? character.komaImageHeight : null,
         pictureWidthPx: character.specifyKomaImageFlag ? pieceImageWidthApart(character.komaImageWidth) : null,
-        fitsInCell,
-        facesEye,
-        turnsWithPiece,
-        opacity: (character.stealth === '1' ? 0.5 : 1) * (lookedThrough === character.identifier ? SEEN_THROUGH : 1),
+        fitsInCell: look.fitsInCell,
+        facesEye: look.facesEye,
+        turnsWithPiece: look.turnsWithPiece,
+        opacity:
+          (character.stealth === '1' ? 0.5 : 1) * (look.lookedThrough === character.identifier ? SEEN_THROUGH : 1),
       });
-      sprites.push(...(modelled ? drawn.map(standInForModel) : drawn));
-    }
-    return sprites;
+      return modelled ? drawn.map(standInForModel) : drawn;
+    },
   });
 
   /** The white boards, drawn from the pictures the page takes of their faces. */
@@ -311,162 +418,164 @@ export class TablePiecesService {
    * picture the page takes of what marks them. The page shows a light's own picture as a background,
    * which a picture it takes of itself comes out without.
    */
-  private readonly lightSprites = computed(() => {
+  private readonly lightSprites = computed(() => this.drawnNow(this.standingLights()));
+
+  private readonly standingLights = computed<StandingParts<TableWorldSprite>>(() => {
     this.objectChange.collectionOf(LightSource.aliasName)();
-    this.objectChange.fileVersion();
-    this.transient.version();
-    const gridSize = this.tabletop.currentTableVersion().gridSize;
-    const sprites: TableWorldSprite[] = [];
-    for (const light of this.tabletop.lightSources) {
-      this.objectChange.versionOf(light.identifier)();
-      if (this.vision.isPieceHiddenByFog(light, 1)) continue;
-      const place = this.placeOf(light);
-      if (!place) continue;
-      sprites.push(
-        ...lightSourceSprites({
-          id: light.identifier,
-          ...place,
-          altitudePx: light.altitude * gridSize,
-          cellPx: gridSize,
-          lit: light.lightEnabled,
-          picture: this.ownPicture(light, gridSize) ?? this.pagePictures.pictureOf(light.identifier),
-        })
-      );
-    }
-    return sprites;
+    return this.lightDrawing(this.tabletop.lightSources);
+  });
+
+  private readonly lightDrawing = this.drawingOf<LightSource, TableWorldSprite, GridLook>({
+    look: () => {
+      this.objectChange.fileVersion();
+      return this.gridLook();
+    },
+    shown: (light) => !this.vision.isPieceHiddenByFog(light, 1),
+    draw: (light, place, _moving, { gridSize }) =>
+      lightSourceSprites({
+        id: light.identifier,
+        ...place,
+        altitudePx: light.altitude * gridSize,
+        cellPx: gridSize,
+        lit: light.lightEnabled,
+        picture: this.ownPicture(light, gridSize) ?? this.pagePictures.pictureOf(light.identifier),
+      }),
   });
 
   /** The map masks, drawn from the pictures the page takes of them cut to their open cells. */
-  private readonly maskSprites = computed(() => {
+  private readonly maskSprites = computed(() => this.drawnNow(this.standingMasks()));
+
+  private readonly standingMasks = computed<StandingParts<TableWorldSprite>>(() => {
     this.objectChange.collectionOf(GameTableMask.aliasName)();
-    this.transient.version();
-    const gridSize = this.tabletop.currentTableVersion().gridSize;
-    const sprites: TableWorldSprite[] = [];
-    for (const mask of this.tabletop.tableMasks) {
-      this.objectChange.versionOf(mask.identifier)();
-      const place = this.placeOf(mask);
-      if (!place) continue;
-      sprites.push(
-        ...maskSprites({
-          id: mask.identifier,
-          ...place,
-          altitudePx: mask.altitude * gridSize,
-          picture: this.pagePictures.pictureOf(mask.identifier),
-        })
-      );
-    }
-    return sprites;
+    return this.maskDrawing(this.tabletop.tableMasks);
+  });
+
+  private readonly maskDrawing = this.drawingOf<GameTableMask, TableWorldSprite, GridLook>({
+    look: () => this.gridLook(),
+    shown: () => true,
+    draw: (mask, place, _moving, { gridSize }) =>
+      maskSprites({
+        id: mask.identifier,
+        ...place,
+        altitudePx: mask.altitude * gridSize,
+        picture: this.pagePictures.pictureOf(mask.identifier),
+      }),
   });
 
   /** The ranges, drawn from the pictures the page takes of their cells. */
-  private readonly rangeSprites = computed(() => {
+  private readonly rangeSprites = computed(() => this.drawnNow(this.standingRanges()));
+
+  private readonly standingRanges = computed<StandingParts<TableWorldSprite>>(() => {
     this.objectChange.collectionOf(RangeArea.aliasName)();
-    this.transient.version();
-    const gridSize = this.tabletop.currentTableVersion().gridSize;
-    const sprites: TableWorldSprite[] = [];
-    for (const range of this.tabletop.ranges) {
-      this.objectChange.versionOf(range.identifier)();
-      const place = this.placeOf(range);
-      if (!place) continue;
-      sprites.push(
-        ...rangeSprites({
-          id: range.identifier,
-          ...place,
-          altitudePx: range.altitude * gridSize,
-          picture: this.pagePictures.pictureOf(range.identifier),
-        })
-      );
-    }
-    return sprites;
+    return this.rangeDrawing(this.tabletop.ranges);
+  });
+
+  private readonly rangeDrawing = this.drawingOf<RangeArea, TableWorldSprite, GridLook>({
+    look: () => this.gridLook(),
+    shown: () => true,
+    draw: (range, place, _moving, { gridSize }) =>
+      rangeSprites({
+        id: range.identifier,
+        ...place,
+        altitudePx: range.altitude * gridSize,
+        picture: this.pagePictures.pictureOf(range.identifier),
+      }),
   });
 
   /** The notes, drawn from the pictures the page takes of their panels. */
-  private readonly noteSprites = computed(() => {
+  private readonly noteSprites = computed(() => this.drawnNow(this.standingNotes()));
+
+  private readonly standingNotes = computed<StandingParts<TableWorldSprite>>(() => {
     this.objectChange.collectionOf(TextNote.aliasName)();
-    this.objectChange.collectionOf(WhiteBoard.aliasName)();
-    this.transient.version();
-    const gridSize = this.tabletop.currentTableVersion().gridSize;
-    const sprites: TableWorldSprite[] = [];
-    for (const note of this.tabletop.textNotes) {
-      this.objectChange.versionOf(note.identifier)();
-      if (this.vision.isPieceHiddenByFog(note, 1)) continue;
-      const place = this.placeOf(note);
-      if (!place) continue;
-      sprites.push(
-        ...textNoteSprites({
-          id: note.identifier,
-          ...place,
-          altitudePx: note.altitude * gridSize,
-          rotateDeg: note.rotate,
-          upright: note.isUpright,
-          face: this.pagePictures.pictureOf(note.identifier),
-        })
-      );
-    }
-    return sprites;
+    return this.noteDrawing(this.tabletop.textNotes);
   });
 
-  private readonly cardSprites = computed(() => {
+  private readonly noteDrawing = this.drawingOf<TextNote, TableWorldSprite, GridLook>({
+    look: () => {
+      this.objectChange.collectionOf(WhiteBoard.aliasName)();
+      return this.gridLook();
+    },
+    shown: (note) => !this.vision.isPieceHiddenByFog(note, 1),
+    draw: (note, place, _moving, { gridSize }) =>
+      textNoteSprites({
+        id: note.identifier,
+        ...place,
+        altitudePx: note.altitude * gridSize,
+        rotateDeg: note.rotate,
+        upright: note.isUpright,
+        face: this.pagePictures.pictureOf(note.identifier),
+      }),
+  });
+
+  private readonly cardSprites = computed(() => this.drawnNow(this.standingCards()));
+
+  private readonly standingCards = computed<StandingParts<TableWorldSprite>>(() => {
     this.objectChange.collectionOf(Card.aliasName)();
     this.objectChange.collectionOf(CardStack.aliasName)();
+    return this.bothStanding(this.cardDrawing(this.tabletop.cards), this.stackDrawing(this.tabletop.cardStacks));
+  });
+
+  private readonly cardLook = computed<CardLook>(
+    () => {
+      this.theme.resolved();
+      return {
+        gridSize: this.tabletop.currentTableVersion().gridSize,
+        thick: !this.tabletop.mode2d(),
+        plate: this.themeColour(STACK_PLATE_COLOUR_PROPERTY, STACK_PLATE_COLOUR),
+      };
+    },
+    { equal: sameLook }
+  );
+
+  private readonly cardDrawing = this.drawingOf<Card, TableWorldSprite, CardLook>({
+    look: () => this.cardsLook(),
+    shown: (card) => !this.vision.isPieceHiddenByFog(card, Math.max(0, card.size)),
+    draw: (card, place, _moving, { gridSize }) =>
+      cardSprites({
+        id: card.identifier,
+        ...place,
+        zindex: card.zindex,
+        rotateDeg: card.rotate,
+        widthPx: Math.max(0, card.size) * gridSize,
+        picture:
+          this.pictured(card.identifier) ??
+          this.sized(this.images.getSkeletonOr(card.isFront ? card.frontImage : card.backImage).url),
+        peek: card.isPeeking ? this.sized(this.images.getSkeletonOr(card.frontImage).url) : null,
+      }),
+  });
+
+  private readonly stackDrawing = this.drawingOf<CardStack, TableWorldSprite, CardLook>({
+    look: () => this.cardsLook(),
+    shown: (stack) => !this.vision.isPieceHiddenByFog(stack, stackSizeOf(stack)),
+    draw: (stack, place, _moving, { gridSize, thick, plate }) => {
+      const top = stack.topCard;
+      return cardStackSprites({
+        id: stack.identifier,
+        ...place,
+        zindex: stack.zindex,
+        rotateDeg: stack.rotate,
+        widthPx: stackSizeOf(stack) * gridSize,
+        cardCount: stack.cards.length,
+        thick: thick && surfaceOf(stack) === 'floor',
+        top: top
+          ? {
+              picture: this.pictured(stack.identifier) ?? this.sized(this.images.getSkeletonOr(stack.imageFile).url),
+              rotateDeg: top.rotate,
+            }
+          : null,
+        plateColour: plate,
+      });
+    },
+  });
+
+  /** What a card or a stack of cards is drawn with, following the boards, the files held here and who may see what. */
+  private cardsLook(): CardLook {
     this.objectChange.collectionOf(WhiteBoard.aliasName)();
     this.objectChange.fileVersion();
     this.objectChange.networkVersion();
     this.objectChange.trackMyCursor();
-    this.transient.version();
-    this.theme.resolved();
-    const gridSize = this.tabletop.currentTableVersion().gridSize;
-    const thick = !this.tabletop.mode2d();
-    const plate = this.themeColour(STACK_PLATE_COLOUR_PROPERTY, STACK_PLATE_COLOUR);
-    const sprites: TableWorldSprite[] = [];
-    for (const card of this.tabletop.cards) {
-      this.objectChange.versionOf(card.identifier)();
-      const size = Math.max(0, card.size);
-      if (this.vision.isPieceHiddenByFog(card, size)) continue;
-      const place = this.placeOf(card);
-      if (!place) continue;
-      sprites.push(
-        ...cardSprites({
-          id: card.identifier,
-          ...place,
-          zindex: card.zindex,
-          rotateDeg: card.rotate,
-          widthPx: size * gridSize,
-          picture:
-            this.pictured(card.identifier) ??
-            this.sized(this.images.getSkeletonOr(card.isFront ? card.frontImage : card.backImage).url),
-          peek: card.isPeeking ? this.sized(this.images.getSkeletonOr(card.frontImage).url) : null,
-        })
-      );
-    }
-    for (const stack of this.tabletop.cardStacks) {
-      this.objectChange.versionOf(stack.identifier)();
-      const top = stack.topCard;
-      const size = top ? top.size : 2;
-      if (this.vision.isPieceHiddenByFog(stack, size)) continue;
-      const place = this.placeOf(stack);
-      if (!place) continue;
-      sprites.push(
-        ...cardStackSprites({
-          id: stack.identifier,
-          ...place,
-          zindex: stack.zindex,
-          rotateDeg: stack.rotate,
-          widthPx: size * gridSize,
-          cardCount: stack.cards.length,
-          thick: thick && surfaceOf(stack) === 'floor',
-          top: top
-            ? {
-                picture: this.pictured(stack.identifier) ?? this.sized(this.images.getSkeletonOr(stack.imageFile).url),
-                rotateDeg: top.rotate,
-              }
-            : null,
-          plateColour: plate,
-        })
-      );
-    }
-    return sprites;
-  });
+    return this.cardLook();
+  }
 
   /** How the ground under the middle of a piece leans, as the blocks it stands over lean, or null where it is level. */
   private leanUnder(piece: GameCharacter, gridSize: number): SurfaceLean | null {
@@ -501,52 +610,152 @@ export class TablePiecesService {
     return picture ? { url: picture.url, width: picture.widthPx, height: picture.heightPx } : null;
   }
 
-  private readonly diceSprites = computed(() => {
+  private readonly diceSprites = computed(() => this.drawnNow(this.standingDice()));
+
+  private readonly standingDice = computed<StandingParts<TableWorldSprite>>(() => {
     this.objectChange.collectionOf(DiceSymbol.aliasName)();
-    this.objectChange.collectionOf(WhiteBoard.aliasName)();
-    this.objectChange.fileVersion();
-    this.objectChange.networkVersion();
-    this.objectChange.trackMyCursor();
-    this.transient.version();
-    this.theme.resolved();
-    const gridSize = this.tabletop.currentTableVersion().gridSize;
-    const facesEye = this.tabletop.imageBillboard() || this.tabletop.mode2d() || this.eyes.scene() !== null;
-    const owned = this.themeColour(OWNED_FRAME_COLOUR_PROPERTY, DICE_FRAME_COLOUR);
-    const sprites: TableWorldSprite[] = [];
-    for (const die of this.tabletop.diceSymbols) {
-      this.objectChange.versionOf(die.identifier)();
-      const size = Math.max(0, die.size);
-      if (this.vision.isPieceHiddenByFog(die, size)) continue;
-      const place = this.placeOf(die);
-      if (!place) continue;
+    return this.diceDrawing(this.tabletop.diceSymbols);
+  });
+
+  private readonly diceLook = computed<DiceLook>(
+    () => {
+      this.theme.resolved();
+      return {
+        gridSize: this.tabletop.currentTableVersion().gridSize,
+        facesEye: this.tabletop.imageBillboard() || this.tabletop.mode2d() || this.eyes.scene() !== null,
+        owned: this.themeColour(OWNED_FRAME_COLOUR_PROPERTY, DICE_FRAME_COLOUR),
+      };
+    },
+    { equal: sameLook }
+  );
+
+  private readonly diceDrawing = this.drawingOf<DiceSymbol, TableWorldSprite, DiceLook>({
+    look: () => {
+      this.objectChange.collectionOf(WhiteBoard.aliasName)();
+      this.objectChange.fileVersion();
+      this.objectChange.networkVersion();
+      this.objectChange.trackMyCursor();
+      return this.diceLook();
+    },
+    shown: (die) => !this.vision.isPieceHiddenByFog(die, Math.max(0, die.size)),
+    draw: (die, place, _moving, { gridSize, facesEye, owned }) => {
       const url = this.images.getEmptyOr(die.imageFile).url;
       const picture = url ? this.pictureSizes.sizeOf(url) : null;
       const reads = die.isVisible || this.rolePermission.canSeeHidden();
-      sprites.push(
-        ...diceSymbolSprites({
-          id: die.identifier,
-          ...place,
-          sizePx: size * gridSize,
-          rotateDeg: die.rotate,
-          picture: picture ? { url, ...picture } : null,
-          pictureHeightPx: die.specifyKomaImageFlag ? +die.komaImageHeight : null,
-          facesEye,
-          pictureBrightness: !reads ? 0 : die.isMine ? 0.5 : die.isUsed ? 0.45 : 1,
-          frameBrightness: die.isUsed ? 0.45 : 1,
-          frameColour: die.hasOwner ? owned : DICE_FRAME_COLOUR,
-        })
-      );
-    }
-    return sprites;
+      return diceSymbolSprites({
+        id: die.identifier,
+        ...place,
+        sizePx: Math.max(0, die.size) * gridSize,
+        rotateDeg: die.rotate,
+        picture: picture ? { url, ...picture } : null,
+        pictureHeightPx: die.specifyKomaImageFlag ? +die.komaImageHeight : null,
+        facesEye,
+        pictureBrightness: !reads ? 0 : die.isMine ? 0.5 : die.isUsed ? 0.45 : 1,
+        frameBrightness: die.isUsed ? 0.45 : 1,
+        frameColour: die.hasOwner ? owned : DICE_FRAME_COLOUR,
+      });
+    },
   });
 
   /**
-   * Where a piece is drawn: where this seat is moving it, or where it stands. A piece on a wall the
-   * table does not draw, or on a board no longer there, is drawn on the floor, as the page draws it.
+   * How to draw the pieces of a kind where each stands: each piece once, and again only when it or
+   * what it reads changes, so that a piece another seat drags is drawn again alone. Nothing here
+   * reads what this seat is moving, so its own drags draw none of it again.
    */
-  private placeOf(piece: TabletopObject): DrawnPlace | null {
-    const moving = this.transient.placementOf(piece.identifier);
-    const surface = this.surfaceOf(piece);
+  private drawingOf<P extends TabletopObject, T, L>(
+    drawing: PieceDrawing<P, T, L>
+  ): (pieces: readonly P[]) => StandingParts<T> {
+    let drawn = new Map<P, Signal<StandingPiece<T> | null>>();
+    return (pieces) => {
+      const kept = new Map<P, Signal<StandingPiece<T> | null>>();
+      const owners: string[] = [];
+      const standing = new Map<string, StandingPiece<T>>();
+      const riders = new Map<string, string[]>();
+      const all: T[] = [];
+      for (const piece of pieces) {
+        const one = drawn.get(piece) ?? this.pieceDrawn(piece, drawing);
+        kept.set(piece, one);
+        const now = one();
+        if (!now) continue;
+        owners.push(piece.identifier);
+        standing.set(piece.identifier, now);
+        all.push(...now.parts);
+        if (now.surface === 'floor') continue;
+        const riding = riders.get(now.surface);
+        if (riding) riding.push(piece.identifier);
+        else riders.set(now.surface, [piece.identifier]);
+      }
+      drawn = kept;
+      return { owners, pieces: standing, riders, all };
+    };
+  }
+
+  /**
+   * A piece drawn where it stands, as it is drawn now, or null for one not drawn. It follows the table
+   * in view, whose size and walls say where the faces it may stand on are.
+   */
+  private pieceDrawn<P extends TabletopObject, T, L>(
+    piece: P,
+    drawing: PieceDrawing<P, T, L>
+  ): Signal<StandingPiece<T> | null> {
+    return computed(() => {
+      this.tabletop.currentTableVersion();
+      const look = drawing.look();
+      this.objectChange.versionOf(piece.identifier)();
+      if (!drawing.shown(piece, look)) return null;
+      const place = this.placeOf(piece, null);
+      if (!place) return null;
+      return {
+        surface: this.surfaceOn(piece, null),
+        parts: drawing.draw(piece, place, false, look),
+        again: (moving) => {
+          const moved = this.placeOf(piece, moving);
+          return moved ? drawing.draw(piece, moved, moving !== null, look) : [];
+        },
+      };
+    });
+  }
+
+  /** Two kinds of piece drawn one after the other, as one. */
+  private bothStanding<T>(first: StandingParts<T>, second: StandingParts<T>): StandingParts<T> {
+    const riders = new Map<string, readonly string[]>(first.riders);
+    for (const [surface, riding] of second.riders) riders.set(surface, [...(riders.get(surface) ?? []), ...riding]);
+    return {
+      owners: [...first.owners, ...second.owners],
+      pieces: new Map([...first.pieces, ...second.pieces]),
+      riders,
+      all: [...first.all, ...second.all],
+    };
+  }
+
+  /**
+   * The parts of a kind of piece as this seat draws them: where each stands, but each piece this seat
+   * is moving drawn again where it moves it, and each standing on a board it moves drawn again on the
+   * board where it is. Where it moves none of them, the parts as they stand.
+   */
+  private drawnNow<T>(standing: StandingParts<T>): readonly T[] {
+    const placed = this.transient.placed();
+    const again = new Set<string>();
+    for (const owner of placed.keys()) {
+      if (standing.pieces.has(owner)) again.add(owner);
+      for (const riding of standing.riders.get(owner) ?? []) again.add(riding);
+    }
+    if (again.size === 0) return standing.all;
+    const drawn: T[] = [];
+    for (const owner of standing.owners) {
+      const piece = standing.pieces.get(owner)!;
+      drawn.push(...(again.has(owner) ? piece.again(placed.get(owner) ?? null) : piece.parts));
+    }
+    return drawn;
+  }
+
+  /**
+   * Where a piece is drawn: where this seat is moving it, as `moving` says, or where it stands. A
+   * piece on a wall the table does not draw, or on a board no longer there, is drawn on the floor, as
+   * the page draws it.
+   */
+  private placeOf(piece: TabletopObject, moving: TransientPlacement | null): DrawnPlace | null {
+    const surface = this.surfaceOn(piece, moving);
     const frame = this.surfaces.frameOf(surface);
     if (!frame) return null;
     const x = moving?.x ?? piece.location.x;
@@ -582,7 +791,12 @@ export class TablePiecesService {
    * drawn on the floor.
    */
   surfaceOf(piece: TabletopObject): string {
-    const named = this.transient.placementOf(piece.identifier)?.surface ?? (boardSurfaceOf(piece) || surfaceOf(piece));
+    return this.surfaceOn(piece, this.transient.placementOf(piece.identifier));
+  }
+
+  /** The face a piece is drawn on, where this seat moves it as `moving` says; see {@link surfaceOf}. */
+  private surfaceOn(piece: TabletopObject, moving: TransientPlacement | null): string {
+    const named = moving?.surface ?? (boardSurfaceOf(piece) || surfaceOf(piece));
     const board = this.objectStore.get(named);
     if (board instanceof WhiteBoard) this.objectChange.versionOf(board.identifier)();
     return board instanceof WhiteBoard || this.drawnWalls().has(named) ? named : 'floor';
@@ -595,8 +809,9 @@ export class TablePiecesService {
    * stands where it is kept.
    */
   footOf(piece: TabletopObject): { surface: string; x: number; y: number; height: number } {
-    const surface = this.surfaceOf(piece);
-    const place = this.placeOf(piece);
+    const moving = this.transient.placementOf(piece.identifier);
+    const surface = this.surfaceOn(piece, moving);
+    const place = this.placeOf(piece, moving);
     return place
       ? { surface, x: place.x, y: place.y, height: place.z }
       : { surface, x: piece.location.x, y: piece.location.y, height: piece.posZ };
@@ -628,7 +843,7 @@ export class TablePiecesService {
    * drawn: on the table, in table pixels. Null for one not drawn, or on a wall or a board.
    */
   rollPivotOf(character: GameCharacter): { x: number; y: number; z: number } | null {
-    const place = untracked(() => this.placeOf(character));
+    const place = untracked(() => this.placeOf(character, this.transient.placementOf(character.identifier)));
     if (!place) return null;
     const gridSize = untracked(this.tabletop.currentTableVersion).gridSize;
     return characterRollPivot({
@@ -652,4 +867,20 @@ export class TablePiecesService {
  */
 function standInForModel(sprite: TableWorldSprite): TableWorldSprite {
   return sprite.id.endsWith('#pedestal') ? sprite : { ...sprite, hidden: true };
+}
+
+/** Whether two sets of values the pieces of a kind are drawn with alike hold the same values. */
+function sameLook<L extends object>(a: L, b: L): boolean {
+  const keys = Object.keys(a) as (keyof L)[];
+  return keys.length === Object.keys(b).length && keys.every((key) => Object.is(a[key], b[key]));
+}
+
+/** How many cells across a coin is drawn, one of no size as one. */
+function coinSizeOf(coin: Coin): number {
+  return coin.size > 0 ? coin.size : 1;
+}
+
+/** How many cells across a stack of cards is drawn, as its top card is, or two while it has none. */
+function stackSizeOf(stack: CardStack): number {
+  return stack.topCard?.size ?? 2;
 }
