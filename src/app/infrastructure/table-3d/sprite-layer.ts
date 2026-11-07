@@ -104,7 +104,6 @@ export class SpriteLayer {
   private readonly casterMaterials = new Map<string, MeshBasicNodeMaterial>();
   private facingEye: readonly { readonly mesh: Mesh; readonly sprite: TableWorldSprite }[] = [];
   private eye: EyeAxes | null = null;
-  private laid: readonly TableWorldSprite[] = [];
 
   constructor(
     private readonly pictureOf: (url: string) => Texture,
@@ -116,18 +115,20 @@ export class SpriteLayer {
     return this.casters.size;
   }
 
-  /** Shows the sprites laid out last whose pictures have come since, with the shadows they throw. */
+  /** Shows the sprites whose pictures have come since, with the shadows they throw. */
   picturesCame(): void {
-    this.set(this.laid);
+    for (const material of this.materials.values()) showOnceCome(material);
+    for (const material of this.casterMaterials.values()) showOnceCome(material);
   }
 
   /**
-   * Lays out the sprites the scene holds now, making only the ones not drawn before. A sprite whose
-   * picture has not come yet is left out until it has, as the page leaves out a picture it has not
-   * read: the graphics card would draw it in the meanwhile as a black board, or as nothing at all.
+   * Lays out the sprites the scene holds now, making only the ones not drawn before. A picture that
+   * has not come yet is drawn as nothing until it has, as the page leaves out a picture it has not
+   * read: the graphics card would draw it in the meanwhile as a black board, or as nothing at all. It
+   * is its material that is kept from being drawn, which every sprite showing it shares, so the
+   * sprites stand in the scene all the while, and the graphics card is readied for them as they come.
    */
   set(sprites: readonly TableWorldSprite[]): void {
-    this.laid = sprites;
     const wanted = new Set<string>();
     const facingEye: { mesh: Mesh; sprite: TableWorldSprite }[] = [];
     for (const sprite of sprites) {
@@ -145,7 +146,7 @@ export class SpriteLayer {
       }
       const mesh = drawn.mesh;
       mesh.renderOrder = STANDING_ORDER;
-      mesh.visible = !sprite.hidden && this.hasCome(sprite);
+      mesh.visible = !sprite.hidden;
       mesh.position.copy(sceneDirection(sprite.centre));
       mesh.scale.set(sprite.widthPx, sprite.heightPx, 1);
       if (sprite.facing === 'eye') {
@@ -189,7 +190,7 @@ export class SpriteLayer {
   private layCasters(sprites: readonly TableWorldSprite[]): void {
     const wanted = new Set<string>();
     for (const sprite of sprites) {
-      if (!standsUp(sprite) || sprite.look.kind !== 'picture' || sprite.hidden || !this.hasCome(sprite)) continue;
+      if (!standsUp(sprite) || sprite.look.kind !== 'picture' || sprite.hidden) continue;
       wanted.add(sprite.id);
       const look = sprite.look.url;
       let caster = this.casters.get(sprite.id);
@@ -219,8 +220,9 @@ export class SpriteLayer {
       this.group.remove(caster.group);
       this.casters.delete(id);
     }
+    const worn = new Set([...this.casters.values()].map((caster) => caster.look));
     for (const [url, material] of this.casterMaterials) {
-      if ([...this.casters.values()].some((caster) => caster.look === url)) continue;
+      if (worn.has(url)) continue;
       material.dispose();
       this.casterMaterials.delete(url);
     }
@@ -234,13 +236,13 @@ export class SpriteLayer {
         alphaTest: CASTER_ALPHA_TEST,
         side: DoubleSide,
       });
+      showOnceCome(material);
       this.casterMaterials.set(url, material);
     }
     return material;
   }
 
   dispose(): void {
-    this.laid = [];
     this.square.dispose();
     for (const material of this.casterMaterials.values()) material.dispose();
     this.casterMaterials.clear();
@@ -250,11 +252,6 @@ export class SpriteLayer {
     this.materials.clear();
     this.frames.clear();
     this.drawn.clear();
-  }
-
-  /** Whether what a sprite shows is there to draw: a frame always is, a picture once it has come. */
-  private hasCome(sprite: TableWorldSprite): boolean {
-    return sprite.look.kind !== 'picture' || this.pictureOf(sprite.look.url).image != null;
   }
 
   private material(key: string, sprite: TableWorldSprite): MeshBasicNodeMaterial {
@@ -273,6 +270,7 @@ export class SpriteLayer {
     if (sprite.look.kind === 'picture') material.colorNode = shown(material.map, sprite.brightness);
     else if (sprite.brightness !== 1) material.colorNode = dimmed(material.map, sprite.brightness);
     this.dress(material);
+    showOnceCome(material);
     this.materials.set(key, material);
     return material;
   }
@@ -338,6 +336,12 @@ function dimmed(picture: Texture, brightness: number) {
   const sampled = texture(picture).bias(float(PICTURE_SHARPNESS));
   const scaled = colourNode(sRGBTransferOETF(sampled.rgb)).mul(float(brightness));
   return vec4(colourNode(sRGBTransferEOTF(scaled)), sampled.a);
+}
+
+/** Draws a material wearing a picture only once the picture has come; one wearing a frame of its own is always drawn. */
+function showOnceCome(material: MeshBasicNodeMaterial): void {
+  const map = material.map;
+  material.visible = !map || map instanceof CanvasTexture || map.image != null;
 }
 
 /** What sprites sharing a material have alike: what they show, how bright and how clear, from which sides, and whether they lie flat. */
