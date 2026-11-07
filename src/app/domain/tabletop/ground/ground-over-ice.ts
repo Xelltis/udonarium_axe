@@ -1,6 +1,6 @@
 import { type CellGrid, cellIndexAt, cellPolygonOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GROUND_SAMPLES_PER_CELL } from '@axe/domain/tabletop/ground/ground-chunk-data';
-import { type GroundSurface, heightBetweenSamples } from '@axe/domain/tabletop/ground/ground-surface';
+import { type GroundSurface, heightBetweenSamples, type SampleBox } from '@axe/domain/tabletop/ground/ground-surface';
 import type { WaterCell } from '@axe/domain/tabletop/water/water-cells';
 
 /** How much of the surface of water has to be frozen for what stands on it to stand on the ice. */
@@ -67,5 +67,22 @@ export function groundOverIce(
     sampleAt,
     paintAt: (i, j) => ground.paintAt(i, j),
     heightAt: (x, y) => heightBetweenSamples(sampleAt, x * GROUND_SAMPLES_PER_CELL, y * GROUND_SAMPLES_PER_CELL),
+    extent: extentWithIce(ground.extent, lifted.keys()),
   };
+}
+
+/**
+ * The samples a ground with ice laid over it may stand off the board at: those of the ground and those
+ * the ice lifts. Unknown where the ground's own are.
+ */
+function extentWithIce(extent: SampleBox | null | undefined, lifted: Iterable<string>): SampleBox | null | undefined {
+  if (extent === undefined) return undefined;
+  let box: SampleBox | null = extent;
+  for (const key of lifted) {
+    const [i, j] = key.split(',').map(Number) as [number, number];
+    box = box
+      ? { i0: Math.min(box.i0, i), j0: Math.min(box.j0, j), i1: Math.max(box.i1, i), j1: Math.max(box.j1, j) }
+      : { i0: i, j0: j, i1: i, j1: j };
+  }
+  return box;
 }

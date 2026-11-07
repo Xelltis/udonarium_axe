@@ -5,6 +5,14 @@ import {
   GroundChunkData,
 } from '@axe/domain/tabletop/ground/ground-chunk-data';
 
+/** A box of samples, from its top left to its bottom right sample, both taken in. */
+export interface SampleBox {
+  readonly i0: number;
+  readonly j0: number;
+  readonly i1: number;
+  readonly j1: number;
+}
+
 /**
  * The ground of a table, read from its chunks: how high it stands at any point, in cells over the
  * board. Where no chunk is kept the ground is the board itself.
@@ -25,6 +33,16 @@ export interface GroundSurface {
    * corner, as the ground is drawn, so a piece stands on the ground the reader sees.
    */
   heightAt(x: number, y: number): number;
+  /**
+   * The samples the ground may stand off the board at, every sample outside standing at 0, or null
+   * where it stands on the board everywhere. Missing where the surface does not know.
+   */
+  readonly extent?: SampleBox | null;
+  /**
+   * How high the lowest of the samples in a box stands, in cells, or Infinity for a box of none.
+   * Missing where it is to be found sample by sample.
+   */
+  lowestSampleIn?(box: SampleBox): number;
 }
 
 /** The ground that rises and sinks nowhere. */
@@ -33,7 +51,17 @@ export const FLAT_GROUND: GroundSurface = {
   sampleAt: () => 0,
   paintAt: () => null,
   heightAt: () => 0,
+  extent: null,
+  lowestSampleIn: (box) => (box.i0 <= box.i1 && box.j0 <= box.j1 ? 0 : Infinity),
 };
+
+/** A chunk of heights as a surface keeps it, with the lowest of them once it has been asked for. */
+interface KeptHeights {
+  readonly cx: number;
+  readonly cy: number;
+  readonly heights: Int16Array;
+  lowest: number | null;
+}
 
 /** The key a chunk is kept under in a surface. */
 function chunkKey(cx: number, cy: number): string {
@@ -42,11 +70,11 @@ function chunkKey(cx: number, cy: number): string {
 
 /** The ground made of the chunks given; a chunk given twice is read as the last of them. */
 export function groundSurfaceOf(chunks: Iterable<GroundChunkData>): GroundSurface {
-  const byKey = new Map<string, Int16Array>();
+  const byKey = new Map<string, KeptHeights>();
   const paintByKey = new Map<string, Uint8Array>();
   let raised = false;
   for (const chunk of chunks) {
-    byKey.set(chunkKey(chunk.cx, chunk.cy), chunk.heights);
+    byKey.set(chunkKey(chunk.cx, chunk.cy), { cx: chunk.cx, cy: chunk.cy, heights: chunk.heights, lowest: null });
     if (chunk.paint) paintByKey.set(chunkKey(chunk.cx, chunk.cy), chunk.paint);
     else paintByKey.delete(chunkKey(chunk.cx, chunk.cy));
     if (!raised)
@@ -67,18 +95,97 @@ export function groundSurfaceOf(chunks: Iterable<GroundChunkData>): GroundSurfac
     if (i < 0 || j < 0) return 0;
     const cx = Math.floor(i / GROUND_CHUNK_SAMPLES);
     const cy = Math.floor(j / GROUND_CHUNK_SAMPLES);
-    const heights = byKey.get(chunkKey(cx, cy));
-    if (!heights) return 0;
+    const kept = byKey.get(chunkKey(cx, cy));
+    if (!kept) return 0;
     const across = i - cx * GROUND_CHUNK_SAMPLES;
     const down = j - cy * GROUND_CHUNK_SAMPLES;
-    return heights[down * GROUND_CHUNK_SAMPLES + across] * GROUND_HEIGHT_STEP;
+    return kept.heights[down * GROUND_CHUNK_SAMPLES + across] * GROUND_HEIGHT_STEP;
   };
+  const onBoard = [...byKey.values()].filter((kept) => kept.cx >= 0 && kept.cy >= 0);
   return {
     isFlat: false,
     sampleAt,
     paintAt,
     heightAt: (x, y) => heightBetweenSamples(sampleAt, x * GROUND_SAMPLES_PER_CELL, y * GROUND_SAMPLES_PER_CELL),
+    extent: extentOf(onBoard),
+    lowestSampleIn: (box) => lowestKeptSampleIn(onBoard, byKey, box),
   };
+}
+
+/** The samples the chunks kept on the board cover, from the top left of the first to the bottom right of the last. */
+function extentOf(kept: readonly KeptHeights[]): SampleBox | null {
+  if (kept.length < 1) return null;
+  const last = GROUND_CHUNK_SAMPLES - 1;
+  return {
+    i0: Math.min(...kept.map((chunk) => chunk.cx)) * GROUND_CHUNK_SAMPLES,
+    j0: Math.min(...kept.map((chunk) => chunk.cy)) * GROUND_CHUNK_SAMPLES,
+    i1: Math.max(...kept.map((chunk) => chunk.cx)) * GROUND_CHUNK_SAMPLES + last,
+    j1: Math.max(...kept.map((chunk) => chunk.cy)) * GROUND_CHUNK_SAMPLES + last,
+  };
+}
+
+/** The lowest height a chunk keeps, in steps, worked out the first time it is asked for. */
+function lowestOfChunk(kept: KeptHeights): number {
+  kept.lowest ??= kept.heights.reduce((lowest, height) => Math.min(lowest, height), Infinity);
+  return kept.lowest;
+}
+
+/** The lowest of a chunk's samples inside a box, in steps, or Infinity where the box misses the chunk. */
+function lowestOfChunkIn(kept: KeptHeights, box: SampleBox): number {
+  const left = kept.cx * GROUND_CHUNK_SAMPLES;
+  const top = kept.cy * GROUND_CHUNK_SAMPLES;
+  const last = GROUND_CHUNK_SAMPLES - 1;
+  const a0 = Math.max(box.i0, left) - left;
+  const a1 = Math.min(box.i1, left + last) - left;
+  const b0 = Math.max(box.j0, top) - top;
+  const b1 = Math.min(box.j1, top + last) - top;
+  if (a0 > a1 || b0 > b1) return Infinity;
+  if (a0 === 0 && b0 === 0 && a1 === last && b1 === last) return lowestOfChunk(kept);
+  let lowest = Infinity;
+  for (let b = b0; b <= b1; b++) {
+    for (let a = a0; a <= a1; a++) lowest = Math.min(lowest, kept.heights[b * GROUND_CHUNK_SAMPLES + a]);
+  }
+  return lowest;
+}
+
+/**
+ * The lowest of the samples in a box, in cells, from the chunks kept on the board: a chunk wholly in
+ * the box by the lowest it keeps, one partly in it sample by sample, and any sample off the board or
+ * in no chunk at 0. The chunks the box reaches are looked up one by one, or, where the box reaches
+ * more chunks than are kept, the kept ones are gone over instead.
+ */
+function lowestKeptSampleIn(
+  onBoard: readonly KeptHeights[],
+  byKey: ReadonlyMap<string, KeptHeights>,
+  box: SampleBox
+): number {
+  if (!(box.i0 <= box.i1 && box.j0 <= box.j1)) return Infinity;
+  let lowest = box.i0 < 0 || box.j0 < 0 ? 0 : Infinity;
+  const inside = { i0: Math.max(0, box.i0), j0: Math.max(0, box.j0), i1: box.i1, j1: box.j1 };
+  if (!(inside.i0 <= inside.i1 && inside.j0 <= inside.j1)) return lowest;
+  const cx0 = Math.floor(inside.i0 / GROUND_CHUNK_SAMPLES);
+  const cy0 = Math.floor(inside.j0 / GROUND_CHUNK_SAMPLES);
+  const cx1 = Math.floor(inside.i1 / GROUND_CHUNK_SAMPLES);
+  const cy1 = Math.floor(inside.j1 / GROUND_CHUNK_SAMPLES);
+  const reached = (cx1 - cx0 + 1) * (cy1 - cy0 + 1);
+  let found = 0;
+  if (reached > onBoard.length) {
+    for (const kept of onBoard) {
+      if (kept.cx < cx0 || kept.cx > cx1 || kept.cy < cy0 || kept.cy > cy1) continue;
+      found++;
+      lowest = Math.min(lowest, lowestOfChunkIn(kept, inside) * GROUND_HEIGHT_STEP);
+    }
+  } else {
+    for (let cy = cy0; cy <= cy1; cy++) {
+      for (let cx = cx0; cx <= cx1; cx++) {
+        const kept = byKey.get(chunkKey(cx, cy));
+        if (!kept) continue;
+        found++;
+        lowest = Math.min(lowest, lowestOfChunkIn(kept, inside) * GROUND_HEIGHT_STEP);
+      }
+    }
+  }
+  return found < reached ? Math.min(lowest, 0) : lowest;
 }
 
 /**
@@ -100,18 +207,41 @@ export function heightBetweenSamples(sampleAt: (i: number, j: number) => number,
   return topLeft + fy * (bottomLeft - topLeft) + fx * (bottomRight - bottomLeft);
 }
 
+/** The lowest of the samples in a box read one by one, for a surface that cannot tell it otherwise. */
+function lowestSampleOneByOne(ground: GroundSurface, box: SampleBox): number {
+  let lowest = Infinity;
+  for (let j = box.j0; j <= box.j1; j++) {
+    for (let i = box.i0; i <= box.i1; i++) lowest = Math.min(lowest, ground.sampleAt(i, j));
+  }
+  return lowest;
+}
+
 /**
- * How many points along a side of a box the ground is read at, at most: a box wider than its samples
- * reach is read at that many points evenly apart, so that a vast block, as one typed ten thousand
- * cells across, is weighed in a moment rather than read sample by sample.
+ * The points on the edges of a box, counted in samples, at which the ground can turn: its corners,
+ * where each edge crosses a line between samples, and where it crosses the diagonal each square of
+ * samples is split along. Between them the ground along an edge runs straight.
  */
-const MOST_SAMPLES_ALONG = 512;
+function edgePointsOf(i0: number, j0: number, i1: number, j1: number): [number, number][] {
+  const points: [number, number][] = [];
+  for (const j of [j0, j1]) {
+    points.push([i0, j], [i1, j]);
+    for (let i = Math.ceil(i0); i <= i1; i++) points.push([i, j]);
+    for (let k = Math.ceil(i0 - j); k <= i1 - j; k++) points.push([j + k, j]);
+  }
+  for (const i of [i0, i1]) {
+    for (let j = Math.ceil(j0); j <= j1; j++) points.push([i, j]);
+    for (let k = Math.ceil(i - j1); k <= i - j0; k++) points.push([i, i - k]);
+  }
+  return points;
+}
 
 /**
  * How far the ground under a box of the board lifts what stands on it, in table pixels: the lowest the
  * ground stands anywhere in the box, so that a block stood on uneven ground sinks into the rise rather
- * than hanging over the dip. The box is read at its corners and every half cell along and across it,
- * or, along a side longer than that many points reach, at as many points evenly apart.
+ * than hanging over the dip. The ground is flat across each triangle of samples, so the lowest is at a
+ * sample inside the box or at a point where its edges cross the triangles. Beyond the samples the
+ * ground may stand off the board at, it stands at 0, so only the part of the box over them is read,
+ * and a block reaching past them is weighed in a moment however vast it is.
  */
 export function lowestGroundPxIn(
   ground: GroundSurface,
@@ -122,18 +252,37 @@ export function lowestGroundPxIn(
   height: number
 ): number {
   if (ground.isFlat || !(gridSize > 0)) return 0;
-  const along = (length: number): number[] => {
-    if (!(length > 0)) return [0];
-    const step = Math.max(gridSize / GROUND_SAMPLES_PER_CELL, length / MOST_SAMPLES_ALONG);
-    const at: number[] = [];
-    for (let d = 0; d < length; d += step) at.push(d);
-    return [...at, length];
-  };
+  const perPx = GROUND_SAMPLES_PER_CELL / gridSize;
+  const i0 = x * perPx;
+  const j0 = y * perPx;
+  const i1 = i0 + (width > 0 ? width * perPx : 0);
+  const j1 = j0 + (height > 0 ? height * perPx : 0);
+  if ([i0, j0, i1, j1].some(Number.isNaN)) return 0;
+  const extent = ground.extent;
+  if (extent === null) return 0;
   let lowest = Infinity;
-  for (const across of along(width)) {
-    for (const down of along(height)) {
-      lowest = Math.min(lowest, ground.heightAt((x + across) / gridSize, (y + down) / gridSize));
-    }
+  let box: SampleBox = { i0, j0, i1, j1 };
+  if (extent !== undefined) {
+    if (i0 < extent.i0 || j0 < extent.j0 || i1 > extent.i1 || j1 > extent.j1) lowest = 0;
+    box = {
+      i0: Math.max(i0, extent.i0),
+      j0: Math.max(j0, extent.j0),
+      i1: Math.min(i1, extent.i1),
+      j1: Math.min(j1, extent.j1),
+    };
+    if (!(box.i0 <= box.i1 && box.j0 <= box.j1)) return lowest * gridSize;
+  }
+  const samples: SampleBox = {
+    i0: Math.ceil(box.i0),
+    j0: Math.ceil(box.j0),
+    i1: Math.floor(box.i1),
+    j1: Math.floor(box.j1),
+  };
+  if (samples.i0 <= samples.i1 && samples.j0 <= samples.j1) {
+    lowest = Math.min(lowest, ground.lowestSampleIn?.(samples) ?? lowestSampleOneByOne(ground, samples));
+  }
+  for (const [si, sj] of edgePointsOf(box.i0, box.j0, box.i1, box.j1)) {
+    lowest = Math.min(lowest, heightBetweenSamples(ground.sampleAt, si, sj));
   }
   return lowest * gridSize;
 }

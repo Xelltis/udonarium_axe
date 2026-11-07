@@ -43,20 +43,54 @@ describe('the ground of a table', () => {
     expect(ground.heightAt(0.125, 0.25)).toBeCloseTo(0, 9);
   });
 
-  it('reads the ground under a vast block at a bounded number of points, and under a cell at every half cell', () => {
+  it('finds the lowest ground under a block exactly, at a point between samples where its edge crosses a dip', () => {
+    const ground = groundSurfaceOf([chunk(0, 0, [[1, 1, -64]])]);
+
+    expect(groundLiftOfBlock(ground, 50, { location: { x: 5, y: 12.5 }, width: 0.8, depth: 0.2 })).toBeCloseTo(-45, 9);
+    expect(groundLiftOfBlock(ground, 50, { location: { x: 0, y: 0 }, width: 1, depth: 1 })).toBe(-50);
+    expect(groundLiftOfBlock(ground, 50, { location: { x: 100, y: 0 }, width: 1, depth: 1 })).toBe(0);
+  });
+
+  it('weighs a block reaching past the ground kept by the samples kept and the board beyond, however vast it is', () => {
+    const kept = groundSurfaceOf([
+      chunk(0, 0, [
+        [1, 1, 64],
+        [3, 3, -32],
+      ]),
+      chunk(1, 1, [[0, 0, 64]]),
+    ]);
     let read = 0;
     const ground: GroundSurface = {
-      ...groundSurfaceOf([chunk(0, 0, [[1, 1, 64]])]),
-      heightAt: (x, y) => {
+      ...kept,
+      sampleAt: (i, j) => {
         read++;
-        return x === 0 && y === 0 ? -1 : 0;
+        return kept.sampleAt(i, j);
       },
     };
 
-    expect(groundLiftOfBlock(ground, 50, { location: { x: 0, y: 0 }, width: 10000, depth: 10000 })).toBe(-50);
-    expect(read).toBeLessThanOrEqual(513 * 513);
-    read = 0;
-    groundLiftOfBlock(ground, 50, { location: { x: 0, y: 0 }, width: 1, depth: 1 });
-    expect(read).toBe(9);
+    expect(groundLiftOfBlock(ground, 50, { location: { x: -500, y: -500 }, width: 10000, depth: 10000 })).toBe(-25);
+    expect(read).toBeLessThan(2_000);
+    expect(groundLiftOfBlock(ground, 50, { location: { x: 25, y: 25 }, width: 0, depth: 0 })).toBe(50);
+    expect(groundLiftOfBlock(ground, 50, { location: { x: 50, y: 50 }, width: 0.5, depth: 0.5 })).toBe(-25);
+  });
+
+  it('takes no ground under a block of no size or of no place, nor any off the board', () => {
+    const ground = groundSurfaceOf([chunk(0, 0, [[0, 0, 64]])]);
+
+    expect(groundLiftOfBlock(ground, 50, { location: { x: 0, y: 0 }, width: 0, depth: 0 })).toBe(50);
+    expect(groundLiftOfBlock(ground, 50, { location: { x: Number.NaN, y: 0 }, width: 1, depth: 1 })).toBe(0);
+    expect(groundLiftOfBlock(FLAT_GROUND, 50, { location: { x: 0, y: 0 }, width: 1, depth: 1 })).toBe(0);
+    expect(ground.lowestSampleIn?.({ i0: -2, j0: -2, i1: -1, j1: -1 })).toBe(0);
+    expect(ground.lowestSampleIn?.({ i0: 1, j0: 1, i1: 0, j1: 0 })).toBe(Infinity);
+  });
+
+  it('reads a surface that cannot tell the lowest of its samples one by one, in the box it may stand off the board in', () => {
+    const kept = groundSurfaceOf([chunk(0, 0, [[2, 2, -64]])]);
+    const { lowestSampleIn: _lowest, ...ground } = kept;
+
+    expect(groundLiftOfBlock(ground, 50, { location: { x: 0, y: 0 }, width: 3, depth: 3 })).toBe(-50);
+    expect(
+      groundLiftOfBlock({ ...ground, extent: undefined }, 50, { location: { x: 0, y: 0 }, width: 3, depth: 3 })
+    ).toBe(-50);
   });
 });
