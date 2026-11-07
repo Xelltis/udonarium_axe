@@ -12,6 +12,7 @@ import {
 } from '@axe/core/storage/asset-retries';
 import { AudioFile, AudioFileContext } from '@axe/core/storage/audio-file';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { calcSHA256Async } from '@axe/core/storage/file-reader-util';
 import type { MockInstance } from 'vitest';
 
 describe('AudioStorage', () => {
@@ -35,6 +36,29 @@ describe('AudioStorage', () => {
   });
 
   describe('add / get / delete', () => {
+    it('lets go of the bytes read again of a sound held already, but not of those a placeholder takes up', async () => {
+      const revoked = vi.spyOn(URL, 'revokeObjectURL');
+      const bytes = new Uint8Array([1, 2, 3, 4]);
+      const held = await storage.addAsync(new Blob([bytes], { type: 'audio/ogg' }));
+
+      expect(await storage.addAsync(new Blob([bytes], { type: 'audio/ogg' }))).toBe(held);
+      expect(revoked).toHaveBeenCalledTimes(1);
+      expect(revoked).not.toHaveBeenCalledWith(held!.url);
+
+      revoked.mockClear();
+      const other = new Uint8Array([5, 6, 7]);
+      const placeholder = storage.add(AudioFile.createEmpty(await calcSHA256Async(other.buffer)));
+      expect(await storage.addAsync(new Blob([other], { type: 'audio/ogg' }))).toBe(placeholder);
+      expect(placeholder.url).not.toBe('');
+      expect(revoked).not.toHaveBeenCalledWith(placeholder.url);
+    });
+
+    it('finds nothing under a name every object has of its own', () => {
+      expect(storage.get('toString')).toBeNull();
+      expect(storage.get('constructor')).toBeNull();
+      expect(storage.get('__proto__')).toBeNull();
+    });
+
     it('adds and returns audio by url', () => {
       const audio = storage.add('https://example.com/test.mp3');
       expect(audio).toBeTruthy();

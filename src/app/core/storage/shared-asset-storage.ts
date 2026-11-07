@@ -70,7 +70,8 @@ export interface SharedAssetKind<F extends SharedAssetFile<C>, C extends SharedA
  */
 export class SharedAssetStorage<F extends SharedAssetFile<C>, C extends SharedAssetContext> {
   private readonly catalogSchedule: CatalogSendSchedule;
-  private hash: { [identifier: string]: F } = {};
+  /** The files held, by identifier, on an object with no prototype, as a peer names the identifiers. */
+  private hash: { [identifier: string]: F } = Object.create(null);
   /** Those added on this seat that are queued for the asset server or going up to it. */
   private readonly uploading = new Set<string>();
   /** What is to go up again once the upload under way ends, asked for while it was going up. */
@@ -151,7 +152,8 @@ export class SharedAssetStorage<F extends SharedAssetFile<C>, C extends SharedAs
    * Reads a file the user added into the store, keyed by the hash of its bytes, and tells peers
    * about it shortly after.
    *
-   * Adding one already held merges into the existing entry and returns that one.
+   * Adding one already held merges into the existing entry and returns that one, letting go of the
+   * object URL made for the bytes read again unless the entry took it up.
    *
    * Null for one the room removed that is not taken in: added without being chosen, or chosen by a
    * seat that may not put it back.
@@ -159,9 +161,12 @@ export class SharedAssetStorage<F extends SharedAssetFile<C>, C extends SharedAs
   async addAsync(arg: Blob, options: { putBack?: boolean } = {}): Promise<F | null> {
     const file = await this.kind.readAsync(arg);
     const kept = this._add(file, true, options.putBack === true);
-    if (!this.removed.has(file.identifier)) return kept;
-    file.destroy();
-    return null;
+    if (this.removed.has(file.identifier)) {
+      file.destroy();
+      return null;
+    }
+    if (kept !== file && kept.url !== file.url) file.destroy();
+    return kept;
   }
 
   /**

@@ -47,6 +47,22 @@ describe('ModelStorage', () => {
   });
 
   describe('add / get / delete', () => {
+    it('lets go of the bytes read again of a model held already, keeping those it holds', async () => {
+      const revoked = vi.spyOn(URL, 'revokeObjectURL');
+      const bytes = new Uint8Array([0x67, 0x6c, 0x54, 0x46, 2, 0, 0, 0]);
+      const held = await storage.addAsync(new Blob([bytes]));
+
+      expect(await storage.addAsync(new Blob([bytes]))).toBe(held);
+      expect(revoked).toHaveBeenCalledTimes(1);
+      expect(revoked).not.toHaveBeenCalledWith(held!.url);
+    });
+
+    it('finds nothing under a name every object has of its own', () => {
+      expect(storage.get('toString')).toBeNull();
+      expect(storage.get('constructor')).toBeNull();
+      expect(storage.get('__proto__')).toBeNull();
+    });
+
     it('adds and returns a model received from a peer', () => {
       const model = storage.add(received('test'));
       expect(model).toBeTruthy();
