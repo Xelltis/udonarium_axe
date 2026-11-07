@@ -93,6 +93,12 @@ export function buildShapeKindPoints(kind: ShapeGeneratorKind): string {
   return pairs.join(' ');
 }
 
+/** The least and the most the map is zoomed to. */
+const MIN_ZOOM = 0.25;
+const MAX_ZOOM = 3;
+/** The margin round the map in the view, as the stage pads it. */
+const STAGE_MARGIN_PX = 40;
+
 const ERASER_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
   '<path d="M20 20H7L3 16l10-10 7 7-2.5 2.5"/>' +
@@ -313,7 +319,10 @@ export class MapEditorPanelComponent {
 
   constructor() {
     inject(ShortcutScopeService).hold('mapEditor', inject(DestroyRef));
-    afterNextRender(() => this.draw());
+    afterNextRender(() => {
+      this.fitToView(1);
+      this.draw();
+    });
     const stopMeasuring = useTextMeasurer((text, fontSize, bold, italic) => {
       const ctx = this.board()?.nativeElement.getContext('2d');
       if (!ctx) return guessLineWidth(text, fontSize);
@@ -382,16 +391,26 @@ export class MapEditorPanelComponent {
     );
   }
 
+  /**
+   * Draws the map onto the board. A map zoomed out is drawn at the size it is shown, so that its
+   * grid lines thin evenly rather than the browser dropping some of them in shrinking it; zoomed in,
+   * it is drawn at its own size and enlarged, which is cheaper than drawing so many more pixels.
+   */
   private draw(): void {
     const canvas = this.board()?.nativeElement;
     if (!canvas) return;
     const scene = this.state.current;
     const w = sceneWidthPx(scene);
     const h = sceneHeightPx(scene);
-    if (canvas.width !== w) canvas.width = w;
-    if (canvas.height !== h) canvas.height = h;
+    const pixelRatio = canvas.ownerDocument.defaultView?.devicePixelRatio || 1;
+    const scale = Math.min(1, this.state.zoom() * pixelRatio);
+    const drawnW = Math.max(1, Math.round(w * scale));
+    const drawnH = Math.max(1, Math.round(h * scale));
+    if (canvas.width !== drawnW) canvas.width = drawnW;
+    if (canvas.height !== drawnH) canvas.height = drawnH;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    ctx.setTransform(drawnW / w, 0, 0, drawnH / h, 0, 0);
     perfCounters.bump(PERF_MAP_EDITOR_DRAW);
     const helpers = this.images.helpersFor(ctx);
     renderScene(ctx, scene, helpers, { hideTextId: this.editingText()?.itemId ?? undefined, drawFunctionLayers: true });
@@ -1206,7 +1225,7 @@ export class MapEditorPanelComponent {
     event.preventDefault();
     const before = this.state.zoom();
     const delta = event.deltaY < 0 ? 1.1 : 1 / 1.1;
-    const after = Math.max(0.25, Math.min(3, before * delta));
+    const after = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, before * delta));
     if (after === before) return;
     const container = this.stage()?.nativeElement;
     const canvas = this.board()?.nativeElement;
@@ -1271,16 +1290,32 @@ export class MapEditorPanelComponent {
   }
 
   protected zoomIn(): void {
-    this.state.zoom.update((z) => Math.min(3, z + 0.25));
+    this.state.zoom.update((z) => Math.min(MAX_ZOOM, z + 0.25));
     this.draftSignal.update((v) => v + 1);
   }
   protected zoomOut(): void {
-    this.state.zoom.update((z) => Math.max(0.25, z - 0.25));
+    this.state.zoom.update((z) => Math.max(MIN_ZOOM, z - 0.25));
     this.draftSignal.update((v) => v + 1);
   }
   protected zoomReset(): void {
     this.state.zoom.set(1);
     this.draftSignal.update((v) => v + 1);
+  }
+
+  /**
+   * Zooms so that the whole map fits in the view with the margin round it, to no more than `most`
+   * times its size: up to its own size as the editor opens and as a map is loaded or brought in, so
+   * that a small map is not blown up, and further from the button. A view not laid out yet is left.
+   */
+  protected fitToView(most = MAX_ZOOM): void {
+    const container = this.stage()?.nativeElement;
+    if (!container) return;
+    const roomX = container.clientWidth - STAGE_MARGIN_PX * 2;
+    const roomY = container.clientHeight - STAGE_MARGIN_PX * 2;
+    if (roomX <= 0 || roomY <= 0) return;
+    const scene = this.state.current;
+    const fit = Math.min(roomX / sceneWidthPx(scene), roomY / sceneHeightPx(scene));
+    this.applyZoom(Math.max(MIN_ZOOM, Math.min(most, fit)));
   }
 
   protected onResizeCols(value: number): void {
@@ -1336,7 +1371,8 @@ export class MapEditorPanelComponent {
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
-    if (!(await this.files.open(file))) this.errorNotice.show(this.t('feature.mapEditor.actions.loadError'));
+    if (await this.files.open(file)) this.fitToView(1);
+    else this.errorNotice.show(this.t('feature.mapEditor.actions.loadError'));
   }
 
   protected async saveImage(): Promise<void> {
@@ -1359,7 +1395,10 @@ export class MapEditorPanelComponent {
       this.confirm.ask(this.t('feature.mapEditor.actions.importTableConfirm'))
     );
     if (result === 'noTable') this.errorNotice.show(this.t('feature.mapEditor.actions.importTableNoTable'));
-    if (result === 'done') this.notice.show(this.t('feature.mapEditor.actions.importTableDone'));
+    if (result === 'done') {
+      this.fitToView(1);
+      this.notice.show(this.t('feature.mapEditor.actions.importTableDone'));
+    }
   }
 
   /** Says what kept what was painted off the table, if anything did; true where it was laid. */

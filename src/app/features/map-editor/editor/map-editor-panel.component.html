@@ -563,6 +563,7 @@
             (pointerdown)="onPointerDown($event)"
             (pointermove)="onPointerMove($event)"
             (pointerup)="onPointerUp($event)"
+            (pointerleave)="cursorCell.set(null)"
             (dblclick)="onDoubleClick()"
           ></canvas>
           @if (editingText(); as editing) {
@@ -710,10 +711,22 @@
       >
         <i class="material-icons text-[16px]!">zoom_in</i>
       </button>
+      <button
+        class="hover:bg-ui-hover rounded-ui-sm inline-flex size-7 items-center justify-center"
+        data-testid="map-editor-zoom-fit"
+        [title]="'feature.mapEditor.actions.zoomFit' | transloco"
+        (click)="fitToView()"
+      >
+        <i class="material-icons text-[16px]!">fit_screen</i>
+      </button>
 
-      <span class="text-ui-muted">{{ sceneInfo().cols }}×{{ sceneInfo().rows }} / {{ sceneInfo().cellPx }}px</span>
+      <span class="text-ui-muted whitespace-nowrap tabular-nums"
+        >{{ sceneInfo().cols }}×{{ sceneInfo().rows }} / {{ sceneInfo().cellPx }}px</span
+      >
       @if (cursorCell(); as c) {
-        <span class="text-ui-dim">{{ 'feature.mapEditor.status.cell' | transloco: { col: c.col, row: c.row } }}</span>
+        <span class="text-ui-dim whitespace-nowrap tabular-nums" data-testid="map-editor-cursor-cell">{{
+          'feature.mapEditor.status.cell' | transloco: { col: c.col, row: c.row }
+        }}</span>
       }
 
       <div class="ml-auto flex items-center gap-2">

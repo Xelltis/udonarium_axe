@@ -4814,10 +4814,11 @@
         "applyFunctions": "Lay the functions",
         "applyFunctionsHint": "Lays the painted no-entry, terrain, masks and relief on the table, leaving the floor as it is",
         "applyFunctionsDone": "Laid the painted functions on the table",
-        "applyFunctionsGridMismatch": "The grid does not match the table. Read the table in first"
+        "applyFunctionsGridMismatch": "The grid does not match the table. Read the table in first",
+        "zoomFit": "Fit to view"
       },
       "status": {
-        "cell": "{{col}}-{{row}}"
+        "cell": "Col {{col}}, row {{row}}"
       },
       "draft": {
         "hint": "Click to add points",

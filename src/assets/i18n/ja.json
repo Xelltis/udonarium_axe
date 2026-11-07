@@ -4814,10 +4814,11 @@
         "applyFunctions": "機能だけ反映",
         "applyFunctionsHint": "床画像はそのままに、塗った立入禁止・地形・マスク・起伏だけをテーブルへ反映します",
         "applyFunctionsDone": "塗った機能をテーブルへ反映しました",
-        "applyFunctionsGridMismatch": "テーブルとマス目が合いません。先にテーブルを取り込んでください"
+        "applyFunctionsGridMismatch": "テーブルとマス目が合いません。先にテーブルを取り込んでください",
+        "zoomFit": "全体を表示"
       },
       "status": {
-        "cell": "{{col}}-{{row}}"
+        "cell": "列{{col}}・行{{row}}"
       },
       "draft": {
         "hint": "クリックで頂点を追加",

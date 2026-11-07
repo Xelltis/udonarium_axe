@@ -495,6 +495,79 @@ describe('MapEditorPanelComponent', () => {
     expect(c.cursorCell()).not.toBe(first);
   });
 
+  describe('the view of the map', () => {
+    /** The panel opened for the game master in a view of a size, laid out and drawn once. */
+    async function openedIn(width: number, height: number): Promise<HTMLElement> {
+      TestBed.inject(ObjectChangeService);
+      PeerCursor.createMyCursor();
+      PeerCursor.myCursor.role = PeerRole.GameMaster;
+      const sizes = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(width);
+      vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(height);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      sizes.mockRestore();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('opens with the whole map in view, a map smaller than the view at its own size', async () => {
+      const scene = component['state'].current;
+      const mapWidth = scene.cols * scene.cellPx;
+      const mapHeight = scene.rows * scene.cellPx;
+
+      await openedIn(mapWidth / 2 + 80, mapHeight + 80);
+
+      expect(component['state'].zoom()).toBeCloseTo(0.5, 5);
+      fixture.destroy();
+    });
+
+    it('does not blow a small map up as it opens, and fits it to the view from the button', async () => {
+      const scene = component['state'].current;
+      const host = await openedIn(scene.cols * scene.cellPx * 4, scene.rows * scene.cellPx * 4);
+      expect(component['state'].zoom()).toBe(1);
+
+      const sizes = vi
+        .spyOn(HTMLElement.prototype, 'clientWidth', 'get')
+        .mockReturnValue(scene.cols * scene.cellPx * 2 + 80);
+      vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(scene.rows * scene.cellPx * 4);
+      (host.querySelector('[data-testid="map-editor-zoom-fit"]') as HTMLButtonElement).click();
+      sizes.mockRestore();
+
+      expect(component['state'].zoom()).toBeCloseTo(2, 5);
+    });
+
+    it('draws a map zoomed out at the size it is shown, and one zoomed in at its own size', async () => {
+      const host = await openedIn(800, 600);
+      const scene = component['state'].current;
+      const board = host.querySelector('canvas')!;
+
+      component['state'].zoom.set(0.5);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect([board.width, board.height]).toEqual([(scene.cols * scene.cellPx) / 2, (scene.rows * scene.cellPx) / 2]);
+
+      component['state'].zoom.set(2);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect([board.width, board.height]).toEqual([scene.cols * scene.cellPx, scene.rows * scene.cellPx]);
+    });
+
+    it('forgets the cell the pointer was over once it leaves the map', async () => {
+      const host = await openedIn(800, 600);
+      component['cursorCell'].set({ col: 4, row: 2 });
+      fixture.detectChanges();
+      expect(host.querySelector('[data-testid="map-editor-cursor-cell"]')?.textContent?.trim()).toBe('列4・行2');
+
+      host.querySelector('canvas')!.dispatchEvent(new PointerEvent('pointerleave'));
+      fixture.detectChanges();
+
+      expect(host.querySelector('[data-testid="map-editor-cursor-cell"]')).toBeNull();
+    });
+  });
+
   it('adds a text item when there is text to add', () => {
     const c = component as unknown as {
       startTextEdit: (x: number, y: number, l: string | null, i: string | null, t: string) => void;
