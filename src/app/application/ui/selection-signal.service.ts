@@ -138,11 +138,13 @@ export class SelectionSignalService {
   }
 
   /**
-   * Makes the multi-selection these pieces, and forgets the piece last pressed if they leave it out:
-   * a press on a piece that leaves the selection alone keeps it, but no change to the selection does.
+   * Makes the multi-selection these pieces, telling nobody where they are the pieces it already holds,
+   * and forgets the piece last pressed if they leave it out: a press on a piece that leaves the
+   * selection alone keeps it, but no change to the selection does.
    */
   private setSelection(next: ReadonlySet<string>): void {
-    this._selectedObjects.set(next);
+    const current = this._selectedObjects();
+    if (next.size !== current.size || [...next].some((id) => !current.has(id))) this._selectedObjects.set(next);
     const pressed = this.pressedObject();
     if (pressed !== null && !next.has(pressed)) this.pressed.set(null);
   }

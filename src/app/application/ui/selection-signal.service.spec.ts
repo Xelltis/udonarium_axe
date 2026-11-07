@@ -106,6 +106,17 @@ describe('SelectionSignalService', () => {
     expect(service.pressedObject()).toBeNull();
   });
 
+  it('tells nobody of a selection made anew with the pieces it already holds', () => {
+    service.replaceSelection(['a', 'b']);
+    const held = service.selectedObjects();
+
+    service.replaceSelection(['b', 'a']);
+    expect(service.selectedObjects()).toBe(held);
+
+    service.replaceSelection(['a']);
+    expect(service.selectedObjects()).not.toBe(held);
+  });
+
   it('tells the piece a finger last pressed apart from one pressed otherwise, and forgets it on being told to', () => {
     service.pressObject('clicked', 'GameCharacter');
     expect(service.pressedObject()).toBe('clicked');
