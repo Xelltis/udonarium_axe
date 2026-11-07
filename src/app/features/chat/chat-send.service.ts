@@ -112,7 +112,8 @@ export class ChatSendService {
         value.quoteOf,
         { light: value.messBubbleLight ?? '', dark: value.messBubbleDark ?? '' },
         undefined,
-        value.stamp
+        value.stamp,
+        value.targetNumber
       );
       if (value.toTicker) this.chatTickerSelection.showMessage(sent.identifier);
     }

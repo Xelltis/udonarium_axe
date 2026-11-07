@@ -62,6 +62,16 @@ describe('CharacterMacroService', () => {
     expect(sendFrom).toBe(speaker.identifier);
   });
 
+  it('fills a `{目標値}` in with the number to beat the reader picked, where they picked one', () => {
+    const speaker = character('術者');
+
+    service.send(speaker, '2d6+3>={目標値}', { tab, targetNumber: 15 });
+    service.send(speaker, '2d6+3>={目標値}', { tab });
+
+    expect(sendMessage.mock.calls[0][14]).toBe(15);
+    expect(sendMessage.mock.calls[1][14]).toBeUndefined();
+  });
+
   it('falls back to the tab the reader is on, then to the first one there is', () => {
     const speaker = character('術者');
     TestBed.inject(ActiveChatTabService).set(tab.identifier);

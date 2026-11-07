@@ -609,6 +609,7 @@ export class ChatPaletteComponent {
       quoteOf: value.quoteOf,
       bubbles: { light: value.messBubbleLight ?? '', dark: value.messBubbleDark ?? '' },
       stamp: value.stamp,
+      targetNumber: value.targetNumber,
     });
     // The palette carries the same input as the chat window, ticker switch and all, so a line
     // sent from it goes to the ticker on the same terms.

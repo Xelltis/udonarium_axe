@@ -31,6 +31,8 @@ export interface MacroSendOptions {
   targets?: readonly GameCharacter[];
   /** A stamp to send under the line. */
   stamp?: OutgoingStamp;
+  /** The number the reader picked to fill a `{目標値}` in the line with; absent to fill it with the one found. */
+  targetNumber?: number;
 }
 
 /**
@@ -86,7 +88,8 @@ export class CharacterMacroService {
       options.quoteOf,
       bubbles,
       undefined,
-      options.stamp
+      options.stamp,
+      options.targetNumber
     );
   }
 

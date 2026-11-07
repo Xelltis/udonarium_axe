@@ -206,6 +206,31 @@
       </div>
     }
 
+    @if (targetNumberBar(); as bar) {
+      <label
+        data-testid="chat-input-target-number"
+        class="border-ui-border-panel text-ui-text rounded-ui-sm mb-1.5 flex min-w-0 items-center gap-2 border border-solid px-2 py-0.5 text-[11px]"
+        [title]="'feature.chat.input.targetNumberHint' | transloco"
+      >
+        <i class="material-icons text-ui-accent text-[14px]!" aria-hidden="true">my_location</i>
+        <span class="text-ui-accent shrink-0 font-semibold">{{ 'feature.chat.input.targetNumber' | transloco }}</span>
+        <select
+          data-testid="chat-input-target-number-select"
+          name="targetNumber"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text min-w-0 flex-1 cursor-pointer truncate border border-solid px-1 py-0.5 text-[11px]"
+          [ngModel]="bar.chosen"
+          (ngModelChange)="chosenTargetNumber.set($event)"
+        >
+          <option [ngValue]="''">{{ bar.found.key | transloco: bar.found.params }}</option>
+          @for (choice of bar.choices; track choice.identifier) {
+            <option [ngValue]="choice.identifier" [title]="choice.title">
+              {{ choice.label.key | transloco: choice.label.params }}
+            </option>
+          }
+        </select>
+      </label>
+    }
+
     <form name="chat-input" class="m-0 flex min-w-0 flex-1 items-end gap-2">
       <div
         data-testid="chat-input-frame"

@@ -12,6 +12,7 @@ import { localDispatch } from '@axe/core/network/network-messaging';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { OPEN_STAMP_RULES, withStampsAllowed, withStampUseOn } from '@axe/domain/chat/stamp-rules';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceStage } from '@axe/domain/dice/dice-3d/dice-stage';
@@ -633,6 +634,75 @@ describe('ChatInputComponent', () => {
 
       expect((await outgoing).text).toBe('雑談1');
       expect(box.value).toBe('');
+    });
+
+    describe('a line holding the number to beat', () => {
+      let tab: ChatTab;
+
+      beforeEach(() => {
+        tab = new ChatTab();
+        tab.initialize();
+        ObjectStore.instance.add(tab);
+        for (const [at, text] of [
+          [1001, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15'],
+          [1011, 'DiceBot : (1D6) → 3'],
+        ] as const) {
+          tab.addMessage({
+            from: 'System-BCDice',
+            originFrom: 'gm',
+            name: '<BCDice：ゴブリン>',
+            text,
+            tag: 'system',
+            timestamp: at,
+          });
+        }
+        fixture.componentRef.setInput('chatTabidentifier', tab.identifier);
+      });
+
+      afterEach(() => {
+        tab.destroy();
+      });
+
+      const bar = () =>
+        fixture.nativeElement.querySelector('[data-testid="chat-input-target-number"]') as HTMLElement | null;
+      const choicesOf = (select: HTMLSelectElement) =>
+        Array.from(select.options).map((option) => option.textContent?.trim());
+
+      it('shows the number it is filled in with and where it came from, with the answers that may be picked', () => {
+        component.text = '2d6>={目標値}';
+        fixture.detectChanges();
+
+        const select = bar()!.querySelector('select')!;
+        expect(choicesOf(select)).toEqual([
+          '自動: 3（直前の結果: ゴブリン 1D6）',
+          '3（ゴブリン 1D6）',
+          '15（ゴブリン 2D6+8）',
+        ]);
+
+        component.text = '2d6>=12';
+        fixture.detectChanges();
+        expect(bar()).toBeNull();
+      });
+
+      it('sends the answer picked for that one line, and fills the next one in with the one found', async () => {
+        component.text = '2d6>={目標値}';
+        fixture.detectChanges();
+        const select = bar()!.querySelector('select')!;
+        select.selectedIndex = 2;
+        select.dispatchEvent(new Event('change'));
+        fixture.detectChanges();
+        const outgoing = sent();
+
+        component.sendChat(null);
+
+        expect((await outgoing).targetNumber).toBe(15);
+        component.text = '2d6>={目標値}';
+        fixture.detectChanges();
+        expect(bar()!.querySelector('select')!.selectedIndex).toBe(0);
+        const next = sent();
+        component.sendChat(null);
+        expect('targetNumber' in (await next)).toBe(false);
+      });
     });
 
     it('hands the line to the dice bot, which decides whether it must wait for the system', async () => {

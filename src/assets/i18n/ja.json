@@ -3829,7 +3829,14 @@
         "stamp": "スタンプを入れる",
         "bar": "入力欄の操作",
         "colorSlot": "持ち色{{n}}",
-        "colors": "発言の色"
+        "colors": "発言の色",
+        "targetNumber": "目標値",
+        "targetNumberHint": "この発言の {目標値} に入れる数です。選び直した結果は、この1回の送信にだけ使います",
+        "targetNumberAimed": "自動: {{total}}（{{speaker}} に振った結果: {{by}}）",
+        "targetNumberPinned": "自動: {{total}}（このタブに固定した結果: {{by}}）",
+        "targetNumberByOthers": "自動: {{total}}（直前の結果: {{by}}）",
+        "targetNumberNotFound": "自動: 見つかりません（{目標値} のまま送ります）",
+        "targetNumberChoice": "{{total}}（{{by}}）"
       },
       "decoration": {
         "bold": "太字",

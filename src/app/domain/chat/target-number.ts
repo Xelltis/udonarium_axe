@@ -101,6 +101,48 @@ export function canPinAsTargetNumber(message: ChatMessage): boolean {
   return message.isDicebot && !message.isSecret && rollTotalOf(`${message.text ?? ''}`) != null;
 }
 
+/** An answer a reader may pick as the number to beat for a line they are about to send, with what it came to. */
+export interface TargetNumberChoice {
+  readonly total: number;
+  readonly answer: ChatMessage;
+}
+
+/**
+ * The newest answers in a tab a reader may pick as the number to beat instead of the one found,
+ * newest first and no more than `count`: those they may see that could be set as the tab's number
+ * to beat.
+ */
+export function targetNumberChoices(tab: ChatTab, count: number): TargetNumberChoice[] {
+  const choices: TargetNumberChoice[] = [];
+  const messages = tab.chatMessages;
+  for (let index = messages.length - 1; index >= 0 && choices.length < count; index--) {
+    const choice = targetNumberChoiceOf(messages[index]);
+    if (choice) choices.push(choice);
+  }
+  return choices;
+}
+
+/** An answer as a number to beat a reader may pick, where it is one they may see that could be set as the tab's; null otherwise. */
+export function targetNumberChoiceOf(answer: ChatMessage): TargetNumberChoice | null {
+  if (!answer.isDisplayable || !canPinAsTargetNumber(answer)) return null;
+  const total = rollTotalOf(`${answer.text ?? ''}`);
+  return total == null ? null : { total, answer };
+}
+
+/** Who rolled an answer, from the name the dice bot answered under, or that name as it is where it says no roller. */
+export function rollerOf(answer: ChatMessage): string {
+  const name = `${answer.name ?? ''}`;
+  return /^<(?:Secret-)?BCDice：(.*)>$/.exec(name)?.[1] ?? name;
+}
+
+/**
+ * The roll an answer was rolled for, as the dice bot wrote it in brackets after the system's name,
+ * `(2D6+5)` in `DiceBot : (2D6+5) → 12`; empty where it wrote none.
+ */
+export function rolledOf(answer: ChatMessage): string {
+  return /^[^\n(]*?:\s*\(([^()\n]+)\)/.exec(`${answer.text ?? ''}`)?.[1] ?? '';
+}
+
 /**
  * The number to beat for a speaker in a tab, looked for the first time it is asked for and kept: a
  * line and every copy of it aimed at a target are filled in with the same number.

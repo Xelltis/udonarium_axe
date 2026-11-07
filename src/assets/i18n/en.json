@@ -3829,7 +3829,14 @@
         "stamp": "Put in a stamp",
         "bar": "Chat input tools",
         "colorSlot": "Colour {{n}}",
-        "colors": "Speech colour"
+        "colors": "Speech colour",
+        "targetNumber": "Target number",
+        "targetNumberHint": "The number {目標値} in this line is filled with. A result picked here is used for this one send only",
+        "targetNumberAimed": "Auto: {{total}} (rolled at {{speaker}}: {{by}})",
+        "targetNumberPinned": "Auto: {{total}} (set for this tab: {{by}})",
+        "targetNumberByOthers": "Auto: {{total}} (latest roll: {{by}})",
+        "targetNumberNotFound": "Auto: none found ({目標値} is sent as typed)",
+        "targetNumberChoice": "{{total}} ({{by}})"
       },
       "decoration": {
         "bold": "Bold",

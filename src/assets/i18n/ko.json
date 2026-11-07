@@ -3829,7 +3829,14 @@
         "stamp": "스탬프 넣기",
         "bar": "입력란 도구",
         "colorSlot": "보유 색 {{n}}",
-        "colors": "발언 색"
+        "colors": "발언 색",
+        "targetNumber": "목표값",
+        "targetNumberHint": "이 발언의 {目標値}에 넣을 수입니다. 다시 고른 결과는 이번 한 번의 전송에만 씁니다",
+        "targetNumberAimed": "자동: {{total}} ({{speaker}}에게 굴린 결과: {{by}})",
+        "targetNumberPinned": "자동: {{total}} (이 탭에 고정한 결과: {{by}})",
+        "targetNumberByOthers": "자동: {{total}} (직전 결과: {{by}})",
+        "targetNumberNotFound": "자동: 찾을 수 없음 ({目標値} 그대로 보냅니다)",
+        "targetNumberChoice": "{{total}} ({{by}})"
       },
       "decoration": {
         "bold": "굵게",

@@ -10,15 +10,20 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { portraitNameOf } from '@axe/domain/character/character-portrait';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { StatusAilmentCatalog } from '@axe/domain/character/status-ailment-catalog';
+import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { evaluateReferences, type PaletteVariable } from '@axe/domain/chat/chat-palette';
 import type { ImageNameEntry } from '@axe/domain/chat/chat-portrait-command';
 import type { ReferenceSite } from '@axe/domain/chat/chat-reference';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import {
   fillTargetNumber,
-  findTargetNumber,
+  findTargetNumberSource,
   holdsTargetNumber,
   isTargetNumberReference,
+  type TargetNumberChoice,
+  targetNumberChoiceOf,
+  targetNumberChoices,
+  type TargetNumberSource,
 } from '@axe/domain/chat/target-number';
 import { type ChatDiagnostic, type ChatLintContext, lintChatSyntax } from '@axe/domain/chat-syntax/chat-lint';
 import {
@@ -50,7 +55,28 @@ export interface ChatLintSource {
   readonly mode?: ChatSyntaxMode;
   /** The tab it is said in, whose rolls fill in a `{目標値}` in it; none where that is not told. */
   readonly tabIdentifier?: Signal<string>;
+  /**
+   * The answer the reader picked to fill a `{目標値}` in it with, in place of the one found; empty,
+   * or one no longer there to pick, leaves the one found.
+   */
+  readonly chosenTargetNumber?: Signal<string>;
 }
+
+/**
+ * What a `{目標値}` left in a text, after the speaker's own data has answered what it can, is filled
+ * in with as the text is sent, and the answers the reader may pick instead.
+ */
+export interface ChatLintTargetNumber {
+  /** The number found among the tab's rolls and where; null where nothing has been rolled to beat. */
+  readonly found: TargetNumberSource | null;
+  /** The answer the reader picked, filling it in instead of the one found; null where none is. */
+  readonly chosen: TargetNumberChoice | null;
+  /** The newest answers that may be picked, newest first, the one picked among them wherever it stands. */
+  readonly choices: readonly TargetNumberChoice[];
+}
+
+/** How many of a tab's newest answers are offered to pick a `{目標値}` from. */
+const TARGET_NUMBER_CHOICES = 8;
 
 /** Something shown beside a syntax: what a reference is filled in with, a roll's result, a cut-in it starts. */
 export interface ChatLintAnnotation extends TextRange {
@@ -70,6 +96,15 @@ export interface ChatLintSession {
   readonly annotations: Signal<ChatLintAnnotation[]>;
   /** What each roll the text makes comes to, checked by rolling it. */
   readonly rolls: Signal<ChatLintAnnotation[]>;
+}
+
+/** A text being checked as it is written to be sent, with what its `{目標値}` comes to. */
+export interface ChatLintWatch extends ChatLintSession {
+  /**
+   * What a `{目標値}` the speaker's data leaves in the text is filled in with, and what may be picked
+   * instead; null where the text holds none, or tells no tab.
+   */
+  readonly targetNumber: Signal<ChatLintTargetNumber | null>;
 }
 
 /**
@@ -153,19 +188,31 @@ export class ChatLintService {
   private readonly rollChecks = new Map<string, RollCheck>();
 
   /** Starts checking a text, for as long as its signals are read. */
-  watch(source: ChatLintSource): ChatLintSession {
+  watch(source: ChatLintSource): ChatLintWatch {
     const mode = source.mode ?? 'chat';
     const scan = computed(() => scanChatSyntax(source.text(), mode));
     const variables = computed(() => (mode === 'palette' ? this.variablesWritten(scan()) : null), {
       equal: sameVariables,
     });
     const holdsTargetNumberNow = computed(() => holdsTargetNumber(source.text()));
-    const toBeat = computed(() => (holdsTargetNumberNow() ? this.targetNumberOf(source) : null));
+    const lookup = computed(() => (holdsTargetNumberNow() ? this.targetNumberOf(source) : null));
+    const toBeat = computed(() => {
+      const found = lookup();
+      return (found?.chosen ?? found?.found)?.total ?? null;
+    });
     const context = computed(() => this.contextOf(source, scan, variables(), toBeat));
     const diagnostics = computed(() => lintChatSyntax(scan(), context()));
     const annotations = computed(() => this.annotationsOf(scan(), context()));
     const rolls = computed(() => this.rollsOf(scan(), context()));
-    return { scan, diagnostics, annotations, rolls };
+    const targetNumber = computed(() => {
+      const found = lookup();
+      if (!found || !this.leavesTargetNumber(source, variables())) return null;
+      const choices = targetNumberChoices(found.tab, TARGET_NUMBER_CHOICES);
+      const chosen = found.chosen;
+      const listed = chosen && !choices.some((choice) => choice.answer === chosen.answer);
+      return { found: found.found, chosen, choices: listed ? [...choices, chosen] : choices };
+    });
+    return { scan, diagnostics, annotations, rolls, targetNumber };
   }
 
   /**
@@ -302,18 +349,40 @@ export class ChatLintService {
   }
 
   /**
-   * The number a `{目標値}` in the text would be filled in with as it is sent, from the rolls in its
-   * tab, looked for again as each line comes in. Asked only while the text holds one, so that typing
-   * leaves the log unread.
+   * Where a `{目標値}` in the text would be filled in from as it is sent: the answer the reader
+   * picked, where it is still there to pick, and the number found among the rolls in its tab, looked
+   * for again as each line comes in and as the tab's own number to beat is set. Asked only while the
+   * text holds one, so that typing leaves the log unread.
    */
-  private targetNumberOf(source: ChatLintSource): number | null {
+  private targetNumberOf(
+    source: ChatLintSource
+  ): { tab: ChatTab; found: TargetNumberSource | null; chosen: TargetNumberChoice | null } | null {
     if (!source.tabIdentifier) return null;
     this.linesHeard();
     const tab = this.objectStore.get(source.tabIdentifier());
     if (!(tab instanceof ChatTab)) return null;
+    this.objectChange.versionOf(tab.identifier)();
     const sendFrom = source.sendFrom();
     const speaker = this.objectStore.get(sendFrom);
-    return findTargetNumber(tab, { identifier: sendFrom, name: speaker instanceof GameCharacter ? speaker.name : '' });
+    const name = speaker instanceof GameCharacter ? speaker.name : '';
+    const found = findTargetNumberSource(tab, { identifier: sendFrom, name });
+    const picked = this.objectStore.get(source.chosenTargetNumber?.() ?? '');
+    const chosen = picked instanceof ChatMessage && picked.parent === tab ? targetNumberChoiceOf(picked) : null;
+    return { tab, found, chosen };
+  }
+
+  /**
+   * Whether a `{目標値}` is left in the text once the speaker's data, and the variables of a palette
+   * being written, have answered what they can: one a sheet item of that name answers is no number
+   * to beat.
+   */
+  private leavesTargetNumber(source: ChatLintSource, variables: readonly PaletteVariable[] | null): boolean {
+    const text = source.text();
+    const speaker = this.objectStore.get(source.sendFrom());
+    if (!(speaker instanceof GameCharacter) && !variables) return holdsTargetNumber(text);
+    return holdsTargetNumber(
+      this.filled(text, speaker instanceof GameCharacter ? speaker : null, undefined, variables, true)
+    );
   }
 
   /** The variables a palette being written sets, read from what is written rather than what was kept. */

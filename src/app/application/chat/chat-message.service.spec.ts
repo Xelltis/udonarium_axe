@@ -650,6 +650,34 @@ describe('ChatMessageService', () => {
       expect(message.answersTargetNumber).toBe('1');
     });
 
+    it('fills it in with the number the reader picked instead, in every copy aimed at a target', () => {
+      const rolled: string[] = [];
+      const off = sendMessage$.subscribe((event) => rolled.push(event.messageTarget?.text ?? ''));
+
+      const message = service.sendMessage(
+        chatTab,
+        '2d6+7>={目標値} 抵抗',
+        null,
+        hero.identifier,
+        undefined,
+        0,
+        '',
+        [{ text: '2d6+7>={目標値} 抵抗', object: null }],
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        11
+      );
+      off();
+
+      expect(message.text).toBe('2d6+7>=11 抵抗');
+      expect(rolled).toEqual(['2d6+7>=11 抵抗']);
+      expect(message.answersTargetNumber).toBe('1');
+    });
+
     it('fills it in for a line said under a name of its own, from a roll by somebody else', () => {
       chatTab.addMessage({ from: 'gm', sendFrom: 'enemy', name: 'ゴブリン', text: '2d6+8', timestamp: 1100 });
       chatTab.addMessage({

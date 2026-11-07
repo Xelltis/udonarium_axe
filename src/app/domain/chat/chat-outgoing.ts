@@ -25,6 +25,8 @@ export interface ChatOutgoing {
    * absent for a line of words.
    */
   stamp?: OutgoingStamp;
+  /** The number the reader picked to fill a `{目標値}` in the line with; absent to fill it with the one found. */
+  targetNumber?: number;
 }
 
 export interface ChatOutgoingDraft {
@@ -39,6 +41,7 @@ export interface ChatOutgoingDraft {
   quoteOf: string;
   toTicker: boolean;
   stamp?: OutgoingStamp;
+  targetNumber?: number;
 }
 
 /**
@@ -62,6 +65,7 @@ export function composeChatOutgoing(draft: ChatOutgoingDraft): ChatOutgoing {
     quoteOf: draft.quoteOf,
     toTicker: draft.toTicker,
     ...(draft.stamp ? { stamp: draft.stamp } : {}),
+    ...(draft.targetNumber != null ? { targetNumber: draft.targetNumber } : {}),
   };
 }
 

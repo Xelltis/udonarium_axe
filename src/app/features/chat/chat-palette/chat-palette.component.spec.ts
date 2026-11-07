@@ -181,6 +181,29 @@ describe('ChatPaletteComponent', () => {
     });
   });
 
+  it('sends a line with the number to beat the reader picked for it, through the macros', () => {
+    const speaker = createChar('術者');
+    const tab = ChatTabList.instance.addChatTab('テストタブ');
+    component.character.set(speaker);
+    component.chatTabidentifier.set(tab.identifier);
+    const macro = vi.spyOn(TestBed.inject(CharacterMacroService), 'send').mockReturnValue(null);
+
+    component.sendChat({
+      text: '2d6+3>={目標値} 抵抗',
+      gameSystem: null,
+      sendFrom: speaker.identifier,
+      sendTo: '',
+      portraitIndex: 0,
+      messColor: '#112233',
+      replyTo: '',
+      quoteOf: '',
+      toTicker: false,
+      targetNumber: 15,
+    });
+
+    expect(macro).toHaveBeenCalledWith(speaker, '2d6+3>={目標値} 抵抗', expect.objectContaining({ targetNumber: 15 }));
+  });
+
   describe('sending a line to the ticker', () => {
     it('shows the line on the ticker where the switch is on, as the chat window does', () => {
       const speaker = createChar('術者');

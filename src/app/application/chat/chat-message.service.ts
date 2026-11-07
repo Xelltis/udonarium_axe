@@ -305,7 +305,8 @@ export class ChatMessageService {
    * of the line, a portrait command picks the line's portrait but leaves the piece's alone, and the
    * portrait stands in none of the tab's slots. A `{目標値}` nothing else answered is filled in with
    * the number the speaker has to beat, found among the tab's rolls (see {@link findTargetNumber}),
-   * in the line and in every copy of it aimed at a target alike.
+   * or with the one the reader picked where `targetNumber` is given, in the line and in every copy of
+   * it aimed at a target alike.
    */
   sendMessage(
     chatTab: ChatTab,
@@ -321,13 +322,17 @@ export class ChatMessageService {
     quoteOf?: string,
     bubbles?: { light: string; dark: string },
     vnEmote?: string,
-    stamp?: OutgoingStamp
+    stamp?: OutgoingStamp,
+    targetNumber?: number
   ): ChatMessage {
     const speaker = this.objectStore.get(sendFrom);
-    const toBeat = targetNumberOnce(chatTab, {
-      identifier: sendFrom,
-      name: speaker instanceof GameCharacter ? speaker.name : '',
-    });
+    const toBeat =
+      targetNumber != null
+        ? () => targetNumber
+        : targetNumberOnce(chatTab, {
+            identifier: sendFrom,
+            name: speaker instanceof GameCharacter ? speaker.name : '',
+          });
     const answers =
       holdsTargetNumber(text) || (messageTargetContext ?? []).some((context) => holdsTargetNumber(context.text));
     text = fillTargetNumber(text, toBeat);

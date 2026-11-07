@@ -5,7 +5,10 @@ import {
   findTargetNumber,
   findTargetNumberSource,
   holdsTargetNumber,
+  rolledOf,
+  rollerOf,
   rollTotalOf,
+  targetNumberChoices,
 } from '@axe/domain/chat/target-number';
 
 describe('target-number', () => {
@@ -176,6 +179,41 @@ describe('target-number', () => {
       roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [PC1]', { tag: 'system secret' });
 
       expect(findTargetNumber(tab, speaker)).toBeNull();
+    });
+
+    describe('targetNumberChoices()', () => {
+      it('lists the newest answers that come to a number, newest first and no more than asked for', () => {
+        roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [PC1]');
+        roll(enemy, 'DiceBot : (choice[a,b]) → b');
+        roll(enemy, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15');
+        roll(speaker, 'DiceBot : (2D6+3>=15) → 9[4,5]+3 → 12 → 失敗', { answers: true });
+
+        expect(targetNumberChoices(tab, 2).map((choice) => choice.total)).toEqual([12, 15]);
+        expect(targetNumberChoices(tab, 5).map((choice) => choice.total)).toEqual([12, 15, 14]);
+      });
+
+      it('passes over a secret roll and the lines said', () => {
+        roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14', { tag: 'system secret' });
+
+        expect(targetNumberChoices(tab, 5)).toEqual([]);
+      });
+    });
+
+    describe('rollerOf() and rolledOf()', () => {
+      it('reads who rolled an answer and what was rolled from how the dice bot wrote it', () => {
+        roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [PC1]');
+
+        expect(rollerOf(lastAnswer())).toBe('ゴブリン');
+        expect(rolledOf(lastAnswer())).toBe('2D6+5');
+      });
+
+      it('answers the name as it is, and no roll, where the answer says neither', () => {
+        at += 10;
+        tab.addMessage({ from: 'System-BCDice', name: 'ダイス表', text: 'SW2.5 : KeyNo.20c[10]\n→ 10', timestamp: at });
+
+        expect(rollerOf(lastAnswer())).toBe('ダイス表');
+        expect(rolledOf(lastAnswer())).toBe('');
+      });
     });
   });
 });
