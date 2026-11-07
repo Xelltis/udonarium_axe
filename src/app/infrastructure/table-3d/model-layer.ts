@@ -1,11 +1,7 @@
-import { gltfFactsOf, MAX_MODEL_TRIANGLES } from '@axe/core/storage/gltf-facts';
-import { isHeldModelUrl } from '@axe/core/storage/model-file';
 import type { TableWorldModel } from '@axe/domain/tabletop/world/table-models';
 import type { WallJoinCell } from '@axe/domain/tabletop/world/wall-joins';
-import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import type { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import { type GLTF, GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import type { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
+import { HeldModelReader } from '@axe/infrastructure/three-kit/held-model-reader';
+import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import {
   AnimationAction,
@@ -14,7 +10,6 @@ import {
   Box3,
   Group,
   InstancedMesh,
-  LoadingManager,
   type Material,
   Matrix4,
   Mesh,
@@ -119,14 +114,6 @@ interface StoodModel {
 /** How many radians a degree is. */
 const RADIANS = Math.PI / 180;
 
-/** Where the decoders for compressed meshes and textures are served from, alongside the app. */
-const DECODERS = 'assets/decoders/';
-const DRACO_DECODER = {
-  js: `${DECODERS}draco/draco_wasm_wrapper.js`,
-  wasm: `${DECODERS}draco/draco_decoder.wasm`,
-};
-const BASIS_TRANSCODER = `${DECODERS}basis/`;
-
 /**
  * The pieces and blocks drawn as 3D models: each a binary glTF file read from bytes held here, its
  * materials made over to be lit and veiled as the rest of the scene is, stood with its foot at the
@@ -139,10 +126,7 @@ const BASIS_TRANSCODER = `${DECODERS}basis/`;
  */
 export class ModelLayer {
   readonly group = new Group();
-  private readonly manager = new LoadingManager();
-  private readonly loader: GLTFLoader;
-  private draco: Promise<DRACOLoader> | null = null;
-  private ktx2: Promise<KTX2Loader> | null = null;
+  private readonly reader: HeldModelReader;
   private readonly loaded = new Map<string, LoadedModel | null>();
   private readonly loading = new Set<string>();
   private stood = new Map<string, StoodModel>();
@@ -156,9 +140,7 @@ export class ModelLayer {
     private readonly arrived: () => void,
     private readonly renderer: () => WebGPURenderer
   ) {
-    this.manager.setURLModifier((url) => (isHeldModelUrl(url) || url.startsWith(DECODERS) ? url : 'data:,'));
-    this.loader = new GLTFLoader(this.manager);
-    this.loader.setMeshoptDecoder(MeshoptDecoder);
+    this.reader = new HeldModelReader(() => this.renderer());
   }
 
   /** How many models are read and stood. */
@@ -217,8 +199,7 @@ export class ModelLayer {
     this.herds.clear();
     for (const loaded of this.loaded.values()) loaded?.gltf.scene.traverse(disposeMesh);
     this.loaded.clear();
-    void this.draco?.then((loader) => loader.dispose());
-    void this.ktx2?.then((loader) => loader.dispose());
+    this.reader.dispose();
   }
 
   /**
@@ -356,13 +337,8 @@ export class ModelLayer {
 
   /** A model read from bytes held here, or null for one that is not to be drawn. */
   private async parse(url: string): Promise<LoadedModel | null> {
-    if (!isHeldModelUrl(url)) return null;
-    const bytes = await (await fetch(url)).arrayBuffer();
-    const facts = gltfFactsOf(bytes);
-    if (!facts || facts.triangles > MAX_MODEL_TRIANGLES) return null;
-    if (facts.extensions.includes('KHR_draco_mesh_compression')) this.loader.setDRACOLoader(await this.dracoLoader());
-    if (facts.extensions.includes('KHR_texture_basisu')) this.loader.setKTX2Loader(await this.ktx2Loader());
-    const gltf = await this.loader.parseAsync(bytes, '');
+    const gltf = await this.reader.read(url);
+    if (!gltf) return null;
     gltf.scene.traverse((object) => this.makeOver(object));
     gltf.scene.updateMatrixWorld(true);
     const box = new Box3().setFromObject(gltf.scene);
@@ -397,20 +373,6 @@ export class ModelLayer {
     });
     const stretch = fit === 'stretch';
     return { gltf, size, foot, animated: gltf.animations.length > 0, parts, stretch, facade, tile, madeHeight, joined };
-  }
-
-  private dracoLoader(): Promise<DRACOLoader> {
-    this.draco ??= import('three/addons/loaders/DRACOLoader.js').then(({ DRACOLoader }) =>
-      new DRACOLoader(this.manager).setDecoderPath(DRACO_DECODER)
-    );
-    return this.draco;
-  }
-
-  private ktx2Loader(): Promise<KTX2Loader> {
-    this.ktx2 ??= import('three/addons/loaders/KTX2Loader.js').then(({ KTX2Loader }) =>
-      new KTX2Loader(this.manager).setTranscoderPath(BASIS_TRANSCODER).detectSupport(this.renderer())
-    );
-    return this.ktx2;
   }
 
   private settle(url: string): void {
