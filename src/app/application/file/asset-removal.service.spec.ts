@@ -10,7 +10,9 @@ import { Network } from '@axe/core/network/network';
 import { AssetHttpStore, AssetRemovalResult } from '@axe/core/storage/asset-http-store';
 import { ASSET_LAST_TRY_DELAY_MS, ASSET_RETRY_DELAY_MS, ASSET_RETRY_LIMIT } from '@axe/core/storage/asset-retries';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { BUNDLED_PIECE_MODELS } from '@axe/core/storage/bundled-models';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { AssetOwner } from '@axe/domain/media/asset-owner';
@@ -21,6 +23,7 @@ import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
+import { ModelTag } from '@axe/domain/media/model-tag';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -80,6 +83,22 @@ describe('AssetRemovalService', () => {
 
     expect(service.removable('image', [pictureId, pictureId, otherId, 'none_icon'])).toEqual([pictureId]);
     expect(service.removable('audio', [trackId, 'https://example.com/a.mp3'])).toEqual([trackId]);
+  });
+
+  it('removes a 3D model a person added, and none bundled with the app, which every seat reads from beside its page', () => {
+    const modelId = 'd'.repeat(64);
+
+    expect(service.removable('model', [modelId, BUNDLED_PIECE_MODELS.knight])).toEqual([modelId]);
+    expect(service.remove('model', [modelId])).toBe(1);
+    expect(AssetRemoval.get(modelId)?.kind).toBe('model');
+  });
+
+  it('counts no tag of a model among what uses it', () => {
+    const modelId = 'd'.repeat(64);
+    ModelTag.tagWith(modelId, '家具');
+
+    expect(service.countUses([modelId])).toBe(0);
+    ObjectStore.instance.remove(ModelTag.get(modelId)!);
   });
 
   it('records each for the room as the GM, and nothing for a player who did not add it', () => {
@@ -328,6 +347,22 @@ describe('AssetRemovalService', () => {
 
       expect(putUp.mock.calls).toEqual([[pictureId]]);
       expect(putUpSound).not.toHaveBeenCalled();
+    });
+
+    it('puts a model up again, not a picture, when the room put it back while the store was taking it out', async () => {
+      const modelId = 'd'.repeat(64);
+      let land!: (result: AssetRemovalResult) => void;
+      remove.mockReturnValue(new Promise((resolve) => (land = resolve)));
+      const putUp = vi.spyOn(ModelStorage.instance, 'putUpAgain').mockImplementation(() => {});
+      const putUpPicture = vi.spyOn(ImageStorage.instance, 'putUpAgain').mockImplementation(() => {});
+      service.remove('model', [modelId]);
+
+      AssetRemoval.restore(modelId);
+      land('removed');
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(putUp.mock.calls).toEqual([[modelId]]);
+      expect(putUpPicture).not.toHaveBeenCalled();
     });
 
     it('takes out of the store again, as the GM, what the room keeps removed, whoever removed it', async () => {

@@ -217,6 +217,7 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
   panel('diceTableSetting', 'casino', 'diceTableSetting', 'feature.dice.tableSetting.title'),
   panel('myDice', 'format_paint', 'myDice', 'feature.dice.myDice.title', { audience: 'playing' }),
   panel('images', 'photo_library', 'fileStorage', 'app.fab.images'),
+  panel('models', 'view_in_ar', 'modelLibrary', 'app.fab.models'),
   panel('jukebox', 'queue_music', 'jukebox', 'app.fab.jukebox'),
   panel('cutIn', 'slideshow', 'cutInList', 'app.fab.cutIn'),
   panel('effectLibrary', 'auto_awesome', 'effectLibrary', 'feature.effect.title', { audience: 'playing' }),

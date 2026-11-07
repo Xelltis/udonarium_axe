@@ -46,6 +46,7 @@ const FAB: MenuLayout = {
     ]),
     group('media', 'movie', 'app.fab.media', [
       'images',
+      'models',
       'jukebox',
       'cutIn',
       'effectLibrary',

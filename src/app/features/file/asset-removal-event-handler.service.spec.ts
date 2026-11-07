@@ -6,7 +6,9 @@ import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageFile } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { AssetOwner } from '@axe/domain/media/asset-owner';
 import { AssetRemoval } from '@axe/domain/media/asset-removal';
 import { AssetRemovalEventHandlerService } from '@axe/features/file/asset-removal-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -14,6 +16,7 @@ import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 describe('AssetRemovalEventHandlerService', () => {
   const pictureId = 'a'.repeat(64);
   const trackId = 'b'.repeat(64);
+  const modelId = 'e'.repeat(64);
   const picture = () =>
     ImageFile.create({
       identifier: pictureId,
@@ -34,11 +37,13 @@ describe('AssetRemovalEventHandlerService', () => {
 
   afterEach(() => {
     TestBed.resetTestingModule();
-    for (const identifier of [pictureId, trackId]) {
+    for (const identifier of [pictureId, trackId, modelId]) {
       ImageStorage.instance.unmarkRemoved(identifier);
       AudioStorage.instance.unmarkRemoved(identifier);
+      ModelStorage.instance.unmarkRemoved(identifier);
       ImageStorage.instance.delete(identifier);
       AudioStorage.instance.delete(identifier);
+      ModelStorage.instance.delete(identifier);
     }
   });
 
@@ -53,6 +58,32 @@ describe('AssetRemovalEventHandlerService', () => {
     expect(ImageStorage.instance.isRemoved(pictureId)).toBe(true);
     expect(AudioStorage.instance.isRemoved(trackId)).toBe(true);
     expect(ImageStorage.instance.isRemoved(trackId)).toBe(false);
+  });
+
+  it('lets go of a 3D model the room removed, as a model and nothing else', () => {
+    ModelStorage.instance.add({
+      identifier: modelId,
+      name: 'a.glb',
+      type: 'model/gltf-binary',
+      blob: new Blob([new Uint8Array([1])]),
+      url: '',
+    });
+    AssetRemoval.remove(modelId, 'model');
+
+    start();
+
+    expect(ModelStorage.instance.get(modelId)).toBeNull();
+    expect(ModelStorage.instance.isRemoved(modelId)).toBe(true);
+    expect(ImageStorage.instance.isRemoved(modelId)).toBe(false);
+  });
+
+  it('tells the room who added a 3D model made on this seat', () => {
+    start();
+
+    ModelStorage.instance.onAddedLocally(modelId);
+
+    expect(AssetOwner.get(modelId)?.kind).toBe('model');
+    ObjectStore.instance.remove(AssetOwner.get(modelId)!);
   });
 
   it('follows a removal as it comes and is put back', async () => {

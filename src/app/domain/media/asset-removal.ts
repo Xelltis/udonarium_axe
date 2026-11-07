@@ -2,15 +2,15 @@ import { SyncObject, SyncVar } from '@axe/core/sync/decorator';
 import { ObjectNode } from '@axe/core/sync/object-node';
 import { ObjectStore } from '@axe/core/sync/object-store';
 
-/** What a removed asset is: a picture or a sound. */
-export type AssetRemovalKind = 'image' | 'audio';
+/** What a removed asset is: a picture, a sound or a 3D model. */
+export type AssetRemovalKind = 'image' | 'audio' | 'model';
 
 /** What `removed` holds while the room keeps the asset removed. Anything else, a missing value too, means it is not. */
 const REMOVED = '1';
 
 /**
- * The room's word that its GM removed a picture or a sound: every seat lets go of it and takes it
- * from nobody, and a seat that comes in later learns it as it learns the rest of the room.
+ * The room's word that its GM removed a picture, a sound or a 3D model: every seat lets go of it and
+ * takes it from nobody, and a seat that comes in later learns it as it learns the rest of the room.
  *
  * It is never destroyed. A record put back keeps its place with `removed` emptied, since an
  * identifier once destroyed cannot be made again. It is a kind of its own rather than a mark on the

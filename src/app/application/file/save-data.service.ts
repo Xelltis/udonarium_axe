@@ -47,6 +47,7 @@ import { carriedImagesOf } from '@axe/domain/media/carried-images';
 import { ImageLinkList } from '@axe/domain/media/image-link-list';
 import { ImageTagList } from '@axe/domain/media/image-tag-list';
 import { ImageTagLockList } from '@axe/domain/media/image-tag-lock-list';
+import { ModelTagList } from '@axe/domain/media/model-tag-list';
 import { PlaylistList } from '@axe/domain/media/playlist-list';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -167,7 +168,7 @@ export class SaveDataService {
   }
 
   /**
-   * Who added the given pictures and sounds as `assetowner.xml`, and the tags kept to someone as
+   * Who added the given pictures, sounds and models as `assetowner.xml`, and the tags kept to someone as
    * `imagelock.xml`, so that both hold once the room is read back in. Only a whole room carries them:
    * a piece saved on its own, or a replay's pictures, may be carried into another room, which has
    * adders and locks of its own and would have them written over.
@@ -222,8 +223,9 @@ export class SaveDataService {
 
   /**
    * The files of a room save: the room's XML, the pictures and the 3D models it names, the pictures'
-   * tags and links, the list of sounds and the jukebox's playlists. With `everything`, every picture,
-   * sound and model this browser holds the bytes of goes in as well, named by the room or not.
+   * tags and links, the models' tags, the list of sounds and the jukebox's playlists. With
+   * `everything`, every picture, sound and model this browser holds the bytes of goes in as well,
+   * named by the room or not.
    */
   private buildRoomFiles(pretty = true, everything = false): File[] {
     const { roomXml, chatXml, files } = this.buildRoomXmlParts(pretty);
@@ -249,11 +251,13 @@ export class SaveDataService {
       (model) => !isBundledModel(model.identifier)
     );
     files.push(...modelArchiveFiles(models, files));
+    const modelTagXml = this.convertToXml(ModelTagList.create(models), pretty);
+    files.push(new File([modelTagXml], 'modeltag.xml', { type: 'text/plain' }));
     const audioTagXml = this.convertToXml(AudioTagList.create(audios), pretty);
     files.push(new File([audioTagXml], 'audiotag.xml', { type: 'text/plain' }));
     const playlistXml = this.convertToXml(new PlaylistList(), pretty);
     files.push(new File([playlistXml], 'playlist.xml', { type: 'text/plain' }));
-    files.push(...this.roomRightsFiles([...images, ...audios], pretty));
+    files.push(...this.roomRightsFiles([...images, ...audios, ...models], pretty));
 
     return files;
   }

@@ -9,7 +9,7 @@ import { AssetRemovalKind } from '@axe/domain/media/asset-removal';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 
 /**
- * Who added the room's pictures and sounds, and whether this seat is the one.
+ * Who added the room's pictures, sounds and models, and whether this seat is the one.
  *
  * A seat is known by the key it holds things by. On a room server that is the account it is logged
  * in with, which the server checks every record against. Between peers it is a key this browser

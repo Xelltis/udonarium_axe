@@ -9,13 +9,7 @@ import { ImageDroppedEvent } from '@axe/core/event/domain-events';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
 import { characterNameFromFileName } from '@axe/features/tabletop/image-drop/dropped-image-name';
-
-const TABLE_LAYER_SELECTOR = '#app-table-layer';
-
-/** Whether a drop landed on the table layer, the only place a dropped image becomes a character. */
-export function isTabletopDropTarget(element: Element | null): boolean {
-  return element?.closest(TABLE_LAYER_SELECTOR) != null;
-}
+import { isTabletopDropTarget } from '@axe/ui/tabletop/table-drop-target';
 
 @Injectable({ providedIn: 'root' })
 export class ImageDropEventHandlerService {

@@ -25,6 +25,7 @@ import { AssetOwner } from '@axe/domain/media/asset-owner';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
+import { ModelTag } from '@axe/domain/media/model-tag';
 import { Playlist } from '@axe/domain/media/playlist';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -159,6 +160,22 @@ describe('SaveDataService', () => {
         'rock.glb',
       ]);
       expect(saved).not.toContain('tree.glb');
+    });
+
+    it('writes the tags of the models it carries and who added them, for the room to read back', async () => {
+      const privateApi = TestBed.inject(SaveDataService) as unknown as {
+        buildRoomFiles: (pretty: boolean, everything?: boolean) => File[];
+      };
+      ModelTag.tagWith(tree.identifier, '自然');
+      AssetOwner.claim(tree.identifier, 'model', 'owner_tree');
+
+      const files = privateApi.buildRoomFiles(false, true);
+      const text = async (name: string) => (await files.find((file) => file.name === name)?.text()) ?? '';
+
+      expect(await text('modeltag.xml')).toContain('自然');
+      expect(await text('assetowner.xml')).toContain('owner_tree');
+      ObjectStore.instance.remove(ModelTag.get(tree.identifier)!);
+      ObjectStore.instance.remove(AssetOwner.get(tree.identifier)!);
     });
 
     it('leaves out a model bundled with the app, which the app that opens the save has beside its page', () => {

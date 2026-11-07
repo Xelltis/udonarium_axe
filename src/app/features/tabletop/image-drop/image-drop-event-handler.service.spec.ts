@@ -6,11 +6,9 @@ import { TabletopActionService } from '@axe/application/tabletop/tabletop-action
 import { type ImageDroppedEvent } from '@axe/core/event/domain-events';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import {
-  ImageDropEventHandlerService,
-  isTabletopDropTarget,
-} from '@axe/features/tabletop/image-drop/image-drop-event-handler.service';
+import { ImageDropEventHandlerService } from '@axe/features/tabletop/image-drop/image-drop-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { isTabletopDropTarget } from '@axe/ui/tabletop/table-drop-target';
 
 describe('isTabletopDropTarget', () => {
   afterEach(() => {

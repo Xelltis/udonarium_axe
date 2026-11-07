@@ -1040,6 +1040,26 @@
         "beatLightMineHint": "이 브라우저에만 적용됩니다. '움직임 줄이기'를 켜 두었을 때도 빛나지 않습니다",
         "pauseFade": "일시정지 페이드",
         "pauseFadeHint": "일시정지와 정지에서 소리를 줄여 가는 길이. 다시 재생할 때도 같은 길이로 키워 갑니다"
+      },
+      "modelLibrary": {
+        "title": "3D 모델",
+        "tags": "태그",
+        "everyTag": "전체",
+        "stageHint": "고른 3D 모델. 드래그하면 돌릴 수 있습니다",
+        "loading": "불러오는 중…",
+        "cannotShow": "이 모델은 표시할 수 없습니다",
+        "putOn": "고른 {{count}}개에 붙이기",
+        "putOnHint": "테이블에서 고른 말과 지형을 이 모델로 그립니다",
+        "putOnNone": "테이블에서 말이나 지형을 고르면 붙일 수 있습니다",
+        "attached": "{{count}}개를 「{{name}}」(으)로 그립니다",
+        "dropHere": "여기에 .glb 파일을 드롭(클릭해서 고르기)",
+        "maxSize": "파일당 10MB까지",
+        "newTag": "태그 이름",
+        "tagChecked": "체크한 것에 태그 붙이기",
+        "remove": "방에서 삭제",
+        "none": "방에 3D 모델이 없습니다",
+        "dragHint": "모델을 테이블의 말이나 지형으로 드래그하면 그 모델로 그립니다. 아무것도 없는 곳에 놓으면 그 모델의 말을 만듭니다.",
+        "made": "「{{name}}」의 말을 만들었습니다"
       }
     },
     "card": {
@@ -2074,6 +2094,10 @@
         "ok": "삭제",
         "imageRefused": "방에서 삭제된 이미지입니다. 다시 추가할 수 있는 것은 GM뿐입니다",
         "audioRefused": "방에서 삭제된 음성입니다. 다시 추가할 수 있는 것은 GM뿐입니다",
+        "modelTitle": "3D 모델 삭제",
+        "modelConfirm": "3D 모델 {{count}}개를 방에서 삭제합니다. 다른 참가자에게서도 사라지며, 이 모델로 그리던 말은 그림으로, 지형은 상자로 그려집니다.",
+        "modelRemoved": "3D 모델 {{count}}개를 삭제했습니다",
+        "modelRefused": "방에서 삭제된 3D 모델입니다. 다시 추가할 수 있는 것은 GM뿐입니다",
         "notRemovable": "동봉된 파일, URL로 가리키는 파일, 시스템 예약 이미지는 삭제할 수 없습니다",
         "notYours": "다른 사람이 올린 것은 삭제할 수 없습니다. 삭제할 수 있는 것은 올린 사람과 GM뿐입니다",
         "othersKept": "다른 사람이 올린 {{count}}개는 삭제하지 않고 남깁니다."
@@ -6476,6 +6500,7 @@
       "tableSetting": "테이블 설정",
       "roomSettings": "방 설정",
       "images": "이미지",
+      "models": "3D 모델",
       "jukebox": "주크박스",
       "cutIn": "컷인",
       "inventory": "인벤토리",

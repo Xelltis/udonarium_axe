@@ -184,6 +184,12 @@ export class RoomPanelService {
             import('@axe/features/file/file-storage/file-storage.component').then((m) => m.FileStorageComponent),
           option: { width: 450, height: 600 },
         };
+      case 'modelLibrary':
+        return {
+          load: () =>
+            import('@axe/features/media/model-library/model-library.component').then((m) => m.ModelLibraryComponent),
+          option: { width: 450, height: 640 },
+        };
       case 'jukebox':
         return {
           load: () => import('@axe/features/media/jukebox/jukebox.component').then((m) => m.JukeboxComponent),

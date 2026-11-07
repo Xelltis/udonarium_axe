@@ -1040,6 +1040,26 @@
         "beatLightMineHint": "Kept in this browser alone. The light also stays off while reduced motion is on",
         "pauseFade": "Pause fade",
         "pauseFadeHint": "How long the music fades out when paused or stopped, and fades back in when it goes on"
+      },
+      "modelLibrary": {
+        "title": "3D models",
+        "tags": "Tags",
+        "everyTag": "All",
+        "stageHint": "The 3D model chosen. Drag to turn it",
+        "loading": "Loading…",
+        "cannotShow": "This model cannot be shown",
+        "putOn": "Put on the {{count}} chosen",
+        "putOnHint": "Draws the pieces and blocks chosen on the table as this model",
+        "putOnNone": "Choose a piece or a block on the table to put it on",
+        "attached": "Drawing {{count}} as “{{name}}”",
+        "dropHere": "Drop .glb files here (or click to choose)",
+        "maxSize": "Up to 10 MB a file",
+        "newTag": "Tag name",
+        "tagChecked": "Tag the ticked ones",
+        "remove": "Delete from the room",
+        "none": "The room has no 3D models",
+        "dragHint": "Drag a model onto a piece or a block on the table to draw it as the model. Drop it where there is nothing to make a piece of it.",
+        "made": "Made a piece of “{{name}}”"
       }
     },
     "card": {
@@ -2074,6 +2094,10 @@
         "ok": "Delete",
         "imageRefused": "This image was deleted from the room. Only the GM can add it again.",
         "audioRefused": "This sound was deleted from the room. Only the GM can add it again.",
+        "modelTitle": "Delete 3D models",
+        "modelConfirm": "Delete {{count}} 3D model(s) from the room. They disappear for the other players too, and the pieces drawn as them are drawn as their pictures, the blocks as boxes.",
+        "modelRemoved": "Deleted {{count}} 3D model(s)",
+        "modelRefused": "This 3D model was deleted from the room. Only the GM can add it again.",
         "notRemovable": "Bundled files, files linked by URL and system-reserved images cannot be deleted.",
         "notYours": "You cannot delete what someone else added. Only the person who added it, or the GM, can.",
         "othersKept": "{{count}} added by someone else will be kept."
@@ -6151,6 +6175,7 @@
       "tableSetting": "Table",
       "roomSettings": "Room settings",
       "images": "Images",
+      "models": "3D models",
       "jukebox": "Jukebox",
       "cutIn": "Cut-in",
       "inventory": "Inventory",
