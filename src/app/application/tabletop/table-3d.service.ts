@@ -855,7 +855,7 @@ export class Table3dService {
   }
 
   private settleIfIdle(): void {
-    if (!this.isSettled()) return;
+    if (this.idleWaiters.length === 0 || !this.isSettled()) return;
     for (const resolve of this.idleWaiters.splice(0)) resolve();
   }
 
