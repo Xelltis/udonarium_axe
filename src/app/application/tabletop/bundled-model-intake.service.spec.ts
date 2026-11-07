@@ -54,4 +54,17 @@ describe('BundledModelIntakeService', () => {
     expect(await service.identifierOf('tree_oak')).toBe('held-oak');
     expect(fetched).toHaveBeenCalledTimes(3);
   });
+
+  it('reads a model that could not be read again once for all who were waiting on it', async () => {
+    fetched.mockResolvedValueOnce(new Response(null, { status: 404 }));
+    vi.spyOn(storage, 'addAsync').mockResolvedValue({ identifier: 'held-oak' } as never);
+    vi.spyOn(storage, 'get').mockReturnValue(null);
+
+    const first = service.identifierOf('tree_oak');
+    const waiting = [1, 2, 3].map(() => service.identifierOf('tree_oak'));
+
+    expect(await first).toBe('');
+    expect(await Promise.all(waiting)).toEqual(['held-oak', 'held-oak', 'held-oak']);
+    expect(fetched).toHaveBeenCalledTimes(2);
+  });
 });

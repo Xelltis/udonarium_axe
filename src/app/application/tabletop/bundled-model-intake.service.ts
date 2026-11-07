@@ -21,8 +21,17 @@ export class BundledModelIntakeService {
   identifierOf(name: string): Promise<string> {
     if (!bundledModelUrl(name)) return Promise.resolve(name);
     const asked = this.asked.get(name);
-    if (asked) return asked.then((held) => (held && this.modelStorage.get(held) ? held : this.readAfresh(name)));
-    return this.readAfresh(name);
+    if (!asked) return this.readAfresh(name);
+    return asked.then((held) => (held && this.modelStorage.get(held) ? held : this.askedAgain(name, asked)));
+  }
+
+  /**
+   * Reads a model again once what it was asked for came to nothing, the one read shared among all who
+   * waited on what came to nothing.
+   */
+  private askedAgain(name: string, cameToNothing: Promise<string>): Promise<string> {
+    const asked = this.asked.get(name);
+    return asked && asked !== cameToNothing ? asked : this.readAfresh(name);
   }
 
   /** The identifiers the room holds each of the models named under, by name. */
