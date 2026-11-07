@@ -133,17 +133,25 @@ describe('objectBlocksOf()', () => {
     });
   });
 
-  it('lays one walked over as a floor that hides nothing, and none for a model held nowhere', () => {
+  it('lays one walked over as a floor a piece steps onto, as tall as it is, that hides nothing; and none for a model held nowhere', () => {
     const spec = brush({ model: 'crop_wheat', arrangement: 'cell', size: 1, blocksMove: false, blocksSight: true });
+    const [placed] = objectPlacementsOf(['0,0'], spec, square);
 
     const [block] = objectBlocksOf(['0,0'], spec, square, 'held-wheat');
 
     expect(block.spec).toMatchObject({
-      height: 0,
+      height: placed.height,
       mode: TerrainViewState.FLOOR,
       blocksSight: false,
       blocksClimb: false,
     });
+    expect(placed.height).toBeGreaterThan(0);
     expect(objectBlocksOf(['0,0'], spec, square, '')).toEqual([]);
+  });
+
+  it('lays each locked, as a generated field lays its trees, and marked as laid by the brush', () => {
+    const [block] = objectBlocksOf(['0,0'], brush(), square, 'held-oak');
+
+    expect(block.spec).toMatchObject({ locked: true, paintedObject: true });
   });
 });

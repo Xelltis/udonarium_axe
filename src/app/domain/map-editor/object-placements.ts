@@ -100,10 +100,11 @@ export function objectPlacementsOf(cells: readonly string[], spec: ObjectPaintSp
 }
 
 /**
- * The terrain a brush's object is laid on the table as: a box it stands in, drawn as the model in
- * place of its faces, which have nothing on them. One that stands in the way is as tall as it is,
- * walked round rather than climbed onto, and hides what is behind it where the brush says so; one
- * walked over is a floor with nothing in its way, which hides nothing.
+ * The terrain a brush's object is laid on the table as: a box as tall as it stands, drawn as the
+ * model in place of its faces, which have nothing on them, and locked, as a generated field's trees
+ * are, so that a press meant for a piece among them is not taken for one of them. One that stands in
+ * the way is walked round rather than climbed onto, and hides what is behind it where the brush says
+ * so; one walked over is a floor a piece steps up onto, as a field's crops are, which hides nothing.
  */
 function objectTerrainSpec(
   spec: ObjectPaintSpec,
@@ -115,12 +116,14 @@ function objectTerrainSpec(
   return {
     ...look,
     name: spec.name,
-    height: stands ? placed.height : 0,
+    height: placed.height,
     mode: stands ? TerrainViewState.ALL : TerrainViewState.FLOOR,
     blocksSight: stands && spec.blocksSight,
     blocksLight: stands && spec.blocksSight,
     blocksClimb: stands,
+    locked: true,
     model,
+    paintedObject: true,
   };
 }
 

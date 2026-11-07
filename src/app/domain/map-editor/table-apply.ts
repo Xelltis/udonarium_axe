@@ -129,15 +129,16 @@ export function objectModelsOf(scene: MapScene): string[] {
   );
 }
 
-/** Whether a block read off the table is drawn as a 3D model, as the objects a brush sets out are. */
-function drawnAsModel(block: TerrainBlock): boolean {
-  return block.spec.model.length > 0;
+/** Whether a block read off the table was laid by the brush for 3D objects. */
+function laidAsObject(block: TerrainBlock): boolean {
+  return block.spec.paintedObject;
 }
 
 /**
  * The walls and the 3D objects laid on the table, and what they take the place of: every block on
- * it where the scene paints walls, and only those drawn as models where it paints objects alone, so
- * that setting trees out over a field brought in with walls of its own leaves the walls standing.
+ * it where the scene paints walls, and only those the brush for objects laid where it paints objects
+ * alone, so that setting trees out over a table leaves its walls, and the trees and towers a field or
+ * a fort was generated with, standing.
  */
 function terrainChangeOf(
   scene: MapScene,
@@ -152,7 +153,7 @@ function terrainChangeOf(
     ...(walls ? terrainBlocksOf(scene, table.cellPx, hex) : []),
     ...(objects ? paintedObjectBlocksOf(scene, table.cellPx, modelOf) : []),
   ];
-  return blockChange(wanted, walls ? table.terrainBlocks : table.terrainBlocks.filter(drawnAsModel));
+  return blockChange(wanted, walls ? table.terrainBlocks : table.terrainBlocks.filter(laidAsObject));
 }
 
 function maskBlocksOf(scene: MapScene, hex: boolean): MaskBlock[] {

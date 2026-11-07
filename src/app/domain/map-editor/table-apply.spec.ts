@@ -701,6 +701,16 @@ describe('painting 3D objects', () => {
     expect(plan.terrain.remove).toEqual([stray]);
   });
 
+  it('leaves the trees and towers a table was generated with standing where the scene paints objects alone', () => {
+    const generated = { ...terrainBlock({ col: 7, row: 2, width: 1, height: 1 }) };
+    generated.spec = { ...generated.spec, model: 'held-generated-oak' };
+
+    const plan = planFunctionPaint(sceneWith(objectLayer(['1,1'])), snapshot({ terrainBlocks: [generated] }), held)!;
+
+    expect(plan.terrain.remove).toEqual([]);
+    expect(plan.terrain.add).toHaveLength(1);
+  });
+
   it('answers for every block on the table where it paints walls as well', () => {
     const wall = terrainBlock({ col: 5, row: 5, width: 2, height: 1 });
 

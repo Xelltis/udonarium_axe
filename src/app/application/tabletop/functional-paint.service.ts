@@ -122,6 +122,7 @@ function layTerrainBlock(
   terrain.modelIdentifier = spec.model;
   terrain.modelScale = spec.modelScale;
   terrain.modelTurn = spec.modelTurn;
+  terrain.paintedObject = spec.paintedObject ? '1' : '';
   return terrain;
 }
 
@@ -225,6 +226,7 @@ export function terrainSpecOf(terrain: Terrain, placement: BlockPlacement | null
     model: `${terrain.modelIdentifier ?? ''}`,
     modelScale: `${terrain.modelScale ?? ''}`,
     modelTurn: `${terrain.modelTurn ?? ''}`,
+    paintedObject: terrain.paintedObject === '1',
     placement,
   };
 }

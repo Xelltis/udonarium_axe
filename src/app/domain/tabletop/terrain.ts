@@ -161,6 +161,11 @@ export class Terrain extends TabletopObject {
   @SyncVar() modelIdle: string = '';
   /** The motion its model plays walking, by name; empty for the model's own. */
   @SyncVar() modelWalk: string = '';
+  /**
+   * `'1'` where the map editor's brush for 3D objects laid the block, which a scene painting such
+   * objects alone answers for; empty for every other block, a generated field's trees among them.
+   */
+  @SyncVar() paintedObject: string = '';
 
   /**
    * The terrain's light settings gathered into the shape the vision scene reads, with the direction

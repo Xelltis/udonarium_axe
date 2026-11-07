@@ -153,6 +153,8 @@ export interface TerrainPaintSpec {
   modelScale: string;
   /** How far its model is turned from the way it was made, as the terrain keeps it; empty for not at all. */
   modelTurn: string;
+  /** Whether the brush for 3D objects laid it, which a scene painting such objects alone answers for. */
+  paintedObject: boolean;
   /** Null where the block sits square on its cells, which is where the brush put it. */
   placement: BlockPlacement | null;
 }
@@ -427,6 +429,7 @@ export const DEFAULT_FUNCTION_SPEC: FunctionSpec = {
     model: '',
     modelScale: '',
     modelTurn: '',
+    paintedObject: false,
     placement: null,
   },
   object: {
@@ -629,6 +632,7 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
       model: textIn(terrain, 'model', fallback.terrain.model),
       modelScale: textIn(terrain, 'modelScale', fallback.terrain.modelScale),
       modelTurn: textIn(terrain, 'modelTurn', fallback.terrain.modelTurn),
+      paintedObject: flagIn(terrain, 'paintedObject', fallback.terrain.paintedObject),
       placement: sanitizePlacement(terrain['placement']),
     },
     object: {
