@@ -103,7 +103,8 @@ test.describe('character pieces seen on a phone', () => {
       for (let y = 140; y < innerHeight - 140; y += 30) {
         for (let x = 40; x < innerWidth - 40; x += 30) {
           const front = document.elementFromPoint(x, y);
-          if (front && table.contains(front) && hooks.drawnAt(x, y) === null && hooks.pickAt(x, y) === null) {
+          const bare = !!front && table.contains(front) && !front.closest('game-character, [data-object-id]');
+          if (bare && hooks.drawnAt(x, y) === null && hooks.pickAt(x, y) === null) {
             return { x, y };
           }
         }
