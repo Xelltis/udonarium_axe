@@ -4820,7 +4820,8 @@
         "applyFunctionsDone": "塗った機能をテーブルへ反映しました",
         "applyFunctionsGridMismatch": "テーブルとマス目が合いません。先にテーブルを取り込んでください",
         "zoomFit": "全体を表示",
-        "setAsTableHint": "描いた地図を床画像にし、テーブルの大きさとマス目をこの地図に合わせます。塗った機能も反映します"
+        "setAsTableHint": "描いた地図を床画像にし、テーブルの大きさとマス目をこの地図に合わせます。塗った機能も反映します",
+        "applyFunctionsModelMissing": "3Dオブジェクトのモデルを読み込めなかったので、反映しませんでした。通信を確かめてからもう一度押してください"
       },
       "status": {
         "cell": "列{{col}}・行{{row}}"

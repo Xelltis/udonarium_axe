@@ -4820,7 +4820,8 @@
         "applyFunctionsDone": "Laid the painted functions on the table",
         "applyFunctionsGridMismatch": "The grid does not match the table. Read the table in first",
         "zoomFit": "Fit to view",
-        "setAsTableHint": "Makes the map the table's floor picture and fits the table's size and grid to it. What was painted for its workings is laid on it as well"
+        "setAsTableHint": "Makes the map the table's floor picture and fits the table's size and grid to it. What was painted for its workings is laid on it as well",
+        "applyFunctionsModelMissing": "A 3D object's model could not be read, so nothing was laid. Check the connection and try again"
       },
       "status": {
         "cell": "Col {{col}}, row {{row}}"

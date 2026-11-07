@@ -1411,6 +1411,9 @@ export class MapEditorPanelComponent {
     if (result === 'gridMismatch') {
       this.errorNotice.show(this.t('feature.mapEditor.actions.applyFunctionsGridMismatch'));
     }
+    if (result === 'modelMissing') {
+      this.errorNotice.show(this.t('feature.mapEditor.actions.applyFunctionsModelMissing'));
+    }
     return result === 'done';
   }
 

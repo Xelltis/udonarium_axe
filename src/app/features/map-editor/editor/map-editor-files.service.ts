@@ -16,7 +16,7 @@ import { isZipArchive } from '@axe/infrastructure/map-editor/scene-archive';
 import { packSceneWithImages, unpackSceneWithImages } from '@axe/infrastructure/map-editor/scene-archive-images';
 
 /** What laying what was painted on the table came to: done, no table to lay it on, or a table of another grid. */
-export type FunctionApplyResult = 'done' | 'noTable' | 'gridMismatch';
+export type FunctionApplyResult = 'done' | 'noTable' | 'gridMismatch' | 'modelMissing';
 
 /**
  * What a map editor reads from files and writes out: the scene as an archive, the scene baked into
@@ -84,14 +84,19 @@ export class MapEditorFilesService {
 
   /**
    * Lays what was painted on the table, and leaves the floor as it is, once the bundled models its
-   * 3D objects are drawn as are held in the room.
+   * 3D objects are drawn as are held in the room: read only once the table is there and on the
+   * scene's grid, and all of them, or nothing is laid at all.
    *
    * Baking the picture again to add a closed cell would cost the floor its quality and its
    * identity both, and neither has anything to do with what was painted.
    */
   async applyFunctions(): Promise<FunctionApplyResult> {
     const scene = this.state.current;
+    const before = this.functionalPaint.snapshot();
+    if (!before) return 'noTable';
+    if (!planFunctionPaint(scene, before)) return 'gridMismatch';
     const models = await this.bundledModels.identifiersOf(objectModelsOf(scene));
+    if ([...models.values()].some((held) => held.length < 1)) return 'modelMissing';
     const snapshot = this.functionalPaint.snapshot();
     if (!snapshot) return 'noTable';
     const plan = planFunctionPaint(scene, snapshot, (model) => models.get(model) ?? model);
