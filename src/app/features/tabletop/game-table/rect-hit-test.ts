@@ -2,9 +2,6 @@ import type { MarqueeRect } from '@axe/application/ui/selection-signal.service';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
-/** A rectangle over the table between two corners, as a marquee draws it. */
-export type TableRect = MarqueeRect;
-
 export interface RectHitTestOptions {
   gridSize?: number;
   excludeAliases?: string[];
@@ -23,7 +20,7 @@ const DEFAULT_EXCLUDES = ['range'];
  * The same rectangle with its corners ordered, so x1/y1 is the top-left whichever way it was
  * dragged.
  */
-export function normalizeRect(rect: TableRect): TableRect {
+export function normalizeRect(rect: MarqueeRect): MarqueeRect {
   const x1 = Math.min(rect.x1, rect.x2);
   const x2 = Math.max(rect.x1, rect.x2);
   const y1 = Math.min(rect.y1, rect.y2);
@@ -58,7 +55,7 @@ function getObjectExtent(obj: TabletopObject, gridSize: number): { width: number
  */
 export function selectByRect(
   objects: readonly TabletopObject[],
-  rect: TableRect,
+  rect: MarqueeRect,
   options: RectHitTestOptions = {}
 ): string[] {
   const gridSize = options.gridSize ?? DEFAULT_GRID_SIZE;
