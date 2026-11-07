@@ -27,10 +27,11 @@
   >
     <div
       class="pointer-events-none size-full"
+      #turnRotable
       appRotable
       [rotable.option]="rotableOption()"
       [rotable.disable]="!canTurn()"
-      (rotable.ondragstart)="onTurnStart('turn')"
+      (rotable.ondragstart)="onTurnStart()"
       (rotable.ondragend)="onTurnEnd()"
     >
       <div
@@ -431,11 +432,12 @@
                piece leans, and a double click stands it upright again. -->
           <div
             class="contents"
+            #rollRotable
             appRotable
             [rotable.option]="rollOption"
             [rotable.value]="rollSignal()"
             (rotable.valueChange)="roll = $event"
-            (rotable.ondragstart)="onTurnStart('roll')"
+            (rotable.ondragstart)="onTurnStart()"
             (rotable.ondragend)="onTurnEnd()"
           >
             @for (handle of rollHandles(); track handle.testId) {

@@ -266,23 +266,6 @@ describe('RotableDirective', () => {
       expect(directive.rotate).toBeCloseTo(31);
     });
 
-    it('says a turn under way ended when it is broken off, and once only when it is let go', () => {
-      const ended = vi.fn();
-      directive.ondragend.subscribe(ended);
-      const input = (directive as unknown as { input: { isDragging: boolean } }).input;
-
-      directive.cancel();
-      expect(ended).not.toHaveBeenCalled();
-
-      input.isDragging = true;
-      directive.onContextMenu(new MouseEvent('contextmenu', { cancelable: true }));
-      expect(ended).toHaveBeenCalledOnce();
-
-      input.isDragging = true;
-      directive.onInputEnd(new MouseEvent('mouseup'));
-      expect(ended).toHaveBeenCalledTimes(2);
-    });
-
     it('says nothing more once the turn is let go', () => {
       moveTo(31, true);
 

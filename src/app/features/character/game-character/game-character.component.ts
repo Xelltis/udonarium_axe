@@ -24,6 +24,7 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
@@ -263,6 +264,7 @@ export class GameCharacterComponent {
   private readonly pieces = inject(TablePiecesService);
   private readonly tableCamera = inject(TableCameraService);
   private readonly pick = inject(TablePickService);
+  private readonly heldPiece = inject(HeldPieceService);
   private readonly surfaces = inject(TableSurfaceService);
   private readonly pedestal = viewChild<ElementRef<HTMLElement>>('pedestal');
 
@@ -291,18 +293,26 @@ export class GameCharacterComponent {
     return [{ testId: 'roll-grab-head', corner: 1 as const, dx: clear, dy: this.rollHandleSizePx() / 2 }];
   });
 
-  /** Which handle of the piece is held just now: the ring that turns it, the one that tips it, or none. */
-  protected readonly turning = signal<'turn' | 'roll' | null>(null);
+  private readonly turnRotable = viewChild('turnRotable', { read: RotableDirective });
+  private readonly rollRotable = viewChild('rollRotable', { read: RotableDirective });
 
-  /** Starts a turn or a tip by a handle: brings the piece to the top and says which is held. */
-  protected onTurnStart(kind: 'turn' | 'roll'): void {
-    this.turning.set(kind);
+  /**
+   * Which handle of the piece is held just now: the ring that turns it, the one that tips it, or
+   * none; as the turn under way says, from its first step until it ends, however it ends.
+   */
+  protected readonly turning = computed<'turn' | 'roll' | null>(() => {
+    if (this.rotationGuide.isTurnedBy(this.turnRotable())) return 'turn';
+    if (this.rotationGuide.isTurnedBy(this.rollRotable())) return 'roll';
+    return null;
+  });
+
+  /** Starts a turn or a tip by a handle: brings the piece to the top. */
+  protected onTurnStart(): void {
     this.onMove();
   }
 
   /** Ends a turn or a tip by a handle. */
   protected onTurnEnd(): void {
-    this.turning.set(null);
     this.onMoved();
   }
 
@@ -338,8 +348,14 @@ export class GameCharacterComponent {
     return { grab, ring: ringBoxStyle(middle, radius), knobs, arc: ringPathOf(seen, radius), radius };
   });
 
-  /** Whether the piece is being carried, while which nothing round its pedestal is weighed. */
-  private readonly carried = signal(false);
+  /**
+   * Whether the piece is in hand, from the press on it until it is put down, however that ends: while
+   * it is, nothing round its pedestal is weighed.
+   */
+  private readonly carried = computed(() => {
+    const id = this.gameCharacter()?.identifier;
+    return !!id && this.heldPiece.held()?.identifier === id;
+  });
 
   /**
    * How the piece's picture stands before the eye as it is drawn now, weighed only while the handles
@@ -1448,7 +1464,6 @@ export class GameCharacterComponent {
 
   /** Starts carrying the piece: raises it, shows how far it may move and fires its pick-up triggers. */
   onPickUp() {
-    this.carried.set(true);
     this.onMove();
     const character = this.gameCharacter();
     if (!character) return;
@@ -1461,7 +1476,6 @@ export class GameCharacterComponent {
    * from where it was put down waits for the press to end, when it stands where it snapped to.
    */
   onPutDown() {
-    this.carried.set(false);
     this.onMoved();
     this.moveRangeService.hide();
     this.putDownPending = true;

@@ -110,8 +110,6 @@ export class RotableDirective {
   private updateTimer: ReturnType<typeof setTimeout> | null = null;
   private grabbingElement: HTMLElement | null = null;
   private input: InputHandler | null = null;
-  /** Whether the element is gone, past telling anything. */
-  private destroyed = false;
 
   constructor() {
     effect(() => {
@@ -131,7 +129,6 @@ export class RotableDirective {
       if (this.tabletopObject) this.setRotate(this.tabletopObject);
     });
     this.destroyRef.onDestroy(() => {
-      this.destroyed = true;
       this.settlePendingUpdate();
       this.cancel();
       this.input?.destroy();
@@ -191,18 +188,12 @@ export class RotableDirective {
     if (this.tabletopObject) this.setRotate(this.tabletopObject);
   }
 
-  /**
-   * Ends a turn in progress and forgets what was grabbed. A turn under way that ends so, let go or
-   * broken off by a menu, a change from elsewhere or a lost pointer, says it ended with
-   * `rotable.ondragend`, so that whatever showed it was held lets go too.
-   */
-  cancel(e?: MouseEvent | TouchEvent) {
-    const turning = this.input?.isDragging === true;
+  /** Ends a turn in progress and forgets what was grabbed. */
+  cancel() {
     this.input?.cancel();
     this.grabbingElement = null;
     this.stopListeningForSnap();
     this.rotationGuide.end(this);
-    if (turning && !this.destroyed) this.ondragend.emit(e as PointerEvent);
   }
 
   private get isReadOnly(): boolean {
@@ -314,18 +305,19 @@ export class RotableDirective {
 
   /** Called when a turn is let go: ends it, snaps the angle, and emits `rotable.onend`. */
   onInputEnd(e: MouseEvent | TouchEvent) {
-    if (this.isDisable() || this.isReadOnly) return this.cancel(e);
+    if (this.isDisable() || this.isReadOnly) return this.cancel();
     e.stopPropagation();
-    this.cancel(e);
+    if (this.input?.isDragging) this.ondragend.emit(e as PointerEvent);
+    this.cancel();
     this.snapToPolygonal();
     this.onend.emit(e as PointerEvent);
   }
 
   /** Called when a context menu is opened during a turn: ends it and snaps the angle. */
   onContextMenu(e: MouseEvent | TouchEvent) {
-    if (this.isDisable()) return this.cancel(e);
+    if (this.isDisable()) return this.cancel();
     if (e.cancelable) e.preventDefault();
-    this.cancel(e);
+    this.cancel();
     this.snapToPolygonal();
   }
 

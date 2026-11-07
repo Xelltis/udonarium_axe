@@ -8,6 +8,7 @@ import { PointerDeviceService } from '@axe/application/input/pointer-device.serv
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { GroundService } from '@axe/application/tabletop/ground.service';
+import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { MovePlanService } from '@axe/application/tabletop/move-plan.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
@@ -20,6 +21,7 @@ import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-prefere
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
+import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
@@ -45,6 +47,7 @@ import { GameCharacterComponent } from '@axe/features/character/game-character/g
 import { GameCharacterMenuService } from '@axe/features/character/game-character/game-character-menu.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
+import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 
 describe('GameCharacterComponent', () => {
   let component: GameCharacterComponent;
@@ -1925,12 +1928,25 @@ describe('GameCharacterComponent', () => {
     const testOf = (testId: string) =>
       fixture.nativeElement.querySelector(`[data-testid="${testId}"]`) as HTMLElement | null;
     type Handles = {
-      onTurnStart(kind: 'turn' | 'roll'): void;
-      onTurnEnd(): void;
+      turnRotable(): RotableDirective | undefined;
+      rollRotable(): RotableDirective | undefined;
       turnTicks(): { x: number; y: number }[];
       rollGauge(): { degrees: number; wedge: string };
     };
     const handles = () => component as unknown as Handles;
+
+    /** Has the handle of that kind turn the piece, as its directive reports a turn under way. */
+    function hold(kind: 'turn' | 'roll', angle = 0): void {
+      const directive = kind === 'turn' ? handles().turnRotable() : handles().rollRotable();
+      TestBed.inject(RotationGuideService).report(directive!, { angle, step: 45, snapping: false });
+    }
+
+    /** Ends whatever turn either handle has under way. */
+    function letGo(): void {
+      for (const directive of [handles().turnRotable(), handles().rollRotable()]) {
+        if (directive) TestBed.inject(RotationGuideService).end(directive);
+      }
+    }
 
     afterEach(() => ImageStorage.instance.delete('roll-grab-url'));
 
@@ -1989,12 +2005,12 @@ describe('GameCharacterComponent', () => {
         expect(fixture.nativeElement.querySelectorAll('[data-testid="turn-tick"]')).toHaveLength(0);
         expect(testOf('turn-readout')).toBeNull();
 
-        handles().onTurnStart('turn');
+        hold('turn', 90);
         fixture.detectChanges();
         expect(fixture.nativeElement.querySelectorAll('[data-testid="turn-tick"]').length).toBeGreaterThan(0);
         expect(testOf('turn-readout')?.textContent?.trim()).toBe('90°');
 
-        handles().onTurnEnd();
+        letGo();
         fixture.detectChanges();
         expect(testOf('turn-readout')).toBeNull();
       } finally {
@@ -2002,21 +2018,23 @@ describe('GameCharacterComponent', () => {
       }
     });
 
-    it('keeps the knob it is turned by and the handle it is tipped by drawn while either is held', () => {
+    it('keeps the knob it is turned by and the handle it is tipped by drawn while either is held, and no longer once broken off', () => {
       const character = withPicture('handles-held');
 
       try {
         choose(character);
-        handles().onTurnStart('turn');
+        hold('turn');
         fixture.detectChanges();
         expect(testOf('turn-grab')?.classList.contains('opacity-100!')).toBe(true);
         expect(headOf()?.classList.contains('opacity-100!')).toBe(false);
-        handles().onTurnEnd();
-        handles().onTurnStart('roll');
+        handles().turnRotable()!.cancel();
+        fixture.detectChanges();
+        expect(testOf('turn-grab')?.classList.contains('opacity-100!')).toBe(false);
+        hold('roll');
         fixture.detectChanges();
         expect(testOf('turn-grab')?.classList.contains('opacity-100!')).toBe(false);
         expect(headOf()?.classList.contains('opacity-100!')).toBe(true);
-        handles().onTurnEnd();
+        letGo();
       } finally {
         character.destroy();
       }
@@ -2036,7 +2054,7 @@ describe('GameCharacterComponent', () => {
         TestBed.inject(ObjectChangeService).notifyChanged(character.identifier);
         expect(handles().rollGauge().degrees).toBe(30);
         expect(handles().rollGauge().wedge).toMatch(/ 0 0 1 /);
-        handles().onTurnStart('roll');
+        hold('roll');
         fixture.detectChanges();
         expect(testOf('roll-readout')?.textContent?.trim()).toBe('30°');
 
@@ -2113,10 +2131,10 @@ describe('GameCharacterComponent', () => {
         fixture.detectChanges();
         expect(fixture.nativeElement.querySelectorAll('[data-testid="turn-grab"]')).toHaveLength(1);
 
-        handles().onTurnStart('turn');
+        hold('turn');
         fixture.detectChanges();
         expect(handles().turnTicks()).toHaveLength(5);
-        handles().onTurnEnd();
+        letGo();
       } finally {
         character.destroy();
       }
@@ -2142,10 +2160,10 @@ describe('GameCharacterComponent', () => {
         expect(knobs()).toHaveLength(1);
         expect(knobs()[0]!.hasAttribute('data-facing')).toBe(false);
 
-        handles().onTurnStart('turn');
+        hold('turn');
         fixture.detectChanges();
         expect(knobs()).toHaveLength(2);
-        handles().onTurnEnd();
+        letGo();
       } finally {
         character.destroy();
       }
@@ -2153,6 +2171,7 @@ describe('GameCharacterComponent', () => {
 
     it('marks the ring at the table’s own directions a held Alt turns the piece to, by its grid', async () => {
       const character = withPicture('turn-steps');
+      const table = TestBed.inject(TabletopService).currentTable;
       character.rotate = 10;
       TestBed.inject(ObjectChangeService).notifyChanged(character.identifier);
 
@@ -2163,13 +2182,12 @@ describe('GameCharacterComponent', () => {
         expect(handles().turnTicks()).toHaveLength(8);
         expect(first!.x).toBeCloseTo(radius + radius * Math.sin((-10 * Math.PI) / 180), 6);
 
-        const table = TestBed.inject(TabletopService).currentTable;
         table.gridType = GridType.HEX_VERTICAL;
         await Promise.resolve();
         fixture.detectChanges();
         expect(handles().turnTicks()).toHaveLength(12);
-        table.gridType = GridType.SQUARE;
       } finally {
+        table.gridType = GridType.SQUARE;
         character.destroy();
       }
     });
@@ -2181,22 +2199,27 @@ describe('GameCharacterComponent', () => {
       const sightOf = vi
         .spyOn(TestBed.inject(TablePickService), 'pictureSightOf')
         .mockReturnValue({ hides, cornerOnPage: () => ({ x: -1000, y: -1000 }) });
-      type Carry = {
-        hovered: { set(value: boolean): void };
-        onPickUp(): void;
-        onPutDown(): void;
-        turnRingSeen(): unknown;
-      };
+      type Carry = { hovered: { set(value: boolean): void }; turnRingSeen(): unknown };
       const carry = () => component as unknown as Carry;
+      const heldPiece = TestBed.inject(HeldPieceService);
 
       try {
         choose(character);
         carry().hovered.set(true);
-        carry().onPickUp();
+        heldPiece.take({
+          identifier: character.identifier,
+          x: 0,
+          y: 0,
+          widthPx: 50,
+          heightPx: 50,
+          altitude: 2,
+          gridSize: 50,
+          liftable: true,
+        });
         carry().turnRingSeen();
         expect(sightOf).not.toHaveBeenCalled();
 
-        carry().onPutDown();
+        heldPiece.letGo(character.identifier);
         carry().turnRingSeen();
         expect(sightOf).toHaveBeenCalled();
         expect(hides.mock.calls[0]![3]).toBe(TestBed.inject(TablePiecesService).footOf(character).height);

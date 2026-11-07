@@ -32,4 +32,18 @@ describe('RotationGuideService', () => {
 
     expect(guide.turn()?.angle).toBe(10);
   });
+
+  it('tells whose turn is under way, and nobody’s once it ends or for no owner at all', () => {
+    const turning = {};
+    const other = {};
+    expect(guide.isTurnedBy(turning)).toBe(false);
+
+    guide.report(turning, { angle: 10, step: 45, snapping: false });
+    expect(guide.isTurnedBy(turning)).toBe(true);
+    expect(guide.isTurnedBy(other)).toBe(false);
+    expect(guide.isTurnedBy(undefined)).toBe(false);
+
+    guide.end(turning);
+    expect(guide.isTurnedBy(turning)).toBe(false);
+  });
 });

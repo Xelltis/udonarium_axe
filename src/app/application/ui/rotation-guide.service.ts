@@ -24,6 +24,14 @@ export class RotationGuideService {
   /** The turn under way, or null when nothing is being turned. */
   readonly turn = computed<TurnInProgress | null>(() => this.current()?.turn ?? null);
 
+  /**
+   * Whether the turn under way is the one that owner reported: from its first step until it is let
+   * go, broken off or the owner is gone, however it ends.
+   */
+  isTurnedBy(owner: object | undefined): boolean {
+    return owner !== undefined && this.current()?.owner === owner;
+  }
+
   /** Says where a turn under way stands. */
   report(owner: object, turn: TurnInProgress): void {
     this.current.set({ owner, turn });
