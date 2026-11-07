@@ -309,29 +309,29 @@ export class GameCharacterComponent {
   });
 
   /**
-   * Whether this is the piece a finger last pressed on the table and not in hand, which has its
-   * handles out as one the pointer is over does. Where the main pointer is a finger, any press counts
-   * as one, as nothing there brings handles out by passing over a piece, and a pen's or a mouse's
-   * press may come there too.
+   * Whether this is the piece pressed on the table as a finger presses and not in hand, which has its
+   * handles out as one the pointer is over does: the piece a finger last pressed, or, where the main
+   * pointer cannot hover and so brings nothing out by passing over a piece, the piece last pressed by
+   * anything, a pen's or a trackpad's press there being taken as a finger's.
    * Only that piece follows whether it is in hand, which changes with each step of a drag.
    */
   protected readonly touchChosen = computed(() => {
     const id = this.gameCharacter()?.identifier;
     if (!id) return false;
     const selection = this.selectionSignalService;
-    const chosen = selection.touchedObject() === id || (this.viewport.isTouch() && selection.pressedObject() === id);
+    const chosen = selection.touchedObject() === id || (!this.viewport.canHover() && selection.pressedObject() === id);
     return chosen && !this.carried();
   });
 
   /**
-   * Whether the handles take a press at all. Where the main pointer is a finger, as on a phone or a
-   * tablet with a pen or a trackpad beside it, nothing brings handles out by passing over a piece, so
-   * only those of the piece last pressed do, as no other's are drawn; a tap beside a piece then
-   * reaches the table. Where it is a mouse or a touchpad, every piece's do, brought out by it over
-   * the piece, and a finger's press on them is taken as any other.
+   * Whether the handles take a press at all. Where the main pointer cannot hover, as the styles that
+   * bring the handles out on hover ask, nothing brings them out by passing over a piece, so only those
+   * of the piece last pressed do, as no other's are drawn; a tap beside a piece then reaches the
+   * table. Where it can, every piece's do, brought out by it over the piece, and a finger's press on
+   * them is taken as any other.
    */
   protected readonly handlesPressable = computed(
-    () => !this.viewport.isTouch() || this.touchChosen() || this.turning() !== null
+    () => this.viewport.canHover() || this.touchChosen() || this.turning() !== null
   );
 
   /** The way the piece faces while it is turned, in whole degrees, as the turn under way reads it out. */

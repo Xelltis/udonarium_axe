@@ -2258,18 +2258,12 @@ describe('GameCharacterComponent', () => {
       }
     });
 
-    it('brings out the handles of the piece a finger last pressed on the table, and where the main pointer is a finger lets only them be pressed, until it is in hand', () => {
+    it('brings out the handles of the piece a finger last pressed on the table, and where the main pointer cannot hover lets only them be pressed, until it is in hand', () => {
       const character = withPicture('turn-touch');
       drawPicture(character);
-      const viewport = TestBed.inject(ViewportService) as unknown as {
-        _isTouch: WritableSignal<boolean>;
-        _hasFinePointer: WritableSignal<boolean>;
-      };
-      const touch = viewport._isTouch;
-      const wasTouch = touch();
-      const wasFine = viewport._hasFinePointer();
-      touch.set(false);
-      viewport._hasFinePointer.set(false);
+      const hover = (TestBed.inject(ViewportService) as unknown as { _canHover: WritableSignal<boolean> })._canHover;
+      const couldHover = hover();
+      hover.set(true);
       const pressable = () =>
         ['turn-ring', 'turn-grab', 'roll-grab-head'].map((testId) => {
           const handle = testOf(testId);
@@ -2297,8 +2291,7 @@ describe('GameCharacterComponent', () => {
         selection.clearSelection();
         fixture.detectChanges();
 
-        touch.set(true);
-        viewport._hasFinePointer.set(true);
+        hover.set(false);
         selection.selectObject(character.identifier, 'character');
         fixture.detectChanges();
         expect(shownAtFull()).toBe(false);
@@ -2308,7 +2301,6 @@ describe('GameCharacterComponent', () => {
         fixture.detectChanges();
         expect(shownAtFull()).toBe(true);
         expect(pressable()).toEqual([true, true, true]);
-        viewport._hasFinePointer.set(false);
         selection.clearSelection();
         fixture.detectChanges();
         expect(pressable()).toEqual([false, false, false]);
@@ -2343,8 +2335,7 @@ describe('GameCharacterComponent', () => {
         heldPiece.letGo(character.identifier);
         selection.clearSelection();
         selection.selectedObject.set(null);
-        touch.set(wasTouch);
-        viewport._hasFinePointer.set(wasFine);
+        hover.set(couldHover);
         character.destroy();
       }
     });

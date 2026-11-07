@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import {
   COMPACT_VIEWPORT_QUERY,
   FINE_POINTER_QUERY,
+  HOVER_QUERY,
   TOUCH_POINTER_QUERY,
   ViewportService,
 } from '@axe/application/ui/viewport.service';
@@ -102,6 +103,15 @@ describe('ViewportService', () => {
     listeners.get(TOUCH_POINTER_QUERY)?.({ matches: true } as MediaQueryListEvent);
     window.dispatchEvent(new PointerEvent('pointermove', { pointerType: 'mouse' }));
     expect(service.touchOnly()).toBe(false);
+  });
+
+  it('asks the browser whether the main pointer can hover, and follows it', () => {
+    const service = setup(true);
+    expect(window.matchMedia).toHaveBeenCalledWith(HOVER_QUERY);
+    expect(service.canHover()).toBe(true);
+
+    listeners.get(HOVER_QUERY)?.({ matches: false } as MediaQueryListEvent);
+    expect(service.canHover()).toBe(false);
   });
 
   it('counts a phone held sideways as compact too', () => {
