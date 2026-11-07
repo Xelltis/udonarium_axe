@@ -321,15 +321,18 @@ describe('RotableDirective', () => {
       expect(guide()?.angle).toBe(31);
     });
 
-    it('hears no Alt before a step of the turn has found the angle it turns to', () => {
+    it('keeps Alt from the browser from the first step, but snaps nothing before a step has found the angle', () => {
       const writable = directive as unknown as Record<string, unknown>;
       writable['turnsOnScreenAbout'] = () => null;
       directive.rotate = 10;
 
       moveTo(31, false);
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Alt', cancelable: true }));
+      const early = new KeyboardEvent('keydown', { key: 'Alt', cancelable: true });
+      document.dispatchEvent(early);
+      expect(early.defaultPrevented).toBe(true);
       expect(directive.rotate).toBe(10);
       expect(guide()).toBeNull();
+      document.dispatchEvent(new KeyboardEvent('keyup', { key: 'Alt', cancelable: true }));
 
       writable['turnsOnScreenAbout'] = () => ({ x: 0, y: 0 });
       moveTo(31, false);

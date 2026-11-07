@@ -129,7 +129,8 @@ export class RotableDirective {
   private freeAngle: number = 0;
   /** Whether Alt is held, which snaps the turn while it is under way. */
   private snapping = false;
-  private hearsSnap = false;
+  /** Whether a step of the turn under way has found the angle it turns to, which Alt snaps. */
+  private angleFound = false;
   private readonly onSnapKey = (e: KeyboardEvent) => this.snapKey(e);
   private updateTimer: ReturnType<typeof setTimeout> | null = null;
   private grabbingElement: HTMLElement | null = null;
@@ -276,12 +277,13 @@ export class RotableDirective {
     if (!input.isDragging) {
       this.inTurn.set(true);
       this.ondragstart.emit(e as PointerEvent);
+      this.listenForSnap();
     }
     const pointer3d = this.pointerAround(input.pointer);
     if (!pointer3d) return;
     this.freeAngle = this.calcRotate(pointer3d, this.rotateOffset);
+    this.angleFound = true;
     this.snapping = (e as MouseEvent).altKey === true;
-    this.listenForSnap();
 
     this.ondrag.emit(e as PointerEvent);
     this.turnTo();
@@ -309,28 +311,28 @@ export class RotableDirective {
 
   /**
    * Snaps the turn the moment Alt goes down, and frees it the moment Alt comes up, without waiting
-   * for the pointer to move. The key goes no further, so the browser does not take it for its menu.
+   * for the pointer to move. The key goes no further, so the browser does not take it for its menu,
+   * from the first step of the turn on; before a step has found the angle it turns to, there is
+   * nothing to snap, and the next step that finds one reads whether Alt is held.
    */
   private snapKey(e: KeyboardEvent): void {
     if (e.key !== 'Alt' || !this.input?.isGrabbing) return;
     e.preventDefault();
+    if (!this.angleFound) return;
     const snapping = e.type === 'keydown';
     if (snapping === this.snapping) return;
     this.snapping = snapping;
     this.turnTo();
   }
 
-  /** Hears Alt from the first step of a turn that finds the angle it turns to, and only once. */
   private listenForSnap(): void {
-    if (this.hearsSnap) return;
-    this.hearsSnap = true;
     const document = this.nativeElement.ownerDocument;
     document.addEventListener('keydown', this.onSnapKey, true);
     document.addEventListener('keyup', this.onSnapKey, true);
   }
 
   private stopListeningForSnap(): void {
-    this.hearsSnap = false;
+    this.angleFound = false;
     const document = this.nativeElement.ownerDocument;
     document.removeEventListener('keydown', this.onSnapKey, true);
     document.removeEventListener('keyup', this.onSnapKey, true);
