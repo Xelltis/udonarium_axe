@@ -1,5 +1,10 @@
 import { GROUND_CHUNK_SAMPLE_COUNT, GROUND_CHUNK_SAMPLES } from '@axe/domain/tabletop/ground/ground-chunk-data';
-import { FLAT_GROUND, groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
+import {
+  FLAT_GROUND,
+  groundLiftOfBlock,
+  type GroundSurface,
+  groundSurfaceOf,
+} from '@axe/domain/tabletop/ground/ground-surface';
 
 /** A chunk with the samples given raised, by their place across and down it, in steps of a 64th of a cell. */
 function chunk(cx: number, cy: number, raised: [number, number, number][] = []) {
@@ -36,5 +41,22 @@ describe('the ground of a table', () => {
 
     expect(ground.heightAt(0.25, 0.125)).toBeCloseTo(0.25, 9);
     expect(ground.heightAt(0.125, 0.25)).toBeCloseTo(0, 9);
+  });
+
+  it('reads the ground under a vast block at a bounded number of points, and under a cell at every half cell', () => {
+    let read = 0;
+    const ground: GroundSurface = {
+      ...groundSurfaceOf([chunk(0, 0, [[1, 1, 64]])]),
+      heightAt: (x, y) => {
+        read++;
+        return x === 0 && y === 0 ? -1 : 0;
+      },
+    };
+
+    expect(groundLiftOfBlock(ground, 50, { location: { x: 0, y: 0 }, width: 10000, depth: 10000 })).toBe(-50);
+    expect(read).toBeLessThanOrEqual(513 * 513);
+    read = 0;
+    groundLiftOfBlock(ground, 50, { location: { x: 0, y: 0 }, width: 1, depth: 1 });
+    expect(read).toBe(9);
   });
 });

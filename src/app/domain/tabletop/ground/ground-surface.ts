@@ -101,9 +101,17 @@ export function heightBetweenSamples(sampleAt: (i: number, j: number) => number,
 }
 
 /**
+ * How many points along a side of a box the ground is read at, at most: a box wider than its samples
+ * reach is read at that many points evenly apart, so that a vast block, as one typed ten thousand
+ * cells across, is weighed in a moment rather than read sample by sample.
+ */
+const MOST_SAMPLES_ALONG = 512;
+
+/**
  * How far the ground under a box of the board lifts what stands on it, in table pixels: the lowest the
  * ground stands anywhere in the box, so that a block stood on uneven ground sinks into the rise rather
- * than hanging over the dip. The box is read at its corners and every half cell along and across it.
+ * than hanging over the dip. The box is read at its corners and every half cell along and across it,
+ * or, along a side longer than that many points reach, at as many points evenly apart.
  */
 export function lowestGroundPxIn(
   ground: GroundSurface,
@@ -115,8 +123,10 @@ export function lowestGroundPxIn(
 ): number {
   if (ground.isFlat || !(gridSize > 0)) return 0;
   const along = (length: number): number[] => {
+    if (!(length > 0)) return [0];
+    const step = Math.max(gridSize / GROUND_SAMPLES_PER_CELL, length / MOST_SAMPLES_ALONG);
     const at: number[] = [];
-    for (let d = 0; d < length; d += gridSize / GROUND_SAMPLES_PER_CELL) at.push(d);
+    for (let d = 0; d < length; d += step) at.push(d);
     return [...at, length];
   };
   let lowest = Infinity;
