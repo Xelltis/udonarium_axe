@@ -293,6 +293,22 @@ describe('RotableDirective', () => {
       expect(guide()?.angle).toBe(31);
     });
 
+    it('hears no Alt before a step of the turn has found the angle it turns to', () => {
+      const writable = directive as unknown as Record<string, unknown>;
+      writable['turnsOnScreenAbout'] = () => null;
+      directive.rotate = 10;
+
+      moveTo(31, false);
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Alt', cancelable: true }));
+      expect(directive.rotate).toBe(10);
+      expect(guide()).toBeNull();
+
+      writable['turnsOnScreenAbout'] = () => ({ x: 0, y: 0 });
+      moveTo(31, false);
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Alt', cancelable: true }));
+      expect(directive.rotate).toBe(45);
+    });
+
     it('says nothing more once the turn is let go', () => {
       moveTo(31, true);
 

@@ -123,6 +123,7 @@ export class RotableDirective {
   private freeAngle: number = 0;
   /** Whether Alt is held, which snaps the turn while it is under way. */
   private snapping = false;
+  private hearsSnap = false;
   private readonly onSnapKey = (e: KeyboardEvent) => this.snapKey(e);
   private updateTimer: ReturnType<typeof setTimeout> | null = null;
   private grabbingElement: HTMLElement | null = null;
@@ -265,12 +266,12 @@ export class RotableDirective {
     if (!input.isDragging) {
       this.inTurn.set(true);
       this.ondragstart.emit(e as PointerEvent);
-      this.listenForSnap();
     }
     const pointer3d = this.pointerAround(input.pointer);
     if (!pointer3d) return;
     this.freeAngle = this.calcRotate(pointer3d, this.rotateOffset);
     this.snapping = (e as MouseEvent).altKey === true;
+    this.listenForSnap();
 
     this.ondrag.emit(e as PointerEvent);
     this.turnTo();
@@ -309,13 +310,17 @@ export class RotableDirective {
     this.turnTo();
   }
 
+  /** Hears Alt from the first step of a turn that finds the angle it turns to, and only once. */
   private listenForSnap(): void {
+    if (this.hearsSnap) return;
+    this.hearsSnap = true;
     const document = this.nativeElement.ownerDocument;
     document.addEventListener('keydown', this.onSnapKey, true);
     document.addEventListener('keyup', this.onSnapKey, true);
   }
 
   private stopListeningForSnap(): void {
+    this.hearsSnap = false;
     const document = this.nativeElement.ownerDocument;
     document.removeEventListener('keydown', this.onSnapKey, true);
     document.removeEventListener('keyup', this.onSnapKey, true);
