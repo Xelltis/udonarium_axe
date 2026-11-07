@@ -36,6 +36,7 @@ import {
 } from '@axe/domain/tabletop/map-blocks';
 import { blockOrigin, MapGrid, tableSizeFor } from '@axe/domain/tabletop/map-grid';
 import { cornerShiftOf } from '@axe/domain/tabletop/move/piece-on-grid';
+import { isBundledModelName } from '@axe/domain/tabletop/placeable-models';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableMoveCost } from '@axe/domain/tabletop/table-move-cost';
 import { TableSkyKind } from '@axe/domain/tabletop/table-sky';
@@ -226,7 +227,9 @@ export class DungeonBuildService {
     const table = this.createTable(size, mood, options, grid);
     if (options.ground) this.raiseGround(table, options.ground);
 
-    const models = await this.bundledModels.identifiersOf(blocks.blocks.flatMap((block) => block.model || []));
+    const models = await this.bundledModels.identifiersOf(
+      blocks.blocks.flatMap((block) => (block.model && isBundledModelName(block.model) ? [block.model] : []))
+    );
     let done = 0;
     for (const block of blocks.blocks) {
       const terrain = this.createTerrain(block, { wallSide, wallTop }, options.wallHeight, grid);

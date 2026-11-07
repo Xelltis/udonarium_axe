@@ -259,6 +259,18 @@ describe('DungeonBuildService', () => {
     fetched.mockRestore();
   });
 
+  it('leaves a block whose model no bundled file is named for drawn as its faces, asking nobody for it', async () => {
+    const plan = planField({ atmosphere: 'woodland', size: 20, density: 50, seed: 3, models: true });
+    const blocks = plan.blocks.blocks.map((block) => (block.model ? { ...block, model: 'no-such-model' } : block));
+    const fetched = vi.spyOn(globalThis, 'fetch');
+
+    const { table } = await service.build(plan.layout, plan.atmosphere, { ...plan.blocks, blocks }, options());
+
+    expect(table.terrains.some((terrain) => terrain.modelIdentifier)).toBe(false);
+    expect(fetched).not.toHaveBeenCalled();
+    fetched.mockRestore();
+  });
+
   it('asks once for each model it cannot read, and leaves the blocks drawn as their faces', async () => {
     const plan = planField({ atmosphere: 'woodland', size: 20, density: 50, seed: 3, models: true });
     const fetched = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(null, { status: 404 }));
