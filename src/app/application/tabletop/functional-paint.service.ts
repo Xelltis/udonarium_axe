@@ -119,6 +119,9 @@ function layTerrainBlock(
     const held = spec.images[face];
     if (held.length > 0) terrain.setFaceImage(face, held);
   }
+  terrain.modelIdentifier = spec.model;
+  terrain.modelScale = spec.modelScale;
+  terrain.modelTurn = spec.modelTurn;
   return terrain;
 }
 
@@ -219,6 +222,9 @@ export function terrainSpecOf(terrain: Terrain, placement: BlockPlacement | null
       animation: terrain.lightAnimation,
     },
     images,
+    model: `${terrain.modelIdentifier ?? ''}`,
+    modelScale: `${terrain.modelScale ?? ''}`,
+    modelTurn: `${terrain.modelTurn ?? ''}`,
     placement,
   };
 }

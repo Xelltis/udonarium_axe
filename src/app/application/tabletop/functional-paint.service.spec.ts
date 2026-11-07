@@ -302,6 +302,22 @@ describe('FunctionalPaintService', () => {
       expect(service.snapshot()!.terrainBlocks.map(rectKey)).toEqual(['0,3,1,1']);
     });
 
+    it('reads the model a wall is drawn as back with it, so laying it again keeps it', () => {
+      service.apply(
+        plan({
+          terrain: { add: [wall(oneCell, { model: 'held-tree', modelScale: '1.5', modelTurn: '90' })], remove: [] },
+        })
+      );
+
+      const [laid] = terrainOn();
+      expect([laid.modelIdentifier, laid.modelScale, laid.modelTurn]).toEqual(['held-tree', '1.5', '90']);
+      expect(service.snapshot()!.terrainBlocks[0].spec).toMatchObject({
+        model: 'held-tree',
+        modelScale: '1.5',
+        modelTurn: '90',
+      });
+    });
+
     it('lays a door back as a door', () => {
       const door = Terrain.create('扉', 1, 1, 2, '', '');
       door.location = { name: 'table', x: 0, y: 0 };

@@ -146,6 +146,12 @@ export interface TerrainPaintSpec {
   slopeSides: string;
   light: TerrainLightSpec;
   images: TerrainFaceImages;
+  /** The identifier of the 3D model held in the room it is drawn as, in place of its faces; empty for none. */
+  model: string;
+  /** How much larger than its box its model is drawn, as the terrain keeps it; empty for its box. */
+  modelScale: string;
+  /** How far its model is turned from the way it was made, as the terrain keeps it; empty for not at all. */
+  modelTurn: string;
   /** Null where the block sits square on its cells, which is where the brush put it. */
   placement: BlockPlacement | null;
 }
@@ -376,6 +382,9 @@ export const DEFAULT_FUNCTION_SPEC: FunctionSpec = {
       animation: 'none',
     },
     images: { ...NO_FACE_IMAGES },
+    model: '',
+    modelScale: '',
+    modelTurn: '',
     placement: null,
   },
   mask: {
@@ -545,6 +554,9 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
       slopeSides: encodeSlopeSides(parseSlopeSides(textIn(terrain, 'slopeSides', fallback.terrain.slopeSides))),
       light: sanitizeLight(terrain['light']),
       images: sanitizeFaceImages(terrain['images']),
+      model: textIn(terrain, 'model', fallback.terrain.model),
+      modelScale: textIn(terrain, 'modelScale', fallback.terrain.modelScale),
+      modelTurn: textIn(terrain, 'modelTurn', fallback.terrain.modelTurn),
       placement: sanitizePlacement(terrain['placement']),
     },
     mask: {
