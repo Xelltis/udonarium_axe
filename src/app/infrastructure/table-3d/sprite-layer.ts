@@ -240,6 +240,7 @@ export class SpriteLayer {
   }
 
   dispose(): void {
+    this.laid = [];
     this.square.dispose();
     for (const material of this.casterMaterials.values()) material.dispose();
     this.casterMaterials.clear();

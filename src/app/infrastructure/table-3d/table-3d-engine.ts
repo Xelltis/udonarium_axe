@@ -1107,7 +1107,7 @@ class ThreeTableEngine implements Table3dEngine {
     const key = `${url}|sprite`;
     let picture = this.loaded.get(key);
     if (!picture) {
-      picture = this.picture(url);
+      picture = this.picture(url, () => this.sprites.picturesCame());
       picture.premultiplyAlpha = true;
       this.loaded.set(key, picture);
     }
@@ -1126,14 +1126,14 @@ class ThreeTableEngine implements Table3dEngine {
   }
 
   /**
-   * A picture to draw, which asks for a frame once it has come, shows the sprites that wear it, and
-   * has the shadows drawn again: a board throwing a piece's shadow is cut to the picture it wears.
+   * A picture to draw, which asks for a frame once it has come, and has the shadows drawn again: a
+   * board throwing a piece's shadow is cut to the picture it wears. What wears it is told as well.
    */
-  private picture(url: string): Texture {
+  private picture(url: string, came: () => void = () => undefined): Texture {
     this.loading++;
     const settle = () => {
       this.loading--;
-      this.sprites.picturesCame();
+      came();
       this.changed = true;
       this.shadowsMoved();
       this.needsFrame();

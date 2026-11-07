@@ -50,4 +50,16 @@ describe('SpriteLayer', () => {
     layer.picturesCame();
     expect(partsOf(layer)).toEqual({ shown: 2, casters: 4 });
   });
+
+  it('lays nothing out again once it is let go of, as pictures still coming arrive', () => {
+    const picture = new Texture();
+    const layer = new SpriteLayer(() => picture);
+    layer.set([standing('knight.webp')]);
+
+    layer.dispose();
+    picture.image = { width: 2, height: 2 };
+    layer.picturesCame();
+
+    expect(partsOf(layer)).toEqual({ shown: 0, casters: 0 });
+  });
 });
