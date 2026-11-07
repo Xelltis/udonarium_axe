@@ -338,6 +338,33 @@ describe('RotableDirective', () => {
       expect(directive.rotate).toBe(45);
     });
 
+    it('takes a finger’s press on its handle as a mouse’s, and leaves one elsewhere to what it stands in', () => {
+      const writable = directive as unknown as Record<string, unknown>;
+      const handle = document.createElement('div');
+      handle.className = 'rotate-grab';
+      element.appendChild(handle);
+      const started = vi.spyOn(directive.onstart, 'emit');
+      const fingerOn = (target: HTMLElement) => {
+        const finger = new TouchEvent('touchstart', { bubbles: true, cancelable: true });
+        Object.defineProperty(finger, 'target', { value: target });
+        return finger;
+      };
+
+      const onHandle = fingerOn(handle);
+      const stopped = vi.spyOn(onHandle, 'stopPropagation');
+      directive.onInputStart(onHandle);
+      expect(started).toHaveBeenCalledTimes(1);
+      expect(stopped).toHaveBeenCalled();
+
+      writable['input'] = { ...(writable['input'] as object), isGrabbing: true };
+      const beside = fingerOn(element);
+      const passedOn = vi.spyOn(beside, 'stopPropagation');
+      directive.onInputStart(beside);
+      expect(started).toHaveBeenCalledTimes(1);
+      expect(passedOn).not.toHaveBeenCalled();
+      handle.remove();
+    });
+
     it('says nothing more once the turn is let go', () => {
       moveTo(31, true);
 
