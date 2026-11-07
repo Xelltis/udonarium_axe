@@ -15,6 +15,7 @@ import { resetPeerContextProvider, setPeerContextProvider } from '@axe/core/netw
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
+import { findTargetNumber, rollTotalOf } from '@axe/domain/chat/target-number';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { DiceTable } from '@axe/domain/dice/dice-table';
 import { SERVER_ROLL_WAIT_MS } from '@axe/domain/dice/server-roll-requests';
@@ -486,6 +487,28 @@ describe('DiceBot', () => {
       );
       expect(tab.chatMessages).toHaveLength(2);
       expect(tab.chatMessages[1].isServerRoll).toBe(false);
+      bot.destroy();
+      tab.destroy();
+    });
+
+    it('names a target whose name holds brackets as a room server would, so the answer still reads as aimed at it', async () => {
+      PeerCursor.createMyCursor();
+      vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue(null);
+      vi.spyOn(Network.instance, 'send').mockImplementation(() => {});
+      const tab = ChatTabList.instance.addChatTab('メイン');
+      const asked = tab.addMessage({ from: PeerCursor.myUserId, name: 'わたし', text: '2d6+8', tag: 'DiceBot' });
+      const bot = new DiceBot();
+      bot.initialize();
+
+      await bot['handleSendMessage']({
+        messageIdentifier: asked.identifier,
+        messageTarget: { text: '2d6+8', object: { name: '騎士[見習い]' } },
+      });
+
+      expect(tab.chatMessages[1].text).toMatch(/ \[騎士［見習い］\]$/);
+      expect(findTargetNumber(tab, { identifier: 'knight', name: '騎士[見習い]' })).toBe(
+        rollTotalOf(tab.chatMessages[1].text)
+      );
       bot.destroy();
       tab.destroy();
     });
