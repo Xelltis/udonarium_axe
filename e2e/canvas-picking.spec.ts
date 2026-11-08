@@ -505,19 +505,24 @@ test.describe('pieces picked by the shapes the canvas draws them with', () => {
     const [lower] = await boxesOf(page, under);
     const [upper] = await boxesOf(page, over);
     expect(lower.y + lower.height, JSON.stringify([lower, upper])).toBeGreaterThan(upper.y + upper.height + 20);
-    const at = {
-      x: (Math.max(lower.x, upper.x) + Math.min(lower.x + lower.width, upper.x + upper.width)) / 2,
-      y: upper.y + upper.height - 10,
-    };
-    const found = await page.evaluate(
-      ({ x, y }) => ({
-        picked: (window as unknown as { __axeTable: Hooks }).__axeTable.pickAt(x, y),
-        pointed: document.elementFromPoint(x, y)?.closest('card')?.getAttribute('data-object-id') ?? null,
-      }),
-      at
-    );
 
-    expect(found).toEqual({ picked: over, pointed: over });
+    await expect
+      .poll(async () => {
+        const [bottom] = await boxesOf(page, under);
+        const [top] = await boxesOf(page, over);
+        const at = {
+          x: (Math.max(bottom.x, top.x) + Math.min(bottom.x + bottom.width, top.x + top.width)) / 2,
+          y: top.y + top.height - 10,
+        };
+        return page.evaluate(
+          ({ x, y }) => ({
+            picked: (window as unknown as { __axeTable: Hooks }).__axeTable.pickAt(x, y),
+            pointed: document.elementFromPoint(x, y)?.closest('card')?.getAttribute('data-object-id') ?? null,
+          }),
+          at
+        );
+      })
+      .toEqual({ picked: over, pointed: over });
   });
 
   test('tip a character’s picture over by a handle beside its top, about the middle of its cell', async ({ page }) => {
