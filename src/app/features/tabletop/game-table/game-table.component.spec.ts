@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CardTargetService } from '@axe/application/card/card-target.service';
 import { DiceRenderService } from '@axe/application/dice/dice-render.service';
+import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
@@ -18,7 +19,9 @@ import { ViewLockService } from '@axe/application/ui/view-lock.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -52,6 +55,30 @@ describe('GameTableComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('leaves the layer that draws effects out until an effect plays, and puts it in when one does', async () => {
+    fixture.detectChanges();
+    const overlay = () => (fixture.nativeElement as HTMLElement).querySelector('table-effect-overlay');
+    expect(overlay()).toBeNull();
+
+    const preset = new EffectPreset();
+    preset.durationMs = 600;
+    ObjectStore.instance.add(preset, false);
+    try {
+      TestBed.inject(EffectPlaybackService).play({
+        presetIdentifier: preset.identifier,
+        targets: [{ identifier: 'piece', x: 0, y: 0, z: 0 }],
+        seed: 1,
+      });
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(overlay()).not.toBeNull();
+    } finally {
+      ObjectStore.instance.remove(preset);
+    }
   });
 
   it('holds its camera still while the first-person view is up, and lets it go after', () => {

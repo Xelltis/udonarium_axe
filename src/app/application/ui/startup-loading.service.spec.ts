@@ -58,17 +58,17 @@ describe('StartupLoadingService', () => {
 
     const finishing = loading.finishAfter(settled);
     await Promise.resolve();
-    expect(loading.finished).toBe(false);
+    expect(loading.finished()).toBe(false);
 
     finishWork();
     await new Promise((resolve) => setTimeout(resolve, 300));
     expect(settled).toHaveBeenCalledTimes(1);
-    expect(loading.finished).toBe(false);
+    expect(loading.finished()).toBe(false);
 
     taking.set(0);
     await finishing;
     expect(settled).toHaveBeenCalledTimes(2);
-    expect(loading.finished).toBe(true);
+    expect(loading.finished()).toBe(true);
     expect(screen.classList.contains('is-done')).toBe(true);
   });
 
@@ -77,7 +77,7 @@ describe('StartupLoadingService', () => {
 
     await loading.finishAfter(() => Promise.resolve());
 
-    expect(loading.finished).toBe(true);
+    expect(loading.finished()).toBe(true);
   });
 
   it('takes the screen away after twenty seconds however far the start has got', () => {
@@ -85,9 +85,9 @@ describe('StartupLoadingService', () => {
     loading.begin();
 
     vi.advanceTimersByTime(19_999);
-    expect(loading.finished).toBe(false);
+    expect(loading.finished()).toBe(false);
     vi.advanceTimersByTime(1);
-    expect(loading.finished).toBe(true);
+    expect(loading.finished()).toBe(true);
   });
 
   it('takes the screen away at once in a browser driven by automation', () => {
@@ -96,7 +96,7 @@ describe('StartupLoadingService', () => {
 
     loading.begin();
 
-    expect(loading.finished).toBe(true);
+    expect(loading.finished()).toBe(true);
   });
 
   it('leaves no timer behind once finished', () => {

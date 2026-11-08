@@ -149,7 +149,11 @@
     @for (cursor of peerCursors(); track cursor.identifier) {
       <peer-cursor class="absolute top-0 left-0" [cursor]="cursor"></peer-cursor>
     }
-    <table-effect-overlay class="contents"></table-effect-overlay>
+    @defer (when drawsEffects()) {
+      <table-effect-overlay class="contents"></table-effect-overlay>
+    } @error {
+      <ng-container appReloadNotice />
+    }
     <effect-target-overlay class="contents"></effect-target-overlay>
     <table-drop-preview></table-drop-preview>
     <table-altitude-guide-overlay class="contents"></table-altitude-guide-overlay>

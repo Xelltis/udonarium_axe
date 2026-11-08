@@ -1,4 +1,4 @@
-import { inject, Injectable, InjectionToken } from '@angular/core';
+import { inject, Injectable, InjectionToken, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PiecePicturesService } from '@axe/application/tabletop/piece-pictures.service';
 import { dismissLoadingScreen, showLoadingStage } from '@axe/infrastructure/ui/loading-screen';
@@ -35,12 +35,11 @@ export class StartupLoadingService {
   private readonly held = new Set<Promise<unknown>>();
   private reached = 0;
   private done = false;
+  private readonly _finished = signal(false);
   private giveUp: ReturnType<typeof setTimeout> | null = null;
 
   /** Whether the loading screen has been taken away. */
-  get finished(): boolean {
-    return this.done;
-  }
+  readonly finished = this._finished.asReadonly();
 
   /**
    * Starts counting the longest the screen is kept, once the app is up; the table is the next stage.
@@ -94,6 +93,7 @@ export class StartupLoadingService {
   finish(): void {
     if (this.done) return;
     this.done = true;
+    this._finished.set(true);
     if (this.giveUp !== null) clearTimeout(this.giveUp);
     this.giveUp = null;
     this.held.clear();

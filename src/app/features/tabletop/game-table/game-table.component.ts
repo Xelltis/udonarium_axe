@@ -16,6 +16,7 @@ import {
 } from '@angular/core';
 import { CardTargetService } from '@axe/application/card/card-target.service';
 import { DiceRenderService } from '@axe/application/dice/dice-render.service';
+import { EffectFieldService } from '@axe/application/effect/effect-field.service';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { StartRoomService } from '@axe/application/file/start-room.service';
@@ -59,6 +60,7 @@ import { ViewportService } from '@axe/application/ui/viewport.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
 import { ImageFile, imageFileEqual } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { trackLazyLoad } from '@axe/core/util/lazy-loads';
 import { observeSize } from '@axe/core/util/observe-size';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
@@ -263,6 +265,7 @@ export class GameTableComponent {
   private readonly movePlan = inject(MovePlannerService);
   private readonly viewport = inject(ViewportService);
   private readonly effectPlaybackService = inject(EffectPlaybackService);
+  private readonly effectFieldService = inject(EffectFieldService);
   private readonly mobileLayout = inject(MobileLayoutService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly objectChangeService = inject(ObjectChangeService);
@@ -414,6 +417,14 @@ export class GameTableComponent {
           this.startupLoading.reach('pieces');
           void this.startupLoading.finishAfter(() => this.table3d.whenIdle());
         }
+      });
+    });
+    effect(() => {
+      if (!this.startupLoading.finished()) return;
+      untracked(() => {
+        void trackLazyLoad(import('@axe/features/effect/table-effect-overlay/table-effect-overlay.component')).catch(
+          () => undefined
+        );
       });
     });
     this.tabletopActionService.makeDefaultTable();
@@ -927,6 +938,15 @@ export class GameTableComponent {
     if (this.gestureService.isTableTransformed && !this.pointerDeviceService.isAllowedToOpenContextMenu)
       e.preventDefault();
   }
+
+  /**
+   * Whether an effect is playing or standing on the table. The code that draws effects is fetched the
+   * first time one is, and kept from then on; it is fetched ahead once the loading screen has gone,
+   * so that the first effect is not cut short while it comes.
+   */
+  protected readonly drawsEffects = computed(
+    () => this.effectPlaybackService.activeCasts().length > 0 || this.effectFieldService.fields().length > 0
+  );
 
   /** The jolt of an effect, which shakes the camera with it. */
   readonly screenShake = computed(() => this.effectPlaybackService.shake());
