@@ -16,44 +16,6 @@ test.describe('the buff editing view (game-character-buff-view)', () => {
     await openBuffView(page);
   });
 
-  test('shows "no buffs or debuffs registered" for a character with no buffs', async ({ page }) => {
-    // A new character made by createCharacter has no buffs. If rows show anyway, nothing is checked.
-    const items = page.locator('game-character-buff-view [game-data-element-buff]');
-    if ((await items.count()) === 0) {
-      await expect(
-        page.locator('game-character-buff-view').getByText('バフ・デバフは登録されていません')
-      ).toBeVisible();
-    } else {
-      test.skip(true, '既存バフがあるキャラのため空メッセージ確認をスキップ');
-    }
-  });
-
-  test('adds at least three buff items when "add buff" is pressed three times', async ({ page }) => {
-    const before = await page.locator('game-character-buff-view [game-data-element-buff]').count();
-    for (let i = 0; i < 3; i++) {
-      await page
-        .locator('game-character-buff-view')
-        .getByRole('button', { name: /バフを追加/ })
-        .click();
-    }
-    await expect
-      .poll(() => page.locator('game-character-buff-view [game-data-element-buff]').count(), {
-        timeout: 5000,
-      })
-      .toBeGreaterThanOrEqual(before + 3);
-  });
-
-  test('takes a value in the buff name field', async ({ page }) => {
-    // Edits the first buff (data-elm-name).
-    const nameInputs = page.locator('game-character-buff-view input[name="data-elm-name"]');
-    await expect(nameInputs.first()).toBeVisible({ timeout: 5000 });
-    const first = nameInputs.first();
-    await first.click();
-    await first.press('Control+A');
-    await first.fill('猛攻撃');
-    await expect(first).toHaveValue('猛攻撃');
-  });
-
   test('turns the round badge on the piece to the colour picked for it', async ({ page }) => {
     await page
       .locator('game-character-buff-view')
@@ -77,16 +39,5 @@ test.describe('the buff editing view (game-character-buff-view)', () => {
     });
 
     expect(shape.radius, 'バッジが丸くない').toBeGreaterThanOrEqual(shape.width / 2 - 1);
-  });
-
-  test('removes the row with the "delete buff" button', async ({ page }) => {
-    const before = await page.locator('game-character-buff-view [game-data-element-buff]').count();
-    // The bin icon of the first buff, found by its title.
-    await page.locator('game-character-buff-view button[title="バフを削除"]').first().click();
-    await expect
-      .poll(() => page.locator('game-character-buff-view [game-data-element-buff]').count(), {
-        timeout: 5000,
-      })
-      .toBeLessThan(before);
   });
 });

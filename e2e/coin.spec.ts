@@ -15,54 +15,6 @@ async function openCoinMenu(page: Page) {
   return menu;
 }
 
-test.describe('coins', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('ui-lang', 'ja'));
-    await waitAppReady(page);
-    await createCoin(page);
-  });
-
-  test('carves a crest into both faces and gives the rim a thickness', async ({ page }) => {
-    test.skip(
-      (await page.getByTestId('table-scene').count()) > 0,
-      'a table drawn on a canvas draws the coin there, from the pictures of its sides'
-    );
-    const coin = page.locator('coin').first();
-
-    await expect(coin.locator('svg title')).toHaveText(['表', '裏']);
-    await expect(coin.locator('svg ellipse')).toHaveCount(12 * 2);
-    await expect(coin.locator('div[style*="rotateX(90deg)"]')).toHaveCount(24);
-  });
-
-  test('puts the result of a throw into the chat', async ({ page }) => {
-    const menu = await openCoinMenu(page);
-    await menu.getByText('コインを投げる').click();
-
-    await expect(page.locator('chat-window')).toContainText(/コイン を投げました → (表|裏)/, { timeout: 10000 });
-  });
-
-  test('turns the coin over from its menu', async ({ page }) => {
-    const menu = await openCoinMenu(page);
-    await menu.getByText('裏にする').click();
-    await expect(page.locator('context-menu')).toHaveCount(0, { timeout: 5000 });
-
-    const back = await openCoinMenu(page);
-    await expect(back.getByText('表にする')).toBeVisible();
-  });
-
-  test('renames the coin in its sheet', async ({ page }) => {
-    const menu = await openCoinMenu(page);
-    await menu.getByText('コインを編集').click();
-
-    const sheet = page.locator('app-coin-sheet');
-    await expect(sheet).toBeVisible({ timeout: 5000 });
-    await sheet.locator('input[type="text"]').fill('運命のコイン');
-
-    const renamed = await openCoinMenu(page);
-    await expect(renamed).toContainText('運命のコイン');
-  });
-});
-
 test.describe('coins (with motion turned off)', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {

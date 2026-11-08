@@ -91,6 +91,16 @@ describe('HandDrawPanelComponent', () => {
     expect(component.targets()[0].count).toBe(1);
   });
 
+  it('says nobody holds a hand to draw from while no one else does', () => {
+    peer('empty', 'てふだなし');
+    card('h05', 'me');
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.textContent).toContain('手札を持っている参加者がいません');
+    expect(host.querySelectorAll('button')).toHaveLength(0);
+  });
+
   it('follows a participant whose link drops and comes back, with nothing else changing', () => {
     peer('other', 'あいて');
     card('s01', 'other');

@@ -49,6 +49,21 @@ describe('DeckBuilderDialogComponent', () => {
     expect(component.cardCount()).toBe(2);
   });
 
+  it('holds back making the deck until a tag that holds pictures is picked', () => {
+    playing(PeerRole.Player);
+    put('deck-one', '手札');
+    fixture.detectChanges();
+    const make = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button[type="submit"]')!;
+
+    expect(make.textContent).toContain('山札を作る');
+    expect(make.disabled).toBe(true);
+
+    component.selectedTag.set('手札');
+    fixture.detectChanges();
+
+    expect(make.disabled).toBe(false);
+  });
+
   it('does not deal a player a picture the master is keeping back', () => {
     playing(PeerRole.Player);
     put('deck-plain', '手札');

@@ -253,4 +253,90 @@ describe('DiceTableSettingComponent', () => {
       }
     });
   });
+
+  describe('making and editing a table from the panel', () => {
+    beforeEach(() => {
+      PeerCursor.myCursor = { role: PeerRole.Player, identifier: 'seat-cursor' } as PeerCursor;
+      for (const table of component.getDiceTables()) table.destroy();
+    });
+
+    afterEach(() => {
+      for (const table of component.getDiceTables()) table.destroy();
+    });
+
+    /** Draws the panel and lets what ngModel writes into its boxes settle. */
+    async function drawn(): Promise<HTMLElement> {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    /** The button of the panel whose words are exactly the label. */
+    function buttonNamed(host: HTMLElement, label: string): HTMLButtonElement | undefined {
+      return [...host.querySelectorAll('button')].find(
+        (button) => button.textContent?.replace(/^\s*(edit|check)/, '').trim() === label
+      );
+    }
+
+    it('says there is no table yet, and makes the first one from the button under that', async () => {
+      const host = await drawn();
+      expect(host.textContent).toContain('ダイス表がありません');
+
+      buttonNamed(host, '表を作成')!.click();
+      await drawn();
+
+      expect(component.getDiceTables()).toHaveLength(1);
+      expect(host.querySelector('input[name="dice-table-name"]')).not.toBeNull();
+      expect(host.textContent).not.toContain('ダイス表がありません');
+    });
+
+    it('makes another table from the add button at the head of the list, and picks it', async () => {
+      component.createDiceTable();
+      const first = component.selectedTable!;
+      const host = await drawn();
+
+      host.querySelector<HTMLButtonElement>('button[title="新しい表を作る"]')!.click();
+
+      expect(component.getDiceTables()).toHaveLength(2);
+      expect(component.selectedTable).not.toBe(first);
+    });
+
+    it('writes the title, the dice and the command typed into their boxes onto the table', async () => {
+      component.createDiceTable();
+      const table = component.selectedTable!;
+      const host = await drawn();
+
+      for (const [name, value] of [
+        ['dice-table-name', '暴走表'],
+        ['dice-table-dice', '2d6'],
+        ['dice-table-command', 'runaway'],
+      ]) {
+        const box = host.querySelector<HTMLInputElement>(`input[name="${name}"]`)!;
+        box.value = value;
+        box.dispatchEvent(new Event('input'));
+      }
+
+      expect([table.name, table.dice, table.command]).toEqual(['暴走表', '2d6', 'runaway']);
+    });
+
+    it('opens the entries for editing with the edit button, saying so, and closes them with confirm', async () => {
+      component.createDiceTable();
+      let host = await drawn();
+      expect(host.textContent).not.toContain('編集中');
+
+      buttonNamed(host, '編集')!.click();
+      host = await drawn();
+
+      expect(host.textContent).toContain('編集中');
+      expect(host.querySelector('textarea[name="dice-table-palette"]')).not.toBeNull();
+      expect(buttonNamed(host, '編集')).toBeUndefined();
+
+      buttonNamed(host, '確定')!.click();
+      host = await drawn();
+
+      expect(host.textContent).not.toContain('編集中');
+      expect(host.querySelector('textarea[name="dice-table-palette"]')).toBeNull();
+      expect(buttonNamed(host, '編集')).toBeDefined();
+    });
+  });
 });

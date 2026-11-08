@@ -36,31 +36,17 @@ test.describe('card handling for old maid', () => {
     await openHandRail(page);
   });
 
-  test('deals the deck out into the hands with "deal everything out", leaving one joker', async ({ page }) => {
+  test('deals the deck out into the hands, leaving one joker, and makes a discard pile of the pairs thrown away', async ({
+    page,
+  }) => {
     await dealAll(page);
-
     const hand = page.locator('app-hand-rail');
     await expect(hand).toContainText('手札 53枚', { timeout: 15000 });
     await expect(page.locator('card-stack').first()).toContainText('1', { timeout: 5000 });
-  });
-
-  test('makes a discard pile when the pairs are thrown away', async ({ page }) => {
-    await dealAll(page);
-    const hand = page.locator('app-hand-rail');
-    await expect(hand).toContainText('手札 53枚', { timeout: 15000 });
 
     await hand.locator('button[title="ペアを捨てる"]').click();
 
     await expect(hand).toContainText('手札 1枚', { timeout: 15000 });
     await expect(page.locator('card-stack')).toHaveCount(2, { timeout: 5000 });
-  });
-
-  test('offers nobody to draw from when no one else is there', async ({ page }) => {
-    const hand = page.locator('app-hand-rail');
-    await hand.locator('button[title="相手の手札から引く"]').click();
-
-    const panel = page.locator('hand-draw-panel');
-    await expect(panel).toBeVisible({ timeout: 5000 });
-    await expect(panel).toContainText('手札を持っている参加者がいません');
   });
 });

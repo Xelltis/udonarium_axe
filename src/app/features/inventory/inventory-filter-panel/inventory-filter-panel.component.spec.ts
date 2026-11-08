@@ -95,6 +95,28 @@ describe('InventoryFilterPanelComponent', () => {
     expect(inventory.tableDataTags).toEqual(['HP', 'MP', '毒']);
   });
 
+  it('takes the order, the way it runs and the items shown in each view from their boxes', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const host = fixture.nativeElement as HTMLElement;
+    const type = (selector: string, value: string, event = 'input') => {
+      const box = host.querySelector<HTMLInputElement | HTMLSelectElement>(selector)!;
+      box.value = value;
+      box.dispatchEvent(new Event(event));
+    };
+
+    type('input[name="sort-tag"][placeholder="タグ名"]', '行動値');
+    type('select[name="sort-order"]', 'DESC', 'change');
+    type('input[name="data-tag"]', 'HP MP');
+    type('input[name="table-data-tag"]', 'HP 毒');
+
+    const inventory = TestBed.inject(GameObjectInventoryService);
+    expect(inventory.sortTag).toBe('行動値');
+    expect(inventory.sortOrder).toBe(SortOrder.DESC);
+    expect(inventory.dataTags).toEqual(['HP', 'MP']);
+    expect(inventory.tableDataTags).toEqual(['HP', '毒']);
+  });
+
   it('puts a strip above the list away and brings it back', () => {
     fixture.detectChanges();
     const boxes = [

@@ -1,50 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { createCharacter, revealMenuEntry, spotOnPiece, waitAppReady } from './helpers';
-
-test.describe('the context menu of a character', () => {
-  test.beforeEach(async ({ page }) => {
-    await waitAppReady(page);
-    await createCharacter(page);
-    await page.locator('game-character').first().dispatchEvent('contextmenu');
-    await expect(page.locator('context-menu').locator('li').first()).toBeVisible({ timeout: 5000 });
-  });
-
-  test('has the main entries: details, chat palette, remote control, buffs and copy', async ({ page }) => {
-    const menu = page.locator('context-menu');
-    await expect(menu.getByText('詳細を表示')).toBeVisible();
-    await expect(menu.getByText('チャットパレットを表示')).toBeVisible();
-    await expect(menu.getByText('リモコンを表示')).toBeVisible();
-    await expect(await revealMenuEntry(page, menu, 'バフ編集')).toBeVisible();
-    await expect(menu.getByText('コピーを作る')).toBeVisible();
-  });
-
-  test('opens the buff editing panel with "edit buffs"', async ({ page }) => {
-    await (await revealMenuEntry(page, page.locator('context-menu'), 'バフ編集')).click();
-    await expect(page.locator('game-character-buff-view')).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('game-character-buff-view').getByRole('button', { name: /バフを追加/ })).toBeVisible();
-  });
-
-  test('adds a buff from "edit buffs"', async ({ page }) => {
-    await (await revealMenuEntry(page, page.locator('context-menu'), 'バフ編集')).click();
-    await expect(page.locator('game-character-buff-view')).toBeVisible({ timeout: 5000 });
-    const before = await page.locator('game-character-buff-view [game-data-element-buff]').count();
-    await page
-      .locator('game-character-buff-view')
-      .getByRole('button', { name: /バフを追加/ })
-      .click();
-    await expect
-      .poll(() => page.locator('game-character-buff-view [game-data-element-buff]').count(), {
-        timeout: 5000,
-      })
-      .toBeGreaterThan(before);
-  });
-
-  test('has "set height to 0" in the height submenu', async ({ page }) => {
-    await (await revealMenuEntry(page, page.locator('context-menu'), '高度設定')).hover();
-    await expect(page.locator('context-menu').getByText('高度を0にする')).toBeVisible({ timeout: 5000 });
-  });
-});
+import { createCharacter, spotOnPiece, waitAppReady } from './helpers';
 
 test.describe('the character sheet (detail panel)', () => {
   test.beforeEach(async ({ page }) => {

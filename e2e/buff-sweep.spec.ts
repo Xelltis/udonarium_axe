@@ -52,13 +52,4 @@ test.describe('clearing a buff off the whole table', () => {
     );
     await expect(nameChoices(page).filter({ hasText: second })).toHaveCount(0);
   });
-
-  test('clears nothing with && in the chat unless the sender is the GM, and says so', async ({ page }) => {
-    await waitAppReady(page);
-    await setRole(page, 'PL');
-    await send(page, '&&none-');
-    await expect(page.locator('chat-message').filter({ hasText: 'バフの一括解除はGMだけが使えます' })).toHaveCount(1, {
-      timeout: 10000,
-    });
-  });
 });

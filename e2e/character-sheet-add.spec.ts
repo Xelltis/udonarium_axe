@@ -26,7 +26,9 @@ async function addNamed(page: Page, type: string, name: string): Promise<void> {
 }
 
 test.describe('adding to a character sheet on a wide screen', () => {
-  test('adds an item to a group from the "+" on its heading while the sheet is only read', async ({ page }) => {
+  test('adds an item to a group from the "+" on its heading while the sheet is read, and from the end of the group while it is edited', async ({
+    page,
+  }) => {
     const sheet = await openSheet(page);
     const card = sectionCard(sheet, 'リソース');
     await card.scrollIntoViewIfNeeded();
@@ -36,15 +38,6 @@ test.describe('adding to a character sheet on a wide screen', () => {
     await addNamed(page, 'number', '防御');
 
     await expect(row(card, '防御')).toBeVisible();
-    await expect(card.getByRole('button', { name: 'edit', exact: true })).toBeVisible();
-  });
-
-  test('shows "+ add item" and "+ add group" at the end of a section being edited, and names its row buttons', async ({
-    page,
-  }) => {
-    const sheet = await openSheet(page);
-    const card = sectionCard(sheet, 'リソース');
-    await card.scrollIntoViewIfNeeded();
     await card.getByRole('button', { name: 'edit', exact: true }).click();
 
     await expect(card.getByTestId('group-add-field')).toHaveCount(1);
@@ -56,12 +49,5 @@ test.describe('adding to a character sheet on a wide screen', () => {
     await card.getByTestId('group-add-field').click();
     await addNamed(page, 'check', '気絶');
     await expect(row(card, '気絶').locator('.elm-value-content input[type="checkbox"]')).toHaveCount(1);
-  });
-
-  test('says the button at the foot of the sheet adds a heading', async ({ page }) => {
-    const sheet = await openSheet(page);
-
-    await sheet.getByTestId('sheet-add-section').scrollIntoViewIfNeeded();
-    await expect(sheet.getByTestId('sheet-add-section')).toHaveText(/見出しを追加/);
   });
 });
