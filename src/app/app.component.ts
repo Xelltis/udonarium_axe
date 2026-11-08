@@ -31,6 +31,7 @@ import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import type { PanelOption } from '@axe/application/ui/panel.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SkinService } from '@axe/application/ui/skin.service';
+import { StartupLoadingService } from '@axe/application/ui/startup-loading.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
@@ -244,7 +245,9 @@ export class AppComponent {
 
     this.fileArchiver.onCodeUnavailable = inject(LOAD_FAILURE_NOTICE);
 
+    const startupLoading = inject(StartupLoadingService);
     afterNextRender(() => {
+      startupLoading.begin();
       this.overlays.main = this.modalLayerViewContainerRef();
       const startPanels: [RoomPanelName, PanelOption][] = [['peerMenu', { left: START_PANEL_LEFT, top: 10 }]];
       if (!this.viewport.isCompact()) {

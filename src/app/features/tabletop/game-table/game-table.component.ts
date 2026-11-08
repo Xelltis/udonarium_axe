@@ -51,6 +51,7 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { StartupLoadingService } from '@axe/application/ui/startup-loading.service';
 import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ViewLockService } from '@axe/application/ui/view-lock.service';
@@ -250,6 +251,7 @@ export class GameTableComponent {
   private readonly terrainMenu = inject(TerrainMenuService);
   private readonly tabletopActionService = inject(TabletopActionService);
   private readonly startRoom = inject(StartRoomService);
+  private readonly startupLoading = inject(StartupLoadingService);
   protected readonly visionService = inject(VisionService);
   private readonly modalService = inject(ModalService);
   private readonly panelService = inject(PanelService);
@@ -401,6 +403,18 @@ export class GameTableComponent {
       this.renderLite.active();
       if (!this._initialized) return;
       untracked(() => this.redrawTableGrid());
+    });
+    effect(() => {
+      const unavailable = this.table3d.unavailable();
+      const drawing = this.table3d.backend() !== null;
+      untracked(() => {
+        if (unavailable) {
+          this.startupLoading.finish();
+        } else if (drawing) {
+          this.startupLoading.reach('pieces');
+          void this.startupLoading.finishAfter(() => this.table3d.whenIdle());
+        }
+      });
     });
     this.tabletopActionService.makeDefaultTable();
     // A browser that keeps a room to start on sets it out in place of the sample pieces, and the

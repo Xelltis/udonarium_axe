@@ -244,10 +244,6 @@ body.overlay-mode {
   background-color: transparent;
 }
 
-html[data-overlay] .sk-cube-grid {
-  display: none;
-}
-
 /* The body clips what reaches past the screen rather than hiding it. A box that only hides it can still
    be scrolled, as a text editor scrolls every box round its caret to bring it into view, and the whole
    page moved up under the bars held to the screen. */
@@ -263,67 +259,6 @@ body {
   word-break: auto-phrase;
 }
 
-.sk-cube-grid {
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  right: 0;
-  width: 100px;
-  height: 100px;
-  margin: auto;
-}
-
-.sk-cube-grid .sk-cube {
-  width: 33%;
-  height: 33%;
-  background-color: #666;
-  float: left;
-  animation: sk-cubeGridScaleDelay 1.3s infinite ease-in-out;
-}
-
-.sk-cube-grid .sk-title {
-  width: 100%;
-  text-align: center;
-  float: left;
-}
-
-.sk-cube-grid .sk-cube1 {
-  animation-delay: 0.2s;
-}
-
-.sk-cube-grid .sk-cube2 {
-  animation-delay: 0.3s;
-}
-
-.sk-cube-grid .sk-cube3 {
-  animation-delay: 0.4s;
-}
-
-.sk-cube-grid .sk-cube4 {
-  animation-delay: 0.1s;
-}
-
-.sk-cube-grid .sk-cube5 {
-  animation-delay: 0.2s;
-}
-
-.sk-cube-grid .sk-cube6 {
-  animation-delay: 0.3s;
-}
-
-.sk-cube-grid .sk-cube7 {
-  animation-delay: 0s;
-}
-
-.sk-cube-grid .sk-cube8 {
-  animation-delay: 0.1s;
-}
-
-.sk-cube-grid .sk-cube9 {
-  animation-delay: 0.2s;
-}
-
 @keyframes anime1 {
   0% {
     transform: rotateZ(0deg);
@@ -331,17 +266,5 @@ body {
 
   100% {
     transform: rotateZ(180deg);
-  }
-}
-
-@keyframes sk-cubeGridScaleDelay {
-  0%,
-  70%,
-  100% {
-    transform: scale(1, 1);
-  }
-
-  35% {
-    transform: scale(0, 0);
   }
 }

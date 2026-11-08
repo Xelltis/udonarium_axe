@@ -19,6 +19,7 @@ import {
   makeDefaultTable as _makeDefaultTable,
   makeDefaultTabletopObjects as _makeDefaultTabletopObjects,
 } from '@axe/application/tabletop/tabletop-default-setup';
+import { StartupLoadingService } from '@axe/application/ui/startup-loading.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -70,6 +71,7 @@ export class TabletopActionService {
   private readonly tableSelecter = inject(TableSelecter);
   private readonly viewMode = inject(ViewModePreferenceService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly startupLoading = inject(StartupLoadingService);
 
   constructor() {}
 
@@ -402,7 +404,7 @@ export class TabletopActionService {
    */
   makeDefaultTabletopObjects() {
     const standing = !laysFlat(this.viewMode.mode(), this.getViewTable()?.mode2d ?? false);
-    _makeDefaultTabletopObjects(this.imageStorage, this.t, standing);
+    _makeDefaultTabletopObjects(this.imageStorage, this.t, standing, (work) => this.startupLoading.hold(work));
   }
 
   /**

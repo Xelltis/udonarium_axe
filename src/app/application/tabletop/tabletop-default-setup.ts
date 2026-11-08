@@ -295,7 +295,12 @@ export const SAMPLE_PARTIES: readonly string[] = ['testParty_1', 'testParty_2'];
  * sight and joined to one party so the fog and the dark can be tried at once. The monsters stand in
  * a party of their own, so a room telling sides apart by party still has two sides to fight.
  */
-export function makeDefaultTabletopObjects(imageStorage: ImageStorage, t: TranslateFn, standing = true): void {
+export function makeDefaultTabletopObjects(
+  imageStorage: ImageStorage,
+  t: TranslateFn,
+  standing = true,
+  hold: (work: Promise<unknown>) => void = () => undefined
+): void {
   let testCharacter: GameCharacter;
   let testFile: ImageFile;
   let fileContext: ImageContext;
@@ -390,7 +395,7 @@ export function makeDefaultTabletopObjects(imageStorage: ImageStorage, t: Transl
   const table = TableSelecter.instance.viewTable;
   if (!table) return;
   raiseSampleStep(table);
-  layTutorialBoard(imageStorage, table, t, standing);
+  layTutorialBoard(imageStorage, table, t, standing, hold);
 }
 
 /**

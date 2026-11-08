@@ -46,6 +46,7 @@ export async function prepare(page: Page) {
   });
   await waitAppReady(page);
   await drawWhileClockHeld(page);
+  await expect(page.locator('#app-loading')).toHaveCount(0, { timeout: 30_000 });
   await page.addStyleTag({ content: NO_RESTORE_OFFER });
   await page.addStyleTag({ content: NO_TRANSITIONS });
 }

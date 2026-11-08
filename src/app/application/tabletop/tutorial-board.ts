@@ -64,7 +64,13 @@ const LIGHT_CELL = 29;
  * seen in perspective, laid flat north of it where it is seen from above, and fixed, so a drag meant
  * for the table does not carry it off. What is written on it comes after, from the part that writes it.
  */
-function putUpBoard(imageStorage: ImageStorage, table: GameTable, t: TranslateFn, standing: boolean): void {
+function putUpBoard(
+  imageStorage: ImageStorage,
+  table: GameTable,
+  t: TranslateFn,
+  standing: boolean,
+  hold: (work: Promise<unknown>) => void
+): void {
   const name = t('feature.tabletop.tutorial.board.name');
   const board = WhiteBoard.create(name, BOARD_WIDTH, BOARD_HEIGHT, 1, BOARD_IDENTIFIER);
   board.pitch = standing ? MAX_BOARD_PITCH : 0;
@@ -74,7 +80,7 @@ function putUpBoard(imageStorage: ImageStorage, table: GameTable, t: TranslateFn
   board.isLock = true;
   table.appendChild(board);
   board.update();
-  void writeOnBoard(board, t, imageStorage);
+  hold(writeOnBoard(board, t, imageStorage));
 }
 
 /** The part the board is written by, once a board has asked for it; asked for again where it failed to come. */
@@ -189,15 +195,17 @@ export function isTutorialPart(identifier: string): boolean {
  * of. Where the table is seen from above, the board is laid flat instead.
  *
  * Each is made under a name of its own, as the sample pieces are, so two newcomers who meet each
- * with a first table of their own find one tutorial between them, not two.
+ * with a first table of their own find one tutorial between them, not two. The writing of the board,
+ * which comes after, is handed to `hold`, for whatever waits on the table to be ready to wait on it.
  */
 export function layTutorialBoard(
   imageStorage: ImageStorage,
   table: GameTable,
   t: TranslateFn,
-  standing: boolean
+  standing: boolean,
+  hold: (work: Promise<unknown>) => void = () => undefined
 ): void {
-  putUpBoard(imageStorage, table, t, standing);
+  putUpBoard(imageStorage, table, t, standing, hold);
   layDemoNote(t);
   setOutDice(imageStorage, t);
   setOutTerrainAndLight(imageStorage, table, t);

@@ -6221,6 +6221,10 @@
     }
   },
   "app": {
+    "loading": {
+      "table": "Getting the table's drawing ready…",
+      "pieces": "Loading the pieces and pictures…"
+    },
     "fab": {
       "menuOpen": "Open menu",
       "menuHint": "Open the menu (right click to arrange or put back)",
