@@ -59,6 +59,18 @@ function fontRuleOf(family: string): Promise<string> {
 }
 
 /**
+ * Settles once the page has the fonts it is loading, at once where it is loading none.
+ *
+ * The styles written on a copy are the sizes the page laid the element out at. An icon laid out
+ * before its font came is as wide as its name spelled out, and the copy, drawn with the font, puts
+ * the icon at the start of that width rather than in the middle of its box.
+ */
+async function fontsSettled(): Promise<void> {
+  const fonts = (document as { fonts?: FontFaceSet }).fonts;
+  if (fonts?.status === 'loading') await fonts.ready;
+}
+
+/**
  * Copies an element and everything in it with every style the page gives each written on it, so
  * the copy looks the same where no style sheet reaches. The pictures it shows are carried in it,
  * and what is drawn on a canvas in it is carried as a picture. Everything is copied seen, as the
@@ -116,6 +128,7 @@ export async function pictureOfElement(element: HTMLElement, region?: PictureReg
     height: element.offsetHeight,
   };
   if (!(width > 0 && height > 0)) return null;
+  await fontsSettled();
   const families = new Set<string>();
   const copy = (await styledCopyOf(element, families)) as HTMLElement;
   copy.style.transform = 'none';
