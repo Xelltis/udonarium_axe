@@ -1,7 +1,7 @@
 import type { Table3dQualityPlan } from '@axe/infrastructure/table-3d/table-3d-quality';
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { ao } from 'three/addons/tsl/display/GTAONode.js';
-import { directionToColor, mrt, normalView, output, pass, vec4 } from 'three/tsl';
+import { mrt, normalView, output, packNormalToRGB, pass, vec4 } from 'three/tsl';
 import {
   type Camera,
   type Node,
@@ -125,7 +125,7 @@ export class TablePost {
       mrt({
         output,
         glow: vec4(this.glow, output.a),
-        ...(plan.ambientOcclusion ? { normal: directionToColor(normalView) } : {}),
+        ...(plan.ambientOcclusion ? { normal: packNormalToRGB(normalView) } : {}),
       })
     );
     let colour = scenePass.getTextureNode('output');

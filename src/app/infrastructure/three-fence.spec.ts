@@ -55,6 +55,35 @@ function moduleName(path: string): string {
   return path.split('/').pop()!.replace(/\.ts$/, '');
 }
 
+/**
+ * The functions of three.js's shading language that the library warns, as they are used, have been
+ * renamed or deprecated, read from the library itself, so that a newer one is read as it comes.
+ */
+function staleShading(): ReadonlySet<string> {
+  const library = ['three.tsl.js', 'three.webgpu.js']
+    .map((file) => readFileSync(`node_modules/three/build/${file}`, 'utf8'))
+    .join('\n');
+  return new Set([...library.matchAll(/'TSL: "(\w+)\(\)" has been (?:renamed|deprecated)/g)].map(([, name]) => name));
+}
+
+/** The names a file takes from the libraries, and those it calls as methods. */
+function namesUsedBy(file: string): string[] {
+  const text = readFileSync(file, 'utf8');
+  const imported = [...text.matchAll(IMPORT)]
+    .filter(([, , , path]) => LIBRARY.test(path))
+    .flatMap(([, , clause]) => (clause.match(/\{([^}]*)\}/)?.[1] ?? '').split(','))
+    .map(
+      (name) =>
+        name
+          .trim()
+          .replace(/^type\s+/, '')
+          .split(/\s+as\s+/)[0]
+    )
+    .filter((name) => name.length > 0);
+  const called = [...text.matchAll(/\.(\w+)\(/g)].map(([, name]) => name);
+  return [...imported, ...called];
+}
+
 describe('the three.js fence', () => {
   it('lets nothing outside the fenced folders load three.js or the physics', () => {
     const offending = sources(APP)
@@ -110,5 +139,18 @@ describe('the three.js fence', () => {
     );
 
     expect(missing).toEqual([]);
+  });
+
+  it('uses none of the shading functions three.js warns have been renamed or deprecated', () => {
+    const stale = staleShading();
+    const offending = [...Object.keys(FENCED), KIT]
+      .flatMap((folder) => sources(`${APP}/${folder}`))
+      .flatMap((file) =>
+        namesUsedBy(file)
+          .filter((name) => stale.has(name))
+          .map((name) => `${file} uses ${name}`)
+      );
+
+    expect(offending).toEqual([]);
   });
 });
