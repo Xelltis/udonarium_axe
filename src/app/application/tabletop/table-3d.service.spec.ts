@@ -195,6 +195,17 @@ class FakeEngine implements Table3dEngine {
     this.readiesFirst.push(on);
   }
 
+  /** The waits on the graphics card not yet over, settled by {@link finishDrawing}. */
+  drawing: (() => void)[] = [];
+
+  whenDrawn(): Promise<void> {
+    return new Promise((resolve) => this.drawing.push(resolve));
+  }
+
+  finishDrawing(): void {
+    for (const resolve of this.drawing.splice(0)) resolve();
+  }
+
   stopHoldingBack(): void {
     if (!this.heldBack) return;
     this.heldBack = false;
@@ -313,6 +324,22 @@ describe('Table3dService', () => {
 
     scene.readyBeforeDrawing(false);
     expect(engines[0].readiesFirst).toEqual([true, false]);
+  });
+
+  it('waits on the graphics card through its engine to have drawn what it was handed, and on nothing with no canvas', async () => {
+    const scene = service();
+    await expect(scene.whenDrawn()).resolves.toBeUndefined();
+
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    let drawn = false;
+    void scene.whenDrawn().then(() => (drawn = true));
+    await Promise.resolve();
+    expect(drawn).toBe(false);
+
+    engines[0].finishDrawing();
+    await Promise.resolve();
+    expect(drawn).toBe(true);
   });
 
   it('tells an engine made after it was asked not to ready the graphics card first', async () => {

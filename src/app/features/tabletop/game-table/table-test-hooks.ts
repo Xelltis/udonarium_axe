@@ -58,6 +58,12 @@ export interface TableTestHooks {
    * page whose clock is held, where no frame comes until the clock is moved on.
    */
   drawDueNow(): boolean;
+  /**
+   * Settles once the graphics card has drawn every frame the page handed it, or at once while there is
+   * no canvas: through WebGPU, what is new to the card is built after `drawDueNow` answers, and the
+   * screen shows nothing new until it is.
+   */
+  whenDrawn(): Promise<void>;
   /** What a frame drawn at once still waits for before it shows all the canvas was told, none once it shows it all. */
   busy(): string[];
   /** Holds the flickering lights of the canvas as they are at a moment, or lets them flicker by the clock again given null. */
@@ -191,6 +197,7 @@ export function installTableTestHooks(
       hud.writeNow();
       return drawn;
     },
+    whenDrawn: () => scene.whenDrawn(),
     holdFlicker: (timeMs) => scene.holdFlicker(timeMs),
     holdMotion: (held) => scene.holdMotion(held),
     readyBeforeDrawing: (on) => scene.readyBeforeDrawing(on),

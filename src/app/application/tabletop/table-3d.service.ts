@@ -637,6 +637,11 @@ export class Table3dService {
     });
   }
 
+  /** Settles once the graphics card has drawn every frame handed to it, or at once while there is no canvas; see {@link Table3dEngine.whenDrawn}. */
+  whenDrawn(): Promise<void> {
+    return this.engine?.whenDrawn() ?? Promise.resolve();
+  }
+
   private async start(canvas: HTMLCanvasElement): Promise<Table3dEngine | null> {
     if (untracked(this.renderer) === 'none') return null;
     const graphics = await this.askGraphics();

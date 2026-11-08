@@ -531,6 +531,11 @@ class ThreeTableEngine implements Table3dEngine {
     this.readiesFirst = on;
   }
 
+  whenDrawn(): Promise<void> {
+    const device = (this.renderer.backend as { device?: { queue: { onSubmittedWorkDone(): Promise<void> } } }).device;
+    return device ? device.queue.onSubmittedWorkDone() : Promise.resolve();
+  }
+
   stopHoldingBack(): void {
     if (this.shadowTimer === null) return;
     clearTimeout(this.shadowTimer);

@@ -194,7 +194,7 @@ export async function menuEntry(page: Page, menu: Locator, text: string): Promis
   const entry = menu.getByText(text, { exact: true }).first();
   const group = MENU_GROUP_OF[text];
   if (group && !(await entry.isVisible())) {
-    await menu.getByText(group, { exact: true }).first().hover();
+    await menu.getByText(group, { exact: true }).first().hover({ force: true });
     await settle(page, 400);
   }
   return entry;
@@ -209,6 +209,21 @@ export async function menuEntry(page: Page, menu: Locator, text: string): Promis
 export async function hoverMenu(page: Page, menu: Locator, text: string) {
   await (await menuEntry(page, menu, text)).hover({ force: true });
   await settle(page, 400);
+}
+
+/**
+ * Chooses an entry of an open context menu by clicks sent to the page, its group's first, and moves
+ * no pointer: where the scene shot after it shows no menu, a pointer moved over a page drawing no
+ * frame waits on that page for as long as it draws none.
+ */
+export async function pressMenu(page: Page, menu: Locator, text: string) {
+  const entry = menu.getByText(text, { exact: true }).first();
+  const group = MENU_GROUP_OF[text];
+  if (group && !(await entry.isVisible())) {
+    await menu.getByText(group, { exact: true }).first().dispatchEvent('click');
+    await settle(page, 400);
+  }
+  await entry.dispatchEvent('click');
 }
 
 /** Chooses an entry of an open context menu, pressed as {@link hoverMenu} points at one. */
@@ -261,6 +276,7 @@ export async function holdAnimationsAt(page: Page, ms: number) {
 type CanvasHooks = {
   __axeTable?: {
     drawDueNow(): boolean;
+    whenDrawn(): Promise<void>;
     busy(): string[];
     holdFlicker(timeMs: number | null): void;
     holdMotion(held: boolean): void;
@@ -276,7 +292,9 @@ type CanvasHooks = {
  * where it draws them: before a shot, or before where a piece stands on the page is read. The
  * pictures the page takes of pieces for it, and what it loads, arrive on real time, while each frame
  * they need comes only as a held clock moves on: so what has fallen due is run, and the frame waited
- * for is drawn at once, again and again, without moving the clock on.
+ * for is drawn at once, again and again, without moving the clock on. Then the graphics card is waited
+ * on: through WebGPU it builds what is new to it only after the page has handed the frame over, and
+ * the screen, a picture of it and a pointer moved over it all wait until it has.
  */
 export async function drawCanvasThrough(page: Page) {
   await expect
@@ -293,6 +311,7 @@ export async function drawCanvasThrough(page: Page) {
       { message: 'what the canvas still waits for before it shows all it was told', timeout: 30_000, intervals: [50] }
     )
     .toEqual([]);
+  await page.evaluate(() => (window as unknown as CanvasHooks).__axeTable?.whenDrawn());
 }
 
 /**

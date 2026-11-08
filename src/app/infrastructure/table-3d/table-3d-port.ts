@@ -241,6 +241,12 @@ export interface Table3dEngine {
   /** Draws at once on the next frame what it holds back to draw a moment later, as the shadows of pieces that moved. */
   stopHoldingBack(): void;
   /**
+   * Settles once the graphics card has done everything it was handed to draw. Through WebGPU the page
+   * hands a frame over and goes on, and the card builds what is new to it and draws the frame after:
+   * what a frame drawn at once does not wait for, which a picture of the page has to.
+   */
+  whenDrawn(): Promise<void>;
+  /**
    * Whether the graphics card is readied for a new kind of thing before the frame that first draws it,
    * the scene being drawn once that is done, rather than built on that frame. On unless asked otherwise,
    * as the end-to-end pictures ask, whose clock is held and would hold the readying up with it.
