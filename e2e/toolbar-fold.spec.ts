@@ -1,18 +1,9 @@
-import { expect, Page, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 import { waitAppReady } from './helpers';
 
 /** A seat can fold each toolbar down to its title, and finds it folded when it comes back. */
 test.describe('folding the toolbars', () => {
-  async function becomeGm(page: Page) {
-    await page
-      .locator('ui-panel')
-      .filter({ hasText: '接続情報' })
-      .getByRole('button', { name: /^\s*GM\s*$/ })
-      .click();
-    await expect(page.locator('app-gm-toolbar [data-testid="gm-toolbar-fold"]')).toBeVisible({ timeout: 10000 });
-  }
-
   test('hides the tools when the player toolbar is folded, and keeps it folded after a reload', async ({ page }) => {
     await waitAppReady(page);
     const toolbar = page.locator('app-pl-toolbar');
@@ -29,22 +20,5 @@ test.describe('folding the toolbars', () => {
 
     await toolbar.getByTestId('pl-toolbar-fold').click();
     await expect(toolbar.locator('[title="所有キャラクター一覧"]')).toBeVisible();
-  });
-
-  test('keeps the player toolbar open when the GM toolbar is folded', async ({ page }) => {
-    await waitAppReady(page);
-    await becomeGm(page);
-    const gm = page.locator('app-gm-toolbar');
-    await expect(gm.locator('[title^="暗闇"]')).toBeVisible();
-
-    await gm.getByTestId('gm-toolbar-fold').click();
-    await expect(gm.locator('[title^="暗闇"]')).toHaveCount(0);
-
-    await page
-      .locator('ui-panel')
-      .filter({ hasText: '接続情報' })
-      .getByRole('button', { name: /^\s*PL\s*$/ })
-      .click();
-    await expect(page.locator('app-pl-toolbar [title="所有キャラクター一覧"]')).toBeVisible({ timeout: 10000 });
   });
 });

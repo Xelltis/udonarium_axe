@@ -46,10 +46,12 @@ describe('GameClockWidgetComponent', () => {
     expect(root.querySelector('[data-testid="game-clock-settings"]')).toBeNull();
   });
 
-  it('lets the master step the time on and back', () => {
+  it('lets the master step the time on and back, saying each step in the chat', () => {
     const root = open(PeerRole.GameMaster);
+    const said = vi.mocked(TestBed.inject(ChatMessageService).sendSystemNotice);
 
     root.querySelector<HTMLButtonElement>('[data-testid="game-clock-on"]')!.click();
+    expect(said).toHaveBeenLastCalledWith('clock', '時間を進めました: 1日目 昼');
     root.querySelector<HTMLButtonElement>('[data-testid="game-clock-on"]')!.click();
     fixture.detectChanges();
     expect(text(root, 'game-clock-time')).toBe('夕');

@@ -15,6 +15,7 @@ import { LobbyComponent } from '@axe/features/lobby/lobby/lobby.component';
 import { NetworkReachService } from '@axe/features/lobby/network-reach.service';
 import { RoomDeletionService } from '@axe/features/lobby/room-deletion.service';
 import { RoomJoinService } from '@axe/features/lobby/room-join.service';
+import { RoomSettingComponent } from '@axe/features/lobby/room-setting/room-setting.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('LobbyComponent', () => {
@@ -211,6 +212,19 @@ describe('LobbyComponent', () => {
     expect(opened.componentInstance.help()).toBe(
       'まだサーバーにつながっていません。しばらく待ってから「一覧を更新」を押してください。'
     );
+  });
+
+  it('opens the form for a new room from its button, even before the server is reached', async () => {
+    vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(false);
+    const open = vi.spyOn(TestBed.inject(ModalService), 'open').mockResolvedValue(true);
+    fixture.detectChanges();
+
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('[data-testid="lobby-create-room"]')!
+      .click();
+    await fixture.whenStable();
+
+    expect(open).toHaveBeenCalledWith(RoomSettingComponent, expect.anything());
   });
 
   describe('signal-driven CD', () => {

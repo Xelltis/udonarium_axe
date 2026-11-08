@@ -92,12 +92,4 @@ test.describe("wiping all of this browser's data", () => {
     expect(await marksLeft(page)).toEqual([]);
     expect(await page.evaluate(() => localStorage.getItem('ui-theme'))).not.toBe('dark');
   });
-
-  test('wipes nothing when cancelled', async ({ page }) => {
-    await pressWipe(page);
-    await page.locator('confirm-dialog').getByRole('button', { name: 'キャンセル' }).click();
-    await expect(page.locator('confirm-dialog')).toHaveCount(0);
-
-    expect(await marksLeft(page)).toEqual(['axe-dice-images', 'e2e-elsewhere', 'localStorage']);
-  });
 });

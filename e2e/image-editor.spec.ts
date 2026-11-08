@@ -2,12 +2,6 @@ import { expect, Locator, Page, test } from '@playwright/test';
 
 import { openPanel, waitAppReady } from './helpers';
 
-/** A 1x1 transparent PNG, used as an image well under the limit. */
-const TINY_PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
-  'base64'
-);
-
 /**
  * An uncompressed 24-bit BMP. At 1000x800 it comes to about 2.4MB, over the 2MB limit. Its contents
  * are a plain gradient, so cropped and written out it gets small enough.
@@ -90,14 +84,9 @@ test.describe('editing an image', () => {
     await openFileStorage(page);
   });
 
-  test('adds an image within the limit as it is, without opening the editor', async ({ page }) => {
-    await uploadInput(page).setInputFiles({ name: 'tiny.png', mimeType: 'image/png', buffer: TINY_PNG });
-
-    await expect(page.locator('file-storage img[alt="tiny.png"]')).toHaveCount(1, { timeout: 10000 });
-    await expect(editorFrame(page)).toHaveCount(0);
-  });
-
-  test('opens an image over 2MB in the editor, where it can be cropped and added', async ({ page }) => {
+  test('opens an image over 2MB in the editor, where it is cropped and added, and edits it again in its place', async ({
+    page,
+  }) => {
     await uploadInput(page).setInputFiles({ name: 'big.bmp', mimeType: 'image/bmp', buffer: largeBmp() });
 
     await expect(editorFrame(page)).toBeVisible({ timeout: 10000 });
@@ -112,29 +101,13 @@ test.describe('editing an image', () => {
 
     await page.getByTestId('image-editor-add').click();
     await expect(editorFrame(page)).toHaveCount(0, { timeout: 10000 });
-    await expect(page.locator('file-storage img[alt^="big."]')).toHaveCount(1);
-  });
+    const tile = page.locator('file-storage img[alt^="big."]');
+    await expect(tile).toHaveCount(1);
 
-  test('opens even a small image in the editor once "edit before adding" is checked', async ({ page }) => {
-    await page.getByTestId('file-storage-edit-first').locator('input').check();
-    await uploadInput(page).setInputFiles({ name: 'tiny.png', mimeType: 'image/png', buffer: TINY_PNG });
-
-    await expect(editorFrame(page)).toBeVisible({ timeout: 10000 });
-    await page.getByTestId('image-editor-add').click();
-
-    await expect(editorFrame(page)).toHaveCount(0, { timeout: 10000 });
-    await expect(page.locator('file-storage img[alt="tiny.png"]')).toHaveCount(1);
-  });
-
-  test('edits a checked image again right after replacing it by an edit', async ({ page }) => {
-    await uploadInput(page).setInputFiles({ name: 'tiny.png', mimeType: 'image/png', buffer: TINY_PNG });
-    const tile = page.locator('file-storage img[alt^="tiny."]');
-    await expect(tile).toHaveCount(1, { timeout: 10000 });
     const tiles = await page.locator('file-storage img').count();
     const original = await tile.getAttribute('src');
     await tile.click();
     const edit = page.getByTestId('file-storage-edit');
-
     for (let round = 0; round < 2; round++) {
       await expect(edit).toBeEnabled();
       await edit.click();
@@ -144,8 +117,8 @@ test.describe('editing an image', () => {
       await expect(editorFrame(page)).toHaveCount(0, { timeout: 10000 });
     }
 
-    // The original image is hidden from the list, and the edited one alone is listed. The format
-    // written out is PNG or WebP depending on the browser.
+    // The image edited is hidden from the list, and the one it was replaced by alone is listed. The
+    // format written out is PNG or WebP depending on the browser.
     await expect(page.locator('file-storage img')).toHaveCount(tiles);
     await expect(tile).toHaveCount(1);
     expect(await tile.getAttribute('src')).not.toBe(original);

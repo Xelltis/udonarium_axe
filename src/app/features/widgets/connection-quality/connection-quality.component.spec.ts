@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RESUME_GRACE_MS } from '@axe/application/lobby/link-watch.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
@@ -104,12 +105,13 @@ describe('ConnectionQualityComponent', () => {
     expect(internals.links().map((link) => link.peerId)).toEqual(['peer-a', 'peer-b']);
   });
 
-  it('stays open with nobody connected', () => {
+  it('stays open with nobody connected, and says nobody is', () => {
     vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([] as never);
     create();
 
     expect(internals.links()).toEqual([]);
     expect(panel()).not.toBeNull();
+    expect(panel()!.textContent).toContain(TestBed.inject(TRANSLATE_FN)('feature.lobby.linkQuality.noPeers'));
   });
 
   it('heads the panel with the worst link', () => {

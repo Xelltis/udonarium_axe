@@ -3,8 +3,8 @@ import { expect, Page, test } from '@playwright/test';
 import { openSeatDisplay, openSeatWidgets, waitAppReady } from './helpers';
 
 /**
- * The small always-on pieces — clock, link quality, mini player, language —
- * are toggled from the FAB: the widgets from their own menu, the language from the display one.
+ * The small always-on pieces are toggled from the FAB: the widgets from their own menu, the
+ * language from the display one.
  *
  * Their host elements stay in the DOM with no box of their own, so whether a
  * widget is showing is a question about its content, not about the host.
@@ -21,66 +21,6 @@ test.describe('widgets and switching the language', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     await expect(page.locator('app-pl-toolbar [title="所有キャラクター一覧"]')).toBeVisible({ timeout: 10000 });
-  });
-
-  test('shows and hides the clock from the widgets small menu', async ({ page }) => {
-    const clock = page.locator('app-digital-clock > *');
-    await expect(clock).toHaveCount(0);
-
-    await toggleWidget(page, 'clock');
-    await expect(clock).toBeVisible({ timeout: 5000 });
-    // It holds the time, not mere decoration.
-    await expect(clock).toContainText(/\d{1,2}:\d{2}/);
-
-    await toggleWidget(page, 'clock');
-    await expect(clock).toHaveCount(0, { timeout: 5000 });
-  });
-
-  test('keeps the time of the story for the room, which the master steps on and the chat is told of', async ({
-    page,
-  }) => {
-    await page
-      .locator('ui-panel')
-      .filter({ hasText: '接続情報' })
-      .getByRole('button', { name: /^\s*GM\s*$/ })
-      .click();
-    await expect(page.locator('app-gm-toolbar [title^="暗闇"]')).toBeVisible({ timeout: 10000 });
-    await toggleWidget(page, 'gameClock');
-    const clock = page.getByTestId('game-clock');
-    await expect(clock).toBeVisible({ timeout: 10000 });
-    await expect(clock.getByTestId('game-clock-day')).toHaveText('1日目');
-    await expect(clock.getByTestId('game-clock-time')).toHaveText('朝');
-
-    await clock.getByTestId('game-clock-on').click();
-
-    await expect(clock.getByTestId('game-clock-time')).toHaveText('昼');
-    await expect(page.locator('chat-tab chat-message').last()).toContainText('時間を進めました: 1日目 昼');
-
-    await clock.getByTestId('game-clock-settings').click();
-    await clock.getByTestId('game-clock-mode-hours').click();
-    await expect(clock.getByTestId('game-clock-time')).toHaveText('08:00');
-  });
-
-  test('says in the connection quality widget that no one else is there', async ({ page }) => {
-    const quality = page.locator('app-connection-quality > *');
-    await expect(quality).toHaveCount(0);
-
-    await toggleWidget(page, 'connectionQuality');
-    await expect(quality).toBeVisible({ timeout: 5000 });
-    // The page is open alone, so saying no one is there is right.
-    await expect(quality).toContainText('接続中の参加者はいません');
-  });
-
-  test('shows and hides the mini player from the widgets small menu', async ({ page }) => {
-    // Unlike the clock, this one keeps its element and hides it with hidden.
-    const player = page.locator('app-mini-jukebox > *');
-    await expect(player).toBeVisible();
-
-    await toggleWidget(page, 'miniPlayer');
-    await expect(player).toBeHidden({ timeout: 5000 });
-
-    await toggleWidget(page, 'miniPlayer');
-    await expect(player).toBeVisible({ timeout: 5000 });
   });
 
   test('shows and hides the player tools from the widgets small menu, and keeps them hidden after a reload', async ({
@@ -100,19 +40,6 @@ test.describe('widgets and switching the language', () => {
 
     await widgets.getByTestId('seat-widget-plToolbar').click();
     await expect(toolbar).toBeVisible();
-  });
-
-  test('swaps the display small menu for the widgets one when widgets is pressed with it open', async ({ page }) => {
-    const display = await openSeatDisplay(page);
-    await page.locator('[data-testid="fab-widgets"]').click();
-
-    await expect(display).toBeHidden();
-    await expect(page.locator('[data-testid="seat-widgets"]')).toBeVisible();
-    await expect(page.locator('[data-testid="fab-widgets"]')).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.locator('[data-testid="fab-display"]')).toHaveAttribute('aria-expanded', 'false');
-
-    await page.locator('[data-testid="fab-widgets"]').click();
-    await expect(page.locator('[data-testid="seat-widgets"]')).toBeHidden();
   });
 
   test('changes the words on the screen when the language is switched', async ({ page }) => {

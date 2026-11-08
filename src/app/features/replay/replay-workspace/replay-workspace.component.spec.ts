@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { ReplayRecorderService } from '@axe/application/replay/replay-recorder.service';
 import { ReplayStagingService } from '@axe/application/replay/replay-staging.service';
@@ -253,6 +254,19 @@ describe('ReplayWorkspaceComponent', () => {
     isOpen = signal(false);
     await setup();
     expect(fixture.nativeElement.querySelector('replay-recording-list')).not.toBeNull();
+  });
+
+  it('says there are no recordings yet, and offers to read one in from a file', async () => {
+    isOpen = signal(false);
+    recordings = [];
+    await setup();
+    const t = TestBed.inject(TRANSLATE_FN);
+    const list = fixture.nativeElement.querySelector('replay-recording-list') as HTMLElement;
+
+    expect(list.textContent).toContain(t('feature.replay.panel.noRecordings'));
+    const picker = list.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(picker.accept).toContain('application/zip');
+    expect(picker.closest('label')!.textContent).toContain(t('feature.replay.panel.import'));
   });
 
   it('always says that it is recording', async () => {

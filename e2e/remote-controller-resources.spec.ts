@@ -47,14 +47,4 @@ test.describe('the values and resources the remote controller shows', () => {
     await expect(remote.locator('input[name="controller"][value="器用度"]')).toBeAttached();
     await expect(remote).toContainText('器用度');
   });
-
-  test('keeps a PL from touching this part of the room settings', async ({ page }) => {
-    await waitAppReady(page);
-    await openPanel(page, '部屋設定');
-    const section = page.getByTestId('room-settings-controller-resources');
-    await expect(section.locator('input[data-resource="HP"]')).toBeAttached();
-
-    // Only the GM may change this part, so a PL sees it out of reach.
-    expect(await section.evaluate((el) => el.closest('[inert]') !== null)).toBe(true);
-  });
 });

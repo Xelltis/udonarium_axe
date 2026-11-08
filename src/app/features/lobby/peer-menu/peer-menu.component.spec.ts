@@ -920,5 +920,49 @@ describe('PeerMenuComponent', () => {
 
       expect(ask).not.toHaveBeenCalled();
     });
+
+    it('writes the timeout typed in to this seat’s own cursor', async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const timeout = fixture.nativeElement.querySelector('input[name="peer-timeout"]') as HTMLInputElement;
+
+      timeout.value = '30';
+      timeout.dispatchEvent(new Event('input'));
+
+      expect(PeerCursor.myCursor.timeout).toBe(30);
+    });
+
+    it('turns the details of the others on and off from its box', async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const detail = () => fixture.nativeElement.querySelector('input[name="disp-detail-flag"]') as HTMLInputElement;
+      expect(detail().checked).toBe(false);
+
+      detail().click();
+      expect(component.dispDetailFlag()).toBe(true);
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+      detail().click();
+      expect(component.dispDetailFlag()).toBe(false);
+    });
+  });
+
+  describe('the seat’s own id', () => {
+    beforeEach(() => {
+      PeerCursor.createMyCursor();
+    });
+
+    it('is labelled, and reads ??? until the connection is open', () => {
+      vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(false);
+      const t = TestBed.inject(TRANSLATE_FN);
+      fixture.detectChanges();
+
+      const row = [...(fixture.nativeElement as HTMLElement).querySelectorAll('div')].find(
+        (div) => div.firstElementChild?.textContent?.trim() === t('feature.lobby.peerMenu.id')
+      );
+      expect(row).toBeDefined();
+      expect(row!.textContent).toContain('???');
+    });
   });
 });

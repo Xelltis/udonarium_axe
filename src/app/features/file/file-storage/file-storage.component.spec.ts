@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AssetOwnershipService } from '@axe/application/file/asset-ownership.service';
 import { AssetRemovalService } from '@axe/application/file/asset-removal.service';
 import { ImageTagLockService } from '@axe/application/file/image-tag-lock.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
@@ -526,6 +527,21 @@ describe('FileStorageComponent', () => {
       fixture.detectChanges();
 
       expect(shown()).toEqual({ upload: false, paste: false, editFirst: false, changeTag: false, tick: false });
+    });
+
+    it('asks a player to drop pictures or click to pick them, and holds a new tag name to twelve letters', () => {
+      canEdit = true;
+      fixture.detectChanges();
+      const t = TestBed.inject(TRANSLATE_FN);
+      const element = fixture.nativeElement as HTMLElement;
+      const dropZone = element.querySelector('input[type="file"]')!.closest('label')!;
+
+      expect(dropZone.textContent).toContain(t('feature.file.fileStorage.dropHere'));
+      expect(dropZone.textContent).toContain(t('feature.file.fileStorage.clickToSelect'));
+      const tagName = element.querySelector<HTMLInputElement>(
+        `input[placeholder="${t('feature.file.fileStorage.newTagPlaceholder')}"]`
+      )!;
+      expect(tagName.maxLength).toBe(12);
     });
   });
 

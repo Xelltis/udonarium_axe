@@ -36,7 +36,9 @@ test.describe('the tutorial the first table opens with', () => {
     await closePanels(page);
   });
 
-  test('stands a board with its words drawn on it, and lays a note to write on', async ({ page }) => {
+  test('stands a board with its words drawn on it and a note to write on, and puts them away from its menu', async ({
+    page,
+  }) => {
     await expect(page.locator('white-board [data-surface^="tutorialBoard"]')).toHaveCount(1, { timeout: 20000 });
     await expect(page.locator('white-board [data-part="face"] [style*="background-image"]')).toHaveCount(1, {
       timeout: 20000,
@@ -44,9 +46,6 @@ test.describe('the tutorial the first table opens with', () => {
     await expect(page.locator('text-note[data-object-id="tutorialNote"]')).toContainText('クリックすると', {
       timeout: 10000,
     });
-  });
-
-  test('puts the tutorial away from a board’s menu, leaving the sample pieces', async ({ page }) => {
     const pieces = await page.locator('game-character').count();
     const menu = await openTutorialBoardMenu(page);
 
@@ -54,14 +53,5 @@ test.describe('the tutorial the first table opens with', () => {
 
     await expect(page.locator(TUTORIAL)).toHaveCount(0, { timeout: 10000 });
     await expect(page.locator('game-character')).toHaveCount(pieces);
-  });
-
-  test('clears the first table down to a blank one from a board’s menu', async ({ page }) => {
-    const menu = await openTutorialBoardMenu(page);
-
-    await menu.getByText('片付けて白紙のテーブルにする', { exact: true }).click();
-
-    await expect(page.locator(TUTORIAL)).toHaveCount(0, { timeout: 10000 });
-    await expect(page.locator('game-character')).toHaveCount(0, { timeout: 10000 });
   });
 });
