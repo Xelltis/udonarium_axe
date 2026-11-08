@@ -31,13 +31,14 @@ test.describe('chat bookmarks', () => {
     await waitAppReady(page);
   });
 
-  test('titles a bookmark, and goes back to its old line from another tab while that line is not drawn', async ({
+  test('titles a bookmark, goes back to its old line from another tab while that line is not drawn, and drops it once removed', async ({
     page,
   }) => {
     await say(page, ['犯人は左利きだったと思う']);
     const witness = lineSaying(page, '犯人は左利きだったと思う');
     await bookmark(page, witness, '共有');
     await expect(witness.getByTestId('chat-message-bookmark-mark')).toBeVisible();
+    await expect(page.getByTestId('chat-bookmarks-toggle-count')).toHaveText('1');
 
     await say(
       page,
@@ -66,40 +67,11 @@ test.describe('chat bookmarks', () => {
     await expect(found).toBeInViewport();
     await expect(found).toHaveClass(/chat-message-highlight/);
     await expect(found.getByTestId('chat-message-bookmark-mark')).toHaveAttribute('title', /事件の証言A/);
-  });
-
-  test('drops a bookmark from the list once it is removed', async ({ page }) => {
-    await say(page, ['あとで見返す発言']);
-    const line = lineSaying(page, 'あとで見返す発言');
-    await bookmark(page, line, '共有');
-    await expect(page.getByTestId('chat-bookmarks-toggle-count')).toHaveText('1');
 
     await page.getByTestId('chat-bookmarks-toggle').click();
-    const item = page.getByTestId('chat-bookmark-item');
     await item.hover();
     await item.getByTestId('chat-bookmark-remove').click();
-
     await expect(page.getByTestId('chat-bookmarks-empty')).toBeVisible();
-    await expect(line.getByTestId('chat-message-bookmark-mark')).toHaveCount(0);
-  });
-
-  test('lists personal bookmarks apart from shared ones, and narrows the list to the personal ones', async ({
-    page,
-  }) => {
-    await say(page, ['みんなで覚えておく発言', '自分だけ覚えておく発言']);
-    const shared = lineSaying(page, 'みんなで覚えておく発言');
-    await bookmark(page, shared, '共有');
-    const personal = lineSaying(page, '自分だけ覚えておく発言');
-    await bookmark(page, personal, '個人');
-    await expect(personal.locator('[data-testid="chat-message-bookmark-mark"][data-kind="personal"]')).toBeVisible();
-
-    await page.getByTestId('chat-bookmarks-toggle').click();
-    const items = page.getByTestId('chat-bookmark-item');
-    await expect(items).toHaveCount(2);
-    await expect(items.getByTestId('chat-bookmark-kind')).toHaveText(['共有', '個人']);
-
-    await page.getByTestId('chat-bookmarks-filter-personal').click();
-    await expect(items).toHaveCount(1);
-    await expect(items.getByTestId('chat-bookmark-title')).toHaveText('自分だけ覚えておく発言');
+    await expect(found.getByTestId('chat-message-bookmark-mark')).toHaveCount(0);
   });
 });

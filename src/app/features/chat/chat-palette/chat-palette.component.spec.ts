@@ -522,6 +522,29 @@ describe('ChatPaletteComponent', () => {
     });
   });
 
+  it('turns to the character data from its button, and back to the palette from the one offered there', () => {
+    const speaker = createChar('術者');
+    speaker.chatPalette!.setPalette('2d6+3 攻撃');
+    component.character.set(speaker);
+    fixture.detectChanges();
+    const buttonSaying = (words: string) =>
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find((button) =>
+        button.textContent?.includes(words)
+      ) ?? null;
+    expect(buttonSaying('パレットに戻る')).toBeNull();
+
+    buttonSaying('キャラ情報')!.click();
+    fixture.detectChanges();
+
+    expect(component.viewMode()).toBe('character');
+    expect(buttonSaying('キャラ情報')).toBeNull();
+
+    buttonSaying('パレットに戻る')!.click();
+    fixture.detectChanges();
+
+    expect(component.viewMode()).toBe('palette');
+  });
+
   describe('the tabs lines are sent to', () => {
     let tabs: ChatTab[];
 

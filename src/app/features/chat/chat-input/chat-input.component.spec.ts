@@ -20,6 +20,7 @@ import { DiceBot } from '@axe/domain/dice/dice-bot';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
+import { ChatColorSettingComponent } from '@axe/features/chat/chat-color-setting/chat-color-setting.component';
 import { ChatComposeService } from '@axe/features/chat/chat-compose.service';
 import { CHAT_EDITOR_LOADER, type ChatEditorModule } from '@axe/features/chat/chat-editor/chat-editor-loader';
 import { ChatInputComponent } from '@axe/features/chat/chat-input/chat-input.component';
@@ -321,6 +322,29 @@ describe('ChatInputComponent', () => {
       expect((find('[data-testid="chat-input-color-ink"]') as HTMLElement).style.backgroundColor).toBe(
         ink.style.backgroundColor
       );
+    });
+
+    it('opens the colour settings from the row under the colours of the colour button', () => {
+      fixture.detectChanges();
+      const panel = find('[data-testid="chat-input-colors"]') as HTMLElement;
+      panel.showPopover = () => undefined;
+      panel.hidePopover = () => undefined;
+      const open = vi.spyOn(TestBed.inject(PanelService), 'open').mockImplementation(() => ({}) as never);
+      (find('[data-testid="chat-input-color"]') as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      [...panel.querySelectorAll('button')].find((button) => button.textContent?.includes('色設定'))!.click();
+
+      expect(open).toHaveBeenCalledWith(ChatColorSettingComponent, expect.objectContaining({ title: '色設定' }));
+    });
+
+    it('speaks to everyone until a seat is picked to whisper to', async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(component.sendTo).toBe('');
+      expect(find('ng-select[name="send-to"] .ng-value-label')?.textContent?.trim()).toBe('全員');
     });
   });
 

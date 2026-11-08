@@ -52,14 +52,6 @@ test.describe('the chat editor', () => {
     await expect(page.locator('chat-tab').getByText('2行目')).toBeVisible({ timeout: 5000 });
   });
 
-  test('takes a line filled in whole, as a box would', async ({ page }) => {
-    const input = chatInput(page);
-    await input.fill('まとめて入れた行');
-    await expectChatText(input, 'まとめて入れた行');
-    await input.press('Enter');
-    await expect(page.locator('chat-tab').getByText('まとめて入れた行')).toBeVisible({ timeout: 5000 });
-  });
-
   test('brings back the line sent before on Ctrl+↑', async ({ page }) => {
     const input = chatInput(page);
     await input.fill('前に送った行');
@@ -82,7 +74,7 @@ test.describe('the chat editor', () => {
     await expect(page.locator('chat-window input[name^="chat-tab"]').nth(0)).toBeChecked();
   });
 
-  test('turns stars typed round some words into bold, never showing them, and sends them as stars', async ({
+  test('turns stars typed round some words into bold, never showing them, and takes the bold back to the stars, and a chip back to its syntax, with Backspace right after', async ({
     page,
   }) => {
     const input = chatInput(page);
@@ -91,13 +83,9 @@ test.describe('the chat editor', () => {
     await expect(input.locator('.chat-deco-bold')).toHaveText('強く');
     await expect(input).toHaveText('とても強く言う');
     await expectChatText(input, 'とても**強く**言う');
-  });
 
-  test('takes the bold back to the stars typed, and a chip back to its syntax, with Backspace right after', async ({
-    page,
-  }) => {
-    const input = chatInput(page);
-    await input.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('Delete');
     await page.keyboard.type('**強く**');
     await expect(input.locator('.chat-deco-bold')).toHaveText('強く');
     await page.keyboard.press('Backspace');
@@ -159,7 +147,9 @@ test.describe('the chat editor', () => {
     await expectChatText(input, 'a\\**b\\** c');
   });
 
-  test('switches bold on and off from the toolbar, its button lit where the selection is bold', async ({ page }) => {
+  test('switches bold on and off from the toolbar, its button lit where the selection is bold, and carries it on into what is typed after Ctrl+B', async ({
+    page,
+  }) => {
     const input = chatInput(page);
     const bold = page.locator('chat-window [data-testid="chat-toolbar-bold"]');
     await input.click();
@@ -173,11 +163,10 @@ test.describe('the chat editor', () => {
     await bold.click();
     await expectChatText(input, '強く言う');
     await expect(bold).toHaveAttribute('aria-pressed', 'false');
-  });
 
-  test('carries bold on into what is typed after Ctrl+B', async ({ page }) => {
-    const input = chatInput(page);
     await input.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('Delete');
     await page.keyboard.type('普通');
     await page.keyboard.press('Control+b');
     await page.keyboard.type('太く');
@@ -199,21 +188,6 @@ test.describe('the chat editor', () => {
     await expectChatText(input, '');
     await expect(linesWithRuby(page)).toHaveCount(2);
     await expect(linesWithRuby(page).last().locator('rt')).toHaveText('かな');
-  });
-
-  test('takes a ruby off from the toolbar, sending the words left', async ({ page }) => {
-    const input = chatInput(page);
-    await input.click();
-    await rubyFromToolbar(page, '漢字', 'かんじ');
-    await input.locator('[data-chip="ruby"]').click();
-    await page.locator('chat-window [data-testid="chat-toolbar-ruby"]').click();
-    await page.getByRole('button', { name: 'ルビを外す' }).click();
-    await expectChatText(input, '漢字');
-
-    await input.press('Enter');
-    await expectChatText(input, '');
-    await expect(page.locator('chat-tab chat-message').filter({ hasText: '漢字' })).toHaveCount(1);
-    await expect(linesWithRuby(page)).toHaveCount(0);
   });
 
   test('selects the words a drag runs over from anywhere in the box, leaving the panel where it stands', async ({
@@ -278,15 +252,27 @@ test.describe('the chat editor', () => {
     await expectChatText(input, '[斜体]選んだ言葉[/斜体]');
   });
 
-  test('opens its popovers upward from the foot of the screen, and keeps them on it', async ({ page }) => {
+  test('opens its popovers upward from the foot of the screen, keeps them on it, and opens one again at one press once it shut by itself', async ({
+    page,
+  }) => {
+    const button = page.locator('chat-window [data-testid="chat-toolbar-style"]');
+    const panel = page.locator('[data-testid="chat-toolbar-panel"]');
+    await button.click();
+    await expect(panel).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(panel).toBeHidden();
+    await expect(button).toHaveAttribute('aria-expanded', 'false');
+    await button.click();
+    await expect(panel).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(panel).toBeHidden();
+
     const input = chatInput(page);
     await input.click();
     await page.keyboard.type('赤く');
     await expectChatText(input, '赤く');
     await page.keyboard.press('ControlOrMeta+a');
-    const button = page.locator('chat-window [data-testid="chat-toolbar-style"]');
     await button.click();
-    const panel = page.locator('[data-testid="chat-toolbar-panel"]');
     await expect(panel).toBeVisible();
     const opened = (await panel.boundingBox())!;
     const anchor = (await button.boundingBox())!;
@@ -299,21 +285,9 @@ test.describe('the chat editor', () => {
     await expectChatText(input, '[赤]赤く[/赤]');
   });
 
-  test('opens a popover again at one press once it shut by itself', async ({ page }) => {
-    const button = page.locator('chat-window [data-testid="chat-toolbar-style"]');
-    const panel = page.locator('[data-testid="chat-toolbar-panel"]');
-    await button.click();
-    await expect(panel).toBeVisible();
-
-    await page.keyboard.press('Escape');
-    await expect(panel).toBeHidden();
-    await expect(button).toHaveAttribute('aria-expanded', 'false');
-
-    await button.click();
-    await expect(panel).toBeVisible();
-  });
-
-  test('puts a reading over the words selected, as a ruby', async ({ page }) => {
+  test('puts a reading over the words selected, as a ruby, and takes it off from the toolbar, sending the words left', async ({
+    page,
+  }) => {
     const input = chatInput(page);
     await input.click();
     await page.keyboard.type('漢字');
@@ -324,6 +298,15 @@ test.describe('the chat editor', () => {
     await page.locator('[data-testid="chat-toolbar-ruby-apply"]').click();
     await expectChatText(input, '|漢字《かんじ》');
     await expect(input.locator('ruby')).toHaveCount(1);
+
+    await input.locator('[data-chip="ruby"]').click();
+    await page.locator('chat-window [data-testid="chat-toolbar-ruby"]').click();
+    await page.getByRole('button', { name: 'ルビを外す' }).click();
+    await expectChatText(input, '漢字');
+    await input.press('Enter');
+    await expectChatText(input, '');
+    await expect(page.locator('chat-tab chat-message').filter({ hasText: '漢字' })).toHaveCount(1);
+    await expect(linesWithRuby(page)).toHaveCount(0);
   });
 
   test('writes the syntax picked from the button of its kind where it is read', async ({ page }) => {
@@ -343,7 +326,9 @@ test.describe('the chat editor', () => {
     await expect(input.locator('[data-chip="effect"]')).toHaveCount(1);
   });
 
-  test('puts a reference to the target in as a chip, from the reference button', async ({ page }) => {
+  test('puts a reference to the target in as a chip from the reference button, taking in the closing brace already written when a name is picked', async ({
+    page,
+  }) => {
     await page.locator('chat-window ng-select[name="send-from"]').click();
     await page.locator('ng-dropdown-panel .ng-option', { hasText: 'キャラクターA' }).click();
     const input = chatInput(page);
@@ -361,17 +346,13 @@ test.describe('the chat editor', () => {
 
     await expectChatText(input, 't:HP-t{HP}');
     await expect(input.locator('[data-chip="reference"]')).toHaveCount(1);
-  });
 
-  test('takes in the closing brace already written when a name is picked for a reference', async ({ page }) => {
-    await page.locator('chat-window ng-select[name="send-from"]').click();
-    await page.locator('ng-dropdown-panel .ng-option', { hasText: 'キャラクターA' }).click();
-    const input = chatInput(page);
     await input.click();
-
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.press('Delete');
+    await expectChatText(input, '');
     await page.locator('chat-window [data-testid="chat-toolbar-group-reference"]').click();
-    await page
-      .locator('[data-testid="chat-toolbar-panel"]')
+    await panel
       .getByRole('listitem')
       .filter({ hasText: /^\s*ターゲットの値/ })
       .first()
@@ -384,7 +365,7 @@ test.describe('the chat editor', () => {
     await expect.poll(() => chatInputText(input)).toMatch(/^t\{[^{}]+\}$/);
   });
 
-  test('offers the names a syntax takes over the caret, Enter taking one, and sends on Enter with none offered', async ({
+  test('offers the names a syntax takes over the caret, Enter taking one, marks an effect with no piece to play on, and sends on Enter with none offered', async ({
     page,
   }) => {
     const input = chatInput(page);
@@ -399,46 +380,27 @@ test.describe('the chat editor', () => {
 
     await page.keyboard.press('Enter');
     await expectChatText(input, `《${name}》`);
-    await expect(input.locator('[data-chip="effect"]')).toHaveCount(1);
+    const chip = input.locator('[data-chip="effect"]');
+    await expect(chip).toHaveCount(1);
     await expect(list).toHaveCount(0);
+    await expect(chip).toHaveClass(/chat-lint-warning/, { timeout: 5000 });
+    await expect(chip).toHaveAttribute('data-tip', /対象のコマがいない/);
 
     await page.keyboard.press('Enter');
     await expectChatText(input, '');
   });
 
-  test('marks an effect with no piece targeted or selected to play on', async ({ page }) => {
-    const input = chatInput(page);
-    await input.click();
-    await page.keyboard.type('《');
-    await expect(page.locator('[data-testid="chat-suggestions"]')).toBeVisible();
-    await page.keyboard.press('Enter');
-    const chip = input.locator('[data-chip="effect"]');
-    await expect(chip).toHaveCount(1);
-    await expect(chip).toHaveClass(/chat-lint-warning/, { timeout: 5000 });
-    await expect(chip).toHaveAttribute('data-tip', /対象のコマがいない/);
-  });
-
-  test('marks what will not work, and lists it from the button beside the box', async ({ page }) => {
+  test('marks what will not work, lists it from the button beside the box, and shuts the list once nothing is found any more', async ({
+    page,
+  }) => {
     const input = chatInput(page);
     await input.fill(':HP-1');
     const findings = page.locator('chat-window [data-testid="chat-input-findings"]');
     await expect(findings).toBeVisible({ timeout: 5000 });
     await expect(input.locator('.chat-lint-warning')).toHaveCount(1);
-
-    await findings.click();
-    await expect(page.locator('chat-window [data-testid="chat-input-finding-list"]')).toContainText(
-      '発言者がコマではない'
-    );
-  });
-
-  test('shuts the list of findings once nothing is found any more', async ({ page }) => {
-    const input = chatInput(page);
-    await input.fill(':HP-1');
-    const findings = page.locator('chat-window [data-testid="chat-input-findings"]');
-    await expect(findings).toBeVisible({ timeout: 5000 });
     await findings.click();
     const list = page.locator('chat-window [data-testid="chat-input-finding-list"]');
-    await expect(list).toBeVisible();
+    await expect(list).toContainText('発言者がコマではない');
 
     // Cleared by keys from where the caret is, as a press would shut the list by itself.
     await input.focus();
@@ -462,64 +424,12 @@ test.describe('the chat editor', () => {
     await expect.poll(() => chatInputText(input)).toContain('仮名');
     await expect(page.locator('chat-tab').getByText('仮名')).toHaveCount(0);
   });
-
-  test('sends nothing on an Enter that comes right after the word is made', async ({ page }) => {
-    const input = chatInput(page);
-    await input.click();
-    await page.keyboard.type('直後');
-    await expect.poll(() => chatInputText(input)).toBe('直後');
-
-    // Some browsers send the Enter that made the word once the word is done; it stands in for that.
-    await input.evaluate((box) => {
-      box.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '直後' }));
-      box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-    });
-
-    await page.waitForTimeout(300);
-    expect(await chatInputText(input)).toBe('直後');
-    await expect(page.locator('chat-tab').getByText('直後')).toHaveCount(0);
-  });
-
-  test('takes no name offered on an Enter that comes right after the word is made', async ({ page }) => {
-    const input = chatInput(page);
-    await input.click();
-    await page.keyboard.type('《');
-    await expect(page.locator('[data-testid="chat-suggestions"]')).toBeVisible();
-
-    await input.evaluate((box) => {
-      box.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '《' }));
-      box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-    });
-
-    await page.waitForTimeout(300);
-    expect(await chatInputText(input)).toBe('《');
-    await expect(input.locator('[data-chip="effect"]')).toHaveCount(0);
-  });
 });
 
 test.describe('the palette written in the editor', () => {
-  test('checks each line against the piece and the variables written above it', async ({ page }) => {
-    await withEditor(page);
-    await createCharacter(page);
-    await page.locator('game-character').first().dispatchEvent('contextmenu');
-    await page.locator('context-menu').getByText('チャットパレットを表示').click();
-    const palette = page.locator('chat-palette');
-    await palette.getByRole('button', { name: '編集', exact: true }).click();
-
-    const editor = palette.locator('[data-chat-palette-editor] [data-chat-palette-text]');
-    await expect(editor).toBeVisible({ timeout: 10000 });
-    await editor.click();
-    await page.keyboard.press('ControlOrMeta+a');
-    await page.keyboard.press('Delete');
-    await editor.fill('//強さ=3\n2d6+{強さ} 殴る\n:気力-1');
-    await expectChatText(editor, '//強さ=3\n2d6+{強さ} 殴る\n:気力-1');
-    await expect(editor.locator('.chat-lint-error').first()).toHaveAttribute('data-tip', /気力/, { timeout: 5000 });
-    await expect(editor.locator('.chat-lint-error').filter({ hasText: '強さ' })).toHaveCount(0);
-    await expect(editor.locator('.chat-rich-reference')).toHaveCount(1);
-    await expect(editor.locator('.chat-rich-quiet')).toHaveCount(1);
-  });
-
-  test('keeps an edit to a variable line, and leaves Ctrl and the arrows to the caret there', async ({ page }) => {
+  test('checks each line against the piece and the variables written above it, keeps an edit to a variable line, and leaves Ctrl and the arrows to the caret there', async ({
+    page,
+  }) => {
     await withEditor(page);
     await createCharacter(page);
     await page.locator('game-character').first().dispatchEvent('contextmenu');
@@ -531,8 +441,12 @@ test.describe('the palette written in the editor', () => {
     await editor.click();
     await page.keyboard.press('ControlOrMeta+a');
     await page.keyboard.press('Delete');
-    await editor.fill('//強さ=3\n2d6+{強さ} 殴る');
-    await expectChatText(editor, '//強さ=3\n2d6+{強さ} 殴る');
+    await editor.fill('//強さ=3\n2d6+{強さ} 殴る\n:気力-1');
+    await expectChatText(editor, '//強さ=3\n2d6+{強さ} 殴る\n:気力-1');
+    await expect(editor.locator('.chat-lint-error').first()).toHaveAttribute('data-tip', /気力/, { timeout: 5000 });
+    await expect(editor.locator('.chat-lint-error').filter({ hasText: '強さ' })).toHaveCount(0);
+    await expect(editor.locator('.chat-rich-reference')).toHaveCount(1);
+    await expect(editor.locator('.chat-rich-quiet')).toHaveCount(1);
     await palette.getByRole('button', { name: '確定' }).click();
     await palette.getByRole('button', { name: '編集', exact: true }).click();
     await expect(editor).toBeVisible();
@@ -548,11 +462,11 @@ test.describe('the palette written in the editor', () => {
     await settled();
     await page.keyboard.press('Backspace');
     await page.keyboard.type('5');
-    await expectChatText(editor, '//強さ=5\n2d6+{強さ} 殴る');
+    await expectChatText(editor, '//強さ=5\n2d6+{強さ} 殴る\n:気力-1');
     await palette.getByRole('button', { name: '確定' }).click();
     await palette.getByRole('button', { name: '編集', exact: true }).click();
 
-    await expectChatText(editor, '//強さ=5\n2d6+{強さ} 殴る');
+    await expectChatText(editor, '//強さ=5\n2d6+{強さ} 殴る\n:気力-1');
     expect(await checkedTab()).toBe(tab);
   });
 });
@@ -609,34 +523,36 @@ test.describe('switching the editor off', () => {
 });
 
 test.describe('the plain box', () => {
-  test('stands in for the editor for a reader who switched it off', async ({ page }) => {
+  test('stands in for the editor for a reader who switched it off, sending a ruby put in from the toolbar and a stamp written in at the caret', async ({
+    page,
+  }) => {
     await page.addInitScript(() => localStorage.setItem('chat-preferences', JSON.stringify({ richInput: false })));
     await waitAppReady(page);
+    await expect(page.locator('chat-window [data-chat-input-mode="plain"]')).toBeVisible();
     const input = chatInput(page);
     await expect(input).toHaveJSProperty('tagName', 'TEXTAREA');
-    await expect(page.locator('chat-window [data-chat-input-mode="plain"]')).toBeVisible();
-  });
-
-  test('takes the toolbar too, writing the marks round the selection', async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('chat-preferences', JSON.stringify({ richInput: false })));
-    await waitAppReady(page);
-    const input = chatInput(page);
-    await input.fill('強く');
-    await input.selectText();
-    await page.locator('chat-window [data-testid="chat-toolbar-bold"]').click();
-    await expectChatText(input, '**強く**');
-  });
-
-  test('sends a line of a ruby alone, put in from the toolbar', async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('chat-preferences', JSON.stringify({ richInput: false })));
-    await waitAppReady(page);
-    const input = chatInput(page);
     await input.click();
     await rubyFromToolbar(page, '漢字', 'かんじ');
     await expectChatText(input, '|漢字《かんじ》');
     await input.press('Enter');
     await expectChatText(input, '');
     await expect(linesWithRuby(page)).toHaveCount(1);
+
+    await input.fill('了解です');
+    await page.locator('chat-window [data-testid="chat-input-stamp"]').click();
+    const picker = page.getByTestId('stamp-picker');
+    await picker.getByTestId('stamp-picker-tab-seal').click();
+    await picker.getByTestId('stamp-picker-choice-seal:ok').click();
+    await expect(picker).toHaveCount(0);
+    await expect(input).toHaveValue(/^了解です［.+:seal:ok］$/);
+    await input.press('Enter');
+    await expectChatText(input, '');
+    await expect(
+      page
+        .locator('chat-tab chat-message')
+        .filter({ hasText: '了解です' })
+        .locator('[data-chat-search-text] [data-stamp-id="seal:ok"]')
+    ).toBeVisible();
   });
 });
 

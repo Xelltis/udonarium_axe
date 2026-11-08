@@ -92,6 +92,31 @@ describe('ChatMessageSettingComponent', () => {
     expect(checkboxes('chatSimpleDispFlag')).toHaveLength(1);
   });
 
+  it('offers the height of the portraits, and whether they are drawn inside the window or kept outside it', () => {
+    expect(root().querySelector<HTMLInputElement>('input[name="portraitHeight"]')?.type).toBe('number');
+    expect(root().querySelector('input[name="portraitInWindow"]')).not.toBeNull();
+    expect(root().querySelector('input[name="isKeepPortraitOutWindow"]')).not.toBeNull();
+  });
+
+  it('offers showing the time and the user ID in the simple view', () => {
+    expect(root().querySelector('input[name="simpleDispFlagTime"]')).not.toBeNull();
+    expect(root().querySelector('input[name="simpleDispFlagUserId"]')).not.toBeNull();
+  });
+
+  it('sets the height of the portraits from its box, held to the smallest allowed', async () => {
+    await fixture.whenStable();
+    const height = root().querySelector<HTMLInputElement>('input[name="portraitHeight"]')!;
+
+    height.value = '300';
+    height.dispatchEvent(new Event('input'));
+    expect(ChatTabList.instance.portraitHeight).toBe(300);
+
+    height.value = '60';
+    height.dispatchEvent(new Event('input'));
+    height.dispatchEvent(new Event('change'));
+    expect(ChatTabList.instance.portraitHeight).toBe(ChatTabList.instance.minPortraitSize);
+  });
+
   it('shows a checkbox for each tab once the answers differ per tab', () => {
     chooseScope('portraitScope', 'perTab');
 

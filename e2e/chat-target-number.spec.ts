@@ -38,31 +38,12 @@ test.describe('the number to beat', () => {
   });
 
   /**
-   * A result set as the tab's number to beat fills every `{目標値}` said in it, a roll of the
-   * reader's own among them, until it is taken off.
-   */
-  test("fills {目標値} in with the result set as the tab's number to beat until it is taken off", async ({ page }) => {
-    await say(page, ['2d6+8 火球', '1d6+100']);
-    const fireball = answerTo(page, '2D6+8');
-    await expect(fireball).toHaveCount(1, { timeout: 15000 });
-    await expect(answerTo(page, '1D6+100')).toHaveCount(1, { timeout: 15000 });
-    const total = await totalOf(fireball);
-
-    await fromMenuOf(page, fireball, 'この結果を目標値にする');
-    await expect(fireball.getByTestId('chat-message-target-number-mark')).toBeVisible();
-
-    await say(page, ['2d6>={目標値} 抵抗']);
-    await expect(answerTo(page, `2D6>=${total}`)).toHaveCount(1, { timeout: 15000 });
-
-    await fromMenuOf(page, fireball, '目標値の固定を外す');
-    await expect(fireball.getByTestId('chat-message-target-number-mark')).toHaveCount(0);
-  });
-
-  /**
    * The bar over the box tells what `{目標値}` will be filled in with, and a result picked from it
-   * fills in that one line, the next one going back to the one found.
+   * fills in that one line, the next one going back to the one found. A result set as the tab's
+   * number to beat then fills every `{目標値}` said in it, a roll of the reader's own among them,
+   * until it is taken off.
    */
-  test('shows what {目標値} is filled in with before sending, and sends the result picked for that line', async ({
+  test("fills {目標値} in with the result picked before sending, then with the result set as the tab's number to beat until it is taken off", async ({
     page,
   }) => {
     await say(page, ['2d6+8 火球', '1d6+100']);
@@ -76,16 +57,22 @@ test.describe('the number to beat', () => {
     const bar = page.getByTestId('chat-input-target-number');
     await expect(bar).toBeVisible();
     const select = bar.getByTestId('chat-input-target-number-select');
-    await expect(select.locator('option').first()).toHaveText(/見つかりません/);
     await expect(select.locator('option')).toHaveText([/見つかりません/, /1D6\+100/, /2D6\+8/]);
-
     await select.selectOption({ index: 2 });
     await input.press('Enter');
     await expectChatText(input, '');
     await expect(answerTo(page, `2D6>=${total}`)).toHaveCount(1, { timeout: 15000 });
     await expect(bar).toHaveCount(0);
-
     await input.fill('2d6>={目標値}');
     await expect(select).toHaveValue(/^0:/);
+
+    await fromMenuOf(page, fireball, 'この結果を目標値にする');
+    await expect(fireball.getByTestId('chat-message-target-number-mark')).toBeVisible();
+
+    await say(page, ['2d6>={目標値} 抵抗']);
+    await expect(answerTo(page, `2D6>=${total}`)).toHaveCount(2, { timeout: 15000 });
+
+    await fromMenuOf(page, fireball, '目標値の固定を外す');
+    await expect(fireball.getByTestId('chat-message-target-number-mark')).toHaveCount(0);
   });
 });
