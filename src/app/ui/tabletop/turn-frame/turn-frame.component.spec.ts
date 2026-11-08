@@ -111,6 +111,14 @@ describe('TurnFrameComponent', () => {
     }
   });
 
+  it('takes a press anywhere on a knob, though the frame round it lets presses through to the table', () => {
+    pointerOver(true);
+
+    const frame = all('turn-frame')[0];
+    expect(frame.classList).toContain('pointer-events-none');
+    for (const knob of all('turn-frame-knob')) expect(knob.classList).toContain('pointer-events-auto');
+  });
+
   it('comes out round the thing last pressed alone, where the main pointer cannot hover', () => {
     hoverOf().set(false);
     const selection = TestBed.inject(SelectionSignalService);

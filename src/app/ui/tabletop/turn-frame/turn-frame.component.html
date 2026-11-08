@@ -52,7 +52,7 @@
     @for (knob of knobs(); track $index) {
       @if (knob.seen) {
         <div
-          class="rotate-grab border-ui-accent bg-ui-elevated text-ui-text absolute flex -translate-1/2 cursor-grab items-center justify-center rounded-full border-2 border-solid shadow-[0_1px_4px_rgba(0,0,0,0.6)] active:cursor-grabbing"
+          class="rotate-grab border-ui-accent bg-ui-elevated text-ui-text pointer-events-auto absolute flex -translate-1/2 cursor-grab items-center justify-center rounded-full border-2 border-solid shadow-[0_1px_4px_rgba(0,0,0,0.6)] active:cursor-grabbing"
           data-testid="turn-frame-knob"
           [style.left.px]="knob.x"
           [style.top.px]="knob.y"
