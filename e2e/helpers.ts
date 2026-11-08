@@ -109,11 +109,21 @@ export async function triesToConnect(page: Page) {
   await page.addInitScript(() => localStorage.removeItem('ui-local-mode'));
 }
 
+/** Opens the app afresh and waits for it to be ready, with the camera near the board. */
 export async function waitAppReady(page: Page) {
   await avoidWebKitBackdropStall(page);
   // A load off the build takes well under a second, but with three browsers running the suite at
   // once a load was seen to take past the default fifteen seconds in Firefox.
   await page.goto('/', { timeout: 45_000 });
+  await whenAppReady(page);
+}
+
+/**
+ * Waits for the app the page has loaded by itself, as it does once it reloads, to be ready, with the
+ * camera near the board, without opening it again: a page opened afresh cuts short what the page
+ * loaded was still doing as it started.
+ */
+export async function whenAppReady(page: Page) {
   await expect(chatInput(page)).toBeVisible({ timeout: 20000 });
   await lookFromNear(page);
 }
@@ -121,8 +131,12 @@ export async function waitAppReady(page: Page) {
 /**
  * Puts the table's camera near the board, at the default view's depth and angle, over the middle of
  * the table, where the table opened with a first view that brings the whole of it in: the pieces are
- * handled and measured at the size that view draws them. A page with no table, as a screen laid over
- * a stream, is left as it is.
+ * handled and measured at the size that view draws them. Then waits for the table to settle: for the
+ * pictures the page takes of the pieces, which a piece is drawn and picked by, to be taken, and for
+ * what the screen lays over each piece to be put where the table puts it. Until then a piece is
+ * found nowhere, its marks and the ring round its feet lie in a corner of the page, and a point
+ * picked as bare board may be the piece's once they come. A page with no table, as a screen laid
+ * over a stream, is left as it is.
  */
 async function lookFromNear(page: Page): Promise<void> {
   if ((await page.locator('game-table').count()) === 0) return;
@@ -134,6 +148,12 @@ async function lookFromNear(page: Page): Promise<void> {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
       })
   );
+  await page.waitForFunction(
+    () => (window as unknown as { __axeTable: { busy(): string[] } }).__axeTable.busy().length === 0,
+    undefined,
+    { timeout: 20000 }
+  );
+  await page.evaluate(() => (window as unknown as { __axeTable: { whenIdle(): Promise<void> } }).__axeTable.whenIdle());
 }
 
 /**
@@ -241,8 +261,10 @@ interface SpotHooks {
  * Where a right click on the table lands on the bare board, as an offset into the table's layer: the
  * first cell, from two cells in from the board's south-east corner and on west and north, that is on
  * the screen with room below it and to its right for what is made there, that picking finds nothing
- * at and that the page draws nothing over, neither a piece's marks nor a panel. The sample room's pieces stand in the middle of the board, so on its first
- * table this is the open ground south-east of them.
+ * at, that the page draws nothing over, neither a piece's marks nor a panel, and that lies clear of
+ * the ring round any piece's feet, which takes a press as the piece's own though picking finds the
+ * piece standing and not its ring lying on the floor. The sample room's pieces stand in the middle
+ * of the board, so on its first table this is the open ground south-east of them.
  */
 export async function tableMenuSpot(page: Page): Promise<{ x: number; y: number }> {
   await page.waitForFunction(
@@ -256,9 +278,22 @@ export async function tableMenuSpot(page: Page): Promise<{ x: number; y: number 
     const layer = document.querySelector('#app-table-layer')!;
     const box = layer.getBoundingClientRect();
     const cell = 50;
+    const clearance = 40;
+    const feet = [...document.querySelectorAll<HTMLElement>('[data-testid="turn-ring"]')].map((element) =>
+      element.getBoundingClientRect()
+    );
+    const nearFeet = (at: { x: number; y: number }) =>
+      feet.some(
+        (foot) =>
+          at.x > foot.left - clearance &&
+          at.x < foot.right + clearance &&
+          at.y > foot.top - clearance &&
+          at.y < foot.bottom + clearance
+      );
     for (let y = board.depthPx - cell * 2.5; y > 0; y -= cell) {
       for (let x = board.widthPx - cell * 2.5; x > 0; x -= cell) {
         const at = hooks.project(x, y, 0);
+        if (at && nearFeet(at)) continue;
         if (!at || at.x < box.left + 40 || at.x > box.right - 120 || at.y < box.top + 40 || at.y > box.bottom - 120) {
           continue;
         }

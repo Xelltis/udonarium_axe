@@ -11,12 +11,39 @@ import { openTableContextMenu, putAwayTutorial, revealMenuEntry, waitAppReady } 
 
 type Point = { x: number; y: number };
 
+/**
+ * How far round where the page lays the ring round a piece's feet a press may still land on it, in
+ * pixels of the screen: picking finds the piece standing and not its ring lying on the floor.
+ */
+const RING_CLEARANCE_PX = 40;
+
+/** How far in from the corner a piece stands at, on the table, a point taken to be over the piece lies. */
+const FLOOR_INSET_PX = 20;
+
 async function drag(page: Page, from: Point, to: Point) {
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
   await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 6 });
   await page.mouse.move(to.x, to.y, { steps: 8 });
   await page.mouse.up();
+}
+
+/**
+ * The point of the page over the floor a little in from where a piece stands on the table, which a
+ * press takes hold of the piece at: a drag from one such point to another moves the piece by just
+ * the way between them on the table, as the table finds the floor under the pointer.
+ */
+async function floorPointOf(page: Page, piece: Locator): Promise<Point> {
+  const [x, y, z] = (await piece.locator('[data-location]').first().getAttribute('data-location'))!
+    .split(',')
+    .map(Number);
+  return page.evaluate(
+    ({ x, y, z, inset }) =>
+      (
+        window as unknown as { __axeTable: { project(x: number, y: number, z: number): Point | null } }
+      ).__axeTable.project(x + inset, y + inset, z)!,
+    { x, y, z, inset: FLOOR_INSET_PX }
+  );
 }
 
 /** The middle of where a piece is drawn: its host has no box of its own, the part that moves has. */
@@ -27,17 +54,25 @@ async function middleOf(piece: Locator): Promise<Point> {
 
 /**
  * Points of the table's layer, as offsets into it, where nothing is drawn around them, and to the
- * lower right where a card is to be drawn, far enough apart that two decks made there do not merge.
+ * lower right where a card is to be drawn, far enough apart that two decks made there do not merge,
+ * and clear of the ring round any piece's feet, which takes a press as the piece's own though
+ * picking finds the piece standing and not its ring lying on the floor.
  */
 async function bareSpots(page: Page, count: number, cardDrawn = false): Promise<Point[]> {
   const layer = (await page.locator('#app-table-layer').boundingBox())!;
   const spots = await page.evaluate(
-    ({ left, top, count, cardDrawn }) => {
+    ({ left, top, count, cardDrawn, RING_CLEARANCE_PX }) => {
       const hooks = (
         window as unknown as {
-          __axeTable: { drawnAt(x: number, y: number): string | null; pickAt(x: number, y: number): string | null };
+          __axeTable: {
+            drawnAt(x: number, y: number): string | null;
+            pickAt(x: number, y: number): string | null;
+          };
         }
       ).__axeTable;
+      const feet = [...document.querySelectorAll<HTMLElement>('[data-testid="turn-ring"]')].map((element) =>
+        element.getBoundingClientRect()
+      );
       const found: { x: number; y: number }[] = [];
       for (let y = 140; y < innerHeight - 100 && found.length < count; y += 40) {
         for (let x = 120; x < innerWidth - 60 && found.length < count; x += 40) {
@@ -58,12 +93,19 @@ async function bareSpots(page: Page, count: number, cardDrawn = false): Promise<
               );
             })
           );
-          if (clear && found.every((spot) => Math.hypot(spot.x - x, spot.y - y) > 250)) found.push({ x, y });
+          const offFeet = feet.every(
+            (foot) =>
+              left + x < foot.left - RING_CLEARANCE_PX ||
+              left + x > foot.right + RING_CLEARANCE_PX ||
+              top + y < foot.top - RING_CLEARANCE_PX ||
+              top + y > foot.bottom + RING_CLEARANCE_PX
+          );
+          if (clear && offFeet && found.every((spot) => Math.hypot(spot.x - x, spot.y - y) > 250)) found.push({ x, y });
         }
       }
       return found;
     },
-    { left: layer.x, top: layer.y, count, cardDrawn }
+    { left: layer.x, top: layer.y, count, cardDrawn, RING_CLEARANCE_PX }
   );
   expect(spots).toHaveLength(count);
   return spots;
@@ -126,7 +168,10 @@ test.describe('letting go of cards over a deck', () => {
     await makeDeck(page, second);
     const decks = page.locator('card-stack');
 
-    await drag(page, await middleOf(decks.nth(1)), await middleOf(decks.nth(0)));
+    // A deck is merged with another let go of within half a cell of it, on the table: from the middle
+    // of one deck drawn to the middle of the other, which the screen draws at different slants, the
+    // deck may land further off than that.
+    await drag(page, await floorPointOf(page, decks.nth(1)), await floorPointOf(page, decks.nth(0)));
 
     await expect(decks).toHaveCount(1, { timeout: 5000 });
   });

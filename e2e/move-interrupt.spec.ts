@@ -3,6 +3,34 @@ import { expect, Page, test } from '@playwright/test';
 import { openPanel, putAwayTutorial, revealMenuEntry, spotOnPiece, waitAppReady } from './helpers';
 import { centreOf, pedestal, piece, Point, settle } from './see-through-helpers';
 
+/**
+ * A point of the page about three quarters of the way from one point to another, which is inside the
+ * zone round the second whatever the table's tilt, where nothing is drawn: a large piece standing
+ * behind, drawn over the floor there, would take the press as its own.
+ */
+async function bareOnTheWay(page: Page, from: Point, to: Point): Promise<Point> {
+  const found = await page.evaluate(
+    ({ from, to }) => {
+      const hooks = (window as unknown as { __axeTable: { pickAt(x: number, y: number): string | null } }).__axeTable;
+      const layer = document.querySelector('#app-table-layer')!;
+      for (const share of [0.75, 0.7, 0.8, 0.65, 0.85]) {
+        const at = { x: from.x + (to.x - from.x) * share, y: from.y + (to.y - from.y) * share };
+        const bare = [-8, 0, 8].every((dx) =>
+          [-8, 0, 8].every((dy) => {
+            const front = document.elementFromPoint(at.x + dx, at.y + dy);
+            return !!front && layer.contains(front) && hooks.pickAt(at.x + dx, at.y + dy) === null;
+          })
+        );
+        if (bare) return at;
+      }
+      return null;
+    },
+    { from, to }
+  );
+  expect(found, 'a bare point on the way into the zone').not.toBeNull();
+  return found!;
+}
+
 async function becomeGm(page: Page) {
   await page
     .locator('ui-panel')
@@ -151,8 +179,7 @@ test.describe('interrupting a move', () => {
     await hero.dispatchEvent('contextmenu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     await menu.getByText('移動', { exact: true }).click();
-    // Three quarters of the way to the zone's centre, which is inside it whatever the table's tilt.
-    const target = { x: start.x + (fight.x - start.x) * 0.75, y: start.y + (fight.y - start.y) * 0.75 };
+    const target = await bareOnTheWay(page, start, fight);
     await page.mouse.move(target.x, target.y, { steps: 4 });
     await page.mouse.click(target.x, target.y);
 
