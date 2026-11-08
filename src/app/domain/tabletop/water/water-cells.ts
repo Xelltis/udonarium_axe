@@ -23,6 +23,8 @@ export interface WaterArea {
   /** How fast it flows, from 0 for still to 1, and which way, in degrees clockwise from the top. */
   readonly flowSpeed: number;
   readonly flowDirection: number;
+  /** How much of its surface is frozen, from 0 for open water to 1 for ice. */
+  readonly ice: number;
 }
 
 /** One cell under water. */
@@ -44,6 +46,7 @@ export interface WaterCell {
   readonly leaves: number;
   readonly flowSpeed: number;
   readonly flowDirection: number;
+  readonly ice: number;
   /** The area it belongs to. */
   readonly area: string;
 }
@@ -71,6 +74,8 @@ const LEVEL_PX = 0.5;
  * slope running down from the shore, the water there is only as deep as the surface stands over
  * it, and where the ground rises to the surface or above, the cell is dry land. `groundOf` gives
  * how high the ground stands in a cell, and is left out where the water lies on its own floor.
+ * Where the raised ground of the table has been dug below the board and below the water's floor,
+ * as a river bed or a pond, the water reaches down to the ground.
  */
 export function waterCellsOf(
   grid: CellGrid,
@@ -89,6 +94,7 @@ export function waterCellsOf(
       (index, cx, cy) => {
         const ground = groundOf(index);
         const risen = ground > area.floorPx + LEVEL_PX;
+        const dug = ground < Math.min(0, area.floorPx) - LEVEL_PX;
         if (risen && ground >= surfacePx - LEVEL_PX) return;
         const held = cells.get(index);
         if (held && held.surfacePx >= surfacePx) return;
@@ -96,9 +102,9 @@ export function waterCellsOf(
           index,
           cx,
           cy,
-          floorPx: risen ? ground : area.floorPx,
+          floorPx: risen || dug ? ground : area.floorPx,
           surfacePx,
-          flat: !risen,
+          flat: !risen && !dug,
           areaFloorPx: area.floorPx,
           color: area.color,
           density: area.density,
@@ -107,27 +113,11 @@ export function waterCellsOf(
           leaves: area.leaves,
           flowSpeed: area.flowSpeed,
           flowDirection: area.flowDirection,
+          ice: area.ice,
           area: area.identifier,
         });
       }
     );
   }
   return cells;
-}
-
-/** What the floor under a cell of water looks like; floors that look alike are drawn as one piece. */
-export function waterFloorLookOf(cell: WaterCell): string {
-  return `${round(cell.floorPx)}|${waterSurfaceLookOf(cell)}`;
-}
-
-/**
- * What the surface over a cell of water looks like; surfaces that look alike are drawn as one
- * piece however deep the water under them, the depth being painted onto the piece cell by cell.
- */
-export function waterSurfaceLookOf(cell: WaterCell): string {
-  return `${round(cell.surfacePx)}|${cell.color}|${round(cell.density)}|${round(cell.turbidity)}|${round(cell.dirt)}|${round(cell.leaves)}|${round(cell.flowSpeed)}|${round(cell.flowDirection)}`;
-}
-
-function round(value: number): number {
-  return Math.round(value * 1000) / 1000;
 }

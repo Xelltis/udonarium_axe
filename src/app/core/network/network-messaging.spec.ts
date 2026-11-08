@@ -75,6 +75,7 @@ describe('receiveEvents', () => {
         'SERVER_ROLE_CHANGED',
         'UPDATE_AUDIO_RESOURE',
         'UPDATE_FILE_RESOURE',
+        'UPDATE_MODEL_RESOURE',
         'VN_MODE',
       ].sort()
     );
@@ -86,5 +87,14 @@ describe('receiveEvents', () => {
     receiveEvents([event(AuthorityEvent.WITHDRAW, AUTHORITY), event(AuthorityEvent.AUTHORITATIVE, 'peer-a')]);
 
     expect(received).toEqual([]);
+  });
+
+  it('tells this device’s own events handed back to it as its own, though its peer has been renamed since', () => {
+    vi.spyOn(Network, 'peerId', 'get').mockReturnValue('renamed');
+
+    receiveEvents([event('UPDATE_GAME_OBJECT', '???')], true);
+    receiveEvents([event('UPDATE_GAME_OBJECT', '???')]);
+
+    expect(received.map((message) => message.isSendFromSelf)).toEqual([true, false]);
   });
 });

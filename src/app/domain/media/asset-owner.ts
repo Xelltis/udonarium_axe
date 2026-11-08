@@ -7,7 +7,7 @@ import { AssetRemovalKind } from '@axe/domain/media/asset-removal';
 export const ASSET_OWNER_ALIAS = 'asset-owner';
 
 /**
- * The room's word on who added a picture or a sound, by the key that seat holds things by: the one
+ * The room's word on who added a picture, a sound or a 3D model, by the key that seat holds things by: the one
  * who may remove it besides the GM.
  *
  * The first to add an asset keeps it; the same file added again later is the same identifier, and

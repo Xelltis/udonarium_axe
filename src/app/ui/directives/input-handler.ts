@@ -8,6 +8,12 @@ interface InputHandlerOption {
   readonly always?: boolean;
 }
 
+/**
+ * Follows a press on an element, by the mouse or by touch, from where it starts through its moves to
+ * where it lets go. The touch a press starts with is listened for as one that may be cancelled: a
+ * handler that takes it cancels it, so that the page neither scrolls under the press nor makes a
+ * mouse press of it as well.
+ */
 export class InputHandler {
   onStart: ((ev: MouseEvent | TouchEvent) => void) | null = null;
   onMove: ((ev: MouseEvent | TouchEvent) => void) | null = null;
@@ -61,7 +67,7 @@ export class InputHandler {
 
   private initialize() {
     this.target.addEventListener('mousedown', this.callbackOnMouse, this.option.capture);
-    this.target.addEventListener('touchstart', this.callbackOnTouch, this.option.capture);
+    this.target.addEventListener('touchstart', this.callbackOnTouch, { capture: this.option.capture, passive: false });
     if (this.option.always) this.addEventListeners();
   }
 
@@ -187,4 +193,9 @@ export class InputHandler {
     this.target.ownerDocument.removeEventListener('contextmenu', this.callbackOnMenu, option);
     this.target.ownerDocument.removeEventListener('drop', this.callbackOnMouse, option);
   }
+}
+
+/** Whether a press came from a finger on a touch screen, rather than from a mouse or a touchpad. */
+export function isTouchPress(e: Event): boolean {
+  return e.type.startsWith('touch');
 }

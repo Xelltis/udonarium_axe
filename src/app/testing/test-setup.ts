@@ -6,10 +6,12 @@ import { ɵgetCleanupHook as getCleanupHook, TestBed, TestModuleMetadata } from 
 import { BrowserDynamicTestingModule, platformBrowserDynamicTesting } from '@angular/platform-browser-dynamic/testing';
 import { loadConfig$ } from '@axe/core/event/domain-events';
 import { Logger, LogLevel } from '@axe/core/logging/logger';
+import { Network } from '@axe/core/network/network';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { resetPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ObjectSynchronizer } from '@axe/core/sync/object-synchronizer';
+import { lazyLoadsSettled } from '@axe/core/util/lazy-loads';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DataSummarySetting } from '@axe/domain/data/data-summary-setting';
 import { AudioProfile } from '@axe/domain/media/audio-profile';
@@ -241,10 +243,9 @@ if (typeof (globalThis as unknown as Record<string, unknown>)['YT'] === 'undefin
 
 type GlobalTestProviders = (Provider | EnvironmentProviders)[];
 
-// The services every TestBed module is given reach most of the app, and loading them costs a file
-// close to half a second. More than half the specs never build a module, so the spec about to run
-// is read for the word first. A path that is not a spec source, as under the bundling `ng test`
-// runner, gets them regardless.
+// The providers every TestBed module is given cost a file a while to load, and more than half the
+// specs never build a module, so the spec about to run is read for the word first. A path that is
+// not a spec source, as under the bundling `ng test` runner, gets them regardless.
 function specUsesTestBed(): boolean {
   const testPath = expect.getState().testPath;
   if (!testPath?.endsWith('.spec.ts')) return true;
@@ -255,30 +256,18 @@ function specUsesTestBed(): boolean {
   }
 }
 
+/**
+ * The providers every TestBed module is given: only what the app provides outside the root
+ * injector, and the logger quietened. A service provided in the root is found by any module that
+ * asks for it, so naming it here would only load it, and all it reaches, into every spec.
+ */
 async function loadGlobalTestProviders(): Promise<GlobalTestProviders> {
-  const [
-    { ChatMessageService },
-    { LoggerService },
-    { TabletopService },
-    { ContextMenuService },
-    { ModalService },
-    { PanelService },
-    { AppConfigService },
-    { provideTranslocoTesting },
-  ] = await Promise.all([
-    import('@axe/application/chat/chat-message.service'),
+  const [{ LoggerService }, { PanelService }, { provideTranslocoTesting }] = await Promise.all([
     import('@axe/application/logging/logger.service'),
-    import('@axe/application/tabletop/tabletop.service'),
-    import('@axe/application/ui/context-menu.service'),
-    import('@axe/application/ui/modal.service'),
     import('@axe/application/ui/panel.service'),
-    import('@axe/composition/app-config.service'),
     import('@axe/testing/transloco-testing'),
   ]);
   return [
-    AppConfigService,
-    ChatMessageService,
-    ContextMenuService,
     // The service turns logging up to what the build calls for as it is made, which outside
     // production is everything. Made for a test, it leaves the level where the setup put it.
     {
@@ -289,9 +278,7 @@ async function loadGlobalTestProviders(): Promise<GlobalTestProviders> {
         return service;
       },
     },
-    ModalService,
     PanelService,
-    TabletopService,
     ...provideTranslocoTesting(),
   ];
 }
@@ -388,11 +375,13 @@ function stopSynchronizing(): void {
   ObjectSynchronizer.instance.destroy();
 }
 
-// What the page holds outside any object: whether it is cut off from the room, whether the table it
-// holds came withheld, and the tone the chat's bubbles are measured against. A worker runs file
-// after file in one page, so each starts from a page just opened.
+// What the page holds outside any object: whether it is cut off from the room, whether it plays
+// alone as somebody, whether the table it holds came withheld, and the tone the chat's bubbles are
+// measured against. A worker runs file after file in one page, so each starts from a page just
+// opened.
 function forgetPageState(): void {
   setNetworkIsolated(false);
+  Network.playAlone(null);
   forgetWithheldTable();
   resetChatBubbleBaseTone();
 }
@@ -443,6 +432,10 @@ beforeAll(async () => {
     ? await loadGlobalTestProviders()
     : null;
 });
+
+// A test can start loading a part of the app lazily, as setting out the first table's tutorial does;
+// the part must arrive before the test's page is taken down, or it lands in the next file's.
+afterEach(() => lazyLoadsSettled());
 
 beforeEach(async () => {
   // A test that turns logging up, as the logger specs do, must not leave the next one printing.

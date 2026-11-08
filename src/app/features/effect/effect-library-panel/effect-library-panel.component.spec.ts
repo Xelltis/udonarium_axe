@@ -1,11 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { EffectCastService } from '@axe/application/effect/effect-cast.service';
 import { HotbarFillService } from '@axe/application/hotbar/hotbar-fill.service';
+import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { PanelService } from '@axe/application/ui/panel.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { EffectLibraryPanelComponent } from '@axe/features/effect/effect-library-panel/effect-library-panel.component';
+import { EffectPresetEditorComponent } from '@axe/features/effect/effect-preset-editor/effect-preset-editor.component';
 import { refuseLocalStorageOutright } from '@axe/testing/refused-storage';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -144,5 +147,22 @@ describe('EffectLibraryPanelComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.notice()).toContain('対象がいません');
+  });
+
+  it('opens the editor on an effect from “edit” in the right-click menu of its tile', () => {
+    const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+    const editor = { presetIdentifier: { set: vi.fn() } };
+    const openPanel = vi.spyOn(TestBed.inject(PanelService), 'open').mockReturnValue(editor as never);
+    fixture.detectChanges();
+
+    const tile = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('爆炎')
+    )!;
+    tile.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    const menu = open.mock.calls[0][1] as ContextMenuAction[];
+    menu.find((entry) => entry.name === '編集')!.action!();
+
+    expect(openPanel).toHaveBeenCalledWith(EffectPresetEditorComponent, expect.anything());
+    expect(editor.presetIdentifier.set).toHaveBeenCalledWith(preset.identifier);
   });
 });

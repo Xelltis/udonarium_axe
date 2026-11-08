@@ -181,6 +181,29 @@ describe('ChatPaletteComponent', () => {
     });
   });
 
+  it('sends a line with the number to beat the reader picked for it, through the macros', () => {
+    const speaker = createChar('術者');
+    const tab = ChatTabList.instance.addChatTab('テストタブ');
+    component.character.set(speaker);
+    component.chatTabidentifier.set(tab.identifier);
+    const macro = vi.spyOn(TestBed.inject(CharacterMacroService), 'send').mockReturnValue(null);
+
+    component.sendChat({
+      text: '2d6+3>={目標値} 抵抗',
+      gameSystem: null,
+      sendFrom: speaker.identifier,
+      sendTo: '',
+      portraitIndex: 0,
+      messColor: '#112233',
+      replyTo: '',
+      quoteOf: '',
+      toTicker: false,
+      targetNumber: 15,
+    });
+
+    expect(macro).toHaveBeenCalledWith(speaker, '2d6+3>={目標値} 抵抗', expect.objectContaining({ targetNumber: 15 }));
+  });
+
   describe('sending a line to the ticker', () => {
     it('shows the line on the ticker where the switch is on, as the chat window does', () => {
       const speaker = createChar('術者');
@@ -497,6 +520,29 @@ describe('ChatPaletteComponent', () => {
 
       expect(shown<HTMLSelectElement>('palette-headings-list')?.disabled).toBe(true);
     });
+  });
+
+  it('turns to the character data from its button, and back to the palette from the one offered there', () => {
+    const speaker = createChar('術者');
+    speaker.chatPalette!.setPalette('2d6+3 攻撃');
+    component.character.set(speaker);
+    fixture.detectChanges();
+    const buttonSaying = (words: string) =>
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find((button) =>
+        button.textContent?.includes(words)
+      ) ?? null;
+    expect(buttonSaying('パレットに戻る')).toBeNull();
+
+    buttonSaying('キャラ情報')!.click();
+    fixture.detectChanges();
+
+    expect(component.viewMode()).toBe('character');
+    expect(buttonSaying('キャラ情報')).toBeNull();
+
+    buttonSaying('パレットに戻る')!.click();
+    fixture.detectChanges();
+
+    expect(component.viewMode()).toBe('palette');
   });
 
   describe('the tabs lines are sent to', () => {

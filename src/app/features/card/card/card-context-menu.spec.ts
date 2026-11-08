@@ -164,6 +164,29 @@ describe('buildCardContextMenu()', () => {
     expect(onCreateStack).toHaveBeenCalled();
   });
 
+  it('opens the sheet of the card from "edit card"', () => {
+    const onShowDetail = vi.fn();
+    const menu = buildCardContextMenu(
+      makeCard() as unknown as Card,
+      50,
+      { ...defaultCallbacks(), onShowDetail },
+      noCutIns,
+      t
+    );
+    menu.find((m) => m.name === 'カードを編集')!.action!();
+    expect(onShowDetail).toHaveBeenCalledOnce();
+  });
+
+  it('copies the card a cell down and to the right, on top of the rest', () => {
+    const copy = { location: { x: 100, y: 200 }, toTopmost: vi.fn() };
+    const card = makeCard({ clone: vi.fn(() => copy) });
+    const menu = buildCardContextMenu(card as unknown as Card, 50, defaultCallbacks(), noCutIns, t);
+    menu.find((m) => m.name === 'コピーを作る')!.action!();
+    expect(card.clone).toHaveBeenCalledOnce();
+    expect(copy.location).toEqual({ x: 150, y: 250 });
+    expect(copy.toTopmost).toHaveBeenCalledOnce();
+  });
+
   it('destroys the card', () => {
     const card = makeCard();
     const menu = buildCardContextMenu(card as unknown as Card, 50, defaultCallbacks(), noCutIns, t);

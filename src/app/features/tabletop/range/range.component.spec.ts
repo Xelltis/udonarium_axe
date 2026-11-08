@@ -2,11 +2,12 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { GroundService } from '@axe/application/tabletop/ground.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
-import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable } from '@axe/domain/tabletop/game-table';
@@ -46,15 +47,55 @@ describe('RangeComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  describe('viewRotateZ computed signal', () => {
-    it('starts at ten', () => {
-      expect(component.viewRotateZ()).toBe(10);
+  describe('the guide to how high it floats', () => {
+    let table: GameTable;
+    let range: RangeArea;
+
+    beforeEach(() => {
+      table = new GameTable();
+      table.width = 20;
+      table.height = 20;
+      table.initialize();
+      TestBed.inject(TableSelecter).viewTableIdentifier = table.identifier;
+      range = RangeArea.create('浮く範囲', 3, 3, 1);
+      range.location = { name: 'table', x: 300, y: 250 };
+      range.isAltitudeIndicate = true;
+      fixture.componentRef.setInput('range', range);
     });
 
-    it('turns with the table view', () => {
-      const uiSignalService = TestBed.inject(UiSignalService);
-      uiSignalService.notifyTableViewRotation(50, 20, 90);
-      expect(component.viewRotateZ()).toBe(90);
+    type Guide = { lifted: { x: number; y: number; height: number }; altitude: number } | null;
+    const guide = () => (component as unknown as { altitudeGuide(): Guide }).altitudeGuide();
+
+    it('runs from the point of a range raised off the face down to the face, in the range’s colour', async () => {
+      range.altitude = 2;
+      range.rangeColor = '#ff0000';
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(guide()).toMatchObject({ lifted: { x: 300, y: 250, height: 2 * component.gridSize }, altitude: 2 });
+      const line = (fixture.nativeElement as HTMLElement).querySelector(
+        '[data-testid="altitude-guide"]'
+      ) as HTMLElement;
+      expect(line.style.borderLeftColor).toBe('#ff0000');
+    });
+
+    it('stands its handle and its guide on the raised ground the canvas draws it on', () => {
+      TestBed.inject(GroundService).dab({ kind: 'raise', x: 6, y: 5, radius: 3, strength: 1 });
+      range.altitude = 2;
+
+      const lift = TestBed.inject(TablePiecesService).footOf(range).height;
+      expect(lift).toBeGreaterThan(0);
+      expect(component.turnPoint().height).toBeCloseTo(lift + 2 * component.gridSize, 6);
+      expect(guide()?.lifted.height).toBeCloseTo(lift + 2 * component.gridSize, 6);
+    });
+
+    it('is left out within half a cell of the face, or where the range is set not to show it', () => {
+      range.altitude = -0.4;
+      expect(guide()).toBeNull();
+
+      range.altitude = -2;
+      range.isAltitudeIndicate = false;
+      expect(guide()).toBeNull();
     });
   });
 
@@ -171,8 +212,8 @@ describe('RangeComponent', () => {
 
         expect(handle).toBeTruthy();
         expect(handle.closest('.range-clip-layer')).toBeNull();
-        expect(handle.style.left).toBe('0px');
-        expect(handle.style.top).toBe('-150px');
+        const about = component.turnPoint();
+        expect(component.grabPoint()).toMatchObject({ x: about.x, y: about.y - 150 });
       }
     );
   });

@@ -27,13 +27,13 @@ test('ruby laid out 1:2:1, together in the middle and from the first letter', as
   const message = page.locator('chat-tab chat-message').filter({ hasText: '一二三四五' }).locator('.msg-text');
   await expect(message).toBeVisible();
   await page.mouse.move(1279, 799);
-  await expect(message).toHaveScreenshot('chat-ruby-even.png', { maxDiffPixels: 4 });
+  await expect(message).toHaveScreenshot('chat-ruby-even.png');
 
   await setChatSetting(page, 'ruby-spacing', 'tight');
   await page.mouse.move(1279, 799);
-  await expect(message).toHaveScreenshot('chat-ruby-tight.png', { maxDiffPixels: 4 });
+  await expect(message).toHaveScreenshot('chat-ruby-tight.png');
 
   await setChatSetting(page, 'ruby-align', 'start');
   await page.mouse.move(1279, 799);
-  await expect(message).toHaveScreenshot('chat-ruby-start.png', { maxDiffPixels: 4 });
+  await expect(message).toHaveScreenshot('chat-ruby-start.png');
 });

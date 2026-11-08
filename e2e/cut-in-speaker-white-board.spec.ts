@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { openPanel, openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
+import { openPanel, openTableContextMenu, putAwayTutorial, revealMenuEntry, waitAppReady } from './helpers';
 
 const SPEAKER = 'キャラクターB';
 
@@ -53,13 +53,6 @@ test.describe('playing a cut-in as a character', () => {
     await list.locator('cut-in-editor button[title="自分だけ再生"]').click();
     await expectStageSays(page, `${SPEAKER}、参戦！`);
   });
-
-  test('shows the name as ??? when played for oneself alone with nobody chosen', async ({ page }) => {
-    const list = await makeSpeakerCutIn(page);
-    await expect(list.getByTestId('cut-in-try-speaker').locator('select option:checked')).toHaveText('指定しない');
-    await list.locator('cut-in-editor button[title="自分だけ再生"]').click();
-    await expectStageSays(page, '？？？、参戦！');
-  });
 });
 
 test.describe('the cut-in position of a portrait', () => {
@@ -88,9 +81,16 @@ test.describe('the cut-in position of a portrait', () => {
     await expect(page.locator('game-character-sheet')).toBeVisible({ timeout: 10000 });
   });
 
-  test('marks it set on a drag, writes it on OK, and goes back to unset when put back and confirmed with OK', async ({
+  test('writes nothing when cancelled after a drag, marks it set on a drag, writes it on OK, and goes back to unset when put back and confirmed with OK', async ({
     page,
   }) => {
+    const cancelled = await openFitDialog(page);
+    await expect(cancelled.state).toHaveAttribute('data-state', 'unset');
+    await drag(page, cancelled.stage);
+    await expect(cancelled.state).toHaveAttribute('data-state', 'set');
+    await page.getByRole('button', { name: 'キャンセル' }).click();
+    await expect(cancelled.stage).toBeHidden();
+
     const first = await openFitDialog(page);
     await expect(first.state).toHaveAttribute('data-state', 'unset');
     await drag(page, first.stage);
@@ -108,26 +108,18 @@ test.describe('the cut-in position of a portrait', () => {
     const third = await openFitDialog(page);
     await expect(third.state).toHaveAttribute('data-state', 'unset');
   });
-
-  test('writes nothing when cancelled after a drag', async ({ page }) => {
-    const first = await openFitDialog(page);
-    await drag(page, first.stage);
-    await expect(first.state).toHaveAttribute('data-state', 'set');
-    await page.getByRole('button', { name: 'キャンセル' }).click();
-    await expect(first.stage).toBeHidden();
-
-    const again = await openFitDialog(page);
-    await expect(again.state).toHaveAttribute('data-state', 'unset');
-  });
 });
 
 test.describe('enlarging a whiteboard', () => {
   test('spreads over the whole screen from the zoom button of the pop-up, and closes on a click', async ({ page }) => {
     await waitAppReady(page);
+    await putAwayTutorial(page);
     const menu = await openTableContextMenu(page);
     await (await revealMenuEntry(page, menu, 'ホワイトボードを作成')).click();
     const surface = page.locator('white-board [data-surface]');
     await expect(surface).toHaveCount(1, { timeout: 10000 });
+    // Over a table drawn on a canvas the face is put once the canvas draws the board.
+    await expect(surface).toBeVisible();
 
     // The new board stands at the back of the table, partly off screen and partly behind panels,
     // so look for a point where the pointer really lands on it.

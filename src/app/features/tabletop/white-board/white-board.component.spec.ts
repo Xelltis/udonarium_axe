@@ -145,22 +145,13 @@ describe('WhiteBoardComponent', () => {
     expect(component.heightPx()).toBe(4 * 50);
   });
 
-  it('lies flat until it is tilted, and hinges rather than sinking', async () => {
-    expect(component.pitchTransform()).toBe('rotateX(0deg)');
-
-    board.pitch = 90;
-    await new Promise((resolve) => setTimeout(resolve, 20));
-
-    expect(component.pitchTransform()).toBe('rotateX(-90deg)');
-  });
-
   it('takes the turn it was dragged to, so the board keeps facing where it was left', () => {
     component.onRotated(30);
 
     expect(board.rotate).toBe(30);
   });
 
-  it('shows only what names it as the face it stands on', () => {
+  it('counts only what names it as the face it stands on, for its menu to take off it', () => {
     const mine = place(10, 10, board.identifier);
     const theirs = place(10, 10);
 

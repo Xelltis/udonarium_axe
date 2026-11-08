@@ -1418,7 +1418,12 @@ describe('GameDataElementComponent on a sheet', () => {
   let component: GameDataElementComponent;
   let fixture: ComponentFixture<GameDataElementComponent>;
 
-  function show(element: DataElement, options: { inSheet?: boolean; isEdit?: boolean } = {}): HTMLElement {
+  afterEach(() => vi.restoreAllMocks());
+
+  function show(
+    element: DataElement,
+    options: { inSheet?: boolean; isEdit?: boolean; addsInView?: boolean } = {}
+  ): HTMLElement {
     TestBed.configureTestingModule({
       imports: [GameDataElementComponent],
       providers: [
@@ -1429,6 +1434,7 @@ describe('GameDataElementComponent on a sheet', () => {
     fixture = TestBed.createComponent(GameDataElementComponent);
     component = fixture.componentInstance;
     fixture.componentRef.setInput('isEdit', options.isEdit ?? false);
+    fixture.componentRef.setInput('addsInView', options.addsInView ?? false);
     fixture.componentRef.setInput('gameDataElement', element);
     fixture.detectChanges();
     return fixture.nativeElement as HTMLElement;
@@ -1538,6 +1544,43 @@ describe('GameDataElementComponent on a sheet', () => {
     expect(show(group, { isEdit: true }).querySelector('[data-testid="group-add-field"]')).not.toBeNull();
     TestBed.resetTestingModule();
     expect(show(group, { isEdit: true, inSheet: false }).querySelector('[data-testid="group-add-field"]')).toBeNull();
+  });
+
+  it('offers an item at the end of a group being edited, and a group at the end of a section', () => {
+    const section = DataElement.create('能力', '', { [DataElementAttribute.ROLE]: DataElementRole.SECTION });
+    const group = DataElement.create('基本', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });
+    group.appendChild(DataElement.create('HP', 10, { [DataElementAttribute.ROLE]: DataElementRole.FIELD }));
+    section.appendChild(group);
+
+    const host = show(section, { isEdit: true });
+
+    expect(host.querySelectorAll('[data-testid="group-add-field"]')).toHaveLength(1);
+    expect(host.querySelectorAll('[data-testid="group-add-group"]')).toHaveLength(1);
+    expect(host.querySelector('.elm-add-row:last-child [data-testid="group-add-group"]')).not.toBeNull();
+  });
+
+  it('puts a "+" on the heading of a group being read for a reader who may change the sheet, and none otherwise', () => {
+    const group = DataElement.create('基本', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });
+    group.appendChild(DataElement.create('HP', 10, { [DataElementAttribute.ROLE]: DataElementRole.FIELD }));
+    const plus = (host: HTMLElement) => host.querySelector('[data-testid="group-add-field-in-view"]');
+
+    const reading = show(group, { addsInView: true });
+    expect(plus(reading)?.getAttribute('aria-label')).toContain('基本');
+    expect(reading.querySelector('[data-testid="group-add-field"]')).toBeNull();
+    TestBed.resetTestingModule();
+    expect(plus(show(group))).toBeNull();
+    TestBed.resetTestingModule();
+    vi.spyOn(PeerCursor, 'myRole', 'get').mockReturnValue(PeerRole.Guest);
+    expect(plus(show(group, { addsInView: true }))).toBeNull();
+  });
+
+  it('names each button in the bar of a row being edited, for its tooltip and for a screen reader', () => {
+    const host = show(hp(), { isEdit: true });
+    const unnamed = [...host.querySelectorAll('button:not([aria-hidden="true"])')].filter(
+      (button) => button.querySelector('.material-icons') && !button.getAttribute('aria-label')?.trim()
+    );
+
+    expect(unnamed.map((button) => button.textContent?.trim())).toEqual([]);
   });
 
   it('opens the editor from the name or the "⋯" of a row being edited on a sheet', () => {

@@ -65,7 +65,7 @@ test.describe('chat stamps and reactions', () => {
     await waitAppReady(page);
   });
 
-  test('opens the stamps over their button, and sends the one picked alone as a large stamp with Enter', async ({
+  test('opens the stamps over their button, sends the one picked alone as a large stamp with Enter, and draws a line of stamps alone large, side by side', async ({
     page,
   }) => {
     const input = chatInput(page);
@@ -85,6 +85,20 @@ test.describe('chat stamps and reactions', () => {
     await expect(stampLines(page)).toHaveCount(1);
     await expect(stampLines(page).getByTestId('chat-message-stamp').locator('[data-stamp-id="seal:ok"]')).toBeVisible();
     await expect(stampLines(page)).not.toContainText('［了解］');
+
+    for (const stampId of ['seal:ok', 'sfx:shock']) {
+      await button.click();
+      await pickStamp(page, stampId);
+    }
+    await expect(input.locator('[data-chip="stamp"]')).toHaveCount(2);
+    await input.press('Enter');
+    await expectChatText(input, '');
+    const pair = page
+      .locator('chat-tab chat-message')
+      .filter({ has: page.locator('[data-chat-search-text] [data-stamp-id="sfx:shock"]') })
+      .locator('[data-chat-search-text] [data-stamp-id]');
+    await expect(pair).toHaveCount(2);
+    expect((await pair.last().boundingBox())!.height).toBeGreaterThanOrEqual(56);
   });
 
   test('puts the stamp picked in at the caret, sending it small inside the words', async ({ page }) => {
@@ -109,85 +123,22 @@ test.describe('chat stamps and reactions', () => {
     await expect(line.getByTestId('chat-message-stamp')).toHaveCount(0);
   });
 
-  test('draws a line of stamps alone large, side by side', async ({ page }) => {
-    const input = chatInput(page);
-    for (const stampId of ['seal:ok', 'sfx:shock']) {
-      await page.locator('chat-window [data-testid="chat-input-stamp"]').click();
-      await pickStamp(page, stampId);
-    }
-    await expect(input.locator('[data-chip="stamp"]')).toHaveCount(2);
-
-    await input.press('Enter');
-    await expectChatText(input, '');
-    const line = page
-      .locator('chat-tab chat-message')
-      .filter({ has: page.locator('[data-chat-search-text] [data-stamp-id="sfx:shock"]') });
-    const drawn = line.locator('[data-chat-search-text] [data-stamp-id]');
-    await expect(drawn).toHaveCount(2);
-    expect((await drawn.last().boundingBox())!.height).toBeGreaterThanOrEqual(56);
-  });
-
-  test('writes the stamp picked into the plain box at the caret, sending it drawn', async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('chat-preferences', JSON.stringify({ richInput: false })));
-    await waitAppReady(page);
-    await expect(page.locator('chat-window [data-chat-input-mode="plain"]')).toBeVisible();
-    const textarea = chatInput(page);
-    await textarea.fill('了解です');
-    await page.locator('chat-window [data-testid="chat-input-stamp"]').click();
-    await pickStamp(page, 'seal:ok');
-    await expect(textarea).toHaveValue(/^了解です［.+:seal:ok］$/);
-
-    await textarea.press('Enter');
-    await expectChatText(textarea, '');
-    await expect(
-      lineSaying(page, '了解です').locator('[data-chat-search-text] [data-stamp-id="seal:ok"]')
-    ).toBeVisible();
-  });
-
-  test("lists a reaction added from the toolbar as one's own, pressed, and removes it when pressed again", async ({
-    page,
-  }) => {
-    await say(page, 'リアクションしてね');
-    const line = lineSaying(page, 'リアクションしてね');
-
-    await openReactionPicker(page, line);
-    await pickStamp(page, 'seal:god');
-
-    const chip = line.getByTestId('chat-message-reaction-seal:god');
-    await expect(chip).toBeVisible();
-    await expect(chip).toHaveAttribute('aria-pressed', 'true');
-    await expect(chip.locator('[data-reaction-count]')).toHaveText('1');
-
-    await chip.click();
-    await expect(chip).toHaveCount(0);
-    await expect(line.getByTestId('chat-message-reactions')).toHaveCount(0);
-  });
-
-  test('hides the stamp button of the input once the GM turns stamp lines off in the room settings, and shows it once they are back on', async ({
+  test('hides the stamp button of the input while the GM turns stamp lines off, and leaves a stamp stopped for reactions out of the reaction list, keeping it in the list for lines', async ({
     page,
   }) => {
     await becomeGameMaster(page);
     const stampButton = page.getByTestId('chat-input-stamp');
     await expect(stampButton).toBeVisible();
-
     await openStampRules(page);
     const lineOn = page.getByTestId('room-settings-stamps-line-on');
     await expect(lineOn).toBeChecked();
-
     await lineOn.uncheck();
     await expect(lineOn).not.toBeChecked();
     await expect(stampButton).toHaveCount(0);
-
     await lineOn.check();
     await expect(lineOn).toBeChecked();
     await expect(stampButton).toBeVisible();
-  });
 
-  test('leaves a stamp stopped for reactions out of the reaction list, keeping it in the list for lines', async ({
-    page,
-  }) => {
-    await becomeGameMaster(page);
-    await openStampRules(page);
     const reactionRules = page.getByTestId('room-settings-stamps-reaction');
     await reactionRules.locator('summary', { hasText: '判子' }).click();
     const denied = reactionRules.getByTestId('room-settings-stamp-reaction-seal:god');

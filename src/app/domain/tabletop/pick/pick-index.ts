@@ -1,0 +1,100 @@
+import { TablePoint, TableRay } from '@axe/domain/tabletop/camera/table-camera';
+import { hitShape, PickShape } from '@axe/domain/tabletop/pick/pick-geometry';
+
+/** Something on the table that a press can land on, made of one or more shapes. */
+export interface PickTarget {
+  /** The identifier of the object it stands for. */
+  readonly id: string;
+  /** What kind of thing it is, so a caller can look past some kinds. */
+  readonly layer: string;
+  /** Which of two things the same distance off is in front: the greater. */
+  readonly order: number;
+  /** The face it stands on, as a location names it, where that matters to the caller. */
+  readonly surface?: string;
+  readonly shapes: readonly PickShape[];
+  /**
+   * Whether the picture on one of the quads is solid at a point of it, read across and down from
+   * 0 to 1. A press on a see-through part lands on whatever is behind.
+   */
+  readonly opaqueAt?: (shapeIndex: number, u: number, v: number) => boolean;
+}
+
+/** A target a line of sight meets, and where. */
+export interface PickHit {
+  readonly target: PickTarget;
+  /** How far along the line; nearer the eye is less. */
+  readonly t: number;
+  readonly point: TablePoint;
+  readonly shapeIndex: number;
+  readonly u?: number;
+  readonly v?: number;
+}
+
+/**
+ * How close two hits may be along the line and still count as the same distance off, in table
+ * pixels: a card lying on the board and the board under it.
+ */
+const SAME_DISTANCE_PX = 0.5;
+
+/**
+ * Where a line of sight meets one target, its nearest solid point, or null where it misses; a point
+ * nearer than the line reaches, behind the eye it is seen from, is no hit.
+ */
+export function pickTarget(target: PickTarget, ray: TableRay): PickHit | null {
+  let best: PickHit | null = null;
+  const from = ray.from ?? -Infinity;
+  target.shapes.forEach((shape, shapeIndex) => {
+    const hit = hitShape(ray, shape);
+    if (!hit || hit.t < from || (best !== null && best.t <= hit.t)) return;
+    if (hit.u !== undefined && hit.v !== undefined && target.opaqueAt && !target.opaqueAt(shapeIndex, hit.u, hit.v)) {
+      return;
+    }
+    best = { target, t: hit.t, point: hit.point, shapeIndex, u: hit.u, v: hit.v };
+  });
+  return best;
+}
+
+/**
+ * Every target a line of sight meets, nearest the eye first. Of two the same distance off, the one
+ * drawn in front comes first. `accepts` leaves out targets a caller looks past.
+ */
+export function pickAll(
+  targets: Iterable<PickTarget>,
+  ray: TableRay,
+  accepts: (target: PickTarget) => boolean = () => true
+): PickHit[] {
+  const hits: PickHit[] = [];
+  for (const target of targets) {
+    if (!accepts(target)) continue;
+    const hit = pickTarget(target, ray);
+    if (hit) hits.push(hit);
+  }
+  return inFrontFirst(hits);
+}
+
+/**
+ * Hits put nearest the eye first, and of those that count as the same distance off as the nearest of
+ * them, the one drawn in front first: sorted by distance, then each run of hits within the distance
+ * that counts as the same of the first of the run sorted by which is drawn in front, so the order is
+ * the same whatever order the hits came in.
+ */
+function inFrontFirst(hits: PickHit[]): PickHit[] {
+  hits.sort((a, b) => a.t - b.t);
+  const sorted: PickHit[] = [];
+  for (let start = 0; start < hits.length;) {
+    let end = start + 1;
+    while (end < hits.length && hits[end].t - hits[start].t <= SAME_DISTANCE_PX) end++;
+    sorted.push(...hits.slice(start, end).sort((a, b) => b.target.order - a.target.order || a.t - b.t));
+    start = end;
+  }
+  return sorted;
+}
+
+/** The target nearest the eye along a line of sight, or null where the line meets none. */
+export function pickFirst(
+  targets: Iterable<PickTarget>,
+  ray: TableRay,
+  accepts?: (target: PickTarget) => boolean
+): PickHit | null {
+  return pickAll(targets, ray, accepts)[0] ?? null;
+}

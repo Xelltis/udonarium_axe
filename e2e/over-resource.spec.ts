@@ -40,7 +40,7 @@ test.describe('a resource set to go over its maximum', () => {
     await current.blur();
     await expect(current).toHaveValue(String(most));
 
-    await row.locator('button[title="詳細設定"]').first().dispatchEvent('click');
+    await row.locator('button[aria-label="詳細設定"]').first().dispatchEvent('click');
     await row.locator('input[name="data-over-resource"]').check();
     await current.fill(String(most + 50));
     await current.blur();

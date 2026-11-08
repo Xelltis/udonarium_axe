@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, viewChild, ViewContainerRef } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  inject,
+  signal,
+  viewChild,
+  ViewContainerRef,
+} from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService, ObjectDeleteEvent } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
@@ -59,7 +67,7 @@ class StubTooltipPanelComponent implements TooltipPanelInstance {
   selector: 'tooltip-test-host',
   template: `
     <div data-testid="first-piece" [appTooltip]="first"><span data-testid="piece-body"></span></div>
-    <div data-testid="second-piece" [appTooltip]="second"></div>
+    <div data-testid="second-piece" [appTooltip]="second" [appTooltipOff]="secondOff()"></div>
     <ng-container #panelHost></ng-container>
   `,
   imports: [TooltipDirective],
@@ -68,6 +76,7 @@ class StubTooltipPanelComponent implements TooltipPanelInstance {
 class TooltipHostComponent {
   first!: TabletopObject;
   second!: TabletopObject;
+  readonly secondOff = signal(false);
   readonly panelHost = viewChild.required('panelHost', { read: ViewContainerRef });
 }
 
@@ -149,6 +158,19 @@ describe('TooltipDirective', () => {
 
     expect(panels()).toHaveLength(4);
     expect(fixture.nativeElement.querySelectorAll('[data-testid="stub-panel"]')).toHaveLength(4);
+  });
+
+  it('opens no detail while it is asked to open none, as over a look on the ground locked in place', async () => {
+    host.secondOff.set(true);
+    fixture.detectChanges();
+    await hover('second-piece');
+    expect(panels()).toHaveLength(0);
+    await unhover('second-piece');
+
+    host.secondOff.set(false);
+    fixture.detectChanges();
+    await hover('second-piece');
+    expect(panels()).toHaveLength(4);
   });
 
   it('fetches the detail the first time a piece asks for it, and shows it once it arrives', async () => {

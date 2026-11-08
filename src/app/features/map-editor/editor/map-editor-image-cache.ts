@@ -4,6 +4,7 @@ import { StampDef } from '@axe/domain/map-editor/stamp-types';
 import { STAMPS } from '@axe/domain/map-editor/stamps';
 import { imageTextureIdentifier, isImageTextureId, normalizeTextureId } from '@axe/domain/map-editor/textures';
 import { isTextureId, TEXTURE_ASSET_URLS } from '@axe/domain/media/texture-catalog';
+import { placeableModelTopUrl } from '@axe/domain/tabletop/placeable-models';
 import { getRasterImage } from '@axe/infrastructure/map-editor/raster-image';
 import { RenderHelpers } from '@axe/infrastructure/map-editor/render-scene';
 import { getStampImage, loadStampImage } from '@axe/infrastructure/map-editor/stamp-image';
@@ -45,6 +46,10 @@ export class MapEditorImageCache {
       },
       stampImage: (item) => this.stamp(item.stampId, item.size, item.color),
       rasterImage: (item) => this.image(item.imageIdentifier),
+      modelTop: (model) => {
+        const url = placeableModelTopUrl(model);
+        return url ? this.picture(url) : null;
+      },
     };
   }
 

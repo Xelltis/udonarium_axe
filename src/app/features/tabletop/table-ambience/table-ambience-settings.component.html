@@ -114,6 +114,18 @@
             <option [ngValue]="direction">{{ flowDirectionLabel(direction) }}</option>
           }
         </select>
+
+        <label class="text-ui-muted text-[11px]">{{ 'feature.ambience.iceLabel' | transloco }}</label>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          class="w-full cursor-pointer [accent-color:var(--ui-accent)]"
+          [(ngModel)]="icePercent"
+          name="ambienceIce"
+          data-testid="ambience-ice"
+        />
+        <span class="text-ui-muted text-right text-[11px]">{{ icePercent }}%</span>
       }
 
       <label class="text-ui-muted text-[11px]">{{ 'feature.ambience.colorLabel' | transloco }}</label>

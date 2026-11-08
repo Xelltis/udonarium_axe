@@ -50,6 +50,27 @@ describe('Network', () => {
     });
   });
 
+  describe('playing alone', () => {
+    afterEach(() => Network.playAlone(null));
+
+    it('reports the user it plays as for its own peer while no session is open', () => {
+      Network.playAlone('alone-user');
+
+      expect(Network.peerContext.userId).toBe('alone-user');
+      expect(Network.peerId).toBe(Network.peer.peerId);
+      expect(Network.instance.isOpen).toBe(false);
+    });
+
+    it('plays as nobody again once it is given no user', () => {
+      const nobody = Network.peer;
+      Network.playAlone('alone-user');
+
+      Network.playAlone(null);
+
+      expect(Network.peer).toBe(nobody);
+    });
+  });
+
   describe('the older names', () => {
     it('the old peer name matches the new one', () => {
       expect(Network.instance.peerContext).toBe(Network.instance.peer);
@@ -129,6 +150,17 @@ describe('Network', () => {
       internals().sendQueue();
 
       expect(connectionSend.mock.calls).toEqual([[['first']], [['second']]]);
+    });
+
+    it('hands what it sends back to this seat as its own', () => {
+      const onData = vi.fn();
+      const before = Network.instance.callback.onData;
+      Network.instance.callback.onData = onData;
+      Network.instance.send('to everyone');
+      internals().sendQueue();
+      Network.instance.callback.onData = before;
+
+      expect(onData).toHaveBeenCalledWith(null, ['to everyone'], true);
     });
 
     it('keeps messages without a key apart', () => {

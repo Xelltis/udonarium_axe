@@ -28,7 +28,7 @@ async function hoverOnto(page: Page, at: Point) {
 test.describe('the see-through parts of a piece’s picture', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
-    await expect(piece(page, 'モンスターC').locator('img.image')).toBeVisible({ timeout: 10000 });
+    await expect(piece(page, 'モンスターC').locator('[data-part="picture"]')).toBeVisible({ timeout: 10000 });
     await closePanels(page);
     await settle(piece(page, 'モンスターC'));
   });
@@ -49,11 +49,17 @@ test.describe('the see-through parts of a piece’s picture', () => {
     const frontBefore = await placeOf(front);
 
     await hoverOnto(page, at);
+    // The table's line of sight passes the clear part of the picture and picks the piece behind.
+    const backId = await back.getAttribute('data-object-id');
     await expect
       .poll(() =>
         page.evaluate(
-          ([x, y]) => document.elementFromPoint(x, y)?.closest('game-character')?.textContent?.includes('モンスターB'),
-          [at.x, at.y]
+          ([x, y, id]) => {
+            const hooks = (window as unknown as { __axeTable?: { pickAt(x: number, y: number): string | null } })
+              .__axeTable;
+            return hooks?.pickAt(x as number, y as number) === id;
+          },
+          [at.x, at.y, backId] as const
         )
       )
       .toBe(true);
@@ -115,7 +121,7 @@ test.describe('the see-through parts of a piece’s picture under a finger', () 
     await waitAppReady(page);
     const front = piece(page, 'モンスターC');
     const back = piece(page, 'モンスターB');
-    await expect(front.locator('img.image')).toBeVisible({ timeout: 10000 });
+    await expect(front.locator('[data-part="picture"]')).toBeVisible({ timeout: 10000 });
     await closePanels(page);
     await settle(front);
     const behind = await centreOf(pedestal(back));

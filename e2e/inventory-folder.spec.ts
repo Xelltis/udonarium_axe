@@ -33,7 +33,7 @@ async function putFirstInFolder(page: Page, folderName: string) {
   await nameEditedFolder(page, folderName);
 }
 
-test.describe('searching the inventory, and its folders', () => {
+test.describe('the folders of the inventory', () => {
   // Folders cannot be used on the table tab, so the tests start with a single piece on the shared tab.
   const listed = 1;
 
@@ -53,58 +53,10 @@ test.describe('searching the inventory, and its folders', () => {
     await expect(items(page)).toHaveCount(listed, { timeout: 5000 });
   });
 
-  for (const [label, index] of [
-    ['テーブル', 0],
-    ['墓場', 3],
-  ] as const) {
-    test(`does not offer folders on the ${label} tab`, async ({ page }) => {
-      await page.locator('game-object-inventory form[name="game-object-inventory"] > label').nth(index).click();
-
-      await expect(page.locator('game-object-inventory button[title="新しいフォルダ"]')).toHaveCount(0);
-    });
-  }
-
-  test("leaves folders out of a piece's menu on the table tab", async ({ page }) => {
-    await page.locator('game-object-inventory form[name="game-object-inventory"] > label').nth(0).click();
-
-    await items(page).first().click({ button: 'right', position: ROW_EDGE });
-    const menu = page.locator('context-menu');
-    await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-    await expect(menu.getByText('フォルダ', { exact: true })).toHaveCount(0);
-  });
-
-  test('keeps the shared and personal folders apart', async ({ page }) => {
-    await makeEmptyFolder(page, '共有だけの棚');
-
-    await page.locator('game-object-inventory form[name="game-object-inventory"] > label').nth(2).click();
-    await expect(page.locator('game-object-inventory [data-folder-dropzone]')).toHaveCount(0);
-
-    await page.locator('game-object-inventory form[name="game-object-inventory"] > label').nth(1).click();
-    await expect(
-      page.locator('game-object-inventory [data-folder-dropzone][data-folder-path="共有だけの棚"]')
-    ).toBeVisible();
-  });
-
-  test('narrows the list with the search box, and brings it back on clear', async ({ page }) => {
-    // Search and filtering have moved to a panel of their own, opened from the inventory's filter button.
-    await page.locator('game-object-inventory button[title="絞り込みと表示設定"]').click();
-    const search = page.locator('inventory-filter-panel input[name="inventory-search"]');
-    await expect(search).toBeVisible({ timeout: 5000 });
-
-    // Text poured in at once is not picked up by ngModel, so it is typed in as a person would.
-    await search.click();
-    await search.pressSequentially('該当しないはずの名前zzz');
-    await expect(items(page)).toHaveCount(0);
-    await expect(page.locator('game-object-inventory').getByText('一致するキャラクターがいません')).toBeVisible();
-
-    await page.locator('inventory-filter-panel button[title="検索をクリア"]').click();
-    await expect(search).toHaveValue('');
-    await expect(items(page)).toHaveCount(listed);
-  });
-
   test('shows a heading once a piece is put in a folder from the context menu, and hides what it holds when folded', async ({
     page,
   }) => {
+    await expect(page.locator('game-object-inventory [data-folder-dropzone]')).toHaveCount(0);
     await putFirstInFolder(page, '第1話');
 
     const heading = page.locator('game-object-inventory [data-folder-dropzone][data-folder-path="第1話"]');
@@ -118,35 +70,16 @@ test.describe('searching the inventory, and its folders', () => {
     await expect(items(page)).toHaveCount(listed);
   });
 
-  test('shows no heading while there are no folders', async ({ page }) => {
-    await expect(page.locator('game-object-inventory [data-folder-dropzone]')).toHaveCount(0);
-
-    await putFirstInFolder(page, '第1話');
-
-    await expect(page.locator('game-object-inventory [data-folder-dropzone]')).not.toHaveCount(0);
-  });
-
-  test('makes a folder before any piece is put in it', async ({ page }) => {
+  test('deletes a folder from the bin button of its heading, and from its right-click menu', async ({ page }) => {
     await makeEmptyFolder(page, '第2話');
+    const binned = page.locator('game-object-inventory [data-folder-dropzone][data-folder-path="第2話"]');
+    await expect(binned).toBeVisible({ timeout: 5000 });
+    await binned.locator('button[title="このフォルダを削除"]').click();
+    await expect(binned).toHaveCount(0);
 
-    const heading = page.locator('game-object-inventory [data-folder-dropzone][data-folder-path="第2話"]');
+    await makeEmptyFolder(page, '第3話');
+    const heading = page.locator('game-object-inventory [data-folder-dropzone][data-folder-path="第3話"]');
     await expect(heading).toBeVisible({ timeout: 5000 });
-    await expect(heading).toContainText('0');
-    await expect(items(page)).toHaveCount(listed);
-  });
-
-  test('deletes a folder from the bin button of its heading', async ({ page }) => {
-    await makeEmptyFolder(page, '第2話');
-    const heading = page.locator('game-object-inventory [data-folder-dropzone][data-folder-path="第2話"]');
-
-    await heading.locator('button[title="このフォルダを削除"]').click();
-
-    await expect(heading).toHaveCount(0);
-  });
-
-  test('deletes a folder from the right-click menu too', async ({ page }) => {
-    await makeEmptyFolder(page, '第2話');
-    const heading = page.locator('game-object-inventory [data-folder-dropzone][data-folder-path="第2話"]');
 
     await heading.click({ button: 'right' });
     const menu = page.locator('context-menu');
@@ -204,26 +137,24 @@ test.describe('dragging pieces in the inventory', () => {
     await expect(heading).toContainText(/第1話\s*2/);
   });
 
-  test('draws the carried piece and its name beside the pointer while it travels', async ({ page }) => {
+  test('moves a piece let go over another tab to the place it shows, drawing it and its name beside the pointer on the way', async ({
+    page,
+  }) => {
+    const tabs = page.locator('game-object-inventory form[name="game-object-inventory"] > label');
     const row = items(page).first();
     const name = (await row.locator('span.truncate').first().innerText()).trim();
     const box = (await row.boundingBox())!;
     const ghost = page.locator('[data-testid="piece-drag-ghost"]');
+    const to = await middleOf(tabs.nth(2));
     await page.mouse.move(box.x + ROW_EDGE.x, box.y + ROW_EDGE.y);
     await page.mouse.down();
-    await page.mouse.move(box.x + 120, box.y + 80, { steps: 8 });
+    await page.mouse.move(to.x, to.y, { steps: 12 });
 
     await expect(ghost).toBeVisible();
     await expect(ghost).toContainText(name);
 
     await page.mouse.up();
     await expect(ghost).toHaveCount(0);
-  });
-
-  test('moves a piece let go over another tab to the place it shows', async ({ page }) => {
-    const tabs = page.locator('game-object-inventory form[name="game-object-inventory"] > label');
-
-    await dragRow(page, items(page).first(), await middleOf(tabs.nth(2)));
 
     await expect(tabs.nth(1)).toContainText(/共有\s*1/);
     await expect(tabs.nth(2)).toContainText(/個人\s*1/);

@@ -1,6 +1,6 @@
 import { cellCenterOf, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/grid-type';
-import { type WaterArea, waterCellsOf, waterSurfaceLookOf } from '@axe/domain/tabletop/water/water-cells';
+import { type WaterArea, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
 
 const G = 50;
 
@@ -20,6 +20,7 @@ function area(partial: Partial<WaterArea>): WaterArea {
     leaves: 0,
     flowSpeed: 0,
     flowDirection: 0,
+    ice: 0,
     ...partial,
   };
 }
@@ -42,6 +43,16 @@ describe('waterCellsOf()', () => {
       const cells = waterCellsOf(grid, [area({ left: centre.x - G / 2, top: centre.y - G / 2 })]);
       expect([...cells.keys()]).toEqual([index]);
     }
+  });
+
+  it('reaches down to the ground where it has been dug below the board and the water’s floor', () => {
+    const grid = cellGridOf(10, 10, G, GridType.SQUARE);
+    const pit = cellIndexOf(grid, 0, 0);
+
+    const [cell] = [...waterCellsOf(grid, [area({})], (index) => (index === pit ? -40 : 0)).values()];
+
+    expect(cell).toMatchObject({ floorPx: -40, surfacePx: 25, flat: false });
+    expect([...waterCellsOf(grid, [area({})], () => 0).values()][0]).toMatchObject({ floorPx: 0, flat: true });
   });
 
   it('gives a cell under two areas the higher surface', () => {
@@ -87,16 +98,5 @@ describe('waterCellsOf()', () => {
   it('leaves out what lies off the board', () => {
     const grid = cellGridOf(2, 2, G, GridType.SQUARE);
     expect(waterCellsOf(grid, [area({ left: 5 * G })]).size).toBe(0);
-  });
-});
-
-describe('waterSurfaceLookOf()', () => {
-  it('tells water of another height or colour apart', () => {
-    const grid = cellGridOf(2, 2, G, GridType.SQUARE);
-    const [a] = waterCellsOf(grid, [area({})]).values();
-    const [b] = waterCellsOf(grid, [area({ surfacePx: 30 })]).values();
-    const [c] = waterCellsOf(grid, [area({ color: '#000000' })]).values();
-    expect(waterSurfaceLookOf(a)).not.toBe(waterSurfaceLookOf(b));
-    expect(waterSurfaceLookOf(a)).not.toBe(waterSurfaceLookOf(c));
   });
 });

@@ -1,6 +1,7 @@
 import { Network } from '@axe/core/network/network';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 
 /** What leaving the room now would lose, which the reader is asked about first. */
 export type LeavingLoss = 'peer-to-peer' | 'unsent' | 'sending' | 'uploads';
@@ -18,7 +19,13 @@ export function leavingLoss(): LeavingLoss[] {
   const losses: LeavingLoss[] = [];
   if (!Network.isAuthorityOpen && Network.authorityPeerId !== null) losses.push('unsent');
   else if (Network.hasSendsPending) losses.push('sending');
-  if (ImageStorage.instance.hasUploadsPending || AudioStorage.instance.hasUploadsPending) losses.push('uploads');
+  if (
+    ImageStorage.instance.hasUploadsPending ||
+    AudioStorage.instance.hasUploadsPending ||
+    ModelStorage.instance.hasUploadsPending
+  ) {
+    losses.push('uploads');
+  }
   return losses;
 }
 

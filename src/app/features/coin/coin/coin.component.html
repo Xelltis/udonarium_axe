@@ -1,7 +1,7 @@
+<!-- The coin is a box on the screen round where the canvas draws it. -->
 <div
-  class="group pointer-events-none absolute cursor-grab select-none [-moz-user-drag:none] [-webkit-user-drag:none] backface-hidden transform-3d"
-  [style.width.px]="diameter()"
-  [style.height.px]="diameter()"
+  class="pointer-events-auto size-full cursor-grab select-none [-moz-user-drag:none] [-webkit-user-drag:none]"
+  data-hud-box
   appMovable
   [movable.option]="movableOption()"
   [movable.disable]="isLock"
@@ -9,104 +9,5 @@
   (movable.ondragstart)="onMove()"
   (movable.ondragend)="onMoved()"
 >
-  <div
-    class="pointer-events-auto size-full transform-3d"
-    appRotable
-    [rotable.option]="rotableOption()"
-    [rotable.disable]="tabletopService.mode2d()"
-    (rotable.ondragstart)="onMove()"
-    (rotable.ondragend)="onMoved()"
-  >
-    <div
-      class="size-full transform-3d"
-      [class.animate-coin-flip]="isSpinning() && !landsOnOtherFace()"
-      [class.animate-coin-flip-turn]="isSpinning() && landsOnOtherFace()"
-      (animationend)="onSpinEnd()"
-    >
-      <div class="size-full transform-3d" [style.transform]="faceTransform()">
-        @for (segment of edgeSegments(); track $index) {
-          <div class="pointer-events-none absolute top-1/2 left-1/2 backface-visible" [ngStyle]="segment"></div>
-        }
-        <div
-          class="absolute inset-0 flex items-center justify-center overflow-hidden rounded-full border-2 border-solid border-[#8a5f18] bg-[radial-gradient(circle_at_30%_28%,#ffeeb4,#e0ac45_58%,#a97c22)] shadow-[inset_0_0_0_3px_rgba(255,240,190,0.35),inset_0_0_10px_rgba(120,80,10,0.55)] backface-hidden"
-          [style.transform]="frontFaceTransform()"
-        >
-          @if (frontImage().url) {
-            <img
-              class="pointer-events-none size-full object-cover"
-              [src]="frontImage().url | safe: 'resourceUrl'"
-              [alt]="frontLabel()"
-            />
-          } @else {
-            <svg class="pointer-events-none size-full" viewBox="0 0 100 100" aria-hidden="true">
-              <title>{{ frontLabel() }}</title>
-              <circle
-                cx="50"
-                cy="50"
-                r="40"
-                fill="none"
-                stroke="rgba(120,82,16,0.5)"
-                stroke-width="2.4"
-                stroke-dasharray="1.3 4.4"
-                stroke-linecap="round"
-              />
-              <polygon [attr.points]="starRayPoints" fill="rgba(255,246,214,0.35)" transform="translate(0 1.1)" />
-              <polygon [attr.points]="starRayPoints" fill="rgba(146,100,22,0.26)" />
-              <polygon [attr.points]="starPoints" fill="rgba(255,246,214,0.55)" transform="translate(0 1.4)" />
-              <polygon [attr.points]="starPoints" fill="rgba(126,86,18,0.78)" />
-              <circle cx="50" cy="51" r="4.6" fill="rgba(255,246,214,0.5)" />
-              <circle cx="50" cy="50" r="4.2" fill="rgba(170,120,32,0.7)" />
-            </svg>
-          }
-        </div>
-        <div
-          class="absolute inset-0 flex items-center justify-center overflow-hidden rounded-full border-2 border-solid border-[#6f4a12] bg-[radial-gradient(circle_at_30%_28%,#f3dda0,#c8933a_58%,#8d6519)] shadow-[inset_0_0_0_3px_rgba(240,220,170,0.3),inset_0_0_10px_rgba(90,60,8,0.6)] backface-hidden"
-          [style.transform]="backFaceTransform()"
-        >
-          @if (backImage().url) {
-            <img
-              class="pointer-events-none size-full object-cover"
-              [src]="backImage().url | safe: 'resourceUrl'"
-              [alt]="backLabel()"
-            />
-          } @else {
-            <svg class="pointer-events-none size-full" viewBox="0 0 100 100" aria-hidden="true">
-              <title>{{ backLabel() }}</title>
-              <circle
-                cx="50"
-                cy="50"
-                r="40"
-                fill="none"
-                stroke="rgba(102,68,12,0.5)"
-                stroke-width="2.4"
-                stroke-dasharray="1.3 4.4"
-                stroke-linecap="round"
-              />
-              @for (leaf of laurelLeaves; track $index) {
-                <ellipse
-                  [attr.cx]="leaf.cx"
-                  [attr.cy]="leaf.cy + 1.3"
-                  [attr.rx]="leaf.rx"
-                  [attr.ry]="leaf.ry"
-                  [attr.transform]="'rotate(' + leaf.rotate + ' ' + leaf.cx + ' ' + (leaf.cy + 1.3) + ')'"
-                  fill="rgba(250,236,190,0.5)"
-                />
-                <ellipse
-                  [attr.cx]="leaf.cx"
-                  [attr.cy]="leaf.cy"
-                  [attr.rx]="leaf.rx"
-                  [attr.ry]="leaf.ry"
-                  [attr.transform]="'rotate(' + leaf.rotate + ' ' + leaf.cx + ' ' + leaf.cy + ')'"
-                  fill="rgba(112,76,14,0.72)"
-                />
-              }
-              <polygon points="50,33 61,50 50,67 39,50" fill="rgba(250,236,190,0.5)" transform="translate(0 1.4)" />
-              <polygon points="50,33 61,50 50,67 39,50" fill="rgba(112,76,14,0.78)" />
-              <polygon points="50,41 55.5,50 50,59 44.5,50" fill="rgba(214,166,74,0.85)" />
-            </svg>
-          }
-        </div>
-      </div>
-    </div>
-  </div>
+  <div data-part="coin" [appHudPlace]="{ owner: coin().identifier, part: 'coin' }"></div>
 </div>

@@ -86,9 +86,9 @@ export class ChatToolbarComponent {
   readonly edited = output<void>();
 
   protected readonly buttonClass =
-    'text-(--chat-toolbar-ink,var(--ui-text-muted)) hover:bg-(--chat-toolbar-hover,var(--ui-hover)) hover:text-(--chat-toolbar-ink-hover,var(--ui-text)) aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_.material-icons]:text-[17px]!';
+    'text-(--chat-toolbar-ink,var(--ui-text-muted)) hover:bg-(--chat-toolbar-hover,var(--ui-hover)) hover:text-(--chat-toolbar-ink-hover,var(--ui-text)) aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors [&_.material-icons]:text-[17px]! pointer-coarse:h-8 pointer-coarse:min-w-8';
   protected readonly wordButtonClass =
-    'text-(--chat-toolbar-ink,var(--ui-text-muted)) hover:bg-(--chat-toolbar-hover,var(--ui-hover)) hover:text-(--chat-toolbar-ink-hover,var(--ui-text)) aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent rounded-ui-sm m-0 flex h-7 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent px-1 py-0 text-[11px] font-semibold transition-colors';
+    'text-(--chat-toolbar-ink,var(--ui-text-muted)) hover:bg-(--chat-toolbar-hover,var(--ui-hover)) hover:text-(--chat-toolbar-ink-hover,var(--ui-text)) aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent rounded-ui-sm m-0 flex h-7 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent px-1 py-0 text-[11px] font-semibold transition-colors pointer-coarse:h-8 pointer-coarse:min-w-8 pointer-coarse:px-1.5';
   protected readonly rowClass =
     'text-ui-text hover:bg-ui-hover rounded-ui-sm m-0 flex w-full cursor-pointer items-center gap-2 border-none bg-transparent px-2 py-1 text-left text-[12px]';
   protected readonly chipClass =

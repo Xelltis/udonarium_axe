@@ -2,7 +2,7 @@ import { PointerCoordinate } from '@axe/application/input/pointer-device.service
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 
 export interface MovableCoordinateResolver {
-  convertToLocal(pointer: PointerCoordinate, element: HTMLElement): PointerCoordinate;
+  convertToFace(pointer: PointerCoordinate, surface: string): PointerCoordinate;
 }
 
 export type MovableLayerItem = {
@@ -11,17 +11,11 @@ export type MovableLayerItem = {
   setPointerEvents(isEnable: boolean): void;
 };
 
-/** The CSS transform that places a piece at a position on its surface, followed by its own offset. */
-export function toTransformCss(posX: number, posY: number, posZ: number, transformCssOffset: string): string {
-  return 'translate3d(' + posX + 'px,' + posY + 'px,' + posZ + 'px) ' + transformCssOffset;
-}
-
 /**
- * Whether a piece's synced position differs from the one it is shown at.
- *
- * False for a missing object or one without a location, so there is nothing to animate.
+ * Whether a piece's synced position differs from the one it is shown at, as when a change elsewhere
+ * moved it. False for a missing object or one without a location.
  */
-export function shouldTransitionTo(
+export function movedElsewhere(
   object: TabletopObject | null | undefined,
   posX: number,
   posY: number,
@@ -38,11 +32,11 @@ export function shouldTransitionTo(
  */
 export function resolveMovableLocalCoordinate(
   coordinateService: MovableCoordinateResolver,
-  surfaceElement: HTMLElement,
+  surface: string,
   pointer2d: PointerCoordinate,
   contactSupportZ: (centerX: number, centerY: number) => number
 ): PointerCoordinate {
-  const local = coordinateService.convertToLocal(pointer2d, surfaceElement);
+  const local = coordinateService.convertToFace(pointer2d, surface);
   return { x: local.x, y: local.y, z: Math.max(0, contactSupportZ(local.x, local.y)) };
 }
 
@@ -147,19 +141,6 @@ export function unregisterLayer(
   if (!(layerName in layerHash)) return;
   const index = layerHash[layerName].indexOf(self);
   if (-1 < index) layerHash[layerName].splice(index, 1);
-}
-
-/**
- * The face under the pointer that a piece could be put down on, or nothing.
- *
- * A board carries a face of its own, and while it is being dragged that face travels under
- * the pointer with it. Taken at its word the board is laid on itself, and it lands wherever
- * its own corner happens to be, so the board would leap about the table.
- */
-export function dropTargetSurface(dragged: Element, under: Element | null): HTMLElement | null {
-  const surface = under?.closest<HTMLElement>('[data-surface]') ?? null;
-  if (!surface || dragged.contains(surface)) return null;
-  return surface;
 }
 
 /**

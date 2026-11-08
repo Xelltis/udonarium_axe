@@ -245,4 +245,23 @@ describe('Matrix3D', () => {
       expect(m.m34).toBe(0);
     });
   });
+
+  describe('toCss', () => {
+    it('writes the numbers in the order CSS lists them, reading back as the same matrix', () => {
+      const m = new Matrix3D().setData([1, 2, 3, 0.0003, 5, 6, 7, 0, 9, 10, 11, -0.00012, 1500, -40, 0.5, 1]);
+
+      const written = m.toCss();
+
+      expect(written).toBe('matrix3d(1, 2, 3, 0.0003, 5, 6, 7, 0, 9, 10, 11, -0.00012, 1500, -40, 0.5, 1)');
+      const read = new Matrix3D().setCSS(written);
+      expect([read.m14, read.m34, read.m41, read.m43]).toEqual([0.0003, -0.00012, 1500, 0.5]);
+    });
+
+    it('never writes a number in exponent form, nor a negative zero', () => {
+      const m = new Matrix3D().setData([1e-7, -1e-12, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+
+      expect(m.toCss()).toBe('matrix3d(0.0000001, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)');
+      expect(new Matrix3D().setData([100, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]).toCss(0)).toContain('(100, ');
+    });
+  });
 });

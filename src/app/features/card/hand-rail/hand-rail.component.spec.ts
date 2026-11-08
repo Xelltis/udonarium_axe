@@ -1,9 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HandRailService } from '@axe/application/card/hand-rail.service';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { Network } from '@axe/core/network/network';
@@ -230,11 +230,8 @@ describe('HandRailComponent', () => {
       // every element there where the browser can tell it.
       Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: () => surface });
       Object.defineProperty(document, 'elementsFromPoint', { configurable: true, value: () => [surface] });
-      vi.spyOn(TestBed.inject(CoordinateService), 'calcTabletopLocalCoordinate').mockReturnValue({
-        x: 300,
-        y: 200,
-        z: 0,
-      });
+      vi.spyOn(TestBed.inject(TablePickService), 'faceAt').mockReturnValue('floor');
+      vi.spyOn(TestBed.inject(TablePickService), 'landingAt').mockReturnValue({ x: 300, y: 200, z: 0 });
       TestBed.inject(HandRailService).open();
       fixture.detectChanges();
       await fixture.whenStable();

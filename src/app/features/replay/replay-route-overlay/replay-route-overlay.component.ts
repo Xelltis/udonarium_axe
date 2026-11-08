@@ -1,7 +1,7 @@
-import { NgStyle } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { ReplayPlaybackService } from '@axe/application/replay/replay-playback.service';
 import { distanceBetween, type ReplayRoutePoint, routeLength } from '@axe/domain/replay/replay-route';
+import { type FloorMarkLayer, floorMarkLayersOf, layFloorMarks } from '@axe/ui/tabletop/floor-marks';
 
 const TRAIL_COLOR = 'rgba(120, 200, 255, 0.85)';
 const TRAIL_DONE_COLOR = 'rgba(120, 200, 255, 0.28)';
@@ -19,12 +19,55 @@ export interface ReplayRouteSegment {
   isTravelled: boolean;
 }
 
+/**
+ * The marks a replayed route is drawn with on the floor: each straight run, fainter once the playback
+ * has passed it, and a ring at either end, each at the height its run starts at.
+ */
+export function replayRouteMarksOf(
+  segments: readonly ReplayRouteSegment[],
+  ends: readonly ReplayRoutePoint[]
+): FloorMarkLayer[] {
+  const laid: FloorMarkLayer[] = segments.map((segment) => {
+    const turn = (segment.angle * Math.PI) / 180;
+    return {
+      heightPx: segment.z + TRAIL_LIFT,
+      marks: [
+        {
+          kind: 'line',
+          points: [
+            { x: segment.x, y: segment.y },
+            { x: segment.x + Math.cos(turn) * segment.length, y: segment.y + Math.sin(turn) * segment.length },
+          ],
+          stroke: {
+            colour: segment.isTravelled ? TRAIL_DONE_COLOR : TRAIL_COLOR,
+            widthPx: TRAIL_THICKNESS,
+            round: true,
+          },
+        },
+      ],
+    };
+  });
+  for (const point of ends) {
+    laid.push({
+      heightPx: point.z + TRAIL_LIFT,
+      marks: [
+        { kind: 'circle', x: point.x, y: point.y, r: MARKER_SIZE / 2, stroke: { colour: TRAIL_COLOR, widthPx: 2 } },
+      ],
+    });
+  }
+  return floorMarkLayersOf(laid);
+}
+
+/**
+ * Draws the route a piece takes in the replay on the floor, over the ground's rise and fall: its
+ * runs, fainter once passed, and a ring at either end. What is drawn is listed on the page as well,
+ * unseen.
+ */
 @Component({
   selector: 'replay-route-overlay',
   templateUrl: './replay-route-overlay.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'contents' },
-  imports: [NgStyle],
 })
 export class ReplayRouteOverlayComponent {
   private readonly playback = inject(ReplayPlaybackService);
@@ -41,44 +84,8 @@ export class ReplayRouteOverlayComponent {
     return [trail.points[0], trail.points[trail.points.length - 1]];
   });
 
-  protected segmentStyle(segment: ReplayRouteSegment): Record<string, string> {
-    return {
-      position: 'absolute',
-      left: '0px',
-      top: '0px',
-      width: segment.length + 'px',
-      height: TRAIL_THICKNESS + 'px',
-      'border-radius': TRAIL_THICKNESS / 2 + 'px',
-      background: segment.isTravelled ? TRAIL_DONE_COLOR : TRAIL_COLOR,
-      'transform-origin': '0 0',
-      transform:
-        'translate3d(' +
-        segment.x +
-        'px, ' +
-        segment.y +
-        'px, ' +
-        (segment.z + TRAIL_LIFT) +
-        'px) rotateZ(' +
-        segment.angle +
-        'deg) translateY(-50%)',
-      'pointer-events': 'none',
-    };
-  }
-
-  protected endStyle(point: ReplayRoutePoint): Record<string, string> {
-    return {
-      position: 'absolute',
-      left: '0px',
-      top: '0px',
-      width: MARKER_SIZE + 'px',
-      height: MARKER_SIZE + 'px',
-      'border-radius': '50%',
-      border: '2px solid ' + TRAIL_COLOR,
-      'transform-origin': '0 0',
-      transform:
-        'translate3d(' + point.x + 'px, ' + point.y + 'px, ' + (point.z + TRAIL_LIFT) + 'px) translate(-50%, -50%)',
-      'pointer-events': 'none',
-    };
+  constructor() {
+    layFloorMarks('replay-route', () => replayRouteMarksOf(this.segments(), this.ends()));
   }
 }
 

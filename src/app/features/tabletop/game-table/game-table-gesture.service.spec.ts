@@ -1,10 +1,15 @@
 import { TestBed } from '@angular/core/testing';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
+import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
+import { type MarqueeRect, SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { orthographicScale } from '@axe/domain/tabletop/camera/table-camera';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import type { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { SwitchNoticeService } from '@axe/features/tabletop/board-switch/switch-notice.service';
 import { SwitchPressService } from '@axe/features/tabletop/board-switch/switch-press.service';
 import {
@@ -20,7 +25,10 @@ import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 describe('GameTableGestureService', () => {
   let service: GameTableGestureService;
-  let gameTableEl: HTMLElement;
+  let rootEl: HTMLElement;
+
+  /** The view the table was last drawn with. */
+  const shown = () => TestBed.inject(TableCameraService).view;
 
   const callSetTransform = (rX: number, rY: number, rZ: number): void => {
     service.setTransform(0, 0, 0, rX, rY, rZ);
@@ -34,8 +42,8 @@ describe('GameTableGestureService', () => {
       providers: [...TEST_PROVIDERS, GameTableGestureService],
     });
     service = TestBed.inject(GameTableGestureService);
-    gameTableEl = document.createElement('div');
-    (service as unknown as { gameTableEl: HTMLElement }).gameTableEl = gameTableEl;
+    rootEl = document.createElement('div');
+    (service as unknown as { rootEl: HTMLElement }).rootEl = rootEl;
   });
 
   describe('tiltLocked', () => {
@@ -71,23 +79,22 @@ describe('GameTableGestureService', () => {
   });
 
   describe('orthographicProjection', () => {
-    it('keeps the perspective transform unchanged by default', async () => {
+    it('draws the table in perspective by default', async () => {
       service.viewPositionZ = -3000;
       callSetTransform(0, 0, 0);
       await nextFrame();
 
-      expect(gameTableEl.style.transform).not.toContain('scale(');
-      expect(gameTableEl.style.transform).toContain('translateZ(-3000.0000px)');
+      expect(shown()).toMatchObject({ positionZ: -3000, orthographic: false });
     });
 
-    it('replaces perspective zoom with an equivalent scale', async () => {
+    it('draws it without perspective once asked, the push back standing in as a scale', async () => {
       service.viewPositionZ = -3000;
       service.orthographicProjection = true;
       callSetTransform(0, 0, 0);
       await nextFrame();
 
-      expect(gameTableEl.style.transform).toContain('scale(0.500000)');
-      expect(gameTableEl.style.transform).toContain('translateZ(-3000.0000px)');
+      expect(shown()).toMatchObject({ positionZ: -3000, orthographic: true });
+      expect(orthographicScale(shown()!.positionZ)).toBe(0.5);
     });
   });
 
@@ -96,12 +103,12 @@ describe('GameTableGestureService', () => {
       callSetTransform(0, 0, 10);
       callSetTransform(0, 0, 10);
       callSetTransform(0, 0, 10);
-      expect(gameTableEl.style.transform).toBe('');
+      expect(shown()).toBeNull();
 
       await nextFrame();
 
       expect(service.viewRotateZ).toBe(40);
-      expect(gameTableEl.style.transform).toContain('rotateZ(40.0000deg)');
+      expect(shown()?.rotateZ).toBe(40);
     });
 
     it('tells the table which way it faces once for that run', async () => {
@@ -113,12 +120,21 @@ describe('GameTableGestureService', () => {
       expect(rotation()).toEqual({ x: 50, y: 0, z: 30 });
     });
 
+    it('writes where the camera stands to the table, in the frame the table moves in', async () => {
+      service.setTransform(40, 0, 0, 0, 0, 0);
+      expect(rootEl.dataset['camera']).toBeUndefined();
+
+      await nextFrame();
+
+      expect(rootEl.dataset['camera']).toBe('140.0000,0.0000,0.0000,50.0000,0.0000,10.0000,0');
+    });
+
     it('says nothing about the way it faces when the view was only slid', async () => {
       const rotation = TestBed.inject(UiSignalService).tableViewRotation;
       service.setTransform(40, 0, 0, 0, 0, 0);
       await nextFrame();
 
-      expect(gameTableEl.style.transform).toContain('translateX(140.0000px)');
+      expect(shown()?.positionX).toBe(140);
       expect(rotation()).toBeNull();
     });
 
@@ -133,13 +149,7 @@ describe('GameTableGestureService', () => {
     it('lets go of the gestures it listens with when the table goes', () => {
       const root = document.createElement('div');
       document.body.appendChild(root);
-      service.initialize(
-        root,
-        gameTableEl,
-        document.createElement('div'),
-        document.createElement('canvas'),
-        () => true
-      );
+      service.initialize(root, () => true);
       service.isTableTransformMode = true;
       expect(root.style.touchAction).toBe('none');
 
@@ -155,12 +165,93 @@ describe('GameTableGestureService', () => {
       root.remove();
     });
 
+    it('forgets the piece a finger last pressed on a tap on the bare table, and not on one on a piece', () => {
+      const root = document.createElement('div');
+      const piece = document.createElement('div');
+      root.appendChild(piece);
+      document.body.appendChild(root);
+      service.initialize(root, () => true);
+      const selection = TestBed.inject(SelectionSignalService);
+      const tap = (on: HTMLElement, pointerId: number) => {
+        const at = { bubbles: true, pointerId, pointerType: 'touch', clientX: 10, clientY: 10 };
+        on.dispatchEvent(new PointerEvent('pointerdown', at));
+        on.dispatchEvent(new PointerEvent('pointerup', at));
+      };
+
+      try {
+        selection.pressObject('touched', 'GameCharacter', true);
+        tap(piece, 1);
+        expect(selection.touchedObject()).toBe('touched');
+
+        tap(root, 2);
+        expect(selection.touchedObject()).toBeNull();
+
+        const passthrough = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        passthrough.setAttribute('data-table-passthrough', '');
+        piece.appendChild(passthrough);
+        selection.pressObject('touched', 'GameCharacter', true);
+        tap(passthrough as unknown as HTMLElement, 3);
+        expect(selection.touchedObject()).toBeNull();
+      } finally {
+        service.destroy();
+        root.remove();
+      }
+    });
+
+    it('keeps the piece a finger last pressed once a marquee adding to the selection takes it in, whichever it meets first', () => {
+      const selection = TestBed.inject(SelectionSignalService);
+      const pieceAt = (name: string, x: number) =>
+        ({
+          identifier: name,
+          aliasName: 'character',
+          location: { name: 'table', x, y: 0 },
+        }) as unknown as TabletopObject;
+      vi.spyOn(
+        service as unknown as { collectSelectableObjects(): TabletopObject[] },
+        'collectSelectableObjects'
+      ).mockReturnValue([pieceAt('other', 0), pieceAt('touched', 100)]);
+      const end = (modifiers: { shift: boolean; ctrl: boolean; touch: boolean }) =>
+        (service as unknown as { onMarqueeEnd(rect: MarqueeRect, modifiers: unknown): void }).onMarqueeEnd(
+          { x1: -10, y1: -10, x2: 300, y2: 300 },
+          modifiers
+        );
+
+      selection.pressObject('touched', 'character', true);
+      end({ shift: true, ctrl: false, touch: false });
+      expect([...selection.selectedObjects()]).toEqual(['other', 'touched']);
+      expect(selection.touchedObject()).toBe('touched');
+
+      end({ shift: false, ctrl: true, touch: false });
+      expect(selection.selectedObjects().size).toBe(0);
+      expect(selection.touchedObject()).toBeNull();
+    });
+
+    it('hands a marquee waiting on a press where the pointer went, and stops once the table goes', () => {
+      const root = document.createElement('div');
+      document.body.appendChild(root);
+      service.initialize(root, () => true);
+      const follow = vi.fn();
+      const marquee = (service as unknown as { marqueeGesture: { isArmed: boolean; follow: unknown } }).marqueeGesture;
+      Object.defineProperty(marquee, 'isArmed', { get: () => true });
+      marquee.follow = follow;
+
+      document.dispatchEvent(new PointerEvent('pointermove', { clientX: 30, clientY: 40, pointerType: 'pen' }));
+      expect(follow).toHaveBeenCalledTimes(1);
+      expect(follow.mock.calls[0][0]).toHaveLength(1);
+      expect(follow.mock.calls[0][1]).toEqual({ pointerType: 'pen', whole: false });
+
+      service.destroy();
+      document.dispatchEvent(new PointerEvent('pointermove', { clientX: 30, clientY: 40 }));
+      expect(follow).toHaveBeenCalledTimes(1);
+      root.remove();
+    });
+
     it('drops a frame it was still waiting for when the table goes', async () => {
       callSetTransform(0, 0, 10);
       service.destroy();
       await nextFrame();
 
-      expect(gameTableEl.style.transform).toBe('');
+      expect(shown()).toBeNull();
     });
   });
 
@@ -376,14 +467,13 @@ describe('GameTableGestureService', () => {
       service.snapToViewPositionZ(1155.0);
       await nextFrame();
 
-      expect(gameTableEl.style.transform).toContain('scale(1.626016)');
+      expect(orthographicScale(shown()!.positionZ)).toBeCloseTo(1.626016, 6);
     });
   });
 
   describe('pressing painted ground', () => {
     type Gestures = {
-      gameObjectsEl: HTMLElement;
-      gridCanvasEl: HTMLCanvasElement;
+      rootEl: HTMLElement;
       getGridShow: () => boolean;
       onTableMouseStart(e: MouseEvent): void;
       onTableMouseEnd(e: MouseEvent): void;
@@ -395,14 +485,9 @@ describe('GameTableGestureService', () => {
     beforeEach(() => {
       gestures = service as unknown as Gestures;
       floor = document.createElement('div');
-      gestures.gameObjectsEl = floor;
-      gestures.gridCanvasEl = document.createElement('canvas');
+      gestures.rootEl = floor;
       gestures.getGridShow = () => false;
-      vi.spyOn(TestBed.inject(CoordinateService), 'calcTabletopLocalCoordinate').mockReturnValue({
-        x: 125,
-        y: 75,
-        z: 0,
-      });
+      vi.spyOn(TestBed.inject(TablePickService), 'landingAt').mockReturnValue({ x: 125, y: 75, z: 0 });
       press = vi.spyOn(TestBed.inject(SwitchPressService), 'pressGroundAt').mockResolvedValue('pressed');
     });
 
@@ -440,6 +525,43 @@ describe('GameTableGestureService', () => {
       click(floor, 2);
 
       expect(press).not.toHaveBeenCalled();
+    });
+
+    it('holds no marquee ready on a press on the bare table while a piece is followed, as a drag then turns the camera round it', () => {
+      const arm = vi.fn(() => true);
+      (gestures as unknown as { marqueeGesture: unknown }).marqueeGesture = {
+        arm,
+        release: () => false,
+        cancel: () => undefined,
+        isActive: false,
+        isArmed: false,
+      };
+      const following = vi.spyOn(TestBed.inject(ThirdPersonService), 'following').mockReturnValue(true);
+
+      click(floor);
+      expect(arm).not.toHaveBeenCalled();
+      following.mockReturnValue(false);
+      click(floor);
+      expect(arm).toHaveBeenCalledTimes(1);
+    });
+
+    it('stretches an open marquee to where the move is, rather than where the pointer was last kept', () => {
+      const updatePointer = vi.fn();
+      (gestures as unknown as { marqueeGesture: unknown }).marqueeGesture = {
+        updatePointer,
+        isActive: true,
+        isArmed: false,
+      };
+      const move = new MouseEvent('mousemove', { cancelable: true });
+      Object.defineProperties(move, { pageX: { value: 140 }, pageY: { value: 90 } });
+
+      (
+        gestures as unknown as {
+          onTableMouseTransform(...args: unknown[]): void;
+        }
+      ).onTableMouseTransform(0, 0, 0, 0, 0, 0, {}, move);
+
+      expect(updatePointer).toHaveBeenCalledWith(140, 90);
     });
 
     it('says beside the pointer why a press on the ground came to nothing', async () => {

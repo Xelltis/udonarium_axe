@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { SaveDataService } from '@axe/application/file/save-data.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CutInService } from '@axe/application/media/cut-in.service';
 import { TableBgmService } from '@axe/application/media/table-bgm.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -171,6 +173,98 @@ describe('GameTableSettingComponent', () => {
 
       expect(table.gridSize).toBe(256);
       expect(field.value).toBe('256');
+    });
+  });
+
+  describe('writing the picked table from its fields', () => {
+    let table: GameTable;
+
+    beforeEach(async () => {
+      table = new GameTable();
+      table.name = '最初の卓';
+      table.initialize();
+      component.selectGameTable(table.identifier);
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    afterEach(() => {
+      table.destroy();
+    });
+
+    /** Types a value into the field of that name, as the reader's keys or slider would. */
+    function enter(name: string, value: string): void {
+      const field: HTMLInputElement = fixture.nativeElement.querySelector(`input[name="${name}"]`);
+      field.value = value;
+      field.dispatchEvent(new Event('input'));
+    }
+
+    it('renames the table from the name typed in', () => {
+      enter('table-name', 'テスト卓');
+
+      expect(table.name).toBe('テスト卓');
+    });
+
+    it('sizes the table from its width and height sliders', () => {
+      enter('tableWidth', '30');
+      enter('table-height-range', '25');
+
+      expect(table.width).toBe(30);
+      expect(table.height).toBe(25);
+    });
+
+    it('shows the grid at all times once its box is ticked', () => {
+      table.gridShow = false;
+      const box: HTMLInputElement = fixture.nativeElement.querySelector('input[name="tableGridShow"]');
+
+      box.click();
+
+      expect(table.gridShow).toBe(true);
+    });
+
+    it('offers the colour of the grid in a field for colours', () => {
+      const field: HTMLInputElement = fixture.nativeElement.querySelector('input[name="tableGridColor"]');
+
+      expect(field.type).toBe('color');
+    });
+
+    it('lays the filter chosen over the picture behind the table', () => {
+      const filter: HTMLSelectElement = fixture.nativeElement.querySelector('select[name="tableDistanceviewFilter"]');
+
+      filter.value = FilterType.BLACK;
+      filter.dispatchEvent(new Event('change'));
+      expect(table.backgroundFilterType).toBe(FilterType.BLACK);
+
+      filter.value = FilterType.WHITE;
+      filter.dispatchEvent(new Event('change'));
+      expect(table.backgroundFilterType).toBe(FilterType.WHITE);
+    });
+
+    it('saves the picked table under its name from the save button', () => {
+      const save = vi.spyOn(TestBed.inject(SaveDataService), 'saveGameObjectAsync').mockResolvedValue(undefined);
+      const label = TestBed.inject(TRANSLATE_FN)('feature.tabletop.tableSetting.save');
+      const buttons: HTMLButtonElement[] = [...fixture.nativeElement.querySelectorAll('button')];
+
+      buttons.find((button) => button.textContent?.includes(label))!.click();
+
+      expect(save).toHaveBeenCalledWith(table, 'map_最初の卓', expect.any(Function));
+    });
+
+    it('lists a new table once one is made from the button over the list', async () => {
+      const listed = () => fixture.nativeElement.querySelectorAll('ul[role="listbox"] > li[role="option"]').length;
+      const before = listed();
+      const tablesBefore = new Set(ObjectStore.instance.getObjects(GameTable));
+      const add = TestBed.inject(TRANSLATE_FN)('feature.tabletop.tableSetting.addTable');
+
+      (fixture.nativeElement.querySelector(`button[title="${add}"]`) as HTMLButtonElement).click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      try {
+        expect(listed()).toBe(before + 1);
+      } finally {
+        for (const made of ObjectStore.instance.getObjects(GameTable)) if (!tablesBefore.has(made)) made.destroy();
+      }
     });
   });
 

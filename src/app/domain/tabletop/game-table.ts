@@ -66,6 +66,11 @@ export class GameTable extends ObjectNode {
   @SyncVar() foregroundOpacity: number = 1;
   /** How the picture in front is fitted to the screen: `cover`, `contain` or `fill`. */
   @SyncVar() foregroundFit: string = '';
+  /**
+   * What the table shows past its board where the camera looks over it: empty for its background
+   * picture, or `clock` for a sky that turns with the story's clock. Read through `tableSkyKindOf`.
+   */
+  @SyncVar() skyKind: string = '';
   @SyncVar() selected: boolean = false;
   @SyncVar() gridType: GridType = GridType.SQUARE;
   @SyncVar() lightSnapToGrid: boolean = false;

@@ -1,13 +1,17 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
-import { BillboardFrameService } from '@axe/application/ui/billboard-frame.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
-import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { type MarqueeRect, SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { CAMERA_GLIDE_MS, easeOut } from '@axe/domain/tabletop/camera/camera-glide';
+import { tableCameraAttribute, TableCameraView } from '@axe/domain/tabletop/camera/table-camera';
 import { TABLE_PERSPECTIVE_PX } from '@axe/domain/tabletop/physical-scale';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { SwitchNoticeService } from '@axe/features/tabletop/board-switch/switch-notice.service';
@@ -16,7 +20,6 @@ import { marqueeApply, selectByRect } from '@axe/features/tabletop/game-table/re
 import {
   MarqueeModifiers,
   MarqueePoint,
-  MarqueeRect,
   TableMarqueeGesture,
 } from '@axe/features/tabletop/game-table/table-marquee-gesture';
 import { TableMouseGesture, TableMouseGestureEvent } from '@axe/features/tabletop/game-table/table-mouse-gesture';
@@ -64,26 +67,31 @@ export function touchZoomInLimitZ(gridSize: number): number {
   return Math.max(0, TABLE_PERSPECTIVE_PX * (1 - zoomReachFor(gridSize)));
 }
 
+/** How far a slide of the pointer turns the camera that follows a piece round it, in degrees for each pixel. */
+const ORBIT_DEG_PER_PX = 0.25;
+
 @Injectable()
 export class GameTableGestureService {
   private readonly contextMenuService = inject(ContextMenuService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly uiSignalService = inject(UiSignalService);
-  private readonly billboardFrame = inject(BillboardFrameService);
   private readonly backdropFrame = inject(BackdropFrameService);
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly tabletopService = inject(TabletopService);
   private readonly coordinateService = inject(CoordinateService);
+  private readonly tablePick = inject(TablePickService);
+  private readonly tableCamera = inject(TableCameraService);
+  private readonly thirdPerson = inject(ThirdPersonService);
   private readonly switchPresses = inject(SwitchPressService);
   private readonly switchNotices = inject(SwitchNoticeService);
   private readonly t = inject(TRANSLATE_FN);
 
   /**
-   * Where a left press on the bare table began, for pressing the painted ground under it once the
+   * Whether a left press began on the bare table, for pressing the painted ground under it once the
    * hand lets go without having turned the view or drawn a box. A press on a block with a switch
    * of its own is the block's.
    */
-  private groundPress: { target: HTMLElement } | null = null;
+  private groundPress = false;
 
   isTableTransformMode = false;
   isTableTransformed = false;
@@ -103,38 +111,36 @@ export class GameTableGestureService {
 
   private frame: number | null = null;
   private turned = false;
+  private glideFrame: number | null = null;
 
   private mouseGesture: TableMouseGesture | null = null;
   private touchGesture: TableTouchGesture | null = null;
   private marqueeGesture: TableMarqueeGesture | null = null;
 
-  private gameTableEl!: HTMLElement;
-  private gameObjectsEl!: HTMLElement;
-  private gridCanvasEl!: HTMLCanvasElement;
-  private getGridShow!: () => boolean;
+  private rootEl: HTMLElement | null = null;
+  private getGridShow: (() => boolean) | null = null;
+
+  /**
+   * How opaque the board's grid is shown, from 0 to 1: as the table has it, and wholly while a piece
+   * is pressed.
+   */
+  readonly gridOpacity = signal(0);
 
   /**
    * Wires the mouse, touch and marquee gestures to the table's elements, once the view is built.
    *
-   * `getGridShow` says whether the grid stays visible, since the grid canvas is shown while a piece
-   * is dragged and put back to that afterwards.
+   * `getGridShow` says whether the grid stays visible, since the grid is shown while a piece is
+   * dragged and put back to that afterwards.
    */
-  initialize(
-    rootEl: HTMLElement,
-    gameTableEl: HTMLElement,
-    gameObjectsEl: HTMLElement,
-    gridCanvasEl: HTMLCanvasElement,
-    getGridShow: () => boolean
-  ): void {
-    this.gameTableEl = gameTableEl;
-    this.gameObjectsEl = gameObjectsEl;
-    this.gridCanvasEl = gridCanvasEl;
+  initialize(rootEl: HTMLElement, getGridShow: () => boolean): void {
+    this.rootEl = rootEl;
     this.getGridShow = getGridShow;
 
     this.touchGesture = new TableTouchGesture(rootEl);
     this.touchGesture.onstart = () => this.onTableTouchStart();
     this.touchGesture.onend = () => this.onTableTouchEnd();
     this.touchGesture.ongesture = () => this.onTableTouchGesture();
+    this.touchGesture.ontap = (_ev, pressedOn) => this.onTableTap(pressedOn);
     this.touchGesture.ontransform = (tX, tY, tZ, rX, rY, rZ, ev, src) =>
       this.onTableTouchTransform(tX, tY, tZ, rX, rY, rZ, ev, src);
 
@@ -150,18 +156,36 @@ export class GameTableGestureService {
     this.marqueeGesture.onMarqueeEnd = (rect, mods) => this.onMarqueeEnd(rect, mods);
     this.touchGesture.shouldSynthesizeContextMenu = () => !(this.marqueeGesture?.isDragging ?? false);
     this.touchGesture.onSynthesizeContextMenu = () => this.pointerDeviceService.cancelPendingContextMenu();
+    rootEl.ownerDocument.addEventListener('pointermove', this.followPress, { capture: true, passive: true });
   }
+
+  /**
+   * Hands the marquee waiting on a press every place the pointer went since the last move the page
+   * saw, with when it was there, ahead of the move the table follows the pointer by.
+   */
+  private readonly followPress = (event: PointerEvent): void => {
+    const marquee = this.marqueeGesture;
+    if (!marquee?.isArmed) return;
+    const coalesced = event.getCoalescedEvents?.() ?? [];
+    const places = coalesced.length > 0 ? coalesced : [event];
+    marquee.follow(
+      places.map((place) => ({ x: place.pageX, y: place.pageY, at: place.timeStamp })),
+      { pointerType: event.pointerType || 'mouse', whole: coalesced.length > 0 }
+    );
+  };
 
   /** Takes the gestures off the table, and drops a view update still waiting for its frame. */
   destroy(): void {
     if (this.frame !== null) cancelAnimationFrame(this.frame);
     this.frame = null;
+    this.stopGlide();
     this.mouseGesture?.destroy();
     this.mouseGesture = null;
     this.touchGesture?.destroy();
     this.touchGesture = null;
     this.marqueeGesture?.cancel();
     this.marqueeGesture = null;
+    this.rootEl?.ownerDocument.removeEventListener('pointermove', this.followPress, { capture: true });
   }
 
   /**
@@ -171,14 +195,13 @@ export class GameTableGestureService {
    * Does nothing before `initialize`.
    */
   cancelInput(): void {
-    if (!this.gridCanvasEl) return;
+    if (!this.getGridShow) return;
     this.mouseGesture?.cancel();
     this.marqueeGesture?.cancel();
     this.selectionSignalService.marqueeState.set(null);
     this.isTableTransformMode = true;
     this.pointerDeviceService.isDragging = false;
-    const opacity = this.getGridShow() ? 1.0 : 0.0;
-    this.gridCanvasEl.style.opacity = opacity + '';
+    this.gridOpacity.set(this.getGridShow() ? 1 : 0);
   }
 
   /**
@@ -190,6 +213,7 @@ export class GameTableGestureService {
    * writing and the telling happen together, once, when the frame comes round.
    */
   setTransform(tX: number, tY: number, tZ: number, rX: number, rY: number, rZ: number): void {
+    this.stopGlide();
     if (this.tiltLocked) {
       rX = -this.viewRotateX;
       rY = -this.viewRotateY;
@@ -211,20 +235,10 @@ export class GameTableGestureService {
 
   /** Writes the view out and tells the table which way it faces, both in the one frame. */
   private showTransform(): void {
-    const tx = this.viewPositionX.toFixed(4);
-    const ty = this.viewPositionY.toFixed(4);
-    const tz = this.viewPositionZ.toFixed(4);
-    const rx = this.viewRotateX.toFixed(4);
-    const ry = this.viewRotateY.toFixed(4);
-    const rz = this.viewRotateZ.toFixed(4);
-    // The camera is held short of the plane it would be standing on. At the plane the divisor
-    // is nothing and the whole transform is thrown out by the browser, taking the pan and the
-    // rotation with it; past it the board is drawn mirrored.
-    const depth = Math.max(TABLE_PERSPECTIVE_PX / 100, TABLE_PERSPECTIVE_PX - this.viewPositionZ);
-    const projectionScale = this.orthographicProjection ? `scale(${(TABLE_PERSPECTIVE_PX / depth).toFixed(6)}) ` : '';
-    this.gameTableEl.style.transform = `${projectionScale}translateZ(${tz}px) translateY(${ty}px) translateX(${tx}px) rotateY(${ry}deg) rotateX(${rx}deg) rotateZ(${rz}deg)`;
+    const view = this.currentView();
+    if (this.rootEl) this.rootEl.dataset['camera'] = tableCameraAttribute(view);
+    this.tableCamera.showView(view);
 
-    this.coordinateService.invalidateTabletopTransform();
     // The backdrops follow a move of the view as well as a turn, so they are told every frame.
     this.backdropFrame.apply({
       rotateX: this.viewRotateX,
@@ -236,10 +250,78 @@ export class GameTableGestureService {
     if (!this.turned) return;
     this.turned = false;
     const rotation = { x: this.viewRotateX, y: this.viewRotateY, z: this.viewRotateZ };
-    // Written here rather than through a signal, so what faces the camera turns in the frame the
-    // table turns in rather than in the one after it.
-    this.billboardFrame.apply(rotation);
     this.uiSignalService.notifyTableViewRotation(rotation.x, rotation.y, rotation.z);
+  }
+
+  /** Shows the view again on the next frame, as when the camera that follows a piece moves on. */
+  refreshView(): void {
+    if (this.frame !== null) return;
+    this.frame = requestAnimationFrame(() => {
+      this.frame = null;
+      this.showTransform();
+    });
+  }
+
+  /** The view as the fields hold it now, or the camera that follows a piece while one is followed. */
+  private currentView(): TableCameraView {
+    return this.thirdPerson.view() ?? this.tableView();
+  }
+
+  /** The table's own view as the fields hold it now, whether or not a camera follows a piece. */
+  tableView(): TableCameraView {
+    return {
+      positionX: this.viewPositionX,
+      positionY: this.viewPositionY,
+      positionZ: this.viewPositionZ,
+      rotateX: this.viewRotateX,
+      rotateY: this.viewRotateY,
+      rotateZ: this.viewRotateZ,
+      orthographic: this.orthographicProjection,
+    };
+  }
+
+  /**
+   * Slides the camera by the amounts given over {@link CAMERA_GLIDE_MS}, easing out, and shows each
+   * step in its own frame, so that what reads the view on the way finds it where it is drawn. A
+   * gesture that moves the view while it glides stops the glide where it has got to.
+   */
+  glideBy(tX: number, tY: number, tZ: number): void {
+    this.stopGlide();
+    if (typeof requestAnimationFrame !== 'function') {
+      this.setTransform(tX, tY, tZ, 0, 0, 0);
+      return;
+    }
+    const fromX = this.viewPositionX;
+    const fromY = this.viewPositionY;
+    const fromZ = this.viewPositionZ;
+    let started: number | null = null;
+    const step = (now: number) => {
+      started ??= now;
+      const along = easeOut((now - started) / CAMERA_GLIDE_MS);
+      this.viewPositionX = fromX + tX * along;
+      this.viewPositionY = fromY + tY * along;
+      this.viewPositionZ = fromZ + tZ * along;
+      this.showTransform();
+      this.glideFrame = along < 1 ? requestAnimationFrame(step) : null;
+    };
+    this.glideFrame = requestAnimationFrame(step);
+  }
+
+  private stopGlide(): void {
+    if (this.glideFrame !== null) cancelAnimationFrame(this.glideFrame);
+    this.glideFrame = null;
+  }
+
+  /** Puts the camera at a place outright, facing the way it faces. */
+  moveTo(place: Pick<TableCameraView, 'positionX' | 'positionY' | 'positionZ'>): void {
+    this.setTransform(
+      place.positionX - this.viewPositionX,
+      place.positionY - this.viewPositionY,
+      place.positionZ - this.viewPositionZ,
+      0,
+      0,
+      0
+    );
   }
 
   /**
@@ -264,6 +346,21 @@ export class GameTableGestureService {
 
   private onTableTouchGesture(): void {
     this.cancelInput();
+  }
+
+  /**
+   * A finger's tap on the bare table forgets the piece a finger last pressed, which puts its handles
+   * away; the selection is left as it was, as a tap has always left it.
+   */
+  private onTableTap(pressedOn: EventTarget | null): void {
+    if (pressedOn instanceof Element && this.isBareTable(pressedOn)) {
+      this.selectionSignalService.forgetPressedObject();
+    }
+  }
+
+  /** Whether a press on this element is one on the table itself rather than on anything on it. */
+  private isBareTable(target: Element): boolean {
+    return (this.rootEl !== null && target.contains(this.rootEl)) || target.closest('[data-table-passthrough]') != null;
   }
 
   private onTableTouchTransform(
@@ -291,6 +388,7 @@ export class GameTableGestureService {
     }
 
     if (srcEvent.cancelable) srcEvent.preventDefault();
+    if (this.orbitFollowed(transformX, transformY, transformZ / 100, rotateX, rotateZ)) return;
 
     const scale = (TABLE_PERSPECTIVE_PX + Math.abs(this.viewPositionZ)) / TABLE_PERSPECTIVE_PX;
     transformX *= scale;
@@ -313,20 +411,15 @@ export class GameTableGestureService {
   private onTableMouseStart(e: TouchEvent | MouseEvent | PointerEvent): void {
     const me = e as MouseEvent;
     const target = me.target as HTMLElement;
-    const isEmptyTablePress =
-      target.contains(this.gameObjectsEl) ||
-      me.button === 1 ||
-      me.button === 2 ||
-      target.closest('[data-table-passthrough]') != null;
-    this.groundPress =
-      isEmptyTablePress && me.button === 0 && target.closest('[data-switch-host]') == null ? { target } : null;
+    const isEmptyTablePress = this.isBareTable(target) || me.button === 1 || me.button === 2;
+    this.groundPress = isEmptyTablePress && me.button === 0 && target.closest('[data-switch-host]') == null;
     if (isEmptyTablePress) {
       this.isTableTransformMode = true;
-      this.marqueeGesture?.arm(e as PointerEvent);
+      if (!this.thirdPerson.following()) this.marqueeGesture?.arm(e as PointerEvent);
     } else {
       this.isTableTransformMode = false;
       this.pointerDeviceService.isDragging = true;
-      this.gridCanvasEl.style.opacity = 1.0 + '';
+      this.gridOpacity.set(1);
       this.uiSignalService.notifyTerrainGridShow();
     }
     if (!document.activeElement?.contains(me.target as Node)) {
@@ -342,22 +435,41 @@ export class GameTableGestureService {
     this.uiSignalService.notifyTerrainGridEnd();
 
     const groundPress = this.groundPress;
-    this.groundPress = null;
+    this.groundPress = false;
     if (!released && !wasMarqueeActive && !this.isTableTransformed) {
       this.selectionSignalService.clearSelection();
-      if (groundPress) void this.pressGround(groundPress.target, e as MouseEvent);
+      if (groundPress) void this.pressGround(e as MouseEvent);
     }
   }
 
   /**
-   * Presses the painted ground under where a click let go, reading the point on whatever was
-   * clicked so that the top of a locked block reaches the ground it stands on.
+   * Presses the painted ground under where a click let go, at the point the click lands on, so that
+   * the top of a locked block reaches the ground it stands on.
    */
-  private async pressGround(target: HTMLElement, e: MouseEvent): Promise<void> {
-    const at = this.coordinateService.calcTabletopLocalCoordinate({ x: e.clientX, y: e.clientY, z: 0 }, target);
+  private async pressGround(e: MouseEvent): Promise<void> {
+    const at = this.tablePick.landingAt(e.pageX, e.pageY);
     const outcome = await this.switchPresses.pressGroundAt(at.x, at.y);
     if (!outcome || outcome === 'pressed' || outcome === 'busy') return;
     this.switchNotices.show(this.t(`feature.boardSwitch.refused.${outcome}`), e.clientX, e.clientY);
+  }
+
+  /**
+   * While a piece is followed, takes a gesture that would move the table's camera as one that moves
+   * the camera round the piece instead: a turn or a slide across turns it round, a tilt or a slide up
+   * and down tips it, and pulling in brings it nearer, by `nearerCells`. Answers whether it did.
+   */
+  private orbitFollowed(
+    transformX: number,
+    transformY: number,
+    nearerCells: number,
+    rotateX: number,
+    rotateZ: number
+  ): boolean {
+    if (!this.thirdPerson.following()) return false;
+    this.thirdPerson.turnBy(-rotateZ - transformX * ORBIT_DEG_PER_PX, -rotateX + transformY * ORBIT_DEG_PER_PX);
+    if (nearerCells) this.thirdPerson.nearerBy(nearerCells);
+    this.isTableTransformed = true;
+    return true;
   }
 
   private onTableMouseTransform(
@@ -367,11 +479,14 @@ export class GameTableGestureService {
     rotateX: number,
     rotateY: number,
     rotateZ: number,
-    _event: TableMouseGestureEvent,
+    event: TableMouseGestureEvent,
     srcEvent: TouchEvent | MouseEvent | PointerEvent | KeyboardEvent
   ): void {
     if (this.marqueeGesture && (this.marqueeGesture.isArmed || this.marqueeGesture.isActive)) {
-      const pointer = this.pointerDeviceService.pointers[0];
+      const pointer =
+        srcEvent instanceof MouseEvent
+          ? { x: srcEvent.pageX, y: srcEvent.pageY }
+          : this.pointerDeviceService.pointers[0];
       this.marqueeGesture.updatePointer(pointer.x, pointer.y);
       if (this.marqueeGesture.isActive) {
         if ((srcEvent as Event).cancelable) (srcEvent as Event).preventDefault();
@@ -393,6 +508,8 @@ export class GameTableGestureService {
     }
 
     if ((srcEvent as Event).cancelable) (srcEvent as Event).preventDefault();
+    if (this.thirdPerson.following() && event === TableMouseGestureEvent.KEYBOARD) return;
+    if (this.orbitFollowed(transformX, transformY, transformZ / 50, rotateX, rotateZ)) return;
 
     const scale = (TABLE_PERSPECTIVE_PX + Math.abs(this.viewPositionZ)) / TABLE_PERSPECTIVE_PX;
     transformX *= scale;
@@ -409,10 +526,7 @@ export class GameTableGestureService {
   }
 
   private screenToTablePoint(screenX: number, screenY: number): MarqueePoint {
-    const local = this.coordinateService.calcTabletopLocalCoordinate(
-      { x: screenX, y: screenY, z: 0 },
-      this.gameObjectsEl
-    );
+    const local = this.coordinateService.convertToFace({ x: screenX, y: screenY, z: 0 }, 'floor');
     return { x: local.x, y: local.y };
   }
 
@@ -437,13 +551,12 @@ export class GameTableGestureService {
     const candidates = this.collectSelectableObjects();
     const hits = selectByRect(candidates, rect, { gridSize: this.tabletopService.gridSize() });
     const joins = marqueeApply(modifiers, this.selectionSignalService.selectionSize() > 0);
-    if (joins === 'add') {
-      for (const id of hits) this.selectionSignalService.addSelection(id);
-    } else if (joins === 'toggle') {
-      for (const id of hits) this.selectionSignalService.toggleSelection(id);
-    } else {
-      this.selectionSignalService.replaceSelection(hits);
+    const next = joins === 'replace' ? new Set<string>() : new Set(this.selectionSignalService.selectedObjects());
+    for (const id of hits) {
+      if (joins === 'toggle' && next.has(id)) next.delete(id);
+      else next.add(id);
     }
+    this.selectionSignalService.replaceSelection(next);
   }
 
   private collectSelectableObjects(): TabletopObject[] {

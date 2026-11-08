@@ -41,6 +41,28 @@ export const FRAME_STRIDE = 7;
 /** Frames per second of the recording, the rate it was worked out at. */
 export const FRAMES_PER_SECOND = 60;
 
+/** How long a critical or a fumble swells its ring of light under the dice as they come to rest, in seconds. */
+export const ACCENT_SECONDS = 1.1;
+
+/** How long a recorded throw takes, in seconds: until its dice stop, until the recording ends, and until there is nothing left to show. */
+export interface ThrowSeconds {
+  readonly restSeconds: number;
+  readonly totalSeconds: number;
+  /** The flash of a critical or a fumble included. */
+  readonly endSeconds: number;
+}
+
+/** How long a recorded throw takes, flashing as a critical or a fumble does where it is one. */
+export function throwSecondsOf(result: DiceThrowResult, accented: boolean): ThrowSeconds {
+  const restSeconds = result.restFrame / FRAMES_PER_SECOND;
+  const totalSeconds = (result.frameCount - 1) / FRAMES_PER_SECOND;
+  return {
+    restSeconds,
+    totalSeconds,
+    endSeconds: accented ? Math.max(totalSeconds, restSeconds + ACCENT_SECONDS) : totalSeconds,
+  };
+}
+
 /** A throw handed to the worker, numbered so its answer can be told apart from others. */
 export interface DicePhysicsJob {
   readonly id: number;

@@ -1,5 +1,6 @@
 import eslint from '@eslint/js';
 import angular from 'angular-eslint';
+import type { Linter } from 'eslint';
 import { defineConfig } from 'eslint/config';
 import betterTailwindcss from 'eslint-plugin-better-tailwindcss';
 import prettierPlugin from 'eslint-plugin-prettier/recommended';
@@ -153,7 +154,7 @@ const ANGULAR_CLASS_FILES = '*.{service,component,directive,pipe}.ts';
    its source instead (`\x2F` is a slash, which an esquery regex may not hold). panels opens every
    feature's panel lazily by design, and is left out of this. A later block overrides the same rule,
    so the Angular-built classes of a feature get both selectors in one block. */
-const FEATURE_RULES = Object.entries(FEATURE_DEPENDENCIES).flatMap(([feature, allowed]) => {
+const FEATURE_RULES = Object.entries(FEATURE_DEPENDENCIES).flatMap(([feature, allowed]): Linter.Config[] => {
   const reachable = [feature, 'panels', ...allowed].join('|');
   const lazyImports =
     feature === 'panels'

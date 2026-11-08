@@ -6,10 +6,13 @@ import { Logger } from '@axe/core/logging/logger';
 import { Network } from '@axe/core/network/network';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { BUNDLED_PIECE_MODELS } from '@axe/core/storage/bundled-models';
 import { FileArchiver } from '@axe/core/storage/file-archiver';
 import { ImageFile, ImageState } from '@axe/core/storage/image-file';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import * as MimeType from '@axe/core/storage/mime-type';
+import { MODEL_TYPE } from '@axe/core/storage/model-file';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ZipCodeUnavailableError } from '@axe/core/storage/zip-archive';
 import { ObjectSerializer } from '@axe/core/sync/object-serializer';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -22,6 +25,7 @@ import { AssetOwner } from '@axe/domain/media/asset-owner';
 import { CutIn } from '@axe/domain/media/cut-in';
 import { CutInLayer } from '@axe/domain/media/cut-in-layer';
 import { CutInScene } from '@axe/domain/media/cut-in-scene';
+import { ModelTag } from '@axe/domain/media/model-tag';
 import { Playlist } from '@axe/domain/media/playlist';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -125,6 +129,79 @@ describe('SaveDataService', () => {
       expect(whole).toEqual(expect.arrayContaining([`${held}.webp`, 'theme.mp3']));
       expect(saved).not.toContain(`${held}.webp`);
       expect(saved).not.toContain('theme.mp3');
+    });
+  });
+
+  describe('the 3D models in a room save', () => {
+    const tree = { identifier: 'f'.repeat(64), name: 'tree.glb', blob: new Blob(['glTF'], { type: MODEL_TYPE }) };
+    const rock = { identifier: 'd'.repeat(64), name: 'rock', blob: new Blob(['glTF'], { type: MODEL_TYPE }) };
+    const bundled = {
+      identifier: BUNDLED_PIECE_MODELS.goblin,
+      name: 'goblin.glb',
+      blob: new Blob(['glTF'], { type: MODEL_TYPE }),
+    };
+
+    beforeEach(() => {
+      vi.spyOn(TestBed.inject(ModelStorage), 'models', 'get').mockReturnValue([tree, rock, bundled] as never);
+    });
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it('carries every model held here with everything, each a .glb under its own name, and none the room does not name otherwise', () => {
+      const privateApi = TestBed.inject(SaveDataService) as unknown as {
+        buildRoomFiles: (pretty: boolean, everything?: boolean) => File[];
+      };
+
+      const whole = privateApi.buildRoomFiles(false, true);
+      const saved = privateApi.buildRoomFiles(false).map((file) => file.name);
+
+      expect(whole.filter((file) => file.type === MODEL_TYPE).map((file) => file.name)).toEqual([
+        'tree.glb',
+        'rock.glb',
+      ]);
+      expect(saved).not.toContain('tree.glb');
+    });
+
+    it('writes the tags of the models it carries and who added them, for the room to read back', async () => {
+      const privateApi = TestBed.inject(SaveDataService) as unknown as {
+        buildRoomFiles: (pretty: boolean, everything?: boolean) => File[];
+      };
+      ModelTag.tagWith(tree.identifier, '自然');
+      AssetOwner.claim(tree.identifier, 'model', 'owner_tree');
+
+      const files = privateApi.buildRoomFiles(false, true);
+      const text = async (name: string) => (await files.find((file) => file.name === name)?.text()) ?? '';
+
+      expect(await text('modeltag.xml')).toContain('自然');
+      expect(await text('assetowner.xml')).toContain('owner_tree');
+      ObjectStore.instance.remove(ModelTag.get(tree.identifier)!);
+      ObjectStore.instance.remove(AssetOwner.get(tree.identifier)!);
+    });
+
+    it('writes the tags of the bundled models the room’s pieces wear, though it leaves out their bytes', async () => {
+      const privateApi = TestBed.inject(SaveDataService) as unknown as {
+        buildRoomFiles: (pretty: boolean, everything?: boolean) => File[];
+        searchModelFiles: (xml: string) => unknown[];
+      };
+      vi.spyOn(privateApi, 'searchModelFiles').mockReturnValue([bundled]);
+      ModelTag.tagWith(bundled.identifier, '敵');
+
+      const files = privateApi.buildRoomFiles(false);
+
+      expect(await files.find((file) => file.name === 'modeltag.xml')?.text()).toContain('敵');
+      expect(files.map((file) => file.name)).not.toContain('goblin.glb');
+      ObjectStore.instance.remove(ModelTag.get(bundled.identifier)!);
+    });
+
+    it('leaves out a model bundled with the app, which the app that opens the save has beside its page', () => {
+      const privateApi = TestBed.inject(SaveDataService) as unknown as {
+        buildRoomFiles: (pretty: boolean, everything?: boolean) => File[];
+        searchModelFiles: (xml: string) => unknown[];
+      };
+      vi.spyOn(privateApi, 'searchModelFiles').mockReturnValue([bundled]);
+
+      expect(privateApi.buildRoomFiles(false, true).map((file) => file.name)).not.toContain('goblin.glb');
+      expect(privateApi.buildRoomFiles(false).map((file) => file.name)).not.toContain('goblin.glb');
     });
   });
 

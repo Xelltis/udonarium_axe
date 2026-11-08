@@ -51,17 +51,29 @@ describe('which blocks may be drawn together with others', () => {
     expect(isBatchable(lever, flat)).toBe(false);
   });
 
-  it('draws alone a block off the ground, one carrying a grid, and one with a face left open', () => {
+  it('draws alone a block off the ground, one carrying a grid, and one with its top left open', () => {
     const raised = wall();
     raised.altitude = 1;
     const resting = wall();
     resting.posZ = 10;
     const gridded = wall();
     gridded.isGrid = true;
+    const wallsOnly = wall();
+    wallsOnly.mode = TerrainViewState.WALL;
+
+    for (const terrain of [raised, resting, gridded, wallsOnly]) expect(isBatchable(terrain, square)).toBe(false);
+  });
+
+  it('draws the top of a block alone together, as a field’s crop is built, which nothing draws the walls of', () => {
     const floorOnly = wall();
     floorOnly.mode = TerrainViewState.FLOOR;
+    const bare = wall();
+    bare.mode = TerrainViewState.FLOOR;
+    bare.setFaceImage('wall', '');
 
-    for (const terrain of [raised, resting, gridded, floorOnly]) expect(isBatchable(terrain, square)).toBe(false);
+    expect(isBatchable(floorOnly, square)).toBe(true);
+    expect(isBatchable(bare, square)).toBe(true);
+    expect(isBatchable(bare, flat)).toBe(true);
   });
 
   it('draws alone a glass block, which has no picture to draw', () => {

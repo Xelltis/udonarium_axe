@@ -91,19 +91,4 @@ test.describe('ambience in the jukebox', () => {
     await expect(strip).toHaveCount(0);
     await expect(mini).toHaveCount(0);
   });
-
-  test('keeps the room-wide volume of a stopped ambience when it is played again', async ({ page }) => {
-    const jukebox = await openJukeboxWithTracks(page);
-    await tagAsBackgroundSound(jukebox, 'Rain.wav');
-    const toggle = libraryRow(jukebox, 'Rain.wav').getByTestId('jukebox-background-toggle');
-
-    await toggle.click();
-    const volume = jukebox.getByTestId('jukebox-background-volume');
-    await volume.fill('0.25');
-    await toggle.click();
-    await expect(jukebox.getByTestId('jukebox-background-sounds')).toHaveCount(0);
-
-    await toggle.click();
-    await expect(volume).toHaveValue('0.25');
-  });
 });

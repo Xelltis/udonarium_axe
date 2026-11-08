@@ -1,8 +1,14 @@
 import { seededRandom } from '@axe/core/util/seeded-random';
 import { FIELD_PROP_SHAPES, FieldAtmosphere, FieldPropId } from '@axe/domain/tabletop/field/field-atmosphere';
 import { makeValueNoise, ValueNoise, warpedFbm } from '@axe/domain/tabletop/field/field-noise';
+import { laySettlement, type SettlementLayout } from '@axe/domain/tabletop/field/settlement-layout';
 import { FieldBuilding, layTown } from '@axe/domain/tabletop/field/town-layout';
+import { GridType } from '@axe/domain/tabletop/grid-type';
+import { GROUND_SAMPLES_PER_CELL } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { GroundRaster } from '@axe/domain/tabletop/ground/ground-raster';
 import { HazardKind } from '@axe/domain/tabletop/hazard-presets';
+import { hexLayoutOf, isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
+import { boardExtentPx } from '@axe/domain/tabletop/map-grid';
 
 export interface FieldLayout {
   width: number;
@@ -17,6 +23,10 @@ export interface FieldLayout {
   pools: FieldPool[];
   /** What stands on the lots of a town. Open country has none. */
   buildings: FieldBuilding[];
+  /** How high the ground stands over the board, where it was raised at all. */
+  relief?: GroundRaster | null;
+  /** The village or fort laid out on it, where it is one. */
+  settlement?: SettlementLayout | null;
 }
 
 /** What a cell is taken up by: something standing on it, a patch poured over it, a building, or nothing. */
@@ -96,7 +106,16 @@ const WARP = 0.6;
 const POOL_SPACING = 8;
 
 /** What is put down as a whole thing rather than as a cell of ground cover. */
-const STANDING_PROPS: readonly FieldPropId[] = ['hill', 'tree', 'boulder', 'outcrop', 'cactus', 'junk', 'streetTree'];
+const STANDING_PROPS: readonly FieldPropId[] = [
+  'hill',
+  'giantTree',
+  'tree',
+  'boulder',
+  'outcrop',
+  'cactus',
+  'junk',
+  'streetTree',
+];
 
 /** Below this share of the growth field nothing grows, and above it the stand thickens. */
 const GROWTH_FLOOR = 0.3;
@@ -174,7 +193,7 @@ function plant(
       };
       objects.push(object);
       standing.push(object);
-      if (shape.claimsGround) {
+      if (shape.claimsGround || shape.covers) {
         for (let dy = -reach; dy <= reach; dy++) {
           for (let dx = -reach; dx <= reach; dx++) props[(y + dy) * width + x + dx] = prop;
         }
@@ -293,13 +312,19 @@ function crowded(props: FieldGroundMark[], width: number, height: number, x: num
  * Height decides the ground, a second noise decides where things grow thickest, and a
  * neighbour count keeps a wood from closing into a wall nobody can walk through. A town takes
  * its ground from its streets instead, and nothing grows where a building stands.
+ *
+ * Open country is raised as high as `reliefCells` from its lowest ground to its highest, along the
+ * same height the bands are cut from, with open water left level; nothing is raised where it is 0.
+ * Raised so, the ground makes its own hills, and none is built of steps of blocks on it.
  */
 export function generateField(
   atmosphere: FieldAtmosphere,
   width: number,
   height: number,
   seed: number,
-  density: number
+  density: number,
+  reliefCells = 0,
+  gridType: GridType = GridType.SQUARE
 ): FieldLayout {
   const relief = Math.max(1, atmosphere.relief);
   const ground = new Uint8Array(width * height);
@@ -315,7 +340,15 @@ export function generateField(
   const ramp = RAMPS[Math.floor(rng() * RAMPS.length) % RAMPS.length];
 
   const buildings: FieldBuilding[] = [];
-  if (atmosphere.town) {
+  let raster: GroundRaster | null = null;
+  let settlement: SettlementLayout | null = null;
+  if (atmosphere.settlement) {
+    settlement = laySettlement(atmosphere.settlement, width, height, seed, density);
+    ground.set(settlement.zones);
+    for (let index = 0; index < settlement.taken.length; index++) {
+      if (settlement.taken[index]) props[index] = 'building';
+    }
+  } else if (atmosphere.town) {
     const town = layTown(atmosphere.town, width, height, seed, density);
     ground.set(town.ground);
     buildings.push(...town.buildings);
@@ -325,7 +358,10 @@ export function generateField(
       }
     }
   } else {
-    raiseGround(atmosphere, ground, width, height, relief, land, drift, damp, ramp);
+    const heightAt = (x: number, y: number) =>
+      raisedAt(atmosphere, x, y, width, height, relief, land, drift, damp, ramp);
+    const raised = raiseGround(atmosphere, ground, width, height, heightAt);
+    if (reliefCells > 0) raster = reliefOf(atmosphere, { width, height }, gridType, reliefCells, raised, heightAt);
   }
 
   // Levelled over the board, the same way the height is, so that the bare places are as bare
@@ -372,11 +408,12 @@ export function generateField(
   }
 
   for (const prop of STANDING_PROPS) {
+    if (raster && FIELD_PROP_SHAPES[prop].claimsGround) continue;
     plant(prop, atmosphere, ground, props, objects, width, height, growthField, thinnest, growthSpan, rng, scale);
   }
   pourPools(atmosphere, ground, props, pools, width, height, rng);
 
-  return { width, height, ground, props, objects, pools, buildings };
+  return { width, height, ground, props, objects, pools, buildings, relief: raster, settlement };
 }
 
 /**
@@ -393,22 +430,11 @@ function raiseGround(
   ground: Uint8Array,
   width: number,
   height: number,
-  relief: number,
-  land: ValueNoise,
-  drift: ValueNoise,
-  damp: ValueNoise,
-  ramp: (x: number, y: number, w: number, h: number) => number
-): void {
-  const gradient = atmosphere.gradient ?? 0;
+  heightAt: (x: number, y: number) => number
+): { raised: Float64Array; cuts: number[] } {
   const raised = new Float64Array(width * height);
   for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const noise = warpedFbm(land, drift, x / relief, y / relief, OCTAVES, WARP);
-      const tilt = gradient > 0 ? ramp(x, y, width, height) : 0;
-      const wetness = warpedFbm(damp, drift, x / (relief * 1.6), y / (relief * 1.6), 2, WARP);
-      const height01 = noise * (1 - gradient) + tilt * gradient;
-      raised[y * width + x] = height01 + (wetness - 0.5) * atmosphere.damp;
-    }
+    for (let x = 0; x < width; x++) raised[y * width + x] = heightAt(x, y);
   }
   const cuts = quantileCuts(
     raised,
@@ -420,4 +446,88 @@ function raiseGround(
       ground[index] = bandFor(raised[index], cuts);
     }
   }
+  return { raised, cuts };
+}
+
+/** How high open country stands at a point, in cells across and down, before it is cut into bands. */
+function raisedAt(
+  atmosphere: FieldAtmosphere,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  relief: number,
+  land: ValueNoise,
+  drift: ValueNoise,
+  damp: ValueNoise,
+  ramp: (x: number, y: number, w: number, h: number) => number
+): number {
+  const gradient = atmosphere.gradient ?? 0;
+  const noise = warpedFbm(land, drift, x / relief, y / relief, OCTAVES, WARP);
+  const tilt = gradient > 0 ? ramp(x, y, width, height) : 0;
+  const wetness = warpedFbm(damp, drift, x / (relief * 1.6), y / (relief * 1.6), 2, WARP);
+  const height01 = noise * (1 - gradient) + tilt * gradient;
+  return height01 + (wetness - 0.5) * atmosphere.damp;
+}
+
+/** How far over the surface of the water beside it the land of a field with water starts, in cells. */
+const SHORE_RISE_CELLS = 0.1;
+
+/**
+ * The ground of open country raised along the height its bands were cut from, at every sample of the
+ * ground over the board: as high as `reliefCells` where the board stands highest, and at the board
+ * where it stands lowest, or along the shore of the open water its lowest bands are. Under that water
+ * the ground is dug down from the shore, as deep as the deepest of its bands asks where the board lies
+ * lowest and never deeper than the ground is raised, so the water's surface lies at the board and the
+ * shore runs wherever the ground comes up through it; water that asks for no depth is left level. The
+ * land beside dug water starts a little over the surface, so the shore is a line, not sand awash.
+ */
+function reliefOf(
+  atmosphere: FieldAtmosphere,
+  size: { width: number; height: number },
+  gridType: GridType,
+  reliefCells: number,
+  { raised, cuts }: { raised: Float64Array; cuts: number[] },
+  heightAt: (x: number, y: number) => number
+): GroundRaster {
+  let lowest = Infinity;
+  let top = -Infinity;
+  for (const value of raised) {
+    lowest = Math.min(lowest, value);
+    top = Math.max(top, value);
+  }
+  let shore = lowest;
+  for (let band = 0; band < atmosphere.bands.length - 1 && atmosphere.bands[band].bare; band++) {
+    shore = cuts[band];
+  }
+  const span = top - shore || 1;
+  const dug = Math.min(reliefCells, Math.max(0, ...atmosphere.bands.map((band) => band.water?.depth ?? 0)));
+  const fall = shore - lowest || 1;
+  const rise = dug > 0 ? Math.min(SHORE_RISE_CELLS, reliefCells) : 0;
+  const extent = boardExtentPx(size, { type: gridType, sizePx: 1 });
+  const columns = Math.ceil(extent.widthPx * GROUND_SAMPLES_PER_CELL) + 1;
+  const rows = Math.ceil(extent.heightPx * GROUND_SAMPLES_PER_CELL) + 1;
+  const heights = new Float32Array(columns * rows);
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < columns; i++) {
+      const at = layoutPointOf(gridType, i / GROUND_SAMPLES_PER_CELL, j / GROUND_SAMPLES_PER_CELL);
+      const raisedTo = heightAt(at.x, at.y);
+      heights[j * columns + i] =
+        dug > 0 && raisedTo <= shore
+          ? 0 - dug * Math.min(1, (shore - raisedTo) / fall)
+          : rise + (reliefCells - rise) * Math.min(1, Math.max(0, (raisedTo - shore) / span));
+    }
+  }
+  return { columns, rows, heights };
+}
+
+/**
+ * Where a point of the board, in cells from its top left, falls among the cells of the layout, which
+ * read their heights at their indices: a square's index is half a cell short of its middle, and a hex
+ * column or row is taken at its average stagger, so the ground runs on unbroken from one to the next.
+ */
+function layoutPointOf(gridType: GridType, x: number, y: number): { x: number; y: number } {
+  if (!isHexGrid(gridType)) return { x: x - 0.5, y: y - 0.5 };
+  const { colSpacing, rowSpacing, isFlatTop } = hexLayoutOf(1, isFlatTopGrid(gridType));
+  return isFlatTop ? { x: x / colSpacing, y: y / rowSpacing - 0.25 } : { x: x / colSpacing - 0.25, y: y / rowSpacing };
 }

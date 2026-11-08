@@ -1,6 +1,17 @@
 import { Logger } from '@axe/core/logging/logger';
 import { CSSNumber } from '@axe/core/transform/css-number';
-import { IPoint2D, IPoint3D } from '@axe/core/transform/transform';
+
+/** A point of a plane. */
+export interface IPoint2D {
+  x: number;
+  y: number;
+}
+
+/** A point of space, with the weight it is divided by once it has been carried through a perspective. */
+export interface IPoint3D extends IPoint2D {
+  z: number;
+  w: number;
+}
 
 export interface IMatrix3D {
   m11: number;
@@ -450,6 +461,32 @@ export class Matrix3D {
     return ret;
   }
 
+  /**
+   * The matrix as a CSS `matrix3d()`, its numbers in the order CSS lists them, each written to the
+   * fraction digits given and never in exponent form.
+   */
+  toCss(fractionDigits: number = 9): string {
+    const numbers = [
+      this.m11,
+      this.m12,
+      this.m13,
+      this.m14,
+      this.m21,
+      this.m22,
+      this.m23,
+      this.m24,
+      this.m31,
+      this.m32,
+      this.m33,
+      this.m34,
+      this.m41,
+      this.m42,
+      this.m43,
+      this.m44,
+    ];
+    return `matrix3d(${numbers.map((value) => cssNumber(value, fractionDigits)).join(', ')})`;
+  }
+
   /** The entries laid out as four tab-separated rows, for logging while debugging. */
   public toString(fractionalDigits: number = 3): string {
     const f = (v: number) => v.toFixed(fractionalDigits);
@@ -461,4 +498,11 @@ export class Matrix3D {
     ].join('\n');
   }
   private static _scratch = new Matrix3D();
+}
+
+/** A number as CSS reads it, to the fraction digits given, without trailing zeros. */
+function cssNumber(value: number, fractionDigits: number): string {
+  const fixed = value.toFixed(fractionDigits);
+  const written = fixed.includes('.') ? fixed.replace(/0+$/, '').replace(/\.$/, '') : fixed;
+  return written === '-0' ? '0' : written;
 }

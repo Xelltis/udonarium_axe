@@ -1,3 +1,4 @@
+import { MODEL_VIEWER_LOADER } from '@axe/application/media/model-viewer-loader';
 import { CLASS_SINGLETON_PROVIDERS } from '@axe/composition/class-provider';
 import { CHAT_EDITOR_LOADER } from '@axe/features/chat/chat-editor/chat-editor-loader';
 import { CUT_IN_WINDOW_LOADER, type CutInWindowType } from '@axe/features/media/cut-in-window-loader';
@@ -13,9 +14,11 @@ class StubCutInWindow {}
  * all it brings could outlast a spec, or time out on a busy worker and fail every cut-in spec. The
  * chat input's editor never arrives either, so lines are typed into the plain box, as the specs
  * expect; drawing the editor needs measurements happy-dom does not make, so it is tried end to end.
+ * What draws 3D models on their own never loads either, as happy-dom has nothing to draw them on.
  */
 export const TEST_PROVIDERS = [
   ...CLASS_SINGLETON_PROVIDERS,
   { provide: CUT_IN_WINDOW_LOADER, useValue: () => Promise.resolve(StubCutInWindow as unknown as CutInWindowType) },
   { provide: CHAT_EDITOR_LOADER, useValue: () => Promise.resolve(null) },
+  { provide: MODEL_VIEWER_LOADER, useValue: () => Promise.resolve(null) },
 ];

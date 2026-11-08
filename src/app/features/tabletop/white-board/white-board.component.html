@@ -1,8 +1,44 @@
+<ng-template #faceLook>
+  <div
+    class="pointer-events-auto absolute inset-0 backface-visible"
+    [style.opacity]="opacity()"
+    [style.background-color]="color()"
+  ></div>
+
+  @if (imageUrl().length > 0) {
+    <!-- Whatever is drawn on the board is not the board: it hangs at its own weight over a
+         face that may be faded to nothing, so a plan can float in the air over the table. -->
+    <div
+      class="pointer-events-none absolute inset-0 bg-contain bg-center bg-no-repeat backface-visible"
+      [style.background-image]="'url(' + imageUrl() + ')' | safe: 'style'"
+    ></div>
+  }
+</ng-template>
+<ng-template #livePictureLayer>
+  @for (picture of livePictures(); track picture.id) {
+    <img
+      class="pointer-events-none absolute backface-visible"
+      [src]="picture.url | safe: 'resourceUrl'"
+      [style.left.px]="picture.left"
+      [style.top.px]="picture.top"
+      [style.width.px]="picture.width"
+      [style.height.px]="picture.height"
+      [style.transform]="picture.transform"
+      [style.opacity]="picture.opacity"
+      alt=""
+    />
+  }
+</ng-template>
+<!--
+  The board is a box on the screen round where the table's canvas draws it, and its face is laid on
+  it in perspective, clear as the canvas draws a picture of it, with what hangs on the face; the
+  table lays the pieces on the board over it, and its handles stand at the corners of its foot.
+-->
+@let id = whiteBoard().identifier;
 <div
-  class="group absolute select-none backface-visible transform-3d"
-  [style.width.px]="widthPx()"
-  [style.height.px]="heightPx()"
+  class="group pointer-events-none size-full select-none"
   [class.cursor-grab]="!isLock()"
+  data-hud-box
   appMovable
   [movable.option]="movableOption()"
   [movable.disable]="isLock()"
@@ -10,10 +46,8 @@
   (movable.ondragstart)="onMove()"
   (movable.ondragend)="onMoved()"
 >
-  <!-- The board turns about its upright axis, the way a terrain block does, and is taken hold
-       of at its foot, which is the only part of it that touches the table. -->
   <div
-    class="size-full origin-bottom transform-3d"
+    class="pointer-events-none size-full"
     appRotable
     [rotable.option]="rotableOption()"
     [rotable.disable]="isLock()"
@@ -21,101 +55,21 @@
     (rotable.valueChange)="onRotated($event)"
     (rotable.ondragend)="onMoved()"
   >
-    @if (!isLock()) {
-      <div class="pointer-events-none absolute inset-x-0 bottom-0 h-0 transform-3d">
-        <div
-          class="rotate-grab pointer-events-auto absolute -inset-x-3.5 -top-3.5 box-border h-7 cursor-default rounded-[14px] border-2 border-solid border-(--ui-panel-border) opacity-0 will-change-[opacity] transform-3d group-hover:opacity-100 group-active:opacity-100"
-        ></div>
-        <div
-          class="rotate-grab pointer-events-auto absolute -top-3.5 -left-3.5 box-border size-7 cursor-default rounded-[14px_7px_14px_7px] border-2 border-solid border-(--ui-panel-border) bg-(--ui-elevated) p-0 text-(--ui-text-muted) opacity-0 will-change-[opacity] transform-3d group-hover:opacity-100 group-active:opacity-100"
-        >
-          <i class="material-icons text-[20px]!">autorenew</i>
-        </div>
-        <div
-          class="rotate-grab pointer-events-auto absolute -top-3.5 -right-3.5 box-border size-7 cursor-default rounded-[7px_14px_7px_14px] border-2 border-solid border-(--ui-panel-border) bg-(--ui-elevated) p-0 text-(--ui-text-muted) opacity-0 will-change-[opacity] transform-3d group-hover:opacity-100 group-active:opacity-100"
-        >
-          <i class="material-icons text-[20px]!">autorenew</i>
-        </div>
+    <div
+      class="pointer-events-auto"
+      [attr.data-surface]="id"
+      [appTooltip]="whiteBoard()"
+      [style.width.px]="widthPx()"
+      [style.height.px]="heightPx()"
+      [appHudPlace]="{ owner: id, part: 'face', place: 'face' }"
+    >
+      <div class="absolute inset-0 opacity-0" #face data-part="face">
+        <ng-container [ngTemplateOutlet]="faceLook"></ng-container>
       </div>
-    }
-    <div class="size-full origin-bottom transform-3d" [style.transform]="pitchTransform()">
-      <div
-        class="pointer-events-auto absolute inset-0 backface-visible"
-        [style.opacity]="opacity()"
-        [style.background-color]="color()"
-      ></div>
-
-      @if (imageUrl().length > 0) {
-        <!-- Whatever is drawn on the board is not the board: it hangs at its own weight over a
-             face that may be faded to nothing, so a plan can float in the air over the table. -->
-        <div
-          class="pointer-events-none absolute inset-0 bg-contain bg-center bg-no-repeat backface-visible"
-          [style.background-image]="'url(' + imageUrl() + ')' | safe: 'style'"
-        ></div>
-      }
-
-      @for (picture of livePictures(); track picture.id) {
-        <img
-          class="pointer-events-none absolute backface-visible"
-          [src]="picture.url | safe: 'resourceUrl'"
-          [style.left.px]="picture.left"
-          [style.top.px]="picture.top"
-          [style.width.px]="picture.width"
-          [style.height.px]="picture.height"
-          [style.transform]="picture.transform"
-          [style.opacity]="picture.opacity"
-          alt=""
-        />
-      }
-
-      <!-- The face that carries the pieces lies over the whole board, so it is what a pointer
-           resting on the board is over, and where the board's details open from. -->
-      <div
-        class="absolute inset-0 transform-3d"
-        data-surface-overflow
-        [attr.data-surface]="whiteBoard().identifier"
-        [appTooltip]="whiteBoard()"
-      >
-        @for (mask of masks(); track mask.identifier) {
-          <game-table-mask
-            class="absolute will-change-transform backface-visible transform-3d"
-            [gameTableMask]="mask"
-          ></game-table-mask>
-        }
-        @for (terrain of terrains(); track terrain.identifier) {
-          <terrain class="absolute will-change-transform backface-visible transform-3d" [terrain]="terrain"></terrain>
-        }
-        @for (card of cards(); track card.identifier) {
-          <card
-            class="absolute will-change-transform backface-visible transform-3d"
-            [card]="card"
-            [appTooltip]="card"
-            [ngStyle]="{ 'z-index': card.zindex }"
-          ></card>
-        }
-        @for (textNote of textNotes(); track textNote.identifier) {
-          <text-note
-            class="absolute will-change-transform backface-visible transform-3d"
-            [textNote]="textNote"
-            [appTooltip]="textNote"
-            [ngStyle]="{ 'z-index': textNote.zindex }"
-          ></text-note>
-        }
-        @for (diceSymbol of diceSymbols(); track diceSymbol.identifier) {
-          <dice-symbol
-            class="absolute will-change-transform backface-visible transform-3d"
-            [diceSymbol]="diceSymbol"
-            [appTooltip]="diceSymbol"
-          ></dice-symbol>
-        }
-        @for (character of characters(); track character.identifier) {
-          <game-character
-            class="absolute will-change-transform backface-visible transform-3d"
-            [gameCharacter]="character"
-            [appTooltip]="character"
-          ></game-character>
-        }
-      </div>
+      <ng-container [ngTemplateOutlet]="livePictureLayer"></ng-container>
     </div>
+    @if (!isLock()) {
+      <turn-frame [owner]="id" [stand]="turnStand()" [cornersAlwaysSeen]="true" />
+    }
   </div>
 </div>

@@ -1,4 +1,10 @@
-import { surfaceInwardDirection, surfacePointTo3D, surfaceWorldBox } from '@axe/domain/tabletop/surface-space';
+import {
+  surfaceCrossing,
+  surfaceFrame,
+  surfaceInwardDirection,
+  surfacePointTo3D,
+  surfaceWorldBox,
+} from '@axe/domain/tabletop/surface-space';
 
 const dims = { widthPx: 1000, depthPx: 800, wallHeightPx: 300 };
 
@@ -71,5 +77,29 @@ describe('surface-space', () => {
         maxZ: 300,
       });
     });
+  });
+});
+
+describe('surfaceCrossing', () => {
+  const dims = { widthPx: 1000, depthPx: 750, wallHeightPx: 500 };
+
+  it('gives the point of the floor a line looking straight down meets', () => {
+    const crossing = surfaceCrossing(surfaceFrame('floor', dims), { x: 30, y: 40, z: 900 }, { x: 0, y: 0, z: -1 })!;
+    expect(crossing.t).toBeCloseTo(900, 9);
+    expect([crossing.localX, crossing.localY]).toEqual([30, 40]);
+  });
+
+  it('gives a point of the north wall across from its left end and down from its top', () => {
+    const crossing = surfaceCrossing(
+      surfaceFrame('north-wall', dims),
+      { x: 200, y: 600, z: 120 },
+      { x: 0, y: -1, z: 0 }
+    )!;
+    expect(crossing.localX).toBeCloseTo(200, 9);
+    expect(crossing.localY).toBeCloseTo(380, 9);
+  });
+
+  it('has nothing to say of a line running along the face', () => {
+    expect(surfaceCrossing(surfaceFrame('floor', dims), { x: 0, y: 0, z: 10 }, { x: 1, y: 0, z: 0 })).toBeNull();
   });
 });

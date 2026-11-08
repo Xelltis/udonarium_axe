@@ -1,6 +1,13 @@
-@for (segment of segments(); track segment.index) {
-  <div class="backface-visible" [ngStyle]="segmentStyle(segment)"></div>
-}
-@for (point of ends(); track $index) {
-  <div class="backface-visible" [ngStyle]="endStyle(point)"></div>
+@if (segments().length > 0) {
+  <ul hidden data-testid="replay-route">
+    @for (segment of segments(); track segment.index) {
+      <li
+        data-testid="replay-route-run"
+        [attr.data-x]="segment.x"
+        [attr.data-y]="segment.y"
+        [attr.data-length]="segment.length"
+        [attr.data-travelled]="segment.isTravelled ? '' : null"
+      ></li>
+    }
+  </ul>
 }

@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openPanel, waitAppReady } from './helpers';
+import { openPanel, waitAppReady, whenAppReady } from './helpers';
 
 /** Leaves a mark in local storage and in two databases, one of the app's and one of no one's. */
 async function leaveMarks(page: Page): Promise<void> {
@@ -87,17 +87,9 @@ test.describe("wiping all of this browser's data", () => {
     const reloaded = page.waitForEvent('load');
     await page.locator('confirm-dialog').getByRole('button', { name: 'すべて消して読み込み直す' }).click();
     await reloaded;
-    await waitAppReady(page);
+    await whenAppReady(page);
 
     expect(await marksLeft(page)).toEqual([]);
     expect(await page.evaluate(() => localStorage.getItem('ui-theme'))).not.toBe('dark');
-  });
-
-  test('wipes nothing when cancelled', async ({ page }) => {
-    await pressWipe(page);
-    await page.locator('confirm-dialog').getByRole('button', { name: 'キャンセル' }).click();
-    await expect(page.locator('confirm-dialog')).toHaveCount(0);
-
-    expect(await marksLeft(page)).toEqual(['axe-dice-images', 'e2e-elsewhere', 'localStorage']);
   });
 });

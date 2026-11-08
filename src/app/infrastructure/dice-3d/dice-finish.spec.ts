@@ -1,12 +1,5 @@
-import {
-  DiceDressing,
-  DiceDressingKind,
-  dressDie,
-  faceColorsOf,
-  FINISHES,
-  swirlSeedOf,
-  veinOf,
-} from '@axe/infrastructure/dice-3d/dice-finish';
+import { DiceDressing, DiceDressingKind, dressDie } from '@axe/infrastructure/dice-3d/dice-finish';
+import { faceColorsOf, FINISHES, swirlSeedOf, veinOf } from '@axe/infrastructure/dice-3d/dice-finishes';
 import { Color, ShaderLib, Texture, WebGLProgramParametersWithUniforms } from 'three';
 
 function dressed(material: DiceDressingKind) {

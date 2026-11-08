@@ -1,3 +1,4 @@
+import { type CellGrid, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
 import { rectangleSegments } from '@axe/domain/tabletop/los/segments';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 
@@ -95,4 +96,16 @@ export function terrainCovers(terrain: Terrain, gridSize: number, x: number, y: 
   const top = terrain.location.y;
   const box = { minX: left, minY: top, maxX: left + terrain.width * gridSize, maxY: top + terrain.depth * gridSize };
   return turnedBoxCovers(box, terrain.rotate, x, y);
+}
+
+/** Calls back for every cell whose middle a block covers, as the ground under it is read: the cell and its middle. */
+export function forEachCellUnder(
+  grid: CellGrid,
+  terrain: Terrain,
+  visit: (index: number, cx: number, cy: number) => void
+): void {
+  const box = terrainBoxOf(terrain, grid.sizePx);
+  forEachCellInBox(grid, box.minX, box.minY, box.maxX, box.maxY, (index, cx, cy) => {
+    if (terrainCovers(terrain, grid.sizePx, cx, cy)) visit(index, cx, cy);
+  });
 }

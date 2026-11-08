@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
+import { FloorCanvasesService } from '@axe/application/tabletop/floor-canvases.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { Config } from '@axe/domain/peer/config';
@@ -40,18 +41,36 @@ describe('TableZoneOverlayComponent', () => {
     await fixture.whenStable();
 
     expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="zone-overlay"]')).toBeNull();
+    expect(TestBed.inject(FloorCanvasesService).all()).toEqual([]);
   });
 
-  it('draws a declared zone as a circle about its centre, and a ring about a piece inside it', async () => {
+  it('lays a declared zone on the floor about its centre with a ring about a piece inside it, and lists both', async () => {
     TestBed.inject(EngagementZoneService).declare(pieceAt(5, 5), pieceAt(5, 5, true));
     pieceAt(6, 5);
     const fixture = TestBed.createComponent(TableZoneOverlayComponent);
     await fixture.whenStable();
 
     const host = fixture.nativeElement as HTMLElement;
-    const circle = host.querySelector('[data-testid="zone-mark"] circle')!;
-    expect(circle.getAttribute('cx')).toBe(`${5.5 * GRID}`);
-    expect(Number(circle.getAttribute('r'))).toBeGreaterThan(0);
+    const zone = host.querySelector<HTMLElement>('[data-testid="zone-mark"]')!;
+    expect(zone.dataset['x']).toBe(`${5.5 * GRID}`);
+    expect(Number(zone.dataset['reach'])).toBeGreaterThan(0);
     expect(host.querySelectorAll('[data-testid="zone-inside-mark"]')).toHaveLength(1);
+    const [laid] = TestBed.inject(FloorCanvasesService).all();
+    expect(laid.id).toBe('zones-0');
+    expect(laid.box.x).toBeLessThan(5.5 * GRID);
+    expect(laid.box.x + laid.box.width).toBeGreaterThan(5.5 * GRID);
+  });
+
+  it('takes the zone up off the floor once it goes', async () => {
+    const zones = TestBed.inject(EngagementZoneService);
+    const hero = pieceAt(5, 5);
+    zones.declare(hero, pieceAt(5, 5, true));
+    const fixture = TestBed.createComponent(TableZoneOverlayComponent);
+    await fixture.whenStable();
+    expect(TestBed.inject(FloorCanvasesService).all()).toHaveLength(1);
+
+    fixture.destroy();
+
+    expect(TestBed.inject(FloorCanvasesService).all()).toEqual([]);
   });
 });

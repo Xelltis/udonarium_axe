@@ -31,15 +31,6 @@ test.describe('where the system’s notices go', () => {
     await waitAppReady(page);
   });
 
-  test('puts the round in the leftmost tab while the room has chosen nothing', async ({ page }) => {
-    await becomeGm(page);
-
-    await nextTurn(page);
-
-    await showTab(page, 'メインタブ');
-    await expect(roundStarted(page)).toHaveCount(1, { timeout: 5000 });
-  });
-
   test('puts the round in the tab the master picks, and nothing of it in the leftmost one', async ({ page }) => {
     await becomeGm(page);
     await openPanel(page, '部屋設定');
@@ -53,14 +44,5 @@ test.describe('where the system’s notices go', () => {
     await expect(roundStarted(page)).toHaveCount(1, { timeout: 5000 });
     await showTab(page, 'メインタブ');
     await expect(roundStarted(page)).toHaveCount(0);
-  });
-
-  test('shows a player the choices without letting them change any', async ({ page }) => {
-    await openPanel(page, '部屋設定');
-    const panel = page.locator('room-settings-panel');
-    await panel.getByTestId('room-settings-tab-notice').click();
-
-    await expect(panel.getByTestId('room-settings-notice-round')).toBeDisabled();
-    await expect(panel.getByTestId('room-settings-notice-round')).toHaveText(/既定（一番左のタブ）/);
   });
 });

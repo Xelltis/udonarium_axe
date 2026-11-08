@@ -9,7 +9,6 @@ import { MotionService } from '@axe/application/ui/motion.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
-import { Card } from '@axe/domain/card/card';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement, DataElementAttribute, DataElementType } from '@axe/domain/data/data-element';
 import { DisclosureMode } from '@axe/domain/disclosure/disclosure';
@@ -17,12 +16,8 @@ import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellCenterOf, cellCount, cellGridOf, cellIndexAt, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
-import { FogMemory } from '@axe/domain/tabletop/fog/fog-memory';
-import { FOG_VEIL_ALPHA } from '@axe/domain/tabletop/fog/fog-mode';
+import { cellCenterOf, cellCount, cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
-import { LightSource } from '@axe/domain/tabletop/light-source';
-import { RangeArea } from '@axe/domain/tabletop/range';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -70,85 +65,9 @@ describe('FirstPersonViewComponent', () => {
     return character;
   }
 
-  function corridor(): void {
-    for (const col of [3, 5]) {
-      const terrain = Terrain.create('壁', 1, 8, 1, 'stone', 'slab');
-      terrain.location = { name: 'table', x: col * GRID, y: GRID };
-      table.appendChild(terrain);
-    }
-  }
-
   function lookOutOf(piece: GameCharacter): void {
     TestBed.inject(FirstPersonService).enterSeat(piece.identifier);
   }
-
-  it('draws the walls and the floor of the corridor the piece looks down', () => {
-    corridor();
-    lookOutOf(pieceAt(4, 7));
-
-    const view = element(mount());
-
-    expect(view.querySelectorAll('[data-quad="wall"]').length).toBeGreaterThan(0);
-    expect(view.querySelectorAll('[data-quad="floor"]').length).toBeGreaterThan(0);
-  });
-
-  it('puts up a wall of the board only where it has a picture to wear, as the table does', async () => {
-    table.wallHeight = 2;
-    table.showNorthWall = true;
-    lookOutOf(pieceAt(4, 7));
-
-    expect(element(mount()).querySelectorAll('[data-quad="wall"]')).toHaveLength(0);
-
-    ImageStorage.instance.add({
-      identifier: 'brick',
-      name: 'brick.png',
-      type: 'image/png',
-      blob: null,
-      url: 'blob:brick',
-      thumbnail: { type: '', blob: null, url: '' },
-    });
-    try {
-      table.northWallImageIdentifier = 'brick';
-      await Promise.resolve();
-      const walls = Array.from(element(mount()).querySelectorAll<HTMLElement>('[data-quad="wall"]'));
-
-      expect(walls.length).toBeGreaterThan(0);
-      expect(walls.every((wall) => wall.style.backgroundImage.includes('blob:brick'))).toBe(true);
-    } finally {
-      ImageStorage.instance.delete('brick');
-    }
-  });
-
-  it('draws what stands past the clear distance blurred, and what stands near sharp', () => {
-    ImageStorage.instance.add({
-      identifier: 'stone',
-      name: 'stone.png',
-      type: 'image/png',
-      blob: null,
-      url: 'blob:stone',
-      thumbnail: { type: '', blob: null, url: '' },
-    });
-    try {
-      for (const [col, row] of [
-        [6, 1],
-        [3, 9],
-      ]) {
-        const block = Terrain.create('壁', 1, 1, 1, 'stone', 'slab');
-        block.location = { name: 'table', x: col * GRID, y: row * GRID };
-        table.appendChild(block);
-      }
-      lookOutOf(pieceAt(4, 11));
-
-      const walls = Array.from(element(mount()).querySelectorAll<HTMLElement>('[data-quad="wall"]'));
-      const blurred = walls.filter((wall) => /blur\(/.test(wall.style.filter));
-      const sharp = walls.filter((wall) => !wall.style.filter);
-
-      expect(blurred.length).toBeGreaterThan(0);
-      expect(sharp.length).toBeGreaterThan(0);
-    } finally {
-      ImageStorage.instance.delete('stone');
-    }
-  });
 
   describe('looking about', () => {
     function lookOf(fixture: ComponentFixture<FirstPersonViewComponent>): FirstPersonLookService {
@@ -158,42 +77,6 @@ describe('FirstPersonViewComponent', () => {
     function cameraOf(fixture: ComponentFixture<FirstPersonViewComponent>): string {
       return element(fixture).querySelector<HTMLElement>('[data-testid="first-person-camera"]')!.style.transform;
     }
-
-    it('turns and tips the camera by the look and leaves the eye where it stood', () => {
-      lookOutOf(pieceAt(4, 7));
-      const fixture = mount();
-      const level = cameraOf(fixture);
-
-      lookOf(fixture).lookTo({ yaw: 30, pitch: 20 });
-      fixture.detectChanges();
-
-      const looked = cameraOf(fixture);
-      expect(looked).toContain('rotateX(20deg) rotateX(90deg) rotateZ(-30deg)');
-      expect(looked.slice(looked.indexOf('translate3d'))).toBe(level.slice(level.indexOf('translate3d')));
-    });
-
-    it('draws the ground behind the eye once it looks round, with the sight all round only while it looks', () => {
-      TestBed.inject(MotionService).setting.set('off');
-      lookOutOf(pieceAt(4, 5));
-      const fixture = mount();
-      const service = TestBed.inject(FirstPersonService);
-      const behind = cellIndexOf(cellGridOf(table.width, table.height, GRID, GridType.SQUARE), 4, 8);
-      const floorBehind = () => element(fixture).querySelector(`[data-quad="floor"][data-cell="${behind}"]`);
-      expect(floorBehind()).toBeNull();
-      expect(service.seen()?.get(behind)).toBe(false);
-
-      lookOf(fixture).lookTo({ yaw: 180, pitch: 0 });
-      fixture.detectChanges();
-
-      expect(floorBehind()).not.toBeNull();
-      expect(service.seen()?.get(behind)).toBe(true);
-
-      lookOf(fixture).release();
-      fixture.detectChanges();
-
-      expect(floorBehind()).toBeNull();
-      expect(service.seen()?.get(behind)).toBe(false);
-    });
 
     it('turns the compass needle with the look and leaves the facing as the piece faces', () => {
       lookOutOf(pieceAt(4, 7));
@@ -254,7 +137,7 @@ describe('FirstPersonViewComponent', () => {
       expect(look.look()).toEqual({ yaw: 0, pitch: 0 });
     });
 
-    it('blurs a piece far off behind the piece once the eye turns round to it', () => {
+    it('lays a piece behind the eye on the view once the eye turns round to it', () => {
       ImageStorage.instance.add({
         identifier: 'far-face',
         name: 'far-face.png',
@@ -269,31 +152,16 @@ describe('FirstPersonViewComponent', () => {
         lookOutOf(pieceAt(4, 1));
         const fixture = mount();
 
+        const laid = () => element(fixture).querySelector(`[data-piece="${behind.identifier}"]`);
+        expect(laid()).toBeNull();
+
         lookOf(fixture).lookTo({ yaw: 180, pitch: 0 });
         fixture.detectChanges();
 
-        const picture = element(fixture).querySelector<HTMLElement>(`[data-piece="${behind.identifier}"] img`)!;
-        expect(picture.style.filter).toMatch(/blur\(/);
+        expect(laid()).not.toBeNull();
       } finally {
         ImageStorage.instance.delete('far-face');
       }
-    });
-
-    it('lets a near piece down to the floor as the eye looks down at its feet', () => {
-      const near = pieceAt(4, 6);
-      near.location = { name: 'table', x: 4 * GRID, y: 6.6 * GRID };
-      lookOutOf(pieceAt(4, 7));
-      const fixture = mount();
-      const standsAt = () => {
-        const billboard = element(fixture).querySelector<HTMLElement>(`[data-piece="${near.identifier}"]`)!;
-        return parseFloat(/translate3d\([^,]+, [^,]+, ([-\d.]+)px\)/.exec(billboard.style.transform)![1]);
-      };
-      expect(standsAt()).toBeGreaterThan(0);
-
-      lookOf(fixture).lookTo({ yaw: 0, pitch: -60 });
-      fixture.detectChanges();
-
-      expect(standsAt()).toBe(0);
     });
 
     it('stands the readings of a great piece over its head again as the eye looks up at it', () => {
@@ -762,63 +630,6 @@ describe('FirstPersonViewComponent', () => {
     expect(hidden.targeted).toBe(false);
   });
 
-  it('draws the ground a doorway hides only part of, rather than leaving it black', () => {
-    for (const col of [3, 5]) {
-      const jamb = Terrain.create('壁', 1, 1, 2, 'stone', 'slab');
-      jamb.location = { name: 'table', x: col * GRID, y: 8 * GRID };
-      table.appendChild(jamb);
-    }
-    lookOutOf(pieceAt(4, 8));
-    const grid = cellGridOf(table.width, table.height, GRID, GridType.SQUARE);
-
-    const view = element(mount());
-
-    expect(view.querySelector(`[data-quad="floor"][data-cell="${cellIndexOf(grid, 3, 7)}"]`)).not.toBeNull();
-    expect(view.querySelector(`[data-quad="floor"][data-cell="${cellIndexOf(grid, 5, 7)}"]`)).not.toBeNull();
-  });
-
-  it('stands a lit lamp up in the corridor and lays a card on its floor', () => {
-    const light = new LightSource();
-    light.initialize();
-    light.location = { name: 'table', x: 4 * GRID, y: 4 * GRID };
-    table.appendChild(light);
-    const card = Card.create('札', 'front', 'back');
-    card.location = { name: 'table', x: 4 * GRID, y: 5 * GRID };
-    lookOutOf(pieceAt(4, 7));
-
-    const view = element(mount());
-
-    expect(view.querySelector('[data-prop="light"]')).not.toBeNull();
-    expect(view.querySelector('[data-glow]')).not.toBeNull();
-    expect(view.querySelector('[data-prop="card"]')).not.toBeNull();
-  });
-
-  it('plays an effect inside the view, turned to face the eye', () => {
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null as never);
-    const preset = new EffectPreset();
-    preset.kind = 'burst';
-    preset.durationMs = 5000;
-    preset.staggerMs = 0;
-    ObjectStore.instance.add(preset, false);
-    const enemy = pieceAt(4, 4);
-    lookOutOf(pieceAt(4, 7, 90));
-    const fixture = mount();
-
-    TestBed.inject(EffectPlaybackService).play({
-      presetIdentifier: preset.identifier,
-      targets: [{ identifier: enemy.identifier, x: 4.5 * GRID, y: 4.5 * GRID, z: 0 }],
-      seed: 3,
-    });
-    fixture.detectChanges();
-
-    const sprites = Array.from(
-      element(fixture).querySelectorAll<HTMLElement>('[data-testid="first-person-effects"] table-effect-overlay > div')
-    );
-    expect(sprites.length).toBeGreaterThan(0);
-    expect(sprites.some((sprite) => sprite.style.transform.includes('rotateZ(90deg) rotateX(-90deg)'))).toBe(true);
-    ObjectStore.instance.remove(preset);
-  });
-
   it('shakes and burns the view as it would the table', () => {
     const preset = new EffectPreset();
     preset.kind = 'nova';
@@ -1027,31 +838,6 @@ describe('FirstPersonViewComponent', () => {
       expect(view.querySelector(`[data-piece="${offCentre.identifier}"]`)).not.toBeNull();
     });
 
-    it('raises the roof of a room shut in by walls clear over a great piece standing in it', () => {
-      for (const [col, row, width, depth] of [
-        [2, 2, 5, 1],
-        [2, 8, 5, 1],
-        [2, 3, 1, 5],
-        [6, 3, 1, 5],
-      ]) {
-        const wall = Terrain.create('壁', width, depth, 1, 'stone', 'slab');
-        wall.location = { name: 'table', x: col * GRID, y: row * GRID };
-        table.appendChild(wall);
-      }
-      const giant = GameCharacter.create('巨竜', 3, '');
-      giant.location = { name: 'table', x: 3 * GRID, y: 3 * GRID };
-      lookOutOf(pieceAt(4, 7));
-
-      const grid = cellGridOf(table.width, table.height, GRID, GridType.SQUARE);
-      const view = element(mount());
-      const ceilingOver = (col: number, row: number) =>
-        view.querySelector<HTMLElement>(`[data-quad="ceiling"][data-cell="${cellIndexOf(grid, col, row)}"]`)!;
-
-      const raisedPx = `${(3 * GRID + GRID / 2) * scaleOf(GRID)}px`;
-      expect(ceilingOver(4, 5).style.transform).toContain(`, ${raisedPx})`);
-      expect(ceilingOver(5, 6).style.transform).toContain(`, ${raisedPx})`);
-    });
-
     it('leaves the scene be when a piece under a raised roof changes without raising it any further', () => {
       for (const [col, row, width, depth] of [
         [2, 2, 5, 1],
@@ -1067,31 +853,15 @@ describe('FirstPersonViewComponent', () => {
       giant.location = { name: 'table', x: 3 * GRID, y: 3 * GRID };
       lookOutOf(pieceAt(4, 7));
       const fixture = mount();
-      const quads = () => (fixture.componentInstance as unknown as { quads(): unknown[] }).quads();
-      const before = quads();
+      const ceilings = () => (fixture.componentInstance as unknown as { ceilings(): unknown[] }).ceilings();
+      const before = ceilings();
+      expect(before.length).toBeGreaterThan(0);
 
       giant.rotate = 90;
       TestBed.inject(ObjectChangeService).notifyChanged(giant.identifier);
       fixture.detectChanges();
 
-      expect(quads()).toBe(before);
-    });
-
-    it('stands a piece smaller than a cell in the middle of its cell, as small as it is on the table', () => {
-      const small = pieceAt(4, 4);
-      small.size = 0.5;
-      const one = pieceAt(5, 4);
-      lookOutOf(pieceAt(4, 9));
-      const view = element(mount());
-      const billboardOf = (piece: GameCharacter) =>
-        view.querySelector<HTMLElement>(`[data-piece="${piece.identifier}"]`)!;
-      const chromeOf = (piece: GameCharacter) =>
-        billboardOf(piece).querySelector<HTMLElement>('[data-testid="first-person-piece-chrome"]')!;
-
-      expect(billboardOf(small).style.transform).toContain(`translate3d(${4.5 * GRID * scaleOf(GRID)}px,`);
-      expect(parseFloat(billboardOf(small).style.width)).toBeCloseTo(0.5 * GRID * scaleOf(GRID), 1);
-      expect(parseFloat(chromeOf(small).style.width)).toBeCloseTo(parseFloat(chromeOf(one).style.width), 1);
-      expect(parseFloat(chromeOf(small).style.width)).toBeGreaterThan(GRID * scaleOf(GRID));
+      expect(ceilings()).toBe(before);
     });
 
     it('keeps what is told about a great piece as wide as for a piece of one cell', () => {
@@ -1223,86 +993,6 @@ describe('FirstPersonViewComponent', () => {
     });
   });
 
-  describe('the light falling on the ground', () => {
-    function veilOf(view: HTMLElement, col: number, row: number): number {
-      const grid = cellGridOf(table.width, table.height, GRID, GridType.SQUARE);
-      const quad = view.querySelector<HTMLElement>(`[data-quad="floor"][data-cell="${cellIndexOf(grid, col, row)}"]`)!;
-      return Number(/rgba\(0, 0, 0, ([0-9.]+)\)/.exec(quad.style.backgroundImage)![1]);
-    }
-
-    it('draws ground a lamp lights brighter than ground as far off that it does not', () => {
-      table.darknessEnabled = true;
-      table.globalIllumination = 0;
-      const lamp = LightSource.create('灯り');
-      lamp.location = { name: 'table', x: 3 * GRID, y: 4 * GRID };
-      lamp.lightBrightRadius = 0.5;
-      lamp.lightDimRadius = 1;
-      table.appendChild(lamp);
-      TestBed.inject(ObjectChangeService).notifyChanged(table.identifier);
-      PeerCursor.myCursor.role = PeerRole.GameMaster;
-      lookOutOf(pieceAt(4, 7));
-
-      const view = element(mount());
-
-      expect(veilOf(view, 3, 4)).toBeLessThan(veilOf(view, 5, 4));
-    });
-  });
-
-  describe('ground the party only remembers', () => {
-    function inTheDarkWithALampAt(col: number, row: number): void {
-      table.darknessEnabled = true;
-      table.globalIllumination = 0;
-      table.fogEnabled = true;
-      const memory = new FogMemory();
-      memory.initialize();
-      table.appendChild(memory);
-      const grid = cellGridOf(table.width, table.height, GRID, GridType.SQUARE);
-      const walked = new CellBits(grid.cols * grid.rows);
-      for (let cell = 0; cell < walked.count; cell++) walked.set(cell);
-      memory.write(grid, walked);
-      const lamp = LightSource.create('灯り');
-      lamp.location = { name: 'table', x: col * GRID, y: row * GRID };
-      lamp.lightBrightRadius = 2;
-      lamp.lightDimRadius = 2;
-      table.appendChild(lamp);
-      TestBed.inject(ObjectChangeService).notifyChanged(table.identifier);
-    }
-
-    function floorAt(view: HTMLElement, col: number, row: number): HTMLElement {
-      const grid = cellGridOf(table.width, table.height, GRID, GridType.SQUARE);
-      return view.querySelector<HTMLElement>(`[data-quad="floor"][data-cell="${cellIndexOf(grid, col, row)}"]`)!;
-    }
-
-    function veils(quad: HTMLElement): number {
-      return quad.style.backgroundImage.split('linear-gradient').length - 1;
-    }
-
-    it('draws it behind a veil, and the ground in sight without one', () => {
-      inTheDarkWithALampAt(4, 7);
-      lookOutOf(pieceAt(4, 7, 90));
-
-      const view = element(mount());
-      const lit = floorAt(view, 5, 7);
-      const remembered = floorAt(view, 7, 7);
-
-      expect(lit).not.toBeNull();
-      expect(remembered).not.toBeNull();
-      expect(lit.hasAttribute('data-remembered')).toBe(false);
-      expect(remembered.getAttribute('data-remembered')).toBe('true');
-      expect(veils(remembered)).toBe(veils(lit) + 1);
-      expect(remembered.style.backgroundImage).toContain(`rgba(0, 0, 0, ${FOG_VEIL_ALPHA})`);
-    });
-
-    it('leaves every quad unveiled on a table nobody has to remember', () => {
-      lookOutOf(pieceAt(4, 7, 90));
-
-      const quads = Array.from(element(mount()).querySelectorAll('[data-quad]'));
-
-      expect(quads.length).toBeGreaterThan(0);
-      expect(quads.some((quad) => quad.hasAttribute('data-remembered'))).toBe(false);
-    });
-  });
-
   describe('what a piece in the view carries', () => {
     function enemyWithGauges(count: number): GameCharacter {
       const enemy = pieceAt(4, 4);
@@ -1366,56 +1056,6 @@ describe('FirstPersonViewComponent', () => {
     expect(TestBed.inject(SelectionSignalService).selectedObject()?.identifier).toBe(viewer.identifier);
   });
 
-  describe('while the view glides to where the piece now faces', () => {
-    const grid = cellGridOf(12, 12, GRID, GridType.SQUARE);
-
-    beforeEach(() => {
-      TestBed.inject(MotionService).setting.set('on');
-    });
-
-    function drawsCell(fixture: ComponentFixture<FirstPersonViewComponent>, col: number, row: number): boolean {
-      return element(fixture).querySelector(`[data-cell="${cellIndexOf(grid, col, row)}"]`) !== null;
-    }
-
-    it('goes on drawing the ground it is turning away from', async () => {
-      vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 0);
-      corridor();
-      lookOutOf(pieceAt(4, 7));
-      const fixture = mount();
-      expect(drawsCell(fixture, 4, 3)).toBe(true);
-
-      await TestBed.inject(FirstPersonService).turn(1);
-      fixture.detectChanges();
-
-      expect(drawsCell(fixture, 4, 3)).toBe(true);
-    });
-  });
-
-  describe('range areas on the floor', () => {
-    function rangeAt(col: number, row: number): RangeArea {
-      const range = RangeArea.create('範囲', 1, 1, 50);
-      range.type = 'CIRCLE';
-      range.location = { name: 'table', x: col * GRID, y: row * GRID };
-      return range;
-    }
-
-    it('lays a range ahead of the piece on the floor', () => {
-      corridor();
-      lookOutOf(pieceAt(4, 7));
-      rangeAt(4, 4);
-
-      expect(element(mount()).querySelectorAll('[data-range] first-person-range')).toHaveLength(1);
-    });
-
-    it('leaves out a range behind the piece', () => {
-      corridor();
-      lookOutOf(pieceAt(4, 7));
-      rangeAt(4, 11);
-
-      expect(element(mount()).querySelectorAll('[data-range]')).toHaveLength(0);
-    });
-  });
-
   describe('water', () => {
     function pond(col: number, row: number, cols: number, rows: number, surfaceCells: number): TableAmbience {
       const area = TableAmbience.create('池', 'water', cols, rows);
@@ -1438,65 +1078,6 @@ describe('FirstPersonViewComponent', () => {
         screenWeather(): { current?: { across: number; toward: number } | null } | undefined;
       };
     }
-
-    it('lays the surface of a pond ahead over its floor, seen from above', async () => {
-      pond(3, 2, 3, 3, 0.3);
-      lookOutOf(pieceAt(4, 7));
-      await settled();
-
-      const fixture = mount();
-      const quads = Array.from(element(fixture).querySelectorAll<HTMLElement>('[data-water-quad]'));
-
-      expect(quads.length).toBeGreaterThan(0);
-      expect(quads.every((quad) => !quad.style.transform.includes('rotateX(180deg)'))).toBe(true);
-      expect(inside(fixture).skyGradient()).not.toContain('color-mix');
-    });
-
-    it('lays a pond ahead where it lies however far off the board other water is laid', async () => {
-      pond(3, 2, 3, 3, 0.3);
-      lookOutOf(pieceAt(4, 7));
-      await settled();
-      const fixture = mount();
-      const transforms = () =>
-        Array.from(element(fixture).querySelectorAll<HTMLElement>('[data-water-quad]')).map(
-          (quad) => quad.style.transform
-        );
-      const before = transforms();
-
-      pond(-7, -5, 2, 2, 0.3);
-      await settled();
-      fixture.detectChanges();
-      await fixture.whenStable();
-
-      expect(before.length).toBeGreaterThan(0);
-      expect(transforms()).toEqual(expect.arrayContaining(before));
-    });
-
-    it('turns the view to the depths for an eye under the surface', async () => {
-      pond(2, 4, 5, 6, 2);
-      lookOutOf(pieceAt(4, 7));
-      await settled();
-
-      const fixture = mount();
-      const view = element(fixture);
-      const quads = Array.from(view.querySelectorAll<HTMLElement>('[data-water-quad]'));
-
-      expect(inside(fixture).skyGradient()).toContain('color-mix');
-      expect(quads.some((quad) => quad.style.transform.includes('rotateX(180deg)'))).toBe(true);
-      const floor = view.querySelector<HTMLElement>('[data-quad="floor"]')!;
-      expect(floor.style.backgroundImage).not.toContain('rgba(0, 0, 0,');
-    });
-
-    it('keeps the air for an eye over the water of the pond it wades in', async () => {
-      pond(2, 4, 5, 6, 0.4);
-      lookOutOf(pieceAt(4, 7));
-      await settled();
-
-      const fixture = mount();
-      expect(inside(fixture).skyGradient()).not.toContain('color-mix');
-      const floor = element(fixture).querySelector<HTMLElement>('[data-quad="floor"]')!;
-      expect(floor.style.backgroundImage).toContain('rgba(0, 0, 0,');
-    });
 
     it('fades a piece far off into murky water around the eye, and leaves it alone in the air', async () => {
       pond(0, 0, 12, 12, 2).turbidity = 0.9;
@@ -1559,42 +1140,6 @@ describe('FirstPersonViewComponent', () => {
       const box = element(mount()).querySelector<HTMLElement>(`[data-piece="${far.identifier}"]`);
       expect(box).not.toBeNull();
       expect(box?.style.opacity).toBe('');
-    });
-
-    it('shows the leaves floating on a pond from above it, and not from under it', async () => {
-      // The leaves are drawn on a canvas the test runtime cannot draw on; a stand-in that takes every call lets them be laid.
-      const anything: () => unknown = () => ({ addColorStop: () => undefined });
-      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
-        new Proxy({}, { get: () => anything, set: () => true }) as never
-      );
-      vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,AAAA');
-      const leavesOn = (view: HTMLElement) =>
-        Array.from(view.querySelectorAll<HTMLElement>('[data-water-quad]')).some((quad) =>
-          quad.style.backgroundImage.includes('data:image/png')
-        );
-
-      const shallow = pond(2, 4, 5, 6, 0.4);
-      shallow.floatingLeaves = 0.6;
-      lookOutOf(pieceAt(4, 7));
-      await settled();
-      expect(leavesOn(element(mount()))).toBe(true);
-
-      shallow.surfaceHeight = 2;
-      await settled();
-      expect(leavesOn(element(mount()))).toBe(false);
-    });
-
-    it('draws the part of a piece in the water under the surface in the colour of the water', async () => {
-      pond(3, 2, 3, 3, 0.5);
-      const wader = pieceAt(4, 3);
-      const dry = pieceAt(5, 5);
-      lookOutOf(pieceAt(4, 7));
-      await settled();
-
-      const views = inside(mount()).pieceViews();
-
-      expect(views.find((view) => view.id === wader.identifier)?.water).toBeTruthy();
-      expect(views.find((view) => view.id === dry.identifier)?.water).toBeNull();
     });
   });
 
@@ -1689,53 +1234,6 @@ describe('FirstPersonViewComponent', () => {
 
       expect(gradient()).not.toBe(level);
       expect(gradient()).toContain('px');
-    });
-  });
-
-  describe('the beams lights throw', () => {
-    function spotlightAt(col: number, row: number): LightSource {
-      const lamp = LightSource.create('スポット');
-      lamp.location = { name: 'table', x: col * GRID, y: row * GRID };
-      lamp.lightAngle = 60;
-      lamp.lightPitch = -60;
-      lamp.lightDimRadius = 3;
-      table.appendChild(lamp);
-      TestBed.inject(ObjectChangeService).notifyChanged(table.identifier);
-      return lamp;
-    }
-
-    it('stands the beam of a light ahead, and none for a light behind the eye', () => {
-      spotlightAt(4, 3);
-      spotlightAt(4, 11);
-      lookOutOf(pieceAt(4, 7));
-
-      expect(element(mount()).querySelectorAll('[data-beam]').length).toBeGreaterThan(0);
-    });
-
-    it('stands none for a light hung behind the eye', () => {
-      spotlightAt(4, 11);
-      lookOutOf(pieceAt(4, 7));
-
-      expect(element(mount()).querySelectorAll('[data-beam]')).toHaveLength(0);
-    });
-  });
-
-  describe('the fog in the air', () => {
-    it('hangs no sheets over a table that keeps no fog', () => {
-      lookOutOf(pieceAt(4, 7));
-
-      expect(element(mount()).querySelectorAll('[data-fog-air]')).toHaveLength(0);
-    });
-
-    it('hangs every sheet over the room where the table keeps fog', () => {
-      table.fogEnabled = true;
-      const memory = new FogMemory();
-      memory.initialize();
-      table.appendChild(memory);
-      TestBed.inject(ObjectChangeService).notifyChanged(table.identifier);
-      lookOutOf(pieceAt(4, 7));
-
-      expect(element(mount()).querySelectorAll('[data-fog-air] first-person-fog-air')).toHaveLength(3);
     });
   });
 });

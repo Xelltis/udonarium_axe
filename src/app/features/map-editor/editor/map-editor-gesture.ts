@@ -7,7 +7,18 @@ import { ImageItem } from '@axe/domain/map-editor/scene';
  * eraser behaves differently against cells and against shapes.
  */
 export type GestureKind =
-  'none' | 'select' | 'paint' | 'vectorErase' | 'fill' | 'box' | 'path' | 'stamp' | 'image' | 'freehand' | 'text';
+  | 'none'
+  | 'select'
+  | 'paint'
+  | 'vectorErase'
+  | 'fill'
+  | 'box'
+  | 'path'
+  | 'stamp'
+  | 'image'
+  | 'freehand'
+  | 'text'
+  | 'relief';
 
 /**
  * One gesture, from press to release.

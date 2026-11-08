@@ -313,4 +313,29 @@ describe('ChatLineEditorComponent handing its plain box over to the editor', () 
       }
     });
   });
+
+  it('marks no portrait that ends the line as doing nothing there, a line rewritten carrying none out', async () => {
+    TestBed.configureTestingModule({
+      imports: [ChatLineEditorComponent],
+      providers: [
+        ...TEST_PROVIDERS,
+        { provide: CHAT_EDITOR_LOADER, useValue: () => import('@axe/features/chat/chat-editor/chat-editor') },
+      ],
+    });
+    const fixture = TestBed.createComponent(ChatLineEditorComponent);
+    fixture.componentRef.setInput('draft', 'またね @アリス');
+    const element = fixture.nativeElement as HTMLElement;
+    fixture.detectChanges();
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      TestBed.tick();
+      expect(element.querySelector('[data-chip="portrait"]')).not.toBeNull();
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    fixture.detectChanges();
+
+    expect(element.querySelector('.chat-chip-idle')).toBeNull();
+    fixture.destroy();
+  });
 });

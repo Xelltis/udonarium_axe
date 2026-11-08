@@ -36,7 +36,7 @@ import {
   secretRollMatch,
 } from '@axe/domain/dice/dice-roll-line';
 import { DiceTable } from '@axe/domain/dice/dice-table';
-import { rollTargetSuffix } from '@axe/domain/dice/roll-target-suffix';
+import { rollTargetSuffix, rollTogetherSuffix } from '@axe/domain/dice/roll-target-suffix';
 import { ServerRollRequests } from '@axe/domain/dice/server-roll-requests';
 import { GameSystemInfo } from 'bcdice/lib/bcdice/game_system_list.json';
 import GameSystemClass from 'bcdice/lib/game_system';
@@ -524,9 +524,9 @@ export class DiceBot extends GameObject {
       // A room server rolls the dice itself, so that nobody can change what they showed; a line too
       // long for it to take is rolled here, as without one, and so is a line said to a table cut off
       // from the room, as while a replay's board is shown, where the server's answer would never come.
+      const aimedAt = rolledAtSuffixOf(data.messageTarget);
       if (getAuthorityPeerId() && !isNetworkIsolated() && text.length <= MAX_ROLL_COMMAND_LENGTH) {
-        const target = data.messageTarget?.object;
-        this.askServerToRoll(text, gameSystem.ID, chatMessage, target ? rollTargetSuffix(target.name) : undefined);
+        this.askServerToRoll(text, gameSystem.ID, chatMessage, aimedAt);
         return;
       }
 
@@ -539,15 +539,7 @@ export class DiceBot extends GameObject {
         return;
       }
 
-      if (data.messageTarget) {
-        if (data.messageTarget.object) {
-          this.sendResultMessage(rollResult, chatMessage, ` [${data.messageTarget.object.name}]`);
-        } else {
-          this.sendResultMessage(rollResult, chatMessage);
-        }
-      } else {
-        this.sendResultMessage(rollResult, chatMessage);
-      }
+      this.sendResultMessage(rollResult, chatMessage, aimedAt);
     } catch (e) {
       Logger.error('[DiceBot] ダイスコマンド処理エラー', e);
     }
@@ -692,4 +684,14 @@ export class DiceBot extends GameObject {
     this.cleanups = [];
     this.serverRolls.clear();
   }
+}
+
+/**
+ * Who a roll is made at, as written after its answer, with or without a room server: the target's
+ * name, or as many of the names of everyone a line is aimed at all at once as a server takes, each
+ * with no brackets that would end the list early; none for a roll made at nobody.
+ */
+function rolledAtSuffixOf(target: SendMessageEvent['messageTarget'] | undefined): string | undefined {
+  if (target?.together && target.together.length > 0) return rollTogetherSuffix(target.together);
+  return target?.object ? rollTargetSuffix(target.object.name) : undefined;
 }

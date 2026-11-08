@@ -1,16 +1,14 @@
 import { TestBed } from '@angular/core/testing';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TabletopActionService } from '@axe/application/tabletop/tabletop-action.service';
 import { type ImageDroppedEvent } from '@axe/core/event/domain-events';
 import { EventChannel } from '@axe/core/event/event-channel';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
-import {
-  ImageDropEventHandlerService,
-  isTabletopDropTarget,
-} from '@axe/features/tabletop/image-drop/image-drop-event-handler.service';
+import { ImageDropEventHandlerService } from '@axe/features/tabletop/image-drop/image-drop-event-handler.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+import { isTabletopDropTarget } from '@axe/ui/tabletop/table-drop-target';
 
 describe('isTabletopDropTarget', () => {
   afterEach(() => {
@@ -50,7 +48,7 @@ describe('ImageDropEventHandlerService', () => {
         ...TEST_PROVIDERS,
         { provide: ObjectChangeService, useValue: { imageDropped$ } },
         { provide: TabletopActionService, useValue: { createGameCharacterWith } },
-        { provide: CoordinateService, useValue: { calcTabletopLocalCoordinate: () => localCoordinate } },
+        { provide: TablePickService, useValue: { landingAt: () => localCoordinate } },
         { provide: TableSelecter, useValue: { viewTable: { width: 20, height: 20, gridSize: 50 } } },
         {
           provide: RolePermissionService,

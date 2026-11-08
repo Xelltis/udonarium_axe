@@ -36,6 +36,18 @@ describe('buildFieldSummary()', () => {
     expect([...shares].sort((a, b) => b - a)).toEqual(shares);
   });
 
+  it('names a band by what it is, not by the ground laid under its water', () => {
+    const { plan, text } = summarise('marsh');
+    const line = text.split('\n')[1];
+    const names = [...line.matchAll(/(\w+) \d+%/g)].map((match) => match[1]);
+
+    expect(
+      plan.blocks.paint.some((patch) => patch.material?.kind === 'texture' && patch.material.id === 'shallows')
+    ).toBe(false);
+    expect(names).toContain('shallows');
+    expect(new Set(names).size).toBe(names.length);
+  });
+
   it('counts what stands on it and says where anything is burning', () => {
     const { plan, text } = summarise();
     const trees = plan.layout.props.filter((prop) => prop === 'tree').length;

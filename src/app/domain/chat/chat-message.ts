@@ -30,6 +30,11 @@ function isPositiveTime(value: unknown): boolean {
 export interface ChatMessageTargetContext {
   text: string;
   object: GameCharacter | null;
+  /**
+   * The names of everyone a line is aimed at all at once, as `t:範囲` aims it, who share the one roll
+   * made for it; none for a line aimed at each target in turn, or at nobody.
+   */
+  together?: readonly string[];
 }
 
 export interface ChatMessageContext {
@@ -59,6 +64,8 @@ export interface ChatMessageContext {
   stamp?: string;
   diceLook?: string;
   diceImageIdentifier?: string;
+  answersTargetNumber?: string;
+  aimedTogether?: string;
 }
 
 @SyncObject('chat')
@@ -107,6 +114,22 @@ export class ChatMessage extends ObjectNode implements ChatMessageContext {
    * nothing to say about its speaker, and reads back empty.
    */
   @SyncVar() senderRole: string;
+  /**
+   * `'1'` where the line was said with a number to beat filled in for its `{目標値}`: a roll made to
+   * beat what somebody else rolled, as a resistance is, which is nobody else's number to beat.
+   *
+   * Left without an initialiser, as `vnEmote` is: only such a line writes it, and a line of a room
+   * or a version that never wrote one reads back empty, which is no such line.
+   */
+  @SyncVar() answersTargetNumber: string;
+  /**
+   * The identifiers of the pieces the line was aimed at all at once, as `t:範囲` aims it, written as a
+   * JSON list: whoever its one answer was rolled at, however many names its brackets could hold.
+   *
+   * Left without an initialiser, as `answersTargetNumber` is: a line aimed at each target in turn,
+   * or at nobody, and a line of a room or a version that never wrote one, read back empty.
+   */
+  @SyncVar() aimedTogether: string;
   @SyncVar() messColor: string;
   /** The bubble the sender asked for on each theme. Empty is worked out from the colour. */
   @SyncVar() messBubbleLight: string = '';

@@ -4,6 +4,8 @@ import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TabletopOverlapRegistryEntry, TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { GROUND_CHUNK_SAMPLE_COUNT } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { ensureGroundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
 import { TableSurface, TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -212,6 +214,26 @@ describe('applying gravity through the spatial index', () => {
     applyNow(svc);
 
     expect(char.object.posZ).toBe(2 * 50);
+  });
+
+  it('writes the height the blocks hold a piece at, whatever the raised ground under it, as an older build does', () => {
+    const table = new GameTable();
+    table.width = 10;
+    table.height = 10;
+    table.gridSize = 50;
+    table.initialize();
+    TestBed.inject(TabletopService).tableSelecter.viewTableIdentifier = table.identifier;
+    const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT).fill(3 * 64);
+    ensureGroundFieldOn(table).writeChunk({ cx: 0, cy: 0, heights, paint: null });
+    const base = makeTerrain({ x: 0, y: 0, w: 4, d: 4, h: 2, identifier: 'base' });
+    const onBlock = makeCharacter({ x: 50, y: 50, posZ: 300 });
+    const onGround = makeCharacter({ x: 300, y: 300, posZ: 0 });
+    const svc = setup([base, onBlock, onGround]);
+
+    applyNow(svc);
+
+    expect(onBlock.object.posZ).toBe(2 * 50);
+    expect(onGround.object.posZ).toBe(0);
   });
 
   it('drops a character onto terrain drawn together with others, in no element of its own', () => {

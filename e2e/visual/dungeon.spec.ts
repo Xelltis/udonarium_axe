@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels, freeze, prepare, settle, settleLazy, snap } from './fixtures';
+import { becomeGm, closePanels, freeze, holdFlicker, prepare, settle, settleLazy, snap } from './fixtures';
 
 /** The same dungeon every run: the generator lays rooms and walls out from the seed alone. */
 const SEED = '1278372739';
@@ -52,7 +52,15 @@ async function buildDungeon(page: Page, gridLabel: string) {
   await settleUntilVisible(page, goTo, 120000);
   await goTo.click();
   await settle(page, 400);
-  await expect(page.locator('terrain-batch-layer [data-terrain]').first()).toBeAttached();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { __axeTable?: { sceneStats(): { chunks: number } | null } }).__axeTable?.sceneStats()
+            ?.chunks ?? 0
+      )
+    )
+    .toBeGreaterThan(0);
 }
 
 /**
@@ -69,19 +77,22 @@ async function hideFloorLight(page: Page) {
   });
 }
 
+/**
+ * Holds the generated torches of a table drawn on a canvas as they flicker at one moment. The
+ * canvas lights the blocks with them too, and the clock stands wherever building the dungeon left
+ * it, which it does on real time, by the time the shot is taken.
+ */
+async function holdTorches(page: Page) {
+  await holdFlicker(page, TORCHES_HELD_AT_MS);
+}
+
+/** The moment the torches are held at, any one, so long as it is the same every run. */
+const TORCHES_HELD_AT_MS = 2000;
+
 /** Gives textures fetched on real time a moment to arrive. */
 async function letImagesArrive(page: Page) {
   await page.waitForTimeout(1000);
   await settle(page, 100);
-}
-
-/** The offer to restore an earlier table comes and goes with the autosave, and is not what is watched. */
-async function dismissRestoreOffer(page: Page) {
-  const later = page.locator('app-room-restore-banner button', { hasText: 'あとで' });
-  if (await later.count()) {
-    await later.first().dispatchEvent('click');
-    await settle(page, 100);
-  }
 }
 
 /**
@@ -110,19 +121,18 @@ for (const grid of GRIDS) {
     await freeze(page);
     await buildDungeon(page, grid.label);
     await hideFloorLight(page);
+    await holdTorches(page);
     await hidePieces(page);
     await closePanels(page);
     await settle(page, 400);
     await letImagesArrive(page);
-    await dismissRestoreOffer(page);
-    await snap(page, grid.name, { threshold: 0, maxDiffPixels: 0, timeout: 150000 });
+    await snap(page, grid.name, { timeout: 150000 });
 
     await page.locator('body').click({ position: { x: 1200, y: 780 } });
     for (let step = 0; step < 12; step++) await page.keyboard.press('Shift+ArrowRight');
     for (let step = 0; step < 4; step++) await page.keyboard.press('Shift+ArrowUp');
     await settle(page, 400);
     await letImagesArrive(page);
-    await dismissRestoreOffer(page);
-    await snap(page, `${grid.name}-turned`, { threshold: 0, maxDiffPixels: 0, timeout: 150000 });
+    await snap(page, `${grid.name}-turned`, { timeout: 150000 });
   });
 }

@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { BundledModelIntakeService } from '@axe/application/tabletop/bundled-model-intake.service';
 import { FunctionalPaintService } from '@axe/application/tabletop/functional-paint.service';
 import { createScene } from '@axe/domain/map-editor/scene';
 import { serializeScene } from '@axe/domain/map-editor/serialize';
@@ -62,14 +63,58 @@ describe('MapEditorFilesService', () => {
     vi.spyOn(paint, 'snapshot').mockReturnValue(null);
 
     expect(await files.bringInTable(() => Promise.resolve(true))).toBe('noTable');
-    expect(files.applyFunctions()).toBe('noTable');
+    await expect(files.applyFunctions()).resolves.toBe('noTable');
   });
 
-  it('lays nothing painted on a table of another size or grid', () => {
+  it('lays nothing painted on a table of another size or grid', async () => {
     vi.spyOn(paint, 'snapshot').mockReturnValue(table({ cols: 12 }));
     const apply = vi.spyOn(paint, 'apply');
 
-    expect(files.applyFunctions()).toBe('gridMismatch');
+    await expect(files.applyFunctions()).resolves.toBe('gridMismatch');
     expect(apply).not.toHaveBeenCalled();
+  });
+
+  describe('laying 3D objects painted', () => {
+    function paintObjects(): void {
+      state.functionRole.set('object');
+      state.paintFunctionCell(1, 1);
+      state.endGesture();
+    }
+
+    it('reads no model into the room for a table on another grid, or where there is no table', async () => {
+      paintObjects();
+      const read = vi.spyOn(TestBed.inject(BundledModelIntakeService), 'identifiersOf');
+      const snapshot = vi.spyOn(paint, 'snapshot').mockReturnValue(table({ cols: 12 }));
+
+      await expect(files.applyFunctions()).resolves.toBe('gridMismatch');
+      snapshot.mockReturnValue(null);
+      await expect(files.applyFunctions()).resolves.toBe('noTable');
+
+      expect(read).not.toHaveBeenCalled();
+    });
+
+    it('lays nothing at all where a model cannot be read, rather than taking the objects laid before away', async () => {
+      paintObjects();
+      vi.spyOn(TestBed.inject(BundledModelIntakeService), 'identifiersOf').mockResolvedValue(
+        new Map([['tree_oak', '']])
+      );
+      vi.spyOn(paint, 'snapshot').mockReturnValue(table());
+      const apply = vi.spyOn(paint, 'apply');
+
+      await expect(files.applyFunctions()).resolves.toBe('modelMissing');
+      expect(apply).not.toHaveBeenCalled();
+    });
+
+    it('lays the objects drawn as the model the room holds them under', async () => {
+      paintObjects();
+      vi.spyOn(TestBed.inject(BundledModelIntakeService), 'identifiersOf').mockResolvedValue(
+        new Map([['tree_oak', 'held-oak']])
+      );
+      vi.spyOn(paint, 'snapshot').mockReturnValue(table());
+      const apply = vi.spyOn(paint, 'apply').mockReturnValue(true);
+
+      await expect(files.applyFunctions()).resolves.toBe('done');
+      expect(apply.mock.calls[0][0].terrain.add.every((block) => block.spec.model === 'held-oak')).toBe(true);
+    });
   });
 });

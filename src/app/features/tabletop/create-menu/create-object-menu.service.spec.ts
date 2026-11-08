@@ -57,6 +57,21 @@ describe('CreateObjectMenuService', () => {
   });
 
   describe('the range create menu', () => {
+    it('offers every shape a range is made in, by name', () => {
+      const listed = entryIn(menu.menuAt({ x: 0, y: 0, z: 0 }), '射程範囲を作成');
+
+      expect(listed?.subActions?.map((entry) => entry.name)).toEqual([
+        '直線',
+        'コーン',
+        '三角形',
+        '四角形・ダイヤ',
+        '五角形',
+        '六角形',
+        '円形',
+        '任意マス',
+      ]);
+    });
+
     it('makes the square as a diamond or square to the grid, from under the square', () => {
       const listed = entryIn(menu.menuAt({ x: 0, y: 0, z: 0 }), '射程範囲を作成');
       const square = listed?.subActions?.find((entry) => entry.name === '四角形・ダイヤ');

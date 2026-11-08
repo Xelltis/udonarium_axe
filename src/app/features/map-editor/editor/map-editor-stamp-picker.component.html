@@ -51,25 +51,33 @@
   }
   <label class="flex items-center justify-between gap-2">
     <span class="text-ui-muted">{{ 'feature.mapEditor.props.stampSize' | transloco }}</span>
-    <input
-      type="range"
-      min="16"
-      max="256"
-      step="8"
-      [ngModel]="state.stampSize()"
-      (ngModelChange)="state.stampSize.set($event)"
-    />
+    <span class="flex items-center gap-1">
+      <input
+        class="w-24"
+        type="range"
+        min="16"
+        max="256"
+        step="8"
+        [ngModel]="state.stampSize()"
+        (ngModelChange)="state.stampSize.set($event)"
+      />
+      <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums">{{ state.stampSize() }}px</span>
+    </span>
   </label>
   <label class="flex items-center justify-between gap-2">
     <span class="text-ui-muted">{{ 'feature.mapEditor.props.stampRotation' | transloco }}</span>
-    <input
-      type="range"
-      min="0"
-      max="360"
-      step="15"
-      [ngModel]="state.stampRotation()"
-      (ngModelChange)="state.stampRotation.set($event)"
-    />
+    <span class="flex items-center gap-1">
+      <input
+        class="w-24"
+        type="range"
+        min="0"
+        max="360"
+        step="15"
+        [ngModel]="state.stampRotation()"
+        (ngModelChange)="state.stampRotation.set($event)"
+      />
+      <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums">{{ state.stampRotation() }}°</span>
+    </span>
   </label>
   <div class="flex items-center gap-3">
     <label class="flex items-center gap-1">

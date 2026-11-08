@@ -7,9 +7,11 @@ import { ObjectChangeService } from '@axe/application/sync/object-change.service
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { LocalModePreferenceService } from '@axe/application/ui/local-mode-preference.service';
 import { ModalService } from '@axe/application/ui/modal.service';
+import { loadConfig$ } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
 import { setNetworkIsolated } from '@axe/core/network/network-isolation';
 import { localDispatch } from '@axe/core/network/network-messaging';
+import { pageActivity } from '@axe/core/network/server/page-activity';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { hasChosenIconByHand, noteIconChosenByHand } from '@axe/core/storage/icon-chosen-by-hand';
 import { loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
@@ -515,7 +517,7 @@ describe('PeerMenuComponent', () => {
       const root = fixture.nativeElement as HTMLElement;
       expect(root.querySelector('[data-testid="peer-menu-server-role"]')).toBeNull();
 
-      TestBed.inject(ObjectChangeService).loadConfig$.emit({ config: { transport: 'server' } });
+      loadConfig$.emit({ config: { transport: 'server' } });
       fixture.detectChanges();
 
       expect(root.querySelector('[data-testid="peer-menu-server-role"]')).not.toBeNull();
@@ -697,6 +699,75 @@ describe('PeerMenuComponent', () => {
     });
   });
 
+  describe('when each of the others last answered, in a room on a room server', () => {
+    let other: PeerCursor;
+
+    beforeEach(() => {
+      vi.useFakeTimers({ now: new Date('2026-11-07T21:30:00'), toFake: ['Date', 'setInterval', 'clearInterval'] });
+      vi.spyOn(Network.instance, 'transport', 'get').mockReturnValue('server');
+      vi.spyOn(Network.instance, 'peerContext', 'get').mockReturnValue({
+        peerId: 'my-peer-id',
+        userId: 'my-user',
+        roomId: 'Ab3',
+        roomName: '卓',
+        isRoom: true,
+        isOpen: true,
+        password: '',
+        hasPassword: false,
+      } as never);
+      vi.spyOn(Network.instance, 'isOpen', 'get').mockReturnValue(true);
+      vi.spyOn(Network.instance, 'peerContexts', 'get').mockReturnValue([
+        { peerId: 'other-peer', isOpen: true },
+      ] as never);
+      PeerCursor.createMyCursor();
+      other = new PeerCursor();
+      other.peerId = 'other-peer';
+      other.name = '葵';
+      other.initialize();
+      other.timestampReceive = 1;
+      other.timeLatency = 99999;
+    });
+
+    afterEach(() => {
+      fixture.destroy();
+      other.destroy();
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
+    it('shows when the server last heard from them, and no round trip of the heartbeats it does not send', () => {
+      vi.spyOn(Network.instance, 'heardAt').mockImplementation((peerId) =>
+        peerId === 'other-peer' ? new Date('2026-11-07T21:29:48').getTime() : null
+      );
+      fixture = TestBed.createComponent(PeerMenuComponent);
+      component = fixture.componentInstance;
+      component.dispDetailFlag.set(true);
+      fixture.detectChanges();
+
+      const root = fixture.nativeElement as HTMLElement;
+      expect(root.textContent).toContain('21:29:48');
+      expect(root.textContent).not.toContain('[-:--:--]');
+      expect(root.textContent).not.toContain('99.999');
+      expect(component.findPeerTimeReceive('nobody')).toBe(0);
+    });
+
+    it('asks the server while the panel is open, and stops once it closes', () => {
+      vi.spyOn(Network.instance, 'authorityPeerId', 'get').mockReturnValue('@authority');
+      vi.spyOn(Network.instance, 'isAuthorityOpen', 'get').mockReturnValue(true);
+      vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+      pageActivity.noteInput();
+      const ask = vi.spyOn(Network.instance, 'askSeen');
+      const watch = vi.spyOn(Network.instance, 'watchLink');
+      fixture = TestBed.createComponent(PeerMenuComponent);
+      fixture.detectChanges();
+      expect(ask).toHaveBeenCalledTimes(1);
+      expect(watch).toHaveBeenLastCalledWith(true);
+
+      fixture.destroy();
+      expect(watch).toHaveBeenLastCalledWith(false);
+    });
+  });
+
   describe('findPeerTimeLatency', () => {
     it('returns the latency of a peer in seconds', () => {
       const cursor = new PeerCursor();
@@ -848,6 +919,50 @@ describe('PeerMenuComponent', () => {
       await component.chooseConnectionMode('online');
 
       expect(ask).not.toHaveBeenCalled();
+    });
+
+    it('writes the timeout typed in to this seat’s own cursor', async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const timeout = fixture.nativeElement.querySelector('input[name="peer-timeout"]') as HTMLInputElement;
+
+      timeout.value = '30';
+      timeout.dispatchEvent(new Event('input'));
+
+      expect(PeerCursor.myCursor.timeout).toBe(30);
+    });
+
+    it('turns the details of the others on and off from its box', async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const detail = () => fixture.nativeElement.querySelector('input[name="disp-detail-flag"]') as HTMLInputElement;
+      expect(detail().checked).toBe(false);
+
+      detail().click();
+      expect(component.dispDetailFlag()).toBe(true);
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+      detail().click();
+      expect(component.dispDetailFlag()).toBe(false);
+    });
+  });
+
+  describe('the seat’s own id', () => {
+    beforeEach(() => {
+      PeerCursor.createMyCursor();
+    });
+
+    it('is labelled, and reads ??? until the connection is open', () => {
+      vi.spyOn(Network, 'isOpen', 'get').mockReturnValue(false);
+      const t = TestBed.inject(TRANSLATE_FN);
+      fixture.detectChanges();
+
+      const row = [...(fixture.nativeElement as HTMLElement).querySelectorAll('div')].find(
+        (div) => div.firstElementChild?.textContent?.trim() === t('feature.lobby.peerMenu.id')
+      );
+      expect(row).toBeDefined();
+      expect(row!.textContent).toContain('???');
     });
   });
 });

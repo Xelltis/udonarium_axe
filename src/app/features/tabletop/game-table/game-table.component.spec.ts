@@ -1,44 +1,43 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CardTargetService } from '@axe/application/card/card-target.service';
+import { DiceRenderService } from '@axe/application/dice/dice-render.service';
+import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
 import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopDisplayService } from '@axe/application/tabletop/tabletop-display.service';
 import { BackdropFrameService } from '@axe/application/ui/backdrop-frame.service';
 import { ContextMenuAction, ContextMenuService, ContextMenuType } from '@axe/application/ui/context-menu.service';
 import { DisplayCalibrationService } from '@axe/application/ui/display-calibration.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
-import { MotionService } from '@axe/application/ui/motion.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
+import { TabletopOverlapService } from '@axe/application/ui/tabletop-overlap.service';
 import { ViewLockService } from '@axe/application/ui/view-lock.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
-import { PERF_HEX_MASK_SVG, perfCounters } from '@axe/core/util/perf-counters';
+import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
+import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { Party } from '@axe/domain/party/party';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
-import { GridType } from '@axe/domain/tabletop/game-table';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
-import { TableSurface } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
-import { WhiteBoard } from '@axe/domain/tabletop/white-board';
 import { GameTableComponent } from '@axe/features/tabletop/game-table/game-table.component';
+import { GridFaceCache } from '@axe/features/tabletop/game-table/grid-face-cache';
+import { TerrainMenuService } from '@axe/features/tabletop/terrain/terrain-menu.service';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
-import {
-  Z_OFFSET_BACKGROUND_LAYERS_PX,
-  Z_OFFSET_FOREGROUND_LAYERS_PX,
-  Z_OFFSET_MASK_PX,
-} from '@axe/ui/tabletop/z-offset';
 
 describe('GameTableComponent', () => {
   let component: GameTableComponent;
   let fixture: ComponentFixture<GameTableComponent>;
 
   beforeEach(async () => {
-    TestBed.configureTestingModule({
+    await TestBed.configureTestingModule({
       imports: [GameTableComponent],
       providers: [...TEST_PROVIDERS],
     }).compileComponents();
@@ -58,6 +57,30 @@ describe('GameTableComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('leaves the layer that draws effects out until an effect plays, and puts it in when one does', async () => {
+    fixture.detectChanges();
+    const overlay = () => (fixture.nativeElement as HTMLElement).querySelector('table-effect-overlay');
+    expect(overlay()).toBeNull();
+
+    const preset = new EffectPreset();
+    preset.durationMs = 600;
+    ObjectStore.instance.add(preset, false);
+    try {
+      TestBed.inject(EffectPlaybackService).play({
+        presetIdentifier: preset.identifier,
+        targets: [{ identifier: 'piece', x: 0, y: 0, z: 0 }],
+        seed: 1,
+      });
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(overlay()).not.toBeNull();
+    } finally {
+      ObjectStore.instance.remove(preset);
+    }
+  });
+
   it('holds its camera still while the first-person view is up, and lets it go after', () => {
     fixture.detectChanges();
     const piece = GameCharacter.create('コマ', 1, '');
@@ -73,334 +96,20 @@ describe('GameTableComponent', () => {
     expect(component.gestureService.suspended).toBe(false);
   });
 
-  describe('what drifts under the board', () => {
-    const layers = (): HTMLElement[] =>
-      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="background-layer"]'));
-    const surface = (): HTMLElement =>
-      (fixture.nativeElement as HTMLElement).querySelector('[data-testid="background-layers"]')
-        ?.nextElementSibling as HTMLElement;
-
-    /** Lays a picture under the board and reports it as measured, the way a load would. */
-    const lay = (
-      options: Partial<{
-        order: number;
-        speedX: number;
-        speedY: number;
-        enabled: boolean;
-        placement: string;
-        scale: number;
-        opacity: number;
-      }> = {}
-    ) => {
-      const layer = new TableBackgroundLayer();
-      layer.initialize();
-      layer.imageIdentifier = ImageStorage.instance.add('sky.png').identifier;
-      layer.order = options.order ?? 0;
-      layer.speedX = options.speedX ?? 0;
-      layer.speedY = options.speedY ?? 0;
-      if (options.enabled === false) layer.enabled = false;
-      if (options.placement) layer.placement = options.placement;
-      if (options.scale !== undefined) layer.scale = options.scale;
-      if (options.opacity !== undefined) layer.opacity = options.opacity;
-      component.currentTable.appendChild(layer);
-      return layer;
-    };
-
-    const measured = (layer: TableBackgroundLayer, width = 200, height = 100) => {
-      (
-        component as unknown as { onBackgroundLayerImageLoad(id: string, event: Event): void }
-      ).onBackgroundLayerImageLoad(layer.imageIdentifier, {
-        target: { naturalWidth: width, naturalHeight: height },
-      } as unknown as Event);
-    };
-
-    it('draws nothing while the table has laid nothing', () => {
-      fixture.detectChanges();
-
-      expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="background-layers"]')).toBeNull();
-    });
-
-    it('leaves out a layer that has been turned off', () => {
-      lay({ order: 0 });
-      lay({ order: 1, enabled: false });
-      fixture.detectChanges();
-
-      expect(layers()).toHaveLength(1);
-    });
-
-    it('sinks the whole run below the board, and says so once', () => {
-      lay();
-      fixture.detectChanges();
-
-      const wrapper = (fixture.nativeElement as HTMLElement).querySelector(
-        '[data-testid="background-layers"]'
-      ) as HTMLElement;
-
-      expect(wrapper.getAttribute('data-layer-depth')).toBe(`translateZ(${-Z_OFFSET_BACKGROUND_LAYERS_PX}px)`);
-      expect(layers().every((el) => el.getAttribute('data-layer-depth') === null)).toBe(true);
-    });
-
-    it('writes the furthest back first, since a flattened run paints in document order', () => {
-      const far = lay({ order: 0 });
-      const near = lay({ order: 1 });
-      fixture.detectChanges();
-
-      expect(component.underLayerViews().map((view) => view.identifier)).toEqual([far.identifier, near.identifier]);
-    });
-
-    it('leaves the drifting box unpromoted, since a drift that never ends promotes itself', () => {
-      const layer = lay({ speedX: 100 });
-      measured(layer);
-      fixture.detectChanges();
-
-      const boxes = (fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="background-layer-sheet"]');
-
-      expect(boxes).toHaveLength(1);
-      expect(Array.from(boxes).every((el) => !el.className.includes('will-change'))).toBe(true);
-    });
-
-    it('writes the drift onto the box itself, since a name that never lands stops it silently', () => {
-      const layer = lay({ speedX: 100, speedY: 40 });
-      measured(layer, 200, 100);
-      fixture.detectChanges();
-
-      const sheet = (fixture.nativeElement as HTMLElement).querySelector(
-        '[data-testid="background-layer-sheet"]'
-      ) as HTMLElement;
-
-      expect(sheet.style.getPropertyValue('--bg-layer-x-name')).toBe('bgLayerScrollX');
-      expect(sheet.style.getPropertyValue('--bg-layer-y-name')).toBe('bgLayerScrollY');
-      expect(sheet.style.getPropertyValue('--bg-layer-tile-w')).toBe('200px');
-      expect(sheet.style.getPropertyValue('--bg-layer-tile-h')).toBe('100px');
-    });
-
-    it('asks for one surface a layer, however many ways it drifts', () => {
-      const layer = lay({ speedX: 100, speedY: 40 });
-      measured(layer, 200, 100);
-      fixture.detectChanges();
-
-      const drifting = (fixture.nativeElement as HTMLElement).querySelectorAll('.bg-layer-drift');
-      const view = component.underLayerViews()[0];
-
-      expect(drifting).toHaveLength(1);
-      expect(view.style['--bg-layer-x-name']).toBe('bgLayerScrollX');
-      expect(view.style['--bg-layer-y-name']).toBe('bgLayerScrollY');
-    });
-
-    it('draws nothing for a layer that has no picture yet, and leaves the veil on', () => {
-      const layer = new TableBackgroundLayer();
-      layer.initialize();
-      component.currentTable.appendChild(layer);
-      fixture.detectChanges();
-
-      expect(layers()).toHaveLength(0);
-      expect(component.showsTableSurfaceVeil()).toBe(true);
-    });
-
-    it('stands still until the picture has been measured, rather than showing a seam', () => {
-      lay({ speedX: 100 });
-      fixture.detectChanges();
-
-      expect(component.underLayerViews()[0].drifts).toBe(false);
-    });
-
-    it('drifts by exactly one tile once the picture has been measured', () => {
-      const layer = lay({ speedX: 100 });
-      measured(layer, 200, 100);
-      fixture.detectChanges();
-
-      const view = component.underLayerViews()[0];
-
-      expect(view.drifts).toBe(true);
-      expect(view.style['--bg-layer-x-duration']).toBe('2s');
-      expect(view.style['--bg-layer-tile-w']).toBe('200px');
-    });
-
-    it('leaves an axis alone that was not asked to move', () => {
-      const layer = lay({ speedX: 100 });
-      measured(layer);
-      fixture.detectChanges();
-
-      const view = component.underLayerViews()[0];
-
-      expect(view.style['--bg-layer-x-name']).toBe('bgLayerScrollX');
-      expect(view.style['--bg-layer-y-name']).toBeUndefined();
-    });
-
-    it('runs the other way for a speed that is going backwards', () => {
-      const layer = lay({ speedY: -50 });
-      measured(layer, 200, 100);
-      fixture.detectChanges();
-
-      const view = component.underLayerViews()[0];
-
-      expect(view.style['--bg-layer-y-direction']).toBe('reverse');
-      expect(view.style['--bg-layer-y-duration']).toBe('2s');
-    });
-
-    it('holds still for a reader who has asked for less movement', () => {
-      const layer = lay({ speedX: 100 });
-      measured(layer);
-      // The choice is written down, so it has to be put back or the rest of the file inherits it.
-      const motion = TestBed.inject(MotionService);
-      motion.set('off');
-      try {
-        fixture.detectChanges();
-
-        expect(component.underLayerViews()[0].drifts).toBe(false);
-      } finally {
-        motion.set('auto');
-      }
-    });
-
-    it('lays the picture edge to edge both ways, since a drift is one tile passing', () => {
-      const layer = lay();
-      measured(layer);
-      fixture.detectChanges();
-
-      expect(component.underLayerViews()[0].style['background-repeat']).toBe('repeat');
-    });
-
-    it('reaches one tile past the board on the side the drift heads for, and nowhere else', () => {
-      const layer = lay({ speedX: 100 });
-      measured(layer, 200, 100);
-      fixture.detectChanges();
-
-      expect(component.underLayerViews()[0].style['inset']).toBe('0px -200px 0px 0px');
-    });
-
-    it('draws nothing for a layer that has been turned down to nothing', () => {
-      lay({ opacity: 0 });
-      fixture.detectChanges();
-
-      expect(layers()).toHaveLength(0);
-    });
-
-    it('holds a tile to the board, so the spare a drift needs cannot outgrow it', () => {
-      // Ten times a 200px picture is 2000px of tile, and a drift asks for a tile of spare cloth.
-      // Unheld, the sheet would reach 2000px past a board only 1000px across.
-      const table = component.currentTable;
-      table.width = 20;
-      table.height = 20;
-      table.gridSize = 50;
-      const layer = lay({ speedX: 100, scale: 10 });
-      measured(layer, 200, 100);
-      fixture.detectChanges();
-
-      const view = component.underLayerViews()[0];
-
-      // Two thousand by one thousand held to a board of a thousand square: the wide side is
-      // the tighter fit, so both sides come in by half and the picture keeps its shape.
-      expect(view.style['background-size']).toBe('1000px 500px');
-      expect(view.style['inset']).toBe('0px -1000px 0px 0px');
-    });
-
-    it('sits flush with the board while nothing drifts, so the pattern meets its corner', () => {
-      const layer = lay();
-      measured(layer, 200, 100);
-      fixture.detectChanges();
-
-      expect(component.underLayerViews()[0].style['inset']).toBe('0px 0px 0px 0px');
-    });
-
-    it('wears the same shape as the board, so a hex table keeps its outline', () => {
-      component.currentTable.gridType = GridType.HEX_VERTICAL;
-      lay();
-      fixture.detectChanges();
-
-      const wrapper = (fixture.nativeElement as HTMLElement).querySelector(
-        '[data-testid="background-layers"]'
-      ) as HTMLElement;
-
-      expect(wrapper.style.getPropertyValue('mask')).toBe(component.tableSurfaceStyle()['mask']);
-    });
-
-    it('takes the veil off the board, which would otherwise wash the layers out', () => {
-      expect(component.showsTableSurfaceVeil()).toBe(true);
-
-      lay();
-      fixture.detectChanges();
-
-      expect(component.showsTableSurfaceVeil()).toBe(false);
-      expect(surface().classList.contains('bg-white/15')).toBe(false);
-    });
-
-    it('leaves the veil on for a board with nothing under it, whatever is over it', () => {
-      lay({ placement: 'over' });
-      fixture.detectChanges();
-
-      expect(component.showsTableSurfaceVeil()).toBe(true);
-    });
-  });
-
-  describe('what drifts over the board', () => {
-    const lay = (placement: string) => {
-      const layer = new TableBackgroundLayer();
-      layer.initialize();
-      layer.imageIdentifier = ImageStorage.instance.add('cloud.png').identifier;
-      layer.placement = placement;
-      component.currentTable.appendChild(layer);
-      return layer;
-    };
-    const at = (testid: string): number => {
-      const nodes = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid]'));
-      return nodes.findIndex((el) => el.getAttribute('data-testid') === testid);
-    };
-
-    it('keeps the two runs apart, each on its own side of the board', () => {
-      lay('under');
-      lay('over');
-      fixture.detectChanges();
-
-      expect(component.underLayerViews()).toHaveLength(1);
-      expect(component.overLayerViews()).toHaveLength(1);
-    });
-
-    it('is written after the board, since a flattened wrapper paints in document order', () => {
-      lay('over');
-      fixture.detectChanges();
-
-      const board = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="foreground-layers"]')
-        ?.previousElementSibling as HTMLElement;
-
-      expect(board.style.backgroundImage).toContain('url(');
-      expect(at('foreground-layers')).toBeGreaterThan(-1);
-    });
-
-    it('sits above the board and still short of the first thing laid on it', () => {
-      lay('over');
-      fixture.detectChanges();
-
-      const wrapper = (fixture.nativeElement as HTMLElement).querySelector(
-        '[data-testid="foreground-layers"]'
-      ) as HTMLElement;
-
-      expect(wrapper.getAttribute('data-layer-depth')).toBe(`translateZ(${Z_OFFSET_FOREGROUND_LAYERS_PX}px)`);
-      expect(Z_OFFSET_FOREGROUND_LAYERS_PX).toBeLessThan(Z_OFFSET_MASK_PX);
-    });
-
-    it('lets a pointer through, so a piece under it can still be taken hold of', () => {
-      lay('over');
-      fixture.detectChanges();
-
-      const wrapper = (fixture.nativeElement as HTMLElement).querySelector(
-        '[data-testid="foreground-layers"]'
-      ) as HTMLElement;
-
-      expect(wrapper.classList.contains('pointer-events-none')).toBe(true);
-    });
-
-    it('wears the same shape as the board, so a hex table keeps its outline', () => {
-      component.currentTable.gridType = GridType.HEX_VERTICAL;
-      lay('over');
-      fixture.detectChanges();
-
-      const wrapper = (fixture.nativeElement as HTMLElement).querySelector(
-        '[data-testid="foreground-layers"]'
-      ) as HTMLElement;
-
-      expect(wrapper.style.getPropertyValue('mask')).toBe(component.tableSurfaceStyle()['mask']);
-    });
+  it('says why the table is not drawn, where the table would be, once the canvas can be drawn through neither interface', () => {
+    fixture.detectChanges();
+    const scene = TestBed.inject(Table3dService);
+    const notice = () =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-testid="table-scene-unavailable"]');
+    scene.unavailable.set(false);
+    fixture.detectChanges();
+    expect(notice()).toBeNull();
+
+    scene.unavailable.set(true);
+    fixture.detectChanges();
+
+    expect(notice()?.textContent?.trim()).toBeTruthy();
+    expect(notice()!.parentElement!.querySelector('[data-testid="table-scene"]')).not.toBeNull();
   });
 
   describe('what stands behind the table as a backdrop', () => {
@@ -426,15 +135,13 @@ describe('GameTableComponent', () => {
       return layer;
     };
 
-    it('draws a backdrop outside the table’s own space, and not among the layers under the board', () => {
+    it('draws a backdrop outside the table’s own space', () => {
       lay();
       fixture.detectChanges();
 
       const backdrop = root().querySelector('[data-testid="backdrop-layer"]');
       expect(backdrop).not.toBeNull();
       expect(backdrop!.closest('#app-game-table')).toBeNull();
-      expect(component.underLayerViews()).toEqual([]);
-      expect(root().querySelector('[data-testid="background-layers"]')).toBeNull();
     });
 
     it('lays the picture across only, its foot standing at the height it was given', () => {
@@ -480,48 +187,6 @@ describe('GameTableComponent', () => {
       expect(view.drifts).toBe(true);
       expect(view.style['--bg-layer-x-name']).toBe('bgLayerScrollX');
       expect(view.style['--bg-layer-y-name']).toBeUndefined();
-    });
-  });
-
-  describe('a piece standing on a face the table is not drawing', () => {
-    it('comes back to the floor rather than being drawn nowhere at all', () => {
-      const piece = GameCharacter.create('コマ', 1, '');
-      piece.location = { name: 'table', x: 100, y: 100, surface: 'north-wall' };
-      try {
-        fixture.detectChanges();
-
-        expect(component.charactersBySurface().floor.map((each) => each.identifier)).toContain(piece.identifier);
-        expect(component.charactersBySurface()['north-wall']).toEqual([]);
-      } finally {
-        piece.destroy();
-      }
-    });
-
-    it('leaves a piece on a board that another table is drawing to that board', () => {
-      const board = new WhiteBoard();
-      board.initialize();
-      const piece = GameCharacter.create('コマ', 1, '');
-      piece.location = { name: 'table', x: 100, y: 100, surface: board.identifier };
-      try {
-        fixture.detectChanges();
-
-        expect(component.charactersBySurface().floor.map((each) => each.identifier)).not.toContain(piece.identifier);
-      } finally {
-        piece.destroy();
-        board.destroy();
-      }
-    });
-
-    it('comes back from a board that is no longer on the table', () => {
-      const piece = GameCharacter.create('コマ', 1, '');
-      piece.location = { name: 'table', x: 100, y: 100, surface: 'a-board-that-went-away' };
-      try {
-        fixture.detectChanges();
-
-        expect(component.charactersBySurface().floor.map((each) => each.identifier)).toContain(piece.identifier);
-      } finally {
-        piece.destroy();
-      }
     });
   });
 
@@ -696,29 +361,13 @@ describe('GameTableComponent', () => {
       syncMode2d(component);
       await nextFrame();
       expect(component.gestureService.orthographicProjection).toBe(true);
-      expect(
-        (component.gestureService as unknown as { gameTableEl: HTMLElement }).gameTableEl.style.transform
-      ).toContain('scale(0.500000)');
+      expect(TestBed.inject(TableCameraService).view?.orthographic).toBe(true);
 
       component.currentTable.orthographicProjection = false;
       syncMode2d(component);
       await nextFrame();
       expect(component.gestureService.orthographicProjection).toBe(false);
-      expect(
-        (component.gestureService as unknown as { gameTableEl: HTMLElement }).gameTableEl.style.transform
-      ).not.toContain('scale(');
-    });
-
-    it('removes the perspective from the tabletop viewport', async () => {
-      component.currentTable.gridType = GridType.NONE;
-      component.currentTable.mode2d = true;
-      component.currentTable.orthographicProjection = true;
-
-      fixture.detectChanges();
-      await fixture.whenStable();
-      fixture.detectChanges();
-
-      expect(component.rootElementRef().nativeElement.style.perspective).toBe('none');
+      expect(TestBed.inject(TableCameraService).view?.orthographic).toBe(false);
     });
   });
 
@@ -1182,112 +831,6 @@ describe('GameTableComponent', () => {
     });
   });
 
-  describe('tableSurfaceStyle', () => {
-    it('leaves a square table on its default rectangle', () => {
-      const table = component.currentTable;
-      table.gridType = GridType.SQUARE;
-
-      expect(component.tableSurfaceStyle()).toMatchObject({
-        width: '100%',
-        height: '100%',
-        left: '0px',
-        top: '0px',
-        mask: 'none',
-      });
-      expect(component.tableSurfaceBorderStyle()).toEqual({ background: 'none' });
-    });
-
-    it('widens a hex table to the outline of the hexes and masks it', () => {
-      const table = component.currentTable;
-      table.width = 3;
-      table.height = 2;
-      table.gridSize = 50;
-      table.gridType = GridType.HEX_VERTICAL;
-
-      const style = component.tableSurfaceStyle();
-      const borderStyle = component.tableSurfaceBorderStyle();
-
-      expect(Number.parseFloat(style?.width ?? '')).toBeCloseTo((50 / Math.sqrt(3)) * 2 + (50 / Math.sqrt(3)) * 3);
-      expect(Number.parseFloat(style?.height ?? '')).toBeCloseTo(125);
-      expect(Number.parseFloat(style?.left ?? '')).toBeCloseTo(-50 / Math.sqrt(3));
-      expect(Number.parseFloat(style?.top ?? '')).toBeCloseTo(-25);
-      expect(style?.mask).toContain('data:image/svg+xml');
-      expect(style?.['-webkit-mask']).toBe(style?.mask);
-      expect(borderStyle?.background).toContain('data:image/svg+xml');
-    });
-
-    it('keeps the hex outline when only something standing on the table changes', async () => {
-      const table = component.currentTable;
-      table.width = 6;
-      table.height = 5;
-      table.gridSize = 50;
-      table.gridType = GridType.HEX_VERTICAL;
-      await Promise.resolve();
-      const style = component.tableSurfaceStyle();
-      const borderStyle = component.tableSurfaceBorderStyle();
-
-      perfCounters.enabled = true;
-      perfCounters.clear();
-      const terrain = Terrain.create('crate', 1, 1, 1, '', '');
-      table.appendChild(terrain);
-      await Promise.resolve();
-
-      try {
-        expect(component.tableSurfaceStyle()).toBe(style);
-        expect(component.tableSurfaceBorderStyle()).toBe(borderStyle);
-        expect(perfCounters.drain().get(PERF_HEX_MASK_SVG) ?? 0).toBe(0);
-      } finally {
-        perfCounters.enabled = false;
-        perfCounters.clear();
-        terrain.destroy();
-      }
-    });
-
-    it('builds the hex outline again for the size the table has now', async () => {
-      const table = component.currentTable;
-      table.width = 6;
-      table.height = 5;
-      table.gridType = GridType.HEX_VERTICAL;
-      table.gridSize = 0;
-      await Promise.resolve();
-      const atNothing = component.tableSurfaceStyle();
-
-      table.gridSize = 50;
-      await Promise.resolve();
-
-      expect(component.tableSurfaceStyle()).not.toBe(atNothing);
-      expect(component.tableSurfaceStyle().width).toBe(`${(50 / Math.sqrt(3)) * 2 + (50 / Math.sqrt(3)) * 1.5 * 5}px`);
-    });
-  });
-
-  describe('the pools on its walls', () => {
-    it('measures a pool from the end each wall is drawn from', () => {
-      const pool = { localX: 100, localY: 40, radiusX: 80, radiusY: 80, color: '#ffffff', intensity: 1 };
-      const at = (surface: TableSurface) => component['wallPoolStyleFor'](pool, surface, 1000)['mask-image'];
-
-      expect(at('north-wall')).toContain('at 100px');
-      expect(at('east-wall')).toContain('at 100px');
-      expect(at('south-wall')).toContain('at 900px');
-      expect(at('west-wall')).toContain('at 900px');
-    });
-  });
-
-  describe('wallBackground', () => {
-    it('backs a wall with the picture alone when no grid is asked for', () => {
-      const bg = component.wallBackground('blob:wall', '');
-      expect(bg.surfaceBackground).toBe('url(blob:wall)');
-      expect(bg.surfaceBackgroundSize).toBe('100% 100%');
-      expect(bg.surfaceBackgroundRepeat).toBe('no-repeat');
-    });
-
-    it('lays the grid over the picture when one is', () => {
-      const bg = component.wallBackground('blob:wall', 'data:image/png;base64,AAA');
-      expect(bg.surfaceBackground).toBe('url(data:image/png;base64,AAA), url(blob:wall)');
-      expect(bg.surfaceBackgroundSize).toBe('100% 100%, 100% 100%');
-      expect(bg.surfaceBackgroundRepeat).toBe('no-repeat, no-repeat');
-    });
-  });
-
   describe('walls', () => {
     function picture(url: string): string {
       return TestBed.inject(ImageStorage).add(url).identifier;
@@ -1307,21 +850,7 @@ describe('GameTableComponent', () => {
       const walls = component.activeWalls();
 
       expect(walls.map((wall) => wall.surface)).toEqual(['north-wall', 'west-wall']);
-      expect(walls[0]).toMatchObject({
-        containerClass: 'top-0 left-0',
-        containerTransform: 'translateY(-100%) rotateX(90deg) rotateZ(180deg) scaleX(-1)',
-        containerOrigin: '50% 100%',
-        widthPx: table.width * table.gridSize,
-        heightPx: table.wallHeight * table.gridSize,
-        surfaceBackground: 'url(blob:north)',
-      });
-      expect(walls[1]).toMatchObject({
-        containerClass: 'top-0 left-0',
-        containerOrigin: '0% 0%',
-        widthPx: table.height * table.gridSize,
-        heightPx: table.wallHeight * table.gridSize,
-        surfaceBackground: 'url(blob:west)',
-      });
+      expect(walls.map((wall) => wall.image.url)).toEqual(['blob:north', 'blob:west']);
     });
 
     it('lays a rasterised grid over each wall while the table shows its grid', async () => {
@@ -1338,74 +867,36 @@ describe('GameTableComponent', () => {
       const [south] = component.activeWalls();
 
       expect(south.surface).toBe('south-wall');
-      expect(south.surfaceBackground).toBe('url(data:image/png;base64,GRID), url(blob:south)');
-      expect(south.surfaceBackgroundSize).toBe('100% 100%, 100% 100%');
+      expect(south.gridUrl).toBe('data:image/png;base64,GRID');
     });
 
-    it('describes each face by the edge it runs along and the way it looks', () => {
-      const table = component.currentTable;
-      table.width = 20;
-      table.height = 10;
-      table.gridSize = 50;
-      table.wallHeight = 4;
-
-      expect(component['wallFaceFor']('north-wall')).toEqual({
-        ax: 0,
-        ay: 0,
-        bx: 1000,
-        by: 0,
-        nx: 0,
-        ny: 1,
-        heightPx: 200,
-      });
-      expect(component['wallFaceFor']('south-wall')).toEqual({
-        ax: 0,
-        ay: 500,
-        bx: 1000,
-        by: 500,
-        nx: 0,
-        ny: -1,
-        heightPx: 200,
-      });
-      expect(component['wallFaceFor']('west-wall')).toEqual({
-        ax: 0,
-        ay: 0,
-        bx: 0,
-        by: 500,
-        nx: 1,
-        ny: 0,
-        heightPx: 200,
-      });
-      expect(component['wallFaceFor']('east-wall')).toEqual({
-        ax: 1000,
-        ay: 0,
-        bx: 1000,
-        by: 500,
-        nx: -1,
-        ny: 0,
-        heightPx: 200,
-      });
-      expect(component['wallFaceFor']('floor')).toBeNull();
-    });
-
-    it('hands the same wall views back while nothing changes', async () => {
+    it('hands the same walls back while nothing changes', async () => {
       const table = component.currentTable;
       table.showNorthWall = true;
       table.northWallImageIdentifier = picture('blob:north');
       await Promise.resolve();
 
-      const views = component['wallViews']();
+      const walls = component.activeWalls();
 
-      expect(views.map((view) => view.wall.surface)).toEqual(['north-wall']);
-      expect(views[0].pools).toEqual([]);
-      expect(views[0].silhouettes).toEqual([]);
-      expect(component['wallViews']()).toBe(views);
+      expect(walls.map((wall) => wall.surface)).toEqual(['north-wall']);
+      expect(component.activeWalls()).toBe(walls);
     });
 
-    it('has no pools or silhouettes on a wall while nothing is lit', () => {
-      expect(component['wallPoolsFor']('north-wall')).toEqual([]);
-      expect(component['wallSilhouettesFor']('east-wall')).toEqual([]);
-      expect(component['wallBaseFilter']()).toBeNull();
+    it('hands the canvas the grid laid over a wall, by the wall of the scene it goes on', async () => {
+      vi.spyOn(GridFaceCache.prototype, 'dataUrl').mockReturnValue('data:image/png;base64,GRID');
+      const handed = vi.spyOn(TestBed.inject(Table3dService), 'showFaceGrids');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const table = component.currentTable;
+      table.gridShow = true;
+      table.showNorthWall = true;
+      table.northWallImageIdentifier = picture('blob:north');
+      await Promise.resolve();
+      TestBed.tick();
+
+      const grids = handed.mock.calls.at(-1)![0];
+      expect(grids.get('table:north')).toBe('data:image/png;base64,GRID');
+      expect(grids.size).toBe(1);
     });
   });
 
@@ -1445,6 +936,34 @@ describe('GameTableComponent', () => {
     });
   });
 
+  describe('blocks the canvas draws together', () => {
+    it('keeps each known to what finds the pieces under a point, with its menu, and lets go of one moved again', async () => {
+      const open = vi.spyOn(TestBed.inject(TerrainMenuService), 'open').mockImplementation(() => undefined);
+      const block = Terrain.create('壁', 1, 1, 2, 'wall.png', 'floor.png');
+      block.location = { name: 'table', x: 100, y: 100 };
+      block.isLocked = true;
+      component.currentTable.appendChild(block);
+      const overlap = TestBed.inject(TabletopOverlapService);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      try {
+        const entry = overlap.get(block.identifier);
+        expect(entry?.element).toBeNull();
+        entry?.openMenu?.();
+        expect(open).toHaveBeenCalledWith(block);
+
+        block.isLocked = false;
+        await fixture.whenStable();
+        TestBed.tick();
+        fixture.detectChanges();
+        expect(overlap.get(block.identifier)?.openMenu).toBeUndefined();
+      } finally {
+        block.destroy();
+      }
+    });
+  });
+
   describe('beam grids', () => {
     function terrainOn(surface: string, isGrid: boolean): Terrain {
       const terrain = Terrain.create('梁', 2, 3, 1, '', '');
@@ -1462,10 +981,8 @@ describe('GameTableComponent', () => {
       terrainOn('east-wall', false);
       await Promise.resolve();
 
-      const tops = component.beamTopGrids();
       const faces = component.beamWallGrids();
 
-      expect(tops.map((grid) => grid.identifier)).toEqual([hung.identifier]);
       expect(faces.map((grid) => grid.identifier)).toEqual([hung.identifier]);
       expect(faces[0]).toMatchObject({ width: 2 * table.gridSize, height: 3 * table.gridSize });
       expect(faces[0].matrix3d).toMatch(/^matrix3d\(/);
@@ -1477,57 +994,92 @@ describe('GameTableComponent', () => {
       terrainOn('north-wall', true);
       await Promise.resolve();
 
-      expect(component.beamTopGrids()).toEqual([]);
       expect(component.beamWallGrids()).toEqual([]);
     });
   });
 
   describe('camera glide', () => {
-    it('eases the table to the focus and takes the easing off again', () => {
-      vi.useFakeTimers();
+    const FRAME_TIMERS = [
+      'setTimeout',
+      'clearTimeout',
+      'requestAnimationFrame',
+      'cancelAnimationFrame',
+      'performance',
+    ] as const;
+
+    it('glides the table to the focus a frame at a time', () => {
+      vi.useFakeTimers({ toFake: [...FRAME_TIMERS] });
       fixture.detectChanges();
-      const tableEl = component.gameTable().nativeElement;
+      const root = component.rootElementRef().nativeElement;
+      const camera = TestBed.inject(TableCameraService);
+      vi.advanceTimersByTime(50);
+      const before = root.dataset['camera'];
 
       TestBed.inject(SelectionSignalService).focusCoordinate.set({ x: 100, y: 100, timestamp: 1 });
       fixture.detectChanges();
-      vi.advanceTimersByTime(50);
-      expect(tableEl.style.transition).toBe('0.2s ease-out');
+      vi.advanceTimersByTime(50 + 16 * 3);
+      const midway = root.dataset['camera'];
+      expect(midway).not.toBe(before);
+      expect(camera.view?.positionX).toBe(component.gestureService.viewPositionX);
 
+      vi.advanceTimersByTime(400);
+      const landed = root.dataset['camera'];
+      expect(landed).not.toBe(midway);
       vi.advanceTimersByTime(100);
-      expect(tableEl.style.transition).toBe('');
+      expect(root.dataset['camera']).toBe(landed);
       vi.useRealTimers();
     });
 
-    it('counts the view as written out again once the glide has landed', () => {
-      vi.useFakeTimers();
+    it('tells whatever reads the view about each step of the glide', () => {
+      vi.useFakeTimers({ toFake: [...FRAME_TIMERS] });
       fixture.detectChanges();
-      const tableEl = component.gameTable().nativeElement;
-      const coordinates = component['coordinateService'];
+      const camera = TestBed.inject(TableCameraService);
+      vi.advanceTimersByTime(50);
 
       TestBed.inject(SelectionSignalService).focusCoordinate.set({ x: 100, y: 100, timestamp: 3 });
       fixture.detectChanges();
-      vi.advanceTimersByTime(149);
-      const whileGliding = coordinates.tabletopTransformVersion();
-
-      vi.advanceTimersByTime(1);
-      expect(tableEl.style.transition).toBe('');
-      expect(coordinates.tabletopTransformVersion()).toBeGreaterThan(whileGliding);
+      vi.advanceTimersByTime(50);
+      const atStart = camera.version();
+      vi.advanceTimersByTime(16 * 4);
+      expect(camera.version()).toBeGreaterThanOrEqual(atStart + 3);
       vi.useRealTimers();
     });
 
     it('drops the glide when the table goes before it lands', () => {
-      vi.useFakeTimers();
+      vi.useFakeTimers({ toFake: [...FRAME_TIMERS] });
       fixture.detectChanges();
-      const tableEl = component.gameTable().nativeElement;
+      vi.advanceTimersByTime(2000);
 
       TestBed.inject(SelectionSignalService).focusCoordinate.set({ x: 100, y: 100, timestamp: 2 });
       fixture.detectChanges();
       fixture.destroy();
       vi.advanceTimersByTime(200);
 
-      expect(tableEl.style.transition).toBe('');
       expect(vi.getTimerCount()).toBe(0);
       vi.useRealTimers();
     });
+  });
+});
+
+describe('GameTableComponent and the dice thrown on it', () => {
+  it('starts what draws the dice, which hands those thrown on the table to its scene', () => {
+    let started = 0;
+    TestBed.configureTestingModule({
+      imports: [GameTableComponent],
+      providers: [
+        ...TEST_PROVIDERS,
+        {
+          provide: DiceRenderService,
+          useFactory: () => {
+            started++;
+            return {};
+          },
+        },
+      ],
+    });
+
+    TestBed.createComponent(GameTableComponent);
+
+    expect(started).toBe(1);
   });
 });

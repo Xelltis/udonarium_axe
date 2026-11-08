@@ -5,6 +5,7 @@ export type MobileMenuAction =
   | 'tableSetting'
   | 'roomSettings'
   | 'images'
+  | 'models'
   | 'jukebox'
   | 'soundSettings'
   | 'cutIn'
@@ -41,6 +42,7 @@ export const MOBILE_MENU_ITEMS: readonly MobileMenuItem[] = [
   { action: 'tableSetting', icon: 'layers', labelKey: 'app.fab.tableSetting' },
   { action: 'roomSettings', icon: 'tune', labelKey: 'app.fab.roomSettings', gameMasterOnly: true },
   { action: 'images', icon: 'photo_library', labelKey: 'app.fab.images' },
+  { action: 'models', icon: 'view_in_ar', labelKey: 'app.fab.models' },
   { action: 'jukebox', icon: 'queue_music', labelKey: 'app.fab.jukebox' },
   { action: 'soundSettings', icon: 'volume_up', labelKey: 'app.fab.soundSettings' },
   { action: 'cutIn', icon: 'slideshow', labelKey: 'app.fab.cutIn' },

@@ -1,0 +1,319 @@
+import { effect, Injector, signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { HudFrameService } from '@axe/application/tabletop/hud-frame.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
+import { Matrix3D } from '@axe/core/transform/matrix-3d';
+import { DEFAULT_TABLE_CAMERA_VIEW } from '@axe/domain/tabletop/camera/table-camera';
+import { TableWorldSprite } from '@axe/domain/tabletop/world/table-sprites';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const FLAT = { across: { x: 1, y: 0, z: 0 }, down: { x: 0, y: 1, z: 0 } };
+
+function lying(id: string, x: number, y: number, z: number, size: number): TableWorldSprite {
+  return {
+    id,
+    owner: id.split('#')[0],
+    kind: 'dice-symbol',
+    centre: { x, y, z },
+    widthPx: size,
+    heightPx: size,
+    facing: FLAT,
+    look: { kind: 'picture', url: 'a.png' },
+    brightness: 1,
+    twoSided: false,
+  };
+}
+
+describe('HudFrameService', () => {
+  let frame: HudFrameService;
+  const sprites = signal<readonly TableWorldSprite[]>([]);
+  const elements: HTMLElement[] = [];
+
+  function element(): HTMLElement {
+    const made = document.createElement('div');
+    elements.push(made);
+    return made;
+  }
+
+  beforeEach(() => {
+    sprites.set([lying('die#frame', 100, 100, 0, 50), lying('die#picture', 100, 60, 10, 20)]);
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: TablePiecesService, useValue: { sprites, coins: signal([]) } },
+        { provide: TablePickService, useValue: { targets: () => [], targetsOf: () => [] } },
+        { provide: Table3dService, useValue: { world: sprites } },
+        {
+          provide: TableCameraService,
+          useValue: {
+            version: signal(0),
+            view: DEFAULT_TABLE_CAMERA_VIEW,
+            layout: { left: 0, top: 0, width: 800, height: 600, boardWidth: 1000, boardHeight: 1000 },
+            sceneMatrix: () => new Matrix3D().identity(),
+          },
+        },
+      ],
+    });
+    frame = TestBed.inject(HudFrameService);
+  });
+
+  afterEach(() => {
+    elements.splice(0);
+    vi.restoreAllMocks();
+  });
+
+  it('hides an element put against a piece until the frame puts it where the piece is drawn', () => {
+    const put = element();
+    frame.place(put, { owner: 'die' });
+
+    expect(put.style.visibility).toBe('hidden');
+    frame.writeNow();
+    expect(put.style.visibility).toBe('');
+    expect(put.style.transform).toBe('translate(75px, 50px)');
+  });
+
+  it('keeps an element shown where it is while it is put against a piece afresh', () => {
+    const put = element();
+    const stop = frame.place(put, { owner: 'die' });
+    frame.writeNow();
+    stop();
+    frame.place(put, { owner: 'die', part: 'picture' });
+
+    expect(put.style.visibility).toBe('');
+  });
+
+  it('may be asked to put an element from within an effect', () => {
+    const put = element();
+    effect(() => frame.place(put, { owner: 'die' }), { injector: TestBed.inject(Injector) });
+
+    expect(() => TestBed.tick()).not.toThrow();
+    frame.writeNow();
+    expect(put.style.transform).toBe('translate(75px, 50px)');
+  });
+
+  it('puts the root of a piece within the screen over the table, wherever the table lies on the page', () => {
+    (TestBed.inject(TableCameraService) as unknown as { layout: object }).layout = {
+      left: 20,
+      top: 10,
+      width: 800,
+      height: 600,
+      boardWidth: 1000,
+      boardHeight: 1000,
+    };
+    const root = element();
+    frame.place(root, { owner: 'die' });
+    frame.writeNow();
+
+    expect(root.style.transform).toBe('translate(55px, 40px)');
+  });
+
+  it('puts the root of a piece over the box round all of it', () => {
+    const root = element();
+    frame.place(root, { owner: 'die' });
+    frame.writeNow();
+
+    expect(root.style.transform).toBe('translate(75px, 50px)');
+    expect(root.style.width).toBe('50px');
+    expect(root.style.height).toBe('75px');
+  });
+
+  it('puts a part over its own box, within the root', () => {
+    const part = element();
+    frame.place(part, { owner: 'die', part: 'picture' });
+    frame.writeNow();
+
+    expect(part.style.transform).toBe('translate(15px, 0px)');
+    expect(part.style.width).toBe('20px');
+    expect(part.style.height).toBe('20px');
+  });
+
+  it('hangs a label over the middle of a part, at the size the part is drawn at', () => {
+    const label = element();
+    frame.place(label, { owner: 'die', part: 'picture', place: 'above' });
+    frame.writeNow();
+
+    expect(label.style.transform).toBe('translate(25px, 0px) scale(1) translate(-50%, -100%)');
+  });
+
+  it('lays an element on a part, its own box drawn onto the corners of the part, leaving its size alone', () => {
+    const laid = element();
+    laid.style.width = '20px';
+    Object.defineProperty(laid, 'offsetWidth', { value: 20 });
+    Object.defineProperty(laid, 'offsetHeight', { value: 20 });
+    frame.place(laid, { owner: 'die', part: 'picture', place: 'face' });
+    frame.writeNow();
+
+    expect(laid.style.transform).toBe('matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 15, 0, 0, 1)');
+    expect(laid.style.width).toBe('20px');
+  });
+
+  it('covers a part with an element laid on its corners at the size the part is on the table', () => {
+    sprites.set([{ ...lying('card#face', 100, 100, 0, 40), heightPx: 20 }]);
+    const cover = element();
+    Object.defineProperty(cover, 'offsetWidth', { value: 10 });
+    Object.defineProperty(cover, 'offsetHeight', { value: 10 });
+    frame.place(cover, { owner: 'card', part: 'face', place: 'cover' });
+    frame.writeNow();
+
+    expect(cover.style.transform).toBe('matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)');
+    expect(cover.style.width).toBe('40px');
+    expect(cover.style.height).toBe('20px');
+  });
+
+  it('puts the middle of an element on a point of a face, within the root', () => {
+    vi.spyOn(TestBed.inject(TableSurfaceService), 'pageOf').mockReturnValue({ x: 100, y: 80 });
+    const handle = element();
+    frame.place(handle, { owner: 'die', at: { surface: 'floor', x: 1, y: 2, height: 3 } });
+    frame.writeNow();
+
+    expect(TestBed.inject(TableSurfaceService).pageOf).toHaveBeenCalledWith('floor', 1, 2, 3);
+    expect(handle.style.transform).toBe('translate(25px, 30px) translate(-50%, -50%)');
+  });
+
+  it('lays an element on a rectangle lying on a face, its own box drawn onto where the corners are drawn', () => {
+    vi.spyOn(TestBed.inject(TableSurfaceService), 'pageOf').mockImplementation((_surface, x, y) => ({
+      x: 75 + x,
+      y: 50 + y,
+    }));
+    const frameBox = element();
+    frame.place(frameBox, {
+      owner: 'die',
+      lay: {
+        surface: 'floor',
+        corners: [
+          { x: 0, y: 0 },
+          { x: 40, y: 0 },
+          { x: 40, y: 20 },
+          { x: 0, y: 20 },
+        ],
+        height: 3,
+        width: 40,
+        depth: 20,
+      },
+    });
+    frame.writeNow();
+
+    expect(TestBed.inject(TableSurfaceService).pageOf).toHaveBeenCalledWith('floor', 40, 20, 3);
+    expect(frameBox.style.transform).toBe('matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)');
+    expect(frameBox.style.width).toBe('40px');
+    expect(frameBox.style.height).toBe('20px');
+  });
+
+  it('lays an element as a line from a point of a face down to another, within the root', () => {
+    vi.spyOn(TestBed.inject(TableSurfaceService), 'pageOf').mockImplementation((_surface, _x, _y, height = 0) => ({
+      x: 100,
+      y: 120 - height,
+    }));
+    const guide = element();
+    frame.place(guide, {
+      owner: 'die',
+      at: { surface: 'floor', x: 1, y: 2, height: 40 },
+      reach: { surface: 'floor', x: 1, y: 2, height: 0 },
+    });
+    frame.writeNow();
+
+    expect(guide.style.transform).toBe('translate(25px, 30px) rotate(0deg)');
+    expect(guide.style.height).toBe('40px');
+  });
+
+  it('draws an element put on a point at the size the table is drawn at there, where asked', () => {
+    vi.spyOn(TestBed.inject(TableSurfaceService), 'pageOf').mockImplementation((_surface, x) => ({
+      x: 100 + x * 0.5,
+      y: 80,
+    }));
+    const orbit = element();
+    frame.place(orbit, { owner: 'die', at: { surface: 'floor', x: 0, y: 0, height: 0 }, scaled: true });
+    frame.writeNow();
+
+    expect(orbit.style.transform).toBe('translate(25px, 30px) scale(0.5) translate(-50%, -50%)');
+  });
+
+  it('puts the middle of an element on a corner of a part', () => {
+    const handle = element();
+    frame.place(handle, { owner: 'die', part: 'picture', corner: 2 });
+    frame.writeNow();
+
+    expect(handle.style.transform).toBe('translate(35px, 20px) translate(-50%, -50%)');
+  });
+
+  it('puts the middle of an element on the middle of an edge of a part', () => {
+    const foot = element();
+    const side = element();
+    frame.place(foot, { owner: 'die', part: 'picture', edge: 'bottom' });
+    frame.place(side, { owner: 'die', part: 'picture', edge: 'right' });
+    frame.writeNow();
+
+    expect(foot.style.transform).toBe('translate(25px, 20px) translate(-50%, -50%)');
+    expect(side.style.transform).toBe('translate(35px, 10px) translate(-50%, -50%)');
+  });
+
+  it('puts what goes with a block against the block, by the shapes it is picked by', () => {
+    const targetsOf = vi.spyOn(TestBed.inject(TablePickService), 'targetsOf').mockReturnValue([
+      {
+        id: 'block',
+        layer: 'terrain',
+        order: 0,
+        shapes: [
+          {
+            kind: 'prism',
+            outline: [
+              { x: 200, y: 200 },
+              { x: 260, y: 200 },
+              { x: 260, y: 240 },
+              { x: 200, y: 240 },
+            ],
+            base: 0,
+            top: 50,
+          },
+        ],
+      },
+    ]);
+    const root = element();
+    const handle = element();
+    frame.place(root, { owner: 'block' });
+    frame.place(handle, { owner: 'block', part: 'top', corner: 2 });
+    frame.writeNow();
+
+    expect(root.style.transform).toBe('translate(200px, 200px)');
+    expect(handle.style.transform).toBe('translate(60px, 40px) translate(-50%, -50%)');
+    expect(targetsOf).toHaveBeenLastCalledWith(new Set(['block']));
+  });
+
+  it('draws the root of a nearer piece over the root of one further off', () => {
+    sprites.update((drawn) => [...drawn, lying('near#frame', 300, 300, 40, 50)]);
+    const far = element();
+    const near = element();
+    frame.place(far, { owner: 'die' });
+    frame.place(near, { owner: 'near' });
+    frame.writeNow();
+
+    expect(Number(near.style.zIndex)).toBeGreaterThan(Number(far.style.zIndex));
+  });
+
+  it('hides what goes with a piece or a part not drawn, and shows it again once drawn', () => {
+    const part = element();
+    frame.place(part, { owner: 'die', part: 'pedestal' });
+    frame.writeNow();
+    expect(part.style.visibility).toBe('hidden');
+
+    sprites.update((drawn) => [...drawn, lying('die#pedestal', 100, 100, 0, 40)]);
+    frame.writeNow();
+    expect(part.style.visibility).toBe('');
+    expect(part.style.width).toBe('40px');
+  });
+
+  it('leaves an element where it was once it is no longer put', () => {
+    const root = element();
+    const stop = frame.place(root, { owner: 'die' });
+    frame.writeNow();
+    stop();
+
+    sprites.set([lying('die#frame', 500, 500, 0, 50)]);
+    frame.writeNow();
+
+    expect(root.style.transform).toBe('translate(75px, 50px)');
+  });
+});

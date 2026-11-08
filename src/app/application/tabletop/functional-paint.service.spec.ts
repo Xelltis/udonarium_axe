@@ -2,10 +2,12 @@ import { TestBed } from '@angular/core/testing';
 import { ConcealmentService } from '@axe/application/tabletop/concealment.service';
 import { blockedCellKeysOn, FunctionalPaintService } from '@axe/application/tabletop/functional-paint.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { objectBlocksOf } from '@axe/domain/map-editor/object-placements';
 import { CellRect, rectKey } from '@axe/domain/tabletop/cell-rectangles';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import {
+  blockChange,
   DEFAULT_FUNCTION_SPEC,
   FunctionPaintPlan,
   MaskBlock,
@@ -15,6 +17,8 @@ import {
 } from '@axe/domain/tabletop/function-paint';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
+import { GROUND_CHUNK_SAMPLE_COUNT } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
 import { cellCentre } from '@axe/domain/tabletop/map-grid';
 import { ensureMoveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
@@ -169,6 +173,26 @@ describe('FunctionalPaintService', () => {
       expect(laid[0].location.y).toBe(2 * 50);
     });
 
+    it('writes the chunks of raised ground it is handed, reads them back, and leaves the ground alone when handed none', () => {
+      const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT);
+      heights[5] = 64;
+      service.apply(plan({ ground: [{ cx: 0, cy: 0, heights, paint: null }] }));
+
+      expect(service.snapshot()!.groundChunks!.map((chunk) => chunk.heights[5])).toEqual([64]);
+
+      service.apply(plan());
+
+      expect(
+        groundFieldOn(table)!
+          .readChunks()
+          .map((chunk) => chunk.heights[5])
+      ).toEqual([64]);
+    });
+
+    it('reads a table that keeps no ground as having none to bring in', () => {
+      expect(service.snapshot()!.groundChunks).toEqual([]);
+    });
+
     it('reads a laid block back as the block it is', () => {
       service.apply(plan({ terrain: { add: [wall({ col: 1, row: 2, width: 4, height: 2 })], remove: [] } }));
 
@@ -278,6 +302,39 @@ describe('FunctionalPaintService', () => {
       expect(laid.location.x).toBeCloseTo(middle.x - table.gridSize / 2, 5);
       expect(laid.location.y).toBeCloseTo(middle.y - table.gridSize / 2, 5);
       expect(service.snapshot()!.terrainBlocks.map(rectKey)).toEqual(['0,3,1,1']);
+    });
+
+    it('lays the 3D objects a brush sets out drawn as their model, and finds them already there when laid again', () => {
+      for (const gridType of [GridType.SQUARE, GridType.HEX_VERTICAL]) {
+        for (const object of terrainOn()) object.destroy();
+        table.gridType = gridType;
+        const painted = ['1,1', '2,1', '3,2', '4,4', '5,5'];
+        const scatter = { ...DEFAULT_FUNCTION_SPEC.object, density: 1, seed: 9 };
+        const blocks = objectBlocksOf(painted, scatter, grid(), 'held-oak');
+
+        service.apply(plan({ terrain: { add: blocks, remove: [] } }));
+
+        const laid = terrainOn();
+        expect(laid).toHaveLength(painted.length);
+        expect(laid.map((object) => object.modelIdentifier)).toEqual(new Array(painted.length).fill('held-oak'));
+        expect(blockChange(blocks, service.snapshot()!.terrainBlocks)).toEqual({ add: [], remove: [] });
+      }
+    });
+
+    it('reads the model a wall is drawn as back with it, so laying it again keeps it', () => {
+      service.apply(
+        plan({
+          terrain: { add: [wall(oneCell, { model: 'held-tree', modelScale: '1.5', modelTurn: '90' })], remove: [] },
+        })
+      );
+
+      const [laid] = terrainOn();
+      expect([laid.modelIdentifier, laid.modelScale, laid.modelTurn]).toEqual(['held-tree', '1.5', '90']);
+      expect(service.snapshot()!.terrainBlocks[0].spec).toMatchObject({
+        model: 'held-tree',
+        modelScale: '1.5',
+        modelTurn: '90',
+      });
     });
 
     it('lays a door back as a door', () => {
@@ -484,6 +541,7 @@ describe('FunctionalPaintService', () => {
           leaves: 0,
           flowSpeed: 0,
           flowDirection: 0,
+          ice: 0,
         },
       };
 
@@ -509,6 +567,7 @@ describe('FunctionalPaintService', () => {
           leaves: 0,
           flowSpeed: 0,
           flowDirection: 0,
+          ice: 0,
         },
       };
       service.apply(plan({ ambience: { add: [look], remove: [] } }));
@@ -536,6 +595,7 @@ describe('FunctionalPaintService', () => {
           leaves: 0.6,
           flowSpeed: 0.5,
           flowDirection: 135,
+          ice: 0.8,
         },
       };
       service.apply(plan({ ambience: { add: [pond], remove: [] } }));
@@ -547,6 +607,7 @@ describe('FunctionalPaintService', () => {
       expect(laid.leaves).toBe(0.6);
       expect(laid.flow).toBe(0.5);
       expect(laid.flowHeading).toBe(135);
+      expect(laid.ice).toBe(0.8);
       expect(laid.ambienceColor).toBe('#5f6b4a');
       expect(service.snapshot()!.ambienceBlocks).toEqual([pond]);
     });
@@ -569,6 +630,7 @@ describe('FunctionalPaintService', () => {
           leaves: 0,
           flowSpeed: 0,
           flowDirection: 0,
+          ice: 0,
         },
       };
 
@@ -602,6 +664,7 @@ describe('FunctionalPaintService', () => {
           leaves: 0,
           flowSpeed: 0,
           flowDirection: 0,
+          ice: 0,
         },
       };
 
@@ -630,6 +693,7 @@ describe('FunctionalPaintService', () => {
           leaves: 0,
           flowSpeed: 0,
           flowDirection: 0,
+          ice: 0,
         },
       };
       service.apply(plan({ ambience: { add: [look], remove: [] } }));

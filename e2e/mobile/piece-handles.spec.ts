@@ -1,5 +1,7 @@
 import { expect, Locator, test } from '@playwright/test';
 
+import { closePanels } from '../dungeon-helpers';
+
 type Box = { x: number; y: number; width: number; height: number };
 
 function overlaps(a: Box, b: Box): boolean {
@@ -20,7 +22,7 @@ async function boxRound(locator: Locator): Promise<Box | null> {
 }
 
 test.describe('character pieces seen on a phone', () => {
-  test('puts the tilt handles left and right of the picture, clear of the picture, the name, the HP bar and the buffs', async ({
+  test('puts the tilt handle right of the picture, clear of the picture, the name, the HP bar and the buffs', async ({
     page,
   }) => {
     await page.goto('/');
@@ -28,7 +30,7 @@ test.describe('character pieces seen on a phone', () => {
 
     const piece = page
       .locator('game-character')
-      .filter({ has: page.locator('img.image') })
+      .filter({ has: page.locator('[data-part="picture"]') })
       .filter({ has: page.getByTestId('buff-plate') })
       .first();
     await expect(piece.getByTestId('roll-grab-head')).toBeAttached({ timeout: 10000 });
@@ -36,23 +38,81 @@ test.describe('character pieces seen on a phone', () => {
     // The labels turn to face the viewer a frame after they are drawn, so the check waits for them to settle.
     const clear = async (): Promise<string> => {
       const head = await boxRound(piece.getByTestId('roll-grab-head'));
-      const foot = await boxRound(piece.getByTestId('roll-grab-foot'));
-      const picture = await boxRound(piece.locator('img.image'));
+      const shown = await boxRound(piece.locator('[data-part="picture"]'));
       const labels = [
-        picture,
+        shown,
         await boxRound(piece.getByTestId('piece-name')),
         await boxRound(piece.getByTestId('piece-gauge')),
         await boxRound(piece.getByTestId('buff-plate')),
       ];
-      if (!head || !foot || labels.some((label) => label === null)) return 'not drawn yet';
+      if (!head || labels.some((label) => label === null)) return 'not drawn yet';
       const drawn = labels as Box[];
-      if (drawn.some((label) => overlaps(head, label) || overlaps(foot, label))) {
-        return 'a handle lies over the picture or a label';
-      }
-      if (head.x < picture!.x + picture!.width) return 'the head handle is not right of the picture';
-      if (foot.x + foot.width > picture!.x) return 'the foot handle is not left of the picture';
+      if (drawn.some((label) => overlaps(head, label))) return 'the handle lies over the picture or a label';
+      if (head.x < shown!.x + shown!.width) return 'the handle is not right of the picture';
       return 'clear';
     };
     await expect.poll(clear, { timeout: 5000 }).toBe('clear');
+  });
+
+  test('brings out the handles of the piece last touched, and only of that one, and puts them away on a tap on the table', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await expect(page.locator('app-mobile-shell nav')).toBeVisible({ timeout: 20000 });
+    await closePanels(page);
+
+    const pieces = page
+      .locator('game-character')
+      .filter({ has: page.locator('[data-part="picture"]') })
+      .filter({ has: page.getByTestId('roll-grab-head') });
+    await expect(pieces.nth(1)).toBeAttached({ timeout: 10000 });
+    const view = page.viewportSize()!;
+    let touched: Locator | null = null;
+    let other: Locator | null = null;
+    let middle = { x: 0, y: 0 };
+    for (const piece of await pieces.all()) {
+      const box = await piece.locator('[data-part="picture"]').boundingBox();
+      const at = box ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : null;
+      const inView = !!at && at.x > 40 && at.x < view.width - 40 && at.y > 120 && at.y < view.height - 120;
+      if (inView && !touched) {
+        touched = piece;
+        middle = at!;
+      } else if (!other) {
+        other = piece;
+      }
+    }
+    expect(touched, 'a piece with a picture to tip in view').not.toBeNull();
+    const lookOf = (piece: Locator) =>
+      piece
+        .getByTestId('roll-grab-head')
+        .evaluate((handle) => `${getComputedStyle(handle).opacity} ${getComputedStyle(handle).pointerEvents}`)
+        .catch(() => 'gone');
+    await expect.poll(() => lookOf(touched!), { timeout: 5000 }).toBe('0 none');
+
+    await page.touchscreen.tap(middle.x, middle.y);
+    await expect.poll(() => lookOf(touched!), { timeout: 5000 }).toBe('1 auto');
+    expect(await lookOf(other!)).toBe('0 none');
+
+    const bare = await page.evaluate(() => {
+      const hooks = (
+        window as unknown as {
+          __axeTable: { drawnAt(x: number, y: number): string | null; pickAt(x: number, y: number): string | null };
+        }
+      ).__axeTable;
+      const table = document.querySelector('#app-table-layer')!;
+      for (let y = 140; y < innerHeight - 140; y += 30) {
+        for (let x = 40; x < innerWidth - 40; x += 30) {
+          const front = document.elementFromPoint(x, y);
+          const bare = !!front && table.contains(front) && !front.closest('game-character, [data-object-id]');
+          if (bare && hooks.drawnAt(x, y) === null && hooks.pickAt(x, y) === null) {
+            return { x, y };
+          }
+        }
+      }
+      return null;
+    });
+    expect(bare, 'a bare spot of the table in view').not.toBeNull();
+    await page.touchscreen.tap(bare!.x, bare!.y);
+    await expect.poll(() => lookOf(touched!), { timeout: 5000 }).toBe('0 none');
   });
 });

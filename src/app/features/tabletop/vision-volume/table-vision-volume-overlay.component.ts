@@ -1,8 +1,10 @@
 import { NgStyle } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, viewChild } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
+import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { PERF_VISION_VOLUME_PAINT, perfCounters } from '@axe/core/util/perf-counters';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -16,7 +18,7 @@ import { visionLobesOf } from '@axe/domain/tabletop/vision-shape';
 import { VisionType } from '@axe/domain/tabletop/vision-types';
 import { visionVolumeShape, VolumeRib, VolumeRing } from '@axe/features/tabletop/vision-volume/vision-volume-geometry';
 import { fillCells, overlayScale } from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
-import { translateZCss, Z_OFFSET_VISION_VOLUME_PX } from '@axe/ui/tabletop/z-offset';
+import { Z_OFFSET_VISION_VOLUME_PX } from '@axe/ui/tabletop/z-offset';
 
 /** Bright on purpose: the shape is a measuring aid, not scenery. */
 const DEFAULT_VOLUME_COLOR = '#39ff14';
@@ -32,6 +34,12 @@ interface VisionVolume {
   rings: VolumeRing[];
   ribs: VolumeRib[];
   cells: CellBits | null;
+}
+
+/** A piece's vision laid on the screen over a canvas, with the style that lays each of its lines there. */
+interface VisionVolumeOnScreen {
+  readonly identifier: string;
+  readonly lines: readonly Record<string, string>[];
 }
 
 /**
@@ -53,9 +61,17 @@ export class TableVisionVolumeOverlayComponent {
   private readonly visionService = inject(VisionService);
   private readonly tabletopService = inject(TabletopService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly camera = inject(TableCameraService);
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('floorCanvas');
 
-  protected readonly zTransform = translateZCss(Z_OFFSET_VISION_VOLUME_PX);
+  /**
+   * The transform that lays the tint of the floor on the screen where the table's canvas draws the
+   * floor, or null before the camera is set.
+   */
+  protected readonly floorTransform = computed<string | null>(() => {
+    const laid = this.camera.screenMatrixOf();
+    return laid ? laid(Matrix3D.makePosition({ x: 0, y: 0, z: Z_OFFSET_VISION_VOLUME_PX, w: 1 })) : null;
+  });
 
   /** Whether the table is dark, which is what tells a piece's own light from what it can see by. */
   private readonly darknessEnabled = computed(() => this.tabletopService.currentTableVersion().darknessEnabled);
@@ -107,6 +123,21 @@ export class TableVisionVolumeOverlayComponent {
       });
     }
     return volumes;
+  });
+
+  /** The shapes laid on the screen. Follows the camera; none before it is set. */
+  protected readonly volumesOnScreen = computed<VisionVolumeOnScreen[]>(() => {
+    const laid = this.camera.screenMatrixOf();
+    if (!laid) return [];
+    return this.volumes().map((volume) => ({
+      identifier: volume.identifier,
+      lines: [
+        ...volume.rings.map((ring) =>
+          this.ringStyle(volume, ring, laid(Matrix3D.makePosition({ ...ring.corner, w: 1 })))
+        ),
+        ...volume.ribs.map((rib) => this.ribStyle(volume, rib, laid(new Matrix3D().setCSS(rib.transform)))),
+      ],
+    }));
   });
 
   constructor() {
@@ -181,7 +212,7 @@ export class TableVisionVolumeOverlayComponent {
     return owned && luminanceOf(owned) >= MIN_VOLUME_LUMINANCE ? owned : DEFAULT_VOLUME_COLOR;
   }
 
-  protected ringStyle(volume: VisionVolume, ring: VolumeRing): Record<string, string> {
+  private ringStyle(volume: VisionVolume, ring: VolumeRing, transform: string): Record<string, string> {
     const style: Record<string, string> = {
       position: 'absolute',
       left: '0px',
@@ -189,7 +220,7 @@ export class TableVisionVolumeOverlayComponent {
       width: ring.size + 'px',
       height: ring.size + 'px',
       'transform-origin': '0 0',
-      transform: ring.transform,
+      transform,
       'border-radius': '50%',
       border: '1px solid ' + volume.color,
       opacity: RING_OPACITY,
@@ -199,7 +230,7 @@ export class TableVisionVolumeOverlayComponent {
     return style;
   }
 
-  protected ribStyle(volume: VisionVolume, rib: VolumeRib): Record<string, string> {
+  private ribStyle(volume: VisionVolume, rib: VolumeRib, transform: string): Record<string, string> {
     return {
       position: 'absolute',
       left: '0px',
@@ -207,7 +238,7 @@ export class TableVisionVolumeOverlayComponent {
       width: rib.size + 'px',
       height: rib.size + 'px',
       'transform-origin': '0 0',
-      transform: rib.transform,
+      transform,
       'border-top': '1px solid ' + volume.color,
       'border-right': '1px solid ' + volume.color,
       'border-top-right-radius': '100% 100%',

@@ -1,7 +1,10 @@
 import { DestroyRef, effect, inject, Injectable } from '@angular/core';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { isTypingTarget } from '@axe/core/input/typing-target';
+
+/** The layer of the page the table is drawn in. */
+const TABLE_LAYER = '#app-table-layer';
 
 /**
  * The hand and the keys, while a move is being worked out.
@@ -14,7 +17,7 @@ import { isTypingTarget } from '@axe/core/input/typing-target';
 @Injectable({ providedIn: 'root' })
 export class MovePlanEventHandlerService {
   private readonly movePlan = inject(MovePlannerService);
-  private readonly coordinate = inject(CoordinateService);
+  private readonly tablePick = inject(TablePickService);
   private readonly destroyRef = inject(DestroyRef);
 
   private listening = false;
@@ -121,17 +124,21 @@ export class MovePlanEventHandlerService {
     }
   };
 
-  private onTable(event: Event): boolean {
+  /**
+   * Whether the pointer is over the table: within the table's layer, where the line of sight through
+   * it lands on a face of the table (the floor, a wall drawn with a picture or a white board) or on
+   * a block standing on one, as the table is drawn. What the move puts on the screen is not the
+   * table, however it is drawn over it: a press on the band at the foot of the screen is an answer
+   * to the move, not a place to walk to.
+   */
+  private onTable(event: MouseEvent): boolean {
     const target = event.target;
-    if (!(target instanceof Node)) return false;
-    // What the move puts on the screen is not the table, however it is drawn over it: a press
-    // on the band at the foot of the screen is an answer to the move, not a place to walk to.
-    if (target instanceof Element && target.closest('[data-move-plan-control]')) return false;
-    return this.coordinate.tabletopOriginElement.contains(target);
+    if (!(target instanceof Element) || !target.closest(TABLE_LAYER)) return false;
+    if (target.closest('[data-move-plan-control]')) return false;
+    return this.tablePick.faceAt(event.clientX, event.clientY, { stopsAt: () => true }) !== null;
   }
 
   private tablePoint(event: MouseEvent): { x: number; y: number } {
-    const target = event.target instanceof HTMLElement ? event.target : undefined;
-    return this.coordinate.calcTabletopLocalCoordinate({ x: event.clientX, y: event.clientY, z: 0 }, target);
+    return this.tablePick.landingAt(event.clientX, event.clientY);
   }
 }

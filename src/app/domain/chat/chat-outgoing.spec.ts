@@ -44,6 +44,12 @@ describe('composeChatOutgoing', () => {
     expect(composed.replyTo).toBe('');
     expect(composed.quoteOf).toBe('');
   });
+
+  it('carries the number to beat the reader picked, a 0 among them, and none where they picked none', () => {
+    expect(composeChatOutgoing({ ...draft, targetNumber: 0 }).targetNumber).toBe(0);
+    expect(composeChatOutgoing({ ...draft, targetNumber: 12 }).targetNumber).toBe(12);
+    expect('targetNumber' in composeChatOutgoing({ ...draft, targetNumber: undefined })).toBe(false);
+  });
 });
 
 describe('composeStampOutgoing', () => {

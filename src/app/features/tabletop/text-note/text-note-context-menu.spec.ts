@@ -147,6 +147,24 @@ describe('buildTextNoteContextMenu()', () => {
     expect(note.destroy).toHaveBeenCalled();
   });
 
+  it('makes a copy a cell down and across, laid over the rest', () => {
+    const copy = { location: { x: 100, y: 150 }, toTopmost: vi.fn() };
+    const note = makeTextNote({ clone: vi.fn(() => copy) });
+    const menu = buildTextNoteContextMenu(
+      note as unknown as TextNote,
+      50,
+      makeService(),
+      { onSetUpright: vi.fn(), onShowDetail: vi.fn() },
+      t
+    );
+
+    menu.find((m) => m.name === 'コピーを作る')!.action!();
+
+    expect(note.clone).toHaveBeenCalledOnce();
+    expect(copy.location).toEqual({ x: 150, y: 200 });
+    expect(copy.toTopmost).toHaveBeenCalled();
+  });
+
   it('draws exactly two separators without permission', () => {
     const note = makeTextNote();
     const menu = buildTextNoteContextMenu(
@@ -157,5 +175,32 @@ describe('buildTextNoteContextMenu()', () => {
       t
     );
     expect(menu.filter((m) => m.type === ContextMenuType.SEPARATOR)).toHaveLength(2);
+  });
+
+  it('offers to put the tutorial away, leaving the pieces or a blank table, on the first table’s tutorial note, after delete', () => {
+    const onPutAwayTutorial = vi.fn();
+    const onClearToBlankTable = vi.fn();
+    const menuOf = (identifier: string) =>
+      buildTextNoteContextMenuModel(
+        { ...makeTextNote(), identifier } as unknown as TextNote,
+        50,
+        makeService(),
+        { onSetUpright: vi.fn(), onShowDetail: vi.fn(), onPutAwayTutorial, onClearToBlankTable },
+        t
+      );
+
+    expect(names(menuOf('someNote').actions)).not.toContain('チュートリアルだけを片付ける');
+    const model = menuOf('tutorialNote');
+    const offered = names(model.actions);
+    expect(offered.slice(offered.indexOf('削除する') + 1, offered.indexOf('削除する') + 3)).toEqual([
+      'チュートリアルだけを片付ける',
+      '片付けて白紙のテーブルにする',
+    ]);
+    expect(names(model.radialGroups.flatMap((group) => group.actions))).toContain('片付けて白紙のテーブルにする');
+
+    model.actions.find((m) => m.name === 'チュートリアルだけを片付ける')!.action!();
+    model.actions.find((m) => m.name === '片付けて白紙のテーブルにする')!.action!();
+    expect(onPutAwayTutorial).toHaveBeenCalled();
+    expect(onClearToBlankTable).toHaveBeenCalled();
   });
 });

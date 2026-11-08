@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { BundledModelIntakeService } from '@axe/application/tabletop/bundled-model-intake.service';
 import { FunctionalPaintService } from '@axe/application/tabletop/functional-paint.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ImageFile } from '@axe/core/storage/image-file';
@@ -7,7 +8,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { downloadBlob } from '@axe/core/util/download-blob';
 import { deserializeScene } from '@axe/domain/map-editor/serialize';
 import { STAMPS } from '@axe/domain/map-editor/stamps';
-import { planFunctionPaint, sceneSpeaksFor } from '@axe/domain/map-editor/table-apply';
+import { objectModelsOf, planFunctionPaint, sceneSpeaksFor } from '@axe/domain/map-editor/table-apply';
 import { sceneFromTable } from '@axe/domain/map-editor/table-import';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 import { exportSceneToBlob } from '@axe/infrastructure/map-editor/export-image';
@@ -15,7 +16,7 @@ import { isZipArchive } from '@axe/infrastructure/map-editor/scene-archive';
 import { packSceneWithImages, unpackSceneWithImages } from '@axe/infrastructure/map-editor/scene-archive-images';
 
 /** What laying what was painted on the table came to: done, no table to lay it on, or a table of another grid. */
-export type FunctionApplyResult = 'done' | 'noTable' | 'gridMismatch';
+export type FunctionApplyResult = 'done' | 'noTable' | 'gridMismatch' | 'modelMissing';
 
 /**
  * What a map editor reads from files and writes out: the scene as an archive, the scene baked into
@@ -30,6 +31,7 @@ export class MapEditorFilesService {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tabletopService = inject(TabletopService);
   private readonly functionalPaint = inject(FunctionalPaintService);
+  private readonly bundledModels = inject(BundledModelIntakeService);
 
   private readonly exportFn = exportSceneToBlob;
 
@@ -81,15 +83,23 @@ export class MapEditorFilesService {
   }
 
   /**
-   * Lays what was painted on the table, and leaves the floor as it is.
+   * Lays what was painted on the table, and leaves the floor as it is, once the bundled models its
+   * 3D objects are drawn as are held in the room: read only once the table is there and on the
+   * scene's grid, and all of them, or nothing is laid at all.
    *
    * Baking the picture again to add a closed cell would cost the floor its quality and its
    * identity both, and neither has anything to do with what was painted.
    */
-  applyFunctions(): FunctionApplyResult {
+  async applyFunctions(): Promise<FunctionApplyResult> {
+    const scene = this.state.current;
+    const before = this.functionalPaint.snapshot();
+    if (!before) return 'noTable';
+    if (!planFunctionPaint(scene, before)) return 'gridMismatch';
+    const models = await this.bundledModels.identifiersOf(objectModelsOf(scene));
+    if ([...models.values()].some((held) => held.length < 1)) return 'modelMissing';
     const snapshot = this.functionalPaint.snapshot();
     if (!snapshot) return 'noTable';
-    const plan = planFunctionPaint(this.state.current, snapshot);
+    const plan = planFunctionPaint(scene, snapshot, (model) => models.get(model) ?? model);
     if (!plan) return 'gridMismatch';
     return this.functionalPaint.apply(plan) ? 'done' : 'noTable';
   }
@@ -111,6 +121,6 @@ export class MapEditorFilesService {
     // Only where the scene has something to say about the cells. A scene drawn from scratch
     // says nothing, and a plan built from nothing is a plan to take away every wall, mask and
     // no-entry cell the table already had.
-    return sceneSpeaksFor(scene) ? this.applyFunctions() : null;
+    return sceneSpeaksFor(scene) ? await this.applyFunctions() : null;
   }
 }

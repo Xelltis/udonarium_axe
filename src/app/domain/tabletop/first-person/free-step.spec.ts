@@ -1,4 +1,6 @@
 import { freeStepClear, FreeStepGround } from '@axe/domain/tabletop/first-person/free-step';
+import { GROUND_CHUNK_SAMPLE_COUNT, GROUND_CHUNK_SAMPLES } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
 import { DoorStyle, Terrain } from '@axe/domain/tabletop/terrain';
 import { describe, expect, it } from 'vitest';
 
@@ -21,6 +23,19 @@ describe('freeStepClear', () => {
 
   it('lets a step across open ground through', () => {
     expect(freeStepClear(from, to, groundWith([]))).toBe(true);
+  });
+
+  it('stops at a cliff of the raised ground higher than a cell, and steps up one of a cell', () => {
+    const raisedBy = (cells: number) => {
+      const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT);
+      for (let j = 0; j < GROUND_CHUNK_SAMPLES; j++) {
+        for (let i = 5; i < GROUND_CHUNK_SAMPLES; i++) heights[j * GROUND_CHUNK_SAMPLES + i] = cells * 64;
+      }
+      return { ...groundWith([]), raised: groundSurfaceOf([{ cx: 0, cy: 0, heights, paint: null }]) };
+    };
+
+    expect(freeStepClear(from, to, raisedBy(2))).toBe(false);
+    expect(freeStepClear(from, to, raisedBy(1))).toBe(true);
   });
 
   it('stops at the edge of the table', () => {

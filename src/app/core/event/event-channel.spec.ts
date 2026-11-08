@@ -1,4 +1,4 @@
-import { EventChannel, StickyEventChannel } from '@axe/core/event/event-channel';
+import { DestroyHandle, EventChannel, heldBy, StickyEventChannel } from '@axe/core/event/event-channel';
 
 describe('EventChannel', () => {
   it('calls its listeners', () => {
@@ -164,5 +164,65 @@ describe('StickyEventChannel', () => {
     ch.emit(2);
 
     expect(received).toEqual([1, 2]);
+  });
+});
+
+/** A destroy handle that says how many callbacks it still holds. */
+function fakeHandle(): DestroyHandle & { destroy(): void; readonly held: number } {
+  const callbacks = new Set<() => void>();
+  return {
+    onDestroy(callback: () => void): () => void {
+      callbacks.add(callback);
+      return () => callbacks.delete(callback);
+    },
+    destroy(): void {
+      for (const callback of [...callbacks]) callback();
+      callbacks.clear();
+    },
+    get held(): number {
+      return callbacks.size;
+    },
+  };
+}
+
+describe('heldBy', () => {
+  it('passes on what the channel says', () => {
+    const channel = new EventChannel<number>();
+    const received: number[] = [];
+    heldBy(channel, fakeHandle()).subscribe((value) => received.push(value));
+
+    channel.emit(7);
+
+    expect(received).toEqual([7]);
+  });
+
+  it('lets go of every listener once its owner goes, though none gave a handle of its own', () => {
+    const channel = new EventChannel<number>();
+    const owner = fakeHandle();
+    const held = heldBy(channel, owner);
+    const received: number[] = [];
+    held.subscribe((value) => received.push(value));
+    held.subscribe((value) => received.push(value * 10));
+
+    owner.destroy();
+    channel.emit(1);
+
+    expect(received).toEqual([]);
+    expect(channel.listenerCount).toBe(0);
+  });
+
+  it('takes a listener off its owner too once the listener goes first, by hand or with its own handle', () => {
+    const channel = new EventChannel<number>();
+    const owner = fakeHandle();
+    const caller = fakeHandle();
+    const held = heldBy(channel, owner);
+    const remove = held.subscribe(() => {});
+    held.subscribe(() => {}, caller);
+
+    remove();
+    caller.destroy();
+
+    expect(channel.listenerCount).toBe(0);
+    expect(owner.held).toBe(0);
   });
 });

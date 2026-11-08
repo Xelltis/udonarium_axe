@@ -11,10 +11,9 @@ import {
 } from '@axe/application/dice/dice-render.service';
 import { DiceThrow, DiceThrowService } from '@axe/application/dice/dice-throw.service';
 import { MyDiceService } from '@axe/application/dice/my-dice.service';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { Table3dService } from '@axe/application/tabletop/table-3d.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
-import { Matrix3D } from '@axe/core/transform/matrix-3d';
 import { DiceMaterial, PLAIN_DICE_LOOK } from '@axe/domain/dice/dice-3d/dice-look';
 import { Config } from '@axe/domain/peer/config';
 import type { PreparedThrow } from '@axe/infrastructure/dice-3d/dice-3d-engine';
@@ -161,10 +160,6 @@ describe('DiceRenderService', () => {
             fail: (id: string) => failed.push(id),
             played: (id: string, at: number) => played.push([id, at]),
           },
-        },
-        {
-          provide: CoordinateService,
-          useValue: { tabletopTransformVersion: signal(0), tabletopSceneMatrix: () => new Matrix3D() },
         },
         { provide: DICE_PICTURE_LOADER, useValue: (identifier: string) => readPicture(identifier) },
         {
@@ -602,18 +597,6 @@ describe('DiceRenderService', () => {
   });
 
   describe('on the table', () => {
-    /** The sheet over the table, as large as the screen of the test. */
-    function sheet(): HTMLCanvasElement {
-      const canvas = document.createElement('canvas');
-      canvas.getBoundingClientRect = () =>
-        ({ left: 0, top: 0, right: 800, bottom: 600, width: 800, height: 600, x: 0, y: 0 }) as DOMRect;
-      // The test's document draws nothing on a canvas; this one takes the strokes and keeps none.
-      const context = { clearRect: () => undefined, drawImage: () => undefined, globalAlpha: 1 };
-      canvas.getContext = (() => context) as unknown as HTMLCanvasElement['getContext'];
-      service.registerTable(canvas).resize(800, 600);
-      return canvas;
-    }
-
     function onTable(id: string, change: Partial<DiceThrow> = {}): DiceThrow {
       return throwOf(id, {
         stage: 'table',
@@ -626,35 +609,48 @@ describe('DiceRenderService', () => {
       });
     }
 
-    it('draws a throw on the table with the table’s own view, and leaves the line frames to theirs', async () => {
-      sheet();
-      throws.set(new Map([['a', onTable('a', { startedAt: 0 })]]));
-      service.register(document.createElement('canvas'), 'a').resize(300, 90);
-      await nextFrame(0);
-      await nextFrame(100);
-
-      expect(engine.drawn.map((d) => d.kind)).toEqual(['table']);
-    });
-
-    it('keeps the dice on the table a while after they stop, then lets them fade and stops drawing', async () => {
-      sheet();
+    it('hands a throw on a table drawn on a canvas to the table’s own scene, and draws nothing over the table for it', async () => {
+      const scene = TestBed.inject(Table3dService);
+      const shown = vi.spyOn(scene, 'showDice');
       throws.set(new Map([['a', onTable('a', { startedAt: 0, phase: 'settled' })]]));
       await nextFrame(0);
       await nextFrame(100);
-      // It began to play in the first frame it was drawn in.
-      const end = 100 + (ROLL_SECONDS + TABLE_HOLD_SECONDS + TABLE_FADE_SECONDS) * 1000;
 
-      await nextFrame(end - 100);
-      const drawnBefore = engine.drawn.length;
-      expect(frames).toHaveLength(1);
+      expect(engine.drawn).toEqual([]);
+      expect(shown).toHaveBeenLastCalledWith([
+        expect.objectContaining({ key: 'a', model: onTable('a').placement!.model, opacity: 1 }),
+      ]);
+
+      const end = (ROLL_SECONDS + TABLE_HOLD_SECONDS + TABLE_FADE_SECONDS) * 1000;
+      await nextFrame(end - 200);
+      expect(shown.mock.lastCall![0][0].opacity).toBeGreaterThan(0);
+      expect(shown.mock.lastCall![0][0].opacity).toBeLessThan(1);
       await nextFrame(end + 10);
+      expect(shown).toHaveBeenLastCalledWith([]);
+    });
 
-      expect(engine.drawn).toHaveLength(drawnBefore);
-      expect(frames).toHaveLength(0);
+    it('keeps dice at rest on the table on show while asked to, and has them stay their while and fade once let go', async () => {
+      const shown = vi.spyOn(TestBed.inject(Table3dService), 'showDice');
+      throws.set(new Map([['a', onTable('a', { startedAt: 0, phase: 'settled' })]]));
+      service.keepResting(true);
+      await nextFrame(0);
+      await nextFrame(100);
+      const end = (ROLL_SECONDS + TABLE_HOLD_SECONDS + TABLE_FADE_SECONDS) * 1000;
+      await nextFrame(ROLL_SECONDS * 1000 + 50);
+
+      await nextFrame(end + 10);
+      await nextFrame(end * 3);
+      expect(shown).toHaveBeenLastCalledWith([expect.objectContaining({ key: 'a', opacity: 1 })]);
+
+      service.keepResting(false);
+      await nextFrame(end * 3 + 100);
+      expect(shown.mock.lastCall![0][0].opacity).toBe(1);
+      await nextFrame(end * 3 + (TABLE_HOLD_SECONDS + TABLE_FADE_SECONDS) * 1000 + 10);
+      expect(shown).toHaveBeenLastCalledWith([]);
     });
 
     it('keeps the trays of one roll on the table together, fading them from when the last comes to rest', async () => {
-      sheet();
+      const shown = vi.spyOn(TestBed.inject(Table3dService), 'showDice');
       const first = onTable('a', { messageIdentifier: 'roll', startedAt: 0, phase: 'settled' });
       throws.set(new Map([['a', first]]));
       await nextFrame(0);
@@ -667,75 +663,15 @@ describe('DiceRenderService', () => {
         ])
       );
       await nextFrame(1500);
-      const gone = 100 + (ROLL_SECONDS + TABLE_HOLD_SECONDS + TABLE_FADE_SECONDS) * 1000 + 10;
-      engine.drawn.length = 0;
+      const gone = (ROLL_SECONDS + TABLE_HOLD_SECONDS + TABLE_FADE_SECONDS) * 1000 + 10;
 
       await nextFrame(gone);
 
-      expect(engine.drawn.map((d) => d.id)).toEqual(['a', 'b']);
+      expect(shown.mock.lastCall![0].map((dice) => dice.key)).toEqual(['a', 'b']);
 
       const end = 1500 + (ROLL_SECONDS + TABLE_HOLD_SECONDS + TABLE_FADE_SECONDS) * 1000;
-      await nextFrame(end - 50);
-      engine.drawn.length = 0;
       await nextFrame(end + 10);
-      expect(engine.drawn).toEqual([]);
-      expect(engine.released).toEqual(['a', 'b']);
-    });
-
-    it('keeps a roll on the table its while from when it came to rest, though its recording is cut down meanwhile', async () => {
-      sheet();
-      const whole = onTable('a', { startedAt: 0, phase: 'settled' });
-      throws.set(new Map([['a', whole]]));
-      await nextFrame(0);
-      await nextFrame(100);
-      const end = 100 + (ROLL_SECONDS + TABLE_HOLD_SECONDS + TABLE_FADE_SECONDS) * 1000;
-      await nextFrame(1500);
-
-      throws.set(new Map([['a', { ...whole, result: { ...whole.result!, frameCount: 1, restFrame: 0 } }]]));
-      await nextFrame(end - 100);
-      engine.drawn.length = 0;
-      await nextFrame(end - 50);
-      expect(engine.drawn.map((d) => d.id)).toEqual(['a']);
-
-      await nextFrame(end + 10);
-      expect(engine.released).toContain('a');
-    });
-
-    it('lets the set-up of a throw gone from the table go, and does not set it up again', async () => {
-      sheet();
-      throws.set(new Map([['a', onTable('a', { startedAt: 0, phase: 'settled' })]]));
-      await nextFrame(0);
-      await nextFrame(100);
-      const end = 100 + (ROLL_SECONDS + TABLE_HOLD_SECONDS + TABLE_FADE_SECONDS) * 1000;
-      await nextFrame(end + 10);
-      expect(engine.released).toEqual(['a']);
-
-      throws.set(new Map([...throws(), ['b', throwOf('b', { phase: 'settled', still: true })]]));
-      service.register(document.createElement('canvas'), 'b').resize(300, 90);
-      await nextFrame(end + 100);
-
-      expect(engine.made).toEqual(['a', 'b']);
-    });
-
-    it('draws nothing for a tray that lies off the screen', async () => {
-      sheet();
-      throws.set(
-        new Map([
-          [
-            'a',
-            onTable('a', {
-              placement: {
-                model: [20, 0, 0, 0, 0, -20, 0, 0, 0, 0, 20, 0, 5000, 5000, 0, 1],
-                tray: { halfWidth: 4, halfDepth: 3 },
-              },
-            }),
-          ],
-        ])
-      );
-      await nextFrame(0);
-      await nextFrame(100);
-
-      expect(engine.drawn).toHaveLength(0);
+      expect(shown).toHaveBeenLastCalledWith([]);
     });
   });
 });

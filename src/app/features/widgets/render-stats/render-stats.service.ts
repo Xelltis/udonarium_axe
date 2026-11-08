@@ -11,11 +11,7 @@ type WatchedComponent = 'TerrainComponent' | 'GameTableComponent';
 export interface RenderStats {
   /** Terrain drawn as a box of its own. */
   readonly terrains: number;
-  /** Terrain drawn together with the blocks around it. */
-  readonly mergedTerrains: number;
-  /** The surfaces the terrain drawn together is drawn as. */
-  readonly mergedFaces: number;
-  readonly terrainCanvases: number;
+  /** The elements laid over the table's canvas. */
   readonly tableElements: number;
   readonly elementsPerTerrain: number;
   readonly updates: Readonly<Record<WatchedComponent, number>>;
@@ -33,9 +29,6 @@ export interface RenderStats {
 
 const EMPTY_STATS: RenderStats = {
   terrains: 0,
-  mergedTerrains: 0,
-  mergedFaces: 0,
-  terrainCanvases: 0,
   tableElements: 0,
   elementsPerTerrain: 0,
   updates: { TerrainComponent: 0, GameTableComponent: 0 },
@@ -169,11 +162,7 @@ export class RenderStatsService {
 
   private sample(): void {
     const terrains = document.querySelectorAll('terrain').length;
-    const merged = document.querySelector('terrain-batch-layer');
-    const mergedTerrains = Number(merged?.getAttribute('data-merged') ?? 0) || 0;
-    const mergedFaces = merged ? merged.children.length : 0;
-    const terrainCanvases = document.querySelectorAll('terrain canvas').length;
-    const table = document.getElementById('app-game-table');
+    const table = document.querySelector('[data-testid="table-hud"]');
     const tableElements = table ? table.querySelectorAll('*').length : 0;
     const sorted = [...this.frames].sort((a, b) => a - b);
     const counters = perfCounters.drain();
@@ -183,11 +172,8 @@ export class RenderStatsService {
 
     this.stats.set({
       terrains,
-      mergedTerrains,
-      mergedFaces,
-      terrainCanvases,
       tableElements,
-      elementsPerTerrain: terrains + mergedTerrains > 0 ? tableElements / (terrains + mergedTerrains) : 0,
+      elementsPerTerrain: terrains > 0 ? tableElements / terrains : 0,
       updates: { ...this.updates },
       counters,
       frameLast: this.frames.at(-1) ?? 0,

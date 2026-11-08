@@ -1,13 +1,13 @@
 @if (view() || plan() || othersReach().length) {
   <canvas
     #rangeCanvas
-    class="pointer-events-none absolute top-0 left-0 backface-hidden transform-3d"
+    class="pointer-events-none absolute top-0 left-0 opacity-0 backface-hidden transform-3d"
     [style.transform]="zTransform"
   ></canvas>
   @for (layer of raised(); track layer.heightPx) {
     <canvas
       #raisedCanvas
-      class="pointer-events-none absolute top-0 left-0 backface-hidden transform-3d"
+      class="pointer-events-none absolute top-0 left-0 opacity-0 backface-hidden transform-3d"
       [style.transform]="layer.transform"
     ></canvas>
   }

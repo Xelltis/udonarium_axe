@@ -8,8 +8,19 @@ import {
   TownPlan,
 } from '@axe/domain/tabletop/field/field-atmosphere';
 import { FieldLayout } from '@axe/domain/tabletop/field/field-layout';
+import {
+  FIELD_PROP_MODELS,
+  fieldModelAt,
+  fieldModelDrawnSize,
+  type FieldModelId,
+  type FieldSeason,
+} from '@axe/domain/tabletop/field/field-models';
+import { settlementBlocks } from '@axe/domain/tabletop/field/settlement-blocks';
 import { FieldBuilding } from '@axe/domain/tabletop/field/town-layout';
-import { MapBlock, MapBlocks, MapLight, MapLightKind, MapPaint } from '@axe/domain/tabletop/map-blocks';
+import { roofUnitModelOf, TOWN_KITS } from '@axe/domain/tabletop/field/town-models';
+import { areasOver } from '@axe/domain/tabletop/field/water-areas';
+import { GridType } from '@axe/domain/tabletop/grid-type';
+import { MapAmbience, MapBlock, MapBlocks, MapLight, MapLightKind, MapPaint } from '@axe/domain/tabletop/map-blocks';
 
 /**
  * How wide a clump of the same thing is allowed to grow before it is broken in two.
@@ -30,6 +41,46 @@ export const TOWN_PIECE_IDS = ['building', 'roofUnit'] as const;
  * town leaves it alone.
  */
 const ROOF_PLANT = { side: 'metal_grate', top: 'metal_grate', height: 0.5, fill: 0.7 } as const;
+
+/**
+ * A standing thing drawn as a bundled 3D model: one block as wide and as tall as the model is drawn
+ * standing as large as it may within the cells the thing spreads over and the height it reaches from
+ * the ground to its crown, in the middle of those cells. It stops sight, takes a piece put on it and
+ * stands in the way where the model does, rather than over all the ground its crown would cover; the
+ * model is drawn in place of it.
+ */
+function modelledThing(
+  object: {
+    readonly x: number;
+    readonly y: number;
+    readonly span: number;
+    readonly lift: number;
+    readonly spin: number;
+    readonly prop: FieldPropId;
+  },
+  shape: (typeof FIELD_PROP_SHAPES)[FieldPropId],
+  skin: { side: string; top: string },
+  rect: { x: number; y: number; w: number; h: number },
+  model: FieldModelId
+): MapBlock {
+  const layers = shape.layers ?? [{ spread: object.span, height: shape.height }];
+  const crown = (shape.altitude ?? 0) + object.lift + layers.reduce((total, layer) => total + layer.height, 0);
+  const height = Math.max(crown, shape.trunk ? shape.trunk.height + object.lift : 0, shape.height);
+  const drawn = fieldModelDrawnSize(model, Math.min(rect.w, rect.h), height);
+  return {
+    kind: 'prop',
+    rect,
+    blocksSight: shape.blocksSight,
+    locked: false,
+    rooms: [],
+    skin: { side: { kind: 'texture', id: skin.side }, top: { kind: 'texture', id: skin.top } },
+    height: drawn.tall,
+    footprint: { w: drawn.across, d: drawn.across },
+    rotate: object.spin,
+    thing: object.prop,
+    model,
+  };
+}
 
 function maskOfBand(layout: FieldLayout, band: number): Uint8Array {
   const mask = new Uint8Array(layout.width * layout.height);
@@ -73,6 +124,31 @@ function findFires(layout: FieldLayout, atmosphere: FieldAtmosphere, seed: numbe
   return lights;
 }
 
+/** How thick the water over a band is laid: as the settings of water lay a pond. */
+const FIELD_WATER_DENSITY = 0.6;
+
+/**
+ * The water lying over the bands that have any, as few areas as cover each band: the surface at the
+ * board, which on raised ground is dug down under it.
+ */
+function watersOf(layout: FieldLayout, atmosphere: FieldAtmosphere, gridType: GridType): MapAmbience[] {
+  const waters: MapAmbience[] = [];
+  atmosphere.bands.forEach((band, index) => {
+    if (!band.water) return;
+    const { color, turbidity, dirt, leaves, ice } = band.water;
+    for (const rect of areasOver(maskOfBand(layout, index), layout.width, layout.height, gridType)) {
+      waters.push({
+        rect,
+        kind: 'water',
+        density: FIELD_WATER_DENSITY,
+        name: 'water',
+        water: { surface: 0, color, turbidity, dirt, leaves, ice },
+      });
+    }
+  });
+  return waters;
+}
+
 /**
  * The blocks one building is built of.
  *
@@ -80,8 +156,10 @@ function findFires(layout: FieldLayout, atmosphere: FieldAtmosphere, seed: numbe
  * cell in from its edge on top of it. On a board whose cells will not gather into rectangles it
  * is a column to a cell, those round the edge of a podium standing only as tall as the podium.
  */
-function buildingBlocks(building: FieldBuilding, plan: TownPlan, span: number): MapBlock[] {
+function buildingBlocks(building: FieldBuilding, plan: TownPlan, span: number, models: boolean): MapBlock[] {
   const skin = plan.skins[building.skin] ?? plan.skins[0];
+  // A building built of a block a cell, as on a board of hexes, is built of its blocks all the same.
+  const kit = models && span > 1 ? TOWN_KITS[skin.side] : undefined;
   const standing = (): Omit<MapBlock, 'rect'> => ({
     kind: 'prop',
     blocksSight: true,
@@ -89,6 +167,7 @@ function buildingBlocks(building: FieldBuilding, plan: TownPlan, span: number): 
     rooms: [],
     skin: { side: { kind: 'texture', id: skin.side }, top: { kind: 'texture', id: skin.top } },
     thing: 'building',
+    ...(kit ? { model: kit } : {}),
   });
   const { x, y, w, h, podium } = building;
   const blocks: MapBlock[] = [];
@@ -132,6 +211,7 @@ function buildingBlocks(building: FieldBuilding, plan: TownPlan, span: number): 
       footprint: { w: ROOF_PLANT.fill, d: ROOF_PLANT.fill },
       altitude: building.height,
       thing: 'roofUnit',
+      ...(models ? { model: roofUnitModelOf(plan) } : {}),
     });
   }
   return blocks;
@@ -149,7 +229,10 @@ export function fieldToBlocks(
   layout: FieldLayout,
   atmosphere: FieldAtmosphere,
   seed: number,
-  mergeSpan: number = FIELD_MERGE_SPAN
+  mergeSpan: number = FIELD_MERGE_SPAN,
+  models = false,
+  season: FieldSeason = '',
+  gridType: GridType = GridType.SQUARE
 ): MapBlocks {
   const blocks: MapBlock[] = [];
   const paint: MapPaint[] = [];
@@ -158,7 +241,7 @@ export function fieldToBlocks(
   atmosphere.bands.forEach((band, index) => {
     const mask = maskOfBand(layout, index);
     for (const rect of mergeMaskToRects(mask, layout.width, layout.height, span)) {
-      paint.push({ kind: 'floor', rect, material: { kind: 'texture', id: band.texture } });
+      paint.push({ kind: 'floor', rect, material: { kind: 'texture', id: band.floor ?? band.texture } });
     }
   });
 
@@ -171,6 +254,17 @@ export function fieldToBlocks(
     const side = asked?.side ?? shape.side;
     const top = asked?.top ?? shape.top;
     const mask = maskOfProp(layout, prop);
+    if (models && FIELD_PROP_MODELS[prop]?.length) {
+      for (let index = 0; index < mask.length; index++) {
+        if (!mask[index]) continue;
+        const x = index % layout.width;
+        const y = Math.floor(index / layout.width);
+        const model = fieldModelAt(prop, x, y, seed, atmosphere.id, season)!;
+        const cell = { x, y, span: 1, lift: 0, spin: 0, prop };
+        blocks.push(modelledThing(cell, shape, { side, top }, { x, y, w: 1, h: 1 }, model));
+      }
+      continue;
+    }
     for (const rect of mergeMaskToRects(mask, layout.width, layout.height, span)) {
       blocks.push({
         kind: 'prop',
@@ -186,7 +280,15 @@ export function fieldToBlocks(
   }
 
   if (atmosphere.town) {
-    for (const building of layout.buildings) blocks.push(...buildingBlocks(building, atmosphere.town, span));
+    for (const building of layout.buildings) blocks.push(...buildingBlocks(building, atmosphere.town, span, models));
+  }
+
+  const settled = layout.settlement
+    ? settlementBlocks(layout.settlement, layout.width, layout.height, span, models, gridType)
+    : null;
+  if (settled) {
+    blocks.push(...settled.blocks);
+    paint.push(...settled.paint);
   }
 
   // Last laid wins where two patches cover one cell, so a pool goes down over the band it lies in.
@@ -204,6 +306,12 @@ export function fieldToBlocks(
     const skin = object.skin ?? { side: shape.side, top: shape.top };
     const reach = (object.span - 1) / 2;
     const rect = { x: object.x - reach, y: object.y - reach, w: object.span, h: object.span };
+    const model = models ? fieldModelAt(object.prop, object.x, object.y, seed, atmosphere.id, season) : null;
+
+    if (model) {
+      blocks.push(modelledThing(object, shape, skin, rect, model));
+      continue;
+    }
 
     if (shape.trunk) {
       const trunk = shape.trunk;
@@ -265,17 +373,25 @@ export function fieldToBlocks(
     }
   }
 
-  const lights = findFires(layout, atmosphere, seed);
+  const lights = [...findFires(layout, atmosphere, seed), ...(settled?.lights ?? [])].map((light, room) => ({
+    ...light,
+    room,
+  }));
 
   return {
     blocks,
     paint,
-    ambiences: layout.pools.map((pool) => ({
-      rect: { x: pool.x, y: pool.y, w: pool.w, h: pool.h },
-      kind: pool.kind,
-      density: pool.density,
-      name: pool.name,
-    })),
+    ambiences: [
+      ...watersOf(layout, atmosphere, gridType),
+      ...layout.pools.map((pool) => ({
+        rect: { x: pool.x, y: pool.y, w: pool.w, h: pool.h },
+        kind: pool.kind,
+        density: pool.density,
+        name: pool.name,
+      })),
+      ...(settled?.ambiences ?? []),
+    ],
+    ...(settled && settled.slows.length > 0 ? { slows: settled.slows } : {}),
     traps: [],
     torchRooms: lights.map((light) => light.room),
     torchSpots: lights.map((light) => ({ x: light.x, y: light.y })),

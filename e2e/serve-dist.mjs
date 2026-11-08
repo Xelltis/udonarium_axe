@@ -70,8 +70,22 @@ function resolveFile(urlPath) {
 const e2eConfig =
   process.env['E2E_CONFIG'] ?? JSON.stringify({ backend: { url: 'http://localhost:9/e2e-no-backend' } }, null, 2);
 
+/**
+ * The cookie a project of the suite carries to have the sample room's models held back, so its
+ * pieces are drawn as their pictures. Drawn in software, the models make a spec on the canvas some
+ * three times slower without being what it tries; the specs about them and the pictures go without.
+ * A cookie rather than a header, as a header would go with every request to another origin too and
+ * have the browser ask that origin first whether it may.
+ */
+const NO_SAMPLE_MODELS = /(?:^|;\s*)axe-e2e-sample-models=off(?:;|$)/;
+
 createServer((request, response) => {
   const path = request.url.split('?')[0];
+  if (NO_SAMPLE_MODELS.test(request.headers.cookie ?? '') && path.startsWith('/assets/models/pieces/')) {
+    response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    response.end('held back');
+    return;
+  }
   if (path === '/assets/config.json') {
     response.writeHead(200, {
       'Content-Type': 'application/json; charset=utf-8',

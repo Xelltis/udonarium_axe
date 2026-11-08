@@ -5,6 +5,7 @@ import {
   multiAngleOrbitAnimation,
   multiAnglePieceMotionMode,
   multiAngleRotationPhase,
+  multiAngleTurnAt,
   normalizeDegrees,
 } from '@axe/domain/tabletop/multi-angle';
 
@@ -72,5 +73,24 @@ describe('multi-angle geometry', () => {
     expect(first).toBeLessThan(1);
     expect(multiAngleRotationPhase('piece-a')).toBe(first);
     expect(multiAngleRotationPhase('piece-b')).not.toBe(first);
+  });
+});
+
+describe('multiAngleTurnAt', () => {
+  it('turns evenly all the way round, a phase ahead', () => {
+    expect(multiAngleTurnAt('continuous', 60, 4, 0, 15)).toBeCloseTo(90, 6);
+    expect(multiAngleTurnAt('continuous', 60, 4, 0.5, 15)).toBeCloseTo(270, 6);
+    expect(multiAngleTurnAt('continuous', 60, 4, 0, 75)).toBeCloseTo(90, 6);
+  });
+
+  it('turns a quarter at a time, holding still between quarters', () => {
+    expect(multiAngleTurnAt('quarter-turn', 12, 4, 0, 1.5)).toBeCloseTo(45, 6);
+    expect(multiAngleTurnAt('quarter-turn', 12, 4, 0, 3)).toBeCloseTo(90, 6);
+    expect(multiAngleTurnAt('quarter-turn', 12, 4, 0, 6)).toBeCloseTo(90, 6);
+    expect(multiAngleTurnAt('quarter-turn', 12, 4, 0, 8.5)).toBeCloseTo(135, 6);
+  });
+
+  it('turns evenly where a quarter turn has no pause', () => {
+    expect(multiAngleTurnAt('quarter-turn', 12, 0, 0, 3)).toBeCloseTo(90, 6);
   });
 });

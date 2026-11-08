@@ -46,6 +46,7 @@ const FAB: MenuLayout = {
     ]),
     group('media', 'movie', 'app.fab.media', [
       'images',
+      'models',
       'jukebox',
       'cutIn',
       'effectLibrary',
@@ -90,6 +91,7 @@ const FAB: MenuLayout = {
         'soundSettings',
         'motion',
         'renderLite',
+        'tableQuality',
         'language',
         'menuEditor',
         'useMobileLayout',
@@ -110,6 +112,7 @@ const GM_TOOLBAR: MenuLayout = {
     item('scene'),
     item('darkness'),
     item('fog'),
+    item('groundBrush'),
     item('firstPersonShare'),
     item('nameLabels'),
     item('resourceBars'),

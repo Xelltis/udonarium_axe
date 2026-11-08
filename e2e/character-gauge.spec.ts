@@ -56,6 +56,20 @@ async function box(locator: Locator) {
 }
 
 /**
+ * The scale the marks over a piece are drawn at, which follows how near the camera stands to the
+ * piece: read off the transform of the nearest box over a mark that scales it.
+ */
+function markScale(mark: Locator): Promise<number> {
+  return mark.evaluate((element) => {
+    for (let at: Element | null = element; at; at = at.parentElement) {
+      const scaled = /scale\(([\d.]+)\)/.exec((at as HTMLElement).style?.transform ?? '');
+      if (scaled) return Number(scaled[1]);
+    }
+    return 1;
+  });
+}
+
+/**
  * Measures a buff's icon and an element inside it at the same moment. The icon comes in from a
  * slightly shrunken size, so the measuring waits for the animation to end. Measured in two goes, a
  * redraw in between would leave positions from different moments to compare.
@@ -101,7 +115,7 @@ test.describe('what shows above a piece', () => {
     const sheet = await openSheet(page);
     await sheet.locator('button[title="編集"]').first().dispatchEvent('click');
     const row = resourceRows(sheet, page).first();
-    await row.locator('button[title="詳細設定"]').first().dispatchEvent('click');
+    await row.locator('button[aria-label="詳細設定"]').first().dispatchEvent('click');
 
     const gaugeToggle = row.locator('input[name="data-piece-gauge"]');
     await expect(gaugeToggle).toBeChecked({ timeout: 5000 });
@@ -138,7 +152,9 @@ test.describe('what shows above a piece', () => {
     );
   });
 
-  test('stacks the buffs, the bars and the name close together right above the piece', async ({ page }) => {
+  test('stacks the buffs, the bars and the name close together right above the piece, the rounds left on the icon’s lower right', async ({
+    page,
+  }) => {
     await addBuff(page);
     const piece = newCharacterPiece(page);
 
@@ -146,21 +162,31 @@ test.describe('what shows above a piece', () => {
     const gauge = await box(piece.locator('[data-testid="piece-gauge"]').first());
     const lastGauge = await box(piece.locator('[data-testid="piece-gauge"]').last());
     const name = await box(piece.locator('[data-testid="piece-name"]'));
+    // The marks are measured as at a scale of one, however far back the camera stands.
+    const scale = await markScale(piece.locator('[data-testid="buff-badge"]').first());
 
     expect(badge.y).toBeLessThan(gauge.y);
     expect(lastGauge.y).toBeLessThan(name.y);
 
-    expect(gauge.y - (badge.y + badge.height)).toBeLessThan(14);
-    expect(name.y - (lastGauge.y + lastGauge.height)).toBeLessThan(12);
-    expect(name.y + name.height - badge.y).toBeLessThan(110);
+    expect((gauge.y - (badge.y + badge.height)) / scale).toBeLessThan(14);
+    expect((name.y - (lastGauge.y + lastGauge.height)) / scale).toBeLessThan(12);
+    expect((name.y + name.height - badge.y) / scale).toBeLessThan(110);
 
-    expect(badge.width).toBeGreaterThan(8);
-    expect(badge.width).toBeLessThan(22);
-    expect(name.height).toBeLessThan(34);
+    expect(badge.width / scale).toBeGreaterThan(8);
+    expect(badge.width / scale).toBeLessThan(22);
+    expect(name.height / scale).toBeLessThan(34);
 
     expect(Math.abs(badge.x - gauge.x), 'バフがリソースバーの開始位置から始まっていない').toBeLessThan(6);
     expect(gauge.width, 'リソースバーがキャラ名に比べて細すぎる').toBeGreaterThan(name.width * 0.7);
     expect(gauge.width, 'リソースバーがキャラ名に比べて広すぎる').toBeLessThan(name.width * 1.6);
+
+    const firstBadge = piece.locator('[data-testid="buff-badge"]').first();
+    await expect(firstBadge.locator('[data-testid="buff-rounds"]')).toBeVisible({ timeout: 10000 });
+    const { icon, rounds } = await settledBoxes(firstBadge, '[data-testid="buff-rounds"]');
+    expect(overlaps(icon, rounds), '残ラウンドがアイコンに重なっていない').toBe(true);
+    expect(rounds.x + rounds.width / 2).toBeGreaterThan(icon.x + icon.width / 2);
+    expect(rounds.y + rounds.height / 2).toBeGreaterThan(icon.y + icon.height / 2);
+    expect(rounds.width).toBeLessThan(icon.width * 0.9);
   });
 
   test('switches how buffs show from the context menu', async ({ page }) => {
@@ -170,8 +196,8 @@ test.describe('what shows above a piece', () => {
     await expect(badges.first()).toBeAttached({ timeout: 10000 });
     await expect(badges).toHaveCount(2, { timeout: 10000 });
 
-    const movable = piece.locator('> div').first();
-    const before = await movable.evaluate((element) => (element as HTMLElement).style.transform);
+    const movable = piece.locator(':scope > [data-location]').first();
+    const before = await movable.getAttribute('data-location');
 
     await selectBuffView(page, '詳細');
     await expect(piece.locator('[data-testid="buff-badge-grid"]')).toHaveCount(0, { timeout: 5000 });
@@ -186,7 +212,7 @@ test.describe('what shows above a piece', () => {
     await selectBuffView(page, 'アイコン');
     await expect(badges).toHaveCount(2, { timeout: 5000 });
 
-    expect(await movable.evaluate((element) => (element as HTMLElement).style.transform)).toBe(before);
+    expect(await movable.getAttribute('data-location')).toBe(before);
   });
 
   test('moves only that piece when its name label is dragged', async ({ page }) => {
@@ -218,22 +244,6 @@ test.describe('what shows above a piece', () => {
       .toBeGreaterThan(10);
   });
 
-  test('lines the buff badges up side by side', async ({ page }) => {
-    await addBuff(page, 3);
-    const badges = newCharacterPiece(page).locator('[data-testid="buff-badge"]');
-    await expect(badges.first()).toBeAttached({ timeout: 10000 });
-    await expect(badges).toHaveCount(3, { timeout: 10000 });
-
-    const first = await box(badges.nth(0));
-    const second = await box(badges.nth(1));
-    const third = await box(badges.nth(2));
-
-    expect(Math.abs(second.y - first.y)).toBeLessThan(first.height * 0.6);
-    expect(Math.abs(third.y - first.y)).toBeLessThan(first.height * 0.6);
-    expect(second.x - first.x).toBeGreaterThan(first.width * 0.8);
-    expect(third.x - second.x).toBeGreaterThan(first.width * 0.8);
-  });
-
   test('keeps many buffs from overlapping, lining them up side by side before wrapping', async ({ page }) => {
     await addBuff(page, 8);
     const piece = newCharacterPiece(page);
@@ -245,6 +255,12 @@ test.describe('what shows above a piece', () => {
 
     const boxes = [];
     for (let i = 0; i < 8; i++) boxes.push(await box(badges.nth(i)));
+
+    const [first, second, third] = boxes;
+    expect(Math.abs(second.y - first.y)).toBeLessThan(first.height * 0.6);
+    expect(Math.abs(third.y - first.y)).toBeLessThan(first.height * 0.6);
+    expect(second.x - first.x).toBeGreaterThan(first.width * 0.8);
+    expect(third.x - second.x).toBeGreaterThan(first.width * 0.8);
 
     for (const [index, badge] of boxes.entries()) {
       expect(overlaps(badge, gauge), `badge ${index} とリソースバーが重なっている`).toBe(false);
@@ -259,39 +275,6 @@ test.describe('what shows above a piece', () => {
     expect(rows.size).toBeGreaterThan(1);
     expect(rows.size).toBeLessThan(boxes.length);
     expect(overlaps(await box(piece.locator('[data-testid="buff-plate"]')), gauge)).toBe(false);
-  });
-
-  test('keeps the detailed view off the resource bars too', async ({ page }) => {
-    await addBuff(page, 3);
-    const piece = newCharacterPiece(page);
-    await selectBuffView(page, '詳細');
-
-    const rows = buffRows(piece);
-    await expect(rows.first()).toBeVisible({ timeout: 5000 });
-
-    const gauge = await box(piece.locator('[data-testid="piece-gauge"]').first());
-    const name = await box(piece.locator('[data-testid="piece-name"]'));
-    const count = await rows.count();
-    for (let i = 0; i < count; i++) {
-      const row = await box(rows.nth(i));
-      expect(overlaps(row, gauge), `詳細 ${i} 行目がリソースバーに重なっている`).toBe(false);
-      expect(overlaps(row, name), `詳細 ${i} 行目が名前に重なっている`).toBe(false);
-      expect(row.width).toBeGreaterThan(40);
-    }
-  });
-
-  test('lays the rounds left over the lower right of the icon', async ({ page }) => {
-    await addBuff(page, 2);
-    const piece = newCharacterPiece(page);
-    const badge = piece.locator('[data-testid="buff-badge"]').first();
-    await expect(badge.locator('[data-testid="buff-rounds"]')).toBeVisible({ timeout: 10000 });
-
-    const { icon, rounds } = await settledBoxes(badge, '[data-testid="buff-rounds"]');
-
-    expect(overlaps(icon, rounds), '残ラウンドがアイコンに重なっていない').toBe(true);
-    expect(rounds.x + rounds.width / 2).toBeGreaterThan(icon.x + icon.width / 2);
-    expect(rounds.y + rounds.height / 2).toBeGreaterThan(icon.y + icon.height / 2);
-    expect(rounds.width).toBeLessThan(icon.width * 0.9);
   });
 
   test('does not wrap the detailed view', async ({ page }) => {
@@ -330,13 +313,17 @@ test.describe('what shows above a piece', () => {
     const first = await box(rows.first());
     for (let i = 0; i < count; i++) {
       const row = await box(rows.nth(i));
+      expect(row.width).toBeGreaterThan(40);
       expect(Math.abs(row.x - first.x), `詳細 ${i} 行目の左端が揃っていない`).toBeLessThan(2);
       expect(row.x - plate.x, `詳細 ${i} 行目が左に寄りすぎている`).toBeGreaterThan(-2);
     }
   });
 
-  test('pops out a red number when a resource goes down', async ({ page }) => {
+  test('pops out a red number when a resource goes down and a green one when it goes up, the other way round once inverted', async ({
+    page,
+  }) => {
     const piece = newCharacterPiece(page);
+    await expect(piece.locator('[data-testid="piece-gauge"]').first()).toBeVisible({ timeout: 10000 });
     const sheet = await openSheet(page);
     // The piece shakes and flashes for 420ms, which a slow browser can spend before the number
     // below shows; the page notes both as they start, so neither is missed.
@@ -367,22 +354,22 @@ test.describe('what shows above a piece', () => {
     await expect(piece).toHaveAttribute('data-flashed', 'true');
 
     await expect(piece.locator('[data-testid="resource-change"]')).toHaveCount(0, { timeout: 5000 });
-  });
 
-  test('reverses what a rise and a fall mean for an inverted resource', async ({ page }) => {
-    const piece = newCharacterPiece(page);
-    const sheet = await openSheet(page);
-    await sheet.locator('button[title="編集"]').first().dispatchEvent('click');
-
-    const row = resourceRows(sheet, page).first();
-    await row.locator('button[title="詳細設定"]').first().dispatchEvent('click');
-    await row.locator('input[name="data-gauge-inverted"]').check();
-
-    const current = sheet.locator('input[name="data-current-value"]').first();
-    await current.fill('150');
+    await current.fill('180');
     await current.blur();
+    await expect(change).toBeVisible({ timeout: 5000 });
+    await expect(change).toHaveText('+30');
+    await expect(change).toHaveAttribute('data-kind', 'heal');
+    await expect(piece.locator('[data-testid="heal-aura"]')).toBeAttached();
+    await expect(piece.locator('[data-testid="resource-change"]')).toHaveCount(0, { timeout: 5000 });
+    await expect(piece.locator('[data-testid="heal-aura"]')).toHaveCount(0, { timeout: 5000 });
 
-    const change = piece.locator('[data-testid="resource-change"]').first();
+    await sheet.locator('button[title="編集"]').first().dispatchEvent('click');
+    const row = resourceRows(sheet, page).first();
+    await row.locator('button[aria-label="詳細設定"]').first().dispatchEvent('click');
+    await row.locator('input[name="data-gauge-inverted"]').check();
+    await current.fill('130');
+    await current.blur();
     await expect(change).toBeVisible({ timeout: 5000 });
     await expect(change).toHaveText('-50');
     await expect(change).toHaveAttribute('data-kind', 'heal');
@@ -396,7 +383,7 @@ test.describe('what shows above a piece', () => {
     const sheet = await openSheet(page);
     await sheet.locator('button[title="編集"]').first().dispatchEvent('click');
     const row = resourceRows(sheet, page).first();
-    await row.locator('button[title="詳細設定"]').first().dispatchEvent('click');
+    await row.locator('button[aria-label="詳細設定"]').first().dispatchEvent('click');
 
     const colour = row.locator('input[name="data-gauge-color"]');
     const rect = await box(colour);
@@ -409,26 +396,5 @@ test.describe('what shows above a piece', () => {
     const fill = piece.locator('[data-testid="piece-gauge"]').first().locator('span[style*="width"]');
     await expect(fill).toHaveCSS('background-color', 'rgb(57, 73, 171)');
     await expect(row.getByTestId('data-gauge-color-auto')).toBeVisible();
-  });
-
-  test('pops out a green number when a resource goes up', async ({ page }) => {
-    const piece = newCharacterPiece(page);
-    const sheet = await openSheet(page);
-
-    const current = sheet.locator('input[name="data-current-value"]').first();
-    await expect(current).toBeVisible({ timeout: 5000 });
-    await current.fill('120');
-    await current.blur();
-    await expect(piece.locator('[data-testid="resource-change"]').first()).toBeVisible({ timeout: 5000 });
-    await expect(piece.locator('[data-testid="resource-change"]')).toHaveCount(0, { timeout: 5000 });
-
-    await current.fill('180');
-    await current.blur();
-
-    const change = piece.locator('[data-testid="resource-change"]').first();
-    await expect(change).toBeVisible({ timeout: 5000 });
-    await expect(change).toHaveText('+60');
-    await expect(change).toHaveAttribute('data-kind', 'heal');
-    await expect(piece.locator('[data-testid="heal-aura"]')).toBeAttached();
   });
 });

@@ -31,7 +31,7 @@ describe('ChatWindowComponent', () => {
 
   beforeEach(async () => {
     PeerCursor.createMyCursor();
-    TestBed.configureTestingModule({
+    await TestBed.configureTestingModule({
       imports: [ChatWindowComponent, PanelDragTestHostComponent],
       providers: [...TEST_PROVIDERS],
     }).compileComponents();

@@ -128,6 +128,26 @@ export class Network {
   static comeBackFromIdle(): void {
     Network.instance.comeBackFromIdle();
   }
+  /** How long the room server took to answer the last ping, in milliseconds; 0 with SkyWay or before any answer. */
+  static get roundTripMs(): number {
+    return Network.instance.roundTripMs;
+  }
+  /** Pings the room server more often while somebody looks at how the link is doing, or as before; nothing with SkyWay. */
+  static watchLink(closely: boolean): void {
+    Network.instance.watchLink(closely);
+  }
+  /** Asks the room server when it last heard from each of the others; nothing with SkyWay. */
+  static askSeen(): void {
+    Network.instance.askSeen();
+  }
+  /** When the room server last heard from that member, by this clock; null with SkyWay or before it has said. */
+  static heardAt(peerId: string): number | null {
+    return Network.instance.heardAt(peerId);
+  }
+  /** When the room server last said when it heard from the others, by this clock; null with SkyWay or before it has. */
+  static get seenAnsweredAt(): number | null {
+    return Network.instance.seenAnsweredAt;
+  }
   /**
    * Opens a network session in no room, closing any session first.
    *
@@ -146,6 +166,14 @@ export class Network {
   static open(userId: string, roomId: string, roomName: string, password: string, roomKey?: string): void {
     Network.instance.open(userId, roomId, roomName, password, roomKey);
   }
+  /**
+   * Has this device play as a user with no connection, as a browser set to play alone does: while
+   * no session is open, its peer context is that user's, so what it says and rolls is its own. Given
+   * none, it plays as nobody again.
+   */
+  static playAlone(userId: string | null): void {
+    Network.instance.playAlone(userId);
+  }
 
   get isOpen(): boolean {
     return this.connection ? this.connection.peer.isOpen : false;
@@ -159,7 +187,7 @@ export class Network {
   }
 
   get peer(): IPeerContext {
-    return this.connection ? this.connection.peer : unknownPeer;
+    return this.connection ? this.connection.peer : (this.alone ?? unknownPeer);
   }
   get peers(): IPeerContext[] {
     return this.connection ? [...this.connection.peers] : [];
@@ -226,6 +254,8 @@ export class Network {
   private connectionClassPromise: Promise<ConnectionClass> | null = null;
   private connectionClass!: ConnectionClass;
   private connection: Connection | null = null;
+  /** The user this device plays as with no connection, where it plays alone. */
+  private alone: IPeerContext | null = null;
 
   private queue: Map<string | symbol, QueueItem> = new Map();
   private lastTurn = 0;
@@ -262,6 +292,16 @@ export class Network {
     this.config = config;
   }
 
+  playAlone(userId: string | null): void {
+    if (userId === null) {
+      this.alone = null;
+      return;
+    }
+    const peer = PeerContext.parse(unknownPeer.peerId);
+    peer.userId = userId;
+    this.alone = peer;
+  }
+
   letPageGo(): void {
     window.removeEventListener('beforeunload', this.callbackBeforeUnload);
   }
@@ -282,6 +322,26 @@ export class Network {
 
   comeBackFromIdle(): void {
     this.connection?.comeBackFromIdle?.();
+  }
+
+  get roundTripMs(): number {
+    return this.connection?.roundTripMs ?? 0;
+  }
+
+  watchLink(closely: boolean): void {
+    this.connection?.watchLink?.(closely);
+  }
+
+  askSeen(): void {
+    this.connection?.askSeen?.();
+  }
+
+  heardAt(peerId: string): number | null {
+    return this.connection?.heardAt?.(peerId) ?? null;
+  }
+
+  get seenAnsweredAt(): number | null {
+    return this.connection?.seenAnsweredAt ?? null;
   }
 
   requestInvite(role: ServerRole): Promise<InviteMessage> {
@@ -417,8 +477,8 @@ export class Network {
     }
 
     if (this.callback.onData) {
-      this.callback.onData(null, broadcast);
-      this.callback.onData(this.peer, echocast);
+      this.callback.onData(null, broadcast, true);
+      this.callback.onData(this.peer, echocast, true);
     }
 
     if (this.queue.size > 0) {

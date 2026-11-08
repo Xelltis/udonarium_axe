@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { Network } from '@axe/core/network/network';
 import { localDispatch } from '@axe/core/network/network-messaging';
@@ -140,6 +142,39 @@ describe('PeerCursorComponent', () => {
       localDispatch('CURSOR_MOVE', [10, 20, 30], 'different-peer');
 
       expect(addSpy).not.toHaveBeenCalled();
+    });
+
+    it('lays a cursor on the screen where the point it is at is drawn, and again as the camera moves', async () => {
+      const myCursor = PeerCursor.createMyCursor();
+      myCursor.peerId = 'my-peer';
+      const remoteCursor = new PeerCursor();
+      remoteCursor.initialize();
+      remoteCursor.peerId = 'remote-peer';
+      const camera = TestBed.inject(TableCameraService);
+      const layout = { left: 100, top: 50, width: 800, height: 600, boardWidth: 1000, boardHeight: 750 };
+      camera.setLayout(layout);
+      let scale = 2;
+      vi.spyOn(TestBed.inject(TableSurfaceService), 'pageOf').mockImplementation((_surface, x, y, z = 0) => ({
+        x: 100 + x * scale,
+        y: 50 + y * scale - z,
+      }));
+      vi.spyOn(batchService, 'add').mockImplementation((work) => work());
+      fixture.componentRef.setInput('cursor', remoteCursor);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const element = (component as unknown as { cursorElement: HTMLElement }).cursorElement;
+
+      localDispatch('CURSOR_MOVE', [10, 20, 30], 'remote-peer');
+
+      expect(element.style.transform).toBe('translate(20px, 10px)');
+      expect(fixture.nativeElement.querySelectorAll('[data-cursor-face]')).toHaveLength(1);
+
+      scale = 3;
+      camera.setLayout({ ...layout, width: 900 });
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(element.style.transform).toBe('translate(30px, 30px)');
     });
 
     it('queues nothing without an element to move', () => {

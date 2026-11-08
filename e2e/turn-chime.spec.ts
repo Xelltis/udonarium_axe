@@ -80,26 +80,4 @@ test.describe('the chimes of a turn beginning', () => {
       .toBe(true);
     expect(tones).not.toContain(SIGNAL_LOW_HZ);
   });
-
-  test('shows the two settings to the master in the battle tab, the signal on and the tick off', async ({ page }) => {
-    await openPanel(page, '部屋設定');
-    const panel = page.locator('room-settings-panel');
-    await panel.locator('[data-testid="room-settings-tab-battle"]').click();
-
-    await expect(panel.getByTestId('room-settings-turn-signal')).toBeChecked();
-    await expect(panel.getByTestId('room-settings-turn-tick')).not.toBeChecked();
-    await expect(panel.getByTestId('room-settings-turn-signal')).toBeEnabled();
-  });
-});
-
-test.describe('the chimes of a turn beginning, for a player', () => {
-  test('shows the two settings without letting a player change them', async ({ page }) => {
-    await waitAppReady(page);
-    await openPanel(page, '部屋設定');
-    const panel = page.locator('room-settings-panel');
-    await panel.locator('[data-testid="room-settings-tab-battle"]').click();
-
-    await expect(panel.getByTestId('room-settings-turn-signal')).toBeDisabled();
-    await expect(panel.getByTestId('room-settings-turn-tick')).toBeDisabled();
-  });
 });

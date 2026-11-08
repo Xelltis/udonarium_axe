@@ -2,6 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
+import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -12,8 +13,10 @@ import { allianceOf, PartyAlliance } from '@axe/domain/party/party-alliance';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
 import { cellCount, CellGrid, cellGridOf, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
 import { blockedByTerrain, terrainBlocksJump } from '@axe/domain/tabletop/move/blocked-cells';
 import {
+  groundHeightsOn,
   isLevelWith,
   isWalkableStep,
   landingHeightAt,
@@ -73,6 +76,7 @@ export class MoveRangeService {
   private readonly tableSelecter = inject(TableSelecter);
   private readonly roomRules = inject(RoomRulesService);
   private readonly objectStore = inject(ObjectStore);
+  private readonly ground = inject(StandingGroundService);
   private readonly vision = inject(VisionService);
   private readonly selection = inject(SelectionSignalService);
   private readonly objectChange = inject(ObjectChangeService);
@@ -166,8 +170,23 @@ export class MoveRangeService {
     // The cell asked about is one of the table's own; a reach over squares of several cells
     // numbers its squares instead, so it is answered from the table's cells below.
     const terms = squareSpanOf(table) > 1 ? null : this.termsOf(character);
-    if (terms) return cell < terms.cells.count && terms.cells.get(cell);
-    return this.cellsToStandOn(character)?.(cell) ?? false;
+    const open = terms
+      ? cell < terms.cells.count && terms.cells.get(cell)
+      : (this.cellsToStandOn(character)?.(cell) ?? false);
+    return open && this.groundStepsTo(character, table, cell);
+  }
+
+  /**
+   * Whether the raised ground lets a piece step from the cell it stands on onto another, rather than
+   * up or down a cliff: a reach walks round one, so a cell beyond it may be reached and still not be
+   * one step away.
+   */
+  private groundStepsTo(character: GameCharacter, table: GameTable, cell: number): boolean {
+    const grid = cellGridOf(table.width, table.height, table.gridSize, table.gridType);
+    const heights = this.groundHeightsFor(grid);
+    const start = pieceCellOf(grid, character, table.gridSize);
+    if (!heights || start < 0 || start >= heights.length || cell >= heights.length) return true;
+    return isWalkableStep(heights[cell], heights[start], table.gridSize);
   }
 
   /**
@@ -348,6 +367,7 @@ export class MoveRangeService {
 
   private raster: { token: object; gridKey: string; blocked: CellBits; leapt: CellBits } | null = null;
   private prices: { token: object; gridKey: string; costs: Float64Array | null } | null = null;
+  private groundHeights: { surface: GroundSurface; gridKey: string; heights: Float64Array | null } | null = null;
   private heights: {
     token: object;
     gridKey: string;
@@ -382,6 +402,16 @@ export class MoveRangeService {
   }
 
   /** How high the ground stands in each cell, kept against the terrain as it stands. */
+  /** How high the raised ground stands under every cell of a grid, or null where it is flat; kept per ground and grid. */
+  private groundHeightsFor(grid: CellGrid): Float64Array | null {
+    const surface = this.ground.surface();
+    const gridKey = gridKeyOf(grid);
+    if (this.groundHeights?.surface !== surface || this.groundHeights.gridKey !== gridKey) {
+      this.groundHeights = { surface, gridKey, heights: groundHeightsOn(grid, surface) };
+    }
+    return this.groundHeights.heights;
+  }
+
   private heightsFor(grid: CellGrid): Float64Array {
     return this.groundOn(grid).ground;
   }
@@ -538,6 +568,7 @@ export class MoveRangeService {
       },
       heights,
       standingPx: this.standingHeightOf(character, table, grid, start, heights),
+      groundHeights: this.groundHeightsFor(grid),
       standing,
       inTheWay: this.inTheWayOf(character, standing),
       allied: this.alliance(),

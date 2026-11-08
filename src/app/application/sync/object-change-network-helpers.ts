@@ -115,6 +115,7 @@ export function subscribeNetworkBindings(
         targets.fileSyncList$.emit({ isSendFromSelf: msg.isSendFromSelf });
         break;
       case 'UPDATE_FILE_RESOURE':
+      case 'UPDATE_MODEL_RESOURE':
         targets.fileResourceUpdated$.emit({ isSendFromSelf: msg.isSendFromSelf });
         break;
       case 'CONNECT_PEER':

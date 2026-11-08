@@ -6,6 +6,7 @@ import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
 import { DungeonGeneratorComponent } from '@axe/features/dungeon-generator/dungeon-generator.component';
 import { expectPanelDragRecovery, PanelDragTestHostComponent } from '@axe/testing/panel-drag-recovery';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -28,9 +29,14 @@ type Panel = DungeonGeneratorComponent & {
   field(): boolean;
   chooseKind(kind: 'dungeon' | 'field'): void;
   chooseFieldAtmosphere(id: string): void;
-  fieldPlan(): { blocks: { blocks: { thing?: string; skin?: { side: { kind: string; id?: string } } }[] } };
+  fieldPlan(): {
+    blocks: { blocks: { thing?: string; model?: string; skin?: { side: { kind: string; id?: string } } }[] };
+  };
+  fieldSeason(): string;
   fieldSize: { set(value: number): void; (): number };
   fieldDensity: { set(value: number): void; (): number };
+  setFieldRelief(relief: number): void;
+  fieldRaises(): boolean;
   boardSize(): string;
   tooMany(): boolean;
   preview(): { viewBox: string; rects: unknown[] };
@@ -48,7 +54,9 @@ type Panel = DungeonGeneratorComponent & {
       mouth: { x: number; y: number } | null;
       doorLeaves: { w: number; h: number; mirrored: boolean }[];
     };
+    blocks: { blocks: { kind: string; prop?: string; doorStyle?: string }[] };
   };
+  doorKind(): string | null;
   generate(): Promise<void>;
   discardPrevious(): void;
   corridorWidth(): { least: number; most: number };
@@ -119,6 +127,51 @@ describe('DungeonGeneratorComponent', () => {
 
     expect(component.wall()).toEqual({ kind: 'texture', id: 'wall_metal' });
     expect(component.usingDefaults()).toBe(false);
+  });
+
+  it('marks the kind of map and the atmosphere chosen, and only those, moving the mark as another is chosen', () => {
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const chosen = (prefix: string) =>
+      [...element.querySelectorAll<HTMLButtonElement>(`[data-testid^="${prefix}"]`)]
+        .filter((button) => button.getAttribute('aria-pressed') === 'true')
+        .map((button) => [button.dataset['testid'], button.querySelector('.material-icons')?.textContent]);
+    const press = (id: string) => {
+      element.querySelector<HTMLButtonElement>(`[data-testid="${id}"]`)!.click();
+      fixture.detectChanges();
+    };
+
+    expect(chosen('map-kind-')).toEqual([['map-kind-dungeon', 'check']]);
+    expect(chosen('atmosphere-')).toEqual([['atmosphere-stoneDungeon', 'check']]);
+
+    press('atmosphere-crypt');
+    expect(chosen('atmosphere-')).toEqual([['atmosphere-crypt', 'check']]);
+
+    press('map-kind-field');
+    expect(chosen('map-kind-')).toEqual([['map-kind-field', 'check']]);
+    expect(chosen('atmosphere-')).toEqual([['atmosphere-woodland', 'check']]);
+    press('atmosphere-snowfield');
+    expect(chosen('atmosphere-')).toEqual([['atmosphere-snowfield', 'check']]);
+  });
+
+  it('hangs the kind of door chosen in every doorway until the defaults are restored', () => {
+    fixture.detectChanges();
+    const doors = () => component.plan().blocks.blocks.filter((block) => block.kind === 'door');
+    const press = (id: string) => {
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(`[data-testid="${id}"]`)!.click();
+      fixture.detectChanges();
+    };
+    expect(doors().every((door) => door.prop === 'door_wood')).toBe(true);
+
+    press('door-kind-door_saloon');
+    expect(doors().length).toBeGreaterThan(0);
+    expect(doors().every((door) => door.prop === 'door_saloon' && door.doorStyle === 'swing')).toBe(true);
+    expect(component.usingDefaults()).toBe(false);
+
+    component.resetMaterials();
+    expect(component.doorKind()).toBeNull();
+    expect(doors().every((door) => door.prop === 'door_wood')).toBe(true);
+    expect(component.usingDefaults()).toBe(true);
   });
 
   it('follows the atmosphere again once the materials are reset', () => {
@@ -277,6 +330,31 @@ describe('DungeonGeneratorComponent', () => {
       expect(component.terrainCount()).toBeGreaterThan(0);
     });
 
+    it('grows the trees of the season chosen, the broadleaves turning in autumn and standing bare in winter', () => {
+      component.seed.set(1278372739);
+      fixture.detectChanges();
+      const models = () => new Set(component.fieldPlan().blocks.blocks.map((block) => block.model ?? ''));
+      const season = (name: string) => {
+        (fixture.nativeElement as HTMLElement)
+          .querySelector<HTMLButtonElement>(`[data-testid="field-season-${name}"]`)!
+          .click();
+        fixture.detectChanges();
+      };
+      expect(component.fieldSeason()).toBe('');
+      expect(models().has('tree_oak')).toBe(true);
+
+      season('autumn');
+      expect(models().has('tree_oak')).toBe(false);
+      expect(models().has('tree_oakAutumn')).toBe(true);
+
+      season('winter');
+      expect(models().has('tree_oakBare')).toBe(true);
+      expect(models().has('tree_snowFir')).toBe(true);
+
+      season('none');
+      expect(models().has('tree_oak')).toBe(true);
+    });
+
     it('changes what it is made of without rolling a new board', () => {
       const before = component.preview().rects.length;
       component.chooseFieldAtmosphere('coast');
@@ -286,15 +364,34 @@ describe('DungeonGeneratorComponent', () => {
       expect(before).toBeGreaterThan(0);
     });
 
-    it('builds a table of open ground with notes to match', async () => {
+    it('builds a table of open ground with notes to match, and the sky that turns with the clock over it', async () => {
       (component as unknown as { exportFn: unknown }).exportFn = stubPainting();
       component.fieldSize.set(20);
 
       await component.generate();
 
       expect(component.builtTable()).not.toBeNull();
+      expect(component.builtTable()!.skyKind).toBe('clock');
       expect(component.builtTable()!.terrains.length).toBe(component.terrainCount());
       expect(component.summary()).toContain('20x15');
+    });
+
+    it('raises the ground of the table it builds as high as asked, and offers no height for a town', async () => {
+      (component as unknown as { exportFn: unknown }).exportFn = stubPainting();
+      component.fieldSize.set(20);
+      component.setFieldRelief(2);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('[data-testid="field-relief"]')).not.toBeNull();
+      await component.generate();
+
+      const kept = groundFieldOn(component.builtTable()!)!.readChunks();
+      expect(Math.max(...kept.flatMap((chunk) => [...chunk.heights]))).toBe(2 * 64);
+
+      component.chooseFieldAtmosphere('city');
+      fixture.detectChanges();
+      expect(component.fieldRaises()).toBe(false);
+      expect(fixture.nativeElement.querySelector('[data-testid="field-relief"]')).toBeNull();
     });
 
     it('builds a town in every facade its preset has until a wall is chosen, and in that one after', () => {
@@ -445,12 +542,13 @@ describe('DungeonGeneratorComponent and what a dungeon is asked for', () => {
     expect(component.doubleDoors()).toBe(50);
   });
 
-  it('leaves the table uncovered until the fog is asked for', async () => {
+  it('leaves the table uncovered until the fog is asked for, and its background picture past the board', async () => {
     component.roomCount.set(3);
 
     await component.generate();
 
     expect(component.builtTable()!.fogEnabled).toBe(false);
+    expect(component.builtTable()!.skyKind).toBe('');
   });
 
   it('draws the fog over the table it builds when it is asked to', async () => {

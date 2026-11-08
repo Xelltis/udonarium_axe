@@ -1,9 +1,19 @@
-import { NgStyle } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  input,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { SaveDataService } from '@axe/application/file/save-data.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
@@ -21,12 +31,7 @@ import { boardSurfaceOf, TabletopObject } from '@axe/domain/tabletop/tabletop-ob
 import { Terrain } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { WhiteBoard } from '@axe/domain/tabletop/white-board';
-import { CardComponent } from '@axe/features/card/card/card.component';
-import { GameCharacterComponent } from '@axe/features/character/game-character/game-character.component';
-import { DiceSymbolComponent } from '@axe/features/dice/dice-symbol/dice-symbol.component';
-import { GameTableMaskComponent } from '@axe/features/tabletop/game-table-mask/game-table-mask.component';
-import { TerrainComponent } from '@axe/features/tabletop/terrain/terrain.component';
-import { TextNoteComponent } from '@axe/features/tabletop/text-note/text-note.component';
+import { clearToBlankTable, putAwayTutorial } from '@axe/features/tabletop/tutorial/put-away-tutorial';
 import { AnimatedImageService } from '@axe/features/tabletop/white-board/animated-image.service';
 import { detachAllFrom } from '@axe/features/tabletop/white-board/white-board-contents';
 import { buildWhiteBoardContextMenu } from '@axe/features/tabletop/white-board/white-board-context-menu';
@@ -36,25 +41,24 @@ import { RotableDirective, RotableOption } from '@axe/ui/directives/rotable.dire
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
+import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
+import { TurnFrameComponent, type TurnStand } from '@axe/ui/tabletop/turn-frame/turn-frame.component';
 
 @Component({
   selector: 'white-board',
   templateUrl: './white-board.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    NgStyle,
+    TurnFrameComponent,
+    NgTemplateOutlet,
+    HudPlaceDirective,
     MovableDirective,
     RotableDirective,
     SelectableDirective,
     TooltipDirective,
     SafePipe,
-    GameCharacterComponent,
-    TerrainComponent,
-    GameTableMaskComponent,
-    TextNoteComponent,
-    CardComponent,
-    DiceSymbolComponent,
   ],
   host: {
     class: 'block',
@@ -78,8 +82,59 @@ export class WhiteBoardComponent {
   readonly movableOption = signal<MovableOption>({});
   readonly rotableOption = signal<RotableOption>({});
 
+  /**
+   * What the board wears, laid out here for the table's canvas to draw the board from a picture of
+   * it: left clear, still taking the presses where the canvas draws it.
+   */
+  private readonly face = viewChild<ElementRef<HTMLElement>>('face');
+  private readonly pieces = inject(TablePiecesService);
+  /** The corners of the board's face at its foot, where its handles stand over a canvas: bottom left and bottom right. */
+  /**
+   * Where the board stands for the frame that turns it, about the middle of its foot: round all it
+   * covers of the face it stands on, which is the whole of it lying flat and only its foot standing up.
+   */
+  protected readonly turnStand = computed<TurnStand>(() => {
+    const board = this.version();
+    const foot = this.pieces.footOf(board);
+    const width = board.width * this.gridSize;
+    const height = board.height * this.gridSize;
+    const depth = Math.max(0, height * Math.cos((board.pitch * Math.PI) / 180));
+    const footY = foot.y + height;
+    return {
+      surface: foot.surface,
+      height: foot.height,
+      foot: {
+        left: foot.x,
+        top: footY - depth,
+        width,
+        depth,
+        pivot: { x: foot.x + width / 2, y: footY },
+        rotateDeg: board.rotate,
+      },
+    };
+  });
+
   constructor() {
-    setupMovableRotableForPiece(this, { target: this.whiteBoard });
+    setupMovableRotableForPiece(this, {
+      target: this.whiteBoard,
+      footprint: () => ({ width: this.widthPx(), height: this.heightPx() }),
+      turnsAbout: (board) => {
+        const foot = this.pieces.footOf(board);
+        return { ...foot, x: foot.x + this.widthPx() / 2, y: foot.y + this.heightPx() };
+      },
+    });
+    pictureForCanvas({
+      identifier: () => this.whiteBoard().identifier,
+      element: () => this.face()?.nativeElement,
+      pictured: () => true,
+      follows: () => {
+        this.widthPx();
+        this.heightPx();
+        this.opacity();
+        this.color();
+        this.imageUrl();
+      },
+    });
   }
 
   /** The table's grid cell size in pixels, which the board's width and height are counted in. */
@@ -136,14 +191,6 @@ export class WhiteBoardComponent {
       .filter((picture) => picture.url.length > 0);
   });
 
-  /**
-   * Tilted about its lower edge, so that standing it up does not sink it into the table.
-   *
-   * Hinging on the middle would bury the near half of the board and lift the far half off
-   * the ground, which is not what standing a board up looks like.
-   */
-  readonly pitchTransform = computed(() => `rotateX(${-this.version().pitch}deg)`);
-
   private readonly contentsOf = <T extends TabletopObject>(list: readonly T[]): T[] => {
     const identifier = this.whiteBoard().identifier;
     return list.filter((object) => boardSurfaceOf(object) === identifier);
@@ -166,26 +213,32 @@ export class WhiteBoardComponent {
     { equal: () => false }
   );
 
+  /** The characters on the board, which its menu counts and takes off it; the table draws them over it. */
   readonly characters = computed<GameCharacter[]>(() => {
     this.surfaceVersion();
     return this.contentsOf(this.tabletopService.characters);
   });
+  /** The blocks on the board, which its menu counts and takes off it; the table draws them over it. */
   readonly terrains = computed<Terrain[]>(() => {
     this.surfaceVersion();
     return this.contentsOf(this.tabletopService.terrains);
   });
+  /** The masks on the board, which its menu counts and takes off it; the table draws them over it. */
   readonly masks = computed<GameTableMask[]>(() => {
     this.surfaceVersion();
     return this.contentsOf(this.tabletopService.tableMasks);
   });
+  /** The notes on the board, which its menu counts and takes off it; the table draws them over it. */
   readonly textNotes = computed<TextNote[]>(() => {
     this.surfaceVersion();
     return this.contentsOf(this.tabletopService.textNotes);
   });
+  /** The cards on the board, which its menu counts and takes off it; the table draws them over it. */
   readonly cards = computed<Card[]>(() => {
     this.surfaceVersion();
     return this.contentsOf(this.tabletopService.cards);
   });
+  /** The dice on the board, which its menu counts and takes off it; the table draws them over it. */
   readonly diceSymbols = computed<DiceSymbol[]>(() => {
     this.surfaceVersion();
     return this.contentsOf(this.tabletopService.diceSymbols);
@@ -236,6 +289,14 @@ export class WhiteBoardComponent {
       onCopy: (target) => this.copy(target),
       onSave: (target) => void this.save(target),
       onDelete: (target) => this.remove(target),
+      onPutAwayTutorial: () => {
+        putAwayTutorial(this.tabletopService);
+        SoundEffect.play(PresetSound.sweep);
+      },
+      onClearToBlankTable: () => {
+        clearToBlankTable(this.tabletopService);
+        SoundEffect.play(PresetSound.sweep);
+      },
     });
     this.contextMenuService.open(position, menu, board.name);
   }

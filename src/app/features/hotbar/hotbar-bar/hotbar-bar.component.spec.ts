@@ -97,7 +97,7 @@ describe('HotbarBarComponent', () => {
     const start = vi.spyOn(reloadCheck, 'reloadCheckStart');
     const load = vi
       .spyOn(TestBed.inject(FileArchiver), 'load')
-      .mockResolvedValue({ dataRead: true, images: [], audios: [] });
+      .mockResolvedValue({ dataRead: true, images: [], audios: [], models: [] });
     const input = document.createElement('input');
     Object.defineProperty(input, 'files', { value: [new File(['<hotbar-set/>'], 'hotbar.xml')] });
 

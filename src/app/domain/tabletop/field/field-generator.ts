@@ -1,5 +1,6 @@
 import {
   clampFieldDensity,
+  clampFieldRelief,
   clampFieldSize,
   FieldAtmosphere,
   fieldAtmosphereById,
@@ -7,6 +8,7 @@ import {
 } from '@axe/domain/tabletop/field/field-atmosphere';
 import { FIELD_MERGE_SPAN, fieldToBlocks } from '@axe/domain/tabletop/field/field-blocks';
 import { FieldLayout, generateField } from '@axe/domain/tabletop/field/field-layout';
+import type { FieldSeason } from '@axe/domain/tabletop/field/field-models';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { MapBlocks } from '@axe/domain/tabletop/map-blocks';
 import { boardSizeOn, MapGrid, mergeSpanFor } from '@axe/domain/tabletop/map-grid';
@@ -19,6 +21,12 @@ export interface FieldRequest {
   size: number;
   density: number;
   seed: number;
+  /** How high open ground is raised from its lowest to its highest, in cells. Left out, it lies flat. */
+  relief?: number;
+  /** Whether trees, bushes and rocks are stood as the bundled 3D models. Left out, they are built of blocks. */
+  models?: boolean;
+  /** The season the trees are grown in. Left out, none in particular, which grows them as in summer. */
+  season?: FieldSeason;
 }
 
 export interface FieldPlan {
@@ -46,7 +54,20 @@ export function planField(request: FieldRequest): FieldPlan {
   const grid: MapGrid = { type: request.gridType ?? GridType.SQUARE, sizePx: 1 };
   const { width, height } = fieldBoardSize(request.size, grid.type);
   const density = clampFieldDensity(request.density);
-  const layout = generateField(atmosphere, width, height, request.seed, density);
+  const relief = clampFieldRelief(request.relief ?? 0);
+  const layout = generateField(atmosphere, width, height, request.seed, density, relief, grid.type);
   const span = mergeSpanFor(grid, FIELD_MERGE_SPAN);
-  return { atmosphere, layout, blocks: fieldToBlocks(layout, atmosphere, request.seed, span) };
+  return {
+    atmosphere,
+    layout,
+    blocks: fieldToBlocks(
+      layout,
+      atmosphere,
+      request.seed,
+      span,
+      request.models === true,
+      request.season ?? '',
+      grid.type
+    ),
+  };
 }

@@ -1,3 +1,4 @@
+import { effect } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 
@@ -65,6 +66,129 @@ describe('SelectionSignalService', () => {
 
     const result = service.selectedObject();
     expect(result).toEqual({ identifier: 'second-id', className: 'ClassB' });
+  });
+
+  it('records the piece last pressed on the table, which is selected too, until the selection is emptied', () => {
+    expect(service.pressedObject()).toBeNull();
+
+    service.pressObject('pressed', 'GameCharacter');
+    expect(service.pressedObject()).toBe('pressed');
+    expect(service.selectedObject()).toEqual({ identifier: 'pressed', className: 'GameCharacter' });
+
+    service.selectObject('listed', 'GameCharacter');
+    expect(service.pressedObject()).toBe('pressed');
+
+    service.clearSelection();
+    expect(service.pressedObject()).toBeNull();
+    expect(service.selectedObject()?.identifier).toBe('listed');
+  });
+
+  it('forgets the piece last pressed once the selection is made to leave it out, and keeps it while it holds it', () => {
+    service.pressObject('pressed', 'GameCharacter');
+    service.replaceSelection(['pressed', 'other']);
+    expect(service.pressedObject()).toBe('pressed');
+    service.removeSelection('other');
+    expect(service.pressedObject()).toBe('pressed');
+    service.toggleSelection('pressed');
+    expect(service.pressedObject()).toBeNull();
+
+    service.pressObject('pressed', 'GameCharacter');
+    service.addSelection('added');
+    expect(service.pressedObject()).toBeNull();
+
+    service.clearSelection();
+    service.pressObject('pressed', 'GameCharacter');
+    service.toggleSelection('toggled');
+    expect(service.pressedObject()).toBeNull();
+
+    service.clearSelection();
+    service.pressObject('pressed', 'GameCharacter');
+    service.replaceSelection(['boxed']);
+    expect(service.pressedObject()).toBeNull();
+  });
+
+  it('follows nothing for an effect that sets the selection, so that pressing a piece does not run it again', () => {
+    const runs = vi.fn();
+    TestBed.runInInjectionContext(() =>
+      effect(() => {
+        runs();
+        service.replaceSelection(['kept']);
+      })
+    );
+    TestBed.tick();
+    expect(runs).toHaveBeenCalledTimes(1);
+
+    service.pressObject('kept', 'GameCharacter');
+    service.toggleSelection('other');
+    TestBed.tick();
+    expect(runs).toHaveBeenCalledTimes(1);
+  });
+
+  it('follows nothing for an effect that adds to the selection, so that another change does not run it again', () => {
+    const runs = vi.fn();
+    TestBed.runInInjectionContext(() =>
+      effect(() => {
+        runs();
+        service.addSelection('kept');
+      })
+    );
+    TestBed.tick();
+
+    service.toggleSelection('other');
+    service.removeSelection('other');
+    TestBed.tick();
+    expect(runs).toHaveBeenCalledTimes(1);
+  });
+
+  it('follows nothing for an effect that toggles, takes out of or presses into the selection', () => {
+    const runs = { toggle: vi.fn(), remove: vi.fn(), press: vi.fn() };
+    TestBed.runInInjectionContext(() => {
+      effect(() => {
+        runs.toggle();
+        if (runs.toggle.mock.calls.length <= 2) service.toggleSelection('toggled');
+      });
+      effect(() => {
+        runs.remove();
+        if (runs.remove.mock.calls.length <= 2) service.removeSelection('gone');
+      });
+      effect(() => {
+        runs.press();
+        if (runs.press.mock.calls.length <= 2) service.press('pressed', 'GameCharacter', false);
+      });
+    });
+    TestBed.tick();
+
+    service.addSelection('other');
+    service.addSelection('gone');
+    TestBed.tick();
+    expect(runs.toggle).toHaveBeenCalledTimes(1);
+    expect(runs.remove).toHaveBeenCalledTimes(1);
+    expect(runs.press).toHaveBeenCalledTimes(1);
+  });
+
+  it('tells nobody of a selection made anew with the pieces it already holds', () => {
+    service.replaceSelection(['a', 'b']);
+    const held = service.selectedObjects();
+
+    service.replaceSelection(['b', 'a']);
+    expect(service.selectedObjects()).toBe(held);
+
+    service.replaceSelection(['a']);
+    expect(service.selectedObjects()).not.toBe(held);
+  });
+
+  it('tells the piece a finger last pressed apart from one pressed otherwise, and forgets it on being told to', () => {
+    service.pressObject('clicked', 'GameCharacter');
+    expect(service.pressedObject()).toBe('clicked');
+    expect(service.touchedObject()).toBeNull();
+
+    service.pressObject('touched', 'GameCharacter', true);
+    expect(service.touchedObject()).toBe('touched');
+
+    service.forgetPressedObject();
+    expect(service.pressedObject()).toBeNull();
+    expect(service.touchedObject()).toBeNull();
+    expect(service.selectedObject()?.identifier).toBe('touched');
   });
 
   it('bumps the version when a table gesture is cancelled', () => {

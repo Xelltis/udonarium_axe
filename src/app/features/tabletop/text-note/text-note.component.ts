@@ -1,4 +1,4 @@
-import { NgStyle } from '@angular/common';
+import { NgTemplateOutlet } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -21,13 +21,13 @@ import { GameObjectInventoryService } from '@axe/application/inventory/game-obje
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
-import { transientSignal } from '@axe/application/ui/transient-signal';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { debounce } from '@axe/core/util/debounce';
 import { DataElement } from '@axe/domain/data/data-element';
@@ -36,6 +36,8 @@ import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font
 import { TextNote } from '@axe/domain/tabletop/text-note';
 import { ObjectPanelService } from '@axe/features/panels/object-panel.service';
 import { buildTextNoteContextMenuModel } from '@axe/features/tabletop/text-note/text-note-context-menu';
+import { clearToBlankTable, putAwayTutorial } from '@axe/features/tabletop/tutorial/put-away-tutorial';
+import { AltitudeGuideComponent, altitudeGuideOf } from '@axe/ui/components/altitude-guide/altitude-guide.component';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { RotableOption } from '@axe/ui/directives/rotable.directive';
@@ -43,18 +45,38 @@ import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { LinkifyPipe } from '@axe/ui/pipes/linkify.pipe';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
+import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
-import { translateZCss, Z_OFFSET_TABLETOP_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
+import { TurnFrameComponent, type TurnStand } from '@axe/ui/tabletop/turn-frame/turn-frame.component';
 import { decorateChatStyleText } from '@axe/ui/text-decoration/decorate-chat-text';
 import { formatNoteText } from '@axe/ui/text-decoration/format-note-text';
+
+/**
+ * How much of its face a note covers as it is moved: the one point it hangs from, the middle of its
+ * lower edge, so that it snaps and settles by that point alone.
+ */
+const NOTE_FOOTPRINT = { width: 1, height: 0 } as const;
 
 @Component({
   selector: 'text-note',
   templateUrl: './text-note.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MovableDirective, RotableDirective, SelectableDirective, NgStyle, FormsModule, LinkifyPipe, SafePipe],
+  imports: [
+    TurnFrameComponent,
+    AltitudeGuideComponent,
+    HudPlaceDirective,
+    MovableDirective,
+    RotableDirective,
+    SelectableDirective,
+    NgTemplateOutlet,
+    FormsModule,
+    LinkifyPipe,
+    SafePipe,
+  ],
   host: {
     '[style.display]': "isHiddenByFog() ? 'none' : null",
+    '[attr.data-object-id]': 'textNote().identifier',
     class: 'block',
     '(dragstart)': 'onDragstart($event)',
     '(mousedown)': 'onMouseDown($event)',
@@ -95,6 +117,37 @@ export class TextNoteComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly translateFn = inject(TRANSLATE_FN);
+  /** The corners of the note's panel, round from its top left, where its handles stand: the top two. */
+  /**
+   * Where the note stands for the frame that turns it, about the middle of its lower edge, which is
+   * where it hangs from: round the whole of it where it lies, along its foot where it stands up.
+   */
+  protected readonly turnStand = computed<TurnStand>(() => {
+    const note = this.textNote();
+    this.objectChange.versionOf(note.identifier)();
+    const foot = this.pieces.footOf(note);
+    const width = this.width * this.gridSize;
+    const depth = note.isUpright ? 0 : this.height * this.gridSize;
+    return {
+      surface: foot.surface,
+      height: foot.height + Math.max(0, this.altitude) * this.gridSize,
+      foot: {
+        left: foot.x - width / 2,
+        top: foot.y - depth,
+        width,
+        depth,
+        pivot: { x: foot.x, y: foot.y },
+        rotateDeg: note.rotate,
+      },
+    };
+  });
+
+  private readonly pieces = inject(TablePiecesService);
+  /**
+   * The note's panel, laid out here for the table's canvas to draw the note from a picture of it:
+   * left clear, still taking the presses where the canvas draws it, until it is written in.
+   */
+  private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
 
   readonly isHiddenByFog = computed(() => {
     const piece = this.textNote();
@@ -114,7 +167,18 @@ export class TextNoteComponent {
     setupMovableRotableForPiece(this, {
       target: this.textNote,
       collideLayers: ['terrain'],
-      transformCssOffset: translateZCss(Z_OFFSET_TABLETOP_OBJECT_PX),
+      footprint: () => NOTE_FOOTPRINT,
+    });
+    pictureForCanvas({
+      identifier: () => this.textNote().identifier,
+      element: () => this.panel()?.nativeElement,
+      pictured: () => true,
+      follows: () => {
+        this.textNoteVersion();
+        this.canView();
+        this.limitHeight();
+        this.imageFile();
+      },
     });
     this.destroyRef.onDestroy(() => {
       this.writeTextSoon.cancel();
@@ -148,7 +212,6 @@ export class TextNoteComponent {
   readonly textAreaElementRef = viewChild<ElementRef<HTMLTextAreaElement>>('textArea');
 
   readonly textNote = input.required<TextNote>();
-  readonly is3D = input(false);
 
   readonly isEditing = signal(false);
   readonly decoratedHtml = computed(() => {
@@ -340,34 +403,18 @@ export class TextNoteComponent {
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
-  math = Math;
 
-  private readonly _transition = transientSignal(false, 132);
   /**
-   * Whether the note animates as it stands up or lies down.
-   *
-   * Setting it true runs the animation for 132 ms and then turns it off again.
+   * The guide from the height the note floats at to the face it stands on, with the height written
+   * at its end: up from the face to a note raised off it, or down to the top of one sunk under it.
+   * Nothing for a note within half a cell of the face, or one set not to show it.
    */
-  get transition(): boolean {
-    return this._transition();
-  }
-  set transition(transition: boolean) {
-    if (transition) this._transition.show(true);
-    else this._transition.clear();
-  }
-  private readonly _fall = transientSignal(false, 132);
-  /**
-   * Whether the note animates a drop with a slight bounce.
-   *
-   * Setting it true runs the animation for 132 ms and then turns it off again.
-   */
-  get fall(): boolean {
-    return this._fall();
-  }
-  set fall(fall: boolean) {
-    if (fall) this._fall.show(true);
-    else this._fall.clear();
-  }
+  protected readonly altitudeGuide = computed(() => {
+    const note = this.textNote();
+    this.objectChange.versionOf(note.identifier)();
+    if (!note.isAltitudeIndicate) return null;
+    return altitudeGuideOf(this.pieces.footOf(note), this.textNoteAltitude, this.gridSize);
+  });
 
   private calcFitHeightTimer: ReturnType<typeof setTimeout> | null = null;
   readonly movableOption = signal<MovableOption>({});
@@ -382,7 +429,6 @@ export class TextNoteComponent {
   private get input() {
     return this.inputRef.current;
   }
-  readonly viewRotateZ = this.uiSignalService.tableViewRotationZ;
 
   /** Stops the browser starting a native drag on the note. */
   onDragstart(e: DragEvent) {
@@ -458,10 +504,17 @@ export class TextNoteComponent {
       this.inventoryService,
       {
         onSetUpright: (isUpright) => {
-          this.transition = true;
           this.textNote().isUpright = isUpright;
         },
         onShowDetail: () => this.showDetail(this.textNote()),
+        onPutAwayTutorial: () => {
+          putAwayTutorial(this.tabletopService);
+          SoundEffect.play(PresetSound.sweep);
+        },
+        onClearToBlankTable: () => {
+          clearToBlankTable(this.tabletopService);
+          SoundEffect.play(PresetSound.sweep);
+        },
       },
       this.translateFn,
       surfaceEntries

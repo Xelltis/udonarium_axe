@@ -1,6 +1,9 @@
 import { cellCenterOf, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { GROUND_CHUNK_SAMPLE_COUNT } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { FLAT_GROUND, groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
 import {
+  groundHeightsOn,
   hopHeightAt,
   hopLiftFor,
   isLevelWith,
@@ -225,5 +228,29 @@ describe('hopLiftFor', () => {
 
   it('asks for no throw at all on the way down, which is a step off a ledge', () => {
     expect(hopLiftFor(400, 0, 50)).toBe(15);
+  });
+});
+
+describe('the ground a piece stands on, the raised ground of the table among it', () => {
+  function ground(cells: number) {
+    const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT).fill(cells * 64);
+    return groundSurfaceOf([{ cx: 0, cy: 0, heights, paint: null }]);
+  }
+
+  it('stands on the raised ground where nothing is put, and on a block lifted as the ground lifts it', () => {
+    const block = Terrain.create('block', 1, 1, 1, '', '');
+    block.location = { name: 'table', x: 100, y: 100 };
+
+    expect(landingHeightAt([], 50, 25, 25, GridType.SQUARE, ground(1))).toBe(50);
+    expect(landingHeightAt([block], 50, 125, 125, GridType.SQUARE, ground(1))).toBe(100);
+    expect(landingHeightAt([block], 50, 125, 125)).toBe(50);
+    block.destroy();
+  });
+
+  it('reads the ground under every cell, or nothing where it is flat', () => {
+    const grid = cellGridOf(2, 2, 50, GridType.SQUARE);
+
+    expect(groundHeightsOn(grid, FLAT_GROUND)).toBeNull();
+    expect([...groundHeightsOn(grid, ground(2))!]).toEqual([100, 100, 100, 100]);
   });
 });

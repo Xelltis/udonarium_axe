@@ -1,7 +1,32 @@
-import { DiceType } from '@axe/domain/dice/dice-symbol';
+import { ImageFile } from '@axe/core/storage/image-file';
+import { ImageStorage } from '@axe/core/storage/image-storage';
+import { DiceSymbol, DiceType } from '@axe/domain/dice/dice-symbol';
+import { ImageTag } from '@axe/domain/media/image-tag';
 
 export const TERRAIN_TEXTURE_PATH = './assets/images/terrain_crate.webp';
 export const TRUMP_BACK_IMAGE_PATH = './assets/images/trump/z02.webp';
+
+/** The bundled crate picture new terrain is made with, registered and tagged as terrain the first time it is asked for. */
+export function bundledTerrainImage(imageStorage: ImageStorage): ImageFile {
+  const kept = imageStorage.get(TERRAIN_TEXTURE_PATH);
+  if (kept) return kept;
+  const image = imageStorage.add(TERRAIN_TEXTURE_PATH);
+  ImageTag.create(image.identifier).tag = '地形';
+  return image;
+}
+
+/**
+ * Puts the bundled face pictures of a kind of die on a die, registering each picture the first
+ * time any die asks for it. `imagePathPrefix` names the bundled folder, as a {@link DiceMenuItem} does.
+ */
+export function dressDiceFaces(dice: DiceSymbol, imagePathPrefix: string, imageStorage: ImageStorage): void {
+  for (const face of dice.faces) {
+    const url = `./assets/images/dice/${imagePathPrefix}/${imagePathPrefix}[${face}].png`;
+    const image = imageStorage.get(url) ?? imageStorage.add(url);
+    const faceElement = dice.imageDataElement?.getFirstElementByName(face);
+    if (faceElement) faceElement.value = image.identifier;
+  }
+}
 
 export interface DiceMenuItem {
   menuName: string;

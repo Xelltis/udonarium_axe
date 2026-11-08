@@ -8,6 +8,8 @@ export interface WaterShore {
   readonly key: string;
   /** The cell of water it belongs to. */
   readonly index: number;
+  /** The cell of land across it. */
+  readonly across: number;
   /**
    * Where it starts and ends, in table pixels, going round the cell clockwise, so that the water
    * lies to the right of the way it runs.
@@ -59,6 +61,7 @@ export function waterShoreOf(
       shores.push({
         key: `${cell.index}:${side}`,
         index: cell.index,
+        across,
         x0: from.x,
         y0: from.y,
         x1: to.x,

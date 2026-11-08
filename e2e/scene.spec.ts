@@ -2,17 +2,8 @@ import { expect, type Page, test } from '@playwright/test';
 
 import { chatInputText, openPanel, waitAppReady } from './helpers';
 
-/** How much of the darkness drawn over the table has been painted. */
-const paintedPixels = (page: Page) =>
-  page.evaluate(() => {
-    const canvas = document.querySelector('table-vision-overlay canvas') as HTMLCanvasElement | null;
-    const context = canvas?.getContext('2d');
-    if (!canvas || !context || !canvas.width || !canvas.height) return 0;
-    const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
-    let painted = 0;
-    for (let i = 3; i < data.length; i += 4) if (data[i] > 0) painted++;
-    return painted;
-  });
+/** The darkness button of the GM toolbar while the table is dark, which says so in its name. */
+const darkened = (page: Page) => page.locator('app-gm-toolbar [title^="暗闇: オン"]');
 
 async function becomeGameMaster(page: Page) {
   await page
@@ -45,13 +36,13 @@ async function makeNightScene(page: Page) {
 test.describe('scenes', () => {
   test('puts a scene made of the board on, darkening the table and saying its words', async ({ page }) => {
     const panel = await makeNightScene(page);
-    expect(await paintedPixels(page)).toBe(0);
+    await expect(darkened(page)).toHaveCount(0);
 
     await panel.getByTestId('scene-row-apply').click();
 
     await expect(page.locator('chat-tab chat-message').filter({ hasText: '夜が来た' })).toHaveCount(1);
     await expect(panel.getByTestId('scene-current')).toBeVisible();
-    await expect.poll(() => paintedPixels(page), { timeout: 10000 }).toBeGreaterThan(0);
+    await expect(darkened(page)).toBeVisible({ timeout: 10000 });
   });
 
   test('puts a scene on without its words from its menu', async ({ page }) => {
@@ -61,7 +52,7 @@ test.describe('scenes', () => {
     await page.locator('context-menu').getByText('テキストを送らずに反映', { exact: true }).click();
 
     await expect(panel.getByTestId('scene-current')).toBeVisible();
-    await expect.poll(() => paintedPixels(page), { timeout: 10000 }).toBeGreaterThan(0);
+    await expect(darkened(page)).toBeVisible({ timeout: 10000 });
     await expect(page.locator('chat-tab chat-message').filter({ hasText: '夜が来た' })).toHaveCount(0);
   });
 

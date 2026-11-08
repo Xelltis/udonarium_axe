@@ -26,6 +26,9 @@ import { hasChosenIconByHand, noteIconChosenByHand } from '@axe/core/storage/ico
 import { guestUserIdAfter, guestUserIdOf, loadIdentity, saveIdentity } from '@axe/core/storage/identity-storage';
 import { ImageSharingSystem } from '@axe/core/storage/image-sharing-system';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { MODEL_TYPE } from '@axe/core/storage/model-file';
+import { ModelSharingSystem } from '@axe/core/storage/model-sharing-system';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { handOverOwnership } from '@axe/domain/peer/ownership';
 import { DEFAULT_CURSOR_IMAGE_IDENTIFIER, DEFAULT_CURSOR_NAME, PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { canRoleEdit, DEFAULT_PEER_ROLE } from '@axe/domain/peer/peer-role';
@@ -75,6 +78,8 @@ export class NetworkEventHandlerService {
   private readonly assetHttpStore = inject(AssetHttpStore);
   private readonly imageSharingSystem = inject(ImageSharingSystem);
   private readonly audioSharingSystem = inject(AudioSharingSystem);
+  private readonly modelStorage = inject(ModelStorage);
+  private readonly modelSharingSystem = inject(ModelSharingSystem);
 
   /**
    * How often and how slowly it reconnects after a server error, meaning the token backend is out of reach.
@@ -118,16 +123,19 @@ export class NetworkEventHandlerService {
       if (this.roomAssetRelistTimer) clearTimeout(this.roomAssetRelistTimer);
       this.imageStorage.receivedUploadTurn = () => 0;
       this.audioStorage.receivedUploadTurn = () => 0;
+      this.modelStorage.receivedUploadTurn = () => 0;
       this.assetHttpStore.onUploadsPaused = () => {};
       this.assetHttpStore.onUploadBlocked = () => {};
       this.assetHttpStore.onRoomStorageFull = () => {};
     });
     this.imageStorage.receivedUploadTurn = () => this.turnToPutUpReceived();
     this.audioStorage.receivedUploadTurn = () => this.turnToPutUpReceived();
+    this.modelStorage.receivedUploadTurn = () => this.turnToPutUpReceived();
     this.assetHttpStore.onUploadsPaused = (paused) => {
       if (!paused) {
         this.imageStorage.resumePaused();
         this.audioStorage.resumePaused();
+        this.modelStorage.resumePaused();
       }
       this.tellUploadsPaused(paused);
     };
@@ -354,13 +362,15 @@ export class NetworkEventHandlerService {
    * Plays alone in this browser, where nobody is kept from the table: a seat a room made a guest
    * before going offline plays as a player, rather than find its own table read-only. With no
    * connection to hand the seat a user id, it takes the one it would wait outside a room as, or a new
-   * one, so what it holds, as a mask it scratches, is told from what nobody holds.
+   * one, so what it holds, as a mask it scratches, is told from what nobody holds; and the network
+   * reports it as the device's own, so the lines it says and the rolls it makes are its own.
    */
   private playAlone(): void {
     const cursor = PeerCursor.myCursor;
     if (!cursor) return;
     if (!canRoleEdit(cursor.role)) cursor.role = DEFAULT_PEER_ROLE;
     if (cursor.userId.length < 1) cursor.userId = this.standbyUserId() ?? PeerContext.generateUserId();
+    Network.playAlone(cursor.userId);
   }
 
   /**
@@ -388,11 +398,13 @@ export class NetworkEventHandlerService {
       if (role === 'guest') {
         this.imageStorage.synchronize();
         this.audioStorage.synchronize();
+        this.modelStorage.synchronize();
       }
       return;
     }
     this.imageStorage.uploadAllToAssetStore();
     this.audioStorage.uploadAllToAssetStore();
+    this.modelStorage.uploadAllToAssetStore();
     // What the room is playing goes up ahead of the rest, for everyone to hear it soonest.
     this.audioSharingSystem.preferWaiting();
   }
@@ -410,6 +422,7 @@ export class NetworkEventHandlerService {
     if (role === 'gm' || role === 'pl') {
       this.imageStorage.uploadMissedToAssetStore();
       this.audioStorage.uploadMissedToAssetStore();
+      this.modelStorage.uploadMissedToAssetStore();
     }
     this.fetchRoomAssetList(Network.peerId);
   }
@@ -426,6 +439,7 @@ export class NetworkEventHandlerService {
     if (Network.transport !== 'server' || !Network.peerContext.isRoom) return;
     this.imageSharingSystem.forgetMisses();
     this.audioSharingSystem.forgetMisses();
+    this.modelSharingSystem.forgetMisses();
     this.fetchRoomAssetList(Network.peerId);
   }
 
@@ -439,11 +453,14 @@ export class NetworkEventHandlerService {
       this.roomAssetListRetries.forget('list');
       const pictures = assets.filter((asset) => asset.type.startsWith('image/'));
       const sounds = assets.filter((asset) => asset.type.startsWith('audio/'));
+      const models = assets.filter((asset) => asset.type === MODEL_TYPE);
       this.imageStorage.forgetUploaded(pictures.map((asset) => asset.id));
       this.audioStorage.forgetUploaded(sounds.map((asset) => asset.id));
+      this.modelStorage.forgetUploaded(models.map((asset) => asset.id));
       this.assetRemoval.takeOut(assets.map((asset) => asset.id));
       this.imageSharingSystem.fetchListed(pictures);
       this.audioSharingSystem.fetchListed(sounds);
+      this.modelSharingSystem.fetchListed(models);
     });
   }
 

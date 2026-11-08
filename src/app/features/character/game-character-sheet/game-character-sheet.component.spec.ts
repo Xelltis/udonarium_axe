@@ -9,6 +9,7 @@ import { PanelService } from '@axe/application/ui/panel.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { Network } from '@axe/core/network/network';
 import { Card, CardState } from '@axe/domain/card/card';
+import { CardStack } from '@axe/domain/card/card-stack';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DataElement, DataElementAttribute, DataElementRole } from '@axe/domain/data/data-element';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
@@ -284,6 +285,66 @@ describe('GameCharacterSheetComponent', () => {
       expect(card.detailDataElement?.children.length).toBe(beforeCount + 1);
     } finally {
       card.destroy();
+    }
+  });
+
+  it('offers to change the picture on either face of a card', () => {
+    const card = Card.create('効果カード', 'front.png', 'back.png');
+    component.tabletopObject = card;
+    const opened = vi.spyOn(component, 'openModal').mockImplementation(() => {});
+
+    try {
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      host.querySelector<HTMLButtonElement>('button[title="表面の画像を変更"]')!.click();
+      host.querySelector<HTMLButtonElement>('button[title="裏面の画像を変更"]')!.click();
+
+      expect(opened.mock.calls.map(([face]) => face)).toEqual(['front', 'back']);
+    } finally {
+      vi.restoreAllMocks();
+      card.destroy();
+    }
+  });
+
+  it('gives a deck its copy and save buttons and two tabs, and stays whole as they are switched', () => {
+    const stack = CardStack.create('山札');
+    component.tabletopObject = stack;
+
+    try {
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const button = (label: string) =>
+        [...host.querySelectorAll('button')].find((each) => each.textContent?.includes(label));
+      expect(button('コピーを作る')).toBeDefined();
+      expect(button('保存')).toBeDefined();
+
+      button('山札設定')!.click();
+      fixture.detectChanges();
+      expect(host.textContent).toContain('基本情報');
+      expect(host.querySelector('card-stack-card-list')).toBeNull();
+
+      button('カード一覧')!.click();
+      fixture.detectChanges();
+      expect(host.querySelector('card-stack-card-list')).not.toBeNull();
+      expect(host.textContent).not.toContain('基本情報');
+    } finally {
+      stack.destroy();
+    }
+  });
+
+  it('names the button at the foot of a character’s sheet for what it adds, a heading', () => {
+    const character = GameCharacter.create('ヒロ', 1, '');
+    character.addExtendData();
+    component.tabletopObject = character;
+
+    try {
+      fixture.detectChanges();
+
+      expect(
+        (fixture.nativeElement as HTMLElement).querySelector('[data-testid="sheet-add-section"]')?.textContent
+      ).toContain('見出しを追加');
+    } finally {
+      character.destroy();
     }
   });
 

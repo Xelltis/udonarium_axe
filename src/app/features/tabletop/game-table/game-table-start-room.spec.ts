@@ -10,7 +10,7 @@ describe('GameTableComponent in a browser that keeps a room to start on', () => 
   let load: ReturnType<typeof vi.spyOn>;
 
   beforeEach(async () => {
-    TestBed.configureTestingModule({
+    await TestBed.configureTestingModule({
       imports: [GameTableComponent],
       providers: [...TEST_PROVIDERS],
     }).compileComponents();

@@ -264,8 +264,49 @@ game-data-element .elm-markdown-view,
   bottom: -2px;
 }
 
-:is(game-data-element, [game-data-element]) :is(.elm-name-button, .elm-more, .elm-add) {
+:is(game-data-element, [game-data-element]) :is(.elm-name-button, .elm-more) {
   display: none;
+}
+
+:is(game-data-element, [game-data-element]) .elm-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0 4px;
+}
+
+:is(game-data-element, [game-data-element]) .elm-add {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 26px;
+  padding: 2px 8px;
+  border: 1px dashed color-mix(in srgb, var(--ui-accent) 55%, transparent);
+  border-radius: var(--gde-radius-control, 4px);
+  background: transparent;
+  color: var(--ui-accent);
+  font-size: 0.8em;
+  cursor: pointer;
+}
+
+:is(game-data-element, [game-data-element]) .elm-add:hover {
+  background: var(--ui-accent-bg);
+}
+
+:is(game-data-element, [game-data-element]) .elm-add .material-icons {
+  font-size: 15px;
+}
+
+:is(game-data-element, [game-data-element]) .elm-add--secondary {
+  border-color: color-mix(in srgb, var(--ui-panel-border) 90%, transparent);
+  color: var(--ui-text-muted);
+}
+
+:is(game-data-element, [game-data-element]) .elm-add--secondary:hover {
+  background: var(--ui-hover);
+  color: var(--ui-text);
 }
 
 :is(game-data-element, [game-data-element]) .elm-step {

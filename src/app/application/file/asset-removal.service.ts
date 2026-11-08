@@ -8,7 +8,9 @@ import { Network } from '@axe/core/network/network';
 import { AssetHttpStore } from '@axe/core/storage/asset-http-store';
 import { ASSET_LAST_TRY_DELAY_MS, AssetRetries } from '@axe/core/storage/asset-retries';
 import { AudioStorage } from '@axe/core/storage/audio-storage';
+import { isAppModel } from '@axe/core/storage/bundled-models';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { GameObject } from '@axe/core/sync/game-object';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
@@ -22,6 +24,7 @@ import { CutInLauncher } from '@axe/domain/media/cut-in-launcher';
 import { mentionsAnyOf } from '@axe/domain/media/image-reference';
 import { ImageTag, SYSTEM_RESERVED_TAG } from '@axe/domain/media/image-tag';
 import { Jukebox } from '@axe/domain/media/jukebox';
+import { ModelTag } from '@axe/domain/media/model-tag';
 
 /** The words for asking and telling, for each kind removed. */
 const WORDS: Readonly<Record<AssetRemovalKind, { title: string; confirm: string; removed: string }>> = {
@@ -35,10 +38,15 @@ const WORDS: Readonly<Record<AssetRemovalKind, { title: string; confirm: string;
     confirm: 'feature.file.removal.audioConfirm',
     removed: 'feature.file.removal.audioRemoved',
   },
+  model: {
+    title: 'feature.file.removal.modelTitle',
+    confirm: 'feature.file.removal.modelConfirm',
+    removed: 'feature.file.removal.modelRemoved',
+  },
 };
 
 /**
- * Removes pictures and sounds from the whole room, as its GM may any of them and a player those they
+ * Removes pictures, sounds and 3D models from the whole room, as its GM may any of them and a player those they
  * added themselves.
  *
  * What it removes is written into the room as an `AssetRemoval`, which every seat follows by letting
@@ -56,6 +64,7 @@ export class AssetRemovalService {
   private readonly t = inject(TRANSLATE_FN);
   private readonly imageStorage = inject(ImageStorage);
   private readonly audioStorage = inject(AudioStorage);
+  private readonly modelStorage = inject(ModelStorage);
   private readonly assetHttpStore = inject(AssetHttpStore);
   private readonly storeRetries = new AssetRetries();
 
@@ -74,12 +83,17 @@ export class AssetRemovalService {
     return this.rolePermission.canEditTabletop() && this.ownership.isMine(identifier);
   }
 
-  /** Which of these anyone at all may remove, the GM if nobody else: whatever the room did not bring itself. */
+  /**
+   * Which of these anyone at all may remove, the GM if nobody else: whatever the room did not bring
+   * itself, nor a model bundled with the app, which every seat reads from beside its own page or the
+   * map editor and the map generator read in again.
+   */
   private removableByAnyone(kind: AssetRemovalKind, identifiers: readonly string[]): string[] {
     return [...new Set(identifiers)].filter(
       (identifier) =>
         AssetHttpStore.isAssetId(identifier) &&
-        (kind === 'audio' || ImageTag.get(identifier)?.tag !== SYSTEM_RESERVED_TAG)
+        (kind === 'audio' ||
+          (kind === 'model' ? !isAppModel(identifier) : ImageTag.get(identifier)?.tag !== SYSTEM_RESERVED_TAG))
     );
   }
 
@@ -179,6 +193,7 @@ export class AssetRemovalService {
       (object instanceof BackgroundSound && !object.isOn) ||
       object instanceof ImageTag ||
       object instanceof AudioTag ||
+      object instanceof ModelTag ||
       object instanceof AssetRemoval ||
       object instanceof AssetOwner ||
       object instanceof ChatMessage ||
@@ -193,8 +208,14 @@ export class AssetRemovalService {
   private putUpIfPutBack(identifier: string): void {
     const record = AssetRemoval.get(identifier);
     if (!record || record.isRemoved) return;
-    if (record.kind === 'audio') this.audioStorage.putUpAgain(identifier);
-    else this.imageStorage.putUpAgain(identifier);
+    this.storageOf(record.kind).putUpAgain(identifier);
+  }
+
+  /** The store of the kind a record names, reading one it does not know as a picture, as an older version wrote it. */
+  private storageOf(kind: string): ImageStorage | AudioStorage | ModelStorage {
+    if (kind === 'audio') return this.audioStorage;
+    if (kind === 'model') return this.modelStorage;
+    return this.imageStorage;
   }
 
   private stopPlaying(identifiers: readonly string[]): void {
@@ -212,12 +233,13 @@ export class AssetRemovalService {
   /**
    * Asks the room server to take it out of the store of the room it was removed in, again a few times
    * when it could not be asked just then, while the seat is still in that room and the room still keeps
-   * it removed. Left there, it is still fetched by nobody, each seat following the removal; the next
+   * it removed; never a model of the app's own, which a record written before the room could not
+   * remove one may name. Left there, it is still fetched by nobody, each seat following the removal; the next
    * removal or reading of the room's list asks afresh.
    */
   private takeOutOfStore(identifier: string, roomKey: string | null): void {
     if (Network.transport !== 'server' || !this.assetHttpStore.isEnabled) return;
-    if (Network.roomKey !== roomKey || !AssetRemoval.get(identifier)?.isRemoved) {
+    if (Network.roomKey !== roomKey || !AssetRemoval.get(identifier)?.isRemoved || isAppModel(identifier)) {
       this.storeRetries.forget(identifier);
       return;
     }

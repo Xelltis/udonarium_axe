@@ -7,9 +7,10 @@ import { Network } from '@axe/core/network/network';
 import { parseInviteLink } from '@axe/domain/peer/invite-link';
 
 /**
- * The offer to restore the last table kept in this browser, made outside any room to whoever may
- * change the table, until it is answered. A notice at the top of a narrow screen waits on it, as
- * the offer takes the top of the screen there.
+ * The offer to restore the last table kept in this browser before the page was opened, made outside
+ * any room to whoever may change the table, until it is answered. A table kept since is the one on
+ * the screen, kept as it changes, and is not offered. A notice at the top of a narrow screen waits on
+ * it, as the offer takes the top of the screen there.
  */
 @Injectable({ providedIn: 'root' })
 export class RoomRestoreOfferService {
@@ -19,9 +20,12 @@ export class RoomRestoreOfferService {
   private readonly localModePreference = inject(LocalModePreferenceService);
 
   private readonly dismissed = signal(false);
+  private readonly openedAt = Date.now();
 
-  /** The last table kept, which is the one offered, or null when none is. */
-  readonly latest = computed(() => this.roomSnapshot.snapshots()[0] ?? null);
+  /** The last table kept before the page was opened, which is the one offered, or null when none is. */
+  readonly latest = computed(
+    () => this.roomSnapshot.snapshots().find((snapshot) => snapshot.savedAt < this.openedAt) ?? null
+  );
 
   /**
    * Whether the offer is up: there is a table to restore, the seat is in no room and is not on its

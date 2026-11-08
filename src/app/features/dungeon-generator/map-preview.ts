@@ -7,7 +7,7 @@ import {
 } from '@axe/domain/media/texture-catalog';
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
-import { MapBlock, MapBlocks, MapPaint, MapRect, MapSize } from '@axe/domain/tabletop/map-blocks';
+import { MapBlock, MapBlocks, MapPaint, MapRect, MapSize, MapWater } from '@axe/domain/tabletop/map-blocks';
 import { blockOrigin, MapGrid } from '@axe/domain/tabletop/map-grid';
 
 export interface PreviewRect {
@@ -35,6 +35,9 @@ const DOOR_FILL = DUNGEON_PROP_BASE_COLOR.door_wood;
 const STAIR_FILL = DUNGEON_PROP_BASE_COLOR.stair_up;
 const UNKNOWN_WALL = '#6b6b6b';
 const UNKNOWN_FLOOR = '#3a3a3a';
+/** The colour water given none of its own shows in, and water frozen over. */
+export const WATER_FILL = '#3f86a8';
+export const ICE_FILL = '#cfe4ec';
 
 /** Pull a colour towards black, which is what tells the rock from the floor at this size. */
 function darken(hex: string, keep: number): string {
@@ -85,6 +88,12 @@ function fillFor(block: MapBlock, colors: PreviewColors): string {
   }
 }
 
+/** Water shows as ice where it is mostly frozen over, and otherwise in its own colour. */
+function waterFill(water: MapWater): string {
+  if (water.ice >= 0.5) return ICE_FILL;
+  return water.color || WATER_FILL;
+}
+
 function paintFill(patch: MapPaint, colors: PreviewColors): string {
   if (patch.material?.kind === 'texture') return TEXTURE_BASE_COLOR[patch.material.id as TextureId] ?? UNKNOWN_FLOOR;
   if (patch.material) return UNKNOWN_FLOOR;
@@ -92,7 +101,8 @@ function paintFill(patch: MapPaint, colors: PreviewColors): string {
 }
 
 /**
- * Draw the blocks that would be built, not the cells they came from.
+ * Draw the blocks that would be built, not the cells they came from: the painted ground, the water
+ * laid over it in the water's colour, then every block, then the lights.
  *
  * Rolling again here costs nothing, while rolling again after the fact means a thousand
  * objects made and unmade. Showing the merged blocks also makes the count honest.
@@ -107,6 +117,9 @@ export function buildMapPreview(
   const grid: MapGrid = { type: gridType, sizePx: 1 };
   const rects = [
     ...blocks.paint.map((patch) => ({ ...laidOut(patch.rect, grid), fill: paintFill(patch, colors) })),
+    ...blocks.ambiences.flatMap((ambience) =>
+      ambience.water ? [{ ...laidOut(ambience.rect, grid), fill: waterFill(ambience.water) }] : []
+    ),
     ...blocks.blocks.map((block) => ({ ...laidOut(block.rect, grid), fill: fillFor(block, colors) })),
     ...blocks.torchSpots.map((light) => ({
       ...laidOut({ x: light.x, y: light.y, w: 1, h: 1 }, grid),

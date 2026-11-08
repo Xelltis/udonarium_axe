@@ -9,8 +9,10 @@ import {
   DungeonPoint,
   DungeonRect,
   DungeonRoomRole,
+  FurnishingId,
 } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { musterCells } from '@axe/domain/tabletop/dungeon/entrance-muster';
+import { DOOR_MODELS, doorModelTurn, FURNISHING_MODELS } from '@axe/domain/tabletop/dungeon/furnishing-models';
 import {
   CONTAINER_LENGTH,
   CONTAINER_WIDTH,
@@ -407,6 +409,110 @@ describe('a furnished place on the table', () => {
       expect(block.blocksSight).toBe(true);
       expect(block.rect).toEqual({ x: stacked.x, y: stacked.y, w: stacked.w, h: stacked.h });
     }
+  });
+
+  it('stands each piece of furniture that has a model as it, turned a quarter where it lies north to south', () => {
+    const options = { placeDoors: true, placeStairs: true, models: true };
+    const warehouse = planDungeon({ atmosphere: 'containerWarehouse', roomCount: 8, seed: 42 }, options);
+    const containers = warehouse.blocks.blocks.filter((block) => block.thing?.startsWith('container'));
+
+    expect(containers.length).toBeGreaterThan(0);
+    for (const block of containers) {
+      expect(block.model).toBe(FURNISHING_MODELS[block.thing as FurnishingId]);
+      expect(block.modelTurn).toBe(block.rect.h > block.rect.w ? 90 : undefined);
+    }
+    const building = planDungeon({ atmosphere: 'abandonedBuilding', roomCount: 12, seed: 7 }, options);
+    const pieces = building.blocks.blocks.filter((block) => block.thing);
+    expect(pieces.filter((block) => block.thing === 'pillar').every((block) => block.model === undefined)).toBe(true);
+    expect(pieces.filter((block) => block.thing === 'desk').every((block) => block.model === 'prop_desk')).toBe(true);
+  });
+
+  it('stands a counter run along a wall as a row of its one-cell model, one block a cell over the run', () => {
+    const options = { placeDoors: true, placeStairs: true, models: true };
+    const built = planDungeon({ atmosphere: 'illegalBar', roomCount: 8, seed: 7 });
+    const modelled = planDungeon({ atmosphere: 'illegalBar', roomCount: 8, seed: 7 }, options);
+    const runs = built.layout.furnishings!.filter(
+      (piece) => piece.piece === 'counter' || piece.piece === 'shopCounter'
+    );
+    const counters = modelled.blocks.blocks.filter(
+      (block) => block.thing === 'counter' || block.thing === 'shopCounter'
+    );
+
+    expect(runs.length).toBeGreaterThan(0);
+    expect(counters.length).toBe(runs.reduce((cells, run) => cells + run.w * run.h, 0));
+    for (const block of counters) {
+      expect(block.rect.w * block.rect.h).toBe(1);
+      expect(block.model).toBe(FURNISHING_MODELS[block.thing as FurnishingId]);
+    }
+    const upright = SEEDS.concat([2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16])
+      .map((seed) => planDungeon({ atmosphere: 'illegalBar', roomCount: 10, seed }, options))
+      .find((plan) => plan.layout.furnishings!.some((piece) => piece.piece === 'counter' && piece.h > piece.w))!;
+    expect(upright).toBeDefined();
+    const run = upright.layout.furnishings!.find((piece) => piece.piece === 'counter' && piece.h > piece.w)!;
+    const cells = upright.blocks.blocks.filter(
+      (block) =>
+        block.thing === 'counter' && block.rect.x === run.x && block.rect.y >= run.y && block.rect.y < run.y + run.h
+    );
+    expect(cells.length).toBe(run.h);
+    expect(cells.every((block) => block.modelTurn === 90 && block.footprint!.d === 1)).toBe(true);
+  });
+
+  it('builds furniture of its blocks where models are not asked for, or where it takes a block a cell', () => {
+    const built = planDungeon({ atmosphere: 'containerWarehouse', roomCount: 8, seed: 42 });
+    expect(built.blocks.blocks.some((block) => block.model)).toBe(false);
+
+    const hexed = planDungeon(
+      { atmosphere: 'containerWarehouse', roomCount: 8, seed: 42, gridType: GridType.HEX_VERTICAL },
+      { placeDoors: true, placeStairs: true, models: true }
+    );
+    expect(
+      hexed.blocks.blocks.filter((block) => block.thing?.startsWith('container')).some((block) => block.model)
+    ).toBe(false);
+  });
+
+  it('stands every door as the model of its kind, hinged where the door turns, but no door dressed as its wall', () => {
+    const options = { placeDoors: true, placeStairs: true, models: true };
+    const plans = ['stoneDungeon', 'illegalBar', 'containerWarehouse'].flatMap((atmosphere) =>
+      SEEDS.map((seed) => planDungeon({ atmosphere: atmosphere as never, roomCount: 8, seed }, options))
+    );
+    const doors = plans.flatMap((plan) => plan.blocks.blocks.filter((block) => block.kind === 'door'));
+    const hidden = doors.filter((door) => door.disguised);
+    const shown = doors.filter((door) => !door.disguised);
+
+    expect(hidden.length).toBeGreaterThan(0);
+    expect(hidden.every((door) => door.model === undefined)).toBe(true);
+    expect(new Set(shown.map((door) => door.model))).toEqual(new Set(['door_wood', 'door_steel', 'door_shutter']));
+    for (const door of shown) {
+      expect(door.model).toBe(DOOR_MODELS[door.prop!]);
+      expect(door.modelTurn ?? 0).toBe(doorModelTurn(door.across!, door.doorMirrored === true));
+    }
+    expect(shown.some((door) => door.doorMirrored)).toBe(true);
+    expect(shown.some((door) => door.across === 'x') && shown.some((door) => door.across === 'y')).toBe(true);
+  });
+
+  it('hangs the kind of door chosen in every doorway, opening as that kind opens, and sees over a saloon’s', () => {
+    const doors = SEEDS.flatMap((seed) =>
+      planDungeon(
+        { atmosphere: 'illegalBar', roomCount: 8, seed },
+        { placeDoors: true, placeStairs: true, models: true, door: 'door_saloon' }
+      ).blocks.blocks.filter((block) => block.kind === 'door')
+    );
+    expect(doors.some((door) => door.disguised) && doors.some((door) => !door.disguised)).toBe(true);
+    expect(doors.every((door) => door.prop === 'door_saloon' && door.doorStyle === 'swing')).toBe(true);
+    expect(
+      doors.filter((door) => !door.disguised).every((door) => !door.blocksSight && door.model === 'door_saloon')
+    ).toBe(true);
+    expect(doors.filter((door) => door.disguised).every((door) => door.blocksSight)).toBe(true);
+
+    const grates = planDungeon(
+      { atmosphere: 'illegalBar', roomCount: 8, seed: 42 },
+      { placeDoors: true, placeStairs: true, door: 'door_iron_grate' }
+    );
+    const barred = grates.blocks.blocks.filter((block) => block.kind === 'door');
+    expect(
+      barred.every((door) => door.prop === 'door_iron_grate' && door.doorStyle === 'lift' && door.blocksSight)
+    ).toBe(true);
+    expect(barred.some((door) => door.model)).toBe(false);
   });
 
   it('dresses a hidden door as the wall it stands in', () => {

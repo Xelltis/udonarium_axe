@@ -46,6 +46,12 @@
       "on": "Rendering: Lighter",
       "off": "Rendering: Full"
     },
+    "tableQuality": {
+      "auto": "Table quality: auto",
+      "high": "Table quality: high",
+      "standard": "Table quality: standard",
+      "light": "Table quality: light"
+    },
     "panel": {
       "peerMenu": "Connection",
       "chatWindow": "Chat",
@@ -112,6 +118,7 @@
       "wall_timber": "Timber wall",
       "door_wood": "Wooden door",
       "door_iron_grate": "Portcullis",
+      "door_saloon": "Saloon doors",
       "door_stone": "Stone door",
       "stair_up": "Stairs up",
       "stair_down": "Stairs down",
@@ -345,6 +352,11 @@
         "torchOff": "Put out your torch",
         "clearTargets": "Clear targets"
       }
+    },
+    "thirdPerson": {
+      "following": "Following {{name}} from behind",
+      "keysHint": "WASD/↑↓ to move  Q/E/←→ to turn  drag to go round  wheel to come nearer or go back  Esc to stop",
+      "stop": "Stop following"
     },
     "role": {
       "gm": "Game Master",
@@ -1028,6 +1040,28 @@
         "beatLightMineHint": "Kept in this browser alone. The light also stays off while reduced motion is on",
         "pauseFade": "Pause fade",
         "pauseFadeHint": "How long the music fades out when paused or stopped, and fades back in when it goes on"
+      },
+      "modelLibrary": {
+        "title": "3D models",
+        "tags": "Tags",
+        "everyTag": "All",
+        "stageHint": "The 3D model chosen. Drag to turn it",
+        "loading": "Loading…",
+        "cannotShow": "This model cannot be shown",
+        "putOn": "Put on the {{count}} chosen",
+        "putOnHint": "Draws the pieces and blocks chosen on the table as this model",
+        "putOnNone": "Choose a piece or a block on the table to put it on",
+        "attached": "Drawing {{count}} as “{{name}}”",
+        "dropHere": "Drop .glb files here (or click to choose)",
+        "maxSize": "Up to 10 MB a file",
+        "newTag": "Tag name",
+        "remove": "Delete {{count}} from the room",
+        "none": "The room has no 3D models",
+        "dragHint": "Drag a model onto a piece or a block on the table to draw it as the model. Drop it where there is nothing to make a piece of it.",
+        "made": "Made a piece of “{{name}}”",
+        "show": "Show “{{name}}”",
+        "tick": "Tick “{{name}}”",
+        "tagActed": "Tag {{count}}"
       }
     },
     "card": {
@@ -1722,7 +1756,7 @@
         "popupToggleTitle": "Show in popup",
         "deleteItemTitle": "Delete this item",
         "edit": "Edit",
-        "addNewItem": "Add new item",
+        "addNewItem": "Add heading",
         "colspanFull": "Full",
         "shape": "Shape",
         "rangeShapeLine": "Line",
@@ -1916,7 +1950,8 @@
       },
       "pointer": {
         "click": "Click",
-        "drag": "Drag"
+        "drag": "Drag",
+        "doubleClick": "Double-click"
       },
       "sheet": {
         "title": "Keys",
@@ -1944,7 +1979,10 @@
           "boxToggle": "Flip whether the pieces inside are picked",
           "aim": "Aim at a piece, or stop",
           "clearAims": "Stop aiming at everything",
-          "snap": "While turning a piece, snap to 45° (30° on hexes)"
+          "snap": "While turning a piece, snap to 45° (30° on hexes)",
+          "turnHandle": "Turn a piece by the knob on the ring round its pedestal, shown while the pointer is over the piece",
+          "rollHandle": "Tip a piece forward or back by the handle right of its picture, shown while the pointer is over the piece",
+          "standUpright": "Stand a tipped piece upright by its tipping handle"
         },
         "hotbar": {
           "fire": "Fire the slot with that number",
@@ -2047,6 +2085,7 @@
         "many": "“{{name}}” and {{count}} more were not loaded because they are too large ({{limits}})",
         "audioLimit": "sounds up to {{mb}} MB",
         "imageLimit": "images up to {{mb}} MB",
+        "modelLimit": "3D models up to {{mb}} MB and {{triangles}} triangles",
         "separator": ", "
       },
       "removal": {
@@ -2061,12 +2100,18 @@
         "ok": "Delete",
         "imageRefused": "This image was deleted from the room. Only the GM can add it again.",
         "audioRefused": "This sound was deleted from the room. Only the GM can add it again.",
+        "modelTitle": "Delete 3D models",
+        "modelConfirm": "Delete {{count}} 3D model(s) from the room. They disappear for the other players too, and the pieces drawn as them are drawn as their pictures, the blocks as boxes.",
+        "modelRemoved": "Deleted {{count}} 3D model(s)",
+        "modelRefused": "This 3D model was deleted from the room. Only the GM can add it again.",
         "notRemovable": "Bundled files, files linked by URL and system-reserved images cannot be deleted.",
         "notYours": "You cannot delete what someone else added. Only the person who added it, or the GM, can.",
         "othersKept": "{{count}} added by someone else will be kept."
       }
     },
     "character": {
+      "turnHandle": { "name": "Turn", "hint": "Turn the piece (hold Alt to turn by {{step}}°)" },
+      "rollHandle": { "name": "Tip", "hint": "Tip the piece forward or back (double-click to stand it upright)" },
       "contextMenu": {
         "showDetail": "Show details",
         "memo": "Memo",
@@ -2077,6 +2122,8 @@
         "viewFirstPerson": "Look out of this piece",
         "shareFirstPerson": "Put everyone in this piece's view",
         "stopSharingFirstPerson": "Release everyone from the shared view",
+        "followFromBehind": "Follow this piece from behind",
+        "stopFollowing": "Stop following from behind",
         "planMove": "Move",
         "invokeRangeShape": "Invoke registered range",
         "hideInventoryOn": "☑ Hide from inventory",
@@ -2387,6 +2434,52 @@
       }
     },
     "tabletop": {
+      "turnFrame": { "name": "Turn", "hint": "Turn it (hold Alt to turn by {{step}}°)" },
+      "tutorial": {
+        "putAway": "Put away the tutorial only",
+        "board": {
+          "name": "Getting started",
+          "title": "Welcome to Udonarium Axe",
+          "mouse": "Mouse",
+          "touch": "Phone",
+          "pan": "Pan",
+          "panMouse": "Left-drag",
+          "panTouch": "Drag one finger",
+          "turn": "Turn and tilt",
+          "turnMouse": "Right-drag",
+          "turnTouch": "Turn two fingers",
+          "zoom": "Zoom",
+          "zoomMouse": "Wheel",
+          "zoomTouch": "Pinch",
+          "menu": "Menu",
+          "menuMouse": "Right-click",
+          "menuTouch": "Long press",
+          "footer": "Press ? for the names of the buttons and the keys.\nThen read on from ① below.",
+          "rooms": "To play with others, make a room from Connection on the left.",
+          "tidy": "To clear up, right-click a board\nand choose Clear up for a blank table."
+        },
+        "pieces": {
+          "title": "① Pieces",
+          "text": "- Drag a piece to move it\n- Right-click it for its menu (long press on a phone)\n- Show details in the menu opens its sheet, where its name and HP are changed\n- The knobs that come out under the mouse turn it\n\nThe back row are monsters, the front row adventurers: 3D models on the left, flat pictures on the right."
+        },
+        "chat": {
+          "title": "② Chat and dice",
+          "text": "- Send 2d6 in the chat at the bottom left to roll dice\n- Put s in front to hide the result\n- Double-click the dice and the coin in front to roll them\n- Show chat palette in a piece's menu sends lines you use often with one click"
+        },
+        "battle": {
+          "title": "③ Battle",
+          "text": "- Lift a piece and the cells it can reach light up\n- Change HP on the sheet, or send :HP-5 with the piece as the speaker\n- Buffs & effects, then Edit buffs, in a piece's menu adds boosts and hindrances\n- The turn order is under Round in the Inventory\n- The GM turns engagement zones on under Movement in Room settings"
+        },
+        "vision": {
+          "title": "④ Darkness & terrain (GM)",
+          "text": "- Table settings turns on darkness and the fog of war\n- The adventurers are one party, so each sees what the others have seen\n- The crate in front is terrain. It blocks movement, sight and light. The bulb is a light\n- Map editor and Map generator make maps"
+        },
+        "clearToBlank": "Clear up for a blank table",
+        "note": {
+          "title": "Shared note",
+          "text": "Click to rewrite it where it lies."
+        }
+      },
       "ccfoliaImport": {
         "tableName": "CCFOLIA room",
         "imported": "Imported the CCFOLIA room ({{tables}} tables / {{panels}} panels / {{pieces}} pieces). Now showing \"{{table}}\".",
@@ -2743,6 +2836,10 @@
         "sectionWeather": "Weather (whole map)",
         "weatherKind": "Weather",
         "weatherNone": "None",
+        "skyKind": "Sky",
+        "skyKind_": "The background picture",
+        "skyKind_clock": "A sky that turns with the game clock",
+        "skyKindHint": "On a 3D table (drawn on a canvas), draws a sky past the board and ground running out to the horizon. Not seen while looking straight down.",
         "sectionFog": "Fog of war",
         "fogEnabled": "Enable fog of war",
         "fogMode": "How the fog comes back",
@@ -2876,6 +2973,7 @@
           "cactus": "Cactus",
           "junk": "Junk heap",
           "streetTree": "Street tree",
+          "giantTree": "Giant tree",
           "building": "Building",
           "roofUnit": "Rooftop unit",
           "counter": "Counter",
@@ -2890,7 +2988,24 @@
           "containerRed": "Container",
           "containerBlue": "Container",
           "containerGreen": "Container",
-          "hiddenDoor": "Hidden door"
+          "hiddenDoor": "Hidden door",
+          "palisade": "Palisade",
+          "watchtower": "Watchtower",
+          "stoneWall": "Curtain wall",
+          "tower": "Tower",
+          "fence": "Fence",
+          "gate": "Gate",
+          "barn": "Barn",
+          "tent": "Tent",
+          "well": "Well",
+          "hay": "Hay",
+          "cart": "Cart",
+          "totem": "Totem",
+          "hearth": "Hearth",
+          "wheat": "Wheat",
+          "corn": "Maize",
+          "rice": "Rice",
+          "vegetable": "Vegetables"
         },
         "summary": {
           "title": "Dungeon notes",
@@ -2920,11 +3035,16 @@
           "sheerWalls": "Walls cannot be climbed (an open door still lets you through)",
           "wallHeight": "Wall height (cells)",
           "entrance": "Way in",
+          "doorKind": "Doors",
           "kind": "Kind",
           "prop": "Obstacle material",
           "ground": "Ground material",
           "fieldSize": "Map size",
           "density": "Undergrowth",
+          "relief": "Ground relief (cells)",
+          "models": "Stand trees, rocks, cacti and junk as 3D models (seen on a 3D table)",
+          "furnishingModels": "Stand furniture, crates and containers as 3D models (seen on a 3D table)",
+          "season": "Season",
           "gridType": "Cell shape",
           "hexNote": "Hexes cannot be gathered up, so a block is placed per cell and the board is made smaller to pay for it.",
           "corridorWidth": "Passage width",
@@ -2965,6 +3085,15 @@
           "stair": "Stairway down",
           "tunnel": "Tunnel mouth"
         },
+        "doorKind": {
+          "default": "As the place has them",
+          "door_wood": "Plank doors",
+          "door_steel": "Steel doors",
+          "door_iron_grate": "Iron grates",
+          "door_stone": "Stone doors",
+          "door_shutter": "Shutters",
+          "door_saloon": "Saloon doors"
+        },
         "kind": {
           "dungeon": "Dungeon",
           "field": "Field"
@@ -2979,7 +3108,17 @@
           "city": "City blocks",
           "sfCity": "City blocks (SF)",
           "slum": "Slum",
-          "dump": "Garbage dump"
+          "dump": "Garbage dump",
+          "village": "Farming village",
+          "barbarianFort": "Barbarian fort",
+          "stoneFort": "Stone fort"
+        },
+        "season": {
+          "none": "Any",
+          "spring": "Spring",
+          "summer": "Summer",
+          "autumn": "Autumn",
+          "winter": "Winter"
         },
         "prop": {
           "tree": "Trees",
@@ -2990,6 +3129,7 @@
           "cactus": "Cacti",
           "junk": "Junk heaps",
           "streetTree": "Street trees",
+          "giantTree": "Giant trees",
           "building": "Buildings"
         },
         "grid": {
@@ -3005,6 +3145,23 @@
           "rune": "Rune of blasting",
           "roll": "Dodge"
         }
+      },
+      "groundBrush": {
+        "kind_raise": "Raise",
+        "kind_lower": "Dig",
+        "kind_smooth": "Smooth",
+        "kind_flatten": "Flatten",
+        "kind_paint": "Paint",
+        "kind_erase": "Erase paint",
+        "layer_grass": "Grass",
+        "layer_dirt": "Dirt",
+        "layer_rock": "Rock",
+        "layer_sand": "Sand",
+        "radius": "Size",
+        "strength": "Strength",
+        "undo": "Take back the last stroke",
+        "close": "Stop shaping the ground",
+        "unaware": "{{count}} in the room are on a version that knows nothing of the ground; the table stays flat for them."
       },
       "movePlan": {
         "hint": "Click to walk there / right-click to set a corner (again on the same spot takes it back) / Enter to go / Esc to leave it",
@@ -3056,7 +3213,10 @@
       },
       "shownTo_master": "The master alone",
       "shownTo_sight": "Once it is in sight",
-      "shownTo_room": "Everyone"
+      "shownTo_room": "Everyone",
+      "scene": {
+        "unavailable": "This browser cannot draw the table in 3D, as neither WebGPU nor WebGL2 is available. Turn graphics acceleration on in the browser’s settings and restart the browser. Everything else, the chat included, works as before."
+      }
     },
     "roomSettings": {
       "title": "Room settings",
@@ -3588,6 +3748,7 @@
         "noPeers": "No one else is connected.",
         "roomServer": "Room server",
         "relayed": "Via relay server",
+        "heardAt": "When the room server last heard from them",
         "relayedHint": "Some links go through a relay server. Those peers could not connect directly, so they tend to be slower."
       },
       "peerReconnect": {
@@ -3620,7 +3781,8 @@
         "deleteCancel": "Cancel",
         "deleteFailed": "The account could not be deleted. Please try again later.",
         "deleteFailedLoggedOut": "Could not delete the account. Log in again, then delete it once more.",
-        "guestHint": "Without logging in you join as a guest. Log in to create rooms and move things on the table.",
+        "guestTitle": "Not logged in",
+        "guestBody": "You will join as a guest. Log in with Discord to create rooms and move things on the table.",
         "unavailable": "This server offers no login, so it has no rooms.",
         "errors": {
           "denied": "The login was cancelled.",
@@ -3747,7 +3909,14 @@
         "stamp": "Put in a stamp",
         "bar": "Chat input tools",
         "colorSlot": "Colour {{n}}",
-        "colors": "Speech colour"
+        "colors": "Speech colour",
+        "targetNumber": "Target number",
+        "targetNumberHint": "The number {目標値} in this line is filled with. A result picked here is used for this one send only",
+        "targetNumberAimed": "Auto: {{total}} (rolled at {{speaker}}: {{by}})",
+        "targetNumberPinned": "Auto: {{total}} (set for this tab: {{by}})",
+        "targetNumberByOthers": "Auto: {{total}} (latest roll: {{by}})",
+        "targetNumberNotFound": "Auto: none found ({目標値} is sent as typed)",
+        "targetNumberChoice": "{{total}} ({{by}})"
       },
       "decoration": {
         "bold": "Bold",
@@ -3844,7 +4013,11 @@
         "actions": "Line actions",
         "more": "More actions",
         "edit": "Edit",
-        "serverRoll": "The room server rolled these dice, so the roller could not change them."
+        "serverRoll": "The room server rolled these dice, so the roller could not change them.",
+        "pinTargetNumber": "Use this result as the target number",
+        "unpinTargetNumber": "Stop using it as the target number",
+        "pinnedTargetNumber": "Target",
+        "pinnedTargetNumberTitle": "Every {目標値} in this tab takes this result until it is taken off"
       },
       "stream": {
         "title": "Stream chat",
@@ -4465,7 +4638,11 @@
         "image": "Image",
         "functionPaint": "Function pen",
         "functionErase": "Function eraser",
-        "function": "Function"
+        "function": "Function",
+        "relief": "Relief"
+      },
+      "relief": {
+        "hint": "Raise, lower, smooth and flatten the ground of the table, and paint it with grass, dirt, rock and sand. It stays out of the exported picture, and becomes the table’s ground when you lay the functions. The paint is written to the table in the blocks of 16 by 16 cells the brush has touched, and the table keeps its own paint everywhere else."
       },
       "function": {
         "title": "Function paint",
@@ -4565,6 +4742,7 @@
         "hazardDirt": "Dirt",
         "hazardLeaves": "Floating leaves",
         "hazardFlowSpeed": "Flow speed",
+        "hazardIce": "Frozen over",
         "hazardFlowDirection": "Flow direction",
         "hazardWaterLook": "Look",
         "hazardColor": "Color",
@@ -4585,7 +4763,10 @@
         "moveCostHalves": "Road (half a step)",
         "moveCostHalvesHint": "Crossed for half a cell. A road wins over whatever is painted under it, so a made road runs straight through a swamp",
         "triggerMoment_press": "When pressed (switch)",
-        "triggerPressHint": "Clicking a painted cell runs the actions below. Set who speaks, the reach, the uses and any secret result here too."
+        "triggerPressHint": "Clicking a painted cell runs the actions below. Set who speaks, the reach, the uses and any secret result here too.",
+        "role_object": "3D objects",
+        "terrainModel": "This terrain is drawn as a 3D model",
+        "terrainModelClear": "Remove the model"
       },
       "stampCategories": {
         "door": "Doors",
@@ -4687,8 +4868,10 @@
           "stamp": "Stamps",
           "freehand": "Freehand",
           "text": "Text",
-          "image": "Image"
-        }
+          "image": "Image",
+          "relief": "Relief"
+        },
+        "empty": "No layers yet. Drawing makes one that suits the tool. You can also add one of any kind from +."
       },
       "actions": {
         "undo": "Undo",
@@ -4713,12 +4896,15 @@
         "setTableDone": "Set as table background",
         "exportError": "Export failed",
         "applyFunctions": "Lay the functions",
-        "applyFunctionsHint": "Lays the painted no-entry, terrain and masks on the table, leaving the floor as it is",
+        "applyFunctionsHint": "Lays the painted no-entry, terrain, masks and relief on the table, leaving the floor as it is",
         "applyFunctionsDone": "Laid the painted functions on the table",
-        "applyFunctionsGridMismatch": "The grid does not match the table. Read the table in first"
+        "applyFunctionsGridMismatch": "The grid does not match the table. Read the table in first",
+        "zoomFit": "Fit to view",
+        "setAsTableHint": "Makes the map the table's floor picture and fits the table's size and grid to it. What was painted for its workings is laid on it as well",
+        "applyFunctionsModelMissing": "A 3D object's model could not be read, so nothing was laid. Check the connection and try again"
       },
       "status": {
-        "cell": "{{col}}-{{row}}"
+        "cell": "Col {{col}}, row {{row}}"
       },
       "draft": {
         "hint": "Click to add points",
@@ -4728,6 +4914,107 @@
       "measure": {
         "cells": "{{n}} cells",
         "angle": "∠{{deg}}°"
+      },
+      "select": {
+        "guide": "Click a shape, stamp, picture, text or freehand line to pick it, and drag to move it. Nothing on a hidden or locked layer can be picked.",
+        "keysDoubleClick": "Double-click",
+        "doubleClick": "Rewrite a text",
+        "keysDelete": "Delete",
+        "delete": "Delete what is picked",
+        "keysUndo": "Ctrl+Z / Ctrl+Y",
+        "undo": "Undo / redo",
+        "keysPan": "Space + drag",
+        "pan": "Move the map",
+        "keysZoom": "Ctrl + wheel",
+        "zoom": "Zoom in and out"
+      },
+      "object": {
+        "hint": "Sets a 3D model out over the cells painted. Scatter trees and rocks; set furniture, fences and crops out one to a cell. They are laid on the table with Lay the functions.",
+        "model": "Model",
+        "read": "Read a .glb",
+        "group_nature": "Nature",
+        "group_furnishing": "Furniture",
+        "group_settlement": "Village and fort",
+        "group_town": "Town",
+        "group_room": "Models in this room",
+        "arrangement_scatter": "Scatter",
+        "arrangement_cell": "One per cell",
+        "density": "Density",
+        "size": "Size",
+        "cells": "cells",
+        "height": "Height",
+        "sizeJitter": "Size variation",
+        "turnRandom": "Turn each any way",
+        "turn": "Turn",
+        "blocksMove": "Blocks movement",
+        "blocksSight": "Blocks sight",
+        "walkedOverHint": "Things walked over are laid as floor, so they hide nothing",
+        "rearrange": "Rearrange",
+        "model_tree_oak": "Oak",
+        "model_tree_beech": "Beech",
+        "model_tree_birch": "Birch",
+        "model_tree_poplar": "Poplar",
+        "model_tree_willow": "Willow",
+        "model_tree_pine": "Pine",
+        "model_tree_fir": "Fir",
+        "model_tree_spruce": "Spruce",
+        "model_tree_dead": "Dead tree",
+        "model_tree_cherry": "Cherry",
+        "model_tree_maple": "Maple",
+        "model_tree_ginkgo": "Ginkgo",
+        "model_tree_mangrove": "Mangrove",
+        "model_tree_oakAutumn": "Oak (autumn)",
+        "model_tree_beechAutumn": "Beech (autumn)",
+        "model_tree_birchAutumn": "Birch (autumn)",
+        "model_tree_oakBare": "Oak (bare)",
+        "model_tree_birchBare": "Birch (bare)",
+        "model_tree_snowFir": "Snowy fir",
+        "model_tree_snowSpruce": "Snowy spruce",
+        "model_tree_giant": "Giant tree",
+        "model_bush_round": "Round bush",
+        "model_bush_wide": "Wide bush",
+        "model_bush_leafy": "Leafy bush",
+        "model_rock_boulder": "Boulder",
+        "model_rock_angular": "Angular rock",
+        "model_rock_slab": "Rock slab",
+        "model_rock_outcrop": "Outcrop",
+        "model_cactus_saguaro": "Saguaro cactus",
+        "model_cactus_tall": "Tall cactus",
+        "model_junk_heap": "Junk heap",
+        "model_junk_drums": "Oil drums",
+        "model_prop_crate": "Crate",
+        "model_prop_stool": "Stool",
+        "model_prop_desk": "Desk",
+        "model_prop_gamingTable": "Gaming table",
+        "model_prop_counter": "Counter",
+        "model_prop_shopCounter": "Shop counter",
+        "model_prop_barTable": "Bar table",
+        "model_prop_rubble": "Rubble",
+        "model_prop_containerRed": "Container (red)",
+        "model_prop_containerBlue": "Container (blue)",
+        "model_prop_containerGreen": "Container (green)",
+        "model_log_wall": "Log wall",
+        "model_plank_wall": "Plank wall",
+        "model_timber_frame_wall": "Timber-frame wall",
+        "model_hide_wall": "Hide wall",
+        "model_stone_room_wall": "Stone wall",
+        "model_rail_fence": "Rail fence",
+        "model_palisade_spikes": "Palisade",
+        "model_stone_wall_battlement": "Battlement",
+        "model_stone_tower_round": "Round stone tower",
+        "model_stone_tower_square": "Square stone tower",
+        "model_watchtower_wood": "Wooden watchtower",
+        "model_totem": "Totem",
+        "model_well": "Well",
+        "model_cart": "Cart",
+        "model_hay": "Hay",
+        "model_hearth": "Hearth",
+        "model_crop_wheat": "Wheat",
+        "model_crop_rice": "Rice",
+        "model_crop_corn": "Corn",
+        "model_crop_vegetable": "Vegetables",
+        "model_roof_plant": "Rooftop plant",
+        "model_roof_tank": "Rooftop tank"
       }
     },
     "roomArchive": {
@@ -5115,6 +5402,7 @@
       "dirtLabel": "Dirt",
       "leavesLabel": "Floating leaves",
       "flowSpeedLabel": "Flow speed",
+      "iceLabel": "Frozen over",
       "flowDirectionLabel": "Flow direction",
       "flowDirection_0": "↑ Up",
       "flowDirection_45": "↗ Up-right",
@@ -5846,6 +6134,7 @@
         "table": "Table shown",
         "floor": "Floor",
         "background": "Background",
+        "sky": "Sky",
         "walls": "Walls",
         "foreground": "Foreground",
         "weather": "Weather",
@@ -5933,6 +6222,10 @@
     }
   },
   "app": {
+    "loading": {
+      "table": "Getting the table's drawing ready…",
+      "pieces": "Loading the pieces and pictures…"
+    },
     "fab": {
       "menuOpen": "Open menu",
       "menuHint": "Open the menu (right click to arrange or put back)",
@@ -5942,6 +6235,7 @@
       "tableSetting": "Table",
       "roomSettings": "Room settings",
       "images": "Images",
+      "models": "3D models",
       "jukebox": "Jukebox",
       "cutIn": "Cut-in",
       "inventory": "Inventory",
@@ -5982,6 +6276,7 @@
       "recording": "Recording",
       "fogOn": "Fog of war: on (click to turn off)",
       "fogOff": "Fog of war: off (click to turn on)",
+      "groundBrush": "Raise, dig and paint the ground (canvas table)",
       "namesShown": "Names: shown (click to hide)",
       "namesHidden": "Names: hidden (click to show)",
       "resourceBarsShown": "Resource bars: shown (click to hide)",
@@ -6177,6 +6472,37 @@
       "rangeShape": "Range shape",
       "effect": "Effect"
     },
+    "fieldTypeHint": {
+      "text": "A short line of text, such as a name or a class.",
+      "number": "One number, such as a score or a level. A unit and limits can be set.",
+      "resource": "A current value and its maximum, such as HP or MP. It can show as a bar over the piece.",
+      "longText": "Text that runs over many lines, such as a background or notes.",
+      "check": "Something on or off, such as used or a condition.",
+      "select": "One choice from a list set beforehand.",
+      "calc": "A value worked out from other items by a formula, written in the settings.",
+      "image": "One picture.",
+      "rangeShape": "The shape of a range or an area. It can be laid on the table straight from the row.",
+      "effect": "One effect, which the piece can fire."
+    },
+    "fieldTypeSample": {
+      "textLabel": "Class",
+      "text": "Warrior",
+      "numberLabel": "STR",
+      "number": "12",
+      "resourceLabel": "HP",
+      "longTextLabel": "Background",
+      "longText": "Born in a northern port…",
+      "check": "Used",
+      "selectLabel": "Race",
+      "select": "Human",
+      "calcLabel": "Defence",
+      "calc": "{DEX}+2 → 16",
+      "image": "One picture",
+      "rangeShapeLabel": "Fireball",
+      "rangeShape": "A circle 3 cells across",
+      "effectLabel": "Slash",
+      "effect": "Fired from the piece"
+    },
     "field": {
       "choices": "Choices",
       "choicesPlaceholder": "One per line or comma-separated",
@@ -6292,6 +6618,7 @@
       "open": "Open the settings of “{{name}}”",
       "view": "Show as",
       "addField": "Add item",
+      "addFieldTo": "Add an item to “{{name}}”",
       "addFieldHint": "Choose the type of the item to add to “{{name}}”",
       "templateSaved": "Saved “{{name}}” as a template",
       "deleteGroup": "Delete this group",
@@ -6299,6 +6626,17 @@
     }
   },
   "ui": {
+    "pieceModel": {
+      "model": "3D model",
+      "none": "None (draw the picture)",
+      "read": "Read a file",
+      "scale": "Size",
+      "turn": "Turn",
+      "motions": "Motions",
+      "idle": "Standing still",
+      "walk": "Walking",
+      "hint": "On a 3D table (drawn on a canvas), draws a glTF model (.glb) in place of the picture. The size multiplies the model as fitted inside the piece's or the block's width and height. Leave a motion empty to pick one by the names in the model."
+    },
     "openUrl": {
       "panelTitle": "Open external URL",
       "panelTitleWithTitle": "Open external URL <{{title}}>",

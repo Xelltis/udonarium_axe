@@ -5,7 +5,7 @@
 >
   <div class="flex items-center justify-between">
     <span class="font-semibold">{{ 'feature.mapEditor.layers.title' | transloco }}</span>
-    <div class="relative">
+    <div class="relative" #addLayerMenu>
       <button
         class="hover:bg-ui-hover rounded-ui-sm inline-flex size-6 items-center justify-center"
         [title]="'feature.mapEditor.layers.add' | transloco"
@@ -36,6 +36,11 @@
     </div>
   </div>
 
+  @if (layers().length === 0) {
+    <p class="text-ui-muted m-0 leading-relaxed" data-testid="map-layers-empty">
+      {{ 'feature.mapEditor.layers.empty' | transloco }}
+    </p>
+  }
   @for (layer of layers(); track layer.id) {
     <div
       class="rounded-ui cursor-move border border-solid p-1.5"

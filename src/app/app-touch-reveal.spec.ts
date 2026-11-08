@@ -35,6 +35,9 @@ const REACHED_ANOTHER_WAY: Record<string, Record<string, string>> = {
   'card-stack-card-list.component.html': {
     'group-hover/thumb:opacity-100': 'the thumbnail itself is the button; the pencil over it is only a hint',
   },
+  'game-character.component.html': {
+    'group-hover:opacity-85': 'the handles of the piece last touched are shown at full',
+  },
   'dice-symbol.component.html': {
     'hover:[&_.material-icons]:inline': 'the icons show while the die is pressed',
   },

@@ -18,7 +18,8 @@ export type EditorTool =
   | 'stamp'
   | 'image'
   | 'functionPaint'
-  | 'functionErase';
+  | 'functionErase'
+  | 'relief';
 
 export type LineKind = 'straight' | 'polyline' | 'curve' | 'closedCurve';
 

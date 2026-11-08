@@ -4,13 +4,16 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { AmbienceService } from '@axe/application/tabletop/ambience.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { TransientPlacementService } from '@axe/application/tabletop/transient-placement.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { isInStore } from '@axe/core/sync/object-store';
 import {
+  groundAmbienceHasParticles,
   groundSurfaceLayer,
   groundSurfaceWash,
   groundVaporSheets,
@@ -21,13 +24,13 @@ import { EffectParticleLayer } from '@axe/domain/effect/effect-particles';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { multiAngleFontScaleFactor } from '@axe/domain/tabletop/multi-angle-font-scale';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
+import { quadMatrix } from '@axe/domain/tabletop/world/page-boxes';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import { buildTableAmbienceContextMenuModel } from '@axe/features/tabletop/table-ambience/table-ambience-context-menu';
 import { MovableDirective, MovableOption } from '@axe/ui/directives/movable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { setupMovableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
-import { translateZCss, Z_OFFSET_AMBIENCE_PX } from '@axe/ui/tabletop/z-offset';
 
 /**
  * How far towards the camera the effect sits, in pixels.
@@ -44,6 +47,12 @@ export interface ShownVaporSheet extends VaporSheet {
   key: number;
 }
 
+/** A sheet of the rise drawn over a canvas, with the style that stands it on the screen. */
+export interface VaporSheetOnScreen {
+  readonly sheet: ShownVaporSheet;
+  readonly style: Record<string, string>;
+}
+
 @Component({
   selector: 'table-ambience',
   templateUrl: './table-ambience.component.html',
@@ -51,6 +60,7 @@ export interface ShownVaporSheet extends VaporSheet {
   imports: [NgStyle, MovableDirective, SelectableDirective, TooltipDirective, EffectCanvasComponent],
   host: {
     class: 'block',
+    '[attr.data-object-id]': 'ambience().identifier',
     '(dragstart)': 'onDragstart($event)',
     '(contextmenu)': 'onContextMenu($event)',
   },
@@ -64,16 +74,18 @@ export class TableAmbienceComponent {
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly panelService = inject(PanelService);
+  private readonly camera = inject(TableCameraService);
+  private readonly transient = inject(TransientPlacementService);
   private readonly t = inject(TRANSLATE_FN);
 
   readonly ambience = input.required<TableAmbience>();
   readonly movableOption = signal<MovableOption>({});
 
-  /** At the depth of the board picture the fill is eaten by the floor, so it sits one layer above the mask. */
-  protected readonly surfaceTransform = translateZCss(Z_OFFSET_AMBIENCE_PX);
-
   constructor() {
-    setupMovableForPiece(this, { target: this.ambience, transformCssOffset: this.surfaceTransform });
+    setupMovableForPiece(this, {
+      target: this.ambience,
+      footprint: () => ({ width: this.pixelWidth(), height: this.pixelHeight() }),
+    });
   }
 
   /**
@@ -99,8 +111,11 @@ export class TableAmbienceComponent {
     return groundSurfaceWash(area.kind, area.ambienceColor, area.density);
   });
 
+  /** Whether this kind draws any particles on the page at all, so the clock they move by is read only where they do. */
+  private readonly hasParticles = computed(() => groundAmbienceHasParticles(this.area().kind));
+
   readonly surfaceLayer = computed<EffectParticleLayer | null>(() => {
-    if (!this.ambienceService.motionEnabled()) return null;
+    if (!this.ambienceService.motionEnabled() || !this.hasParticles()) return null;
     return nonEmpty(groundSurfaceLayer(this.specOf(this.pixelWidth(), this.pixelHeight())));
   });
 
@@ -109,7 +124,7 @@ export class TableAmbienceComponent {
    * One sheet over a wide area puts the far and the near at the same depth and reads as a band.
    */
   readonly vaporSheets = computed<ShownVaporSheet[]>(() => {
-    if (!this.ambienceService.motionEnabled()) return [];
+    if (!this.ambienceService.motionEnabled() || !this.hasParticles()) return [];
 
     const rotation = this.uiSignalService.tableViewRotation();
     const height = this.gridSize() * vaporCellsOf(this.area().kind);
@@ -137,6 +152,62 @@ export class TableAmbienceComponent {
     };
   }
 
+  /** Where the top left corner of the area is on the board now: where it is held while it is dragged. */
+  private readonly topLeft = computed(() => {
+    this.transient.version();
+    const area = this.area();
+    const held = this.transient.placementOf(area.identifier);
+    return held ? { x: held.x, y: held.y } : { x: area.location.x, y: area.location.y };
+  });
+
+  /**
+   * The style that lays the area flat on the screen, its corners where the table's canvas draws the
+   * corners of the ground it covers. Follows the camera; null before it is set.
+   */
+  protected readonly laidOnScreen = computed<Record<string, string> | null>(() => {
+    const screen = this.camera.screenOf();
+    if (!screen) return null;
+    const { x, y } = this.topLeft();
+    const width = this.pixelWidth();
+    const height = this.pixelHeight();
+    const matrix = quadMatrix(width, height, [
+      screen(x, y, 0),
+      screen(x + width, y, 0),
+      screen(x + width, y + height, 0),
+      screen(x, y + height, 0),
+    ]);
+    if (!matrix) return null;
+    return {
+      width: width + 'px',
+      height: height + 'px',
+      transform: `matrix3d(${matrix.map((value) => Math.round(value * 1e6) / 1e6).join(', ')})`,
+    };
+  });
+
+  /** The sheets of the rise, each stood on the screen where the table's canvas draws the ground it rises from. */
+  protected readonly vaporSheetsOnScreen = computed<VaporSheetOnScreen[]>(() => {
+    const screen = this.camera.screenOf();
+    if (!screen) return [];
+    const { x, y } = this.topLeft();
+    return this.vaporSheets().map((sheet) => {
+      const layer = sheet.layer;
+      const at = screen(x + sheet.groundX, y + sheet.groundY, 0, CAMERA_LIFT_PX);
+      return {
+        sheet,
+        style: {
+          position: 'absolute',
+          left: '0px',
+          top: '0px',
+          width: layer.width + 'px',
+          height: layer.height + 'px',
+          'transform-origin': '0 0',
+          transform: `translate(${at.x}px, ${at.y}px) scale(${at.scale}) translate(${-layer.originX}px, ${-layer.originY}px)`,
+          'pointer-events': 'none',
+        },
+      };
+    });
+  });
+
   /** The canvas is larger than the area, and is offset by that margin so the particles are not cut by its edge. */
   protected canvasStyle(layer: EffectParticleLayer): Record<string, string> {
     return {
@@ -145,27 +216,6 @@ export class TableAmbienceComponent {
       top: -layer.originY + 'px',
       width: layer.width + 'px',
       height: layer.height + 'px',
-      'pointer-events': 'none',
-    };
-  }
-
-  /** What rises faces the camera; left flat it would spread sideways. */
-  protected vaporStyle(sheet: VaporSheet): Record<string, string> {
-    const rotation = this.uiSignalService.tableViewRotation();
-    const layer = sheet.layer;
-    const transform =
-      `translate3d(${sheet.groundX}px, ${sheet.groundY}px, 0px)` +
-      ` rotateZ(${-(rotation?.z ?? DEFAULT_TURN)}deg) rotateX(${-(rotation?.x ?? DEFAULT_TILT)}deg) rotateY(${-(rotation?.y ?? 0)}deg)` +
-      ` translateZ(${CAMERA_LIFT_PX}px) translate(${-layer.originX}px, ${-layer.originY}px)`;
-
-    return {
-      position: 'absolute',
-      left: '0px',
-      top: '0px',
-      width: layer.width + 'px',
-      height: layer.height + 'px',
-      'transform-origin': '0 0',
-      transform,
       'pointer-events': 'none',
     };
   }

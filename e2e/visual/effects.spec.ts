@@ -1,7 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
 import { createCharacter } from '../helpers';
-import { closePanels, freeze, prepare, settle, settleLazy, snap } from './fixtures';
+import { closePanels, freeze, prepare, settle, settleLazy, snap, untilStill } from './fixtures';
 
 async function castOn(page: Page, preset: string) {
   await page.locator('[data-testid="fab-entry-media"]').click();
@@ -32,6 +32,7 @@ for (const [preset, name, at] of [
     await prepare(page);
     await closePanels(page);
     await createCharacter(page);
+    await untilStill(page);
     await freeze(page);
     await castOn(page, preset);
     await settle(page, at);

@@ -92,9 +92,9 @@ function scheduleAngularTick(): void {
 
 /**
  * The events this device tells only itself, which no peer may send it. A peer's OPEN_NETWORK or
- * PEER_RECONNECT would pass for this device's own network; its UPDATE_FILE_RESOURE or
- * UPDATE_AUDIO_RESOURE would hand in bytes under a picture's or sound's name that no transfer
- * brought; its VN_MODE would turn this screen to novel mode.
+ * PEER_RECONNECT would pass for this device's own network; its UPDATE_FILE_RESOURE,
+ * UPDATE_AUDIO_RESOURE or UPDATE_MODEL_RESOURE would hand in bytes under a picture's, sound's or
+ * model's name that no transfer brought; its VN_MODE would turn this screen to novel mode.
  */
 export const LOCAL_ONLY_EVENTS: ReadonlySet<string> = new Set([
   'OPEN_NETWORK',
@@ -106,6 +106,7 @@ export const LOCAL_ONLY_EVENTS: ReadonlySet<string> = new Set([
   'SERVER_ROLE_CHANGED',
   'UPDATE_FILE_RESOURE',
   'UPDATE_AUDIO_RESOURE',
+  'UPDATE_MODEL_RESOURE',
   'LOCAL_OBJECT_UPDATED',
   'VN_MODE',
 ]);
@@ -115,9 +116,11 @@ export const LOCAL_ONLY_EVENTS: ReadonlySet<string> = new Set([
  *
  * An event only the room server may send, whose word outranks any version, is dropped unless the
  * room server itself sent it: another seat, or any seat with SkyWay, could send one by that name.
- * An event this device only tells itself is dropped from anybody.
+ * An event this device only tells itself is dropped from anybody. With `own` set the events are
+ * this device's own, handed back to it as they went out, and are its own though its peer has come
+ * to be called otherwise since they were sent, as when its connection opens or gives up.
  */
-export function receiveEvents(events: EventContext[]): void {
+export function receiveEvents(events: EventContext[], own = false): void {
   for (const ctx of events) {
     if (LOCAL_ONLY_EVENTS.has(ctx.eventName)) {
       Logger.warn(
@@ -134,7 +137,7 @@ export function receiveEvents(events: EventContext[]): void {
       eventName: ctx.eventName,
       data: ctx.data,
       sendFrom: ctx.sendFrom,
-      isSendFromSelf: ctx.sendFrom === Network.peerId,
+      isSendFromSelf: own || ctx.sendFrom === Network.peerId,
     });
   }
   scheduleAngularTick();
@@ -190,7 +193,7 @@ export function initializeNetworkMessaging(): void {
     localDispatch('PEER_RECONNECT', { peerId: peer.peerId, state });
   };
 
-  callback.onData = (_peer, data) => receiveEvents(data as EventContext[]);
+  callback.onData = (_peer, data, own) => receiveEvents(data as EventContext[], own);
 
   callback.onError = (peer, errorType, errorMessage, errorObject) => {
     Logger.debug('[NetworkMessaging]', `<${peer.peerId}> ${errorMessage}`);

@@ -38,6 +38,7 @@ import {
 } from '@axe/domain/tabletop/ride/ride-rules';
 import { clampInRange, floatOr, roundOr } from '@axe/features/character/game-character-sheet/numeric-input-helpers';
 import { GameDataElementComponent } from '@axe/features/data-element/game-data-element/game-data-element.component';
+import { PieceModelFieldsComponent } from '@axe/ui/components/piece-model-fields/piece-model-fields.component';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { TranslocoModule } from '@jsverse/transloco';
 
@@ -45,7 +46,7 @@ import { TranslocoModule } from '@jsverse/transloco';
   selector: 'game-character-settings-tab',
   templateUrl: './game-character-settings-tab.component.html',
   host: { class: 'block', '[attr.inert]': "isReadOnly() ? '' : null" },
-  imports: [FormsModule, GameDataElementComponent, SafePipe, TranslocoModule],
+  imports: [FormsModule, GameDataElementComponent, SafePipe, TranslocoModule, PieceModelFieldsComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GameCharacterSettingsTabComponent {

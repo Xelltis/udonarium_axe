@@ -14,7 +14,7 @@ export const MAP_SCENE_VERSION = 1;
 export const DEFAULT_SCENE_BACKGROUND = 'transparent';
 export const DEFAULT_SCENE_GRID_COLOR = '#00000059';
 
-export type LayerKind = 'cell' | 'shape' | 'stamp' | 'freehand' | 'text' | 'image' | 'function';
+export type LayerKind = 'cell' | 'shape' | 'stamp' | 'freehand' | 'text' | 'image' | 'function' | 'relief';
 
 export type FillStyle =
   { type: 'solid'; color: string } | { type: 'texture'; textureId: string; scale: number; rotation: number };
@@ -161,7 +161,22 @@ export interface FunctionLayer extends BaseLayer {
   spec: FunctionSpec;
 }
 
-export type MapLayer = CellLayer | ShapeLayer | StampLayer | FreehandLayer | TextLayer | ImageLayer | FunctionLayer;
+/**
+ * How high the ground of the table stands and what it is painted with, kept the way the table keeps
+ * it: the heights of the ground's samples, every half cell from the scene's top left, a chunk at a
+ * time, each chunk's as text under the key `cx,cy`, and the paint of each chunk a stroke has painted
+ * or erased in the same way. A chunk not kept is flat, and one not painted leaves the table's paint
+ * as it is. Several relief layers add up, the paint of a later one over an earlier one's, and like a
+ * layer of functions it never reaches the picture the map is exported as.
+ */
+export interface ReliefLayer extends BaseLayer {
+  kind: 'relief';
+  chunks: Record<string, string>;
+  paint?: Record<string, string>;
+}
+
+export type MapLayer =
+  CellLayer | ShapeLayer | StampLayer | FreehandLayer | TextLayer | ImageLayer | FunctionLayer | ReliefLayer;
 
 export interface MapScene {
   version: number;
@@ -184,6 +199,8 @@ export interface MapScene {
    * written down here as the layers come and go.
    */
   paintedRoles?: MapFunctionRole[];
+  /** Whether the scene has held a relief layer, kept after the layer is gone, as `paintedRoles` is. */
+  paintedRelief?: boolean;
 }
 
 /** A line laid across the scene to line things up against, kept with the scene it was laid on. */
@@ -194,7 +211,8 @@ export interface SceneGuideLine {
 }
 
 /**
- * Writes down the roles the scene holds a layer for, keeping the ones already written.
+ * Writes down the roles the scene holds a layer for, and whether it holds one of relief, keeping
+ * what is already written.
  *
  * Called with the scene as it stands before a step is taken, so that the step that takes a
  * layer away is the step that records the role it spoke for.
@@ -203,6 +221,7 @@ export function rememberPaintedRoles(scene: MapScene): void {
   const spoken = new Set<MapFunctionRole>(scene.paintedRoles ?? []);
   for (const layer of scene.layers) {
     if (layer.kind === 'function') spoken.add(layer.role);
+    if (layer.kind === 'relief') scene.paintedRelief = true;
   }
   if (spoken.size > 0) scene.paintedRoles = [...spoken];
 }
@@ -263,6 +282,8 @@ export function createLayer(kind: LayerKind, name: string): MapLayer {
       return { ...base, kind: 'text', items: [] };
     case 'image':
       return { ...base, kind: 'image', items: [] };
+    case 'relief':
+      return { ...base, kind: 'relief', chunks: {} };
   }
 }
 

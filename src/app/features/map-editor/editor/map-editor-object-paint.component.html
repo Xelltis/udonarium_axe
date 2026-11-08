@@ -1,0 +1,215 @@
+@let brush = spec();
+<p class="text-ui-muted m-0 text-[11px]">{{ 'feature.mapEditor.object.hint' | transloco }}</p>
+<div class="flex flex-col gap-1">
+  <div class="flex items-center justify-between gap-2">
+    <span class="text-ui-muted shrink-0">{{ 'feature.mapEditor.object.model' | transloco }}</span>
+    <span class="min-w-0 truncate font-semibold" data-testid="object-model-name">{{ modelName() }}</span>
+  </div>
+  <div class="flex flex-wrap gap-1" data-testid="object-shelves">
+    @for (one of shelves; track one.shelf) {
+      <button
+        type="button"
+        class="rounded-ui-sm px-1.5 py-0.5 text-[11px]"
+        [class.bg-ui-accent-bg]="shelf() === one.shelf"
+        [class.bg-ui-input]="shelf() !== one.shelf"
+        [attr.aria-pressed]="shelf() === one.shelf"
+        (click)="shelf.set(one.shelf)"
+      >
+        {{ one.labelKey | transloco }}
+      </button>
+    }
+  </div>
+  <div class="grid grid-cols-4 gap-1" data-testid="object-models">
+    @for (model of shelfModels(); track model.id) {
+      <button
+        type="button"
+        class="rounded-ui-sm bg-ui-input flex aspect-square items-center justify-center overflow-hidden border border-solid p-0.5"
+        [class.border-ui-accent]="brush.model === model.id"
+        [class.border-ui-border-panel]="brush.model !== model.id"
+        [attr.aria-pressed]="brush.model === model.id"
+        [attr.aria-label]="model.labelKey | transloco"
+        [title]="model.labelKey | transloco"
+        (click)="chooseModel(model.id)"
+      >
+        <img class="max-h-full max-w-full object-contain" [src]="model.icon" alt="" loading="lazy" />
+      </button>
+    }
+    @if (shelf() === 'room') {
+      @for (model of roomModels(); track model.identifier) {
+        <button
+          type="button"
+          class="rounded-ui-sm bg-ui-input text-ui-muted flex aspect-square flex-col items-center justify-center gap-0.5 overflow-hidden border border-solid p-0.5"
+          [class.border-ui-accent]="brush.model === model.identifier"
+          [class.border-ui-border-panel]="brush.model !== model.identifier"
+          [attr.aria-pressed]="brush.model === model.identifier"
+          [attr.aria-label]="model.name"
+          [title]="model.name"
+          (click)="chooseModel(model.identifier)"
+        >
+          <i class="material-icons text-[20px]!" aria-hidden="true">view_in_ar</i>
+          <span class="w-full truncate text-center text-[9px]">{{ model.name }}</span>
+        </button>
+      }
+      <label
+        class="rounded-ui-sm border-ui-border-panel text-ui-muted hover:border-ui-accent hover:text-ui-accent flex aspect-square cursor-pointer flex-col items-center justify-center border border-dashed text-center"
+        [title]="'feature.mapEditor.object.read' | transloco"
+      >
+        <i class="material-icons text-[20px]!" aria-hidden="true">add</i>
+        <span class="text-[9px] leading-tight">{{ 'feature.mapEditor.object.read' | transloco }}</span>
+        <input
+          class="hidden"
+          type="file"
+          accept=".glb,model/gltf-binary"
+          data-testid="object-model-file"
+          (change)="readModel($event)"
+        />
+      </label>
+    }
+  </div>
+</div>
+
+<div
+  class="border-ui-border-panel rounded-ui-sm flex gap-0.5 border border-solid p-0.5"
+  data-testid="object-arrangement"
+>
+  @for (arrangement of arrangements; track arrangement) {
+    <button
+      type="button"
+      class="hover:bg-ui-hover rounded-ui-sm flex grow items-center justify-center border-0 py-1 text-[11px]"
+      [class.bg-ui-accent-bg]="brush.arrangement === arrangement"
+      [class.text-ui-accent]="brush.arrangement === arrangement"
+      [class.bg-transparent]="brush.arrangement !== arrangement"
+      [attr.aria-pressed]="brush.arrangement === arrangement"
+      (click)="setObjectPaint({ arrangement })"
+    >
+      {{ 'feature.mapEditor.object.arrangement_' + arrangement | transloco }}
+    </button>
+  }
+</div>
+
+@if (brush.arrangement === 'scatter') {
+  <label class="flex items-center justify-between gap-2">
+    <span class="text-ui-muted">{{ 'feature.mapEditor.object.density' | transloco }}</span>
+    <span class="flex items-center gap-1">
+      <input
+        class="w-24"
+        type="range"
+        min="0.05"
+        max="1"
+        step="0.05"
+        data-testid="object-density"
+        [ngModel]="brush.density"
+        (ngModelChange)="setObjectPaint({ density: +$event })"
+      />
+      <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums">{{ brush.density | percent }}</span>
+    </span>
+  </label>
+}
+<label class="flex items-center justify-between gap-2">
+  <span class="text-ui-muted">{{ 'feature.mapEditor.object.size' | transloco }}</span>
+  <span class="flex items-center gap-1">
+    <input
+      type="number"
+      min="0.1"
+      max="20"
+      step="0.1"
+      class="bg-ui-input rounded-ui-sm w-16 p-1 text-right"
+      data-testid="object-size"
+      [ngModel]="brush.size"
+      (ngModelChange)="setObjectPaint({ size: +$event })"
+    />
+    <span class="text-ui-muted text-[11px]">{{ 'feature.mapEditor.object.cells' | transloco }}</span>
+  </span>
+</label>
+@if (!bundled()) {
+  <label class="flex items-center justify-between gap-2">
+    <span class="text-ui-muted">{{ 'feature.mapEditor.object.height' | transloco }}</span>
+    <span class="flex items-center gap-1">
+      <input
+        type="number"
+        min="0"
+        max="20"
+        step="0.1"
+        class="bg-ui-input rounded-ui-sm w-16 p-1 text-right"
+        data-testid="object-height"
+        [ngModel]="brush.height"
+        (ngModelChange)="setObjectPaint({ height: +$event })"
+      />
+      <span class="text-ui-muted text-[11px]">{{ 'feature.mapEditor.object.cells' | transloco }}</span>
+    </span>
+  </label>
+}
+@if (brush.arrangement === 'scatter') {
+  <label class="flex items-center justify-between gap-2">
+    <span class="text-ui-muted">{{ 'feature.mapEditor.object.sizeJitter' | transloco }}</span>
+    <span class="flex items-center gap-1">
+      <input
+        class="w-24"
+        type="range"
+        min="0"
+        max="0.5"
+        step="0.05"
+        [ngModel]="brush.sizeJitter"
+        (ngModelChange)="setObjectPaint({ sizeJitter: +$event })"
+      />
+      <span class="text-ui-muted min-w-8 text-right whitespace-nowrap tabular-nums">{{
+        brush.sizeJitter | percent
+      }}</span>
+    </span>
+  </label>
+  <label class="flex items-center gap-1.5">
+    <input type="checkbox" [ngModel]="brush.turnRandom" (ngModelChange)="setObjectPaint({ turnRandom: $event })" />
+    <span>{{ 'feature.mapEditor.object.turnRandom' | transloco }}</span>
+  </label>
+}
+@if (brush.arrangement === 'cell' || !brush.turnRandom) {
+  <label class="flex items-center justify-between gap-2">
+    <span class="text-ui-muted">{{ 'feature.mapEditor.object.turn' | transloco }}</span>
+    <span class="flex items-center gap-1">
+      <input
+        type="number"
+        min="0"
+        max="359"
+        step="15"
+        class="bg-ui-input rounded-ui-sm w-16 p-1 text-right"
+        data-testid="object-turn"
+        [ngModel]="brush.turn"
+        (ngModelChange)="setObjectPaint({ turn: +$event })"
+      />
+      <span class="text-ui-muted text-[11px]">°</span>
+    </span>
+  </label>
+}
+<label class="flex items-center gap-1.5">
+  <input
+    type="checkbox"
+    data-testid="object-blocks-move"
+    [ngModel]="brush.blocksMove"
+    (ngModelChange)="setObjectPaint({ blocksMove: $event })"
+  />
+  <span>{{ 'feature.mapEditor.object.blocksMove' | transloco }}</span>
+</label>
+<label class="flex items-center gap-1.5" [class.opacity-50]="!brush.blocksMove">
+  <input
+    type="checkbox"
+    data-testid="object-blocks-sight"
+    [disabled]="!brush.blocksMove"
+    [ngModel]="brush.blocksMove && brush.blocksSight"
+    (ngModelChange)="setObjectPaint({ blocksSight: $event })"
+  />
+  <span>{{ 'feature.mapEditor.object.blocksSight' | transloco }}</span>
+</label>
+@if (!brush.blocksMove) {
+  <p class="text-ui-muted m-0 text-[10px] leading-snug">{{ 'feature.mapEditor.object.walkedOverHint' | transloco }}</p>
+}
+@if (brush.arrangement === 'scatter') {
+  <button
+    type="button"
+    class="bg-ui-input hover:bg-ui-hover rounded-ui-sm flex items-center justify-center gap-1 px-2 py-1"
+    data-testid="object-rearrange"
+    (click)="rearrange()"
+  >
+    <i class="material-icons text-[14px]!" aria-hidden="true">shuffle</i>
+    {{ 'feature.mapEditor.object.rearrange' | transloco }}
+  </button>
+}

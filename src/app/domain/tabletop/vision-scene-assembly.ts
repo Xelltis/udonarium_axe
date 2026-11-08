@@ -1,6 +1,8 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ambienceLightLevelOf, ambienceSnuffsLight } from '@axe/domain/effect/ambience/ambience-brightness';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { groundSightSegments } from '@axe/domain/tabletop/ground/ground-sight';
+import { FLAT_GROUND, groundLiftOfBlock, GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
 import { perimeterSegments, rectangleSegments, TallSegment } from '@axe/domain/tabletop/los/segments';
 import { pieceCentreOffsetPx } from '@axe/domain/tabletop/move/piece-on-grid';
 import { type SurfaceDims, surfaceInwardDirection, surfacePointTo3D } from '@axe/domain/tabletop/surface-space';
@@ -34,20 +36,22 @@ export interface StandingSegments {
 }
 
 /**
- * The edges that stop sight and light on a table: its perimeter, its shown outer walls, and the
- * sides of its walls.
+ * The edges that stop sight and light on a table: its perimeter, its shown outer walls, the sides of
+ * its walls, and the rises of its raised ground.
  *
  * The perimeter stops sight but only walls that are shown stop light. A terrain that gives off
- * light of its own does not block light.
+ * light of its own does not block light. A wall stands as far up as the raised ground lifts it.
  */
 export function collectSegments(
   table: GameTable,
   gridSize: number,
   widthPx: number,
-  heightPx: number
+  heightPx: number,
+  ground: GroundSurface = FLAT_GROUND
 ): StandingSegments {
-  const sight: TallSegment[] = [...perimeterSegments(widthPx, heightPx)];
-  const light: LightSegment[] = [];
+  const raised = groundSightSegments(ground, widthPx, heightPx, gridSize);
+  const sight: TallSegment[] = [...perimeterSegments(widthPx, heightPx), ...raised];
+  const light: LightSegment[] = [...raised];
   const wallHeightPx = table.wallHeight * gridSize;
   const north: LightSegment = { x1: 0, y1: 0, x2: widthPx, y2: 0, heightPx: wallHeightPx };
   const south: LightSegment = { x1: 0, y1: heightPx, x2: widthPx, y2: heightPx, heightPx: wallHeightPx };
@@ -67,8 +71,9 @@ export function collectSegments(
       terrain.depth * gridSize,
       terrain.rotate
     );
-    const top = terrainTopPx(terrain, gridSize);
-    const base = terrainBasePx(terrain, gridSize);
+    const lift = groundLiftOfBlock(ground, gridSize, terrain);
+    const top = terrainTopPx(terrain, gridSize) + lift;
+    const base = terrainBasePx(terrain, gridSize) + lift;
     if (terrain.blocksSightNow) for (const edge of edges) sight.push({ ...edge, heightPx: top, basePx: base });
     if (terrain.blocksLightNow && !terrain.lightEnabled) {
       for (const edge of edges) light.push({ ...edge, heightPx: top, basePx: base });
@@ -123,10 +128,17 @@ export function toSceneLight(
   };
 }
 
-function placeLight(obj: TabletopObject, centerX: number, centerY: number, gridSize: number, dims: SurfaceDims) {
+function placeLight(
+  obj: TabletopObject,
+  centerX: number,
+  centerY: number,
+  gridSize: number,
+  dims: SurfaceDims,
+  ground: GroundSurface
+) {
   const surface = surfaceOf(obj);
   if (surface === 'floor') {
-    const h = eyeHeightPx(obj.altitude, obj.posZ, gridSize);
+    const h = eyeHeightPx(obj.altitude, obj.posZ, gridSize) + groundPxAt(ground, gridSize, obj, centerX, centerY);
     return {
       pos: surfacePointTo3D('floor', obj.location.x + centerX, obj.location.y + centerY, dims, h),
       dir: null,
@@ -146,6 +158,18 @@ function placeLight(obj: TabletopObject, centerX: number, centerY: number, gridS
   };
 }
 
+/** How high the raised ground stands under a point of a thing on the floor, in table pixels. */
+function groundPxAt(
+  ground: GroundSurface,
+  gridSize: number,
+  obj: TabletopObject,
+  across: number,
+  down: number
+): number {
+  if (ground.isFlat) return 0;
+  return ground.heightAt((obj.location.x + across) / gridSize, (obj.location.y + down) / gridSize) * gridSize;
+}
+
 /**
  * Every light shining on a table: its light sources, lit pieces on it, and terrain that gives off
  * light.
@@ -156,7 +180,8 @@ export function collectLights(
   table: GameTable,
   characters: readonly GameCharacter[],
   gridSize: number,
-  characterOf: (identifier: string) => GameCharacter | null
+  characterOf: (identifier: string) => GameCharacter | null,
+  ground: GroundSurface = FLAT_GROUND
 ): SceneLight[] {
   const lights: SceneLight[] = [];
   const half = gridSize / 2;
@@ -171,7 +196,7 @@ export function collectLights(
     const followed = source.followingCharacterIdentifier ? characterOf(source.followingCharacterIdentifier) : null;
     const anchor = followed && followed.isVisibleOnTable ? followed : source;
     const center = followed && followed.isVisibleOnTable ? pieceCentreOffsetPx(followed, gridSize) : half;
-    const p = placeLight(anchor, center, center, gridSize, dims);
+    const p = placeLight(anchor, center, center, gridSize, dims, ground);
     lights.push(
       toSceneLight(source.lightSpec, p.pos.x, p.pos.y, p.pos.z, gridSize, source.identifier, p.dir, p.surface)
     );
@@ -180,7 +205,7 @@ export function collectLights(
   for (const character of characters) {
     if (!character.isVisibleOnTable || !character.lightEnabled) continue;
     const center = pieceCentreOffsetPx(character, gridSize);
-    const p = placeLight(character, center, center, gridSize, dims);
+    const p = placeLight(character, center, center, gridSize, dims, ground);
     lights.push(
       toSceneLight(character.lightSpec, p.pos.x, p.pos.y, p.pos.z, gridSize, character.identifier, p.dir, p.surface)
     );
@@ -190,7 +215,7 @@ export function collectLights(
     if (!terrain.lightEnabled) continue;
     const cx = (terrain.width * gridSize) / 2;
     const cy = (terrain.depth * gridSize) / 2;
-    const p = placeLight(terrain, cx, cy, gridSize, dims);
+    const p = placeLight(terrain, cx, cy, gridSize, dims, ground);
     lights.push(
       toSceneLight(terrain.lightSpec, p.pos.x, p.pos.y, p.pos.z, gridSize, terrain.identifier, p.dir, p.surface)
     );
@@ -219,7 +244,11 @@ export function collectShadowCasters(characters: readonly GameCharacter[], gridS
 }
 
 /** The pieces standing on the floor that look, each with where its eyes are, how far it sees and whose it is. */
-export function collectVisionSources(characters: readonly GameCharacter[], gridSize: number): SceneVisionSource[] {
+export function collectVisionSources(
+  characters: readonly GameCharacter[],
+  gridSize: number,
+  ground: GroundSurface = FLAT_GROUND
+): SceneVisionSource[] {
   const sources: SceneVisionSource[] = [];
   for (const character of characters) {
     if (!character.isVisibleOnTable) continue;
@@ -229,7 +258,9 @@ export function collectVisionSources(characters: readonly GameCharacter[], gridS
     sources.push({
       x: character.location.x + center,
       y: character.location.y + center,
-      z: eyeHeightPx(character.altitude, character.posZ, gridSize),
+      z:
+        eyeHeightPx(character.altitude, character.posZ, gridSize) +
+        groundPxAt(ground, gridSize, character, center, center),
       type: character.visionType as VisionType,
       rangePx: character.visionRange * gridSize,
       owner: character.owner,
@@ -306,7 +337,8 @@ export function assembleScene(
   table: GameTable,
   characters: readonly GameCharacter[],
   standing: StandingSegments,
-  characterOf: (identifier: string) => GameCharacter | null
+  characterOf: (identifier: string) => GameCharacter | null,
+  ground: GroundSurface = FLAT_GROUND
 ): VisionScene {
   const gridSize = table.gridSize;
   return {
@@ -320,8 +352,8 @@ export function assembleScene(
     snapLightToGrid: table.lightSnapToGrid,
     widthPx: table.width * gridSize,
     heightPx: table.height * gridSize,
-    lights: collectLights(table, characters, gridSize, characterOf),
-    visionSources: collectVisionSources(characters, gridSize),
+    lights: collectLights(table, characters, gridSize, characterOf, ground),
+    visionSources: collectVisionSources(characters, gridSize, ground),
     sightSegments: standing.sight,
     lightSegments: standing.light,
     shadowCasters: collectShadowCasters(characters, gridSize),

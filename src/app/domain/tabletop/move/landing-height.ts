@@ -1,9 +1,10 @@
-import { cellCenterOf, cellCount, CellGrid, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellCenterOf, cellCount, CellGrid } from '@axe/domain/tabletop/fog/cell-grid';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { FLAT_GROUND, groundLiftOfBlock, GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
 import { isSquareGrid } from '@axe/domain/tabletop/move/move-grid';
 import { surfaceOf } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
-import { terrainBoxOf, terrainCovers } from '@axe/domain/tabletop/terrain-box';
+import { forEachCellUnder, terrainCovers } from '@axe/domain/tabletop/terrain-box';
 import { SurfaceLean, terrainLeanAt, terrainTopPxAt } from '@axe/domain/tabletop/terrain-slope-surface';
 
 /** Whether a block is something a piece walked at ends up standing on top of. */
@@ -20,20 +21,23 @@ export function canBeStoodOn(terrain: Terrain): boolean {
  * not: a piece that cannot get up it cannot be put down on top of it either.
  *
  * A sloping block is read where it is walked on, so a piece climbs a ramp along it rather than
- * stepping up to the height of its far end.
+ * stepping up to the height of its far end. Given the table's raised ground, the floor stands where
+ * the ground does and a block stands as far up as the ground lifts it; left out, the floor is flat, as
+ * the height a piece is kept at is read.
  */
 export function landingHeightAt(
   terrains: readonly Terrain[],
   gridSize: number,
   x: number,
   y: number,
-  gridType: GridType = GridType.SQUARE
+  gridType: GridType = GridType.SQUARE,
+  ground: GroundSurface = FLAT_GROUND
 ): number {
-  let highest = 0;
+  let highest = ground.isFlat ? 0 : ground.heightAt(x / gridSize, y / gridSize) * gridSize;
   for (const terrain of terrains) {
     if (!canBeStoodOn(terrain)) continue;
     if (!terrainCovers(terrain, gridSize, x, y)) continue;
-    const top = terrainTopPxAt(terrain, gridSize, gridType, x, y);
+    const top = terrainTopPxAt(terrain, gridSize, gridType, x, y) + groundLiftOfBlock(ground, gridSize, terrain);
     if (top > highest) highest = top;
   }
   return highest;
@@ -47,24 +51,48 @@ export function landingHeightAt(
  * read. The floor reads as nothing, and cells with no cell size to speak of read as floor. A square
  * of several cells is read at its middle too, which is where a piece moved onto it is put down.
  */
-export function landingHeightsOn(grid: CellGrid, terrains: readonly Terrain[]): Float64Array {
+export function landingHeightsOn(
+  grid: CellGrid,
+  terrains: readonly Terrain[],
+  ground: GroundSurface = FLAT_GROUND
+): Float64Array {
   const heights = new Float64Array(cellCount(grid));
   if (grid.sizePx <= 0) return heights;
   if (isSquareGrid(grid)) {
     for (let square = 0; square < heights.length; square++) {
       const centre = cellCenterOf(grid, square);
-      heights[square] = landingHeightAt(terrains, grid.fine.sizePx, centre.x, centre.y, grid.type);
+      heights[square] = landingHeightAt(terrains, grid.fine.sizePx, centre.x, centre.y, grid.type, ground);
     }
     return heights;
   }
+  if (!ground.isFlat) {
+    for (let cell = 0; cell < heights.length; cell++) {
+      const centre = cellCenterOf(grid, cell);
+      heights[cell] = ground.heightAt(centre.x / grid.sizePx, centre.y / grid.sizePx) * grid.sizePx;
+    }
+  }
   for (const terrain of terrains) {
     if (!canBeStoodOn(terrain)) continue;
-    const box = terrainBoxOf(terrain, grid.sizePx);
-    forEachCellInBox(grid, box.minX, box.minY, box.maxX, box.maxY, (cell, cx, cy) => {
-      if (!terrainCovers(terrain, grid.sizePx, cx, cy)) return;
-      const top = terrainTopPxAt(terrain, grid.sizePx, grid.type, cx, cy);
+    const lift = groundLiftOfBlock(ground, grid.sizePx, terrain);
+    forEachCellUnder(grid, terrain, (cell, cx, cy) => {
+      const top = terrainTopPxAt(terrain, grid.sizePx, grid.type, cx, cy) + lift;
       if (top > heights[cell]) heights[cell] = top;
     });
+  }
+  return heights;
+}
+
+/**
+ * How high the table's raised ground stands under the middle of every cell, blocks left out, or null
+ * where the ground is flat everywhere.
+ */
+export function groundHeightsOn(grid: CellGrid, ground: GroundSurface): Float64Array | null {
+  if (ground.isFlat || grid.sizePx <= 0) return null;
+  const heights = new Float64Array(cellCount(grid));
+  const cellPx = isSquareGrid(grid) ? grid.fine.sizePx : grid.sizePx;
+  for (let cell = 0; cell < heights.length; cell++) {
+    const centre = cellCenterOf(grid, cell);
+    heights[cell] = ground.heightAt(centre.x / cellPx, centre.y / cellPx) * cellPx;
   }
   return heights;
 }

@@ -1,0 +1,27 @@
+<div class="bg-ui-input rounded-ui-sm relative aspect-4/3 w-full max-w-full overflow-hidden">
+  <canvas
+    #canvas
+    class="block size-full cursor-grab touch-none active:cursor-grabbing"
+    data-testid="model-stage-canvas"
+    [attr.aria-label]="'feature.media.modelLibrary.stageHint' | transloco"
+    role="img"
+    (pointerdown)="press($event)"
+    (pointermove)="move($event)"
+    (pointerup)="letGo()"
+    (pointercancel)="letGo()"
+  ></canvas>
+  @if (state() !== 'shown') {
+    <div
+      class="text-ui-muted pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 text-[12px]"
+      data-testid="model-stage-state"
+    >
+      <i class="material-icons text-[28px]! opacity-60" aria-hidden="true">{{
+        state() === 'failed' ? 'broken_image' : 'hourglass_empty'
+      }}</i>
+      {{
+        (state() === 'failed' ? 'feature.media.modelLibrary.cannotShow' : 'feature.media.modelLibrary.loading')
+          | transloco
+      }}
+    </div>
+  }
+</div>

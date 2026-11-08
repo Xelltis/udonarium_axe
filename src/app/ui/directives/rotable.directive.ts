@@ -1,8 +1,18 @@
-import { afterNextRender, DestroyRef, Directive, effect, ElementRef, inject, input, output } from '@angular/core';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
+import {
+  afterNextRender,
+  DestroyRef,
+  Directive,
+  effect,
+  ElementRef,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeEvent, ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { GridType } from '@axe/domain/tabletop/game-table';
@@ -16,10 +26,31 @@ export interface RotableTabletopObject extends TabletopObject {
   rotate: number;
 }
 
+/** Where a piece put on the screen over a table drawn on a canvas turns about. */
+export interface TurnAbout {
+  /** The face it stands on, as a location names it. */
+  readonly surface: string;
+  /** Its middle on that face, in the face's own pixels. */
+  readonly x: number;
+  readonly y: number;
+  /** How far off the face its handles lie, in table pixels. */
+  readonly height: number;
+}
+
 export interface RotableOption {
   readonly tabletopObject?: RotableTabletopObject;
   readonly grabbingSelecter?: string;
-  readonly transformCssOffset?: string;
+  /**
+   * For a piece the screen over the canvas puts where it is drawn: where it turns about. It is
+   * turned by where the pointer crosses its face at the height of its handles.
+   */
+  readonly turnsAbout?: () => TurnAbout | null;
+  /**
+   * For a part the screen over the canvas puts upright before the reader, as a character's picture
+   * tipped over sideways: the point of the page it turns about. It is turned by where the pointer
+   * lies round that point on the screen.
+   */
+  readonly turnsOnScreenAbout?: () => { x: number; y: number } | null;
 }
 
 @Directive({ selector: '[appRotable]' })
@@ -27,7 +58,7 @@ export class RotableDirective {
   private readonly elementRef = inject(ElementRef);
   private readonly batchService = inject(BatchService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
-  private readonly coordinateService = inject(CoordinateService);
+  private readonly tableSurfaces = inject(TableSurfaceService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly rotationGuide = inject(RotationGuideService);
@@ -36,7 +67,8 @@ export class RotableDirective {
 
   private tabletopObject: RotableTabletopObject | null = null;
 
-  private transformCssOffset: string = '';
+  private turnsAbout: (() => TurnAbout | null) | null = null;
+  private turnsOnScreenAbout: (() => { x: number; y: number } | null) | null = null;
   private grabbingSelecter: string = '.rotate-grab';
   readonly option = input<RotableOption | undefined>(undefined, { alias: 'rotable.option' });
   readonly isDisable = input(false, { alias: 'rotable.disable' });
@@ -45,6 +77,13 @@ export class RotableDirective {
   readonly ondrag = output<PointerEvent>({ alias: 'rotable.ondrag' });
   readonly ondragend = output<PointerEvent>({ alias: 'rotable.ondragend' });
   readonly onend = output<PointerEvent>({ alias: 'rotable.onend' });
+
+  private readonly inTurn = signal(false);
+  /**
+   * Whether a turn by this element is under way: from its first step until it is let go, broken
+   * off or the element goes, however it ends. Only what this element turns reads it again.
+   */
+  readonly turning = this.inTurn.asReadonly();
 
   private get nativeElement(): HTMLElement {
     return this.elementRef.nativeElement;
@@ -71,10 +110,10 @@ export class RotableDirective {
     if (!this.grabbingElement || !this.nativeElement) return false;
     if (this.grabbingSelecter.length < 1) return true;
     const elements = this.nativeElement.querySelectorAll(this.grabbingSelecter);
-    let macth: boolean;
     for (let i = 0; i < elements.length; i++) {
-      macth = elements[i].contains(this.grabbingElement);
-      if (macth) return true;
+      if (elements[i].contains(this.grabbingElement) && elements[i].closest('[appRotable]') === this.nativeElement) {
+        return true;
+      }
     }
     return false;
   }
@@ -84,6 +123,8 @@ export class RotableDirective {
   private freeAngle: number = 0;
   /** Whether Alt is held, which snaps the turn while it is under way. */
   private snapping = false;
+  /** Whether a step of the turn under way has found the angle it turns to, which Alt snaps. */
+  private angleFound = false;
   private readonly onSnapKey = (e: KeyboardEvent) => this.snapKey(e);
   private updateTimer: ReturnType<typeof setTimeout> | null = null;
   private grabbingElement: HTMLElement | null = null;
@@ -95,20 +136,16 @@ export class RotableDirective {
       if (opt == null) return;
       if (opt.tabletopObject != null) this.tabletopObject = opt.tabletopObject;
       if (opt.grabbingSelecter != null) this.grabbingSelecter = opt.grabbingSelecter;
-      if (opt.transformCssOffset != null) this.transformCssOffset = opt.transformCssOffset;
+      this.turnsAbout = opt.turnsAbout ?? null;
+      this.turnsOnScreenAbout = opt.turnsOnScreenAbout ?? null;
       this.refreshObjectChangeListener();
     });
     effect(() => {
       this._rotate = this.value();
-      this.updateTransformCss();
     });
     afterNextRender(() => {
       this.batchService.add(() => this.initialize(), this.elementRef);
-      if (this.tabletopObject) {
-        this.setRotate(this.tabletopObject);
-      } else {
-        this.updateTransformCss();
-      }
+      if (this.tabletopObject) this.setRotate(this.tabletopObject);
     });
     this.destroyRef.onDestroy(() => {
       this.settlePendingUpdate();
@@ -139,8 +176,8 @@ export class RotableDirective {
   }
 
   /**
-   * Moves the element to where a change elsewhere put its piece, a moment later and together with
-   * the rest. A change this seat made itself is left alone while the piece is held, also when the
+   * Turns to the angle a change elsewhere gave its piece, a moment later and together with the
+   * rest. A change this seat made itself is left alone while the piece is held, also when the
    * piece was picked up between the change and the move, as just after it was made.
    */
   private handleObjectChange(event: ObjectChangeEvent): void {
@@ -148,15 +185,10 @@ export class RotableDirective {
     if (!tabletopObject) return;
     if (!this.input) return;
     if (event.isSendFromSelf && this.input.isGrabbing) return;
-    if (!this.shouldTransition(tabletopObject)) return;
+    if (tabletopObject.rotate === this.rotate) return;
     this.batchService.add(() => {
       if (event.isSendFromSelf && this.input?.isGrabbing) return;
-      if (this.input?.isGrabbing) {
-        this.cancel();
-      } else {
-        this.setAnimatedTransition(true);
-      }
-      this.stopTransition();
+      if (this.input?.isGrabbing) this.cancel();
       this.setRotate(tabletopObject);
     }, this);
   }
@@ -172,20 +204,16 @@ export class RotableDirective {
     this.input.onEnd = (e) => this.onInputEnd(e);
     this.input.onContextMenu = (e) => this.onContextMenu(e);
 
-    if (this.tabletopObject) {
-      this.setRotate(this.tabletopObject);
-    } else {
-      this.updateTransformCss();
-    }
+    if (this.tabletopObject) this.setRotate(this.tabletopObject);
   }
 
-  /** Ends a turn in progress, forgets what was grabbed and turns the glide animation back on. */
+  /** Ends a turn in progress and forgets what was grabbed. */
   cancel() {
     this.input?.cancel();
     this.grabbingElement = null;
-    this.setAnimatedTransition(true);
     this.stopListeningForSnap();
     this.rotationGuide.end(this);
+    this.inTurn.set(false);
   }
 
   private get isReadOnly(): boolean {
@@ -209,16 +237,14 @@ export class RotableDirective {
     )
       return this.cancel();
     const input = this.input;
-    const grabbingElement = this.grabbingElement;
-    const parentElement = this.nativeElement.parentElement;
-    if (!input || !grabbingElement || !parentElement) return this.cancel();
+    if (!input || !this.grabbingElement) return this.cancel();
+    const pointer = this.pointerAround(input.pointer);
+    if (!pointer) return this.cancel();
 
     e.stopPropagation();
     this.onstart.emit(e as PointerEvent);
 
-    const pointer = this.coordinateService.convertLocalToLocal(input.pointer, grabbingElement, parentElement);
     this.rotateOffset = this.calcRotate(pointer, this.rotate);
-    this.setAnimatedTransition(false);
   }
 
   /**
@@ -234,20 +260,21 @@ export class RotableDirective {
     if (this.isDisable() || this.isReadOnly || !this.input?.isGrabbing) return this.cancel();
 
     const input = this.input;
-    const grabbingElement = this.grabbingElement;
-    const parentElement = this.nativeElement.parentElement;
-    if (!input || !grabbingElement || !parentElement) return this.cancel();
+    if (!input || !this.grabbingElement) return this.cancel();
 
     if (e.cancelable) e.preventDefault();
     e.stopPropagation();
-    const pointer3d = this.coordinateService.convertLocalToLocal(input.pointer, grabbingElement, parentElement);
-    this.freeAngle = this.calcRotate(pointer3d, this.rotateOffset);
-    this.snapping = (e as MouseEvent).altKey === true;
-
-    if (!this.input?.isDragging) {
+    if (!input.isDragging) {
+      this.inTurn.set(true);
       this.ondragstart.emit(e as PointerEvent);
       this.listenForSnap();
     }
+    const pointer3d = this.pointerAround(input.pointer);
+    if (!pointer3d) return;
+    this.freeAngle = this.calcRotate(pointer3d, this.rotateOffset);
+    this.angleFound = true;
+    this.snapping = (e as MouseEvent).altKey === true;
+
     this.ondrag.emit(e as PointerEvent);
     this.turnTo();
   }
@@ -274,11 +301,14 @@ export class RotableDirective {
 
   /**
    * Snaps the turn the moment Alt goes down, and frees it the moment Alt comes up, without waiting
-   * for the pointer to move. The key goes no further, so the browser does not take it for its menu.
+   * for the pointer to move. The key goes no further, so the browser does not take it for its menu,
+   * from the first step of the turn on; before a step has found the angle it turns to, there is
+   * nothing to snap, and the next step that finds one reads whether Alt is held.
    */
   private snapKey(e: KeyboardEvent): void {
     if (e.key !== 'Alt' || !this.input?.isGrabbing) return;
     e.preventDefault();
+    if (!this.angleFound) return;
     const snapping = e.type === 'keydown';
     if (snapping === this.snapping) return;
     this.snapping = snapping;
@@ -292,6 +322,7 @@ export class RotableDirective {
   }
 
   private stopListeningForSnap(): void {
+    this.angleFound = false;
     const document = this.nativeElement.ownerDocument;
     document.removeEventListener('keydown', this.onSnapKey, true);
     document.removeEventListener('keyup', this.onSnapKey, true);
@@ -316,11 +347,25 @@ export class RotableDirective {
     this.snapToPolygonal();
   }
 
+  /**
+   * Where the pointer is against the middle the element turns about: round that point of the screen
+   * for a part turned on the screen, and on the face the piece stands on for the rest. Null where
+   * nothing says what it turns about.
+   */
+  private pointerAround(pointer: PointerCoordinate): PointerCoordinate | null {
+    if (this.turnsOnScreenAbout) {
+      const about = this.turnsOnScreenAbout();
+      return about ? { x: pointer.x - about.x, y: pointer.y - about.y, z: 0 } : null;
+    }
+    if (!this.turnsAbout) return null;
+    const about = this.turnsAbout();
+    const onFace = about ? this.tableSurfaces.pointOn(about.surface, pointer.x, pointer.y, about.height) : null;
+    return about && onFace ? { x: onFace.localX - about.x, y: onFace.localY - about.y, z: 0 } : null;
+  }
+
   private calcRotate(pointer: PointerCoordinate, rotateOffset: number): number {
-    const centerX = this.nativeElement.clientWidth / 2;
-    const centerY = this.nativeElement.clientHeight / 2;
-    const x = pointer.x - centerX;
-    const y = pointer.y - centerY;
+    const x = pointer.x;
+    const y = pointer.y;
     const rad = Math.atan2(y, x);
     return ((rad * 180) / Math.PI - rotateOffset) % 360;
   }
@@ -361,28 +406,9 @@ export class RotableDirective {
         this.updateTimer = null;
       }, 66);
     }
-    this.updateTransformCss();
   }
 
   private setRotate(object: RotableTabletopObject) {
     if (object) this._rotate = object.rotate;
-    this.updateTransformCss();
-  }
-
-  private setAnimatedTransition(isEnable: boolean) {
-    this.nativeElement.style.transition = isEnable ? 'transform 132ms linear' : '';
-  }
-
-  private shouldTransition(object: RotableTabletopObject): boolean {
-    return object.rotate !== this.rotate;
-  }
-
-  private stopTransition() {
-    this.nativeElement.style.transform = window.getComputedStyle(this.nativeElement).transform;
-  }
-
-  private updateTransformCss() {
-    const css = `${this.transformCssOffset} rotateZ(${this.rotate.toFixed(4)}deg)`;
-    this.nativeElement.style.transform = css;
   }
 }

@@ -1,5 +1,4 @@
 import { clamp01 } from '@axe/core/util/clamp';
-import { withAlpha } from '@axe/core/util/hex-color';
 import { ambiencePalette } from '@axe/domain/effect/ambience/ambience-kind';
 
 /** How dark the depths are against the colour of the water. */
@@ -32,34 +31,9 @@ export function underwaterDeepColor(lightColor: string): string {
   return lightColor.trim().toLowerCase() === palette.primary ? palette.secondary : deepWaterColor(lightColor);
 }
 
-/** A colour as the red, green and blue a CSS `rgba()` takes, or null where it cannot be read. */
-export function rgbTripletOf(color: string): string | null {
-  const rgb = rgbOf(color);
-  return rgb ? rgb.join(', ') : null;
-}
-
-/**
- * The colour given, darkened to how lit it is.
- *
- * Water standing above the floor stands above the dark painted on it too, and faded alone it
- * stays the colour of daylight water seen through a veil; it has to darken as well.
- */
-export function shadedWaterColor(color: string, light: number): string {
-  const rgb = rgbOf(color);
-  const level = Number.isFinite(light) ? Math.min(Math.max(light, 0), 1) : 1;
-  if (!rgb || level >= 1) return color;
-  return `#${rgb.map((channel) => hex2(Math.round(channel * level))).join('')}`;
-}
-
-/** The colour laid over the floor under water: the depths, thicker the thicker the water is drawn. */
-export function waterFloorWash(color: string, density: number): string {
-  return depthsWash(deepWaterColor(color), density);
-}
-
-/** The colour of the depths laid over the floor, given the colour of the depths itself. */
-export function depthsWash(deepColor: string, density: number): string {
-  const alpha = 0.22 + 0.38 * clamp01(density);
-  return withAlpha(deepColor, round(alpha));
+/** How thick the colour of the depths is laid over the floor under water, thicker the thicker the water is drawn. */
+export function floorWashAlpha(density: number): number {
+  return round(0.22 + 0.38 * clamp01(density));
 }
 
 /**
@@ -80,20 +54,9 @@ export function scumRimColorOf(color: string): string {
   return mixColors(scumColorOf(color), '#ffffff', 0.45);
 }
 
-/** The colour of the clouds of silt in murky water: the water's own colour, darkened. */
-export function siltColorOf(color: string): string {
-  return mixColors(color, '#000000', 0.38);
-}
-
-/**
- * The colour of the surface itself: light enough to see the floor through.
- *
- * It is one colour all over. A pond is drawn in pieces, and a shading laid across each piece
- * would show every join; the light moving on the water is the glints laid over it.
- */
-export function waterSurfaceWash(color: string, density: number): string {
-  const paint = withAlpha(color, round(0.16 + 0.26 * clamp01(density)));
-  return `linear-gradient(${paint}, ${paint})`;
+/** How thick the colour of the surface itself is laid: light enough to see the floor through. */
+export function surfaceWashAlpha(density: number): number {
+  return round(0.16 + 0.26 * clamp01(density));
 }
 
 /**
@@ -104,20 +67,9 @@ export function murkAlpha(turbidity: number): number {
   return round(Math.min(1, 1.05 * Math.pow(clamp01(turbidity), 1.3)));
 }
 
-/**
- * The murk laid over the surface in the water's own colour, as a CSS image, or empty for water
- * too clear to need one. Opaque water is its colour all the way down.
- */
-export function waterMurkLayer(color: string, turbidity: number): string {
-  const alpha = murkAlpha(turbidity);
-  if (alpha < 0.005) return '';
-  const paint = withAlpha(mixColors(color, '#000000', 0.12), alpha);
-  return `linear-gradient(${paint}, ${paint})`;
-}
-
-/** How strongly the clouds of silt show on the surface: not at all in water clearer than a quarter murky. */
-export function siltOpacity(turbidity: number): number {
-  return round((0.55 * Math.max(clamp01(turbidity) - 0.25, 0)) / 0.75);
+/** The colour the murk is laid in: the water's own colour, darkened a little. */
+export function murkColorOf(color: string): string {
+  return mixColors(color, '#000000', 0.12);
 }
 
 /** How thick the scum floats on the surface: none on clean water. */
@@ -125,19 +77,37 @@ export function scumOpacity(dirt: number): number {
   return round(0.68 * clamp01(dirt));
 }
 
+/** The colour of the clouds of silt in murky water: the water's own colour, darkened. */
+export function siltColorOf(color: string): string {
+  return mixColors(color, '#000000', 0.38);
+}
+
+/** How strongly the clouds of silt show on the surface: not at all in water clearer than a quarter murky. */
+export function siltOpacity(turbidity: number): number {
+  return round((0.55 * Math.max(clamp01(turbidity) - 0.25, 0)) / 0.75);
+}
+
 /**
- * The colour of a side of the water: dark at the floor and lighter towards the surface, and as
- * opaque as the water is murky, so murky water is a solid wall of its colour from the side too.
+ * How strongly the streaks of a current show on water flowing as fast as given, from still to the
+ * fastest: stronger the faster it runs, and fainter the murkier it is. Still water shows none.
  */
-export function waterSideWash(color: string, density: number, turbidity = 0): string {
+export function flowStreakOpacity(flowSpeed: number, turbidity: number): number {
+  const speed = clamp01(flowSpeed);
+  if (!(speed > 0)) return 0;
+  return round((0.16 + 0.34 * speed) * (1 - 0.5 * clamp01(turbidity)));
+}
+
+/**
+ * How opaque a side of the water is at the water's floor, in the colour of the depths, and at the
+ * surface, in the water's own colour.
+ */
+export function waterSideAlphas(density: number, turbidity = 0): { bottom: number; top: number } {
   const level = clamp01(density);
   const murk = murkAlpha(turbidity);
-  const bottom = Math.max(Math.min(0.45 + 0.3 * level, 0.95), murk);
-  const top = Math.max(0.18 + 0.22 * level, murk * 0.95);
-  return (
-    `linear-gradient(to top, ${withAlpha(deepWaterColor(color), round(bottom))} 0%,` +
-    ` ${withAlpha(color, round(top))} 100%)`
-  );
+  return {
+    bottom: round(Math.max(Math.min(0.45 + 0.3 * level, 0.95), murk)),
+    top: round(Math.max(0.18 + 0.22 * level, murk * 0.95)),
+  };
 }
 
 /**
@@ -182,4 +152,27 @@ function hex2(value: number): string {
 
 function round(value: number): number {
   return Math.round(value * 1000) / 1000;
+}
+
+/** The colour of ice over water, in sRGB from 0 to 1: pale, a little blue, as a frozen pond is seen from above. */
+export const ICE_COLOUR: readonly [number, number, number] = [0.8, 0.88, 0.93];
+
+/** How opaque ice is drawn: enough to hide what is under it but for a shadow of the depths. */
+export const ICE_ALPHA = 0.9;
+
+/**
+ * The colour a point of the surface is drawn in where so much of it is frozen, from 0 to 1: the water's
+ * own colour, red, green, blue and alpha in sRGB, laid under the ice as far as it is frozen.
+ */
+export function frozenOver(
+  colour: readonly [number, number, number, number],
+  ice: number
+): [number, number, number, number] {
+  const share = clamp01(ice);
+  return [
+    round(colour[0] + (ICE_COLOUR[0] - colour[0]) * share),
+    round(colour[1] + (ICE_COLOUR[1] - colour[1]) * share),
+    round(colour[2] + (ICE_COLOUR[2] - colour[2]) * share),
+    round(colour[3] + (ICE_ALPHA - colour[3]) * share),
+  ];
 }

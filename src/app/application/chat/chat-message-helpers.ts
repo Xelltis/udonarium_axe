@@ -53,10 +53,20 @@ export function resolveImagePos(pos: number | undefined): number {
 /**
  * Which events a sent line raises, and for which targets.
  *
- * A line aimed at targets announces itself once per target and hands them to resource edits; a line
- * aimed at nobody announces itself once with no target. The dice table is told either way.
+ * A line aimed at targets announces itself once per target and hands them to resource edits; one
+ * aimed at them all at once announces itself once, for them all, and hands each of them to resource
+ * edits all the same; a line aimed at nobody announces itself once with no target. The dice table is
+ * told either way.
  */
 export function emitChatMessageEvents(messageTargetContext?: ChatMessageTargetContext[]): ChatEventPlan {
+  const together = messageTargetContext?.[0]?.together;
+  if (messageTargetContext && together) {
+    return {
+      sendTargets: [{ text: messageTargetContext[0].text, object: null, together }],
+      shouldEmitDiceTable: true,
+      resourceEditTargetContext: messageTargetContext,
+    };
+  }
   if (messageTargetContext && messageTargetContext.length >= 1) {
     return {
       sendTargets: messageTargetContext,

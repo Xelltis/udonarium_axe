@@ -1,5 +1,6 @@
 import {
   cloudAlpha,
+  iceCrackAlpha,
   scumAlpha,
   scumRimAlpha,
   smoothFieldAt,
@@ -65,5 +66,22 @@ describe('the patterns on water', () => {
     }
     expect(along).toBeLessThan(across / 2);
     expect(streakAlpha(3, size)).toEqual(alpha);
+  });
+
+  it('cracks ice along thin lines between its plates, the same from the same seed, without a seam at the edges', () => {
+    const size = 64;
+    const cracks = iceCrackAlpha(7, size);
+    const lit = cracks.filter((value) => value > 64).length / cracks.length;
+
+    expect(cracks).toEqual(iceCrackAlpha(7, size));
+    expect(lit).toBeGreaterThan(0.02);
+    expect(lit).toBeLessThan(0.3);
+    expect(Math.max(...cracks)).toBeGreaterThan(128);
+    const rowStep = (y: number) => Math.abs(cracks[y * size] - cracks[y * size + size - 1]);
+    const columnStep = (x: number) => Math.abs(cracks[x] - cracks[(size - 1) * size + x]);
+    const inner = (at: number) => Math.abs(cracks[at * size + 30] - cracks[at * size + 31]);
+    const seam = Array.from({ length: size }, (_, at) => rowStep(at) + columnStep(at));
+    const within = Array.from({ length: size }, (_, at) => inner(at) * 2);
+    expect(seam.reduce((a, b) => a + b)).toBeLessThan(within.reduce((a, b) => a + b) * 1.5);
   });
 });

@@ -10,11 +10,20 @@
     <div class="grid grid-cols-2 gap-1.5">
       @for (option of kinds; track option) {
         <button
-          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text cursor-pointer border border-solid px-2 py-1.5 text-[0.82rem]"
+          class="rounded-ui-sm inline-flex cursor-pointer items-center justify-center gap-1 border border-solid px-2 py-1.5 text-[0.82rem] transition-[background,color]"
           type="button"
-          [class.border-ui-accent]="kind() === option"
+          [class]="
+            kind() === option
+              ? 'border-ui-accent bg-ui-accent-bg text-ui-accent font-semibold'
+              : 'border-ui-border-panel bg-ui-input text-ui-text hover:bg-ui-hover'
+          "
+          [attr.aria-pressed]="kind() === option"
+          [attr.data-testid]="'map-kind-' + option"
           (click)="chooseKind(option)"
         >
+          @if (kind() === option) {
+            <i class="material-icons text-[15px]! leading-none" aria-hidden="true">check</i>
+          }
           {{ 'feature.tabletop.dungeonGenerator.kind.' + option | transloco }}
         </button>
       }
@@ -29,22 +38,40 @@
       @if (field()) {
         @for (id of fieldAtmosphereIds; track id) {
           <button
-            class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text flex cursor-pointer items-center gap-2 border border-solid px-2 py-1.5 text-left text-[0.82rem]"
+            class="rounded-ui-sm inline-flex cursor-pointer items-center gap-1 border border-solid px-2 py-1.5 text-[0.82rem] transition-[background,color]"
             type="button"
-            [class.border-ui-accent]="fieldAtmosphere() === id"
+            [class]="
+              fieldAtmosphere() === id
+                ? 'border-ui-accent bg-ui-accent-bg text-ui-accent font-semibold'
+                : 'border-ui-border-panel bg-ui-input text-ui-text hover:bg-ui-hover'
+            "
+            [attr.aria-pressed]="fieldAtmosphere() === id"
+            [attr.data-testid]="'atmosphere-' + id"
             (click)="chooseFieldAtmosphere(id)"
           >
+            @if (fieldAtmosphere() === id) {
+              <i class="material-icons text-[15px]! leading-none" aria-hidden="true">check</i>
+            }
             {{ 'feature.tabletop.dungeonGenerator.field.' + id | transloco }}
           </button>
         }
       } @else {
         @for (id of atmosphereIds; track id) {
           <button
-            class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text flex cursor-pointer items-center gap-2 border border-solid px-2 py-1.5 text-left text-[0.82rem]"
+            class="rounded-ui-sm inline-flex cursor-pointer items-center gap-1 border border-solid px-2 py-1.5 text-[0.82rem] transition-[background,color]"
             type="button"
-            [class.border-ui-accent]="atmosphere() === id"
+            [class]="
+              atmosphere() === id
+                ? 'border-ui-accent bg-ui-accent-bg text-ui-accent font-semibold'
+                : 'border-ui-border-panel bg-ui-input text-ui-text hover:bg-ui-hover'
+            "
+            [attr.aria-pressed]="atmosphere() === id"
+            [attr.data-testid]="'atmosphere-' + id"
             (click)="chooseAtmosphere(id)"
           >
+            @if (atmosphere() === id) {
+              <i class="material-icons text-[15px]! leading-none" aria-hidden="true">check</i>
+            }
             {{ 'feature.tabletop.dungeonGenerator.atmosphere.' + id | transloco }}
           </button>
         }
@@ -147,6 +174,80 @@
         />
       </div>
     </div>
+
+    @if (fieldRaises()) {
+      <div>
+        <label
+          class="text-ui-muted mb-1.25 block text-[0.78rem] font-semibold tracking-[0.04em] uppercase"
+          for="field-relief"
+        >
+          {{ 'feature.tabletop.dungeonGenerator.props.relief' | transloco }}
+        </label>
+        <div class="flex items-center gap-2">
+          <input
+            class="min-w-0 flex-1"
+            id="field-relief"
+            name="field-relief"
+            type="range"
+            min="0"
+            [max]="maxRelief"
+            step="0.5"
+            data-testid="field-relief"
+            [ngModel]="fieldRelief()"
+            (ngModelChange)="setFieldRelief($event)"
+          />
+          <input
+            class="border-ui-border-panel bg-ui-input text-ui-text focus:border-ui-accent rounded-ui-sm w-16 shrink-0 border border-solid px-2 py-1.5 text-center text-[13px] outline-none"
+            name="field-relief-number"
+            type="number"
+            min="0"
+            [max]="maxRelief"
+            step="0.5"
+            [ngModel]="fieldRelief()"
+            (ngModelChange)="setFieldRelief($event)"
+          />
+        </div>
+      </div>
+    }
+    <label class="text-ui-muted flex cursor-pointer items-center gap-1.5 text-[0.82rem] select-none">
+      <input
+        type="checkbox"
+        class="cursor-pointer [accent-color:var(--ui-accent)]"
+        name="field-models"
+        data-testid="field-models"
+        [ngModel]="models()"
+        (ngModelChange)="models.set($event)"
+      />
+      {{ 'feature.tabletop.dungeonGenerator.props.models' | transloco }}
+    </label>
+    @if (models()) {
+      <div>
+        <label class="text-ui-muted mb-1.25 block text-[0.78rem] font-semibold tracking-[0.04em] uppercase">
+          {{ 'feature.tabletop.dungeonGenerator.props.season' | transloco }}
+        </label>
+        <div class="grid grid-cols-5 gap-1.5">
+          @for (season of fieldSeasons; track season) {
+            <button
+              class="rounded-ui-sm inline-flex cursor-pointer items-center justify-center gap-1 border border-solid px-1 py-1.5 text-center text-[0.82rem] transition-[background,color]"
+              type="button"
+              [class]="
+                fieldSeason() === season
+                  ? 'border-ui-accent bg-ui-accent-bg text-ui-accent font-semibold'
+                  : 'border-ui-border-panel bg-ui-input text-ui-text hover:bg-ui-hover'
+              "
+              [attr.data-testid]="'field-season-' + (season || 'none')"
+              [attr.aria-pressed]="fieldSeason() === season"
+              (click)="fieldSeason.set(season)"
+            >
+              @if (fieldSeason() === season) {
+                <i class="material-icons text-[15px]! leading-none" aria-hidden="true">check</i>
+              }
+              {{ 'feature.tabletop.dungeonGenerator.season.' + (season || 'none') | transloco }}
+            </button>
+          }
+        </div>
+      </div>
+    }
   } @else {
     <div>
       <label
@@ -421,12 +522,64 @@
       <div class="grid grid-cols-2 gap-1.5">
         @for (style of entranceStyles; track style) {
           <button
-            class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text cursor-pointer border border-solid px-2 py-1.5 text-[0.82rem]"
+            class="rounded-ui-sm inline-flex cursor-pointer items-center justify-center gap-1 border border-solid px-2 py-1.5 text-[0.82rem] transition-[background,color]"
             type="button"
-            [class.border-ui-accent]="entrance() === style"
+            [class]="
+              entrance() === style
+                ? 'border-ui-accent bg-ui-accent-bg text-ui-accent font-semibold'
+                : 'border-ui-border-panel bg-ui-input text-ui-text hover:bg-ui-hover'
+            "
+            [attr.aria-pressed]="entrance() === style"
             (click)="setEntrance(style)"
           >
+            @if (entrance() === style) {
+              <i class="material-icons text-[15px]! leading-none" aria-hidden="true">check</i>
+            }
             {{ 'feature.tabletop.dungeonGenerator.entrance.' + style | transloco }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <div>
+      <label class="text-ui-muted mb-1.25 block text-[0.78rem] font-semibold tracking-[0.04em] uppercase">
+        {{ 'feature.tabletop.dungeonGenerator.props.doorKind' | transloco }}
+      </label>
+      <div class="grid grid-cols-2 gap-1.5">
+        <button
+          class="rounded-ui-sm inline-flex cursor-pointer items-center justify-center gap-1 border border-solid px-2 py-1.5 text-[0.82rem] transition-[background,color]"
+          type="button"
+          [class]="
+            doorKind() === null
+              ? 'border-ui-accent bg-ui-accent-bg text-ui-accent font-semibold'
+              : 'border-ui-border-panel bg-ui-input text-ui-text hover:bg-ui-hover'
+          "
+          data-testid="door-kind-default"
+          [attr.aria-pressed]="doorKind() === null"
+          (click)="doorKind.set(null)"
+        >
+          @if (doorKind() === null) {
+            <i class="material-icons text-[15px]! leading-none" aria-hidden="true">check</i>
+          }
+          {{ 'feature.tabletop.dungeonGenerator.doorKind.default' | transloco }}
+        </button>
+        @for (kind of doorKinds; track kind) {
+          <button
+            class="rounded-ui-sm inline-flex cursor-pointer items-center justify-center gap-1 border border-solid px-2 py-1.5 text-[0.82rem] transition-[background,color]"
+            type="button"
+            [class]="
+              doorKind() === kind
+                ? 'border-ui-accent bg-ui-accent-bg text-ui-accent font-semibold'
+                : 'border-ui-border-panel bg-ui-input text-ui-text hover:bg-ui-hover'
+            "
+            [attr.data-testid]="'door-kind-' + kind"
+            [attr.aria-pressed]="doorKind() === kind"
+            (click)="doorKind.set(kind)"
+          >
+            @if (doorKind() === kind) {
+              <i class="material-icons text-[15px]! leading-none" aria-hidden="true">check</i>
+            }
+            {{ 'feature.tabletop.dungeonGenerator.doorKind.' + kind | transloco }}
           </button>
         }
       </div>
@@ -472,12 +625,19 @@
     <div class="grid grid-cols-3 gap-1">
       @for (choice of gridChoices; track choice) {
         <button
-          class="hover:bg-ui-hover rounded-ui-sm border border-solid p-1 text-[0.72rem]"
+          class="rounded-ui-sm inline-flex cursor-pointer items-center justify-center gap-1 border border-solid p-1 text-[0.72rem] transition-[background,color]"
           type="button"
-          [class.border-ui-accent]="gridType() === choice"
-          [class.border-transparent]="gridType() !== choice"
+          [class]="
+            gridType() === choice
+              ? 'border-ui-accent bg-ui-accent-bg text-ui-accent font-semibold'
+              : 'border-ui-border-panel bg-ui-input text-ui-text hover:bg-ui-hover'
+          "
+          [attr.aria-pressed]="gridType() === choice"
           (click)="gridType.set(choice)"
         >
+          @if (gridType() === choice) {
+            <i class="material-icons text-[15px]! leading-none" aria-hidden="true">check</i>
+          }
           {{ 'feature.tabletop.dungeonGenerator.grid.' + choice | transloco }}
         </button>
       }
@@ -550,6 +710,16 @@
       <label class="flex cursor-pointer items-center gap-2">
         <input type="checkbox" name="sheer-walls" [ngModel]="sheerWalls()" (ngModelChange)="sheerWalls.set($event)" />
         {{ 'feature.tabletop.dungeonGenerator.props.sheerWalls' | transloco }}
+      </label>
+      <label class="flex cursor-pointer items-center gap-2">
+        <input
+          type="checkbox"
+          name="furnishing-models"
+          data-testid="furnishing-models"
+          [ngModel]="models()"
+          (ngModelChange)="models.set($event)"
+        />
+        {{ 'feature.tabletop.dungeonGenerator.props.furnishingModels' | transloco }}
       </label>
     </div>
   }

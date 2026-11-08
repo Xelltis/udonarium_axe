@@ -1,14 +1,6 @@
-import { SurfaceDims, surfaceFrame, surfaceWorldBox } from '@axe/domain/tabletop/surface-space';
+import { SurfaceDims, surfaceFrame } from '@axe/domain/tabletop/surface-space';
 import { surfaceOf, TableSurface } from '@axe/domain/tabletop/tabletop-object';
 import { Terrain } from '@axe/domain/tabletop/terrain';
-
-export interface BeamTopGridGeometry {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-  z: number;
-}
 
 export interface BeamWallFaceGrid {
   matrix3d: string;
@@ -27,30 +19,6 @@ const WALL_PREFIX: Partial<Record<TableSurface, string>> = {
 };
 
 const FACE_LIFT_PX = 5.0;
-
-/**
- * Where the grid over the top of a terrain standing out from a wall is laid: its footprint on the
- * table and the height of its top. Null for terrain on the floor, terrain without a grid, or a
- * footprint with no area.
- */
-export function beamTopGridGeometry(terrain: Terrain, dims: SurfaceDims, gridSize: number): BeamTopGridGeometry | null {
-  const surface = surfaceOf(terrain);
-  if (surface === 'floor' || !terrain.isGrid) return null;
-  const box = surfaceWorldBox(
-    surface,
-    terrain.location.x,
-    terrain.location.y,
-    terrain.width * gridSize,
-    terrain.depth * gridSize,
-    terrain.altitude * gridSize + terrain.posZ,
-    terrain.height * gridSize,
-    dims
-  );
-  const width = box.maxX - box.minX;
-  const height = box.maxY - box.minY;
-  if (width <= 0 || height <= 0) return null;
-  return { left: box.minX, top: box.minY, width, height, z: box.maxZ };
-}
 
 /**
  * How to lay a grid over the face of a terrain standing out from a wall.

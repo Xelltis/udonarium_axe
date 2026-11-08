@@ -7,17 +7,19 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import {
+  bundledTerrainImage,
   type DiceMenuItem,
   type DicePlacement,
+  dressDiceFaces,
   getDicePlacements,
   getTrumpCardCodes,
-  TERRAIN_TEXTURE_PATH,
   TRUMP_BACK_IMAGE_PATH,
 } from '@axe/application/tabletop/tabletop-action-helpers';
 import {
   makeDefaultTable as _makeDefaultTable,
   makeDefaultTabletopObjects as _makeDefaultTabletopObjects,
 } from '@axe/application/tabletop/tabletop-default-setup';
+import { StartupLoadingService } from '@axe/application/ui/startup-loading.service';
 import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { GameObject } from '@axe/core/sync/game-object';
@@ -69,6 +71,7 @@ export class TabletopActionService {
   private readonly tableSelecter = inject(TableSelecter);
   private readonly viewMode = inject(ViewModePreferenceService);
   private readonly t = inject(TRANSLATE_FN);
+  private readonly startupLoading = inject(StartupLoadingService);
 
   constructor() {}
 
@@ -142,12 +145,7 @@ export class TabletopActionService {
    * Nothing is made when no table is in view.
    */
   createTerrain(position: PointerCoordinate): Terrain | undefined {
-    const url = TERRAIN_TEXTURE_PATH;
-    let image = this.imageStorage.get(url);
-    if (!image) {
-      image = this.imageStorage.add(url);
-      ImageTag.create(image.identifier).tag = '地形';
-    }
+    const image = bundledTerrainImage(this.imageStorage);
     const viewTable = this.getViewTable();
     if (!viewTable) return undefined;
 
@@ -228,15 +226,7 @@ export class TabletopActionService {
     placement?: DicePlacement
   ): DiceSymbol {
     const diceSymbol = DiceSymbol.create(name, diceType, 1);
-    diceSymbol.faces.forEach((face) => {
-      const url: string = `./assets/images/dice/${imagePathPrefix}/${imagePathPrefix}[${face}].png`;
-      let image = this.imageStorage.get(url);
-      if (!image) {
-        image = this.imageStorage.add(url);
-      }
-      const faceEl = diceSymbol.imageDataElement?.getFirstElementByName(face);
-      if (faceEl) faceEl.value = image.identifier;
-    });
+    dressDiceFaces(diceSymbol, imagePathPrefix, this.imageStorage);
 
     const place = placement ?? getDicePlacements(position, 1, this.tabletopService.gridSize())[0];
     diceSymbol.location.x = place.x;
@@ -407,9 +397,14 @@ export class TabletopActionService {
     _makeDefaultTable(this.imageStorage);
   }
 
-  /** Sets out the sample pieces a new room opens with. */
+  /**
+   * Sets out the sample pieces a new room opens with, and the board and notes that explain the table
+   * in the language shown: standing, or laid flat where this reader looks at the table from above, as
+   * a note made here would be.
+   */
   makeDefaultTabletopObjects() {
-    _makeDefaultTabletopObjects(this.imageStorage);
+    const standing = !laysFlat(this.viewMode.mode(), this.getViewTable()?.mode2d ?? false);
+    _makeDefaultTabletopObjects(this.imageStorage, this.t, standing, (work) => this.startupLoading.hold(work));
   }
 
   /**

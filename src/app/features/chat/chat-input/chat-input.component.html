@@ -206,6 +206,44 @@
       </div>
     }
 
+    @if (targetNumberBar(); as bar) {
+      <div
+        data-testid="chat-input-target-number"
+        class="border-ui-border-panel text-ui-text rounded-ui-sm mb-1.5 flex min-w-0 items-center gap-2 border border-solid px-2 py-0.5 text-[11px]"
+        [title]="'feature.chat.input.targetNumberHint' | transloco"
+      >
+        <i class="material-icons text-ui-accent text-[14px]!" aria-hidden="true">my_location</i>
+        <span class="text-ui-accent shrink-0 font-semibold">{{ 'feature.chat.input.targetNumber' | transloco }}</span>
+        <select
+          data-testid="chat-input-target-number-select"
+          name="targetNumber"
+          [attr.aria-label]="'feature.chat.input.targetNumber' | transloco"
+          class="rounded-ui-sm border-ui-border-panel bg-ui-input text-ui-text min-w-0 flex-1 cursor-pointer truncate border border-solid px-1 py-0.5 text-[11px]"
+          [ngModel]="bar.chosen"
+          (ngModelChange)="pickTargetNumber($event)"
+        >
+          <option [ngValue]="''">{{ bar.found.key | transloco: bar.found.params }}</option>
+          @for (choice of bar.choices; track choice.identifier) {
+            <option [ngValue]="choice.identifier" [title]="choice.title">
+              {{ choice.label.key | transloco: choice.label.params }}
+            </option>
+          }
+        </select>
+        @if (bar.unpinnable) {
+          <button
+            type="button"
+            data-testid="chat-input-target-number-unpin"
+            class="touch-target text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm flex size-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-[background,color] [&_.material-icons]:text-[14px]!"
+            [attr.aria-label]="'feature.chat.message.unpinTargetNumber' | transloco"
+            [title]="'feature.chat.message.unpinTargetNumber' | transloco"
+            (click)="unpinTargetNumber()"
+          >
+            <i class="material-icons">close</i>
+          </button>
+        }
+      </div>
+    }
+
     <form name="chat-input" class="m-0 flex min-w-0 flex-1 items-end gap-2">
       <div
         data-testid="chat-input-frame"
@@ -214,7 +252,11 @@
         <div
           role="toolbar"
           uiRovingToolbar
-          class="border-ui-input-border flex min-w-0 shrink-0 flex-wrap items-center gap-x-2 border-b border-solid px-1"
+          class="border-ui-input-border flex min-w-0 shrink-0 items-center gap-x-2 border-b border-solid px-1"
+          [class.flex-wrap]="!oneRowBar()"
+          [class.overflow-x-auto]="oneRowBar()"
+          [class.scrollbar-none]="oneRowBar()"
+          [ngClass]="{ 'mask-[linear-gradient(to_right,#000_calc(100%-28px),transparent)]': oneRowBar() }"
           data-testid="chat-input-edits"
           #editsBar
           [attr.aria-label]="'feature.chat.input.bar' | transloco"
@@ -229,10 +271,16 @@
             />
           }
           <div
-            class="flex min-w-0 flex-wrap items-center gap-x-2"
+            class="flex items-center gap-x-2"
+            [class.min-w-0]="!oneRowBar()"
+            [class.flex-wrap]="!oneRowBar()"
+            [class.shrink-0]="oneRowBar()"
             [class.ml-auto]="!narrow()"
             [class.justify-end]="!narrow()"
-            [ngClass]="{ '[&>chat-toolbar]:contents [&>chat-toolbar>[data-testid=chat-toolbar]]:contents': narrow() }"
+            [ngClass]="{
+              '[&>chat-toolbar]:contents [&>chat-toolbar>[data-testid=chat-toolbar]]:contents': narrow(),
+              '**:data-[testid=chat-toolbar]:flex-nowrap': oneRowBar(),
+            }"
           >
             @if (canSpeak()) {
               @defer (when toolbarWanted()) {
@@ -429,7 +477,8 @@
     type="submit"
     data-testid="chat-input-send"
     class="border-ui-accent bg-ui-accent-solid hover:border-ui-accent hover:bg-ui-accent-solid m-0 flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid p-0 text-[12px] font-semibold text-white transition-[background,border-color,filter] hover:text-white hover:shadow-none hover:brightness-110 [&_i]:text-[18px] [&_i]:leading-none"
-    [class.size-8!]="narrow()"
+    [class.size-8!]="oneRowBar()"
+    [ngClass]="{ '[&_i]:text-[16px]': oneRowBar() }"
     [class.m-1!]="narrow()"
     (click)="sendChat(null)"
     [attr.aria-label]="'feature.chat.input.send' | transloco"

@@ -248,11 +248,16 @@ html[data-overlay] .sk-cube-grid {
   display: none;
 }
 
+/* The body clips what reaches past the screen rather than hiding it. A box that only hides it can still
+   be scrolled, as a text editor scrolls every box round its caret to bring it into view, and the whole
+   page moved up under the bars held to the screen. */
 body {
   font-family:
     -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Verdana, Meiryo, 'M+ 1p', 'Apple SD Gothic Neo',
     'Malgun Gothic', 'Noto Sans KR', sans-serif;
   position: relative;
+  display: flow-root;
+  overflow: clip;
   color: var(--ui-text);
   line-break: strict;
   word-break: auto-phrase;
@@ -339,13 +344,4 @@ body {
   35% {
     transform: scale(0, 0);
   }
-}
-
-/*
- * A definition that improves rendering in desktop Chrome 102-103 on Windows.
- * Giving this CSS class to an image shown in 3D keeps its resolution sharp when seen up close.
- * Consider removing it once a later Chrome update improves the rendering speed.
- */
-.chrome-smooth-image-trick {
-  transform-style: inherit;
 }

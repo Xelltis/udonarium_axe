@@ -1,12 +1,16 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { EffectPlaybackService } from '@axe/application/effect/effect-playback.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { DEFAULT_TABLE_CAMERA_VIEW, TableLayout } from '@axe/domain/tabletop/camera/table-camera';
 import { TableEffectOverlayComponent } from '@axe/features/effect/table-effect-overlay/table-effect-overlay.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
+
+const LAYOUT: TableLayout = { left: 0, top: 30, width: 1280, height: 770, boardWidth: 1000, boardHeight: 1000 };
 
 describe('TableEffectOverlayComponent', () => {
   let fixture: ComponentFixture<TableEffectOverlayComponent>;
@@ -22,6 +26,9 @@ describe('TableEffectOverlayComponent', () => {
       imports: [TableEffectOverlayComponent],
       providers: [...TEST_PROVIDERS],
     });
+    const camera = TestBed.inject(TableCameraService);
+    camera.setLayout(LAYOUT);
+    camera.showView(DEFAULT_TABLE_CAMERA_VIEW);
     fixture = TestBed.createComponent(TableEffectOverlayComponent);
     component = fixture.componentInstance;
     playback = TestBed.inject(EffectPlaybackService);
@@ -39,9 +46,22 @@ describe('TableEffectOverlayComponent', () => {
     vi.restoreAllMocks();
   });
 
-  /** Only the outer layer, which places it; the inner one carries the look and the animation. */
-  function outerLayers(): HTMLElement[] {
-    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll(':scope > div'));
+  /** The outer layer of each sprite standing up, which places it; the inner one carries the look and the animation. */
+  function standing(): HTMLElement[] {
+    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[data-effect-sprite]'));
+  }
+
+  /** The outer layer of each sprite lying flat on the floor. */
+  function lying(): HTMLElement[] {
+    return Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="effect-floor-plane"] > div')
+    );
+  }
+
+  /** Where the screen draws a point of the board, lifted towards the eye, as the translation that puts something there. */
+  function drawnAt(x: number, y: number, z: number, lift: number): string {
+    const at = TestBed.inject(TableCameraService).screenOf()!(x, y, z, lift);
+    return `translate(${at.x}px, ${at.y}px) scale(${at.scale})`;
   }
 
   it('settles which targets are hidden once per cast, not once per frame', () => {
@@ -68,19 +88,22 @@ describe('TableEffectOverlayComponent', () => {
   it('draws nothing with no effect playing', () => {
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelectorAll('div')).toHaveLength(0);
+    expect(standing()).toHaveLength(0);
+    expect(lying()).toHaveLength(0);
+    expect(fixture.nativeElement.querySelectorAll('effect-canvas')).toHaveLength(0);
   });
 
   it('builds nothing anew while nothing plays, however the clock moves on', () => {
     playback.now.set(16);
+    const canvases = component['canvasesOnScreen'] as () => unknown;
     const sprites = component.sprites();
-    const canvases = component.canvases();
+    const placed = canvases();
 
     playback.now.set(32);
     playback.now.set(48);
 
     expect(component.sprites()).toBe(sprites);
-    expect(component.canvases()).toBe(canvases);
+    expect(canvases()).toBe(placed);
   });
 
   it('draws the sprites on a firing', () => {
@@ -91,11 +114,11 @@ describe('TableEffectOverlayComponent', () => {
     });
     fixture.detectChanges();
 
-    const elements = outerLayers();
+    const elements = standing();
     expect(elements.length).toBeGreaterThan(0);
     for (const element of elements) {
       expect(element.style.pointerEvents).toBe('none');
-      expect(element.style.transform).toContain('translate3d(');
+      expect(element.style.transform).toContain('translate(');
     }
   });
 
@@ -110,10 +133,9 @@ describe('TableEffectOverlayComponent', () => {
     playback.now.set(playback.activeCasts()[0].startedAt + 1000);
     fixture.detectChanges();
 
-    const transforms = outerLayers().map((element) => element.style.transform);
-
-    expect(transforms.some((transform) => !transform.includes('rotateX('))).toBe(true);
-    expect(transforms.some((transform) => transform.includes('rotateX('))).toBe(true);
+    expect(lying().length).toBeGreaterThan(0);
+    expect(standing().length).toBeGreaterThan(0);
+    for (const flat of lying()) expect(flat.style.transform).not.toContain('rotateX(');
   });
 
   it('keeps the blending modes that flatten the board out of the document', () => {
@@ -159,14 +181,14 @@ describe('TableEffectOverlayComponent', () => {
     });
     fixture.detectChanges();
 
-    const canvases = (fixture.nativeElement as HTMLElement).querySelectorAll('effect-canvas');
+    const canvases = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('effect-canvas');
     expect(canvases).toHaveLength(2);
     for (const host of Array.from(canvases)) {
-      expect((host as HTMLElement).style.transform).toContain('translate3d(');
+      expect(host.style.transform).toContain('scale(');
       expect(host.querySelector('canvas')).not.toBeNull();
     }
   });
-  it('turns the sprites to face an eye it is given, and holds them up off the floor towards it', () => {
+  it('holds the effects up off the floor towards an eye it is given, and lifts them towards it', () => {
     fixture.componentRef.setInput('eye', { rotation: { x: 90, y: 0, z: -30 }, liftPx: 5, risePx: 40 });
     playback.play({
       presetIdentifier: preset.identifier,
@@ -175,15 +197,9 @@ describe('TableEffectOverlayComponent', () => {
     });
     fixture.detectChanges();
 
-    const upright = outerLayers()
-      .map((element) => element.style.transform)
-      .filter((transform) => transform.includes('rotateX('));
     const canvas = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('effect-canvas')!;
 
-    expect(upright.length).toBeGreaterThan(0);
-    expect(upright.every((transform) => transform.includes('rotateZ(30deg) rotateX(-90deg)'))).toBe(true);
-    expect(upright.every((transform) => transform.includes('translateZ(5px)'))).toBe(true);
-    expect(canvas.style.transform).toContain('translate3d(100px, 200px, 40px)');
+    expect(canvas.style.transform).toContain(drawnAt(100, 200, 40, 5));
   });
 
   it('leaves the effects to the first-person view while the table is out of sight', () => {
@@ -195,13 +211,13 @@ describe('TableEffectOverlayComponent', () => {
     });
     fixture.detectChanges();
 
-    expect(outerLayers()).toHaveLength(0);
+    expect(standing()).toHaveLength(0);
     expect((fixture.nativeElement as HTMLElement).querySelectorAll('effect-canvas')).toHaveLength(0);
 
     fixture.componentRef.setInput('eye', { rotation: { x: 90, y: 0, z: 0 }, liftPx: 5, risePx: 40 });
     fixture.detectChanges();
 
-    expect(outerLayers().length).toBeGreaterThan(0);
+    expect(standing().length).toBeGreaterThan(0);
   });
 
   it('glows along the outline of a drawing rather than round its box', () => {

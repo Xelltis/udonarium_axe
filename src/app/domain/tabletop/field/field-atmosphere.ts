@@ -1,4 +1,5 @@
 import { TextureId, WallTextureId } from '@axe/domain/media/texture-catalog';
+import { type SettlementKind } from '@axe/domain/tabletop/field/settlement-layout';
 import { HazardKind } from '@axe/domain/tabletop/hazard-presets';
 import { MapLightKind, MapMood } from '@axe/domain/tabletop/map-blocks';
 
@@ -13,11 +14,24 @@ export const FIELD_ATMOSPHERE_IDS = [
   'sfCity',
   'slum',
   'dump',
+  'village',
+  'barbarianFort',
+  'stoneFort',
 ] as const;
 
 export type FieldAtmosphereId = (typeof FIELD_ATMOSPHERE_IDS)[number];
 
-export const FIELD_PROP_IDS = ['tree', 'bush', 'boulder', 'outcrop', 'hill', 'cactus', 'junk', 'streetTree'] as const;
+export const FIELD_PROP_IDS = [
+  'tree',
+  'bush',
+  'boulder',
+  'outcrop',
+  'hill',
+  'cactus',
+  'junk',
+  'streetTree',
+  'giantTree',
+] as const;
 
 export type FieldPropId = (typeof FIELD_PROP_IDS)[number];
 
@@ -58,6 +72,11 @@ export interface FieldPropShape {
   spacing?: number;
   /** Whether it takes the ground it covers, so that nothing else is put down on top of it. */
   claimsGround?: boolean;
+  /**
+   * Whether nothing else stands on the ground under it, as nothing grows in the shade of a giant
+   * tree. Unlike ground it claims, it is still stood where the ground is raised in hills.
+   */
+  covers?: boolean;
   /** Stubs set out on its flanks, which is what tells a cactus from a post. */
   arms?: readonly { at: number; reach: number; size: number; height: number }[];
 }
@@ -178,6 +197,29 @@ export const FIELD_PROP_SHAPES: Record<FieldPropId, FieldPropShape> = {
     spacing: 2,
   },
   /**
+   * A tree grown huge with age, standing alone with nothing under it.
+   *
+   * Its crown is as wide as a stand of ordinary trees, and it is found once or twice on a
+   * board, far from another of its kind.
+   */
+  giantTree: {
+    side: 'forest',
+    top: 'forest',
+    height: 1.2,
+    span: 7,
+    blocksSight: true,
+    altitude: 2.0,
+    trunk: { side: 'wall_timber', top: 'black_soil', width: 1.0, height: 2.6 },
+    layers: [
+      { spread: 6.6, height: 0.8 },
+      { spread: 5.0, height: 0.7 },
+      { spread: 3.0, height: 0.6 },
+    ],
+    drift: 0.4,
+    spacing: 14,
+    covers: true,
+  },
+  /**
    * A tree planted in the pavement.
    *
    * A wood's tree is a crown five cells across; one that grows beside a row of houses has a
@@ -234,9 +276,34 @@ export const FIELD_PROP_SHAPES: Record<FieldPropId, FieldPropShape> = {
 export interface GroundBand {
   /** How much of the board this band covers by the time it ends, counting from the lowest. */
   upTo: number;
+  /** What the band is, which names it and shows it on a plan of the field, and is laid on its floor. */
   texture: TextureId;
+  /**
+   * The picture laid on its floor instead, where that is not what the band is: under water too
+   * murky to show its bottom, what shows of the floor is where the ground comes up through the
+   * water at its shore, which is the ground of the land beside it.
+   */
+  floor?: TextureId;
   /** Whether a piece can be put down here at all. Nothing grows out of open water. */
   bare?: boolean;
+  /** The water lying over the band, its surface at the board, on one of the lowest bands. */
+  water?: FieldWater;
+}
+
+/**
+ * A body of water lying over a band of ground, its surface at the board. On a field whose ground is
+ * raised, the ground under it is dug down from the shore, deepest where the board lies lowest.
+ */
+export interface FieldWater {
+  /** How far the ground is dug under the water where the board lies lowest, in cells. */
+  depth: number;
+  /** Empty for the colour of water itself. */
+  color: string;
+  turbidity: number;
+  dirt: number;
+  leaves: number;
+  /** How much of it is frozen over, from 0 for open water to 1 for ice. */
+  ice: number;
 }
 
 export interface FieldPropPlan {
@@ -342,6 +409,11 @@ export interface FieldAtmosphere extends MapMood {
   gradient?: number;
   /** How the place is built up, where it is a town rather than open country. */
   town?: TownPlan;
+  /**
+   * The settlement laid out on it, where it is a village or a fort rather than open country: its
+   * bands are then the ground of each part of it, in the order of `SETTLEMENT_ZONES`.
+   */
+  settlement?: SettlementKind;
   /** What it is lit by and where. Left out, fires anywhere on open ground. */
   fires?: FieldFirePlan;
 }
@@ -350,6 +422,10 @@ export const MIN_FIELD_SIZE = 20;
 export const MAX_FIELD_SIZE = 60;
 export const MIN_FIELD_DENSITY = 0;
 export const MAX_FIELD_DENSITY = 100;
+/** How high the ground of a field may be raised from its lowest to its highest, in cells. */
+export const MAX_FIELD_RELIEF = 6;
+/** How high it is raised unless asked otherwise: hills a piece walks up, rather than steps of blocks. */
+export const DEFAULT_FIELD_RELIEF = 2;
 
 /**
  * A requested board width held between 20 and 60 cells and rounded; the smallest for anything that
@@ -369,6 +445,15 @@ export function clampFieldDensity(density: number): number {
   return Math.min(MAX_FIELD_DENSITY, Math.max(MIN_FIELD_DENSITY, Math.round(density)));
 }
 
+/**
+ * A requested height for the ground of a field held between none and six cells, in half cells; none
+ * for anything that is not a number.
+ */
+export function clampFieldRelief(relief: number): number {
+  if (!Number.isFinite(relief)) return 0;
+  return Math.min(MAX_FIELD_RELIEF, Math.max(0, Math.round(relief * 2) / 2));
+}
+
 export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {
   woodland: {
     id: 'woodland',
@@ -384,6 +469,7 @@ export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {
       { upTo: 1, texture: 'black_soil' },
     ],
     props: [
+      { prop: 'giantTree', chance: 0.02, bands: [1, 2] },
       { prop: 'tree', chance: 0.85, bands: [2] },
       { prop: 'tree', chance: 0.14, bands: [1] },
       { prop: 'bush', chance: 0.05, bands: [0, 1] },
@@ -411,6 +497,7 @@ export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {
       { prop: 'hill', chance: 0.08, bands: [1] },
       { prop: 'bush', chance: 0.06, bands: [1] },
       { prop: 'tree', chance: 0.09, bands: [1] },
+      { prop: 'giantTree', chance: 0.012, bands: [1] },
       { prop: 'boulder', chance: 0.06, bands: [2] },
     ],
     darkness: 0,
@@ -428,8 +515,18 @@ export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {
     damp: 0.45,
     gradient: 0.6,
     bands: [
-      { upTo: 0.34, texture: 'sea', bare: true },
-      { upTo: 0.46, texture: 'shallows', bare: true },
+      {
+        upTo: 0.34,
+        texture: 'sea',
+        bare: true,
+        water: { depth: 1.5, color: '#2f6f8f', turbidity: 0.2, dirt: 0, leaves: 0, ice: 0 },
+      },
+      {
+        upTo: 0.46,
+        texture: 'shallows',
+        bare: true,
+        water: { depth: 1.5, color: '#4f9fb0', turbidity: 0.15, dirt: 0, leaves: 0, ice: 0 },
+      },
       { upTo: 0.68, texture: 'sand' },
       { upTo: 1, texture: 'steppe' },
     ],
@@ -453,7 +550,13 @@ export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {
     damp: 0.45,
     gradient: 0.15,
     bands: [
-      { upTo: 0.4, texture: 'shallows', bare: true },
+      {
+        upTo: 0.4,
+        texture: 'shallows',
+        floor: 'swamp_mud',
+        bare: true,
+        water: { depth: 0.4, color: '#5f6b4a', turbidity: 0.8, dirt: 0.6, leaves: 0.25, ice: 0 },
+      },
       { upTo: 0.74, texture: 'swamp_mud' },
       { upTo: 1, texture: 'moss_stone_floor' },
     ],
@@ -478,7 +581,12 @@ export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {
     relief: 12,
     damp: 0.45,
     bands: [
-      { upTo: 0.4, texture: 'ice' },
+      {
+        upTo: 0.4,
+        texture: 'gravel',
+        bare: true,
+        water: { depth: 0.5, color: '', turbidity: 0.3, dirt: 0, leaves: 0, ice: 1 },
+      },
       { upTo: 0.85, texture: 'gravel' },
       { upTo: 1, texture: 'rock' },
     ],
@@ -695,6 +803,98 @@ export const FIELD_ATMOSPHERES: Record<FieldAtmosphereId, FieldAtmosphere> = {
     weatherDensity: 0.3,
     gridShow: true,
     torches: 6,
+  },
+  /**
+   * A farming village: a road across open grassland with houses along it, fields of vegetables, wheat,
+   * maize and rice behind them, and trees here and there.
+   */
+  village: {
+    id: 'village',
+    defaultGround: 'steppe',
+    defaultProp: 'wall_timber',
+    relief: 12,
+    damp: 0.45,
+    bands: [
+      { upTo: 1, texture: 'steppe' },
+      { upTo: 1, texture: 'desert' },
+      { upTo: 1, texture: 'desert' },
+      { upTo: 1, texture: 'wood_plank' },
+      { upTo: 1, texture: 'black_soil' },
+      { upTo: 1, texture: 'black_soil' },
+    ],
+    props: [
+      { prop: 'tree', chance: 0.05, bands: [0] },
+      { prop: 'bush', chance: 0.04, bands: [0] },
+    ],
+    settlement: 'village',
+    darkness: 0,
+    ambientColor: '#141a10',
+    weatherKind: '',
+    weatherDensity: 0,
+    gridShow: true,
+    torches: 0,
+  },
+  /**
+   * The fort of a people who build in wood: a ring of sharpened logs on the steppe with watchtowers
+   * and a gate, the chief's hall and tents round a great fire inside, woods round it.
+   */
+  barbarianFort: {
+    id: 'barbarianFort',
+    defaultGround: 'steppe',
+    defaultProp: 'wall_timber',
+    relief: 12,
+    damp: 0.45,
+    bands: [
+      { upTo: 1, texture: 'steppe' },
+      { upTo: 1, texture: 'desert' },
+      { upTo: 1, texture: 'desert' },
+      { upTo: 1, texture: 'wood_plank' },
+      { upTo: 1, texture: 'black_soil' },
+      { upTo: 1, texture: 'black_soil' },
+    ],
+    props: [
+      { prop: 'tree', chance: 0.1, bands: [0] },
+      { prop: 'bush', chance: 0.06, bands: [0] },
+      { prop: 'boulder', chance: 0.02, bands: [0] },
+    ],
+    settlement: 'barbarianFort',
+    darkness: 0.3,
+    ambientColor: '#1a120c',
+    weatherKind: '',
+    weatherDensity: 0,
+    gridShow: true,
+    torches: 0,
+  },
+  /**
+   * A fort of stone: a square curtain wall with towers on its corners and either side of its gate, a
+   * paved courtyard, the keep with its rooms, barracks and stables, on grassland strewn with rock.
+   */
+  stoneFort: {
+    id: 'stoneFort',
+    defaultGround: 'steppe',
+    defaultProp: 'wall_ashlar',
+    relief: 12,
+    damp: 0.45,
+    bands: [
+      { upTo: 1, texture: 'steppe' },
+      { upTo: 1, texture: 'gravel' },
+      { upTo: 1, texture: 'stone_paving_big' },
+      { upTo: 1, texture: 'stone_tile' },
+      { upTo: 1, texture: 'black_soil' },
+      { upTo: 1, texture: 'black_soil' },
+    ],
+    props: [
+      { prop: 'bush', chance: 0.04, bands: [0] },
+      { prop: 'boulder', chance: 0.03, bands: [0] },
+      { prop: 'tree', chance: 0.03, bands: [0] },
+    ],
+    settlement: 'stoneFort',
+    darkness: 0,
+    ambientColor: '#141a10',
+    weatherKind: '',
+    weatherDensity: 0,
+    gridShow: true,
+    torches: 0,
   },
 };
 

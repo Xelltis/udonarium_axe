@@ -10,7 +10,7 @@ import { AssetRemovalKind } from '@axe/domain/media/asset-removal';
 const ENTRY = 'entry';
 
 /**
- * A holder for writing who added the pictures and sounds of a saved room or zip as
+ * A holder for writing who added the pictures, sounds and models of a saved room or zip as
  * `assetowner.xml`, and for setting them again from it.
  *
  * Each record is written as a plain entry and read back by this holder itself, rather than as a
@@ -52,7 +52,7 @@ export class AssetOwnerList extends ObjectNode implements InnerXml {
     }
   }
 
-  /** A holder for writing who added the given pictures and sounds. */
+  /** A holder for writing who added the given pictures, sounds and models. */
   static create(assetIdentifiers: readonly string[]): AssetOwnerList {
     const list = new AssetOwnerList();
     list.identifiers = [...assetIdentifiers];

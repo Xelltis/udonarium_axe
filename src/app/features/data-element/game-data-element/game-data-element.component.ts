@@ -174,6 +174,11 @@ export class GameDataElementComponent {
   readonly indexNum = input(0);
   readonly depth = input(0);
   readonly hideSectionTitle = input(false);
+  /**
+   * Whether a reader who may change the sheet can add a field to a group while the section is only
+   * being read, from a "+" on the group's heading, without opening the section for editing.
+   */
+  readonly addsInView = input(false);
 
   /**
    * Whether this row is a long text being edited.
@@ -585,6 +590,19 @@ export class GameDataElementComponent {
   addGroupElement() {
     if (!this.canAddChildGroupElement()) return;
     this.edit.addGroupInside(this.gameDataElement());
+  }
+
+  /**
+   * Whether the end of this group or section shows the buttons that add to it: on a sheet, while it
+   * is being edited, where it can hold a field or a group.
+   */
+  addsAtEnd(): boolean {
+    return (
+      this.isEdit() &&
+      this.inSheet &&
+      !this.isImage() &&
+      (this.canAddChildFieldElement() || this.canAddChildGroupElement())
+    );
   }
 
   /** Whether this element may hold a new group, which shows the button for adding one. */

@@ -27,7 +27,9 @@ test.describe('searching the chat', () => {
     await expect(page.locator('chat-tab').getByText('合言葉はアヒル')).toHaveCount(0);
   });
 
-  test('opens on Ctrl+F, and finds and shows even old lines that are not drawn', async ({ page }) => {
+  test('opens on Ctrl+F, finds and shows even old lines that are not drawn, and clears the marks and goes back to the input on Esc', async ({
+    page,
+  }) => {
     const textarea = chatInput(page);
     await textarea.press('Control+f');
     const box = page.getByTestId('chat-search-input');
@@ -46,27 +48,12 @@ test.describe('searching the chat', () => {
 
     await box.press('Shift+Enter');
     await expect(page.getByTestId('chat-search-count')).toHaveText('2 / 2');
-  });
 
-  test('clears the marks and goes back to the input when closed with Esc', async ({ page }) => {
-    const textarea = chatInput(page);
-    await textarea.press('Control+f');
-    await page.getByTestId('chat-search-input').fill('アヒル');
-    await expect(page.getByTestId('chat-search-count')).toHaveText('2 / 2');
-
-    await page.getByTestId('chat-search-input').press('Escape');
+    await box.press('Escape');
 
     await expect(page.getByTestId('chat-search')).toHaveCount(0);
     await expect(textarea).toBeFocused();
     await expect(page.locator('chat-message[data-chat-search-current]')).toHaveCount(0);
     expect(await page.evaluate(() => CSS.highlights.size)).toBe(0);
-  });
-
-  test('says so when nothing is found', async ({ page }) => {
-    await page.getByTestId('chat-search-toggle').click();
-    await page.getByTestId('chat-search-input').fill('ドラゴン');
-
-    await expect(page.getByTestId('chat-search-count')).toHaveText('見つかりません');
-    await expect(page.getByTestId('chat-search-older')).toBeDisabled();
   });
 });

@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { DungeonBuildService } from '@axe/application/tabletop/dungeon-build.service';
 import { wallLightInset, wallLightPitch } from '@axe/application/tabletop/dungeon-build.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ImageTag } from '@axe/domain/media/image-tag';
@@ -11,7 +12,11 @@ import { planDungeon } from '@axe/domain/tabletop/dungeon/dungeon-generator';
 import { FURNISHING_SHAPES } from '@axe/domain/tabletop/dungeon/room-furnishing';
 import { MAX_DUNGEON_TRAPS } from '@axe/domain/tabletop/dungeon/trap-placing';
 import { planField } from '@axe/domain/tabletop/field/field-generator';
+import { SETTLEMENT_WALL_HEIGHTS } from '@axe/domain/tabletop/field/settlement-layout';
+import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
+import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import { SYNC_OBJECTS_PER_TERRAIN } from '@axe/domain/tabletop/map-blocks';
 import { terrainBlocksMovement } from '@axe/domain/tabletop/move/blocked-cells';
@@ -20,6 +25,7 @@ import { TableMoveCost } from '@axe/domain/tabletop/table-move-cost';
 import { TableTrigger } from '@axe/domain/tabletop/table-trigger';
 import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { TextNote } from '@axe/domain/tabletop/text-note';
+import { type WaterArea, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
 import { terrainCostOf } from '@axe/testing/terrain-cost';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 import { createSyncTranslate } from '@axe/testing/transloco-testing';
@@ -225,6 +231,143 @@ describe('DungeonBuildService', () => {
     expect(store.getObjects(GameTable)[0]).toBe(result.table);
   });
 
+  it('gives each tree and rock of a field stood as models the bundled model it is drawn as, read once for the build', async () => {
+    const plan = planField({ atmosphere: 'woodland', size: 20, density: 50, seed: 3, models: true });
+    const fetched = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async () => new Response(new Blob([new Uint8Array(8)])));
+    const storage = TestBed.inject(ModelStorage);
+    const added = vi
+      .spyOn(storage, 'addAsync')
+      .mockImplementation(async (file) => ({ identifier: `held-${(file as File).name}` }) as never);
+    vi.spyOn(storage, 'get').mockImplementation((identifier) =>
+      identifier.startsWith('held-') ? ({ identifier } as never) : null
+    );
+
+    const { table } = await service.build(plan.layout, plan.atmosphere, plan.blocks, options());
+
+    const dressed = plan.blocks.blocks.filter((block) => block.model);
+    expect(table.terrains.filter((terrain) => terrain.modelIdentifier).length).toBe(dressed.length);
+    expect(
+      table.terrains
+        .filter((terrain) => terrain.modelIdentifier)
+        .every((terrain) => terrain.modelIdentifier.startsWith('held-'))
+    ).toBe(true);
+    const kinds = new Set(dressed.map((block) => block.model));
+    expect(fetched).toHaveBeenCalledTimes(kinds.size);
+    expect(added).toHaveBeenCalledTimes(kinds.size);
+    fetched.mockRestore();
+  });
+
+  it('leaves a block whose model no bundled file is named for drawn as its faces, asking nobody for it', async () => {
+    const plan = planField({ atmosphere: 'woodland', size: 20, density: 50, seed: 3, models: true });
+    const blocks = plan.blocks.blocks.map((block) => (block.model ? { ...block, model: 'no-such-model' } : block));
+    const fetched = vi.spyOn(globalThis, 'fetch');
+
+    const { table } = await service.build(plan.layout, plan.atmosphere, { ...plan.blocks, blocks }, options());
+
+    expect(table.terrains.some((terrain) => terrain.modelIdentifier)).toBe(false);
+    expect(fetched).not.toHaveBeenCalled();
+    fetched.mockRestore();
+  });
+
+  it('asks once for each model it cannot read, and leaves the blocks drawn as their faces', async () => {
+    const plan = planField({ atmosphere: 'woodland', size: 20, density: 50, seed: 3, models: true });
+    const fetched = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(null, { status: 404 }));
+
+    const { table } = await service.build(plan.layout, plan.atmosphere, plan.blocks, options());
+
+    const kinds = new Set(plan.blocks.blocks.flatMap((block) => block.model || []));
+    expect(plan.blocks.blocks.filter((block) => block.model).length).toBeGreaterThan(kinds.size);
+    expect(fetched).toHaveBeenCalledTimes(kinds.size);
+    expect(table.terrains.some((terrain) => terrain.modelIdentifier)).toBe(false);
+    fetched.mockRestore();
+  });
+
+  it('builds a village with fields slow to cross but walked through, paddies under water, and doors as tall as their walls', async () => {
+    const plan = planField({ atmosphere: 'village', size: 40, density: 50, seed: 3 });
+    const { table } = await service.build(plan.layout, plan.atmosphere, plan.blocks, options());
+
+    const dear = table.children.filter((child): child is TableMoveCost => child instanceof TableMoveCost);
+    expect(dear.map((cost) => [cost.col, cost.row, cost.width, cost.height])).toEqual(
+      plan.blocks.slows!.map((patch) => [patch.rect.x, patch.rect.y, patch.rect.w, patch.rect.h])
+    );
+    expect(dear.every((cost) => cost.charge === 1)).toBe(true);
+    const doors = table.terrains.filter((terrain) => terrain.isDoor);
+    expect(doors.length).toBe(plan.blocks.blocks.filter((block) => block.kind === 'door').length);
+    expect(new Set(doors.map((door) => door.height))).toEqual(
+      new Set(plan.layout.settlement!.doors.map((door) => SETTLEMENT_WALL_HEIGHTS[door.wall]))
+    );
+    const waters = table.children.filter(
+      (child): child is TableAmbience => child instanceof TableAmbience && child.kind === 'water'
+    );
+    expect(waters.length).toBe(plan.layout.settlement!.crops.filter((crop) => crop.crop === 'rice').length);
+
+    const grown = planField({ atmosphere: 'village', size: 40, density: 50, seed: 3, models: true });
+    const fields = (await service.build(grown.layout, grown.atmosphere, grown.blocks, options())).table.terrains.filter(
+      (terrain) => terrain.height < 0.05
+    );
+    expect(fields.length).toBeGreaterThan(0);
+    expect(fields.some((terrain) => terrainBlocksMovement(terrain))).toBe(false);
+
+    const fort = planField({ atmosphere: 'stoneFort', size: 40, density: 50, seed: 3 });
+    const built = await service.build(fort.layout, fort.atmosphere, fort.blocks, options());
+    const heights = built.table.terrains.filter((terrain) => terrain.isDoor).map((door) => door.height);
+    expect(new Set(heights)).toEqual(new Set([3, 3.5]));
+  });
+
+  it('lays the water of a field as water, looking as the field asks, and digs the ground under it', async () => {
+    const plan = planField({ atmosphere: 'snowfield', size: 20, density: 50, seed: 3, relief: 2 });
+
+    const { table } = await service.build(
+      plan.layout,
+      plan.atmosphere,
+      plan.blocks,
+      options({ ground: plan.layout.relief })
+    );
+
+    const waters = table.children.filter(
+      (child): child is TableAmbience => child instanceof TableAmbience && child.kind === 'water'
+    );
+    const asked = plan.blocks.ambiences.filter((ambience) => ambience.kind === 'water');
+    expect(waters.length).toBe(asked.length);
+    expect(waters.length).toBeGreaterThan(0);
+    for (const water of waters) {
+      expect(water.surface).toBe(0);
+      expect(water.ice).toBe(1);
+      expect(water.murk).toBeCloseTo(asked[0].water!.turbidity);
+      expect(water.isLock).toBe(true);
+    }
+    const ground = groundSurfaceOf(groundFieldOn(table)!.readChunks());
+    const relief = plan.layout.relief!;
+    const deepest = relief.heights.indexOf(Math.min(...relief.heights));
+    expect(ground.sampleAt(deepest % relief.columns, Math.floor(deepest / relief.columns))).toBeLessThan(0);
+  });
+
+  it('raises the ground of a field as its layout raises it, and leaves a flat one with none kept', async () => {
+    const raised = planField({ atmosphere: 'woodland', size: 20, density: 50, seed: 3, relief: 2 });
+    const flat = planField({ atmosphere: 'woodland', size: 20, density: 50, seed: 3 });
+
+    const built = await service.build(
+      raised.layout,
+      raised.atmosphere,
+      raised.blocks,
+      options({ ground: raised.layout.relief })
+    );
+    const plain = await service.build(
+      flat.layout,
+      flat.atmosphere,
+      flat.blocks,
+      options({ ground: flat.layout.relief })
+    );
+
+    const ground = groundSurfaceOf(groundFieldOn(built.table)!.readChunks());
+    const relief = raised.layout.relief!;
+    const highest = relief.heights.indexOf(Math.max(...relief.heights));
+    expect(ground.sampleAt(highest % relief.columns, Math.floor(highest / relief.columns))).toBe(2);
+    expect(groundFieldOn(plain.table)).toBeNull();
+  });
+
   it('leaves the table uncovered unless the fog was asked for', async () => {
     const { result } = await build();
 
@@ -235,6 +378,11 @@ describe('DungeonBuildService', () => {
     const { result } = await build({ fogEnabled: true });
 
     expect(result.table.fogEnabled).toBe(true);
+  });
+
+  it('shows the background picture past the board unless the sky that turns with the clock was asked for', async () => {
+    expect((await build()).result.table.skyKind).toBe('');
+    expect((await build({ skyKind: 'clock' })).result.table.skyKind).toBe('clock');
   });
 
   it('stands a party where it was told to, on the table and on the floor', async () => {
@@ -753,6 +901,38 @@ describe('DungeonBuildService', () => {
       const plan = planDungeon({ atmosphere: 'stoneDungeon', roomCount: 8, seed: 7, gridType });
       return service.build(plan.layout, plan.atmosphere, plan.blocks, { ...options(), gridType });
     }
+
+    it('lays the water of a field over every hex of its water and no other, either way the hexes stand', async () => {
+      for (const gridType of [GridType.HEX_HORIZONTAL, GridType.HEX_VERTICAL]) {
+        const plan = planField({ atmosphere: 'coast', size: 30, density: 50, seed: 7, gridType });
+        const { table } = await service.build(plan.layout, plan.atmosphere, plan.blocks, { ...options(), gridType });
+        const grid = cellGridOf(plan.layout.width, plan.layout.height, table.gridSize, gridType);
+        const areas: WaterArea[] = table.children
+          .filter((child): child is TableAmbience => child instanceof TableAmbience && child.kind === 'water')
+          .map((water) => ({
+            identifier: water.identifier,
+            left: water.location.x,
+            top: water.location.y,
+            width: water.width * table.gridSize,
+            height: water.height * table.gridSize,
+            floorPx: 0,
+            surfacePx: 0,
+            color: '',
+            density: 1,
+            turbidity: 0,
+            dirt: 0,
+            leaves: 0,
+            flowSpeed: 0,
+            flowDirection: 0,
+            ice: 0,
+          }));
+
+        const wet = [...plan.layout.ground]
+          .map((band, index) => (plan.atmosphere.bands[band].water ? index : -1))
+          .filter((index) => index >= 0);
+        expect([...waterCellsOf(grid, areas).keys()].sort((a, b) => a - b)).toEqual(wet);
+      }
+    });
 
     it('gives the table the grid it was asked for', async () => {
       const result = await buildOn(GridType.HEX_VERTICAL);

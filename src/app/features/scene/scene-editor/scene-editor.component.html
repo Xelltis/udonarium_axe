@@ -208,6 +208,19 @@
               </label>
             }
           }
+          @case ('sky') {
+            <select
+              [class]="fieldClass"
+              data-testid="scene-sky-kind"
+              [disabled]="!canEdit()"
+              [ngModel]="skyKind()"
+              (ngModelChange)="setSkyKind($event)"
+            >
+              @for (kind of skyKinds; track kind) {
+                <option [ngValue]="kind">{{ 'feature.tabletop.tableSetting.skyKind_' + kind | transloco }}</option>
+              }
+            </select>
+          }
           @case ('darkness') {
             <select
               [class]="fieldClass"

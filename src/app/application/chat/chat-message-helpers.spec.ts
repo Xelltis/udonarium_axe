@@ -125,6 +125,16 @@ describe('chat-message-helpers', () => {
       expect(result.resourceEditTargetContext).toBeNull();
     });
 
+    it('sends one message for everyone a line is aimed at all at once, and hands each of them to resource edits', () => {
+      const targets: ChatMessageTargetContext[] = [
+        { text: 'a', object: null, together: ['A', 'B'] },
+        { text: 'b', object: null, together: ['A', 'B'] },
+      ];
+      const result = emitChatMessageEvents(targets);
+      expect(result.sendTargets).toEqual([{ text: 'a', object: null, together: ['A', 'B'] }]);
+      expect(result.resourceEditTargetContext).toEqual(targets);
+    });
+
     it('sends one message per target', () => {
       const targets: ChatMessageTargetContext[] = [
         { text: 'a', object: null },

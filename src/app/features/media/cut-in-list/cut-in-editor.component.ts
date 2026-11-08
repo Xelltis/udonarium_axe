@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
@@ -100,6 +100,25 @@ export class CutInEditorComponent {
     this.objectChange.versionOf(c.identifier)();
     const file = this.imageStorage.get(c.imageIdentifier);
     return file ? file : ImageFile.Empty;
+  });
+
+  /** The cut-in's picture's own size once it has come, with where it was read from. */
+  private readonly pictureSize = signal<{
+    readonly url: string;
+    readonly width: number;
+    readonly height: number;
+  } | null>(null);
+
+  /**
+   * Reads the cut-in's picture for its own size. A picture the page already shows answers at once,
+   * but one it does not, as the board of a table drawn on a canvas, has to come in first.
+   */
+  private readonly measurePicture = effect(() => {
+    const url = this.cutInImage().url;
+    if (!url || untracked(this.pictureSize)?.url === url) return;
+    const picture = new Image();
+    picture.onload = () => this.pictureSize.set({ url, width: picture.naturalWidth, height: picture.naturalHeight });
+    picture.src = url;
   });
 
   readonly cutInImageUrl = computed(() => {
@@ -414,24 +433,23 @@ export class CutInEditorComponent {
 
   /** The natural width of the cut-in's picture, or 0 when it has none or it has not loaded yet. */
   originalImgWidth(): number {
-    const imageurl = this.cutInImage().url;
-    if (imageurl.length > 0) {
-      const img = new Image();
-      img.src = imageurl;
-      return img.width;
-    }
-    return 0;
+    return this.originalImgSize().width;
   }
 
   /** The natural height of the cut-in's picture, or 0 when it has none or it has not loaded yet. */
   originalImgHeight(): number {
+    return this.originalImgSize().height;
+  }
+
+  /** The cut-in's picture's own size: as read once it came, or as the page holds it already, or nothing. */
+  private originalImgSize(): { width: number; height: number } {
     const imageurl = this.cutInImage().url;
-    if (imageurl.length > 0) {
-      const img = new Image();
-      img.src = imageurl;
-      return img.height;
-    }
-    return 0;
+    if (imageurl.length < 1) return { width: 0, height: 0 };
+    const size = this.pictureSize();
+    if (size?.url === imageurl) return size;
+    const img = new Image();
+    img.src = imageurl;
+    return { width: img.width, height: img.height };
   }
 
   /**

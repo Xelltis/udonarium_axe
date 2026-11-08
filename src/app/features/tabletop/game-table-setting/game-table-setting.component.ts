@@ -60,6 +60,7 @@ import {
   tableForegroundOf,
 } from '@axe/domain/tabletop/table-foreground';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
+import { TABLE_SKY_KINDS, type TableSkyKind, tableSkyKindOf } from '@axe/domain/tabletop/table-sky';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
 import {
   MapImageGridAdjusterComponent,
@@ -371,6 +372,16 @@ export class GameTableSettingComponent {
   /** The translated name of a weather kind, for the weather dropdown. */
   weatherKindLabel(kind: AmbienceKind): string {
     return this.t(`feature.ambience.kind.${kind}`);
+  }
+
+  protected readonly skyKinds = TABLE_SKY_KINDS;
+
+  /** What the picked table shows past its board: empty for its background picture. */
+  get tableSkyKind(): TableSkyKind {
+    return tableSkyKindOf(this.selectedTable?.skyKind);
+  }
+  set tableSkyKind(value: TableSkyKind) {
+    if (this.isEditable && this.selectedTable) this.selectedTable.skyKind = value;
   }
 
   /** The weather shown over the picked table; empty for none. */

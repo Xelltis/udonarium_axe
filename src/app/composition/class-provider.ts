@@ -8,6 +8,8 @@ import { ImageSharingSystem } from '@axe/core/storage/image-sharing-system';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { IndexedDbReplayLogStore } from '@axe/core/storage/indexed-db-replay-log-store';
 import { IndexedDbRoomSnapshotStore } from '@axe/core/storage/indexed-db-room-snapshot-store';
+import { ModelSharingSystem } from '@axe/core/storage/model-sharing-system';
+import { ModelStorage } from '@axe/core/storage/model-storage';
 import { ReplayLogStore } from '@axe/core/storage/replay-log-store';
 import { RoomSnapshotStore } from '@axe/core/storage/room-snapshot-store';
 import { ObjectFactory } from '@axe/core/sync/object-factory';
@@ -34,6 +36,8 @@ export const CLASS_SINGLETON_PROVIDERS: Provider[] = [
   { provide: ImageSharingSystem, useFactory: () => ImageSharingSystem.instance },
   { provide: AudioStorage, useFactory: () => AudioStorage.instance },
   { provide: AudioSharingSystem, useFactory: () => AudioSharingSystem.instance },
+  { provide: ModelStorage, useFactory: () => ModelStorage.instance },
+  { provide: ModelSharingSystem, useFactory: () => ModelSharingSystem.instance },
   { provide: RoomSnapshotStore, useFactory: () => IndexedDbRoomSnapshotStore.instance },
   { provide: ReplayLogStore, useFactory: () => IndexedDbReplayLogStore.instance },
 

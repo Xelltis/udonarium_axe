@@ -1,8 +1,8 @@
 import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { MovePlan } from '@axe/application/tabletop/move-plan.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { MovePlanEventHandlerService } from '@axe/features/tabletop/table-move-range-overlay/move-plan-event-handler.service';
 
 describe('MovePlanEventHandlerService', () => {
@@ -20,10 +20,12 @@ describe('MovePlanEventHandlerService', () => {
     cancel: vi.fn(),
     toggleJump: vi.fn(),
   };
-  const coordinate = {
-    tabletopOriginElement: document.body,
-    calcTabletopLocalCoordinate: vi.fn(() => ({ x: 120, y: 340, z: 0 })),
+  const tablePick = {
+    landingAt: vi.fn(() => ({ x: 120, y: 340, z: 0 })),
+    faceAt: vi.fn<() => string | null>(() => 'floor'),
   };
+  /** The layer of the page the table is drawn in, which a press has to be in to be on the table. */
+  let layer: HTMLElement;
 
   function openAMove(piece = 'piece'): void {
     opened.update((count) => count + 1);
@@ -33,20 +35,24 @@ describe('MovePlanEventHandlerService', () => {
 
   /** A press of the reader's own, after the one that opened the move has finished. */
   function pressTheTable(): void {
-    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    layer.dispatchEvent(new Event('pointerdown', { bubbles: true }));
   }
 
   /** The press that opened the move, finishing over the piece. */
   function finishTheOpeningPress(): void {
-    document.body.dispatchEvent(new Event('pointerup', { bubbles: true }));
+    layer.dispatchEvent(new Event('pointerup', { bubbles: true }));
     clickTheTable();
   }
 
   function clickTheTable(modifiers: MouseEventInit = {}): void {
-    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ...modifiers }));
+    layer.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ...modifiers }));
   }
 
   beforeEach(() => {
+    layer = document.createElement('div');
+    layer.id = 'app-table-layer';
+    document.body.appendChild(layer);
+    tablePick.faceAt.mockReturnValue('floor');
     held.set(null);
     opened.set(0);
     for (const spy of [movePlan.lookAt, movePlan.settle, movePlan.run, movePlan.cancel]) spy.mockClear();
@@ -55,15 +61,17 @@ describe('MovePlanEventHandlerService', () => {
     TestBed.configureTestingModule({
       providers: [
         { provide: MovePlannerService, useValue: movePlan },
-        { provide: CoordinateService, useValue: coordinate },
+        { provide: TablePickService, useValue: tablePick },
       ],
     });
     TestBed.inject(MovePlanEventHandlerService);
     TestBed.tick();
   });
 
+  afterEach(() => layer.remove());
+
   it('listens for nothing until a move is being worked out', () => {
-    document.body.dispatchEvent(new MouseEvent('pointermove', { bubbles: true }));
+    layer.dispatchEvent(new MouseEvent('pointermove', { bubbles: true }));
 
     expect(movePlan.lookAt).not.toHaveBeenCalled();
   });
@@ -71,7 +79,7 @@ describe('MovePlanEventHandlerService', () => {
   it('draws the way to wherever the pointer is over the table', () => {
     openAMove();
 
-    document.body.dispatchEvent(new MouseEvent('pointermove', { bubbles: true }));
+    layer.dispatchEvent(new MouseEvent('pointermove', { bubbles: true }));
 
     expect(movePlan.lookAt).toHaveBeenCalledWith(120, 340);
   });
@@ -144,7 +152,7 @@ describe('MovePlanEventHandlerService', () => {
     openAMove();
     const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
 
-    document.body.dispatchEvent(event);
+    layer.dispatchEvent(event);
 
     expect(movePlan.settle).toHaveBeenCalled();
     expect(event.defaultPrevented).toBe(true);
@@ -156,7 +164,7 @@ describe('MovePlanEventHandlerService', () => {
     TestBed.tick();
     const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
 
-    document.body.dispatchEvent(event);
+    layer.dispatchEvent(event);
 
     expect(event.defaultPrevented).toBe(false);
   });
@@ -207,9 +215,26 @@ describe('MovePlanEventHandlerService', () => {
     TestBed.tick();
 
     clickTheTable();
-    document.body.dispatchEvent(new MouseEvent('pointermove', { bubbles: true }));
+    layer.dispatchEvent(new MouseEvent('pointermove', { bubbles: true }));
 
     expect(movePlan.run).not.toHaveBeenCalled();
+    expect(movePlan.lookAt).not.toHaveBeenCalled();
+  });
+
+  it('takes no notice of the pointer where the line of sight through it lands on no face of the table', () => {
+    openAMove();
+    tablePick.faceAt.mockReturnValue(null);
+
+    layer.dispatchEvent(new MouseEvent('pointermove', { bubbles: true }));
+
+    expect(movePlan.lookAt).not.toHaveBeenCalled();
+  });
+
+  it('takes no notice of the pointer outside the table’s layer', () => {
+    openAMove();
+
+    document.body.dispatchEvent(new MouseEvent('pointermove', { bubbles: true }));
+
     expect(movePlan.lookAt).not.toHaveBeenCalled();
   });
 });

@@ -25,7 +25,7 @@
 
     <ul class="max-h-64 overflow-y-auto p-1">
       @for (link of links(); track link.peerId) {
-        <li class="flex items-center gap-2 px-1.5 py-1 text-[12px]">
+        <li class="flex items-center gap-2 px-1.5 py-1 text-[12px]" data-testid="link-quality-row">
           <i class="material-icons text-[16px]!" [class]="qualityColorClass(link.quality)">{{
             qualityIcon(link.quality)
           }}</i>
@@ -41,8 +41,12 @@
               >alt_route</i
             >
           }
-          <span class="text-ui-dim shrink-0 tabular-nums">
-            @if (link.ping > 0) {
+          <span class="text-ui-dim shrink-0 tabular-nums" data-testid="link-quality-value">
+            @if (link.heardAt !== undefined) {
+              <span [title]="'feature.lobby.linkQuality.heardAt' | transloco">{{
+                link.heardAt === null ? '--:--:--' : (link.heardAt | date: 'HH:mm:ss')
+              }}</span>
+            } @else if (link.ping > 0) {
               {{ link.ping }}{{ 'feature.lobby.linkQuality.pingUnit' | transloco }}
             } @else {
               --

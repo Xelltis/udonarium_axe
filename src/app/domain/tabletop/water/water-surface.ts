@@ -46,6 +46,20 @@ export function dirtOf(value: unknown): number {
   return Math.min(Math.max(numeric, 0), 1);
 }
 
+/** How much of the water is frozen over when nobody has said: none of it. */
+export const DEFAULT_ICE = 0;
+
+/**
+ * How much of the water's surface is frozen, from 0 for open water to 1 for ice from shore to shore,
+ * read from what was stored. An empty or unreadable value reads as open water.
+ */
+export function iceOf(value: unknown): number {
+  if (value === '' || value === null || value === undefined) return DEFAULT_ICE;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return DEFAULT_ICE;
+  return Math.min(Math.max(numeric, 0), 1);
+}
+
 /** How much of the water floating leaves cover when nobody has said: none. */
 export const DEFAULT_LEAVES = 0;
 

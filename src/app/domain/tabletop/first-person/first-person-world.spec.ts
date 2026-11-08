@@ -87,7 +87,6 @@ describe('firstPersonWorldOf', () => {
     door.isDoorOpen = true;
     const opened = firstPersonWorldOf(tableOf(), [door]);
     expect(opened.walls).toHaveLength(0);
-    expect(opened.caps).toHaveLength(0);
   });
 
   it('draws a block with no picture anywhere as glass, and one that lets sight through as such', () => {
@@ -116,27 +115,20 @@ describe('firstPersonWorldOf', () => {
     expect(images.get('south')).toBe('stone');
   });
 
-  it('puts a lid on a block, and a floor that is only a floor gets a lid and no walls', () => {
+  it('stands no walls round a floor that is only a floor', () => {
     const stair = block(1, 1, 0.1);
     stair.mode = TerrainViewState.FLOOR;
 
-    const world = firstPersonWorldOf(tableOf(), [stair]);
-
-    expect(world.walls).toHaveLength(0);
-    expect(world.caps).toHaveLength(1);
-    expect(world.caps[0].facing).toBe('up');
-    expect(world.caps[0].zPx).toBeCloseTo(0.1 * GRID);
-    expect(world.caps[0].image).toBe('slab');
+    expect(firstPersonWorldOf(tableOf(), [stair]).walls).toHaveLength(0);
   });
 
-  it('gives a block hung above the floor an underside, and walls that start where it does', () => {
+  it('starts the walls of a block hung above the floor where the block does', () => {
     const lintel = block(1, 1, 1);
     lintel.altitude = 1;
 
     const world = firstPersonWorldOf(tableOf(), [lintel]);
 
     expect(world.walls.every((wall) => wall.basePx === GRID && wall.topPx === 2 * GRID)).toBe(true);
-    expect(world.caps.map((cap) => cap.facing).sort()).toEqual(['down', 'up']);
   });
 
   it('leaves out what is not standing on the floor of the table', () => {
@@ -144,20 +136,6 @@ describe('firstPersonWorldOf', () => {
     hung.location = { ...hung.location, surface: 'north-wall' };
 
     expect(firstPersonWorldOf(tableOf(), [hung]).walls).toHaveLength(0);
-  });
-
-  it('spreads the floor picture over the table on squares, and over the hex board it is drawn on', () => {
-    expect(firstPersonWorldOf(tableOf(), []).floor).toEqual({
-      x: 0,
-      y: 0,
-      width: 10 * GRID,
-      height: 8 * GRID,
-      image: 'floor-picture',
-    });
-
-    const hexFloor = firstPersonWorldOf(tableOf(GridType.HEX_VERTICAL), []).floor;
-    expect(hexFloor.x).toBeLessThan(0);
-    expect(hexFloor.y).toBeCloseTo(-GRID / 2);
   });
 
   it('stands the table walls that are shown round the edge, facing in', () => {

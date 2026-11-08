@@ -117,6 +117,65 @@ describe('TableAmbience', () => {
     });
   });
 
+  describe('ice over the water', () => {
+    it('is open water when first laid', () => {
+      const pond = TableAmbience.create('池', 'water', 2, 2);
+      expect(pond.ice).toBe(0);
+    });
+
+    it('reads an empty or unreadable value as open water rather than as anything frozen', () => {
+      const pond = TableAmbience.create('池', 'water', 2, 2);
+      pond.iceCover = '' as unknown as number;
+      expect(pond.ice).toBe(0);
+      pond.iceCover = 'thick' as unknown as number;
+      expect(pond.ice).toBe(0);
+      pond.iceCover = 3;
+      expect(pond.ice).toBe(1);
+      pond.iceCover = 0.4;
+      expect(pond.ice).toBe(0.4);
+    });
+
+    it('reads a pond laid by a peer that knows nothing of ice as open water', () => {
+      const pond = TableAmbience.create('池', 'water', 2, 2, 'pond-from-a-peer-without-ice');
+      pond.iceCover = 1;
+      const context = pond.toContext();
+      delete (context.syncData['attributes'] as Record<string, unknown>)['iceCover'];
+      context.majorVersion += 1;
+
+      pond.apply(context);
+
+      expect(pond.ice).toBe(0);
+    });
+
+    it('keeps the ice through a change sent back by a peer that knows nothing of it', () => {
+      const pond = TableAmbience.create('池', 'water', 2, 2, 'pond-frozen-then-edited-by-an-older-peer');
+      pond.iceCover = 0.8;
+      const context = pond.toContext();
+      (context.syncData['attributes'] as Record<string, unknown>)['ambienceDensity'] = 0.3;
+      context.majorVersion += 1;
+
+      pond.apply(context);
+
+      expect(pond.ice).toBe(0.8);
+      expect(pond.density).toBeCloseTo(0.3);
+    });
+
+    it('keeps the ice through a save, and reads a pond saved before ice existed as open water', () => {
+      const pond = TableAmbience.create('池', 'water', 3, 3);
+      pond.iceCover = 1;
+      const xml = ObjectSerializer.instance.toXml(pond).replace(/location\.[a-z]+="[^"]*"\s*/g, '');
+      expect(xml).toContain('iceCover="1"');
+      expect((ObjectSerializer.instance.parseXml(xml) as TableAmbience).ice).toBe(1);
+
+      const older = xml.replace(/iceCover="[^"]*"\s*/, '');
+      expect(older).not.toContain('iceCover');
+      const restored = ObjectSerializer.instance.parseXml(older) as TableAmbience;
+      expect(restored.kind).toBe('water');
+      expect(restored.ice).toBe(0);
+      expect(restored.surface).toBe(0.5);
+    });
+  });
+
   describe('saving into the room data', () => {
     it('is registered with the factory', () => {
       const object = ObjectFactory.instance.create('table-ambience');

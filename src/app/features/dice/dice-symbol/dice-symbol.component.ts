@@ -1,5 +1,5 @@
-import { NgStyle } from '@angular/common';
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -17,11 +17,11 @@ import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { DisclosureService } from '@axe/application/permission/disclosure.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
-import { ImageService } from '@axe/application/storage/image.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { BillboardFacing, facesAlways, NOT_TURNED } from '@axe/application/ui/billboard-frame.service';
 import { ContextMenuSeparator, ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
@@ -30,43 +30,41 @@ import { sheetPanelBox } from '@axe/application/ui/sheet-panel';
 import { sheetPanelTitle } from '@axe/application/ui/sheet-panel';
 import { buildSurfaceSwitchContextMenu } from '@axe/application/ui/surface-switch-context-menu';
 import { transientSignal } from '@axe/application/ui/transient-signal';
-import { UiSignalService } from '@axe/application/ui/ui-signal.service';
-import { imageFileEqual } from '@axe/core/storage/image-file';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
+import { PieceMotionKind } from '@axe/domain/tabletop/world/piece-motions';
 import { buildDiceSymbolContextMenu } from '@axe/features/dice/dice-symbol/dice-symbol-context-menu';
-import { BillboardDirective } from '@axe/ui/directives/billboard.directive';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
-import { SafePipe } from '@axe/ui/pipes/safe.pipe';
-import { makeBillboardTransform } from '@axe/ui/tabletop/billboard-transform';
 import { DoubleTap } from '@axe/ui/tabletop/double-tap';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { hideIconWhileTouched } from '@axe/ui/tabletop/icon-hiding';
-import { pieceImageView } from '@axe/ui/tabletop/piece-image-view';
-import { pieceLabelFacings } from '@axe/ui/tabletop/piece-label-facings';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
-import { translateZCss, Z_OFFSET_TALL_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
+import { TurnFrameComponent, type TurnStand } from '@axe/ui/tabletop/turn-frame/turn-frame.component';
 
 /** How long the die rolls before it settles, which is the length of the tumble animation. */
 const TUMBLE_MS = 800;
 /** How long the callout stays up afterwards, which is the length of its own animation. */
 const RESULT_POPUP_MS = 1300;
-const TUMBLE_PATHS = 3;
+/** The ways the canvas tumbles a die, taken in turn. */
+const TUMBLES: readonly PieceMotionKind[] = ['dice-tumble-a', 'dice-tumble-b', 'dice-tumble-c'];
+const TUMBLE_PATHS = TUMBLES.length;
 
 @Component({
   selector: 'dice-symbol',
   templateUrl: './dice-symbol.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BillboardDirective, MovableDirective, RotableDirective, SelectableDirective, NgStyle, SafePipe],
+  imports: [TurnFrameComponent, HudPlaceDirective, MovableDirective, RotableDirective, SelectableDirective],
   host: {
     '[style.display]': "isHiddenByFog() ? 'none' : null",
+    '[attr.data-object-id]': 'diceSymbol().identifier',
     '(dragstart)': 'onDragstart($event)',
     '(contextmenu)': 'onContextMenu($event)',
   },
@@ -81,17 +79,18 @@ export class DiceSymbolComponent {
   private readonly lineEdit = inject(ChatLineEditService);
   private readonly objectStore = inject(ObjectStore);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
-  private readonly imageService = inject(ImageService);
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly visionService = inject(VisionService);
-  private readonly uiSignalService = inject(UiSignalService);
   private readonly tabletopService = inject(TabletopService);
   private readonly rolePermission = inject(RolePermissionService);
   private readonly disclosureService = inject(DisclosureService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly translateFn = inject(TRANSLATE_FN);
+
+  private readonly motions = inject(PieceMotionsService);
+  private readonly pieces = inject(TablePiecesService);
 
   readonly isHiddenByFog = computed(() => {
     const piece = this.diceSymbol();
@@ -101,6 +100,26 @@ export class DiceSymbolComponent {
   });
 
   readonly diceSymbol = input.required<DiceSymbol>();
+
+  /** Where the die stands for the frame that turns it: its foot on the face it is on, turned about its middle. */
+  protected readonly turnStand = computed<TurnStand>(() => {
+    const die = this.diceSymbol();
+    this.objectChange.versionOf(die.identifier)();
+    const foot = this.pieces.footOf(die);
+    const side = this.size() * this.gridSize;
+    return {
+      surface: foot.surface,
+      height: foot.height,
+      foot: {
+        left: foot.x,
+        top: foot.y,
+        width: side,
+        depth: side,
+        pivot: { x: foot.x + side / 2, y: foot.y + side / 2 },
+        rotateDeg: die.rotate,
+      },
+    };
+  });
 
   /** The face the die shows. Setting it changes the die itself. */
   get face(): string {
@@ -147,28 +166,10 @@ export class DiceSymbolComponent {
     return Math.max(0, this.diceSymbol().size);
   });
 
-  readonly imageHeignt = computed(() => {
-    this.objectChange.versionOf(this.diceSymbol().identifier)();
-    return this.diceSymbol().komaImageHeight;
-  });
-  readonly specifyImageFlag = computed(() => {
-    this.objectChange.versionOf(this.diceSymbol().identifier)();
-    return this.diceSymbol().specifyKomaImageFlag;
-  });
-
   /** Every face the die can show. */
   get faces(): string[] {
     return this.diceSymbol().faces;
   }
-  readonly imageFile = computed(
-    () => {
-      this.objectChange.fileVersion();
-      const diceSymbol = this.diceSymbol();
-      this.objectChange.versionOf(diceSymbol.identifier)();
-      return this.imageService.getEmptyOr(diceSymbol.imageFile);
-    },
-    { equal: imageFileEqual() }
-  );
 
   /**
    * Whether the face is the reader's to see, and the rest of what keeping a die back looks like.
@@ -219,13 +220,6 @@ export class DiceSymbolComponent {
     return this.diceSymbol().isVisible || this.rolePermission.canSeeHidden();
   }
 
-  /** Whether the die is marked as spent, which only dims it: it rolls and moves as it always did. */
-  readonly isUsed = computed(() => {
-    const diceSymbol = this.diceSymbol();
-    this.objectChange.versionOf(diceSymbol.identifier)();
-    return diceSymbol.isUsed;
-  });
-
   /** Whether the die is locked in place, which stops it being dragged or turned. */
   get isLock(): boolean {
     return this.diceSymbol().isLock;
@@ -234,9 +228,8 @@ export class DiceSymbolComponent {
     this.diceSymbol().isLock = isLock;
   }
 
-  readonly animeState = signal<'inactive' | 'active'>('inactive');
   /** Which of the three paths this throw takes, so a handful does not roll as one. */
-  readonly tumble = signal(0);
+  private tumble = 0;
   /** The face it came to rest on, called out over the die until the callout fades. */
   readonly rollResult = transientSignal<string | null>(null, RESULT_POPUP_MS);
 
@@ -250,71 +243,18 @@ export class DiceSymbolComponent {
     return this.tabletopService.gridSize();
   }
 
-  readonly rotateSignal = computed(() => {
-    this.objectChange.versionOf(this.diceSymbol().identifier)();
-    return this.diceSymbol().rotate;
-  });
-
+  /** Whether the die lies on a wall or on a board rather than on the floor. */
   readonly isPoster = computed(() => {
     const dice = this.diceSymbol();
     this.objectChange.versionOf(dice.identifier)();
     return isOffTheFloor(dice);
   });
 
-  readonly nameFacing = computed<BillboardFacing>(() => (this.isPoster() ? NOT_TURNED : this.billboardFacing(30)));
-  readonly ownerFacing = computed<BillboardFacing>(() => (this.isPoster() ? NOT_TURNED : this.billboardFacing(55)));
-  readonly imageFacing = computed<BillboardFacing>(() => (this.isPoster() ? NOT_TURNED : this.billboardFacing(0)));
-
-  readonly imageBillboardEnabled = computed(() => {
-    if (this.isPoster()) return true;
-    return this.tabletopService.imageBillboard() || this.tabletopService.mode2d();
-  });
-
-  readonly imageView = pieceImageView({
-    imageUrl: computed(() => this.imageFile().url),
-    isPoster: this.isPoster,
-    sizePx: computed(() => this.size() * this.gridSize),
-    specifiedHeightPx: computed(() => (this.specifyImageFlag() ? +this.imageHeignt() : null)),
-    billboardEnabled: this.imageBillboardEnabled,
-    billboardFacing: this.imageFacing,
-  });
-
+  /** Whether the die is not turned on the table: in the flat mode, or off the floor. */
   readonly mode2dEnabled = computed(() => {
     if (this.isPoster()) return true;
     return this.tabletopService.mode2d();
   });
-
-  private readonly labels = pieceLabelFacings({
-    mode2d: () => this.mode2dEnabled(),
-    widthPx: () => this.size() * this.gridSize,
-  });
-
-  readonly nameOrbitFacing = computed<BillboardFacing>(() => this.labels.stand(this.nameOrbit()));
-
-  private nameOrbit(): BillboardFacing {
-    if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 5)}px)`);
-    return this.labels.orbit(30, 60);
-  }
-
-  readonly ownerOrbitFacing = computed<BillboardFacing>(() => this.labels.stand(this.ownerOrbit()));
-
-  private ownerOrbit(): BillboardFacing {
-    if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 8)}px)`);
-    return this.labels.orbit(55, 90);
-  }
-
-  private billboardFacing(verticalOffset3D: number): BillboardFacing {
-    const pieceRotate = this.rotateSignal();
-    const mode2d = this.mode2dEnabled();
-    return (rotation) =>
-      makeBillboardTransform({
-        rotation,
-        pieceRotate,
-        parentInverseRotation: 'rotateX(90deg)',
-        verticalOffset3D,
-        mode2d,
-      });
-  }
 
   readonly movableOption = signal<MovableOption>({});
   readonly rotableOption = signal<RotableOption>({});
@@ -332,6 +272,9 @@ export class DiceSymbolComponent {
   }
 
   constructor() {
+    afterNextRender(() => {
+      this.motions.play(this.diceSymbol().identifier, 'bounce-in');
+    });
     this.objectChange.rollDiceSymbol$.subscribe((event) => {
       if (event.identifier === this.diceSymbol().identifier) this.startRoll();
     }, this.destroyRef);
@@ -339,7 +282,7 @@ export class DiceSymbolComponent {
     setupMovableRotableForPiece(this, {
       target: this.diceSymbol,
       collideLayers: ['terrain'],
-      transformCssOffset: translateZCss(Z_OFFSET_TALL_OBJECT_PX),
+      footprint: () => ({ width: this.size() * this.gridSize, height: this.size() * this.gridSize }),
     });
     this.destroyRef.onDestroy(() => {
       this.doubleTap.cancel();
@@ -356,13 +299,6 @@ export class DiceSymbolComponent {
   }
 
   /**
-   * Puts the tumble animation back to rest once it has played, so the next roll can play it again.
-   */
-  onDiceRollEnd() {
-    this.animeState.set('inactive');
-  }
-
-  /**
    * The throw: the die rolls, and what it came to rest on is called out over it.
    *
    * The callout waits for the die to settle. Shown while it is still turning it would
@@ -371,10 +307,8 @@ export class DiceSymbolComponent {
   private startRoll(): void {
     this.clearRollTimers();
     this.rollResult.clear();
-    this.tumble.update((path) => (path + 1) % TUMBLE_PATHS);
-    this.animeState.set('inactive');
-
-    this.rollTimers.push(setTimeout(() => this.animeState.set('active')));
+    this.tumble = (this.tumble + 1) % TUMBLE_PATHS;
+    this.motions.play(this.diceSymbol().identifier, TUMBLES[this.tumble], { parts: ['picture'] });
     this.rollTimers.push(
       setTimeout(() => {
         // A die nobody may see calls nothing out; the face is the owner's to read.

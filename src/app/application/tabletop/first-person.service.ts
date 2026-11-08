@@ -6,6 +6,7 @@ import { MovePlannerService } from '@axe/application/tabletop/move-planner.servi
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceStepService } from '@axe/application/tabletop/piece-step.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
+import { StandingGroundService } from '@axe/application/tabletop/standing-ground.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { FirstPersonPreferenceService } from '@axe/application/ui/first-person-preference.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
@@ -15,6 +16,7 @@ import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Party } from '@axe/domain/party/party';
 import { partyIdsOwnedBy } from '@axe/domain/party/party-membership';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { FIRST_PERSON_FOV_DEG } from '@axe/domain/tabletop/first-person/first-person-eye';
 import {
   directionOf,
   eyePoseAt,
@@ -30,7 +32,6 @@ import {
   turnedRotate,
 } from '@axe/domain/tabletop/first-person/first-person-lattice';
 import { FirstPersonRoof, firstPersonRoofOf } from '@axe/domain/tabletop/first-person/first-person-roof';
-import { FIRST_PERSON_FOV_DEG } from '@axe/domain/tabletop/first-person/first-person-scene';
 import { FirstPersonSeat, firstPersonSeats } from '@axe/domain/tabletop/first-person/first-person-seats';
 import {
   FirstPersonTarget,
@@ -87,6 +88,7 @@ export class FirstPersonService {
   private readonly movePlan = inject(MovePlannerService);
   private readonly pieceStep = inject(PieceStepService);
   private readonly replay = inject(ReplayPlaybackService);
+  private readonly raisedGround = inject(StandingGroundService);
 
   private readonly worldEpoch = signal(0);
 
@@ -351,17 +353,25 @@ export class FirstPersonService {
    */
   readonly canWalk = computed(() => {
     const piece = this.piece();
-    if (!piece) return false;
+    return piece ? this.mayWalk(piece, this.forced()) : false;
+  });
+
+  /**
+   * Whether this seat may walk a piece about from the eye, or from behind it: a game master any, and
+   * anyone else one they control, or under a shared view one whose party they play. Never a locked
+   * piece, nor while a move is being planned or a replay is open.
+   */
+  mayWalk(piece: GameCharacter, forced = false): boolean {
     this.objectChange.trackMyCursor();
     const me = PeerCursor.myCursor;
     if (!me || me.isGuest) return false;
     if (piece.isLock || this.movePlan.isPlanning() || this.replay.isOpen()) return false;
     if (me.isGameMaster) return true;
-    if (this.forced()) {
+    if (forced) {
       return (piece.owner.length > 0 && isControllableByUser(piece, me.userId)) || this.plays(piece, me.userId);
     }
     return isControllableByUser(piece, me.userId);
-  });
+  }
 
   /** Whether the piece being looked out of is carrying its own light. */
   readonly torchLit = computed(() => this.piece()?.lightEnabled === true);
@@ -440,16 +450,27 @@ export class FirstPersonService {
   }
 
   walk(move: FirstPersonMove): Promise<boolean> {
-    return this.enqueue(() => this.stepOnce(move));
+    return this.enqueue(() => this.stepOnce(this.piece(), move, this.canWalk()));
   }
 
   turn(turn: 1 | -1): Promise<boolean> {
-    return this.enqueue(async () => {
-      const piece = this.piece();
-      if (!piece || !this.canWalk()) return false;
-      piece.rotate = turnedRotate(this.lattice(), piece.rotate, turn);
-      return true;
-    });
+    return this.enqueue(async () => this.turnOnce(this.piece(), turn, this.canWalk()));
+  }
+
+  /** Walks a piece one step the way given from the way it faces, as the view walks the piece looked out of. */
+  walkPiece(piece: GameCharacter, move: FirstPersonMove): Promise<boolean> {
+    return this.enqueue(() => this.stepOnce(piece, move, this.mayWalk(piece)));
+  }
+
+  /** Turns a piece one facing, as the view turns the piece looked out of. */
+  turnPiece(piece: GameCharacter, turn: 1 | -1): Promise<boolean> {
+    return this.enqueue(async () => this.turnOnce(piece, turn, this.mayWalk(piece)));
+  }
+
+  private turnOnce(piece: GameCharacter | null, turn: 1 | -1, allowed: boolean): boolean {
+    if (!piece || !allowed) return false;
+    piece.rotate = turnedRotate(this.lattice(), piece.rotate, turn);
+    return true;
   }
 
   toggleDoorAhead(): boolean {
@@ -469,6 +490,12 @@ export class FirstPersonService {
       }
     }
     return false;
+  }
+
+  /** The piece by that identifier on the table in view where it can be looked out of, or followed from behind. */
+  usablePiece(identifier: string): GameCharacter | null {
+    const table = this.table();
+    return table && identifier ? this.pieceOn(table, identifier) : null;
   }
 
   /**
@@ -532,11 +559,10 @@ export class FirstPersonService {
     return others;
   }
 
-  private async stepOnce(move: FirstPersonMove): Promise<boolean> {
-    const piece = this.piece();
+  private async stepOnce(piece: GameCharacter | null, move: FirstPersonMove, allowed: boolean): Promise<boolean> {
     const table = this.table();
     const grid = this.grid();
-    if (!piece || !table || !grid || !this.canWalk() || this.movePlan.isWalking) return false;
+    if (!piece || !table || !grid || !allowed || this.movePlan.isWalking) return false;
     const lattice = this.lattice();
     const direction = directionOf(lattice, piece.rotate, move);
     if (direction === null) return false;
@@ -551,6 +577,7 @@ export class FirstPersonService {
         gridSize: table.gridSize,
         terrains: table.terrains,
         others: this.othersOf(piece, table),
+        raised: this.raisedGround.surface(),
       };
       if (!freeStepClear(from, to, ground)) return this.blocked();
       await this.pieceStep.stepToPoint(piece, table, to, true);

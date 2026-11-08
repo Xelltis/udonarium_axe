@@ -1,6 +1,8 @@
 import { CellPoint } from '@axe/domain/tabletop/fog/cell-grid';
+import { GroundSurface } from '@axe/domain/tabletop/ground/ground-surface';
 import { rectangleSegments, Segment, segmentsCross } from '@axe/domain/tabletop/los/segments';
 import { terrainBlocksMovement } from '@axe/domain/tabletop/move/blocked-cells';
+import { groundRunAlong } from '@axe/domain/tabletop/move/free-path';
 import { Terrain } from '@axe/domain/tabletop/terrain';
 
 export interface FreeStepGround {
@@ -9,6 +11,8 @@ export interface FreeStepGround {
   gridSize: number;
   terrains: readonly Terrain[];
   others: readonly CellPoint[];
+  /** The raised ground, which a step may not climb or drop more than a cell over a cell of. */
+  raised?: GroundSurface;
 }
 
 export function freeStepClear(from: CellPoint, to: CellPoint, ground: FreeStepGround): boolean {
@@ -27,6 +31,7 @@ export function freeStepClear(from: CellPoint, to: CellPoint, ground: FreeStepGr
     }
     if (inside(to, edges)) return false;
   }
+  if (ground.raised && groundRunAlong(from, to, ground.raised, ground.gridSize) < 1) return false;
   const room = ground.gridSize / 2;
   return !ground.others.some((other) => Math.hypot(other.x - to.x, other.y - to.y) < room);
 }

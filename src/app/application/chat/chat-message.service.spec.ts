@@ -647,6 +647,60 @@ describe('ChatMessageService', () => {
 
       expect(message.text).toBe('2d6+7>=14 抵抗');
       expect(rolled).toEqual(['2d6+7>=14 抵抗']);
+      expect(message.answersTargetNumber).toBe('1');
+    });
+
+    it('fills it in with the number the reader picked instead, in every copy aimed at a target', () => {
+      const rolled: string[] = [];
+      const off = sendMessage$.subscribe((event) => rolled.push(event.messageTarget?.text ?? ''));
+
+      const message = service.sendMessage(
+        chatTab,
+        '2d6+7>={目標値} 抵抗',
+        null,
+        hero.identifier,
+        undefined,
+        0,
+        '',
+        [{ text: '2d6+7>={目標値} 抵抗', object: null }],
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        11
+      );
+      off();
+
+      expect(message.text).toBe('2d6+7>=11 抵抗');
+      expect(rolled).toEqual(['2d6+7>=11 抵抗']);
+      expect(message.answersTargetNumber).toBe('1');
+    });
+
+    it('keeps who a line aimed at them all at once was aimed at, and nothing for a line aimed at each in turn', () => {
+      const other = GameCharacter.create('ミナ', 1, '');
+
+      const atOnce = service.sendMessage(chatTab, '2d6+8 [ヒロ、ミナ]', null, hero.identifier, undefined, 0, '', [
+        { text: '2d6+8', object: hero, together: ['ヒロ', 'ミナ'] },
+        { text: '2d6+8', object: other, together: ['ヒロ', 'ミナ'] },
+      ]);
+      const inTurn = service.sendMessage(
+        chatTab,
+        '2d6+8 [ヒロ]\n2d6+8 [ミナ]',
+        null,
+        hero.identifier,
+        undefined,
+        0,
+        '',
+        [
+          { text: '2d6+8', object: hero },
+          { text: '2d6+8', object: other },
+        ]
+      );
+
+      expect(JSON.parse(atOnce.aimedTogether)).toEqual([hero.identifier, other.identifier]);
+      expect(inTurn.aimedTogether ?? '').toBe('');
     });
 
     it('fills it in for a line said under a name of its own, from a roll by somebody else', () => {
@@ -660,7 +714,9 @@ describe('ChatMessageService', () => {
         timestamp: 1101,
       });
 
-      expect(service.sendAsNamed(chatTab, '2d6>={目標値} 扉の抵抗', null, '扉').text).toBe('2d6>=15 扉の抵抗');
+      const said = service.sendAsNamed(chatTab, '2d6>={目標値} 扉の抵抗', null, '扉');
+      expect(said.text).toBe('2d6>=15 扉の抵抗');
+      expect(said.answersTargetNumber).toBe('1');
     });
 
     it('leaves it as typed where nothing has been rolled to beat', () => {
@@ -675,7 +731,10 @@ describe('ChatMessageService', () => {
       });
       chatTab.addMessage({ from: 'me', sendFrom: other.identifier, name: 'ミナ', text: '2d6', timestamp: 1099 });
 
-      expect(service.sendMessage(chatTab, '2d6>={目標値}', null, other.identifier).text).toBe('2d6>={目標値}');
+      const said = service.sendMessage(chatTab, '2d6>={目標値}', null, other.identifier);
+      expect(said.text).toBe('2d6>={目標値}');
+      expect(said.answersTargetNumber).toBe('');
+      expect(service.sendMessage(chatTab, '2d6+7 攻撃', null, hero.identifier).answersTargetNumber).toBe('');
     });
   });
 

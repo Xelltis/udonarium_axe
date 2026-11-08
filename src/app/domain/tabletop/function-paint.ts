@@ -1,10 +1,12 @@
 import { CellRect, rectCells } from '@axe/domain/tabletop/cell-rectangles';
+import { GroundChunkData } from '@axe/domain/tabletop/ground/ground-chunk-data';
 import {
   asHazardExtraCost,
   asHazardKind,
   DEFAULT_HAZARD_ELEMENT,
   DEFAULT_HAZARD_KIND,
 } from '@axe/domain/tabletop/hazard-presets';
+import { placeableModelOf } from '@axe/domain/tabletop/placeable-models';
 import {
   asMoveCostExtra,
   DEFAULT_MOVE_COST_COLOR,
@@ -23,12 +25,14 @@ import {
 } from '@axe/domain/tabletop/trigger-event';
 import {
   DEFAULT_DIRT,
+  DEFAULT_ICE,
   DEFAULT_LEAVES,
   DEFAULT_SURFACE_CELLS,
   DEFAULT_TURBIDITY,
   dirtOf,
   flowDirectionOf,
   flowSpeedOf,
+  iceOf,
   leavesOf,
   surfaceCellsOf,
   turbidityOf,
@@ -41,7 +45,7 @@ import {
  * editor: a cell closed to walking is closed however it came to be.
  */
 
-export const MAP_FUNCTION_ROLES = ['moveCost', 'hazard', 'terrain', 'mask', 'trigger'] as const;
+export const MAP_FUNCTION_ROLES = ['moveCost', 'hazard', 'terrain', 'object', 'mask', 'trigger'] as const;
 
 export type MapFunctionRole = (typeof MAP_FUNCTION_ROLES)[number];
 
@@ -143,8 +147,53 @@ export interface TerrainPaintSpec {
   slopeSides: string;
   light: TerrainLightSpec;
   images: TerrainFaceImages;
+  /** The identifier of the 3D model held in the room it is drawn as, in place of its faces; empty for none. */
+  model: string;
+  /** How much larger than its box its model is drawn, as the terrain keeps it; empty for its box. */
+  modelScale: string;
+  /** How far its model is turned from the way it was made, as the terrain keeps it; empty for not at all. */
+  modelTurn: string;
+  /** Whether the brush for 3D objects laid it, which a scene painting such objects alone answers for. */
+  paintedObject: boolean;
   /** Null where the block sits square on its cells, which is where the brush put it. */
   placement: BlockPlacement | null;
+}
+
+/** How the 3D objects of a brush are set out over the cells it paints. */
+export const OBJECT_ARRANGEMENTS = ['scatter', 'cell'] as const;
+
+/**
+ * One in the middle of every cell, all turned alike, as furniture, fences and crops stand; or
+ * scattered, a share of the cells taking one each, a little off the middle and turned and sized a
+ * little apart, as trees and rocks stand.
+ */
+export type ObjectArrangement = (typeof OBJECT_ARRANGEMENTS)[number];
+
+/** Everything a brush that sets 3D objects out is: one model, and how it stands wherever it is painted. */
+export interface ObjectPaintSpec {
+  /** A bundled model's name, or the identifier of one held in the room; empty lays nothing. */
+  model: string;
+  /** What each is called on the table. */
+  name: string;
+  arrangement: ObjectArrangement;
+  /** The share of the cells painted that take a scattered one. */
+  density: number;
+  /** How many cells across each stands. */
+  size: number;
+  /** How tall each stands, in cells, for a model held in the room, whose proportions are not known here. */
+  height: number;
+  /** How far a scattered one's size strays either way, as a share of it. */
+  sizeJitter: number;
+  /** How far each is turned, in degrees clockwise. */
+  turn: number;
+  /** Whether each scattered one is turned any way at all, rather than as `turn` says. */
+  turnRandom: boolean;
+  /** Whether a piece walks round each rather than over it. */
+  blocksMove: boolean;
+  /** Whether nobody sees past one; only one that stands in the way can. */
+  blocksSight: boolean;
+  /** What the scattering is drawn from, so that the same cells painted set them out the same way. */
+  seed: number;
 }
 
 export interface TerrainLightSpec {
@@ -283,6 +332,8 @@ export interface HazardPaintSpec {
   flowSpeed: number;
   /** Which way the water flows, in degrees clockwise from the top of the table. Only water reads it. */
   flowDirection: number;
+  /** How much of the water is frozen over, from 0 for open water to 1 for ice. Only water reads it. */
+  ice: number;
   /** What crossing it costs over plain footing, nought laying no move cost at all; null leaves it to the kind. */
   extraCost: number | null;
 }
@@ -292,9 +343,13 @@ export interface FunctionSpec {
   moveCost: MoveCostPaintSpec;
   hazard: HazardPaintSpec;
   terrain: TerrainPaintSpec;
+  object: ObjectPaintSpec;
   mask: MaskPaintSpec;
   trigger: TriggerPaintSpec;
 }
+
+/** The model a brush that sets 3D objects out starts with. */
+const DEFAULT_OBJECT_MODEL = 'tree_oak';
 
 export const NO_FACE_IMAGES: TerrainFaceImages = {
   wall: '',
@@ -335,6 +390,7 @@ export const DEFAULT_FUNCTION_SPEC: FunctionSpec = {
     leaves: DEFAULT_LEAVES,
     flowSpeed: 0,
     flowDirection: 0,
+    ice: DEFAULT_ICE,
     extraCost: null,
   },
   terrain: {
@@ -370,7 +426,25 @@ export const DEFAULT_FUNCTION_SPEC: FunctionSpec = {
       animation: 'none',
     },
     images: { ...NO_FACE_IMAGES },
+    model: '',
+    modelScale: '',
+    modelTurn: '',
+    paintedObject: false,
     placement: null,
+  },
+  object: {
+    model: DEFAULT_OBJECT_MODEL,
+    name: '',
+    arrangement: 'scatter',
+    density: 0.5,
+    size: placeableModelOf(DEFAULT_OBJECT_MODEL)?.size ?? 1,
+    height: 1,
+    sizeJitter: 0.2,
+    turn: 0,
+    turnRandom: true,
+    blocksMove: true,
+    blocksSight: true,
+    seed: 1,
   },
   mask: {
     name: '',
@@ -446,6 +520,21 @@ function textIn(held: Record<string, unknown>, key: string, fallback: string): s
   return typeof held[key] === 'string' ? (held[key] as string) : fallback;
 }
 
+/** Reads how a brush's 3D objects are set out, scattering them for anything unknown. */
+export function asObjectArrangement(value: unknown): ObjectArrangement {
+  return (OBJECT_ARRANGEMENTS as readonly unknown[]).includes(value) ? (value as ObjectArrangement) : 'scatter';
+}
+
+/**
+ * A number read from loose saved data, or the fallback where there is none: nothing written and an
+ * empty text are no number, which reading them as nought would make one.
+ */
+function amountIn(held: Record<string, unknown>, key: string, fallback: number, least: number, most: number): number {
+  const raw = held[key];
+  if (raw === null || raw === undefined || (typeof raw === 'string' && raw.trim() === '')) return fallback;
+  return countIn(held, key, fallback, least, most);
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
@@ -492,6 +581,7 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
   const moveCost = asRecord(held['moveCost']);
   const hazard = asRecord(held['hazard']);
   const terrain = asRecord(held['terrain']);
+  const object = asRecord(held['object']);
   const mask = asRecord(held['mask']);
   const trigger = asRecord(held['trigger']);
   const fallback = DEFAULT_FUNCTION_SPEC;
@@ -507,6 +597,7 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
       leaves: waterLeavesOf(hazard['leaves']),
       flowSpeed: waterFlowSpeedOf(hazard['flowSpeed']),
       flowDirection: waterFlowDirectionOf(hazard['flowDirection']),
+      ice: waterIceOf(hazard['ice']),
       extraCost: asHazardExtraCost(hazard['extraCost']),
     },
     moveCost: {
@@ -538,7 +629,25 @@ export function sanitizeFunctionSpec(value: unknown): FunctionSpec {
       slopeSides: encodeSlopeSides(parseSlopeSides(textIn(terrain, 'slopeSides', fallback.terrain.slopeSides))),
       light: sanitizeLight(terrain['light']),
       images: sanitizeFaceImages(terrain['images']),
+      model: textIn(terrain, 'model', fallback.terrain.model),
+      modelScale: textIn(terrain, 'modelScale', fallback.terrain.modelScale),
+      modelTurn: textIn(terrain, 'modelTurn', fallback.terrain.modelTurn),
+      paintedObject: flagIn(terrain, 'paintedObject', fallback.terrain.paintedObject),
       placement: sanitizePlacement(terrain['placement']),
+    },
+    object: {
+      model: textIn(object, 'model', fallback.object.model),
+      name: textIn(object, 'name', fallback.object.name),
+      arrangement: asObjectArrangement(object['arrangement']),
+      density: amountIn(object, 'density', fallback.object.density, 0.05, 1),
+      size: amountIn(object, 'size', fallback.object.size, 0.1, 20),
+      height: amountIn(object, 'height', fallback.object.height, 0, 20),
+      sizeJitter: amountIn(object, 'sizeJitter', fallback.object.sizeJitter, 0, 0.5),
+      turn: amountIn(object, 'turn', fallback.object.turn, 0, 359),
+      turnRandom: flagIn(object, 'turnRandom', fallback.object.turnRandom),
+      blocksMove: flagIn(object, 'blocksMove', fallback.object.blocksMove),
+      blocksSight: flagIn(object, 'blocksSight', fallback.object.blocksSight),
+      seed: Math.round(amountIn(object, 'seed', fallback.object.seed, 0, 2 ** 31 - 1)),
     },
     mask: {
       name: textIn(mask, 'name', fallback.mask.name),
@@ -642,6 +751,8 @@ export interface AmbiencePaintSpec {
   flowSpeed: number;
   /** Which way water flows, held at the top of the table for every other kind. */
   flowDirection: number;
+  /** How much of the water is frozen over, held at open water for every other kind. */
+  ice: number;
 }
 
 /**
@@ -670,6 +781,11 @@ export function waterLeavesOf(value: unknown): number {
 /** How fast water is painted to flow, in hundredths, as the brush and the table both read it. */
 export function waterFlowSpeedOf(value: unknown): number {
   return Math.round(flowSpeedOf(value) * 100) / 100;
+}
+
+/** How much of the water is painted frozen over, in hundredths, as the brush and the table both read it. */
+export function waterIceOf(value: unknown): number {
+  return Math.round(iceOf(value) * 100) / 100;
 }
 
 /** Which way water is painted to flow, in whole degrees, as the brush and the table both read it. */
@@ -744,6 +860,8 @@ export interface FunctionPaintPlan {
   terrain: BlockChange<TerrainBlock>;
   mask: BlockChange<MaskBlock>;
   trigger: BlockChange<TriggerBlock>;
+  /** The chunks of the raised ground to write, each in place of the one the table keeps there. */
+  ground?: GroundChunkData[];
 }
 
 /**

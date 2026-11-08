@@ -1,321 +1,62 @@
+<!--
+  The block is a box on the screen round where the table's canvas draws it, with its top laid there
+  to be pointed at, the frame that turns it lying round its foot, as a piece's ring lies round its
+  pedestal, and the label of its switch over it. A
+  press elsewhere on the block reaches it through picking. The top of a block locked in place lets
+  the pointer through, as the block lets a press through to a piece behind it, unless it is a door
+  to open or a switch to press.
+-->
+@let id = terrain().identifier;
 <div
-  class="group pointer-events-none absolute box-border select-none [-moz-user-drag:none] [-webkit-user-drag:none] backface-hidden transform-3d"
-  [style.width.px]="width() * gridSize"
-  [style.height.px]="depth() * gridSize"
+  class="group pointer-events-none size-full select-none [-moz-user-drag:none] [-webkit-user-drag:none]"
+  data-hud-box
   appMovable
   [movable.option]="movableOption()"
   [movable.disable]="isLocked()"
   [appSelectable]="terrain()"
   (movable.ondragstart)="onMove()"
   (movable.ondragend)="onMoved()"
+  (pointerdown)="notePress($event)"
+  (click)="onBlockClick($event)"
+  [attr.data-table-passthrough]="isLocked() ? '' : null"
+  [attr.data-switch-host]="pressable() ? '' : null"
 >
   <div
-    class="pointer-events-auto size-full transform-3d"
-    [class.cursor-grab]="!isLocked()"
-    [class.cursor-pointer]="((isDoor() && mayOpenDoor()) || pressable()) && isLocked()"
-    (pointerdown)="notePress($event)"
-    (click)="onBlockClick($event)"
-    [attr.data-table-passthrough]="isLocked() ? '' : null"
-    [attr.data-switch-host]="pressable() ? '' : null"
+    class="pointer-events-none size-full"
     appRotable
     [rotable.option]="rotableOption()"
     (rotable.ondragstart)="onMove()"
     (rotable.ondragend)="onMoved()"
     [rotable.disable]="isLocked()"
   >
-    @if (!onWall() && hasFloor() && isVisibleFloor() && 0 < topFaceImage().url.length) {
-      @if (isDropShadow() && (terreinAltitude() !== 0 || (isSlope() && !hasWall()))) {
-        <div
-          class="chrome-smooth-image-trick absolute size-full transform-[translateZ(0.3px)_scale(0.98)] bg-size-[100%_100%] bg-no-repeat opacity-70 filter-[brightness(0)_blur(1px)] backface-visible"
-          [class.blinking-animation]="!isLocked()"
-          [style.background-image]="'url(' + topFaceImage().url + ')' | safe: 'style'"
-          [style.clip-path]="hexFloorClipPath()"
-          [ngStyle]="hexFloorDimStyle()"
-        ></div>
-      }
+    <div
+      data-part="top"
+      [class.pointer-events-auto]="!isLocked() || (isDoor() && mayOpenDoor()) || pressable()"
+      [class.cursor-grab]="!isLocked()"
+      [class.cursor-pointer]="((isDoor() && mayOpenDoor()) || pressable()) && isLocked()"
+      [appHudPlace]="{ owner: id, part: 'top' }"
+    ></div>
+    @if (!isLocked()) {
+      <turn-frame [owner]="id" [stand]="turnStand()" />
     }
-    <div
-      class="absolute z-1 size-full bg-size-[100%_100%] bg-no-repeat backface-hidden transform-3d"
-      [class.transition-[transform_132ms_cubic-bezier(0.21,0.97,0.75,1.25)]]="height() >= 0.5 && altitude() === 0"
-      [class.transition-[transform_320ms_cubic-bezier(0.32,0.72,0.3,1)]]="isDoor()"
-      [style.transform-origin]="doorOrigin()"
-      [ngStyle]="{
-        transform:
-          (onWall() ? 'rotateY(180deg) ' : '') + 'translateZ(' + altitude() * gridSize + 'px)' + doorTransform(),
-      }"
-    >
-      @if (showsBlankOutline()) {
-        <div
-          class="pointer-events-none absolute top-0 left-0 box-border border-2 border-dashed border-sky-300/70 backface-hidden"
-          data-testid="terrain-blank-outline"
-          [style.width.px]="width() * gridSize"
-          [style.height.px]="depth() * gridSize"
-          [style.transform]="'translateZ(' + (hasWall() ? height() * gridSize : 0) + 'px)'"
-        ></div>
-        <!-- The master is shown where the ground is as well as how high it stands. -->
-        @if (hasWall()) {
-          <div
-            class="pointer-events-none absolute top-0 left-0 box-border border-2 border-dotted border-sky-300/40 backface-hidden"
-            data-testid="terrain-blank-base"
-            [style.width.px]="width() * gridSize"
-            [style.height.px]="depth() * gridSize"
-          ></div>
-        }
-        @for (face of glassFaces(); track $index) {
-          <div
-            class="pointer-events-auto absolute origin-top-left transition-colors group-hover:bg-sky-300/10"
-            data-testid="terrain-glass-face"
-            [ngStyle]="face"
-          ></div>
-        }
-      }
-      @if (switchLabel(); as label) {
-        <div
-          class="pointer-events-none absolute transform-3d"
-          data-testid="terrain-switch-label"
-          [style.left.px]="(width() * gridSize) / 2"
-          [style.top.px]="(depth() * gridSize) / 2"
-          [style.transform]="switchLabelTransform()"
+    @if (switchLabel(); as label) {
+      <div
+        class="pointer-events-none"
+        data-testid="terrain-switch-label"
+        [appHudPlace]="{ owner: id, part: 'top', place: 'above' }"
+      >
+        <span
+          class="bg-ui-elevated text-ui-text rounded-ui shadow-ui-sm block border border-solid px-2 py-0.5 text-[11px]/4 whitespace-nowrap transition-opacity"
+          [class.border-ui-accent]="!switchNotice()"
+          [class.border-ui-danger]="!!switchNotice()"
+          [class.opacity-0]="!guide.shown() && !switchNotice()"
+          [class.group-hover:opacity-100]="!guide.shown() && !switchNotice()"
+          >{{ switchNotice() || label }}</span
         >
-          <span
-            class="bg-ui-elevated text-ui-text rounded-ui shadow-ui-sm absolute bottom-0 left-0 -translate-x-1/2 border border-solid px-2 py-0.5 text-[11px]/4 whitespace-nowrap transition-opacity"
-            [class.border-ui-accent]="!switchNotice()"
-            [class.border-ui-danger]="!!switchNotice()"
-            [class.opacity-0]="!guide.shown() && !switchNotice()"
-            [class.group-hover:opacity-100]="!guide.shown() && !switchNotice()"
-            >{{ switchNotice() || label }}</span
-          >
-        </div>
-      }
-      @if (hasFloor() && isVisibleFloor() && 0 < topFaceImage().url.length) {
-        @if (slopeFaces().length > 0) {
-          @for (face of slopeFaces(); track $index) {
-            <div
-              class="chrome-smooth-image-trick absolute size-full origin-top-left bg-size-[100%_100%] bg-no-repeat"
-              data-testid="terrain-slope-face"
-              [class.blinking-animation]="!isLocked()"
-              [ngStyle]="{
-                'backface-visibility': 'visible',
-                transform: face.transform,
-                'clip-path': face.clipPath,
-                ...hexFloorDimStyle(),
-                ...tileStyle(),
-              }"
-              [style.background-image]="shaded(topFaceImage().url, face.brightness) | safe: 'style'"
-            ></div>
-          }
-        } @else {
-          <div
-            class="chrome-smooth-image-trick absolute size-full bg-size-[100%_100%] bg-no-repeat backface-hidden"
-            data-testid="terrain-top"
-            [class.blinking-animation]="!isLocked()"
-            [ngStyle]="{
-              transform: 'translateZ(' + height() * gridSize + 'px)',
-              ...hexFloorDimStyle(),
-              ...topShade().style,
-              ...(topFog() ?? {}),
-            }"
-            [style.background-image]="topShade().image | safe: 'style'"
-            [style.clip-path]="hexFloorClipPath()"
-          ></div>
-        }
-      }
-      @if (showsBottom() && isVisibleFloor() && 0 < bottomFaceImage().url.length) {
-        <div
-          class="chrome-smooth-image-trick absolute size-full bg-size-[100%_100%] bg-no-repeat backface-hidden"
-          data-testid="terrain-bottom"
-          [class.blinking-animation]="!isLocked()"
-          [ngStyle]="{
-            transform: 'rotateX(180deg)',
-            ...hexFloorDimStyle(),
-            ...bottomShade().style,
-          }"
-          [style.background-image]="bottomShade().image | safe: 'style'"
-          [style.clip-path]="hexFloorClipPath()"
-        ></div>
-      }
-      @if (showsGrid()) {
-        @if (slopeFaces().length > 0) {
-          @for (face of slopeFaces(); track $index) {
-            <div
-              class="pointer-events-none absolute overflow-hidden transform-3d"
-              [ngStyle]="terrainGridFaceStyle(face)"
-            >
-              <canvas
-                class="pointer-events-none absolute origin-center opacity-0 transition-[0.3s_ease-out] backface-hidden"
-                [ngStyle]="terrainGridCanvasStyle()"
-                #gridCanvas
-              ></canvas>
-            </div>
-          }
-        } @else {
-          <div
-            class="pointer-events-none absolute origin-center overflow-hidden transform-3d"
-            [ngStyle]="terrainGridClipStyle()"
-          >
-            <canvas
-              class="pointer-events-none absolute origin-center opacity-0 transition-[0.3s_ease-out] backface-hidden"
-              [ngStyle]="terrainGridCanvasStyle()"
-              #gridCanvas
-            ></canvas>
-          </div>
-        }
-      }
-      @if (hasWall()) {
-        @if (isHex() && 0 < wallImage().url.length) {
-          @for (wall of hexWalls(); track $index; let wallIndex = $index) {
-            @let cut = hexWallCuts()[wallIndex];
-            @if (cut.shown) {
-              <div
-                class="chrome-smooth-image-trick absolute top-0 left-0 origin-top-left bg-size-[100%_100%] bg-no-repeat backface-hidden"
-                [class.blinking-animation]="!isLocked()"
-                [style.background-image]="shaded(wallImage().url, wallShade(wall.brightness)) | safe: 'style'"
-                [style.width.px]="wall.edgeLength"
-                [style.height.px]="height() * gridSize"
-                [style.clip-path]="cut.clipPath"
-                [ngStyle]="{
-                  transform:
-                    'translate(' +
-                    wall.px +
-                    'px, ' +
-                    wall.py +
-                    'px) rotateZ(' +
-                    wall.angle +
-                    'rad) rotateX(-90deg) translateY(-100%)',
-                  ...tileStyle(),
-                }"
-              ></div>
-            }
-          }
-        }
-        @if (!isHex()) {
-          @for (wall of wallSides; track wall.side) {
-            @let cut = wall.cut();
-            @if (cut.shown) {
-              @if (
-                (wall.alongWidth ? isVisibleWallTopBottom() : isVisibleWallLeftRight()) && 0 < wall.image().url.length
-              ) {
-                <div
-                  [class.blinking-animation]="!isLocked()"
-                  [style.clip-path]="cut.clipPath"
-                  class="absolute size-full backface-hidden transform-3d"
-                  [class]="wall.frameClass"
-                  [style.width.px]="(wall.alongWidth ? width() : depth()) * gridSize"
-                  [style.height.px]="height() * gridSize"
-                  [ngStyle]="wall.fog() ?? {}"
-                >
-                  <div
-                    class="chrome-smooth-image-trick absolute inset-0 bg-size-[100%_100%] bg-no-repeat backface-hidden"
-                    [ngStyle]="wall.shade().style"
-                    [style.background-image]="wall.shade().image | safe: 'style'"
-                  ></div>
-                  @if (visionService.active()) {
-                    <div class="pointer-events-none absolute inset-0 overflow-hidden backface-hidden">
-                      @for (pool of wall.lights(); track $index) {
-                        <div
-                          class="pointer-events-none absolute backface-hidden"
-                          [style.background-image]="'url(' + wallImage().url + ')' | safe: 'style'"
-                          [ngStyle]="wallLightStyle(pool, wall.side)"
-                        ></div>
-                      }
-                      @for (sil of wall.silhouettes(); track $index) {
-                        <div
-                          class="pointer-events-none absolute backface-hidden"
-                          [style.background-image]="silhouetteBackground(sil) | safe: 'style'"
-                          [ngStyle]="silhouetteStyle(sil, wall.side)"
-                        ></div>
-                      }
-                    </div>
-                  }
-                </div>
-              }
-            }
-          }
-        }
-      }
-      @if (!isLocked()) {
-        <div
-          class="rotate-grab pointer-events-auto absolute -inset-3.5 -z-1 box-border cursor-default rounded-[14px] border-7 border-solid border-(--ui-panel-border) opacity-0 will-change-[opacity] transform-3d group-hover:opacity-100 group-active:opacity-100"
-          [ngStyle]="pedestalStyle()"
-        ></div>
-        @if (!isHex()) {
-          <div
-            class="rotate-grab pointer-events-auto absolute -top-3.5 -left-3.5 z-1 box-border size-7 transform-[translateZ(0.1px)] cursor-default rounded-[14px_7px_14px_7px] border-2 border-solid border-(--ui-panel-border) bg-(--ui-elevated) p-0 text-[8px] text-(--ui-text-muted) opacity-0 will-change-[opacity] transform-3d group-hover:opacity-100 group-active:opacity-100"
-          >
-            <i class="material-icons">autorenew</i>
-          </div>
-          <div
-            class="rotate-grab pointer-events-auto absolute -bottom-3.5 -left-3.5 z-1 box-border size-7 transform-[translateZ(0.1px)] cursor-default rounded-[7px_14px_7px_14px] border-2 border-solid border-(--ui-panel-border) bg-(--ui-elevated) p-0 text-[8px] text-(--ui-text-muted) opacity-0 will-change-[opacity] transform-3d group-hover:opacity-100 group-active:opacity-100"
-          >
-            <i class="material-icons">autorenew</i>
-          </div>
-          <div
-            class="rotate-grab pointer-events-auto absolute -right-3.5 -bottom-3.5 z-1 box-border size-7 transform-[translateZ(0.1px)] cursor-default rounded-[14px_7px_14px_7px] border-2 border-solid border-(--ui-panel-border) bg-(--ui-elevated) p-0 text-[8px] text-(--ui-text-muted) opacity-0 will-change-[opacity] transform-3d group-hover:opacity-100 group-active:opacity-100"
-          >
-            <i class="material-icons">autorenew</i>
-          </div>
-          <div
-            class="rotate-grab pointer-events-auto absolute -top-3.5 -right-3.5 z-1 box-border size-7 transform-[translateZ(0.1px)] cursor-default rounded-[7px_14px_7px_14px] border-2 border-solid border-(--ui-panel-border) bg-(--ui-elevated) p-0 text-[8px] text-(--ui-text-muted) opacity-0 will-change-[opacity] transform-3d group-hover:opacity-100 group-active:opacity-100"
-          >
-            <i class="material-icons">autorenew</i>
-          </div>
-        }
-        @if (isHex()) {
-          <div
-            class="rotate-grab pointer-events-auto absolute -inset-3.5 -z-1 box-border cursor-default rounded-[14px] border-7 border-solid border-(--ui-panel-border) opacity-0 will-change-[opacity] transform-3d group-hover:opacity-100 group-active:opacity-100"
-            [ngStyle]="pedestalGrabStyle()"
-          >
-            <div
-              class="absolute inset-0 box-border rounded-full border-7 border-solid border-(--ui-panel-border) transform-3d"
-            >
-              <div
-                class="material-icons absolute -top-3.5 left-1/2 -translate-x-1/2 text-[28px]! text-(--ui-text-muted) backface-hidden"
-              >
-                autorenew
-              </div>
-              <div
-                class="material-icons absolute -top-3.5 left-1/2 transform-[translateX(-50%)_rotateY(180deg)] text-[28px]! text-(--ui-text-muted) backface-hidden"
-              >
-                autorenew
-              </div>
-            </div>
-          </div>
-        }
-      }
-    </div>
+      </div>
+    }
   </div>
-  @if (
-    !onWall() &&
-    isAltitudeIndicate() &&
-    !((isSlope() || isWallExist()) && -height() < altitude() && altitude() < 0) &&
-    (terreinAltitude() <= -0.5 || 0.5 <= terreinAltitude())
-  ) {
-    <div
-      class="absolute flex origin-[top_left] items-center [border-left:2px_dashed_blanchedalmond] transform-3d"
-      [style.height.px]="math.abs(terreinAltitude() * gridSize)"
-      [ngStyle]="{
-        transform:
-          'translateX(' +
-          (width() * gridSize) / 2 +
-          'px) translateY(' +
-          (-depth() * gridSize) / 2 +
-          'px) rotateX(-90deg) translateY(' +
-          (terreinAltitude() > 0 ? -(altitude() + (isSlope() || isWallExist() ? 0 : height())) * gridSize : 0) +
-          'px) rotateY(' +
-          viewRotateZ() +
-          'deg)',
-      }"
-    >
-      <div
-        class="absolute pl-0.5 text-[11px] font-extrabold text-[blanchedalmond] [text-shadow:var(--ui-elevated)_0px_0px_3px] backface-hidden transform-3d"
-      >
-        {{ math.abs(terreinAltitude()) }}
-      </div>
-      <div
-        class="absolute transform-[rotateY(-180deg)] pl-0.5 text-[11px] font-extrabold text-[blanchedalmond] [text-shadow:var(--ui-elevated)_0px_0px_3px] backface-hidden transform-3d"
-      >
-        {{ math.abs(terreinAltitude()) }}
-      </div>
-    </div>
+  @if (altitudeGuide(); as floating) {
+    <altitude-guide [owner]="id" [guide]="floating" />
   }
 </div>

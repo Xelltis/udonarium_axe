@@ -1,5 +1,6 @@
 import { NgClass, NgStyle, NgTemplateOutlet } from '@angular/common';
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -23,36 +24,41 @@ import { RolePermissionService } from '@axe/application/permission/role-permissi
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EngagementZoneService } from '@axe/application/tabletop/engagement-zone.service';
 import { FirstPersonService } from '@axe/application/tabletop/first-person.service';
+import { HeldPieceService } from '@axe/application/tabletop/held-piece.service';
 import { MovePlannerService } from '@axe/application/tabletop/move-planner.service';
 import { MoveRangeService } from '@axe/application/tabletop/move-range.service';
 import { PieceLinksService } from '@axe/application/tabletop/piece-links.service';
+import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
 import { PieceTargetService } from '@axe/application/tabletop/piece-target.service';
 import { RideService } from '@axe/application/tabletop/ride.service';
 import { RoomRulesService } from '@axe/application/tabletop/room-rules.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { TriggerFireService } from '@axe/application/tabletop/trigger-fire.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { WaterService } from '@axe/application/tabletop/water.service';
-import { BillboardFacing, facesAlways, NOT_TURNED } from '@axe/application/ui/billboard-frame.service';
 import { BuffViewPreferenceService } from '@axe/application/ui/buff-view-preference.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
-import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { PieceOverlayPreferenceService } from '@axe/application/ui/piece-overlay-preference.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
+import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { SnackbarService } from '@axe/application/ui/snackbar.service';
 import { transientSignal } from '@axe/application/ui/transient-signal';
 import { UiSignalService } from '@axe/application/ui/ui-signal.service';
+import { ViewportService } from '@axe/application/ui/viewport.service';
 import { callResourceChange, resourceChange$ } from '@axe/core/event/domain-events';
 import { getPeerContext } from '@axe/core/network/peer-context-source';
 import { VolumeType } from '@axe/core/storage/audio-output';
 import { imageFileEqual } from '@axe/core/storage/image-file';
 import { ObjectStore } from '@axe/core/sync/object-store';
+import { sameFields } from '@axe/core/util/same-fields';
 import { BUFF_BADGES_PER_ROW, BuffBadge, toBuffBadges } from '@axe/domain/character/buff-badge';
 import { BUFF_VIEW_LABEL_KEYS, type BuffViewMode, nextBuffViewMode } from '@axe/domain/character/buff-view-mode';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { gaugeNumbersOf, isGaugeInverted, PieceGauge, selectPieceGauges } from '@axe/domain/character/piece-gauge';
-import { pieceImageWidthApart } from '@axe/domain/character/piece-image-size';
 import { isResourceElement } from '@axe/domain/character/resource-catalog';
 import {
   diffResourceSnapshots,
@@ -74,11 +80,11 @@ import { collectDataElements } from '@axe/domain/data/data-element-tree';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { Config } from '@axe/domain/peer/config';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
+import { pageOfTablePoint } from '@axe/domain/tabletop/camera/table-camera';
 import { GridSnapStyle } from '@axe/domain/tabletop/game-table';
 import { calcHexFlowerParams, HexFlowerParams } from '@axe/domain/tabletop/hex-flower-geometry';
 import { isFlatTopGrid, isHexGrid } from '@axe/domain/tabletop/hex-geometry';
-import { landingLeanAt } from '@axe/domain/tabletop/move/landing-height';
-import { pieceCentreOffsetPx, pieceCornerOnSquare } from '@axe/domain/tabletop/move/piece-on-grid';
+import { pieceCornerOnSquare } from '@axe/domain/tabletop/move/piece-on-grid';
 import {
   DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS,
   multiAngleNameMotionMode,
@@ -87,47 +93,48 @@ import {
   multiAngleRotationPhase,
 } from '@axe/domain/tabletop/multi-angle';
 import { RideSeat, seatOf } from '@axe/domain/tabletop/ride/ride-rules';
+import { rotationSnapStep, shownAngle } from '@axe/domain/tabletop/rotation-snap';
 import { asTableFacingMark, TableFacingMark } from '@axe/domain/tabletop/table-facing-mark';
 import { isOffTheFloor } from '@axe/domain/tabletop/tabletop-object';
-import { Terrain } from '@axe/domain/tabletop/terrain';
-import { terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
-import { PieceWaterLook, pieceWaterLook } from '@axe/domain/tabletop/water/submersion';
+import { PieceMotionKind } from '@axe/domain/tabletop/world/piece-motions';
 import { BuffBadgeComponent } from '@axe/features/character/buff-badge/buff-badge.component';
 import {
   GameCharacterMenuHost,
   GameCharacterMenuService,
   screenCentreOf,
 } from '@axe/features/character/game-character/game-character-menu.service';
-import { PieceFigureHeightsService } from '@axe/features/character/game-character/piece-figure-heights.service';
 import { PieceRightDrag } from '@axe/features/character/game-character/piece-right-drag';
 import { GameDataElementBuffComponent } from '@axe/features/character/game-data-element-buff/game-data-element-buff.component';
 import { StampComponent } from '@axe/ui/components/stamp/stamp.component';
-import { BillboardDirective } from '@axe/ui/directives/billboard.directive';
+import { KeepTouchDirective } from '@axe/ui/directives/keep-touch.directive';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
 import { MovableDirective } from '@axe/ui/directives/movable.directive';
 import { RotableOption } from '@axe/ui/directives/rotable.directive';
 import { RotableDirective } from '@axe/ui/directives/rotable.directive';
-import { SeeThroughDirective } from '@axe/ui/directives/see-through.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
+import { TextTooltipDirective } from '@axe/ui/directives/text-tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
-import { makeBillboardTransform, makeScreenLiftTransform } from '@axe/ui/tabletop/billboard-transform';
 import { hexPedestalGrabStyle, hexPedestalRingStyle } from '@axe/ui/tabletop/hex-pedestal-style';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { makeMultiAngleCurvedName } from '@axe/ui/tabletop/multi-angle-curved-name';
 import {
   makeMultiAngleBuffOrbit,
   makeMultiAngleResourceGauge,
   MAX_MULTI_ANGLE_RESOURCE_GAUGES,
 } from '@axe/ui/tabletop/multi-angle-orbit-decoration';
-import { pieceImageView } from '@axe/ui/tabletop/piece-image-view';
-import { pieceLabelFacings } from '@axe/ui/tabletop/piece-label-facings';
+import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
-import { translateZCss, Z_OFFSET_TALL_OBJECT_PX } from '@axe/ui/tabletop/z-offset';
 import { TranslocoModule } from '@jsverse/transloco';
 
-const DECOR_SUPERSAMPLE = 3;
+/** How a piece that falls falls on the canvas, by how the page plays it. */
+const FALLS: Readonly<Record<string, PieceMotionKind>> = {
+  dissolve: 'defeat-dissolve',
+  bisect: 'defeat-bisect',
+  flinch: 'defeat-flinch',
+};
+
 const DECOR_BASE_FONT_PX = 10;
 const NAME_BASE_FONT_PX = 15;
-const GAUGE_ROW_HEIGHT_PX = 13;
 const MULTI_ANGLE_RESOURCE_BUFF_DURATION_FACTOR = 1.25;
 
 type PresetSoundKey = Exclude<keyof typeof PresetSound, 'prototype'>;
@@ -154,27 +161,8 @@ const FLOATING_CHANGE_MS = 1300;
 const FLOATING_CHANGE_LIMIT = 6;
 const HIT_FLASH_MS = 420;
 const HEAL_AURA_MS = 760;
-const GAUGE_STACK_GAP_PX = 32;
-const BUFF_STACK_GAP_PX = 40;
-const TARGET_STACK_GAP_PX = 52;
-/** The space between a bubble and the bars and buffs under it. */
-const SPEECH_STACK_GAP_PX = 6;
-/** How much higher a bubble stands over a piece marked as a target, to clear the mark. */
-const TARGET_MARK_HEIGHT_PX = 34;
 /** How large a stamp shows in a bubble, before the labels' supersampling. */
 const SPEECH_STAMP_PX = 56;
-const BUFF_DETAIL_ROW_HEIGHT_PX = 12;
-const BUFF_BADGE_ROW_HEIGHT_PX = 22;
-/** How far over a ridden mount the foot of its riding card stands: where its name stands otherwise. */
-const RIDING_CARD_LIFT_PX = 8;
-/** How far across the table from a ridden mount the foot of its riding card stands, seen from above. */
-const RIDING_CARD_LIFT_2D_PX = 38;
-/** The room each piece in the riding card takes besides its name, bars and buffs: padding and rule. */
-const RIDING_CARD_ENTRY_PX = 8;
-/** How tall one name in the riding card is drawn, for reckoning what stands over it. */
-const RIDING_NAME_HEIGHT_PX = 22;
-/** How far in front of its mount a piece riding it is drawn, so a mount's picture never hides it. */
-const RIDER_IN_FRONT_PX = 3;
 /** The mark each seat is shown with in the riding label. */
 const RIDING_SEAT_ICONS: Readonly<Record<RideSeat, string>> = {
   rider: 'upgrade',
@@ -194,28 +182,26 @@ interface RidingLabel {
   readonly gauges: readonly { readonly gauge: PieceGauge; readonly numbers: string }[];
   readonly badges: readonly BuffBadge[];
 }
-const ROLL_HANDLE_MIN_PX = 20;
-const ROLL_HANDLE_MAX_PX = 56;
-const ROLL_HANDLE_SIZE_RATIO = 0.56;
-const ROLL_HANDLE_GAP_RATIO = 0.25;
-const ROLL_HANDLE_ICON_RATIO = 24 / 28;
-/** How a piece standing in water is drawn on the table. */
-interface PieceInWater extends PieceWaterLook {
-  /** Where the ring on the surface stands over the piece's own ground, or null for a piece sunk over its head. */
-  readonly ripple: string | null;
-}
-
-/** How far over the surface the ring is drawn, so the surface does not swallow it. */
-const WATER_RIPPLE_LIFT_PX = 0.5;
+/** How large the handles that turn and tip a piece are drawn, whatever the size of the piece. */
+const HANDLE_PX = 28;
+const HANDLE_ICON_PX = 24;
+/** How far the handle that tips a piece stands clear of its picture. */
+const ROLL_HANDLE_GAP_PX = 7;
+/** How far the ring that turns a piece reaches past its pedestal, whatever the size of the piece. */
+const TURN_RING_REACH_PX = 14;
+/** Where the knobs stand round the ring, clockwise from the side the piece faces: there, and behind it. */
+const TURN_KNOB_ANGLES = [0, 180] as const;
+/** How many points round the ring are looked at to leave out of it what the piece hides. */
+const TURN_RING_SAMPLES = 48;
 
 @Component({
   selector: 'game-character',
   templateUrl: './game-character.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    KeepTouchDirective,
     BuffBadgeComponent,
-    BillboardDirective,
-    SeeThroughDirective,
+    HudPlaceDirective,
     MovableDirective,
     RotableDirective,
     SelectableDirective,
@@ -225,12 +211,14 @@ const WATER_RIPPLE_LIFT_PX = 0.5;
     NgTemplateOutlet,
     SafePipe,
     StampComponent,
+    TextTooltipDirective,
     TranslocoModule,
   ],
   host: {
     class: 'block',
     '[style.display]': "isHiddenByVision() ? 'none' : null",
     '[style.z-index]': 'stackIndex()',
+    '[attr.data-object-id]': 'gameCharacter()?.identifier ?? null',
     '(dragstart)': 'onDragstart($event)',
     '(contextmenu)': 'onContextMenu($event)',
   },
@@ -243,15 +231,14 @@ export class GameCharacterComponent {
   private readonly pointerDeviceService = inject(PointerDeviceService);
   private readonly objectStore = inject(ObjectStore);
   private readonly selectionSignalService = inject(SelectionSignalService);
+  private readonly rotationGuide = inject(RotationGuideService);
   private readonly uiSignalService = inject(UiSignalService);
   private readonly pieceTarget = inject(PieceTargetService);
-  private readonly mobileLayout = inject(MobileLayoutService);
   private readonly buffViewPreference = inject(BuffViewPreferenceService);
   private readonly overlay = inject(PieceOverlayPreferenceService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly tabletopService = inject(TabletopService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly figureHeights = inject(PieceFigureHeightsService);
   private readonly translateFn = inject(TRANSLATE_FN);
   private readonly moveRangeService = inject(MoveRangeService);
   private readonly triggerFire = inject(TriggerFireService);
@@ -266,7 +253,6 @@ export class GameCharacterComponent {
   private readonly snackbar = inject(SnackbarService);
   private readonly disclosureService = inject(DisclosureService);
   private readonly visionService = inject(VisionService);
-  private readonly water = inject(WaterService);
   private readonly speechBubbles = inject(SpeechBubbleService);
   private readonly renderLite = inject(RenderLiteService);
 
@@ -274,6 +260,289 @@ export class GameCharacterComponent {
     this.uiSignalService.targetChange();
     return this.gameCharacter()?.targeted ?? false;
   });
+
+  private readonly motions = inject(PieceMotionsService);
+  private readonly pieces = inject(TablePiecesService);
+  private readonly tableCamera = inject(TableCameraService);
+  private readonly pick = inject(TablePickService);
+  private readonly heldPiece = inject(HeldPieceService);
+  private readonly viewport = inject(ViewportService);
+  private readonly surfaces = inject(TableSurfaceService);
+  private readonly pedestal = viewChild<ElementRef<HTMLElement>>('pedestal');
+
+  /**
+   * How the handles that tip the piece over are turned over a table drawn on a canvas: on the screen,
+   * about the point the canvas tips the picture over about.
+   */
+  protected readonly rollOption: RotableOption = { turnsOnScreenAbout: () => this.rollPivotOnPage() };
+
+  /** Where on the page the canvas tips the piece's picture over about, or null where it does not. */
+  private rollPivotOnPage(): { x: number; y: number } | null {
+    const character = this.gameCharacter();
+    const scene = this.tableCamera.sceneMatrix();
+    const pivot = character ? this.pieces.rollPivotOf(character) : null;
+    return pivot && scene ? pageOfTablePoint(scene, pivot.x, pivot.y, pivot.z) : null;
+  }
+
+  /**
+   * The handle that tips the piece over, over a table drawn on a canvas: the corner of the picture it
+   * stands against, its top right, and how far off that corner its middle lies, on the screen. It
+   * stands beside the top of the picture, clear of it, so that a press on the picture takes hold of
+   * the piece, and clear of the knobs on the ring round the pedestal below it.
+   */
+  protected readonly rollHandles = computed(() => {
+    const clear = this.rollHandleSizePx() / 2 + this.rollHandleGapPx();
+    return [{ testId: 'roll-grab-head', corner: 1 as const, dx: clear, dy: this.rollHandleSizePx() / 2 }];
+  });
+
+  private readonly turnRotable = viewChild('turnRotable', { read: RotableDirective });
+  private readonly rollRotable = viewChild('rollRotable', { read: RotableDirective });
+
+  /**
+   * Which handle of the piece is held just now: the ring that turns it, the one that tips it, or
+   * none; from the first step of a turn by it until the turn ends, however it ends.
+   */
+  protected readonly turning = computed<'turn' | 'roll' | null>(() => {
+    if (this.turnRotable()?.turning()) return 'turn';
+    if (this.rollRotable()?.turning()) return 'roll';
+    return null;
+  });
+
+  /**
+   * Whether this is the piece pressed on the table as a finger presses and not in hand, which has its
+   * handles out as one the pointer is over does: the piece a finger last pressed, or, where the main
+   * pointer cannot hover and so brings nothing out by passing over a piece, the piece last pressed by
+   * anything, a pen's or a trackpad's press there being taken as a finger's.
+   * Only that piece follows whether it is in hand, which changes with each step of a drag.
+   */
+  protected readonly pressChosen = computed(() => {
+    const id = this.gameCharacter()?.identifier;
+    if (!id) return false;
+    const selection = this.selectionSignalService;
+    const chosen = selection.touchedObject() === id || (!this.viewport.canHover() && selection.pressedObject() === id);
+    return chosen && !this.carried();
+  });
+
+  /**
+   * Whether the handles take a press at all. Where the main pointer cannot hover, as the styles that
+   * bring the handles out on hover ask, nothing brings them out by passing over a piece, so only those
+   * of the piece last pressed do, as no other's are drawn; a tap beside a piece then reaches the
+   * table. Where it can, every piece's do, brought out by it over the piece, and a finger's press on
+   * them is taken as any other.
+   */
+  protected readonly handlesPressable = computed(
+    () => this.viewport.canHover() || this.pressChosen() || this.turning() !== null
+  );
+
+  /** The way the piece faces while it is turned, in whole degrees, as the turn under way reads it out. */
+  protected readonly turnAngle = computed(() => this.rotationGuide.turn()?.angle ?? shownAngle(this.rotate));
+
+  /** The step a held Alt turns the piece by on the table in view. */
+  protected readonly turnSnapStep = computed(() => rotationSnapStep(this.tabletopService.gridType()));
+
+  /**
+   * The ring round the pedestal that turns the piece, in the pedestal's own pixels: where a press
+   * takes hold of it, the pedestal cut out of a hex one, as the rim of a hex pedestal is the
+   * pedestal; the ring drawn, but for what the piece hides of it; and the middles of the knobs on the
+   * side the piece faces and behind it, which turn with it and so tell which way it faces, each with
+   * whether it is shown: a knob behind the picture is hidden by it as the ring is, and one standing
+   * where the handle that tips the piece is drawn gives way to it. Both stay while the piece is turned,
+   * so that the one in hand is never taken away.
+   */
+  protected readonly turnRing = computed(() => {
+    const { grab, middle, radius } = this.turnRingShape();
+    const point = (angle: number, about: number, reach: number) => {
+      const radians = (angle * Math.PI) / 180;
+      return { x: about + reach * Math.sin(radians), y: about - reach * Math.cos(radians) };
+    };
+    const seen = this.turnRingSeen();
+    const clear = this.knobsClearOfRoll();
+    const turning = this.turning() === 'turn';
+    const knobs = TURN_KNOB_ANGLES.map((angle, at) => ({
+      ...point(angle, middle, radius),
+      facing: angle === 0,
+      seen: turning || (seen[Math.round(angle / (360 / TURN_RING_SAMPLES)) % TURN_RING_SAMPLES] && clear[at]),
+    }));
+    return { grab, ring: ringBoxStyle(middle, radius), knobs, arc: ringPathOf(seen, radius), radius };
+  });
+
+  /**
+   * Whether the piece is in hand, from the press on it until it is put down, however that ends: while
+   * it is, nothing round its pedestal is weighed.
+   */
+  private readonly carried = computed(() => {
+    const id = this.gameCharacter()?.identifier;
+    return !!id && this.heldPiece.held()?.identifier === id;
+  });
+
+  /** The piece's picture as it is drawn now, kept as long as it is drawn the same, or null where none is. */
+  private readonly ownPicture = computed(() => {
+    const id = this.gameCharacter()?.identifier;
+    return id ? (this.pieces.sprites().find((sprite) => sprite.id === `${id}#picture`) ?? null) : null;
+  });
+
+  /**
+   * How the piece's picture stands before the eye as it is drawn now, weighed only while the handles
+   * are out and the piece is not being carried: followed as the camera moves and the picture changes.
+   */
+  private readonly pictureSight = computed(() => {
+    const looked =
+      (this.viewport.canHover() && this.hovered() && !this.carried()) ||
+      this.pressChosen() ||
+      this.turning() === 'turn';
+    const picture = looked ? this.ownPicture() : null;
+    if (!picture) return null;
+    this.tableCamera.version();
+    return this.pick.pictureSightOf(picture);
+  });
+
+  /** The middle of the pedestal on the face it stands on, at the height the ring round it is drawn at. */
+  private readonly ringMiddle = computed(() => {
+    const char = this.gameCharacter();
+    if (!char) return null;
+    this.objectChange.versionOf(char.identifier)();
+    const middle = (this.size() * this.gridSize) / 2;
+    const foot = this.pieces.footOf(char);
+    return { ...foot, x: foot.x + middle, y: foot.y + middle };
+  });
+
+  /**
+   * Whether each knob round the ring stands clear, on the screen, of the handle that tips the piece,
+   * beside the top of its picture.
+   */
+  private readonly knobsClearOfRoll = computed<readonly boolean[]>(() => {
+    if (this.turning() === 'turn' || this.mode2dEnabled()) return TURN_KNOB_ANGLES.map(() => true);
+    const sight = this.pictureSight();
+    const middle = this.ringMiddle();
+    if (!sight || !middle || this.imageFile().url.length < 1) {
+      return TURN_KNOB_ANGLES.map(() => true);
+    }
+    const corner = sight.cornerOnPage(1);
+    const [handle] = this.rollHandles();
+    const roll = { x: corner.x + handle!.dx, y: corner.y + handle!.dy };
+    const radius = this.turnRingShape().radius;
+    return TURN_KNOB_ANGLES.map((angle) => {
+      const radians = ((this.rotate + angle) * Math.PI) / 180;
+      const x = middle.x + radius * Math.sin(radians);
+      const y = middle.y - radius * Math.cos(radians);
+      const page = this.surfaces.pageOf(middle.surface, x, y, middle.height);
+      return !page || Math.hypot(page.x - roll.x, page.y - roll.y) >= this.rollHandleSizePx();
+    });
+  });
+
+  /**
+   * Whether the pointer is over the piece, which brings its handles out where the main pointer can
+   * hover; where it cannot, a finger's or a pen's passing over a piece says so too, and brings
+   * nothing out, so a reader weighs it only where the viewport says the main pointer can hover.
+   */
+  protected readonly hovered = signal(false);
+
+  /**
+   * Which of the points round the ring, clockwise from the side the piece faces, the eye sees: those
+   * the piece's own picture stands in front of are left out, so that the ring is drawn round the
+   * piece and behind it rather than over it.
+   */
+  protected readonly turnRingSeen = computed<readonly boolean[]>(() => {
+    const sight = this.pictureSight();
+    const middle = this.ringMiddle();
+    const radius = this.turnRingShape().radius;
+    return Array.from({ length: TURN_RING_SAMPLES }, (_, at) => {
+      if (!sight || !middle) return true;
+      const angle = ((this.rotate + (at * 360) / TURN_RING_SAMPLES) * Math.PI) / 180;
+      const x = middle.x + radius * Math.sin(angle);
+      const y = middle.y - radius * Math.cos(angle);
+      return !sight.hides(middle.surface, x, y, middle.height);
+    });
+  });
+
+  /** Where the ring round the pedestal lies, in the pedestal's own pixels: a hex one's round the hex. */
+  private readonly turnRingShape = computed(() => {
+    const width = this.size() * this.gridSize;
+    const hex = this.pedestalHexParams();
+    const grab = hex
+      ? hexPedestalGrabStyle(hex, { reachPx: TURN_RING_REACH_PX, pedestalCutOut: true })
+      : ringBoxStyle(width / 2, width / 2 + TURN_RING_REACH_PX);
+    return { grab, middle: hex ? hex.L / 2 : width / 2, radius: parseFloat(grab['width']) / 2 };
+  });
+
+  /**
+   * The marks round the ring at every step a held Alt turns the piece to, the table's own directions
+   * that stay put as the ring turns with the piece, on what the eye sees of the ring, in its own
+   * pixels.
+   */
+  protected readonly turnTicks = computed(() => {
+    const radius = this.turnRing().radius;
+    const seen = this.turnRingSeen();
+    const step = this.turnSnapStep();
+    const marks: { x: number; y: number }[] = [];
+    for (let table = 0; table < 360; table += step) {
+      const angle = (((table - this.rotate) % 360) + 360) % 360;
+      if (!seen[Math.round(angle / (360 / TURN_RING_SAMPLES)) % TURN_RING_SAMPLES]) continue;
+      const radians = (angle * Math.PI) / 180;
+      marks.push({ x: radius + radius * Math.sin(radians), y: radius - radius * Math.cos(radians) });
+    }
+    return marks;
+  });
+
+  /**
+   * How far the piece leans, read out while it is tipped: in degrees either way of upright, and a
+   * wedge from upright to it round a dial 20 across, with the point it reaches.
+   */
+  protected readonly rollGauge = computed(() => {
+    const degrees = Math.round(((((this.rollSignal() % 360) + 540) % 360) - 180) * 10) / 10;
+    const radians = (degrees * Math.PI) / 180;
+    const tip = { x: 10 + 7.5 * Math.sin(radians), y: 10 - 7.5 * Math.cos(radians) };
+    const sweep = degrees >= 0 ? 1 : 0;
+    const wedge = degrees === 0 ? '' : `M10 10 L10 2.5 A7.5 7.5 0 0 ${sweep} ${tip.x} ${tip.y} Z`;
+    return { degrees: Math.round(degrees), wedge, tip };
+  });
+
+  /** Stands the piece upright again, as a double click on the handle that tips it asks. */
+  protected standUpright(event: MouseEvent): void {
+    event.stopPropagation();
+    if (this.canHandle()) this.roll = 0;
+  }
+
+  /** Whether this seat may turn and tip pieces, as one only watching may not, and so is shown no handles for it. */
+  protected readonly canHandle = computed(() => this.rolePermission.canEditTabletop());
+
+  /**
+   * Whether the table's canvas draws the piece, from its picture and a picture of its pedestal taken
+   * here; the screen over the canvas then holds only the piece's labels and handles.
+   */
+  readonly drawnOnCanvas = computed(() => !!this.gameCharacter() && !this.isHiddenByVision());
+
+  /** The part of the piece its labels hang over on the screen over a canvas: its picture, or its pedestal where it has none. */
+  protected readonly labelledPart = computed(() => (this.imageFile().url.length > 0 ? 'picture' : 'pedestal'));
+  /** The middle of the piece's pedestal over a canvas, which its labels round it, seen from above, circle. */
+  protected readonly pedestalMiddle = computed(() => {
+    const ring = this.ringMiddle();
+    return ring ? { ...ring, height: ring.height + this.altitude() * this.gridSize } : undefined;
+  });
+
+  /**
+   * The guide down from a piece raised off the face it stands on, or up to one sunk under it, over a
+   * canvas: from the height its picture floats at to the face, with what is written at its ends and
+   * halfway. Nothing for a piece within half a cell of the face, or one set not to show it.
+   */
+  protected readonly altitudeGuide = computed(() => {
+    const char = this.gameCharacter();
+    const lifted = this.pedestalMiddle();
+    const altitude = this.altitude();
+    if (!char || !lifted || !char.isAltitudeIndicate || Math.abs(altitude) < 0.5) return null;
+    const ground = { ...lifted, height: lifted.height - altitude * this.gridSize };
+    return {
+      lifted,
+      ground,
+      middle: { ...lifted, height: (lifted.height + ground.height) / 2 },
+      altitude: Math.abs(altitude),
+    };
+  });
+
+  /** The labels' sizes on the screen over a canvas, which draws them at the size the piece is drawn at. */
+  protected readonly hudDecorFontSizePx = DECOR_BASE_FONT_PX;
+  protected readonly hudNameFontSizePx = NAME_BASE_FONT_PX;
+  protected readonly hudSpeechStampPx = SPEECH_STAMP_PX;
 
   readonly isSharedView = computed(() => {
     const char = this.gameCharacter();
@@ -306,14 +575,6 @@ export class GameCharacterComponent {
       untracked(() => this.showResourceChanges(changes));
       callResourceChange({ characterIdentifier: character.identifier, changes });
     });
-
-    effect(() => {
-      const identifier = this.gameCharacter()?.identifier ?? '';
-      if (this.figureIdentifier !== identifier) this.figureHeights.forget(this.figureIdentifier);
-      this.figureIdentifier = identifier;
-      if (identifier !== '') this.figureHeights.set(identifier, this.figureHeightPx());
-    });
-    this.destroyRef.onDestroy(() => this.figureHeights.forget(this.figureIdentifier));
 
     // What another end changed is drawn on word from it; what this end changed is already drawn.
     resourceChange$.subscribe((event) => {
@@ -348,15 +609,74 @@ export class GameCharacterComponent {
       }, 1010);
     });
 
+    pictureForCanvas({
+      identifier: () => this.gameCharacter()?.identifier ?? '',
+      element: () => this.pedestal()?.nativeElement,
+      pictured: () => this.drawnOnCanvas(),
+      follows: () => {
+        this.size();
+        this.isTargeted();
+        this.isSharedView();
+        this.pedestalStyleShown();
+        this.pedestalOuterStyle();
+        this.showFacingArrow();
+        this.facingArrowSizePx();
+        this.facingArrowOffsetPx();
+      },
+      region: (element) => this.pedestalRegion(element),
+    });
     setupMovableRotableForPiece(this, {
       target: this.gameCharacter,
       collideLayers: ['terrain'],
-      transformCssOffset: translateZCss(Z_OFFSET_TALL_OBJECT_PX),
       snapStyle: (char) => (char.size % 1 !== 0 ? GridSnapStyle.VERTEX : undefined),
       snapToSquare: (char, at) => pieceCornerOnSquare(this.tabletopService.currentTable, char, at),
+      footprint: () => ({ width: this.size() * this.gridSize, height: this.size() * this.gridSize }),
+    });
+    effect(() => {
+      const char = this.gameCharacter();
+      if (!char) return;
+      const turning =
+        this.drawnOnCanvas() && this.multiAngleNameOrbitEnabled()
+          ? {
+              mode: multiAnglePieceMotionMode(this.tabletopService.display().multiAngleMotionMode),
+              revolutionSeconds: this.multiAnglePieceRevolutionSeconds(),
+              pauseSeconds: this.tabletopService.display().multiAnglePauseSeconds,
+              phase: this.multiAnglePiecePhase(),
+            }
+          : null;
+      untracked(() => this.motions.turnOnItsOwn(char.identifier, turning));
+    });
+    afterNextRender(() => {
+      const char = this.gameCharacter();
+      if (char && this.drawnOnCanvas()) this.motions.play(char.identifier, 'bounce-in');
+    });
+    let felling: string | null = null;
+    effect(() => {
+      const reaction = this.defeatReaction();
+      const char = this.gameCharacter();
+      untracked(() => {
+        if (felling) this.motions.stop(felling);
+        felling = null;
+        const falls = FALLS[reaction];
+        if (!char || !this.drawnOnCanvas() || !falls) return;
+        this.motions.play(char.identifier, falls, { holds: true });
+        felling = char.identifier;
+      });
+    });
+    effect(() => {
+      if (this.hitFlash() !== 'damage' || this.defeatReaction()) return;
+      const char = this.gameCharacter();
+      untracked(() => {
+        if (char && this.drawnOnCanvas()) this.motions.play(char.identifier, 'hit-shake');
+      });
     });
 
     this.destroyRef.onDestroy(() => {
+      const char = this.gameCharacter();
+      if (char) {
+        this.motions.turnOnItsOwn(char.identifier, null);
+        this.motions.stop(char.identifier);
+      }
       clearTimeout(this.highlightTimer);
       clearTimeout(this.unhighlightTimer);
       this.rightDrag.dispose();
@@ -502,59 +822,9 @@ export class GameCharacterComponent {
     { equal: sameRidingLabels }
   );
 
-  /** How tall the riding card over this mount is reckoned to stand, nothing where nobody rides it. */
-  private readonly ridingCardHeightEstimate = computed(() =>
-    this.ridingCard().reduce(
-      (sum, label) =>
-        sum +
-        RIDING_CARD_ENTRY_PX +
-        (label.name ? RIDING_NAME_HEIGHT_PX : 0) +
-        label.gauges.length * GAUGE_ROW_HEIGHT_PX +
-        Math.ceil(label.badges.length / BUFF_BADGES_PER_ROW) * BUFF_BADGE_ROW_HEIGHT_PX * this.buffIconScale(),
-      0
-    )
-  );
-
-  /** The piece whose picture's height this one last gave out. */
-  private figureIdentifier = '';
-
-  /** How tall the piece's picture stands over its base, where its labels hang from. */
-  private readonly figureHeightPx = computed(
-    () => this.imageView.boxHeightPx() ?? Math.max(this.pieceImageHeightEstimate(), this.size() * this.gridSize)
-  );
-
-  /**
-   * How much higher than its own picture the riding card stands over a mount: clear of the pictures
-   * of those riding it, which stand on the mount and may reach over its own.
-   */
-  private readonly ridingCardRise = computed(() => {
-    const char = this.gameCharacter();
-    if (!char || this.ridersAboard() < 1) return 0;
-    const own = this.figureHeightPx();
-    let top = own;
-    for (const rider of this.ride.aboard(char)) {
-      const height = this.figureHeights.heightOf(rider.identifier);
-      if (height !== null) top = Math.max(top, rider.posZ - char.posZ + height);
-    }
-    return top - own;
-  });
-
   /** Whether the mount's own labels are drawn in its riding card rather than over it. */
   protected readonly labelsInRidingCard = computed(
     () => this.ridingCard().length > 0 && !this.multiAngleNameOrbitEnabled()
-  );
-
-  readonly ridingOrbitFacing = computed<BillboardFacing>(() => this.labels.stand(this.ridingOrbit()));
-
-  private ridingOrbit(): BillboardFacing {
-    if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize - 17)}px)`);
-    return this.labels.orbit(RIDING_CARD_LIFT_PX + this.ridingCardRise(), RIDING_CARD_LIFT_2D_PX);
-  }
-
-  readonly ridingStackFacing = computed<BillboardFacing>(() =>
-    this.labelStackFacing(
-      this.isPoster() ? NOT_TURNED : this.billboardFacing(RIDING_CARD_LIFT_PX + this.ridingCardRise())
-    )
   );
 
   /** How much larger a name stands in the riding card than the bars beside it, as on the piece's own label. */
@@ -586,55 +856,6 @@ export class GameCharacterComponent {
     const char = this.gameCharacter();
     this.objectChange.versionOf(char?.identifier ?? '')();
     return char?.altitude ?? 0;
-  });
-
-  /**
-   * How the ground under the piece leans, which its pedestal and the picture lying on it take.
-   *
-   * The piece itself stands upright on it, as a figure does on a hillside; only what is lying
-   * on the ground follows the ground. Nothing leans on a table looked at from straight above,
-   * where a lean would only squash what it turned. The blocks it could be standing on are the
-   * ones it is over, so a change to one of those leans it again.
-   */
-  readonly groundLean = computed(() => {
-    const char = this.gameCharacter();
-    if (!char || this.tabletopService.mode2d()) return '';
-    this.objectChange.versionOf(char.identifier)();
-    this.objectChange.collectionOf(Terrain.aliasName)();
-    const table = this.tabletopService.currentTable;
-    const grid = table.gridSize;
-    const middle = pieceCentreOffsetPx(char, grid);
-    const x = char.location.x + middle;
-    const y = char.location.y + middle;
-    const standingOn = table.terrains.filter((terrain) => {
-      const box = terrainBoxOf(terrain, grid);
-      return box.minX <= x && x <= box.maxX && box.minY <= y && y <= box.maxY;
-    });
-    for (const terrain of standingOn) this.objectChange.versionOf(terrain.identifier)();
-    const lean = landingLeanAt(standingOn, grid, x, y, table.gridType);
-    if (!lean) return '';
-    return `rotateY(${-Math.atan(lean.eastward).toFixed(4)}rad) rotateX(${Math.atan(lean.southward).toFixed(4)}rad)`;
-  });
-  /**
-   * How the piece stands in water, as drawn on its picture, or null where it is dry.
-   *
-   * The part of the picture under the surface shows through the water and takes its colour,
-   * and a ring spreads on the surface where the piece breaks it. A piece sunk over its head
-   * breaks no surface and gets no ring.
-   */
-  protected readonly inWater = computed<PieceInWater | null>(() => {
-    const char = this.gameCharacter();
-    if (!char || this.isPoster()) return null;
-    this.objectChange.versionOf(char.identifier)();
-    const grid = this.gridSize;
-    const middle = pieceCentreOffsetPx(char, grid);
-    const water = this.water.waterAt(char.location.x + middle, char.location.y + middle);
-    if (!water) return null;
-    const pictureHeight = this.imageView.fitsInCell() ? this.size() * grid : this.pieceImageHeightEstimate();
-    const look = pieceWaterLook(water, char.posZ + this.altitude() * grid, pictureHeight, grid);
-    if (!look) return null;
-    const rise = water.surfacePx - char.posZ - Z_OFFSET_TALL_OBJECT_PX + WATER_RIPPLE_LIFT_PX;
-    return { ...look, ripple: look.share < 1 ? `translateZ(${Math.round(rise * 100) / 100}px)` : null };
   });
 
   /** Sets the piece's height above the table in grid cells; does nothing while no character is bound. */
@@ -682,55 +903,9 @@ export class GameCharacterComponent {
     this.objectChange.versionOf(char.identifier)();
     return char.roll;
   });
-  readonly komaImageHeightSignal = computed(() => {
-    const char = this.gameCharacter();
-    if (!char) return 0;
-    this.objectChange.versionOf(char.identifier)();
-    return char.komaImageHeight;
-  });
-  readonly specifyKomaImageFlag = computed(() => {
-    const char = this.gameCharacter();
-    if (!char) return false;
-    this.objectChange.versionOf(char.identifier)();
-    return char.specifyKomaImageFlag;
-  });
-  /** The width the picture was given apart from its height, or null where it keeps its own proportions. */
-  readonly komaImageWidthApart = computed(() => {
-    const char = this.gameCharacter();
-    if (!char) return null;
-    this.objectChange.versionOf(char.identifier)();
-    return char.specifyKomaImageFlag ? pieceImageWidthApart(char.komaImageWidth) : null;
-  });
-  /** Whether the piece casts a drop shadow under its picture. */
-  get isDropShadow(): boolean {
-    const char = this.gameCharacter();
-    return char?.isDropShadow ?? false;
-  }
-  set isDropShadow(isDropShadow: boolean) {
-    const char = this.gameCharacter();
-    if (char) char.isDropShadow = isDropShadow;
-  }
-  /** Whether the piece shows its elevation label while it is raised or lowered by half a cell or more. */
-  get isAltitudeIndicate(): boolean {
-    const char = this.gameCharacter();
-    return char?.isAltitudeIndicate ?? false;
-  }
-  set isAltitudeIndicate(isAltitudeIndicate: boolean) {
-    const char = this.gameCharacter();
-    if (char) char.isAltitudeIndicate = isAltitudeIndicate;
-  }
-
-  protected readonly entryBounce = signal(true);
-
-  protected onEntryBounceEnd(event: AnimationEvent): void {
-    if (event.animationName !== 'bounceIn') return;
-    this.entryBounce.set(false);
-  }
-
   protected readonly buffViewMode = linkedSignal<BuffViewMode>(() => this.buffViewPreference.mode());
   /** How large this reader has the buff icons drawn, as a share of their usual size. */
   protected readonly buffIconScale = computed(() => this.buffViewPreference.iconScale() / 100);
-  protected readonly foldingBuff = computed(() => this.buffViewMode() !== 'detail');
   protected readonly buffViewLabelKey = computed(() => BUFF_VIEW_LABEL_KEYS[this.buffViewMode()]);
 
   protected cycleBuffView(event: MouseEvent): void {
@@ -745,143 +920,16 @@ export class GameCharacterComponent {
   get gridSize(): number {
     return this.tabletopService.gridSize();
   }
-  math = Math;
+  /** How large the handles are drawn: one size for every piece, so a big one's are not in the way and a small one's are not lost. */
+  readonly rollHandleSizePx = computed(() => HANDLE_PX);
 
-  viewRotateX = 50;
-  readonly viewRotateZ = this.uiSignalService.tableViewRotationZ;
+  readonly rollHandleIconSizePx = computed(() => HANDLE_ICON_PX);
 
-  readonly rotateSignal = computed(() => {
-    const char = this.gameCharacter();
-    if (!char) return 0;
-    this.objectChange.versionOf(char.identifier)();
-    return char.rotate;
-  });
-
-  readonly nameFacing = computed<BillboardFacing>(() => (this.isPoster() ? NOT_TURNED : this.billboardFacing(30)));
-
-  readonly buffFacing = computed<BillboardFacing>(() =>
-    this.isPoster() ? NOT_TURNED : this.billboardFacing(BUFF_STACK_GAP_PX + this.gaugePanelHeightEstimate())
-  );
-
-  readonly imageFacing = computed<BillboardFacing>(() =>
-    this.isPoster() ? NOT_TURNED : this.billboardFacing(0, this.imageTurnsWithPiece())
-  );
-
-  readonly imageBillboardEnabled = computed(() => {
-    if (this.isPoster()) return true;
-    return this.tabletopService.imageBillboard() || this.tabletopService.mode2d();
-  });
-
-  readonly multiAnglePiecePedestalRotation = computed(() => {
-    const orbit = this.multiAngleNameOrbitEnabled() ? 'rotateZ(var(--multi-angle-piece-angle, 0deg))' : '';
-    const lean = this.groundLean();
-    return lean.length > 0 ? `${lean} ${orbit}`.trimEnd() : orbit;
-  });
-
-  readonly multiAnglePieceImageRotation = computed(() =>
-    this.multiAngleNameOrbitEnabled() ? 'rotateZ(var(--multi-angle-piece-angle, 0deg))' : ''
-  );
-
-  /**
-   * How the picture faces the reader. A piece riding a mount is drawn a little in front of it, as the
-   * two stand in one place and the mount's picture would otherwise hide the rider's.
-   */
-  private readonly pieceImageFacing = computed<BillboardFacing>(() => {
-    const billboard = this.imageFacing();
-    const spin = this.multiAnglePieceImageRotation();
-    const inFront = this.ridingMount() ? `translateZ(${RIDER_IN_FRONT_PX}px)` : '';
-    return (rotation) => [billboard(rotation), spin, inFront].filter((part) => part.length > 0).join(' ');
-  });
-
-  /**
-   * Whether a piece is kept inside its cell, which the room answers for everyone.
-   *
-   * Only while the table is looked at from above: standing along the table, a piece is meant
-   * to rise out of its cell, and holding it down would leave nothing but a tile.
-   */
-  readonly fitsImageInCell = computed(() => {
-    if (!this.tabletopService.mode2d()) return false;
-    const table = this.tabletopService.currentTable;
-    this.objectChange.versionOf(table.identifier)();
-    this.objectChange.versionOf('Config')();
-    return this.roomRules.rulesFor(table).pieceImageInCell;
-  });
-
-  readonly imageView = pieceImageView({
-    imageUrl: computed(() => this.imageFile().url),
-    isPoster: this.isPoster,
-    sizePx: computed(() => this.size() * this.gridSize),
-    specifiedHeightPx: computed(() =>
-      this.specifyKomaImageFlag() && !this.fitsImageInCell() ? this.komaImageHeightSignal() : null
-    ),
-    specifiedWidthPx: computed(() => (this.fitsImageInCell() ? null : this.komaImageWidthApart())),
-    billboardEnabled: this.imageBillboardEnabled,
-    billboardFacing: this.pieceImageFacing,
-    squarePoster: true,
-    fitInCell: this.fitsImageInCell,
-  });
-
-  private readonly pieceCenterShift = computed(
-    () => `translateX(-50%) translateX(${(this.size() * this.gridSize) / 2}px)`
-  );
-
-  readonly rollHandleSizePx = computed(() => {
-    const scaled = this.size() * this.gridSize * ROLL_HANDLE_SIZE_RATIO;
-    return Math.round(Math.min(ROLL_HANDLE_MAX_PX, Math.max(ROLL_HANDLE_MIN_PX, scaled)));
-  });
-
-  readonly rollHandleIconSizePx = computed(() => Math.round(this.rollHandleSizePx() * ROLL_HANDLE_ICON_RATIO));
-
-  private readonly rollHandleGapPx = computed(() => Math.round(this.rollHandleSizePx() * ROLL_HANDLE_GAP_RATIO));
-
-  /**
-   * How wide the picture stands: as wide as the ground, unless its height was set apart from it, when
-   * it is as wide as that height makes it or as the width given with it.
-   */
-  private readonly pictureWidthPx = computed(() => {
-    const ground = this.size() * this.gridSize;
-    if (!this.specifyKomaImageFlag() || this.imageView.fitsInCell()) return ground;
-    const apart = this.komaImageWidthApart();
-    if (apart !== null) return apart;
-    const natural = this.imageView.naturalSize();
-    return natural ? (this.komaImageHeightSignal() * natural.width) / natural.height : ground;
-  });
-
-  /**
-   * Whether the handles that tip the piece over stand either side of the picture rather than at its
-   * head and feet.
-   *
-   * On a phone they stay out for good, there being no hover to wait for, and the one at the head
-   * sat over the face. Beside the picture, halfway up, they keep clear of it and of the name and
-   * bars above it.
-   */
-  readonly rollHandlesBeside = computed(() => this.mobileLayout.isActive());
-
-  /** Where the handle at the head stands: inside the top of the picture, or off to its right. */
-  readonly rollHandleHeadTransform = computed(() =>
-    this.rollHandlesBeside() ? this.rollHandleBeside(1) : this.pieceCenterShift()
-  );
-
-  /** Where the handle at the feet stands: clear below the picture, or off to its left. */
-  readonly rollHandleFootTransform = computed(() =>
-    this.rollHandlesBeside()
-      ? this.rollHandleBeside(-1)
-      : `${this.pieceCenterShift()} translateY(100%) translateY(${this.rollHandleGapPx()}px)`
-  );
-
-  private rollHandleBeside(side: 1 | -1): string {
-    const aside = this.pictureWidthPx() / 2 + this.rollHandleSizePx() / 2 + this.rollHandleGapPx();
-    return `${this.pieceCenterShift()} translateX(${side * aside}px) translateY(-50%)`;
-  }
+  private readonly rollHandleGapPx = computed(() => ROLL_HANDLE_GAP_PX);
 
   readonly mode2dEnabled = computed(() => {
     if (this.isPoster()) return true;
     return this.tabletopService.mode2d();
-  });
-
-  private readonly labels = pieceLabelFacings({
-    mode2d: () => this.mode2dEnabled(),
-    widthPx: () => this.size() * this.gridSize,
   });
 
   /** What the room asks of a piece that has to show which way it faces. */
@@ -907,9 +955,6 @@ export class GameCharacterComponent {
     return !this.mode2dEnabled() || this.facingMark() !== 'none';
   });
 
-  /** The picture itself turns with the piece, rather than staying square to the reader. */
-  readonly imageTurnsWithPiece = computed(() => this.mode2dEnabled() && this.facingMark() === 'turn');
-
   readonly showFacingArrow = computed(() => !this.isPoster() && this.facingMark() === 'arrow');
 
   /**
@@ -920,18 +965,33 @@ export class GameCharacterComponent {
    */
   readonly facingArrowSizePx = computed(() => Math.max(16, Math.round(this.gridSize * 0.44)));
 
+  /**
+   * The part of the pedestal the canvas is handed a picture of: the cell, above it the mark of which
+   * way the piece faces where one is shown, which stands half out past the cell's edge, and on a hex
+   * grid the whole outline of the cells the piece stands on, which reaches past the cell's box for a
+   * piece of more than one cell.
+   */
+  private pedestalRegion(element: HTMLElement) {
+    let left = 0;
+    let top = this.showFacingArrow() ? -(this.facingArrowSizePx() / 2 + this.facingArrowOffsetPx()) : 0;
+    let right = element.offsetWidth;
+    let bottom = element.offsetHeight;
+    const hex = this.pedestalHexParams();
+    if (hex) {
+      left = Math.min(left, Math.floor(hex.bbox.minX + hex.L / 2));
+      top = Math.min(top, Math.floor(hex.bbox.minY + hex.L / 2));
+      right = Math.max(right, Math.ceil(hex.bbox.maxX + hex.L / 2));
+      bottom = Math.max(bottom, Math.ceil(hex.bbox.maxY + hex.L / 2));
+    }
+    return { left, top, width: right - left, height: bottom - top };
+  }
+
   readonly facingArrowOffsetPx = computed(() => {
     const baseOffset = Math.round(this.gridSize * 0.06);
     if (!this.multiAngleResourceBuffOrbitEnabled()) return baseOffset;
     const gauge = this.multiAngleResourceGaugeLayout();
     return gauge.segments.length > 0 ? baseOffset + gauge.strokeWidth : baseOffset;
   });
-
-  /** What a stack of labels above a piece is turned by, the billboard and the scale it is drawn at. */
-  private labelStackFacing(billboard: BillboardFacing): BillboardFacing {
-    const drawnAt = ` ${this.decorScale} translateX(-50%)`;
-    return (rotation) => billboard(rotation) + drawnAt;
-  }
 
   /** The resource bars drawn over the piece, none while this seat has them switched off. */
   readonly pieceGauges = computed<PieceGauge[]>(
@@ -1000,10 +1060,6 @@ export class GameCharacterComponent {
 
   readonly orbitPieceGauges = computed(() => this.pieceGauges().slice(0, MAX_MULTI_ANGLE_RESOURCE_GAUGES));
 
-  protected readonly decorFontSizePx = DECOR_BASE_FONT_PX * DECOR_SUPERSAMPLE;
-  protected readonly nameFontSizePx = NAME_BASE_FONT_PX * DECOR_SUPERSAMPLE;
-  private readonly decorScale = `scale(${(1 / DECOR_SUPERSAMPLE).toFixed(6)})`;
-
   private readonly resourceSnapshot = computed<Map<string, ResourceSnapshot>>(() => {
     const snapshot = new Map<string, ResourceSnapshot>();
     const elements = this.followedTree(this.gameCharacter()?.detailDataElement ?? null);
@@ -1038,49 +1094,6 @@ export class GameCharacterComponent {
   private previousResources: Map<string, ResourceSnapshot> | null = null;
   private floatingKey = 0;
   private readonly floatingTimers = new Set<ReturnType<typeof setTimeout>>();
-
-  readonly gaugeStackFacing = computed<BillboardFacing>(() => this.labelStackFacing(this.gaugeFacing()));
-
-  readonly buffStackFacing = computed<BillboardFacing>(() => this.labelStackFacing(this.buffFacing()));
-
-  readonly nameStackFacing = computed<BillboardFacing>(() => this.labelStackFacing(this.nameFacing()));
-
-  readonly floatStackFacing = computed<BillboardFacing>(() =>
-    this.labelStackFacing(this.isPoster() ? NOT_TURNED : this.billboardFacing(56))
-  );
-
-  readonly floatOrbitFacing = computed<BillboardFacing>(() => this.labels.stand(this.floatOrbit()));
-
-  private floatOrbit(): BillboardFacing {
-    if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 20)}px)`);
-    return this.labels.orbit(56, 96);
-  }
-
-  private readonly gaugePanelHeightEstimate = computed(() =>
-    this.multiAngleResourceBuffOrbitEnabled() ? 0 : this.pieceGauges().length * GAUGE_ROW_HEIGHT_PX
-  );
-
-  readonly gaugeFacing = computed<BillboardFacing>(() =>
-    this.isPoster() ? NOT_TURNED : this.billboardFacing(GAUGE_STACK_GAP_PX + this.gaugePanelHeightEstimate() / 2)
-  );
-
-  readonly gaugeOrbitFacing = computed<BillboardFacing>(() => this.labels.stand(this.gaugeOrbit()));
-
-  private gaugeOrbit(): BillboardFacing {
-    if (this.isPoster())
-      return facesAlways(`translateY(${-(this.size() * this.gridSize + 8 + this.gaugePanelHeightEstimate())}px)`);
-    return this.labels.orbit(
-      GAUGE_STACK_GAP_PX + this.gaugePanelHeightEstimate(),
-      64 + this.gaugePanelHeightEstimate()
-    );
-  }
-
-  readonly nameOrbitFacing = computed<BillboardFacing>(() => this.labels.stand(this.nameOrbit()));
-
-  private nameOrbit(): BillboardFacing {
-    if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 5)}px)`);
-    return this.labels.orbit(30, 60);
-  }
 
   readonly multiAngleNameOrbitEnabled = computed(() => {
     return !this.isPoster() && this.tabletopService.mode2d() && this.tabletopService.display().multiAngleEnabled;
@@ -1182,66 +1195,12 @@ export class GameCharacterComponent {
       : DEFAULT_MULTI_ANGLE_PIECE_REVOLUTION_SECONDS;
   });
 
-  readonly multiAnglePieceRotationAnimation = computed(() => {
-    const display = this.tabletopService.display();
-    return multiAngleOrbitAnimation(
-      multiAnglePieceMotionMode(display.multiAngleMotionMode),
-      this.multiAnglePieceRevolutionSeconds(),
-      display.multiAnglePauseSeconds
-    );
-  });
-
-  readonly multiAnglePieceRotationDelaySeconds = computed(
-    () => -this.multiAnglePiecePhase() * this.multiAnglePieceRotationAnimation().durationSeconds
-  );
-
-  readonly buffOrbitFacing = computed<BillboardFacing>(() => this.labels.stand(this.buffOrbit()));
-
-  private buffOrbit(): BillboardFacing {
-    if (this.isPoster())
-      return facesAlways(`translateY(${-(this.size() * this.gridSize + 12 + this.gaugePanelHeightEstimate())}px)`);
-    return this.labels.orbit(BUFF_STACK_GAP_PX + this.gaugePanelHeightEstimate(), 68 + this.gaugePanelHeightEstimate());
-  }
-
   /** The columns the buff icons are laid out in, the same count the panel's height is reckoned by. */
   protected readonly buffBadgeColumns = `repeat(${BUFF_BADGES_PER_ROW}, minmax(0, 1fr))`;
-
-  private readonly buffPanelHeightEstimate = computed(() => {
-    if (this.multiAngleResourceBuffOrbitEnabled() || this.hideBuff() || this.buffNum() < 1) return 0;
-    if (this.buffViewMode() === 'detail') return this.buffChildren().length * BUFF_DETAIL_ROW_HEIGHT_PX;
-    if (this.buffViewMode() === 'count') return BUFF_BADGE_ROW_HEIGHT_PX;
-    return Math.ceil(this.buffBadges().length / BUFF_BADGES_PER_ROW) * BUFF_BADGE_ROW_HEIGHT_PX * this.buffIconScale();
-  });
 
   protected multiAngleBuffOrbitTransform(angle: number, radius: number): string {
     return `rotate(${angle}deg) translateY(${-radius}px)`;
   }
-
-  private readonly pieceImageHeightEstimate = computed(() => {
-    if (!this.gameCharacter() || this.imageFile().url.length < 1) return 0;
-    if (this.specifyKomaImageFlag()) return this.komaImageHeightSignal();
-    const natural = this.imageView.naturalSize();
-    if (!natural) return this.size() * this.gridSize;
-    return (this.size() * this.gridSize * natural.height) / natural.width;
-  });
-
-  readonly targetOrbitFacing = computed<BillboardFacing>(() => {
-    const stand = `translateX(${(this.size() * this.gridSize) / 2}px) `;
-    const orbit = this.targetOrbit();
-    return (rotation) => stand + orbit(rotation);
-  });
-
-  private targetOrbit(): BillboardFacing {
-    const stack = this.labelsInRidingCard()
-      ? this.ridingCardRise() + this.ridingCardHeightEstimate()
-      : this.gaugePanelHeightEstimate() + this.buffPanelHeightEstimate();
-    if (this.isPoster()) return facesAlways(`translateY(${-(this.size() * this.gridSize + 20 + stack)}px)`);
-    return this.screenLiftFacing(TARGET_STACK_GAP_PX + stack, 84 + stack);
-  }
-
-  readonly targetStackFacing = computed<BillboardFacing>(() =>
-    this.labelStackFacing(this.isPoster() ? NOT_TURNED : this.billboardFacing(0))
-  );
 
   /**
    * What the character is saying, over its piece; none while the room or this seat hides it, or the
@@ -1253,85 +1212,8 @@ export class GameCharacterComponent {
     return this.speechBubbles.bubbleOf(character.identifier)();
   });
 
-  protected readonly speechStampPx = SPEECH_STAMP_PX * DECOR_SUPERSAMPLE;
-
   /** The shadow under a bubble, left off where the table is drawn the lighter way. */
   readonly speechShadow = computed(() => (this.renderLite.active() ? '' : 'shadow-[0_0.15em_0.4em_rgba(0,0,0,0.45)]'));
-
-  /**
-   * How far over the piece a bubble's foot stands: over its bars and its buffs, which it sits on
-   * as the buffs sit on the bars, and over the target mark where there is one.
-   */
-  private readonly speechLift = computed(
-    () =>
-      (this.labelsInRidingCard()
-        ? RIDING_CARD_LIFT_PX + this.ridingCardRise() + this.ridingCardHeightEstimate()
-        : BUFF_STACK_GAP_PX + this.gaugePanelHeightEstimate() + this.buffPanelHeightEstimate()) +
-      SPEECH_STACK_GAP_PX +
-      (this.isTargeted() ? TARGET_MARK_HEIGHT_PX : 0)
-  );
-
-  readonly speechOrbitFacing = computed<BillboardFacing>(() => this.labels.stand(this.speechOrbit()));
-
-  private speechOrbit(): BillboardFacing {
-    const lift = this.speechLift();
-    if (this.isPoster())
-      return facesAlways(`translateY(${-(this.size() * this.gridSize + 12 + lift - BUFF_STACK_GAP_PX)}px)`);
-    return this.labels.orbit(lift, 28 + lift);
-  }
-
-  readonly speechStackFacing = computed<BillboardFacing>(() =>
-    this.labelStackFacing(this.isPoster() ? NOT_TURNED : this.billboardFacing(this.speechLift()))
-  );
-
-  private screenLiftFacing(screenLift3d: number, distance2d: number): BillboardFacing {
-    const pieceRotate = this.rotateSignal();
-    const pieceRoll = this.rollSignal();
-    const worldHeight3d = this.pieceImageHeightEstimate();
-    const mode2d = this.mode2dEnabled();
-    return (rotation) =>
-      makeScreenLiftTransform({
-        rotation,
-        pieceRotate,
-        pieceRoll,
-        worldHeight3d,
-        screenLift3d,
-        distance2d,
-        mode2d,
-      });
-  }
-
-  /**
-   * The frame everything above the pedestal hangs from.
-   *
-   * The existing flat/multi-angle renderer takes the piece's turn back out on each billboard.
-   * Counter-rotating this shared 3D frame as well makes the image plane disappear in some
-   * browsers when the table switches to 2D, so the frame itself keeps the original transform.
-   */
-  readonly standTransform = computed(() => {
-    if (this.isPoster()) return 'translateY(-50%)';
-    return (
-      'rotateY(90deg) rotateZ(-90deg) rotateY(-90deg) ' +
-      `translateY(-50%) translateY(${-this.altitude() * this.gridSize}px)`
-    );
-  });
-
-  private billboardFacing(verticalOffset3D: number, turnsWithPiece = false): BillboardFacing {
-    // In 2D every billboard cancels the piece's turn, except the picture when the table asks it
-    // to turn with the piece. This also composes with the multi-angle image rotation.
-    const pieceRotate = this.mode2dEnabled() && turnsWithPiece ? 0 : this.rotateSignal();
-    const pieceRoll = this.rollSignal();
-    const mode2d = this.mode2dEnabled();
-    return (rotation) =>
-      makeBillboardTransform({
-        rotation,
-        pieceRotate,
-        pieceRoll,
-        parentInverseRotation: 'rotateY(90deg) rotateZ(90deg) rotateY(-90deg)',
-        verticalOffset3D,
-        mode2d,
-      });
-  }
 
   readonly movableOption = signal<MovableOption>({});
 
@@ -1363,27 +1245,6 @@ export class GameCharacterComponent {
     return params ? hexPedestalRingStyle(params, 2, '#212121') : {};
   });
 
-  /**
-   * The handle round a pedestal on a hex grid that turns the piece. The hex pedestal is only a rim,
-   * so the pedestal is cut out of the handle: a press inside the rim moves the piece, as one on the
-   * square pedestal standing over its handle does.
-   */
-  protected readonly pedestalGrabStyle = computed<Record<string, string>>(() => {
-    const params = this.pedestalHexParams();
-    return params ? hexPedestalGrabStyle(params, { reachPx: 12, pedestalCutOut: true }) : {};
-  });
-
-  protected readonly pedestalGrabBorderStyle = computed<Record<string, string>>(() => {
-    if (!this.pedestalHexParams()) return {} as Record<string, string>;
-    return {
-      borderTop: 'solid 16px #999',
-      borderLeft: 'solid 16px #999',
-      borderRight: 'solid 16px #ccc',
-      borderBottom: 'solid 16px #ccc',
-      borderRadius: '50%',
-    };
-  });
-
   private highlightTimer: ReturnType<typeof setTimeout> | undefined;
   private unhighlightTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -1395,11 +1256,6 @@ export class GameCharacterComponent {
     const char = this.gameCharacter();
     if (!char) return 0;
     return +((char.posZ + this.altitude() * this.gridSize) / this.gridSize).toFixed(1);
-  }
-
-  /** How far a chat bubble over the piece is lifted, in pixels; always 0 for this component. */
-  get chatBubbleAltitude(): number {
-    return 0;
   }
 
   /** Stops the browser's native drag of the piece's images, so only the movable directive moves it. */
@@ -1775,9 +1631,41 @@ function sameRidingLabels(a: readonly RidingLabel[], b: readonly RidingLabel[]):
   });
 }
 
-/** Whether two flat records hold the same keys with the same values. */
-function sameFields(a: object, b: object): boolean {
-  const keys = Object.keys(a);
-  if (keys.length !== Object.keys(b).length) return false;
-  return keys.every((key) => Object.is((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
+/** The box of a circle round a middle of a pedestal, in the pedestal's own pixels, as a style. */
+function ringBoxStyle(middle: number, radius: number): Record<string, string> {
+  return {
+    width: `${radius * 2}px`,
+    height: `${radius * 2}px`,
+    left: `${middle - radius}px`,
+    top: `${middle - radius}px`,
+    borderRadius: '50%',
+  };
+}
+
+/**
+ * The ring round a pedestal as a path, in the ring's own pixels: the whole circle where every point
+ * round it is seen, or else each run of points seen, round from where one is not.
+ */
+function ringPathOf(seen: readonly boolean[], radius: number): string {
+  const count = seen.length;
+  if (seen.every(Boolean)) {
+    return `M${radius} 0 A${radius} ${radius} 0 1 1 ${radius} ${radius * 2} A${radius} ${radius} 0 1 1 ${radius} 0`;
+  }
+  const pointAt = (at: number) => {
+    const radians = (at * 2 * Math.PI) / count;
+    return `${radius + radius * Math.sin(radians)} ${radius - radius * Math.cos(radians)}`;
+  };
+  const hidden = seen.indexOf(false);
+  let path = '';
+  let drawing = false;
+  for (let step = 1; step <= count; step++) {
+    const at = (hidden + step) % count;
+    if (!seen[at]) {
+      drawing = false;
+      continue;
+    }
+    path += `${drawing ? 'L' : 'M'}${pointAt(at)} `;
+    drawing = true;
+  }
+  return path.trim();
 }

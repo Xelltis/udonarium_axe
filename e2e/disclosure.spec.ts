@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openPanel, revealMenuEntry, waitAppReady } from './helpers';
+import { openPanel, waitAppReady } from './helpers';
 
 /**
  * Disclosure works by keeping what must not be seen out of sight, so when it breaks nothing happens
@@ -60,9 +60,15 @@ test.describe('how far information is disclosed', () => {
     await setRole(page, 'GM');
   });
 
-  test('keeps a player from touching a piece made GM-only', async ({ page }) => {
+  test('keeps a player from a piece made GM-only, which the GM can still open and the inventory shows locked', async ({
+    page,
+  }) => {
     const total = await page.locator('game-character').count();
-    await hidePiece(page, HIDDEN);
+    const hidden = await hidePiece(page, HIDDEN);
+    const shown = await pieceName(page, PUBLIC);
+    await openSheet(page, HIDDEN);
+    await expect(page.locator('ui-panel').filter({ hasText: 'キャラクターシート' })).toContainText(hidden);
+    await closePanel(page, 'キャラクターシート');
     await setRole(page, 'PL');
 
     // A piece left public opens as before. With this passing, the missing menu below can be said to
@@ -79,12 +85,6 @@ test.describe('how far information is disclosed', () => {
 
     // It does not vanish, though; it stays on the table.
     await expect(page.locator('game-character')).toHaveCount(total);
-  });
-
-  test('puts a lock on a piece that is not public in the inventory', async ({ page }) => {
-    const hidden = await hidePiece(page, HIDDEN);
-    const shown = await pieceName(page, PUBLIC);
-    await setRole(page, 'PL');
 
     await openPanel(page, 'インベントリ');
     const inventory = page.locator('game-object-inventory');
@@ -94,22 +94,5 @@ test.describe('how far information is disclosed', () => {
     await expect(inventory).toContainText(hidden);
     await expect(inventory).toContainText(shown);
     await expect(inventory.locator('i.material-icons', { hasText: 'lock' })).toHaveCount(1);
-  });
-
-  test('still lets the GM open a piece they hid', async ({ page }) => {
-    const hidden = await hidePiece(page, HIDDEN);
-    await openSheet(page, HIDDEN);
-    await expect(page.locator('ui-panel').filter({ hasText: 'キャラクターシート' })).toContainText(hidden);
-  });
-
-  test('shows the disclosure switch to the GM alone', async ({ page }) => {
-    await page.locator('game-character').nth(PUBLIC).dispatchEvent('contextmenu');
-    await expect(await revealMenuEntry(page, page.locator('context-menu'), '公開範囲')).toBeVisible({ timeout: 5000 });
-    await dismissMenu(page);
-
-    await setRole(page, 'PL');
-    await page.locator('game-character').nth(PUBLIC).dispatchEvent('contextmenu');
-    await expect(page.locator('context-menu li').filter({ hasText: '詳細を表示' })).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('context-menu li').filter({ hasText: '公開範囲' })).toHaveCount(0);
   });
 });

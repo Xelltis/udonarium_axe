@@ -6,6 +6,7 @@ import { MOST_MOVE_COST_EXTRA } from '@axe/domain/tabletop/table-move-cost';
 import { TableMoveCostService } from '@axe/features/tabletop/table-move-cost-overlay/table-move-cost.service';
 import { moveRangePolygons } from '@axe/features/tabletop/table-move-range-overlay/move-range-render';
 import { overlayScale } from '@axe/infrastructure/tabletop/vision/vision-overlay-render';
+import { laidOnCanvasFloor } from '@axe/ui/tabletop/laid-on-canvas-floor';
 import { translateZCss, Z_OFFSET_MASK_PX } from '@axe/ui/tabletop/z-offset';
 
 /** One stretch of ground priced apart from the rest, and what it is priced at. */
@@ -38,6 +39,11 @@ export class TableMoveCostOverlayComponent {
   private readonly areas = inject(TableMoveCostService);
   private readonly tabletopService = inject(TabletopService);
   private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('moveCostCanvas');
+  private readonly painted = laidOnCanvasFloor({
+    id: () => 'move-cost',
+    canvas: () => this.canvasRef()?.nativeElement,
+    heightPx: () => Z_OFFSET_MASK_PX,
+  });
 
   protected readonly zTransform = computed(() => translateZCss(Z_OFFSET_MASK_PX));
 
@@ -73,6 +79,7 @@ export class TableMoveCostOverlayComponent {
       const canvas = this.canvasRef()?.nativeElement;
       if (!grid || !canvas || patches.length < 1) return;
       this.paint(canvas, grid, patches);
+      this.painted();
     });
   }
 

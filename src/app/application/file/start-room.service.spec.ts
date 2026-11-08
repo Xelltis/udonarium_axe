@@ -43,7 +43,9 @@ describe('StartRoomService', () => {
       kept = null;
       return true;
     });
-    load = vi.spyOn(TestBed.inject(FileArchiver), 'load').mockResolvedValue({ dataRead: true, images: [], audios: [] });
+    load = vi
+      .spyOn(TestBed.inject(FileArchiver), 'load')
+      .mockResolvedValue({ dataRead: true, images: [], audios: [], models: [] });
     ask = vi.spyOn(TestBed.inject(ConfirmService), 'ask').mockResolvedValue(true);
     shown = vi.spyOn(TestBed.inject(SnackbarService), 'show').mockImplementation(() => undefined as never);
     vi.spyOn(TestBed.inject(SaveDataService), 'createWholeRoomArchiveAsync').mockResolvedValue(new Blob(['room']));
@@ -83,6 +85,33 @@ describe('StartRoomService', () => {
 
       expect(service.isKept()).toBe(true);
       expect(store.get).not.toHaveBeenCalled();
+    });
+
+    it('has a page opened with an invitation wait on the room in place of the sample, and not one opened otherwise', async () => {
+      await service.prepare('#join?r=room-id&n=room-name');
+      expect(service.waitsOnInvite).toBe(true);
+
+      await service.prepare('#code=abc&state=xyz');
+      expect(service.waitsOnInvite).toBe(false);
+      await service.prepare('');
+      expect(service.waitsOnInvite).toBe(false);
+    });
+
+    it('sets the sample out once an invitation ends outside any room, and not once it ended in one', async () => {
+      const sample = vi
+        .spyOn(TestBed.inject(TabletopActionService), 'makeDefaultTabletopObjects')
+        .mockImplementation(() => undefined);
+      await service.prepare('#join?r=room-id&n=room-name');
+
+      service.inviteEnded();
+      service.inviteEnded();
+      expect(sample).toHaveBeenCalledTimes(1);
+      expect(service.waitsOnInvite).toBe(false);
+
+      await service.prepare('#join?r=room-id&n=room-name');
+      vi.spyOn(Network, 'requestedRoomId', 'get').mockReturnValue('room-id');
+      service.inviteEnded();
+      expect(sample).toHaveBeenCalledTimes(1);
     });
 
     it('starts on the sample where the browser is slow to answer, and learns it keeps a room once it does', async () => {

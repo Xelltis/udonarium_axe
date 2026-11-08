@@ -238,6 +238,8 @@ export class MobileShellComponent {
         return 'roomSettings';
       case 'images':
         return 'fileStorage';
+      case 'models':
+        return 'modelLibrary';
       case 'jukebox':
         return 'jukebox';
       case 'soundSettings':

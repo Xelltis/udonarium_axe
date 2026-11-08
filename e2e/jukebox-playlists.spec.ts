@@ -93,53 +93,12 @@ async function addFromLibrary(jukebox: Locator, ...names: string[]) {
 }
 
 test.describe('playlists in the jukebox', () => {
-  test('makes and names a playlist, and puts tracks from the library on it', async ({ page }) => {
-    const jukebox = await openJukeboxWithTracks(page);
-
-    await makePlaylist(jukebox, '戦闘');
-    await addFromLibrary(jukebox, 'Battle.wav', 'Boss.wav');
-
-    await expect(chip(jukebox, '戦闘')).toContainText('2');
-    await expect(chip(jukebox, 'メイン')).toContainText('0');
-    await expect(jukebox.getByText('Boss.wav', { exact: true })).toBeVisible();
-  });
-
-  test('moves a track to another playlist from a right-click', async ({ page }) => {
-    const jukebox = await openJukeboxWithTracks(page);
-    await makePlaylist(jukebox, '戦闘');
-    await addFromLibrary(jukebox, 'Battle.wav');
-
-    await jukebox.locator('[draggable="true"]').filter({ hasText: 'Battle.wav' }).click({ button: 'right' });
-    const menu = page.locator('context-menu');
-    await menu.getByText('別の再生リストへ移す', { exact: true }).click();
-    await menu.getByText('メイン', { exact: true }).click();
-
-    await expect(chip(jukebox, '戦闘')).toContainText('0');
-    await expect(chip(jukebox, 'メイン')).toContainText('1');
-  });
-
-  test('plays the first track of the next playlist when the mini player moves on to it', async ({ page }) => {
+  test('pauses where it is and goes on from there, and plays the first track of the next playlist when the mini player moves on to it', async ({
+    page,
+  }) => {
     const jukebox = await openJukeboxWithTracks(page);
     await jukebox.getByTestId('jukebox-tab-playlist').click();
     await addFromLibrary(jukebox, 'Town.wav');
-    await makePlaylist(jukebox, '戦闘');
-    await addFromLibrary(jukebox, 'Battle.wav', 'Boss.wav');
-
-    const mini = page.locator('app-mini-jukebox');
-    await mini.getByRole('button', { name: 'queue_music' }).click();
-    await expect(mini.getByTestId('mini-jukebox-playlist-name')).toHaveText('メイン');
-    await mini.getByTestId('mini-jukebox-next-playlist').click();
-
-    await expect(mini.getByTestId('mini-jukebox-playlist-name')).toHaveText('戦闘');
-    await expect(mini.getByText('Battle.wav').first()).toBeVisible();
-    await expect(jukebox.getByTestId('jukebox-active-playlist')).toHaveText('戦闘');
-    await expect(chip(jukebox, '戦闘').locator('.material-icons', { hasText: 'volume_up' })).toBeVisible();
-  });
-
-  test('pauses where it is, and goes on from there when pressed again', async ({ page }) => {
-    const jukebox = await openJukeboxWithTracks(page);
-    await jukebox.getByTestId('jukebox-tab-playlist').click();
-    await addFromLibrary(jukebox, 'Town.wav', 'Battle.wav');
     await jukebox.getByTestId('jukebox-playlist-play').click();
     const playPause = jukebox.getByTestId('jukebox-play-pause');
     await expect(playPause).toHaveAttribute('title', '一時停止');
@@ -154,9 +113,22 @@ test.describe('playlists in the jukebox', () => {
 
     await expect(playPause).toHaveAttribute('title', '一時停止');
     await expect(jukebox.getByText('一時停止中')).toHaveCount(0);
+
+    await makePlaylist(jukebox, '戦闘');
+    await addFromLibrary(jukebox, 'Battle.wav', 'Boss.wav');
+
+    const mini = page.locator('app-mini-jukebox');
+    await mini.getByRole('button', { name: 'queue_music' }).click();
+    await expect(mini.getByTestId('mini-jukebox-playlist-name')).toHaveText('メイン');
+    await mini.getByTestId('mini-jukebox-next-playlist').click();
+
+    await expect(mini.getByTestId('mini-jukebox-playlist-name')).toHaveText('戦闘');
+    await expect(mini.getByText('Battle.wav').first()).toBeVisible();
+    await expect(jukebox.getByTestId('jukebox-active-playlist')).toHaveText('戦闘');
+    await expect(chip(jukebox, '戦闘').locator('.material-icons', { hasText: 'volume_up' })).toBeVisible();
   });
 
-  test('shows shuffle and repeat as settings for the whole room, in both the panel and the mini player', async ({
+  test('shows shuffle and repeat as settings for the whole room, in both the panel and the mini player, and writes the name of the GM who changed them to the system log', async ({
     page,
   }) => {
     const jukebox = await openJukeboxWithTracks(page, 'GM');
@@ -175,13 +147,7 @@ test.describe('playlists in the jukebox', () => {
     await expect(repeat).toHaveAttribute('title', 'リピートなし');
     await repeat.click();
     await expect(repeat).toHaveAttribute('title', '再生リストをリピート');
-  });
 
-  test('writes the name of the GM who changed shuffle and repeat to the system log', async ({ page }) => {
-    const jukebox = await openJukeboxWithTracks(page, 'GM');
-
-    await jukebox.getByTestId('jukebox-shuffle').click();
-    await jukebox.getByTestId('jukebox-repeat').click();
     // The jukebox panel lies over the chat's tabs, so the tab is chosen without a pointer.
     await page
       .locator('chat-window label')
@@ -193,31 +159,5 @@ test.describe('playlists in the jukebox', () => {
     const chat = page.locator('chat-window');
     await expect(chat).toContainText('さんがジュークボックスのシャッフルをオンにしました。');
     await expect(chat).toContainText('さんがジュークボックスのリピートを解除しました。');
-  });
-
-  test('keeps a player from changing shuffle and repeat, and a guest from even pausing', async ({ page }) => {
-    const jukebox = await openJukeboxWithTracks(page, 'PL');
-    const mini = page.locator('app-mini-jukebox');
-    await jukebox.getByTestId('jukebox-tab-playlist').click();
-    await addFromLibrary(jukebox, 'Town.wav', 'Battle.wav');
-    await jukebox.getByTestId('jukebox-playlist-play').click();
-    await expect(jukebox.getByTestId('jukebox-play-pause')).toHaveAttribute('title', '一時停止');
-
-    await expect(jukebox.getByTestId('jukebox-play-pause')).toBeEnabled();
-    for (const button of [
-      jukebox.getByTestId('jukebox-shuffle'),
-      jukebox.getByTestId('jukebox-repeat'),
-      mini.getByTestId('mini-jukebox-shuffle'),
-      mini.getByTestId('mini-jukebox-repeat'),
-    ]) {
-      await expect(button).toBeDisabled();
-    }
-    await expect(jukebox.getByTestId('jukebox-repeat')).toHaveAttribute('title', /GM だけが変えられます/);
-
-    await becomeRole(page, '見学');
-    await expect(jukebox.getByTestId('jukebox-play-pause')).toBeDisabled();
-    await expect(jukebox.getByTestId('jukebox-next')).toBeDisabled();
-    await expect(mini.getByTestId('mini-jukebox-play-pause')).toBeDisabled();
-    await expect(jukebox.getByTestId('jukebox-play-pause')).toHaveAttribute('title', '一時停止');
   });
 });

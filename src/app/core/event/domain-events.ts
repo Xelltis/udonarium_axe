@@ -5,7 +5,7 @@ import { ArchiveEntries } from '@axe/core/storage/room-archive';
 
 export interface SendMessageEvent {
   messageIdentifier: string;
-  messageTarget: { text: string; object: { name: string } | null } | null;
+  messageTarget: { text: string; object: { name: string } | null; together?: readonly string[] } | null;
 }
 
 export interface DiceTableMessageEvent {
@@ -88,7 +88,7 @@ export interface CcfoliaRoomDroppedEvent {
 /** A file a load left out for being larger than its kind may be, with the limit it went over. */
 export interface FileTooLarge {
   name: string;
-  kind: 'image' | 'audio';
+  kind: 'image' | 'audio' | 'model';
   limitBytes: number;
   /**
    * The picture itself, for one dropped or chosen on its own rather than found inside an archive,

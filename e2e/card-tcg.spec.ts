@@ -1,4 +1,4 @@
-import { expect, Page, test } from '@playwright/test';
+import { expect, Locator, Page, test } from '@playwright/test';
 
 import { openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
 
@@ -23,44 +23,58 @@ async function openCardMenu(page: Page) {
   return menu;
 }
 
+type Point = { x: number; y: number };
+type Box = Point & { width: number; height: number };
+type ArrowHooks = {
+  whenIdle(): Promise<void>;
+  project(x: number, y: number, z: number): Point | null;
+  pieceBoxesOnPage(identifier: string): Box[];
+};
+
+/** Whether a box on the page holds a point. */
+function holds(box: Box, point: Point): boolean {
+  return point.x >= box.x && point.x <= box.x + box.width && point.y >= box.y && point.y <= box.y + box.height;
+}
+
+/**
+ * Where the two ends of the arrow to a target lie on the page, once what the screen lays over the
+ * table stands where the table puts it, with the pointer off the table: where it leaves and where it
+ * points to.
+ */
+async function arrowEndsOnPage(page: Page): Promise<Point[]> {
+  await page.mouse.move(5, 400);
+  await page.evaluate(() => (window as unknown as { __axeTable: ArrowHooks }).__axeTable.whenIdle());
+  const ends = await page.getByTestId('target-arrow').evaluate((element) => {
+    const read = (name: string) => Number((element as HTMLElement).dataset[name]);
+    return [
+      { x: read('fromX'), y: read('fromY') },
+      { x: read('toX'), y: read('toY') },
+    ];
+  });
+  return page.evaluate(
+    (points) =>
+      points.map((point) => (window as unknown as { __axeTable: ArrowHooks }).__axeTable.project(point.x, point.y, 0)!),
+    ends
+  );
+}
+
+/** The box on the page round where the table puts a piece. */
+async function boxOnPage(page: Page, piece: Locator): Promise<Box> {
+  const identifier = (await piece.getAttribute('data-object-id'))!;
+  const [box] = await page.evaluate(
+    (id) => (window as unknown as { __axeTable: ArrowHooks }).__axeTable.pieceBoxesOnPage(id),
+    identifier
+  );
+  return box;
+}
+
 test.describe('card handling for trading card games', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('ui-lang', 'ja'));
     await waitAppReady(page);
   });
 
-  test('opens the dialog that makes a deck from image tags from the table menu', async ({ page }) => {
-    const menu = await openTableContextMenu(page);
-    await (await revealMenuEntry(page, menu, '画像タグから山札を作成')).click();
-
-    const dialog = page.locator('deck-builder-dialog');
-    await expect(dialog).toBeVisible({ timeout: 5000 });
-    await expect(dialog).toContainText('画像タグ');
-    await expect(dialog.getByRole('button', { name: '山札を作る' })).toBeDisabled();
-  });
-
-  test('adds an item on the sheet of a card', async ({ page }) => {
-    await createCardStack(page);
-    await drawOne(page);
-
-    const menu = await openCardMenu(page);
-    await menu.getByText('カードを編集').click();
-
-    const sheet = page.locator('game-character-sheet');
-    await expect(sheet).toBeVisible({ timeout: 5000 });
-    await sheet.getByRole('button', { name: '編集切り替え', exact: true }).dispatchEvent('click');
-    await expect(sheet.getByText('新しい項目を追加').first()).toBeVisible({ timeout: 5000 });
-  });
-
-  test('lists the cut-in for when a card is turned over in the card menu', async ({ page }) => {
-    await createCardStack(page);
-    await drawOne(page);
-
-    const menu = await openCardMenu(page);
-    await expect(menu.getByText('めくったときのカットイン')).toBeVisible();
-  });
-
-  test('draws an arrow on the table when a target is set, and removes it when the target is cleared', async ({
+  test('draws an arrow on the table from the card to the target set, and removes it when the target is cleared', async ({
     page,
   }) => {
     await createCardStack(page);
@@ -72,10 +86,15 @@ test.describe('card handling for trading card games', () => {
 
     await page.locator('card-stack').first().dispatchEvent('mousedown');
     await page.locator('card-stack').first().dispatchEvent('mouseup');
-    await expect(page.locator('table-target-overlay div')).toHaveCount(2, { timeout: 5000 });
+    await expect(page.getByTestId('target-arrow')).toHaveCount(1, { timeout: 5000 });
+    const [from, to] = await arrowEndsOnPage(page);
+    const card = await boxOnPage(page, page.locator('card').first());
+    const deck = await boxOnPage(page, page.locator('card-stack').first());
+    expect(holds(card, from), JSON.stringify({ from, card })).toBe(true);
+    expect(holds(deck, to), JSON.stringify({ to, deck })).toBe(true);
 
     const cardMenu = await openCardMenu(page);
     await cardMenu.getByText('ターゲットを解除').click();
-    await expect(page.locator('table-target-overlay div')).toHaveCount(0, { timeout: 5000 });
+    await expect(page.getByTestId('target-arrow')).toHaveCount(0, { timeout: 5000 });
   });
 });

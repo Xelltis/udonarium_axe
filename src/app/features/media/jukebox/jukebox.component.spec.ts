@@ -120,6 +120,18 @@ describe('JukeboxComponent', () => {
       expect(volumes.isMuted('bgm')).toBe(false);
     });
 
+    it('gives this player a volume of their own for previews, music, effects and background sounds', async () => {
+      await fixture.whenStable();
+
+      const names = [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLInputElement>('input[type="range"]'),
+      ]
+        .map((input) => input.name)
+        .filter((name) => name.endsWith('-volume') && !name.startsWith('room-'));
+
+      expect(names).toEqual(['audition-volume', 'bgm-volume', 'se-volume', 'background-volume']);
+    });
+
     it('sets this player’s own volumes apart from the room’s, saying which is which', async () => {
       const t = TestBed.inject(TRANSLATE_FN);
       await fixture.whenStable();
@@ -746,6 +758,26 @@ describe('JukeboxComponent', () => {
       expect(made.name).toBe(t('feature.media.jukebox.playlistNewName', { number: 2 }));
       expect(made.entries).toEqual(['lib-a']);
       expect(first.entries).toEqual([]);
+    });
+
+    it('asks for music on an empty playlist in its tab, and offers the drop zone again back in the library', async () => {
+      const t = TestBed.inject(TRANSLATE_FN);
+      const root = fixture.nativeElement as HTMLElement;
+      const press = async (testId: string) => {
+        root.querySelector<HTMLButtonElement>(`[data-testid="${testId}"]`)!.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+      };
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(root.textContent).toContain(t('feature.media.jukebox.dropMusic'));
+
+      await press('jukebox-tab-playlist');
+      expect(root.textContent).toContain(t('feature.media.jukebox.playlistEmpty'));
+      expect(root.textContent).not.toContain(t('feature.media.jukebox.dropMusic'));
+
+      await press('jukebox-tab-library');
+      expect(root.textContent).toContain(t('feature.media.jukebox.dropMusic'));
     });
 
     it('shows the playlist the room plays through until another is picked', async () => {

@@ -1,9 +1,11 @@
-import { afterNextRender, DestroyRef, effect, ElementRef, Signal, WritableSignal } from '@angular/core';
+import { afterNextRender, DestroyRef, effect, ElementRef, inject, Signal, WritableSignal } from '@angular/core';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
+import { PieceFootprint } from '@axe/application/ui/tabletop-overlap.service';
 import { GridSnapStyle } from '@axe/domain/tabletop/game-table';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import { InputHandler } from '@axe/ui/directives/input-handler';
 import { MovableOption } from '@axe/ui/directives/movable.directive';
-import { RotableOption, RotableTabletopObject } from '@axe/ui/directives/rotable.directive';
+import { RotableOption, RotableTabletopObject, TurnAbout } from '@axe/ui/directives/rotable.directive';
 
 export interface MovableSetup<T extends TabletopObject> {
   readonly target: Signal<T | null | undefined>;
@@ -12,8 +14,11 @@ export interface MovableSetup<T extends TabletopObject> {
   readonly snapOrigin?: (t: T) => { x: number; y: number } | undefined;
   /** Where the piece goes when snapped from a place, ahead of the table's own snap; see {@link MovableOption}. */
   readonly snapToSquare?: (t: T, at: { x: number; y: number }) => { x: number; y: number } | null;
-  readonly transformCssOffset?: string;
   readonly layerName?: string;
+  /** How much of its face the piece covers; see {@link MovableOption}. */
+  readonly footprint?: (t: T) => PieceFootprint;
+  /** Where the piece turns about, for one that does not turn about its middle; see {@link RotableOption}. */
+  readonly turnsAbout?: (t: T) => TurnAbout | null;
 }
 
 function applyMovableOption<T extends TabletopObject>(
@@ -25,12 +30,12 @@ function applyMovableOption<T extends TabletopObject>(
   const snapOrigin = opts.snapOrigin?.(piece);
   signal.set({
     tabletopObject: piece,
-    transformCssOffset: opts.transformCssOffset,
     colideLayers: opts.collideLayers ? [...opts.collideLayers] : undefined,
     snapStyle,
     snapOrigin,
     snapToSquare: opts.snapToSquare ? (at) => opts.snapToSquare!(piece, at) : undefined,
     layerName: opts.layerName,
+    footprint: opts.footprint ? () => opts.footprint!(piece) : undefined,
   });
 }
 
@@ -64,11 +69,15 @@ export function setupMovableRotableForPiece<T extends RotableTabletopObject>(
   },
   opts: MovableSetup<T>
 ): void {
+  const pieces = inject(TablePiecesService);
   effect(() => {
     const piece = opts.target();
     if (piece == null) return;
     applyMovableOption(ctx.movableOption, piece, opts);
-    ctx.rotableOption.set({ tabletopObject: piece });
+    ctx.rotableOption.set({
+      tabletopObject: piece,
+      turnsAbout: () => (opts.turnsAbout ? opts.turnsAbout(piece) : pieces.turnAboutOf(piece)),
+    });
   });
 }
 

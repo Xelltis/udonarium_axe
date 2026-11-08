@@ -2,14 +2,16 @@ import { EffectCast } from '@axe/domain/effect/effect-cast';
 import { EFFECT_KINDS, EffectKind } from '@axe/domain/effect/effect-kind';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import {
-  AIMED_EFFECT_KINDS,
-  BALLISTIC_DIVE_END,
-  CENTERED_EFFECT_KINDS,
   effectLandingTimes,
-  effectSprites,
   impactSoundTimes,
   isEffectFinished,
   launchSoundTimes,
+} from '@axe/domain/effect/effect-sound-times';
+import {
+  AIMED_EFFECT_KINDS,
+  BALLISTIC_DIVE_END,
+  CENTERED_EFFECT_KINDS,
+  effectSprites,
   seededRandom,
   swingTiltOf,
 } from '@axe/domain/effect/effect-timeline';

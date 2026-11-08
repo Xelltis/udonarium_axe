@@ -1,4 +1,5 @@
 import { DEFAULT_FUNCTION_SPEC, FunctionSpec, lookKey, MapFunctionRole } from '@axe/domain/map-editor/function-layer';
+import { reliefLayerOf } from '@axe/domain/map-editor/relief';
 import {
   createScene,
   FunctionLayer,
@@ -135,6 +136,8 @@ export function sceneFromTable(table: TableSnapshot): MapScene {
     layers.push(floor);
   }
 
+  const relief = reliefLayerOf(newId(), table.groundChunks ?? []);
+  if (relief) layers.push(relief);
   layers.push(
     ...layersByLook(table.maskBlocks, 'mask', 'mask', (block) => ({ ...DEFAULT_FUNCTION_SPEC, mask: block.spec }))
   );

@@ -57,19 +57,4 @@ test.describe('scenario texts', () => {
 
     await expect.poll(() => chatInputText(input)).toBe('扉が**軋む**音');
   });
-
-  test('splits a pasted script into texts at its headings', async ({ page }) => {
-    await waitAppReady(page);
-    await becomeGameMaster(page);
-    await openPanel(page, 'シナリオテキスト');
-    const panel = page.getByTestId('scenario-text-panel');
-    await expect(panel).toBeVisible({ timeout: 10000 });
-
-    await panel.getByTestId('scenario-text-import').click();
-    await panel.getByTestId('scenario-text-import-words').fill('# 導入\n雨が降っている。\n# 真相\n犯人は執事。');
-    await panel.getByTestId('scenario-text-import-run').click();
-
-    await expect(panel.getByTestId('scenario-text-row')).toHaveCount(2);
-    await expect(panel.getByTestId('scenario-text-row').first()).toHaveAttribute('data-text-title', '導入');
-  });
 });

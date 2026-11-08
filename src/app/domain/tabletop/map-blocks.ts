@@ -81,6 +81,18 @@ export interface MapBlock {
    * Left out, it is called after its kind: a wall, a door, a stair.
    */
   thing?: string;
+  /**
+   * A bundled 3D model it is drawn as, on a table drawn on a canvas, in place of its faces: a tree, a
+   * rock, a piece of furniture. Left out, it is drawn as its faces.
+   */
+  model?: string;
+  /** How far its model is turned from the way it was made, in degrees clockwise: a quarter for one lying north to south. */
+  modelTurn?: number;
+  /**
+   * Whether it is built as its top alone, ground a piece walks onto and on over rather than a thing
+   * standing in its way, as a field's crop is: its model drawn over a floor with no walls.
+   */
+  floorOnly?: boolean;
 }
 
 /**
@@ -141,12 +153,38 @@ export interface MapAmbience {
   kind: string;
   density: number;
   name: string;
+  /** How the water looks, for an effect that is water. */
+  water?: MapWater;
+}
+
+/** How a body of water laid by a generator looks: the settings of water, as its settings name them. */
+export interface MapWater {
+  /** How many cells the surface stands over the floor it lies on. */
+  surface: number;
+  /** Empty for the colour of water itself. */
+  color: string;
+  turbidity: number;
+  dirt: number;
+  leaves: number;
+  /** How much of it is frozen over, from 0 for open water to 1 for ice. */
+  ice: number;
+}
+
+/** Ground that is slow to cross and nothing worse: a field of wheat, a flooded paddy. */
+export interface MapSlowGround {
+  rect: MapRect;
+  /** What crossing it costs over plain footing. */
+  extraCost: number;
+  /** The colour the dear ground is drawn in on the table. */
+  color: string;
 }
 
 export interface MapBlocks {
   blocks: MapBlock[];
   paint: MapPaint[];
   ambiences: MapAmbience[];
+  /** Ground slow to cross, as a field of tall crops is. Left out, there is none. */
+  slows?: MapSlowGround[];
   traps: MapTrap[];
   torchRooms: number[];
   torchSpots: MapPoint[];

@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { Network } from '@axe/core/network/network';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
@@ -131,6 +132,52 @@ describe('VoteMenuComponent', () => {
       fixture.detectChanges();
 
       expect(secretOption()).toBeNull();
+    });
+  });
+
+  describe('the form in a room of one', () => {
+    let t: (key: string) => string;
+
+    beforeEach(async () => {
+      PeerCursor.createMyCursor();
+      t = TestBed.inject(TRANSLATE_FN);
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    function root(): HTMLElement {
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    function sendButton(): HTMLButtonElement {
+      return [...root().querySelectorAll('button')].find((button) =>
+        button.textContent?.includes(t('feature.vote.send'))
+      )!;
+    }
+
+    it('starts as a roll call, with that choice ticked', () => {
+      const types = [...root().querySelectorAll<HTMLInputElement>('input[name="vm_type"]')];
+
+      expect(types.map((type) => type.checked)).toEqual([true, false]);
+    });
+
+    it('keeps the send button off with nobody to ask, until including oneself is ticked', async () => {
+      const includeSelf = root().querySelector<HTMLInputElement>('input[name="includSelf"]')!;
+      expect(sendButton().disabled).toBe(true);
+
+      includeSelf.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(sendButton().disabled).toBe(false);
+
+      includeSelf.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(sendButton().disabled).toBe(true);
+    });
+
+    it('says nobody else is in the room', () => {
+      expect(root().textContent).toContain(t('feature.vote.emptyPeers'));
     });
   });
 

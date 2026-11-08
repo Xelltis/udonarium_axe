@@ -32,6 +32,7 @@ import { windowRendererFactory } from '@axe/features/panels/window-renderer';
  */
 const WINDOW_SHEET = `
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: var(--ui-bg); }
+  body { display: flow-root; overflow: clip; }
   [data-panel-window-frame] [data-panel-frame-controls] { display: none !important; }
   [data-panel-window-frame] .draggable-panel {
     position: static !important;
@@ -126,7 +127,7 @@ export class PanelWindowService {
    * has its mouse or touchpad and opens a window of its own.
    */
   get isSupported(): boolean {
-    if (this.viewport.isTouch() && !this.viewport.hasFinePointer()) return false;
+    if (this.viewport.touchOnly()) return false;
     return typeof this.document.defaultView?.open === 'function';
   }
 

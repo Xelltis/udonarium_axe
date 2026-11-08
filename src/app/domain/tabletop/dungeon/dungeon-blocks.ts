@@ -9,6 +9,15 @@ import {
   DungeonRect,
   maskOfKind,
 } from '@axe/domain/tabletop/dungeon/dungeon-layout';
+import {
+  DOOR_KIND_STYLES,
+  DOOR_MODELS,
+  type DoorKind,
+  doorModelTurn,
+  DOORS_SEEN_OVER,
+  FURNISHING_MODELS,
+  FURNISHING_SEGMENT_MODELS,
+} from '@axe/domain/tabletop/dungeon/furnishing-models';
 import { mergeMaskToRects } from '@axe/domain/tabletop/dungeon/rect-merge';
 import { furnishedCells, FURNISHING_SHAPES } from '@axe/domain/tabletop/dungeon/room-furnishing';
 import { HAZARD_PRESETS } from '@axe/domain/tabletop/hazard-presets';
@@ -40,6 +49,13 @@ export interface DungeonBlockOptions {
   sheerWalls?: boolean;
   /** How many cells one block may stand for. Hexes take one each; see mergeSpanFor. */
   mergeSpan?: number;
+  /**
+   * Whether the furniture is stood as the bundled 3D models, as a table drawn on a canvas draws them.
+   * A piece built of one block a cell, as on a board of hexes, is built of its blocks all the same.
+   */
+  models?: boolean;
+  /** The kind of door hung in every doorway, in place of the one the place hangs. Left out, the place's own. */
+  door?: DoorKind;
 }
 
 export const DEFAULT_BLOCK_OPTIONS: DungeonBlockOptions = { placeDoors: true, placeStairs: true };
@@ -160,15 +176,20 @@ function findLights(
  *
  * A run is as long as the cells it covers and as deep as its shape fills; a piece that fills its
  * cells whole takes all of them; anything else fills the same share of its cell both ways.
+ *
+ * Where models are asked for, a piece stands as its model when it is one block; a run whose model is
+ * one cell of it, as a counter's is, is built of a block to a cell, each standing as that model.
  */
 function furnishingBlocks(piece: DungeonFurnishing, span: number, options: DungeonBlockOptions): MapBlock[] {
   const run = piece.w > 1 || piece.h > 1;
   const lying = piece.w >= piece.h;
-  const rects = span > 1 ? [piece] : cellsOf(piece);
+  const segmented = options.models === true && span > 1 && run && FURNISHING_SEGMENT_MODELS.includes(piece.piece);
+  const rects = span > 1 && !segmented ? [piece] : cellsOf(piece);
   const blocks: MapBlock[] = [];
   let altitude = 0;
   for (const level of [piece.piece, ...(piece.stack ?? [])]) {
     const shape = FURNISHING_SHAPES[level];
+    const model = options.models && (rects.length === 1 || segmented) ? FURNISHING_MODELS[level] : undefined;
     for (const rect of rects) {
       blocks.push({
         kind: shape.skin ? 'prop' : 'wall',
@@ -193,6 +214,7 @@ function furnishingBlocks(piece: DungeonFurnishing, span: number, options: Dunge
         altitude: altitude || undefined,
         rotate: piece.spin || undefined,
         thing: level,
+        ...(model ? { model, ...((segmented ? !lying : rect.h > rect.w) ? { modelTurn: 90 } : {}) } : {}),
       });
     }
     altitude += shape.height ?? 0;
@@ -260,21 +282,26 @@ export function layoutToBlocks(
   }
 
   if (options.placeDoors) {
+    const prop = options.door ?? doorPropFor(atmosphere);
+    const doorStyle = options.door ? DOOR_KIND_STYLES[options.door] : atmosphere.doorStyle;
     for (const leaf of layout.doorLeaves) {
       const hung = { x: leaf.x, y: leaf.y, w: leaf.w, h: leaf.h };
+      // A door dressed as its wall stays its wall's faces: a model of a door would give it away.
+      const model = options.models && !leaf.hidden ? DOOR_MODELS[prop] : undefined;
       for (const rect of span > 1 ? [hung] : cellsOf(leaf)) {
         blocks.push({
           kind: 'door',
           rect,
-          blocksSight: true,
+          blocksSight: leaf.hidden || !DOORS_SEEN_OVER.includes(prop),
           blocksClimb: options.sheerWalls === true,
           locked: leaf.locked,
           rooms: leaf.rooms,
           across: leaf.across,
-          prop: doorPropFor(atmosphere),
-          doorStyle: atmosphere.doorStyle,
+          prop,
+          doorStyle,
           doorMirrored: leaf.mirrored,
           disguised: leaf.hidden || undefined,
+          ...(model ? { model, modelTurn: doorModelTurn(leaf.across, leaf.mirrored) || undefined } : {}),
         });
       }
     }

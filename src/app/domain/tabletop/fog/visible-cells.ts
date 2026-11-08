@@ -30,6 +30,13 @@ export interface VisibleCellsOptions {
   blockingTops?: Float32Array;
   /** How low each of them hangs, so an eye under an arch is answered on the ground beneath it. */
   blockingBases?: Float32Array;
+  /**
+   * How high the raised ground stands under the middle of each cell, in table pixels; none where it
+   * is flat. A cell on it is asked about an eye's height above its ground, where a piece standing
+   * there would be met eye to eye, so the near side of a rise is seen rather than hidden behind its
+   * own edge.
+   */
+  groundHeights?: Float64Array | null;
   /** A guard against a board so large that one pass would stall the display. */
   maxCells?: number;
   /**
@@ -80,6 +87,8 @@ export function computeVisibleCellsFor(source: SceneVisionSource, options: Visib
 
   const tops = options.blockingTops;
   const bases = options.blockingBases;
+  const ground = options.groundHeights;
+  const eyeHigh = EYE_HEIGHT_CELLS * grid.sizePx;
 
   const consider = (cell: number, cx: number, cy: number): void => {
     if (spent >= budget) return;
@@ -87,8 +96,10 @@ export function computeVisibleCellsFor(source: SceneVisionSource, options: Visib
     visited.set(cell);
     spent++;
 
+    const floor = ground ? ground[cell] + eyeHigh : 0;
+    const reachesFloor = (x: number, y: number) => reaches(x, y, floor);
     if (!blocking?.get(cell)) {
-      if (reaches(cx, cy) || cornerIsReached(options, cell, cx, cy, reaches)) bits.set(cell);
+      if (reachesFloor(cx, cy) || cornerIsReached(options, cell, cx, cy, reachesFloor)) bits.set(cell);
       return;
     }
     // A roof an eye stands level with or above is ground to it, read where it lies. Asked at
@@ -103,10 +114,10 @@ export function computeVisibleCellsFor(source: SceneVisionSource, options: Visib
     // walked on, and asked about at the faces of the arch it would stay fogged over its own feet.
     const base = bases ? bases[cell] : 0;
     if (base > source.z) {
-      if (reaches(cx, cy)) bits.set(cell);
+      if (reachesFloor(cx, cy)) bits.set(cell);
       return;
     }
-    if (wallFaceIsReached(options.grid, blocking, cell, cx, cy, reaches)) bits.set(cell);
+    if (wallFaceIsReached(options.grid, blocking, cell, cx, cy, reachesFloor)) bits.set(cell);
   };
 
   forEachCandidate(source, options, widest, consider);

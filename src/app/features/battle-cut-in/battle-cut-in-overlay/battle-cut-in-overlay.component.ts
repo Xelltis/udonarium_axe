@@ -51,14 +51,8 @@ import { defeatPictureHeight, DefeatReaction, defeatReactionOf } from '@axe/doma
 import { effectParticlePlacements } from '@axe/domain/effect/effect-particle-placements';
 import { EffectParticleLayer } from '@axe/domain/effect/effect-particles';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
-import {
-  effectLandingTimes,
-  EffectSpriteOptions,
-  effectSprites,
-  impactSoundTimes,
-  launchSoundTimes,
-  Point3,
-} from '@axe/domain/effect/effect-timeline';
+import { effectLandingTimes, impactSoundTimes, launchSoundTimes } from '@axe/domain/effect/effect-sound-times';
+import { EffectSpriteOptions, effectSprites, Point3 } from '@axe/domain/effect/effect-timeline';
 import { PresetSound, SoundEffect } from '@axe/domain/media/sound-effect';
 import { BattleCutInStateService } from '@axe/features/battle-cut-in/battle-cut-in-state.service';
 import {

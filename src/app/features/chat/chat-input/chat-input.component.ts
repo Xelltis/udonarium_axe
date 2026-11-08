@@ -51,8 +51,10 @@ import { withoutChatDecoration } from '@axe/domain/chat/chat-decoration';
 import { ChatMessage } from '@axe/domain/chat/chat-message';
 import { composeChatOutgoing, composeStampOutgoing } from '@axe/domain/chat/chat-outgoing';
 import { ChatOutgoing } from '@axe/domain/chat/chat-outgoing';
+import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { inlineStampsAlone, inlineStampToken, isInlineStampId } from '@axe/domain/chat/inline-stamp';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
+import { holdsTargetNumber, mayPinTargetNumber } from '@axe/domain/chat/target-number';
 import type { ChatDiagnostic } from '@axe/domain/chat-syntax/chat-lint';
 import { DataElement } from '@axe/domain/data/data-element';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
@@ -80,6 +82,7 @@ import {
 } from '@axe/features/chat/chat-input/chat-syntax-items';
 import { ChatSyntaxSourceService } from '@axe/features/chat/chat-input/chat-syntax-source.service';
 import { type ChatTextField, TextareaChatField } from '@axe/features/chat/chat-input/chat-text-field';
+import { targetNumberBarOf } from '@axe/features/chat/chat-input/target-number-bar';
 import { ChatToolbarComponent } from '@axe/features/chat/chat-toolbar/chat-toolbar.component';
 import { StampPickerService } from '@axe/features/chat/stamp/stamp-picker.service';
 import { RoomPanelService } from '@axe/features/panels/room-panel.service';
@@ -126,9 +129,9 @@ const LIST_ROOM = 240;
 export class ChatInputComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;
   protected readonly barButtonClass =
-    'text-ui-muted hover:bg-ui-hover hover:text-ui-text aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent aria-expanded:bg-ui-hover rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!';
+    'text-ui-muted hover:bg-ui-hover hover:text-ui-text aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent aria-expanded:bg-ui-hover rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]! pointer-coarse:h-8 pointer-coarse:min-w-8';
   protected readonly barWordButtonClass =
-    'text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent px-1 py-0 text-[12px] font-semibold transition-colors hover:shadow-none';
+    'text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent px-1 py-0 text-[12px] font-semibold transition-colors hover:shadow-none pointer-coarse:h-8 pointer-coarse:min-w-8';
   protected readonly ruleClass = 'bg-ui-border-panel h-4 w-px shrink-0 @max-[420px]:hidden';
   protected readonly colorSampleClass =
     'flex size-5 items-center justify-center rounded-[5px] text-[12px] leading-none font-bold shadow-[0_0_0_1px_var(--ui-border-panel)]';
@@ -395,7 +398,44 @@ export class ChatInputComponent {
     gameType: computed(() => this.rolledGameType()),
     path: () => this.lintPath(),
     tabIdentifier: computed(() => this.chatTabidentifier()),
+    chosenTargetNumber: computed(() => this.chosenTargetNumber()),
   });
+
+  /**
+   * The answer the reader picked to fill a `{目標値}` in the line with, for this one send: put back to
+   * the one found as the line goes out, as the tab changes, and as the line stops holding one.
+   */
+  protected readonly chosenTargetNumber = linkedSignal<string, string>({
+    source: () => `${this.chatTabidentifier()}\n${holdsTargetNumber(this._text())}`,
+    computation: () => '',
+  });
+
+  /**
+   * What the bar over the box shows of the number a `{目標値}` the speaker's data leaves in the line
+   * is filled in with, and the answers that may be picked instead; null where the line holds none.
+   */
+  protected readonly targetNumberBar = computed(() => {
+    const number = this.lintSession.targetNumber();
+    if (!number || !this.canSpeak()) return null;
+    const speaker = this.objectStore.get(this._sendFrom());
+    this.objectChange.trackMyCursor();
+    const tab = this.objectStore.get(this.chatTabidentifier());
+    const mayPin = tab instanceof ChatTab && mayPinTargetNumber(tab, PeerCursor.myRole);
+    return targetNumberBarOf(number, speaker instanceof GameCharacter ? speaker.name : '', mayPin);
+  });
+
+  /** Picks the answer to fill the line's `{目標値}` with, and goes back to the box to send it. */
+  protected pickTargetNumber(identifier: string): void {
+    this.chosenTargetNumber.set(identifier);
+    this.textField()?.focus();
+  }
+
+  /** Takes the tab's own number to beat off, from the bar that shows it, and goes back to the box. */
+  protected unpinTargetNumber(): void {
+    const tab = this.objectStore.get(this.chatTabidentifier());
+    if (tab instanceof ChatTab && mayPinTargetNumber(tab, PeerCursor.myRole)) tab.pinnedTargetNumber = '';
+    this.textField()?.focus();
+  }
 
   /** The text checked as it will be sent from here, while it is typed into the editor. */
   private readonly activeSession = computed(() => (this.inputMode() === 'rich' ? this.lintSession : null));
@@ -593,6 +633,11 @@ export class ChatInputComponent {
    * it, from the left, so that nothing in it is pushed out of line.
    */
   readonly narrow = input(false);
+  /**
+   * Whether the bar of tools over the box keeps to one row, scrolling sideways where its tools run past
+   * the box's width, as on a small screen, where rows of tools would leave little of the box to write in.
+   */
+  protected readonly oneRowBar = computed(() => this.isCompact() || this.narrow());
   /** What the empty box says in place of its keys, for a panel that fills the box its own way. */
   readonly placeholder = input('');
   readonly canSpeak = input(true);
@@ -1163,7 +1208,10 @@ export class ChatInputComponent {
     return this.stampRules.allows('line', stampId) && stampOf(stampId) ? stampId : null;
   }
 
-  /** Sends what the box holds, and clears the box, the reply and the quote. */
+  /**
+   * Sends what the box holds, with the number to beat the reader picked for it where they picked
+   * one, and clears the box, the reply, the quote and the pick.
+   */
   private sendDraft(): void {
     if (!this.sendFrom.length) this.sendFrom = this.myPeer.identifier;
 
@@ -1179,7 +1227,9 @@ export class ChatInputComponent {
       replyTo: this.replyTarget()?.identifier ?? '',
       quoteOf: this.quoteTarget()?.identifier ?? '',
       toTicker: this.showsTickerSwitch() && this.sendsToTicker(),
+      targetNumber: this.lintSession.targetNumber()?.chosen?.total,
     };
+    this.chosenTargetNumber.set('');
     DiceBot.gameSystemForLineAsync(this.gameType, draft.text).then((gameSystem) => {
       this.chat.emit(composeChatOutgoing({ ...draft, gameSystem }));
     });

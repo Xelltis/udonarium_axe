@@ -117,6 +117,83 @@ describe('ChatLintService', () => {
     }
   });
 
+  describe('the number to beat a line holds', () => {
+    let tab: ChatTab;
+
+    beforeEach(() => {
+      tab = new ChatTab();
+      tab.initialize();
+      ObjectStore.instance.add(tab);
+    });
+
+    afterEach(() => {
+      tab.destroy();
+    });
+
+    function answer(text: string, at: number, tag = 'system') {
+      return tab.addMessage({
+        from: 'System-BCDice',
+        originFrom: 'gm',
+        name: '<BCDice：ゴブリン>',
+        text,
+        tag,
+        timestamp: at,
+      });
+    }
+
+    it('tells the number found and where, with the newest answers that may be picked instead', () => {
+      const older = answer('DiceBot : (2D6+8) → 7[3,4]+8 → 15', 1001);
+      answer('DiceBot : (2D6+5) → 9[4,5]+5 → 14 [戦士]', 1011);
+      answer('DiceBot : (1D6) → 3', 1021, 'system secret');
+      const { session } = watch('2d6>={目標値}', { tabIdentifier: signal(tab.identifier) });
+
+      const number = session.targetNumber();
+      expect(number?.found).toMatchObject({ total: 14, from: 'aimed' });
+      expect(number?.chosen).toBeNull();
+      expect(number?.choices.map((choice) => choice.total)).toEqual([14, 15]);
+      expect(number?.choices[1].answer).toBe(older);
+    });
+
+    it('fills the line in with the answer picked, and with the one found again once the pick is gone', () => {
+      const older = answer('DiceBot : (2D6+8) → 7[3,4]+8 → 15', 1001);
+      answer('DiceBot : (2D6+5) → 9[4,5]+5 → 14 [戦士]', 1011);
+      const chosenTargetNumber = signal(older.identifier);
+      const { session } = watch('2d6>={目標値}', { tabIdentifier: signal(tab.identifier), chosenTargetNumber });
+
+      expect(session.targetNumber()?.chosen?.total).toBe(15);
+      expect(session.annotations()).toEqual([{ kind: 'value', label: '15', from: 5, to: 10 }]);
+
+      chosenTargetNumber.set('gone');
+      expect(session.targetNumber()?.chosen).toBeNull();
+      expect(session.annotations()).toEqual([{ kind: 'value', label: '14', from: 5, to: 10 }]);
+    });
+
+    it("tells the tab's own number to beat once it is set", async () => {
+      const older = answer('DiceBot : (2D6+8) → 7[3,4]+8 → 15', 1001);
+      answer('DiceBot : (1D6) → 3', 1011);
+      const { session } = watch('2d6>={目標値}', {
+        sendFrom: signal('someone-else'),
+        tabIdentifier: signal(tab.identifier),
+      });
+      expect(session.targetNumber()?.found).toMatchObject({ total: 3, from: 'byOthers' });
+
+      tab.pinnedTargetNumber = older.identifier;
+
+      await vi.waitFor(() => expect(session.targetNumber()?.found).toMatchObject({ total: 15, from: 'pinned' }));
+    });
+
+    it("tells nothing for a line that holds none, or one the speaker's own sheet answers", () => {
+      answer('DiceBot : (2D6+8) → 7[3,4]+8 → 15', 1001);
+      const text = signal('2d6>=12');
+      const { session } = watch('', { text, tabIdentifier: signal(tab.identifier) });
+      expect(session.targetNumber()).toBeNull();
+
+      speaker.rootDataElement?.appendChild(DataElement.create('目標値', 9, {}, '目標値_' + speaker.identifier));
+      text.set('2d6>={目標値}');
+      expect(session.targetNumber()).toBeNull();
+    });
+  });
+
   it('checks a roll once the game system has arrived', async () => {
     const notHereYet = vi.spyOn(DiceBot, 'loadedGameSystem').mockReturnValue(null);
     try {

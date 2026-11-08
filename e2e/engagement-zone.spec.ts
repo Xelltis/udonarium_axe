@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openPanel, revealMenuEntry, waitAppReady } from './helpers';
+import { openGroundAt, openPanel, revealMenuEntry, spotOnPiece, waitAppReady } from './helpers';
 import { centreOf, pedestal, piece, Point, settle } from './see-through-helpers';
 
 async function becomeGm(page: Page) {
@@ -20,12 +20,17 @@ async function closePanels(page: Page) {
   await expect(panels).toHaveCount(0);
 }
 
+/**
+ * Drags from one point to another and leaves the pointer off the table, where the card of the piece
+ * let go of would cover the next one reached for.
+ */
 async function drag(page: Page, from: Point, to: Point) {
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
   await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 6 });
   await page.mouse.move(to.x, to.y, { steps: 8 });
   await page.mouse.up();
+  await page.mouse.move(5, 400);
 }
 
 /** Opens a piece's menu and chooses an entry, through the submenu named first where one is given. */
@@ -72,15 +77,18 @@ test.describe('engagement zones', () => {
     else await npc.click();
     await expect(page.locator('context-menu')).toHaveCount(0, { timeout: 5000 });
 
+    await settle(foe);
+    await drag(page, await spotOnPiece(foe), await openGroundAt(page));
+    await settle(foe);
     await settle(hero);
-    await drag(page, await centreOf(pedestal(hero)), await centreOf(pedestal(foe)));
+    await drag(page, await spotOnPiece(hero), await centreOf(pedestal(foe)));
     await settle(hero);
 
     await choose(page, 'キャラクターA', 'モンスターA と交戦する', '交戦エリア');
 
     const zones = page.getByTestId('zone-mark');
     await expect(zones).toHaveCount(1, { timeout: 5000 });
-    await expect(zones.first().locator('text')).toHaveText('2/20');
+    await expect(zones.first()).toHaveText('2/20');
 
     expect(await menuOffers(page, 'キャラクターA', '移動')).toBe(false);
     await choose(page, 'キャラクターA', '次の手番で離れると予告する', '交戦エリア');

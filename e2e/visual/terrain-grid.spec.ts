@@ -13,7 +13,7 @@ test('a terrain draws its own grid over its floor', async ({ page }) => {
   await closePanels(page);
   await freeze(page);
 
-  const menu = await rightClickTable(page, { x: 900, y: 250 });
+  const menu = await rightClickTable(page, { x: 1054, y: 276 });
   await chooseMenu(page, menu, '地形を作成');
   const terrain = page.locator('terrain').last();
   await expect(terrain).toBeAttached();

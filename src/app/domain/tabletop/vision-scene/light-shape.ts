@@ -19,7 +19,7 @@ export function distance(ax: number, ay: number, bx: number, by: number): number
  * The unit vector a light points along, from its direction across the table and its pitch up or
  * down.
  */
-export function lightAxis(light: SceneLight): { x: number; y: number; z: number } {
+export function lightAxis(light: Pick<SceneLight, 'direction' | 'pitch'>): { x: number; y: number; z: number } {
   const dir = (light.direction * Math.PI) / 180;
   const pit = (light.pitch * Math.PI) / 180;
   const cp = Math.cos(pit);

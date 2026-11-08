@@ -55,6 +55,22 @@ describe('DataElementAddFieldComponent', () => {
     await expect(ref.closed).resolves.toBe(added);
   });
 
+  it('says what each kind is for, with a sample of how it looks', () => {
+    const group = DataElement.create('基本', '', { [DataElementAttribute.ROLE]: DataElementRole.GROUP });
+    const host = open(group);
+    const kinds = [...host.querySelectorAll('[role="radio"]')];
+
+    expect(kinds.length).toBeGreaterThan(5);
+    for (const kind of kinds) {
+      const hint = host.querySelector(`[id="${kind.getAttribute('aria-describedby')}"]`);
+      expect(hint?.textContent?.trim(), kind.getAttribute('data-type')!).toMatch(/\S/);
+      expect(kind.querySelector('[data-testid="add-field-sample"]')?.textContent?.trim()).toMatch(/\S/);
+    }
+    expect(host.querySelector('[data-type="resource"] [data-testid="add-field-sample"]')?.textContent).toContain(
+      '18 / 20'
+    );
+  });
+
   it('only closes where the group takes no field', async () => {
     const section = DataElement.create('能力', '', { [DataElementAttribute.ROLE]: DataElementRole.SECTION });
     const host = open(section);

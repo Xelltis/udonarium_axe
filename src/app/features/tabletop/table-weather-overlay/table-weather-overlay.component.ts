@@ -9,15 +9,16 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { AmbienceService, type WeatherAmbience } from '@axe/application/tabletop/ambience.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
-import { withAlpha } from '@axe/core/util/hex-color';
 import { observeSize } from '@axe/core/util/observe-size';
-import { skyAmbienceFlash, skyAmbienceLayer, skyAmbienceWash } from '@axe/domain/effect/ambience/ambience-sky';
+import { skyAmbienceLayer, skyAmbienceWash } from '@axe/domain/effect/ambience/ambience-sky';
 import { CurrentCarry } from '@axe/domain/effect/ambience/current-carry';
 import { EffectParticleLayer } from '@axe/domain/effect/effect-particles';
+import { pageOfTablePoint } from '@axe/domain/tabletop/camera/table-camera';
+import { fallsInScene } from '@axe/domain/tabletop/world/weather-fall';
 import { EffectCanvasComponent } from '@axe/features/effect/effect-canvas/effect-canvas.component';
 import {
   type ScreenPoint,
@@ -47,10 +48,9 @@ const STILL_REPROJECT_INTERVAL_MS = 1000;
 const LIGHT_MASK_STEP_PX = 8;
 
 /**
- * The weather over the whole map.
- *
- * Rain and snow laid flat on the board crawl along the ground as the camera tips.
- * They are drawn as one sheet across the screen, outside the 3D transform of the board.
+ * The weather over the whole map that the table's scene does not draw: the colour of the air, and
+ * what fills it but falls through the scene, as ash, embers and sand, drawn as one sheet across the
+ * screen over where the board lies.
  */
 @Component({
   selector: 'table-weather-overlay',
@@ -68,7 +68,7 @@ const LIGHT_MASK_STEP_PX = 8;
 export class TableWeatherOverlayComponent {
   private readonly ambienceService = inject(AmbienceService);
   private readonly tabletopService = inject(TabletopService);
-  private readonly coordinateService = inject(CoordinateService);
+  private readonly camera = inject(TableCameraService);
   private readonly renderLite = inject(RenderLiteService);
   private readonly elementRef: ElementRef<HTMLElement> = inject(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
@@ -110,9 +110,7 @@ export class TableWeatherOverlayComponent {
   private readonly viewEpoch = computed<string>(() => {
     this.reprojectTick();
     return untracked(
-      () =>
-        `${this.coordinateService.tabletopTransformVersion()}:` +
-        `${Math.floor(this.ambienceService.now() / STILL_REPROJECT_INTERVAL_MS)}`
+      () => `${this.camera.version()}:` + `${Math.floor(this.ambienceService.now() / STILL_REPROJECT_INTERVAL_MS)}`
     );
   });
 
@@ -124,9 +122,6 @@ export class TableWeatherOverlayComponent {
   private readonly projected = computed<ScreenPoint[]>(() => {
     if (!this.shownWeather() || this.fromInside()) return [];
 
-    const origin = this.coordinateService.tabletopOriginElement;
-    if (!origin || origin === document.body) return [];
-
     const table = this.tabletopService.currentTableVersion();
     const width = table.width * table.gridSize;
     const depth = table.height * table.gridSize;
@@ -134,6 +129,8 @@ export class TableWeatherOverlayComponent {
 
     this.viewEpoch();
     this.size();
+    const scene = untracked(() => this.camera.sceneMatrix());
+    if (!scene) return [];
 
     const ceiling = Math.max(table.wallHeight, MIN_SKY_CELLS) * table.gridSize;
     const box = [0, ceiling].flatMap((z) => [
@@ -144,9 +141,10 @@ export class TableWeatherOverlayComponent {
     ]);
 
     const host = this.elementRef.nativeElement.getBoundingClientRect();
-    return this.coordinateService
-      .convertManyToGlobal(box, origin)
-      .map((corner) => ({ x: corner.x - host.left, y: corner.y - host.top }));
+    return box.map((corner) => {
+      const onPage = pageOfTablePoint(scene, corner.x, corner.y, corner.z);
+      return { x: onPage.x - host.left, y: onPage.y - host.top };
+    });
   });
 
   /** It does not reach past the board. Cut by a polygon it would show an edge in mid-air, so it fades out instead. */
@@ -161,18 +159,13 @@ export class TableWeatherOverlayComponent {
     return skyAmbienceWash(weather.kind, weather.color, weather.density, direction);
   });
 
-  /** Lightning. It lights only what is over the board, so it is struck inside the mask. */
-  readonly flash = computed<string>(() => {
-    const weather = this.shownWeather();
-    if (!weather || !this.ambienceService.motionEnabled()) return '';
-
-    const power = skyAmbienceFlash(weather.kind, this.ambienceService.now(), weather.density);
-    return power > 0.01 ? withAlpha(weather.color, Math.round(power * 850) / 1000) : '';
-  });
-
+  /**
+   * What fills the air over the board, drawn across the screen: all but rain, a storm and snow, which
+   * fall through the table's scene itself, the storm's lightning lighting it there.
+   */
   readonly layer = computed<EffectParticleLayer | null>(() => {
     const weather = this.shownWeather();
-    if (!weather || !this.ambienceService.motionEnabled()) return null;
+    if (!weather || !this.ambienceService.motionEnabled() || fallsInScene(weather.kind)) return null;
 
     const { width, height } = this.size();
     if (width < 1 || height < 1) return null;

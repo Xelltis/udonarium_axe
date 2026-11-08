@@ -4,7 +4,6 @@
   [class.cursor-grabbing]="looking.dragging()"
   [class.animate-effect-shake-soft]="shake() === 'soft'"
   [class.animate-effect-shake-hard]="shake() === 'hard'"
-  [style.perspective.px]="perspective()"
   (pointerdown)="looking.press($event)"
   (pointermove)="dragLook($event)"
   (pointerup)="looking.letGo($event)"
@@ -34,24 +33,12 @@
       ></div>
     }
   }
-  <div
-    class="absolute top-1/2 left-1/2 size-0 transform-3d"
-    data-testid="first-person-camera"
-    [style.transform]="camera()"
-  >
-    @for (quad of quadViews(); track quad.id) {
-      <div
-        class="absolute top-0 left-0 bg-no-repeat backface-hidden"
-        [class]="quad.tone"
-        [attr.data-quad]="quad.kind"
-        [attr.data-cell]="quad.cell"
-        [attr.data-remembered]="quad.remembered || null"
-        [style]="quad.style"
-      ></div>
-    }
-    @for (water of waterViews(); track water.id) {
-      <div class="pointer-events-none absolute top-0 left-0" data-water-quad [style]="water.style"></div>
-    }
+  <div class="pointer-events-none absolute inset-0" data-testid="first-person-canvas" #canvasHost></div>
+  <!--
+    What is laid on the view is laid flat, each with the transform that carries it on through the eye
+    onto the view the table's canvas draws.
+  -->
+  <div class="absolute top-0 left-0 size-0" data-testid="first-person-camera">
     @for (piece of pieceViews(); track piece.id) {
       <div
         class="absolute top-0 left-0 flex cursor-pointer items-end justify-center"
@@ -62,33 +49,16 @@
       >
         @if (piece.url) {
           <img
-            class="size-full object-bottom"
+            class="size-full object-bottom opacity-0"
             [class.object-contain]="!piece.stretched"
             [class.object-fill]="piece.stretched"
-            [style.filter]="piece.imageFilter"
-            [style.mask-image]="piece.water?.mask ?? null"
             [src]="piece.url"
             [alt]="piece.label"
             draggable="false"
             (load)="notePictureAspect(piece.url, $event)"
           />
-          @if (piece.water; as water) {
-            <img
-              class="pointer-events-none absolute inset-0 size-full object-bottom"
-              [class.object-contain]="!piece.stretched"
-              [class.object-fill]="piece.stretched"
-              data-water-copy
-              [style.clip-path]="water.clip"
-              [style.filter]="water.tint"
-              [style.opacity]="water.tintOpacity"
-              [style.mask-image]="water.fade"
-              [src]="piece.url"
-              alt=""
-              draggable="false"
-            />
-          }
         } @else {
-          <span class="rounded-sm bg-black/60 px-2 py-1 text-white">{{ piece.label || '?' }}</span>
+          <span class="rounded-sm bg-black/60 px-2 py-1 text-white opacity-0">{{ piece.label || '?' }}</span>
         }
         @if (piece.targeted) {
           <span
@@ -188,97 +158,10 @@
         </span>
       </div>
     }
-    @for (prop of propViews(); track prop.id) {
-      <div
-        class="pointer-events-none absolute top-0 left-0 flex items-end justify-center"
-        [class.rounded-full]="prop.round"
-        [class.overflow-hidden]="prop.round"
-        [class.rounded-sm]="prop.what === 'card' || prop.what === 'stack'"
-        [attr.data-prop]="prop.what"
-        [style]="prop.style"
-        [style.opacity]="prop.opacity"
-        [style.background]="prop.wash || null"
-        [style.background-color]="prop.image || prop.wash ? null : prop.color || null"
-      >
-        @if (prop.image) {
-          <img
-            class="size-full"
-            [class.object-contain]="!prop.fill"
-            [class.object-bottom]="prop.kind === 'stand'"
-            [class.object-fill]="prop.fill"
-            [class.brightness-0]="prop.dark"
-            [src]="prop.image"
-            alt=""
-            draggable="false"
-          />
-        } @else if (prop.what === 'light') {
-          <i class="material-icons text-[180px]! leading-none!" [style.color]="prop.color">lightbulb</i>
-        }
-        @if (prop.text) {
-          <span class="absolute inset-0 overflow-hidden p-6 text-3xl whitespace-pre-wrap text-stone-900">{{
-            prop.text
-          }}</span>
-        }
-        @if (prop.label) {
-          <span
-            class="absolute -top-10 left-1/2 -translate-x-1/2 rounded-sm bg-black/60 px-3 py-1 text-2xl whitespace-nowrap text-white"
-            >{{ prop.label }}</span
-          >
-        }
-      </div>
-    }
-    @if (beamViews().length > 0) {
-      <div
-        class="pointer-events-none absolute top-0 left-0 origin-top-left transform-3d"
-        [style.transform]="'scale3d(' + scale() + ', ' + scale() + ', ' + scale() + ')'"
-      >
-        @for (beam of beamViews(); track beam.id) {
-          @for (fin of beam.fins; track $index) {
-            <div
-              class="pointer-events-none absolute top-0 left-0 origin-top-left opacity-[0.16] backface-visible"
-              data-beam
-              [style.width.px]="beam.width"
-              [style.height.px]="beam.height"
-              [style.transform]="fin"
-              [style.clip-path]="beam.clip"
-              [style.background]="beam.background"
-            ></div>
-          }
-        }
-      </div>
-    }
-    @for (sheet of fogAirViews(); track sheet.id) {
-      <div class="pointer-events-none absolute top-0 left-0 overflow-hidden" data-fog-air [style]="sheet.style">
-        <first-person-fog-air
-          class="block size-full"
-          [layer]="sheet.layer"
-          [index]="sheet.id"
-          [gridSize]="gridSize()"
-        />
-      </div>
-    }
-    @for (view of rangeViews(); track view.id) {
-      <div class="pointer-events-none absolute top-0 left-0" data-range [style]="view.style">
-        <first-person-range
-          class="absolute top-1/2 left-1/2 block size-0 origin-top-left"
-          [style.transform]="'scale(' + scale() + ')'"
-          [range]="view.range"
-          [gridSize]="gridSize()"
-          [gridType]="gridType()"
-        />
-      </div>
-    }
-    @for (glow of glowViews(); track glow.id) {
-      <div class="pointer-events-none absolute top-0 left-0 rounded-full" data-glow [style]="glow.style"></div>
-    }
     @if (effectEye(); as eye) {
-      <div
-        class="pointer-events-none absolute top-0 left-0 transform-3d"
-        data-testid="first-person-effects"
-        [style.transform]="effectScale()"
-      >
-        <table-effect-overlay [eye]="eye" />
-        <effect-target-overlay [badges]="false" />
+      <div class="pointer-events-none absolute top-0 left-0" data-testid="first-person-effects">
+        <table-effect-overlay class="contents" [eye]="eye" />
+        <effect-target-overlay class="contents" [badges]="false" />
       </div>
     }
   </div>

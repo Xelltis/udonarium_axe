@@ -7,7 +7,7 @@ import { stashOf } from '@axe/domain/tabletop/board-switch/concealment';
 import { parseCellKey } from '@axe/domain/tabletop/cell-key';
 import { cellKeyOf, CellRect } from '@axe/domain/tabletop/cell-rectangles';
 import { CellBits } from '@axe/domain/tabletop/fog/cell-bits';
-import { cellColRow, CellGrid, cellGridOf, cellIndexAt, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
+import { cellColRow, CellGrid, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import {
   AmbienceBlock,
   AmbiencePaintSpec,
@@ -26,14 +26,16 @@ import {
   waterDirtOf,
   waterFlowDirectionOf,
   waterFlowSpeedOf,
+  waterIceOf,
   waterLeavesOf,
   waterTurbidityOf,
 } from '@axe/domain/tabletop/function-paint';
 import { GameTable } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
-import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
-import { blockOrigin as gridBlockOrigin, cellCentre } from '@axe/domain/tabletop/map-grid';
+import { ensureGroundFieldOn, groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
+import { blockOrigin as gridBlockOrigin } from '@axe/domain/tabletop/map-grid';
 import { ensureMoveBlockMapOn, moveBlockMapOn } from '@axe/domain/tabletop/move/move-block-map';
+import { paintedBlockFootprintOf } from '@axe/domain/tabletop/painted-block-footprint';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { moveCostsOn, TableMoveCost } from '@axe/domain/tabletop/table-move-cost';
 import { TableSelecter } from '@axe/domain/tabletop/table-selecter';
@@ -117,6 +119,10 @@ function layTerrainBlock(
     const held = spec.images[face];
     if (held.length > 0) terrain.setFaceImage(face, held);
   }
+  terrain.modelIdentifier = spec.model;
+  terrain.modelScale = spec.modelScale;
+  terrain.modelTurn = spec.modelTurn;
+  terrain.paintedObject = spec.paintedObject ? '1' : '';
   return terrain;
 }
 
@@ -135,7 +141,7 @@ function placementFor(
 ): BlockPlacement | null {
   const placed = spec.placement;
   if (!placed) return null;
-  const stood = blockFootprintOf(
+  const stood = paintedBlockFootprintOf(
     { location: { x: placed.x, y: placed.y }, rotate: placed.rotate },
     placed.width,
     placed.depth,
@@ -217,6 +223,10 @@ export function terrainSpecOf(terrain: Terrain, placement: BlockPlacement | null
       animation: terrain.lightAnimation,
     },
     images,
+    model: `${terrain.modelIdentifier ?? ''}`,
+    modelScale: `${terrain.modelScale ?? ''}`,
+    modelTurn: `${terrain.modelTurn ?? ''}`,
+    paintedObject: terrain.paintedObject === '1',
     placement,
   };
 }
@@ -236,81 +246,6 @@ export function maskSpecOf(mask: GameTableMask, placement: BlockPlacement | null
     scratchingGrids: mask.scratchingGrids,
     preview: mask.isPreview,
     placement,
-  };
-}
-
-/**
- * The cells a block stands over, and whether it stands over them squarely.
- *
- * Everything on the table is read in. One that sits square on the grid needs nothing said
- * about it beyond its cells; one that was turned, or that stands between them, or that is
- * two and a half cells wide, keeps its exact placement alongside so that laying it back
- * down returns it as it was.
- */
-export function blockFootprintOf(
-  object: { location: { x: number; y: number }; rotate?: number },
-  width: number,
-  depth: number,
-  grid: CellGrid
-): { rect: CellRect; placement: BlockPlacement | null } | null {
-  const gridSize = grid.sizePx;
-  if (gridSize <= 0) return null;
-  const rotate = object.rotate ?? 0;
-  if (isHexGrid(grid.type)) return hexFootprintOf(object, width, depth, grid, rotate);
-  const exactCol = object.location.x / gridSize;
-  const exactRow = object.location.y / gridSize;
-  if (!Number.isFinite(exactCol) || !Number.isFinite(exactRow)) return null;
-
-  const col = Math.max(0, Math.floor(exactCol));
-  const row = Math.max(0, Math.floor(exactRow));
-  const cellWidth = Math.max(1, Math.ceil(width));
-  const cellDepth = Math.max(1, Math.ceil(depth));
-
-  const square =
-    rotate % 360 === 0 &&
-    Number.isInteger(exactCol) &&
-    Number.isInteger(exactRow) &&
-    exactCol >= 0 &&
-    exactRow >= 0 &&
-    Number.isInteger(width) &&
-    Number.isInteger(depth);
-
-  return {
-    rect: { col, row, width: cellWidth, height: cellDepth },
-    placement: square ? null : { x: object.location.x, y: object.location.y, width, depth, rotate },
-  };
-}
-
-/**
- * The cell a block stands on, on a board of hexes.
- *
- * A hex board has no corner to divide by: a block sits in the middle of its cell, and every
- * other column is dropped half a row. One that is not a single cell standing squarely in the
- * middle of one keeps its exact placement, as a turned or half-placed block does on squares.
- */
-function hexFootprintOf(
-  object: { location: { x: number; y: number } },
-  width: number,
-  depth: number,
-  grid: CellGrid,
-  rotate: number
-): { rect: CellRect; placement: BlockPlacement | null } | null {
-  const half = grid.sizePx / 2;
-  const centreX = object.location.x + half;
-  const centreY = object.location.y + half;
-  const index = cellIndexAt(grid, centreX, centreY);
-  if (index < 0) return null;
-  const { col, row } = cellColRow(grid, index);
-  const middle = cellCentre({ x: col, y: row }, grid);
-  const square =
-    rotate % 360 === 0 &&
-    width === 1 &&
-    depth === 1 &&
-    Math.abs(middle.x - centreX) < 0.5 &&
-    Math.abs(middle.y - centreY) < 0.5;
-  return {
-    rect: { col, row, width: 1, height: 1 },
-    placement: square ? null : { x: object.location.x, y: object.location.y, width, depth, rotate },
   };
 }
 
@@ -387,6 +322,7 @@ function ambienceSpecOf(area: TableAmbience): AmbiencePaintSpec {
     leaves: waterLeavesOf(area.floatingLeaves),
     flowSpeed: waterFlowSpeedOf(area.flowSpeed),
     flowDirection: waterFlowDirectionOf(area.flowDirection),
+    ice: waterIceOf(area.iceCover),
   };
 }
 
@@ -415,8 +351,17 @@ export class FunctionalPaintService {
       this.layTriggers(table, plan);
       this.layMoveCosts(table, plan);
       this.layAmbiences(table, grid, plan);
+      this.layGround(table, plan);
     });
     return true;
+  }
+
+  /** Writes the chunks of the raised ground the plan names, each in place of the one kept there. */
+  private layGround(table: GameTable, plan: FunctionPaintPlan): void {
+    const chunks = plan.ground ?? [];
+    if (chunks.length < 1) return;
+    const field = ensureGroundFieldOn(table);
+    for (const chunk of chunks) field.writeChunk(chunk);
   }
 
   private closeCells(table: GameTable, grid: CellGrid, blocked: readonly string[]): void {
@@ -434,7 +379,7 @@ export class FunctionalPaintService {
   private layTerrain(table: GameTable, grid: CellGrid, plan: FunctionPaintPlan): void {
     this.takeAway(
       terrainsOn(table).map((held) => {
-        const stood = blockFootprintOf(held, held.width, held.depth, grid);
+        const stood = paintedBlockFootprintOf(held, held.width, held.depth, grid);
         return {
           object: held,
           key: stood ? blockKey(stood.rect, terrainSpecOf(held, stood.placement, table.gridSize)) : null,
@@ -454,7 +399,7 @@ export class FunctionalPaintService {
   private layMasks(table: GameTable, grid: CellGrid, plan: FunctionPaintPlan): void {
     this.takeAway(
       masksOn(table).map((held) => {
-        const stood = blockFootprintOf(held, held.width, held.height, grid);
+        const stood = paintedBlockFootprintOf(held, held.width, held.height, grid);
         return { object: held, key: stood ? blockKey(stood.rect, maskSpecOf(held, stood.placement)) : null };
       }),
       plan.mask.remove
@@ -584,7 +529,7 @@ export class FunctionalPaintService {
   private layAmbiences(table: GameTable, grid: CellGrid, plan: FunctionPaintPlan): void {
     this.takeAway(
       table.ambiences.filter(isEditorsOwnLook).map((held) => {
-        const stood = blockFootprintOf(held, held.width, held.height, grid);
+        const stood = paintedBlockFootprintOf(held, held.width, held.height, grid);
         return { object: held, key: stood ? blockKey(stood.rect, ambienceSpecOf(held)) : null };
       }),
       plan.ambience.remove
@@ -601,6 +546,7 @@ export class FunctionalPaintService {
       area.floatingLeaves = block.spec.leaves;
       area.flowSpeed = block.spec.flowSpeed;
       area.flowDirection = block.spec.flowDirection;
+      area.iceCover = block.spec.ice;
       area.location = blockOrigin(null, block, grid);
       table.appendChild(area);
     }
@@ -622,13 +568,13 @@ export class FunctionalPaintService {
       blockedCells: blockedCellKeysOn(table, grid),
       terrainBlocks: terrainsOn(table)
         .map((held) => {
-          const stood = blockFootprintOf(held, held.width, held.depth, grid);
+          const stood = paintedBlockFootprintOf(held, held.width, held.depth, grid);
           return stood ? { ...stood.rect, spec: terrainSpecOf(held, stood.placement, table.gridSize) } : null;
         })
         .filter((block): block is TerrainBlock => block !== null),
       maskBlocks: masksOn(table)
         .map((held) => {
-          const stood = blockFootprintOf(held, held.width, held.height, grid);
+          const stood = paintedBlockFootprintOf(held, held.width, held.height, grid);
           return stood ? { ...stood.rect, spec: maskSpecOf(held, stood.placement) } : null;
         })
         .filter((block): block is MaskBlock => block !== null),
@@ -637,10 +583,11 @@ export class FunctionalPaintService {
       ambienceBlocks: table.ambiences
         .filter(isEditorsOwnLook)
         .map((held) => {
-          const stood = blockFootprintOf(held, held.width, held.height, grid);
+          const stood = paintedBlockFootprintOf(held, held.width, held.height, grid);
           return stood ? { ...stood.rect, spec: ambienceSpecOf(held) } : null;
         })
         .filter((block): block is AmbienceBlock => block !== null),
+      groundChunks: groundFieldOn(table)?.readChunks() ?? [],
     };
   }
 }

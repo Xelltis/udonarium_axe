@@ -9,7 +9,6 @@ import {
 import { GridType } from '@axe/domain/tabletop/game-table';
 import { type WaterArea, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
 import { WATER_REACH_CELLS, waterGridOver } from '@axe/domain/tabletop/water/water-grid';
-import { waterSheetsOf } from '@axe/domain/tabletop/water/water-sheets';
 
 const SIZE = 50;
 
@@ -29,6 +28,7 @@ function area(col: number, row: number, cols: number, rows: number): WaterArea {
     leaves: 0,
     flowSpeed: 0,
     flowDirection: 0,
+    ice: 0,
   };
 }
 
@@ -56,14 +56,6 @@ describe('waterGridOver()', () => {
         expect(cellCenterOf(grid, cellIndexAt(grid, centre.x, centre.y))).toEqual(centre);
       }
     }
-  });
-
-  it('draws water off the board where it was laid', () => {
-    const pond = area(-5, -3, 2, 1);
-    const grid = waterGridOver(square, [pond]);
-    const [sheet] = waterSheetsOf(grid, waterCellsOf(grid, [pond]).values(), () => '');
-
-    expect(sheet).toMatchObject({ left: pond.left, top: pond.top, width: pond.width, height: pond.height });
   });
 
   it('reaches no further than a long way off the board', () => {

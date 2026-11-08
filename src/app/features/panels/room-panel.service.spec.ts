@@ -118,6 +118,14 @@ describe('RoomPanelService', () => {
     expect(openLazy.mock.calls.map(([, given]) => (given as PanelOption).top)).toEqual([64, 84]);
   });
 
+  it('opens the table settings again beside one already open, as they keep to no single panel', () => {
+    service.open('tableSetting');
+    service.open('tableSetting');
+
+    expect(openLazy).toHaveBeenCalledTimes(2);
+    expect([option(0).single, option(1).single]).toEqual([undefined, undefined]);
+  });
+
   it('loads the dice table settings, so the menu and the chat window open the same panel', async () => {
     service.open('diceTableSetting');
 

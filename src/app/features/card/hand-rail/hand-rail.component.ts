@@ -12,11 +12,11 @@ import {
 } from '@angular/core';
 import { HandRailService } from '@axe/application/card/hand-rail.service';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
 import type { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { TableFocusService } from '@axe/application/tabletop/table-focus.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
@@ -67,7 +67,7 @@ export class HandRailComponent {
   private readonly objectChange = inject(ObjectChangeService);
   private readonly selectionSignalService = inject(SelectionSignalService);
   private readonly tableFocus = inject(TableFocusService);
-  private readonly coordinateService = inject(CoordinateService);
+  private readonly tablePick = inject(TablePickService);
   private readonly tabletopService = inject(TabletopService);
   protected readonly rail = inject(HandRailService);
   protected readonly drag = inject(HandDragService);
@@ -314,13 +314,9 @@ export class HandRailComponent {
       return;
     }
 
-    const surface = targets.map((element) => element.closest<HTMLElement>('[data-surface]')).find(Boolean);
-    if (!surface) return;
+    if (!this.tablePick.faceAt(event.clientX, event.clientY)) return;
 
-    const local = this.coordinateService.calcTabletopLocalCoordinate(
-      { x: event.clientX, y: event.clientY, z: 0 },
-      surface
-    );
+    const local = this.tablePick.landingAt(event.clientX, event.clientY);
     const card = pending.card;
     const menu = buildPlayDroppedCardMenu((faceUp) => this.playAt(card, local, faceUp), this.t);
     this.contextMenuService.open({ x: event.clientX, y: event.clientY }, menu, this.displayName(card));

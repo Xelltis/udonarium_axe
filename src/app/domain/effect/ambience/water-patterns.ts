@@ -1,3 +1,4 @@
+import { CAUSTIC_SEED } from '@axe/domain/effect/ambience/caustics';
 import { seededRandom } from '@axe/domain/effect/particles/shared';
 
 /** How many pixels a side of a water pattern tile is drawn at. */
@@ -90,6 +91,28 @@ export function scumRimAlpha(field: SmoothField, coverage = 0.35): Uint8ClampedA
   return toAlpha(values, (value) => smoothstep(edge - 0.035, edge, value) * (1 - smoothstep(edge, edge + 0.02, value)));
 }
 
+/** The seed the scum is drawn from, the same wherever the water is drawn. */
+const SCUM_SEED = CAUSTIC_SEED + 2;
+/** How many waves the scum is drawn from, and how fine the finest of them runs. */
+const SCUM_WAVES = 34;
+const SCUM_FINEST = 8;
+/** How much of the surface the scum covers at its thickest. */
+const SCUM_COVERAGE = 0.3;
+
+/** The scum floating on dirty water over one tile, as the page and the canvas both draw it. */
+export function scumTileAlpha(): Uint8ClampedArray {
+  return scumAlpha(scumField(), SCUM_COVERAGE);
+}
+
+/** The rim along the edge of every patch of scum over one tile, in step with `scumTileAlpha`. */
+export function scumRimTileAlpha(): Uint8ClampedArray {
+  return scumRimAlpha(scumField(), SCUM_COVERAGE);
+}
+
+function scumField(): SmoothField {
+  return smoothFieldOf(SCUM_SEED, WATER_PATTERN_TILE_PX, SCUM_WAVES, SCUM_FINEST);
+}
+
 function quantileOf(values: Float32Array, share: number): number {
   const sorted = Float32Array.from(values).sort();
   return sorted[Math.min(sorted.length - 1, Math.max(0, Math.floor(share * sorted.length)))];
@@ -170,4 +193,45 @@ function toAlpha(values: Float32Array, shape: (value: number, index: number) => 
 function smoothstep(from: number, to: number, value: number): number {
   const t = Math.min(Math.max((value - from) / (to - from), 0), 1);
   return t * t * (3 - 2 * t);
+}
+
+/** How many plates a tile of ice is broken into, and how wide the cracks between them run, in pixels of a tile. */
+const ICE_PLATES = 11;
+const ICE_CRACK_PX = 1.3;
+
+/**
+ * The cracks across a sheet of ice, one tile of them that repeats without a seam: the ice broken into
+ * plates round points scattered over the tile, a crack drawn wherever two plates meet, as strong as
+ * the fainter of the two, so that some cracks show faintly.
+ */
+export function iceCrackAlpha(seed: number, size = WATER_PATTERN_TILE_PX): Uint8ClampedArray {
+  const random = seededRandom(seed);
+  const plates = Array.from({ length: ICE_PLATES }, () => ({
+    x: random() * size,
+    y: random() * size,
+    strength: 0.45 + random() * 0.55,
+  }));
+  const alpha = new Uint8ClampedArray(size * size);
+  const width = ICE_CRACK_PX * (size / 192);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      let first = { distance: Infinity, strength: 0 };
+      let second = first;
+      for (const plate of plates) {
+        const near = { distance: tiledDistance(x + 0.5, y + 0.5, plate, size), strength: plate.strength };
+        if (near.distance < first.distance) [first, second] = [near, first];
+        else if (near.distance < second.distance) second = near;
+      }
+      const off = (second.distance - first.distance) / width;
+      alpha[y * size + x] = Math.round(Math.min(first.strength, second.strength) * Math.exp(-off * off) * 255);
+    }
+  }
+  return alpha;
+}
+
+/** How far a point is from the nearest of a point's copies on the tiles round the one it lies on. */
+function tiledDistance(x: number, y: number, to: { readonly x: number; readonly y: number }, size: number): number {
+  const dx = Math.abs(x - to.x) % size;
+  const dy = Math.abs(y - to.y) % size;
+  return Math.hypot(Math.min(dx, size - dx), Math.min(dy, size - dy));
 }

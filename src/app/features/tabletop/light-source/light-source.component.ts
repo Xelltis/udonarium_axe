@@ -1,14 +1,24 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  ElementRef,
+  inject,
+  input,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ContextMenuService } from '@axe/application/ui/context-menu.service';
 import { ModalService } from '@axe/application/ui/modal.service';
 import { PanelOption, PanelService } from '@axe/application/ui/panel.service';
 import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
-import { UiSignalService } from '@axe/application/ui/ui-signal.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { isInStore, ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -24,17 +34,18 @@ import { RotableDirective, RotableOption } from '@axe/ui/directives/rotable.dire
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { TooltipDirective } from '@axe/ui/directives/tooltip.directive';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
-import { makeBillboardTransform } from '@axe/ui/tabletop/billboard-transform';
+import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
+import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
-import { translateZCss, Z_OFFSET_RANGE_PX } from '@axe/ui/tabletop/z-offset';
 
 @Component({
   selector: 'light-source',
   templateUrl: './light-source.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MovableDirective, RotableDirective, SelectableDirective, TooltipDirective, SafePipe],
+  imports: [HudPlaceDirective, MovableDirective, RotableDirective, SelectableDirective, TooltipDirective, SafePipe],
   host: {
     '[style.display]': "isHiddenByFog() ? 'none' : null",
+    '[attr.data-object-id]': 'lightSource().identifier',
     class: 'block',
     '(dragstart)': 'onDragstart($event)',
     '(contextmenu)': 'onContextMenu($event)',
@@ -49,7 +60,6 @@ export class LightSourceComponent {
   private readonly modalService = inject(ModalService);
   private readonly panelService = inject(PanelService);
   private readonly tabletopService = inject(TabletopService);
-  private readonly uiSignalService = inject(UiSignalService);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly visionService = inject(VisionService);
   private readonly destroyRef = inject(DestroyRef);
@@ -66,10 +76,24 @@ export class LightSourceComponent {
   readonly movableOption = signal<MovableOption>({});
   readonly rotableOption = signal<RotableOption>({});
 
+  private readonly pieces = inject(TablePiecesService);
+  /** What marks the light, drawn here out of sight for the table's canvas to draw a picture of. */
+  private readonly mark = viewChild<ElementRef<HTMLElement>>('mark');
+
   constructor() {
     setupMovableRotableForPiece(this, {
       target: this.lightSource,
-      transformCssOffset: translateZCss(Z_OFFSET_RANGE_PX),
+      footprint: () => ({ width: this.gridSize, height: this.gridSize }),
+      turnsAbout: () => this.turnPoint(),
+    });
+    pictureForCanvas({
+      identifier: () => this.lightSource().identifier,
+      element: () => this.mark()?.nativeElement,
+      pictured: () => true,
+      follows: () => {
+        this.skinUrl();
+        this.iconColor();
+      },
     });
     this.objectChange.onObjectChangedFor(
       () => {
@@ -146,20 +170,6 @@ export class LightSourceComponent {
     return light.lightAngle < 360;
   });
 
-  readonly skinTransform = computed(() => {
-    const light = this.lightSource();
-    this.objectChange.versionOf(light.identifier)();
-    const lift = light.altitude * this.gridSize + light.posZ + this.gridSize / 2;
-    const facing = makeBillboardTransform({
-      rotation: this.uiSignalService.tableViewRotation(),
-      pieceRotate: 0,
-      parentInverseRotation: '',
-      verticalOffset3D: 0,
-      mode2d: this.tabletopService.mode2d(),
-    });
-    return `translateZ(${lift}px) ${facing}`.replace(/\s{2,}/g, ' ');
-  });
-
   /** Plays the pick-up sound when the light starts being dragged or turned. */
   onMove() {
     SoundEffect.play(PresetSound.cardPick);
@@ -169,6 +179,22 @@ export class LightSourceComponent {
   onMoved() {
     SoundEffect.play(PresetSound.cardPut);
   }
+
+  /** The point a light turns about over a table drawn on a canvas: the middle of its cell, on its face. */
+  readonly turnPoint = computed(() => {
+    const light = this.lightSource();
+    this.objectChange.versionOf(light.identifier)();
+    const foot = this.pieces.footOf(light);
+    return { ...foot, x: foot.x + this.gridSize / 2, y: foot.y + this.gridSize / 2 };
+  });
+
+  /** Where a cone's handle stands over a table drawn on a canvas: off its point, the way it shines. */
+  readonly grabPoint = computed(() => {
+    const about = this.turnPoint();
+    const turn = (this.lightSource().rotate * Math.PI) / 180;
+    const reach = this.gridSize * 0.9;
+    return { ...about, x: about.x + reach * Math.cos(turn), y: about.y + reach * Math.sin(turn) };
+  });
 
   /** Turns the light to the angle the rotate handle reports, which aims a cone light. */
   onRotated(degree: number) {

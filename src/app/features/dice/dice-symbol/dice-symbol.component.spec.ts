@@ -1,27 +1,22 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
-import { TabletopService } from '@axe/application/tabletop/tabletop.service';
-import { BillboardFacing, BillboardFrameService } from '@axe/application/ui/billboard-frame.service';
-import { UiSignalService } from '@axe/application/ui/ui-signal.service';
-import { ViewModePreferenceService } from '@axe/application/ui/view-mode-preference.service';
+import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
+import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { PanelService } from '@axe/application/ui/panel.service';
+import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { setPeerContextProvider } from '@axe/core/network/peer-context-source';
-import { ImageFile } from '@axe/core/storage/image-file';
-import { ImageStorage } from '@axe/core/storage/image-storage';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { DiceSymbolComponent } from '@axe/features/dice/dice-symbol/dice-symbol.component';
+import { DiceSymbolSheetComponent } from '@axe/features/dice/dice-symbol-sheet/dice-symbol-sheet.component';
 import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
-
-/** What a facing writes at the turn the table has been given, which is what the frame writes out. */
-function at(facing: BillboardFacing): string {
-  return facing(TestBed.inject(UiSignalService).tableViewRotation());
-}
 
 describe('DiceSymbolComponent', () => {
   let component: DiceSymbolComponent;
@@ -37,57 +32,6 @@ describe('DiceSymbolComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(DiceSymbolComponent);
     component = fixture.componentInstance;
-  });
-
-  const useFlatTable = () => {
-    const table = TestBed.inject(TabletopService).currentTable;
-    TestBed.inject(ViewModePreferenceService).choose('auto');
-    table.imageBillboard = false;
-  };
-
-  beforeEach(useFlatTable);
-  afterEach(useFlatTable);
-
-  it('blacks a die out the moment it is kept back, without it being moved', async () => {
-    // The mask on the picture is what the table sees. Nothing else drawn on the die may move
-    // with the claim, or that would answer the question instead: the name label is held back so
-    // it stays put whether the face is on show or not.
-    const die = DiceSymbol.create('D6', 0, 1);
-    die.hideName = true;
-    // The mask sits on the picture of the face, so the die has to be wearing one.
-    ImageStorage.instance.add(
-      ImageFile.create({
-        identifier: 'die-face',
-        name: 'die-face',
-        type: 'image/png',
-        blob: null,
-        url: './assets/images/test-die.png',
-        thumbnail: { type: '', blob: null, url: '' },
-      })
-    );
-    const face = die.imageDataElement?.getFirstElementByName(die.face);
-    if (face) face.value = 'die-face';
-    fixture.componentRef.setInput('diceSymbol', die);
-    fixture.detectChanges();
-    const masked = () => (fixture.nativeElement as HTMLElement).querySelectorAll('img.is-black-mask').length;
-    expect(masked()).toBe(0);
-
-    // Nothing is checked by hand from here on: the mask has to follow because the signals said
-    // so. A forced check would pass either way.
-    die.owner = 'somebody-else';
-    TestBed.inject(ObjectChangeService).notifyChanged(die.identifier);
-    await fixture.whenStable();
-
-    expect(masked()).toBeGreaterThan(0);
-
-    // Opening it again is the same question the other way round: the mask has to come off
-    // without the die being dragged either.
-    die.owner = '';
-    TestBed.inject(ObjectChangeService).notifyChanged(die.identifier);
-    await fixture.whenStable();
-
-    expect(masked()).toBe(0);
-    die.destroy();
   });
 
   it('reads the face and the owner through the signals rather than off the die', () => {
@@ -128,12 +72,45 @@ describe('DiceSymbolComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  describe('signal-driven CD', () => {
-    it('holds the animation state in a signal', () => {
-      expect(typeof component.animeState).toBe('function');
-      expect(component.animeState()).toBe('inactive');
-    });
+  it('bounces onto the canvas as it comes onto the table', () => {
+    const play = vi.spyOn(TestBed.inject(PieceMotionsService), 'play');
+    const die = DiceSymbol.create('D6', 0, 1);
+    fixture.componentRef.setInput('diceSymbol', die);
+    fixture.detectChanges();
+    TestBed.tick();
 
+    expect(play).toHaveBeenCalledWith(die.identifier, 'bounce-in');
+    vi.restoreAllMocks();
+    die.destroy();
+  });
+
+  it('opens the die’s own sheet from “show details” in its menu', async () => {
+    const die = DiceSymbol.create('D6', 0, 1);
+    fixture.componentRef.setInput('diceSymbol', die);
+    fixture.detectChanges();
+    vi.spyOn(TestBed.inject(PieceContextMenuService), 'openForSelection').mockReturnValue(false);
+    const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+    const openLazy = vi.spyOn(TestBed.inject(PanelService), 'openLazy').mockImplementation(() => undefined);
+    TestBed.inject(PointerDeviceService).primeForContextMenu(240, 180);
+
+    try {
+      component.onContextMenu(new Event('contextmenu', { cancelable: true }));
+      const menu = open.mock.calls[0][1] as ContextMenuAction[];
+      menu.find((entry) => entry.name === '詳細を表示')!.action!();
+
+      expect(openLazy).toHaveBeenCalledOnce();
+      const [load, , setUp] = openLazy.mock.calls[0];
+      expect(await load()).toBe(DiceSymbolSheetComponent);
+      const sheet = { diceSymbol: null as DiceSymbol | null };
+      setUp!(sheet as never);
+      expect(sheet.diceSymbol).toBe(die);
+    } finally {
+      vi.restoreAllMocks();
+      die.destroy();
+    }
+  });
+
+  describe('signal-driven CD', () => {
     it('reads the name through the network version', () => {
       const diceSymbol = DiceSymbol.create('テストダイス', 1, 1);
       fixture.componentRef.setInput('diceSymbol', diceSymbol);
@@ -148,135 +125,6 @@ describe('DiceSymbolComponent', () => {
     it('holds the hidden icon in a signal', () => {
       expect(typeof component.isIconHidden).toBe('function');
       expect(component.isIconHidden()).toBe(false);
-    });
-  });
-
-  describe('following the camera', () => {
-    it('rebuilds the transform as the view turns', () => {
-      const diceSymbol = DiceSymbol.create('ビルボードテスト', 1, 1);
-      fixture.componentRef.setInput('diceSymbol', diceSymbol);
-      const ui = TestBed.inject(UiSignalService);
-
-      ui.notifyTableViewRotation(50, 0, 10);
-      const before = at(component.nameFacing());
-
-      ui.notifyTableViewRotation(60, 20, 120);
-      const after = at(component.nameFacing());
-
-      expect(before).not.toBe(after);
-      expect(after).toContain('rotateZ(-120deg)');
-      expect(after).toContain('rotateX(-60deg)');
-      expect(after).toContain('rotateY(-20deg)');
-    });
-
-    it('undoes the turn of the die itself', () => {
-      const diceSymbol = DiceSymbol.create('rotateテスト', 1, 1);
-      diceSymbol.rotate = 45;
-      fixture.componentRef.setInput('diceSymbol', diceSymbol);
-      TestBed.inject(UiSignalService).notifyTableViewRotation(50, 0, 10);
-
-      expect(at(component.nameFacing())).toContain('rotateZ(-45deg)');
-    });
-
-    it('sets the owners name further out than the dies own', () => {
-      const diceSymbol = DiceSymbol.create('オフセットテスト', 1, 1);
-      fixture.componentRef.setInput('diceSymbol', diceSymbol);
-      TestBed.inject(UiSignalService).notifyTableViewRotation(50, 0, 10);
-
-      const match = (s: string) => Number(s.match(/translateZ\((-?[\d.]+)px\)/)?.[1] ?? 0);
-      expect(match(at(component.ownerFacing()))).toBeLessThan(match(at(component.nameFacing())));
-    });
-
-    it('takes the setting from the table', async () => {
-      const diceSymbol = DiceSymbol.create('画像追従テスト', 1, 1);
-      fixture.componentRef.setInput('diceSymbol', diceSymbol);
-      const tabletopService = TestBed.inject(TabletopService);
-
-      tabletopService.currentTable.imageBillboard = false;
-      expect(component.imageBillboardEnabled()).toBe(false);
-
-      tabletopService.currentTable.imageBillboard = true;
-      await new Promise<void>((resolve) => queueMicrotask(resolve));
-      expect(component.imageBillboardEnabled()).toBe(true);
-    });
-
-    it('faces the picture at the camera without raising it', () => {
-      const diceSymbol = DiceSymbol.create('画像オフセットテスト', 1, 1);
-      fixture.componentRef.setInput('diceSymbol', diceSymbol);
-      TestBed.inject(UiSignalService).notifyTableViewRotation(50, 0, 10);
-
-      expect(at(component.imageFacing())).toContain('translateZ(0.00px)');
-    });
-
-    it('is turned by the frame without the die working its labels out again', async () => {
-      const diceSymbol = DiceSymbol.create('フレームテスト', 1, 1);
-      fixture.componentRef.setInput('diceSymbol', diceSymbol);
-      fixture.detectChanges();
-      await fixture.whenStable();
-      const frame = TestBed.inject(BillboardFrameService);
-      const ui = TestBed.inject(UiSignalService);
-      const facing = component.nameFacing();
-      const plate = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-testid="dice-name"]')!;
-
-      for (let turn = 0; turn < 10; turn++) {
-        ui.notifyTableViewRotation(50, 0, turn * 12);
-        frame.apply({ x: 50, y: 0, z: turn * 12 });
-      }
-
-      expect(component.nameFacing()).toBe(facing);
-      expect(plate.style.transform).toBe(facing({ x: 50, y: 0, z: 108 }));
-    });
-
-    it('faces it anyway in the flat mode', async () => {
-      const diceSymbol = DiceSymbol.create('mode2dテスト', 1, 1);
-      fixture.componentRef.setInput('diceSymbol', diceSymbol);
-      const tabletopService = TestBed.inject(TabletopService);
-
-      tabletopService.currentTable.imageBillboard = false;
-      TestBed.inject(ViewModePreferenceService).choose('flat');
-      await new Promise<void>((resolve) => queueMicrotask(resolve));
-      expect(component.imageBillboardEnabled()).toBe(true);
-    });
-  });
-
-  describe('keeping the name above the piece on the screen in the flat mode', () => {
-    it('raises the name straight up in three dimensions', async () => {
-      const diceSymbol = DiceSymbol.create('orbit3dテスト', 1, 1);
-      fixture.componentRef.setInput('diceSymbol', diceSymbol);
-      TestBed.inject(ViewModePreferenceService).choose('auto');
-      await new Promise<void>((resolve) => queueMicrotask(resolve));
-      expect(at(component.nameOrbitFacing())).toBe('translateX(-50%) translateX(25px) translateY(-30px)');
-    });
-
-    it('puts it up the screen in the flat mode', async () => {
-      const diceSymbol = DiceSymbol.create('orbit2dテスト', 1, 1);
-      fixture.componentRef.setInput('diceSymbol', diceSymbol);
-      TestBed.inject(ViewModePreferenceService).choose('flat');
-      TestBed.inject(UiSignalService).notifyTableViewRotation(0, 0, 0);
-      await new Promise<void>((resolve) => queueMicrotask(resolve));
-      const transform = at(component.nameOrbitFacing());
-      expect(transform).toContain('translateZ(-60.00px)');
-    });
-
-    it('keeps that offset the larger of the two', async () => {
-      const diceSymbol = DiceSymbol.create('orbit比較テスト', 1, 1);
-      fixture.componentRef.setInput('diceSymbol', diceSymbol);
-      TestBed.inject(ViewModePreferenceService).choose('flat');
-      TestBed.inject(UiSignalService).notifyTableViewRotation(0, 0, 0);
-      await new Promise<void>((resolve) => queueMicrotask(resolve));
-      const nameZ = Math.abs(Number(at(component.nameOrbitFacing()).match(/translateZ\((-?[\d.]+)px\)/)?.[1] ?? 0));
-      const ownerZ = Math.abs(Number(at(component.ownerOrbitFacing()).match(/translateZ\((-?[\d.]+)px\)/)?.[1] ?? 0));
-      expect(ownerZ).toBeGreaterThan(nameZ);
-    });
-
-    it('compensates nothing along the depth in the flat mode', async () => {
-      const diceSymbol = DiceSymbol.create('compZテスト', 1, 1);
-      fixture.componentRef.setInput('diceSymbol', diceSymbol);
-      TestBed.inject(ViewModePreferenceService).choose('flat');
-      TestBed.inject(UiSignalService).notifyTableViewRotation(50, 0, 10);
-      await new Promise<void>((resolve) => queueMicrotask(resolve));
-      expect(at(component.nameFacing())).toContain('translateZ(0.00px)');
-      expect(at(component.ownerFacing())).toContain('translateZ(0.00px)');
     });
   });
 
@@ -358,42 +206,6 @@ describe('DiceSymbolComponent', () => {
 
       expect(component.hideName()).toBe(false);
       expect(fixture.nativeElement.textContent).toContain('切り札');
-    });
-  });
-
-  describe('a die marked as spent', () => {
-    let dice: DiceSymbol;
-
-    beforeEach(() => {
-      dice = DiceSymbol.create('テストダイス', 1, 1);
-      fixture.componentRef.setInput('diceSymbol', dice);
-    });
-
-    afterEach(() => dice.destroy());
-
-    const dimmed = async (): Promise<number> => {
-      fixture.detectChanges();
-      await fixture.whenStable();
-      return (fixture.nativeElement as HTMLElement).querySelectorAll('.is-used').length;
-    };
-
-    it('is drawn no darker while it is still to be used', async () => {
-      expect(await dimmed()).toBe(0);
-    });
-
-    it('is darkened once it is marked', async () => {
-      dice.isUsed = true;
-
-      expect(await dimmed()).toBeGreaterThan(0);
-    });
-
-    it('comes back to itself when the mark is taken off', async () => {
-      dice.isUsed = true;
-      expect(await dimmed()).toBeGreaterThan(0);
-
-      dice.isUsed = false;
-
-      expect(await dimmed()).toBe(0);
     });
   });
 
@@ -481,14 +293,18 @@ describe('DiceSymbolComponent', () => {
     }
 
     beforeEach(() => vi.useFakeTimers());
-    afterEach(() => vi.useRealTimers());
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
 
-    it('rolls the die on word of a throw', () => {
+    it('tumbles the die’s picture on the canvas on word of a throw', () => {
+      const play = vi.spyOn(TestBed.inject(PieceMotionsService), 'play');
       const dice = rollFrom();
 
-      vi.advanceTimersByTime(1);
-
-      expect(component.animeState()).toBe('active');
+      expect(play).toHaveBeenCalledWith(dice.identifier, expect.stringMatching(/^dice-tumble-/), {
+        parts: ['picture'],
+      });
       dice.destroy();
     });
 
@@ -533,12 +349,14 @@ describe('DiceSymbolComponent', () => {
 
     it('takes another path than the throw before it', () => {
       // A handful thrown together should not roll as one.
+      const play = vi.spyOn(TestBed.inject(PieceMotionsService), 'play');
       const dice = rollFrom();
-      const first = component.tumble();
 
       TestBed.inject(ObjectChangeService).notifyDiceRolled(dice.identifier);
 
-      expect(component.tumble()).not.toBe(first);
+      const tumbles = play.mock.calls.filter(([, kind]) => kind.startsWith('dice-tumble-')).map(([, kind]) => kind);
+      expect(tumbles).toHaveLength(2);
+      expect(tumbles[1]).not.toBe(tumbles[0]);
       dice.destroy();
     });
   });

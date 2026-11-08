@@ -97,6 +97,23 @@ describe('RoomRestoreBannerComponent', () => {
     expect(banner()).toBeNull();
   });
 
+  it('shows none for a table kept only since the page was opened, which is the one on the screen', async () => {
+    await setup();
+    snapshots.set([{ ...snapshot, id: 2, savedAt: Date.now() + 1000 }]);
+    fixture.detectChanges();
+    expect(banner()).toBeNull();
+  });
+
+  it('restores the table kept before the page was opened, past one kept since', async () => {
+    await setup();
+    snapshots.set([{ ...snapshot, id: 2, savedAt: Date.now() + 1000 }, snapshot]);
+    fixture.detectChanges();
+    banner()!.click();
+    await fixture.whenStable();
+
+    expect(restore).toHaveBeenCalledWith(snapshot.id);
+  });
+
   it('shows none while it is in a room', async () => {
     vi.spyOn(Network, 'peerContext', 'get').mockReturnValue({ roomName: 'room' } as IPeerContext);
     await setup();

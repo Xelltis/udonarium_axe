@@ -1,7 +1,10 @@
 import { DEFAULT_AMBIENCE_DENSITY } from '@axe/domain/effect/ambience/ambience-kind';
+import { objectBlocksOf } from '@axe/domain/map-editor/object-placements';
+import { groundChangeOf, sceneReliefChunks, sceneSpeaksForRelief } from '@axe/domain/map-editor/relief';
 import { FunctionLayer, MapScene } from '@axe/domain/map-editor/scene';
 import { parseCellKey } from '@axe/domain/tabletop/cell-key';
 import { CellRect, largestRectangles } from '@axe/domain/tabletop/cell-rectangles';
+import { cellGridOf } from '@axe/domain/tabletop/fog/cell-grid';
 import {
   AmbienceBlock,
   BlockChange,
@@ -17,6 +20,7 @@ import {
   waterDirtOf,
   waterFlowDirectionOf,
   waterFlowSpeedOf,
+  waterIceOf,
   waterLeavesOf,
   waterTurbidityOf,
 } from '@axe/domain/tabletop/function-paint';
@@ -25,6 +29,7 @@ import { isHexGrid } from '@axe/domain/tabletop/hex-geometry';
 import { TableSnapshot } from '@axe/domain/tabletop/table-snapshot';
 import {
   DEFAULT_DIRT,
+  DEFAULT_ICE,
   DEFAULT_LEAVES,
   DEFAULT_SURFACE_CELLS,
   DEFAULT_TURBIDITY,
@@ -102,6 +107,55 @@ function terrainBlocksOf(scene: MapScene, cellPx: number, hex: boolean): Terrain
   return blocks;
 }
 
+/**
+ * The blocks the 3D objects painted come to: each layer's model set out over its cells as its brush
+ * says, known by the identifier the room holds the model under, which `modelOf` turns a bundled
+ * model's name into. A layer whose model the room does not hold lays nothing.
+ */
+function paintedObjectBlocksOf(scene: MapScene, cellPx: number, modelOf: (model: string) => string): TerrainBlock[] {
+  const grid = cellGridOf(scene.cols, scene.rows, cellPx, scene.gridType);
+  const blocks: TerrainBlock[] = [];
+  for (const layer of functionLayersOf(scene, 'object')) {
+    const spec = layer.spec.object;
+    blocks.push(...objectBlocksOf(Object.keys(layer.cells), spec, grid, modelOf(spec.model)));
+  }
+  return blocks;
+}
+
+/** The models the 3D objects of a scene are painted as, each named once, for the room to hold before they are laid. */
+export function objectModelsOf(scene: MapScene): string[] {
+  return [...new Set(functionLayersOf(scene, 'object').map((layer) => layer.spec.object.model))].filter(
+    (model) => model.length > 0
+  );
+}
+
+/** Whether a block read off the table was laid by the brush for 3D objects. */
+function laidAsObject(block: TerrainBlock): boolean {
+  return block.spec.paintedObject;
+}
+
+/**
+ * The walls and the 3D objects laid on the table, and what they take the place of: every block on
+ * it where the scene paints walls, and only those the brush for objects laid where it paints objects
+ * alone, so that setting trees out over a table leaves its walls, and the trees and towers a field or
+ * a fort was generated with, standing.
+ */
+function terrainChangeOf(
+  scene: MapScene,
+  table: TableSnapshot,
+  hex: boolean,
+  modelOf: (model: string) => string
+): BlockChange<TerrainBlock> {
+  const walls = sceneSpeaksFor(scene, 'terrain');
+  const objects = sceneSpeaksFor(scene, 'object');
+  if (!walls && !objects) return { add: [], remove: [] };
+  const wanted = [
+    ...(walls ? terrainBlocksOf(scene, table.cellPx, hex) : []),
+    ...(objects ? paintedObjectBlocksOf(scene, table.cellPx, modelOf) : []),
+  ];
+  return blockChange(wanted, walls ? table.terrainBlocks : table.terrainBlocks.filter(laidAsObject));
+}
+
 function maskBlocksOf(scene: MapScene, hex: boolean): MaskBlock[] {
   const blocks: MaskBlock[] = [];
   for (const layer of functionLayersOf(scene, 'mask')) {
@@ -159,6 +213,7 @@ function hazardBlocksOf(
     const leaves = water ? waterLeavesOf(spec.leaves) : DEFAULT_LEAVES;
     const flowSpeed = water ? waterFlowSpeedOf(spec.flowSpeed) : 0;
     const flowDirection = water ? waterFlowDirectionOf(spec.flowDirection) : 0;
+    const ice = water ? waterIceOf(spec.ice) : DEFAULT_ICE;
     const color = water ? (spec.color ?? '').trim() : '';
     for (const rect of blockRectsOf(Object.keys(layer.cells), hex)) {
       ambience.push({
@@ -174,6 +229,7 @@ function hazardBlocksOf(
           leaves,
           flowSpeed,
           flowDirection,
+          ice,
         },
       });
       // Dangerous ground is dear to cross rather than shut: what nobody gets through at all is
@@ -230,7 +286,9 @@ function blockedCellsOf(scene: MapScene): string[] {
  */
 export function sceneCarriesFunctions(scene: MapScene, role?: MapFunctionRole): boolean {
   return scene.layers.some(
-    (layer) => layer.kind === 'function' && (role === undefined || (layer as FunctionLayer).role === role)
+    (layer) =>
+      (layer.kind === 'function' && (role === undefined || (layer as FunctionLayer).role === role)) ||
+      (layer.kind === 'relief' && role === undefined)
   );
 }
 
@@ -245,7 +303,7 @@ export function sceneCarriesFunctions(scene: MapScene, role?: MapFunctionRole): 
 export function sceneSpeaksFor(scene: MapScene, role?: MapFunctionRole): boolean {
   if (sceneCarriesFunctions(scene, role)) return true;
   const spoken = scene.paintedRoles ?? [];
-  return role === undefined ? spoken.length > 0 : spoken.includes(role);
+  return role === undefined ? spoken.length > 0 || sceneSpeaksForRelief(scene) : spoken.includes(role);
 }
 
 function functionLayersOf(scene: MapScene, role: MapFunctionRole): FunctionLayer[] {
@@ -262,9 +320,14 @@ function functionLayersOf(scene: MapScene, role: MapFunctionRole): FunctionLayer
  *
  * A scene on a different grid answers with nothing rather than guessing where its cells
  * would land. The cells were painted against one grid, and there is no honest way to hang
- * them on another.
+ * them on another. The 3D objects are laid as the models `modelOf` says the room holds them
+ * under; left out, a model is taken to be held under its own name.
  */
-export function planFunctionPaint(scene: MapScene, table: TableSnapshot): FunctionPaintPlan | null {
+export function planFunctionPaint(
+  scene: MapScene,
+  table: TableSnapshot,
+  modelOf: (model: string) => string = (model) => model
+): FunctionPaintPlan | null {
   if (scene.cols !== table.cols || scene.rows !== table.rows || scene.gridType !== table.gridType) return null;
   const hex = isHexGrid(table.gridType);
   // Dangerous ground is laid as three ordinary things, so it is taken apart before anything
@@ -283,9 +346,7 @@ export function planFunctionPaint(scene: MapScene, table: TableSnapshot): Functi
         ? blockChange([...moveCostBlocksOf(scene, hex), ...hazard.moveCost], table.moveCostBlocks)
         : { add: [], remove: [] },
     ambience: laysHazards ? blockChange(hazard.ambience, table.ambienceBlocks) : { add: [], remove: [] },
-    terrain: sceneSpeaksFor(scene, 'terrain')
-      ? blockChange(terrainBlocksOf(scene, table.cellPx, hex), table.terrainBlocks)
-      : { add: [], remove: [] },
+    terrain: terrainChangeOf(scene, table, hex, modelOf),
     mask: sceneSpeaksFor(scene, 'mask')
       ? blockChange(maskBlocksOf(scene, hex), table.maskBlocks)
       : { add: [], remove: [] },
@@ -293,5 +354,6 @@ export function planFunctionPaint(scene: MapScene, table: TableSnapshot): Functi
       sceneSpeaksFor(scene, 'trigger') || laysHazards
         ? blockChange([...triggerBlocksOf(scene, hex), ...hazard.trigger], table.triggerBlocks)
         : { add: [], remove: [] },
+    ground: sceneSpeaksForRelief(scene) ? groundChangeOf(sceneReliefChunks(scene), table.groundChunks ?? []) : [],
   };
 }

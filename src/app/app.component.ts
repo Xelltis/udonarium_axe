@@ -21,6 +21,7 @@ import { FirstPersonService } from '@axe/application/tabletop/first-person.servi
 import { GravityService } from '@axe/application/tabletop/gravity.service';
 import { LegacyScratchMaskMigrationService } from '@axe/application/tabletop/legacy-scratch-mask-migration.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
+import { ThirdPersonService } from '@axe/application/tabletop/third-person.service';
 import { TurnOrderService } from '@axe/application/turn/turn-order.service';
 import { MobileLayoutService } from '@axe/application/ui/mobile-layout.service';
 import { MotionService } from '@axe/application/ui/motion.service';
@@ -30,6 +31,7 @@ import { OverlayModeService } from '@axe/application/ui/overlay-mode.service';
 import type { PanelOption } from '@axe/application/ui/panel.service';
 import { RenderLiteService } from '@axe/application/ui/render-lite.service';
 import { SkinService } from '@axe/application/ui/skin.service';
+import { StartupLoadingService } from '@axe/application/ui/startup-loading.service';
 import { ThemeService } from '@axe/application/ui/theme.service';
 import { ViewportService } from '@axe/application/ui/viewport.service';
 import { VisualNovelModeService } from '@axe/application/ui/visual-novel-mode.service';
@@ -59,6 +61,7 @@ import { EffectChatEventHandlerService } from '@axe/features/effect/effect-chat-
 import { AssetRemovalEventHandlerService } from '@axe/features/file/asset-removal-event-handler.service';
 import { FilesTooLargeEventHandlerService } from '@axe/features/file/files-too-large/files-too-large-event-handler.service';
 import { FirstPersonViewComponent } from '@axe/features/first-person/first-person-view/first-person-view.component';
+import { ThirdPersonHudComponent } from '@axe/features/first-person/third-person-hud/third-person-hud.component';
 import { GmToolbarComponent } from '@axe/features/gm-tools/gm-toolbar/gm-toolbar.component';
 import { GpuNoticeComponent } from '@axe/features/gpu-notice/gpu-notice.component';
 import { HotbarBarComponent } from '@axe/features/hotbar/hotbar-bar/hotbar-bar.component';
@@ -71,10 +74,11 @@ import { BeatLightComponent } from '@axe/features/media/beat-light/beat-light.co
 import { CutInEventHandlerService } from '@axe/features/media/cut-in-event-handler.service';
 import { MiniJukeboxComponent } from '@axe/features/media/mini-jukebox/mini-jukebox.component';
 import { MixEventHandlerService } from '@axe/features/media/mix-event-handler.service';
+import { ModelDropEventHandlerService } from '@axe/features/media/model-library/model-drop-event-handler.service';
 import { TurnSoundEventHandlerService } from '@axe/features/media/turn-sound/turn-sound-event-handler.service';
 import { FabDrawerComponent } from '@axe/features/menu/fab-drawer/fab-drawer.component';
 import { MobileShellComponent } from '@axe/features/mobile/mobile-shell/mobile-shell.component';
-import { RoomPanelService } from '@axe/features/panels/room-panel.service';
+import { RoomPanelService, START_PANEL_LEFT } from '@axe/features/panels/room-panel.service';
 import { PlToolbarComponent } from '@axe/features/pl-tools/pl-toolbar/pl-toolbar.component';
 import { ReplayBoardBannerComponent } from '@axe/features/replay/replay-board-banner/replay-board-banner.component';
 import { ReplayEventHandlerService } from '@axe/features/replay/replay-event-handler.service';
@@ -86,6 +90,7 @@ import { StreamingOverlayComponent } from '@axe/features/streaming-overlay/strea
 import { SwitchNoticeComponent } from '@axe/features/tabletop/board-switch/switch-notice.component';
 import { FogMemoryWriterService } from '@axe/features/tabletop/fog-of-war/fog-memory-writer.service';
 import { GameTableComponent } from '@axe/features/tabletop/game-table/game-table.component';
+import { GroundBrushBandComponent } from '@axe/features/tabletop/ground-brush-band/ground-brush-band.component';
 import { ImageDropEventHandlerService } from '@axe/features/tabletop/image-drop/image-drop-event-handler.service';
 import { InterruptPromptComponent } from '@axe/features/tabletop/interrupt-prompt/interrupt-prompt.component';
 import { MovePlanBandComponent } from '@axe/features/tabletop/move-plan-band/move-plan-band.component';
@@ -111,6 +116,7 @@ import { version as APP_VERSION } from '@pkg';
     BeatLightComponent,
     GameTableComponent,
     FirstPersonViewComponent,
+    ThirdPersonHudComponent,
     NetworkIndicatorComponent,
     MiniJukeboxComponent,
     GmToolbarComponent,
@@ -135,6 +141,7 @@ import { version as APP_VERSION } from '@pkg';
     InviteJoinComponent,
     StreamingOverlayComponent,
     SwitchNoticeComponent,
+    GroundBrushBandComponent,
     MovePlanBandComponent,
     InterruptPromptComponent,
     SnackbarComponent,
@@ -171,6 +178,7 @@ export class AppComponent {
   readonly mobile = inject(MobileLayoutService);
   readonly overlayMode = inject(OverlayModeService);
   readonly firstPerson = inject(FirstPersonService);
+  readonly thirdPerson = inject(ThirdPersonService);
 
   readonly isTableSplit = computed(() => this.mobile.isActive() && !this.visualNovel.active());
   private readonly roomPanels = inject(RoomPanelService);
@@ -220,6 +228,7 @@ export class AppComponent {
     inject(RoomArchiveEventHandlerService);
     inject(ReplayEventHandlerService);
     inject(ImageDropEventHandlerService);
+    inject(ModelDropEventHandlerService);
     inject(FilesTooLargeEventHandlerService);
     inject(AssetRemovalEventHandlerService);
     inject(MovePlanEventHandlerService);
@@ -236,13 +245,15 @@ export class AppComponent {
 
     this.fileArchiver.onCodeUnavailable = inject(LOAD_FAILURE_NOTICE);
 
+    const startupLoading = inject(StartupLoadingService);
     afterNextRender(() => {
+      startupLoading.begin();
       this.overlays.main = this.modalLayerViewContainerRef();
-      const startPanels: [RoomPanelName, PanelOption][] = [['peerMenu', { left: 80, top: 10 }]];
+      const startPanels: [RoomPanelName, PanelOption][] = [['peerMenu', { left: START_PANEL_LEFT, top: 10 }]];
       if (!this.viewport.isCompact()) {
         const chatHeight = 460;
         const top = Math.max(10, window.innerHeight - chatHeight - 20);
-        startPanels.push(['chatWindow', { width: 660, height: chatHeight, left: 80, top }]);
+        startPanels.push(['chatWindow', { width: 660, height: chatHeight, left: START_PANEL_LEFT, top }]);
       }
       // The chat window overlaps the connection panel, and stands over it.
       this.roomPanels.openInTurn(startPanels);

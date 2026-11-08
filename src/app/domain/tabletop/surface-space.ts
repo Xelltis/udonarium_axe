@@ -139,3 +139,35 @@ export function surfaceWorldBox(
   }
   return { minX, maxX, minY, maxY, minZ, maxZ };
 }
+
+/** Where a line of sight meets a face: along the line, in the board's space, and in the face's own axes. */
+export interface SurfaceCrossing {
+  readonly t: number;
+  readonly point: Vec3;
+  /** Across and down the face from its origin corner, in pixels. */
+  readonly localX: number;
+  readonly localY: number;
+}
+
+/**
+ * Where a line of sight crosses the plane of a face, or null where it runs along the face. The
+ * crossing may lie outside the face's own edges, and behind the eye as well as before it.
+ */
+export function surfaceCrossing(frame: SurfaceFrame, origin: Vec3, direction: Vec3): SurfaceCrossing | null {
+  const n = frame.normal;
+  const facing = n.x * direction.x + n.y * direction.y + n.z * direction.z;
+  if (Math.abs(facing) < 1e-12) return null;
+  const t =
+    (n.x * (frame.origin.x - origin.x) + n.y * (frame.origin.y - origin.y) + n.z * (frame.origin.z - origin.z)) /
+    facing;
+  const point = { x: origin.x + direction.x * t, y: origin.y + direction.y * t, z: origin.z + direction.z * t };
+  const dx = point.x - frame.origin.x;
+  const dy = point.y - frame.origin.y;
+  const dz = point.z - frame.origin.z;
+  return {
+    t,
+    point,
+    localX: dx * frame.u.x + dy * frame.u.y + dz * frame.u.z,
+    localY: dx * frame.v.x + dy * frame.v.y + dz * frame.v.z,
+  };
+}

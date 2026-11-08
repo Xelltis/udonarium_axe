@@ -1,6 +1,18 @@
 import { TestBed } from '@angular/core/testing';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
-import { fillTargetNumber, findTargetNumber, holdsTargetNumber, rollTotalOf } from '@axe/domain/chat/target-number';
+import {
+  fillTargetNumber,
+  findTargetNumber,
+  findTargetNumberSource,
+  holdsTargetNumber,
+  mayPinTargetNumber,
+  rolledOf,
+  rollerOf,
+  rollTotalOf,
+  targetNumberChoices,
+} from '@axe/domain/chat/target-number';
+import { PeerRole } from '@axe/domain/peer/peer-role';
+import { beMyself } from '@axe/testing/peer-context-stub';
 
 describe('target-number', () => {
   describe('rollTotalOf()', () => {
@@ -59,7 +71,11 @@ describe('target-number', () => {
       tab.destroy();
     });
 
-    function roll(by: { identifier: string; name: string }, result: string, extra: { tag?: string } = {}): void {
+    function roll(
+      by: { identifier: string; name: string },
+      result: string,
+      extra: { tag?: string; answers?: boolean; together?: string[] } = {}
+    ): void {
       at += 10;
       tab.addMessage({
         from: `user-${by.identifier}`,
@@ -67,6 +83,8 @@ describe('target-number', () => {
         name: by.name,
         text: '2d6',
         timestamp: at,
+        ...(extra.answers ? { answersTargetNumber: '1' } : {}),
+        ...(extra.together ? { aimedTogether: JSON.stringify(extra.together) } : {}),
       });
       tab.addMessage({
         from: 'System-BCDice',
@@ -103,16 +121,141 @@ describe('target-number', () => {
       expect(findTargetNumber(tab, speaker)).toBe(12);
     });
 
+    it('takes a roll aimed at the speaker among everyone it was aimed at all at once, whatever names fitted after it', () => {
+      roll(enemy, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15 [PC2、…]', { together: ['pc2', 'pc1', 'pc3'] });
+      roll(enemy, 'DiceBot : (1D6) → 3');
+
+      expect(findTargetNumber(tab, speaker)).toBe(15);
+      expect(findTargetNumber(tab, { identifier: 'pc3', name: 'ゴブリン、弓兵' })).toBe(15);
+      expect(findTargetNumber(tab, { identifier: 'pc4', name: 'PC2' })).toBe(3);
+    });
+
+    it('reads a roll at a piece whose name holds a comma as rolled at that piece alone', () => {
+      roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [ゴブリン、弓兵]');
+      roll(enemy, 'DiceBot : (1D6) → 3');
+
+      expect(findTargetNumber(tab, { identifier: 'archer', name: '弓兵' })).toBe(3);
+      expect(findTargetNumber(tab, { identifier: 'goblin-archer', name: 'ゴブリン、弓兵' })).toBe(14);
+    });
+
+    it('reads a list of those aimed at all at once that cannot be read as aimed at nobody in it', () => {
+      roll(enemy, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15 [PC1、PC2]');
+      tab.chatMessages[tab.chatMessages.length - 2].aimedTogether = '{broken';
+
+      expect(findTargetNumber(tab, { identifier: 'pc2', name: 'PC2' })).toBeNull();
+    });
+
     it('finds the speaker by the name a room server writes after its answer', () => {
       roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [騎士［見習い］]');
 
       expect(findTargetNumber(tab, { identifier: 'pc3', name: '騎士[見習い]' })).toBe(14);
     });
 
+    it('passes over a roll made to beat a number of its own, as one resisting what was cast at everyone does', () => {
+      const caster = { identifier: 'caster', name: '魔法使い' };
+      const first = { identifier: 'goblin1', name: 'ゴブリンA' };
+      roll(caster, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15');
+      roll(first, 'DiceBot : (2D6+3>=15) → 9[4,5]+3 → 12 → 失敗', { answers: true });
+
+      expect(findTargetNumber(tab, { identifier: 'goblin2', name: 'ゴブリンB' })).toBe(15);
+    });
+
+    it('still takes a roll aimed at the speaker, made to beat a number of its own', () => {
+      roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [PC1]', { answers: true });
+
+      expect(findTargetNumber(tab, speaker)).toBe(14);
+    });
+
+    /** The answer last added to the tab. */
+    const lastAnswer = () => tab.chatMessages[tab.chatMessages.length - 1];
+
+    it("takes the answer set as the tab's number to beat over any newer roll at nobody and any older one at the speaker", () => {
+      roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [PC1]');
+      roll(enemy, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15');
+      tab.pinnedTargetNumber = lastAnswer().identifier;
+      roll(enemy, 'DiceBot : (1D6) → 3');
+
+      expect(findTargetNumber(tab, speaker)).toBe(15);
+      expect(findTargetNumberSource(tab, speaker)?.from).toBe('pinned');
+    });
+
+    it("still takes a roll at the speaker newer than the answer set as the tab's number to beat", () => {
+      roll(enemy, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15');
+      tab.pinnedTargetNumber = lastAnswer().identifier;
+      roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [PC1]');
+
+      expect(findTargetNumber(tab, speaker)).toBe(14);
+    });
+
+    it("goes on as before where the answer set as the tab's number to beat is not in it", () => {
+      roll(enemy, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15');
+      tab.pinnedTargetNumber = 'gone';
+
+      expect(findTargetNumberSource(tab, speaker)).toMatchObject({ total: 15, from: 'byOthers' });
+    });
+
     it('passes over a secret roll, and answers null where nothing is left', () => {
       roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [PC1]', { tag: 'system secret' });
 
       expect(findTargetNumber(tab, speaker)).toBeNull();
+    });
+
+    describe('targetNumberChoices()', () => {
+      it('lists the newest answers that come to a number, newest first and no more than asked for', () => {
+        roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [PC1]');
+        roll(enemy, 'DiceBot : (choice[a,b]) → b');
+        roll(enemy, 'DiceBot : (2D6+8) → 7[3,4]+8 → 15');
+        roll(speaker, 'DiceBot : (2D6+3>=15) → 9[4,5]+3 → 12 → 失敗', { answers: true });
+
+        expect(targetNumberChoices(tab, 2).map((choice) => choice.total)).toEqual([12, 15]);
+        expect(targetNumberChoices(tab, 5).map((choice) => choice.total)).toEqual([12, 15, 14]);
+      });
+
+      it('passes over a secret roll and the lines said', () => {
+        roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14', { tag: 'system secret' });
+
+        expect(targetNumberChoices(tab, 5)).toEqual([]);
+      });
+
+      it('passes over a roll whispered, even one the reader rolled, which is not for everyone to beat', () => {
+        const me = beMyself();
+        roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14');
+        lastAnswer().to = 'someone-else';
+        lastAnswer().originFrom = me.userId;
+
+        expect(lastAnswer().isDirect && lastAnswer().isDisplayable).toBe(true);
+        expect(targetNumberChoices(tab, 5)).toEqual([]);
+      });
+    });
+
+    describe('mayPinTargetNumber()', () => {
+      it('lets anyone but a guest set it, in a tab they may speak in', () => {
+        expect(mayPinTargetNumber(tab, PeerRole.GameMaster)).toBe(true);
+        expect(mayPinTargetNumber(tab, PeerRole.Player)).toBe(true);
+        expect(mayPinTargetNumber(tab, PeerRole.Guest)).toBe(false);
+
+        tab.plCanSpeak = false;
+
+        expect(mayPinTargetNumber(tab, PeerRole.Player)).toBe(false);
+        expect(mayPinTargetNumber(tab, PeerRole.GameMaster)).toBe(true);
+      });
+    });
+
+    describe('rollerOf() and rolledOf()', () => {
+      it('reads who rolled an answer and what was rolled from how the dice bot wrote it', () => {
+        roll(enemy, 'DiceBot : (2D6+5) → 9[4,5]+5 → 14 [PC1]');
+
+        expect(rollerOf(lastAnswer())).toBe('ゴブリン');
+        expect(rolledOf(lastAnswer())).toBe('2D6+5');
+      });
+
+      it('answers the name as it is, and no roll, where the answer says neither', () => {
+        at += 10;
+        tab.addMessage({ from: 'System-BCDice', name: 'ダイス表', text: 'SW2.5 : KeyNo.20c[10]\n→ 10', timestamp: at });
+
+        expect(rollerOf(lastAnswer())).toBe('ダイス表');
+        expect(rolledOf(lastAnswer())).toBe('');
+      });
     });
   });
 });

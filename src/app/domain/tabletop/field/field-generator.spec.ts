@@ -1,3 +1,4 @@
+import type { WallTextureId } from '@axe/domain/media/texture-catalog';
 import {
   FIELD_ATMOSPHERE_IDS,
   FIELD_ATMOSPHERES,
@@ -7,7 +8,11 @@ import {
 } from '@axe/domain/tabletop/field/field-atmosphere';
 import { fieldBoardSize, planField } from '@axe/domain/tabletop/field/field-generator';
 import { propAt } from '@axe/domain/tabletop/field/field-layout';
+import { FIELD_MODEL_IDS, fieldModelDrawnSize, type FieldModelId } from '@axe/domain/tabletop/field/field-models';
+import { TOWN_KITS } from '@axe/domain/tabletop/field/town-models';
+import { GridType } from '@axe/domain/tabletop/grid-type';
 import { MAP_MAX_TERRAINS } from '@axe/domain/tabletop/map-blocks';
+import { boardExtentPx } from '@axe/domain/tabletop/map-grid';
 
 const SEEDS = [1, 7, 42, 1234, 999];
 
@@ -24,6 +29,90 @@ describe('fieldBoardSize()', () => {
 });
 
 describe('planField()', () => {
+  it('stands each tree, bush and rock as one block drawn as a bundled model when asked, the rest as ever', () => {
+    const built = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7 });
+    const modelled = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7, models: true });
+
+    expect(built.blocks.blocks.some((block) => block.model)).toBe(false);
+    const dressed = modelled.blocks.blocks.filter((block) => block.model);
+    expect(dressed.length).toBeGreaterThan(0);
+    expect(dressed.every((block) => FIELD_MODEL_IDS.includes(block.model as FieldModelId))).toBe(true);
+    const trees = modelled.layout.objects.filter((object) => object.prop === 'tree');
+    expect(dressed.filter((block) => block.thing === 'tree')).toHaveLength(trees.length);
+    expect(modelled.blocks.blocks.length).toBeLessThan(built.blocks.blocks.length);
+    expect(modelled.blocks.blocks.filter((block) => block.thing === 'tree').every((block) => block.model)).toBe(true);
+  });
+
+  it('stands a thing drawn as a model in a block as large as the model is drawn, not over all its crown spreads to', () => {
+    const modelled = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7, models: true });
+
+    const trees = modelled.blocks.blocks.filter((block) => block.thing === 'tree');
+    for (const tree of trees) {
+      const drawn = fieldModelDrawnSize(tree.model as FieldModelId, Math.min(tree.rect.w, tree.rect.h), 99);
+      expect(tree.footprint!.w, JSON.stringify(tree)).toBeLessThan(tree.rect.w);
+      expect(tree.footprint!.w / tree.height!).toBeCloseTo(drawn.across / drawn.tall, 6);
+    }
+  });
+
+  it('grows a giant tree now and then, on raised ground too, with nothing else standing in its shade', () => {
+    const plans = [1, 2, 3, 4, 5, 6, 7, 8].map((seed) =>
+      planField({ atmosphere: 'woodland', size: 60, density: 70, seed, relief: 2, models: true })
+    );
+    const giants = plans.flatMap((plan) =>
+      plan.layout.objects.filter((object) => object.prop === 'giantTree').map((giant) => ({ giant, plan }))
+    );
+
+    expect(giants.length).toBeGreaterThan(0);
+    for (const { giant, plan } of giants) {
+      const reach = (giant.span - 1) / 2;
+      const shaded = plan.layout.objects.filter(
+        (other) => other !== giant && Math.abs(other.x - giant.x) <= reach && Math.abs(other.y - giant.y) <= reach
+      );
+      expect(shaded).toEqual([]);
+      const others = plan.layout.objects.filter((other) => other !== giant && other.prop === 'giantTree');
+      expect(others.every((other) => Math.max(Math.abs(other.x - giant.x), Math.abs(other.y - giant.y)) >= 14)).toBe(
+        true
+      );
+    }
+    const stood = plans.flatMap((plan) => plan.blocks.blocks.filter((block) => block.thing === 'giantTree'));
+    expect(stood.length).toBe(giants.length);
+    expect(stood.every((block) => block.model === 'tree_giant' && block.footprint!.w < block.rect.w)).toBe(true);
+  });
+
+  it('builds a town’s buildings of the kit for their facade, and their roofs’ plant, where models are asked for', () => {
+    const built = planField({ atmosphere: 'city', size: 40, density: 60, seed: 7 });
+    const modelled = planField({ atmosphere: 'city', size: 40, density: 60, seed: 7, models: true });
+    const hexed = planField({
+      atmosphere: 'slum',
+      size: 40,
+      density: 60,
+      seed: 7,
+      models: true,
+      gridType: GridType.HEX_VERTICAL,
+    });
+
+    const buildings = modelled.blocks.blocks.filter((block) => block.thing === 'building');
+    expect(buildings.length).toBeGreaterThan(0);
+    for (const block of buildings) {
+      expect(block.model).toBe(TOWN_KITS[(block.skin!.side as { id: WallTextureId }).id]);
+    }
+    const plant = modelled.blocks.blocks.filter((block) => block.thing === 'roofUnit');
+    expect(plant.length).toBeGreaterThan(0);
+    expect(plant.every((block) => block.model === 'roof_plant')).toBe(true);
+    expect(built.blocks.blocks.some((block) => block.model)).toBe(false);
+    expect(hexed.blocks.blocks.filter((block) => block.thing === 'building').some((block) => block.model)).toBe(false);
+  });
+
+  it('stands each bush as a model of its own, as wide as it is drawn, where models are asked for', () => {
+    const built = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7 });
+    const modelled = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7, models: true });
+
+    const bushes = modelled.blocks.blocks.filter((block) => block.thing === 'bush');
+    expect(bushes.length).toBeGreaterThan(0);
+    expect(bushes.every((bush) => bush.model && bush.rect.w === 1 && bush.footprint!.w < 1)).toBe(true);
+    expect(built.blocks.blocks.filter((block) => block.thing === 'bush').some((bush) => bush.model)).toBe(false);
+  });
+
   it('lays out the same field twice for one seed, and another for another', () => {
     const first = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7 });
     const again = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7 });
@@ -53,11 +142,21 @@ describe('planField()', () => {
   });
 
   it('grows every band of ground it was given, on a board big enough to hold them', () => {
-    for (const id of FIELD_ATMOSPHERE_IDS) {
+    for (const id of FIELD_ATMOSPHERE_IDS.filter((each) => !fieldAtmosphereById(each).settlement)) {
       const plan = planField({ atmosphere: id, size: 50, density: 50, seed: 7 });
       const found = new Set(plan.layout.ground);
 
       expect(found.size).toBe(fieldAtmosphereById(id).bands.length);
+    }
+  });
+
+  it('paints a village or a fort with the band of each part of it, and every part it laid', () => {
+    for (const id of FIELD_ATMOSPHERE_IDS.filter((each) => fieldAtmosphereById(each).settlement)) {
+      const plan = planField({ atmosphere: id, size: 50, density: 50, seed: 7 });
+
+      expect(plan.layout.settlement, id).toBeTruthy();
+      expect([...plan.layout.ground]).toEqual([...plan.layout.settlement!.zones]);
+      expect(Math.max(...plan.layout.ground)).toBeLessThan(fieldAtmosphereById(id).bands.length);
     }
   });
 
@@ -150,6 +249,33 @@ describe('planField()', () => {
     }
   });
 
+  it('lays water over the bands of a coast, a marsh and a snowfield, every cell of them and no more, frozen on the snowfield', () => {
+    const watersOf = (atmosphere: 'coast' | 'marsh' | 'snowfield' | 'woodland') => {
+      const plan = planField({ atmosphere, size: 40, density: 50, seed: 7 });
+      const covered = new Uint8Array(plan.layout.width * plan.layout.height);
+      const waters = plan.blocks.ambiences.filter((ambience) => ambience.kind === 'water');
+      for (const { rect } of waters) {
+        for (let y = rect.y; y < rect.y + rect.h; y++) {
+          for (let x = rect.x; x < rect.x + rect.w; x++) covered[y * plan.layout.width + x]++;
+        }
+      }
+      const wet = [...plan.layout.ground].map((band) => (plan.atmosphere.bands[band].water ? 1 : 0));
+      return { plan, waters, covered: [...covered], wet };
+    };
+
+    for (const atmosphere of ['coast', 'marsh', 'snowfield'] as const) {
+      const { plan, waters, covered, wet } = watersOf(atmosphere);
+      expect(waters.length).toBeGreaterThan(0);
+      expect(covered).toEqual(wet);
+      for (const water of waters) {
+        expect(water.water!.surface).toBe(0);
+        expect(water.water!.ice).toBe(atmosphere === 'snowfield' ? 1 : 0);
+      }
+      expect(plan.blocks.ambiences.length).toBe(waters.length + plan.layout.pools.length);
+    }
+    expect(watersOf('woodland').waters).toEqual([]);
+  });
+
   it('pours a poisoned pool into a marsh now and then, with something in the air over it', () => {
     const found = [1, 7, 42, 1234, 999].map((seed) => planField({ atmosphere: 'marsh', size: 40, density: 50, seed }));
     const withPools = found.filter((plan) => plan.layout.pools.length > 0);
@@ -158,7 +284,7 @@ describe('planField()', () => {
     expect(withPools.length).toBeGreaterThan(0);
     expect(withPools.length).toBeLessThan(found.length);
     for (const plan of withPools) {
-      for (const pool of plan.blocks.ambiences) {
+      for (const pool of plan.blocks.ambiences.filter((ambience) => ambience.kind !== 'water')) {
         expect(pool.kind).toBe('miasma');
         expect(pool.density).toBeGreaterThan(0);
         // The bed of it is painted, so the ground reads as water rather than as marsh.
@@ -258,7 +384,9 @@ describe('planField()', () => {
     const canopy = FIELD_PROP_SHAPES.tree;
     const trees = plan.layout.objects.filter((object) => object.prop === 'tree');
     const posts = plan.blocks.blocks.filter((block) => block.footprint?.w === canopy.trunk!.width);
-    const crowns = plan.blocks.blocks.filter((block) => block.altitude !== undefined && block.rect.w === canopy.span);
+    const crowns = plan.blocks.blocks.filter(
+      (block) => block.thing === 'tree' && block.altitude !== undefined && block.rect.w === canopy.span
+    );
 
     expect(trees.length).toBeGreaterThan(0);
     expect(posts.length).toBe(trees.length);
@@ -285,7 +413,7 @@ describe('planField()', () => {
   });
 
   it('stands its fires apart, out in the open', () => {
-    for (const id of FIELD_ATMOSPHERE_IDS) {
+    for (const id of FIELD_ATMOSPHERE_IDS.filter((each) => !fieldAtmosphereById(each).settlement)) {
       const plan = planField({ atmosphere: id, size: 40, density: 50, seed: 7 });
       const atmosphere = fieldAtmosphereById(id);
 
@@ -295,6 +423,17 @@ describe('planField()', () => {
         expect(propAt(plan.layout, light.x, light.y)).toBe('');
         expect(atmosphere.bands[plan.layout.ground[light.y * plan.layout.width + light.x]].bare).toBeFalsy();
       }
+    }
+  });
+
+  it('lights a village or a fort where it laid its lamps and fires, every one of them', () => {
+    for (const id of FIELD_ATMOSPHERE_IDS.filter((each) => fieldAtmosphereById(each).settlement)) {
+      const plan = planField({ atmosphere: id, size: 40, density: 50, seed: 7 });
+
+      expect(plan.blocks.lights.map(({ x, y, kind }) => ({ x, y, kind }))).toEqual(
+        plan.layout.settlement!.fires.map(({ x, y, kind }) => ({ x, y, kind }))
+      );
+      expect(plan.blocks.lights.length, id).toBeGreaterThan(0);
     }
   });
 
@@ -316,5 +455,111 @@ describe('planField()', () => {
         expect(plan.blocks.blocks.length).toBeLessThanOrEqual(MAP_MAX_TERRAINS);
       }
     }
+  });
+});
+
+describe('the ground of a field raised as high as asked', () => {
+  it('lays murky water over the ground of the land beside it, which shows where the ground comes up through the water', () => {
+    const murky = FIELD_ATMOSPHERE_IDS.flatMap((id) =>
+      FIELD_ATMOSPHERES[id].bands.flatMap((band, index, bands) =>
+        (band.water?.turbidity ?? 0) >= 0.5
+          ? [{ id, under: band.floor ?? band.texture, beside: bands[index + 1]?.floor ?? bands[index + 1]?.texture }]
+          : []
+      )
+    );
+
+    expect(murky.length).toBeGreaterThan(0);
+    for (const { id, under, beside } of murky) expect(under, id).toBe(beside);
+  });
+
+  it('raises nothing where no height is asked for', () => {
+    expect(planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7 }).layout.relief ?? null).toBeNull();
+    expect(
+      planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7, relief: 0 }).layout.relief ?? null
+    ).toBeNull();
+  });
+
+  it('raises the highest ground to the height asked, leaves the lowest on the board, and covers it all', () => {
+    const relief = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7, relief: 3 }).layout.relief!;
+
+    expect(relief.columns).toBe(40 * 2 + 1);
+    expect(relief.rows).toBe(30 * 2 + 1);
+    expect(Math.max(...relief.heights)).toBe(3);
+    expect(Math.min(...relief.heights)).toBe(0);
+  });
+
+  it('keeps the same ground and the same things standing on it, whatever height it is raised to', () => {
+    const flat = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7 });
+    const raised = planField({ atmosphere: 'woodland', size: 40, density: 50, seed: 7, relief: 4 });
+
+    expect(raised.layout.ground).toEqual(flat.layout.ground);
+    expect(raised.layout.props).toEqual(flat.layout.props);
+    expect(raised.blocks).toEqual(flat.blocks);
+  });
+
+  it('builds no hills of steps of blocks where the ground itself is raised, as it does on flat ground', () => {
+    const flat = planField({ atmosphere: 'meadow', size: 40, density: 50, seed: 7 });
+    const raised = planField({ atmosphere: 'meadow', size: 40, density: 50, seed: 7, relief: 2 });
+
+    expect(flat.layout.objects.some((object) => object.prop === 'hill')).toBe(true);
+    expect(raised.layout.objects.some((object) => object.prop === 'hill')).toBe(false);
+    expect(raised.layout.relief).not.toBeNull();
+  });
+
+  it('digs the ground under open water down from the shore, no deeper than the water asks, and raises the land from over its surface', () => {
+    const plan = planField({ atmosphere: 'coast', size: 40, density: 50, seed: 7, relief: 3 });
+    const relief = plan.layout.relief!;
+    const water = plan.atmosphere.bands.map((band) => !!band.water);
+    const deepest = Math.max(...plan.atmosphere.bands.map((band) => band.water?.depth ?? 0));
+
+    const wet: number[] = [];
+    const dry: number[] = [];
+    for (let y = 0; y < plan.layout.height; y++) {
+      for (let x = 0; x < plan.layout.width; x++) {
+        const height = relief.heights[(y * 2 + 1) * relief.columns + x * 2 + 1];
+        (water[plan.layout.ground[y * plan.layout.width + x]] ? wet : dry).push(height);
+      }
+    }
+    expect(wet.length).toBeGreaterThan(0);
+    expect(Math.max(...wet)).toBeLessThanOrEqual(0);
+    expect(Math.min(...wet)).toBeCloseTo(-deepest, 1);
+    expect(Math.min(...dry)).toBeGreaterThanOrEqual(0.1 - 1e-6);
+    expect(Math.max(...relief.heights)).toBe(3);
+  });
+
+  it('digs water no deeper than the ground is raised', () => {
+    const plan = planField({ atmosphere: 'coast', size: 40, density: 50, seed: 7, relief: 0.5 });
+
+    expect(Math.min(...plan.layout.relief!.heights)).toBeCloseTo(-0.5, 5);
+  });
+
+  it('holds the height asked for between none and six cells, in half cells', () => {
+    const asked = (relief: number) =>
+      Math.max(
+        ...(planField({ atmosphere: 'meadow', size: 20, density: 50, seed: 1, relief }).layout.relief?.heights ?? [0])
+      );
+
+    expect(asked(1.3)).toBe(1.5);
+    expect(asked(20)).toBe(6);
+    expect(asked(-2)).toBe(0);
+    expect(asked(Number.NaN)).toBe(0);
+  });
+
+  it('raises the ground under the whole of a hex board, as high as asked', () => {
+    const plan = planField({
+      atmosphere: 'woodland',
+      size: 40,
+      density: 50,
+      seed: 7,
+      relief: 3,
+      gridType: GridType.HEX_VERTICAL,
+    });
+    const relief = plan.layout.relief!;
+    const extent = boardExtentPx(plan.layout, { type: GridType.HEX_VERTICAL, sizePx: 1 });
+
+    expect(relief.columns).toBeGreaterThanOrEqual(extent.widthPx * 2);
+    expect(relief.rows).toBeGreaterThanOrEqual(extent.heightPx * 2);
+    expect(Math.max(...relief.heights)).toBeGreaterThan(2.5);
+    expect(Math.min(...relief.heights)).toBeLessThan(0.5);
   });
 });

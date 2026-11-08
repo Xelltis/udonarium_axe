@@ -1,17 +1,28 @@
 import { computed, inject, Injectable } from '@angular/core';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { GroundService } from '@axe/application/tabletop/ground.service';
 import { TableAmbienceService } from '@axe/application/tabletop/table-ambience.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
-import { type CellGrid, cellIndexAt, forEachCellInBox } from '@axe/domain/tabletop/fog/cell-grid';
+import { type CellGrid, cellIndexAt } from '@axe/domain/tabletop/fog/cell-grid';
+import { ICE_BEARS_AT } from '@axe/domain/tabletop/ground/ground-over-ice';
 import { canBeStoodOn, landingHeightsOn } from '@axe/domain/tabletop/move/landing-height';
+import { pieceModelOf } from '@axe/domain/tabletop/piece-model';
 import { Terrain } from '@axe/domain/tabletop/terrain';
-import { terrainBoxOf, terrainCovers } from '@axe/domain/tabletop/terrain-box';
+import { forEachCellUnder, terrainBoxOf } from '@axe/domain/tabletop/terrain-box';
 import { terrainTopPxAt } from '@axe/domain/tabletop/terrain-slope-surface';
 import { type WaterArea, type WaterCell, waterCellsOf } from '@axe/domain/tabletop/water/water-cells';
 import { sameWaterGrid, waterGridOver } from '@axe/domain/tabletop/water/water-grid';
 
 const NO_CELLS: ReadonlyMap<number, WaterCell> = new Map();
+
+/** How narrow a block may be, in cells, and still fill the cells it stands on as ground to the water. */
+const FILLING_CELLS = 0.9;
+
+/** Whether a block is drawn as a box filling the cells it stands on, not as a model or a narrow post. */
+function fillsItsCells(terrain: Terrain): boolean {
+  return !pieceModelOf(terrain) && Math.min(terrain.width, terrain.depth) >= FILLING_CELLS;
+}
 
 /**
  * The water on the table in view, as this seat sees it.
@@ -26,6 +37,7 @@ export class WaterService {
   private readonly tabletopService = inject(TabletopService);
   private readonly vision = inject(VisionService);
   private readonly objectChange = inject(ObjectChangeService);
+  private readonly raisedGround = inject(GroundService);
 
   /** The bodies of water this seat may see, in table pixels. */
   readonly areas = computed<WaterArea[]>(() => {
@@ -50,6 +62,7 @@ export class WaterService {
           leaves: area.leaves,
           flowSpeed: area.flow,
           flowDirection: area.flowHeading,
+          ice: area.ice,
         };
       });
   });
@@ -75,7 +88,23 @@ export class WaterService {
   readonly ground = computed<Float64Array | null>(() => {
     const grid = this.grid();
     if (!grid || this.areas().length < 1) return null;
-    return landingHeightsOn(grid, this.terrainsByWater());
+    return landingHeightsOn(grid, this.terrainsByWater(), this.raisedGround.surface());
+  });
+
+  /**
+   * How high the ground stands in every cell as the water's banks show it: the ground, without the
+   * blocks drawn as models or narrower than a cell. Such a block keeps the water out of its cell, but
+   * nothing drawn fills the cell round it, so the waves running on over the land beside the water
+   * would lie on the floor round it rather than under ground rising through them; the water stands
+   * against it as it stands against lower ground.
+   */
+  readonly bankGround = computed<Float64Array | null>(() => {
+    const grid = this.grid();
+    if (!grid || this.areas().length < 1) return null;
+    const terrains = this.terrainsByWater();
+    const filling = terrains.filter(fillsItsCells);
+    if (filling.length === terrains.length) return this.ground();
+    return landingHeightsOn(grid, filling, this.raisedGround.surface());
   });
 
   /**
@@ -101,16 +130,17 @@ export class WaterService {
     });
   });
 
-  /** The blocks standing on each cell by the water, counted by the middle of the cell as the ground is. */
+  /**
+   * The blocks standing on each cell by the water as its banks show them, counted by the middle of the
+   * cell as the ground is: those filling their cells, as {@link bankGround} has them.
+   */
   private readonly terrainsByCell = computed<Map<number, Terrain[]>>(() => {
     const grid = this.grid();
     const byCell = new Map<number, Terrain[]>();
     if (!grid || grid.sizePx <= 0) return byCell;
     for (const terrain of this.terrainsByWater()) {
-      if (!canBeStoodOn(terrain)) continue;
-      const box = terrainBoxOf(terrain, grid.sizePx);
-      forEachCellInBox(grid, box.minX, box.minY, box.maxX, box.maxY, (index, cx, cy) => {
-        if (!terrainCovers(terrain, grid.sizePx, cx, cy)) return;
+      if (!canBeStoodOn(terrain) || !fillsItsCells(terrain)) continue;
+      forEachCellUnder(grid, terrain, (index) => {
         const held = byCell.get(index);
         if (held) held.push(terrain);
         else byCell.set(index, [terrain]);
@@ -120,7 +150,8 @@ export class WaterService {
   });
 
   /**
-   * How high the ground of one cell stands at a point of it, the floor where nothing stands there.
+   * How high the ground of one cell stands at a point of it as the water's banks show it, the floor
+   * where nothing filling the cell stands there.
    *
    * It is the ground standing on that cell read at the point, which follows a slope across the cell
    * rather than holding to its middle; that is what lets the bank of the water follow it. A block is
@@ -142,6 +173,12 @@ export class WaterService {
     return ground && index >= 0 && index < ground.length ? ground[index] : 0;
   };
 
+  /** How high the ground stands in a cell as the water's banks show it; see {@link bankGround}. */
+  readonly bankGroundOf = (index: number): number => {
+    const ground = this.bankGround();
+    return ground && index >= 0 && index < ground.length ? ground[index] : 0;
+  };
+
   /**
    * The cells under water, by index.
    *
@@ -159,6 +196,20 @@ export class WaterService {
         if (this.vision.isHiddenByFog(cell.cx, cell.cy)) cells.delete(index);
       }
       return cells;
+    },
+    { equal: sameWaterCells }
+  );
+
+  /**
+   * The cells of water frozen hard enough to stand on, fog or no fog: what stands on the floor there
+   * stands on the ice, whether or not this seat has seen the shore.
+   */
+  readonly frozen = computed<ReadonlyMap<number, WaterCell>>(
+    () => {
+      const grid = this.grid();
+      const areas = this.areas().filter((area) => area.ice >= ICE_BEARS_AT);
+      if (!grid || areas.length < 1) return NO_CELLS;
+      return waterCellsOf(grid, areas, this.groundOf);
     },
     { equal: sameWaterCells }
   );

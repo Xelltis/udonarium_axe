@@ -31,7 +31,7 @@ import {
   stopCutInByBgm$,
   xmlLoaded$,
 } from '@axe/core/event/domain-events';
-import { EventChannel, ReadableChannel } from '@axe/core/event/event-channel';
+import { EventChannel, heldBy, ReadableChannel } from '@axe/core/event/event-channel';
 import { networkMessage$ } from '@axe/core/network/network-messaging';
 import { peerStatsUpdated$ } from '@axe/core/network/peer-stats-events';
 import {
@@ -77,14 +77,22 @@ export type { ObjectChangeEvent } from '@axe/core/sync/object-event-extension';
 export class ObjectChangeService {
   private readonly destroyRef = inject(DestroyRef);
 
+  /**
+   * The page's own channels, handed on so that whatever is subscribed through this service goes
+   * when the service does, whether or not the subscriber gave a destroy handle of its own.
+   */
+  private held<T>(channel: ReadableChannel<T>): ReadableChannel<T> {
+    return heldBy(channel, this.destroyRef);
+  }
+
   /** Batched object change notifications (from both local and network sources) */
-  readonly objectChanged$: ReadableChannel<ObjectChangeEvent> = objectChanged$;
+  readonly objectChanged$: ReadableChannel<ObjectChangeEvent> = this.held(objectChanged$);
   /** Batched children hierarchy change notifications */
-  readonly childrenChanged$: ReadableChannel<ChildrenChangeEvent> = childrenChanged$;
+  readonly childrenChanged$: ReadableChannel<ChildrenChangeEvent> = this.held(childrenChanged$);
   /** Emitted synchronously when an object is added to ObjectStore. */
-  readonly objectAdded$: ReadableChannel<ObjectStoreEvent> = objectAdded$;
+  readonly objectAdded$: ReadableChannel<ObjectStoreEvent> = this.held(objectAdded$);
   /** Emitted synchronously when an object is removed from ObjectStore. */
-  readonly objectRemoved$: ReadableChannel<ObjectStoreEvent> = objectRemoved$;
+  readonly objectRemoved$: ReadableChannel<ObjectStoreEvent> = this.held(objectRemoved$);
 
   private readonly _versions = new Map<string, WritableSignal<number>>();
 
@@ -287,7 +295,7 @@ export class ObjectChangeService {
   readonly shuffleCardStack$: ReadableChannel<IdentifierEvent> = this._shuffleCardStack$;
   readonly rollDiceSymbol$: ReadableChannel<IdentifierEvent> = this._rollDiceSymbol$;
   readonly flipCoin$: ReadableChannel<CoinFlipEvent> = this._flipCoin$;
-  readonly selectFile$ = selectFile$;
+  readonly selectFile$ = this.held(selectFile$);
   readonly cursorMove$: ReadableChannel<CursorMoveEvent> = this._cursorMove$;
   readonly heartBeat$: ReadableChannel<HeartBeatEvent> = this._heartBeat$;
   /** Fires on every networkMessage$ event (wildcard). Used for network activity monitoring. */
@@ -296,22 +304,22 @@ export class ObjectChangeService {
   readonly audioSyncList$: ReadableChannel<FileSyncEvent> = this._audioSyncList$;
   readonly networkError$: ReadableChannel<NetworkErrorEvent> = this._networkError$;
 
-  readonly messageAdded$ = messageAdded$;
-  readonly startCutIn$ = startCutIn$;
-  readonly soundOnlyCutIn$ = soundOnlyCutIn$;
-  readonly stopCutInByBgm$ = stopCutInByBgm$;
-  readonly stopCutIn$ = stopCutIn$;
-  readonly endOldVote$ = endOldVote$;
-  readonly startVote$ = startVote$;
-  readonly finishVote$ = finishVote$;
-  readonly alarmTimeUp$ = alarmTimeUp$;
-  readonly alarmPop$ = alarmPop$;
-  readonly fileLoaded$ = fileLoaded$;
-  readonly xmlLoaded$ = xmlLoaded$;
-  readonly imageDropped$ = imageDropped$;
-  readonly ccfoliaRoomDropped$ = ccfoliaRoomDropped$;
-  readonly loadConfig$ = loadConfig$;
-  readonly domainFileResourceUpdated$ = domainFileResourceUpdated$;
+  readonly messageAdded$ = this.held(messageAdded$);
+  readonly startCutIn$ = this.held(startCutIn$);
+  readonly soundOnlyCutIn$ = this.held(soundOnlyCutIn$);
+  readonly stopCutInByBgm$ = this.held(stopCutInByBgm$);
+  readonly stopCutIn$ = this.held(stopCutIn$);
+  readonly endOldVote$ = this.held(endOldVote$);
+  readonly startVote$ = this.held(startVote$);
+  readonly finishVote$ = this.held(finishVote$);
+  readonly alarmTimeUp$ = this.held(alarmTimeUp$);
+  readonly alarmPop$ = this.held(alarmPop$);
+  readonly fileLoaded$ = this.held(fileLoaded$);
+  readonly xmlLoaded$ = this.held(xmlLoaded$);
+  readonly imageDropped$ = this.held(imageDropped$);
+  readonly ccfoliaRoomDropped$ = this.held(ccfoliaRoomDropped$);
+  readonly loadConfig$ = this.held(loadConfig$);
+  readonly domainFileResourceUpdated$ = this.held(domainFileResourceUpdated$);
 
   /** Signal that updates when any file-related event occurs (throttled 100ms, leading + trailing). */
   readonly fileVersion = signal<number>(0);

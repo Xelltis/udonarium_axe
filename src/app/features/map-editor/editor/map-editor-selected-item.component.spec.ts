@@ -25,8 +25,21 @@ describe('MapEditorSelectedItemComponent', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  it('shows nothing while nothing is picked', async () => {
-    expect((await drawn()).querySelector('button')).toBeNull();
+  it('tells what the tool does and its keys while nothing is picked, with nothing to press', async () => {
+    const element = await drawn();
+
+    expect(element.querySelector('button')).toBeNull();
+    const guide = element.querySelector('[data-testid="map-editor-select-guide"]')!;
+    expect(guide.textContent).toContain('クリックで選び、ドラッグで動かします');
+    expect([...guide.querySelectorAll('dt')].map((key) => key.textContent?.trim())).toContain('Delete');
+  });
+
+  it('takes the guide away once something is picked', async () => {
+    state.stampId.set('door-single');
+    state.placeStamp(100, 100, 'スタンプ 1');
+    state.selection.set(state.hitTest(100, 100));
+
+    expect((await drawn()).querySelector('[data-testid="map-editor-select-guide"]')).toBeNull();
   });
 
   it('shows the size of a picked stamp, and deletes it', async () => {
@@ -37,6 +50,7 @@ describe('MapEditorSelectedItemComponent', () => {
 
     const element = await drawn();
     expect((element.querySelector('input[type="range"]') as HTMLInputElement).value).toBe('64');
+    expect(element.querySelector('input[type="range"] + span')?.textContent?.trim()).toBe('64px');
 
     (element.querySelector('button') as HTMLButtonElement).click();
 

@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import {
+  aimsAtOnce,
   BuffPalette,
   ChatPalette,
   DiceTablePalette,
@@ -519,6 +520,17 @@ describe('ChatPalette', () => {
       expect(textTargetsCharacter('ｔ： 2d+8')).toBe(true);
       expect(textTargetsCharacter('ポイントt: 2d+8')).toBe(false);
       expect(textTargetsCharacter('2d+8 at:')).toBe(false);
+    });
+
+    it('counts a t:範囲 or a t:area standing as a word of its own as aiming at them all at once, and takes it out', () => {
+      for (const line of ['2d+8 魔法行使 t:範囲', 'ｔ：範囲 2d+8 魔法行使', '2d+8 魔法行使 T:Area']) {
+        expect(textTargetsCharacter(line)).toBe(true);
+        expect(aimsAtOnce(line)).toBe(true);
+        expect(withoutAimMarks(line)).toBe('2d+8 魔法行使');
+      }
+      expect(aimsAtOnce('2d+8 魔法行使 t:')).toBe(false);
+      expect(aimsAtOnce('2d+8 t:範囲外')).toBe(false);
+      expect(withoutAimMarks('2d+8 t:範囲外')).toBe('2d+8 t:範囲外');
     });
 
     it('takes such a t: out of the line with the space beside it, keeping the lines apart', () => {

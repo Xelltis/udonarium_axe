@@ -79,9 +79,9 @@ describe('RenderStatsService', () => {
     expect(service.watching()).toBe(false);
   });
 
-  it('counts the terrain the table is showing', () => {
+  it('counts the terrain the table is showing, and the elements over its canvas', () => {
     const table = document.createElement('div');
-    table.id = 'app-game-table';
+    table.dataset['testid'] = 'table-hud';
     table.innerHTML = '<terrain><div><canvas></canvas></div></terrain><terrain><div></div></terrain>';
     document.body.appendChild(table);
 
@@ -89,25 +89,7 @@ describe('RenderStatsService', () => {
     vi.advanceTimersByTime(1000);
 
     expect(service.stats().terrains).toBe(2);
-    expect(service.stats().terrainCanvases).toBe(1);
-
-    table.remove();
-  });
-
-  it('counts the terrain drawn together, and the surfaces it is drawn as', () => {
-    const table = document.createElement('div');
-    table.id = 'app-game-table';
-    table.innerHTML =
-      '<terrain></terrain><terrain-batch-layer data-merged="5"><div></div><div></div><div></div></terrain-batch-layer>';
-    document.body.appendChild(table);
-
-    service.start();
-    vi.advanceTimersByTime(1000);
-
-    expect(service.stats().terrains).toBe(1);
-    expect(service.stats().mergedTerrains).toBe(5);
-    expect(service.stats().mergedFaces).toBe(3);
-    expect(service.stats().elementsPerTerrain).toBe(5 / 6);
+    expect(service.stats().tableElements).toBe(5);
 
     table.remove();
   });

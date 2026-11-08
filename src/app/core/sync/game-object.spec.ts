@@ -145,6 +145,22 @@ describe('GameObject', () => {
       const obj = DataElement.create('test', '', {});
       expect(() => obj.apply(null!)).not.toThrow();
     });
+
+    it('keeps the attributes a newer version sent that it has no SyncVar for, through an edit of its own and a save', () => {
+      const obj = DataElement.create('test', 'value', {});
+      const context = obj.toContext();
+      context.majorVersion += 1;
+      const attributes = context.syncData['attributes'] as Record<string, unknown>;
+      attributes['modelIdentifier'] = 'model-hash';
+      attributes['modelScale'] = '1.5';
+
+      obj.apply(context);
+      obj.name = 'edited';
+
+      const kept = { name: 'edited', modelIdentifier: 'model-hash', modelScale: '1.5' };
+      expect(obj.toContext().syncData['attributes']).toMatchObject(kept);
+      expect(obj.clone().readSyncData()['attributes']).toMatchObject(kept);
+    });
   });
 
   describe('toXml()', () => {

@@ -29,6 +29,8 @@ import { ensureFogMemoryOn, fogMemoryOn } from '@axe/domain/tabletop/fog/fog-mem
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
 import { GameTableMask } from '@axe/domain/tabletop/game-table-mask';
 import { GameTableScratchMask } from '@axe/domain/tabletop/game-table-scratch-mask';
+import { applyGroundDab } from '@axe/domain/tabletop/ground/ground-brush';
+import { ensureGroundFieldOn, groundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
 import { moveCostsOn, TableMoveCost } from '@axe/domain/tabletop/table-move-cost';
 import { Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
@@ -296,6 +298,41 @@ describe('save and load round trip', () => {
       const memory = fogMemoryOn(restored);
       expect(memory).not.toBeNull();
       expect(memory?.read(grid).equals(bits)).toBe(true);
+    });
+
+    it('carries the raised and painted ground with the table, chunk by chunk, wherever each lies', () => {
+      const table = new GameTable();
+      table.initialize();
+      const field = ensureGroundFieldOn(table);
+      const raised = applyGroundDab([], { kind: 'raise', x: 16, y: 4, radius: 2, strength: 1.5 });
+      const painted = applyGroundDab(raised, { kind: 'paint', x: 16, y: 4, radius: 1, strength: 1, layer: 'sand' });
+      for (const chunk of painted) field.writeChunk(chunk);
+
+      const xml = serializer.toXml(table);
+      expect(xml).toContain('<ground-field');
+      expect(xml).toContain('<ground-chunk');
+
+      const restored = groundFieldOn(serializer.parseXml(xml) as GameTable)!;
+      const byPlace = (chunks: { cx: number; cy: number }[]) => [...chunks].sort((a, b) => a.cx - b.cx || a.cy - b.cy);
+      expect(byPlace(restored.readChunks())).toEqual(byPlace(field.readChunks()));
+    });
+
+    it('leaves the rest of the table as it was for a build that knows no ground, which reads it flat', () => {
+      const table = new GameTable();
+      table.initialize();
+      const grid = cellGridOf(4, 4, 50, GridType.SQUARE);
+      const bits = new CellBits(cellCount(grid));
+      bits.set(3);
+      ensureFogMemoryOn(table).write(grid, bits);
+      for (const chunk of applyGroundDab([], { kind: 'raise', x: 4, y: 4, radius: 2, strength: 1 })) {
+        ensureGroundFieldOn(table).writeChunk(chunk);
+      }
+
+      const older = serializer.toXml(table).replace(/(<\/?)ground-(field|chunk)\b/g, '$1unknown-$2');
+      const restored = serializer.parseXml(older) as GameTable;
+
+      expect(fogMemoryOn(restored)?.read(grid).equals(bits)).toBe(true);
+      expect(groundFieldOn(restored)).toBeNull();
     });
 
     it('forgets what it held once the fog is cleared, and says that it has', () => {

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { cellSpot } from '../helpers';
 import {
   chooseMenu,
   closeModal,
@@ -10,6 +11,7 @@ import {
   rightClickTable,
   settle,
   snap,
+  untilStill,
 } from './fixtures';
 
 test('a piece on a hex grid wears the hex pedestal', async ({ page }) => {
@@ -20,10 +22,12 @@ test('a piece on a hex grid wears the hex pedestal', async ({ page }) => {
   await page.locator('modal select[name="tableGridType"]').selectOption('1');
   await settle(page);
   await closeModal(page);
-  const menu = await rightClickTable(page, { x: 700, y: 450 });
+  const samples = await page.locator('game-character').count();
+  const menu = await rightClickTable(page, await cellSpot(page, 25.5, 11.5));
   await chooseMenu(page, menu, 'キャラクターを作成');
   await page.mouse.move(1279, 799);
-  await expect(page.locator('game-character')).toHaveCount(7);
+  await expect(page.locator('game-character')).toHaveCount(samples + 1);
+  await untilStill(page);
   await settle(page, 400);
   await snap(page, 'hex-pedestal');
 });

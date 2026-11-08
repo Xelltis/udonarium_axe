@@ -1,8 +1,13 @@
+<!--
+  The light is a box on the screen round where the table's canvas draws its mark, and a cone's
+  handle stands off the point it turns about. Its mark is drawn here, out of sight, for the canvas
+  to draw a picture of.
+-->
+@let id = lightSource().identifier;
 <div
-  class="group pointer-events-none absolute flex items-center justify-center select-none backface-hidden transform-3d"
-  [style.width.px]="gridSize"
-  [style.height.px]="gridSize"
+  class="group pointer-events-none size-full select-none"
   [class.cursor-grab]="!isLock()"
+  data-hud-box
   appMovable
   [movable.option]="movableOption()"
   [movable.disable]="isLock()"
@@ -11,7 +16,13 @@
   (movable.ondragend)="onMoved()"
 >
   <div
-    class="pointer-events-none absolute inset-0 m-auto size-0 transform-3d"
+    data-part="mark"
+    class="pointer-events-auto"
+    [appTooltip]="lightSource()"
+    [appHudPlace]="{ owner: id, part: 'mark' }"
+  ></div>
+  <div
+    class="pointer-events-none size-0"
     appRotable
     [rotable.option]="rotableOption()"
     [rotable.disable]="isLock()"
@@ -21,30 +32,29 @@
   >
     @if (!isLock() && isCone()) {
       <div
-        class="rotate-grab border-ui-border-panel bg-ui-elevated text-ui-muted pointer-events-auto absolute box-border flex size-7 -translate-1/2 transform-[translateZ(0.1px)] cursor-default items-center justify-center rounded-full border-2 border-solid p-0 opacity-0 transform-3d group-hover:opacity-90 [&_.material-icons]:text-[18px]!"
-        [style.left.px]="gridSize * 0.9"
+        class="rotate-grab border-ui-border-panel bg-ui-elevated text-ui-muted pointer-events-auto box-border flex size-7 cursor-default items-center justify-center rounded-full border-2 border-solid p-0 opacity-0 group-hover:opacity-90 [&_.material-icons]:text-[18px]!"
+        [appHudPlace]="{ owner: id, at: grabPoint() }"
       >
         <i class="material-icons">autorenew</i>
       </div>
     }
   </div>
-
+</div>
+<div class="pointer-events-none fixed top-0 left-0 opacity-0">
   @if (skinUrl().length > 0) {
     <div
-      class="pointer-events-auto absolute inset-0 m-auto bg-contain bg-center bg-no-repeat transform-3d"
+      class="bg-contain bg-center bg-no-repeat"
+      #mark
       [class.opacity-40]="!enabled()"
       [style.width.px]="gridSize"
       [style.height.px]="gridSize"
-      [style.transform]="skinTransform()"
       [style.background-image]="'url(' + skinUrl() + ')' | safe: 'style'"
-      [appTooltip]="lightSource()"
     ></div>
   } @else {
     <div
-      class="pointer-events-auto absolute inset-0 m-auto flex size-9 items-center justify-center rounded-full border border-white/40 bg-black/40 transform-3d"
+      class="flex size-9 items-center justify-center rounded-full border border-white/40 bg-black/40"
+      #mark
       [class.opacity-40]="!enabled()"
-      [style.transform]="skinTransform()"
-      [appTooltip]="lightSource()"
     >
       <i class="material-icons text-[22px]" [style.color]="iconColor()">lightbulb</i>
     </div>

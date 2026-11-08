@@ -1,25 +1,36 @@
 import { expect, Page, test } from '@playwright/test';
 
+import { cellSpot } from '../helpers';
 import {
   becomeGm,
   chooseMenu,
   closeModal,
   closePanels,
   freeze,
-  menuEntry,
   openTableSetting,
   prepare,
+  pressMenu,
   rightClickTable,
   settle,
   settleLazy,
   snap,
 } from './fixtures';
 
+// A first-person view is the heaviest scene the pictures are taken of, and SwiftShader draws each
+// browser's WebGPU on a thread for every core: three of these drawn at once left a page bringing no
+// frame to the screen for half a minute. They are taken one after another, in one worker.
+test.describe.configure({ mode: 'default' });
+
+/**
+ * Makes something from the table's menu at a point, and leaves the pointer off the table, where the
+ * card of a piece made under it would cover the next menu.
+ */
 async function createAt(page: Page, position: { x: number; y: number }, entry: string, selector: string) {
   const before = await page.locator(selector).count();
   const menu = await rightClickTable(page, position);
   await chooseMenu(page, menu, entry);
   await expect(page.locator(selector)).toHaveCount(before + 1, { timeout: 10000 });
+  await page.mouse.move(1279, 799);
   await settle(page, 400);
 }
 
@@ -28,15 +39,15 @@ async function lookOutOf(page: Page, piece: ReturnType<Page['locator']>) {
   await settle(page, 400);
   const menu = page.locator('context-menu');
   await expect(menu.locator('li').first()).toBeVisible({ timeout: 7000 });
-  await (await menuEntry(page, menu, 'このコマの視点で見る')).dispatchEvent('click');
-  await settleLazy(page, page.locator('first-person-view [data-quad="wall"]'));
+  await pressMenu(page, menu, 'このコマの視点で見る');
+  await settleLazy(page, page.locator('first-person-view [data-testid="first-person-canvas"]'));
   await settle(page, 400);
 }
 
 async function standBeforeABlockAndLook(page: Page) {
-  await createAt(page, { x: 700, y: 450 }, 'キャラクターを作成', 'game-character');
+  await createAt(page, await cellSpot(page, 24.5, 12.5), 'キャラクターを作成', 'game-character');
   const piece = page.locator('game-character').last();
-  await createAt(page, { x: 800, y: 380 }, '地形を作成', 'terrain');
+  await createAt(page, await cellSpot(page, 26.5, 10.5), '地形を作成', 'terrain');
   await lookOutOf(page, piece);
 }
 

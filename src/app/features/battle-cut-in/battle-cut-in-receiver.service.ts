@@ -6,7 +6,7 @@ import { ObjectStore } from '@axe/core/sync/object-store';
 import { BattleScene, normalizeBattleScene } from '@axe/domain/battle/battle-scene';
 import { BATTLE_DRAIN_MS } from '@axe/domain/battle/battle-timeline';
 import { GameCharacter } from '@axe/domain/character/game-character';
-import { effectLandingTimes } from '@axe/domain/effect/effect-timeline';
+import { effectLandingTimes } from '@axe/domain/effect/effect-sound-times';
 import { BattleCutInStateService } from '@axe/features/battle-cut-in/battle-cut-in-state.service';
 
 /**

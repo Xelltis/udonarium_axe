@@ -1,0 +1,9 @@
+@if (laid(); as outline) {
+  <div
+    data-testid="drop-preview"
+    class="pointer-events-none absolute top-0 left-0 box-border origin-top-left rounded-xl bg-[rgba(80,200,255,0.18)] outline-[3px] outline-offset-[-3px] outline-[rgba(80,200,255,0.95)] outline-dashed"
+    [style.width.px]="outline.width"
+    [style.height.px]="outline.height"
+    [style.transform]="outline.transform"
+  ></div>
+}

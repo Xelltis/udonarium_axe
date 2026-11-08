@@ -1,9 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { EffectTargetingService } from '@axe/application/effect/effect-targeting.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
 import { SelectionSignalService } from '@axe/application/ui/selection-signal.service';
 import { ObjectStore } from '@axe/core/sync/object-store';
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
+import { DEFAULT_TABLE_CAMERA_VIEW } from '@axe/domain/tabletop/camera/table-camera';
 import { EffectTargetOverlayComponent } from '@axe/features/effect/effect-target-overlay/effect-target-overlay.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -68,6 +70,30 @@ describe('EffectTargetOverlayComponent', () => {
 
     expect(elements()).toHaveLength(2);
     expect(elements().filter((element) => element.textContent?.trim().length)).toEqual([]);
+  });
+
+  it('lays a mark flat where the canvas draws the floor, and stands its number facing the screen', () => {
+    const camera = TestBed.inject(TableCameraService);
+    camera.setLayout({ left: 0, top: 30, width: 1280, height: 770, boardWidth: 1000, boardHeight: 750 });
+    camera.showView(DEFAULT_TABLE_CAMERA_VIEW);
+    targeting.begin(preset);
+    targeting.pick(characters[1].identifier);
+    fixture.detectChanges();
+
+    const [mark, badge] = elements();
+    expect(mark.style.transform).toMatch(/^matrix3d\(/);
+    expect(badge.style.transform).toMatch(
+      /^translate\([-\d.]+px, [-\d.]+px\) scale\([\d.]+\) translate\(-50%, -50%\)$/
+    );
+    expect(badge.textContent?.trim()).toBe('1');
+  });
+
+  it('hides what it cannot lay before the camera is set', () => {
+    targeting.begin(preset);
+    targeting.pick(characters[1].identifier);
+    fixture.detectChanges();
+
+    expect(elements().map((element) => element.style.display)).toEqual(['none', 'none']);
   });
 
   it('draws the line only once there is a caster', () => {

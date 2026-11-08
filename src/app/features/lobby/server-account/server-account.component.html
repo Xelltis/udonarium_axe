@@ -47,19 +47,28 @@
         </button>
       }
     } @else {
-      <button
-        class="rounded-ui-sm border-ui-accent text-ui-accent hover:bg-ui-accent-bg cursor-pointer border border-solid bg-transparent px-2.5 py-0.5 text-[0.8rem] whitespace-nowrap"
-        type="button"
-        [disabled]="isLoggingIn()"
-        data-testid="server-account-login"
-        (click)="login()"
+      <div
+        class="rounded-ui-sm flex min-w-0 basis-full items-start gap-2 border border-solid border-(--ui-panel-border) bg-(--ui-elevated) px-2.5 py-2"
+        data-testid="server-account-guest"
       >
-        <i class="material-icons align-middle text-[14px]!">login</i>
-        {{ (isLoggingIn() ? 'feature.lobby.account.loggingIn' : 'feature.lobby.account.login') | transloco }}
-      </button>
-      <span class="text-ui-muted min-w-0 flex-1 text-xs/normal">{{
-        'feature.lobby.account.guestHint' | transloco
-      }}</span>
+        <i class="material-icons text-ui-muted mt-px text-[18px]!" aria-hidden="true">visibility</i>
+        <div class="flex min-w-0 flex-1 flex-col items-start gap-1.5">
+          <p class="m-0 text-[0.8rem] font-bold">{{ 'feature.lobby.account.guestTitle' | transloco }}</p>
+          <p class="text-ui-muted m-0 text-xs/normal text-pretty [word-break:auto-phrase]">
+            {{ 'feature.lobby.account.guestBody' | transloco }}
+          </p>
+          <button
+            class="rounded-ui-sm border-ui-accent bg-ui-accent-solid hover:border-ui-accent-hover hover:bg-ui-accent-hover inline-flex cursor-pointer items-center gap-1 border border-solid px-3 py-1 text-[0.8rem] whitespace-nowrap text-white disabled:cursor-wait disabled:opacity-60"
+            type="button"
+            [disabled]="isLoggingIn()"
+            data-testid="server-account-login"
+            (click)="login()"
+          >
+            <i class="material-icons text-[16px]!" aria-hidden="true">login</i>
+            {{ (isLoggingIn() ? 'feature.lobby.account.loggingIn' : 'feature.lobby.account.login') | transloco }}
+          </button>
+        </div>
+      </div>
     }
     @if (deleteFailed()) {
       <span class="text-ui-danger basis-full text-[0.75rem]" data-testid="server-account-delete-failed">{{

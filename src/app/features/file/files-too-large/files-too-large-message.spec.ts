@@ -28,6 +28,14 @@ describe('the message for files too large to take', () => {
     );
   });
 
+  it('gives a model’s limit in triangles as well as in bytes', () => {
+    const message = filesTooLargeMessage([{ name: 'dense.glb', kind: 'model', limitBytes: 10 * MB }], t);
+
+    expect(message).toBe(
+      'one{"name":"dense.glb","count":0,"limits":"modelLimit{\\"mb\\":10,\\"triangles\\":\\"200,000\\"}"}'
+    );
+  });
+
   it('says nothing for no files', () => {
     expect(filesTooLargeMessage([], t)).toBe('');
   });

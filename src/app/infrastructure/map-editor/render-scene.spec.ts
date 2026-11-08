@@ -1,4 +1,5 @@
 import { DEFAULT_FUNCTION_SPEC } from '@axe/domain/map-editor/function-layer';
+import { dabRelief } from '@axe/domain/map-editor/relief';
 import {
   CellLayer,
   createLayer,
@@ -7,6 +8,7 @@ import {
   FunctionLayer,
   ImageLayer,
   MapScene,
+  ReliefLayer,
   ShapeLayer,
   StampLayer,
   TextLayer,
@@ -190,6 +192,111 @@ describe('renderScene', () => {
       });
 
       expect(cellFillsIn(ctx)).toBe(0);
+    });
+  });
+
+  describe('the 3D objects painted', () => {
+    function objects(model: string, name = ''): FunctionLayer {
+      return {
+        id: 'objects',
+        kind: 'function',
+        name: 'objects',
+        visible: true,
+        locked: false,
+        opacity: 1,
+        role: 'object',
+        cells: { '0,0': true, '1,1': true },
+        spec: {
+          ...DEFAULT_FUNCTION_SPEC,
+          object: { ...DEFAULT_FUNCTION_SPEC.object, model, name, arrangement: 'cell', size: 1, turn: 0 },
+        },
+      };
+    }
+
+    it('draws a bundled model as it is seen from above, once where each comes to stand', () => {
+      const ctx = createMockCtx();
+      const top = { width: 64, height: 64 } as unknown as CanvasImageSource;
+      const asked: string[] = [];
+
+      renderScene(
+        ctx,
+        sceneWith(objects('prop_crate')),
+        {
+          ...helpers,
+          modelTop: (model) => {
+            asked.push(model);
+            return top;
+          },
+        },
+        { drawGrid: false, drawFunctionLayers: true }
+      );
+
+      const drawn = ctx.calls.filter((c) => c.method === 'drawImage' && c.args[0] === top);
+      expect(drawn).toHaveLength(2);
+      expect(asked).toContain('prop_crate');
+    });
+
+    it('outlines one held in the room, which has no picture, with its name', () => {
+      const ctx = createMockCtx();
+
+      renderScene(ctx, sceneWith(objects('held-statue', '像')), helpers, { drawGrid: false, drawFunctionLayers: true });
+
+      expect(ctx.counts('strokeRect')).toBe(2);
+      expect(ctx.calls.filter((c) => c.method === 'fillText' && c.args[0] === '像')).toHaveLength(2);
+    });
+
+    it('leaves them out of the picture unless the editor asks to see its workings', () => {
+      const ctx = createMockCtx();
+
+      renderScene(ctx, sceneWith(objects('held-statue', '像')), helpers, { drawGrid: false });
+
+      expect(ctx.counts('strokeRect')).toBe(0);
+    });
+  });
+
+  describe('the relief of the ground', () => {
+    function relief(): ReliefLayer {
+      const layer = createLayer('relief', 'relief') as ReliefLayer;
+      dabRelief(layer, { kind: 'raise', x: 1, y: 1, radius: 1, strength: 1 });
+      return layer;
+    }
+
+    function stepFills(ctx: ReturnType<typeof createMockCtx>): number {
+      return ctx.calls.filter((c) => c.method === 'fillRect' && c.args[2] === 5 && c.args[3] === 5).length;
+    }
+
+    it('leaves it out of the picture unless the editor asks to see its workings', () => {
+      const ctx = createMockCtx();
+
+      renderScene(ctx, sceneWith(relief()), helpers, { drawGrid: false });
+
+      expect(stepFills(ctx)).toBe(0);
+    });
+
+    it('paints every sample it paints in the colour of its kind of ground', () => {
+      const ctx = createMockCtx();
+      const styles: string[] = [];
+      const fill = ctx.fillRect.bind(ctx);
+      ctx.fillRect = (...args: Parameters<CanvasRenderingContext2D['fillRect']>) => {
+        styles.push(String(ctx.fillStyle));
+        fill(...args);
+      };
+      const layer = createLayer('relief', 'relief') as ReliefLayer;
+      dabRelief(layer, { kind: 'paint', x: 1, y: 1, radius: 1, strength: 1, layer: 'sand' });
+
+      renderScene(ctx, sceneWith(layer), helpers, { drawGrid: false, drawFunctionLayers: true });
+
+      expect(styles).toContain('rgba(217, 194, 140, 0.7)');
+      expect(stepFills(ctx)).toBeGreaterThan(0);
+    });
+
+    it('tints every sample it raises, and lines where it crosses a whole cell', () => {
+      const ctx = createMockCtx();
+
+      renderScene(ctx, sceneWith(relief()), helpers, { drawGrid: false, drawFunctionLayers: true });
+
+      expect(stepFills(ctx)).toBeGreaterThan(0);
+      expect(ctx.counts('lineTo')).toBeGreaterThan(0);
     });
   });
 

@@ -4,22 +4,22 @@ import { BottomSheetRef, BottomSheetService } from '@axe/application/ui/bottom-s
 import { closeSheetWhenOffTheTable } from '@axe/application/ui/close-sheet-when-off-the-table';
 import { DataElement, type DataElementFieldTypeValue } from '@axe/domain/data/data-element';
 import { DataElementFieldEditorComponent } from '@axe/features/data-element/data-element-editor/data-element-field-editor.component';
-import { DataElementTypeGridComponent } from '@axe/features/data-element/data-element-editor/data-element-type-grid.component';
 import { DataElementEditService } from '@axe/features/data-element/game-data-element/data-element-edit.service';
+import { FIELD_TYPE_CATALOG } from '@axe/features/data-element/game-data-element/field-type-catalog';
 import { TranslocoModule } from '@jsverse/transloco';
 
 let nextPickerId = 0;
 
 /**
- * Choosing the kind of a field about to be added at the end of a group, from the "+" a narrow sheet
- * puts there. The field is made the moment a kind is picked, and its editor takes over with the
- * name ready to be typed over.
+ * Choosing the kind of a field about to be added at the end of a group, from the "+" a sheet puts
+ * there: each kind with what it is for and a sample of how it looks. The field is made the moment a
+ * kind is picked, and its editor takes over with the name ready to be typed over.
  */
 @Component({
   selector: 'data-element-add-field',
   templateUrl: './data-element-add-field.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DataElementTypeGridComponent, TranslocoModule],
+  imports: [TranslocoModule],
   host: { class: 'block' },
 })
 export class DataElementAddFieldComponent {
@@ -36,6 +36,7 @@ export class DataElementAddFieldComponent {
   /** The group the field goes at the end of. */
   readonly container = input.required<DataElement>();
   protected readonly headingId = `add-field-${nextPickerId++}`;
+  protected readonly types = FIELD_TYPE_CATALOG;
 
   /** Makes a field of the picked kind and hands over to its editor. */
   add(type: DataElementFieldTypeValue): void {

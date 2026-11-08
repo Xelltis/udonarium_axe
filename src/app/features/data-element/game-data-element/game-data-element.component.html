@@ -13,6 +13,7 @@
           (pointerdown)="onHandlePointerDown($event)"
           (contextmenu)="onStructureHandleContextMenu($event)"
           (dragend)="onStructureDragEnd($event)"
+          [attr.aria-label]="'feature.dataElement.action.drag' | transloco"
           [title]="'feature.dataElement.action.drag' | transloco"
         >
           <i class="material-icons">drag_indicator</i>
@@ -465,7 +466,8 @@
                 [attr.aria-pressed]="action.pressed ?? null"
                 type="button"
                 (click)="runAction(action.id, $event)"
-                [title]="action.labelKey | transloco"
+                [attr.aria-label]="action.labelKey | transloco"
+                [appTextTooltip]="action.labelKey | transloco"
               >
                 <i class="material-icons">{{ action.icon }}</i>
               </button>
@@ -518,6 +520,7 @@
                     (pointerdown)="onHandlePointerDown($event)"
                     (contextmenu)="onStructureHandleContextMenu($event)"
                     (dragend)="onStructureDragEnd($event)"
+                    [attr.aria-label]="'feature.dataElement.action.drag' | transloco"
                     [title]="'feature.dataElement.action.drag' | transloco"
                   >
                     <i class="material-icons">drag_indicator</i>
@@ -562,7 +565,8 @@
                         [attr.aria-pressed]="action.pressed ?? null"
                         type="button"
                         (click)="runAction(action.id, $event)"
-                        [title]="action.labelKey | transloco"
+                        [attr.aria-label]="action.labelKey | transloco"
+                        [appTextTooltip]="action.labelKey | transloco"
                       >
                         <i class="material-icons">{{ action.icon }}</i>
                       </button>
@@ -585,7 +589,8 @@
                       [attr.aria-pressed]="action.pressed ?? null"
                       type="button"
                       (click)="runAction(action.id, $event)"
-                      [title]="action.labelKey | transloco"
+                      [attr.aria-label]="action.labelKey | transloco"
+                      [appTextTooltip]="action.labelKey | transloco"
                     >
                       <i class="material-icons">{{ action.icon }}</i>
                     </button>
@@ -617,6 +622,18 @@
                 [appTextTooltip]="name"
                 >{{ name }}</span
               >
+              @if (addsInView() && inSheet && !isImage() && !isReadOnly() && canAddChildFieldElement()) {
+                <button
+                  type="button"
+                  class="text-ui-muted hover:bg-ui-hover hover:text-ui-accent ml-auto inline-flex h-5.5 shrink-0 cursor-pointer items-center gap-0.5 rounded-(--gde-radius-control) border-none bg-transparent px-1 text-[0.78em] [&_.material-icons]:text-[15px]!"
+                  [attr.aria-label]="'feature.dataElement.editor.addFieldTo' | transloco: { name: name }"
+                  [appTextTooltip]="'feature.dataElement.editor.addFieldTo' | transloco: { name: name }"
+                  data-testid="group-add-field-in-view"
+                  (click)="openAddField($event)"
+                >
+                  <i class="material-icons">add</i>
+                </button>
+              }
             </div>
           }
         </div>
@@ -643,25 +660,28 @@
               [indexNum]="i"
               [depth]="depth() + 1"
               [style.--gde-depth]="depth() + 1"
+              [addsInView]="addsInView()"
             ></div>
           }
-          @if (isEdit() && inSheet && !isImage()) {
-            @if (canAddChildFieldElement()) {
-              <button type="button" class="elm-add" (click)="openAddField($event)" data-testid="group-add-field">
-                <i class="material-icons">add</i>
-                <span>{{ 'feature.dataElement.editor.addField' | transloco }}</span>
-              </button>
-            } @else if (canAddChildGroupElement()) {
-              <button
-                type="button"
-                class="elm-add elm-add--secondary"
-                (click)="addGroupAndEdit($event)"
-                data-testid="group-add-group"
-              >
-                <i class="material-icons">create_new_folder</i>
-                <span>{{ 'feature.dataElement.editor.addGroup' | transloco }}</span>
-              </button>
-            }
+          @if (addsAtEnd()) {
+            <div class="elm-add-row">
+              @if (canAddChildFieldElement()) {
+                <button type="button" class="elm-add" (click)="openAddField($event)" data-testid="group-add-field">
+                  <i class="material-icons">add</i>
+                  <span>{{ 'feature.dataElement.editor.addField' | transloco }}</span>
+                </button>
+              } @else if (canAddChildGroupElement()) {
+                <button
+                  type="button"
+                  class="elm-add elm-add--secondary"
+                  (click)="addGroupAndEdit($event)"
+                  data-testid="group-add-group"
+                >
+                  <i class="material-icons">create_new_folder</i>
+                  <span>{{ 'feature.dataElement.editor.addGroup' | transloco }}</span>
+                </button>
+              }
+            </div>
           }
         </div>
       }

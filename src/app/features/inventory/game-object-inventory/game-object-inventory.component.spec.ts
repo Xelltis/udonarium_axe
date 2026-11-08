@@ -1493,6 +1493,30 @@ describe('GameObjectInventoryComponent', () => {
       expect(icons).not.toContain('create_new_folder');
     });
 
+    it('offers no folder on the graveyard tab either', () => {
+      GameCharacter.create('倒れた兵', 1, '').setLocation('graveyard');
+      component.selectTab.set('graveyard');
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('button[title="新しいフォルダ"]')).toBeNull();
+    });
+
+    it('offers to empty the graveyard on that tab alone', () => {
+      GameCharacter.create('倒れた兵', 1, '').setLocation('graveyard');
+      const sweeper = () =>
+        [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find((button) =>
+          button.textContent?.includes('墓場を空にする')
+        );
+      component.selectTab.set('table');
+      fixture.detectChanges();
+      expect(sweeper()).toBeUndefined();
+
+      component.selectTab.set('graveyard');
+      fixture.detectChanges();
+
+      expect(sweeper()?.disabled).toBe(false);
+    });
+
     describe('a second window on the same table', () => {
       let closePanelLayer: (() => void) | null = null;
       let other: ComponentFixture<GameObjectInventoryComponent> | null = null;
@@ -1516,6 +1540,23 @@ describe('GameObjectInventoryComponent', () => {
 
         expect(other.componentInstance.viewMode()).toBe('rich');
         expect(other.componentInstance.searchQuery()).toBe('');
+      });
+
+      it('opens the settings window from its button, and puts it away with a second press', () => {
+        closePanelLayer = installPanelLayer();
+        fixture.detectChanges();
+        const button = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+          'button[title="表示設定"]'
+        )!;
+
+        button.click();
+        expect(component.isEdit()).toBe(true);
+        expect(document.querySelector('inventory-filter-panel')).not.toBeNull();
+
+        button.click();
+
+        expect(component.isEdit()).toBe(false);
+        expect(document.querySelector('inventory-filter-panel')).toBeNull();
       });
 
       it('takes the settings window off the first when it opens its own', () => {
@@ -2054,6 +2095,77 @@ describe('GameObjectInventoryComponent', () => {
 
         for (const action of actions()) expect(action.disabled).toBe(false);
       });
+
+      /** The button of the bar whose words are exactly the label. */
+      function buttonNamed(label: string): HTMLButtonElement | undefined {
+        return [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
+          (button) => button.textContent?.trim() === label
+        );
+      }
+
+      it('starts from its button in the bar above the list, and stops with the close button, dropping the picks', () => {
+        const goblin = putOnTable('ゴブリン');
+        fixture.detectChanges();
+
+        (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button[title="一括移動"]')!.click();
+        fixture.detectChanges();
+        component.multiMoveTargets.set(new Set([goblin.identifier]));
+        expect(component.isMultiMove()).toBe(true);
+        expect(actions().length).toBeGreaterThan(0);
+
+        (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button[title="キャンセル"]')!.click();
+        fixture.detectChanges();
+
+        expect(component.isMultiMove()).toBe(false);
+        expect(component.multiMoveTargets().size).toBe(0);
+        expect(actions()).toHaveLength(0);
+      });
+
+      it('picks the whole tab with "select all", which then lets them all go again', () => {
+        putOnTable('ゴブリン');
+        putOnTable('村長');
+        component.selectTab.set('table');
+        component.isMultiMove.set(true);
+        fixture.detectChanges();
+
+        buttonNamed('全選択')!.click();
+        fixture.detectChanges();
+        expect(component.multiMoveTargets().size).toBe(2);
+        expect(buttonNamed('全選択')).toBeUndefined();
+
+        buttonNamed('全解除')!.click();
+        fixture.detectChanges();
+
+        expect(component.multiMoveTargets().size).toBe(0);
+        expect(buttonNamed('全選択')).toBeDefined();
+      });
+
+      it('hides the picked pieces from the list, or shows them, from buttons on the table tab alone', () => {
+        const goblin = putOnTable('ゴブリン');
+        const keeper = putInShared('番人');
+        component.isMultiMove.set(true);
+        const hiders = () =>
+          ['インベントリで非表示', 'インベントリで表示'].map((title) =>
+            (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(`button[title="${title}"]`)
+          );
+
+        component.selectTab.set('common');
+        component.multiMoveTargets.set(new Set([keeper.identifier]));
+        fixture.detectChanges();
+        expect(hiders()).toEqual([null, null]);
+
+        component.selectTab.set('table');
+        component.multiMoveTargets.set(new Set([goblin.identifier]));
+        fixture.detectChanges();
+        hiders()[0]!.click();
+        expect(goblin.hideInventory).toBe(true);
+
+        component.isMultiMove.set(true);
+        component.multiMoveTargets.set(new Set([goblin.identifier]));
+        fixture.detectChanges();
+        hiders()[1]!.click();
+        expect(goblin.hideInventory).toBe(false);
+      });
     });
 
     describe('pressing a row inside a movable panel', () => {
@@ -2271,6 +2383,47 @@ describe('GameObjectInventoryComponent', () => {
       component.selectTab.set(PERSONAL_INVENTORY_TAB);
 
       expect(component.multiMoveLocations.map((loc) => loc.name)).toEqual(['table', 'common', 'graveyard']);
+    });
+  });
+
+  describe('the turn order alone', () => {
+    it('is reached from the one view button in the bar, past the table, and draws only the round, every piece on the table in it', async () => {
+      const seat = PeerCursor.myCursor;
+      PeerCursor.myCursor = { role: PeerRole.GameMaster, identifier: 'seat-cursor' } as PeerCursor;
+      const pieces = ['先手', '後手'].map((name) => {
+        const piece = GameCharacter.create(name, 1, '');
+        piece.setLocation('table');
+        return piece;
+      });
+      const panel = TestBed.inject(PanelService);
+      const asked: boolean[] = [];
+      const off = panel.shrinkRequest$.subscribe((shrink) => asked.push(shrink));
+      const pressViewButton = () => {
+        fixture.detectChanges();
+        panel.headerControls()[0].press();
+      };
+      try {
+        pressViewButton();
+        pressViewButton();
+        expect(asked).toEqual([false, true]);
+
+        panel.isShrunk.set(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const element = fixture.nativeElement as HTMLElement;
+        expect(element.querySelector('[data-inventory-tab]')).toBeNull();
+        expect([...element.querySelectorAll('i.material-icons')].map((icon) => icon.textContent?.trim())).toContain(
+          'restart_alt'
+        );
+        const rounds = [...element.querySelectorAll<HTMLButtonElement>('button[title]')].map((button) => button.title);
+        expect(rounds).toEqual(expect.arrayContaining(['先手', '後手']));
+      } finally {
+        off();
+        panel.isShrunk.set(false);
+        for (const piece of pieces) piece.destroy();
+        PeerCursor.myCursor = seat;
+      }
     });
   });
 });

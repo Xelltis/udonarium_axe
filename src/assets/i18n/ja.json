@@ -46,6 +46,12 @@
       "on": "描画: 軽くする",
       "off": "描画: 通常"
     },
+    "tableQuality": {
+      "auto": "卓の画質: 自動",
+      "high": "卓の画質: 高",
+      "standard": "卓の画質: 標準",
+      "light": "卓の画質: 軽"
+    },
     "panel": {
       "peerMenu": "接続情報",
       "chatWindow": "チャットウィンドウ",
@@ -112,6 +118,7 @@
       "wall_timber": "木の壁",
       "door_wood": "木の扉",
       "door_iron_grate": "鉄格子",
+      "door_saloon": "サルーンの扉",
       "door_stone": "石の扉",
       "stair_up": "上り階段",
       "stair_down": "下り階段",
@@ -345,6 +352,11 @@
         "torchOff": "明かりを消す",
         "clearTargets": "ターゲットを外す"
       }
+    },
+    "thirdPerson": {
+      "following": "{{name}} を後ろから追っています",
+      "keysHint": "WASD・↑↓ で移動　Q/E・←→ で向きを変える　ドラッグで回り込む　ホイールで寄る・離れる　Esc でやめる",
+      "stop": "追うのをやめる"
     },
     "role": {
       "gm": "ゲームマスター",
@@ -1028,6 +1040,28 @@
         "beatLightMineHint": "このブラウザだけの設定です。「動きを減らす」をオンにしているときも光りません",
         "pauseFade": "一時停止のフェード",
         "pauseFadeHint": "一時停止と停止で音を小さくしていく長さ。再開するときも同じ長さで大きくしていきます"
+      },
+      "modelLibrary": {
+        "title": "3Dモデル",
+        "tags": "タグ",
+        "everyTag": "すべて",
+        "stageHint": "選んだ3Dモデル。ドラッグで回せます",
+        "loading": "読み込み中…",
+        "cannotShow": "このモデルは表示できません",
+        "putOn": "選んだ{{count}}個に付ける",
+        "putOnHint": "卓で選んでいるコマと地形を、このモデルで描きます",
+        "putOnNone": "卓でコマか地形を選ぶと付けられます",
+        "attached": "{{count}}個を「{{name}}」で描きます",
+        "dropHere": "ここに.glbファイルをドロップ（クリックで選ぶ）",
+        "maxSize": "１ファイルにつき10MBまで",
+        "newTag": "タグの名前",
+        "remove": "{{count}}個を部屋から削除",
+        "none": "部屋に3Dモデルがありません",
+        "dragHint": "モデルを卓のコマや地形へドラッグすると、そのモデルで描きます。何もない所へ落とすと、そのモデルのコマを作ります。",
+        "made": "「{{name}}」のコマを作りました",
+        "show": "「{{name}}」を見る",
+        "tick": "「{{name}}」にチェック",
+        "tagActed": "{{count}}個にタグを付ける"
       }
     },
     "card": {
@@ -1722,7 +1756,7 @@
         "popupToggleTitle": "ポップアップ表示",
         "deleteItemTitle": "この項目を削除",
         "edit": "編集",
-        "addNewItem": "新しい項目を追加",
+        "addNewItem": "見出しを追加",
         "colspanFull": "全",
         "shape": "形状",
         "rangeShapeLine": "直線",
@@ -1916,7 +1950,8 @@
       },
       "pointer": {
         "click": "クリック",
-        "drag": "ドラッグ"
+        "drag": "ドラッグ",
+        "doubleClick": "ダブルクリック"
       },
       "sheet": {
         "title": "キー操作",
@@ -1944,7 +1979,10 @@
           "boxToggle": "囲んだコマの選択を入れ替える",
           "aim": "コマをターゲットにする・外す",
           "clearAims": "ターゲットを全部外す",
-          "snap": "回している間、45°ごと（ヘクスは30°ごと）にそろえる"
+          "snap": "回している間、45°ごと（ヘクスは30°ごと）にそろえる",
+          "turnHandle": "コマにマウスを乗せると出る、台座を囲む輪のつまみで、向きを変える",
+          "rollHandle": "コマにマウスを乗せると出る、立ち絵の右のつまみで、前後に傾ける",
+          "standUpright": "傾けるつまみで、まっすぐに戻す"
         },
         "hotbar": {
           "fire": "その番号の枠を撃つ",
@@ -2047,6 +2085,7 @@
         "many": "「{{name}}」ほか{{count}}件は大きすぎるため読み込めませんでした（{{limits}}）",
         "audioLimit": "音源は{{mb}}MBまで",
         "imageLimit": "画像は{{mb}}MBまで",
+        "modelLimit": "3Dモデルは{{mb}}MB・三角形{{triangles}}個まで",
         "separator": "、"
       },
       "removal": {
@@ -2061,12 +2100,18 @@
         "ok": "削除する",
         "imageRefused": "部屋から削除された画像です。足し直せるのはGMだけです",
         "audioRefused": "部屋から削除された音声です。足し直せるのはGMだけです",
+        "modelTitle": "3Dモデルを削除",
+        "modelConfirm": "{{count}}件の3Dモデルを部屋から削除します。ほかの参加者からも消え、このモデルで描いていたコマは絵で、地形は箱で描かれます。",
+        "modelRemoved": "{{count}}件の3Dモデルを削除しました",
+        "modelRefused": "部屋から削除された3Dモデルです。足し直せるのはGMだけです",
         "notRemovable": "同梱のもの、URLで指すもの、システム予約の画像は削除できません",
         "notYours": "ほかの人が上げたものは削除できません。削除できるのは、上げた本人とGMだけです",
         "othersKept": "ほかの人が上げた{{count}}件は削除せずに残ります。"
       }
     },
     "character": {
+      "turnHandle": { "name": "向きを変える", "hint": "向きを変える（Alt を押しながら回すと {{step}}° ずつ）" },
+      "rollHandle": { "name": "傾ける", "hint": "前後に傾ける（ダブルクリックでまっすぐに戻す）" },
       "contextMenu": {
         "showDetail": "詳細を表示",
         "memo": "メモ",
@@ -2077,6 +2122,8 @@
         "viewFirstPerson": "このコマの視点で見る",
         "shareFirstPerson": "全員をこのコマの視点にする",
         "stopSharingFirstPerson": "全員の共有視点を解除する",
+        "followFromBehind": "このコマを後ろから追う",
+        "stopFollowing": "後ろから追うのをやめる",
         "planMove": "移動",
         "invokeRangeShape": "登録済み射程を出す",
         "hideInventoryOn": "☑ インベントリ非表示",
@@ -2387,6 +2434,52 @@
       }
     },
     "tabletop": {
+      "turnFrame": { "name": "向きを変える", "hint": "向きを変える（Alt を押しながら回すと {{step}}° ずつ）" },
+      "tutorial": {
+        "putAway": "チュートリアルだけを片付ける",
+        "board": {
+          "name": "はじめに",
+          "title": "Udonarium Axeへようこそ",
+          "mouse": "マウス",
+          "touch": "スマートフォン",
+          "pan": "平行に動かす",
+          "panMouse": "左ボタンでドラッグ",
+          "panTouch": "1本の指でドラッグ",
+          "turn": "回す・傾ける",
+          "turnMouse": "右ボタンでドラッグ",
+          "turnTouch": "2本の指で回す",
+          "zoom": "近づく・離れる",
+          "zoomMouse": "ホイール",
+          "zoomTouch": "2本の指で広げる・つまむ",
+          "menu": "メニュー",
+          "menuMouse": "右クリック",
+          "menuTouch": "長押し",
+          "footer": "?キーで、ボタンの名前とキー操作が出ます。\n続きは下の①から順に読んでください。",
+          "rooms": "仲間と遊ぶときは、左端の「接続」から部屋を作ります。",
+          "tidy": "片付けるときは、ボードを右クリックして\n「片付けて白紙のテーブルにする」を選びます。"
+        },
+        "pieces": {
+          "title": "① コマ",
+          "text": "- ドラッグで動かします\n- 右クリック（スマートフォンは長押し）でメニューを開きます\n- メニューの「詳細を表示」で開くシートで、名前やHPを変えます\n- マウスを乗せると出るつまみで、向きを変えます\n\n奥の列はモンスター、手前の列は冒険者です。左は3Dモデル、右は平たい絵のコマです。"
+        },
+        "chat": {
+          "title": "② チャットとダイス",
+          "text": "- 左下のチャットで「2d6」と送ると、ダイスを振ります\n- 頭に「s」を付けると、結果を伏せます\n- 手前のダイスとコインは、ダブルクリックで振ります\n- コマのメニューの「チャットパレットを表示」で、よく使う文を1クリックで送ります"
+        },
+        "battle": {
+          "title": "③ 戦闘",
+          "text": "- コマを持ち上げると、進めるマスが光ります\n- HPはシートで変えます。発言者をそのコマにして「:HP-5」と送っても減ります\n- コマのメニューの「バフ・演出」→「バフ編集」で、強化や弱体を付けます\n- 行動順は「インベントリ」の「ラウンド表示」に並びます\n- 交戦エリアは、GMが「部屋設定」の「移動」で入れます"
+        },
+        "vision": {
+          "title": "④ 暗闇と地形（GM向け）",
+          "text": "- 「テーブル設定」で、暗闇と戦場の霧を入れます\n- 冒険者は同じパーティなので、仲間の見た所も見えます\n- 手前の木箱は地形です。移動と視線と光をさえぎります。電球は光源です\n- 「マップエディター」と「マップ生成」で地図を作ります"
+        },
+        "clearToBlank": "片付けて白紙のテーブルにする",
+        "note": {
+          "title": "共有メモ",
+          "text": "クリックすると、その場で書き換えられます。"
+        }
+      },
       "ccfoliaImport": {
         "tableName": "ココフォリアのルーム",
         "imported": "ココフォリアのルームを取り込みました（テーブル {{tables}} 枚 / パネル {{panels}} 件 / コマ {{pieces}} 体）。「{{table}}」を表示しています。",
@@ -2743,6 +2836,10 @@
         "sectionWeather": "天候（マップ全体）",
         "weatherKind": "天候",
         "weatherNone": "なし",
+        "skyKind": "空",
+        "skyKind_": "背景画像のまま",
+        "skyKind_clock": "ゲーム内時間で移る空",
+        "skyKindHint": "3Dの卓（canvasで描く卓）で、盤の向こうに空と地平線まで続く地面を描きます。真上から見ているあいだは見えません。",
         "sectionFog": "戦場の霧（探索）",
         "fogEnabled": "戦場の霧を有効化",
         "fogMode": "霧の戻り方",
@@ -2876,6 +2973,7 @@
           "cactus": "サボテン",
           "junk": "廃材の山",
           "streetTree": "街路樹",
+          "giantTree": "巨木",
           "building": "建物",
           "roofUnit": "屋上設備",
           "counter": "カウンター",
@@ -2890,7 +2988,24 @@
           "containerRed": "コンテナ",
           "containerBlue": "コンテナ",
           "containerGreen": "コンテナ",
-          "hiddenDoor": "隠し扉"
+          "hiddenDoor": "隠し扉",
+          "palisade": "丸太の柵",
+          "watchtower": "見張り塔",
+          "stoneWall": "石垣",
+          "tower": "塔",
+          "fence": "柵",
+          "gate": "門",
+          "barn": "納屋",
+          "tent": "天幕",
+          "well": "井戸",
+          "hay": "干し草",
+          "cart": "荷車",
+          "totem": "トーテム",
+          "hearth": "炉",
+          "wheat": "麦",
+          "corn": "とうもろこし",
+          "rice": "稲",
+          "vegetable": "野菜"
         },
         "summary": {
           "title": "ダンジョン概要",
@@ -2920,11 +3035,16 @@
           "sheerWalls": "壁を登れなくする（開いた扉は通れる）",
           "wallHeight": "壁の高さ（マス）",
           "entrance": "入口",
+          "doorKind": "扉の種類",
           "kind": "種類",
           "prop": "障害物の素材",
           "ground": "地面素材",
           "fieldSize": "マップの広さ",
           "density": "茂みの多さ",
+          "relief": "地面の起伏（マス）",
+          "models": "木・岩・サボテン・廃材を3Dモデルで置く（3Dの卓で見えます）",
+          "furnishingModels": "家具・木箱・コンテナを3Dモデルで置く（3Dの卓で見えます）",
+          "season": "季節",
           "gridType": "マスの形",
           "hexNote": "ヘクスはまとめられないため、1 マスごとに地形を置きます。盤面はその分小さくなります。",
           "corridorWidth": "通路の幅",
@@ -2965,6 +3085,15 @@
           "stair": "階段（地下へ降りる）",
           "tunnel": "坑道口（外へ通じる）"
         },
+        "doorKind": {
+          "default": "雰囲気の既定",
+          "door_wood": "板戸",
+          "door_steel": "鉄の扉",
+          "door_iron_grate": "鉄格子",
+          "door_stone": "石の扉",
+          "door_shutter": "シャッター",
+          "door_saloon": "サルーンの扉"
+        },
         "kind": {
           "dungeon": "ダンジョン",
           "field": "フィールド"
@@ -2979,7 +3108,17 @@
           "city": "ビル群",
           "sfCity": "ビル群(SF)",
           "slum": "スラム街",
-          "dump": "ゴミ処理場"
+          "dump": "ゴミ処理場",
+          "village": "農村",
+          "barbarianFort": "蛮族の砦",
+          "stoneFort": "石造りの砦"
+        },
+        "season": {
+          "none": "指定なし",
+          "spring": "春",
+          "summer": "夏",
+          "autumn": "秋",
+          "winter": "冬"
         },
         "prop": {
           "tree": "木",
@@ -2990,6 +3129,7 @@
           "cactus": "サボテン",
           "junk": "廃材の山",
           "streetTree": "街路樹",
+          "giantTree": "巨木",
           "building": "建物"
         },
         "grid": {
@@ -3005,6 +3145,23 @@
           "rune": "爆発の紋章",
           "roll": "回避"
         }
+      },
+      "groundBrush": {
+        "kind_raise": "盛る",
+        "kind_lower": "削る",
+        "kind_smooth": "ならす",
+        "kind_flatten": "平らにする",
+        "kind_paint": "塗る",
+        "kind_erase": "塗りを消す",
+        "layer_grass": "草",
+        "layer_dirt": "土",
+        "layer_rock": "岩",
+        "layer_sand": "砂",
+        "radius": "大きさ",
+        "strength": "強さ",
+        "undo": "直前のひと塗りを取り消す",
+        "close": "地面の編集を終える",
+        "unaware": "起伏を知らない版の参加者が{{count}}人います。その画面では卓は平らなままです。"
       },
       "movePlan": {
         "hint": "クリックで移動 / 右クリックで経由地点（同じ場所をもう一度で取り消し）/ Enter で確定 / Esc で中止",
@@ -3056,7 +3213,10 @@
       },
       "shownTo_master": "GM だけ",
       "shownTo_sight": "視界に入ったら",
-      "shownTo_room": "全員"
+      "shownTo_room": "全員",
+      "scene": {
+        "unavailable": "このブラウザでは卓を3Dで描けません。WebGPUもWebGL2も使えないためです。ブラウザの設定でグラフィックアクセラレーションを有効にし、ブラウザを再起動してください。チャットなど卓のほかの機能は今のまま使えます。"
+      }
     },
     "roomSettings": {
       "title": "部屋設定",
@@ -3588,6 +3748,7 @@
         "noPeers": "接続中の参加者はいません。",
         "roomServer": "部屋のサーバー",
         "relayed": "中継サーバー経由",
+        "heardAt": "部屋のサーバーに最後に応答が届いた時刻",
         "relayedHint": "中継サーバー経由の接続があります。直接つながらない回線のため、遅くなりやすい状態です。"
       },
       "peerReconnect": {
@@ -3620,7 +3781,8 @@
         "deleteCancel": "やめる",
         "deleteFailed": "アカウントを削除できませんでした。しばらくしてからもう一度試してください",
         "deleteFailedLoggedOut": "アカウントを削除できませんでした。ログインし直してから、もう一度削除してください",
-        "guestHint": "ログインしないと見学として入ります。部屋を作ったり、卓を動かしたりするにはログインしてください",
+        "guestTitle": "ログインしていません",
+        "guestBody": "このままだと見学として入ります。部屋を作ったり、卓を動かしたりするには、Discordでログインしてください。",
         "unavailable": "このサーバーにはログインが用意されていないため、部屋を使えません",
         "errors": {
           "denied": "ログインがキャンセルされました",
@@ -3747,7 +3909,14 @@
         "stamp": "スタンプを入れる",
         "bar": "入力欄の操作",
         "colorSlot": "持ち色{{n}}",
-        "colors": "発言の色"
+        "colors": "発言の色",
+        "targetNumber": "目標値",
+        "targetNumberHint": "この発言の{目標値}に入れる数です。選び直した結果は、この1回の送信にだけ使います",
+        "targetNumberAimed": "自動: {{total}}（{{speaker}}に振った結果: {{by}}）",
+        "targetNumberPinned": "自動: {{total}}（このタブに固定した結果: {{by}}）",
+        "targetNumberByOthers": "自動: {{total}}（直前の結果: {{by}}）",
+        "targetNumberNotFound": "自動: 見つかりません（{目標値}のまま送ります）",
+        "targetNumberChoice": "{{total}}（{{by}}）"
       },
       "decoration": {
         "bold": "太字",
@@ -3844,7 +4013,11 @@
         "actions": "発言の操作",
         "more": "その他の操作",
         "edit": "編集",
-        "serverRoll": "部屋のサーバーが振ったダイスです。振った人には出目を変えられません"
+        "serverRoll": "部屋のサーバーが振ったダイスです。振った人には出目を変えられません",
+        "pinTargetNumber": "この結果を目標値にする",
+        "unpinTargetNumber": "目標値の固定を外す",
+        "pinnedTargetNumber": "目標値",
+        "pinnedTargetNumberTitle": "このタブの{目標値}は、外すまでこの結果になります"
       },
       "stream": {
         "title": "ストリームチャット",
@@ -4465,7 +4638,11 @@
         "image": "画像",
         "functionPaint": "機能ペン",
         "functionErase": "機能消しゴム",
-        "function": "機能ツール"
+        "function": "機能ツール",
+        "relief": "起伏"
+      },
+      "relief": {
+        "hint": "卓の地面を盛る・削る・ならす・平らにし、草・土・岩・砂で塗ります。書き出す画像には入らず、「機能だけ反映」で卓の地面になります。塗りは筆を入れた区画（16マス四方）ごとに卓へ書き、ほかの区画は卓の塗りのまま残します。"
       },
       "function": {
         "title": "機能塗り",
@@ -4565,6 +4742,7 @@
         "hazardDirt": "汚れ",
         "hazardLeaves": "浮き葉",
         "hazardFlowSpeed": "流れの速さ",
+        "hazardIce": "凍結",
         "hazardFlowDirection": "流れの向き",
         "hazardWaterLook": "見た目",
         "hazardColor": "色",
@@ -4585,7 +4763,10 @@
         "moveCostHalves": "道（半分で進める）",
         "moveCostHalvesHint": "1 マスを 0.5 消費で渡れます。下に何が塗ってあっても道が優先されるので、沼を貫く街道が作れます",
         "triggerMoment_press": "押したとき（スイッチ）",
-        "triggerPressHint": "塗ったマスをクリックすると、下の動作が起きます。発言する人・押せる距離・回数・秘密の結果もここで決めます。"
+        "triggerPressHint": "塗ったマスをクリックすると、下の動作が起きます。発言する人・押せる距離・回数・秘密の結果もここで決めます。",
+        "role_object": "3Dオブジェクト",
+        "terrainModel": "3Dモデルで描く地形です",
+        "terrainModelClear": "モデルを外す"
       },
       "stampCategories": {
         "door": "扉",
@@ -4687,8 +4868,10 @@
           "stamp": "スタンプ",
           "freehand": "フリーハンド",
           "text": "テキスト",
-          "image": "画像"
-        }
+          "image": "画像",
+          "relief": "起伏"
+        },
+        "empty": "レイヤーはまだありません。描き始めると、道具に合ったレイヤーが自動でできます。＋から種類を選んで足すこともできます。"
       },
       "actions": {
         "undo": "元に戻す",
@@ -4713,12 +4896,15 @@
         "setTableDone": "テーブル背景に設定しました",
         "exportError": "書き出しに失敗しました",
         "applyFunctions": "機能だけ反映",
-        "applyFunctionsHint": "床画像はそのままに、塗った立入禁止・地形・マスクだけをテーブルへ反映します",
+        "applyFunctionsHint": "床画像はそのままに、塗った立入禁止・地形・マスク・起伏だけをテーブルへ反映します",
         "applyFunctionsDone": "塗った機能をテーブルへ反映しました",
-        "applyFunctionsGridMismatch": "テーブルとマス目が合いません。先にテーブルを取り込んでください"
+        "applyFunctionsGridMismatch": "テーブルとマス目が合いません。先にテーブルを取り込んでください",
+        "zoomFit": "全体を表示",
+        "setAsTableHint": "描いた地図を床画像にし、テーブルの大きさとマス目をこの地図に合わせます。塗った機能も反映します",
+        "applyFunctionsModelMissing": "3Dオブジェクトのモデルを読み込めなかったので、反映しませんでした。通信を確かめてからもう一度押してください"
       },
       "status": {
-        "cell": "{{col}}-{{row}}"
+        "cell": "列{{col}}・行{{row}}"
       },
       "draft": {
         "hint": "クリックで頂点を追加",
@@ -4728,6 +4914,107 @@
       "measure": {
         "cells": "{{n}}マス",
         "angle": "∠{{deg}}°"
+      },
+      "select": {
+        "guide": "図形・スタンプ・画像・テキスト・フリーハンドの線をクリックで選び、ドラッグで動かします。隠したレイヤーとロックしたレイヤーのものは選べません。",
+        "keysDoubleClick": "ダブルクリック",
+        "doubleClick": "テキストを書き直す",
+        "keysDelete": "Delete",
+        "delete": "選んだものを消す",
+        "keysUndo": "Ctrl+Z / Ctrl+Y",
+        "undo": "元に戻す／やり直す",
+        "keysPan": "Space＋ドラッグ",
+        "pan": "地図を動かす",
+        "keysZoom": "Ctrl＋ホイール",
+        "zoom": "拡大・縮小"
+      },
+      "object": {
+        "hint": "塗ったマスに3Dモデルを置きます。木や岩は散らし、家具や柵や作物は1マスに1つずつ置くと自然に並びます。「機能だけ反映」で卓に置かれます。",
+        "model": "モデル",
+        "read": ".glb を読み込む",
+        "group_nature": "自然",
+        "group_furnishing": "家具",
+        "group_settlement": "村・砦",
+        "group_town": "町",
+        "group_room": "部屋のモデル",
+        "arrangement_scatter": "散らす",
+        "arrangement_cell": "1マスに1つ",
+        "density": "密度",
+        "size": "大きさ",
+        "cells": "マス",
+        "height": "高さ",
+        "sizeJitter": "大きさの揺らぎ",
+        "turnRandom": "向きをばらばらにする",
+        "turn": "向き",
+        "blocksMove": "通れない",
+        "blocksSight": "視線を遮る",
+        "walkedOverHint": "通れるものは床として置くので、視線は遮りません",
+        "rearrange": "並びを変える",
+        "model_tree_oak": "オーク",
+        "model_tree_beech": "ブナ",
+        "model_tree_birch": "シラカバ",
+        "model_tree_poplar": "ポプラ",
+        "model_tree_willow": "ヤナギ",
+        "model_tree_pine": "マツ",
+        "model_tree_fir": "モミ",
+        "model_tree_spruce": "トウヒ",
+        "model_tree_dead": "枯れ木",
+        "model_tree_cherry": "サクラ",
+        "model_tree_maple": "カエデ",
+        "model_tree_ginkgo": "イチョウ",
+        "model_tree_mangrove": "マングローブ",
+        "model_tree_oakAutumn": "オーク（秋）",
+        "model_tree_beechAutumn": "ブナ（秋）",
+        "model_tree_birchAutumn": "シラカバ（秋）",
+        "model_tree_oakBare": "オーク（冬枯れ）",
+        "model_tree_birchBare": "シラカバ（冬枯れ）",
+        "model_tree_snowFir": "雪のモミ",
+        "model_tree_snowSpruce": "雪のトウヒ",
+        "model_tree_giant": "大樹",
+        "model_bush_round": "丸い茂み",
+        "model_bush_wide": "広い茂み",
+        "model_bush_leafy": "葉の茂み",
+        "model_rock_boulder": "大岩",
+        "model_rock_angular": "角ばった岩",
+        "model_rock_slab": "平たい岩",
+        "model_rock_outcrop": "突き出た岩",
+        "model_cactus_saguaro": "柱サボテン",
+        "model_cactus_tall": "背の高いサボテン",
+        "model_junk_heap": "がらくたの山",
+        "model_junk_drums": "ドラム缶",
+        "model_prop_crate": "木箱",
+        "model_prop_stool": "丸椅子",
+        "model_prop_desk": "机",
+        "model_prop_gamingTable": "遊技台",
+        "model_prop_counter": "カウンター",
+        "model_prop_shopCounter": "店のカウンター",
+        "model_prop_barTable": "バーテーブル",
+        "model_prop_rubble": "瓦礫",
+        "model_prop_containerRed": "コンテナ（赤）",
+        "model_prop_containerBlue": "コンテナ（青）",
+        "model_prop_containerGreen": "コンテナ（緑）",
+        "model_log_wall": "丸太の壁",
+        "model_plank_wall": "板の壁",
+        "model_timber_frame_wall": "木骨の壁",
+        "model_hide_wall": "皮張りの壁",
+        "model_stone_room_wall": "石の壁",
+        "model_rail_fence": "柵",
+        "model_palisade_spikes": "杭の防壁",
+        "model_stone_wall_battlement": "胸壁",
+        "model_stone_tower_round": "丸い石の塔",
+        "model_stone_tower_square": "四角い石の塔",
+        "model_watchtower_wood": "木の物見やぐら",
+        "model_totem": "トーテム",
+        "model_well": "井戸",
+        "model_cart": "荷車",
+        "model_hay": "干し草",
+        "model_hearth": "炉",
+        "model_crop_wheat": "麦",
+        "model_crop_rice": "稲",
+        "model_crop_corn": "トウモロコシ",
+        "model_crop_vegetable": "野菜",
+        "model_roof_plant": "屋上の植木",
+        "model_roof_tank": "屋上のタンク"
       }
     },
     "roomArchive": {
@@ -5115,6 +5402,7 @@
       "dirtLabel": "汚れ",
       "leavesLabel": "浮き葉",
       "flowSpeedLabel": "流れの速さ",
+      "iceLabel": "凍結",
       "flowDirectionLabel": "流れの向き",
       "flowDirection_0": "↑ 上",
       "flowDirection_45": "↗ 右上",
@@ -5846,6 +6134,7 @@
         "table": "見せるテーブル",
         "floor": "床",
         "background": "背景",
+        "sky": "空",
         "walls": "壁",
         "foreground": "前景",
         "weather": "天候",
@@ -5933,6 +6222,10 @@
     }
   },
   "app": {
+    "loading": {
+      "table": "卓の描画を準備しています…",
+      "pieces": "コマと絵を読み込んでいます…"
+    },
     "fab": {
       "menuOpen": "メニューを開く",
       "menuHint": "メニューを開く（右クリックで編集・初期化）",
@@ -5942,6 +6235,7 @@
       "tableSetting": "テーブル設定",
       "roomSettings": "部屋設定",
       "images": "画像",
+      "models": "3Dモデル",
       "jukebox": "ジュークボックス",
       "cutIn": "カットイン",
       "inventory": "インベントリ",
@@ -5982,6 +6276,7 @@
       "recording": "録画",
       "fogOn": "戦場の霧: オン（クリックでオフ）",
       "fogOff": "戦場の霧: オフ（クリックでオン）",
+      "groundBrush": "地面を盛る・削る・塗る（canvasの卓）",
       "namesShown": "名前: 表示中（クリックで隠す）",
       "namesHidden": "名前: 非表示（クリックで表示）",
       "resourceBarsShown": "リソースバー: 表示中（クリックで隠す）",
@@ -6177,6 +6472,37 @@
       "rangeShape": "射程図形",
       "effect": "演出"
     },
+    "fieldTypeHint": {
+      "text": "名前や職業など、1行の短い文字。",
+      "number": "能力値やレベルなど、数を1つ。単位や上限も決められます。",
+      "resource": "HPやMPのように、今の値と最大値の組。コマの上にバーも出せます。",
+      "longText": "経歴やメモなど、何行にもなる文章。",
+      "check": "使用済みや状態などを、入れる・外すで持ちます。",
+      "select": "決めておいた候補から1つを選びます。",
+      "calc": "ほかの項目から式で出す値。式は詳細設定で書きます。",
+      "image": "画像を1枚持ちます。",
+      "rangeShape": "射程や効果範囲の形。行からそのまま卓に置けます。",
+      "effect": "エフェクトを1つ持ち、そのコマから撃てます。"
+    },
+    "fieldTypeSample": {
+      "textLabel": "職業",
+      "text": "戦士",
+      "numberLabel": "筋力",
+      "number": "12",
+      "resourceLabel": "HP",
+      "longTextLabel": "経歴",
+      "longText": "北の港町の生まれ…",
+      "check": "使用済み",
+      "selectLabel": "種族",
+      "select": "人間",
+      "calcLabel": "防御",
+      "calc": "{敏捷度}+2 → 16",
+      "image": "画像1枚",
+      "rangeShapeLabel": "火球",
+      "rangeShape": "半径3マスの円",
+      "effectLabel": "斬撃",
+      "effect": "コマから撃つ"
+    },
     "field": {
       "choices": "選択肢",
       "choicesPlaceholder": "1行またはカンマ区切り",
@@ -6292,6 +6618,7 @@
       "open": "「{{name}}」の設定を開く",
       "view": "表示",
       "addField": "項目を追加",
+      "addFieldTo": "「{{name}}」に項目を追加",
       "addFieldHint": "「{{name}}」に足す項目の種別を選んでください",
       "templateSaved": "「{{name}}」をテンプレートとして保存しました",
       "deleteGroup": "このグループを削除",
@@ -6299,6 +6626,17 @@
     }
   },
   "ui": {
+    "pieceModel": {
+      "model": "3Dモデル",
+      "none": "なし（絵で描く）",
+      "read": "ファイルから読む",
+      "scale": "大きさ",
+      "turn": "向き",
+      "motions": "動き",
+      "idle": "止まっているとき",
+      "walk": "歩くとき",
+      "hint": "3Dの卓（canvasで描く卓）で、絵の代わりにglTFのモデル（.glb）で描きます。大きさは、コマや地形の幅と高さに収めた大きさに掛ける倍率です。動きの名前を空にすると、モデルの中の名前から選びます。"
+    },
     "openUrl": {
       "panelTitle": "外部URLを開く",
       "panelTitleWithTitle": "外部URLを開く〈{{title}}〉",

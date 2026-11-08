@@ -642,6 +642,53 @@ describe('ChatTabSettingComponent', () => {
     });
   });
 
+  describe('what it draws for the tab picked', () => {
+    const host = () => fixture.nativeElement as HTMLElement;
+    const buttonTitled = (title: string) => host().querySelector<HTMLButtonElement>(`button[title="${title}"]`);
+    const buttonSaying = (words: string) =>
+      [...host().querySelectorAll('button')].find((button) => button.textContent?.includes(words)) ?? null;
+
+    it('names the tab the notices go to, under the list', () => {
+      ChatTabList.instance.addChatTab('メイン');
+      ChatTabList.instance.ensureSystemTab();
+      fixture.detectChanges();
+
+      expect(host().textContent).toContain('現在: システム');
+    });
+
+    it('shows the name of the system tab as words to read, and what the tab is for, with no box to rename it', () => {
+      component.selectedTab.set(ChatTabList.instance.ensureSystemTab());
+      fixture.detectChanges();
+
+      expect(host().querySelector('input[name="tab-name"]')).toBeNull();
+      expect(host().textContent).toContain('知らせの貼り紙です');
+    });
+
+    it('offers an ordinary tab a box for its name, buttons to move it up and down the list, and saving it', () => {
+      component.selectedTab.set(ChatTabList.instance.addChatTab('サブタブ'));
+      fixture.detectChanges();
+
+      expect(host().querySelector('input[name="tab-name"]')).not.toBeNull();
+      expect(buttonTitled('上に移動')).not.toBeNull();
+      expect(buttonTitled('下に移動')).not.toBeNull();
+      expect(buttonSaying('保存')).not.toBeNull();
+    });
+
+    it('holds the button that deletes the tab back until deleting is allowed', async () => {
+      component.selectedTab.set(ChatTabList.instance.addChatTab('サブタブ'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const allow = host().querySelector<HTMLInputElement>('input[name="allow-delete-tab"]')!;
+      expect(allow.checked).toBe(false);
+      expect(buttonSaying('タブ削除')!.disabled).toBe(true);
+
+      allow.click();
+      fixture.detectChanges();
+
+      expect(buttonSaying('タブ削除')!.disabled).toBe(false);
+    });
+  });
+
   describe('will not delete the system tab', () => {
     it('leaves it alone even while it is open', () => {
       const list = ChatTabList.instance;

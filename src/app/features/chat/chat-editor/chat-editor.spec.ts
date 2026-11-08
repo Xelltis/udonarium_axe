@@ -117,6 +117,39 @@ describe('the chat editor', () => {
     expect(editor.text()).toBe('《battle》');
   });
 
+  /** Has the editor told that a word was just made with an input method, as the browser tells it. */
+  function wordMade(editor: ChatEditorField, word: string): void {
+    editor.editor.view.dom.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: word }));
+  }
+
+  it('sends nothing on an Enter that comes right after a word is made, as some browsers send one', () => {
+    const submit = vi.fn();
+    const editor = mountChatEditor(parent, { text: '', selection: { from: 0, to: 0 }, focused: false }, {
+      ...host(),
+      submit,
+    } as ChatEditorHost);
+    field = editor;
+    type(editor, '直後');
+
+    wordMade(editor, '直後');
+    press(editor, { key: 'Enter' });
+
+    expect(submit).not.toHaveBeenCalled();
+    expect(editor.text()).toBe('直後');
+  });
+
+  it('takes no name offered on an Enter that comes right after a word is made', async () => {
+    const editor = offering({ effects: ['battle'] });
+    type(editor, '《');
+    await new Promise((resolve) => setTimeout(resolve));
+
+    wordMade(editor, '《');
+    press(editor, { key: 'Enter' });
+
+    expect(editor.text()).toBe('《');
+    expect(parent.querySelector('[data-chip="effect"]')).toBeNull();
+  });
+
   it('breaks the line on Shift+Enter while names are offered, picking none', async () => {
     const editor = offering({ statuses: ['HP'] });
     type(editor, '{H');

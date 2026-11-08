@@ -25,7 +25,11 @@ export class ConnectionCallback {
   onConnect!: (peer: IPeerContext) => void;
   onDisconnect!: (peer: IPeerContext) => void;
   onReconnect!: (peer: IPeerContext, state: PeerReconnectState) => void;
-  onData!: (peer: IPeerContext | null, data: unknown[]) => void;
+  /**
+   * Data arrived, from a peer, or with `own` set, this seat's own data handed back to it as it went
+   * out, which is this seat's whatever its peer has come to be called since.
+   */
+  onData!: (peer: IPeerContext | null, data: unknown[], own?: boolean) => void;
   onError!: (peer: IPeerContext, errorType: string, errorMessage: string, errorObject: unknown) => void;
   /** The room server gave this seat another role while it is in the room. */
   onRoleChange?: (role: ServerRole) => void;
@@ -85,6 +89,8 @@ export interface Connection {
   readonly keptRole?: ServerRole;
   /** Whether a room server connection is holding sends back for seconds, to keep inside the server's limits. */
   readonly sendsPending?: boolean;
+  /** How long the room server took to answer the last ping, in milliseconds; 0 before any answer. */
+  readonly roundTripMs?: number;
 
   configure(config: Record<string, unknown>): void;
   openStandby(userId?: string): void;
@@ -118,4 +124,12 @@ export interface Connection {
   useInvite?(invite: string): void;
   /** Asks the room server for an invitation in a role. */
   requestInvite?(role: ServerRole): Promise<InviteMessage>;
+  /** Pings the room server more often while somebody looks at how the link is doing, or as before. */
+  watchLink?(closely: boolean): void;
+  /** Asks the room server when it last heard from each of the others. */
+  askSeen?(): void;
+  /** When the room server last heard from that member, by this clock, or null before it has said. */
+  heardAt?(peerId: string): number | null;
+  /** When the room server last said when it heard from the others, by this clock, or null before it has. */
+  readonly seenAnsweredAt?: number | null;
 }

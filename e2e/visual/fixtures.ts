@@ -2,7 +2,24 @@ import { expect, Locator, Page } from '@playwright/test';
 
 import { MENU_GROUP_OF, waitAppReady } from '../helpers';
 
+/** What the graphics card refused to draw on each page made ready for shots, as the page logged it. */
+const refused = new WeakMap<Page, string[]>();
+
+/**
+ * Whether a message the page logged says the graphics card refused something it was asked to draw:
+ * a shader asking for more than the card lets it have, as more pictures than one stage of it may
+ * read, leaves out everything drawn with that shader, and the shot is taken without it.
+ */
+function isRefusal(text: string): boolean {
+  return /GPUValidationError|pipeline creation failed|Shader Error|exceeds the maximum/i.test(text);
+}
+
 export async function prepare(page: Page) {
+  const refusals: string[] = [];
+  refused.set(page, refusals);
+  page.on('console', (message) => {
+    if (message.type() === 'error' && isRefusal(message.text())) refusals.push(message.text());
+  });
   await page.addInitScript(() => {
     let seed = 0x2f6e2b1;
     Object.assign(window, {
@@ -28,7 +45,40 @@ export async function prepare(page: Page) {
     localStorage.removeItem('ui-widget-layout');
   });
   await waitAppReady(page);
+  await drawWhileClockHeld(page);
+  await expect(page.locator('#app-loading')).toHaveCount(0, { timeout: 30_000 });
+  await page.addStyleTag({ content: NO_RESTORE_OFFER });
+  await page.addStyleTag({ content: NO_TRANSITIONS });
 }
+
+/**
+ * Has the canvas build what drawing a new kind of thing asks of the graphics card on the frame that
+ * draws it, as it did before it learnt to ready the card first: readying yields to the frames of a
+ * clock the shots hold, and a scene drawn meanwhile leaves out what is still being readied. What is
+ * being readied as the page opens is waited for here, while the clock still runs.
+ */
+async function drawWhileClockHeld(page: Page) {
+  await expect
+    .poll(() => page.evaluate(() => !!(window as unknown as CanvasHooks).__axeTable), { timeout: 30_000 })
+    .toBe(true);
+  await page.evaluate(() => (window as unknown as CanvasHooks).__axeTable?.readyBeforeDrawing(false));
+  await drawCanvasThrough(page);
+}
+
+/**
+ * Keeps the offer to restore a table kept in this browser off the shots. The page keeps the table
+ * in the browser a little while after it changes, and the offer comes up once it has, at a moment
+ * set by how fast the run goes.
+ */
+const NO_RESTORE_OFFER = 'app-room-restore-banner { display: none !important; }';
+
+/**
+ * Has every change of style take effect at once on a table drawn on a canvas. The canvas draws a
+ * piece the page lays out from a picture of it taken as the page lays it out, and a transition runs
+ * on real time, so a picture taken partway through one would catch it at a different stage each run.
+ */
+const NO_TRANSITIONS =
+  '*, *::before, *::after { transition-duration: 0s !important; transition-delay: 0s !important; }';
 
 /**
  * Starts the page's randomness over from a seed. Every change to a synced object draws on it, so
@@ -67,16 +117,44 @@ const frozen = new WeakSet<Page>();
 const CLOCK_ORIGIN = new Date('2026-09-03T00:00:00Z');
 const FROZEN_AT_MS = 2000;
 
+/**
+ * Stops the page's clock at a moment of its own. A table drawn on a canvas then draws what moves by
+ * itself only as a shot is taken, at the moment the clock stands at, rather than the whole scene
+ * again for every frame the clock is run through.
+ */
 export async function freeze(page: Page) {
   await page.clock.install({ time: CLOCK_ORIGIN });
   await page.clock.pauseAt(CLOCK_ORIGIN.getTime() + 1000);
   const drift = await page.evaluate(() => performance.now());
   await page.clock.runFor(Math.max(0, Math.round(FROZEN_AT_MS - drift)));
+  await page.evaluate(() => (window as unknown as CanvasHooks).__axeTable?.holdMotion(true));
   frozen.add(page);
 }
 
 export async function settle(page: Page, ms = 40) {
   await page.clock.runFor(ms);
+}
+
+/**
+ * Waits for every piece on the table to come to rest from what it does by itself, as a character
+ * hops in when it is made: with the clock held, by running it on a little at a time.
+ */
+export async function untilStill(page: Page) {
+  await expect
+    .poll(
+      async () => {
+        const moving = await page.evaluate(() => {
+          const hooks = (window as unknown as CanvasHooks).__axeTable;
+          return [...document.querySelectorAll('[data-object-id]')].some((element) =>
+            hooks?.moving(element.getAttribute('data-object-id') ?? '')
+          );
+        });
+        if (moving && frozen.has(page)) await page.clock.runFor(50);
+        return moving;
+      },
+      { timeout: 10_000, intervals: [50] }
+    )
+    .toBe(false);
 }
 
 /**
@@ -116,19 +194,41 @@ export async function menuEntry(page: Page, menu: Locator, text: string): Promis
   const entry = menu.getByText(text, { exact: true }).first();
   const group = MENU_GROUP_OF[text];
   if (group && !(await entry.isVisible())) {
-    await menu.getByText(group, { exact: true }).first().hover();
+    await menu.getByText(group, { exact: true }).first().hover({ force: true });
     await settle(page, 400);
   }
   return entry;
 }
 
+/**
+ * Rests the pointer on an entry of an open context menu. An entry is pointed at without Playwright
+ * waiting for it to stand still over two frames of the page: with the clock held nothing on the menu
+ * moves, and pages drawing through WebGPU in software beside one another may draw no frame for half
+ * a minute, which left an entry that stood still waiting for one.
+ */
 export async function hoverMenu(page: Page, menu: Locator, text: string) {
-  await (await menuEntry(page, menu, text)).hover();
+  await (await menuEntry(page, menu, text)).hover({ force: true });
   await settle(page, 400);
 }
 
+/**
+ * Chooses an entry of an open context menu by clicks sent to the page, its group's first, and moves
+ * no pointer: where the scene shot after it shows no menu, a pointer moved over a page drawing no
+ * frame waits on that page for as long as it draws none.
+ */
+export async function pressMenu(page: Page, menu: Locator, text: string) {
+  const entry = menu.getByText(text, { exact: true }).first();
+  const group = MENU_GROUP_OF[text];
+  if (group && !(await entry.isVisible())) {
+    await menu.getByText(group, { exact: true }).first().dispatchEvent('click');
+    await settle(page, 400);
+  }
+  await entry.dispatchEvent('click');
+}
+
+/** Chooses an entry of an open context menu, pressed as {@link hoverMenu} points at one. */
 export async function chooseMenu(page: Page, menu: Locator, text: string) {
-  await (await menuEntry(page, menu, text)).click();
+  await (await menuEntry(page, menu, text)).click({ force: true });
   await settle(page);
 }
 
@@ -138,8 +238,14 @@ export async function closeModal(page: Page) {
   await expect(page.locator('modal')).toHaveCount(0);
 }
 
+/**
+ * Where a right click lands on the bare board, clear of the sample room's pieces and the marks over
+ * them, on the right of the board.
+ */
+export const BARE_BOARD_AT = { x: 1120, y: 380 };
+
 export async function openTableSetting(page: Page) {
-  const menu = await rightClickTable(page, { x: 900, y: 250 });
+  const menu = await rightClickTable(page, BARE_BOARD_AT);
   await chooseMenu(page, menu, 'テーブル設定');
   await settleLazy(page, page.locator('modal select[name="tableGridType"]'));
   await expect(page.locator('modal select[name="tableGridType"]')).toBeVisible();
@@ -167,10 +273,74 @@ export async function holdAnimationsAt(page: Page, ms: number) {
   }, ms);
 }
 
+type CanvasHooks = {
+  __axeTable?: {
+    drawDueNow(): boolean;
+    whenDrawn(): Promise<void>;
+    busy(): string[];
+    holdFlicker(timeMs: number | null): void;
+    holdMotion(held: boolean): void;
+    readyBeforeDrawing(on: boolean): void;
+    holdMovesAt(ms: number | null): void;
+    chooseLightsAfresh(): void;
+    moving(identifier: string): boolean;
+  };
+};
+
+/**
+ * Has the table drawn on a canvas draw through what it was told, with the marks over its pieces laid
+ * where it draws them: before a shot, or before where a piece stands on the page is read. The
+ * pictures the page takes of pieces for it, and what it loads, arrive on real time, while each frame
+ * they need comes only as a held clock moves on: so what has fallen due is run, and the frame waited
+ * for is drawn at once, again and again, without moving the clock on. Then the graphics card is waited
+ * on: through WebGPU it builds what is new to it only after the page has handed the frame over, and
+ * the screen, a picture of it and a pointer moved over it all wait until it has.
+ */
+export async function drawCanvasThrough(page: Page) {
+  await expect
+    .poll(
+      async () => {
+        if (frozen.has(page)) await page.clock.runFor(0);
+        return page.evaluate(() => {
+          const table = (window as unknown as CanvasHooks).__axeTable;
+          if (!table || table.drawDueNow()) return [];
+          const busy = table.busy();
+          return busy.length > 0 ? busy : ['nothing it names'];
+        });
+      },
+      { message: 'what the canvas still waits for before it shows all it was told', timeout: 30_000, intervals: [50] }
+    )
+    .toEqual([]);
+  await page.evaluate(() => (window as unknown as CanvasHooks).__axeTable?.whenDrawn());
+}
+
+/**
+ * Holds the flickering lights of a table drawn on a canvas as they are at a moment, for a scene
+ * whose clock stands at a different moment each run by the time it is shot.
+ */
+export async function holdFlicker(page: Page, timeMs: number) {
+  await page.evaluate((at) => (window as unknown as CanvasHooks).__axeTable?.holdFlicker(at), timeMs);
+}
+
+/** How long a shot may take: a table drawn on a canvas in software takes seconds to bring to the screen. */
+const SHOT_TIMEOUT_MS = 30_000;
+
+/**
+ * How long a frame that turns a thing stays out once the pointer has left the thing, with a little
+ * over: a clock held for the shots never lets it pass, so a frame brought out by the pointer last
+ * resting over a thing would be shot with the thing.
+ */
+const TURN_FRAME_STAYS_MS = 700;
+
+/**
+ * Holds the pieces playing a move on a canvas as far into it as the page's own animations are held
+ * for a shot: a move starts whenever what it plays for arrives, which a held clock does not hold.
+ */
+async function holdMovesAt(page: Page, ms: number) {
+  await page.evaluate((at) => (window as unknown as CanvasHooks).__axeTable?.holdMovesAt(at), ms);
+}
+
 export interface SnapOptions {
-  maxDiffPixels?: number;
-  maxDiffPixelRatio?: number;
-  threshold?: number;
   animationAt?: number;
   /** How long a picture may take to settle; a large 3D board rasterised in software takes seconds per shot. */
   timeout?: number;
@@ -179,11 +349,18 @@ export interface SnapOptions {
 export async function snap(page: Page, name: string, options: SnapOptions = {}) {
   await page.evaluate(() => document.fonts.ready);
   await page.mouse.move(1279, 799);
+  if (frozen.has(page) && (await page.locator('[data-testid="turn-frame"]').count()) > 0) {
+    await page.clock.runFor(TURN_FRAME_STAYS_MS);
+  }
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.evaluate(() => (window as unknown as CanvasHooks).__axeTable?.chooseLightsAfresh());
   await holdAnimationsAt(page, options.animationAt ?? 0);
   await page.waitForTimeout(100);
   if (frozen.has(page)) await page.clock.runFor(16);
   await holdAnimationsAt(page, options.animationAt ?? 0);
+  if (options.animationAt !== undefined) await holdMovesAt(page, options.animationAt);
+  await drawCanvasThrough(page);
+  expect(refused.get(page) ?? [], 'what the graphics card refused to draw').toEqual([]);
   const { animationAt: _at, ...compare } = options;
-  await expect(page).toHaveScreenshot(`${name}.png`, { maxDiffPixels: 4, ...compare });
+  await expect(page).toHaveScreenshot(`${name}.png`, { timeout: SHOT_TIMEOUT_MS, ...compare });
 }

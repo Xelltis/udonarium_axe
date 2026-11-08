@@ -40,7 +40,7 @@ import { inlineStampSites } from '@axe/domain/chat/inline-stamp';
 import { stampOf } from '@axe/domain/chat/stamp-catalog';
 import { joinStampLine, standInForStamp } from '@axe/domain/chat/stamp-line';
 import { DEFAULT_NOTICE_PLACE, NOTICE_OFF, noticeRouteOf, SystemNoticeKind } from '@axe/domain/chat/system-notices';
-import { fillTargetNumber, findTargetNumber } from '@axe/domain/chat/target-number';
+import { fillTargetNumber, holdsTargetNumber, targetNumberOnce } from '@axe/domain/chat/target-number';
 import { DataElement } from '@axe/domain/data/data-element';
 import { encodeDiceLook } from '@axe/domain/dice/dice-3d/dice-look';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
@@ -305,7 +305,8 @@ export class ChatMessageService {
    * of the line, a portrait command picks the line's portrait but leaves the piece's alone, and the
    * portrait stands in none of the tab's slots. A `{目標値}` nothing else answered is filled in with
    * the number the speaker has to beat, found among the tab's rolls (see {@link findTargetNumber}),
-   * in the line and in every copy of it aimed at a target alike.
+   * or with the one the reader picked where `targetNumber` is given, in the line and in every copy of
+   * it aimed at a target alike.
    */
   sendMessage(
     chatTab: ChatTab,
@@ -321,17 +322,19 @@ export class ChatMessageService {
     quoteOf?: string,
     bubbles?: { light: string; dark: string },
     vnEmote?: string,
-    stamp?: OutgoingStamp
+    stamp?: OutgoingStamp,
+    targetNumber?: number
   ): ChatMessage {
     const speaker = this.objectStore.get(sendFrom);
-    let targetNumber: number | null | undefined;
-    const toBeat = () => {
-      if (targetNumber === undefined) {
-        const name = speaker instanceof GameCharacter ? speaker.name : '';
-        targetNumber = findTargetNumber(chatTab, { identifier: sendFrom, name });
-      }
-      return targetNumber;
-    };
+    const toBeat =
+      targetNumber != null
+        ? () => targetNumber
+        : targetNumberOnce(chatTab, {
+            identifier: sendFrom,
+            name: speaker instanceof GameCharacter ? speaker.name : '',
+          });
+    const answers =
+      holdsTargetNumber(text) || (messageTargetContext ?? []).some((context) => holdsTargetNumber(context.text));
     text = fillTargetNumber(text, toBeat);
     messageTargetContext = messageTargetContext?.map((context) => ({
       ...context,
@@ -385,6 +388,11 @@ export class ChatMessageService {
     if (bubbles?.light) chatMessage.messBubbleLight = bubbles.light;
     if (bubbles?.dark) chatMessage.messBubbleDark = bubbles.dark;
     if (vnEmote) chatMessage.vnEmote = vnEmote;
+    if (answers && toBeat() != null) chatMessage.answersTargetNumber = '1';
+    const together = (messageTargetContext ?? []).filter((context) => context.together && context.object);
+    if (together.length > 0) {
+      chatMessage.aimedTogether = JSON.stringify(together.map((context) => context.object!.identifier));
+    }
     const look = this.myDice.look();
     const diceLook = encodeDiceLook(look);
     if (diceLook) chatMessage.diceLook = diceLook;
@@ -433,7 +441,9 @@ export class ChatMessageService {
     name: string,
     color?: string
   ): ChatMessage {
-    text = fillTargetNumber(text, () => findTargetNumber(chatTab, { identifier: '', name }));
+    const toBeat = targetNumberOnce(chatTab, { identifier: '', name });
+    const answers = holdsTargetNumber(text) && toBeat() != null;
+    text = fillTargetNumber(text, toBeat);
     const stamped = this.inlineStampsGoingOut(text);
     text = stamped.text;
     const dicebot = this.objectStore.get<DiceBot>('DiceBot')!;
@@ -449,6 +459,7 @@ export class ChatMessageService {
       sendFrom: '',
       senderRole: PeerCursor.myRole,
     };
+    if (answers) chatMessage.answersTargetNumber = '1';
     if (stamped.pictures.length > 0) {
       chatMessage.attachmentImageIdentifiers = JSON.stringify(stamped.pictures);
       chatMessage.stampAttachments = JSON.stringify(stamped.pictures);

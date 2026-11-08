@@ -4,6 +4,7 @@ import { sampleCurvePoints } from '@axe/domain/map-editor/curve-geometry';
 import type { EditorTool, LineKind, ShapeGeneratorKind } from '@axe/domain/map-editor/editor-tool';
 import { cellCenter, pointToCell } from '@axe/domain/map-editor/grid-cells';
 import { SceneHistory } from '@axe/domain/map-editor/history';
+import { dabRelief, ReliefBrush, reliefChunksOf } from '@axe/domain/map-editor/relief';
 import {
   CellLayer,
   createLayer,
@@ -18,6 +19,7 @@ import {
   MapLayer,
   MapScene,
   newId,
+  ReliefLayer,
   rememberPaintedRoles,
   ShapeItem,
   ShapeKind,
@@ -73,6 +75,7 @@ import {
   MapFunctionRole,
 } from '@axe/domain/tabletop/function-paint';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
 
 export interface Selection {
   layerId: string;
@@ -83,7 +86,11 @@ export interface Selection {
 export class MapEditorState {
   private scene: MapScene = createScene();
   private history = new SceneHistory(this.scene);
-  private layerCounter = 0;
+  /**
+   * What a layer made for new work is called, by its kind and, for a function layer, its role: the
+   * panel names them in the reader's language. The count of such layers follows the name.
+   */
+  layerNameOf: (kind: LayerKind, role?: MapFunctionRole) => string = (kind, role) => role ?? kind;
 
   private readonly tick = signal(0);
   readonly sceneTick = this.tick.asReadonly();
@@ -128,6 +135,10 @@ export class MapEditorState {
   readonly freehandWidth = signal(4);
 
   readonly eraserSize = signal(16);
+
+  /** How the relief brush works the ground: what it does, how far it reaches and how hard, in cells, and what it paints. */
+  readonly reliefBrush = signal<ReliefBrush>({ kind: 'raise', radius: 2, strength: 0.25, layer: 'grass' });
+  private reliefLevel = 0;
 
   readonly fontSize = signal(20);
   readonly textColor = signal('#1a1a1a');
@@ -285,7 +296,7 @@ export class MapEditorState {
    * Takes a layer in hand, and the brush that painted it with it.
    *
    * Choosing a layer of functions is choosing to work on what it does, so the tool that works
-   * on it is put in hand as well. Without that the properties on show are some other tool's,
+   * on it is put in hand as well, and so is the relief brush for a layer of relief. Without that the properties on show are some other tool's,
    * and a patch that was painted with settings of its own looks like one that cannot be
    * changed at all.
    */
@@ -297,6 +308,7 @@ export class MapEditorState {
       this.functionSpec.set({ ...chosen.spec });
       if (this.tool() !== 'functionPaint' && this.tool() !== 'functionErase') this.tool.set('functionPaint');
     }
+    if (chosen && chosen.kind === 'relief') this.tool.set('relief');
     this.bump();
   }
 
@@ -314,9 +326,19 @@ export class MapEditorState {
     }
   }
 
-  private autoLayerName(kind: LayerKind): string {
-    this.layerCounter += 1;
-    return kind + ' ' + this.layerCounter;
+  /**
+   * The name of a layer made for new work: what it is, and a count past the layers of the kind there
+   * are, raised further where a layer already goes by that name, as one may once another is deleted.
+   */
+  private autoLayerName(kind: LayerKind, role?: MapFunctionRole): string {
+    const alike = this.scene.layers.filter(
+      (layer) => layer.kind === kind && (role === undefined || (layer.kind === 'function' && layer.role === role))
+    );
+    const taken = new Set(this.scene.layers.map((layer) => layer.name));
+    const label = this.layerNameOf(kind, role);
+    let count = alike.length + 1;
+    while (taken.has(`${label} ${count}`)) count += 1;
+    return `${label} ${count}`;
   }
 
   /**
@@ -377,7 +399,7 @@ export class MapEditorState {
       if (lookKey(layer.spec) === look) return layer;
     }
 
-    const created = createLayer('function', this.autoLayerName('function')) as FunctionLayer;
+    const created = createLayer('function', this.autoLayerName('function', role)) as FunctionLayer;
     created.role = role;
     created.spec = { ...this.functionSpec() };
     addLayer(this.scene, created);
@@ -407,6 +429,27 @@ export class MapEditorState {
     );
     if (layers.length < 1) return;
     for (const layer of layers) eraseFunctionCell(layer, col, row);
+    this.bump();
+  }
+
+  /**
+   * Starts a stroke of the relief brush at a point of the scene, in pixels, on the relief layer for
+   * new work: flattening levels that layer to the height it stood at here. Recorded when the gesture
+   * ends.
+   */
+  beginReliefStroke(x: number, y: number): void {
+    const layer = this.ensureLayerFor('relief') as ReliefLayer;
+    const cellPx = this.scene.cellPx;
+    this.reliefLevel = groundSurfaceOf(reliefChunksOf(layer)).heightAt(x / cellPx, y / cellPx);
+    this.dabReliefAt(x, y);
+  }
+
+  /** Lays a dab of the stroke under way at a point of the scene, in pixels. */
+  dabReliefAt(x: number, y: number): void {
+    const layer = this.ensureLayerFor('relief') as ReliefLayer;
+    const { kind, radius, strength, layer: paint } = this.reliefBrush();
+    const cellPx = this.scene.cellPx;
+    dabRelief(layer, { kind, x: x / cellPx, y: y / cellPx, radius, strength, layer: paint, level: this.reliefLevel });
     this.bump();
   }
 

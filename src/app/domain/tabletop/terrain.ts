@@ -148,6 +148,26 @@ export class Terrain extends TabletopObject {
   @SyncVar() lightAnimation: string = LightAnimation.NONE;
 
   /**
+   * The 3D model the block is drawn as on a table drawn on a canvas, in place of its faces, by the
+   * identifier it is kept under; empty for none. Read it, with the four after it, through
+   * `pieceModelOf`, as a peer that has never heard of models sends none of the five.
+   */
+  @SyncVar() modelIdentifier: string = '';
+  /** How many times larger than the block's footprint its model is drawn; empty for the footprint itself. */
+  @SyncVar() modelScale: string = '';
+  /** How far its model is turned from the way the block faces, in degrees clockwise; empty for not at all. */
+  @SyncVar() modelTurn: string = '';
+  /** The motion its model plays standing still, by name; empty for the model's own. */
+  @SyncVar() modelIdle: string = '';
+  /** The motion its model plays walking, by name; empty for the model's own. */
+  @SyncVar() modelWalk: string = '';
+  /**
+   * `'1'` where the map editor's brush for 3D objects laid the block, which a scene painting such
+   * objects alone answers for; empty for every other block, a generated field's trees among them.
+   */
+  @SyncVar() paintedObject: string = '';
+
+  /**
    * The terrain's light settings gathered into the shape the vision scene reads, with the direction
    * turned along with the terrain.
    */

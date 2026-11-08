@@ -1,21 +1,23 @@
-import { NgClass } from '@angular/common';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
   DestroyRef,
+  effect,
   ElementRef,
   inject,
   input,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { encodeI18nMessage } from '@axe/application/i18n/i18n-message';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
-import { PointerCoordinate } from '@axe/application/input/pointer-device.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
+import { TableCameraService } from '@axe/application/tabletop/table-camera.service';
+import { TablePickService } from '@axe/application/tabletop/table-pick.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { callCursorMove, callHeartBeat } from '@axe/core/event/domain-events';
 import { Network } from '@axe/core/network/network';
@@ -25,7 +27,6 @@ import { ResettableTimeout } from '@axe/core/util/resettable-timeout';
 import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole, roleShortLabelKey, roleTagClass } from '@axe/domain/peer/peer-role';
-import { toTransformCss } from '@axe/ui/directives/movable-helpers';
 import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 
 @Component({
@@ -33,18 +34,21 @@ import { SafePipe } from '@axe/ui/pipes/safe.pipe';
   selector: 'peer-cursor, [peer-cursor]',
   templateUrl: './peer-cursor.component.html',
   host: { class: 'block' },
-  imports: [NgClass, SafePipe],
+  imports: [SafePipe],
 })
 export class PeerCursorComponent {
   private static readonly _sentLogoutIdentifiers = new Set<string>();
 
   private readonly batchService = inject(BatchService);
-  private readonly coordinateService = inject(CoordinateService);
+  private readonly tablePick = inject(TablePickService);
   private readonly chatMessageService = inject(ChatMessageService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly objectChange = inject(ObjectChangeService);
   private readonly objectStore = inject(ObjectStore);
   private readonly t = inject(TRANSLATE_FN);
+
+  private readonly camera = inject(TableCameraService);
+  private readonly surfaces = inject(TableSurfaceService);
 
   readonly cursorElementRef = viewChild<ElementRef>('cursor');
   readonly opacityElementRef = viewChild<ElementRef>('opacity');
@@ -96,6 +100,8 @@ export class PeerCursorComponent {
   private _x = 0;
   private _y = 0;
   private _target!: HTMLElement;
+  /** The point of the floor the cursor was last put at, laid on the screen again as the camera moves over a canvas. */
+  private at: { x: number; y: number; z: number } | null = null;
 
   /**
    * How long cursor movement is held back before being sent or animated, in milliseconds: 16.6 per
@@ -162,6 +168,15 @@ export class PeerCursorComponent {
         }
       }, this);
     }, this.destroyRef);
+
+    effect(() => {
+      this.camera.version();
+      untracked(() => {
+        if (!this.at || !this.cursorElement) return;
+        this.cursorElement.style.transition = 'opacity 0.5s ease-out';
+        this.layOnScreen();
+      });
+    });
 
     afterNextRender(() => {
       if (this.isMine()) {
@@ -311,8 +326,7 @@ export class PeerCursorComponent {
   private calcLocalCoordinate(x: number, y: number, target: HTMLElement) {
     if (!target.closest('#app-table-layer')) return;
 
-    let coordinate: PointerCoordinate = { x, y, z: 0 };
-    coordinate = this.coordinateService.calcTabletopLocalCoordinate(coordinate, target);
+    const coordinate = this.tablePick.landingAt(x, y);
 
     callCursorMove([coordinate.x, coordinate.y, coordinate.z]);
   }
@@ -336,6 +350,16 @@ export class PeerCursorComponent {
   }
 
   private setPosition(x: number, y: number, z: number) {
-    this.cursorElement!.style.transform = toTransformCss(x, y, z, '');
+    this.at = { x, y, z };
+    this.layOnScreen();
+  }
+
+  /** Lays the cursor on the screen where the canvas draws the point of the floor it was last put at. */
+  private layOnScreen() {
+    const at = this.at;
+    const layout = this.camera.layout;
+    const onPage = at && layout ? this.surfaces.pageOf('floor', at.x, at.y, at.z) : null;
+    if (!onPage || !layout) return;
+    this.cursorElement!.style.transform = `translate(${onPage.x - layout.left}px, ${onPage.y - layout.top}px)`;
   }
 }

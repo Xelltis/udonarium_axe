@@ -1,12 +1,14 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { ChatMessageTargetContext } from '@axe/domain/chat/chat-message';
 import {
+  aimsAtOnce,
   evaluateCharacterReferences,
   PaletteEvaluationResult,
   textTargetsCharacter,
   withoutAimMarks,
 } from '@axe/domain/chat/chat-palette';
 import { DiceBot } from '@axe/domain/dice/dice-bot';
+import { TOGETHER_SEPARATOR } from '@axe/domain/dice/roll-target-suffix';
 
 export interface MacroMessage {
   text: string;
@@ -22,6 +24,8 @@ export interface MacroMessage {
 export interface AimedLine {
   /** Whether it goes to the pieces marked on the table. */
   targeted: boolean;
+  /** Whether it goes to them all at once, rolled once for them all, as `t:範囲` sends it. */
+  atOnce: boolean;
   /**
    * The line filled in from the speaker, for each target to fill in the rest of, so that every one
    * of them reads it alike.
@@ -46,10 +50,43 @@ export function aimLine(line: string, speaker: GameCharacter | null): AimedLine 
   const said = targeted ? withoutAimMarks(filled.text) : filled.text;
   return {
     targeted,
+    atOnce: targeted && (aimsAtOnce(line) || aimsAtOnce(filled.text)),
     filled: said,
     repeated: targeted ? DiceBot.deleteMyselfResourceBuff(said) : said,
     attachmentImageIdentifiers: filled.attachmentImageIdentifiers,
   };
+}
+
+/**
+ * What a line aimed at the pieces marked says, and what goes to each of them: the line filled in
+ * once for each, its name after it, and from the second onwards with the commands acting on the
+ * speaker taken out, or the speaker would be acted on once per target. A line aimed at them all at
+ * once is said once, filled in against the first of them, with all their names after it, and goes
+ * to each of them as the one line, to be rolled once for them all.
+ */
+export function aimedAt(
+  aimed: AimedLine,
+  targets: readonly GameCharacter[],
+  fill: (text: string, target: GameCharacter) => string
+): { text: string; contexts: ChatMessageTargetContext[] } {
+  if (aimed.atOnce && targets.length > 0) {
+    const said = fill(aimed.filled, targets[0]);
+    const together = targets.map((target) => target.name);
+    const contexts = targets.map((target, index) => ({
+      text: index === 0 ? said : fill(aimed.repeated, target),
+      object: target,
+      together,
+    }));
+    return { text: `${said} [${together.join(TOGETHER_SEPARATOR)}]`, contexts };
+  }
+  const lines: string[] = [];
+  const contexts: ChatMessageTargetContext[] = [];
+  targets.forEach((target, index) => {
+    const filled = fill(index === 0 ? aimed.filled : aimed.repeated, target);
+    lines.push(`${filled} [${target.name}]`);
+    contexts.push({ text: filled, object: target });
+  });
+  return { text: lines.join('\n'), contexts };
 }
 
 /**
@@ -91,16 +128,10 @@ export function buildMacroMessage(
   if (targets.length < 1) return { text: noTargetText, targetContexts, attachmentImageIdentifiers };
 
   collect(aimed.attachmentImageIdentifiers);
-  let text = '';
-  let first = true;
-  for (const target of targets) {
-    const source = first ? aimed.filled : aimed.repeated;
-    const evaluated = evaluate(source, target);
+  const sent = aimedAt(aimed, targets, (text, target) => {
+    const evaluated = evaluate(text, target);
     collect(evaluated.attachmentImageIdentifiers);
-    text += first ? '' : '\n';
-    text += evaluated.text + ' [' + target.name + ']';
-    targetContexts.push({ text: evaluated.text, object: target });
-    first = false;
-  }
-  return { text, targetContexts, attachmentImageIdentifiers };
+    return evaluated.text;
+  });
+  return { text: sent.text, targetContexts: sent.contexts, attachmentImageIdentifiers };
 }

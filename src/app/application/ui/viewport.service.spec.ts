@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import {
   COMPACT_VIEWPORT_QUERY,
   FINE_POINTER_QUERY,
+  HOVER_QUERY,
   TOUCH_POINTER_QUERY,
   ViewportService,
 } from '@axe/application/ui/viewport.service';
@@ -13,19 +14,20 @@ interface FakeMediaQueryList {
 }
 
 describe('ViewportService', () => {
-  let mql: FakeMediaQueryList;
   let listeners: Map<string, (event: MediaQueryListEvent) => void>;
   let listener: ((event: MediaQueryListEvent) => void) | null;
+  let made: FakeMediaQueryList[];
 
   function setup(matches: boolean): ViewportService {
     listeners = new Map();
+    made = [];
     vi.spyOn(window, 'matchMedia').mockImplementation((query: string) => {
       const fake: FakeMediaQueryList = {
         matches,
         addEventListener: vi.fn((_: string, fn: (event: MediaQueryListEvent) => void) => listeners.set(query, fn)),
         removeEventListener: vi.fn(),
       };
-      mql = fake;
+      made.push(fake);
       return fake as unknown as MediaQueryList;
     });
 
@@ -91,6 +93,37 @@ describe('ViewportService', () => {
     expect(service.hasFinePointer()).toBe(true);
   });
 
+  it('takes a coarse pointer with nothing fine beside it as a finger alone, and no longer once a mouse is seen', () => {
+    const service = setup(true);
+    listeners.get(FINE_POINTER_QUERY)?.({ matches: false } as MediaQueryListEvent);
+    expect(service.touchOnly()).toBe(true);
+
+    listeners.get(TOUCH_POINTER_QUERY)?.({ matches: false } as MediaQueryListEvent);
+    expect(service.touchOnly()).toBe(false);
+
+    listeners.get(TOUCH_POINTER_QUERY)?.({ matches: true } as MediaQueryListEvent);
+    window.dispatchEvent(new PointerEvent('pointermove', { pointerType: 'mouse' }));
+    expect(service.touchOnly()).toBe(false);
+  });
+
+  it('asks the browser whether the main pointer can hover, and follows it', () => {
+    const service = setup(true);
+    expect(window.matchMedia).toHaveBeenCalledWith(HOVER_QUERY);
+    expect(service.canHover()).toBe(true);
+
+    listeners.get(HOVER_QUERY)?.({ matches: false } as MediaQueryListEvent);
+    expect(service.canHover()).toBe(false);
+  });
+
+  it('takes a query answered with no yes or no as no', () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      () => ({ addEventListener: vi.fn(), removeEventListener: vi.fn() }) as unknown as MediaQueryList
+    );
+    TestBed.configureTestingModule({ providers: [ViewportService] });
+
+    expect(TestBed.inject(ViewportService).canHover()).toBe(false);
+  });
+
   it('counts a phone held sideways as compact too', () => {
     setup(false);
     expect(COMPACT_VIEWPORT_QUERY).toContain('(max-height: 500px) and (pointer: coarse)');
@@ -100,6 +133,9 @@ describe('ViewportService', () => {
     setup(false);
     TestBed.resetTestingModule();
 
-    expect(mql.removeEventListener).toHaveBeenCalled();
+    expect(made.length).toBeGreaterThanOrEqual(4);
+    for (const one of made) {
+      expect(one.removeEventListener).toHaveBeenCalledWith('change', one.addEventListener.mock.calls[0]![1]);
+    }
   });
 });

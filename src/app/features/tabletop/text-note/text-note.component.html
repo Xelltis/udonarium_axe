@@ -1,5 +1,63 @@
+<ng-template #panelContent>
+  @if (title().length) {
+    <div
+      class="bg-ui-titlebar border-b-ui-border-titlebar border-l-ui-accent transform-style-flat pointer-events-none flex min-h-7 items-center gap-1.25 border-b border-l-[3px] border-solid py-1.25 pr-2 pl-2.5 antialiased backface-hidden"
+    >
+      <i class="material-icons text-ui-accent shrink-0 text-[14px]! opacity-75">subject</i>
+      <span
+        class="text-ui-titlebar-muted flex-1 truncate text-[11px] font-bold tracking-[0.06em] uppercase"
+        [style.filter]="canView() ? null : 'blur(4px)'"
+        [class.select-none]="!canView()"
+        >{{ canView() ? title() : maskedTitle() }}</span
+      >
+      @if (isLock) {
+        <i class="material-icons text-ui-titlebar-muted shrink-0 text-[13px]!">lock</i>
+      }
+    </div>
+  }
+  @if (isEditing()) {
+    <textarea
+      class="text-ui-text transform-style-flat m-0 box-border min-h-0 w-full flex-1 resize-none overflow-x-hidden overflow-y-auto rounded-none border-none bg-transparent px-2.5 py-2 font-sans text-base leading-[1.65] wrap-anywhere [word-break:break-word] whitespace-pre-wrap antialiased outline-none backface-hidden focus:bg-white/3 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-xs [&::-webkit-scrollbar-thumb]:bg-(--ui-panel-border) [&::-webkit-scrollbar-track]:bg-transparent"
+      (input)="calcFitHeight()"
+      (blur)="onTextAreaBlur()"
+      #textArea
+      [attr.data-v]="textNoteVersion()"
+      [style.font-size.px]="fontSize + 9"
+      name="text-note-text"
+      [(ngModel)]="text"
+      spellcheck="false"
+      id="text-area"
+    ></textarea>
+  } @else {
+    <div
+      class="text-ui-text transform-style-flat [&_a]:text-ui-accent m-0 box-border min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto px-2.5 py-2 font-sans text-base leading-[1.65] wrap-anywhere [word-break:break-word] antialiased backface-hidden [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-xs [&::-webkit-scrollbar-thumb]:bg-(--ui-panel-border) [&::-webkit-scrollbar-track]:bg-transparent"
+      [class.pointer-events-none]="!canView()"
+      [class.select-none]="!canView()"
+      [class.whitespace-pre-line]="!formatted() || !canView()"
+      [class.note-formatted]="formatted() && canView()"
+      [attr.data-v]="textNoteVersion()"
+      [attr.data-formatted]="formatted() ? '' : null"
+      [style.font-size.px]="fontSize + 9"
+      [style.filter]="canView() ? null : 'blur(5px)'"
+      [innerHTML]="
+        canView()
+          ? formatted()
+            ? (formattedHtml() | safe)
+            : (decoratedHtml() | linkify | safe)
+          : (maskedHtml() | safe)
+      "
+    ></div>
+  }
+</ng-template>
+<!--
+  The note is a box on the screen round where the table's canvas draws it, and its panel is laid on
+  the note in perspective to be pointed at: clear, as the canvas draws a picture of it, until it is
+  written in. Its handles stand at the top corners of its panel.
+-->
+@let id = textNote().identifier;
 <div
-  class="group pointer-events-none absolute h-0 w-px cursor-default select-none [-moz-user-drag:none] [-webkit-transform-style:preserve-3d] [-webkit-user-drag:none] backface-hidden transform-3d"
+  class="group pointer-events-none size-full cursor-default select-none [-moz-user-drag:none] [-webkit-user-drag:none]"
+  data-hud-box
   appMovable
   [movable.option]="movableOption()"
   [movable.disable]="isSelected || isLock"
@@ -7,128 +65,33 @@
   (movable.ondragend)="onMoved()"
 >
   <div
-    class="[-webkit-transform-style:preserve-3d] transform-3d"
+    class="pointer-events-none size-full"
     appRotable
     [rotable.option]="rotableOption()"
     [rotable.disable]="tabletopService.mode2d() && isUpright"
     (rotable.ondragstart)="onMove()"
     (rotable.ondragend)="onMoved()"
   >
-    <div
-      class="pointer-events-auto size-full transform-[translateX(-50%)] [-webkit-transform-style:preserve-3d] transform-3d"
-      [style.width.px]="width * gridSize"
-      [appSelectable]="textNote()"
-    >
+    <div class="pointer-events-none size-full" [appSelectable]="textNote()">
       <div
-        class="[-webkit-transform-style:preserve-3d] transform-3d"
-        [class.[transition:transform_132ms_linear]]="transition"
-        [class.[transition:transform_132ms_cubic-bezier(0.21,0.97,0.75,1.25)]]="fall"
-        [ngStyle]="{
-          transform:
-            'translateZ(' +
-            altitude * gridSize +
-            'px) rotateY(90deg) rotateZ(' +
-            (isUpright ? 0 : 90) +
-            'deg) rotateY(-90deg)',
-        }"
+        class="bg-ui-panel border-ui-border-panel text-ui-text rounded-b-ui-sm shadow-ui-md pointer-events-auto box-border flex flex-col overflow-hidden border border-solid bg-size-[100%_100%] bg-no-repeat"
+        #panel
+        data-part="panel"
+        [class.opacity-0]="!isEditing()"
+        [appHudPlace]="{ owner: id, part: 'panel', place: 'face' }"
+        [style.background-image]="'url(' + imageFile().url + ')' | safe: 'style'"
+        [style.width.px]="width * gridSize"
+        [style.min-height.px]="height * gridSize"
+        [style.max-height.px]="limitHeight() ? height * gridSize : null"
       >
-        <div
-          class="bg-ui-panel border-ui-border-panel text-ui-text rounded-b-ui-sm shadow-ui-md transform-style-flat absolute inset-x-0 bottom-0 box-border flex origin-[50%_100%] transform-[rotateX(-90deg)] flex-col overflow-hidden border border-solid bg-size-[100%_100%] bg-no-repeat [-webkit-transform-style:preserve-3d] transform-3d"
-          [style.background-image]="'url(' + imageFile().url + ')' | safe: 'style'"
-          [style.width.px]="width * gridSize"
-          [style.min-height.px]="height * gridSize"
-          [style.max-height.px]="limitHeight() ? height * gridSize : null"
-        >
-          @if (title().length) {
-            <div
-              class="bg-ui-titlebar border-b-ui-border-titlebar border-l-ui-accent transform-style-flat pointer-events-none flex min-h-7 items-center gap-1.25 border-b border-l-[3px] border-solid py-1.25 pr-2 pl-2.5 antialiased backface-hidden"
-            >
-              <i class="material-icons text-ui-accent shrink-0 text-[14px]! opacity-75">subject</i>
-              <span
-                class="text-ui-titlebar-muted flex-1 truncate text-[11px] font-bold tracking-[0.06em] uppercase"
-                [style.filter]="canView() ? null : 'blur(4px)'"
-                [class.select-none]="!canView()"
-                >{{ canView() ? title() : maskedTitle() }}</span
-              >
-              @if (isLock) {
-                <i class="material-icons text-ui-titlebar-muted shrink-0 text-[13px]!">lock</i>
-              }
-            </div>
-          }
-          @if (isEditing()) {
-            <textarea
-              class="text-ui-text transform-style-flat m-0 box-border min-h-0 w-full flex-1 resize-none overflow-x-hidden overflow-y-auto rounded-none border-none bg-transparent px-2.5 py-2 font-sans text-base leading-[1.65] wrap-anywhere [word-break:break-word] whitespace-pre-wrap antialiased outline-none backface-hidden focus:bg-white/3 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-xs [&::-webkit-scrollbar-thumb]:bg-(--ui-panel-border) [&::-webkit-scrollbar-track]:bg-transparent"
-              (input)="calcFitHeight()"
-              (blur)="onTextAreaBlur()"
-              #textArea
-              [attr.data-v]="textNoteVersion()"
-              [style.font-size.px]="fontSize + 9"
-              name="text-note-text"
-              [(ngModel)]="text"
-              spellcheck="false"
-              id="text-area"
-            ></textarea>
-          } @else {
-            <div
-              class="text-ui-text transform-style-flat [&_a]:text-ui-accent m-0 box-border min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto px-2.5 py-2 font-sans text-base leading-[1.65] wrap-anywhere [word-break:break-word] antialiased backface-hidden [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-xs [&::-webkit-scrollbar-thumb]:bg-(--ui-panel-border) [&::-webkit-scrollbar-track]:bg-transparent"
-              [class.pointer-events-none]="!canView()"
-              [class.select-none]="!canView()"
-              [class.whitespace-pre-line]="!formatted() || !canView()"
-              [class.note-formatted]="formatted() && canView()"
-              [attr.data-v]="textNoteVersion()"
-              [attr.data-formatted]="formatted() ? '' : null"
-              [style.font-size.px]="fontSize + 9"
-              [style.filter]="canView() ? null : 'blur(5px)'"
-              [innerHTML]="
-                canView()
-                  ? formatted()
-                    ? (formattedHtml() | safe)
-                    : (decoratedHtml() | linkify | safe)
-                  : (maskedHtml() | safe)
-              "
-            ></div>
-          }
-        </div>
+        <ng-container [ngTemplateOutlet]="panelContent"></ng-container>
       </div>
-      @if (!isLock) {
-        <div [ngStyle]="{ transform: 'translateZ(' + altitude * gridSize + 'px)' }">
-          <div
-            class="rotate-grab bg-ui-elevated text-ui-muted absolute -top-3.5 -left-5.25 z-1 box-border h-7 w-10.5 cursor-default rounded-[28px] p-0.5 text-center text-[8px] opacity-0 group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100! [&_.material-icons]:hidden group-hover:[&_.material-icons]:inline group-active:[&_.material-icons]:inline pointer-coarse:[&_.material-icons]:inline"
-          >
-            <i class="material-icons">autorenew</i>
-          </div>
-          <div
-            class="rotate-grab bg-ui-elevated text-ui-muted absolute -top-3.5 -right-5.25 z-1 box-border h-7 w-10.5 cursor-default rounded-[28px] p-0.5 text-center text-[8px] opacity-0 group-hover:opacity-50 group-active:opacity-0 hover:opacity-100! active:opacity-100! [&_.material-icons]:hidden group-hover:[&_.material-icons]:inline group-active:[&_.material-icons]:inline pointer-coarse:[&_.material-icons]:inline"
-          >
-            <i class="material-icons">autorenew</i>
-          </div>
-        </div>
-      }
     </div>
+    @if (!isLock) {
+      <turn-frame [owner]="id" [stand]="turnStand()" />
+    }
   </div>
-  @if (isAltitudeIndicate && math.abs(textNoteAltitude) >= 0.5) {
-    <div
-      class="flex origin-[top_left] items-center [-webkit-transform-style:preserve-3d] [border-left:2px_dashed_blanchedalmond] transform-3d"
-      [style.height.px]="math.abs(textNoteAltitude * gridSize)"
-      [ngStyle]="{
-        transform:
-          'rotateX(-90deg) translateY(' +
-          (altitude > 0 ? -altitude * gridSize : 0) +
-          'px) rotateY(' +
-          viewRotateZ() +
-          'deg)',
-      }"
-    >
-      <div class="[-webkit-transform-style:preserve-3d] transform-3d">
-        <span
-          class="absolute pl-0.5 text-[11px] font-extrabold text-[blanchedalmond] [-webkit-transform-style:preserve-3d] [text-shadow:var(--ui-elevated)_0px_0px_3px] backface-hidden transform-3d"
-          >{{ math.abs(textNoteAltitude) }}</span
-        >
-        <span
-          class="absolute transform-[rotateY(-180deg)] pl-0.5 text-[11px] font-extrabold text-[blanchedalmond] [-webkit-transform-style:preserve-3d] [text-shadow:var(--ui-elevated)_0px_0px_3px] backface-hidden transform-3d"
-          >{{ textNoteAltitude }}</span
-        >
-      </div>
-    </div>
+  @if (altitudeGuide(); as guide) {
+    <altitude-guide [owner]="id" [guide]="guide" />
   }
 </div>

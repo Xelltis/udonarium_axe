@@ -25,6 +25,7 @@ function state(partial: Partial<ChatMessageMenuState> = {}): ChatMessageMenuStat
     text: 'こんにちは',
     selectedText: '',
     isTouch: false,
+    targetNumberPin: null,
     ...partial,
   };
 }
@@ -46,10 +47,29 @@ function callbacks(): ChatMessageMenuCallbacks {
     jumpToOriginal: vi.fn(),
     copyText: vi.fn(),
     selectText: vi.fn(),
+    toggleTargetNumberPin: vi.fn(),
   };
 }
 
 describe('buildChatMessageContextMenu()', () => {
+  it("offers to set a roll as the tab's number to beat among the answers, or to take it off as that", () => {
+    const handlers = callbacks();
+    const names = (menu: { name: string }[]) => menu.map((entry) => entry.name);
+
+    const pin = buildChatMessageContextMenu(state({ targetNumberPin: 'pin' }), handlers, translate);
+    const entry = pin.find((one) => one.name === 'feature.chat.message.pinTargetNumber');
+    entry!.action!();
+    expect(handlers.toggleTargetNumberPin).toHaveBeenCalled();
+    expect(names(pin).indexOf('feature.chat.message.pinTargetNumber')).toBeLessThan(
+      names(pin).indexOf('feature.chat.message.copyText')
+    );
+
+    const unpin = buildChatMessageContextMenu(state({ targetNumberPin: 'unpin' }), callbacks(), translate);
+    expect(names(unpin)).toContain('feature.chat.message.unpinTargetNumber');
+    const none = names(buildChatMessageContextMenu(state(), callbacks(), translate));
+    expect(none.some((name) => name.includes('TargetNumber'))).toBe(false);
+  });
+
   it('offers to put a stamp on the line among the answers, to whoever may', () => {
     const handlers = callbacks();
     const names = (menu: { name: string }[]) => menu.map((entry) => entry.name);

@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
+import { TableSurfaceService } from '@axe/application/tabletop/table-surface.service';
 import { BatchService } from '@axe/application/ui/batch.service';
 import { RotationGuideService } from '@axe/application/ui/rotation-guide.service';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
@@ -22,7 +22,33 @@ class TestHostComponent {
   rotableOption = {};
 }
 
+@Component({
+  selector: 'test-nested-host',
+  template: `<div appRotable class="outer">
+    <div class="rotate-grab own"></div>
+    <div appRotable class="inner"><div class="rotate-grab inner-grab"></div></div>
+  </div>`,
+  changeDetection: ChangeDetectionStrategy.Eager,
+  imports: [RotableDirective],
+})
+class NestedHostComponent {}
+
 describe('RotableDirective', () => {
+  it('takes no press on a handle of a directive standing inside it, which is that one’s to take', () => {
+    TestBed.configureTestingModule({ imports: [NestedHostComponent], providers: [...TEST_PROVIDERS] });
+    const fixture = TestBed.createComponent(NestedHostComponent);
+    fixture.detectChanges();
+    const outer = fixture.debugElement.children[0].injector.get(RotableDirective);
+    const root = fixture.nativeElement as HTMLElement;
+    const allowed = (grab: string) => {
+      (outer as unknown as Record<string, unknown>)['grabbingElement'] = root.querySelector(grab);
+      return (outer as unknown as { isAllowedToRotate: boolean }).isAllowedToRotate;
+    };
+
+    expect(allowed('.own')).toBe(true);
+    expect(allowed('.inner-grab')).toBe(false);
+  });
+
   it('should be defined', () => {
     expect(RotableDirective).toBeDefined();
   });
@@ -89,8 +115,7 @@ describe('RotableDirective', () => {
       fixture.detectChanges();
       directive = fixture.debugElement.children[0].injector.get(RotableDirective);
       const writable = directive as unknown as Record<string, unknown>;
-      writable['tabletopObject'] = { identifier: 'piece', rotate: 0 };
-      vi.spyOn(directive as unknown as { shouldTransition(): boolean }, 'shouldTransition').mockReturnValue(true);
+      writable['tabletopObject'] = { identifier: 'piece', rotate: 30 };
       vi.spyOn(directive as unknown as { setRotate(): void }, 'setRotate').mockImplementation(() => {});
       cancelled = vi.spyOn(directive, 'cancel').mockImplementation(() => {}) as unknown as ReturnType<typeof vi.fn>;
       queued = [];
@@ -136,15 +161,17 @@ describe('RotableDirective', () => {
       directive = fixture.debugElement.children[0].injector.get(RotableDirective);
       element = fixture.nativeElement.querySelector('div') as HTMLElement;
       pointer = { x: 10, y: 0, z: 0 };
-      vi.spyOn(TestBed.inject(CoordinateService), 'convertLocalToLocal').mockImplementation(() => ({ ...pointer }));
       vi.spyOn(TestBed.inject(PointerDeviceService), 'isDragging', 'get').mockReturnValue(true);
       vi.spyOn(TestBed.inject(RolePermissionService), 'canEditTabletop').mockReturnValue(true);
       const writable = directive as unknown as Record<string, unknown>;
       writable['grabbingElement'] = element;
+      writable['turnsOnScreenAbout'] = () => ({ x: 0, y: 0 });
       writable['input'] = {
         isGrabbing: true,
         isDragging: false,
-        pointer: { x: 0, y: 0, z: 0 },
+        get pointer() {
+          return pointer;
+        },
         cancel: vi.fn(),
         destroy: vi.fn(),
       };
@@ -165,6 +192,35 @@ describe('RotableDirective', () => {
     function guide() {
       return TestBed.inject(RotationGuideService).turn();
     }
+
+    it('turns a piece the screen puts by where the pointer crosses its face at the height of its handles', () => {
+      const pointOn = vi
+        .spyOn(TestBed.inject(TableSurfaceService), 'pointOn')
+        .mockImplementation((surface, x, y) => ({ localX: 100 + x, localY: 200 + y }) as never);
+      const writable = directive as unknown as Record<string, unknown>;
+      writable['turnsOnScreenAbout'] = null;
+      writable['turnsAbout'] = () => ({ surface: 'north-wall', x: 100, y: 200, height: 30 });
+      writable['input'] = { ...(writable['input'] as object), pointer: { x: 0, y: 50, z: 0 } };
+      const laidOut = element.style.transform;
+
+      directive.onInputMove(new MouseEvent('mousemove', { cancelable: true }));
+
+      expect(pointOn).toHaveBeenCalledWith('north-wall', 0, 50, 30);
+      expect(directive.rotate).toBeCloseTo(90);
+      expect(element.style.transform).toBe(laidOut);
+    });
+
+    it('turns a part the screen puts upright by where the pointer lies round a point of the screen', () => {
+      const writable = directive as unknown as Record<string, unknown>;
+      writable['turnsOnScreenAbout'] = () => ({ x: 300, y: 200 });
+      writable['input'] = { ...(writable['input'] as object), pointer: { x: 300, y: 260, z: 0 } };
+      const laidOut = element.style.transform;
+
+      directive.onInputMove(new MouseEvent('mousemove', { cancelable: true }));
+
+      expect(directive.rotate).toBeCloseTo(90);
+      expect(element.style.transform).toBe(laidOut);
+    });
 
     it('turns freely without Alt, and says so', () => {
       moveTo(31, false);
@@ -234,6 +290,77 @@ describe('RotableDirective', () => {
 
       document.dispatchEvent(new KeyboardEvent('keyup', { key: 'Alt', cancelable: true }));
       expect(directive.rotate).toBeCloseTo(31);
+    });
+
+    it('says it is turning from the first step of a turn until the turn is broken off', () => {
+      expect(directive.turning()).toBe(false);
+
+      moveTo(31, false);
+      expect(directive.turning()).toBe(true);
+
+      directive.cancel();
+      expect(directive.turning()).toBe(false);
+    });
+
+    it('says it is turning from a first step that finds no point to turn about, and turns on the next', () => {
+      const writable = directive as unknown as Record<string, unknown>;
+      writable['turnsOnScreenAbout'] = () => null;
+      const started = vi.spyOn(directive.ondragstart, 'emit');
+
+      moveTo(31, false);
+      expect(directive.turning()).toBe(true);
+      expect(started).toHaveBeenCalledTimes(1);
+      expect(guide()).toBeNull();
+
+      writable['turnsOnScreenAbout'] = () => ({ x: 0, y: 0 });
+      (writable['input'] as { isDragging: boolean }).isDragging = true;
+      moveTo(31, false);
+      expect(started).toHaveBeenCalledTimes(1);
+      expect(guide()?.angle).toBe(31);
+    });
+
+    it('keeps Alt from the browser from the first step, but snaps nothing before a step has found the angle', () => {
+      const writable = directive as unknown as Record<string, unknown>;
+      writable['turnsOnScreenAbout'] = () => null;
+      directive.rotate = 10;
+
+      moveTo(31, false);
+      const early = new KeyboardEvent('keydown', { key: 'Alt', cancelable: true });
+      document.dispatchEvent(early);
+      expect(early.defaultPrevented).toBe(true);
+      expect(directive.rotate).toBe(10);
+      expect(guide()).toBeNull();
+      document.dispatchEvent(new KeyboardEvent('keyup', { key: 'Alt', cancelable: true }));
+
+      writable['turnsOnScreenAbout'] = () => ({ x: 0, y: 0 });
+      moveTo(31, false);
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Alt', cancelable: true }));
+      expect(directive.rotate).toBe(45);
+    });
+
+    it('takes a finger’s press on its handle as a mouse’s, and leaves one elsewhere to what it stands in', () => {
+      const handle = document.createElement('div');
+      handle.className = 'rotate-grab';
+      element.appendChild(handle);
+      const started = vi.spyOn(directive.onstart, 'emit');
+      const fingerOn = (target: HTMLElement) => {
+        const finger = new TouchEvent('touchstart', { bubbles: true, cancelable: true });
+        Object.defineProperty(finger, 'target', { value: target });
+        return finger;
+      };
+
+      const onHandle = fingerOn(handle);
+      const stopped = vi.spyOn(onHandle, 'stopPropagation');
+      directive.onInputStart(onHandle);
+      expect(started).toHaveBeenCalledTimes(1);
+      expect(stopped).toHaveBeenCalled();
+
+      const beside = fingerOn(element);
+      const passedOn = vi.spyOn(beside, 'stopPropagation');
+      directive.onInputStart(beside);
+      expect(started).toHaveBeenCalledTimes(1);
+      expect(passedOn).not.toHaveBeenCalled();
+      handle.remove();
     });
 
     it('says nothing more once the turn is let go', () => {

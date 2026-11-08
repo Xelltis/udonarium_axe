@@ -33,12 +33,12 @@ export async function centreOf(locator: Locator): Promise<Point> {
   return { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 };
 }
 
-/** Where a piece stands on the table, which a camera moved over the table leaves as it was. */
+/**
+ * Where a piece stands on its surface as `x,y,z` in table pixels, which a camera moved over the table
+ * leaves as it was.
+ */
 export async function placeOf(of: Locator): Promise<string> {
-  return of
-    .locator(':scope > div')
-    .first()
-    .evaluate((element) => (element as HTMLElement).style.transform);
+  return (await of.locator(':scope > [data-location]').first().getAttribute('data-location')) ?? '';
 }
 
 /** Waits for a piece to come to rest, as one just put down glides to its cell. */
@@ -47,7 +47,7 @@ export async function settle(of: Locator) {
   await expect
     .poll(
       async () => {
-        const now = JSON.stringify(await of.locator('img.image').boundingBox());
+        const now = JSON.stringify(await of.locator('[data-part="picture"]').boundingBox());
         const still = now === last;
         last = now;
         return still;
@@ -72,7 +72,7 @@ export async function pointsOnPicture(
         [...document.querySelectorAll('game-character')].find((el) =>
           el.querySelector('[data-testid="piece-name"]')?.textContent?.includes(name)
         );
-      const pictureOf = (el: Element | undefined) => el?.querySelector<HTMLImageElement>('img.image');
+      const pictureOf = (el: Element | undefined) => el?.querySelector<HTMLImageElement>('[data-part="picture"]');
       const alphaAt = (picture: HTMLImageElement, x: number, y: number) => {
         let at = { x: -1, y: -1 };
         const listener = (event: Event) => {

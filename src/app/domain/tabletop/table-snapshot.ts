@@ -6,6 +6,7 @@ import {
   TriggerBlock,
 } from '@axe/domain/tabletop/function-paint';
 import { GridType } from '@axe/domain/tabletop/game-table';
+import { GroundChunkData } from '@axe/domain/tabletop/ground/ground-chunk-data';
 
 /**
  * A table read off as plain counts and keys.
@@ -32,4 +33,6 @@ export interface TableSnapshot {
   moveCostBlocks: readonly MoveCostBlock[];
   /** The looks laid over the ground, which the dangerous-ground brush puts down. */
   ambienceBlocks: readonly AmbienceBlock[];
+  /** The chunks of raised ground the table keeps; none where it is flat. */
+  groundChunks?: readonly GroundChunkData[];
 }

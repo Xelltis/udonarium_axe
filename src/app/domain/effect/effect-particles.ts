@@ -25,7 +25,8 @@ import {
   seededRandom,
 } from '@axe/domain/effect/particles/shared';
 import { EXCALIBUR_SWING_END, slashHits } from '@axe/domain/effect/timeline/blade';
-import { ARROW_RAIN_FALL, BALLISTIC_DIVE_END, projectileTiming } from '@axe/domain/effect/timeline/flight';
+import { BALLISTIC_DIVE_END } from '@axe/domain/effect/timeline/flight';
+import { ARROW_RAIN_FALL, projectileTiming } from '@axe/domain/effect/timeline/flight-timing';
 
 /**
  * The particles that stay within the billboard, laid additively onto a canvas to glow.

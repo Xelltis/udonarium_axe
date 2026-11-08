@@ -1,3 +1,4 @@
+import { PercentPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -53,6 +54,7 @@ import {
   waterDirtOf,
   waterFlowDirectionOf,
   waterFlowSpeedOf,
+  waterIceOf,
   waterLeavesOf,
   waterTurbidityOf,
 } from '@axe/domain/tabletop/function-paint';
@@ -72,6 +74,7 @@ import {
   waterPresetOf,
 } from '@axe/domain/tabletop/water/water-presets';
 import { MAX_SURFACE_CELLS } from '@axe/domain/tabletop/water/water-surface';
+import { MapEditorObjectPaintComponent } from '@axe/features/map-editor/editor/map-editor-object-paint.component';
 import { EditorTool, MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 import { TextureIntakeService } from '@axe/features/map-editor/editor/texture-intake.service';
 import { SwitchDefinitionFieldsComponent } from '@axe/features/tabletop/board-switch/switch-definition-fields.component';
@@ -95,7 +98,7 @@ const MOVE_COST_ROAD = -1;
   selector: 'map-editor-function-paint',
   templateUrl: './map-editor-function-paint.component.html',
   host: { class: 'contents' },
-  imports: [FormsModule, TranslocoModule, SwitchDefinitionFieldsComponent],
+  imports: [FormsModule, PercentPipe, TranslocoModule, SwitchDefinitionFieldsComponent, MapEditorObjectPaintComponent],
 })
 export class MapEditorFunctionPaintComponent {
   protected readonly state = inject(MapEditorState);
@@ -192,6 +195,14 @@ export class MapEditorFunctionPaintComponent {
   /** Sets how fast the water brush paints the water flowing, from a percentage. */
   protected setWaterFlowSpeed(percent: unknown): void {
     this.setHazardPaint({ flowSpeed: waterFlowSpeedOf(Number(percent) / 100) });
+  }
+
+  /** How much of the water the water brush paints frozen over, as a percentage. */
+  protected readonly waterIcePercent = computed(() => Math.round(this.state.functionSpec().hazard.ice * 100));
+
+  /** Sets how much of the water the water brush paints frozen over, from a percentage. */
+  protected setWaterIce(percent: unknown): void {
+    this.setHazardPaint({ ice: waterIceOf(Number(percent) / 100) });
   }
 
   /** The ways the water brush can paint the water flowing. */

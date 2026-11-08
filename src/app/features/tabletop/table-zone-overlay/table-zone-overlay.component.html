@@ -1,73 +1,20 @@
 @if (model().zones.length > 0) {
-  <svg
-    class="pointer-events-none absolute top-0 left-0 overflow-visible backface-hidden transform-3d"
-    data-testid="zone-overlay"
-    [attr.width]="extent().width"
-    [attr.height]="extent().height"
-    [style.transform]="zTransform"
-  >
+  <ul hidden data-testid="zone-overlay">
     @for (zone of model().zones; track zone.id) {
-      <g
+      <li
         data-testid="zone-mark"
         [attr.data-zone]="zone.id"
         [attr.data-overflowing]="zone.overflowing ? '' : null"
         [attr.data-forming]="zone.forming ? '' : null"
-        [class.text-red-500]="zone.overflowing"
-        [class.text-amber-400]="!zone.overflowing"
+        [attr.data-x]="zone.cx"
+        [attr.data-y]="zone.cy"
+        [attr.data-reach]="zone.reach"
       >
-        @if (zone.square) {
-          <rect
-            [attr.x]="zone.cx - zone.reach"
-            [attr.y]="zone.cy - zone.reach"
-            [attr.width]="zone.reach * 2"
-            [attr.height]="zone.reach * 2"
-            fill="currentColor"
-            fill-opacity="0.12"
-            stroke="currentColor"
-            stroke-width="3"
-            [attr.stroke-dasharray]="zone.forming ? '12 8' : null"
-          />
-        } @else {
-          <circle
-            [attr.cx]="zone.cx"
-            [attr.cy]="zone.cy"
-            [attr.r]="zone.reach"
-            fill="currentColor"
-            fill-opacity="0.12"
-            stroke="currentColor"
-            stroke-width="3"
-            [attr.stroke-dasharray]="zone.forming ? '12 8' : null"
-          />
-        }
-        <circle [attr.cx]="zone.cx" [attr.cy]="zone.cy" r="4" fill="currentColor" />
-        @if (zone.label) {
-          <text
-            [attr.x]="zone.cx"
-            [attr.y]="zone.cy - zone.reach - 8"
-            text-anchor="middle"
-            font-size="18"
-            font-weight="700"
-            fill="currentColor"
-            stroke="black"
-            stroke-width="3"
-            paint-order="stroke"
-          >
-            {{ zone.label }}
-          </text>
-        }
-      </g>
+        {{ zone.label }}
+      </li>
     }
     @for (mark of model().inside; track mark.id) {
-      <circle
-        data-testid="zone-inside-mark"
-        [attr.cx]="mark.x"
-        [attr.cy]="mark.y"
-        [attr.r]="ringPx()"
-        fill="none"
-        stroke="#38bdf8"
-        stroke-width="2"
-        stroke-dasharray="6 5"
-      />
+      <li data-testid="zone-inside-mark" [attr.data-x]="mark.x" [attr.data-y]="mark.y"></li>
     }
-  </svg>
+  </ul>
 }

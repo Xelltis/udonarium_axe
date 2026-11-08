@@ -12,12 +12,14 @@ import { asShownTo, ShownTo } from '@axe/domain/tabletop/shown-to';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
 import {
   DEFAULT_DIRT,
+  DEFAULT_ICE,
   DEFAULT_LEAVES,
   DEFAULT_SURFACE_CELLS,
   DEFAULT_TURBIDITY,
   dirtOf,
   flowDirectionOf,
   flowSpeedOf,
+  iceOf,
   leavesOf,
   surfaceCellsOf,
   turbidityOf,
@@ -87,6 +89,11 @@ export class TableAmbience extends TabletopObject {
   @SyncVar() flowSpeed: number = 0;
   /** Which way the water flows, in degrees clockwise from the top of the table. */
   @SyncVar() flowDirection: number = 0;
+  /**
+   * How much of the water's surface is frozen, from 0 for open water to 1 for ice over all of it.
+   * Only water reads it: frozen, it is drawn as ice, pale and still, rather than as water.
+   */
+  @SyncVar() iceCover: number = DEFAULT_ICE;
 
   /** How many grid cells wide the area is, kept in its common data. */
   get width(): number {
@@ -142,6 +149,11 @@ export class TableAmbience extends TabletopObject {
   /** Which way the water flows, with an empty or unreadable value read as towards the top. */
   get flowHeading(): number {
     return flowDirectionOf(this.flowDirection);
+  }
+
+  /** How much of the water is frozen over, with an empty or unreadable value read as open water. */
+  get ice(): number {
+    return iceOf(this.iceCover);
   }
 
   /** The kind of effect, with an unknown stored kind read as swamp. */

@@ -1,0 +1,80 @@
+@let now = fields();
+<div class="flex items-center gap-1.5 text-[0.82em]">
+  <span class="text-ui-muted w-[5em] shrink-0 text-[0.85em] whitespace-nowrap">{{
+    'ui.pieceModel.model' | transloco
+  }}</span>
+  <select
+    class="bg-ui-input border-ui-border-input text-ui-text rounded-ui-sm min-w-0 flex-1 border border-solid px-1.25 py-0.5 text-[0.82em]"
+    data-testid="piece-model"
+    [ngModel]="now.identifier"
+    (ngModelChange)="choose($event)"
+  >
+    <option [ngValue]="''">{{ 'ui.pieceModel.none' | transloco }}</option>
+    @for (model of models(); track model.identifier) {
+      <option [ngValue]="model.identifier">{{ model.name }}</option>
+    }
+  </select>
+  <label
+    class="border-ui-accent text-ui-accent hover:bg-ui-accent-bg inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-xs border border-solid bg-transparent px-2 py-0.5 text-[0.78em] whitespace-nowrap"
+  >
+    {{ 'ui.pieceModel.read' | transloco }}
+    <input
+      class="hidden"
+      type="file"
+      accept=".glb,model/gltf-binary"
+      data-testid="piece-model-file"
+      (change)="read($event)"
+    />
+  </label>
+</div>
+@if (now.identifier) {
+  <div class="flex items-center gap-1.5 text-[0.82em]">
+    <span class="text-ui-muted w-[5em] shrink-0 text-[0.85em] whitespace-nowrap">{{
+      'ui.pieceModel.scale' | transloco
+    }}</span>
+    <input
+      class="bg-ui-input border-ui-border-input text-ui-text rounded-ui-sm w-[5em] border border-solid px-1.25 py-0.5 text-right text-[0.82em]"
+      type="number"
+      min="0.1"
+      max="10"
+      step="0.1"
+      data-testid="piece-model-scale"
+      [ngModel]="now.scale"
+      (change)="setScale($any($event.target).value)"
+    />
+    <span class="text-ui-muted w-[3em] shrink-0 text-right text-[0.85em] whitespace-nowrap">{{
+      'ui.pieceModel.turn' | transloco
+    }}</span>
+    <input
+      class="bg-ui-input border-ui-border-input text-ui-text rounded-ui-sm w-[5em] border border-solid px-1.25 py-0.5 text-right text-[0.82em]"
+      type="number"
+      step="15"
+      data-testid="piece-model-turn"
+      [ngModel]="now.turn"
+      (change)="setTurn($any($event.target).value)"
+    />
+    <span class="text-ui-muted shrink-0 text-[0.78em]">°</span>
+  </div>
+  <div class="flex items-center gap-1.5 text-[0.82em]">
+    <span class="text-ui-muted w-[5em] shrink-0 text-[0.85em] whitespace-nowrap">{{
+      'ui.pieceModel.motions' | transloco
+    }}</span>
+    <input
+      class="bg-ui-input border-ui-border-input text-ui-text rounded-ui-sm min-w-0 flex-1 border border-solid px-1.25 py-0.5 text-[0.82em]"
+      type="text"
+      data-testid="piece-model-idle"
+      [placeholder]="'ui.pieceModel.idle' | transloco"
+      [ngModel]="now.idle"
+      (change)="setIdle($any($event.target).value)"
+    />
+    <input
+      class="bg-ui-input border-ui-border-input text-ui-text rounded-ui-sm min-w-0 flex-1 border border-solid px-1.25 py-0.5 text-[0.82em]"
+      type="text"
+      data-testid="piece-model-walk"
+      [placeholder]="'ui.pieceModel.walk' | transloco"
+      [ngModel]="now.walk"
+      (change)="setWalk($any($event.target).value)"
+    />
+  </div>
+}
+<p class="text-ui-dim m-0 text-[0.72em]">{{ 'ui.pieceModel.hint' | transloco }}</p>

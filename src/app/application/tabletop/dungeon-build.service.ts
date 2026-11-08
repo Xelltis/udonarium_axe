@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { BundledModelIntakeService } from '@axe/application/tabletop/bundled-model-intake.service';
 import { ImageStorage } from '@axe/core/storage/image-storage';
 import { delay } from '@axe/core/util/delay';
 import { GameCharacter } from '@axe/domain/character/game-character';
@@ -16,6 +17,8 @@ import {
 import { DungeonPoint } from '@axe/domain/tabletop/dungeon/dungeon-layout';
 import { cellCenterOf, cellGridOf, cellIndexOf } from '@axe/domain/tabletop/fog/cell-grid';
 import { GameTable, GridType } from '@axe/domain/tabletop/game-table';
+import { ensureGroundFieldOn } from '@axe/domain/tabletop/ground/ground-field';
+import { groundChunksOfRaster, GroundRaster } from '@axe/domain/tabletop/ground/ground-raster';
 import { DEFAULT_HAZARD_ELEMENT, hazardPresetOf } from '@axe/domain/tabletop/hazard-presets';
 import { LightSource } from '@axe/domain/tabletop/light-source';
 import {
@@ -28,12 +31,15 @@ import {
   MapMood,
   MapPaint,
   MapSize,
+  MapSlowGround,
   MapTrap,
 } from '@axe/domain/tabletop/map-blocks';
 import { blockOrigin, MapGrid, tableSizeFor } from '@axe/domain/tabletop/map-grid';
 import { cornerShiftOf } from '@axe/domain/tabletop/move/piece-on-grid';
+import { isBundledModelName } from '@axe/domain/tabletop/placeable-models';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TableMoveCost } from '@axe/domain/tabletop/table-move-cost';
+import { TableSkyKind } from '@axe/domain/tabletop/table-sky';
 import { TableTrigger } from '@axe/domain/tabletop/table-trigger';
 import { DoorStyle, Terrain, TerrainViewState } from '@axe/domain/tabletop/terrain';
 import { trapPresetOf } from '@axe/domain/tabletop/trap-presets';
@@ -143,6 +149,13 @@ export interface DungeonBuildOptions {
    * those are is worked out from the layout before the building starts.
    */
   muster?: readonly MusterStand[];
+  /** How high the ground of the table is raised, where the map raises it. Left out, it lies flat. */
+  ground?: GroundRaster | null;
+  /**
+   * What the table shows past its board where the camera looks over it: the sky that turns with the
+   * story's clock over open country. Left out, the table's background picture, as under a roof of rock.
+   */
+  skyKind?: TableSkyKind;
 }
 
 /** One piece and the cell of the finished map it is to be standing on. */
@@ -166,6 +179,7 @@ export interface DungeonBuildResult {
 @Injectable({ providedIn: 'root' })
 export class DungeonBuildService {
   private readonly imageStorage = inject(ImageStorage);
+  private readonly bundledModels = inject(BundledModelIntakeService);
   private readonly t = inject(TRANSLATE_FN);
 
   /** Register a bundled picture once and hand back the identifier a terrain stores. */
@@ -211,10 +225,18 @@ export class DungeonBuildService {
 
     const grid: MapGrid = { type: options.gridType ?? GridType.SQUARE, sizePx: GRID_SIZE };
     const table = this.createTable(size, mood, options, grid);
+    if (options.ground) this.raiseGround(table, options.ground);
 
+    const models = await this.bundledModels.identifiersOf(
+      blocks.blocks.flatMap((block) => (block.model && isBundledModelName(block.model) ? [block.model] : []))
+    );
     let done = 0;
     for (const block of blocks.blocks) {
-      table.appendChild(this.createTerrain(block, { wallSide, wallTop }, options.wallHeight, grid));
+      const terrain = this.createTerrain(block, { wallSide, wallTop }, options.wallHeight, grid);
+      table.appendChild(terrain);
+      const model = block.model ? models.get(block.model) : '';
+      if (model) terrain.modelIdentifier = model;
+      if (block.modelTurn) terrain.modelTurn = String(block.modelTurn);
       done++;
       if (done % CHUNK_SIZE === 0) {
         onProgress?.(done, blocks.blocks.length);
@@ -225,6 +247,7 @@ export class DungeonBuildService {
 
     this.layAmbiences(table, blocks.ambiences, grid);
     this.layHazards(table, blocks.paint);
+    this.laySlowGround(table, blocks.slows ?? []);
     this.setTraps(table, blocks.traps);
     this.standLights(table, blocks.lights, options.wallHeight, grid);
     this.musterParty(table, options.muster ?? []);
@@ -249,8 +272,17 @@ export class DungeonBuildService {
     table.weatherKind = mood.weatherKind;
     table.weatherDensity = mood.weatherDensity;
     table.fogEnabled = options.fogEnabled ?? false;
+    table.skyKind = options.skyKind ?? '';
     table.initialize();
     return table;
+  }
+
+  /** Raises the ground of the table as the map raises it, keeping only the chunks it raises. */
+  private raiseGround(table: GameTable, raster: GroundRaster): void {
+    const chunks = groundChunksOfRaster(raster);
+    if (chunks.length < 1) return;
+    const field = ensureGroundFieldOn(table);
+    for (const chunk of chunks) field.writeChunk(chunk);
   }
 
   /**
@@ -330,7 +362,14 @@ export class DungeonBuildService {
         const acrossX = block.across === 'x';
         const width = acrossX ? DOOR_THICKNESS : rect.w;
         const depth = acrossX ? rect.h : DOOR_THICKNESS;
-        const terrain = Terrain.create(name, width, depth, wallHeight, door, block.disguised ? images.wallTop : door);
+        const terrain = Terrain.create(
+          name,
+          width,
+          depth,
+          block.height ?? wallHeight,
+          door,
+          block.disguised ? images.wallTop : door
+        );
         terrain.mode = TerrainViewState.ALL;
         terrain.doorStyle = block.doorStyle ?? DoorStyle.SWING;
         if (block.doorMirrored) terrain.doorMirrored = true;
@@ -345,7 +384,7 @@ export class DungeonBuildService {
         const width = block.footprint?.w ?? rect.w;
         const depth = block.footprint?.d ?? rect.h;
         const terrain = Terrain.create(name, width, depth, block.height ?? 1, side, top);
-        terrain.mode = TerrainViewState.ALL;
+        terrain.mode = block.floorOnly ? TerrainViewState.FLOOR : TerrainViewState.ALL;
         if (block.altitude) terrain.altitude = block.altitude;
         if (block.rotate) terrain.rotate = block.rotate;
         return terrain;
@@ -389,6 +428,14 @@ export class DungeonBuildService {
         patch.rect.h
       );
       ambience.ambienceDensity = patch.density;
+      if (patch.water) {
+        ambience.surfaceHeight = patch.water.surface;
+        ambience.ambienceColor = patch.water.color;
+        ambience.turbidity = patch.water.turbidity;
+        ambience.dirtiness = patch.water.dirt;
+        ambience.floatingLeaves = patch.water.leaves;
+        ambience.iceCover = patch.water.ice;
+      }
       ambience.isLock = true;
       const at = blockOrigin(patch.rect, grid);
       ambience.location = { name: 'table', x: at.x, y: at.y };
@@ -405,6 +452,21 @@ export class DungeonBuildService {
    * into the floor; what is left is the going and the harm, which is what tells a pool of
    * lava from a red patch of floor.
    */
+  /** Ground slow to cross and nothing worse, as a field of wheat: dear to walk, which the table shows. */
+  private laySlowGround(table: GameTable, slows: readonly MapSlowGround[]): void {
+    for (const patch of slows) {
+      const dear = new TableMoveCost();
+      dear.col = patch.rect.x;
+      dear.row = patch.rect.y;
+      dear.width = patch.rect.w;
+      dear.height = patch.rect.h;
+      dear.extraCost = patch.extraCost;
+      dear.color = patch.color;
+      dear.initialize();
+      table.appendChild(dear);
+    }
+  }
+
   private layHazards(table: GameTable, paint: readonly MapPaint[]): void {
     for (const patch of paint) {
       if (patch.kind !== 'hazard' || !patch.hazard) continue;

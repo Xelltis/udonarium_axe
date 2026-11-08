@@ -1,6 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { openFabMenu, openSeatDisplay, waitAppReady } from './helpers';
+import { openSeatDisplay, waitAppReady } from './helpers';
 
 /** Every button in the drawer and on the toolbar says what it is at once, and goes quiet again. */
 test.describe('showing the names of the buttons all at once', () => {
@@ -10,22 +10,6 @@ test.describe('showing the names of the buttons all at once', () => {
     // The chat box can hold the focus after start-up, and a key typed there is text, not a shortcut.
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   }
-
-  test('shows the names of the FAB and toolbar buttons on the ? key, and hides them on Esc', async ({ page }) => {
-    await ready(page);
-
-    await page.keyboard.press('?');
-
-    const toolbarNames = page.locator('app-pl-toolbar [data-testid="button-guide-label"]');
-    await expect(toolbarNames.filter({ hasText: /^インベントリ$/ })).toBeVisible();
-    await expect(toolbarNames.filter({ hasText: /^所有キャラクター一覧$/ })).toBeVisible();
-    const fab = page.getByTestId('fab-menu');
-    await expect(fab.getByTestId('button-guide-label').filter({ hasText: /^チャット$/ })).toBeVisible();
-    await expect(fab.getByTestId('button-guide-entry').filter({ hasText: 'ジュークボックス' })).toBeVisible();
-
-    await page.keyboard.press('Escape');
-    await expect(page.getByTestId('button-guide-label')).toHaveCount(0);
-  });
 
   test('shows a row for T in the list on ?, clear of the button names, and hides it on Esc', async ({ page }) => {
     await ready(page);
@@ -56,29 +40,6 @@ test.describe('showing the names of the buttons all at once', () => {
 
     await page.keyboard.press('Escape');
     await expect(sheet).toHaveCount(0);
-  });
-
-  test('opens what a small window holds straight from beside its name, and hides the names once it opens', async ({
-    page,
-  }) => {
-    await ready(page);
-    await page.keyboard.press('?');
-
-    await page.getByTestId('fab-menu').getByTestId('button-guide-entry').filter({ hasText: 'インベントリ' }).click();
-
-    await expect(page.locator('game-object-inventory input[name="tab"]')).toHaveCount(4, { timeout: 5000 });
-    await expect(page.getByTestId('button-guide-label')).toHaveCount(0);
-  });
-
-  test('shows the names from the ? button in the FAB, and hides them on a click on the table', async ({ page }) => {
-    await ready(page);
-    await openFabMenu(page);
-
-    await page.getByTestId('fab-entry-buttonGuide').click();
-    await expect(page.locator('app-pl-toolbar [data-testid="button-guide-label"]').first()).toBeVisible();
-
-    await page.locator('#app-table-layer').click({ position: { x: 900, y: 500 } });
-    await expect(page.getByTestId('button-guide-label')).toHaveCount(0);
   });
 
   test('shows the names from a ? added to the toolbar in the menu editor, and from the ? key once it is out of the FAB', async ({

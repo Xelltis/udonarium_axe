@@ -109,8 +109,8 @@ E2Eは載せていない。PlaywrightはCIだと5ブラウザぶん走る設定�
 1回に何十分もかかる。手元で`npm run e2e`を回す。
 
 演出の見た目は`e2e/visual/`のスクリーンショット比較で守る。
-`npx playwright test --project=visual`が`e2e/visual/__screenshots__/`の基準画像と
-比べる。時計を止め、アニメーションを終端まで送ってから撮るので、同じ機械なら同じ絵になる。
+`npx playwright test --project=visual-webgl2`と`--project=visual-webgpu`が、卓をWebGL2とWebGPUで描いて
+`e2e/visual/__screenshots__/webgl2/`と`webgpu/`の基準画像と比べる。2つは順に1つずつ流す。時計を止め、アニメーションを終端まで送ってから撮るので、同じ機械なら同じ絵になる。
 基準画像は手元のChromiumで作ってコミットし、CIでは回さない。
 見た目を変えるつもりの変更で差分が出たら`--update-snapshots`で撮り直し、何がどう変わったかを
 コミット本文に書く。差分の理由が言えないなら、それは退行として直す。

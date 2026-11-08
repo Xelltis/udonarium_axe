@@ -1,20 +1,7 @@
 import { BackdropPlacement } from '@axe/application/ui/backdrop-frame.service';
 import { BackdropCamera, backdropOffset } from '@axe/domain/tabletop/backdrop-offset';
-import {
-  backgroundScrollAnimation,
-  backgroundScrollMargin,
-  backgroundTileSize,
-} from '@axe/domain/tabletop/background-scroll';
+import { backgroundScrollAnimation, backgroundTileSize } from '@axe/domain/tabletop/background-scroll';
 import { TableBackgroundLayer } from '@axe/domain/tabletop/table-background-layer';
-
-/** One picture drifting under or over the board, ready to be drawn. */
-export interface BackgroundLayerView {
-  readonly identifier: string;
-  readonly imageIdentifier: string;
-  readonly imageUrl: string;
-  readonly style: Record<string, string>;
-  readonly drifts: boolean;
-}
 
 /** One backdrop as the screen behind the table draws it. */
 export interface BackdropLayerView {
@@ -54,67 +41,6 @@ const MAX_BACKDROP_TILE_PX = { width: 4096, height: 4096 };
  * camera, so the fade goes up and down with the picture as the view tilts.
  */
 const BACKDROP_EDGE_FADE = 'linear-gradient(to bottom, transparent 0%, #000 15%, #000 85%, transparent 100%)';
-
-/**
- * What one run of layers under or over the board is drawn as, each tile held to the size the board
- * is drawn at.
- *
- * Nothing here says how deep a layer sits. The wrapper hides what overflows it, which flattens
- * everything inside into one plane, so within a run it is document order that decides — and
- * that is already back to front. The run as a whole carries the depth.
- *
- * One box a layer, whichever way it drifts. Across runs on `transform` and down runs on
- * `translate`, so the two never write over each other and a layer going both ways still asks
- * the machine for the one surface to composite.
- */
-export function backgroundLayerViews(
-  layers: readonly TableBackgroundLayer[],
-  drawing: LayerDrawing,
-  board: { width: number; height: number }
-): BackgroundLayerView[] {
-  return layers.map((layer) => {
-    const tile = backgroundTileSize(drawing.naturalSizes.get(layer.imageIdentifier) ?? null, layer.scale, board);
-    const x = drawing.moving ? backgroundScrollAnimation(layer.speedX, tile?.width ?? 0) : null;
-    const y = drawing.moving ? backgroundScrollAnimation(layer.speedY, tile?.height ?? 0) : null;
-    const scrollsX = !!x && x.durationSeconds > 0;
-    const scrollsY = !!y && y.durationSeconds > 0;
-    // Spare cloth for the drift to pull in, on the side it is heading for and nowhere else.
-    const margin = backgroundScrollMargin(tile, scrollsX, scrollsY);
-    const imageUrl = drawing.imageUrlOf(layer.imageIdentifier);
-
-    return {
-      identifier: layer.identifier,
-      imageIdentifier: layer.imageIdentifier,
-      imageUrl,
-      style: {
-        inset: `0px ${-margin.x}px ${-margin.y}px 0px`,
-        'background-image': `url(${imageUrl})`,
-        'background-repeat': 'repeat',
-        ...(tile ? { 'background-size': `${tile.width}px ${tile.height}px` } : {}),
-        // Anything short of whole makes a group of its own to composite, so say it only when
-        // the layer actually asked to be seen through.
-        ...(layer.opacity < 1 ? { opacity: `${layer.opacity}` } : {}),
-        ...(x && scrollsX
-          ? {
-              '--bg-layer-x-name': 'bgLayerScrollX',
-              '--bg-layer-x-duration': `${x.durationSeconds}s`,
-              '--bg-layer-x-direction': x.reversed ? 'reverse' : 'normal',
-              '--bg-layer-tile-w': `${tile?.width ?? 0}px`,
-            }
-          : {}),
-        ...(y && scrollsY
-          ? {
-              '--bg-layer-y-name': 'bgLayerScrollY',
-              '--bg-layer-y-duration': `${y.durationSeconds}s`,
-              '--bg-layer-y-direction': y.reversed ? 'reverse' : 'normal',
-              '--bg-layer-tile-h': `${tile?.height ?? 0}px`,
-            }
-          : {}),
-      },
-      drifts: scrollsX || scrollsY,
-    };
-  });
-}
 
 /**
  * What the backdrops behind the table are drawn as, back to front.

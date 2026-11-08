@@ -65,6 +65,7 @@ describe('PanelWindowService', () => {
               isCompact: signal(screen.isCompact),
               isTouch: signal(screen.isTouch),
               hasFinePointer: signal(screen.hasFinePointer),
+              touchOnly: signal(screen.isTouch && !screen.hasFinePointer),
             },
           },
         ],
@@ -139,6 +140,17 @@ describe('PanelWindowService', () => {
 
       expect(made).toHaveBeenCalledWith('stand-in-panel');
       expect(made).toHaveBeenCalledWith('p');
+    });
+
+    it("leaves the window's body nothing to be scrolled by, as the app's own has none", () => {
+      open((layer) => layer.createComponent(StandInPanelComponent));
+
+      const sheets = [...opened.document.head.querySelectorAll('style')].map((sheet) => sheet.textContent ?? '');
+      const last = sheets[sheets.length - 1];
+
+      expect(last).toMatch(/html, body \{[^}]*overflow: hidden/);
+      expect(last).toMatch(/\bbody \{[^}]*overflow: clip/);
+      expect(last.lastIndexOf('overflow: clip')).toBeGreaterThan(last.lastIndexOf('overflow: hidden'));
     });
 
     it('carries a sheet the app adds after the window opened over to the window, and takes it away again', async () => {

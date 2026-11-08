@@ -1,6 +1,8 @@
 import type { ChatMessage } from '@axe/domain/chat/chat-message';
 import type { ChatTab } from '@axe/domain/chat/chat-tab';
+import { canRoleSpeakTab } from '@axe/domain/chat/chat-tab-permission';
 import { rollTargetSuffix } from '@axe/domain/dice/roll-target-suffix';
+import { canRoleEdit, type PeerRole } from '@axe/domain/peer/peer-role';
 
 /**
  * The reference a line fills in with the number it has to beat: what was last rolled against the
@@ -53,30 +55,146 @@ export function rollTotalOf(text: string): number | null {
 
 /**
  * The number to beat for a speaker in a tab: the newest answer rolled at them with `t:`, or else
- * the newest one rolled at nobody by someone else. An answer kept secret, or one they may not see,
- * is passed over, and so is one rolled at somebody else, which is that one's number to beat. Null
- * where none is found.
+ * the answer set as the tab's number to beat where it is newer, or else the newest one rolled at
+ * nobody by someone else. An answer kept secret, or one they may not see, is passed over, and so is
+ * one rolled at somebody else, which is that one's number to beat, and one to a line that beat a
+ * number of its own, as a resistance does, which is nobody's number to beat. Null where none is
+ * found.
  */
 export function findTargetNumber(tab: ChatTab, speaker: TargetNumberSpeaker): number | null {
+  return findTargetNumberSource(tab, speaker)?.total ?? null;
+}
+
+/** Where the number to beat was found: rolled at the speaker, set as the tab's, or rolled at nobody by someone else. */
+export type TargetNumberFrom = 'aimed' | 'pinned' | 'byOthers';
+
+/** The number to beat for a speaker, with the answer it was read from and how that answer was found. */
+export interface TargetNumberSource {
+  readonly total: number;
+  readonly answer: ChatMessage;
+  readonly from: TargetNumberFrom;
+}
+
+/** The number to beat for a speaker in a tab, with where it was found; see {@link findTargetNumber}. */
+export function findTargetNumberSource(tab: ChatTab, speaker: TargetNumberSpeaker): TargetNumberSource | null {
   const aims = aimsAt(speaker.name);
+  const pinned = `${tab.pinnedTargetNumber ?? ''}`;
   const messages = tab.chatMessages;
-  let byOthers: number | null = null;
+  let byOthers: TargetNumberSource | null = null;
   for (let index = messages.length - 1; index >= 0; index--) {
     const message = messages[index];
     if (!message.isDicebot || message.isSecret || !message.isDisplayable) continue;
     const text = `${message.text ?? ''}`.trimEnd();
     const total = rollTotalOf(text);
     if (total == null) continue;
-    if (aims.some((aim) => text.endsWith(aim))) return total;
-    if (byOthers == null && aimOf(text) == null && !rolledBy(tab, message, speaker)) byOthers = total;
+    if (aims.some((aim) => text.endsWith(aim)) || aimedAmong(tab, message, speaker)) {
+      return { total, answer: message, from: 'aimed' };
+    }
+    if (pinned.length > 0 && message.identifier === pinned) return { total, answer: message, from: 'pinned' };
+    if (byOthers == null && aimOf(text) == null && !rolledBy(tab, message, speaker) && !answeredOne(tab, message)) {
+      byOthers = { total, answer: message, from: 'byOthers' };
+    }
   }
   return byOthers;
+}
+
+/**
+ * Whether a line is an answer that may be set as its tab's number to beat: a roll shown to all,
+ * neither kept secret nor whispered, that comes to a number.
+ */
+export function canPinAsTargetNumber(message: ChatMessage): boolean {
+  return message.isDicebot && !message.isSecret && !message.isDirect && rollTotalOf(`${message.text ?? ''}`) != null;
+}
+
+/**
+ * Whether a reader of a role may set a tab's number to beat or take it off, which changes the tab
+ * for everyone: anyone but a guest, in a tab they may speak in.
+ */
+export function mayPinTargetNumber(tab: ChatTab, role: PeerRole): boolean {
+  return canRoleEdit(role) && canRoleSpeakTab(tab, role);
+}
+
+/** An answer a reader may pick as the number to beat for a line they are about to send, with what it came to. */
+export interface TargetNumberChoice {
+  readonly total: number;
+  readonly answer: ChatMessage;
+}
+
+/**
+ * The newest answers in a tab a reader may pick as the number to beat instead of the one found,
+ * newest first and no more than `count`: those they may see that could be set as the tab's number
+ * to beat.
+ */
+export function targetNumberChoices(tab: ChatTab, count: number): TargetNumberChoice[] {
+  const choices: TargetNumberChoice[] = [];
+  const messages = tab.chatMessages;
+  for (let index = messages.length - 1; index >= 0 && choices.length < count; index--) {
+    const choice = targetNumberChoiceOf(messages[index]);
+    if (choice) choices.push(choice);
+  }
+  return choices;
+}
+
+/** An answer as a number to beat a reader may pick, where it is one they may see that could be set as the tab's; null otherwise. */
+export function targetNumberChoiceOf(answer: ChatMessage): TargetNumberChoice | null {
+  if (!answer.isDisplayable || !canPinAsTargetNumber(answer)) return null;
+  const total = rollTotalOf(`${answer.text ?? ''}`);
+  return total == null ? null : { total, answer };
+}
+
+/** Who rolled an answer, from the name the dice bot answered under, or that name as it is where it says no roller. */
+export function rollerOf(answer: ChatMessage): string {
+  const name = `${answer.name ?? ''}`;
+  return /^<(?:Secret-)?BCDice：(.*)>$/.exec(name)?.[1] ?? name;
+}
+
+/**
+ * The roll an answer was rolled for, as the dice bot wrote it in brackets after the system's name,
+ * `(2D6+5)` in `DiceBot : (2D6+5) → 12`; empty where it wrote none.
+ */
+export function rolledOf(answer: ChatMessage): string {
+  return /^[^\n(]*?:\s*\(([^()\n]+)\)/.exec(`${answer.text ?? ''}`)?.[1] ?? '';
+}
+
+/**
+ * The number to beat for a speaker in a tab, looked for the first time it is asked for and kept: a
+ * line and every copy of it aimed at a target are filled in with the same number.
+ */
+export function targetNumberOnce(tab: ChatTab, speaker: TargetNumberSpeaker): () => number | null {
+  let found: number | null | undefined;
+  return () => {
+    if (found === undefined) found = findTargetNumber(tab, speaker);
+    return found;
+  };
 }
 
 /** The ways the name of somebody rolled at stands after an answer: as it is, or as a room server takes it. */
 function aimsAt(name: string): string[] {
   if (name.length < 1) return [];
   return [...new Set([` [${name}]`, rollTargetSuffix(name) ?? ''])].filter((aim) => aim.length > 0);
+}
+
+/**
+ * Whether an answer was rolled at the speaker among everyone a line was aimed at all at once, as
+ * `t:範囲` aims it: the line it answers keeps who they were, the names after the answer being only
+ * what fitted in its brackets.
+ */
+function aimedAmong(tab: ChatTab, answer: ChatMessage, speaker: TargetNumberSpeaker): boolean {
+  if (speaker.identifier.length < 1) return false;
+  const line = tab.findRollSource(answer);
+  return line != null && aimedTogetherAt(line).includes(speaker.identifier);
+}
+
+/** The identifiers of the pieces a line was aimed at all at once; none for any other line, or a list that cannot be read. */
+function aimedTogetherAt(line: ChatMessage): string[] {
+  const written = `${line.aimedTogether ?? ''}`;
+  if (written.length < 1) return [];
+  try {
+    const read: unknown = JSON.parse(written);
+    return Array.isArray(read) ? read.filter((one): one is string => typeof one === 'string') : [];
+  } catch {
+    return [];
+  }
 }
 
 /** The name of whoever an answer was rolled at, from the brackets after it; null for an answer rolled at nobody. */
@@ -88,6 +206,11 @@ function withoutAim(text: string): string {
   const trimmed = text.trimEnd();
   const aim = aimOf(trimmed);
   return aim == null ? trimmed : trimmed.slice(0, -(aim.length + 3));
+}
+
+/** Whether the line an answer answers was said to beat a number of its own, filled in for its `{目標値}`. */
+function answeredOne(tab: ChatTab, answer: ChatMessage): boolean {
+  return tab.findRollSource(answer)?.answersTargetNumber === '1';
 }
 
 /** Whether the speaker said the line an answer answers. */

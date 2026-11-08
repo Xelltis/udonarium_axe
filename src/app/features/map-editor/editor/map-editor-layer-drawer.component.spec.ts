@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ConfirmService } from '@axe/application/ui/confirm.service';
 import { MapLayer } from '@axe/domain/map-editor/scene';
-import { addLayer } from '@axe/domain/map-editor/scene-ops';
+import { addLayer, removeLayer } from '@axe/domain/map-editor/scene-ops';
 import { MapEditorLayerDrawerComponent } from '@axe/features/map-editor/editor/map-editor-layer-drawer.component';
 import { MapEditorState } from '@axe/features/map-editor/editor/map-editor-state';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
@@ -91,6 +91,45 @@ describe('MapEditorLayerDrawerComponent', () => {
     expect(added).toHaveLength(before + 1);
     expect(added[added.length - 1].name).toMatch(new RegExp(`${before + 1}$`));
     expect(drawer.addLayerMenuOpen()).toBe(false);
+  });
+
+  it('closes the menu of layers to add on a press anywhere else, or on Escape, and not on a press inside it', () => {
+    document.body.appendChild(fixture.nativeElement);
+    try {
+      const add = () => fixture.nativeElement.querySelector('[title="レイヤーを追加"]') as HTMLButtonElement;
+      fixture.detectChanges();
+      add().click();
+      fixture.detectChanges();
+      const press = (target: Element) =>
+        target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+
+      press(add());
+      fixture.detectChanges();
+      expect(drawer.addLayerMenuOpen()).toBe(true);
+
+      press(document.body);
+      fixture.detectChanges();
+      expect(drawer.addLayerMenuOpen()).toBe(false);
+
+      add().click();
+      fixture.detectChanges();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      fixture.detectChanges();
+      expect(drawer.addLayerMenuOpen()).toBe(false);
+    } finally {
+      fixture.nativeElement.remove();
+    }
+  });
+
+  it('tells that drawing makes a layer while there is none, and stops once there is one', () => {
+    for (const layer of [...state.current.layers]) state.applyCommitted(() => removeLayer(state.current, layer.id));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="map-layers-empty"]')?.textContent).toContain('自動');
+
+    state.applyCommitted(() => addLayer(state.current, shapeLayer('layer-8')));
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="map-layers-empty"]')).toBeNull();
   });
 
   it('offers a pencil on the layer in hand, for a screen that cannot double-click its name', () => {

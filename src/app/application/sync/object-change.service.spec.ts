@@ -501,6 +501,16 @@ describe('ObjectChangeService', () => {
   });
 
   describe('onObjectChangedForAlias()', () => {
+    it('lets go of a listener given no destroy handle once the service itself goes', () => {
+      service.onObjectChangedForAlias(['Terrain'], () => {});
+      service.objectChanged$.subscribe(() => {});
+      expect(objectChanged$.listenerCount).toBeGreaterThan(0);
+
+      TestBed.resetTestingModule();
+
+      expect(objectChanged$.listenerCount).toBe(0);
+    });
+
     it('calls the listener only for the aliases it names', () => {
       const listener = vi.fn();
       service.onObjectChangedForAlias(['ChatMessage'], listener);

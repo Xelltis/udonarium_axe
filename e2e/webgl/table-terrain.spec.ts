@@ -1,0 +1,310 @@
+import { expect, Page, test } from '@playwright/test';
+
+import { becomeGm, closePanels } from '../dungeon-helpers';
+import { openPanel, openTableContextMenu, putAwayTutorial, revealMenuEntry, waitAppReady } from '../helpers';
+import { showWall, standBack } from '../table-face-helpers';
+
+/**
+ * Blocks drawn on the canvas. The table picks a block by the shape the scene is built from, so the
+ * canvas has to draw each block exactly there: what a change to the table changes on the screen is
+ * held against where picking says a block is.
+ */
+
+type Point = { x: number; y: number };
+
+type Hooks = {
+  renderer(): string | null;
+  whenIdle(): Promise<void>;
+  pickAt(x: number, y: number): string | null;
+  aliasOf(identifier: string): string | null;
+  edgesOnPage(): [number, number, number, number][];
+  drawnAt(x: number, y: number): string | null;
+  surfacePageOf(surface: string, localX: number, localY: number): { x: number; y: number } | null;
+  project(x: number, y: number, z: number): { x: number; y: number } | null;
+};
+
+/** What changed on the screen between two pictures of it, on blocks and off them. */
+interface Changes {
+  block: number;
+  blockChanged: number;
+  bare: number;
+  bareChanged: number;
+}
+
+/**
+ * Points of the sample room's table where the blocks are set down, in cells: on the open ground east
+ * and south of the pieces, clear of the step they stand on and of the panels over the edges of the
+ * screen the table is first seen from, each with room for a block two cells across.
+ */
+const BLOCK_CELLS = [
+  { x: 25, y: 7 },
+  { x: 25.5, y: 11 },
+  { x: 6, y: 18 },
+  { x: 12, y: 18.5 },
+  { x: 18.5, y: 18 },
+];
+
+/** Where the block is set down that is then dragged onto the north wall: on open ground near that wall. */
+const BESIDE_THE_NORTH_WALL = { x: 25, y: 5 };
+
+/** How near an edge of a block a point may lie and be left out, in pixels. */
+const EDGE_SLACK_PX = 3;
+const STEP_PX = 9;
+
+/**
+ * Waits for the table to be drawn and to have nothing left to draw, with the pointer off the table.
+ * A piece's detail that came up where a menu entry was pressed takes a moment to go once the pointer
+ * has left, and is waited out too, as a picture would take it for blocks drawn or hidden under it.
+ */
+async function idle(page: Page) {
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __axeTable?: Hooks }).__axeTable?.renderer() ?? null), {
+      timeout: 20000,
+    })
+    .not.toBeNull();
+  await page.mouse.move(5, 400);
+  await expect(page.locator('overview-panel')).toHaveCount(0, { timeout: 5000 });
+  await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
+}
+
+/** A picture of the screen, read into the page so its colours can be looked up there. */
+async function grabScreen(page: Page): Promise<void> {
+  const shot = await page.screenshot({ scale: 'css' });
+  await page.evaluate(async (data) => {
+    const image = new Image();
+    image.src = `data:image/png;base64,${data}`;
+    await image.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = image.width;
+    canvas.height = image.height;
+    canvas.getContext('2d')!.drawImage(image, 0, 0);
+    const kept = (window as unknown as { __shots?: ImageData[] }).__shots ?? [];
+    kept.push(canvas.getContext('2d')!.getImageData(0, 0, image.width, image.height));
+    (window as unknown as { __shots: ImageData[] }).__shots = kept;
+  }, shot.toString('base64'));
+}
+
+/** Where a cell of the table is drawn, on the page and as an offset into the table's layer. */
+async function spotOfCell(page: Page, cell: Point): Promise<{ onPage: Point; spot: Point }> {
+  const layer = (await page.locator('#app-table-layer').boundingBox())!;
+  const onPage = await page.evaluate(
+    ({ x, y }) => (window as unknown as { __axeTable: Hooks }).__axeTable.project(x * 50, y * 50, 0)!,
+    cell
+  );
+  return { onPage, spot: { x: onPage.x - layer.x, y: onPage.y - layer.y } };
+}
+
+/** Sets a block down at each spot that is bare table, and answers how many were set down. */
+async function setBlocksDown(page: Page): Promise<number> {
+  let placed = 0;
+  for (const cell of BLOCK_CELLS) {
+    const { onPage, spot } = await spotOfCell(page, cell);
+    const bare = await page.evaluate(
+      ({ x, y }) => (window as unknown as { __axeTable: Hooks }).__axeTable.drawnAt(x, y) === null,
+      onPage
+    );
+    if (!bare) continue;
+    const menu = await openTableContextMenu(page, spot);
+    await (await revealMenuEntry(page, menu, '地形を作成')).click();
+    placed++;
+    await expect(page.locator('terrain')).toHaveCount(placed, { timeout: 10000 });
+  }
+  return placed;
+}
+
+/**
+ * What changed between the last two pictures of the screen, at points where picking says a block
+ * stands and at points where it says none does, leaving out points on the very edge of a block and
+ * points the page draws a piece over.
+ */
+function changesBetweenShots(page: Page): Promise<Changes> {
+  return page.evaluate(
+    ({ slack, step }) => {
+      const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+      const shots = (window as unknown as { __shots: ImageData[] }).__shots;
+      const [before, after] = shots.slice(-2);
+      const layer = document.querySelector('#app-table-layer')!;
+      const edges = hooks.edgesOnPage();
+      const nearEdge = (x: number, y: number) =>
+        edges.some(([x1, y1, x2, y2]) => {
+          const dx = x2 - x1;
+          const dy = y2 - y1;
+          const along = Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy || 1)));
+          return Math.hypot(x - (x1 + along * dx), y - (y1 + along * dy)) < slack;
+        });
+      const changed = (x: number, y: number) => {
+        const at = (y * before.width + x) * 4;
+        return Math.max(...[0, 1, 2].map((c) => Math.abs(before.data[at + c] - after.data[at + c]))) > 6;
+      };
+      const result = { block: 0, blockChanged: 0, bare: 0, bareChanged: 0 };
+      for (let y = 90; y < innerHeight - 60; y += step) {
+        for (let x = 140; x < innerWidth - 60; x += step) {
+          const front = document.elementFromPoint(x, y);
+          if (!front || !layer.contains(front) || front.closest('[data-object-id]')) continue;
+          if (nearEdge(x, y)) continue;
+          const picked = hooks.pickAt(x, y);
+          if (picked !== null && hooks.aliasOf(picked) === 'terrain') {
+            result.block++;
+            if (changed(x, y)) result.blockChanged++;
+          } else {
+            result.bare++;
+            if (changed(x, y)) result.bareChanged++;
+          }
+        }
+      }
+      return result;
+    },
+    { slack: EDGE_SLACK_PX, step: STEP_PX }
+  );
+}
+
+/** A point of the page on a block as picking finds it, where the page draws no piece over it, and that block. */
+async function pointOnBlock(page: Page): Promise<{ x: number; y: number; id: string }> {
+  const found = await page.evaluate(() => {
+    const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+    const layer = document.querySelector('#app-table-layer')!;
+    for (let y = 120; y < innerHeight - 100; y += 7) {
+      for (let x = 140; x < innerWidth - 60; x += 7) {
+        const front = document.elementFromPoint(x, y);
+        if (!front || !layer.contains(front) || front.closest('[data-object-id]')) continue;
+        const picked = hooks.pickAt(x, y);
+        // Well inside the block, so a press there lands on it whichever way it is rounded.
+        const around = [-6, 6].every((dx) => [-6, 6].every((dy) => hooks.pickAt(x + dx, y + dy) === picked));
+        if (picked !== null && hooks.aliasOf(picked) === 'terrain' && around) return { x, y, id: picked };
+      }
+    }
+    return null;
+  });
+  expect(found, 'a point on a block').not.toBeNull();
+  return found!;
+}
+
+/**
+ * Has the table drawn lightly, with no shadows: a block throws the sun's shadow over the board and
+ * the blocks beside it, which the pictures here, of where the blocks and the grid are drawn, would
+ * take for a block drawn where none stands. Call before the page is opened.
+ */
+async function drawWithoutShadows(page: Page) {
+  await page.addInitScript(() => localStorage.setItem('axe.table.quality', 'light'));
+}
+
+test.describe('blocks drawn on a canvas', () => {
+  test.beforeEach(async ({ page }) => {
+    await drawWithoutShadows(page);
+    await waitAppReady(page);
+    await putAwayTutorial(page);
+    await becomeGm(page);
+    await closePanels(page);
+  });
+
+  test('are drawn where picking says they stand, and nowhere else', async ({ page }) => {
+    await idle(page);
+    await grabScreen(page);
+
+    expect(await setBlocksDown(page)).toBeGreaterThanOrEqual(3);
+    await idle(page);
+    await grabScreen(page);
+
+    const changes = await changesBetweenShots(page);
+    expect(changes.block, 'points on blocks').toBeGreaterThan(200);
+    const wrong = changes.block - changes.blockChanged + changes.bareChanged;
+    expect(wrong / (changes.block + changes.bare), JSON.stringify(changes)).toBeLessThan(0.01);
+  });
+
+  test('lay the grid over the bare board and under themselves, on a square grid and then on a hex grid', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await openPanel(page, 'テーブル設定');
+    await page.locator('select[name="tableGridType"]').selectOption('0');
+    await closePanels(page);
+    expect(await setBlocksDown(page)).toBeGreaterThanOrEqual(3);
+
+    for (const [grid, gridType] of [
+      ['square', '0'],
+      ['hex', '1'],
+    ]) {
+      await openPanel(page, 'テーブル設定');
+      await page.locator('select[name="tableGridType"]').selectOption(gridType);
+      await page.locator('input[name="tableGridShow"]').uncheck();
+      await closePanels(page);
+      await idle(page);
+      await grabScreen(page);
+
+      await openPanel(page, 'テーブル設定');
+      await page.locator('input[name="tableGridShow"]').check();
+      await closePanels(page);
+      await idle(page);
+      await grabScreen(page);
+
+      const changes = await changesBetweenShots(page);
+      expect(changes.bareChanged / changes.bare, `the ${grid} grid shows: ${JSON.stringify(changes)}`).toBeGreaterThan(
+        0.01
+      );
+      expect(
+        changes.blockChanged / changes.block,
+        `the blocks hide the ${grid} grid: ${JSON.stringify(changes)}`
+      ).toBeLessThan(0.01);
+    }
+  });
+
+  test('draw a block put on a wall where picking says it stands out from the wall', async ({ page }) => {
+    await showWall(page, '北壁', 'north');
+    await standBack(page);
+    await idle(page);
+    await grabScreen(page);
+    const menu = await openTableContextMenu(page, (await spotOfCell(page, BESIDE_THE_NORTH_WALL)).spot);
+    await (await revealMenuEntry(page, menu, '地形を作成')).click();
+    await expect(page.locator('terrain')).toHaveCount(1, { timeout: 10000 });
+    await idle(page);
+    const from = await pointOnBlock(page);
+    const onWall = await page.evaluate(() => {
+      const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+      for (let down = 400; down > 0; down -= 25) {
+        const onPage = hooks.surfacePageOf('north-wall', 550, down);
+        if (onPage && onPage.y > 30 && onPage.y < innerHeight - 100) return onPage;
+      }
+      return null;
+    });
+    expect(onWall, 'a point of the north wall on the screen').not.toBeNull();
+
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move((from.x + onWall!.x) / 2, (from.y + onWall!.y) / 2, { steps: 6 });
+    await page.mouse.move(onWall!.x, onWall!.y, { steps: 8 });
+    await page.mouse.up();
+    await idle(page);
+    await grabScreen(page);
+
+    const drawn = await page.evaluate(
+      ({ id, step }) => {
+        const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
+        const [before, after] = (window as unknown as { __shots: ImageData[] }).__shots.slice(-2);
+        const edges = hooks.edgesOnPage();
+        const layer = document.querySelector('#app-table-layer')!;
+        const result = { beam: 0, changed: 0 };
+        for (let y = 30; y < innerHeight / 2; y += step) {
+          for (let x = 140; x < innerWidth - 60; x += step) {
+            if (hooks.pickAt(x, y) !== id || !layer.contains(document.elementFromPoint(x, y))) continue;
+            const nearEdge = edges.some(([x1, y1, x2, y2]) => {
+              const dx = x2 - x1;
+              const dy = y2 - y1;
+              const along = Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy || 1)));
+              return Math.hypot(x - (x1 + along * dx), y - (y1 + along * dy)) < 3;
+            });
+            if (nearEdge) continue;
+            const at = (y * before.width + x) * 4;
+            result.beam++;
+            if (Math.max(...[0, 1, 2].map((c) => Math.abs(before.data[at + c] - after.data[at + c]))) > 6) {
+              result.changed++;
+            }
+          }
+        }
+        return result;
+      },
+      { id: from.id, step: 4 }
+    );
+    expect(drawn.beam, 'points the block is picked at on the wall').toBeGreaterThan(30);
+    expect(drawn.changed / drawn.beam, JSON.stringify(drawn)).toBeGreaterThan(0.8);
+  });
+});

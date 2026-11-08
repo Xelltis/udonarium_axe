@@ -1,5 +1,7 @@
 import { GameCharacter } from '@axe/domain/character/game-character';
 import { GameTable } from '@axe/domain/tabletop/game-table';
+import { GROUND_CHUNK_SAMPLE_COUNT } from '@axe/domain/tabletop/ground/ground-chunk-data';
+import { groundSurfaceOf } from '@axe/domain/tabletop/ground/ground-surface';
 import { segmentBlocks } from '@axe/domain/tabletop/los/segments';
 import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { Terrain } from '@axe/domain/tabletop/terrain';
@@ -258,5 +260,39 @@ describe('vision scene assembly', () => {
 
     expect(collectVisionSources([point], 50)[0]).toEqual(expect.objectContaining({ x: 100, y: 100 }));
     expect(collectLights(makeTable(), [point], 50, () => null)[0]).toEqual(expect.objectContaining({ x: 100, y: 100 }));
+  });
+
+  describe('over the raised ground of a table', () => {
+    function ground(cells: number) {
+      const heights = new Int16Array(GROUND_CHUNK_SAMPLE_COUNT).fill(cells * 64);
+      heights[0] = 0;
+      return groundSurfaceOf([{ cx: 0, cy: 0, heights, paint: null }]);
+    }
+
+    it('stands the rises of the ground among what stops sight and light, and lifts a wall with the ground', () => {
+      const table = makeTable();
+      const wall = Terrain.create('wall', 1, 1, 1, '', '');
+      wall.location = { name: 'table', x: 200, y: 200 };
+      table.appendChild(wall);
+
+      const flat = collectSegments(table, 50, 500, 400);
+      const raised = collectSegments(table, 50, 500, 400, ground(1));
+
+      expect(raised.sight.length).toBeGreaterThan(flat.sight.length);
+      expect(raised.light.length).toBeGreaterThan(flat.light.length);
+      expect(Math.max(...raised.sight.filter((edge) => edge.basePx !== undefined).map((edge) => edge.heightPx!))).toBe(
+        100
+      );
+      table.destroy();
+    });
+
+    it('puts an eye standing on raised ground as far up as the ground', () => {
+      const character = standing('c', 100, 100);
+
+      const [flat] = collectVisionSources([character], 50);
+      const [raised] = collectVisionSources([character], 50, ground(1));
+
+      expect(raised.z - flat.z).toBe(50);
+    });
   });
 });

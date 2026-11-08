@@ -22,6 +22,9 @@ Comment: 本プロジェクトで作成した素材です。作り方は次の�
  ComfyUIによる生成で、繰り返しても継ぎ目が出ないよう処理したもの。
  images/terrain_crate.webpはローカルのComfyUIによる生成。
  images/piece_*.pngとimages/table_forest_clearing.jpgはローカルのComfyUIによる生成。
+ models/pieces/*.glbは、ComfyUIからTripoのAPI（有料の利用）で生成し、meshoptで圧縮したもの。
+ Tripoの利用規約5.2.2により、有料の利用者が出力の権利（商用の利用・改変・配布）を持つ。
+ images/piece_*_3d.webpは、models/pieces/の同じ名前のモデルをthree.jsで背景なしに描いたもの。
  images/avatar_default.pngとimages/loading.pngは作図
  （loading.pngは12コマのAPNG）。
  images/trump/*.webpは数札・エース・裏面・白紙が作図、絵札とジョーカーの人物画は
@@ -57,6 +60,99 @@ Copyright: OtoLogic
 License: CC-BY-4.0
 Comment: 効果音提供 OtoLogic (https://otologic.jp) / CC BY 4.0
  配布元: https://otologic.jp/ 規約: https://otologic.jp/free/license.html
+
+Files: models/nature/*
+Copyright: 2026 SavageChieftain / Xelltis（形）
+ ambientCG (ambientcg.com)（樹皮・葉・岩・板・鉄の写真）
+License: MIT and CC0-1.0
+Comment: 野外の木・茂み・岩・サボテン・廃材の3Dモデル。木と茂みは幹と枝を枝分かれさせて組み立てて
+ 葉の板を付け、岩は球を凹凸に押し出して割れ口と段を付け、サボテンは稜のある柱を組み、廃材は板・
+ 鉄板・ドラム缶・タイヤを積んだもので、形は本プロジェクトで作成した（MIT）。
+ 樹皮・葉・岩の絵は、ambientCGの素材の色と不透明度の画像（1K-JPG）を縮め、葉は1枚ずつ
+ 切り出して小枝の絵に並べ直したもの（CC0）。樹皮はBark001・Bark002・Bark004・Bark010・
+ Bark012・Bark014、葉はLeafSet002・LeafSet007・LeafSet008・LeafSet009・LeafSet011・
+ LeafSet012・LeafSet013・LeafSet014・LeafSet016・LeafSet019・LeafSet022・LeafSet024・
+ LeafSet028、松葉はPineNeedles001、岩はRock022・Rock028・Rock048・Rock051、廃材の板・鉄板・
+ ドラム缶はPlanks037A・Rust009・PaintedMetal004・PaintedMetal006から。
+ シラカバの樹皮・桜の花・針葉樹の枝に積もった雪・サボテンの肌・タイヤは作図。銀杏の葉は、
+ LeafSet007の黄葉の写真を扇の形に切り抜いたもの。
+ ライセンスのページ https://docs.ambientcg.com/license/ が、ambientCGのすべての素材を
+ CC0 1.0 Universalで提供すると示す。
+
+Files: models/props/*
+Copyright: 2026 SavageChieftain / Xelltis（形）
+ ambientCG (ambientcg.com)（木・金属・革・布・コンクリートの写真）
+License: MIT and CC0-1.0
+Comment: ダンジョンの家具（木箱・スツール・事務机・賭博台・瓦礫・コンテナ・カウンター・売り台・
+ バーのテーブル）と扉（板戸・鉄の扉・鉄格子・石の扉・シャッター・サルーンの扉）の3Dモデル。角を丸めた箱・円柱・波板を組んだもので、形は本プロジェクトで作成
+ した（MIT）。絵はambientCGの素材の色の画像（1K-JPG）を縮めたもの（CC0）。Planks021・
+ Planks037A・CorrugatedSteel005・Metal029・Metal063・Leather037・Fabric030・Concrete042A・
+ Rust009・Rock048から。カウンター・売り台・バーのテーブルの天板と側面は、本プロジェクトの
+ images/tiles/marble.webp・wood_plank.webp・neon_floor.webpとimages/walls/wall_neon.webpを使う。
+ ライセンスのページ https://docs.ambientcg.com/license/ が、ambientCGのすべての素材を
+ CC0 1.0 Universalで提供すると示す。
+
+Files: models/settlement/*
+Copyright: 2026 SavageChieftain / Xelltis（形・干し草と作物の絵）
+ ambientCG (ambientcg.com)（樹皮・板・漆喰・革・岩の写真）
+License: MIT and CC0-1.0
+Comment: 村と砦の3Dモデル。蛮族の砦の丸太の柵（先を尖らせた丸太の壁と、その外に交差させて
+ 立てた尖った杭の1マス分）と見張り塔、石造りの砦の狭間のある石垣・円い塔・角塔。部屋の壁として、
+ 本丸・兵舎・厩の石の壁、長の大小屋の丸太の壁、民家の木組みの壁、納屋の板の壁、天幕の革の壁、
+ 畑の横木の柵（どれも1マスの真ん中の柱と、そこから隣のマスへ伸ばす1本分）。トーテム・炉・井戸・
+ 荷車・干し草と、麦・稲・とうもろこし・キャベツの1マス分。
+ 円柱・円錐・角を丸めた箱と板を組んだもので、形は本プロジェクトで作成した（MIT）。干し草の藁、
+ 麦の茎と穂、稲の葉、キャベツの葉の絵も本プロジェクトで描いた（MIT）。丸太・板・漆喰・革・岩の
+ 絵は、ambientCGの素材の色の画像（1K-JPG）を縮めて色を寄せたもの（CC0）。Bark001・Planks021・
+ Planks037A・Concrete042A・Leather037・Rock048から。石垣・塔・石の部屋の壁の石と石畳の絵は、
+ 本プロジェクトのimages/walls/wall_ashlar.webpとimages/tiles/stone_paving_big.webpを使う。
+ ライセンスのページ https://docs.ambientcg.com/license/ が、ambientCGのすべての素材を
+ CC0 1.0 Universalで提供すると示す。
+
+Files: models/town/*
+Copyright: 2026 SavageChieftain / Xelltis（形・外壁と屋上の絵）
+ ambientCG (ambientcg.com)（金属・木・コンクリートの写真）
+License: MIT and CC0-1.0
+Comment: 町の建物を組む部品（1マス幅・1階分の外壁、1マス四方の屋上、屋上の縁）と屋上の設備
+ （機械室・木の給水槽）の3Dモデル。形は本プロジェクトで作成した（MIT）。外壁と屋上の絵は、
+ 本プロジェクトのimages/walls/とimages/tiles/の同じ名前の絵を使う。窓台・まぐさ・非常階段・
+ 屋上の縁・設備の絵はambientCGの素材の色の画像（1K-JPG）を縮めたもの（CC0）。Metal029・
+ Metal063・Planks037A・Concrete042A・Rust009から。
+ ライセンスのページ https://docs.ambientcg.com/license/ が、ambientCGのすべての素材を
+ CC0 1.0 Universalで提供すると示す。
+
+Files: images/model-pictures/*
+Copyright: 2026 SavageChieftain / Xelltis（形）
+ ambientCG (ambientcg.com)（樹皮・葉・岩・板・金属・革・布・漆喰・コンクリートの写真）
+License: MIT and CC0-1.0
+Comment: models/nature/・models/props/・models/settlement/・models/town/の同じ名前のモデルを、
+ three.jsで真上（*.top.webp）と斜め上（*.icon.webp）から背景なしに描いたもの。マップエディターで
+ モデルを示すのに使う。帰属と許諾はもとのモデルと同じ（各モデルの項を参照）。
+
+Files: images/ground/*
+Copyright: ambientCG (ambientcg.com)
+License: CC0-1.0
+Comment: ambientCGのマテリアルの色の画像（1K-JPGの_Color.jpg）を、512×512に縮めてWebPにしたもの。
+ grass.webpはGrass004、dirt.webpはGround103、rock.webpはRock030、sand.webpはGround079Sから。
+ 配布元: https://ambientcg.com/ 。ライセンスのページ https://docs.ambientcg.com/license/ が、
+ ambientCGのすべての素材をCC0 1.0 Universalで提供すると示す。
+ CC0 1.0 Universal: https://creativecommons.org/publicdomain/zero/1.0/
+
+Files: decoders/draco/*
+Copyright: The Draco Authors
+License: Apache-2.0
+Comment: Dracoのメッシュ復号器（glTF向けのビルド）のWebAssemblyと、それを読み込むJavaScriptです。
+ Dracoで圧縮した3Dモデルを読むときだけ取り寄せます。npmのthreeの
+ examples/jsm/libs/draco/gltfからビルド時に写したもので、手は加えていません。
+ 配布元: https://github.com/google/draco
+
+Files: decoders/basis/*
+Copyright: Binomial LLC
+License: Apache-2.0
+Comment: Basis Universalのテクスチャ変換器のWebAssemblyと、それを読み込むJavaScriptです。
+ KTX2の圧縮テクスチャを使う3Dモデルを読むときだけ取り寄せます。npmのthreeの
+ examples/jsm/libs/basisからビルド時に写したもので、手は加えていません。
+ 配布元: https://github.com/BinomialLLC/basis_universal
 
 Files: images/skeleton.png
 Copyright: 2020 TK11235

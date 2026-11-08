@@ -1,14 +1,24 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
+import { RESUME_GRACE_MS } from '@axe/application/lobby/link-watch.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { WidgetVisibilityService } from '@axe/application/ui/widget-visibility.service';
 import { Network } from '@axe/core/index';
 import { PeerSessionGrade } from '@axe/core/network/peer-session-state';
-import { PeerLinkQuality } from '@axe/domain/peer/peer-link-quality';
+import { pageActivity } from '@axe/core/network/server/page-activity';
+import { PeerLinkQuality, POOR_SILENCE_MS } from '@axe/domain/peer/peer-link-quality';
 import { ConnectionQualityComponent } from '@axe/features/widgets/connection-quality/connection-quality.component';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
 interface ComponentInternals {
-  links: () => { peerId: string; name: string; quality: PeerLinkQuality; ping: number; isRelayed: boolean }[];
+  links: () => {
+    peerId: string;
+    name: string;
+    quality: PeerLinkQuality;
+    ping: number;
+    isRelayed: boolean;
+    heardAt?: number | null;
+  }[];
   worst: () => PeerLinkQuality;
   hasRelayedLink: () => boolean;
   close: () => void;
@@ -51,6 +61,7 @@ describe('ConnectionQualityComponent', () => {
 
   beforeEach(async () => {
     localStorage.clear();
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
     await TestBed.configureTestingModule({
       imports: [ConnectionQualityComponent],
       providers: [...TEST_PROVIDERS],
@@ -58,6 +69,7 @@ describe('ConnectionQualityComponent', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -93,12 +105,13 @@ describe('ConnectionQualityComponent', () => {
     expect(internals.links().map((link) => link.peerId)).toEqual(['peer-a', 'peer-b']);
   });
 
-  it('stays open with nobody connected', () => {
+  it('stays open with nobody connected, and says nobody is', () => {
     vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([] as never);
     create();
 
     expect(internals.links()).toEqual([]);
     expect(panel()).not.toBeNull();
+    expect(panel()!.textContent).toContain(TestBed.inject(TRANSLATE_FN)('feature.lobby.linkQuality.noPeers'));
   });
 
   it('heads the panel with the worst link', () => {
@@ -121,20 +134,116 @@ describe('ConnectionQualityComponent', () => {
     expect(internals.links()[0].isRelayed).toBe(true);
   });
 
-  it('shows the link to the room server alone on one, as down while it is being tried again', () => {
-    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a')] as never);
+  it('grades the link to the room server by how long its answers take, as down while it is being tried again', () => {
+    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([] as never);
     vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
     const open = vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
+    const roundTrip = vi.spyOn(Network, 'roundTripMs', 'get').mockReturnValue(0);
     create();
 
-    expect(internals.links().map((link) => [link.peerId, link.quality])).toEqual([
-      ['@authority', PeerLinkQuality.Good],
+    expect(internals.links().map((link) => [link.peerId, link.quality, link.ping])).toEqual([
+      ['@authority', PeerLinkQuality.Unknown, 0],
     ]);
     expect(fixture.nativeElement.textContent).toContain('部屋のサーバー');
+
+    roundTrip.mockReturnValue(230.4);
+    objectChange.peerStatsVersion.update((v) => v + 1);
+    fixture.detectChanges();
+    expect(internals.links()[0]).toMatchObject({ quality: PeerLinkQuality.Fair, ping: 230 });
+    expect(fixture.nativeElement.textContent).toContain('230ms');
 
     open.mockReturnValue(false);
     objectChange.networkVersion.update((v) => v + 1);
     expect(internals.worst()).toBe(PeerLinkQuality.Lost);
+  });
+
+  it('gives each of the others on a room server a row, graded by how long the server has not heard from them', () => {
+    vi.useFakeTimers({ now: new Date('2026-11-07T12:00:00') });
+    pageActivity.noteInput();
+    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a'), peerContext('peer-b')] as never);
+    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
+    vi.spyOn(Network, 'roundTripMs', 'get').mockReturnValue(40);
+    vi.spyOn(Network, 'askSeen').mockImplementation(() => undefined);
+    const heardA = Date.now() - 5_000;
+    vi.spyOn(Network, 'seenAnsweredAt', 'get').mockReturnValue(Date.now());
+    vi.spyOn(Network, 'heardAt').mockImplementation((peerId) => (peerId === 'peer-a' ? heardA : null));
+    create();
+
+    expect(internals.links().map((link) => [link.peerId, link.quality])).toEqual([
+      ['@authority', PeerLinkQuality.Good],
+      ['peer-a', PeerLinkQuality.Good],
+      ['peer-b', PeerLinkQuality.Unknown],
+    ]);
+    expect(fixture.nativeElement.textContent).toContain('11:59:55');
+    expect(fixture.nativeElement.textContent).toContain('--:--:--');
+
+    for (let waited = 0; waited < POOR_SILENCE_MS; waited += 15_000) {
+      vi.advanceTimersByTime(15_000);
+      pageActivity.noteInput();
+    }
+    fixture.detectChanges();
+    expect(internals.links()[1]?.quality).toBe(PeerLinkQuality.Poor);
+    expect(internals.worst()).toBe(PeerLinkQuality.Poor);
+  });
+
+  it('holds how the others are graded as the server last said while nobody looks and nothing is asked', () => {
+    vi.useFakeTimers({ now: new Date('2026-11-07T12:00:00') });
+    pageActivity.noteInput();
+    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a')] as never);
+    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
+    vi.spyOn(Network, 'askSeen').mockImplementation(() => undefined);
+    const heardA = Date.now() - 5_000;
+    vi.spyOn(Network, 'seenAnsweredAt', 'get').mockReturnValue(Date.now());
+    vi.spyOn(Network, 'heardAt').mockReturnValue(heardA);
+    create();
+
+    vi.advanceTimersByTime(POOR_SILENCE_MS * 2);
+    objectChange.peerStatsVersion.update((v) => v + 1);
+
+    expect(internals.links()[1]?.quality).toBe(PeerLinkQuality.Good);
+  });
+
+  it('weighs the others as the server last said for a while after asking again, rather than every seat reading as gone', () => {
+    vi.useFakeTimers({ now: new Date('2026-11-08T12:00:00') });
+    pageActivity.noteInput();
+    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([peerContext('peer-a')] as never);
+    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
+    vi.spyOn(Network, 'askSeen').mockImplementation(() => undefined);
+    const answeredAt = Date.now() - 3_600_000;
+    vi.spyOn(Network, 'seenAnsweredAt', 'get').mockReturnValue(answeredAt);
+    vi.spyOn(Network, 'heardAt').mockReturnValue(answeredAt - 5_000);
+    create();
+
+    expect(internals.links()[1]?.quality).toBe(PeerLinkQuality.Good);
+    for (let waited = 0; waited < RESUME_GRACE_MS + POOR_SILENCE_MS; waited += 10_000) {
+      vi.advanceTimersByTime(10_000);
+      pageActivity.noteInput();
+    }
+    objectChange.peerStatsVersion.update((v) => v + 1);
+    expect(internals.links()[1]?.quality).toBe(PeerLinkQuality.Poor);
+  });
+
+  it('watches the links closely only while it is shown', () => {
+    vi.spyOn(Network, 'peerContexts', 'get').mockReturnValue([] as never);
+    vi.spyOn(Network, 'authorityPeerId', 'get').mockReturnValue('@authority');
+    vi.spyOn(Network, 'isAuthorityOpen', 'get').mockReturnValue(true);
+    pageActivity.noteInput();
+    const watch = vi.spyOn(Network, 'watchLink');
+    const ask = vi.spyOn(Network, 'askSeen');
+    create(false);
+    expect(ask).not.toHaveBeenCalled();
+
+    widgets.connectionQuality.set(true);
+    fixture.detectChanges();
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect(watch).toHaveBeenLastCalledWith(true);
+
+    widgets.connectionQuality.set(false);
+    fixture.detectChanges();
+    expect(watch).toHaveBeenLastCalledWith(false);
   });
 
   it('falls back to the head of the peer id when the name is unknown', () => {

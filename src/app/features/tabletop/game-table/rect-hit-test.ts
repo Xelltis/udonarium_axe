@@ -1,11 +1,6 @@
+import type { MarqueeRect } from '@axe/application/ui/selection-signal.service';
+import { TableAmbience } from '@axe/domain/tabletop/table-ambience';
 import { TabletopObject } from '@axe/domain/tabletop/tabletop-object';
-
-export interface TableRect {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-}
 
 export interface RectHitTestOptions {
   gridSize?: number;
@@ -25,7 +20,7 @@ const DEFAULT_EXCLUDES = ['range'];
  * The same rectangle with its corners ordered, so x1/y1 is the top-left whichever way it was
  * dragged.
  */
-export function normalizeRect(rect: TableRect): TableRect {
+export function normalizeRect(rect: MarqueeRect): MarqueeRect {
   const x1 = Math.min(rect.x1, rect.x2);
   const x2 = Math.max(rect.x1, rect.x2);
   const y1 = Math.min(rect.y1, rect.y2);
@@ -55,11 +50,12 @@ function getObjectExtent(obj: TabletopObject, gridSize: number): { width: number
  *
  * A piece's extent comes from its `width` and `height`, or its `size`, in grid cells, and is one
  * cell otherwise. Pieces off the table and the excluded aliases, ranges by default, are never
- * caught.
+ * caught, and nor is a look on the ground locked in place, as the water a generator lays, which
+ * nothing on the table is to move.
  */
 export function selectByRect(
   objects: readonly TabletopObject[],
-  rect: TableRect,
+  rect: MarqueeRect,
   options: RectHitTestOptions = {}
 ): string[] {
   const gridSize = options.gridSize ?? DEFAULT_GRID_SIZE;
@@ -71,6 +67,7 @@ export function selectByRect(
     if (!obj) continue;
     if (obj.location?.name !== 'table') continue;
     if (excludes.has(obj.aliasName)) continue;
+    if (obj.aliasName === TableAmbience.aliasName && (obj as { isLock?: unknown }).isLock === true) continue;
     const { width, height } = getObjectExtent(obj, gridSize);
     const centerX = obj.location.x + width / 2;
     const centerY = obj.location.y + height / 2;

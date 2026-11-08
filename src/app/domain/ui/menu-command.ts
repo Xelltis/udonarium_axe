@@ -30,6 +30,7 @@ export const MENU_TOGGLES = [
   'handRail',
   'darkness',
   'fog',
+  'groundBrush',
   'nameLabels',
   'resourceBars',
   'buffs',
@@ -54,6 +55,7 @@ export const MENU_CYCLES = [
   'theme',
   'motion',
   'renderLite',
+  'tableQuality',
   'language',
   'buffView',
   'buffIconSize',
@@ -215,6 +217,7 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
   panel('diceTableSetting', 'casino', 'diceTableSetting', 'feature.dice.tableSetting.title'),
   panel('myDice', 'format_paint', 'myDice', 'feature.dice.myDice.title', { audience: 'playing' }),
   panel('images', 'photo_library', 'fileStorage', 'app.fab.images'),
+  panel('models', 'view_in_ar', 'modelLibrary', 'app.fab.models'),
   panel('jukebox', 'queue_music', 'jukebox', 'app.fab.jukebox'),
   panel('cutIn', 'slideshow', 'cutInList', 'app.fab.cutIn'),
   panel('effectLibrary', 'auto_awesome', 'effectLibrary', 'feature.effect.title', { audience: 'playing' }),
@@ -236,6 +239,11 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
   toggle('handRail', 'style', 'app.fab.hand', { audience: 'playing', testId: 'fab-entry-hand' }),
   toggle('darkness', 'bedtime', 'app.fab.darknessOn', { audience: 'gameMaster', dims: true }),
   toggle('fog', 'foggy', 'app.fab.fogOn', { audience: 'gameMaster', dims: true }),
+  toggle('groundBrush', 'landscape', 'app.fab.groundBrush', {
+    audience: 'gameMaster',
+    testId: 'toolbar-ground-brush',
+    dims: true,
+  }),
   toggle('nameLabels', 'label', 'app.fab.namesShown', { testId: 'toolbar-names', dims: true }),
   toggle('resourceBars', 'align_horizontal_left', 'app.fab.resourceBarsShown', {
     testId: 'toolbar-resource-bars',
@@ -265,6 +273,7 @@ export const MENU_COMMANDS: readonly MenuCommand[] = [
   cycle('theme', 'brightness_auto', 'common.theme.auto', { testId: 'seat-theme' }),
   cycle('motion', 'motion_photos_auto', 'common.motion.auto', { testId: 'seat-motion' }),
   cycle('renderLite', 'blur_circular', 'common.renderLite.auto', { testId: 'seat-render-lite' }),
+  cycle('tableQuality', 'hdr_auto', 'common.tableQuality.auto', { testId: 'seat-table-quality' }),
   cycle('language', 'translate', 'common.language.switchTooltip', { testId: 'seat-lang' }),
   cycle('buffView', 'auto_fix_high', 'feature.plTools.buffView', {
     audience: 'playing',
