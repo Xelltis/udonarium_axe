@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { EventChannel } from '@axe/core/event/event-channel';
@@ -46,6 +48,17 @@ describe('NetworkIndicatorComponent', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('is drawn by rules the global stylesheet still holds for each grid class of its template', () => {
+    const template = readFileSync('src/app/features/lobby/network-indicator/network-indicator.component.html', 'utf8');
+    const sheet = readFileSync('src/styles/base.css', 'utf8');
+    const used = new Set([...template.matchAll(/\bsk-[\w-]+/g)].map(([name]) => name));
+
+    expect(used.size).toBeGreaterThan(0);
+    for (const name of used) expect(sheet, name).toMatch(new RegExp(`\\.${name}\\b[^{]*\\{`));
+    expect(sheet).toMatch(/\.sk-cube-grid \.sk-cube \{[^}]*animation: sk-cubeGridScaleDelay/);
+    expect(sheet).toContain('@keyframes sk-cubeGridScaleDelay');
   });
 
   describe('tearing down', () => {
