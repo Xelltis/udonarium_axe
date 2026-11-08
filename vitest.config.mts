@@ -5,7 +5,7 @@ import { basename, isAbsolute, join, relative, resolve, sep } from 'path';
 import { defineConfig } from 'vitest/config';
 import { parseCLI } from 'vitest/node';
 
-import base from './vitest-base.config.mts';
+import base from './vitest-base.config.mjs';
 
 const ROOT = import.meta.dirname;
 const SPEC_TSCONFIG = resolve(ROOT, 'tsconfig.spec.json');
