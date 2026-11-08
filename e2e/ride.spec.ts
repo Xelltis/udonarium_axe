@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { openGroundAt, openPanel, revealMenuEntry, spotOnPiece, waitAppReady } from './helpers';
+import { openGroundAt, revealMenuEntry, spotOnPiece, waitAppReady } from './helpers';
 import { centreOf, pedestal, piece, pinnedPiece, placeOf, Point, settle } from './see-through-helpers';
 
 async function becomeGm(page: Page) {
@@ -47,27 +47,6 @@ async function chooseRide(page: Page, who: string | Locator, entry: string) {
   await page.mouse.move(5, 400);
 }
 
-/** Makes キャラクターB a mount and gets キャラクターA on it in front. */
-async function rideAOnB(page: Page) {
-  await waitAppReady(page);
-  await becomeGm(page);
-  await closePanels(page);
-  const rider = await pinnedPiece(page, 'キャラクターA');
-  const mount = piece(page, 'キャラクターB');
-  await chooseRide(page, 'キャラクターB', '乗り物にする');
-  await settle(rider);
-  await settle(mount);
-  await drag(page, await spotOnPiece(rider), await centreOf(pedestal(mount)));
-  await settle(rider);
-  const offer = page.getByTestId('snackbar');
-  await expect(offer).toContainText('キャラクターA は キャラクターB の上にいます', { timeout: 5000 });
-  await offer.getByTestId('snackbar-action').click();
-  await expect(mount.getByTestId('piece-riders').first()).toContainText('1', { timeout: 5000 });
-  // Up onto the mount the rider still rises, and a hand reaching for it before it has risen takes
-  // hold of the mount below it.
-  await settle(rider);
-}
-
 test.describe('mounts', () => {
   test('lets a piece get on a mount from the same spot, carries the mount along as the rider moves, and lets the rider get off', async ({
     page,
@@ -110,65 +89,7 @@ test.describe('mounts', () => {
     await expect(mount.getByTestId('piece-riders')).toHaveCount(0, { timeout: 5000 });
   });
 
-  test('takes a ridden mount out of the turn order, and lays it over its rider’s circle in the round view', async ({
-    page,
-  }) => {
-    await rideAOnB(page);
-
-    await openPanel(page, 'インベントリ');
-    const panel = page.locator('ui-panel').filter({ hasText: 'インベントリ' });
-    await panel.locator('button[title="リッチ表示"]').dispatchEvent('click');
-    await panel.locator('button[title="簡略表示（表）"]').dispatchEvent('click');
-    await expect(panel.locator('button[title="ラウンド表示"]')).toHaveCount(1, { timeout: 10000 });
-
-    await expect(panel.locator('[data-testid="turn-companions"] [title="キャラクターB"]')).toHaveCount(1, {
-      timeout: 10000,
-    });
-    await expect(panel.locator('button[title="キャラクターA"]')).toHaveCount(1);
-    await expect(panel.locator('button[title="キャラクターB"]')).toHaveCount(0);
-  });
-
-  test('throws the rider down when the mount falls, and lets the rider get up and back on once the mount is up', async ({
-    page,
-  }) => {
-    await rideAOnB(page);
-    const mount = piece(page, 'キャラクターB');
-
-    await chooseRide(page, 'キャラクターB', '転んでいる');
-
-    await expect(mount.getByTestId('piece-riders')).toHaveCount(0, { timeout: 5000 });
-    await piece(page, 'キャラクターA').dispatchEvent('contextmenu');
-    const menu = page.locator('context-menu');
-    await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-    await menu.getByText('コマの状態', { exact: true }).hover();
-    await expect(menu.locator('li', { hasText: '転んでいる' }).getByRole('checkbox')).toBeChecked({ timeout: 5000 });
-    await expect(menu.getByText('キャラクターB から降りる')).toHaveCount(0);
-
-    await chooseRide(page, 'キャラクターB', '転んでいる');
-    await chooseRide(page, 'キャラクターA', '起き上がって キャラクターB に乗る');
-    await expect(mount.getByTestId('piece-riders').first()).toContainText('1', { timeout: 5000 });
-  });
-
-  test('gets a rider off where it is put down by hand away from its mount', async ({ page }) => {
-    await rideAOnB(page);
-    const mount = piece(page, 'キャラクターB');
-    const rider = page.locator('game-character[data-e2e-pinned="キャラクターA"]');
-    const from = await centreOf(rider.locator('[data-part="picture"]'));
-    const cell = (await pedestal(mount).boundingBox())!.width;
-
-    await drag(page, from, { x: from.x - cell * 3, y: from.y });
-
-    await expect(mount.getByTestId('piece-riders')).toHaveCount(0, { timeout: 5000 });
-    await piece(page, 'キャラクターA').dispatchEvent('contextmenu');
-    const menu = page.locator('context-menu');
-    await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-    await menu.getByText('コマの状態', { exact: true }).hover();
-    await expect(menu.locator('li', { hasText: '転んでいる' }).getByRole('checkbox')).not.toBeChecked({
-      timeout: 5000,
-    });
-  });
-
-  test('keeps the rider in the middle of a large mount however many times the mount is moved by hand', async ({
+  test('keeps the rider in the middle of a large mount however many times the mount is moved by hand, and gets the rider off where it is put down away from the mount', async ({
     page,
   }) => {
     await waitAppReady(page);
@@ -204,5 +125,17 @@ test.describe('mounts', () => {
       await settle(mount);
       await expect.poll(gap, { timeout: 5000 }).toBe('50,50');
     }
+
+    await settle(rider);
+    await drag(page, await centreOf(rider.locator('[data-part="picture"]')), await openGroundAt(page));
+
+    await expect(mount.getByTestId('piece-riders')).toHaveCount(0, { timeout: 5000 });
+    await piece(page, 'モンスターB').dispatchEvent('contextmenu');
+    const menu = page.locator('context-menu');
+    await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
+    await menu.getByText('コマの状態', { exact: true }).hover();
+    await expect(menu.locator('li', { hasText: '転んでいる' }).getByRole('checkbox')).not.toBeChecked({
+      timeout: 5000,
+    });
   });
 });

@@ -38,8 +38,9 @@ describe('buildRangeContextMenu', () => {
     }
   });
 
-  function shapeMenuOf(range: RangeArea) {
-    const actions = buildRangeContextMenu(
+  /** The flat menu of a range on a table of 50px cells, handing the range to `onEdit` for its sheet. */
+  function menuOf(range: RangeArea, onEdit: (r: RangeArea) => void = vi.fn()) {
+    return buildRangeContextMenu(
       range,
       50,
       { x: 0, y: 0, z: 0 },
@@ -47,11 +48,67 @@ describe('buildRangeContextMenu', () => {
       { notifyInventoryUpdate: vi.fn() } as unknown as GameObjectInventoryService,
       { menuAt: vi.fn(() => []) } as CreateObjectMenu,
       vi.fn(),
-      vi.fn(),
+      onEdit,
       t
     );
-    return actions.find((action) => action.name === '形状変更');
   }
+
+  function shapeMenuOf(range: RangeArea) {
+    return menuOf(range).find((action) => action.name === '形状変更');
+  }
+
+  it('offers every shape a range can take, ticking the one it has', () => {
+    const range = RangeArea.create('test', 1, 1, 50);
+    range.type = 'CIRCLE';
+
+    try {
+      expect(shapeMenuOf(range)?.subActions?.map((action) => action.name)).toEqual([
+        '直線',
+        'コーン',
+        '三角形（キャラ中心）',
+        '四角形・ダイヤ',
+        '五角形',
+        '六角形',
+        '✔ 円形',
+        '任意マス',
+      ]);
+    } finally {
+      range.destroy();
+    }
+  });
+
+  it('hands the range to its sheet from editing it', () => {
+    const range = RangeArea.create('test', 1, 1, 50);
+    const onEdit = vi.fn();
+
+    try {
+      menuOf(range, onEdit).find((action) => action.name === '射程範囲を編集')!.action!();
+      expect(onEdit).toHaveBeenCalledWith(range);
+    } finally {
+      range.destroy();
+    }
+  });
+
+  it('makes an unlocked copy a cell down and across, and deletes the range', () => {
+    const range = RangeArea.create('test', 1, 1, 50);
+    const copy = RangeArea.create('test', 1, 1, 50);
+    copy.location.x = 100;
+    copy.location.y = 150;
+    copy.isLock = true;
+    const clone = vi.spyOn(range, 'clone').mockReturnValue(copy);
+
+    try {
+      menuOf(range).find((action) => action.name === 'コピーを作る')!.action!();
+      expect(clone).toHaveBeenCalledOnce();
+      expect([copy.location.x, copy.location.y, copy.isLock]).toEqual([150, 200, false]);
+
+      menuOf(range).find((action) => action.name === '削除する')!.action!();
+      expect(ObjectStore.instance.get(range.identifier)).toBeNull();
+    } finally {
+      copy.destroy();
+      range.destroy();
+    }
+  });
 
   it('offers the square drawn as a diamond or square to the grid, under the square', () => {
     const range = RangeArea.create('test', 1, 1, 50);

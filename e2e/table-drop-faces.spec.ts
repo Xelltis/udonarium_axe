@@ -11,7 +11,7 @@ import {
   waitAppReady,
 } from './helpers';
 import { piece, placeOf, Point, settle } from './see-through-helpers';
-import { FaceHooks, faceOf, pageOfFace, showWall, whenDrawn } from './table-face-helpers';
+import { FaceHooks, faceOf, pageOfFace, showWall, standBack, whenDrawn } from './table-face-helpers';
 
 /**
  * A piece let go of over another face than the one it stands on moves onto that face: a white board
@@ -20,11 +20,13 @@ import { FaceHooks, faceOf, pageOfFace, showWall, whenDrawn } from './table-face
  * there with the pointer and the face the page then draws them on is read back.
  */
 
-async function drag(page: Page, from: Point, to: Point) {
+/** Drags from one point to another with the pointer, running `whileHeld` over the end before letting go. */
+async function drag(page: Page, from: Point, to: Point, whileHeld?: () => Promise<void>) {
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
   await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 6 });
   await page.mouse.move(to.x, to.y, { steps: 8 });
+  await whileHeld?.();
   await page.mouse.up();
 }
 
@@ -76,34 +78,6 @@ async function bareSpotOf(page: Page, surface: string): Promise<{ local: Point; 
   return spot!;
 }
 
-/**
- * Draws the camera back from the table, so a board standing behind it is on the screen whole, above
- * the pieces on the table rather than over them.
- */
-async function standBack(page: Page) {
-  const layer = (await page.locator('#app-table-layer').boundingBox())!;
-  await page.mouse.move(layer.x + layer.width / 2, layer.y + layer.height / 2);
-  const camera = () =>
-    page.evaluate(() =>
-      JSON.stringify((window as unknown as { __axeTable: { camera(): unknown } }).__axeTable.camera())
-    );
-  const before = await camera();
-  for (let notch = 0; notch < 4; notch++) await page.mouse.wheel(0, 300);
-  await expect.poll(camera).not.toBe(before);
-  let last = '';
-  await expect
-    .poll(
-      async () => {
-        const now = await camera();
-        const still = now === last;
-        last = now;
-        return still;
-      },
-      { intervals: [250] }
-    )
-    .toBe(true);
-}
-
 test.describe('dropping a piece on another face', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
@@ -113,14 +87,25 @@ test.describe('dropping a piece on another face', () => {
     await closePanels(page);
   });
 
-  test('puts a piece let go of over a white board on the board, and back on the floor off it', async ({ page }) => {
+  test('outlines where a piece held over a white board would land, puts it on the board once let go of, and back on the floor off it', async ({
+    page,
+  }) => {
     const board = await makeBoard(page);
     await standBack(page);
     const character = piece(page, CARRIED);
     await settle(character);
     expect(await faceOf(character)).toBe('floor');
+    const to = (await bareSpotOf(page, board)).onPage;
+    const outline = page.getByTestId('table-hud').getByTestId('drop-preview');
 
-    await drag(page, await spotOnPiece(character), (await bareSpotOf(page, board)).onPage);
+    await drag(page, await spotOnPiece(character), to, async () => {
+      await expect(outline).toBeVisible({ timeout: 5000 });
+      const box = (await outline.boundingBox())!;
+      const report = JSON.stringify([box, to]);
+      expect(Math.abs(box.x + box.width / 2 - to.x), report).toBeLessThan(box.width);
+      expect(Math.abs(box.y + box.height / 2 - to.y), report).toBeLessThan(box.height);
+    });
+    await expect(outline).toHaveCount(0);
     await expect.poll(() => faceOf(character)).toBe(board);
 
     // The board is not fixed in place, and a press on the piece stuck to it still takes up the piece
@@ -130,31 +115,6 @@ test.describe('dropping a piece on another face', () => {
     await drag(page, await spotOnPiece(character), (await bareSpotOf(page, 'floor')).onPage);
     await expect.poll(() => faceOf(character)).toBe('floor');
     expect(await placeOf(page.locator('white-board'))).toBe(boardPlace);
-  });
-
-  test('outlines where a piece held over a white board would land on it, on a table drawn on a canvas', async ({
-    page,
-  }) => {
-    const board = await makeBoard(page);
-    await standBack(page);
-    const character = piece(page, CARRIED);
-    await settle(character);
-    const from = await spotOnPiece(character);
-    const to = (await bareSpotOf(page, board)).onPage;
-    const outline = page.getByTestId('table-hud').getByTestId('drop-preview');
-
-    await page.mouse.move(from.x, from.y);
-    await page.mouse.down();
-    await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 6 });
-    await page.mouse.move(to.x, to.y, { steps: 8 });
-
-    await expect(outline).toBeVisible({ timeout: 5000 });
-    const box = (await outline.boundingBox())!;
-    const report = JSON.stringify([box, to]);
-    expect(Math.abs(box.x + box.width / 2 - to.x), report).toBeLessThan(box.width);
-    expect(Math.abs(box.y + box.height / 2 - to.y), report).toBeLessThan(box.height);
-    await page.mouse.up();
-    await expect(outline).toHaveCount(0);
   });
 
   test('puts a piece let go of over a wall drawn with a picture on the wall', async ({ page }) => {

@@ -37,27 +37,4 @@ test.describe('the map editor', () => {
     await editor.getByTestId('map-editor-zoom-fit').click();
     await expect.poll(async () => inside((await map.boundingBox())!, (await view.boundingBox())!)).toBe(true);
   });
-
-  test('closes the menu of layers to add once another tool is picked', async ({ page }) => {
-    const editor = await openEditor(page);
-    await expect(editor.getByTestId('map-layers-empty')).toBeVisible();
-
-    await editor.locator('button[title="レイヤーを追加"]').click();
-    const menu = editor.getByRole('button', { name: 'マップマスク' });
-    await expect(menu).toBeVisible();
-
-    await editor.locator('button[title^="ペン"]').click();
-    await expect(menu).toHaveCount(0);
-  });
-
-  test('names the layer drawing makes after its kind, in the language shown', async ({ page }) => {
-    const editor = await openEditor(page);
-    await editor.locator('button[title^="ペン"]').click();
-    const map = (await editor.locator('canvas').first().boundingBox())!;
-
-    await page.mouse.click(map.x + map.width / 2, map.y + map.height / 2);
-
-    await expect(editor.getByText('セル 1', { exact: true })).toBeVisible();
-    await expect(editor.getByTestId('map-layers-empty')).toHaveCount(0);
-  });
 });

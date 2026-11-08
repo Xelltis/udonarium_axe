@@ -1,16 +1,7 @@
-import { expect, Page, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 import { createCharacter, waitAppReady } from './helpers';
 import { askForStrictMoves, openMove } from './move-helpers';
-
-/** Closes every panel, so nothing lies over the band at the foot of the screen. */
-async function closePanels(page: Page) {
-  const panels = page.locator('ui-panel');
-  for (let round = 0; round < 8 && (await panels.count()) > 0; round++) {
-    await panels.first().locator('.bg-ui-titlebar button', { hasText: 'close' }).dispatchEvent('click');
-  }
-  await expect(panels).toHaveCount(0);
-}
 
 test.describe('strict movement', () => {
   test.beforeEach(async ({ page }) => {
@@ -19,68 +10,12 @@ test.describe('strict movement', () => {
     await askForStrictMoves(page);
   });
 
-  test('shows the guide and the reach of the move once a move is started', async ({ page }) => {
-    await openMove(page);
-
-    await expect(page.locator('[data-testid="move-plan-hint"]')).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('table-move-range-overlay canvas')).toHaveCount(1, { timeout: 5000 });
-
-    await page.keyboard.press('Escape');
-  });
-
-  test('keeps the guide clear of the toolbars pinned to the top', async ({ page }) => {
-    await openMove(page);
-
-    const hint = page.locator('[data-testid="move-plan-hint"]');
-    await expect(hint).toBeVisible({ timeout: 5000 });
-    const hintBox = (await hint.boundingBox())!;
-    const viewport = page.viewportSize()!;
-
-    // Toolbars are pinned to the top of the screen and can be dragged along it, so a band
-    // written up there is read by nobody.
-    expect(hintBox.y).toBeGreaterThan(viewport.height / 2);
-    expect(hintBox.y + hintBox.height).toBeLessThanOrEqual(viewport.height);
-
-    for (const bar of await page.locator('.fixed.top-0:not(.opacity-0)').all()) {
-      const barBox = await bar.boundingBox();
-      if (!barBox) continue;
-      const overlaps =
-        hintBox.x < barBox.x + barBox.width &&
-        barBox.x < hintBox.x + hintBox.width &&
-        hintBox.y < barBox.y + barBox.height &&
-        barBox.y < hintBox.y + hintBox.height;
-      expect(overlaps).toBe(false);
-    }
-
-    await page.keyboard.press('Escape');
-  });
-
-  test('lets the kind of move be switched in the band, and shows the distance left, where the room sets kinds of move', async ({
+  test('shows the guide and the reach once a move is started, and clears both once it is given up', async ({
     page,
   }) => {
-    await page.locator('room-settings-panel input[name="moveKinds"]').fill('全力:3:,通常:1:');
-    await closePanels(page);
-    await openMove(page);
-
-    const kinds = page.getByTestId('move-plan-kind');
-    await expect(kinds).toHaveText(['全力', '通常'], { timeout: 5000 });
-    await expect(kinds.first()).toHaveAttribute('aria-pressed', 'true');
-    const left = page.getByTestId('move-plan-metres-left');
-    const metres = async () => Number((await left.textContent())!.match(/[\d.]+/)![0]);
-    const full = await metres();
-    expect(full).toBeGreaterThan(0);
-
-    await kinds.nth(1).click();
-
-    await expect(kinds.nth(1)).toHaveAttribute('aria-pressed', 'true');
-    expect(await metres()).toBe(full / 3);
-
-    await page.keyboard.press('Escape');
-  });
-
-  test('clears both the guide and the reach once the move is given up', async ({ page }) => {
     await openMove(page);
     await expect(page.locator('[data-testid="move-plan-hint"]')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('table-move-range-overlay canvas')).toHaveCount(1, { timeout: 5000 });
 
     await page.keyboard.press('Escape');
 

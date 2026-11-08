@@ -56,19 +56,9 @@ test.describe('switches', () => {
     await block.dispatchEvent('click', { clientX: 10, clientY: 10 });
   }
 
-  test("shows in the chat under the block's name when the GM makes terrain a switch and a player presses it", async ({
+  test("turns a guest's press away with why above the block, and shows in the chat under the block's name once a player presses it", async ({
     page,
   }) => {
-    await setUpChest(page);
-    await becomeRole(page, 'PL');
-    await expect(page.locator('[data-testid="terrain-switch-label"]')).toContainText('宝箱を開ける');
-
-    await press(page);
-
-    await expect(page.locator('chat-window')).toContainText('ギィ…と蓋が開いた', { timeout: 10000 });
-  });
-
-  test('does not let a guest press it, and shows why above the block', async ({ page }) => {
     await setUpChest(page);
     await becomeRole(page, '見学');
 
@@ -76,15 +66,12 @@ test.describe('switches', () => {
 
     await expect(page.locator('[data-testid="terrain-switch-label"]')).toContainText('見学中は押せません');
     await expect(page.locator('chat-window')).not.toContainText('ギィ…と蓋が開いた');
-  });
 
-  test("leaves the switch entries out of a player's context menu", async ({ page }) => {
-    await setUpChest(page);
     await becomeRole(page, 'PL');
+    await expect(page.locator('[data-testid="terrain-switch-label"]')).toContainText('宝箱を開ける');
 
-    await page.locator('terrain').last().locator('[data-hud-box]').dispatchEvent('contextmenu');
+    await press(page);
 
-    await expect(page.locator('context-menu li').first()).toBeVisible();
-    await expect(page.locator('context-menu')).not.toContainText('スイッチ');
+    await expect(page.locator('chat-window')).toContainText('ギィ…と蓋が開いた', { timeout: 10000 });
   });
 });

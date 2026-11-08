@@ -71,4 +71,32 @@ describe('MovePlanBandComponent', () => {
 
     expect((await band()).querySelector('[data-testid="move-plan-unstoppable"]')).toBeNull();
   });
+
+  it('switches among the kinds of move the room sets, saying how far the chosen one has left', async () => {
+    Config.instance.moveKinds = '全力:3:,通常:1:';
+    try {
+      TestBed.inject(MovePlanService).begin(walker());
+      const fixture = TestBed.createComponent(MovePlanBandComponent);
+      await fixture.whenStable();
+      const host = fixture.nativeElement as HTMLElement;
+      const kinds = () => [...host.querySelectorAll<HTMLButtonElement>('[data-testid="move-plan-kind"]')];
+      const metresLeft = () =>
+        Number(host.querySelector('[data-testid="move-plan-metres-left"]')!.textContent!.match(/[\d.]+/)![0]);
+
+      expect(kinds().map((kind) => [kind.textContent!.trim(), kind.getAttribute('aria-pressed')])).toEqual([
+        ['全力', 'true'],
+        ['通常', 'false'],
+      ]);
+      const full = metresLeft();
+      expect(full).toBeGreaterThan(0);
+
+      kinds()[1].click();
+      await fixture.whenStable();
+
+      expect(kinds().map((kind) => kind.getAttribute('aria-pressed'))).toEqual(['false', 'true']);
+      expect(metresLeft()).toBe(full / 3);
+    } finally {
+      Config.instance.moveKinds = null;
+    }
+  });
 });

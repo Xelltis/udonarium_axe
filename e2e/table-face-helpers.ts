@@ -67,3 +67,31 @@ export function faceOf(piece: Locator): Promise<string | null> {
       null
   );
 }
+
+/**
+ * Draws the camera back from the table, so a board or a wall standing behind it is on the screen
+ * whole, above the pieces on the table rather than over them, and waits for the camera to come to rest.
+ */
+export async function standBack(page: Page) {
+  const layer = (await page.locator('#app-table-layer').boundingBox())!;
+  await page.mouse.move(layer.x + layer.width / 2, layer.y + layer.height / 2);
+  const camera = () =>
+    page.evaluate(() =>
+      JSON.stringify((window as unknown as { __axeTable: { camera(): unknown } }).__axeTable.camera())
+    );
+  const before = await camera();
+  for (let notch = 0; notch < 4; notch++) await page.mouse.wheel(0, 300);
+  await expect.poll(camera).not.toBe(before);
+  let last = '';
+  await expect
+    .poll(
+      async () => {
+        const now = await camera();
+        const still = now === last;
+        last = now;
+        return still;
+      },
+      { intervals: [250] }
+    )
+    .toBe(true);
+}

@@ -1,8 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
+import { ContextMenuAction, ContextMenuService } from '@axe/application/ui/context-menu.service';
+import { PanelService } from '@axe/application/ui/panel.service';
+import { PieceContextMenuService } from '@axe/application/ui/piece-context-menu.service';
 import { IPeerContext } from '@axe/core/network/peer-context';
 import { setPeerContextProvider } from '@axe/core/network/peer-context-source';
 import { ChatTab } from '@axe/domain/chat/chat-tab';
@@ -10,6 +14,7 @@ import { ChatTabList } from '@axe/domain/chat/chat-tab-list';
 import { DiceSymbol } from '@axe/domain/dice/dice-symbol';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { DiceSymbolComponent } from '@axe/features/dice/dice-symbol/dice-symbol.component';
+import { DiceSymbolSheetComponent } from '@axe/features/dice/dice-symbol-sheet/dice-symbol-sheet.component';
 import { beMyself } from '@axe/testing/peer-context-stub';
 import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 
@@ -77,6 +82,32 @@ describe('DiceSymbolComponent', () => {
     expect(play).toHaveBeenCalledWith(die.identifier, 'bounce-in');
     vi.restoreAllMocks();
     die.destroy();
+  });
+
+  it('opens the die’s own sheet from “show details” in its menu', async () => {
+    const die = DiceSymbol.create('D6', 0, 1);
+    fixture.componentRef.setInput('diceSymbol', die);
+    fixture.detectChanges();
+    vi.spyOn(TestBed.inject(PieceContextMenuService), 'openForSelection').mockReturnValue(false);
+    const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open').mockImplementation(() => undefined);
+    const openLazy = vi.spyOn(TestBed.inject(PanelService), 'openLazy').mockImplementation(() => undefined);
+    TestBed.inject(PointerDeviceService).primeForContextMenu(240, 180);
+
+    try {
+      component.onContextMenu(new Event('contextmenu', { cancelable: true }));
+      const menu = open.mock.calls[0][1] as ContextMenuAction[];
+      menu.find((entry) => entry.name === '詳細を表示')!.action!();
+
+      expect(openLazy).toHaveBeenCalledOnce();
+      const [load, , setUp] = openLazy.mock.calls[0];
+      expect(await load()).toBe(DiceSymbolSheetComponent);
+      const sheet = { diceSymbol: null as DiceSymbol | null };
+      setUp!(sheet as never);
+      expect(sheet.diceSymbol).toBe(die);
+    } finally {
+      vi.restoreAllMocks();
+      die.destroy();
+    }
   });
 
   describe('signal-driven CD', () => {

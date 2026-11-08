@@ -92,6 +92,19 @@ describe('PartyListPanelComponent', () => {
     player.destroy();
   });
 
+  it('lists a character in no party by name, beside a choice of party to put it in', async () => {
+    const scout = makeCharacter('斥候', 'me');
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const rows = [...(fixture.nativeElement as HTMLElement).querySelectorAll('select[name="party-assign"]')].map(
+      (select) => select.parentElement!.textContent
+    );
+    expect(rows).toEqual(expect.arrayContaining([expect.stringContaining('斥候')]));
+    scout.destroy();
+  });
+
   it('puts an unattached character into a party', () => {
     panel().addParty();
     const party = partyService.parties()[0];

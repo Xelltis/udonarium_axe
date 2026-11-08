@@ -70,6 +70,19 @@ describe('GameObjectListPanelComponent', () => {
     ObjectStore.instance.clearDeleteHistory();
   });
 
+  it('lists the pieces in the room by name', async () => {
+    makeCharacter('ゴブリン');
+    makeCharacter('オーク');
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const rows = [...(fixture.nativeElement as HTMLElement).querySelectorAll('ul[role="list"] > li')];
+    expect(rows.map((row) => row.textContent)).toEqual(
+      expect.arrayContaining([expect.stringContaining('ゴブリン'), expect.stringContaining('オーク')])
+    );
+  });
+
   it('ticks a piece and lets it go again', () => {
     const goblin = makeCharacter('ゴブリン');
 

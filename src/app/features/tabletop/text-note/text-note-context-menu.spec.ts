@@ -147,6 +147,24 @@ describe('buildTextNoteContextMenu()', () => {
     expect(note.destroy).toHaveBeenCalled();
   });
 
+  it('makes a copy a cell down and across, laid over the rest', () => {
+    const copy = { location: { x: 100, y: 150 }, toTopmost: vi.fn() };
+    const note = makeTextNote({ clone: vi.fn(() => copy) });
+    const menu = buildTextNoteContextMenu(
+      note as unknown as TextNote,
+      50,
+      makeService(),
+      { onSetUpright: vi.fn(), onShowDetail: vi.fn() },
+      t
+    );
+
+    menu.find((m) => m.name === 'コピーを作る')!.action!();
+
+    expect(note.clone).toHaveBeenCalledOnce();
+    expect(copy.location).toEqual({ x: 150, y: 200 });
+    expect(copy.toTopmost).toHaveBeenCalled();
+  });
+
   it('draws exactly two separators without permission', () => {
     const note = makeTextNote();
     const menu = buildTextNoteContextMenu(

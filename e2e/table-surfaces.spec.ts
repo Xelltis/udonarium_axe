@@ -71,11 +71,12 @@ async function hoverBareOf(page: Page, face: Locator) {
   await page.mouse.move(at!.x, at!.y, { steps: 3 });
 }
 
+/** Sets the white board's angle from its menu, by the whole name of an angle it is not at already. */
 async function pitchBoard(page: Page, label: string) {
   await page.locator('white-board [data-surface]').dispatchEvent('contextmenu');
   const menu = page.locator('context-menu');
   await (await revealMenuEntry(page, menu, '角度')).hover();
-  await (await revealMenuEntry(page, menu, label)).click();
+  await (await revealMenuEntry(page, menu, label, true)).click();
 }
 
 test.describe('the faces things are put on', () => {
@@ -87,27 +88,21 @@ test.describe('the faces things are put on', () => {
     await closePanels(page);
   });
 
-  test('puts a point of a white board where the page draws it, lying, leaning and standing', async ({ page }) => {
+  test('puts a point of a white board where the page draws it, standing, lying, leaning and once it has been turned', async ({
+    page,
+  }) => {
     const menu = await openTableContextMenu(page, await cellSpot(page, 1.5, 1.5));
     await (await revealMenuEntry(page, menu, 'ホワイトボードを作成')).click();
     const face = page.locator('white-board [data-surface]');
     // Over a table drawn on a canvas the face is put once the canvas draws the board.
     await expect(face).toBeVisible({ timeout: 10000 });
     const board = (await face.getAttribute('data-surface'))!;
-    await expect.poll(() => farthestApart(face, board), { timeout: 5000, message: 'lying' }).toBeLessThan(SLACK_PX);
-    for (const label of ['斜めに立てる', '立てる']) {
+    await expect.poll(() => farthestApart(face, board), { timeout: 5000, message: 'standing' }).toBeLessThan(SLACK_PX);
+    for (const label of ['寝かせる', '斜めに立てる']) {
       await pitchBoard(page, label);
       await expect.poll(() => farthestApart(face, board), { timeout: 5000, message: label }).toBeLessThan(SLACK_PX);
     }
-  });
 
-  test('puts a point of a white board where the page draws it once it has been turned', async ({ page }) => {
-    const menu = await openTableContextMenu(page, await cellSpot(page, 1.5, 1.5));
-    await (await revealMenuEntry(page, menu, 'ホワイトボードを作成')).click();
-    const face = page.locator('white-board [data-surface]');
-    await expect(face).toBeAttached({ timeout: 10000 });
-    const board = (await face.getAttribute('data-surface'))!;
-    await pitchBoard(page, '斜めに立てる');
     const before = await face.evaluate((element) => element.getBoundingClientRect().toJSON() as object);
     // The frame that turns the board comes out with the pointer over the board.
     await hoverBareOf(page, face);
@@ -117,6 +112,6 @@ test.describe('the faces things are put on', () => {
     await expect
       .poll(() => face.evaluate((element) => element.getBoundingClientRect().toJSON() as object))
       .not.toEqual(before);
-    await expect.poll(() => farthestApart(face, board), { timeout: 5000 }).toBeLessThan(SLACK_PX);
+    await expect.poll(() => farthestApart(face, board), { timeout: 5000, message: 'turned' }).toBeLessThan(SLACK_PX);
   });
 });
