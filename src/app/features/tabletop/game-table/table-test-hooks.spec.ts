@@ -23,7 +23,7 @@ import { TEST_PROVIDERS } from '@axe/testing/test-providers';
 type Hooked = Window & { __axeTable?: TableTestHooks };
 
 describe('table test hooks', () => {
-  function install(webdriver: boolean, moveCamera = vi.fn()): { win: Hooked; remove: () => void } {
+  function install(webdriver: boolean, moveCamera = vi.fn(), refresh = vi.fn()): { win: Hooked; remove: () => void } {
     TestBed.configureTestingModule({ providers: [...TEST_PROVIDERS] });
     const win = { navigator: { webdriver } } as unknown as Hooked;
     const remove = installTableTestHooks(
@@ -39,10 +39,23 @@ describe('table test hooks', () => {
       TestBed.inject(PiecePicturesService),
       TestBed.inject(DiceRenderService),
       TestBed.inject(TabletopService),
-      moveCamera
+      moveCamera,
+      refresh
     );
     return { win, remove };
   }
+
+  it('bring the page up to date before drawing what is due, for a change its held clock would never refresh', () => {
+    const refresh = vi.fn();
+    const { win, remove } = install(true, vi.fn(), refresh);
+    const drawn = vi.spyOn(TestBed.inject(Table3dService), 'drawDueNow');
+
+    win.__axeTable?.drawDueNow();
+
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(refresh.mock.invocationCallOrder[0]).toBeLessThan(drawn.mock.invocationCallOrder[0]);
+    remove();
+  });
 
   it('are put on a window that automation drives, and taken off again', () => {
     const { win, remove } = install(true);

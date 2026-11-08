@@ -55,7 +55,10 @@ export interface TableTestHooks {
   /**
    * Draws at once whatever the canvas waits on a frame to draw, and answers whether it is drawn
    * through: no picture of a piece being taken for it, nothing loading, nothing left to draw. For a
-   * page whose clock is held, where no frame comes until the clock is moved on.
+   * page whose clock is held, where no frame comes until the clock is moved on. The page is brought
+   * up to date first, as its own refresh would: a change that comes on real time while the held
+   * clock runs a callback has that refresh put a moment later, which a clock held at one moment never
+   * reaches, and the scene the canvas is told would wait on it for ever.
    */
   drawDueNow(): boolean;
   /**
@@ -169,7 +172,8 @@ export function installTableTestHooks(
   pictures: PiecePicturesService,
   dice: DiceRenderService,
   tabletop: TabletopService,
-  moveCamera: (view: TableCameraView) => void
+  moveCamera: (view: TableCameraView) => void,
+  refresh: () => void
 ): () => void {
   if (!win.navigator.webdriver) return () => undefined;
   const hooked = win as HookedWindow;
@@ -193,6 +197,7 @@ export function installTableTestHooks(
       ...scene.busyWith(),
     ],
     drawDueNow: () => {
+      refresh();
       const drawn = pictures.taking() === 0 && scene.drawDueNow();
       hud.writeNow();
       return drawn;

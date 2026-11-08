@@ -1,6 +1,7 @@
 import { NgClass, NgStyle, NgTemplateOutlet } from '@angular/common';
 import {
   afterNextRender,
+  ApplicationRef,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -270,6 +271,7 @@ export class GameTableComponent {
   private readonly uiSignalService = inject(UiSignalService);
   private readonly objectChangeService = inject(ObjectChangeService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly appRef = inject(ApplicationRef);
   private readonly t = inject(TRANSLATE_FN);
   private readonly displayCalibration = inject(DisplayCalibrationService);
   private readonly viewLock = inject(ViewLockService);
@@ -474,7 +476,8 @@ export class GameTableComponent {
           this.piecePictures,
           this.diceRender,
           this.tabletopService,
-          (view) => this.gestureService.moveTo(view)
+          (view) => this.gestureService.moveTo(view),
+          () => this.appRef.tick()
         )
       );
       this.syncMode2d();
