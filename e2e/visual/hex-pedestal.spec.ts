@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { cellSpot } from '../helpers';
 import {
   chooseMenu,
   closeModal,
@@ -22,7 +23,7 @@ test('a piece on a hex grid wears the hex pedestal', async ({ page }) => {
   await settle(page);
   await closeModal(page);
   const samples = await page.locator('game-character').count();
-  const menu = await rightClickTable(page, { x: 1040, y: 500 });
+  const menu = await rightClickTable(page, await cellSpot(page, 25.5, 11.5));
   await chooseMenu(page, menu, 'キャラクターを作成');
   await page.mouse.move(1279, 799);
   await expect(page.locator('game-character')).toHaveCount(samples + 1);

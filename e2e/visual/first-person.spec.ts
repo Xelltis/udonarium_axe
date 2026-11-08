@@ -1,5 +1,6 @@
 import { expect, Page, test } from '@playwright/test';
 
+import { cellSpot } from '../helpers';
 import {
   becomeGm,
   chooseMenu,
@@ -39,9 +40,9 @@ async function lookOutOf(page: Page, piece: ReturnType<Page['locator']>) {
 }
 
 async function standBeforeABlockAndLook(page: Page) {
-  await createAt(page, { x: 1010, y: 530 }, 'キャラクターを作成', 'game-character');
+  await createAt(page, await cellSpot(page, 24.5, 12.5), 'キャラクターを作成', 'game-character');
   const piece = page.locator('game-character').last();
-  await createAt(page, { x: 1138, y: 450 }, '地形を作成', 'terrain');
+  await createAt(page, await cellSpot(page, 26.5, 10.5), '地形を作成', 'terrain');
   await lookOutOf(page, piece);
 }
 

@@ -1,5 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
+import { cellSpot } from '../helpers';
 import {
   becomeGm,
   chooseMenu,
@@ -18,20 +19,19 @@ import {
   useHexGrid,
 } from './fixtures';
 
-/** Where a new piece is put for the view from under the water, and the pond a little off it. */
-const PIECE_AT = { x: 1040, y: 495 };
-const POND_AT = { x: 1070, y: 525 };
+/**
+ * Where a new piece is put for the view from under the water, and the pond a little off it, in cells
+ * of the starting table: on the open ground east of its pieces.
+ */
+const PIECE_CELL = { x: 25.5, y: 11.5 };
+const POND_CELL = { x: 26.1, y: 12.1 };
 
-/** Where a piece of the starting table stands on the screen: the middle of the ground it stands on. */
-async function feetOf(page: Page, name: string): Promise<{ x: number; y: number }> {
-  await drawCanvasThrough(page);
-  const piece = page.locator('game-character').filter({ hasText: name });
-  const ground = piece.locator('[data-location]').first();
-  const box = await ground.boundingBox();
-  if (!box) throw new Error(`${name} is not on the screen`);
-  const table = await page.locator('#app-table-layer').boundingBox();
-  return { x: box.x + box.width / 2 - (table?.x ?? 0), y: box.y + box.height / 2 - (table?.y ?? 0) };
-}
+/**
+ * Where the pond a piece wades in is laid, in cells of the starting table: south of キャラクターB, whose
+ * feet stand at (20.5, 14.5), near enough for the pond to take them in, and clear of the rings round
+ * the feet of the pieces beside it, a press on which is the piece's.
+ */
+const PONDSIDE_OF_B = { x: 20.5, y: 16.1 };
 
 /** The net of light drifts for as long as the page is open, so every shot holds it at one moment. */
 const WATER_SNAP = { animationAt: 1200 };
@@ -40,7 +40,8 @@ const WATER_SNAP = { animationAt: 1200 };
  * Where a press near a point of the table lands on the table itself rather than on the marks over a
  * piece or on a piece the canvas draws there, as the outline of the cells a piece stands on: the
  * point itself, or the nearest of a few around it, the names and gauges standing over the pieces on
- * the screen.
+ * the screen. The ring round a piece's feet, a press on which turns the piece or opens its menu, is
+ * kept clear of by its box, as the page does not report it under the point until it is pressed.
  */
 async function clearOfMarks(page: Page, at: { x: number; y: number }): Promise<{ x: number; y: number }> {
   const table = (await page.locator('#app-table-layer').boundingBox())!;
@@ -61,6 +62,10 @@ async function clearOfMarks(page: Page, at: { x: number; y: number }): Promise<{
         !document
           .elementFromPoint(x, y)
           ?.closest('game-character, terrain, table-ambience, dice-symbol, card, card-stack, light-source, ui-panel') &&
+        ![...document.querySelectorAll('[data-testid="turn-ring"]')].some((ring) => {
+          const box = ring.getBoundingClientRect();
+          return x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
+        }) &&
         (window as unknown as { __axeTable: { pickAt(x: number, y: number): string | null } }).__axeTable.pickAt(
           x,
           y
@@ -189,8 +194,8 @@ async function setFlow(page: Page, percent: string, direction: string) {
 
 /** Lays a pond round a piece of the starting table, which has a picture to wade with. */
 async function wadeIn(page: Page) {
-  const feet = await feetOf(page, 'キャラクターB');
-  await layPond(page, { x: feet.x + 40, y: feet.y + 30 });
+  await drawCanvasThrough(page);
+  await layPond(page, await cellSpot(page, PONDSIDE_OF_B.x, PONDSIDE_OF_B.y));
   await setWaterLevel(page, '1');
   await waterBuilt(page);
 }
@@ -219,11 +224,12 @@ test('waves break on a block standing out of the water', async ({ page }) => {
   await becomeGm(page);
   await closePanels(page);
   await freeze(page);
-  const menu = await rightClickTable(page, { x: 1060, y: 495 });
+  const blocks = await page.locator('terrain').count();
+  const menu = await rightClickTable(page, await cellSpot(page, 25.5, 9.5));
   await chooseMenu(page, menu, '地形を作成');
-  await expect(page.locator('terrain')).toHaveCount(1, { timeout: 10000 });
+  await expect(page.locator('terrain')).toHaveCount(blocks + 1, { timeout: 10000 });
   await settle(page, 400);
-  await layPond(page, { x: 980, y: 565 });
+  await layPond(page, await cellSpot(page, 24.5, 11));
   await setWaterLevel(page, '1');
   await waterBuilt(page);
   await settle(page, 400);
@@ -291,9 +297,9 @@ test('a piece looks out from under the surface of a pond', async ({ page }) => {
   await becomeGm(page);
   await closePanels(page);
   await freeze(page);
-  await createPiece(page, PIECE_AT);
+  await createPiece(page, await cellSpot(page, PIECE_CELL.x, PIECE_CELL.y));
   const piece = page.locator('game-character').last();
-  await layPond(page, POND_AT);
+  await layPond(page, await cellSpot(page, POND_CELL.x, POND_CELL.y));
   await setWaterLevel(page, '2');
   await piece.dispatchEvent('contextmenu');
   await settle(page, 400);
