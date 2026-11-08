@@ -432,7 +432,7 @@ describe('TablePickService', () => {
     expect(service.pickAt(clear.x, clear.y)).toBeNull();
   });
 
-  it('tells what of the floor a character’s picture hides and where its corners lie, and a picture not shown hides nothing', async () => {
+  it('tells what of the floor a character’s picture hides and where its corners lie, and one standing in for a model hides as much', async () => {
     const character = await standHero();
     const { solid, clear } = heroHalves();
     const picture = TestBed.inject(TablePiecesService)
@@ -446,8 +446,9 @@ describe('TablePickService', () => {
     expect(sight.hides('floor', behindSolid.x, behindSolid.y)).toBe(true);
     expect(sight.hides('floor', behindClear.x, behindClear.y)).toBe(false);
 
-    const unseen = service.pictureSightOf({ ...picture, hidden: true })!;
-    expect(unseen.hides('floor', behindSolid.x, behindSolid.y)).toBe(false);
-    expect(unseen.cornerOnPage(1)).toEqual(sight.cornerOnPage(1));
+    const forModel = service.pictureSightOf({ ...picture, hidden: true })!;
+    expect(forModel.hides('floor', behindSolid.x, behindSolid.y)).toBe(true);
+    expect(forModel.hides('floor', behindClear.x, behindClear.y)).toBe(false);
+    expect(forModel.cornerOnPage(1)).toEqual(sight.cornerOnPage(1));
   });
 });

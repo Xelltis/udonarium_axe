@@ -122,8 +122,8 @@ export class TablePickService {
 
   /**
    * How a character's picture stands before the eye as it is drawn now: whether it hides a point of a
-   * face behind it, and where its corners lie. A picture not shown, as for a piece drawn as a model,
-   * hides nothing, though its corners are where the screen puts the handles that go with it.
+   * face behind it, and where its corners lie. A picture not shown, standing in for the model a piece
+   * is drawn as, hides what the model fitted to it hides, as a press is taken by it there.
    */
   pictureSightOf(sprite: TableWorldSprite): PictureSight | null {
     const view = this.camera.view;
@@ -141,7 +141,7 @@ export class TablePickService {
       ...(mask ? { opaqueAt: (_shape, u, v) => !seesThroughAt(mask, { u, v }) } : {}),
     };
     return {
-      hides: (surface, x, y, height = 0) => !sprite.hidden && this.hiddenBehind([target], surface, x, y, height),
+      hides: (surface, x, y, height = 0) => this.hiddenBehind([target], surface, x, y, height),
       cornerOnPage: (corner) => {
         const page = pageOfTablePoint(scene, corners[corner].x, corners[corner].y, corners[corner].z);
         return { x: page.x, y: page.y };
