@@ -36,6 +36,20 @@ const drawsOnCanvasPictures = {
   origins: [{ origin: 'http://localhost:4300', localStorage: [playsAlone] }],
 };
 
+/**
+ * A browser that has asked for the table not to be drawn at all: the table is worked through the page
+ * and picking alone, as most specs do, and spends nothing on drawing a canvas in software.
+ */
+const drawsNothing = {
+  cookies: [withoutSampleModels],
+  origins: [
+    { origin: 'http://localhost:4300', localStorage: [playsAlone, { name: 'axe.table.renderer', value: 'none' }] },
+  ],
+};
+
+/** The specs outside the canvas's own folder that read what the canvas draws, and so run where it is drawn. */
+const LOOKS_AT_CANVAS = [/\/darkness\.spec\.ts/, /\/scene\.spec\.ts/];
+
 /** A browser that has asked for the table to be drawn on a canvas through three.js, as a seat does by default. */
 const drawsOnCanvas = {
   cookies: [],
@@ -102,7 +116,7 @@ export default defineConfig({
   // The static server holds 77 MB where `ng serve` held 1.3 GB, so the run can
   // afford real parallelism. Each worker's browser takes about half a gigabyte:
   // 6 finish a run some 13% sooner than 4, and 8 hardly sooner than 6.
-  workers: isCI ? 2 : 6,
+  workers: isCI ? 2 : 10,
   reporter: 'html',
   // A page load off the build settles in well under a second; 60s was sized for
   // the dev server compiling on demand.
@@ -125,13 +139,29 @@ export default defineConfig({
     toHaveScreenshot: { animations: 'allow', caret: 'hide', scale: 'css', maxDiffPixelRatio: 0.001, threshold: 0.2 },
   },
   projects: [
-    // Every spec, with the table drawn on a canvas as a seat draws it. Headless Chromium gives no
-    // WebGPU adapter without flags, so this goes through WebGL2, drawn in software: a spec that drags
-    // a piece about many times takes a while, so each is given twice the time, and fewer run at once.
+    // Every spec that works the table through the page and picking alone, with nothing drawn on the
+    // canvas: drawing it in software is most of what a spec costs, and these look at none of it.
     {
       name: 'chromium',
+      use: { ...devices['Desktop Chrome'], storageState: drawsNothing },
+      testIgnore: [
+        /mobile\/.*\.spec\.ts/,
+        /visual\/.*\.spec\.ts/,
+        /server\/.*\.spec\.ts/,
+        /webgl\/.*\.spec\.ts/,
+        ...LOOKS_AT_CANVAS,
+      ],
+      timeout: 60000,
+      workers: 8,
+    },
+    // The specs that look at the table drawn on a canvas, as a seat draws it. Headless Chromium gives
+    // no WebGPU adapter without flags, so this goes through WebGL2, drawn in software: a spec that
+    // drags a piece about many times takes a while, so each is given twice the time, and fewer run at
+    // once.
+    {
+      name: 'chromium-webgl',
       use: { ...devices['Desktop Chrome'], launchOptions: CANVAS_LAUNCH, storageState: drawsOnCanvasPictures },
-      testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/, /server\/.*\.spec\.ts/],
+      testMatch: [/webgl\/.*\.spec\.ts/, ...LOOKS_AT_CANVAS],
       timeout: 60000,
       workers: 4,
     },
