@@ -405,10 +405,10 @@ export class GameTableComponent {
       untracked(() => this.redrawTableGrid());
     });
     effect(() => {
-      const unavailable = this.table3d.unavailable();
+      const drawsNothing = this.table3d.unavailable() || this.table3d.renderer() === 'none';
       const drawing = this.table3d.backend() !== null;
       untracked(() => {
-        if (unavailable) {
+        if (drawsNothing) {
           this.startupLoading.finish();
         } else if (drawing) {
           this.startupLoading.reach('pieces');

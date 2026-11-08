@@ -72,11 +72,13 @@ import type {
 
 /**
  * How the canvas draws the table through three.js: through WebGPU where it can be had, or through
- * WebGL2 alone even then, for holding the two side by side.
+ * WebGL2 alone even then, for holding the two side by side; or not at all, for a page that drives
+ * the table without looking at it, as a spec does that works the table through the page and picking
+ * alone, which then spends nothing on drawing.
  */
-export type TableRenderer = 'three' | 'three-webgl2';
+export type TableRenderer = 'three' | 'three-webgl2' | 'none';
 
-const RENDERERS: readonly TableRenderer[] = ['three', 'three-webgl2'];
+const RENDERERS: readonly TableRenderer[] = ['three', 'three-webgl2', 'none'];
 
 /** Loads the module the engine is made in, which holds three.js and so is loaded only when it is wanted. */
 export const TABLE_3D_ENGINES = new InjectionToken<() => Promise<Table3dEngineModule>>('table 3d engines', {
@@ -381,7 +383,7 @@ export class Table3dService {
   );
 
   /** Whether the canvas is asked for but not drawing yet, which the table covers until it is. */
-  readonly preparing = computed(() => this.backend() === null && !this.unavailable());
+  readonly preparing = computed(() => this.backend() === null && !this.unavailable() && this.renderer() !== 'none');
 
   private frame: number | null = null;
   private canvas: HTMLCanvasElement | null = null;
@@ -408,7 +410,7 @@ export class Table3dService {
   private readiesFirst = true;
 
   constructor() {
-    this.loadSoon();
+    if (untracked(this.renderer) !== 'none') this.loadSoon();
     this.modelFits.onRead(() => setTimeout(() => this.settleIfIdle(), 0));
     this.bundledModels.onRead(() => setTimeout(() => this.settleIfIdle(), 0));
     inject(DestroyRef).onDestroy(() => {
@@ -636,6 +638,7 @@ export class Table3dService {
   }
 
   private async start(canvas: HTMLCanvasElement): Promise<Table3dEngine | null> {
+    if (untracked(this.renderer) === 'none') return null;
     const graphics = await this.askGraphics();
     this.quality.knowGraphicsCard(graphics.hardware === true);
     if (!graphics.webgpu && !graphics.webgl2) {

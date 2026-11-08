@@ -660,6 +660,20 @@ describe('Table3dService', () => {
     expect(scene.canvasGeneration()).toBe(3);
   });
 
+  it('draws nothing where a seat asks for no drawing: no engine is loaded or made, and nothing covers the table', async () => {
+    localStorage.setItem(STORAGE_KEYS.tableRenderer, 'none');
+    const scene = service();
+    scene.attach(document.createElement('canvas'));
+    await scene.whenIdle();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(loaded.count).toBe(0);
+    expect(engines).toHaveLength(0);
+    expect(scene.backend()).toBeNull();
+    expect(scene.preparing()).toBe(false);
+    expect(scene.unavailable()).toBe(false);
+  });
+
   it('loads the engine while the page is idle', async () => {
     service();
     await new Promise((resolve) => setTimeout(resolve, 20));
