@@ -163,6 +163,20 @@ describe('TablePiecesService', () => {
     expect(pieces.sprites()[0].centre).toEqual({ x: 300 + gridSize / 2, y: 400 + gridSize / 2, z: 1 });
   });
 
+  it('draws a piece let go of where its object was put, though no change of the object has come yet', () => {
+    const die = dieAt(100, 200);
+    pieces.sprites();
+    const transient = TestBed.inject(TransientPlacementService);
+    transient.place(die.identifier, { surface: 'floor', x: 300, y: 400, z: 0 });
+    pieces.sprites();
+
+    die.location.x = 300;
+    die.location.y = 400;
+    transient.release(die.identifier);
+
+    expect(pieces.sprites()[0].centre).toEqual({ x: 300 + gridSize / 2, y: 400 + gridSize / 2, z: 1 });
+  });
+
   it('draws again only the piece this seat moves, keeping the parts of the rest as they were', () => {
     const moved = dieAt(100, 200);
     const still = dieAt(300, 200);

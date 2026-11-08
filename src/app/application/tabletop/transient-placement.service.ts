@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
+import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 
 /** Where this seat shows a piece, ahead of the place its object has been told. */
 export interface TransientPlacement {
@@ -28,6 +29,7 @@ export interface DropPreview {
  */
 @Injectable({ providedIn: 'root' })
 export class TransientPlacementService {
+  private readonly objectChange = inject(ObjectChangeService);
   private readonly placements = new Map<string, TransientPlacement>();
   private readonly changes = signal(0);
   private readonly preview = signal<DropPreview | null>(null);
@@ -52,9 +54,15 @@ export class TransientPlacementService {
     this.changes.update((version) => version + 1);
   }
 
-  /** Lets go of a piece, which is shown where its object says from then on. */
+  /**
+   * Lets go of a piece, which is shown where its object says from then on. It is drawn again from its
+   * object at once: its object's own change is told a moment later, and until then what draws the
+   * table would keep it where it stood before it was moved.
+   */
   release(identifier: string): void {
-    if (this.placements.delete(identifier)) this.changes.update((version) => version + 1);
+    if (!this.placements.delete(identifier)) return;
+    this.objectChange.notifyChanged(identifier);
+    this.changes.update((version) => version + 1);
   }
 
   /** Every piece this seat shows ahead of its object, by its identifier; read it to follow the places. */
