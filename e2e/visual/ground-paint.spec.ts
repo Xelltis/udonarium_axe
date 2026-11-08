@@ -39,8 +39,9 @@ function kindsPainted(page: Page): Promise<boolean[]> {
  */
 test('painted ground wears the picture of each kind of ground', async ({ page }) => {
   // Each step of the brush has the table drawn again, which takes the software renderer the shots
-  // are drawn with half a second on the starting table, so the four strokes alone take most of a minute.
-  test.setTimeout(120_000);
+  // are drawn with half a second on the starting table through WebGL2, and well over a second through
+  // WebGPU, so the four strokes alone take one minute to three.
+  test.setTimeout(240_000);
   await prepare(page);
   await becomeGm(page);
   await closePanels(page);

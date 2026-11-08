@@ -200,13 +200,20 @@ export async function menuEntry(page: Page, menu: Locator, text: string): Promis
   return entry;
 }
 
+/**
+ * Rests the pointer on an entry of an open context menu. An entry is pointed at without Playwright
+ * waiting for it to stand still over two frames of the page: with the clock held nothing on the menu
+ * moves, and pages drawing through WebGPU in software beside one another may draw no frame for half
+ * a minute, which left an entry that stood still waiting for one.
+ */
 export async function hoverMenu(page: Page, menu: Locator, text: string) {
-  await (await menuEntry(page, menu, text)).hover();
+  await (await menuEntry(page, menu, text)).hover({ force: true });
   await settle(page, 400);
 }
 
+/** Chooses an entry of an open context menu, pressed as {@link hoverMenu} points at one. */
 export async function chooseMenu(page: Page, menu: Locator, text: string) {
-  await (await menuEntry(page, menu, text)).click();
+  await (await menuEntry(page, menu, text)).click({ force: true });
   await settle(page);
 }
 
@@ -300,6 +307,13 @@ export async function holdFlicker(page: Page, timeMs: number) {
 const SHOT_TIMEOUT_MS = 30_000;
 
 /**
+ * How long a frame that turns a thing stays out once the pointer has left the thing, with a little
+ * over: a clock held for the shots never lets it pass, so a frame brought out by the pointer last
+ * resting over a thing would be shot with the thing.
+ */
+const TURN_FRAME_STAYS_MS = 700;
+
+/**
  * Holds the pieces playing a move on a canvas as far into it as the page's own animations are held
  * for a shot: a move starts whenever what it plays for arrives, which a held clock does not hold.
  */
@@ -316,6 +330,9 @@ export interface SnapOptions {
 export async function snap(page: Page, name: string, options: SnapOptions = {}) {
   await page.evaluate(() => document.fonts.ready);
   await page.mouse.move(1279, 799);
+  if (frozen.has(page) && (await page.locator('[data-testid="turn-frame"]').count()) > 0) {
+    await page.clock.runFor(TURN_FRAME_STAYS_MS);
+  }
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.evaluate(() => (window as unknown as CanvasHooks).__axeTable?.chooseLightsAfresh());
   await holdAnimationsAt(page, options.animationAt ?? 0);
