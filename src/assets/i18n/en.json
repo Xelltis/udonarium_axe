@@ -3735,7 +3735,8 @@
         "deleteCancel": "Cancel",
         "deleteFailed": "The account could not be deleted. Please try again later.",
         "deleteFailedLoggedOut": "Could not delete the account. Log in again, then delete it once more.",
-        "guestHint": "Without logging in you join as a guest. Log in to create rooms and move things on the table.",
+        "guestTitle": "Not logged in",
+        "guestBody": "You will join as a guest. Log in with Discord to create rooms and move things on the table.",
         "unavailable": "This server offers no login, so it has no rooms.",
         "errors": {
           "denied": "The login was cancelled.",
