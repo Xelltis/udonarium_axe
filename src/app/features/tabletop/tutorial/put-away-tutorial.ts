@@ -41,8 +41,8 @@ export function putAwayTutorial(tabletop: TabletopService): number {
 
 /**
  * Clears the first table down to a blank one: the tutorial goes, the sample pieces and their two
- * parties go, the ground is laid flat again, and the table loses its picture and
- * shows its grid, as a new table is made with. Whatever was made on the table since stays where it is.
+ * parties go, all the ground is laid flat and its paint taken off, and the table loses its picture and
+ * shows its grid, as a new table is made with. The pieces put on the table since stay where they are.
  */
 export function clearToBlankTable(tabletop: TabletopService): void {
   putAwayTutorial(tabletop);
