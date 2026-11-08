@@ -36,22 +36,32 @@ function wav(loop: boolean): Buffer {
   return Buffer.concat([riff, body]);
 }
 
-async function playOnRepeatOne(page: Page, name: string, loop: boolean): Promise<Locator> {
+/**
+ * Opens the jukebox with two tracks put in, one whose loop points mark a part to go round and one
+ * with none, and checks it starts on repeat one.
+ */
+async function openJukeboxWithTracks(page: Page): Promise<Locator> {
   await waitAppReady(page);
   await openPanel(page, 'ジュークボックス');
   const jukebox = page.locator('app-jukebox');
   await expect(jukebox).toBeVisible({ timeout: 10000 });
-  await jukebox
-    .locator('input[type="file"][accept="audio/*"]')
-    .setInputFiles([{ name, mimeType: 'audio/wav', buffer: wav(loop) }]);
+  await jukebox.locator('input[type="file"][accept="audio/*"]').setInputFiles([
+    { name: 'Looped.wav', mimeType: 'audio/wav', buffer: wav(true) },
+    { name: 'Plain.wav', mimeType: 'audio/wav', buffer: wav(false) },
+  ]);
+  await expect(jukebox.getByTestId('jukebox-repeat').locator('.material-icons')).toHaveText('repeat_one');
+  return jukebox;
+}
+
+/** Plays a track of the library as the BGM, once its row has come up. */
+async function playTrack(jukebox: Locator, name: string): Promise<void> {
+  const page = jukebox.page();
   const row = jukebox
     .locator('div.border-b')
     .filter({ has: page.locator('select') })
     .filter({ has: page.getByText(name, { exact: true }) });
   await expect(row).toBeVisible({ timeout: 15000 });
-  await expect(jukebox.getByTestId('jukebox-repeat').locator('.material-icons')).toHaveText('repeat_one');
   await row.getByTitle('BGM再生').click();
-  return jukebox;
 }
 
 /**
@@ -75,20 +85,19 @@ async function shownSeconds(jukebox: Locator, enough: (seen: number[]) => boolea
 const wrapped = (seen: number[]) => seen.some((second, i) => i > 0 && seen[i - 1] >= 2 && second <= 1);
 
 test.describe('loop points in the jukebox', () => {
-  test('repeats the marked part of a track with loop points on repeat one', async ({ page }) => {
-    const jukebox = await playOnRepeatOne(page, 'Looped.wav', true);
+  test('repeats the marked part of a track with loop points on repeat one, and plays a track without them to its end, as before', async ({
+    page,
+  }) => {
+    test.slow();
+    const jukebox = await openJukeboxWithTracks(page);
 
-    const seen = await shownSeconds(jukebox, (sofar) => wrapped(sofar) || sofar.some((second) => second > 3));
+    await playTrack(jukebox, 'Looped.wav');
+    const looped = await shownSeconds(jukebox, (sofar) => wrapped(sofar) || sofar.some((second) => second > 3));
+    expect(Math.max(...looped)).toBeLessThanOrEqual(3);
+    expect(wrapped(looped)).toBe(true);
 
-    expect(Math.max(...seen)).toBeLessThanOrEqual(3);
-    expect(wrapped(seen)).toBe(true);
-  });
-
-  test('plays a track without loop points to its end, as before', async ({ page }) => {
-    const jukebox = await playOnRepeatOne(page, 'Plain.wav', false);
-
-    const seen = await shownSeconds(jukebox, (sofar) => sofar.some((second) => second >= 4));
-
-    expect(Math.max(...seen)).toBeGreaterThanOrEqual(4);
+    await playTrack(jukebox, 'Plain.wav');
+    const plain = await shownSeconds(jukebox, (sofar) => sofar.some((second) => second >= 4));
+    expect(Math.max(...plain)).toBeGreaterThanOrEqual(4);
   });
 });

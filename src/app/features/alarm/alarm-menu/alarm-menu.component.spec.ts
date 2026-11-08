@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessageService } from '@axe/application/chat/chat-message.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { Network } from '@axe/core/network/network';
 import { Alarm } from '@axe/domain/alarm/alarm';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
@@ -85,6 +86,54 @@ describe('AlarmMenuComponent', () => {
       const list = component.selectedList();
       expect(list).toContain('peer-1');
       expect(list.length).toBe(1);
+    });
+  });
+
+  describe('the form in a room of one', () => {
+    let t: (key: string) => string;
+
+    beforeEach(async () => {
+      PeerCursor.createMyCursor();
+      t = TestBed.inject(TRANSLATE_FN);
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    function field(name: string): HTMLInputElement {
+      return (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(`input[name="${name}"]`)!;
+    }
+
+    function setButton(): HTMLButtonElement {
+      return [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find((button) =>
+        button.textContent?.includes(t('feature.alarm.set'))
+      )!;
+    }
+
+    it('writes the title typed into its field', () => {
+      const title = field('alarmTitle');
+      title.value = '戦闘ラウンド';
+      title.dispatchEvent(new Event('input'));
+
+      expect(component.alarmTitle).toBe('戦闘ラウンド');
+    });
+
+    it('offers the boxes for the sound, the pop-up and including oneself, all ticked to start with', () => {
+      expect(['isSound', 'isPopUp', 'includSelf'].map((name) => field(name)?.checked)).toEqual([true, true, true]);
+    });
+
+    it('leaves nobody to alert, and the set button off, once including oneself is unticked', async () => {
+      expect(setButton().disabled).toBe(false);
+
+      field('includSelf').click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.includSelf).toBe(false);
+      expect(setButton().disabled).toBe(true);
+    });
+
+    it('says nobody else is in the room', () => {
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain(t('feature.alarm.emptyPeers'));
     });
   });
 

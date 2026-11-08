@@ -144,4 +144,52 @@ describe('CutInEditorComponent', () => {
       expect(fixture.nativeElement.querySelector('img')).not.toBeNull();
     });
   });
+
+  describe('the basic fields', () => {
+    function field(name: string): HTMLInputElement | null {
+      return (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(`input[name="${name}"]`);
+    }
+
+    function type(name: string, value: string): void {
+      const input = field(name)!;
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+    }
+
+    it('writes the name, the tag and the seconds it shows into the cut-in as they are typed', async () => {
+      await fixture.whenStable();
+
+      type('cut-in-name', 'オープニング');
+      type('cut-in-tag-name', 'BGM');
+      type('cut-in-out-time', '5');
+
+      expect([cutIn.name, cutIn.tagName, cutIn.outTime]).toEqual(['オープニング', 'BGM', 5]);
+    });
+
+    it('has number fields for the width, the height and the place across and down', () => {
+      const names = ['cut-in-width', 'cut-in-height', 'cut-in-x-pos-num', 'cut-in-y-pos-num'];
+
+      expect(names.map((name) => field(name)?.type)).toEqual(['number', 'number', 'number', 'number']);
+    });
+
+    it('has the boxes for keeping the aspect ratio, looping, playing a video and starting from the chat', () => {
+      const names = ['keepImageAspect', 'cutInIsLoop', 'cutInIsVideo', 'chatActivate'];
+
+      expect(names.map((name) => field(name)?.type)).toEqual(['checkbox', 'checkbox', 'checkbox', 'checkbox']);
+    });
+
+    it('turns the cut-in into a video from its box, and back', async () => {
+      await fixture.whenStable();
+      const box = field('cutInIsVideo')!;
+      expect(cutIn.isVideoCutIn).toBe(false);
+
+      box.click();
+      expect(cutIn.isVideoCutIn).toBe(true);
+
+      fixture.detectChanges();
+      await fixture.whenStable();
+      box.click();
+      expect(cutIn.isVideoCutIn).toBe(false);
+    });
+  });
 });

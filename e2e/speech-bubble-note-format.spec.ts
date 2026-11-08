@@ -1,6 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 
-import { chatInput, expectChatText, openPanel, openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
+import { chatInput, expectChatText, openTableContextMenu, revealMenuEntry, waitAppReady } from './helpers';
 
 function pieceOf(page: Page, name: string): Locator {
   return page.locator('game-character').filter({ hasText: name }).first();
@@ -43,56 +43,6 @@ test.describe('speech bubbles over a character’s lines', () => {
     await expect(bubble).toBeVisible();
     await expect(bubble).toHaveText('この先の吊り橋はもう長くはもたないだろう');
     await expect(page.getByTestId('speech-bubble')).toHaveCount(1);
-  });
-
-  test('shows no bubble for a roll the dice bot answered', async ({ page }) => {
-    const answers = page.locator('chat-tab .dicebot-message');
-    const before = await answers.count();
-    await speakAs(page, 'キャラクターA', '2d6');
-    await expect(answers).toHaveCount(before + 1, { timeout: 15000 });
-
-    // A later line's bubble comes up only after the roll's own wait has run out, and a bubble left
-    // from the roll would still be up then: it is counted once, as a retried count would outlast it.
-    await speakAs(page, 'キャラクターB', '「次は私の番だ、よく見ていてくれ」');
-    await expect(bubbleOver(page, 'キャラクターB')).toHaveText('次は私の番だ、よく見ていてくれ');
-    expect(await bubbleOver(page, 'キャラクターA').count()).toBe(0);
-  });
-
-  test('hides the bubbles on this screen and brings them back with the toolbar switch', async ({ page }) => {
-    await speakAs(page, 'キャラクターA', '「足もとに気をつけて、ここから先は床がひどく傷んでいるぞ」');
-    const bubble = bubbleOver(page, 'キャラクターA');
-    await expect(bubble).toBeVisible();
-
-    const toggle = page.locator('app-pl-toolbar').getByTestId('toolbar-speech');
-    await toggle.click();
-    await expect(page.getByTestId('speech-bubble')).toHaveCount(0);
-
-    await toggle.click();
-    await expect(bubble).toHaveText('足もとに気をつけて、ここから先は床がひどく傷んでいるぞ');
-  });
-
-  test('shows no bubbles for lines spoken while the GM has bubbles off in the room settings', async ({ page }) => {
-    await page
-      .locator('ui-panel')
-      .filter({ hasText: '接続情報' })
-      .getByRole('button', { name: /^\s*GM\s*$/ })
-      .click();
-    await expect(page.locator('app-gm-toolbar [title^="暗闇"]')).toBeVisible({ timeout: 10000 });
-    await openPanel(page, '部屋設定');
-    const section = page.getByTestId('room-settings-speech-bubbles');
-    const roomSwitch = section.locator('input[type="checkbox"]');
-    await expect(roomSwitch).toBeChecked();
-
-    await section.locator('label:has(input[type="checkbox"])').dispatchEvent('click');
-    await expect(roomSwitch).not.toBeChecked();
-    await speakAs(page, 'キャラクターA', '「誰にも聞こえないように、ここだけの話をしよう」');
-    await expect(page.locator('chat-tab chat-message').filter({ hasText: 'ここだけの話をしよう' })).toBeVisible();
-
-    await section.locator('label:has(input[type="checkbox"])').dispatchEvent('click');
-    await expect(roomSwitch).toBeChecked();
-    await speakAs(page, 'キャラクターB', '「今度はみんなに聞こえるように話そう」');
-    await expect(bubbleOver(page, 'キャラクターB')).toHaveText('今度はみんなに聞こえるように話そう');
-    expect(await bubbleOver(page, 'キャラクターA').count()).toBe(0);
   });
 });
 

@@ -5,6 +5,7 @@ import { ChatMessageService } from '@axe/application/chat/chat-message.service';
 import { ChatPaletteRegistryService } from '@axe/application/chat/chat-palette-registry.service';
 import { NO_SYSTEM_AVATAR, SystemAvatarService } from '@axe/application/chat/system-avatar.service';
 import { LanguageService } from '@axe/application/i18n/language.service';
+import { TRANSLATE_FN } from '@axe/application/i18n/translate.token';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { PanelService } from '@axe/application/ui/panel.service';
@@ -23,6 +24,7 @@ import { Jukebox } from '@axe/domain/media/jukebox';
 import { PeerCursor } from '@axe/domain/peer/peer-cursor';
 import { PeerRole } from '@axe/domain/peer/peer-role';
 import { leftOfSlot, VN_STAGE_SLOT_COUNT } from '@axe/domain/visual-novel/vn-stage-cast';
+import { chatStreamPanelName } from '@axe/features/chat/chat-stream/chat-stream-panel.service';
 import { VisualNovelOverlayComponent } from '@axe/features/visual-novel/visual-novel-overlay/visual-novel-overlay.component';
 import { VN_BACKLOG_PANEL } from '@axe/features/visual-novel/visual-novel-panels';
 import { VisualNovelPlaybackService } from '@axe/features/visual-novel/visual-novel-playback.service';
@@ -273,6 +275,49 @@ describe('VisualNovelOverlayComponent', () => {
     expect(vnMode.active()).toBe(false);
   });
 
+  describe('the buttons round the stage', () => {
+    function button(titleKey: string): HTMLButtonElement {
+      const title = TestBed.inject(TRANSLATE_FN)(titleKey);
+      return (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(`button[title="${title}"]`)!;
+    }
+
+    it('leaves the novel mode from its exit button', () => {
+      createComponent();
+      const vnMode = TestBed.inject(VisualNovelModeService);
+      vnMode.activate();
+
+      button('feature.visualNovel.exit').click();
+
+      expect(vnMode.active()).toBe(false);
+    });
+
+    it('keeps the log open while the staging window is opened beside it', () => {
+      addMessage('m1');
+      createComponent();
+
+      button('feature.visualNovel.log').click();
+      fixture.detectChanges();
+      button('feature.visualNovel.emote.title').click();
+
+      expect(component.isBacklogOpen()).toBe(true);
+      expect(component.isEmotePanelOpen()).toBe(true);
+    });
+
+    it('opens the stream of the tab being read in a window of its own, and puts it away again', async () => {
+      addMessage('m1');
+      createComponent();
+      const panels = TestBed.inject(PanelService);
+      const stream = chatStreamPanelName(tab.identifier);
+
+      button('feature.chat.stream.title').click();
+      await vi.waitFor(() => expect(panels.hasSingle(stream)).toBe(true));
+      fixture.detectChanges();
+      button('feature.chat.stream.title').click();
+
+      expect(panels.hasSingle(stream)).toBe(false);
+    });
+  });
+
   it('lists its keys from the list of keys', () => {
     createComponent();
     component.toggleShortcutHelp();
@@ -375,6 +420,21 @@ describe('VisualNovelOverlayComponent', () => {
 
     expect(component.stageCharacters()).toEqual([]);
     expect(component.bubbleAnchor()).toBeNull();
+  });
+
+  it('draws the line in the window at the foot of the screen, with no balloon, once the layout is ADV', () => {
+    addMessage('レイアウトの確認', 'アリス', addImage());
+    createComponent();
+    component.advance();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.vn-bubble-normal')).not.toBeNull();
+
+    TestBed.inject(VisualNovelSettingsService).setLayout('adv');
+    fixture.detectChanges();
+
+    const lines = [...fixture.nativeElement.querySelectorAll('ruby-text')].map((line: Element) => line.textContent);
+    expect(fixture.nativeElement.querySelector('.vn-bubble-normal')).toBeNull();
+    expect(lines).toEqual(['レイアウトの確認']);
   });
 
   it('keeps the chosen layout where the speaker is on stage', () => {
