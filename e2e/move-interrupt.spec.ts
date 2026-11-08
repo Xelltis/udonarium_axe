@@ -175,12 +175,16 @@ test.describe('interrupting a move', () => {
     const zones = page.getByTestId('zone-mark');
     await expect(zones).toHaveCount(1, { timeout: 5000 });
     await expect(zones.first()).toHaveText('2/20');
+    // The pointer is left over the piece just dropped, whose card comes up there and would lie over
+    // the way into the zone.
+    await page.mouse.move(5, 400);
+    await expect(page.locator('overview-panel')).toHaveCount(0, { timeout: 5000 });
+    const target = await bareOnTheWay(page, start, fight);
 
     await hero.dispatchEvent('contextmenu');
     await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
     await menu.getByText('移動', { exact: true }).click();
-    const target = await bareOnTheWay(page, start, fight);
-    await page.mouse.move(target.x, target.y, { steps: 4 });
+    await page.mouse.move(target.x, target.y);
     await page.mouse.click(target.x, target.y);
 
     const prompt = page.getByTestId('interrupt-prompt');
