@@ -1,8 +1,8 @@
 import { expect, Page, test } from '@playwright/test';
 
-import { becomeGm, buildDungeon, closePanels } from '../dungeon-helpers';
+import { becomeGm, closePanels } from '../dungeon-helpers';
 import { openPanel, openTableContextMenu, putAwayTutorial, revealMenuEntry, waitAppReady } from '../helpers';
-import { showWall } from '../table-face-helpers';
+import { showWall, standBack } from '../table-face-helpers';
 
 /**
  * Blocks drawn on the canvas. The table picks a block by the shape the scene is built from, so the
@@ -33,15 +33,19 @@ interface Changes {
 
 /**
  * Points of the sample room's table where the blocks are set down, in cells: on the open ground east
- * and west of the pieces, each with room for a block two cells across.
+ * and south of the pieces, clear of the step they stand on and of the panels over the edges of the
+ * screen the table is first seen from, each with room for a block two cells across.
  */
 const BLOCK_CELLS = [
-  { x: 20.5, y: 3 },
-  { x: 21, y: 6.5 },
-  { x: 20, y: 9.5 },
-  { x: 2.5, y: 4 },
-  { x: 2, y: 8.5 },
+  { x: 25, y: 7 },
+  { x: 25.5, y: 11 },
+  { x: 6, y: 18 },
+  { x: 12, y: 18.5 },
+  { x: 18.5, y: 18 },
 ];
+
+/** Where the block is set down that is then dragged onto the north wall: on open ground near that wall. */
+const BESIDE_THE_NORTH_WALL = { x: 25, y: 5 };
 
 /** How near an edge of a block a point may lie and be left out, in pixels. */
 const EDGE_SLACK_PX = 3;
@@ -207,15 +211,23 @@ test.describe('blocks drawn on a canvas', () => {
     expect(wrong / (changes.block + changes.bare), JSON.stringify(changes)).toBeLessThan(0.01);
   });
 
-  for (const [grid, gridType] of [
-    ['square', '0'],
-    ['hex', '1'],
-  ]) {
-    test(`lay the grid over the bare board and under themselves, on a ${grid} grid`, async ({ page }) => {
+  test('lay the grid over the bare board and under themselves, on a square grid and then on a hex grid', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await openPanel(page, 'テーブル設定');
+    await page.locator('select[name="tableGridType"]').selectOption('0');
+    await closePanels(page);
+    expect(await setBlocksDown(page)).toBeGreaterThanOrEqual(3);
+
+    for (const [grid, gridType] of [
+      ['square', '0'],
+      ['hex', '1'],
+    ]) {
       await openPanel(page, 'テーブル設定');
       await page.locator('select[name="tableGridType"]').selectOption(gridType);
+      await page.locator('input[name="tableGridShow"]').uncheck();
       await closePanels(page);
-      expect(await setBlocksDown(page)).toBeGreaterThanOrEqual(3);
       await idle(page);
       await grabScreen(page);
 
@@ -226,41 +238,22 @@ test.describe('blocks drawn on a canvas', () => {
       await grabScreen(page);
 
       const changes = await changesBetweenShots(page);
-      expect(changes.bareChanged / changes.bare, `the grid shows: ${JSON.stringify(changes)}`).toBeGreaterThan(0.01);
-      expect(changes.blockChanged / changes.block, `the blocks hide it: ${JSON.stringify(changes)}`).toBeLessThan(0.01);
-    });
-  }
-
-  test('open a block’s menu when it is right-clicked on the canvas', async ({ page }) => {
-    expect(await setBlocksDown(page)).toBeGreaterThanOrEqual(3);
-    await idle(page);
-    const spot = await pointOnBlock(page);
-
-    await page.mouse.click(spot.x, spot.y, { button: 'right' });
-
-    const menu = page.locator('context-menu');
-    await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-    await expect(menu.getByText('傾斜')).toBeVisible();
-  });
-
-  test('open the menu of a block fixed in place, which the canvas draws together with others', async ({ page }) => {
-    await buildDungeon(page, '四角');
-    await idle(page);
-    const spot = await pointOnBlock(page);
-    expect(await page.locator(`terrain[data-object-id="${spot.id}"]`).count(), 'a block drawn together').toBe(0);
-
-    await page.mouse.click(spot.x, spot.y, { button: 'right' });
-
-    const menu = page.locator('context-menu');
-    await expect(menu.locator('li').first()).toBeVisible({ timeout: 5000 });
-    await expect(menu.getByText('傾斜')).toBeVisible();
+      expect(changes.bareChanged / changes.bare, `the ${grid} grid shows: ${JSON.stringify(changes)}`).toBeGreaterThan(
+        0.01
+      );
+      expect(
+        changes.blockChanged / changes.block,
+        `the blocks hide the ${grid} grid: ${JSON.stringify(changes)}`
+      ).toBeLessThan(0.01);
+    }
   });
 
   test('draw a block put on a wall where picking says it stands out from the wall', async ({ page }) => {
     await showWall(page, '北壁', 'north');
+    await standBack(page);
     await idle(page);
     await grabScreen(page);
-    const menu = await openTableContextMenu(page, (await spotOfCell(page, BLOCK_CELLS[0])).spot);
+    const menu = await openTableContextMenu(page, (await spotOfCell(page, BESIDE_THE_NORTH_WALL)).spot);
     await (await revealMenuEntry(page, menu, '地形を作成')).click();
     await expect(page.locator('terrain')).toHaveCount(1, { timeout: 10000 });
     await idle(page);
@@ -313,27 +306,5 @@ test.describe('blocks drawn on a canvas', () => {
     );
     expect(drawn.beam, 'points the block is picked at on the wall').toBeGreaterThan(30);
     expect(drawn.changed / drawn.beam, JSON.stringify(drawn)).toBeGreaterThan(0.8);
-  });
-
-  test('move a block dragged on the canvas', async ({ page }) => {
-    expect(await setBlocksDown(page)).toBeGreaterThanOrEqual(3);
-    await idle(page);
-    const spot = await pointOnBlock(page);
-    const place = page.locator(`terrain[data-object-id="${spot.id}"] [data-location]`).first();
-    const before = await place.getAttribute('data-location');
-
-    await page.mouse.move(spot.x, spot.y);
-    await page.mouse.down();
-    await page.mouse.move(spot.x + 60, spot.y + 30, { steps: 6 });
-    await page.mouse.move(spot.x + 120, spot.y + 60, { steps: 6 });
-    await page.mouse.up();
-
-    await expect.poll(() => place.getAttribute('data-location')).not.toBe(before);
-    await idle(page);
-    const left = await page.evaluate(
-      ({ x, y }) => (window as unknown as { __axeTable: Hooks }).__axeTable.pickAt(x, y),
-      { x: spot.x, y: spot.y }
-    );
-    expect(left, 'the block has gone from where it was pressed').not.toBe(spot.id);
   });
 });

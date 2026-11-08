@@ -29,6 +29,11 @@ function skyShown(page: Page): Promise<boolean | undefined> {
   return page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.sceneStats()?.sky);
 }
 
+/** How many pictures laid behind everything the canvas stands round the board. */
+function backdrops(page: Page): Promise<number | undefined> {
+  return page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.sceneStats()?.backdrops);
+}
+
 /** The colour of the screen at a point, read off a picture of it. */
 async function colourAt(page: Page, x: number, y: number): Promise<number[]> {
   const shot = await page.screenshot({ scale: 'css' });
@@ -49,7 +54,9 @@ async function colourAt(page: Page, x: number, y: number): Promise<number[]> {
 }
 
 test.describe('the sky over a table drawn on a canvas', () => {
-  test('is drawn past the board once the table asks for one, over the page’s background', async ({ page }) => {
+  test('is drawn past the board once the table asks for one, over the page’s background, with a picture laid behind everything stood round the board under it, and none without one', async ({
+    page,
+  }) => {
     await waitAppReady(page);
     await becomeGm(page);
     await closePanels(page);
@@ -67,15 +74,7 @@ test.describe('the sky over a table drawn on a canvas', () => {
     await idle(page);
     const after = await colourAt(page, past.x, past.y);
     expect(Math.max(...after.map((value, index) => Math.abs(value - before[index])))).toBeGreaterThan(20);
-  });
 
-  test('stands a picture laid behind everything round the board under the sky, and none without one', async ({
-    page,
-  }) => {
-    await waitAppReady(page);
-    await becomeGm(page);
-    await closePanels(page);
-    await idle(page);
     await openPanel(page, 'テーブル設定');
     const settings = page.locator('game-table-setting');
     await settings.getByTestId('background-layer-add').click();
@@ -87,14 +86,9 @@ test.describe('the sky over a table drawn on a canvas', () => {
       .locator('input[type="file"]')
       .setInputFiles([{ name: 'far-hills.png', mimeType: 'image/png', buffer: solidPng(400, 60, [90, 80, 140]) }]);
     await expect(picker).toHaveCount(0);
-    const backdrops = () =>
-      page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.sceneStats()?.backdrops);
-    await expect.poll(backdrops).toBe(0);
-
-    await page.getByTestId('table-sky-kind').selectOption('clock');
-    await expect.poll(backdrops).toBe(1);
+    await expect.poll(() => backdrops(page)).toBe(1);
 
     await page.getByTestId('table-sky-kind').selectOption('');
-    await expect.poll(backdrops).toBe(0);
+    await expect.poll(() => backdrops(page)).toBe(0);
   });
 });

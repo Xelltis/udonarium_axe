@@ -1,21 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { expect, Page, test } from '@playwright/test';
+import { expect, Locator, Page, test } from '@playwright/test';
 
-import { becomeGm, closePanels } from '../dungeon-helpers';
-import { openPanel, waitAppReady } from '../helpers';
+import { becomeGm, closePanels } from './dungeon-helpers';
+import { openPanel, waitAppReady } from './helpers';
 
 /**
  * The room's 3D models as media: read in from a file, shown by a picture of each and the one chosen
  * turning, tagged, put on a piece by dragging it there, and removed from the room.
  */
-
-type Hooks = {
-  renderer(): string | null;
-  whenIdle(): Promise<void>;
-  sceneStats(): { models: number };
-};
 
 /**
  * A model of the room's own: a bundled model's bytes with a letter of the name of what made it
@@ -42,17 +36,9 @@ function ownCopy(bytes: Buffer): Buffer {
   return copy;
 }
 
-async function modelsDrawn(page: Page): Promise<number> {
-  return page.evaluate(async () => {
-    const hooks = (window as unknown as { __axeTable: Hooks }).__axeTable;
-    await hooks.whenIdle();
-    return hooks.sceneStats().models;
-  });
-}
-
 /** Lets a model dragged from the list go over the middle of a piece on the table. */
-async function dropOnPiece(page: Page, modelId: string, pieceName: string): Promise<void> {
-  const box = (await page.locator('game-character').filter({ hasText: pieceName }).first().boundingBox())!;
+async function dropOnPiece(page: Page, modelId: string, piece: Locator): Promise<void> {
+  const box = (await piece.boundingBox())!;
   await page.evaluate(
     ({ modelId, x, y }) => {
       const carried = new DataTransfer();
@@ -66,16 +52,30 @@ async function dropOnPiece(page: Page, modelId: string, pieceName: string): Prom
   );
 }
 
+/**
+ * Opens a piece's sheet at its settings, runs the step given with the choice of the model it is drawn
+ * as, and closes the sheet again.
+ */
+async function withModelChoice(page: Page, piece: Locator, step: (choice: Locator) => Promise<void>): Promise<void> {
+  await piece.dispatchEvent('contextmenu');
+  await page.locator('context-menu').getByText('詳細を表示').click();
+  const sheet = page.locator('game-character-sheet');
+  await expect(sheet).toBeVisible({ timeout: 10000 });
+  await sheet.locator('button:has(i:text-is("settings"))').first().click();
+  await step(sheet.getByTestId('piece-model'));
+  await page
+    .locator('ui-panel', { has: sheet })
+    .locator('.bg-ui-titlebar button', { hasText: 'close' })
+    .first()
+    .dispatchEvent('click');
+  await expect(sheet).toHaveCount(0);
+}
+
 test.describe('the 3D models of the room as media', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
     await becomeGm(page);
     await closePanels(page);
-    await expect
-      .poll(() => page.evaluate(() => (window as unknown as { __axeTable?: Hooks }).__axeTable?.renderer() ?? null), {
-        timeout: 20000,
-      })
-      .not.toBeNull();
   });
 
   test('reads a model in, shows it by a picture and turning, tags it, puts it on a piece and removes it', async ({
@@ -99,16 +99,20 @@ test.describe('the 3D models of the room as media', () => {
     await library.getByTestId('model-library-tag').filter({ hasText: '石像' }).click();
     await expect(library.getByTestId('model-library-model')).toHaveCount(1);
 
-    const before = await modelsDrawn(page);
+    const piece = page.locator('game-character').filter({ hasText: 'キャラクターB' }).first();
     const pieces = await page.locator('game-character').count();
     const modelId = (await statue.getAttribute('data-model-id'))!;
-    await dropOnPiece(page, modelId, 'キャラクターB');
-    await expect.poll(() => modelsDrawn(page), { timeout: 20000 }).toBeGreaterThan(before);
+    await dropOnPiece(page, modelId, piece);
     await expect(page.locator('game-character')).toHaveCount(pieces);
+    await withModelChoice(page, piece, async (choice) => {
+      await expect(choice.locator('option:checked')).toContainText('statue', { timeout: 20000 });
+    });
 
     await library.getByTestId('model-library-remove').click();
     await page.locator('confirm-dialog').getByRole('button', { name: '削除する' }).click();
     await expect(library.getByTestId('model-library-model').filter({ hasText: 'statue' })).toHaveCount(0);
-    await expect.poll(() => modelsDrawn(page), { timeout: 20000 }).toBe(before);
+    await withModelChoice(page, piece, async (choice) => {
+      await expect(choice.locator('option', { hasText: 'statue' })).toHaveCount(0);
+    });
   });
 });

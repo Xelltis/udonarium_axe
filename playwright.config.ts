@@ -47,9 +47,6 @@ const drawsNothing = {
   ],
 };
 
-/** The specs outside the canvas's own folder that read what the canvas draws, and so run where it is drawn. */
-const LOOKS_AT_CANVAS = [/\/darkness\.spec\.ts/, /\/scene\.spec\.ts/];
-
 /** A browser that has asked for the table to be drawn on a canvas through three.js, as a seat does by default. */
 const drawsOnCanvas = {
   cookies: [],
@@ -144,13 +141,7 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'], storageState: drawsNothing },
-      testIgnore: [
-        /mobile\/.*\.spec\.ts/,
-        /visual\/.*\.spec\.ts/,
-        /server\/.*\.spec\.ts/,
-        /webgl\/.*\.spec\.ts/,
-        ...LOOKS_AT_CANVAS,
-      ],
+      testIgnore: [/mobile\/.*\.spec\.ts/, /visual\/.*\.spec\.ts/, /server\/.*\.spec\.ts/, /webgl\/.*\.spec\.ts/],
       timeout: 60000,
       workers: 8,
     },
@@ -161,12 +152,14 @@ export default defineConfig({
     {
       name: 'chromium-webgl',
       use: { ...devices['Desktop Chrome'], launchOptions: CANVAS_LAUNCH, storageState: drawsOnCanvasPictures },
-      testMatch: [/webgl\/.*\.spec\.ts/, ...LOOKS_AT_CANVAS],
+      testMatch: [/webgl\/.*\.spec\.ts/],
       timeout: 60000,
       workers: 4,
     },
-    // The table drawn through WebGPU: SwiftShader draws WebGPU slower still than WebGL2, so the specs
-    // that drag a piece about many times are given the same time as on WebGL2, and fewer run at once.
+    // The table drawn through WebGPU, only as far as it takes to know the scene comes up through it,
+    // with the board where the camera puts it: SwiftShader draws WebGPU slower still than WebGL2,
+    // everything else the canvas does is the same on both, and how WebGPU draws is held by the
+    // pictures of the visual-webgpu project.
     {
       name: 'chromium-webgpu',
       use: {
@@ -174,21 +167,30 @@ export default defineConfig({
         storageState: { ...drawsOnCanvas, cookies: [withoutSampleModels] },
         launchOptions: WEBGPU_LAUNCH,
       },
-      testMatch: [/webgl\/.*\.spec\.ts/],
+      testMatch: [/webgl\/table-scene\.spec\.ts/],
       timeout: 60000,
       workers: 3,
     },
-    // A phone, with the table on a canvas. Of the specs about the canvas, only the one that does not
-    // build on the table runs here, since a phone has no game master's toolbar to build with.
+    // A phone, with the table not drawn: its specs look at the phone's layout and its touch, worked
+    // through the page and picking, and at none of what the canvas draws.
     {
       name: 'mobile',
+      use: { ...devices['Pixel 7'], reducedMotion: 'reduce', storageState: drawsNothing },
+      testMatch: [/mobile\/.*\.spec\.ts/],
+      timeout: 60000,
+    },
+    // A phone with the table drawn on a canvas, as far as it takes to know the board is drawn where the
+    // camera puts it on a screen of a phone's shape.
+    {
+      name: 'mobile-webgl',
       use: {
         ...devices['Pixel 7'],
         reducedMotion: 'reduce',
         launchOptions: CANVAS_LAUNCH,
         storageState: drawsOnCanvasPictures,
       },
-      testMatch: [/mobile\/.*\.spec\.ts/, /webgl\/table-scene\.spec\.ts/],
+      testMatch: [/webgl\/table-scene\.spec\.ts/],
+      grep: /draws the board where the camera puts it/,
       timeout: 60000,
     },
     // The same pictures of the table drawn on a canvas, through WebGL2 and through WebGPU, each kept

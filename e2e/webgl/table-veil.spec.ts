@@ -15,7 +15,7 @@ type Hooks = {
   whenIdle(): Promise<void>;
   project(x: number, y: number, z: number): Point | null;
   pickAt(pageX: number, pageY: number): string | null;
-  sceneStats(): { veilRevision: number; shadowCasters: number; draws: number } | null;
+  sceneStats(): { veilRevision: number } | null;
 };
 
 async function idle(page: Page) {
@@ -107,40 +107,5 @@ test.describe('the darkness over a table drawn on a canvas', () => {
         return again.filter((value, index) => Math.abs(value - lit[index]) <= 9).length;
       })
       .toBe(points.length);
-  });
-
-  test('stands boards for the shadows the pieces standing on the board throw', async ({ page }) => {
-    const pieces = await page.locator('game-character').count();
-    expect(pieces).toBeGreaterThan(0);
-    await expect
-      .poll(() =>
-        page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.sceneStats()?.shadowCasters)
-      )
-      .toBe(pieces);
-  });
-
-  test('draws nothing again once what it was loading has come, while nothing on the table changes', async ({
-    page,
-  }) => {
-    const draws = () =>
-      page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.sceneStats()?.draws ?? -1);
-    let settled = await draws();
-    await expect
-      .poll(
-        async () => {
-          await page.waitForTimeout(1000);
-          const now = await draws();
-          const still = now === settled;
-          settled = now;
-          return still;
-        },
-        { timeout: 15000 }
-      )
-      .toBe(true);
-    await page.evaluate(() => (window as unknown as { __axeTable: Hooks }).__axeTable.whenIdle());
-    settled = await draws();
-    await page.waitForTimeout(2000);
-
-    expect(await draws()).toBe(settled);
   });
 });

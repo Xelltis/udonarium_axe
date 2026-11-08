@@ -96,6 +96,22 @@ describe('GameTableComponent', () => {
     expect(component.gestureService.suspended).toBe(false);
   });
 
+  it('says why the table is not drawn, where the table would be, once the canvas can be drawn through neither interface', () => {
+    fixture.detectChanges();
+    const scene = TestBed.inject(Table3dService);
+    const notice = () =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-testid="table-scene-unavailable"]');
+    scene.unavailable.set(false);
+    fixture.detectChanges();
+    expect(notice()).toBeNull();
+
+    scene.unavailable.set(true);
+    fixture.detectChanges();
+
+    expect(notice()?.textContent?.trim()).toBeTruthy();
+    expect(notice()!.parentElement!.querySelector('[data-testid="table-scene"]')).not.toBeNull();
+  });
+
   describe('what stands behind the table as a backdrop', () => {
     const root = () => fixture.nativeElement as HTMLElement;
     const follows = (): HTMLElement[] =>

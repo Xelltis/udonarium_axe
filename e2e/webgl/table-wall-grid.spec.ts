@@ -44,6 +44,7 @@ async function grabScreen(page: Page): Promise<void> {
 
 test.describe('the grid over a wall of a table drawn on a canvas', () => {
   test('is laid over the wall’s picture once the table shows its grid', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('ui-widgets', JSON.stringify({ miniPlayer: false })));
     await waitAppReady(page);
     await putAwayTutorial(page);
     await becomeGm(page);

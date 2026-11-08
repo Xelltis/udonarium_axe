@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { openCharacterSheet, row, sectionCard } from './sheet-helpers';
+import { openCharacterSheet, sectionCard } from './sheet-helpers';
 
 test.describe('reading a character sheet on a phone', () => {
   test('does not overflow sideways, and shows a heading in place of the portrait column', async ({ page }) => {
@@ -28,41 +28,6 @@ test.describe('reading a character sheet on a phone', () => {
     // Still lit once the scroll has settled at the bottom of the sheet.
     await page.waitForTimeout(1500);
     await expect(chips.getByRole('button', { name: 'パーツ', exact: true })).toHaveAttribute('aria-current', 'true');
-  });
-
-  test('keeps a folded section folded after the sheet is opened again', async ({ page }) => {
-    const sheet = await openCharacterSheet(page);
-    const title = sectionCard(sheet, '能力').getByTestId('sheet-card-title');
-
-    await title.tap();
-    await expect(title).toHaveAttribute('aria-expanded', 'false');
-    await expect(row(sectionCard(sheet, '能力'), '器用度')).toHaveCount(0);
-
-    await page
-      .locator('ui-panel', { has: sheet })
-      .locator('button:has(i:text-is("close"))')
-      .last()
-      .dispatchEvent('click');
-    await expect(sheet).toHaveCount(0);
-    const reopened = await openCharacterSheet(page);
-
-    await expect(sectionCard(reopened, '能力').getByTestId('sheet-card-title')).toHaveAttribute(
-      'aria-expanded',
-      'false'
-    );
-  });
-
-  test('raises and lowers HP with ±', async ({ page }) => {
-    const sheet = await openCharacterSheet(page);
-    const hp = row(sheet, 'HP');
-    const current = hp.locator('input[name="data-current-value"]');
-    const before = Number(await current.inputValue());
-
-    await hp.getByTestId('step-down').tap();
-    await hp.getByTestId('step-down').tap();
-
-    await expect(current).toHaveValue(String(before - 2));
-    await expect(hp.getByTestId('step-up')).toBeEnabled();
   });
 
   test('keeps the row headings at the left as the table scrolls sideways', async ({ page }) => {

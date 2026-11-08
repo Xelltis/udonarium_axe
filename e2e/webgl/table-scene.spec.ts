@@ -1,7 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 
 import { closePanels } from '../dungeon-helpers';
-import { waitAppReady } from '../helpers';
+import { putAwayTutorial, waitAppReady } from '../helpers';
 
 /**
  * The table drawn on a canvas through three.js, for a seat that has asked for it. The board is drawn
@@ -16,6 +16,7 @@ type SceneHooks = {
   whenIdle(): Promise<void>;
   sceneBoard(): { widthPx: number; depthPx: number } | null;
   project(x: number, y: number, z: number): Point | null;
+  sceneStats(): { draws: number } | null;
 };
 
 /** How far apart two readings of one point may be and still be the same colour. */
@@ -102,12 +103,13 @@ function apart(a: number[], b: number[]): number {
 /**
  * Holds the board the canvas draws against where the camera puts its edges: hiding the canvas
  * changes what shows just inside an edge, where the canvas draws the board, and leaves what shows
- * just outside it, where the canvas draws nothing.
+ * just outside it, where the canvas draws nothing. At least as many edges as asked have to be on the
+ * screen.
  */
-async function expectBoardWhereTheCameraPutsIt(page: Page) {
+async function expectBoardWhereTheCameraPutsIt(page: Page, least = 1) {
   const points = await edgePoints(page);
   // A phone's screen shows one edge of the board, a desktop's all four.
-  expect(points.length, 'edges of the board on the screen with nothing over them').toBeGreaterThanOrEqual(1);
+  expect(points.length, 'edges of the board on the screen with nothing over them').toBeGreaterThanOrEqual(least);
   const read = points.flatMap(({ inside, outside }) => [inside, outside]);
   const canvas = page.getByTestId('table-scene');
   const shown = await coloursAt(page, read);
@@ -128,25 +130,68 @@ async function expectBoardWhereTheCameraPutsIt(page: Page) {
   }
 }
 
+/** Waits for the view to glide to where it was sent and for the canvas to draw it there. */
+async function viewSettled(page: Page) {
+  await page.waitForTimeout(400);
+  await page.evaluate(() => (window as unknown as { __axeTable: SceneHooks }).__axeTable.whenIdle());
+}
+
+/**
+ * Holds the canvas to drawing nothing again while nothing on the table changes, once what it was
+ * loading has come: a frame asked for over and over would keep a graphics card busy for nothing.
+ */
+async function expectNothingDrawnWhileNothingChanges(page: Page) {
+  const draws = () =>
+    page.evaluate(() => (window as unknown as { __axeTable: SceneHooks }).__axeTable.sceneStats()?.draws ?? -1);
+  let settled = await draws();
+  await expect
+    .poll(
+      async () => {
+        await page.waitForTimeout(1000);
+        const now = await draws();
+        const still = now === settled;
+        settled = now;
+        return still;
+      },
+      { timeout: 15000 }
+    )
+    .toBe(true);
+  await page.evaluate(() => (window as unknown as { __axeTable: SceneHooks }).__axeTable.whenIdle());
+  settled = await draws();
+  await page.waitForTimeout(2000);
+  expect(await draws(), 'frames drawn while nothing changed').toBe(settled);
+}
+
+/**
+ * The table drawn on a canvas, with the first table's tutorial put away: its board stands over the
+ * north edge of the table, which the canvas draws past the edge. Seen from near the middle of the
+ * table, a phone's screen shows no edge of the board, so a phone holds the board to the camera only
+ * once the view is pulled back far enough to bring an edge in.
+ */
 test.describe('the table drawn on a canvas', () => {
   test.beforeEach(async ({ page }) => {
     await waitAppReady(page);
+    await putAwayTutorial(page);
     await closePanels(page);
   });
 
   test('draws the board where the camera puts it', async ({ page }) => {
     await sceneDrawn(page);
-    await expectBoardWhereTheCameraPutsIt(page);
-  });
+    const expected = test.info().project.name === 'chromium-webgpu' ? 'webgpu' : 'webgl2';
+    expect(await page.evaluate(() => (window as unknown as { __axeTable: SceneHooks }).__axeTable.renderer())).toBe(
+      expected
+    );
+    await expectBoardWhereTheCameraPutsIt(page, test.info().project.use.isMobile ? 0 : 1);
+    await expectNothingDrawnWhileNothingChanges(page);
 
-  test('keeps the board where the camera puts it as the view is pulled back', async ({ page }) => {
-    await sceneDrawn(page);
     const layer = (await page.locator('#app-table-layer').boundingBox())!;
     await page.mouse.move(layer.x + layer.width / 2, layer.y + layer.height / 2);
     for (let notch = 0; notch < 3; notch++) await page.mouse.wheel(0, 300);
-    // The view glides there, and the canvas is drawn again on each frame of it.
-    await page.waitForTimeout(400);
-    await page.evaluate(() => (window as unknown as { __axeTable: SceneHooks }).__axeTable.whenIdle());
+    await viewSettled(page);
+    for (let notch = 0; notch < 8 && (await edgePoints(page)).length === 0; notch++) {
+      await page.mouse.wheel(0, 300);
+      await viewSettled(page);
+    }
 
     await expectBoardWhereTheCameraPutsIt(page);
   });
@@ -164,31 +209,5 @@ test.describe('the table drawn on a canvas', () => {
     await expect(page.getByTestId('table-scene')).toHaveCount(1);
     await sceneDrawn(page);
     await expectBoardWhereTheCameraPutsIt(page);
-  });
-
-  test('draws through WebGPU where the browser gives an adapter, and through WebGL2 where it does not', async ({
-    page,
-  }) => {
-    await sceneDrawn(page);
-    const expected = test.info().project.name === 'chromium-webgpu' ? 'webgpu' : 'webgl2';
-    expect(await page.evaluate(() => (window as unknown as { __axeTable: SceneHooks }).__axeTable.renderer())).toBe(
-      expected
-    );
-  });
-});
-
-test.describe('a browser that can draw the table through neither interface', () => {
-  test('says why the table is not drawn, where the table would be', async ({ page }) => {
-    await page.addInitScript(() => {
-      Object.defineProperty(navigator, 'gpu', { value: undefined, configurable: true });
-      const ownGetContext = HTMLCanvasElement.prototype.getContext;
-      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, kind: string, ...rest: unknown[]) {
-        if (kind === 'webgl2') return null;
-        return (ownGetContext as (...args: unknown[]) => unknown).call(this, kind, ...rest);
-      } as typeof HTMLCanvasElement.prototype.getContext;
-    });
-    await waitAppReady(page);
-
-    await expect(page.getByTestId('table-scene-unavailable')).toBeVisible({ timeout: 15000 });
   });
 });

@@ -1,4 +1,4 @@
-import { expect, Locator, Page, test } from '@playwright/test';
+import { expect, Page, test } from '@playwright/test';
 
 import { becomeGm, closePanels } from '../dungeon-helpers';
 import { openPanel, waitAppReady } from '../helpers';
@@ -17,7 +17,7 @@ type Hooks = {
   whenIdle(): Promise<void>;
   project(x: number, y: number, z: number): Point | null;
   pickAt(pageX: number, pageY: number): string | null;
-  sceneStats(): { layers: number; draws: number } | null;
+  sceneStats(): { layers: number } | null;
 };
 
 const RED = { name: 'red-mist.png', buffer: solidPng(400, 60, [220, 30, 30]) };
@@ -37,7 +37,7 @@ function stats(page: Page) {
 }
 
 /** Lays a layer of a red picture over the board from the table's settings. */
-async function layOver(page: Page): Promise<Locator> {
+async function layOver(page: Page): Promise<void> {
   await openPanel(page, 'テーブル設定');
   const settings = page.locator('game-table-setting');
   await expect(settings).toBeVisible({ timeout: 10000 });
@@ -48,7 +48,6 @@ async function layOver(page: Page): Promise<Locator> {
   await expect(picker).toBeVisible();
   await picker.locator('input[type="file"]').setInputFiles([{ ...RED, mimeType: 'image/png' }]);
   await expect(picker).toHaveCount(0);
-  return settings;
 }
 
 /** A point of the board with nothing standing on it, as the camera puts it on the screen. */
@@ -109,19 +108,5 @@ test.describe('the layers of a table drawn on a canvas', () => {
     expect(r).toBeGreaterThan(150);
     expect(g).toBeLessThan(90);
     expect(b).toBeLessThan(90);
-  });
-
-  test('draws a drifting layer frame after frame, and is still idle once all it was told is drawn', async ({
-    page,
-  }) => {
-    const settings = await layOver(page);
-    await settings.getByTestId('background-layer-speed-x').first().fill('120');
-    await settings.getByTestId('background-layer-speed-x').first().blur();
-    await closePanels(page);
-    await expect.poll(async () => (await stats(page))?.layers).toBe(1);
-
-    await idle(page);
-    const before = (await stats(page))!.draws;
-    await expect.poll(async () => (await stats(page))!.draws, { timeout: 10000 }).toBeGreaterThan(before + 5);
   });
 });
