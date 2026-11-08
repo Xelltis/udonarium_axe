@@ -249,7 +249,7 @@ export default defineConfig({
           },
           {
             name: 'mobile-safari',
-            use: { ...devices['iPhone 14'], reducedMotion: 'reduce', storageState: alone },
+            use: { ...devices['iPhone 14'], reducedMotion: 'reduce' as const, storageState: alone },
             testMatch: /mobile\/.*\.spec\.ts/,
           },
         ]

@@ -21,7 +21,7 @@ function answerTo(page: Page, roll: string): Locator {
 async function totalOf(answer: Locator): Promise<number> {
   const text = (await answer.locator('.msg-text').innerText()).trim();
   const steps = text.split('→').map((step) => step.trim());
-  return Number(steps.findLast((step) => /^-?\d+$/.test(step)));
+  return Number(steps.filter((step) => /^-?\d+$/.test(step)).at(-1));
 }
 
 /** Picks an entry from an answer's menu. */
