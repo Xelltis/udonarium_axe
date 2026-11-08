@@ -12,7 +12,7 @@
     >
       {{ 'feature.media.modelLibrary.everyTag' | transloco }}
     </button>
-    @for (tag of tags(); track tag) {
+    @for (tag of tags(); track $index) {
       <button
         type="button"
         role="radio"
