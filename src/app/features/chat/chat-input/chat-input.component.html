@@ -252,7 +252,11 @@
         <div
           role="toolbar"
           uiRovingToolbar
-          class="border-ui-input-border flex min-w-0 shrink-0 flex-wrap items-center gap-x-2 border-b border-solid px-1"
+          class="border-ui-input-border flex min-w-0 shrink-0 items-center gap-x-2 border-b border-solid px-1"
+          [class.flex-wrap]="!oneRowBar()"
+          [class.overflow-x-auto]="oneRowBar()"
+          [class.scrollbar-none]="oneRowBar()"
+          [ngClass]="{ 'mask-[linear-gradient(to_right,#000_calc(100%-28px),transparent)]': oneRowBar() }"
           data-testid="chat-input-edits"
           #editsBar
           [attr.aria-label]="'feature.chat.input.bar' | transloco"
@@ -267,10 +271,16 @@
             />
           }
           <div
-            class="flex min-w-0 flex-wrap items-center gap-x-2"
+            class="flex items-center gap-x-2"
+            [class.min-w-0]="!oneRowBar()"
+            [class.flex-wrap]="!oneRowBar()"
+            [class.shrink-0]="oneRowBar()"
             [class.ml-auto]="!narrow()"
             [class.justify-end]="!narrow()"
-            [ngClass]="{ '[&>chat-toolbar]:contents [&>chat-toolbar>[data-testid=chat-toolbar]]:contents': narrow() }"
+            [ngClass]="{
+              '[&>chat-toolbar]:contents [&>chat-toolbar>[data-testid=chat-toolbar]]:contents': narrow(),
+              '**:data-[testid=chat-toolbar]:flex-nowrap': oneRowBar(),
+            }"
           >
             @if (canSpeak()) {
               @defer (when toolbarWanted()) {
@@ -424,7 +434,7 @@
       (click)="togglePanel('colors')"
     >
       <span class="flex flex-col items-center gap-0.5 leading-none">
-        <span class="text-[14px] font-bold pointer-coarse:text-[17px]">A</span>
+        <span class="text-[14px] font-bold">A</span>
         <span data-testid="chat-input-color-ink" class="h-0.75 w-3.5 rounded-full" [ngStyle]="lineInk()"></span>
       </span>
     </button>
@@ -467,7 +477,8 @@
     type="submit"
     data-testid="chat-input-send"
     class="border-ui-accent bg-ui-accent-solid hover:border-ui-accent hover:bg-ui-accent-solid m-0 flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid p-0 text-[12px] font-semibold text-white transition-[background,border-color,filter] hover:text-white hover:shadow-none hover:brightness-110 [&_i]:text-[18px] [&_i]:leading-none"
-    [class.size-8!]="narrow()"
+    [class.size-8!]="oneRowBar()"
+    [ngClass]="{ '[&_i]:text-[16px]': oneRowBar() }"
     [class.m-1!]="narrow()"
     (click)="sendChat(null)"
     [attr.aria-label]="'feature.chat.input.send' | transloco"
