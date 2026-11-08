@@ -9,7 +9,7 @@ import { EffectCast, normalizeEffectCast } from '@axe/domain/effect/effect-cast'
 import { DefeatReaction, defeatReactionOf } from '@axe/domain/effect/effect-defeat';
 import { EffectPreset } from '@axe/domain/effect/effect-preset';
 import { effectFlashColor, EffectShake, effectShakeDelay, effectShakeOf } from '@axe/domain/effect/effect-shake';
-import { impactSoundTimes, isEffectFinished, launchSoundTimes } from '@axe/domain/effect/effect-timeline';
+import { impactSoundTimes, isEffectFinished, launchSoundTimes } from '@axe/domain/effect/effect-sound-times';
 import { SoundEffect } from '@axe/domain/media/sound-effect';
 
 export interface ActiveEffectCast {
