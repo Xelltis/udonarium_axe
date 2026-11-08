@@ -129,9 +129,9 @@ const LIST_ROOM = 240;
 export class ChatInputComponent {
   protected readonly isCompact = inject(ViewportService).isCompact;
   protected readonly barButtonClass =
-    'text-ui-muted hover:bg-ui-hover hover:text-ui-text aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent aria-expanded:bg-ui-hover rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]!';
+    'text-ui-muted hover:bg-ui-hover hover:text-ui-text aria-pressed:bg-ui-accent-bg aria-pressed:text-ui-accent aria-expanded:bg-ui-hover rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 transition-colors hover:shadow-none [&_.material-icons]:text-[17px]! pointer-coarse:h-9 pointer-coarse:min-w-9 pointer-coarse:[&_.material-icons]:text-[21px]!';
   protected readonly barWordButtonClass =
-    'text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent px-1 py-0 text-[12px] font-semibold transition-colors hover:shadow-none';
+    'text-ui-muted hover:bg-ui-hover hover:text-ui-text rounded-ui-sm m-0 flex h-7 min-w-6 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent px-1 py-0 text-[12px] font-semibold transition-colors hover:shadow-none pointer-coarse:h-9 pointer-coarse:min-w-9 pointer-coarse:text-[14px]';
   protected readonly ruleClass = 'bg-ui-border-panel h-4 w-px shrink-0 @max-[420px]:hidden';
   protected readonly colorSampleClass =
     'flex size-5 items-center justify-center rounded-[5px] text-[12px] leading-none font-bold shadow-[0_0_0_1px_var(--ui-border-panel)]';
