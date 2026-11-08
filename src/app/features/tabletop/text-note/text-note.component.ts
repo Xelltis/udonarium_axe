@@ -48,6 +48,7 @@ import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
+import { TurnFrameComponent, type TurnStand } from '@axe/ui/tabletop/turn-frame/turn-frame.component';
 import { decorateChatStyleText } from '@axe/ui/text-decoration/decorate-chat-text';
 import { formatNoteText } from '@axe/ui/text-decoration/format-note-text';
 
@@ -62,6 +63,7 @@ const NOTE_FOOTPRINT = { width: 1, height: 0 } as const;
   templateUrl: './text-note.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    TurnFrameComponent,
     AltitudeGuideComponent,
     HudPlaceDirective,
     MovableDirective,
@@ -116,7 +118,29 @@ export class TextNoteComponent {
   private readonly injector = inject(Injector);
   private readonly translateFn = inject(TRANSLATE_FN);
   /** The corners of the note's panel, round from its top left, where its handles stand: the top two. */
-  protected readonly handleCorners = [0, 1] as const;
+  /**
+   * Where the note stands for the frame that turns it, about the middle of its lower edge, which is
+   * where it hangs from: round the whole of it where it lies, along its foot where it stands up.
+   */
+  protected readonly turnStand = computed<TurnStand>(() => {
+    const note = this.textNote();
+    this.objectChange.versionOf(note.identifier)();
+    const foot = this.pieces.footOf(note);
+    const width = this.width * this.gridSize;
+    const depth = note.isUpright ? 0 : this.height * this.gridSize;
+    return {
+      surface: foot.surface,
+      height: foot.height + Math.max(0, this.altitude) * this.gridSize,
+      foot: {
+        left: foot.x - width / 2,
+        top: foot.y - depth,
+        width,
+        depth,
+        pivot: { x: foot.x, y: foot.y },
+        rotateDeg: note.rotate,
+      },
+    };
+  });
 
   private readonly pieces = inject(TablePiecesService);
   /**

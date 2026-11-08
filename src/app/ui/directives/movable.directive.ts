@@ -1,4 +1,14 @@
-import { afterNextRender, DestroyRef, Directive, effect, ElementRef, inject, input, output } from '@angular/core';
+import {
+  afterNextRender,
+  computed,
+  DestroyRef,
+  Directive,
+  effect,
+  ElementRef,
+  inject,
+  input,
+  output,
+} from '@angular/core';
 import { CoordinateService } from '@axe/application/input/coordinate.service';
 import { PointerCoordinate, PointerDeviceService } from '@axe/application/input/pointer-device.service';
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
@@ -85,7 +95,10 @@ export interface MovableOption {
   readonly footprint?: () => PieceFootprint;
 }
 
-@Directive({ selector: '[appMovable]' })
+@Directive({
+  selector: '[appMovable]',
+  host: { '[attr.data-pressed]': "pressedHere() ? '' : null" },
+})
 export class MovableDirective implements MovableInteractionContext {
   private readonly elementRef = inject(ElementRef);
   private readonly batchService = inject(BatchService);
@@ -133,6 +146,15 @@ export class MovableDirective implements MovableInteractionContext {
   private snapToSquare: MovableOption['snapToSquare'];
 
   readonly option = input.required<MovableOption>({ alias: 'movable.option' });
+
+  /**
+   * Whether this is the thing last pressed on the table, marked on the element so a screen with no
+   * pointer to pass over it, which brings nothing's handles out, brings out this one's alone.
+   */
+  protected readonly pressedHere = computed(() => {
+    const identifier = this.option().tabletopObject?.identifier;
+    return !!identifier && this.selectionSignalService.pressedObject() === identifier;
+  });
   readonly isDisable = input(false, { alias: 'movable.disable' });
   readonly isScratcOwner = input(false, { alias: 'movable.scratch_owner' });
 

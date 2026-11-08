@@ -69,14 +69,7 @@
       <ng-container [ngTemplateOutlet]="livePictureLayer"></ng-container>
     </div>
     @if (!isLock()) {
-      @for (corner of footCorners; track corner) {
-        <div
-          class="rotate-grab pointer-events-auto box-border size-7 cursor-default rounded-[14px] border-2 border-solid border-(--ui-panel-border) bg-(--ui-elevated) p-0 text-(--ui-text-muted) opacity-0 group-hover:opacity-100 group-active:opacity-100"
-          [appHudPlace]="{ owner: id, part: 'face', corner }"
-        >
-          <i class="material-icons text-[20px]!">autorenew</i>
-        </div>
-      }
+      <turn-frame [owner]="id" [stand]="turnStand()" [cornersAlwaysSeen]="true" />
     }
   </div>
 </div>

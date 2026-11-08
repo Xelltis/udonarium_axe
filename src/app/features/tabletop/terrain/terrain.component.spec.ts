@@ -179,7 +179,7 @@ describe('TerrainComponent', () => {
       expect(rotationDisabledFor2dTerrain(false)).toBe(false);
       expect(rotationDisabledFor2dTerrain(false, false)).toBe(false);
       expect(rotationDisabledFor2dTerrain(false, false, true)).toBe(false);
-      expect(fixture.nativeElement.querySelector('.rotate-grab')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('turn-frame')).toBeTruthy();
     });
 
     it('keeps it from a terrain that has been fixed in place', () => {

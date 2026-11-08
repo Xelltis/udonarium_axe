@@ -36,6 +36,7 @@ import { RotableDirective } from '@axe/ui/directives/rotable.directive';
 import { SelectableDirective } from '@axe/ui/directives/selectable.directive';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
+import { TurnFrameComponent, type TurnStand } from '@axe/ui/tabletop/turn-frame/turn-frame.component';
 
 /** How far a pointer may wander between pressing a switch and letting go, and still press it. */
 const PRESS_SLOP_PX = 6;
@@ -44,7 +45,14 @@ const PRESS_SLOP_PX = 6;
   selector: 'terrain',
   templateUrl: './terrain.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AltitudeGuideComponent, HudPlaceDirective, MovableDirective, RotableDirective, SelectableDirective],
+  imports: [
+    TurnFrameComponent,
+    AltitudeGuideComponent,
+    HudPlaceDirective,
+    MovableDirective,
+    RotableDirective,
+    SelectableDirective,
+  ],
   host: {
     class: 'block',
     '[style.display]': "isHiddenByFog() ? 'none' : null",
@@ -70,8 +78,28 @@ export class TerrainComponent {
   /** Whether every button on the screen is saying what it is, switches on the table among them. */
   protected readonly guide = inject(ButtonGuideService);
   private readonly pieces = inject(TablePiecesService);
-  /** The corners of the block's top, round from its top left, where its handles stand. */
-  protected readonly topCorners = [0, 1, 2, 3] as const;
+  /**
+   * Where the block stands for the frame that turns it: its foot on the face it rests on, at its base,
+   * or at the face for one sunk into it, turned about its middle.
+   */
+  protected readonly turnStand = computed<TurnStand>(() => {
+    this.terrainVersion();
+    const foot = this.pieces.footOf(this.terrain());
+    const width = this.width() * this.gridSize;
+    const depth = this.depth() * this.gridSize;
+    return {
+      surface: foot.surface,
+      height: foot.height + Math.max(0, this.altitude()) * this.gridSize,
+      foot: {
+        left: foot.x,
+        top: foot.y,
+        width,
+        depth,
+        pivot: { x: foot.x + width / 2, y: foot.y + depth / 2 },
+        rotateDeg: this.terrain().rotate,
+      },
+    };
+  });
 
   constructor() {
     setupMovableRotableForPiece(this, {
@@ -84,7 +112,7 @@ export class TerrainComponent {
           ...foot,
           x: foot.x + (this.width() * this.gridSize) / 2,
           y: foot.y + (this.depth() * this.gridSize) / 2,
-          height: foot.height + (this.altitude() + this.height()) * this.gridSize,
+          height: this.turnStand().height,
         };
       },
     });

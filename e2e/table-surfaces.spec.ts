@@ -56,6 +56,21 @@ async function farthestApart(face: Locator, surface: string): Promise<number> {
   );
 }
 
+/** Rests the pointer on a point of a face that is on the screen and that nothing else lies over. */
+async function hoverBareOf(page: Page, face: Locator) {
+  const at = await face.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    for (let y = Math.max(box.top, 60); y < Math.min(box.bottom, innerHeight - 60); y += 12) {
+      for (let x = Math.max(box.left, 60); x < Math.min(box.right, innerWidth - 60); x += 12) {
+        if (document.elementFromPoint(x, y)?.closest('white-board [data-surface]') === element) return { x, y };
+      }
+    }
+    return null;
+  });
+  expect(at, 'a bare point of the face on the screen').not.toBeNull();
+  await page.mouse.move(at!.x, at!.y, { steps: 3 });
+}
+
 async function pitchBoard(page: Page, label: string) {
   await page.locator('white-board [data-surface]').dispatchEvent('contextmenu');
   const menu = page.locator('context-menu');
@@ -94,7 +109,11 @@ test.describe('the faces things are put on', () => {
     const board = (await face.getAttribute('data-surface'))!;
     await pitchBoard(page, '斜めに立てる');
     const before = await face.evaluate((element) => element.getBoundingClientRect().toJSON() as object);
-    await turnByHandle(page, page.locator('white-board .rotate-grab').nth(1));
+    // The frame that turns the board comes out with the pointer over the board.
+    await hoverBareOf(page, face);
+    const knob = page.locator('white-board [data-testid="turn-frame-knob"]').nth(2);
+    await expect(knob).toBeVisible({ timeout: 5000 });
+    await turnByHandle(page, knob);
     await expect
       .poll(() => face.evaluate((element) => element.getBoundingClientRect().toJSON() as object))
       .not.toEqual(before);

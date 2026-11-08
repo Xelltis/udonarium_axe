@@ -1,6 +1,7 @@
 <!--
   The block is a box on the screen round where the table's canvas draws it, with its top laid there
-  to be pointed at, its handles at the corners of its top, and the label of its switch over it. A
+  to be pointed at, the frame that turns it lying round its foot, as a piece's ring lies round its
+  pedestal, and the label of its switch over it. A
   press elsewhere on the block reaches it through picking. The top of a block locked in place lets
   the pointer through, as the block lets a press through to a piece behind it, unless it is a door
   to open or a switch to press.
@@ -36,26 +37,7 @@
       [appHudPlace]="{ owner: id, part: 'top' }"
     ></div>
     @if (!isLocked()) {
-      @if (!isHex()) {
-        @for (corner of topCorners; track corner) {
-          <div
-            class="rotate-grab pointer-events-auto box-border flex size-7 cursor-default items-center justify-center rounded-full border-2 border-solid border-(--ui-panel-border) bg-(--ui-elevated) p-0 text-[8px] text-(--ui-text-muted) opacity-0 group-hover:opacity-100 group-active:opacity-100"
-            [appHudPlace]="{ owner: id, part: 'top', corner }"
-          >
-            <i class="material-icons">autorenew</i>
-          </div>
-        }
-      } @else {
-        <div class="pointer-events-none" [appHudPlace]="{ owner: id, part: 'top' }">
-          <div
-            class="rotate-grab pointer-events-auto absolute -inset-3.5 box-border cursor-default rounded-full border-7 border-solid border-(--ui-panel-border) opacity-0 group-hover:opacity-100 group-active:opacity-100"
-          >
-            <div class="material-icons absolute -top-3.5 left-1/2 -translate-x-1/2 text-[28px]! text-(--ui-text-muted)">
-              autorenew
-            </div>
-          </div>
-        </div>
-      }
+      <turn-frame [owner]="id" [stand]="turnStand()" />
     }
     @if (switchLabel(); as label) {
       <div

@@ -87,6 +87,18 @@ describe('TablePickService', () => {
     expect(service.allAt(hidden.x, hidden.y).map((hit) => hit.target.id)).toEqual([near.identifier, far.identifier]);
   });
 
+  it('tells which points of the floor round a block the block itself hides, as the eye sees them', async () => {
+    const block = blockAt(5, 5, 4);
+    await settled();
+
+    const sight = service.sightOf(block.identifier)!;
+
+    // The camera looks from the south, so the floor just north of a tall block lies behind it.
+    expect(sight('floor', 5.5 * GRID, 5 * GRID - 4)).toBe(true);
+    expect(sight('floor', 5.5 * GRID, 6 * GRID + 4)).toBe(false);
+    expect(service.sightOf('not-a-thing')).toBeNull();
+  });
+
   it('makes the targets of the blocks named alone, as it makes them all', async () => {
     const named = blockAt(2, 3);
     blockAt(5, 5);

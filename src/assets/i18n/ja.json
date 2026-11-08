@@ -2434,6 +2434,7 @@
       }
     },
     "tabletop": {
+      "turnFrame": { "name": "向きを変える", "hint": "向きを変える（Alt を押しながら回すと {{step}}° ずつ）" },
       "tutorial": {
         "putAway": "チュートリアルだけを片付ける",
         "board": {

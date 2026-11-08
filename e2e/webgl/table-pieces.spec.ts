@@ -488,27 +488,32 @@ test.describe('pieces drawn on a canvas', () => {
     await expect.poll(() => boxesOf(page, id), { timeout: 5000 }).toEqual([frame, picture]);
   });
 
-  test('turn a die by dragging the handle round it', async ({ page }) => {
+  test('turn a die by dragging a knob of the frame that comes out round its foot', async ({ page }) => {
     const id = await made(page, PIECES[0]);
     const [before] = await boxesOf(page, id);
 
-    // The handle runs round the die's frame, and is grabbed just below it, where the die's picture
-    // standing up does not cover it.
+    // The frame comes out with the pointer over the die, a knob at each corner of it.
     const middle = { x: before.x + before.width / 2, y: before.y + before.height / 2 };
-    const reach = before.height / 2 + 11;
-    await page.mouse.move(middle.x, middle.y + reach);
+    await page.mouse.move(middle.x, middle.y);
+    const knob = page.locator(`dice-symbol[data-object-id="${id}"] [data-testid="turn-frame-knob"]`).nth(2);
+    await expect(knob).toBeVisible({ timeout: 5000 });
+    const grab = (await knob.boundingBox())!;
+    const from = { x: grab.x + grab.width / 2, y: grab.y + grab.height / 2 };
+    const reach = Math.hypot(from.x - middle.x, from.y - middle.y);
+    const start = Math.atan2(from.y - middle.y, from.x - middle.x);
+    await page.mouse.move(from.x, from.y, { steps: 4 });
     await page.mouse.down();
     // An eighth of a turn round the middle, which a square shows by growing its box.
     for (const step of [1, 2, 3]) {
-      const turn = (step / 3) * (Math.PI / 4);
-      await page.mouse.move(middle.x - Math.sin(turn) * reach, middle.y + Math.cos(turn) * reach, { steps: 4 });
+      const turn = start + (step / 3) * (Math.PI / 4);
+      await page.mouse.move(middle.x + Math.cos(turn) * reach, middle.y + Math.sin(turn) * reach, { steps: 4 });
     }
     await page.mouse.up();
 
     await expect.poll(async () => (await boxesOf(page, id))[0].width / before.width).toBeGreaterThan(1.2);
   });
 
-  test('turn a block by the handle at a corner of its top', async ({ page }) => {
+  test('turn a block by a knob of the frame that comes out round its foot', async ({ page }) => {
     const menu = await openTableContextMenu(page);
     await (await revealMenuEntry(page, menu, '地形を作成')).click();
     const block = page.locator('terrain').last();
@@ -516,14 +521,16 @@ test.describe('pieces drawn on a canvas', () => {
     await expect(top).toBeVisible({ timeout: 10000 });
     await idle(page);
     const before = (await top.boundingBox())!;
-    const handle = block.locator('.rotate-grab').nth(2);
-    const grab = (await handle.boundingBox())!;
     const middle = { x: before.x + before.width / 2, y: before.y + before.height / 2 };
+    // The frame comes out with the pointer over the block, a knob at each corner of it.
+    await page.mouse.move(middle.x, middle.y);
+    const handle = block.locator('[data-testid="turn-frame-knob"]').nth(2);
+    await expect(handle).toBeVisible({ timeout: 5000 });
+    const grab = (await handle.boundingBox())!;
     const from = { x: grab.x + grab.width / 2, y: grab.y + grab.height / 2 };
     const reach = Math.hypot(from.x - middle.x, from.y - middle.y);
     const start = Math.atan2(from.y - middle.y, from.x - middle.x);
 
-    await page.mouse.move(middle.x, middle.y);
     await page.mouse.move(from.x, from.y, { steps: 4 });
     await page.mouse.down();
     // An eighth of a turn round the middle, which a square top shows by growing its box.

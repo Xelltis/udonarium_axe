@@ -165,6 +165,36 @@ body.touch-input .group-hover\:opacity-100 {
   opacity: 1;
 }
 
+/*
+ * The turn handles of what lies on the table come out as a pointer passes over it, which the rule
+ * above would turn into handles out on everything at once, hiding what they stand round. On a touch
+ * screen only the handles of the thing last pressed come out and take a press, as a piece's do, and
+ * the rest let a tap through to the table. The frame round a block, a die, a note or a board comes
+ * out by the same rule of its own.
+ */
+body.touch-input :is(light-source, range, card) .rotate-grab {
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.touch-input :is(light-source, range, card) [data-pressed] .rotate-grab {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* As faint as a pointer passing over it brings it out. */
+body.touch-input [data-pressed] .rotate-grab.group-hover\:opacity-50 {
+  opacity: 0.5;
+}
+
+body.touch-input [data-pressed] .rotate-grab.group-hover\:opacity-86 {
+  opacity: 0.86;
+}
+
+body.touch-input [data-pressed] .rotate-grab.group-hover\:opacity-90 {
+  opacity: 0.9;
+}
+
 body.mobile-layout ui-panel .grid-cols-2:not([data-own-mobile-layout] *) {
   grid-template-columns: minmax(0, 1fr);
 }

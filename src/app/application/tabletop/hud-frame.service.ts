@@ -52,6 +52,28 @@ export interface HudAnchor {
    * as the handles at the head and the foot of a character's picture.
    */
   readonly edge?: 'top' | 'right' | 'bottom' | 'left';
+  /**
+   * A rectangle lying on a face, its corners round from its top left in the face's own pixels and
+   * lifted some way off it, to lay the element on in perspective at the size given in those pixels,
+   * rather than a part: as the frame round the foot of a thing that turns it, which none of the
+   * thing's own parts lies on.
+   */
+  readonly lay?: HudLay;
+}
+
+/** A rectangle lying on a face for an element to be laid on; see {@link HudAnchor.lay}. */
+export interface HudLay {
+  readonly surface: string;
+  readonly corners: readonly [FacePoint, FacePoint, FacePoint, FacePoint];
+  readonly height: number;
+  readonly width: number;
+  readonly depth: number;
+}
+
+/** A point of a face, in the face's own pixels. */
+interface FacePoint {
+  readonly x: number;
+  readonly y: number;
 }
 
 /** The corners an edge of a part runs between, round from its top left. */
@@ -182,13 +204,16 @@ export class HudFrameService {
       const scale = point && beside ? Math.min(largest, Math.hypot(beside.x - point.x, beside.y - point.y)) : null;
       const reach = placed.anchor.reach;
       const end = point && reach ? this.surfaces.pageOf(reach.surface, reach.x, reach.y, reach.height) : null;
+      const lay = placed.anchor.lay;
       const style = !piece
         ? null
-        : at && reach
-          ? point && end && laidBetween(point, end, piece)
-          : at
-            ? point && centredOn(point, piece, scale)
-            : styleOf(placed.anchor, piece, ranks.get(placed.anchor.owner) ?? 0, sizes.get(element), origin, largest);
+        : lay
+          ? laidOn(lay, (x, y) => this.surfaces.pageOf(lay.surface, x, y, lay.height), piece)
+          : at && reach
+            ? point && end && laidBetween(point, end, piece)
+            : at
+              ? point && centredOn(point, piece, scale)
+              : styleOf(placed.anchor, piece, ranks.get(placed.anchor.owner) ?? 0, sizes.get(element), origin, largest);
       const written = style ? JSON.stringify(style) : '';
       if (written === placed.written) continue;
       placed.written = written;
@@ -224,6 +249,29 @@ function centredOn(point: { x: number; y: number }, piece: PiecePageBoxes, scale
     transform: `translate(${px(point.x - piece.whole.left)}, ${px(point.y - piece.whole.top)})${scaled} translate(-50%, -50%)`,
     width: null,
     height: null,
+    zIndex: '',
+  };
+}
+
+/**
+ * The style that lays an element on a rectangle lying on a face, within the root of a piece drawn in
+ * these boxes, its own box drawn onto where the rectangle's corners are drawn; none where a corner is
+ * not drawn.
+ */
+function laidOn(
+  lay: HudLay,
+  pageOf: (x: number, y: number) => { x: number; y: number } | null,
+  piece: PiecePageBoxes
+): HudStyle | null {
+  const corners = lay.corners.map((corner) => pageOf(corner.x, corner.y));
+  if (corners.some((corner) => corner === null)) return null;
+  const [a, b, c, d] = corners.map((corner) => ({ x: corner!.x - piece.whole.left, y: corner!.y - piece.whole.top }));
+  const matrix = quadMatrix(lay.width, lay.depth, [a, b, c, d]);
+  if (!matrix) return null;
+  return {
+    transform: `matrix3d(${matrix.map((value) => Math.round(value * 1e6) / 1e6).join(', ')})`,
+    width: px(lay.width),
+    height: px(lay.depth),
     zIndex: '',
   };
 }

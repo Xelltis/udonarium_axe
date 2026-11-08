@@ -141,24 +141,37 @@ export class TablePickService {
       ...(mask ? { opaqueAt: (_shape, u, v) => !seesThroughAt(mask, { u, v }) } : {}),
     };
     return {
-      hides: (surface, x, y, height = 0) => {
-        if (sprite.hidden) return false;
-        const point = this.surfaces.boardPointOf(surface, x, y, height);
-        const page = this.surfaces.pageOf(surface, x, y, height);
-        const ray = page ? this.rayAt(page.x, page.y) : null;
-        const hit = ray ? pickFirst([target], ray) : null;
-        if (!point || !ray || !hit) return false;
-        const along =
-          (point.x - ray.origin.x) * ray.direction.x +
-          (point.y - ray.origin.y) * ray.direction.y +
-          (point.z - ray.origin.z) * ray.direction.z;
-        return hit.t < along - HIDDEN_SLACK_PX;
-      },
+      hides: (surface, x, y, height = 0) => !sprite.hidden && this.hiddenBehind([target], surface, x, y, height),
       cornerOnPage: (corner) => {
         const page = pageOfTablePoint(scene, corners[corner].x, corners[corner].y, corners[corner].z);
         return { x: page.x, y: page.y };
       },
     };
+  }
+
+  /**
+   * Whether a thing on the table, by the shapes it is picked by, stands before a point of a face, as
+   * the eye sees it now: for what is drawn round the thing's foot, as the frame that turns it, to leave
+   * out where the thing itself hides it. Null for a thing not picked at all.
+   */
+  sightOf(owner: string): ((surface: string, x: number, y: number, height?: number) => boolean) | null {
+    const targets = this.everyTarget().filter((target) => target.id === owner);
+    if (targets.length === 0) return null;
+    return (surface, x, y, height = 0) => this.hiddenBehind(targets, surface, x, y, height);
+  }
+
+  /** Whether any of the targets given meets the line of sight to a point of a face before the point. */
+  private hiddenBehind(targets: readonly PickTarget[], surface: string, x: number, y: number, height: number): boolean {
+    const point = this.surfaces.boardPointOf(surface, x, y, height);
+    const page = this.surfaces.pageOf(surface, x, y, height);
+    const ray = page ? this.rayAt(page.x, page.y) : null;
+    const hit = ray ? pickFirst(targets, ray) : null;
+    if (!point || !ray || !hit) return false;
+    const along =
+      (point.x - ray.origin.x) * ray.direction.x +
+      (point.y - ray.origin.y) * ray.direction.y +
+      (point.z - ray.origin.z) * ray.direction.z;
+    return hit.t < along - HIDDEN_SLACK_PX;
   }
 
   /** Everything a point of the page lands on, blocks, pieces and looks laid over the ground, nearest the eye first. */

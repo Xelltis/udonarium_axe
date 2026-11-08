@@ -44,12 +44,14 @@ import { SafePipe } from '@axe/ui/pipes/safe.pipe';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { pictureForCanvas } from '@axe/ui/tabletop/picture-for-canvas';
 import { setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
+import { TurnFrameComponent, type TurnStand } from '@axe/ui/tabletop/turn-frame/turn-frame.component';
 
 @Component({
   selector: 'white-board',
   templateUrl: './white-board.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    TurnFrameComponent,
     NgTemplateOutlet,
     HudPlaceDirective,
     MovableDirective,
@@ -87,7 +89,30 @@ export class WhiteBoardComponent {
   private readonly face = viewChild<ElementRef<HTMLElement>>('face');
   private readonly pieces = inject(TablePiecesService);
   /** The corners of the board's face at its foot, where its handles stand over a canvas: bottom left and bottom right. */
-  protected readonly footCorners = [3, 2] as const;
+  /**
+   * Where the board stands for the frame that turns it, about the middle of its foot: round all it
+   * covers of the face it stands on, which is the whole of it lying flat and only its foot standing up.
+   */
+  protected readonly turnStand = computed<TurnStand>(() => {
+    const board = this.version();
+    const foot = this.pieces.footOf(board);
+    const width = board.width * this.gridSize;
+    const height = board.height * this.gridSize;
+    const depth = Math.max(0, height * Math.cos((board.pitch * Math.PI) / 180));
+    const footY = foot.y + height;
+    return {
+      surface: foot.surface,
+      height: foot.height,
+      foot: {
+        left: foot.x,
+        top: footY - depth,
+        width,
+        depth,
+        pivot: { x: foot.x + width / 2, y: footY },
+        rotateDeg: board.rotate,
+      },
+    };
+  });
 
   constructor() {
     setupMovableRotableForPiece(this, {

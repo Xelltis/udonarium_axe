@@ -173,6 +173,35 @@ describe('HudFrameService', () => {
     expect(handle.style.transform).toBe('translate(25px, 30px) translate(-50%, -50%)');
   });
 
+  it('lays an element on a rectangle lying on a face, its own box drawn onto where the corners are drawn', () => {
+    vi.spyOn(TestBed.inject(TableSurfaceService), 'pageOf').mockImplementation((_surface, x, y) => ({
+      x: 75 + x,
+      y: 50 + y,
+    }));
+    const frameBox = element();
+    frame.place(frameBox, {
+      owner: 'die',
+      lay: {
+        surface: 'floor',
+        corners: [
+          { x: 0, y: 0 },
+          { x: 40, y: 0 },
+          { x: 40, y: 20 },
+          { x: 0, y: 20 },
+        ],
+        height: 3,
+        width: 40,
+        depth: 20,
+      },
+    });
+    frame.writeNow();
+
+    expect(TestBed.inject(TableSurfaceService).pageOf).toHaveBeenCalledWith('floor', 40, 20, 3);
+    expect(frameBox.style.transform).toBe('matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)');
+    expect(frameBox.style.width).toBe('40px');
+    expect(frameBox.style.height).toBe('20px');
+  });
+
   it('lays an element as a line from a point of a face down to another, within the root', () => {
     vi.spyOn(TestBed.inject(TableSurfaceService), 'pageOf').mockImplementation((_surface, _x, _y, height = 0) => ({
       x: 100,

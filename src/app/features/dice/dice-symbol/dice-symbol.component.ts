@@ -19,6 +19,7 @@ import { DisclosureService } from '@axe/application/permission/disclosure.servic
 import { RolePermissionService } from '@axe/application/permission/role-permission.service';
 import { ObjectChangeService } from '@axe/application/sync/object-change.service';
 import { PieceMotionsService } from '@axe/application/tabletop/piece-motions.service';
+import { TablePiecesService } from '@axe/application/tabletop/table-pieces.service';
 import { TabletopService } from '@axe/application/tabletop/tabletop.service';
 import { VisionService } from '@axe/application/tabletop/vision.service';
 import { ContextMenuSeparator, ContextMenuService } from '@axe/application/ui/context-menu.service';
@@ -46,6 +47,7 @@ import { DoubleTap } from '@axe/ui/tabletop/double-tap';
 import { HudPlaceDirective } from '@axe/ui/tabletop/hud-place.directive';
 import { hideIconWhileTouched } from '@axe/ui/tabletop/icon-hiding';
 import { setupInputHandler, setupMovableRotableForPiece } from '@axe/ui/tabletop/setup-tabletop-piece';
+import { TurnFrameComponent, type TurnStand } from '@axe/ui/tabletop/turn-frame/turn-frame.component';
 
 /** How long the die rolls before it settles, which is the length of the tumble animation. */
 const TUMBLE_MS = 800;
@@ -59,7 +61,7 @@ const TUMBLE_PATHS = TUMBLES.length;
   selector: 'dice-symbol',
   templateUrl: './dice-symbol.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [HudPlaceDirective, MovableDirective, RotableDirective, SelectableDirective],
+  imports: [TurnFrameComponent, HudPlaceDirective, MovableDirective, RotableDirective, SelectableDirective],
   host: {
     '[style.display]': "isHiddenByFog() ? 'none' : null",
     '[attr.data-object-id]': 'diceSymbol().identifier',
@@ -88,6 +90,7 @@ export class DiceSymbolComponent {
   private readonly translateFn = inject(TRANSLATE_FN);
 
   private readonly motions = inject(PieceMotionsService);
+  private readonly pieces = inject(TablePiecesService);
 
   readonly isHiddenByFog = computed(() => {
     const piece = this.diceSymbol();
@@ -97,6 +100,26 @@ export class DiceSymbolComponent {
   });
 
   readonly diceSymbol = input.required<DiceSymbol>();
+
+  /** Where the die stands for the frame that turns it: its foot on the face it is on, turned about its middle. */
+  protected readonly turnStand = computed<TurnStand>(() => {
+    const die = this.diceSymbol();
+    this.objectChange.versionOf(die.identifier)();
+    const foot = this.pieces.footOf(die);
+    const side = this.size() * this.gridSize;
+    return {
+      surface: foot.surface,
+      height: foot.height,
+      foot: {
+        left: foot.x,
+        top: foot.y,
+        width: side,
+        depth: side,
+        pivot: { x: foot.x + side / 2, y: foot.y + side / 2 },
+        rotateDeg: die.rotate,
+      },
+    };
+  });
 
   /** The face the die shows. Setting it changes the die itself. */
   get face(): string {

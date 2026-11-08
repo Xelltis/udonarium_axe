@@ -63,7 +63,7 @@ describe('TextNoteComponent', () => {
     note.destroy();
   });
 
-  it('is pointed at by its panel laid on the note, its handles at the top corners of the panel, and not round it', () => {
+  it('is pointed at by its panel laid on the note, and turned by the frame round its foot, not by handles on the panel', () => {
     const note = TextNote.create('メモ', '本文');
     fixture.componentRef.setInput('textNote', note);
     fixture.detectChanges();
@@ -77,11 +77,8 @@ describe('TextNoteComponent', () => {
     const panel = placed.find(({ element }) => element.matches('[data-part="panel"]'))!;
     expect(panel.anchor).toEqual({ owner: note.identifier, part: 'panel', place: 'face' });
     expect(panel.element.classList).toContain('pointer-events-auto');
-    const handles = placed.filter(({ element }) => element.matches('.rotate-grab'));
-    expect(handles.map(({ anchor }) => [anchor.part, anchor.corner])).toEqual([
-      ['panel', 0],
-      ['panel', 1],
-    ]);
+    expect(placed.some(({ element }) => element.matches('.rotate-grab'))).toBe(false);
+    expect((fixture.nativeElement as HTMLElement).querySelector('turn-frame')).toBeTruthy();
     note.destroy();
   });
 
