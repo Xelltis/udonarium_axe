@@ -196,13 +196,16 @@ export default defineConfig({
     // The same pictures of the table drawn on a canvas, through WebGL2 and through WebGPU, each kept
     // in a folder of its own. SwiftShader draws WebGPU some three times slower than WebGL2, so a press
     // there is given longer to land, and fewer run at once: six together left a brush laid stroke by
-    // stroke with the clock running, which draws the ground again at every step, past its time.
+    // stroke with the clock running, which draws the ground again at every step, past its time. Six
+    // pages drawing WebGL2 in software at once left one not done laying its first scene after half a
+    // minute, so four run at once there, as for the canvas specs.
     {
       name: 'visual-webgl2',
       use: { ...VISUAL_USE, storageState: drawsThroughWebGl2, launchOptions: CANVAS_LAUNCH },
       testMatch: /visual\/.*\.spec\.ts/,
       retries: 0,
       timeout: 60000,
+      workers: 4,
       snapshotPathTemplate: '{testDir}/visual/__screenshots__/webgl2/{arg}{ext}',
     },
     {
